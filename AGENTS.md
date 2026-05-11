@@ -66,9 +66,28 @@ If the environment inventory does not exist yet:
 * report the missing inventory when it materially affects repeatability
 * do not create fake dependencies on inventory files that are not present in the repository
 
-## 5. Locked Technical Choices
+## 5. Repository Skills
 
-### 5.1 Server
+Repository-maintained skills live under `.agents/skills/`.
+
+Prefer the repository skills below when their trigger matches the task:
+
+* `graft-boot`
+  * use for short startup prompts, resume prompts, or when the first step should be to read `AGENTS.md` and `plan/`
+* `graft-multi-agent-batch`
+  * use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel slices
+* `graft-plugin-scaffold`
+  * use when adding a new `server` plugin or shaping a plugin before implementation
+* `graft-web-module-scaffold`
+  * use when adding a new `web` feature module aligned with backend plugin semantics
+* `graft-validation-runner`
+  * use when choosing the smallest correct validation for `server`, `web`, or cross-boundary work
+
+If a repository skill and this document diverge, follow `AGENTS.md` first and update the skill in the same change.
+
+## 6. Locked Technical Choices
+
+### 6.1 Server
 
 * Go
 * Gin
@@ -79,7 +98,7 @@ If the environment inventory does not exist yet:
 * Casbin
 * robfig/cron
 
-### 5.2 Web
+### 6.2 Web
 
 * Vue 3
 * TypeScript
@@ -90,7 +109,7 @@ If the environment inventory does not exist yet:
 * Axios
 * UnoCSS
 
-### 5.3 Architecture
+### 6.3 Architecture
 
 * plugin-oriented backend
 * lightweight DI / service registry
@@ -99,9 +118,9 @@ If the environment inventory does not exist yet:
 
 Do not switch to React, Naive UI, or a full IoC framework unless the project docs are explicitly revised first.
 
-## 6. Architecture Rules
+## 7. Architecture Rules
 
-### 6.1 Server Core
+### 7.1 Server Core
 
 Core runtime owns:
 
@@ -121,7 +140,7 @@ Business logic must live in plugins.
 
 Do not put business-specific behavior into the platform core.
 
-### 6.2 Plugins
+### 7.2 Plugins
 
 Every backend plugin should follow the same model:
 
@@ -135,7 +154,7 @@ Plugins must depend on public interfaces, not on another plugin's internal imple
 
 Cross-plugin contracts belong in a stable package such as `internal/pluginapi`.
 
-### 6.3 Dependency Injection
+### 7.3 Dependency Injection
 
 The DI layer is intentionally small.
 
@@ -156,7 +175,7 @@ Disallowed responsibilities:
 
 If a design requires implicit behavior to be understandable, it is too complex for this repo.
 
-### 6.4 Web
+### 7.4 Web
 
 Frontend is a platform shell plus feature modules.
 
@@ -179,9 +198,9 @@ Rules:
 * use dynamic menus driven by backend data
 * keep shared state in stores and keep page-local state inside the page or module
 
-## 7. Naming and Boundary Conventions
+## 8. Naming and Boundary Conventions
 
-### 7.1 Server
+### 8.1 Server
 
 * plugin names are short, stable, lowercase
 * exported cross-plugin interfaces should be capability-oriented
@@ -190,7 +209,7 @@ Rules:
 * config keys should be namespaced by plugin
 * public cross-plugin return types should be stable capability DTOs, not raw database models
 
-### 7.2 Web
+### 8.2 Web
 
 * route names should be stable and unique
 * page components should reflect module intent, not UI widget names
@@ -199,7 +218,7 @@ Rules:
 * module pages should align with backend permissions and menu metadata instead of inventing parallel frontend-only
   access rules
 
-## 8. Implementation Priorities
+## 9. Implementation Priorities
 
 When building new functionality, prefer this order:
 
@@ -217,9 +236,9 @@ For v1, prioritize:
 
 Do not start Docker, SSH, monitor, or workflow plugins before the core extension path is stable.
 
-## 9. Execution Rules
+## 10. Execution Rules
 
-### 9.1 Module Placement
+### 10.1 Module Placement
 
 When asked to add a new capability:
 
@@ -228,7 +247,7 @@ When asked to add a new capability:
 * default to a `web/src/modules/<name>` entry path unless the page is a shell-level concern
 * define menu, route, permission, API, and public service boundaries before writing code
 
-### 9.2 Explicitness
+### 10.2 Explicitness
 
 When unsure:
 
@@ -237,7 +256,7 @@ When unsure:
 * keep the next contributor's mental load low
 * prefer direct construction and visible wiring over hidden framework behavior
 
-### 9.3 New Dependencies
+### 10.3 New Dependencies
 
 When asked to introduce a new dependency:
 
@@ -246,12 +265,12 @@ When asked to introduce a new dependency:
 * avoid adding abstractions that hide control flow
 * reject dependencies that materially weaken plugin boundaries or increase hidden runtime magic without clear benefit
 
-## 10. Validation Rules
+## 11. Validation Rules
 
 Every completed task must pass at least one validation that directly covers the changed code before it is considered
 done.
 
-### 10.1 Server Validation
+### 11.1 Server Validation
 
 For `server` changes:
 
@@ -260,7 +279,7 @@ For `server` changes:
 * prefer wider validation such as `go test ./...` or `go build ./...` when the task changes shared abstractions, plugin
   contracts, lifecycle code, dependency resolution, or startup wiring
 
-### 10.2 Web Validation
+### 11.2 Web Validation
 
 For `web` changes:
 
@@ -268,14 +287,14 @@ For `web` changes:
 * prefer type checking plus production build when both are available
 * at minimum, use the smallest validation that proves changed routes, modules, pages, and TypeScript contracts compile
 
-### 10.3 Cross-Boundary Validation
+### 11.3 Cross-Boundary Validation
 
 If a task changes contracts shared across `server` and `web`, or changes menu/permission/route semantics that affect
 both sides:
 
 * validate both `server` and `web`
 
-### 10.4 Validation Reporting
+### 11.4 Validation Reporting
 
 If validation cannot be run:
 
@@ -286,12 +305,13 @@ If validation cannot be run:
 Warnings or failures in directly affected modules are part of the task scope. Do not ignore them unless the user
 explicitly narrows the task.
 
-## 11. Git Workflow Rules
+## 12. Git Workflow Rules
 
 For repository work:
 
-* if a new task starts while the current branch is `main`, first try to update local `main` from the remote, then
-  create and switch to a dedicated branch before making substantive changes
+* during the current rapid-iteration phase, direct development on `main` is allowed by default
+* create a dedicated branch only when the user explicitly asks for branch isolation, when a release-stabilization
+  workflow requires it, or when the task is risky enough that isolated review is materially safer
 * use branch names in the form `<type>/<topic-or-scope>`
 * if the required validation passes and the task produced changes, create a Git commit unless the user explicitly says
   not to commit
@@ -318,11 +338,11 @@ When a commit needs a body:
 * start each bullet with a verb such as `新增`、`修复`、`优化`、`更新`、`补充`、`重构`
 * make each bullet describe one independent change point
 
-## 12. Automation and CI/CD Rules
+## 13. Automation and CI/CD Rules
 
 Repository automation should follow the same boundary rules as local development.
 
-### 12.1 Pull Request Validation
+### 13.1 Pull Request Validation
 
 When the repository adds CI workflows:
 
@@ -331,8 +351,10 @@ When the repository adds CI workflows:
 * prefer a fast quality or security track plus a build or test track instead of one opaque monolithic job
 * cache dependencies by ecosystem, such as Go modules and frontend package manager caches
 * upload useful failure artifacts or summaries when they materially improve debugging
+* keep current-stage workflows honest about repository maturity; prefer smoke validation over fake full builds when the
+  actual toolchain or artifacts are not stable yet
 
-### 12.2 Release Automation
+### 13.2 Release Automation
 
 When the repository later adds release workflows:
 
@@ -341,7 +363,7 @@ When the repository later adds release workflows:
 * use explicit concurrency control for release or docs publish workflows
 * do not introduce package publishing complexity that the repository does not actually need yet
 
-### 12.3 Security and Maintenance Automation
+### 13.3 Security and Maintenance Automation
 
 When adding repository maintenance workflows:
 
@@ -350,20 +372,20 @@ When adding repository maintenance workflows:
 * prefer Dependabot or equivalent automation for Go modules, frontend dependencies, and GitHub Actions
 * keep optional workflows such as docs publish or benchmarks separate from the main CI path
 
-## 13. License Governance
+## 14. License Governance
 
 This repository is licensed under Apache License 2.0.
 
 Contributors must preserve that licensing posture when changing code, docs, automation, or dependencies.
 
-### 13.1 Repository License Files
+### 14.1 Repository License Files
 
 * do not remove or weaken the top-level `LICENSE` file
 * if the repository later requires a `NOTICE` file or third-party license inventory, keep those files aligned with the
   actual distributed contents
 * do not add repository rules that conflict with Apache-2.0 distribution terms
 
-### 13.2 Source File Headers
+### 14.2 Source File Headers
 
 The repository does not currently enforce a header script or SPDX baseline, so contributors must not invent a fake
 mandatory workflow.
@@ -374,7 +396,7 @@ If the project later adopts source header enforcement:
 * apply the policy consistently across supported source and configuration file types
 * document exclusions for generated files, third-party code, lockfiles, and build output
 
-### 13.3 Dependency and Distribution Compliance
+### 14.3 Dependency and Distribution Compliance
 
 When introducing a new dependency, package, or distributable artifact:
 
@@ -383,7 +405,7 @@ When introducing a new dependency, package, or distributable artifact:
 * avoid adding copyleft or distribution-restrictive dependencies without an explicit repository decision
 * keep future CI license checks lightweight until the repository has a real release pipeline and artifact inventory
 
-## 14. Subagent Usage Rules
+## 15. Subagent Usage Rules
 
 Use subagents only when the task is complex, the context is likely to grow too large, or the work can be split into
 independent parallel subtasks.
@@ -414,7 +436,9 @@ The main agent remains responsible for:
 * final integration
 * final completion judgment
 
-## 15. Complex Task Tracking
+Repository subagent usage is allowed in this project when it follows these rules.
+
+## 16. Complex Task Tracking
 
 For complex, multi-step, or multi-agent work:
 
@@ -426,11 +450,11 @@ For complex, multi-step, or multi-agent work:
 Do not invent mandatory repository structures that do not exist yet, but do preserve enough state that another
 contributor can resume the task without rediscovering every decision.
 
-## 16. Commenting and Documentation Rules
+## 17. Commenting and Documentation Rules
 
 All generated or modified code must include clear and meaningful comments where required by the rules below.
 
-### 16.1 Server Documentation
+### 17.1 Server Documentation
 
 For Go code:
 
@@ -440,7 +464,7 @@ For Go code:
   failure behavior when relevant
 * cross-plugin interfaces must document stability expectations and what callers may depend on
 
-### 16.2 Web Documentation
+### 17.2 Web Documentation
 
 For TypeScript and Vue code:
 
@@ -449,7 +473,7 @@ For TypeScript and Vue code:
 * document why a store exists when the same state could have been page-local
 * document backend contract assumptions when the UI depends on menu, permission, or plugin metadata semantics
 
-### 16.3 Inline Comment Rules
+### 17.3 Inline Comment Rules
 
 Add inline comments for:
 
@@ -462,7 +486,7 @@ Add inline comments for:
 
 Do not add trivial comments that only restate the code.
 
-### 16.4 Architecture-Level Documentation
+### 17.4 Architecture-Level Documentation
 
 Core framework components and plugin-extension primitives must explain:
 
@@ -475,7 +499,7 @@ Core framework components and plugin-extension primitives must explain:
 Missing required documentation is a standards violation. Code that does not meet these documentation rules is
 incomplete.
 
-## 17. Change Management
+## 18. Change Management
 
 When making substantial changes:
 
@@ -489,7 +513,7 @@ If a task reveals that the current docs are wrong:
 * state the new rule clearly
 * then implement against the updated rule
 
-## 18. Code Review Expectations
+## 19. Code Review Expectations
 
 Review for:
 
@@ -503,7 +527,7 @@ Review for:
 
 A change is not acceptable if it makes adding the next plugin or frontend module harder.
 
-## 19. Definition of Done
+## 20. Definition of Done
 
 A task is done only when all relevant items below are satisfied:
 

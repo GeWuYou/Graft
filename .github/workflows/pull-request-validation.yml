@@ -1,0 +1,101 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "AGENTS.md"
+      - "README.md"
+      - "plan/**"
+      - "server/**"
+      - "web/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "AGENTS.md"
+      - "README.md"
+      - "plan/**"
+      - "server/**"
+      - "web/**"
+
+permissions:
+  contents: read
+
+jobs:
+  repo-sanity:
+    name: Repo Sanity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate repository structure
+        run: |
+          set -euo pipefail
+
+          test -f LICENSE
+          test -f README.md
+          test -f AGENTS.md
+
+          if [ -d plan ]; then
+            test -f plan/项目设计.md
+            test -f plan/插件与依赖注入设计.md
+            test -f plan/前端架构设计.md
+            test -f plan/MVP实施计划.md
+          else
+            echo "plan/ is not tracked in this revision; skipping plan checks."
+          fi
+
+          if [ -d server ]; then
+            echo "server/ exists."
+          else
+            echo "server/ is not tracked in this revision; skipping server structure checks."
+          fi
+
+          if [ -d web ]; then
+            echo "web/ exists."
+          else
+            echo "web/ is not tracked in this revision; skipping web structure checks."
+          fi
+
+          if [ -f web/package.json ]; then
+            echo "web/package.json exists."
+          else
+            echo "web/package.json is not tracked in this revision; skipping web package check."
+          fi
+
+  web-smoke:
+    name: Web Smoke
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('web/package.json') != '' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+  server-smoke:
+    name: Server Smoke
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('server/go.mod') != '' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+
+      - name: Run server tests
+        working-directory: server
+        run: go test ./...
