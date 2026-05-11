@@ -36,3 +36,4 @@ go.work.sum
 
 # ai
 .codex/
+.ai/private/

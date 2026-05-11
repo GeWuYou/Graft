@@ -33,6 +33,8 @@
 - Repository-wide implementation sequencing now lives in `ai-plan/roadmap/`.
 - The long-lived branch `feat/mvp-extension-path` has been created and is now the default execution branch for this
   topic.
+- Repository-wide environment truth now lives under `.ai/environment/`, with scripts that regenerate raw and AI-facing
+  inventories.
 - This topic is the default recovery entrypoint for future MVP-path work.
 
 ## Active Risks
@@ -41,16 +43,19 @@
   rather than executable platform milestones.
 - Future work must keep repository-wide design truth and topic-level recovery documents aligned instead of creating a
   second source of truth.
+- The current machine does not have `go` installed, and the repository still lacks `server/go.mod`, so server build
+  expectations must remain explicitly gated in the environment inventory.
 
 ## Latest Validation
 
 - `rg -n -P "(?<!ai-)plan/" AGENTS.md README.md .gitignore .agents/skills -S`
 - `rg -n "ai-plan/" AGENTS.md README.md .gitignore .agents/skills ai-plan -S`
-- `test -f ai-plan/design/项目设计.md`
-- `test -f ai-plan/roadmap/MVP实施计划.md`
-- `test -f ai-plan/public/README.md`
+- `bash scripts/collect-dev-environment.sh --check`
+- `bash scripts/collect-dev-environment.sh --write`
+- `python3 scripts/generate-ai-environment.py`
+- `python3 -c 'import yaml; yaml.safe_load(open(".ai/environment/tools.raw.yaml", "r", encoding="utf-8")); yaml.safe_load(open(".ai/environment/tools.ai.yaml", "r", encoding="utf-8")); print("ok")'`
 
 ## Immediate Next Step
 
-- Start the first substantive MVP implementation task on `feat/mvp-extension-path` and update this file with the
-  current stage, risks, validation result, and next concrete implementation step.
+- Start the first substantive MVP implementation task on `feat/mvp-extension-path` and use `.ai/environment/tools.ai.yaml`
+  as the default environment truth before making runtime or package-manager assumptions.

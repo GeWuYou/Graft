@@ -61,12 +61,19 @@ Before choosing runtimes, package managers, or CLI tools:
 * first read `@.ai/environment/tools.ai.yaml` if it exists
 * use `@.ai/environment/tools.raw.yaml` only when the AI-facing inventory is missing or insufficient
 * prefer repository-relevant installed tools over assumptions about what is available on the system
+* if a change affects repository toolchain expectations or environment guidance, refresh the `.ai/environment/`
+  inventory in the same change instead of leaving generated environment truth stale
 
 If the environment inventory does not exist yet:
 
 * inspect the repository for the actual toolchain before making assumptions
 * report the missing inventory when it materially affects repeatability
 * do not create fake dependencies on inventory files that are not present in the repository
+
+When `.ai/environment/` exists:
+
+* treat `tools.raw.yaml` and `tools.ai.yaml` as generated repository truth, not hand-maintained notes
+* keep repository startup skills aligned with the inventory read order
 
 ## 5. Repository Skills
 

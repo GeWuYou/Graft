@@ -11,6 +11,16 @@
 - Updated `AGENTS.md`, `README.md`, and `graft-boot` so boot and implementation rules now point at `ai-plan/`.
 - Validation target for this change is documentation governance consistency rather than runtime compilation.
 
+## 2026-05-12 `.ai/environment`
+
+- Introduced `.ai/environment/tools.raw.yaml` and `.ai/environment/tools.ai.yaml` as repository-wide environment truth.
+- Added `scripts/collect-dev-environment.sh` and `scripts/generate-ai-environment.py` so the inventory can be
+  regenerated instead of hand-maintained.
+- Updated `README.md`, `AGENTS.md`, `graft-boot`, and the AI governance docs so startup flow reads environment truth
+  before making toolchain assumptions.
+- Captured the current reality that `web` bootstrap files exist, while `server/go.mod` is still absent and `go` is not
+  installed on this machine.
+
 ## Next Step
 
 - Use `ai-plan/public/README.md` plus this topic's tracking file as the default recovery path when substantive MVP work

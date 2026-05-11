@@ -2,6 +2,9 @@
 
 `ai-plan/` stores the repository's architecture truth, implementation roadmaps, and AI task recovery artifacts.
 
+`ai-plan/` is not the same as `.ai/environment/`: `ai-plan/` stores design, roadmap, and recovery truth, while
+`.ai/environment/` stores generated environment truth for AI and contributors.
+
 ## Directory Semantics
 
 - `design/`
