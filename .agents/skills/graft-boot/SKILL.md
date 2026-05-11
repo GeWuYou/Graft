@@ -1,6 +1,6 @@
 ---
 name: graft-boot
-description: Repository-specific startup workflow for Graft. Use when the task starts from a short prompt such as "boot", "continue", "read AGENTS", or "next step", and Codex should first ground itself in AGENTS.md, the plan/ documents, the current repo state, and the likely server/web/plugin boundary before implementation.
+description: Repository-specific startup workflow for Graft. Use when the task starts from a short prompt such as "boot", "continue", "read AGENTS", or "next step", and Codex should first ground itself in AGENTS.md, the ai-plan/ documents, the current repo state, and the likely server/web/plugin boundary before implementation.
 ---
 
 # Graft Boot
@@ -12,25 +12,27 @@ Treat `AGENTS.md` as the source of truth. This skill is a startup workflow, not 
 ## Startup Workflow
 
 1. Read `AGENTS.md`.
-2. Read the relevant documents in `plan/`, starting with:
-   - `plan/项目设计.md`
-   - `plan/插件与依赖注入设计.md`
-   - `plan/前端架构设计.md`
-   - `plan/MVP实施计划.md`
-3. Inspect the current repository state before assuming toolchains or entrypoints exist.
-4. Classify the task into one of:
+2. Read the relevant repository-wide documents in `ai-plan/`, starting with:
+   - `ai-plan/design/项目设计.md`
+   - `ai-plan/design/插件与依赖注入设计.md`
+   - `ai-plan/design/前端架构设计.md`
+   - `ai-plan/roadmap/MVP实施计划.md`
+3. Read `ai-plan/public/README.md` and any active topic tracking or trace files mapped to the current branch or
+   worktree.
+4. Inspect the current repository state before assuming toolchains or entrypoints exist.
+5. Classify the task into one of:
    - `server/core`
    - `server plugin`
    - `web module`
    - `cross-boundary`
    - `docs or automation`
-5. Identify the first concrete boundary decision before editing:
+6. Identify the first concrete boundary decision before editing:
    - core or plugin
    - public service interface or internal-only code
    - menu, route, page, API, permission linkage
    - required validation scope
-6. If the task is complex and splits into disjoint parallel slices, consider `graft-multi-agent-batch`.
-7. Before edits, tell the user what you read, how you classified the task, and the first implementation step.
+7. If the task is complex and splits into disjoint parallel slices, consider `graft-multi-agent-batch`.
+8. Before edits, tell the user what you read, how you classified the task, and the first implementation step.
 
 ## Recovery Rules
 

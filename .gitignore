@@ -28,5 +28,11 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+# project
+# keep architecture, roadmap, and recovery docs under ai-plan/ tracked
+
+# ai
+.codex/

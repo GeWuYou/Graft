@@ -26,19 +26,21 @@ Do not optimize for:
 
 ## 2. Source of Truth
 
-Before changing code or structure, read the documents in `plan/`.
+Before changing code or structure, read the relevant documents in `ai-plan/`.
 
 Authoritative documents:
 
-* [plan/项目设计.md](plan/项目设计.md)
-* [plan/插件与依赖注入设计.md](plan/插件与依赖注入设计.md)
-* [plan/前端架构设计.md](plan/前端架构设计.md)
-* [plan/MVP实施计划.md](plan/MVP实施计划.md)
+* [ai-plan/design/项目设计.md](ai-plan/design/项目设计.md)
+* [ai-plan/design/插件与依赖注入设计.md](ai-plan/design/插件与依赖注入设计.md)
+* [ai-plan/design/前端架构设计.md](ai-plan/design/前端架构设计.md)
+* [ai-plan/roadmap/MVP实施计划.md](ai-plan/roadmap/MVP实施计划.md)
+* [ai-plan/design/AI任务追踪与恢复设计.md](ai-plan/design/AI任务追踪与恢复设计.md) when the task changes
+  tracking, recovery, or documentation-governance rules
 
 If code and docs diverge, update the docs first or in the same change.
 
 When a task changes architecture, plugin boundaries, lifecycle semantics, or frontend module conventions, the related
-`plan/` document must be updated before the task is considered complete.
+`ai-plan/design/` or `ai-plan/roadmap/` document must be updated before the task is considered complete.
 
 ## 3. Repository Terms
 
@@ -73,7 +75,7 @@ Repository-maintained skills live under `.agents/skills/`.
 Prefer the repository skills below when their trigger matches the task:
 
 * `graft-boot`
-  * use for short startup prompts, resume prompts, or when the first step should be to read `AGENTS.md` and `plan/`
+  * use for short startup prompts, resume prompts, or when the first step should be to read `AGENTS.md` and `ai-plan/`
 * `graft-multi-agent-batch`
   * use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel slices
 * `graft-plugin-scaffold`
@@ -443,12 +445,46 @@ Repository subagent usage is allowed in this project when it follows these rules
 For complex, multi-step, or multi-agent work:
 
 * keep an explicit execution record if the task would be hard to resume safely from chat history alone
-* prefer a repository-local path such as `ai-plan/` when the project later adds that workflow
-* if no dedicated tracking directory exists, record the minimum required state in the working conversation and final
-  summary
+* use the repository-local `ai-plan/` workflow instead of inventing ad-hoc tracking files
+* read `ai-plan/public/README.md` before scanning active topics when resuming or booting into complex work
+* keep repository-wide design truth in `ai-plan/design/` and `ai-plan/roadmap/`
+* keep active topic recovery state under `ai-plan/public/<topic>/`
 
-Do not invent mandatory repository structures that do not exist yet, but do preserve enough state that another
-contributor can resume the task without rediscovering every decision.
+`ai-plan/` uses these directory semantics:
+
+* `ai-plan/design/`
+  * repository-wide architecture and design truth
+* `ai-plan/roadmap/`
+  * repository-wide implementation plans and staged delivery documents
+* `ai-plan/public/README.md`
+  * shared startup index that maps branches or worktrees to active topics
+* `ai-plan/public/<topic>/todos/`
+  * recovery-safe tracking documents for one active topic
+* `ai-plan/public/<topic>/traces/`
+  * execution traces for one active topic
+* `ai-plan/public/<topic>/design/`
+  * topic-specific design documents that do not belong in repository-wide design truth
+* `ai-plan/public/<topic>/roadmap/`
+  * topic-specific implementation plans that do not belong in repository-wide roadmap truth
+* `ai-plan/public/<topic>/archive/`
+  * archived stage-level artifacts for an active topic
+* `ai-plan/public/archive/<topic>/`
+  * completed-topic archive that should not be treated as default boot context
+
+Use these workflow rules:
+
+* `ai-plan/public/README.md` must list only active topics
+* when a branch or worktree has an active-topic mapping, read its tracking and trace files before substantive work
+* when working from a tracked topic, update the corresponding tracking document in the same change
+* for complex work, maintain a matching trace that records the current date, key decisions, validation milestones, and
+  the immediate next step
+* keep active tracking and trace files concise enough to serve as recovery entrypoints
+* when a stage inside an active topic is complete, move detailed history into that topic's `archive/` and keep only the
+  active recovery point in the default boot path
+* when a topic is fully complete, move the entire topic directory under `ai-plan/public/archive/<topic>/` and remove it
+  from `ai-plan/public/README.md` in the same change
+* never record absolute file-system paths in `ai-plan/**`; use repository-relative paths, branch names, commit ids, PR
+  numbers, and validation commands instead
 
 ## 17. Commenting and Documentation Rules
 
@@ -503,8 +539,8 @@ incomplete.
 
 When making substantial changes:
 
-* explain which `plan/` section the change follows
-* keep architecture changes aligned with `plan/`
+* explain which `ai-plan/design/` or `ai-plan/roadmap/` section the change follows
+* keep architecture changes aligned with `ai-plan/`
 * avoid silent changes to core conventions
 
 If a task reveals that the current docs are wrong:
@@ -524,6 +560,7 @@ Review for:
 * divergence from Vue 3 + TDesign web rules
 * missing tests around plugin lifecycle, dependency ordering, authorization, and dynamic menu/route behavior
 * undocumented public interfaces or lifecycle-sensitive code
+* divergence between `ai-plan/design/`, `ai-plan/roadmap/`, and active topic recovery documents
 
 A change is not acceptable if it makes adding the next plugin or frontend module harder.
 
@@ -531,7 +568,7 @@ A change is not acceptable if it makes adding the next plugin or frontend module
 
 A task is done only when all relevant items below are satisfied:
 
-* the change follows the current `plan/` documents, or the docs were updated first
+* the change follows the current `ai-plan/` documents, or the docs were updated first
 * `server` and `web` boundaries are still clear
 * new module work keeps the `menu + route + page + api + permission` path explicit
 * affected code has the required comments and documentation
