@@ -33,6 +33,8 @@ Authoritative documents:
 * [ai-plan/design/项目设计.md](ai-plan/design/项目设计.md)
 * [ai-plan/design/插件与依赖注入设计.md](ai-plan/design/插件与依赖注入设计.md)
 * [ai-plan/design/前端架构设计.md](ai-plan/design/前端架构设计.md)
+* [ai-plan/design/TDesign-MCP-辅助开发规范.md](ai-plan/design/TDesign-MCP-辅助开发规范.md) when the task changes
+  TDesign Vue Next pages, components, styles, or frontend AI-assisted development workflow
 * [ai-plan/roadmap/MVP实施计划.md](ai-plan/roadmap/MVP实施计划.md)
 * [ai-plan/design/AI任务追踪与恢复设计.md](ai-plan/design/AI任务追踪与恢复设计.md) when the task changes
   tracking, recovery, or documentation-governance rules
@@ -206,6 +208,10 @@ Rules:
 * keep new modules aligned with `menu + route + page + api + permission`
 * use dynamic menus driven by backend data
 * keep shared state in stores and keep page-local state inside the page or module
+* when generating, modifying, or reviewing TDesign Vue Next code with AI assistance, query TDesign MCP or official
+  TDesign docs before relying on component props, events, slots, DOM structure, or changelog details
+* configure TDesign MCP on the active AI coding client, with Codex as the default AI coding entrypoint for this
+  repository; Rider MCP setup is only required when using Rider AI Assistant for frontend code generation
 
 ## 8. Naming and Boundary Conventions
 
