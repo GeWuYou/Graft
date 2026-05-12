@@ -17,7 +17,7 @@ func TestLoadReadsDotenv(t *testing.T) {
 		"GRAFT_APP_ENV=test",
 		"GRAFT_HTTP_ADDR=:18080",
 		"GRAFT_DATABASE_DRIVER=postgres",
-		"GRAFT_DATABASE_DSN=host=db user=graft password=graft dbname=graft sslmode=disable",
+		"GRAFT_DATABASE_URL=postgres://graft:graft@db:5432/graft?sslmode=disable",
 		"GRAFT_REDIS_ADDR=redis:6379",
 		"GRAFT_REDIS_DB=2",
 		"GRAFT_LOG_LEVEL=debug",
@@ -76,7 +76,7 @@ func TestValidateRejectsUnsupportedDatabaseDriver(t *testing.T) {
 		},
 		Database: DatabaseConfig{
 			Driver: "sqlite",
-			DSN:    "ignored",
+			URL:    "postgres://graft:graft@db:5432/graft?sslmode=disable",
 		},
 		Redis: RedisConfig{
 			Addr: "localhost:6379",
@@ -88,7 +88,7 @@ func TestValidateRejectsUnsupportedDatabaseDriver(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsMissingDatabaseDSN(t *testing.T) {
+func TestValidateRejectsMissingDatabaseURL(t *testing.T) {
 	cfg := &Config{
 		App: AppConfig{
 			Name: "graft",
@@ -106,7 +106,7 @@ func TestValidateRejectsMissingDatabaseDSN(t *testing.T) {
 	}
 
 	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected missing database DSN error")
+		t.Fatal("expected missing database URL error")
 	}
 }
 

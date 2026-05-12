@@ -8,14 +8,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/menu"
-	"graft/server/internal/migration"
 	"graft/server/internal/permission"
+	"graft/server/internal/store"
 )
 
 // Plugin declares the stable lifecycle contract for all backend plugins.
@@ -26,9 +25,9 @@ type Plugin interface {
 	Version() string
 	// DependsOn returns required plugin names that must register first.
 	DependsOn() []string
-	// Register declares routes, permissions, menus, migrations, jobs, and services.
+	// Register declares routes, permissions, menus, jobs, and services.
 	Register(ctx *Context) error
-	// Boot starts runtime behavior after all registrations and migrations complete.
+	// Boot starts runtime behavior after all registrations complete.
 	Boot(ctx *Context) error
 	// Shutdown releases runtime resources in reverse startup order.
 	Shutdown(ctx *Context) error
@@ -37,13 +36,12 @@ type Plugin interface {
 // Context exposes the explicit runtime handles that plugins may use.
 type Context struct {
 	Config             *config.Config
-	DB                 *gorm.DB
 	Redis              *redis.Client
 	Router             gin.IRouter
 	Services           *container.Container
+	Stores             store.Factory
 	MenuRegistry       *menu.Registry
 	PermissionRegistry *permission.Registry
-	MigrationRegistry  *migration.Registry
 	CronRegistry       *cronx.Registry
 }
 

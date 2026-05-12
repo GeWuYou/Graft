@@ -23,6 +23,23 @@
   plugin boundaries unless the implementation contract is tightened first.
 - Validation target for this change is cross-document consistency across the owned `ai-plan/` files.
 
+## 2026-05-12 Ent runtime migration
+
+- Replaced the `server` database bootstrap from GORM to an Ent-backed client built on the pgx `database/sql` driver.
+- Changed `server` database config from `GRAFT_DATABASE_DSN` to `GRAFT_DATABASE_URL` so runtime and Atlas CLI can share
+  one PostgreSQL connection format.
+- Removed `*gorm.DB` and the runtime migration registry from `plugin.Context`, and replaced the plugin-facing data
+  boundary with a repository / store factory.
+- Added a Cobra-based CLI entrypoint with explicit `graft migrate up` and `graft serve` commands.
+- Added the initial Ent user schema, generated client code, Atlas-versioned SQL migration file, and `atlas.sum`
+  baseline under `server/internal/ent/`.
+- Updated the sample `user` plugin to resolve its data through the new repository boundary instead of returning a
+  hard-coded shell payload.
+- Direct validation completed for code generation, module tidy, `go build ./cmd/graft`, `go test ./...`, and CLI help
+  output for both the root command and the `migrate` subtree.
+- Remaining validation gap: Atlas apply was not executed against a live PostgreSQL database in this environment because
+  the `atlas` CLI is not installed and no disposable database target was provisioned.
+
 ## 2026-05-12 `.ai/environment`
 
 - Introduced `.ai/environment/tools.raw.yaml` and `.ai/environment/tools.ai.yaml` as repository-wide environment truth.
@@ -69,5 +86,5 @@
 
 ## Next Step
 
-- Define the concrete `server` migration plan for Ent integration, Atlas CLI execution, and the repository / store
-  factory contract before touching runtime implementation.
+- Run the first end-to-end Atlas migration against a disposable PostgreSQL database and add focused tests for the new
+  repository/store boundary and CLI migration failure paths.

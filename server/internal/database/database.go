@@ -1,24 +1,58 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	entsql "entgo.io/ent/dialect/sql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"graft/server/internal/config"
+	"graft/server/internal/ent"
 )
 
-// Open creates the PostgreSQL GORM connection required by the server runtime.
-func Open(cfg config.DatabaseConfig) (*gorm.DB, error) {
+// Resources owns the SQL pool and Ent client required by the server runtime.
+type Resources struct {
+	SQL    *sql.DB
+	Client *ent.Client
+}
+
+// Open creates the PostgreSQL resources required by the server runtime.
+func Open(cfg config.DatabaseConfig) (*Resources, error) {
 	if cfg.Driver != "postgres" {
 		return nil, fmt.Errorf("unsupported database driver %q: only postgres is supported", cfg.Driver)
 	}
 
-	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{})
+	sqlDB, err := sql.Open("pgx", cfg.URL)
 	if err != nil {
-		return nil, fmt.Errorf("open postgres database: %w", err)
+		return nil, fmt.Errorf("open postgres database pool: %w", err)
 	}
 
-	return db, nil
+	driver := entsql.OpenDB("postgres", sqlDB)
+
+	return &Resources{
+		SQL:    sqlDB,
+		Client: ent.NewClient(ent.Driver(driver)),
+	}, nil
+}
+
+// Close releases the Ent client and underlying SQL pool.
+func Close(resources *Resources) error {
+	if resources == nil {
+		return nil
+	}
+
+	if resources.Client != nil {
+		if err := resources.Client.Close(); err != nil {
+			return fmt.Errorf("close ent client: %w", err)
+		}
+	}
+
+	if resources.SQL != nil {
+		if err := resources.SQL.Close(); err != nil {
+			return fmt.Errorf("close sql pool: %w", err)
+		}
+	}
+
+	return nil
 }

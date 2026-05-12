@@ -48,6 +48,10 @@
   application startup, not during runtime boot.
 - Plugin-facing design truth now reserves a neutral repository / store factory boundary instead of exposing a concrete
   ORM handle through `plugin.Context` or cross-plugin public services.
+- `server` now uses an Ent-backed database bootstrap, a Cobra CLI with `graft migrate up`, and a repository / store
+  factory boundary in `plugin.Context`.
+- `server` no longer exposes `*gorm.DB` or a runtime migration registry through the plugin lifecycle surface.
+- The initial Ent schema, generated client, and Atlas-versioned SQL baseline now live under `server/internal/ent/`.
 
 ## Active Risks
 
@@ -55,6 +59,8 @@
   second source of truth.
 - The main implementation risk is replacing existing runtime assumptions around startup-time migrations and direct DB
   handle access without leaking Ent-specific details across plugin boundaries.
+- Atlas CLI execution has not yet been validated against a real local PostgreSQL instance in this environment because
+  the `atlas` binary is not installed and no target database was exercised during this change.
 
 ## Latest Validation
 
@@ -76,8 +82,14 @@
 - `rm -rf web/dist`
 - Documentation-only validation target for this update: owned `ai-plan/` files stay mutually consistent on Ent,
   Atlas versioned migrations, explicit migration CLI flow, and repository / store factory boundaries.
+- `cd server && GOSUMDB=off go run -mod=mod entgo.io/ent/cmd/ent generate ./internal/ent/schema`
+- `cd server && GOSUMDB=off go mod tidy`
+- `cd server && go build ./cmd/graft`
+- `cd server && go test ./...`
+- `cd server && go run ./cmd/graft --help`
+- `cd server && go run ./cmd/graft migrate --help`
 
 ## Immediate Next Step
 
-- Translate the updated repository truth into concrete `server` implementation work: define the Ent integration point,
-  the Atlas CLI workflow, and the repository / store factory contract before changing runtime code.
+- Run the first real Atlas migration against a disposable PostgreSQL instance, then add targeted tests around the
+  repository boundary and the new CLI error paths.

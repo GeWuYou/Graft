@@ -3,18 +3,12 @@ package main
 import (
 	"log"
 
-	"graft/server/internal/app"
-	"graft/server/plugins/user"
+	"graft/server/internal/cli"
 )
 
-// main assembles the MVP runtime shell and starts the HTTP process.
+// main executes the explicit Graft CLI entrypoint.
 func main() {
-	runtime, err := app.NewRuntime(user.NewPlugin())
-	if err != nil {
-		log.Fatalf("create runtime: %v", err)
-	}
-
-	if err := runtime.Run(); err != nil {
-		log.Fatalf("run runtime: %v", err)
+	if err := cli.NewRootCommand().Execute(); err != nil {
+		log.Fatalf("execute graft command: %v", err)
 	}
 }

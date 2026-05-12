@@ -59,13 +59,12 @@
 
 * `menu registry`
 * `permission registry`
-* `schema / migration asset registry`
 * `cron registry`
 * `event bus`
 
 验收：
 
-* 插件可注册菜单、权限、schema / migration 资产、任务
+* 插件可注册菜单、权限、任务
 
 补充约束：
 

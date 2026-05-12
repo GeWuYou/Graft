@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
@@ -16,22 +15,23 @@ import (
 	"graft/server/internal/database"
 	"graft/server/internal/httpx"
 	"graft/server/internal/menu"
-	"graft/server/internal/migration"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
 	"graft/server/internal/redisx"
+	"graft/server/internal/store"
+	"graft/server/internal/store/entstore"
 )
 
 // Runtime owns core assembly and plugin lifecycle execution for the MVP shell.
 type Runtime struct {
 	config             *config.Config
-	db                 *gorm.DB
+	database           *database.Resources
 	redis              *redis.Client
 	server             *httpx.Server
 	services           *container.Container
+	stores             store.Factory
 	menuRegistry       *menu.Registry
 	permissionRegistry *permission.Registry
-	migrationRegistry  *migration.Registry
 	cronRegistry       *cronx.Registry
 	pluginManager      *plugin.Manager
 }
@@ -43,41 +43,41 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
-	db, err := database.Open(cfg.Database)
+	databaseResources, err := database.Open(cfg.Database)
 	if err != nil {
 		return nil, err
 	}
 
 	redisClient, err := redisx.Open(context.Background(), cfg.Redis)
 	if err != nil {
-		closeDatabase(db)
+		_ = database.Close(databaseResources)
 		return nil, err
 	}
 
 	server := httpx.NewServer()
 	services := container.New()
+	stores := entstore.NewFactory(databaseResources.Client)
 	menuRegistry := menu.NewRegistry()
 	permissionRegistry := permission.NewRegistry()
-	migrationRegistry := migration.NewRegistry()
 	cronRegistry := cronx.NewRegistry()
 	pluginManager := plugin.NewManager()
 
 	runtime := &Runtime{
 		config:             cfg,
-		db:                 db,
+		database:           databaseResources,
 		redis:              redisClient,
 		server:             server,
 		services:           services,
+		stores:             stores,
 		menuRegistry:       menuRegistry,
 		permissionRegistry: permissionRegistry,
-		migrationRegistry:  migrationRegistry,
 		cronRegistry:       cronRegistry,
 		pluginManager:      pluginManager,
 	}
 
 	if err := runtime.registerCoreServices(); err != nil {
 		_ = redisClient.Close()
-		closeDatabase(db)
+		_ = database.Close(databaseResources)
 		return nil, err
 	}
 
@@ -96,13 +96,12 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 func (r *Runtime) Run() error {
 	ctx := &plugin.Context{
 		Config:             r.config,
-		DB:                 r.db,
 		Redis:              r.redis,
 		Router:             r.server.Engine().Group("/api"),
 		Services:           r.services,
+		Stores:             r.stores,
 		MenuRegistry:       r.menuRegistry,
 		PermissionRegistry: r.permissionRegistry,
-		MigrationRegistry:  r.migrationRegistry,
 		CronRegistry:       r.cronRegistry,
 	}
 
@@ -132,7 +131,6 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 			"status":      "ok",
 			"menus":       len(r.menuRegistry.Items()),
 			"permissions": len(r.permissionRegistry.Items()),
-			"migrations":  len(r.migrationRegistry.Items()),
 			"jobs":        len(r.cronRegistry.Items()),
 		})
 	})
@@ -145,8 +143,8 @@ func (r *Runtime) registerCoreServices() error {
 		return err
 	}
 
-	if err := r.services.RegisterSingleton((*gorm.DB)(nil), func(resolver container.Resolver) (any, error) {
-		return r.db, nil
+	if err := r.services.RegisterSingleton((*store.Factory)(nil), func(resolver container.Resolver) (any, error) {
+		return r.stores, nil
 	}); err != nil {
 		return err
 	}
@@ -154,13 +152,4 @@ func (r *Runtime) registerCoreServices() error {
 	return r.services.RegisterSingleton((*redis.Client)(nil), func(resolver container.Resolver) (any, error) {
 		return r.redis, nil
 	})
-}
-
-func closeDatabase(db *gorm.DB) {
-	sqlDB, err := db.DB()
-	if err != nil {
-		return
-	}
-
-	_ = sqlDB.Close()
 }

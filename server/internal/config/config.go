@@ -15,7 +15,7 @@ const (
 	defaultAppEnv         = "local"
 	defaultHTTPAddr       = ":8080"
 	defaultDatabaseDriver = "postgres"
-	defaultDatabaseDSN    = "host=localhost port=5432 user=graft password=graft dbname=graft sslmode=disable TimeZone=Asia/Shanghai"
+	defaultDatabaseURL    = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
 	defaultRedisAddr      = "localhost:6379"
 	defaultLogLevel       = "info"
 )
@@ -40,10 +40,10 @@ type HTTPConfig struct {
 	Addr string
 }
 
-// DatabaseConfig describes the PostgreSQL connection used by GORM.
+// DatabaseConfig describes the PostgreSQL connection used by Ent and Atlas.
 type DatabaseConfig struct {
 	Driver string
-	DSN    string
+	URL    string
 }
 
 // RedisConfig describes the Redis connection used by core services and plugins.
@@ -81,7 +81,7 @@ func Load() (*Config, error) {
 		},
 		Database: DatabaseConfig{
 			Driver: reader.GetString("database.driver"),
-			DSN:    reader.GetString("database.dsn"),
+			URL:    reader.GetString("database.url"),
 		},
 		Redis: RedisConfig{
 			Addr:     reader.GetString("redis.addr"),
@@ -118,8 +118,8 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("unsupported database driver %q: only postgres is supported", c.Database.Driver)
 	}
 
-	if strings.TrimSpace(c.Database.DSN) == "" {
-		return errors.New("GRAFT_DATABASE_DSN is required")
+	if strings.TrimSpace(c.Database.URL) == "" {
+		return errors.New("GRAFT_DATABASE_URL is required")
 	}
 
 	if strings.TrimSpace(c.Redis.Addr) == "" {
@@ -157,7 +157,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.env", defaultAppEnv)
 	reader.SetDefault("http.addr", defaultHTTPAddr)
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
-	reader.SetDefault("database.dsn", defaultDatabaseDSN)
+	reader.SetDefault("database.url", defaultDatabaseURL)
 	reader.SetDefault("redis.addr", defaultRedisAddr)
 	reader.SetDefault("redis.password", "")
 	reader.SetDefault("redis.db", 0)
