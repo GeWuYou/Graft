@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(git -C "${SCRIPT_DIR}/.." rev-parse --show-toplevel)"
 OUTPUT_PATH="${ROOT_DIR}/.ai/environment/tools.raw.yaml"
 MODE="${1:---check}"
 

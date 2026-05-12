@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-05-11T23:47:02Z"
+generated_at_utc: "2026-05-12T05:08:09Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -8,11 +8,11 @@ platform:
   distro: "Ubuntu 24.04.4 LTS"
   shell: "bash"
 repository:
-  server_scaffolded: false
+  server_scaffolded: true
   web_scaffolded: true
   web_bun_lock: true
 capabilities:
-  go: false
+  go: true
   python: true
   node: true
   npm: true
@@ -20,7 +20,7 @@ capabilities:
   docker: true
   fast_search: true
   json_cli: true
-  server_scaffolded: false
+  server_scaffolded: true
   web_scaffolded: true
 tool_selection:
   search:
@@ -44,7 +44,7 @@ tool_selection:
     fallback: "npm"
     use_for: "Installing and validating the web toolchain."
   server_build_and_test:
-    preferred: "unavailable"
+    preferred: "go"
     fallback: "unavailable"
     use_for: "Server build and test workflows once server/go.mod exists."
 python:
@@ -61,7 +61,7 @@ preferences:
   prefer_project_listed_tools: true
   prefer_python_for_non_trivial_automation: true
   avoid_unlisted_system_tools: true
-  avoid_unscaffolded_server_commands: true
+  avoid_unscaffolded_server_commands: false
 rules:
   - "Use rg instead of grep for repository search when rg is available."
   - "Use jq for JSON inspection; fall back to python3 if jq is unavailable."

@@ -18,10 +18,28 @@
   regenerated instead of hand-maintained.
 - Updated `README.md`, `AGENTS.md`, `graft-boot`, and the AI governance docs so startup flow reads environment truth
   before making toolchain assumptions.
-- Captured the current reality that `web` bootstrap files exist, while `server/go.mod` is still absent and `go` is not
-  installed on this machine.
+- Captured the current reality that `web` bootstrap files existed before the first substantive MVP shell work landed.
+
+## 2026-05-12 MVP shell scaffold
+
+- Confirmed that `https://tdesign.tencent.com/vue-next/getting-started` is the official TDesign Vue Next
+  documentation, which matches the locked frontend stack in `AGENTS.md`.
+- Classified the task as `cross-boundary` because the MVP extension path needed both a backend runtime shell and a
+  frontend admin shell to become executable.
+- Added a first-pass `server` runtime shell with explicit plugin ordering, registries, sample routes, lightweight DI,
+  and a sample `user` plugin.
+- Added a first-pass `web` admin shell with Vue 3, TypeScript, Vite, TDesign Vue Next, static auth, baseline layouts,
+  and route/store scaffolding that preserves the future `menu + route + page + api + permission` contract.
+- Installed Go 1.26.1 so the `server` shell could be validated locally.
+- Switched frontend validation from the WSL Bun binary to the host Windows Bun at
+  `C:\Users\gewuyou\.bun\bin\bun.exe`, which matches the user's WSL-based development setup.
+- Fixed invalid UnoCSS package versions and a `vue-router` module augmentation bug so the frontend shell could pass
+  typecheck and production build.
+- Validated the current shell end to end with host Bun for `web` and Go toolchain validation for `server`.
+- Fixed the environment regeneration workflow so both scripts resolve the repository root through Git and can regenerate
+  `.ai/environment/` again after the shell bootstrap work.
 
 ## Next Step
 
-- Use `ai-plan/public/README.md` plus this topic's tracking file as the default recovery path when substantive MVP work
-  begins.
+- Start joining backend menu and permission metadata to the frontend navigation path and add targeted tests around the
+  plugin lifecycle and route/menu assembly.

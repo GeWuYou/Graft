@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
-ROOT_DIR = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT_DIR = Path(
+    subprocess.run(
+        ["git", "-C", str(SCRIPT_DIR.parent), "rev-parse", "--show-toplevel"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+)
 RAW_PATH = ROOT_DIR / ".ai" / "environment" / "tools.raw.yaml"
 AI_PATH = ROOT_DIR / ".ai" / "environment" / "tools.ai.yaml"
 

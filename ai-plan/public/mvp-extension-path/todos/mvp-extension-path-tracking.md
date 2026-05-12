@@ -36,15 +36,16 @@
 - Repository-wide environment truth now lives under `.ai/environment/`, with scripts that regenerate raw and AI-facing
   inventories.
 - This topic is the default recovery entrypoint for future MVP-path work.
+- The repository now contains the first substantive MVP shell implementation across both `server` and `web`.
+- `server` has a minimal runtime shell with explicit plugin registration, lifecycle ordering, registries, and a sample
+  `user` plugin.
+- `web` has a minimal Vue 3 + TDesign admin shell with `AuthLayout`, `BasicLayout`, static routing, mock auth, and a
+  navigation store reserved for backend-driven menu metadata.
 
 ## Active Risks
 
-- The repository has not yet implemented the MVP runtime, so the topic currently tracks governance and recovery shape
-  rather than executable platform milestones.
 - Future work must keep repository-wide design truth and topic-level recovery documents aligned instead of creating a
   second source of truth.
-- The current machine does not have `go` installed, and the repository still lacks `server/go.mod`, so server build
-  expectations must remain explicitly gated in the environment inventory.
 
 ## Latest Validation
 
@@ -54,8 +55,17 @@
 - `bash scripts/collect-dev-environment.sh --write`
 - `python3 scripts/generate-ai-environment.py`
 - `python3 -c 'import yaml; yaml.safe_load(open(".ai/environment/tools.raw.yaml", "r", encoding="utf-8")); yaml.safe_load(open(".ai/environment/tools.ai.yaml", "r", encoding="utf-8")); print("ok")'`
+- `cmd.exe /C "cd /d F:\\gewuyou\\project\\go\\graft\\web && C:\\Users\\gewuyou\\.bun\\bin\\bun.exe install"`
+- `cmd.exe /C "cd /d F:\\gewuyou\\project\\go\\graft\\web && C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck"`
+- `cmd.exe /C "cd /d F:\\gewuyou\\project\\go\\graft\\web && C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build"`
+- `cd server && go mod tidy`
+- `cd server && go build ./cmd/graft`
+- `cd server && go test ./...`
+- `bash scripts/collect-dev-environment.sh --write`
+- `python3 scripts/generate-ai-environment.py`
+- `rm -rf web/dist`
 
 ## Immediate Next Step
 
-- Start the first substantive MVP implementation task on `feat/mvp-extension-path` and use `.ai/environment/tools.ai.yaml`
-  as the default environment truth before making runtime or package-manager assumptions.
+- Wire the first backend-driven menu and permission payload from `server` into the `web` shell, then add lifecycle and
+  routing tests around plugin ordering and dynamic navigation semantics.

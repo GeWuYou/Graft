@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-05-11T23:46:50Z"
+generated_at_utc: "2026-05-12T05:07:12Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -13,7 +13,7 @@ platform:
 
 repository:
   server_go_mod:
-    present: false
+    present: true
     path: "server/go.mod"
     purpose: "Primary signal that the server runtime has been scaffolded."
   web_package_json:
@@ -27,9 +27,9 @@ repository:
 
 required_runtimes:
   go:
-    installed: false
-    version: "not-installed"
-    path: ""
+    installed: true
+    version: "go version go1.26.1 linux/amd64"
+    path: "/usr/local/bin/go"
     purpose: "Builds and tests the Graft server once server/go.mod exists."
   python3:
     installed: true
