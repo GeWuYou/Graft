@@ -48,6 +48,7 @@
 * `http`
 * `container`
 * `plugin manager`
+* Ent baseline and repository / store factory boundary
 
 验收：
 
@@ -58,13 +59,18 @@
 
 * `menu registry`
 * `permission registry`
-* `migration runner`
+* `schema / migration asset registry`
 * `cron registry`
 * `event bus`
 
 验收：
 
-* 插件可注册菜单、权限、迁移、任务
+* 插件可注册菜单、权限、schema / migration 资产、任务
+
+补充约束：
+
+* schema 变更基线使用 Ent + Atlas versioned migrations
+* 迁移执行通过显式 CLI 步骤完成，不在应用启动流程中隐式执行
 
 ### 阶段三：首批插件
 

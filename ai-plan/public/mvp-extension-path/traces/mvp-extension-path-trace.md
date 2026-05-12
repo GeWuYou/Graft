@@ -11,6 +11,18 @@
 - Updated `AGENTS.md`, `README.md`, and `graft-boot` so boot and implementation rules now point at `ai-plan/`.
 - Validation target for this change is documentation governance consistency rather than runtime compilation.
 
+## 2026-05-12 planned ORM migration docs
+
+- Updated repository design truth so the backend ORM baseline is now Ent instead of GORM.
+- Updated repository design truth so schema changes use Atlas versioned migrations executed through an explicit CLI
+  step before application startup, rather than through runtime startup execution.
+- Narrowed the plugin-facing data boundary: `plugin.Context` and cross-plugin public services should expose a neutral
+  repository / store factory contract instead of a concrete ORM handle.
+- Kept this change documentation-only and limited it to repository truth plus active-topic recovery material.
+- Current risk: follow-up `server` work may preserve old startup-time migration wiring or leak `*ent.Client` across
+  plugin boundaries unless the implementation contract is tightened first.
+- Validation target for this change is cross-document consistency across the owned `ai-plan/` files.
+
 ## 2026-05-12 `.ai/environment`
 
 - Introduced `.ai/environment/tools.raw.yaml` and `.ai/environment/tools.ai.yaml` as repository-wide environment truth.
@@ -57,5 +69,5 @@
 
 ## Next Step
 
-- Start joining backend menu and permission metadata to the frontend navigation path and add targeted tests around the
-  plugin lifecycle and route/menu assembly.
+- Define the concrete `server` migration plan for Ent integration, Atlas CLI execution, and the repository / store
+  factory contract before touching runtime implementation.

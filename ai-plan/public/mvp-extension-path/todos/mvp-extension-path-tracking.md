@@ -43,11 +43,18 @@
 - `server/go.mod` keeps direct dependencies documented and leaves indirect dependencies in standard Go tool format.
 - `web` has a minimal Vue 3 + TDesign admin shell with `AuthLayout`, `BasicLayout`, static routing, mock auth, and a
   navigation store reserved for backend-driven menu metadata.
+- Repository truth for the planned server-wide ORM migration now uses Ent as the backend ORM baseline.
+- Repository truth for schema changes now uses Atlas versioned migrations executed through an explicit CLI step before
+  application startup, not during runtime boot.
+- Plugin-facing design truth now reserves a neutral repository / store factory boundary instead of exposing a concrete
+  ORM handle through `plugin.Context` or cross-plugin public services.
 
 ## Active Risks
 
 - Future work must keep repository-wide design truth and topic-level recovery documents aligned instead of creating a
   second source of truth.
+- The main implementation risk is replacing existing runtime assumptions around startup-time migrations and direct DB
+  handle access without leaking Ent-specific details across plugin boundaries.
 
 ## Latest Validation
 
@@ -67,8 +74,10 @@
 - `bash scripts/collect-dev-environment.sh --write`
 - `python3 scripts/generate-ai-environment.py`
 - `rm -rf web/dist`
+- Documentation-only validation target for this update: owned `ai-plan/` files stay mutually consistent on Ent,
+  Atlas versioned migrations, explicit migration CLI flow, and repository / store factory boundaries.
 
 ## Immediate Next Step
 
-- Wire the first backend-driven menu and permission payload from `server` into the `web` shell, then add lifecycle and
-  routing tests around plugin ordering and dynamic navigation semantics.
+- Translate the updated repository truth into concrete `server` implementation work: define the Ent integration point,
+  the Atlas CLI workflow, and the repository / store factory contract before changing runtime code.
