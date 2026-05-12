@@ -40,6 +40,7 @@
 - `server` has a minimal runtime shell with explicit plugin registration, lifecycle ordering, registries, and a sample
   `user` plugin.
 - `server` now uses an env-first configuration path with PostgreSQL and Redis as required core infrastructure.
+- `server/go.mod` keeps direct dependencies documented and leaves indirect dependencies in standard Go tool format.
 - `web` has a minimal Vue 3 + TDesign admin shell with `AuthLayout`, `BasicLayout`, static routing, mock auth, and a
   navigation store reserved for backend-driven menu metadata.
 
@@ -60,6 +61,7 @@
 - `cmd.exe /C "cd /d F:\\gewuyou\\project\\go\\graft\\web && C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck"`
 - `cmd.exe /C "cd /d F:\\gewuyou\\project\\go\\graft\\web && C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build"`
 - `cd server && go mod tidy`
+- `cd server && go list -m -u all`
 - `cd server && go build ./cmd/graft`
 - `cd server && go test ./...`
 - `bash scripts/collect-dev-environment.sh --write`

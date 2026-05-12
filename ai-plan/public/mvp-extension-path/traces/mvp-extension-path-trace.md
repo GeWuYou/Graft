@@ -48,6 +48,13 @@
 - Kept SQLite and PostgreSQL-compatible SQLite layers out of the runtime matrix; lightweight database alternatives
   remain a future testing convenience question rather than a production dependency choice.
 
+## 2026-05-12 server dependency hygiene
+
+- Updated flagged transitive server dependencies for `pgx`, `fsnotify`, `mapstructure`, and `locafero`.
+- Kept `server/go.mod` readable by documenting only direct dependencies and leaving indirect dependencies in standard
+  Go tool format.
+- Treated this as dependency governance only; no architecture, plugin lifecycle, or frontend module convention changed.
+
 ## Next Step
 
 - Start joining backend menu and permission metadata to the frontend navigation path and add targeted tests around the
