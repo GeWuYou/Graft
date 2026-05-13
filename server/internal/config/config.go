@@ -20,7 +20,7 @@ const (
 	defaultLogLevel       = "info"
 )
 
-// Config contains the complete server runtime configuration loaded at startup.
+// Config 包含服务启动时加载的完整运行时配置。
 type Config struct {
 	App      AppConfig
 	HTTP     HTTPConfig
@@ -29,36 +29,36 @@ type Config struct {
 	Log      LogConfig
 }
 
-// AppConfig describes process-level application identity.
+// AppConfig 描述进程级应用标识配置。
 type AppConfig struct {
 	Name string
 	Env  string
 }
 
-// HTTPConfig controls the public HTTP listener owned by the core runtime.
+// HTTPConfig 控制 core 持有的公开 HTTP 监听配置。
 type HTTPConfig struct {
 	Addr string
 }
 
-// DatabaseConfig describes the PostgreSQL connection used by Ent and Atlas.
+// DatabaseConfig 描述 Ent 与 Atlas 共用的 PostgreSQL 连接配置。
 type DatabaseConfig struct {
 	Driver string
 	URL    string
 }
 
-// RedisConfig describes the Redis connection used by core services and plugins.
+// RedisConfig 描述 core 服务与插件共享的 Redis 连接配置。
 type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
 }
 
-// LogConfig controls logger behavior once the logger core service is introduced.
+// LogConfig 描述日志核心服务接入后的日志行为配置。
 type LogConfig struct {
 	Level string
 }
 
-// Load reads optional .env defaults and then resolves the effective environment.
+// Load 先读取可选的 .env 默认值，再解析最终生效的环境配置。
 func Load() (*Config, error) {
 	if err := loadDotenv(); err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// Validate ensures the runtime has enough configuration to start deterministically.
+// Validate 校验运行时配置是否足以让服务以确定方式启动。
 func (c *Config) Validate() error {
 	if c == nil {
 		return errors.New("config is required")

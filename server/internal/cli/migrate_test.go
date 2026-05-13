@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// TestResolveMigrationDirFindsServerRelativePathFromRepoRoot verifies the
-// migration resolver finds the default server-relative path from the repo root.
+// TestResolveMigrationDirFindsServerRelativePathFromRepoRoot 验证仓库根目录下
+// 的默认迁移目录会被解析为 `server` 相对路径。
 func TestResolveMigrationDirFindsServerRelativePathFromRepoRoot(t *testing.T) {
 	root := t.TempDir()
 	migrationDir := filepath.Join(root, "server", defaultMigrationDir)
@@ -27,8 +27,8 @@ func TestResolveMigrationDirFindsServerRelativePathFromRepoRoot(t *testing.T) {
 	}
 }
 
-// TestResolveMigrationDirFindsPathFromServerModuleRoot verifies the migration
-// resolver also accepts the server module root as the working directory.
+// TestResolveMigrationDirFindsPathFromServerModuleRoot 验证迁移目录解析器也支持
+// 以 `server` 模块根目录作为当前工作目录。
 func TestResolveMigrationDirFindsPathFromServerModuleRoot(t *testing.T) {
 	root := t.TempDir()
 	serverRoot := filepath.Join(root, "server")
@@ -47,8 +47,8 @@ func TestResolveMigrationDirFindsPathFromServerModuleRoot(t *testing.T) {
 	}
 }
 
-// TestResolveMigrationDirRejectsMissingPath verifies the resolver returns an
-// error when neither supported migration directory exists.
+// TestResolveMigrationDirRejectsMissingPath 验证当两个受支持的迁移目录都不
+// 存在时，解析器会返回错误。
 func TestResolveMigrationDirRejectsMissingPath(t *testing.T) {
 	root := t.TempDir()
 

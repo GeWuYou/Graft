@@ -1,17 +1,17 @@
-// Package pluginapi defines stable cross-plugin capability contracts.
+// Package pluginapi 定义稳定的跨插件能力契约。
 package pluginapi
 
 import "context"
 
-// UserSummary is the stable DTO shared across plugin boundaries.
+// UserSummary 是跨插件共享的稳定用户摘要 DTO。
 type UserSummary struct {
 	ID       uint64
 	Username string
 	Display  string
 }
 
-// UserService exposes the minimal user capability that other plugins may depend on.
+// UserService 暴露其他插件可依赖的最小用户能力接口。
 type UserService interface {
-	// GetUserByID returns one stable summary DTO instead of an internal persistence model.
+	// GetUserByID 按 ID 返回稳定的用户摘要 DTO，而不是内部持久化模型。
 	GetUserByID(ctx context.Context, id uint64) (UserSummary, error)
 }

@@ -72,6 +72,9 @@
   navigation guidance, comment priority ordering, and exemption boundaries for generated or artifact code.
 - The first implementation wave for the comment governance topic targets `server/internal/container`,
   `server/internal/plugin`, `server/internal/httpx`, `server/internal/app`, and `server/plugins/user`.
+- The comment-governance wave now also covers `server/internal/config`, `server/internal/database`,
+  `server/internal/menu`, `server/internal/permission`, `server/internal/cronx`, `server/internal/store`,
+  `server/internal/pluginapi`, `server/internal/redisx`, and the current `web` shell's route/store boundary comments.
 - Local startup ergonomics now use `graft dev` as the primary development entrypoint, so IDEs and Windows shells no
   longer depend on `bash scripts/dev-server.sh` to compose migration plus server startup.
 - The temporary `scripts/dev-server.sh` compatibility wrapper has been removed, so repository startup guidance now
@@ -134,10 +137,14 @@
   the new Chinese comment rules and compile under package-level tests.
 - `cd server && go test ./internal/cli`
 - `cd server && go build ./cmd/graft`
+- Expanded comment-governance validation for this update: touched `server` packages and `web` shell files keep
+  Chinese-first comments aligned with implementation and still pass direct compile-oriented validation.
+- `cd server && go test ./internal/config ./internal/database ./internal/cronx ./internal/menu ./internal/permission ./internal/pluginapi ./internal/redisx ./internal/store ./internal/store/entstore ./internal/app ./internal/cli ./internal/container ./internal/httpx`
+- `cd web && bun run typecheck`
 
 ## Immediate Next Step
 
-- Finish the first comment-governance implementation wave by validating the directly touched `server` packages and then
-  continue the MVP path with the Atlas migration and real auth + RBAC plugin chain work.
+- Continue the remaining incremental comment-governance sweep on hand-written modules that still lack high-priority
+  Chinese comments, then return to the Atlas migration and real auth + RBAC plugin chain work.
 - Exercise `graft dev` against a disposable PostgreSQL instance with a real Atlas installation, then continue the MVP
   path with the real auth + RBAC plugin chain work.

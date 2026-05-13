@@ -11,13 +11,13 @@ import (
 	"graft/server/internal/ent"
 )
 
-// Resources owns the SQL pool and Ent client required by the server runtime.
+// Resources 持有服务端运行时所需的 SQL 连接池与 Ent 客户端。
 type Resources struct {
 	SQL    *sql.DB
 	Client *ent.Client
 }
 
-// Open creates the PostgreSQL resources required by the server runtime.
+// Open 创建服务端运行时所需的 PostgreSQL 相关资源。
 func Open(cfg config.DatabaseConfig) (*Resources, error) {
 	if cfg.Driver != "postgres" {
 		return nil, fmt.Errorf("unsupported database driver %q: only postgres is supported", cfg.Driver)
@@ -36,7 +36,7 @@ func Open(cfg config.DatabaseConfig) (*Resources, error) {
 	}, nil
 }
 
-// Close releases the Ent client and underlying SQL pool.
+// Close 按资源归属顺序释放 Ent 客户端及其底层 SQL 连接池。
 func Close(resources *Resources) error {
 	if resources == nil {
 		return nil

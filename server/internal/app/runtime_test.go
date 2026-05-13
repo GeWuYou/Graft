@@ -28,6 +28,8 @@ func (p shutdownRecorderPlugin) Shutdown(ctx *plugin.Context) error {
 	return p.err
 }
 
+// TestShutdownPluginsUsesReverseOrder 验证插件关闭顺序与启动顺序相反，
+// 以便后启动的依赖先完成资源释放。
 func TestShutdownPluginsUsesReverseOrder(t *testing.T) {
 	log := make([]string, 0, 3)
 	plugins := []plugin.Plugin{
@@ -48,6 +50,8 @@ func TestShutdownPluginsUsesReverseOrder(t *testing.T) {
 	}
 }
 
+// TestShutdownPluginsAggregatesErrors 验证多个插件关闭失败时会聚合错误，
+// 避免后续失败被前一个失败覆盖。
 func TestShutdownPluginsAggregatesErrors(t *testing.T) {
 	plugins := []plugin.Plugin{
 		shutdownRecorderPlugin{name: "user", shutdownLog: &[]string{}, err: errors.New("user failed")},

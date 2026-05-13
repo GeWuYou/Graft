@@ -1,6 +1,4 @@
-// Package config loads the environment-first runtime settings for the Graft server.
+// Package config 负责加载 Graft 服务端以环境变量优先的运行时配置。
 //
-// The package keeps Docker and local development on the same path: real
-// environment variables have priority, while an optional .env file can seed
-// local defaults without being committed to the repository.
+// 该包让 Docker 与本地开发共用同一路径：真实环境变量优先，可选的 .env 仅用于补充未提交到仓库的本地默认值。
 package config

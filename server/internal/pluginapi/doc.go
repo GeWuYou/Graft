@@ -1,5 +1,4 @@
-// Package pluginapi contains stable cross-plugin capability contracts.
+// Package pluginapi 定义稳定的跨插件能力契约。
 //
-// Plugin packages should depend on the narrow interfaces defined here instead
-// of importing another plugin's internal implementation details.
+// 插件应依赖这里收敛后的窄接口，而不是直接导入其他插件的内部实现细节。
 package pluginapi

@@ -1,5 +1,4 @@
-// Package store defines the neutral persistence contracts exposed to plugins.
+// Package store 定义暴露给插件的中立持久化契约。
 //
-// Core owns these contracts so plugin code can depend on explicit repository
-// capabilities without importing or leaking a concrete ORM client.
+// 这些契约由 core 持有，插件只依赖显式仓储能力，不直接导入或泄漏具体 ORM 客户端。
 package store

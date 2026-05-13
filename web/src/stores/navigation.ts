@@ -19,9 +19,9 @@ const staticItems: NavigationItem[] = [
 ];
 
 /**
- * Mirrors the backend menu contract in a frontend-safe shape.
- * Keeping `plugin` and `permissionCode` explicit here makes the later switch to
- * server-driven menus a data-source replacement instead of a layout rewrite.
+ * 这里先用前端安全的数据结构镜像后端菜单契约。
+ * 保留 `plugin` 与 `permissionCode` 字段，后续切到服务端驱动菜单时，
+ * 只需要替换数据来源，不必重写布局与权限映射。
  */
 export const useNavigationStore = defineStore('navigation', {
   state: () => ({

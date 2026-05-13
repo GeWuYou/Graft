@@ -1,5 +1,4 @@
-// Package menu owns the backend menu registry consumed by plugins.
+// Package menu 维护供插件使用的后端菜单注册表。
 //
-// Keeping menu registration centralized lets the future web shell build
-// navigation from backend-declared metadata instead of frontend-only state.
+// 将菜单注册集中在后端，可以让后续的 web 壳层基于后端声明的元数据生成导航，而不是依赖前端私有状态。
 package menu

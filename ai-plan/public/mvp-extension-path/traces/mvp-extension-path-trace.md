@@ -127,6 +127,20 @@
 - Validation target for this wave is direct package-level `go test` coverage on the touched `server` packages plus
   consistency across the owned `ai-plan/` and `AGENTS.md` documents.
 
+## 2026-05-13 comment governance wave 2
+
+- Extended the comment-governance sweep from the initial lifecycle packages into more hand-written `server` modules:
+  `config`, `database`, `menu`, `permission`, `cronx`, `store`, `pluginapi`, and `redisx`.
+- Converted the remaining hand-written English package and exported-symbol comments in those modules into Chinese
+  Go-style documentation, while preserving boundary semantics around core-owned resources, plugin contracts, and MVP
+  repository access surfaces.
+- Added Chinese test-intent comments to the touched `server` test files so validation targets and lifecycle
+  assumptions remain readable during future recovery.
+- Converted the current `web` shell's route/store/setup block comments to Chinese in the places where backend menu,
+  permission, session, and shared-state contracts are intentionally staged ahead of dynamic plugin data.
+- Direct validation target for this wave is the smallest compile-oriented check that covers the touched `server`
+  packages plus `web` type checking, without widening into unrelated runtime integration work.
+
 ## 2026-05-12 `.ai/environment`
 
 - Introduced `.ai/environment/tools.raw.yaml` and `.ai/environment/tools.ai.yaml` as repository-wide environment truth.

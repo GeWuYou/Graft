@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// TestSessionFromRequestParsesActorAndPermissions 验证请求头会被解析为
+// 显式会话信息，并过滤空白权限项。
 func TestSessionFromRequestParsesActorAndPermissions(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/api/users/1", nil)
 	request.Header.Set(actorHeader, "alice")
@@ -26,6 +28,8 @@ func TestSessionFromRequestParsesActorAndPermissions(t *testing.T) {
 	}
 }
 
+// TestRequirePermissionRejectsMissingActor 验证缺少身份头时会被后端权限守卫
+// 直接拒绝，而不是继续执行受保护路由。
 func TestRequirePermissionRejectsMissingActor(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -45,6 +49,8 @@ func TestRequirePermissionRejectsMissingActor(t *testing.T) {
 	}
 }
 
+// TestRequirePermissionRejectsMissingPermission 验证身份存在但缺少所需权限码
+// 时，请求会被拒绝为无权限。
 func TestRequirePermissionRejectsMissingPermission(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -66,6 +72,8 @@ func TestRequirePermissionRejectsMissingPermission(t *testing.T) {
 	}
 }
 
+// TestRequirePermissionAllowsAuthorizedRequest 验证身份和权限都满足时，请求
+// 可以继续进入后续处理链。
 func TestRequirePermissionAllowsAuthorizedRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

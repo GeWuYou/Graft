@@ -1,9 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 /**
- * Static routes exist before backend menus are available.
- * Once the server exposes menu + permission metadata, dynamic routes should be merged
- * on top of this shell instead of replacing the login and baseline dashboard entries.
+ * 这些静态路由在后端菜单返回前先提供壳层入口。
+ * 后续接入服务端菜单与权限元数据时，应在这层壳上合并动态路由，
+ * 而不是替换登录页和基础仪表盘等保底入口。
  */
 export const staticRoutes: RouteRecordRaw[] = [
   {

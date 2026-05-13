@@ -10,8 +10,8 @@ type testService struct {
 	name string
 }
 
-// TestResolveBuildsSingletonOnceForConcurrentCalls verifies concurrent callers
-// share one in-flight provider invocation and receive the same singleton.
+// TestResolveBuildsSingletonOnceForConcurrentCalls 验证并发调用方会共享同一次
+// 构建中的 provider 调用，并最终拿到同一个单例实例。
 func TestResolveBuildsSingletonOnceForConcurrentCalls(t *testing.T) {
 	container := New()
 	started := make(chan struct{})

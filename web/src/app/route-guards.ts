@@ -7,9 +7,8 @@ import { useNavigationStore } from '@/stores/navigation';
 const UNAUTHORIZED_ROUTE_NAME = 'unauthorized';
 
 /**
- * Centralizes the shell's current routing assumptions:
- * authentication is session-based, and permission checks rely on route meta until
- * the backend menu + permission payload is available.
+ * 统一维护当前壳层的路由约束：
+ * 认证仍基于会话状态，权限判断在后端菜单与权限载荷接入前先依赖路由元信息。
  */
 export function setupRouteGuards(router: Router, pinia: Pinia) {
   router.beforeEach((to: RouteLocationNormalized) => {

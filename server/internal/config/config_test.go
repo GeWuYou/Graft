@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestLoadReadsDotenv 验证 Load 会读取当前目录下的 .env 默认值。
 func TestLoadReadsDotenv(t *testing.T) {
 	restoreEnv := clearGraftEnv(t)
 	t.Cleanup(restoreEnv)
@@ -45,6 +46,7 @@ func TestLoadReadsDotenv(t *testing.T) {
 	}
 }
 
+// TestLoadReadsServerDotenvFromRepoRoot 验证从仓库根目录启动时会回退读取 server/.env。
 func TestLoadReadsServerDotenvFromRepoRoot(t *testing.T) {
 	restoreEnv := clearGraftEnv(t)
 	t.Cleanup(restoreEnv)
@@ -86,6 +88,7 @@ func TestLoadReadsServerDotenvFromRepoRoot(t *testing.T) {
 	}
 }
 
+// TestLoadKeepsRealEnvironmentBeforeDotenv 验证真实环境变量优先于 .env 中的默认值。
 func TestLoadKeepsRealEnvironmentBeforeDotenv(t *testing.T) {
 	restoreEnv := clearGraftEnv(t)
 	t.Cleanup(restoreEnv)
@@ -106,6 +109,7 @@ func TestLoadKeepsRealEnvironmentBeforeDotenv(t *testing.T) {
 	}
 }
 
+// TestValidateRejectsUnsupportedDatabaseDriver 验证 Validate 会拒绝非 postgres 驱动。
 func TestValidateRejectsUnsupportedDatabaseDriver(t *testing.T) {
 	cfg := &Config{
 		App: AppConfig{
@@ -129,6 +133,7 @@ func TestValidateRejectsUnsupportedDatabaseDriver(t *testing.T) {
 	}
 }
 
+// TestValidateRejectsMissingDatabaseURL 验证 Validate 会拒绝缺失数据库连接串的配置。
 func TestValidateRejectsMissingDatabaseURL(t *testing.T) {
 	cfg := &Config{
 		App: AppConfig{

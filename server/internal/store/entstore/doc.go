@@ -1,5 +1,4 @@
-// Package entstore contains the Ent-backed implementations of store contracts.
+// Package entstore 提供基于 Ent 的 store 契约实现。
 //
-// Ent types stay inside this package so plugin-facing code depends only on the
-// neutral interfaces defined in the parent store package.
+// Ent 相关类型被限制在包内，保证面向插件的代码只依赖上层 store 包定义的中立接口。
 package entstore

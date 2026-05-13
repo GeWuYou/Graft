@@ -10,7 +10,7 @@ import (
 	"graft/server/internal/config"
 )
 
-// Open creates and verifies the Redis client required by the server runtime.
+// Open 创建并验证服务端运行时所需的 Redis 客户端。
 func Open(ctx context.Context, cfg config.RedisConfig) (*redis.Client, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     cfg.Addr,
