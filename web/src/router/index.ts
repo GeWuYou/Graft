@@ -1,6 +1,5 @@
 import type { Pinia } from 'pinia';
 import type { Router } from 'vue-router';
-
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { setupRouteGuards } from '@/app/route-guards';

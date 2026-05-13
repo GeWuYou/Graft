@@ -1,0 +1,9 @@
+message_file="$1"
+repo_root="$(git rev-parse --show-toplevel)"
+
+case "$message_file" in
+  /*) ;;
+  *) message_file="$repo_root/$message_file" ;;
+esac
+
+cd web && ./node_modules/.bin/commitlint --config commitlint.config.mjs --edit "$message_file"

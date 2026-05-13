@@ -18,10 +18,10 @@ function isSessionPayload(value: unknown): value is SessionPayload {
   const session = value as Record<string, unknown>;
 
   return (
-    typeof session.token === 'string'
-    && typeof session.userName === 'string'
-    && Array.isArray(session.permissions)
-    && session.permissions.every((permission) => typeof permission === 'string')
+    typeof session.token === 'string' &&
+    typeof session.userName === 'string' &&
+    Array.isArray(session.permissions) &&
+    session.permissions.every((permission) => typeof permission === 'string')
   );
 }
 
@@ -65,9 +65,9 @@ function persistSession(payload: SessionPayload | null) {
 }
 
 /**
- * Keeps only session data that is shared across pages.
- * The current implementation is intentionally mock-backed so the shell can develop
- * before the server-side login, user, permission, and menu endpoints land.
+ * 这里只保存跨页面共享的会话数据。
+ * 当前实现故意保留 mock 支撑，让壳层在后端登录、用户、权限、菜单接口落地前
+ * 仍能先稳定联通路由与权限流程。
  */
 export const useAuthStore = defineStore('auth', {
   state: () => {

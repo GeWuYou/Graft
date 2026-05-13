@@ -2,11 +2,15 @@
   <div class="not-found-page">
     <t-card class="not-found-page__card" :bordered="false">
       <span class="not-found-page__code">404</span>
-      <h1>页面不存在</h1>
-      <p>当前地址没有匹配的静态路由，后续动态模块接入后也会复用同一套兜底页。</p>
+      <h1>{{ t('notFound.title') }}</h1>
+      <p>{{ t('notFound.description') }}</p>
       <t-space>
-        <t-button theme="primary" @click="goDashboard">返回仪表盘</t-button>
-        <t-button variant="outline" theme="default" @click="goLogin">返回登录页</t-button>
+        <t-button theme="primary" @click="goDashboard">
+          {{ t('common.actions.backToDashboard') }}
+        </t-button>
+        <t-button variant="outline" theme="default" @click="goLogin">
+          {{ t('common.actions.backToLogin') }}
+        </t-button>
       </t-space>
     </t-card>
   </div>
@@ -15,7 +19,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 
+import { useI18n } from '@/app/i18n';
+
 const router = useRouter();
+const { t } = useI18n();
 
 function goDashboard() {
   void router.push('/dashboard');
@@ -28,35 +35,35 @@ function goLogin() {
 
 <style scoped>
 .not-found-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
   background: linear-gradient(180deg, #f4f7fb 0%, #eef3f8 100%);
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
 }
 
 .not-found-page__card {
-  width: min(100%, 480px);
-  text-align: center;
   border-radius: 24px;
+  text-align: center;
+  width: min(100%, 480px);
 }
 
 .not-found-page__code {
-  display: inline-block;
   color: #0052d9;
+  display: inline-block;
   font-size: 64px;
   font-weight: 700;
   line-height: 1;
 }
 
 .not-found-page__card h1 {
-  margin: 20px 0 12px;
   color: #1a2433;
+  margin: 20px 0 12px;
 }
 
 .not-found-page__card p {
-  margin: 0 0 24px;
   color: #66788f;
   line-height: 1.7;
+  margin: 0 0 24px;
 }
 </style>

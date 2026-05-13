@@ -1,17 +1,13 @@
 :root {
-  color: #1a2433;
   background: #f5f7fb;
+  color: #1a2433;
   font-family:
-    "PingFang SC",
-    "Microsoft YaHei",
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  text-rendering: auto;
+    'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-weight: 400;
+  line-height: 1.5;
+  text-rendering: auto;
 }
 
 * {
@@ -21,8 +17,8 @@
 html,
 body,
 #app {
-  min-height: 100%;
   margin: 0;
+  min-height: 100%;
 }
 
 body {

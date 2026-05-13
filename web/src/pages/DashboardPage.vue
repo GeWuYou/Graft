@@ -4,18 +4,19 @@
       <t-card class="dashboard-page__hero-card" :bordered="false">
         <div class="dashboard-page__hero-copy">
           <div>
-            <p class="dashboard-page__eyebrow">Graft Platform</p>
-            <h3>欢迎回来，{{ authStore.userName || '管理员' }}</h3>
+            <p class="dashboard-page__eyebrow">
+              {{ t('dashboard.hero.eyebrow') }}
+            </p>
+            <h3>{{ welcomeTitle }}</h3>
             <p class="dashboard-page__summary">
-              当前前端壳已经具备登录、静态路由、基础导航和权限占位，后续模块可以沿着
-              `menu + route + page + api + permission` 的路径接入。
+              {{ t('dashboard.hero.summary') }}
             </p>
           </div>
 
           <div class="dashboard-page__hero-tags">
-            <t-tag theme="primary">Vue 3 + TypeScript</t-tag>
-            <t-tag theme="success">TDesign Vue Next</t-tag>
-            <t-tag theme="warning">Static Permission Stub</t-tag>
+            <t-tag theme="primary">{{ t('dashboard.tags.stack') }}</t-tag>
+            <t-tag theme="success">{{ t('dashboard.tags.ui') }}</t-tag>
+            <t-tag theme="warning">{{ t('dashboard.tags.permission') }}</t-tag>
           </div>
         </div>
       </t-card>
@@ -35,19 +36,25 @@
     </section>
 
     <section class="dashboard-page__grid">
-      <t-card title="当前壳能力" :bordered="false">
+      <t-card
+        :title="t('dashboard.sections.capabilities.title')"
+        :bordered="false"
+      >
         <ul class="dashboard-page__list">
-          <li>登录页使用 `AuthLayout`，后台页面统一挂在 `BasicLayout`。</li>
-          <li>静态路由已经接入全局守卫，未登录访问会被重定向回登录页。</li>
-          <li>导航 store 保留 `plugin` 和 `permissionCode` 字段，为后端动态菜单留出契约位。</li>
+          <li v-for="item in capabilityItems" :key="item">
+            {{ item }}
+          </li>
         </ul>
       </t-card>
 
-      <t-card title="下一步接入建议" :bordered="false">
+      <t-card
+        :title="t('dashboard.sections.nextSteps.title')"
+        :bordered="false"
+      >
         <ul class="dashboard-page__list">
-          <li>登录成功后改为拉取用户信息、权限集合和菜单树。</li>
-          <li>将动态菜单结果装配到 `router` 与 `navigation` store。</li>
-          <li>在 `web/src/modules` 下按插件维度接入用户、角色和审计模块。</li>
+          <li v-for="item in nextStepItems" :key="item">
+            {{ item }}
+          </li>
         </ul>
       </t-card>
     </section>
@@ -55,27 +62,51 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
+import { useI18n } from '@/app/i18n';
 import { useAuthStore } from '@/stores/auth';
 
 const authStore = useAuthStore();
+const { t } = useI18n();
 
-const metrics = [
+const welcomeTitle = computed(() =>
+  t('dashboard.hero.title', {
+    values: {
+      userName: authStore.userName || t('dashboard.hero.defaultUser'),
+    },
+  }),
+);
+
+const metrics = computed(() => [
   {
-    title: '静态路由',
+    title: t('dashboard.metrics.routes.title'),
     value: '3',
-    note: '登录页、仪表盘和 404 已接通基础守卫。',
+    note: t('dashboard.metrics.routes.note'),
   },
   {
-    title: '导航项',
+    title: t('dashboard.metrics.navigation.title'),
     value: '1',
-    note: '当前只保留 MVP 所需的仪表盘入口。',
+    note: t('dashboard.metrics.navigation.note'),
   },
   {
-    title: '权限码',
+    title: t('dashboard.metrics.permissions.title'),
     value: '1',
-    note: '通过 route meta 与 auth store 建立最小约束。',
+    note: t('dashboard.metrics.permissions.note'),
   },
-];
+]);
+
+const capabilityItems = computed(() => [
+  t('dashboard.sections.capabilities.items.layout'),
+  t('dashboard.sections.capabilities.items.guard'),
+  t('dashboard.sections.capabilities.items.menu'),
+]);
+
+const nextStepItems = computed(() => [
+  t('dashboard.sections.nextSteps.items.session'),
+  t('dashboard.sections.nextSteps.items.router'),
+  t('dashboard.sections.nextSteps.items.modules'),
+]);
 </script>
 
 <style scoped>
@@ -85,46 +116,46 @@ const metrics = [
 }
 
 .dashboard-page__hero-card {
-  overflow: hidden;
-  border-radius: 24px;
   background:
-    radial-gradient(circle at top right, rgba(0, 82, 217, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgb(0 82 217 / 16%), transparent 24%),
     linear-gradient(135deg, #f8fbff 0%, #edf5ff 100%);
+  border-radius: 24px;
+  overflow: hidden;
 }
 
 .dashboard-page__hero-copy {
   display: flex;
-  justify-content: space-between;
   gap: 24px;
+  justify-content: space-between;
 }
 
 .dashboard-page__eyebrow {
-  margin: 0 0 12px;
   color: #0052d9;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
+  margin: 0 0 12px;
   text-transform: uppercase;
 }
 
 .dashboard-page__hero-copy h3 {
-  margin: 0;
   color: #1a2433;
   font-size: clamp(28px, 4vw, 36px);
+  margin: 0;
 }
 
 .dashboard-page__summary {
-  margin: 16px 0 0;
-  max-width: 640px;
   color: #607086;
   line-height: 1.8;
+  margin: 16px 0 0;
+  max-width: 640px;
 }
 
 .dashboard-page__hero-tags {
-  display: flex;
   align-items: flex-start;
-  gap: 8px;
+  display: flex;
   flex-wrap: wrap;
+  gap: 8px;
 }
 
 .dashboard-page__metrics {
@@ -138,23 +169,23 @@ const metrics = [
 }
 
 .dashboard-page__metric-label {
-  display: block;
   color: #6c7d93;
+  display: block;
   font-size: 13px;
 }
 
 .dashboard-page__metric-value {
-  display: block;
-  margin-top: 12px;
   color: #1a2433;
+  display: block;
   font-size: 40px;
   line-height: 1;
+  margin-top: 12px;
 }
 
 .dashboard-page__metric-note {
-  margin: 12px 0 0;
   color: #607086;
   line-height: 1.7;
+  margin: 12px 0 0;
 }
 
 .dashboard-page__grid {
@@ -164,13 +195,13 @@ const metrics = [
 }
 
 .dashboard-page__list {
-  margin: 0;
-  padding-left: 20px;
   color: #44556b;
   line-height: 1.8;
+  margin: 0;
+  padding-left: 20px;
 }
 
-@media (max-width: 960px) {
+@media (width <= 960px) {
   .dashboard-page__hero-copy,
   .dashboard-page__metrics,
   .dashboard-page__grid {

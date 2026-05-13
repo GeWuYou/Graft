@@ -1,6 +1,5 @@
-// Package app owns explicit runtime assembly for the Graft server process.
+// Package app 负责 `server` 进程的显式运行时装配。
 //
-// The package keeps startup order visible in code so future core services and
-// plugins can be wired without reflection, package scanning, or hidden
-// lifecycle hooks.
+// 这个包把启动顺序、核心资源归属和插件生命周期执行保留在可读代码中，
+// 避免未来接入更多 core 服务和插件时退化成隐式装配或隐藏钩子。
 package app

@@ -1,4 +1,4 @@
-// Package container provides the explicit singleton registry used by core and plugins.
+// Package container 提供核心与插件共用的显式单例注册能力。
 package container
 
 import (
@@ -8,27 +8,47 @@ import (
 	"sync"
 )
 
-// Provider builds a singleton service using the current resolver.
+// Provider 定义单例服务的构造函数。
+//
+// Provider 在第一次成功解析前最多执行一次；返回错误时不会写入缓存，
+// 后续 Resolve 会继续尝试重新构建。
 type Provider func(resolver Resolver) (any, error)
 
-// Registry exposes explicit singleton registration.
+// Registry 定义显式单例注册能力。
+//
+// Registry 只负责登记稳定的服务 key 与构造函数映射，不负责隐式扫描或
+// 自动装配调用链。
 type Registry interface {
-	// RegisterSingleton registers a singleton provider under the given key.
+	// RegisterSingleton 使用给定 key 注册单例构造函数。
+	//
+	// 当 key 已被注册或 provider 为空时返回错误。
 	RegisterSingleton(key any, provider Provider) error
 }
 
-// Resolver exposes explicit singleton resolution.
+// Resolver 定义显式单例解析能力。
+//
+// Resolver 调用方只能依赖“同一 key 返回同一共享实例”的稳定语义，不应
+// 假设底层采用反射注入或其它隐藏构造机制。
 type Resolver interface {
-	// Resolve returns a singleton for the provided key.
+	// Resolve 根据给定 key 返回单例实例。
+	//
+	// 当服务未注册或构造失败时返回错误；构造错误不会污染缓存。
 	Resolve(key any) (any, error)
 }
 
-// Container stores singleton providers and instances for the runtime shell.
+// Container 是运行时使用的显式单例容器。
+//
+// Container 负责保存单例构造函数、缓存已构建实例，并在并发解析时
+// 复用同一次构建过程，避免重复创建共享资源。Container 支持并发访问。
 type Container struct {
-	mu        sync.RWMutex
+	// mu 串行化 provider、实例缓存和构建中状态的读写。
+	mu sync.RWMutex
+	// providers 保存服务 key 到单例构造函数的映射。
 	providers map[string]Provider
+	// instances 缓存已经成功构建的共享单例。
 	instances map[string]any
-	inflight  map[string]*inflightCall
+	// inflight 记录正在构建的单例，确保并发调用共享同一次构建结果。
+	inflight map[string]*inflightCall
 }
 
 type inflightCall struct {
@@ -37,7 +57,10 @@ type inflightCall struct {
 	err  error
 }
 
-// New creates an empty service container.
+// New 创建一个空的单例容器。
+//
+// 返回的 Container 可以被 core 和插件共享，并在并发解析同一服务时复用
+// 同一次构造过程。
 func New() *Container {
 	return &Container{
 		providers: make(map[string]Provider),
@@ -46,7 +69,10 @@ func New() *Container {
 	}
 }
 
-// RegisterSingleton stores one provider for one service key.
+// RegisterSingleton 为一个服务 key 注册唯一的单例构造函数。
+//
+// key 会被转换为稳定的类型名；重复注册同一 key 会立即失败，避免运行时
+// 因覆盖 provider 而出现不可见的装配分歧。
 func (c *Container) RegisterSingleton(key any, provider Provider) error {
 	if provider == nil {
 		return errors.New("provider is required")
@@ -65,7 +91,13 @@ func (c *Container) RegisterSingleton(key any, provider Provider) error {
 	return nil
 }
 
-// Resolve builds the singleton once and caches the result.
+// Resolve 解析指定 key 对应的单例实例。
+//
+// 如果实例尚未创建，Resolve 会触发一次构建并缓存结果；如果同一实例
+// 正在被其它 goroutine 构建，当前调用会等待并复用那次构建结果。
+//
+// 构建失败时不会缓存半成品实例；调用方需要显式处理错误，而不是假设
+// 容器会降级返回零值。
 func (c *Container) Resolve(key any) (any, error) {
 	name := keyName(key)
 
@@ -75,6 +107,8 @@ func (c *Container) Resolve(key any) (any, error) {
 		return instance, nil
 	}
 
+	// 第一个进入的调用负责实际构建，后续并发调用等待 inflight 结果，
+	// 这样可以避免高成本 provider 被重复执行。
 	if call, ok := c.inflight[name]; ok {
 		c.mu.Unlock()
 		<-call.done
@@ -114,6 +148,8 @@ func (c *Container) Resolve(key any) (any, error) {
 
 func keyName(key any) string {
 	if key == nil {
+		// 这里保留显式占位名，避免 nil key 在错误消息里退化成空字符串，
+		// 影响调用方定位注册或解析问题。
 		return "<nil>"
 	}
 

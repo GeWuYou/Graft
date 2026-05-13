@@ -4,8 +4,8 @@
       <div class="basic-layout__logo">
         <span class="basic-layout__logo-mark">G</span>
         <div>
-          <strong>Graft</strong>
-          <p>Admin Shell</p>
+          <strong>{{ t('app.name') }}</strong>
+          <p>{{ t('app.shellName') }}</p>
         </div>
       </div>
 
@@ -23,7 +23,7 @@
           <template #icon>
             <component :is="resolveIcon(item.icon)" />
           </template>
-          {{ item.title }}
+          {{ resolveNavigationTitle(item.titleKey, item.title) }}
         </t-menu-item>
       </t-menu>
     </t-aside>
@@ -32,10 +32,7 @@
       <t-header class="basic-layout__header">
         <div>
           <t-breadcrumb>
-            <t-breadcrumb-item
-              v-for="crumb in breadcrumbs"
-              :key="crumb.path"
-            >
+            <t-breadcrumb-item v-for="crumb in breadcrumbs" :key="crumb.path">
               {{ crumb.title }}
             </t-breadcrumb-item>
           </t-breadcrumb>
@@ -43,31 +40,34 @@
         </div>
 
         <div class="basic-layout__actions">
-          <t-tag theme="success" variant="light-outline">MVP Shell</t-tag>
+          <t-tag theme="success" variant="light-outline">{{
+            t('common.status.mvpShell')
+          }}</t-tag>
           <t-avatar>{{ userInitial }}</t-avatar>
           <div class="basic-layout__user">
             <strong>{{ authStore.userName }}</strong>
-            <span>静态权限会在接入后端后替换</span>
+            <span>{{ t('layouts.basic.permissionHint') }}</span>
           </div>
           <t-button variant="text" theme="default" @click="handleLogout">
-            退出登录
+            {{ t('common.actions.logout') }}
           </t-button>
         </div>
       </t-header>
 
       <t-content class="basic-layout__content">
-        <RouterView />
+        <router-view />
       </t-content>
     </t-layout>
   </t-layout>
 </template>
 
 <script setup lang="ts">
+import { ChartBarIcon, DashboardIcon } from 'tdesign-icons-vue-next';
 import { computed } from 'vue';
 import type { RouteRecordNormalized } from 'vue-router';
-import { useRoute, useRouter, RouterView } from 'vue-router';
-import { ChartBarIcon, DashboardIcon } from 'tdesign-icons-vue-next';
+import { RouterView, useRoute, useRouter } from 'vue-router';
 
+import { useI18n } from '@/app/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigationStore } from '@/stores/navigation';
 
@@ -75,30 +75,63 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const navigationStore = useNavigationStore();
+const { t } = useI18n();
 
 const iconMap = {
   dashboard: DashboardIcon,
   chart: ChartBarIcon,
 };
 
+// 后端菜单契约决定前端可见性：permissionCode 不满足时直接隐藏，避免前端
+// 额外引入一套并行的权限判断规则。
 const visibleItems = computed(() =>
-  navigationStore.items.filter((item) => authStore.hasPermission(item.permissionCode)),
+  navigationStore.items.filter((item) =>
+    authStore.hasPermission(item.permissionCode),
+  ),
 );
 
+// 面包屑标题优先读取 titleKey，再回退到静态 title，保证动态菜单与静态
+// 路由在同一套本地化约定下渲染。
 const breadcrumbs = computed(() =>
   route.matched
-    .filter((record: RouteRecordNormalized) => record.meta.title && !record.meta.hideInMenu)
+    .filter(
+      (record: RouteRecordNormalized) =>
+        (record.meta.title || record.meta.titleKey) && !record.meta.hideInMenu,
+    )
     .map((record: RouteRecordNormalized) => ({
       path: record.path,
-      title: record.meta.title,
+      title: resolveRouteTitle(record.meta.titleKey, record.meta.title),
     })),
 );
 
-const currentTitle = computed(() => route.meta.title ?? 'Graft');
-const userInitial = computed(() => authStore.userName.slice(0, 1).toUpperCase());
+const currentTitle = computed(() =>
+  resolveRouteTitle(route.meta.titleKey, route.meta.title),
+);
+const userInitial = computed(
+  () => authStore.userName.slice(0, 1).toUpperCase() || 'G',
+);
 
 function resolveIcon(icon?: string) {
-  return icon && icon in iconMap ? iconMap[icon as keyof typeof iconMap] : DashboardIcon;
+  return icon && icon in iconMap
+    ? iconMap[icon as keyof typeof iconMap]
+    : DashboardIcon;
+}
+
+function resolveNavigationTitle(titleKey: string, fallback: string) {
+  return t(titleKey, {
+    fallback,
+  });
+}
+
+// 路由标题回退顺序必须和菜单标题保持一致：titleKey -> title -> app.name。
+function resolveRouteTitle(titleKey: unknown, fallback: unknown) {
+  if (typeof titleKey === 'string') {
+    return t(titleKey, {
+      fallback: typeof fallback === 'string' ? fallback : t('app.name'),
+    });
+  }
+
+  return typeof fallback === 'string' ? fallback : t('app.name');
 }
 
 function handleMenuChange(path: string) {
@@ -113,74 +146,74 @@ function handleLogout() {
 
 <style scoped>
 .basic-layout {
-  min-height: 100vh;
   background: linear-gradient(180deg, #f5f7fb 0%, #edf2f8 100%);
+  min-height: 100vh;
 }
 
 .basic-layout__aside {
-  width: 240px;
-  padding: 20px 16px;
-  border-right: 1px solid #e7edf5;
-  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(14px);
+  background: rgb(255 255 255 / 88%);
+  border-right: 1px solid #e7edf5;
+  padding: 20px 16px;
+  width: 240px;
 }
 
 .basic-layout__logo {
-  display: flex;
   align-items: center;
+  display: flex;
   gap: 12px;
   margin-bottom: 28px;
   padding: 0 8px;
 }
 
 .basic-layout__logo-mark {
+  background: linear-gradient(135deg, #0052d9 0%, #00a870 100%);
+  border-radius: 12px;
+  color: #fff;
   display: grid;
+  font-weight: 700;
+  height: 40px;
   place-items: center;
   width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #0052d9 0%, #00a870 100%);
-  color: #fff;
-  font-weight: 700;
 }
 
 .basic-layout__logo strong {
-  display: block;
   color: #1a2433;
+  display: block;
   font-size: 16px;
 }
 
 .basic-layout__logo p {
-  margin: 2px 0 0;
   color: #6b7a90;
   font-size: 12px;
+  margin: 2px 0 0;
 }
 
 .basic-layout__menu {
-  border: 0;
   background: transparent;
+  border: 0;
 }
 
 .basic-layout__header {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
+  background: transparent;
+  display: flex;
   gap: 20px;
   height: auto;
+  justify-content: space-between;
   padding: 20px 24px 0;
-  background: transparent;
 }
 
 .basic-layout__page-title {
-  margin: 12px 0 0;
   color: #1a2433;
   font-size: 28px;
   line-height: 1.1;
+  margin: 12px 0 0;
 }
 
 .basic-layout__actions {
-  display: flex;
   align-items: center;
+  display: flex;
   gap: 12px;
 }
 
@@ -204,7 +237,7 @@ function handleLogout() {
   padding: 24px;
 }
 
-@media (max-width: 960px) {
+@media (width <= 960px) {
   .basic-layout__aside {
     width: 88px;
   }
@@ -215,8 +248,8 @@ function handleLogout() {
   }
 
   .basic-layout__header {
-    flex-wrap: wrap;
     align-items: flex-start;
+    flex-wrap: wrap;
   }
 }
 </style>

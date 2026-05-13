@@ -1,5 +1,5 @@
-// Package plugin defines the plugin lifecycle contract and manager.
+// Package plugin 定义插件生命周期契约与运行时管理逻辑。
 //
-// The package keeps plugin ordering, registration, boot, and shutdown rules
-// explicit so business capabilities stay outside core runtime code.
+// 这个包保持插件排序、注册、启动与关闭规则可见，避免业务能力回流到
+// core 运行时，也避免通过隐式框架行为隐藏插件边界。
 package plugin

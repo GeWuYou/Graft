@@ -1,5 +1,4 @@
-// Package permission contains the platform permission registry.
+// Package permission 提供平台级权限注册表。
 //
-// Plugins register stable permission codes here so route, menu, and service
-// authorization rules stay aligned on one backend-owned vocabulary.
+// 插件在这里注册稳定的权限编码，确保路由、菜单与服务鉴权都围绕同一套后端语义展开。
 package permission

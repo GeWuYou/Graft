@@ -1,23 +1,27 @@
 <template>
   <t-card class="login-page" :bordered="false">
     <div class="login-page__header">
-      <h2>登录 Graft</h2>
-      <p>当前阶段使用静态登录态模拟后台返回的 token、用户信息和权限集合。</p>
+      <h2>{{ t('login.title') }}</h2>
+      <p>{{ t('login.description') }}</p>
     </div>
 
     <form class="login-page__form" @submit.prevent="handleSubmit">
       <label class="login-page__field">
-        <span>用户名</span>
-        <t-input v-model="form.userName" clearable placeholder="请输入用户名" />
+        <span>{{ t('login.fields.userName') }}</span>
+        <t-input
+          v-model="form.userName"
+          clearable
+          :placeholder="t('login.fields.userNamePlaceholder')"
+        />
       </label>
 
       <label class="login-page__field">
-        <span>密码</span>
+        <span>{{ t('login.fields.password') }}</span>
         <t-input
           v-model="form.password"
           type="password"
           clearable
-          placeholder="请输入密码"
+          :placeholder="t('login.fields.passwordPlaceholder')"
         />
       </label>
 
@@ -28,27 +32,33 @@
         type="submit"
         :loading="submitting"
       >
-        登录
+        {{ t('common.actions.login') }}
       </t-button>
     </form>
 
     <div class="login-page__footer">
-      <t-tag theme="primary" variant="light">建议账号：admin</t-tag>
-      <t-tag theme="default" variant="light">建议密码：任意非空值</t-tag>
+      <t-tag theme="primary" variant="light">{{
+        t('login.tips.recommendedUser')
+      }}</t-tag>
+      <t-tag theme="default" variant="light">{{
+        t('login.tips.recommendedPassword')
+      }}</t-tag>
     </div>
   </t-card>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
+import { reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { useI18n } from '@/app/i18n';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { t } = useI18n();
 
 const submitting = ref(false);
 const form = reactive({
@@ -58,7 +68,7 @@ const form = reactive({
 
 async function handleSubmit() {
   if (!form.userName.trim() || !form.password.trim()) {
-    MessagePlugin.warning('请输入用户名和密码');
+    MessagePlugin.warning(t('login.messages.missingCredentials'));
     return;
   }
 
@@ -66,7 +76,7 @@ async function handleSubmit() {
 
   try {
     authStore.login(form.userName.trim());
-    MessagePlugin.success('登录成功');
+    MessagePlugin.success(t('login.messages.success'));
 
     const redirect =
       typeof route.query.redirect === 'string' && route.query.redirect
@@ -83,19 +93,19 @@ async function handleSubmit() {
 <style scoped>
 .login-page {
   border-radius: 24px;
-  box-shadow: 0 24px 72px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 24px 72px rgb(15 23 42 / 12%);
 }
 
 .login-page__header h2 {
-  margin: 0 0 12px;
   color: #1a2433;
   font-size: 28px;
+  margin: 0 0 12px;
 }
 
 .login-page__header p {
-  margin: 0;
   color: #62748a;
   line-height: 1.7;
+  margin: 0;
 }
 
 .login-page__form {

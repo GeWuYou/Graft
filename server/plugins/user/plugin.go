@@ -1,4 +1,4 @@
-// Package user provides the first sample business plugin wired into the MVP shell.
+// Package user 提供接入 MVP 运行时的首个示例业务插件。
 package user
 
 import (
@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"graft/server/internal/container"
 	"graft/server/internal/httpx"
@@ -19,30 +20,39 @@ import (
 	"graft/server/internal/store"
 )
 
-// Plugin is the sample user capability plugin used to prove the extension path.
+// Plugin 是用于验证扩展路径的示例用户能力插件。
+//
+// 该插件展示业务能力如何在 Register 阶段声明边界，在 Boot/Shutdown 阶段保持显式生命周期。
 type Plugin struct{}
 
-// NewPlugin creates the sample user plugin.
+// NewPlugin 创建示例用户插件。
 func NewPlugin() *Plugin {
 	return &Plugin{}
 }
 
-// Name returns the stable plugin identifier.
+// Name 返回插件的稳定标识。
 func (p *Plugin) Name() string {
 	return "user"
 }
 
-// Version returns the current sample plugin version.
+// Version 返回当前示例插件版本。
 func (p *Plugin) Version() string {
 	return "0.1.0"
 }
 
-// DependsOn declares plugin dependencies for startup ordering.
+// DependsOn 返回当前插件的依赖列表。
 func (p *Plugin) DependsOn() []string {
 	return nil
 }
 
-// Register declares user menus, permissions, routes, and public services.
+// Register 声明用户插件需要的权限、菜单、路由和公开服务。
+//
+// 约束：
+//   - 只注册跨插件可见的稳定接口，不暴露具体仓储或 ORM 实现。
+//   - 只做声明式装配，不启动后台 goroutine 或持久占用额外资源。
+//
+// 失败语义：
+//   - 任一注册步骤失败都会中止插件装配，并由上层运行时负责整体回滚。
 func (p *Plugin) Register(ctx *plugin.Context) error {
 	ctx.PermissionRegistry.Register(permission.Item{
 		Code:        "user.read",
@@ -67,28 +77,44 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 
 	group := ctx.Router.Group("/users")
-	group.Use(httpx.RequirePermission("user.read"))
+	group.Use(httpx.RequirePermission(ctx.I18n, "user.read"))
 	group.GET("/:id", func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
-			ginCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "id",
+			})
 			return
 		}
 
 		svcAny, err := ctx.Services.Resolve((*pluginapi.UserService)(nil))
 		if err != nil {
-			ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": "resolve user service"})
+			ctx.Logger.Error("resolve user service failed",
+				zap.String("plugin", p.Name()),
+				zap.Error(err),
+			)
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, "common.internal_error", nil)
 			return
 		}
 
+		// 这里解析跨插件公共接口而不是直接依赖具体实现，保证后续用户插件
+		// 内部存储实现变更时，不会破坏其它插件的依赖边界。
 		svc := svcAny.(pluginapi.UserService)
 		summary, err := svc.GetUserByID(ginCtx.Request.Context(), rawID)
 		if err != nil {
 			status := http.StatusInternalServerError
+			messageKey := "common.internal_error"
 			if errors.Is(err, store.ErrUserNotFound) {
 				status = http.StatusNotFound
+				messageKey = "user.not_found"
+			} else {
+				ctx.Logger.Error("get user by id failed",
+					zap.String("plugin", p.Name()),
+					zap.Uint64("userID", rawID),
+					zap.Error(err),
+				)
 			}
-			ginCtx.JSON(status, gin.H{"error": err.Error()})
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
 			return
 		}
 
@@ -98,12 +124,16 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	return nil
 }
 
-// Boot starts user runtime behavior after registration completes.
+// Boot 在注册完成后启动用户插件的运行时行为。
+//
+// 当前用户插件没有额外后台资源需要启动，因此保持空实现，便于后续能力扩展时继续沿用显式生命周期钩子。
 func (p *Plugin) Boot(ctx *plugin.Context) error {
 	return nil
 }
 
-// Shutdown releases user runtime resources during application stop.
+// Shutdown 在应用停止时释放用户插件资源。
+//
+// 当前实现没有自主管理的外部资源，因此关闭阶段保持幂等空操作。
 func (p *Plugin) Shutdown(ctx *plugin.Context) error {
 	return nil
 }
@@ -112,6 +142,7 @@ type userService struct {
 	users store.UserRepository
 }
 
+// GetUserByID 通过稳定仓储契约读取用户，并收敛为跨插件 DTO。
 func (s userService) GetUserByID(ctx context.Context, id uint64) (pluginapi.UserSummary, error) {
 	record, err := s.users.GetByID(ctx, id)
 	if err != nil {
@@ -125,6 +156,7 @@ func (s userService) GetUserByID(ctx context.Context, id uint64) (pluginapi.User
 	}, nil
 }
 
+// parseUserID 将路由参数转换为插件内部统一使用的正整数 ID。
 func parseUserID(input string) (uint64, error) {
 	id, err := strconv.ParseUint(input, 10, 64)
 	if err != nil {

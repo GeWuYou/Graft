@@ -1,5 +1,4 @@
-// Package redisx opens the Redis client used by the core runtime.
+// Package redisx 负责创建 core 运行时使用的 Redis 客户端。
 //
-// Redis is initialized before plugin boot so later cache, session, rate-limit,
-// and scheduler primitives can share one visible infrastructure handle.
+// Redis 会在插件 Boot 前初始化，便于后续缓存、会话、限流与调度等基础能力共享同一个显式资源句柄。
 package redisx

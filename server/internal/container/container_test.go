@@ -10,8 +10,11 @@ type testService struct {
 	name string
 }
 
-// TestResolveBuildsSingletonOnceForConcurrentCalls verifies concurrent callers
-// share one in-flight provider invocation and receive the same singleton.
+// TestResolveBuildsSingletonOnceForConcurrentCalls 验证并发调用方会共享同一次
+// 构建中的 provider 调用，并最终拿到同一个单例实例。
+//
+// 测试使用 started/release 双通道显式卡住 provider，确保并发 goroutine
+// 真正落在“构建进行中”的窗口里，而不是偶然命中已缓存结果。
 func TestResolveBuildsSingletonOnceForConcurrentCalls(t *testing.T) {
 	container := New()
 	started := make(chan struct{})

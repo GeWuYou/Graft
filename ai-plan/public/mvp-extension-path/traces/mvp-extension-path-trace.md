@@ -115,6 +115,32 @@
 - Added a focused `build_result()` regression test that covers a CodeRabbit latest-review body with only `major`
   grouped comments.
 
+## 2026-05-13 comment governance baseline
+
+- Added `ai-plan/design/代码注释与模块文档规范.md` as repository truth for Chinese comments, module navigation
+  READMEs, comment priority ordering, and exemption boundaries.
+- Updated `AGENTS.md` so repository execution rules now require Chinese documentation for hand-written Go comments,
+  reject mechanical comments, and keep module `README.md` scoped to navigation rather than detailed design.
+- Started the first implementation wave on `server/internal/container`, `server/internal/plugin`,
+  `server/internal/httpx`, `server/internal/app`, and `server/plugins/user` so the new rules have concrete examples in
+  the codebase instead of remaining documentation-only.
+- Validation target for this wave is direct package-level `go test` coverage on the touched `server` packages plus
+  consistency across the owned `ai-plan/` and `AGENTS.md` documents.
+
+## 2026-05-13 comment governance wave 2
+
+- Extended the comment-governance sweep from the initial lifecycle packages into more hand-written `server` modules:
+  `config`, `database`, `menu`, `permission`, `cronx`, `store`, `pluginapi`, and `redisx`.
+- Converted the remaining hand-written English package and exported-symbol comments in those modules into Chinese
+  Go-style documentation, while preserving boundary semantics around core-owned resources, plugin contracts, and MVP
+  repository access surfaces.
+- Added Chinese test-intent comments to the touched `server` test files so validation targets and lifecycle
+  assumptions remain readable during future recovery.
+- Converted the current `web` shell's route/store/setup block comments to Chinese in the places where backend menu,
+  permission, session, and shared-state contracts are intentionally staged ahead of dynamic plugin data.
+- Direct validation target for this wave is the smallest compile-oriented check that covers the touched `server`
+  packages plus `web` type checking, without widening into unrelated runtime integration work.
+
 ## 2026-05-12 `.ai/environment`
 
 - Introduced `.ai/environment/tools.raw.yaml` and `.ai/environment/tools.ai.yaml` as repository-wide environment truth.
@@ -163,3 +189,96 @@
 
 - Run the first end-to-end Atlas migration against a disposable PostgreSQL database and replace the temporary
   header-based authorization gate with the real auth + RBAC plugin chain.
+
+## 2026-05-13 local startup ergonomics
+
+- Confirmed a real local startup failure mode: IDEs that run `cmd/graft` without subcommands only print root help,
+  which looks like a silent startup failure even though the process exits normally.
+- Added a regression test that locks in repository-root loading of `server/.env`, so the supported local config path is
+  covered directly by tests.
+- Clarified the root CLI help and repository README so local startup now points contributors to the explicit
+  `graft migrate up` then `graft serve` flow.
+- Added a minimal `scripts/dev-server.sh` helper that runs migration first and then starts the server, while failing
+  early when `atlas` is missing.
+
+## 2026-05-13 local startup CLI unification
+
+- Replaced the Bash-owned startup flow with a first-class `graft dev` command that runs explicit migrations before
+  server startup.
+- Kept `graft serve` as the pure runtime entrypoint and `graft migrate up` as the standalone migration entrypoint, so
+  schema changes remain explicit instead of being hidden inside normal boot.
+- Updated the Atlas lookup failure path to explain that `graft dev` and `graft migrate up` require Atlas, while
+  `graft serve` is only safe when the schema is already current.
+- Reduced `scripts/dev-server.sh` to a compatibility wrapper that forwards to `go run ./cmd/graft dev`, so Windows and
+  IDE users no longer depend on Bash logic for the actual startup sequence.
+- Updated the repository README and active-topic tracking so local development now centers on one IDE-friendly command.
+
+## 2026-05-13 remove startup wrapper
+
+- Removed `scripts/dev-server.sh` after the Go CLI entrypoint became the only supported local startup path.
+- Updated the README so Windows PowerShell and CMD users can start the backend directly with `go run ./cmd/graft dev`
+  or a prebuilt `graft.exe dev` binary.
+
+## 2026-05-13 logger and i18n extension hooks
+
+- Added a first-class `server/internal/logger` module so the runtime now constructs one shared Zap logger instead of
+  leaving logging as a config-only placeholder.
+- Added a first-class `server/internal/i18n` module so the runtime can resolve locales, localize platform error
+  messages, and fall back to `zh-CN` by default.
+- Extended `plugin.Context` and the core service container with shared logger and i18n access, keeping those
+  capabilities in core rather than letting plugins create incompatible side paths.
+- Reserved a stable HTTP error contract with `message_key`, localized `message`, and `locale`, and updated the sample
+  `user` plugin plus permission middleware to use it.
+- Updated repository design truth so both `server` and `web` explicitly reserve i18n extension points in the MVP
+  shell, while still treating full translation coverage as follow-up work.
+- Validation target for this slice is direct compile-oriented coverage across touched `server` packages plus `web`
+  typecheck/build, without claiming live PostgreSQL or Atlas execution.
+
+## 2026-05-13 comment governance sweep completion
+
+- Extended the hand-written `server` Go comment-governance sweep through the remaining CLI, runtime shell, registry,
+  repository, resource-bootstrap, and sample plugin packages.
+- Kept the final rule set conservative: exported Go symbols require Chinese Go doc comments, while complex
+  orchestration or lifecycle functions use `参数：` / `返回值：` sections only when the signature alone is not enough.
+- Updated `AGENTS.md` and `ai-plan/design/代码注释与模块文档规范.md` so repository truth now explains when to use the
+  `server/internal/cli/dev.go` style and when to prefer shorter responsibility-and-boundary comments.
+- Used a bounded multi-agent wave to split comment work across disjoint `server` package sets while keeping docs,
+  validation, and final integration on the main agent.
+- Direct validation for this sweep is `cd server && go test ./internal/app ./internal/cli ./internal/config ./internal/container ./internal/cronx ./internal/database ./internal/httpx ./internal/menu ./internal/permission ./internal/plugin ./internal/pluginapi ./internal/redisx ./internal/store ./plugins/user && go build ./cmd/graft`.
+
+## 2026-05-13 frontend governance and commit message tightening
+
+- Updated `AGENTS.md` so repository truth now treats the `web` governance baseline as one explicit quality chain built
+  from `TypeScript strict`, `format:check`, `ESLint`, `Stylelint`, `Vitest`, `Husky + lint-staged`, and `commitlint`.
+- Tightened frontend AI rules so `web/ai-libs/tdesign-vue-next-starter` is documented as a local reference source
+  only, while starter-specific mock, tabs-router, and frontend-only permission patterns remain out of the production
+  `web` shell unless repository design truth changes first.
+- Added a dedicated governance section to `ai-plan/design/前端架构设计.md` that fixes the intended `check` order,
+  keeps `pre-commit` lightweight through staged-file hooks, and records the narrow boundary where `any` is still
+  tolerated during early TypeScript hardening.
+- Tightened Git workflow rules so commit titles and bodies must use actual line breaks; literal escaped control text
+  such as `\n` or `\t` must be expanded before `git commit`, especially when automation prepares the message.
+- Direct validation for this documentation slice is `git diff --check` plus focused `rg` inspection across
+  `AGENTS.md`, `ai-plan/design/前端架构设计.md`, and the active-topic tracking documents.
+
+## 2026-05-14 PR review follow-up fixes
+
+- Verified the current branch PR (`#5`) against local code instead of trusting CodeRabbit comments directly, then fixed
+  only the findings that still reproduced on `feat/mvp-extension-path`.
+- Hardened `server/internal/cli/migrate.go` so explicit migration execution now falls back to `context.Background()`
+  when a Cobra command was constructed outside the normal `Execute` chain, and added a regression test for that path.
+- Completed the first server-side `en-US` error catalog slice so localized error responses and plugin tests no longer
+  echo an English locale while still returning Chinese-only fallback text.
+- Fixed web-side test drift by making the TDesign `t-menu` stub emit `change`, splitting the 404 navigation test into
+  two independent mounts, and protecting locale-store `localStorage` access from read/write exceptions.
+- Added the missing field-level and contract comments requested by repository governance where the PR review surfaced
+  lifecycle-sensitive context or route-title assumptions.
+- Validation target for this slice is focused cross-boundary coverage: touched `server` packages compile and test at
+  package scope, while touched `web` files pass direct type-aware test/build commands without widening into unrelated
+  module suites.
+
+## Next Step
+
+- Implement the documented `web` governance baseline in the actual frontend toolchain, then exercise `graft dev`
+  against a disposable PostgreSQL database with a real Atlas installation while replacing the temporary header-based
+  authorization gate with the real auth + RBAC plugin chain.

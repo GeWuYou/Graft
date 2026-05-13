@@ -14,6 +14,7 @@ type userRepository struct {
 	client *ent.Client
 }
 
+// GetByID 按 ID 查询用户，并将 Ent 模型转换为对上层稳定的 store.User。
 func (r *userRepository) GetByID(ctx context.Context, id uint64) (store.User, error) {
 	if id == 0 {
 		return store.User{}, store.ErrUserNotFound
