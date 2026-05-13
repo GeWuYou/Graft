@@ -1,0 +1,57 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    branches: [main]
+#    paths:
+#      - ".github/workflows/**"
+#      - "AGENTS.md"
+#      - "README.md"
+#      - "ai-plan/**"
+#      - "server/**"
+#      - "web/**"
+  push:
+    branches: [main]
+#    paths:
+#      - ".github/workflows/**"
+#      - "AGENTS.md"
+#      - "README.md"
+#      - "ai-plan/**"
+#      - "server/**"
+#      - "web/**"
+
+permissions:
+  contents: read
+
+jobs:
+  web-smoke:
+    name: Web Smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+  server-smoke:
+    name: Server Smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+
+      - name: Run server tests
+        working-directory: server
+        run: go test ./...

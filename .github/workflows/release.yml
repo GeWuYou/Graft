@@ -1,0 +1,17 @@
+name: Release Placeholder
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  placeholder:
+    name: Release Not Enabled
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report current release status
+        run: |
+          echo "Release pipeline not enabled yet."
+          echo "Graft does not yet have a stable server artifact, web build contract, or deployment target."
