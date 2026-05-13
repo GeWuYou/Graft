@@ -74,6 +74,8 @@
   `server/internal/plugin`, `server/internal/httpx`, `server/internal/app`, and `server/plugins/user`.
 - Local startup ergonomics now use `graft dev` as the primary development entrypoint, so IDEs and Windows shells no
   longer depend on `bash scripts/dev-server.sh` to compose migration plus server startup.
+- The temporary `scripts/dev-server.sh` compatibility wrapper has been removed, so repository startup guidance now
+  points only at the Go CLI entrypoint.
 
 ## Active Risks
 

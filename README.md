@@ -42,6 +42,20 @@ go run ./cmd/graft dev
 
 `graft dev` 会先执行显式迁移，再在迁移成功后启动服务；它是开发期编排命令，不会改变 `graft serve` 的纯运行时语义。
 
+Windows PowerShell / CMD 可以直接使用同一条命令：
+
+```powershell
+cd server
+go run ./cmd/graft dev
+```
+
+如果你已经先编译过 CLI，也可以直接运行：
+
+```powershell
+cd server
+.\graft.exe dev
+```
+
 如果你需要把迁移和启动拆开，仍然可以继续使用显式两步命令：
 
 ```bash
@@ -56,5 +70,4 @@ go run ./cmd/graft serve
 * `graft dev` 与 `graft migrate up` 都依赖本机已安装 `atlas` CLI。
 * `graft serve` 启动前会连接 PostgreSQL 和 Redis；若地址不可达，启动会直接失败。
 * 若本地库结构已经同步，也可以只运行 `graft serve`；否则请先执行迁移。
-* `scripts/dev-server.sh` 现在只是兼容壳，内部会转发到 `go run ./cmd/graft dev`。
 * 在 GoLand 或其他 IDE 中，推荐统一使用工作目录 `server`、程序入口 `./cmd/graft`、程序参数 `dev`。

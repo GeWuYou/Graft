@@ -198,3 +198,9 @@
 - Reduced `scripts/dev-server.sh` to a compatibility wrapper that forwards to `go run ./cmd/graft dev`, so Windows and
   IDE users no longer depend on Bash logic for the actual startup sequence.
 - Updated the repository README and active-topic tracking so local development now centers on one IDE-friendly command.
+
+## 2026-05-13 remove startup wrapper
+
+- Removed `scripts/dev-server.sh` after the Go CLI entrypoint became the only supported local startup path.
+- Updated the README so Windows PowerShell and CMD users can start the backend directly with `go run ./cmd/graft dev`
+  or a prebuilt `graft.exe dev` binary.
