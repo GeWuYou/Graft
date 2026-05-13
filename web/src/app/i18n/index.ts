@@ -1,16 +1,16 @@
+import type { Pinia } from 'pinia';
 import type { App as VueApp, ComputedRef, InjectionKey } from 'vue';
 import { computed, inject } from 'vue';
-import type { Pinia } from 'pinia';
 
 import { useLocaleStore } from '@/stores/locale';
 
-import {
-  DEFAULT_FALLBACK_LOCALE,
-  resolveMessageTemplate,
-} from './messages';
+import { DEFAULT_FALLBACK_LOCALE, resolveMessageTemplate } from './messages';
 import { createLocaleRequestHeaders } from './request';
 
-type TranslateValues = Record<string, string | number | boolean | null | undefined>;
+type TranslateValues = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
 
 interface TranslateOptions {
   fallback?: string;
@@ -22,12 +22,17 @@ export interface I18nContext {
   fallbackLocale: ComputedRef<string>;
   setLocale: (locale: string) => void;
   t: (key: string, options?: TranslateOptions) => string;
-  resolveRequestHeaders: (headers?: Record<string, string>) => Record<string, string>;
+  resolveRequestHeaders: (
+    headers?: Record<string, string>,
+  ) => Record<string, string>;
 }
 
 const I18N_CONTEXT_KEY: InjectionKey<I18nContext> = Symbol('graft-i18n');
 
-function interpolateMessage(template: string, values?: TranslateValues): string {
+function interpolateMessage(
+  template: string,
+  values?: TranslateValues,
+): string {
   if (!values) {
     return template;
   }
@@ -50,10 +55,10 @@ export function translateMessage(
   options: TranslateOptions = {},
 ): string {
   const template =
-    resolveMessageTemplate(locale, key)
-    ?? resolveMessageTemplate(fallbackLocale, key)
-    ?? options.fallback
-    ?? key;
+    resolveMessageTemplate(locale, key) ??
+    resolveMessageTemplate(fallbackLocale, key) ??
+    options.fallback ??
+    key;
 
   return interpolateMessage(template, options.values);
 }
@@ -67,10 +72,17 @@ export function setupI18n(app: VueApp<Element>, pinia: Pinia) {
 
   const context: I18nContext = {
     locale: computed(() => localeStore.locale),
-    fallbackLocale: computed(() => localeStore.fallbackLocale || DEFAULT_FALLBACK_LOCALE),
+    fallbackLocale: computed(
+      () => localeStore.fallbackLocale || DEFAULT_FALLBACK_LOCALE,
+    ),
     setLocale: (locale: string) => localeStore.setLocale(locale),
     t: (key: string, options?: TranslateOptions) =>
-      translateMessage(localeStore.locale, localeStore.fallbackLocale, key, options),
+      translateMessage(
+        localeStore.locale,
+        localeStore.fallbackLocale,
+        key,
+        options,
+      ),
     resolveRequestHeaders: (headers?: Record<string, string>) =>
       createLocaleRequestHeaders(localeStore.locale, headers),
   };

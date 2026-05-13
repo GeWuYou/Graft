@@ -1,10 +1,9 @@
-import type { App as VueApp } from 'vue';
-
 import { createPinia } from 'pinia';
 import TDesign from 'tdesign-vue-next';
+import type { App as VueApp } from 'vue';
 
-import { setupI18n } from '@/app/i18n';
 import { setupApiClient } from '@/api/client';
+import { setupI18n } from '@/app/i18n';
 import { createAppRouter } from '@/router';
 
 /**

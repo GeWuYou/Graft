@@ -18,10 +18,10 @@ function isSessionPayload(value: unknown): value is SessionPayload {
   const session = value as Record<string, unknown>;
 
   return (
-    typeof session.token === 'string'
-    && typeof session.userName === 'string'
-    && Array.isArray(session.permissions)
-    && session.permissions.every((permission) => typeof permission === 'string')
+    typeof session.token === 'string' &&
+    typeof session.userName === 'string' &&
+    Array.isArray(session.permissions) &&
+    session.permissions.every((permission) => typeof permission === 'string')
   );
 }
 

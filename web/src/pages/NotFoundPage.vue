@@ -35,35 +35,35 @@ function goLogin() {
 
 <style scoped>
 .not-found-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
   background: linear-gradient(180deg, #f4f7fb 0%, #eef3f8 100%);
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
 }
 
 .not-found-page__card {
-  width: min(100%, 480px);
-  text-align: center;
   border-radius: 24px;
+  text-align: center;
+  width: min(100%, 480px);
 }
 
 .not-found-page__code {
-  display: inline-block;
   color: #0052d9;
+  display: inline-block;
   font-size: 64px;
   font-weight: 700;
   line-height: 1;
 }
 
 .not-found-page__card h1 {
-  margin: 20px 0 12px;
   color: #1a2433;
+  margin: 20px 0 12px;
 }
 
 .not-found-page__card p {
-  margin: 0 0 24px;
   color: #66788f;
   line-height: 1.7;
+  margin: 0 0 24px;
 }
 </style>

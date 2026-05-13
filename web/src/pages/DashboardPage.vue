@@ -4,7 +4,9 @@
       <t-card class="dashboard-page__hero-card" :bordered="false">
         <div class="dashboard-page__hero-copy">
           <div>
-            <p class="dashboard-page__eyebrow">{{ t('dashboard.hero.eyebrow') }}</p>
+            <p class="dashboard-page__eyebrow">
+              {{ t('dashboard.hero.eyebrow') }}
+            </p>
             <h3>{{ welcomeTitle }}</h3>
             <p class="dashboard-page__summary">
               {{ t('dashboard.hero.summary') }}
@@ -34,7 +36,10 @@
     </section>
 
     <section class="dashboard-page__grid">
-      <t-card :title="t('dashboard.sections.capabilities.title')" :bordered="false">
+      <t-card
+        :title="t('dashboard.sections.capabilities.title')"
+        :bordered="false"
+      >
         <ul class="dashboard-page__list">
           <li v-for="item in capabilityItems" :key="item">
             {{ item }}
@@ -42,7 +47,10 @@
         </ul>
       </t-card>
 
-      <t-card :title="t('dashboard.sections.nextSteps.title')" :bordered="false">
+      <t-card
+        :title="t('dashboard.sections.nextSteps.title')"
+        :bordered="false"
+      >
         <ul class="dashboard-page__list">
           <li v-for="item in nextStepItems" :key="item">
             {{ item }}
@@ -108,46 +116,46 @@ const nextStepItems = computed(() => [
 }
 
 .dashboard-page__hero-card {
-  overflow: hidden;
-  border-radius: 24px;
   background:
-    radial-gradient(circle at top right, rgba(0, 82, 217, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgb(0 82 217 / 16%), transparent 24%),
     linear-gradient(135deg, #f8fbff 0%, #edf5ff 100%);
+  border-radius: 24px;
+  overflow: hidden;
 }
 
 .dashboard-page__hero-copy {
   display: flex;
-  justify-content: space-between;
   gap: 24px;
+  justify-content: space-between;
 }
 
 .dashboard-page__eyebrow {
-  margin: 0 0 12px;
   color: #0052d9;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
+  margin: 0 0 12px;
   text-transform: uppercase;
 }
 
 .dashboard-page__hero-copy h3 {
-  margin: 0;
   color: #1a2433;
   font-size: clamp(28px, 4vw, 36px);
+  margin: 0;
 }
 
 .dashboard-page__summary {
-  margin: 16px 0 0;
-  max-width: 640px;
   color: #607086;
   line-height: 1.8;
+  margin: 16px 0 0;
+  max-width: 640px;
 }
 
 .dashboard-page__hero-tags {
-  display: flex;
   align-items: flex-start;
-  gap: 8px;
+  display: flex;
   flex-wrap: wrap;
+  gap: 8px;
 }
 
 .dashboard-page__metrics {
@@ -161,23 +169,23 @@ const nextStepItems = computed(() => [
 }
 
 .dashboard-page__metric-label {
-  display: block;
   color: #6c7d93;
+  display: block;
   font-size: 13px;
 }
 
 .dashboard-page__metric-value {
-  display: block;
-  margin-top: 12px;
   color: #1a2433;
+  display: block;
   font-size: 40px;
   line-height: 1;
+  margin-top: 12px;
 }
 
 .dashboard-page__metric-note {
-  margin: 12px 0 0;
   color: #607086;
   line-height: 1.7;
+  margin: 12px 0 0;
 }
 
 .dashboard-page__grid {
@@ -187,13 +195,13 @@ const nextStepItems = computed(() => [
 }
 
 .dashboard-page__list {
-  margin: 0;
-  padding-left: 20px;
   color: #44556b;
   line-height: 1.8;
+  margin: 0;
+  padding-left: 20px;
 }
 
-@media (max-width: 960px) {
+@media (width <= 960px) {
   .dashboard-page__hero-copy,
   .dashboard-page__metrics,
   .dashboard-page__grid {

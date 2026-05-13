@@ -1,6 +1,5 @@
-import type { Pinia } from 'pinia';
-
 import axios, { AxiosHeaders } from 'axios';
+import type { Pinia } from 'pinia';
 
 import { createLocaleRequestHeaders } from '@/app/i18n/request';
 import { useLocaleStore } from '@/stores/locale';

@@ -37,7 +37,8 @@ export const useNavigationStore = defineStore('navigation', {
     firstAccessiblePath(permissions: string[]) {
       const item = this.items.find(
         (candidate) =>
-          !candidate.permissionCode || permissions.includes(candidate.permissionCode),
+          !candidate.permissionCode ||
+          permissions.includes(candidate.permissionCode),
       );
 
       return item?.path ?? '';

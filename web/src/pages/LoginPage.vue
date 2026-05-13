@@ -37,15 +37,19 @@
     </form>
 
     <div class="login-page__footer">
-      <t-tag theme="primary" variant="light">{{ t('login.tips.recommendedUser') }}</t-tag>
-      <t-tag theme="default" variant="light">{{ t('login.tips.recommendedPassword') }}</t-tag>
+      <t-tag theme="primary" variant="light">{{
+        t('login.tips.recommendedUser')
+      }}</t-tag>
+      <t-tag theme="default" variant="light">{{
+        t('login.tips.recommendedPassword')
+      }}</t-tag>
     </div>
   </t-card>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
+import { reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useI18n } from '@/app/i18n';
@@ -89,19 +93,19 @@ async function handleSubmit() {
 <style scoped>
 .login-page {
   border-radius: 24px;
-  box-shadow: 0 24px 72px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 24px 72px rgb(15 23 42 / 12%);
 }
 
 .login-page__header h2 {
-  margin: 0 0 12px;
   color: #1a2433;
   font-size: 28px;
+  margin: 0 0 12px;
 }
 
 .login-page__header p {
-  margin: 0;
   color: #62748a;
   line-height: 1.7;
+  margin: 0;
 }
 
 .login-page__form {

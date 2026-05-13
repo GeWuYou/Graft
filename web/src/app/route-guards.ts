@@ -30,8 +30,13 @@ export function setupRouteGuards(router: Router, pinia: Pinia) {
       };
     }
 
-    if (typeof requiredPermission === 'string' && !authStore.hasPermission(requiredPermission)) {
-      const fallbackPath = navigationStore.firstAccessiblePath(authStore.permissions);
+    if (
+      typeof requiredPermission === 'string' &&
+      !authStore.hasPermission(requiredPermission)
+    ) {
+      const fallbackPath = navigationStore.firstAccessiblePath(
+        authStore.permissions,
+      );
 
       if (to.name === UNAUTHORIZED_ROUTE_NAME) {
         return true;

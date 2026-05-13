@@ -30,10 +30,10 @@ const { t } = useI18n();
 
 function isSafeFallbackPath(value: unknown): value is string {
   return (
-    typeof value === 'string'
-    && value.length > 0
-    && value.startsWith('/')
-    && !value.startsWith('//')
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.startsWith('/') &&
+    !value.startsWith('//')
   );
 }
 
@@ -55,35 +55,35 @@ function goLogin() {
 
 <style scoped>
 .unauthorized-page {
-  min-height: 100%;
-  display: grid;
   align-items: center;
+  display: grid;
+  min-height: 100%;
 }
 
 .unauthorized-page__card {
-  width: min(100%, 560px);
-  margin: 0 auto;
   border-radius: 24px;
+  box-shadow: 0 24px 72px rgb(15 23 42 / 10%);
+  margin: 0 auto;
   text-align: center;
-  box-shadow: 0 24px 72px rgba(15, 23, 42, 0.1);
+  width: min(100%, 560px);
 }
 
 .unauthorized-page__code {
-  display: inline-block;
   color: #d54941;
+  display: inline-block;
   font-size: 64px;
   font-weight: 700;
   line-height: 1;
 }
 
 .unauthorized-page__card h1 {
-  margin: 20px 0 12px;
   color: #1a2433;
+  margin: 20px 0 12px;
 }
 
 .unauthorized-page__card p {
-  margin: 0 0 24px;
   color: #66788f;
   line-height: 1.7;
+  margin: 0 0 24px;
 }
 </style>
