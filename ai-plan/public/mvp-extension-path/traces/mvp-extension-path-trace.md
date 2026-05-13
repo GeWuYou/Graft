@@ -219,6 +219,21 @@
 - Updated the README so Windows PowerShell and CMD users can start the backend directly with `go run ./cmd/graft dev`
   or a prebuilt `graft.exe dev` binary.
 
+## 2026-05-13 logger and i18n extension hooks
+
+- Added a first-class `server/internal/logger` module so the runtime now constructs one shared Zap logger instead of
+  leaving logging as a config-only placeholder.
+- Added a first-class `server/internal/i18n` module so the runtime can resolve locales, localize platform error
+  messages, and fall back to `zh-CN` by default.
+- Extended `plugin.Context` and the core service container with shared logger and i18n access, keeping those
+  capabilities in core rather than letting plugins create incompatible side paths.
+- Reserved a stable HTTP error contract with `message_key`, localized `message`, and `locale`, and updated the sample
+  `user` plugin plus permission middleware to use it.
+- Updated repository design truth so both `server` and `web` explicitly reserve i18n extension points in the MVP
+  shell, while still treating full translation coverage as follow-up work.
+- Validation target for this slice is direct compile-oriented coverage across touched `server` packages plus `web`
+  typecheck/build, without claiming live PostgreSQL or Atlas execution.
+
 ## 2026-05-13 comment governance sweep completion
 
 - Extended the hand-written `server` Go comment-governance sweep through the remaining CLI, runtime shell, registry,

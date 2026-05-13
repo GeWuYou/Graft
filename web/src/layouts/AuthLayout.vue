@@ -2,9 +2,9 @@
   <div class="auth-layout">
     <div class="auth-layout__panel">
       <div class="auth-layout__brand">
-        <span class="auth-layout__badge">Graft</span>
-        <h1>插件式后台平台</h1>
-        <p>先提供稳定后台壳，再让业务模块沿着菜单、路由、权限和 API 的固定路径接入。</p>
+        <span class="auth-layout__badge">{{ t('app.name') }}</span>
+        <h1>{{ t('layouts.auth.title') }}</h1>
+        <p>{{ t('layouts.auth.description') }}</p>
       </div>
       <RouterView />
     </div>
@@ -13,6 +13,10 @@
 
 <script setup lang="ts">
 import { RouterView } from 'vue-router';
+
+import { useI18n } from '@/app/i18n';
+
+const { t } = useI18n();
 </script>
 
 <style scoped>

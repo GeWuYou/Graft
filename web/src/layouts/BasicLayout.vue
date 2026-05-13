@@ -4,8 +4,8 @@
       <div class="basic-layout__logo">
         <span class="basic-layout__logo-mark">G</span>
         <div>
-          <strong>Graft</strong>
-          <p>Admin Shell</p>
+          <strong>{{ t('app.name') }}</strong>
+          <p>{{ t('app.shellName') }}</p>
         </div>
       </div>
 
@@ -23,7 +23,7 @@
           <template #icon>
             <component :is="resolveIcon(item.icon)" />
           </template>
-          {{ item.title }}
+          {{ resolveNavigationTitle(item.titleKey, item.title) }}
         </t-menu-item>
       </t-menu>
     </t-aside>
@@ -43,14 +43,14 @@
         </div>
 
         <div class="basic-layout__actions">
-          <t-tag theme="success" variant="light-outline">MVP Shell</t-tag>
+          <t-tag theme="success" variant="light-outline">{{ t('common.status.mvpShell') }}</t-tag>
           <t-avatar>{{ userInitial }}</t-avatar>
           <div class="basic-layout__user">
             <strong>{{ authStore.userName }}</strong>
-            <span>静态权限会在接入后端后替换</span>
+            <span>{{ t('layouts.basic.permissionHint') }}</span>
           </div>
           <t-button variant="text" theme="default" @click="handleLogout">
-            退出登录
+            {{ t('common.actions.logout') }}
           </t-button>
         </div>
       </t-header>
@@ -68,6 +68,7 @@ import type { RouteRecordNormalized } from 'vue-router';
 import { useRoute, useRouter, RouterView } from 'vue-router';
 import { ChartBarIcon, DashboardIcon } from 'tdesign-icons-vue-next';
 
+import { useI18n } from '@/app/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigationStore } from '@/stores/navigation';
 
@@ -75,6 +76,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const navigationStore = useNavigationStore();
+const { t } = useI18n();
 
 const iconMap = {
   dashboard: DashboardIcon,
@@ -87,18 +89,37 @@ const visibleItems = computed(() =>
 
 const breadcrumbs = computed(() =>
   route.matched
-    .filter((record: RouteRecordNormalized) => record.meta.title && !record.meta.hideInMenu)
+    .filter(
+      (record: RouteRecordNormalized) =>
+        (record.meta.title || record.meta.titleKey) && !record.meta.hideInMenu,
+    )
     .map((record: RouteRecordNormalized) => ({
       path: record.path,
-      title: record.meta.title,
+      title: resolveRouteTitle(record.meta.titleKey, record.meta.title),
     })),
 );
 
-const currentTitle = computed(() => route.meta.title ?? 'Graft');
-const userInitial = computed(() => authStore.userName.slice(0, 1).toUpperCase());
+const currentTitle = computed(() => resolveRouteTitle(route.meta.titleKey, route.meta.title));
+const userInitial = computed(() => authStore.userName.slice(0, 1).toUpperCase() || 'G');
 
 function resolveIcon(icon?: string) {
   return icon && icon in iconMap ? iconMap[icon as keyof typeof iconMap] : DashboardIcon;
+}
+
+function resolveNavigationTitle(titleKey: string, fallback: string) {
+  return t(titleKey, {
+    fallback,
+  });
+}
+
+function resolveRouteTitle(titleKey: unknown, fallback: unknown) {
+  if (typeof titleKey === 'string') {
+    return t(titleKey, {
+      fallback: typeof fallback === 'string' ? fallback : t('app.name'),
+    });
+  }
+
+  return typeof fallback === 'string' ? fallback : t('app.name');
 }
 
 function handleMenuChange(path: string) {

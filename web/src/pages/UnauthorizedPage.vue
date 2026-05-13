@@ -2,13 +2,15 @@
   <div class="unauthorized-page">
     <t-card class="unauthorized-page__card" :bordered="false">
       <span class="unauthorized-page__code">403</span>
-      <h1>当前账号无权访问此页面</h1>
-      <p>
-        登录态仍然有效，但目标路由要求的权限不在当前会话内。后续接入后端菜单与权限数据后，这里会继续作为显式授权兜底页。
-      </p>
+      <h1>{{ t('unauthorized.title') }}</h1>
+      <p>{{ t('unauthorized.description') }}</p>
       <t-space wrap>
-        <t-button theme="primary" @click="goFallback">前往可访问页面</t-button>
-        <t-button variant="outline" theme="default" @click="goLogin">切换账号</t-button>
+        <t-button theme="primary" @click="goFallback">
+          {{ t('common.actions.goToAccessiblePage') }}
+        </t-button>
+        <t-button variant="outline" theme="default" @click="goLogin">
+          {{ t('common.actions.switchAccount') }}
+        </t-button>
       </t-space>
     </t-card>
   </div>
@@ -18,11 +20,13 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { useI18n } from '@/app/i18n';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { t } = useI18n();
 
 function isSafeFallbackPath(value: unknown): value is string {
   return (

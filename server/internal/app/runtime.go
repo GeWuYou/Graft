@@ -9,12 +9,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/database"
 	"graft/server/internal/httpx"
+	"graft/server/internal/i18n"
+	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
@@ -32,6 +35,8 @@ import (
 // 和进程级关闭顺序，避免插件把运行时控制逻辑反向塞回 core。
 type Runtime struct {
 	config             *config.Config
+	logger             *zap.Logger
+	i18n               *i18n.Service
 	database           *database.Resources
 	redis              *redis.Client
 	server             *httpx.Server
@@ -57,20 +62,28 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	runtimeLogger, err := logger.New(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("create logger: %w", err)
+	}
+
 	databaseResources, err := database.Open(cfg.Database)
 	if err != nil {
+		_ = logger.Close(runtimeLogger)
 		return nil, err
 	}
 
 	redisClient, err := redisx.Open(context.Background(), cfg.Redis)
 	if err != nil {
 		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
 		return nil, err
 	}
 
 	server := httpx.NewServer()
 	services := container.New()
 	stores := entstore.NewFactory(databaseResources.Client)
+	localizer := i18n.New(cfg.I18n)
 	menuRegistry := menu.NewRegistry()
 	permissionRegistry := permission.NewRegistry()
 	cronRegistry := cronx.NewRegistry()
@@ -78,6 +91,8 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 
 	runtime := &Runtime{
 		config:             cfg,
+		logger:             runtimeLogger,
+		i18n:               localizer,
 		database:           databaseResources,
 		redis:              redisClient,
 		server:             server,
@@ -119,6 +134,8 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 func (r *Runtime) Run(runCtx context.Context) error {
 	pluginCtx := &plugin.Context{
 		Config:             r.config,
+		Logger:             r.logger,
+		I18n:               r.i18n,
 		Redis:              r.redis,
 		Router:             r.server.Engine().Group("/api"),
 		Services:           r.services,
@@ -169,10 +186,12 @@ func (r *Runtime) Run(runCtx context.Context) error {
 func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 	engine.GET("/healthz", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
-			"status":      "ok",
-			"menus":       len(r.menuRegistry.Items()),
-			"permissions": len(r.permissionRegistry.Items()),
-			"jobs":        len(r.cronRegistry.Items()),
+			"status":         "ok",
+			"defaultLocale":  r.i18n.DefaultLocale(),
+			"fallbackLocale": r.i18n.FallbackLocale(),
+			"menus":          len(r.menuRegistry.Items()),
+			"permissions":    len(r.permissionRegistry.Items()),
+			"jobs":           len(r.cronRegistry.Items()),
 		})
 	})
 }
@@ -180,6 +199,18 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 func (r *Runtime) registerCoreServices() error {
 	if err := r.services.RegisterSingleton((*config.Config)(nil), func(resolver container.Resolver) (any, error) {
 		return r.config, nil
+	}); err != nil {
+		return err
+	}
+
+	if err := r.services.RegisterSingleton((*zap.Logger)(nil), func(resolver container.Resolver) (any, error) {
+		return r.logger, nil
+	}); err != nil {
+		return err
+	}
+
+	if err := r.services.RegisterSingleton((*i18n.Service)(nil), func(resolver container.Resolver) (any, error) {
+		return r.i18n, nil
 	}); err != nil {
 		return err
 	}
@@ -218,6 +249,11 @@ func shutdownPlugins(ctx *plugin.Context, ordered []plugin.Plugin) error {
 // 资源的错误掩盖后续必需的清理动作。
 func (r *Runtime) closeCoreResources() error {
 	var closeErr error
+	if err := logger.Close(r.logger); err != nil {
+		closeErr = errors.Join(closeErr, err)
+	}
+	r.logger = nil
+
 	if r.redis != nil {
 		if err := r.redis.Close(); err != nil {
 			closeErr = errors.Join(closeErr, fmt.Errorf("close redis: %w", err))

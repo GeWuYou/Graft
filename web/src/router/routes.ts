@@ -16,6 +16,7 @@ export const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/pages/LoginPage.vue'),
         meta: {
           title: '登录',
+          titleKey: 'routes.login',
           hideInMenu: true,
         },
       },
@@ -31,6 +32,7 @@ export const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/pages/UnauthorizedPage.vue'),
         meta: {
           title: '无权限访问',
+          titleKey: 'routes.unauthorized',
           hideInMenu: true,
           requiresAuth: true,
         },
@@ -42,6 +44,7 @@ export const staticRoutes: RouteRecordRaw[] = [
     component: () => import('@/layouts/BasicLayout.vue'),
     meta: {
       title: '工作台',
+      titleKey: 'routes.workspace',
       requiresAuth: true,
       hideInMenu: true,
     },
@@ -58,6 +61,7 @@ export const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/pages/DashboardPage.vue'),
         meta: {
           title: '仪表盘',
+          titleKey: 'navigation.dashboard',
           requiresAuth: true,
           icon: 'dashboard',
           permission: 'dashboard.view',
@@ -72,6 +76,7 @@ export const staticRoutes: RouteRecordRaw[] = [
     component: () => import('@/pages/NotFoundPage.vue'),
     meta: {
       title: '页面不存在',
+      titleKey: 'routes.notFound',
       hideInMenu: true,
     },
   },

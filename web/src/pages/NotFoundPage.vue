@@ -2,11 +2,15 @@
   <div class="not-found-page">
     <t-card class="not-found-page__card" :bordered="false">
       <span class="not-found-page__code">404</span>
-      <h1>页面不存在</h1>
-      <p>当前地址没有匹配的静态路由，后续动态模块接入后也会复用同一套兜底页。</p>
+      <h1>{{ t('notFound.title') }}</h1>
+      <p>{{ t('notFound.description') }}</p>
       <t-space>
-        <t-button theme="primary" @click="goDashboard">返回仪表盘</t-button>
-        <t-button variant="outline" theme="default" @click="goLogin">返回登录页</t-button>
+        <t-button theme="primary" @click="goDashboard">
+          {{ t('common.actions.backToDashboard') }}
+        </t-button>
+        <t-button variant="outline" theme="default" @click="goLogin">
+          {{ t('common.actions.backToLogin') }}
+        </t-button>
       </t-space>
     </t-card>
   </div>
@@ -15,7 +19,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 
+import { useI18n } from '@/app/i18n';
+
 const router = useRouter();
+const { t } = useI18n();
 
 function goDashboard() {
   void router.push('/dashboard');

@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"graft/server/internal/i18n"
 )
 
 const (
@@ -59,21 +61,18 @@ func SessionFromRequest(request *http.Request) Session {
 //
 // 这个中间件只负责后端显式鉴权，不负责构造真实登录态；缺少身份头返回
 // 401，身份存在但权限不足返回 403。
-func RequirePermission(code string) gin.HandlerFunc {
+func RequirePermission(localizer *i18n.Service, code string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		session := SessionFromRequest(ctx.Request)
 		if session.Actor == "" {
 			// 先拒绝匿名请求，避免后续处理链把“未提供调用者”误判成普通的
 			// 权限不足场景。
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "missing request actor",
-			})
+			AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.missing_actor", nil)
 			return
 		}
 
 		if !session.HasPermission(code) {
-			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error":      "missing permission",
+			AbortLocalizedError(ctx, localizer, http.StatusForbidden, "auth.missing_permission", map[string]any{
 				"permission": code,
 			})
 			return

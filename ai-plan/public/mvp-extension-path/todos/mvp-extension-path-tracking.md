@@ -82,6 +82,12 @@
   longer depend on `bash scripts/dev-server.sh` to compose migration plus server startup.
 - The temporary `scripts/dev-server.sh` compatibility wrapper has been removed, so repository startup guidance now
   points only at the Go CLI entrypoint.
+- `server` runtime now owns a first-class Zap logger and a platform i18n service, and injects both through
+  `plugin.Context` plus the service container instead of leaving plugins to invent their own hooks.
+- `server` HTTP errors now reserve a stable `message_key + message + locale` response contract, with `zh-CN` as both
+  default and fallback locale.
+- `web` shell now reserves an application-level i18n path for locale state, message lookup, and request header
+  propagation, while still keeping the initial visible language surface in Chinese.
 
 ## Active Risks
 
@@ -95,6 +101,8 @@
   the `atlas` binary is not installed and no target database was exercised during this change.
 - The current backend permission gate is an explicit MVP placeholder based on request headers; it still needs the real
   auth + RBAC plugin chain before the authorization contract can be considered production-ready.
+- The first platform i18n wave intentionally keeps only the extension hooks; most menus, routes, and pages are still
+  backed by Chinese-first source strings and will need gradual migration to message keys.
 
 ## Latest Validation
 
@@ -148,8 +156,16 @@
   design document, active-topic recovery docs, and the directly touched `server` packages stay aligned on the
   mixed conservative Go comment style.
 - `cd server && go test ./internal/app ./internal/cli ./internal/config ./internal/container ./internal/cronx ./internal/database ./internal/httpx ./internal/menu ./internal/permission ./internal/plugin ./internal/pluginapi ./internal/redisx ./internal/store ./plugins/user && go build ./cmd/graft`
+- Current validation target for the logger + i18n extension-hook update: touched `server` core packages, the sample
+  `user` plugin, updated `ai-plan/` truth, and the `web` shell i18n path compile without widening into live database
+  or Atlas integration.
+- `cd server && go mod tidy`
+- `cd server && go test ./...`
+- `cd server && go build ./cmd/graft`
+- `cd web && bun run typecheck`
+- `cd web && bun run build`
 
 ## Immediate Next Step
 
-- Exercise `graft dev` against a disposable PostgreSQL instance with a real Atlas installation, then continue the MVP
-  path with the real auth + RBAC plugin chain work.
+- Exercise `graft dev` against a disposable PostgreSQL instance with a real Atlas installation, then extend the real
+  auth + RBAC plugin chain so session locale can replace the current request-header placeholder path.

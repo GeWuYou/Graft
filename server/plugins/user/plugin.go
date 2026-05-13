@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"graft/server/internal/container"
 	"graft/server/internal/httpx"
@@ -76,17 +77,23 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 
 	group := ctx.Router.Group("/users")
-	group.Use(httpx.RequirePermission("user.read"))
+	group.Use(httpx.RequirePermission(ctx.I18n, "user.read"))
 	group.GET("/:id", func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
-			ginCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "id",
+			})
 			return
 		}
 
 		svcAny, err := ctx.Services.Resolve((*pluginapi.UserService)(nil))
 		if err != nil {
-			ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": "resolve user service"})
+			ctx.Logger.Error("resolve user service failed",
+				zap.String("plugin", p.Name()),
+				zap.Error(err),
+			)
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, "common.internal_error", nil)
 			return
 		}
 
@@ -96,10 +103,18 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		summary, err := svc.GetUserByID(ginCtx.Request.Context(), rawID)
 		if err != nil {
 			status := http.StatusInternalServerError
+			messageKey := "common.internal_error"
 			if errors.Is(err, store.ErrUserNotFound) {
 				status = http.StatusNotFound
+				messageKey = "user.not_found"
+			} else {
+				ctx.Logger.Error("get user by id failed",
+					zap.String("plugin", p.Name()),
+					zap.Uint64("userID", rawID),
+					zap.Error(err),
+				)
 			}
-			ginCtx.JSON(status, gin.H{"error": err.Error()})
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
 			return
 		}
 

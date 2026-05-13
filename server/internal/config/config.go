@@ -18,6 +18,8 @@ const (
 	defaultDatabaseURL    = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
 	defaultRedisAddr      = "localhost:6379"
 	defaultLogLevel       = "info"
+	defaultLocale         = "zh-CN"
+	defaultSupported      = "zh-CN"
 )
 
 // Config 包含服务启动前一次性解析并校验的运行时配置快照。
@@ -29,6 +31,7 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	Log      LogConfig
+	I18n     I18nConfig
 }
 
 // AppConfig 描述进程级应用标识配置。
@@ -58,6 +61,13 @@ type RedisConfig struct {
 // LogConfig 描述日志核心服务接入后的日志行为配置。
 type LogConfig struct {
 	Level string
+}
+
+// I18nConfig 描述平台级语言解析与消息回退配置。
+type I18nConfig struct {
+	DefaultLocale    string
+	FallbackLocale   string
+	SupportedLocales []string
 }
 
 // Load 按“真实环境变量优先、.env 兜底”的顺序加载配置并返回校验后的快照。
@@ -96,6 +106,11 @@ func Load() (*Config, error) {
 		},
 		Log: LogConfig{
 			Level: reader.GetString("log.level"),
+		},
+		I18n: I18nConfig{
+			DefaultLocale:    reader.GetString("i18n.default_locale"),
+			FallbackLocale:   reader.GetString("i18n.fallback_locale"),
+			SupportedLocales: parseLocaleList(reader.GetString("i18n.supported_locales")),
 		},
 	}
 
@@ -139,6 +154,18 @@ func (c *Config) Validate() error {
 		return errors.New("GRAFT_REDIS_DB must be greater than or equal to zero")
 	}
 
+	if strings.TrimSpace(c.I18n.DefaultLocale) == "" {
+		return errors.New("GRAFT_I18N_DEFAULT_LOCALE is required")
+	}
+
+	if strings.TrimSpace(c.I18n.FallbackLocale) == "" {
+		return errors.New("GRAFT_I18N_FALLBACK_LOCALE is required")
+	}
+
+	if len(c.I18n.SupportedLocales) == 0 {
+		return errors.New("GRAFT_I18N_SUPPORTED_LOCALES must include at least one locale")
+	}
+
 	return nil
 }
 
@@ -171,4 +198,27 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("redis.password", "")
 	reader.SetDefault("redis.db", 0)
 	reader.SetDefault("log.level", defaultLogLevel)
+	reader.SetDefault("i18n.default_locale", defaultLocale)
+	reader.SetDefault("i18n.fallback_locale", defaultLocale)
+	reader.SetDefault("i18n.supported_locales", defaultSupported)
+}
+
+func parseLocaleList(raw string) []string {
+	items := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, part := range strings.Split(raw, ",") {
+		locale := strings.TrimSpace(part)
+		if locale == "" {
+			continue
+		}
+		if _, ok := seen[locale]; ok {
+			continue
+		}
+
+		seen[locale] = struct{}{}
+		items = append(items, locale)
+	}
+
+	return items
 }

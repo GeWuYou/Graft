@@ -8,10 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/store"
@@ -57,6 +59,8 @@ type Plugin interface {
 // 之外当作隐式全局变量使用。
 type Context struct {
 	Config             *config.Config
+	Logger             *zap.Logger
+	I18n               *i18n.Service
 	Redis              *redis.Client
 	Router             gin.IRouter
 	Services           *container.Container
