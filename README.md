@@ -44,7 +44,7 @@ go run ./cmd/graft serve
 也可以直接使用仓库脚本：
 
 ```bash
-./scripts/dev-server.sh
+bash scripts/dev-server.sh
 ```
 
 注意：
