@@ -1088,7 +1088,10 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
     if (
         not actionable_block
         and not latest_commit_review.get("threads")
-        and not coderabbit_review.get("nitpick_comments")
+        and not any(
+            group.get("comments")
+            for group in coderabbit_review.get("comment_groups", {}).values()
+        )
     ):
         warnings.append("CodeRabbit actionable comments block was not found in issue comments.")
 

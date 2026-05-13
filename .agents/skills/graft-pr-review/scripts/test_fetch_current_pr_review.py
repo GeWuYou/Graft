@@ -300,6 +300,62 @@ class SelectLatestCoderabbitGroupedReviewTests(unittest.TestCase):
         self.assertEqual(selected, grouped_review)
 
 
+class BuildResultWarningTests(unittest.TestCase):
+    """Cover warning decisions that depend on parsed review groups."""
+
+    def test_build_result_does_not_warn_when_grouped_review_has_major_comments(self) -> None:
+        """A parsed grouped review should suppress the missing-actionable warning."""
+        latest_review_body = """
+**Actionable comments posted: 1**
+<details><summary>🟠 Major comments (1)</summary><blockquote>
+<details><summary>Dockerfile (1)</summary><blockquote>
+`L1-L3`: **Pin base image**
+Use a fixed tag.
+</blockquote></details>
+</blockquote></details>
+"""
+        latest_commit_review = {
+            "latest_reviews_by_user": {
+                MODULE.CODERABBIT_LOGIN: {
+                    "id": 1,
+                    "user": MODULE.CODERABBIT_LOGIN,
+                    "body": latest_review_body,
+                }
+            },
+            "open_thread_counts_by_user": {},
+            "threads": [],
+            "open_threads": [],
+            "latest_coderabbit_review_with_body": {
+                "id": 1,
+                "user": MODULE.CODERABBIT_LOGIN,
+                "body": latest_review_body,
+            },
+        }
+
+        with mock.patch.object(
+            MODULE,
+            "fetch_pull_request_metadata",
+            return_value={
+                "number": 1,
+                "title": "Test PR",
+                "state": "OPEN",
+                "head_branch": "feat/test",
+                "base_branch": "main",
+                "url": "https://example.com/pr/1",
+            },
+        ), mock.patch.object(MODULE, "fetch_issue_comments", return_value=[]), mock.patch.object(
+            MODULE,
+            "fetch_latest_commit_review",
+            return_value=latest_commit_review,
+        ):
+            result = MODULE.build_result(1, "feat/test")
+
+        self.assertNotIn(
+            "CodeRabbit actionable comments block was not found in issue comments.",
+            result["parse_warnings"],
+        )
+
+
 class MainOutputTests(unittest.TestCase):
     """Cover CLI output semantics for JSON and file-output combinations."""
 

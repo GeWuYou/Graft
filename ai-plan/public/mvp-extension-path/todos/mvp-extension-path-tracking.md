@@ -65,6 +65,8 @@
   concurrent start-stop transitions cannot race on partially applied runtime state.
 - `graft-pr-review` now prefers native `git` before the Windows fallback in WSL-like shells, keeps JSON stdout stable
   when `--json-output` is requested, and treats visible `Addressed in commit` markers as resolved review threads.
+- `graft-pr-review` now suppresses the missing-actionable warning when the latest CodeRabbit review was parsed through
+  non-nitpick grouped sections such as `major`, `minor`, `duplicate`, or `outside-diff`.
 
 ## Active Risks
 
@@ -115,6 +117,7 @@
 - `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --section pr`
 - `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --format json --json-output /tmp/graft-pr1-review.json`
 - `jq '{open_thread_count: (.latest_commit_review.open_threads | length), open_threads: [.latest_commit_review.open_threads[] | {path, status}]}' /tmp/graft-pr1-review.json`
+- `python3 .agents/skills/graft-pr-review/scripts/test_fetch_current_pr_review.py`
 
 ## Immediate Next Step
 

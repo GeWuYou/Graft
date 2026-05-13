@@ -108,6 +108,13 @@
   regression tests, `fetch_current_pr_review.py --section pr` on the checked-out branch, and
   `fetch_current_pr_review.py --pr 1 --format json --json-output /tmp/graft-pr1-review.json`.
 
+## 2026-05-13 PR review warning follow-up
+
+- Fixed the remaining `graft-pr-review` warning gate so parsed `major` / `minor` / `duplicate` / `outside-diff`
+  groups suppress the fallback "actionable comments block was not found" warning even when `nitpick` is empty.
+- Added a focused `build_result()` regression test that covers a CodeRabbit latest-review body with only `major`
+  grouped comments.
+
 ## 2026-05-12 `.ai/environment`
 
 - Introduced `.ai/environment/tools.raw.yaml` and `.ai/environment/tools.ai.yaml` as repository-wide environment truth.
