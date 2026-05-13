@@ -8,7 +8,12 @@ func NewRootCommand() *cobra.Command {
 		Use:          "graft",
 		Short:        "Graft server runtime and maintenance commands",
 		SilenceUsage: true,
-		RunE:         runServe,
+		Args:         cobra.NoArgs,
+		// Keep runtime startup explicit under `graft serve` so the root command
+		// can safely act as a discoverable entrypoint for all server operations.
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	root.AddCommand(newServeCommand())
