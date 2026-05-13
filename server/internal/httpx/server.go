@@ -1,4 +1,3 @@
-// Package httpx owns the Gin engine assembly for the platform runtime.
 package httpx
 
 import (
@@ -60,12 +59,9 @@ func (s *Server) Run(ctx context.Context, addr string) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if err := s.Shutdown(shutdownCtx); err != nil {
-			return err
-		}
-
+		shutdownErr := s.Shutdown(shutdownCtx)
 		<-errCh
-		return nil
+		return shutdownErr
 	}
 }
 

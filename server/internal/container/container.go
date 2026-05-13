@@ -28,6 +28,13 @@ type Container struct {
 	mu        sync.RWMutex
 	providers map[string]Provider
 	instances map[string]any
+	inflight  map[string]*inflightCall
+}
+
+type inflightCall struct {
+	done chan struct{}
+	val  any
+	err  error
 }
 
 // New creates an empty service container.
@@ -35,6 +42,7 @@ func New() *Container {
 	return &Container{
 		providers: make(map[string]Provider),
 		instances: make(map[string]any),
+		inflight:  make(map[string]*inflightCall),
 	}
 }
 
@@ -61,31 +69,46 @@ func (c *Container) RegisterSingleton(key any, provider Provider) error {
 func (c *Container) Resolve(key any) (any, error) {
 	name := keyName(key)
 
-	c.mu.RLock()
+	c.mu.Lock()
 	if instance, ok := c.instances[name]; ok {
-		c.mu.RUnlock()
+		c.mu.Unlock()
 		return instance, nil
 	}
 
+	if call, ok := c.inflight[name]; ok {
+		c.mu.Unlock()
+		<-call.done
+		if call.err != nil {
+			return nil, fmt.Errorf("build service %s: %w", name, call.err)
+		}
+		return call.val, nil
+	}
+
 	provider, ok := c.providers[name]
-	c.mu.RUnlock()
 	if !ok {
+		c.mu.Unlock()
 		return nil, fmt.Errorf("service not registered: %s", name)
 	}
 
+	call := &inflightCall{done: make(chan struct{})}
+	c.inflight[name] = call
+	c.mu.Unlock()
+
 	instance, err := provider(c)
+
+	c.mu.Lock()
+	if err == nil {
+		c.instances[name] = instance
+	}
+	call.val = instance
+	call.err = err
+	close(call.done)
+	delete(c.inflight, name)
+	c.mu.Unlock()
+
 	if err != nil {
 		return nil, fmt.Errorf("build service %s: %w", name, err)
 	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if cached, ok := c.instances[name]; ok {
-		return cached, nil
-	}
-
-	c.instances[name] = instance
 	return instance, nil
 }
 

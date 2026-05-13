@@ -60,8 +60,8 @@ plugin.
 
 Before choosing runtimes, package managers, or CLI tools:
 
-* first read `@.ai/environment/tools.ai.yaml` if it exists
-* use `@.ai/environment/tools.raw.yaml` only when the AI-facing inventory is missing or insufficient
+* first read `.ai/environment/tools.ai.yaml` if it exists
+* use `.ai/environment/tools.raw.yaml` only when the AI-facing inventory is missing or insufficient
 * prefer repository-relevant installed tools over assumptions about what is available on the system
 * if a change affects repository toolchain expectations or environment guidance, refresh the `.ai/environment/`
   inventory in the same change instead of leaving generated environment truth stale
@@ -327,9 +327,8 @@ explicitly narrows the task.
 
 For repository work:
 
-* during the current rapid-iteration phase, direct development on `main` is allowed by default
-* create a dedicated branch only when the user explicitly asks for branch isolation, when a release-stabilization
-  workflow requires it, or when the task is risky enough that isolated review is materially safer
+* default to a dedicated branch and PR for repository work
+* direct development on `main` is allowed only for emergency fixes or when the user explicitly authorizes it
 * use branch names in the form `<type>/<topic-or-scope>`
 * if the required validation passes and the task produced changes, create a Git commit unless the user explicitly says
   not to commit

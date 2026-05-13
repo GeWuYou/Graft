@@ -104,6 +104,8 @@
 - `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --format json --json-output /tmp/graft-pr1-review.json`
 - `jq '.pull_request, .review_agents, .latest_commit_review.open_threads, .parse_warnings' /tmp/graft-pr1-review.json`
 - `cd server && go test ./...`
+- `cd server && GOCACHE=/tmp/go-build-cache go test ./internal/container ./internal/httpx ./internal/cli`
+- `cd web && bun run typecheck`
 
 ## Immediate Next Step
 

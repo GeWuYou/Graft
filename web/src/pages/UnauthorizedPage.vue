@@ -24,10 +24,19 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
+function isSafeFallbackPath(value: unknown): value is string {
+  return (
+    typeof value === 'string'
+    && value.length > 0
+    && value.startsWith('/')
+    && !value.startsWith('//')
+  );
+}
+
 const fallbackPath = computed(() => {
   const fallback = route.query.fallback;
 
-  return typeof fallback === 'string' && fallback ? fallback : '/dashboard';
+  return isSafeFallbackPath(fallback) ? fallback : '/dashboard';
 });
 
 function goFallback() {

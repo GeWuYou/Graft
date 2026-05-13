@@ -10,6 +10,21 @@ interface SessionPayload {
 
 const MOCK_ADMIN_PERMISSIONS = ['dashboard.view'] as const;
 
+function isSessionPayload(value: unknown): value is SessionPayload {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const session = value as Record<string, unknown>;
+
+  return (
+    typeof session.token === 'string'
+    && typeof session.userName === 'string'
+    && Array.isArray(session.permissions)
+    && session.permissions.every((permission) => typeof permission === 'string')
+  );
+}
+
 function loadSession(): SessionPayload | null {
   if (typeof window === 'undefined') {
     return null;
@@ -22,7 +37,14 @@ function loadSession(): SessionPayload | null {
   }
 
   try {
-    return JSON.parse(raw) as SessionPayload;
+    const parsed = JSON.parse(raw) as unknown;
+
+    if (!isSessionPayload(parsed)) {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+      return null;
+    }
+
+    return parsed;
   } catch {
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
     return null;

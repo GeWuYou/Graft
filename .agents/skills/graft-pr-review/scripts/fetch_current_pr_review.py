@@ -24,6 +24,7 @@ DEFAULT_WINDOWS_GIT = "/mnt/d/Tool/Development Tools/Git/cmd/git.exe"
 GIT_ENVIRONMENT_KEY = "GRAFT_WINDOWS_GIT"
 GIT_DIR_ENVIRONMENT_KEY = "GRAFT_GIT_DIR"
 WORK_TREE_ENVIRONMENT_KEY = "GRAFT_WORK_TREE"
+GITHUB_TOKEN_ENVIRONMENT_KEYS = ("GRAFT_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN")
 USER_AGENT = "codex-graft-pr-review"
 CODERABBIT_LOGIN = "coderabbitai[bot]"
 GREPTILE_LOGIN = "greptile-apps[bot]"
@@ -99,9 +100,9 @@ CODERABBIT_REVIEW_GROUPS = (
 def resolve_git_command() -> str:
     """Resolve the git executable to use for this repository."""
     candidates = [
-        shutil.which("git"),
         os.environ.get(GIT_ENVIRONMENT_KEY),
         DEFAULT_WINDOWS_GIT,
+        shutil.which("git"),
         shutil.which("git.exe"),
     ]
 
@@ -123,17 +124,33 @@ def resolve_git_command() -> str:
 
 def resolve_git_invocation() -> list[str]:
     """Resolve the git invocation, preferring explicit bindings when provided."""
+    git_command = resolve_git_command()
     configured_git_dir = os.environ.get(GIT_DIR_ENVIRONMENT_KEY)
     configured_work_tree = os.environ.get(WORK_TREE_ENVIRONMENT_KEY)
-    linux_git = shutil.which("git")
+    invocation = [git_command]
+    if configured_git_dir:
+        invocation.append(f"--git-dir={configured_git_dir}")
+    if configured_work_tree:
+        invocation.append(f"--work-tree={configured_work_tree}")
+    return invocation
 
-    if configured_git_dir and configured_work_tree and linux_git:
-        return [linux_git, f"--git-dir={configured_git_dir}", f"--work-tree={configured_work_tree}"]
 
-    if linux_git:
-        return [linux_git]
+def resolve_github_token() -> str:
+    """Return the first configured GitHub token, if any."""
+    for environment_key in GITHUB_TOKEN_ENVIRONMENT_KEYS:
+        token = os.environ.get(environment_key, "").strip()
+        if token:
+            return token
+    return ""
 
-    return [resolve_git_command()]
+
+def build_github_request_headers(accept: str) -> dict[str, str]:
+    """Build GitHub API request headers, including optional token auth."""
+    headers = {"Accept": accept, "User-Agent": USER_AGENT}
+    github_token = resolve_github_token()
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+    return headers
 
 
 def resolve_request_timeout_seconds() -> int:
@@ -172,7 +189,7 @@ def get_current_branch() -> str:
 def open_url(url: str, accept: str) -> tuple[str, Any]:
     """Open a URL with proxy variables disabled and return decoded text plus headers."""
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    request = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": USER_AGENT})
+    request = urllib.request.Request(url, headers=build_github_request_headers(accept))
     with opener.open(request, timeout=resolve_request_timeout_seconds()) as response:
         return response.read().decode("utf-8", "replace"), response.headers
 
@@ -345,7 +362,7 @@ def parse_comment_cards(comment_block: str) -> list[dict[str, str]]:
     comments: list[dict[str, str]] = []
     pattern = re.compile(
         r"<summary>"
-        r"((?:[^<\n]+/)*[^<\n/]+(?:\.[A-Za-z0-9._-]+)+|AGENTS\.md|CLAUDE\.md|README\.md|\.gitignore)"
+        r"([^<\n]+?)"
         r" \((\d+)\)</summary><blockquote>\s*(.*?)\s*(?:(?:</blockquote></details>)|(?:</blockquote>))",
         re.S,
     )

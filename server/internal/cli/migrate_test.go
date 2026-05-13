@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// TestResolveMigrationDirFindsServerRelativePathFromRepoRoot verifies the
+// migration resolver finds the default server-relative path from the repo root.
 func TestResolveMigrationDirFindsServerRelativePathFromRepoRoot(t *testing.T) {
 	root := t.TempDir()
 	migrationDir := filepath.Join(root, "server", defaultMigrationDir)
@@ -23,6 +25,8 @@ func TestResolveMigrationDirFindsServerRelativePathFromRepoRoot(t *testing.T) {
 	}
 }
 
+// TestResolveMigrationDirFindsPathFromServerModuleRoot verifies the migration
+// resolver also accepts the server module root as the working directory.
 func TestResolveMigrationDirFindsPathFromServerModuleRoot(t *testing.T) {
 	root := t.TempDir()
 	serverRoot := filepath.Join(root, "server")
@@ -41,6 +45,8 @@ func TestResolveMigrationDirFindsPathFromServerModuleRoot(t *testing.T) {
 	}
 }
 
+// TestResolveMigrationDirRejectsMissingPath verifies the resolver returns an
+// error when neither supported migration directory exists.
 func TestResolveMigrationDirRejectsMissingPath(t *testing.T) {
 	root := t.TempDir()
 

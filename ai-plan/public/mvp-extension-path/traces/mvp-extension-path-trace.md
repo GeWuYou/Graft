@@ -76,6 +76,22 @@
 - Remaining gap: the Atlas apply path still has not been exercised against a live PostgreSQL target, and the current
   permission gate is a deliberate MVP placeholder rather than the final RBAC implementation.
 
+## 2026-05-13 PR review follow-up hardening
+
+- Hardened `server/internal/container` singleton resolution so concurrent callers now share one in-flight provider
+  build instead of racing to construct duplicate instances.
+- Tightened `server/internal/httpx` shutdown sequencing so the runtime still waits for the server goroutine to finish
+  even when graceful shutdown returns an error.
+- Completed the remaining `server/internal/cli` review follow-ups by documenting `NewRootCommand` contract semantics
+  and adding Go-style intent comments for the migration directory tests.
+- Hardened the mock-backed `web` auth store to reject malformed persisted session payloads before they reach
+  permission checks, and restricted unauthorized-page fallback navigation to safe in-app paths only.
+- Fixed `graft-pr-review` helper gaps around explicit git bindings, optional GitHub token authentication, and grouped
+  CodeRabbit path parsing so review extraction stays stable in mixed WSL/Windows and extensionless-file cases.
+- Corrected the `AGENTS.md` environment inventory paths so repository startup guidance points at valid repo-relative
+  files.
+- Direct validation for this hardening batch includes `cd server && GOCACHE=/tmp/go-build-cache go test ./internal/container ./internal/httpx ./internal/cli`, `cd web && bun run typecheck`, and the helper's Python regression tests.
+
 ## 2026-05-12 `.ai/environment`
 
 - Introduced `.ai/environment/tools.raw.yaml` and `.ai/environment/tools.ai.yaml` as repository-wide environment truth.
