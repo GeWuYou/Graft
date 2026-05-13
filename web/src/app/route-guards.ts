@@ -4,6 +4,8 @@ import type { RouteLocationNormalized, Router } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigationStore } from '@/stores/navigation';
 
+const UNAUTHORIZED_ROUTE_NAME = 'unauthorized';
+
 /**
  * Centralizes the shell's current routing assumptions:
  * authentication is session-based, and permission checks rely on route meta until
@@ -32,7 +34,17 @@ export function setupRouteGuards(router: Router, pinia: Pinia) {
     if (typeof requiredPermission === 'string' && !authStore.hasPermission(requiredPermission)) {
       const fallbackPath = navigationStore.firstAccessiblePath(authStore.permissions);
 
-      return fallbackPath ? { path: fallbackPath } : { name: 'login' };
+      if (to.name === UNAUTHORIZED_ROUTE_NAME) {
+        return true;
+      }
+
+      return {
+        name: UNAUTHORIZED_ROUTE_NAME,
+        query: {
+          from: to.fullPath,
+          fallback: fallbackPath || '/dashboard',
+        },
+      };
     }
 
     navigationStore.setActivePath(to.path);

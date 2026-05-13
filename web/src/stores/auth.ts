@@ -8,6 +8,8 @@ interface SessionPayload {
   permissions: string[];
 }
 
+const MOCK_ADMIN_PERMISSIONS = ['dashboard.view'] as const;
+
 function loadSession(): SessionPayload | null {
   if (typeof window === 'undefined') {
     return null;
@@ -63,7 +65,7 @@ export const useAuthStore = defineStore('auth', {
       const session: SessionPayload = {
         token: 'mock-session-token',
         userName,
-        permissions: ['dashboard.view'],
+        permissions: [...MOCK_ADMIN_PERMISSIONS],
       };
 
       this.token = session.token;

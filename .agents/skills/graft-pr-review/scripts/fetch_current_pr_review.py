@@ -57,12 +57,42 @@ DISPLAY_SECTION_CHOICES = (
     "pr",
     "failed-checks",
     "actionable",
+    "duplicate",
+    "major",
+    "minor",
     "outside-diff",
     "nitpick",
     "open-threads",
     "megalinter",
     "tests",
     "warnings",
+)
+CODERABBIT_REVIEW_GROUPS = (
+    {
+        "slug": "duplicate",
+        "section_name": "Duplicate comments",
+        "display_name": "CodeRabbit duplicate comments",
+    },
+    {
+        "slug": "major",
+        "section_name": "Major comments",
+        "display_name": "CodeRabbit major comments",
+    },
+    {
+        "slug": "minor",
+        "section_name": "Minor comments",
+        "display_name": "CodeRabbit minor comments",
+    },
+    {
+        "slug": "outside-diff",
+        "section_name": "Outside diff range comments",
+        "display_name": "CodeRabbit outside-diff comments",
+    },
+    {
+        "slug": "nitpick",
+        "section_name": "Nitpick comments",
+        "display_name": "CodeRabbit nitpick comments",
+    },
 )
 
 
@@ -393,17 +423,60 @@ def parse_latest_review_body(review_body: str) -> dict[str, Any]:
         normalized_review_body,
         re.S,
     )
-    outside_diff_group = parse_review_comment_group(normalized_review_body, "Outside diff range comments")
-    nitpick_group = parse_review_comment_group(normalized_review_body, "Nitpick comments")
-    return {
+    parsed_groups = {
+        group["slug"]: parse_review_comment_group(normalized_review_body, group["section_name"])
+        for group in CODERABBIT_REVIEW_GROUPS
+    }
+    result = {
         "actionable_count": int(actionable_count_match.group(1)) if actionable_count_match else 0,
-        "outside_diff_count": outside_diff_group["count"],
-        "outside_diff_comments": outside_diff_group["comments"],
-        "nitpick_count": nitpick_group["count"],
-        "nitpick_comments": nitpick_group["comments"],
+        "comment_groups": {
+            group["slug"]: {
+                "section_name": group["section_name"],
+                "count": parsed_groups[group["slug"]]["count"],
+                "comments": parsed_groups[group["slug"]]["comments"],
+                "raw": parsed_groups[group["slug"]]["raw"],
+            }
+            for group in CODERABBIT_REVIEW_GROUPS
+        },
         "all_comments_prompt": prompt_match.group(1).strip() if prompt_match else "",
         "raw": review_body.strip(),
     }
+    for group in CODERABBIT_REVIEW_GROUPS:
+        slug = group["slug"]
+        result[f"{slug.replace('-', '_')}_count"] = parsed_groups[slug]["count"]
+        result[f"{slug.replace('-', '_')}_comments"] = parsed_groups[slug]["comments"]
+    return result
+
+
+def append_coderabbit_group_section(
+    lines: list[str],
+    *,
+    section_slug: str,
+    section_display_name: str,
+    review_feedback: dict[str, Any],
+    normalized_path_filters: list[str],
+    max_description_length: int,
+) -> None:
+    """Append one parsed CodeRabbit review group to the text output."""
+    group_key = section_slug.replace("-", "_")
+    grouped_comments = review_feedback.get("comment_groups", {}).get(section_slug, {})
+    comments = grouped_comments.get("comments") or review_feedback.get(f"{group_key}_comments", [])
+    visible_comments = filter_comments_by_path(comments, normalized_path_filters)
+    declared_count = grouped_comments.get("count") or review_feedback.get(f"{group_key}_count") or len(comments)
+
+    lines.append("")
+    lines.append(
+        f"{section_display_name}: {declared_count} declared, {len(comments)} parsed"
+        + (f", {len(visible_comments)} shown after path filter" if normalized_path_filters else "")
+    )
+    for comment in visible_comments:
+        lines.append(f"- {comment['path']} {comment['range']}".rstrip())
+        if comment["title"]:
+            lines.append(f"  Title: {truncate_text(comment['title'], max_description_length)}")
+        if comment["description"]:
+            lines.append(f"  Description: {truncate_text(comment['description'], max_description_length)}")
+    if comments and not visible_comments:
+        lines.append(f"  Details: no {section_slug} comments matched the current path filter.")
 
 
 def parse_megalinter_comment(comment_body: str) -> dict[str, Any]:
@@ -800,6 +873,35 @@ def select_latest_submitted_review(
     return max(filtered_reviews, key=lambda review: review.get("submitted_at", ""))
 
 
+def review_body_contains_coderabbit_group(review_body: str, section_name: str) -> bool:
+    """Return whether a review body contains a named CodeRabbit folded comment group."""
+    return section_name in normalize_review_body_for_parsing(review_body)
+
+
+def select_latest_coderabbit_grouped_review(reviews: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Prefer the newest CodeRabbit review that still contains structured grouped comments."""
+    coderabbit_reviews = [
+        review
+        for review in reviews
+        if review.get("submitted_at") and review.get("user", {}).get("login") == CODERABBIT_LOGIN
+    ]
+    grouped_reviews = [
+        review
+        for review in coderabbit_reviews
+        if any(
+            review_body_contains_coderabbit_group(str(review.get("body") or ""), group["section_name"])
+            for group in CODERABBIT_REVIEW_GROUPS
+        )
+    ]
+    if grouped_reviews:
+        return max(grouped_reviews, key=lambda review: review.get("submitted_at", ""))
+
+    return select_latest_submitted_review(
+        coderabbit_reviews,
+        prefer_non_empty_body=True,
+    )
+
+
 def summarize_submitted_review(review: dict[str, Any] | None) -> dict[str, Any]:
     """Normalize a submitted review into a stable JSON shape."""
     if review is None:
@@ -859,13 +961,15 @@ def fetch_latest_commit_review(pr_number: int) -> dict[str, Any]:
     latest_review = select_latest_submitted_review(candidate_reviews)
     latest_reviews_by_user: dict[str, dict[str, Any]] = {}
     for agent in SUPPORTED_AI_REVIEWERS:
-        latest_reviews_by_user[agent["login"]] = summarize_submitted_review(
-            select_latest_submitted_review(
+        if agent["login"] == CODERABBIT_LOGIN:
+            selected_review = select_latest_coderabbit_grouped_review(candidate_reviews)
+        else:
+            selected_review = select_latest_submitted_review(
                 candidate_reviews,
                 required_user=agent["login"],
                 prefer_non_empty_body=True,
             )
-        )
+        latest_reviews_by_user[agent["login"]] = summarize_submitted_review(selected_review)
 
     latest_commit_comments = [comment for comment in comments if comment.get("commit_id") == latest_commit_sha]
     threads = build_latest_commit_review_threads(latest_commit_comments)
@@ -944,24 +1048,19 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
         latest_review_body = str(latest_review.get("body") or "")
         if latest_review.get("user") == CODERABBIT_LOGIN and latest_review_body:
             coderabbit_review = parse_latest_review_body(latest_review_body)
-            outside_diff_count = int(coderabbit_review.get("outside_diff_count") or 0)
-            parsed_outside_diff_count = len(coderabbit_review.get("outside_diff_comments", []))
-            nitpick_count = int(coderabbit_review.get("nitpick_count") or 0)
-            parsed_nitpick_count = len(coderabbit_review.get("nitpick_comments", []))
-            if "Outside diff range comments" in latest_review_body and not parsed_outside_diff_count:
-                warnings.append("CodeRabbit outside-diff comments block could not be parsed from the latest review body.")
-            elif outside_diff_count and parsed_outside_diff_count != outside_diff_count:
-                warnings.append(
-                    "CodeRabbit outside-diff comments were only partially parsed from the latest review body: "
-                    f"declared={outside_diff_count}, parsed={parsed_outside_diff_count}."
-                )
-            if "Nitpick comments" in latest_review_body and not parsed_nitpick_count:
-                warnings.append("CodeRabbit nitpick comments block could not be parsed from the latest review body.")
-            elif nitpick_count and parsed_nitpick_count != nitpick_count:
-                warnings.append(
-                    "CodeRabbit nitpick comments were only partially parsed from the latest review body: "
-                    f"declared={nitpick_count}, parsed={parsed_nitpick_count}."
-                )
+            for group in CODERABBIT_REVIEW_GROUPS:
+                group_key = group["slug"].replace("-", "_")
+                declared_count = int(coderabbit_review.get(f"{group_key}_count") or 0)
+                parsed_count = len(coderabbit_review.get(f"{group_key}_comments", []))
+                if group["section_name"] in latest_review_body and not parsed_count:
+                    warnings.append(
+                        f"{group['display_name']} block could not be parsed from the latest review body."
+                    )
+                elif declared_count and parsed_count != declared_count:
+                    warnings.append(
+                        f"{group['display_name']} were only partially parsed from the latest review body: "
+                        f"declared={declared_count}, parsed={parsed_count}."
+                    )
     except Exception as error:  # noqa: BLE001
         warnings.append(f"Latest commit review comments could not be fetched: {error}")
 
@@ -1084,41 +1183,17 @@ def format_text(
         elif actionable_count and not comments:
             lines.append("  Details: see latest-commit review threads below.")
 
-    outside_diff_comments = review_feedback.get("outside_diff_comments", [])
-    visible_outside_diff_comments = filter_comments_by_path(outside_diff_comments, normalized_path_filters)
-    outside_diff_count = review_feedback.get("outside_diff_count") or len(outside_diff_comments)
-    if "outside-diff" in selected_sections:
-        lines.append("")
-        lines.append(
-            f"CodeRabbit outside-diff comments: {outside_diff_count} declared, {len(outside_diff_comments)} parsed"
-            + (f", {len(visible_outside_diff_comments)} shown after path filter" if normalized_path_filters else "")
+    for group in CODERABBIT_REVIEW_GROUPS:
+        if group["slug"] not in selected_sections:
+            continue
+        append_coderabbit_group_section(
+            lines,
+            section_slug=group["slug"],
+            section_display_name=group["display_name"],
+            review_feedback=review_feedback,
+            normalized_path_filters=normalized_path_filters,
+            max_description_length=max_description_length,
         )
-        for comment in visible_outside_diff_comments:
-            lines.append(f"- {comment['path']} {comment['range']}".rstrip())
-            if comment["title"]:
-                lines.append(f"  Title: {truncate_text(comment['title'], max_description_length)}")
-            if comment["description"]:
-                lines.append(f"  Description: {truncate_text(comment['description'], max_description_length)}")
-        if outside_diff_comments and not visible_outside_diff_comments:
-            lines.append("  Details: no outside-diff comments matched the current path filter.")
-
-    nitpick_comments = review_feedback.get("nitpick_comments", [])
-    visible_nitpick_comments = filter_comments_by_path(nitpick_comments, normalized_path_filters)
-    nitpick_count = review_feedback.get("nitpick_count") or len(nitpick_comments)
-    if "nitpick" in selected_sections:
-        lines.append("")
-        lines.append(
-            f"CodeRabbit nitpick comments: {nitpick_count} declared, {len(nitpick_comments)} parsed"
-            + (f", {len(visible_nitpick_comments)} shown after path filter" if normalized_path_filters else "")
-        )
-        for comment in visible_nitpick_comments:
-            lines.append(f"- {comment['path']} {comment['range']}".rstrip())
-            if comment["title"]:
-                lines.append(f"  Title: {truncate_text(comment['title'], max_description_length)}")
-            if comment["description"]:
-                lines.append(f"  Description: {truncate_text(comment['description'], max_description_length)}")
-        if nitpick_comments and not visible_nitpick_comments:
-            lines.append("  Details: no nitpick comments matched the current path filter.")
 
     latest_commit_review = result.get("latest_commit_review", {})
     latest_commit = latest_commit_review.get("latest_commit", {})

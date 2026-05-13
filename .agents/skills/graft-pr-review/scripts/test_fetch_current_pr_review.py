@@ -80,6 +80,44 @@ This sentence is redundant.
         self.assertEqual(parsed["outside_diff_comments"][0]["path"], "server/main.go")
         self.assertEqual(parsed["nitpick_comments"][0]["path"], "AGENTS.md")
 
+    def test_parse_latest_review_body_extracts_duplicate_major_and_minor_groups(self) -> None:
+        """Additional CodeRabbit severity groups should be parsed from the latest review body."""
+        review_body = """
+**Actionable comments posted: 3**
+<details><summary>♻️ Duplicate comments (1)</summary><blockquote>
+<details><summary>server/internal/container/container.go (1)</summary><blockquote>
+`L60-L90`: **Reuse existing helper**
+This block duplicates in-flight coordination logic.
+</blockquote></details>
+</blockquote></details>
+<details><summary>🟠 Major comments (2)</summary><blockquote>
+<details><summary>.github/workflows/pull-request-validation.yml (1)</summary><blockquote>
+`L30-L30`: **Use supported GitHub Actions context**
+Job-level hashFiles is invalid here.
+</blockquote></details>
+<details><summary>AGENTS.md (1)</summary><blockquote>
+`L87-L90`: **Register the review skill**
+The skill list should mention this workflow.
+</blockquote></details>
+</blockquote></details>
+<details><summary>🟡 Minor comments (1)</summary><blockquote>
+<details><summary>.agents/skills/graft-pr-review/SKILL.md (1)</summary><blockquote>
+`L20-L20`: **Broaden the examples**
+Mention additional grouped review sections.
+</blockquote></details>
+</blockquote></details>
+"""
+
+        parsed = MODULE.parse_latest_review_body(review_body)
+
+        self.assertEqual(parsed["duplicate_count"], 1)
+        self.assertEqual(parsed["major_count"], 2)
+        self.assertEqual(parsed["minor_count"], 1)
+        self.assertEqual(parsed["duplicate_comments"][0]["path"], "server/internal/container/container.go")
+        self.assertEqual(parsed["major_comments"][0]["path"], ".github/workflows/pull-request-validation.yml")
+        self.assertEqual(parsed["minor_comments"][0]["path"], ".agents/skills/graft-pr-review/SKILL.md")
+        self.assertEqual(parsed["comment_groups"]["major"]["section_name"], "Major comments")
+
 
 class ResolveGitInvocationTests(unittest.TestCase):
     """Cover explicit repository binding for unusual shell contexts."""
@@ -98,6 +136,29 @@ class ResolveGitInvocationTests(unittest.TestCase):
                 MODULE.resolve_git_invocation(),
                 ["/usr/bin/git", "--git-dir=/tmp/graft.git", "--work-tree=/tmp/graft-worktree"],
             )
+
+
+class SelectLatestCoderabbitGroupedReviewTests(unittest.TestCase):
+    """Prefer the latest CodeRabbit review that preserves grouped comment sections."""
+
+    def test_select_latest_coderabbit_grouped_review_prefers_grouped_body_over_newer_prompt_only_body(self) -> None:
+        """A newer prompt-only review should not hide an older grouped review on the same commit."""
+        grouped_review = {
+            "id": 1,
+            "submitted_at": "2026-05-13T00:10:00Z",
+            "user": {"login": MODULE.CODERABBIT_LOGIN},
+            "body": "<details><summary>🟠 Major comments (2)</summary><blockquote></blockquote></details>",
+        }
+        prompt_only_review = {
+            "id": 2,
+            "submitted_at": "2026-05-13T00:20:00Z",
+            "user": {"login": MODULE.CODERABBIT_LOGIN},
+            "body": "**Actionable comments posted: 4**",
+        }
+
+        selected = MODULE.select_latest_coderabbit_grouped_review([grouped_review, prompt_only_review])
+
+        self.assertEqual(selected, grouped_review)
 
 
 if __name__ == "__main__":

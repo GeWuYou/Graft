@@ -73,9 +73,9 @@
 - `bash scripts/collect-dev-environment.sh --write`
 - `python3 scripts/generate-ai-environment.py`
 - `python3 -c 'import yaml; yaml.safe_load(open(".ai/environment/tools.raw.yaml", "r", encoding="utf-8")); yaml.safe_load(open(".ai/environment/tools.ai.yaml", "r", encoding="utf-8")); print("ok")'`
-- `cmd.exe /C "cd /d F:\\gewuyou\\project\\go\\graft\\web && C:\\Users\\gewuyou\\.bun\\bin\\bun.exe install"`
-- `cmd.exe /C "cd /d F:\\gewuyou\\project\\go\\graft\\web && C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck"`
-- `cmd.exe /C "cd /d F:\\gewuyou\\project\\go\\graft\\web && C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build"`
+- `cd web && bun install`
+- `cd web && bun run typecheck`
+- `cd web && bun run build`
 - `cd server && go mod tidy`
 - `cd server && go list -m -u all`
 - `cd server && go build ./cmd/graft`

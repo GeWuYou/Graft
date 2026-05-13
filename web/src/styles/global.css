@@ -9,7 +9,7 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  text-rendering: optimizeLegibility;
+  text-rendering: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

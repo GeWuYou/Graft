@@ -22,6 +22,22 @@ export const staticRoutes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/unauthorized',
+    component: () => import('@/layouts/AuthLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'unauthorized',
+        component: () => import('@/pages/UnauthorizedPage.vue'),
+        meta: {
+          title: '无权限访问',
+          hideInMenu: true,
+          requiresAuth: true,
+        },
+      },
+    ],
+  },
+  {
     path: '/',
     component: () => import('@/layouts/BasicLayout.vue'),
     meta: {

@@ -17,7 +17,8 @@ Shortcut: `$graft-pr-review`
    - locate the PR for the current branch through the GitHub PR API
    - fetch PR metadata, issue comments, reviews, and review comments through the GitHub API
    - extract CodeRabbit summary blocks and actionable-comment rollups when present
-   - parse the latest CodeRabbit review body itself, including folded sections such as `Nitpick comments (N)`
+   - parse the latest CodeRabbit review body itself, including folded sections such as `Duplicate comments (N)`,
+     `Major comments (N)`, `Minor comments (N)`, `Outside diff range comments (N)`, and `Nitpick comments (N)`
    - capture unresolved latest-head review threads for supported AI reviewers
    - surface failed checks, MegaLinter findings, and failed-test signals when present
    - prefer writing the full JSON payload to a file and then narrowing with `jq`
@@ -41,6 +42,8 @@ Shortcut: `$graft-pr-review`
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --format json --json-output /tmp/pr1-review.json`
 - Inspect only a high-signal section:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads`
+- Inspect grouped CodeRabbit severity comments from the latest review body:
+  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section duplicate --section major --section minor`
 - Narrow text output to one path fragment:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads --path AGENTS.md`
 
@@ -51,7 +54,9 @@ The script should produce:
 - PR metadata: number, title, state, branch, URL
 - Supported AI reviewer summary, including latest reviews and open-thread counts for `coderabbitai[bot]`, `greptile-apps[bot]`, and `gemini-code-assist[bot]`
 - CodeRabbit summary block from issue comments when available
-- Folded latest-review sections such as `Nitpick comments (N)` when CodeRabbit puts them in the review body instead of issue comments
+- Folded latest-review sections such as `Duplicate comments (N)`, `Major comments (N)`, `Minor comments (N)`,
+  `Outside diff range comments (N)`, and `Nitpick comments (N)` when CodeRabbit puts them in the review body instead
+  of issue comments
 - Parsed latest head-review threads, with unresolved threads clearly separated
 - Latest head commit review metadata and review threads
 - Pre-merge failed checks, if present
