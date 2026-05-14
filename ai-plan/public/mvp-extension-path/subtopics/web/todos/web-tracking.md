@@ -49,6 +49,14 @@
 - The latest dock-alignment follow-up corrects a remaining visual-centering issue in the floating toolbar:
   the bottom dock keeps its overall center anchored while active pills expand, and the active icon + label content is
   now centered within each expanded button instead of left-biased.
+- The latest frontend governance follow-up now also closes the quality-chain warning cleanup:
+  `web/vite.config.ts` only mounts `vite-plugin-mock` in mock/development modes, release/test builds use explicit
+  vendor chunk boundaries for `tdesign` / `tdesign-icons` / `echarts` / `vue` / shared utils, and the current starter
+  baseline accepts a `chunkSizeWarningLimit` aligned to that temporary full-TDesign shell so the host Windows Bun
+  `bun run check` path can finish without warning output.
+- The same slice also refreshed the lowest-risk runtime dependency update in the current tree by moving `axios` to
+  `^1.16.1`, while leaving cross-major framework, UI-library, and tooling upgrades for later dedicated validation
+  slices instead of mixing them into this warning-cleanup pass.
 
 ## Active Risks
 
@@ -60,26 +68,28 @@
   remains in `web`, so mainline implementation needs a clear replacement boundary instead of mixed old/new pages.
 - Mixed WSL Bun and host Windows Bun dependency installs can still break Windows IDE startup until the working tree is
   reinstalled with host Windows Bun after this rule change lands.
+- The warning-cleanup slice now reaches a zero-warning completion state, but the current vendor-size strategy still
+  depends on the temporary full-TDesign starter baseline and a raised `chunkSizeWarningLimit`, so deeper bundle-size
+  optimization should be treated as a future performance task instead of silently regressing back into warning debt.
 
 ## Latest Validation
 
-- The official-alignment slice for the theme workbench validated with host Windows Bun using:
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
-- The build still emits existing non-blocking warnings from `@vueuse/core` pure annotations and large Vite chunks, but
-  the validation completed successfully.
-- The icon and footer cleanup follow-up should again validate with host Windows Bun using:
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
-- The dock-centering follow-up should validate with host Windows Bun using:
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
-- After the mainline implementation actually replaces the current frontend baseline, it should still validate with host
-  Windows Bun using at least:
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe install --force`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
+- The frontend governance baseline now treats host Windows Bun `bun run check` as the required completion-state
+  validation entrypoint for `web`.
+- The latest implementation validation snapshot is:
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe outdated`
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe add axios@latest`
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run test:run -- --reporter=hanging-process`
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run test:run`
   - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run check`
+- `bun run check` 当前通过，`format:check`、`typecheck`、`lint`、`stylelint`、`test:run`、`build` 均无未处理 warning。
+- The current build-cleanup strategy is explicit:
+  - `@vueuse/core` pure annotation noise is filtered by exact source match in `vite.config.ts`, so the repository does
+    not suppress unrelated Rollup warnings.
+  - `vite-plugin-mock` is only mounted in mock/development modes, preventing Vitest from leaving watcher handles open
+    in completion-state validation.
+  - Chunk-warning output is closed by stable vendor chunk boundaries plus the current `1600` threshold that matches
+    the temporary full-TDesign starter baseline; future bundle-size optimization remains a separate follow-up concern.
 
 ## Immediate Next Step
 
@@ -90,3 +100,6 @@
   current `setting store + token/runtime底座 + dock/panel 壳层` path.
 - Do not fork a second theme system outside the existing `tvision-color + CSS variables + Pinia persisted state`
   path, and avoid adding another shell-level host or a parallel visible-state flag.
+- Keep future `web` slices on the host Windows Bun `bun run check` completion gate, and treat any later bundle-size
+  or dependency-major upgrade work as dedicated follow-up tasks instead of reintroducing warning noise into the
+  completion path.

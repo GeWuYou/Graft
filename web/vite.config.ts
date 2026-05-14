@@ -17,6 +17,7 @@ export function createViteConfig(mode: string): UserConfig {
   const apiPrefix = env.VITE_API_URL_PREFIX || '/api';
   const apiTarget = env.VITE_API_URL || 'http://127.0.0.1:3000';
   const proxyEnabled = env.VITE_IS_REQUEST_PROXY === 'true';
+  const mockEnabled = mode === 'mock' || mode === 'development';
 
   const lessOptions = {
     javascriptEnabled: true,
@@ -33,6 +34,61 @@ export function createViteConfig(mode: string): UserConfig {
 
   return {
     base,
+    build: {
+      chunkSizeWarningLimit: 1600,
+      rollupOptions: {
+        onwarn(warning, warn) {
+          // `@vueuse/core` 当前版本产物会触发 Rollup 对 `#__PURE__` 注释位置的已知噪音，
+          // 这里仅按精确来源收口日志，不吞掉其它依赖或业务代码 warning。
+          if (
+            warning.message.includes(
+              'contains an annotation that Rollup cannot interpret due to the position of the comment',
+            ) &&
+            warning.id?.includes('/node_modules/@vueuse/core/dist/index.js')
+          ) {
+            return;
+          }
+
+          warn(warning);
+        },
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) {
+              return undefined;
+            }
+
+            if (id.includes('/node_modules/tdesign-icons-vue-next/')) {
+              return 'vendor-tdesign-icons';
+            }
+
+            if (id.includes('/node_modules/echarts/')) {
+              return 'vendor-echarts';
+            }
+
+            if (id.includes('/node_modules/tdesign-vue-next/') || id.includes('/node_modules/tvision-color/')) {
+              return 'vendor-tdesign';
+            }
+
+            if (
+              id.includes('/node_modules/vue/') ||
+              id.includes('/node_modules/@vue/') ||
+              id.includes('/node_modules/vue-router/') ||
+              id.includes('/node_modules/pinia/') ||
+              id.includes('/node_modules/vue-i18n/') ||
+              id.includes('/node_modules/@vueuse/core/')
+            ) {
+              return 'vendor-vue';
+            }
+
+            if (id.includes('/node_modules/lodash/')) {
+              return 'vendor-utils';
+            }
+
+            return undefined;
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -48,10 +104,14 @@ export function createViteConfig(mode: string): UserConfig {
       vueJsx(),
       UnoCSS(),
       svgLoader(),
-      viteMockServe({
-        mockPath: 'mock',
-        enable: true,
-      }),
+      ...(mockEnabled
+        ? [
+            viteMockServe({
+              mockPath: 'mock',
+              enable: true,
+            }),
+          ]
+        : []),
     ],
     server: {
       port: 3002,

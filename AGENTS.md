@@ -217,12 +217,21 @@ Rules:
 * keep shared state in stores and keep page-local state inside the page or module
 * frontend governance baseline must treat `TypeScript strict`, `format:check`, `ESLint`, `Stylelint`, `Vitest`,
   `Husky + lint-staged`, and `commitlint` as one consistent quality gate instead of optional local preferences
-* once the repository `web` toolchain exposes a unified check script, default frontend acceptance should use that
-  entrypoint and keep the validation order explicit as `format:check -> typecheck -> lint -> stylelint -> test:run -> build`
+* the repository `web` toolchain now treats `bun run check` as the mandatory frontend completion entrypoint; when a
+  `web` task reaches a completion-state milestone such as 功能完成、任务完成, or 准备合并, it must run the full chain in the explicit order
+  `format:check -> typecheck -> lint -> stylelint -> test:run -> build`
+* intermediate frontend iteration may still use the smallest direct validation that covers the touched area, but the
+  full `bun run check` chain is required before a `web` task is considered complete
 * when the repository is used from WSL, all `web` install, validation, build, preview, and dev commands must run
   through the configured host Windows Bun instead of the WSL Bun binary
 * do not refresh or regenerate `web/node_modules` from WSL Bun when host Windows Bun is the active frontend package
   manager, because mixed Bun environments can leave Windows IDE and `npm run dev` flows unusable
+* frontend completion defaults to zero warning across `typecheck`, `lint`, `stylelint`, `test:run`, and `build`;
+  do not treat build-time Vite/Rollup warnings, chunk warnings, or known third-party package warnings as acceptable
+  completed-state noise
+* the only allowed warning exception is a controlled exception recorded in the active tracking document with the
+  warning source, user-visible or engineering impact, why the current slice cannot safely eliminate it, and the next
+  planned cleanup action
 * `web/ai-libs/` is a local reference area for starter configuration and TDesign usage patterns, not a runtime
   dependency or a source of truth to be copied wholesale into `web`
 * when reusing ideas from `web/ai-libs/`, keep only the governance or component patterns that fit Graft, and do not
@@ -320,11 +329,15 @@ For `server` changes:
 For `web` changes:
 
 * run the repository's actual frontend validation command once it exists
-* once the frontend governance baseline is wired, prefer `bun run check` as the default full validation entrypoint
+* the repository now requires host Windows Bun `bun run check` as the default full validation entrypoint for any `web`
+  task that is being closed, handed off, or prepared for merge
 * when the repository runs from WSL, interpret frontend `bun` validation commands as host Windows Bun commands unless
   the environment inventory explicitly says otherwise
 * the standard `web` quality chain should include `format:check`, type checking, lint, stylelint, unit tests, and
   production build in that order
+* a completed `web` validation run is expected to finish without unresolved warnings in `typecheck`, `lint`,
+  `stylelint`, `test:run`, or `build`; build-time Vite/Rollup and dependency warnings remain in scope until cleared or
+  explicitly accepted through the controlled exception path
 * prefer type checking plus production build when both are available
 * at minimum, use the smallest validation that proves changed routes, modules, pages, and TypeScript contracts compile
 
@@ -345,6 +358,8 @@ If validation cannot be run:
 
 Warnings or failures in directly affected modules are part of the task scope. Do not ignore them unless the user
 explicitly narrows the task.
+When a frontend warning is retained as a controlled exception, the corresponding tracking document must record its
+source, impact, temporary retention reason, and next cleanup action instead of calling it non-blocking by default.
 
 ## 12. Git Workflow Rules
 
@@ -666,6 +681,8 @@ A task is done only when all relevant items below are satisfied:
 * new module work keeps the `menu + route + page + api + permission` path explicit
 * affected code has the required comments and documentation
 * the changed area passed direct validation, or the exact validation gap was reported
+* `web` work reached its completion state only after the host Windows Bun full quality chain passed and no unresolved
+  frontend warning remained outside an explicitly documented controlled exception
 * the final summary states the important behavior change, validation result, and any remaining blockers
 
 If any of these are missing, the task is incomplete even if the code compiles.

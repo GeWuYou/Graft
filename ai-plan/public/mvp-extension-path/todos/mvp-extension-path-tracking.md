@@ -50,7 +50,8 @@
 - Shared architecture truth is stable on plugin-oriented backend boundaries, Vue 3 + TDesign frontend boundaries, Ent
   as the backend ORM baseline, and Atlas versioned migrations executed through explicit CLI flow.
 - Shared extension-path truth now reserves cross-boundary i18n hooks, backend-driven menu/permission evolution, and a
-  frontend governance baseline that still needs implementation in the actual `web` toolchain.
+  frontend governance baseline whose completion-state rules now require host Windows Bun `bun run check` plus zero
+  unresolved warnings, and the latest implementation slice has now aligned the actual `web` toolchain to that bar.
 - The previous pre-subtopic tracking snapshot has been archived at
   `ai-plan/public/mvp-extension-path/archive/todos/mvp-extension-path-tracking-pre-subtopics-2026-05-14.md`.
 
@@ -67,8 +68,8 @@
 - The current backend authorization path is still an MVP placeholder and must be replaced by the real auth + RBAC
   plugin chain without breaking the future `menu + route + page + api + permission` path.
 - Atlas execution still lacks live validation against a disposable PostgreSQL target in this environment.
-- The documented frontend governance baseline is not yet fully wired into the real `web` scripts, hooks, and quality
-  entrypoints.
+- The frontend warning-cleanup slice now closes green, but the current `web` bundle-size strategy still reflects the
+  temporary full-TDesign starter baseline, so deeper performance-oriented chunk optimization remains future work.
 - Future work must keep parent-topic summaries, subtopic recovery files, and repository-wide design truth aligned to
   avoid creating parallel sources of truth.
 
@@ -77,12 +78,14 @@
 - Historical detailed validation commands before the subtopic split are preserved in the archived tracking snapshot.
 - The latest cross-boundary implementation slice before this split validated focused `server` packages plus direct
   `web` test, typecheck, and build commands for the PR `#5` follow-up fixes.
-- This restructuring change itself is documentation-only and should be validated through consistency checks across
-  `AGENTS.md`, `ai-plan/README.md`, `ai-plan/design/AI任务追踪与恢复设计.md`, `ai-plan/public/README.md`, the parent
-  topic files, and the new subtopic files.
+- The latest `web` governance implementation slice additionally validated host Windows Bun `bun run check`, a focused
+  `bun run test:run -- --reporter=hanging-process` diagnosis, and the low-risk `axios@latest` refresh.
+- This documentation-only governance update should be validated through consistency checks across `AGENTS.md`,
+  `ai-plan/design/前端架构设计.md`, `ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md`, and
+  `ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`.
 
 ## Immediate Next Step
 
-- Implement the documented `web` governance baseline in the actual frontend toolchain, then run a real disposable
-  PostgreSQL + Atlas validation path and replace the temporary backend authorization placeholder with the real auth +
-  RBAC chain while keeping parent and subtopic recovery files in sync.
+- Keep future `web` work on the documented host Windows Bun `bun run check` zero-warning gate, then run a real
+  disposable PostgreSQL + Atlas validation path and replace the temporary backend authorization placeholder with the
+  real auth + RBAC chain while keeping parent and subtopic recovery files in sync.
