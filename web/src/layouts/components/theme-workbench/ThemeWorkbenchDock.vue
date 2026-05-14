@@ -181,7 +181,6 @@ const resetWorkbench = () => {
 
 // 激活态 pill 需要围绕按钮中心展开，否则图标和文字会整体向一侧偏移。
 :deep(.theme-workbench-dock__main .t-button__text) {
-  margin-inline-start: 0;
   max-width: 0;
   opacity: 0;
   overflow: hidden;
@@ -192,13 +191,20 @@ const resetWorkbench = () => {
   white-space: nowrap;
 }
 
+:deep(.theme-workbench-dock__main .t-icon + .t-button__text:not(:empty)) {
+  margin-left: 0;
+}
+
 :deep(.theme-workbench-dock__main.theme-workbench-dock__action--active.t-button) {
   min-width: 132px;
   padding-inline: 16px;
 }
 
+:deep(.theme-workbench-dock__main.theme-workbench-dock__action--active.t-button .t-icon + .t-button__text:not(:empty)) {
+  margin-left: 8px;
+}
+
 :deep(.theme-workbench-dock__main.theme-workbench-dock__action--active.t-button .t-button__text) {
-  margin-inline-start: 8px;
   max-width: 96px;
   opacity: 1;
 }
@@ -224,7 +230,6 @@ const resetWorkbench = () => {
 }
 
 :deep(.theme-workbench-dock__action .t-button__text) {
-  margin-inline-start: 0;
   max-width: 0;
   opacity: 0;
   overflow: hidden;
@@ -235,13 +240,20 @@ const resetWorkbench = () => {
   white-space: nowrap;
 }
 
+:deep(.theme-workbench-dock__action .t-icon + .t-button__text:not(:empty)) {
+  margin-left: 0;
+}
+
 :deep(.theme-workbench-dock__action--active.t-button) {
   min-width: 116px;
   padding-inline: 16px;
 }
 
+:deep(.theme-workbench-dock__action--active.t-button .t-icon + .t-button__text:not(:empty)) {
+  margin-left: 8px;
+}
+
 :deep(.theme-workbench-dock__action--active.t-button .t-button__text) {
-  margin-inline-start: 8px;
   max-width: 96px;
   opacity: 1;
 }
