@@ -1,28 +1,3 @@
-import { afterEach, vi } from 'vitest';
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
-class ResizeObserverMock {
-  disconnect() {}
-
-  observe() {}
-
-  unobserve() {}
-}
-
-vi.stubGlobal('ResizeObserver', ResizeObserverMock);
-vi.stubGlobal(
-  'matchMedia',
-  vi.fn().mockImplementation(() => ({
-    addEventListener: vi.fn(),
-    addListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-    matches: false,
-    media: '',
-    onchange: null,
-    removeEventListener: vi.fn(),
-    removeListener: vi.fn(),
-  })),
-);
+// 当前轮次只恢复 starter 基线的 owned 目录，测试入口先保留为空壳，
+// 以满足 Vitest 的 setupFiles 路径解析。
+export {};

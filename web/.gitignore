@@ -1,3 +1,38 @@
+# OS specific files
+.DS_Store
+
+# dependencies manager
 node_modules/
-coverage/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# build files
 dist/
+coverage/
+es/
+lib/
+typings/
+
+_site
+package
+tmp*
+temp*
+test-report.html
+.idea/
+yarn-error.log
+*.zip
+.history
+.stylelintcache
+*.tsbuildinfo
+
+.env.local
+.env.*.local
+
+# keep Bun lockfile in repo; ignore alternative package manager locks
+yarn.lock
+pnpm-lock.yaml

@@ -1,11 +1,14 @@
 {
   "compilerOptions": {
     "composite": true,
+    "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "types": ["node"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "include": ["vite.config.ts", "uno.config.ts"]
+  "include": ["vite.config.ts", "uno.config.ts", "vitest.config.ts"]
 }

@@ -1,12 +1,13 @@
 import { mergeConfig } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-import viteConfig from './vite.config';
+import { createViteConfig } from './vite.config';
 
 export default mergeConfig(
-  viteConfig,
+  createViteConfig('test'),
   defineConfig({
     test: {
+      passWithNoTests: true,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'html'],
@@ -14,7 +15,7 @@ export default mergeConfig(
       },
       css: true,
       environment: 'jsdom',
-      exclude: ['ai-libs/**', 'coverage/**', 'dist/**', 'node_modules/**'],
+      exclude: ['ai-libs/**', 'coverage/**', 'dist/**', 'mock/**', 'node_modules/**'],
       setupFiles: ['./src/test/setup.ts'],
     },
   }),

@@ -1,4 +1,9 @@
 ai-libs
+bun.lock
 coverage
 dist
 node_modules
+_site
+package
+tmp*
+temp*

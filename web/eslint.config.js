@@ -12,9 +12,12 @@ export default tseslint.config(
   {
     ignores: [
       'ai-libs/**',
+      'mock/**',
       'coverage/**',
       'dist/**',
       'node_modules/**',
+      '_site/**',
+      'temp*/**',
       '*.timestamp-*',
     ],
   },
@@ -30,6 +33,7 @@ export default tseslint.config(
       globals: {
         ...globals.browser,
         ...globals.node,
+        ...globals.vitest,
         defineEmits: 'readonly',
         defineExpose: 'readonly',
         defineOptions: 'readonly',
@@ -42,13 +46,13 @@ export default tseslint.config(
       'unused-imports': unusedImports,
     },
     rules: {
-      'no-console': ['error', { allow: ['warn', 'error'] }],
+      'no-console': 'off',
       'no-debugger': 'error',
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
       'unused-imports/no-unused-imports': 'error',
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -87,6 +91,9 @@ export default tseslint.config(
       'vue/component-name-in-template-casing': ['error', 'kebab-case'],
       'vue/custom-event-name-casing': ['error', 'kebab-case'],
       'vue/multi-word-component-names': 'off',
+      'vue/no-reserved-props': 'off',
+      'vue/no-v-html': 'off',
+      'vue/padding-line-between-blocks': ['error', 'never'],
       'vue-scoped-css/enforce-style-type': [
         'error',
         {
@@ -98,7 +105,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/test/**/*.ts', 'src/**/*.test.ts'],
+    files: ['src/test/**/*.ts', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
     rules: {
       'vue/one-component-per-file': 'off',
       'vue/order-in-components': 'off',

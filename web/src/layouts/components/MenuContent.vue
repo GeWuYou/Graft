@@ -1,0 +1,123 @@
+<template>
+  <div>
+    <template v-for="item in list" :key="item.path">
+      <template v-if="!item.children || !item.children.length || item.meta?.single">
+        <t-menu-item v-if="getHref(item)" :name="item.path" :value="getMenuValue(item)" @click="openHref(item)">
+          <template #icon>
+            <component :is="menuIcon(item)" class="t-icon"></component>
+          </template>
+          {{ renderMenuTitle(item.title ?? item.meta?.title) }}
+        </t-menu-item>
+        <t-menu-item v-else :name="item.path" :value="getMenuValue(item)" :to="String(item.path)">
+          <template #icon>
+            <component :is="menuIcon(item)" class="t-icon"></component>
+          </template>
+          {{ renderMenuTitle(item.title ?? item.meta?.title) }}
+        </t-menu-item>
+      </template>
+      <t-submenu v-else :name="item.path" :value="item.path" :title="renderMenuTitle(item.title ?? item.meta?.title)">
+        <template #icon>
+          <component :is="menuIcon(item)" class="t-icon"></component>
+        </template>
+        <menu-content v-if="item.children" :nav-data="item.children" />
+      </t-submenu>
+    </template>
+  </div>
+</template>
+<script setup lang="ts">
+import type { PropType } from 'vue';
+import { computed, h, resolveComponent } from 'vue';
+
+import type { LocalizedTitle } from '@/locales';
+import { useLocale } from '@/locales/useLocale';
+import { getActive } from '@/router';
+import type { MenuRoute } from '@/utils/types';
+
+type ListItemType = MenuRoute;
+
+const { navData } = defineProps({
+  navData: {
+    type: Array as PropType<MenuRoute[]>,
+    default: () => [],
+  },
+});
+
+const active = computed(() => getActive());
+
+const { locale } = useLocale();
+
+const list = computed(() => {
+  return getMenuList(navData);
+});
+
+const menuIcon = (item: ListItemType) => {
+  const icon = item.icon ?? item.meta?.icon;
+  if (typeof icon === 'string') {
+    return () => h(resolveComponent('t-icon'), { name: icon });
+  }
+  const RenderIcon = icon;
+  return RenderIcon;
+};
+
+const renderMenuTitle = (title?: LocalizedTitle) => {
+  if (!title) return '';
+  return title[locale.value as keyof LocalizedTitle] || '';
+};
+
+function getMenuList(list: MenuRoute[], basePath?: string): MenuRoute[] {
+  if (!list || list.length === 0) {
+    return [];
+  }
+  // 如果meta中有orderNo则按照从小到大排序
+  list.sort((a, b) => {
+    return (a.meta?.orderNo || 0) - (b.meta?.orderNo || 0);
+  });
+  return list
+    .map((item) => {
+      const path = basePath && !item.path.includes(basePath) ? `${basePath}/${item.path}` : item.path;
+
+      return {
+        path,
+        title: item.meta?.title as LocalizedTitle | undefined,
+        icon: item.meta?.icon,
+        children: getMenuList(item.children ?? [], path),
+        meta: item.meta,
+        redirect: typeof item.redirect === 'string' ? item.redirect : undefined,
+      } as MenuRoute;
+    })
+    .filter((item) => item.meta && item.meta.hidden !== true);
+}
+
+const getHref = (item: MenuRoute) => {
+  const { frameSrc, frameBlank } = item.meta ?? {};
+  if (frameSrc && frameBlank) {
+    return frameSrc.match(/(https?):\/\/([\w.-]+)(?:\/\S*)?/);
+  }
+  return null;
+};
+
+const getPath = (item: ListItemType) => {
+  const activeLevel = active.value.split('/').length;
+  const pathLevel = item.path.split('/').length;
+  if (activeLevel > pathLevel && active.value.startsWith(item.path)) {
+    return active.value;
+  }
+
+  if (active.value === item.path) {
+    return active.value;
+  }
+
+  return item.meta?.single ? item.redirect : item.path;
+};
+
+const getMenuValue = (item: ListItemType) => {
+  return String(getPath(item) ?? item.path);
+};
+
+const openHref = (item: MenuRoute) => {
+  const href = getHref(item)?.[0];
+  if (href) {
+    window.open(href);
+  }
+};
+</script>

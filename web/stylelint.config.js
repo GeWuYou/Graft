@@ -1,17 +1,17 @@
 export default {
   defaultSeverity: 'error',
   extends: ['stylelint-config-standard'],
-  ignoreFiles: ['ai-libs/**', 'coverage/**', 'dist/**', 'node_modules/**'],
+  ignoreFiles: ['ai-libs/**', 'coverage/**', 'dist/**', 'node_modules/**', 'mock/**'],
   plugins: ['stylelint-order'],
   rules: {
-    'custom-property-pattern': null,
-    'declaration-property-value-no-unknown': null,
     'import-notation': 'string',
-    'media-query-no-invalid': null,
-    'no-descending-specificity': null,
     'no-empty-source': null,
-    'order/properties-alphabetical-order': true,
+    'no-descending-specificity': null,
+    'custom-property-pattern': null,
     'selector-class-pattern': null,
+    'media-query-no-invalid': null,
+    'declaration-property-value-no-unknown': null,
+    'order/properties-alphabetical-order': true,
     'selector-pseudo-class-no-unknown': [
       true,
       {
@@ -21,7 +21,7 @@ export default {
   },
   overrides: [
     {
-      files: ['**/*.vue'],
+      files: ['**/*.html', '**/*.vue'],
       customSyntax: 'postcss-html',
     },
     {

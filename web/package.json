@@ -3,39 +3,59 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
-    "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix --max-warnings 0",
-    "stylelint": "stylelint \"src/**/*.{vue,css,less}\"",
-    "stylelint:fix": "stylelint \"src/**/*.{vue,css,less}\" --fix",
+    "dev": "vite --mode development",
+    "dev:mock": "vite --mode mock",
+    "dev:open": "vite --open --mode development",
+    "build": "bun run typecheck && vite build --mode release",
+    "build:test": "vite build --mode test",
+    "build:type": "bun run typecheck",
+    "lint": "eslint --ext .vue,.js,.jsx,.ts,.tsx ./ --max-warnings 0",
+    "lint:fix": "eslint --ext .vue,.js,.jsx,.ts,.tsx ./ --max-warnings 0 --fix",
+    "stylelint": "stylelint \"src/**/*.{html,vue,css,sass,less}\"",
+    "stylelint:fix": "stylelint --fix \"src/**/*.{html,vue,css,sass,less}\"",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "check": "bun run format:check && bun run typecheck && bun run lint && bun run stylelint && bun run test:run && bun run build",
-    "prepare": "cd .. && web/node_modules/.bin/husky"
+    "prepare": "husky"
   },
   "dependencies": {
-    "axios": "^1.16.0",
-    "pinia": "^2.3.1",
+    "@vueuse/core": "^14.2.0",
+    "axios": "^1.13.6",
+    "dayjs": "^1.11.13",
+    "echarts": "5.4.3",
+    "lodash": "^4.17.23",
+    "nprogress": "^0.2.0",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "qs": "^6.15.0",
     "tdesign-icons-vue-next": "^0.4.4",
-    "tdesign-vue-next": "^1.19.2",
-    "vue": "^3.5.13",
-    "vue-router": "^4.5.1"
+    "tdesign-vue-next": "^1.19.1",
+    "tvision-color": "^1.6.0",
+    "vue": "^3.5.18",
+    "vue-i18n": "^9.9.1",
+    "vue-router": "^4.6.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
     "@commitlint/config-conventional": "^20.5.3",
     "@eslint/js": "^9.27.0",
+    "@types/echarts": "^4.9.21",
+    "@types/lodash": "^4.17.24",
+    "@types/mockjs": "^1.0.10",
+    "@types/nprogress": "^0.2.3",
     "@types/node": "^22.15.3",
+    "@types/qs": "^6.9.17",
     "@unocss/preset-uno": "^66.5.1",
     "@unocss/vite": "^66.5.1",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vitejs/plugin-vue-jsx": "^4.1.1",
     "@vitest/coverage-v8": "^3.1.4",
+    "@vue/compiler-sfc": "^3.5.18",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.5",
@@ -46,7 +66,9 @@
     "globals": "^16.0.0",
     "husky": "^9.1.7",
     "jsdom": "^26.1.0",
+    "less": "^4.2.0",
     "lint-staged": "^16.0.0",
+    "mockjs": "^1.1.0",
     "postcss-html": "^1.8.0",
     "postcss-less": "^6.0.0",
     "prettier": "^3.5.3",
@@ -57,19 +79,24 @@
     "typescript-eslint": "^8.32.0",
     "unocss": "^66.5.1",
     "vite": "^5.4.19",
+    "vite-plugin-mock": "^3.0.1",
+    "vite-svg-loader": "^5.1.0",
     "vitest": "^3.1.4",
     "vue-tsc": "^2.2.10"
   },
   "lint-staged": {
-    "*.{js,mjs,cjs,ts,mts,cts,tsx,vue}": [
+    "*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}": [
       "prettier --write",
-      "eslint --fix --max-warnings 0"
+      "eslint --fix --max-warnings 0 --no-warn-ignored"
+    ],
+    "*.{html,vue,css,sass,less}": [
+      "stylelint --fix"
     ],
     "*.{css,less,md,json,yml,yaml}": [
       "prettier --write"
-    ],
-    "*.{vue,css,less}": [
-      "stylelint --fix"
     ]
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

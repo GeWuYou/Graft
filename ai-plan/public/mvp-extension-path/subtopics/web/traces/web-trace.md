@@ -39,7 +39,19 @@
   so the real shell can pass the documented frontend quality chain.
 - Validated the migration with focused tests, targeted build checks, and one full `cd web && bun run check` pass.
 
+## 2026-05-14 frontend baseline reset decision
+
+- The current incremental frontend migration path has been abandoned because the real `web` pages now show widespread
+  bugs and the current application state is effectively unusable.
+- Repository design truth is now updated to allow `web` to directly adopt the full project shape of
+  `web/ai-libs/tdesign-vue-next-starter` as a temporary runtime baseline instead of continuing a shell-only reuse
+  strategy.
+- The decision is explicitly framed as a control and recovery measure: replacing the broken half-migrated baseline is
+  considered safer than continuing to patch scattered defects across the existing page tree.
+- The target contract does not change. After the starter baseline is made runnable again, the next implementation stage
+  still needs to reconnect backend-driven `menu + route + page + api + permission`, auth, and locale semantics.
+
 ## Next Step
 
-- Continue frontend iteration against the real backend auth/menu/permission contracts, then optimize large login
-  background assets and current build chunk warnings without undoing the starter-aligned shell structure.
+- Replace the current `web` baseline with a starter full-project baseline first, then stage Graft contract
+  reattachment and later optimization work on top of that recovered runtime path.

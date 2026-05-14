@@ -1,0 +1,194 @@
+<template>
+  <t-row :gutter="16" class="row-container">
+    <t-col :xs="12" :xl="6">
+      <t-card :title="t('pages.dashboardBase.rankList.title')" class="dashboard-rank-card" :bordered="false">
+        <template #actions>
+          <t-radio-group default-value="dateVal" variant="default-filled">
+            <t-radio-button value="dateVal">{{ t('pages.dashboardBase.rankList.week') }}</t-radio-button>
+            <t-radio-button value="monthVal">{{ t('pages.dashboardBase.rankList.month') }}</t-radio-button>
+          </t-radio-group>
+        </template>
+        <t-table :data="saleTendData" :columns="SALE_COLUMNS" row-key="productName">
+          <template #index="{ rowIndex }">
+            <span :class="getRankClass(rowIndex)">
+              {{ rowIndex + 1 }}
+            </span>
+          </template>
+          <template #growUp="{ row }">
+            <span>
+              <trend :type="row.growUp > 0 ? 'up' : 'down'" :describe="Math.abs(row.growUp)" />
+            </span>
+          </template>
+          <template #operation="slotProps">
+            <t-link theme="primary" @click="rehandleClickOp(slotProps)">{{
+              t('pages.dashboardBase.rankList.info')
+            }}</t-link>
+          </template>
+        </t-table>
+      </t-card>
+    </t-col>
+    <t-col :xs="12" :xl="6">
+      <t-card :title="t('pages.dashboardBase.rankList.title')" class="dashboard-rank-card" :bordered="false">
+        <template #actions>
+          <t-radio-group default-value="dateVal" variant="default-filled">
+            <t-radio-button value="dateVal">{{ t('pages.dashboardBase.rankList.week') }}</t-radio-button>
+            <t-radio-button value="monthVal">{{ t('pages.dashboardBase.rankList.month') }}</t-radio-button>
+          </t-radio-group>
+        </template>
+        <t-table :data="buyTendData" :columns="BUY_COLUMNS" row-key="productName">
+          <template #index="{ rowIndex }">
+            <span :class="getRankClass(rowIndex)">
+              {{ rowIndex + 1 }}
+            </span>
+          </template>
+          <template #growUp="{ row }">
+            <trend :type="row.growUp > 0 ? 'up' : 'down'" :describe="Math.abs(row.growUp)" />
+          </template>
+          <template #operation="slotProps">
+            <t-link theme="primary" @click="rehandleClickOp(slotProps)">{{
+              t('pages.dashboardBase.rankList.info')
+            }}</t-link>
+          </template>
+        </t-table>
+      </t-card>
+    </t-col>
+  </t-row>
+</template>
+<script setup lang="ts">
+import type { TdBaseTableProps } from 'tdesign-vue-next';
+import { computed } from 'vue';
+
+import Trend from '@/components/trend/index.vue';
+import { t } from '@/locales';
+
+import { BUY_TEND_LIST, SALE_TEND_LIST } from '../constants';
+
+const saleTendData = computed(() =>
+  SALE_TEND_LIST.map((item) => ({
+    ...item,
+    productName: t(item.productName),
+  })),
+);
+
+const buyTendData = computed(() =>
+  BUY_TEND_LIST.map((item) => ({
+    ...item,
+    productName: t(item.productName),
+  })),
+);
+
+const SALE_COLUMNS = computed<TdBaseTableProps['columns']>(() => [
+  {
+    align: 'center',
+    colKey: 'index',
+    title: t('pages.dashboardBase.saleColumns.index'),
+    width: 70,
+    fixed: 'left',
+  },
+  {
+    align: 'left',
+    ellipsis: true,
+    colKey: 'productName',
+    title: t('pages.dashboardBase.saleColumns.productName'),
+    width: 150,
+  },
+  {
+    align: 'center',
+    colKey: 'growUp',
+    width: 70,
+    title: t('pages.dashboardBase.saleColumns.growUp'),
+  },
+  {
+    align: 'center',
+    colKey: 'count',
+    title: t('pages.dashboardBase.saleColumns.count'),
+    width: 70,
+  },
+  {
+    align: 'center',
+    colKey: 'operation',
+    title: t('pages.dashboardBase.saleColumns.operation'),
+    width: 70,
+    fixed: 'right',
+  },
+]);
+
+const BUY_COLUMNS = computed<TdBaseTableProps['columns']>(() => [
+  {
+    align: 'center',
+    colKey: 'index',
+    title: t('pages.dashboardBase.buyColumns.index'),
+    width: 70,
+    fixed: 'left',
+  },
+  {
+    align: 'left',
+    ellipsis: true,
+    colKey: 'productName',
+    width: 150,
+    title: t('pages.dashboardBase.buyColumns.productName'),
+  },
+  {
+    align: 'center',
+    colKey: 'growUp',
+    width: 70,
+    title: t('pages.dashboardBase.buyColumns.growUp'),
+  },
+  {
+    align: 'center',
+    colKey: 'count',
+    title: t('pages.dashboardBase.buyColumns.count'),
+    width: 70,
+  },
+  {
+    align: 'center',
+    colKey: 'operation',
+    title: t('pages.dashboardBase.buyColumns.operation'),
+    width: 70,
+    fixed: 'right',
+  },
+]);
+
+const rehandleClickOp = (val: MouseEvent) => {
+  console.log(val);
+};
+const getRankClass = (index: number) => {
+  return ['dashboard-rank', { 'dashboard-rank__top': index < 3 }];
+};
+</script>
+<style lang="less" scoped>
+.dashboard-rank-card {
+  padding: var(--td-comp-paddingTB-xxl) var(--td-comp-paddingLR-xxl);
+
+  :deep(.t-card__header) {
+    padding: 0;
+  }
+
+  :deep(.t-card__title) {
+    font: var(--td-font-title-large);
+    font-weight: 400;
+  }
+
+  :deep(.t-card__body) {
+    margin-top: var(--td-comp-margin-xxl);
+    padding: 0;
+  }
+}
+
+.dashboard-rank__cell {
+  align-items: center;
+  background-color: var(--td-gray-color-5);
+  border-radius: 50%;
+  color: white;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 700;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+
+  &--top {
+    background: var(--td-brand-color);
+  }
+}
+</style>
