@@ -64,3 +64,18 @@
   output, while keeping the runtime rooted in the same `theme-color` / `theme-mode` attribute mechanism.
 - Added pure logic helpers for theme token composition, workbench snapshot export, and future UI integration so the
   later floating toolbar and right-side panel can stay thin.
+
+## 2026-05-14 theme workbench host/state cleanup
+
+- Removed the old mount-time bridge that auto-opened the new workbench from persisted `showSettingPanel` state, so
+  legacy state no longer causes the panel to appear by default.
+- Narrowed theme workbench visibility semantics in the `setting` store: `showThemeWorkbench` is the intended source of
+  truth, while `showSettingPanel` remains only as a compatibility mirror for not-yet-migrated readers.
+- Added a `themeWorkbenchRuntimeReady` guard and then moved `web/src/layouts/setting.vue` to the `App` root as the
+  single global workbench host, so runtime initialization and dock visibility no longer depend on separate login/admin
+  host instances.
+
+## Next Step
+
+- Continue the workbench slice by improving panel behavior, layout preview fidelity, and token-editor ergonomics
+  without reintroducing a second host component or another parallel visibility flag.

@@ -16,7 +16,6 @@
 
       <login v-if="type === 'login'" />
       <register v-else @register-success="switchType('login')" />
-      <tdesign-setting />
     </div>
 
     <footer class="copyright">{{ t('common.copyright') }}</footer>
@@ -25,7 +24,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
-import TdesignSetting from '@/layouts/setting.vue';
 import { t } from '@/locales';
 
 import LoginHeader from './components/Header.vue';

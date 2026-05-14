@@ -26,6 +26,10 @@
   locale propagation, and shared auth/permission boundaries.
 - Frontend command execution truth remains explicit: in WSL-based development, all `web` install, validation, build,
   preview, and dev commands must use the configured host Windows Bun, and WSL Bun must not refresh `web/node_modules`.
+- Theme workbench host/state cleanup now treats `showThemeWorkbench` as the single intended visible-state source in the
+  `setting` store, while `showSettingPanel` remains only as a compatibility mirror for legacy reads.
+- `web/src/layouts/setting.vue` is now mounted once from `web/src/App.vue` as the global workbench host. Dock display
+  follows the current route so login pages no longer need their own host instance.
 
 ## Active Risks
 
@@ -49,6 +53,9 @@
   - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
   - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
   - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run check`
+- The current theme workbench host/state cleanup additionally validated with:
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
 
 ## Immediate Next Step
 
@@ -60,3 +67,5 @@
   - the floating toolbar, right-side workbench shell, and grouped editors should consume these interfaces later
   - do not fork a second theme system outside the existing `tvision-color + CSS variables + Pinia persisted state`
     path
+- The next workbench slice should focus on richer panel behavior and layout preview fidelity instead of adding another
+  shell-level host or a parallel visible-state flag.

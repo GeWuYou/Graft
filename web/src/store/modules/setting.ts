@@ -36,6 +36,7 @@ const STYLE_CONFIG_KEYS = keys(STYLE_CONFIG) as Array<keyof typeof STYLE_CONFIG>
 export type SettingState = typeof STYLE_CONFIG & {
   showSettingPanel: boolean;
   showThemeWorkbench: boolean;
+  themeWorkbenchRuntimeReady: boolean;
   activeThemeWorkbenchGroup: ThemeWorkbenchGroupKey;
   activeThemeTokenGroup: ThemeTokenGroupKey;
   selectedThemePresetId: string | null;
@@ -50,6 +51,7 @@ const state: SettingState = {
   ...STYLE_CONFIG,
   showSettingPanel: false,
   showThemeWorkbench: false,
+  themeWorkbenchRuntimeReady: false,
   activeThemeWorkbenchGroup: 'overview',
   activeThemeTokenGroup: 'brand',
   selectedThemePresetId: DEFAULT_THEME_PRESET_ID,
@@ -181,13 +183,16 @@ export const useSettingStore = defineStore('setting', {
       this.refreshThemeWorkbenchRuntime(mode);
       document.documentElement.setAttribute('theme-color', brandTheme);
     },
-    setThemeWorkbenchVisible(visible: boolean) {
+    syncThemeWorkbenchVisibility(visible: boolean) {
+      // 旧 showSettingPanel 仅保留给尚未迁移的壳层读取，真实来源收口到 showThemeWorkbench。
       this.showThemeWorkbench = visible;
       this.showSettingPanel = visible;
     },
+    setThemeWorkbenchVisible(visible: boolean) {
+      this.syncThemeWorkbenchVisibility(visible);
+    },
     openThemeWorkbench(group?: ThemeWorkbenchGroupKey) {
-      this.showThemeWorkbench = true;
-      this.showSettingPanel = true;
+      this.syncThemeWorkbenchVisibility(true);
       if (group) {
         this.activeThemeWorkbenchGroup = group;
         if (group !== 'overview') {
@@ -196,8 +201,7 @@ export const useSettingStore = defineStore('setting', {
       }
     },
     closeThemeWorkbench() {
-      this.showThemeWorkbench = false;
-      this.showSettingPanel = false;
+      this.syncThemeWorkbenchVisibility(false);
     },
     setActiveThemeWorkbenchGroup(group: ThemeWorkbenchGroupKey) {
       this.activeThemeWorkbenchGroup = group;
@@ -297,18 +301,27 @@ export const useSettingStore = defineStore('setting', {
       this.changeSideMode(this.sideMode as ModeType);
     },
     initializeThemeWorkbenchRuntime() {
+      if (this.themeWorkbenchRuntimeReady) {
+        return;
+      }
+
       this.selectedThemePresetId = resolvePresetId(this.selectedThemePresetId);
       this.themeTokenOverrides = cloneThemeModeTokenState(this.themeTokenOverrides);
       this.themeResolvedTokens = cloneThemeModeTokenState(this.themeResolvedTokens);
-      this.refreshThemeWorkbenchRuntime();
       this.changeMode(this.mode as ModeType | 'auto');
       this.changeSideMode(this.sideMode as ModeType);
+      this.themeWorkbenchRuntimeReady = true;
     },
     updateConfig(payload: Partial<TState>) {
       for (const key in payload) {
         const stateKey = key as TStateKey;
 
         if (payload[stateKey] !== undefined) {
+          if (stateKey === 'showSettingPanel' || stateKey === 'showThemeWorkbench') {
+            this.setThemeWorkbenchVisible(Boolean(payload[stateKey]));
+            continue;
+          }
+
           this[stateKey] = payload[stateKey] as never;
         }
         if (key === 'mode') {

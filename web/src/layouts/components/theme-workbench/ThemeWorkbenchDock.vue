@@ -1,19 +1,28 @@
 <template>
   <div class="theme-workbench-dock">
-    <t-button class="theme-workbench-dock__main" size="large" variant="outline" @click="openGroup('overview')">
+    <t-button
+      class="theme-workbench-dock__main"
+      :class="{ 'theme-workbench-dock__action--active': isGroupActive('overview') }"
+      size="large"
+      variant="outline"
+      @click="toggleOverview"
+    >
       <template #icon>
         <t-icon name="palette" />
       </template>
       {{ t('layout.setting.workbench.dock.title') }}
     </t-button>
-    <t-button shape="circle" variant="outline" @click="openGroup('brand')">
-      <t-icon name="edit-1" />
-    </t-button>
-    <t-button shape="circle" variant="outline" @click="openGroup('font')">
-      <t-icon name="textformat" />
-    </t-button>
-    <t-button shape="circle" variant="outline" @click="openGroup('radius')">
-      <t-icon name="layers" />
+    <t-button
+      v-for="entry in quickEntries"
+      :key="entry.group"
+      class="theme-workbench-dock__action"
+      :class="{ 'theme-workbench-dock__action--active': isGroupActive(entry.group) }"
+      :title="t(entry.labelKey)"
+      shape="circle"
+      variant="outline"
+      @click="openGroup(entry.group)"
+    >
+      <t-icon :name="entry.icon" />
     </t-button>
     <t-button shape="circle" variant="outline" @click="resetWorkbench">
       <t-icon name="rollback" />
@@ -27,8 +36,29 @@ import type { ThemeWorkbenchGroupKey } from '@/types/theme';
 
 const settingStore = useSettingStore();
 
+const quickEntries = [
+  { group: 'brand' as const, icon: 'edit-1', labelKey: 'layout.setting.workbench.groups.brand' },
+  { group: 'semantic' as const, icon: 'color-picker', labelKey: 'layout.setting.workbench.groups.semantic' },
+  { group: 'font' as const, icon: 'textformat', labelKey: 'layout.setting.workbench.groups.font' },
+  { group: 'radius' as const, icon: 'chart-bubble', labelKey: 'layout.setting.workbench.groups.radius' },
+];
+
 const openGroup = (group: ThemeWorkbenchGroupKey) => {
   settingStore.openThemeWorkbench(group);
+};
+
+const isGroupActive = (group: ThemeWorkbenchGroupKey) => {
+  return settingStore.showThemeWorkbench && settingStore.activeThemeWorkbenchGroup === group;
+};
+
+// 底部 dock 作为全局入口，概览按钮在工作台已打开且停留在概览页时直接承担关闭动作。
+const toggleOverview = () => {
+  if (isGroupActive('overview')) {
+    settingStore.closeThemeWorkbench();
+    return;
+  }
+
+  openGroup('overview');
 };
 
 const resetWorkbench = () => {
@@ -55,6 +85,12 @@ const resetWorkbench = () => {
 
 .theme-workbench-dock__main {
   min-width: 156px;
+}
+
+.theme-workbench-dock__action--active {
+  border-color: var(--td-brand-color);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--td-brand-color) 18%, transparent);
+  color: var(--td-brand-color);
 }
 
 :deep(.t-button--variant-outline) {

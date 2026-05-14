@@ -101,19 +101,33 @@
             </div>
 
             <div class="section">
-              <div class="section-title">{{ t('layout.setting.navigationLayout') }}</div>
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.navigationLayout') }}</div>
+                <div class="section-tip">{{ t('layout.setting.workbench.layout.tip') }}</div>
+              </div>
               <div class="layout-grid">
                 <button
                   v-for="layoutOption in layoutOptions"
                   :key="layoutOption.value"
                   type="button"
                   class="layout-card"
-                  :class="{ 'layout-card--active': settingStore.layout === layoutOption.value }"
-                  @click="settingStore.updateConfig({ layout: layoutOption.value })"
+                  :class="{
+                    'layout-card--active': settingStore.layout === layoutOption.value,
+                    'layout-card--disabled': layoutOption.disabled,
+                  }"
+                  :disabled="layoutOption.disabled"
+                  @click="selectLayout(layoutOption.value, layoutOption.disabled)"
                 >
                   <thumbnail :src="layoutOption.thumbnail" />
-                  <span>{{ layoutOption.label }}</span>
+                  <span class="layout-card__title">{{ layoutOption.label }}</span>
+                  <span class="layout-card__desc">{{ layoutOption.description }}</span>
+                  <span v-if="layoutOption.disabled" class="layout-card__badge">
+                    {{ t('layout.setting.workbench.layout.pending') }}
+                  </span>
                 </button>
+              </div>
+              <div v-if="showMixLayoutNotice" class="layout-warning">
+                {{ t('layout.setting.workbench.layout.warning') }}
               </div>
             </div>
 
@@ -210,7 +224,7 @@ const modeOptions = [
 ];
 
 const drawerVisible = computed({
-  get: () => settingStore.showThemeWorkbench || settingStore.showSettingPanel,
+  get: () => settingStore.showThemeWorkbench,
   set: (visible: boolean) => {
     if (!visible) {
       settingStore.closeThemeWorkbench();
@@ -223,25 +237,30 @@ const drawerVisible = computed({
 
 const layoutOptions = computed(() => [
   {
-    value: 'side',
+    value: 'side' as const,
     label: t('layout.setting.workbench.layout.side'),
+    description: t('layout.setting.workbench.layout.descriptions.side'),
     thumbnail: 'https://tdesign.gtimg.com/tdesign-pro/setting/side.png',
   },
   {
-    value: 'top',
+    value: 'top' as const,
     label: t('layout.setting.workbench.layout.top'),
+    description: t('layout.setting.workbench.layout.descriptions.top'),
     thumbnail: 'https://tdesign.gtimg.com/tdesign-pro/setting/top.png',
   },
   {
-    value: 'mix',
+    value: 'mix' as const,
     label: t('layout.setting.workbench.layout.mix'),
+    description: t('layout.setting.workbench.layout.descriptions.mix'),
     thumbnail: 'https://tdesign.gtimg.com/tdesign-pro/setting/mix.png',
+    disabled: true,
   },
 ]);
 
 const activeTokenDefinitions = computed(() =>
   settingStore.themeTokenDefinitions.filter((item) => item.group === settingStore.activeThemeTokenGroup),
 );
+const showMixLayoutNotice = computed(() => settingStore.layout === 'mix');
 
 const activeGroupLabel = computed(() => {
   const group = groups.value.find((item) => item.key === settingStore.activeThemeWorkbenchGroup);
@@ -254,6 +273,15 @@ const openGroup = (group: ThemeWorkbenchGroupKey) => {
 
 const closeWorkbench = () => {
   settingStore.closeThemeWorkbench();
+};
+
+// 当前布局壳只实现了 side / top 两种真实预览，禁用 mix 入口避免用户误判配置已生效。
+const selectLayout = (layout: 'side' | 'top' | 'mix', disabled?: boolean) => {
+  if (disabled) {
+    return;
+  }
+
+  settingStore.updateConfig({ layout });
 };
 
 const copyThemeConfig = async () => {
@@ -317,7 +345,6 @@ const copyThemeConfig = async () => {
 }
 
 .nav-item {
-  place-items: center center;
   appearance: none;
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-stroke);
@@ -327,6 +354,7 @@ const copyThemeConfig = async () => {
   display: grid;
   gap: 6px;
   padding: 10px 6px;
+  place-items: center center;
 }
 
 .nav-item--active {
@@ -376,6 +404,17 @@ const copyThemeConfig = async () => {
   font-weight: 700;
 }
 
+.section-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.section-tip {
+  color: var(--td-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .section-desc {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-medium);
@@ -418,6 +457,11 @@ const copyThemeConfig = async () => {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--td-brand-color) 22%, transparent);
 }
 
+.layout-card--disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
 .mode-card__icon {
   height: 48px;
   width: 88px;
@@ -439,6 +483,23 @@ const copyThemeConfig = async () => {
   color: var(--td-text-color-secondary);
   font-size: 12px;
   line-height: 1.4;
+}
+
+.layout-card__title {
+  color: var(--td-text-color-primary);
+  font-weight: 600;
+}
+
+.layout-card__desc {
+  color: var(--td-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.layout-card__badge {
+  color: var(--td-brand-color);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .brand-palette {
@@ -485,6 +546,16 @@ const copyThemeConfig = async () => {
   align-items: center;
   display: flex;
   justify-content: space-between;
+}
+
+.layout-warning {
+  background: color-mix(in srgb, var(--td-warning-color, #ed7b2f) 10%, var(--td-bg-color-container));
+  border: 1px solid color-mix(in srgb, var(--td-warning-color, #ed7b2f) 28%, transparent);
+  border-radius: 16px;
+  color: var(--td-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 12px 14px;
 }
 
 .theme-workbench-panel__footer {

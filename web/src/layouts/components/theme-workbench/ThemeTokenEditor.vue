@@ -15,26 +15,33 @@
 
     <div v-if="tokenDefinitions.length" class="token-grid">
       <div v-for="token in tokenDefinitions" :key="token.key" class="token-item">
-        <div class="token-meta">
-          <div class="token-label">{{ token.label }}</div>
-          <div class="token-key">{{ token.key }}</div>
+        <div class="token-header">
+          <div class="token-meta">
+            <div class="token-label">{{ token.label }}</div>
+            <div class="token-key">{{ token.key }}</div>
+          </div>
+          <t-button size="small" variant="text" :disabled="!hasTokenOverride(token.key)" @click="resetToken(token.key)">
+            {{ t('layout.setting.workbench.token.reset') }}
+          </t-button>
         </div>
         <div class="token-inputs">
           <label v-if="showColorInput(token.key)" class="color-input">
             <input
               type="color"
-              :value="toHex(getTokenValue(token.key))"
+              :value="toHex(getInputValue(token.key))"
               @input="updateToken(token.key, ($event.target as HTMLInputElement).value)"
             />
           </label>
           <div
             v-if="showPreviewSwatch(token.key)"
             class="token-preview"
-            :style="{ background: getTokenValue(token.key) }"
+            :style="{ background: getResolvedTokenValue(token.key) }"
           />
           <t-input
-            :model-value="getTokenValue(token.key)"
-            @update:model-value="(value) => updateToken(token.key, value)"
+            :model-value="getInputValue(token.key)"
+            @update:model-value="(value) => updateDraftValue(token.key, String(value ?? ''))"
+            @change="(value) => commitToken(token.key, String(value ?? ''))"
+            @blur="() => commitToken(token.key)"
           />
         </div>
       </div>
@@ -44,36 +51,96 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 import { t } from '@/locales';
 import { useSettingStore } from '@/store';
 import type { ThemeTokenDefinition, ThemeTokenGroupKey } from '@/types/theme';
 import type { ModeType } from '@/utils/types';
 
-const { tokenDefinitions } = defineProps<{
+const props = defineProps<{
   tokenDefinitions: ThemeTokenDefinition[];
   groupKey: ThemeTokenGroupKey;
 }>();
 
 const settingStore = useSettingStore();
-const activeMode = ref<ModeType>('light');
+const activeMode = ref<ModeType>(settingStore.displayMode);
+const draftValues = ref<Record<string, string>>({});
 
-const getTokenValue = (tokenKey: string) => {
+// 分组切换或全局主题切换时，编辑目标默认跟随当前预览模式，避免编辑亮色却在看暗色页面。
+watch(
+  () => settingStore.displayMode,
+  (mode) => {
+    activeMode.value = mode;
+    draftValues.value = {};
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.groupKey,
+  () => {
+    activeMode.value = settingStore.displayMode;
+    draftValues.value = {};
+  },
+);
+
+watch(activeMode, () => {
+  draftValues.value = {};
+});
+
+const getResolvedTokenValue = (tokenKey: string) => {
   const modeTokens = settingStore.themeResolvedTokens[activeMode.value];
   return modeTokens[tokenKey] ?? '';
 };
 
+const getInputValue = (tokenKey: string) => {
+  return draftValues.value[tokenKey] ?? getResolvedTokenValue(tokenKey);
+};
+
+const updateDraftValue = (tokenKey: string, tokenValue: string) => {
+  draftValues.value = {
+    ...draftValues.value,
+    [tokenKey]: tokenValue,
+  };
+};
+
+const hasTokenOverride = (tokenKey: string) => {
+  return Object.prototype.hasOwnProperty.call(settingStore.themeTokenOverrides[activeMode.value], tokenKey);
+};
+
+const resetToken = (tokenKey: string) => {
+  const nextDraftValues = { ...draftValues.value };
+  delete nextDraftValues[tokenKey];
+  draftValues.value = nextDraftValues;
+  settingStore.clearThemeTokenGroup(activeMode.value, [tokenKey]);
+};
+
+const commitToken = (tokenKey: string, tokenValue?: string) => {
+  const resolvedValue = (tokenValue ?? getInputValue(tokenKey)).trim();
+
+  if (!resolvedValue) {
+    resetToken(tokenKey);
+    return;
+  }
+
+  settingStore.updateThemeToken(activeMode.value, tokenKey, resolvedValue);
+  const nextDraftValues = { ...draftValues.value };
+  delete nextDraftValues[tokenKey];
+  draftValues.value = nextDraftValues;
+};
+
 const updateToken = (tokenKey: string, tokenValue: string) => {
-  if (!tokenValue) return;
-  settingStore.updateThemeToken(activeMode.value, tokenKey, tokenValue);
+  updateDraftValue(tokenKey, tokenValue);
+  commitToken(tokenKey, tokenValue);
 };
 
 const clearCurrentGroup = () => {
   settingStore.clearThemeTokenGroup(
     activeMode.value,
-    tokenDefinitions.map((token) => token.key),
+    props.tokenDefinitions.map((token) => token.key),
   );
+  draftValues.value = {};
 };
 
 const showPreviewSwatch = (tokenKey: string) => /color|background|border/i.test(tokenKey);
@@ -141,9 +208,17 @@ const toHex = (value: string) => {
   padding: 14px 16px;
 }
 
+.token-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
 .token-meta {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .token-label {
@@ -163,6 +238,7 @@ const toHex = (value: string) => {
   display: grid;
   gap: 10px;
   grid-template-columns: auto auto 1fr;
+  min-width: 0;
 }
 
 .color-input {

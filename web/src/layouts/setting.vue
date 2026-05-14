@@ -13,14 +13,10 @@ import ThemeWorkbenchPanel from './components/theme-workbench/ThemeWorkbenchPane
 
 const route = useRoute();
 const settingStore = useSettingStore();
-
 const showFloatingWorkbench = computed(() => route.path !== '/login');
 
 onMounted(() => {
-  // 统一在工作台组件挂载时恢复主题状态，避免后台壳和登录页各自维护一套入口状态。
+  // 主题工作台宿主提升到 App 根节点后，运行时初始化只保留这一条入口。
   settingStore.initializeThemeWorkbenchRuntime();
-  if (settingStore.showSettingPanel && !settingStore.showThemeWorkbench) {
-    settingStore.openThemeWorkbench('overview');
-  }
 });
 </script>
