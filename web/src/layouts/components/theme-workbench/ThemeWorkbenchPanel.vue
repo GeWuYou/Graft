@@ -159,6 +159,11 @@
                   <t-switch v-model="settingStore.menuAutoCollapsed" />
                 </div>
               </div>
+              <div class="section-actions">
+                <t-button block variant="outline" @click="settingStore.resetThemeWorkbench()">
+                  {{ t('layout.setting.workbench.actions.reset') }}
+                </t-button>
+              </div>
             </div>
           </template>
 
@@ -174,21 +179,10 @@
           </template>
         </section>
       </div>
-
-      <footer class="theme-workbench-panel__footer">
-        <t-button theme="primary" @click="copyThemeConfig">
-          {{ t('layout.setting.workbench.actions.copy') }}
-        </t-button>
-        <t-button variant="outline" @click="settingStore.resetThemeWorkbench()">
-          {{ t('layout.setting.workbench.actions.reset') }}
-        </t-button>
-      </footer>
     </div>
   </t-drawer>
 </template>
 <script setup lang="ts">
-import { useClipboard } from '@vueuse/core';
-import { MessagePlugin } from 'tdesign-vue-next';
 import { computed } from 'vue';
 
 import SettingAutoIcon from '@/assets/assets-setting-auto.svg';
@@ -203,14 +197,13 @@ import type { ThemeWorkbenchGroupKey } from '@/types/theme';
 import ThemeTokenEditor from './ThemeTokenEditor.vue';
 
 const settingStore = useSettingStore();
-const { copy } = useClipboard();
 
 const groupIconMap: Record<ThemeWorkbenchGroupKey, string> = {
   overview: 'app',
-  brand: 'palette',
-  semantic: 'color-picker',
+  brand: 'fill-color',
+  semantic: 'component-grid',
   neutral: 'layers',
-  font: 'textformat',
+  font: 'text',
   radius: 'chart-bubble',
   shadow: 'gesture-pray',
   size: 'fullscreen',
@@ -287,15 +280,6 @@ const selectLayout = (layout: 'side' | 'top' | 'mix', disabled?: boolean) => {
   }
 
   settingStore.updateConfig({ layout });
-};
-
-const copyThemeConfig = async () => {
-  try {
-    await copy(settingStore.themeConfigCopyText);
-    MessagePlugin.success(t('layout.setting.copy.success'));
-  } catch {
-    MessagePlugin.error(t('layout.setting.copy.fail'));
-  }
 };
 </script>
 <style lang="less" scoped>
@@ -643,6 +627,11 @@ const copyThemeConfig = async () => {
   gap: 8px;
 }
 
+.section-actions {
+  display: grid;
+  gap: 10px;
+}
+
 .switch-item {
   align-items: center;
   background: var(--td-bg-color-page);
@@ -662,15 +651,6 @@ const copyThemeConfig = async () => {
   font-size: 12px;
   line-height: 1.6;
   padding: 12px 14px;
-}
-
-.theme-workbench-panel__footer {
-  background: var(--td-bg-color-page);
-  border-top: 1px solid var(--td-component-stroke);
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr 1fr;
-  padding: 14px 16px 16px 96px;
 }
 
 @media (width <= 860px) {
@@ -696,11 +676,6 @@ const copyThemeConfig = async () => {
 
   .brand-palette {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .theme-workbench-panel__footer {
-    grid-template-columns: 1fr;
-    padding: 14px 16px 16px;
   }
 }
 

@@ -40,6 +40,12 @@
 - The dock entry contract is now tighter as well:
   the global “自定义主题” trigger stays icon-only by default and expands only after activation,
   while the bottom quick-action icons reuse the same icon language as the right-side group navigation.
+- The latest fix slice corrects icon regressions in the theme workbench by switching the dock and group navigation to
+  icon names that exist in the current `tdesign-icons-vue-next` package, so the overview, semantic, and font entries
+  no longer render blank placeholders.
+- The same slice also removes the floating footer action area from the right-side panel:
+  the redundant “复制完整配置” action and its copy pipeline are deleted, and “恢复默认主题” now lives directly under
+  the `元素开关` block to keep the action near the configuration it resets.
 
 ## Active Risks
 
@@ -59,6 +65,9 @@
   - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
 - The build still emits existing non-blocking warnings from `@vueuse/core` pure annotations and large Vite chunks, but
   the validation completed successfully.
+- The icon and footer cleanup follow-up should again validate with host Windows Bun using:
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
 - After the mainline implementation actually replaces the current frontend baseline, it should still validate with host
   Windows Bun using at least:
   - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe install --force`
@@ -72,6 +81,6 @@
   first, then reattach the real backend auth/menu/permission contracts in a controlled second step without
   reintroducing frontend-only policy.
 - For the theme workbench follow-up, continue improving grouped token editors and layout-preview fidelity on top of the
-  current `setting store + token/runtime底座 + 配置复制 + dock/panel 壳层` path.
+  current `setting store + token/runtime底座 + dock/panel 壳层` path.
 - Do not fork a second theme system outside the existing `tvision-color + CSS variables + Pinia persisted state`
   path, and avoid adding another shell-level host or a parallel visible-state flag.

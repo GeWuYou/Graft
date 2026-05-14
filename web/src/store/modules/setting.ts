@@ -21,13 +21,11 @@ import type {
 } from '@/types/theme';
 import { composeThemeTokenMap, generateBrandColorMap, insertThemeStylesheet } from '@/utils/color';
 import {
-  buildThemeConfigCopyPayload,
   buildThemeModeSnapshot,
   cloneThemeModeTokenState,
   createEmptyThemeModeTokenState,
   resolveModeTokens,
   resolvePresetId,
-  stringifyThemeConfigCopyPayload,
 } from '@/utils/theme-workbench';
 import type { ModeType } from '@/utils/types';
 
@@ -92,24 +90,6 @@ export const useSettingStore = defineStore('setting', {
     },
     resolvedThemeTokensForDisplayMode(state): ThemeTokenMap {
       return resolveModeTokens(state.themeResolvedTokens, state.mode === 'dark' ? 'dark' : 'light');
-    },
-    themeConfigCopyPayload(state) {
-      const styleConfig = STYLE_CONFIG_KEYS.reduce<Partial<typeof STYLE_CONFIG>>((config, key) => {
-        config[key] = state[key] as never;
-        return config;
-      }, {});
-
-      return buildThemeConfigCopyPayload({
-        styleConfig,
-        activeGroup: state.activeThemeWorkbenchGroup,
-        selectedPresetId: state.selectedThemePresetId,
-        source: state.themeSource,
-        customTokens: state.themeTokenOverrides,
-        resolvedTokens: state.themeResolvedTokens,
-      });
-    },
-    themeConfigCopyText(): string {
-      return stringifyThemeConfigCopyPayload(this.themeConfigCopyPayload);
     },
   },
   actions: {

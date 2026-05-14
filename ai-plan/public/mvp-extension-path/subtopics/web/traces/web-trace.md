@@ -86,6 +86,16 @@
 - Kept both fixes inside the existing `ThemeWorkbenchPanel.vue` and `ThemeWorkbenchDock.vue` shell files so the
   runtime still depends on the same `setting` store state and theme token pipeline.
 
+## 2026-05-14 theme workbench icon and footer cleanup
+
+- Replaced the workbench dock and group-navigation icon names with entries that are actually present in the current
+  `tdesign-icons-vue-next` dependency, fixing the blank icon placeholders in the overview, semantic, and font-related
+  controls.
+- Removed the right-panel floating footer action area, deleted the redundant copy-config action path, and moved the
+  reset-theme action into the `元素开关` section so the panel no longer shows suspended bottom buttons over content.
+- Trimmed the now-unused copy-config locale strings, store getters, and helper types/functions so the feature surface
+  matches the visible UI again.
+
 ## Next Step
 
 - Continue the workbench slice by improving grouped token-editor ergonomics and layout-preview fidelity without

@@ -45,17 +45,3 @@ export interface ThemePresetDefinition {
   mode?: ModeType | 'auto';
   tokenOverrides?: Partial<ThemeModeTokenState>;
 }
-
-export interface ThemeWorkbenchSnapshot {
-  activeGroup: ThemeWorkbenchGroupKey;
-  selectedPresetId: string | null;
-  source: ThemeSourceType;
-  customTokens: ThemeModeTokenState;
-  resolvedTokens: ThemeModeTokenState;
-}
-
-export interface ThemeConfigCopyPayload {
-  version: 1;
-  styleConfig: SettingStyleConfig;
-  workbench: ThemeWorkbenchSnapshot;
-}

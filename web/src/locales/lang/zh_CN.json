@@ -97,12 +97,6 @@
         "useTagTabs": "使用 多标签Tab页",
         "menuAutoCollapsed": "菜单自动折叠"
       },
-      "tips": "请复制后手动修改配置文件: /src/config/style.ts",
-      "copy": {
-        "title": "复制配置项",
-        "success": "复制成功",
-        "fail": "复制失败"
-      },
       "workbench": {
         "title": "自定义主题",
         "subtitle": "Custom Theme",
@@ -144,7 +138,6 @@
           "empty": "当前分组暂无可编辑变量"
         },
         "actions": {
-          "copy": "复制完整配置",
           "reset": "恢复默认主题",
           "clearGroup": "清空当前分组"
         }

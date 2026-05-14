@@ -1,14 +1,5 @@
-import STYLE_CONFIG from '@/config/style';
 import { DEFAULT_THEME_PRESET_ID } from '@/config/theme-workbench';
-import type {
-  SettingStyleConfig,
-  ThemeConfigCopyPayload,
-  ThemeModeTokenState,
-  ThemePresetDefinition,
-  ThemeSourceType,
-  ThemeTokenMap,
-  ThemeWorkbenchGroupKey,
-} from '@/types/theme';
+import type { ThemeModeTokenState, ThemePresetDefinition, ThemeTokenMap } from '@/types/theme';
 import type { ModeType } from '@/utils/types';
 
 /**
@@ -62,38 +53,6 @@ export function buildThemeModeSnapshot(options: {
     light: mergeThemeTokenMaps(brandTokens.light, preset?.tokenOverrides?.light, customTokens.light),
     dark: mergeThemeTokenMaps(brandTokens.dark, preset?.tokenOverrides?.dark, customTokens.dark),
   };
-}
-
-export function pickStyleConfig(source: Partial<SettingStyleConfig>): SettingStyleConfig {
-  return {
-    ...STYLE_CONFIG,
-    ...source,
-  };
-}
-
-export function buildThemeConfigCopyPayload(options: {
-  styleConfig: Partial<SettingStyleConfig>;
-  activeGroup: ThemeWorkbenchGroupKey;
-  selectedPresetId: string | null;
-  source: ThemeSourceType;
-  customTokens: ThemeModeTokenState;
-  resolvedTokens: ThemeModeTokenState;
-}): ThemeConfigCopyPayload {
-  return {
-    version: 1,
-    styleConfig: pickStyleConfig(options.styleConfig),
-    workbench: {
-      activeGroup: options.activeGroup,
-      selectedPresetId: options.selectedPresetId,
-      source: options.source,
-      customTokens: cloneThemeModeTokenState(options.customTokens),
-      resolvedTokens: cloneThemeModeTokenState(options.resolvedTokens),
-    },
-  };
-}
-
-export function stringifyThemeConfigCopyPayload(payload: ThemeConfigCopyPayload): string {
-  return `export const THEME_WORKBENCH_CONFIG = ${JSON.stringify(payload, null, 2)} as const;`;
 }
 
 export function resolvePresetId(presetId: string | null | undefined): string {

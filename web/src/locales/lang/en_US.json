@@ -97,12 +97,6 @@
         "useTagTabs": "Use Multi-Tag Tabs",
         "menuAutoCollapsed": "Menu Auto Collapsed"
       },
-      "tips": "Please copy and manually modify the configuration file: /src/config/style.ts",
-      "copy": {
-        "title": "Copy",
-        "success": "copied",
-        "fail": "fail to copy"
-      },
       "workbench": {
         "title": "Custom Theme",
         "subtitle": "Custom Theme",
@@ -144,7 +138,6 @@
           "empty": "No editable tokens in this group"
         },
         "actions": {
-          "copy": "Copy Full Config",
           "reset": "Reset Theme",
           "clearGroup": "Clear Group"
         }

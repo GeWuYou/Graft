@@ -8,7 +8,7 @@
       @click="toggleOverview"
     >
       <template #icon>
-        <t-icon name="palette" />
+        <t-icon name="app" />
       </template>
       <span class="theme-workbench-dock__action-label">{{ t('layout.setting.workbench.dock.title') }}</span>
     </t-button>
@@ -47,9 +47,9 @@ import type { ThemeWorkbenchGroupKey } from '@/types/theme';
 const settingStore = useSettingStore();
 
 const quickEntries = [
-  { group: 'brand' as const, icon: 'palette', labelKey: 'layout.setting.workbench.groups.brand' },
-  { group: 'semantic' as const, icon: 'color-picker', labelKey: 'layout.setting.workbench.groups.semantic' },
-  { group: 'font' as const, icon: 'textformat', labelKey: 'layout.setting.workbench.groups.font' },
+  { group: 'brand' as const, icon: 'fill-color', labelKey: 'layout.setting.workbench.groups.brand' },
+  { group: 'semantic' as const, icon: 'component-grid', labelKey: 'layout.setting.workbench.groups.semantic' },
+  { group: 'font' as const, icon: 'text', labelKey: 'layout.setting.workbench.groups.font' },
   { group: 'radius' as const, icon: 'chart-bubble', labelKey: 'layout.setting.workbench.groups.radius' },
 ];
 
