@@ -26,9 +26,12 @@ router.beforeEach(async (to, from, next) => {
     try {
       await userStore.getUserInfo();
 
-      const { asyncRoutes } = permissionStore;
+      const { routesInitialized } = permissionStore;
 
-      if (asyncRoutes && asyncRoutes.length === 0) {
+      // 当前 `web` 临时采用 starter 全量基线时，允许没有动态路由。
+      // 这里必须区分“尚未完成首次路由初始化”和“初始化后动态路由为空”，
+      // 否则会在静态路由场景下反复对同一路由 replace，导致首屏一直白屏。
+      if (!routesInitialized) {
         const routeList = await permissionStore.buildAsyncRoutes();
         routeList.forEach((item: RouteRecordRaw) => {
           router.addRoute(item);

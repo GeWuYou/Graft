@@ -11,6 +11,7 @@ export const usePermissionStore = defineStore('permission', {
     routers: [] as RouteRecordRaw[],
     removeRoutes: [] as RouteRecordRaw[],
     asyncRoutes: [] as RouteRecordRaw[],
+    routesInitialized: false,
   }),
   actions: {
     async initRoutes() {
@@ -26,10 +27,12 @@ export const usePermissionStore = defineStore('permission', {
     async buildAsyncRoutes() {
       this.asyncRoutes = [];
       await this.initRoutes();
+      this.routesInitialized = true;
       return this.asyncRoutes;
     },
     async restoreRoutes() {
       this.asyncRoutes = [];
+      this.routesInitialized = false;
       await this.initRoutes();
     },
   },
