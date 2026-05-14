@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-05-12T05:07:12Z"
+generated_at_utc: "2026-05-14T01:14:21Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -51,6 +51,11 @@ required_runtimes:
     version: "1.3.10"
     path: "/root/.bun/bin/bun"
     purpose: "Preferred package manager when web/bun.lock is present."
+  host_bun:
+    installed: true
+    version: "1.3.13"
+    path: "/mnt/c/Users/gewuyou/.bun/bin/bun.exe"
+    purpose: "Preferred host Windows Bun for all web installs, validation, and dev commands when running from WSL."
 
 required_tools:
   git:

@@ -23,6 +23,12 @@
 - `public/<topic>/traces/`
   - Repository-safe execution traces for one active topic.
   - Record decisions, validation milestones, and the immediate next step.
+- `public/<topic>/subtopics/<name>/todos/`
+  - Recovery documents for one bounded subtopic inside an active topic.
+  - Use this when one long-lived topic needs separate `server`, `web`, or similar boundary-specific recovery entrypoints.
+- `public/<topic>/subtopics/<name>/traces/`
+  - Execution traces for one bounded subtopic inside an active topic.
+  - Keep these focused on one subsystem so the parent topic can stay concise.
 - `public/<topic>/design/`
   - Topic-specific design documents.
   - Use this only when the design applies to one topic instead of the whole repository.
@@ -45,7 +51,11 @@
 - Read `design/` and `roadmap/` before making architecture or implementation-boundary decisions.
 - If the current branch or worktree appears in the public index, read the mapped topic tracking and trace files before
   substantive work.
+- If an active topic defines subtopics, read the parent topic first and then continue into the relevant subtopic based
+  on the current `server`, `web`, or cross-boundary task shape.
 - When a topic is active, update its tracking document in the same change as substantive work.
+- When work is clearly scoped to one subtopic, update that subtopic tracking document in the same change and keep the
+  parent topic limited to cross-boundary summaries, shared risks, and shared milestones.
 - Keep active tracking and trace files concise enough to serve as recovery entrypoints.
 - When a stage is complete, move its detailed history into the topic's `archive/` and leave only the active recovery
   point in the default boot path.
