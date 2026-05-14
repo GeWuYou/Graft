@@ -27,12 +27,22 @@
 - The backend runtime now owns first-class logger and i18n services, and localized HTTP errors use the stable
   `message_key + message + locale` contract.
 - The backend side of the comment-governance sweep is complete across the hand-written core/runtime/plugin packages.
+- `server/internal/config` now carries the minimal auth configuration skeleton for token TTLs and refresh-cookie
+  settings.
+- `server/internal/pluginapi` now reserves the stable auth DTO and interface skeletons needed for future plugin
+  wiring.
+- `server/internal/ent/schema` and `server/internal/store` now reserve the MVP auth/RBAC persistence baseline,
+  including password-hash fields, refresh sessions, roles, permissions, and stable repository/store DTO boundaries.
+- `server/plugins/user` now contains the first auth utility layer for bcrypt password hashing and HS256 access-token
+  issue/parse helpers, without yet wiring login, refresh, or request auth middleware.
 
 ## Active Risks
 
 - Atlas CLI execution still lacks live validation against a disposable PostgreSQL target in this environment.
 - The request-header authorization placeholder must be replaced without leaking auth logic into core or breaking plugin
   boundaries.
+- The auth configuration, `pluginapi` contracts, and user-plugin auth helpers are still not wired into the real
+  login/refresh/request-auth flow.
 - Future backend work must avoid leaking Ent-specific details through `plugin.Context` or cross-plugin public APIs.
 
 ## Latest Validation
@@ -41,10 +51,16 @@
 - The latest focused backend validation before this split included:
   - `cd server && go test ./internal/cli ./internal/httpx ./internal/i18n ./internal/plugin ./plugins/user`
   - `cd server && go build ./cmd/graft`
-- This subtopic introduction is documentation-only and should be validated through consistency checks with the parent
-  topic and repository `ai-plan` rules.
+- The latest auth/RBAC persistence baseline validation included:
+  - `cd server && go test ./internal/app ./plugins/user ./internal/store ./internal/store/entstore`
+  - `cd server && go build ./cmd/graft`
+  - `cd server && atlas migrate hash --dir file://internal/ent/migrate/migrations`
+- The latest auth utility validation included:
+  - `cd server && go test ./plugins/user ./internal/config ./internal/pluginapi ./internal/store ./internal/store/entstore ./internal/app`
+  - `cd server && go build ./cmd/graft`
 
 ## Immediate Next Step
 
-- Run the first disposable PostgreSQL + Atlas end-to-end backend validation path, then replace the request-header
-  authorization placeholder with the real auth + RBAC plugin chain.
+- Replace the request-header authorization placeholder with a real request auth context, then wire login, access-token
+  parsing, RBAC authorization, and refresh-session rotation onto the new store boundaries without leaking Ent details
+  into `pluginapi` or core middleware.

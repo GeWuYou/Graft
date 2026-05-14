@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestLoadReadsDotenv 验证 Load 会读取当前目录下的 .env 默认值。
@@ -49,6 +50,30 @@ func TestLoadReadsDotenv(t *testing.T) {
 	}
 	if cfg.I18n.FallbackLocale != defaultLocale {
 		t.Fatalf("expected fallback locale %q, got %q", defaultLocale, cfg.I18n.FallbackLocale)
+	}
+	if cfg.Auth.AccessTokenTTL != defaultAccessTokenTTL {
+		t.Fatalf("expected default access token ttl %s, got %s", defaultAccessTokenTTL, cfg.Auth.AccessTokenTTL)
+	}
+	if cfg.Auth.RefreshTokenTTL != defaultRefreshTokenTTL {
+		t.Fatalf("expected default refresh token ttl %s, got %s", defaultRefreshTokenTTL, cfg.Auth.RefreshTokenTTL)
+	}
+	if cfg.Auth.JWTSecret != defaultJWTSecret {
+		t.Fatalf("expected default jwt secret %q, got %q", defaultJWTSecret, cfg.Auth.JWTSecret)
+	}
+	if cfg.Auth.SigningKey != defaultSigningKey {
+		t.Fatalf("expected default signing key %q, got %q", defaultSigningKey, cfg.Auth.SigningKey)
+	}
+	if cfg.Auth.RefreshCookieName != defaultRefreshCookieName {
+		t.Fatalf("expected default refresh cookie name %q, got %q", defaultRefreshCookieName, cfg.Auth.RefreshCookieName)
+	}
+	if cfg.Auth.RefreshCookieSecure {
+		t.Fatal("expected default refresh cookie secure to be false")
+	}
+	if cfg.Auth.RefreshCookieSameSite != defaultRefreshCookieSameSite {
+		t.Fatalf("expected default refresh cookie same site %q, got %q", defaultRefreshCookieSameSite, cfg.Auth.RefreshCookieSameSite)
+	}
+	if cfg.Auth.RefreshCookiePath != defaultRefreshCookiePath {
+		t.Fatalf("expected default refresh cookie path %q, got %q", defaultRefreshCookiePath, cfg.Auth.RefreshCookiePath)
 	}
 }
 
@@ -159,6 +184,9 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	}
 	if len(cfg.I18n.SupportedLocales) != 1 || cfg.I18n.SupportedLocales[0] != defaultLocale {
 		t.Fatalf("expected supported locales [%q], got %#v", defaultLocale, cfg.I18n.SupportedLocales)
+	}
+	if cfg.Auth.AccessTokenTTL != defaultAccessTokenTTL {
+		t.Fatalf("expected default access token ttl %s, got %s", defaultAccessTokenTTL, cfg.Auth.AccessTokenTTL)
 	}
 }
 
@@ -303,6 +331,83 @@ func TestValidateRejectsMissingSupportedLocales(t *testing.T) {
 
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected missing supported locales error")
+	}
+}
+
+// TestValidateRejectsMissingAuthTokenTTLs 验证 Validate 会拒绝非正数的 token 期限。
+func TestValidateRejectsMissingAuthTokenTTLs(t *testing.T) {
+	cfg := &Config{
+		App: AppConfig{
+			Name: "graft",
+			Env:  "test",
+		},
+		HTTP: HTTPConfig{
+			Addr: ":8080",
+		},
+		Database: DatabaseConfig{
+			Driver: "postgres",
+			URL:    "postgres://graft:graft@db:5432/graft?sslmode=disable",
+		},
+		Redis: RedisConfig{
+			Addr: "localhost:6379",
+		},
+		I18n: I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: []string{"zh-CN"},
+		},
+		Auth: AuthConfig{
+			AccessTokenTTL:        0,
+			RefreshTokenTTL:       time.Minute,
+			JWTSecret:             "secret",
+			SigningKey:            "signing",
+			RefreshCookieName:     defaultRefreshCookieName,
+			RefreshCookieSameSite: defaultRefreshCookieSameSite,
+			RefreshCookiePath:     defaultRefreshCookiePath,
+		},
+	}
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected missing access token ttl error")
+	}
+}
+
+// TestValidateRejectsUnsafeCookieMode 验证 SameSite=None 时必须同时开启安全 cookie。
+func TestValidateRejectsUnsafeCookieMode(t *testing.T) {
+	cfg := &Config{
+		App: AppConfig{
+			Name: "graft",
+			Env:  "test",
+		},
+		HTTP: HTTPConfig{
+			Addr: ":8080",
+		},
+		Database: DatabaseConfig{
+			Driver: "postgres",
+			URL:    "postgres://graft:graft@db:5432/graft?sslmode=disable",
+		},
+		Redis: RedisConfig{
+			Addr: "localhost:6379",
+		},
+		I18n: I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: []string{"zh-CN"},
+		},
+		Auth: AuthConfig{
+			AccessTokenTTL:        time.Minute,
+			RefreshTokenTTL:       time.Hour,
+			JWTSecret:             "secret",
+			SigningKey:            "signing",
+			RefreshCookieName:     defaultRefreshCookieName,
+			RefreshCookieSecure:   false,
+			RefreshCookieSameSite: "none",
+			RefreshCookiePath:     defaultRefreshCookiePath,
+		},
+	}
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected insecure same-site none error")
 	}
 }
 

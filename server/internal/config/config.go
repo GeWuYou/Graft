@@ -5,21 +5,29 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
 const (
-	defaultAppName        = "graft"
-	defaultAppEnv         = "local"
-	defaultHTTPAddr       = ":8080"
-	defaultDatabaseDriver = "postgres"
-	defaultDatabaseURL    = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
-	defaultRedisAddr      = "localhost:6379"
-	defaultLogLevel       = "info"
-	defaultLocale         = "zh-CN"
-	defaultSupported      = "zh-CN"
+	defaultAppName               = "graft"
+	defaultAppEnv                = "local"
+	defaultHTTPAddr              = ":8080"
+	defaultDatabaseDriver        = "postgres"
+	defaultDatabaseURL           = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
+	defaultRedisAddr             = "localhost:6379"
+	defaultLogLevel              = "info"
+	defaultLocale                = "zh-CN"
+	defaultSupported             = "zh-CN"
+	defaultAccessTokenTTL        = 15 * time.Minute
+	defaultRefreshTokenTTL       = 7 * 24 * time.Hour
+	defaultJWTSecret             = "graft-auth-jwt-secret"
+	defaultSigningKey            = "graft-auth-signing-key"
+	defaultRefreshCookieName     = "graft_refresh_token"
+	defaultRefreshCookiePath     = "/"
+	defaultRefreshCookieSameSite = "lax"
 )
 
 // Config 包含服务启动前一次性解析并校验的运行时配置快照。
@@ -32,6 +40,7 @@ type Config struct {
 	Redis    RedisConfig
 	Log      LogConfig
 	I18n     I18nConfig
+	Auth     AuthConfig
 }
 
 // AppConfig 描述进程级应用标识配置。
@@ -68,6 +77,20 @@ type I18nConfig struct {
 	DefaultLocale    string
 	FallbackLocale   string
 	SupportedLocales []string
+}
+
+// AuthConfig 描述认证插件和 HTTP 会话相关的最小稳定配置。
+//
+// 该配置只保留 token 和 refresh cookie 所需的基础参数，不承载 OAuth、SSO、MFA 或缓存策略。
+type AuthConfig struct {
+	AccessTokenTTL        time.Duration
+	RefreshTokenTTL       time.Duration
+	JWTSecret             string
+	SigningKey            string
+	RefreshCookieName     string
+	RefreshCookieSecure   bool
+	RefreshCookieSameSite string
+	RefreshCookiePath     string
 }
 
 // Load 按“真实环境变量优先、.env 兜底”的顺序加载配置并返回校验后的快照。
@@ -111,6 +134,16 @@ func Load() (*Config, error) {
 			DefaultLocale:    reader.GetString("i18n.default_locale"),
 			FallbackLocale:   reader.GetString("i18n.fallback_locale"),
 			SupportedLocales: parseLocaleList(reader.GetString("i18n.supported_locales")),
+		},
+		Auth: AuthConfig{
+			AccessTokenTTL:        reader.GetDuration("auth.access_token_ttl"),
+			RefreshTokenTTL:       reader.GetDuration("auth.refresh_token_ttl"),
+			JWTSecret:             reader.GetString("auth.jwt_secret"),
+			SigningKey:            reader.GetString("auth.signing_key"),
+			RefreshCookieName:     reader.GetString("auth.refresh_cookie_name"),
+			RefreshCookieSecure:   reader.GetBool("auth.refresh_cookie_secure"),
+			RefreshCookieSameSite: reader.GetString("auth.refresh_cookie_same_site"),
+			RefreshCookiePath:     reader.GetString("auth.refresh_cookie_path"),
 		},
 	}
 
@@ -166,6 +199,36 @@ func (c *Config) Validate() error {
 		return errors.New("GRAFT_I18N_SUPPORTED_LOCALES must include at least one locale")
 	}
 
+	if c.Auth.AccessTokenTTL <= 0 {
+		return errors.New("GRAFT_AUTH_ACCESS_TOKEN_TTL must be greater than zero")
+	}
+
+	if c.Auth.RefreshTokenTTL <= 0 {
+		return errors.New("GRAFT_AUTH_REFRESH_TOKEN_TTL must be greater than zero")
+	}
+
+	if strings.TrimSpace(c.Auth.JWTSecret) == "" && strings.TrimSpace(c.Auth.SigningKey) == "" {
+		return errors.New("GRAFT_AUTH_JWT_SECRET or GRAFT_AUTH_SIGNING_KEY is required")
+	}
+
+	switch strings.ToLower(strings.TrimSpace(c.Auth.RefreshCookieSameSite)) {
+	case "lax", "strict":
+	case "none":
+		if !c.Auth.RefreshCookieSecure {
+			return errors.New("GRAFT_AUTH_REFRESH_COOKIE_SECURE must be true when GRAFT_AUTH_REFRESH_COOKIE_SAME_SITE is none")
+		}
+	default:
+		return fmt.Errorf("unsupported GRAFT_AUTH_REFRESH_COOKIE_SAME_SITE value %q", c.Auth.RefreshCookieSameSite)
+	}
+
+	if strings.TrimSpace(c.Auth.RefreshCookieName) == "" {
+		return errors.New("GRAFT_AUTH_REFRESH_COOKIE_NAME is required")
+	}
+
+	if strings.TrimSpace(c.Auth.RefreshCookiePath) == "" {
+		return errors.New("GRAFT_AUTH_REFRESH_COOKIE_PATH is required")
+	}
+
 	return nil
 }
 
@@ -201,6 +264,14 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("i18n.default_locale", defaultLocale)
 	reader.SetDefault("i18n.fallback_locale", defaultLocale)
 	reader.SetDefault("i18n.supported_locales", defaultSupported)
+	reader.SetDefault("auth.access_token_ttl", defaultAccessTokenTTL)
+	reader.SetDefault("auth.refresh_token_ttl", defaultRefreshTokenTTL)
+	reader.SetDefault("auth.jwt_secret", defaultJWTSecret)
+	reader.SetDefault("auth.signing_key", defaultSigningKey)
+	reader.SetDefault("auth.refresh_cookie_name", defaultRefreshCookieName)
+	reader.SetDefault("auth.refresh_cookie_secure", false)
+	reader.SetDefault("auth.refresh_cookie_same_site", defaultRefreshCookieSameSite)
+	reader.SetDefault("auth.refresh_cookie_path", defaultRefreshCookiePath)
 }
 
 func parseLocaleList(raw string) []string {
