@@ -46,6 +46,9 @@
 - The same slice also removes the floating footer action area from the right-side panel:
   the redundant “复制完整配置” action and its copy pipeline are deleted, and “恢复默认主题” now lives directly under
   the `元素开关` block to keep the action near the configuration it resets.
+- The latest dock-alignment follow-up corrects a remaining visual-centering issue in the floating toolbar:
+  the bottom dock keeps its overall center anchored while active pills expand, and the active icon + label content is
+  now centered within each expanded button instead of left-biased.
 
 ## Active Risks
 
@@ -66,6 +69,9 @@
 - The build still emits existing non-blocking warnings from `@vueuse/core` pure annotations and large Vite chunks, but
   the validation completed successfully.
 - The icon and footer cleanup follow-up should again validate with host Windows Bun using:
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
+  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
+- The dock-centering follow-up should validate with host Windows Bun using:
   - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run typecheck`
   - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run build`
 - After the mainline implementation actually replaces the current frontend baseline, it should still validate with host

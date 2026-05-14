@@ -96,6 +96,15 @@
 - Trimmed the now-unused copy-config locale strings, store getters, and helper types/functions so the feature surface
   matches the visible UI again.
 
+## 2026-05-14 theme workbench dock centering fix
+
+- Adjusted the floating dock shell so its fixed-position container still centers around the viewport while button pills
+  expand and collapse.
+- Reworked the active dock-button alignment to keep the icon + label content centered inside each expanded pill instead
+  of using a left-aligned layout that made the controls look visually off-center.
+- Kept the change local to `ThemeWorkbenchDock.vue`, preserving the existing store actions, group switching semantics,
+  and drawer interaction path.
+
 ## Next Step
 
 - Continue the workbench slice by improving grouped token-editor ergonomics and layout-preview fidelity without

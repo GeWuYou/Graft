@@ -92,9 +92,10 @@ const resetWorkbench = () => {
   display: inline-flex;
   flex-wrap: nowrap;
   gap: 12px;
+  justify-content: center;
   left: 50%;
   max-width: calc(100vw - 24px);
-  overflow: auto visible;
+  overflow: visible;
   padding: 8px;
   position: fixed;
   scrollbar-width: none;
@@ -158,10 +159,13 @@ const resetWorkbench = () => {
 }
 
 :deep(.theme-workbench-dock__main.t-button) {
+  align-items: center;
   border-radius: 999px;
+  display: inline-flex;
   flex: 0 0 auto;
   font-weight: 600;
   height: 44px;
+  justify-content: center;
   min-width: 44px;
   overflow: hidden;
   padding: 0;
@@ -175,6 +179,7 @@ const resetWorkbench = () => {
     transform 0.18s ease;
 }
 
+// 激活态 pill 需要围绕按钮中心展开，否则图标和文字会整体向一侧偏移。
 :deep(.theme-workbench-dock__main .t-button__text) {
   margin-inline-start: 0;
   max-width: 0;
@@ -188,19 +193,20 @@ const resetWorkbench = () => {
 }
 
 :deep(.theme-workbench-dock__main.theme-workbench-dock__action--active.t-button) {
-  justify-content: flex-start;
   min-width: 132px;
   padding-inline: 16px;
 }
 
 :deep(.theme-workbench-dock__main.theme-workbench-dock__action--active.t-button .t-button__text) {
-  margin-inline-start: 4px;
+  margin-inline-start: 8px;
   max-width: 96px;
   opacity: 1;
 }
 
 :deep(.theme-workbench-dock__action.t-button) {
+  align-items: center;
   border-radius: 999px;
+  display: inline-flex;
   flex: 0 0 auto;
   height: 44px;
   justify-content: center;
@@ -230,13 +236,12 @@ const resetWorkbench = () => {
 }
 
 :deep(.theme-workbench-dock__action--active.t-button) {
-  justify-content: flex-start;
   min-width: 116px;
   padding-inline: 16px;
 }
 
 :deep(.theme-workbench-dock__action--active.t-button .t-button__text) {
-  margin-inline-start: 4px;
+  margin-inline-start: 8px;
   max-width: 96px;
   opacity: 1;
 }
