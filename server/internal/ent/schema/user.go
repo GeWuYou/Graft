@@ -22,6 +22,7 @@ func (User) Fields() []ent.Field {
 		field.String("display").
 			NotEmpty(),
 		field.String("password_hash").
+			Sensitive().
 			Optional().
 			Nillable(),
 		field.Time("password_changed_at").

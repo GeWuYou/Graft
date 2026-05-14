@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"regexp"
 	"time"
 
 	"entgo.io/ent"
@@ -27,6 +28,7 @@ func (Permission) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("code").
 			NotEmpty().
+			Match(regexp.MustCompile(`^[a-z0-9]+(\.[a-z0-9]+)+$`)).
 			Unique(),
 		field.String("display").
 			NotEmpty(),

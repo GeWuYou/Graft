@@ -18,6 +18,10 @@ type Factory struct {
 //
 // 调用方必须保证 client 在整个仓储使用期间保持可用，并由更上层统一关闭。
 func NewFactory(client *ent.Client) *Factory {
+	if client == nil {
+		panic("entstore.NewFactory: nil *ent.Client")
+	}
+
 	return &Factory{
 		userRepo: &userRepository{client: client},
 		authRepo: &authRepository{client: client},

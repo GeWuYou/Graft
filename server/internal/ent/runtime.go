@@ -22,7 +22,21 @@ func init() {
 	// permissionDescCode is the schema descriptor for code field.
 	permissionDescCode := permissionFields[0].Descriptor()
 	// permission.CodeValidator is a validator for the "code" field. It is called by the builders before save.
-	permission.CodeValidator = permissionDescCode.Validators[0].(func(string) error)
+	permission.CodeValidator = func() func(string) error {
+		validators := permissionDescCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(code string) error {
+			for _, fn := range fns {
+				if err := fn(code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// permissionDescDisplay is the schema descriptor for display field.
 	permissionDescDisplay := permissionFields[1].Descriptor()
 	// permission.DisplayValidator is a validator for the "display" field. It is called by the builders before save.

@@ -58,6 +58,10 @@
 - The latest auth utility validation included:
   - `cd server && go test ./plugins/user ./internal/config ./internal/pluginapi ./internal/store ./internal/store/entstore ./internal/app`
   - `cd server && go build ./cmd/graft`
+- The latest PR `#7` review-follow-up validation included:
+  - `cd server && go generate ./internal/ent`
+  - `cd server && go test ./internal/config ./internal/store ./internal/store/entstore ./plugins/user ./internal/app`
+  - `cd server && go build ./cmd/graft`
 
 ## Immediate Next Step
 

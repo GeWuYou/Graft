@@ -23,8 +23,6 @@ const (
 	defaultSupported             = "zh-CN"
 	defaultAccessTokenTTL        = 15 * time.Minute
 	defaultRefreshTokenTTL       = 7 * 24 * time.Hour
-	defaultJWTSecret             = "graft-auth-jwt-secret"
-	defaultSigningKey            = "graft-auth-signing-key"
 	defaultRefreshCookieName     = "graft_refresh_token"
 	defaultRefreshCookiePath     = "/"
 	defaultRefreshCookieSameSite = "lax"
@@ -266,8 +264,6 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("i18n.supported_locales", defaultSupported)
 	reader.SetDefault("auth.access_token_ttl", defaultAccessTokenTTL)
 	reader.SetDefault("auth.refresh_token_ttl", defaultRefreshTokenTTL)
-	reader.SetDefault("auth.jwt_secret", defaultJWTSecret)
-	reader.SetDefault("auth.signing_key", defaultSigningKey)
 	reader.SetDefault("auth.refresh_cookie_name", defaultRefreshCookieName)
 	reader.SetDefault("auth.refresh_cookie_secure", false)
 	reader.SetDefault("auth.refresh_cookie_same_site", defaultRefreshCookieSameSite)

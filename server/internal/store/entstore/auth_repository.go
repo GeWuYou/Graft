@@ -38,6 +38,9 @@ func (r *authRepository) GetUserCredentialByUsername(ctx context.Context, userna
 func (r *authRepository) SetPasswordHash(ctx context.Context, input store.SetPasswordHashInput) error {
 	id, err := toEntID(input.UserID)
 	if err != nil {
+		if err == store.ErrInvalidID {
+			return store.ErrUserNotFound
+		}
 		return err
 	}
 

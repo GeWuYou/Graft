@@ -9,6 +9,9 @@ import (
 // ErrUserNotFound 表示请求的用户不存在。
 var ErrUserNotFound = errors.New("user not found")
 
+// ErrInvalidID 表示调用方提供的稳定标识不满足当前仓储契约要求。
+var ErrInvalidID = errors.New("invalid id")
+
 // User 表示用户仓储向上层返回的稳定持久化 DTO。
 //
 // 该类型刻意不暴露 Ent 等 ORM 细节，保证插件与上层服务不依赖具体存储实现。

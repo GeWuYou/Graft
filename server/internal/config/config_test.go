@@ -23,6 +23,8 @@ func TestLoadReadsDotenv(t *testing.T) {
 		"GRAFT_REDIS_ADDR=redis:6379",
 		"GRAFT_REDIS_DB=2",
 		"GRAFT_LOG_LEVEL=debug",
+		"GRAFT_AUTH_JWT_SECRET=dotenv-jwt-secret",
+		"GRAFT_AUTH_SIGNING_KEY=dotenv-signing-key",
 	}, "\n")
 	if err := os.WriteFile(".env", []byte(env), 0o600); err != nil {
 		t.Fatalf("write .env: %v", err)
@@ -57,11 +59,11 @@ func TestLoadReadsDotenv(t *testing.T) {
 	if cfg.Auth.RefreshTokenTTL != defaultRefreshTokenTTL {
 		t.Fatalf("expected default refresh token ttl %s, got %s", defaultRefreshTokenTTL, cfg.Auth.RefreshTokenTTL)
 	}
-	if cfg.Auth.JWTSecret != defaultJWTSecret {
-		t.Fatalf("expected default jwt secret %q, got %q", defaultJWTSecret, cfg.Auth.JWTSecret)
+	if cfg.Auth.JWTSecret != "dotenv-jwt-secret" {
+		t.Fatalf("expected jwt secret from .env, got %q", cfg.Auth.JWTSecret)
 	}
-	if cfg.Auth.SigningKey != defaultSigningKey {
-		t.Fatalf("expected default signing key %q, got %q", defaultSigningKey, cfg.Auth.SigningKey)
+	if cfg.Auth.SigningKey != "dotenv-signing-key" {
+		t.Fatalf("expected signing key from .env, got %q", cfg.Auth.SigningKey)
 	}
 	if cfg.Auth.RefreshCookieName != defaultRefreshCookieName {
 		t.Fatalf("expected default refresh cookie name %q, got %q", defaultRefreshCookieName, cfg.Auth.RefreshCookieName)
@@ -98,6 +100,7 @@ func TestLoadReadsServerDotenvFromRepoRoot(t *testing.T) {
 		"GRAFT_REDIS_ADDR=redis:6379",
 		"GRAFT_REDIS_DB=3",
 		"GRAFT_LOG_LEVEL=warn",
+		"GRAFT_AUTH_JWT_SECRET=server-dotenv-jwt-secret",
 	}, "\n")
 	if err := os.WriteFile(filepath.Join("server", ".env"), []byte(env), 0o600); err != nil {
 		t.Fatalf("write server/.env: %v", err)
@@ -120,6 +123,9 @@ func TestLoadReadsServerDotenvFromRepoRoot(t *testing.T) {
 	if cfg.I18n.DefaultLocale != defaultLocale {
 		t.Fatalf("expected default locale %q, got %q", defaultLocale, cfg.I18n.DefaultLocale)
 	}
+	if cfg.Auth.JWTSecret != "server-dotenv-jwt-secret" {
+		t.Fatalf("expected jwt secret from server/.env, got %q", cfg.Auth.JWTSecret)
+	}
 }
 
 // TestLoadKeepsRealEnvironmentBeforeDotenv 验证真实环境变量优先于 .env 中的默认值。
@@ -132,6 +138,7 @@ func TestLoadKeepsRealEnvironmentBeforeDotenv(t *testing.T) {
 		t.Fatalf("write .env: %v", err)
 	}
 	t.Setenv("GRAFT_HTTP_ADDR", ":28080")
+	t.Setenv("GRAFT_AUTH_JWT_SECRET", "runtime-secret")
 
 	cfg, err := Load()
 	if err != nil {
@@ -149,6 +156,7 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	restoreEnv := clearGraftEnv(t)
 	t.Cleanup(restoreEnv)
 	chdir(t, t.TempDir())
+	t.Setenv("GRAFT_AUTH_JWT_SECRET", "runtime-secret")
 
 	cfg, err := Load()
 	if err != nil {
@@ -188,6 +196,9 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	if cfg.Auth.AccessTokenTTL != defaultAccessTokenTTL {
 		t.Fatalf("expected default access token ttl %s, got %s", defaultAccessTokenTTL, cfg.Auth.AccessTokenTTL)
 	}
+	if cfg.Auth.JWTSecret != "runtime-secret" {
+		t.Fatalf("expected jwt secret from environment, got %q", cfg.Auth.JWTSecret)
+	}
 }
 
 // TestLoadPrefersExplicitEnvFile 验证显式指定的环境文件会优先于默认
@@ -200,7 +211,7 @@ func TestLoadPrefersExplicitEnvFile(t *testing.T) {
 	if err := os.WriteFile(".env", []byte("GRAFT_APP_NAME=from-default-dotenv\nGRAFT_LOG_LEVEL=warn\n"), 0o600); err != nil {
 		t.Fatalf("write default .env: %v", err)
 	}
-	if err := os.WriteFile("custom.env", []byte("GRAFT_APP_NAME=from-explicit-dotenv\nGRAFT_LOG_LEVEL=error\n"), 0o600); err != nil {
+	if err := os.WriteFile("custom.env", []byte("GRAFT_APP_NAME=from-explicit-dotenv\nGRAFT_LOG_LEVEL=error\nGRAFT_AUTH_SIGNING_KEY=explicit-signing-key\n"), 0o600); err != nil {
 		t.Fatalf("write custom env: %v", err)
 	}
 	t.Setenv("GRAFT_ENV_FILE", "custom.env")
@@ -216,6 +227,9 @@ func TestLoadPrefersExplicitEnvFile(t *testing.T) {
 	if cfg.Log.Level != "error" {
 		t.Fatalf("expected explicit env file log level, got %q", cfg.Log.Level)
 	}
+	if cfg.Auth.SigningKey != "explicit-signing-key" {
+		t.Fatalf("expected signing key from explicit env file, got %q", cfg.Auth.SigningKey)
+	}
 }
 
 // TestLoadReadsI18nLocales 验证 i18n 相关配置会按逗号分隔解析为稳定列表。
@@ -228,6 +242,7 @@ func TestLoadReadsI18nLocales(t *testing.T) {
 		"GRAFT_I18N_DEFAULT_LOCALE=zh-CN",
 		"GRAFT_I18N_FALLBACK_LOCALE=zh-CN",
 		"GRAFT_I18N_SUPPORTED_LOCALES=zh-CN, en-US ,zh-CN",
+		"GRAFT_AUTH_JWT_SECRET=i18n-secret",
 	}, "\n")
 	if err := os.WriteFile(".env", []byte(env), 0o600); err != nil {
 		t.Fatalf("write .env: %v", err)
@@ -246,6 +261,17 @@ func TestLoadReadsI18nLocales(t *testing.T) {
 		if cfg.I18n.SupportedLocales[index] != locale {
 			t.Fatalf("expected supported locales %v, got %v", expected, cfg.I18n.SupportedLocales)
 		}
+	}
+}
+
+// TestLoadRejectsMissingAuthSigningMaterial 验证 Load 在未显式提供签名材料时会直接失败。
+func TestLoadRejectsMissingAuthSigningMaterial(t *testing.T) {
+	restoreEnv := clearGraftEnv(t)
+	t.Cleanup(restoreEnv)
+	chdir(t, t.TempDir())
+
+	if _, err := Load(); err == nil {
+		t.Fatal("expected missing auth signing material error")
 	}
 }
 

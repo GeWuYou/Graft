@@ -17,6 +17,9 @@ type userRepository struct {
 func (r *userRepository) GetByID(ctx context.Context, id uint64) (store.User, error) {
 	entID, err := toEntID(id)
 	if err != nil {
+		if err == store.ErrInvalidID {
+			return store.User{}, store.ErrUserNotFound
+		}
 		return store.User{}, err
 	}
 

@@ -98,11 +98,11 @@
 - The frontend governance baseline now treats host Windows Bun `bun run check` as the required completion-state
   validation entrypoint for `web`.
 - The latest implementation validation snapshot is:
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe outdated`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe add axios@latest`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run test:run -- --reporter=hanging-process`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run test:run`
-  - `C:\\Users\\gewuyou\\.bun\\bin\\bun.exe run check`
+  - `bun outdated`
+  - `bun add axios@latest`
+  - `bun run test:run -- --reporter=hanging-process`
+  - `bun run test:run`
+  - `bun run check`
 - `bun run check` 当前通过，`format:check`、`typecheck`、`lint`、`stylelint`、`test:run`、`build` 均无未处理 warning。
 - The current build-cleanup strategy is explicit:
   - `@vueuse/core` pure annotation noise is filtered by exact source match in `vite.config.ts`, so the repository does

@@ -22,7 +22,7 @@ type User struct {
 	// Display holds the value of the "display" field.
 	Display string `json:"display,omitempty"`
 	// PasswordHash holds the value of the "password_hash" field.
-	PasswordHash *string `json:"password_hash,omitempty"`
+	PasswordHash *string `json:"-"`
 	// PasswordChangedAt holds the value of the "password_changed_at" field.
 	PasswordChangedAt *time.Time `json:"password_changed_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -186,10 +186,7 @@ func (_m *User) String() string {
 	builder.WriteString("display=")
 	builder.WriteString(_m.Display)
 	builder.WriteString(", ")
-	if v := _m.PasswordHash; v != nil {
-		builder.WriteString("password_hash=")
-		builder.WriteString(*v)
-	}
+	builder.WriteString("password_hash=<sensitive>")
 	builder.WriteString(", ")
 	if v := _m.PasswordChangedAt; v != nil {
 		builder.WriteString("password_changed_at=")

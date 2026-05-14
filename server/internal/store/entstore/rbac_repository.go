@@ -19,7 +19,7 @@ type rbacRepository struct {
 func (r *rbacRepository) ListRolesByUserID(ctx context.Context, userID uint64) ([]store.Role, error) {
 	id, err := toEntID(userID)
 	if err != nil {
-		return []store.Role{}, nil
+		return nil, err
 	}
 
 	records, err := r.client.UserRole.Query().
@@ -49,7 +49,7 @@ func (r *rbacRepository) ListRolesByUserID(ctx context.Context, userID uint64) (
 func (r *rbacRepository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]store.Permission, error) {
 	id, err := toEntID(userID)
 	if err != nil {
-		return []store.Permission{}, nil
+		return nil, err
 	}
 
 	roleRecords, err := r.client.UserRole.Query().
