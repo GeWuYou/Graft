@@ -1136,6 +1136,124 @@ func TestRevokeAllSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 	}
 }
 
+// TestRevokeOtherSessionsRouteRevokesNonCurrentSessions 验证当前用户保留当前会话时，
+// 只会清退自己名下的其它有效 session，不会误伤当前会话或其他用户会话。
+func TestRevokeOtherSessionsRouteRevokesNonCurrentSessions(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 7:
+				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			case 8:
+				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+	}, authRepo)
+
+	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
+	otherSessionIDs := []string{
+		seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(3*time.Hour)),
+		seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(4*time.Hour)),
+	}
+	otherUserSessionID := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/revoke-others", 7, currentSessionID)
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+
+	currentSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), currentSessionID)
+	if err != nil {
+		t.Fatalf("load current session: %v", err)
+	}
+	if currentSession.RevokedAt != nil {
+		t.Fatalf("expected current session to remain active, got %#v", currentSession)
+	}
+
+	for _, tokenID := range otherSessionIDs {
+		session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
+		if err != nil {
+			t.Fatalf("load other session %q: %v", tokenID, err)
+		}
+		if session.RevokedAt == nil {
+			t.Fatalf("expected other session %q to be revoked, got %#v", tokenID, session)
+		}
+	}
+
+	otherUserSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), otherUserSessionID)
+	if err != nil {
+		t.Fatalf("load other user session: %v", err)
+	}
+	if otherUserSession.RevokedAt != nil {
+		t.Fatalf("expected other user session to remain active, got %#v", otherUserSession)
+	}
+}
+
+// TestRevokeOtherSessionsRouteRequiresAuthenticatedActor 验证保留当前会话的批量清退
+// 入口继续复用统一 request-auth 守卫，而不是发散新的未登录响应契约。
+func TestRevokeOtherSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/auth/sessions/revoke-others", nil)
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != "auth.missing_actor" || payload.Locale != "en-US" {
+		t.Fatalf("expected missing actor payload, got %#v", payload)
+	}
+}
+
+// TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession 验证当前用户只剩当前会话时，
+// revoke-others 仍幂等返回成功，且不会额外清理 refresh cookie。
+func TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+		},
+	}, authRepo)
+
+	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/revoke-others", 7, currentSessionID)
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+
+	currentSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), currentSessionID)
+	if err != nil {
+		t.Fatalf("load current session: %v", err)
+	}
+	if currentSession.RevokedAt != nil {
+		t.Fatalf("expected current session to remain active, got %#v", currentSession)
+	}
+
+	if responseCookies := recorder.Result().Cookies(); len(responseCookies) != 0 {
+		t.Fatalf("expected no cookie mutation, got %#v", responseCookies)
+	}
+}
+
 // TestListCurrentUserSessionsRouteReturnsActiveSessions 验证当前用户自助会话列表只返回
 // 其自身当前有效的 refresh sessions，并准确标记当前请求会话。
 func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {

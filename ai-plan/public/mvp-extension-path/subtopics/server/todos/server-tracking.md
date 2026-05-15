@@ -70,6 +70,10 @@
   admin `GET /api/users/:id/sessions`, applying a plugin-local bounded slice over the existing active-session
   repository result so the session-governance path gains a narrower list workflow without widening `core`,
   `pluginapi`, or store contracts.
+- `server/plugins/user` now also exposes current-user `POST /api/auth/sessions/revoke-others`, preserving the current
+  access-token-bound session while revoking the same user's other active refresh sessions through plugin-local
+  orchestration on top of the existing list + targeted-revoke boundaries, without widening `core`, `pluginapi`, or
+  store contracts.
 - `server/plugins/rbac` now exists as the minimal authorization plugin that exposes `pluginapi.Authorizer` on top of
   the stable RBAC repository boundary.
 
@@ -79,9 +83,8 @@
   but disposable PostgreSQL/Redis provisioning itself is still manual by design instead of hidden behind CLI or core
   automation.
 - The current request-auth chain now covers the current user's full refresh-session revoke loop, but it still lacks
-  richer session/audit governance beyond the minimal login/refresh/logout/self-list/self-revoke/admin-list/admin-revoke,
-  targeted session revoke, explicit list limit, plus
-  protected-request hardening loop.
+  richer session/audit governance beyond the minimal login/refresh/logout/self-list/self-revoke/self-revoke-others/
+  admin-list/admin-revoke, targeted session revoke, explicit list limit, plus protected-request hardening loop.
 - The temporary placement of minimal `AuthService` inside `server/plugins/user` keeps the critical path moving, but
   future work should reevaluate whether a dedicated auth plugin boundary is needed once login and refresh APIs land.
 - Future backend work must avoid leaking Ent-specific details through `plugin.Context` or cross-plugin public APIs.
@@ -136,6 +139,9 @@
 - The latest session-list limit slice validation included:
   - `cd server && go test ./plugins/user`
   - `cd server && go build ./cmd/graft`
+- The latest current-user revoke-others slice validation included:
+  - `cd server && go test ./plugins/user`
+  - `cd server && go build ./cmd/graft`
 - The latest disposable PostgreSQL + Atlas live validation included:
   - `cd server && go build -o <temp-binary> ./cmd/graft`
   - `cd server && GRAFT_DATABASE_URL=postgres://graft:graft@127.0.0.1:<pg-port>/graft?sslmode=disable GRAFT_REDIS_ADDR=127.0.0.1:6379 GRAFT_AUTH_JWT_SECRET=<secret> <temp-binary> migrate up`
@@ -151,6 +157,6 @@
 ## Immediate Next Step
 
 - Run `graft validate smoke` against the next disposable PostgreSQL + Redis target to replace the remaining manual
-  migrate-plus-healthz invocation steps, then extend the session-management path with audit-linked governance, richer
-  filters, or narrower operator workflows while keeping the new active-session visibility, explicit list limit,
-  targeted revoke, and bulk revoke semantics inside the existing plugin boundary.
+  migrate-plus-healthz invocation steps, then extend the session-management path with audit-linked governance,
+  admin-preserve-current revoke flows, or richer filters while keeping the new active-session visibility, explicit
+  list limit, targeted revoke, revoke-others, and bulk revoke semantics inside the existing plugin boundary.

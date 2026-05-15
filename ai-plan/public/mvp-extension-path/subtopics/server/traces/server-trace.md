@@ -143,7 +143,19 @@
 - Added focused `server/internal/cli` tests for migrate-before-serve ordering, migration short-circuit behavior, serve-failure propagation, health-check failure propagation, wildcard listen-address probe normalization, and root-command registration.
 - Revalidated the slice with `cd server && go test ./internal/cli` and `cd server && go build ./cmd/graft`.
 
+## 2026-05-15 current-user revoke-others slice
+
+- Added `POST /api/auth/sessions/revoke-others` inside `server/plugins/user` so the current user can keep the
+  access-token-bound session while clearing the same user's other active refresh sessions.
+- Kept the implementation inside the existing plugin boundary by composing the current active-session list with the
+  existing targeted revoke capability, avoiding any new `core`, `pluginapi`, store, or schema contract.
+- Preserved the existing request-auth and localized-error flow by reusing the current authenticated-actor guard and
+  returning `204 No Content` without clearing the current refresh cookie.
+- Added focused plugin-route tests for successful revoke-others behavior and missing-actor rejection, then revalidated
+  with `cd server && go test ./plugins/user` and `cd server && go build ./cmd/graft`.
+
 ## Next Step
 
 - Run `graft validate smoke` against the next disposable PostgreSQL + Redis target, then continue admin-driven session
-  controls or richer audit-linked session governance on top of the existing auth/session path.
+  validation and continue admin-preserve-current controls or richer audit-linked session governance on top of the
+  existing auth/session path.

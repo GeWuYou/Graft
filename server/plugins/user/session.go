@@ -319,6 +319,33 @@ func (s authService) RevokeAllCurrentUserSessions(ctx context.Context) error {
 	return s.RevokeAllUserSessions(ctx, requestAuth.Claims.UserID)
 }
 
+// RevokeOtherCurrentUserSessions 吊销当前登录主体除当前请求外的其它有效 refresh sessions。
+//
+// 该能力服务于“保留当前登录态并清退其它设备”的最小治理场景，继续把批量遍历与
+// 定向吊销逻辑留在 user 插件内，而不提前扩展仓储或跨插件公共契约。
+func (s authService) RevokeOtherCurrentUserSessions(ctx context.Context) error {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.Claims == nil {
+		return pluginapi.ErrUnauthenticated
+	}
+
+	sessions, err := s.ListUserSessions(ctx, requestAuth.Claims.UserID, sessionListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, session := range sessions {
+		if session.SessionID == requestAuth.Claims.SessionID {
+			continue
+		}
+		if err := s.RevokeUserSession(ctx, requestAuth.Claims.UserID, session.SessionID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // RevokeAllUserSessions 吊销指定用户名下的全部 refresh sessions。
 //
 // 该能力服务于管理员代操作入口，仍然只复用现有仓储批量吊销语义，不额外扩展

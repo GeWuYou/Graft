@@ -217,6 +217,24 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		authSvc.cookies.clearRefreshCookie(ginCtx)
 		ginCtx.Status(http.StatusNoContent)
 	})
+	// 当前用户可批量吊销除当前请求外的其它有效 session，适合保留当前登录态的
+	// 多端清退场景；该治理动作继续留在 user 插件内，不扩散新的 core 契约。
+	authGroup.POST("/sessions/revoke-others", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+		if err := authSvc.RevokeOtherCurrentUserSessions(ginCtx.Request.Context()); err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("revoke other user refresh sessions failed",
+					zap.String("plugin", p.Name()),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		ginCtx.Status(http.StatusNoContent)
+	})
 	// 当前用户会话列表只暴露最小有效 session 摘要，避免把历史轮换或底层存储
 	// 细节泄漏到插件外部，同时为后续更细粒度治理保留清晰入口。
 	authGroup.GET("/sessions", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
