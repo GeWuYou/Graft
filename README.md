@@ -88,3 +88,24 @@ go run ./cmd/graft serve
 * `graft serve` 启动前会连接 PostgreSQL 和 Redis；若地址不可达，启动会直接失败。
 * 若本地库结构已经同步，也可以只运行 `graft serve`；否则请先执行迁移。
 * 在 GoLand 或其他 IDE 中，推荐统一使用 working directory=`server`、程序入口 `./cmd/graft`、程序参数 `dev`。
+
+## 本地启动 `web`
+
+前端开发环境配置不再直接提交真实 `web/.env.development`，而是提交模板文件 `web/.env.example`，本地实际配置保持忽略状态。
+
+最小启动步骤：
+
+1. 复制 `web/.env.example` 为 `web/.env.development`
+2. 按本地后端地址调整 `VITE_API_TARGET`
+3. 进入 `web` 目录后使用 host Windows Bun 执行 `bun run dev`
+
+当前默认开发链路为：
+
+* 浏览器访问 `http://localhost:3002/api/...`
+* Vite dev proxy 再把请求转发到 `VITE_API_TARGET`
+
+说明：
+
+* `web/.env.development`、`web/.env.local` 与其它 `web/.env.*` 本地文件都应保持未跟踪状态。
+* `web/.env.example` 只作为共享模板，不应放入个人密钥或机器专属地址。
+* 在 WSL 场景下，按仓库环境约定继续使用 host Windows Bun 运行 `web` 命令。

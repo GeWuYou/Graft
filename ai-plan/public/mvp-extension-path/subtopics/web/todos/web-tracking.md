@@ -20,6 +20,7 @@
 - PR #9 当前一轮 AI review 已确认并落地的 `web` 跟进包括：登出失败时仍强制跳转登录页、动态路由装配去除双重断言、locale header 全量下划线替换，以及 route guard / bootstrap / token 持久化的中文契约注释补强。
 - `/users` 当前已不再复用 starter 个人中心 demo 页，而是直接消费真实 `GET /api/users` 最小只读契约；对应的 `/user/index` 静态入口与 header 残留跳转也已移除，避免双轨导航。
 - 开发环境下的请求策略已收敛为“前端统一请求相对 `/api` 路径，由 Vite proxy 转发到 `VITE_API_TARGET`”；只有显式关闭代理时，Axios 才会直连后端绝对地址。
+- 前端环境文件治理当前已与 `server` 对齐：提交 `web/.env.example` 作为共享模板，忽略真实 `web/.env.*` 本地开发配置，不再把机器专属开发地址直接提交进仓库。
 - 详细前端实现历史保留在 `subtopics/web/traces/web-trace.md`。
 
 ## Active Risks
@@ -48,6 +49,9 @@
 - 本次登录页控制台报错修复预期直接校验：
   - `cd web && bun run typecheck`
   - `cd web && bun run build`
+- 本次前端环境文件治理修复预期直接校验：
+  - `git check-ignore -v web/.env.development web/.env.local`
+  - `git ls-files web/.env.example web/.env.development`
 
 ## Immediate Next Step
 
@@ -64,3 +68,4 @@
 - 当前最小动态菜单策略是“菜单展示只保留首页和后端返回且前端已经具备页面实现的菜单项”，避免再次回退到 starter demo 菜单树。
 - `/users` 页面当前已替换为最小真实用户列表页，不再依赖本地 profile、图表或团队成员 demo 数据。
 - 登录页当前不再把 `http://127.0.0.1:3000` 暴露为代理模式下的浏览器请求主机；控制台里看到的 API URL 应保持为相对 `/api/...`，由 Vite 开发代理负责转发。
+- `web` 本地开发配置当前应从 `web/.env.example` 派生，并保持真实 `web/.env.development` 未跟踪，避免继续把个人开发地址或临时联调配置写入 Git 历史。

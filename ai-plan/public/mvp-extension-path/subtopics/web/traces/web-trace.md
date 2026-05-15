@@ -198,6 +198,14 @@
 - Kept the change scoped to the shared request/env layer and locale resources, preserving the current
   `auth + refresh + bootstrap` contract and route-guard flow.
 
+## 2026-05-15 frontend env template alignment
+
+- Stopped tracking the real `web/.env.development` file and aligned the frontend env workflow with the repository's
+  existing server-side convention: keep `web/.env.example` in Git as the shared template, while local
+  `web/.env.*` runtime files remain ignored.
+- Updated the repository README and active web recovery notes so contributors now have one explicit path for local web
+  startup and do not need to infer whether machine-specific proxy targets belong in version control.
+
 ## 2026-05-15 Follow-up Next Step
 
 - Continue reconnecting the starter shell to the real backend `auth + current user + menu + permission + locale`

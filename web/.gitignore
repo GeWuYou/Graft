@@ -30,8 +30,9 @@ yarn-error.log
 .stylelintcache
 *.tsbuildinfo
 
-.env.local
-.env.*.local
+.env
+.env.*
+!.env.example
 
 # keep Bun lockfile in repo; ignore alternative package manager locks
 yarn.lock
