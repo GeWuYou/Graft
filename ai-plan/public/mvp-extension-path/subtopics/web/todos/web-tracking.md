@@ -22,6 +22,7 @@
 - 开发环境下的请求策略已收敛为“前端统一请求相对 `/api` 路径，由 Vite proxy 转发到 `VITE_API_TARGET`”；只有显式关闭代理时，Axios 才会直连后端绝对地址。
 - 前端环境文件治理当前已与 `server` 对齐：提交 `web/.env.example` 作为共享模板，忽略真实 `web/.env.*` 本地开发配置，不再把机器专属开发地址直接提交进仓库。
 - 当前 auth 响应收敛切片已经完成第一轮前端落地：请求层只对 `AUTH_TOKEN_EXPIRED` 触发一次 refresh，`AUTH_TOKEN_INVALID` / `AUTH_TOKEN_MISSING` 统一走单一清理出口并跳转登录；请求层与 `user` store 之间的登录态同步已收敛为显式 session bridge，避免动态导入 store 带来的构建 warning 与双源状态漂移。
+- PR #10 的最近一次 review follow-up 已补齐用户页版权年份、用户页样式深度选择器兼容写法，以及 `AUTH_TOKEN_INVALID / AUTH_TOKEN_MISSING` 分支不触发 refresh 的请求序列断言；相关 `web` 完成态校验继续以 host Windows Bun `bun run check` 为准。
 - 详细前端实现历史保留在 `subtopics/web/traces/web-trace.md`。
 
 ## Active Risks
@@ -56,6 +57,8 @@
 - 本次 auth 响应收敛切片实际直接校验：
   - `cd web && bun run test:run -- src/utils/request.test.ts src/store/modules/user.test.ts src/utils/route/bootstrap.test.ts`
   - `cd web && bun run typecheck`
+  - `cd web && bun run check`
+- 本次 PR #10 review follow-up 实际直接校验：
   - `cd web && bun run check`
 
 ## Immediate Next Step

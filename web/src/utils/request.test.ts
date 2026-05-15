@@ -217,13 +217,17 @@ describe('request auth handling', () => {
       const { registerAuthSessionBridge, request } = await loadRequestModule();
       const { setAccessToken } = await import('@/utils/auth-state');
       registerAuthSessionBridge(mockUserStore);
+      const callUrls: string[] = [];
       Object.assign(window.location, {
         pathname: '/users',
         search: '?tab=active',
         hash: '#detail',
       });
 
-      requestHandler.mockRejectedValue(createApiError(code, 401, code, 'trace-auth'));
+      requestHandler.mockImplementation(async (config) => {
+        callUrls.push(String(config.url));
+        throw createApiError(code, 401, code, 'trace-auth');
+      });
 
       setAccessToken('stale-token');
       localStorage.setItem('user', JSON.stringify({ token: 'stale-token' }));
@@ -234,6 +238,8 @@ describe('request auth handling', () => {
       });
 
       expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
+      expect(callUrls).toEqual(['/api/users']);
+      expect(callUrls).not.toContain('/api/auth/refresh');
       expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fusers%3Ftab%3Dactive%23detail');
     },
   );

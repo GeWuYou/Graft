@@ -227,3 +227,11 @@
   maintenance has materially failed under the current `Pinia + computed + composable` approach.
 - When the logger slice is scheduled for implementation, land it as a focused frontend infrastructure change first and
   keep business modules on the `createLogger` boundary rather than binding them directly to `consola` or UI feedback.
+
+## 2026-05-15 PR #10 review follow-up
+
+- Applied the remaining CodeRabbit follow-up fixes for the current PR: refreshed the visible copyright year,
+  kept the user-page style deep selector on the Stylelint-supported `:deep` syntax, and added an explicit request
+  sequence assertion so `AUTH_TOKEN_INVALID / AUTH_TOKEN_MISSING` cannot silently regain a refresh path.
+- Revalidated the updated slice with the required host Windows Bun full frontend chain and kept the change scoped to
+  the existing `web` recovery path.
