@@ -79,6 +79,19 @@ func TestAuthRepositoryRevokeRefreshSessionsByUserIDRejectsInvalidID(t *testing.
 	}
 }
 
+// TestAuthRepositoryListActiveRefreshSessionsByUserIDRejectsInvalidID 验证按用户读取当前有效刷新会话列表时仍保留稳定参数错误语义。
+func TestAuthRepositoryListActiveRefreshSessionsByUserIDRejectsInvalidID(t *testing.T) {
+	repo := &authRepository{}
+
+	_, err := repo.ListActiveRefreshSessionsByUserID(context.Background(), store.ListActiveRefreshSessionsByUserIDInput{
+		UserID: 0,
+		Now:    time.Now().UTC(),
+	})
+	if !errors.Is(err, store.ErrInvalidID) {
+		t.Fatalf("expected ErrInvalidID, got %v", err)
+	}
+}
+
 // TestRBACRepositoryRejectsInvalidID 验证 RBAC 查询不会再把无效标识静默吞掉。
 func TestRBACRepositoryRejectsInvalidID(t *testing.T) {
 	repo := &rbacRepository{}

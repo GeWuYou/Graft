@@ -132,6 +132,33 @@ func (r *authRepository) RevokeRefreshSessionsByUserID(ctx context.Context, inpu
 	return nil
 }
 
+// ListActiveRefreshSessionsByUserID 按用户读取当前有效的 refresh session 列表。
+func (r *authRepository) ListActiveRefreshSessionsByUserID(ctx context.Context, input store.ListActiveRefreshSessionsByUserIDInput) ([]store.RefreshSession, error) {
+	userID, err := toEntID(input.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := r.client.RefreshSession.Query().
+		Where(
+			entrefreshsession.UserIDEQ(userID),
+			entrefreshsession.RevokedAtIsNil(),
+			entrefreshsession.ExpiresAtGT(input.Now),
+		).
+		Order(ent.Desc(entrefreshsession.FieldCreatedAt), ent.Desc(entrefreshsession.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list active refresh sessions by user id: %w", err)
+	}
+
+	sessions := make([]store.RefreshSession, 0, len(records))
+	for _, record := range records {
+		sessions = append(sessions, toStoreRefreshSession(record))
+	}
+
+	return sessions, nil
+}
+
 // RotateRefreshSession 以事务方式完成一次 refresh session 轮换。
 func (r *authRepository) RotateRefreshSession(ctx context.Context, input store.RotateRefreshSessionInput) (store.RefreshSession, error) {
 	tx, err := r.client.Tx(ctx)

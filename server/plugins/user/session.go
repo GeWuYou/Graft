@@ -37,6 +37,13 @@ type refreshResult struct {
 	User          loginUserResponse
 }
 
+type sessionSummary struct {
+	SessionID string    `json:"session_id"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	Current   bool      `json:"current"`
+}
+
 type refreshTokenManager struct {
 	secret []byte
 	ttl    time.Duration
@@ -320,6 +327,49 @@ func (s authService) RevokeAllUserSessions(ctx context.Context, userID uint64) e
 		UserID:    userID,
 		RevokedAt: s.nowUTC(),
 	})
+}
+
+// ListCurrentUserSessions 返回当前登录主体可见的有效 refresh session 摘要。
+//
+// 该能力只读取 request-auth 已建立的稳定主体上下文，不引入额外跨插件会话契约。
+func (s authService) ListCurrentUserSessions(ctx context.Context) ([]sessionSummary, error) {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.Claims == nil {
+		return nil, pluginapi.ErrUnauthenticated
+	}
+
+	return s.ListUserSessions(ctx, requestAuth.Claims.UserID)
+}
+
+// ListUserSessions 返回指定用户当前有效 refresh session 摘要。
+//
+// 该能力仍停留在 user 插件内，把持久化层 session 记录映射为最小治理视图，
+// 不把历史轮换细节或底层 ORM 结构直接暴露给调用方。
+func (s authService) ListUserSessions(ctx context.Context, userID uint64) ([]sessionSummary, error) {
+	if s.auth == nil {
+		return nil, errors.New("auth repository is unavailable")
+	}
+
+	requestAuth, _ := pluginapi.RequestAuthContextFromContext(ctx)
+	sessions, err := s.auth.ListActiveRefreshSessionsByUserID(ctx, store.ListActiveRefreshSessionsByUserIDInput{
+		UserID: userID,
+		Now:    s.nowUTC(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	summaries := make([]sessionSummary, 0, len(sessions))
+	for _, session := range sessions {
+		summaries = append(summaries, sessionSummary{
+			SessionID: session.TokenID,
+			CreatedAt: session.CreatedAt,
+			ExpiresAt: session.ExpiresAt,
+			Current: requestAuth.Claims != nil && requestAuth.Claims.SessionID == session.TokenID,
+		})
+	}
+
+	return summaries, nil
 }
 
 // validateAccessSession 校验 access token 绑定的最小 session 状态。

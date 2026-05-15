@@ -38,6 +38,12 @@ type RefreshSession struct {
 	UpdatedAt         time.Time
 }
 
+// ListActiveRefreshSessionsByUserIDInput 描述一次按用户读取当前有效刷新会话列表所需的最小输入。
+type ListActiveRefreshSessionsByUserIDInput struct {
+	UserID uint64
+	Now    time.Time
+}
+
 // CreateRefreshSessionInput 描述一次刷新会话创建所需的最小输入。
 type CreateRefreshSessionInput struct {
 	UserID    uint64
@@ -101,6 +107,12 @@ type AuthRepository interface {
 	//
 	// 该操作应保持幂等，允许同一用户在没有可吊销会话时直接成功返回。
 	RevokeRefreshSessionsByUserID(ctx context.Context, input RevokeRefreshSessionsByUserIDInput) error
+
+	// ListActiveRefreshSessionsByUserID 按用户读取当前有效的 refresh session 列表。
+	//
+	// 返回值只包含稳定 session DTO，不暴露底层 ORM 结构；实现应过滤已吊销或
+	// 已过期记录，并保持显式且稳定的排序，便于插件层构造一致的会话治理视图。
+	ListActiveRefreshSessionsByUserID(ctx context.Context, input ListActiveRefreshSessionsByUserIDInput) ([]RefreshSession, error)
 
 	// RotateRefreshSession 以事务方式完成一次 refresh session 轮换。
 	//

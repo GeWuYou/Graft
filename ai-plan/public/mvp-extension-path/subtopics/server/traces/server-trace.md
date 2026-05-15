@@ -105,6 +105,13 @@
 - Reused `AuthRepository.RevokeRefreshSessionsByUserID` for the admin path, and only cleared the current refresh cookie when the authenticated operator revoked their own sessions, preserving the existing cookie/error contract for all other cases.
 - Added direct plugin-route tests for successful target-user revoke, self-revoke cookie clearing, dedicated-permission enforcement, and invalid-ID rejection, then revalidated with `go test ./plugins/user` and `go build ./cmd/graft`.
 
+## 2026-05-15 active-session visibility slice
+
+- Added current-user `GET /api/auth/sessions` plus admin `GET /api/users/:id/sessions` inside `server/plugins/user`, keeping session visibility in the existing plugin boundary instead of widening `pluginapi` or core auth contracts.
+- Narrowed the extra repository expansion to one active-only `ListActiveRefreshSessionsByUserID` operation so the first visibility slice returns only non-revoked, non-expired refresh sessions in a stable order without exposing rotation history.
+- Registered the dedicated permission code `user.session.read` for admin session visibility and kept the current-user path on the existing authenticated request context without adding a second auth model.
+- Added direct plugin tests for current-user and admin session listing, current-session marking, dedicated-permission enforcement, and user-not-found behavior, plus an `entstore` invalid-ID guard for the new repository boundary before rerunning focused backend validation.
+
 ## 2026-05-15 disposable PostgreSQL + Atlas live validation
 
 - Reused the current auth/session and RBAC migration assets against a disposable local PostgreSQL container by building the current `graft` CLI, then running `graft migrate up` with explicit database, Redis, and auth-signing environment inputs.

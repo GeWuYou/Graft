@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"cmp"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -125,6 +127,33 @@ func (r *pluginTestAuthRepository) RevokeRefreshSessionsByUserID(_ context.Conte
 	}
 
 	return nil
+}
+
+func (r *pluginTestAuthRepository) ListActiveRefreshSessionsByUserID(_ context.Context, input store.ListActiveRefreshSessionsByUserIDInput) ([]store.RefreshSession, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if input.UserID == 0 {
+		return nil, store.ErrInvalidID
+	}
+
+	sessions := make([]store.RefreshSession, 0, len(r.refreshSessions))
+	for _, session := range r.refreshSessions {
+		if session.UserID != input.UserID || session.RevokedAt != nil || !session.ExpiresAt.After(input.Now) {
+			continue
+		}
+
+		sessions = append(sessions, session)
+	}
+
+	slices.SortFunc(sessions, func(left store.RefreshSession, right store.RefreshSession) int {
+		if compare := right.CreatedAt.Compare(left.CreatedAt); compare != 0 {
+			return compare
+		}
+		return cmp.Compare(right.TokenID, left.TokenID)
+	})
+
+	return sessions, nil
 }
 
 func (r *pluginTestAuthRepository) RotateRefreshSession(_ context.Context, input store.RotateRefreshSessionInput) (store.RefreshSession, error) {
@@ -297,11 +326,11 @@ func TestRegisterPublishesContracts(t *testing.T) {
 		},
 	}, nil)
 
-	if items := ctx.PermissionRegistry.Items(); len(items) != 2 {
-		t.Fatalf("expected two user permissions, got %#v", items)
+	if items := ctx.PermissionRegistry.Items(); len(items) != 3 {
+		t.Fatalf("expected three user permissions, got %#v", items)
 	}
-	if items := ctx.PermissionRegistry.Items(); items[0].Code != "user.read" || items[1].Code != "user.session.revoke" {
-		t.Fatalf("expected user.read and user.session.revoke permissions, got %#v", items)
+	if items := ctx.PermissionRegistry.Items(); items[0].Code != "user.read" || items[1].Code != "user.session.revoke" || items[2].Code != "user.session.read" {
+		t.Fatalf("expected user.read, user.session.revoke and user.session.read permissions, got %#v", items)
 	}
 	if items := ctx.MenuRegistry.Items(); len(items) != 1 || items[0].Path != "/users" {
 		t.Fatalf("expected one /users menu item, got %#v", items)
@@ -1085,6 +1114,222 @@ func TestRevokeAllSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 	}
 	if payload.MessageKey != "auth.missing_actor" || payload.Locale != "en-US" {
 		t.Fatalf("expected missing actor payload, got %#v", payload)
+	}
+}
+
+// TestListCurrentUserSessionsRouteReturnsActiveSessions 验证当前用户自助会话列表只返回
+// 其自身当前有效的 refresh sessions，并准确标记当前请求会话。
+func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 7:
+				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			case 8:
+				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+	}, authRepo)
+
+	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
+	time.Sleep(time.Microsecond)
+	newerSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
+	expiredSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(-time.Minute))
+	otherUserSessionID := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
+	if err := authRepo.RevokeRefreshSession(context.Background(), store.RevokeRefreshSessionInput{
+		TokenID:   expiredSessionID,
+		RevokedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("revoke expired test session: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/auth/sessions", 7, currentSessionID)
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+
+	var payload []sessionSummary
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(payload) != 2 {
+		t.Fatalf("expected two active sessions, got %#v", payload)
+	}
+	if payload[0].SessionID != newerSessionID || payload[0].Current {
+		t.Fatalf("expected newer non-current session first, got %#v", payload[0])
+	}
+	if payload[1].SessionID != currentSessionID || !payload[1].Current {
+		t.Fatalf("expected current session second and marked current, got %#v", payload[1])
+	}
+	for _, item := range payload {
+		if item.SessionID == expiredSessionID || item.SessionID == otherUserSessionID {
+			t.Fatalf("expected filtered sessions to be absent, got %#v", payload)
+		}
+	}
+}
+
+// TestListCurrentUserSessionsRouteRequiresAuthenticatedActor 验证当前用户会话列表继续
+// 复用统一 request-auth 守卫，而不是在插件内发散新的未登录契约。
+func TestListCurrentUserSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/sessions", nil)
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != "auth.missing_actor" || payload.Locale != "en-US" {
+		t.Fatalf("expected missing actor payload, got %#v", payload)
+	}
+}
+
+// TestAdminListUserSessionsRouteReturnsActiveSessions 验证管理员读取入口只返回目标用户
+// 的当前有效 session，并继续标记请求主体自己的当前会话。
+func TestAdminListUserSessionsRouteReturnsActiveSessions(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 7:
+				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			case 8:
+				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			case 9:
+				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+	}, authRepo, map[uint64][]store.Permission{
+		9: {{Code: "user.session.read"}},
+	})
+
+	targetCurrentSession := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
+	time.Sleep(time.Microsecond)
+	targetNewerSession := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(3*time.Hour))
+	targetExpiredSession := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(-time.Minute))
+	adminSession := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	otherUserSession := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
+	if err := authRepo.RevokeRefreshSession(context.Background(), store.RevokeRefreshSessionInput{
+		TokenID:   targetExpiredSession,
+		RevokedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("revoke expired test session: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions", 9, adminSession)
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+
+	var payload []sessionSummary
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(payload) != 2 {
+		t.Fatalf("expected two active target-user sessions, got %#v", payload)
+	}
+	if payload[0].SessionID != targetNewerSession || payload[0].Current {
+		t.Fatalf("expected newer target-user session first, got %#v", payload[0])
+	}
+	if payload[1].SessionID != targetCurrentSession || payload[1].Current {
+		t.Fatalf("expected target current list item not to be marked current for admin request, got %#v", payload[1])
+	}
+	for _, item := range payload {
+		if item.SessionID == targetExpiredSession || item.SessionID == adminSession || item.SessionID == otherUserSession {
+			t.Fatalf("expected filtered sessions to be absent, got %#v", payload)
+		}
+	}
+}
+
+// TestAdminListUserSessionsRouteRequiresDedicatedPermission 验证管理员读取入口不会误复用
+// user.read，而是要求显式的 session 读取权限。
+func TestAdminListUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 7:
+				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			case 9:
+				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+	}, authRepo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions", 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != "auth.missing_permission" || payload.Locale != "en-US" {
+		t.Fatalf("expected missing permission payload, got %#v", payload)
+	}
+	if payload.Details["permission"] != "user.session.read" {
+		t.Fatalf("expected denied permission detail, got %#v", payload)
+	}
+}
+
+// TestAdminListUserSessionsRouteReturnsNotFoundContract 验证目标用户不存在时，会话读取入口
+// 仍返回稳定的 user.not_found 契约，而不是把空结果伪装成成功。
+func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 9:
+				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+	}, authRepo, map[uint64][]store.Permission{
+		9: {{Code: "user.session.read"}},
+	})
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions", 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != "user.not_found" || payload.Locale != "en-US" {
+		t.Fatalf("expected user.not_found payload, got %#v", payload)
 	}
 }
 

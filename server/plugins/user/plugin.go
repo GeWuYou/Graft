@@ -67,6 +67,12 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		Description: "Allows revoking refresh sessions for a specified user.",
 		Plugin:      p.Name(),
 	})
+	ctx.PermissionRegistry.Register(permission.Item{
+		Code:        "user.session.read",
+		Name:        "Read User Sessions",
+		Description: "Allows reading active refresh sessions for a specified user.",
+		Plugin:      p.Name(),
+	})
 
 	ctx.MenuRegistry.Register(menu.Item{
 		Code:       "user.list",
@@ -211,6 +217,25 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		authSvc.cookies.clearRefreshCookie(ginCtx)
 		ginCtx.Status(http.StatusNoContent)
 	})
+	// 当前用户会话列表只暴露最小有效 session 摘要，避免把历史轮换或底层存储
+	// 细节泄漏到插件外部，同时为后续更细粒度治理保留清晰入口。
+	authGroup.GET("/sessions", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+		sessions, err := authSvc.ListCurrentUserSessions(ginCtx.Request.Context())
+		if err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("list current user refresh sessions failed",
+					zap.String("plugin", p.Name()),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		ginCtx.JSON(http.StatusOK, sessions)
+	})
 
 	group := ctx.Router.Group("/users")
 	group.GET("/:id", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.read"), func(ginCtx *gin.Context) {
@@ -254,6 +279,53 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		}
 
 		ginCtx.JSON(http.StatusOK, summary)
+	})
+	// 管理员查看指定用户当前有效 session 时仍留在 user 插件边界内，使用显式
+	// session 读取权限，避免把更敏感的登录态治理语义隐式并入普通 user.read。
+	group.GET("/:id/sessions", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.session.read"), func(ginCtx *gin.Context) {
+		rawID, err := parseUserID(ginCtx.Param("id"))
+		if err != nil {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "id",
+			})
+			return
+		}
+
+		summary, err := userSvc.GetUserByID(ginCtx.Request.Context(), rawID)
+		if err != nil {
+			status := http.StatusInternalServerError
+			messageKey := "common.internal_error"
+			if errors.Is(err, store.ErrUserNotFound) {
+				status = http.StatusNotFound
+				messageKey = "user.not_found"
+			} else {
+				ctx.Logger.Error("get user by id before listing sessions failed",
+					zap.String("plugin", p.Name()),
+					zap.Uint64("userID", rawID),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		sessions, err := authSvc.ListUserSessions(ginCtx.Request.Context(), summary.ID)
+		if err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("list user refresh sessions failed",
+					zap.String("plugin", p.Name()),
+					zap.Uint64("userID", rawID),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		ginCtx.JSON(http.StatusOK, sessions)
 	})
 	// 管理员按用户 ID 批量吊销 refresh sessions 仍保持在 user 插件边界内，
 	// 通过专用权限码和显式路由声明治理入口，不把该语义扩散到 core。
