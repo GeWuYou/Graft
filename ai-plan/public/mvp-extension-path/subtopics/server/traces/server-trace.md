@@ -168,6 +168,9 @@
   implementation to help clear the docstring coverage gate.
 - Revalidated the review follow-up with `cd server && go test ./internal/cli ./internal/store/entstore ./plugins/user ./plugins/rbac`
   and `cd server && go build ./cmd/graft`.
+- Followed up on the previously overlooked `greptile-apps[bot]` comments by removing the implicit RBAC dependency from
+  authentication-only `httpx.RequirePermission(..., "")` routes and by narrowing `authService.Login` to pure
+  authentication so it no longer issues an access token that cannot pass later session validation.
 
 ## Next Step
 

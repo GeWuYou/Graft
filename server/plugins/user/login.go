@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"graft/server/internal/config"
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
@@ -34,9 +32,7 @@ type loginResponse struct {
 }
 
 type loginResult struct {
-	AccessToken string
-	ExpiresAt   time.Time
-	User        pluginapi.CurrentUser
+	User pluginapi.CurrentUser
 }
 
 func newAuthService(authConfig config.AuthConfig, authRepo store.AuthRepository, usersRepo store.UserRepository) (*authService, error) {
@@ -59,29 +55,19 @@ func newAuthService(authConfig config.AuthConfig, authRepo store.AuthRepository,
 	}, nil
 }
 
-// Login 校验最小用户名/密码并签发 access token。
+// Login 校验最小用户名/密码并返回当前主体摘要。
 //
-// 该流程只依赖稳定的 store/Auth 边界与当前用户摘要仓储，不把口令存储或
-// token 结构泄漏到 core 和 pluginapi。认证失败统一收敛为一个稳定错误语义。
+// 该流程只负责认证，不提前签发未绑定 refresh session 的 access token；
+// 需要建立会话的调用方应继续走 LoginWithRefresh，由它在持久化 session 后
+// 签发与服务端状态一致的 access token。
 func (s authService) Login(ctx context.Context, username string, password string) (loginResult, error) {
 	user, err := s.authenticateUser(ctx, username, password)
 	if err != nil {
 		return loginResult{}, err
 	}
 
-	token, claims, err := s.tokens.Issue(accessTokenSubject{
-		UserID:       user.ID,
-		SessionID:    uuid.NewString(),
-		TokenVersion: 1,
-	})
-	if err != nil {
-		return loginResult{}, fmt.Errorf("issue access token: %w", err)
-	}
-
 	return loginResult{
-		AccessToken: token,
-		ExpiresAt:   claims.ExpiresAt,
-		User:        user,
+		User: user,
 	}, nil
 }
 

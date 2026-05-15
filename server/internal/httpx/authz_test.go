@@ -64,6 +64,19 @@ func newAuthzTestResolver(t *testing.T, auth pluginapi.AuthService, authorizer p
 	return services
 }
 
+func newAuthOnlyTestResolver(t *testing.T, auth pluginapi.AuthService) container.Resolver {
+	t.Helper()
+
+	services := container.New()
+	if err := services.RegisterSingleton((*pluginapi.AuthService)(nil), func(resolver container.Resolver) (any, error) {
+		return auth, nil
+	}); err != nil {
+		t.Fatalf("register auth service: %v", err)
+	}
+
+	return services
+}
+
 func newBearerRequest(path string, token string) *http.Request {
 	request := httptest.NewRequest(http.MethodGet, path, nil)
 	if token != "" {
@@ -229,7 +242,7 @@ func TestRequirePermissionAllowsAuthorizedRequest(t *testing.T) {
 func TestRequirePermissionAllowsAuthenticatedRequestWhenPermissionCodeBlank(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	resolver := newAuthzTestResolver(t,
+	resolver := newAuthOnlyTestResolver(t,
 		testAuthService{
 			parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
 				return &pluginapi.AccessTokenClaims{
@@ -243,17 +256,46 @@ func TestRequirePermissionAllowsAuthenticatedRequestWhenPermissionCodeBlank(t *t
 				return &pluginapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}, nil
 			},
 		},
-		testAuthorizer{
-			authorize: func(context.Context, pluginapi.RequestAuthContext, string) error {
-				t.Fatal("authorize should not be called when permission code is blank")
-				return nil
+	)
+
+	recorder := httptest.NewRecorder()
+	ctx, engine := gin.CreateTestContext(recorder)
+	engine.Use(RequirePermission(nil, resolver, " "))
+	engine.GET("/api/profile", func(inner *gin.Context) {
+		inner.Status(http.StatusOK)
+	})
+
+	ctx.Request = newBearerRequest("/api/profile", "token-1")
+	engine.HandleContext(ctx)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+}
+
+// TestRequirePermissionAllowsBlankPermissionWithoutAuthorizer 验证空权限码路由不会隐式要求 Authorizer 已注册。
+func TestRequirePermissionAllowsBlankPermissionWithoutAuthorizer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	resolver := newAuthOnlyTestResolver(t,
+		testAuthService{
+			parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
+				return &pluginapi.AccessTokenClaims{
+					UserID:    7,
+					SessionID: "session-1",
+					IssuedAt:  time.Now(),
+					ExpiresAt: time.Now().Add(time.Minute),
+				}, nil
+			},
+			currentUser: func(context.Context) (*pluginapi.CurrentUser, error) {
+				return &pluginapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}, nil
 			},
 		},
 	)
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(nil, resolver, " "))
+	engine.Use(RequirePermission(nil, resolver, ""))
 	engine.GET("/api/profile", func(inner *gin.Context) {
 		inner.Status(http.StatusOK)
 	})

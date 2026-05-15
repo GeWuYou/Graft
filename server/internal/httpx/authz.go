@@ -20,7 +20,7 @@ const bearerPrefix = "Bearer "
 // 依赖任何具体插件实现。缺少登录态返回 401，认证成功但权限不足返回 403。
 func RequirePermission(localizer *i18n.Service, resolver container.Resolver, code string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authService, authorizer, err := resolveAuthDependencies(resolver)
+		authService, err := resolveAuthService(resolver)
 		if err != nil {
 			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
 			return
@@ -58,6 +58,11 @@ func RequirePermission(localizer *i18n.Service, resolver container.Resolver, cod
 		requestCtx = pluginapi.WithRequestAuthContext(ctx.Request.Context(), requestAuth)
 
 		if strings.TrimSpace(code) != "" {
+			authorizer, err := resolveAuthorizer(resolver)
+			if err != nil {
+				AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+				return
+			}
 			if err := authorizer.Authorize(requestCtx, requestAuth, code); err != nil {
 				if errors.Is(err, pluginapi.ErrPermissionDenied) {
 					AbortLocalizedError(ctx, localizer, http.StatusForbidden, "auth.missing_permission", map[string]any{
@@ -79,30 +84,42 @@ func RequirePermission(localizer *i18n.Service, resolver container.Resolver, cod
 	}
 }
 
-func resolveAuthDependencies(resolver container.Resolver) (pluginapi.AuthService, pluginapi.Authorizer, error) {
+// resolveAuthService 解析认证中间件必需的稳定 AuthService 单例。
+func resolveAuthService(resolver container.Resolver) (pluginapi.AuthService, error) {
 	if resolver == nil {
-		return nil, nil, errors.New("resolver is required")
+		return nil, errors.New("resolver is required")
 	}
 
 	authAny, err := resolver.Resolve((*pluginapi.AuthService)(nil))
 	if err != nil {
-		return nil, nil, err
-	}
-	authorizerAny, err := resolver.Resolve((*pluginapi.Authorizer)(nil))
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	authService, ok := authAny.(pluginapi.AuthService)
 	if !ok {
-		return nil, nil, errors.New("resolved auth service has unexpected type")
-	}
-	authorizer, ok := authorizerAny.(pluginapi.Authorizer)
-	if !ok {
-		return nil, nil, errors.New("resolved authorizer has unexpected type")
+		return nil, errors.New("resolved auth service has unexpected type")
 	}
 
-	return authService, authorizer, nil
+	return authService, nil
+}
+
+// resolveAuthorizer 仅在路由声明了权限码时解析稳定 Authorizer 单例。
+func resolveAuthorizer(resolver container.Resolver) (pluginapi.Authorizer, error) {
+	if resolver == nil {
+		return nil, errors.New("resolver is required")
+	}
+
+	authorizerAny, err := resolver.Resolve((*pluginapi.Authorizer)(nil))
+	if err != nil {
+		return nil, err
+	}
+
+	authorizer, ok := authorizerAny.(pluginapi.Authorizer)
+	if !ok {
+		return nil, errors.New("resolved authorizer has unexpected type")
+	}
+
+	return authorizer, nil
 }
 
 func extractBearerToken(request *http.Request) (string, bool) {

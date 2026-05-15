@@ -932,6 +932,57 @@ func TestRefreshRouteRejectsMissingCookie(t *testing.T) {
 	}
 }
 
+// TestLoginDoesNotIssueOrphanedAccessToken 验证基础 Login 流程只做认证，不再
+// 提前签发未绑定 refresh session 的 access token。
+func TestLoginDoesNotIssueOrphanedAccessToken(t *testing.T) {
+	passwordHash, err := newPasswordHasher().Hash("secret")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+
+	authSvc, err := newAuthService(config.AuthConfig{
+		AccessTokenTTL:        time.Hour,
+		SigningKey:            "secret-key",
+		RefreshTokenTTL:       24 * time.Hour,
+		RefreshCookieName:     "graft_refresh_token",
+		RefreshCookiePath:     "/",
+		RefreshCookieSameSite: "lax",
+	}, &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
+			if username != "alice" {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+			return store.UserCredential{
+				UserID:       7,
+				Username:     "alice",
+				PasswordHash: &passwordHash,
+			}, nil
+		},
+	}, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return store.User{
+				ID:       7,
+				Username: "alice",
+				Display:  "Alice",
+			}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("new auth service: %v", err)
+	}
+
+	result, err := authSvc.Login(context.Background(), "alice", "secret")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	if result.User.ID != 7 || result.User.Username != "alice" {
+		t.Fatalf("expected authenticated user summary, got %#v", result.User)
+	}
+}
+
 // TestLogoutRouteRevokesCurrentRefreshSession 验证 logout 路由会读取当前 refresh
 // cookie，吊销对应会话，并下发清除 cookie 的响应。
 func TestLogoutRouteRevokesCurrentRefreshSession(t *testing.T) {
