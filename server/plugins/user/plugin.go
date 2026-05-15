@@ -61,6 +61,12 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		Description: "Allows reading user management data.",
 		Plugin:      p.Name(),
 	})
+	ctx.PermissionRegistry.Register(permission.Item{
+		Code:        "user.session.revoke",
+		Name:        "Revoke User Sessions",
+		Description: "Allows revoking refresh sessions for a specified user.",
+		Plugin:      p.Name(),
+	})
 
 	ctx.MenuRegistry.Register(menu.Item{
 		Code:       "user.list",
@@ -71,29 +77,143 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		Plugin:     p.Name(),
 	})
 
+	userSvc := userService{users: ctx.Stores.Users()}
 	if err := ctx.Services.RegisterSingleton((*pluginapi.UserService)(nil), func(resolver container.Resolver) (any, error) {
-		return userService{users: ctx.Stores.Users()}, nil
+		return userSvc, nil
 	}); err != nil {
+		return err
+	}
+
+	authSvc, err := newAuthService(ctx.Config.Auth, ctx.Stores.Auth(), ctx.Stores.Users())
+	if err != nil {
 		return err
 	}
 
 	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(resolver container.Resolver) (any, error) {
-		tokenManager, err := newAccessTokenManager(ctx.Config.Auth)
-		if err != nil {
-			return nil, err
-		}
-
-		return authService{
-			users:  ctx.Stores.Users(),
-			tokens: tokenManager,
-		}, nil
+		return authSvc, nil
 	}); err != nil {
 		return err
 	}
 
+	// 登录与 refresh 入口保持在插件内，避免把 session/cookie 细节泄漏到 core。
+	authGroup := ctx.Router.Group("/auth")
+	authGroup.POST("/login", func(ginCtx *gin.Context) {
+		var request loginRequest
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "body",
+			})
+			return
+		}
+
+		if strings.TrimSpace(request.Username) == "" {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "username",
+			})
+			return
+		}
+		if request.Password == "" {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "password",
+			})
+			return
+		}
+
+		result, err := authSvc.LoginWithRefresh(ginCtx.Request.Context(), request.Username, request.Password)
+		if err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("login failed",
+					zap.String("plugin", p.Name()),
+					zap.String("username", request.Username),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		authSvc.cookies.writeRefreshCookie(ginCtx, result.RefreshToken, result.RefreshExpiry)
+		ginCtx.JSON(http.StatusOK, loginResponse{
+			AccessToken: result.AccessToken,
+			ExpiresAt:   result.AccessExpiry,
+			User:        result.User,
+		})
+	})
+	authGroup.POST("/refresh", func(ginCtx *gin.Context) {
+		refreshToken, err := authSvc.cookies.readRefreshCookie(ginCtx)
+		if err != nil {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, "auth.invalid_refresh_session", nil)
+			return
+		}
+
+		result, err := authSvc.RefreshWithRotation(ginCtx.Request.Context(), refreshToken)
+		if err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("refresh session failed",
+					zap.String("plugin", p.Name()),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		authSvc.cookies.writeRefreshCookie(ginCtx, result.RefreshToken, result.RefreshExpiry)
+		ginCtx.JSON(http.StatusOK, loginResponse{
+			AccessToken: result.AccessToken,
+			ExpiresAt:   result.AccessExpiry,
+			User:        result.User,
+		})
+	})
+	authGroup.POST("/logout", func(ginCtx *gin.Context) {
+		refreshToken, err := authSvc.cookies.readRefreshCookie(ginCtx)
+		if err != nil {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, "auth.invalid_refresh_session", nil)
+			return
+		}
+
+		if err := authSvc.LogoutCurrentSession(ginCtx.Request.Context(), refreshToken); err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("logout session failed",
+					zap.String("plugin", p.Name()),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		authSvc.cookies.clearRefreshCookie(ginCtx)
+		ginCtx.Status(http.StatusNoContent)
+	})
+	// 当前用户自助撤销入口复用同一套 request-auth 上下文，只吊销当前主体名下
+	// 的全部 refresh sessions，不把更宽的管理员治理语义下沉到 core。
+	authGroup.POST("/sessions/revoke-all", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+		if err := authSvc.RevokeAllCurrentUserSessions(ginCtx.Request.Context()); err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("revoke all refresh sessions failed",
+					zap.String("plugin", p.Name()),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		authSvc.cookies.clearRefreshCookie(ginCtx)
+		ginCtx.Status(http.StatusNoContent)
+	})
+
 	group := ctx.Router.Group("/users")
-	group.Use(httpx.RequirePermission(ctx.I18n, ctx.Services, "user.read"))
-	group.GET("/:id", func(ginCtx *gin.Context) {
+	group.GET("/:id", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.read"), func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
@@ -135,6 +255,39 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 
 		ginCtx.JSON(http.StatusOK, summary)
 	})
+	// 管理员按用户 ID 批量吊销 refresh sessions 仍保持在 user 插件边界内，
+	// 通过专用权限码和显式路由声明治理入口，不把该语义扩散到 core。
+	group.POST("/:id/sessions/revoke-all", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.session.revoke"), func(ginCtx *gin.Context) {
+		rawID, err := parseUserID(ginCtx.Param("id"))
+		if err != nil {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "id",
+			})
+			return
+		}
+
+		if err := authSvc.RevokeAllUserSessions(ginCtx.Request.Context(), rawID); err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("admin revoke user refresh sessions failed",
+					zap.String("plugin", p.Name()),
+					zap.Uint64("userID", rawID),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		if requestAuth, ok := pluginapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok &&
+			requestAuth.Claims != nil &&
+			requestAuth.Claims.UserID == rawID {
+			authSvc.cookies.clearRefreshCookie(ginCtx)
+		}
+
+		ginCtx.Status(http.StatusNoContent)
+	})
 
 	return nil
 }
@@ -158,8 +311,12 @@ type userService struct {
 }
 
 type authService struct {
-	users  store.UserRepository
-	tokens *accessTokenManager
+	auth          store.AuthRepository
+	users         store.UserRepository
+	passwords     passwordHasher
+	tokens        *accessTokenManager
+	refreshTokens *refreshTokenManager
+	cookies       authCookieManager
 }
 
 // GetUserByID 通过稳定仓储契约读取用户，并收敛为跨插件 DTO。
@@ -181,6 +338,10 @@ func (s userService) GetUserByID(ctx context.Context, id uint64) (pluginapi.User
 // 该实现要求调用链先通过鉴权中间件写入稳定 claims，再按用户仓储读取跨
 // 插件可见的最小用户资料，不把 token 解析细节泄漏给业务调用方。
 func (s authService) CurrentUser(ctx context.Context) (*pluginapi.CurrentUser, error) {
+	if s.users == nil {
+		return nil, errors.New("user repository is unavailable")
+	}
+
 	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.Claims == nil {
 		return nil, pluginapi.ErrUnauthenticated
@@ -203,6 +364,10 @@ func (s authService) CurrentUser(ctx context.Context) (*pluginapi.CurrentUser, e
 
 // ParseAccessToken 校验 access token 并返回跨插件稳定 claims。
 func (s authService) ParseAccessToken(ctx context.Context, token string) (*pluginapi.AccessTokenClaims, error) {
+	if s.tokens == nil {
+		return nil, errors.New("access token manager is unavailable")
+	}
+
 	claims, err := s.tokens.Parse(strings.TrimSpace(token))
 	if err != nil {
 		switch {
@@ -213,6 +378,13 @@ func (s authService) ParseAccessToken(ctx context.Context, token string) (*plugi
 		default:
 			return nil, err
 		}
+	}
+
+	if err := s.validateAccessSession(ctx, claims); err != nil {
+		if errors.Is(err, errAccessSessionFailed) {
+			return nil, pluginapi.ErrInvalidAccessToken
+		}
+		return nil, err
 	}
 
 	return claims, nil
@@ -230,4 +402,17 @@ func parseUserID(input string) (uint64, error) {
 		return 0, errors.New("id must be greater than zero")
 	}
 	return id, nil
+}
+
+func mapAuthError(err error) (int, string) {
+	switch {
+	case errors.Is(err, pluginapi.ErrUnauthenticated):
+		return http.StatusUnauthorized, "auth.missing_actor"
+	case errors.Is(err, errInvalidLoginCredentials):
+		return http.StatusUnauthorized, "auth.invalid_credentials"
+	case errors.Is(err, errRefreshSessionFailed):
+		return http.StatusUnauthorized, "auth.invalid_refresh_session"
+	default:
+		return http.StatusInternalServerError, "common.internal_error"
+	}
 }

@@ -16,6 +16,7 @@ import (
 var (
 	errTokenSigningKeyRequired = errors.New("token signing key is required")
 	errSessionIDRequired       = errors.New("session id is required")
+	errTokenIDRequired         = errors.New("token id is required")
 	errInvalidAccessToken      = errors.New("invalid access token")
 	errExpiredAccessToken      = errors.New("expired access token")
 )
@@ -35,6 +36,12 @@ type accessTokenManager struct {
 type accessTokenJWTClaims struct {
 	SessionID    string `json:"session_id"`
 	TokenVersion int    `json:"token_version,omitempty"`
+	jwt.RegisteredClaims
+}
+
+type refreshTokenJWTClaims struct {
+	SessionID string `json:"session_id"`
+	TokenID   string `json:"token_id"`
 	jwt.RegisteredClaims
 }
 
@@ -129,5 +136,80 @@ func (m *accessTokenManager) Parse(token string) (*pluginapi.AccessTokenClaims, 
 		TokenVersion: claims.TokenVersion,
 		IssuedAt:     claims.IssuedAt.Time.UTC(),
 		ExpiresAt:    claims.ExpiresAt.Time.UTC(),
+	}, nil
+}
+
+// Issue 生成 HS256 refresh token，并返回 token 到期时间。
+func (m *refreshTokenManager) Issue(subject refreshTokenSubject) (string, time.Time, error) {
+	if subject.UserID == 0 {
+		return "", time.Time{}, errors.New("user id is required")
+	}
+	if strings.TrimSpace(subject.SessionID) == "" {
+		return "", time.Time{}, errSessionIDRequired
+	}
+	if strings.TrimSpace(subject.TokenID) == "" {
+		return "", time.Time{}, errTokenIDRequired
+	}
+
+	issuedAt := m.now().UTC()
+	expiresAt := issuedAt.Add(m.ttl)
+	tokenClaims := refreshTokenJWTClaims{
+		SessionID: subject.SessionID,
+		TokenID:   subject.TokenID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   strconv.FormatUint(subject.UserID, 10),
+			IssuedAt:  jwt.NewNumericDate(issuedAt),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
+	}
+
+	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenClaims).SignedString(m.secret)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("sign refresh token: %w", err)
+	}
+
+	return signed, expiresAt, nil
+}
+
+// Parse 校验 refresh token 并返回最小主体信息。
+func (m *refreshTokenManager) Parse(token string) (*refreshTokenSubject, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return nil, errRefreshTokenRequired
+	}
+
+	claims := &refreshTokenJWTClaims{}
+	parser := jwt.NewParser(
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithTimeFunc(m.now),
+	)
+	parsed, err := parser.ParseWithClaims(token, claims, func(current *jwt.Token) (any, error) {
+		return m.secret, nil
+	})
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, errExpiredRefreshToken
+		}
+		return nil, fmt.Errorf("%w: %v", errInvalidRefreshToken, err)
+	}
+	if !parsed.Valid {
+		return nil, errInvalidRefreshToken
+	}
+
+	userID, err := strconv.ParseUint(claims.Subject, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid subject", errInvalidRefreshToken)
+	}
+	if strings.TrimSpace(claims.SessionID) == "" {
+		return nil, fmt.Errorf("%w: missing session id", errInvalidRefreshToken)
+	}
+	if strings.TrimSpace(claims.TokenID) == "" {
+		return nil, fmt.Errorf("%w: missing token id", errInvalidRefreshToken)
+	}
+
+	return &refreshTokenSubject{
+		UserID:    userID,
+		SessionID: claims.SessionID,
+		TokenID:   claims.TokenID,
 	}, nil
 }

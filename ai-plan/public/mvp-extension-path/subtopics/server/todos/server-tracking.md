@@ -34,16 +34,38 @@
   wiring.
 - `server/internal/ent/schema` and `server/internal/store` now reserve the MVP auth/RBAC persistence baseline,
   including password-hash fields, refresh sessions, roles, permissions, and stable repository/store DTO boundaries.
+- The current auth/session and RBAC migration baseline has now been live-validated against a disposable PostgreSQL
+  target through `graft migrate up`, Atlas status checks, and a minimal `graft serve` healthz probe.
 - `server/plugins/user` now contains the first auth utility layer for bcrypt password hashing and HS256 access-token
   issue/parse helpers, and also exposes the minimal `pluginapi.AuthService` needed to parse bearer access tokens and
   resolve the current user from stable request claims.
+- `server/plugins/user` now also exposes the minimal `/auth/login` route, reusing `store.Auth()` + `store.Users()`,
+  the bcrypt helper, and the access-token helper to return localized invalid-credentials errors plus the current user
+  summary without leaking Ent details into pluginapi or core.
+- `server/plugins/user` now also closes the minimal refresh-session loop by persisting refresh sessions on login,
+  writing the refresh cookie, and rotating the session through `POST /api/auth/refresh` while keeping helper and
+  cookie semantics inside the plugin boundary.
+- `server/plugins/user` now also exposes the minimal `POST /api/auth/logout` path that reads the current refresh
+  cookie, revokes only that refresh session, and clears the cookie while keeping the localized error contract and
+  session/cookie logic inside the plugin boundary.
+- `server/plugins/user` now also exposes the minimal `POST /api/auth/sessions/revoke-all` self-service path that
+  reuses the existing request-auth context to revoke the current user's full refresh-session set and clear the
+  current refresh cookie without widening core auth semantics.
+- `server/plugins/user` now also exposes the minimal admin-driven `POST /api/users/:id/sessions/revoke-all` path,
+  protected by the plugin-local `user.session.revoke` permission, so administrators can revoke a specified user's full
+  refresh-session set without extending schema or moving session governance into core.
+- `server/plugins/user` now also hardens the protected bearer request path by requiring the access-token-linked
+  session to still exist, remain unrevoked, and stay unexpired before `pluginapi.AuthService` accepts the token.
 - `server/plugins/rbac` now exists as the minimal authorization plugin that exposes `pluginapi.Authorizer` on top of
   the stable RBAC repository boundary.
 
 ## Active Risks
 
-- Atlas CLI execution still lacks live validation against a disposable PostgreSQL target in this environment.
-- The current request-auth chain still lacks login, refresh-token rotation, session revocation, and cookie handling.
+- The disposable PostgreSQL + Atlas live validation path is now proven locally, but it still depends on manual
+  disposable Docker resources instead of a repository-local one-command validation entrypoint.
+- The current request-auth chain now covers the current user's full refresh-session revoke loop, but it still lacks
+  richer session/audit governance beyond the minimal login/refresh/logout/self-revoke/admin-revoke plus
+  protected-request hardening loop.
 - The temporary placement of minimal `AuthService` inside `server/plugins/user` keeps the critical path moving, but
   future work should reevaluate whether a dedicated auth plugin boundary is needed once login and refresh APIs land.
 - Future backend work must avoid leaking Ent-specific details through `plugin.Context` or cross-plugin public APIs.
@@ -71,8 +93,34 @@
   - `cd server && go test ./internal/httpx ./plugins/user ./plugins/rbac`
   - `cd server && go test ./internal/cli ./internal/app ./internal/pluginapi ./internal/store ./internal/store/entstore`
   - `cd server && go build ./cmd/graft`
+- The latest minimal-login slice validation included:
+  - `cd server && go test ./plugins/user ./internal/i18n`
+  - `cd server && go build ./cmd/graft`
+- The latest refresh-session slice validation included:
+  - `cd server && go test ./plugins/user ./internal/i18n ./internal/store ./internal/store/entstore`
+  - `cd server && go build ./cmd/graft`
+- The latest logout current-session slice validation included:
+  - `cd server && go test ./plugins/user ./internal/i18n`
+  - `cd server && go build ./cmd/graft`
+- The latest request-auth session-hardening slice validation included:
+  - `cd server && go test ./plugins/user ./internal/httpx ./internal/i18n`
+  - `cd server && go build ./cmd/graft`
+- The latest current-user all-sessions revoke slice validation included:
+  - `cd server && go test ./plugins/user ./internal/store/entstore ./internal/i18n`
+  - `cd server && go build ./cmd/graft`
+- The latest admin user-session revoke slice validation included:
+  - `cd server && go test ./plugins/user`
+  - `cd server && go build ./cmd/graft`
+- The latest disposable PostgreSQL + Atlas live validation included:
+  - `cd server && go build -o <temp-binary> ./cmd/graft`
+  - `cd server && GRAFT_DATABASE_URL=postgres://graft:graft@127.0.0.1:<pg-port>/graft?sslmode=disable GRAFT_REDIS_ADDR=127.0.0.1:6379 GRAFT_AUTH_JWT_SECRET=<secret> <temp-binary> migrate up`
+  - `cd server && GRAFT_DATABASE_URL=postgres://graft:graft@127.0.0.1:<pg-port>/graft?sslmode=disable GRAFT_REDIS_ADDR=127.0.0.1:6379 GRAFT_AUTH_JWT_SECRET=<secret> <temp-binary> migrate up` again, which returned `No migration files to execute`
+  - `cd server && atlas migrate status --dir file://$(pwd)/internal/ent/migrate/migrations --url postgres://graft:graft@127.0.0.1:<pg-port>/graft?sslmode=disable`
+  - Queried the disposable PostgreSQL target to confirm the six auth/session/RBAC tables, the `users.password_hash` and `users.password_changed_at` columns, and the expected foreign-key constraints on `refresh_sessions`, `user_roles`, and `role_permissions`
+  - `cd server && go test ./internal/cli ./internal/app ./internal/store ./internal/store/entstore ./plugins/user ./plugins/rbac`
+  - `cd server && GRAFT_DATABASE_URL=postgres://graft:graft@127.0.0.1:<pg-port>/graft?sslmode=disable GRAFT_REDIS_ADDR=127.0.0.1:<redis-port> GRAFT_AUTH_JWT_SECRET=<secret> GRAFT_HTTP_ADDR=127.0.0.1:<http-port> <temp-binary> serve`, followed by `curl http://127.0.0.1:<http-port>/healthz`
 
 ## Immediate Next Step
 
-- Wire login, refresh-session rotation, and request-auth session hardening onto the new bearer-token and request-auth
-  context path without leaking Ent details into `pluginapi` or core middleware.
+- Extend the session-management path with audit-linked governance, richer admin visibility, or narrower operator
+  workflows while keeping revoke semantics inside the existing plugin boundary.

@@ -2,6 +2,7 @@ package entstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"graft/server/internal/ent"
@@ -109,6 +110,83 @@ func (r *authRepository) RevokeRefreshSession(ctx context.Context, input store.R
 	}
 
 	return nil
+}
+
+// RevokeRefreshSessionsByUserID 吊销某个用户名下全部尚未吊销的刷新会话。
+func (r *authRepository) RevokeRefreshSessionsByUserID(ctx context.Context, input store.RevokeRefreshSessionsByUserIDInput) error {
+	userID, err := toEntID(input.UserID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := r.client.RefreshSession.Update().
+		Where(
+			entrefreshsession.UserIDEQ(userID),
+			entrefreshsession.RevokedAtIsNil(),
+		).
+		SetRevokedAt(input.RevokedAt).
+		Save(ctx); err != nil {
+		return fmt.Errorf("revoke refresh sessions by user id: %w", err)
+	}
+
+	return nil
+}
+
+// RotateRefreshSession 以事务方式完成一次 refresh session 轮换。
+func (r *authRepository) RotateRefreshSession(ctx context.Context, input store.RotateRefreshSessionInput) (store.RefreshSession, error) {
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return store.RefreshSession{}, fmt.Errorf("begin refresh session rotation transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	current, err := tx.RefreshSession.Query().
+		Where(entrefreshsession.TokenIDEQ(input.CurrentTokenID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return store.RefreshSession{}, store.ErrRefreshSessionNotFound
+		}
+		return store.RefreshSession{}, fmt.Errorf("query current refresh session for rotation: %w", err)
+	}
+	if current.RevokedAt != nil {
+		return store.RefreshSession{}, store.ErrRefreshSessionNotFound
+	}
+	if !current.ExpiresAt.After(input.Now) {
+		return store.RefreshSession{}, store.ErrRefreshSessionNotFound
+	}
+
+	if _, err = tx.RefreshSession.UpdateOneID(current.ID).
+		SetRevokedAt(input.RevokedAt).
+		SetReplacedByTokenID(input.NewTokenID).
+		Save(ctx); err != nil {
+		if ent.IsNotFound(err) {
+			return store.RefreshSession{}, store.ErrRefreshSessionNotFound
+		}
+		return store.RefreshSession{}, fmt.Errorf("revoke current refresh session during rotation: %w", err)
+	}
+
+	next, err := tx.RefreshSession.Create().
+		SetUserID(current.UserID).
+		SetTokenID(input.NewTokenID).
+		SetExpiresAt(input.NewExpiresAt).
+		Save(ctx)
+	if err != nil {
+		return store.RefreshSession{}, fmt.Errorf("create rotated refresh session: %w", err)
+	}
+
+	if commitErr := tx.Commit(); commitErr != nil {
+		if errors.Is(commitErr, context.Canceled) || errors.Is(commitErr, context.DeadlineExceeded) {
+			return store.RefreshSession{}, commitErr
+		}
+		return store.RefreshSession{}, fmt.Errorf("commit refresh session rotation transaction: %w", commitErr)
+	}
+
+	return toStoreRefreshSession(next), nil
 }
 
 func toStoreRefreshSession(record *ent.RefreshSession) store.RefreshSession {

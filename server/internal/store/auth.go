@@ -52,6 +52,24 @@ type RevokeRefreshSessionInput struct {
 	ReplacedByTokenID *string
 }
 
+// RevokeRefreshSessionsByUserIDInput 描述一次按用户吊销全部刷新会话所需的最小输入。
+type RevokeRefreshSessionsByUserIDInput struct {
+	UserID    uint64
+	RevokedAt time.Time
+}
+
+// RotateRefreshSessionInput 描述一次 refresh session 轮换所需的最小输入。
+//
+// 该输入把“吊销旧会话并创建新会话”收敛为一个显式仓储操作，避免插件层在并发
+// refresh 时通过多次独立调用暴露双消费窗口。
+type RotateRefreshSessionInput struct {
+	CurrentTokenID string
+	NewTokenID     string
+	Now            time.Time
+	RevokedAt      time.Time
+	NewExpiresAt   time.Time
+}
+
 // AuthRepository 暴露未来认证插件所需的最小持久化操作集合。
 //
 // 该接口只提供口令与 refresh session 的存储能力，不承载登录、签发或授权决策。
@@ -78,4 +96,16 @@ type AuthRepository interface {
 	//
 	// 未命中时统一返回 ErrRefreshSessionNotFound。
 	RevokeRefreshSession(ctx context.Context, input RevokeRefreshSessionInput) error
+
+	// RevokeRefreshSessionsByUserID 吊销某个用户名下全部尚未吊销的刷新会话。
+	//
+	// 该操作应保持幂等，允许同一用户在没有可吊销会话时直接成功返回。
+	RevokeRefreshSessionsByUserID(ctx context.Context, input RevokeRefreshSessionsByUserIDInput) error
+
+	// RotateRefreshSession 以事务方式完成一次 refresh session 轮换。
+	//
+	// 实现必须保证：只有当前 token 仍未吊销时才允许轮换，并在同一持久化操作中
+	// 写入旧会话吊销状态与新会话记录；未命中或已不可用时统一返回
+	// ErrRefreshSessionNotFound。
+	RotateRefreshSession(ctx context.Context, input RotateRefreshSessionInput) (RefreshSession, error)
 }

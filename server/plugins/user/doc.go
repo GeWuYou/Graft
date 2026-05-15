@@ -1,5 +1,9 @@
-// Package user 提供 MVP 路径中的示例用户插件。
+// Package user 提供 MVP 路径中的用户与认证示例插件。
 //
-// 这个包用于演示单个业务能力如何在不回流 core 的前提下，声明菜单、
-// 权限、路由和公开服务，并通过稳定的插件边界接入平台。
+// 这个包用于演示单个业务能力如何在不回流 core 的前提下，声明登录、
+// refresh、当前 refresh session logout、当前用户 all-sessions revoke、
+// 管理员按用户批量 revoke、
+// 受保护请求最小 session hardening、
+// 菜单、权限、路由和公开服务，
+// 并通过稳定的插件边界接入平台。
 package user

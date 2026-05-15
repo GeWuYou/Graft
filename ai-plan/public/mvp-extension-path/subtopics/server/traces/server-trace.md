@@ -64,7 +64,57 @@
 - Added the first real `server/plugins/rbac` plugin and exposed `pluginapi.Authorizer` on top of the RBAC repository boundary, then wired `graft serve` to boot both `user` and `rbac`.
 - Updated direct `httpx` / `user` / `rbac` tests to lock down bearer-token auth, permission denial, and request-context propagation behavior, then kept focused backend validation and `go build ./cmd/graft` green.
 
+## 2026-05-15 minimal login slice
+
+- Added the minimal `/auth/login` route inside `server/plugins/user`, keeping the business logic inside the plugin and reusing `store.Auth()`, `store.Users()`, the bcrypt helper, and the existing HS256 access-token helper.
+- Kept the HTTP failure contract on the existing localized `message_key + message + locale` structure, and introduced one stable `auth.invalid_credentials` message key for login failures.
+- Returned the minimal login payload as `access_token + expires_at + current user summary`, without adding refresh-token rotation, cookie handling, or session persistence to this slice.
+- Added direct `server/plugins/user` route tests for successful login, invalid credentials, and missing input, plus the matching `server/internal/i18n` catalog assertion, then revalidated with `go test ./plugins/user ./internal/i18n` and `go build ./cmd/graft`.
+
+## 2026-05-15 refresh session slice
+
+- Extended `server/plugins/user` so successful `/auth/login` now creates a refresh session, signs a refresh token, and writes the configured refresh cookie while keeping token/cookie helpers inside the plugin.
+- Added `POST /api/auth/refresh` inside the same plugin boundary, reusing the localized error contract and rotating refresh sessions before returning a new access token plus replacement refresh cookie.
+- Narrowed the extra store expansion to one transactional `RotateRefreshSession` method because the old `create/get/revoke` trio left a double-consume race between refresh validation and revocation.
+- Added direct `server/plugins/user` tests for login cookie write, refresh success, and missing-cookie failure, and extended `server/internal/i18n` with the stable `auth.invalid_refresh_session` catalog key.
+
+## 2026-05-15 logout current-session slice
+
+- Added `POST /api/auth/logout` inside `server/plugins/user`, keeping logout, refresh-cookie parsing, current-session revoke, and cookie clearing inside the plugin boundary instead of pushing them into core or middleware helpers.
+- Reused the existing refresh-token parser plus `GetRefreshSessionByTokenID` and `RevokeRefreshSession` store methods for the minimal current-session revoke loop, so this slice did not widen the store boundary.
+- Added direct `server/plugins/user` tests for successful current-session logout and missing-cookie failure, while keeping logout failures on the existing localized `auth.invalid_refresh_session` contract.
+
+## 2026-05-15 request-auth session hardening slice
+
+- Tightened `server/plugins/user` so `pluginapi.AuthService.ParseAccessToken` now validates the access-token-linked session state in addition to JWT syntax and signature.
+- Kept the hardening logic inside the `user` plugin by reusing the existing `AuthRepository.GetRefreshSessionByTokenID` boundary, so no new `pluginapi` or `httpx` contract expansion was required for this slice.
+- Reused the existing unauthenticated response path by mapping missing, revoked, expired, or mismatched sessions to the current access-token failure semantics instead of adding new HTTP error keys.
+- Updated direct `server/plugins/user` tests to seed valid sessions for protected requests and added inactive-session coverage for missing, revoked, and expired session states before rerunning focused backend validation.
+
+## 2026-05-15 current-user all-sessions revoke slice
+
+- Added `POST /api/auth/sessions/revoke-all` inside `server/plugins/user` as the minimal self-service revoke entrypoint, guarded by the existing bearer request-auth path instead of a new core auth concept.
+- Narrowed the extra store expansion to one idempotent `AuthRepository.RevokeRefreshSessionsByUserID` operation because the existing single-session revoke methods did not cover current-user bulk revoke without leaking session iteration into the plugin.
+- Reused the current localized error contract and refresh-cookie helper so successful revoke-all clears the current cookie, while later protected requests and refresh attempts fail through the already-established unauthenticated and invalid-refresh paths.
+- Added direct `server/plugins/user` route coverage for successful revoke-all and missing-actor rejection, plus a focused `entstore` invalid-ID test for the new bulk-revoke repository boundary before rerunning focused backend validation and `go build ./cmd/graft`.
+
+## 2026-05-15 admin user-session revoke slice
+
+- Added the minimal admin-driven `POST /api/users/:id/sessions/revoke-all` route inside `server/plugins/user`, keeping the business logic on top of the existing auth/session repository boundary instead of widening core or schema responsibilities.
+- Registered the dedicated plugin-local permission code `user.session.revoke` so the revoke-by-user-ID entrypoint stays explicit and does not silently piggyback on `user.read`.
+- Reused `AuthRepository.RevokeRefreshSessionsByUserID` for the admin path, and only cleared the current refresh cookie when the authenticated operator revoked their own sessions, preserving the existing cookie/error contract for all other cases.
+- Added direct plugin-route tests for successful target-user revoke, self-revoke cookie clearing, dedicated-permission enforcement, and invalid-ID rejection, then revalidated with `go test ./plugins/user` and `go build ./cmd/graft`.
+
+## 2026-05-15 disposable PostgreSQL + Atlas live validation
+
+- Reused the current auth/session and RBAC migration assets against a disposable local PostgreSQL container by building the current `graft` CLI, then running `graft migrate up` with explicit database, Redis, and auth-signing environment inputs.
+- Confirmed the live migration path was idempotent by rerunning `graft migrate up`, which returned `No migration files to execute` after the first successful apply.
+- Verified Atlas state with `atlas migrate status`, which reported current version `202605140001`, `Executed Files: 2`, and `Pending Files: 0`.
+- Queried the disposable PostgreSQL target to confirm the six expected auth/session/RBAC tables, the `users.password_hash` and `users.password_changed_at` columns, and the foreign-key constraints on `refresh_sessions`, `user_roles`, and `role_permissions`.
+- Revalidated the affected backend surface with focused `go test ./internal/cli ./internal/app ./internal/store ./internal/store/entstore ./plugins/user ./plugins/rbac`.
+- Added one minimal runtime smoke check by starting `graft serve` against the disposable PostgreSQL target plus a disposable Redis target and receiving `200 OK` from `/healthz`.
+
 ## Next Step
 
-- Execute live Atlas validation against a disposable PostgreSQL target, then add login, refresh-session rotation, and
-  session-hardening behavior on top of the new request-auth and RBAC plugin chain.
+- Add admin-driven session controls or richer audit-linked session governance on top of the new login, refresh,
+  logout, current-user revoke-all, and request-auth hardening chain.

@@ -65,9 +65,11 @@
 
 ## Shared Risks
 
-- The current backend authorization path is still an MVP placeholder and must be replaced by the real auth + RBAC
-  plugin chain without breaking the future `menu + route + page + api + permission` path.
-- Atlas execution still lacks live validation against a disposable PostgreSQL target in this environment.
+- The backend auth + RBAC plugin chain now exists, but broader session revocation, admin-driven session controls, and
+  richer auth/audit governance are still pending without breaking the future `menu + route + page + api + permission`
+  path.
+- The disposable PostgreSQL + Atlas live validation path is now proven locally, but it still depends on manual
+  disposable Docker resources instead of a repository-local scripted validation entrypoint.
 - The frontend warning-cleanup slice now closes green, but the current `web` bundle-size strategy still reflects the
   temporary full-TDesign starter baseline, so deeper performance-oriented chunk optimization remains future work.
 - Future work must keep parent-topic summaries, subtopic recovery files, and repository-wide design truth aligned to
@@ -78,6 +80,9 @@
 - Historical detailed validation commands before the subtopic split are preserved in the archived tracking snapshot.
 - The latest cross-boundary implementation slice before this split validated focused `server` packages plus direct
   `web` test, typecheck, and build commands for the PR `#5` follow-up fixes.
+- The latest backend live-validation slice now additionally proved the disposable PostgreSQL + Atlas path through
+  `graft migrate up`, Atlas status verification, focused backend `go test`, and a disposable PostgreSQL + Redis
+  `graft serve` healthz probe; detailed commands live in the `server` subtopic tracking file.
 - The latest `web` governance implementation slice additionally validated host Windows Bun `bun run check`, a focused
   `bun run test:run -- --reporter=hanging-process` diagnosis, and the low-risk `axios@latest` refresh.
 - This documentation-only governance update should be validated through consistency checks across `AGENTS.md`,
@@ -86,6 +91,6 @@
 
 ## Immediate Next Step
 
-- Keep future `web` work on the documented host Windows Bun `bun run check` zero-warning gate, then run a real
-  disposable PostgreSQL + Atlas validation path and replace the temporary backend authorization placeholder with the
-  real auth + RBAC chain while keeping parent and subtopic recovery files in sync.
+- Keep future `web` work on the documented host Windows Bun `bun run check` zero-warning gate, then extend the
+  backend auth/session path with broader session revocation and admin-driven session controls while keeping parent and
+  subtopic recovery files in sync.

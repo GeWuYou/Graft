@@ -14,18 +14,22 @@ const LocaleHeader = "X-Graft-Locale"
 
 var defaultCatalogs = map[string]map[string]string{
 	"zh-CN": {
-		"auth.missing_actor":      "缺少请求身份信息",
-		"auth.missing_permission": "缺少所需权限",
-		"common.internal_error":   "服务内部错误",
-		"common.invalid_argument": "请求参数不合法",
-		"user.not_found":          "用户不存在",
+		"auth.invalid_credentials":     "用户名或密码错误",
+		"auth.invalid_refresh_session": "刷新会话无效或已失效",
+		"auth.missing_actor":           "缺少请求身份信息",
+		"auth.missing_permission":      "缺少所需权限",
+		"common.internal_error":        "服务内部错误",
+		"common.invalid_argument":      "请求参数不合法",
+		"user.not_found":               "用户不存在",
 	},
 	"en-US": {
-		"auth.missing_actor":      "Missing request actor",
-		"auth.missing_permission": "Missing required permission",
-		"common.internal_error":   "Internal server error",
-		"common.invalid_argument": "Invalid request parameters",
-		"user.not_found":          "User not found",
+		"auth.invalid_credentials":     "Invalid username or password",
+		"auth.invalid_refresh_session": "Invalid or expired refresh session",
+		"auth.missing_actor":           "Missing request actor",
+		"auth.missing_permission":      "Missing required permission",
+		"common.internal_error":        "Internal server error",
+		"common.invalid_argument":      "Invalid request parameters",
+		"user.not_found":               "User not found",
 	},
 }
 
