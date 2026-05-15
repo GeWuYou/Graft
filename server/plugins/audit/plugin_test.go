@@ -225,3 +225,29 @@ func TestRegisterSubscribesActiveAuditEvents(t *testing.T) {
 		t.Fatalf("expected operator id 9, got %#v", repo.items[0].OperatorID)
 	}
 }
+
+// TestRegisterSubscribesActiveAuditEventPointers 验证主动审计事件同时兼容值类型和指针类型载荷。
+func TestRegisterSubscribesActiveAuditEventPointers(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, _, bus := newPluginTestContext(t, repo)
+
+	err := bus.Publish(context.Background(), eventbus.Event{
+		Name: pluginapi.AuditRecordEventName,
+		Payload: &pluginapi.AuditEvent{
+			Operator:     &pluginapi.CurrentUser{ID: 10, Username: "carol"},
+			Action:       "user.profile.update",
+			ResourceType: "user",
+			ResourceID:   "10",
+			Success:      true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("publish audit event pointer payload: %v", err)
+	}
+	if len(repo.items) != 1 {
+		t.Fatalf("expected one audit record, got %d", len(repo.items))
+	}
+	if repo.items[0].Action != "user.profile.update" {
+		t.Fatalf("expected pointer payload action to be preserved, got %q", repo.items[0].Action)
+	}
+}

@@ -246,6 +246,19 @@
   that locks permission-code dedup/sort, permission-filtered menus, and locale snapshot fields.
 - Revalidated the slice with `cd server && go test ./plugins/user` and `cd server && go build ./cmd/graft`.
 
+## 2026-05-15 PR #9 review follow-up
+
+- Re-checked the latest PR #9 open threads against local HEAD and kept only the still-applicable `server` findings in
+  scope instead of mechanically applying every AI comment.
+- Hardened `server/internal/audit/service.go` so normalized `Action` values now use the same trim result for validation
+  and persistence, preventing avoidable whitespace drift across audit records.
+- Extended `server/plugins/audit` to accept both `pluginapi.AuditEvent` values and pointers on the event bus path, and
+  clarified `pluginapi.AuditEvent` field semantics so cross-plugin publishers know which fields are required, optional,
+  or defaulted by the consumer.
+- Deduplicated bootstrap locale fallback output when `defaultLocale` and `fallbackLocale` collapse to the same value,
+  and supplemented scheduler lifecycle comments plus `Stop(nil)` wait-behavior coverage to match the repository
+  documentation standard.
+
 ## Next Step
 
 - Keep the new bootstrap contract stable enough for `web` starter-shell hookup, then move the next batch to

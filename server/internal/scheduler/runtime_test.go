@@ -135,3 +135,68 @@ func TestStopHonorsContextCancellation(t *testing.T) {
 		t.Fatalf("expected context cancellation, got %v", err)
 	}
 }
+
+// TestStopWithNilContextWaitsForInFlightJob 验证 nil ctx 会等待当前在途任务自然结束。
+func TestStopWithNilContextWaitsForInFlightJob(t *testing.T) {
+	runtime := New(zap.NewNop())
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	finished := make(chan struct{}, 1)
+
+	if err := runtime.RegisterJob(cronx.Job{
+		Name:     "blocking",
+		Schedule: "*/1 * * * * *",
+		Run: func(ctx context.Context) error {
+			select {
+			case started <- struct{}{}:
+			default:
+			}
+			<-release
+			select {
+			case finished <- struct{}{}:
+			default:
+			}
+			return nil
+		},
+	}); err != nil {
+		t.Fatalf("register job: %v", err)
+	}
+
+	if err := runtime.Start(); err != nil {
+		t.Fatalf("start runtime: %v", err)
+	}
+
+	select {
+	case <-started:
+	case <-time.After(1500 * time.Millisecond):
+		t.Fatal("expected scheduled job to start")
+	}
+
+	stopDone := make(chan error, 1)
+	go func() {
+		stopDone <- runtime.Stop(nil)
+	}()
+
+	select {
+	case err := <-stopDone:
+		t.Fatalf("expected Stop(nil) to wait for in-flight job, got early result %v", err)
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	close(release)
+
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("expected blocked job to finish after release")
+	}
+
+	select {
+	case err := <-stopDone:
+		if err != nil {
+			t.Fatalf("stop runtime: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected Stop(nil) to return after in-flight job finished")
+	}
+}

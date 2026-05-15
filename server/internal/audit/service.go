@@ -46,7 +46,8 @@ func (s *Service) Record(ctx context.Context, input RecordInput) (store.AuditLog
 	if s == nil || s.repo == nil {
 		return store.AuditLog{}, errors.New("audit service is unavailable")
 	}
-	if strings.TrimSpace(input.Action) == "" {
+	action := strings.TrimSpace(input.Action)
+	if action == "" {
 		return store.AuditLog{}, errors.New("audit action is required")
 	}
 	if input.CreatedAt.IsZero() {
@@ -56,7 +57,7 @@ func (s *Service) Record(ctx context.Context, input RecordInput) (store.AuditLog
 	return s.repo.CreateAuditLog(ctx, store.CreateAuditLogInput{
 		OperatorID:    input.OperatorID,
 		OperatorName:  strings.TrimSpace(input.OperatorName),
-		Action:        input.Action,
+		Action:        action,
 		ResourceType:  strings.TrimSpace(input.ResourceType),
 		ResourceID:    strings.TrimSpace(input.ResourceID),
 		RequestMethod: strings.TrimSpace(input.RequestMethod),

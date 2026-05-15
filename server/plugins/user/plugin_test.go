@@ -635,6 +635,30 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 	}
 }
 
+// TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales 验证默认 locale 与回退 locale
+// 相同时，bootstrap locale 快照不会返回重复语言项。
+func TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales(t *testing.T) {
+	reader := newBootstrapReader(
+		config.I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: nil,
+		},
+		i18n.New(config.I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: []string{"zh-CN"},
+		}),
+		nil,
+		nil,
+	)
+
+	snapshot := reader.localeSnapshot(httptest.NewRequest(http.MethodGet, "/api/auth/bootstrap", nil))
+	if !slices.Equal(snapshot.SupportedLocales, []string{"zh-CN"}) {
+		t.Fatalf("expected duplicate fallback locales to collapse, got %#v", snapshot.SupportedLocales)
+	}
+}
+
 // TestAuthServiceCurrentUserRequiresClaims 验证当前主体解析要求调用链先建立稳定 claims。
 func TestAuthServiceCurrentUserRequiresClaims(t *testing.T) {
 	service := authService{

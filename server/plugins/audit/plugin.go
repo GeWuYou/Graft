@@ -57,8 +57,8 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 
 	return ctx.EventBus.Subscribe(pluginapi.AuditRecordEventName, func(eventCtx context.Context, event eventbus.Event) error {
-		payload, ok := event.Payload.(pluginapi.AuditEvent)
-		if !ok {
+		payload, err := resolveAuditEventPayload(event.Payload)
+		if err != nil {
 			return fmt.Errorf("unexpected audit event payload type %T", event.Payload)
 		}
 
@@ -178,4 +178,18 @@ func currentAuditErrorMessage(ctx *gin.Context) string {
 	}
 
 	return ""
+}
+
+func resolveAuditEventPayload(payload any) (pluginapi.AuditEvent, error) {
+	switch typed := payload.(type) {
+	case pluginapi.AuditEvent:
+		return typed, nil
+	case *pluginapi.AuditEvent:
+		if typed == nil {
+			return pluginapi.AuditEvent{}, errors.New("nil audit event payload")
+		}
+		return *typed, nil
+	default:
+		return pluginapi.AuditEvent{}, fmt.Errorf("unexpected audit event payload type %T", payload)
+	}
 }

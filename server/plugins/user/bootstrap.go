@@ -160,11 +160,16 @@ func (r bootstrapReader) localeSnapshot(request *http.Request) bootstrapLocaleSn
 
 	supportedLocales := append([]string(nil), r.localeConfig.SupportedLocales...)
 	if len(supportedLocales) == 0 {
+		seen := make(map[string]struct{}, 2)
 		for _, locale := range []string{defaultLocale, fallbackLocale} {
 			locale = strings.TrimSpace(locale)
 			if locale == "" {
 				continue
 			}
+			if _, exists := seen[locale]; exists {
+				continue
+			}
+			seen[locale] = struct{}{}
 			supportedLocales = append(supportedLocales, locale)
 		}
 	}

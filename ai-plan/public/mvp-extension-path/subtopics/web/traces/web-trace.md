@@ -51,7 +51,7 @@
 - The target contract does not change. After the starter baseline is made runnable again, the next implementation stage
   still needs to reconnect backend-driven `menu + route + page + api + permission`, auth, and locale semantics.
 
-## Next Step
+## 2026-05-15 Next Step
 
 - Replace the current `web` baseline with a starter full-project baseline first, then stage Graft contract
   reattachment and later optimization work on top of that recovered runtime path.
@@ -157,7 +157,19 @@
 - Validated the slice with one full host Windows Bun `bun run check` pass after adding direct route-transform coverage
   for the bootstrap-menu mapper.
 
-## Next Step
+## 2026-05-15 PR #9 review follow-up
+
+- Re-checked the latest PR #9 open threads against local HEAD and kept the current `web` work focused on still-valid
+  behavior, contract, and documentation issues instead of stale AI suggestions.
+- Kept the existing refresh-based route-guard recovery path, but added the Chinese contract comments required by
+  repository governance around dynamic-route initialization, bootstrap recovery, and silent refresh fallback.
+- Hardened the shell logout path so router navigation back to `/login` now runs in a `finally` block even if the
+  logout request fails after local session cleanup.
+- Narrowed the bootstrap route mapper to one explicit `RouteRecordRaw` adaptation boundary instead of the previous
+  `as unknown as RouteRecordRaw[]` escape, updated locale-header propagation to replace every underscore in persisted
+  locale tags, and normalized the active trace/tracking docs to remove duplicate headings and machine-specific paths.
+
+## 2026-05-15 Follow-up Next Step
 
 - Continue reconnecting the starter shell to the real backend `auth + current user + menu + permission + locale`
   contracts by expanding from the new bootstrap baseline instead of restoring mock auth/menu paths or expanding the

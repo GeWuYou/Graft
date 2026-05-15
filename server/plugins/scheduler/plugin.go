@@ -13,7 +13,9 @@ import (
 // Plugin 是当前 MVP 阶段的最小调度插件。
 //
 // 该插件只负责把 `cron registry` 中已声明的任务装配到运行时调度器，并在
-// Boot / Shutdown 阶段统一启动和关闭。
+// Register / Boot / Shutdown 阶段统一完成“声明收集、运行启动、收敛关闭”。
+// 若 Register 阶段任务装配失败，插件不会进入可启动状态；Shutdown 会把
+// 运行时停止错误上抛给调用方，便于宿主决定是否继续整体退出流程。
 type Plugin struct {
 	runtime schedulercore.Runtime
 }

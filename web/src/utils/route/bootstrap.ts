@@ -2,6 +2,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import type { BootstrapMenu } from '@/api/model/authModel';
 import type { LocalizedTitle } from '@/locales';
+import type { AppRouteMeta } from '@/utils/types';
 
 const bootstrapRouteComponentMap: Record<string, RouteRecordRaw['component']> = {
   '/users': () => import('@/pages/user/index.vue'),
@@ -31,29 +32,32 @@ export function transformBootstrapMenusToRoutes(menus: BootstrapMenu[]): RouteRe
       .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
       .join('');
 
-    return [
-      {
-        path: menu.path,
-        component: bootstrapLayout,
-        redirect: `${menu.path}/index`,
-        name: routeName,
-        meta: {
-          title: localizeTitle(menu.title),
-          icon: menu.icon,
-          single: true,
+    const routeMeta: AppRouteMeta = {
+      title: localizeTitle(menu.title),
+      icon: menu.icon,
+      single: true,
+    };
+    const childMeta: AppRouteMeta = {
+      hidden: true,
+      title: localizeTitle(menu.title),
+    };
+
+    const route = {
+      path: menu.path,
+      component: bootstrapLayout,
+      redirect: `${menu.path}/index`,
+      name: routeName,
+      meta: routeMeta,
+      children: [
+        {
+          path: 'index',
+          name: `${routeName}Index`,
+          component: pageComponent,
+          meta: childMeta,
         },
-        children: [
-          {
-            path: 'index',
-            name: `${routeName}Index`,
-            component: pageComponent,
-            meta: {
-              hidden: true,
-              title: localizeTitle(menu.title),
-            },
-          },
-        ],
-      },
-    ] as unknown as RouteRecordRaw[];
+      ],
+    };
+
+    return [route as RouteRecordRaw];
   });
 }

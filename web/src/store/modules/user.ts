@@ -37,6 +37,8 @@ export const useUserStore = defineStore('user', {
         name: payload.user.display_name || payload.user.username,
         username: payload.user.username,
         roles: [],
+        // login 响应只负责建立会话；权限仍以后续 bootstrap 快照为准，因此这里
+        // 保留现有 permissions，避免在 refresh/login 后短暂清空权限状态。
         permissions: this.userInfo.permissions,
       };
     },
@@ -63,6 +65,8 @@ export const useUserStore = defineStore('user', {
       if (!this.token) {
         throw new Error('Missing access token');
       }
+      // bootstrap 是前端恢复真实用户、权限、菜单和 locale 快照的唯一入口；
+      // 非 force 模式下优先复用已加载快照，避免每次导航都重复请求。
       if (this.bootstrapLoaded && this.bootstrapSnapshot && !force) {
         return this.bootstrapSnapshot;
       }
@@ -83,6 +87,8 @@ export const useUserStore = defineStore('user', {
       try {
         return await this.bootstrap();
       } catch {
+        // 当 access token 过期但 refresh cookie 仍有效时，先刷新 token 再强制
+        // 重新拉取 bootstrap，保持路由守卫只消费最新后端契约快照。
         await this.refreshToken();
         return this.bootstrap(true);
       }

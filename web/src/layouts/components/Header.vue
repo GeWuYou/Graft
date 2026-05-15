@@ -146,10 +146,13 @@ const handleNav = (url: string) => {
 };
 
 const handleLogout = async () => {
-  await user.logout();
-  router.push({
-    path: '/login',
-  });
+  try {
+    await user.logout();
+  } finally {
+    await router.push({
+      path: '/login',
+    });
+  }
 };
 
 const navToGitHub = () => {

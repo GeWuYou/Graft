@@ -106,6 +106,9 @@ func (r *CronRuntime) Start() error {
 }
 
 // Stop 停止当前调度器并等待在途任务结束。
+//
+// 若传入的 ctx 为 nil，则无限期等待所有已启动任务完成；若 ctx 非 nil，
+// 则在 ctx 取消时立即返回 ctx.Err()，但底层任务仍会继续执行到自然结束。
 func (r *CronRuntime) Stop(ctx context.Context) error {
 	r.mu.Lock()
 	if !r.started {

@@ -32,7 +32,7 @@ client.interceptors.request.use((config) => {
   try {
     const storedLocale = localStorage.getItem(localeConfigKey);
     if (storedLocale) {
-      headers['X-Graft-Locale'] = storedLocale.replace('_', '-');
+      headers['X-Graft-Locale'] = storedLocale.replaceAll('_', '-');
     }
   } catch {
     // 受限环境下允许 locale 头缺省。

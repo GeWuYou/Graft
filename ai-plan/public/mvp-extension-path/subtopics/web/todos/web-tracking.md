@@ -16,6 +16,7 @@
 - 当前主线不是页面扩张，也不是继续深化独立前端工作台能力；任何 shell 级调整都应服务于真实契约挂接和 mock/demo 清理。
 - `signals` 已收敛为文档级候选方案：`Pinia` 继续作为唯一正式共享状态层，当前不进入 `setting/theme` 局部试点，只保留未来最小 POC 的准入与退出规则。
 - 前端命令真值保持不变：WSL 场景下继续使用 host Windows Bun，完成态仍以 `bun run check` 零 warning 为门槛。
+- PR #9 当前一轮 AI review 已确认并落地的 `web` 跟进包括：登出失败时仍强制跳转登录页、动态路由装配去除双重断言、locale header 全量下划线替换，以及 route guard / bootstrap / token 持久化的中文契约注释补强。
 - 详细前端实现历史保留在 `subtopics/web/traces/web-trace.md`。
 
 ## Active Risks
@@ -29,7 +30,8 @@
 - 当前前端恢复基线沿用最近一次 host Windows Bun 完成态校验：
   - `bun run check`
 - 该完成态基线要求 `format:check`、`typecheck`、`lint`、`stylelint`、`test:run`、`build` 全部通过且无未处理 warning。
-- 本次文档同步没有新增前端运行时校验。
+- 本次 PR #9 review follow-up 预期直接校验：
+  - `cd web && bun run check`
 - 本次文档同步通过 `rg`、`sed` 与 `git diff -- ai-plan/design/前端架构设计.md ai-plan/public/mvp-extension-path/subtopics/web` 进行一致性检查。
 
 ## Immediate Next Step

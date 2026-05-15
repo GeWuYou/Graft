@@ -65,7 +65,7 @@
 - 本次跨边界直接校验：
   - `cd server && go test ./plugins/user`
   - `cd server && go build ./cmd/graft`
-  - `cd web && "/mnt/c/Users/gewuyou/.bun/bin/bun.exe" run check`
+  - `cd web && bun run check`
 - 本次 topic 级同步通过 `sed`、`rg`、`git diff -- ai-plan/public/mvp-extension-path` 与对应直接校验结果完成一致性检查。
 
 ## Immediate Next Step
