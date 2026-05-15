@@ -48,6 +48,9 @@
 - 当前 cross-boundary 切片已把 `/users` 从“真实菜单路径 + demo 页面内容”的假闭环，收敛为真实 `GET /api/users` 契约加最小只读列表页；`/user/index` 静态个人中心残留入口已移除。
 - 当前 auth / RBAC 最小响应收敛切片也已完成第一轮跨边界对齐：`server` 已冻结 `AUTH_*` 失败 code、统一 envelope 与 request-id 透传，`web` 已冻结“仅 `AUTH_TOKEN_EXPIRED` refresh，`INVALID/MISSING` 单一退出”的请求层行为，并通过显式 session bridge 消除了构建 warning。
 - 当前默认管理员与首次登录强制改密切片的跨边界口径已冻结：`graft-admin` 只允许作为默认管理员初始化例外密码写入；首次改密状态必须由后端持久化并通过 `login/bootstrap` 返回；当前 MVP 不为全部业务接口增加全局后端拦截，而由 `web` 登录后受限态负责阻断，后续如需更强安全再补服务端全局中间件。
+- 当前仓库真值还新增冻结了一条 shared backend governance baseline：`server` 完成态必须收敛到 `graft validate backend`，
+  固定使用 `golangci-lint v2.12.2`，并把 backend lint issue 默认视为阻断项；如需暂留，只能登记到 active
+  tracking 文档中的 controlled exception。
 - 较早的拆分前历史保留在 `archive/`，具体实现轨迹保留在各自 `trace` 文件。
 
 ## Shared Milestones
@@ -57,6 +60,7 @@
 - 前端已具备可继续收敛的 starter 壳层，并已重新挂回真实认证与最小动态菜单入口，host Windows Bun `bun run check` 当前再次通过零 warning 完成门槛。
 - 当前主题阶段已从“后端先闭环”推进到“后端稳定 bootstrap 契约，前端按该契约同步收敛”。
 - 当前主题阶段还额外完成了 auth 响应面与 refresh 单出口的第一轮跨边界收口，后续可以把主线重心放回真实页面接线而不是继续补请求层控制流分支。
+- 后端 lint 治理的仓库真值已经先行冻结：后续 `server` 与 cross-boundary 收尾都必须以同一个 backend quality entrypoint 和同一套 lint 口径完成，而不是继续依赖散落的临时命令。
 
 ## Shared Risks
 
@@ -64,6 +68,7 @@
 - `auth`、`menu`、`permission`、`locale` 等共享契约若在后端收敛期内继续无边界扩张，会放大 `web` 接线返工成本。
 - 如果默认管理员、首次改密真值来源、或登录后阻断责任在 `server` 与 `web` 之间重新漂移，后续实现会重新引入猜测式前端逻辑或半生效的安全边界。
 - disposable PostgreSQL / Redis 校验仍依赖手工准备环境，后续恢复时必须显式说明当前可用的校验入口。
+- 如果本地、agent 和 CI 在 `server` 完成态上继续各自维护不同的 lint 命令或参数，新的 backend 治理基线会很快再次失真，无法稳定阻断可维护性回退。
 
 ## Shared Validation Summary
 
@@ -86,8 +91,12 @@
 - 本次默认管理员/首次改密文档与跟踪同步一致性检查：
   - `rg -n "graft-admin|must_change_password|change-password|bootstrap|受限态" ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path`
   - `git diff -- ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path`
+- 本次 backend lint 治理文档切片一致性检查：
+  - `rg -n "golangci-lint|graft validate backend|controlled exception|revive|stylecheck" AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
+  - `git diff -- AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
 
 ## Immediate Next Step
 
+- 先在当前 backend governance 切片落地 `graft validate backend`、固定版本的 `golangci-lint` 配置与最小 PR 阻断，再继续扩展其它 `server` 功能面；不要让文档真值长期停留在“已规定、未执行”的状态。
 - 保持当前 `/api/auth/bootstrap` 契约稳定，只在必要范围内收敛 DTO 和菜单/权限语义。
 - 在该 bootstrap 与 auth 响应契约上继续实施默认管理员与首次登录强制改密闭环：先由 `server` 增加持久化状态、初始化例外密码和最小管理员绑定，再由 `web` 落登录后受限态与强制改密弹窗，而不是扩大安全范围或回到猜测式控制流。

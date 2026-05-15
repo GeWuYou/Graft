@@ -322,8 +322,24 @@ done.
 
 For `server` changes:
 
+* use pinned `golangci-lint v2.12.2` as the unified backend lint runner; do not use `latest`
+* the repository now treats `graft validate backend` as the mandatory backend completion entrypoint for any `server`
+  task that is being closed, handed off, or prepared for merge
+* when a `server` task reaches a completion-state milestone such as 功能完成、任务完成, or 准备合并, it must run the
+  full backend quality chain in the explicit order `golangci-lint run -> go test (smallest direct scope) -> go build
+  ./cmd/graft -> graft validate smoke` when runtime startup validation is needed
+* intermediate backend iteration may still use the smallest direct validation that covers the touched area, but the
+  full backend quality chain is required before a `server` task is considered complete
+* agent, local development, and CI must use the same backend entrypoint and the same pinned lint version instead of
+  maintaining ad-hoc shell chains or a second lint parameter set
+* backend completion defaults to zero unresolved lint issues across the configured `golangci-lint` set; do not treat
+  known lint findings as acceptable completed-state noise
+* lint issues in directly affected `server` code are blocking by default
+* a backend lint issue may be retained only as a controlled exception recorded in the active tracking document with the
+  issue source, user-visible or engineering impact, temporary retention reason, and next cleanup action
 * run the smallest `go test` scope that still covers the touched packages when tests exist
-* run the smallest `go build` scope that still proves the changed code compiles when tests are absent or insufficient
+* run `go build ./cmd/graft` as the default backend compile gate, and widen the build scope only when the current
+  change materially affects other `cmd/*` entrypoints
 * prefer wider validation such as `go test ./...` or `go build ./...` when the task changes shared abstractions, plugin
   contracts, lifecycle code, dependency resolution, or startup wiring
 
@@ -363,8 +379,9 @@ If validation cannot be run:
 
 Warnings or failures in directly affected modules are part of the task scope. Do not ignore them unless the user
 explicitly narrows the task.
-When a frontend warning is retained as a controlled exception, the corresponding tracking document must record its
-source, impact, temporary retention reason, and next cleanup action instead of calling it non-blocking by default.
+When a frontend warning or backend lint issue is retained as a controlled exception, the corresponding tracking
+document must record its source, impact, temporary retention reason, and next cleanup action instead of calling it
+non-blocking by default.
 
 ## 12. Git Workflow Rules
 
@@ -416,11 +433,15 @@ When the repository adds CI workflows:
 
 * keep pull request validation and release automation in separate workflows
 * validate `server` and `web` as separate jobs when both sides exist
+* when backend lint governance is active, keep `server` lint and `server` build/test as separate jobs instead of one
+  opaque backend script step
 * prefer a fast quality or security track plus a build or test track instead of one opaque monolithic job
 * cache dependencies by ecosystem, such as Go modules and frontend package manager caches
 * upload useful failure artifacts or summaries when they materially improve debugging
 * keep current-stage workflows honest about repository maturity; prefer smoke validation over fake full builds when the
   actual toolchain or artifacts are not stable yet
+* backend CI must reuse the same `graft validate backend` entrypoint and pinned `golangci-lint` version as local
+  development instead of rebuilding a second lint parameter set inside workflow YAML
 
 ### 13.2 Release Automation
 
@@ -577,6 +598,8 @@ For Go code:
   or side effects are not obvious from the signature
 * use `server/internal/cli/dev.go` as a function-comment example for complex orchestration entrypoints, but do not
   mechanically force every function into the same parameter-list template
+* `revive` and `stylecheck` should be treated as executable enforcement of exported-comment baselines and common Go
+  style, but passing lint does not replace the deeper comment-quality requirements in this document
 * plugin lifecycle types and methods must document registration order, boot semantics, shutdown expectations, and
   failure behavior when relevant
 * cross-plugin interfaces must document stability expectations and what callers may depend on
@@ -690,6 +713,8 @@ A task is done only when all relevant items below are satisfied:
 * new module work keeps the `menu + route + page + api + permission` path explicit
 * affected code has the required comments and documentation
 * the changed area passed direct validation, or the exact validation gap was reported
+* `server` work reached its completion state only after `graft validate backend` passed with the full backend quality
+  chain and no unresolved backend lint issue remained outside an explicitly documented controlled exception
 * `web` work reached its completion state only after the host Windows Bun full quality chain passed and no unresolved
   frontend warning remained outside an explicitly documented controlled exception
 * the final summary states the important behavior change, validation result, and any remaining blockers

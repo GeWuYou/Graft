@@ -90,6 +90,28 @@ go run ./cmd/graft serve
 * 若本地库结构已经同步，也可以只运行 `graft serve`；否则请先执行迁移。
 * 在 GoLand 或其他 IDE 中，推荐统一使用 working directory=`server`、程序入口 `./cmd/graft`、程序参数 `dev`。
 
+## 后端验证 `server`
+
+后端完成态统一通过一个 Go CLI 入口执行：
+
+```bash
+cd server
+go run ./cmd/graft validate backend
+```
+
+仓库固定使用 `golangci-lint v2.12.2` 作为后端统一 lint 运行器，并要求 agent、本地开发与 CI 复用同一入口，
+而不是各自维护第二套参数。
+
+后端完成态质量链顺序固定为：
+
+1. `golangci-lint run`
+2. `go test` 最小直接覆盖范围
+3. `go build ./cmd/graft`
+4. 需要启动链路时再补 `graft validate smoke`
+
+直接受影响的 lint issue 默认是阻断项；如果当前切片确实无法立即清理，只能在 active tracking 文档中按
+来源、影响、保留原因和下一步清理动作登记受控例外。
+
 ## 本地启动 `web`
 
 前端开发环境配置不再直接提交真实 `web/.env.development`，而是提交模板文件 `web/.env.example`，本地实际配置保持忽略状态。

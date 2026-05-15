@@ -36,7 +36,18 @@
 - `pluginapi`、registries、store factory 与当前 auth/menu/permission/i18n 返回面，已经成为 `web` 真实契约收敛前必须谨慎冻结的后端边界。
 - 当前本地启动修复已补齐 `server/.env.example` 的显式 auth 密钥示例、README 最小启动步骤与 GoLand working directory 提示，并用隔离环境测试锁定“缺少 `GRAFT_AUTH_JWT_SECRET` 与 `GRAFT_AUTH_SIGNING_KEY` 时严格失败”的配置行为；未引入任何 dev-only 默认密钥或 auth 语义变更。
 - `server` 当前已补充两个独立开发辅助程序：`cmd/graft-jwt-secret` 与 `cmd/graft-signing-key`，用于生成可直接写入 `.env` 的随机 auth 密钥文本；该能力只辅助配置准备，不参与运行时加载或 token 语义。
+- 当前 backend governance 文档真值已经冻结：`server` 完成态必须统一走 `graft validate backend`，固定质量顺序为 `golangci-lint run -> go test (smallest direct scope) -> go build ./cmd/graft -> graft validate smoke when needed`，并固定 pin `golangci-lint v2.12.2`。
+- backend lint issue 默认按阻断项处理；如果当前切片无法立即清理，只能登记到本文件的 `Backend Lint Controlled Exceptions`，并记录来源、影响、保留原因和下一步清理动作。
 - 详细实现历史保留在 `subtopics/server/traces/server-trace.md`。
+
+## Backend Lint Controlled Exceptions
+
+- 当前为空。
+- 后续如需暂留 backend lint issue，只能在本节追加受控例外，并至少记录以下字段：
+  - Source：linter 名称，以及对应的 package / file / command。
+  - Impact：用户可见影响或工程可维护性影响。
+  - Retention Reason：为什么当前切片不能安全清理。
+  - Next Cleanup Action：下一步清理动作或计划承接切片。
 
 ## Active Risks
 
@@ -46,6 +57,7 @@
 - 如果把首次改密阻断直接扩展成全局后端接口治理，会偏离当前 MVP 范围并放大本轮 auth/RBAC 收敛面的回归风险。
 - 若 `pluginapi`、store DTO 或权限/菜单契约在收敛期内继续频繁漂移，`web` 对真实契约的接线成本会快速上升。
 - disposable PostgreSQL / Redis 仍需手工准备；恢复执行时必须确认当前可用的 smoke 环境。
+- 如果 `server` 本地完成态、agent 完成态与 CI 阻断继续各自维护不同的 lint 命令或参数，backend quality gate 会在实现落地后迅速重新分叉。
 
 ## Latest Validation
 
@@ -110,9 +122,13 @@
 - 本次默认管理员/首次改密 server 跟踪同步一致性检查：
   - `rg -n "graft-admin|must_change_password|change-password|全局.*拦截|受限态" ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/server`
   - `git diff -- server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/server ai-plan/design/项目设计.md`
+- 本次 backend lint 治理文档切片一致性检查：
+  - `rg -n "golangci-lint|graft validate backend|controlled exception|revive|stylecheck" AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
+  - `git diff -- AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
 
 ## Immediate Next Step
 
+- 先在当前 backend governance 切片落地 `graft validate backend`、`golangci-lint v2.12.2` 配置与 PR 阻断，并保持它们与本文档记录的完成态质量链完全同口径。
 - 停止继续扩大会话治理宽度，按以下顺序推进 backend MVP closure：
   1. 保持当前 `AUTH_*` code、success/error envelope 与 request-id 契约冻结，不再无边界扩张 auth 响应面。
   2. 在 `user` 插件内实现默认管理员、首次改密持久化状态、`login/bootstrap` 扩展、`change-password` 与最小管理员绑定，但不扩展到 OAuth / SSO / MFA / 密码历史 / 配置化策略 / 全局后端拦截。
