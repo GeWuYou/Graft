@@ -41,6 +41,15 @@ Graft 是一个基于 Go 和 Vue 3 的组合式后台平台，目标是通过插
 
 如果缺少 auth 密钥，启动会直接报错：`GRAFT_AUTH_JWT_SECRET or GRAFT_AUTH_SIGNING_KEY is required`。
 
+如果你需要生成新的本地 auth 密钥，可以在 `server` 目录下运行：
+
+```bash
+go run ./cmd/graft-jwt-secret
+go run ./cmd/graft-signing-key
+```
+
+两个程序都会输出一行可直接粘贴到 `server/.env` 的配置文本。
+
 推荐的本地开发入口已经统一为一个 Go CLI 命令：
 
 ```bash

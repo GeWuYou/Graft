@@ -216,6 +216,13 @@
 - Tightened the root README startup section to document `working directory=server`, repository-root fallback loading of `server/.env`, the minimal `server/.env.example -> server/.env -> go run ./cmd/graft dev` flow, and the exact missing-secret error string.
 - Expanded `server/internal/config/config_test.go` with isolated auth-signing-material cases that prove missing-both fails and single-source `JWTSecret` / `SigningKey` inputs still pass without depending on a real developer environment file.
 
+## 2026-05-15 local auth key generator tools
+
+- Added `server/internal/keygen` as a tiny development-only helper package that uses `crypto/rand` plus URL-safe base64 output to generate `.env`-ready auth key lines.
+- Added two standalone helper programs, `server/cmd/graft-jwt-secret` and `server/cmd/graft-signing-key`, so local developers can generate either required auth environment line without touching runtime auth behavior.
+- Kept the change outside the main `graft` Cobra tree to avoid coupling config-prep helpers to runtime command semantics.
+- Added direct `server/internal/keygen` tests and updated the root README to document the new helper commands in the local server startup flow.
+
 ## 2026-05-15 audit slice
 
 - Added `server/internal/audit` plus the `store.AuditRepository` boundary so request-level and active audit paths can

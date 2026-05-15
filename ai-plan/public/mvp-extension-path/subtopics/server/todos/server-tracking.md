@@ -27,6 +27,7 @@
 - PR #9 最新 CodeRabbit nitpick 已在本地核对并收敛：`plugin.Context` 现已显式承载 `LifecycleContext`，runtime 会在 `Shutdown` 阶段注入独立有界关闭上下文，`scheduler` 不再绕过宿主生命周期直接使用 `context.Background()`。
 - `pluginapi`、registries、store factory 与当前 auth/menu/permission/i18n 返回面，已经成为 `web` 真实契约收敛前必须谨慎冻结的后端边界。
 - 当前本地启动修复已补齐 `server/.env.example` 的显式 auth 密钥示例、README 最小启动步骤与 GoLand working directory 提示，并用隔离环境测试锁定“缺少 `GRAFT_AUTH_JWT_SECRET` 与 `GRAFT_AUTH_SIGNING_KEY` 时严格失败”的配置行为；未引入任何 dev-only 默认密钥或 auth 语义变更。
+- `server` 当前已补充两个独立开发辅助程序：`cmd/graft-jwt-secret` 与 `cmd/graft-signing-key`，用于生成可直接写入 `.env` 的随机 auth 密钥文本；该能力只辅助配置准备，不参与运行时加载或 token 语义。
 - 详细实现历史保留在 `subtopics/server/traces/server-trace.md`。
 
 ## Active Risks
@@ -75,6 +76,9 @@
 - 本次本地启动 auth 配置引导修复直接校验：
   - `cd server && go test ./...`
   - `cd server && go build ./cmd/graft`
+- 本次本地 auth 密钥生成工具切片直接校验：
+  - `cd server && go test ./internal/keygen ./...`
+  - `cd server && go build ./cmd/graft ./cmd/graft-jwt-secret ./cmd/graft-signing-key`
 - 当前后端恢复基线沿用最近一次 focused backend validation：
   - `cd server && go test ./internal/cli ./internal/app ./internal/store ./internal/store/entstore ./plugins/user ./plugins/rbac`
   - `cd server && go build ./cmd/graft`
