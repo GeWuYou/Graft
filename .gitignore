@@ -30,6 +30,7 @@ go.work.sum
 # Editor/IDE
 .idea/
 .vscode/
+.run/
 
 # project
 # keep architecture, roadmap, and recovery docs under ai-plan/ tracked
