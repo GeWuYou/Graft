@@ -37,3 +37,11 @@
 - 继续把 starter 壳层挂接到真实后端 `auth + current user + menu + permission + locale` 契约。
 - 快速隔离或移除当前阶段不再需要的 mock/demo 入口，避免形成前端自洽假闭环。
 - 在真实契约稳定之前，不以新增页面、theme runtime 深化或额外视觉扩张作为当前子主题完成条件。
+
+## 2026-05-15 真实 auth/bootstrap 接线恢复点
+
+- `web` 认证主路径已从本地 mock 收敛为真实 `POST /api/auth/login -> GET /api/auth/bootstrap`。
+- 当存在 access token 但 bootstrap 失败时，前端会先尝试 `POST /api/auth/refresh`，成功后再重新执行 bootstrap。
+- 当本地没有 access token 时，前端也会先静默尝试 `POST /api/auth/refresh -> GET /api/auth/bootstrap`，仅在刷新失败后才回退到登录页。
+- `permission` store 当前只消费 bootstrap 返回的真实 `menus` 快照，并按当前已存在的页面实现生成最小动态路由；本轮只接入 `/users`。
+- 当前最小动态菜单策略是“菜单展示只保留首页和后端返回且前端已经具备页面实现的菜单项”，避免再次回退到 starter demo 菜单树。

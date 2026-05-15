@@ -2,36 +2,40 @@ import cloneDeep from 'lodash/cloneDeep';
 import { defineStore } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
 
-import { fixedRouterList, homepageRouterList } from '@/router';
+import type { BootstrapResponse } from '@/api/model/authModel';
+import { homepageRouterList } from '@/router';
 import { store } from '@/store';
+import { transformBootstrapMenusToRoutes } from '@/utils/route/bootstrap';
 
 export const usePermissionStore = defineStore('permission', {
   state: () => ({
     whiteListRouters: ['/login'] as string[],
+    bootstrapSnapshot: null as BootstrapResponse | null,
     routers: [] as RouteRecordRaw[],
     removeRoutes: [] as RouteRecordRaw[],
     asyncRoutes: [] as RouteRecordRaw[],
     routesInitialized: false,
   }),
   actions: {
+    setBootstrapSnapshot(snapshot: BootstrapResponse | null) {
+      this.bootstrapSnapshot = snapshot;
+    },
     async initRoutes() {
       const accessedRouters = this.asyncRoutes;
 
-      // 在菜单展示全部路由
-      this.routers = cloneDeep([...homepageRouterList, ...accessedRouters, ...fixedRouterList]);
-      // 在菜单只展示动态路由和首页
-      // this.routers = [...homepageRouterList, ...accessedRouters];
-      // 在菜单只展示动态路由
-      // this.routers = [...accessedRouters];
+      // 菜单展示只保留首页和 bootstrap 动态菜单，避免继续暴露 starter 静态演示菜单。
+      this.routers = cloneDeep([...homepageRouterList, ...accessedRouters]);
     },
     async buildAsyncRoutes() {
-      this.asyncRoutes = [];
+      this.asyncRoutes = transformBootstrapMenusToRoutes(this.bootstrapSnapshot?.menus ?? []);
       await this.initRoutes();
       this.routesInitialized = true;
       return this.asyncRoutes;
     },
     async restoreRoutes() {
+      this.bootstrapSnapshot = null;
       this.asyncRoutes = [];
+      this.removeRoutes = [];
       this.routesInitialized = false;
       await this.initRoutes();
     },

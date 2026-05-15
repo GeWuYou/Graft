@@ -20,6 +20,7 @@
 - `server/internal/eventbus` 最小进程内事件总线切片已落地：`Runtime` 持有并通过 `plugin.Context` 与 `container` 注入统一 `eventbus.Bus`，当前仅暴露 `Subscribe / Publish`、顺序派发、panic recover 与错误日志记录。
 - 最小 `audit` 闭环已接到当前 `eventbus.Bus`：`audit` 插件同时挂载请求级自动审计中间件与主动审计事件订阅，Ent/store 边界只新增稳定写入能力，未提前暴露检索 DSL。
 - 最小 `scheduler` 闭环已接入运行时：`cron registry` 声明现在通过独立 `scheduler` 封装装配到 `robfig/cron/v3`，启动与停止语义仍收敛在插件生命周期边界内。
+- `user` 插件已新增受保护的 `GET /api/auth/bootstrap` 最小契约：当前登录用户、当前权限码列表、按权限过滤后的菜单列表，以及 locale 配置快照现在可以通过一条真实后端接口返回，供 `web` 后续壳层接线直接消费。
 - `pluginapi`、registries、store factory 与当前 auth/menu/permission/i18n 返回面，已经成为 `web` 真实契约收敛前必须谨慎冻结的后端边界。
 - 详细实现历史保留在 `subtopics/server/traces/server-trace.md`。
 
@@ -51,6 +52,9 @@
 - 本次 PR #8 review follow-up 直接校验：
   - `cd server && go test ./internal/cli ./internal/store/entstore ./plugins/user ./plugins/rbac`
   - `cd server && go build ./cmd/graft`
+- 本次 bootstrap 契约切片直接校验：
+  - `cd server && go test ./plugins/user`
+  - `cd server && go build ./cmd/graft`
 - 当前后端恢复基线沿用最近一次 focused backend validation：
   - `cd server && go test ./internal/cli ./internal/app ./internal/store ./internal/store/entstore ./plugins/user ./plugins/rbac`
   - `cd server && go build ./cmd/graft`
@@ -63,5 +67,5 @@
 ## Immediate Next Step
 
 - 停止继续扩大会话治理宽度，按以下顺序推进 backend MVP closure：
-  1. 冻结当前 `web` 需要消费的 `auth + menu + permission + locale` 契约面，并只在必要范围内收敛 DTO。
+  1. 在不破坏当前 `/api/auth/bootstrap` 返回面的前提下，只做必要 DTO 收敛，避免 `web` 接线面再次漂移。
   2. 与 `web` 同步推进真实登录态、当前用户、动态菜单与权限守卫接线。

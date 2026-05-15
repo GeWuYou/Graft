@@ -59,5 +59,7 @@ export interface NotificationItem {
 
 export interface UserInfo {
   name: string;
-  roles: Array<unknown>;
+  username: string;
+  roles: string[];
+  permissions: string[];
 }

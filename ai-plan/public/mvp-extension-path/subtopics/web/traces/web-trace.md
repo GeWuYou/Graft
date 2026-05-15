@@ -146,10 +146,22 @@
 - Explicitly concluded that the current `theme runtime` does not yet show enough evidence that
   `computed / watch / store action` maintenance has failed, so no POC should begin now.
 
+## 2026-05-15 real auth/bootstrap hookup
+
+- Replaced the `web` mock auth path with real `POST /api/auth/login`, `POST /api/auth/refresh`, and
+  `GET /api/auth/bootstrap` integration while preserving the existing starter-shell login page and guard flow.
+- Added request-level access-token and locale-header propagation so the frontend now sends `Authorization` and
+  `X-Graft-Locale` consistently through the shared Axios wrapper.
+- Narrowed the first dynamic-menu slice to bootstrap-returned menus that already have real page implementations in
+  `web`, and wired `/users` as the first backend-driven route instead of reusing the starter demo menu tree.
+- Validated the slice with one full host Windows Bun `bun run check` pass after adding direct route-transform coverage
+  for the bootstrap-menu mapper.
+
 ## Next Step
 
 - Continue reconnecting the starter shell to the real backend `auth + current user + menu + permission + locale`
-  contracts instead of expanding the standalone theme/runtime surface.
+  contracts by expanding from the new bootstrap baseline instead of restoring mock auth/menu paths or expanding the
+  standalone theme/runtime surface.
 - Keep `signals` at the document-only candidate stage unless a future review can prove that `theme runtime`
   maintenance has materially failed under the current `Pinia + computed + composable` approach.
 - When the logger slice is scheduled for implementation, land it as a focused frontend infrastructure change first and

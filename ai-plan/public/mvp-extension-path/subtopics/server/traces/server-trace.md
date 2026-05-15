@@ -234,7 +234,19 @@
 - Revalidated the slice with `cd server && go test ./internal/scheduler ./plugins/scheduler ./internal/cli` and
   `cd server && go build ./cmd/graft`.
 
+## 2026-05-15 bootstrap contract slice
+
+- Added protected `GET /api/auth/bootstrap` inside `server/plugins/user`, keeping the first real
+  `auth + current user + permission + menu + locale` bootstrap payload inside the existing plugin boundary instead of
+  expanding `core` or adding a new shared abstraction.
+- Reused the existing request-auth middleware context for current-user identity, the RBAC repository for current
+  permission resolution, the menu registry for registration-order-stable menu filtering, and the i18n/config snapshot
+  for locale bootstrap data.
+- Added focused `server/plugins/user` route coverage for unauthenticated rejection plus the successful contract path
+  that locks permission-code dedup/sort, permission-filtered menus, and locale snapshot fields.
+- Revalidated the slice with `cd server && go test ./plugins/user` and `cd server && go build ./cmd/graft`.
+
 ## Next Step
 
-- Freeze the backend contract surface that `web` needs for `auth + menu + permission + locale` integration, then move
-  the next batch to synchronized `server` + `web` work instead of widening backend-only session-governance behavior.
+- Keep the new bootstrap contract stable enough for `web` starter-shell hookup, then move the next batch to
+  synchronized `server` + `web` work instead of widening backend-only session-governance behavior.
