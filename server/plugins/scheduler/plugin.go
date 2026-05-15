@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"go.uber.org/zap"
-
 	"graft/server/internal/plugin"
 	schedulercore "graft/server/internal/scheduler"
 )
@@ -70,12 +68,4 @@ func (p *Plugin) Shutdown(ctx *plugin.Context) error {
 
 	stopCtx := context.Background()
 	return p.runtime.Stop(stopCtx)
-}
-
-func logJobFailure(logger *zap.Logger, job string, err error) {
-	if logger == nil || err == nil {
-		return
-	}
-
-	logger.Error("scheduler job failed", zap.String("job", job), zap.Error(err))
 }

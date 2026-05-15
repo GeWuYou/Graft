@@ -22,6 +22,7 @@
 - 最小 `scheduler` 闭环已接入运行时：`cron registry` 声明现在通过独立 `scheduler` 封装装配到 `robfig/cron/v3`，启动与停止语义仍收敛在插件生命周期边界内。
 - `user` 插件已新增受保护的 `GET /api/auth/bootstrap` 最小契约：当前登录用户、当前权限码列表、按权限过滤后的菜单列表，以及 locale 配置快照现在可以通过一条真实后端接口返回，供 `web` 后续壳层接线直接消费。
 - PR #9 当前一轮 AI review 已确认并落地的 `server` 跟进包括：统一审计 `Action` trim 一致性、主动审计事件同时兼容值/指针 payload、bootstrap locale fallback 去重，以及 `pluginapi.AuditEvent`、scheduler 生命周期文档补强。
+- PR #9 当前剩余的 greptile `server` 评论已核对到本地 HEAD：`scheduler` 插件尾部未使用的 `logJobFailure` 确认为死代码，`audit` 请求级自动审计已改为把 `ResourceType` 从稳定路由中拆解为资源域，避免继续与 `RequestPath` 重复。
 - `pluginapi`、registries、store factory 与当前 auth/menu/permission/i18n 返回面，已经成为 `web` 真实契约收敛前必须谨慎冻结的后端边界。
 - 详细实现历史保留在 `subtopics/server/traces/server-trace.md`。
 
@@ -58,6 +59,9 @@
   - `cd server && go build ./cmd/graft`
 - 本次 PR #9 review follow-up 预期直接校验：
   - `cd server && go test ./plugins/audit ./plugins/user ./internal/scheduler`
+  - `cd server && go build ./cmd/graft`
+- 本次 PR #9 greptile follow-up 预期直接校验：
+  - `cd server && go test ./plugins/audit ./plugins/scheduler`
   - `cd server && go build ./cmd/graft`
 - 当前后端恢复基线沿用最近一次 focused backend validation：
   - `cd server && go test ./internal/cli ./internal/app ./internal/store ./internal/store/entstore ./plugins/user ./plugins/rbac`

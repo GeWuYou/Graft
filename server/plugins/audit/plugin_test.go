@@ -160,6 +160,9 @@ func TestRequestAuditMiddlewareCapturesAuthenticatedRequest(t *testing.T) {
 	if record.Action != "GET /api/users/:id" {
 		t.Fatalf("expected stable action, got %q", record.Action)
 	}
+	if record.ResourceType != "users" {
+		t.Fatalf("expected resource type users, got %q", record.ResourceType)
+	}
 	if record.ResourceID != "42" {
 		t.Fatalf("expected resource id 42, got %q", record.ResourceID)
 	}

@@ -86,7 +86,7 @@ func requestAuditMiddleware(logger *zap.Logger, recorder *auditcore.Service) gin
 
 		input := auditcore.RecordInput{
 			Action:        buildAction(ctx),
-			ResourceType:  currentRoutePath(ctx),
+			ResourceType:  currentResourceType(ctx),
 			ResourceID:    currentResourceID(ctx),
 			RequestMethod: ctx.Request.Method,
 			RequestPath:   currentRoutePath(ctx),
@@ -154,6 +154,25 @@ func currentRoutePath(ctx *gin.Context) string {
 	}
 
 	return strings.TrimSpace(ctx.Request.URL.Path)
+}
+
+func currentResourceType(ctx *gin.Context) string {
+	route := strings.TrimSpace(currentRoutePath(ctx))
+	if route == "" {
+		return ""
+	}
+
+	segments := strings.Split(strings.Trim(route, "/"), "/")
+	for _, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		if segment == "" || strings.HasPrefix(segment, ":") || segment == "api" {
+			continue
+		}
+
+		return segment
+	}
+
+	return ""
 }
 
 func currentResourceID(ctx *gin.Context) string {

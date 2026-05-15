@@ -259,6 +259,18 @@
   and supplemented scheduler lifecycle comments plus `Stop(nil)` wait-behavior coverage to match the repository
   documentation standard.
 
+## 2026-05-15 PR #9 greptile server follow-up
+
+- Verified the remaining greptile `server` findings against local HEAD instead of assuming the review threads were
+  stale after the earlier PR #9 follow-up.
+- Removed the unused `logJobFailure` helper from `server/plugins/scheduler` because runtime job-failure logging is
+  already centralized in `server/internal/scheduler/runtime.go`.
+- Narrowed `server/plugins/audit` request-level audit capture so `ResourceType` now records the first stable resource
+  segment derived from the route template, while `RequestPath` continues to preserve the full route pattern for request
+  tracing.
+- Added focused `server/plugins/audit` regression coverage that locks the new `ResourceType` extraction contract for an
+  authenticated `/api/users/:id` request.
+
 ## Next Step
 
 - Keep the new bootstrap contract stable enough for `web` starter-shell hookup, then move the next batch to
