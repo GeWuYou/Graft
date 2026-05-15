@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/app"
+	"graft/server/plugins/rbac"
 	"graft/server/plugins/user"
 )
 
@@ -29,7 +30,10 @@ func newServeCommand() *cobra.Command {
 // 它把 CLI 上下文转换为可响应 SIGINT 和 SIGTERM 的运行时上下文，让
 // `app.Runtime` 能沿同一条显式生命周期路径完成关闭。
 func runServe(cmd *cobra.Command, args []string) error {
-	runtime, err := app.NewRuntime(user.NewPlugin())
+	runtime, err := app.NewRuntime(
+		user.NewPlugin(),
+		rbac.NewPlugin(),
+	)
 	if err != nil {
 		return fmt.Errorf("create runtime: %w", err)
 	}

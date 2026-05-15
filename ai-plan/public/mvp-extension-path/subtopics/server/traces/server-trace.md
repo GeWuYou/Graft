@@ -56,8 +56,15 @@
 - Normalized the active `web` tracking snapshot to repository-portable Bun commands so `ai-plan/**` no longer records machine-specific absolute paths.
 - Aligned the `migrate` CLI fallback regression test with the new explicit auth-signing requirement, so `go test ./...` no longer fails on missing JWT signing configuration before reaching the context-fallback assertion.
 
+## 2026-05-15 request auth context slice
+
+- Replaced the `server/internal/httpx` request-header authorization placeholder with bearer-token parsing plus a stable request auth context built on `pluginapi.RequestAuthContext`.
+- Extended `server/internal/pluginapi` with stable auth error semantics and context helpers so core middleware, auth parsing, and authorization decisions can exchange one explicit request-auth view without framework-global coupling.
+- Registered the minimal `pluginapi.AuthService` in `server/plugins/user`, reusing the existing HS256 access-token helper and stable user repository boundary to resolve the current request user.
+- Added the first real `server/plugins/rbac` plugin and exposed `pluginapi.Authorizer` on top of the RBAC repository boundary, then wired `graft serve` to boot both `user` and `rbac`.
+- Updated direct `httpx` / `user` / `rbac` tests to lock down bearer-token auth, permission denial, and request-context propagation behavior, then kept focused backend validation and `go build ./cmd/graft` green.
+
 ## Next Step
 
-- Execute live Atlas validation against a disposable PostgreSQL target, then replace the request-header authorization
-  placeholder with the real request-auth, login, refresh, and RBAC plugin chain on top of the new persistence
-  baseline.
+- Execute live Atlas validation against a disposable PostgreSQL target, then add login, refresh-session rotation, and
+  session-hardening behavior on top of the new request-auth and RBAC plugin chain.

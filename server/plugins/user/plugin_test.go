@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,10 +22,12 @@ import (
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
+	"graft/server/plugins/rbac"
 )
 
 type pluginTestStoreFactory struct {
-	users store.UserRepository
+	users       store.UserRepository
+	permissions map[uint64][]store.Permission
 }
 
 func (f pluginTestStoreFactory) Users() store.UserRepository {
@@ -35,8 +38,8 @@ func (pluginTestStoreFactory) Auth() store.AuthRepository {
 	return nil
 }
 
-func (pluginTestStoreFactory) RBAC() store.RBACRepository {
-	return nil
+func (f pluginTestStoreFactory) RBAC() store.RBACRepository {
+	return pluginTestRBACRepository{permissions: f.permissions}
 }
 
 type pluginTestUserRepository struct {
@@ -51,17 +54,39 @@ func (r pluginTestUserRepository) GetByID(ctx context.Context, id uint64) (store
 	return r.getByID(ctx, id)
 }
 
+type pluginTestRBACRepository struct {
+	permissions map[uint64][]store.Permission
+}
+
+func (r pluginTestRBACRepository) ListRolesByUserID(ctx context.Context, userID uint64) ([]store.Role, error) {
+	return nil, nil
+}
+
+func (r pluginTestRBACRepository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]store.Permission, error) {
+	if r.permissions == nil {
+		return []store.Permission{}, nil
+	}
+
+	return r.permissions[userID], nil
+}
+
 func newPluginTestContext(t *testing.T, repo store.UserRepository) (*plugin.Context, *gin.Engine) {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	ctx := &plugin.Context{
-		Logger:             zap.NewNop(),
-		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		Router:             engine.Group("/api"),
-		Services:           container.New(),
-		Stores:             pluginTestStoreFactory{users: repo},
+		Logger:   zap.NewNop(),
+		Config:   &config.Config{Auth: config.AuthConfig{AccessTokenTTL: 15 * time.Minute, SigningKey: "test-signing-key"}},
+		I18n:     i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Router:   engine.Group("/api"),
+		Services: container.New(),
+		Stores: pluginTestStoreFactory{
+			users: repo,
+			permissions: map[uint64][]store.Permission{
+				7: {{Code: "user.read"}},
+			},
+		},
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
@@ -70,14 +95,38 @@ func newPluginTestContext(t *testing.T, repo store.UserRepository) (*plugin.Cont
 	if err := NewPlugin().Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
+	if err := rbac.NewPlugin().Register(ctx); err != nil {
+		t.Fatalf("register rbac plugin: %v", err)
+	}
 
 	return ctx, engine
 }
 
-func newAuthorizedRequest(path string) *http.Request {
+func newAuthorizedRequest(t *testing.T, path string) *http.Request {
+	return newAuthorizedRequestForUser(t, path, 7)
+}
+
+func newAuthorizedRequestForUser(t *testing.T, path string, userID uint64) *http.Request {
+	t.Helper()
+
+	manager, err := newAccessTokenManager(config.AuthConfig{
+		AccessTokenTTL: 15 * time.Minute,
+		SigningKey:     "test-signing-key",
+	})
+	if err != nil {
+		t.Fatalf("new access token manager: %v", err)
+	}
+	token, _, err := manager.Issue(accessTokenSubject{
+		UserID:       userID,
+		SessionID:    "session-1",
+		TokenVersion: 1,
+	})
+	if err != nil {
+		t.Fatalf("issue access token: %v", err)
+	}
+
 	request := httptest.NewRequest(http.MethodGet, path, nil)
-	request.Header.Set("X-Graft-Actor", "alice")
-	request.Header.Set("X-Graft-Permissions", "user.read")
+	request.Header.Set("Authorization", "Bearer "+token)
 	return request
 }
 
@@ -121,14 +170,23 @@ func TestRegisterPublishesContracts(t *testing.T) {
 // JSON 响应，而不是继续访问仓储。
 func TestUserRouteRejectsInvalidID(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(context.Context, uint64) (store.User, error) {
-			t.Fatal("user repository should not be called for invalid ids")
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id == 7 {
+				return store.User{
+					ID:        7,
+					Username:  "alice",
+					Display:   "Alice",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}, nil
+			}
+			t.Fatalf("user repository should not be called for invalid route id, got %d", id)
 			return store.User{}, nil
 		},
 	})
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedRequest("/api/users/not-a-number"))
+	engine.ServeHTTP(recorder, newAuthorizedRequest(t, "/api/users/not-a-number"))
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, recorder.Code)
@@ -153,13 +211,22 @@ func TestUserRouteRejectsInvalidID(t *testing.T) {
 // 与稳定错误消息，便于前端后续接入统一空态分支。
 func TestUserRouteReturnsNotFoundContract(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(context.Context, uint64) (store.User, error) {
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id == 7 {
+				return store.User{
+					ID:        7,
+					Username:  "alice",
+					Display:   "Alice",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}, nil
+			}
 			return store.User{}, store.ErrUserNotFound
 		},
 	})
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequest("/api/users/7")
+	request := newAuthorizedRequest(t, "/api/users/8")
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -195,7 +262,7 @@ func TestUserRouteReturnsSummary(t *testing.T) {
 	})
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedRequest("/api/users/7"))
+	engine.ServeHTTP(recorder, newAuthorizedRequest(t, "/api/users/7"))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
@@ -217,22 +284,34 @@ func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/users/7", nil)
-	request.Header.Set("X-Graft-Actor", "alice")
-	request.Header.Set("X-Graft-Permissions", "dashboard.view")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
 	}
 
 	var payload httpx.ErrorResponse
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "auth.missing_permission" {
+	if payload.MessageKey != "auth.missing_actor" {
 		t.Fatalf("expected permission middleware payload, got %#v", payload)
 	}
-	if payload.Details["permission"] != "user.read" {
-		t.Fatalf("expected denied permission to be user.read, got %#v", payload)
+}
+
+// TestAuthServiceCurrentUserRequiresClaims 验证当前主体解析要求调用链先建立稳定 claims。
+func TestAuthServiceCurrentUserRequiresClaims(t *testing.T) {
+	service := authService{
+		users: pluginTestUserRepository{
+			getByID: func(context.Context, uint64) (store.User, error) {
+				t.Fatal("user repository should not be called when claims are missing")
+				return store.User{}, nil
+			},
+		},
+	}
+
+	_, err := service.CurrentUser(context.Background())
+	if !errors.Is(err, pluginapi.ErrUnauthenticated) {
+		t.Fatalf("expected ErrUnauthenticated, got %v", err)
 	}
 }

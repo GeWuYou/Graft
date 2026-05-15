@@ -2,8 +2,22 @@ package pluginapi
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+var (
+	// ErrUnauthenticated 表示当前请求未建立有效登录态。
+	ErrUnauthenticated = errors.New("unauthenticated")
+	// ErrInvalidAccessToken 表示访问令牌格式、签名或主体信息无效。
+	ErrInvalidAccessToken = errors.New("invalid access token")
+	// ErrExpiredAccessToken 表示访问令牌已经超过有效期。
+	ErrExpiredAccessToken = errors.New("expired access token")
+	// ErrPermissionDenied 表示认证成功但缺少访问所需权限。
+	ErrPermissionDenied = errors.New("permission denied")
+)
+
+type requestAuthContextKey struct{}
 
 // CurrentUser 描述跨插件可依赖的当前登录主体摘要。
 //
@@ -31,6 +45,27 @@ type AccessTokenClaims struct {
 type RequestAuthContext struct {
 	User   *CurrentUser
 	Claims *AccessTokenClaims
+}
+
+// WithRequestAuthContext 返回带有稳定请求鉴权上下文的派生 context。
+//
+// 该辅助函数让 core 中间件、认证服务和业务插件可以沿 `context.Context`
+// 显式传递一次请求的认证结果，而不必依赖框架私有全局状态。
+func WithRequestAuthContext(ctx context.Context, auth RequestAuthContext) context.Context {
+	return context.WithValue(ctx, requestAuthContextKey{}, auth)
+}
+
+// RequestAuthContextFromContext 读取一次请求当前已解析的鉴权上下文。
+//
+// 当调用链尚未建立认证结果时，返回值中的 `ok` 为 false，调用方应按未登录
+// 路径处理，而不是假设这里一定存在有效主体。
+func RequestAuthContextFromContext(ctx context.Context) (auth RequestAuthContext, ok bool) {
+	if ctx == nil {
+		return RequestAuthContext{}, false
+	}
+
+	auth, ok = ctx.Value(requestAuthContextKey{}).(RequestAuthContext)
+	return auth, ok
 }
 
 // AuthService 暴露认证链路的最小稳定能力接口。

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -76,8 +77,22 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		return err
 	}
 
+	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(resolver container.Resolver) (any, error) {
+		tokenManager, err := newAccessTokenManager(ctx.Config.Auth)
+		if err != nil {
+			return nil, err
+		}
+
+		return authService{
+			users:  ctx.Stores.Users(),
+			tokens: tokenManager,
+		}, nil
+	}); err != nil {
+		return err
+	}
+
 	group := ctx.Router.Group("/users")
-	group.Use(httpx.RequirePermission(ctx.I18n, "user.read"))
+	group.Use(httpx.RequirePermission(ctx.I18n, ctx.Services, "user.read"))
 	group.GET("/:id", func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
@@ -142,6 +157,11 @@ type userService struct {
 	users store.UserRepository
 }
 
+type authService struct {
+	users  store.UserRepository
+	tokens *accessTokenManager
+}
+
 // GetUserByID 通过稳定仓储契约读取用户，并收敛为跨插件 DTO。
 func (s userService) GetUserByID(ctx context.Context, id uint64) (pluginapi.UserSummary, error) {
 	record, err := s.users.GetByID(ctx, id)
@@ -155,6 +175,50 @@ func (s userService) GetUserByID(ctx context.Context, id uint64) (pluginapi.User
 		Display:  record.Display,
 	}, nil
 }
+
+// CurrentUser 根据请求上下文中已解析的访问令牌声明返回当前主体摘要。
+//
+// 该实现要求调用链先通过鉴权中间件写入稳定 claims，再按用户仓储读取跨
+// 插件可见的最小用户资料，不把 token 解析细节泄漏给业务调用方。
+func (s authService) CurrentUser(ctx context.Context) (*pluginapi.CurrentUser, error) {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.Claims == nil {
+		return nil, pluginapi.ErrUnauthenticated
+	}
+
+	record, err := s.users.GetByID(ctx, requestAuth.Claims.UserID)
+	if err != nil {
+		if errors.Is(err, store.ErrUserNotFound) {
+			return nil, pluginapi.ErrUnauthenticated
+		}
+		return nil, err
+	}
+
+	return &pluginapi.CurrentUser{
+		ID:          record.ID,
+		Username:    record.Username,
+		DisplayName: record.Display,
+	}, nil
+}
+
+// ParseAccessToken 校验 access token 并返回跨插件稳定 claims。
+func (s authService) ParseAccessToken(ctx context.Context, token string) (*pluginapi.AccessTokenClaims, error) {
+	claims, err := s.tokens.Parse(strings.TrimSpace(token))
+	if err != nil {
+		switch {
+		case errors.Is(err, errExpiredAccessToken):
+			return nil, pluginapi.ErrExpiredAccessToken
+		case errors.Is(err, errInvalidAccessToken):
+			return nil, pluginapi.ErrInvalidAccessToken
+		default:
+			return nil, err
+		}
+	}
+
+	return claims, nil
+}
+
+var _ pluginapi.AuthService = authService{}
 
 // parseUserID 将路由参数转换为插件内部统一使用的正整数 ID。
 func parseUserID(input string) (uint64, error) {

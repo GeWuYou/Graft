@@ -22,8 +22,9 @@
 - `plugin.Context` and cross-plugin contracts now reserve a repository/store factory boundary instead of exposing a
   concrete ORM handle.
 - `graft migrate up`, `graft serve`, and `graft dev` are the supported backend entrypoints.
-- Backend permission protection currently exists as an MVP placeholder based on request headers and still needs the
-  real auth + RBAC plugin chain.
+- Backend permission protection now uses bearer access-token parsing plus a stable request auth context wired through
+  `pluginapi.AuthService` and `pluginapi.Authorizer`, with the minimal auth implementation in `user` and the minimal
+  authorization implementation in `rbac`.
 - The backend runtime now owns first-class logger and i18n services, and localized HTTP errors use the stable
   `message_key + message + locale` contract.
 - The backend side of the comment-governance sweep is complete across the hand-written core/runtime/plugin packages.
@@ -34,15 +35,17 @@
 - `server/internal/ent/schema` and `server/internal/store` now reserve the MVP auth/RBAC persistence baseline,
   including password-hash fields, refresh sessions, roles, permissions, and stable repository/store DTO boundaries.
 - `server/plugins/user` now contains the first auth utility layer for bcrypt password hashing and HS256 access-token
-  issue/parse helpers, without yet wiring login, refresh, or request auth middleware.
+  issue/parse helpers, and also exposes the minimal `pluginapi.AuthService` needed to parse bearer access tokens and
+  resolve the current user from stable request claims.
+- `server/plugins/rbac` now exists as the minimal authorization plugin that exposes `pluginapi.Authorizer` on top of
+  the stable RBAC repository boundary.
 
 ## Active Risks
 
 - Atlas CLI execution still lacks live validation against a disposable PostgreSQL target in this environment.
-- The request-header authorization placeholder must be replaced without leaking auth logic into core or breaking plugin
-  boundaries.
-- The auth configuration, `pluginapi` contracts, and user-plugin auth helpers are still not wired into the real
-  login/refresh/request-auth flow.
+- The current request-auth chain still lacks login, refresh-token rotation, session revocation, and cookie handling.
+- The temporary placement of minimal `AuthService` inside `server/plugins/user` keeps the critical path moving, but
+  future work should reevaluate whether a dedicated auth plugin boundary is needed once login and refresh APIs land.
 - Future backend work must avoid leaking Ent-specific details through `plugin.Context` or cross-plugin public APIs.
 
 ## Latest Validation
@@ -64,9 +67,12 @@
   - `cd server && go build ./cmd/graft`
 - The latest migration CLI regression follow-up validation included:
   - `cd server && env GOCACHE=/tmp/graft-go-cache go test ./...`
+- The latest request-auth-context follow-up validation included:
+  - `cd server && go test ./internal/httpx ./plugins/user ./plugins/rbac`
+  - `cd server && go test ./internal/cli ./internal/app ./internal/pluginapi ./internal/store ./internal/store/entstore`
+  - `cd server && go build ./cmd/graft`
 
 ## Immediate Next Step
 
-- Replace the request-header authorization placeholder with a real request auth context, then wire login, access-token
-  parsing, RBAC authorization, and refresh-session rotation onto the new store boundaries without leaking Ent details
-  into `pluginapi` or core middleware.
+- Wire login, refresh-session rotation, and request-auth session hardening onto the new bearer-token and request-auth
+  context path without leaking Ent details into `pluginapi` or core middleware.
