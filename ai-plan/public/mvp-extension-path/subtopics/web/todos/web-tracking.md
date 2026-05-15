@@ -73,6 +73,11 @@
   stable `moduleName` ownership, serializable `meta/context`, explicit sensitive-data restrictions, a strict
   separation between logger output and UI message responsibility, no silent swallowing after `logger.error` in `catch`,
   temporary debug lifecycle cleanup rules, and AI debug-noise limits for generated frontend code.
+- The latest commit-governance slice now lands the minimum repository hook enforcement for commit messages without
+  touching the active backend line:
+  the existing `.husky/commit-msg` hook still reuses `web`'s local `commitlint`, `scope` is now mandatory in the
+  Conventional Commit header, and a new repository script rejects literal escaped control text such as `\n`, `\t`,
+  and `\r` inside commit messages so automation must emit real multi-line text.
 
 ## Active Risks
 
@@ -114,6 +119,10 @@
 - The latest governance-tightening validation snapshot additionally requires:
   - host Windows Bun `bun run check`
   - no new `console.log`-style debug output under `web/src`
+- The latest commit-governance validation snapshot is:
+  - `cd web && ./node_modules/.bin/commitlint --config commitlint.config.mjs --edit <valid-message-file>`
+  - `cd web && ./node_modules/.bin/commitlint --config commitlint.config.mjs --edit <invalid-scope-message-file>` and expect `scope-empty`
+  - `node scripts/validate-commit-message.mjs <invalid-escaped-message-file>` and expect rejection of literal `\n` / `\t` / `\r`
 
 ## Immediate Next Step
 
@@ -130,3 +139,5 @@
 - When the frontend logger slice moves from documentation to implementation, keep it infrastructure-scoped first:
   add the core logger path and governance boundary without coupling it to UI message flows or a broader remote logging
   platform in the same change.
+- If the repository later wants stronger commit-message semantics, extend the same `commit-msg` hook path with
+  body-bullet verb checks or summary-language checks instead of introducing a second parallel hook stack.

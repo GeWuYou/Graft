@@ -126,6 +126,16 @@
   explicit separation between logger output and UI messages, no silent swallowing after `logger.error` in `catch`,
   temporary debug lifecycle cleanup, and AI debug-noise control.
 
+## 2026-05-15 commit message hook tightening
+
+- Reused the existing repository `.husky/commit-msg` path instead of adding a new hook system, keeping commit-message
+  enforcement aligned with the current `web`-local `commitlint` dependency layout.
+- Tightened the minimum Conventional Commit contract by requiring an explicit `scope` in `web/commitlint.config.mjs`.
+- Added `scripts/validate-commit-message.mjs` so commit messages now reject literal escaped control text such as
+  `\n`, `\t`, and `\r`, forcing automation to emit real multi-line text before `git commit`.
+- Validated the slice with one passing sample commit message, one failing missing-scope sample through `commitlint`,
+  and one failing escaped-control-text sample through the new script.
+
 ## Next Step
 
 - Continue the workbench slice by improving grouped token-editor ergonomics and layout-preview fidelity without

@@ -1,3 +1,5 @@
+set -eu
+
 message_file="$1"
 repo_root="$(git rev-parse --show-toplevel)"
 
@@ -6,4 +8,6 @@ case "$message_file" in
   *) message_file="$repo_root/$message_file" ;;
 esac
 
-cd web && ./node_modules/.bin/commitlint --config commitlint.config.mjs --edit "$message_file"
+cd "$repo_root/web"
+./node_modules/.bin/commitlint --strict --config commitlint.config.mjs --edit "$message_file"
+node "$repo_root/scripts/validate-commit-message.mjs" "$message_file"
