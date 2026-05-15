@@ -76,6 +76,9 @@ func TestMessageFallsBackToConfiguredLocalesAndKey(t *testing.T) {
 	if message := service.Message("en-US", "auth.invalid_refresh_session"); message != "Invalid or expired refresh session" {
 		t.Fatalf("expected en-US auth refresh message, got %q", message)
 	}
+	if message := service.Message("en-US", "auth.session_not_found"); message != "Session not found or already inactive" {
+		t.Fatalf("expected en-US auth session-not-found message, got %q", message)
+	}
 	if message := service.Message("en-US", "missing.key"); message != "missing.key" {
 		t.Fatalf("expected missing key fallback, got %q", message)
 	}

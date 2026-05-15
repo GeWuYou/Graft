@@ -59,6 +59,10 @@
 - `server/plugins/user` now also exposes the minimal active-session visibility path through current-user
   `GET /api/auth/sessions` and admin `GET /api/users/:id/sessions`, keeping session reading inside the plugin on top of
   a stable active-session repository boundary plus explicit `user.session.read` permission semantics.
+- `server/plugins/user` now also exposes single-session targeted revoke through current-user
+  `POST /api/auth/sessions/:sessionID/revoke` and admin `POST /api/users/:id/sessions/:sessionID/revoke`, keeping
+  targeted session governance on top of a stable `userID + sessionID` repository boundary plus the existing explicit
+  `user.session.revoke` permission semantics.
 - `server/plugins/rbac` now exists as the minimal authorization plugin that exposes `pluginapi.Authorizer` on top of
   the stable RBAC repository boundary.
 
@@ -67,7 +71,8 @@
 - The disposable PostgreSQL + Atlas live validation path is now proven locally, but it still depends on manual
   disposable Docker resources instead of a repository-local one-command validation entrypoint.
 - The current request-auth chain now covers the current user's full refresh-session revoke loop, but it still lacks
-  richer session/audit governance beyond the minimal login/refresh/logout/self-list/self-revoke/admin-list/admin-revoke plus
+  richer session/audit governance beyond the minimal login/refresh/logout/self-list/self-revoke/admin-list/admin-revoke,
+  targeted session revoke, plus
   protected-request hardening loop.
 - The temporary placement of minimal `AuthService` inside `server/plugins/user` keeps the critical path moving, but
   future work should reevaluate whether a dedicated auth plugin boundary is needed once login and refresh APIs land.
@@ -117,6 +122,9 @@
 - The latest active-session visibility slice validation included:
   - `cd server && go test ./plugins/user ./internal/store/entstore`
   - `cd server && go build ./cmd/graft`
+- The latest targeted-session revoke slice validation included:
+  - `cd server && go test ./plugins/user ./internal/store/entstore ./internal/i18n`
+  - `cd server && go build ./cmd/graft`
 - The latest disposable PostgreSQL + Atlas live validation included:
   - `cd server && go build -o <temp-binary> ./cmd/graft`
   - `cd server && GRAFT_DATABASE_URL=postgres://graft:graft@127.0.0.1:<pg-port>/graft?sslmode=disable GRAFT_REDIS_ADDR=127.0.0.1:6379 GRAFT_AUTH_JWT_SECRET=<secret> <temp-binary> migrate up`
@@ -129,4 +137,4 @@
 ## Immediate Next Step
 
 - Extend the session-management path with audit-linked governance or narrower operator workflows while keeping the new
-  active-session visibility and revoke semantics inside the existing plugin boundary.
+  active-session visibility, targeted revoke, and bulk revoke semantics inside the existing plugin boundary.

@@ -132,6 +132,32 @@ func (r *authRepository) RevokeRefreshSessionsByUserID(ctx context.Context, inpu
 	return nil
 }
 
+// RevokeRefreshSessionByUserID 按用户定向吊销一条当前有效的 refresh session。
+func (r *authRepository) RevokeRefreshSessionByUserID(ctx context.Context, input store.RevokeRefreshSessionByUserIDInput) error {
+	userID, err := toEntID(input.UserID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := r.client.RefreshSession.Update().
+		Where(
+			entrefreshsession.UserIDEQ(userID),
+			entrefreshsession.TokenIDEQ(input.TokenID),
+			entrefreshsession.RevokedAtIsNil(),
+			entrefreshsession.ExpiresAtGT(input.RevokedAt),
+		).
+		SetRevokedAt(input.RevokedAt).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("revoke refresh session by user id: %w", err)
+	}
+	if affected == 0 {
+		return store.ErrRefreshSessionNotFound
+	}
+
+	return nil
+}
+
 // ListActiveRefreshSessionsByUserID 按用户读取当前有效的 refresh session 列表。
 func (r *authRepository) ListActiveRefreshSessionsByUserID(ctx context.Context, input store.ListActiveRefreshSessionsByUserIDInput) ([]store.RefreshSession, error) {
 	userID, err := toEntID(input.UserID)

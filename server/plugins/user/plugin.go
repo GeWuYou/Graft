@@ -236,6 +236,39 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 
 		ginCtx.JSON(http.StatusOK, sessions)
 	})
+	// 当前用户可对自己的一条有效 session 做定向吊销，保持会话治理仍然落在
+	// user 插件边界内，而不是把单条操作拆进 core 中间件或公共 auth 服务。
+	authGroup.POST("/sessions/:sessionID/revoke", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+		sessionID := strings.TrimSpace(ginCtx.Param("sessionID"))
+		if sessionID == "" {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "sessionID",
+			})
+			return
+		}
+
+		if err := authSvc.RevokeCurrentUserSession(ginCtx.Request.Context(), sessionID); err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("revoke current user refresh session failed",
+					zap.String("plugin", p.Name()),
+					zap.String("sessionID", sessionID),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		if requestAuth, ok := pluginapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok &&
+			requestAuth.Claims != nil &&
+			requestAuth.Claims.SessionID == sessionID {
+			authSvc.cookies.clearRefreshCookie(ginCtx)
+		}
+
+		ginCtx.Status(http.StatusNoContent)
+	})
 
 	group := ctx.Router.Group("/users")
 	group.GET("/:id", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.read"), func(ginCtx *gin.Context) {
@@ -326,6 +359,68 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		}
 
 		ginCtx.JSON(http.StatusOK, sessions)
+	})
+	// 管理员按用户与 session 双重显式标识做定向吊销，避免单独暴露 sessionID
+	// 时跨用户误操作，同时保持权限与业务边界都停留在 user 插件内部。
+	group.POST("/:id/sessions/:sessionID/revoke", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.session.revoke"), func(ginCtx *gin.Context) {
+		rawID, err := parseUserID(ginCtx.Param("id"))
+		if err != nil {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "id",
+			})
+			return
+		}
+
+		sessionID := strings.TrimSpace(ginCtx.Param("sessionID"))
+		if sessionID == "" {
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+				"field": "sessionID",
+			})
+			return
+		}
+
+		summary, err := userSvc.GetUserByID(ginCtx.Request.Context(), rawID)
+		if err != nil {
+			status := http.StatusInternalServerError
+			messageKey := "common.internal_error"
+			if errors.Is(err, store.ErrUserNotFound) {
+				status = http.StatusNotFound
+				messageKey = "user.not_found"
+			} else {
+				ctx.Logger.Error("get user by id before revoking session failed",
+					zap.String("plugin", p.Name()),
+					zap.Uint64("userID", rawID),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		if err := authSvc.RevokeUserSession(ginCtx.Request.Context(), summary.ID, sessionID); err != nil {
+			status, messageKey := mapAuthError(err)
+			if status == http.StatusInternalServerError {
+				ctx.Logger.Error("admin revoke user refresh session failed",
+					zap.String("plugin", p.Name()),
+					zap.Uint64("userID", rawID),
+					zap.String("sessionID", sessionID),
+					zap.Error(err),
+				)
+			}
+
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, status, messageKey, nil)
+			return
+		}
+
+		if requestAuth, ok := pluginapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok &&
+			requestAuth.Claims != nil &&
+			requestAuth.Claims.UserID == rawID &&
+			requestAuth.Claims.SessionID == sessionID {
+			authSvc.cookies.clearRefreshCookie(ginCtx)
+		}
+
+		ginCtx.Status(http.StatusNoContent)
 	})
 	// 管理员按用户 ID 批量吊销 refresh sessions 仍保持在 user 插件边界内，
 	// 通过专用权限码和显式路由声明治理入口，不把该语义扩散到 core。
@@ -482,6 +577,8 @@ func mapAuthError(err error) (int, string) {
 		return http.StatusUnauthorized, "auth.missing_actor"
 	case errors.Is(err, errInvalidLoginCredentials):
 		return http.StatusUnauthorized, "auth.invalid_credentials"
+	case errors.Is(err, errSessionNotFound):
+		return http.StatusNotFound, "auth.session_not_found"
 	case errors.Is(err, errRefreshSessionFailed):
 		return http.StatusUnauthorized, "auth.invalid_refresh_session"
 	default:

@@ -79,6 +79,20 @@ func TestAuthRepositoryRevokeRefreshSessionsByUserIDRejectsInvalidID(t *testing.
 	}
 }
 
+// TestAuthRepositoryRevokeRefreshSessionByUserIDRejectsInvalidID 验证按用户定向吊销单个刷新会话时仍保留稳定参数错误语义。
+func TestAuthRepositoryRevokeRefreshSessionByUserIDRejectsInvalidID(t *testing.T) {
+	repo := &authRepository{}
+
+	err := repo.RevokeRefreshSessionByUserID(context.Background(), store.RevokeRefreshSessionByUserIDInput{
+		UserID:    0,
+		TokenID:   "token-id",
+		RevokedAt: time.Now().UTC(),
+	})
+	if !errors.Is(err, store.ErrInvalidID) {
+		t.Fatalf("expected ErrInvalidID, got %v", err)
+	}
+}
+
 // TestAuthRepositoryListActiveRefreshSessionsByUserIDRejectsInvalidID 验证按用户读取当前有效刷新会话列表时仍保留稳定参数错误语义。
 func TestAuthRepositoryListActiveRefreshSessionsByUserIDRejectsInvalidID(t *testing.T) {
 	repo := &authRepository{}

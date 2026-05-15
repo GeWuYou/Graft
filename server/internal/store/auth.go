@@ -64,6 +64,13 @@ type RevokeRefreshSessionsByUserIDInput struct {
 	RevokedAt time.Time
 }
 
+// RevokeRefreshSessionByUserIDInput 描述一次按用户定向吊销单个刷新会话所需的最小输入。
+type RevokeRefreshSessionByUserIDInput struct {
+	UserID    uint64
+	TokenID   string
+	RevokedAt time.Time
+}
+
 // RotateRefreshSessionInput 描述一次 refresh session 轮换所需的最小输入。
 //
 // 该输入把“吊销旧会话并创建新会话”收敛为一个显式仓储操作，避免插件层在并发
@@ -107,6 +114,12 @@ type AuthRepository interface {
 	//
 	// 该操作应保持幂等，允许同一用户在没有可吊销会话时直接成功返回。
 	RevokeRefreshSessionsByUserID(ctx context.Context, input RevokeRefreshSessionsByUserIDInput) error
+
+	// RevokeRefreshSessionByUserID 按用户定向吊销一条当前有效的刷新会话。
+	//
+	// 该操作只允许命中指定用户、未吊销且未过期的会话；未命中时统一返回
+	// ErrRefreshSessionNotFound。
+	RevokeRefreshSessionByUserID(ctx context.Context, input RevokeRefreshSessionByUserIDInput) error
 
 	// ListActiveRefreshSessionsByUserID 按用户读取当前有效的 refresh session 列表。
 	//

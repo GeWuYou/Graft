@@ -129,6 +129,25 @@ func (r *pluginTestAuthRepository) RevokeRefreshSessionsByUserID(_ context.Conte
 	return nil
 }
 
+func (r *pluginTestAuthRepository) RevokeRefreshSessionByUserID(_ context.Context, input store.RevokeRefreshSessionByUserIDInput) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if input.UserID == 0 {
+		return store.ErrInvalidID
+	}
+
+	session, ok := r.refreshSessions[input.TokenID]
+	if !ok || session.UserID != input.UserID || session.RevokedAt != nil || !session.ExpiresAt.After(input.RevokedAt) {
+		return store.ErrRefreshSessionNotFound
+	}
+
+	session.RevokedAt = &input.RevokedAt
+	session.UpdatedAt = input.RevokedAt
+	r.refreshSessions[input.TokenID] = session
+	return nil
+}
+
 func (r *pluginTestAuthRepository) ListActiveRefreshSessionsByUserID(_ context.Context, input store.ListActiveRefreshSessionsByUserIDInput) ([]store.RefreshSession, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -1330,6 +1349,336 @@ func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
 	}
 	if payload.MessageKey != "user.not_found" || payload.Locale != "en-US" {
 		t.Fatalf("expected user.not_found payload, got %#v", payload)
+	}
+}
+
+// TestRevokeCurrentUserSessionRouteRevokesOnlyTargetSession 验证当前用户定向吊销只会
+// 影响指定 session，不会误伤同用户名下其他有效 session。
+func TestRevokeCurrentUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 7:
+				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+	}, authRepo)
+
+	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
+	targetSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(3*time.Hour))
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/"+targetSessionID+"/revoke", 7, currentSessionID)
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+
+	targetSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), targetSessionID)
+	if err != nil {
+		t.Fatalf("load target session: %v", err)
+	}
+	if targetSession.RevokedAt == nil {
+		t.Fatalf("expected target session to be revoked, got %#v", targetSession)
+	}
+
+	currentSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), currentSessionID)
+	if err != nil {
+		t.Fatalf("load current session: %v", err)
+	}
+	if currentSession.RevokedAt != nil {
+		t.Fatalf("expected current session to remain active, got %#v", currentSession)
+	}
+}
+
+// TestRevokeCurrentUserSessionRouteClearsCookieWhenRevokingCurrentSession 验证当前用户
+// 吊销自己当前请求绑定的 session 时，会同步清理 refresh cookie。
+func TestRevokeCurrentUserSessionRouteClearsCookieWhenRevokingCurrentSession(t *testing.T) {
+	passwordHash, err := newPasswordHasher().Hash("secret")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+
+	authRepo := &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
+			if username != "alice" {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+			return store.UserCredential{
+				UserID:       7,
+				Username:     "alice",
+				PasswordHash: &passwordHash,
+			}, nil
+		},
+	}
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+		},
+	}, authRepo)
+
+	loginRecorder := httptest.NewRecorder()
+	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"secret"}`))
+	loginRequest.Header.Set("Content-Type", "application/json")
+	engine.ServeHTTP(loginRecorder, loginRequest)
+	if loginRecorder.Code != http.StatusOK {
+		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
+	}
+
+	var loginPayload loginResponse
+	if err := json.NewDecoder(loginRecorder.Body).Decode(&loginPayload); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+
+	loginCookies := loginRecorder.Result().Cookies()
+	if len(loginCookies) == 0 {
+		t.Fatal("expected refresh cookie from login")
+	}
+
+	refreshManager, err := newRefreshTokenManager(config.AuthConfig{
+		RefreshTokenTTL: 24 * time.Hour,
+		SigningKey:      "test-signing-key",
+	})
+	if err != nil {
+		t.Fatalf("new refresh token manager: %v", err)
+	}
+	currentClaims, err := refreshManager.Parse(loginCookies[0].Value)
+	if err != nil {
+		t.Fatalf("parse current refresh cookie: %v", err)
+	}
+
+	revokeRecorder := httptest.NewRecorder()
+	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/auth/sessions/"+currentClaims.TokenID+"/revoke", nil)
+	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
+	revokeRequest.AddCookie(loginCookies[0])
+	engine.ServeHTTP(revokeRecorder, revokeRequest)
+
+	if revokeRecorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, revokeRecorder.Code)
+	}
+
+	currentSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), currentClaims.TokenID)
+	if err != nil {
+		t.Fatalf("load current session: %v", err)
+	}
+	if currentSession.RevokedAt == nil {
+		t.Fatalf("expected current session to be revoked, got %#v", currentSession)
+	}
+
+	responseCookies := revokeRecorder.Result().Cookies()
+	if len(responseCookies) == 0 {
+		t.Fatal("expected current-session revoke to clear refresh cookie")
+	}
+	if responseCookies[0].Name != loginCookies[0].Name || responseCookies[0].Value != "" || responseCookies[0].MaxAge >= 0 {
+		t.Fatalf("expected cleared refresh cookie, got %#v", responseCookies[0])
+	}
+}
+
+// TestRevokeCurrentUserSessionRouteReturnsNotFoundContract 验证当前用户定向吊销未命中时
+// 返回稳定的 session-not-found 契约。
+func TestRevokeCurrentUserSessionRouteReturnsNotFoundContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+		},
+	}, authRepo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/missing-session/revoke", 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != "auth.session_not_found" || payload.Locale != "en-US" {
+		t.Fatalf("expected session not found payload, got %#v", payload)
+	}
+}
+
+// TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession 验证管理员定向吊销只会影响
+// 目标用户的指定 session，不会误伤其他用户或同用户其他会话。
+func TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 7:
+				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			case 8:
+				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			case 9:
+				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+	}, authRepo, map[uint64][]store.Permission{
+		9: {{Code: "user.session.revoke"}},
+	})
+
+	targetSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
+	otherTargetSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(3*time.Hour))
+	otherUserSessionID := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
+	adminSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/users/7/sessions/"+targetSessionID+"/revoke", 9, adminSessionID)
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+
+	targetSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), targetSessionID)
+	if err != nil {
+		t.Fatalf("load target session: %v", err)
+	}
+	if targetSession.RevokedAt == nil {
+		t.Fatalf("expected target session to be revoked, got %#v", targetSession)
+	}
+
+	for _, tokenID := range []string{otherTargetSessionID, otherUserSessionID, adminSessionID} {
+		session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
+		if err != nil {
+			t.Fatalf("load untouched session %q: %v", tokenID, err)
+		}
+		if session.RevokedAt != nil {
+			t.Fatalf("expected session %q to remain active, got %#v", tokenID, session)
+		}
+	}
+}
+
+// TestAdminRevokeUserSessionRouteClearsCurrentCookieWhenRevokingSelfCurrentSession 验证管理员
+// 定向吊销自己当前请求绑定的 session 时，会同步清理 refresh cookie。
+func TestAdminRevokeUserSessionRouteClearsCurrentCookieWhenRevokingSelfCurrentSession(t *testing.T) {
+	passwordHash, err := newPasswordHasher().Hash("secret")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+
+	authRepo := &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
+			if username != "admin" {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+			return store.UserCredential{
+				UserID:       9,
+				Username:     "admin",
+				PasswordHash: &passwordHash,
+			}, nil
+		},
+	}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 9 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+		},
+	}, authRepo, map[uint64][]store.Permission{
+		9: {{Code: "user.session.revoke"}},
+	})
+
+	loginRecorder := httptest.NewRecorder()
+	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"admin","password":"secret"}`))
+	loginRequest.Header.Set("Content-Type", "application/json")
+	engine.ServeHTTP(loginRecorder, loginRequest)
+	if loginRecorder.Code != http.StatusOK {
+		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
+	}
+
+	var loginPayload loginResponse
+	if err := json.NewDecoder(loginRecorder.Body).Decode(&loginPayload); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+
+	loginCookies := loginRecorder.Result().Cookies()
+	if len(loginCookies) == 0 {
+		t.Fatal("expected refresh cookie from login")
+	}
+
+	refreshManager, err := newRefreshTokenManager(config.AuthConfig{
+		RefreshTokenTTL: 24 * time.Hour,
+		SigningKey:      "test-signing-key",
+	})
+	if err != nil {
+		t.Fatalf("new refresh token manager: %v", err)
+	}
+	currentClaims, err := refreshManager.Parse(loginCookies[0].Value)
+	if err != nil {
+		t.Fatalf("parse current refresh cookie: %v", err)
+	}
+
+	revokeRecorder := httptest.NewRecorder()
+	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/users/9/sessions/"+currentClaims.TokenID+"/revoke", nil)
+	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
+	revokeRequest.AddCookie(loginCookies[0])
+	engine.ServeHTTP(revokeRecorder, revokeRequest)
+
+	if revokeRecorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, revokeRecorder.Code)
+	}
+
+	responseCookies := revokeRecorder.Result().Cookies()
+	if len(responseCookies) == 0 {
+		t.Fatal("expected self current-session revoke to clear refresh cookie")
+	}
+	if responseCookies[0].Name != loginCookies[0].Name || responseCookies[0].Value != "" || responseCookies[0].MaxAge >= 0 {
+		t.Fatalf("expected cleared refresh cookie, got %#v", responseCookies[0])
+	}
+}
+
+// TestAdminRevokeUserSessionRouteReturnsNotFoundContract 验证管理员定向吊销未命中时
+// 返回稳定的 session-not-found 契约。
+func TestAdminRevokeUserSessionRouteReturnsNotFoundContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 7:
+				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			case 9:
+				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+	}, authRepo, map[uint64][]store.Permission{
+		9: {{Code: "user.session.revoke"}},
+	})
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/users/7/sessions/missing-session/revoke", 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != "auth.session_not_found" || payload.Locale != "en-US" {
+		t.Fatalf("expected session not found payload, got %#v", payload)
 	}
 }
 

@@ -9,7 +9,7 @@
 这个模块负责：
 
 * 注册用户读取能力所需的权限与菜单
-* 提供最小 `/auth/login`、`/auth/refresh`、当前 refresh session 的 `/auth/logout`、当前用户 `/auth/sessions` 与 `/auth/sessions/revoke-all` 自助可见性/撤销入口，以及管理员按用户 ID 的 `/users/:id/sessions` 和 `/users/:id/sessions/revoke-all` 会话治理入口，并把 refresh session、cookie 与 revoke/rotation 逻辑留在插件内
+* 提供最小 `/auth/login`、`/auth/refresh`、当前 refresh session 的 `/auth/logout`、当前用户 `/auth/sessions`、`/auth/sessions/:sessionID/revoke` 与 `/auth/sessions/revoke-all` 自助可见性/撤销入口，以及管理员按用户 ID 的 `/users/:id/sessions`、`/users/:id/sessions/:sessionID/revoke` 和 `/users/:id/sessions/revoke-all` 会话治理入口，并把 refresh session、cookie 与 revoke/rotation 逻辑留在插件内
 * 暴露 `pluginapi.UserService`
 * 暴露最小 `pluginapi.AuthService`，把 access token 解析结果收敛为稳定请求主体，并在受保护请求上追加最小 session 存活校验
 * 提供受权限保护的示例用户路由
@@ -25,7 +25,7 @@
 * `doc.go`：插件用途说明
 * `plugin.go`：插件生命周期、服务注册与示例路由
 * `login.go`：最小用户名/密码认证应用层
-* `session.go`：refresh token、cookie、当前有效 session 摘要、当前 session revoke、当前用户与管理员批量 revoke、session 轮换与 request-auth 最小 session hardening
+* `session.go`：refresh token、cookie、当前有效 session 摘要、当前/指定 session 定向 revoke、当前用户与管理员批量 revoke、session 轮换与 request-auth 最小 session hardening
 
 ## 关键依赖
 

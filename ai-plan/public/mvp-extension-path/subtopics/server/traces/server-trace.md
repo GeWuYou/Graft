@@ -112,6 +112,13 @@
 - Registered the dedicated permission code `user.session.read` for admin session visibility and kept the current-user path on the existing authenticated request context without adding a second auth model.
 - Added direct plugin tests for current-user and admin session listing, current-session marking, dedicated-permission enforcement, and user-not-found behavior, plus an `entstore` invalid-ID guard for the new repository boundary before rerunning focused backend validation.
 
+## 2026-05-15 targeted-session revoke slice
+
+- Added current-user `POST /api/auth/sessions/:sessionID/revoke` plus admin `POST /api/users/:id/sessions/:sessionID/revoke` inside `server/plugins/user`, keeping targeted session revoke in the same plugin boundary instead of widening core or `pluginapi`.
+- Narrowed the extra repository expansion to one `RevokeRefreshSessionByUserID` operation so the first targeted-revoke slice constrains writes by explicit `userID + sessionID` matching and only revokes still-active sessions.
+- Reused the existing `user.session.revoke` permission for admin-targeted revoke, kept the self-service path on the existing authenticated request context, and introduced the stable localized `auth.session_not_found` contract for missing or already inactive sessions.
+- Added direct plugin tests for self/admin targeted revoke, current-session cookie clearing, not-found behavior, and untouched-session protection, plus `entstore` invalid-ID coverage and the matching i18n catalog assertion before rerunning focused backend validation.
+
 ## 2026-05-15 disposable PostgreSQL + Atlas live validation
 
 - Reused the current auth/session and RBAC migration assets against a disposable local PostgreSQL container by building the current `graft` CLI, then running `graft migrate up` with explicit database, Redis, and auth-signing environment inputs.

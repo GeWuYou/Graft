@@ -21,6 +21,7 @@ var (
 	errExpiredRefreshToken  = errors.New("expired refresh token")
 	errRefreshSessionFailed = errors.New("refresh session is unavailable")
 	errAccessSessionFailed  = errors.New("access session is unavailable")
+	errSessionNotFound      = errors.New("session not found")
 )
 
 type refreshTokenSubject struct {
@@ -327,6 +328,46 @@ func (s authService) RevokeAllUserSessions(ctx context.Context, userID uint64) e
 		UserID:    userID,
 		RevokedAt: s.nowUTC(),
 	})
+}
+
+// RevokeCurrentUserSession 吊销当前登录主体名下的单个有效 refresh session。
+//
+// 该能力只允许当前主体在自身会话集合内做定向吊销，避免把跨用户治理语义混入
+// 自助入口。
+func (s authService) RevokeCurrentUserSession(ctx context.Context, sessionID string) error {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.Claims == nil {
+		return pluginapi.ErrUnauthenticated
+	}
+
+	return s.RevokeUserSession(ctx, requestAuth.Claims.UserID, sessionID)
+}
+
+// RevokeUserSession 吊销指定用户名下的单个有效 refresh session。
+//
+// 该能力保持在 user 插件内，通过用户 ID 与 session ID 的显式组合约束定向
+// 吊销范围，不把底层查询或权限细节扩散到 core。
+func (s authService) RevokeUserSession(ctx context.Context, userID uint64, sessionID string) error {
+	if s.auth == nil {
+		return errors.New("auth repository is unavailable")
+	}
+
+	if strings.TrimSpace(sessionID) == "" {
+		return errSessionNotFound
+	}
+
+	if err := s.auth.RevokeRefreshSessionByUserID(ctx, store.RevokeRefreshSessionByUserIDInput{
+		UserID:    userID,
+		TokenID:   strings.TrimSpace(sessionID),
+		RevokedAt: s.nowUTC(),
+	}); err != nil {
+		if errors.Is(err, store.ErrRefreshSessionNotFound) {
+			return errSessionNotFound
+		}
+		return err
+	}
+
+	return nil
 }
 
 // ListCurrentUserSessions 返回当前登录主体可见的有效 refresh session 摘要。
