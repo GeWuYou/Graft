@@ -1,7 +1,9 @@
 import type { AxiosRequestConfig } from 'axios';
 import axios from 'axios';
 
+import { localeConfigKey } from '@/locales';
 import type { RequestOptions } from '@/types/axios';
+import { getAccessToken } from '@/utils/auth-state';
 
 type RequestConfig = AxiosRequestConfig & {
   requestOptions?: RequestOptions;
@@ -17,6 +19,27 @@ interface RequestInstance {
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
   withCredentials: true,
+});
+
+client.interceptors.request.use((config) => {
+  const headers = config.headers ?? {};
+  const accessToken = getAccessToken();
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  try {
+    const storedLocale = localStorage.getItem(localeConfigKey);
+    if (storedLocale) {
+      headers['X-Graft-Locale'] = storedLocale.replaceAll('_', '-');
+    }
+  } catch {
+    // 受限环境下允许 locale 头缺省。
+  }
+
+  config.headers = headers;
+  return config;
 });
 
 async function requestWithMethod<T>(method: 'get' | 'post' | 'put' | 'delete', config: RequestConfig): Promise<T> {

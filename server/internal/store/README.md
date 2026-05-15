@@ -13,6 +13,7 @@
 ## 主要入口
 
 * `factory.go`：仓储工厂总入口
+* `audit.go`：审计记录写入边界
 * `user.go`：用户资料读取边界
 * `auth.go`：认证口令与 refresh session 边界
 * `rbac.go`：角色与权限解析边界

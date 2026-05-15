@@ -51,7 +51,7 @@
 - The target contract does not change. After the starter baseline is made runnable again, the next implementation stage
   still needs to reconnect backend-driven `menu + route + page + api + permission`, auth, and locale semantics.
 
-## Next Step
+## 2026-05-15 Next Step
 
 - Replace the current `web` baseline with a starter full-project baseline first, then stage Graft contract
   reattachment and later optimization work on top of that recovered runtime path.
@@ -136,9 +136,54 @@
 - Validated the slice with one passing sample commit message, one failing missing-scope sample through `commitlint`,
   and one failing escaped-control-text sample through the new script.
 
-## Next Step
+## 2026-05-15 signals evaluation documentation
 
-- Continue the workbench slice by improving grouped token-editor ergonomics and layout-preview fidelity without
-  reintroducing a second host component or another parallel visibility flag.
+- Updated `ai-plan/design/前端架构设计.md` to lock `Pinia` as the only formal shared state layer and to constrain
+  any future `signals` exploration to a document-first, `setting/theme`-only boundary.
+- Added `ai-plan/public/mvp-extension-path/subtopics/web/design/signals-theme-runtime-evaluation.md` to capture the
+  evidence review, the current no-go conclusion, the forbidden domains, and the future admission/exit criteria for a
+  smallest-possible `alien-signals` POC.
+- Explicitly concluded that the current `theme runtime` does not yet show enough evidence that
+  `computed / watch / store action` maintenance has failed, so no POC should begin now.
+
+## 2026-05-15 real auth/bootstrap hookup
+
+- Replaced the `web` mock auth path with real `POST /api/auth/login`, `POST /api/auth/refresh`, and
+  `GET /api/auth/bootstrap` integration while preserving the existing starter-shell login page and guard flow.
+- Added request-level access-token and locale-header propagation so the frontend now sends `Authorization` and
+  `X-Graft-Locale` consistently through the shared Axios wrapper.
+- Narrowed the first dynamic-menu slice to bootstrap-returned menus that already have real page implementations in
+  `web`, and wired `/users` as the first backend-driven route instead of reusing the starter demo menu tree.
+- Validated the slice with one full host Windows Bun `bun run check` pass after adding direct route-transform coverage
+  for the bootstrap-menu mapper.
+
+## 2026-05-15 PR #9 review follow-up
+
+- Re-checked the latest PR #9 open threads against local HEAD and kept the current `web` work focused on still-valid
+  behavior, contract, and documentation issues instead of stale AI suggestions.
+- Kept the existing refresh-based route-guard recovery path, but added the Chinese contract comments required by
+  repository governance around dynamic-route initialization, bootstrap recovery, and silent refresh fallback.
+- Hardened the shell logout path so router navigation back to `/login` now runs in a `finally` block even if the
+  logout request fails after local session cleanup.
+- Narrowed the bootstrap route mapper to one explicit `RouteRecordRaw` adaptation boundary instead of the previous
+  `as unknown as RouteRecordRaw[]` escape, updated locale-header propagation to replace every underscore in persisted
+  locale tags, and normalized the active trace/tracking docs to remove duplicate headings and machine-specific paths.
+
+## 2026-05-15 local git root cleanup
+
+- Removed the extra JetBrains VCS mapping that treated `web/ai-libs/tdesign-vue-next-starter` as a second Git root
+  inside the current workspace.
+- Reconfirmed that `web/ai-libs/` stays ignored by the main repository and is only a local reference area for starter
+  patterns, not an independently managed repository in this project workspace.
+- Kept the cleanup scoped to local IDE metadata plus active-topic recovery notes so future recovery does not mistake the
+  reference starter tree for repository history owned by `Graft`.
+
+## 2026-05-15 Follow-up Next Step
+
+- Continue reconnecting the starter shell to the real backend `auth + current user + menu + permission + locale`
+  contracts by expanding from the new bootstrap baseline instead of restoring mock auth/menu paths or expanding the
+  standalone theme/runtime surface.
+- Keep `signals` at the document-only candidate stage unless a future review can prove that `theme runtime`
+  maintenance has materially failed under the current `Pinia + computed + composable` approach.
 - When the logger slice is scheduled for implementation, land it as a focused frontend infrastructure change first and
   keep business modules on the `createLogger` boundary rather than binding them directly to `consola` or UI feedback.

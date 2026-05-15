@@ -33,9 +33,14 @@ import (
 
 // pluginTestStoreFactory 为插件路由测试提供最小仓储装配。
 type pluginTestStoreFactory struct {
+	audit       store.AuditRepository
 	auth        store.AuthRepository
 	users       store.UserRepository
 	permissions map[uint64][]store.Permission
+}
+
+func (f pluginTestStoreFactory) Audit() store.AuditRepository {
+	return f.audit
 }
 
 func (f pluginTestStoreFactory) Auth() store.AuthRepository {
@@ -275,6 +280,10 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 			RefreshCookieName:     "graft_refresh_token",
 			RefreshCookieSameSite: "lax",
 			RefreshCookiePath:     "/",
+		}, I18n: config.I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: []string{"zh-CN", "en-US"},
 		}},
 		I18n:     i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		Router:   engine.Group("/api"),
@@ -526,6 +535,127 @@ func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
 	}
 	if payload.MessageKey != "auth.missing_actor" {
 		t.Fatalf("expected permission middleware payload, got %#v", payload)
+	}
+}
+
+// TestBootstrapRouteRequiresAuthenticatedActor 验证 bootstrap 契约仍复用统一
+// 的请求鉴权中间件，而不是在插件内分叉另一套登录态判断。
+func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
+	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, nil)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/bootstrap", nil)
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != "auth.missing_actor" {
+		t.Fatalf("expected missing actor payload, got %#v", payload)
+	}
+}
+
+// TestBootstrapRouteReturnsFilteredContract 验证 bootstrap 路由会返回当前用户、
+// 去重排序后的权限列表、按权限过滤的菜单以及 locale 配置快照。
+func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	ctx, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+
+			return store.User{
+				ID:        7,
+				Username:  "alice",
+				Display:   "Alice",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}, nil
+		},
+	}, authRepo, map[uint64][]store.Permission{
+		7: {
+			{Code: " user.read "},
+			{Code: "user.read"},
+			{Code: ""},
+		},
+	})
+	ctx.MenuRegistry.Register(menu.Item{
+		Code:  "profile.self",
+		Title: "个人中心",
+		Path:  "/profile",
+		Icon:  "user-circle",
+	})
+	ctx.MenuRegistry.Register(menu.Item{
+		Code:       "audit.list",
+		Title:      "审计日志",
+		Path:       "/audit",
+		Icon:       "secured",
+		Permission: "audit.read",
+	})
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForUser(t, "/api/auth/bootstrap", authRepo, 7)
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+
+	var payload bootstrapResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.User.ID != 7 || payload.User.Username != "alice" || payload.User.DisplayName != "Alice" {
+		t.Fatalf("expected current user summary, got %#v", payload.User)
+	}
+	if !slices.Equal(payload.Permissions, []string{"user.read"}) {
+		t.Fatalf("expected sorted unique permissions, got %#v", payload.Permissions)
+	}
+	if len(payload.Menus) != 2 {
+		t.Fatalf("expected filtered menus to keep user and public entries, got %#v", payload.Menus)
+	}
+	if payload.Menus[0].Code != "user.list" || payload.Menus[0].Path != "/users" || payload.Menus[0].Permission != "user.read" {
+		t.Fatalf("expected first menu to be users entry, got %#v", payload.Menus[0])
+	}
+	if payload.Menus[1].Code != "profile.self" || payload.Menus[1].Path != "/profile" || payload.Menus[1].Permission != "" {
+		t.Fatalf("expected public profile menu, got %#v", payload.Menus[1])
+	}
+	if payload.Locale.CurrentLocale != "en-US" || payload.Locale.DefaultLocale != "zh-CN" || payload.Locale.FallbackLocale != "zh-CN" {
+		t.Fatalf("expected locale snapshot en-US/zh-CN/zh-CN, got %#v", payload.Locale)
+	}
+	if !slices.Equal(payload.Locale.SupportedLocales, []string{"zh-CN", "en-US"}) {
+		t.Fatalf("expected supported locales snapshot, got %#v", payload.Locale)
+	}
+}
+
+// TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales 验证默认 locale 与回退 locale
+// 相同时，bootstrap locale 快照不会返回重复语言项。
+func TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales(t *testing.T) {
+	reader := newBootstrapReader(
+		config.I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: nil,
+		},
+		i18n.New(config.I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: []string{"zh-CN"},
+		}),
+		nil,
+		nil,
+	)
+
+	snapshot := reader.localeSnapshot(httptest.NewRequest(http.MethodGet, "/api/auth/bootstrap", nil))
+	if !slices.Equal(snapshot.SupportedLocales, []string{"zh-CN"}) {
+		t.Fatalf("expected duplicate fallback locales to collapse, got %#v", snapshot.SupportedLocales)
 	}
 }
 

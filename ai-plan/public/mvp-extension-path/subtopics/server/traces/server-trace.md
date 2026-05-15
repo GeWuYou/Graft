@@ -199,8 +199,88 @@
 - Revalidated the accepted follow-up with `cd server && go test ./internal/httpx ./plugins/user`, `cd server && go vet ./plugins/user`,
   and `cd server && go build ./cmd/graft`.
 
+## 2026-05-15 event bus slice
+
+- Added `server/internal/eventbus` as the MVP-stage in-process event bus boundary, keeping the public surface limited
+  to `Subscribe / Publish`, ordered synchronous dispatch, panic recover, and error logging.
+- Wired the bus as a core runtime resource in `server/internal/app/runtime.go`, so the same `eventbus.Bus` instance is
+  held by `Runtime`, registered into the singleton container, and exposed on `plugin.Context`.
+- Added direct `server/internal/eventbus` tests for invalid subscription input, ordered delivery, error aggregation,
+  and panic recovery, plus `server/internal/app/runtime_test.go` coverage that locks the singleton registration and
+  plugin-context injection path.
+
+## 2026-05-15 audit slice
+
+- Added `server/internal/audit` plus the `store.AuditRepository` boundary so request-level and active audit paths can
+  converge on one minimal write-only persistence contract.
+- Extended Ent with the `audit_logs` schema and migration assets, then kept the plugin-facing repository surface
+  limited to stable DTO-based writes instead of exposing query DSL or ORM internals.
+- Added `server/plugins/audit` to mount request audit middleware on the shared router and subscribe to
+  `pluginapi.AuditRecordEventName` through the shared `eventbus.Bus`.
+- Reused `server/internal/httpx` to retain the stable `message_key` in Gin context, so failed requests can record the
+  same localized error contract inside audit logs without inventing a second error channel.
+- Revalidated the slice with
+  `cd server && go test ./internal/app ./internal/audit ./plugins/audit ./internal/store/entstore ./internal/httpx ./plugins/user`
+  and `cd server && go build ./cmd/graft`.
+
+## 2026-05-15 scheduler slice
+
+- Added `server/internal/scheduler` as the repository-local runtime wrapper around `robfig/cron/v3`, keeping the
+  public surface limited to explicit `RegisterJob / RemoveJob / Start / Stop` semantics.
+- Extended `server/internal/cronx` so plugin-registered jobs now carry an explicit `Run` entrypoint and declaration
+  validation, preserving the rule that `Register` only declares jobs while the runtime wrapper owns scheduling.
+- Added `server/plugins/scheduler` and wired `graft serve` to boot it alongside the current core plugins, so runtime
+  startup now consumes the `cron registry` snapshot and shuts the scheduler down through plugin lifecycle order.
+- Revalidated the slice with `cd server && go test ./internal/scheduler ./plugins/scheduler ./internal/cli` and
+  `cd server && go build ./cmd/graft`.
+
+## 2026-05-15 bootstrap contract slice
+
+- Added protected `GET /api/auth/bootstrap` inside `server/plugins/user`, keeping the first real
+  `auth + current user + permission + menu + locale` bootstrap payload inside the existing plugin boundary instead of
+  expanding `core` or adding a new shared abstraction.
+- Reused the existing request-auth middleware context for current-user identity, the RBAC repository for current
+  permission resolution, the menu registry for registration-order-stable menu filtering, and the i18n/config snapshot
+  for locale bootstrap data.
+- Added focused `server/plugins/user` route coverage for unauthenticated rejection plus the successful contract path
+  that locks permission-code dedup/sort, permission-filtered menus, and locale snapshot fields.
+- Revalidated the slice with `cd server && go test ./plugins/user` and `cd server && go build ./cmd/graft`.
+
+## 2026-05-15 PR #9 review follow-up
+
+- Re-checked the latest PR #9 open threads against local HEAD and kept only the still-applicable `server` findings in
+  scope instead of mechanically applying every AI comment.
+- Hardened `server/internal/audit/service.go` so normalized `Action` values now use the same trim result for validation
+  and persistence, preventing avoidable whitespace drift across audit records.
+- Extended `server/plugins/audit` to accept both `pluginapi.AuditEvent` values and pointers on the event bus path, and
+  clarified `pluginapi.AuditEvent` field semantics so cross-plugin publishers know which fields are required, optional,
+  or defaulted by the consumer.
+- Deduplicated bootstrap locale fallback output when `defaultLocale` and `fallbackLocale` collapse to the same value,
+  and supplemented scheduler lifecycle comments plus `Stop(nil)` wait-behavior coverage to match the repository
+  documentation standard.
+
+## 2026-05-15 PR #9 greptile server follow-up
+
+- Verified the remaining greptile `server` findings against local HEAD instead of assuming the review threads were
+  stale after the earlier PR #9 follow-up.
+- Removed the unused `logJobFailure` helper from `server/plugins/scheduler` because runtime job-failure logging is
+  already centralized in `server/internal/scheduler/runtime.go`.
+- Narrowed `server/plugins/audit` request-level audit capture so `ResourceType` now records the first stable resource
+  segment derived from the route template, while `RequestPath` continues to preserve the full route pattern for request
+  tracing.
+- Added focused `server/plugins/audit` regression coverage that locks the new `ResourceType` extraction contract for an
+  authenticated `/api/users/:id` request.
+
+## 2026-05-15 PR #9 scheduler shutdown context follow-up
+
+- Re-ran the repository PR-review workflow against local HEAD and confirmed the only remaining applicable AI finding was
+  the `scheduler` plugin shutdown path bypassing host lifecycle context.
+- Extended `plugin.Context` with explicit `LifecycleContext` semantics, keeping Register/Boot on the runtime `runCtx`
+  while switching Shutdown to a fresh bounded cleanup context so plugins do not inherit an already-canceled parent.
+- Updated `server/plugins/scheduler` to forward `LifecycleContext` into the scheduler runtime stop path and added direct
+  runtime/plugin tests that lock the new shutdown-context propagation contract.
+
 ## Next Step
 
-- Run `graft validate smoke` against the next disposable PostgreSQL + Redis target, then continue admin-driven session
-  validation and continue admin-preserve-current controls or richer audit-linked session governance on top of the
-  existing auth/session path.
+- Keep the new bootstrap contract stable enough for `web` starter-shell hookup, then move the next batch to
+  synchronized `server` + `web` work instead of widening backend-only session-governance behavior.

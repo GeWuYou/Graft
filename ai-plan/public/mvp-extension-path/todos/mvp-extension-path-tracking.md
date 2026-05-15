@@ -43,30 +43,32 @@
 ## Current Recovery Point
 
 - 当前阶段正式收敛到“后端主导的 MVP 闭环收敛计划”：先补齐 `server` 的 event bus、audit、scheduler 和稳定插件契约，再让 `web` 挂接这些真实契约。
-- `server` 已有 runtime、plugin lifecycle、Ent/Atlas、auth/RBAC 与基础 smoke-validation 路径，但 MVP 还没有在事件流、审计链路、调度能力和跨插件稳定接口上闭环。
-- `web` 当前阶段只做 starter 壳层收敛与真实后端契约接线，不再以新页面扩张、主题工作台深化或新的前端治理宽度作为近期主线。
+- `server` 当前已形成最小 runtime 闭环，并新增受保护的 `/api/auth/bootstrap` 真实契约，统一返回当前用户、权限码、按权限过滤的菜单和 locale 快照。
+- `web` 当前已把登录主路径收敛到真实 `login/refresh/bootstrap` 契约，并开始用 bootstrap 菜单快照驱动最小动态路由，而不是继续依赖 starter mock 登录与静态 demo 菜单。
 - 较早的拆分前历史保留在 `archive/`，具体实现轨迹保留在各自 `trace` 文件。
 
 ## Shared Milestones
 
 - `mvp-extension-path` 已稳定为父主题 + `server` / `web` 子主题的恢复结构。
 - 后端已具备最小可运行的 plugin-oriented runtime、迁移链路、认证与 RBAC 基线。
-- 前端已具备可继续收敛的 starter 壳层和 host Windows Bun `bun run check` 零 warning 完成门槛。
-- 当前主题阶段已改为“后端先闭环，前端跟随真实契约收敛”。
+- 前端已具备可继续收敛的 starter 壳层，并已重新挂回真实认证与最小动态菜单入口，host Windows Bun `bun run check` 当前再次通过零 warning 完成门槛。
+- 当前主题阶段已从“后端先闭环”推进到“后端稳定 bootstrap 契约，前端按该契约同步收敛”。
 
 ## Shared Risks
 
-- 如果 event bus、audit、scheduler 继续缺位，MVP 会停留在“可运行壳层”而不是“可扩展闭环”。
 - 如果 `web` 回到页面扩张或长期保留 mock/demo 依赖，前后端契约会再次漂移。
 - `auth`、`menu`、`permission`、`locale` 等共享契约若在后端收敛期内继续无边界扩张，会放大 `web` 接线返工成本。
 - disposable PostgreSQL / Redis 校验仍依赖手工准备环境，后续恢复时必须显式说明当前可用的校验入口。
 
 ## Shared Validation Summary
 
-- 本次仅同步 topic 级文档方向，没有新增代码或运行时校验。
-- 当前跨边界恢复基线沿用 `server` 子主题中最近一次 focused backend validation，以及 `web` 子主题中最近一次 host Windows Bun `bun run check` 完成态校验。
-- 本次文档同步通过 `sed`、`rg` 和 `git diff -- ai-plan/public/mvp-extension-path` 进行一致性检查。
+- 本次跨边界直接校验：
+  - `cd server && go test ./plugins/user`
+  - `cd server && go build ./cmd/graft`
+  - `cd web && bun run check`
+- 本次 topic 级同步通过 `sed`、`rg`、`git diff -- ai-plan/public/mvp-extension-path` 与对应直接校验结果完成一致性检查。
 
 ## Immediate Next Step
 
-- 按 `server` 主导顺序推进下一阶段：先稳定 event bus 边界，再补最小 audit 路径，再补 scheduler/plugin runtime 闭环，最后冻结当前 `web` 需要消费的 `auth + menu + permission + locale` 契约面。
+- 保持当前 `/api/auth/bootstrap` 契约稳定，只在必要范围内收敛 DTO 和菜单/权限语义。
+- 在该 bootstrap 契约上继续扩展 `web` 真实页面接线，优先补齐当前用户、用户管理和权限可见性链路，而不是回到 starter demo 页面扩张。

@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"graft/server/internal/ent/auditlog"
 	"graft/server/internal/ent/permission"
 	"graft/server/internal/ent/refreshsession"
 	"graft/server/internal/ent/role"
@@ -17,6 +18,52 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	auditlogFields := schema.AuditLog{}.Fields()
+	_ = auditlogFields
+	// auditlogDescOperatorName is the schema descriptor for operator_name field.
+	auditlogDescOperatorName := auditlogFields[1].Descriptor()
+	// auditlog.DefaultOperatorName holds the default value on creation for the operator_name field.
+	auditlog.DefaultOperatorName = auditlogDescOperatorName.Default.(string)
+	// auditlogDescAction is the schema descriptor for action field.
+	auditlogDescAction := auditlogFields[2].Descriptor()
+	// auditlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	auditlog.ActionValidator = auditlogDescAction.Validators[0].(func(string) error)
+	// auditlogDescResourceType is the schema descriptor for resource_type field.
+	auditlogDescResourceType := auditlogFields[3].Descriptor()
+	// auditlog.DefaultResourceType holds the default value on creation for the resource_type field.
+	auditlog.DefaultResourceType = auditlogDescResourceType.Default.(string)
+	// auditlogDescResourceID is the schema descriptor for resource_id field.
+	auditlogDescResourceID := auditlogFields[4].Descriptor()
+	// auditlog.DefaultResourceID holds the default value on creation for the resource_id field.
+	auditlog.DefaultResourceID = auditlogDescResourceID.Default.(string)
+	// auditlogDescRequestMethod is the schema descriptor for request_method field.
+	auditlogDescRequestMethod := auditlogFields[5].Descriptor()
+	// auditlog.DefaultRequestMethod holds the default value on creation for the request_method field.
+	auditlog.DefaultRequestMethod = auditlogDescRequestMethod.Default.(string)
+	// auditlogDescRequestPath is the schema descriptor for request_path field.
+	auditlogDescRequestPath := auditlogFields[6].Descriptor()
+	// auditlog.DefaultRequestPath holds the default value on creation for the request_path field.
+	auditlog.DefaultRequestPath = auditlogDescRequestPath.Default.(string)
+	// auditlogDescIP is the schema descriptor for ip field.
+	auditlogDescIP := auditlogFields[7].Descriptor()
+	// auditlog.DefaultIP holds the default value on creation for the ip field.
+	auditlog.DefaultIP = auditlogDescIP.Default.(string)
+	// auditlogDescUserAgent is the schema descriptor for user_agent field.
+	auditlogDescUserAgent := auditlogFields[8].Descriptor()
+	// auditlog.DefaultUserAgent holds the default value on creation for the user_agent field.
+	auditlog.DefaultUserAgent = auditlogDescUserAgent.Default.(string)
+	// auditlogDescSuccess is the schema descriptor for success field.
+	auditlogDescSuccess := auditlogFields[9].Descriptor()
+	// auditlog.DefaultSuccess holds the default value on creation for the success field.
+	auditlog.DefaultSuccess = auditlogDescSuccess.Default.(bool)
+	// auditlogDescErrorMessage is the schema descriptor for error_message field.
+	auditlogDescErrorMessage := auditlogFields[10].Descriptor()
+	// auditlog.DefaultErrorMessage holds the default value on creation for the error_message field.
+	auditlog.DefaultErrorMessage = auditlogDescErrorMessage.Default.(string)
+	// auditlogDescCreatedAt is the schema descriptor for created_at field.
+	auditlogDescCreatedAt := auditlogFields[11].Descriptor()
+	// auditlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	auditlog.DefaultCreatedAt = auditlogDescCreatedAt.Default.(func() time.Time)
 	permissionFields := schema.Permission{}.Fields()
 	_ = permissionFields
 	// permissionDescCode is the schema descriptor for code field.

@@ -94,8 +94,8 @@ const userStore = useUserStore();
 
 const INITIAL_DATA = {
   phone: '',
-  account: 'admin',
-  password: 'admin',
+  account: '',
+  password: '',
   verifyCode: '',
   checked: false,
 };
@@ -140,7 +140,7 @@ const onSubmit = async (ctx: SubmitContext) => {
 
       MessagePlugin.success(t('pages.login.loginSuccess'));
       const redirect = route.query.redirect as string;
-      const redirectUrl = redirect ? decodeURIComponent(redirect) : '/dashboard';
+      const redirectUrl = redirect ? decodeURIComponent(redirect) : '/';
       router.push(redirectUrl);
     } catch (e) {
       MessagePlugin.error(e instanceof Error ? e.message : String(e));

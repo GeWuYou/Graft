@@ -6,6 +6,8 @@ import (
 	"graft/server/internal/i18n"
 )
 
+const localizedErrorMessageKeyContextKey = "httpx.localized_error_message_key"
+
 // ErrorResponse 描述对外稳定的错误响应基础结构。
 //
 // `error` 字段暂时保留为 `message` 的兼容别名，方便现有调试脚本和早期
@@ -33,6 +35,7 @@ func WriteLocalizedError(ctx *gin.Context, service *i18n.Service, status int, ke
 		message = service.Message(locale, key)
 	}
 
+	ctx.Set(localizedErrorMessageKeyContextKey, key)
 	ctx.JSON(status, ErrorResponse{
 		Error:      message,
 		Message:    message,
@@ -40,4 +43,23 @@ func WriteLocalizedError(ctx *gin.Context, service *i18n.Service, status int, ke
 		Locale:     locale,
 		Details:    details,
 	})
+}
+
+// LastErrorMessageKey 返回当前请求最近一次统一错误响应写入的稳定 message key。
+func LastErrorMessageKey(ctx *gin.Context) (string, bool) {
+	if ctx == nil {
+		return "", false
+	}
+
+	value, ok := ctx.Get(localizedErrorMessageKeyContextKey)
+	if !ok {
+		return "", false
+	}
+
+	key, ok := value.(string)
+	if !ok || key == "" {
+		return "", false
+	}
+
+	return key, true
 }

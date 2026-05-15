@@ -373,6 +373,10 @@ For repository work:
 * default to a dedicated branch and PR for repository work
 * direct development on `main` is allowed only for emergency fixes or when the user explicitly authorizes it
 * use branch names in the form `<type>/<topic-or-scope>`
+* when one feature point reaches a directly validated milestone, commit it before starting the next unrelated feature
+  point unless the user explicitly asks to batch them
+* if the working tree already mixes multiple feature points, split them back to feature-granularity commits before
+  considering the task complete; do not leave validated feature slices piled up as uncommitted changes
 * if the required validation passes and the task produced changes, create a Git commit unless the user explicitly says
   not to commit
 

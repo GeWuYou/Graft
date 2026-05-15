@@ -26,7 +26,7 @@
 ## 关键依赖
 
 * 由 `server/internal/app` 在运行时装配阶段调用
-* 依赖 `container`、`menu`、`permission`、`cronx`、`store`、`logger`、`i18n` 等核心能力
+* 依赖 `container`、`menu`、`permission`、`cronx`、`eventbus`、`store`、`logger`、`i18n` 等核心能力
 * 供 `server/plugins/*` 中的业务插件实现和消费
 
 ## 维护提示

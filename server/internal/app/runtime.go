@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -15,6 +16,7 @@ import (
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/database"
+	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger"
@@ -25,6 +27,8 @@ import (
 	"graft/server/internal/store"
 	"graft/server/internal/store/entstore"
 )
+
+const pluginShutdownTimeout = 5 * time.Second
 
 // Runtime 持有 MVP 运行时的核心资源与插件生命周期执行入口。
 //
@@ -40,6 +44,7 @@ type Runtime struct {
 	database           *database.Resources
 	redis              *redis.Client
 	server             *httpx.Server
+	eventBus           eventbus.Bus
 	services           *container.Container
 	stores             store.Factory
 	menuRegistry       *menu.Registry
@@ -81,6 +86,7 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 	}
 
 	server := httpx.NewServer()
+	eventBus := eventbus.New(runtimeLogger)
 	services := container.New()
 	stores := entstore.NewFactory(databaseResources.Client)
 	localizer := i18n.New(cfg.I18n)
@@ -96,6 +102,7 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 		database:           databaseResources,
 		redis:              redisClient,
 		server:             server,
+		eventBus:           eventBus,
 		services:           services,
 		stores:             stores,
 		menuRegistry:       menuRegistry,
@@ -133,9 +140,11 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 //   - error: 返回注册、启动、监听、关闭阶段的首个失败，并按需要聚合插件关闭或 core 资源回收错误。
 func (r *Runtime) Run(runCtx context.Context) error {
 	pluginCtx := &plugin.Context{
+		LifecycleContext:   runCtx,
 		Config:             r.config,
 		Logger:             r.logger,
 		I18n:               r.i18n,
+		EventBus:           r.eventBus,
 		Redis:              r.redis,
 		Router:             r.server.Engine().Group("/api"),
 		Services:           r.services,
@@ -215,6 +224,12 @@ func (r *Runtime) registerCoreServices() error {
 		return err
 	}
 
+	if err := r.services.RegisterSingleton((*eventbus.Bus)(nil), func(resolver container.Resolver) (any, error) {
+		return r.eventBus, nil
+	}); err != nil {
+		return err
+	}
+
 	if err := r.services.RegisterSingleton((*store.Factory)(nil), func(resolver container.Resolver) (any, error) {
 		return r.stores, nil
 	}); err != nil {
@@ -231,16 +246,30 @@ func (r *Runtime) registerCoreServices() error {
 // 这里不在首个失败处提前返回，因为关闭阶段的目标是尽最大努力释放资源，
 // 而不是维持“全部成功或立即退出”的启动语义。
 func shutdownPlugins(ctx *plugin.Context, ordered []plugin.Plugin) error {
+	shutdownCtx, cancel := withPluginShutdownContext(ctx)
+	defer cancel()
+
 	var shutdownErr error
 	for i := len(ordered) - 1; i >= 0; i-- {
 		// 关闭顺序必须与启动顺序相反，避免后启动的依赖还未释放时，上游
 		// 插件先被销毁，导致清理逻辑访问失效资源。
-		if err := ordered[i].Shutdown(ctx); err != nil {
+		if err := ordered[i].Shutdown(shutdownCtx); err != nil {
 			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown plugin %s: %w", ordered[i].Name(), err))
 		}
 	}
 
 	return shutdownErr
+}
+
+func withPluginShutdownContext(ctx *plugin.Context) (*plugin.Context, context.CancelFunc) {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), pluginShutdownTimeout)
+	if ctx == nil {
+		return &plugin.Context{LifecycleContext: shutdownCtx}, cancel
+	}
+
+	cloned := *ctx
+	cloned.LifecycleContext = shutdownCtx
+	return &cloned, cancel
 }
 
 // closeCoreResources 释放 Runtime 持有的 core 级外部资源。

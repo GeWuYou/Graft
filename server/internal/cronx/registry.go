@@ -1,6 +1,12 @@
 // Package cronx 存放插件声明的定时任务元数据，供后续调度器装配使用。
 package cronx
 
+import (
+	"context"
+	"errors"
+	"strings"
+)
+
 // Job 描述一个待注册的定时任务。
 type Job struct {
 	// Name 是任务的稳定标识，便于日志、观测与后续幂等装配。
@@ -9,6 +15,11 @@ type Job struct {
 	Schedule string
 	// Plugin 标记任务来源插件，方便在启动失败或停机清理时定位责任边界。
 	Plugin string
+	// Run 是调度器实际调用的执行入口。
+	//
+	// 插件应在 Register 阶段显式提供该函数，而不是在 Boot 阶段隐式拼装
+	// 或依赖全局单例回填执行体。
+	Run func(ctx context.Context) error
 }
 
 // Registry 按注册顺序保存任务声明，供后续调度器接线阶段消费。
@@ -33,4 +44,19 @@ func (r *Registry) Items() []Job {
 	items := make([]Job, len(r.items))
 	copy(items, r.items)
 	return items
+}
+
+// Validate 校验任务声明是否满足当前最小调度契约。
+func (j Job) Validate() error {
+	if strings.TrimSpace(j.Name) == "" {
+		return errors.New("job name is required")
+	}
+	if strings.TrimSpace(j.Schedule) == "" {
+		return errors.New("job schedule is required")
+	}
+	if j.Run == nil {
+		return errors.New("job run function is required")
+	}
+
+	return nil
 }

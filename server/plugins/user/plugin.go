@@ -94,6 +94,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	if err != nil {
 		return err
 	}
+	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Stores.RBAC())
 
 	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(resolver container.Resolver) (any, error) {
 		return authSvc, nil
@@ -260,6 +261,26 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		}
 
 		ginCtx.JSON(http.StatusOK, sessions)
+	})
+	// bootstrap 返回 web 启动阶段需要的最小真实契约快照，保持当前用户、
+	// 权限、菜单过滤与 locale 配置收敛在 user 插件边界内。
+	authGroup.GET("/bootstrap", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+		payload, err := bootstrapSvc.Read(ginCtx.Request.Context(), ginCtx.Request)
+		if err != nil {
+			if errors.Is(err, pluginapi.ErrUnauthenticated) {
+				httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, "auth.missing_actor", nil)
+				return
+			}
+
+			ctx.Logger.Error("read bootstrap payload failed",
+				zap.String("plugin", p.Name()),
+				zap.Error(err),
+			)
+			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, "common.internal_error", nil)
+			return
+		}
+
+		ginCtx.JSON(http.StatusOK, payload)
 	})
 	// 当前用户可对自己的一条有效 session 做定向吊销，保持会话治理仍然落在
 	// user 插件边界内，而不是把单条操作拆进 core 中间件或公共 auth 服务。

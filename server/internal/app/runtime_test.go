@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/eventbus"
+	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
@@ -93,6 +96,10 @@ func (runtimeTestStoreFactory) Users() store.UserRepository {
 	return nil
 }
 
+func (runtimeTestStoreFactory) Audit() store.AuditRepository {
+	return nil
+}
+
 func (runtimeTestStoreFactory) Auth() store.AuthRepository {
 	return nil
 }
@@ -101,14 +108,69 @@ func (runtimeTestStoreFactory) RBAC() store.RBACRepository {
 	return nil
 }
 
+type eventBusRecorderPlugin struct {
+	registerEventBus eventbus.Bus
+	bootEventBus     eventbus.Bus
+}
+
+func (p *eventBusRecorderPlugin) Name() string { return "eventbus-recorder" }
+
+func (p *eventBusRecorderPlugin) Version() string { return "test" }
+
+func (p *eventBusRecorderPlugin) DependsOn() []string { return nil }
+
+func (p *eventBusRecorderPlugin) Register(ctx *plugin.Context) error {
+	p.registerEventBus = ctx.EventBus
+	return nil
+}
+
+func (p *eventBusRecorderPlugin) Boot(ctx *plugin.Context) error {
+	p.bootEventBus = ctx.EventBus
+	return nil
+}
+
+func (p *eventBusRecorderPlugin) Shutdown(ctx *plugin.Context) error { return nil }
+
+type lifecycleContextRecorderPlugin struct {
+	registerLifecycleContext context.Context
+	bootLifecycleContext     context.Context
+	shutdownLifecycleContext context.Context
+	shutdownLifecycleErr     error
+}
+
+func (p *lifecycleContextRecorderPlugin) Name() string { return "lifecycle-context-recorder" }
+
+func (p *lifecycleContextRecorderPlugin) Version() string { return "test" }
+
+func (p *lifecycleContextRecorderPlugin) DependsOn() []string { return nil }
+
+func (p *lifecycleContextRecorderPlugin) Register(ctx *plugin.Context) error {
+	p.registerLifecycleContext = ctx.LifecycleContext
+	return nil
+}
+
+func (p *lifecycleContextRecorderPlugin) Boot(ctx *plugin.Context) error {
+	p.bootLifecycleContext = ctx.LifecycleContext
+	return nil
+}
+
+func (p *lifecycleContextRecorderPlugin) Shutdown(ctx *plugin.Context) error {
+	p.shutdownLifecycleContext = ctx.LifecycleContext
+	if ctx.LifecycleContext != nil {
+		p.shutdownLifecycleErr = ctx.LifecycleContext.Err()
+	}
+	return nil
+}
+
 // TestRegisterCoreServicesExposesRuntimeSingletons 验证 core 装配会把配置、
-// store factory 与 Redis 客户端注册到运行时容器中。
+// event bus、store factory 与 Redis 客户端注册到运行时容器中。
 func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	redisClient := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
 	t.Cleanup(func() {
 		_ = redisClient.Close()
 	})
 	runtimeLogger := zap.NewNop()
+	runtimeEventBus := eventbus.New(runtimeLogger)
 
 	cfg := &config.Config{
 		App: config.AppConfig{Name: "graft", Env: "test"},
@@ -138,6 +200,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		logger:   runtimeLogger,
 		i18n:     localizer,
 		redis:    redisClient,
+		eventBus: runtimeEventBus,
 		services: container.New(),
 		stores:   stores,
 	}
@@ -170,6 +233,14 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		t.Fatal("expected resolved i18n service to reuse runtime instance")
 	}
 
+	resolvedEventBus, err := runtime.services.Resolve((*eventbus.Bus)(nil))
+	if err != nil {
+		t.Fatalf("resolve event bus: %v", err)
+	}
+	if resolvedEventBus != runtimeEventBus {
+		t.Fatal("expected resolved event bus to reuse runtime instance")
+	}
+
 	resolvedStores, err := runtime.services.Resolve((*store.Factory)(nil))
 	if err != nil {
 		t.Fatalf("resolve store factory: %v", err)
@@ -184,6 +255,96 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	}
 	if resolvedRedis != redisClient {
 		t.Fatal("expected resolved redis client to reuse runtime instance")
+	}
+}
+
+// TestRunPassesEventBusIntoPluginContext 验证 Runtime 在 Register 与 Boot
+// 阶段向插件注入同一个事件总线实例，避免插件各自持有漂移的协作边界。
+func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	recorder := &eventBusRecorderPlugin{}
+	manager := plugin.NewManager()
+	if err := manager.RegisterPlugin(recorder); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+
+	runtimeEventBus := eventbus.New(zap.NewNop())
+	runtime := &Runtime{
+		config: &config.Config{
+			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
+		},
+		logger:             zap.NewNop(),
+		i18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
+		server:             httpx.NewServer(),
+		eventBus:           runtimeEventBus,
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		pluginManager:      manager,
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := runtime.Run(runCtx); err != nil {
+		t.Fatalf("run runtime: %v", err)
+	}
+	if recorder.registerEventBus != runtimeEventBus {
+		t.Fatal("expected register phase to receive runtime event bus instance")
+	}
+	if recorder.bootEventBus != runtimeEventBus {
+		t.Fatal("expected boot phase to receive runtime event bus instance")
+	}
+}
+
+// TestRunPassesLifecycleContextIntoPluginPhases 验证 Runtime 会在插件生命周期内
+// 注入显式上下文，并在 Shutdown 阶段切换到独立的有界关闭上下文。
+func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	recorder := &lifecycleContextRecorderPlugin{}
+	manager := plugin.NewManager()
+	if err := manager.RegisterPlugin(recorder); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+
+	runtime := &Runtime{
+		config: &config.Config{
+			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
+		},
+		logger:             zap.NewNop(),
+		i18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
+		server:             httpx.NewServer(),
+		eventBus:           eventbus.New(zap.NewNop()),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		pluginManager:      manager,
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := runtime.Run(runCtx); err != nil {
+		t.Fatalf("run runtime: %v", err)
+	}
+	if recorder.registerLifecycleContext != runCtx {
+		t.Fatal("expected register phase to receive runtime run context")
+	}
+	if recorder.bootLifecycleContext != runCtx {
+		t.Fatal("expected boot phase to receive runtime run context")
+	}
+	if recorder.shutdownLifecycleContext == nil {
+		t.Fatal("expected shutdown phase to receive lifecycle context")
+	}
+	if recorder.shutdownLifecycleContext == runCtx {
+		t.Fatal("expected shutdown phase to receive bounded shutdown context instead of canceled run context")
+	}
+	if recorder.shutdownLifecycleErr != nil {
+		t.Fatalf("expected shutdown lifecycle context to remain usable, got %v", recorder.shutdownLifecycleErr)
 	}
 }
 

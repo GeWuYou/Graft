@@ -145,11 +145,14 @@ const handleNav = (url: string) => {
   router.push(url);
 };
 
-const handleLogout = () => {
-  router.push({
-    path: '/login',
-    query: { redirect: encodeURIComponent(router.currentRoute.value.fullPath) },
-  });
+const handleLogout = async () => {
+  try {
+    await user.logout();
+  } finally {
+    await router.push({
+      path: '/login',
+    });
+  }
 };
 
 const navToGitHub = () => {

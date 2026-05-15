@@ -9,6 +9,45 @@ import (
 )
 
 var (
+	// AuditLogsColumns holds the columns for the "audit_logs" table.
+	AuditLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "operator_id", Type: field.TypeUint64, Nullable: true},
+		{Name: "operator_name", Type: field.TypeString, Default: ""},
+		{Name: "action", Type: field.TypeString},
+		{Name: "resource_type", Type: field.TypeString, Default: ""},
+		{Name: "resource_id", Type: field.TypeString, Default: ""},
+		{Name: "request_method", Type: field.TypeString, Default: ""},
+		{Name: "request_path", Type: field.TypeString, Default: ""},
+		{Name: "ip", Type: field.TypeString, Default: ""},
+		{Name: "user_agent", Type: field.TypeString, Default: ""},
+		{Name: "success", Type: field.TypeBool, Default: false},
+		{Name: "error_message", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// AuditLogsTable holds the schema information for the "audit_logs" table.
+	AuditLogsTable = &schema.Table{
+		Name:       "audit_logs",
+		Columns:    AuditLogsColumns,
+		PrimaryKey: []*schema.Column{AuditLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "auditlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[12]},
+			},
+			{
+				Name:    "auditlog_action",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[3]},
+			},
+			{
+				Name:    "auditlog_operator_id",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[1]},
+			},
+		},
+	}
 	// PermissionsColumns holds the columns for the "permissions" table.
 	PermissionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -172,6 +211,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AuditLogsTable,
 		PermissionsTable,
 		RefreshSessionsTable,
 		RolesTable,
@@ -182,6 +222,9 @@ var (
 )
 
 func init() {
+	AuditLogsTable.Annotation = &entsql.Annotation{
+		Table: "audit_logs",
+	}
 	PermissionsTable.Annotation = &entsql.Annotation{
 		Table: "permissions",
 	}

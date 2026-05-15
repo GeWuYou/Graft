@@ -27,7 +27,18 @@
 - Limited the parent topic to cross-boundary direction, shared risks, shared validation summaries, and subtopic entry
   guidance.
 
+## 2026-05-15 first real bootstrap contract hookup
+
+- Landed the first shared `auth + current user + permission + menu + locale` bootstrap contract as protected
+  `GET /api/auth/bootstrap` inside the existing `server/plugins/user` boundary.
+- Replaced the `web` starter shell's mock login/bootstrap path with real `login / refresh / bootstrap` calls and
+  switched the first dynamic menu slice to consume backend bootstrap menus instead of static demo menus.
+- Kept the initial real dynamic route scope intentionally narrow by only enabling backend-returned menus that already
+  have page implementations in `web`, with `/users` as the first hooked route.
+- Revalidated the cross-boundary slice with focused backend validation and one full host Windows Bun `bun run check`
+  pass on `web`.
+
 ## Next Step
 
-- Continue MVP work through the relevant subtopic, while updating the parent topic whenever a change touches shared
-  contracts, cross-boundary validation, or overall `server` + `web` direction.
+- Continue MVP work through the relevant subtopic, keeping `/api/auth/bootstrap` stable while expanding real
+  `server + web` page hookups instead of widening backend-only governance behavior or restoring demo auth/menu paths.

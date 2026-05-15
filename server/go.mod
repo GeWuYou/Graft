@@ -32,6 +32,8 @@ require (
 
 require golang.org/x/text v0.37.0
 
+require github.com/robfig/cron/v3 v3.0.1 // indirect
+
 require (
 	ariga.io/atlas v1.2.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect

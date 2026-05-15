@@ -12,6 +12,7 @@
 * 注册核心服务与健康检查路由
 * 驱动插件的 `Register`、`Boot`、`Shutdown`
 * 在失败路径和正常关闭路径释放核心资源
+* 持有并注入 `event bus`、注册表与其它 core 级共享基础设施
 
 这个模块不负责：
 
@@ -27,7 +28,7 @@
 
 ## 关键依赖
 
-* 下游依赖 `config`、`database`、`redisx`、`httpx`、`plugin`、`store` 等核心模块
+* 下游依赖 `config`、`database`、`redisx`、`httpx`、`eventbus`、`plugin`、`store` 等核心模块
 * 上游由 `server/cmd/graft` 命令入口创建并执行
 
 ## 维护提示
