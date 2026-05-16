@@ -256,6 +256,9 @@ Rules:
 * permission codes should be namespaced, for example `user.read`, `user.create`
 * config keys should be namespaced by plugin
 * public cross-plugin return types should be stable capability DTOs, not raw database models
+* detailed `server` Go constraints for file/package/type naming, layering, context propagation, transactions,
+  concurrency, resource lifecycle, API/DTO boundaries, config loading, runtime wiring, auth handling, logging, and
+  AI-generated code are defined in `9. Go 代码组织与命名规范`
 
 ### 8.2 Web
 
@@ -266,7 +269,272 @@ Rules:
 * module pages should align with backend permissions and menu metadata instead of inventing parallel frontend-only
   access rules
 
-## 9. Implementation Priorities
+## 9. Go 代码组织与命名规范
+
+This section is the detailed source of truth for hand-written Go code under `server`.
+
+It applies to runtime, plugins, service/usecase, repository/store, Gin handlers, middleware, config, Ent schema,
+Atlas migration hand-written boundaries, and related tests.
+
+Generated code, third-party code, and migration artifacts themselves may follow repository-specific exemptions, but
+their hand-written wrappers, adapters, schema truth, runtime wiring, and public boundaries must still follow this
+section.
+
+### 9.1 文件命名规范
+
+* Go 文件名必须使用小写。
+* 多个单词必须使用下划线分隔，例如 `user_role.go`、`refresh_token.go`、`auth_middleware.go`、
+  `password_policy.go`。
+* 禁止新增 `userrole.go`、`refreshtoken.go` 这类连续拼接且可读性差的文件名。
+* 测试文件必须使用 `*_test.go`。
+* Ent schema 文件必须与 schema 类型语义对应，例如 `user.go -> User`、`role.go -> Role`、
+  `user_role.go -> UserRole`、`role_permission.go -> RolePermission`。
+* 文件名优先表达业务实体、边界或职责，不得把 `misc.go`、`common.go`、`utils.go`、`helper.go`
+  当作默认落点，除非该 package 本身就是边界清晰且被仓库显式认可的工具包。
+* 一个文件只承载一个主要职责；当 handler、service、schema、middleware、DTO、store 已经跨越多个独立关注点时，
+  必须拆文件，而不是继续堆入同一文件。
+
+### 9.2 包命名规范
+
+* package 名必须短、小写、无下划线。
+* package 名必须表达领域或职责，例如 `auth`、`rbac`、`database`、`config`、`httpx`。
+* 禁止使用 `manager`、`helper`、`common`、`utils` 作为万能包名。
+* package 名不得重复父目录已经表达的语义。
+* 不得为了迁就文件名而拆包；优先保证 package 内聚、边界清晰和依赖单向。
+* 跨插件稳定接口应继续放在 `internal/pluginapi` 或等价稳定边界，不得因为局部实现方便把接口散落到实现包。
+
+### 9.3 类型命名规范
+
+* 导出类型必须使用 `PascalCase`，例如 `UserService`、`TokenManager`、`PasswordPolicy`。
+* 非导出类型必须使用 `lowerCamelCase`，例如 `userRepository`、`loginRequest`。
+* 类型名必须表达业务语义，禁止新增 `BaseManager`、`CommonService`、`DataHandler` 这类泛化命名。
+* 接口命名应优先描述行为，例如 `UserStore`、`TokenIssuer`、`PasswordHasher`、`PermissionChecker`。
+* 不得为了“面向接口”而预先抽象接口；只有存在多实现、测试隔离或跨边界依赖时才定义接口。
+* 接口优先放在消费方 package，而不是实现方 package。
+* 跨插件公开类型必须优先返回稳定 capability DTO，而不是暴露数据库模型、Ent entity 或 repository 细节；该约束与
+  `8.1 Server` 的公开边界规则一致，本节负责把它落实到日常 Go 代码。
+
+### 9.4 方法与函数命名规范
+
+* 函数名必须使用动词或动宾结构，例如 `CreateUser`、`IssueTokenPair`、`ValidatePassword`、
+  `LoadConfig`。
+* 返回 `bool` 的方法优先使用 `Is`、`Has`、`Can`、`Allow` 前缀，例如 `IsExpired`、`HasRole`、
+  `CanAccess`。
+* 构造函数优先使用 `NewXxx`。
+* 打开外部资源的函数可使用 `Open`，但必须在注释、返回契约或调用约定中明确 `Close` 所有权。
+* 事务辅助函数命名必须体现事务语义，例如 `WithTx`、`RunInTx`。
+* 不得在语义不清的上下文里使用 `Do`、`Handle`、`Process`、`Run` 这类泛化名称。
+* 私有函数也必须命名清晰，不得因为非导出就随意缩写。
+
+### 9.5 结构体字段规范
+
+* 导出字段使用 `PascalCase`，非导出字段使用 `lowerCamelCase`。
+* 字段名不得使用无意义缩写。
+* 依赖字段命名应体现角色，例如 `db`、`logger`、`users`、`tokens`、`checker`。
+* 配置结构体字段应表达配置语义，不得直接照抄环境变量原文命名。
+* JSON 结构体字段必须显式写 tag。
+* API request/response、cross-plugin DTO、持久化模型字段的语义边界必须可追踪，不能混成“同一结构体到处复用”。
+* Ent schema 字段命名必须同时保持数据库语义、Go 语义和 API 语义可追踪。
+
+### 9.6 Context 规范
+
+* 请求链路必须优先透传 `context.Context`。
+* `context.Context` 必须作为函数第一个参数。
+* 不得在请求链路内部随意使用 `context.Background()`。
+* `repository/store/database/redis/http client` 必须接收并透传 `context.Context`。
+* 超时、取消、`traceId`、`requestId` 等请求级元数据必须通过 `context` 传播。
+* 除启动期与测试代码外，禁止主动丢弃上游 `context`。
+* 来源于请求链路的 goroutine 必须考虑 `context cancel`，并把退出语义设计为显式可追踪。
+* 不允许在深层依赖中重新创建脱离请求链路的新 `context`。
+* `context.Value` 只允许承载请求级元数据，不得作为 service、repository、config、logger 等一般依赖的万能参数容器。
+* 该规则统一约束 `Gin -> service/usecase -> repository/store -> database/redis/http client` 的上下文传播边界。
+
+### 9.7 API 与 DTO 规范
+
+* handler 层禁止直接暴露 Ent entity 到 HTTP API。
+* request/response DTO 必须与数据库模型解耦。
+* API request/response 结构体必须显式定义。
+* DTO 命名必须体现语义，例如 `LoginRequest`、`LoginResponse`、`CreateUserRequest`、
+  `UserProfileResponse`。
+* 禁止把 `ent.Entity` 或其聚合结果直接作为 JSON response 返回。
+* API 层不得泄漏数据库字段语义、内部外键、Ent edge 细节或 schema 中间态。
+* handler 不得依赖数据库 schema 作为 API 真值。
+* API response 必须通过统一响应结构输出。
+* 时间、权限、状态等字段必须保持 API 语义稳定，不得随底层 schema 细节漂移。
+* 不允许为了图省事把 `map[string]any` 作为主响应结构。
+
+### 9.8 配置规范
+
+* 配置统一通过 `config` 模块加载。
+* 不允许在业务代码中直接 `os.Getenv`。
+* 配置解析、默认值、校验必须集中管理。
+* 配置结构体必须表达业务语义，而不是环境变量原文。
+* 环境变量名仅作为外部输入边界，不得在业务分支中反复传播。
+* `secret`、`token`、`password` 类配置不得写死默认值。
+* 配置缺失时必须明确 fail fast。
+* runtime startup 必须明确打印关键配置阶段，但不得打印敏感值。
+* 配置结构体必须避免“万能 Config”；应按 runtime、plugin、capability 边界拆分。
+* 不允许把运行时状态、缓存句柄、请求上下文或其它动态值塞进 config。
+
+### 9.9 Runtime Wiring 与依赖注入规范
+
+* 依赖关系必须显式 wiring。
+* 不允许隐藏全局单例。
+* 不允许通过 `init()` 偷偷注册运行时依赖。
+* runtime、plugin、service、store 依赖必须可追踪。
+* service 的依赖必须通过构造函数注入。
+* 不允许在业务代码内部临时 `new` 基础设施依赖，例如 logger、database、redis、event bus、scheduler。
+* `logger`、`database`、`redis`、`event bus`、`scheduler` 等共享资源必须由 runtime 管理生命周期。
+* plugin 不得绕过 runtime 直接控制其他 plugin 内部状态。
+* wiring 必须保持单向依赖。
+* 禁止滥用 service locator；仓库现有容器只用于显式注册与解析边界，不能把“到处 Resolve”当作普通业务编码模式。
+* package `init` 不得承载复杂初始化逻辑。
+* 本小节与 `7.3 Dependency Injection` 一致，只补强日常编码中的显式装配约束，不引入新的容器抽象。
+
+### 9.10 安全与鉴权规范
+
+* 不允许在 handler 内手写散乱权限判断。
+* 鉴权逻辑必须统一通过 middleware、auth service 或 permission checker。
+* JWT、refresh token、session、secret 必须统一管理。
+* token 校验失败必须返回统一错误语义。
+* 不允许通过字符串硬编码角色逻辑散落业务代码。
+* 权限判断必须显式可追踪。
+* 不允许把敏感内部错误直接返回前端。
+* 默认拒绝未知权限。
+* 所有认证相关时间必须统一使用 UTC 或仓库统一时区策略。
+* refresh token 必须具备可吊销能力。
+* logout 后不得继续接受旧 refresh token。
+* 该规则用于约束当前 auth/RBAC MVP 实现边界，不得借机引入额外 framework 级鉴权抽象。
+
+### 9.11 事务规范
+
+* 事务边界优先放在 `service/usecase` 层。
+* `repository/store` 默认不主动开启事务，除非该 package 的唯一职责就是显式事务执行器。
+* handler 不得直接编排数据库事务。
+* 同一个业务事务中的 `repository/store` 调用必须共享同一 `tx`。
+* `Rollback` 必须通过 `defer` 保证。
+* `Commit` 成功后不得继续使用旧 `tx`。
+* 不允许隐藏事务边界。
+* 不允许在 `repository` 内部偷偷开启新事务覆盖上层事务。
+* 跨 `repository` 的事务协调必须由 `service/usecase` 负责。
+* 事务开始、提交、回滚路径必须可追踪，并与资源生命周期注释规则保持一致。
+
+### 9.12 错误处理规范
+
+* Go 代码必须显式处理 `error`，禁止忽略关键 `error`。
+* 包装错误必须使用 `fmt.Errorf("context: %w", err)`。
+* 错误上下文必须说明当前操作，例如 `load config: %w`、`connect redis: %w`、
+  `apply atlas migrations: %w`。
+* 不得为了通过编译而吞掉错误、返回无理由的 `nil`，或用空分支掩盖失败路径。
+* 除启动期不可恢复的编程错误外，底层函数不得直接 `panic`。
+* HTTP handler 中不得直接泄漏底层数据库错误或内部依赖错误给前端。
+* token、密码、secret、数据库内部错误等敏感失败细节不得直接拼进外部错误响应。
+
+### 9.13 并发与资源生命周期规范
+
+* 新增 goroutine 必须明确生命周期与退出条件。
+* 禁止无边界后台 goroutine。
+* goroutine 必须可取消、可回收、可观测。
+* channel 的创建方负责 `close`。
+* 使用 `time.Ticker`、`time.Timer` 后必须 `Stop`。
+* 不允许无限重试循环且无 `sleep`、`backoff` 或 `context cancel`。
+* 并发共享状态必须显式同步。
+* 优先使用 `context` 控制协程退出。
+* 不允许 silently `recover` panic 后继续运行。
+* `WaitGroup` 必须保证 `Add` 与 `Done` 成对出现。
+* `db tx`、`rows`、`redis pubsub`、`http response body`、`file`、`ticker`、`timer` 等资源句柄必须明确
+  `Close`、`Stop`、`cancel`、`Rollback` 生命周期。
+* `Close`、`cancel`、`Rollback` 不得遗漏。
+
+### 9.14 日志规范
+
+* `server` 禁止直接使用 `fmt.Println`、`log.Println` 输出业务日志。
+* 后端日志统一通过日志模块输出。
+* 请求链路日志必须包含 `traceId`、`requestId`。
+* 错误日志必须携带上下文信息。
+* `debug` 日志不得污染生产错误日志。
+* 不允许记录 `password`、`token`、`jwt`、`refresh token`、`secret`、`cookie`、
+  `authorization header` 等敏感信息。
+* 日志字段命名必须稳定一致。
+* `panic/recover` 日志必须带 stack 信息。
+* 不允许在循环、高频路径或热路径中打印大量 `info/debug` 日志。
+* HTTP access log 与业务错误日志职责必须分离。
+* migration、bootstrap、runtime 初始化日志必须清晰标识阶段。
+
+### 9.15 注释规范
+
+* 导出类型、导出函数、导出常量必须写 GoDoc 注释。
+* GoDoc 第一句必须以被注释标识符开头。
+* 注释必须说明职责、所有权、边界或副作用，不得复述代码。
+* 非导出代码只有在存在复杂业务规则、资源生命周期、并发、安全边界、事务语义或兼容约束时才写注释。
+* 不要求给每个入参/返回值机械写注释；只有语义不明显时才补充。
+* Context 边界、事务边界、goroutine 退出条件、`Open/Close` 所有权、敏感日志限制等复杂路径，应按
+  `18.1 Server Documentation` 与 `18.3 Inline Comment Rules` 写清楚边界和副作用。
+
+### 9.16 代码组织规范
+
+* handler 只负责 HTTP 参数解析、调用应用服务、返回响应。
+* `service/usecase` 负责业务流程编排。
+* `repository/store` 负责数据访问。
+* `config` 负责配置加载和校验。
+* `middleware` 负责认证、request id、日志上下文等横切逻辑。
+* 不允许在 handler 直接堆复杂业务逻辑。
+* 不允许 `repository` 反向依赖 handler 或 service。
+* 不允许为了方便引入循环依赖。
+* 不允许在业务逻辑中直接把数据库、Redis、HTTP client、scheduler、event bus 的细节扩散到 API 边界。
+* plugin 内部边界应继续优先复用现有 `runtime/plugin/service/store` 组织方式，不得为局部需求临时发明第二套分层。
+
+### 9.17 Ent 相关规范
+
+* Ent schema 类型必须使用单数业务名。
+* 多词 schema 文件必须使用下划线，例如 `user_role.go`。
+* `Mixin`、`Hook`、`Policy`、`Edge`、`Field` 应按职责拆分，避免单文件无限膨胀。
+* schema、field、edge 命名必须服务于查询可读性。
+* 迁移相关变更必须考虑 Atlas 校验与 hash。
+* 修改 migration 文件后必须重新执行 `atlas migrate hash`，除非只是新增尚未应用 migration。
+* handler、service、cross-plugin public API 不得把 Ent schema 或 generated entity 当作外部契约真值。
+
+### 9.18 测试规范
+
+* 测试文件必须使用 `*_test.go`。
+* 测试函数命名必须使用 `TestXxx`。
+* 表驱动测试变量优先命名为 `tests`。
+* 测试用例字段至少包含 `name`。
+* 重要错误分支必须覆盖。
+* 涉及生命周期、权限、事务、资源释放、token 轮换、context cancel、handler fail-closed 的回归路径必须补测试。
+* 当变更涉及可疑 API 使用、并发、错误包装、Context 传播或资源句柄约定时，应优先补充 `go vet` 可覆盖的直接校验。
+* 变更 `server` Go 代码后，最小直接校验范围必须符合 `12.1 Server Validation`。
+* 完成态默认必须满足 `gofmt`、`golangci-lint run`、`go test`、`go build ./cmd/graft` 与仓库统一 backend
+  completion entrypoint 的要求；`go vet` 不是默认完成态统一入口，但在当前切片有直接覆盖价值时应显式纳入；
+  具体命令顺序和完成态入口以 `12.1 Server Validation` 为准。
+
+### 9.19 AI 生成代码约束
+
+* AI 生成代码必须优先复用现有 `runtime`、`plugin`、`service`、`store` 边界。
+* AI 不得擅自新增 framework、ORM、DI container、logging framework。
+* AI 不得无理由扩大 abstraction layer。
+* AI 不得新增“未来可能会用到”的接口或扩展点。
+* AI 不得生成未使用代码。
+* AI 不得生成死代码、占位 `TODO` 或伪实现。
+* AI 不得为了通过编译吞掉错误。
+* AI 必须优先保持现有架构一致性。
+* AI 修改 migration 时必须考虑 `atlas migrate hash`。
+* AI 修改 `server` 代码后必须满足 `gofmt`、`go test ./...`、`go build ./cmd/graft`、`golangci-lint run`，
+  并与 `12.1 Server Validation` 的统一入口保持一致。
+* AI 不得通过修改规则、跳过测试、删除校验来绕过完成态。
+
+### 9.20 禁止事项
+
+* 禁止新增 `userrole.go`、`refreshtoken.go` 这类不可读文件名。
+* 禁止新增 `common.go`、`utils.go`、`helper.go` 作为垃圾桶文件。
+* 禁止在 handler 中写大段业务逻辑。
+* 禁止随意引入全局变量或隐藏单例。
+* 禁止忽略 `Close`、`cancel`、`Rollback` 等资源释放。
+* 禁止为了通过编译而吞掉 `error`。
+* 禁止无理由扩大接口、抽象层或 package 边界。
+* 禁止在没有需求的情况下引入框架级复杂设计。
+
+## 10. Implementation Priorities
 
 When building new functionality, prefer this order:
 
@@ -284,9 +552,9 @@ For v1, prioritize:
 
 Do not start Docker, SSH, monitor, or workflow plugins before the core extension path is stable.
 
-## 10. Execution Rules
+## 11. Execution Rules
 
-### 10.1 Module Placement
+### 11.1 Module Placement
 
 When asked to add a new capability:
 
@@ -295,7 +563,7 @@ When asked to add a new capability:
 * default to a `web/src/modules/<name>` entry path unless the page is a shell-level concern
 * define menu, route, permission, API, and public service boundaries before writing code
 
-### 10.2 Explicitness
+### 11.2 Explicitness
 
 When unsure:
 
@@ -304,7 +572,7 @@ When unsure:
 * keep the next contributor's mental load low
 * prefer direct construction and visible wiring over hidden framework behavior
 
-### 10.3 New Dependencies
+### 11.3 New Dependencies
 
 When asked to introduce a new dependency:
 
@@ -313,12 +581,12 @@ When asked to introduce a new dependency:
 * avoid adding abstractions that hide control flow
 * reject dependencies that materially weaken plugin boundaries or increase hidden runtime magic without clear benefit
 
-## 11. Validation Rules
+## 12. Validation Rules
 
 Every completed task must pass at least one validation that directly covers the changed code before it is considered
 done.
 
-### 11.1 Server Validation
+### 12.1 Server Validation
 
 For `server` changes:
 
@@ -337,13 +605,15 @@ For `server` changes:
 * lint issues in directly affected `server` code are blocking by default
 * a backend lint issue may be retained only as a controlled exception recorded in the active tracking document with the
   issue source, user-visible or engineering impact, temporary retention reason, and next cleanup action
+* directly affected `server` code that violates `9. Go 代码组织与命名规范` is not considered validation-complete,
+  even when the code still builds
 * run the smallest `go test` scope that still covers the touched packages when tests exist
 * run `go build ./cmd/graft` as the default backend compile gate, and widen the build scope only when the current
   change materially affects other `cmd/*` entrypoints
 * prefer wider validation such as `go test ./...` or `go build ./...` when the task changes shared abstractions, plugin
   contracts, lifecycle code, dependency resolution, or startup wiring
 
-### 11.2 Web Validation
+### 12.2 Web Validation
 
 For `web` changes:
 
@@ -362,14 +632,14 @@ For `web` changes:
 * prefer type checking plus production build when both are available
 * at minimum, use the smallest validation that proves changed routes, modules, pages, and TypeScript contracts compile
 
-### 11.3 Cross-Boundary Validation
+### 12.3 Cross-Boundary Validation
 
 If a task changes contracts shared across `server` and `web`, or changes menu/permission/route semantics that affect
 both sides:
 
 * validate both `server` and `web`
 
-### 11.4 Validation Reporting
+### 12.4 Validation Reporting
 
 If validation cannot be run:
 
@@ -383,7 +653,7 @@ When a frontend warning or backend lint issue is retained as a controlled except
 document must record its source, impact, temporary retention reason, and next cleanup action instead of calling it
 non-blocking by default.
 
-## 12. Git Workflow Rules
+## 13. Git Workflow Rules
 
 For repository work:
 
@@ -423,11 +693,11 @@ When a commit needs a body:
 * if a commit message is generated by automation, expand escaped text into actual line breaks and indentation before
   invoking `git commit`
 
-## 13. Automation and CI/CD Rules
+## 14. Automation and CI/CD Rules
 
 Repository automation should follow the same boundary rules as local development.
 
-### 13.1 Pull Request Validation
+### 14.1 Pull Request Validation
 
 When the repository adds CI workflows:
 
@@ -443,7 +713,7 @@ When the repository adds CI workflows:
 * backend CI must reuse the same `graft validate backend` entrypoint and pinned `golangci-lint` version as local
   development instead of rebuilding a second lint parameter set inside workflow YAML
 
-### 13.2 Release Automation
+### 14.2 Release Automation
 
 When the repository later adds release workflows:
 
@@ -452,7 +722,7 @@ When the repository later adds release workflows:
 * use explicit concurrency control for release or docs publish workflows
 * do not introduce package publishing complexity that the repository does not actually need yet
 
-### 13.3 Security and Maintenance Automation
+### 14.3 Security and Maintenance Automation
 
 When adding repository maintenance workflows:
 
@@ -461,20 +731,20 @@ When adding repository maintenance workflows:
 * prefer Dependabot or equivalent automation for Go modules, frontend dependencies, and GitHub Actions
 * keep optional workflows such as docs publish or benchmarks separate from the main CI path
 
-## 14. License Governance
+## 15. License Governance
 
 This repository is licensed under Apache License 2.0.
 
 Contributors must preserve that licensing posture when changing code, docs, automation, or dependencies.
 
-### 14.1 Repository License Files
+### 15.1 Repository License Files
 
 * do not remove or weaken the top-level `LICENSE` file
 * if the repository later requires a `NOTICE` file or third-party license inventory, keep those files aligned with the
   actual distributed contents
 * do not add repository rules that conflict with Apache-2.0 distribution terms
 
-### 14.2 Source File Headers
+### 15.2 Source File Headers
 
 The repository does not currently enforce a header script or SPDX baseline, so contributors must not invent a fake
 mandatory workflow.
@@ -485,7 +755,7 @@ If the project later adopts source header enforcement:
 * apply the policy consistently across supported source and configuration file types
 * document exclusions for generated files, third-party code, lockfiles, and build output
 
-### 14.3 Dependency and Distribution Compliance
+### 15.3 Dependency and Distribution Compliance
 
 When introducing a new dependency, package, or distributable artifact:
 
@@ -494,7 +764,7 @@ When introducing a new dependency, package, or distributable artifact:
 * avoid adding copyleft or distribution-restrictive dependencies without an explicit repository decision
 * keep future CI license checks lightweight until the repository has a real release pipeline and artifact inventory
 
-## 15. Subagent Usage Rules
+## 16. Subagent Usage Rules
 
 Use subagents only when the task is complex, the context is likely to grow too large, or the work can be split into
 independent parallel subtasks.
@@ -527,7 +797,7 @@ The main agent remains responsible for:
 
 Repository subagent usage is allowed in this project when it follows these rules.
 
-## 16. Complex Task Tracking
+## 17. Complex Task Tracking
 
 For complex, multi-step, or multi-agent work:
 
@@ -581,11 +851,11 @@ Use these workflow rules:
 * never record absolute file-system paths in `ai-plan/**`; use repository-relative paths, branch names, commit ids, PR
   numbers, and validation commands instead
 
-## 17. Commenting and Documentation Rules
+## 18. Commenting and Documentation Rules
 
 All generated or modified code must include clear and meaningful comments where required by the rules below.
 
-### 17.1 Server Documentation
+### 18.1 Server Documentation
 
 For Go code:
 
@@ -613,8 +883,11 @@ For Go code:
   fields; do not mechanically document every field
 * top-level test functions should state the scenario or contract they lock down; helper functions only need comments
   when their intent is not obvious from the test shape
+* context propagation boundaries, transaction ownership, runtime wiring, goroutine exit conditions, resource cleanup
+  ownership, API/DTO boundaries, and sensitive logging constraints should be documented according to
+  `9. Go 代码组织与命名规范` when they are not obvious from the code shape
 
-### 17.2 Web Documentation
+### 18.2 Web Documentation
 
 For TypeScript and Vue code:
 
@@ -624,7 +897,7 @@ For TypeScript and Vue code:
 * document why a store exists when the same state could have been page-local
 * document backend contract assumptions when the UI depends on menu, permission, or plugin metadata semantics
 
-### 17.3 Inline Comment Rules
+### 18.3 Inline Comment Rules
 
 Add inline comments for:
 
@@ -640,7 +913,7 @@ Prefer standalone line comments ahead of the logic block for complex behavior in
 
 Do not add trivial or mechanical comments that only restate the code.
 
-### 17.4 Architecture-Level Documentation
+### 18.4 Architecture-Level Documentation
 
 Core framework components and plugin-extension primitives must explain:
 
@@ -650,7 +923,7 @@ Core framework components and plugin-extension primitives must explain:
 * why the abstraction exists
 * when to use it instead of simpler alternatives
 
-### 17.5 Module README Rules
+### 18.5 Module README Rules
 
 Module-level `README.md` files are navigation documents, not detailed design documents.
 
@@ -662,7 +935,7 @@ Rules:
 * explain module purpose, boundary, main entrypoints, upstream/downstream relationships, and extension guidance
 * keep detailed architecture decisions in `ai-plan/design/` instead of duplicating them inside module READMEs
 
-### 17.6 Comment Priority
+### 18.6 Comment Priority
 
 When time or scope is limited, prioritize comments in this order:
 
@@ -675,7 +948,7 @@ When time or scope is limited, prioritize comments in this order:
 Missing required documentation is a standards violation. Code that does not meet these documentation rules is
 incomplete.
 
-## 18. Change Management
+## 19. Change Management
 
 When making substantial changes:
 
@@ -689,7 +962,7 @@ If a task reveals that the current docs are wrong:
 * state the new rule clearly
 * then implement against the updated rule
 
-## 19. Code Review Expectations
+## 20. Code Review Expectations
 
 Review for:
 
@@ -704,13 +977,16 @@ Review for:
 
 A change is not acceptable if it makes adding the next plugin or frontend module harder.
 
-## 20. Definition of Done
+## 21. Definition of Done
 
 A task is done only when all relevant items below are satisfied:
 
 * the change follows the current `ai-plan/` documents, or the docs were updated first
 * `server` and `web` boundaries are still clear
 * new module work keeps the `menu + route + page + api + permission` path explicit
+* `server` code in scope complies with `9. Go 代码组织与命名规范`, including context propagation, transaction
+  boundaries, resource cleanup, API/DTO boundaries, config loading, runtime wiring, auth handling, logging, and
+  AI-code governance constraints
 * affected code has the required comments and documentation
 * the changed area passed direct validation, or the exact validation gap was reported
 * `server` work reached its completion state only after `graft validate backend` passed with the full backend quality

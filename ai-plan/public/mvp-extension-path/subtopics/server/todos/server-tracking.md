@@ -40,6 +40,7 @@
 - `server` 当前已补充两个独立开发辅助程序：`cmd/graft-jwt-secret` 与 `cmd/graft-signing-key`，用于生成可直接写入 `.env` 的随机 auth 密钥文本；该能力只辅助配置准备，不参与运行时加载或 token 语义。
 - `server` 当前已把模块工具链基线提升到 `Go 1.26.x`，并将 `go.uber.org/zap` 收敛到 `v1.28.0`；`go test ./...` 与 `go build ./cmd/...` 在本地 `go1.26.1` 下通过，未触发 Ent/Atlas regeneration。
 - 当前 backend governance 文档真值已经冻结：`server` 完成态必须统一走 `graft validate backend`，固定质量顺序为 `golangci-lint run -> go test (smallest direct scope) -> go build ./cmd/graft -> graft validate smoke when needed`，并固定 pin `golangci-lint v2.12.2`。
+- 当前 `AGENTS.md` 已新增独立 `Go 代码组织与命名规范` 章节，统一冻结 `server` 手写 Go 代码的文件/包/类型命名、Context 传播、API/DTO、config、runtime wiring、事务、Ent、并发、日志、安全与 AI 生成代码约束；相关完成态与注释/验证章节仅再做引用式收敛，不再重复堆叠第二套真值。
 - 当前 CI `server-lint` job 已改为只安装固定版 `golangci-lint` 二进制，再回到 `graft validate backend --stage lint` 统一执行入口；不再让 `golangci-lint-action` 在仓库根目录误跑 `./...`。
 - 当前生产代码 lint backlog 已在本地清零，`go run ./cmd/graft validate backend --stage lint` 的生产配置可返回 `0 issues`；完成态仍被 `server/.golangci.test.yml` 暴露的既有测试代码 backlog 阻断，当前量级为 117 条，不属于本次 workflow 与生产代码修复引入的回归。
 - backend lint issue 默认按阻断项处理；如果当前切片无法立即清理，只能登记到本文件的 `Backend Lint Controlled Exceptions`，并记录来源、影响、保留原因和下一步清理动作。
@@ -149,6 +150,9 @@
 - 本次 backend lint 治理文档切片一致性检查：
   - `rg -n "golangci-lint|graft validate backend|controlled exception|revive|stylecheck" AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
   - `git diff -- AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
+- 本次 `AGENTS.md` Go 治理章节扩展一致性检查：
+  - `rg -n "Go 代码组织与命名规范|Context 规范|API 与 DTO 规范|Runtime Wiring 与依赖注入规范|安全与鉴权规范|AI 生成代码约束" AGENTS.md`
+  - `git diff -- AGENTS.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/traces/server-trace.md`
 
 ## Immediate Next Step
 

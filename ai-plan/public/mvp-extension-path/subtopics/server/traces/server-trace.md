@@ -387,6 +387,18 @@
 - Revalidated the touched server surface with `cd server && go test ./internal/httpx ./internal/store/entstore ./plugins/user` plus a focused production-code `golangci-lint run --config .golangci.yml ...` pass that returned `0 issues`.
 - Re-ran `go run ./cmd/graft validate backend --stage lint` and confirmed the production lint config now passes cleanly, while the test lint config still exposes a separate historical backlog (117 issues) that is now recorded as a controlled exception in `server-tracking.md`.
 
+## 2026-05-16 AGENTS Go governance expansion
+
+- Expanded the root `AGENTS.md` with a dedicated `Go 代码组织与命名规范` chapter for `server`, and moved the fine-grained
+  handwritten Go governance truth there instead of scattering it across validation, comment, and done-state sections.
+- Froze explicit rules for file/package/type/function naming, Context propagation, API/DTO separation, config loading,
+  runtime wiring, transaction ownership, Ent schema/migration discipline, concurrency/resource lifecycle, logging,
+  auth handling, and AI-generated code behavior.
+- Narrowed the older sections so `8.1` keeps platform-level server boundary truth, `12.1` keeps validation-entrypoint
+  truth, `18.1` keeps documentation-quality truth, and `21` keeps completion-state truth, with cross-references back
+  to the new Go-governance chapter instead of duplicated rule lists.
+- Kept this slice documentation-only; no business code, schema, migration, runtime wiring, or plugin behavior changed.
+
 ## Next Step
 
 - Take the recorded `server/.golangci.test.yml` backlog as a standalone cleanup slice and rerun `graft validate backend`
