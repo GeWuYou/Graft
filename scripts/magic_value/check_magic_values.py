@@ -149,6 +149,7 @@ EVENT_NAME_LITERAL_RE = re.compile(r"""["'](?P<event>[a-z][a-z0-9]*(?:\.[a-z][a-
 PERMISSION_LITERAL_RE = re.compile(r"""["'](?P<permission>[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+)["']""")
 API_PATH_LITERAL_RE = re.compile(r"""["'](?P<path>/api/[A-Za-z0-9/_:-]+)["']""")
 GO_TEST_FILE_RE = re.compile(r"_test\.go$")
+TEST_API_PATH_DEFINITION_RE = re.compile(r"""^\s*const\s+[A-Z0-9_]+_PATH\s*=\s*["']/api/[A-Za-z0-9/_:-]+["']""")
 TEXT_FILE_SUFFIXES = {
     ".go",
     ".ts",
@@ -387,11 +388,13 @@ def is_definition_context(path: str, line_text: str, value: str) -> bool:
         return True
     if path == "web/src/router/index.ts" and value == "/auth/restricted-session":
         return True
-    if path == "server/internal/i18n/service.go":
+    if (path.endswith(".test.ts") or path.endswith(".test.tsx") or path.endswith(".spec.ts")) and TEST_API_PATH_DEFINITION_RE.match(line_text):
         return True
-    if path == "server/internal/httpx/response.go":
+    if path == "server/internal/i18n/service.go" and "messagecontract." in line_text:
         return True
-    if path == "server/internal/pluginapi/audit.go":
+    if path == "server/internal/httpx/response.go" and "httpheader." in line_text:
+        return True
+    if path == "server/internal/pluginapi/audit.go" and "AuditRecordEventName" in line_text:
         return True
     return False
 

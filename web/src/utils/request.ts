@@ -9,6 +9,7 @@ import {
   type LoginResponse,
 } from '@/api/model/authModel';
 import { AUTH_SCHEME, HTTP_HEADER } from '@/contracts/api/headers';
+import { MESSAGE_KEY } from '@/contracts/api/messages';
 import { AUTH_API_PATH } from '@/contracts/auth/paths';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
 import type { ApiRequestError, AxiosRequestConfigRetry, RequestOptions } from '@/types/axios';
@@ -31,7 +32,6 @@ type AuthSessionBridge = {
 };
 
 const AUTH_REFRESH_URL = AUTH_API_PATH.REFRESH;
-const AUTH_FORBIDDEN_MESSAGE_KEY = 'auth.forbidden';
 let authSessionBridge: AuthSessionBridge | null = null;
 
 function resolveBaseURL() {
@@ -278,6 +278,6 @@ function isRestrictedPasswordChangeRefreshError(error: unknown) {
     isApiRequestError(error) &&
     error.status === 403 &&
     error.code === API_CODE.AUTH_FORBIDDEN &&
-    error.messageKey === AUTH_FORBIDDEN_MESSAGE_KEY
+    error.messageKey === MESSAGE_KEY.AUTH_FORBIDDEN
   );
 }
