@@ -119,6 +119,33 @@ func TestEnsureRoleUpgradesBuiltinState(t *testing.T) {
 	}
 }
 
+// TestEnsurePermissionPersistsCategory 验证 EnsurePermission 创建路径会持久化调用方提供的分类真值。
+func TestEnsurePermissionPersistsCategory(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:rbac-ensure-permission-category?mode=memory&cache=shared&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := &rbacRepository{client: client}
+	permissionRecord, err := repo.EnsurePermission(context.Background(), store.EnsurePermissionInput{
+		Code:     "role.read",
+		Display:  "查看角色",
+		Category: "api",
+	})
+	if err != nil {
+		t.Fatalf("ensure permission: %v", err)
+	}
+	if permissionRecord.Category != "api" {
+		t.Fatalf("expected ensured permission category api, got %#v", permissionRecord)
+	}
+
+	record, err := client.Permission.Query().Only(context.Background())
+	if err != nil {
+		t.Fatalf("reload permission: %v", err)
+	}
+	if record.Category != "api" {
+		t.Fatalf("expected persisted permission category api, got %#v", record)
+	}
+}
+
 // TestRBACRepositoryWriteOperations 验证最小角色写接口与覆盖式绑定会保留稳定仓储语义。
 func TestRBACRepositoryWriteOperations(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:rbac-write-ops?mode=memory&cache=shared&_fk=1")

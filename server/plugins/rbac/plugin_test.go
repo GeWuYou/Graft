@@ -284,6 +284,11 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 		items[5].Code != rbaccontract.UserRoleAssignPermission.String() {
 		t.Fatalf("unexpected registered permissions: %#v", items)
 	}
+	for _, item := range items {
+		if item.Category != "api" {
+			t.Fatalf("expected registered permission %s to declare category api, got %#v", item.Code, item)
+		}
+	}
 
 	menus := ctx.MenuRegistry.Items()
 	if len(menus) != 1 {

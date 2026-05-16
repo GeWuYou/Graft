@@ -826,6 +826,11 @@ func assertUserPluginRegistry(t *testing.T, ctx *plugin.Context) {
 		items[2].Code != usercontract.UserSessionReadPermission.String() {
 		t.Fatalf("expected user.read, user.session.revoke and user.session.read to remain the leading user permissions, got %#v", items)
 	}
+	for _, item := range items[:3] {
+		if item.Category != "api" {
+			t.Fatalf("expected leading user permission %s to declare category api, got %#v", item.Code, item)
+		}
+	}
 
 	menuItems := ctx.MenuRegistry.Items()
 	if len(menuItems) == 0 {
@@ -906,6 +911,9 @@ func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) pluginT
 			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 		},
 		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+			if input.Category != "api" {
+				t.Fatalf("expected ensured permission %s to carry category api, got %#v", input.Code, input)
+			}
 			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 		},
 		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
@@ -1294,6 +1302,9 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 		},
 		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+			if input.Category != "api" {
+				t.Fatalf("expected ensured permission %s to carry category api, got %#v", input.Code, input)
+			}
 			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 		},
 		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
