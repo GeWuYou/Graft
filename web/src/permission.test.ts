@@ -103,6 +103,7 @@ describe('permission restricted session guard', () => {
     storeState.permissionStore.routesInitialized = true;
     storeState.userStore.ensureBootstrap.mockResolvedValue({
       must_change_password: true,
+      roles: ['admin'],
       menus: [],
       permissions: [],
       locale: {

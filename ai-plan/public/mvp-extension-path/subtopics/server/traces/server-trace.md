@@ -429,6 +429,20 @@
   added a fail-closed regression for missing shared authorizer wiring, and revalidated the slice with
   `go test ./plugins/user ./plugins/rbac ./internal/httpx`.
 
+## 2026-05-16 RBAC read-management foundation
+
+- Started the first RBAC MVP implementation wave by widening the backend truth surface from “authorization only” to a
+  minimal read-management foundation without moving role/permission ownership out of the existing `rbac` plugin.
+- Extended the stable store/repository boundary with `roles.builtin`, `permissions.category`, plus repository-level
+  `ListRoles` and `ListPermissions` read APIs so the `rbac` plugin can expose management reads without leaking Ent
+  internals into handlers.
+- Added the matching Ent schema and Atlas migration slice for `roles.builtin` and `permissions.category`, regenerated
+  the affected Ent artifacts, and refreshed `atlas.sum`.
+- Extended `server/plugins/user` bootstrap so the authenticated snapshot now includes stable `roles`, keeping `web`
+  on a single backend-owned RBAC truth path instead of an empty roles placeholder.
+- Revalidated the bootstrap-side fallout with focused `cd server && go test ./plugins/user` and kept
+  `cd server && go test ./plugins/rbac` green while the dedicated RBAC route/test slice continued in parallel.
+
 ## Next Step
 
 - Keep the shared `pluginapi.Authorizer` wiring frozen for future protected `server` routes, and do not reintroduce

@@ -2,7 +2,7 @@
 
 ## 用途
 
-`server/plugins/rbac` 提供 MVP 阶段最小可用的后端授权能力，用来把用户与权限仓储基线接到真实请求鉴权链路。
+`server/plugins/rbac` 提供 MVP 阶段最小可用的后端授权与只读管理能力，用来把用户与权限仓储基线接到真实请求鉴权链路，并为 `web` 暴露真实的角色/权限读取入口。
 
 ## 职责边界
 
@@ -10,10 +10,12 @@
 
 * 暴露 `pluginapi.Authorizer`
 * 基于稳定仓储接口判断请求主体是否拥有所需权限
+* 注册 RBAC 只读权限元数据与菜单元数据
+* 提供 `GET /api/roles` 与 `GET /api/permissions` 只读接口
 
 这个模块不负责：
 
-* 角色、权限管理页面或接口
+* 角色、权限写接口
 * 认证登录、token 签发与刷新
 * 把具体存储实现泄漏给其它插件
 
@@ -21,7 +23,13 @@
 
 * `doc.go`：插件用途说明
 * `plugin.go`：插件生命周期与授权服务注册
+* `plugin_routes.go`：角色/权限只读路由
+* `read_service.go`：插件内只读管理服务收口
 
 ## 维护提示
 
-后续如果接入完整 RBAC 管理能力，应继续保持对外只暴露能力接口，而不是把 repository 或 ORM 细节扩散到插件边界外。
+后续如果接入完整 RBAC 管理能力，应继续保持：
+
+* handler 不直接扩散 repository 或 ORM 细节
+* 权限判断继续统一走 `pluginapi.Authorizer` 与 `httpx.RequirePermission`
+* 角色/权限写操作单独通过插件内 service/usecase 收敛，而不是在路由层散落规则

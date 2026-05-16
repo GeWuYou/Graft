@@ -1,5 +1,6 @@
-h1:rUDJSQDUvsa3TBn6mayiH58X/B/P4B1IOQ/IG5csK8g=
+h1:0WkgZLi/hn9fY3uAgt0fLfLKmmIs9aauGee2S3qs5gg=
 202605120001_init_users.sql h1:DEppXL+fP01XxK3lWWdu8I7gTn/TMd6Dq2grKEkbuog=
 202605140001_auth_rbac_foundation.sql h1:eeVfirRWqCOJWxc2CaYiLxKJaeGHMAYBXpE1i6pzcPE=
 202605150001_audit_log_foundation.sql h1:phjHkhddP4FerciAG/UELNKr7RcKNopaE8OXKTPqaHs=
 202605150002_default_admin_password_bootstrap.sql h1:D06/VJ+wrBgzOEzT8qGU3ucieTpSfgzz7I0o4GpwmXI=
+202605160001_rbac_management_foundation.sql h1:OK3L5Ijd8QiCyjgsfYCR0juA3C1vDKWwllYhxaDlg6k=

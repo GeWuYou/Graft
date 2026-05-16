@@ -23,6 +23,8 @@ type Role struct {
 	Display string `json:"display,omitempty"`
 	// Description holds the value of the "description" field.
 	Description *string `json:"description,omitempty"`
+	// Builtin holds the value of the "builtin" field.
+	Builtin bool `json:"builtin,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -67,6 +69,8 @@ func (*Role) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case role.FieldBuiltin:
+			values[i] = new(sql.NullBool)
 		case role.FieldID:
 			values[i] = new(sql.NullInt64)
 		case role.FieldName, role.FieldDisplay, role.FieldDescription:
@@ -112,6 +116,12 @@ func (_m *Role) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Description = new(string)
 				*_m.Description = value.String
+			}
+		case role.FieldBuiltin:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field builtin", values[i])
+			} else if value.Valid {
+				_m.Builtin = value.Bool
 			}
 		case role.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -181,6 +191,9 @@ func (_m *Role) String() string {
 		builder.WriteString("description=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("builtin=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Builtin))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

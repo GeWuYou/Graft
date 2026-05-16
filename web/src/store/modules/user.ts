@@ -56,7 +56,7 @@ export const useUserStore = defineStore('user', {
       this.userInfo = {
         name: payload.user.display_name || payload.user.username,
         username: payload.user.username,
-        roles: [],
+        roles: payload.roles ?? [],
         permissions: payload.permissions,
       };
     },

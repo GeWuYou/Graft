@@ -15,6 +15,14 @@ export const usePermissionStore = defineStore('permission', {
     asyncRoutes: [] as RouteRecordRaw[],
     routesInitialized: false,
   }),
+  getters: {
+    permissionCodes: (state) => {
+      return state.bootstrapSnapshot?.permissions ?? [];
+    },
+    permissionCodeSet(): Set<string> {
+      return new Set(this.permissionCodes);
+    },
+  },
   actions: {
     setBootstrapSnapshot(snapshot: BootstrapResponse | null) {
       this.bootstrapSnapshot = snapshot;
@@ -37,6 +45,27 @@ export const usePermissionStore = defineStore('permission', {
       this.removeRoutes = [];
       this.routesInitialized = false;
       await this.initRoutes();
+    },
+    hasPermission(code: string) {
+      if (!code) {
+        return false;
+      }
+
+      return this.permissionCodeSet.has(code);
+    },
+    hasAnyPermission(codes: string[]) {
+      if (codes.length === 0) {
+        return false;
+      }
+
+      return codes.some((code) => this.permissionCodeSet.has(code));
+    },
+    hasAllPermissions(codes: string[]) {
+      if (codes.length === 0) {
+        return false;
+      }
+
+      return codes.every((code) => this.permissionCodeSet.has(code));
     },
   },
 });

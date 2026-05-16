@@ -350,6 +350,7 @@ func (r pluginTestUserRepository) List(ctx context.Context) ([]store.User, error
 
 type pluginTestRBACRepository struct {
 	permissions             map[uint64][]store.Permission
+	roles                   map[uint64][]store.Role
 	ensureRole              func(ctx context.Context, input store.EnsureRoleInput) (store.Role, error)
 	ensurePermission        func(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error)
 	assignPermissionsToRole func(ctx context.Context, input store.AssignPermissionsToRoleInput) error
@@ -388,8 +389,16 @@ func (r pluginTestRBACRepository) AssignRoleToUser(ctx context.Context, input st
 	return nil
 }
 
-func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, _ uint64) ([]store.Role, error) {
-	return nil, nil
+func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, userID uint64) ([]store.Role, error) {
+	if r.roles == nil {
+		return []store.Role{}, nil
+	}
+
+	return r.roles[userID], nil
+}
+
+func (r pluginTestRBACRepository) ListRoles(_ context.Context) ([]store.Role, error) {
+	return []store.Role{}, nil
 }
 
 func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, userID uint64) ([]store.Permission, error) {
@@ -398,6 +407,10 @@ func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, use
 	}
 
 	return r.permissions[userID], nil
+}
+
+func (r pluginTestRBACRepository) ListPermissions(_ context.Context) ([]store.Permission, error) {
+	return []store.Permission{}, nil
 }
 
 func newPluginTestContext(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository) (*plugin.Context, *gin.Engine) {
@@ -452,6 +465,14 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 		Stores: pluginTestStoreFactory{
 			auth:        authRepo,
 			users:       userRepo,
+			rbac: pluginTestRBACRepository{
+				roles: map[uint64][]store.Role{
+					7: {{ID: 1, Name: "admin", Display: "管理员"}},
+					8: {{ID: 2, Name: "viewer", Display: "只读用户"}},
+					9: {{ID: 1, Name: "admin", Display: "管理员"}},
+				},
+				permissions: permissions,
+			},
 			permissions: permissions,
 		},
 		MenuRegistry:       menu.NewRegistry(),
@@ -756,19 +777,24 @@ func assertUserPluginRegistry(t *testing.T, ctx *plugin.Context) {
 	t.Helper()
 
 	items := ctx.PermissionRegistry.Items()
-	if len(items) != 3 {
-		t.Fatalf("expected three user permissions, got %#v", items)
+	if len(items) < 3 {
+		t.Fatalf("expected at least three registered permissions, got %#v", items)
 	}
 	// 权限断言依赖 Registry.Items() 保持注册顺序，避免插件对外声明面静默漂移。
 	if items[0].Code != usercontract.UserReadPermission.String() ||
 		items[1].Code != usercontract.UserSessionRevokePermission.String() ||
 		items[2].Code != usercontract.UserSessionReadPermission.String() {
-		t.Fatalf("expected user.read, user.session.revoke and user.session.read permissions, got %#v", items)
+		t.Fatalf("expected user.read, user.session.revoke and user.session.read to remain the leading user permissions, got %#v", items)
 	}
 
 	menuItems := ctx.MenuRegistry.Items()
-	if len(menuItems) != 1 || menuItems[0].Path != usercontract.UsersGroup {
-		t.Fatalf("expected one /users menu item, got %#v", menuItems)
+	if len(menuItems) == 0 {
+		t.Fatalf("expected registered menu items, got %#v", menuItems)
+	}
+	if menuItems[0].Path != usercontract.UsersGroup ||
+		menuItems[0].Code != "user.list" ||
+		menuItems[0].Permission != usercontract.UserReadPermission.String() {
+		t.Fatalf("expected leading /users menu item to remain canonical, got %#v", menuItems)
 	}
 }
 
@@ -890,6 +916,9 @@ func assertBootstrapIdentityAndPermissions(t *testing.T, payload bootstrapRespon
 
 	if payload.User.ID != 7 || payload.User.Username != "alice" || payload.User.DisplayName != "Alice" {
 		t.Fatalf("expected current user summary, got %#v", payload.User)
+	}
+	if !slices.Equal(payload.Roles, []string{"admin"}) {
+		t.Fatalf("expected sorted role snapshot, got %#v", payload.Roles)
 	}
 	if !slices.Equal(payload.Permissions, []string{usercontract.UserReadPermission.String()}) {
 		t.Fatalf("expected sorted unique permissions, got %#v", payload.Permissions)

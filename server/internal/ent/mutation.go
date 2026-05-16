@@ -1027,6 +1027,7 @@ type PermissionMutation struct {
 	code                    *string
 	display                 *string
 	description             *string
+	category                *string
 	created_at              *time.Time
 	updated_at              *time.Time
 	clearedFields           map[string]struct{}
@@ -1257,6 +1258,42 @@ func (m *PermissionMutation) ResetDescription() {
 	delete(m.clearedFields, permission.FieldDescription)
 }
 
+// SetCategory sets the "category" field.
+func (m *PermissionMutation) SetCategory(s string) {
+	m.category = &s
+}
+
+// Category returns the value of the "category" field in the mutation.
+func (m *PermissionMutation) Category() (r string, exists bool) {
+	v := m.category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategory returns the old "category" field's value of the Permission entity.
+// If the Permission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PermissionMutation) OldCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+	}
+	return oldValue.Category, nil
+}
+
+// ResetCategory resets all changes to the "category" field.
+func (m *PermissionMutation) ResetCategory() {
+	m.category = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *PermissionMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -1417,7 +1454,7 @@ func (m *PermissionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PermissionMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.code != nil {
 		fields = append(fields, permission.FieldCode)
 	}
@@ -1426,6 +1463,9 @@ func (m *PermissionMutation) Fields() []string {
 	}
 	if m.description != nil {
 		fields = append(fields, permission.FieldDescription)
+	}
+	if m.category != nil {
+		fields = append(fields, permission.FieldCategory)
 	}
 	if m.created_at != nil {
 		fields = append(fields, permission.FieldCreatedAt)
@@ -1447,6 +1487,8 @@ func (m *PermissionMutation) Field(name string) (ent.Value, bool) {
 		return m.Display()
 	case permission.FieldDescription:
 		return m.Description()
+	case permission.FieldCategory:
+		return m.Category()
 	case permission.FieldCreatedAt:
 		return m.CreatedAt()
 	case permission.FieldUpdatedAt:
@@ -1466,6 +1508,8 @@ func (m *PermissionMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldDisplay(ctx)
 	case permission.FieldDescription:
 		return m.OldDescription(ctx)
+	case permission.FieldCategory:
+		return m.OldCategory(ctx)
 	case permission.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case permission.FieldUpdatedAt:
@@ -1499,6 +1543,13 @@ func (m *PermissionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
+		return nil
+	case permission.FieldCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategory(v)
 		return nil
 	case permission.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -1580,6 +1631,9 @@ func (m *PermissionMutation) ResetField(name string) error {
 		return nil
 	case permission.FieldDescription:
 		m.ResetDescription()
+		return nil
+	case permission.FieldCategory:
+		m.ResetCategory()
 		return nil
 	case permission.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -2432,6 +2486,7 @@ type RoleMutation struct {
 	name                    *string
 	display                 *string
 	description             *string
+	builtin                 *bool
 	created_at              *time.Time
 	updated_at              *time.Time
 	clearedFields           map[string]struct{}
@@ -2665,6 +2720,42 @@ func (m *RoleMutation) ResetDescription() {
 	delete(m.clearedFields, role.FieldDescription)
 }
 
+// SetBuiltin sets the "builtin" field.
+func (m *RoleMutation) SetBuiltin(b bool) {
+	m.builtin = &b
+}
+
+// Builtin returns the value of the "builtin" field in the mutation.
+func (m *RoleMutation) Builtin() (r bool, exists bool) {
+	v := m.builtin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBuiltin returns the old "builtin" field's value of the Role entity.
+// If the Role object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoleMutation) OldBuiltin(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBuiltin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBuiltin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBuiltin: %w", err)
+	}
+	return oldValue.Builtin, nil
+}
+
+// ResetBuiltin resets all changes to the "builtin" field.
+func (m *RoleMutation) ResetBuiltin() {
+	m.builtin = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *RoleMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2879,7 +2970,7 @@ func (m *RoleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RoleMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.name != nil {
 		fields = append(fields, role.FieldName)
 	}
@@ -2888,6 +2979,9 @@ func (m *RoleMutation) Fields() []string {
 	}
 	if m.description != nil {
 		fields = append(fields, role.FieldDescription)
+	}
+	if m.builtin != nil {
+		fields = append(fields, role.FieldBuiltin)
 	}
 	if m.created_at != nil {
 		fields = append(fields, role.FieldCreatedAt)
@@ -2909,6 +3003,8 @@ func (m *RoleMutation) Field(name string) (ent.Value, bool) {
 		return m.Display()
 	case role.FieldDescription:
 		return m.Description()
+	case role.FieldBuiltin:
+		return m.Builtin()
 	case role.FieldCreatedAt:
 		return m.CreatedAt()
 	case role.FieldUpdatedAt:
@@ -2928,6 +3024,8 @@ func (m *RoleMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldDisplay(ctx)
 	case role.FieldDescription:
 		return m.OldDescription(ctx)
+	case role.FieldBuiltin:
+		return m.OldBuiltin(ctx)
 	case role.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case role.FieldUpdatedAt:
@@ -2961,6 +3059,13 @@ func (m *RoleMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
+		return nil
+	case role.FieldBuiltin:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBuiltin(v)
 		return nil
 	case role.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -3042,6 +3147,9 @@ func (m *RoleMutation) ResetField(name string) error {
 		return nil
 	case role.FieldDescription:
 		m.ResetDescription()
+		return nil
+	case role.FieldBuiltin:
+		m.ResetBuiltin()
 		return nil
 	case role.FieldCreatedAt:
 		m.ResetCreatedAt()

@@ -11,6 +11,7 @@ type Role struct {
 	Name        string
 	Display     string
 	Description *string
+	Builtin     bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -21,6 +22,7 @@ type Permission struct {
 	Code        string
 	Display     string
 	Description *string
+	Category    string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -30,6 +32,7 @@ type EnsureRoleInput struct {
 	Name        string
 	Display     string
 	Description *string
+	Builtin     bool
 }
 
 // EnsurePermissionInput 描述一次最小权限存在性保障所需的输入。
@@ -37,6 +40,7 @@ type EnsurePermissionInput struct {
 	Code        string
 	Display     string
 	Description *string
+	Category    string
 }
 
 // AssignPermissionsToRoleInput 描述一次角色权限最小绑定所需的输入。
@@ -70,6 +74,12 @@ type RBACRepository interface {
 	// ListRolesByUserID 返回指定用户当前绑定的全部角色。
 	ListRolesByUserID(ctx context.Context, userID uint64) ([]Role, error)
 
+	// ListRoles 返回当前稳定排序下的角色快照。
+	ListRoles(ctx context.Context) ([]Role, error)
+
 	// ListPermissionsByUserID 返回指定用户经由角色解析得到的全部权限点。
 	ListPermissionsByUserID(ctx context.Context, userID uint64) ([]Permission, error)
+
+	// ListPermissions 返回当前稳定排序下的权限快照。
+	ListPermissions(ctx context.Context) ([]Permission, error)
 }

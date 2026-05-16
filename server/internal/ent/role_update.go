@@ -78,6 +78,20 @@ func (_u *RoleUpdate) ClearDescription() *RoleUpdate {
 	return _u
 }
 
+// SetBuiltin sets the "builtin" field.
+func (_u *RoleUpdate) SetBuiltin(v bool) *RoleUpdate {
+	_u.mutation.SetBuiltin(v)
+	return _u
+}
+
+// SetNillableBuiltin sets the "builtin" field if the given value is not nil.
+func (_u *RoleUpdate) SetNillableBuiltin(v *bool) *RoleUpdate {
+	if v != nil {
+		_u.SetBuiltin(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *RoleUpdate) SetUpdatedAt(v time.Time) *RoleUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -235,6 +249,9 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DescriptionCleared() {
 		_spec.ClearField(role.FieldDescription, field.TypeString)
+	}
+	if value, ok := _u.mutation.Builtin(); ok {
+		_spec.SetField(role.FieldBuiltin, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(role.FieldUpdatedAt, field.TypeTime, value)
@@ -394,6 +411,20 @@ func (_u *RoleUpdateOne) SetNillableDescription(v *string) *RoleUpdateOne {
 // ClearDescription clears the value of the "description" field.
 func (_u *RoleUpdateOne) ClearDescription() *RoleUpdateOne {
 	_u.mutation.ClearDescription()
+	return _u
+}
+
+// SetBuiltin sets the "builtin" field.
+func (_u *RoleUpdateOne) SetBuiltin(v bool) *RoleUpdateOne {
+	_u.mutation.SetBuiltin(v)
+	return _u
+}
+
+// SetNillableBuiltin sets the "builtin" field if the given value is not nil.
+func (_u *RoleUpdateOne) SetNillableBuiltin(v *bool) *RoleUpdateOne {
+	if v != nil {
+		_u.SetBuiltin(*v)
+	}
 	return _u
 }
 
@@ -584,6 +615,9 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 	}
 	if _u.mutation.DescriptionCleared() {
 		_spec.ClearField(role.FieldDescription, field.TypeString)
+	}
+	if value, ok := _u.mutation.Builtin(); ok {
+		_spec.SetField(role.FieldBuiltin, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(role.FieldUpdatedAt, field.TypeTime, value)

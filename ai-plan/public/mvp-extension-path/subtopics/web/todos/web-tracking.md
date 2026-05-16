@@ -12,6 +12,12 @@
 
 ## Current Recovery Point
 
+- 当前 RBAC MVP 第一波前端实施已冻结为“共享权限消费基础 + 现有 `/users` 真入口接线增强”切片：只允许修改
+  `permission` store、permission directive、`user` store 的 bootstrap roles/permissions 消费，以及当前
+  `/users` 页面上的权限显隐；本轮不新增 `/roles` 页面、不新增第二批动态菜单、不做完整 CRUD UI。
+- 当前 `web` 侧 RBAC 真值继续保持单一路径：只消费后端 `bootstrap` 快照中的 `roles`、`permissions`、`menus`，
+  不允许本地自造 permission code，也不允许把按钮/菜单显隐升级为真实安全边界。
+
 - `web` 现阶段以真实 `web/` 工程作为唯一运行面；starter 只保留可继续收敛的壳层风格、页面样板和治理参考，不再把 starter 全量工程视为运行基线。
 - 当前主线不是页面扩张，也不是继续深化独立前端工作台能力；任何 shell 级调整都应服务于真实契约挂接和 mock/demo 清理。
 - `web/ai-libs/tdesign-vue-next-starter` 继续只作为本地参考源存在，不是当前工程的独立 Git root，也不应在 IDE 里登记为第二个仓库。
@@ -83,6 +89,8 @@
 
 ## Immediate Next Step
 
+- 先把 permission helper / directive 和 `/users` 页最小权限显隐做实，再决定是否进入 `/roles` 新页面；不要在当前切片里同时扩展第二批动态菜单映射。
+- 保持 `bootstrap.roles` 和 `bootstrap.permissions` 作为唯一前端 RBAC 快照来源，不要回到基于页面本地常量或角色名字符串的条件分支。
 - 继续在真实 `web/` 工程里把 starter 壳层风格挂接到真实后端 `auth + current user + menu + permission + locale` 契约。
 - 先清理主路由树里的 starter demo 入口、默认 mock runtime 与前端权限旁路，让主运行面重新只服务真实 bootstrap 菜单和已注册页面。
 - 快速隔离或移除当前阶段不再需要的 mock/demo 入口，避免形成前端自洽假闭环。

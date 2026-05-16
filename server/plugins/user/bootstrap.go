@@ -17,6 +17,7 @@ import (
 type bootstrapResponse struct {
 	User               loginUserResponse       `json:"user"`
 	MustChangePassword bool                    `json:"must_change_password"`
+	Roles              []string                `json:"roles"`
 	Permissions        []string                `json:"permissions"`
 	Menus              []bootstrapMenuResponse `json:"menus"`
 	Locale             bootstrapLocaleSnapshot `json:"locale"`
@@ -82,6 +83,10 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 	if err != nil {
 		return bootstrapResponse{}, err
 	}
+	roleNames, err := r.listRoleNames(ctx, requestAuth.User.ID)
+	if err != nil {
+		return bootstrapResponse{}, err
+	}
 	credential, err := r.auth.GetUserCredentialByUsername(ctx, requestAuth.User.Username)
 	if err != nil {
 		if errors.Is(err, store.ErrUserNotFound) {
@@ -97,6 +102,7 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 			DisplayName: requestAuth.User.DisplayName,
 		},
 		MustChangePassword: credential.MustChangePassword,
+		Roles:              roleNames,
 		Permissions:        permissionCodes,
 		Menus:              filterBootstrapMenus(r.menuRegistry, permissionSet),
 		Locale:             r.localeSnapshot(request),
@@ -130,6 +136,35 @@ func (r bootstrapReader) listPermissionCodes(ctx context.Context, userID uint64)
 
 	slices.Sort(codes)
 	return codes, codeSet, nil
+}
+
+func (r bootstrapReader) listRoleNames(ctx context.Context, userID uint64) ([]string, error) {
+	if r.rbac == nil {
+		return nil, errors.New("rbac repository is unavailable")
+	}
+
+	roles, err := r.rbac.ListRolesByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(roles))
+	seen := make(map[string]struct{}, len(roles))
+	for _, role := range roles {
+		name := strings.TrimSpace(role.Name)
+		if name == "" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+
+	slices.Sort(names)
+	return names, nil
 }
 
 func filterBootstrapMenus(registry *menu.Registry, granted map[string]struct{}) []bootstrapMenuResponse {

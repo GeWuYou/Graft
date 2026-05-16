@@ -12,6 +12,16 @@
 
 ## Current Recovery Point
 
+- 当前 RBAC MVP 第一波实施已启动并冻结为“只读管理面 + 真值补强”切片：`rbac` 插件开始从“仅提供
+  `pluginapi.Authorizer` 的授权插件”扩展为最小只读管理插件，范围仅限角色/权限 canonical contract、
+  只读路由、只读仓储接口与 focused tests；本轮不进入角色写操作、用户禁用、用户分配角色或
+  `super_admin` bypass。
+- 当前 `server` 侧 RBAC 真值同步也已开始进入持久化层：`roles.builtin` 与 `permissions.category`
+  已进入 Ent schema / Atlas migration 设计面，`bootstrap` 最小快照开始补齐 `roles`，让后续 `web`
+  不再依赖空 roles 数组或本地猜测角色状态。
+- 本轮边界明确保持不变：`role/permission` 管理归 `rbac` 插件，`user` 插件继续持有用户与认证链路；
+  不允许把角色/权限管理继续堆回 `user` 插件形成第二套插件职责。
+
 - PR #11 当前一轮 review follow-up 已核对并收敛当前 HEAD 上仍然成立的问题：`user` 插件现在把默认管理员初始化从 `Register` 挪到 `Boot`，`bootstrap` 读模型补齐了 `auth` 仓储空值防御，`EnsureUserCredential` 与 RBAC 幂等写路径补上了唯一约束冲突后的重查/视为已存在语义，避免并发启动或重放时偶发失败。
 - 同一轮 follow-up 还补齐了 `must_change_password` 字段注释，并让 `web` 强制改密弹窗不再把 `graft-admin` 常量编进前端 bundle；当前默认管理员密码禁止规则仍保留在 `passwordPolicy` 中，由后端 `AUTH_PASSWORD_REUSE_FORBIDDEN` 作为权威约束。
 - `server` 已具备最小可运行 runtime、显式 plugin 注册、Ent/Atlas 迁移链路、基础 auth/RBAC、`graft migrate up` / `graft serve` / `graft validate smoke` 校验入口。
@@ -180,6 +190,8 @@
 
 ## Immediate Next Step
 
+- 在当前 RBAC 第一波切片内，优先把 `server/plugins/rbac` 的只读管理面和 focused tests 收完整，再评估下一刀是否进入角色写接口或用户管理写路径；不要并行拉起高风险 schema+auth+policy 写操作。
+- 保持 `bootstrap.roles`、`roles.builtin`、`permissions.category` 的真值收口，后续 `web` 只消费这批后端契约，不得再本地推导角色类别或权限分组。
 - 保持当前共享 `pluginapi.Authorizer` wiring 与 `server/plugins/user/contract` 稳定；后续新增 `server`
   受保护路由时，继续复用 typed permission/route contract 与 `rbac` 插件公开服务，不再在 `user` 或其它插件本地复制实现。
 - 当前纯 `server` 的 runtime auth/authz contract 热点已经完成一轮清扫；后续若继续做 `server` 治理，优先收敛

@@ -51,6 +51,7 @@ function createBootstrapPayload(): BootstrapResponse {
       display_name: 'Alice',
     },
     must_change_password: false,
+    roles: ['admin'],
     permissions: ['user.read'],
     menus: [],
     locale: {

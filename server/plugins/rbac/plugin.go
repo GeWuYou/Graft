@@ -2,18 +2,23 @@ package rbac
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 
 	"graft/server/internal/container"
+	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
+	rbaccontract "graft/server/plugins/rbac/contract"
 )
 
-// Plugin 是 MVP 阶段最小可用的 RBAC 授权插件。
+// Plugin 是 MVP 阶段最小可用的 RBAC 插件。
 //
-// 该插件当前只暴露请求级授权能力，保持实现收敛，避免在完整管理链路落地
-// 前把角色与权限管理接口过早塞进运行时。
+// 当前实现同时承载两类稳定边界：
+//   - 暴露 `pluginapi.Authorizer`，把权限判断收敛为统一后端安全边界
+//   - 提供角色/权限只读管理路由，供 `web` 消费真实 RBAC 快照
 type Plugin struct{}
 
 // NewPlugin 创建最小 RBAC 插件。
@@ -38,11 +43,39 @@ func (p *Plugin) DependsOn() []string {
 
 // Register 注册跨插件可复用的授权服务。
 //
-// Register 阶段只做稳定能力暴露，不执行任何后台行为或耗时初始化。
+// Register 阶段只做稳定能力暴露与管理只读路由装配，不执行任何后台行为或耗时初始化。
 func (p *Plugin) Register(ctx *plugin.Context) error {
-	return ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
-		return authorizer{rbac: ctx.Stores.RBAC()}, nil
-	})
+	registerRBACPermissions(ctx.PermissionRegistry, p.Name())
+	registerRBACMenu(ctx.MenuRegistry, p.Name())
+	repository := ctx.Stores.RBAC()
+	readService := managementReader{rbac: repository}
+
+	if err := ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
+		return authorizer{rbac: repository}, nil
+	}); err != nil {
+		return err
+	}
+
+	resolved, err := ctx.Services.Resolve((*pluginapi.AuthService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve auth service: %w", err)
+	}
+
+	authService, ok := resolved.(pluginapi.AuthService)
+	if !ok {
+		return fmt.Errorf("resolve auth service: unexpected type %T", resolved)
+	}
+
+	routeAuthorizer := authorizer{rbac: repository}
+	registerManagementRoutes(
+		ctx,
+		p.Name(),
+		readService,
+		httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleReadPermission.String()),
+		httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.PermissionReadPermission.String()),
+	)
+
+	return nil
 }
 
 // Boot 当前没有额外运行时行为需要启动。
@@ -66,6 +99,9 @@ func (a authorizer) Authorize(ctx context.Context, request pluginapi.RequestAuth
 	}
 	if strings.TrimSpace(permission) == "" {
 		return nil
+	}
+	if a.rbac == nil {
+		return errors.New("rbac repository is unavailable")
 	}
 
 	permissions, err := a.rbac.ListPermissionsByUserID(ctx, request.User.ID)

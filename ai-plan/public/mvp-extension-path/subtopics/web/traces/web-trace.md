@@ -254,3 +254,15 @@
   of guessing from username, default password, or localized message text.
 - Fixed the MVP responsibility split so `web` will own the post-login restricted-state modal and refresh-safe
   recovery path, while stronger server-side global interception remains out of scope for this slice.
+
+## 2026-05-16 RBAC permission-consumption foundation
+
+- Started the first frontend RBAC MVP implementation wave by keeping the UI scope on the existing real `/users`
+  entrypoint instead of opening `/roles` or a second batch of dynamic menu routes.
+- Extended the frontend bootstrap contract so `web` can consume backend-owned `roles` alongside the existing
+  `permissions` and `menus` snapshot, avoiding another round of empty-role placeholders or local role inference.
+- Added the shared permission-consumption foundation in `web` through permission-store helpers and a global
+  `v-permission` directive registration path, so later pages can reuse one UI-level permission surface instead of
+  scattering raw `includes()` checks.
+- Kept the slice intentionally narrow: the current route/bootstrap mapping stays centered on `/users`, and the wider
+  RBAC management UI continues in parallel rather than reopening starter demo menus or role pages.

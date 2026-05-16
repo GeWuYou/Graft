@@ -29,6 +29,7 @@ func (r *rbacRepository) EnsureRole(ctx context.Context, input store.EnsureRoleI
 				SetName(input.Name).
 				SetDisplay(input.Display).
 				SetNillableDescription(input.Description).
+				SetBuiltin(input.Builtin).
 				Save(ctx)
 		},
 		toStoreRole,
@@ -51,6 +52,7 @@ func (r *rbacRepository) EnsurePermission(ctx context.Context, input store.Ensur
 				SetCode(input.Code).
 				SetDisplay(input.Display).
 				SetNillableDescription(input.Description).
+				SetCategory(input.Category).
 				Save(ctx)
 		},
 		toStorePermission,
@@ -162,6 +164,23 @@ func (r *rbacRepository) ListRolesByUserID(ctx context.Context, userID uint64) (
 	return roles, nil
 }
 
+// ListRoles 返回当前稳定排序下的全部角色快照。
+func (r *rbacRepository) ListRoles(ctx context.Context) ([]store.Role, error) {
+	records, err := r.client.Role.Query().
+		Order(ent.Asc(entrole.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list roles: %w", err)
+	}
+
+	roles := make([]store.Role, 0, len(records))
+	for _, record := range records {
+		roles = append(roles, toStoreRole(record))
+	}
+
+	return roles, nil
+}
+
 // ListPermissionsByUserID 返回指定用户经由角色解析得到的全部权限点。
 func (r *rbacRepository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]store.Permission, error) {
 	id, err := toEntID(userID)
@@ -201,12 +220,30 @@ func (r *rbacRepository) ListPermissionsByUserID(ctx context.Context, userID uin
 	return permissions, nil
 }
 
+// ListPermissions 返回当前稳定排序下的全部权限快照。
+func (r *rbacRepository) ListPermissions(ctx context.Context) ([]store.Permission, error) {
+	records, err := r.client.Permission.Query().
+		Order(ent.Asc(entpermission.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list permissions: %w", err)
+	}
+
+	permissions := make([]store.Permission, 0, len(records))
+	for _, record := range records {
+		permissions = append(permissions, toStorePermission(record))
+	}
+
+	return permissions, nil
+}
+
 func toStoreRole(record *ent.Role) store.Role {
 	return store.Role{
 		ID:          toStoreID(record.ID),
 		Name:        record.Name,
 		Display:     record.Display,
 		Description: record.Description,
+		Builtin:     record.Builtin,
 		CreatedAt:   record.CreatedAt,
 		UpdatedAt:   record.UpdatedAt,
 	}
@@ -218,6 +255,7 @@ func toStorePermission(record *ent.Permission) store.Permission {
 		Code:        record.Code,
 		Display:     record.Display,
 		Description: record.Description,
+		Category:    record.Category,
 		CreatedAt:   record.CreatedAt,
 		UpdatedAt:   record.UpdatedAt,
 	}
