@@ -60,6 +60,7 @@ func decodeSuccessData[T any](t *testing.T, recorder *httptest.ResponseRecorder)
 type pluginTestStoreFactory struct {
 	audit       store.AuditRepository
 	auth        store.AuthRepository
+	rbac        store.RBACRepository
 	users       store.UserRepository
 	permissions map[uint64][]store.Permission
 }
@@ -77,12 +78,17 @@ func (f pluginTestStoreFactory) Users() store.UserRepository {
 }
 
 func (f pluginTestStoreFactory) RBAC() store.RBACRepository {
+	if f.rbac != nil {
+		return f.rbac
+	}
+
 	return pluginTestRBACRepository{permissions: f.permissions}
 }
 
 // pluginTestAuthRepository 以内存状态模拟认证仓储的最小行为。
 type pluginTestAuthRepository struct {
 	getUserCredentialByUsername func(ctx context.Context, username string) (store.UserCredential, error)
+	ensureUserCredential        func(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error)
 	mu                          sync.Mutex
 	refreshSessions             map[string]store.RefreshSession
 }
@@ -118,6 +124,10 @@ func (*pluginTestAuthRepository) SetPasswordHash(context.Context, store.SetPassw
 }
 
 func (r *pluginTestAuthRepository) EnsureUserCredential(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
+	if r.ensureUserCredential != nil {
+		return r.ensureUserCredential(ctx, input)
+	}
+
 	if r.getUserCredentialByUsername != nil {
 		credential, err := r.getUserCredentialByUsername(ctx, input.Username)
 		if err == nil {
@@ -314,24 +324,43 @@ func (r pluginTestUserRepository) List(ctx context.Context) ([]store.User, error
 	return r.list(ctx)
 }
 
-// pluginTestRBACRepository 为插件路由测试模拟最小权限读取结果。
 type pluginTestRBACRepository struct {
-	permissions map[uint64][]store.Permission
+	permissions             map[uint64][]store.Permission
+	ensureRole              func(ctx context.Context, input store.EnsureRoleInput) (store.Role, error)
+	ensurePermission        func(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error)
+	assignPermissionsToRole func(ctx context.Context, input store.AssignPermissionsToRoleInput) error
+	assignRoleToUser        func(ctx context.Context, input store.AssignRoleToUserInput) error
 }
 
 func (r pluginTestRBACRepository) EnsureRole(ctx context.Context, input store.EnsureRoleInput) (store.Role, error) {
+	if r.ensureRole != nil {
+		return r.ensureRole(ctx, input)
+	}
+
 	return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 }
 
 func (r pluginTestRBACRepository) EnsurePermission(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+	if r.ensurePermission != nil {
+		return r.ensurePermission(ctx, input)
+	}
+
 	return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 }
 
 func (r pluginTestRBACRepository) AssignPermissionsToRole(ctx context.Context, input store.AssignPermissionsToRoleInput) error {
+	if r.assignPermissionsToRole != nil {
+		return r.assignPermissionsToRole(ctx, input)
+	}
+
 	return nil
 }
 
 func (r pluginTestRBACRepository) AssignRoleToUser(ctx context.Context, input store.AssignRoleToUserInput) error {
+	if r.assignRoleToUser != nil {
+		return r.assignRoleToUser(ctx, input)
+	}
+
 	return nil
 }
 
@@ -617,6 +646,111 @@ func TestUserRouteReturnsSummary(t *testing.T) {
 	payload := decodeSuccessData[pluginapi.UserSummary](t, recorder)
 	if payload.ID != 7 || payload.Username != "alice" || payload.Display != "Alice" {
 		t.Fatalf("expected stable user summary payload, got %#v", payload)
+	}
+}
+
+// TestBootEnsuresDefaultAdmin 验证默认管理员初始化只在 Boot 阶段执行，
+// 避免 Register 阶段引入持久化副作用。
+func TestBootEnsuresDefaultAdmin(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(ctx context.Context, username string) (store.UserCredential, error) {
+			if username == defaultAdminUsername {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+
+			return store.UserCredential{
+				UserID:             7,
+				Username:           username,
+				MustChangePassword: false,
+			}, nil
+		},
+	}
+
+	var ensuredDefaultAdmin bool
+	authRepo.ensureUserCredential = func(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
+		ensuredDefaultAdmin = true
+		if input.Username != defaultAdminUsername {
+			t.Fatalf("expected default admin username, got %q", input.Username)
+		}
+		if !input.MustChangePassword {
+			t.Fatal("expected default admin bootstrap to require password change")
+		}
+		if input.PasswordHash == "" {
+			t.Fatal("expected default admin bootstrap password hash to be populated")
+		}
+
+		return store.UserCredential{
+			UserID:             9,
+			Username:           input.Username,
+			MustChangePassword: input.MustChangePassword,
+		}, nil
+	}
+
+	var assignedRole bool
+	rbacRepo := pluginTestRBACRepository{
+		ensureRole: func(ctx context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
+		},
+		ensurePermission: func(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
+		},
+		assignPermissionsToRole: func(ctx context.Context, input store.AssignPermissionsToRoleInput) error {
+			return nil
+		},
+		assignRoleToUser: func(ctx context.Context, input store.AssignRoleToUserInput) error {
+			assignedRole = true
+			if input.UserID != 9 {
+				t.Fatalf("expected default admin user id 9, got %d", input.UserID)
+			}
+			return nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	ctx := &plugin.Context{
+		LifecycleContext: context.Background(),
+		Logger:           zap.NewNop(),
+		Config: &config.Config{Auth: config.AuthConfig{
+			AccessTokenTTL:        15 * time.Minute,
+			RefreshTokenTTL:       24 * time.Hour,
+			SigningKey:            "test-signing-key",
+			RefreshCookieName:     "graft_refresh_token",
+			RefreshCookieSameSite: "lax",
+			RefreshCookiePath:     "/",
+		}},
+		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Router:             engine.Group("/api"),
+		Services:           container.New(),
+		Stores:             pluginTestStoreFactory{auth: authRepo, users: pluginTestUserRepository{}, permissions: map[uint64][]store.Permission{}},
+		MenuRegistry:       menu.NewRegistry(),
+		PermissionRegistry: permission.NewRegistry(),
+		CronRegistry:       cronx.NewRegistry(),
+	}
+
+	pluginInstance := NewPlugin()
+	if err := pluginInstance.Register(ctx); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+	if ensuredDefaultAdmin {
+		t.Fatal("expected register to stay side-effect free for default admin bootstrap")
+	}
+
+	ctx.Stores = pluginTestStoreFactory{
+		auth:        authRepo,
+		rbac:        rbacRepo,
+		users:       pluginTestUserRepository{},
+		permissions: map[uint64][]store.Permission{},
+	}
+	if err := pluginInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot plugin: %v", err)
+	}
+
+	if !ensuredDefaultAdmin {
+		t.Fatal("expected boot to ensure default admin")
+	}
+	if !assignedRole {
+		t.Fatal("expected boot to assign default admin role")
 	}
 }
 

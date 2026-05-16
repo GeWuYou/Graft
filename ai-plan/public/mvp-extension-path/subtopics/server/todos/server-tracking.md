@@ -12,6 +12,8 @@
 
 ## Current Recovery Point
 
+- PR #11 当前一轮 review follow-up 已核对并收敛当前 HEAD 上仍然成立的问题：`user` 插件现在把默认管理员初始化从 `Register` 挪到 `Boot`，`bootstrap` 读模型补齐了 `auth` 仓储空值防御，`EnsureUserCredential` 与 RBAC 幂等写路径补上了唯一约束冲突后的重查/视为已存在语义，避免并发启动或重放时偶发失败。
+- 同一轮 follow-up 还移除了 `passwordPolicy` 中未被调用的默认管理员密码 guard 死代码，补齐了 `must_change_password` 字段注释，并让 `web` 强制改密弹窗不再把 `graft-admin` 常量编进前端 bundle，而是完全以后端 `AUTH_PASSWORD_REUSE_FORBIDDEN` 为权威约束。
 - `server` 已具备最小可运行 runtime、显式 plugin 注册、Ent/Atlas 迁移链路、基础 auth/RBAC、`graft migrate up` / `graft serve` / `graft validate smoke` 校验入口。
 - 现有 session/auth 路径已经足够支撑当前 MVP 收敛阶段；下一阶段重点不再是继续增加 revoke/filter/list 变体，而是补齐 event bus、audit、scheduler 和跨插件稳定契约。
 - PR #8 新一轮 AI review 跟进已补强 `RequirePermission` fail-closed 回归断言、登录用户名枚举时序收敛、登录失败日志最小化，以及 user plugin 测试仓储 receiver / session seed 稳定性问题。
@@ -63,6 +65,11 @@
 
 ## Latest Validation
 
+- 本次 PR #11 review follow-up 直接校验：
+  - `cd server && go test ./plugins/user ./internal/store/entstore`
+  - `cd server && go build ./cmd/graft`
+  - `cd server && go run ./cmd/graft validate backend --test-target ./plugins/user --test-target ./internal/store/entstore`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
 - 本次 PR #8 AI review 跟进直接校验：
   - `cd server && go test ./internal/httpx ./plugins/user`
   - `cd server && go vet ./plugins/user`
@@ -117,6 +124,7 @@
   - `cd server && go test ./...`
   - `cd server && go build ./cmd/...`
   - `cd server && PATH=/tmp/codex-bin:$PATH go run ./cmd/graft validate backend`
+- 本次 PR #11 review follow-up 的 focused `go test`、`go build ./cmd/graft` 与 `web` `typecheck` 已通过；`graft validate backend --test-target ./plugins/user --test-target ./internal/store/entstore` 仍被既有仓库级 lint backlog 阻断，当前输出包含历史 `cyclop`、`dupl`、`revive`、`gosec`、`staticcheck` 等问题，不属于本次 follow-up 新增回归。
 - 当前后端恢复基线沿用最近一次 focused backend validation：
   - `cd server && go test ./internal/cli ./internal/app ./internal/store ./internal/store/entstore ./plugins/user ./plugins/rbac`
   - `cd server && go build ./cmd/graft`
@@ -134,7 +142,7 @@
 
 ## Immediate Next Step
 
-- 先单独治理当前 `graft validate backend` 暴露的既有 lint backlog，并决定是按规则逐项修复，还是在 active tracking 中登记受控例外；不要把这批历史问题与本次 Go/Zap 最小升级继续混做一刀。
+- 先单独治理当前 `graft validate backend` 暴露的既有 lint backlog，并决定是按规则逐项修复，还是在 active tracking 中登记受控例外；不要把这批历史问题与本次 PR #11 review follow-up 或 Go/Zap 最小升级继续混做一刀。
 - 停止继续扩大会话治理宽度，按以下顺序推进 backend MVP closure：
   1. 保持当前 `AUTH_*` code、success/error envelope 与 request-id 契约冻结，不再无边界扩张 auth 响应面。
   2. 在 `user` 插件内实现默认管理员、首次改密持久化状态、`login/bootstrap` 扩展、`change-password` 与最小管理员绑定，但不扩展到 OAuth / SSO / MFA / 密码历史 / 配置化策略 / 全局后端拦截。

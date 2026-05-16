@@ -34,6 +34,16 @@ func (r *rbacRepository) EnsureRole(ctx context.Context, input store.EnsureRoleI
 		SetNillableDescription(input.Description).
 		Save(ctx)
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			record, lookupErr := r.client.Role.Query().
+				Where(entrole.NameEQ(input.Name)).
+				Only(ctx)
+			if lookupErr != nil {
+				return store.Role{}, fmt.Errorf("re-query ensured role after conflict: %w", lookupErr)
+			}
+			return toStoreRole(record), nil
+		}
+
 		return store.Role{}, fmt.Errorf("create ensured role: %w", err)
 	}
 
@@ -58,6 +68,16 @@ func (r *rbacRepository) EnsurePermission(ctx context.Context, input store.Ensur
 		SetNillableDescription(input.Description).
 		Save(ctx)
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			record, lookupErr := r.client.Permission.Query().
+				Where(entpermission.CodeEQ(input.Code)).
+				Only(ctx)
+			if lookupErr != nil {
+				return store.Permission{}, fmt.Errorf("re-query ensured permission after conflict: %w", lookupErr)
+			}
+			return toStorePermission(record), nil
+		}
+
 		return store.Permission{}, fmt.Errorf("create ensured permission: %w", err)
 	}
 
@@ -94,6 +114,10 @@ func (r *rbacRepository) AssignPermissionsToRole(ctx context.Context, input stor
 			SetRoleID(roleID).
 			SetPermissionID(entPermissionID).
 			Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				continue
+			}
+
 			return fmt.Errorf("assign permission %d to role %d: %w", permissionID, input.RoleID, err)
 		}
 	}
@@ -129,6 +153,10 @@ func (r *rbacRepository) AssignRoleToUser(ctx context.Context, input store.Assig
 		SetUserID(userID).
 		SetRoleID(roleID).
 		Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil
+		}
+
 		return fmt.Errorf("assign role %d to user %d: %w", input.RoleID, input.UserID, err)
 	}
 

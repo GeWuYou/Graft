@@ -1,8 +1,6 @@
 package user
 
 import (
-	"errors"
-	"strings"
 	"unicode"
 )
 
@@ -45,16 +43,5 @@ func (passwordPolicy) ValidateNewPassword(currentPassword string, newPassword st
 		return errPasswordPolicyViolation
 	}
 
-	return nil
-}
-
-// ValidateDefaultAdminPasswordGuard 验证初始化路径之外是否误用默认管理员例外密码。
-func (passwordPolicy) ValidateDefaultAdminPasswordGuard(password string) error {
-	if strings.TrimSpace(password) == "" {
-		return errPasswordRequired
-	}
-	if password == defaultAdminPassword {
-		return errors.New("default admin password is reserved for bootstrap only")
-	}
 	return nil
 }

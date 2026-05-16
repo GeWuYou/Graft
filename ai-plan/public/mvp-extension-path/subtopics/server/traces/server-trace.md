@@ -359,6 +359,24 @@
   now reaches the real lint stage; the remaining failure is the existing repository lint backlog rather than a new
   Go 1.26 or Zap compatibility regression.
 
+## 2026-05-16 PR #11 review follow-up
+
+- Re-checked the current PR #11 unresolved AI review threads against local HEAD and kept only the still-applicable
+  lifecycle, idempotency, documentation, and frontend-contract findings in scope.
+- Moved `user` plugin default-admin bootstrap work from `Register` into `Boot`, added direct plugin coverage that
+  locks “Register no side effect, Boot performs initialization”, and deferred default admin password hashing until the
+  create path is actually needed.
+- Hardened `entstore` idempotent write paths so `EnsureUserCredential`, `EnsureRole`, `EnsurePermission`,
+  `AssignPermissionsToRole`, and `AssignRoleToUser` now treat unique-constraint races as “already exists” instead of
+  surfacing false-negative startup failures.
+- Removed the unused default-admin password guard helper from `passwordPolicy`, added the lifecycle-sensitive
+  `must_change_password` field comment, guarded bootstrap reads against a missing auth repository, and dropped the
+  hardcoded default-admin password constant from the web forced-password-change dialog.
+- Revalidated the accepted follow-up with `cd server && go test ./plugins/user ./internal/store/entstore`,
+  `cd server && go build ./cmd/graft`, and `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`; the
+  completion-state `graft validate backend --test-target ./plugins/user --test-target ./internal/store/entstore`
+  attempt still stops at the existing repository-wide lint backlog rather than a new regression from this slice.
+
 ## Next Step
 
 - Separate the existing backend lint backlog from this finished Go/Zap baseline update, decide the next bounded lint

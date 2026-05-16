@@ -75,7 +75,6 @@ type ForcePasswordChangeForm = {
   confirmPassword: string;
 };
 
-const DEFAULT_PASSWORD = 'graft-admin';
 const PASSWORD_POLICY = /^(?=.*[A-Za-z])(?=.*\d).{12,}$/;
 
 const INITIAL_FORM_DATA: ForcePasswordChangeForm = {
@@ -119,10 +118,6 @@ function isPasswordChangeApiCode(code: string) {
 function validatePasswordPolicy() {
   if (formData.value.newPassword !== formData.value.confirmPassword) {
     return t('pages.login.forcePasswordChange.errors.confirmMismatch');
-  }
-
-  if (formData.value.newPassword === DEFAULT_PASSWORD) {
-    return t('pages.login.forcePasswordChange.errors.defaultPasswordForbidden');
   }
 
   if (formData.value.newPassword === formData.value.currentPassword) {

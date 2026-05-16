@@ -25,6 +25,8 @@ func (User) Fields() []ent.Field {
 			Sensitive().
 			Optional().
 			Nillable(),
+		// must_change_password 标识该用户下次登录后是否必须先完成改密。
+		// 默认管理员初始化和后续密码重置会把它设为 true；用户成功改密后再清回 false。
 		field.Bool("must_change_password").
 			Default(false),
 		field.Time("password_changed_at").

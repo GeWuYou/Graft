@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"graft/server/internal/permission"
@@ -17,19 +18,26 @@ func (s authService) ensureDefaultAdmin(ctx context.Context, rbac store.RBACRepo
 		return fmt.Errorf("rbac repository is unavailable")
 	}
 
-	hash, err := s.passwords.Hash(defaultAdminPassword)
+	credential, err := s.auth.GetUserCredentialByUsername(ctx, defaultAdminUsername)
 	if err != nil {
-		return fmt.Errorf("hash default admin password: %w", err)
-	}
+		if !errors.Is(err, store.ErrUserNotFound) {
+			return fmt.Errorf("get default admin credential: %w", err)
+		}
 
-	credential, err := s.auth.EnsureUserCredential(ctx, store.EnsureUserCredentialInput{
-		Username:           defaultAdminUsername,
-		Display:            defaultAdminDisplay,
-		PasswordHash:       hash,
-		MustChangePassword: true,
-	})
-	if err != nil {
-		return fmt.Errorf("ensure default admin credential: %w", err)
+		hash, hashErr := s.passwords.Hash(defaultAdminPassword)
+		if hashErr != nil {
+			return fmt.Errorf("hash default admin password: %w", hashErr)
+		}
+
+		credential, err = s.auth.EnsureUserCredential(ctx, store.EnsureUserCredentialInput{
+			Username:           defaultAdminUsername,
+			Display:            defaultAdminDisplay,
+			PasswordHash:       hash,
+			MustChangePassword: true,
+		})
+		if err != nil {
+			return fmt.Errorf("ensure default admin credential: %w", err)
+		}
 	}
 
 	role, err := rbac.EnsureRole(ctx, store.EnsureRoleInput{

@@ -25,7 +25,9 @@ import (
 // Plugin 是用于验证扩展路径的示例用户能力插件。
 //
 // 该插件展示业务能力如何在 Register 阶段声明边界，在 Boot/Shutdown 阶段保持显式生命周期。
-type Plugin struct{}
+type Plugin struct {
+	defaultAdminAuth *authService
+}
 
 type userListResponse struct {
 	Items []userListItem `json:"items"`
@@ -108,9 +110,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		return err
 	}
 	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Stores.Auth(), ctx.Stores.RBAC())
-	if err := authSvc.ensureDefaultAdmin(ctx.LifecycleContext, ctx.Stores.RBAC(), ctx.PermissionRegistry.Items()); err != nil {
-		return err
-	}
+	p.defaultAdminAuth = authSvc
 
 	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(resolver container.Resolver) (any, error) {
 		return authSvc, nil
@@ -597,8 +597,16 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 
 // Boot 在注册完成后启动用户插件的运行时行为。
 //
-// 当前用户插件没有额外后台资源需要启动，因此保持空实现，便于后续能力扩展时继续沿用显式生命周期钩子。
+// 当前阶段只在这里执行默认管理员引导初始化，确保 Register 保持纯声明式装配。
 func (p *Plugin) Boot(ctx *plugin.Context) error {
+	if p.defaultAdminAuth == nil {
+		return errors.New("default admin bootstrap service is unavailable")
+	}
+
+	if err := p.defaultAdminAuth.ensureDefaultAdmin(ctx.LifecycleContext, ctx.Stores.RBAC(), ctx.PermissionRegistry.Items()); err != nil {
+		return err
+	}
+
 	return nil
 }
 

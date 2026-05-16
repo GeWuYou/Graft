@@ -67,6 +67,10 @@ func newBootstrapReader(
 
 // Read 返回当前请求主体可见的最小 bootstrap 载荷。
 func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (bootstrapResponse, error) {
+	if r.auth == nil {
+		return bootstrapResponse{}, errors.New("auth repository is unavailable")
+	}
+
 	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.User == nil || requestAuth.User.ID == 0 {
 		return bootstrapResponse{}, pluginapi.ErrUnauthenticated

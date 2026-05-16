@@ -90,6 +90,14 @@ func (r *authRepository) EnsureUserCredential(ctx context.Context, input store.E
 		SetMustChangePassword(input.MustChangePassword).
 		Save(ctx)
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			credential, lookupErr := r.GetUserCredentialByUsername(ctx, input.Username)
+			if lookupErr != nil {
+				return store.UserCredential{}, fmt.Errorf("re-query ensured user credential after conflict: %w", lookupErr)
+			}
+			return credential, nil
+		}
+
 		return store.UserCredential{}, fmt.Errorf("create ensured user credential: %w", err)
 	}
 
