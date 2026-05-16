@@ -111,3 +111,13 @@
 
 - Continue MVP work by pushing the next contract-governance slice into `server/plugins/user` permission/message-key/
   auth-route hotspots and the remaining shared auth literals still outside the new canonical contract surface.
+
+## 2026-05-16 user-plugin contract-governance follow-up
+
+- Completed the planned `server/plugins/user` follow-up by moving runtime permission and auth-route hotspots onto the
+  plugin-local `contract` package and by switching user-plugin runtime error wiring to canonical `message.Key`
+  consumers instead of raw strings.
+- Extended the server-side canonical message contract and default i18n catalogs with shared `common.conjunction` and
+  `common.copyright`, eliminating the scanner-reported shared message-key drift exposed by current `web` runtime use.
+- Revalidated the slice with focused `server` tests plus a fresh contract-governance report and confirmed the targeted
+  runtime findings disappeared from `plugin.go`, `plugin_routes.go`, and `server/internal/contract/message/key.go`.

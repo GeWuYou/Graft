@@ -1,3 +1,4 @@
+// Package message defines stable localized message-key contracts shared by the server runtime.
 package message
 
 // Key identifies a stable localized message contract key.
@@ -8,6 +9,7 @@ func (k Key) String() string {
 	return string(k)
 }
 
+//nolint:gosec // Canonical message-key literals are contract values, not credentials.
 const (
 	// AuthCurrentPasswordInvalid identifies current-password validation failures.
 	AuthCurrentPasswordInvalid Key = "auth.current_password_invalid"
@@ -50,6 +52,12 @@ const (
 
 	// CommonInvalidArgument identifies invalid request parameter failures.
 	CommonInvalidArgument Key = "common.invalid_argument"
+
+	// CommonConjunction identifies the shared conjunction label used by runtime UI copy.
+	CommonConjunction Key = "common.conjunction"
+
+	// CommonCopyright identifies the shared copyright footer label used by runtime UI copy.
+	CommonCopyright Key = "common.copyright"
 
 	// UserNotFound identifies missing-user failures surfaced by auth-adjacent flows.
 	UserNotFound Key = "user.not_found"

@@ -1,3 +1,4 @@
+// Package httpheader defines stable HTTP header contracts shared by the server runtime.
 package httpheader
 
 // Name identifies a stable HTTP header contract name.

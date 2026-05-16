@@ -1,3 +1,4 @@
+// Package errorcode defines stable API response code contracts shared by the server runtime.
 package errorcode
 
 import (
@@ -14,6 +15,7 @@ func (c Code) String() string {
 	return string(c)
 }
 
+//nolint:gosec // Canonical response-code literals are contract values, not credentials.
 const (
 	// AuthCurrentPasswordInvalid identifies current-password validation failures.
 	AuthCurrentPasswordInvalid Code = "AUTH_CURRENT_PASSWORD_INVALID"

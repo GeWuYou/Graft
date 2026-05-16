@@ -1,3 +1,4 @@
+// Package auth defines stable authentication contract values shared by the server runtime.
 package auth
 
 // Scheme identifies a stable HTTP authentication scheme token.

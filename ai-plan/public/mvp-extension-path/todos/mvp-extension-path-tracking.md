@@ -74,6 +74,10 @@
 - 当前这批 auth contract 收口同时修正了 phase-1 scanner 的真值入口：definition-context 已识别 `server/internal/contract/**`
   与 `web/src/contracts/**`，error-code / message-key drift report 也已改为从 canonical contract 文件读取，而不是继续依赖
   旧的消费侧字面量位置。
+- 当前 `server/plugins/user` 的 permission / message key / auth route 热点与 shared `common.conjunction`、
+  `common.copyright` drift 也已完成本轮治理：`server/plugins/user/contract` 现在承载插件内 canonical permission
+  与 auth-route path；`plugin.go` / `plugin_routes.go` 已改为消费 typed contract 与平台 `message.Key`；phase-1
+  scanner report 不再对这些运行时文件报出本轮 targeted findings。
 - 较早的拆分前历史保留在 `archive/`，具体实现轨迹保留在各自 `trace` 文件。
 
 ## Shared Milestones
@@ -163,6 +167,13 @@
   - `python3 scripts/magic_value/check_magic_values.py --mode report --output-json /tmp/contract-governance-report-next.json`
   - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/utils/request.test.ts src/store/modules/user.test.ts src/permission.test.ts src/layouts/components/force-password-change.test.ts`
   - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+- 本次 `server/plugins/user` contract-governance follow-up 直接校验：
+  - `cd server && go test ./plugins/user`
+  - `cd server && go test ./internal/i18n ./internal/contract/...`
+  - `python3 scripts/magic_value/check_magic_values.py --mode report --output-json /tmp/graft-magic-report-next.json`
+  - 结果：`server/plugins/user/plugin.go`、`server/plugins/user/plugin_routes.go` 与
+    `server/internal/contract/message/key.go` 不再出现本轮 targeted permission/message-key/auth-route 或
+    `common.conjunction` / `common.copyright` drift findings。
 
 ## Immediate Next Step
 
@@ -170,7 +181,7 @@
 - 在 phase-1 底座提交后，继续把魔法值治理推进到真实 contract surface：优先从 `server/internal/httpx`、`server/internal/pluginapi`、
   `server/plugins/user/contract` 与 `web/src/contracts` / `web/src/modules/*/contract` 建立首批 canonical typed
   contract，而不是先做全仓“零字面量”清扫。
-- 在第一批 auth contract 已收口后，下一步优先处理 `server/plugins/user` 的 permission / message key / auth route
-  热点，以及 `web` 登录与受限态之外仍残留的 auth/shared route 字面量，不要回到全仓泛扫或页面广度扩张。
+- 在 `server/plugins/user` runtime hotspots 与 shared `common.*` drift 已收口后，下一步优先处理 `server` / `web`
+  tests 与其它消费侧仍残留的 auth/shared route/message 字面量，不要回到全仓泛扫或页面广度扩张。
 - 在当前 backend completion 与 shared authorizer wiring 都已收口后，把跨边界主线切回 `web` 主运行面清理：继续移除 starter demo 入口、默认 mock runtime 与前端权限旁路，让主运行面只服务真实 bootstrap 菜单和已注册页面。
 - 保持当前 `/api/auth/bootstrap`、`AUTH_*` code 与共享 permission 契约冻结，不要回退到第二套授权实现、中文 `message` 分支或 refresh 多出口。

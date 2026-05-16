@@ -124,6 +124,8 @@ KNOWN_MESSAGE_KEYS = {
     "auth.missing_actor",
     "auth.missing_permission",
     "auth.session_not_found",
+    "common.conjunction",
+    "common.copyright",
     "common.internal_error",
     "common.invalid_argument",
     "user.not_found",
@@ -374,6 +376,8 @@ def read_file(path: str) -> str:
 def is_definition_context(path: str, line_text: str, value: str) -> bool:
     stripped = line_text.strip()
     if path.startswith("server/internal/contract/"):
+        return True
+    if path.startswith("server/plugins/") and "/contract/" in path:
         return True
     if path.startswith("web/src/contracts/"):
         return True
@@ -684,9 +688,9 @@ def find_orphan_candidates(files: Iterable[str]) -> list[Finding]:
     findings: list[Finding] = []
     definitions = {
         "audit.record": "server/internal/pluginapi/audit.go",
-        "user.read": "server/plugins/user/plugin_routes.go",
-        "user.session.read": "server/plugins/user/plugin_routes.go",
-        "user.session.revoke": "server/plugins/user/plugin_routes.go",
+        "user.read": "server/plugins/user/contract/permission.go",
+        "user.session.read": "server/plugins/user/contract/permission.go",
+        "user.session.revoke": "server/plugins/user/contract/permission.go",
     }
 
     repo_text_cache: dict[str, str] = {}

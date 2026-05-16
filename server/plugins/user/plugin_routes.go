@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/container"
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -19,6 +20,7 @@ import (
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
+	usercontract "graft/server/plugins/user/contract"
 )
 
 func registerUserPermissions(registry *permission.Registry, pluginName string) {
@@ -31,9 +33,9 @@ func registerUserMenu(registry *menu.Registry, pluginName string) {
 	registry.Register(menu.Item{
 		Code:       "user.list",
 		Title:      "用户管理",
-		Path:       "/users",
+		Path:       usercontract.UsersGroup,
 		Icon:       "usergroup",
-		Permission: "user.read",
+		Permission: usercontract.UserReadPermission.String(),
 		Plugin:     pluginName,
 	})
 }
@@ -41,19 +43,19 @@ func registerUserMenu(registry *menu.Registry, pluginName string) {
 func userPermissionItems(pluginName string) []permission.Item {
 	return []permission.Item{
 		{
-			Code:        "user.read",
+			Code:        usercontract.UserReadPermission.String(),
 			Name:        "Read Users",
 			Description: "Allows reading user management data.",
 			Plugin:      pluginName,
 		},
 		{
-			Code:        "user.session.revoke",
+			Code:        usercontract.UserSessionRevokePermission.String(),
 			Name:        "Revoke User Sessions",
 			Description: "Allows revoking refresh sessions for a specified user.",
 			Plugin:      pluginName,
 		},
 		{
-			Code:        "user.session.read",
+			Code:        usercontract.UserSessionReadPermission.String(),
 			Name:        "Read User Sessions",
 			Description: "Allows reading active refresh sessions for a specified user.",
 			Plugin:      pluginName,
@@ -138,9 +140,9 @@ func newRouteGuards(localizer *i18n.Service, authSvc *authService, authorizer pl
 		authenticated:          httpx.RequirePermission(localizer, authSvc, nil, ""),
 		requiredPasswordChange: newRequiredPasswordChangeGuard(localizer, authSvc),
 		restrictedSession:      newRestrictedSessionGuard(localizer, authSvc),
-		userRead:               httpx.RequirePermission(localizer, authSvc, authorizer, "user.read"),
-		userSessionRead:        httpx.RequirePermission(localizer, authSvc, authorizer, "user.session.read"),
-		userSessionRevoke:      httpx.RequirePermission(localizer, authSvc, authorizer, "user.session.revoke"),
+		userRead:               httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserReadPermission.String()),
+		userSessionRead:        httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserSessionReadPermission.String()),
+		userSessionRevoke:      httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserSessionRevokePermission.String()),
 	}
 }
 
@@ -149,7 +151,7 @@ var _ pluginapi.Authorizer = (*deferredAuthorizer)(nil)
 func newRequiredPasswordChangeGuard(localizer *i18n.Service, authSvc *authService) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		if authSvc == nil {
-			httpx.WriteLocalizedError(ginCtx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+			writeLocalizedContractError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 			ginCtx.Abort()
 			return
 		}
@@ -157,17 +159,17 @@ func newRequiredPasswordChangeGuard(localizer *i18n.Service, authSvc *authServic
 		restricted, err := authSvc.isRestrictedPasswordChangeSession(ginCtx.Request.Context())
 		if err != nil {
 			if errors.Is(err, pluginapi.ErrUnauthenticated) {
-				httpx.WriteLocalizedError(ginCtx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+				writeLocalizedContractError(ginCtx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenMissing, nil)
 				ginCtx.Abort()
 				return
 			}
 
-			httpx.WriteLocalizedError(ginCtx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+			writeLocalizedContractError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 			ginCtx.Abort()
 			return
 		}
 		if !restricted {
-			httpx.WriteLocalizedError(ginCtx, localizer, http.StatusForbidden, "auth.forbidden", nil)
+			writeLocalizedContractError(ginCtx, localizer, http.StatusForbidden, messagecontract.AuthForbidden, nil)
 			ginCtx.Abort()
 			return
 		}
@@ -178,13 +180,13 @@ func newRequiredPasswordChangeGuard(localizer *i18n.Service, authSvc *authServic
 
 func newRestrictedSessionGuard(localizer *i18n.Service, authSvc *authService) gin.HandlerFunc {
 	allowedPaths := []string{
-		"/auth/bootstrap",
-		"/auth/complete-required-password-change",
+		usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthBootstrap),
+		usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthCompleteRequiredPasswordChange),
 	}
 
 	return func(ginCtx *gin.Context) {
 		if authSvc == nil {
-			httpx.WriteLocalizedError(ginCtx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+			writeLocalizedContractError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 			ginCtx.Abort()
 			return
 		}
@@ -192,12 +194,12 @@ func newRestrictedSessionGuard(localizer *i18n.Service, authSvc *authService) gi
 		restricted, err := authSvc.isRestrictedPasswordChangeSession(ginCtx.Request.Context())
 		if err != nil {
 			if errors.Is(err, pluginapi.ErrUnauthenticated) {
-				httpx.WriteLocalizedError(ginCtx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+				writeLocalizedContractError(ginCtx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenMissing, nil)
 				ginCtx.Abort()
 				return
 			}
 
-			httpx.WriteLocalizedError(ginCtx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+			writeLocalizedContractError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 			ginCtx.Abort()
 			return
 		}
@@ -213,7 +215,7 @@ func newRestrictedSessionGuard(localizer *i18n.Service, authSvc *authService) gi
 			}
 		}
 
-		httpx.WriteLocalizedError(ginCtx, localizer, http.StatusForbidden, "auth.forbidden", nil)
+		writeLocalizedContractError(ginCtx, localizer, http.StatusForbidden, messagecontract.AuthForbidden, nil)
 		ginCtx.Abort()
 	}
 }
@@ -225,7 +227,7 @@ func registerAuthRoutes(
 	bootstrapSvc bootstrapReader,
 	guards routeGuards,
 ) error {
-	authGroup := ctx.Router.Group("/auth")
+	authGroup := ctx.Router.Group(usercontract.AuthGroup)
 	authGroup.Use(httpx.RequestIDMiddleware())
 	registerLoginRoutes(authGroup, ctx, pluginName, authSvc)
 	registerCurrentUserSessionRoutes(authGroup, ctx, pluginName, authSvc, guards)
@@ -235,23 +237,23 @@ func registerAuthRoutes(
 }
 
 func registerLoginRoutes(authGroup *gin.RouterGroup, ctx *plugin.Context, pluginName string, authSvc *authService) {
-	authGroup.POST("/login", func(ginCtx *gin.Context) {
+	authGroup.POST(usercontract.AuthLogin, func(ginCtx *gin.Context) {
 		var request loginRequest
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "body",
 			})
 			return
 		}
 		normalizedUsername := strings.TrimSpace(request.Username)
 		if normalizedUsername == "" {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "username",
 			})
 			return
 		}
 		if request.Password == "" {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "password",
 			})
 			return
@@ -271,10 +273,10 @@ func registerLoginRoutes(authGroup *gin.RouterGroup, ctx *plugin.Context, plugin
 			User:               result.User,
 		})
 	})
-	authGroup.POST("/refresh", func(ginCtx *gin.Context) {
+	authGroup.POST(usercontract.AuthRefresh, func(ginCtx *gin.Context) {
 		refreshToken, err := authSvc.cookies.readRefreshCookie(ginCtx)
 		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, "auth.token_missing", nil)
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing, nil)
 			return
 		}
 
@@ -292,10 +294,10 @@ func registerLoginRoutes(authGroup *gin.RouterGroup, ctx *plugin.Context, plugin
 			User:               result.User,
 		})
 	})
-	authGroup.POST("/logout", func(ginCtx *gin.Context) {
+	authGroup.POST(usercontract.AuthLogout, func(ginCtx *gin.Context) {
 		refreshToken, err := authSvc.cookies.readRefreshCookie(ginCtx)
 		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, "auth.token_missing", nil)
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing, nil)
 			return
 		}
 
@@ -316,7 +318,7 @@ func registerCurrentUserSessionRoutes(
 	authSvc *authService,
 	guards routeGuards,
 ) {
-	authGroup.POST("/sessions/revoke-all", guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
+	authGroup.POST(usercontract.AuthSessionsRevokeAll, guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
 		if err := authSvc.RevokeAllCurrentUserSessions(ginCtx.Request.Context()); err != nil {
 			writeAuthRouteError(ginCtx, ctx.I18n, ctx.Logger, pluginName, "revoke all refresh sessions failed", err)
 			return
@@ -325,7 +327,7 @@ func registerCurrentUserSessionRoutes(
 		authSvc.cookies.clearRefreshCookie(ginCtx)
 		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 	})
-	authGroup.POST("/sessions/revoke-others", guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
+	authGroup.POST(usercontract.AuthSessionsRevokeOthers, guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
 		if err := authSvc.RevokeOtherCurrentUserSessions(ginCtx.Request.Context()); err != nil {
 			writeAuthRouteError(ginCtx, ctx.I18n, ctx.Logger, pluginName, "revoke other user refresh sessions failed", err)
 			return
@@ -333,10 +335,10 @@ func registerCurrentUserSessionRoutes(
 
 		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 	})
-	authGroup.GET("/sessions", guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
+	authGroup.GET(usercontract.AuthSessions, guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
 		listOptions, err := parseSessionListOptions(ginCtx.Query("limit"))
 		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "limit",
 			})
 			return
@@ -350,10 +352,10 @@ func registerCurrentUserSessionRoutes(
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, sessions)
 	})
-	authGroup.POST("/sessions/:sessionID/revoke", guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
+	authGroup.POST(usercontract.AuthSessionRevoke, guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
 		sessionID := strings.TrimSpace(ginCtx.Param("sessionID"))
 		if sessionID == "" {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "sessionID",
 			})
 			return
@@ -390,11 +392,11 @@ func registerBootstrapAndPasswordRoutes(
 	bootstrapSvc bootstrapReader,
 	guards routeGuards,
 ) {
-	authGroup.GET("/bootstrap", guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
+	authGroup.GET(usercontract.AuthBootstrap, guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
 		payload, err := bootstrapSvc.Read(ginCtx.Request.Context(), ginCtx.Request)
 		if err != nil {
 			if errors.Is(err, pluginapi.ErrUnauthenticated) {
-				httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, "auth.token_missing", nil)
+				writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing, nil)
 				return
 			}
 
@@ -402,28 +404,28 @@ func registerBootstrapAndPasswordRoutes(
 				zap.String("plugin", pluginName),
 				zap.Error(err),
 			)
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, "common.internal_error", nil)
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 			return
 		}
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	})
-	authGroup.POST("/change-password", guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
+	authGroup.POST(usercontract.AuthChangePassword, guards.authenticated, guards.restrictedSession, func(ginCtx *gin.Context) {
 		var request changePasswordRequest
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "body",
 			})
 			return
 		}
 		if strings.TrimSpace(request.CurrentPassword) == "" {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "current_password",
 			})
 			return
 		}
 		if strings.TrimSpace(request.NewPassword) == "" {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "new_password",
 			})
 			return
@@ -436,16 +438,16 @@ func registerBootstrapAndPasswordRoutes(
 
 		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 	})
-	authGroup.POST("/complete-required-password-change", guards.authenticated, guards.requiredPasswordChange, func(ginCtx *gin.Context) {
+	authGroup.POST(usercontract.AuthCompleteRequiredPasswordChange, guards.authenticated, guards.requiredPasswordChange, func(ginCtx *gin.Context) {
 		var request completeRequiredPasswordChangeRequest
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "body",
 			})
 			return
 		}
 		if strings.TrimSpace(request.NewPassword) == "" {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "new_password",
 			})
 			return
@@ -467,7 +469,7 @@ func registerUserRoutes(
 	authSvc *authService,
 	guards routeGuards,
 ) error {
-	group := ctx.Router.Group("/users")
+	group := ctx.Router.Group(usercontract.UsersGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	registerUserReadRoutes(group, ctx, pluginName, userSvc, guards)
 	registerAdminSessionRoutes(group, ctx, pluginName, userSvc, authSvc, guards)
@@ -482,14 +484,14 @@ func registerUserReadRoutes(
 	userSvc userService,
 	guards routeGuards,
 ) {
-	group.GET("", guards.userRead, guards.restrictedSession, func(ginCtx *gin.Context) {
+	group.GET(usercontract.UserCollection, guards.userRead, guards.restrictedSession, func(ginCtx *gin.Context) {
 		users, err := userSvc.ListUsers(ginCtx.Request.Context())
 		if err != nil {
 			ctx.Logger.Error("list users failed",
 				zap.String("plugin", pluginName),
 				zap.Error(err),
 			)
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, "common.internal_error", nil)
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 			return
 		}
 
@@ -506,10 +508,10 @@ func registerUserReadRoutes(
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, userListResponse{Items: items})
 	})
-	group.GET("/:id", guards.userRead, guards.restrictedSession, func(ginCtx *gin.Context) {
+	group.GET(usercontract.UserByID, guards.userRead, guards.restrictedSession, func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "id",
 			})
 			return
@@ -545,10 +547,10 @@ func registerAdminSessionReadRoute(
 	authSvc *authService,
 	guards routeGuards,
 ) {
-	group.GET("/:id/sessions", guards.userSessionRead, guards.restrictedSession, func(ginCtx *gin.Context) {
+	group.GET(usercontract.UserSessions, guards.userSessionRead, guards.restrictedSession, func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "id",
 			})
 			return
@@ -562,7 +564,7 @@ func registerAdminSessionReadRoute(
 
 		listOptions, err := parseSessionListOptions(ginCtx.Query("limit"))
 		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "limit",
 			})
 			return
@@ -606,10 +608,10 @@ func registerAdminRevokeSingleSessionRoute(
 	authSvc *authService,
 	guards routeGuards,
 ) {
-	group.POST("/:id/sessions/:sessionID/revoke", guards.userSessionRevoke, guards.restrictedSession, func(ginCtx *gin.Context) {
+	group.POST(usercontract.UserSessionByIDRevoke, guards.userSessionRevoke, guards.restrictedSession, func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "id",
 			})
 			return
@@ -617,7 +619,7 @@ func registerAdminRevokeSingleSessionRoute(
 
 		sessionID := strings.TrimSpace(ginCtx.Param("sessionID"))
 		if sessionID == "" {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "sessionID",
 			})
 			return
@@ -661,10 +663,10 @@ func registerAdminRevokeAllSessionsRoute(
 	authSvc *authService,
 	guards routeGuards,
 ) {
-	group.POST("/:id/sessions/revoke-all", guards.userSessionRevoke, guards.restrictedSession, func(ginCtx *gin.Context) {
+	group.POST(usercontract.UserSessionsRevokeAll, guards.userSessionRevoke, guards.restrictedSession, func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 				"field": "id",
 			})
 			return
@@ -719,7 +721,7 @@ func writeAuthRouteErrorWithFields(
 		logger.Error(message, logFields...)
 	}
 
-	httpx.WriteLocalizedError(ginCtx, localizer, status, messageKey, authErrorDetails(err))
+	writeLocalizedContractError(ginCtx, localizer, status, messageKey, authErrorDetails(err))
 }
 
 func writeUserLookupError(
@@ -732,10 +734,10 @@ func writeUserLookupError(
 	err error,
 ) {
 	status := http.StatusInternalServerError
-	messageKey := "common.internal_error"
+	messageKey := messagecontract.CommonInternalError
 	if errors.Is(err, store.ErrUserNotFound) {
 		status = http.StatusNotFound
-		messageKey = "user.not_found"
+		messageKey = messagecontract.UserNotFound
 	} else {
 		logger.Error(message,
 			zap.String("plugin", pluginName),
@@ -744,5 +746,15 @@ func writeUserLookupError(
 		)
 	}
 
-	httpx.WriteLocalizedError(ginCtx, localizer, status, messageKey, nil)
+	writeLocalizedContractError(ginCtx, localizer, status, messageKey, nil)
+}
+
+func writeLocalizedContractError(
+	ginCtx *gin.Context,
+	localizer *i18n.Service,
+	status int,
+	key messagecontract.Key,
+	data map[string]any,
+) {
+	httpx.WriteLocalizedError(ginCtx, localizer, status, key.String(), data)
 }

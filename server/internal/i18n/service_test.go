@@ -79,6 +79,12 @@ func TestMessageFallsBackToConfiguredLocalesAndKey(t *testing.T) {
 	if message := service.Message("en-US", "auth.session_not_found"); message != "Session not found or already inactive" {
 		t.Fatalf("expected en-US auth session-not-found message, got %q", message)
 	}
+	if message := service.Message("en-US", "common.conjunction"); message != "and" {
+		t.Fatalf("expected en-US shared conjunction message, got %q", message)
+	}
+	if message := service.Message("zh-CN", "common.copyright"); message != "Copyright (C) 2021-2026 Tencent. All Rights Reserved" {
+		t.Fatalf("expected zh-CN shared copyright message, got %q", message)
+	}
 	if message := service.Message("en-US", "missing.key"); message != "missing.key" {
 		t.Fatalf("expected missing key fallback, got %q", message)
 	}

@@ -90,6 +90,16 @@
 - Moved the empty-current-password decision fully into `server/plugins/user` service logic so the route no longer guesses based on request shape alone, while non-default actors still receive the stable invalid-argument contract.
 - Kept the atomic password-change write semantics unchanged: clear `must_change_password`, preserve the current session token, and revoke other refresh sessions.
 
+## 2026-05-16 user-plugin contract-governance follow-up
+
+- Added or finalized the plugin-local `server/plugins/user/contract` surface for canonical permission codes and
+  auth-route paths, then rewired `plugin_routes.go` to consume those typed values instead of repeating bare literals
+  in runtime route and guard registration.
+- Switched `server/plugins/user` runtime error mapping and route error writes to canonical platform `message.Key`
+  values so the plugin no longer hard-codes the targeted auth/common/user message keys in runtime code.
+- Filled the server canonical message/i18n gap for shared `common.conjunction` and `common.copyright`, then verified
+  with focused tests plus a fresh scanner report that the targeted runtime findings were cleared.
+
 ## 2026-05-15 request-auth session hardening slice
 
 - Tightened `server/plugins/user` so `pluginapi.AuthService.ParseAccessToken` now validates the access-token-linked session state in addition to JWT syntax and signature.

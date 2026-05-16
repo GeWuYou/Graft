@@ -393,6 +393,9 @@ Rules:
 * do not create new global `constants` or `enums` dump files to satisfy contract governance
 * `server` high-risk string contracts should prefer capability-oriented typed string boundaries when they cross plugin,
   runtime, or registration surfaces
+* `server` route path contracts should keep one canonical truth; prefer `group path + route fragment` over parallel
+  `full path` constants, and compose full paths locally when needed
+* do not add route aliases such as `Foo` + `FooPath` + `FooRoute` for the same server route semantic
 * `web` high-risk contracts should prefer literal unions or other explicit typed boundaries at router, storage, request,
   API, and module contract surfaces instead of scattering raw strings
 * any new or changed high-risk shared contract must have an explicit owner boundary and lifecycle state
@@ -654,6 +657,8 @@ section.
 * AI 不得把 starter/demo/reference 目录升级为并行 runtime surface、并行模块基线或第二套架构真值。
 * AI 不得擅自新增 framework、ORM、DI container、logging framework。
 * AI 不得无理由扩大 abstraction layer。
+* AI 不得为仅供 Gin 注册或测试拼接使用的 server 路由常量引入无语义类型别名、`String()` 包装或并行 full-path
+  常量集。
 * AI 不得借“临时过渡”之名绕开既有 module lifecycle、feature boundary、plugin lifecycle 或 validation
   entrypoint 约束。
 * AI 不得新增“未来可能会用到”的接口或扩展点。

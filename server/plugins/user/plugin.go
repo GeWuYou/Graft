@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
@@ -266,31 +267,31 @@ func parseSessionListOptions(rawLimit string) (sessionListOptions, error) {
 }
 
 // mapAuthError 把插件内部鉴权/会话错误收敛为稳定 HTTP 状态与消息键。
-func mapAuthError(err error) (int, string) {
+func mapAuthError(err error) (int, messagecontract.Key) {
 	for _, mapping := range []struct {
 		match  error
 		status int
-		key    string
+		key    messagecontract.Key
 	}{
-		{match: pluginapi.ErrUnauthenticated, status: http.StatusUnauthorized, key: "auth.token_missing"},
-		{match: errInvalidLoginCredentials, status: http.StatusBadRequest, key: "auth.invalid_credentials"},
-		{match: errRefreshTokenRequired, status: http.StatusUnauthorized, key: "auth.token_missing"},
-		{match: errExpiredRefreshToken, status: http.StatusUnauthorized, key: "auth.token_expired"},
-		{match: errInvalidRefreshToken, status: http.StatusUnauthorized, key: "auth.token_invalid"},
-		{match: errSessionNotFound, status: http.StatusNotFound, key: "auth.session_not_found"},
-		{match: errRequiredPasswordChangeOnly, status: http.StatusForbidden, key: "auth.forbidden"},
-		{match: errCurrentPasswordRequired, status: http.StatusBadRequest, key: "common.invalid_argument"},
-		{match: errPasswordPolicyViolation, status: http.StatusBadRequest, key: "auth.password_policy_violation"},
-		{match: errPasswordReuseForbidden, status: http.StatusBadRequest, key: "auth.password_reuse_forbidden"},
-		{match: errCurrentPasswordInvalid, status: http.StatusBadRequest, key: "auth.current_password_invalid"},
-		{match: errRefreshSessionFailed, status: http.StatusUnauthorized, key: "auth.token_invalid"},
+		{match: pluginapi.ErrUnauthenticated, status: http.StatusUnauthorized, key: messagecontract.AuthTokenMissing},
+		{match: errInvalidLoginCredentials, status: http.StatusBadRequest, key: messagecontract.AuthInvalidCredentials},
+		{match: errRefreshTokenRequired, status: http.StatusUnauthorized, key: messagecontract.AuthTokenMissing},
+		{match: errExpiredRefreshToken, status: http.StatusUnauthorized, key: messagecontract.AuthTokenExpired},
+		{match: errInvalidRefreshToken, status: http.StatusUnauthorized, key: messagecontract.AuthTokenInvalid},
+		{match: errSessionNotFound, status: http.StatusNotFound, key: messagecontract.AuthSessionNotFound},
+		{match: errRequiredPasswordChangeOnly, status: http.StatusForbidden, key: messagecontract.AuthForbidden},
+		{match: errCurrentPasswordRequired, status: http.StatusBadRequest, key: messagecontract.CommonInvalidArgument},
+		{match: errPasswordPolicyViolation, status: http.StatusBadRequest, key: messagecontract.AuthPasswordPolicyViolation},
+		{match: errPasswordReuseForbidden, status: http.StatusBadRequest, key: messagecontract.AuthPasswordReuseForbidden},
+		{match: errCurrentPasswordInvalid, status: http.StatusBadRequest, key: messagecontract.AuthCurrentPasswordInvalid},
+		{match: errRefreshSessionFailed, status: http.StatusUnauthorized, key: messagecontract.AuthTokenInvalid},
 	} {
 		if errors.Is(err, mapping.match) {
 			return mapping.status, mapping.key
 		}
 	}
 
-	return http.StatusInternalServerError, "common.internal_error"
+	return http.StatusInternalServerError, messagecontract.CommonInternalError
 }
 
 func authErrorDetails(err error) map[string]any {

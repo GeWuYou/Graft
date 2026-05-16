@@ -22,6 +22,7 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/cronx"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -31,6 +32,7 @@ import (
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
 	"graft/server/plugins/rbac"
+	usercontract "graft/server/plugins/user/contract"
 )
 
 type successEnvelope[T any] struct {
@@ -400,7 +402,7 @@ func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, use
 
 func newPluginTestContext(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository) (*plugin.Context, *gin.Engine) {
 	return newPluginTestContextWithPermissions(t, userRepo, authRepo, map[uint64][]store.Permission{
-		7: {{Code: "user.read"}},
+		7: {{Code: usercontract.UserReadPermission.String()}},
 	})
 }
 
@@ -758,12 +760,14 @@ func assertUserPluginRegistry(t *testing.T, ctx *plugin.Context) {
 		t.Fatalf("expected three user permissions, got %#v", items)
 	}
 	// 权限断言依赖 Registry.Items() 保持注册顺序，避免插件对外声明面静默漂移。
-	if items[0].Code != "user.read" || items[1].Code != "user.session.revoke" || items[2].Code != "user.session.read" {
+	if items[0].Code != usercontract.UserReadPermission.String() ||
+		items[1].Code != usercontract.UserSessionRevokePermission.String() ||
+		items[2].Code != usercontract.UserSessionReadPermission.String() {
 		t.Fatalf("expected user.read, user.session.revoke and user.session.read permissions, got %#v", items)
 	}
 
 	menuItems := ctx.MenuRegistry.Items()
-	if len(menuItems) != 1 || menuItems[0].Path != "/users" {
+	if len(menuItems) != 1 || menuItems[0].Path != usercontract.UsersGroup {
 		t.Fatalf("expected one /users menu item, got %#v", menuItems)
 	}
 }
@@ -887,7 +891,7 @@ func assertBootstrapIdentityAndPermissions(t *testing.T, payload bootstrapRespon
 	if payload.User.ID != 7 || payload.User.Username != "alice" || payload.User.DisplayName != "Alice" {
 		t.Fatalf("expected current user summary, got %#v", payload.User)
 	}
-	if !slices.Equal(payload.Permissions, []string{"user.read"}) {
+	if !slices.Equal(payload.Permissions, []string{usercontract.UserReadPermission.String()}) {
 		t.Fatalf("expected sorted unique permissions, got %#v", payload.Permissions)
 	}
 }
@@ -898,7 +902,9 @@ func assertBootstrapMenus(t *testing.T, menus []bootstrapMenuResponse) {
 	if len(menus) != 2 {
 		t.Fatalf("expected filtered menus to keep user and public entries, got %#v", menus)
 	}
-	if menus[0].Code != "user.list" || menus[0].Path != "/users" || menus[0].Permission != "user.read" {
+	if menus[0].Code != "user.list" ||
+		menus[0].Path != usercontract.UsersGroup ||
+		menus[0].Permission != usercontract.UserReadPermission.String() {
 		t.Fatalf("expected first menu to be users entry, got %#v", menus[0])
 	}
 	if menus[1].Code != "profile.self" || menus[1].Path != "/profile" || menus[1].Permission != "" {
@@ -1430,7 +1436,7 @@ func TestUserListRouteReturnsInternalErrorContract(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "common.internal_error" || payload.Locale != "en-US" {
+	if payload.MessageKey != messagecontract.CommonInternalError.String() || payload.Locale != "en-US" {
 		t.Fatalf("expected localized internal error payload, got %#v", payload)
 	}
 }
@@ -1452,7 +1458,7 @@ func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "auth.token_missing" || payload.Code != "AUTH_TOKEN_MISSING" {
+	if payload.MessageKey != messagecontract.AuthTokenMissing.String() || payload.Code != "AUTH_TOKEN_MISSING" {
 		t.Fatalf("expected permission middleware payload, got %#v", payload)
 	}
 }
@@ -1463,7 +1469,7 @@ func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, nil)
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/auth/bootstrap", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api"+usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthBootstrap), nil)
 	engine.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusUnauthorized {
@@ -1474,7 +1480,7 @@ func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "auth.token_missing" || payload.Code != "AUTH_TOKEN_MISSING" {
+	if payload.MessageKey != messagecontract.AuthTokenMissing.String() || payload.Code != "AUTH_TOKEN_MISSING" {
 		t.Fatalf("expected missing actor payload, got %#v", payload)
 	}
 }
@@ -1505,7 +1511,7 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 	})
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForUser(t, "/api/auth/bootstrap", authRepo, 7)
+	request := newAuthorizedRequestForUser(t, "/api"+usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthBootstrap), authRepo, 7)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2347,10 +2353,10 @@ func TestAdminListUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "auth.forbidden" || payload.Code != "AUTH_FORBIDDEN" || payload.Locale != "en-US" {
+	if payload.MessageKey != messagecontract.AuthForbidden.String() || payload.Code != "AUTH_FORBIDDEN" || payload.Locale != "en-US" {
 		t.Fatalf("expected missing permission payload, got %#v", payload)
 	}
-	if payload.Details["permission"] != "user.session.read" {
+	if payload.Details["permission"] != usercontract.UserSessionReadPermission.String() {
 		t.Fatalf("expected denied permission detail, got %#v", payload)
 	}
 }
@@ -2369,7 +2375,7 @@ func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
 			}
 		},
 	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.read"}},
+		9: {{Code: usercontract.UserSessionReadPermission.String()}},
 	})
 
 	recorder := httptest.NewRecorder()
@@ -2385,7 +2391,7 @@ func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "user.not_found" || payload.Locale != "en-US" {
+	if payload.MessageKey != messagecontract.UserNotFound.String() || payload.Locale != "en-US" {
 		t.Fatalf("expected user.not_found payload, got %#v", payload)
 	}
 }
@@ -2643,10 +2649,10 @@ func TestAdminRevokeUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "auth.forbidden" || payload.Code != "AUTH_FORBIDDEN" || payload.Locale != "en-US" {
+	if payload.MessageKey != messagecontract.AuthForbidden.String() || payload.Code != "AUTH_FORBIDDEN" || payload.Locale != "en-US" {
 		t.Fatalf("expected missing permission payload, got %#v", payload)
 	}
-	if payload.Details["permission"] != "user.session.revoke" {
+	if payload.Details["permission"] != usercontract.UserSessionRevokePermission.String() {
 		t.Fatalf("expected denied permission detail, got %#v", payload)
 	}
 }

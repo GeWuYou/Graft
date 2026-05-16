@@ -41,6 +41,10 @@
 - 当前 `server authz/rbac wiring convergence` 切片也已落地：`user` 路由在 `Register` 阶段只持有延迟绑定的
   `pluginapi.Authorizer` 句柄，并在 `Boot` 阶段解析绑定 `rbac` 插件公开的共享授权器；请求热路径不再 `Resolve`
   服务，也不再保留第二套本地 RBAC 判定逻辑。
+- 当前 `server/plugins/user` contract-governance follow-up 也已落地：插件内新增 `contract` 包承载 canonical
+  permission 与 auth-route path，`plugin.go` / `plugin_routes.go` 已改为消费平台 `message.Key` 与插件内 typed
+  contract，shared `common.conjunction` / `common.copyright` 也已补回 `server` canonical message contract 与
+  i18n catalog；本轮 targeted scanner findings 已从运行时文件清零。
 - `pluginapi`、registries、store factory 与当前 auth/menu/permission/i18n 返回面，已经成为 `web` 真实契约收敛前必须谨慎冻结的后端边界。
 - 当前本地启动修复已补齐 `server/.env.example` 的显式 auth 密钥示例、README 最小启动步骤与 GoLand working directory 提示，并用隔离环境测试锁定“缺少 `GRAFT_AUTH_JWT_SECRET` 与 `GRAFT_AUTH_SIGNING_KEY` 时严格失败”的配置行为；未引入任何 dev-only 默认密钥或 auth 语义变更。
 - `server` 当前已补充两个独立开发辅助程序：`cmd/graft-jwt-secret` 与 `cmd/graft-signing-key`，用于生成可直接写入 `.env` 的随机 auth 密钥文本；该能力只辅助配置准备，不参与运行时加载或 token 语义。
@@ -113,6 +117,13 @@
 - 本次 PR #8 review follow-up 直接校验：
   - `cd server && go test ./internal/cli ./internal/store/entstore ./plugins/user ./plugins/rbac`
   - `cd server && go build ./cmd/graft`
+- 本次 `server/plugins/user` contract-governance follow-up 直接校验：
+  - `cd server && go test ./plugins/user`
+  - `cd server && go test ./internal/i18n ./internal/contract/...`
+  - `python3 scripts/magic_value/check_magic_values.py --mode report --output-json /tmp/graft-magic-report-next.json`
+  - 结果：`server/plugins/user/plugin.go`、`server/plugins/user/plugin_routes.go` 与
+    `server/internal/contract/message/key.go` 不再出现本轮 targeted permission/message-key/auth-route 或
+    `common.conjunction` / `common.copyright` drift findings。
 - 本次 bootstrap 契约切片直接校验：
   - `cd server && go test ./plugins/user`
   - `cd server && go build ./cmd/graft`
@@ -169,7 +180,7 @@
 
 ## Immediate Next Step
 
-- 保持当前共享 `pluginapi.Authorizer` wiring 稳定；后续新增 `server` 受保护路由时，继续复用 `rbac` 插件公开服务，
-  不再在 `user` 或其它插件本地复制授权实现。
-- 当前纯 `server` 的 auth/authz 收敛补丁已经完成；跨边界主线回到父主题与 `web` 子主题，继续推进真实主运行面清理、
-  bootstrap 菜单接线与受限态恢复链路稳定化。
+- 保持当前共享 `pluginapi.Authorizer` wiring 与 `server/plugins/user/contract` 稳定；后续新增 `server`
+  受保护路由时，继续复用 typed permission/route contract 与 `rbac` 插件公开服务，不再在 `user` 或其它插件本地复制实现。
+- 当前纯 `server` 的 runtime auth/authz contract 热点已经完成一轮清扫；后续若继续做 `server` 治理，优先收敛
+  `plugin_test.go` 与其它测试侧仍残留的 auth/shared 字面量，否则跨边界主线回到父主题与 `web` 子主题继续推进主运行面清理。
