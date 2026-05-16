@@ -44,6 +44,12 @@ type refreshResult struct {
 	User               loginUserResponse
 }
 
+type refreshSessionGrant struct {
+	Session       store.RefreshSession
+	Token         string
+	TokenExpiryAt time.Time
+}
+
 type sessionSummary struct {
 	SessionID string    `json:"session_id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -157,14 +163,14 @@ func (s authService) LoginWithRefresh(ctx context.Context, username string, pass
 		return refreshResult{}, err
 	}
 
-	session, refreshToken, refreshExpiry, err := s.createRefreshSession(ctx, login.User.ID)
+	refreshGrant, err := s.createRefreshSession(ctx, login.User.ID)
 	if err != nil {
 		return refreshResult{}, err
 	}
 
 	accessToken, accessClaims, err := s.tokens.Issue(accessTokenSubject{
 		UserID:       login.User.ID,
-		SessionID:    session.TokenID,
+		SessionID:    refreshGrant.Session.TokenID,
 		TokenVersion: 1,
 	})
 	if err != nil {
@@ -174,8 +180,8 @@ func (s authService) LoginWithRefresh(ctx context.Context, username string, pass
 	return refreshResult{
 		AccessToken:        accessToken,
 		AccessExpiry:       accessClaims.ExpiresAt,
-		RefreshToken:       refreshToken,
-		RefreshExpiry:      refreshExpiry,
+		RefreshToken:       refreshGrant.Token,
+		RefreshExpiry:      refreshGrant.TokenExpiryAt,
 		MustChangePassword: login.MustChangePassword,
 		User: loginUserResponse{
 			ID:          login.User.ID,
@@ -190,73 +196,32 @@ func (s authService) RefreshWithRotation(ctx context.Context, refreshToken strin
 	if err := s.ensureRefreshDependencies(); err != nil {
 		return refreshResult{}, err
 	}
+
 	claims, err := s.parseRefreshClaims(refreshToken)
 	if err != nil {
 		return refreshResult{}, err
 	}
+
 	record, credential, err := s.loadRefreshActor(ctx, claims.UserID)
 	if err != nil {
 		return refreshResult{}, err
 	}
-	currentSession, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.TokenID)
-	if err != nil {
-		if errors.Is(err, store.ErrRefreshSessionNotFound) {
-			return refreshResult{}, errInvalidRefreshToken
-		}
-		return refreshResult{}, err
-	}
+
 	now := s.refreshTokens.now().UTC()
-	if currentSession.UserID != claims.UserID || currentSession.RevokedAt != nil || !currentSession.ExpiresAt.After(now) {
-		return refreshResult{}, errInvalidRefreshToken
-	}
-	if credential.MustChangePassword {
-		return refreshResult{}, errRequiredPasswordChangeOnly
-	}
-	newTokenID := uuid.NewString()
-	nextSession, err := s.auth.RotateRefreshSession(ctx, store.RotateRefreshSessionInput{
-		CurrentTokenID: claims.TokenID,
-		NewTokenID:     newTokenID,
-		Now:            now,
-		RevokedAt:      now,
-		NewExpiresAt:   now.Add(s.refreshTokens.ttl),
-	})
-	if err != nil {
-		if errors.Is(err, store.ErrRefreshSessionNotFound) {
-			return refreshResult{}, errInvalidRefreshToken
-		}
+	if err := s.validateActiveRefreshSession(ctx, claims, now); err != nil {
 		return refreshResult{}, err
 	}
 
-	nextRefreshToken, nextRefreshExpiry, err := s.refreshTokens.Issue(refreshTokenSubject{
-		UserID:    record.ID,
-		SessionID: nextSession.TokenID,
-		TokenID:   nextSession.TokenID,
-	})
+	if err := validateRefreshRotationAllowed(credential); err != nil {
+		return refreshResult{}, err
+	}
+
+	nextSession, err := s.rotateRefreshSession(ctx, claims.TokenID, now)
 	if err != nil {
 		return refreshResult{}, err
 	}
 
-	accessToken, accessClaims, err := s.tokens.Issue(accessTokenSubject{
-		UserID:       record.ID,
-		SessionID:    nextSession.TokenID,
-		TokenVersion: 1,
-	})
-	if err != nil {
-		return refreshResult{}, err
-	}
-
-	return refreshResult{
-		AccessToken:        accessToken,
-		AccessExpiry:       accessClaims.ExpiresAt,
-		RefreshToken:       nextRefreshToken,
-		RefreshExpiry:      nextRefreshExpiry,
-		MustChangePassword: credential.MustChangePassword,
-		User: loginUserResponse{
-			ID:          record.ID,
-			Username:    record.Username,
-			DisplayName: record.Display,
-		},
-	}, nil
+	return s.issueRefreshRotationResult(record, credential, nextSession)
 }
 
 // LogoutCurrentSession 读取当前 refresh token 对应的会话并吊销它。
@@ -361,6 +326,94 @@ func (s authService) loadRefreshActor(
 	}
 
 	return record, credential, nil
+}
+
+func (s authService) validateActiveRefreshSession(
+	ctx context.Context,
+	claims *refreshTokenSubject,
+	now time.Time,
+) error {
+	session, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.TokenID)
+	if err != nil {
+		return mapRefreshSessionRepositoryError(err)
+	}
+	if session.UserID != claims.UserID || session.RevokedAt != nil || !session.ExpiresAt.After(now) {
+		return errInvalidRefreshToken
+	}
+
+	return nil
+}
+
+func validateRefreshRotationAllowed(credential store.UserCredential) error {
+	if credential.MustChangePassword {
+		return errRequiredPasswordChangeOnly
+	}
+
+	return nil
+}
+
+func (s authService) rotateRefreshSession(
+	ctx context.Context,
+	currentTokenID string,
+	now time.Time,
+) (store.RefreshSession, error) {
+	nextSession, err := s.auth.RotateRefreshSession(ctx, store.RotateRefreshSessionInput{
+		CurrentTokenID: currentTokenID,
+		NewTokenID:     uuid.NewString(),
+		Now:            now,
+		RevokedAt:      now,
+		NewExpiresAt:   now.Add(s.refreshTokens.ttl),
+	})
+	if err != nil {
+		return store.RefreshSession{}, mapRefreshSessionRepositoryError(err)
+	}
+
+	return nextSession, nil
+}
+
+func (s authService) issueRefreshRotationResult(
+	record store.User,
+	credential store.UserCredential,
+	nextSession store.RefreshSession,
+) (refreshResult, error) {
+	nextRefreshToken, nextRefreshExpiry, err := s.refreshTokens.Issue(refreshTokenSubject{
+		UserID:    record.ID,
+		SessionID: nextSession.TokenID,
+		TokenID:   nextSession.TokenID,
+	})
+	if err != nil {
+		return refreshResult{}, err
+	}
+
+	accessToken, accessClaims, err := s.tokens.Issue(accessTokenSubject{
+		UserID:       record.ID,
+		SessionID:    nextSession.TokenID,
+		TokenVersion: 1,
+	})
+	if err != nil {
+		return refreshResult{}, err
+	}
+
+	return refreshResult{
+		AccessToken:        accessToken,
+		AccessExpiry:       accessClaims.ExpiresAt,
+		RefreshToken:       nextRefreshToken,
+		RefreshExpiry:      nextRefreshExpiry,
+		MustChangePassword: credential.MustChangePassword,
+		User: loginUserResponse{
+			ID:          record.ID,
+			Username:    record.Username,
+			DisplayName: record.Display,
+		},
+	}, nil
+}
+
+func mapRefreshSessionRepositoryError(err error) error {
+	if errors.Is(err, store.ErrRefreshSessionNotFound) {
+		return errInvalidRefreshToken
+	}
+
+	return err
 }
 
 // RevokeAllCurrentUserSessions 吊销当前已认证用户名下的全部 refresh sessions。
@@ -538,12 +591,12 @@ func (s authService) validateAccessSession(ctx context.Context, claims *pluginap
 	return nil
 }
 
-func (s authService) createRefreshSession(ctx context.Context, userID uint64) (store.RefreshSession, string, time.Time, error) {
+func (s authService) createRefreshSession(ctx context.Context, userID uint64) (refreshSessionGrant, error) {
 	if s.auth == nil {
-		return store.RefreshSession{}, "", time.Time{}, errors.New("auth repository is unavailable")
+		return refreshSessionGrant{}, errors.New("auth repository is unavailable")
 	}
 	if s.refreshTokens == nil {
-		return store.RefreshSession{}, "", time.Time{}, errors.New("refresh token manager is unavailable")
+		return refreshSessionGrant{}, errors.New("refresh token manager is unavailable")
 	}
 
 	tokenID := uuid.NewString()
@@ -555,7 +608,7 @@ func (s authService) createRefreshSession(ctx context.Context, userID uint64) (s
 		ExpiresAt: expiresAt,
 	})
 	if err != nil {
-		return store.RefreshSession{}, "", time.Time{}, err
+		return refreshSessionGrant{}, err
 	}
 
 	token, tokenExpiresAt, err := s.refreshTokens.Issue(refreshTokenSubject{
@@ -564,10 +617,14 @@ func (s authService) createRefreshSession(ctx context.Context, userID uint64) (s
 		TokenID:   session.TokenID,
 	})
 	if err != nil {
-		return store.RefreshSession{}, "", time.Time{}, err
+		return refreshSessionGrant{}, err
 	}
 
-	return session, token, tokenExpiresAt, nil
+	return refreshSessionGrant{
+		Session:       session,
+		Token:         token,
+		TokenExpiryAt: tokenExpiresAt,
+	}, nil
 }
 
 func (s authService) nowUTC() time.Time {

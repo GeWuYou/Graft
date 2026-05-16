@@ -242,37 +242,9 @@ func TestLoadAuthSigningMaterial(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			restoreEnv := clearGraftEnv(t)
-			t.Cleanup(restoreEnv)
-			chdir(t, t.TempDir())
-
-			if testCase.jwtSecret != "" {
-				t.Setenv("GRAFT_AUTH_JWT_SECRET", testCase.jwtSecret)
-			}
-			if testCase.signingKey != "" {
-				t.Setenv("GRAFT_AUTH_SIGNING_KEY", testCase.signingKey)
-			}
-
+			prepareAuthSigningMaterialTest(t, testCase.jwtSecret, testCase.signingKey)
 			cfg, err := Load()
-			if testCase.wantErr != "" {
-				if err == nil {
-					t.Fatal("expected missing auth signing material error")
-				}
-				if !strings.Contains(err.Error(), testCase.wantErr) {
-					t.Fatalf("expected error containing %q, got %q", testCase.wantErr, err.Error())
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("load config: %v", err)
-			}
-			if cfg.Auth.JWTSecret != testCase.wantJWTSecret {
-				t.Fatalf("expected jwt secret %q, got %q", testCase.wantJWTSecret, cfg.Auth.JWTSecret)
-			}
-			if cfg.Auth.SigningKey != testCase.wantSigningKey {
-				t.Fatalf("expected signing key %q, got %q", testCase.wantSigningKey, cfg.Auth.SigningKey)
-			}
+			assertAuthSigningMaterialResult(t, cfg, err, testCase.wantErr, testCase.wantJWTSecret, testCase.wantSigningKey)
 		})
 	}
 }
@@ -487,6 +459,52 @@ func testDatabaseURL() string {
 
 func testSigningMaterial(prefix string) string {
 	return prefix + "-material-for-config-tests"
+}
+
+func prepareAuthSigningMaterialTest(t *testing.T, jwtSecret string, signingKey string) {
+	t.Helper()
+
+	restoreEnv := clearGraftEnv(t)
+	t.Cleanup(restoreEnv)
+	chdir(t, t.TempDir())
+
+	if jwtSecret != "" {
+		t.Setenv("GRAFT_AUTH_JWT_SECRET", jwtSecret)
+	}
+	if signingKey != "" {
+		t.Setenv("GRAFT_AUTH_SIGNING_KEY", signingKey)
+	}
+}
+
+func assertAuthSigningMaterialResult(
+	t *testing.T,
+	cfg *Config,
+	err error,
+	wantErr string,
+	wantJWTSecret string,
+	wantSigningKey string,
+) {
+	t.Helper()
+
+	if wantErr != "" {
+		if err == nil {
+			t.Fatal("expected missing auth signing material error")
+		}
+		if !strings.Contains(err.Error(), wantErr) {
+			t.Fatalf("expected error containing %q, got %q", wantErr, err.Error())
+		}
+		return
+	}
+
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Auth.JWTSecret != wantJWTSecret {
+		t.Fatalf("expected jwt secret %q, got %q", wantJWTSecret, cfg.Auth.JWTSecret)
+	}
+	if cfg.Auth.SigningKey != wantSigningKey {
+		t.Fatalf("expected signing key %q, got %q", wantSigningKey, cfg.Auth.SigningKey)
+	}
 }
 
 // clearGraftEnv 隔离当前进程中的 GRAFT_* 环境变量，避免测试彼此污染。

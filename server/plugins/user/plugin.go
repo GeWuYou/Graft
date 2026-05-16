@@ -66,16 +66,16 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	registerUserPermissions(ctx.PermissionRegistry, p.Name())
 	registerUserMenu(ctx.MenuRegistry, p.Name())
 
-	userSvc, authSvc, bootstrapSvc, err := p.registerServices(ctx)
+	services, err := p.registerServices(ctx)
 	if err != nil {
 		return err
 	}
 	p.routeAuthorizer = newDeferredAuthorizer()
-	guards := newRouteGuards(ctx.I18n, authSvc, p.routeAuthorizer)
-	if err := registerAuthRoutes(ctx, p.Name(), authSvc, bootstrapSvc, guards); err != nil {
+	guards := newRouteGuards(ctx.I18n, services.auth, p.routeAuthorizer)
+	if err := registerAuthRoutes(ctx, p.Name(), services.auth, services.bootstrap, guards); err != nil {
 		return err
 	}
-	if err := registerUserRoutes(ctx, p.Name(), userSvc, authSvc, guards); err != nil {
+	if err := registerUserRoutes(ctx, p.Name(), services.user, services.auth, guards); err != nil {
 		return err
 	}
 

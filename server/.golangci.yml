@@ -23,40 +23,37 @@ linters:
     - mnd
     - dupl
     - misspell
-
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-  cyclop:
-    max-complexity: 12
-    package-average: 8.0
-  gocognit:
-    min-complexity: 20
-  maintidx:
-    under: 20
-  mnd:
-    ignored-numbers:
-      - "0"
-      - "1"
-  dupl:
-    threshold: 150
-  revive:
-    severity: warning
-    confidence: 0.8
-    rules:
-      - name: exported
-      - name: package-comments
-      - name: unused-parameter
-      - name: context-as-argument
-      - name: error-strings
-      - name: error-naming
-      - name: var-naming
-      - name: function-result-limit
-      - name: indent-error-flow
-      - name: receiver-naming
-      - name: bare-return
-
-issues:
+  settings:
+    gocyclo:
+      min-complexity: 15
+    cyclop:
+      max-complexity: 10
+      package-average: 8.0
+    gocognit:
+      min-complexity: 20
+    maintidx:
+      under: 20
+    mnd:
+      ignored-numbers:
+        - "0"
+        - "1"
+    dupl:
+      threshold: 150
+    revive:
+      severity: warning
+      confidence: 0.8
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: unused-parameter
+        - name: context-as-argument
+        - name: error-strings
+        - name: error-naming
+        - name: var-naming
+        - name: function-result-limit
+        - name: indent-error-flow
+        - name: receiver-naming
+        - name: bare-return
   exclusions:
     generated: lax
     paths:
@@ -80,5 +77,7 @@ issues:
           - maintidx
           - dupl
           - mnd
+
+issues:
   max-issues-per-linter: 0
   max-same-issues: 0

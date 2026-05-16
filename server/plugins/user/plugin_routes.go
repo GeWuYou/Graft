@@ -63,17 +63,23 @@ func userPermissionItems(pluginName string) []permission.Item {
 	}
 }
 
-func (p *Plugin) registerServices(ctx *plugin.Context) (userService, *authService, bootstrapReader, error) {
+type registeredServices struct {
+	user      userService
+	auth      *authService
+	bootstrap bootstrapReader
+}
+
+func (p *Plugin) registerServices(ctx *plugin.Context) (registeredServices, error) {
 	userSvc := userService{users: ctx.Stores.Users()}
 	if err := ctx.Services.RegisterSingleton((*pluginapi.UserService)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil
 	}); err != nil {
-		return userService{}, nil, bootstrapReader{}, err
+		return registeredServices{}, err
 	}
 
 	authSvc, err := newAuthService(ctx.Config.Auth, ctx.Stores.Auth(), ctx.Stores.Users())
 	if err != nil {
-		return userService{}, nil, bootstrapReader{}, err
+		return registeredServices{}, err
 	}
 	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Stores.Auth(), ctx.Stores.RBAC())
 	p.defaultAdminAuth = authSvc
@@ -81,10 +87,14 @@ func (p *Plugin) registerServices(ctx *plugin.Context) (userService, *authServic
 	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(_ container.Resolver) (any, error) {
 		return authSvc, nil
 	}); err != nil {
-		return userService{}, nil, bootstrapReader{}, err
+		return registeredServices{}, err
 	}
 
-	return userSvc, authSvc, bootstrapSvc, nil
+	return registeredServices{
+		user:      userSvc,
+		auth:      authSvc,
+		bootstrap: bootstrapSvc,
+	}, nil
 }
 
 type routeGuards struct {
