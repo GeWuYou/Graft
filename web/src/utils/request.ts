@@ -3,9 +3,9 @@ import axios from 'axios';
 
 import {
   API_CODE,
-  type ApiCode,
   type ApiEnvelope,
   type ApiErrorEnvelope,
+  type ApiResponseCode,
   type LoginResponse,
 } from '@/api/model/authModel';
 import { AUTH_SCHEME, HTTP_HEADER } from '@/contracts/api/headers';
@@ -263,6 +263,6 @@ export function isApiRequestError(error: unknown): error is ApiRequestError {
   return Boolean(error && typeof error === 'object' && (error as Partial<ApiRequestError>).isApiRequestError);
 }
 
-export function shouldAttemptRefreshByError(status: number, code: ApiCode) {
+export function shouldAttemptRefreshByError(status: number, code: ApiResponseCode) {
   return status === 401 && code === API_CODE.AUTH_TOKEN_EXPIRED;
 }

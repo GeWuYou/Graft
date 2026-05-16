@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 
-import type { ApiCode, ApiErrorEnvelope } from '@/api/model/authModel';
+import type { ApiErrorEnvelope, ApiResponseCode } from '@/api/model/authModel';
 
 /**
  * Axios请求配置
@@ -92,7 +92,7 @@ export interface RequestOptions {
 
 export interface ApiRequestError extends Error {
   status: number;
-  code: ApiCode;
+  code: ApiResponseCode;
   traceId: string;
   messageKey?: string;
   locale?: string;

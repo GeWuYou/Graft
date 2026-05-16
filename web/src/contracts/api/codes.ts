@@ -17,4 +17,7 @@ export const API_CODE = {
   USER_NOT_FOUND: 'USER_NOT_FOUND',
 } as const;
 
-export type ApiCode = (typeof API_CODE)[keyof typeof API_CODE] | (string & {});
+export type ApiCode = (typeof API_CODE)[keyof typeof API_CODE];
+
+// Backend responses may still contain compatibility or not-yet-modeled codes.
+export type ApiResponseCode = string;

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 
 import { getBootstrap, login as loginApi, logout as logoutApi, refresh as refreshApi } from '@/api/auth';
-import { API_CODE, type BootstrapResponse, type LoginResponse } from '@/api/model/authModel';
+import { API_CODE, type ApiResponseCode, type BootstrapResponse, type LoginResponse } from '@/api/model/authModel';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
 import { i18n, supportedLocales } from '@/locales';
 import { usePermissionStore } from '@/store';
@@ -167,7 +167,7 @@ function isRefreshableAuthError(error: unknown) {
   return isApiRequestError(error) && error.status === 401 && error.code === API_CODE.AUTH_TOKEN_EXPIRED;
 }
 
-function createAuthStateError(status: number, code: string, message: string): ApiRequestError {
+function createAuthStateError(status: number, code: ApiResponseCode, message: string): ApiRequestError {
   const error = new Error(message) as ApiRequestError;
   error.name = 'ApiRequestError';
   error.status = status;

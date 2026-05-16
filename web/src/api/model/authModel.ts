@@ -1,9 +1,9 @@
-import type { ApiCode } from '@/contracts/api/codes';
+import type { ApiCode, ApiResponseCode } from '@/contracts/api/codes';
 import { API_CODE } from '@/contracts/api/codes';
 import type { LocalizedTitle } from '@/locales';
 
 export { API_CODE };
-export type { ApiCode };
+export type { ApiCode, ApiResponseCode };
 
 export interface ApiSuccessEnvelope<T> {
   success: true;
@@ -17,7 +17,7 @@ export interface ApiSuccessEnvelope<T> {
 
 export interface ApiErrorEnvelope {
   success: false;
-  code: ApiCode;
+  code: ApiResponseCode;
   message: string;
   traceId: string;
   data?: null;

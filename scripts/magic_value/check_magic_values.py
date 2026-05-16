@@ -377,7 +377,6 @@ def read_file(path: str) -> str:
 
 
 def is_definition_context(path: str, line_text: str, value: str) -> bool:
-    stripped = line_text.strip()
     if path.startswith("server/internal/contract/"):
         return True
     if path.startswith("server/plugins/") and "/contract/" in path:
@@ -393,10 +392,6 @@ def is_definition_context(path: str, line_text: str, value: str) -> bool:
     if path == "server/internal/httpx/response.go":
         return True
     if path == "server/internal/pluginapi/audit.go":
-        return True
-    if re.match(r"^(?:[A-Za-z_$][A-Za-z0-9_$]*|['\"][^'\"]+['\"])\s*:\s*['\"][^'\"]+['\"],?$", stripped):
-        return True
-    if re.search(r"\bconst\b", stripped) or re.search(r"\bas const\b", stripped):
         return True
     return False
 

@@ -198,10 +198,20 @@ func (s authService) RefreshWithRotation(ctx context.Context, refreshToken strin
 	if err != nil {
 		return refreshResult{}, err
 	}
+	currentSession, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.TokenID)
+	if err != nil {
+		if errors.Is(err, store.ErrRefreshSessionNotFound) {
+			return refreshResult{}, errInvalidRefreshToken
+		}
+		return refreshResult{}, err
+	}
+	now := s.refreshTokens.now().UTC()
+	if currentSession.UserID != claims.UserID || currentSession.RevokedAt != nil || !currentSession.ExpiresAt.After(now) {
+		return refreshResult{}, errInvalidRefreshToken
+	}
 	if credential.MustChangePassword {
 		return refreshResult{}, errRequiredPasswordChangeOnly
 	}
-	now := s.refreshTokens.now().UTC()
 	newTokenID := uuid.NewString()
 	nextSession, err := s.auth.RotateRefreshSession(ctx, store.RotateRefreshSessionInput{
 		CurrentTokenID: claims.TokenID,
