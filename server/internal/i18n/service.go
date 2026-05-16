@@ -7,46 +7,48 @@ import (
 	"golang.org/x/text/language"
 
 	"graft/server/internal/config"
+	"graft/server/internal/contract/httpheader"
+	messagecontract "graft/server/internal/contract/message"
 )
 
 // LocaleHeader 允许调用方显式指定当前请求期望的语言。
-const LocaleHeader = "X-Graft-Locale"
+const LocaleHeader = string(httpheader.Locale)
 
 // #nosec G101 -- 这里保存的是本地化 message key 与展示文案，不是凭据。
 var defaultCatalogs = map[string]map[string]string{
 	"zh-CN": {
-		"auth.invalid_credentials":       "用户名或密码错误",
-		"auth.token_missing":             "缺少访问令牌",
-		"auth.token_expired":             "访问令牌已过期",
-		"auth.token_invalid":             "访问令牌无效",
-		"auth.forbidden":                 "权限不足",
-		"auth.invalid_refresh_session":   "刷新会话无效或已失效",
-		"auth.password_policy_violation": "新密码不符合安全要求",
-		"auth.password_reuse_forbidden":  "新密码不能重复使用默认密码或当前密码",
-		"auth.current_password_invalid":  "当前密码错误",
-		"auth.missing_actor":             "缺少请求身份信息",
-		"auth.missing_permission":        "缺少所需权限",
-		"auth.session_not_found":         "会话不存在或已失效",
-		"common.internal_error":          "服务内部错误",
-		"common.invalid_argument":        "请求参数不合法",
-		"user.not_found":                 "用户不存在",
+		messagecontract.AuthInvalidCredentials.String():      "用户名或密码错误",
+		messagecontract.AuthTokenMissing.String():            "缺少访问令牌",
+		messagecontract.AuthTokenExpired.String():            "访问令牌已过期",
+		messagecontract.AuthTokenInvalid.String():            "访问令牌无效",
+		messagecontract.AuthForbidden.String():               "权限不足",
+		messagecontract.AuthInvalidRefreshSession.String():   "刷新会话无效或已失效",
+		messagecontract.AuthPasswordPolicyViolation.String(): "新密码不符合安全要求",
+		messagecontract.AuthPasswordReuseForbidden.String():  "新密码不能重复使用默认密码或当前密码",
+		messagecontract.AuthCurrentPasswordInvalid.String():  "当前密码错误",
+		messagecontract.AuthMissingActor.String():            "缺少请求身份信息",
+		messagecontract.AuthMissingPermission.String():       "缺少所需权限",
+		messagecontract.AuthSessionNotFound.String():         "会话不存在或已失效",
+		messagecontract.CommonInternalError.String():         "服务内部错误",
+		messagecontract.CommonInvalidArgument.String():       "请求参数不合法",
+		messagecontract.UserNotFound.String():                "用户不存在",
 	},
 	"en-US": {
-		"auth.invalid_credentials":       "Invalid username or password",
-		"auth.token_missing":             "Missing access token",
-		"auth.token_expired":             "Access token expired",
-		"auth.token_invalid":             "Invalid access token",
-		"auth.forbidden":                 "Forbidden",
-		"auth.invalid_refresh_session":   "Invalid or expired refresh session",
-		"auth.password_policy_violation": "New password does not meet security requirements",
-		"auth.password_reuse_forbidden":  "New password must not reuse the default or current password",
-		"auth.current_password_invalid":  "Current password is invalid",
-		"auth.missing_actor":             "Missing request actor",
-		"auth.missing_permission":        "Missing required permission",
-		"auth.session_not_found":         "Session not found or already inactive",
-		"common.internal_error":          "Internal server error",
-		"common.invalid_argument":        "Invalid request parameters",
-		"user.not_found":                 "User not found",
+		messagecontract.AuthInvalidCredentials.String():      "Invalid username or password",
+		messagecontract.AuthTokenMissing.String():            "Missing access token",
+		messagecontract.AuthTokenExpired.String():            "Access token expired",
+		messagecontract.AuthTokenInvalid.String():            "Invalid access token",
+		messagecontract.AuthForbidden.String():               "Forbidden",
+		messagecontract.AuthInvalidRefreshSession.String():   "Invalid or expired refresh session",
+		messagecontract.AuthPasswordPolicyViolation.String(): "New password does not meet security requirements",
+		messagecontract.AuthPasswordReuseForbidden.String():  "New password must not reuse the default or current password",
+		messagecontract.AuthCurrentPasswordInvalid.String():  "Current password is invalid",
+		messagecontract.AuthMissingActor.String():            "Missing request actor",
+		messagecontract.AuthMissingPermission.String():       "Missing required permission",
+		messagecontract.AuthSessionNotFound.String():         "Session not found or already inactive",
+		messagecontract.CommonInternalError.String():         "Internal server error",
+		messagecontract.CommonInvalidArgument.String():       "Invalid request parameters",
+		messagecontract.UserNotFound.String():                "User not found",
 	},
 }
 
@@ -114,9 +116,9 @@ func (s *Service) ResolveRequestLocale(request *http.Request, sessionLocale stri
 		return s.ResolveLocale("", sessionLocale)
 	}
 
-	requested := strings.TrimSpace(request.Header.Get(LocaleHeader))
+	requested := strings.TrimSpace(request.Header.Get(httpheader.Locale.String()))
 	if requested == "" {
-		requested = strings.TrimSpace(request.Header.Get("Accept-Language"))
+		requested = strings.TrimSpace(request.Header.Get(httpheader.AcceptLanguage.String()))
 	}
 
 	return s.ResolveLocale(requested, sessionLocale)

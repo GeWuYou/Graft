@@ -4,8 +4,8 @@ import NProgress from 'nprogress'; // progress bar
 import { MessagePlugin } from 'tdesign-vue-next';
 import type { RouteRecordRaw } from 'vue-router';
 
+import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
 import router from '@/router';
-import { RESTRICTED_SESSION_PATH, RESTRICTED_SESSION_ROUTE_NAME } from '@/router';
 import { getPermissionStore, useUserStore } from '@/store';
 import { isRootEntryPath, resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH } from '@/utils/route';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
@@ -29,15 +29,16 @@ router.beforeEach(async (to, from, next) => {
     });
   };
 
-  const isRestrictedSessionTarget = to.path === RESTRICTED_SESSION_PATH || to.name === RESTRICTED_SESSION_ROUTE_NAME;
+  const isRestrictedSessionTarget =
+    to.path === AUTH_ROUTE_PATH.RESTRICTED_SESSION || to.name === AUTH_ROUTE_NAME.RESTRICTED_SESSION;
   const isRestrictedSession = () => userStore.mustChangePassword;
   const redirectToRestrictedSession = () => {
-    if (!isRestrictedSessionTarget && to.fullPath !== RESTRICTED_SESSION_PATH) {
+    if (!isRestrictedSessionTarget && to.fullPath !== AUTH_ROUTE_PATH.RESTRICTED_SESSION) {
       userStore.setPendingRestrictedRedirect(to.fullPath);
     }
 
     next({
-      path: RESTRICTED_SESSION_PATH,
+      path: AUTH_ROUTE_PATH.RESTRICTED_SESSION,
       replace: true,
     });
   };

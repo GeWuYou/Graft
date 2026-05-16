@@ -8,11 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	authcontract "graft/server/internal/contract/auth"
+	"graft/server/internal/contract/httpheader"
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/i18n"
 	"graft/server/internal/pluginapi"
 )
-
-const bearerPrefix = "Bearer "
 
 // RequirePermission 以真实请求鉴权上下文保护路由。
 //
@@ -28,7 +29,7 @@ func RequirePermission(
 		EnsureRequestID(ctx)
 
 		if authService == nil {
-			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 			return
 		}
 
@@ -52,7 +53,7 @@ func authenticateRequest(
 ) (pluginapi.RequestAuthContext, context.Context, bool) {
 	requestToken, ok := extractBearerToken(ctx.Request)
 	if !ok {
-		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
 		return pluginapi.RequestAuthContext{}, nil, true
 	}
 
@@ -88,7 +89,7 @@ func authorizeRequest(
 	}
 
 	if authorizer == nil {
-		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 		return true
 	}
 	if err := authorizer.Authorize(requestCtx, requestAuth, code); err != nil {
@@ -102,37 +103,37 @@ func authorizeRequest(
 func writeAccessTokenError(ctx *gin.Context, localizer *i18n.Service, err error) {
 	switch {
 	case errors.Is(err, pluginapi.ErrExpiredAccessToken):
-		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_expired", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenExpired.String(), nil)
 	case errors.Is(err, pluginapi.ErrInvalidAccessToken):
-		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenInvalid.String(), nil)
 	default:
-		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 	}
 }
 
 func writeCurrentUserError(ctx *gin.Context, localizer *i18n.Service, err error) {
 	switch {
 	case errors.Is(err, pluginapi.ErrInvalidAccessToken):
-		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenInvalid.String(), nil)
 	case errors.Is(err, pluginapi.ErrUnauthenticated):
-		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
 	default:
-		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 	}
 }
 
 func writeAuthorizationError(ctx *gin.Context, localizer *i18n.Service, code string, err error) {
 	switch {
 	case errors.Is(err, pluginapi.ErrPermissionDenied):
-		AbortLocalizedError(ctx, localizer, http.StatusForbidden, "auth.forbidden", map[string]any{
+		AbortLocalizedError(ctx, localizer, http.StatusForbidden, messagecontract.AuthForbidden.String(), map[string]any{
 			"permission": code,
 		})
 	case errors.Is(err, pluginapi.ErrInvalidAccessToken):
-		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenInvalid.String(), nil)
 	case errors.Is(err, pluginapi.ErrUnauthenticated):
-		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
 	default:
-		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 	}
 }
 
@@ -141,15 +142,16 @@ func extractBearerToken(request *http.Request) (string, bool) {
 		return "", false
 	}
 
-	header := strings.TrimSpace(request.Header.Get("Authorization"))
+	prefix := authcontract.Bearer.Prefix()
+	header := strings.TrimSpace(request.Header.Get(httpheader.Authorization.String()))
 	if header == "" {
 		return "", false
 	}
-	if !strings.HasPrefix(strings.ToLower(header), strings.ToLower(bearerPrefix)) {
+	if !strings.HasPrefix(strings.ToLower(header), strings.ToLower(prefix)) {
 		return "", false
 	}
 
-	token := strings.TrimSpace(header[len(bearerPrefix):])
+	token := strings.TrimSpace(header[len(prefix):])
 	if token == "" {
 		return "", false
 	}

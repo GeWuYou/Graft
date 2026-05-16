@@ -1,3 +1,5 @@
+import { STORAGE_KEY } from '@/contracts/storage/keys';
+
 let accessToken = '';
 
 export function getAccessToken() {
@@ -8,7 +10,7 @@ export function getAccessToken() {
   try {
     // `user` 是 Pinia persist 为 user store 保留的本地快照；当前阶段只依赖其中
     // 的 `token` 字段做启动期恢复，避免在 store 尚未 hydrate 前丢失 access token。
-    const raw = localStorage.getItem('user');
+    const raw = localStorage.getItem(STORAGE_KEY.USER_SESSION);
     if (!raw) {
       return '';
     }

@@ -74,16 +74,20 @@ HEADER_NAMES = {
 
 AUTH_CODES = {
     "AUTH_INVALID_CREDENTIALS",
+    "AUTH_INVALID_REFRESH_SESSION",
+    "AUTH_MISSING_ACTOR",
+    "AUTH_MISSING_PERMISSION",
     "AUTH_TOKEN_MISSING",
     "AUTH_TOKEN_EXPIRED",
     "AUTH_TOKEN_INVALID",
     "AUTH_FORBIDDEN",
-    "AUTH_PASSWORD_CHANGE_REQUIRED",
     "AUTH_PASSWORD_POLICY_VIOLATION",
     "AUTH_PASSWORD_REUSE_FORBIDDEN",
     "AUTH_CURRENT_PASSWORD_INVALID",
+    "AUTH_SESSION_NOT_FOUND",
     "COMMON_INVALID_ARGUMENT",
     "COMMON_INTERNAL_ERROR",
+    "USER_NOT_FOUND",
 }
 
 KNOWN_STORAGE_KEYS = {
@@ -369,6 +373,10 @@ def read_file(path: str) -> str:
 
 def is_definition_context(path: str, line_text: str, value: str) -> bool:
     stripped = line_text.strip()
+    if path.startswith("server/internal/contract/"):
+        return True
+    if path.startswith("web/src/contracts/"):
+        return True
     if path.startswith("web/src/api/model/") and "API_CODE" in line_text:
         return True
     if path == "web/src/router/index.ts" and value == "/auth/restricted-session":
@@ -378,6 +386,8 @@ def is_definition_context(path: str, line_text: str, value: str) -> bool:
     if path == "server/internal/httpx/response.go":
         return True
     if path == "server/internal/pluginapi/audit.go":
+        return True
+    if re.match(r"^(?:[A-Za-z_$][A-Za-z0-9_$]*|['\"][^'\"]+['\"])\s*:\s*['\"][^'\"]+['\"],?$", stripped):
         return True
     if re.search(r"\bconst\b", stripped) or re.search(r"\bas const\b", stripped):
         return True
@@ -607,18 +617,20 @@ def duplicate_string_candidates(files: Iterable[str]) -> list[Finding]:
 def drift_candidates() -> list[Finding]:
     findings: list[Finding] = []
 
-    server_auth_model = read_file("server/internal/httpx/response.go")
-    web_auth_model = read_file("web/src/api/model/authModel.ts")
+    server_auth_model = read_file("server/internal/contract/errorcode/code.go")
+    web_auth_model = read_file("web/src/contracts/api/codes.ts")
     if server_auth_model and web_auth_model:
         server_codes = set(re.findall(r'"((?:AUTH|COMMON)_[A-Z0-9_]+)"', server_auth_model))
+        server_codes.update(re.findall(r'"(USER_[A-Z0-9_]+)"', server_auth_model))
         web_codes = set(re.findall(r"'((?:AUTH|COMMON)_[A-Z0-9_]+)'", web_auth_model))
+        web_codes.update(re.findall(r"'(USER_[A-Z0-9_]+)'", web_auth_model))
 
         for missing in sorted(server_codes - web_codes):
             findings.append(
                 Finding(
                     rule="contract-drift-error-code",
                     severity="P1",
-                    path="web/src/api/model/authModel.ts",
+                    path="web/src/contracts/api/codes.ts",
                     line=1,
                     value=missing,
                     message=f"server error code '{missing}' is missing from web API contract",
@@ -631,7 +643,7 @@ def drift_candidates() -> list[Finding]:
                 Finding(
                     rule="contract-drift-error-code",
                     severity="P1",
-                    path="server/internal/httpx/response.go",
+                    path="server/internal/contract/errorcode/code.go",
                     line=1,
                     value=missing,
                     message=f"web error code '{missing}' is missing from server error-code mapping",
@@ -640,7 +652,7 @@ def drift_candidates() -> list[Finding]:
                 )
             )
 
-    server_messages = read_file("server/internal/i18n/service.go")
+    server_messages = read_file("server/internal/contract/message/key.go")
     if server_messages:
         server_keys = set(re.findall(r'"((?:auth|common|user)\.[a-z0-9_.-]+)"', server_messages))
         web_key_usage: set[str] = set()
@@ -656,7 +668,7 @@ def drift_candidates() -> list[Finding]:
                 Finding(
                     rule="contract-drift-message-key",
                     severity="P2",
-                    path="server/internal/i18n/service.go",
+                    path="server/internal/contract/message/key.go",
                     line=1,
                     value=missing,
                     message=f"message key '{missing}' is used in web/runtime code but missing from server i18n catalog",

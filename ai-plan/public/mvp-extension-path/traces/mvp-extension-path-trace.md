@@ -96,7 +96,18 @@
 - Added a repository-local scanner under `scripts/magic_value/` plus local hook and CI wiring so new high-risk
   literals can be checked through one phase-1 automation path instead of ad-hoc manual review.
 
+## 2026-05-16 first live auth contract convergence
+
+- Added the first live canonical auth contract surface under `server/internal/contract/**` and `web/src/contracts/**`,
+  covering auth/common response codes, message keys, auth scheme, request headers, auth API paths, restricted-session
+  route metadata, and the persisted session/locale storage keys used by the current auth runtime.
+- Rewired the current `server/internal/httpx`, `server/internal/i18n`, `web` request/session/bootstrap/route recovery
+  path to consume those canonical contracts instead of maintaining parallel literals inside each runtime consumer.
+- Updated the contract-governance scanner so canonical contract owner files count as definition context and the
+  cross-end drift report now reads server/web auth contracts from their real owner files rather than the older
+  consumer-side literal locations.
+
 ## Next Step
 
-- Continue MVP work by converting the first live high-risk literals into canonical typed contracts, starting from
-  shared auth/error/header/request surfaces before expanding the governance pass to broader `web` runtime cleanup.
+- Continue MVP work by pushing the next contract-governance slice into `server/plugins/user` permission/message-key/
+  auth-route hotspots and the remaining shared auth literals still outside the new canonical contract surface.

@@ -1,21 +1,9 @@
+import type { ApiCode } from '@/contracts/api/codes';
+import { API_CODE } from '@/contracts/api/codes';
 import type { LocalizedTitle } from '@/locales';
 
-export const API_CODE = {
-  OK: 'OK',
-  AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
-  AUTH_TOKEN_MISSING: 'AUTH_TOKEN_MISSING',
-  AUTH_TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
-  AUTH_TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
-  AUTH_FORBIDDEN: 'AUTH_FORBIDDEN',
-  AUTH_PASSWORD_CHANGE_REQUIRED: 'AUTH_PASSWORD_CHANGE_REQUIRED',
-  AUTH_PASSWORD_POLICY_VIOLATION: 'AUTH_PASSWORD_POLICY_VIOLATION',
-  AUTH_PASSWORD_REUSE_FORBIDDEN: 'AUTH_PASSWORD_REUSE_FORBIDDEN',
-  AUTH_CURRENT_PASSWORD_INVALID: 'AUTH_CURRENT_PASSWORD_INVALID',
-  COMMON_INVALID_ARGUMENT: 'COMMON_INVALID_ARGUMENT',
-  COMMON_INTERNAL_ERROR: 'COMMON_INTERNAL_ERROR',
-} as const;
-
-export type ApiCode = (typeof API_CODE)[keyof typeof API_CODE] | (string & {});
+export { API_CODE };
+export type { ApiCode };
 
 export interface ApiSuccessEnvelope<T> {
   success: true;

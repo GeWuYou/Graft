@@ -1,7 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 import { completeRequiredPasswordChange } from '@/api/auth';
-import { RESTRICTED_SESSION_PATH } from '@/router';
+import { AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
 import { resolveRuntimeHomePath } from '@/utils/route';
 
 type CompleteRestrictedPasswordChangeOptions = {
@@ -24,7 +24,7 @@ export async function completeRestrictedPasswordChange(options: CompleteRestrict
 
   const fallbackPath = resolveRuntimeHomePath(asyncRoutes);
   const redirectPath = options.consumePendingRestrictedRedirect(fallbackPath);
-  const nextPath = redirectPath === RESTRICTED_SESSION_PATH ? fallbackPath : redirectPath;
+  const nextPath = redirectPath === AUTH_ROUTE_PATH.RESTRICTED_SESSION ? fallbackPath : redirectPath;
 
   await options.replace(nextPath);
 }

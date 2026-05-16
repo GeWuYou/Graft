@@ -100,7 +100,6 @@ function isPasswordChangeApiCode(code: string) {
     code === API_CODE.AUTH_CURRENT_PASSWORD_INVALID ||
     code === API_CODE.AUTH_PASSWORD_POLICY_VIOLATION ||
     code === API_CODE.AUTH_PASSWORD_REUSE_FORBIDDEN ||
-    code === API_CODE.AUTH_PASSWORD_CHANGE_REQUIRED ||
     code === API_CODE.COMMON_INVALID_ARGUMENT
   );
 }

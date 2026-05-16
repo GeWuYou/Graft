@@ -8,7 +8,9 @@ import {
   type ApiErrorEnvelope,
   type LoginResponse,
 } from '@/api/model/authModel';
-import { localeConfigKey } from '@/locales';
+import { AUTH_SCHEME, HTTP_HEADER } from '@/contracts/api/headers';
+import { AUTH_API_PATH } from '@/contracts/auth/paths';
+import { STORAGE_KEY } from '@/contracts/storage/keys';
 import type { ApiRequestError, AxiosRequestConfigRetry, RequestOptions } from '@/types/axios';
 import { clearAccessToken, getAccessToken, setAccessToken } from '@/utils/auth-state';
 
@@ -28,7 +30,7 @@ type AuthSessionBridge = {
   handleAuthFailure(): void | Promise<void>;
 };
 
-const AUTH_REFRESH_URL = '/api/auth/refresh';
+const AUTH_REFRESH_URL = AUTH_API_PATH.REFRESH;
 let authSessionBridge: AuthSessionBridge | null = null;
 
 function resolveBaseURL() {
@@ -50,13 +52,13 @@ client.interceptors.request.use((config) => {
   const accessToken = getAccessToken();
 
   if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
+    headers[HTTP_HEADER.AUTHORIZATION] = `${AUTH_SCHEME.BEARER} ${accessToken}`;
   }
 
   try {
-    const storedLocale = localStorage.getItem(localeConfigKey);
+    const storedLocale = localStorage.getItem(STORAGE_KEY.LOCALE);
     if (storedLocale) {
-      headers['X-Graft-Locale'] = storedLocale.replaceAll('_', '-');
+      headers[HTTP_HEADER.LOCALE] = storedLocale.replaceAll('_', '-');
     }
   } catch {
     // 受限环境下允许 locale 头缺省。
@@ -201,10 +203,10 @@ async function syncAuthStateAfterRefresh(payload: LoginResponse) {
   setAccessToken(payload.access_token);
 
   try {
-    const raw = localStorage.getItem('user');
+    const raw = localStorage.getItem(STORAGE_KEY.USER_SESSION);
     if (raw) {
       const persisted = JSON.parse(raw) as Record<string, unknown>;
-      localStorage.setItem('user', JSON.stringify({ ...persisted, token: payload.access_token }));
+      localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ ...persisted, token: payload.access_token }));
     }
   } catch {
     // 受限环境下允许只更新内存 token。
@@ -223,7 +225,7 @@ async function clearClientSession() {
     clearAccessToken();
 
     try {
-      localStorage.removeItem('user');
+      localStorage.removeItem(STORAGE_KEY.USER_SESSION);
     } catch {
       // 受限环境下允许只清空内存 token。
     }

@@ -5,52 +5,44 @@ import type {
   LoginPayload,
   LoginResponse,
 } from '@/api/model/authModel';
+import { AUTH_API_PATH } from '@/contracts/auth/paths';
 import { request } from '@/utils/request';
-
-const Api = {
-  Bootstrap: '/api/auth/bootstrap',
-  ChangePassword: '/api/auth/change-password',
-  CompleteRequiredPasswordChange: '/api/auth/complete-required-password-change',
-  Login: '/api/auth/login',
-  Logout: '/api/auth/logout',
-  Refresh: '/api/auth/refresh',
-} as const;
 
 export function login(payload: LoginPayload) {
   return request.post<LoginResponse>({
-    url: Api.Login,
+    url: AUTH_API_PATH.LOGIN,
     data: payload,
   });
 }
 
 export function refresh() {
   return request.post<LoginResponse>({
-    url: Api.Refresh,
+    url: AUTH_API_PATH.REFRESH,
   });
 }
 
 export function logout() {
   return request.post<void>({
-    url: Api.Logout,
+    url: AUTH_API_PATH.LOGOUT,
   });
 }
 
 export function changePassword(payload: ChangePasswordPayload) {
   return request.post<void>({
-    url: Api.ChangePassword,
+    url: AUTH_API_PATH.CHANGE_PASSWORD,
     data: payload,
   });
 }
 
 export function completeRequiredPasswordChange(payload: CompleteRequiredPasswordChangePayload) {
   return request.post<void>({
-    url: Api.CompleteRequiredPasswordChange,
+    url: AUTH_API_PATH.COMPLETE_REQUIRED_PASSWORD_CHANGE,
     data: payload,
   });
 }
 
 export function getBootstrap() {
   return request.get<BootstrapResponse>({
-    url: Api.Bootstrap,
+    url: AUTH_API_PATH.BOOTSTRAP,
   });
 }

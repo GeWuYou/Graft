@@ -2,7 +2,8 @@ import { defineStore } from 'pinia';
 
 import { getBootstrap, login as loginApi, logout as logoutApi, refresh as refreshApi } from '@/api/auth';
 import { API_CODE, type BootstrapResponse, type LoginResponse } from '@/api/model/authModel';
-import { i18n, localeConfigKey, supportedLocales } from '@/locales';
+import { STORAGE_KEY } from '@/contracts/storage/keys';
+import { i18n, supportedLocales } from '@/locales';
 import { usePermissionStore } from '@/store';
 import type { ApiRequestError } from '@/types/axios';
 import { clearAccessToken, setAccessToken } from '@/utils/auth-state';
@@ -142,7 +143,7 @@ export const useUserStore = defineStore('user', {
       const permissionStore = usePermissionStore();
       permissionStore.initRoutes();
     },
-    key: 'user',
+    key: STORAGE_KEY.USER_SESSION,
     pick: ['token'],
   },
 });
@@ -156,7 +157,7 @@ function syncLocale(payload: BootstrapResponse) {
   i18n.global.locale.value = normalizedLocale;
 
   try {
-    localStorage.setItem(localeConfigKey, normalizedLocale);
+    localStorage.setItem(STORAGE_KEY.LOCALE, normalizedLocale);
   } catch {
     // 受限环境下 locale 同步允许降级为内存态。
   }

@@ -7,6 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"graft/server/internal/contract/errorcode"
+	"graft/server/internal/contract/httpheader"
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/i18n"
 )
 
@@ -14,23 +17,9 @@ const localizedErrorMessageKeyContextKey = "httpx.localized_error_message_key"
 const requestIDContextKey = "httpx.request_id"
 
 // RequestIDHeader 是统一回写给客户端的稳定 request-id 响应头。
-const RequestIDHeader = "X-Request-Id"
+const RequestIDHeader = string(httpheader.RequestID)
 
-const traceIDFallbackHeader = "X-Trace-Id"
-
-// #nosec G101 -- 这里保存的是稳定业务 code 映射，不是账号或密钥。
-var messageKeyCodes = map[string]string{
-	"common.invalid_argument":        "COMMON_INVALID_ARGUMENT",
-	"common.internal_error":          "COMMON_INTERNAL_ERROR",
-	"auth.invalid_credentials":       "AUTH_INVALID_CREDENTIALS",
-	"auth.token_missing":             "AUTH_TOKEN_MISSING",
-	"auth.token_expired":             "AUTH_TOKEN_EXPIRED",
-	"auth.token_invalid":             "AUTH_TOKEN_INVALID",
-	"auth.forbidden":                 "AUTH_FORBIDDEN",
-	"auth.password_policy_violation": "AUTH_PASSWORD_POLICY_VIOLATION",
-	"auth.password_reuse_forbidden":  "AUTH_PASSWORD_REUSE_FORBIDDEN",
-	"auth.current_password_invalid":  "AUTH_CURRENT_PASSWORD_INVALID",
-}
+const traceIDFallbackHeader = string(httpheader.TraceID)
 
 // SuccessResponse 描述统一成功响应 envelope。
 //
@@ -70,7 +59,7 @@ func AbortLocalizedError(ctx *gin.Context, service *i18n.Service, status int, ke
 
 // WriteLocalizedError 以统一结构写入本地化错误响应。
 func WriteLocalizedError(ctx *gin.Context, service *i18n.Service, status int, key string, data any) {
-	WriteLocalizedErrorCode(ctx, service, status, codeFromMessageKey(key), key, data)
+	WriteLocalizedErrorCode(ctx, service, status, errorcode.FromMessageKey(messagecontract.Key(key)).String(), key, data)
 }
 
 // WriteLocalizedErrorCode 以显式业务 code 与 message key 写入统一错误响应。
@@ -100,8 +89,8 @@ func WriteSuccess[T any](ctx *gin.Context, status int, data T) {
 	traceID := EnsureRequestID(ctx)
 	ctx.JSON(status, SuccessResponse[T]{
 		Success: true,
-		Code:    "OK",
-		Message: "OK",
+		Code:    errorcode.OK.String(),
+		Message: errorcode.OK.String(),
 		TraceID: traceID,
 		Data:    data,
 	})
@@ -158,15 +147,6 @@ func LastErrorMessageKey(ctx *gin.Context) (string, bool) {
 	}
 
 	return key, true
-}
-
-func codeFromMessageKey(key string) string {
-	if code, ok := messageKeyCodes[key]; ok {
-		return code
-	}
-
-	replacer := strings.NewReplacer(".", "_", "-", "_")
-	return strings.ToUpper(replacer.Replace(strings.TrimSpace(key)))
 }
 
 // UnmarshalJSON 为测试与调试辅助保留旧字段别名视图，但不改变对外 JSON 契约。

@@ -1,13 +1,14 @@
 import type { RouteRecordRaw } from 'vue-router';
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
 import { BLANK_LAYOUT, PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
 const env = import.meta.env.MODE || 'development';
 
 export const ROOT_ENTRY_ROUTE_NAME = 'RootEntry';
-export const RESTRICTED_SESSION_ROUTE_NAME = 'RestrictedSession';
-export const RESTRICTED_SESSION_PATH = '/auth/restricted-session';
+export const RESTRICTED_SESSION_ROUTE_NAME = AUTH_ROUTE_NAME.RESTRICTED_SESSION;
+export const RESTRICTED_SESSION_PATH = AUTH_ROUTE_PATH.RESTRICTED_SESSION;
 
 const exceptionRouterList: Array<RouteRecordRaw> = [
   {

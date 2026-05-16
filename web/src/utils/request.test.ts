@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { API_CODE } from '@/api/model/authModel';
+import { HTTP_HEADER } from '@/contracts/api/headers';
+import { AUTH_API_PATH } from '@/contracts/auth/paths';
+import { STORAGE_KEY } from '@/contracts/storage/keys';
 
 type MockConfig = Record<string, any>;
 type MockResponse = {
@@ -132,7 +135,7 @@ describe('request auth handling', () => {
     mockUserStore.applyLoginResponse.mockImplementation(async (payload: { access_token: string }) => {
       const { setAccessToken } = await import('@/utils/auth-state');
       setAccessToken(payload.access_token);
-      localStorage.setItem('user', JSON.stringify({ token: payload.access_token }));
+      localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: payload.access_token }));
     });
     Object.defineProperty(window, 'location', {
       configurable: true,
@@ -162,7 +165,7 @@ describe('request auth handling', () => {
       if (config.url === '/api/users' && !config._authRefreshAttempted) {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired');
       }
-      if (config.url === '/api/auth/refresh') {
+      if (config.url === AUTH_API_PATH.REFRESH) {
         return {
           status: 200,
           data: {
@@ -195,13 +198,13 @@ describe('request auth handling', () => {
     });
 
     setAccessToken('stale-token');
-    localStorage.setItem('user', JSON.stringify({ token: 'stale-token' }));
+    localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: 'stale-token' }));
 
     await expect(request.get<{ ok: boolean }>({ url: '/api/users' })).resolves.toEqual({ ok: true });
 
     expect(callLog).toHaveLength(3);
-    expect(callLog[0]?.headers?.Authorization).toMatch(/^Bearer /);
-    expect(callLog[1]?.url).toBe('/api/auth/refresh');
+    expect(callLog[0]?.headers?.[HTTP_HEADER.AUTHORIZATION]).toMatch(/^Bearer /);
+    expect(callLog[1]?.url).toBe(AUTH_API_PATH.REFRESH);
     expect(callLog[2]?.url).toBe('/api/users');
     expect(callLog[2]?._authRefreshAttempted).toBe(true);
     expect(mockUserStore.applyLoginResponse).toHaveBeenCalledWith(
@@ -230,7 +233,7 @@ describe('request auth handling', () => {
       });
 
       setAccessToken('stale-token');
-      localStorage.setItem('user', JSON.stringify({ token: 'stale-token' }));
+      localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: 'stale-token' }));
 
       await expect(request.get({ url: '/api/users' })).rejects.toMatchObject({
         code,
@@ -239,31 +242,32 @@ describe('request auth handling', () => {
 
       expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
       expect(callUrls).toEqual(['/api/users']);
-      expect(callUrls).not.toContain('/api/auth/refresh');
+      expect(callUrls).not.toContain(AUTH_API_PATH.REFRESH);
       expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fusers%3Ftab%3Dactive%23detail');
     },
   );
 
-  it('does not clear the session or redirect to login when a restricted session request is rejected with AUTH_PASSWORD_CHANGE_REQUIRED', async () => {
+  it('does not clear the session or redirect to login when a request fails with the legacy restricted-session code', async () => {
     const { registerAuthSessionBridge, request } = await loadRequestModule();
     const { setAccessToken } = await import('@/utils/auth-state');
     registerAuthSessionBridge(mockUserStore);
+    const legacyRestrictedSessionCode = 'AUTH_PASSWORD_CHANGE_REQUIRED';
 
     requestHandler.mockImplementation(async () => {
-      throw createApiError(API_CODE.AUTH_PASSWORD_CHANGE_REQUIRED, 401, 'password change required', 'trace-restricted');
+      throw createApiError(legacyRestrictedSessionCode, 401, 'password change required', 'trace-restricted');
     });
 
     setAccessToken('restricted-token');
-    localStorage.setItem('user', JSON.stringify({ token: 'restricted-token' }));
+    localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: 'restricted-token' }));
 
     await expect(request.get({ url: '/api/users' })).rejects.toMatchObject({
-      code: API_CODE.AUTH_PASSWORD_CHANGE_REQUIRED,
+      code: legacyRestrictedSessionCode,
       status: 401,
     });
 
     expect(mockUserStore.handleAuthFailure).not.toHaveBeenCalled();
     expect(locationReplace).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem('user') || '{}')).toMatchObject({
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY.USER_SESSION) || '{}')).toMatchObject({
       token: 'restricted-token',
     });
   });
@@ -285,7 +289,7 @@ describe('request auth handling', () => {
       if (config.url === '/api/users') {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired');
       }
-      if (config.url === '/api/auth/refresh') {
+      if (config.url === AUTH_API_PATH.REFRESH) {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-refresh');
       }
 
@@ -293,7 +297,7 @@ describe('request auth handling', () => {
     });
 
     setAccessToken('stale-token');
-    localStorage.setItem('user', JSON.stringify({ token: 'stale-token' }));
+    localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: 'stale-token' }));
     window.history.pushState({}, '', '/users');
 
     await expect(request.get({ url: '/api/users' })).rejects.toMatchObject({
@@ -301,7 +305,7 @@ describe('request auth handling', () => {
       status: 401,
     });
 
-    expect(callUrls).toEqual(['/api/users', '/api/auth/refresh']);
+    expect(callUrls).toEqual(['/api/users', AUTH_API_PATH.REFRESH]);
     expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
     expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fusers');
   });
@@ -319,7 +323,7 @@ describe('request auth handling', () => {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired-initial');
       }
 
-      if (config.url === '/api/auth/refresh') {
+      if (config.url === AUTH_API_PATH.REFRESH) {
         return {
           status: 200,
           data: {
@@ -342,14 +346,14 @@ describe('request auth handling', () => {
     });
 
     setAccessToken('stale-token');
-    localStorage.setItem('user', JSON.stringify({ token: 'stale-token' }));
+    localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: 'stale-token' }));
 
     await expect(request.get({ url: '/api/users' })).rejects.toMatchObject({
       code: API_CODE.AUTH_TOKEN_EXPIRED,
       status: 401,
     });
 
-    expect(callUrls).toEqual(['/api/users', '/api/auth/refresh', '/api/users']);
+    expect(callUrls).toEqual(['/api/users', AUTH_API_PATH.REFRESH, '/api/users']);
     expect(mockUserStore.handleAuthFailure).not.toHaveBeenCalled();
     expect(locationReplace).not.toHaveBeenCalled();
   });
@@ -373,7 +377,7 @@ describe('request auth handling', () => {
         if (config.url === '/api/users') {
           throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired');
         }
-        if (config.url === '/api/auth/refresh') {
+        if (config.url === AUTH_API_PATH.REFRESH) {
           throw createApiError(code, 401, code, 'trace-refresh');
         }
 
@@ -381,7 +385,7 @@ describe('request auth handling', () => {
       });
 
       setAccessToken('stale-token');
-      localStorage.setItem('user', JSON.stringify({ token: 'stale-token' }));
+      localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ token: 'stale-token' }));
       window.history.pushState({}, '', '/users');
 
       await expect(request.get({ url: '/api/users' })).rejects.toMatchObject({
@@ -389,7 +393,7 @@ describe('request auth handling', () => {
         status: 401,
       });
 
-      expect(callUrls).toEqual(['/api/users', '/api/auth/refresh']);
+      expect(callUrls).toEqual(['/api/users', AUTH_API_PATH.REFRESH]);
       expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
       expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fusers');
     },

@@ -68,6 +68,12 @@
   `项目设计`、`前端架构设计`、`插件与依赖注入设计` 与新建的 `契约治理与魔法值治理规范` 已统一冻结 canonical
   ownership、typed contract、lifecycle 与 compatibility 规则；本地 hooks、CI workflow 与仓库扫描脚本开始用同一套
   phase-1 规则阻断新增高风险裸字面量，而不是继续依赖人工记忆。
+- 当前第一批真实 auth contract 收口也已完成：`server/internal/contract/**` 与 `web/src/contracts/**` 现在开始承载
+  auth error code、message key、header、auth scheme、auth API path、restricted-session route 与 storage key 的
+  canonical ownership；`httpx`、`i18n`、`request`、`router`、`user store` 与相关恢复链路不再各自散落维护同义字面量。
+- 当前这批 auth contract 收口同时修正了 phase-1 scanner 的真值入口：definition-context 已识别 `server/internal/contract/**`
+  与 `web/src/contracts/**`，error-code / message-key drift report 也已改为从 canonical contract 文件读取，而不是继续依赖
+  旧的消费侧字面量位置。
 - 较早的拆分前历史保留在 `archive/`，具体实现轨迹保留在各自 `trace` 文件。
 
 ## Shared Milestones
@@ -83,6 +89,8 @@
 - contract governance / magic-value governance 的第一波 phase-1 底座已经冻结：高风险 contract 的 canonical
   ownership、typed boundary、lifecycle、baseline/allowlist 与 drift-report 目标现已同时写入设计真值、仓库守卫和
   automation 入口。
+- 第一批真实 auth contract 也已从“文档与守卫基线”推进到“运行时消费面收口”：`server` 与 `web` 的 auth/request/route/storage
+  热路径现在开始复用 canonical contract，而不是继续各自散落定义。
 
 ## Shared Risks
 
@@ -98,6 +106,8 @@
 - 如果本地、agent 和 CI 在 `server` 完成态上继续各自维护不同的 lint 命令或参数，新的 backend 治理基线会很快再次失真，无法稳定阻断可维护性回退。
 - 如果 contract scanner、allowlist/baseline 元数据与设计文档的 canonical ownership/lifecycle 口径重新分叉，
   CI 和本地 hook 会很快退化成“有工具但没有同一套 contract 真值”的伪治理状态。
+- 如果接下来把 permission、message key、auth route 等后续热点继续直接堆回 `plugin_routes.go`、`request.ts`、
+  `router/index.ts` 或其它消费点，当前刚建立的 canonical contract surface 会很快再次失真。
 
 ## Shared Validation Summary
 
@@ -147,6 +157,12 @@
   - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/pull-request-validation.yml').read_text())"`
   - `sh -n .husky/pre-commit .husky/pre-push`
   - `git diff -- AGENTS.md .gitignore .husky/pre-commit .husky/pre-push .github/workflows/pull-request-validation.yml ai-plan/design ai-plan/public/mvp-extension-path scripts/magic_value`
+- 本次第一批 auth contract 收口切片直接校验：
+  - `cd server && go test ./internal/httpx ./internal/i18n ./internal/contract/...`
+  - `python3 scripts/magic_value/check_magic_values.py --mode changed`
+  - `python3 scripts/magic_value/check_magic_values.py --mode report --output-json /tmp/contract-governance-report-next.json`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/utils/request.test.ts src/store/modules/user.test.ts src/permission.test.ts src/layouts/components/force-password-change.test.ts`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
 
 ## Immediate Next Step
 
@@ -154,5 +170,7 @@
 - 在 phase-1 底座提交后，继续把魔法值治理推进到真实 contract surface：优先从 `server/internal/httpx`、`server/internal/pluginapi`、
   `server/plugins/user/contract` 与 `web/src/contracts` / `web/src/modules/*/contract` 建立首批 canonical typed
   contract，而不是先做全仓“零字面量”清扫。
+- 在第一批 auth contract 已收口后，下一步优先处理 `server/plugins/user` 的 permission / message key / auth route
+  热点，以及 `web` 登录与受限态之外仍残留的 auth/shared route 字面量，不要回到全仓泛扫或页面广度扩张。
 - 在当前 backend completion 与 shared authorizer wiring 都已收口后，把跨边界主线切回 `web` 主运行面清理：继续移除 starter demo 入口、默认 mock runtime 与前端权限旁路，让主运行面只服务真实 bootstrap 菜单和已注册页面。
 - 保持当前 `/api/auth/bootstrap`、`AUTH_*` code 与共享 permission 契约冻结，不要回退到第二套授权实现、中文 `message` 分支或 refresh 多出口。
