@@ -60,6 +60,88 @@ func TestAuthRepositorySetPasswordHashMapsInvalidIDToNotFound(t *testing.T) {
 	}
 }
 
+// TestAuthRepositorySetPasswordHashPreservesPasswordChangedAtWhenChangedAtNil 验证
+// 可选 ChangedAt 为空时不会清空既有 password_changed_at。
+func TestAuthRepositorySetPasswordHashPreservesPasswordChangedAtWhenChangedAtNil(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:set-password-preserve-changed-at?mode=memory&cache=shared&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	changedAt := time.Date(2026, 5, 16, 9, 0, 0, 0, time.UTC)
+	passwordHash := "old-hash"
+	record, err := client.User.Create().
+		SetUsername("alice").
+		SetDisplay("Alice").
+		SetPasswordHash(passwordHash).
+		SetMustChangePassword(false).
+		SetPasswordChangedAt(changedAt).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	repo := &authRepository{client: client}
+	if err := repo.SetPasswordHash(context.Background(), store.SetPasswordHashInput{
+		UserID:             toStoreID(record.ID),
+		PasswordHash:       "new-hash",
+		MustChangePassword: true,
+		ChangedAt:          nil,
+	}); err != nil {
+		t.Fatalf("set password hash: %v", err)
+	}
+
+	reloaded, err := client.User.Get(context.Background(), record.ID)
+	if err != nil {
+		t.Fatalf("reload user: %v", err)
+	}
+	if reloaded.PasswordHash == nil || *reloaded.PasswordHash != "new-hash" {
+		t.Fatalf("expected password hash to update, got %#v", reloaded.PasswordHash)
+	}
+	if !reloaded.MustChangePassword {
+		t.Fatalf("expected must_change_password to update, got %#v", reloaded)
+	}
+	if reloaded.PasswordChangedAt == nil || !reloaded.PasswordChangedAt.Equal(changedAt) {
+		t.Fatalf("expected password_changed_at to stay %v, got %#v", changedAt, reloaded.PasswordChangedAt)
+	}
+}
+
+// TestAuthRepositorySetPasswordHashOverwritesPasswordChangedAtWhenChangedAtProvided 验证
+// 显式 ChangedAt 仍会覆盖既有 password_changed_at。
+func TestAuthRepositorySetPasswordHashOverwritesPasswordChangedAtWhenChangedAtProvided(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:set-password-overwrite-changed-at?mode=memory&cache=shared&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	originalChangedAt := time.Date(2026, 5, 16, 9, 0, 0, 0, time.UTC)
+	nextChangedAt := time.Date(2026, 5, 16, 10, 30, 0, 0, time.UTC)
+	record, err := client.User.Create().
+		SetUsername("alice").
+		SetDisplay("Alice").
+		SetPasswordHash("old-hash").
+		SetMustChangePassword(true).
+		SetPasswordChangedAt(originalChangedAt).
+		Save(context.Background())
+	if err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	repo := &authRepository{client: client}
+	if err := repo.SetPasswordHash(context.Background(), store.SetPasswordHashInput{
+		UserID:             toStoreID(record.ID),
+		PasswordHash:       "new-hash",
+		MustChangePassword: false,
+		ChangedAt:          &nextChangedAt,
+	}); err != nil {
+		t.Fatalf("set password hash: %v", err)
+	}
+
+	reloaded, err := client.User.Get(context.Background(), record.ID)
+	if err != nil {
+		t.Fatalf("reload user: %v", err)
+	}
+	if reloaded.PasswordChangedAt == nil || !reloaded.PasswordChangedAt.Equal(nextChangedAt) {
+		t.Fatalf("expected password_changed_at to update to %v, got %#v", nextChangedAt, reloaded.PasswordChangedAt)
+	}
+}
+
 // TestAuthRepositoryChangePasswordAndRevokeOtherRefreshSessionsMapsInvalidIDToNotFound
 // 验证原子改密写路径会把无效用户标识映射为稳定领域错误。
 func TestAuthRepositoryChangePasswordAndRevokeOtherRefreshSessionsMapsInvalidIDToNotFound(t *testing.T) {

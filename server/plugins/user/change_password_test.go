@@ -25,7 +25,7 @@ func (r *passwordChangeAtomicAuthRepository) ChangePasswordAndRevokeOtherRefresh
 	input store.ChangePasswordAndRevokeOtherRefreshSessionsInput,
 ) error {
 	if r.changePasswordAndRevokeOtherRefreshSessions == nil {
-		return nil
+		return errors.New("changePasswordAndRevokeOtherRefreshSessions callback is nil")
 	}
 
 	return r.changePasswordAndRevokeOtherRefreshSessions(ctx, input)

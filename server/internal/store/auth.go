@@ -21,6 +21,8 @@ type UserCredential struct {
 }
 
 // SetPasswordHashInput 描述一次密码散列更新所需的最小输入。
+//
+// 当 ChangedAt 为 nil 时，实现必须保留现有 PasswordChangedAt，不得清空或改写为当前时间。
 type SetPasswordHashInput struct {
 	UserID             uint64
 	PasswordHash       string
@@ -137,6 +139,8 @@ type AuthRepository interface {
 	GetUserCredentialByUsername(ctx context.Context, username string) (UserCredential, error)
 
 	// SetPasswordHash 为指定用户写入口令散列及其最近变更时间。
+	//
+	// 当 input.ChangedAt 为 nil 时，实现必须保持既有 PasswordChangedAt 不变。
 	//
 	// 当用户不存在时统一返回 ErrUserNotFound。
 	SetPasswordHash(ctx context.Context, input SetPasswordHashInput) error

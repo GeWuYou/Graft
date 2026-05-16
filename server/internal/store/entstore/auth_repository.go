@@ -52,8 +52,6 @@ func (r *authRepository) SetPasswordHash(ctx context.Context, input store.SetPas
 		SetMustChangePassword(input.MustChangePassword)
 	if input.ChangedAt != nil {
 		updater = updater.SetPasswordChangedAt(*input.ChangedAt)
-	} else {
-		updater = updater.ClearPasswordChangedAt()
 	}
 
 	if err := updater.Exec(ctx); err != nil {
