@@ -16,7 +16,7 @@ import (
 type Runtime interface {
 	RegisterJob(job cronx.Job) error
 	RemoveJob(name string) error
-	Start() error
+	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
 }
 
@@ -31,6 +31,9 @@ type CronRuntime struct {
 	cron    *cron.Cron
 	started bool
 	entries map[string]cron.EntryID
+
+	lifecycleCtx    context.Context
+	lifecycleCancel context.CancelFunc
 }
 
 // New 创建一个新的最小调度器运行时。
@@ -60,7 +63,16 @@ func (r *CronRuntime) RegisterJob(job cronx.Job) error {
 	}
 
 	entryID, err := r.cron.AddFunc(job.Schedule, func() {
-		if runErr := job.Run(context.Background()); runErr != nil {
+		runCtx := r.jobContext()
+		if runCtx == nil {
+			r.logger.Error("scheduler job skipped because lifecycle context is unavailable",
+				zap.String("job", job.Name),
+				zap.String("plugin", job.Plugin),
+			)
+			return
+		}
+
+		if runErr := job.Run(runCtx); runErr != nil {
 			r.logger.Error("scheduler job failed",
 				zap.String("job", job.Name),
 				zap.String("plugin", job.Plugin),
@@ -91,8 +103,12 @@ func (r *CronRuntime) RemoveJob(name string) error {
 	return nil
 }
 
-// Start 启动当前调度器。
-func (r *CronRuntime) Start() error {
+// Start 绑定生命周期上下文并启动当前调度器。
+func (r *CronRuntime) Start(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("lifecycle context is required")
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -100,6 +116,7 @@ func (r *CronRuntime) Start() error {
 		return nil
 	}
 
+	r.lifecycleCtx, r.lifecycleCancel = context.WithCancel(ctx)
 	r.cron.Start()
 	r.started = true
 	return nil
@@ -118,7 +135,14 @@ func (r *CronRuntime) Stop(ctx context.Context) error {
 
 	stopCtx := r.cron.Stop()
 	r.started = false
+	lifecycleCancel := r.lifecycleCancel
+	r.lifecycleCtx = nil
+	r.lifecycleCancel = nil
 	r.mu.Unlock()
+
+	if lifecycleCancel != nil {
+		lifecycleCancel()
+	}
 
 	if ctx == nil {
 		<-stopCtx.Done()
@@ -131,4 +155,11 @@ func (r *CronRuntime) Stop(ctx context.Context) error {
 	case <-stopCtx.Done():
 		return nil
 	}
+}
+
+func (r *CronRuntime) jobContext() context.Context {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.lifecycleCtx
 }

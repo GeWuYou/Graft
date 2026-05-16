@@ -43,6 +43,7 @@
 ## Current Recovery Point
 
 - 当前阶段正式收敛到“后端主导的 MVP 闭环收敛计划”：先补齐 `server` 的 event bus、audit、scheduler 和稳定插件契约，再让 `web` 挂接这些真实契约。
+- 当前第一波 AGENTS 合规整治实施切片已冻结为“治理真值收口 + `web` 主运行面收口”，不扩展业务范围，不进入新的页面广度，也不新增第二套 runtime、第二套 lifecycle 或第二套 validation 入口。
 - 当前仓库级 startup governance 最小迁移切片已落地到文档真值：根 `AGENTS.md` 现在独占 startup preflight、
   最小 receipt、resume/restart 重验与 subagent 最小继承包定义；`graft-boot`、`graft-multi-agent-batch` 与
   `ai-plan` 文档不再各自维护第二套 boot 链。
@@ -55,6 +56,11 @@
   固定使用 `golangci-lint v2.12.2`，并把 backend lint issue 默认视为阻断项；如需暂留，只能登记到 active
   tracking 文档中的 controlled exception。
 - 当前 `server-lint` CI 路径已修正为“只安装 pinned `golangci-lint`，再由 `graft validate backend --stage lint` 执行统一入口”；生产代码 lint backlog 已清零，但测试代码 lint backlog 仍阻断后端完成态。
+- 当前第一波治理切片要求把以下仓库级约束写回真值并开始进入执行层：`bootstrap -> module registry -> route -> page` 单一运行面、`register -> boot -> dispose(optional)` 单一生命周期、resolver 只允许存在于 composition root wiring、`web/src/modules/<name>` 与 `server/plugins/<name>` 作为默认 feature boundary、CI 只作为治理执行层而不是第二真值来源。
+- docs/automation 第一波治理收口已同步完成：根 `AGENTS.md` 进一步冻结 runtime surface、module lifecycle、
+  service locator、feature boundary、AI architecture preservation 与 validation governance；前端设计文档不再把
+  starter 全量工程写成临时运行基线；README、validation skill、CI workflow 与环境说明已统一改为引用仓库入口，
+  并明确 split stage 只是执行层，不是第二真值。
 - 较早的拆分前历史保留在 `archive/`，具体实现轨迹保留在各自 `trace` 文件。
 
 ## Shared Milestones
@@ -65,10 +71,15 @@
 - 当前主题阶段已从“后端先闭环”推进到“后端稳定 bootstrap 契约，前端按该契约同步收敛”。
 - 当前主题阶段还额外完成了 auth 响应面与 refresh 单出口的第一轮跨边界收口，后续可以把主线重心放回真实页面接线而不是继续补请求层控制流分支。
 - 后端 lint 治理的仓库真值已经先行冻结：后续 `server` 与 cross-boundary 收尾都必须以同一个 backend quality entrypoint 和同一套 lint 口径完成，而不是继续依赖散落的临时命令。
+- docs/automation 侧的第一波治理收口也已冻结：starter 参考源、统一验证入口、host Windows Bun 例外规则和 CI
+  stage 语义现在都回指同一套仓库真值，不再保留“临时运行基线”或“workflow 自有验收口径”的文档空间。
 
 ## Shared Risks
 
 - 如果 `web` 回到页面扩张或长期保留 mock/demo 依赖，前后端契约会再次漂移。
+- 如果治理文档、workflow、skill 与实际入口同时保留“统一入口 + 手工分步链路”的等价表述，仓库会重新退化成双轨治理，AI 与后续开发会继续选择成本最低的旧路径。
+- 如果后续 README、skill、workflow、环境说明或 tracking 文档再次把 starter 全量工程写成运行基线，或把 split
+  stage / CI job 写成独立验收规则，docs/automation 真值会重新分叉。
 - `auth`、`menu`、`permission`、`locale` 等共享契约若在后端收敛期内继续无边界扩张，会放大 `web` 接线返工成本。
 - 如果后续 skill、README、或 topic 恢复文档再次复制完整 boot 规则，当前 startup governance 收口会重新退化成
   双轨并存状态，`resume` 与 subagent 入口会最先失真。
@@ -108,9 +119,14 @@
   - `cd server && golangci-lint run --config .golangci.yml ./cmd/graft ./cmd/graft-jwt-secret ./cmd/graft-signing-key ./internal/app ./internal/cli ./internal/config ./internal/database ./internal/httpx ./internal/i18n ./internal/plugin ./internal/redisx ./internal/store/entstore ./plugins/audit ./plugins/rbac ./plugins/scheduler ./plugins/user`
   - `cd server && go run ./cmd/graft validate backend --stage lint`
   - 结果：生产配置通过；测试配置仍被既有 test-lint backlog 阻断。
+- 本次 docs/automation 治理收口一致性检查：
+  - `rg -n "runtime surface|module lifecycle|service locator|feature boundary|第二真值|bun run check|host Windows Bun|execution-layer|临时运行基线" AGENTS.md README.md ai-plan/design/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+  - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/pull-request-validation.yml').read_text())"`
+  - `git diff -- AGENTS.md README.md ai-plan/design/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
 
 ## Immediate Next Step
 
+- 保持 docs/automation 侧新收口的真值稳定，不要再把 starter 全量工程、split stage 或环境例外规则复制成新的并行治理文本。
 - 在当前 backend governance 真值已经落到 CI 安装/执行分离后，下一步单独治理 `server/.golangci.test.yml` 暴露的历史测试 lint backlog；不要让生产代码已清零但测试 lint 长期阻断完成态。
 - 保持当前 `/api/auth/bootstrap` 契约稳定，只在必要范围内收敛 DTO 和菜单/权限语义。
 - 在该 bootstrap 与 auth 响应契约上继续实施默认管理员与首次登录强制改密闭环：先由 `server` 增加持久化状态、初始化例外密码和最小管理员绑定，再由 `web` 落登录后受限态与强制改密弹窗，而不是扩大安全范围或回到猜测式控制流。

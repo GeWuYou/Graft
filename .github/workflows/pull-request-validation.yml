@@ -26,25 +26,32 @@ permissions:
 env:
   GOLANGCI_LINT_VERSION: v2.12.2
 
+# Workflow jobs are execution-layer slices of repository validation truth.
+# Acceptance criteria remain defined by root AGENTS.md and the repository entrypoints it names.
+
 jobs:
-  web-smoke:
-    name: Web Smoke
+  web-check:
+    name: Web Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
+          bun-version: 1.3.13
 
       - name: Install web dependencies
         working-directory: web
-        run: npm install --ignore-scripts --no-audit --no-fund
+        run: bun install --frozen-lockfile
+
+      - name: Run unified web validation entrypoint
+        working-directory: web
+        run: bun run check
 
   server-lint:
-    name: Server Lint
+    name: Server Lint Stage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -62,12 +69,12 @@ jobs:
           working-directory: server
           install-only: true
 
-      - name: Run server lint validation
+      - name: Run repository backend lint stage
         working-directory: server
         run: go run ./cmd/graft validate backend --stage lint
 
   server-build-test:
-    name: Server Build/Test
+    name: Server Build/Test Stage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -78,6 +85,6 @@ jobs:
         with:
           go-version-file: server/go.mod
 
-      - name: Run server build/test validation
+      - name: Run repository backend build/test stage
         working-directory: server
         run: go run ./cmd/graft validate backend --stage buildtest

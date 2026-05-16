@@ -16,7 +16,6 @@ export interface AppRouteMeta {
   frameSrc?: string;
   frameBlank?: boolean;
   keepAlive?: boolean;
-  roleCode?: string;
 }
 
 export interface MenuRoute extends Omit<RouteRecordRaw, 'children' | 'meta'> {

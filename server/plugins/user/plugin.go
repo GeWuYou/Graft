@@ -68,10 +68,11 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := registerAuthRoutes(ctx, p.Name(), authSvc, bootstrapSvc); err != nil {
+	guards := newRouteGuards(ctx.I18n, authSvc, newRouteAuthorizer(ctx.Stores.RBAC()))
+	if err := registerAuthRoutes(ctx, p.Name(), authSvc, bootstrapSvc, guards); err != nil {
 		return err
 	}
-	if err := registerUserRoutes(ctx, p.Name(), userSvc, authSvc); err != nil {
+	if err := registerUserRoutes(ctx, p.Name(), userSvc, authSvc, guards); err != nil {
 		return err
 	}
 
@@ -134,6 +135,15 @@ func (s userService) GetUserByID(ctx context.Context, id uint64) (pluginapi.User
 		Username: record.Username,
 		Display:  record.Display,
 	}, nil
+}
+
+// ListUsers 读取用户列表，供当前插件路由在不暴露 store factory 的前提下复用。
+func (s userService) ListUsers(ctx context.Context) ([]store.User, error) {
+	if s.users == nil {
+		return nil, errors.New("user repository is unavailable")
+	}
+
+	return s.users.List(ctx)
 }
 
 // CurrentUser 根据请求上下文中已解析的访问令牌声明返回当前主体摘要。

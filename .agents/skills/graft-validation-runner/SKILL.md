@@ -5,7 +5,19 @@ description: Choose and run the smallest correct validation for Graft work. Use 
 
 # Graft Validation Runner
 
-Use this skill to choose the correct validation scope for `Graft`.
+Use this skill to choose the correct validation scope for `Graft` without inventing a second validation truth.
+
+## Preconditions
+
+1. Ensure the current turn already has the startup receipt required by the root `AGENTS.md`.
+2. Read `.ai/environment/tools.ai.yaml` before choosing runtimes or package managers.
+3. Treat root `AGENTS.md` plus repository entrypoints as validation truth:
+   - `cd server && go run ./cmd/graft validate backend`
+   - `cd web && bun run check`
+   - when running `web` commands from WSL, `bun` means the configured host Windows Bun unless the environment inventory says otherwise
+
+README files, tracking docs, skills, and CI workflows may point to these entrypoints or to narrower execution slices,
+but they must not redefine acceptance criteria, command order, or local-vs-CI environment rules.
 
 ## Validation Workflow
 
@@ -15,19 +27,26 @@ Use this skill to choose the correct validation scope for `Graft`.
    - `cross-boundary`
    - `docs or automation`
 2. For `server` work:
-   - if `server/go.mod` exists, prefer the smallest `go test` or `go build` scope that covers the touched code
-   - widen to `go test ./...` or `go build ./...` when shared abstractions, lifecycle code, or plugin wiring changes
+   - for completion-state work, prefer `cd server && go run ./cmd/graft validate backend`
+   - for intermediate iteration, prefer the smallest `go test` or `go build` scope that covers the touched code
+   - widen to `go test ./...` or `go build ./...` when shared abstractions, lifecycle code, plugin wiring, or dependency resolution changed
+   - if you use `graft validate backend --stage ...`, report it as an execution-layer slice of the unified backend entrypoint, not as a second validation contract
 3. For `web` work:
-   - if only package presence exists, keep validation at the current smoke-install level
-   - once real scripts exist, prefer install + typecheck + build
+   - for completion-state work, prefer `cd web && bun run check`
+   - on WSL, interpret frontend `bun` commands as host Windows Bun commands unless `.ai/environment/tools.ai.yaml` explicitly says otherwise
+   - for intermediate iteration, prefer the smallest direct command that proves the changed TypeScript, route, page, style, or test surface
+   - a Linux CI runner reusing `bun run check` does not relax the local WSL host Windows Bun rule
 4. For `cross-boundary` work:
-   - validate both sides when contracts, menus, routes, or permissions changed
+   - validate both sides when contracts, menus, routes, permissions, lifecycle semantics, or shared validation entrypoints changed
 5. For docs or automation work:
-   - run the smallest structural check available
-   - if no real runtime validation exists, report the exact limitation instead of pretending the area was fully validated
+   - validate the referenced entrypoints, environment rules, and workflow/doc wording instead of pretending the slice has runtime coverage
+   - prefer structural checks such as `rg`, `sed`, `git diff`, CLI help output, or YAML parsing
+   - if a workflow keeps split jobs or stage flags, verify the wording makes them execution-layer decomposition rather than a second truth
+   - if no stronger real validation exists, report the exact limitation instead of pretending the area was fully validated
 
 ## Reporting Rules
 
 * state the exact command you ran
+* state whether each command was a full repository entrypoint, a focused direct validation, or an execution-stage slice
 * if you could not run the expected validation, say why
 * keep validation claims proportional to the repository's current maturity

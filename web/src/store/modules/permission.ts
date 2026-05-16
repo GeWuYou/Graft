@@ -3,7 +3,6 @@ import { defineStore } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
 
 import type { BootstrapResponse } from '@/api/model/authModel';
-import { homepageRouterList } from '@/router';
 import { store } from '@/store';
 import { transformBootstrapMenusToRoutes } from '@/utils/route/bootstrap';
 
@@ -23,8 +22,8 @@ export const usePermissionStore = defineStore('permission', {
     async initRoutes() {
       const accessedRouters = this.asyncRoutes;
 
-      // 菜单展示只保留首页和 bootstrap 动态菜单，避免继续暴露 starter 静态演示菜单。
-      this.routers = cloneDeep([...homepageRouterList, ...accessedRouters]);
+      // 菜单展示只保留 bootstrap 动态菜单，避免继续暴露 starter 静态演示菜单。
+      this.routers = cloneDeep(accessedRouters);
     },
     async buildAsyncRoutes() {
       this.asyncRoutes = transformBootstrapMenusToRoutes(this.bootstrapSnapshot?.menus ?? []);

@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"graft/server/internal/container"
 	"graft/server/internal/i18n"
 	"graft/server/internal/pluginapi"
 )
@@ -19,12 +18,16 @@ const bearerPrefix = "Bearer "
 //
 // 该中间件只负责从请求中提取访问令牌、解析当前主体并调用授权器，不直接
 // 依赖任何具体插件实现。缺少登录态返回 401，认证成功但权限不足返回 403。
-func RequirePermission(localizer *i18n.Service, resolver container.Resolver, code string) gin.HandlerFunc {
+func RequirePermission(
+	localizer *i18n.Service,
+	authService pluginapi.AuthService,
+	authorizer pluginapi.Authorizer,
+	code string,
+) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		EnsureRequestID(ctx)
 
-		authService, err := resolveAuthService(resolver)
-		if err != nil {
+		if authService == nil {
 			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
 			return
 		}
@@ -33,7 +36,7 @@ func RequirePermission(localizer *i18n.Service, resolver container.Resolver, cod
 		if handled {
 			return
 		}
-		if authorizeRequest(requestCtx, ctx, localizer, resolver, code, requestAuth) {
+		if authorizeRequest(requestCtx, ctx, localizer, authorizer, code, requestAuth) {
 			return
 		}
 
@@ -76,7 +79,7 @@ func authorizeRequest(
 	requestCtx context.Context,
 	ctx *gin.Context,
 	localizer *i18n.Service,
-	resolver container.Resolver,
+	authorizer pluginapi.Authorizer,
 	code string,
 	requestAuth pluginapi.RequestAuthContext,
 ) bool {
@@ -84,8 +87,7 @@ func authorizeRequest(
 		return false
 	}
 
-	authorizer, err := resolveAuthorizer(resolver)
-	if err != nil {
+	if authorizer == nil {
 		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
 		return true
 	}
@@ -132,44 +134,6 @@ func writeAuthorizationError(ctx *gin.Context, localizer *i18n.Service, code str
 	default:
 		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
 	}
-}
-
-// resolveAuthService 解析认证中间件必需的稳定 AuthService 单例。
-func resolveAuthService(resolver container.Resolver) (pluginapi.AuthService, error) {
-	if resolver == nil {
-		return nil, errors.New("resolver is required")
-	}
-
-	authAny, err := resolver.Resolve((*pluginapi.AuthService)(nil))
-	if err != nil {
-		return nil, err
-	}
-
-	authService, ok := authAny.(pluginapi.AuthService)
-	if !ok {
-		return nil, errors.New("resolved auth service has unexpected type")
-	}
-
-	return authService, nil
-}
-
-// resolveAuthorizer 仅在路由声明了权限码时解析稳定 Authorizer 单例。
-func resolveAuthorizer(resolver container.Resolver) (pluginapi.Authorizer, error) {
-	if resolver == nil {
-		return nil, errors.New("resolver is required")
-	}
-
-	authorizerAny, err := resolver.Resolve((*pluginapi.Authorizer)(nil))
-	if err != nil {
-		return nil, err
-	}
-
-	authorizer, ok := authorizerAny.(pluginapi.Authorizer)
-	if !ok {
-		return nil, errors.New("resolved authorizer has unexpected type")
-	}
-
-	return authorizer, nil
 }
 
 func extractBearerToken(request *http.Request) (string, bool) {

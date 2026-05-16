@@ -88,7 +88,13 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 	server := httpx.NewServer()
 	eventBus := eventbus.New(runtimeLogger)
 	services := container.New()
-	stores := entstore.NewFactory(databaseResources.Client)
+	stores, err := entstore.NewFactory(databaseResources.Client)
+	if err != nil {
+		_ = redisClient.Close()
+		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
+		return nil, fmt.Errorf("create ent store factory: %w", err)
+	}
 	localizer := i18n.New(cfg.I18n)
 	menuRegistry := menu.NewRegistry()
 	permissionRegistry := permission.NewRegistry()

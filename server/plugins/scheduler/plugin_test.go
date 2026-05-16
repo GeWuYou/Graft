@@ -26,14 +26,22 @@ func (pluginTestStoreFactory) Auth() store.AuthRepository   { return nil }
 func (pluginTestStoreFactory) RBAC() store.RBACRepository   { return nil }
 
 type stopContextRecorderRuntime struct {
-	stopCtx context.Context
+	registeredJobs []cronx.Job
+	startCtx       context.Context
+	stopCtx        context.Context
 }
 
-func (r *stopContextRecorderRuntime) RegisterJob(_ cronx.Job) error { return nil }
+func (r *stopContextRecorderRuntime) RegisterJob(job cronx.Job) error {
+	r.registeredJobs = append(r.registeredJobs, job)
+	return nil
+}
 
 func (r *stopContextRecorderRuntime) RemoveJob(_ string) error { return nil }
 
-func (r *stopContextRecorderRuntime) Start() error { return nil }
+func (r *stopContextRecorderRuntime) Start(ctx context.Context) error {
+	r.startCtx = ctx
+	return nil
+}
 
 func (r *stopContextRecorderRuntime) Stop(ctx context.Context) error {
 	r.stopCtx = ctx
@@ -54,14 +62,63 @@ func newPluginTestContext() *plugin.Context {
 	}
 }
 
-// TestRegisterRejectsInvalidJobs 验证 scheduler 插件会在 Register 阶段阻止非法任务声明进入运行态。
-func TestRegisterRejectsInvalidJobs(t *testing.T) {
+// TestBootRejectsInvalidJobs 验证 scheduler 插件会在 Boot 阶段拒绝非法任务声明。
+func TestBootRejectsInvalidJobs(t *testing.T) {
 	ctx := newPluginTestContext()
 	ctx.CronRegistry.Register(cronx.Job{Name: "invalid", Schedule: "*/1 * * * * *"})
 
-	err := NewPlugin().Register(ctx)
+	pluginInstance := NewPlugin()
+	if err := pluginInstance.Register(ctx); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+
+	err := pluginInstance.Boot(&plugin.Context{LifecycleContext: context.Background(), CronRegistry: ctx.CronRegistry, Logger: ctx.Logger})
 	if err == nil {
-		t.Fatal("expected invalid job registration to fail")
+		t.Fatal("expected invalid job boot to fail")
+	}
+}
+
+// TestBootRegistersJobsAddedAfterRegister 验证 scheduler 插件会在 Boot 阶段读取最终 registry，
+// 而不是在 Register 阶段提前快照。
+func TestBootRegistersJobsAddedAfterRegister(t *testing.T) {
+	ctx := newPluginTestContext()
+	ctx.CronRegistry.Register(cronx.Job{
+		Name:     "first",
+		Schedule: "*/1 * * * * *",
+		Run:      func(context.Context) error { return nil },
+	})
+
+	lifecycleCtx := context.Background()
+	runtimeRecorder := &stopContextRecorderRuntime{}
+	pluginInstance := NewPlugin()
+	pluginInstance.runtime = runtimeRecorder
+
+	if err := pluginInstance.Register(ctx); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+
+	ctx.CronRegistry.Register(cronx.Job{
+		Name:     "second",
+		Schedule: "*/1 * * * * *",
+		Run:      func(context.Context) error { return nil },
+	})
+
+	if err := pluginInstance.Boot(&plugin.Context{
+		LifecycleContext: lifecycleCtx,
+		Logger:           ctx.Logger,
+		CronRegistry:     ctx.CronRegistry,
+	}); err != nil {
+		t.Fatalf("boot plugin: %v", err)
+	}
+
+	if len(runtimeRecorder.registeredJobs) != 2 {
+		t.Fatalf("expected 2 registered jobs, got %d", len(runtimeRecorder.registeredJobs))
+	}
+	if runtimeRecorder.registeredJobs[0].Name != "first" || runtimeRecorder.registeredJobs[1].Name != "second" {
+		t.Fatalf("expected boot to register final registry snapshot, got %q then %q", runtimeRecorder.registeredJobs[0].Name, runtimeRecorder.registeredJobs[1].Name)
+	}
+	if runtimeRecorder.startCtx != lifecycleCtx {
+		t.Fatal("expected boot to pass lifecycle context into scheduler runtime start")
 	}
 }
 
@@ -69,6 +126,8 @@ func TestRegisterRejectsInvalidJobs(t *testing.T) {
 func TestBootRunsRegisteredJobs(t *testing.T) {
 	ctx := newPluginTestContext()
 	triggered := make(chan struct{}, 1)
+	lifecycleCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	ctx.CronRegistry.Register(cronx.Job{
 		Name:     "heartbeat",
 		Schedule: "*/1 * * * * *",
@@ -86,6 +145,7 @@ func TestBootRunsRegisteredJobs(t *testing.T) {
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
+	ctx.LifecycleContext = lifecycleCtx
 	if err := pluginInstance.Boot(ctx); err != nil {
 		t.Fatalf("boot plugin: %v", err)
 	}

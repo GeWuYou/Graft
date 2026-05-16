@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -75,12 +76,71 @@ func (p *Plugin) registerServices(ctx *plugin.Context) (userService, *authServic
 	return userSvc, authSvc, bootstrapSvc, nil
 }
 
-func registerAuthRoutes(ctx *plugin.Context, pluginName string, authSvc *authService, bootstrapSvc bootstrapReader) error {
+type routeGuards struct {
+	authenticated     gin.HandlerFunc
+	userRead          gin.HandlerFunc
+	userSessionRead   gin.HandlerFunc
+	userSessionRevoke gin.HandlerFunc
+}
+
+// routeAuthorizer 在 Register 阶段显式装配到用户路由上，避免请求热路径再走 service locator。
+type routeAuthorizer struct {
+	rbac store.RBACRepository
+}
+
+func (a routeAuthorizer) Authorize(ctx context.Context, request pluginapi.RequestAuthContext, permission string) error {
+	if request.User == nil || request.User.ID == 0 {
+		return pluginapi.ErrUnauthenticated
+	}
+	if strings.TrimSpace(permission) == "" {
+		return nil
+	}
+	if a.rbac == nil {
+		return errors.New("rbac repository is unavailable")
+	}
+
+	permissions, err := a.rbac.ListPermissionsByUserID(ctx, request.User.ID)
+	if err != nil {
+		return err
+	}
+	for _, granted := range permissions {
+		if granted.Code == permission {
+			return nil
+		}
+	}
+
+	return pluginapi.ErrPermissionDenied
+}
+
+func newRouteAuthorizer(rbac store.RBACRepository) pluginapi.Authorizer {
+	if rbac == nil {
+		return nil
+	}
+
+	return routeAuthorizer{rbac: rbac}
+}
+
+func newRouteGuards(localizer *i18n.Service, authService pluginapi.AuthService, authorizer pluginapi.Authorizer) routeGuards {
+	return routeGuards{
+		authenticated:     httpx.RequirePermission(localizer, authService, nil, ""),
+		userRead:          httpx.RequirePermission(localizer, authService, authorizer, "user.read"),
+		userSessionRead:   httpx.RequirePermission(localizer, authService, authorizer, "user.session.read"),
+		userSessionRevoke: httpx.RequirePermission(localizer, authService, authorizer, "user.session.revoke"),
+	}
+}
+
+func registerAuthRoutes(
+	ctx *plugin.Context,
+	pluginName string,
+	authSvc *authService,
+	bootstrapSvc bootstrapReader,
+	guards routeGuards,
+) error {
 	authGroup := ctx.Router.Group("/auth")
 	authGroup.Use(httpx.RequestIDMiddleware())
 	registerLoginRoutes(authGroup, ctx, pluginName, authSvc)
-	registerCurrentUserSessionRoutes(authGroup, ctx, pluginName, authSvc)
-	registerBootstrapAndPasswordRoutes(authGroup, ctx, pluginName, authSvc, bootstrapSvc)
+	registerCurrentUserSessionRoutes(authGroup, ctx, pluginName, authSvc, guards)
+	registerBootstrapAndPasswordRoutes(authGroup, ctx, pluginName, authSvc, bootstrapSvc, guards)
 
 	return nil
 }
@@ -160,8 +220,14 @@ func registerLoginRoutes(authGroup *gin.RouterGroup, ctx *plugin.Context, plugin
 	})
 }
 
-func registerCurrentUserSessionRoutes(authGroup *gin.RouterGroup, ctx *plugin.Context, pluginName string, authSvc *authService) {
-	authGroup.POST("/sessions/revoke-all", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+func registerCurrentUserSessionRoutes(
+	authGroup *gin.RouterGroup,
+	ctx *plugin.Context,
+	pluginName string,
+	authSvc *authService,
+	guards routeGuards,
+) {
+	authGroup.POST("/sessions/revoke-all", guards.authenticated, func(ginCtx *gin.Context) {
 		if err := authSvc.RevokeAllCurrentUserSessions(ginCtx.Request.Context()); err != nil {
 			writeAuthRouteError(ginCtx, ctx.I18n, ctx.Logger, pluginName, "revoke all refresh sessions failed", err)
 			return
@@ -170,7 +236,7 @@ func registerCurrentUserSessionRoutes(authGroup *gin.RouterGroup, ctx *plugin.Co
 		authSvc.cookies.clearRefreshCookie(ginCtx)
 		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 	})
-	authGroup.POST("/sessions/revoke-others", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+	authGroup.POST("/sessions/revoke-others", guards.authenticated, func(ginCtx *gin.Context) {
 		if err := authSvc.RevokeOtherCurrentUserSessions(ginCtx.Request.Context()); err != nil {
 			writeAuthRouteError(ginCtx, ctx.I18n, ctx.Logger, pluginName, "revoke other user refresh sessions failed", err)
 			return
@@ -178,7 +244,7 @@ func registerCurrentUserSessionRoutes(authGroup *gin.RouterGroup, ctx *plugin.Co
 
 		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 	})
-	authGroup.GET("/sessions", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+	authGroup.GET("/sessions", guards.authenticated, func(ginCtx *gin.Context) {
 		listOptions, err := parseSessionListOptions(ginCtx.Query("limit"))
 		if err != nil {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
@@ -195,7 +261,7 @@ func registerCurrentUserSessionRoutes(authGroup *gin.RouterGroup, ctx *plugin.Co
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, sessions)
 	})
-	authGroup.POST("/sessions/:sessionID/revoke", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+	authGroup.POST("/sessions/:sessionID/revoke", guards.authenticated, func(ginCtx *gin.Context) {
 		sessionID := strings.TrimSpace(ginCtx.Param("sessionID"))
 		if sessionID == "" {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
@@ -233,8 +299,9 @@ func registerBootstrapAndPasswordRoutes(
 	pluginName string,
 	authSvc *authService,
 	bootstrapSvc bootstrapReader,
+	guards routeGuards,
 ) {
-	authGroup.GET("/bootstrap", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+	authGroup.GET("/bootstrap", guards.authenticated, func(ginCtx *gin.Context) {
 		payload, err := bootstrapSvc.Read(ginCtx.Request.Context(), ginCtx.Request)
 		if err != nil {
 			if errors.Is(err, pluginapi.ErrUnauthenticated) {
@@ -252,7 +319,7 @@ func registerBootstrapAndPasswordRoutes(
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	})
-	authGroup.POST("/change-password", httpx.RequirePermission(ctx.I18n, ctx.Services, ""), func(ginCtx *gin.Context) {
+	authGroup.POST("/change-password", guards.authenticated, func(ginCtx *gin.Context) {
 		var request changePasswordRequest
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
@@ -282,18 +349,30 @@ func registerBootstrapAndPasswordRoutes(
 	})
 }
 
-func registerUserRoutes(ctx *plugin.Context, pluginName string, userSvc userService, authSvc *authService) error {
+func registerUserRoutes(
+	ctx *plugin.Context,
+	pluginName string,
+	userSvc userService,
+	authSvc *authService,
+	guards routeGuards,
+) error {
 	group := ctx.Router.Group("/users")
 	group.Use(httpx.RequestIDMiddleware())
-	registerUserReadRoutes(group, ctx, pluginName, userSvc)
-	registerAdminSessionRoutes(group, ctx, pluginName, userSvc, authSvc)
+	registerUserReadRoutes(group, ctx, pluginName, userSvc, guards)
+	registerAdminSessionRoutes(group, ctx, pluginName, userSvc, authSvc, guards)
 
 	return nil
 }
 
-func registerUserReadRoutes(group *gin.RouterGroup, ctx *plugin.Context, pluginName string, userSvc userService) {
-	group.GET("", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.read"), func(ginCtx *gin.Context) {
-		users, err := ctx.Stores.Users().List(ginCtx.Request.Context())
+func registerUserReadRoutes(
+	group *gin.RouterGroup,
+	ctx *plugin.Context,
+	pluginName string,
+	userSvc userService,
+	guards routeGuards,
+) {
+	group.GET("", guards.userRead, func(ginCtx *gin.Context) {
+		users, err := userSvc.ListUsers(ginCtx.Request.Context())
 		if err != nil {
 			ctx.Logger.Error("list users failed",
 				zap.String("plugin", pluginName),
@@ -316,7 +395,7 @@ func registerUserReadRoutes(group *gin.RouterGroup, ctx *plugin.Context, pluginN
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, userListResponse{Items: items})
 	})
-	group.GET("/:id", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.read"), func(ginCtx *gin.Context) {
+	group.GET("/:id", guards.userRead, func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
@@ -341,9 +420,10 @@ func registerAdminSessionRoutes(
 	pluginName string,
 	userSvc userService,
 	authSvc *authService,
+	guards routeGuards,
 ) {
-	registerAdminSessionReadRoute(group, ctx, pluginName, userSvc, authSvc)
-	registerAdminSessionRevokeRoutes(group, ctx, pluginName, userSvc, authSvc)
+	registerAdminSessionReadRoute(group, ctx, pluginName, userSvc, authSvc, guards)
+	registerAdminSessionRevokeRoutes(group, ctx, pluginName, userSvc, authSvc, guards)
 }
 
 func registerAdminSessionReadRoute(
@@ -352,8 +432,9 @@ func registerAdminSessionReadRoute(
 	pluginName string,
 	userSvc userService,
 	authSvc *authService,
+	guards routeGuards,
 ) {
-	group.GET("/:id/sessions", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.session.read"), func(ginCtx *gin.Context) {
+	group.GET("/:id/sessions", guards.userSessionRead, func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
@@ -400,9 +481,10 @@ func registerAdminSessionRevokeRoutes(
 	pluginName string,
 	userSvc userService,
 	authSvc *authService,
+	guards routeGuards,
 ) {
-	registerAdminRevokeSingleSessionRoute(group, ctx, pluginName, userSvc, authSvc)
-	registerAdminRevokeAllSessionsRoute(group, ctx, pluginName, authSvc)
+	registerAdminRevokeSingleSessionRoute(group, ctx, pluginName, userSvc, authSvc, guards)
+	registerAdminRevokeAllSessionsRoute(group, ctx, pluginName, authSvc, guards)
 }
 
 func registerAdminRevokeSingleSessionRoute(
@@ -411,8 +493,9 @@ func registerAdminRevokeSingleSessionRoute(
 	pluginName string,
 	userSvc userService,
 	authSvc *authService,
+	guards routeGuards,
 ) {
-	group.POST("/:id/sessions/:sessionID/revoke", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.session.revoke"), func(ginCtx *gin.Context) {
+	group.POST("/:id/sessions/:sessionID/revoke", guards.userSessionRevoke, func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
@@ -465,8 +548,9 @@ func registerAdminRevokeAllSessionsRoute(
 	ctx *plugin.Context,
 	pluginName string,
 	authSvc *authService,
+	guards routeGuards,
 ) {
-	group.POST("/:id/sessions/revoke-all", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.session.revoke"), func(ginCtx *gin.Context) {
+	group.POST("/:id/sessions/revoke-all", guards.userSessionRevoke, func(ginCtx *gin.Context) {
 		rawID, err := parseUserID(ginCtx.Param("id"))
 		if err != nil {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{

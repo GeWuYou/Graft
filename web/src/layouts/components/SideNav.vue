@@ -166,7 +166,7 @@ onUnmounted(() => {
 });
 
 const goHome = () => {
-  router.push('/dashboard/base');
+  router.push('/');
 };
 
 const getLogo = () => {

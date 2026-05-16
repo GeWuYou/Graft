@@ -47,6 +47,8 @@ func TestRegisterJobRejectsDuplicateName(t *testing.T) {
 func TestStartAndStopRunsRegisteredJob(t *testing.T) {
 	runtime := New(zap.NewNop())
 	triggered := make(chan struct{}, 1)
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if err := runtime.RegisterJob(cronx.Job{
 		Name:     "heartbeat",
@@ -62,7 +64,7 @@ func TestStartAndStopRunsRegisteredJob(t *testing.T) {
 		t.Fatalf("register job: %v", err)
 	}
 
-	if err := runtime.Start(); err != nil {
+	if err := runtime.Start(runCtx); err != nil {
 		t.Fatalf("start runtime: %v", err)
 	}
 	defer func() {
@@ -80,6 +82,8 @@ func TestStartAndStopRunsRegisteredJob(t *testing.T) {
 func TestRemoveJobPreventsFutureExecution(t *testing.T) {
 	runtime := New(zap.NewNop())
 	triggered := make(chan struct{}, 2)
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if err := runtime.RegisterJob(cronx.Job{
 		Name:     "cleanup",
@@ -91,7 +95,7 @@ func TestRemoveJobPreventsFutureExecution(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("register job: %v", err)
 	}
-	if err := runtime.Start(); err != nil {
+	if err := runtime.Start(runCtx); err != nil {
 		t.Fatalf("start runtime: %v", err)
 	}
 
@@ -111,7 +115,10 @@ func TestRemoveJobPreventsFutureExecution(t *testing.T) {
 // TestStopHonorsContextCancellation 验证 Stop 会把外部取消信号作为稳定错误返回。
 func TestStopHonorsContextCancellation(t *testing.T) {
 	runtime := New(zap.NewNop())
-	if err := runtime.Start(); err != nil {
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	defer cancelRun()
+
+	if err := runtime.Start(runCtx); err != nil {
 		t.Fatalf("start runtime: %v", err)
 	}
 
@@ -124,12 +131,63 @@ func TestStopHonorsContextCancellation(t *testing.T) {
 	}
 }
 
+// TestStopCancelsJobLifecycleContext 验证显式 Stop 会取消运行中任务绑定的 lifecycle ctx。
+func TestStopCancelsJobLifecycleContext(t *testing.T) {
+	runtime := New(zap.NewNop())
+	runCtx := context.Background()
+	started := make(chan context.Context, 1)
+	finished := make(chan struct{}, 1)
+
+	if err := runtime.RegisterJob(cronx.Job{
+		Name:     "watch",
+		Schedule: "*/1 * * * * *",
+		Run: func(ctx context.Context) error {
+			select {
+			case started <- ctx:
+			default:
+			}
+			<-ctx.Done()
+			select {
+			case finished <- struct{}{}:
+			default:
+			}
+			return nil
+		},
+	}); err != nil {
+		t.Fatalf("register job: %v", err)
+	}
+
+	if err := runtime.Start(runCtx); err != nil {
+		t.Fatalf("start runtime: %v", err)
+	}
+
+	jobCtx := waitForJobContext(t, started, 2500*time.Millisecond, "expected scheduled job to start")
+	if jobCtx == nil {
+		t.Fatal("expected job to receive lifecycle context")
+	}
+	if jobCtx.Err() != nil {
+		t.Fatalf("expected job lifecycle context to be active, got %v", jobCtx.Err())
+	}
+
+	stopDone := make(chan error, 1)
+	go func() {
+		stopDone <- runtime.Stop(context.Background())
+	}()
+
+	waitForContextDone(jobCtx, t, time.Second, "expected stop to cancel job lifecycle context")
+
+	waitForSignal(t, finished, time.Second, "expected job to observe lifecycle cancellation")
+	waitForStopResult(t, stopDone, time.Second)
+}
+
 // TestStopWithNilContextWaitsForInFlightJob 验证 nil ctx 会等待当前在途任务自然结束。
 func TestStopWithNilContextWaitsForInFlightJob(t *testing.T) {
 	runtime := New(zap.NewNop())
 	started := make(chan struct{}, 1)
 	release := make(chan struct{})
 	finished := make(chan struct{}, 1)
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if err := runtime.RegisterJob(cronx.Job{
 		Name:     "blocking",
@@ -150,7 +208,7 @@ func TestStopWithNilContextWaitsForInFlightJob(t *testing.T) {
 		t.Fatalf("register job: %v", err)
 	}
 
-	if err := runtime.Start(); err != nil {
+	if err := runtime.Start(runCtx); err != nil {
 		t.Fatalf("start runtime: %v", err)
 	}
 
@@ -175,6 +233,28 @@ func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, 
 
 	select {
 	case <-signal:
+	case <-time.After(timeout):
+		t.Fatal(failureMessage)
+	}
+}
+
+func waitForJobContext(t *testing.T, signal <-chan context.Context, timeout time.Duration, failureMessage string) context.Context {
+	t.Helper()
+
+	select {
+	case ctx := <-signal:
+		return ctx
+	case <-time.After(timeout):
+		t.Fatal(failureMessage)
+		return nil
+	}
+}
+
+func waitForContextDone(ctx context.Context, t *testing.T, timeout time.Duration, failureMessage string) {
+	t.Helper()
+
+	select {
+	case <-ctx.Done():
 	case <-time.After(timeout):
 		t.Fatal(failureMessage)
 	}

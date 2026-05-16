@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"context"
 	"fmt"
 
 	"graft/server/internal/plugin"
@@ -10,10 +9,10 @@ import (
 
 // Plugin 是当前 MVP 阶段的最小调度插件。
 //
-// 该插件只负责把 `cron registry` 中已声明的任务装配到运行时调度器，并在
-// Register / Boot / Shutdown 阶段统一完成“声明收集、运行启动、收敛关闭”。
-// 若 Register 阶段任务装配失败，插件不会进入可启动状态；Shutdown 会把
-// 运行时停止错误上抛给调用方，便于宿主决定是否继续整体退出流程。
+// 该插件只负责在所有插件完成 Register 后，把 `cron registry` 中已声明的
+// 任务装配到运行时调度器，并在 Boot / Shutdown 阶段统一完成“运行启动、
+// 收敛关闭”。若 Boot 阶段任务装配或启动失败，插件不会进入可运行状态；
+// Shutdown 会把运行时停止错误上抛给调用方，便于宿主决定是否继续整体退出流程。
 type Plugin struct {
 	runtime schedulercore.Runtime
 }
@@ -38,26 +37,30 @@ func (p *Plugin) DependsOn() []string {
 	return nil
 }
 
-// Register 根据当前 registry 快照装配全部任务声明。
-func (p *Plugin) Register(ctx *plugin.Context) error {
-	runtime := schedulercore.New(ctx.Logger)
+// Register 保持为空，由 Boot 在所有插件完成声明后统一装配任务。
+func (p *Plugin) Register(_ *plugin.Context) error {
+	return nil
+}
+
+// Boot 在所有插件 Register 完成后装配并启动最小调度器。
+func (p *Plugin) Boot(ctx *plugin.Context) error {
+	runtime := p.runtime
+	if runtime == nil {
+		runtime = schedulercore.New(ctx.Logger)
+	}
+
 	for _, job := range ctx.CronRegistry.Items() {
 		if err := runtime.RegisterJob(job); err != nil {
 			return fmt.Errorf("register scheduler job %s: %w", job.Name, err)
 		}
 	}
 
-	p.runtime = runtime
-	return nil
-}
-
-// Boot 启动已装配完成的最小调度器。
-func (p *Plugin) Boot(_ *plugin.Context) error {
-	if p.runtime == nil {
-		return nil
+	if err := runtime.Start(ctx.LifecycleContext); err != nil {
+		return fmt.Errorf("start scheduler runtime: %w", err)
 	}
 
-	return p.runtime.Start()
+	p.runtime = runtime
+	return nil
 }
 
 // Shutdown 停止当前调度器并等待在途任务收敛。
@@ -66,9 +69,9 @@ func (p *Plugin) Shutdown(ctx *plugin.Context) error {
 		return nil
 	}
 
-	stopCtx := context.Background()
-	if ctx != nil && ctx.LifecycleContext != nil {
-		stopCtx = ctx.LifecycleContext
+	if ctx == nil || ctx.LifecycleContext == nil {
+		return fmt.Errorf("scheduler shutdown lifecycle context is required")
 	}
-	return p.runtime.Stop(stopCtx)
+
+	return p.runtime.Stop(ctx.LifecycleContext)
 }

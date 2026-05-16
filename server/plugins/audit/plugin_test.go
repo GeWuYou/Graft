@@ -121,19 +121,10 @@ func newPluginTestContext(t *testing.T, repo store.AuditRepository) (*plugin.Con
 func TestRequestAuditMiddlewareCapturesAuthenticatedRequest(t *testing.T) {
 	repo := &memoryAuditRepository{}
 	ctx, engine, _ := newPluginTestContext(t, repo)
+	authService := stubAuthService{user: pluginapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}}
+	authorizer := allowAuthorizer{}
 
-	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(_ container.Resolver) (any, error) {
-		return stubAuthService{user: pluginapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}}, nil
-	}); err != nil {
-		t.Fatalf("register auth service: %v", err)
-	}
-	if err := ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
-		return allowAuthorizer{}, nil
-	}); err != nil {
-		t.Fatalf("register authorizer: %v", err)
-	}
-
-	ctx.Router.GET("/users/:id", httpx.RequirePermission(ctx.I18n, ctx.Services, "user.read"), func(ginCtx *gin.Context) {
+	ctx.Router.GET("/users/:id", httpx.RequirePermission(ctx.I18n, authService, authorizer, "user.read"), func(ginCtx *gin.Context) {
 		ginCtx.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 

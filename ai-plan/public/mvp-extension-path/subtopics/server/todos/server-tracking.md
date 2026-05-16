@@ -35,6 +35,8 @@
 - PR #9 当前一轮 AI review 已确认并落地的 `server` 跟进包括：统一审计 `Action` trim 一致性、主动审计事件同时兼容值/指针 payload、bootstrap locale fallback 去重，以及 `pluginapi.AuditEvent`、scheduler 生命周期文档补强。
 - PR #9 当前剩余的 greptile `server` 评论已核对到本地 HEAD：`scheduler` 插件尾部未使用的 `logJobFailure` 确认为死代码，`audit` 请求级自动审计已改为把 `ResourceType` 从稳定路由中拆解为资源域，避免继续与 `RequestPath` 重复。
 - PR #9 最新 CodeRabbit nitpick 已在本地核对并收敛：`plugin.Context` 现已显式承载 `LifecycleContext`，runtime 会在 `Shutdown` 阶段注入独立有界关闭上下文，`scheduler` 不再绕过宿主生命周期直接使用 `context.Background()`。
+- 当前一轮 `server` 架构治理补强切片已落地到代码：`httpx.RequirePermission` 不再在请求热路径依赖 container resolver；`user` 插件路由守卫改为显式 typed wiring，`GET /api/users` 不再在 handler 内直接现取 `store factory`；`scheduler` 运行时改为由 `Boot` 显式绑定生命周期上下文并在 `Shutdown` 收敛取消；`entstore.NewFactory` 改为显式返回错误而不是 `panic`。
+- 当前 backend completion 入口已重新回到全绿：`go run ./cmd/graft validate backend` 本地通过，先前记录的 test-lint controlled exception 已清空，不再保留活动例外。
 - `pluginapi`、registries、store factory 与当前 auth/menu/permission/i18n 返回面，已经成为 `web` 真实契约收敛前必须谨慎冻结的后端边界。
 - 当前本地启动修复已补齐 `server/.env.example` 的显式 auth 密钥示例、README 最小启动步骤与 GoLand working directory 提示，并用隔离环境测试锁定“缺少 `GRAFT_AUTH_JWT_SECRET` 与 `GRAFT_AUTH_SIGNING_KEY` 时严格失败”的配置行为；未引入任何 dev-only 默认密钥或 auth 语义变更。
 - `server` 当前已补充两个独立开发辅助程序：`cmd/graft-jwt-secret` 与 `cmd/graft-signing-key`，用于生成可直接写入 `.env` 的随机 auth 密钥文本；该能力只辅助配置准备，不参与运行时加载或 token 语义。
@@ -42,16 +44,13 @@
 - 当前 backend governance 文档真值已经冻结：`server` 完成态必须统一走 `graft validate backend`，固定质量顺序为 `golangci-lint run -> go test (smallest direct scope) -> go build ./cmd/graft -> graft validate smoke when needed`，并固定 pin `golangci-lint v2.12.2`。
 - 当前 `AGENTS.md` 已新增独立 `Go 代码组织与命名规范` 章节，统一冻结 `server` 手写 Go 代码的文件/包/类型命名、Context 传播、API/DTO、config、runtime wiring、事务、Ent、并发、日志、安全与 AI 生成代码约束；相关完成态与注释/验证章节仅再做引用式收敛，不再重复堆叠第二套真值。
 - 当前 CI `server-lint` job 已改为只安装固定版 `golangci-lint` 二进制，再回到 `graft validate backend --stage lint` 统一执行入口；不再让 `golangci-lint-action` 在仓库根目录误跑 `./...`。
-- 当前生产代码 lint backlog 已在本地清零，`go run ./cmd/graft validate backend --stage lint` 的生产配置可返回 `0 issues`；完成态仍被 `server/.golangci.test.yml` 暴露的既有测试代码 backlog 阻断，当前量级为 117 条，不属于本次 workflow 与生产代码修复引入的回归。
+- 当前生产代码 lint backlog 已在本地清零；此前记录的 test-lint 阻断已在后续治理切片中清空，当前 `go run ./cmd/graft validate backend` 已可作为统一 completion 入口直接通过。
 - backend lint issue 默认按阻断项处理；如果当前切片无法立即清理，只能登记到本文件的 `Backend Lint Controlled Exceptions`，并记录来源、影响、保留原因和下一步清理动作。
 - 详细实现历史保留在 `subtopics/server/traces/server-trace.md`。
 
 ## Backend Lint Controlled Exceptions
 
-- Source：`cd server && go run ./cmd/graft validate backend --stage lint` 第二阶段 `golangci-lint run --config .golangci.test.yml`，当前集中暴露 `cyclop`、`dupl`、`gosec`、`revive`、`staticcheck`，主要分布在 `internal/*_test.go`、`plugins/*_test.go`。
-  Impact：阻断 `server` 完成态统一入口，导致本次修复虽然已清空生产代码 lint 并修正 CI 根目录误跑问题，仍不能宣告 `graft validate backend` 全链路通过。
-  Retention Reason：本次切片目标是修复 `golangci-lint-action` 在 monorepo 根目录误跑与当前生产代码 backlog；继续一并治理 117 条测试 lint 会把范围从 workflow/quality-gate 修复扩张为仓库级测试代码清扫，超出当前切片。
-  Next Cleanup Action：下一切片按 `server/.golangci.test.yml` 单独治理测试 lint backlog，优先处理 `internal/httpx/*_test.go`、`internal/config/*_test.go`、`plugins/user/*_test.go` 与测试中的 `gosec`/`revive` 高密度文件，然后重跑 `graft validate backend`。
+- 当前无活动中的 backend lint controlled exception；若后续再次出现无法在当前切片内清理的 backend lint 阻断，只能在本节追加登记。
 - 后续如需暂留 backend lint issue，只能在本节追加受控例外，并至少记录以下字段：
   - Source：linter 名称，以及对应的 package / file / command。
   - Impact：用户可见影响或工程可维护性影响。
@@ -65,10 +64,17 @@
 - 如果在下一阶段继续无边界扩张 session-governance 细节，会挤占当前最关键的后端闭环资源。
 - 如果把首次改密阻断直接扩展成全局后端接口治理，会偏离当前 MVP 范围并放大本轮 auth/RBAC 收敛面的回归风险。
 - 若 `pluginapi`、store DTO 或权限/菜单契约在收敛期内继续频繁漂移，`web` 对真实契约的接线成本会快速上升。
+- `user` 插件当前仍在注册装配层本地构造最小 `routeAuthorizer`，尚未直接复用 `rbac` 插件暴露的稳定 `pluginapi.Authorizer` 能力；若后续 RBAC 授权语义扩展而这层本地实现未同步，仍有形成第二授权真值的风险。
 - disposable PostgreSQL / Redis 仍需手工准备；恢复执行时必须确认当前可用的 smoke 环境。
 - 如果 `server` 本地完成态、agent 完成态与 CI 阻断继续各自维护不同的 lint 命令或参数，backend quality gate 会在实现落地后迅速重新分叉。
 
 ## Latest Validation
+
+- 本次 `server` 架构治理补强切片直接校验：
+  - `cd server && go test ./internal/httpx ./plugins/user ./plugins/audit ./internal/scheduler ./plugins/scheduler ./internal/store/entstore ./internal/app`
+  - `cd server && go build ./cmd/graft`
+  - `cd server && go run ./cmd/graft validate backend`
+  - 结果：统一 backend completion 入口通过；当前无活动中的 backend lint controlled exception。
 
 - 本次 workflow 根目录误跑修复与生产代码 lint 治理直接校验：
   - `cd server && go test ./internal/httpx ./internal/store/entstore ./plugins/user`
@@ -156,7 +162,7 @@
 
 ## Immediate Next Step
 
-- 单开一个 `server test-lint backlog` 切片，专门治理 `server/.golangci.test.yml` 暴露的 117 条历史测试 lint；不要把这批测试清扫再与 workflow 修复或新的功能切片混做一刀。
+- 在保持当前统一 backend completion 入口稳定的前提下，单开一个 `server authz/rbac wiring convergence` 切片，消掉 `user` 插件本地 `routeAuthorizer` 与 `rbac` 插件公开 `pluginapi.Authorizer` 之间的双真值风险；不要把这类架构治理补丁与新的业务宽度扩张混做一刀。
 - 停止继续扩大会话治理宽度，按以下顺序推进 backend MVP closure：
   1. 保持当前 `AUTH_*` code、success/error envelope 与 request-id 契约冻结，不再无边界扩张 auth 响应面。
   2. 在 `user` 插件内实现默认管理员、首次改密持久化状态、`login/bootstrap` 扩展、`change-password` 与最小管理员绑定，但不扩展到 OAuth / SSO / MFA / 密码历史 / 配置化策略 / 全局后端拦截。

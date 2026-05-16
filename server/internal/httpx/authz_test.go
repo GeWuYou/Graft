@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"graft/server/internal/config"
-	"graft/server/internal/container"
 	"graft/server/internal/i18n"
 	"graft/server/internal/pluginapi"
 )
@@ -44,37 +43,6 @@ type testAuthorizer struct {
 
 func (a testAuthorizer) Authorize(ctx context.Context, request pluginapi.RequestAuthContext, permission string) error {
 	return a.authorize(ctx, request, permission)
-}
-
-func newAuthzTestResolver(t *testing.T, auth pluginapi.AuthService, authorizer pluginapi.Authorizer) container.Resolver {
-	t.Helper()
-
-	services := container.New()
-	if err := services.RegisterSingleton((*pluginapi.AuthService)(nil), func(_ container.Resolver) (any, error) {
-		return auth, nil
-	}); err != nil {
-		t.Fatalf("register auth service: %v", err)
-	}
-	if err := services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
-		return authorizer, nil
-	}); err != nil {
-		t.Fatalf("register authorizer: %v", err)
-	}
-
-	return services
-}
-
-func newAuthOnlyTestResolver(t *testing.T, auth pluginapi.AuthService) container.Resolver {
-	t.Helper()
-
-	services := container.New()
-	if err := services.RegisterSingleton((*pluginapi.AuthService)(nil), func(_ container.Resolver) (any, error) {
-		return auth, nil
-	}); err != nil {
-		t.Fatalf("register auth service: %v", err)
-	}
-
-	return services
 }
 
 func newBearerRequest(path string, token string) *http.Request {
@@ -115,7 +83,7 @@ func assertAuthenticatedRequestAllowed(t *testing.T, permission string) {
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(nil, newAuthOnlyTestResolver(t, newAuthenticatedAuthService()), permission))
+	engine.Use(RequirePermission(nil, newAuthenticatedAuthService(), nil, permission))
 	engine.GET("/api/profile", func(inner *gin.Context) {
 		inner.Status(http.StatusOK)
 	})
@@ -133,27 +101,25 @@ func assertPermissionRejectsTokenError(t *testing.T, requestToken string, parseE
 	gin.SetMode(gin.TestMode)
 
 	localizer := newTestLocalizer()
-	resolver := newAuthzTestResolver(t,
-		testAuthService{
-			parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
-				return nil, parseErr
-			},
-			currentUser: func(context.Context) (*pluginapi.CurrentUser, error) {
-				t.Fatal("current user should not be called when token parse fails")
-				return nil, nil
-			},
+	authService := testAuthService{
+		parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
+			return nil, parseErr
 		},
-		testAuthorizer{
-			authorize: func(context.Context, pluginapi.RequestAuthContext, string) error {
-				t.Fatal("authorize should not be called when token parse fails")
-				return nil
-			},
+		currentUser: func(context.Context) (*pluginapi.CurrentUser, error) {
+			t.Fatal("current user should not be called when token parse fails")
+			return nil, nil
 		},
-	)
+	}
+	authorizer := testAuthorizer{
+		authorize: func(context.Context, pluginapi.RequestAuthContext, string) error {
+			t.Fatal("authorize should not be called when token parse fails")
+			return nil
+		},
+	}
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(localizer, resolver, "user.read"))
+	engine.Use(RequirePermission(localizer, authService, authorizer, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		inner.Status(http.StatusOK)
 	})
@@ -178,28 +144,26 @@ func assertPermissionRejectsTokenError(t *testing.T, requestToken string, parseE
 func TestRequirePermissionRejectsMissingBearerToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	localizer := newTestLocalizer()
-	resolver := newAuthzTestResolver(t,
-		testAuthService{
-			parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
-				t.Fatal("parse access token should not be called without bearer token")
-				return nil, nil
-			},
-			currentUser: func(context.Context) (*pluginapi.CurrentUser, error) {
-				t.Fatal("current user should not be called without bearer token")
-				return nil, nil
-			},
+	authService := testAuthService{
+		parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
+			t.Fatal("parse access token should not be called without bearer token")
+			return nil, nil
 		},
-		testAuthorizer{
-			authorize: func(context.Context, pluginapi.RequestAuthContext, string) error {
-				t.Fatal("authorize should not be called without bearer token")
-				return nil
-			},
+		currentUser: func(context.Context) (*pluginapi.CurrentUser, error) {
+			t.Fatal("current user should not be called without bearer token")
+			return nil, nil
 		},
-	)
+	}
+	authorizer := testAuthorizer{
+		authorize: func(context.Context, pluginapi.RequestAuthContext, string) error {
+			t.Fatal("authorize should not be called without bearer token")
+			return nil
+		},
+	}
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(localizer, resolver, "user.read"))
+	engine.Use(RequirePermission(localizer, authService, authorizer, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		inner.Status(http.StatusOK)
 	})
@@ -224,25 +188,23 @@ func TestRequirePermissionRejectsMissingBearerToken(t *testing.T) {
 func TestRequirePermissionRejectsPermissionDenied(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	localizer := newTestLocalizer()
-	resolver := newAuthzTestResolver(t,
-		testAuthService{
-			parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
-				return newAuthenticatedClaims(), nil
-			},
-			currentUser: func(context.Context) (*pluginapi.CurrentUser, error) {
-				return newAuthenticatedUser(), nil
-			},
+	authService := testAuthService{
+		parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
+			return newAuthenticatedClaims(), nil
 		},
-		testAuthorizer{
-			authorize: func(context.Context, pluginapi.RequestAuthContext, string) error {
-				return pluginapi.ErrPermissionDenied
-			},
+		currentUser: func(context.Context) (*pluginapi.CurrentUser, error) {
+			return newAuthenticatedUser(), nil
 		},
-	)
+	}
+	authorizer := testAuthorizer{
+		authorize: func(context.Context, pluginapi.RequestAuthContext, string) error {
+			return pluginapi.ErrPermissionDenied
+		},
+	}
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(localizer, resolver, "user.read"))
+	engine.Use(RequirePermission(localizer, authService, authorizer, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		inner.Status(http.StatusOK)
 	})
@@ -275,32 +237,30 @@ func TestRequirePermissionRejectsPermissionDenied(t *testing.T) {
 func TestRequirePermissionAllowsAuthorizedRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	resolver := newAuthzTestResolver(t,
-		testAuthService{
-			parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
-				return newAuthenticatedClaims(), nil
-			},
-			currentUser: func(ctx context.Context) (*pluginapi.CurrentUser, error) {
-				requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
-				if !ok || requestAuth.Claims == nil || requestAuth.Claims.UserID != 7 {
-					t.Fatalf("expected request auth claims to be populated before CurrentUser, got %#v, ok=%v", requestAuth, ok)
-				}
-				return newAuthenticatedUser(), nil
-			},
+	authService := testAuthService{
+		parseAccessToken: func(context.Context, string) (*pluginapi.AccessTokenClaims, error) {
+			return newAuthenticatedClaims(), nil
 		},
-		testAuthorizer{
-			authorize: func(_ context.Context, request pluginapi.RequestAuthContext, _ string) error {
-				if request.User == nil || request.User.ID != 7 {
-					t.Fatalf("expected request user to be populated before Authorize, got %#v", request.User)
-				}
-				return nil
-			},
+		currentUser: func(ctx context.Context) (*pluginapi.CurrentUser, error) {
+			requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+			if !ok || requestAuth.Claims == nil || requestAuth.Claims.UserID != 7 {
+				t.Fatalf("expected request auth claims to be populated before CurrentUser, got %#v, ok=%v", requestAuth, ok)
+			}
+			return newAuthenticatedUser(), nil
 		},
-	)
+	}
+	authorizer := testAuthorizer{
+		authorize: func(_ context.Context, request pluginapi.RequestAuthContext, _ string) error {
+			if request.User == nil || request.User.ID != 7 {
+				t.Fatalf("expected request user to be populated before Authorize, got %#v", request.User)
+			}
+			return nil
+		},
+	}
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(nil, resolver, "user.read"))
+	engine.Use(RequirePermission(nil, authService, authorizer, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		requestAuth, ok := pluginapi.RequestAuthContextFromContext(inner.Request.Context())
 		if !ok || requestAuth.User == nil || requestAuth.User.ID != 7 {
@@ -346,7 +306,32 @@ func TestRequirePermissionFailsClosedWhenAuthDependenciesMissing(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
 	handled := false
-	engine.Use(RequirePermission(localizer, container.New(), "user.read"))
+	engine.Use(RequirePermission(localizer, nil, nil, "user.read"))
+	engine.GET("/api/users/:id", func(inner *gin.Context) {
+		handled = true
+		inner.Status(http.StatusOK)
+	})
+
+	ctx.Request = newBearerRequest("/api/users/1", "token-1")
+	engine.HandleContext(ctx)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
+	}
+	if handled {
+		t.Fatal("expected request to fail closed before reaching handler")
+	}
+}
+
+// TestRequirePermissionFailsClosedWhenAuthorizerMissing 验证非空权限码路由缺少授权器时会拒绝请求。
+func TestRequirePermissionFailsClosedWhenAuthorizerMissing(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	localizer := newTestLocalizer()
+
+	recorder := httptest.NewRecorder()
+	ctx, engine := gin.CreateTestContext(recorder)
+	handled := false
+	engine.Use(RequirePermission(localizer, newAuthenticatedAuthService(), nil, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		handled = true
 		inner.Status(http.StatusOK)

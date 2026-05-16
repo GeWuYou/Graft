@@ -6,6 +6,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import router from '@/router';
 import { getPermissionStore, useUserStore } from '@/store';
+import { isRootEntryPath, resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH } from '@/utils/route';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
 NProgress.configure({ showSpinner: false });
@@ -28,10 +29,6 @@ router.beforeEach(async (to, from, next) => {
   };
 
   if (userStore.token) {
-    if (to.path === '/login') {
-      next({ path: '/' });
-      return;
-    }
     try {
       // 已有 access token 时优先保证 bootstrap 快照可用；这一步同时承担首次
       // 会话恢复职责，避免页面在缺少真实菜单/权限数据时继续导航。
@@ -46,16 +43,24 @@ router.beforeEach(async (to, from, next) => {
         if (to.name === PAGE_NOT_FOUND_ROUTE.name) {
           // 动态添加路由后，此处应当重定向到fullPath，否则会加载404页面内容
           next({ path: to.fullPath, replace: true, query: to.query });
+          return;
         } else {
           const redirect = decodeURIComponent((from.query.redirect || to.path) as string);
           next(to.path === redirect ? { ...to, replace: true } : { path: redirect, query: to.query });
           return;
         }
       }
+
+      const runtimeHomePath = resolveRuntimeHomePath(permissionStore.asyncRoutes);
+      if (to.path === '/login' || isRootEntryPath(to.path)) {
+        next({ path: runtimeHomePath, replace: true });
+        return;
+      }
+
       if (to.name && router.hasRoute(to.name)) {
         next();
       } else {
-        next(`/`);
+        next({ path: RUNTIME_ENTRY_FALLBACK_PATH, replace: true });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login state expired';
@@ -81,8 +86,9 @@ router.beforeEach(async (to, from, next) => {
         await initializeRoutes();
       }
 
-      if (to.path === '/login') {
-        next({ path: '/' });
+      const runtimeHomePath = resolveRuntimeHomePath(permissionStore.asyncRoutes);
+      if (to.path === '/login' || isRootEntryPath(to.path)) {
+        next({ path: runtimeHomePath, replace: true });
         return;
       }
 

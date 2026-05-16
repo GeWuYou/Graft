@@ -8,31 +8,35 @@
 
 ## Goal
 
-- 在后端主导的 MVP 收敛阶段，把 `web` 约束在 starter 壳层收敛与真实契约接线范围内，不再把新增页面或新的前端壳层广度作为近期目标。
+- 在后端主导的 MVP 收敛阶段，把 `web` 约束在真实 `web/` 工程内的 starter 壳层收敛与真实契约接线范围内，不再把新增页面、并行 runtime baseline 或新的前端壳层广度作为近期目标。
 
 ## Current Recovery Point
 
-- `web` 现阶段只保留一个可继续收敛的 starter 壳层基线，用于接入真实后端 `auth`、动态菜单、权限门禁和 locale 契约。
+- `web` 现阶段以真实 `web/` 工程作为唯一运行面；starter 只保留可继续收敛的壳层风格、页面样板和治理参考，不再把 starter 全量工程视为运行基线。
 - 当前主线不是页面扩张，也不是继续深化独立前端工作台能力；任何 shell 级调整都应服务于真实契约挂接和 mock/demo 清理。
 - `web/ai-libs/tdesign-vue-next-starter` 继续只作为本地参考源存在，不是当前工程的独立 Git root，也不应在 IDE 里登记为第二个仓库。
 - `signals` 已收敛为文档级候选方案：`Pinia` 继续作为唯一正式共享状态层，当前不进入 `setting/theme` 局部试点，只保留未来最小 POC 的准入与退出规则。
 - 前端命令真值保持不变：WSL 场景下继续使用 host Windows Bun，完成态仍以 `bun run check` 零 warning 为门槛。
+- docs/automation 第一波治理收口已同步到 `web` 边界：README、validation skill、CI workflow 和前端设计文档现在都只把 starter 视为参考源，并把 `bun run check` / host Windows Bun 规则回指到同一套仓库真值。
 - PR #9 当前一轮 AI review 已确认并落地的 `web` 跟进包括：登出失败时仍强制跳转登录页、动态路由装配去除双重断言、locale header 全量下划线替换，以及 route guard / bootstrap / token 持久化的中文契约注释补强。
 - `/users` 当前已不再复用 starter 个人中心 demo 页，而是直接消费真实 `GET /api/users` 最小只读契约；对应的 `/user/index` 静态入口与 header 残留跳转也已移除，避免双轨导航。
 - 开发环境下的请求策略已收敛为“前端统一请求相对 `/api` 路径，由 Vite proxy 转发到 `VITE_API_TARGET`”；只有显式关闭代理时，Axios 才会直连后端绝对地址。
 - 前端环境文件治理当前已与 `server` 对齐：提交 `web/.env.example` 作为共享模板，忽略真实 `web/.env.*` 本地开发配置，不再把机器专属开发地址直接提交进仓库。
 - 当前 auth 响应收敛切片已经完成第一轮前端落地：请求层只对 `AUTH_TOKEN_EXPIRED` 触发一次 refresh，`AUTH_TOKEN_INVALID` / `AUTH_TOKEN_MISSING` 统一走单一清理出口并跳转登录；请求层与 `user` store 之间的登录态同步已收敛为显式 session bridge，避免动态导入 store 带来的构建 warning 与双源状态漂移。
 - 当前下一步认证治理切片的 `web` 边界已冻结：首次改密真值只能来自后端 `login/bootstrap`，前端不得通过用户名 `graft` 或默认密码猜测；当前 MVP 的业务阻断由登录后受限态与强制改密弹窗完成，不新增独立安全插件、不改 refresh 单出口，也不把控制流建立在中文 `message` 上。
+- 当前运行面治理已冻结单一路径：`bootstrap -> module registry -> route -> page`。主运行面不得再保留 demo route、playground page、独立 mock page、feature 自带 runtime 或绕过 bootstrap/menu 的入口。
 - PR #10 的最近一次 review follow-up 已补齐用户页版权年份、用户页列表页文案 i18n、接口说明 `<code>` 展示、用户页样式深度选择器兼容写法，以及 `request` / `user` store 在 refresh 失败路径上的重复清理与重复 refresh 防护；相关 `web` 完成态校验继续以 host Windows Bun `bun run check` 为准。
 - 详细前端实现历史保留在 `subtopics/web/traces/web-trace.md`。
 
 ## Active Risks
 
-- 如果 `web` 回到页面扩张、长期保留 starter demo/mock 流程，前端会再次偏离“后端主导的 MVP 闭环收敛”主线。
+- 如果 `web` 回到页面扩张、长期保留 starter demo/mock 流程，或重新把 starter 全量工程写成运行基线，前端会再次偏离“后端主导的 MVP 闭环收敛”主线。
+- 如果主路由树继续保留 starter homepage/result/demo 入口、`permission-fe` 旁路或默认 mock runtime，前端会重新形成假闭环并继续绕开后端契约。
 - 如果后端共享契约在收敛期内继续频繁漂移，starter 壳层的真实接线会产生反复返工。
 - 如果 `web` 重新通过用户名、默认密码或 message 文案猜测首次改密状态，后续改密弹窗、路由受限态和 bootstrap 恢复都会失去稳定真值。
 - 混用 WSL Bun 与 host Windows Bun 仍可能破坏当前工作树的前端依赖与 IDE 运行稳定性。
 - 如果 IDE 把 `web/ai-libs/tdesign-vue-next-starter` 重新登记成额外 Git root，仓库视图会混入参考目录历史与标签，影响当前主仓提交判断。
+- 如果 README、skill 或 workflow 再把 CI stage / Linux runner 语义写成独立前端验收规则，当前 frontend validation governance 会重新分叉。
 
 ## Latest Validation
 
@@ -65,10 +69,18 @@
 - 本次默认管理员/首次改密 web 跟踪同步一致性检查：
   - `rg -n "graft-admin|must_change_password|change-password|受限态|bootstrap" ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/web`
   - `git diff -- ai-plan/public/mvp-extension-path/subtopics/web ai-plan/design/项目设计.md server/plugins/user/README.md`
+- 本次 docs/automation 治理收口同步一致性检查：
+  - `rg -n "starter|运行基线|bun run check|host Windows Bun|第二真值|execution-layer" ai-plan/design/前端架构设计.md README.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+  - `git diff -- ai-plan/design/前端架构设计.md README.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+- 本次 web 主运行面收口预期直接校验：
+  - `rg -n "dashboard/base|vite-plugin-mock|permission-fe|tabs-router" web/src web/package.json web/vite.config.ts`
+  - `cd web && bun run typecheck`
+  - `cd web && bun run check`
 
 ## Immediate Next Step
 
-- 继续把 starter 壳层挂接到真实后端 `auth + current user + menu + permission + locale` 契约。
+- 继续在真实 `web/` 工程里把 starter 壳层风格挂接到真实后端 `auth + current user + menu + permission + locale` 契约。
+- 先清理主路由树里的 starter demo 入口、默认 mock runtime 与前端权限旁路，让主运行面重新只服务真实 bootstrap 菜单和已注册页面。
 - 快速隔离或移除当前阶段不再需要的 mock/demo 入口，避免形成前端自洽假闭环。
 - 在当前 auth 契约与刷新单出口已经稳定后，优先把首次登录强制改密受限态接进现有 `login -> refresh -> bootstrap` 恢复链路，确保刷新页面后仍能恢复弹窗与阻断，而不是再回到请求层分支治理或视觉扩张。
 

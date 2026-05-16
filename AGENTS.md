@@ -222,6 +222,12 @@ Core runtime owns:
 * plugin manager
 * service container
 
+Core runtime surface must stay explicit and small.
+
+Only documented runtime surfaces such as config, HTTP, migration, event, permission, menu, cron, plugin, service
+container, and repository CLI entrypoints may own platform-level startup behavior. Do not hide new runtime surfaces in
+unrelated packages, starter code, or ad-hoc background initialization.
+
 Business logic must live in plugins.
 
 Do not put business-specific behavior into the platform core.
@@ -235,6 +241,13 @@ Every backend plugin should follow the same model:
 * register routes, menus, permissions, migrations, jobs, and public services in `Register`
 * start runtime behavior in `Boot`
 * release resources in `Shutdown`
+* keep the plugin runtime surface explicit; if a route, menu, permission, migration, job, event subscription, or
+  public service exists at runtime, its existence and ownership must be traceable to the plugin lifecycle
+* `Register` must declare the complete runtime surface and cross-plugin/public contracts before `Boot` starts side
+  effects
+* `Boot` may only start behavior that was already declared or wired through the documented lifecycle; do not create
+  hidden routes, jobs, listeners, or long-lived goroutines from package globals or ad-hoc side paths
+* `Shutdown` must release everything `Boot` started, including timers, subscriptions, goroutines, and external handles
 
 Plugins must depend on public interfaces, not on another plugin's internal implementation.
 
@@ -261,6 +274,11 @@ Disallowed responsibilities:
 
 If a design requires implicit behavior to be understandable, it is too complex for this repo.
 
+The container or service registry is a runtime composition boundary, not a general-purpose service locator.
+`Resolve` belongs in explicit wiring, plugin lifecycle adapters, or other narrow composition boundaries. Do not spread
+ad-hoc resolution into handlers, services, repositories, pages, stores, or other business paths just because the
+container is reachable.
+
 ### 7.4 Web
 
 Frontend is a platform shell plus feature modules.
@@ -280,7 +298,13 @@ Rules:
 
 * use TDesign as the primary component system
 * avoid mixing multiple UI libraries
+* keep the real `web/` application as the only frontend runtime surface; do not treat `web/ai-libs/`, starter trees,
+  or demo shells as a parallel runtime baseline
 * keep new modules aligned with `menu + route + page + api + permission`
+* preserve module lifecycle clarity: `app` owns bootstrap and application wiring, `layouts` own shell chrome,
+  `modules` own feature behavior, and `components` stay reusable rather than becoming hidden feature containers
+* keep feature boundaries inside explicit module surfaces; do not park long-lived module state, routes, permissions,
+  or API semantics in shell-level directories just because a starter or demo structure already has a placeholder
 * use dynamic menus driven by backend data
 * keep shared state in stores and keep page-local state inside the page or module
 * frontend governance baseline must treat `TypeScript strict`, `format:check`, `ESLint`, `Stylelint`, `Vitest`,
@@ -579,8 +603,11 @@ section.
 ### 9.19 AI 生成代码约束
 
 * AI 生成代码必须优先复用现有 `runtime`、`plugin`、`service`、`store` 边界。
+* AI 不得把 starter/demo/reference 目录升级为并行 runtime surface、并行模块基线或第二套架构真值。
 * AI 不得擅自新增 framework、ORM、DI container、logging framework。
 * AI 不得无理由扩大 abstraction layer。
+* AI 不得借“临时过渡”之名绕开既有 module lifecycle、feature boundary、plugin lifecycle 或 validation
+  entrypoint 约束。
 * AI 不得新增“未来可能会用到”的接口或扩展点。
 * AI 不得生成未使用代码。
 * AI 不得生成死代码、占位 `TODO` 或伪实现。
@@ -629,6 +656,8 @@ When asked to add a new capability:
 * first identify whether it belongs in `server/core`, a `server` plugin, or a `web` feature module
 * default to a plugin unless the capability is true infrastructure
 * default to a `web/src/modules/<name>` entry path unless the page is a shell-level concern
+* define the capability's runtime surface and lifecycle owner before implementation; entrypoints, menus, routes,
+  permissions, jobs, public services, and boot/shutdown responsibilities must all have one clear home
 * define menu, route, permission, API, and public service boundaries before writing code
 
 ### 11.2 Explicitness
@@ -639,6 +668,8 @@ When unsure:
 * choose the narrower public interface
 * keep the next contributor's mental load low
 * prefer direct construction and visible wiring over hidden framework behavior
+* prefer preserving the current repository architecture over introducing a second baseline, second shell, or second
+  validation contract for temporary convenience
 
 ### 11.3 New Dependencies
 
@@ -714,12 +745,17 @@ If validation cannot be run:
 * state exactly which command was expected
 * state why it could not be run
 * do not claim the task is fully complete without that caveat
+* distinguish full repository entrypoints from focused direct checks and from execution-stage slices such as
+  `graft validate backend --stage ...`
 
 Warnings or failures in directly affected modules are part of the task scope. Do not ignore them unless the user
 explicitly narrows the task.
 When a frontend warning or backend lint issue is retained as a controlled exception, the corresponding tracking
 document must record its source, impact, temporary retention reason, and next cleanup action instead of calling it
 non-blocking by default.
+README, skills, tracking docs, and CI workflows may point to repository entrypoints or narrower execution slices, but
+they must not redefine validation order, acceptance criteria, or local-vs-CI environment rules into a second source of
+truth. When wording diverges, root `AGENTS.md` plus the repository entrypoints it names win.
 
 ## 13. Git Workflow Rules
 
@@ -812,6 +848,8 @@ When the repository adds CI workflows:
 * validate `server` and `web` as separate jobs when both sides exist
 * when backend lint governance is active, keep `server` lint and `server` build/test as separate jobs instead of one
   opaque backend script step
+* when CI keeps split jobs or stage flags, document them as execution-layer decomposition of the same repository
+  validation truth, not as independent acceptance contracts
 * prefer a fast quality or security track plus a build or test track instead of one opaque monolithic job
 * cache dependencies by ecosystem, such as Go modules and frontend package manager caches
 * upload useful failure artifacts or summaries when they materially improve debugging
@@ -819,6 +857,9 @@ When the repository adds CI workflows:
   actual toolchain or artifacts are not stable yet
 * backend CI must reuse the same `graft validate backend` entrypoint and pinned `golangci-lint` version as local
   development instead of rebuilding a second lint parameter set inside workflow YAML
+* when local `web` development in WSL requires host Windows Bun, keep that rule explicit in repository docs; a Linux CI
+  runner reusing the same `bun run check` entrypoint is an execution environment difference, not permission to relax
+  the local WSL rule
 
 ### 14.2 Release Automation
 

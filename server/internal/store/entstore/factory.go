@@ -1,6 +1,8 @@
 package entstore
 
 import (
+	"errors"
+
 	"graft/server/internal/ent"
 	"graft/server/internal/store"
 )
@@ -18,9 +20,9 @@ type Factory struct {
 // NewFactory 使用传入的 Ent 客户端装配各个仓储实现。
 //
 // 调用方必须保证 client 在整个仓储使用期间保持可用，并由更上层统一关闭。
-func NewFactory(client *ent.Client) *Factory {
+func NewFactory(client *ent.Client) (*Factory, error) {
 	if client == nil {
-		panic("entstore.NewFactory: nil *ent.Client")
+		return nil, errors.New("entstore factory requires a non-nil ent client")
 	}
 
 	return &Factory{
@@ -28,7 +30,7 @@ func NewFactory(client *ent.Client) *Factory {
 		userRepo:  &userRepository{client: client},
 		authRepo:  &authRepository{client: client},
 		rbacRepo:  &rbacRepository{client: client},
-	}
+	}, nil
 }
 
 // Audit 返回复用同一 Ent 客户端的审计仓储实现。

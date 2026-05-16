@@ -17,7 +17,7 @@ export function createViteConfig(mode: string): UserConfig {
   const apiPrefix = env.VITE_API_URL_PREFIX || '/api';
   const apiTarget = env.VITE_API_TARGET || 'http://127.0.0.1:3000';
   const proxyEnabled = env.VITE_IS_REQUEST_PROXY === 'true';
-  const mockEnabled = mode === 'mock' || mode === 'development';
+  const mockEnabled = mode === 'mock' || env.VITE_ENABLE_MOCK === 'true';
 
   const lessOptions = {
     javascriptEnabled: true,
@@ -59,10 +59,6 @@ export function createViteConfig(mode: string): UserConfig {
 
             if (id.includes('/node_modules/tdesign-icons-vue-next/')) {
               return 'vendor-tdesign-icons';
-            }
-
-            if (id.includes('/node_modules/echarts/')) {
-              return 'vendor-echarts';
             }
 
             if (id.includes('/node_modules/tdesign-vue-next/') || id.includes('/node_modules/tvision-color/')) {
