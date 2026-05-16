@@ -13,7 +13,7 @@
 ## Current Recovery Point
 
 - PR #11 当前一轮 review follow-up 已核对并收敛当前 HEAD 上仍然成立的问题：`user` 插件现在把默认管理员初始化从 `Register` 挪到 `Boot`，`bootstrap` 读模型补齐了 `auth` 仓储空值防御，`EnsureUserCredential` 与 RBAC 幂等写路径补上了唯一约束冲突后的重查/视为已存在语义，避免并发启动或重放时偶发失败。
-- 同一轮 follow-up 还移除了 `passwordPolicy` 中未被调用的默认管理员密码 guard 死代码，补齐了 `must_change_password` 字段注释，并让 `web` 强制改密弹窗不再把 `graft-admin` 常量编进前端 bundle，而是完全以后端 `AUTH_PASSWORD_REUSE_FORBIDDEN` 为权威约束。
+- 同一轮 follow-up 还补齐了 `must_change_password` 字段注释，并让 `web` 强制改密弹窗不再把 `graft-admin` 常量编进前端 bundle；当前默认管理员密码禁止规则仍保留在 `passwordPolicy` 中，由后端 `AUTH_PASSWORD_REUSE_FORBIDDEN` 作为权威约束。
 - `server` 已具备最小可运行 runtime、显式 plugin 注册、Ent/Atlas 迁移链路、基础 auth/RBAC、`graft migrate up` / `graft serve` / `graft validate smoke` 校验入口。
 - 现有 session/auth 路径已经足够支撑当前 MVP 收敛阶段；下一阶段重点不再是继续增加 revoke/filter/list 变体，而是补齐 event bus、audit、scheduler 和跨插件稳定契约。
 - PR #8 新一轮 AI review 跟进已补强 `RequirePermission` fail-closed 回归断言、登录用户名枚举时序收敛、登录失败日志最小化，以及 user plugin 测试仓储 receiver / session seed 稳定性问题。

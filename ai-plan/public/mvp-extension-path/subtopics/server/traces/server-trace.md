@@ -369,7 +369,7 @@
 - Hardened `entstore` idempotent write paths so `EnsureUserCredential`, `EnsureRole`, `EnsurePermission`,
   `AssignPermissionsToRole`, and `AssignRoleToUser` now treat unique-constraint races as “already exists” instead of
   surfacing false-negative startup failures.
-- Removed the unused default-admin password guard helper from `passwordPolicy`, added the lifecycle-sensitive
+- Kept the backend-owned `passwordPolicy` guard that forbids reusing `graft-admin`, added the lifecycle-sensitive
   `must_change_password` field comment, guarded bootstrap reads against a missing auth repository, and dropped the
   hardcoded default-admin password constant from the web forced-password-change dialog.
 - Revalidated the accepted follow-up with `cd server && go test ./plugins/user ./internal/store/entstore`,
