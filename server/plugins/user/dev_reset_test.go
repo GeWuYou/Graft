@@ -19,7 +19,7 @@ func TestResetDefaultAdminForDevelopmentResetsCredentialAndRole(t *testing.T) {
 		t.Fatalf("hash existing password: %v", err)
 	}
 
-	state := newDevResetState(currentHash)
+	state := newDevResetState(t, currentHash)
 
 	if err := ResetDefaultAdminForDevelopment(context.Background(), state.authRepo, state.rbacRepo); err != nil {
 		t.Fatalf("reset default admin: %v", err)
@@ -31,7 +31,7 @@ func TestResetDefaultAdminForDevelopmentResetsCredentialAndRole(t *testing.T) {
 func TestResetDefaultAdminForDevelopmentRejectsNonDevelopmentEnv(t *testing.T) {
 	t.Setenv("GRAFT_APP_ENV", "production")
 
-	state := newDevResetState("unused")
+	state := newDevResetState(t, "unused")
 	err := ResetDefaultAdminForDevelopment(context.Background(), state.authRepo, state.rbacRepo)
 	if err == nil {
 		t.Fatal("expected development env guard error")
@@ -53,7 +53,9 @@ type devResetState struct {
 	rbacRepo               pluginTestRBACRepository
 }
 
-func newDevResetState(currentHash string) *devResetState {
+func newDevResetState(t *testing.T, currentHash string) *devResetState {
+	t.Helper()
+
 	state := &devResetState{}
 	state.authRepo = &pluginTestAuthRepository{
 		ensureUserCredential: func(_ context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
@@ -79,6 +81,9 @@ func newDevResetState(currentHash string) *devResetState {
 	}
 	state.rbacRepo = pluginTestRBACRepository{
 		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			if !input.Builtin {
+				t.Fatal("expected development reset to keep the default admin role builtin")
+			}
 			return store.Role{ID: 3, Name: input.Name, Display: input.Display}, nil
 		},
 		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {

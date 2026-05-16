@@ -221,7 +221,19 @@ func (pluginTestRBACRepositoryStub) EnsurePermission(context.Context, store.Ensu
 	return store.Permission{}, nil
 }
 
+func (pluginTestRBACRepositoryStub) CreateRole(context.Context, store.CreateRoleInput) (store.Role, error) {
+	return store.Role{}, nil
+}
+
+func (pluginTestRBACRepositoryStub) UpdateRole(context.Context, store.UpdateRoleInput) (store.Role, error) {
+	return store.Role{}, nil
+}
+
 func (pluginTestRBACRepositoryStub) AssignPermissionsToRole(context.Context, store.AssignPermissionsToRoleInput) error {
+	return nil
+}
+
+func (pluginTestRBACRepositoryStub) ReplacePermissionsForRole(context.Context, store.ReplacePermissionsForRoleInput) error {
 	return nil
 }
 
@@ -229,11 +241,27 @@ func (pluginTestRBACRepositoryStub) AssignRoleToUser(context.Context, store.Assi
 	return nil
 }
 
+func (pluginTestRBACRepositoryStub) ReplaceRolesForUser(context.Context, store.ReplaceRolesForUserInput) error {
+	return nil
+}
+
+func (pluginTestRBACRepositoryStub) GetRoleByID(context.Context, uint64) (store.Role, error) {
+	return store.Role{}, nil
+}
+
 func (pluginTestRBACRepositoryStub) ListRolesByUserID(context.Context, uint64) ([]store.Role, error) {
 	return nil, nil
 }
 
+func (pluginTestRBACRepositoryStub) ListRoles(context.Context) ([]store.Role, error) {
+	return nil, nil
+}
+
 func (pluginTestRBACRepositoryStub) ListPermissionsByUserID(context.Context, uint64) ([]store.Permission, error) {
+	return nil, nil
+}
+
+func (pluginTestRBACRepositoryStub) ListPermissions(context.Context) ([]store.Permission, error) {
 	return nil, nil
 }
 

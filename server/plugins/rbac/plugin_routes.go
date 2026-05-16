@@ -38,6 +38,15 @@ type permissionListItem struct {
 	Category    string  `json:"category"`
 }
 
+type managementGuards struct {
+	roleRead             gin.HandlerFunc
+	permissionRead       gin.HandlerFunc
+	roleCreate           gin.HandlerFunc
+	roleUpdate           gin.HandlerFunc
+	rolePermissionAssign gin.HandlerFunc
+	userRoleAssign       gin.HandlerFunc
+}
+
 func registerRBACPermissions(registry *permission.Registry, pluginName string) {
 	for _, item := range rbacPermissionItems(pluginName) {
 		registry.Register(item)
@@ -64,9 +73,33 @@ func rbacPermissionItems(pluginName string) []permission.Item {
 			Plugin:      pluginName,
 		},
 		{
+			Code:        rbaccontract.RoleCreatePermission.String(),
+			Name:        "Create Roles",
+			Description: "Allows creating role-management data.",
+			Plugin:      pluginName,
+		},
+		{
+			Code:        rbaccontract.RoleUpdatePermission.String(),
+			Name:        "Update Roles",
+			Description: "Allows updating role-management data.",
+			Plugin:      pluginName,
+		},
+		{
+			Code:        rbaccontract.RolePermissionAssignPermission.String(),
+			Name:        "Assign Role Permissions",
+			Description: "Allows updating role-permission bindings.",
+			Plugin:      pluginName,
+		},
+		{
 			Code:        rbaccontract.PermissionReadPermission.String(),
 			Name:        "Read Permissions",
 			Description: "Allows reading permission management data.",
+			Plugin:      pluginName,
+		},
+		{
+			Code:        rbaccontract.UserRoleAssignPermission.String(),
+			Name:        "Assign User Roles",
+			Description: "Allows updating user-role bindings.",
 			Plugin:      pluginName,
 		},
 	}
@@ -76,22 +109,24 @@ func registerManagementRoutes(
 	ctx *plugin.Context,
 	pluginName string,
 	reader readManagementService,
-	roleRead gin.HandlerFunc,
-	permissionRead gin.HandlerFunc,
+	writer writeManagementService,
+	guards managementGuards,
 ) {
-	registerRoleRoutes(ctx, pluginName, reader, roleRead)
-	registerPermissionRoutes(ctx, pluginName, reader, permissionRead)
+	registerRoleRoutes(ctx, pluginName, reader, writer, guards)
+	registerPermissionRoutes(ctx, pluginName, reader, guards.permissionRead)
+	registerUserRoleRoutes(ctx, pluginName, writer, guards.userRoleAssign)
 }
 
 func registerRoleRoutes(
 	ctx *plugin.Context,
 	pluginName string,
 	reader readManagementService,
-	authenticated gin.HandlerFunc,
+	writer writeManagementService,
+	guards managementGuards,
 ) {
 	group := ctx.Router.Group(rbaccontract.RolesGroup)
 	group.Use(httpx.RequestIDMiddleware())
-	group.GET(rbaccontract.RoleCollection, authenticated, func(ginCtx *gin.Context) {
+	group.GET(rbaccontract.RoleCollection, guards.roleRead, func(ginCtx *gin.Context) {
 		roles, err := reader.ListRoles(ginCtx.Request.Context())
 		if err != nil {
 			ctx.Logger.Error("list roles failed",
@@ -115,6 +150,7 @@ func registerRoleRoutes(
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, roleListResponse{Items: items})
 	})
+	registerRoleWriteRoutes(group, ctx, pluginName, writer, guards)
 }
 
 func registerPermissionRoutes(

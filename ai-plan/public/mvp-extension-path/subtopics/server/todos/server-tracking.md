@@ -16,6 +16,9 @@
   `pluginapi.Authorizer` 的授权插件”扩展为最小只读管理插件，范围仅限角色/权限 canonical contract、
   只读路由、只读仓储接口与 focused tests；本轮不进入角色写操作、用户禁用、用户分配角色或
   `super_admin` bypass。
+- 当前 RBAC MVP 第二波方向也已进入恢复真值：`server/plugins/rbac` 工作树上已出现最小写接口相关实现文件，
+  当前活动范围收敛为角色创建、角色更新、角色权限替换与用户角色替换这四类最小写 API；在主代理重新完成 backend
+  validation 之前，本文件只把它们记录为 in-progress scope，不把它们标记为已完成闭环。
 - 当前 `server` 侧 RBAC 真值同步也已开始进入持久化层：`roles.builtin` 与 `permissions.category`
   已进入 Ent schema / Atlas migration 设计面，`bootstrap` 最小快照开始补齐 `roles`，让后续 `web`
   不再依赖空 roles 数组或本地猜测角色状态。
@@ -84,9 +87,12 @@
 - 若 `pluginapi`、store DTO 或权限/菜单契约在收敛期内继续频繁漂移，`web` 对真实契约的接线成本会快速上升。
 - disposable PostgreSQL / Redis 仍需手工准备；恢复执行时必须确认当前可用的 smoke 环境。
 - 如果 `server` 本地完成态、agent 完成态与 CI 阻断继续各自维护不同的 lint 命令或参数，backend quality gate 会在实现落地后迅速重新分叉。
+- 如果 RBAC 第二波最小写 API 在验证未重跑前就被 tracking、README 或 handoff 文本写成“已完成”，后续 `web`
+  会基于并未确认的后端闭环安排接线，放大跨边界返工风险。
 
 ## Latest Validation
 
+- 本次 server/topic 文档同步仅执行结构性一致性检查；当前没有为 RBAC 第二波最小写 API 新增 backend 通过声明。
 - 本次 `server` 架构治理补强切片直接校验：
   - `cd server && go test ./internal/httpx ./plugins/user ./plugins/audit ./internal/scheduler ./plugins/scheduler ./internal/store/entstore ./internal/app`
   - `cd server && go build ./cmd/graft`
@@ -190,7 +196,7 @@
 
 ## Immediate Next Step
 
-- 在当前 RBAC 第一波切片内，优先把 `server/plugins/rbac` 的只读管理面和 focused tests 收完整，再评估下一刀是否进入角色写接口或用户管理写路径；不要并行拉起高风险 schema+auth+policy 写操作。
+- 在当前 RBAC 第二波方向里，先把 `server/plugins/rbac` 的最小写接口 contract、README 与 tracking 真值收齐，再由主代理补跑最小 backend validation，之后再决定是否进入更高风险的用户禁用、删除或 `super_admin` bypass。
 - 保持 `bootstrap.roles`、`roles.builtin`、`permissions.category` 的真值收口，后续 `web` 只消费这批后端契约，不得再本地推导角色类别或权限分组。
 - 保持当前共享 `pluginapi.Authorizer` wiring 与 `server/plugins/user/contract` 稳定；后续新增 `server`
   受保护路由时，继续复用 typed permission/route contract 与 `rbac` 插件公开服务，不再在 `user` 或其它插件本地复制实现。

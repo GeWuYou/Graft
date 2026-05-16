@@ -61,4 +61,7 @@ const (
 
 	// UserNotFound identifies missing-user failures surfaced by auth-adjacent flows.
 	UserNotFound Key = "user.not_found"
+
+	// RoleNotFound identifies missing-role failures surfaced by RBAC management flows.
+	RoleNotFound Key = "role.not_found"
 )

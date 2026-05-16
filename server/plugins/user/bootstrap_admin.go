@@ -27,6 +27,7 @@ func (s authService) ensureDefaultAdmin(ctx context.Context, rbac store.RBACRepo
 	role, err := rbac.EnsureRole(ctx, store.EnsureRoleInput{
 		Name:    defaultAdminRoleName,
 		Display: "管理员",
+		Builtin: true,
 	})
 	if err != nil {
 		return fmt.Errorf("ensure default admin role: %w", err)

@@ -353,8 +353,12 @@ type pluginTestRBACRepository struct {
 	roles                   map[uint64][]store.Role
 	ensureRole              func(ctx context.Context, input store.EnsureRoleInput) (store.Role, error)
 	ensurePermission        func(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error)
+	createRole              func(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
+	updateRole              func(ctx context.Context, input store.UpdateRoleInput) (store.Role, error)
 	assignPermissionsToRole func(ctx context.Context, input store.AssignPermissionsToRoleInput) error
+	replacePermissions      func(ctx context.Context, input store.ReplacePermissionsForRoleInput) error
 	assignRoleToUser        func(ctx context.Context, input store.AssignRoleToUserInput) error
+	replaceRolesForUser     func(ctx context.Context, input store.ReplaceRolesForUserInput) error
 }
 
 func (r pluginTestRBACRepository) EnsureRole(ctx context.Context, input store.EnsureRoleInput) (store.Role, error) {
@@ -373,9 +377,33 @@ func (r pluginTestRBACRepository) EnsurePermission(ctx context.Context, input st
 	return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 }
 
+func (r pluginTestRBACRepository) CreateRole(ctx context.Context, input store.CreateRoleInput) (store.Role, error) {
+	if r.createRole != nil {
+		return r.createRole(ctx, input)
+	}
+
+	return store.Role{ID: 1, Name: input.Name, Display: input.Display, Description: input.Description, Builtin: input.Builtin}, nil
+}
+
+func (r pluginTestRBACRepository) UpdateRole(ctx context.Context, input store.UpdateRoleInput) (store.Role, error) {
+	if r.updateRole != nil {
+		return r.updateRole(ctx, input)
+	}
+
+	return store.Role{ID: input.ID, Name: input.Name, Display: input.Display, Description: input.Description}, nil
+}
+
 func (r pluginTestRBACRepository) AssignPermissionsToRole(ctx context.Context, input store.AssignPermissionsToRoleInput) error {
 	if r.assignPermissionsToRole != nil {
 		return r.assignPermissionsToRole(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) ReplacePermissionsForRole(ctx context.Context, input store.ReplacePermissionsForRoleInput) error {
+	if r.replacePermissions != nil {
+		return r.replacePermissions(ctx, input)
 	}
 
 	return nil
@@ -387,6 +415,18 @@ func (r pluginTestRBACRepository) AssignRoleToUser(ctx context.Context, input st
 	}
 
 	return nil
+}
+
+func (r pluginTestRBACRepository) ReplaceRolesForUser(ctx context.Context, input store.ReplaceRolesForUserInput) error {
+	if r.replaceRolesForUser != nil {
+		return r.replaceRolesForUser(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) GetRoleByID(_ context.Context, roleID uint64) (store.Role, error) {
+	return store.Role{ID: roleID}, nil
 }
 
 func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, userID uint64) ([]store.Role, error) {
@@ -463,8 +503,8 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 		Router:   engine.Group("/api"),
 		Services: container.New(),
 		Stores: pluginTestStoreFactory{
-			auth:        authRepo,
-			users:       userRepo,
+			auth:  authRepo,
+			users: userRepo,
 			rbac: pluginTestRBACRepository{
 				roles: map[uint64][]store.Role{
 					7: {{ID: 1, Name: "admin", Display: "管理员"}},
@@ -860,6 +900,9 @@ func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) pluginT
 
 	return pluginTestRBACRepository{
 		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			if !input.Builtin {
+				t.Fatal("expected default admin role to be marked builtin")
+			}
 			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 		},
 		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
@@ -1245,6 +1288,9 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	var assignedRole bool
 	rbacRepo := pluginTestRBACRepository{
 		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			if !input.Builtin {
+				t.Fatal("expected default admin role to be marked builtin")
+			}
 			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 		},
 		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {

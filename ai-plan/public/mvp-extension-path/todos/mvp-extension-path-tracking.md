@@ -59,6 +59,9 @@
 - 当前 `server-lint` CI 路径已修正为“只安装 pinned `golangci-lint`，再由 `graft validate backend --stage lint` 执行统一入口”；历史 test-lint backlog 已清空，backend completion 入口重新回到统一验证口径。
 - 当前 `server authz/rbac wiring convergence` 也已落地：`user` 路由守卫不再维护本地 `routeAuthorizer` 语义副本，而是在
   `Boot` 阶段绑定 `rbac` 插件公开的共享 `pluginapi.Authorizer`，请求热路径不再解析容器服务。
+- 当前恢复主线已进入 RBAC MVP 第二波方向同步：`server/plugins/rbac` 的最小写接口能力已进入活动实现范围，当前文档真值按
+  “角色写接口 + 角色权限分配 + 用户角色分配的最小闭环”登记方向，但本主题文档不会把该方向表述成已完成，也不会替主代理声明
+  尚未重新执行的 backend / cross-boundary 验证通过。
 - 当前第一波治理切片要求把以下仓库级约束写回真值并开始进入执行层：`bootstrap -> module registry -> route -> page` 单一运行面、`register -> boot -> dispose(optional)` 单一生命周期、resolver 只允许存在于 composition root wiring、`web/src/modules/<name>` 与 `server/plugins/<name>` 作为默认 feature boundary、CI 只作为治理执行层而不是第二真值来源。
 - docs/automation 第一波治理收口已同步完成：根 `AGENTS.md` 进一步冻结 runtime surface、module lifecycle、
   service locator、feature boundary、AI architecture preservation 与 validation governance；前端设计文档不再把
@@ -112,6 +115,8 @@
   CI 和本地 hook 会很快退化成“有工具但没有同一套 contract 真值”的伪治理状态。
 - 如果接下来把 permission、message key、auth route 等后续热点继续直接堆回 `plugin_routes.go`、`request.ts`、
   `router/index.ts` 或其它消费点，当前刚建立的 canonical contract surface 会很快再次失真。
+- 如果任务交接继续只写“next step”而不附带下一任务 startup prompt，或者在交接前跳过对已验证切片的 scoped commit 判断，
+  当前 startup governance 与 git workflow 会重新退回隐式上下文驱动状态。
 
 ## Shared Validation Summary
 
@@ -177,6 +182,8 @@
 
 ## Immediate Next Step
 
+- 保持新的交接治理真值：当当前切片结束并移交下一任务时，先按 `graft-commit` 风格判断是否可以安全提交当前已验证范围，再在交接文本中附带下一任务 startup prompt，避免下一轮从隐式上下文继续。
+- 在 RBAC MVP 第二波方向上，继续把焦点放在 `server/plugins/rbac` 的最小写接口与 shared contract 稳定化；若主代理尚未重新完成 backend / cross-boundary 校验，相关 tracking 继续保持 in-progress 语气。
 - 保持 docs/automation 侧新收口的真值稳定，不要再把 starter 全量工程、split stage 或环境例外规则复制成新的并行治理文本。
 - 在 phase-1 底座提交后，继续把魔法值治理推进到真实 contract surface：优先从 `server/internal/httpx`、`server/internal/pluginapi`、
   `server/plugins/user/contract` 与 `web/src/contracts` / `web/src/modules/*/contract` 建立首批 canonical typed
