@@ -18,6 +18,7 @@ import (
 // 该插件展示业务能力如何在 Register 阶段声明边界，在 Boot/Shutdown 阶段保持显式生命周期。
 type Plugin struct {
 	defaultAdminAuth *authService
+	routeAuthorizer  *deferredAuthorizer
 }
 
 type userListResponse struct {
@@ -68,7 +69,8 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	if err != nil {
 		return err
 	}
-	guards := newRouteGuards(ctx.I18n, authSvc, newRouteAuthorizer(ctx.Stores.RBAC()))
+	p.routeAuthorizer = newDeferredAuthorizer()
+	guards := newRouteGuards(ctx.I18n, authSvc, p.routeAuthorizer)
 	if err := registerAuthRoutes(ctx, p.Name(), authSvc, bootstrapSvc, guards); err != nil {
 		return err
 	}
@@ -83,6 +85,9 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 //
 // 当前阶段只在这里执行默认管理员引导初始化，确保 Register 保持纯声明式装配。
 func (p *Plugin) Boot(ctx *plugin.Context) error {
+	if err := p.bindRouteAuthorizer(ctx); err != nil {
+		return err
+	}
 	if p.defaultAdminAuth == nil {
 		return errors.New("default admin bootstrap service is unavailable")
 	}
@@ -98,6 +103,28 @@ func (p *Plugin) Boot(ctx *plugin.Context) error {
 //
 // 当前实现没有自主管理的外部资源，因此关闭阶段保持幂等空操作。
 func (p *Plugin) Shutdown(_ *plugin.Context) error {
+	return nil
+}
+
+func (p *Plugin) bindRouteAuthorizer(ctx *plugin.Context) error {
+	if p.routeAuthorizer == nil {
+		return errors.New("route authorizer is unavailable")
+	}
+
+	resolved, err := ctx.Services.Resolve((*pluginapi.Authorizer)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve route authorizer: %w", err)
+	}
+
+	authorizer, ok := resolved.(pluginapi.Authorizer)
+	if !ok {
+		return fmt.Errorf("resolve route authorizer: unexpected type %T", resolved)
+	}
+
+	if err := p.routeAuthorizer.SetTarget(authorizer); err != nil {
+		return fmt.Errorf("bind route authorizer: %w", err)
+	}
+
 	return nil
 }
 

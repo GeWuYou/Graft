@@ -78,7 +78,16 @@
 - Fixed the current-state semantics so `must_change_password=true` now means “authenticated but restricted” rather than “logged out”, and the `web` guard keeps tokens while blocking business routes through a dedicated restricted-session entry.
 - Fixed the default-admin first-login path so `server` only allows empty `current_password` when the backend can prove the actor is still the restricted default admin using the initialization-only password, while the frontend re-enters normal navigation only after a fresh `bootstrap`.
 
+## 2026-05-16 shared authorizer convergence
+
+- Cleared the previously recorded backend test-lint backlog and restored `graft validate backend` to a clean local
+  completion baseline.
+- Removed the last active authz dual-truth point on the backend by making `user` route guards bind the shared
+  `pluginapi.Authorizer` from `rbac` during `Boot`, instead of maintaining a plugin-local authorization copy.
+- Kept the repository-wide next-step focus on cross-boundary web-shell cleanup rather than reopening backend-only
+  governance drift.
+
 ## Next Step
 
-- Continue MVP work through the relevant subtopic, keeping `/api/auth/bootstrap` stable while expanding real
-  `server + web` page hookups instead of widening backend-only governance behavior or restoring demo auth/menu paths.
+- Continue MVP work through the `web` subtopic, keeping `/api/auth/bootstrap`, `AUTH_*`, and shared permission
+  contracts stable while expanding the real `web` runtime surface and removing remaining demo/mock auth/menu paths.

@@ -38,6 +38,9 @@
 - PR #9 最新 CodeRabbit nitpick 已在本地核对并收敛：`plugin.Context` 现已显式承载 `LifecycleContext`，runtime 会在 `Shutdown` 阶段注入独立有界关闭上下文，`scheduler` 不再绕过宿主生命周期直接使用 `context.Background()`。
 - 当前一轮 `server` 架构治理补强切片已落地到代码：`httpx.RequirePermission` 不再在请求热路径依赖 container resolver；`user` 插件路由守卫改为显式 typed wiring，`GET /api/users` 不再在 handler 内直接现取 `store factory`；`scheduler` 运行时改为由 `Boot` 显式绑定生命周期上下文并在 `Shutdown` 收敛取消；`entstore.NewFactory` 改为显式返回错误而不是 `panic`。
 - 当前 backend completion 入口已重新回到全绿：`go run ./cmd/graft validate backend` 本地通过，先前记录的 test-lint controlled exception 已清空，不再保留活动例外。
+- 当前 `server authz/rbac wiring convergence` 切片也已落地：`user` 路由在 `Register` 阶段只持有延迟绑定的
+  `pluginapi.Authorizer` 句柄，并在 `Boot` 阶段解析绑定 `rbac` 插件公开的共享授权器；请求热路径不再 `Resolve`
+  服务，也不再保留第二套本地 RBAC 判定逻辑。
 - `pluginapi`、registries、store factory 与当前 auth/menu/permission/i18n 返回面，已经成为 `web` 真实契约收敛前必须谨慎冻结的后端边界。
 - 当前本地启动修复已补齐 `server/.env.example` 的显式 auth 密钥示例、README 最小启动步骤与 GoLand working directory 提示，并用隔离环境测试锁定“缺少 `GRAFT_AUTH_JWT_SECRET` 与 `GRAFT_AUTH_SIGNING_KEY` 时严格失败”的配置行为；未引入任何 dev-only 默认密钥或 auth 语义变更。
 - `server` 当前已补充两个独立开发辅助程序：`cmd/graft-jwt-secret` 与 `cmd/graft-signing-key`，用于生成可直接写入 `.env` 的随机 auth 密钥文本；该能力只辅助配置准备，不参与运行时加载或 token 语义。
@@ -65,7 +68,6 @@
 - 如果在下一阶段继续无边界扩张 session-governance 细节，会挤占当前最关键的后端闭环资源。
 - 如果把首次改密阻断直接扩展成全局后端接口治理，会偏离当前 MVP 范围并放大本轮 auth/RBAC 收敛面的回归风险。
 - 若 `pluginapi`、store DTO 或权限/菜单契约在收敛期内继续频繁漂移，`web` 对真实契约的接线成本会快速上升。
-- `user` 插件当前仍在注册装配层本地构造最小 `routeAuthorizer`，尚未直接复用 `rbac` 插件暴露的稳定 `pluginapi.Authorizer` 能力；若后续 RBAC 授权语义扩展而这层本地实现未同步，仍有形成第二授权真值的风险。
 - disposable PostgreSQL / Redis 仍需手工准备；恢复执行时必须确认当前可用的 smoke 环境。
 - 如果 `server` 本地完成态、agent 完成态与 CI 阻断继续各自维护不同的 lint 命令或参数，backend quality gate 会在实现落地后迅速重新分叉。
 
@@ -167,8 +169,7 @@
 
 ## Immediate Next Step
 
-- 在保持当前统一 backend completion 入口稳定的前提下，单开一个 `server authz/rbac wiring convergence` 切片，消掉 `user` 插件本地 `routeAuthorizer` 与 `rbac` 插件公开 `pluginapi.Authorizer` 之间的双真值风险；不要把这类架构治理补丁与新的业务宽度扩张混做一刀。
-- 停止继续扩大会话治理宽度，按以下顺序推进 backend MVP closure：
-  1. 保持当前 `AUTH_*` code、success/error envelope 与 request-id 契约冻结，不再无边界扩张 auth 响应面。
-  2. 在 `user` 插件内实现默认管理员、首次改密持久化状态、`login/bootstrap` 扩展、`change-password` 与最小管理员绑定，但不扩展到 OAuth / SSO / MFA / 密码历史 / 配置化策略 / 全局后端拦截。
-  3. 在该稳定契约上继续推动 `web` 的真实页面接线与登录后受限态阻断，不要回退到中文 `message` 分支或重新引入 refresh 多出口。
+- 保持当前共享 `pluginapi.Authorizer` wiring 稳定；后续新增 `server` 受保护路由时，继续复用 `rbac` 插件公开服务，
+  不再在 `user` 或其它插件本地复制授权实现。
+- 当前纯 `server` 的 auth/authz 收敛补丁已经完成；跨边界主线回到父主题与 `web` 子主题，继续推进真实主运行面清理、
+  bootstrap 菜单接线与受限态恢复链路稳定化。

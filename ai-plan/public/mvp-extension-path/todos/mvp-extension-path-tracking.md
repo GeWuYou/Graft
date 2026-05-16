@@ -56,7 +56,9 @@
 - 当前仓库真值还新增冻结了一条 shared backend governance baseline：`server` 完成态必须收敛到 `graft validate backend`，
   固定使用 `golangci-lint v2.12.2`，并把 backend lint issue 默认视为阻断项；如需暂留，只能登记到 active
   tracking 文档中的 controlled exception。
-- 当前 `server-lint` CI 路径已修正为“只安装 pinned `golangci-lint`，再由 `graft validate backend --stage lint` 执行统一入口”；生产代码 lint backlog 已清零，但测试代码 lint backlog 仍阻断后端完成态。
+- 当前 `server-lint` CI 路径已修正为“只安装 pinned `golangci-lint`，再由 `graft validate backend --stage lint` 执行统一入口”；历史 test-lint backlog 已清空，backend completion 入口重新回到全绿。
+- 当前 `server authz/rbac wiring convergence` 也已落地：`user` 路由守卫不再维护本地 `routeAuthorizer` 语义副本，而是在
+  `Boot` 阶段绑定 `rbac` 插件公开的共享 `pluginapi.Authorizer`，请求热路径不再解析容器服务。
 - 当前第一波治理切片要求把以下仓库级约束写回真值并开始进入执行层：`bootstrap -> module registry -> route -> page` 单一运行面、`register -> boot -> dispose(optional)` 单一生命周期、resolver 只允许存在于 composition root wiring、`web/src/modules/<name>` 与 `server/plugins/<name>` 作为默认 feature boundary、CI 只作为治理执行层而不是第二真值来源。
 - docs/automation 第一波治理收口已同步完成：根 `AGENTS.md` 进一步冻结 runtime surface、module lifecycle、
   service locator、feature boundary、AI architecture preservation 与 validation governance；前端设计文档不再把
@@ -133,6 +135,5 @@
 ## Immediate Next Step
 
 - 保持 docs/automation 侧新收口的真值稳定，不要再把 starter 全量工程、split stage 或环境例外规则复制成新的并行治理文本。
-- 在当前 backend governance 真值已经落到 CI 安装/执行分离后，下一步单独治理 `server/.golangci.test.yml` 暴露的历史测试 lint backlog；不要让生产代码已清零但测试 lint 长期阻断完成态。
-- 保持当前 `/api/auth/bootstrap` 契约稳定，只在必要范围内收敛 DTO 和菜单/权限语义。
-- 在该 bootstrap 与 auth 响应契约上继续实施默认管理员与首次登录强制改密闭环：先由 `server` 增加持久化状态、初始化例外密码和最小管理员绑定，再由 `web` 落登录后受限态与强制改密弹窗，而不是扩大安全范围或回到猜测式控制流。
+- 在当前 backend completion 与 shared authorizer wiring 都已收口后，把跨边界主线切回 `web` 主运行面清理：继续移除 starter demo 入口、默认 mock runtime 与前端权限旁路，让主运行面只服务真实 bootstrap 菜单和已注册页面。
+- 保持当前 `/api/auth/bootstrap`、`AUTH_*` code 与共享 permission 契约冻结，不要回退到第二套授权实现、中文 `message` 分支或 refresh 多出口。

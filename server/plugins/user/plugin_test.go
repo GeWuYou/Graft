@@ -430,7 +430,8 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	ctx := &plugin.Context{
-		Logger: zap.NewNop(),
+		LifecycleContext: context.Background(),
+		Logger:           zap.NewNop(),
 		Config: &config.Config{Auth: config.AuthConfig{
 			AccessTokenTTL:        15 * time.Minute,
 			RefreshTokenTTL:       24 * time.Hour,
@@ -456,11 +457,15 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 		CronRegistry:       cronx.NewRegistry(),
 	}
 
-	if err := NewPlugin().Register(ctx); err != nil {
+	pluginInstance := NewPlugin()
+	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 	if err := rbac.NewPlugin().Register(ctx); err != nil {
 		t.Fatalf("register rbac plugin: %v", err)
+	}
+	if err := pluginInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot plugin: %v", err)
 	}
 
 	return ctx, engine
@@ -1251,6 +1256,9 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	if ensuredDefaultAdmin {
 		t.Fatal("expected register to stay side-effect free for default admin bootstrap")
 	}
+	if err := rbac.NewPlugin().Register(ctx); err != nil {
+		t.Fatalf("register rbac plugin: %v", err)
+	}
 
 	ctx.Stores = pluginTestStoreFactory{
 		auth:        authRepo,
@@ -1293,6 +1301,9 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
+	if err := rbac.NewPlugin().Register(ctx); err != nil {
+		t.Fatalf("register rbac plugin: %v", err)
+	}
 
 	ctx.Stores = pluginTestStoreFactory{
 		auth:        authRepo,
@@ -1312,6 +1323,24 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 	}
 	if !assignedRole {
 		t.Fatal("expected boot to assign default admin role")
+	}
+}
+
+// TestBootFailsWithoutSharedRouteAuthorizer 验证 Boot 会在共享 Authorizer 未注册时
+// fail closed，而不是继续让用户路由带着未绑定的授权器启动。
+func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
+	ctx := newDefaultAdminBootPluginContext(&pluginTestAuthRepository{})
+	pluginInstance := NewPlugin()
+	if err := pluginInstance.Register(ctx); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+
+	err := pluginInstance.Boot(ctx)
+	if err == nil {
+		t.Fatal("expected boot to fail without shared authorizer")
+	}
+	if !strings.Contains(err.Error(), "resolve route authorizer") {
+		t.Fatalf("expected route authorizer resolution failure, got %v", err)
 	}
 }
 

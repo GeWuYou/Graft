@@ -409,7 +409,19 @@
   to the new Go-governance chapter instead of duplicated rule lists.
 - Kept this slice documentation-only; no business code, schema, migration, runtime wiring, or plugin behavior changed.
 
+## 2026-05-16 authz/rbac wiring convergence
+
+- Removed the plugin-local `routeAuthorizer` logic from `server/plugins/user` and replaced it with a deferred binding
+  that is created during `Register` and bound during `Boot`.
+- Reused the shared `pluginapi.Authorizer` exposed by `server/plugins/rbac`, so the `user` plugin no longer owns a
+  second RBAC decision path while requests also avoid container `Resolve` calls on the hot path.
+- Updated user-plugin test helpers to follow the real lifecycle order `user.Register -> rbac.Register -> user.Boot`,
+  added a fail-closed regression for missing shared authorizer wiring, and revalidated the slice with
+  `go test ./plugins/user ./plugins/rbac ./internal/httpx`.
+
 ## Next Step
 
-- Take the recorded `server/.golangci.test.yml` backlog as a standalone cleanup slice and rerun `graft validate backend`
-  only after that test-lint queue is materially reduced or cleared.
+- Keep the shared `pluginapi.Authorizer` wiring frozen for future protected `server` routes, and do not reintroduce
+  plugin-local authorization copies.
+- Return the cross-boundary mainline to the parent topic plus `web` subtopic, which now own the next starter-runtime
+  cleanup and restricted-session recovery work.

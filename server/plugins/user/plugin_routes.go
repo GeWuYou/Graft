@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -93,41 +94,43 @@ type routeGuards struct {
 	userSessionRevoke      gin.HandlerFunc
 }
 
-// routeAuthorizer 在 Register 阶段显式装配到用户路由上，避免请求热路径再走 service locator。
-type routeAuthorizer struct {
-	rbac store.RBACRepository
+// deferredAuthorizer 让用户路由在 Register 阶段先完成装配，再在 Boot 阶段绑定
+// 已注册的共享 Authorizer，避免复制 RBAC 授权语义或把 Resolve 扩散到请求热路径。
+type deferredAuthorizer struct {
+	mu     sync.RWMutex
+	target pluginapi.Authorizer
 }
 
-func (a routeAuthorizer) Authorize(ctx context.Context, request pluginapi.RequestAuthContext, permission string) error {
-	if request.User == nil || request.User.ID == 0 {
-		return pluginapi.ErrUnauthenticated
-	}
-	if strings.TrimSpace(permission) == "" {
-		return nil
-	}
-	if a.rbac == nil {
-		return errors.New("rbac repository is unavailable")
-	}
-
-	permissions, err := a.rbac.ListPermissionsByUserID(ctx, request.User.ID)
-	if err != nil {
-		return err
-	}
-	for _, granted := range permissions {
-		if granted.Code == permission {
-			return nil
-		}
-	}
-
-	return pluginapi.ErrPermissionDenied
+func newDeferredAuthorizer() *deferredAuthorizer {
+	return &deferredAuthorizer{}
 }
 
-func newRouteAuthorizer(rbac store.RBACRepository) pluginapi.Authorizer {
-	if rbac == nil {
-		return nil
+func (a *deferredAuthorizer) SetTarget(target pluginapi.Authorizer) error {
+	if target == nil {
+		return errors.New("authorizer is required")
 	}
 
-	return routeAuthorizer{rbac: rbac}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.target = target
+	return nil
+}
+
+func (a *deferredAuthorizer) Authorize(
+	ctx context.Context,
+	request pluginapi.RequestAuthContext,
+	permission string,
+) error {
+	a.mu.RLock()
+	target := a.target
+	a.mu.RUnlock()
+
+	if target == nil {
+		return errors.New("authorizer is unavailable")
+	}
+
+	return target.Authorize(ctx, request, permission)
 }
 
 func newRouteGuards(localizer *i18n.Service, authSvc *authService, authorizer pluginapi.Authorizer) routeGuards {
@@ -140,6 +143,8 @@ func newRouteGuards(localizer *i18n.Service, authSvc *authService, authorizer pl
 		userSessionRevoke:      httpx.RequirePermission(localizer, authSvc, authorizer, "user.session.revoke"),
 	}
 }
+
+var _ pluginapi.Authorizer = (*deferredAuthorizer)(nil)
 
 func newRequiredPasswordChangeGuard(localizer *i18n.Service, authSvc *authService) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
