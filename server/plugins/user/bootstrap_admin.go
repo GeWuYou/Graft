@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"graft/server/internal/permission"
 	"graft/server/internal/store"
 )
@@ -46,7 +48,7 @@ func (s authService) ensureDefaultAdmin(ctx context.Context, rbac store.RBACRepo
 func (s authService) ensureAdminCredential(ctx context.Context) (store.UserCredential, error) {
 	credential, err := s.auth.GetUserCredentialByUsername(ctx, defaultAdminUsername)
 	if err == nil {
-		return credential, nil
+		return s.reconcileDefaultAdminCredential(ctx, credential)
 	}
 	if !errors.Is(err, store.ErrUserNotFound) {
 		return store.UserCredential{}, fmt.Errorf("get default admin credential: %w", err)
@@ -67,6 +69,34 @@ func (s authService) ensureAdminCredential(ctx context.Context) (store.UserCrede
 		return store.UserCredential{}, fmt.Errorf("ensure default admin credential: %w", err)
 	}
 
+	return credential, nil
+}
+
+func (s authService) reconcileDefaultAdminCredential(
+	ctx context.Context,
+	credential store.UserCredential,
+) (store.UserCredential, error) {
+	if credential.MustChangePassword || credential.PasswordHash == nil || *credential.PasswordHash == "" {
+		return credential, nil
+	}
+
+	if err := s.passwords.Compare(*credential.PasswordHash, defaultAdminPassword); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return credential, nil
+		}
+		return store.UserCredential{}, fmt.Errorf("compare default admin password hash: %w", err)
+	}
+
+	if err := s.auth.SetPasswordHash(ctx, store.SetPasswordHashInput{
+		UserID:             credential.UserID,
+		PasswordHash:       *credential.PasswordHash,
+		MustChangePassword: true,
+		ChangedAt:          credential.PasswordChangedAt,
+	}); err != nil {
+		return store.UserCredential{}, fmt.Errorf("mark default admin credential for password change: %w", err)
+	}
+
+	credential.MustChangePassword = true
 	return credential, nil
 }
 

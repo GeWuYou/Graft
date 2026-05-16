@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
@@ -89,6 +90,7 @@ func (f pluginTestStoreFactory) RBAC() store.RBACRepository {
 type pluginTestAuthRepository struct {
 	getUserCredentialByUsername func(ctx context.Context, username string) (store.UserCredential, error)
 	ensureUserCredential        func(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error)
+	setPasswordHash             func(ctx context.Context, input store.SetPasswordHashInput) error
 	mu                          sync.Mutex
 	refreshSessions             map[string]store.RefreshSession
 }
@@ -119,7 +121,11 @@ func (r *pluginTestAuthRepository) GetUserCredentialByUsername(ctx context.Conte
 	return r.getUserCredentialByUsername(ctx, username)
 }
 
-func (*pluginTestAuthRepository) SetPasswordHash(context.Context, store.SetPasswordHashInput) error {
+func (r *pluginTestAuthRepository) SetPasswordHash(ctx context.Context, input store.SetPasswordHashInput) error {
+	if r.setPasswordHash != nil {
+		return r.setPasswordHash(ctx, input)
+	}
+
 	return nil
 }
 
@@ -767,6 +773,100 @@ func assertDefaultAdminBootEffects(t *testing.T, ensuredDefaultAdmin bool, assig
 	}
 }
 
+func newExistingDefaultAdminAuthRepository(
+	t *testing.T,
+	defaultHash string,
+	passwordChangedAt time.Time,
+	ensuredDefaultAdmin *bool,
+	updatedCredential *bool,
+) *pluginTestAuthRepository {
+	t.Helper()
+
+	return &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
+			if username != defaultAdminUsername {
+				t.Fatalf("expected default admin username, got %q", username)
+			}
+
+			return store.UserCredential{
+				UserID:             9,
+				Username:           username,
+				PasswordHash:       &defaultHash,
+				MustChangePassword: false,
+				PasswordChangedAt:  &passwordChangedAt,
+			}, nil
+		},
+		ensureUserCredential: func(context.Context, store.EnsureUserCredentialInput) (store.UserCredential, error) {
+			*ensuredDefaultAdmin = true
+			return store.UserCredential{}, nil
+		},
+		setPasswordHash: func(_ context.Context, input store.SetPasswordHashInput) error {
+			*updatedCredential = true
+			if input.UserID != 9 {
+				t.Fatalf("expected default admin user id 9, got %d", input.UserID)
+			}
+			if input.PasswordHash != defaultHash {
+				t.Fatal("expected default admin bootstrap reconciliation to preserve password hash")
+			}
+			if !input.MustChangePassword {
+				t.Fatal("expected default admin bootstrap reconciliation to require password change")
+			}
+			if input.ChangedAt == nil || !input.ChangedAt.Equal(passwordChangedAt) {
+				t.Fatalf("expected password changed timestamp %v, got %#v", passwordChangedAt, input.ChangedAt)
+			}
+			return nil
+		},
+	}
+}
+
+func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) pluginTestRBACRepository {
+	t.Helper()
+
+	return pluginTestRBACRepository{
+		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
+		},
+		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
+		},
+		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
+			return nil
+		},
+		assignRoleToUser: func(_ context.Context, input store.AssignRoleToUserInput) error {
+			*assignedRole = true
+			if input.UserID != 9 {
+				t.Fatalf("expected default admin user id 9, got %d", input.UserID)
+			}
+			return nil
+		},
+	}
+}
+
+func newDefaultAdminBootPluginContext(authRepo store.AuthRepository) *plugin.Context {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+
+	return &plugin.Context{
+		LifecycleContext: context.Background(),
+		Logger:           zap.NewNop(),
+		Config: &config.Config{Auth: config.AuthConfig{
+			AccessTokenTTL:        15 * time.Minute,
+			RefreshTokenTTL:       24 * time.Hour,
+			SigningKey:            "test-signing-key",
+			RefreshCookieName:     "graft_refresh_token",
+			RefreshCookieSameSite: "lax",
+			RefreshCookiePath:     "/",
+		}},
+		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Router:             engine.Group("/api"),
+		Services:           container.New(),
+		Stores:             pluginTestStoreFactory{auth: authRepo, users: pluginTestUserRepository{}, permissions: map[uint64][]store.Permission{}},
+		MenuRegistry:       menu.NewRegistry(),
+		PermissionRegistry: permission.NewRegistry(),
+		CronRegistry:       cronx.NewRegistry(),
+	}
+}
+
 func assertBootstrapPayload(t *testing.T, payload bootstrapResponse) {
 	t.Helper()
 
@@ -1155,6 +1255,56 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	}
 
 	assertDefaultAdminBootEffects(t, ensuredDefaultAdmin, assignedRole)
+}
+
+// TestBootMarksExistingDefaultAdminForPasswordChange 验证升级后仍使用初始化密码的默认管理员
+// 会在 Boot 阶段被精确标记为强制改密，而不覆盖已存储的密码散列或最近改密时间。
+func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
+	defaultHashBytes, err := bcrypt.GenerateFromPassword([]byte(defaultAdminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("generate default admin password hash: %v", err)
+	}
+	defaultHash := string(defaultHashBytes)
+	passwordChangedAt := time.Date(2026, 5, 16, 9, 0, 0, 0, time.UTC)
+
+	var ensuredDefaultAdmin bool
+	var updatedCredential bool
+	authRepo := newExistingDefaultAdminAuthRepository(
+		t,
+		defaultHash,
+		passwordChangedAt,
+		&ensuredDefaultAdmin,
+		&updatedCredential,
+	)
+
+	var assignedRole bool
+	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
+
+	ctx := newDefaultAdminBootPluginContext(authRepo)
+	pluginInstance := NewPlugin()
+	if err := pluginInstance.Register(ctx); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+
+	ctx.Stores = pluginTestStoreFactory{
+		auth:        authRepo,
+		rbac:        rbacRepo,
+		users:       pluginTestUserRepository{},
+		permissions: map[uint64][]store.Permission{},
+	}
+	if err := pluginInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot plugin: %v", err)
+	}
+
+	if ensuredDefaultAdmin {
+		t.Fatal("expected existing default admin bootstrap not to recreate the credential")
+	}
+	if !updatedCredential {
+		t.Fatal("expected boot to mark existing default admin for password change")
+	}
+	if !assignedRole {
+		t.Fatal("expected boot to assign default admin role")
+	}
 }
 
 // TestUserListRouteReturnsStableItems 验证用户列表路由会返回真实后端最小列表
