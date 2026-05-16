@@ -1,13 +1,6 @@
 #!/usr/bin/env sh
 set -eu
 
-repo_root="$(git rev-parse --show-toplevel)"
-scanner="$repo_root/scripts/magic_value/check_magic_values.py"
-
-if [ ! -f "$scanner" ]; then
-  echo "contract governance: skip pre-push check (missing $scanner)"
-  exit 0
-fi
-
-cd "$repo_root"
-python3 "$scanner" --mode changed
+# Local contract governance changed-scan runs at pre-commit.
+# Remote blocking remains owned by CI.
+exit 0

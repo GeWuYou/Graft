@@ -6,9 +6,9 @@ hooks and CI to detect high-risk magic values and contract drift candidates.
 ## Entrypoint
 
 ```bash
-python3 scripts/magic_value/check_magic_values.py --mode changed
-python3 scripts/magic_value/check_magic_values.py --mode ci
-python3 scripts/magic_value/check_magic_values.py --mode report
+scripts/run_python.sh scripts/magic_value/check_magic_values.py --mode changed
+scripts/run_python.sh scripts/magic_value/check_magic_values.py --mode ci
+scripts/run_python.sh scripts/magic_value/check_magic_values.py --mode report
 ```
 
 ## Modes
@@ -16,7 +16,8 @@ python3 scripts/magic_value/check_magic_values.py --mode report
 - `changed`
   - scans staged files when available, otherwise scans files changed against
     `HEAD`
-  - intended for `pre-commit` and `pre-push`
+  - intended for `pre-commit`; CI remains the authoritative remote blocking
+    entrypoint
 - `ci`
   - scans repository-tracked files, applies baseline / allowlist, and fails on
     blocking findings
@@ -70,3 +71,12 @@ The scanner intentionally focuses on contract-sensitive surfaces first:
 - message keys
 
 Generated artifacts, third-party code, and build output are skipped by default.
+
+## Local Hook Usage
+
+- `.husky/pre-commit`
+  - runs `lint-staged` first, then executes the `changed` scan through
+    `scripts/run_python.sh`
+- `.husky/pre-push`
+  - does not rerun the local changed-file scan; push-time blocking is owned by
+    CI

@@ -3,6 +3,7 @@ set -eu
 
 repo_root="$(git rev-parse --show-toplevel)"
 scanner="$repo_root/scripts/magic_value/check_magic_values.py"
+python_runner="$repo_root/scripts/run_python.sh"
 
 cd "$repo_root/web"
 ./node_modules/.bin/lint-staged
@@ -12,5 +13,10 @@ if [ ! -f "$scanner" ]; then
   exit 0
 fi
 
+if [ ! -f "$python_runner" ]; then
+  echo "contract governance: missing python runner $python_runner" >&2
+  exit 1
+fi
+
 cd "$repo_root"
-python3 "$scanner" --mode changed
+"$python_runner" "$scanner" --mode changed

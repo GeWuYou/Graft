@@ -172,3 +172,4 @@ bun run check
 * 开发中间态可以执行更小的直接命令，但 README、skill 和 CI 只能复用这条入口或其显式执行切片，不应再定义第二套
   完成态规则。
 * CI 在 Linux runner 上复用同一入口时，只是执行环境不同；这不改变 WSL 本地必须使用 host Windows Bun 的规则。
+* 本地 contract governance changed-scan 默认在 `pre-commit` 阶段阻断；`pre-push` 不再重复执行该扫描，推送后的正式阻断由 CI 承担。
