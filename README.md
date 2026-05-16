@@ -17,12 +17,12 @@ Graft 是一个基于 Go 和 Vue 3 的组合式后台平台，目标是通过插
 * [前端架构设计](ai-plan/design/前端架构设计.md)
 * [MVP 实施计划](ai-plan/roadmap/MVP实施计划.md)
 * [AI 任务追踪与恢复设计](ai-plan/design/AI任务追踪与恢复设计.md)
-* [AI Plan 启动索引](ai-plan/public/README.md)
+* [AI Plan 恢复索引](ai-plan/public/README.md)
 * [AI 环境清单说明](.ai/environment/README.md)
 
 ## 当前状态
 
-项目目前仍处于架构与实施设计阶段。开始编码前，先以 `ai-plan/design/` 与 `ai-plan/roadmap/` 下文档固化边界与约束；复杂长期任务再以 `ai-plan/public/` 下主题跟踪和轨迹文件作为恢复入口。
+项目目前仍处于架构与实施设计阶段。开始编码前，先以 `ai-plan/design/` 与 `ai-plan/roadmap/` 下文档固化边界与约束；复杂长期任务的恢复入口位于 `ai-plan/public/` 下主题跟踪和轨迹文件。
 
 仓库同时维护 `.ai/environment/` 作为环境真值入口：
 
@@ -85,9 +85,32 @@ go run ./cmd/graft serve
 
 * 根命令 `graft` 只显示帮助，不会启动服务。
 * `graft dev` 与 `graft migrate up` 都依赖本机已安装 `atlas` CLI。
+* 当你新增、重命名或调整 `server/internal/ent/migrate/migrations/` 下的 migration 文件后，必须先在 `server` 目录执行 `atlas migrate hash --dir file://internal/ent/migrate/migrations`，否则 `graft dev` / `graft migrate up` 会因为 `atlas.sum` 校验不匹配而失败。
 * `graft serve` 启动前会连接 PostgreSQL 和 Redis；若地址不可达，启动会直接失败。
 * 若本地库结构已经同步，也可以只运行 `graft serve`；否则请先执行迁移。
 * 在 GoLand 或其他 IDE 中，推荐统一使用 working directory=`server`、程序入口 `./cmd/graft`、程序参数 `dev`。
+
+## 后端验证 `server`
+
+后端完成态统一通过一个 Go CLI 入口执行：
+
+```bash
+cd server
+go run ./cmd/graft validate backend
+```
+
+仓库固定使用 `golangci-lint v2.12.2` 作为后端统一 lint 运行器，并要求 agent、本地开发与 CI 复用同一入口，
+而不是各自维护第二套参数。
+
+后端完成态质量链顺序固定为：
+
+1. `golangci-lint run`
+2. `go test` 最小直接覆盖范围
+3. `go build ./cmd/graft`
+4. 需要启动链路时再补 `graft validate smoke`
+
+直接受影响的 lint issue 默认是阻断项；如果当前切片确实无法立即清理，只能在 active tracking 文档中按
+来源、影响、保留原因和下一步清理动作登记受控例外。
 
 ## 本地启动 `web`
 

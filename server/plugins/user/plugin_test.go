@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
@@ -60,6 +61,7 @@ func decodeSuccessData[T any](t *testing.T, recorder *httptest.ResponseRecorder)
 type pluginTestStoreFactory struct {
 	audit       store.AuditRepository
 	auth        store.AuthRepository
+	rbac        store.RBACRepository
 	users       store.UserRepository
 	permissions map[uint64][]store.Permission
 }
@@ -77,12 +79,18 @@ func (f pluginTestStoreFactory) Users() store.UserRepository {
 }
 
 func (f pluginTestStoreFactory) RBAC() store.RBACRepository {
+	if f.rbac != nil {
+		return f.rbac
+	}
+
 	return pluginTestRBACRepository{permissions: f.permissions}
 }
 
 // pluginTestAuthRepository 以内存状态模拟认证仓储的最小行为。
 type pluginTestAuthRepository struct {
 	getUserCredentialByUsername func(ctx context.Context, username string) (store.UserCredential, error)
+	ensureUserCredential        func(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error)
+	setPasswordHash             func(ctx context.Context, input store.SetPasswordHashInput) error
 	mu                          sync.Mutex
 	refreshSessions             map[string]store.RefreshSession
 }
@@ -113,8 +121,51 @@ func (r *pluginTestAuthRepository) GetUserCredentialByUsername(ctx context.Conte
 	return r.getUserCredentialByUsername(ctx, username)
 }
 
-func (*pluginTestAuthRepository) SetPasswordHash(context.Context, store.SetPasswordHashInput) error {
+func (r *pluginTestAuthRepository) SetPasswordHash(ctx context.Context, input store.SetPasswordHashInput) error {
+	if r.setPasswordHash != nil {
+		return r.setPasswordHash(ctx, input)
+	}
+
 	return nil
+}
+
+func (r *pluginTestAuthRepository) ChangePasswordAndRevokeOtherRefreshSessions(
+	_ context.Context,
+	input store.ChangePasswordAndRevokeOtherRefreshSessionsInput,
+) error {
+	if input.UserID == 0 {
+		return store.ErrUserNotFound
+	}
+
+	return r.RevokeOtherRefreshSessionsByUserID(context.Background(), store.RevokeOtherRefreshSessionsInput{
+		UserID:         input.UserID,
+		CurrentTokenID: input.CurrentTokenID,
+		RevokedAt:      input.ChangedAt,
+	})
+}
+
+func (r *pluginTestAuthRepository) EnsureUserCredential(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
+	if r.ensureUserCredential != nil {
+		return r.ensureUserCredential(ctx, input)
+	}
+
+	if r.getUserCredentialByUsername != nil {
+		credential, err := r.getUserCredentialByUsername(ctx, input.Username)
+		if err == nil {
+			return credential, nil
+		}
+		if !errors.Is(err, store.ErrUserNotFound) {
+			return store.UserCredential{}, err
+		}
+	}
+
+	hash := input.PasswordHash
+	return store.UserCredential{
+		UserID:             1,
+		Username:           input.Username,
+		PasswordHash:       &hash,
+		MustChangePassword: input.MustChangePassword,
+	}, nil
 }
 
 func (r *pluginTestAuthRepository) CreateRefreshSession(_ context.Context, input store.CreateRefreshSessionInput) (store.RefreshSession, error) {
@@ -169,6 +220,23 @@ func (r *pluginTestAuthRepository) RevokeRefreshSessionsByUserID(_ context.Conte
 
 	for tokenID, session := range r.refreshSessions {
 		if session.UserID != input.UserID || session.RevokedAt != nil {
+			continue
+		}
+
+		session.RevokedAt = &input.RevokedAt
+		session.UpdatedAt = input.RevokedAt
+		r.refreshSessions[tokenID] = session
+	}
+
+	return nil
+}
+
+func (r *pluginTestAuthRepository) RevokeOtherRefreshSessionsByUserID(_ context.Context, input store.RevokeOtherRefreshSessionsInput) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for tokenID, session := range r.refreshSessions {
+		if session.UserID != input.UserID || session.RevokedAt != nil || tokenID == input.CurrentTokenID {
 			continue
 		}
 
@@ -277,16 +345,51 @@ func (r pluginTestUserRepository) List(ctx context.Context) ([]store.User, error
 	return r.list(ctx)
 }
 
-// pluginTestRBACRepository 为插件路由测试模拟最小权限读取结果。
 type pluginTestRBACRepository struct {
-	permissions map[uint64][]store.Permission
+	permissions             map[uint64][]store.Permission
+	ensureRole              func(ctx context.Context, input store.EnsureRoleInput) (store.Role, error)
+	ensurePermission        func(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error)
+	assignPermissionsToRole func(ctx context.Context, input store.AssignPermissionsToRoleInput) error
+	assignRoleToUser        func(ctx context.Context, input store.AssignRoleToUserInput) error
 }
 
-func (r pluginTestRBACRepository) ListRolesByUserID(ctx context.Context, userID uint64) ([]store.Role, error) {
+func (r pluginTestRBACRepository) EnsureRole(ctx context.Context, input store.EnsureRoleInput) (store.Role, error) {
+	if r.ensureRole != nil {
+		return r.ensureRole(ctx, input)
+	}
+
+	return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
+}
+
+func (r pluginTestRBACRepository) EnsurePermission(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+	if r.ensurePermission != nil {
+		return r.ensurePermission(ctx, input)
+	}
+
+	return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
+}
+
+func (r pluginTestRBACRepository) AssignPermissionsToRole(ctx context.Context, input store.AssignPermissionsToRoleInput) error {
+	if r.assignPermissionsToRole != nil {
+		return r.assignPermissionsToRole(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) AssignRoleToUser(ctx context.Context, input store.AssignRoleToUserInput) error {
+	if r.assignRoleToUser != nil {
+		return r.assignRoleToUser(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, _ uint64) ([]store.Role, error) {
 	return nil, nil
 }
 
-func (r pluginTestRBACRepository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]store.Permission, error) {
+func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, userID uint64) ([]store.Permission, error) {
 	if r.permissions == nil {
 		return []store.Permission{}, nil
 	}
@@ -302,6 +405,26 @@ func newPluginTestContext(t *testing.T, userRepo store.UserRepository, authRepo 
 
 func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository, permissions map[uint64][]store.Permission) (*plugin.Context, *gin.Engine) {
 	t.Helper()
+
+	if authRepo == nil {
+		authRepo = &pluginTestAuthRepository{}
+	}
+	if repo, ok := authRepo.(*pluginTestAuthRepository); ok && repo.getUserCredentialByUsername == nil {
+		repo.getUserCredentialByUsername = func(_ context.Context, username string) (store.UserCredential, error) {
+			userID := uint64(7)
+			switch username {
+			case "admin", "graft":
+				userID = 9
+			case "bob":
+				userID = 8
+			}
+			return store.UserCredential{
+				UserID:             userID,
+				Username:           username,
+				MustChangePassword: false,
+			}, nil
+		}
+	}
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
@@ -396,31 +519,520 @@ func seedRefreshSession(t *testing.T, authRepo store.AuthRepository, userID uint
 	return tokenID
 }
 
-// TestRegisterPublishesContracts 验证用户插件注册时会暴露权限、菜单与稳定
-// 的跨插件用户服务。
-func TestRegisterPublishesContracts(t *testing.T) {
-	ctx, _ := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(context.Context, uint64) (store.User, error) {
-			return store.User{
-				ID:        7,
-				Username:  "alice",
-				Display:   "Alice",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+func testUser(id uint64, username string, display string) store.User {
+	now := time.Now()
+	return store.User{
+		ID:        id,
+		Username:  username,
+		Display:   display,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+}
+
+func fixedUserRepository(users ...store.User) pluginTestUserRepository {
+	byID := make(map[uint64]store.User, len(users))
+	for _, user := range users {
+		byID[user.ID] = user
+	}
+
+	return pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			user, ok := byID[id]
+			if !ok {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return user, nil
+		},
+	}
+}
+
+func newSessionAdminEngine(t *testing.T, authRepo *pluginTestAuthRepository, users ...store.User) *gin.Engine {
+	t.Helper()
+
+	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(users...), authRepo, map[uint64][]store.Permission{
+		9: {{Code: "user.session.read"}, {Code: "user.session.revoke"}},
+	})
+
+	return engine
+}
+
+func newCredentialRepository(username string, userID uint64, passwordHash string) *pluginTestAuthRepository {
+	return &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
+			if candidate != username {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+			return store.UserCredential{
+				UserID:       userID,
+				Username:     username,
+				PasswordHash: &passwordHash,
 			}, nil
 		},
-	}, nil)
+	}
+}
 
-	if items := ctx.PermissionRegistry.Items(); len(items) != 3 {
+func assertStatus(t *testing.T, recorder *httptest.ResponseRecorder, want int) {
+	t.Helper()
+
+	if recorder.Code != want {
+		t.Fatalf("expected status %d, got %d", want, recorder.Code)
+	}
+}
+
+func decodeErrorResponse(t *testing.T, recorder *httptest.ResponseRecorder) httpx.ErrorResponse {
+	t.Helper()
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	return payload
+}
+
+func assertErrorPayload(t *testing.T, payload httpx.ErrorResponse, messageKey string, code string, locale string) {
+	t.Helper()
+
+	if payload.MessageKey != messageKey || payload.Code != code || payload.Locale != locale {
+		t.Fatalf("expected error payload key=%s code=%s locale=%s, got %#v", messageKey, code, locale, payload)
+	}
+}
+
+func assertErrorFieldDetail(t *testing.T, payload httpx.ErrorResponse, field string) {
+	t.Helper()
+
+	if payload.Details["field"] != field {
+		t.Fatalf("expected field detail %s, got %#v", field, payload)
+	}
+}
+
+func assertSessionRevoked(t *testing.T, authRepo store.AuthRepository, tokenID string) {
+	t.Helper()
+
+	session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
+	if err != nil {
+		t.Fatalf("load revoked session %q: %v", tokenID, err)
+	}
+	if session.RevokedAt == nil {
+		t.Fatalf("expected session %q to be revoked, got %#v", tokenID, session)
+	}
+}
+
+func assertSessionActive(t *testing.T, authRepo store.AuthRepository, tokenID string) {
+	t.Helper()
+
+	session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
+	if err != nil {
+		t.Fatalf("load active session %q: %v", tokenID, err)
+	}
+	if session.RevokedAt != nil {
+		t.Fatalf("expected session %q to remain active, got %#v", tokenID, session)
+	}
+}
+
+func assertClearedCookie(t *testing.T, cookies []*http.Cookie, expectedName string) {
+	t.Helper()
+
+	if len(cookies) == 0 {
+		t.Fatal("expected cleared refresh cookie")
+	}
+	if cookies[0].Name != expectedName || cookies[0].Value != "" || cookies[0].MaxAge >= 0 {
+		t.Fatalf("expected cleared refresh cookie, got %#v", cookies[0])
+	}
+}
+
+func loginUser(t *testing.T, engine *gin.Engine, username string, password string, locale string) (loginResponse, []*http.Cookie) {
+	t.Helper()
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(fmt.Sprintf(`{"username":"%s","password":"%s"}`, username, password)))
+	request.Header.Set("Content-Type", "application/json")
+	if locale != "" {
+		request.Header.Set(i18n.LocaleHeader, locale)
+	}
+	engine.ServeHTTP(recorder, request)
+	assertStatus(t, recorder, http.StatusOK)
+
+	return decodeSuccessData[loginResponse](t, recorder), recorder.Result().Cookies()
+}
+
+func parseRefreshCookieClaims(t *testing.T, cookie *http.Cookie) *refreshTokenSubject {
+	t.Helper()
+
+	manager, err := newRefreshTokenManager(config.AuthConfig{
+		RefreshTokenTTL: 24 * time.Hour,
+		SigningKey:      "test-signing-key",
+	})
+	if err != nil {
+		t.Fatalf("new refresh token manager: %v", err)
+	}
+
+	claims, err := manager.Parse(cookie.Value)
+	if err != nil {
+		t.Fatalf("parse refresh cookie token: %v", err)
+	}
+
+	return claims
+}
+
+func assertSessionSummary(t *testing.T, item sessionSummary, sessionID string, current bool) {
+	t.Helper()
+
+	if item.SessionID != sessionID || item.Current != current {
+		t.Fatalf("expected session %s current=%v, got %#v", sessionID, current, item)
+	}
+}
+
+func assertSessionsAbsent(t *testing.T, payload []sessionSummary, sessionIDs ...string) {
+	t.Helper()
+
+	for _, item := range payload {
+		for _, sessionID := range sessionIDs {
+			if item.SessionID == sessionID {
+				t.Fatalf("expected filtered sessions to be absent, got %#v", payload)
+			}
+		}
+	}
+}
+
+func firstCookie(t *testing.T, cookies []*http.Cookie) *http.Cookie {
+	t.Helper()
+
+	if len(cookies) == 0 {
+		t.Fatal("expected refresh cookie to be present")
+	}
+
+	return cookies[0]
+}
+
+func assertRefreshCookieWritten(t *testing.T, cookie *http.Cookie, expectedName string) {
+	t.Helper()
+
+	if cookie.Name != expectedName || cookie.Value == "" {
+		t.Fatalf("expected refresh cookie %q, got %#v", expectedName, cookie)
+	}
+}
+
+func assertAccessClaims(t *testing.T, claims *pluginapi.AccessTokenClaims, userID uint64) {
+	t.Helper()
+
+	if claims.UserID != userID || claims.SessionID == "" {
+		t.Fatalf("expected stable token claims, got %#v", claims)
+	}
+}
+
+func assertUserSummary(t *testing.T, summary pluginapi.UserSummary, id uint64, username string, display string) {
+	t.Helper()
+
+	if summary.ID != id || summary.Username != username || summary.Display != display {
+		t.Fatalf("expected stable user summary, got %#v", summary)
+	}
+}
+
+func assertLoginPayload(t *testing.T, payload loginResponse, userID uint64, username string, displayName string) {
+	t.Helper()
+
+	if payload.AccessToken == "" {
+		t.Fatal("expected access token in login response")
+	}
+	if payload.User.ID != userID || payload.User.Username != username || payload.User.DisplayName != displayName {
+		t.Fatalf("expected current user summary, got %#v", payload.User)
+	}
+	if payload.ExpiresAt.IsZero() || payload.ExpiresAt.Before(time.Now().UTC()) {
+		t.Fatalf("expected future access token expiry, got %#v", payload)
+	}
+}
+
+func assertUserPluginRegistry(t *testing.T, ctx *plugin.Context) {
+	t.Helper()
+
+	items := ctx.PermissionRegistry.Items()
+	if len(items) != 3 {
 		t.Fatalf("expected three user permissions, got %#v", items)
 	}
 	// 权限断言依赖 Registry.Items() 保持注册顺序，避免插件对外声明面静默漂移。
-	if items := ctx.PermissionRegistry.Items(); items[0].Code != "user.read" || items[1].Code != "user.session.revoke" || items[2].Code != "user.session.read" {
+	if items[0].Code != "user.read" || items[1].Code != "user.session.revoke" || items[2].Code != "user.session.read" {
 		t.Fatalf("expected user.read, user.session.revoke and user.session.read permissions, got %#v", items)
 	}
-	if items := ctx.MenuRegistry.Items(); len(items) != 1 || items[0].Path != "/users" {
-		t.Fatalf("expected one /users menu item, got %#v", items)
+
+	menuItems := ctx.MenuRegistry.Items()
+	if len(menuItems) != 1 || menuItems[0].Path != "/users" {
+		t.Fatalf("expected one /users menu item, got %#v", menuItems)
 	}
+}
+
+func assertDefaultAdminBootEffects(t *testing.T, ensuredDefaultAdmin bool, assignedRole bool) {
+	t.Helper()
+
+	if !ensuredDefaultAdmin {
+		t.Fatal("expected boot to ensure default admin")
+	}
+	if !assignedRole {
+		t.Fatal("expected boot to assign default admin role")
+	}
+}
+
+func newExistingDefaultAdminAuthRepository(
+	t *testing.T,
+	defaultHash string,
+	passwordChangedAt time.Time,
+	ensuredDefaultAdmin *bool,
+	updatedCredential *bool,
+) *pluginTestAuthRepository {
+	t.Helper()
+
+	return &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
+			if username != defaultAdminUsername {
+				t.Fatalf("expected default admin username, got %q", username)
+			}
+
+			return store.UserCredential{
+				UserID:             9,
+				Username:           username,
+				PasswordHash:       &defaultHash,
+				MustChangePassword: false,
+				PasswordChangedAt:  &passwordChangedAt,
+			}, nil
+		},
+		ensureUserCredential: func(context.Context, store.EnsureUserCredentialInput) (store.UserCredential, error) {
+			*ensuredDefaultAdmin = true
+			return store.UserCredential{}, nil
+		},
+		setPasswordHash: func(_ context.Context, input store.SetPasswordHashInput) error {
+			*updatedCredential = true
+			if input.UserID != 9 {
+				t.Fatalf("expected default admin user id 9, got %d", input.UserID)
+			}
+			if input.PasswordHash != defaultHash {
+				t.Fatal("expected default admin bootstrap reconciliation to preserve password hash")
+			}
+			if !input.MustChangePassword {
+				t.Fatal("expected default admin bootstrap reconciliation to require password change")
+			}
+			if input.ChangedAt == nil || !input.ChangedAt.Equal(passwordChangedAt) {
+				t.Fatalf("expected password changed timestamp %v, got %#v", passwordChangedAt, input.ChangedAt)
+			}
+			return nil
+		},
+	}
+}
+
+func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) pluginTestRBACRepository {
+	t.Helper()
+
+	return pluginTestRBACRepository{
+		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
+		},
+		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
+		},
+		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
+			return nil
+		},
+		assignRoleToUser: func(_ context.Context, input store.AssignRoleToUserInput) error {
+			*assignedRole = true
+			if input.UserID != 9 {
+				t.Fatalf("expected default admin user id 9, got %d", input.UserID)
+			}
+			return nil
+		},
+	}
+}
+
+func newDefaultAdminBootPluginContext(authRepo store.AuthRepository) *plugin.Context {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+
+	return &plugin.Context{
+		LifecycleContext: context.Background(),
+		Logger:           zap.NewNop(),
+		Config: &config.Config{Auth: config.AuthConfig{
+			AccessTokenTTL:        15 * time.Minute,
+			RefreshTokenTTL:       24 * time.Hour,
+			SigningKey:            "test-signing-key",
+			RefreshCookieName:     "graft_refresh_token",
+			RefreshCookieSameSite: "lax",
+			RefreshCookiePath:     "/",
+		}},
+		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Router:             engine.Group("/api"),
+		Services:           container.New(),
+		Stores:             pluginTestStoreFactory{auth: authRepo, users: pluginTestUserRepository{}, permissions: map[uint64][]store.Permission{}},
+		MenuRegistry:       menu.NewRegistry(),
+		PermissionRegistry: permission.NewRegistry(),
+		CronRegistry:       cronx.NewRegistry(),
+	}
+}
+
+func assertBootstrapPayload(t *testing.T, payload bootstrapResponse) {
+	t.Helper()
+
+	assertBootstrapIdentityAndPermissions(t, payload)
+	assertBootstrapMenus(t, payload.Menus)
+	assertBootstrapLocaleSnapshot(t, payload.Locale)
+}
+
+func assertBootstrapIdentityAndPermissions(t *testing.T, payload bootstrapResponse) {
+	t.Helper()
+
+	if payload.User.ID != 7 || payload.User.Username != "alice" || payload.User.DisplayName != "Alice" {
+		t.Fatalf("expected current user summary, got %#v", payload.User)
+	}
+	if !slices.Equal(payload.Permissions, []string{"user.read"}) {
+		t.Fatalf("expected sorted unique permissions, got %#v", payload.Permissions)
+	}
+}
+
+func assertBootstrapMenus(t *testing.T, menus []bootstrapMenuResponse) {
+	t.Helper()
+
+	if len(menus) != 2 {
+		t.Fatalf("expected filtered menus to keep user and public entries, got %#v", menus)
+	}
+	if menus[0].Code != "user.list" || menus[0].Path != "/users" || menus[0].Permission != "user.read" {
+		t.Fatalf("expected first menu to be users entry, got %#v", menus[0])
+	}
+	if menus[1].Code != "profile.self" || menus[1].Path != "/profile" || menus[1].Permission != "" {
+		t.Fatalf("expected public profile menu, got %#v", menus[1])
+	}
+}
+
+func assertBootstrapLocaleSnapshot(t *testing.T, locale bootstrapLocaleSnapshot) {
+	t.Helper()
+
+	if locale.CurrentLocale != "en-US" || locale.DefaultLocale != "zh-CN" || locale.FallbackLocale != "zh-CN" {
+		t.Fatalf("expected locale snapshot en-US/zh-CN/zh-CN, got %#v", locale)
+	}
+	if !slices.Equal(locale.SupportedLocales, []string{"zh-CN", "en-US"}) {
+		t.Fatalf("expected supported locales snapshot, got %#v", locale)
+	}
+}
+
+func assertNilSuccessPayload(t *testing.T, recorder *httptest.ResponseRecorder) {
+	t.Helper()
+
+	if payload := decodeSuccessData[any](t, recorder); payload != nil {
+		t.Fatalf("expected success payload to be nil, got %#v", payload)
+	}
+}
+
+func assertRefreshRotationPayload(t *testing.T, payload loginResponse) {
+	t.Helper()
+
+	if payload.AccessToken == "" || payload.ExpiresAt.IsZero() {
+		t.Fatalf("expected rotated access token payload, got %#v", payload)
+	}
+}
+
+func assertRotatedCookie(t *testing.T, oldCookie *http.Cookie, newCookies []*http.Cookie) {
+	t.Helper()
+
+	newCookie := firstCookie(t, newCookies)
+	if newCookie.Value == oldCookie.Value {
+		t.Fatalf("expected rotated refresh cookie, got old=%#v new=%#v", oldCookie, newCookie)
+	}
+}
+
+func assertInvalidTokenResponse(t *testing.T, recorder *httptest.ResponseRecorder, locale string) {
+	t.Helper()
+
+	assertStatus(t, recorder, http.StatusUnauthorized)
+	assertErrorPayload(t, decodeErrorResponse(t, recorder), "auth.token_invalid", "AUTH_TOKEN_INVALID", locale)
+}
+
+func assertMissingTokenResponse(t *testing.T, recorder *httptest.ResponseRecorder, locale string) {
+	t.Helper()
+
+	assertStatus(t, recorder, http.StatusUnauthorized)
+	assertErrorPayload(t, decodeErrorResponse(t, recorder), "auth.token_missing", "AUTH_TOKEN_MISSING", locale)
+}
+
+func assertSessionNotFoundResponse(t *testing.T, recorder *httptest.ResponseRecorder, locale string) {
+	t.Helper()
+
+	assertStatus(t, recorder, http.StatusNotFound)
+	payload := decodeErrorResponse(t, recorder)
+	if payload.MessageKey != "auth.session_not_found" || payload.Locale != locale {
+		t.Fatalf("expected session not found payload, got %#v", payload)
+	}
+}
+
+func assertInvalidArgumentFieldResponse(t *testing.T, recorder *httptest.ResponseRecorder, locale string, field string) {
+	t.Helper()
+
+	assertStatus(t, recorder, http.StatusBadRequest)
+	payload := decodeErrorResponse(t, recorder)
+	if payload.MessageKey != "common.invalid_argument" || payload.Locale != locale {
+		t.Fatalf("expected invalid argument payload, got %#v", payload)
+	}
+	assertErrorFieldDetail(t, payload, field)
+}
+
+func assertNoCookieMutation(t *testing.T, cookies []*http.Cookie) {
+	t.Helper()
+
+	if len(cookies) != 0 {
+		t.Fatalf("expected no cookie mutation, got %#v", cookies)
+	}
+}
+
+func assertActiveSessions(t *testing.T, payload []sessionSummary, expected ...sessionSummary) {
+	t.Helper()
+
+	if len(payload) != len(expected) {
+		t.Fatalf("expected %d active sessions, got %#v", len(expected), payload)
+	}
+
+	for i, item := range expected {
+		assertSessionSummary(t, payload[i], item.SessionID, item.Current)
+	}
+}
+
+func assertSessionsFiltered(t *testing.T, payload []sessionSummary, sessionIDs ...string) {
+	t.Helper()
+	assertSessionsAbsent(t, payload, sessionIDs...)
+}
+
+func loginAliceEngine(t *testing.T, passwordHash string) (*pluginTestAuthRepository, *gin.Engine) {
+	t.Helper()
+
+	authRepo := newCredentialRepository("alice", 7, passwordHash)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
+	return authRepo, engine
+}
+
+func loginAdminEngine(t *testing.T, passwordHash string) (*pluginTestAuthRepository, *gin.Engine) {
+	t.Helper()
+
+	authRepo := newCredentialRepository("admin", 9, passwordHash)
+	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(
+		testUser(7, "alice", "Alice"),
+		testUser(8, "bob", "Bob"),
+		testUser(9, "admin", "Admin"),
+	), authRepo, map[uint64][]store.Permission{
+		9: {{Code: "user.session.revoke"}},
+	})
+	return authRepo, engine
+}
+
+func loginAliceAndParseSession(t *testing.T, engine *gin.Engine) (loginResponse, *http.Cookie, *refreshTokenSubject) {
+	t.Helper()
+
+	loginPayload, loginCookies := loginUser(t, engine, "alice", "secret", "")
+	refreshCookie := firstCookie(t, loginCookies)
+
+	return loginPayload, refreshCookie, parseRefreshCookieClaims(t, refreshCookie)
+}
+
+// TestRegisterPublishesContracts 验证用户插件注册时会暴露权限、菜单与稳定
+// 的跨插件用户服务。
+func TestRegisterPublishesContracts(t *testing.T) {
+	ctx, _ := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), nil)
+
+	assertUserPluginRegistry(t, ctx)
 
 	svcAny, err := ctx.Services.Resolve((*pluginapi.UserService)(nil))
 	if err != nil {
@@ -431,9 +1043,7 @@ func TestRegisterPublishesContracts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get user by id: %v", err)
 	}
-	if summary.ID != 7 || summary.Username != "alice" || summary.Display != "Alice" {
-		t.Fatalf("expected stable user summary, got %#v", summary)
-	}
+	assertUserSummary(t, summary, 7, "alice", "Alice")
 }
 
 // TestUserRouteRejectsInvalidID 验证用户查询路由会把非法 ID 收敛为 400
@@ -544,6 +1154,156 @@ func TestUserRouteReturnsSummary(t *testing.T) {
 	payload := decodeSuccessData[pluginapi.UserSummary](t, recorder)
 	if payload.ID != 7 || payload.Username != "alice" || payload.Display != "Alice" {
 		t.Fatalf("expected stable user summary payload, got %#v", payload)
+	}
+}
+
+// TestBootEnsuresDefaultAdmin 验证默认管理员初始化只在 Boot 阶段执行，
+// 避免 Register 阶段引入持久化副作用。
+func TestBootEnsuresDefaultAdmin(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
+			if username == defaultAdminUsername {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+
+			return store.UserCredential{
+				UserID:             7,
+				Username:           username,
+				MustChangePassword: false,
+			}, nil
+		},
+	}
+
+	var ensuredDefaultAdmin bool
+	authRepo.ensureUserCredential = func(_ context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
+		ensuredDefaultAdmin = true
+		if input.Username != defaultAdminUsername {
+			t.Fatalf("expected default admin username, got %q", input.Username)
+		}
+		if !input.MustChangePassword {
+			t.Fatal("expected default admin bootstrap to require password change")
+		}
+		if input.PasswordHash == "" {
+			t.Fatal("expected default admin bootstrap password hash to be populated")
+		}
+
+		return store.UserCredential{
+			UserID:             9,
+			Username:           input.Username,
+			MustChangePassword: input.MustChangePassword,
+		}, nil
+	}
+
+	var assignedRole bool
+	rbacRepo := pluginTestRBACRepository{
+		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
+		},
+		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
+		},
+		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
+			return nil
+		},
+		assignRoleToUser: func(_ context.Context, input store.AssignRoleToUserInput) error {
+			assignedRole = true
+			if input.UserID != 9 {
+				t.Fatalf("expected default admin user id 9, got %d", input.UserID)
+			}
+			return nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	ctx := &plugin.Context{
+		LifecycleContext: context.Background(),
+		Logger:           zap.NewNop(),
+		Config: &config.Config{Auth: config.AuthConfig{
+			AccessTokenTTL:        15 * time.Minute,
+			RefreshTokenTTL:       24 * time.Hour,
+			SigningKey:            "test-signing-key",
+			RefreshCookieName:     "graft_refresh_token",
+			RefreshCookieSameSite: "lax",
+			RefreshCookiePath:     "/",
+		}},
+		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Router:             engine.Group("/api"),
+		Services:           container.New(),
+		Stores:             pluginTestStoreFactory{auth: authRepo, users: pluginTestUserRepository{}, permissions: map[uint64][]store.Permission{}},
+		MenuRegistry:       menu.NewRegistry(),
+		PermissionRegistry: permission.NewRegistry(),
+		CronRegistry:       cronx.NewRegistry(),
+	}
+
+	pluginInstance := NewPlugin()
+	if err := pluginInstance.Register(ctx); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+	if ensuredDefaultAdmin {
+		t.Fatal("expected register to stay side-effect free for default admin bootstrap")
+	}
+
+	ctx.Stores = pluginTestStoreFactory{
+		auth:        authRepo,
+		rbac:        rbacRepo,
+		users:       pluginTestUserRepository{},
+		permissions: map[uint64][]store.Permission{},
+	}
+	if err := pluginInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot plugin: %v", err)
+	}
+
+	assertDefaultAdminBootEffects(t, ensuredDefaultAdmin, assignedRole)
+}
+
+// TestBootMarksExistingDefaultAdminForPasswordChange 验证升级后仍使用初始化密码的默认管理员
+// 会在 Boot 阶段被精确标记为强制改密，而不覆盖已存储的密码散列或最近改密时间。
+func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
+	defaultHashBytes, err := bcrypt.GenerateFromPassword([]byte(defaultAdminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("generate default admin password hash: %v", err)
+	}
+	defaultHash := string(defaultHashBytes)
+	passwordChangedAt := time.Date(2026, 5, 16, 9, 0, 0, 0, time.UTC)
+
+	var ensuredDefaultAdmin bool
+	var updatedCredential bool
+	authRepo := newExistingDefaultAdminAuthRepository(
+		t,
+		defaultHash,
+		passwordChangedAt,
+		&ensuredDefaultAdmin,
+		&updatedCredential,
+	)
+
+	var assignedRole bool
+	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
+
+	ctx := newDefaultAdminBootPluginContext(authRepo)
+	pluginInstance := NewPlugin()
+	if err := pluginInstance.Register(ctx); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+
+	ctx.Stores = pluginTestStoreFactory{
+		auth:        authRepo,
+		rbac:        rbacRepo,
+		users:       pluginTestUserRepository{},
+		permissions: map[uint64][]store.Permission{},
+	}
+	if err := pluginInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot plugin: %v", err)
+	}
+
+	if ensuredDefaultAdmin {
+		t.Fatal("expected existing default admin bootstrap not to recreate the credential")
+	}
+	if !updatedCredential {
+		t.Fatal("expected boot to mark existing default admin for password change")
+	}
+	if !assignedRole {
+		t.Fatal("expected boot to assign default admin role")
 	}
 }
 
@@ -686,21 +1446,7 @@ func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
 // 去重排序后的权限列表、按权限过滤的菜单以及 locale 配置快照。
 func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	ctx, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 7 {
-				return store.User{}, store.ErrUserNotFound
-			}
-
-			return store.User{
-				ID:        7,
-				Username:  "alice",
-				Display:   "Alice",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}, nil
-		},
-	}, authRepo, map[uint64][]store.Permission{
+	ctx, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo, map[uint64][]store.Permission{
 		7: {
 			{Code: " user.read "},
 			{Code: "user.read"},
@@ -726,32 +1472,10 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
+	assertStatus(t, recorder, http.StatusOK)
 
 	payload := decodeSuccessData[bootstrapResponse](t, recorder)
-	if payload.User.ID != 7 || payload.User.Username != "alice" || payload.User.DisplayName != "Alice" {
-		t.Fatalf("expected current user summary, got %#v", payload.User)
-	}
-	if !slices.Equal(payload.Permissions, []string{"user.read"}) {
-		t.Fatalf("expected sorted unique permissions, got %#v", payload.Permissions)
-	}
-	if len(payload.Menus) != 2 {
-		t.Fatalf("expected filtered menus to keep user and public entries, got %#v", payload.Menus)
-	}
-	if payload.Menus[0].Code != "user.list" || payload.Menus[0].Path != "/users" || payload.Menus[0].Permission != "user.read" {
-		t.Fatalf("expected first menu to be users entry, got %#v", payload.Menus[0])
-	}
-	if payload.Menus[1].Code != "profile.self" || payload.Menus[1].Path != "/profile" || payload.Menus[1].Permission != "" {
-		t.Fatalf("expected public profile menu, got %#v", payload.Menus[1])
-	}
-	if payload.Locale.CurrentLocale != "en-US" || payload.Locale.DefaultLocale != "zh-CN" || payload.Locale.FallbackLocale != "zh-CN" {
-		t.Fatalf("expected locale snapshot en-US/zh-CN/zh-CN, got %#v", payload.Locale)
-	}
-	if !slices.Equal(payload.Locale.SupportedLocales, []string{"zh-CN", "en-US"}) {
-		t.Fatalf("expected supported locales snapshot, got %#v", payload.Locale)
-	}
+	assertBootstrapPayload(t, payload)
 }
 
 // TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales 验证默认 locale 与回退 locale
@@ -768,6 +1492,7 @@ func TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales(t *testing.T) {
 			FallbackLocale:   "zh-CN",
 			SupportedLocales: []string{"zh-CN"},
 		}),
+		nil,
 		nil,
 		nil,
 	)
@@ -804,7 +1529,7 @@ func TestAuthServiceParseAccessTokenRequiresActiveSession(t *testing.T) {
 	}{
 		{
 			name: "missing session",
-			arrange: func(t *testing.T, repo *pluginTestAuthRepository) string {
+			arrange: func(t *testing.T, _ *pluginTestAuthRepository) string {
 				t.Helper()
 				return "missing-session"
 			},
@@ -879,7 +1604,7 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 	}{
 		{
 			name: "missing session",
-			arrange: func(t *testing.T, repo *pluginTestAuthRepository) *http.Request {
+			arrange: func(t *testing.T, _ *pluginTestAuthRepository) *http.Request {
 				t.Helper()
 				return newAuthorizedRequestForSession(t, "/api/users/7", 7, "missing-session")
 			},
@@ -953,65 +1678,13 @@ func TestLoginRouteReturnsTokenAndCurrentUserSummary(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "alice" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
+	authRepo := newCredentialRepository("alice", 7, passwordHash)
+	ctx, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
-			return store.UserCredential{
-				UserID:       7,
-				Username:     "alice",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	ctx, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 7 {
-				return store.User{}, store.ErrUserNotFound
-			}
-
-			return store.User{
-				ID:        7,
-				Username:  "alice",
-				Display:   "Alice",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}, nil
-		},
-	}, authRepo)
-
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"secret"}`))
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set(i18n.LocaleHeader, "en-US")
-	engine.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
-
-	payload := decodeSuccessData[loginResponse](t, recorder)
-	if payload.AccessToken == "" {
-		t.Fatal("expected access token in login response")
-	}
-	if payload.User.ID != 7 || payload.User.Username != "alice" || payload.User.DisplayName != "Alice" {
-		t.Fatalf("expected current user summary, got %#v", payload.User)
-	}
-	if payload.ExpiresAt.IsZero() {
-		t.Fatal("expected access token expiry in response")
-	}
-	if payload.ExpiresAt.Before(time.Now().UTC()) {
-		t.Fatalf("expected future expiry, got %v", payload.ExpiresAt)
-	}
-	if len(recorder.Result().Cookies()) == 0 {
-		t.Fatal("expected refresh cookie to be written on login")
-	}
-	refreshCookie := recorder.Result().Cookies()[0]
-	if refreshCookie.Name != ctx.Config.Auth.RefreshCookieName || refreshCookie.Value == "" {
-		t.Fatalf("expected refresh cookie %q, got %#v", ctx.Config.Auth.RefreshCookieName, refreshCookie)
-	}
+	payload, cookies := loginUser(t, engine, "alice", "secret", "en-US")
+	assertLoginPayload(t, payload, 7, "alice", "Alice")
+	refreshCookie := firstCookie(t, cookies)
+	assertRefreshCookieWritten(t, refreshCookie, ctx.Config.Auth.RefreshCookieName)
 
 	authAny, err := ctx.Services.Resolve((*pluginapi.AuthService)(nil))
 	if err != nil {
@@ -1021,9 +1694,7 @@ func TestLoginRouteReturnsTokenAndCurrentUserSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse access token: %v", err)
 	}
-	if claims.UserID != 7 || claims.SessionID == "" {
-		t.Fatalf("expected stable token claims, got %#v", claims)
-	}
+	assertAccessClaims(t, claims, 7)
 	if _, err := authRepo.GetRefreshSessionByTokenID(context.Background(), refreshCookie.Value); err == nil {
 		t.Fatal("expected raw cookie token not to equal stored token id")
 	}
@@ -1037,64 +1708,23 @@ func TestRefreshRouteRotatesSessionAndReturnsNewAccessToken(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "alice" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
-			return store.UserCredential{
-				UserID:       7,
-				Username:     "alice",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 7 {
-				return store.User{}, store.ErrUserNotFound
-			}
-			return store.User{
-				ID:        7,
-				Username:  "alice",
-				Display:   "Alice",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}, nil
-		},
-	}, authRepo)
+	authRepo := newCredentialRepository("alice", 7, passwordHash)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
-	loginRecorder := httptest.NewRecorder()
-	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"secret"}`))
-	loginRequest.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(loginRecorder, loginRequest)
-	if loginRecorder.Code != http.StatusOK {
-		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
-	}
-
-	cookies := loginRecorder.Result().Cookies()
-	if len(cookies) == 0 {
-		t.Fatal("expected refresh cookie from login")
-	}
+	_, cookies := loginUser(t, engine, "alice", "secret", "")
+	refreshCookie := firstCookie(t, cookies)
 
 	refreshRecorder := httptest.NewRecorder()
 	refreshRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	refreshRequest.AddCookie(cookies[0])
+	refreshRequest.AddCookie(refreshCookie)
 	refreshRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(refreshRecorder, refreshRequest)
 
-	if refreshRecorder.Code != http.StatusOK {
-		t.Fatalf("expected refresh status %d, got %d", http.StatusOK, refreshRecorder.Code)
-	}
+	assertStatus(t, refreshRecorder, http.StatusOK)
 
 	payload := decodeSuccessData[loginResponse](t, refreshRecorder)
-	if payload.AccessToken == "" || payload.ExpiresAt.IsZero() {
-		t.Fatalf("expected rotated access token payload, got %#v", payload)
-	}
-	newCookies := refreshRecorder.Result().Cookies()
-	if len(newCookies) == 0 || newCookies[0].Value == cookies[0].Value {
-		t.Fatalf("expected rotated refresh cookie, got old=%#v new=%#v", cookies, newCookies)
-	}
+	assertRefreshRotationPayload(t, payload)
+	assertRotatedCookie(t, refreshCookie, refreshRecorder.Result().Cookies())
 }
 
 // TestRefreshRouteRejectsReusedRefreshCookie 验证 refresh 成功轮换后，旧 cookie
@@ -1105,71 +1735,25 @@ func TestRefreshRouteRejectsReusedRefreshCookie(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "alice" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
-			return store.UserCredential{
-				UserID:       7,
-				Username:     "alice",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 7 {
-				return store.User{}, store.ErrUserNotFound
-			}
-			return store.User{
-				ID:        7,
-				Username:  "alice",
-				Display:   "Alice",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}, nil
-		},
-	}, authRepo)
+	authRepo := newCredentialRepository("alice", 7, passwordHash)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
-	loginRecorder := httptest.NewRecorder()
-	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"secret"}`))
-	loginRequest.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(loginRecorder, loginRequest)
-	if loginRecorder.Code != http.StatusOK {
-		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
-	}
-
-	cookies := loginRecorder.Result().Cookies()
-	if len(cookies) == 0 {
-		t.Fatal("expected refresh cookie from login")
-	}
+	_, cookies := loginUser(t, engine, "alice", "secret", "")
+	refreshCookie := firstCookie(t, cookies)
 
 	firstRefreshRecorder := httptest.NewRecorder()
 	firstRefreshRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	firstRefreshRequest.AddCookie(cookies[0])
+	firstRefreshRequest.AddCookie(refreshCookie)
 	firstRefreshRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(firstRefreshRecorder, firstRefreshRequest)
-	if firstRefreshRecorder.Code != http.StatusOK {
-		t.Fatalf("expected first refresh status %d, got %d", http.StatusOK, firstRefreshRecorder.Code)
-	}
+	assertStatus(t, firstRefreshRecorder, http.StatusOK)
 
 	reuseRecorder := httptest.NewRecorder()
 	reuseRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	reuseRequest.AddCookie(cookies[0])
+	reuseRequest.AddCookie(refreshCookie)
 	reuseRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(reuseRecorder, reuseRequest)
-	if reuseRecorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected reused refresh status %d, got %d", http.StatusUnauthorized, reuseRecorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(reuseRecorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode reused refresh response: %v", err)
-	}
-	if payload.MessageKey != "auth.token_invalid" || payload.Code != "AUTH_TOKEN_INVALID" || payload.Locale != "en-US" {
-		t.Fatalf("expected invalid refresh payload for reused cookie, got %#v", payload)
-	}
+	assertInvalidTokenResponse(t, reuseRecorder, "en-US")
 }
 
 // TestRefreshRouteRejectsMissingCookie 验证缺少 refresh cookie 时仍返回统一的
@@ -1254,85 +1838,22 @@ func TestLogoutRouteRevokesCurrentRefreshSession(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "alice" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
-			return store.UserCredential{
-				UserID:       7,
-				Username:     "alice",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 7 {
-				return store.User{}, store.ErrUserNotFound
-			}
-			return store.User{
-				ID:        7,
-				Username:  "alice",
-				Display:   "Alice",
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}, nil
-		},
-	}, authRepo)
+	authRepo := newCredentialRepository("alice", 7, passwordHash)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
-	loginRecorder := httptest.NewRecorder()
-	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"secret"}`))
-	loginRequest.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(loginRecorder, loginRequest)
-	if loginRecorder.Code != http.StatusOK {
-		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
-	}
-
-	cookies := loginRecorder.Result().Cookies()
-	if len(cookies) == 0 {
-		t.Fatal("expected refresh cookie from login")
-	}
-
-	manager, err := newRefreshTokenManager(config.AuthConfig{
-		RefreshTokenTTL: 24 * time.Hour,
-		SigningKey:      "test-signing-key",
-	})
-	if err != nil {
-		t.Fatalf("new refresh token manager: %v", err)
-	}
-	claims, err := manager.Parse(cookies[0].Value)
-	if err != nil {
-		t.Fatalf("parse refresh cookie token: %v", err)
-	}
+	_, cookies := loginUser(t, engine, "alice", "secret", "")
+	refreshCookie := firstCookie(t, cookies)
+	claims := parseRefreshCookieClaims(t, refreshCookie)
 
 	logoutRecorder := httptest.NewRecorder()
 	logoutRequest := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
-	logoutRequest.AddCookie(cookies[0])
+	logoutRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(logoutRecorder, logoutRequest)
 
-	if logoutRecorder.Code != http.StatusOK {
-		t.Fatalf("expected logout status %d, got %d", http.StatusOK, logoutRecorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, logoutRecorder); payload != nil {
-		t.Fatalf("expected logout success payload to be nil, got %#v", payload)
-	}
-
-	session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), claims.TokenID)
-	if err != nil {
-		t.Fatalf("load revoked session: %v", err)
-	}
-	if session.RevokedAt == nil {
-		t.Fatalf("expected refresh session to be revoked, got %#v", session)
-	}
-
-	responseCookies := logoutRecorder.Result().Cookies()
-	if len(responseCookies) == 0 {
-		t.Fatal("expected logout to clear refresh cookie")
-	}
-	if responseCookies[0].Name != cookies[0].Name || responseCookies[0].Value != "" || responseCookies[0].MaxAge >= 0 {
-		t.Fatalf("expected cleared refresh cookie, got %#v", responseCookies[0])
-	}
+	assertStatus(t, logoutRecorder, http.StatusOK)
+	assertNilSuccessPayload(t, logoutRecorder)
+	assertSessionRevoked(t, authRepo, claims.TokenID)
+	assertClearedCookie(t, logoutRecorder.Result().Cookies(), refreshCookie.Name)
 }
 
 // TestLogoutRouteRejectsMissingCookie 验证缺少 refresh cookie 时，logout 继续复用
@@ -1345,17 +1866,7 @@ func TestLogoutRouteRejectsMissingCookie(t *testing.T) {
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "auth.token_missing" || payload.Code != "AUTH_TOKEN_MISSING" || payload.Locale != "en-US" {
-		t.Fatalf("expected missing refresh payload, got %#v", payload)
-	}
+	assertMissingTokenResponse(t, recorder, "en-US")
 }
 
 // TestRevokeAllSessionsRouteRevokesCurrentUserSessions 验证当前用户自助撤销会吊销
@@ -1366,69 +1877,8 @@ func TestRevokeAllSessionsRouteRevokesCurrentUserSessions(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "alice" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
-			return store.UserCredential{
-				UserID:       7,
-				Username:     "alice",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{
-					ID:        7,
-					Username:  "alice",
-					Display:   "Alice",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				}, nil
-			case 8:
-				return store.User{
-					ID:        8,
-					Username:  "bob",
-					Display:   "Bob",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo)
-
-	loginRecorder := httptest.NewRecorder()
-	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"secret"}`))
-	loginRequest.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(loginRecorder, loginRequest)
-	if loginRecorder.Code != http.StatusOK {
-		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
-	}
-
-	loginPayload := decodeSuccessData[loginResponse](t, loginRecorder)
-
-	loginCookies := loginRecorder.Result().Cookies()
-	if len(loginCookies) == 0 {
-		t.Fatal("expected refresh cookie from login")
-	}
-
-	refreshManager, err := newRefreshTokenManager(config.AuthConfig{
-		RefreshTokenTTL: 24 * time.Hour,
-		SigningKey:      "test-signing-key",
-	})
-	if err != nil {
-		t.Fatalf("new refresh token manager: %v", err)
-	}
-	currentClaims, err := refreshManager.Parse(loginCookies[0].Value)
-	if err != nil {
-		t.Fatalf("parse current refresh cookie: %v", err)
-	}
+	authRepo, engine := loginAliceEngine(t, passwordHash)
+	loginPayload, refreshCookie, currentClaims := loginAliceAndParseSession(t, engine)
 
 	secondarySessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	otherUserSessionID := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
@@ -1436,77 +1886,32 @@ func TestRevokeAllSessionsRouteRevokesCurrentUserSessions(t *testing.T) {
 	revokeRecorder := httptest.NewRecorder()
 	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/auth/sessions/revoke-all", nil)
 	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
-	revokeRequest.AddCookie(loginCookies[0])
+	revokeRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(revokeRecorder, revokeRequest)
 
-	if revokeRecorder.Code != http.StatusOK {
-		t.Fatalf("expected revoke-all status %d, got %d", http.StatusOK, revokeRecorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, revokeRecorder); payload != nil {
-		t.Fatalf("expected revoke-all success payload to be nil, got %#v", payload)
-	}
+	assertStatus(t, revokeRecorder, http.StatusOK)
+	assertNilSuccessPayload(t, revokeRecorder)
 
 	for _, tokenID := range []string{currentClaims.TokenID, secondarySessionID} {
-		session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
-		if err != nil {
-			t.Fatalf("load revoked session %q: %v", tokenID, err)
-		}
-		if session.RevokedAt == nil {
-			t.Fatalf("expected session %q to be revoked, got %#v", tokenID, session)
-		}
+		assertSessionRevoked(t, authRepo, tokenID)
 	}
 
-	otherUserSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), otherUserSessionID)
-	if err != nil {
-		t.Fatalf("load untouched session: %v", err)
-	}
-	if otherUserSession.RevokedAt != nil {
-		t.Fatalf("expected other user session to remain active, got %#v", otherUserSession)
-	}
-
-	responseCookies := revokeRecorder.Result().Cookies()
-	if len(responseCookies) == 0 {
-		t.Fatal("expected revoke-all to clear refresh cookie")
-	}
-	if responseCookies[0].Name != loginCookies[0].Name || responseCookies[0].Value != "" || responseCookies[0].MaxAge >= 0 {
-		t.Fatalf("expected cleared refresh cookie, got %#v", responseCookies[0])
-	}
+	assertSessionActive(t, authRepo, otherUserSessionID)
+	assertClearedCookie(t, revokeRecorder.Result().Cookies(), refreshCookie.Name)
 
 	protectedRecorder := httptest.NewRecorder()
 	protectedRequest := httptest.NewRequest(http.MethodGet, "/api/users/7", nil)
 	protectedRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
 	protectedRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(protectedRecorder, protectedRequest)
-
-	if protectedRecorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected protected request status %d, got %d", http.StatusUnauthorized, protectedRecorder.Code)
-	}
-
-	var protectedPayload httpx.ErrorResponse
-	if err := json.NewDecoder(protectedRecorder.Body).Decode(&protectedPayload); err != nil {
-		t.Fatalf("decode protected request response: %v", err)
-	}
-	if protectedPayload.MessageKey != "auth.token_invalid" || protectedPayload.Code != "AUTH_TOKEN_INVALID" || protectedPayload.Locale != "en-US" {
-		t.Fatalf("expected invalid token payload after revoke-all, got %#v", protectedPayload)
-	}
+	assertInvalidTokenResponse(t, protectedRecorder, "en-US")
 
 	refreshRecorder := httptest.NewRecorder()
 	refreshRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	refreshRequest.AddCookie(loginCookies[0])
+	refreshRequest.AddCookie(refreshCookie)
 	refreshRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(refreshRecorder, refreshRequest)
-
-	if refreshRecorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected refresh status %d after revoke-all, got %d", http.StatusUnauthorized, refreshRecorder.Code)
-	}
-
-	var refreshPayload httpx.ErrorResponse
-	if err := json.NewDecoder(refreshRecorder.Body).Decode(&refreshPayload); err != nil {
-		t.Fatalf("decode refresh response after revoke-all: %v", err)
-	}
-	if refreshPayload.MessageKey != "auth.token_invalid" || refreshPayload.Code != "AUTH_TOKEN_INVALID" || refreshPayload.Locale != "en-US" {
-		t.Fatalf("expected invalid refresh payload after revoke-all, got %#v", refreshPayload)
-	}
+	assertInvalidTokenResponse(t, refreshRecorder, "en-US")
 }
 
 // TestRevokeAllSessionsRouteRequiresAuthenticatedActor 验证当前用户自助撤销入口继续
@@ -1519,35 +1924,14 @@ func TestRevokeAllSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "auth.token_missing" || payload.Code != "AUTH_TOKEN_MISSING" || payload.Locale != "en-US" {
-		t.Fatalf("expected missing actor payload, got %#v", payload)
-	}
+	assertMissingTokenResponse(t, recorder, "en-US")
 }
 
 // TestRevokeOtherSessionsRouteRevokesNonCurrentSessions 验证当前用户保留当前会话时，
 // 只会清退自己名下的其它有效 session，不会误伤当前会话或其他用户会话。
 func TestRevokeOtherSessionsRouteRevokesNonCurrentSessions(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 8:
-				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
 	otherSessionIDs := []string{
@@ -1560,38 +1944,13 @@ func TestRevokeOtherSessionsRouteRevokesNonCurrentSessions(t *testing.T) {
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/revoke-others", 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, recorder); payload != nil {
-		t.Fatalf("expected revoke-others success payload to be nil, got %#v", payload)
-	}
-
-	currentSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), currentSessionID)
-	if err != nil {
-		t.Fatalf("load current session: %v", err)
-	}
-	if currentSession.RevokedAt != nil {
-		t.Fatalf("expected current session to remain active, got %#v", currentSession)
-	}
-
+	assertStatus(t, recorder, http.StatusOK)
+	assertNilSuccessPayload(t, recorder)
+	assertSessionActive(t, authRepo, currentSessionID)
 	for _, tokenID := range otherSessionIDs {
-		session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
-		if err != nil {
-			t.Fatalf("load other session %q: %v", tokenID, err)
-		}
-		if session.RevokedAt == nil {
-			t.Fatalf("expected other session %q to be revoked, got %#v", tokenID, session)
-		}
+		assertSessionRevoked(t, authRepo, tokenID)
 	}
-
-	otherUserSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), otherUserSessionID)
-	if err != nil {
-		t.Fatalf("load other user session: %v", err)
-	}
-	if otherUserSession.RevokedAt != nil {
-		t.Fatalf("expected other user session to remain active, got %#v", otherUserSession)
-	}
+	assertSessionActive(t, authRepo, otherUserSessionID)
 }
 
 // TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces 验证 revoke-others 在列出
@@ -1620,55 +1979,18 @@ func TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces(t *testing.T) {
 		},
 	}
 
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 8:
-				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/revoke-others", 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, recorder); payload != nil {
-		t.Fatalf("expected revoke-others success payload to be nil, got %#v", payload)
-	}
-
-	currentSession, err := baseRepo.GetRefreshSessionByTokenID(context.Background(), currentSessionID)
-	if err != nil {
-		t.Fatalf("load current session: %v", err)
-	}
-	if currentSession.RevokedAt != nil {
-		t.Fatalf("expected current session to remain active, got %#v", currentSession)
-	}
-
-	for _, tokenID := range []string{raceSessionID, staleSessionID} {
-		session, err := baseRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
-		if err != nil {
-			t.Fatalf("load revoked session %q: %v", tokenID, err)
-		}
-		if session.RevokedAt == nil {
-			t.Fatalf("expected session %q to be revoked, got %#v", tokenID, session)
-		}
-	}
-
-	otherUserSession, err := baseRepo.GetRefreshSessionByTokenID(context.Background(), otherUserSessionID)
-	if err != nil {
-		t.Fatalf("load other user session: %v", err)
-	}
-	if otherUserSession.RevokedAt != nil {
-		t.Fatalf("expected other user session to remain active, got %#v", otherUserSession)
-	}
+	assertStatus(t, recorder, http.StatusOK)
+	assertNilSuccessPayload(t, recorder)
+	assertSessionActive(t, baseRepo, currentSessionID)
+	assertSessionRevoked(t, baseRepo, raceSessionID)
+	assertSessionRevoked(t, baseRepo, staleSessionID)
+	assertSessionActive(t, baseRepo, otherUserSessionID)
 }
 
 // TestRevokeOtherSessionsRouteRequiresAuthenticatedActor 验证保留当前会话的批量清退
@@ -1698,14 +2020,7 @@ func TestRevokeOtherSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 // revoke-others 仍幂等返回成功，且不会额外清理 refresh cookie。
 func TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 7 {
-				return store.User{}, store.ErrUserNotFound
-			}
-			return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-		},
-	}, authRepo)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
 
@@ -1713,42 +2028,17 @@ func TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession(t *testing.T) {
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/revoke-others", 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, recorder); payload != nil {
-		t.Fatalf("expected revoke-others success payload to be nil, got %#v", payload)
-	}
-
-	currentSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), currentSessionID)
-	if err != nil {
-		t.Fatalf("load current session: %v", err)
-	}
-	if currentSession.RevokedAt != nil {
-		t.Fatalf("expected current session to remain active, got %#v", currentSession)
-	}
-
-	if responseCookies := recorder.Result().Cookies(); len(responseCookies) != 0 {
-		t.Fatalf("expected no cookie mutation, got %#v", responseCookies)
-	}
+	assertStatus(t, recorder, http.StatusOK)
+	assertNilSuccessPayload(t, recorder)
+	assertSessionActive(t, authRepo, currentSessionID)
+	assertNoCookieMutation(t, recorder.Result().Cookies())
 }
 
 // TestListCurrentUserSessionsRouteReturnsActiveSessions 验证当前用户自助会话列表只返回
 // 其自身当前有效的 refresh sessions，并准确标记当前请求会话。
 func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 8:
-				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	time.Sleep(time.Microsecond)
@@ -1766,39 +2056,22 @@ func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/auth/sessions", 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
+	assertStatus(t, recorder, http.StatusOK)
 
 	payload := decodeSuccessData[[]sessionSummary](t, recorder)
 	if len(payload) != 2 {
 		t.Fatalf("expected two active sessions, got %#v", payload)
 	}
-	if payload[0].SessionID != newerSessionID || payload[0].Current {
-		t.Fatalf("expected newer non-current session first, got %#v", payload[0])
-	}
-	if payload[1].SessionID != currentSessionID || !payload[1].Current {
-		t.Fatalf("expected current session second and marked current, got %#v", payload[1])
-	}
-	for _, item := range payload {
-		if item.SessionID == expiredSessionID || item.SessionID == otherUserSessionID {
-			t.Fatalf("expected filtered sessions to be absent, got %#v", payload)
-		}
-	}
+	assertSessionSummary(t, payload[0], newerSessionID, false)
+	assertSessionSummary(t, payload[1], currentSessionID, true)
+	assertSessionsAbsent(t, payload, expiredSessionID, otherUserSessionID)
 }
 
 // TestListCurrentUserSessionsRouteAppliesLimit 验证当前用户会话列表会在插件边界内
 // 应用显式 limit，而不要求仓储提前暴露分页协议。
 func TestListCurrentUserSessionsRouteAppliesLimit(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 7 {
-				return store.User{}, store.ErrUserNotFound
-			}
-			return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-		},
-	}, authRepo)
+	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	time.Sleep(time.Microsecond)
@@ -1810,22 +2083,15 @@ func TestListCurrentUserSessionsRouteAppliesLimit(t *testing.T) {
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/auth/sessions?limit=2", 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
+	assertStatus(t, recorder, http.StatusOK)
 
 	payload := decodeSuccessData[[]sessionSummary](t, recorder)
 	if len(payload) != 2 {
 		t.Fatalf("expected two sessions after limit, got %#v", payload)
 	}
-	if payload[0].SessionID != newestSessionID || payload[1].SessionID != middleSessionID {
-		t.Fatalf("expected newest sessions after limit, got %#v", payload)
-	}
-	for _, item := range payload {
-		if item.SessionID == currentSessionID {
-			t.Fatalf("expected oldest current session to be trimmed by limit, got %#v", payload)
-		}
-	}
+	assertSessionSummary(t, payload[0], newestSessionID, false)
+	assertSessionSummary(t, payload[1], middleSessionID, false)
+	assertSessionsAbsent(t, payload, currentSessionID)
 }
 
 // TestListCurrentUserSessionsRouteRejectsInvalidLimit 验证当前用户会话列表会拒绝非法
@@ -1872,39 +2138,18 @@ func TestListCurrentUserSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "auth.token_missing" || payload.Code != "AUTH_TOKEN_MISSING" || payload.Locale != "en-US" {
-		t.Fatalf("expected missing actor payload, got %#v", payload)
-	}
+	assertMissingTokenResponse(t, recorder, "en-US")
 }
 
 // TestAdminListUserSessionsRouteReturnsActiveSessions 验证管理员读取入口只返回目标用户
 // 的当前有效 session，并继续标记请求主体自己的当前会话。
 func TestAdminListUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 8:
-				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 9:
-				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.read"}},
-	})
+	engine := newSessionAdminEngine(t, authRepo,
+		testUser(7, "alice", "Alice"),
+		testUser(8, "bob", "Bob"),
+		testUser(9, "admin", "Admin"),
+	)
 
 	targetCurrentSession := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
 	time.Sleep(time.Microsecond)
@@ -1924,45 +2169,23 @@ func TestAdminListUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
-
+	assertStatus(t, recorder, http.StatusOK)
 	payload := decodeSuccessData[[]sessionSummary](t, recorder)
-	if len(payload) != 2 {
-		t.Fatalf("expected two active target-user sessions, got %#v", payload)
-	}
-	if payload[0].SessionID != targetNewerSession || payload[0].Current {
-		t.Fatalf("expected newer target-user session first, got %#v", payload[0])
-	}
-	if payload[1].SessionID != targetCurrentSession || payload[1].Current {
-		t.Fatalf("expected target current list item not to be marked current for admin request, got %#v", payload[1])
-	}
-	for _, item := range payload {
-		if item.SessionID == targetExpiredSession || item.SessionID == adminSession || item.SessionID == otherUserSession {
-			t.Fatalf("expected filtered sessions to be absent, got %#v", payload)
-		}
-	}
+	assertActiveSessions(t, payload,
+		sessionSummary{SessionID: targetNewerSession, Current: false},
+		sessionSummary{SessionID: targetCurrentSession, Current: false},
+	)
+	assertSessionsFiltered(t, payload, targetExpiredSession, adminSession, otherUserSession)
 }
 
 // TestAdminListUserSessionsRouteAppliesLimit 验证管理员读取入口同样支持最小显式
 // limit，避免首次会话治理就扩散分页契约到仓储层。
 func TestAdminListUserSessionsRouteAppliesLimit(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 9:
-				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.read"}},
-	})
+	engine := newSessionAdminEngine(t, authRepo,
+		testUser(7, "alice", "Alice"),
+		testUser(9, "admin", "Admin"),
+	)
 
 	oldestSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	time.Sleep(time.Microsecond)
@@ -1975,62 +2198,30 @@ func TestAdminListUserSessionsRouteAppliesLimit(t *testing.T) {
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions?limit=2", 9, adminSessionID)
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
-
+	assertStatus(t, recorder, http.StatusOK)
 	payload := decodeSuccessData[[]sessionSummary](t, recorder)
-	if len(payload) != 2 {
-		t.Fatalf("expected two sessions after limit, got %#v", payload)
-	}
-	if payload[0].SessionID != newestSessionID || payload[1].SessionID != middleSessionID {
-		t.Fatalf("expected newest target-user sessions after limit, got %#v", payload)
-	}
-	for _, item := range payload {
-		if item.SessionID == oldestSessionID || item.SessionID == adminSessionID {
-			t.Fatalf("expected oldest target or admin session to be absent, got %#v", payload)
-		}
-	}
+	assertActiveSessions(t, payload,
+		sessionSummary{SessionID: newestSessionID, Current: false},
+		sessionSummary{SessionID: middleSessionID, Current: false},
+	)
+	assertSessionsFiltered(t, payload, oldestSessionID, adminSessionID)
 }
 
 // TestAdminListUserSessionsRouteRejectsInvalidLimit 验证管理员会话读取入口会拒绝非法
 // limit，并保持统一的参数错误契约。
 func TestAdminListUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 9:
-				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.read"}},
-	})
+	engine := newSessionAdminEngine(t, authRepo,
+		testUser(7, "alice", "Alice"),
+		testUser(9, "admin", "Admin"),
+	)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions?limit=101", 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "common.invalid_argument" || payload.Locale != "en-US" {
-		t.Fatalf("expected invalid argument payload, got %#v", payload)
-	}
-	if payload.Details["field"] != "limit" {
-		t.Fatalf("expected denied field detail, got %#v", payload)
-	}
+	assertInvalidArgumentFieldResponse(t, recorder, "en-US", "limit")
 }
 
 // TestAdminListUserSessionsRouteRequiresDedicatedPermission 验证管理员读取入口不会误复用
@@ -2160,82 +2351,22 @@ func TestRevokeCurrentUserSessionRouteClearsCookieWhenRevokingCurrentSession(t *
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "alice" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
-			return store.UserCredential{
-				UserID:       7,
-				Username:     "alice",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 7 {
-				return store.User{}, store.ErrUserNotFound
-			}
-			return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-		},
-	}, authRepo)
+	authRepo, engine := loginAliceEngine(t, passwordHash)
 
-	loginRecorder := httptest.NewRecorder()
-	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"secret"}`))
-	loginRequest.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(loginRecorder, loginRequest)
-	if loginRecorder.Code != http.StatusOK {
-		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
-	}
-
-	loginPayload := decodeSuccessData[loginResponse](t, loginRecorder)
-
-	loginCookies := loginRecorder.Result().Cookies()
-	if len(loginCookies) == 0 {
-		t.Fatal("expected refresh cookie from login")
-	}
-
-	refreshManager, err := newRefreshTokenManager(config.AuthConfig{
-		RefreshTokenTTL: 24 * time.Hour,
-		SigningKey:      "test-signing-key",
-	})
-	if err != nil {
-		t.Fatalf("new refresh token manager: %v", err)
-	}
-	currentClaims, err := refreshManager.Parse(loginCookies[0].Value)
-	if err != nil {
-		t.Fatalf("parse current refresh cookie: %v", err)
-	}
+	loginPayload, loginCookies := loginUser(t, engine, "alice", "secret", "")
+	refreshCookie := firstCookie(t, loginCookies)
+	currentClaims := parseRefreshCookieClaims(t, refreshCookie)
 
 	revokeRecorder := httptest.NewRecorder()
 	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/auth/sessions/"+currentClaims.TokenID+"/revoke", nil)
 	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
-	revokeRequest.AddCookie(loginCookies[0])
+	revokeRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(revokeRecorder, revokeRequest)
 
-	if revokeRecorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, revokeRecorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, revokeRecorder); payload != nil {
-		t.Fatalf("expected current-session revoke payload to be nil, got %#v", payload)
-	}
-
-	currentSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), currentClaims.TokenID)
-	if err != nil {
-		t.Fatalf("load current session: %v", err)
-	}
-	if currentSession.RevokedAt == nil {
-		t.Fatalf("expected current session to be revoked, got %#v", currentSession)
-	}
-
-	responseCookies := revokeRecorder.Result().Cookies()
-	if len(responseCookies) == 0 {
-		t.Fatal("expected current-session revoke to clear refresh cookie")
-	}
-	if responseCookies[0].Name != loginCookies[0].Name || responseCookies[0].Value != "" || responseCookies[0].MaxAge >= 0 {
-		t.Fatalf("expected cleared refresh cookie, got %#v", responseCookies[0])
-	}
+	assertStatus(t, revokeRecorder, http.StatusOK)
+	assertNilSuccessPayload(t, revokeRecorder)
+	assertSessionRevoked(t, authRepo, currentClaims.TokenID)
+	assertClearedCookie(t, revokeRecorder.Result().Cookies(), refreshCookie.Name)
 }
 
 // TestRevokeCurrentUserSessionRouteReturnsNotFoundContract 验证当前用户定向吊销未命中时
@@ -2256,37 +2387,18 @@ func TestRevokeCurrentUserSessionRouteReturnsNotFoundContract(t *testing.T) {
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("expected status %d, got %d", http.StatusNotFound, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "auth.session_not_found" || payload.Locale != "en-US" {
-		t.Fatalf("expected session not found payload, got %#v", payload)
-	}
+	assertSessionNotFoundResponse(t, recorder, "en-US")
 }
 
 // TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession 验证管理员定向吊销只会影响
 // 目标用户的指定 session，不会误伤其他用户或同用户其他会话。
 func TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 8:
-				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 9:
-				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo, map[uint64][]store.Permission{
+	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(
+		testUser(7, "alice", "Alice"),
+		testUser(8, "bob", "Bob"),
+		testUser(9, "admin", "Admin"),
+	), authRepo, map[uint64][]store.Permission{
 		9: {{Code: "user.session.revoke"}},
 	})
 
@@ -2299,30 +2411,12 @@ func TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/users/7/sessions/"+targetSessionID+"/revoke", 9, adminSessionID)
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, recorder); payload != nil {
-		t.Fatalf("expected admin revoke payload to be nil, got %#v", payload)
-	}
-
-	targetSession, err := authRepo.GetRefreshSessionByTokenID(context.Background(), targetSessionID)
-	if err != nil {
-		t.Fatalf("load target session: %v", err)
-	}
-	if targetSession.RevokedAt == nil {
-		t.Fatalf("expected target session to be revoked, got %#v", targetSession)
-	}
-
-	for _, tokenID := range []string{otherTargetSessionID, otherUserSessionID, adminSessionID} {
-		session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
-		if err != nil {
-			t.Fatalf("load untouched session %q: %v", tokenID, err)
-		}
-		if session.RevokedAt != nil {
-			t.Fatalf("expected session %q to remain active, got %#v", tokenID, session)
-		}
-	}
+	assertStatus(t, recorder, http.StatusOK)
+	assertNilSuccessPayload(t, recorder)
+	assertSessionRevoked(t, authRepo, targetSessionID)
+	assertSessionActive(t, authRepo, otherTargetSessionID)
+	assertSessionActive(t, authRepo, otherUserSessionID)
+	assertSessionActive(t, authRepo, adminSessionID)
 }
 
 // TestAdminRevokeUserSessionRouteClearsCurrentCookieWhenRevokingSelfCurrentSession 验证管理员
@@ -2333,76 +2427,21 @@ func TestAdminRevokeUserSessionRouteClearsCurrentCookieWhenRevokingSelfCurrentSe
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "admin" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
-			return store.UserCredential{
-				UserID:       9,
-				Username:     "admin",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 9 {
-				return store.User{}, store.ErrUserNotFound
-			}
-			return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-		},
-	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.revoke"}},
-	})
+	_, engine := loginAdminEngine(t, passwordHash)
 
-	loginRecorder := httptest.NewRecorder()
-	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"admin","password":"secret"}`))
-	loginRequest.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(loginRecorder, loginRequest)
-	if loginRecorder.Code != http.StatusOK {
-		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
-	}
-
-	loginPayload := decodeSuccessData[loginResponse](t, loginRecorder)
-
-	loginCookies := loginRecorder.Result().Cookies()
-	if len(loginCookies) == 0 {
-		t.Fatal("expected refresh cookie from login")
-	}
-
-	refreshManager, err := newRefreshTokenManager(config.AuthConfig{
-		RefreshTokenTTL: 24 * time.Hour,
-		SigningKey:      "test-signing-key",
-	})
-	if err != nil {
-		t.Fatalf("new refresh token manager: %v", err)
-	}
-	currentClaims, err := refreshManager.Parse(loginCookies[0].Value)
-	if err != nil {
-		t.Fatalf("parse current refresh cookie: %v", err)
-	}
+	loginPayload, loginCookies := loginUser(t, engine, "admin", "secret", "")
+	refreshCookie := firstCookie(t, loginCookies)
+	currentClaims := parseRefreshCookieClaims(t, refreshCookie)
 
 	revokeRecorder := httptest.NewRecorder()
 	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/users/9/sessions/"+currentClaims.TokenID+"/revoke", nil)
 	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
-	revokeRequest.AddCookie(loginCookies[0])
+	revokeRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(revokeRecorder, revokeRequest)
 
-	if revokeRecorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, revokeRecorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, revokeRecorder); payload != nil {
-		t.Fatalf("expected admin revoke payload to be nil, got %#v", payload)
-	}
-
-	responseCookies := revokeRecorder.Result().Cookies()
-	if len(responseCookies) == 0 {
-		t.Fatal("expected self current-session revoke to clear refresh cookie")
-	}
-	if responseCookies[0].Name != loginCookies[0].Name || responseCookies[0].Value != "" || responseCookies[0].MaxAge >= 0 {
-		t.Fatalf("expected cleared refresh cookie, got %#v", responseCookies[0])
-	}
+	assertStatus(t, revokeRecorder, http.StatusOK)
+	assertNilSuccessPayload(t, revokeRecorder)
+	assertClearedCookie(t, revokeRecorder.Result().Cookies(), refreshCookie.Name)
 }
 
 // TestAdminRevokeUserSessionRouteReturnsNotFoundContract 验证管理员定向吊销未命中时
@@ -2429,17 +2468,7 @@ func TestAdminRevokeUserSessionRouteReturnsNotFoundContract(t *testing.T) {
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("expected status %d, got %d", http.StatusNotFound, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "auth.session_not_found" || payload.Locale != "en-US" {
-		t.Fatalf("expected session not found payload, got %#v", payload)
-	}
+	assertSessionNotFoundResponse(t, recorder, "en-US")
 }
 
 // TestAdminRevokeUserSessionsRouteRevokesTargetUserSessions 验证管理员入口会按用户 ID
@@ -2450,34 +2479,7 @@ func TestAdminRevokeUserSessionsRouteRevokesTargetUserSessions(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "admin" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
-			return store.UserCredential{
-				UserID:       9,
-				Username:     "admin",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			switch id {
-			case 7:
-				return store.User{ID: 7, Username: "alice", Display: "Alice", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 8:
-				return store.User{ID: 8, Username: "bob", Display: "Bob", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			case 9:
-				return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-			default:
-				return store.User{}, store.ErrUserNotFound
-			}
-		},
-	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.revoke"}},
-	})
+	authRepo, engine := loginAdminEngine(t, passwordHash)
 
 	targetSessionA := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	targetSessionB := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
@@ -2489,36 +2491,13 @@ func TestAdminRevokeUserSessionsRouteRevokesTargetUserSessions(t *testing.T) {
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, recorder); payload != nil {
-		t.Fatalf("expected admin revoke-all payload to be nil, got %#v", payload)
-	}
-
-	for _, tokenID := range []string{targetSessionA, targetSessionB} {
-		session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
-		if err != nil {
-			t.Fatalf("load revoked session %q: %v", tokenID, err)
-		}
-		if session.RevokedAt == nil {
-			t.Fatalf("expected target session %q to be revoked, got %#v", tokenID, session)
-		}
-	}
-
-	for _, tokenID := range []string{otherUserSession, adminSession} {
-		session, err := authRepo.GetRefreshSessionByTokenID(context.Background(), tokenID)
-		if err != nil {
-			t.Fatalf("load untouched session %q: %v", tokenID, err)
-		}
-		if session.RevokedAt != nil {
-			t.Fatalf("expected session %q to remain active, got %#v", tokenID, session)
-		}
-	}
-
-	if cookies := recorder.Result().Cookies(); len(cookies) != 0 {
-		t.Fatalf("expected admin revoking another user not to clear cookies, got %#v", cookies)
-	}
+	assertStatus(t, recorder, http.StatusOK)
+	assertNilSuccessPayload(t, recorder)
+	assertSessionRevoked(t, authRepo, targetSessionA)
+	assertSessionRevoked(t, authRepo, targetSessionB)
+	assertSessionActive(t, authRepo, otherUserSession)
+	assertSessionActive(t, authRepo, adminSession)
+	assertNoCookieMutation(t, recorder.Result().Cookies())
 }
 
 // TestAdminRevokeUserSessionsRouteClearsCurrentCookieWhenRevokingSelf 验证管理员按自己的
@@ -2529,64 +2508,20 @@ func TestAdminRevokeUserSessionsRouteClearsCurrentCookieWhenRevokingSelf(t *test
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username != "admin" {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
-			return store.UserCredential{
-				UserID:       9,
-				Username:     "admin",
-				PasswordHash: &passwordHash,
-			}, nil
-		},
-	}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
-		getByID: func(_ context.Context, id uint64) (store.User, error) {
-			if id != 9 {
-				return store.User{}, store.ErrUserNotFound
-			}
-			return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-		},
-	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.revoke"}},
-	})
+	_, engine := loginAdminEngine(t, passwordHash)
 
-	loginRecorder := httptest.NewRecorder()
-	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"admin","password":"secret"}`))
-	loginRequest.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(loginRecorder, loginRequest)
-	if loginRecorder.Code != http.StatusOK {
-		t.Fatalf("expected login status %d, got %d", http.StatusOK, loginRecorder.Code)
-	}
-
-	loginPayload := decodeSuccessData[loginResponse](t, loginRecorder)
-
-	loginCookies := loginRecorder.Result().Cookies()
-	if len(loginCookies) == 0 {
-		t.Fatal("expected refresh cookie from login")
-	}
+	loginPayload, loginCookies := loginUser(t, engine, "admin", "secret", "")
+	refreshCookie := firstCookie(t, loginCookies)
 
 	revokeRecorder := httptest.NewRecorder()
 	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/users/9/sessions/revoke-all", nil)
 	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
-	revokeRequest.AddCookie(loginCookies[0])
+	revokeRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(revokeRecorder, revokeRequest)
 
-	if revokeRecorder.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, revokeRecorder.Code)
-	}
-	if payload := decodeSuccessData[any](t, revokeRecorder); payload != nil {
-		t.Fatalf("expected admin self revoke-all payload to be nil, got %#v", payload)
-	}
-
-	responseCookies := revokeRecorder.Result().Cookies()
-	if len(responseCookies) == 0 {
-		t.Fatal("expected self revoke to clear refresh cookie")
-	}
-	if responseCookies[0].Name != loginCookies[0].Name || responseCookies[0].Value != "" || responseCookies[0].MaxAge >= 0 {
-		t.Fatalf("expected cleared refresh cookie, got %#v", responseCookies[0])
-	}
+	assertStatus(t, revokeRecorder, http.StatusOK)
+	assertNilSuccessPayload(t, revokeRecorder)
+	assertClearedCookie(t, revokeRecorder.Result().Cookies(), refreshCookie.Name)
 }
 
 // TestAdminRevokeUserSessionsRouteRequiresDedicatedPermission 验证管理员撤销入口不会

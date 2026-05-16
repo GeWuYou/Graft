@@ -52,7 +52,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 }
 
 // Boot 启动已装配完成的最小调度器。
-func (p *Plugin) Boot(ctx *plugin.Context) error {
+func (p *Plugin) Boot(_ *plugin.Context) error {
 	if p.runtime == nil {
 		return nil
 	}

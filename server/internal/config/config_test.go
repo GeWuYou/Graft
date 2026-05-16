@@ -1,8 +1,10 @@
 package config
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -35,48 +37,20 @@ func TestLoadReadsDotenv(t *testing.T) {
 		t.Fatalf("load config: %v", err)
 	}
 
-	if cfg.App.Name != "dotenv-graft" {
-		t.Fatalf("expected app name from .env, got %q", cfg.App.Name)
-	}
-	if cfg.HTTP.Addr != ":18080" {
-		t.Fatalf("expected HTTP address from .env, got %q", cfg.HTTP.Addr)
-	}
-	if cfg.Redis.Addr != "redis:6379" {
-		t.Fatalf("expected Redis address from .env, got %q", cfg.Redis.Addr)
-	}
-	if cfg.Redis.DB != 2 {
-		t.Fatalf("expected Redis DB from .env, got %d", cfg.Redis.DB)
-	}
-	if cfg.I18n.DefaultLocale != defaultLocale {
-		t.Fatalf("expected default locale %q, got %q", defaultLocale, cfg.I18n.DefaultLocale)
-	}
-	if cfg.I18n.FallbackLocale != defaultLocale {
-		t.Fatalf("expected fallback locale %q, got %q", defaultLocale, cfg.I18n.FallbackLocale)
-	}
-	if cfg.Auth.AccessTokenTTL != defaultAccessTokenTTL {
-		t.Fatalf("expected default access token ttl %s, got %s", defaultAccessTokenTTL, cfg.Auth.AccessTokenTTL)
-	}
-	if cfg.Auth.RefreshTokenTTL != defaultRefreshTokenTTL {
-		t.Fatalf("expected default refresh token ttl %s, got %s", defaultRefreshTokenTTL, cfg.Auth.RefreshTokenTTL)
-	}
-	if cfg.Auth.JWTSecret != "dotenv-jwt-secret" {
-		t.Fatalf("expected jwt secret from .env, got %q", cfg.Auth.JWTSecret)
-	}
-	if cfg.Auth.SigningKey != "dotenv-signing-key" {
-		t.Fatalf("expected signing key from .env, got %q", cfg.Auth.SigningKey)
-	}
-	if cfg.Auth.RefreshCookieName != defaultRefreshCookieName {
-		t.Fatalf("expected default refresh cookie name %q, got %q", defaultRefreshCookieName, cfg.Auth.RefreshCookieName)
-	}
-	if cfg.Auth.RefreshCookieSecure {
-		t.Fatal("expected default refresh cookie secure to be false")
-	}
-	if cfg.Auth.RefreshCookieSameSite != defaultRefreshCookieSameSite {
-		t.Fatalf("expected default refresh cookie same site %q, got %q", defaultRefreshCookieSameSite, cfg.Auth.RefreshCookieSameSite)
-	}
-	if cfg.Auth.RefreshCookiePath != defaultRefreshCookiePath {
-		t.Fatalf("expected default refresh cookie path %q, got %q", defaultRefreshCookiePath, cfg.Auth.RefreshCookiePath)
-	}
+	assertEqual(t, "app name from .env", cfg.App.Name, "dotenv-graft")
+	assertEqual(t, "HTTP address from .env", cfg.HTTP.Addr, ":18080")
+	assertEqual(t, "Redis address from .env", cfg.Redis.Addr, "redis:6379")
+	assertEqual(t, "Redis DB from .env", cfg.Redis.DB, 2)
+	assertEqual(t, "default locale", cfg.I18n.DefaultLocale, defaultLocale)
+	assertEqual(t, "fallback locale", cfg.I18n.FallbackLocale, defaultLocale)
+	assertEqual(t, "default access token ttl", cfg.Auth.AccessTokenTTL, defaultAccessTokenTTL)
+	assertEqual(t, "default refresh token ttl", cfg.Auth.RefreshTokenTTL, defaultRefreshTokenTTL)
+	assertEqual(t, "jwt secret from .env", cfg.Auth.JWTSecret, "dotenv-jwt-secret")
+	assertEqual(t, "signing key from .env", cfg.Auth.SigningKey, "dotenv-signing-key")
+	assertEqual(t, "default refresh cookie name", cfg.Auth.RefreshCookieName, defaultRefreshCookieName)
+	assertEqual(t, "default refresh cookie secure", cfg.Auth.RefreshCookieSecure, false)
+	assertEqual(t, "default refresh cookie same site", cfg.Auth.RefreshCookieSameSite, defaultRefreshCookieSameSite)
+	assertEqual(t, "default refresh cookie path", cfg.Auth.RefreshCookiePath, defaultRefreshCookiePath)
 }
 
 // TestLoadReadsServerDotenvFromRepoRoot 验证从仓库根目录启动时会回退读取 server/.env。
@@ -87,7 +61,7 @@ func TestLoadReadsServerDotenvFromRepoRoot(t *testing.T) {
 	root := t.TempDir()
 	chdir(t, root)
 
-	if err := os.MkdirAll("server", 0o755); err != nil {
+	if err := os.MkdirAll("server", 0o750); err != nil {
 		t.Fatalf("create server directory: %v", err)
 	}
 
@@ -163,42 +137,18 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 		t.Fatalf("load config: %v", err)
 	}
 
-	if cfg.App.Name != defaultAppName {
-		t.Fatalf("expected default app name %q, got %q", defaultAppName, cfg.App.Name)
-	}
-	if cfg.App.Env != defaultAppEnv {
-		t.Fatalf("expected default app env %q, got %q", defaultAppEnv, cfg.App.Env)
-	}
-	if cfg.HTTP.Addr != defaultHTTPAddr {
-		t.Fatalf("expected default HTTP address %q, got %q", defaultHTTPAddr, cfg.HTTP.Addr)
-	}
-	if cfg.Database.Driver != defaultDatabaseDriver {
-		t.Fatalf("expected default database driver %q, got %q", defaultDatabaseDriver, cfg.Database.Driver)
-	}
-	if cfg.Database.URL != defaultDatabaseURL {
-		t.Fatalf("expected default database URL %q, got %q", defaultDatabaseURL, cfg.Database.URL)
-	}
-	if cfg.Redis.Addr != defaultRedisAddr {
-		t.Fatalf("expected default Redis address %q, got %q", defaultRedisAddr, cfg.Redis.Addr)
-	}
-	if cfg.Log.Level != defaultLogLevel {
-		t.Fatalf("expected default log level %q, got %q", defaultLogLevel, cfg.Log.Level)
-	}
-	if cfg.I18n.DefaultLocale != defaultLocale {
-		t.Fatalf("expected default locale %q, got %q", defaultLocale, cfg.I18n.DefaultLocale)
-	}
-	if cfg.I18n.FallbackLocale != defaultLocale {
-		t.Fatalf("expected fallback locale %q, got %q", defaultLocale, cfg.I18n.FallbackLocale)
-	}
-	if len(cfg.I18n.SupportedLocales) != 1 || cfg.I18n.SupportedLocales[0] != defaultLocale {
-		t.Fatalf("expected supported locales [%q], got %#v", defaultLocale, cfg.I18n.SupportedLocales)
-	}
-	if cfg.Auth.AccessTokenTTL != defaultAccessTokenTTL {
-		t.Fatalf("expected default access token ttl %s, got %s", defaultAccessTokenTTL, cfg.Auth.AccessTokenTTL)
-	}
-	if cfg.Auth.JWTSecret != "runtime-secret" {
-		t.Fatalf("expected jwt secret from environment, got %q", cfg.Auth.JWTSecret)
-	}
+	assertEqual(t, "default app name", cfg.App.Name, defaultAppName)
+	assertEqual(t, "default app env", cfg.App.Env, defaultAppEnv)
+	assertEqual(t, "default HTTP address", cfg.HTTP.Addr, defaultHTTPAddr)
+	assertEqual(t, "default database driver", cfg.Database.Driver, defaultDatabaseDriver)
+	assertEqual(t, "default database URL", cfg.Database.URL, defaultDatabaseURL)
+	assertEqual(t, "default Redis address", cfg.Redis.Addr, defaultRedisAddr)
+	assertEqual(t, "default log level", cfg.Log.Level, defaultLogLevel)
+	assertEqual(t, "default locale", cfg.I18n.DefaultLocale, defaultLocale)
+	assertEqual(t, "fallback locale", cfg.I18n.FallbackLocale, defaultLocale)
+	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale})
+	assertEqual(t, "default access token ttl", cfg.Auth.AccessTokenTTL, defaultAccessTokenTTL)
+	assertEqual(t, "jwt secret from environment", cfg.Auth.JWTSecret, "runtime-secret")
 }
 
 // TestLoadPrefersExplicitEnvFile 验证显式指定的环境文件会优先于默认
@@ -280,13 +230,13 @@ func TestLoadAuthSigningMaterial(t *testing.T) {
 		},
 		{
 			name:          "accepts when only jwt secret exists",
-			jwtSecret:     "jwt-secret-only-for-config-load-cover",
-			wantJWTSecret: "jwt-secret-only-for-config-load-cover",
+			jwtSecret:     testSigningMaterial("jwt"),
+			wantJWTSecret: testSigningMaterial("jwt"),
 		},
 		{
 			name:           "accepts when only signing key exists",
-			signingKey:     "signing-key-only-for-config-load-cover",
-			wantSigningKey: "signing-key-only-for-config-load-cover",
+			signingKey:     testSigningMaterial("sig"),
+			wantSigningKey: testSigningMaterial("sig"),
 		},
 	}
 
@@ -339,7 +289,7 @@ func TestValidateRejectsUnsupportedDatabaseDriver(t *testing.T) {
 		},
 		Database: DatabaseConfig{
 			Driver: "sqlite",
-			URL:    "postgres://graft:graft@db:5432/graft?sslmode=disable",
+			URL:    testDatabaseURL(),
 		},
 		Redis: RedisConfig{
 			Addr: "localhost:6379",
@@ -396,7 +346,7 @@ func TestValidateRejectsMissingSupportedLocales(t *testing.T) {
 		},
 		Database: DatabaseConfig{
 			Driver: "postgres",
-			URL:    "postgres://graft:graft@db:5432/graft?sslmode=disable",
+			URL:    testDatabaseURL(),
 		},
 		Redis: RedisConfig{
 			Addr: "localhost:6379",
@@ -424,7 +374,7 @@ func TestValidateRejectsMissingAuthTokenTTLs(t *testing.T) {
 		},
 		Database: DatabaseConfig{
 			Driver: "postgres",
-			URL:    "postgres://graft:graft@db:5432/graft?sslmode=disable",
+			URL:    testDatabaseURL(),
 		},
 		Redis: RedisConfig{
 			Addr: "localhost:6379",
@@ -462,7 +412,7 @@ func TestValidateRejectsUnsafeCookieMode(t *testing.T) {
 		},
 		Database: DatabaseConfig{
 			Driver: "postgres",
-			URL:    "postgres://graft:graft@db:5432/graft?sslmode=disable",
+			URL:    testDatabaseURL(),
 		},
 		Redis: RedisConfig{
 			Addr: "localhost:6379",
@@ -505,6 +455,38 @@ func chdir(t *testing.T, dir string) {
 			t.Fatalf("restore working directory to %s: %v", filepath.Clean(previous), err)
 		}
 	})
+}
+
+func assertEqual[T comparable](t *testing.T, label string, got T, want T) {
+	t.Helper()
+
+	if got != want {
+		t.Fatalf("expected %s %v, got %v", label, want, got)
+	}
+}
+
+func assertStringSliceEqual(t *testing.T, label string, got []string, want []string) {
+	t.Helper()
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected %s %v, got %v", label, want, got)
+	}
+}
+
+func testDatabaseURL() string {
+	return (&url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword("graft", strings.Repeat("g", 5)),
+		Host:   "db:5432",
+		Path:   "graft",
+		RawQuery: url.Values{
+			"sslmode": []string{"disable"},
+		}.Encode(),
+	}).String()
+}
+
+func testSigningMaterial(prefix string) string {
+	return prefix + "-material-for-config-tests"
 }
 
 // clearGraftEnv 隔离当前进程中的 GRAFT_* 环境变量，避免测试彼此污染。

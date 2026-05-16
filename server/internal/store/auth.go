@@ -13,17 +13,48 @@ var ErrRefreshSessionNotFound = errors.New("refresh session not found")
 //
 // 该 DTO 与 User 分离，避免普通用户资料读取能力意外获得密码散列等敏感字段。
 type UserCredential struct {
-	UserID            uint64
-	Username          string
-	PasswordHash      *string
-	PasswordChangedAt *time.Time
+	UserID             uint64
+	Username           string
+	PasswordHash       *string
+	MustChangePassword bool
+	PasswordChangedAt  *time.Time
 }
 
 // SetPasswordHashInput 描述一次密码散列更新所需的最小输入。
+//
+// 当 ChangedAt 为 nil 时，实现必须保留现有 PasswordChangedAt，不得清空或改写为当前时间。
 type SetPasswordHashInput struct {
-	UserID       uint64
-	PasswordHash string
-	ChangedAt    time.Time
+	UserID             uint64
+	PasswordHash       string
+	MustChangePassword bool
+	ChangedAt          *time.Time
+}
+
+// ChangePasswordAndRevokeOtherRefreshSessionsInput 描述一次“改密并保留当前会话”所需的最小输入。
+//
+// 该输入把密码散列更新与“吊销其它 refresh sessions”收敛为一个显式仓储操作，
+// 避免插件层通过多次独立写入暴露部分提交窗口。
+type ChangePasswordAndRevokeOtherRefreshSessionsInput struct {
+	UserID             uint64
+	PasswordHash       string
+	MustChangePassword bool
+	ChangedAt          time.Time
+	CurrentTokenID     string
+}
+
+// EnsureUserCredentialInput 描述一次“确保默认管理员存在”所需的最小输入。
+type EnsureUserCredentialInput struct {
+	Username           string
+	Display            string
+	PasswordHash       string
+	MustChangePassword bool
+}
+
+// RevokeOtherRefreshSessionsInput 描述一次“保留当前会话并吊销其它 refresh sessions”所需的最小输入。
+type RevokeOtherRefreshSessionsInput struct {
+	UserID         uint64
+	CurrentTokenID string
+	RevokedAt      time.Time
 }
 
 // RefreshSession 表示 refresh token 生命周期对应的稳定持久化 DTO。
@@ -83,6 +114,21 @@ type RotateRefreshSessionInput struct {
 	NewExpiresAt   time.Time
 }
 
+// PasswordChangeRepository 暴露“改密并保留当前会话”所需的原子写入能力。
+//
+// 该边界单独定义，避免让所有 AuthRepository 测试替身都被迫实现与当前切片
+// 无关的新写路径，同时保持插件对仓储能力的依赖显式可见。
+type PasswordChangeRepository interface {
+	// ChangePasswordAndRevokeOtherRefreshSessions 以事务方式更新密码散列并吊销
+	// 当前会话以外的有效 refresh sessions。
+	//
+	// 当用户不存在时统一返回 ErrUserNotFound。
+	ChangePasswordAndRevokeOtherRefreshSessions(
+		ctx context.Context,
+		input ChangePasswordAndRevokeOtherRefreshSessionsInput,
+	) error
+}
+
 // AuthRepository 暴露未来认证插件所需的最小持久化操作集合。
 //
 // 该接口只提供口令与 refresh session 的存储能力，不承载登录、签发或授权决策。
@@ -94,8 +140,16 @@ type AuthRepository interface {
 
 	// SetPasswordHash 为指定用户写入口令散列及其最近变更时间。
 	//
+	// 当 input.ChangedAt 为 nil 时，实现必须保持既有 PasswordChangedAt 不变。
+	//
 	// 当用户不存在时统一返回 ErrUserNotFound。
 	SetPasswordHash(ctx context.Context, input SetPasswordHashInput) error
+
+	// EnsureUserCredential 幂等确保指定用户名的最小认证记录存在。
+	//
+	// 当目标用户不存在时创建用户并写入初始化密码与首次改密标记；已存在时保持
+	// 原有密码、角色与状态不变，并返回现有记录。
+	EnsureUserCredential(ctx context.Context, input EnsureUserCredentialInput) (UserCredential, error)
 
 	// CreateRefreshSession 持久化一条新的刷新会话记录。
 	CreateRefreshSession(ctx context.Context, input CreateRefreshSessionInput) (RefreshSession, error)
@@ -114,6 +168,11 @@ type AuthRepository interface {
 	//
 	// 该操作应保持幂等，允许同一用户在没有可吊销会话时直接成功返回。
 	RevokeRefreshSessionsByUserID(ctx context.Context, input RevokeRefreshSessionsByUserIDInput) error
+
+	// RevokeOtherRefreshSessionsByUserID 吊销某个用户除当前 token 外的其它有效 refresh session。
+	//
+	// 该操作应保持幂等，允许当前 token 不存在其它并发会话时直接成功返回。
+	RevokeOtherRefreshSessionsByUserID(ctx context.Context, input RevokeOtherRefreshSessionsInput) error
 
 	// RevokeRefreshSessionByUserID 按用户定向吊销一条当前有效的刷新会话。
 	//

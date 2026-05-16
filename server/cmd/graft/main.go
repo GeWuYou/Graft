@@ -1,3 +1,4 @@
+// Package main 提供 `graft` 服务器 CLI 的进程入口。
 package main
 
 import (

@@ -20,12 +20,15 @@ Use this skill only when all of the following are true:
 
 ## Coordination Workflow
 
-1. Run the normal `graft-boot` grounding flow first.
+1. Run the normal `graft-boot` grounding flow first and establish the startup receipt required by `AGENTS.md`.
 2. Identify the immediate blocking step and keep it local.
 3. Split only non-blocking work into disjoint slices.
 4. Use `explorer` subagents for read-only discovery or comparison.
 5. Use `worker` subagents only for bounded implementation slices with explicit ownership.
 6. For every subagent, specify:
+   - governance source
+   - task class
+   - recovery source
    - objective
    - owned files or subsystem
    - areas it must not touch
@@ -41,6 +44,7 @@ Use this skill only when all of the following are true:
 
 Before accepting a subagent result, confirm:
 
+* the subagent received the inherited startup context instead of only an objective
 * the subagent stayed inside its ownership boundary
 * the reported validation is enough for that slice
 * the result still follows plugin, DI, and `menu + route + page + api + permission` boundaries

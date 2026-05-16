@@ -130,17 +130,35 @@ func (m *Manager) Ordered() ([]Plugin, error) {
 		return nil, nil
 	}
 
-	index := make(map[string]Plugin, total)
-	inDegree := make(map[string]int, total)
-	edges := make(map[string][]string, total)
+	index, inDegree := buildPluginIndex(m.plugins)
+	edges, err := buildPluginEdges(m.plugins, index, inDegree)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, p := range m.plugins {
+	ordered := resolvePluginOrder(index, inDegree, edges, total)
+	if len(ordered) != total {
+		return nil, errors.New("plugin dependency cycle detected")
+	}
+
+	return ordered, nil
+}
+
+func buildPluginIndex(plugins []Plugin) (map[string]Plugin, map[string]int) {
+	index := make(map[string]Plugin, len(plugins))
+	inDegree := make(map[string]int, len(plugins))
+	for _, p := range plugins {
 		name := p.Name()
 		index[name] = p
 		inDegree[name] = 0
 	}
 
-	for _, p := range m.plugins {
+	return index, inDegree
+}
+
+func buildPluginEdges(plugins []Plugin, index map[string]Plugin, inDegree map[string]int) (map[string][]string, error) {
+	edges := make(map[string][]string, len(plugins))
+	for _, p := range plugins {
 		for _, dependency := range p.DependsOn() {
 			if _, ok := index[dependency]; !ok {
 				return nil, fmt.Errorf("plugin %s depends on missing plugin %s", p.Name(), dependency)
@@ -151,16 +169,18 @@ func (m *Manager) Ordered() ([]Plugin, error) {
 		}
 	}
 
-	queue := make([]string, 0)
+	return edges, nil
+}
+
+func resolvePluginOrder(index map[string]Plugin, inDegree map[string]int, edges map[string][]string, total int) []Plugin {
+	queue := make([]string, 0, total)
 	for name, degree := range inDegree {
 		if degree == 0 {
 			queue = append(queue, name)
 		}
 	}
-	// 对同一层无依赖节点做字典序排序，保证在 map 遍历顺序不稳定时，
-	// 依然得到可预测的插件启动顺序。
-	sort.Strings(queue)
 
+	sort.Strings(queue)
 	ordered := make([]Plugin, 0, total)
 	for len(queue) > 0 {
 		name := queue[0]
@@ -176,9 +196,5 @@ func (m *Manager) Ordered() ([]Plugin, error) {
 		}
 	}
 
-	if len(ordered) != total {
-		return nil, errors.New("plugin dependency cycle detected")
-	}
-
-	return ordered, nil
+	return ordered
 }

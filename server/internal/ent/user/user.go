@@ -20,6 +20,8 @@ const (
 	FieldDisplay = "display"
 	// FieldPasswordHash holds the string denoting the password_hash field in the database.
 	FieldPasswordHash = "password_hash"
+	// FieldMustChangePassword holds the string denoting the must_change_password field in the database.
+	FieldMustChangePassword = "must_change_password"
 	// FieldPasswordChangedAt holds the string denoting the password_changed_at field in the database.
 	FieldPasswordChangedAt = "password_changed_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -54,6 +56,7 @@ var Columns = []string{
 	FieldUsername,
 	FieldDisplay,
 	FieldPasswordHash,
+	FieldMustChangePassword,
 	FieldPasswordChangedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -74,6 +77,8 @@ var (
 	UsernameValidator func(string) error
 	// DisplayValidator is a validator for the "display" field. It is called by the builders before save.
 	DisplayValidator func(string) error
+	// DefaultMustChangePassword holds the default value on creation for the "must_change_password" field.
+	DefaultMustChangePassword bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -103,6 +108,11 @@ func ByDisplay(opts ...sql.OrderTermOption) OrderOption {
 // ByPasswordHash orders the results by the password_hash field.
 func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPasswordHash, opts...).ToFunc()
+}
+
+// ByMustChangePassword orders the results by the must_change_password field.
+func ByMustChangePassword(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMustChangePassword, opts...).ToFunc()
 }
 
 // ByPasswordChangedAt orders the results by the password_changed_at field.

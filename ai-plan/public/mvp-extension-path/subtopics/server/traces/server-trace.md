@@ -335,8 +335,75 @@
   `AUTH_FORBIDDEN` must not refresh; any refresh failure must collapse to one exit that clears local auth/session
   state and redirects to login without retry recursion.
 
+## 2026-05-15 default-admin and forced-password-change server docs sync
+
+- Recorded the bounded `server/plugins/user` implementation contract for the next auth-governance slice without
+  widening runtime scope.
+- Fixed repository truth so `graft-admin` is reserved for default-admin initialization only, `change-password` must
+  never accept it, and `must_change_password` is a backend-persisted field rather than a frontend inference.
+- Fixed the MVP security boundary so this slice extends `login/bootstrap` and user-plugin auth flows, but does not add
+  a new global backend interception middleware for every business API.
+
+## 2026-05-15 Go 1.26.x and Zap 1.28.0 baseline update
+
+- Raised `server/go.mod` from `go 1.25.0` to `go 1.26.0` and aligned the repository design truth to state the
+  backend baseline as `Go 1.26.x`.
+- Kept the toolchain slice minimal: `go test ./...` and `go build ./cmd/...` both passed on local `go1.26.1`, so the
+  upgrade did not require Ent regeneration, Atlas migration changes, or runtime refactors.
+- Upgraded only the approved direct dependency `go.uber.org/zap` from `v1.27.0` to `v1.28.0`, then ran `go mod tidy`
+  and `go mod verify`.
+- Confirmed the `go mod tidy` fallout stayed narrow: the main change beyond the approved upgrades was that
+  `github.com/robfig/cron/v3`, `github.com/google/uuid`, and `golang.org/x/crypto` were promoted from `indirect` to
+  direct because hand-written `server` code imports them.
+- Re-ran `graft validate backend` with pinned `golangci-lint v2.12.2` available on `PATH` and confirmed the command
+  now reaches the real lint stage; the remaining failure is the existing repository lint backlog rather than a new
+  Go 1.26 or Zap compatibility regression.
+
+## 2026-05-16 PR #11 review follow-up
+
+- Re-checked the current PR #11 unresolved AI review threads against local HEAD and kept only the still-applicable
+  lifecycle, idempotency, documentation, and frontend-contract findings in scope.
+- Moved `user` plugin default-admin bootstrap work from `Register` into `Boot`, added direct plugin coverage that
+  locks “Register no side effect, Boot performs initialization”, and deferred default admin password hashing until the
+  create path is actually needed.
+- Hardened `entstore` idempotent write paths so `EnsureUserCredential`, `EnsureRole`, `EnsurePermission`,
+  `AssignPermissionsToRole`, and `AssignRoleToUser` now treat unique-constraint races as “already exists” instead of
+  surfacing false-negative startup failures.
+- Kept the backend-owned `passwordPolicy` guard that forbids reusing `graft-admin`, added the lifecycle-sensitive
+  `must_change_password` field comment, guarded bootstrap reads against a missing auth repository, and dropped the
+  hardcoded default-admin password constant from the web forced-password-change dialog.
+- Renamed the Ent association schema files from `rolepermission.go` / `userrole.go` to
+  `role_permission.go` / `user_role.go` so the handwritten schema source now matches the repository's underscore file
+  naming rule and stays portable across stricter tooling and recovery flows, without changing schema types, table
+  mappings, or runtime behavior.
+- Revalidated the accepted follow-up with `cd server && go test ./plugins/user ./internal/store/entstore`,
+  `cd server && go build ./cmd/graft`, and the repository-required host Windows Bun `cd web && bun run typecheck`; the
+  completion-state `graft validate backend --test-target ./plugins/user --test-target ./internal/store/entstore`
+  attempt still stops at the existing repository-wide lint backlog rather than a new regression from this slice.
+
+## 2026-05-16 backend lint entrypoint and CI root-dir fix
+
+- Fixed `.github/workflows/pull-request-validation.yml` so the `server-lint` job now uses `golangci/golangci-lint-action@v9`
+  only to install the pinned binary in `server/`, with actual execution still delegated to
+  `go run ./cmd/graft validate backend --stage lint`.
+- Reproduced the original failure mode locally from the repository root (`pattern ./...: directory prefix . does not contain main module or its selected dependencies`) and confirmed the root cause was action execution context rather than Go source diagnostics.
+- Cleared the current production-code lint backlog across the touched `server` packages, including CLI/runtime comment hygiene, request-auth helpers, user/session route complexity, store conversion safety, Ent schema duplication, and plugin registration decomposition.
+- Revalidated the touched server surface with `cd server && go test ./internal/httpx ./internal/store/entstore ./plugins/user` plus a focused production-code `golangci-lint run --config .golangci.yml ...` pass that returned `0 issues`.
+- Re-ran `go run ./cmd/graft validate backend --stage lint` and confirmed the production lint config now passes cleanly, while the test lint config still exposes a separate historical backlog (117 issues) that is now recorded as a controlled exception in `server-tracking.md`.
+
+## 2026-05-16 AGENTS Go governance expansion
+
+- Expanded the root `AGENTS.md` with a dedicated `Go 代码组织与命名规范` chapter for `server`, and moved the fine-grained
+  handwritten Go governance truth there instead of scattering it across validation, comment, and done-state sections.
+- Froze explicit rules for file/package/type/function naming, Context propagation, API/DTO separation, config loading,
+  runtime wiring, transaction ownership, Ent schema/migration discipline, concurrency/resource lifecycle, logging,
+  auth handling, and AI-generated code behavior.
+- Narrowed the older sections so `8.1` keeps platform-level server boundary truth, `12.1` keeps validation-entrypoint
+  truth, `18.1` keeps documentation-quality truth, and `21` keeps completion-state truth, with cross-references back
+  to the new Go-governance chapter instead of duplicated rule lists.
+- Kept this slice documentation-only; no business code, schema, migration, runtime wiring, or plugin behavior changed.
+
 ## Next Step
 
-- Implement the bounded auth / RBAC response convergence slice while keeping the current bootstrap contract stable, and
-  validate it with `cd server && go test ./internal/httpx ./plugins/user`, `cd server && go build ./cmd/graft`, and
-  `cd web && bun run check`.
+- Take the recorded `server/.golangci.test.yml` backlog as a standalone cleanup slice and rerun `graft validate backend`
+  only after that test-lint queue is materially reduced or cleared.

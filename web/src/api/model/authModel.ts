@@ -7,6 +7,10 @@ export const API_CODE = {
   AUTH_TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
   AUTH_TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
   AUTH_FORBIDDEN: 'AUTH_FORBIDDEN',
+  AUTH_PASSWORD_CHANGE_REQUIRED: 'AUTH_PASSWORD_CHANGE_REQUIRED',
+  AUTH_PASSWORD_POLICY_VIOLATION: 'AUTH_PASSWORD_POLICY_VIOLATION',
+  AUTH_PASSWORD_REUSE_FORBIDDEN: 'AUTH_PASSWORD_REUSE_FORBIDDEN',
+  AUTH_CURRENT_PASSWORD_INVALID: 'AUTH_CURRENT_PASSWORD_INVALID',
   COMMON_INVALID_ARGUMENT: 'COMMON_INVALID_ARGUMENT',
   COMMON_INTERNAL_ERROR: 'COMMON_INTERNAL_ERROR',
 } as const;
@@ -44,6 +48,7 @@ export interface LoginUser {
 export interface LoginResponse {
   access_token: string;
   expires_at: string;
+  must_change_password: boolean;
   user: LoginUser;
 }
 
@@ -64,6 +69,7 @@ export interface BootstrapLocale {
 
 export interface BootstrapResponse {
   user: LoginUser;
+  must_change_password: boolean;
   permissions: string[];
   menus: BootstrapMenu[];
   locale: BootstrapLocale;
@@ -72,6 +78,11 @@ export interface BootstrapResponse {
 export interface LoginPayload {
   username: string;
   password: string;
+}
+
+export interface ChangePasswordPayload {
+  current_password: string;
+  new_password: string;
 }
 
 export interface AppBootstrapRouteMeta {

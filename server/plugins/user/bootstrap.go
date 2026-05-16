@@ -15,10 +15,11 @@ import (
 )
 
 type bootstrapResponse struct {
-	User        loginUserResponse       `json:"user"`
-	Permissions []string                `json:"permissions"`
-	Menus       []bootstrapMenuResponse `json:"menus"`
-	Locale      bootstrapLocaleSnapshot `json:"locale"`
+	User               loginUserResponse       `json:"user"`
+	MustChangePassword bool                    `json:"must_change_password"`
+	Permissions        []string                `json:"permissions"`
+	Menus              []bootstrapMenuResponse `json:"menus"`
+	Locale             bootstrapLocaleSnapshot `json:"locale"`
 }
 
 type bootstrapMenuResponse struct {
@@ -41,19 +42,24 @@ type bootstrapLocaleSnapshot struct {
 // 该读模型继续停留在 user 插件边界内，避免为了一个受保护的 bootstrap
 // 契约，把菜单过滤、locale 快照或权限聚合拆散到 core 或新增共享抽象里。
 type bootstrapReader struct {
+	auth         store.AuthRepository
 	rbac         store.RBACRepository
 	menuRegistry *menu.Registry
 	localizer    *i18n.Service
 	localeConfig config.I18nConfig
 }
 
+const localeFallbackCapacity = 2
+
 func newBootstrapReader(
 	localeConfig config.I18nConfig,
 	localizer *i18n.Service,
 	menuRegistry *menu.Registry,
+	auth store.AuthRepository,
 	rbac store.RBACRepository,
 ) bootstrapReader {
 	return bootstrapReader{
+		auth:         auth,
 		rbac:         rbac,
 		menuRegistry: menuRegistry,
 		localizer:    localizer,
@@ -63,6 +69,10 @@ func newBootstrapReader(
 
 // Read 返回当前请求主体可见的最小 bootstrap 载荷。
 func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (bootstrapResponse, error) {
+	if r.auth == nil {
+		return bootstrapResponse{}, errors.New("auth repository is unavailable")
+	}
+
 	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.User == nil || requestAuth.User.ID == 0 {
 		return bootstrapResponse{}, pluginapi.ErrUnauthenticated
@@ -72,6 +82,13 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 	if err != nil {
 		return bootstrapResponse{}, err
 	}
+	credential, err := r.auth.GetUserCredentialByUsername(ctx, requestAuth.User.Username)
+	if err != nil {
+		if errors.Is(err, store.ErrUserNotFound) {
+			return bootstrapResponse{}, pluginapi.ErrUnauthenticated
+		}
+		return bootstrapResponse{}, err
+	}
 
 	return bootstrapResponse{
 		User: loginUserResponse{
@@ -79,9 +96,10 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 			Username:    requestAuth.User.Username,
 			DisplayName: requestAuth.User.DisplayName,
 		},
-		Permissions: permissionCodes,
-		Menus:       filterBootstrapMenus(r.menuRegistry, permissionSet),
-		Locale:      r.localeSnapshot(request),
+		MustChangePassword: credential.MustChangePassword,
+		Permissions:        permissionCodes,
+		Menus:              filterBootstrapMenus(r.menuRegistry, permissionSet),
+		Locale:             r.localeSnapshot(request),
 	}, nil
 }
 
@@ -160,7 +178,7 @@ func (r bootstrapReader) localeSnapshot(request *http.Request) bootstrapLocaleSn
 
 	supportedLocales := append([]string(nil), r.localeConfig.SupportedLocales...)
 	if len(supportedLocales) == 0 {
-		seen := make(map[string]struct{}, 2)
+		seen := make(map[string]struct{}, localeFallbackCapacity)
 		for _, locale := range []string{defaultLocale, fallbackLocale} {
 			locale = strings.TrimSpace(locale)
 			if locale == "" {

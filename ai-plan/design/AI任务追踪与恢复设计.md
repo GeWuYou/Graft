@@ -51,6 +51,9 @@
 
 它不属于某个 topic，也不替代 `ai-plan/` 的设计、路线或恢复职责。
 
+根目录 `AGENTS.md` 继续负责仓库级启动治理真值，例如 startup preflight、最小 receipt、resume/restart
+重验与 subagent 继承要求。`ai-plan/` 只提供恢复材料与恢复入口，不负责定义第二套 boot 链或启动闸门。
+
 ### 3.2 主题级恢复材料
 
 `ai-plan/public/<topic>/todos/` 用于主题级跟踪：
@@ -203,3 +206,6 @@ topic 下增加子主题，而不是拆成多个并列 active topic。
 * 新贡献者能快速找到仓库级真值
 * 复杂主题能在不依赖聊天历史的前提下恢复
 * 仓库不会同时维护多份互相冲突的计划真值
+
+同样重要的是：恢复 topic 不等于恢复仓库治理状态。任何 resume/restart 都必须先经过根目录
+`AGENTS.md` 定义的 startup preflight，再进入 `ai-plan/public/` 的恢复链。

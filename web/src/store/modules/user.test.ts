@@ -50,6 +50,7 @@ function createBootstrapPayload(): BootstrapResponse {
       username: 'alice',
       display_name: 'Alice',
     },
+    must_change_password: false,
     permissions: ['user.read'],
     menus: [],
     locale: {
@@ -65,6 +66,7 @@ function createRefreshPayload(token = 'fresh-token'): LoginResponse {
   return {
     access_token: token,
     expires_at: '2026-05-15T00:00:00Z',
+    must_change_password: false,
     user: {
       id: 7,
       username: 'alice',
@@ -141,5 +143,54 @@ describe('useUserStore.ensureBootstrap', () => {
 
     expect(authApiMocks.getBootstrap).toHaveBeenCalledTimes(1);
     expect(authApiMocks.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('useUserStore password change state', () => {
+  beforeEach(() => {
+    authApiMocks.getBootstrap.mockReset();
+    authApiMocks.login.mockReset();
+    authApiMocks.logout.mockReset();
+    authApiMocks.refresh.mockReset();
+    mockPermissionStore.setBootstrapSnapshot.mockReset();
+    mockPermissionStore.restoreRoutes.mockReset();
+    mockPermissionStore.initRoutes.mockReset();
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  it('tracks must_change_password from login and bootstrap responses', async () => {
+    const { useUserStore } = await loadUserStore();
+    const store = useUserStore();
+
+    store.applyLoginResponse({
+      ...createRefreshPayload('login-token'),
+      must_change_password: true,
+    });
+
+    expect(store.mustChangePassword).toBe(true);
+
+    store.applyBootstrap({
+      ...createBootstrapPayload(),
+      must_change_password: false,
+    });
+
+    expect(store.mustChangePassword).toBe(false);
+  });
+
+  it('clears must_change_password when the session is cleared', async () => {
+    const { useUserStore } = await loadUserStore();
+    const store = useUserStore();
+
+    store.applyBootstrap({
+      ...createBootstrapPayload(),
+      must_change_password: true,
+    });
+
+    store.clearSessionState();
+
+    expect(store.mustChangePassword).toBe(false);
+    expect(store.bootstrapLoaded).toBe(false);
+    expect(store.bootstrapSnapshot).toBeNull();
   });
 });

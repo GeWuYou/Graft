@@ -106,7 +106,7 @@ func (m *accessTokenManager) Parse(token string) (*pluginapi.AccessTokenClaims, 
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
 		jwt.WithTimeFunc(m.now),
 	)
-	parsed, err := parser.ParseWithClaims(token, claims, func(current *jwt.Token) (any, error) {
+	parsed, err := parser.ParseWithClaims(token, claims, func(_ *jwt.Token) (any, error) {
 		return m.secret, nil
 	})
 	if err != nil {
@@ -134,8 +134,8 @@ func (m *accessTokenManager) Parse(token string) (*pluginapi.AccessTokenClaims, 
 		UserID:       userID,
 		SessionID:    claims.SessionID,
 		TokenVersion: claims.TokenVersion,
-		IssuedAt:     claims.IssuedAt.Time.UTC(),
-		ExpiresAt:    claims.ExpiresAt.Time.UTC(),
+		IssuedAt:     claims.IssuedAt.UTC(),
+		ExpiresAt:    claims.ExpiresAt.UTC(),
 	}, nil
 }
 
@@ -183,7 +183,7 @@ func (m *refreshTokenManager) Parse(token string) (*refreshTokenSubject, error) 
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
 		jwt.WithTimeFunc(m.now),
 	)
-	parsed, err := parser.ParseWithClaims(token, claims, func(current *jwt.Token) (any, error) {
+	parsed, err := parser.ParseWithClaims(token, claims, func(_ *jwt.Token) (any, error) {
 		return m.secret, nil
 	})
 	if err != nil {

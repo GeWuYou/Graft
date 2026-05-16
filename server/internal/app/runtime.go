@@ -206,37 +206,37 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 }
 
 func (r *Runtime) registerCoreServices() error {
-	if err := r.services.RegisterSingleton((*config.Config)(nil), func(resolver container.Resolver) (any, error) {
+	if err := r.services.RegisterSingleton((*config.Config)(nil), func(_ container.Resolver) (any, error) {
 		return r.config, nil
 	}); err != nil {
 		return err
 	}
 
-	if err := r.services.RegisterSingleton((*zap.Logger)(nil), func(resolver container.Resolver) (any, error) {
+	if err := r.services.RegisterSingleton((*zap.Logger)(nil), func(_ container.Resolver) (any, error) {
 		return r.logger, nil
 	}); err != nil {
 		return err
 	}
 
-	if err := r.services.RegisterSingleton((*i18n.Service)(nil), func(resolver container.Resolver) (any, error) {
+	if err := r.services.RegisterSingleton((*i18n.Service)(nil), func(_ container.Resolver) (any, error) {
 		return r.i18n, nil
 	}); err != nil {
 		return err
 	}
 
-	if err := r.services.RegisterSingleton((*eventbus.Bus)(nil), func(resolver container.Resolver) (any, error) {
+	if err := r.services.RegisterSingleton((*eventbus.Bus)(nil), func(_ container.Resolver) (any, error) {
 		return r.eventBus, nil
 	}); err != nil {
 		return err
 	}
 
-	if err := r.services.RegisterSingleton((*store.Factory)(nil), func(resolver container.Resolver) (any, error) {
+	if err := r.services.RegisterSingleton((*store.Factory)(nil), func(_ container.Resolver) (any, error) {
 		return r.stores, nil
 	}); err != nil {
 		return err
 	}
 
-	return r.services.RegisterSingleton((*redis.Client)(nil), func(resolver container.Resolver) (any, error) {
+	return r.services.RegisterSingleton((*redis.Client)(nil), func(_ container.Resolver) (any, error) {
 		return r.redis, nil
 	})
 }
@@ -305,7 +305,7 @@ func (r *Runtime) closeCoreResources() error {
 // 这里保留原始失败原因，并把插件关闭和 core 资源回收错误聚合到同一个
 // 返回值中，方便调用方看到完整失败路径。
 func (r *Runtime) cleanupAfterFailure(ctx *plugin.Context, booted []plugin.Plugin, cause error) error {
-	var err error = cause
+	err := cause
 	if shutdownErr := shutdownPlugins(ctx, booted); shutdownErr != nil {
 		err = errors.Join(err, shutdownErr)
 	}

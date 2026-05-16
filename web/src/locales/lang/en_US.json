@@ -677,6 +677,30 @@
       "phoneLogin": "Login with Mobile Phone",
       "loginSuccess": "Login successful",
       "countdown": "Resend after {count} seconds",
+      "forcePasswordChange": {
+        "title": "Change password before continuing",
+        "description": "This account is still using the system-provided initial password. Set a new password before using the admin shell.",
+        "policyHint": "Your new password must be at least 12 characters long and include both letters and numbers. It cannot remain graft-admin or match your current password.",
+        "currentPassword": "Current password",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "currentPasswordPlaceholder": "Enter current password",
+        "newPasswordPlaceholder": "Enter new password",
+        "confirmPasswordPlaceholder": "Enter the new password again",
+        "submit": "Save new password",
+        "success": "Password updated successfully",
+        "required": {
+          "currentPassword": "Current password is required",
+          "newPassword": "New password is required",
+          "confirmPassword": "Please confirm the new password"
+        },
+        "errors": {
+          "confirmMismatch": "The new passwords do not match",
+          "defaultPasswordForbidden": "You cannot keep using the default password graft-admin",
+          "sameAsCurrent": "The new password must be different from the current password",
+          "policyViolation": "The new password must be at least 12 characters and include both letters and numbers"
+        }
+      },
       "input": {
         "account": "please enter account",
         "password": "please enter password",

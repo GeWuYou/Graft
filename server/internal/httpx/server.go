@@ -12,6 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	defaultServerReadHeaderTimeout = 5 * time.Second
+	defaultServerShutdownTimeout   = 5 * time.Second
+)
+
 // Server 封装运行时使用的 Gin 引擎与 HTTP 服务实例。
 //
 // Server 负责把 `Run` / `Shutdown` 的生命周期归属集中到一个显式对象中，
@@ -51,8 +56,9 @@ func (s *Server) Engine() *gin.Engine {
 // 并等待监听 goroutine 退出后再返回。
 func (s *Server) Run(ctx context.Context, addr string) error {
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: s.engine,
+		Addr:              addr,
+		Handler:           s.engine,
+		ReadHeaderTimeout: defaultServerReadHeaderTimeout,
 	}
 	if err := s.bindRunningServer(srv); err != nil {
 		return err
@@ -77,7 +83,7 @@ func (s *Server) Run(ctx context.Context, addr string) error {
 		}
 		return fmt.Errorf("listen and serve: %w", err)
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), defaultServerShutdownTimeout)
 		defer cancel()
 
 		shutdownErr := s.Shutdown(shutdownCtx)

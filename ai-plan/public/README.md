@@ -1,11 +1,12 @@
-# AI Plan Public Index
+# AI Plan Public Recovery Index
 
-`ai-plan/public/README.md` is the shared startup index for `boot`. It should stay short, list only active topics, and
-help the current branch or worktree land on the right recovery documents without scanning every public artifact.
+`ai-plan/public/README.md` is the shared recovery index used after `AGENTS.md` startup preflight. It should stay short,
+list only active topics, and help the current branch or worktree land on the right recovery documents without scanning
+every public artifact.
 
-## Boot Rules
+## Recovery Rules
 
-1. Read this file before scanning `ai-plan/public/<topic>/`.
+1. Read this file only after startup preflight from the root `AGENTS.md`.
 2. If the current branch or worktree appears in the map below, read the listed topics in priority order.
 3. Read the parent topic tracking and trace files before reading any subtopic files.
 4. If the parent topic defines subtopics, continue into the relevant `server` / `web` / other bounded subtopic based on
@@ -22,7 +23,7 @@ help the current branch or worktree land on the right recovery documents without
   - Subtopics:
     - `server`: `ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
     - `web`: `ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
-  - Boot note: always read the parent `mvp-extension-path` entry first, then continue into the relevant subtopic.
+  - Recovery note: always read the parent `mvp-extension-path` entry first, then continue into the relevant subtopic.
 
 ## Worktree To Active Topic Map
 

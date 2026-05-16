@@ -1,14 +1,10 @@
 package schema
 
 import (
-	"time"
-
 	"entgo.io/ent"
 	entsql "entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/index"
 )
 
 // UserRole 定义用户与角色的关联模型。
@@ -27,13 +23,7 @@ func (UserRole) Annotations() []schema.Annotation {
 
 // Fields 返回用户角色关联字段定义。
 func (UserRole) Fields() []ent.Field {
-	return []ent.Field{
-		field.Int("user_id"),
-		field.Int("role_id"),
-		field.Time("created_at").
-			Immutable().
-			Default(time.Now),
-	}
+	return associationRelationFields("user_id", "role_id")
 }
 
 // Edges 返回用户角色关联的关系定义。
@@ -54,9 +44,5 @@ func (UserRole) Edges() []ent.Edge {
 
 // Indexes 返回用户角色关联的唯一约束与辅助索引。
 func (UserRole) Indexes() []ent.Index {
-	return []ent.Index{
-		index.Fields("user_id", "role_id").
-			Unique(),
-		index.Fields("role_id"),
-	}
+	return associationIndexes("user_id", "role_id")
 }

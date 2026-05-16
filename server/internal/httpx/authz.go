@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -28,73 +29,108 @@ func RequirePermission(localizer *i18n.Service, resolver container.Resolver, cod
 			return
 		}
 
-		requestToken, ok := extractBearerToken(ctx.Request)
-		if !ok {
-			AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+		requestAuth, requestCtx, handled := authenticateRequest(ctx, localizer, authService)
+		if handled {
 			return
 		}
-
-		claims, err := authService.ParseAccessToken(ctx.Request.Context(), requestToken)
-		if err != nil {
-			if errors.Is(err, pluginapi.ErrExpiredAccessToken) {
-				AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_expired", nil)
-				return
-			}
-			if errors.Is(err, pluginapi.ErrInvalidAccessToken) {
-				AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
-				return
-			}
-			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+		if authorizeRequest(requestCtx, ctx, localizer, resolver, code, requestAuth) {
 			return
-		}
-
-		requestAuth := pluginapi.RequestAuthContext{Claims: claims}
-		requestCtx := pluginapi.WithRequestAuthContext(ctx.Request.Context(), requestAuth)
-		user, err := authService.CurrentUser(requestCtx)
-		if err != nil {
-			if errors.Is(err, pluginapi.ErrInvalidAccessToken) {
-				AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
-				return
-			}
-			if errors.Is(err, pluginapi.ErrUnauthenticated) {
-				AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
-				return
-			}
-			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
-			return
-		}
-
-		requestAuth.User = user
-		requestCtx = pluginapi.WithRequestAuthContext(ctx.Request.Context(), requestAuth)
-
-		if strings.TrimSpace(code) != "" {
-			authorizer, err := resolveAuthorizer(resolver)
-			if err != nil {
-				AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
-				return
-			}
-			if err := authorizer.Authorize(requestCtx, requestAuth, code); err != nil {
-				if errors.Is(err, pluginapi.ErrPermissionDenied) {
-					AbortLocalizedError(ctx, localizer, http.StatusForbidden, "auth.forbidden", map[string]any{
-						"permission": code,
-					})
-					return
-				}
-				if errors.Is(err, pluginapi.ErrInvalidAccessToken) {
-					AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
-					return
-				}
-				if errors.Is(err, pluginapi.ErrUnauthenticated) {
-					AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
-					return
-				}
-				AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
-				return
-			}
 		}
 
 		ctx.Request = ctx.Request.WithContext(requestCtx)
 		ctx.Next()
+	}
+}
+
+func authenticateRequest(
+	ctx *gin.Context,
+	localizer *i18n.Service,
+	authService pluginapi.AuthService,
+) (pluginapi.RequestAuthContext, context.Context, bool) {
+	requestToken, ok := extractBearerToken(ctx.Request)
+	if !ok {
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+		return pluginapi.RequestAuthContext{}, nil, true
+	}
+
+	claims, err := authService.ParseAccessToken(ctx.Request.Context(), requestToken)
+	if err != nil {
+		writeAccessTokenError(ctx, localizer, err)
+		return pluginapi.RequestAuthContext{}, nil, true
+	}
+
+	requestAuth := pluginapi.RequestAuthContext{Claims: claims}
+	requestCtx := pluginapi.WithRequestAuthContext(ctx.Request.Context(), requestAuth)
+	user, err := authService.CurrentUser(requestCtx)
+	if err != nil {
+		writeCurrentUserError(ctx, localizer, err)
+		return pluginapi.RequestAuthContext{}, nil, true
+	}
+
+	requestAuth.User = user
+	requestCtx = pluginapi.WithRequestAuthContext(ctx.Request.Context(), requestAuth)
+	return requestAuth, requestCtx, false
+}
+
+func authorizeRequest(
+	requestCtx context.Context,
+	ctx *gin.Context,
+	localizer *i18n.Service,
+	resolver container.Resolver,
+	code string,
+	requestAuth pluginapi.RequestAuthContext,
+) bool {
+	if strings.TrimSpace(code) == "" {
+		return false
+	}
+
+	authorizer, err := resolveAuthorizer(resolver)
+	if err != nil {
+		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+		return true
+	}
+	if err := authorizer.Authorize(requestCtx, requestAuth, code); err != nil {
+		writeAuthorizationError(ctx, localizer, code, err)
+		return true
+	}
+
+	return false
+}
+
+func writeAccessTokenError(ctx *gin.Context, localizer *i18n.Service, err error) {
+	switch {
+	case errors.Is(err, pluginapi.ErrExpiredAccessToken):
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_expired", nil)
+	case errors.Is(err, pluginapi.ErrInvalidAccessToken):
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
+	default:
+		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+	}
+}
+
+func writeCurrentUserError(ctx *gin.Context, localizer *i18n.Service, err error) {
+	switch {
+	case errors.Is(err, pluginapi.ErrInvalidAccessToken):
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
+	case errors.Is(err, pluginapi.ErrUnauthenticated):
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+	default:
+		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
+	}
+}
+
+func writeAuthorizationError(ctx *gin.Context, localizer *i18n.Service, code string, err error) {
+	switch {
+	case errors.Is(err, pluginapi.ErrPermissionDenied):
+		AbortLocalizedError(ctx, localizer, http.StatusForbidden, "auth.forbidden", map[string]any{
+			"permission": code,
+		})
+	case errors.Is(err, pluginapi.ErrInvalidAccessToken):
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_invalid", nil)
+	case errors.Is(err, pluginapi.ErrUnauthenticated):
+		AbortLocalizedError(ctx, localizer, http.StatusUnauthorized, "auth.token_missing", nil)
+	default:
+		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, "common.internal_error", nil)
 	}
 }
 

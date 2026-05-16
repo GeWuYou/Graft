@@ -11,34 +11,22 @@ Treat `AGENTS.md` as the source of truth. This skill is a startup workflow, not 
 
 ## Startup Workflow
 
-1. Read `AGENTS.md`.
-2. Read `.ai/environment/tools.ai.yaml` if it exists. Use `.ai/environment/tools.raw.yaml` only when the AI-facing
-   inventory is missing or insufficient.
-3. Read the relevant repository-wide documents in `ai-plan/`, starting with:
-   - `ai-plan/design/项目设计.md`
-   - `ai-plan/design/插件与依赖注入设计.md`
-   - `ai-plan/design/前端架构设计.md`
-   - `ai-plan/roadmap/MVP实施计划.md`
-4. Read `ai-plan/public/README.md` and any active topic tracking or trace files mapped to the current branch or
-   worktree. If the mapped topic defines subtopics, read the parent topic first and then continue into the relevant
-   subtopic for the current `server`, `web`, or cross-boundary task.
+1. Run the startup preflight defined in `AGENTS.md` `4.1 Startup Governance`.
+2. Emit the minimum startup receipt from `AGENTS.md` before substantive work:
+   - `governance source`
+   - `task class`
+   - `recovery source`
+3. If the current turn needs recovery context, read `ai-plan/public/README.md` only after preflight, then follow the
+   mapped parent topic and relevant subtopic recovery files for the current task shape.
+4. Read the relevant repository-wide design and roadmap truth needed by the task.
 5. Inspect the current repository state before assuming toolchains or entrypoints exist.
-6. Classify the task into one of:
-   - `server/core`
-   - `server plugin`
-   - `web module`
-   - `cross-boundary`
-   - `docs or automation`
-7. Identify the first concrete boundary decision before editing:
-   - core or plugin
-   - public service interface or internal-only code
-   - menu, route, page, API, permission linkage
-   - required validation scope
-8. If the task is complex and splits into disjoint parallel slices, consider `graft-multi-agent-batch`.
-9. Before edits, tell the user what you read, how you classified the task, and the first implementation step.
+6. Identify the first concrete boundary decision before editing.
+7. If the task is complex and splits into disjoint parallel slices, consider `graft-multi-agent-batch`.
+8. Before edits, tell the user what you read, how you classified the task, and the first implementation step.
 
 ## Recovery Rules
 
+* recovery follows startup preflight; it does not replace it
 * prefer repository truth over assumptions
 * if the repo still lacks a stable build or runtime contract, say so explicitly and keep validation expectations honest
 * if docs and code diverge, update the docs first or in the same change

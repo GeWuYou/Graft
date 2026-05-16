@@ -1,8 +1,9 @@
-import type { BootstrapResponse, LoginPayload, LoginResponse } from '@/api/model/authModel';
+import type { BootstrapResponse, ChangePasswordPayload, LoginPayload, LoginResponse } from '@/api/model/authModel';
 import { request } from '@/utils/request';
 
 const Api = {
   Bootstrap: '/api/auth/bootstrap',
+  ChangePassword: '/api/auth/change-password',
   Login: '/api/auth/login',
   Logout: '/api/auth/logout',
   Refresh: '/api/auth/refresh',
@@ -24,6 +25,13 @@ export function refresh() {
 export function logout() {
   return request.post<void>({
     url: Api.Logout,
+  });
+}
+
+export function changePassword(payload: ChangePasswordPayload) {
+  return request.post<void>({
+    url: Api.ChangePassword,
+    data: payload,
   });
 }
 

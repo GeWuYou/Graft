@@ -1,3 +1,4 @@
+// Package main 提供 signing key 辅助生成命令的进程入口。
 package main
 
 import (

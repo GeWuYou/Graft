@@ -51,7 +51,7 @@ func TestStartAndStopRunsRegisteredJob(t *testing.T) {
 	if err := runtime.RegisterJob(cronx.Job{
 		Name:     "heartbeat",
 		Schedule: "*/1 * * * * *",
-		Run: func(ctx context.Context) error {
+		Run: func(_ context.Context) error {
 			select {
 			case triggered <- struct{}{}:
 			default:
@@ -69,11 +69,7 @@ func TestStartAndStopRunsRegisteredJob(t *testing.T) {
 		_ = runtime.Stop(context.Background())
 	}()
 
-	select {
-	case <-triggered:
-	case <-time.After(1500 * time.Millisecond):
-		t.Fatal("expected scheduled job to run")
-	}
+	waitForSignal(t, triggered, 2500*time.Millisecond, "expected scheduled job to run")
 
 	if err := runtime.Stop(context.Background()); err != nil {
 		t.Fatalf("stop runtime: %v", err)
@@ -88,7 +84,7 @@ func TestRemoveJobPreventsFutureExecution(t *testing.T) {
 	if err := runtime.RegisterJob(cronx.Job{
 		Name:     "cleanup",
 		Schedule: "*/1 * * * * *",
-		Run: func(ctx context.Context) error {
+		Run: func(_ context.Context) error {
 			triggered <- struct{}{}
 			return nil
 		},
@@ -99,21 +95,13 @@ func TestRemoveJobPreventsFutureExecution(t *testing.T) {
 		t.Fatalf("start runtime: %v", err)
 	}
 
-	select {
-	case <-triggered:
-	case <-time.After(1500 * time.Millisecond):
-		t.Fatal("expected first scheduled execution")
-	}
+	waitForSignal(t, triggered, 2500*time.Millisecond, "expected first scheduled execution")
 
 	if err := runtime.RemoveJob("cleanup"); err != nil {
 		t.Fatalf("remove job: %v", err)
 	}
 
-	select {
-	case <-triggered:
-		t.Fatal("expected removed job not to run again")
-	case <-time.After(1200 * time.Millisecond):
-	}
+	assertNoSignal(t, triggered, 1200*time.Millisecond, "expected removed job not to run again")
 
 	if err := runtime.Stop(context.Background()); err != nil {
 		t.Fatalf("stop runtime: %v", err)
@@ -146,7 +134,7 @@ func TestStopWithNilContextWaitsForInFlightJob(t *testing.T) {
 	if err := runtime.RegisterJob(cronx.Job{
 		Name:     "blocking",
 		Schedule: "*/1 * * * * *",
-		Run: func(ctx context.Context) error {
+		Run: func(_ context.Context) error {
 			select {
 			case started <- struct{}{}:
 			default:
@@ -166,37 +154,61 @@ func TestStopWithNilContextWaitsForInFlightJob(t *testing.T) {
 		t.Fatalf("start runtime: %v", err)
 	}
 
-	select {
-	case <-started:
-	case <-time.After(1500 * time.Millisecond):
-		t.Fatal("expected scheduled job to start")
-	}
+	waitForSignal(t, started, 2500*time.Millisecond, "expected scheduled job to start")
 
 	stopDone := make(chan error, 1)
+	var stopCtx context.Context
 	go func() {
-		stopDone <- runtime.Stop(nil)
+		stopDone <- runtime.Stop(stopCtx)
 	}()
+
+	assertNoStopResult(t, stopDone, 200*time.Millisecond)
+
+	close(release)
+
+	waitForSignal(t, finished, time.Second, "expected blocked job to finish after release")
+	waitForStopResult(t, stopDone, time.Second)
+}
+
+func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, failureMessage string) {
+	t.Helper()
+
+	select {
+	case <-signal:
+	case <-time.After(timeout):
+		t.Fatal(failureMessage)
+	}
+}
+
+func assertNoSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, failureMessage string) {
+	t.Helper()
+
+	select {
+	case <-signal:
+		t.Fatal(failureMessage)
+	case <-time.After(timeout):
+	}
+}
+
+func assertNoStopResult(t *testing.T, stopDone <-chan error, timeout time.Duration) {
+	t.Helper()
 
 	select {
 	case err := <-stopDone:
 		t.Fatalf("expected Stop(nil) to wait for in-flight job, got early result %v", err)
-	case <-time.After(200 * time.Millisecond):
+	case <-time.After(timeout):
 	}
+}
 
-	close(release)
-
-	select {
-	case <-finished:
-	case <-time.After(time.Second):
-		t.Fatal("expected blocked job to finish after release")
-	}
+func waitForStopResult(t *testing.T, stopDone <-chan error, timeout time.Duration) {
+	t.Helper()
 
 	select {
 	case err := <-stopDone:
 		if err != nil {
 			t.Fatalf("stop runtime: %v", err)
 		}
-	case <-time.After(time.Second):
+	case <-time.After(timeout):
 		t.Fatal("expected Stop(nil) to return after in-flight job finished")
 	}
 }

@@ -23,6 +23,8 @@ type User struct {
 	Display string `json:"display,omitempty"`
 	// PasswordHash holds the value of the "password_hash" field.
 	PasswordHash *string `json:"-"`
+	// MustChangePassword holds the value of the "must_change_password" field.
+	MustChangePassword bool `json:"must_change_password,omitempty"`
 	// PasswordChangedAt holds the value of the "password_changed_at" field.
 	PasswordChangedAt *time.Time `json:"password_changed_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -69,6 +71,8 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldMustChangePassword:
+			values[i] = new(sql.NullBool)
 		case user.FieldID:
 			values[i] = new(sql.NullInt64)
 		case user.FieldUsername, user.FieldDisplay, user.FieldPasswordHash:
@@ -114,6 +118,12 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PasswordHash = new(string)
 				*_m.PasswordHash = value.String
+			}
+		case user.FieldMustChangePassword:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field must_change_password", values[i])
+			} else if value.Valid {
+				_m.MustChangePassword = value.Bool
 			}
 		case user.FieldPasswordChangedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -187,6 +197,9 @@ func (_m *User) String() string {
 	builder.WriteString(_m.Display)
 	builder.WriteString(", ")
 	builder.WriteString("password_hash=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("must_change_password=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MustChangePassword))
 	builder.WriteString(", ")
 	if v := _m.PasswordChangedAt; v != nil {
 		builder.WriteString("password_changed_at=")

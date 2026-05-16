@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	defaultAppName               = "graft"
-	defaultAppEnv                = "local"
-	defaultHTTPAddr              = ":8080"
-	defaultDatabaseDriver        = "postgres"
+	defaultAppName        = "graft"
+	defaultAppEnv         = "local"
+	defaultHTTPAddr       = ":8080"
+	defaultDatabaseDriver = "postgres"
+	// #nosec G101 -- 本地开发默认 DSN 只作为示例值，不代表可用分发凭据。
 	defaultDatabaseURL           = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
 	defaultRedisAddr             = "localhost:6379"
 	defaultLogLevel              = "info"
@@ -161,73 +162,109 @@ func (c *Config) Validate() error {
 		return errors.New("config is required")
 	}
 
+	validators := []func(*Config) error{
+		validateAppConfig,
+		validateHTTPConfig,
+		validateDatabaseConfig,
+		validateRedisConfig,
+		validateI18nConfig,
+		validateAuthConfig,
+	}
+	for _, validate := range validators {
+		if err := validate(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateAppConfig(c *Config) error {
 	if strings.TrimSpace(c.App.Name) == "" {
 		return errors.New("GRAFT_APP_NAME is required")
 	}
 
+	return nil
+}
+
+func validateHTTPConfig(c *Config) error {
 	if strings.TrimSpace(c.HTTP.Addr) == "" {
 		return errors.New("GRAFT_HTTP_ADDR is required")
 	}
 
+	return nil
+}
+
+func validateDatabaseConfig(c *Config) error {
 	if strings.TrimSpace(c.Database.Driver) != defaultDatabaseDriver {
 		return fmt.Errorf("unsupported database driver %q: only postgres is supported", c.Database.Driver)
 	}
-
 	if strings.TrimSpace(c.Database.URL) == "" {
 		return errors.New("GRAFT_DATABASE_URL is required")
 	}
 
+	return nil
+}
+
+func validateRedisConfig(c *Config) error {
 	if strings.TrimSpace(c.Redis.Addr) == "" {
 		return errors.New("GRAFT_REDIS_ADDR is required")
 	}
-
 	if c.Redis.DB < 0 {
 		return errors.New("GRAFT_REDIS_DB must be greater than or equal to zero")
 	}
 
+	return nil
+}
+
+func validateI18nConfig(c *Config) error {
 	if strings.TrimSpace(c.I18n.DefaultLocale) == "" {
 		return errors.New("GRAFT_I18N_DEFAULT_LOCALE is required")
 	}
-
 	if strings.TrimSpace(c.I18n.FallbackLocale) == "" {
 		return errors.New("GRAFT_I18N_FALLBACK_LOCALE is required")
 	}
-
 	if len(c.I18n.SupportedLocales) == 0 {
 		return errors.New("GRAFT_I18N_SUPPORTED_LOCALES must include at least one locale")
 	}
 
+	return nil
+}
+
+func validateAuthConfig(c *Config) error {
 	if c.Auth.AccessTokenTTL <= 0 {
 		return errors.New("GRAFT_AUTH_ACCESS_TOKEN_TTL must be greater than zero")
 	}
-
 	if c.Auth.RefreshTokenTTL <= 0 {
 		return errors.New("GRAFT_AUTH_REFRESH_TOKEN_TTL must be greater than zero")
 	}
-
 	if strings.TrimSpace(c.Auth.JWTSecret) == "" && strings.TrimSpace(c.Auth.SigningKey) == "" {
 		return errors.New("GRAFT_AUTH_JWT_SECRET or GRAFT_AUTH_SIGNING_KEY is required")
 	}
-
-	switch strings.ToLower(strings.TrimSpace(c.Auth.RefreshCookieSameSite)) {
-	case "lax", "strict":
-	case "none":
-		if !c.Auth.RefreshCookieSecure {
-			return errors.New("GRAFT_AUTH_REFRESH_COOKIE_SECURE must be true when GRAFT_AUTH_REFRESH_COOKIE_SAME_SITE is none")
-		}
-	default:
-		return fmt.Errorf("unsupported GRAFT_AUTH_REFRESH_COOKIE_SAME_SITE value %q", c.Auth.RefreshCookieSameSite)
+	if err := validateRefreshCookiePolicy(c.Auth); err != nil {
+		return err
 	}
-
 	if strings.TrimSpace(c.Auth.RefreshCookieName) == "" {
 		return errors.New("GRAFT_AUTH_REFRESH_COOKIE_NAME is required")
 	}
-
 	if strings.TrimSpace(c.Auth.RefreshCookiePath) == "" {
 		return errors.New("GRAFT_AUTH_REFRESH_COOKIE_PATH is required")
 	}
 
 	return nil
+}
+
+func validateRefreshCookiePolicy(cfg AuthConfig) error {
+	switch strings.ToLower(strings.TrimSpace(cfg.RefreshCookieSameSite)) {
+	case "lax", "strict":
+		return nil
+	case "none":
+		if !cfg.RefreshCookieSecure {
+			return errors.New("GRAFT_AUTH_REFRESH_COOKIE_SECURE must be true when GRAFT_AUTH_REFRESH_COOKIE_SAME_SITE is none")
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported GRAFT_AUTH_REFRESH_COOKIE_SAME_SITE value %q", cfg.RefreshCookieSameSite)
+	}
 }
 
 func loadDotenv() error {

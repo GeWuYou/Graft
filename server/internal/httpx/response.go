@@ -18,6 +18,20 @@ const RequestIDHeader = "X-Request-Id"
 
 const traceIDFallbackHeader = "X-Trace-Id"
 
+// #nosec G101 -- 这里保存的是稳定业务 code 映射，不是账号或密钥。
+var messageKeyCodes = map[string]string{
+	"common.invalid_argument":        "COMMON_INVALID_ARGUMENT",
+	"common.internal_error":          "COMMON_INTERNAL_ERROR",
+	"auth.invalid_credentials":       "AUTH_INVALID_CREDENTIALS",
+	"auth.token_missing":             "AUTH_TOKEN_MISSING",
+	"auth.token_expired":             "AUTH_TOKEN_EXPIRED",
+	"auth.token_invalid":             "AUTH_TOKEN_INVALID",
+	"auth.forbidden":                 "AUTH_FORBIDDEN",
+	"auth.password_policy_violation": "AUTH_PASSWORD_POLICY_VIOLATION",
+	"auth.password_reuse_forbidden":  "AUTH_PASSWORD_REUSE_FORBIDDEN",
+	"auth.current_password_invalid":  "AUTH_CURRENT_PASSWORD_INVALID",
+}
+
 // SuccessResponse 描述统一成功响应 envelope。
 //
 // 成功响应固定返回 success/code/message/traceId/data，方便前端在最小 MVP
@@ -37,14 +51,14 @@ type SuccessResponse[T any] struct {
 // 错误响应固定返回 success/code/message/traceId，messageKey/locale/data 仅在
 // 当前错误路径需要时补充，避免 message 与 error 双字段重复。
 type ErrorResponse struct {
-	Success    bool   `json:"success"`
-	Code       string `json:"code"`
-	Message    string `json:"message"`
-	TraceID    string `json:"traceId"`
-	MessageKey string `json:"messageKey,omitempty"`
-	Locale     string `json:"locale,omitempty"`
-	Data       any    `json:"data,omitempty"`
-	Error      string `json:"-"`
+	Success    bool           `json:"success"`
+	Code       string         `json:"code"`
+	Message    string         `json:"message"`
+	TraceID    string         `json:"traceId"`
+	MessageKey string         `json:"messageKey,omitempty"`
+	Locale     string         `json:"locale,omitempty"`
+	Data       any            `json:"data,omitempty"`
+	Error      string         `json:"-"`
 	Details    map[string]any `json:"-"`
 }
 
@@ -147,25 +161,12 @@ func LastErrorMessageKey(ctx *gin.Context) (string, bool) {
 }
 
 func codeFromMessageKey(key string) string {
-	switch key {
-	case "common.invalid_argument":
-		return "COMMON_INVALID_ARGUMENT"
-	case "common.internal_error":
-		return "COMMON_INTERNAL_ERROR"
-	case "auth.invalid_credentials":
-		return "AUTH_INVALID_CREDENTIALS"
-	case "auth.token_missing":
-		return "AUTH_TOKEN_MISSING"
-	case "auth.token_expired":
-		return "AUTH_TOKEN_EXPIRED"
-	case "auth.token_invalid":
-		return "AUTH_TOKEN_INVALID"
-	case "auth.forbidden":
-		return "AUTH_FORBIDDEN"
-	default:
-		replacer := strings.NewReplacer(".", "_", "-", "_")
-		return strings.ToUpper(replacer.Replace(strings.TrimSpace(key)))
+	if code, ok := messageKeyCodes[key]; ok {
+		return code
 	}
+
+	replacer := strings.NewReplacer(".", "_", "-", "_")
+	return strings.ToUpper(replacer.Replace(strings.TrimSpace(key)))
 }
 
 // UnmarshalJSON 为测试与调试辅助保留旧字段别名视图，但不改变对外 JSON 契约。

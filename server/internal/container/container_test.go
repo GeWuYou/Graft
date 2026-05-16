@@ -22,7 +22,7 @@ func TestResolveBuildsSingletonOnceForConcurrentCalls(t *testing.T) {
 	var startedOnce sync.Once
 	var providerCalls atomic.Int32
 
-	if err := container.RegisterSingleton((*testService)(nil), func(resolver Resolver) (any, error) {
+	if err := container.RegisterSingleton((*testService)(nil), func(_ Resolver) (any, error) {
 		providerCalls.Add(1)
 		startedOnce.Do(func() {
 			close(started)

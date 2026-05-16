@@ -21,6 +21,7 @@ export const useUserStore = defineStore('user', {
     token: '',
     bootstrapLoaded: false,
     bootstrapSnapshot: null as BootstrapResponse | null,
+    mustChangePassword: false,
     userInfo: { ...InitUserInfo },
   }),
   getters: {
@@ -34,6 +35,7 @@ export const useUserStore = defineStore('user', {
   actions: {
     applyLoginResponse(payload: LoginResponse) {
       this.token = payload.access_token;
+      this.mustChangePassword = payload.must_change_password;
       setAccessToken(payload.access_token);
       this.userInfo = {
         name: payload.user.display_name || payload.user.username,
@@ -47,6 +49,7 @@ export const useUserStore = defineStore('user', {
     applyBootstrap(payload: BootstrapResponse) {
       this.bootstrapSnapshot = payload;
       this.bootstrapLoaded = true;
+      this.mustChangePassword = payload.must_change_password;
       syncLocale(payload);
       this.userInfo = {
         name: payload.user.display_name || payload.user.username,
@@ -105,6 +108,7 @@ export const useUserStore = defineStore('user', {
       clearAccessToken();
       this.bootstrapLoaded = false;
       this.bootstrapSnapshot = null;
+      this.mustChangePassword = false;
       this.userInfo = { ...InitUserInfo };
     },
     handleAuthFailure() {

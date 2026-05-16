@@ -22,6 +22,7 @@
 - 开发环境下的请求策略已收敛为“前端统一请求相对 `/api` 路径，由 Vite proxy 转发到 `VITE_API_TARGET`”；只有显式关闭代理时，Axios 才会直连后端绝对地址。
 - 前端环境文件治理当前已与 `server` 对齐：提交 `web/.env.example` 作为共享模板，忽略真实 `web/.env.*` 本地开发配置，不再把机器专属开发地址直接提交进仓库。
 - 当前 auth 响应收敛切片已经完成第一轮前端落地：请求层只对 `AUTH_TOKEN_EXPIRED` 触发一次 refresh，`AUTH_TOKEN_INVALID` / `AUTH_TOKEN_MISSING` 统一走单一清理出口并跳转登录；请求层与 `user` store 之间的登录态同步已收敛为显式 session bridge，避免动态导入 store 带来的构建 warning 与双源状态漂移。
+- 当前下一步认证治理切片的 `web` 边界已冻结：首次改密真值只能来自后端 `login/bootstrap`，前端不得通过用户名 `graft` 或默认密码猜测；当前 MVP 的业务阻断由登录后受限态与强制改密弹窗完成，不新增独立安全插件、不改 refresh 单出口，也不把控制流建立在中文 `message` 上。
 - PR #10 的最近一次 review follow-up 已补齐用户页版权年份、用户页列表页文案 i18n、接口说明 `<code>` 展示、用户页样式深度选择器兼容写法，以及 `request` / `user` store 在 refresh 失败路径上的重复清理与重复 refresh 防护；相关 `web` 完成态校验继续以 host Windows Bun `bun run check` 为准。
 - 详细前端实现历史保留在 `subtopics/web/traces/web-trace.md`。
 
@@ -29,6 +30,7 @@
 
 - 如果 `web` 回到页面扩张、长期保留 starter demo/mock 流程，前端会再次偏离“后端主导的 MVP 闭环收敛”主线。
 - 如果后端共享契约在收敛期内继续频繁漂移，starter 壳层的真实接线会产生反复返工。
+- 如果 `web` 重新通过用户名、默认密码或 message 文案猜测首次改密状态，后续改密弹窗、路由受限态和 bootstrap 恢复都会失去稳定真值。
 - 混用 WSL Bun 与 host Windows Bun 仍可能破坏当前工作树的前端依赖与 IDE 运行稳定性。
 - 如果 IDE 把 `web/ai-libs/tdesign-vue-next-starter` 重新登记成额外 Git root，仓库视图会混入参考目录历史与标签，影响当前主仓提交判断。
 
@@ -60,12 +62,15 @@
   - `cd web && bun run check`
 - 本次 PR #10 review follow-up 实际直接校验：
   - `cd web && bun run check`
+- 本次默认管理员/首次改密 web 跟踪同步一致性检查：
+  - `rg -n "graft-admin|must_change_password|change-password|受限态|bootstrap" ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/web`
+  - `git diff -- ai-plan/public/mvp-extension-path/subtopics/web ai-plan/design/项目设计.md server/plugins/user/README.md`
 
 ## Immediate Next Step
 
 - 继续把 starter 壳层挂接到真实后端 `auth + current user + menu + permission + locale` 契约。
 - 快速隔离或移除当前阶段不再需要的 mock/demo 入口，避免形成前端自洽假闭环。
-- 在当前 auth 契约与刷新单出口已经稳定后，优先沿现有用户列表落点继续接用户详情与会话治理页面，而不是再回到请求层分支治理或视觉扩张。
+- 在当前 auth 契约与刷新单出口已经稳定后，优先把首次登录强制改密受限态接进现有 `login -> refresh -> bootstrap` 恢复链路，确保刷新页面后仍能恢复弹窗与阻断，而不是再回到请求层分支治理或视觉扩张。
 
 ## 2026-05-15 真实 auth/bootstrap 接线恢复点
 
@@ -75,5 +80,6 @@
 - `permission` store 当前只消费 bootstrap 返回的真实 `menus` 快照，并按当前已存在的页面实现生成最小动态路由；本轮只接入 `/users`。
 - 当前最小动态菜单策略是“菜单展示只保留首页和后端返回且前端已经具备页面实现的菜单项”，避免再次回退到 starter demo 菜单树。
 - `/users` 页面当前已替换为最小真实用户列表页，不再依赖本地 profile、图表或团队成员 demo 数据。
+- 下一轮首次改密切片必须复用同一 bootstrap 恢复链路：`must_change_password=true` 由后端返回，前端以受限态和不可绕过弹窗阻断业务使用，不通过用户名 `graft` 或默认密码做任何前端猜测。
 - 登录页当前不再把 `http://127.0.0.1:3000` 暴露为代理模式下的浏览器请求主机；控制台里看到的 API URL 应保持为相对 `/api/...`，由 Vite 开发代理负责转发。
 - `web` 本地开发配置当前应从 `web/.env.example` 派生，并保持真实 `web/.env.development` 未跟踪，避免继续把个人开发地址或临时联调配置写入 Git 历史。

@@ -160,6 +160,7 @@ var (
 		{Name: "username", Type: field.TypeString, Unique: true},
 		{Name: "display", Type: field.TypeString},
 		{Name: "password_hash", Type: field.TypeString, Nullable: true},
+		{Name: "must_change_password", Type: field.TypeBool, Default: false},
 		{Name: "password_changed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},

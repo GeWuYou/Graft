@@ -16,3 +16,8 @@ func toEntID(id uint64) (int, error) {
 
 	return int(id), nil
 }
+
+func toStoreID(id int) uint64 {
+	//nolint:gosec // Ent 主键来自当前受控 schema，经过仓储边界约束后只会写入正整数标识。
+	return uint64(id)
+}

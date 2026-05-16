@@ -16,12 +16,15 @@ import (
 )
 
 var (
-	errRefreshTokenRequired = errors.New("refresh token is required")
-	errInvalidRefreshToken  = errors.New("invalid refresh token")
-	errExpiredRefreshToken  = errors.New("expired refresh token")
-	errRefreshSessionFailed = errors.New("refresh session is unavailable")
-	errAccessSessionFailed  = errors.New("access session is unavailable")
-	errSessionNotFound      = errors.New("session not found")
+	errRefreshTokenRequired    = errors.New("refresh token is required")
+	errInvalidRefreshToken     = errors.New("invalid refresh token")
+	errExpiredRefreshToken     = errors.New("expired refresh token")
+	errRefreshSessionFailed    = errors.New("refresh session is unavailable")
+	errAccessSessionFailed     = errors.New("access session is unavailable")
+	errSessionNotFound         = errors.New("session not found")
+	errPasswordPolicyViolation = errors.New("password policy violation")
+	errPasswordReuseForbidden  = errors.New("password reuse forbidden")
+	errCurrentPasswordInvalid  = errors.New("current password is invalid")
 )
 
 type refreshTokenSubject struct {
@@ -31,11 +34,12 @@ type refreshTokenSubject struct {
 }
 
 type refreshResult struct {
-	AccessToken   string
-	AccessExpiry  time.Time
-	RefreshToken  string
-	RefreshExpiry time.Time
-	User          loginUserResponse
+	AccessToken        string
+	AccessExpiry       time.Time
+	RefreshToken       string
+	RefreshExpiry      time.Time
+	MustChangePassword bool
+	User               loginUserResponse
 }
 
 type sessionSummary struct {
@@ -166,10 +170,11 @@ func (s authService) LoginWithRefresh(ctx context.Context, username string, pass
 	}
 
 	return refreshResult{
-		AccessToken:   accessToken,
-		AccessExpiry:  accessClaims.ExpiresAt,
-		RefreshToken:  refreshToken,
-		RefreshExpiry: refreshExpiry,
+		AccessToken:        accessToken,
+		AccessExpiry:       accessClaims.ExpiresAt,
+		RefreshToken:       refreshToken,
+		RefreshExpiry:      refreshExpiry,
+		MustChangePassword: login.MustChangePassword,
 		User: loginUserResponse{
 			ID:          login.User.ID,
 			Username:    login.User.Username,
@@ -180,41 +185,17 @@ func (s authService) LoginWithRefresh(ctx context.Context, username string, pass
 
 // RefreshWithRotation 校验 refresh token 并完成一次会话轮换。
 func (s authService) RefreshWithRotation(ctx context.Context, refreshToken string) (refreshResult, error) {
-	if s.auth == nil {
-		return refreshResult{}, errors.New("auth repository is unavailable")
-	}
-	if s.users == nil {
-		return refreshResult{}, errors.New("user repository is unavailable")
-	}
-	if s.tokens == nil {
-		return refreshResult{}, errors.New("access token manager is unavailable")
-	}
-	if s.refreshTokens == nil {
-		return refreshResult{}, errors.New("refresh token manager is unavailable")
-	}
-
-	claims, err := s.refreshTokens.Parse(refreshToken)
-	if err != nil {
-		switch {
-		case errors.Is(err, errRefreshTokenRequired):
-			return refreshResult{}, errRefreshTokenRequired
-		case errors.Is(err, errExpiredRefreshToken):
-			return refreshResult{}, errExpiredRefreshToken
-		case errors.Is(err, errInvalidRefreshToken):
-			return refreshResult{}, errInvalidRefreshToken
-		default:
-			return refreshResult{}, err
-		}
-	}
-
-	record, err := s.users.GetByID(ctx, claims.UserID)
-	if err != nil {
-		if errors.Is(err, store.ErrUserNotFound) {
-			return refreshResult{}, errInvalidRefreshToken
-		}
+	if err := s.ensureRefreshDependencies(); err != nil {
 		return refreshResult{}, err
 	}
-
+	claims, err := s.parseRefreshClaims(refreshToken)
+	if err != nil {
+		return refreshResult{}, err
+	}
+	record, credential, err := s.loadRefreshActor(ctx, claims.UserID)
+	if err != nil {
+		return refreshResult{}, err
+	}
 	now := s.refreshTokens.now().UTC()
 	newTokenID := uuid.NewString()
 	nextSession, err := s.auth.RotateRefreshSession(ctx, store.RotateRefreshSessionInput{
@@ -250,10 +231,11 @@ func (s authService) RefreshWithRotation(ctx context.Context, refreshToken strin
 	}
 
 	return refreshResult{
-		AccessToken:   accessToken,
-		AccessExpiry:  accessClaims.ExpiresAt,
-		RefreshToken:  nextRefreshToken,
-		RefreshExpiry: nextRefreshExpiry,
+		AccessToken:        accessToken,
+		AccessExpiry:       accessClaims.ExpiresAt,
+		RefreshToken:       nextRefreshToken,
+		RefreshExpiry:      nextRefreshExpiry,
+		MustChangePassword: credential.MustChangePassword,
 		User: loginUserResponse{
 			ID:          record.ID,
 			Username:    record.Username,
@@ -267,27 +249,13 @@ func (s authService) RefreshWithRotation(ctx context.Context, refreshToken strin
 // 该流程只处理“当前 cookie 携带的单个 refresh session”；当前用户的全量撤销
 // 由独立自助入口负责，管理员按用户批量撤销由专用管理路由负责。
 func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken string) error {
-	if s.auth == nil {
-		return errors.New("auth repository is unavailable")
+	if err := s.ensureLogoutDependencies(); err != nil {
+		return err
 	}
-	if s.refreshTokens == nil {
-		return errors.New("refresh token manager is unavailable")
-	}
-
-	claims, err := s.refreshTokens.Parse(refreshToken)
+	claims, err := s.parseRefreshClaims(refreshToken)
 	if err != nil {
-		switch {
-		case errors.Is(err, errRefreshTokenRequired):
-			return errRefreshTokenRequired
-		case errors.Is(err, errExpiredRefreshToken):
-			return errExpiredRefreshToken
-		case errors.Is(err, errInvalidRefreshToken):
-			return errInvalidRefreshToken
-		default:
-			return err
-		}
+		return err
 	}
-
 	session, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.TokenID)
 	if err != nil {
 		if errors.Is(err, store.ErrRefreshSessionNotFound) {
@@ -312,6 +280,72 @@ func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken stri
 	}
 
 	return nil
+}
+
+func (s authService) ensureRefreshDependencies() error {
+	switch {
+	case s.auth == nil:
+		return errors.New("auth repository is unavailable")
+	case s.users == nil:
+		return errors.New("user repository is unavailable")
+	case s.tokens == nil:
+		return errors.New("access token manager is unavailable")
+	case s.refreshTokens == nil:
+		return errors.New("refresh token manager is unavailable")
+	default:
+		return nil
+	}
+}
+
+func (s authService) ensureLogoutDependencies() error {
+	if s.auth == nil {
+		return errors.New("auth repository is unavailable")
+	}
+	if s.refreshTokens == nil {
+		return errors.New("refresh token manager is unavailable")
+	}
+
+	return nil
+}
+
+func (s authService) parseRefreshClaims(refreshToken string) (*refreshTokenSubject, error) {
+	claims, err := s.refreshTokens.Parse(refreshToken)
+	if err == nil {
+		return claims, nil
+	}
+
+	switch {
+	case errors.Is(err, errRefreshTokenRequired):
+		return nil, errRefreshTokenRequired
+	case errors.Is(err, errExpiredRefreshToken):
+		return nil, errExpiredRefreshToken
+	case errors.Is(err, errInvalidRefreshToken):
+		return nil, errInvalidRefreshToken
+	default:
+		return nil, err
+	}
+}
+
+func (s authService) loadRefreshActor(
+	ctx context.Context,
+	userID uint64,
+) (store.User, store.UserCredential, error) {
+	record, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, store.ErrUserNotFound) {
+			return store.User{}, store.UserCredential{}, errInvalidRefreshToken
+		}
+		return store.User{}, store.UserCredential{}, err
+	}
+	credential, err := s.auth.GetUserCredentialByUsername(ctx, record.Username)
+	if err != nil {
+		if errors.Is(err, store.ErrUserNotFound) {
+			return store.User{}, store.UserCredential{}, errInvalidRefreshToken
+		}
+		return store.User{}, store.UserCredential{}, err
+	}
+
+	return record, credential, nil
 }
 
 // RevokeAllCurrentUserSessions 吊销当前已认证用户名下的全部 refresh sessions。

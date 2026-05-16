@@ -46,7 +46,7 @@ func newMigrateCommand() *cobra.Command {
 	command.AddCommand(&cobra.Command{
 		Use:   "up",
 		Short: "Apply pending Atlas versioned migrations",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runMigrateUp(cmd, migrateUpOptions{migrationDir: migrationDir})
 		},
 	})

@@ -679,6 +679,30 @@
       "phoneLogin": "使用手机号登录",
       "loginSuccess": "登录成功",
       "countdown": "{count}秒后可重发",
+      "forcePasswordChange": {
+        "title": "首次登录需要修改密码",
+        "description": "当前账号使用的是系统初始化密码。为了继续使用后台，请先设置您自己的新密码。",
+        "policyHint": "新密码至少 12 位，且必须同时包含字母和数字，不能继续使用 graft-admin，也不能与当前密码相同。",
+        "currentPassword": "当前密码",
+        "newPassword": "新密码",
+        "confirmPassword": "确认新密码",
+        "currentPasswordPlaceholder": "请输入当前密码",
+        "newPasswordPlaceholder": "请输入新密码",
+        "confirmPasswordPlaceholder": "请再次输入新密码",
+        "submit": "保存新密码",
+        "success": "密码修改成功",
+        "required": {
+          "currentPassword": "当前密码必填",
+          "newPassword": "新密码必填",
+          "confirmPassword": "确认新密码必填"
+        },
+        "errors": {
+          "confirmMismatch": "两次输入的新密码不一致",
+          "defaultPasswordForbidden": "不能继续使用默认密码 graft-admin",
+          "sameAsCurrent": "新密码不能与当前密码相同",
+          "policyViolation": "新密码至少 12 位，且必须同时包含字母和数字"
+        }
+      },
       "input": {
         "account": "请输入账号",
         "password": "请输入登录密码",

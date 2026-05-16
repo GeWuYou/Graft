@@ -14,7 +14,7 @@
   - Repository-wide implementation plans and staged delivery documents.
   - Use this for phased execution plans that apply across topics.
 - `public/README.md`
-  - Shared startup index for `boot`.
+  - Shared recovery index used after `AGENTS.md` startup preflight.
   - Maps branches or worktrees to active topics and points at the primary tracking and trace entry paths.
   - Must list only active topics.
 - `public/<topic>/todos/`
@@ -47,10 +47,12 @@
 
 ## Workflow Rules
 
-- `boot` must read `public/README.md` before scanning active topics directly.
+- `AGENTS.md` owns startup governance; `ai-plan/` must not define a second boot chain, receipt format, or startup
+  gating rule.
+- After startup preflight, recovery may read `public/README.md` before scanning active topics directly.
 - Read `design/` and `roadmap/` before making architecture or implementation-boundary decisions.
-- If the current branch or worktree appears in the public index, read the mapped topic tracking and trace files before
-  substantive work.
+- If the current branch or worktree appears in the public index, read the mapped topic tracking and trace files after
+  startup preflight and before substantive recovery work.
 - If an active topic defines subtopics, read the parent topic first and then continue into the relevant subtopic based
   on the current `server`, `web`, or cross-boundary task shape.
 - When a topic is active, update its tracking document in the same change as substantive work.
@@ -58,9 +60,9 @@
   parent topic limited to cross-boundary summaries, shared risks, and shared milestones.
 - Keep active tracking and trace files concise enough to serve as recovery entrypoints.
 - When a stage is complete, move its detailed history into the topic's `archive/` and leave only the active recovery
-  point in the default boot path.
+  point in the default recovery path.
 - When a topic is complete, move the whole topic directory into `public/archive/<topic>/` and remove it from the
-  shared startup index in the same change.
+  shared recovery index in the same change.
 
 ## Content Rules
 

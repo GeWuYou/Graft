@@ -78,6 +78,20 @@ func (_u *UserUpdate) ClearPasswordHash() *UserUpdate {
 	return _u
 }
 
+// SetMustChangePassword sets the "must_change_password" field.
+func (_u *UserUpdate) SetMustChangePassword(v bool) *UserUpdate {
+	_u.mutation.SetMustChangePassword(v)
+	return _u
+}
+
+// SetNillableMustChangePassword sets the "must_change_password" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableMustChangePassword(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetMustChangePassword(*v)
+	}
+	return _u
+}
+
 // SetPasswordChangedAt sets the "password_changed_at" field.
 func (_u *UserUpdate) SetPasswordChangedAt(v time.Time) *UserUpdate {
 	_u.mutation.SetPasswordChangedAt(v)
@@ -256,6 +270,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.PasswordHashCleared() {
 		_spec.ClearField(user.FieldPasswordHash, field.TypeString)
 	}
+	if value, ok := _u.mutation.MustChangePassword(); ok {
+		_spec.SetField(user.FieldMustChangePassword, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.PasswordChangedAt(); ok {
 		_spec.SetField(user.FieldPasswordChangedAt, field.TypeTime, value)
 	}
@@ -420,6 +437,20 @@ func (_u *UserUpdateOne) SetNillablePasswordHash(v *string) *UserUpdateOne {
 // ClearPasswordHash clears the value of the "password_hash" field.
 func (_u *UserUpdateOne) ClearPasswordHash() *UserUpdateOne {
 	_u.mutation.ClearPasswordHash()
+	return _u
+}
+
+// SetMustChangePassword sets the "must_change_password" field.
+func (_u *UserUpdateOne) SetMustChangePassword(v bool) *UserUpdateOne {
+	_u.mutation.SetMustChangePassword(v)
+	return _u
+}
+
+// SetNillableMustChangePassword sets the "must_change_password" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableMustChangePassword(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetMustChangePassword(*v)
+	}
 	return _u
 }
 
@@ -630,6 +661,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if _u.mutation.PasswordHashCleared() {
 		_spec.ClearField(user.FieldPasswordHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.MustChangePassword(); ok {
+		_spec.SetField(user.FieldMustChangePassword, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.PasswordChangedAt(); ok {
 		_spec.SetField(user.FieldPasswordChangedAt, field.TypeTime, value)

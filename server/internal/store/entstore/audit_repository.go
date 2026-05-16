@@ -40,7 +40,7 @@ func (r *auditRepository) CreateAuditLog(ctx context.Context, input store.Create
 	}
 
 	return store.AuditLog{
-		ID:            uint64(record.ID),
+		ID:            toStoreID(record.ID),
 		OperatorID:    record.OperatorID,
 		OperatorName:  record.OperatorName,
 		Action:        record.Action,

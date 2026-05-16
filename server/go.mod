@@ -1,6 +1,6 @@
 module graft/server
 
-go 1.25.0
+go 1.26.0
 
 require (
 	// Gin 是 server 的 HTTP 路由、中间件和请求处理框架。
@@ -16,7 +16,7 @@ require (
 	github.com/spf13/viper v1.21.0
 
 	// Zap 是 server 当前锁定的结构化日志框架。
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.28.0
 )
 
 require (
@@ -32,7 +32,10 @@ require (
 
 require golang.org/x/text v0.37.0
 
-require github.com/robfig/cron/v3 v3.0.1 // indirect
+require (
+	github.com/mattn/go-sqlite3 v1.14.28
+	github.com/robfig/cron/v3 v3.0.1
+)
 
 require (
 	ariga.io/atlas v1.2.0 // indirect
@@ -56,7 +59,7 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/hashicorp/hcl/v2 v2.18.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -86,7 +89,7 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.27.0 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/crypto v0.51.0
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect

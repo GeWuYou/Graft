@@ -20,6 +20,7 @@
       </t-layout>
     </template>
   </div>
+  <force-password-change-dialog />
 </template>
 <script setup lang="ts">
 import '@/style/layout.less';
@@ -32,6 +33,7 @@ import { prefix } from '@/config/global';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import type { AppRouteMeta } from '@/utils/types';
 
+import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vue';
 import LayoutContent from './components/LayoutContent.vue';
 import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';

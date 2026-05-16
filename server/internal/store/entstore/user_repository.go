@@ -34,7 +34,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uint64) (store.User, er
 	}
 
 	return store.User{
-		ID:        uint64(record.ID),
+		ID:        toStoreID(record.ID),
 		Username:  record.Username,
 		Display:   record.Display,
 		CreatedAt: record.CreatedAt,
@@ -54,7 +54,7 @@ func (r *userRepository) List(ctx context.Context) ([]store.User, error) {
 	users := make([]store.User, 0, len(records))
 	for _, record := range records {
 		users = append(users, store.User{
-			ID:        uint64(record.ID),
+			ID:        toStoreID(record.ID),
 			Username:  record.Username,
 			Display:   record.Display,
 			CreatedAt: record.CreatedAt,

@@ -239,3 +239,12 @@
   after the session has already been cleared.
 - Revalidated the updated slice with the required host Windows Bun full frontend chain and kept the change scoped to
   the existing `web` recovery path.
+
+## 2026-05-15 forced-password-change web docs sync
+
+- Recorded the next bounded frontend auth-governance slice before implementation so the recovery point stays aligned
+  with the backend contract.
+- Fixed repository truth so the future forced-password-change UI must consume backend `login/bootstrap` truth instead
+  of guessing from username, default password, or localized message text.
+- Fixed the MVP responsibility split so `web` will own the post-login restricted-state modal and refresh-safe
+  recovery path, while stronger server-side global interception remains out of scope for this slice.

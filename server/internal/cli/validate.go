@@ -7,6 +7,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,6 +22,14 @@ const (
 	defaultSmokeHealthPath = "/healthz"
 	defaultSmokeTimeout    = 10 * time.Second
 	defaultSmokeProbeDelay = 200 * time.Millisecond
+	defaultBackendStage    = "full"
+
+	defaultBackendLintConfig     = ".golangci.yml"
+	defaultBackendTestLintConfig = ".golangci.test.yml"
+	defaultGolangCILintVersion   = "v2.12.2"
+	defaultBackendCacheRoot      = "graft-backend-validate"
+	defaultBackendDirPerm        = 0o755
+	defaultHealthProbeReadLimit  = 256
 )
 
 // smokeValidateOptions 封装最小运行时 smoke 验证的显式输入。
@@ -28,6 +39,15 @@ type smokeValidateOptions struct {
 	timeout      time.Duration
 }
 
+// backendValidateOptions 封装后端统一质量链的显式输入。
+type backendValidateOptions struct {
+	stage          string
+	lintConfig     string
+	testLintConfig string
+	testTargets    []string
+	smoke          bool
+}
+
 var smokeMigrateRunner = func(cmd *cobra.Command, migrationDir string) error {
 	return runMigrateUp(cmd, migrateUpOptions{migrationDir: migrationDir})
 }
@@ -35,6 +55,16 @@ var smokeMigrateRunner = func(cmd *cobra.Command, migrationDir string) error {
 var smokeServeRunner = runServe
 var smokeLoadConfig = config.Load
 var smokeHealthChecker = waitForSmokeHealth
+var backendLintRunner = runBackendLint
+var backendGoTestRunner = runBackendGoTest
+var backendGoBuildRunner = runBackendGoBuild
+var backendSmokeRunner = runValidateSmoke
+
+var backendLookPath = exec.LookPath
+var backendCommandContext = exec.CommandContext
+var backendGetwd = os.Getwd
+var backendReadFile = os.ReadFile
+var backendMkdirAll = os.MkdirAll
 
 // newValidateCommand 创建后端显式验证命令树。
 //
@@ -46,7 +76,44 @@ func newValidateCommand() *cobra.Command {
 		Short: "Run explicit backend validation commands",
 	}
 
+	command.AddCommand(newValidateBackendCommand())
 	command.AddCommand(newValidateSmokeCommand())
+	return command
+}
+
+// newValidateBackendCommand 创建后端统一质量链命令。
+//
+// 该命令显式收口 `server` 的 lint、test、build 与可选 smoke 顺序，避免
+// agent、本地开发与 CI 分别维护第二套验证参数或隐式脚本魔法。
+func newValidateBackendCommand() *cobra.Command {
+	opts := backendValidateOptions{
+		stage:          defaultBackendStage,
+		lintConfig:     defaultBackendLintConfig,
+		testLintConfig: defaultBackendTestLintConfig,
+	}
+
+	command := &cobra.Command{
+		Use:   "backend",
+		Short: "Run the unified backend quality chain",
+		Long: "graft validate backend is the repository-local backend quality entrypoint. " +
+			"It runs golangci-lint first, then executes go test on the requested scope, " +
+			"then builds ./cmd/graft, and optionally appends `graft validate smoke` when the slice needs a runtime proof.",
+		Example: "  graft validate backend\n" +
+			"  graft validate backend --test-target ./plugins/user --test-target ./internal/httpx\n" +
+			"  graft validate backend --stage lint\n" +
+			"  graft validate backend --smoke",
+		SilenceUsage: true,
+		Args:         cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runValidateBackend(cmd, opts)
+		},
+	}
+
+	command.Flags().StringVar(&opts.stage, "stage", defaultBackendStage, "validation stage: lint, buildtest, or full")
+	command.Flags().StringVar(&opts.lintConfig, "lint-config", defaultBackendLintConfig, "golangci-lint config for non-test code")
+	command.Flags().StringVar(&opts.testLintConfig, "test-lint-config", defaultBackendTestLintConfig, "golangci-lint config for test code")
+	command.Flags().StringArrayVar(&opts.testTargets, "test-target", nil, "go test package target to validate; repeatable, defaults to ./...")
+	command.Flags().BoolVar(&opts.smoke, "smoke", false, "append `graft validate smoke` after lint, test, and build")
 	return command
 }
 
@@ -66,8 +133,8 @@ func newValidateSmokeCommand() *cobra.Command {
 		Example:      "  graft validate smoke\n  graft validate smoke --timeout 15s",
 		SilenceUsage: true,
 		Args:         cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runValidateSmoke(cmd, args, opts)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runValidateSmoke(cmd, opts)
 		},
 	}
 
@@ -77,13 +144,246 @@ func newValidateSmokeCommand() *cobra.Command {
 	return command
 }
 
+// runValidateBackend 执行统一的后端质量链。
+//
+// 顺序语义：
+//   - `lint` 阶段固定先跑生产代码和测试代码两套 golangci-lint 配置，显式收口
+//     不同阈值，而不是靠一份模糊配置同时兼顾两类目标。
+//   - `buildtest` 阶段固定执行最小直接覆盖范围的 `go test`，随后构建 `./cmd/graft`。
+//   - `full` 阶段串联完整顺序；只有 `full` 才允许追加 `--smoke`，避免跳过前置门禁。
+func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
+	stage := strings.TrimSpace(opts.stage)
+	if stage == "" {
+		stage = defaultBackendStage
+	}
+	if err := validateBackendStageOptions(stage, opts.smoke); err != nil {
+		return err
+	}
+
+	switch stage {
+	case "lint":
+		return backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig)
+	case "buildtest":
+		return runBackendBuildTest(cmd, opts.testTargets)
+	case "full":
+		return runFullBackendValidation(cmd, opts)
+	default:
+		return fmt.Errorf("unsupported backend validation stage %q: expected lint, buildtest, or full", stage)
+	}
+}
+
+func validateBackendStageOptions(stage string, smoke bool) error {
+	if !smoke || stage == "full" {
+		return nil
+	}
+
+	return errors.New("`--smoke` requires `--stage full` so lint, test, and build stay in a fixed order")
+}
+
+func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) error {
+	if err := backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig); err != nil {
+		return err
+	}
+	if err := runBackendBuildTest(cmd, opts.testTargets); err != nil {
+		return err
+	}
+	if !opts.smoke {
+		return nil
+	}
+	if err := backendSmokeRunner(cmd, smokeValidateOptions{
+		migrationDir: defaultMigrationDir,
+		healthPath:   defaultSmokeHealthPath,
+		timeout:      defaultSmokeTimeout,
+	}); err != nil {
+		return fmt.Errorf("run backend smoke validation: %w", err)
+	}
+
+	return nil
+}
+
+// runBackendBuildTest 执行 `go test -> go build ./cmd/graft` 的后端编译验证链。
+func runBackendBuildTest(cmd *cobra.Command, testTargets []string) error {
+	targets := append([]string(nil), testTargets...)
+	if len(targets) == 0 {
+		targets = []string{"./..."}
+	}
+
+	if err := backendGoTestRunner(cmd, targets); err != nil {
+		return err
+	}
+	if err := backendGoBuildRunner(cmd); err != nil {
+		return err
+	}
+	return nil
+}
+
+// runBackendLint 通过统一入口执行后端 lint。
+//
+// 这里不直接维护第二套 lint 参数，而是回到仓库统一 CLI，让本地、CI 和 agent
+// 共用同一条入口和同一套配置文件约束。
+func runBackendLint(cmd *cobra.Command, lintConfig string, testLintConfig string) error {
+	lintPath, err := findGolangCILint()
+	if err != nil {
+		return err
+	}
+
+	if err := runBackendCommand(cmd, lintPath, "run", "--config", lintConfig); err != nil {
+		return fmt.Errorf("run production golangci-lint config %q: %w", lintConfig, err)
+	}
+	if err := runBackendCommand(cmd, lintPath, "run", "--config", testLintConfig); err != nil {
+		return fmt.Errorf("run test golangci-lint config %q: %w", testLintConfig, err)
+	}
+	return nil
+}
+
+// runBackendGoTest 执行显式的 `go test` 验证。
+func runBackendGoTest(cmd *cobra.Command, targets []string) error {
+	args := append([]string{"test"}, targets...)
+	if err := runBackendCommand(cmd, "go", args...); err != nil {
+		return fmt.Errorf("run go test on %s: %w", strings.Join(targets, " "), err)
+	}
+	return nil
+}
+
+// runBackendGoBuild 执行显式的 `go build ./cmd/graft` 编译验证。
+func runBackendGoBuild(cmd *cobra.Command) error {
+	if err := runBackendCommand(cmd, "go", "build", "./cmd/graft"); err != nil {
+		return fmt.Errorf("run go build ./cmd/graft: %w", err)
+	}
+	return nil
+}
+
+// findGolangCILint 解析本地可执行的 golangci-lint 路径。
+//
+// 仓库固定使用同一版本，缺失时直接给出带版本号的下一步提示，避免开发者和
+// agent 回退到 `latest` 或一组漂移的本地安装方式。
+func findGolangCILint() (string, error) {
+	lintPath, err := backendLookPath("golangci-lint")
+	if err == nil {
+		return lintPath, nil
+	}
+
+	return "", fmt.Errorf(
+		"golangci-lint %s is required for `graft validate backend`; install the pinned version before rerunning: %w",
+		defaultGolangCILintVersion,
+		err,
+	)
+}
+
+// runBackendCommand 以 `server` 模块根目录执行后端显式验证子命令。
+func runBackendCommand(cmd *cobra.Command, name string, args ...string) error {
+	commandContext := cmd.Context()
+	if commandContext == nil {
+		commandContext = context.Background()
+	}
+
+	workingDir, err := resolveBackendModuleRoot()
+	if err != nil {
+		return fmt.Errorf("resolve working directory: %w", err)
+	}
+
+	command := backendCommandContext(commandContext, name, args...)
+	command.Dir = workingDir
+	command.Stdout = cmd.OutOrStdout()
+	command.Stderr = cmd.ErrOrStderr()
+	command.Stdin = os.Stdin
+	command.Env, err = buildBackendCommandEnv()
+	if err != nil {
+		return fmt.Errorf("prepare backend command env: %w", err)
+	}
+
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
+	}
+
+	return nil
+}
+
+// resolveBackendModuleRoot 从当前工作目录向上定位 `server` 模块根目录。
+//
+// 该解析允许 `graft validate backend` 在仓库根目录或 `server` 目录下运行，
+// 同时确保 lint、test、build 始终以 `server/go.mod` 作为相对路径基准。
+func resolveBackendModuleRoot() (string, error) {
+	current, err := backendGetwd()
+	if err != nil {
+		return "", fmt.Errorf("resolve current directory: %w", err)
+	}
+
+	for {
+		moduleDir, matched, err := matchBackendModuleRoot(current)
+		if err != nil {
+			return "", err
+		}
+		if matched {
+			return moduleDir, nil
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	return "", errors.New("cannot locate server module root from current directory")
+}
+
+// matchBackendModuleRoot 判断当前目录或其 `server` 子目录是否是 `server` 模块根。
+func matchBackendModuleRoot(dir string) (string, bool, error) {
+	goModPath := filepath.Join(dir, "go.mod")
+	if content, err := backendReadFile(goModPath); err == nil {
+		if strings.Contains(string(content), "module graft/server") {
+			return dir, true, nil
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", false, fmt.Errorf("read %s: %w", goModPath, err)
+	}
+
+	serverDir := filepath.Join(dir, "server")
+	serverGoModPath := filepath.Join(serverDir, "go.mod")
+	if content, err := backendReadFile(serverGoModPath); err == nil {
+		if strings.Contains(string(content), "module graft/server") {
+			return serverDir, true, nil
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", false, fmt.Errorf("read %s: %w", serverGoModPath, err)
+	}
+
+	return "", false, nil
+}
+
+// buildBackendCommandEnv 为后端子命令准备可写缓存目录。
+//
+// 某些运行环境会把默认的 `$HOME/.cache` 设为只读；这里把 `go` 与
+// `golangci-lint` 的缓存统一导向系统临时目录，避免统一质量链受宿主缓存策略影响。
+func buildBackendCommandEnv() ([]string, error) {
+	cacheRoot := filepath.Join(os.TempDir(), defaultBackendCacheRoot)
+	goCacheDir := filepath.Join(cacheRoot, "go-build")
+	xdgCacheDir := filepath.Join(cacheRoot, "xdg")
+	golangciCacheDir := filepath.Join(cacheRoot, "golangci-lint")
+
+	for _, dir := range []string{cacheRoot, goCacheDir, xdgCacheDir, golangciCacheDir} {
+		if err := backendMkdirAll(dir, defaultBackendDirPerm); err != nil {
+			return nil, fmt.Errorf("mkdir %s: %w", dir, err)
+		}
+	}
+
+	env := os.Environ()
+	env = append(env,
+		"GOCACHE="+goCacheDir,
+		"XDG_CACHE_HOME="+xdgCacheDir,
+		"GOLANGCI_LINT_CACHE="+golangciCacheDir,
+	)
+	return env, nil
+}
+
 // runValidateSmoke 执行最小运行时 smoke 验证闭环。
 //
 // 顺序语义：
 //   - 先执行显式迁移，保持 schema 变更入口仍然可见。
 //   - 再启动运行时并轮询健康检查，避免把成功判断退化为“进程未立刻退出”。
 //   - 健康检查成功后主动取消运行时上下文，验证服务可以完成一次最小启动与关闭。
-func runValidateSmoke(cmd *cobra.Command, args []string, opts smokeValidateOptions) error {
+func runValidateSmoke(cmd *cobra.Command, opts smokeValidateOptions) error {
 	if err := smokeMigrateRunner(cmd, opts.migrationDir); err != nil {
 		return fmt.Errorf("run smoke migrations: %w", err)
 	}
@@ -124,25 +424,8 @@ func runValidateSmoke(cmd *cobra.Command, args []string, opts smokeValidateOptio
 		healthErrCh <- smokeHealthChecker(probeCtx, probeURL)
 	}()
 
-	select {
-	case serveErr := <-serveErrCh:
-		cancelProbe()
-		if serveErr == nil {
-			return errors.New("smoke runtime exited before health probe completed")
-		}
-		return fmt.Errorf("run smoke server: %w", serveErr)
-	case err := <-healthErrCh:
-		if err != nil {
-			cancelRun()
-			serveErr := <-serveErrCh
-			if serveErr != nil {
-				return errors.Join(
-					fmt.Errorf("wait for smoke health check: %w", err),
-					fmt.Errorf("run smoke server: %w", serveErr),
-				)
-			}
-			return fmt.Errorf("wait for smoke health check: %w", err)
-		}
+	if err := waitForSmokeStartup(cancelProbe, cancelRun, serveErrCh, healthErrCh); err != nil {
+		return err
 	}
 
 	cancelRun()
@@ -151,6 +434,35 @@ func runValidateSmoke(cmd *cobra.Command, args []string, opts smokeValidateOptio
 	}
 
 	return nil
+}
+
+func waitForSmokeStartup(
+	cancelProbe context.CancelFunc,
+	cancelRun context.CancelFunc,
+	serveErrCh <-chan error,
+	healthErrCh <-chan error,
+) error {
+	select {
+	case serveErr := <-serveErrCh:
+		cancelProbe()
+		if serveErr == nil {
+			return errors.New("smoke runtime exited before health probe completed")
+		}
+		return fmt.Errorf("run smoke server: %w", serveErr)
+	case err := <-healthErrCh:
+		if err == nil {
+			return nil
+		}
+		cancelRun()
+		serveErr := <-serveErrCh
+		if serveErr == nil {
+			return fmt.Errorf("wait for smoke health check: %w", err)
+		}
+		return errors.Join(
+			fmt.Errorf("wait for smoke health check: %w", err),
+			fmt.Errorf("run smoke server: %w", serveErr),
+		)
+	}
 }
 
 // buildSmokeProbeURL 把监听地址转换为本地健康检查 URL。
@@ -193,11 +505,11 @@ func waitForSmokeHealth(ctx context.Context, probeURL string) error {
 
 	var lastErr error
 	for {
-		if err := probeSmokeHealthOnce(ctx, client, probeURL); err == nil {
+		err := probeSmokeHealthOnce(ctx, client, probeURL)
+		if err == nil {
 			return nil
-		} else {
-			lastErr = err
 		}
+		lastErr = err
 
 		select {
 		case <-ctx.Done():
@@ -220,10 +532,12 @@ func probeSmokeHealthOnce(ctx context.Context, client *http.Client, probeURL str
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+	defer func() {
+		_ = response.Body.Close()
+	}()
 
 	if response.StatusCode != http.StatusOK {
-		body, readErr := io.ReadAll(io.LimitReader(response.Body, 256))
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, defaultHealthProbeReadLimit))
 		if readErr != nil {
 			return fmt.Errorf("health probe returned %s and read body failed: %w", response.Status, readErr)
 		}

@@ -51,6 +51,27 @@
 - Revalidated the full cross-boundary slice with focused backend validation, focused frontend Vitest + typecheck, and
   one full host Windows Bun `bun run check` pass.
 
+## 2026-05-15 default-admin and forced-password-change docs sync
+
+- Recorded the next bounded cross-boundary auth-governance slice in repository truth before code implementation.
+- Fixed the MVP boundary so `graft-admin` is documented as an initialization-only exception password, while forced
+  password change remains backend-persisted truth surfaced through `login/bootstrap`.
+- Fixed the current stage responsibility split so `web` owns the post-login restricted-state blocking path and future
+  stronger server-side middleware remains an explicit hardening step rather than accidental scope creep.
+
+## 2026-05-16 startup governance minimum migration
+
+- Landed the minimum startup-governance migration in repository truth by making the root `AGENTS.md` the only
+  authoritative source for startup preflight, startup receipt, resume/restart revalidation, and minimum subagent
+  inheritance requirements.
+- Reduced `graft-boot` to an executor of `AGENTS.md` startup rules instead of a parallel boot definition, and updated
+  `graft-multi-agent-batch` so subagent delegation now requires inherited startup context rather than objective-only
+  dispatch.
+- Repositioned `ai-plan/README.md`, `ai-plan/public/README.md`, and `ai-plan/design/AI任务追踪与恢复设计.md` as
+  recovery-system documents only, explicitly separating repository recovery from repository startup governance.
+- Synchronized the parent topic tracking entry so future governance drift can be observed through the active topic
+  instead of reintroducing ad-hoc startup notes elsewhere.
+
 ## Next Step
 
 - Continue MVP work through the relevant subtopic, keeping `/api/auth/bootstrap` stable while expanding real

@@ -23,6 +23,9 @@ on:
 permissions:
   contents: read
 
+env:
+  GOLANGCI_LINT_VERSION: v2.12.2
+
 jobs:
   web-smoke:
     name: Web Smoke
@@ -40,8 +43,8 @@ jobs:
         working-directory: web
         run: npm install --ignore-scripts --no-audit --no-fund
 
-  server-smoke:
-    name: Server Smoke
+  server-lint:
+    name: Server Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -52,6 +55,29 @@ jobs:
         with:
           go-version-file: server/go.mod
 
-      - name: Run server tests
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          working-directory: server
+          install-only: true
+
+      - name: Run server lint validation
         working-directory: server
-        run: go test ./...
+        run: go run ./cmd/graft validate backend --stage lint
+
+  server-build-test:
+    name: Server Build/Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+
+      - name: Run server build/test validation
+        working-directory: server
+        run: go run ./cmd/graft validate backend --stage buildtest

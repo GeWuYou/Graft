@@ -48,6 +48,20 @@ func (_c *UserCreate) SetNillablePasswordHash(v *string) *UserCreate {
 	return _c
 }
 
+// SetMustChangePassword sets the "must_change_password" field.
+func (_c *UserCreate) SetMustChangePassword(v bool) *UserCreate {
+	_c.mutation.SetMustChangePassword(v)
+	return _c
+}
+
+// SetNillableMustChangePassword sets the "must_change_password" field if the given value is not nil.
+func (_c *UserCreate) SetNillableMustChangePassword(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetMustChangePassword(*v)
+	}
+	return _c
+}
+
 // SetPasswordChangedAt sets the "password_changed_at" field.
 func (_c *UserCreate) SetPasswordChangedAt(v time.Time) *UserCreate {
 	_c.mutation.SetPasswordChangedAt(v)
@@ -155,6 +169,10 @@ func (_c *UserCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *UserCreate) defaults() {
+	if _, ok := _c.mutation.MustChangePassword(); !ok {
+		v := user.DefaultMustChangePassword
+		_c.mutation.SetMustChangePassword(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := user.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -182,6 +200,9 @@ func (_c *UserCreate) check() error {
 		if err := user.DisplayValidator(v); err != nil {
 			return &ValidationError{Name: "display", err: fmt.Errorf(`ent: validator failed for field "User.display": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.MustChangePassword(); !ok {
+		return &ValidationError{Name: "must_change_password", err: errors.New(`ent: missing required field "User.must_change_password"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "User.created_at"`)}
@@ -226,6 +247,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 		_node.PasswordHash = &value
+	}
+	if value, ok := _c.mutation.MustChangePassword(); ok {
+		_spec.SetField(user.FieldMustChangePassword, field.TypeBool, value)
+		_node.MustChangePassword = value
 	}
 	if value, ok := _c.mutation.PasswordChangedAt(); ok {
 		_spec.SetField(user.FieldPasswordChangedAt, field.TypeTime, value)

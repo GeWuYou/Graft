@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 )
 
 // TestRunRejectsConcurrentStart 验证生命周期保护会拒绝第二次启动。
@@ -12,7 +13,7 @@ import (
 // 沙箱网络能力或本地监听时序的影响。
 func TestRunRejectsConcurrentStart(t *testing.T) {
 	server := NewServer()
-	running := &http.Server{}
+	running := &http.Server{ReadHeaderTimeout: time.Second}
 	if err := server.bindRunningServer(running); err != nil {
 		t.Fatalf("bind running server: %v", err)
 	}
@@ -30,7 +31,7 @@ func TestRunRejectsConcurrentStart(t *testing.T) {
 // 不会拿到旧指针并尝试再次关闭同一个服务实例。
 func TestDetachRunningServerClearsPointer(t *testing.T) {
 	server := NewServer()
-	running := &http.Server{}
+	running := &http.Server{ReadHeaderTimeout: time.Second}
 	if err := server.bindRunningServer(running); err != nil {
 		t.Fatalf("bind running server: %v", err)
 	}

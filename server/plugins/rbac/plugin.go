@@ -40,18 +40,18 @@ func (p *Plugin) DependsOn() []string {
 //
 // Register 阶段只做稳定能力暴露，不执行任何后台行为或耗时初始化。
 func (p *Plugin) Register(ctx *plugin.Context) error {
-	return ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(resolver container.Resolver) (any, error) {
+	return ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
 		return authorizer{rbac: ctx.Stores.RBAC()}, nil
 	})
 }
 
 // Boot 当前没有额外运行时行为需要启动。
-func (p *Plugin) Boot(ctx *plugin.Context) error {
+func (p *Plugin) Boot(_ *plugin.Context) error {
 	return nil
 }
 
 // Shutdown 当前没有额外资源需要释放。
-func (p *Plugin) Shutdown(ctx *plugin.Context) error {
+func (p *Plugin) Shutdown(_ *plugin.Context) error {
 	return nil
 }
 

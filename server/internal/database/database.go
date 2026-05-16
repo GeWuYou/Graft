@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	entsql "entgo.io/ent/dialect/sql"
+	// 注册 pgx 的 database/sql 驱动，供 sql.Open("pgx", ...) 显式使用。
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"graft/server/internal/config"
