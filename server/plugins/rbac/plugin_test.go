@@ -14,27 +14,27 @@ type testRBACRepository struct {
 	err         error
 }
 
-func (r testRBACRepository) EnsureRole(ctx context.Context, input store.EnsureRoleInput) (store.Role, error) {
+func (r testRBACRepository) EnsureRole(_ context.Context, _ store.EnsureRoleInput) (store.Role, error) {
 	return store.Role{}, nil
 }
 
-func (r testRBACRepository) EnsurePermission(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+func (r testRBACRepository) EnsurePermission(_ context.Context, _ store.EnsurePermissionInput) (store.Permission, error) {
 	return store.Permission{}, nil
 }
 
-func (r testRBACRepository) AssignPermissionsToRole(ctx context.Context, input store.AssignPermissionsToRoleInput) error {
+func (r testRBACRepository) AssignPermissionsToRole(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
 	return nil
 }
 
-func (r testRBACRepository) AssignRoleToUser(ctx context.Context, input store.AssignRoleToUserInput) error {
+func (r testRBACRepository) AssignRoleToUser(_ context.Context, _ store.AssignRoleToUserInput) error {
 	return nil
 }
 
-func (r testRBACRepository) ListRolesByUserID(ctx context.Context, userID uint64) ([]store.Role, error) {
+func (r testRBACRepository) ListRolesByUserID(_ context.Context, _ uint64) ([]store.Role, error) {
 	return nil, nil
 }
 
-func (r testRBACRepository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]store.Permission, error) {
+func (r testRBACRepository) ListPermissionsByUserID(_ context.Context, _ uint64) ([]store.Permission, error) {
 	if r.err != nil {
 		return nil, r.err
 	}

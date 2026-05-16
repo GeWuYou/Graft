@@ -29,9 +29,9 @@ type stopContextRecorderRuntime struct {
 	stopCtx context.Context
 }
 
-func (r *stopContextRecorderRuntime) RegisterJob(job cronx.Job) error { return nil }
+func (r *stopContextRecorderRuntime) RegisterJob(_ cronx.Job) error { return nil }
 
-func (r *stopContextRecorderRuntime) RemoveJob(name string) error { return nil }
+func (r *stopContextRecorderRuntime) RemoveJob(_ string) error { return nil }
 
 func (r *stopContextRecorderRuntime) Start() error { return nil }
 

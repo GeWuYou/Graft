@@ -36,11 +36,11 @@ func (p shutdownRecorderPlugin) Version() string { return "test" }
 
 func (p shutdownRecorderPlugin) DependsOn() []string { return nil }
 
-func (p shutdownRecorderPlugin) Register(ctx *plugin.Context) error { return nil }
+func (p shutdownRecorderPlugin) Register(_ *plugin.Context) error { return nil }
 
-func (p shutdownRecorderPlugin) Boot(ctx *plugin.Context) error { return nil }
+func (p shutdownRecorderPlugin) Boot(_ *plugin.Context) error { return nil }
 
-func (p shutdownRecorderPlugin) Shutdown(ctx *plugin.Context) error {
+func (p shutdownRecorderPlugin) Shutdown(_ *plugin.Context) error {
 	*p.shutdownLog = append(*p.shutdownLog, p.name)
 	return p.err
 }
@@ -129,7 +129,7 @@ func (p *eventBusRecorderPlugin) Boot(ctx *plugin.Context) error {
 	return nil
 }
 
-func (p *eventBusRecorderPlugin) Shutdown(ctx *plugin.Context) error { return nil }
+func (p *eventBusRecorderPlugin) Shutdown(_ *plugin.Context) error { return nil }
 
 type lifecycleContextRecorderPlugin struct {
 	registerLifecycleContext context.Context
@@ -179,7 +179,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		},
 		Database: config.DatabaseConfig{
 			Driver: "postgres",
-			URL:    "postgres://graft:graft@localhost:5432/graft?sslmode=disable",
+			URL:    "postgres://graft@localhost:5432/graft?sslmode=disable",
 		},
 		Redis: config.RedisConfig{
 			Addr: "localhost:6379",
@@ -209,52 +209,28 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		t.Fatalf("register core services: %v", err)
 	}
 
-	resolvedConfig, err := runtime.services.Resolve((*config.Config)(nil))
+	assertResolvedService(t, runtime.services, (*config.Config)(nil), cfg, "config")
+	assertResolvedService(t, runtime.services, (*zap.Logger)(nil), runtimeLogger, "logger")
+	assertResolvedService(t, runtime.services, (*i18n.Service)(nil), localizer, "i18n service")
+	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
+	assertResolvedService(t, runtime.services, (*store.Factory)(nil), store.Factory(stores), "store factory")
+	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
+}
+
+func assertResolvedService[T comparable](t *testing.T, resolver container.Resolver, key any, expected T, name string) {
+	t.Helper()
+
+	resolvedAny, err := resolver.Resolve(key)
 	if err != nil {
-		t.Fatalf("resolve config: %v", err)
-	}
-	if resolvedConfig != cfg {
-		t.Fatalf("expected resolved config to reuse runtime pointer")
+		t.Fatalf("resolve %s: %v", name, err)
 	}
 
-	resolvedLogger, err := runtime.services.Resolve((*zap.Logger)(nil))
-	if err != nil {
-		t.Fatalf("resolve logger: %v", err)
+	resolved, ok := resolvedAny.(T)
+	if !ok {
+		t.Fatalf("expected resolved %s to have type %T, got %T", name, expected, resolvedAny)
 	}
-	if resolvedLogger != runtimeLogger {
-		t.Fatal("expected resolved logger to reuse runtime instance")
-	}
-
-	resolvedI18n, err := runtime.services.Resolve((*i18n.Service)(nil))
-	if err != nil {
-		t.Fatalf("resolve i18n service: %v", err)
-	}
-	if resolvedI18n != localizer {
-		t.Fatal("expected resolved i18n service to reuse runtime instance")
-	}
-
-	resolvedEventBus, err := runtime.services.Resolve((*eventbus.Bus)(nil))
-	if err != nil {
-		t.Fatalf("resolve event bus: %v", err)
-	}
-	if resolvedEventBus != runtimeEventBus {
-		t.Fatal("expected resolved event bus to reuse runtime instance")
-	}
-
-	resolvedStores, err := runtime.services.Resolve((*store.Factory)(nil))
-	if err != nil {
-		t.Fatalf("resolve store factory: %v", err)
-	}
-	if resolvedStores != store.Factory(stores) {
-		t.Fatal("expected resolved store factory to reuse runtime instance")
-	}
-
-	resolvedRedis, err := runtime.services.Resolve((*redis.Client)(nil))
-	if err != nil {
-		t.Fatalf("resolve redis client: %v", err)
-	}
-	if resolvedRedis != redisClient {
-		t.Fatal("expected resolved redis client to reuse runtime instance")
+	if resolved != expected {
+		t.Fatalf("expected resolved %s to reuse runtime instance", name)
 	}
 }
 

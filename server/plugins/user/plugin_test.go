@@ -364,11 +364,11 @@ func (r pluginTestRBACRepository) AssignRoleToUser(ctx context.Context, input st
 	return nil
 }
 
-func (r pluginTestRBACRepository) ListRolesByUserID(ctx context.Context, userID uint64) ([]store.Role, error) {
+func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, _ uint64) ([]store.Role, error) {
 	return nil, nil
 }
 
-func (r pluginTestRBACRepository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]store.Permission, error) {
+func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, userID uint64) ([]store.Permission, error) {
 	if r.permissions == nil {
 		return []store.Permission{}, nil
 	}
@@ -389,7 +389,7 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 		authRepo = &pluginTestAuthRepository{}
 	}
 	if repo, ok := authRepo.(*pluginTestAuthRepository); ok && repo.getUserCredentialByUsername == nil {
-		repo.getUserCredentialByUsername = func(ctx context.Context, username string) (store.UserCredential, error) {
+		repo.getUserCredentialByUsername = func(_ context.Context, username string) (store.UserCredential, error) {
 			userID := uint64(7)
 			switch username {
 			case "admin", "graft":
@@ -653,7 +653,7 @@ func TestUserRouteReturnsSummary(t *testing.T) {
 // 避免 Register 阶段引入持久化副作用。
 func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(ctx context.Context, username string) (store.UserCredential, error) {
+		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
 			if username == defaultAdminUsername {
 				return store.UserCredential{}, store.ErrUserNotFound
 			}
@@ -667,7 +667,7 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	}
 
 	var ensuredDefaultAdmin bool
-	authRepo.ensureUserCredential = func(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
+	authRepo.ensureUserCredential = func(_ context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
 		ensuredDefaultAdmin = true
 		if input.Username != defaultAdminUsername {
 			t.Fatalf("expected default admin username, got %q", input.Username)
@@ -688,16 +688,16 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 
 	var assignedRole bool
 	rbacRepo := pluginTestRBACRepository{
-		ensureRole: func(ctx context.Context, input store.EnsureRoleInput) (store.Role, error) {
+		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
 			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 		},
-		ensurePermission: func(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
 			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 		},
-		assignPermissionsToRole: func(ctx context.Context, input store.AssignPermissionsToRoleInput) error {
+		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
 			return nil
 		},
-		assignRoleToUser: func(ctx context.Context, input store.AssignRoleToUserInput) error {
+		assignRoleToUser: func(_ context.Context, input store.AssignRoleToUserInput) error {
 			assignedRole = true
 			if input.UserID != 9 {
 				t.Fatalf("expected default admin user id 9, got %d", input.UserID)
@@ -1012,7 +1012,7 @@ func TestAuthServiceParseAccessTokenRequiresActiveSession(t *testing.T) {
 	}{
 		{
 			name: "missing session",
-			arrange: func(t *testing.T, repo *pluginTestAuthRepository) string {
+			arrange: func(t *testing.T, _ *pluginTestAuthRepository) string {
 				t.Helper()
 				return "missing-session"
 			},
@@ -1087,7 +1087,7 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 	}{
 		{
 			name: "missing session",
-			arrange: func(t *testing.T, repo *pluginTestAuthRepository) *http.Request {
+			arrange: func(t *testing.T, _ *pluginTestAuthRepository) *http.Request {
 				t.Helper()
 				return newAuthorizedRequestForSession(t, "/api/users/7", 7, "missing-session")
 			},

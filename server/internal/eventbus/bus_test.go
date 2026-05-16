@@ -31,14 +31,14 @@ func TestPublishDeliversEventToSubscribers(t *testing.T) {
 	order := make([]string, 0, 2)
 	received := make([]Event, 0, 2)
 
-	if err := bus.Subscribe("user.created", func(ctx context.Context, event Event) error {
+	if err := bus.Subscribe("user.created", func(_ context.Context, event Event) error {
 		order = append(order, "first")
 		received = append(received, event)
 		return nil
 	}); err != nil {
 		t.Fatalf("subscribe first handler: %v", err)
 	}
-	if err := bus.Subscribe("user.created", func(ctx context.Context, event Event) error {
+	if err := bus.Subscribe("user.created", func(_ context.Context, event Event) error {
 		order = append(order, "second")
 		received = append(received, event)
 		return nil
@@ -57,17 +57,8 @@ func TestPublishDeliversEventToSubscribers(t *testing.T) {
 		t.Fatalf("publish event: %v", err)
 	}
 
-	if len(order) != 2 || order[0] != "first" || order[1] != "second" {
-		t.Fatalf("expected handler order [first second], got %v", order)
-	}
-	for _, event := range received {
-		if event.Payload != "payload" {
-			t.Fatalf("expected payload to be preserved, got %#v", event.Payload)
-		}
-		if event.OccurredAt.Before(before) || event.OccurredAt.After(after) {
-			t.Fatalf("expected occurredAt to be stamped during publish, got %s", event.OccurredAt)
-		}
-	}
+	assertEventOrder(t, order, "first", "second")
+	assertReceivedPayloadAndTimestamp(t, received, "payload", before, after)
 }
 
 // TestPublishAggregatesHandlerFailures 验证单个处理器失败或 panic 时，
@@ -79,19 +70,19 @@ func TestPublishAggregatesHandlerFailures(t *testing.T) {
 	expectedErr := errors.New("write audit event failed")
 	order := make([]string, 0, 3)
 
-	if err := bus.Subscribe("audit.record", func(ctx context.Context, event Event) error {
+	if err := bus.Subscribe("audit.record", func(_ context.Context, _ Event) error {
 		order = append(order, "first")
 		return expectedErr
 	}); err != nil {
 		t.Fatalf("subscribe first handler: %v", err)
 	}
-	if err := bus.Subscribe("audit.record", func(ctx context.Context, event Event) error {
+	if err := bus.Subscribe("audit.record", func(_ context.Context, _ Event) error {
 		order = append(order, "second")
 		panic("boom")
 	}); err != nil {
 		t.Fatalf("subscribe second handler: %v", err)
 	}
-	if err := bus.Subscribe("audit.record", func(ctx context.Context, event Event) error {
+	if err := bus.Subscribe("audit.record", func(_ context.Context, _ Event) error {
 		order = append(order, "third")
 		return nil
 	}); err != nil {
@@ -108,10 +99,35 @@ func TestPublishAggregatesHandlerFailures(t *testing.T) {
 	if !strings.Contains(err.Error(), "panic") {
 		t.Fatalf("expected aggregated error to include panic recovery details, got %v", err)
 	}
-	if len(order) != 3 || order[0] != "first" || order[1] != "second" || order[2] != "third" {
-		t.Fatalf("expected all handlers to run in order, got %v", order)
-	}
+	assertEventOrder(t, order, "first", "second", "third")
 	if logs.Len() != 2 {
 		t.Fatalf("expected two error logs, got %d", logs.Len())
+	}
+}
+
+func assertEventOrder(t *testing.T, got []string, want ...string) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("expected handler order %v, got %v", want, got)
+	}
+
+	for i, name := range want {
+		if got[i] != name {
+			t.Fatalf("expected handler order %v, got %v", want, got)
+		}
+	}
+}
+
+func assertReceivedPayloadAndTimestamp(t *testing.T, events []Event, payload string, before time.Time, after time.Time) {
+	t.Helper()
+
+	for _, event := range events {
+		if event.Payload != payload {
+			t.Fatalf("expected payload to be preserved, got %#v", event.Payload)
+		}
+		if event.OccurredAt.Before(before) || event.OccurredAt.After(after) {
+			t.Fatalf("expected occurredAt to be stamped during publish, got %s", event.OccurredAt)
+		}
 	}
 }

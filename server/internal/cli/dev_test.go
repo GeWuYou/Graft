@@ -19,11 +19,11 @@ func TestRunDevRunsMigrateBeforeServe(t *testing.T) {
 	}()
 
 	var steps []string
-	devMigrateRunner = func(cmd *cobra.Command, migrationDir string) error {
+	devMigrateRunner = func(_ *cobra.Command, migrationDir string) error {
 		steps = append(steps, "migrate:"+migrationDir)
 		return nil
 	}
-	devServeRunner = func(cmd *cobra.Command, args []string) error {
+	devServeRunner = func(_ *cobra.Command, _ []string) error {
 		steps = append(steps, "serve")
 		return nil
 	}
@@ -48,10 +48,10 @@ func TestRunDevStopsAfterMigrationFailure(t *testing.T) {
 		devServeRunner = originalServeRunner
 	}()
 
-	devMigrateRunner = func(cmd *cobra.Command, migrationDir string) error {
+	devMigrateRunner = func(_ *cobra.Command, _ string) error {
 		return errors.New("migrate failed")
 	}
-	devServeRunner = func(cmd *cobra.Command, args []string) error {
+	devServeRunner = func(_ *cobra.Command, _ []string) error {
 		t.Fatal("serve runner should not be called")
 		return nil
 	}

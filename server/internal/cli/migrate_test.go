@@ -18,7 +18,7 @@ import (
 func TestResolveMigrationDirFindsServerRelativePathFromRepoRoot(t *testing.T) {
 	root := t.TempDir()
 	migrationDir := filepath.Join(root, "server", defaultMigrationDir)
-	if err := os.MkdirAll(migrationDir, 0o755); err != nil {
+	if err := os.MkdirAll(migrationDir, 0o750); err != nil {
 		t.Fatalf("mkdir migration dir: %v", err)
 	}
 
@@ -38,7 +38,7 @@ func TestResolveMigrationDirFindsPathFromServerModuleRoot(t *testing.T) {
 	root := t.TempDir()
 	serverRoot := filepath.Join(root, "server")
 	migrationDir := filepath.Join(serverRoot, defaultMigrationDir)
-	if err := os.MkdirAll(migrationDir, 0o755); err != nil {
+	if err := os.MkdirAll(migrationDir, 0o750); err != nil {
 		t.Fatalf("mkdir migration dir: %v", err)
 	}
 
@@ -70,7 +70,7 @@ func TestFindAtlasCLIReportsDevGuidance(t *testing.T) {
 		migrateLookPath = originalLookPath
 	}()
 
-	migrateLookPath = func(file string) (string, error) {
+	migrateLookPath = func(_ string) (string, error) {
 		return "", errors.New("executable file not found")
 	}
 
@@ -104,7 +104,7 @@ func TestRunMigrateUpFallsBackToBackgroundContext(t *testing.T) {
 
 	root := t.TempDir()
 	migrationDir := filepath.Join(root, "server", defaultMigrationDir)
-	if err := os.MkdirAll(migrationDir, 0o755); err != nil {
+	if err := os.MkdirAll(migrationDir, 0o750); err != nil {
 		t.Fatalf("mkdir migration dir: %v", err)
 	}
 
@@ -115,12 +115,12 @@ func TestRunMigrateUpFallsBackToBackgroundContext(t *testing.T) {
 	migrateGetwd = func() (string, error) {
 		return root, nil
 	}
-	migrateLookPath = func(file string) (string, error) {
+	migrateLookPath = func(_ string) (string, error) {
 		return "/usr/bin/atlas", nil
 	}
 
 	capturedCtx := context.Context(nil)
-	migrateCommandContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+	migrateCommandContext = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
 		capturedCtx = ctx
 		return exec.Command("true")
 	}

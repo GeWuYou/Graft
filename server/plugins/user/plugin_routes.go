@@ -94,7 +94,8 @@ func registerLoginRoutes(authGroup *gin.RouterGroup, ctx *plugin.Context, plugin
 			})
 			return
 		}
-		if strings.TrimSpace(request.Username) == "" {
+		normalizedUsername := strings.TrimSpace(request.Username)
+		if normalizedUsername == "" {
 			httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", map[string]any{
 				"field": "username",
 			})
@@ -107,7 +108,7 @@ func registerLoginRoutes(authGroup *gin.RouterGroup, ctx *plugin.Context, plugin
 			return
 		}
 
-		result, err := authSvc.LoginWithRefresh(ginCtx.Request.Context(), request.Username, request.Password)
+		result, err := authSvc.LoginWithRefresh(ginCtx.Request.Context(), normalizedUsername, request.Password)
 		if err != nil {
 			writeAuthRouteError(ginCtx, ctx.I18n, ctx.Logger, pluginName, "login failed", err)
 			return

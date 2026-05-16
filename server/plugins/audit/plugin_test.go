@@ -36,7 +36,7 @@ type memoryAuditRepository struct {
 	items []store.AuditLog
 }
 
-func (r *memoryAuditRepository) CreateAuditLog(ctx context.Context, input store.CreateAuditLogInput) (store.AuditLog, error) {
+func (r *memoryAuditRepository) CreateAuditLog(_ context.Context, input store.CreateAuditLogInput) (store.AuditLog, error) {
 	record := store.AuditLog{
 		ID:            uint64(len(r.items) + 1),
 		OperatorID:    input.OperatorID,
@@ -70,7 +70,7 @@ func (s stubAuthService) CurrentUser(ctx context.Context) (*pluginapi.CurrentUse
 	return &user, nil
 }
 
-func (s stubAuthService) ParseAccessToken(ctx context.Context, token string) (*pluginapi.AccessTokenClaims, error) {
+func (s stubAuthService) ParseAccessToken(_ context.Context, token string) (*pluginapi.AccessTokenClaims, error) {
 	if token == "" {
 		return nil, pluginapi.ErrInvalidAccessToken
 	}
@@ -86,7 +86,7 @@ func (s stubAuthService) ParseAccessToken(ctx context.Context, token string) (*p
 
 type allowAuthorizer struct{}
 
-func (allowAuthorizer) Authorize(ctx context.Context, request pluginapi.RequestAuthContext, permission string) error {
+func (allowAuthorizer) Authorize(_ context.Context, _ pluginapi.RequestAuthContext, _ string) error {
 	return nil
 }
 
@@ -122,12 +122,12 @@ func TestRequestAuditMiddlewareCapturesAuthenticatedRequest(t *testing.T) {
 	repo := &memoryAuditRepository{}
 	ctx, engine, _ := newPluginTestContext(t, repo)
 
-	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(resolver container.Resolver) (any, error) {
+	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(_ container.Resolver) (any, error) {
 		return stubAuthService{user: pluginapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}}, nil
 	}); err != nil {
 		t.Fatalf("register auth service: %v", err)
 	}
-	if err := ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(resolver container.Resolver) (any, error) {
+	if err := ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
 		return allowAuthorizer{}, nil
 	}); err != nil {
 		t.Fatalf("register authorizer: %v", err)
@@ -151,24 +151,7 @@ func TestRequestAuditMiddlewareCapturesAuthenticatedRequest(t *testing.T) {
 	}
 
 	record := repo.items[0]
-	if record.OperatorID == nil || *record.OperatorID != 7 {
-		t.Fatalf("expected operator id 7, got %#v", record.OperatorID)
-	}
-	if record.OperatorName != "Alice" {
-		t.Fatalf("expected operator name Alice, got %q", record.OperatorName)
-	}
-	if record.Action != "GET /api/users/:id" {
-		t.Fatalf("expected stable action, got %q", record.Action)
-	}
-	if record.ResourceType != "users" {
-		t.Fatalf("expected resource type users, got %q", record.ResourceType)
-	}
-	if record.ResourceID != "42" {
-		t.Fatalf("expected resource id 42, got %q", record.ResourceID)
-	}
-	if !record.Success || record.ErrorMessage != "" {
-		t.Fatalf("expected successful audit record, got %#v", record)
-	}
+	assertAuditRecord(t, record, "Alice", "GET /api/users/:id", "users", "42")
 }
 
 // TestRequestAuditMiddlewareCapturesLocalizedErrorKey 验证失败请求会把统一错误
@@ -196,6 +179,29 @@ func TestRequestAuditMiddlewareCapturesLocalizedErrorKey(t *testing.T) {
 	}
 	if repo.items[0].ErrorMessage != "common.invalid_argument" {
 		t.Fatalf("expected stable error message key, got %q", repo.items[0].ErrorMessage)
+	}
+}
+
+func assertAuditRecord(t *testing.T, record store.AuditLog, operatorName string, action string, resourceType string, resourceID string) {
+	t.Helper()
+
+	if record.OperatorID == nil || *record.OperatorID != 7 {
+		t.Fatalf("expected operator id 7, got %#v", record.OperatorID)
+	}
+	if record.OperatorName != operatorName {
+		t.Fatalf("expected operator name %s, got %q", operatorName, record.OperatorName)
+	}
+	if record.Action != action {
+		t.Fatalf("expected stable action, got %q", record.Action)
+	}
+	if record.ResourceType != resourceType {
+		t.Fatalf("expected resource type %s, got %q", resourceType, record.ResourceType)
+	}
+	if record.ResourceID != resourceID {
+		t.Fatalf("expected resource id %s, got %q", resourceID, record.ResourceID)
+	}
+	if !record.Success || record.ErrorMessage != "" {
+		t.Fatalf("expected successful audit record, got %#v", record)
 	}
 }
 
