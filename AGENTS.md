@@ -139,6 +139,17 @@ Resume and restart rules:
 * only after that preflight may the agent read `ai-plan/public/README.md` and the mapped tracking or trace files
 * restoring a topic recovery point does not mean repository governance has been restored
 
+Handoff rules:
+
+* if a task ends by handing off a next task, the handoff must include one explicit next-task startup prompt that
+  re-establishes the startup receipt instead of assuming repository governance carries across turns
+* the next-task startup prompt must carry, at minimum, `governance source`, `task class`, `recovery source`, and
+  `owned scope`; if the next task depends on a topic recovery point, include the mapped parent topic and subtopic
+* do not present a “next task” handoff as implementation-ready while leaving the next turn to guess whether it should
+  boot, resume recovery, or continue from ambient context
+* recovery documents may suggest the next task direction, but they must not replace the required next-task startup
+  prompt in the handoff itself
+
 Subagent inheritance rules:
 
 * the main agent completing startup preflight does not mean a subagent already knows repository governance
@@ -857,6 +868,18 @@ Explicit commit trigger:
   before committing or explain why that validation cannot be completed yet
 * if the working tree is mixed and the owned scope cannot be separated confidently, the trigger does not override the
   fail-closed rule; stop and report the ambiguity instead of forcing a commit
+
+Task handoff and pre-handoff commit rules:
+
+* if the current task ends with a next-task handoff and the current slice has already reached the validation level
+  required by its task class, commit the confirmed owned scope before the handoff using the same ownership,
+  validation, and scoped-staging rules enforced by `graft-commit`
+* if the current task ends with a next-task handoff but the current slice is not yet validated to its required task
+  class level, do not claim it was ready to commit; record the validation gap and keep the handoff status honest
+* a next-task handoff must include one explicit next-task startup prompt that tells the next turn to rerun startup
+  preflight and provides the minimum inherited context package needed to resume safely
+* a handoff requirement does not override mixed-ownership or insufficient-validation refusal rules; when a safe commit
+  cannot be made, say so and leave the scope uncommitted rather than force-staging ambiguous changes
 
 For staging and mixed-ownership files:
 

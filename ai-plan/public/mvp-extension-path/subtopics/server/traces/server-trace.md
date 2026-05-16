@@ -1,5 +1,16 @@
 # MVP Extension Path Server Trace
 
+## 2026-05-16 docs handoff governance and RBAC second-wave recovery sync
+
+- Updated repository recovery/governance truth so task handoff now requires an explicit next-task startup prompt rather
+  than assuming the next turn inherits boot state from ambient context.
+- Recorded the matching pre-handoff commit rule: when a slice is already validated to its task-class requirement, the
+  handoff should first attempt a scoped commit under the same ownership and validation rules enforced by
+  `graft-commit`; when validation is still pending, the handoff must state that gap explicitly.
+- Synced the active `server` recovery point to the RBAC MVP second-wave direction by recording the in-progress minimal
+  write API scope visible in the working tree, without claiming backend validation has already been rerun for that
+  scope.
+
 ## 2026-05-12 backend baseline
 
 - Added the first-pass `server` runtime shell with explicit plugin ordering, registries, lightweight DI, and the

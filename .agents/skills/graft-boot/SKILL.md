@@ -23,6 +23,8 @@ Treat `AGENTS.md` as the source of truth. This skill is a startup workflow, not 
 6. Identify the first concrete boundary decision before editing.
 7. If the task is complex and splits into disjoint parallel slices, consider `graft-multi-agent-batch`.
 8. Before edits, tell the user what you read, how you classified the task, and the first implementation step.
+9. If the current turn ends by proposing a next task, include one explicit next-task startup prompt that restates the
+   startup receipt fields needed by the next turn instead of assuming boot state carries across turns.
 
 ## Recovery Rules
 

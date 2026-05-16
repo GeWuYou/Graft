@@ -47,6 +47,8 @@ validation rules.
    - the committed scope
    - the validation command(s) used
    - the final commit title and short SHA
+8. If the commit is being made as part of a task handoff, report the exact next-task startup prompt that should be
+   used for the next turn.
 
 ## Refusal Cases
 
