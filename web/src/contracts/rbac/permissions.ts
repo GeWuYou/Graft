@@ -4,6 +4,7 @@ export const RBAC_PERMISSION_CODE = {
   ROLE_UPDATE: 'role.update',
   ROLE_PERMISSION_ASSIGN: 'role.permission.assign',
   PERMISSION_READ: 'permission.read',
+  USER_ROLE_READ: 'user.role.read',
   USER_ROLE_ASSIGN: 'user.role.assign',
 } as const;
 
