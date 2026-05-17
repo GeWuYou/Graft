@@ -89,3 +89,96 @@ func TestMessageFallsBackToConfiguredLocalesAndKey(t *testing.T) {
 		t.Fatalf("expected missing key fallback, got %q", message)
 	}
 }
+
+func TestRegisterMessagesAddsNamespaceScopedResources(t *testing.T) {
+	service := newTestService()
+
+	if err := service.RegisterMessages(Registration{
+		Namespace: "user",
+		Locale:    LocaleENUS,
+		Messages: []MessageResource{
+			{Key: "menu.list", Text: "User List"},
+		},
+	}); err != nil {
+		t.Fatalf("register messages: %v", err)
+	}
+
+	message := service.Lookup(LookupRequest{
+		Namespace: "user",
+		Locale:    LocaleENUS,
+		Key:       "menu.list",
+	})
+	if message != "User List" {
+		t.Fatalf("expected namespaced message, got %q", message)
+	}
+}
+
+func TestRegisterMessagesRejectsDuplicateKeyWithinNamespaceAndLocale(t *testing.T) {
+	service := newTestService()
+
+	registration := Registration{
+		Namespace: "rbac",
+		Locale:    LocaleZHCN,
+		Messages: []MessageResource{
+			{Key: "menu.list", Text: "角色管理"},
+		},
+	}
+	if err := service.RegisterMessages(registration); err != nil {
+		t.Fatalf("register messages: %v", err)
+	}
+
+	if err := service.RegisterMessages(registration); err == nil {
+		t.Fatal("expected duplicate registration to fail")
+	}
+}
+
+func TestRegisterMessagesRejectsUnsupportedLocale(t *testing.T) {
+	service := newTestService()
+
+	err := service.RegisterMessages(Registration{
+		Namespace: "user",
+		Locale:    "fr-FR",
+		Messages: []MessageResource{
+			{Key: "menu.list", Text: "Utilisateurs"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected unsupported locale error")
+	}
+}
+
+func TestFreezeBlocksLateMessageRegistration(t *testing.T) {
+	service := newTestService()
+
+	if err := service.Freeze(); err != nil {
+		t.Fatalf("freeze service: %v", err)
+	}
+	if !service.IsFrozen() {
+		t.Fatal("expected service to become frozen")
+	}
+
+	err := service.RegisterMessages(Registration{
+		Namespace: "user",
+		Locale:    LocaleZHCN,
+		Messages: []MessageResource{
+			{Key: "menu.list", Text: "用户管理"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected frozen registry to reject registration")
+	}
+}
+
+func TestLookupFallsBackToExplicitFallbackMessage(t *testing.T) {
+	service := newTestService()
+
+	message := service.Lookup(LookupRequest{
+		Namespace:       "user",
+		Locale:          LocaleENUS,
+		Key:             "menu.missing",
+		FallbackMessage: "Fallback Copy",
+	})
+	if message != "Fallback Copy" {
+		t.Fatalf("expected explicit fallback message, got %q", message)
+	}
+}

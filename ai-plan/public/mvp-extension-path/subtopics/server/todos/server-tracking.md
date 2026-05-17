@@ -40,6 +40,9 @@
 - 最小 `audit` 闭环已接到当前 `eventbus.Bus`：`audit` 插件同时挂载请求级自动审计中间件与主动审计事件订阅，Ent/store 边界只新增稳定写入能力，未提前暴露检索 DSL。
 - 最小 `scheduler` 闭环已接入运行时：`cron registry` 声明现在通过独立 `scheduler` 封装装配到 `robfig/cron/v3`，启动与停止语义仍收敛在插件生命周期边界内。
 - `user` 插件已新增受保护的 `GET /api/auth/bootstrap` 最小契约：当前登录用户、当前权限码列表、按权限过滤后的菜单列表，以及 locale 配置快照现在可以通过一条真实后端接口返回，供 `web` 后续壳层接线直接消费。
+- 当前 i18n 收敛边界保持不变：`server/internal/i18n` 仍是唯一平台 facade；本轮设计真值只要求先补 registry / namespace / duplicate-key / freeze 语义，不提前声称已经进入 `go-i18n` 接入阶段。
+- 插件 i18n 生命周期边界已冻结为：插件可在 `Register` 阶段注册 message bundles / message keys，runtime 必须在进入 `Boot` 前冻结 i18n 注册面；`Boot` 之后新增注册不属于当前允许语义。
+- 当前 locale 范围继续只收敛到 `zh-CN` / `en-US`；菜单本地化的后续方向固定为 `title_key` 优先、`title` 回退，不在本轮扩展更多 locale 或前端并行真值。
 - `user` 插件现已补齐最小 `GET /api/users` 只读列表契约，继续保持在现有 plugin/store 边界内，不提前扩展分页、筛选和写操作，只为 `web` 当前 `/users` 真实接线提供稳定落点。
 - 当前 `auth / RBAC` 最小响应收敛切片已经进入实施准备：只允许修改 `server/internal/httpx` 与 `server/plugins/user` 现有链路，目标是稳定 HTTP status 语义、稳定业务 `code`、稳定 auth/bootstrap envelope，并让 `web` 后续只基于 `HTTP status + code` 处理认证分支。
 - 当前下一步认证治理切片边界已冻结：默认管理员账号固定为 `graft`；`graft-admin` 是仅允许在初始化路径写入的例外密码；首次改密状态必须由后端持久化并通过 `login/bootstrap` 返回；当前 MVP 不在本切片内给全部业务接口追加全局“已改密”中间件，而是把登录后受限态阻断交给 `web`，后续如需更强安全再评估服务端全局 hardening。
@@ -63,6 +66,7 @@
   contract，shared `common.conjunction` / `common.copyright` 也已补回 `server` canonical message contract 与
   i18n catalog；本轮 targeted scanner findings 已从运行时文件清零。
 - `pluginapi`、registries、store factory 与当前 auth/menu/permission/i18n 返回面，已经成为 `web` 真实契约收敛前必须谨慎冻结的后端边界。
+- 当前 i18n 相关设计治理只冻结 facade、注册期与菜单 contract 方向；凡未在设计文档明确的底层实现细节，当前 tracking 不得提前当作已完成实现事实记录。
 - 当前本地启动修复已补齐 `server/.env.example` 的显式 auth 密钥示例、README 最小启动步骤与 GoLand working directory 提示，并用隔离环境测试锁定“缺少 `GRAFT_AUTH_JWT_SECRET` 与 `GRAFT_AUTH_SIGNING_KEY` 时严格失败”的配置行为；未引入任何 dev-only 默认密钥或 auth 语义变更。
 - `server` 当前已补充两个独立开发辅助程序：`cmd/graft-jwt-secret` 与 `cmd/graft-signing-key`，用于生成可直接写入 `.env` 的随机 auth 密钥文本；该能力只辅助配置准备，不参与运行时加载或 token 语义。
 - `server` 当前已把模块工具链基线提升到 `Go 1.26.x`，并将 `go.uber.org/zap` 收敛到 `v1.28.0`；`go test ./...` 与 `go build ./cmd/...` 在本地 `go1.26.1` 下通过，未触发 Ent/Atlas regeneration。
@@ -98,6 +102,7 @@
 ## Active Risks
 
 - 当前最大的剩余风险已经从 runtime 闭环转向共享契约漂移；若后端在 `auth + menu + permission + locale` 返回面上继续频繁变动，`web` 接线会反复返工。
+- 如果 i18n 在 `server/internal/i18n` facade 之外继续分叉第二套注册/查找入口，或在 freeze 语义未稳定前提前切换底层实现，当前 `server` 与 `web` 契约会再次失去单一真值。
 - 如果 auth/RBAC 收敛期间继续混用 “401 + 各类认证失败” 与非稳定 envelope，`web` 将无法只凭 `HTTP status + code` 做出稳定登录态分支，refresh 死循环风险也会重新出现。
 - 如果在下一阶段继续无边界扩张 session-governance 细节，会挤占当前最关键的后端闭环资源。
 - 如果把首次改密阻断直接扩展成全局后端接口治理，会偏离当前 MVP 范围并放大本轮 auth/RBAC 收敛面的回归风险。

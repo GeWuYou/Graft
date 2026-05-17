@@ -162,6 +162,43 @@ func (p *lifecycleContextRecorderPlugin) Shutdown(ctx *plugin.Context) error {
 	return nil
 }
 
+type i18nFreezeRecorderPlugin struct {
+	registerFrozen  bool
+	bootFrozen      bool
+	bootRegisterErr error
+}
+
+func (p *i18nFreezeRecorderPlugin) Name() string { return "i18n-freeze-recorder" }
+
+func (p *i18nFreezeRecorderPlugin) Version() string { return "test" }
+
+func (p *i18nFreezeRecorderPlugin) DependsOn() []string { return nil }
+
+func (p *i18nFreezeRecorderPlugin) Register(ctx *plugin.Context) error {
+	p.registerFrozen = ctx.I18n.IsFrozen()
+	return ctx.I18n.RegisterMessages(i18n.Registration{
+		Namespace: "test-plugin",
+		Locale:    i18n.LocaleZHCN,
+		Messages: []i18n.MessageResource{
+			{Key: "boot.message", Text: "注册阶段文案"},
+		},
+	})
+}
+
+func (p *i18nFreezeRecorderPlugin) Boot(ctx *plugin.Context) error {
+	p.bootFrozen = ctx.I18n.IsFrozen()
+	p.bootRegisterErr = ctx.I18n.RegisterMessages(i18n.Registration{
+		Namespace: "test-plugin",
+		Locale:    i18n.LocaleZHCN,
+		Messages: []i18n.MessageResource{
+			{Key: "late.message", Text: "启动阶段文案"},
+		},
+	})
+	return nil
+}
+
+func (p *i18nFreezeRecorderPlugin) Shutdown(_ *plugin.Context) error { return nil }
+
 // TestRegisterCoreServicesExposesRuntimeSingletons 验证 core 装配会把配置、
 // event bus、store factory 与 Redis 客户端注册到运行时容器中。
 func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
@@ -321,6 +358,61 @@ func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
 	}
 	if recorder.shutdownLifecycleErr != nil {
 		t.Fatalf("expected shutdown lifecycle context to remain usable, got %v", recorder.shutdownLifecycleErr)
+	}
+}
+
+func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	recorder := &i18nFreezeRecorderPlugin{}
+	manager := plugin.NewManager()
+	if err := manager.RegisterPlugin(recorder); err != nil {
+		t.Fatalf("register plugin: %v", err)
+	}
+
+	localizer := i18n.New(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "zh-CN",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	runtime := &Runtime{
+		config: &config.Config{
+			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
+		},
+		logger:             zap.NewNop(),
+		i18n:               localizer,
+		server:             httpx.NewServer(),
+		eventBus:           eventbus.New(zap.NewNop()),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		pluginManager:      manager,
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := runtime.Run(runCtx); err != nil {
+		t.Fatalf("run runtime: %v", err)
+	}
+	if recorder.registerFrozen {
+		t.Fatal("expected i18n registry to remain writable during Register")
+	}
+	if !recorder.bootFrozen {
+		t.Fatal("expected i18n registry to be frozen before Boot")
+	}
+	if recorder.bootRegisterErr == nil {
+		t.Fatal("expected Boot phase registration to be rejected after freeze")
+	}
+
+	message := localizer.Lookup(i18n.LookupRequest{
+		Namespace: "test-plugin",
+		Locale:    i18n.LocaleZHCN,
+		Key:       "boot.message",
+	})
+	if message != "注册阶段文案" {
+		t.Fatalf("expected register-time message registration to persist, got %q", message)
 	}
 }
 
