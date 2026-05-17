@@ -200,7 +200,11 @@
   - `cd server && go test ./internal/i18n`
   - `cd server && go build ./cmd/graft`
   - 结果：`plugins/user/plugin_routes.go` 的 changed-file scoped lint gate 已回到 `0 issues`。
-  - 当前阻断：`cd server && go test ./internal/store/entstore` 与 `cd server && go run ./cmd/graft validate backend` 在当前工作树都会因 `internal/ent/runtime.go:150` 的现有 panic 失败，因此这次 hotspot-reduction 切片暂不能按 `server` 完成态宣称验证充分。
+- 本次 `server/plugins/user/plugin_routes.go` hotspot reduction completion rerun：
+  - `cd server && go test ./internal/ent`
+  - `cd server && go test ./internal/store/entstore`
+  - `cd server && go run ./cmd/graft validate backend`
+  - 结果：`internal/ent/runtime.go:150` 的先前 panic 在当前工作树未复现；`internal/ent`、`internal/store/entstore` 与统一 backend completion 入口均已通过，因此这次 hotspot-reduction 切片现在可以按 `server` 完成态认定验证充分。
 - 当前后端恢复基线沿用最近一次 focused backend validation：
   - `cd server && go test ./internal/cli ./internal/app ./internal/store ./internal/store/entstore ./plugins/user ./plugins/rbac`
   - `cd server && go build ./cmd/graft`
@@ -234,4 +238,4 @@
   受保护路由时，继续复用 typed permission/route contract 与 `rbac` 插件公开服务，不再在 `user` 或其它插件本地复制实现。
 - 当前纯 `server` 的 runtime auth/authz contract 热点已经完成一轮清扫；后续若继续做 `server` 治理，优先收敛
   `plugin_test.go` 与其它测试侧仍残留的 auth/shared 字面量，否则跨边界主线回到父主题与 `web` 子主题继续推进主运行面清理。
-- 若继续关闭当前 `plugin_routes.go` hotspot-reduction 切片，先定位并修复 `internal/ent/runtime.go:150` 触发的现有 panic，或由后续拥有者明确接受低于 `server` 完成态的暂挂状态；在此之前不要为本切片创建 scoped commit。
+- 当前 `plugin_routes.go` hotspot-reduction 切片的 backend completion gate 已恢复充分；若下一步继续推进 `server` 治理，优先转回 RBAC 第二波最小写接口 contract/README/tracking 收口，避免重新扩大到无关运行时热点。
