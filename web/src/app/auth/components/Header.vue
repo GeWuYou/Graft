@@ -17,7 +17,7 @@
 </template>
 <script setup lang="ts">
 import LogoFullIcon from '@/assets/assets-logo-full.svg?component';
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
+import LanguageSwitcher from '@/shared/components/LanguageSwitcher.vue';
 import { useSettingStore } from '@/store';
 
 const settingStore = useSettingStore();

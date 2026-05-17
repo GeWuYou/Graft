@@ -95,8 +95,8 @@ import type { FormRule, SubmitContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, ref } from 'vue';
 
-import { useCounter } from '@/hooks';
 import { t } from '@/locales';
+import { useCounter } from '@/shared/composables';
 
 const emit = defineEmits(['register-success']);
 

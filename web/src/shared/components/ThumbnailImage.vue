@@ -1,11 +1,11 @@
 <template>
-  <img :class="className" :src="url" />
+  <img :class="className" :src="src" />
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
 
 const { type } = defineProps({
-  url: {
+  src: {
     type: String,
     default: '',
   },

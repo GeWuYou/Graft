@@ -6,8 +6,8 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 
-import Result from '@/components/result/index.vue';
 import { t } from '@/locales';
+import Result from '@/shared/components/ResultView.vue';
 
 defineOptions({
   name: 'Result404',

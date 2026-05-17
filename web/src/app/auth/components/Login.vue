@@ -90,8 +90,8 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { API_CODE } from '@/api/model/authModel';
 import { AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
-import { useCounter } from '@/hooks';
 import { t } from '@/locales';
+import { useCounter } from '@/shared/composables';
 import { useUserStore } from '@/store';
 import { isApiRequestError } from '@/utils/request';
 

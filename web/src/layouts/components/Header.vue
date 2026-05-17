@@ -68,10 +68,10 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 import LogoFull from '@/assets/assets-logo-full.svg?component';
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import { prefix } from '@/config/global';
 import { t } from '@/locales';
 import { getActive } from '@/router';
+import LanguageSwitcher from '@/shared/components/LanguageSwitcher.vue';
 import { useSettingStore, useUserStore } from '@/store';
 import type { MenuRoute, ModeType } from '@/utils/types';
 
