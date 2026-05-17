@@ -14,16 +14,18 @@
 ## 2026-05-17 first web boundary refactor slice
 
 - Created short branch `refactor/web-module-boundaries` from local `main` for the first frontend structure refactor.
-- Started landing a real `web/src/modules/` registration layer instead of keeping bootstrap dynamic route declarations in
-  shared shell code.
-- Tightened the slice scope after rechecking the real runtime surface:
-  - the real business pages are `user` and `rbac`
-  - static shell pages still in runtime are `login` plus `result/403|404|500`
-  - stale starter/demo result pages should be removed instead of kept as dormant runtime residue
-  - module registrations remain the only allowed feature-to-shell integration path
-  - subsequent code migration should move `user` and `rbac` page/api/type/contract ownership into `web/src/modules/<name>/`
+- Landed a real `web/src/modules/` registration layer instead of keeping bootstrap dynamic route declarations in shared
+  shell code.
+- Moved the real `user` and `rbac` page/api/type/contract surface under `web/src/modules/<name>/`, while keeping
+  narrow compatibility re-exports at shared entrypoints that are still consumed elsewhere in `web`.
+- Confirmed the shell/module boundary now follows the intended direction:
+  - shared shell code consumes module registrations
+  - module directories hold feature bootstrap route truth
+  - future long-lived `web` owned scope can freeze on module boundaries instead of technical-layer directories
+- Rechecked the branch after landing the slice and found no remaining uncommitted owned-scope changes in
+  `web/src/modules/user/**`, `web/src/modules/rbac/**`, `web/src/modules/index.ts`, or the active topic docs.
 
 ## Next Step
 
 - Continue governing shared repository truth on `main` until the first real long-lived worktree/topic pair is created,
-  starting with exact owned-scope rules for `RBAC` and `server-status-dashboard`.
+  starting with exact owned-scope rules and shared-hotspot integration policy for `RBAC` and `server-status-dashboard`.

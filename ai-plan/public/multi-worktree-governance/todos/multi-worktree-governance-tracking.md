@@ -36,12 +36,12 @@
     plugin-first.
   - `web` still has shared shell hotspots such as bootstrap route mapping, global stores, layout wiring, and locale
     catalogs; future long-lived worktrees must not treat those files as freely owned by multiple topics at once.
-- The first web-side mitigation slice has now started on short branch `refactor/web-module-boundaries`:
-  - create a real `web/src/modules/` registration layer
-  - move bootstrap dynamic route declarations out of shared shell code
-  - remove unused demo runtime residue from the real `web` app when it no longer has active references
-  - migrate the real `user` and `rbac` business surface into `web/src/modules/<name>/`
-  - keep module registration as the only allowed new shell integration path
+- The first web-side mitigation slice has landed on short branch `refactor/web-module-boundaries`:
+  - `web/src/modules/` is now the real feature registration layer
+  - bootstrap dynamic route declarations now resolve through module registrations instead of feature truth living in shared shell code
+  - the real `user` and `rbac` business surface now lives under `web/src/modules/<name>/`
+  - compatibility re-exports remain in shared API/model/contract entrypoints where needed, but module-owned code now carries the feature truth
+  - module registration is now the only allowed new feature-to-shell integration path
 - The first expected future long-lived feature directions are:
   - `RBAC`
   - `server-status-dashboard`
@@ -98,17 +98,18 @@
   - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/utils/route/bootstrap.test.ts src/utils/route/index.test.ts`
   - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
   - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run lint -- src/utils/route/bootstrap.ts src/modules/index.ts src/modules/rbac/bootstrap-routes.ts src/modules/user/bootstrap-routes.ts src/modules/types.ts`
+- The landed module-boundary branch currently has no uncommitted owned-scope changes:
+  - `git status --short --branch`
+  - `git diff -- web/src/modules/user web/src/modules/rbac web/src/modules/index.ts ai-plan/public/multi-worktree-governance`
 
 ## Immediate Next Step
 
 - Keep using `multi-worktree-governance` on local `main` until the repository has explicit owned-scope rules for the
   first real long-lived worktrees.
-- Complete the minimal web-side boundary refactor in this order:
-  - freeze `web` shell-owned vs module-owned boundaries in design truth
-  - remove unused demo pages and stale runtime references from the real `web` app
-  - move `user` page/api/type/contract ownership into `web/src/modules/user/**`
-  - move `rbac` page/api/type/contract ownership into `web/src/modules/rbac/**`
-  - keep shared shell code consuming module registrations instead of owning feature route declarations directly
+- Keep the landed module-boundary refactor as the baseline for future `web` worktree ownership:
+  - preserve `web/src/modules/user/**` and `web/src/modules/rbac/**` as module-owned feature truth
+  - preserve shared shell code as a consumer of module registrations instead of a holder of feature route truth
+  - keep compatibility bridges narrow so future cleanup can remove them without reopening feature ownership
 - Before creating the first additional worktree, decide the exact owned scope and shared-hotspot policy for:
   - `RBAC`
   - `server-status-dashboard`
