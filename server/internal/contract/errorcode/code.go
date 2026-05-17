@@ -64,6 +64,9 @@ const (
 
 	// UserNotFound identifies missing-user failures surfaced by auth-adjacent flows.
 	UserNotFound Code = "USER_NOT_FOUND"
+
+	// RoleNotFound identifies missing-role failures surfaced by RBAC management flows.
+	RoleNotFound Code = "ROLE_NOT_FOUND"
 )
 
 var messageKeyCodes = map[messagecontract.Key]Code{
@@ -81,6 +84,7 @@ var messageKeyCodes = map[messagecontract.Key]Code{
 	messagecontract.AuthTokenMissing:            AuthTokenMissing,
 	messagecontract.CommonInternalError:         CommonInternalError,
 	messagecontract.CommonInvalidArgument:       CommonInvalidArgument,
+	messagecontract.RoleNotFound:                RoleNotFound,
 	messagecontract.UserNotFound:                UserNotFound,
 }
 

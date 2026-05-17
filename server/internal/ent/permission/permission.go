@@ -20,6 +20,8 @@ const (
 	FieldDisplay = "display"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldCategory holds the string denoting the category field in the database.
+	FieldCategory = "category"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -43,6 +45,7 @@ var Columns = []string{
 	FieldCode,
 	FieldDisplay,
 	FieldDescription,
+	FieldCategory,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -62,6 +65,10 @@ var (
 	CodeValidator func(string) error
 	// DisplayValidator is a validator for the "display" field. It is called by the builders before save.
 	DisplayValidator func(string) error
+	// DefaultCategory holds the default value on creation for the "category" field.
+	DefaultCategory string
+	// CategoryValidator is a validator for the "category" field. It is called by the builders before save.
+	CategoryValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -91,6 +98,11 @@ func ByDisplay(opts ...sql.OrderTermOption) OrderOption {
 // ByDescription orders the results by the description field.
 func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+}
+
+// ByCategory orders the results by the category field.
+func ByCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCategory, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

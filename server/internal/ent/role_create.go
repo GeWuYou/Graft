@@ -48,6 +48,20 @@ func (_c *RoleCreate) SetNillableDescription(v *string) *RoleCreate {
 	return _c
 }
 
+// SetBuiltin sets the "builtin" field.
+func (_c *RoleCreate) SetBuiltin(v bool) *RoleCreate {
+	_c.mutation.SetBuiltin(v)
+	return _c
+}
+
+// SetNillableBuiltin sets the "builtin" field if the given value is not nil.
+func (_c *RoleCreate) SetNillableBuiltin(v *bool) *RoleCreate {
+	if v != nil {
+		_c.SetBuiltin(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *RoleCreate) SetCreatedAt(v time.Time) *RoleCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -141,6 +155,10 @@ func (_c *RoleCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *RoleCreate) defaults() {
+	if _, ok := _c.mutation.Builtin(); !ok {
+		v := role.DefaultBuiltin
+		_c.mutation.SetBuiltin(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := role.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -168,6 +186,9 @@ func (_c *RoleCreate) check() error {
 		if err := role.DisplayValidator(v); err != nil {
 			return &ValidationError{Name: "display", err: fmt.Errorf(`ent: validator failed for field "Role.display": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Builtin(); !ok {
+		return &ValidationError{Name: "builtin", err: errors.New(`ent: missing required field "Role.builtin"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Role.created_at"`)}
@@ -212,6 +233,10 @@ func (_c *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(role.FieldDescription, field.TypeString, value)
 		_node.Description = &value
+	}
+	if value, ok := _c.mutation.Builtin(); ok {
+		_spec.SetField(role.FieldBuiltin, field.TypeBool, value)
+		_node.Builtin = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(role.FieldCreatedAt, field.TypeTime, value)

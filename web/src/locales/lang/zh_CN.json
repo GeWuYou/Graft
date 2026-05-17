@@ -302,6 +302,66 @@
         "lastMonth": "上月"
       }
     },
+    "roleList": {
+      "listTitle": "角色概览",
+      "countLabel": "角色数量",
+      "hint": "当前页面只接最小角色管理闭环：角色列表、创建、更新和权限分配。",
+      "apiTitle": "真实契约",
+      "endpointLabel": "接口：",
+      "endpointValue": "GET /api/roles | GET /api/permissions",
+      "fieldsLabel": "最小字段：",
+      "fieldsValue": "id, name, display, description, builtin | id, code, display, category",
+      "refresh": "刷新数据",
+      "create": "新建角色",
+      "dataTitle": "角色列表",
+      "permissionSummary": "当前已加载 {count} 条权限定义，可用于最小分配闭环。",
+      "builtinYes": "内置",
+      "builtinNo": "自定义",
+      "emptyDescription": "暂无描述",
+      "empty": "暂无角色数据",
+      "loadFailed": "角色管理数据加载失败",
+      "permissionLoadFailed": "权限定义加载失败，当前仅展示角色列表。",
+      "permissionUnavailable": "当前会话未加载可分配的权限定义。",
+      "createSuccess": "角色创建成功",
+      "updateSuccess": "角色更新成功",
+      "submitFailed": "角色提交失败",
+      "assignPermissions": "分配权限",
+      "assignSuccess": "角色权限分配成功",
+      "assignFailed": "角色权限分配失败",
+      "columns": {
+        "id": "ID",
+        "name": "角色名",
+        "display": "显示名",
+        "description": "描述",
+        "builtin": "类型"
+      },
+      "form": {
+        "createTitle": "新建角色",
+        "editTitle": "编辑角色",
+        "name": "角色名",
+        "namePlaceholder": "请输入稳定角色名",
+        "display": "显示名",
+        "displayPlaceholder": "请输入页面展示名称",
+        "description": "描述",
+        "descriptionPlaceholder": "请输入最小角色说明，可留空",
+        "cancel": "取消",
+        "confirm": "提交",
+        "required": {
+          "name": "请输入角色名",
+          "display": "请输入显示名"
+        }
+      },
+      "permissionDialog": {
+        "title": "分配角色权限",
+        "currentRole": "当前角色：{name}",
+        "currentRoleEmpty": "当前未选择角色",
+        "groupHint": "当前分组共 {count} 条权限。",
+        "category": "分组：{category}",
+        "selectionLoadFailed": "角色已有权限加载失败，当前未执行覆盖写入。",
+        "selectionUnavailable": "当前无法可靠恢复该角色的已有权限，已阻止空权限覆盖提交。",
+        "confirm": "保存权限分配"
+      }
+    },
     "detailBase": {
       "baseInfo": {
         "title": "基本信息"

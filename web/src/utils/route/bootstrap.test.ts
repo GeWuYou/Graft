@@ -6,6 +6,13 @@ describe('transformBootstrapMenusToRoutes', () => {
   it('只为当前 web 已接入的 bootstrap 菜单生成动态路由', () => {
     const routes = transformBootstrapMenusToRoutes([
       {
+        code: 'role.list',
+        title: '角色管理',
+        path: '/roles',
+        icon: 'secured',
+        permission: 'role.read',
+      },
+      {
         code: 'user.list',
         title: '用户管理',
         path: '/users',
@@ -21,9 +28,12 @@ describe('transformBootstrapMenusToRoutes', () => {
       },
     ]);
 
-    expect(routes).toHaveLength(1);
-    expect(routes[0]?.path).toBe('/users');
-    expect(routes[0]?.redirect).toBe('/users/index');
-    expect(routes[0]?.children?.[0]?.name).toBe('UserListIndex');
+    expect(routes).toHaveLength(2);
+    expect(routes[0]?.path).toBe('/roles');
+    expect(routes[0]?.redirect).toBe('/roles/index');
+    expect(routes[0]?.children?.[0]?.name).toBe('RoleListIndex');
+    expect(routes[1]?.path).toBe('/users');
+    expect(routes[1]?.redirect).toBe('/users/index');
+    expect(routes[1]?.children?.[0]?.name).toBe('UserListIndex');
   });
 });

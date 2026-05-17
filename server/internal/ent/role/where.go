@@ -70,6 +70,11 @@ func Description(v string) predicate.Role {
 	return predicate.Role(sql.FieldEQ(FieldDescription, v))
 }
 
+// Builtin applies equality check predicate on the "builtin" field. It's identical to BuiltinEQ.
+func Builtin(v bool) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldBuiltin, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Role {
 	return predicate.Role(sql.FieldEQ(FieldCreatedAt, v))
@@ -283,6 +288,16 @@ func DescriptionEqualFold(v string) predicate.Role {
 // DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
 func DescriptionContainsFold(v string) predicate.Role {
 	return predicate.Role(sql.FieldContainsFold(FieldDescription, v))
+}
+
+// BuiltinEQ applies the EQ predicate on the "builtin" field.
+func BuiltinEQ(v bool) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldBuiltin, v))
+}
+
+// BuiltinNEQ applies the NEQ predicate on the "builtin" field.
+func BuiltinNEQ(v bool) predicate.Role {
+	return predicate.Role(sql.FieldNEQ(FieldBuiltin, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

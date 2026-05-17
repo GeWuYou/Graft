@@ -1,5 +1,16 @@
 # MVP Extension Path Server Trace
 
+## 2026-05-16 docs handoff governance and RBAC second-wave recovery sync
+
+- Updated repository recovery/governance truth so task handoff now requires an explicit next-task startup prompt rather
+  than assuming the next turn inherits boot state from ambient context.
+- Recorded the matching pre-handoff commit rule: when a slice is already validated to its task-class requirement, the
+  handoff should first attempt a scoped commit under the same ownership and validation rules enforced by
+  `graft-commit`; when validation is still pending, the handoff must state that gap explicitly.
+- Synced the active `server` recovery point to the RBAC MVP second-wave direction by recording the in-progress minimal
+  write API scope visible in the working tree, without claiming backend validation has already been rerun for that
+  scope.
+
 ## 2026-05-12 backend baseline
 
 - Added the first-pass `server` runtime shell with explicit plugin ordering, registries, lightweight DI, and the
@@ -428,6 +439,20 @@
 - Updated user-plugin test helpers to follow the real lifecycle order `user.Register -> rbac.Register -> user.Boot`,
   added a fail-closed regression for missing shared authorizer wiring, and revalidated the slice with
   `go test ./plugins/user ./plugins/rbac ./internal/httpx`.
+
+## 2026-05-16 RBAC read-management foundation
+
+- Started the first RBAC MVP implementation wave by widening the backend truth surface from “authorization only” to a
+  minimal read-management foundation without moving role/permission ownership out of the existing `rbac` plugin.
+- Extended the stable store/repository boundary with `roles.builtin`, `permissions.category`, plus repository-level
+  `ListRoles` and `ListPermissions` read APIs so the `rbac` plugin can expose management reads without leaking Ent
+  internals into handlers.
+- Added the matching Ent schema and Atlas migration slice for `roles.builtin` and `permissions.category`, regenerated
+  the affected Ent artifacts, and refreshed `atlas.sum`.
+- Extended `server/plugins/user` bootstrap so the authenticated snapshot now includes stable `roles`, keeping `web`
+  on a single backend-owned RBAC truth path instead of an empty roles placeholder.
+- Revalidated the bootstrap-side fallout with focused `cd server && go test ./plugins/user` and kept
+  `cd server && go test ./plugins/rbac` green while the dedicated RBAC route/test slice continued in parallel.
 
 ## Next Step
 

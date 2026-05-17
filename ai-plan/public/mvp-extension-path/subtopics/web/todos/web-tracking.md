@@ -12,6 +12,17 @@
 
 ## Current Recovery Point
 
+- 当前 RBAC MVP 第一波前端实施已冻结为“共享权限消费基础 + 现有 `/users` 真入口接线增强”切片：只允许修改
+  `permission` store、permission directive、`user` store 的 bootstrap roles/permissions 消费，以及当前
+  `/users` 页面上的权限显隐；本轮不新增 `/roles` 页面、不新增第二批动态菜单、不做完整 CRUD UI。
+- 当前 `web` 侧 RBAC 真值继续保持单一路径：只消费后端 `bootstrap` 快照中的 `roles`、`permissions`、`menus`，
+  不允许本地自造 permission code，也不允许把按钮/菜单显隐升级为真实安全边界。
+- 当前与 RBAC MVP 第二波方向的跨边界协同已进入最小消费态：基于已提交的后端稳定切片，`web` 当前允许新增
+  `/roles` 最小接线页面，只覆盖 `GET /api/roles`、`GET /api/permissions`、角色创建、角色更新与角色权限分配；
+  本轮仍不扩展完整角色中心，不新增 `super_admin` 前端旁路，也不把用户角色分配 UI 并入同一切片。
+- 当前 `web /user-role minimal read wiring` 核对结果也已冻结：后端尚未提供“任意目标用户当前已分配角色”的稳定读契约，
+  因此本轮不新增用户角色分配 UI、不把 `assignUserRoles` API wrapper 接进页面，也不把写接口单独包装成假闭环。
+
 - `web` 现阶段以真实 `web/` 工程作为唯一运行面；starter 只保留可继续收敛的壳层风格、页面样板和治理参考，不再把 starter 全量工程视为运行基线。
 - 当前主线不是页面扩张，也不是继续深化独立前端工作台能力；任何 shell 级调整都应服务于真实契约挂接和 mock/demo 清理。
 - `web/ai-libs/tdesign-vue-next-starter` 继续只作为本地参考源存在，不是当前工程的独立 Git root，也不应在 IDE 里登记为第二个仓库。
@@ -38,12 +49,24 @@
 - 混用 WSL Bun 与 host Windows Bun 仍可能破坏当前工作树的前端依赖与 IDE 运行稳定性。
 - 如果 IDE 把 `web/ai-libs/tdesign-vue-next-starter` 重新登记成额外 Git root，仓库视图会混入参考目录历史与标签，影响当前主仓提交判断。
 - 如果 README、skill 或 workflow 再把 CI stage / Linux runner 语义写成独立前端验收规则，当前 frontend validation governance 会重新分叉。
+- 如果 `web` 在后端最小写 API 仍处于 in-progress 时就提前扩展角色管理写页面，前端会再次基于未冻结契约形成假闭环。
+- 如果 `web` 在缺少“目标用户当前角色”读面时直接接入用户角色分配 UI，页面只能用空初始值或本地推测驱动表单，
+  这会把一次性写入路径伪装成完成态。
 
 ## Latest Validation
 
 - 当前前端恢复基线沿用最近一次 host Windows Bun 完成态校验：
   - `bun run check`
 - 该完成态基线要求 `format:check`、`typecheck`、`lint`、`stylelint`、`test:run`、`build` 全部通过且无未处理 warning。
+- 本次 `/roles` 最小接线切片实际目标：
+  - 为 `/roles` 新增 typed api + contract。
+  - 新增最小列表页，接 `GET /api/roles` 与 `GET /api/permissions`。
+  - 接入 role create/update 与 role permission assignment。
+  - focused validation 仅覆盖新增动态路由映射与相关前端类型/构建面，不把本轮自动升级成完整 `bun run check` 完成态声明。
+- 本次 `web /user-role minimal read wiring` 结论：
+  - 已核对当前 `server` 仅暴露 `POST /api/users/:id/roles/assign`，未暴露对称 user-role read contract。
+  - 当前 `web` 保持 `/users` 只读列表页，不新增用户角色分配表单或弹窗。
+  - focused validation 仅要求 tracking / scope 一致性检查，不声明新的前端功能完成态。
 - 本次 PR #9 review follow-up 预期直接校验：
   - `cd web && bun run check`
 - 本次 `/users` 真实列表页切片直接校验：
@@ -80,9 +103,16 @@
   - `rg -n "dashboard/base|vite-plugin-mock|permission-fe|tabs-router" web/src web/package.json web/vite.config.ts`
   - `cd web && bun run typecheck`
   - `cd web && bun run check`
+- 本次 `/roles` 最小接线预期直接校验：
+  - `cd web && bun run test:run -- src/utils/route/bootstrap.test.ts`
+  - `cd web && bun run typecheck`
 
 ## Immediate Next Step
 
+- 先把 permission helper / directive 和 `/users` 页最小权限显隐做实，再决定是否进入 `/roles` 新页面；不要在当前切片里同时扩展第二批动态菜单映射。
+- 在后端最小写 API 仍未完成主代理验证前，保持 `web` 对 RBAC 第二波的状态为“等待稳定契约 + 等待验证结果”，不要提前开启角色写操作 UI。
+- 在 `server` 补齐“目标用户当前角色”稳定读契约之前，保持 `web` 对 user-role 管理面的状态为“阻断，不进入 UI 接线”，不要把 `assignUserRoles` 单独接成一次性写入表单。
+- 保持 `bootstrap.roles` 和 `bootstrap.permissions` 作为唯一前端 RBAC 快照来源，不要回到基于页面本地常量或角色名字符串的条件分支。
 - 继续在真实 `web/` 工程里把 starter 壳层风格挂接到真实后端 `auth + current user + menu + permission + locale` 契约。
 - 先清理主路由树里的 starter demo 入口、默认 mock runtime 与前端权限旁路，让主运行面重新只服务真实 bootstrap 菜单和已注册页面。
 - 快速隔离或移除当前阶段不再需要的 mock/demo 入口，避免形成前端自洽假闭环。

@@ -33,6 +33,8 @@ func (Role) Fields() []ent.Field {
 		field.String("description").
 			Optional().
 			Nillable(),
+		field.Bool("builtin").
+			Default(false),
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now),

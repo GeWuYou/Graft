@@ -88,12 +88,18 @@ func init() {
 	permissionDescDisplay := permissionFields[1].Descriptor()
 	// permission.DisplayValidator is a validator for the "display" field. It is called by the builders before save.
 	permission.DisplayValidator = permissionDescDisplay.Validators[0].(func(string) error)
+	// permissionDescCategory is the schema descriptor for category field.
+	permissionDescCategory := permissionFields[3].Descriptor()
+	// permission.DefaultCategory holds the default value on creation for the category field.
+	permission.DefaultCategory = permissionDescCategory.Default.(string)
+	// permission.CategoryValidator is a validator for the "category" field. It is called by the builders before save.
+	permission.CategoryValidator = permissionDescCategory.Validators[0].(func(string) error)
 	// permissionDescCreatedAt is the schema descriptor for created_at field.
-	permissionDescCreatedAt := permissionFields[3].Descriptor()
+	permissionDescCreatedAt := permissionFields[4].Descriptor()
 	// permission.DefaultCreatedAt holds the default value on creation for the created_at field.
 	permission.DefaultCreatedAt = permissionDescCreatedAt.Default.(func() time.Time)
 	// permissionDescUpdatedAt is the schema descriptor for updated_at field.
-	permissionDescUpdatedAt := permissionFields[4].Descriptor()
+	permissionDescUpdatedAt := permissionFields[5].Descriptor()
 	// permission.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	permission.DefaultUpdatedAt = permissionDescUpdatedAt.Default.(func() time.Time)
 	// permission.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -124,12 +130,16 @@ func init() {
 	roleDescDisplay := roleFields[1].Descriptor()
 	// role.DisplayValidator is a validator for the "display" field. It is called by the builders before save.
 	role.DisplayValidator = roleDescDisplay.Validators[0].(func(string) error)
+	// roleDescBuiltin is the schema descriptor for builtin field.
+	roleDescBuiltin := roleFields[3].Descriptor()
+	// role.DefaultBuiltin holds the default value on creation for the builtin field.
+	role.DefaultBuiltin = roleDescBuiltin.Default.(bool)
 	// roleDescCreatedAt is the schema descriptor for created_at field.
-	roleDescCreatedAt := roleFields[3].Descriptor()
+	roleDescCreatedAt := roleFields[4].Descriptor()
 	// role.DefaultCreatedAt holds the default value on creation for the created_at field.
 	role.DefaultCreatedAt = roleDescCreatedAt.Default.(func() time.Time)
 	// roleDescUpdatedAt is the schema descriptor for updated_at field.
-	roleDescUpdatedAt := roleFields[4].Descriptor()
+	roleDescUpdatedAt := roleFields[5].Descriptor()
 	// role.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	role.DefaultUpdatedAt = roleDescUpdatedAt.Default.(func() time.Time)
 	// role.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

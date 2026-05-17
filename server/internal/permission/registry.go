@@ -7,6 +7,8 @@ type Item struct {
 	Code        string
 	Name        string
 	Description string
+	// Category 是权限点的稳定分类元数据，由权限声明侧提供 canonical 真值。
+	Category string
 	// Plugin 标记权限声明来源，便于定位冲突与后续按插件聚合能力。
 	Plugin string
 }

@@ -33,6 +33,7 @@ var defaultCatalogs = map[string]map[string]string{
 		messagecontract.CommonCopyright.String():             "Copyright (C) 2021-2026 Tencent. All Rights Reserved",
 		messagecontract.CommonInternalError.String():         "服务内部错误",
 		messagecontract.CommonInvalidArgument.String():       "请求参数不合法",
+		messagecontract.RoleNotFound.String():                "角色不存在",
 		messagecontract.UserNotFound.String():                "用户不存在",
 	},
 	"en-US": {
@@ -52,6 +53,7 @@ var defaultCatalogs = map[string]map[string]string{
 		messagecontract.CommonCopyright.String():             "Copyright (C) 2021-2026 Tencent. All Rights Reserved",
 		messagecontract.CommonInternalError.String():         "Internal server error",
 		messagecontract.CommonInvalidArgument.String():       "Invalid request parameters",
+		messagecontract.RoleNotFound.String():                "Role not found",
 		messagecontract.UserNotFound.String():                "User not found",
 	},
 }

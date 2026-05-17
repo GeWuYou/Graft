@@ -20,15 +20,37 @@
               >{{ t('pages.userList.fieldsLabel') }}<code>{{ t('pages.userList.fieldsValue') }}</code></span
             >
           </div>
-          <t-button theme="primary" variant="outline" :loading="loading" @click="fetchUsers">
-            {{ t('pages.userList.refresh') }}
-          </t-button>
+          <div class="summary-actions">
+            <t-button theme="primary" variant="outline" :loading="loading" @click="fetchUsers">
+              {{ t('pages.userList.refresh') }}
+            </t-button>
+            <t-button v-permission="permissionCodes.CREATE" theme="default" variant="base" disabled>
+              {{ t('pages.listBase.create') }}
+            </t-button>
+          </div>
         </t-card>
       </t-col>
     </t-row>
 
     <t-card class="table-card" :bordered="false" :title="t('pages.userList.dataTitle')">
-      <t-table row-key="id" :data="users" :columns="columns" :loading="loading" size="medium">
+      <t-table
+        row-key="id"
+        :data="users"
+        :columns="columns"
+        :loading="loading"
+        size="medium"
+        :table-layout="showOperationColumn ? 'fixed' : 'auto'"
+      >
+        <template #operation>
+          <div class="operation-cell">
+            <t-button v-permission="permissionCodes.UPDATE" variant="text" theme="primary" disabled>
+              {{ t('components.commonTable.detail') }}
+            </t-button>
+            <t-button v-permission="permissionCodes.DISABLE" variant="text" theme="danger" disabled>
+              {{ t('components.manage') }}
+            </t-button>
+          </div>
+        </template>
         <template #empty>
           <t-empty :description="t('pages.userList.empty')" />
         </template>
@@ -43,19 +65,28 @@ import { useI18n } from 'vue-i18n';
 
 import type { UserListItem } from '@/api/model/userModel';
 import { getUsers } from '@/api/user';
+import { USER_PERMISSION_CODE } from '@/contracts/user/permissions';
+import { usePermissionStore } from '@/store';
 
 defineOptions({
   name: 'UsersIndex',
 });
 
 const { t, locale } = useI18n();
+const permissionStore = usePermissionStore();
 const users = ref<UserListItem[]>([]);
 const loading = ref(false);
+const permissionCodes = USER_PERMISSION_CODE;
+
+const showOperationColumn = computed(() =>
+  permissionStore.hasAnyPermission([permissionCodes.UPDATE, permissionCodes.DISABLE]),
+);
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
+  void showOperationColumn.value;
 
-  return [
+  const baseColumns: TdBaseTableProps['columns'] = [
     {
       title: t('pages.userList.columns.id'),
       colKey: 'id',
@@ -82,6 +113,17 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
       minWidth: 220,
     },
   ];
+
+  if (showOperationColumn.value) {
+    baseColumns.push({
+      title: t('components.commonTable.operation'),
+      colKey: 'operation',
+      width: 220,
+      fixed: 'right',
+    });
+  }
+
+  return baseColumns;
 });
 
 async function fetchUsers() {
@@ -104,4 +146,16 @@ onMounted(() => {
 </script>
 <style lang="less" scoped>
 @import './index.less';
+
+.summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--td-comp-margin-s);
+}
+
+.operation-cell {
+  display: flex;
+  gap: var(--td-comp-margin-xs);
+  justify-content: flex-start;
+}
 </style>

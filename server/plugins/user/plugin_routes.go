@@ -46,18 +46,21 @@ func userPermissionItems(pluginName string) []permission.Item {
 			Code:        usercontract.UserReadPermission.String(),
 			Name:        "Read Users",
 			Description: "Allows reading user management data.",
+			Category:    "api",
 			Plugin:      pluginName,
 		},
 		{
 			Code:        usercontract.UserSessionRevokePermission.String(),
 			Name:        "Revoke User Sessions",
 			Description: "Allows revoking refresh sessions for a specified user.",
+			Category:    "api",
 			Plugin:      pluginName,
 		},
 		{
 			Code:        usercontract.UserSessionReadPermission.String(),
 			Name:        "Read User Sessions",
 			Description: "Allows reading active refresh sessions for a specified user.",
+			Category:    "api",
 			Plugin:      pluginName,
 		},
 	}

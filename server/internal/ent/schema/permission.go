@@ -35,6 +35,9 @@ func (Permission) Fields() []ent.Field {
 		field.String("description").
 			Optional().
 			Nillable(),
+		field.String("category").
+			NotEmpty().
+			Default("api"),
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now),

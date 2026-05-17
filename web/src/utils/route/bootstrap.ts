@@ -5,6 +5,7 @@ import type { LocalizedTitle } from '@/locales';
 import type { AppRouteMeta } from '@/utils/types';
 
 const bootstrapRouteComponentMap: Record<string, RouteRecordRaw['component']> = {
+  '/roles': () => import('@/pages/role/index.vue'),
   '/users': () => import('@/pages/user/index.vue'),
 } as const;
 

@@ -350,10 +350,15 @@ func (r pluginTestUserRepository) List(ctx context.Context) ([]store.User, error
 
 type pluginTestRBACRepository struct {
 	permissions             map[uint64][]store.Permission
+	roles                   map[uint64][]store.Role
 	ensureRole              func(ctx context.Context, input store.EnsureRoleInput) (store.Role, error)
 	ensurePermission        func(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error)
+	createRole              func(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
+	updateRole              func(ctx context.Context, input store.UpdateRoleInput) (store.Role, error)
 	assignPermissionsToRole func(ctx context.Context, input store.AssignPermissionsToRoleInput) error
+	replacePermissions      func(ctx context.Context, input store.ReplacePermissionsForRoleInput) error
 	assignRoleToUser        func(ctx context.Context, input store.AssignRoleToUserInput) error
+	replaceRolesForUser     func(ctx context.Context, input store.ReplaceRolesForUserInput) error
 }
 
 func (r pluginTestRBACRepository) EnsureRole(ctx context.Context, input store.EnsureRoleInput) (store.Role, error) {
@@ -372,9 +377,33 @@ func (r pluginTestRBACRepository) EnsurePermission(ctx context.Context, input st
 	return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 }
 
+func (r pluginTestRBACRepository) CreateRole(ctx context.Context, input store.CreateRoleInput) (store.Role, error) {
+	if r.createRole != nil {
+		return r.createRole(ctx, input)
+	}
+
+	return store.Role{ID: 1, Name: input.Name, Display: input.Display, Description: input.Description, Builtin: input.Builtin}, nil
+}
+
+func (r pluginTestRBACRepository) UpdateRole(ctx context.Context, input store.UpdateRoleInput) (store.Role, error) {
+	if r.updateRole != nil {
+		return r.updateRole(ctx, input)
+	}
+
+	return store.Role{ID: input.ID, Name: input.Name, Display: input.Display, Description: input.Description}, nil
+}
+
 func (r pluginTestRBACRepository) AssignPermissionsToRole(ctx context.Context, input store.AssignPermissionsToRoleInput) error {
 	if r.assignPermissionsToRole != nil {
 		return r.assignPermissionsToRole(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) ReplacePermissionsForRole(ctx context.Context, input store.ReplacePermissionsForRoleInput) error {
+	if r.replacePermissions != nil {
+		return r.replacePermissions(ctx, input)
 	}
 
 	return nil
@@ -388,8 +417,28 @@ func (r pluginTestRBACRepository) AssignRoleToUser(ctx context.Context, input st
 	return nil
 }
 
-func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, _ uint64) ([]store.Role, error) {
-	return nil, nil
+func (r pluginTestRBACRepository) ReplaceRolesForUser(ctx context.Context, input store.ReplaceRolesForUserInput) error {
+	if r.replaceRolesForUser != nil {
+		return r.replaceRolesForUser(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) GetRoleByID(_ context.Context, roleID uint64) (store.Role, error) {
+	return store.Role{ID: roleID}, nil
+}
+
+func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, userID uint64) ([]store.Role, error) {
+	if r.roles == nil {
+		return []store.Role{}, nil
+	}
+
+	return r.roles[userID], nil
+}
+
+func (r pluginTestRBACRepository) ListRoles(_ context.Context) ([]store.Role, error) {
+	return []store.Role{}, nil
 }
 
 func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, userID uint64) ([]store.Permission, error) {
@@ -398,6 +447,14 @@ func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, use
 	}
 
 	return r.permissions[userID], nil
+}
+
+func (r pluginTestRBACRepository) ListPermissions(_ context.Context) ([]store.Permission, error) {
+	return []store.Permission{}, nil
+}
+
+func (r pluginTestRBACRepository) ListRolePermissionBindings(_ context.Context, _ uint64) ([]store.RolePermissionBinding, error) {
+	return []store.RolePermissionBinding{}, nil
 }
 
 func newPluginTestContext(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository) (*plugin.Context, *gin.Engine) {
@@ -450,8 +507,16 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 		Router:   engine.Group("/api"),
 		Services: container.New(),
 		Stores: pluginTestStoreFactory{
-			auth:        authRepo,
-			users:       userRepo,
+			auth:  authRepo,
+			users: userRepo,
+			rbac: pluginTestRBACRepository{
+				roles: map[uint64][]store.Role{
+					7: {{ID: 1, Name: "admin", Display: "管理员"}},
+					8: {{ID: 2, Name: "viewer", Display: "只读用户"}},
+					9: {{ID: 1, Name: "admin", Display: "管理员"}},
+				},
+				permissions: permissions,
+			},
 			permissions: permissions,
 		},
 		MenuRegistry:       menu.NewRegistry(),
@@ -756,19 +821,29 @@ func assertUserPluginRegistry(t *testing.T, ctx *plugin.Context) {
 	t.Helper()
 
 	items := ctx.PermissionRegistry.Items()
-	if len(items) != 3 {
-		t.Fatalf("expected three user permissions, got %#v", items)
+	if len(items) < 3 {
+		t.Fatalf("expected at least three registered permissions, got %#v", items)
 	}
 	// 权限断言依赖 Registry.Items() 保持注册顺序，避免插件对外声明面静默漂移。
 	if items[0].Code != usercontract.UserReadPermission.String() ||
 		items[1].Code != usercontract.UserSessionRevokePermission.String() ||
 		items[2].Code != usercontract.UserSessionReadPermission.String() {
-		t.Fatalf("expected user.read, user.session.revoke and user.session.read permissions, got %#v", items)
+		t.Fatalf("expected user.read, user.session.revoke and user.session.read to remain the leading user permissions, got %#v", items)
+	}
+	for _, item := range items[:3] {
+		if item.Category != "api" {
+			t.Fatalf("expected leading user permission %s to declare category api, got %#v", item.Code, item)
+		}
 	}
 
 	menuItems := ctx.MenuRegistry.Items()
-	if len(menuItems) != 1 || menuItems[0].Path != usercontract.UsersGroup {
-		t.Fatalf("expected one /users menu item, got %#v", menuItems)
+	if len(menuItems) == 0 {
+		t.Fatalf("expected registered menu items, got %#v", menuItems)
+	}
+	if menuItems[0].Path != usercontract.UsersGroup ||
+		menuItems[0].Code != "user.list" ||
+		menuItems[0].Permission != usercontract.UserReadPermission.String() {
+		t.Fatalf("expected leading /users menu item to remain canonical, got %#v", menuItems)
 	}
 }
 
@@ -834,9 +909,15 @@ func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) pluginT
 
 	return pluginTestRBACRepository{
 		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			if !input.Builtin {
+				t.Fatal("expected default admin role to be marked builtin")
+			}
 			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 		},
 		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+			if input.Category != "api" {
+				t.Fatalf("expected ensured permission %s to carry category api, got %#v", input.Code, input)
+			}
 			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 		},
 		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
@@ -890,6 +971,9 @@ func assertBootstrapIdentityAndPermissions(t *testing.T, payload bootstrapRespon
 
 	if payload.User.ID != 7 || payload.User.Username != "alice" || payload.User.DisplayName != "Alice" {
 		t.Fatalf("expected current user summary, got %#v", payload.User)
+	}
+	if !slices.Equal(payload.Roles, []string{"admin"}) {
+		t.Fatalf("expected sorted role snapshot, got %#v", payload.Roles)
 	}
 	if !slices.Equal(payload.Permissions, []string{usercontract.UserReadPermission.String()}) {
 		t.Fatalf("expected sorted unique permissions, got %#v", payload.Permissions)
@@ -1216,9 +1300,15 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	var assignedRole bool
 	rbacRepo := pluginTestRBACRepository{
 		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
+			if !input.Builtin {
+				t.Fatal("expected default admin role to be marked builtin")
+			}
 			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 		},
 		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+			if input.Category != "api" {
+				t.Fatalf("expected ensured permission %s to carry category api, got %#v", input.Code, input)
+			}
 			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 		},
 		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {

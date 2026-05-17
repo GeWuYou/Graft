@@ -12,6 +12,22 @@
 
 ## Current Recovery Point
 
+- 当前 RBAC MVP 第一波实施已启动并冻结为“只读管理面 + 真值补强”切片：`rbac` 插件开始从“仅提供
+  `pluginapi.Authorizer` 的授权插件”扩展为最小只读管理插件，范围仅限角色/权限 canonical contract、
+  只读路由、只读仓储接口与 focused tests；本轮不进入角色写操作、用户禁用、用户分配角色或
+  `super_admin` bypass。
+- 当前 RBAC MVP 第二波方向也已进入恢复真值：`server/plugins/rbac` 工作树上已出现最小写接口相关实现文件，
+  当前活动范围收敛为角色创建、角色更新、角色权限替换与用户角色替换这四类最小写 API；在主代理重新完成 backend
+  validation 之前，本文件只把它们记录为 in-progress scope，不把它们标记为已完成闭环。
+- 当前交叉核对还确认：`user-role` 管理面仍缺少“目标用户当前已分配角色”的稳定 HTTP 读契约。现有
+  `ListRolesByUserID` 只在 `bootstrap` 中服务当前登录主体，`rbac` 插件对任意用户仍只暴露
+  `POST /api/users/:id/roles/assign`，尚未提供对称的最小 read route 与 focused tests。
+- 当前 `server` 侧 RBAC 真值同步也已开始进入持久化层：`roles.builtin` 与 `permissions.category`
+  已进入 Ent schema / Atlas migration 设计面，`bootstrap` 最小快照开始补齐 `roles`，让后续 `web`
+  不再依赖空 roles 数组或本地猜测角色状态。
+- 本轮边界明确保持不变：`role/permission` 管理归 `rbac` 插件，`user` 插件继续持有用户与认证链路；
+  不允许把角色/权限管理继续堆回 `user` 插件形成第二套插件职责。
+
 - PR #11 当前一轮 review follow-up 已核对并收敛当前 HEAD 上仍然成立的问题：`user` 插件现在把默认管理员初始化从 `Register` 挪到 `Boot`，`bootstrap` 读模型补齐了 `auth` 仓储空值防御，`EnsureUserCredential` 与 RBAC 幂等写路径补上了唯一约束冲突后的重查/视为已存在语义，避免并发启动或重放时偶发失败。
 - 同一轮 follow-up 还补齐了 `must_change_password` 字段注释，并让 `web` 强制改密弹窗不再把 `graft-admin` 常量编进前端 bundle；当前默认管理员密码禁止规则仍保留在 `passwordPolicy` 中，由后端 `AUTH_PASSWORD_REUSE_FORBIDDEN` 作为权威约束。
 - `server` 已具备最小可运行 runtime、显式 plugin 注册、Ent/Atlas 迁移链路、基础 auth/RBAC、`graft migrate up` / `graft serve` / `graft validate smoke` 校验入口。
@@ -74,9 +90,14 @@
 - 若 `pluginapi`、store DTO 或权限/菜单契约在收敛期内继续频繁漂移，`web` 对真实契约的接线成本会快速上升。
 - disposable PostgreSQL / Redis 仍需手工准备；恢复执行时必须确认当前可用的 smoke 环境。
 - 如果 `server` 本地完成态、agent 完成态与 CI 阻断继续各自维护不同的 lint 命令或参数，backend quality gate 会在实现落地后迅速重新分叉。
+- 如果 RBAC 第二波最小写 API 在验证未重跑前就被 tracking、README 或 handoff 文本写成“已完成”，后续 `web`
+  会基于并未确认的后端闭环安排接线，放大跨边界返工风险。
+- 如果 `server` 继续只有用户角色写接口而没有读接口，`web` 一旦开始接入用户角色分配 UI，就只能靠空初始值或本地猜测
+  驱动表单，重新形成假闭环。
 
 ## Latest Validation
 
+- 本次 server/topic 文档同步仅执行结构性一致性检查；当前没有为 RBAC 第二波最小写 API 新增 backend 通过声明。
 - 本次 `server` 架构治理补强切片直接校验：
   - `cd server && go test ./internal/httpx ./plugins/user ./plugins/audit ./internal/scheduler ./plugins/scheduler ./internal/store/entstore ./internal/app`
   - `cd server && go build ./cmd/graft`
@@ -180,6 +201,10 @@
 
 ## Immediate Next Step
 
+- 在当前 RBAC 第二波方向里，先把 `server/plugins/rbac` 的最小写接口 contract、README 与 tracking 真值收齐，再由主代理补跑最小 backend validation，之后再决定是否进入更高风险的用户禁用、删除或 `super_admin` bypass。
+- 在继续任何 `web user-role` 接线之前，先由 `server/plugins/rbac` 补齐“任意目标用户 -> 已分配角色列表”的最小读契约、
+  route permission 归属和 focused tests，再评估是否允许前端进入用户角色分配 UI。
+- 保持 `bootstrap.roles`、`roles.builtin`、`permissions.category` 的真值收口，后续 `web` 只消费这批后端契约，不得再本地推导角色类别或权限分组。
 - 保持当前共享 `pluginapi.Authorizer` wiring 与 `server/plugins/user/contract` 稳定；后续新增 `server`
   受保护路由时，继续复用 typed permission/route contract 与 `rbac` 插件公开服务，不再在 `user` 或其它插件本地复制实现。
 - 当前纯 `server` 的 runtime auth/authz contract 热点已经完成一轮清扫；后续若继续做 `server` 治理，优先收敛

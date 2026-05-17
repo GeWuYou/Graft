@@ -58,6 +58,7 @@ export interface BootstrapLocale {
 export interface BootstrapResponse {
   user: LoginUser;
   must_change_password: boolean;
+  roles: string[];
   permissions: string[];
   menus: BootstrapMenu[];
   locale: BootstrapLocale;

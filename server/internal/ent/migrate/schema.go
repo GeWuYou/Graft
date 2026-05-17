@@ -54,6 +54,7 @@ var (
 		{Name: "code", Type: field.TypeString, Unique: true},
 		{Name: "display", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "category", Type: field.TypeString, Default: "api"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -106,6 +107,7 @@ var (
 		{Name: "name", Type: field.TypeString, Unique: true},
 		{Name: "display", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "builtin", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

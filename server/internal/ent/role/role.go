@@ -20,6 +20,8 @@ const (
 	FieldDisplay = "display"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldBuiltin holds the string denoting the builtin field in the database.
+	FieldBuiltin = "builtin"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -52,6 +54,7 @@ var Columns = []string{
 	FieldName,
 	FieldDisplay,
 	FieldDescription,
+	FieldBuiltin,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -71,6 +74,8 @@ var (
 	NameValidator func(string) error
 	// DisplayValidator is a validator for the "display" field. It is called by the builders before save.
 	DisplayValidator func(string) error
+	// DefaultBuiltin holds the default value on creation for the "builtin" field.
+	DefaultBuiltin bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -100,6 +105,11 @@ func ByDisplay(opts ...sql.OrderTermOption) OrderOption {
 // ByDescription orders the results by the description field.
 func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+}
+
+// ByBuiltin orders the results by the builtin field.
+func ByBuiltin(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBuiltin, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
