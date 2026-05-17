@@ -4,10 +4,11 @@ package menu
 // Item 表示一个由后端声明的菜单项。
 type Item struct {
 	// Code 是菜单项的稳定后端标识，用于后续增量对比、去重或权限联动。
-	Code  string
-	Title string
-	Path  string
-	Icon  string
+	Code     string
+	Title    string
+	TitleKey string
+	Path     string
+	Icon     string
 	// Permission 记录访问该菜单所需的后端权限编码；留空表示暂不做权限门控。
 	Permission string
 	// Plugin 标记菜单归属的插件，便于启动诊断与后续按插件裁剪导航。

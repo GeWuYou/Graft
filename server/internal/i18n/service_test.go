@@ -182,3 +182,47 @@ func TestLookupFallsBackToExplicitFallbackMessage(t *testing.T) {
 		t.Fatalf("expected explicit fallback message, got %q", message)
 	}
 }
+
+func TestLookupUsesPluginNamespaceAndFallbackMessage(t *testing.T) {
+	service := newTestService()
+
+	if err := service.RegisterMessages(Registration{
+		Namespace: "user",
+		Locale:    LocaleENUS,
+		Messages: []MessageResource{
+			{Key: "menu.user_list.title", Text: "User Management"},
+		},
+	}); err != nil {
+		t.Fatalf("register messages: %v", err)
+	}
+
+	message := service.Lookup(LookupRequest{
+		Namespace:       "user",
+		Locale:          LocaleENUS,
+		Key:             "menu.user_list.title",
+		FallbackMessage: "用户管理",
+	})
+	if message != "User Management" {
+		t.Fatalf("expected plugin namespace message, got %q", message)
+	}
+
+	message = service.Lookup(LookupRequest{
+		Namespace:       "user",
+		Locale:          LocaleZHCN,
+		Key:             "menu.user_list.title",
+		FallbackMessage: "用户管理",
+	})
+	if message != "User Management" {
+		t.Fatalf("expected fallback locale catalog message, got %q", message)
+	}
+
+	message = service.Lookup(LookupRequest{
+		Namespace:       "user",
+		Locale:          LocaleZHCN,
+		Key:             "menu.profile.title",
+		FallbackMessage: "个人中心",
+	})
+	if message != "个人中心" {
+		t.Fatalf("expected explicit fallback title message, got %q", message)
+	}
+}

@@ -10,6 +10,7 @@
 
 * 暴露 `pluginapi.Authorizer`
 * 基于稳定仓储接口判断请求主体是否拥有所需权限
+* 在 `Register` 阶段向统一 `server/internal/i18n` facade 注册插件内建菜单标题 message，并通过共享菜单 contract 持有 `title_key`
 * 注册 RBAC 只读权限元数据与菜单元数据
 * 提供 `GET /api/roles`、`GET /api/permissions`、`GET /api/roles/:id/permissions` 与 `GET /api/users/:id/roles` 最小只读接口
 * 提供 `POST /api/roles`、`POST /api/roles/:id/update`、`POST /api/roles/:id/permissions/assign` 与 `POST /api/users/:id/roles/assign` 最小写接口

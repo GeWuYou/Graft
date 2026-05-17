@@ -68,6 +68,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 	registry.Register(menu.Item{
 		Code:       "role.list",
 		Title:      "角色管理",
+		TitleKey:   rbaccontract.RoleListMenuTitle.String(),
 		Path:       rbaccontract.RolesGroup,
 		Icon:       "secured",
 		Permission: rbaccontract.RoleReadPermission.String(),

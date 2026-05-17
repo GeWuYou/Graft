@@ -94,6 +94,9 @@
   `common.copyright` drift 也已完成本轮治理：`server/plugins/user/contract` 现在承载插件内 canonical permission
   与 auth-route path；`plugin.go` / `plugin_routes.go` 已改为消费 typed contract 与平台 `message.Key`；phase-1
   scanner report 不再对这些运行时文件报出本轮 targeted findings。
+- 当前 Phase 2 title/message follow-up 也已开始从 design direction 进入运行时落地：`server/internal/menu` 与
+  `GET /api/auth/bootstrap` 菜单快照现在新增 `title_key` 并保留 `title` fallback，`user` / `rbac` 插件在
+  `Register` 阶段把内建菜单标题注册到统一 `server/internal/i18n` facade，而不是继续把菜单本地化文案停留在裸标题常量。
 - 较早的拆分前历史保留在 `archive/`，具体实现轨迹保留在各自 `trace` 文件。
 
 ## Shared Milestones

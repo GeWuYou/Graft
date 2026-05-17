@@ -9,6 +9,7 @@
 这个模块负责：
 
 * 注册用户读取能力所需的权限与菜单
+* 在 `Register` 阶段向统一 `server/internal/i18n` facade 注册插件内建菜单标题 message，并通过 bootstrap 菜单快照暴露 `title_key + title fallback`
 * 提供最小 `/auth/login`、`/auth/refresh`、`/auth/bootstrap`、`/auth/change-password`、`/auth/complete-required-password-change`、当前 refresh session 的 `/auth/logout`、支持显式 `limit` 约束的当前用户 `/auth/sessions`、`/auth/sessions/:sessionID/revoke`、`/auth/sessions/revoke-all` 与 `/auth/sessions/revoke-others` 自助可见性/撤销入口，以及管理员按用户 ID 的 `/users/:id/sessions`、`/users/:id/sessions/:sessionID/revoke` 和 `/users/:id/sessions/revoke-all` 会话治理入口，并把 refresh session、cookie 与 revoke/rotation 逻辑留在插件内
 * 暴露 `pluginapi.UserService`
 * 暴露最小 `pluginapi.AuthService`，把 access token 解析结果收敛为稳定请求主体，并在受保护请求上追加最小 session 存活校验

@@ -33,6 +33,7 @@ func registerUserMenu(registry *menu.Registry, pluginName string) {
 	registry.Register(menu.Item{
 		Code:       "user.list",
 		Title:      "用户管理",
+		TitleKey:   usercontract.UserListMenuTitle.String(),
 		Path:       usercontract.UsersGroup,
 		Icon:       "usergroup",
 		Permission: usercontract.UserReadPermission.String(),
