@@ -16,9 +16,10 @@
   `pluginapi.Authorizer` 的授权插件”扩展为最小只读管理插件，范围仅限角色/权限 canonical contract、
   只读路由、只读仓储接口与 focused tests；本轮不进入角色写操作、用户禁用、用户分配角色或
   `super_admin` bypass。
-- 当前 RBAC MVP 第二波方向也已进入恢复真值：`server/plugins/rbac` 工作树上已出现最小写接口相关实现文件，
-  当前活动范围收敛为角色创建、角色更新、角色权限替换与用户角色替换这四类最小写 API；在主代理重新完成 backend
-  validation 之前，本文件只把它们记录为 in-progress scope，不把它们标记为已完成闭环。
+- 当前 RBAC MVP 第二波最小写 contract 已在 `server/plugins/rbac` 内收口到稳定插件边界：角色创建、角色更新、
+  角色权限替换与用户角色替换四类最小写 API 现由 `plugin_write_routes.go`、`write_service.go` 与
+  `contract/{route,permission}.go` 共同持有；范围继续明确限制在 replace 语义与稳定 `permission_ids` / `role_ids`
+  DTO，不扩展删除角色、禁用用户或 `super_admin` bypass。
 - 当前 `server/plugins/rbac` 已补齐“目标用户当前已分配角色”的稳定 HTTP 读契约：`GET /api/users/:id/roles`
   现在由 `rbac` 插件持有，配套新增 `user.role.read` permission、`role_ids` 稳定 DTO、显式目标用户存在性校验与
   focused tests；该契约保持最小只读范围，不复用 `GET /api/roles` 的角色详情所有权，也不引入 `super_admin` bypass。
@@ -103,14 +104,14 @@
 - 若 `pluginapi`、store DTO 或权限/菜单契约在收敛期内继续频繁漂移，`web` 对真实契约的接线成本会快速上升。
 - disposable PostgreSQL / Redis 仍需手工准备；恢复执行时必须确认当前可用的 smoke 环境。
 - 如果 `server` 本地完成态、agent 完成态与 CI 阻断继续各自维护不同的 lint 命令或参数，backend quality gate 会在实现落地后迅速重新分叉。
-- 如果 RBAC 第二波最小写 API 在验证未重跑前就被 tracking、README 或 handoff 文本写成“已完成”，后续 `web`
-  会基于并未确认的后端闭环安排接线，放大跨边界返工风险。
 - 如果 `server` 继续只有用户角色写接口而没有读接口，`web` 一旦开始接入用户角色分配 UI，就只能靠空初始值或本地猜测
   驱动表单，重新形成假闭环。
 
 ## Latest Validation
 
-- 本次 server/topic 文档同步仅执行结构性一致性检查；当前没有为 RBAC 第二波最小写 API 新增 backend 通过声明。
+- 本次 `server/plugins/rbac` 第二波最小写 contract/README/tracking 收口直接校验：
+  - `cd server && go test ./plugins/rbac`
+  - 结果：角色创建、builtin 角色重命名保护、角色权限 replace、用户角色 replace、目标用户未命中与 TOCTOU ID 漂移映射等 focused route/service tests 通过。
 - 本次 `server` 架构治理补强切片直接校验：
   - `cd server && go test ./internal/httpx ./plugins/user ./plugins/audit ./internal/scheduler ./plugins/scheduler ./internal/store/entstore ./internal/app`
   - `cd server && go build ./cmd/graft`
@@ -230,7 +231,9 @@
 ## Immediate Next Step
 
 - 当前 `internal/ent/schema/{user_role.go,role_permission.go}` 的配对重复清理已回到 `0 issues`；若继续执行本轮 audit-backlog reduction，优先转到 `internal/i18n/service.go`，并把 `plugins/rbac/plugin_routes.go` 与 `plugins/rbac/plugin_write_routes.go` 保持为后续同类热点。
-- 在当前 RBAC 第二波方向里，先把 `server/plugins/rbac` 的最小写接口 contract、README 与 tracking 真值收齐，再由主代理补跑最小 backend validation，之后再决定是否进入更高风险的用户禁用、删除或 `super_admin` bypass。
+- 当前 `server/plugins/rbac` 的第二波最小写 contract、README 与 tracking 真值已经收齐；下一步如果继续推进 `server`
+  侧 RBAC，优先决定是否需要补更强的 completion-state backend validation，再决定是否进入更高风险的用户禁用、删除或
+  `super_admin` bypass。
 - 当前 `server` 在 user-role 管理面上的最小阻断已解除；下一步由 `web` 基于 `GET /api/users/:id/roles` 与
   `POST /api/users/:id/roles/assign` 评估是否进入最小 UI 接线，同时继续把范围限制在 `/users` 模块内的最小角色查看/分配。
 - 保持 `bootstrap.roles`、`roles.builtin`、`permissions.category` 的真值收口，后续 `web` 只消费这批后端契约，不得再本地推导角色类别或权限分组。
@@ -238,4 +241,5 @@
   受保护路由时，继续复用 typed permission/route contract 与 `rbac` 插件公开服务，不再在 `user` 或其它插件本地复制实现。
 - 当前纯 `server` 的 runtime auth/authz contract 热点已经完成一轮清扫；后续若继续做 `server` 治理，优先收敛
   `plugin_test.go` 与其它测试侧仍残留的 auth/shared 字面量，否则跨边界主线回到父主题与 `web` 子主题继续推进主运行面清理。
-- 当前 `plugin_routes.go` hotspot-reduction 切片的 backend completion gate 已恢复充分；若下一步继续推进 `server` 治理，优先转回 RBAC 第二波最小写接口 contract/README/tracking 收口，避免重新扩大到无关运行时热点。
+- 当前 `plugin_routes.go` hotspot-reduction 切片的 backend completion gate 已恢复充分；RBAC 第二波最小写接口的
+  contract/README/tracking 收口也已完成，后续如继续推进 `server` 治理，避免重新扩大到无关运行时热点。
