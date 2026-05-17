@@ -4,9 +4,23 @@ set -eu
 repo_root="$(git rev-parse --show-toplevel)"
 scanner="$repo_root/scripts/magic_value/check_magic_values.py"
 python_runner="$repo_root/scripts/run_python.sh"
+run_lint_staged=0
 
-cd "$repo_root/web"
-./node_modules/.bin/lint-staged
+for path in $(git diff --cached --name-only --diff-filter=ACMR); do
+  case "$path" in
+    web/*.js|web/*.mjs|web/*.cjs|web/*.jsx|web/*.ts|web/*.mts|web/*.cts|web/*.tsx|web/*.vue|web/*.html|web/*.css|web/*.sass|web/*.less|web/*.md|web/*.json|web/*.yml|web/*.yaml)
+      run_lint_staged=1
+      break
+      ;;
+  esac
+done
+
+if [ "$run_lint_staged" -eq 1 ]; then
+  cd "$repo_root/web"
+  ./node_modules/.bin/lint-staged
+else
+  echo "lint-staged: skip pre-commit check (no staged web files matched configured tasks)"
+fi
 
 if [ ! -f "$scanner" ]; then
   echo "contract governance: skip pre-commit check (missing $scanner)"

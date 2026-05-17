@@ -183,6 +183,10 @@ Prefer the repository skills below when their trigger matches the task:
 * `graft-commit`
   * use as the canonical scoped commit workflow when the current task slice is ready to commit, whether the trigger is
     an explicit user request or a `graft-task-closeout` decision that the validated owned scope should be committed
+* `graft-push`
+  * use when the user explicitly wants the current branch pushed, or when a local push/commit chain is blocked and the
+    agent needs to distinguish uncommitted scope, Husky hook failures, upstream ambiguity, or remote rejection before
+    deciding the safest next push step
 * `graft-task-closeout`
   * use as the default slice-end path after `graft-boot` work when the agent needs to decide between handoff-only
     versus commit-plus-handoff, while emitting the required next-task startup prompt
