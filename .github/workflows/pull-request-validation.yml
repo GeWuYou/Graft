@@ -157,6 +157,17 @@ jobs:
             exit 1
           fi
 
+          base_ref="refs/remotes/origin/${base_branch}"
+          if ! git rev-parse --verify "${base_ref}" >/dev/null 2>&1; then
+            echo "::error title=Backend lint gate base ref verify failed::Fetched ${base_branch} but ${base_ref} is still unavailable in the current checkout."
+            git rev-parse HEAD
+            git branch -a
+            exit 1
+          fi
+
+          echo "Resolved backend lint base ref ${base_ref} for HEAD $(git rev-parse HEAD)"
+          git branch -a --list "remotes/origin/${base_branch}"
+
           echo "GRAFT_LINT_BASE_REF=origin/${base_branch}" >> "$GITHUB_ENV"
 
       - name: Run repository backend lint stage

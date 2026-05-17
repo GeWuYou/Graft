@@ -255,17 +255,22 @@ func buildBackendLintGateArgs(cmd *cobra.Command) ([]string, error) {
 	}
 
 	headRef := currentBackendGitHead(cmd, workingDir)
-	baseRef, err := resolveBackendLintBaseRef(cmd, workingDir)
+	baseRef, baseRefSource, err := resolveBackendLintBaseRef(cmd, workingDir)
 	if err != nil {
 		return nil, err
 	}
 
-	mergeBase, err := resolveBackendLintMergeBase(cmd, workingDir, baseRef)
+	mergeBase, err := resolveBackendLintMergeBase(cmd, workingDir, baseRef, baseRefSource)
 	if err != nil {
 		return nil, err
 	}
 	if strings.TrimSpace(mergeBase) == "" {
-		return nil, fmt.Errorf("resolve backend lint merge-base for HEAD %q and base %q: empty merge-base result", headRef, baseRef)
+		return nil, fmt.Errorf(
+			"resolve backend lint merge-base for HEAD %q and base %q (source: %s): empty merge-base result",
+			headRef,
+			baseRef,
+			baseRefSource,
+		)
 	}
 
 	return []string{
@@ -274,17 +279,17 @@ func buildBackendLintGateArgs(cmd *cobra.Command) ([]string, error) {
 	}, nil
 }
 
-func resolveBackendLintBaseRef(cmd *cobra.Command, workingDir string) (string, error) {
+func resolveBackendLintBaseRef(cmd *cobra.Command, workingDir string) (string, string, error) {
 	if baseRef := strings.TrimSpace(backendGetenv(defaultLintBaseRefEnv)); baseRef != "" {
-		return normalizeBackendLintBaseRef(baseRef), nil
+		return normalizeBackendLintBaseRef(baseRef), defaultLintBaseRefEnv, nil
 	}
 	if baseRef := strings.TrimSpace(backendGetenv(githubBaseRefEnv)); baseRef != "" {
-		return normalizeBackendLintBaseRef(baseRef), nil
+		return normalizeBackendLintBaseRef(baseRef), githubBaseRefEnv, nil
 	}
 
 	remoteHead, err := backendGitOutputRunner(cmd, workingDir, "symbolic-ref", defaultRemoteHeadRef)
 	if err != nil {
-		return "", fmt.Errorf(
+		return "", "", fmt.Errorf(
 			"resolve backend lint base branch: %w; origin/HEAD is not available, run `git remote set-head %s -a` or set %s",
 			err,
 			defaultRemoteName,
@@ -292,7 +297,7 @@ func resolveBackendLintBaseRef(cmd *cobra.Command, workingDir string) (string, e
 		)
 	}
 
-	return strings.TrimSpace(remoteHead), nil
+	return strings.TrimSpace(remoteHead), "origin/HEAD", nil
 }
 
 func normalizeBackendLintBaseRef(baseRef string) string {
@@ -312,12 +317,13 @@ func normalizeBackendLintBaseRef(baseRef string) string {
 	}
 }
 
-func resolveBackendLintMergeBase(cmd *cobra.Command, workingDir string, baseRef string) (string, error) {
+func resolveBackendLintMergeBase(cmd *cobra.Command, workingDir string, baseRef string, baseRefSource string) (string, error) {
 	if _, err := backendGitOutputRunner(cmd, workingDir, "rev-parse", "--verify", baseRef); err != nil {
 		headRef := currentBackendGitHead(cmd, workingDir)
 		return "", fmt.Errorf(
-			"backend lint base branch %q is not available locally for HEAD %q: %w; run `git fetch %s %s`",
+			"backend lint base branch %q (source: %s) is not available locally for HEAD %q: %w; run `git fetch %s %s`",
 			baseRef,
+			baseRefSource,
 			headRef,
 			err,
 			defaultRemoteName,
@@ -329,9 +335,10 @@ func resolveBackendLintMergeBase(cmd *cobra.Command, workingDir string, baseRef 
 	if err != nil {
 		headRef := currentBackendGitHead(cmd, workingDir)
 		return "", fmt.Errorf(
-			"resolve backend lint merge-base for HEAD %q and base %q: %w; run `git fetch %s %s`, verify branch ancestry, or set %s",
+			"resolve backend lint merge-base for HEAD %q and base %q (source: %s): %w; run `git fetch %s %s`, verify branch ancestry, or set %s",
 			headRef,
 			baseRef,
+			baseRefSource,
 			err,
 			defaultRemoteName,
 			backendLintFetchTarget(baseRef),

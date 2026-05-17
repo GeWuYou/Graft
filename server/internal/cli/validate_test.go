@@ -225,12 +225,15 @@ func TestResolveBackendLintBaseRefPrefersExplicitEnv(t *testing.T) {
 		}
 	}
 
-	baseRef, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
+	baseRef, source, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
 	if err != nil {
 		t.Fatalf("resolve backend lint base ref: %v", err)
 	}
 	if baseRef != "refs/remotes/origin/release/next" {
 		t.Fatalf("expected explicit env base ref, got %q", baseRef)
+	}
+	if source != defaultLintBaseRefEnv {
+		t.Fatalf("expected explicit env source, got %q", source)
 	}
 }
 
@@ -253,12 +256,15 @@ func TestResolveBackendLintBaseRefFallsBackToRemoteHead(t *testing.T) {
 		return "refs/remotes/origin/main", nil
 	}
 
-	baseRef, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
+	baseRef, source, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
 	if err != nil {
 		t.Fatalf("resolve backend lint base ref: %v", err)
 	}
 	if baseRef != "refs/remotes/origin/main" {
 		t.Fatalf("expected origin/HEAD fallback, got %q", baseRef)
+	}
+	if source != "origin/HEAD" {
+		t.Fatalf("expected origin/HEAD source, got %q", source)
 	}
 }
 
@@ -278,7 +284,7 @@ func TestResolveBackendLintBaseRefFailsWithoutOriginHead(t *testing.T) {
 		return "", errors.New("symbolic-ref failed")
 	}
 
-	_, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
+	_, _, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
 	if err == nil {
 		t.Fatal("expected base ref resolution error")
 	}
@@ -309,7 +315,7 @@ func TestResolveBackendLintMergeBaseFailsWhenBaseMissing(t *testing.T) {
 		}
 	}
 
-	_, err := resolveBackendLintMergeBase(&cobra.Command{}, t.TempDir(), "refs/remotes/origin/main")
+	_, err := resolveBackendLintMergeBase(&cobra.Command{}, t.TempDir(), "refs/remotes/origin/main", defaultLintBaseRefEnv)
 	if err == nil {
 		t.Fatal("expected merge-base resolution error")
 	}
@@ -318,6 +324,9 @@ func TestResolveBackendLintMergeBaseFailsWhenBaseMissing(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "HEAD \"head123\"") {
 		t.Fatalf("expected HEAD reference in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "source: "+defaultLintBaseRefEnv) {
+		t.Fatalf("expected base ref source in error, got %v", err)
 	}
 }
 
@@ -342,7 +351,7 @@ func TestResolveBackendLintMergeBaseFailsWithHeadAndBaseContext(t *testing.T) {
 		}
 	}
 
-	_, err := resolveBackendLintMergeBase(&cobra.Command{}, t.TempDir(), "refs/remotes/origin/main")
+	_, err := resolveBackendLintMergeBase(&cobra.Command{}, t.TempDir(), "refs/remotes/origin/main", defaultLintBaseRefEnv)
 	if err == nil {
 		t.Fatal("expected merge-base failure")
 	}
@@ -354,6 +363,9 @@ func TestResolveBackendLintMergeBaseFailsWithHeadAndBaseContext(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), defaultLintBaseRefEnv) {
 		t.Fatalf("expected explicit env remediation, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "source: "+defaultLintBaseRefEnv) {
+		t.Fatalf("expected base ref source in error, got %v", err)
 	}
 }
 

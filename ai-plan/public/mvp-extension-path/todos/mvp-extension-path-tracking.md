@@ -188,6 +188,13 @@
   - `rg -n "runtime surface|module lifecycle|service locator|feature boundary|第二真值|bun run check|host Windows Bun|execution-layer|临时运行基线" AGENTS.md README.md ai-plan/design/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
   - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/pull-request-validation.yml').read_text())"`
   - `git diff -- AGENTS.md README.md ai-plan/design/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+- 本次 CI backend lint base-ref / worktree 治理直接校验：
+  - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/pull-request-validation.yml').read_text())"`
+  - `cd server && go test ./internal/cli`
+  - `git worktree list --verbose`
+  - `git worktree prune`
+  - `git worktree list --verbose`
+  - 结果：backend lint gate 现在在 workflow fetch 后显式校验 `refs/remotes/origin/<base>` 是否可见，并输出最小 HEAD/base 诊断；本地 stale `.git/worktrees/*` 记录已通过 prune 清理，后续临时 worktree 流程必须在结束时执行 remove/prune，避免把仓库卫生问题误判为 CI base-ref 失真根因。
 - 本次 contract governance / magic-value governance 底座切片直接校验：
   - `python3 -m py_compile scripts/magic_value/check_magic_values.py`
   - `python3 scripts/magic_value/check_magic_values.py --mode changed`
