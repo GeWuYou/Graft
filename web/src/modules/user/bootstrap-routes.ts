@@ -4,6 +4,6 @@ export const userBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
     menuPath: '/users',
     routeName: 'UserList',
-    loadPage: () => import('@/pages/user/index.vue'),
+    loadPage: () => import('./pages/index.vue'),
   },
 ];

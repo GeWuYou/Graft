@@ -4,6 +4,6 @@ export const rbacBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
     menuPath: '/roles',
     routeName: 'RoleList',
-    loadPage: () => import('@/pages/role/index.vue'),
+    loadPage: () => import('./pages/index.vue'),
   },
 ];

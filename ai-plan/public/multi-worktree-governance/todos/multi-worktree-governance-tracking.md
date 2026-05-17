@@ -39,7 +39,9 @@
 - The first web-side mitigation slice has now started on short branch `refactor/web-module-boundaries`:
   - create a real `web/src/modules/` registration layer
   - move bootstrap dynamic route declarations out of shared shell code
-  - keep existing pages in place for now, while making module registration the only allowed new shell integration path
+  - remove unused demo runtime residue from the real `web` app when it no longer has active references
+  - migrate the real `user` and `rbac` business surface into `web/src/modules/<name>/`
+  - keep module registration as the only allowed new shell integration path
 - The first expected future long-lived feature directions are:
   - `RBAC`
   - `server-status-dashboard`
@@ -64,6 +66,11 @@
 - `web/src/layouts/**`
 - `web/src/locales/lang/zh-CN.json`
 - `web/src/locales/lang/en-US.json`
+- `web/src/router/index.ts`
+- `web/src/pages/login/**`
+- `web/src/pages/result/403/**`
+- `web/src/pages/result/404/**`
+- `web/src/pages/result/500/**`
 
 ## Active Risks
 
@@ -96,10 +103,30 @@
 
 - Keep using `multi-worktree-governance` on local `main` until the repository has explicit owned-scope rules for the
   first real long-lived worktrees.
-- Complete the minimal web-side boundary refactor by making shared shell code consume module registrations instead of
-  owning feature route declarations directly.
+- Complete the minimal web-side boundary refactor in this order:
+  - freeze `web` shell-owned vs module-owned boundaries in design truth
+  - remove unused demo pages and stale runtime references from the real `web` app
+  - move `user` page/api/type/contract ownership into `web/src/modules/user/**`
+  - move `rbac` page/api/type/contract ownership into `web/src/modules/rbac/**`
+  - keep shared shell code consuming module registrations instead of owning feature route declarations directly
 - Before creating the first additional worktree, decide the exact owned scope and shared-hotspot policy for:
   - `RBAC`
   - `server-status-dashboard`
 - Once the first real worktree/topic pair exists, add it to `ai-plan/public/README.md` and create its dedicated
   tracking/trace files instead of continuing to stage feature recovery on `main`.
+
+## Web Owned Scope Freeze
+
+- Future `web` long-lived worktrees should own one module boundary at a time:
+  - `web/src/modules/user/**`
+  - `web/src/modules/rbac/**`
+  - future `web/src/modules/server-status/**` or equivalent dashboard module path
+- `shell-owned` directories must stay centrally integrated and are not long-lived feature-owned scope:
+  - `web/src/layouts/**`
+  - `web/src/router/**`
+  - `web/src/utils/route/**`
+  - `web/src/store/modules/user.ts`
+  - `web/src/store/modules/permission.ts`
+  - `web/src/permission.ts`
+  - `web/src/locales/**`
+  - platform `web/src/contracts/**`

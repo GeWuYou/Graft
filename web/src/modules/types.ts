@@ -9,3 +9,11 @@ export type BootstrapRouteRegistration = {
   routeName: string;
   loadPage: RouteRecordRaw['component'];
 };
+
+// WebModuleRegistration 描述一个前端模块对壳层暴露的最小公共注册面。
+//
+// 当前阶段只开放模块标识和 bootstrap 动态路由声明，避免共享壳层直接依赖模块内部实现文件。
+export type WebModuleRegistration = {
+  moduleId: string;
+  bootstrapRoutes: BootstrapRouteRegistration[];
+};

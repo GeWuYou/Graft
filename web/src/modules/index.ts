@@ -1,11 +1,12 @@
-import { rbacBootstrapRouteRegistrations } from './rbac/bootstrap-routes';
-import type { BootstrapRouteRegistration } from './types';
-import { userBootstrapRouteRegistrations } from './user/bootstrap-routes';
+import { rbacModuleRegistration } from './rbac';
+import type { BootstrapRouteRegistration, WebModuleRegistration } from './types';
+import { userModuleRegistration } from './user';
 
-const allBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
-  ...rbacBootstrapRouteRegistrations,
-  ...userBootstrapRouteRegistrations,
-];
+const allModuleRegistrations: WebModuleRegistration[] = [rbacModuleRegistration, userModuleRegistration];
+
+const allBootstrapRouteRegistrations: BootstrapRouteRegistration[] = allModuleRegistrations.flatMap(
+  (registration) => registration.bootstrapRoutes,
+);
 
 const bootstrapRouteRegistrationMap = new Map<string, BootstrapRouteRegistration>();
 
