@@ -16,14 +16,8 @@ import (
 	"graft/server/internal/config"
 )
 
-// TestResolveBackendModuleRootFromServerDir 验证在 `server` 目录运行时会直接识别模块根目录。
-func TestResolveBackendModuleRootFromServerDir(t *testing.T) {
-	originalGetwd := backendGetwd
-	originalReadFile := backendReadFile
-	defer func() {
-		backendGetwd = originalGetwd
-		backendReadFile = originalReadFile
-	}()
+func newBackendModuleRootFixture(t *testing.T) string {
+	t.Helper()
 
 	tempDir := t.TempDir()
 	serverDir := filepath.Join(tempDir, "server")
@@ -33,6 +27,20 @@ func TestResolveBackendModuleRootFromServerDir(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
+
+	return serverDir
+}
+
+// TestResolveBackendModuleRootFromServerDir 验证在 `server` 目录运行时会直接识别模块根目录。
+func TestResolveBackendModuleRootFromServerDir(t *testing.T) {
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	defer func() {
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+	}()
+
+	serverDir := newBackendModuleRootFixture(t)
 
 	backendGetwd = func() (string, error) {
 		return serverDir, nil
@@ -57,17 +65,10 @@ func TestResolveBackendModuleRootFromRepoRoot(t *testing.T) {
 		backendReadFile = originalReadFile
 	}()
 
-	tempDir := t.TempDir()
-	serverDir := filepath.Join(tempDir, "server")
-	if err := os.MkdirAll(serverDir, 0o750); err != nil {
-		t.Fatalf("mkdir server dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
+	serverDir := newBackendModuleRootFixture(t)
 
 	backendGetwd = func() (string, error) {
-		return tempDir, nil
+		return filepath.Dir(serverDir), nil
 	}
 	backendReadFile = os.ReadFile
 
@@ -123,6 +124,461 @@ func TestRunValidateBackendLintStage(t *testing.T) {
 	expected := []string{"lint:" + defaultBackendLintConfig + ":" + defaultBackendTestLintConfig}
 	if !reflect.DeepEqual(steps, expected) {
 		t.Fatalf("expected %v, got %v", expected, steps)
+	}
+}
+
+// TestRunBackendLintUsesChangedFileScopedArgs 验证 blocking lint gate 采用 changed-file scoped 语义，
+// 并且不会在该路径里运行 full-repo audit。
+func TestRunBackendLintUsesChangedFileScopedArgs(t *testing.T) {
+	originalLookPath := backendLookPath
+	originalCommandRunner := backendCommandRunner
+	originalGitOutputRunner := backendGitOutputRunner
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	originalGetenv := backendGetenv
+	defer func() {
+		backendLookPath = originalLookPath
+		backendCommandRunner = originalCommandRunner
+		backendGitOutputRunner = originalGitOutputRunner
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+		backendGetenv = originalGetenv
+	}()
+
+	serverDir := newBackendModuleRootFixture(t)
+
+	backendLookPath = func(_ string) (string, error) {
+		return "golangci-lint", nil
+	}
+	backendGetwd = func() (string, error) {
+		return serverDir, nil
+	}
+	backendReadFile = os.ReadFile
+	backendGetenv = func(key string) string {
+		if key == defaultLintBaseRefEnv {
+			return "main"
+		}
+		return ""
+	}
+
+	var gitCalls []string
+	backendGitOutputRunner = func(_ *cobra.Command, _ string, args ...string) (string, error) {
+		gitCalls = append(gitCalls, strings.Join(args, " "))
+		switch strings.Join(args, " ") {
+		case "rev-parse --verify refs/remotes/origin/main":
+			return "refs/remotes/origin/main", nil
+		case "merge-base HEAD refs/remotes/origin/main":
+			return "abc123", nil
+		case "rev-parse HEAD":
+			return "head123", nil
+		default:
+			t.Fatalf("unexpected git args: %v", args)
+			return "", nil
+		}
+	}
+
+	var commands [][]string
+	backendCommandRunner = func(_ *cobra.Command, name string, args ...string) error {
+		if name != "golangci-lint" {
+			t.Fatalf("unexpected command %q", name)
+		}
+		commands = append(commands, append([]string{name}, args...))
+		return nil
+	}
+
+	if err := runBackendLint(&cobra.Command{}, defaultBackendLintConfig, defaultBackendTestLintConfig); err != nil {
+		t.Fatalf("run backend lint: %v", err)
+	}
+
+	if len(commands) != 2 {
+		t.Fatalf("expected 2 golangci-lint invocations, got %d", len(commands))
+	}
+	for _, command := range commands {
+		joined := strings.Join(command, " ")
+		if !strings.Contains(joined, "--new-from-rev=abc123") {
+			t.Fatalf("expected changed-file scoped merge-base arg in %q", joined)
+		}
+		if !strings.Contains(joined, "--whole-files") {
+			t.Fatalf("expected whole-file enforcement arg in %q", joined)
+		}
+		if strings.Contains(joined, "./...") {
+			t.Fatalf("blocking lint gate must not run full-repo audit command, got %q", joined)
+		}
+	}
+}
+
+// TestResolveBackendLintBaseRefPrefersExplicitEnv 验证显式 base ref 优先于 CI 环境变量和 origin/HEAD。
+func TestResolveBackendLintBaseRefPrefersExplicitEnv(t *testing.T) {
+	originalGetenv := backendGetenv
+	defer func() {
+		backendGetenv = originalGetenv
+	}()
+
+	backendGetenv = func(key string) string {
+		switch key {
+		case defaultLintBaseRefEnv:
+			return "release/next"
+		case githubBaseRefEnv:
+			return "main"
+		default:
+			return ""
+		}
+	}
+
+	baseRef, source, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve backend lint base ref: %v", err)
+	}
+	if baseRef != "refs/remotes/origin/release/next" {
+		t.Fatalf("expected explicit env base ref, got %q", baseRef)
+	}
+	if source != defaultLintBaseRefEnv {
+		t.Fatalf("expected explicit env source, got %q", source)
+	}
+}
+
+// TestResolveBackendLintBaseRefKeepsExplicitCommitSHA 验证显式 base ref 为 commit SHA 时不会被改写成 remote ref。
+func TestResolveBackendLintBaseRefKeepsExplicitCommitSHA(t *testing.T) {
+	originalGetenv := backendGetenv
+	defer func() {
+		backendGetenv = originalGetenv
+	}()
+
+	commitSHA := "7afe9b8eb396f2b1931998d248c02361d68a3fdc"
+	backendGetenv = func(key string) string {
+		if key == defaultLintBaseRefEnv {
+			return commitSHA
+		}
+		return ""
+	}
+
+	baseRef, source, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve backend lint base ref: %v", err)
+	}
+	if baseRef != commitSHA {
+		t.Fatalf("expected explicit commit SHA base ref, got %q", baseRef)
+	}
+	if source != defaultLintBaseRefEnv {
+		t.Fatalf("expected explicit env source, got %q", source)
+	}
+}
+
+// TestResolveBackendLintBaseRefFallsBackToRemoteHead 验证缺少显式 env 时会回退到 origin/HEAD。
+func TestResolveBackendLintBaseRefFallsBackToRemoteHead(t *testing.T) {
+	originalGetenv := backendGetenv
+	originalGitOutputRunner := backendGitOutputRunner
+	defer func() {
+		backendGetenv = originalGetenv
+		backendGitOutputRunner = originalGitOutputRunner
+	}()
+
+	backendGetenv = func(string) string {
+		return ""
+	}
+	backendGitOutputRunner = func(_ *cobra.Command, _ string, args ...string) (string, error) {
+		if !reflect.DeepEqual(args, []string{"symbolic-ref", defaultRemoteHeadRef}) {
+			t.Fatalf("unexpected git args: %v", args)
+		}
+		return "refs/remotes/origin/main", nil
+	}
+
+	baseRef, source, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve backend lint base ref: %v", err)
+	}
+	if baseRef != "refs/remotes/origin/main" {
+		t.Fatalf("expected origin/HEAD fallback, got %q", baseRef)
+	}
+	if source != "origin/HEAD" {
+		t.Fatalf("expected origin/HEAD source, got %q", source)
+	}
+}
+
+// TestResolveBackendLintBaseRefFailsWithoutOriginHead 验证 origin/HEAD 缺失时会给出显式修复提示。
+func TestResolveBackendLintBaseRefFailsWithoutOriginHead(t *testing.T) {
+	originalGetenv := backendGetenv
+	originalGitOutputRunner := backendGitOutputRunner
+	defer func() {
+		backendGetenv = originalGetenv
+		backendGitOutputRunner = originalGitOutputRunner
+	}()
+
+	backendGetenv = func(string) string {
+		return ""
+	}
+	backendGitOutputRunner = func(_ *cobra.Command, _ string, _ ...string) (string, error) {
+		return "", errors.New("symbolic-ref failed")
+	}
+
+	_, _, err := resolveBackendLintBaseRef(&cobra.Command{}, t.TempDir())
+	if err == nil {
+		t.Fatal("expected base ref resolution error")
+	}
+	if !strings.Contains(err.Error(), "git remote set-head origin -a") {
+		t.Fatalf("expected origin/HEAD remediation, got %v", err)
+	}
+	if !strings.Contains(err.Error(), defaultLintBaseRefEnv) {
+		t.Fatalf("expected explicit env remediation, got %v", err)
+	}
+}
+
+// TestResolveBackendLintMergeBaseFailsWhenBaseMissing 验证 base branch 未 fetch 时返回 fetch 提示。
+func TestResolveBackendLintMergeBaseFailsWhenBaseMissing(t *testing.T) {
+	originalGitOutputRunner := backendGitOutputRunner
+	defer func() {
+		backendGitOutputRunner = originalGitOutputRunner
+	}()
+
+	backendGitOutputRunner = func(_ *cobra.Command, _ string, args ...string) (string, error) {
+		switch strings.Join(args, " ") {
+		case "rev-parse --verify refs/remotes/origin/main":
+			return "", errors.New("missing base")
+		case "rev-parse HEAD":
+			return "head123", nil
+		default:
+			t.Fatalf("unexpected git args: %v", args)
+			return "", nil
+		}
+	}
+
+	_, err := resolveBackendLintMergeBase(&cobra.Command{}, t.TempDir(), "refs/remotes/origin/main", defaultLintBaseRefEnv)
+	if err == nil {
+		t.Fatal("expected merge-base resolution error")
+	}
+	if !strings.Contains(err.Error(), "git fetch origin main") {
+		t.Fatalf("expected fetch remediation, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "HEAD \"head123\"") {
+		t.Fatalf("expected HEAD reference in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "source: "+defaultLintBaseRefEnv) {
+		t.Fatalf("expected base ref source in error, got %v", err)
+	}
+}
+
+// TestResolveBackendLintMergeBaseAcceptsCommitSHA 验证 commit SHA 可以直接作为 merge-base 输入。
+func TestResolveBackendLintMergeBaseAcceptsCommitSHA(t *testing.T) {
+	originalGitOutputRunner := backendGitOutputRunner
+	defer func() {
+		backendGitOutputRunner = originalGitOutputRunner
+	}()
+
+	commitSHA := "7afe9b8eb396f2b1931998d248c02361d68a3fdc"
+	backendGitOutputRunner = func(_ *cobra.Command, _ string, args ...string) (string, error) {
+		switch strings.Join(args, " ") {
+		case "rev-parse --verify " + commitSHA:
+			return commitSHA, nil
+		case "merge-base HEAD " + commitSHA:
+			return "abc123", nil
+		default:
+			t.Fatalf("unexpected git args: %v", args)
+			return "", nil
+		}
+	}
+
+	mergeBase, err := resolveBackendLintMergeBase(&cobra.Command{}, t.TempDir(), commitSHA, defaultLintBaseRefEnv)
+	if err != nil {
+		t.Fatalf("resolve backend lint merge-base: %v", err)
+	}
+	if mergeBase != "abc123" {
+		t.Fatalf("expected merge-base abc123, got %q", mergeBase)
+	}
+}
+
+// TestResolveBackendLintMergeBaseFailsWhenCommitMissing 验证 commit SHA 缺失时返回 revision 级提示，而不是 branch fetch 提示。
+func TestResolveBackendLintMergeBaseFailsWhenCommitMissing(t *testing.T) {
+	originalGitOutputRunner := backendGitOutputRunner
+	defer func() {
+		backendGitOutputRunner = originalGitOutputRunner
+	}()
+
+	commitSHA := "7afe9b8eb396f2b1931998d248c02361d68a3fdc"
+	backendGitOutputRunner = func(_ *cobra.Command, _ string, args ...string) (string, error) {
+		switch strings.Join(args, " ") {
+		case "rev-parse --verify " + commitSHA:
+			return "", errors.New("missing revision")
+		case "rev-parse HEAD":
+			return "head123", nil
+		default:
+			t.Fatalf("unexpected git args: %v", args)
+			return "", nil
+		}
+	}
+
+	_, err := resolveBackendLintMergeBase(&cobra.Command{}, t.TempDir(), commitSHA, defaultLintBaseRefEnv)
+	if err == nil {
+		t.Fatal("expected merge-base resolution error")
+	}
+	if !strings.Contains(err.Error(), "base revision") {
+		t.Fatalf("expected base revision wording, got %v", err)
+	}
+	if strings.Contains(err.Error(), "git fetch origin") {
+		t.Fatalf("expected no branch fetch remediation for commit revision, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "HEAD \"head123\"") {
+		t.Fatalf("expected HEAD reference in error, got %v", err)
+	}
+}
+
+// TestRunBackendLintUsesExplicitCommitBaseRef 验证 blocking lint gate 可以直接消费 commit SHA base ref。
+func TestRunBackendLintUsesExplicitCommitBaseRef(t *testing.T) {
+	originalLookPath := backendLookPath
+	originalCommandRunner := backendCommandRunner
+	originalGitOutputRunner := backendGitOutputRunner
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	originalGetenv := backendGetenv
+	defer func() {
+		backendLookPath = originalLookPath
+		backendCommandRunner = originalCommandRunner
+		backendGitOutputRunner = originalGitOutputRunner
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+		backendGetenv = originalGetenv
+	}()
+
+	serverDir := newBackendModuleRootFixture(t)
+	commitSHA := "7afe9b8eb396f2b1931998d248c02361d68a3fdc"
+
+	backendLookPath = func(_ string) (string, error) {
+		return "golangci-lint", nil
+	}
+	backendGetwd = func() (string, error) {
+		return serverDir, nil
+	}
+	backendReadFile = os.ReadFile
+	backendGetenv = func(key string) string {
+		if key == defaultLintBaseRefEnv {
+			return commitSHA
+		}
+		return ""
+	}
+
+	backendGitOutputRunner = func(_ *cobra.Command, _ string, args ...string) (string, error) {
+		switch strings.Join(args, " ") {
+		case "rev-parse --verify " + commitSHA:
+			return commitSHA, nil
+		case "merge-base HEAD " + commitSHA:
+			return "abc123", nil
+		case "rev-parse HEAD":
+			return "head123", nil
+		default:
+			t.Fatalf("unexpected git args: %v", args)
+			return "", nil
+		}
+	}
+
+	var commands [][]string
+	backendCommandRunner = func(_ *cobra.Command, name string, args ...string) error {
+		if name != "golangci-lint" {
+			t.Fatalf("unexpected command %q", name)
+		}
+		commands = append(commands, append([]string{name}, args...))
+		return nil
+	}
+
+	if err := runBackendLint(&cobra.Command{}, defaultBackendLintConfig, defaultBackendTestLintConfig); err != nil {
+		t.Fatalf("run backend lint: %v", err)
+	}
+
+	if len(commands) != 2 {
+		t.Fatalf("expected 2 golangci-lint invocations, got %d", len(commands))
+	}
+	for _, command := range commands {
+		joined := strings.Join(command, " ")
+		if !strings.Contains(joined, "--new-from-rev=abc123") {
+			t.Fatalf("expected changed-file scoped merge-base arg in %q", joined)
+		}
+		if !strings.Contains(joined, "--whole-files") {
+			t.Fatalf("expected whole-file enforcement arg in %q", joined)
+		}
+	}
+}
+
+// TestResolveBackendLintMergeBaseFailsWithHeadAndBaseContext 验证 merge-base 失败时返回 HEAD、base 和修复提示。
+func TestResolveBackendLintMergeBaseFailsWithHeadAndBaseContext(t *testing.T) {
+	originalGitOutputRunner := backendGitOutputRunner
+	defer func() {
+		backendGitOutputRunner = originalGitOutputRunner
+	}()
+
+	backendGitOutputRunner = func(_ *cobra.Command, _ string, args ...string) (string, error) {
+		switch strings.Join(args, " ") {
+		case "rev-parse --verify refs/remotes/origin/main":
+			return "refs/remotes/origin/main", nil
+		case "merge-base HEAD refs/remotes/origin/main":
+			return "", errors.New("merge-base failed")
+		case "rev-parse HEAD":
+			return "head123", nil
+		default:
+			t.Fatalf("unexpected git args: %v", args)
+			return "", nil
+		}
+	}
+
+	_, err := resolveBackendLintMergeBase(&cobra.Command{}, t.TempDir(), "refs/remotes/origin/main", defaultLintBaseRefEnv)
+	if err == nil {
+		t.Fatal("expected merge-base failure")
+	}
+	if !strings.Contains(err.Error(), "HEAD \"head123\"") {
+		t.Fatalf("expected HEAD context, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "base \"refs/remotes/origin/main\"") {
+		t.Fatalf("expected base ref context, got %v", err)
+	}
+	if !strings.Contains(err.Error(), defaultLintBaseRefEnv) {
+		t.Fatalf("expected explicit env remediation, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "source: "+defaultLintBaseRefEnv) {
+		t.Fatalf("expected base ref source in error, got %v", err)
+	}
+}
+
+// TestRunValidateBackendLintStageDoesNotRunAudit 验证 blocking lint stage 不会衍生 full-repo audit 流程。
+func TestRunValidateBackendLintStageDoesNotRunAudit(t *testing.T) {
+	originalLintRunner := backendLintRunner
+	originalGoTestRunner := backendGoTestRunner
+	originalGoBuildRunner := backendGoBuildRunner
+	originalSmokeRunner := backendSmokeRunner
+	defer func() {
+		backendLintRunner = originalLintRunner
+		backendGoTestRunner = originalGoTestRunner
+		backendGoBuildRunner = originalGoBuildRunner
+		backendSmokeRunner = originalSmokeRunner
+	}()
+
+	var lintCalls int
+	backendLintRunner = func(_ *cobra.Command, lintConfig string, testLintConfig string) error {
+		lintCalls++
+		if lintConfig != defaultBackendLintConfig || testLintConfig != defaultBackendTestLintConfig {
+			t.Fatalf("unexpected lint configs: %s %s", lintConfig, testLintConfig)
+		}
+		return nil
+	}
+	backendGoTestRunner = func(_ *cobra.Command, _ []string) error {
+		t.Fatal("go test runner should not be called during lint-only blocking stage")
+		return nil
+	}
+	backendGoBuildRunner = func(_ *cobra.Command) error {
+		t.Fatal("go build runner should not be called during lint-only blocking stage")
+		return nil
+	}
+	backendSmokeRunner = func(_ *cobra.Command, _ smokeValidateOptions) error {
+		t.Fatal("smoke runner should not be called during lint-only blocking stage")
+		return nil
+	}
+
+	if err := runValidateBackend(&cobra.Command{}, backendValidateOptions{
+		stage:          "lint",
+		lintConfig:     defaultBackendLintConfig,
+		testLintConfig: defaultBackendTestLintConfig,
+	}); err != nil {
+		t.Fatalf("run validate backend lint stage: %v", err)
+	}
+
+	if lintCalls != 1 {
+		t.Fatalf("expected exactly one blocking lint stage call, got %d", lintCalls)
 	}
 }
 

@@ -26,6 +26,7 @@ type bootstrapResponse struct {
 type bootstrapMenuResponse struct {
 	Code       string `json:"code"`
 	Title      string `json:"title"`
+	TitleKey   string `json:"title_key,omitempty"`
 	Path       string `json:"path"`
 	Icon       string `json:"icon"`
 	Permission string `json:"permission"`
@@ -185,6 +186,7 @@ func filterBootstrapMenus(registry *menu.Registry, granted map[string]struct{}) 
 		menus = append(menus, bootstrapMenuResponse{
 			Code:       item.Code,
 			Title:      item.Title,
+			TitleKey:   item.TitleKey,
 			Path:       item.Path,
 			Icon:       item.Icon,
 			Permission: item.Permission,

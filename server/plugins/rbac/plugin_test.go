@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -43,6 +44,27 @@ type testRBACRepository struct {
 	listRolesErr       error
 	listPermissionsErr error
 	permissionsErr     error
+}
+
+type testUserRepository struct {
+	users map[uint64]store.User
+}
+
+func (r testUserRepository) GetByID(_ context.Context, id uint64) (store.User, error) {
+	if user, ok := r.users[id]; ok {
+		return user, nil
+	}
+
+	return store.User{}, store.ErrUserNotFound
+}
+
+func (r testUserRepository) List(_ context.Context) ([]store.User, error) {
+	items := make([]store.User, 0, len(r.users))
+	for _, user := range r.users {
+		items = append(items, user)
+	}
+
+	return items, nil
 }
 
 func (r testRBACRepository) EnsureRole(_ context.Context, _ store.EnsureRoleInput) (store.Role, error) {
@@ -153,11 +175,12 @@ func (r testRBACRepository) ListRolePermissionBindings(ctx context.Context, role
 }
 
 type pluginTestStoreFactory struct {
-	rbac store.RBACRepository
+	users store.UserRepository
+	rbac  store.RBACRepository
 }
 
 func (f pluginTestStoreFactory) Audit() store.AuditRepository { return nil }
-func (f pluginTestStoreFactory) Users() store.UserRepository  { return nil }
+func (f pluginTestStoreFactory) Users() store.UserRepository  { return f.users }
 func (f pluginTestStoreFactory) Auth() store.AuthRepository   { return nil }
 func (f pluginTestStoreFactory) RBAC() store.RBACRepository   { return f.rbac }
 
@@ -201,7 +224,15 @@ func newPluginTestContext(t *testing.T, repo store.RBACRepository) (*plugin.Cont
 		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
-		Stores:             pluginTestStoreFactory{rbac: repo},
+		Stores: pluginTestStoreFactory{
+			users: testUserRepository{
+				users: map[uint64]store.User{
+					7: {ID: 7, Username: "alice", Display: "Alice"},
+					8: {ID: 8, Username: "bob", Display: "Bob"},
+				},
+			},
+			rbac: repo,
+		},
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
@@ -300,17 +331,10 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	ctx, _ := newPluginTestContext(t, testRBACRepository{})
 
 	items := ctx.PermissionRegistry.Items()
-	if len(items) != 6 {
-		t.Fatalf("expected 6 registered permissions, got %d", len(items))
+	if len(items) != 7 {
+		t.Fatalf("expected 7 registered permissions, got %d", len(items))
 	}
-	if items[0].Code != rbaccontract.RoleReadPermission.String() ||
-		items[1].Code != rbaccontract.RoleCreatePermission.String() ||
-		items[2].Code != rbaccontract.RoleUpdatePermission.String() ||
-		items[3].Code != rbaccontract.RolePermissionAssignPermission.String() ||
-		items[4].Code != rbaccontract.PermissionReadPermission.String() ||
-		items[5].Code != rbaccontract.UserRoleAssignPermission.String() {
-		t.Fatalf("unexpected registered permissions: %#v", items)
-	}
+	assertRegisteredPermissionCodes(t, items)
 	for _, item := range items {
 		if item.Category != "api" {
 			t.Fatalf("expected registered permission %s to declare category api, got %#v", item.Code, item)
@@ -331,6 +355,28 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	}
 	if _, ok := resolved.(pluginapi.Authorizer); !ok {
 		t.Fatalf("expected pluginapi.Authorizer, got %T", resolved)
+	}
+}
+
+func assertRegisteredPermissionCodes(t *testing.T, items []permission.Item) {
+	t.Helper()
+
+	actual := make([]string, 0, len(items))
+	for _, item := range items {
+		actual = append(actual, item.Code)
+	}
+
+	expected := []string{
+		rbaccontract.RoleReadPermission.String(),
+		rbaccontract.RoleCreatePermission.String(),
+		rbaccontract.RoleUpdatePermission.String(),
+		rbaccontract.RolePermissionAssignPermission.String(),
+		rbaccontract.PermissionReadPermission.String(),
+		rbaccontract.UserRoleReadPermission.String(),
+		rbaccontract.UserRoleAssignPermission.String(),
+	}
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("unexpected registered permissions: %#v", items)
 	}
 }
 
@@ -650,6 +696,58 @@ func TestRolePermissionAssignRouteMapsDeletedPermissionIDsToInvalidArgument(t *t
 	}
 }
 
+// TestUserRoleBindingRouteReturnsStableRoleIDs 验证目标用户角色读取接口会返回稳定排序的角色 ID 快照。
+func TestUserRoleBindingRouteReturnsStableRoleIDs(t *testing.T) {
+	repo := testRBACRepository{
+		rolesByUserID: []store.Role{
+			{ID: 5, Name: "operator", Display: "运维"},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleReadPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newAuthorizedRequest("/api/users/7/roles"))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	var payload httpx.SuccessResponse[userRoleBindingResponse]
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(payload.Data.RoleIDs) != 2 || payload.Data.RoleIDs[0] != 2 || payload.Data.RoleIDs[1] != 5 {
+		t.Fatalf("unexpected user-role bindings payload: %#v", payload)
+	}
+}
+
+// TestUserRoleBindingRouteReturnsUserNotFound 验证目标用户未命中时会返回稳定的用户未命中语义。
+func TestUserRoleBindingRouteReturnsUserNotFound(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleReadPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequest("/api/users/99/roles")
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != messagecontract.UserNotFound.String() || payload.Code != "USER_NOT_FOUND" || payload.Locale != "en-US" {
+		t.Fatalf("unexpected user-role-binding payload: %#v", payload)
+	}
+}
+
 // TestUserRoleAssignRouteReturnsUserNotFound 验证用户角色分配接口会保留稳定的用户未命中语义。
 func TestUserRoleAssignRouteReturnsUserNotFound(t *testing.T) {
 	repo := testRBACRepository{
@@ -750,5 +848,106 @@ func TestUserRoleAssignRouteMapsDeletedRoleIDsToInvalidArgument(t *testing.T) {
 	}
 	if payload.MessageKey != messagecontract.CommonInvalidArgument.String() || payload.Details["field"] != "role_ids" {
 		t.Fatalf("unexpected deleted-role payload: %#v", payload)
+	}
+}
+
+// TestUserRoleAssignRouteRejectsRemovingOwnBuiltinAdmin 验证当前管理员不能移除自己最后的 builtin admin 角色。
+func TestUserRoleAssignRouteRejectsRemovingOwnBuiltinAdmin(t *testing.T) {
+	repo := testRBACRepository{
+		roles: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		rolesByUserID: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+		"role_ids": []uint64{2},
+	})
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d", recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != messagecontract.RbacCannotRemoveOwnAdminRole.String() ||
+		payload.Code != "RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE" ||
+		payload.Locale != "en-US" {
+		t.Fatalf("unexpected self-lockout payload: %#v", payload)
+	}
+}
+
+// TestUserRoleAssignRouteAllowsRetainingOwnBuiltinAdmin 验证当前管理员保留 builtin admin 时仍可更新自己的角色集合。
+func TestUserRoleAssignRouteAllowsRetainingOwnBuiltinAdmin(t *testing.T) {
+	var received store.ReplaceRolesForUserInput
+	repo := testRBACRepository{
+		roles: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		rolesByUserID: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+		},
+		replaceUserRoles: func(_ context.Context, input store.ReplaceRolesForUserInput) error {
+			received = input
+			return nil
+		},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+		"role_ids": []uint64{1, 2},
+	}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if !reflect.DeepEqual(received, store.ReplaceRolesForUserInput{UserID: 7, RoleIDs: []uint64{1, 2}}) {
+		t.Fatalf("unexpected replace input: %#v", received)
+	}
+}
+
+// TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser 验证管理员给其他用户改角色时仍保持原有 replace 语义。
+func TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser(t *testing.T) {
+	var received store.ReplaceRolesForUserInput
+	repo := testRBACRepository{
+		roles: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		rolesByUserID: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+		},
+		replaceUserRoles: func(_ context.Context, input store.ReplaceRolesForUserInput) error {
+			received = input
+			return nil
+		},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/9/roles/assign", map[string]any{
+		"role_ids": []uint64{2},
+	}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if !reflect.DeepEqual(received, store.ReplaceRolesForUserInput{UserID: 9, RoleIDs: []uint64{2}}) {
+		t.Fatalf("unexpected replace input for other user: %#v", received)
 	}
 }

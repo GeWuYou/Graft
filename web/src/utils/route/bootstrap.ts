@@ -1,8 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 import type { BootstrapMenu } from '@/api/model/authModel';
-import type { LocalizedTitle } from '@/locales';
 import type { AppRouteMeta } from '@/utils/types';
+
+import { localizeRouteTitle } from './title';
 
 const bootstrapRouteComponentMap: Record<string, RouteRecordRaw['component']> = {
   '/roles': () => import('@/pages/role/index.vue'),
@@ -10,13 +11,6 @@ const bootstrapRouteComponentMap: Record<string, RouteRecordRaw['component']> = 
 } as const;
 
 const bootstrapLayout: RouteRecordRaw['component'] = () => import('@/layouts/index.vue');
-
-function localizeTitle(title: string): LocalizedTitle {
-  return {
-    zh_CN: title,
-    en_US: title,
-  };
-}
 
 // transformBootstrapMenusToRoutes 把后端 bootstrap 菜单快照映射为当前 web 可消费的最小动态路由。
 //
@@ -34,13 +28,15 @@ export function transformBootstrapMenusToRoutes(menus: BootstrapMenu[]): RouteRe
       .join('');
 
     const routeMeta: AppRouteMeta = {
-      title: localizeTitle(menu.title),
+      title: localizeRouteTitle(menu.title, menu.title_key),
+      titleKey: menu.title_key,
       icon: menu.icon,
       single: true,
     };
     const childMeta: AppRouteMeta = {
       hidden: true,
-      title: localizeTitle(menu.title),
+      title: localizeRouteTitle(menu.title, menu.title_key),
+      titleKey: menu.title_key,
     };
 
     const route = {

@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/i18n"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
+	usercontract "graft/server/plugins/user/contract"
 	"net/http"
 	"strconv"
 	"strings"
@@ -63,6 +65,9 @@ func (p *Plugin) DependsOn() []string {
 // 失败语义：
 //   - 任一注册步骤失败都会中止插件装配，并由上层运行时负责整体回滚。
 func (p *Plugin) Register(ctx *plugin.Context) error {
+	if err := registerMessages(ctx.I18n); err != nil {
+		return err
+	}
 	registerUserPermissions(ctx.PermissionRegistry, p.Name())
 	registerUserMenu(ctx.MenuRegistry, p.Name())
 
@@ -72,11 +77,40 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 	p.routeAuthorizer = newDeferredAuthorizer()
 	guards := newRouteGuards(ctx.I18n, services.auth, p.routeAuthorizer)
-	if err := registerAuthRoutes(ctx, p.Name(), services.auth, services.bootstrap, guards); err != nil {
+	if err := registerAuthRoutes(ctx, p.Name(), services.auth, services.bootstrap, &guards); err != nil {
 		return err
 	}
 	if err := registerUserRoutes(ctx, p.Name(), services.user, services.auth, guards); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func registerMessages(localizer *i18n.Service) error {
+	if localizer == nil {
+		return errors.New("i18n service is unavailable")
+	}
+
+	for _, registration := range []i18n.Registration{
+		{
+			Namespace: "user",
+			Locale:    i18n.LocaleZHCN,
+			Messages: []i18n.MessageResource{
+				{Key: i18n.MessageKey(usercontract.UserListMenuTitle.String()), Text: "用户管理"},
+			},
+		},
+		{
+			Namespace: "user",
+			Locale:    i18n.LocaleENUS,
+			Messages: []i18n.MessageResource{
+				{Key: i18n.MessageKey(usercontract.UserListMenuTitle.String()), Text: "User Management"},
+			},
+		},
+	} {
+		if err := localizer.RegisterMessages(registration); err != nil {
+			return fmt.Errorf("register user plugin messages: %w", err)
+		}
 	}
 
 	return nil

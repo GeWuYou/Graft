@@ -1,6 +1,79 @@
 #!/usr/bin/env sh
 set -eu
 
-# Local contract governance changed-scan runs at pre-commit.
-# Remote blocking remains owned by CI.
-exit 0
+repo_root="$(git rev-parse --show-toplevel)"
+
+resolve_fetch_target() {
+  ref="$1"
+
+  case "$ref" in
+    refs/remotes/origin/*)
+      printf '%s\n' "${ref#refs/remotes/origin/}"
+      ;;
+    origin/*)
+      printf '%s\n' "${ref#origin/}"
+      ;;
+    refs/heads/*)
+      printf '%s\n' "${ref#refs/heads/}"
+      ;;
+    refs/*)
+      printf '%s\n' "$ref"
+      ;;
+    *)
+      printf '%s\n' "$ref"
+      ;;
+  esac
+}
+
+normalize_base_ref() {
+  ref="$1"
+
+  case "$ref" in
+    refs/remotes/*)
+      printf '%s\n' "$ref"
+      ;;
+    refs/heads/*)
+      printf 'refs/remotes/origin/%s\n' "${ref#refs/heads/}"
+      ;;
+    origin/*)
+      printf 'refs/remotes/%s\n' "$ref"
+      ;;
+    refs/*)
+      printf '%s\n' "$ref"
+      ;;
+    *)
+      printf 'refs/remotes/origin/%s\n' "$ref"
+      ;;
+  esac
+}
+
+if [ "${GRAFT_LINT_BASE_REF:-}" != "" ]; then
+  base_ref="$GRAFT_LINT_BASE_REF"
+else
+  if ! origin_head_ref="$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null)"; then
+    echo "backend lint gate: cannot resolve origin/HEAD." >&2
+    echo "backend lint gate: run 'git remote set-head origin -a' or set GRAFT_LINT_BASE_REF before pushing." >&2
+    exit 1
+  fi
+  base_ref="${origin_head_ref#refs/remotes/}"
+fi
+
+base_ref="$(normalize_base_ref "$base_ref")"
+fetch_target="$(resolve_fetch_target "$base_ref")"
+
+if ! git fetch --quiet origin "$fetch_target"; then
+  echo "backend lint gate: failed to fetch base branch '$fetch_target' from origin." >&2
+  echo "backend lint gate: run 'git fetch origin $fetch_target' and retry." >&2
+  exit 1
+fi
+
+if ! git rev-parse --verify --quiet "$base_ref^{commit}" >/dev/null; then
+  echo "backend lint gate: base ref '$base_ref' is not available locally after fetch." >&2
+  echo "backend lint gate: run 'git fetch origin $fetch_target' or set GRAFT_LINT_BASE_REF to a reachable base ref." >&2
+  exit 1
+fi
+
+export GRAFT_LINT_BASE_REF="$base_ref"
+
+cd "$repo_root/server"
+go run ./cmd/graft validate backend --stage lint

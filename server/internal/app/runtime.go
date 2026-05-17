@@ -174,6 +174,10 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		}
 	}
 
+	if err := r.i18n.Freeze(); err != nil {
+		return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("freeze i18n registry: %w", err))
+	}
+
 	for _, p := range ordered {
 		// 只有完成 Register 的插件才会进入 Boot。booted 只记录真正成功启动
 		// 的插件，确保失败清理不会误关未启动插件。

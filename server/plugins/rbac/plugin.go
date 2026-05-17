@@ -8,6 +8,7 @@ import (
 
 	"graft/server/internal/container"
 	"graft/server/internal/httpx"
+	"graft/server/internal/i18n"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
@@ -45,10 +46,16 @@ func (p *Plugin) DependsOn() []string {
 //
 // Register 阶段只做稳定能力暴露与管理只读路由装配，不执行任何后台行为或耗时初始化。
 func (p *Plugin) Register(ctx *plugin.Context) error {
+	if err := registerMessages(ctx.I18n); err != nil {
+		return err
+	}
 	registerRBACPermissions(ctx.PermissionRegistry, p.Name())
 	registerRBACMenu(ctx.MenuRegistry, p.Name())
 	repository := ctx.Stores.RBAC()
-	readService := managementReader{rbac: repository}
+	readService := managementReader{
+		users: ctx.Stores.Users(),
+		rbac:  repository,
+	}
 	writeService := managementWriter{rbac: repository}
 
 	if err := ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
@@ -79,9 +86,39 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 			roleCreate:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleCreatePermission.String()),
 			roleUpdate:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleUpdatePermission.String()),
 			rolePermissionAssign: httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RolePermissionAssignPermission.String()),
+			userRoleRead:         httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleReadPermission.String()),
 			userRoleAssign:       httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleAssignPermission.String()),
 		},
 	)
+
+	return nil
+}
+
+func registerMessages(localizer *i18n.Service) error {
+	if localizer == nil {
+		return errors.New("i18n service is unavailable")
+	}
+
+	for _, registration := range []i18n.Registration{
+		{
+			Namespace: "rbac",
+			Locale:    i18n.LocaleZHCN,
+			Messages: []i18n.MessageResource{
+				{Key: i18n.MessageKey(rbaccontract.RoleListMenuTitle.String()), Text: "角色管理"},
+			},
+		},
+		{
+			Namespace: "rbac",
+			Locale:    i18n.LocaleENUS,
+			Messages: []i18n.MessageResource{
+				{Key: i18n.MessageKey(rbaccontract.RoleListMenuTitle.String()), Text: "Role Management"},
+			},
+		},
+	} {
+		if err := localizer.RegisterMessages(registration); err != nil {
+			return fmt.Errorf("register rbac plugin messages: %w", err)
+		}
+	}
 
 	return nil
 }

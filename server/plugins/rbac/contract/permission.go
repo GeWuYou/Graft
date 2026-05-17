@@ -19,6 +19,8 @@ const (
 	RolePermissionAssignPermission PermissionCode = "role.permission.assign"
 	// PermissionReadPermission identifies read access to permission-management data.
 	PermissionReadPermission PermissionCode = "permission.read"
+	// UserRoleReadPermission identifies read access to user-role binding snapshots.
+	UserRoleReadPermission PermissionCode = "user.role.read"
 	// UserRoleAssignPermission identifies write access to user-role bindings.
 	UserRoleAssignPermission PermissionCode = "user.role.assign"
 
@@ -32,6 +34,8 @@ const (
 	RolePermissionAssign PermissionCode = RolePermissionAssignPermission
 	// PermissionRead is the canonical permission used by rbac-plugin consumers.
 	PermissionRead PermissionCode = PermissionReadPermission
+	// UserRoleRead is the canonical permission used by rbac-plugin consumers.
+	UserRoleRead PermissionCode = UserRoleReadPermission
 	// UserRoleAssign is the canonical permission used by rbac-plugin consumers.
 	UserRoleAssign PermissionCode = UserRoleAssignPermission
 )

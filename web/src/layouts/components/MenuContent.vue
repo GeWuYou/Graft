@@ -28,7 +28,7 @@
 import type { PropType } from 'vue';
 import { computed, h, resolveComponent } from 'vue';
 
-import type { LocalizedTitle } from '@/locales';
+import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { useLocale } from '@/locales/useLocale';
 import { getActive } from '@/router';
 import type { MenuRoute } from '@/utils/types';

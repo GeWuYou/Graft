@@ -24,6 +24,8 @@ const (
 
 	// UsersGroup identifies the user-role assignment route group owned by the rbac plugin.
 	UsersGroup = "/users"
+	// UserRoleBindingRoute identifies the user-role binding snapshot endpoint route fragment.
+	UserRoleBindingRoute = "/:id/roles"
 	// UserRoleAssignRoute identifies the user-role assignment endpoint route fragment.
 	UserRoleAssignRoute = "/:id/roles/assign"
 )

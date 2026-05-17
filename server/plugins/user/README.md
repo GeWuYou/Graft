@@ -9,6 +9,7 @@
 这个模块负责：
 
 * 注册用户读取能力所需的权限与菜单
+* 在 `Register` 阶段向统一 `server/internal/i18n` facade 注册插件内建菜单标题 message，并通过 bootstrap 菜单快照暴露 `title_key + title fallback`
 * 提供最小 `/auth/login`、`/auth/refresh`、`/auth/bootstrap`、`/auth/change-password`、`/auth/complete-required-password-change`、当前 refresh session 的 `/auth/logout`、支持显式 `limit` 约束的当前用户 `/auth/sessions`、`/auth/sessions/:sessionID/revoke`、`/auth/sessions/revoke-all` 与 `/auth/sessions/revoke-others` 自助可见性/撤销入口，以及管理员按用户 ID 的 `/users/:id/sessions`、`/users/:id/sessions/:sessionID/revoke` 和 `/users/:id/sessions/revoke-all` 会话治理入口，并把 refresh session、cookie 与 revoke/rotation 逻辑留在插件内
 * 暴露 `pluginapi.UserService`
 * 暴露最小 `pluginapi.AuthService`，把 access token 解析结果收敛为稳定请求主体，并在受保护请求上追加最小 session 存活校验
@@ -45,6 +46,7 @@
 * 是否需要首次改密必须以后端持久化状态为准，前端不得通过用户名或默认密码猜测
 * `must_change_password=true` 的受限会话只能访问 `bootstrap`、`logout` 与 `complete-required-password-change`，其余已登录接口统一返回 `403`
 * 当前登录后的业务阻断由 `web` 受限态负责页面与路由收敛，并由 `server` 受限会话白名单补足后端硬约束
+* `graft dev reset-admin` 与删库后的默认管理员恢复路径都应进入“登录成功但受限、必须先改密”的恢复流程，而不是把默认密码视为长期可直接使用的正常管理员口令
 * 默认管理员已存在时，不得覆写其密码、角色或首次改密状态
 * 默认管理员必须具备最小后台菜单与权限可见性，不能成为只能登录的空账号
 

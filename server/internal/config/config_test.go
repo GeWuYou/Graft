@@ -43,6 +43,7 @@ func TestLoadReadsDotenv(t *testing.T) {
 	assertEqual(t, "Redis DB from .env", cfg.Redis.DB, 2)
 	assertEqual(t, "default locale", cfg.I18n.DefaultLocale, defaultLocale)
 	assertEqual(t, "fallback locale", cfg.I18n.FallbackLocale, defaultLocale)
+	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale, defaultSecondaryLocale})
 	assertEqual(t, "default access token ttl", cfg.Auth.AccessTokenTTL, defaultAccessTokenTTL)
 	assertEqual(t, "default refresh token ttl", cfg.Auth.RefreshTokenTTL, defaultRefreshTokenTTL)
 	assertEqual(t, "jwt secret from .env", cfg.Auth.JWTSecret, "dotenv-jwt-secret")
@@ -146,7 +147,7 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	assertEqual(t, "default log level", cfg.Log.Level, defaultLogLevel)
 	assertEqual(t, "default locale", cfg.I18n.DefaultLocale, defaultLocale)
 	assertEqual(t, "fallback locale", cfg.I18n.FallbackLocale, defaultLocale)
-	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale})
+	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale, defaultSecondaryLocale})
 	assertEqual(t, "default access token ttl", cfg.Auth.AccessTokenTTL, defaultAccessTokenTTL)
 	assertEqual(t, "jwt secret from environment", cfg.Auth.JWTSecret, "runtime-secret")
 }
@@ -251,164 +252,87 @@ func TestLoadAuthSigningMaterial(t *testing.T) {
 
 // TestValidateRejectsUnsupportedDatabaseDriver 验证 Validate 会拒绝非 postgres 驱动。
 func TestValidateRejectsUnsupportedDatabaseDriver(t *testing.T) {
-	cfg := &Config{
-		App: AppConfig{
-			Name: "graft",
-			Env:  "test",
-		},
-		HTTP: HTTPConfig{
-			Addr: ":8080",
-		},
-		Database: DatabaseConfig{
-			Driver: "sqlite",
-			URL:    testDatabaseURL(),
-		},
-		Redis: RedisConfig{
-			Addr: "localhost:6379",
-		},
-		I18n: I18nConfig{
-			DefaultLocale:    "zh-CN",
-			FallbackLocale:   "zh-CN",
-			SupportedLocales: []string{"zh-CN"},
-		},
-	}
+	cfg := validConfigForValidateTests()
+	cfg.Database.Driver = "sqlite"
 
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected unsupported database driver error")
-	}
+	assertValidateError(t, cfg, "")
 }
 
 // TestValidateRejectsMissingDatabaseURL 验证 Validate 会拒绝缺失数据库连接串的配置。
 func TestValidateRejectsMissingDatabaseURL(t *testing.T) {
-	cfg := &Config{
-		App: AppConfig{
-			Name: "graft",
-			Env:  "test",
-		},
-		HTTP: HTTPConfig{
-			Addr: ":8080",
-		},
-		Database: DatabaseConfig{
-			Driver: "postgres",
-		},
-		Redis: RedisConfig{
-			Addr: "localhost:6379",
-		},
-		I18n: I18nConfig{
-			DefaultLocale:    "zh-CN",
-			FallbackLocale:   "zh-CN",
-			SupportedLocales: []string{"zh-CN"},
-		},
-	}
+	cfg := validConfigForValidateTests()
+	cfg.Database.URL = ""
 
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected missing database URL error")
-	}
+	assertValidateError(t, cfg, "")
 }
 
 // TestValidateRejectsMissingSupportedLocales 验证 Validate 会拒绝没有支持语言的配置。
 func TestValidateRejectsMissingSupportedLocales(t *testing.T) {
-	cfg := &Config{
-		App: AppConfig{
-			Name: "graft",
-			Env:  "test",
-		},
-		HTTP: HTTPConfig{
-			Addr: ":8080",
-		},
-		Database: DatabaseConfig{
-			Driver: "postgres",
-			URL:    testDatabaseURL(),
-		},
-		Redis: RedisConfig{
-			Addr: "localhost:6379",
-		},
-		I18n: I18nConfig{
-			DefaultLocale:  "zh-CN",
-			FallbackLocale: "zh-CN",
-		},
+	cfg := validConfigForValidateTests()
+	cfg.I18n.SupportedLocales = nil
+
+	assertValidateError(t, cfg, "")
+}
+
+// TestValidateRejectsMissingRequiredEnglishLocale 验证 Validate 会拒绝缺少
+// 当前阶段固定英文 locale 的配置。
+func TestValidateRejectsMissingRequiredEnglishLocale(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.I18n.SupportedLocales = []string{"zh-CN"}
+
+	assertValidateError(t, cfg, "GRAFT_I18N_SUPPORTED_LOCALES must include \"en-US\"")
+}
+
+// TestValidateRejectsDefaultLocaleOutsideSupported 验证 Validate 会拒绝默认
+// 语言不在支持列表内的配置。
+func TestValidateRejectsDefaultLocaleOutsideSupported(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.I18n.DefaultLocale = "fr-FR"
+
+	assertValidateError(t, cfg, "GRAFT_I18N_DEFAULT_LOCALE must be listed in GRAFT_I18N_SUPPORTED_LOCALES")
+}
+
+// TestValidateRejectsFallbackLocaleOutsideSupported 验证 Validate 会拒绝回退
+// 语言不在支持列表内的配置。
+func TestValidateRejectsFallbackLocaleOutsideSupported(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.I18n.FallbackLocale = "fr-FR"
+
+	assertValidateError(t, cfg, "GRAFT_I18N_FALLBACK_LOCALE must be listed in GRAFT_I18N_SUPPORTED_LOCALES")
+}
+
+// TestValidateNormalizesI18nLocales 验证 Validate 会把 locale 配置收敛到稳定格式，
+// 避免校验期通过、运行期仍保留空白和重复值。
+func TestValidateNormalizesI18nLocales(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.I18n.DefaultLocale = " zh-CN "
+	cfg.I18n.FallbackLocale = " en-US "
+	cfg.I18n.SupportedLocales = []string{" zh-CN ", "en-US", "zh-CN", " "}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config: %v", err)
 	}
 
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected missing supported locales error")
-	}
+	assertEqual(t, "normalized default locale", cfg.I18n.DefaultLocale, "zh-CN")
+	assertEqual(t, "normalized fallback locale", cfg.I18n.FallbackLocale, "en-US")
+	assertStringSliceEqual(t, "normalized supported locales", cfg.I18n.SupportedLocales, []string{"zh-CN", "en-US"})
 }
 
 // TestValidateRejectsMissingAuthTokenTTLs 验证 Validate 会拒绝非正数的 token 期限。
 func TestValidateRejectsMissingAuthTokenTTLs(t *testing.T) {
-	cfg := &Config{
-		App: AppConfig{
-			Name: "graft",
-			Env:  "test",
-		},
-		HTTP: HTTPConfig{
-			Addr: ":8080",
-		},
-		Database: DatabaseConfig{
-			Driver: "postgres",
-			URL:    testDatabaseURL(),
-		},
-		Redis: RedisConfig{
-			Addr: "localhost:6379",
-		},
-		I18n: I18nConfig{
-			DefaultLocale:    "zh-CN",
-			FallbackLocale:   "zh-CN",
-			SupportedLocales: []string{"zh-CN"},
-		},
-		Auth: AuthConfig{
-			AccessTokenTTL:        0,
-			RefreshTokenTTL:       time.Minute,
-			JWTSecret:             "secret",
-			SigningKey:            "signing",
-			RefreshCookieName:     defaultRefreshCookieName,
-			RefreshCookieSameSite: defaultRefreshCookieSameSite,
-			RefreshCookiePath:     defaultRefreshCookiePath,
-		},
-	}
+	cfg := validConfigForValidateTests()
+	cfg.Auth.AccessTokenTTL = 0
 
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected missing access token ttl error")
-	}
+	assertValidateError(t, cfg, "")
 }
 
 // TestValidateRejectsUnsafeCookieMode 验证 SameSite=None 时必须同时开启安全 cookie。
 func TestValidateRejectsUnsafeCookieMode(t *testing.T) {
-	cfg := &Config{
-		App: AppConfig{
-			Name: "graft",
-			Env:  "test",
-		},
-		HTTP: HTTPConfig{
-			Addr: ":8080",
-		},
-		Database: DatabaseConfig{
-			Driver: "postgres",
-			URL:    testDatabaseURL(),
-		},
-		Redis: RedisConfig{
-			Addr: "localhost:6379",
-		},
-		I18n: I18nConfig{
-			DefaultLocale:    "zh-CN",
-			FallbackLocale:   "zh-CN",
-			SupportedLocales: []string{"zh-CN"},
-		},
-		Auth: AuthConfig{
-			AccessTokenTTL:        time.Minute,
-			RefreshTokenTTL:       time.Hour,
-			JWTSecret:             "secret",
-			SigningKey:            "signing",
-			RefreshCookieName:     defaultRefreshCookieName,
-			RefreshCookieSecure:   false,
-			RefreshCookieSameSite: "none",
-			RefreshCookiePath:     defaultRefreshCookiePath,
-		},
-	}
+	cfg := validConfigForValidateTests()
+	cfg.Auth.RefreshCookieSecure = false
+	cfg.Auth.RefreshCookieSameSite = "none"
 
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected insecure same-site none error")
-	}
+	assertValidateError(t, cfg, "")
 }
 
 func chdir(t *testing.T, dir string) {
@@ -442,6 +366,52 @@ func assertStringSliceEqual(t *testing.T, label string, got []string, want []str
 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("expected %s %v, got %v", label, want, got)
+	}
+}
+
+func validConfigForValidateTests() *Config {
+	return &Config{
+		App: AppConfig{
+			Name: "graft",
+			Env:  "test",
+		},
+		HTTP: HTTPConfig{
+			Addr: ":8080",
+		},
+		Database: DatabaseConfig{
+			Driver: "postgres",
+			URL:    testDatabaseURL(),
+		},
+		Redis: RedisConfig{
+			Addr: "localhost:6379",
+		},
+		I18n: I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: []string{"zh-CN", "en-US"},
+		},
+		Auth: AuthConfig{
+			AccessTokenTTL:        time.Minute,
+			RefreshTokenTTL:       time.Hour,
+			JWTSecret:             "secret",
+			SigningKey:            "signing",
+			RefreshCookieName:     defaultRefreshCookieName,
+			RefreshCookieSecure:   true,
+			RefreshCookieSameSite: defaultRefreshCookieSameSite,
+			RefreshCookiePath:     defaultRefreshCookiePath,
+		},
+	}
+}
+
+func assertValidateError(t *testing.T, cfg *Config, wantErr string) {
+	t.Helper()
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected validate error")
+	}
+	if wantErr != "" && err.Error() != wantErr {
+		t.Fatalf("expected validation error %q, got %q", wantErr, err.Error())
 	}
 }
 

@@ -62,16 +62,7 @@ func registerRoleWriteRoutes(
 	group.POST(rbaccontract.RolePermissionAssignRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) {
 		handleReplaceStableIDsRoute(ginCtx, ctx, pluginName, replaceStableIDsHandlerConfig{
 			invalidField: "permission_ids",
-			readIDs: func(ginCtx *gin.Context) ([]uint64, error) {
-				var request replaceRolePermissionsRequest
-				if err := ginCtx.ShouldBindJSON(&request); err != nil {
-					return nil, err
-				}
-				if request.PermissionIDs == nil {
-					return nil, nil
-				}
-				return *request.PermissionIDs, nil
-			},
+			readIDs:      readRolePermissionIDs,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.ReplacePermissionsForRole(ctx, store.ReplacePermissionsForRoleInput{
 					RoleID:        targetID,
@@ -167,24 +158,43 @@ func handleUpdateRoleRoute(
 func registerUserRoleRoutes(
 	ctx *plugin.Context,
 	pluginName string,
+	reader readManagementService,
 	writer writeManagementService,
-	authenticated gin.HandlerFunc,
+	guards managementGuards,
 ) {
 	group := ctx.Router.Group(rbaccontract.UsersGroup)
 	group.Use(httpx.RequestIDMiddleware())
-	group.POST(rbaccontract.UserRoleAssignRoute, authenticated, func(ginCtx *gin.Context) {
+	group.GET(rbaccontract.UserRoleBindingRoute, guards.userRoleRead, func(ginCtx *gin.Context) {
+		userID, err := parseManagementID(ginCtx.Param("id"))
+		if err != nil {
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+				"field": "id",
+			})
+			return
+		}
+
+		roleIDs, err := reader.ListRoleIDsByUserID(ginCtx.Request.Context(), userID)
+		if err != nil {
+			if errors.Is(err, store.ErrUserNotFound) {
+				writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusNotFound, messagecontract.UserNotFound, nil)
+				return
+			}
+
+			ctx.Logger.Error("list user-role bindings failed",
+				zap.String("plugin", pluginName),
+				zap.Uint64("userId", userID),
+				zap.Error(err),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, userRoleBindingResponse{RoleIDs: roleIDs})
+	})
+	group.POST(rbaccontract.UserRoleAssignRoute, guards.userRoleAssign, func(ginCtx *gin.Context) {
 		handleReplaceStableIDsRoute(ginCtx, ctx, pluginName, replaceStableIDsHandlerConfig{
 			invalidField: "role_ids",
-			readIDs: func(ginCtx *gin.Context) ([]uint64, error) {
-				var request replaceUserRolesRequest
-				if err := ginCtx.ShouldBindJSON(&request); err != nil {
-					return nil, err
-				}
-				if request.RoleIDs == nil {
-					return nil, nil
-				}
-				return *request.RoleIDs, nil
-			},
+			readIDs:      readUserRoleIDs,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.ReplaceRolesForUser(ctx, store.ReplaceRolesForUserInput{
 					UserID:  targetID,
@@ -257,6 +267,29 @@ func normalizeUpdateRoleInput(roleID uint64, request updateRoleRequest) (store.U
 		Display:     strings.TrimSpace(request.Display),
 		Description: normalizeOptionalString(request.Description),
 	}, true
+}
+
+func readRolePermissionIDs(ginCtx *gin.Context) ([]uint64, error) {
+	var request replaceRolePermissionsRequest
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return nil, err
+	}
+	return optionalStableIDs(request.PermissionIDs), nil
+}
+
+func readUserRoleIDs(ginCtx *gin.Context) ([]uint64, error) {
+	var request replaceUserRolesRequest
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return nil, err
+	}
+	return optionalStableIDs(request.RoleIDs), nil
+}
+
+func optionalStableIDs(ids *[]uint64) []uint64 {
+	if ids == nil {
+		return nil
+	}
+	return *ids
 }
 
 func normalizeOptionalString(input *string) *string {
@@ -335,6 +368,9 @@ func writeRBACManagementError(
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument
 		details = map[string]any{"field": "name"}
+	case errors.Is(err, errCannotRemoveOwnAdminRole):
+		status = http.StatusForbidden
+		key = messagecontract.RbacCannotRemoveOwnAdminRole
 	case errors.Is(err, errInvalidPermissionIDs), errors.Is(err, errInvalidRoleIDs), errors.Is(err, store.ErrInvalidID):
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument

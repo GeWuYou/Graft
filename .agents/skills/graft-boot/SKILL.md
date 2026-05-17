@@ -1,13 +1,14 @@
 ---
 name: graft-boot
-description: Repository-specific startup workflow for Graft. Use when the task starts from a short prompt such as "boot", "continue", "read AGENTS", or "next step", and Codex should first ground itself in AGENTS.md, the ai-plan/ documents, the current repo state, and the likely server/web/plugin boundary before implementation.
+description: Repository-specific startup workflow for Graft. Use when the task starts from a short prompt such as "boot", "continue", "read AGENTS", or "next step", and Codex should first ground itself in AGENTS.md, the ai-plan/ documents, the current repo state, assess whether multi-agent work is justified, and then enter implementation with the repository's closeout and commit workflow in place.
 ---
 
 # Graft Boot
 
 Use this skill to start or resume work in `Graft` with minimal prompting.
 
-Treat `AGENTS.md` as the source of truth. This skill is a startup workflow, not a replacement for repository rules.
+Treat `AGENTS.md` as the source of truth. This skill performs startup plus the mandatory workflow hooks that follow
+startup; it does not replace repository rules.
 
 ## Startup Workflow
 
@@ -21,10 +22,19 @@ Treat `AGENTS.md` as the source of truth. This skill is a startup workflow, not 
 4. Read the relevant repository-wide design and roadmap truth needed by the task.
 5. Inspect the current repository state before assuming toolchains or entrypoints exist.
 6. Identify the first concrete boundary decision before editing.
-7. If the task is complex and splits into disjoint parallel slices, consider `graft-multi-agent-batch`.
-8. Before edits, tell the user what you read, how you classified the task, and the first implementation step.
-9. If the current turn ends by proposing a next task, include one explicit next-task startup prompt that restates the
-   startup receipt fields needed by the next turn instead of assuming boot state carries across turns.
+7. Assess whether `graft-multi-agent-batch` is justified:
+   - use it only when the task is large enough, write scopes stay disjoint, and the main agent can keep the critical
+     path local
+   - do not enable it for small, overlapping, or review-hostile slices
+8. Before edits, tell the user what you read, how you classified the task, whether multi-agent work is justified, and
+   the first implementation step.
+9. When the current slice reaches a stop, completion, or handoff point, route the ending through `graft-task-closeout`
+   instead of relying on an implicit wrap-up path.
+10. `graft-task-closeout` must evaluate commit eligibility through `graft-commit` rules:
+   - if validation and ownership allow a safe scoped commit, use `graft-commit`
+   - if they do not, report the exact blocker and keep the handoff status honest
+11. If the current turn ends by proposing a next task, include one explicit next-task startup prompt that restates the
+    startup receipt fields needed by the next turn instead of assuming boot state carries across turns.
 
 ## Recovery Rules
 

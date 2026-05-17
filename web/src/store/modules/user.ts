@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 
 import { getBootstrap, login as loginApi, logout as logoutApi, refresh as refreshApi } from '@/api/auth';
 import { API_CODE, type ApiResponseCode, type BootstrapResponse, type LoginResponse } from '@/api/model/authModel';
+import { normalizeLocale } from '@/contracts/i18n/locales';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
 import { i18n, supportedLocales } from '@/locales';
 import { usePermissionStore } from '@/store';
@@ -66,7 +67,13 @@ export const useUserStore = defineStore('user', {
         password: String(userInfo.password ?? ''),
       });
       this.applyLoginResponse(response);
-      await this.bootstrap();
+      try {
+        await this.bootstrap();
+      } catch (error) {
+        if (!this.isRestrictedBootstrapRecoveryError(error)) {
+          throw error;
+        }
+      }
     },
     async bootstrap(force = false) {
       if (!this.token) {
@@ -94,6 +101,10 @@ export const useUserStore = defineStore('user', {
       try {
         return await this.bootstrap();
       } catch (error) {
+        if (this.isRestrictedBootstrapRecoveryError(error)) {
+          throw error;
+        }
+
         // 如果会话已在请求层失败路径中被清空，这里不要再发第二次 refresh。
         if (!isRefreshableAuthError(error) || !this.token) {
           throw error;
@@ -136,6 +147,15 @@ export const useUserStore = defineStore('user', {
         this.handleAuthFailure();
       }
     },
+    isRestrictedBootstrapRecoveryError(error: unknown) {
+      return Boolean(
+        this.token &&
+        this.mustChangePassword &&
+        isApiRequestError(error) &&
+        error.status === 403 &&
+        error.code === API_CODE.AUTH_FORBIDDEN,
+      );
+    },
   },
   persist: {
     afterHydrate: ({ store }) => {
@@ -149,8 +169,8 @@ export const useUserStore = defineStore('user', {
 });
 
 function syncLocale(payload: BootstrapResponse) {
-  const normalizedLocale = payload.locale.current_locale.replace('-', '_');
-  if (!supportedLocales.includes(normalizedLocale as (typeof supportedLocales)[number])) {
+  const normalizedLocale = normalizeLocale(payload.locale.current_locale);
+  if (!normalizedLocale || !supportedLocales.includes(normalizedLocale)) {
     return;
   }
 

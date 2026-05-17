@@ -22,15 +22,17 @@ linters:
     - maintidx
     - mnd
     - dupl
+    - funlen
     - misspell
+    - nestif
   settings:
     gocyclo:
-      min-complexity: 20
+      min-complexity: 15
     cyclop:
       max-complexity: 18
       package-average: 10.0
     gocognit:
-      min-complexity: 25
+      min-complexity: 18
     maintidx:
       under: 10
     mnd:
@@ -40,22 +42,42 @@ linters:
         - "2"
         - "3"
     dupl:
-      threshold: 200
+      threshold: 100
+    funlen:
+      lines: 100
+      statements: 60
+      ignore-comments: true
+    nestif:
+      min-complexity: 4
     revive:
       severity: warning
       confidence: 0.8
       rules:
         - name: exported
+          arguments: []
         - name: package-comments
+          arguments: []
         - name: unused-parameter
+          arguments: []
         - name: context-as-argument
+          arguments: []
         - name: error-strings
+          arguments: []
         - name: error-naming
+          arguments: []
         - name: var-naming
+          arguments: []
         - name: function-result-limit
+          arguments: []
+        - name: argument-limit
+          arguments:
+            - 6
         - name: indent-error-flow
+          arguments: []
         - name: receiver-naming
+          arguments: []
         - name: bare-return
+          arguments: []
   exclusions:
     generated: lax
     paths:

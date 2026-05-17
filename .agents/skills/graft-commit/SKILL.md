@@ -1,12 +1,13 @@
 ---
 name: graft-commit
-description: Repository-specific scoped commit workflow for Graft. Use when the user explicitly wants the current validated task slice committed and the agent needs to classify ownership, verify scope, choose a compliant Conventional Commit message, and create a safe git commit without bundling unrelated changes.
+description: Repository-specific scoped commit workflow for Graft. Use when the user explicitly wants the current validated task slice committed, or when `graft-task-closeout` decides a validated owned scope should be committed, and the agent needs to classify ownership, verify scope, choose a compliant Conventional Commit message, and create a safe git commit without bundling unrelated changes.
 ---
 
 # Graft Commit
 
 Use this skill when the user explicitly asks to commit the current `Graft` task slice, for example with
-`$graft-commit`, `commit this slice`, or `提交当前这次改动`.
+`$graft-commit`, `commit this slice`, or `提交当前这次改动`, or when `graft-task-closeout` concludes that the current
+validated owned scope should be committed before handoff.
 
 Treat root `AGENTS.md` as the commit-governance source of truth. This skill does not loosen ownership, staging, or
 validation rules.
@@ -15,7 +16,9 @@ validation rules.
 
 1. Ensure the current turn already has the startup receipt required by `AGENTS.md`.
 2. Read `AGENTS.md` `13. Git Workflow Rules` before staging or committing anything.
-3. Confirm the user explicitly wants a commit. This skill is that explicit trigger.
+3. Confirm the commit trigger is valid:
+   - either the user explicitly requested a commit
+   - or `graft-task-closeout` decided the validated owned scope should be committed
 4. If the correct validation scope is unclear, use `graft-validation-runner` before committing.
 
 ## Workflow
@@ -55,7 +58,7 @@ validation rules.
 Do not commit when any of these are true:
 
 * ownership is mixed and cannot be confidently separated
-* the user asked to commit but the task still lacks the required validation and that validation is still feasible
+* the commit trigger is valid but the task still lacks the required validation and that validation is still feasible
 * the working tree contains unrelated changes that would be staged only by using broad git add patterns
 * the proposed commit message would violate the repository Conventional Commit rules
 

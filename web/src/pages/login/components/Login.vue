@@ -87,6 +87,7 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { API_CODE } from '@/api/model/authModel';
+import { AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
 import { useCounter } from '@/hooks';
 import { t } from '@/locales';
 import { useUserStore } from '@/store';
@@ -141,10 +142,28 @@ const onSubmit = async (ctx: SubmitContext) => {
       await userStore.login(formData.value);
 
       MessagePlugin.success(t('pages.login.loginSuccess'));
-      const redirect = route.query.redirect as string;
-      const redirectUrl = redirect ? decodeURIComponent(redirect) : '/';
-      router.push(redirectUrl);
+      const redirectQuery = route.query.redirect;
+      const redirect = typeof redirectQuery === 'string' ? redirectQuery : '';
+      const redirectUrl = (() => {
+        if (!redirect) {
+          return '/';
+        }
+
+        try {
+          const decoded = decodeURIComponent(redirect);
+          return decoded.startsWith('/') ? decoded : '/';
+        } catch {
+          return '/';
+        }
+      })();
+      const nextPath = userStore.mustChangePassword ? AUTH_ROUTE_PATH.RESTRICTED_SESSION : redirectUrl;
+      router.push(nextPath);
     } catch (e) {
+      if (userStore.token && userStore.mustChangePassword) {
+        router.push(AUTH_ROUTE_PATH.RESTRICTED_SESSION);
+        return;
+      }
+
       if (isApiRequestError(e) && e.status === 400 && e.code === API_CODE.AUTH_INVALID_CREDENTIALS) {
         MessagePlugin.error(e.message);
         return;

@@ -1,5 +1,15 @@
 # MVP Extension Path Server Trace
 
+## 2026-05-17 bootstrap menu title-key handoff verification
+
+- Re-ran the server recovery slice around `server/internal/menu`, `server/plugins/user`, and `server/plugins/rbac`
+  to verify whether any remaining backend runtime consumer still resolves localized menu titles directly.
+- Confirmed the current server behavior is intentionally narrow: plugins register menu metadata plus menu-title
+  message keys during `Register`, and `GET /api/auth/bootstrap` only serializes `title_key + title` fallback without
+  introducing a second server-side localization path.
+- Recorded the closeout conclusion in tracking: no additional server menu-title resolver slice is pending, and the
+  next bounded follow-up belongs to `web` consuming `title_key` first with `title` as compatibility fallback.
+
 ## 2026-05-16 docs handoff governance and RBAC second-wave recovery sync
 
 - Updated repository recovery/governance truth so task handoff now requires an explicit next-task startup prompt rather

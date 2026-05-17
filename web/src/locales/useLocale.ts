@@ -2,22 +2,22 @@ import { useLocalStorage } from '@vueuse/core';
 import type { GlobalConfigProvider } from 'tdesign-vue-next';
 import { computed } from 'vue';
 
+import { getDefaultLocale, normalizeLocale, type SupportedLocale } from '@/contracts/i18n/locales';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
-import type { SupportedLocale } from '@/locales/index';
-import { i18n, supportedLocales } from '@/locales/index';
+import { i18n } from '@/locales/index';
 import { useNotificationStore } from '@/store/modules/notification';
 
 export function useLocale() {
   const locale = computed({
-    get: () => i18n.global.locale.value,
+    get: () => normalizeLocale(i18n.global.locale.value) ?? getDefaultLocale(),
     set: (val: string) => {
-      i18n.global.locale.value = val;
+      i18n.global.locale.value = normalizeLocale(val) ?? getDefaultLocale();
     },
   });
-  const storedLocale = useLocalStorage<SupportedLocale>(STORAGE_KEY.LOCALE, 'zh_CN');
+  const storedLocale = useLocalStorage<SupportedLocale>(STORAGE_KEY.LOCALE, getDefaultLocale());
 
   const changeLocale = (lang: string) => {
-    const validLang = supportedLocales.includes(lang as SupportedLocale) ? (lang as SupportedLocale) : 'zh_CN';
+    const validLang = normalizeLocale(lang) ?? getDefaultLocale();
     locale.value = validLang;
     storedLocale.value = validLang;
     // 刷新持久化的翻译数据

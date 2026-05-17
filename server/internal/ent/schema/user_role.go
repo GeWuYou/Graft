@@ -5,6 +5,7 @@ import (
 	entsql "entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
+	"entgo.io/ent/schema/mixin"
 )
 
 // UserRole 定义用户与角色的关联模型。
@@ -14,35 +15,64 @@ type UserRole struct {
 	ent.Schema
 }
 
-// Annotations 返回 user_roles 表名映射。
-func (UserRole) Annotations() []schema.Annotation {
+type associationRelationMixin struct {
+	mixin.Schema
+	table string
+	left  string
+	right string
+}
+
+func (m associationRelationMixin) Annotations() []schema.Annotation {
 	return []schema.Annotation{
-		entsql.Annotation{Table: "user_roles"},
+		entsql.Annotation{Table: m.table},
 	}
 }
 
-// Fields 返回用户角色关联字段定义。
-func (UserRole) Fields() []ent.Field {
-	return associationRelationFields("user_id", "role_id")
+func (m associationRelationMixin) Fields() []ent.Field {
+	return associationRelationFields(m.left, m.right)
+}
+
+func (m associationRelationMixin) Indexes() []ent.Index {
+	return associationIndexes(m.left, m.right)
+}
+
+type associationEdgeSpec struct {
+	name       string
+	entityType any
+	ref        string
+	field      string
+}
+
+func associationRelationEdges(left associationEdgeSpec, right associationEdgeSpec) []ent.Edge {
+	return []ent.Edge{
+		associationRelationEdge(left),
+		associationRelationEdge(right),
+	}
+}
+
+func associationRelationEdge(spec associationEdgeSpec) ent.Edge {
+	return edge.From(spec.name, spec.entityType).
+		Ref(spec.ref).
+		Field(spec.field).
+		Required().
+		Unique()
+}
+
+// Mixin 返回用户角色关联复用的表元数据与字段定义。
+func (UserRole) Mixin() []ent.Mixin {
+	return []ent.Mixin{
+		associationRelationMixin{
+			table: "user_roles",
+			left:  "user_id",
+			right: "role_id",
+		},
+	}
 }
 
 // Edges 返回用户角色关联的关系定义。
 func (UserRole) Edges() []ent.Edge {
-	return []ent.Edge{
-		edge.From("user", User.Type).
-			Ref("user_roles").
-			Field("user_id").
-			Required().
-			Unique(),
-		edge.From("role", Role.Type).
-			Ref("user_roles").
-			Field("role_id").
-			Required().
-			Unique(),
-	}
-}
-
-// Indexes 返回用户角色关联的唯一约束与辅助索引。
-func (UserRole) Indexes() []ent.Index {
-	return associationIndexes("user_id", "role_id")
+	return associationRelationEdges(
+		associationEdgeSpec{name: "user", entityType: User.Type, ref: "user_roles", field: "user_id"},
+		associationEdgeSpec{name: "role", entityType: Role.Type, ref: "user_roles", field: "role_id"},
+	)
 }

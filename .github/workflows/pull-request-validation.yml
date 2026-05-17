@@ -121,6 +121,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -134,9 +136,87 @@ jobs:
           working-directory: server
           install-only: true
 
+      - name: Resolve backend lint base branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_branch="${{ github.event.pull_request.base.ref }}"
+          else
+            base_branch="main"
+          fi
+
+          if [[ -z "${base_branch}" ]]; then
+            echo "::error title=Backend lint gate base branch missing::Unable to resolve the base branch for server lint."
+            exit 1
+          fi
+
+          if ! git fetch --no-tags --prune origin "${base_branch}"; then
+            echo "::error title=Backend lint gate base fetch failed::Run 'git fetch origin ${base_branch}' and retry."
+            exit 1
+          fi
+
+          base_ref="refs/remotes/origin/${base_branch}"
+          base_source="remote-tracking ref"
+          if ! git rev-parse --verify "${base_ref}" >/dev/null 2>&1; then
+            if ! fetched_sha="$(git rev-parse --verify FETCH_HEAD 2>/dev/null)"; then
+              echo "::error title=Backend lint gate base ref verify failed::Fetched ${base_branch} but neither ${base_ref} nor FETCH_HEAD is available in the current checkout."
+              git rev-parse HEAD
+              git branch -a
+              exit 1
+            fi
+
+            base_ref="${fetched_sha}"
+            base_source="FETCH_HEAD commit"
+          fi
+
+          echo "Resolved backend lint base ref ${base_ref} (${base_source}) for HEAD $(git rev-parse HEAD)"
+          git branch -a --list "remotes/origin/${base_branch}"
+
+          echo "GRAFT_LINT_BASE_REF=${base_ref}" >> "$GITHUB_ENV"
+
       - name: Run repository backend lint stage
         working-directory: server
         run: go run ./cmd/graft validate backend --stage lint
+
+  server-lint-audit:
+    name: Server Lint Audit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          working-directory: server
+          install-only: true
+
+      - name: Run full-repo backend lint audit
+        working-directory: server
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          golangci-lint run --config .golangci.yml ./... | tee /tmp/server-golangci-lint-audit.txt
+
+      - name: Upload backend lint audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-golangci-lint-audit
+          path: /tmp/server-golangci-lint-audit.txt
+          if-no-files-found: error
 
   server-build-test:
     name: Server Build/Test Stage

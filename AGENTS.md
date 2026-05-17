@@ -170,17 +170,26 @@ Prefer the repository skills below when their trigger matches the task:
 
 * `graft-boot`
   * use for short startup prompts, resume prompts, or when the first step should be to run the startup preflight
-    defined in `4.1 Startup Governance` and then enter repository recovery when needed
+    defined in `4.1 Startup Governance`, assess whether `graft-multi-agent-batch` is justified, and enter repository
+    recovery or direct execution when needed
 * `graft-multi-agent-batch`
-  * use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel slices
+  * use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel slices;
+    `graft-boot` should perform the suitability assessment before delegation starts
 * `graft-pr-review`
   * use when the task depends on the GitHub PR for the current branch, especially to extract AI review findings,
     failed checks, MegaLinter warnings, or failed test signals before local verification
 * `graft-plugin-scaffold`
   * use when adding a new `server` plugin or shaping a plugin before implementation
 * `graft-commit`
-  * use when the current task slice is ready to commit and the user explicitly wants the agent to classify ownership,
-    verify scope, choose a compliant Conventional Commit message, and create a scoped git commit
+  * use as the canonical scoped commit workflow when the current task slice is ready to commit, whether the trigger is
+    an explicit user request or a `graft-task-closeout` decision that the validated owned scope should be committed
+* `graft-push`
+  * use when the user explicitly wants the current branch pushed, or when a local push/commit chain is blocked and the
+    agent needs to distinguish uncommitted scope, Husky hook failures, upstream ambiguity, or remote rejection before
+    deciding the safest next push step
+* `graft-task-closeout`
+  * use as the default slice-end path after `graft-boot` work when the agent needs to decide between handoff-only
+    versus commit-plus-handoff, while emitting the required next-task startup prompt
 * `graft-web-module-scaffold`
   * use when adding a new `web` feature module aligned with backend plugin semantics
 * `graft-validation-runner`
@@ -644,8 +653,15 @@ section.
 * 多词 schema 文件必须使用下划线，例如 `user_role.go`。
 * `Mixin`、`Hook`、`Policy`、`Edge`、`Field` 应按职责拆分，避免单文件无限膨胀。
 * schema、field、edge 命名必须服务于查询可读性。
+* 当任务修改 `server/internal/ent/schema/**`、`server/internal/ent/generate.go`、实际 Ent 生成入口（如存在 `server/entc.go`）、
+  Atlas/Ent 迁移生成相关配置，或任何会影响 Ent schema、field、edge、index、mixin、annotation、hook、policy 的手写代码时，
+  必须重新运行 `cd server && go generate ./internal/ent`，并把生成结果纳入同一变更范围。
+* 禁止手动修改 `server/internal/ent` 下由 Ent 生成的文件；如需调整生成结果，必须修改 schema、生成入口或相关手写配置后重新生成。
 * 迁移相关变更必须考虑 Atlas 校验与 hash。
+* 当 Ent 相关变更同时影响数据库结构时，必须按仓库现有显式迁移流程生成或更新迁移文件；优先复用仓库已有 CLI、脚本、README、
+  `AGENTS.md` 与 `ai-plan` 中已经记录的入口，不得凭空发明迁移命令。
 * 修改 migration 文件后必须重新执行 `atlas migrate hash`，除非只是新增尚未应用 migration。
+* 如果当前切片没有运行 Ent 生成命令，交付说明中必须明确说明原因；不得声称 Ent 相关修改已经完成。
 * handler、service、cross-plugin public API 不得把 Ent schema 或 generated entity 当作外部契约真值。
 
 ### 9.18 测试规范
@@ -658,7 +674,7 @@ section.
 * 涉及生命周期、权限、事务、资源释放、token 轮换、context cancel、handler fail-closed 的回归路径必须补测试。
 * 当变更涉及可疑 API 使用、并发、错误包装、Context 传播或资源句柄约定时，应优先补充 `go vet` 可覆盖的直接校验。
 * 变更 `server` Go 代码后，最小直接校验范围必须符合 `12.1 Server Validation`。
-* 完成态默认必须满足 `gofmt`、`golangci-lint run`、`go test`、`go build ./cmd/graft` 与仓库统一 backend
+* 完成态默认必须满足 `gofmt`、`graft validate backend`、`go test`、`go build ./cmd/graft` 与仓库统一 backend
   completion entrypoint 的要求；`go vet` 不是默认完成态统一入口，但在当前切片有直接覆盖价值时应显式纳入；
   具体命令顺序和完成态入口以 `12.1 Server Validation` 为准。
 
@@ -681,7 +697,7 @@ section.
   `constants` 垃圾桶文件。
 * AI 不得在新代码中继续引入已标记 `deprecated` 的 contract；如兼容窗口尚未结束，只能在兼容桥接层保留旧 contract。
 * AI 修改 migration 时必须考虑 `atlas migrate hash`。
-* AI 修改 `server` 代码后必须满足 `gofmt`、`go test ./...`、`go build ./cmd/graft`、`golangci-lint run`，
+* AI 修改 `server` 代码后必须满足 `gofmt`、`go test ./...`、`go build ./cmd/graft`、`graft validate backend`，
   并与 `12.1 Server Validation` 的统一入口保持一致。
 * AI 不得通过修改规则、跳过测试、删除校验来绕过完成态。
 
@@ -759,21 +775,42 @@ For `server` changes:
 * use pinned `golangci-lint v2.12.2` as the unified backend lint runner; do not use `latest`
 * the repository now treats `graft validate backend` as the mandatory backend completion entrypoint for any `server`
   task that is being closed, handed off, or prepared for merge
+* `graft validate backend --stage lint` is the only allowed backend blocking lint gate; CI, hooks, agents, scripts,
+  and docs must not invent another blocking `golangci-lint run` command
+* backend blocking lint gate is changed-file scoped against the resolved base branch
+* changed-file scoped means whole-file enforcement on files changed relative to the resolved base branch via
+  `--new-from-rev=<merge-base> --whole-files`
+* untouched files are not blocking gate failures
+* full-repo lint is audit-only backlog scanning
+* touching a historical hotspot file means the touched file must satisfy the current lint gate, unless a narrowly
+  documented temporary `nolint` is justified
+* new code must not expand the lint backlog
 * when a `server` task reaches a completion-state milestone such as 功能完成、任务完成, or 准备合并, it must run the
-  full backend quality chain in the explicit order `golangci-lint run -> go test (smallest direct scope) -> go build
-  ./cmd/graft -> graft validate smoke` when runtime startup validation is needed
+  full backend quality chain in the explicit order `graft validate backend --stage lint -> go test (smallest direct
+  scope) -> go build ./cmd/graft -> graft validate smoke` when runtime startup validation is needed
+* when a `server` task touches Ent-affecting inputs such as `server/internal/ent/schema/**`,
+  `server/internal/ent/generate.go`, the actual Ent generation entrypoint, Atlas/Ent migration generation config, or
+  hand-written code that changes Ent schema semantics, completion additionally requires `cd server && go generate
+  ./internal/ent`, inclusion of generated outputs in the same change, and migration updates through the existing
+  repository flow when the database structure changed
 * intermediate backend iteration may still use the smallest direct validation that covers the touched area, but the
   full backend quality chain is required before a `server` task is considered complete
 * agent, local development, and CI must use the same backend entrypoint and the same pinned lint version instead of
   maintaining ad-hoc shell chains or a second lint parameter set
-* backend completion defaults to zero unresolved lint issues across the configured `golangci-lint` set; do not treat
-  known lint findings as acceptable completed-state noise
-* lint issues in directly affected `server` code are blocking by default
+* backend completion defaults to zero unresolved blocking lint issues in changed files across the configured
+  `golangci-lint` set; do not treat changed-file gate findings as acceptable completed-state noise
+* historical findings in untouched files remain audit backlog, not blocking completion-state noise exemptions
 * a backend lint issue may be retained only as a controlled exception recorded in the active tracking document with the
-  issue source, user-visible or engineering impact, temporary retention reason, and next cleanup action
+  issue source, user-visible or engineering impact, temporary retention reason, next cleanup action, and the exact
+  cleanup condition
+* temporary `nolint` is allowed only when immediate cleanup is unsafe; it must stay narrow, include the reason, make
+  the owning context clear, and point to a traceable cleanup condition in tracking
 * directly affected `server` code that violates `9. Go 代码组织与命名规范` is not considered validation-complete,
   even when the code still builds
 * run the smallest `go test` scope that still covers the touched packages when tests exist
+* Ent-affecting `server` changes raise the minimum direct test scope to `cd server && go test ./internal/ent/...` and
+  `cd server && go test ./...`; if either command is not run, validation reporting must state the exact reason and the
+  task must not be described as Ent-complete
 * run `go build ./cmd/graft` as the default backend compile gate, and widen the build scope only when the current
   change materially affects other `cmd/*` entrypoints
 * prefer wider validation such as `go test ./...` or `go build ./...` when the task changes shared abstractions, plugin
@@ -869,6 +906,17 @@ Explicit commit trigger:
 * if the working tree is mixed and the owned scope cannot be separated confidently, the trigger does not override the
   fail-closed rule; stop and report the ambiguity instead of forcing a commit
 
+Closeout-driven commit evaluation:
+
+* when a slice that started through `graft-boot` reaches a stop, completion, or handoff point, route the ending
+  through `graft-task-closeout` instead of relying on an implicit wrap-up path
+* `graft-task-closeout` must always evaluate commit eligibility using the same ownership, validation, and scoped
+  staging rules enforced by `graft-commit`
+* if closeout concludes the validated owned scope should be committed, execute that commit through `graft-commit`
+  rather than inventing a second commit path
+* if validation or ownership is insufficient, closeout must report the exact blocker and keep the handoff state honest
+  instead of forcing a commit
+
 Task handoff and pre-handoff commit rules:
 
 * if the current task ends with a next-task handoff, first evaluate whether the current slice has reached the
@@ -877,6 +925,8 @@ Task handoff and pre-handoff commit rules:
   ownership, validation, and scoped-staging rules enforced by `graft-commit`
 * if that validation level has not been reached, do not claim the slice was ready to commit; record the validation
   gap and keep the handoff status honest
+* if the current slice came through the normal `graft-boot` workflow, use `graft-task-closeout` as the handoff path
+  so commit eligibility and startup-prompt emission stay in one place
 * a next-task handoff must include one explicit next-task startup prompt that tells the next turn to rerun startup
   preflight and provides the minimum inherited context package needed to resume safely
 * a handoff requirement does not override mixed-ownership or insufficient-validation refusal rules; when a safe commit
@@ -1241,7 +1291,8 @@ A task is done only when all relevant items below are satisfied:
 * affected code has the required comments and documentation
 * the changed area passed direct validation, or the exact validation gap was reported
 * `server` work reached its completion state only after `graft validate backend` passed with the full backend quality
-  chain and no unresolved backend lint issue remained outside an explicitly documented controlled exception
+  chain, the changed-file scoped blocking lint gate was clean, and no unresolved backend lint issue remained outside an
+  explicitly documented controlled exception
 * `web` work reached its completion state only after the host Windows Bun full quality chain passed and no unresolved
   frontend warning remained outside an explicitly documented controlled exception
 * the final summary states the important behavior change, validation result, and any remaining blockers

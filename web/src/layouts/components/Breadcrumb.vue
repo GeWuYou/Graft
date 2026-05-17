@@ -9,7 +9,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
-import type { LocalizedTitle } from '@/locales';
+import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { useLocale } from '@/locales/useLocale';
 
 const { locale } = useLocale();

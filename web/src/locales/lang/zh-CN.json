@@ -178,6 +178,14 @@
       }
     }
   },
+  "menu": {
+    "role_list": {
+      "title": "角色管理"
+    },
+    "user_list": {
+      "title": "用户管理"
+    }
+  },
   "pages": {
     "dashboardBase": {
       "title": "概览仪表盘",
@@ -879,14 +887,29 @@
       "fieldsLabel": "字段：",
       "fieldsValue": "id / username / display / created_at / updated_at",
       "refresh": "刷新列表",
+      "assignRoles": "管理角色",
       "dataTitle": "用户数据",
       "empty": "暂无用户数据",
+      "loadFailed": "用户列表加载失败",
+      "assignSuccess": "用户角色更新成功",
+      "assignFailed": "用户角色更新失败",
       "columns": {
         "id": "ID",
         "username": "用户名",
         "display": "显示名",
         "createdAt": "创建时间",
         "updatedAt": "更新时间"
+      },
+      "roleDialog": {
+        "title": "管理用户角色",
+        "currentUser": "当前用户：{name}",
+        "currentUserEmpty": "当前未选择用户",
+        "roleSummary": "当前已加载 {count} 个可分配角色。",
+        "empty": "暂无可用角色",
+        "roleLoadFailed": "角色定义加载失败。",
+        "selectionLoadFailed": "当前角色分配数据加载失败，恢复前将保持禁用保存。",
+        "retry": "重试",
+        "confirm": "保存角色分配"
       }
     }
   }

@@ -126,13 +126,16 @@ go run ./cmd/graft validate backend
 
 后端完成态质量链顺序固定为：
 
-1. `golangci-lint run`
+1. `graft validate backend --stage lint`
 2. `go test` 最小直接覆盖范围
 3. `go build ./cmd/graft`
 4. 需要启动链路时再补 `graft validate smoke`
 
-直接受影响的 lint issue 默认是阻断项；如果当前切片确实无法立即清理，只能在 active tracking 文档中按
-来源、影响、保留原因和下一步清理动作登记受控例外。
+其中 backend blocking lint gate is changed-file scoped against the resolved base branch。
+changed-file scoped means whole-file enforcement on files changed relative to the resolved base branch via
+`--new-from-rev=<merge-base> --whole-files`。untouched files are not blocking gate failures。full-repo lint is
+audit-only backlog scanning。touching a historical hotspot file means the touched file must satisfy the current lint
+gate, unless a narrowly documented temporary `nolint` is justified。new code must not expand the lint backlog。
 
 ## 本地启动 `web`
 

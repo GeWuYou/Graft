@@ -52,7 +52,7 @@
 它不属于某个 topic，也不替代 `ai-plan/` 的设计、路线或恢复职责。
 
 根目录 `AGENTS.md` 继续负责仓库级启动治理真值，例如 startup preflight、最小 receipt、resume/restart
-重验与 subagent 继承要求。`ai-plan/` 只提供恢复材料与恢复入口，不负责定义第二套 boot 链或启动闸门。
+重验、boot 后的 multi-agent 评估、slice-end closeout/commit 决策链，以及 subagent 继承要求。`ai-plan/` 只提供恢复材料与恢复入口，不负责定义第二套 boot 链、关闭流程或启动闸门。
 
 ### 3.2 主题级恢复材料
 

@@ -1,6 +1,6 @@
 ---
 name: graft-multi-agent-batch
-description: Repository-specific multi-agent coordination workflow for Graft. Use when the user explicitly wants subagent delegation, or when the current task cleanly splits into two or more disjoint slices across server, web, docs, or automation, and the main agent should keep ownership of review, validation, and final integration.
+description: Repository-specific multi-agent coordination workflow for Graft. Use when the user explicitly wants subagent delegation, or when the current task cleanly splits into two or more disjoint slices across server, web, docs, or automation, and the main agent should keep ownership of review, validation, and final integration. `graft-boot` should assess whether this skill is justified before delegation starts.
 ---
 
 # Graft Multi-Agent Batch
@@ -21,11 +21,12 @@ Use this skill only when all of the following are true:
 ## Coordination Workflow
 
 1. Run the normal `graft-boot` grounding flow first and establish the startup receipt required by `AGENTS.md`.
-2. Identify the immediate blocking step and keep it local.
-3. Split only non-blocking work into disjoint slices.
-4. Use `explorer` subagents for read-only discovery or comparison.
-5. Use `worker` subagents only for bounded implementation slices with explicit ownership.
-6. For every subagent, specify:
+2. Treat `graft-boot`'s multi-agent suitability check as the activation gate; do not delegate just because parallelism is available.
+3. Identify the immediate blocking step and keep it local.
+4. Split only non-blocking work into disjoint slices.
+5. Use `explorer` subagents for read-only discovery or comparison.
+6. Use `worker` subagents only for bounded implementation slices with explicit ownership.
+7. For every subagent, specify:
    - governance source
    - task class
    - recovery source
@@ -34,11 +35,11 @@ Use this skill only when all of the following are true:
    - areas it must not touch
    - required validation
    - expected output format
-7. While subagents run, do only non-overlapping work locally:
+8. While subagents run, do only non-overlapping work locally:
    - review returned slices
    - prepare follow-up validation
    - refine the next safe slice
-8. Stop the wave when ownership boundaries start to overlap, validation changes strategy, or the batch becomes harder to review than to implement locally.
+9. Stop the wave when ownership boundaries start to overlap, validation changes strategy, or the batch becomes harder to review than to implement locally.
 
 ## Acceptance Rules
 

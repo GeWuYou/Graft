@@ -7,6 +7,7 @@ import type {
   RoleListResponse,
   RolePermissionBindingResponse,
   UpdateRolePayload,
+  UserRoleBindingResponse,
 } from '@/api/model/rbacModel';
 import { RBAC_API_PATH } from '@/contracts/rbac/paths';
 import { request } from '@/utils/request';
@@ -26,6 +27,12 @@ export function getPermissions() {
 export function getRolePermissionBindings(roleId: number) {
   return request.get<RolePermissionBindingResponse>({
     url: RBAC_API_PATH.ROLE_PERMISSIONS(roleId),
+  });
+}
+
+export function getUserRoleBindings(userId: number) {
+  return request.get<UserRoleBindingResponse>({
+    url: RBAC_API_PATH.USER_ROLES(userId),
   });
 }
 

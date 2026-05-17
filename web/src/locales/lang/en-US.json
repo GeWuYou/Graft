@@ -178,6 +178,14 @@
       }
     }
   },
+  "menu": {
+    "role_list": {
+      "title": "Role Management"
+    },
+    "user_list": {
+      "title": "User Management"
+    }
+  },
   "pages": {
     "dashboardBase": {
       "title": "Overview Dashboard",
@@ -877,14 +885,29 @@
       "fieldsLabel": "Fields: ",
       "fieldsValue": "id / username / display / created_at / updated_at",
       "refresh": "Refresh List",
+      "assignRoles": "Manage Roles",
       "dataTitle": "User Data",
       "empty": "No user data yet",
+      "loadFailed": "Failed to load the user list",
+      "assignSuccess": "User roles updated",
+      "assignFailed": "Failed to update user roles",
       "columns": {
         "id": "ID",
         "username": "Username",
         "display": "Display Name",
         "createdAt": "Created At",
         "updatedAt": "Updated At"
+      },
+      "roleDialog": {
+        "title": "Manage User Roles",
+        "currentUser": "Current user: {name}",
+        "currentUserEmpty": "No user selected",
+        "roleSummary": "{count} roles are available for assignment.",
+        "empty": "No roles available",
+        "roleLoadFailed": "Failed to load role definitions.",
+        "selectionLoadFailed": "Failed to load the current role assignment. Saving stays disabled until the data is restored.",
+        "retry": "Retry",
+        "confirm": "Save Assignment"
       }
     }
   }

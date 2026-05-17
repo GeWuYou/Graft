@@ -47,6 +47,9 @@
 - 当前仓库级 startup governance 最小迁移切片已落地到文档真值：根 `AGENTS.md` 现在独占 startup preflight、
   最小 receipt、resume/restart 重验与 subagent 最小继承包定义；`graft-boot`、`graft-multi-agent-batch` 与
   `ai-plan` 文档不再各自维护第二套 boot 链。
+- 当前 boot orchestration 也已进一步收口到仓库真值：`graft-boot` 现在不仅负责 startup preflight，还必须先评估
+  `graft-multi-agent-batch` 是否值得启用，并在切片停止、完成或交接时统一走 `graft-task-closeout`；closeout 再按
+  `graft-commit` 规则判断是否允许安全 scoped commit，避免把 closeout/commit 退回成显式口头触发。
 - `server` 当前已形成最小 runtime 闭环，并新增受保护的 `/api/auth/bootstrap` 真实契约，统一返回当前用户、权限码、按权限过滤的菜单和 locale 快照。
 - `web` 当前已把登录主路径收敛到真实 `login/refresh/bootstrap` 契约，并开始用 bootstrap 菜单快照驱动最小动态路由，而不是继续依赖 starter mock 登录与静态 demo 菜单。
 - 当前 cross-boundary 切片已把 `/users` 从“真实菜单路径 + demo 页面内容”的假闭环，收敛为真实 `GET /api/users` 契约加最小只读列表页；`/user/index` 静态个人中心残留入口已移除。
@@ -54,17 +57,29 @@
 - 当前默认管理员与首次登录强制改密切片的跨边界口径已冻结：`graft-admin` 只允许作为默认管理员初始化例外密码写入；首次改密状态必须由后端持久化并通过 `login/bootstrap` 返回；当前 MVP 不为全部业务接口增加全局后端拦截，而由 `web` 登录后受限态负责阻断，后续如需更强安全再补服务端全局中间件。
 - 当前默认管理员首次改密切片已进一步落地：`must_change_password=true` 现在明确表示“已认证但受限”，`web` 通过受限态路由守卫阻断业务入口但保留 token；`server` 仅在“默认管理员 + 受限态 + 当前仍是初始化例外密码”时允许 `change-password` 省略 `current_password`，改密成功后必须重新 `bootstrap` 恢复正常导航。
 - 当前仓库真值还新增冻结了一条 shared backend governance baseline：`server` 完成态必须收敛到 `graft validate backend`，
-  固定使用 `golangci-lint v2.12.2`，并把 backend lint issue 默认视为阻断项；如需暂留，只能登记到 active
-  tracking 文档中的 controlled exception。
-- 当前 `server-lint` CI 路径已修正为“只安装 pinned `golangci-lint`，再由 `graft validate backend --stage lint` 执行统一入口”；历史 test-lint backlog 已清空，backend completion 入口重新回到统一验证口径。
+  固定使用 `golangci-lint v2.12.2`，并由 `graft validate backend --stage lint` 作为唯一 blocking lint gate。
+- backend blocking lint gate is changed-file scoped against the resolved base branch.
+- changed-file scoped means whole-file enforcement on files changed relative to the resolved base branch via
+  `--new-from-rev=<merge-base> --whole-files`.
+- untouched files are not blocking gate failures.
+- full-repo lint is audit-only backlog scanning.
+- touching a historical hotspot file means the touched file must satisfy the current lint gate, unless a narrowly
+  documented temporary `nolint` is justified.
+- new code must not expand the lint backlog.
+- 当前 `server-lint` CI 路径已修正为“只安装 pinned `golangci-lint`，再由 `graft validate backend --stage lint` 执行统一入口”；full-repo `golangci-lint run` 仅保留为 audit-only backlog 扫描与 artifact 输出。
+- 当前已知 audit backlog hotspots：
+  `internal/ent/schema/user_role.go`、`internal/ent/schema/role_permission.go`、`internal/i18n/service.go`、
+  `plugins/rbac/plugin_routes.go`、`plugins/rbac/plugin_write_routes.go`、`plugins/user/plugin_routes.go`。
 - 当前 `server authz/rbac wiring convergence` 也已落地：`user` 路由守卫不再维护本地 `routeAuthorizer` 语义副本，而是在
   `Boot` 阶段绑定 `rbac` 插件公开的共享 `pluginapi.Authorizer`，请求热路径不再解析容器服务。
 - 当前恢复主线已进入 RBAC MVP 第二波方向同步：`server/plugins/rbac` 的最小写接口能力已进入活动实现范围，当前文档真值按
   “角色写接口 + 角色权限分配 + 用户角色分配的最小闭环”登记方向，但本主题文档不会把该方向表述成已完成，也不会替主代理声明
   尚未重新执行的 backend / cross-boundary 验证通过。
-- 当前 `web /user-role minimal read wiring` 交叉核对也已确认一个新的阶段阻断：后端当前只有
-  `POST /api/users/:id/roles/assign` 写接口，没有面向任意目标用户的“已分配角色”稳定读面；因此本轮只冻结范围判断，
-  不新增用户角色分配 UI，也不把一次性写入表单包装成假闭环。
+- 当前 `web /user-role minimal UI wiring` 已在既有 `/users` 运行路径内落地：前端现已同时消费
+  `GET /api/users/:id/roles` 初始快照与 `POST /api/users/:id/roles/assign` replace 写接口，并把写入口继续收敛在
+  `/users` 页内的最小角色查看/分配对话框；当前切片未新增第二菜单/运行路径，且继续保持 bootstrap 菜单
+  `title_key` first、`title` fallback second 的单一路径。
+- 当前 focused `auth-rbac-restricted-session-stabilization` 切片进入活动实现范围：仅补管理员自移除 builtin `admin` 的后端硬阻断，以及默认管理员 restricted-session 恢复稳定化；本轮不扩展 `super_admin`、权限等价建模或第二套运行路径。
 - 当前第一波治理切片要求把以下仓库级约束写回真值并开始进入执行层：`bootstrap -> module registry -> route -> page` 单一运行面、`register -> boot -> dispose(optional)` 单一生命周期、resolver 只允许存在于 composition root wiring、`web/src/modules/<name>` 与 `server/plugins/<name>` 作为默认 feature boundary、CI 只作为治理执行层而不是第二真值来源。
 - docs/automation 第一波治理收口已同步完成：根 `AGENTS.md` 进一步冻结 runtime surface、module lifecycle、
   service locator、feature boundary、AI architecture preservation 与 validation governance；前端设计文档不再把
@@ -84,6 +99,12 @@
   `common.copyright` drift 也已完成本轮治理：`server/plugins/user/contract` 现在承载插件内 canonical permission
   与 auth-route path；`plugin.go` / `plugin_routes.go` 已改为消费 typed contract 与平台 `message.Key`；phase-1
   scanner report 不再对这些运行时文件报出本轮 targeted findings。
+- 当前 Phase 2 title/message follow-up 也已开始从 design direction 进入运行时落地：`server/internal/menu` 与
+  `GET /api/auth/bootstrap` 菜单快照现在新增 `title_key` 并保留 `title` fallback，`user` / `rbac` 插件在
+  `Register` 阶段把内建菜单标题注册到统一 `server/internal/i18n` facade，而不是继续把菜单本地化文案停留在裸标题常量。
+- 当前菜单本地化 follow-up 已完成本轮 server 侧核对：现有后端运行时没有剩余 consumer 会在 bootstrap 之外直接解析菜单标题本地化；
+  `title_key + title fallback` 已经是稳定对外 contract，下一切片应交给 `web` 按同一 contract 消费，而不是继续在 `server`
+  增加第二套标题解析路径。
 - 较早的拆分前历史保留在 `archive/`，具体实现轨迹保留在各自 `trace` 文件。
 
 ## Shared Milestones
@@ -138,6 +159,9 @@
 - 本次 startup governance 最小迁移切片一致性检查：
   - `rg -n "Startup Governance|startup preflight|startup receipt|recovery index|subagent" AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/README.md ai-plan/public/README.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
   - `git diff -- AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/README.md ai-plan/public/README.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
+- 本次 boot-orchestration / closeout / commit 治理切片一致性检查：
+  - `rg -n "graft-boot|graft-task-closeout|graft-commit|graft-multi-agent-batch|closeout|handoff|commit eligibility" AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-task-closeout/SKILL.md .agents/skills/graft-commit/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
+  - `git diff -- AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-task-closeout/SKILL.md .agents/skills/graft-commit/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
 - 本次 auth / RBAC 响应收敛切片直接校验：
   - `cd server && go test ./internal/httpx ./plugins/user`
   - `cd server && go build ./cmd/graft`
@@ -164,6 +188,13 @@
   - `rg -n "runtime surface|module lifecycle|service locator|feature boundary|第二真值|bun run check|host Windows Bun|execution-layer|临时运行基线" AGENTS.md README.md ai-plan/design/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
   - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/pull-request-validation.yml').read_text())"`
   - `git diff -- AGENTS.md README.md ai-plan/design/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+- 本次 CI backend lint base-ref / worktree 治理直接校验：
+  - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/pull-request-validation.yml').read_text())"`
+  - `cd server && go test ./internal/cli`
+  - `git worktree list --verbose`
+  - `git worktree prune`
+  - `git worktree list --verbose`
+  - 结果：backend lint gate 现在优先使用 workflow fetch 后可见的 `refs/remotes/origin/<base>`，若 GitHub Actions PR checkout / prune 语义导致该 remote-tracking ref 不可见，则回退到 `FETCH_HEAD` commit SHA，并把 `GRAFT_LINT_BASE_REF` 作为可验证 git revision 传给统一 CLI；本地 stale `.git/worktrees/*` 记录已通过 prune 清理，后续临时 worktree 流程必须在结束时执行 remove/prune，避免把仓库卫生问题误判为 CI base-ref 失真根因。
 - 本次 contract governance / magic-value governance 底座切片直接校验：
   - `python3 -m py_compile scripts/magic_value/check_magic_values.py`
   - `python3 scripts/magic_value/check_magic_values.py --mode changed`
@@ -184,6 +215,12 @@
   - 结果：`server/plugins/user/plugin.go`、`server/plugins/user/plugin_routes.go` 与
     `server/internal/contract/message/key.go` 不再出现本轮 targeted permission/message-key/auth-route 或
     `common.conjunction` / `common.copyright` drift findings。
+- 本次 commit/push 阻塞治理直接校验：
+  - `cd web && ./node_modules/.bin/lint-staged --debug`
+  - `sh -n .husky/pre-commit .husky/pre-push`
+  - `sh .husky/pre-commit`
+  - `git diff -- AGENTS.md .agents/skills/graft-push/SKILL.md .husky/pre-commit ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md`
+  - 结果：`pre-commit` 现在只在暂存区包含命中 `web` 配置的文件时运行 `lint-staged`；纯 `server`、`.github`、`ai-plan` 或 skill 文档切片不再因为 “could not find any staged files matching configured tasks” 误阻断提交，同时仓库新增 `graft-push` skill 作为 push 诊断与安全重试的统一入口，而不是继续依赖临时口头流程。
 
 ## Immediate Next Step
 
@@ -196,6 +233,9 @@
 - 在 `server/plugins/user` runtime hotspots 与 shared `common.*` drift 已收口后，下一步优先处理 `server` / `web`
   tests 与其它消费侧仍残留的 auth/shared route/message 字面量，不要回到全仓泛扫或页面广度扩张。
 - 在当前 backend completion 与 shared authorizer wiring 都已收口后，把跨边界主线切回 `web` 主运行面清理：继续移除 starter demo 入口、默认 mock runtime 与前端权限旁路，让主运行面只服务真实 bootstrap 菜单和已注册页面。
+- 在当前菜单本地化 contract 已确认无额外 server consumer 后，把下一轮跨边界菜单 follow-up 明确切到 `web`：优先消费
+  bootstrap 返回的 `title_key`，仅在缺失时回退 `title`，不要在 `server` 再补直接本地化标题解析。
 - 保持当前 `/api/auth/bootstrap`、`AUTH_*` code 与共享 permission 契约冻结，不要回退到第二套授权实现、中文 `message` 分支或 refresh 多出口。
-- RBAC 下一步先由 `server` 补齐“任意目标用户已分配角色”的最小读契约与 focused tests，再决定 `web` 是否接入
-  user-role 管理 UI；在这之前，`web` 继续停留在角色目录只读/最小角色管理范围，不扩用户角色分配表单。
+- RBAC 下一步继续留在 `web` 主运行面收敛，但焦点从“是否进入 `/users` user-role 最小接线”切到“在已落地的
+  `/users` user-role 最小对话框之上保持权限显隐、replace-write 阻断语义、bootstrap title_key-first 菜单本地化与
+  单一路径运行面稳定”，不要借机扩完整角色中心、第二菜单路径或 `super_admin` bypass。

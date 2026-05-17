@@ -24,26 +24,7 @@ func (s authService) ensureDefaultAdmin(ctx context.Context, rbac store.RBACRepo
 	if err != nil {
 		return err
 	}
-	role, err := rbac.EnsureRole(ctx, store.EnsureRoleInput{
-		Name:    defaultAdminRoleName,
-		Display: "管理员",
-		Builtin: true,
-	})
-	if err != nil {
-		return fmt.Errorf("ensure default admin role: %w", err)
-	}
-
-	if err := ensureRolePermissions(ctx, rbac, role.ID, permissions); err != nil {
-		return err
-	}
-	if err := rbac.AssignRoleToUser(ctx, store.AssignRoleToUserInput{
-		UserID: credential.UserID,
-		RoleID: role.ID,
-	}); err != nil {
-		return fmt.Errorf("assign default admin role to user: %w", err)
-	}
-
-	return nil
+	return ensureDefaultAdminAccess(ctx, rbac, credential.UserID, permissions)
 }
 
 func (s authService) ensureAdminCredential(ctx context.Context) (store.UserCredential, error) {
@@ -129,6 +110,34 @@ func ensureRolePermissions(
 		PermissionIDs: permissionIDs,
 	}); err != nil {
 		return fmt.Errorf("assign permissions to default admin role: %w", err)
+	}
+
+	return nil
+}
+
+func ensureDefaultAdminAccess(
+	ctx context.Context,
+	rbac store.RBACRepository,
+	userID uint64,
+	permissions []permission.Item,
+) error {
+	role, err := rbac.EnsureRole(ctx, store.EnsureRoleInput{
+		Name:    defaultAdminRoleName,
+		Display: "管理员",
+		Builtin: true,
+	})
+	if err != nil {
+		return fmt.Errorf("ensure default admin role: %w", err)
+	}
+
+	if err := ensureRolePermissions(ctx, rbac, role.ID, permissions); err != nil {
+		return err
+	}
+	if err := rbac.AssignRoleToUser(ctx, store.AssignRoleToUserInput{
+		UserID: userID,
+		RoleID: role.ID,
+	}); err != nil {
+		return fmt.Errorf("assign default admin role to user: %w", err)
 	}
 
 	return nil

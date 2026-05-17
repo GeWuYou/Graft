@@ -75,24 +75,8 @@ func (s authService) resetDefaultAdminForDevelopment(ctx context.Context, rbac s
 		return fmt.Errorf("revoke default admin refresh sessions: %w", err)
 	}
 
-	role, err := rbac.EnsureRole(ctx, store.EnsureRoleInput{
-		Name:    defaultAdminRoleName,
-		Display: "管理员",
-		Builtin: true,
-	})
-	if err != nil {
-		return fmt.Errorf("ensure default admin role: %w", err)
-	}
-
-	if err := ensureRolePermissions(ctx, rbac, role.ID, userPermissionItems("user")); err != nil {
-		return fmt.Errorf("ensure default admin role permissions: %w", err)
-	}
-
-	if err := rbac.AssignRoleToUser(ctx, store.AssignRoleToUserInput{
-		UserID: credential.UserID,
-		RoleID: role.ID,
-	}); err != nil {
-		return fmt.Errorf("assign default admin role to user: %w", err)
+	if err := ensureDefaultAdminAccess(ctx, rbac, credential.UserID, userPermissionItems("user")); err != nil {
+		return fmt.Errorf("ensure default admin access: %w", err)
 	}
 
 	return nil

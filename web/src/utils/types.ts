@@ -1,12 +1,26 @@
 import type { Component, FunctionalComponent, VNodeChild } from 'vue';
 import type { LocationQueryRaw, RouteRecordName, RouteRecordRaw } from 'vue-router';
 
-import type { LocalizedTitle } from '@/locales';
+import type { LocalizedTitle } from '@/contracts/i18n/locales';
 
 export type ModeType = 'light' | 'dark';
 
+/**
+ * AppRouteMeta describes the stable route metadata consumed by the `web` shell.
+ *
+ * Use `title` as the rendered localized title payload. `titleKey` is the
+ * backend/bootstrap contract key that can be preserved alongside `title` for
+ * diagnostics or future re-localization, but current runtime renderers still
+ * read `title`.
+ *
+ * New static routes should keep defining `title` directly. Backend-driven menu
+ * routes should prefer flowing `titleKey` through the bootstrap transformer,
+ * which resolves `title` from locale catalogs first and falls back to the
+ * bootstrap label when no translation exists.
+ */
 export interface AppRouteMeta {
   title?: LocalizedTitle;
+  titleKey?: string;
   icon?: string | Component | FunctionalComponent | (() => VNodeChild);
   orderNo?: number;
   hidden?: boolean;

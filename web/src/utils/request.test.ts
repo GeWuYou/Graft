@@ -136,12 +136,14 @@ function createApiError(
 }
 
 describe('request auth handling', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     requestHandler.mockReset();
     mockUserStore.applyLoginResponse.mockReset();
     mockUserStore.handleAuthFailure.mockReset();
     locationReplace.mockReset();
     localStorage.clear();
+    const { i18n } = await import('@/locales');
+    i18n.global.locale.value = 'zh-CN';
     mockUserStore.applyLoginResponse.mockImplementation(async (payload: { access_token: string }) => {
       const { setAccessToken } = await import('@/utils/auth-state');
       setAccessToken(payload.access_token);
@@ -166,7 +168,9 @@ describe('request auth handling', () => {
   it('only refreshes on AUTH_TOKEN_EXPIRED and replays the original request with the new token', async () => {
     const { registerAuthSessionBridge, request } = await loadRequestModule();
     const { setAccessToken } = await import('@/utils/auth-state');
+    const { i18n } = await import('@/locales');
     registerAuthSessionBridge(mockUserStore);
+    i18n.global.locale.value = 'zh-CN';
 
     const callLog: MockConfig[] = [];
     requestHandler.mockImplementation(async (config) => {
@@ -214,12 +218,75 @@ describe('request auth handling', () => {
 
     expect(callLog).toHaveLength(3);
     expect(callLog[0]?.headers?.[HTTP_HEADER.AUTHORIZATION]).toMatch(/^Bearer /);
+    expect(callLog[0]?.headers?.[HTTP_HEADER.LOCALE]).toBe('zh-CN');
     expect(callLog[1]?.url).toBe(AUTH_API_PATH.REFRESH);
     expect(callLog[2]?.url).toBe(USERS_API_PATH);
     expect(callLog[2]?._authRefreshAttempted).toBe(true);
     expect(mockUserStore.applyLoginResponse).toHaveBeenCalledWith(
       expect.objectContaining({
         access_token: 'fresh-token',
+      }),
+    );
+  });
+
+  it('normalizes legacy stored locale values before sending the locale header', async () => {
+    const { request } = await loadRequestModule();
+    const { i18n } = await import('@/locales');
+
+    requestHandler.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        success: true,
+        code: API_CODE.OK,
+        message: 'OK',
+        traceId: 'trace-users',
+        data: {
+          ok: true,
+        },
+      },
+    });
+
+    localStorage.setItem(STORAGE_KEY.LOCALE, 'en_US');
+    i18n.global.locale.value = 'en-US';
+
+    await expect(request.get<{ ok: boolean }>({ url: USERS_API_PATH })).resolves.toEqual({ ok: true });
+
+    expect(requestHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          [HTTP_HEADER.LOCALE]: 'en-US',
+        }),
+      }),
+    );
+  });
+
+  it('prefers the current runtime locale over stale stored locale values', async () => {
+    const { request } = await loadRequestModule();
+    const { i18n } = await import('@/locales');
+
+    requestHandler.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        success: true,
+        code: API_CODE.OK,
+        message: 'OK',
+        traceId: 'trace-users',
+        data: {
+          ok: true,
+        },
+      },
+    });
+
+    localStorage.setItem(STORAGE_KEY.LOCALE, 'en-US');
+    i18n.global.locale.value = 'zh-CN';
+
+    await expect(request.get<{ ok: boolean }>({ url: USERS_API_PATH })).resolves.toEqual({ ok: true });
+
+    expect(requestHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          [HTTP_HEADER.LOCALE]: 'zh-CN',
+        }),
       }),
     );
   });

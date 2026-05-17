@@ -266,3 +266,35 @@
   scattering raw `includes()` checks.
 - Kept the slice intentionally narrow: the current route/bootstrap mapping stays centered on `/users`, and the wider
   RBAC management UI continues in parallel rather than reopening starter demo menus or role pages.
+
+## 2026-05-17 bootstrap menu title-key consumption
+
+- Extended the frontend bootstrap menu contract so `web` now accepts backend `menus[*].title_key` alongside the
+  existing compatibility `title`.
+- Reworked the bootstrap menu-to-route mapper to materialize route meta titles from the frontend locale catalog using
+  `title_key` first, while keeping `title` as the fallback only when the key is missing or untranslated.
+- Added the missing `menu.role_list.title` and `menu.user_list.title` locale entries plus focused Vitest coverage for
+  bootstrap route mapping and title localization, without adding any new server-side title resolution path.
+
+## 2026-05-17 `/users` user-role minimal UI wiring
+
+- Kept the user-role slice inside the existing real `/users` runtime path instead of adding a second menu entry,
+  standalone role-center detour, or alternate bootstrap mapping path.
+- Extended the `/users` page to open a minimal role-assignment dialog that first restores the target user's current
+  `role_ids` snapshot from `GET /api/users/:id/roles`, then submits replace writes through
+  `POST /api/users/:id/roles/assign`.
+- Kept the write path intentionally narrow by blocking submission when the current snapshot cannot be restored, so the
+  UI does not present a fake one-shot assignment form detached from backend truth.
+- Added focused Vitest coverage for the dialog's blocked-write and successful replace-write paths, while preserving the
+  existing bootstrap `title_key`-first, `title`-fallback menu localization path.
+
+## 2026-05-17 `/users` user-role dialog stabilization
+
+- Hardened the existing `/users` role-assignment dialog against stale async responses by tracking dialog-session
+  ownership, so late `GET /api/roles` or `GET /api/users/:id/roles` results can no longer repopulate state after the
+  dialog has been closed or reopened for a new session.
+- Kept the slice intentionally narrow: no new menu path, no role-center expansion, and no second bootstrap/runtime
+  path beyond the existing `/users` entrypoint.
+- Added focused Vitest regressions that close and reopen the dialog before the first role-binding or role-definition
+  request resolves, proving the stale responses are ignored and the reopened dialog keeps the newer empty snapshot
+  state.

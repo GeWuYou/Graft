@@ -121,3 +121,12 @@
   `common.copyright`, eliminating the scanner-reported shared message-key drift exposed by current `web` runtime use.
 - Revalidated the slice with focused `server` tests plus a fresh contract-governance report and confirmed the targeted
   runtime findings disappeared from `plugin.go`, `plugin_routes.go`, and `server/internal/contract/message/key.go`.
+
+## 2026-05-17 boot orchestration and mandatory closeout alignment
+
+- Extended the boot-governance chain so `graft-boot` now orchestrates not only startup preflight but also the required
+  post-boot workflow hooks: assess `graft-multi-agent-batch`, then route slice endings through `graft-task-closeout`.
+- Reclassified `graft-task-closeout` as the default slice-end path for boot-started work and made it evaluate commit
+  eligibility through `graft-commit` rules before any handoff can claim a safe closure.
+- Updated the parent tracking/design truth so `AGENTS.md`, the four repository skills, and `ai-plan` governance notes
+  no longer imply that commit/closeout logic is only available through manual skill mentions.

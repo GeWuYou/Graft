@@ -59,6 +59,9 @@ const (
 	// CommonCopyright identifies the shared copyright footer label used by runtime UI copy.
 	CommonCopyright Key = "common.copyright"
 
+	// RbacCannotRemoveOwnAdminRole identifies self-lockout prevention failures for builtin admin role replacement.
+	RbacCannotRemoveOwnAdminRole Key = "rbac.cannot_remove_own_admin_role"
+
 	// UserNotFound identifies missing-user failures surfaced by auth-adjacent flows.
 	UserNotFound Key = "user.not_found"
 
