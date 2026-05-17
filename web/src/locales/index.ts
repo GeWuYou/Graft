@@ -32,7 +32,7 @@ Object.entries(langModules).forEach(([path, module]) => {
 
 export { langCode };
 
-// 获取初始语言：优先本地存储，其次浏览器偏好，最后默认中文
+// 获取初始语言：优先本地存储，缺省时直接回退到仓库约定的默认中文。
 const getInitialLocale = (): SupportedLocale => {
   try {
     const stored = normalizeLocale(localStorage.getItem(localeConfigKey));
@@ -41,18 +41,21 @@ const getInitialLocale = (): SupportedLocale => {
       return stored;
     }
   } catch {
-    // 某些受限环境会禁用本地存储，此时回退到浏览器语言。
-  }
-
-  const preferred = normalizeLocale(navigator.languages?.[0] ?? navigator.language);
-  if (preferred) {
-    return preferred;
+    // 某些受限环境会禁用本地存储，此时回退到默认中文。
   }
 
   return getDefaultLocale();
 };
 
 const initialLocale = getInitialLocale();
+
+function persistCanonicalLocale(locale: SupportedLocale) {
+  try {
+    localStorage.setItem(localeConfigKey, locale);
+  } catch {
+    // 某些受限环境会禁用本地存储，此时只保留内存态 locale。
+  }
+}
 
 export const i18n = createI18n({
   legacy: false,
@@ -61,6 +64,8 @@ export const i18n = createI18n({
   messages,
   globalInjection: true,
 });
+
+persistCanonicalLocale(initialLocale);
 
 export const languageList = computed(() => langList);
 export const { t } = i18n.global;
