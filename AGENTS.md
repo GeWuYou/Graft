@@ -181,6 +181,9 @@ Prefer the repository skills below when their trigger matches the task:
 * `graft-commit`
   * use when the current task slice is ready to commit and the user explicitly wants the agent to classify ownership,
     verify scope, choose a compliant Conventional Commit message, and create a scoped git commit
+* `graft-task-closeout`
+  * use when a task slice is ending and the agent needs to decide between handoff-only versus commit-plus-handoff,
+    while emitting the required next-task startup prompt
 * `graft-web-module-scaffold`
   * use when adding a new `web` feature module aligned with backend plugin semantics
 * `graft-validation-runner`
