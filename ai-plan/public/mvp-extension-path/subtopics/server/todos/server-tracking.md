@@ -240,6 +240,7 @@
 - 当前 `server/plugins/rbac` 的第二波最小写 contract、README 与 tracking 真值已经收齐；下一步如果继续推进 `server`
   侧 RBAC，优先决定是否需要补更强的 completion-state backend validation，再决定是否进入更高风险的用户禁用、删除或
   `super_admin` bypass。
+- 当前 focused stabilization 子切片继续限制在两个 `server` 问题：`POST /api/users/:id/roles/assign` 的自锁死防护，以及默认管理员 restricted-session 恢复链路的最小真值对齐；不进入更广 RBAC redesign。
 - 当前 `server` 在 user-role 管理面上的最小阻断已解除；下一步由 `web` 基于 `GET /api/users/:id/roles` 与
   `POST /api/users/:id/roles/assign` 评估是否进入最小 UI 接线，同时继续把范围限制在 `/users` 模块内的最小角色查看/分配。
 - 当前 `title_key` 菜单 contract 的下一步也应由 `web` 接手：前端菜单、路由元信息与展示面优先消费 bootstrap `title_key`，

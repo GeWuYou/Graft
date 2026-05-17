@@ -14,6 +14,7 @@
 * 注册 RBAC 只读权限元数据与菜单元数据
 * 提供 `GET /api/roles`、`GET /api/permissions`、`GET /api/roles/:id/permissions` 与 `GET /api/users/:id/roles` 最小只读接口
 * 提供 `POST /api/roles`、`POST /api/roles/:id/update`、`POST /api/roles/:id/permissions/assign` 与 `POST /api/users/:id/roles/assign` 最小写接口
+* `POST /api/users/:id/roles/assign` 在“当前登录用户修改自己”时增加后端硬保护：如果当前角色快照仍包含 builtin `admin`，replace 写入后也必须继续保留该角色；违反时返回 `403 RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE`
 
 这个模块不负责：
 

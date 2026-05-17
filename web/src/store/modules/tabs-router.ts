@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia';
 
+import { LOCALE } from '@/contracts/i18n/locales';
 import type { TRouterInfo, TTabRouterType } from '@/utils/types';
 
 const homeRoute: Array<TRouterInfo> = [
   {
     path: '/',
     routeIdx: 0,
-    title: { zh_CN: '首页', en_US: 'Home' },
+    title: { [LOCALE.ZH_CN]: '首页', [LOCALE.EN_US]: 'Home' },
     name: 'RootEntry',
     isHome: true,
   },

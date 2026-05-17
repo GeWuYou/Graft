@@ -30,6 +30,7 @@ import { computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { prefix } from '@/config/global';
+import { LOCALE } from '@/contracts/i18n/locales';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import type { AppRouteMeta } from '@/utils/types';
 
@@ -61,7 +62,7 @@ const appendNewRoute = () => {
     return;
   }
 
-  const titleObj = typeof title === 'string' ? { zh_CN: title, en_US: title } : title;
+  const titleObj = typeof title === 'string' ? { [LOCALE.ZH_CN]: title, [LOCALE.EN_US]: title } : title;
   tabsRouterStore.appendTabRouterList({
     path,
     query,

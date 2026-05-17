@@ -76,7 +76,7 @@ import type { LocationQueryRaw } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
-import type { LocalizedTitle } from '@/locales';
+import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
 import { useSettingStore, useTabsRouterStore } from '@/store';

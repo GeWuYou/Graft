@@ -1,5 +1,6 @@
-import type { LocalizedTitle, SupportedLocale } from '@/locales';
-import { i18n, supportedLocales } from '@/locales';
+import type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
+import { supportedLocales } from '@/contracts/i18n/locales';
+import { i18n } from '@/locales';
 
 function resolveLocaleMessage(locale: SupportedLocale, titleKey: string): string | undefined {
   const messageTree = i18n.global.getLocaleMessage(locale) as Record<string, unknown>;

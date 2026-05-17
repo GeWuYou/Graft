@@ -11,7 +11,9 @@ import {
 import { AUTH_SCHEME, HTTP_HEADER } from '@/contracts/api/headers';
 import { MESSAGE_KEY } from '@/contracts/api/messages';
 import { AUTH_API_PATH } from '@/contracts/auth/paths';
+import { toRequestLocale } from '@/contracts/i18n/locales';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
+import { i18n } from '@/locales';
 import type { ApiRequestError, AxiosRequestConfigRetry, RequestOptions } from '@/types/axios';
 import { clearAccessToken, getAccessToken, setAccessToken } from '@/utils/auth-state';
 
@@ -57,12 +59,9 @@ client.interceptors.request.use((config) => {
   }
 
   try {
-    const storedLocale = localStorage.getItem(STORAGE_KEY.LOCALE);
-    if (storedLocale) {
-      headers[HTTP_HEADER.LOCALE] = storedLocale.replaceAll('_', '-');
-    }
+    headers[HTTP_HEADER.LOCALE] = toRequestLocale(localStorage.getItem(STORAGE_KEY.LOCALE));
   } catch {
-    // 受限环境下允许 locale 头缺省。
+    headers[HTTP_HEADER.LOCALE] = toRequestLocale(i18n.global.locale.value);
   }
 
   config.headers = headers;

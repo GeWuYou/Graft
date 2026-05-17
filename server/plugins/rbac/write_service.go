@@ -5,14 +5,18 @@ import (
 	"errors"
 	"strings"
 
+	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
 )
 
 var (
 	errBuiltinRoleNameImmutable = errors.New("builtin role name is immutable")
+	errCannotRemoveOwnAdminRole = errors.New("cannot remove own admin role")
 	errInvalidPermissionIDs     = errors.New("invalid permission ids")
 	errInvalidRoleIDs           = errors.New("invalid role ids")
 )
+
+const builtinAdminRoleName = "admin"
 
 type writeManagementService interface {
 	CreateRole(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
@@ -80,6 +84,9 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input store.R
 	if w.rbac == nil {
 		return errors.New("rbac repository is unavailable")
 	}
+	if err := w.ensureActorKeepsBuiltinAdminRole(ctx, input); err != nil {
+		return err
+	}
 
 	if err := w.rbac.ReplaceRolesForUser(ctx, input); err != nil {
 		if errors.Is(err, store.ErrRoleNotFound) {
@@ -94,6 +101,44 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input store.R
 	}
 
 	return nil
+}
+
+func (w managementWriter) ensureActorKeepsBuiltinAdminRole(ctx context.Context, input store.ReplaceRolesForUserInput) error {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.User == nil || requestAuth.User.ID == 0 {
+		return nil
+	}
+	if requestAuth.User.ID != input.UserID {
+		return nil
+	}
+
+	currentRoles, err := w.rbac.ListRolesByUserID(ctx, input.UserID)
+	if err != nil {
+		return err
+	}
+
+	builtinAdmin, hasBuiltinAdmin := findBuiltinAdminRole(currentRoles)
+	if !hasBuiltinAdmin {
+		return nil
+	}
+
+	for _, roleID := range input.RoleIDs {
+		if roleID == builtinAdmin.ID {
+			return nil
+		}
+	}
+
+	return errCannotRemoveOwnAdminRole
+}
+
+func findBuiltinAdminRole(roles []store.Role) (store.Role, bool) {
+	for _, role := range roles {
+		if role.Builtin && strings.TrimSpace(role.Name) == builtinAdminRoleName {
+			return role, true
+		}
+	}
+
+	return store.Role{}, false
 }
 
 func ensurePermissionIDsExist(ctx context.Context, repository store.RBACRepository, permissionIDs []uint64) error {

@@ -1,6 +1,5 @@
-import type { ApiCode, ApiResponseCode } from '@/contracts/api/codes';
-import { API_CODE } from '@/contracts/api/codes';
-import type { LocalizedTitle } from '@/locales';
+import { API_CODE, type ApiCode, type ApiResponseCode } from '@/contracts/api/codes';
+import type { LocalizedTitle } from '@/contracts/i18n/locales';
 
 export { API_CODE };
 export type { ApiCode, ApiResponseCode };

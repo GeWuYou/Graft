@@ -79,6 +79,7 @@
   `GET /api/users/:id/roles` 初始快照与 `POST /api/users/:id/roles/assign` replace 写接口，并把写入口继续收敛在
   `/users` 页内的最小角色查看/分配对话框；当前切片未新增第二菜单/运行路径，且继续保持 bootstrap 菜单
   `title_key` first、`title` fallback second 的单一路径。
+- 当前 focused `auth-rbac-restricted-session-stabilization` 切片进入活动实现范围：仅补管理员自移除 builtin `admin` 的后端硬阻断，以及默认管理员 restricted-session 恢复稳定化；本轮不扩展 `super_admin`、权限等价建模或第二套运行路径。
 - 当前第一波治理切片要求把以下仓库级约束写回真值并开始进入执行层：`bootstrap -> module registry -> route -> page` 单一运行面、`register -> boot -> dispose(optional)` 单一生命周期、resolver 只允许存在于 composition root wiring、`web/src/modules/<name>` 与 `server/plugins/<name>` 作为默认 feature boundary、CI 只作为治理执行层而不是第二真值来源。
 - docs/automation 第一波治理收口已同步完成：根 `AGENTS.md` 进一步冻结 runtime surface、module lifecycle、
   service locator、feature boundary、AI architecture preservation 与 validation governance；前端设计文档不再把

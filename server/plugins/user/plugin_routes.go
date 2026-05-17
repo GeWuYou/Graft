@@ -200,7 +200,7 @@ func newRequiredPasswordChangeGuard(localizer *i18n.Service, authSvc *authServic
 }
 
 func newRestrictedSessionGuard(localizer *i18n.Service, authSvc *authService) gin.HandlerFunc {
-	allowedPaths := []string{
+	allowedPathSuffixes := []string{
 		usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthBootstrap),
 		usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthCompleteRequiredPasswordChange),
 	}
@@ -215,8 +215,8 @@ func newRestrictedSessionGuard(localizer *i18n.Service, authSvc *authService) gi
 			return
 		}
 
-		for _, allowedPath := range allowedPaths {
-			if ginCtx.FullPath() == allowedPath {
+		for _, allowedPathSuffix := range allowedPathSuffixes {
+			if strings.HasSuffix(ginCtx.FullPath(), allowedPathSuffix) {
 				ginCtx.Next()
 				return
 			}

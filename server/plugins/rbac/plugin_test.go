@@ -850,3 +850,104 @@ func TestUserRoleAssignRouteMapsDeletedRoleIDsToInvalidArgument(t *testing.T) {
 		t.Fatalf("unexpected deleted-role payload: %#v", payload)
 	}
 }
+
+// TestUserRoleAssignRouteRejectsRemovingOwnBuiltinAdmin 验证当前管理员不能移除自己最后的 builtin admin 角色。
+func TestUserRoleAssignRouteRejectsRemovingOwnBuiltinAdmin(t *testing.T) {
+	repo := testRBACRepository{
+		roles: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		rolesByUserID: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+		"role_ids": []uint64{2},
+	})
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d", recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != messagecontract.RbacCannotRemoveOwnAdminRole.String() ||
+		payload.Code != "RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE" ||
+		payload.Locale != "en-US" {
+		t.Fatalf("unexpected self-lockout payload: %#v", payload)
+	}
+}
+
+// TestUserRoleAssignRouteAllowsRetainingOwnBuiltinAdmin 验证当前管理员保留 builtin admin 时仍可更新自己的角色集合。
+func TestUserRoleAssignRouteAllowsRetainingOwnBuiltinAdmin(t *testing.T) {
+	var received store.ReplaceRolesForUserInput
+	repo := testRBACRepository{
+		roles: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		rolesByUserID: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+		},
+		replaceUserRoles: func(_ context.Context, input store.ReplaceRolesForUserInput) error {
+			received = input
+			return nil
+		},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+		"role_ids": []uint64{1, 2},
+	}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if !reflect.DeepEqual(received, store.ReplaceRolesForUserInput{UserID: 7, RoleIDs: []uint64{1, 2}}) {
+		t.Fatalf("unexpected replace input: %#v", received)
+	}
+}
+
+// TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser 验证管理员给其他用户改角色时仍保持原有 replace 语义。
+func TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser(t *testing.T) {
+	var received store.ReplaceRolesForUserInput
+	repo := testRBACRepository{
+		roles: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+			{ID: 2, Name: "editor", Display: "编辑"},
+		},
+		rolesByUserID: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员", Builtin: true},
+		},
+		replaceUserRoles: func(_ context.Context, input store.ReplaceRolesForUserInput) error {
+			received = input
+			return nil
+		},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/9/roles/assign", map[string]any{
+		"role_ids": []uint64{2},
+	}))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if !reflect.DeepEqual(received, store.ReplaceRolesForUserInput{UserID: 9, RoleIDs: []uint64{2}}) {
+		t.Fatalf("unexpected replace input for other user: %#v", received)
+	}
+}

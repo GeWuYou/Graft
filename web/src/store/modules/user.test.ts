@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { API_CODE, type BootstrapResponse, type LoginResponse } from '@/api/model/authModel';
+import { STORAGE_KEY } from '@/contracts/storage/keys';
 
 const authApiMocks = vi.hoisted(() => ({
   getBootstrap: vi.fn<() => Promise<BootstrapResponse>>(),
@@ -145,6 +146,41 @@ describe('useUserStore.ensureBootstrap', () => {
     expect(authApiMocks.getBootstrap).toHaveBeenCalledTimes(1);
     expect(authApiMocks.refresh).not.toHaveBeenCalled();
   });
+
+  it('preserves the restricted session when bootstrap returns AUTH_FORBIDDEN after login', async () => {
+    const { useUserStore } = await loadUserStore();
+    const store = useUserStore();
+
+    authApiMocks.login.mockResolvedValue({
+      ...createRefreshPayload('restricted-token'),
+      must_change_password: true,
+    });
+    authApiMocks.getBootstrap.mockRejectedValueOnce(createApiRequestError(403, API_CODE.AUTH_FORBIDDEN));
+
+    await expect(store.login({ account: 'graft', password: 'graft-admin' })).resolves.toBeUndefined();
+
+    expect(store.token).toBe('restricted-token');
+    expect(store.mustChangePassword).toBe(true);
+    expect(authApiMocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it('does not refresh or clear state for restricted-session AUTH_FORBIDDEN during ensureBootstrap', async () => {
+    const { useUserStore } = await loadUserStore();
+    const store = useUserStore();
+
+    store.token = 'restricted-token';
+    store.mustChangePassword = true;
+    authApiMocks.getBootstrap.mockRejectedValueOnce(createApiRequestError(403, API_CODE.AUTH_FORBIDDEN));
+
+    await expect(store.ensureBootstrap()).rejects.toMatchObject({
+      code: API_CODE.AUTH_FORBIDDEN,
+      status: 403,
+    });
+
+    expect(authApiMocks.refresh).not.toHaveBeenCalled();
+    expect(store.token).toBe('restricted-token');
+    expect(store.mustChangePassword).toBe(true);
+  });
 });
 
 describe('useUserStore password change state', () => {
@@ -177,6 +213,23 @@ describe('useUserStore password change state', () => {
     });
 
     expect(store.mustChangePassword).toBe(false);
+  });
+
+  it('persists the canonical locale from bootstrap snapshots', async () => {
+    const { useUserStore } = await loadUserStore();
+    const store = useUserStore();
+
+    store.applyBootstrap({
+      ...createBootstrapPayload(),
+      locale: {
+        current_locale: 'en-US',
+        default_locale: 'zh-CN',
+        fallback_locale: 'zh-CN',
+        supported_locales: ['zh-CN', 'en-US'],
+      },
+    });
+
+    expect(localStorage.getItem(STORAGE_KEY.LOCALE)).toBe('en-US');
   });
 
   it('clears must_change_password when the session is cleared', async () => {

@@ -35,11 +35,11 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.redirect).toBe('/roles/index');
     expect(routes[0]?.children?.[0]?.name).toBe('RoleListIndex');
     expect(routes[0]?.meta?.titleKey).toBe('menu.role_list.title');
-    expect(routes[0]?.meta?.title).toEqual({ zh_CN: '角色管理', en_US: 'Role Management' });
+    expect(routes[0]?.meta?.title).toEqual({ 'zh-CN': '角色管理', 'en-US': 'Role Management' });
     expect(routes[1]?.path).toBe('/users');
     expect(routes[1]?.redirect).toBe('/users/index');
     expect(routes[1]?.children?.[0]?.name).toBe('UserListIndex');
     expect(routes[1]?.meta?.titleKey).toBe('menu.user_list.title');
-    expect(routes[1]?.meta?.title).toEqual({ zh_CN: '用户管理', en_US: 'User Management' });
+    expect(routes[1]?.meta?.title).toEqual({ 'zh-CN': '用户管理', 'en-US': 'User Management' });
   });
 });

@@ -141,4 +141,7 @@ func assertDevResetRoleState(t *testing.T, state *devResetState) {
 	if state.assignPermissionsInput.RoleID != 3 || len(state.assignPermissionsInput.PermissionIDs) == 0 {
 		t.Fatalf("expected role permissions to be assigned, got %#v", state.assignPermissionsInput)
 	}
+	if len(state.assignPermissionsInput.PermissionIDs) != len(userPermissionItems("user")) {
+		t.Fatalf("expected minimal admin access to match user plugin permissions, got %#v", state.assignPermissionsInput)
+	}
 }

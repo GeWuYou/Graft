@@ -1,22 +1,20 @@
 import type { DropdownOption } from 'tdesign-vue-next';
-import en_US from 'tdesign-vue-next/es/locale/en_US';
-import zh_CN from 'tdesign-vue-next/es/locale/zh_CN';
 import { computed } from 'vue';
 import type { I18nOptions } from 'vue-i18n';
 import { createI18n } from 'vue-i18n';
 
+import {
+  getDefaultLocale,
+  normalizeLocale,
+  type SupportedLocale,
+  supportedLocales,
+  toTDesignLocale,
+} from '@/contracts/i18n/locales';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
 
 export const localeConfigKey = STORAGE_KEY.LOCALE;
-
-// 定义支持的语言列表，添加新语言时只需在此处添加
-export const supportedLocales = ['zh_CN', 'en_US'] as const;
-export type SupportedLocale = (typeof supportedLocales)[number];
-
-// 多语言标题类型，用于路由 meta.title 等场景
-export type LocalizedTitle = Record<SupportedLocale, string>;
-
-const tdesignLocaleMap: Record<SupportedLocale, typeof zh_CN | typeof en_US> = { zh_CN, en_US };
+export type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
+export { supportedLocales } from '@/contracts/i18n/locales';
 
 const langModules = import.meta.glob<{ default: Record<string, unknown> }>('./lang/*.json', { eager: true });
 
@@ -28,7 +26,7 @@ Object.entries(langModules).forEach(([path, module]) => {
   const code = path.match(/\.\/lang\/([^.]+)\.json$/)?.[1] as SupportedLocale | undefined;
   if (!code || !supportedLocales.includes(code)) return;
   langCode.push(code);
-  messages[code] = { ...module.default, componentsLocale: tdesignLocaleMap[code] };
+  messages[code] = { ...module.default, componentsLocale: toTDesignLocale(code) };
   langList.push({ content: module.default.lang as string, value: code });
 });
 
@@ -37,18 +35,21 @@ export { langCode };
 // 获取初始语言：优先本地存储，其次浏览器偏好，最后默认中文
 const getInitialLocale = (): SupportedLocale => {
   try {
-    const stored = localStorage.getItem(localeConfigKey);
-    if (stored && supportedLocales.includes(stored as SupportedLocale)) {
-      return stored as SupportedLocale;
+    const stored = normalizeLocale(localStorage.getItem(localeConfigKey));
+    if (stored) {
+      localStorage.setItem(localeConfigKey, stored);
+      return stored;
     }
   } catch {
     // 某些受限环境会禁用本地存储，此时回退到浏览器语言。
   }
-  const preferred = navigator.languages?.[0]?.replace(/-/g, '_');
-  if (preferred && supportedLocales.includes(preferred as SupportedLocale)) {
-    return preferred as SupportedLocale;
+
+  const preferred = normalizeLocale(navigator.languages?.[0] ?? navigator.language);
+  if (preferred) {
+    return preferred;
   }
-  return 'zh_CN';
+
+  return getDefaultLocale();
 };
 
 const initialLocale = getInitialLocale();
@@ -56,7 +57,7 @@ const initialLocale = getInitialLocale();
 export const i18n = createI18n({
   legacy: false,
   locale: initialLocale,
-  fallbackLocale: 'zh_CN',
+  fallbackLocale: getDefaultLocale(),
   messages,
   globalInjection: true,
 });

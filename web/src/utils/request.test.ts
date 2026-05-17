@@ -214,12 +214,42 @@ describe('request auth handling', () => {
 
     expect(callLog).toHaveLength(3);
     expect(callLog[0]?.headers?.[HTTP_HEADER.AUTHORIZATION]).toMatch(/^Bearer /);
+    expect(callLog[0]?.headers?.[HTTP_HEADER.LOCALE]).toBe('zh-CN');
     expect(callLog[1]?.url).toBe(AUTH_API_PATH.REFRESH);
     expect(callLog[2]?.url).toBe(USERS_API_PATH);
     expect(callLog[2]?._authRefreshAttempted).toBe(true);
     expect(mockUserStore.applyLoginResponse).toHaveBeenCalledWith(
       expect.objectContaining({
         access_token: 'fresh-token',
+      }),
+    );
+  });
+
+  it('normalizes legacy stored locale values before sending the locale header', async () => {
+    const { request } = await loadRequestModule();
+
+    requestHandler.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        success: true,
+        code: API_CODE.OK,
+        message: 'OK',
+        traceId: 'trace-users',
+        data: {
+          ok: true,
+        },
+      },
+    });
+
+    localStorage.setItem(STORAGE_KEY.LOCALE, 'en_US');
+
+    await expect(request.get<{ ok: boolean }>({ url: USERS_API_PATH })).resolves.toEqual({ ok: true });
+
+    expect(requestHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          [HTTP_HEADER.LOCALE]: 'en-US',
+        }),
       }),
     );
   });

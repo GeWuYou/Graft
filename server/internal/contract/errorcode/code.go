@@ -59,6 +59,9 @@ const (
 	// CommonInvalidArgument identifies invalid request parameter failures.
 	CommonInvalidArgument Code = "COMMON_INVALID_ARGUMENT"
 
+	// RbacCannotRemoveOwnAdminRole identifies self-lockout prevention failures for builtin admin role replacement.
+	RbacCannotRemoveOwnAdminRole Code = "RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE"
+
 	// OK identifies the stable success response code.
 	OK Code = "OK"
 
@@ -84,6 +87,7 @@ var messageKeyCodes = map[messagecontract.Key]Code{
 	messagecontract.AuthTokenMissing:            AuthTokenMissing,
 	messagecontract.CommonInternalError:         CommonInternalError,
 	messagecontract.CommonInvalidArgument:       CommonInvalidArgument,
+	messagecontract.RbacCannotRemoveOwnAdminRole: RbacCannotRemoveOwnAdminRole,
 	messagecontract.RoleNotFound:                RoleNotFound,
 	messagecontract.UserNotFound:                UserNotFound,
 }

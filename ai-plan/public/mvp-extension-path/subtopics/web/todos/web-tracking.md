@@ -43,6 +43,7 @@
 - 当前 auth 响应收敛切片已经完成第一轮前端落地：请求层只对 `AUTH_TOKEN_EXPIRED` 触发一次 refresh，`AUTH_TOKEN_INVALID` / `AUTH_TOKEN_MISSING` 统一走单一清理出口并跳转登录；请求层与 `user` store 之间的登录态同步已收敛为显式 session bridge，避免动态导入 store 带来的构建 warning 与双源状态漂移。
 - 当前下一步认证治理切片的 `web` 边界已冻结：首次改密真值只能来自后端 `login/bootstrap`，前端不得通过用户名 `graft` 或默认密码猜测；当前 MVP 的业务阻断由登录后受限态与强制改密弹窗完成，不新增独立安全插件、不改 refresh 单出口，也不把控制流建立在中文 `message` 上。
 - 当前首次改密受限态切片已落地到 `web`：`must_change_password=true` 现在明确表示“已认证但受限”，路由守卫会把业务路由统一拦到静态 `/auth/restricted-session` 入口并保留 token；改密成功后必须按 `change-password -> bootstrap(true) -> rebuild routes -> restore navigation` 顺序恢复，不本地直接把 `must_change_password` 改成 `false`。
+- 当前 focused stabilization 子切片要求进一步补强登录页与 `user` store：restricted login 若在后续 bootstrap 阶段收到受限 `AUTH_FORBIDDEN`，前端仍必须保留会话并进入 restricted-session 恢复 UI，而不是把它显示成普通登录失败。
 - 当前运行面治理已冻结单一路径：`bootstrap -> module registry -> route -> page`。主运行面不得再保留 demo route、playground page、独立 mock page、feature 自带 runtime 或绕过 bootstrap/menu 的入口。
 - PR #10 的最近一次 review follow-up 已补齐用户页版权年份、用户页列表页文案 i18n、接口说明 `<code>` 展示、用户页样式深度选择器兼容写法，以及 `request` / `user` store 在 refresh 失败路径上的重复清理与重复 refresh 防护；相关 `web` 完成态校验继续以 host Windows Bun `bun run check` 为准。
 - 详细前端实现历史保留在 `subtopics/web/traces/web-trace.md`。

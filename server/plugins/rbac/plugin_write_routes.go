@@ -368,6 +368,9 @@ func writeRBACManagementError(
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument
 		details = map[string]any{"field": "name"}
+	case errors.Is(err, errCannotRemoveOwnAdminRole):
+		status = http.StatusForbidden
+		key = messagecontract.RbacCannotRemoveOwnAdminRole
 	case errors.Is(err, errInvalidPermissionIDs), errors.Is(err, errInvalidRoleIDs), errors.Is(err, store.ErrInvalidID):
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument

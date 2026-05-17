@@ -1,7 +1,7 @@
 import type { Component, FunctionalComponent, VNodeChild } from 'vue';
 import type { LocationQueryRaw, RouteRecordName, RouteRecordRaw } from 'vue-router';
 
-import type { LocalizedTitle } from '@/locales';
+import type { LocalizedTitle } from '@/contracts/i18n/locales';
 
 export type ModeType = 'light' | 'dark';
 
