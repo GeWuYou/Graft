@@ -2,37 +2,37 @@
   <div class="user-page">
     <t-row :gutter="[24, 24]">
       <t-col :span="12">
-        <t-card class="summary-card" :bordered="false" :title="t('pages.userList.listTitle')">
+        <t-card class="summary-card" :bordered="false" :title="t('user.userList.listTitle')">
           <div class="summary-metric">
-            <span class="summary-metric__label">{{ t('pages.userList.countLabel') }}</span>
+            <span class="summary-metric__label">{{ t('user.userList.countLabel') }}</span>
             <span class="summary-metric__value">{{ users.length }}</span>
           </div>
-          <div class="summary-hint">{{ t('pages.userList.hint') }}</div>
+          <div class="summary-hint">{{ t('user.userList.hint') }}</div>
         </t-card>
       </t-col>
       <t-col :span="12">
-        <t-card class="summary-card" :bordered="false" :title="t('pages.userList.apiTitle')">
+        <t-card class="summary-card" :bordered="false" :title="t('user.userList.apiTitle')">
           <div class="summary-meta">
             <span
-              >{{ t('pages.userList.endpointLabel') }}<code>{{ t('pages.userList.endpointValue') }}</code></span
+              >{{ t('user.userList.endpointLabel') }}<code>{{ t('user.userList.endpointValue') }}</code></span
             >
             <span
-              >{{ t('pages.userList.fieldsLabel') }}<code>{{ t('pages.userList.fieldsValue') }}</code></span
+              >{{ t('user.userList.fieldsLabel') }}<code>{{ t('user.userList.fieldsValue') }}</code></span
             >
           </div>
           <div class="summary-actions">
             <t-button theme="primary" variant="outline" :loading="loading" @click="fetchUsers">
-              {{ t('pages.userList.refresh') }}
+              {{ t('user.userList.refresh') }}
             </t-button>
             <t-button v-permission="permissionCodes.CREATE" theme="default" variant="base" disabled>
-              {{ t('pages.listBase.create') }}
+              {{ t('list.base.create') }}
             </t-button>
           </div>
         </t-card>
       </t-col>
     </t-row>
 
-    <t-card class="table-card" :bordered="false" :title="t('pages.userList.dataTitle')">
+    <t-card class="table-card" :bordered="false" :title="t('user.userList.dataTitle')">
       <t-table
         row-key="id"
         :data="users"
@@ -52,7 +52,7 @@
               theme="primary"
               @click="handleOpenUserRoleDialog(row)"
             >
-              {{ t('pages.userList.assignRoles') }}
+              {{ t('user.userList.assignRoles') }}
             </t-button>
             <t-button v-permission="permissionCodes.DISABLE" variant="text" theme="danger" disabled>
               {{ t('components.manage') }}
@@ -60,14 +60,14 @@
           </div>
         </template>
         <template #empty>
-          <t-empty :description="t('pages.userList.empty')" />
+          <t-empty :description="t('user.userList.empty')" />
         </template>
       </t-table>
     </t-card>
 
     <t-dialog
       v-model:visible="userRoleDialogVisible"
-      :header="t('pages.userList.roleDialog.title')"
+      :header="t('user.userList.roleDialog.title')"
       :width="720"
       :footer="false"
     >
@@ -76,17 +76,17 @@
           <div class="permission-summary">
             {{
               selectedUser
-                ? t('pages.userList.roleDialog.currentUser', { name: selectedUser.display || selectedUser.username })
-                : t('pages.userList.roleDialog.currentUserEmpty')
+                ? t('user.userList.roleDialog.currentUser', { name: selectedUser.display || selectedUser.username })
+                : t('user.userList.roleDialog.currentUserEmpty')
             }}
           </div>
           <div class="permission-summary">
-            {{ t('pages.userList.roleDialog.roleSummary', { count: roles.length }) }}
+            {{ t('user.userList.roleDialog.roleSummary', { count: roles.length }) }}
           </div>
           <div v-if="roleLoadWarning" class="permission-load-warning">
             <span>{{ roleLoadWarning }}</span>
             <t-button variant="text" theme="primary" :loading="loadingRoleDialogData" @click="retryUserRoleDialogLoad">
-              {{ t('pages.userList.roleDialog.retry') }}
+              {{ t('user.userList.roleDialog.retry') }}
             </t-button>
           </div>
 
@@ -101,12 +101,12 @@
                     <div class="role-option__header">
                       <span class="role-option__label">{{ role.display }}</span>
                       <t-tag :theme="role.builtin ? 'success' : 'default'" variant="light" size="small">
-                        {{ role.builtin ? t('pages.roleList.builtinYes') : t('pages.roleList.builtinNo') }}
+                        {{ role.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
                       </t-tag>
                     </div>
                     <span class="role-option__code">{{ role.name }}</span>
                     <span class="role-option__description">
-                      {{ role.description || t('pages.roleList.emptyDescription') }}
+                      {{ role.description || t('rbac.roleList.emptyDescription') }}
                     </span>
                   </div>
                 </t-checkbox>
@@ -114,11 +114,11 @@
             </div>
           </t-checkbox-group>
 
-          <t-empty v-if="roles.length === 0 && !loadingRoles" :description="t('pages.userList.roleDialog.empty')" />
+          <t-empty v-if="roles.length === 0 && !loadingRoles" :description="t('user.userList.roleDialog.empty')" />
 
           <div class="dialog-actions">
             <t-button variant="outline" @click="closeUserRoleDialog">
-              {{ t('pages.roleList.form.cancel') }}
+              {{ t('rbac.roleList.form.cancel') }}
             </t-button>
             <t-button
               theme="primary"
@@ -126,7 +126,7 @@
               :loading="submittingRoles"
               @click="submitUserRoleAssignment"
             >
-              {{ t('pages.userList.roleDialog.confirm') }}
+              {{ t('user.userList.roleDialog.confirm') }}
             </t-button>
           </div>
         </div>
@@ -190,27 +190,27 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
 
   const baseColumns: TdBaseTableProps['columns'] = [
     {
-      title: t('pages.userList.columns.id'),
+      title: t('user.userList.columns.id'),
       colKey: 'id',
       width: 100,
     },
     {
-      title: t('pages.userList.columns.username'),
+      title: t('user.userList.columns.username'),
       colKey: 'username',
       minWidth: 180,
     },
     {
-      title: t('pages.userList.columns.display'),
+      title: t('user.userList.columns.display'),
       colKey: 'display',
       minWidth: 180,
     },
     {
-      title: t('pages.userList.columns.createdAt'),
+      title: t('user.userList.columns.createdAt'),
       colKey: 'created_at',
       minWidth: 220,
     },
     {
-      title: t('pages.userList.columns.updatedAt'),
+      title: t('user.userList.columns.updatedAt'),
       colKey: 'updated_at',
       minWidth: 220,
     },
@@ -235,7 +235,7 @@ async function fetchUsers() {
     users.value = response.items;
   } catch (error) {
     users.value = [];
-    MessagePlugin.error(error instanceof Error ? error.message : t('pages.userList.loadFailed'));
+    MessagePlugin.error(error instanceof Error ? error.message : t('user.userList.loadFailed'));
   } finally {
     loading.value = false;
   }
@@ -308,7 +308,7 @@ async function loadUserRoleDialog(user: UserListItem, session: number) {
     }
   } catch (error) {
     if (isActiveUserRoleDialogSession(session)) {
-      roleLoadWarning.value = error instanceof Error ? error.message : t('pages.userList.roleDialog.roleLoadFailed');
+      roleLoadWarning.value = error instanceof Error ? error.message : t('user.userList.roleDialog.roleLoadFailed');
     }
   }
 
@@ -330,7 +330,7 @@ async function loadUserRoleDialog(user: UserListItem, session: number) {
     if (isActiveUserRoleDialogSession(session)) {
       roleSelectionReady.value = false;
       roleLoadWarning.value =
-        error instanceof Error ? error.message : t('pages.userList.roleDialog.selectionLoadFailed');
+        error instanceof Error ? error.message : t('user.userList.roleDialog.selectionLoadFailed');
     }
   } finally {
     if (isActiveUserRoleDialogSession(session)) {
@@ -377,11 +377,11 @@ async function submitUserRoleAssignment() {
       return;
     }
 
-    MessagePlugin.success(t('pages.userList.assignSuccess'));
+    MessagePlugin.success(t('user.userList.assignSuccess'));
     closeUserRoleDialog();
   } catch (error) {
     if (isActiveUserRoleDialogSession(session)) {
-      MessagePlugin.error(error instanceof Error ? error.message : t('pages.userList.assignFailed'));
+      MessagePlugin.error(error instanceof Error ? error.message : t('user.userList.assignFailed'));
     }
   } finally {
     if (userRoleDialogSession.value === session) {

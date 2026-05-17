@@ -14,7 +14,7 @@
           v-model="formData.phone"
           :maxlength="11"
           size="large"
-          :placeholder="t('pages.login.register.phonePlaceholder')"
+          :placeholder="t('app.auth.register.phonePlaceholder')"
         >
           <template #prefix-icon>
             <t-icon name="user" />
@@ -29,7 +29,7 @@
           v-model="formData.email"
           type="text"
           size="large"
-          :placeholder="t('pages.login.register.emailPlaceholder')"
+          :placeholder="t('app.auth.register.emailPlaceholder')"
         >
           <template #prefix-icon>
             <t-icon name="mail" />
@@ -44,7 +44,7 @@
         size="large"
         :type="showPsw ? 'text' : 'password'"
         clearable
-        :placeholder="t('pages.login.register.passwordPlaceholder')"
+        :placeholder="t('app.auth.register.passwordPlaceholder')"
       >
         <template #prefix-icon>
           <t-icon name="lock-on" />
@@ -60,32 +60,32 @@
         <t-input
           v-model="formData.verifyCode"
           size="large"
-          :placeholder="t('pages.login.register.verifyCodePlaceholder')"
+          :placeholder="t('app.auth.register.verifyCodePlaceholder')"
         />
         <t-button variant="outline" :disabled="countDown > 0" @click="handleCounter">
           {{
             countDown === 0
-              ? t('pages.login.register.sendVerifyCode')
-              : t('pages.login.register.resendCountdown', { count: countDown })
+              ? t('app.auth.register.sendVerifyCode')
+              : t('app.auth.register.resendCountdown', { count: countDown })
           }}
         </t-button>
       </t-form-item>
     </template>
 
     <t-form-item class="check-container" name="checked">
-      <t-checkbox v-model="formData.checked">{{ t('pages.login.register.agreeTerms') }} </t-checkbox>
-      <span>{{ t('pages.login.register.serviceTerms') }}</span>
+      <t-checkbox v-model="formData.checked">{{ t('app.auth.register.agreeTerms') }} </t-checkbox>
+      <span>{{ t('app.auth.register.serviceTerms') }}</span>
       {{ t('common.conjunction') }}
-      <span>{{ t('pages.login.register.privacyStatement') }}</span>
+      <span>{{ t('app.auth.register.privacyStatement') }}</span>
     </t-form-item>
 
     <t-form-item>
-      <t-button block size="large" type="submit"> {{ t('pages.login.register.registerBtn') }} </t-button>
+      <t-button block size="large" type="submit"> {{ t('app.auth.register.registerBtn') }} </t-button>
     </t-form-item>
 
     <div class="switch-container">
       <span class="tip" @click="switchType(type === 'phone' ? 'email' : 'phone')">
-        {{ type === 'phone' ? t('pages.login.register.useEmailRegister') : t('pages.login.register.usePhoneRegister') }}
+        {{ type === 'phone' ? t('app.auth.register.useEmailRegister') : t('app.auth.register.usePhoneRegister') }}
       </span>
     </div>
   </t-form>
@@ -109,13 +109,13 @@ const INITIAL_DATA = {
 };
 
 const FORM_RULES = computed<Record<string, FormRule[]>>(() => ({
-  phone: [{ required: true, message: t('pages.login.register.validation.phone'), type: 'error' }],
+  phone: [{ required: true, message: t('app.auth.register.validation.phone'), type: 'error' }],
   email: [
-    { required: true, message: t('pages.login.register.validation.email'), type: 'error' },
-    { email: true, message: t('pages.login.register.validation.emailFormat'), type: 'warning' },
+    { required: true, message: t('app.auth.register.validation.email'), type: 'error' },
+    { email: true, message: t('app.auth.register.validation.emailFormat'), type: 'warning' },
   ],
-  password: [{ required: true, message: t('pages.login.register.validation.password'), type: 'error' }],
-  verifyCode: [{ required: true, message: t('pages.login.register.validation.verifyCode'), type: 'error' }],
+  password: [{ required: true, message: t('app.auth.register.validation.password'), type: 'error' }],
+  verifyCode: [{ required: true, message: t('app.auth.register.validation.verifyCode'), type: 'error' }],
 }));
 
 const type = ref('phone');
@@ -130,17 +130,17 @@ const [countDown, handleCounter] = useCounter();
 const onSubmit = (ctx: SubmitContext) => {
   if (ctx.validateResult === true) {
     if (!formData.value.checked) {
-      MessagePlugin.error(t('pages.login.register.validation.agreeTerms'));
+      MessagePlugin.error(t('app.auth.register.validation.agreeTerms'));
       return;
     }
-    MessagePlugin.success(t('pages.login.register.messages.registerSuccess'));
+    MessagePlugin.success(t('app.auth.register.messages.registerSuccess'));
     emit('register-success');
   }
 };
 
-const switchType = (val: string) => {
+const switchType = (value: string) => {
   form.value.reset();
-  type.value = val;
+  type.value = value;
 };
 </script>
 <style lang="less" scoped>

@@ -112,7 +112,7 @@ TDesign MCP 应作为这些场景的默认资料来源：
 MCP 查询结果必须服从本仓库的前端架构规则：
 
 * 新模块仍按 `menu + route + page + api + permission` 接入。
-* 页面仍放在 `web/src/pages` 或 `web/src/modules/<name>`。
+* 壳层页面放在 `web/src/app/**`，业务页面放在 `web/src/modules/<name>/pages/**`。
 * 共享状态仍放入 Pinia store，页面局部状态保留在页面或模块内。
 * `UnoCSS` 只做辅助布局和少量原子样式，不用来重写整套 TDesign 视觉体系。
 * 不因 MCP 示例引入额外 UI 库、React 写法、Vue 2 写法或移动端组件写法。

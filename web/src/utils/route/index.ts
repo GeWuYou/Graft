@@ -37,9 +37,15 @@ LayoutMap.set('IFRAME', IFRAME);
 
 let dynamicViewsModules: Record<string, () => Promise<Record<string, unknown>>>;
 
+const appPageModules = import.meta.glob<Record<string, unknown>>('../../app/**/*.vue');
+const modulePageModules = import.meta.glob<Record<string, unknown>>('../../modules/**/pages/**/*.vue');
+
 // 动态引入路由组件
 function asyncImportRoute(routes: DynamicRouteItem[] | undefined) {
-  dynamicViewsModules = dynamicViewsModules || import.meta.glob('../../pages/**/*.vue');
+  dynamicViewsModules = dynamicViewsModules || {
+    ...appPageModules,
+    ...modulePageModules,
+  };
   if (!routes) return;
 
   routes.forEach((item) => {
@@ -69,12 +75,12 @@ function asyncImportRoute(routes: DynamicRouteItem[] | undefined) {
 function dynamicImport(dynamicViewsModules: Record<string, () => Promise<Record<string, unknown>>>, component: string) {
   const keys = Object.keys(dynamicViewsModules);
   const matchKeys = keys.filter((key) => {
-    const k = key.replace('../../pages', '');
+    const normalizedKey = key.replace('../../app', '').replace(/^\.\.\/\.\.\/modules\/[^/]+\/pages/, '');
     const startFlag = component.startsWith('/');
     const endFlag = component.endsWith('.vue') || component.endsWith('.tsx');
     const startIndex = startFlag ? 0 : 1;
-    const lastIndex = endFlag ? k.length : k.lastIndexOf('.');
-    return k.substring(startIndex, lastIndex) === component;
+    const lastIndex = endFlag ? normalizedKey.length : normalizedKey.lastIndexOf('.');
+    return normalizedKey.substring(startIndex, lastIndex) === component;
   });
   if (matchKeys?.length === 1) {
     const matchKey = matchKeys[0];
@@ -85,7 +91,7 @@ function dynamicImport(dynamicViewsModules: Record<string, () => Promise<Record<
       'Please do not create `.vue` and `.TSX` files with the same file name in the same hierarchical directory under the views folder. This will cause dynamic introduction failure',
     );
   } else {
-    routeLogger.warn(`Can't find ${component} in pages folder`, {
+    routeLogger.warn(`Can't find ${component} in app or module pages folders`, {
       component,
     });
   }

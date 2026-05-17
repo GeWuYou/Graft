@@ -296,7 +296,7 @@ describe('UserPage', () => {
 
     expect(userApiMocks.getUsers).toHaveBeenCalledTimes(1);
     expect(wrapper.text()).toContain('alice');
-    expect(wrapper.text()).not.toContain('pages.userList.assignRoles');
+    expect(wrapper.text()).not.toContain('user.userList.assignRoles');
   });
 
   it('keeps replace-write blocked when the current user-role snapshot cannot be restored', async () => {
@@ -308,7 +308,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
@@ -318,7 +318,7 @@ describe('UserPage', () => {
     expect(rbacApiMocks.getUserRoleBindings).toHaveBeenCalledWith(7);
     expect(wrapper.text()).toContain('selection load failed');
 
-    const submitButton = findButtonByText(wrapper, 'pages.userList.roleDialog.confirm');
+    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
     expect(submitButton).toBeDefined();
     expect(submitButton!.attributes('disabled')).toBeDefined();
 
@@ -339,7 +339,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
@@ -347,7 +347,7 @@ describe('UserPage', () => {
 
     expect(wrapper.text()).toContain('role load failed');
 
-    const retryButton = findButtonByText(wrapper, 'pages.userList.roleDialog.retry');
+    const retryButton = findButtonByText(wrapper, 'user.userList.roleDialog.retry');
     expect(retryButton).toBeDefined();
 
     await retryButton!.trigger('click');
@@ -373,7 +373,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
@@ -382,7 +382,7 @@ describe('UserPage', () => {
     const checkboxGroup = wrapper.get('[data-testid="role-checkbox-group"]');
     expect(checkboxGroup.attributes('data-disabled')).toBe('true');
 
-    const submitButton = findButtonByText(wrapper, 'pages.userList.roleDialog.confirm');
+    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
     expect(submitButton).toBeDefined();
     expect(submitButton!.attributes('disabled')).toBeDefined();
   });
@@ -399,13 +399,13 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    const submitButton = findButtonByText(wrapper, 'pages.userList.roleDialog.confirm');
+    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
     expect(submitButton).toBeDefined();
     expect(submitButton!.attributes('disabled')).toBeUndefined();
 
@@ -415,7 +415,7 @@ describe('UserPage', () => {
     expect(rbacApiMocks.assignUserRoles).toHaveBeenCalledWith(7, {
       role_ids: [2],
     });
-    expect(messageMocks.success).toHaveBeenCalledWith('pages.userList.assignSuccess');
+    expect(messageMocks.success).toHaveBeenCalledWith('user.userList.assignSuccess');
     expect(wrapper.find('[data-testid="user-role-dialog"]').exists()).toBe(false);
   });
 
@@ -431,13 +431,13 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    const submitButton = findButtonByText(wrapper, 'pages.userList.roleDialog.confirm');
+    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
     expect(submitButton).toBeDefined();
 
     await submitButton!.trigger('click');
@@ -461,19 +461,19 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    const submitButton = findButtonByText(wrapper, 'pages.userList.roleDialog.confirm');
+    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
     expect(submitButton).toBeDefined();
 
     await submitButton!.trigger('click');
     await flushPromises();
 
-    const cancelButton = findButtonByText(wrapper, 'pages.roleList.form.cancel');
+    const cancelButton = findButtonByText(wrapper, 'rbac.roleList.form.cancel');
     expect(cancelButton).toBeDefined();
 
     await cancelButton!.trigger('click');
@@ -502,19 +502,19 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    const submitButton = findButtonByText(wrapper, 'pages.userList.roleDialog.confirm');
+    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
     expect(submitButton).toBeDefined();
 
     await submitButton!.trigger('click');
     await flushPromises();
 
-    const cancelButton = findButtonByText(wrapper, 'pages.roleList.form.cancel');
+    const cancelButton = findButtonByText(wrapper, 'rbac.roleList.form.cancel');
     expect(cancelButton).toBeDefined();
 
     await cancelButton!.trigger('click');
@@ -544,13 +544,13 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    const cancelButton = findButtonByText(wrapper, 'pages.roleList.form.cancel');
+    const cancelButton = findButtonByText(wrapper, 'rbac.roleList.form.cancel');
     expect(cancelButton).toBeDefined();
 
     await cancelButton!.trigger('click');
@@ -588,13 +588,13 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
     expect(openDialogButton).toBeDefined();
 
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    const cancelButton = findButtonByText(wrapper, 'pages.roleList.form.cancel');
+    const cancelButton = findButtonByText(wrapper, 'rbac.roleList.form.cancel');
     expect(cancelButton).toBeDefined();
 
     await cancelButton!.trigger('click');
@@ -603,13 +603,13 @@ describe('UserPage', () => {
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('pages.userList.roleDialog.empty');
+    expect(wrapper.text()).toContain('user.userList.roleDialog.empty');
     expect(rbacApiMocks.getUserRoleBindings).toHaveBeenCalledTimes(1);
 
     firstRoleListRequest.resolve(createRoleListResponse());
     await flushPromises();
 
-    expect(wrapper.text()).toContain('pages.userList.roleDialog.empty');
+    expect(wrapper.text()).toContain('user.userList.roleDialog.empty');
     expect(wrapper.text()).not.toContain('Editor');
     expect(rbacApiMocks.getRoles).toHaveBeenCalledTimes(2);
   });

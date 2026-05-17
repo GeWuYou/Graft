@@ -10,7 +10,7 @@
   >
     <template v-if="type === 'password'">
       <t-form-item name="account">
-        <t-input v-model="formData.account" size="large" :placeholder="`${t('pages.login.input.account')}：admin`">
+        <t-input v-model="formData.account" size="large" :placeholder="`${t('app.auth.login.input.account')}：admin`">
           <template #prefix-icon>
             <t-icon name="user" />
           </template>
@@ -23,7 +23,7 @@
           size="large"
           :type="showPsw ? 'text' : 'password'"
           clearable
-          :placeholder="`${t('pages.login.input.password')}：admin`"
+          :placeholder="`${t('app.auth.login.input.password')}：admin`"
         >
           <template #prefix-icon>
             <t-icon name="lock-on" />
@@ -35,24 +35,22 @@
       </t-form-item>
 
       <div class="check-container remember-pwd">
-        <t-checkbox>{{ t('pages.login.remember') }}</t-checkbox>
-        <span class="tip">{{ t('pages.login.forget') }}</span>
+        <t-checkbox>{{ t('app.auth.login.remember') }}</t-checkbox>
+        <span class="tip">{{ t('app.auth.login.forget') }}</span>
       </div>
     </template>
 
-    <!-- 扫码登录 -->
     <template v-else-if="type === 'qrcode'">
       <div class="tip-container">
-        <span class="tip">{{ t('pages.login.wechatLogin') }}</span>
-        <span class="refresh">{{ t('pages.login.refresh') }} <t-icon name="refresh" /> </span>
+        <span class="tip">{{ t('app.auth.login.wechatLogin') }}</span>
+        <span class="refresh">{{ t('app.auth.login.refresh') }} <t-icon name="refresh" /> </span>
       </div>
       <t-qrcode value="tdesign" :size="160" level="H" />
     </template>
 
-    <!-- 手机号登录 -->
     <template v-else>
       <t-form-item name="phone">
-        <t-input v-model="formData.phone" size="large" :placeholder="t('pages.login.input.phone')">
+        <t-input v-model="formData.phone" size="large" :placeholder="t('app.auth.login.input.phone')">
           <template #prefix-icon>
             <t-icon name="mobile" />
           </template>
@@ -60,23 +58,27 @@
       </t-form-item>
 
       <t-form-item class="verification-code" name="verifyCode">
-        <t-input v-model="formData.verifyCode" size="large" :placeholder="t('pages.login.input.verification')" />
+        <t-input v-model="formData.verifyCode" size="large" :placeholder="t('app.auth.login.input.verification')" />
         <t-button size="large" variant="outline" :disabled="countDown > 0" @click="sendCode">
-          {{ countDown === 0 ? t('pages.login.sendVerification') : t('pages.login.countdown', { count: countDown }) }}
+          {{
+            countDown === 0 ? t('app.auth.login.sendVerification') : t('app.auth.login.countdown', { count: countDown })
+          }}
         </t-button>
       </t-form-item>
     </template>
 
     <t-form-item v-if="type !== 'qrcode'" class="btn-container">
-      <t-button block size="large" type="submit"> {{ t('pages.login.signIn') }} </t-button>
+      <t-button block size="large" type="submit"> {{ t('app.auth.login.signIn') }} </t-button>
     </t-form-item>
 
     <div class="switch-container">
       <span v-if="type !== 'password'" class="tip" @click="switchType('password')">{{
-        t('pages.login.accountLogin')
+        t('app.auth.login.accountLogin')
       }}</span>
-      <span v-if="type !== 'qrcode'" class="tip" @click="switchType('qrcode')">{{ t('pages.login.wechatLogin') }}</span>
-      <span v-if="type !== 'phone'" class="tip" @click="switchType('phone')">{{ t('pages.login.phoneLogin') }}</span>
+      <span v-if="type !== 'qrcode'" class="tip" @click="switchType('qrcode')">{{
+        t('app.auth.login.wechatLogin')
+      }}</span>
+      <span v-if="type !== 'phone'" class="tip" @click="switchType('phone')">{{ t('app.auth.login.phoneLogin') }}</span>
     </div>
   </t-form>
 </template>
@@ -104,10 +106,10 @@ const INITIAL_DATA = {
 };
 
 const FORM_RULES = computed<Record<string, FormRule[]>>(() => ({
-  phone: [{ required: true, message: t('pages.login.required.phone'), type: 'error' }],
-  account: [{ required: true, message: t('pages.login.required.account'), type: 'error' }],
-  password: [{ required: true, message: t('pages.login.required.password'), type: 'error' }],
-  verifyCode: [{ required: true, message: t('pages.login.required.verification'), type: 'error' }],
+  phone: [{ required: true, message: t('app.auth.login.required.phone'), type: 'error' }],
+  account: [{ required: true, message: t('app.auth.login.required.account'), type: 'error' }],
+  password: [{ required: true, message: t('app.auth.login.required.password'), type: 'error' }],
+  verifyCode: [{ required: true, message: t('app.auth.login.required.verification'), type: 'error' }],
 }));
 
 const type = ref('password');
@@ -118,19 +120,16 @@ const showPsw = ref(false);
 
 const [countDown, handleCounter] = useCounter();
 
-const switchType = (val: string) => {
-  type.value = val;
+const switchType = (value: string) => {
+  type.value = value;
 };
 
 const router = useRouter();
 const route = useRoute();
 
-/**
- * 发送验证码
- */
 const sendCode = () => {
-  form.value?.validate({ fields: ['phone'] }).then((e) => {
-    if (e === true) {
+  form.value?.validate({ fields: ['phone'] }).then((result) => {
+    if (result === true) {
       handleCounter();
     }
   });
@@ -141,7 +140,7 @@ const onSubmit = async (ctx: SubmitContext) => {
     try {
       await userStore.login(formData.value);
 
-      MessagePlugin.success(t('pages.login.loginSuccess'));
+      MessagePlugin.success(t('app.auth.login.loginSuccess'));
       const redirectQuery = route.query.redirect;
       const redirect = typeof redirectQuery === 'string' ? redirectQuery : '';
       const redirectUrl = (() => {
@@ -158,18 +157,18 @@ const onSubmit = async (ctx: SubmitContext) => {
       })();
       const nextPath = userStore.mustChangePassword ? AUTH_ROUTE_PATH.RESTRICTED_SESSION : redirectUrl;
       router.push(nextPath);
-    } catch (e) {
+    } catch (error) {
       if (userStore.token && userStore.mustChangePassword) {
         router.push(AUTH_ROUTE_PATH.RESTRICTED_SESSION);
         return;
       }
 
-      if (isApiRequestError(e) && e.status === 400 && e.code === API_CODE.AUTH_INVALID_CREDENTIALS) {
-        MessagePlugin.error(e.message);
+      if (isApiRequestError(error) && error.status === 400 && error.code === API_CODE.AUTH_INVALID_CREDENTIALS) {
+        MessagePlugin.error(error.message);
         return;
       }
 
-      MessagePlugin.error(e instanceof Error ? e.message : String(e));
+      MessagePlugin.error(error instanceof Error ? error.message : String(error));
     }
   }
 };

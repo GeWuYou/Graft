@@ -35,7 +35,8 @@
   - `server` is already close to plugin-oriented parallel execution, and future long-lived worktree ownership should be
     plugin-first.
   - `web` still has shared shell hotspots such as bootstrap route mapping, global stores, layout wiring, and locale
-    catalogs; future long-lived worktrees must not treat those files as freely owned by multiple topics at once.
+    catalogs; `app/**` is also shell-owned during the root-pages retirement migration, and future long-lived worktrees
+    must not treat those files as freely owned by multiple topics at once.
 - The first web-side mitigation slice has landed on short branch `refactor/web-module-boundaries`:
   - `web/src/modules/` is now the real feature registration layer
   - bootstrap dynamic route declarations now resolve through module registrations instead of feature truth living in shared shell code
@@ -67,10 +68,7 @@
 - `web/src/locales/lang/zh-CN.json`
 - `web/src/locales/lang/en-US.json`
 - `web/src/router/index.ts`
-- `web/src/pages/login/**`
-- `web/src/pages/result/403/**`
-- `web/src/pages/result/404/**`
-- `web/src/pages/result/500/**`
+- `web/src/app/**`
 
 ## Active Risks
 
@@ -108,7 +106,7 @@
   first real long-lived worktrees.
 - Keep the landed module-boundary refactor as the baseline for future `web` worktree ownership:
   - preserve `web/src/modules/user/**` and `web/src/modules/rbac/**` as module-owned feature truth
-  - preserve shared shell code as a consumer of module registrations instead of a holder of feature route truth
+  - preserve `web/src/app/**` and other shared shell code as consumers of module registrations instead of holders of feature route truth
   - keep compatibility bridges narrow so future cleanup can remove them without reopening feature ownership
 - Before creating the first additional worktree, decide the exact owned scope and shared-hotspot policy for:
   - `RBAC`
@@ -123,6 +121,7 @@
   - `web/src/modules/rbac/**`
   - future `web/src/modules/server-status/**` or equivalent dashboard module path
 - `shell-owned` directories must stay centrally integrated and are not long-lived feature-owned scope:
+  - `web/src/app/**`
   - `web/src/layouts/**`
   - `web/src/router/**`
   - `web/src/utils/route/**`
