@@ -24,6 +24,8 @@
   `GET /api/users/:id/roles` 稳定快照与 `POST /api/users/:id/roles/assign` replace 写接口，并把 ownership 收敛为
   `user.role.read` / `user.role.assign` 权限显隐、`role_ids` 稳定 DTO 与“无法恢复当前快照时阻断 replace write”的最小
   对话框语义；本轮不扩完整角色中心，也不新增第二菜单或运行路径。
+- 当前 `/users` user-role 对话框在已有最小语义之上继续完成了一轮窄幅稳定化：当旧会话的角色快照请求在关闭或重开对话框后才返回时，
+  迟到响应不得覆盖当前对话框状态；focused polish 继续限制在异步状态守卫与回归测试，不扩大为角色中心或第二运行路径。
 - 当前菜单本地化 follow-up 已在 `web` 落地：bootstrap 动态菜单现在优先消费 `menus[*].title_key`，并通过前端 locale
   catalog 物化为 route/menu title；只有在 `title_key` 缺失或前端未收录对应 key 时才回退 `title`，且不新增任何
   server 侧标题解析路径。
@@ -74,6 +76,9 @@
   - 当前写路径继续保持 replace 语义：只有在成功恢复目标用户当前 `role_ids` 快照后才允许提交；快照恢复失败时必须阻断写入，
     不把一次性表单包装成完成态。
   - focused validation 已提升到该最小 UI 切片本身：以 `/users` 页 focused Vitest 覆盖与前端完成态入口校验为准。
+- 本次 `/users` user-role dialog stabilization 新结论：
+  - 对话框现在按会话轮次隔离异步加载结果；关闭或重开后的迟到 `GET /api/users/:id/roles` / `GET /api/roles` 响应不再回写当前状态。
+  - focused validation 继续限制在 `/users` 页 targeted Vitest，不把本轮窄幅 hardening 误报成新的页面广度或完整 `bun run check` 完成态。
 - 本次 PR #9 review follow-up 预期直接校验：
   - `cd web && bun run check`
 - 本次 `/users` 真实列表页切片直接校验：
@@ -82,6 +87,8 @@
 - 本次 `/users` user-role 最小 UI 切片直接校验：
   - `cd web && bun run test:run -- src/pages/user/index.test.ts`
   - `cd web && bun run check`
+- 本次 `/users` user-role dialog stabilization 直接校验：
+  - `cd web && bun run test:run -- src/pages/user/index.test.ts`
 - 本次 Git 边界修复直接校验：
   - `git rev-parse --show-toplevel`
   - `git status --short --branch`
@@ -127,6 +134,8 @@
 - 下一轮继续在 `/users` 模块内收敛已落地的 user-role 最小 UI：保持 `GET /api/users/:id/roles` 初始快照与
   `POST /api/users/:id/roles/assign` replace 写接口成对消费，必要时只补 focused 文案、样式或测试，不要借机扩完整角色中心、
   第二菜单路径或独立角色运行面。
+- 若 `/users` user-role 对话框后续仍有问题，优先继续补 focused 异步状态守卫与测试，不要把“对话框稳定化”升级成新的 RBAC 页面、
+  二级菜单或第二条运行路径。
 - 保持 `bootstrap.roles` 和 `bootstrap.permissions` 作为唯一前端 RBAC 快照来源，不要回到基于页面本地常量或角色名字符串的条件分支。
 - 继续在真实 `web/` 工程里把 starter 壳层风格挂接到真实后端 `auth + current user + menu + permission + locale` 契约。
 - 保持当前 bootstrap 菜单 `title_key` first、`title` fallback second 的单一路径；新增菜单标题 key 时优先补齐前端

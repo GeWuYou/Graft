@@ -233,6 +233,18 @@ function createRoleListResponse() {
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
 function mountUserPage() {
   return mount(UserPage, {
     global: {
@@ -418,5 +430,88 @@ describe('UsersIndex role dialog', () => {
 
     expect(messageMocks.error).toHaveBeenCalledWith('assign failed');
     expect(wrapper.find('[data-testid="user-role-dialog"]').exists()).toBe(true);
+  });
+
+  it('ignores stale user-role responses after the dialog is closed and reopened', async () => {
+    const firstRoleBindingRequest = createDeferred<{ role_ids: number[] }>();
+
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getUserRoleBindings
+      .mockImplementationOnce(() => firstRoleBindingRequest.promise)
+      .mockResolvedValueOnce({
+        role_ids: [],
+      });
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    expect(openDialogButton).toBeDefined();
+
+    await openDialogButton!.trigger('click');
+    await flushPromises();
+
+    const cancelButton = findButtonByText(wrapper, 'pages.roleList.form.cancel');
+    expect(cancelButton).toBeDefined();
+
+    await cancelButton!.trigger('click');
+    await flushPromises();
+
+    await openDialogButton!.trigger('click');
+    await flushPromises();
+
+    const checkboxGroup = wrapper.get('[data-testid="role-checkbox-group"]');
+    expect(checkboxGroup.attributes('data-selected-role-ids')).toBe('[]');
+
+    firstRoleBindingRequest.resolve({
+      role_ids: [2],
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="role-checkbox-group"]').attributes('data-selected-role-ids')).toBe('[]');
+    expect(rbacApiMocks.getUserRoleBindings).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores stale role-definition responses after the dialog is closed and reopened', async () => {
+    const firstRoleListRequest = createDeferred<ReturnType<typeof createRoleListResponse>>();
+
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+    rbacApiMocks.getRoles
+      .mockImplementationOnce(() => firstRoleListRequest.promise)
+      .mockResolvedValueOnce({
+        items: [],
+      });
+    rbacApiMocks.getUserRoleBindings.mockResolvedValue({
+      role_ids: [],
+    });
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    const openDialogButton = findButtonByText(wrapper, 'pages.userList.assignRoles');
+    expect(openDialogButton).toBeDefined();
+
+    await openDialogButton!.trigger('click');
+    await flushPromises();
+
+    const cancelButton = findButtonByText(wrapper, 'pages.roleList.form.cancel');
+    expect(cancelButton).toBeDefined();
+
+    await cancelButton!.trigger('click');
+    await flushPromises();
+
+    await openDialogButton!.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('pages.userList.roleDialog.empty');
+    expect(rbacApiMocks.getUserRoleBindings).toHaveBeenCalledTimes(1);
+
+    firstRoleListRequest.resolve(createRoleListResponse());
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('pages.userList.roleDialog.empty');
+    expect(wrapper.text()).not.toContain('Editor');
+    expect(rbacApiMocks.getRoles).toHaveBeenCalledTimes(2);
   });
 });

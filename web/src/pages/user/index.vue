@@ -162,6 +162,7 @@ const userRoleDialogVisible = ref(false);
 const selectedUser = ref<UserListItem | null>(null);
 const roles = ref<RoleListItem[]>([]);
 const selectedRoleIds = ref<number[]>([]);
+const userRoleDialogSession = ref(0);
 const roleSelectionReady = ref(false);
 const roleOptionsReady = ref(false);
 const roleLoadWarning = ref('');
@@ -240,45 +241,74 @@ async function fetchUsers() {
   }
 }
 
-async function ensureRoleOptionsLoaded() {
+function isActiveUserRoleDialogSession(session: number) {
+  return userRoleDialogVisible.value && userRoleDialogSession.value === session;
+}
+
+async function ensureRoleOptionsLoaded(session: number) {
   if (roles.value.length > 0) {
-    roleOptionsReady.value = true;
-    return;
+    if (isActiveUserRoleDialogSession(session)) {
+      roleOptionsReady.value = true;
+    }
+    return isActiveUserRoleDialogSession(session);
   }
 
-  loadingRoles.value = true;
+  if (isActiveUserRoleDialogSession(session)) {
+    loadingRoles.value = true;
+  }
+
   try {
     const response = await getRoles();
+
+    if (!isActiveUserRoleDialogSession(session)) {
+      return false;
+    }
+
     roles.value = response.items;
     roleOptionsReady.value = true;
+    return true;
   } catch (error) {
-    roles.value = [];
-    roleOptionsReady.value = false;
+    if (isActiveUserRoleDialogSession(session)) {
+      roles.value = [];
+      roleOptionsReady.value = false;
+    }
     throw error;
   } finally {
-    loadingRoles.value = false;
+    if (isActiveUserRoleDialogSession(session)) {
+      loadingRoles.value = false;
+    }
   }
 }
 
 function closeUserRoleDialog() {
+  userRoleDialogSession.value += 1;
   userRoleDialogVisible.value = false;
   selectedUser.value = null;
   selectedRoleIds.value = [];
+  loadingRoles.value = false;
+  loadingRoleSelection.value = false;
   roleSelectionReady.value = false;
   roleOptionsReady.value = roles.value.length > 0;
   roleLoadWarning.value = '';
 }
 
-async function loadUserRoleDialog(user: UserListItem) {
+async function loadUserRoleDialog(user: UserListItem, session: number) {
   selectedUser.value = user;
   selectedRoleIds.value = [];
+  loadingRoleSelection.value = false;
   roleSelectionReady.value = false;
   roleLoadWarning.value = '';
 
   try {
-    await ensureRoleOptionsLoaded();
+    const roleOptionsLoaded = await ensureRoleOptionsLoaded(session);
+
+    if (!roleOptionsLoaded || !isActiveUserRoleDialogSession(session)) {
+      return;
+    }
   } catch (error) {
-    roleLoadWarning.value = error instanceof Error ? error.message : t('pages.userList.roleDialog.roleLoadFailed');
+    if (isActiveUserRoleDialogSession(session)) {
+      roleLoadWarning.value = error instanceof Error ? error.message : t('pages.userList.roleDialog.roleLoadFailed');
+    }
   }
 
   if (!roleOptionsReady.value) {
@@ -288,21 +318,34 @@ async function loadUserRoleDialog(user: UserListItem) {
   loadingRoleSelection.value = true;
   try {
     const response = await getUserRoleBindings(user.id);
+
+    if (!isActiveUserRoleDialogSession(session)) {
+      return;
+    }
+
     selectedRoleIds.value = response.role_ids;
     roleSelectionReady.value = true;
   } catch (error) {
-    roleSelectionReady.value = false;
-    roleLoadWarning.value = error instanceof Error ? error.message : t('pages.userList.roleDialog.selectionLoadFailed');
+    if (isActiveUserRoleDialogSession(session)) {
+      roleSelectionReady.value = false;
+      roleLoadWarning.value =
+        error instanceof Error ? error.message : t('pages.userList.roleDialog.selectionLoadFailed');
+    }
   } finally {
-    loadingRoleSelection.value = false;
+    if (isActiveUserRoleDialogSession(session)) {
+      loadingRoleSelection.value = false;
+    }
   }
 }
 
 async function handleOpenUserRoleDialog(row: TableRowData) {
   const user = row as UserListItem;
+  const session = userRoleDialogSession.value + 1;
+
+  userRoleDialogSession.value = session;
   roleOptionsReady.value = false;
   userRoleDialogVisible.value = true;
-  await loadUserRoleDialog(user);
+  await loadUserRoleDialog(user, session);
 }
 
 async function retryUserRoleDialogLoad() {
@@ -310,7 +353,9 @@ async function retryUserRoleDialogLoad() {
     return;
   }
 
-  await loadUserRoleDialog(selectedUser.value);
+  const session = userRoleDialogSession.value;
+
+  await loadUserRoleDialog(selectedUser.value, session);
 }
 
 async function submitUserRoleAssignment() {

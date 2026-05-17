@@ -287,3 +287,14 @@
   UI does not present a fake one-shot assignment form detached from backend truth.
 - Added focused Vitest coverage for the dialog's blocked-write and successful replace-write paths, while preserving the
   existing bootstrap `title_key`-first, `title`-fallback menu localization path.
+
+## 2026-05-17 `/users` user-role dialog stabilization
+
+- Hardened the existing `/users` role-assignment dialog against stale async responses by tracking dialog-session
+  ownership, so late `GET /api/roles` or `GET /api/users/:id/roles` results can no longer repopulate state after the
+  dialog has been closed or reopened for a new session.
+- Kept the slice intentionally narrow: no new menu path, no role-center expansion, and no second bootstrap/runtime
+  path beyond the existing `/users` entrypoint.
+- Added focused Vitest regressions that close and reopen the dialog before the first role-binding or role-definition
+  request resolves, proving the stale responses are ignored and the reopened dialog keeps the newer empty snapshot
+  state.
