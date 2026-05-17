@@ -14,48 +14,32 @@ import (
 // LocaleHeader 允许调用方显式指定当前请求期望的语言。
 const LocaleHeader = string(httpheader.Locale)
 
+type catalogEntry struct {
+	key  messagecontract.Key
+	zhCN string
+	enUS string
+}
+
 // #nosec G101 -- 这里保存的是本地化 message key 与展示文案，不是凭据。
-var defaultCatalogs = map[string]map[string]string{
-	"zh-CN": {
-		messagecontract.AuthInvalidCredentials.String():      "用户名或密码错误",
-		messagecontract.AuthTokenMissing.String():            "缺少访问令牌",
-		messagecontract.AuthTokenExpired.String():            "访问令牌已过期",
-		messagecontract.AuthTokenInvalid.String():            "访问令牌无效",
-		messagecontract.AuthForbidden.String():               "权限不足",
-		messagecontract.AuthInvalidRefreshSession.String():   "刷新会话无效或已失效",
-		messagecontract.AuthPasswordPolicyViolation.String(): "新密码不符合安全要求",
-		messagecontract.AuthPasswordReuseForbidden.String():  "新密码不能重复使用默认密码或当前密码",
-		messagecontract.AuthCurrentPasswordInvalid.String():  "当前密码错误",
-		messagecontract.AuthMissingActor.String():            "缺少请求身份信息",
-		messagecontract.AuthMissingPermission.String():       "缺少所需权限",
-		messagecontract.AuthSessionNotFound.String():         "会话不存在或已失效",
-		messagecontract.CommonConjunction.String():           "和",
-		messagecontract.CommonCopyright.String():             "Copyright (C) 2021-2026 Tencent. All Rights Reserved",
-		messagecontract.CommonInternalError.String():         "服务内部错误",
-		messagecontract.CommonInvalidArgument.String():       "请求参数不合法",
-		messagecontract.RoleNotFound.String():                "角色不存在",
-		messagecontract.UserNotFound.String():                "用户不存在",
-	},
-	"en-US": {
-		messagecontract.AuthInvalidCredentials.String():      "Invalid username or password",
-		messagecontract.AuthTokenMissing.String():            "Missing access token",
-		messagecontract.AuthTokenExpired.String():            "Access token expired",
-		messagecontract.AuthTokenInvalid.String():            "Invalid access token",
-		messagecontract.AuthForbidden.String():               "Forbidden",
-		messagecontract.AuthInvalidRefreshSession.String():   "Invalid or expired refresh session",
-		messagecontract.AuthPasswordPolicyViolation.String(): "New password does not meet security requirements",
-		messagecontract.AuthPasswordReuseForbidden.String():  "New password must not reuse the default or current password",
-		messagecontract.AuthCurrentPasswordInvalid.String():  "Current password is invalid",
-		messagecontract.AuthMissingActor.String():            "Missing request actor",
-		messagecontract.AuthMissingPermission.String():       "Missing required permission",
-		messagecontract.AuthSessionNotFound.String():         "Session not found or already inactive",
-		messagecontract.CommonConjunction.String():           "and",
-		messagecontract.CommonCopyright.String():             "Copyright (C) 2021-2026 Tencent. All Rights Reserved",
-		messagecontract.CommonInternalError.String():         "Internal server error",
-		messagecontract.CommonInvalidArgument.String():       "Invalid request parameters",
-		messagecontract.RoleNotFound.String():                "Role not found",
-		messagecontract.UserNotFound.String():                "User not found",
-	},
+var defaultCatalogEntries = []catalogEntry{
+	{key: messagecontract.AuthInvalidCredentials, zhCN: "用户名或密码错误", enUS: "Invalid username or password"},
+	{key: messagecontract.AuthTokenMissing, zhCN: "缺少访问令牌", enUS: "Missing access token"},
+	{key: messagecontract.AuthTokenExpired, zhCN: "访问令牌已过期", enUS: "Access token expired"},
+	{key: messagecontract.AuthTokenInvalid, zhCN: "访问令牌无效", enUS: "Invalid access token"},
+	{key: messagecontract.AuthForbidden, zhCN: "权限不足", enUS: "Forbidden"},
+	{key: messagecontract.AuthInvalidRefreshSession, zhCN: "刷新会话无效或已失效", enUS: "Invalid or expired refresh session"},
+	{key: messagecontract.AuthPasswordPolicyViolation, zhCN: "新密码不符合安全要求", enUS: "New password does not meet security requirements"},
+	{key: messagecontract.AuthPasswordReuseForbidden, zhCN: "新密码不能重复使用默认密码或当前密码", enUS: "New password must not reuse the default or current password"},
+	{key: messagecontract.AuthCurrentPasswordInvalid, zhCN: "当前密码错误", enUS: "Current password is invalid"},
+	{key: messagecontract.AuthMissingActor, zhCN: "缺少请求身份信息", enUS: "Missing request actor"},
+	{key: messagecontract.AuthMissingPermission, zhCN: "缺少所需权限", enUS: "Missing required permission"},
+	{key: messagecontract.AuthSessionNotFound, zhCN: "会话不存在或已失效", enUS: "Session not found or already inactive"},
+	{key: messagecontract.CommonConjunction, zhCN: "和", enUS: "and"},
+	{key: messagecontract.CommonCopyright, zhCN: "Copyright (C) 2021-2026 Tencent. All Rights Reserved", enUS: "Copyright (C) 2021-2026 Tencent. All Rights Reserved"},
+	{key: messagecontract.CommonInternalError, zhCN: "服务内部错误", enUS: "Internal server error"},
+	{key: messagecontract.CommonInvalidArgument, zhCN: "请求参数不合法", enUS: "Invalid request parameters"},
+	{key: messagecontract.RoleNotFound, zhCN: "角色不存在", enUS: "Role not found"},
+	{key: messagecontract.UserNotFound, zhCN: "用户不存在", enUS: "User not found"},
 }
 
 // Service 提供平台级 locale 解析与消息查找能力。
@@ -89,7 +73,7 @@ func New(cfg config.I18nConfig) *Service {
 		fallbackLocale: canonicalizeLocale(cfg.FallbackLocale, supported),
 		supported:      supported,
 		matcher:        language.NewMatcher(supported),
-		catalogs:       cloneCatalogs(defaultCatalogs),
+		catalogs:       buildDefaultCatalogs(),
 	}
 }
 
@@ -198,15 +182,17 @@ func messageFromCatalog(catalogs map[string]map[string]string, locale string, ke
 	return messages[key]
 }
 
-func cloneCatalogs(source map[string]map[string]string) map[string]map[string]string {
-	cloned := make(map[string]map[string]string, len(source))
-	for locale, messages := range source {
-		items := make(map[string]string, len(messages))
-		for key, value := range messages {
-			items[key] = value
-		}
-		cloned[locale] = items
+func buildDefaultCatalogs() map[string]map[string]string {
+	catalogs := map[string]map[string]string{
+		"zh-CN": make(map[string]string, len(defaultCatalogEntries)),
+		"en-US": make(map[string]string, len(defaultCatalogEntries)),
 	}
 
-	return cloned
+	for _, entry := range defaultCatalogEntries {
+		key := entry.key.String()
+		catalogs["zh-CN"][key] = entry.zhCN
+		catalogs["en-US"][key] = entry.enUS
+	}
+
+	return catalogs
 }
