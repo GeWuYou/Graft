@@ -39,6 +39,9 @@ Typical triggers:
 5. When the active slice reaches an end state or may need a future-session handoff, route closeout through `graft-task-closeout`.
 6. If closeout determines that the validated owned scope should be committed before handoff, execute that commit through `graft-commit`.
 7. Emit the explicit next-session startup prompt required by root `AGENTS.md` whenever work is being handed to a future turn.
+8. When the current task is being orchestrated by `graft-multi-agent-loop`, end the closeout with both:
+   - a human-readable line beginning with `Next-session startup prompt:` when another round is required
+   - one fenced ` ```json ` block containing the machine-readable closeout result
 
 ## Boundaries
 
@@ -56,3 +59,14 @@ When reporting progress or closeout from this wrapper, keep the result brief and
 2. whether `graft-task-closeout` was used for handoff evaluation
 3. whether `graft-commit` created a scoped commit for the validated owned scope
 4. the next-session startup prompt, if a handoff is required
+5. when the task is loop-orchestrated, a trailing JSON closeout object with:
+   - `closeout_status`
+   - `continue`
+   - `next_prompt`
+   - `stop_reason`
+   - `validation`
+   - `commit`
+   - `consumed_budget`
+   - `remaining_budget`
+   - `scope_expanded`
+   - `risk_level`

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Multi-Agent Loop"
+  short_description: "Loop fresh multi-agent slices with budgeted closeout"
+  default_prompt: "Use $graft-multi-agent-loop to run this Graft slice through repeated fresh-session $graft-multi-agent-task rounds until closeout stops handing off or the execution budget is exhausted."

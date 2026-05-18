@@ -429,3 +429,37 @@
 - Immediate next step after this slice:
   - split the remaining shared Ent/schema and migration history along the `users` / `refresh_sessions` vs
     `user_roles` / `rbac` boundary without reopening runtime store-factory coupling
+
+## 2026-05-18 docs automation multi-agent loop orchestration
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, classified the work as `docs/automation`, recovered
+  through the active `multi-worktree-governance` parent topic, and implemented the looped orchestration slice locally
+  without subagents because the write scope stayed tightly coupled across repository skill text, a new automation
+  runner, and recovery/governance docs.
+- Added `.agents/skills/graft-multi-agent-loop/**` as a new repository skill that wraps repeated fresh-session
+  `graft-multi-agent-task` execution behind an explicit budget:
+  - `max_rounds`
+  - `max_files_changed`
+  - `max_commits`
+  - `max_runtime_minutes`
+  - `allowed_scopes`
+  - validation-failure stop policy
+- Added `scripts/run_loop.py` as a standard-library Python runner that:
+  - launches `codex exec --ephemeral` child sessions
+  - injects inherited startup context plus remaining budget into each round prompt
+  - parses the child closeout JSON first and falls back to `Next-session startup prompt:` only when JSON is missing
+  - stops on repeated prompts, scope expansion, high risk, validation failure, or budget exhaustion
+- Added focused unit coverage in `scripts/test_run_loop.py` for:
+  - JSON closeout parsing
+  - keyword fallback parsing
+  - malformed or contradictory closeout rejection
+  - stop-condition evaluation
+  - dirty-worktree refusal
+  - two-round stubbed loop execution
+- Updated `graft-multi-agent-task` and `graft-task-closeout` so loop-orchestrated runs now have one dual-channel
+  closeout contract:
+  - human-readable closeout first
+  - `Next-session startup prompt:` only when another round is required
+  - one trailing fenced JSON block with status, validation, commit, budget, scope, and risk fields
+- Updated root `AGENTS.md` and the active topic tracking so repository governance now recognizes
+  `graft-multi-agent-loop` as a repository skill without treating it as a second startup or closeout system.

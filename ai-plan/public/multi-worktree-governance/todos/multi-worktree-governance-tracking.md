@@ -216,6 +216,8 @@
   will keep competing over files that are no longer valid steady-state ownership boundaries.
 - If the recovery index is not refreshed when the repository root branch changes again, future boot/recovery flows will
   land on stale branch/worktree assumptions instead of current governance truth.
+- If future looped multi-session automation relies on free-form closeout only, the runner will be brittle against
+  wording drift and may continue or stop on the wrong round.
 
 ## Latest Validation
 
@@ -309,6 +311,15 @@
   - `cd server && go test ./plugins/user ./internal/cli`
   - `cd server && go test ./plugins/rbac ./plugins/user ./internal/cli`
   - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend`
+- The current `2026-05-18` docs/automation loop-orchestrator slice was grounded with:
+  - `sed -n '1,220p' .agents/skills/graft-multi-agent-task/SKILL.md`
+  - `sed -n '1,260p' .agents/skills/graft-task-closeout/SKILL.md`
+  - `sed -n '190,215p' AGENTS.md`
+  - `sed -n '1,260p' ai-plan/design/AI任务追踪与恢复设计.md`
+  - `python3 /root/.codex/skills/.system/skill-creator/scripts/init_skill.py --help`
+  - `python3 /root/.codex/skills/.system/skill-creator/scripts/generate_openai_yaml.py --help`
+- This slice adds a new repository skill plus local automation runner only; runtime validation expectations for actual
+  `server` and `web` feature work remain unchanged.
 
 ## Immediate Next Step
 
@@ -344,6 +355,10 @@
   - continue after the landed RBAC and user contract moves by migrating the remaining persistence implementation
     ownership out of `internal/store/**` / `internal/store/entstore/**`, starting with either `rbac/storeent/**` or
     the matching `user/storeent/**` slice
+- Validate and harden the new docs/automation loop workflow before relying on it for long-running repository work:
+  - keep `graft-multi-agent-loop` as an outer wrapper only; do not let it redefine startup, closeout, or commit rules
+  - keep `graft-multi-agent-task` and `graft-task-closeout` aligned on the new dual-channel closeout contract
+  - require JSON closeout as the primary machine-readable control surface and treat keyword parsing only as fallback
 
 ## Server Owned Scope Freeze
 

@@ -199,6 +199,9 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-multi-agent-task`
   - use when the user explicitly wants one bounded task to run through `graft-multi-agent-batch`, then close out
     through `graft-task-closeout`, and commit the validated owned scope through `graft-commit` when safe
+- `graft-multi-agent-loop`
+  - use when one bounded task should be executed through repeated fresh-session runs of `graft-multi-agent-task`,
+    using an explicit execution budget plus machine-readable closeout to decide whether the next session should start
 - `graft-pr-review`
   - use when the task depends on the GitHub PR for the current branch, especially to extract AI review findings,
     failed checks, MegaLinter warnings, or failed test signals before local verification
