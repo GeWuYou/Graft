@@ -64,13 +64,13 @@
 - `internal/menu`、`internal/permission`、`internal/cronx`、`internal/eventbus`、`internal/i18n`
   - 平台声明式注册面与公共运行时能力
 - `internal/store`、`internal/store/entstore`
-  - 数据访问抽象与 Ent 落地实现
+  - 仅保留现阶段尚未迁出的 core-owned 数据访问边界；长期方向不是继续集中新增业务仓储
 - `internal/ent/schema`
-  - Ent schema 手写真相
+  - 仅保留 core-owned Ent schema 真相
 - `internal/ent/migrate/migrations`
-  - Atlas versioned migration 真相
+  - 仅保留 core-owned Atlas versioned migration 真相
 - `plugins/*`
-  - 业务插件与插件自有 contract
+  - 业务插件与插件自有 contract；长期方向下每个插件还应拥有自己的 capability、store、storeent、ent 与 migrations
 
 除这些显式边界外，不要再发明隐藏 runtime surface。新的平台级入口如果不能清楚归入现有边界，先更新设计再写代码。
 
@@ -93,7 +93,19 @@
 
 ## 5. 插件生命周期与边界
 
-所有 backend plugin 都遵循 `Name / Version / DependsOn / Register / Boot / Shutdown` 契约。
+当前 backend plugin 都遵循 `Name / Version / DependsOn / Register / Boot / Shutdown` 契约。
+
+`server` 的长期并行开发方向保持为 compile-time modular monolith：
+
+- 单体进程
+- compile-time wiring
+- deterministic startup
+- 不做 runtime plugin loading / discovery / hot-load
+- 不做 generalized reflection plugin system
+- 不做 generalized service locator
+
+后续治理允许新增 `plugin.Descriptor`、`plugin.Builder` 与 compile-time generated plugin registry，作为显式装配
+抽象；这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
 
 ### 5.1 生命周期规则
 
@@ -115,7 +127,17 @@
 - 插件依赖通过 `DependsOn()` 声明
 - 服务依赖通过稳定接口解析
 - 缺失依赖、循环依赖、重复注册都属于阻断错误
-- 插件不能直接 import 其它插件的内部 service、repository、handler、store、Ent entity
+- 插件只能依赖：
+  - `internal/pluginapi/**`
+  - `internal/contract/**`
+  - 其它插件公开的 capability contract 或 stable DTO contract
+- 插件不能直接 import：
+  - 其它插件的 `service/**`
+  - 其它插件的 `storeent/**`
+  - 其它插件的 `ent/schema/**`
+  - 其它插件的 migration 文件或 migration 目录
+- 插件不能直接依赖其它插件的内部 repository、handler、store、Ent entity
+- 若需要跨插件业务能力，必须通过 capability interface 或 stable DTO contract 暴露
 
 ### 5.3 插件公开面规则
 
@@ -146,6 +168,12 @@
 
 - 跨插件只暴露 capability-oriented interface，不暴露 repository、Ent client、plugin private struct
 - 跨插件返回值优先使用稳定 DTO，不直接返回 Ent entity 或数据库模型
+- capability 必须在 Builder 或其它 compile-time 装配阶段注册，而不是在运行后期临时拼装
+- capability 生命周期必须稳定，明确由哪个插件提供、何时可用、何时关闭
+- capability 只允许暴露：
+  - cross-plugin business ability
+  - dev/reset hook
+  - stable query/service contract
 - 同一高风险语义只能有一个 canonical definition
 - route contract 优先保持 `group path + route fragment` 真相，不要为同一语义并存多套 full path 常量
 - `permission code`、`event name`、`message key`、`header name`、`auth scheme`、共享状态枚举都属于高风险 contract
@@ -170,6 +198,7 @@
 - 隐式依赖图生成
 - request scope / session scope
 - 业务路径中的随手 `Resolve`
+- generalized capability lookup
 
 规则：
 
@@ -185,9 +214,14 @@
 
 - `internal/app` 只负责 runtime 资源装配、插件编排、关闭顺序，不承载业务用例
 - `internal/httpx` 负责 HTTP 运行时共性，不承载某个插件专有业务规则
-- `internal/store` 定义数据访问边界，`internal/store/entstore` 承接 Ent 实现
-- 业务插件可以依赖 store factory 或插件内 service，不直接把 ORM 句柄扩散到 handler 或跨插件接口
+- `internal/store` 与 `internal/store/entstore` 只允许承载 core-owned 或尚未迁移完成的历史集中边界，不应继续接纳新的业务插件真相
+- 长期方向下，业务插件应收敛到：
+  - `plugins/<name>/store/**`
+  - `plugins/<name>/storeent/**`
+  - `plugins/<name>/service/**`
+  - `plugins/<name>/routes/**`
 - 插件的 handler / route 文件只编排 HTTP 输入输出与授权边界，不直接堆业务事务脚本
+- 一旦某个业务边界迁移到插件目录，禁止把 repository、service、handler 重新回流到 `internal/store/**`、`internal/app/**` 或其它 core runtime 包
 
 ## 9. Ent 与 migration 规则
 
@@ -195,12 +229,27 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 规则：
 
-- `internal/ent/schema/**` 是 Ent schema 手写真相
-- `internal/ent/migrate/migrations/**` 是 versioned migration 真相
+- `internal/ent/schema/**` 只允许承载 core-owned Ent schema 真相
+- `internal/ent/migrate/migrations/**` 只允许承载 core-owned versioned migration 真相
+- 每个业务插件应长期收敛到自己的：
+  - `plugins/<name>/ent/**`
+  - `plugins/<name>/migrations/**`
 - `internal/ent/*.go` 与 `internal/ent/<entity>/**` 中的生成产物默认视为派生结果，不要手改生成代码来“修行为”
 - schema 变化必须通过显式 Ent 生成与显式 migration 流程落地，不允许靠 runtime 自动同步数据库
 - `graft migrate up` 是显式迁移入口；`graft serve` 不得隐式修改 schema
 - migration 文件必须保持可审计、可回放、可按版本追踪；不要把业务初始化偷偷塞进不可追踪的启动逻辑
+- 一个 migration 只能修改：
+  - 当前 owner 拥有的表
+  - 或 core-owned 表
+- 禁止：
+  - `rbac` migration 修改 `user` 表
+  - `audit` migration 修改 `rbac` 表
+  - 任一插件 migration 修改其它插件 schema
+- 跨插件关联只允许：
+  - 稳定外键，由表 owner 明确声明
+  - application-level contract 协作
+- 每个插件独立进行 Ent generate，生成代码只能写入 `plugins/<name>/ent/**`
+- 禁止聚合式全局业务 Ent generate、禁止一个插件修改其它插件的 ent 产物、禁止插件修改 core ent runtime
 
 当任务修改以下任一内容时：
 
@@ -217,6 +266,45 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - `cd server && go test ./...`
 
 不要声称 schema 已完成治理但缺少生成结果或 migration 对应更新。
+
+## 9.1 多工作树 owned scope
+
+`server` 的长期多工作树 owned scope 以插件优先：
+
+- `shared-stable-boundary`
+  - `internal/pluginapi/**`
+  - `internal/contract/**`
+- `generated-shared-hotspot`
+  - `internal/pluginregistry/generated.go`
+- `plugin-owned`
+  - `plugins/<name>/**`
+- `core-owned`
+  - `internal/app/**`
+  - `internal/plugin/**`
+  - `internal/httpx/**`
+  - `internal/config/**`
+  - `internal/logger/**`
+  - `internal/database/**`
+  - `internal/container/**`
+  - `internal/eventbus/**`
+  - `internal/menu/**`
+  - `internal/permission/**`
+  - `internal/cronx/**`
+  - `internal/redisx/**`
+  - `internal/migration/**`
+  - `internal/ent/**` 仅限 core-owned schema
+
+允许长期共享修改的白名单仅包括：
+
+- `internal/pluginapi/**`
+- `internal/contract/**`
+- `internal/pluginregistry/generated.go`
+- `cmd/graft/**`
+- `AGENTS.md`
+- `server/AGENTS.md`
+- `ai-plan/**`
+
+除白名单外，其它目录默认视为 owned scope，不应被多个长期工作树共同持有。
 
 ## 10. Go 编码规则
 

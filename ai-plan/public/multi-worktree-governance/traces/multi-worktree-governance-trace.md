@@ -166,3 +166,26 @@
 - Updated `.agents/skills/graft-commit/SKILL.md` so the workflow now requires explicit interpretation of `git status`
   columns, explains why `git diff --cached --name-only` can be empty, and forbids treating IDE selection UI as staged
   proof.
+
+## 2026-05-18 server module-boundary governance baseline
+
+- Re-ran startup preflight on `refactor/server-module-boundaries` for a docs/automation slice that converts the
+  drafted `server` multi-worktree plan into repository truth.
+- Added `graft-multi-agent-task` as a repository skill and created its skill folder as a thin wrapper around:
+  - `graft-multi-agent-batch`
+  - `graft-task-closeout`
+  - `graft-commit`
+- Corrected active recovery mapping so `ai-plan/public/README.md` and the tracking file now point at the live root
+  branch `refactor/server-module-boundaries` instead of the earlier web refactor branch.
+- Added `ai-plan/public/multi-worktree-governance/roadmap/server-module-boundaries-plan.md` as the topic-local formal
+  plan for backend ownership freeze, phase-by-phase execution, and future plugin onboarding.
+- Updated `server/AGENTS.md` and `ai-plan/design/插件与依赖注入设计.md` so backend governance now explicitly freezes:
+  - compile-time modular monolith direction
+  - plugin dependency restrictions
+  - migration ownership rules
+  - per-plugin Ent generation direction
+  - shared-hotspot whitelist
+  - no-business-logic-backflow constraints
+  - future third-party compatibility boundaries without implementing runtime plugins now
+- Recorded the resulting backend owned-scope baseline in the active topic tracking file so future worktree creation can
+  reference one repository-local truth instead of chat-only planning output.

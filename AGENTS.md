@@ -196,6 +196,9 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-multi-agent-batch`
   - use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel
     slices; `graft-boot` should perform the suitability assessment before delegation starts
+- `graft-multi-agent-task`
+  - use when the user explicitly wants one bounded task to run through `graft-multi-agent-batch`, then close out
+    through `graft-task-closeout`, and commit the validated owned scope through `graft-commit` when safe
 - `graft-pr-review`
   - use when the task depends on the GitHub PR for the current branch, especially to extract AI review findings,
     failed checks, MegaLinter warnings, or failed test signals before local verification

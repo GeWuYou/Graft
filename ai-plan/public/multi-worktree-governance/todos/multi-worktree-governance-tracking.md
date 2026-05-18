@@ -3,11 +3,11 @@
 ## Topic
 
 - Topic: `multi-worktree-governance`
-- Branch: `refactor/web-module-boundaries`
+- Branch: `refactor/server-module-boundaries`
 - Worktree: repository root only; no dedicated long-lived worktree exists yet
 - Scope: keep `mvp-extension-path` archived, reconcile recovery truth with the current root-branch reality, freeze the
-  final post-compatibility `web` ownership model, and prepare stable owned scopes before creating dedicated long-lived
-  worktrees.
+  final post-compatibility `web` ownership model, add the matching `server` compile-time modular-monolith ownership
+  baseline, and prepare stable owned scopes before creating dedicated long-lived worktrees.
 
 ## Goal
 
@@ -31,7 +31,7 @@
 
 - `mvp-extension-path` has been completed as the old long-lived MVP topic; its recovery materials now belong under
   `ai-plan/public/archive/mvp-extension-path/` and are no longer the default active entry.
-- The repository is currently running from the root worktree on branch `refactor/web-module-boundaries`; `git worktree list`
+- The repository is currently running from the root worktree on branch `refactor/server-module-boundaries`; `git worktree list`
   shows no additional worktrees.
 - The immediate governance task on this branch is not to preserve compatibility bridges. It is to lock the final
   post-compatibility ownership model and recovery truth before the first dedicated long-lived worktree is created.
@@ -42,6 +42,13 @@
 - Current boundary facts are frozen as follows:
   - `server` is already close to plugin-oriented parallel execution, and future long-lived worktree ownership should be
     plugin-first.
+  - `server` long-term governance stays on compile-time modular monolith:
+    - no runtime plugin loading
+    - no runtime plugin discovery
+    - no hot-load lifecycle
+    - no generalized reflection plugin system
+    - no generalized service locator
+    - keep single-process deterministic startup
   - `web` final ownership now follows three explicit layers:
     - `shell-owned`: `web/src/app/**`, `web/src/app/bootstrap/**`, `web/src/app/providers/**`, `web/src/layouts/**`,
       `web/src/router/**`, `web/src/config/**`, `web/src/utils/route/**`, `web/src/store/modules/user.ts`,
@@ -79,15 +86,24 @@
   - a real long-lived worktree
   - a declared owned scope
   - a clear shared-hotspot integration path
+- The current `2026-05-18` `server` governance slice freezes the intended backend ownership baseline in
+  `ai-plan/public/multi-worktree-governance/roadmap/server-module-boundaries-plan.md`:
+  - `shared-stable-boundary`: `server/internal/pluginapi/**`, `server/internal/contract/**`
+  - `generated-shared-hotspot`: `server/internal/pluginregistry/generated.go`
+  - `plugin-owned`: `server/plugins/<name>/**`
+  - `core-owned`: runtime/infrastructure packages only
+  - `internal/store/**` and `internal/ent/**` are no longer valid steady-state landing zones for new business logic
+    once the corresponding plugin-owned boundary exists
 
 ## Shared Hotspots
 
-- `server/internal/app/runtime.go`
-- `server/internal/store/factory.go`
-- `server/internal/store/entstore/factory.go`
 - `server/internal/pluginapi/**`
-- `server/internal/ent/schema/**`
-- migrations
+- `server/internal/contract/**`
+- `server/internal/pluginregistry/generated.go`
+- `server/cmd/graft/**`
+- `server/AGENTS.md`
+- `AGENTS.md`
+- `ai-plan/**`
 - `web/src/utils/route/bootstrap.ts`
 - `web/src/store/modules/user.ts`
 - `web/src/store/modules/permission.ts`
@@ -107,8 +123,11 @@
 
 ## Active Risks
 
-- If a future long-lived worktree is created before shared hotspot ownership is frozen, the first merge wave will
-  recreate hidden dual-truth and integration churn.
+- If a future `server` long-lived worktree still depends on shared edits in `internal/store/**`, `internal/ent/**`, or
+  hand-written plugin registration lists, the first merge wave will recreate backend hotspot churn.
+- If plugin dependency rules are not enforced, future plugins will quietly re-form source-level coupling through
+  cross-plugin `service` / `storeent` / `ent/schema` imports.
+- If migration ownership is not enforced, table ownership will drift back into shared migration hotspots.
 - If `web` continues to let module-specific truth linger under root `api/model/contracts` surfaces, future worktrees
   will keep competing over files that are no longer valid steady-state ownership boundaries.
 - If the recovery index is not refreshed when the repository root branch changes again, future boot/recovery flows will
@@ -126,6 +145,12 @@
   - `git branch --show-current`
   - `git worktree list`
   - `git status --short`
+- The current `server` governance baseline was grounded with:
+  - `sed -n '1,320p' server/AGENTS.md`
+  - `sed -n '1,260p' ai-plan/design/插件与依赖注入设计.md`
+  - `sed -n '1,260p' ai-plan/design/项目设计.md`
+  - `find server -maxdepth 3 -type d | sort`
+  - `rg --files server | sort`
 - Documentation consistency was checked with:
   - `rg -n "multi-worktree|worktree|兼容|compat|shared/|app/|modules/|refactor/web-module-boundaries|primary-main|main" ai-plan/public/multi-worktree-governance ai-plan/design/前端架构设计.md ai-plan/public/README.md`
 - AGENTS split consistency was checked with:
@@ -166,6 +191,11 @@
 
 - Keep using `multi-worktree-governance` on the current root branch until the repository either returns to `main` with
   the same baseline or creates the first dedicated worktree/topic pair.
+- Keep the landed `server` governance baseline as the default for future backend worktree ownership:
+  - plugin-first owned scope under `server/plugins/<name>/**`
+  - compile-time generated plugin registry as the only allowed central plugin wiring artifact
+  - `internal/pluginapi/**` and `internal/contract/**` as the only stable shared backend API boundary
+  - no new business logic backflow into `internal/store/**`, `internal/ent/**`, or core runtime packages
 - Keep the landed module-boundary refactor as the baseline for future `web` worktree ownership:
   - preserve `web/src/modules/user/**` and `web/src/modules/rbac/**` as module-owned feature truth
   - preserve `web/src/app/**` and other shell-owned code as consumers of module registrations instead of holders of
@@ -183,6 +213,34 @@
 - Use the new split governance layout as the baseline for future worktree setup:
   - root `AGENTS.md` remains the only startup-governance source
   - `web/AGENTS.md` and `server/AGENTS.md` own daily execution rules inside their boundaries
+
+## Server Owned Scope Freeze
+
+- Future `server` long-lived worktrees should own one plugin boundary at a time:
+  - `server/plugins/user/**`
+  - `server/plugins/rbac/**`
+  - future `server/plugins/server-status/**` or equivalent plugin path
+- `shared-stable-boundary` directories stay centrally integrated:
+  - `server/internal/pluginapi/**`
+  - `server/internal/contract/**`
+- `generated-shared-hotspot` stays centrally integrated:
+  - `server/internal/pluginregistry/generated.go`
+- `core-owned` runtime assets stay centrally integrated and are not long-lived feature-owned scope:
+  - `server/internal/app/**`
+  - `server/internal/plugin/**`
+  - `server/internal/httpx/**`
+  - `server/internal/config/**`
+  - `server/internal/logger/**`
+  - `server/internal/database/**`
+  - `server/internal/container/**`
+  - `server/internal/eventbus/**`
+  - `server/internal/menu/**`
+  - `server/internal/permission/**`
+  - `server/internal/cronx/**`
+  - `server/internal/redisx/**`
+  - `server/internal/migration/**`
+  - `server/internal/ent/**` 仅限 core-owned schema
+- `server/internal/store/**` 与 `server/internal/ent/**` 不是未来业务插件 steady-state owned scope，业务真相迁出后不得重新回流
 
 ## Web Owned Scope Freeze
 

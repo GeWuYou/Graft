@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Multi-Agent Task"
+  short_description: "Run a multi-agent slice and close it out safely"
+  default_prompt: "Use $graft-multi-agent-task to run this Graft slice through graft-multi-agent-batch, then use graft-task-closeout at slice end and graft-commit for any validated owned scope that should be committed before handoff."
