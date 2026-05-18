@@ -38,7 +38,7 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
    - `13. Git Workflow Rules` for pre-handoff commit requirements
 2. Classify the closeout state:
    - `validated and owned`: the current slice reached the required validation level and ownership is clear
-   - `handoff only`: the slice needs a next-step prompt but is not ready for a safe commit
+   - `handoff_only`: the slice needs a next-step prompt but is not ready for a safe commit
    - `blocked`: ownership, validation, or scope is too ambiguous to claim closure
 3. Decide whether a commit is required:
    - if the task ends with a real next-task handoff and the current slice reached the required validation level, prefer
@@ -66,7 +66,7 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
 
 The closeout result should stay concise and should contain:
 
-1. `closeout status`: `committed and handed off`, `handoff only`, or `blocked`
+1. `closeout status`: `completed_no_handoff`, `committed_and_handed_off`, `handoff_only`, or `blocked`
 2. `validation`: exact command run or the exact limitation
 3. `next-step startup prompt`: only when a future turn is expected
 4. when machine-readable closeout is requested, one fenced JSON block with:
