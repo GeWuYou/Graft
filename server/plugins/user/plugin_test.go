@@ -20,6 +20,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
+	authcontract "graft/server/internal/contract/auth"
+	errorcodecontract "graft/server/internal/contract/errorcode"
+	httpheadercontract "graft/server/internal/contract/httpheader"
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	messagecontract "graft/server/internal/contract/message"
@@ -42,6 +45,8 @@ type successEnvelope[T any] struct {
 	TraceID string `json:"traceId"`
 	Data    T      `json:"data"`
 }
+
+const testAPIBasePath = "/api"
 
 func decodeSuccessData[T any](t *testing.T, recorder *httptest.ResponseRecorder) T {
 	t.Helper()
@@ -569,8 +574,38 @@ func newAuthorizedRequestForSessionWithMethod(t *testing.T, method string, path 
 	}
 
 	request := httptest.NewRequest(method, path, nil)
-	request.Header.Set("Authorization", "Bearer "+token)
+	setBearerAuthorizationHeader(request, token)
 	return request
+}
+
+func replaceRouteTokens(path string, replacements ...string) string {
+	if len(replacements) == 0 {
+		return path
+	}
+
+	return strings.NewReplacer(replacements...).Replace(path)
+}
+
+func authRoutePath(fragment string, replacements ...string) string {
+	return replaceRouteTokens(
+		usercontract.JoinRoute(usercontract.JoinRoute(testAPIBasePath, usercontract.AuthGroup), fragment),
+		replacements...,
+	)
+}
+
+func usersRoutePath(fragment string, replacements ...string) string {
+	return replaceRouteTokens(
+		usercontract.JoinRoute(usercontract.JoinRoute(testAPIBasePath, usercontract.UsersGroup), fragment),
+		replacements...,
+	)
+}
+
+func setBearerAuthorizationHeader(request *http.Request, token string) {
+	request.Header.Set(httpheadercontract.Authorization.String(), authcontract.Bearer.Prefix()+token)
+}
+
+func authorizationTokenFromRequest(request *http.Request) string {
+	return strings.TrimSpace(strings.TrimPrefix(request.Header.Get(httpheadercontract.Authorization.String()), authcontract.Bearer.Prefix()))
 }
 
 func seedRefreshSession(t *testing.T, authRepo store.AuthRepository, userID uint64, expiresAt time.Time) string {
@@ -624,7 +659,7 @@ func newSessionAdminEngine(t *testing.T, authRepo *pluginTestAuthRepository, use
 	t.Helper()
 
 	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(users...), authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.read"}, {Code: "user.session.revoke"}},
+		9: {{Code: usercontract.UserSessionReadPermission.String()}, {Code: usercontract.UserSessionRevokePermission.String()}},
 	})
 
 	return engine
@@ -670,6 +705,12 @@ func assertErrorPayload(t *testing.T, payload httpx.ErrorResponse, messageKey st
 	if payload.MessageKey != messageKey || payload.Code != code || payload.Locale != locale {
 		t.Fatalf("expected error payload key=%s code=%s locale=%s, got %#v", messageKey, code, locale, payload)
 	}
+}
+
+func assertContractErrorPayload(t *testing.T, payload httpx.ErrorResponse, messageKey messagecontract.Key, locale string) {
+	t.Helper()
+
+	assertErrorPayload(t, payload, messageKey.String(), errorcodecontract.FromMessageKey(messageKey).String(), locale)
 }
 
 func assertErrorFieldDetail(t *testing.T, payload httpx.ErrorResponse, field string) {
@@ -719,7 +760,7 @@ func loginUser(t *testing.T, engine *gin.Engine, username string, password strin
 	t.Helper()
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(fmt.Sprintf(`{"username":"%s","password":"%s"}`, username, password)))
+	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthLogin), strings.NewReader(fmt.Sprintf(`{"username":"%s","password":"%s"}`, username, password)))
 	request.Header.Set("Content-Type", "application/json")
 	if locale != "" {
 		request.Header.Set(i18n.LocaleHeader, locale)
@@ -933,6 +974,42 @@ func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) pluginT
 	}
 }
 
+func newDefaultAdminBootAuthRepository(t *testing.T, ensuredDefaultAdmin *bool) *pluginTestAuthRepository {
+	t.Helper()
+
+	return &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
+			if username == defaultAdminUsername {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+
+			return store.UserCredential{
+				UserID:             7,
+				Username:           username,
+				MustChangePassword: false,
+			}, nil
+		},
+		ensureUserCredential: func(_ context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
+			*ensuredDefaultAdmin = true
+			if input.Username != defaultAdminUsername {
+				t.Fatalf("expected default admin username, got %q", input.Username)
+			}
+			if !input.MustChangePassword {
+				t.Fatal("expected default admin bootstrap to require password change")
+			}
+			if input.PasswordHash == "" {
+				t.Fatal("expected default admin bootstrap password hash to be populated")
+			}
+
+			return store.UserCredential{
+				UserID:             9,
+				Username:           input.Username,
+				MustChangePassword: input.MustChangePassword,
+			}, nil
+		},
+	}
+}
+
 func newDefaultAdminBootPluginContext(authRepo store.AuthRepository) *plugin.Context {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
@@ -949,7 +1026,7 @@ func newDefaultAdminBootPluginContext(authRepo store.AuthRepository) *plugin.Con
 			RefreshCookiePath:     "/",
 		}},
 		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		Router:             engine.Group("/api"),
+		Router:             engine.Group(testAPIBasePath),
 		Services:           container.New(),
 		Stores:             pluginTestStoreFactory{auth: authRepo, users: pluginTestUserRepository{}, permissions: map[uint64][]store.Permission{}},
 		MenuRegistry:       menu.NewRegistry(),
@@ -1036,24 +1113,21 @@ func assertInvalidTokenResponse(t *testing.T, recorder *httptest.ResponseRecorde
 	t.Helper()
 
 	assertStatus(t, recorder, http.StatusUnauthorized)
-	assertErrorPayload(t, decodeErrorResponse(t, recorder), "auth.token_invalid", "AUTH_TOKEN_INVALID", locale)
+	assertContractErrorPayload(t, decodeErrorResponse(t, recorder), messagecontract.AuthTokenInvalid, locale)
 }
 
 func assertMissingTokenResponse(t *testing.T, recorder *httptest.ResponseRecorder, locale string) {
 	t.Helper()
 
 	assertStatus(t, recorder, http.StatusUnauthorized)
-	assertErrorPayload(t, decodeErrorResponse(t, recorder), "auth.token_missing", "AUTH_TOKEN_MISSING", locale)
+	assertContractErrorPayload(t, decodeErrorResponse(t, recorder), messagecontract.AuthTokenMissing, locale)
 }
 
 func assertSessionNotFoundResponse(t *testing.T, recorder *httptest.ResponseRecorder, locale string) {
 	t.Helper()
 
 	assertStatus(t, recorder, http.StatusNotFound)
-	payload := decodeErrorResponse(t, recorder)
-	if payload.MessageKey != "auth.session_not_found" || payload.Locale != locale {
-		t.Fatalf("expected session not found payload, got %#v", payload)
-	}
+	assertContractErrorPayload(t, decodeErrorResponse(t, recorder), messagecontract.AuthSessionNotFound, locale)
 }
 
 func assertInvalidArgumentFieldResponse(t *testing.T, recorder *httptest.ResponseRecorder, locale string, field string) {
@@ -1061,9 +1135,7 @@ func assertInvalidArgumentFieldResponse(t *testing.T, recorder *httptest.Respons
 
 	assertStatus(t, recorder, http.StatusBadRequest)
 	payload := decodeErrorResponse(t, recorder)
-	if payload.MessageKey != "common.invalid_argument" || payload.Locale != locale {
-		t.Fatalf("expected invalid argument payload, got %#v", payload)
-	}
+	assertContractErrorPayload(t, payload, messagecontract.CommonInvalidArgument, locale)
 	assertErrorFieldDetail(t, payload, field)
 }
 
@@ -1071,7 +1143,7 @@ func assertForbiddenResponse(t *testing.T, recorder *httptest.ResponseRecorder, 
 	t.Helper()
 
 	assertStatus(t, recorder, http.StatusForbidden)
-	assertErrorPayload(t, decodeErrorResponse(t, recorder), "auth.forbidden", "AUTH_FORBIDDEN", locale)
+	assertContractErrorPayload(t, decodeErrorResponse(t, recorder), messagecontract.AuthForbidden, locale)
 }
 
 func assertNoCookieMutation(t *testing.T, cookies []*http.Cookie) {
@@ -1116,7 +1188,7 @@ func loginAdminEngine(t *testing.T, passwordHash string) (*pluginTestAuthReposit
 		testUser(8, "bob", "Bob"),
 		testUser(9, "admin", "Admin"),
 	), authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.revoke"}},
+		9: {{Code: usercontract.UserSessionRevokePermission.String()}},
 	})
 	return authRepo, engine
 }
@@ -1170,19 +1242,12 @@ func TestUserRouteRejectsInvalidID(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedRequestForUser(t, "/api/users/not-a-number", authRepo, 7))
+	engine.ServeHTTP(recorder, newAuthorizedRequestForUser(t, usersRoutePath(usercontract.UserByID, ":id", "not-a-number"), authRepo, 7))
 
-	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, recorder.Code)
-	}
+	assertStatus(t, recorder, http.StatusBadRequest)
 
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "common.invalid_argument" || payload.Locale != "zh-CN" {
-		t.Fatalf("expected localized invalid argument contract, got %#v", payload)
-	}
+	payload := decodeErrorResponse(t, recorder)
+	assertContractErrorPayload(t, payload, messagecontract.CommonInvalidArgument, "zh-CN")
 	if payload.Message != "请求参数不合法" || payload.Error != payload.Message {
 		t.Fatalf("expected parse error payload, got %#v", payload)
 	}
@@ -1211,7 +1276,7 @@ func TestUserRouteReturnsNotFoundContract(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForUser(t, "/api/users/8", authRepo, 7)
+	request := newAuthorizedRequestForUser(t, usersRoutePath(usercontract.UserByID, ":id", "8"), authRepo, 7)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -1223,9 +1288,7 @@ func TestUserRouteReturnsNotFoundContract(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "user.not_found" || payload.Locale != "en-US" {
-		t.Fatalf("expected localized not found contract, got %#v", payload)
-	}
+	assertContractErrorPayload(t, payload, messagecontract.UserNotFound, "en-US")
 	if payload.Message != "User not found" || payload.Error != payload.Message {
 		t.Fatalf("expected not found payload, got %#v", payload)
 	}
@@ -1248,7 +1311,7 @@ func TestUserRouteReturnsSummary(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedRequestForUser(t, "/api/users/7", authRepo, 7))
+	engine.ServeHTTP(recorder, newAuthorizedRequestForUser(t, usersRoutePath(usercontract.UserByID, ":id", "7"), authRepo, 7))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
@@ -1263,87 +1326,12 @@ func TestUserRouteReturnsSummary(t *testing.T) {
 // TestBootEnsuresDefaultAdmin 验证默认管理员初始化只在 Boot 阶段执行，
 // 避免 Register 阶段引入持久化副作用。
 func TestBootEnsuresDefaultAdmin(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{
-		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
-			if username == defaultAdminUsername {
-				return store.UserCredential{}, store.ErrUserNotFound
-			}
+	ensuredDefaultAdmin := false
+	assignedRole := false
+	authRepo := newDefaultAdminBootAuthRepository(t, &ensuredDefaultAdmin)
+	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
 
-			return store.UserCredential{
-				UserID:             7,
-				Username:           username,
-				MustChangePassword: false,
-			}, nil
-		},
-	}
-
-	var ensuredDefaultAdmin bool
-	authRepo.ensureUserCredential = func(_ context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
-		ensuredDefaultAdmin = true
-		if input.Username != defaultAdminUsername {
-			t.Fatalf("expected default admin username, got %q", input.Username)
-		}
-		if !input.MustChangePassword {
-			t.Fatal("expected default admin bootstrap to require password change")
-		}
-		if input.PasswordHash == "" {
-			t.Fatal("expected default admin bootstrap password hash to be populated")
-		}
-
-		return store.UserCredential{
-			UserID:             9,
-			Username:           input.Username,
-			MustChangePassword: input.MustChangePassword,
-		}, nil
-	}
-
-	var assignedRole bool
-	rbacRepo := pluginTestRBACRepository{
-		ensureRole: func(_ context.Context, input store.EnsureRoleInput) (store.Role, error) {
-			if !input.Builtin {
-				t.Fatal("expected default admin role to be marked builtin")
-			}
-			return store.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
-		},
-		ensurePermission: func(_ context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
-			if input.Category != "api" {
-				t.Fatalf("expected ensured permission %s to carry category api, got %#v", input.Code, input)
-			}
-			return store.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
-		},
-		assignPermissionsToRole: func(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
-			return nil
-		},
-		assignRoleToUser: func(_ context.Context, input store.AssignRoleToUserInput) error {
-			assignedRole = true
-			if input.UserID != 9 {
-				t.Fatalf("expected default admin user id 9, got %d", input.UserID)
-			}
-			return nil
-		},
-	}
-
-	gin.SetMode(gin.TestMode)
-	engine := gin.New()
-	ctx := &plugin.Context{
-		LifecycleContext: context.Background(),
-		Logger:           zap.NewNop(),
-		Config: &config.Config{Auth: config.AuthConfig{
-			AccessTokenTTL:        15 * time.Minute,
-			RefreshTokenTTL:       24 * time.Hour,
-			SigningKey:            "test-signing-key",
-			RefreshCookieName:     "graft_refresh_token",
-			RefreshCookieSameSite: "lax",
-			RefreshCookiePath:     "/",
-		}},
-		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		Router:             engine.Group("/api"),
-		Services:           container.New(),
-		Stores:             pluginTestStoreFactory{auth: authRepo, users: pluginTestUserRepository{}, permissions: map[uint64][]store.Permission{}},
-		MenuRegistry:       menu.NewRegistry(),
-		PermissionRegistry: permission.NewRegistry(),
-		CronRegistry:       cronx.NewRegistry(),
-	}
+	ctx := newDefaultAdminBootPluginContext(authRepo)
 
 	pluginInstance := NewPlugin()
 	if err := pluginInstance.Register(ctx); err != nil {
@@ -1477,7 +1465,7 @@ func TestUserListRouteReturnsStableItems(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedRequestForUser(t, "/api/users", authRepo, 7))
+	engine.ServeHTTP(recorder, newAuthorizedRequestForUser(t, usersRoutePath(usercontract.UserCollection), authRepo, 7))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
@@ -1514,7 +1502,7 @@ func TestUserListRouteReturnsInternalErrorContract(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForUser(t, "/api/users", authRepo, 7)
+	request := newAuthorizedRequestForUser(t, usersRoutePath(usercontract.UserCollection), authRepo, 7)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -1537,20 +1525,9 @@ func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, nil)
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/users/7", nil)
+	request := httptest.NewRequest(http.MethodGet, usersRoutePath(usercontract.UserByID, ":id", "7"), nil)
 	engine.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != messagecontract.AuthTokenMissing.String() || payload.Code != "AUTH_TOKEN_MISSING" {
-		t.Fatalf("expected permission middleware payload, got %#v", payload)
-	}
+	assertMissingTokenResponse(t, recorder, "zh-CN")
 }
 
 // TestBootstrapRouteRequiresAuthenticatedActor 验证 bootstrap 契约仍复用统一
@@ -1559,20 +1536,9 @@ func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, nil)
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api"+usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthBootstrap), nil)
+	request := httptest.NewRequest(http.MethodGet, authRoutePath(usercontract.AuthBootstrap), nil)
 	engine.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != messagecontract.AuthTokenMissing.String() || payload.Code != "AUTH_TOKEN_MISSING" {
-		t.Fatalf("expected missing actor payload, got %#v", payload)
-	}
+	assertMissingTokenResponse(t, recorder, "zh-CN")
 }
 
 // TestBootstrapRouteReturnsFilteredContract 验证 bootstrap 路由会返回当前用户、
@@ -1581,8 +1547,8 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
 	ctx, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo, map[uint64][]store.Permission{
 		7: {
-			{Code: " user.read "},
-			{Code: "user.read"},
+			{Code: " " + usercontract.UserReadPermission.String() + " "},
+			{Code: usercontract.UserReadPermission.String()},
 			{Code: ""},
 		},
 	})
@@ -1601,7 +1567,7 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 	})
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForUser(t, "/api"+usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthBootstrap), authRepo, 7)
+	request := newAuthorizedRequestForUser(t, authRoutePath(usercontract.AuthBootstrap), authRepo, 7)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -1630,7 +1596,7 @@ func TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales(t *testing.T) {
 		nil,
 	)
 
-	snapshot := reader.localeSnapshot(httptest.NewRequest(http.MethodGet, "/api/auth/bootstrap", nil))
+	snapshot := reader.localeSnapshot(httptest.NewRequest(http.MethodGet, authRoutePath(usercontract.AuthBootstrap), nil))
 	if !slices.Equal(snapshot.SupportedLocales, []string{"zh-CN"}) {
 		t.Fatalf("expected duplicate fallback locales to collapse, got %#v", snapshot.SupportedLocales)
 	}
@@ -1712,14 +1678,14 @@ func TestAuthServiceParseAccessTokenRequiresActiveSession(t *testing.T) {
 			}, authRepo)
 
 			sessionID := tc.arrange(t, authRepo)
-			request := newAuthorizedRequestForSession(t, "/api/users/7", 7, sessionID)
+			request := newAuthorizedRequestForSession(t, usersRoutePath(usercontract.UserByID, ":id", "7"), 7, sessionID)
 
 			authAny, err := ctx.Services.Resolve((*pluginapi.AuthService)(nil))
 			if err != nil {
 				t.Fatalf("resolve auth service: %v", err)
 			}
 
-			token := strings.TrimSpace(strings.TrimPrefix(request.Header.Get("Authorization"), "Bearer "))
+			token := authorizationTokenFromRequest(request)
 			_, err = authAny.(pluginapi.AuthService).ParseAccessToken(context.Background(), token)
 			if !errors.Is(err, pluginapi.ErrInvalidAccessToken) {
 				t.Fatalf("expected ErrInvalidAccessToken, got %v", err)
@@ -1739,7 +1705,7 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 			name: "missing session",
 			arrange: func(t *testing.T, _ *pluginTestAuthRepository) *http.Request {
 				t.Helper()
-				return newAuthorizedRequestForSession(t, "/api/users/7", 7, "missing-session")
+				return newAuthorizedRequestForSession(t, usersRoutePath(usercontract.UserByID, ":id", "7"), 7, "missing-session")
 			},
 		},
 		{
@@ -1755,7 +1721,7 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 					t.Fatalf("revoke refresh session: %v", err)
 				}
 
-				return newAuthorizedRequestForSession(t, "/api/users/7", 7, sessionID)
+				return newAuthorizedRequestForSession(t, usersRoutePath(usercontract.UserByID, ":id", "7"), 7, sessionID)
 			},
 		},
 		{
@@ -1763,7 +1729,7 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 			arrange: func(t *testing.T, repo *pluginTestAuthRepository) *http.Request {
 				t.Helper()
 				sessionID := seedRefreshSession(t, repo, 7, time.Now().UTC().Add(-time.Minute))
-				return newAuthorizedRequestForSession(t, "/api/users/7", 7, sessionID)
+				return newAuthorizedRequestForSession(t, usersRoutePath(usercontract.UserByID, ":id", "7"), 7, sessionID)
 			},
 		},
 	}
@@ -1788,17 +1754,7 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 			request.Header.Set(i18n.LocaleHeader, "en-US")
 			engine.ServeHTTP(recorder, request)
 
-			if recorder.Code != http.StatusUnauthorized {
-				t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
-			}
-
-			var payload httpx.ErrorResponse
-			if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-				t.Fatalf("decode response: %v", err)
-			}
-			if payload.MessageKey != "auth.token_invalid" || payload.Code != "AUTH_TOKEN_INVALID" || payload.Locale != "en-US" {
-				t.Fatalf("expected invalid token payload, got %#v", payload)
-			}
+			assertInvalidTokenResponse(t, recorder, "en-US")
 		})
 	}
 }
@@ -1848,7 +1804,7 @@ func TestRefreshRouteRotatesSessionAndReturnsNewAccessToken(t *testing.T) {
 	refreshCookie := firstCookie(t, cookies)
 
 	refreshRecorder := httptest.NewRecorder()
-	refreshRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshRequest := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthRefresh), nil)
 	refreshRequest.AddCookie(refreshCookie)
 	refreshRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(refreshRecorder, refreshRequest)
@@ -1888,7 +1844,7 @@ func TestRefreshRouteRejectsRestrictedSession(t *testing.T) {
 	refreshSubject := parseRefreshCookieClaims(t, refreshCookie)
 
 	refreshRecorder := httptest.NewRecorder()
-	refreshRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshRequest := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthRefresh), nil)
 	refreshRequest.AddCookie(refreshCookie)
 	refreshRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(refreshRecorder, refreshRequest)
@@ -1913,14 +1869,14 @@ func TestRefreshRouteRejectsReusedRefreshCookie(t *testing.T) {
 	refreshCookie := firstCookie(t, cookies)
 
 	firstRefreshRecorder := httptest.NewRecorder()
-	firstRefreshRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	firstRefreshRequest := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthRefresh), nil)
 	firstRefreshRequest.AddCookie(refreshCookie)
 	firstRefreshRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(firstRefreshRecorder, firstRefreshRequest)
 	assertStatus(t, firstRefreshRecorder, http.StatusOK)
 
 	reuseRecorder := httptest.NewRecorder()
-	reuseRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	reuseRequest := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthRefresh), nil)
 	reuseRequest.AddCookie(refreshCookie)
 	reuseRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(reuseRecorder, reuseRequest)
@@ -1933,21 +1889,11 @@ func TestRefreshRouteRejectsMissingCookie(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthRefresh), nil)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "auth.token_missing" || payload.Code != "AUTH_TOKEN_MISSING" || payload.Locale != "en-US" {
-		t.Fatalf("expected missing refresh token payload, got %#v", payload)
-	}
+	assertMissingTokenResponse(t, recorder, "en-US")
 }
 
 // TestLoginDoesNotIssueOrphanedAccessToken 验证基础 Login 流程只做认证，不再
@@ -2017,7 +1963,7 @@ func TestLogoutRouteRevokesCurrentRefreshSession(t *testing.T) {
 	claims := parseRefreshCookieClaims(t, refreshCookie)
 
 	logoutRecorder := httptest.NewRecorder()
-	logoutRequest := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	logoutRequest := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthLogout), nil)
 	logoutRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(logoutRecorder, logoutRequest)
 
@@ -2033,7 +1979,7 @@ func TestLogoutRouteRejectsMissingCookie(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthLogout), nil)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2055,8 +2001,8 @@ func TestRevokeAllSessionsRouteRevokesCurrentUserSessions(t *testing.T) {
 	otherUserSessionID := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
 
 	revokeRecorder := httptest.NewRecorder()
-	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/auth/sessions/revoke-all", nil)
-	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
+	revokeRequest := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeAll), nil)
+	setBearerAuthorizationHeader(revokeRequest, loginPayload.AccessToken)
 	revokeRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(revokeRecorder, revokeRequest)
 
@@ -2071,14 +2017,14 @@ func TestRevokeAllSessionsRouteRevokesCurrentUserSessions(t *testing.T) {
 	assertClearedCookie(t, revokeRecorder.Result().Cookies(), refreshCookie.Name)
 
 	protectedRecorder := httptest.NewRecorder()
-	protectedRequest := httptest.NewRequest(http.MethodGet, "/api/users/7", nil)
-	protectedRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
+	protectedRequest := httptest.NewRequest(http.MethodGet, usersRoutePath(usercontract.UserByID, ":id", "7"), nil)
+	setBearerAuthorizationHeader(protectedRequest, loginPayload.AccessToken)
 	protectedRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(protectedRecorder, protectedRequest)
 	assertInvalidTokenResponse(t, protectedRecorder, "en-US")
 
 	refreshRecorder := httptest.NewRecorder()
-	refreshRequest := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshRequest := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthRefresh), nil)
 	refreshRequest.AddCookie(refreshCookie)
 	refreshRequest.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(refreshRecorder, refreshRequest)
@@ -2091,7 +2037,7 @@ func TestRevokeAllSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/auth/sessions/revoke-all", nil)
+	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeAll), nil)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2112,7 +2058,7 @@ func TestRevokeOtherSessionsRouteRevokesNonCurrentSessions(t *testing.T) {
 	otherUserSessionID := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/revoke-others", 7, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeOthers), 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
 	assertStatus(t, recorder, http.StatusOK)
@@ -2171,7 +2117,7 @@ func TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces(t *testing.T) {
 	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/revoke-others", 7, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeOthers), 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
 	assertStatus(t, recorder, http.StatusOK)
@@ -2188,21 +2134,11 @@ func TestRevokeOtherSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/auth/sessions/revoke-others", nil)
+	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeOthers), nil)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "auth.token_missing" || payload.Code != "AUTH_TOKEN_MISSING" || payload.Locale != "en-US" {
-		t.Fatalf("expected missing actor payload, got %#v", payload)
-	}
+	assertMissingTokenResponse(t, recorder, "en-US")
 }
 
 // TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession 验证当前用户只剩当前会话时，
@@ -2214,7 +2150,7 @@ func TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession(t *testing.T) {
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/revoke-others", 7, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeOthers), 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
 	assertStatus(t, recorder, http.StatusOK)
@@ -2242,7 +2178,7 @@ func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/auth/sessions", 7, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, authRoutePath(usercontract.AuthSessions), 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
 	assertStatus(t, recorder, http.StatusOK)
@@ -2269,7 +2205,7 @@ func TestListCurrentUserSessionsRouteAppliesLimit(t *testing.T) {
 	newestSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(3*time.Hour))
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/auth/sessions?limit=2", 7, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, authRoutePath(usercontract.AuthSessions)+"?limit=2", 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
 	assertStatus(t, recorder, http.StatusOK)
@@ -2297,24 +2233,11 @@ func TestListCurrentUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/auth/sessions?limit=0", 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, authRoutePath(usercontract.AuthSessions)+"?limit=0", 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "common.invalid_argument" || payload.Locale != "en-US" {
-		t.Fatalf("expected invalid argument payload, got %#v", payload)
-	}
-	if payload.Details["field"] != "limit" {
-		t.Fatalf("expected denied field detail, got %#v", payload)
-	}
+	assertInvalidArgumentFieldResponse(t, recorder, "en-US", "limit")
 }
 
 // TestListCurrentUserSessionsRouteRequiresAuthenticatedActor 验证当前用户会话列表继续
@@ -2323,7 +2246,7 @@ func TestListCurrentUserSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/auth/sessions", nil)
+	request := httptest.NewRequest(http.MethodGet, authRoutePath(usercontract.AuthSessions), nil)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2354,7 +2277,7 @@ func TestAdminListUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions", 9, adminSession)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, usersRoutePath(usercontract.UserSessions, ":id", "7"), 9, adminSession)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2384,7 +2307,7 @@ func TestAdminListUserSessionsRouteAppliesLimit(t *testing.T) {
 	adminSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions?limit=2", 9, adminSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, usersRoutePath(usercontract.UserSessions, ":id", "7")+"?limit=2", 9, adminSessionID)
 	engine.ServeHTTP(recorder, request)
 
 	assertStatus(t, recorder, http.StatusOK)
@@ -2406,7 +2329,7 @@ func TestAdminListUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
 	)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions?limit=101", 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, usersRoutePath(usercontract.UserSessions, ":id", "7")+"?limit=101", 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2431,21 +2354,12 @@ func TestAdminListUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions", 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, usersRoutePath(usercontract.UserSessions, ":id", "7"), 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != messagecontract.AuthForbidden.String() || payload.Code != "AUTH_FORBIDDEN" || payload.Locale != "en-US" {
-		t.Fatalf("expected missing permission payload, got %#v", payload)
-	}
+	payload := decodeErrorResponse(t, recorder)
+	assertStatus(t, recorder, http.StatusForbidden)
+	assertContractErrorPayload(t, payload, messagecontract.AuthForbidden, "en-US")
 	if payload.Details["permission"] != usercontract.UserSessionReadPermission.String() {
 		t.Fatalf("expected denied permission detail, got %#v", payload)
 	}
@@ -2469,7 +2383,7 @@ func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
 	})
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users/7/sessions", 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, usersRoutePath(usercontract.UserSessions, ":id", "7"), 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2505,7 +2419,7 @@ func TestRevokeCurrentUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
 	targetSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(3*time.Hour))
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/"+targetSessionID+"/revoke", 7, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthSessionRevoke, ":sessionID", targetSessionID), 7, currentSessionID)
 	engine.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
@@ -2547,8 +2461,8 @@ func TestRevokeCurrentUserSessionRouteClearsCookieWhenRevokingCurrentSession(t *
 	currentClaims := parseRefreshCookieClaims(t, refreshCookie)
 
 	revokeRecorder := httptest.NewRecorder()
-	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/auth/sessions/"+currentClaims.TokenID+"/revoke", nil)
-	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
+	revokeRequest := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthSessionRevoke, ":sessionID", currentClaims.TokenID), nil)
+	setBearerAuthorizationHeader(revokeRequest, loginPayload.AccessToken)
 	revokeRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(revokeRecorder, revokeRequest)
 
@@ -2572,7 +2486,7 @@ func TestRevokeCurrentUserSessionRouteReturnsNotFoundContract(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/sessions/missing-session/revoke", 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthSessionRevoke, ":sessionID", "missing-session"), 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2588,7 +2502,7 @@ func TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
 		testUser(8, "bob", "Bob"),
 		testUser(9, "admin", "Admin"),
 	), authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.revoke"}},
+		9: {{Code: usercontract.UserSessionRevokePermission.String()}},
 	})
 
 	targetSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
@@ -2597,7 +2511,7 @@ func TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
 	adminSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/users/7/sessions/"+targetSessionID+"/revoke", 9, adminSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, usersRoutePath(usercontract.UserSessionByIDRevoke, ":id", "7", ":sessionID", targetSessionID), 9, adminSessionID)
 	engine.ServeHTTP(recorder, request)
 
 	assertStatus(t, recorder, http.StatusOK)
@@ -2623,8 +2537,8 @@ func TestAdminRevokeUserSessionRouteClearsCurrentCookieWhenRevokingSelfCurrentSe
 	currentClaims := parseRefreshCookieClaims(t, refreshCookie)
 
 	revokeRecorder := httptest.NewRecorder()
-	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/users/9/sessions/"+currentClaims.TokenID+"/revoke", nil)
-	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
+	revokeRequest := httptest.NewRequest(http.MethodPost, usersRoutePath(usercontract.UserSessionByIDRevoke, ":id", "9", ":sessionID", currentClaims.TokenID), nil)
+	setBearerAuthorizationHeader(revokeRequest, loginPayload.AccessToken)
 	revokeRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(revokeRecorder, revokeRequest)
 
@@ -2649,11 +2563,11 @@ func TestAdminRevokeUserSessionRouteReturnsNotFoundContract(t *testing.T) {
 			}
 		},
 	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.revoke"}},
+		9: {{Code: usercontract.UserSessionRevokePermission.String()}},
 	})
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/users/7/sessions/missing-session/revoke", 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, usersRoutePath(usercontract.UserSessionByIDRevoke, ":id", "7", ":sessionID", "missing-session"), 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2676,7 +2590,7 @@ func TestAdminRevokeUserSessionsRouteRevokesTargetUserSessions(t *testing.T) {
 	adminSession := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/users/7/sessions/revoke-all", 9, adminSession)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, usersRoutePath(usercontract.UserSessionsRevokeAll, ":id", "7"), 9, adminSession)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
@@ -2703,8 +2617,8 @@ func TestAdminRevokeUserSessionsRouteClearsCurrentCookieWhenRevokingSelf(t *test
 	refreshCookie := firstCookie(t, loginCookies)
 
 	revokeRecorder := httptest.NewRecorder()
-	revokeRequest := httptest.NewRequest(http.MethodPost, "/api/users/9/sessions/revoke-all", nil)
-	revokeRequest.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
+	revokeRequest := httptest.NewRequest(http.MethodPost, usersRoutePath(usercontract.UserSessionsRevokeAll, ":id", "9"), nil)
+	setBearerAuthorizationHeader(revokeRequest, loginPayload.AccessToken)
 	revokeRequest.AddCookie(refreshCookie)
 	engine.ServeHTTP(revokeRecorder, revokeRequest)
 
@@ -2727,21 +2641,12 @@ func TestAdminRevokeUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 	}, authRepo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/users/8/sessions/revoke-all", 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, usersRoutePath(usercontract.UserSessionsRevokeAll, ":id", "8"), 7, seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != messagecontract.AuthForbidden.String() || payload.Code != "AUTH_FORBIDDEN" || payload.Locale != "en-US" {
-		t.Fatalf("expected missing permission payload, got %#v", payload)
-	}
+	payload := decodeErrorResponse(t, recorder)
+	assertStatus(t, recorder, http.StatusForbidden)
+	assertContractErrorPayload(t, payload, messagecontract.AuthForbidden, "en-US")
 	if payload.Details["permission"] != usercontract.UserSessionRevokePermission.String() {
 		t.Fatalf("expected denied permission detail, got %#v", payload)
 	}
@@ -2759,28 +2664,14 @@ func TestAdminRevokeUserSessionsRouteRejectsInvalidID(t *testing.T) {
 			return store.User{ID: 9, Username: "admin", Display: "Admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
 		},
 	}, authRepo, map[uint64][]store.Permission{
-		9: {{Code: "user.session.revoke"}},
+		9: {{Code: usercontract.UserSessionRevokePermission.String()}},
 	})
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/users/not-a-number/sessions/revoke-all", 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, usersRoutePath(usercontract.UserSessionsRevokeAll, ":id", "not-a-number"), 9, seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour)))
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, recorder.Code)
-	}
-
-	var payload httpx.ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.MessageKey != "common.invalid_argument" || payload.Locale != "en-US" {
-		t.Fatalf("expected invalid argument payload, got %#v", payload)
-	}
-	if payload.Details["field"] != "id" {
-		t.Fatalf("expected field detail to be id, got %#v", payload)
-	}
+	assertInvalidArgumentFieldResponse(t, recorder, "en-US", "id")
 }
 
 // TestLoginRouteRejectsInvalidCredentials 验证用户名不存在或口令不匹配时，
@@ -2820,7 +2711,7 @@ func TestLoginRouteRejectsInvalidCredentials(t *testing.T) {
 	})
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"wrong"}`))
+	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthLogin), strings.NewReader(`{"username":"alice","password":"wrong"}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
@@ -2833,9 +2724,7 @@ func TestLoginRouteRejectsInvalidCredentials(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.MessageKey != "auth.invalid_credentials" || payload.Code != "AUTH_INVALID_CREDENTIALS" || payload.Locale != "en-US" {
-		t.Fatalf("expected invalid credentials payload, got %#v", payload)
-	}
+	assertContractErrorPayload(t, payload, messagecontract.AuthInvalidCredentials, "en-US")
 }
 
 // TestLoginRouteRejectsMissingCredentials 验证缺失用户名或密码时，登录接口会
@@ -2866,7 +2755,7 @@ func TestLoginRouteRejectsMissingCredentials(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(tc.body))
+			request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthLogin), strings.NewReader(tc.body))
 			request.Header.Set("Content-Type", "application/json")
 			engine.ServeHTTP(recorder, request)
 
@@ -2878,9 +2767,7 @@ func TestLoginRouteRejectsMissingCredentials(t *testing.T) {
 			if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 				t.Fatalf("decode response: %v", err)
 			}
-			if payload.MessageKey != "common.invalid_argument" {
-				t.Fatalf("expected invalid argument payload, got %#v", payload)
-			}
+			assertContractErrorPayload(t, payload, messagecontract.CommonInvalidArgument, "zh-CN")
 			if payload.Details["field"] != tc.field {
 				t.Fatalf("expected %s field detail, got %#v", tc.field, payload.Details)
 			}
@@ -2922,7 +2809,7 @@ func TestCompleteRequiredPasswordChangeRouteAllowsRestrictedSession(t *testing.T
 
 	currentSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/complete-required-password-change", 9, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthCompleteRequiredPasswordChange), 9, currentSessionID)
 	request.Body = io.NopCloser(strings.NewReader(`{"new_password":"next-password-123"}`))
 	request.ContentLength = int64(len(`{"new_password":"next-password-123"}`))
 	request.Header.Set("Content-Type", "application/json")
@@ -2972,7 +2859,7 @@ func TestChangePasswordRouteRejectsMissingCurrentPassword(t *testing.T) {
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/change-password", 7, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthChangePassword), 7, currentSessionID)
 	request.Body = io.NopCloser(strings.NewReader(`{"current_password":"","new_password":"next-password-123"}`))
 	request.ContentLength = int64(len(`{"current_password":"","new_password":"next-password-123"}`))
 	request.Header.Set("Content-Type", "application/json")
@@ -3012,7 +2899,7 @@ func TestCompleteRequiredPasswordChangeRouteRejectsNonRestrictedSession(t *testi
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/complete-required-password-change", 7, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthCompleteRequiredPasswordChange), 7, currentSessionID)
 	request.Body = io.NopCloser(strings.NewReader(`{"new_password":"next-password-123"}`))
 	request.ContentLength = int64(len(`{"new_password":"next-password-123"}`))
 	request.Header.Set("Content-Type", "application/json")
@@ -3048,17 +2935,69 @@ func TestRestrictedSessionCannotAccessBusinessRoutes(t *testing.T) {
 		fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)),
 		authRepo,
 		map[uint64][]store.Permission{
-			9: {{Code: "user.read"}},
+			9: {{Code: usercontract.UserReadPermission.String()}},
 		},
 	)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/users", 9, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, usersRoutePath(usercontract.UserCollection), 9, currentSessionID)
 	request.Header.Set(i18n.LocaleHeader, "en-US")
 	engine.ServeHTTP(recorder, request)
 
 	assertForbiddenResponse(t, recorder, "en-US")
+}
+
+// TestRestrictedSessionCanReadBootstrap 验证 must_change_password=true 的受限会话
+// 仍可访问 bootstrap 契约，以便 web 恢复当前用户、权限与受限态快照。
+func TestRestrictedSessionCanReadBootstrap(t *testing.T) {
+	currentHash, err := newPasswordHasher().Hash(defaultAdminPassword)
+	if err != nil {
+		t.Fatalf("hash default admin password: %v", err)
+	}
+
+	authRepo := &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
+			if candidate != defaultAdminUsername {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+			return store.UserCredential{
+				UserID:             9,
+				Username:           defaultAdminUsername,
+				PasswordHash:       &currentHash,
+				MustChangePassword: true,
+			}, nil
+		},
+	}
+	_, engine := newPluginTestContextWithPermissions(
+		t,
+		fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)),
+		authRepo,
+		map[uint64][]store.Permission{
+			9: {{Code: usercontract.UserReadPermission.String()}},
+		},
+	)
+
+	currentSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, authRoutePath(usercontract.AuthBootstrap), 9, currentSessionID)
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+
+	payload := decodeSuccessData[bootstrapResponse](t, recorder)
+	if !payload.MustChangePassword {
+		t.Fatalf("expected restricted bootstrap snapshot, got %#v", payload)
+	}
+	if payload.User.Username != defaultAdminUsername || payload.User.DisplayName != defaultAdminDisplay {
+		t.Fatalf("expected default admin identity, got %#v", payload.User)
+	}
+	if !slices.Contains(payload.Permissions, usercontract.UserReadPermission.String()) {
+		t.Fatalf("expected bootstrap permissions to include %s, got %#v", usercontract.UserReadPermission.String(), payload.Permissions)
+	}
 }
 
 // TestRestrictedSessionCannotUseNormalChangePasswordRoute 验证
@@ -3086,7 +3025,7 @@ func TestRestrictedSessionCannotUseNormalChangePasswordRoute(t *testing.T) {
 
 	currentSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, "/api/auth/change-password", 9, currentSessionID)
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthChangePassword), 9, currentSessionID)
 	request.Body = io.NopCloser(strings.NewReader(`{"current_password":"graft-admin","new_password":"next-password-123"}`))
 	request.ContentLength = int64(len(`{"current_password":"graft-admin","new_password":"next-password-123"}`))
 	request.Header.Set("Content-Type", "application/json")

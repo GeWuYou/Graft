@@ -188,9 +188,9 @@ import { computed } from 'vue';
 import SettingAutoIcon from '@/assets/assets-setting-auto.svg';
 import SettingDarkIcon from '@/assets/assets-setting-dark.svg';
 import SettingLightIcon from '@/assets/assets-setting-light.svg';
-import Thumbnail from '@/components/thumbnail/index.vue';
 import { DEFAULT_COLOR_OPTIONS } from '@/config/color';
 import { t } from '@/locales';
+import Thumbnail from '@/shared/components/ThumbnailImage.vue';
 import { useSettingStore } from '@/store';
 import type { ThemeWorkbenchGroupKey } from '@/types/theme';
 

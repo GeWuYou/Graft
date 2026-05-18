@@ -56,6 +56,30 @@
 - Replace the current `web` baseline with a starter full-project baseline first, then stage Graft contract
   reattachment and later optimization work on top of that recovered runtime path.
 
+## 2026-05-18 archival context note
+
+- This trace now serves historical recovery only because `mvp-extension-path/web` has been archived under
+  `ai-plan/public/archive/`.
+- The active topic for current governance is `multi-worktree-governance`; this archived trace should be read only as
+  implementation history and not as the current recovery entry.
+- Later `web` ownership governance moved beyond this archived stage:
+  - feature truth moved into `web/src/modules/<name>/**`
+  - cross-module business-agnostic reuse moved into `web/src/shared/**`
+  - if `web/src/config/**` is still present, it remains shell-owned platform configuration
+- No new runtime validation result is attached to this archival note; it is documentation-only context.
+
+## 2026-05-18 later shell/module ownership cleanup
+
+- After this topic was archived, the live `refactor/web-module-boundaries` branch continued the ownership migration
+  without changing runtime behavior:
+  - `web/src/app/bootstrap/**` now owns startup, route-guard wiring, restricted-session recovery, and the shell-only
+    permission directive
+  - `web/src/app/providers/**` now owns provider composition while root `App.vue` stays thin
+  - `web/src/modules/user/contract/paths.ts` now owns the `/users` route path and `/api/users` API path
+  - `user.*` and `rbac.*` locale catalogs moved from root `locales/lang/*.json` into module-owned `locales/**`
+- That later runtime cleanup was revalidated on the active branch with targeted search checks, focused Vitest/typecheck,
+  and one full host Windows Bun `bun run check` pass with zero unresolved warnings.
+
 ## 2026-05-14 theme workbench foundation
 
 - Expanded the `setting` store so the frontend can track theme workbench group state, preset selection, custom token

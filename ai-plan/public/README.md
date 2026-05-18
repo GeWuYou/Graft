@@ -18,6 +18,9 @@ every public artifact.
 
 - Prefer recording both `Worktree` and `Branch` when a long-lived local worktree already exists.
 - If a long-lived worktree has not been created yet, branch-only mapping is acceptable as a temporary state.
+- If the repository root is temporarily carrying the active topic on a non-`main` branch and no dedicated long-lived
+  worktree exists yet, record that branch-only mapping explicitly and update it again once the root returns to `main`
+  or a dedicated worktree/topic pair is created.
 - Short-lived branches for hotfixes or narrow fixes should not be added as default active-topic mappings.
 - When a future topic is planned but its worktree has not been created yet, keep the current active-topic mapping stable
   and record the intended split in the relevant tracking documents first.
@@ -25,17 +28,19 @@ every public artifact.
 ## Active Topics
 
 - `multi-worktree-governance`
-  - Purpose: govern the repository on local `main` so shared contracts, recovery rules, and ownership boundaries are
-    ready before spawning long-lived worktrees from local branches.
+  - Purpose: govern the shared recovery truth and final post-compatibility ownership baseline while the repository root
+    is currently carrying the topic on branch `refactor/web-module-boundaries`, before dedicated long-lived worktrees
+    are created.
   - Tracking: `ai-plan/public/multi-worktree-governance/todos/multi-worktree-governance-tracking.md`
   - Trace: `ai-plan/public/multi-worktree-governance/traces/multi-worktree-governance-trace.md`
-  - Recovery note: use this topic only for shared baseline governance on `main`; once a long-lived worktree/topic pair
-    is actually created, map that worktree to its own active topic instead of keeping the work on `main`.
+  - Recovery note: use this topic only for shared baseline governance on the current repository root; once a
+    long-lived worktree/topic pair is actually created, map that worktree to its own active topic instead of keeping
+    feature recovery on the root branch.
 
-## Worktree To Active Topic Map
+## Branch / Worktree To Active Topic Map
 
-- Worktree: `primary-main`
-- Branch: `main`
+- Branch: `refactor/web-module-boundaries`
   - Priority 1: `multi-worktree-governance`
-  - Note: `primary-main` is the logical label for the repository root worktree on local `main`; it exists only to
-    track shared baseline governance before dedicated long-lived worktrees are created.
+  - Note: the repository root is currently checked out to this branch and is the only active worktree reported by
+    `git worktree list`; update this mapping when the root returns to `main` or when the first dedicated worktree/topic
+    pair is created.

@@ -36,7 +36,7 @@
           <language-switcher />
           <t-dropdown :min-column-width="120" trigger="click">
             <template #dropdown>
-              <t-dropdown-item class="operations-dropdown-container-item" @click="handleNav('/users')">
+              <t-dropdown-item class="operations-dropdown-container-item" @click="handleNav(USER_ROUTE_PATH.LIST)">
                 <user-circle-icon />{{ t('layout.header.user') }}
               </t-dropdown-item>
               <t-dropdown-item class="operations-dropdown-container-item" @click="handleLogout">
@@ -68,10 +68,12 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 import LogoFull from '@/assets/assets-logo-full.svg?component';
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import { prefix } from '@/config/global';
+import { AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
 import { t } from '@/locales';
+import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
 import { getActive } from '@/router';
+import LanguageSwitcher from '@/shared/components/LanguageSwitcher.vue';
 import { useSettingStore, useUserStore } from '@/store';
 import type { MenuRoute, ModeType } from '@/utils/types';
 
@@ -150,7 +152,7 @@ const handleLogout = async () => {
     await user.logout();
   } finally {
     await router.push({
-      path: '/login',
+      path: AUTH_ROUTE_PATH.LOGIN,
     });
   }
 };

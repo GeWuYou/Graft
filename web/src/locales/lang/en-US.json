@@ -186,598 +186,80 @@
       "title": "User Management"
     }
   },
-  "pages": {
-    "dashboardBase": {
-      "title": "Overview Dashboard",
-      "outputOverview": {
-        "title": "In/Out Overview",
-        "subtitle": "(pieces)",
-        "export": "Export data",
-        "month": {
-          "input": "Total in store this month",
-          "output": "Total out store this month"
+  "app": {
+    "auth": {
+      "login": {
+        "title": "Log in",
+        "noAccount": "Don't have an account?",
+        "haveAccount": "Already have an account?",
+        "createAccount": "Create one",
+        "remember": "Remember me",
+        "forget": "Forgot account?",
+        "signIn": "Sign in",
+        "register": {
+          "phonePlaceholder": "Please enter your phone number",
+          "emailPlaceholder": "Please enter your email",
+          "passwordPlaceholder": "Please enter your password",
+          "verifyCodePlaceholder": "Please enter verification code",
+          "sendVerifyCode": "Send verification code",
+          "resendCountdown": "Resend in {count} seconds",
+          "agreeTerms": "I have read and agree to",
+          "serviceTerms": "TDesign Service Terms",
+          "privacyStatement": "TDesign Privacy Statement",
+          "registerBtn": "Register",
+          "useEmailRegister": "Register with email",
+          "usePhoneRegister": "Register with phone",
+          "validation": {
+            "phone": "Phone number is required",
+            "email": "Email is required",
+            "emailFormat": "Please enter a valid email",
+            "password": "Password is required",
+            "verifyCode": "Verification code is required",
+            "agreeTerms": "You must agree to the service terms and privacy statement"
+          },
+          "messages": {
+            "registerSuccess": "Registration successful"
+          }
         },
-        "since": "Since last week"
-      },
-      "rankList": {
-        "title": "Sales order ranking",
-        "week": "This week",
-        "month": "Latest 3 months",
-        "info": "Detail"
-      },
-      "topPanel": {
-        "card1": "Total Revenue",
-        "card2": "Total Refund",
-        "card3": "Active User(s)",
-        "card4": "Generate Order(s)",
-        "cardTips": "since last week",
-        "analysis": {
-          "title": "Analysis Data",
-          "unit": "ten thousand yuan",
-          "series1": "this month",
-          "series2": "last month",
-          "channels": "Sales Channels",
-          "channel1": "online",
-          "channel2": "shop",
-          "channelTips": " sales ratio"
-        }
-      },
-      "saleColumns": {
-        "index": "Ranking",
-        "productName": "Customer",
-        "growUp": "Grow up",
-        "count": "Count",
-        "operation": "Operation"
-      },
-      "buyColumns": {
-        "index": "Ranking",
-        "productName": "Supplier",
-        "growUp": "Grow up",
-        "count": "Count",
-        "operation": "Operation"
-      },
-      "saleTend": {
-        "item1": "State Grid Corporation of China",
-        "item2": "Shenzhen Gas Group Co., Ltd",
-        "item3": "State Administration of Tobacco Monopoly",
-        "item4": "China Telecom Group Co., Ltd",
-        "item5": "China Mobile Communications Group Co., Ltd",
-        "item6": "Xinyu City Office Supplies Procurement Project"
-      },
-      "buyTend": {
-        "item1": "Tencent Technology (Shenzhen) Co., Ltd",
-        "item2": "Darunfa Co., Ltd",
-        "item3": "Sichuan Haidilao Co., Ltd",
-        "item4": "Sony (China) Co., Ltd",
-        "item5": "Panasonic Electronics (China) Co., Ltd",
-        "item6": "Xinyu City Office Supplies Procurement Project"
-      },
-      "chart": {
-        "week1": "MON",
-        "week2": "TUE",
-        "week3": "WED",
-        "week4": "THU",
-        "week5": "FRI",
-        "week6": "SAT",
-        "week7": "SUN",
-        "max": "Max",
-        "min": "Min",
-        "thisMonth": "this month",
-        "lastMonth": "last month"
-      }
-    },
-    "dashboardDetail": {
-      "topPanel": {
-        "title": "Purchase applications for this month",
-        "quarter": "Quarter on quarter",
-        "paneList": {
-          "totalRequest": "Apply count",
-          "suppliers": "Number of Suppliers",
-          "productCategory": "Product Category",
-          "applicant": "Number of Application",
-          "completionRate": "Completion Rate(%)",
-          "arrivalRate": "Arrival Rate(%)"
-        }
-      },
-      "procurement": {
-        "title": "Trends in purchase requisitions for goods",
-        "goods": {
-          "cup": "cup",
-          "tea": "tea",
-          "honey": "honey",
-          "flour": "flour",
-          "coffeeMachine": "coffee machine",
-          "massageMachine": "massage machine"
-        }
-      },
-      "ssl": "SSL certificate",
-      "sslDescription": "SSL certificate, also known as a server certificate, is a digital certificate that authenticates the identity of a website and encrypts information sent to the server using SSL technology. Tencent Cloud provides you with a one-stop service for SSL certificates, including application, management, and deployment of both free and paid certificates.",
-      "satisfaction": {
-        "title": "distribution of satisfaction levels for purchased goods",
-        "export": "export data"
-      },
-      "chart": {
-        "week1": "MON",
-        "week2": "TUE",
-        "week3": "WED",
-        "week4": "THU",
-        "week5": "FRI",
-        "week6": "SAT",
-        "week7": "SUN",
-        "max": "Max",
-        "min": "Min",
-        "thisMonth": "this month",
-        "lastMonth": "last month"
-      }
-    },
-    "roleList": {
-      "listTitle": "Role Overview",
-      "countLabel": "Role Count",
-      "hint": "This page only wires the minimal role-management loop: list, create, update, and permission assignment.",
-      "apiTitle": "Live Contracts",
-      "endpointLabel": "Endpoints: ",
-      "endpointValue": "GET /api/roles | GET /api/permissions",
-      "fieldsLabel": "Minimal fields: ",
-      "fieldsValue": "id, name, display, description, builtin | id, code, display, category",
-      "refresh": "Refresh",
-      "create": "Create Role",
-      "dataTitle": "Role List",
-      "permissionSummary": "{count} permissions are loaded for the minimal assignment flow.",
-      "builtinYes": "Builtin",
-      "builtinNo": "Custom",
-      "emptyDescription": "No description",
-      "empty": "No role data",
-      "loadFailed": "Failed to load role-management data",
-      "permissionLoadFailed": "Failed to load permission definitions. Showing role list only.",
-      "permissionUnavailable": "No assignable permission definitions are loaded for this session.",
-      "createSuccess": "Role created",
-      "updateSuccess": "Role updated",
-      "submitFailed": "Failed to submit role changes",
-      "assignPermissions": "Assign Permissions",
-      "assignSuccess": "Role permissions updated",
-      "assignFailed": "Failed to update role permissions",
-      "columns": {
-        "id": "ID",
-        "name": "Name",
-        "display": "Display",
-        "description": "Description",
-        "builtin": "Type"
-      },
-      "form": {
-        "createTitle": "Create Role",
-        "editTitle": "Edit Role",
-        "name": "Role Name",
-        "namePlaceholder": "Enter a stable role name",
-        "display": "Display Name",
-        "displayPlaceholder": "Enter the UI display name",
-        "description": "Description",
-        "descriptionPlaceholder": "Enter a short role description, optional",
-        "cancel": "Cancel",
-        "confirm": "Submit",
+        "refresh": "refresh",
+        "wechatLogin": "Login with WeChat",
+        "accountLogin": "Login with Account",
+        "phoneLogin": "Login with Mobile Phone",
+        "loginSuccess": "Login successful",
+        "countdown": "Resend after {count} seconds",
+        "input": {
+          "account": "please enter account",
+          "password": "please enter password",
+          "phone": "please enter phone",
+          "verification": "please enter verification code"
+        },
         "required": {
-          "name": "Role name is required",
-          "display": "Display name is required"
+          "account": "account is required",
+          "phone": "phone is required",
+          "password": "password is required",
+          "verification": "verification code is required"
+        },
+        "forcePasswordChange": {
+          "title": "Change password before continuing",
+          "description": "This account is still using the system-provided initial password. Set a new password before using the admin shell.",
+          "policyHint": "Your new password must be at least 12 characters long and include both letters and numbers. It cannot remain graft-admin.",
+          "newPassword": "New password",
+          "confirmPassword": "Confirm new password",
+          "newPasswordPlaceholder": "Enter new password",
+          "confirmPasswordPlaceholder": "Enter the new password again",
+          "submit": "Save new password",
+          "success": "Password updated successfully",
+          "required": {
+            "newPassword": "New password is required",
+            "confirmPassword": "Please confirm the new password"
+          },
+          "errors": {
+            "confirmMismatch": "The new passwords do not match",
+            "defaultPasswordForbidden": "You cannot keep using the default password graft-admin",
+            "policyViolation": "The new password must be at least 12 characters and include both letters and numbers"
+          }
         }
       },
-      "permissionDialog": {
-        "title": "Assign Role Permissions",
-        "currentRole": "Current role: {name}",
-        "currentRoleEmpty": "No role selected",
-        "groupHint": "{count} permissions in this category.",
-        "category": "Category: {category}",
-        "selectionLoadFailed": "Failed to load the current role permissions, so no replace write was attempted.",
-        "selectionUnavailable": "The current role permissions could not be restored safely, so empty replace submission is blocked.",
-        "confirm": "Save Assignment"
-      }
-    },
-    "detailBase": {
-      "baseInfo": {
-        "title": "Base Info"
-      },
-      "sampleData": {
-        "contractName": "Office Supplies Procurement Project",
-        "status": "In Progress",
-        "company": "Tencent Technology (Shenzhen) Co., Ltd",
-        "employee": "Osun",
-        "fileName": "Office Supplies Procurement Contract.pdf"
-      },
-      "changelog": {
-        "title": "Changelog",
-        "step1": {
-          "title": "upload file",
-          "subtitle": "subtitle"
-        },
-        "step2": {
-          "title": "modify contract amount",
-          "subtitle": "subtitle"
-        },
-        "step3": {
-          "title": "create contract",
-          "desc": "administrator"
-        }
-      }
-    },
-    "detailCard": {
-      "baseInfo": {
-        "title": "Base Info"
-      },
-      "invoice": {
-        "title": "Invoice Progress",
-        "step1": {
-          "title": "Apply",
-          "content": "The electronic invoice has been submitted on December 21st"
-        },
-        "step2": {
-          "title": "Electronic invoice",
-          "content": "expected to be processed within 1-3 business days."
-        },
-        "step3": {
-          "title": "Invoice is send",
-          "content": "we will contact you within 7 business days."
-        },
-        "step4": {
-          "title": "Finish"
-        }
-      },
-      "product": {
-        "title": "Product Category",
-        "add": "add production",
-        "month": "month",
-        "quarter": "quarter"
-      },
-      "detail": {
-        "title": "Product Procurement Detail",
-        "budgetExceeded": "Budget Exceeded",
-        "form": {
-          "applyNo": "Apply no",
-          "product": "Name",
-          "productNo": "No.",
-          "department": "Department",
-          "num": "Num",
-          "createTime": "Create time",
-          "operation": "Operation",
-          "manage": "manage",
-          "delete": "delete"
-        }
-      },
-      "products": {
-        "product1": {
-          "name": "MacBook Pro 2021",
-          "company": "Apple Inc.",
-          "size": "13.3 inches",
-          "cpu": "Apple M1",
-          "memory": "RAM 16GB",
-          "info": "Up to 16GB memory · Up to 2TB storage · Battery life up to 18 hours"
-        },
-        "product2": {
-          "name": "Surface Laptop Go",
-          "company": "Microsoft Corporation",
-          "size": "12.4 inches",
-          "cpu": "Core i7",
-          "memory": "RAM 16GB",
-          "info": "Surface regular use, up to 13 hours of battery life, work anytime"
-        }
-      }
-    },
-    "detailDeploy": {
-      "deployTrend": {
-        "title": "Deploy Trend",
-        "warning": "Warning",
-        "thisMonth": "this month",
-        "thisWeek": "this week",
-        "lastMonth": "last month",
-        "thisYear": "this year",
-        "lastYear": "last year",
-        "week1": "MON",
-        "week2": "TUE",
-        "week3": "WED",
-        "week4": "THU",
-        "week5": "FRI",
-        "week6": "SAT",
-        "week7": "SUN"
-      },
-      "projectList": {
-        "title": "Project List",
-        "dialog": {
-          "title": "Base Info"
-        },
-        "table": {
-          "name": "Name",
-          "admin": "Admin",
-          "createTime": "Create time",
-          "operation": "Operation",
-          "manage": "manage",
-          "delete": "delete"
-        }
-      },
-      "baseInfo": {
-        "clusterName": "Cluster Name",
-        "clusterId": "Cluster ID",
-        "status": "Status",
-        "running": "Running",
-        "k8sVersion": "K8S Version",
-        "config": "Config",
-        "region": "Region",
-        "guangzhou": "Guangzhou",
-        "project": "Resource Project",
-        "defaultProject": "Default Project",
-        "nodeCount": "Node Count",
-        "nodeNetwork": "Node Network",
-        "containerNetwork": "Container Network",
-        "clusterCredential": "Cluster Credential",
-        "showCredential": "Show Credential",
-        "createUpdate": "Create/Update",
-        "description": "Description"
-      }
-    },
-    "detailSecondary": {
-      "read": "Read",
-      "unread": "Unread",
-      "all": "All",
-      "setRead": "set as read",
-      "setUnread": "set as unread",
-      "delete": "delete",
-      "deleteConfirm": "Delete notification",
-      "deleteTip": "Confirm delete notification: {content}?",
-      "empty": "Empty"
-    },
-    "notification": {
-      "contract": "Contract Updates",
-      "invoice": "Invoice Updates",
-      "meeting": "Meeting Notification",
-      "msg1": "Tencent Building First Floor Renovation Project has passed audit!",
-      "msg2": "Third Quarter Raw Material Procurement Project invoicing successful!",
-      "msg3": "Meeting 【State Grid Offline Signing】at 2021-01-01 10:00 is about to start, please arrive at Conference Room 1 10 minutes early for check-in!",
-      "msg4": "First Quarter Raw Material Procurement Project invoicing successful!"
-    },
-    "formBase": {
-      "title": "Contract Info",
-      "contractName": "Name",
-      "contractNamePlaceholder": "Please enter contract name",
-      "contractStatus": "Status",
-      "contractNum": "Number",
-      "contractType": "Type",
-      "contractTypePlaceholder": "Please enter type",
-      "contractPayType": "Pay Type",
-      "contractAmount": "Amount",
-      "contractAmountPlaceholder": "Please enter amount",
-      "contractSignDate": "Sign Date",
-      "contractEffectiveDate": "Effective Date",
-      "contractEndDate": "End Date",
-      "company": "Company",
-      "employee": "Employee",
-      "pay": "pay",
-      "receive": "received",
-      "upload": "upload file",
-      "uploadFile": "upload contract file",
-      "uploadTips": "Please upload a PDF file, with a size limit of 60MB.",
-      "otherInfo": "Other Info",
-      "remark": "Remark",
-      "remarkPlaceholder": "please enter remark",
-      "notaryPublic": "Notary Public",
-      "fileSizeExceed": "File size cannot exceed 60MB",
-      "uploadFail": "Upload failed",
-      "confirm": "confirm",
-      "cancel": "cancel",
-      "validation": {
-        "name": "Please enter contract name",
-        "type": "Please select contract type",
-        "payment": "Please select payment type",
-        "amount": "Please enter amount",
-        "partyA": "Please select Party A",
-        "partyB": "Please select Party B",
-        "signDate": "Please select date",
-        "startDate": "Please select date",
-        "endDate": "Please select date"
-      },
-      "typeOptions": {
-        "typeA": "Type A",
-        "typeB": "Type B",
-        "typeC": "Type C"
-      },
-      "partyOptions": {
-        "companyA": "Company A",
-        "companyB": "Company B",
-        "companyC": "Company C"
-      }
-    },
-    "formStep": {
-      "validation": {
-        "name": "Please select contract name",
-        "type": "Please select type",
-        "title": "Please enter invoice title",
-        "taxNum": "Please enter tax number",
-        "consignee": "Please enter consignee",
-        "mobileNum": "Please enter mobile number",
-        "deliveryAddress": "Please select delivery address",
-        "fullAddress": "Please enter full address"
-      },
-      "options": {
-        "nameA": "Contract A",
-        "nameB": "Contract B",
-        "nameC": "Contract C",
-        "typeA": "Type A",
-        "typeB": "Type B",
-        "typeC": "Type C",
-        "address1": "Nanshan District, Shenzhen, Guangdong",
-        "address2": "Haidian District, Beijing",
-        "address3": "Xuhui District, Shanghai",
-        "address4": "High-tech Zone, Chengdu, Sichuan",
-        "address5": "Tianhe District, Guangzhou, Guangdong",
-        "address6": "High-tech Zone, Xi'an, Shaanxi"
-      },
-      "step1": {
-        "title": "Submit Application",
-        "subtitle": "Submitted on December 21st",
-        "rules": "rules",
-        "rule1": "1. After applying for an invoice, the electronic invoice will be issued within 1-3 working days. If the qualification review is passed, the VAT special invoice (paper) will be mailed to you within 10 working days after the electronic invoice is issued;",
-        "rule2": "2. The invoiced amount will be the actual amount you paid;",
-        "rule3": "3. For any questions, please contact us directly at 13300001111.",
-        "contractName": "Name",
-        "contractTips": "Please select a contract name",
-        "invoiceType": "Invoice type",
-        "amount": "Amount",
-        "submit": "Submit Application"
-      },
-      "step2": {
-        "title": "Electronic Information",
-        "subtitle": "Contact Customer Service if you have any questions",
-        "invoiceTitle": "Invoice Title",
-        "taxNum": "Tax Num",
-        "address": "Address",
-        "bank": "Bank",
-        "bankAccount": "Bank Account",
-        "email": "Email",
-        "tel": "Tel",
-        "invoiceTitlePlaceholder": "please enter invoice title",
-        "taxNumPlaceholder": "please enter tax num",
-        "addressPlaceholder": "please enter address",
-        "bankPlaceholder": "please enter bank",
-        "bankAccountPlaceholder": "please enter bank account",
-        "emailPlaceholder": "please enter email",
-        "telPlaceholder": "please enter tel"
-      },
-      "step3": {
-        "title": "Invoice Mailed",
-        "subtitle": "Contact us after the electronic invoice is issued",
-        "consignee": "Consignee",
-        "mobileNum": "Mobile Num",
-        "deliveryAddress": "Address",
-        "fullAddress": "Full Address"
-      },
-      "step4": {
-        "title": "Application Completed",
-        "subtitle": "Contact Customer Service if you have any questions",
-        "finishTitle": "Application is completed.",
-        "finishTips": "The electronic invoice is expected to be sent to your email within 1-3 working days. Please be patient for the delivery of the paper invoice.",
-        "reapply": "reapply",
-        "check": "check progress"
-      },
-      "preStep": "pre step",
-      "nextStep": "next step"
-    },
-    "listBase": {
-      "export": "export",
-      "create": "create",
-      "select": "select",
-      "items": "items",
-      "contractName": "Name",
-      "contractStatus": "Status",
-      "contractNum": "Number",
-      "contractType": "Type",
-      "contractPayType": "Pay Type",
-      "contractAmount": "Amount",
-      "operation": "Operation",
-      "detail": "detail",
-      "delete": "delete",
-      "pay": "pay",
-      "receive": "received",
-      "placeholder": "please enter to search",
-      "deleteConfirm": "Confirm delete selected contracts?",
-      "deleteTip": "After deletion, all contract information of {name} will be cleared and cannot be recovered",
-      "contractStatusEnum": {
-        "fail": "fail",
-        "audit": "audit",
-        "executing": "executing",
-        "pending": "pending",
-        "finish": "finish"
-      }
-    },
-    "listCard": {
-      "create": "Create Product",
-      "placeholder": "please enter to search",
-      "loading": "Loading data...",
-      "deleteConfirm": "Confirm delete selected products?",
-      "deleteSuccess": "Deleted successfully",
-      "deleteTip": "After confirmation, all product information of {name} will be cleared and cannot be recovered",
-      "productName": "Name",
-      "productStatus": "Status",
-      "productDescription": "Description",
-      "productType": "Type",
-      "productRemark": "Remark",
-      "productStatusEnum": {
-        "off": "off",
-        "on": "on"
-      },
-      "dialogForm": {
-        "productNamePlaceholder": "Please enter product name",
-        "cancel": "Cancel",
-        "confirm": "Confirm",
-        "typeGateway": "Gateway",
-        "typeAI": "Artificial Intelligence",
-        "typeCVM": "CVM",
-        "validation": {
-          "productName": "Please enter product name"
-        }
-      }
-    },
-    "listFilter": {},
-    "listTree": {
-      "placeholder": "please enter to search",
-      "treeData": {
-        "shenzhen": "Shenzhen HQ",
-        "beijing": "Beijing HQ",
-        "shanghai": "Shanghai HQ",
-        "hunan": "Hunan",
-        "hubei": "Hubei",
-        "generalOffice": "General Office",
-        "marketing": "Marketing",
-        "technology": "Technology",
-        "finance": "Finance",
-        "purchase1": "Purchasing Team 1",
-        "purchase2": "Purchasing Team 2",
-        "finance1": "Finance Team 1",
-        "finance2": "Finance Team 2"
-      }
-    },
-    "login": {
-      "loginTitle": "Login in",
-      "noAccount": "No Account?",
-      "createAccount": "Create Account",
-      "remember": "Remember Account",
-      "forget": "Forget Account",
-      "signIn": "Sign in",
-      "existAccount": "Exist Account?",
-      "register": "Register",
-      "refresh": "refresh",
-      "wechatLogin": "Login with WeChat",
-      "accountLogin": "Login with Account",
-      "phoneLogin": "Login with Mobile Phone",
-      "loginSuccess": "Login successful",
-      "countdown": "Resend after {count} seconds",
-      "forcePasswordChange": {
-        "title": "Change password before continuing",
-        "description": "This account is still using the system-provided initial password. Set a new password before using the admin shell.",
-        "policyHint": "Your new password must be at least 12 characters long and include both letters and numbers. It cannot remain graft-admin.",
-        "newPassword": "New password",
-        "confirmPassword": "Confirm new password",
-        "newPasswordPlaceholder": "Enter new password",
-        "confirmPasswordPlaceholder": "Enter the new password again",
-        "submit": "Save new password",
-        "success": "Password updated successfully",
-        "required": {
-          "newPassword": "New password is required",
-          "confirmPassword": "Please confirm the new password"
-        },
-        "errors": {
-          "confirmMismatch": "The new passwords do not match",
-          "defaultPasswordForbidden": "You cannot keep using the default password graft-admin",
-          "policyViolation": "The new password must be at least 12 characters and include both letters and numbers"
-        }
-      },
-      "input": {
-        "account": "please enter account",
-        "password": "please enter password",
-        "phone": "please enter phone",
-        "verification": "please enter verification code"
-      },
-      "required": {
-        "account": "account is required",
-        "phone": "phone is required",
-        "password": "password is required",
-        "verification": "verification code is require"
-      },
-      "sendVerification": "send",
       "register": {
         "phonePlaceholder": "Please enter your phone number",
         "emailPlaceholder": "Please enter your email",
@@ -806,39 +288,39 @@
     },
     "result": {
       "403": {
-        "tips": "sorry, you don not have permission to access this page. Please contact the creator through WeCom",
-        "back": "Back to homepage"
+        "tips": "Sorry, you do not have permission to access this page. Please contact the creator through WeCom.",
+        "back": "Back to home"
       },
       "404": {
         "subtitle": "Sorry, the page is not found",
         "back": "Back to homepage"
       },
       "500": {
-        "subtitle": "Sorry, the server is error",
-        "back": "Back to homepage"
+        "subtitle": "Sorry, the server encountered an error",
+        "back": "Back to home"
       },
       "fail": {
-        "title": "Create fail",
+        "title": "Creation failed",
         "subtitle": "Sorry, your project creation has failed",
-        "back": "Back to homepage",
+        "back": "Back to home",
         "modify": "Back to modify"
       },
       "success": {
-        "title": "Project is created",
+        "title": "Project created",
         "subtitle": "Contact the person in charge of distributing the application",
-        "back": "Back to homepage",
+        "back": "Back to home",
         "progress": "Check Progress"
       },
       "maintenance": {
         "title": "System maintenance",
         "subtitle": "Please try again later",
-        "back": "Back to homepage"
+        "back": "Back to home"
       },
       "browserIncompatible": {
-        "title": "browser is incompatible",
-        "subtitle": "the browser version you are using is too outdated to open the current webpage.",
+        "title": "Browser is incompatible",
+        "subtitle": "The browser version you are using is too outdated to open this page.",
         "back": "Back to homepage",
-        "recommend": "TDesign Starter recommend the following browser"
+        "recommend": "TDesign Starter recommends the following browsers"
       },
       "networkError": {
         "title": "Network Error",
@@ -847,67 +329,42 @@
         "reload": "Reload"
       }
     },
-    "user": {
-      "markDay": "Good afternoon, today marks your 100th day at Tencent",
-      "greeting": "Hi, Image",
-      "unit": "(times)",
-      "account": "My Account",
-      "organization": "Tencent / Tencent Company / Business Group / Product Department / Operations Center / Merchant Services Group",
-      "personalInfo": {
-        "title": "Personal Info",
-        "position": "Employee of the Hong Kong and Macau Business Expansion team",
-        "desc": {
-          "phone": "Phone",
-          "mobile": "Mobile",
-          "seat": "Seat",
-          "email": "Email",
-          "position": "Position",
-          "leader": "Leader",
-          "entity": "Entity",
-          "joinDay": "Day of join",
-          "group": "Group"
-        },
-        "tencentGroup": "Tencent Group",
-        "seniorDesigner": "Senior UI Designer"
-      },
-      "visitData": "Visit Data",
-      "contentList": "Content List",
-      "teamMember": "Team Member",
-      "serviceProduction": "Service Product"
+    "notification": {
+      "contract": "Contract Updates",
+      "invoice": "Invoice Updates",
+      "meeting": "Meeting Notification",
+      "msg1": "Tencent Building First Floor Renovation Project has passed audit!",
+      "msg2": "Third Quarter Raw Material Procurement Project invoicing successful!",
+      "msg3": "Meeting 【State Grid Offline Signing】at 2021-01-01 10:00 is about to start, please arrive at Conference Room 1 10 minutes early for check-in!",
+      "msg4": "First Quarter Raw Material Procurement Project invoicing successful!"
     },
-    "userList": {
-      "listTitle": "User List",
-      "countLabel": "Current user count",
-      "hint": "This page consumes GET /api/users directly and no longer keeps starter demo profile data.",
-      "apiTitle": "API Details",
-      "endpointLabel": "Endpoint: ",
-      "endpointValue": "/api/users",
-      "fieldsLabel": "Fields: ",
-      "fieldsValue": "id / username / display / created_at / updated_at",
-      "refresh": "Refresh List",
-      "assignRoles": "Manage Roles",
-      "dataTitle": "User Data",
-      "empty": "No user data yet",
-      "loadFailed": "Failed to load the user list",
-      "assignSuccess": "User roles updated",
-      "assignFailed": "Failed to update user roles",
-      "columns": {
-        "id": "ID",
-        "username": "Username",
-        "display": "Display Name",
-        "createdAt": "Created At",
-        "updatedAt": "Updated At"
-      },
-      "roleDialog": {
-        "title": "Manage User Roles",
-        "currentUser": "Current user: {name}",
-        "currentUserEmpty": "No user selected",
-        "roleSummary": "{count} roles are available for assignment.",
-        "empty": "No roles available",
-        "roleLoadFailed": "Failed to load role definitions.",
-        "selectionLoadFailed": "Failed to load the current role assignment. Saving stays disabled until the data is restored.",
-        "retry": "Retry",
-        "confirm": "Save Assignment"
+    "list": {
+      "base": {
+        "export": "export",
+        "create": "create",
+        "select": "select",
+        "items": "items",
+        "contractName": "Name",
+        "contractStatus": "Status",
+        "contractNum": "Number",
+        "contractType": "Type",
+        "contractPayType": "Pay Type",
+        "contractAmount": "Amount",
+        "operation": "Operation",
+        "detail": "detail",
+        "delete": "delete",
+        "pay": "pay",
+        "receive": "received",
+        "placeholder": "please enter to search",
+        "deleteConfirm": "Confirm delete selected contracts?",
+        "deleteTip": "After deletion, all contract information of {name} will be cleared and cannot be recovered",
+        "contractStatusEnum": {
+          "fail": "fail",
+          "audit": "audit",
+          "executing": "executing",
+          "pending": "pending",
+          "finish": "finish"
+        }
       }
     }
   }

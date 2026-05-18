@@ -27,6 +27,13 @@ validation rules.
    - clean working tree before task
    - dirty working tree but owned scope can be reliably separated
    - mixed or ambiguous ownership that cannot be safely separated
+   - interpret status columns explicitly:
+     - `M ` in the left column means the file is already staged in the Git index
+     - ` M` in the right column means the file is modified in the working tree but not staged yet
+     - `git diff --cached --name-only` only reports the Git index; if it is empty while `git status --short` shows
+       ` M`, the problem is unstaged changes, not a missing diff
+   - do not treat IDE changelist checkboxes, selected files, or review UI state as proof that changes are staged;
+     confirm staging from Git itself before continuing
 2. Define the commit scope before staging:
    - include only files or hunks owned by the current task slice
    - exclude unrelated files, unknown edits, and user-owned changes
@@ -39,6 +46,9 @@ validation rules.
 4. Stage only the confirmed owned scope:
    - do not use `git add .`, `git add -A`, or `git commit -am` unless the user explicitly asks to commit everything
    - when one file contains mixed ownership, stage only the owned hunks if they can be reliably separated
+   - if the intended scope is currently unstaged, stage that exact scope first and then re-check with
+     `git diff --cached --name-only` or `git status --short`; do not assume a previous push or IDE selection updated
+     the Git index
 5. Build the commit message from `AGENTS.md` rules:
    - format: `<type>(<scope>): <summary>`
    - title defaults to English

@@ -1,17 +1,3 @@
-// RoleListItem describes one item from GET /api/roles and role write responses.
-export interface RoleListItem {
-  id: number;
-  name: string;
-  display: string;
-  description?: string | null;
-  builtin: boolean;
-}
-
-// RoleListResponse matches the minimal role list contract exposed by the rbac plugin.
-export interface RoleListResponse {
-  items: RoleListItem[];
-}
-
 // PermissionListItem describes one item from GET /api/permissions.
 export interface PermissionListItem {
   id: number;
@@ -28,10 +14,6 @@ export interface PermissionListResponse {
 
 export interface RolePermissionBindingResponse {
   permission_ids: number[];
-}
-
-export interface UserRoleBindingResponse {
-  role_ids: number[];
 }
 
 export interface CreateRolePayload {

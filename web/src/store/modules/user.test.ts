@@ -147,7 +147,7 @@ describe('useUserStore.ensureBootstrap', () => {
     expect(authApiMocks.refresh).not.toHaveBeenCalled();
   });
 
-  it('preserves the restricted session when bootstrap returns AUTH_FORBIDDEN after login', async () => {
+  it('loads the restricted bootstrap snapshot after login when the backend returns it', async () => {
     const { useUserStore } = await loadUserStore();
     const store = useUserStore();
 
@@ -155,21 +155,24 @@ describe('useUserStore.ensureBootstrap', () => {
       ...createRefreshPayload('restricted-token'),
       must_change_password: true,
     });
-    authApiMocks.getBootstrap.mockRejectedValueOnce(createApiRequestError(403, API_CODE.AUTH_FORBIDDEN));
+    authApiMocks.getBootstrap.mockResolvedValueOnce({
+      ...createBootstrapPayload(),
+      must_change_password: true,
+    });
 
-    await expect(store.login({ account: 'graft', password: 'graft-admin' })).resolves.toBeUndefined();
+    await store.login({ account: 'graft', password: 'graft-admin' });
 
     expect(store.token).toBe('restricted-token');
     expect(store.mustChangePassword).toBe(true);
+    expect(store.bootstrapLoaded).toBe(true);
     expect(authApiMocks.refresh).not.toHaveBeenCalled();
   });
 
-  it('does not refresh or clear state for restricted-session AUTH_FORBIDDEN during ensureBootstrap', async () => {
+  it('surfaces AUTH_FORBIDDEN from bootstrap instead of treating it as a normal restricted-session path', async () => {
     const { useUserStore } = await loadUserStore();
     const store = useUserStore();
 
     store.token = 'restricted-token';
-    store.mustChangePassword = true;
     authApiMocks.getBootstrap.mockRejectedValueOnce(createApiRequestError(403, API_CODE.AUTH_FORBIDDEN));
 
     await expect(store.ensureBootstrap()).rejects.toMatchObject({
@@ -179,7 +182,6 @@ describe('useUserStore.ensureBootstrap', () => {
 
     expect(authApiMocks.refresh).not.toHaveBeenCalled();
     expect(store.token).toBe('restricted-token');
-    expect(store.mustChangePassword).toBe(true);
   });
 });
 

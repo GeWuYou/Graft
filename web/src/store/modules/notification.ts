@@ -6,8 +6,8 @@ import type { NotificationItem } from '@/utils/types';
 const getMsgData = () => [
   {
     id: '123',
-    content: t('pages.notification.msg1'),
-    type: t('pages.notification.contract'),
+    content: t('app.notification.msg1'),
+    type: t('app.notification.contract'),
     status: true,
     collected: false,
     date: '2021-01-01 08:00',
@@ -15,8 +15,8 @@ const getMsgData = () => [
   },
   {
     id: '124',
-    content: t('pages.notification.msg2'),
-    type: t('pages.notification.invoice'),
+    content: t('app.notification.msg2'),
+    type: t('app.notification.invoice'),
     status: true,
     collected: false,
     date: '2021-01-01 08:00',
@@ -24,8 +24,8 @@ const getMsgData = () => [
   },
   {
     id: '125',
-    content: t('pages.notification.msg3'),
-    type: t('pages.notification.meeting'),
+    content: t('app.notification.msg3'),
+    type: t('app.notification.meeting'),
     status: true,
     collected: false,
     date: '2021-01-01 08:00',
@@ -33,8 +33,8 @@ const getMsgData = () => [
   },
   {
     id: '126',
-    content: t('pages.notification.msg4'),
-    type: t('pages.notification.invoice'),
+    content: t('app.notification.msg4'),
+    type: t('app.notification.invoice'),
     status: true,
     collected: false,
     date: '2021-01-01 08:00',

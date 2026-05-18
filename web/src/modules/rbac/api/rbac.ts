@@ -1,12 +1,11 @@
 import { request } from '@/utils/request';
 
 import { RBAC_API_PATH } from '../contract/paths';
+import type { RoleListItem, RoleListResponse } from '../contract/role';
 import type {
   CreateRolePayload,
   PermissionListResponse,
   ReplaceRolePermissionsPayload,
-  RoleListItem,
-  RoleListResponse,
   RolePermissionBindingResponse,
   UpdateRolePayload,
 } from '../types/rbac';

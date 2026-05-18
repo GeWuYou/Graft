@@ -1,5 +1,5 @@
 import { RBAC_API_PATH } from '@/modules/rbac/contract/paths';
-import type { RoleListResponse, UserRoleBindingResponse } from '@/modules/rbac/types/rbac';
+import type { RoleListResponse, UserRoleBindingResponse } from '@/modules/rbac/contract/role';
 import { request } from '@/utils/request';
 
 export type ReplaceUserRolesPayload = {

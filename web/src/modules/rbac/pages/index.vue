@@ -2,51 +2,51 @@
   <div class="role-page">
     <t-row :gutter="[24, 24]">
       <t-col :span="12">
-        <t-card class="summary-card" :bordered="false" :title="t('pages.roleList.listTitle')">
+        <t-card class="summary-card" :bordered="false" :title="t('rbac.roleList.listTitle')">
           <div class="summary-metric">
-            <span class="summary-metric__label">{{ t('pages.roleList.countLabel') }}</span>
+            <span class="summary-metric__label">{{ t('rbac.roleList.countLabel') }}</span>
             <span class="summary-metric__value">{{ roles.length }}</span>
           </div>
-          <div class="summary-hint">{{ t('pages.roleList.hint') }}</div>
+          <div class="summary-hint">{{ t('rbac.roleList.hint') }}</div>
         </t-card>
       </t-col>
       <t-col :span="12">
-        <t-card class="summary-card" :bordered="false" :title="t('pages.roleList.apiTitle')">
+        <t-card class="summary-card" :bordered="false" :title="t('rbac.roleList.apiTitle')">
           <div class="summary-meta">
             <span
-              >{{ t('pages.roleList.endpointLabel') }}<code>{{ t('pages.roleList.endpointValue') }}</code></span
+              >{{ t('rbac.roleList.endpointLabel') }}<code>{{ t('rbac.roleList.endpointValue') }}</code></span
             >
             <span
-              >{{ t('pages.roleList.fieldsLabel') }}<code>{{ t('pages.roleList.fieldsValue') }}</code></span
+              >{{ t('rbac.roleList.fieldsLabel') }}<code>{{ t('rbac.roleList.fieldsValue') }}</code></span
             >
           </div>
           <div class="summary-actions">
             <t-button theme="primary" variant="outline" :loading="loading" @click="fetchRolePageData">
-              {{ t('pages.roleList.refresh') }}
+              {{ t('rbac.roleList.refresh') }}
             </t-button>
             <t-button v-permission="permissionCodes.ROLE_CREATE" theme="primary" @click="openCreateDialog">
-              {{ t('pages.roleList.create') }}
+              {{ t('rbac.roleList.create') }}
             </t-button>
           </div>
         </t-card>
       </t-col>
     </t-row>
 
-    <t-card class="table-card" :bordered="false" :title="t('pages.roleList.dataTitle')">
+    <t-card class="table-card" :bordered="false" :title="t('rbac.roleList.dataTitle')">
       <div class="toolbar-actions">
         <div class="permission-summary">
-          {{ t('pages.roleList.permissionSummary', { count: permissions.length }) }}
+          {{ t('rbac.roleList.permissionSummary', { count: permissions.length }) }}
         </div>
       </div>
 
       <t-table row-key="id" :data="roles" :columns="columns" :loading="loading" size="medium" table-layout="fixed">
         <template #builtin="{ row }">
           <t-tag :theme="row.builtin ? 'success' : 'default'" variant="light">
-            {{ row.builtin ? t('pages.roleList.builtinYes') : t('pages.roleList.builtinNo') }}
+            {{ row.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
           </t-tag>
         </template>
         <template #description="{ row }">
-          <span>{{ row.description || t('pages.roleList.emptyDescription') }}</span>
+          <span>{{ row.description || t('rbac.roleList.emptyDescription') }}</span>
         </template>
         <template #operation="{ row }">
           <div class="operation-cell">
@@ -66,12 +66,12 @@
               :disabled="!canAssignPermissions"
               @click="openPermissionDialog(row)"
             >
-              {{ t('pages.roleList.assignPermissions') }}
+              {{ t('rbac.roleList.assignPermissions') }}
             </t-button>
           </div>
         </template>
         <template #empty>
-          <t-empty :description="t('pages.roleList.empty')" />
+          <t-empty :description="t('rbac.roleList.empty')" />
         </template>
       </t-table>
     </t-card>
@@ -79,25 +79,25 @@
     <t-dialog v-model:visible="roleDialogVisible" :header="roleDialogTitle" :width="640" :footer="false">
       <template #body>
         <t-form :data="roleForm" :rules="roleFormRules" label-align="top" @submit="handleRoleSubmit">
-          <t-form-item :label="t('pages.roleList.form.name')" name="name">
-            <t-input v-model="roleForm.name" :placeholder="t('pages.roleList.form.namePlaceholder')" />
+          <t-form-item :label="t('rbac.roleList.form.name')" name="name">
+            <t-input v-model="roleForm.name" :placeholder="t('rbac.roleList.form.namePlaceholder')" />
           </t-form-item>
-          <t-form-item :label="t('pages.roleList.form.display')" name="display">
-            <t-input v-model="roleForm.display" :placeholder="t('pages.roleList.form.displayPlaceholder')" />
+          <t-form-item :label="t('rbac.roleList.form.display')" name="display">
+            <t-input v-model="roleForm.display" :placeholder="t('rbac.roleList.form.displayPlaceholder')" />
           </t-form-item>
-          <t-form-item :label="t('pages.roleList.form.description')" name="description">
+          <t-form-item :label="t('rbac.roleList.form.description')" name="description">
             <t-textarea
               v-model="roleForm.description"
-              :placeholder="t('pages.roleList.form.descriptionPlaceholder')"
+              :placeholder="t('rbac.roleList.form.descriptionPlaceholder')"
               :maxlength="200"
             />
           </t-form-item>
           <div class="dialog-actions">
             <t-button variant="outline" @click="closeRoleDialog">
-              {{ t('pages.roleList.form.cancel') }}
+              {{ t('rbac.roleList.form.cancel') }}
             </t-button>
             <t-button theme="primary" type="submit" :loading="submittingRole">
-              {{ t('pages.roleList.form.confirm') }}
+              {{ t('rbac.roleList.form.confirm') }}
             </t-button>
           </div>
         </t-form>
@@ -106,7 +106,7 @@
 
     <t-dialog
       v-model:visible="permissionDialogVisible"
-      :header="t('pages.roleList.permissionDialog.title')"
+      :header="t('rbac.roleList.permissionDialog.title')"
       :width="760"
       :footer="false"
     >
@@ -115,8 +115,8 @@
           <div class="permission-summary">
             {{
               selectedRole
-                ? t('pages.roleList.permissionDialog.currentRole', { name: selectedRole.display })
-                : t('pages.roleList.permissionDialog.currentRoleEmpty')
+                ? t('rbac.roleList.permissionDialog.currentRole', { name: selectedRole.display })
+                : t('rbac.roleList.permissionDialog.currentRoleEmpty')
             }}
           </div>
 
@@ -124,10 +124,10 @@
             <section v-for="group in permissionGroups" :key="group.category" class="permission-group">
               <div class="permission-group__title">{{ group.title }}</div>
               <div class="permission-group__hint">
-                {{ t('pages.roleList.permissionDialog.groupHint', { count: group.items.length }) }}
+                {{ t('rbac.roleList.permissionDialog.groupHint', { count: group.items.length }) }}
               </div>
               <div v-if="!permissionSelectionReady" class="permission-load-warning">
-                {{ t('pages.roleList.permissionDialog.selectionUnavailable') }}
+                {{ t('rbac.roleList.permissionDialog.selectionUnavailable') }}
               </div>
               <t-checkbox-group v-model="selectedPermissionIds" class="permission-checkbox-group">
                 <t-checkbox v-for="item in group.items" :key="item.id" class="permission-checkbox" :value="item.id">
@@ -142,7 +142,7 @@
 
           <div class="dialog-actions">
             <t-button variant="outline" @click="closePermissionDialog">
-              {{ t('pages.roleList.form.cancel') }}
+              {{ t('rbac.roleList.form.cancel') }}
             </t-button>
             <t-button
               theme="primary"
@@ -150,7 +150,7 @@
               :loading="submittingPermissions"
               @click="submitPermissionAssignment"
             >
-              {{ t('pages.roleList.permissionDialog.confirm') }}
+              {{ t('rbac.roleList.permissionDialog.confirm') }}
             </t-button>
           </div>
         </div>
@@ -175,7 +175,8 @@ import {
   updateRole,
 } from '../api/rbac';
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
-import type { CreateRolePayload, PermissionListItem, RoleListItem } from '../types/rbac';
+import type { RoleListItem } from '../contract/role';
+import type { CreateRolePayload, PermissionListItem } from '../types/rbac';
 
 defineOptions({
   name: 'RolesIndex',
@@ -222,12 +223,12 @@ const canReadPermissions = computed(() => permissionStore.hasPermission(permissi
 const canAssignPermissions = computed(() => canReadPermissions.value && permissions.value.length > 0);
 
 const roleDialogTitle = computed(() =>
-  roleFormMode.value === 'create' ? t('pages.roleList.form.createTitle') : t('pages.roleList.form.editTitle'),
+  roleFormMode.value === 'create' ? t('rbac.roleList.form.createTitle') : t('rbac.roleList.form.editTitle'),
 );
 
 const roleFormRules = computed<Record<keyof RoleFormState, FormRule[]>>(() => ({
-  name: [{ required: true, message: t('pages.roleList.form.required.name'), type: 'error' }],
-  display: [{ required: true, message: t('pages.roleList.form.required.display'), type: 'error' }],
+  name: [{ required: true, message: t('rbac.roleList.form.required.name'), type: 'error' }],
+  display: [{ required: true, message: t('rbac.roleList.form.required.display'), type: 'error' }],
   description: [],
 }));
 
@@ -245,7 +246,7 @@ const permissionGroups = computed<PermissionGroup[]>(() => {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([category, items]) => ({
       category,
-      title: t('pages.roleList.permissionDialog.category', { category }),
+      title: t('rbac.roleList.permissionDialog.category', { category }),
       items: items.slice().sort((left, right) => left.code.localeCompare(right.code)),
     }));
 });
@@ -255,27 +256,27 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
 
   return [
     {
-      title: t('pages.roleList.columns.id'),
+      title: t('rbac.roleList.columns.id'),
       colKey: 'id',
       width: 100,
     },
     {
-      title: t('pages.roleList.columns.name'),
+      title: t('rbac.roleList.columns.name'),
       colKey: 'name',
       minWidth: 160,
     },
     {
-      title: t('pages.roleList.columns.display'),
+      title: t('rbac.roleList.columns.display'),
       colKey: 'display',
       minWidth: 180,
     },
     {
-      title: t('pages.roleList.columns.description'),
+      title: t('rbac.roleList.columns.description'),
       colKey: 'description',
       minWidth: 240,
     },
     {
-      title: t('pages.roleList.columns.builtin'),
+      title: t('rbac.roleList.columns.builtin'),
       colKey: 'builtin',
       width: 120,
     },
@@ -345,14 +346,14 @@ async function loadRolePermissionSelection(roleID: number) {
   try {
     const response = await getRolePermissionBindings(roleID);
     if (!applyRolePermissionSelection(response.permission_ids)) {
-      MessagePlugin.error(t('pages.roleList.permissionDialog.selectionUnavailable'));
+      MessagePlugin.error(t('rbac.roleList.permissionDialog.selectionUnavailable'));
       return false;
     }
 
     return true;
   } catch (error) {
     MessagePlugin.error(
-      error instanceof Error ? error.message : t('pages.roleList.permissionDialog.selectionLoadFailed'),
+      error instanceof Error ? error.message : t('rbac.roleList.permissionDialog.selectionLoadFailed'),
     );
     return false;
   } finally {
@@ -379,11 +380,11 @@ async function fetchRolePageData() {
       permissions.value = results[1].value.items;
     } else {
       permissions.value = [];
-      MessagePlugin.warning(t('pages.roleList.permissionLoadFailed'));
+      MessagePlugin.warning(t('rbac.roleList.permissionLoadFailed'));
     }
   } catch (error) {
     roles.value = [];
-    MessagePlugin.error(error instanceof Error ? error.message : t('pages.roleList.loadFailed'));
+    MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.loadFailed'));
   } finally {
     loading.value = false;
   }
@@ -428,17 +429,17 @@ async function handleRoleSubmit(ctx: SubmitContext) {
     if (roleFormMode.value === 'create') {
       const created = await createRole(payload);
       roles.value = [...roles.value, created].sort((left, right) => left.id - right.id);
-      MessagePlugin.success(t('pages.roleList.createSuccess'));
+      MessagePlugin.success(t('rbac.roleList.createSuccess'));
     } else if (selectedRole.value) {
       const updated = await updateRole(selectedRole.value.id, payload);
       roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
       selectedRole.value = updated;
-      MessagePlugin.success(t('pages.roleList.updateSuccess'));
+      MessagePlugin.success(t('rbac.roleList.updateSuccess'));
     }
 
     closeRoleDialog();
   } catch (error) {
-    MessagePlugin.error(error instanceof Error ? error.message : t('pages.roleList.submitFailed'));
+    MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.submitFailed'));
   } finally {
     submittingRole.value = false;
   }
@@ -446,7 +447,7 @@ async function handleRoleSubmit(ctx: SubmitContext) {
 
 async function openPermissionDialog(role: RoleListItem) {
   if (!canAssignPermissions.value) {
-    MessagePlugin.warning(t('pages.roleList.permissionUnavailable'));
+    MessagePlugin.warning(t('rbac.roleList.permissionUnavailable'));
     return;
   }
 
@@ -471,7 +472,7 @@ async function submitPermissionAssignment() {
   }
 
   if (!permissionSelectionReady.value) {
-    MessagePlugin.error(t('pages.roleList.permissionDialog.selectionUnavailable'));
+    MessagePlugin.error(t('rbac.roleList.permissionDialog.selectionUnavailable'));
     return;
   }
 
@@ -483,10 +484,10 @@ async function submitPermissionAssignment() {
     });
     updateRolePermissionSnapshot(selectedRole.value.id, permissionIDs);
     selectedRole.value = roles.value.find((item) => item.id === selectedRole.value?.id) ?? selectedRole.value;
-    MessagePlugin.success(t('pages.roleList.assignSuccess'));
+    MessagePlugin.success(t('rbac.roleList.assignSuccess'));
     closePermissionDialog();
   } catch (error) {
-    MessagePlugin.error(error instanceof Error ? error.message : t('pages.roleList.assignFailed'));
+    MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.assignFailed'));
   } finally {
     submittingPermissions.value = false;
   }

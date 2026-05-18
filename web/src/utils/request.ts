@@ -11,6 +11,7 @@ import {
 import { AUTH_SCHEME, HTTP_HEADER } from '@/contracts/api/headers';
 import { MESSAGE_KEY } from '@/contracts/api/messages';
 import { AUTH_API_PATH } from '@/contracts/auth/paths';
+import { AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
 import { getDefaultLocale, normalizeLocale } from '@/contracts/i18n/locales';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
 import { i18n } from '@/locales';
@@ -239,9 +240,9 @@ async function clearClientSession() {
     }
   }
 
-  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+  if (typeof window !== 'undefined' && window.location.pathname !== AUTH_ROUTE_PATH.LOGIN) {
     const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}${window.location.hash}`);
-    window.location.replace(`/login?redirect=${redirect}`);
+    window.location.replace(`${AUTH_ROUTE_PATH.LOGIN}?redirect=${redirect}`);
   }
 }
 

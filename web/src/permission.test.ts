@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RouteRecordRaw } from 'vue-router';
 
 const messageError = vi.fn();
 const addRoute = vi.fn();
+const removeRoute = vi.fn();
 
 const guardState = vi.hoisted(() => {
   const beforeEachHandlers: Array<(to: any, from: any, next: (arg?: any) => void) => unknown> = [];
@@ -33,7 +35,7 @@ const storeState = vi.hoisted(() => ({
         path: '/users',
         name: 'UserList',
       },
-    ],
+    ] as RouteRecordRaw[],
     setBootstrapSnapshot: vi.fn(),
     buildAsyncRoutes: vi.fn(async function (this: any) {
       return this.asyncRoutes;
@@ -61,6 +63,7 @@ vi.mock('@/router', () => ({
   RESTRICTED_SESSION_ROUTE_NAME: 'RestrictedSession',
   default: {
     addRoute,
+    removeRoute,
     hasRoute: vi.fn(() => true),
     beforeEach: (handler: (to: any, from: any, next: (arg?: any) => void) => unknown) => {
       guardState.beforeEachHandlers.push(handler);
@@ -80,7 +83,8 @@ async function loadPermissionGuards() {
   vi.resetModules();
   guardState.beforeEachHandlers.length = 0;
   guardState.afterEachHandlers.length = 0;
-  await import('./permission');
+  const { registerRouteGuards } = await import('@/app/bootstrap/route-guards');
+  registerRouteGuards();
   return {
     beforeEach: guardState.beforeEachHandlers[0],
     afterEach: guardState.afterEachHandlers[0],
@@ -90,6 +94,7 @@ async function loadPermissionGuards() {
 describe('permission restricted session guard', () => {
   beforeEach(() => {
     addRoute.mockReset();
+    removeRoute.mockReset();
     messageError.mockReset();
     storeState.userStore.mustChangePassword = true;
     storeState.userStore.pendingRestrictedRedirect = '';
@@ -161,5 +166,28 @@ describe('permission restricted session guard', () => {
 
     expect(storeState.userStore.setPendingRestrictedRedirect).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith();
+  });
+
+  it('removes mounted bootstrap routes when the session returns to login', async () => {
+    storeState.permissionStore.asyncRoutes = [
+      {
+        path: '/users',
+        name: 'UserList',
+        children: [
+          {
+            path: 'index',
+            name: 'UserListIndex',
+          },
+        ],
+      },
+    ] as RouteRecordRaw[];
+
+    const { afterEach } = await loadPermissionGuards();
+
+    await afterEach({ path: '/login' });
+
+    expect(removeRoute).toHaveBeenNthCalledWith(1, 'UserListIndex');
+    expect(removeRoute).toHaveBeenNthCalledWith(2, 'UserList');
+    expect(storeState.permissionStore.restoreRoutes).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,10 +1,7 @@
 import { request } from '@/utils/request';
 
+import { USER_API_PATH } from '../contract/paths';
 import type { UserListResponse } from '../types/user';
-
-const USER_API_PATH = {
-  USERS: '/api/users',
-} as const;
 
 export function getUsers() {
   return request.get<UserListResponse>({

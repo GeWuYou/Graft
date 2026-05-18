@@ -17,10 +17,36 @@ export type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
 export { supportedLocales } from '@/contracts/i18n/locales';
 
 const langModules = import.meta.glob<{ default: Record<string, unknown> }>('./lang/*.json', { eager: true });
+const moduleLangModules = import.meta.glob<{ default: Record<string, unknown> }>('../modules/*/locales/**/*.json', {
+  eager: true,
+});
 
 const langCode: SupportedLocale[] = [];
 const messages: I18nOptions['messages'] = {};
 const langList: DropdownOption[] = [];
+
+function isPlainMessageRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+export function mergeLocaleMessages(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged = { ...target };
+
+  for (const [key, value] of Object.entries(source)) {
+    const existing = merged[key];
+    if (isPlainMessageRecord(existing) && isPlainMessageRecord(value)) {
+      merged[key] = mergeLocaleMessages(existing, value);
+      continue;
+    }
+
+    merged[key] = value;
+  }
+
+  return merged;
+}
 
 Object.entries(langModules).forEach(([path, module]) => {
   const code = path.match(/\.\/lang\/([^.]+)\.json$/)?.[1] as SupportedLocale | undefined;
@@ -28,6 +54,15 @@ Object.entries(langModules).forEach(([path, module]) => {
   langCode.push(code);
   messages[code] = { ...module.default, componentsLocale: toTDesignLocale(code) };
   langList.push({ content: module.default.lang as string, value: code });
+});
+
+Object.entries(moduleLangModules).forEach(([path, module]) => {
+  const code = path.match(/\/([^./]+)\.json$/)?.[1] as SupportedLocale | undefined;
+  if (!code || !supportedLocales.includes(code)) return;
+
+  messages[code] = {
+    ...mergeLocaleMessages((messages[code] ?? {}) as Record<string, unknown>, module.default),
+  } as NonNullable<I18nOptions['messages']>[SupportedLocale];
 });
 
 export { langCode };

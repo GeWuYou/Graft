@@ -6,3 +6,5 @@ export const userModuleRegistration: WebModuleRegistration = {
   moduleId: 'user',
   bootstrapRoutes: userBootstrapRouteRegistrations,
 };
+
+export default userModuleRegistration;

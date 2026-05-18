@@ -1,7 +1,7 @@
 <template>
   <t-dialog
     :visible="visible"
-    :header="t('pages.login.forcePasswordChange.title')"
+    :header="t('app.auth.login.forcePasswordChange.title')"
     :close-btn="false"
     :close-on-esc-keydown="false"
     :close-on-overlay-click="false"
@@ -14,34 +14,34 @@
     <template #body>
       <div class="force-password-change-dialog">
         <p class="force-password-change-dialog__description">
-          {{ t('pages.login.forcePasswordChange.description') }}
+          {{ t('app.auth.login.forcePasswordChange.description') }}
         </p>
         <p class="force-password-change-dialog__hint">
-          {{ t('pages.login.forcePasswordChange.policyHint') }}
+          {{ t('app.auth.login.forcePasswordChange.policyHint') }}
         </p>
 
         <t-form ref="formRef" :data="formData" :rules="formRules" label-align="top" @submit="handleSubmit">
-          <t-form-item :label="t('pages.login.forcePasswordChange.newPassword')" name="newPassword">
+          <t-form-item :label="t('app.auth.login.forcePasswordChange.newPassword')" name="newPassword">
             <t-input
               v-model="formData.newPassword"
               type="password"
               autocomplete="new-password"
-              :placeholder="t('pages.login.forcePasswordChange.newPasswordPlaceholder')"
+              :placeholder="t('app.auth.login.forcePasswordChange.newPasswordPlaceholder')"
             />
           </t-form-item>
 
-          <t-form-item :label="t('pages.login.forcePasswordChange.confirmPassword')" name="confirmPassword">
+          <t-form-item :label="t('app.auth.login.forcePasswordChange.confirmPassword')" name="confirmPassword">
             <t-input
               v-model="formData.confirmPassword"
               type="password"
               autocomplete="new-password"
-              :placeholder="t('pages.login.forcePasswordChange.confirmPasswordPlaceholder')"
+              :placeholder="t('app.auth.login.forcePasswordChange.confirmPasswordPlaceholder')"
             />
           </t-form-item>
 
           <div class="force-password-change-dialog__actions">
             <t-button block theme="primary" :loading="submitting" type="submit">
-              {{ t('pages.login.forcePasswordChange.submit') }}
+              {{ t('app.auth.login.forcePasswordChange.submit') }}
             </t-button>
           </div>
         </t-form>
@@ -85,9 +85,11 @@ const formData = ref<ForcePasswordChangeForm>({ ...INITIAL_FORM_DATA });
 const visible = computed(() => Boolean(userStore.token && userStore.bootstrapLoaded && userStore.mustChangePassword));
 
 const formRules = computed<Record<keyof ForcePasswordChangeForm, FormRule[]>>(() => ({
-  newPassword: [{ required: true, message: t('pages.login.forcePasswordChange.required.newPassword'), type: 'error' }],
+  newPassword: [
+    { required: true, message: t('app.auth.login.forcePasswordChange.required.newPassword'), type: 'error' },
+  ],
   confirmPassword: [
-    { required: true, message: t('pages.login.forcePasswordChange.required.confirmPassword'), type: 'error' },
+    { required: true, message: t('app.auth.login.forcePasswordChange.required.confirmPassword'), type: 'error' },
   ],
 }));
 
@@ -106,11 +108,11 @@ function isPasswordChangeApiCode(code: string) {
 
 function validatePasswordPolicy() {
   if (formData.value.newPassword !== formData.value.confirmPassword) {
-    return t('pages.login.forcePasswordChange.errors.confirmMismatch');
+    return t('app.auth.login.forcePasswordChange.errors.confirmMismatch');
   }
 
   if (!PASSWORD_POLICY.test(formData.value.newPassword)) {
-    return t('pages.login.forcePasswordChange.errors.policyViolation');
+    return t('app.auth.login.forcePasswordChange.errors.policyViolation');
   }
 
   return '';
@@ -138,7 +140,7 @@ const handleSubmit = async (ctx: SubmitContext) => {
     });
     resetForm();
     formRef.value?.clearValidate();
-    MessagePlugin.success(t('pages.login.forcePasswordChange.success'));
+    MessagePlugin.success(t('app.auth.login.forcePasswordChange.success'));
   } catch (error) {
     if (isApiRequestError(error) && isPasswordChangeApiCode(error.code)) {
       MessagePlugin.warning(error.message);

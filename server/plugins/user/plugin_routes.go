@@ -200,8 +200,8 @@ func newRequiredPasswordChangeGuard(localizer *i18n.Service, authSvc *authServic
 
 func newRestrictedSessionGuard(localizer *i18n.Service, authSvc *authService, apiBasePath string) gin.HandlerFunc {
 	allowedPaths := []string{
-		usercontract.JoinRoute(apiBasePath, usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthBootstrap)),
-		usercontract.JoinRoute(apiBasePath, usercontract.JoinRoute(usercontract.AuthGroup, usercontract.AuthCompleteRequiredPasswordChange)),
+		usercontract.JoinRoute(apiBasePath, usercontract.AuthBootstrap),
+		usercontract.JoinRoute(apiBasePath, usercontract.AuthCompleteRequiredPasswordChange),
 	}
 
 	return func(ginCtx *gin.Context) {

@@ -14,7 +14,7 @@ const exceptionRouterList: Array<RouteRecordRaw> = [
   {
     path: '/result/403',
     name: 'Result403',
-    component: () => import('@/pages/result/403/index.vue'),
+    component: () => import('@/app/result/403/index.vue'),
     meta: {
       hidden: true,
     },
@@ -22,7 +22,7 @@ const exceptionRouterList: Array<RouteRecordRaw> = [
   {
     path: '/result/404',
     name: 'Result404',
-    component: () => import('@/pages/result/404/index.vue'),
+    component: () => import('@/app/result/404/index.vue'),
     meta: {
       hidden: true,
     },
@@ -30,7 +30,7 @@ const exceptionRouterList: Array<RouteRecordRaw> = [
   {
     path: '/result/500',
     name: 'Result500',
-    component: () => import('@/pages/result/500/index.vue'),
+    component: () => import('@/app/result/500/index.vue'),
     meta: {
       hidden: true,
     },
@@ -39,9 +39,9 @@ const exceptionRouterList: Array<RouteRecordRaw> = [
 
 const defaultRouterList: Array<RouteRecordRaw> = [
   {
-    path: '/login',
-    name: 'login',
-    component: () => import('@/pages/login/index.vue'),
+    path: AUTH_ROUTE_PATH.LOGIN,
+    name: AUTH_ROUTE_NAME.LOGIN,
+    component: () => import('@/app/auth/index.vue'),
   },
   {
     path: RESTRICTED_SESSION_PATH,
