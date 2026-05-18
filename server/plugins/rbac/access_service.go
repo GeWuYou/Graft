@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
 type accessService struct {
-	rbac store.RBACRepository
+	rbac rbacstore.Repository
 }
 
 func (s accessService) ListRoleNamesByUserID(ctx context.Context, userID uint64) ([]string, error) {
@@ -24,7 +24,7 @@ func (s accessService) ListRoleNamesByUserID(ctx context.Context, userID uint64)
 		return nil, err
 	}
 
-	return stableStrings(roles, func(role store.Role) string { return role.Name }), nil
+	return stableStrings(roles, func(role rbacstore.Role) string { return role.Name }), nil
 }
 
 func (s accessService) ListPermissionCodesByUserID(ctx context.Context, userID uint64) ([]string, error) {
@@ -37,7 +37,7 @@ func (s accessService) ListPermissionCodesByUserID(ctx context.Context, userID u
 		return nil, err
 	}
 
-	return stableStrings(permissions, func(permission store.Permission) string { return permission.Code }), nil
+	return stableStrings(permissions, func(permission rbacstore.Permission) string { return permission.Code }), nil
 }
 
 var _ pluginapi.RBACAccessService = accessService{}

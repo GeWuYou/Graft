@@ -231,6 +231,9 @@ const maxSessionListLimit = 100
 func (s userService) GetUserByID(ctx context.Context, id uint64) (pluginapi.UserSummary, error) {
 	record, err := s.users.GetByID(ctx, id)
 	if err != nil {
+		if errors.Is(err, store.ErrUserNotFound) {
+			return pluginapi.UserSummary{}, pluginapi.ErrUserNotFound
+		}
 		return pluginapi.UserSummary{}, err
 	}
 

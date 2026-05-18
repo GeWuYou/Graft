@@ -247,3 +247,33 @@
   - keep the new RBAC capability seam as the only allowed user/rbac cross-plugin path
   - move the next Phase 2 slice to plugin-private `store/**` / `storeent/**` ownership instead of touching runtime
     capability wiring again
+
+## 2026-05-18 server Phase 2b RBAC private-store contract migration
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, recovered through the active
+  `multi-worktree-governance` parent topic, and executed the slice through `graft-multi-agent-task`.
+- Used a bounded multi-agent wave for two read-only explorer sidecars to compare `user` vs `rbac` as the next
+  plugin-private store target, then kept implementation, review, and validation on the local critical path.
+- Chose `rbac` for this slice because the owned scope excludes `server/internal/store/**`, and `rbac` had the smaller
+  plugin-local contract move that could land without reopening auth/session or direct `user` / `rbac` repository
+  coupling.
+- Landed the migration with these boundary changes:
+  - added `server/plugins/rbac/store/**` as the RBAC plugin-owned repository contract surface
+  - rewired `server/plugins/rbac/**` runtime code to consume that local contract instead of
+    `server/internal/store/rbac.go`
+  - added `server/plugins/rbac/storeadapter/internal_store.go` as the temporary adapter from the shared
+    `ctx.Stores.RBAC()` seam into the plugin-local repository contract
+  - added `pluginapi.ErrUserNotFound` in `server/internal/pluginapi/user.go` and updated `server/plugins/user/**` to
+    map user-not-found reads onto that shared cross-plugin semantic
+  - kept `pluginapi.RBACAccessService` / `RBACBootstrapService` unchanged, so cross-plugin behavior still flows only
+    through the already-landed service-capability seam
+- Revalidated the slice with:
+  - `cd server && go test ./plugins/rbac`
+  - `cd server && go test ./plugins/rbac ./plugins/user ./internal/cli`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend`
+- Immediate next step after this slice:
+  - keep the new plugin-local RBAC contract as the only allowed RBAC repository dependency inside
+    `server/plugins/rbac/**`
+  - migrate the remaining RBAC persistence implementation ownership out of `internal/store/**` and
+    `internal/store/entstore/**` in a later slice, or start the separate `user` private-store migration without
+    reopening direct repository coupling

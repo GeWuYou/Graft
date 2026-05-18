@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
 type bootstrapService struct {
-	rbac store.RBACRepository
+	rbac rbacstore.Repository
 }
 
 func (s bootstrapService) EnsureDefaultAdminAccess(
@@ -22,7 +22,7 @@ func (s bootstrapService) EnsureDefaultAdminAccess(
 		return errors.New("rbac repository is unavailable")
 	}
 
-	role, err := s.rbac.EnsureRole(ctx, store.EnsureRoleInput{
+	role, err := s.rbac.EnsureRole(ctx, rbacstore.EnsureRoleInput{
 		Name:    builtinAdminRoleName,
 		Display: "管理员",
 		Builtin: true,
@@ -34,7 +34,7 @@ func (s bootstrapService) EnsureDefaultAdminAccess(
 	if err := ensureRolePermissions(ctx, s.rbac, role.ID, permissions); err != nil {
 		return err
 	}
-	if err := s.rbac.AssignRoleToUser(ctx, store.AssignRoleToUserInput{
+	if err := s.rbac.AssignRoleToUser(ctx, rbacstore.AssignRoleToUserInput{
 		UserID: userID,
 		RoleID: role.ID,
 	}); err != nil {
@@ -46,13 +46,13 @@ func (s bootstrapService) EnsureDefaultAdminAccess(
 
 func ensureRolePermissions(
 	ctx context.Context,
-	rbac store.RBACRepository,
+	rbac rbacstore.Repository,
 	roleID uint64,
 	permissions []pluginapi.PermissionSeed,
 ) error {
 	permissionIDs := make([]uint64, 0, len(permissions))
 	for _, item := range permissions {
-		record, err := rbac.EnsurePermission(ctx, store.EnsurePermissionInput{
+		record, err := rbac.EnsurePermission(ctx, rbacstore.EnsurePermissionInput{
 			Code:        item.Code,
 			Display:     item.Display,
 			Description: stringPtrOrNil(item.Description),
@@ -67,7 +67,7 @@ func ensureRolePermissions(
 		return nil
 	}
 
-	if err := rbac.AssignPermissionsToRole(ctx, store.AssignPermissionsToRoleInput{
+	if err := rbac.AssignPermissionsToRole(ctx, rbacstore.AssignPermissionsToRoleInput{
 		RoleID:        roleID,
 		PermissionIDs: permissionIDs,
 	}); err != nil {

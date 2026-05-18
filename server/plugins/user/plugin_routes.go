@@ -759,7 +759,7 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, message string, err error) {
 	status := http.StatusInternalServerError
 	messageKey := messagecontract.CommonInternalError
-	if errors.Is(err, store.ErrUserNotFound) {
+	if errors.Is(err, store.ErrUserNotFound) || errors.Is(err, pluginapi.ErrUserNotFound) {
 		status = http.StatusNotFound
 		messageKey = messagecontract.UserNotFound
 	} else {

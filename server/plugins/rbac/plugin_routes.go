@@ -12,8 +12,8 @@ import (
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
-	"graft/server/internal/store"
 	rbaccontract "graft/server/plugins/rbac/contract"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
 type roleListResponse struct {
@@ -186,7 +186,7 @@ func registerRoleRoutes(
 
 		bindings, err := reader.ListRolePermissionBindings(ginCtx.Request.Context(), roleID)
 		if err != nil {
-			if errors.Is(err, store.ErrRoleNotFound) {
+			if errors.Is(err, rbacstore.ErrRoleNotFound) {
 				writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusNotFound, messagecontract.RoleNotFound, nil)
 				return
 			}

@@ -1,7 +1,15 @@
 // Package pluginapi 定义稳定的跨插件能力契约。
 package pluginapi
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var (
+	// ErrUserNotFound 表示跨插件读取的目标用户不存在。
+	ErrUserNotFound = errors.New("user not found")
+)
 
 // UserSummary 是跨插件共享的稳定用户摘要 DTO。
 //
@@ -18,6 +26,6 @@ type UserSummary struct {
 type UserService interface {
 	// GetUserByID 按 ID 返回稳定的用户摘要 DTO，而不是内部持久化模型。
 	//
-	// 未命中时实现应返回 store.ErrUserNotFound 等稳定错误语义，方便调用方做统一分支处理。
+	// 未命中时实现应返回 ErrUserNotFound，方便调用方做统一分支处理。
 	GetUserByID(ctx context.Context, id uint64) (UserSummary, error)
 }

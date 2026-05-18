@@ -26,6 +26,7 @@ import (
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
 	rbaccontract "graft/server/plugins/rbac/contract"
+	"graft/server/plugins/rbac/storeadapter"
 )
 
 type testRBACRepository struct {
@@ -74,7 +75,7 @@ type testUserService struct {
 func (s testUserService) GetUserByID(_ context.Context, id uint64) (pluginapi.UserSummary, error) {
 	user, ok := s.users[id]
 	if !ok {
-		return pluginapi.UserSummary{}, store.ErrUserNotFound
+		return pluginapi.UserSummary{}, pluginapi.ErrUserNotFound
 	}
 
 	return pluginapi.UserSummary{
@@ -296,7 +297,7 @@ func newAuthorizedJSONRequest(method string, path string, body any) *http.Reques
 
 // TestAuthorizerRejectsUnauthenticatedRequest 验证缺少主体时会返回稳定未登录错误。
 func TestAuthorizerRejectsUnauthenticatedRequest(t *testing.T) {
-	service := authorizer{rbac: testRBACRepository{}}
+	service := authorizer{rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{})}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{}, "user.read")
 	if !errors.Is(err, pluginapi.ErrUnauthenticated) {
@@ -307,9 +308,9 @@ func TestAuthorizerRejectsUnauthenticatedRequest(t *testing.T) {
 // TestAuthorizerAllowsGrantedPermission 验证命中的权限码会被授权通过。
 func TestAuthorizerAllowsGrantedPermission(t *testing.T) {
 	service := authorizer{
-		rbac: testRBACRepository{
+		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
 			permissionsByUser: []store.Permission{{Code: "user.read"}},
-		},
+		}),
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{
@@ -323,9 +324,9 @@ func TestAuthorizerAllowsGrantedPermission(t *testing.T) {
 // TestAuthorizerRejectsMissingPermission 验证未命中权限码时会返回稳定拒绝错误。
 func TestAuthorizerRejectsMissingPermission(t *testing.T) {
 	service := authorizer{
-		rbac: testRBACRepository{
+		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
 			permissionsByUser: []store.Permission{{Code: "dashboard.view"}},
-		},
+		}),
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{
@@ -340,9 +341,9 @@ func TestAuthorizerRejectsMissingPermission(t *testing.T) {
 func TestAuthorizerPropagatesRepositoryFailure(t *testing.T) {
 	repositoryErr := errors.New("repository failed")
 	service := authorizer{
-		rbac: testRBACRepository{
+		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
 			permissionsErr: repositoryErr,
-		},
+		}),
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{

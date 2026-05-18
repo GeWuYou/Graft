@@ -11,8 +11,9 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
 	rbaccontract "graft/server/plugins/rbac/contract"
+	rbacstore "graft/server/plugins/rbac/store"
+	"graft/server/plugins/rbac/storeadapter"
 )
 
 // Plugin 是 MVP 阶段最小可用的 RBAC 插件。
@@ -51,7 +52,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 	registerRBACPermissions(ctx.PermissionRegistry, p.Name())
 	registerRBACMenu(ctx.MenuRegistry, p.Name())
-	repository := ctx.Stores.RBAC()
+	repository := storeadapter.NewInternalRepositoryAdapter(ctx.Stores.RBAC())
 	if err := ctx.Services.RegisterSingleton((*pluginapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
 		return accessService{rbac: repository}, nil
 	}); err != nil {
@@ -155,7 +156,7 @@ func (p *Plugin) Shutdown(_ *plugin.Context) error {
 }
 
 type authorizer struct {
-	rbac store.RBACRepository
+	rbac rbacstore.Repository
 }
 
 // Authorize 基于稳定 RBAC 仓储判断请求主体是否拥有指定权限。

@@ -6,22 +6,22 @@ import (
 	"sort"
 
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
 type readManagementService interface {
-	ListRoles(ctx context.Context) ([]store.Role, error)
-	ListPermissions(ctx context.Context) ([]store.Permission, error)
-	ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]store.RolePermissionBinding, error)
+	ListRoles(ctx context.Context) ([]rbacstore.Role, error)
+	ListPermissions(ctx context.Context) ([]rbacstore.Permission, error)
+	ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error)
 	ListRoleIDsByUserID(ctx context.Context, userID uint64) ([]uint64, error)
 }
 
 type managementReader struct {
 	users pluginapi.UserService
-	rbac  store.RBACRepository
+	rbac  rbacstore.Repository
 }
 
-func (r managementReader) ListRoles(ctx context.Context) ([]store.Role, error) {
+func (r managementReader) ListRoles(ctx context.Context) ([]rbacstore.Role, error) {
 	if r.rbac == nil {
 		return nil, errors.New("rbac repository is unavailable")
 	}
@@ -29,7 +29,7 @@ func (r managementReader) ListRoles(ctx context.Context) ([]store.Role, error) {
 	return r.rbac.ListRoles(ctx)
 }
 
-func (r managementReader) ListPermissions(ctx context.Context) ([]store.Permission, error) {
+func (r managementReader) ListPermissions(ctx context.Context) ([]rbacstore.Permission, error) {
 	if r.rbac == nil {
 		return nil, errors.New("rbac repository is unavailable")
 	}
@@ -37,7 +37,7 @@ func (r managementReader) ListPermissions(ctx context.Context) ([]store.Permissi
 	return r.rbac.ListPermissions(ctx)
 }
 
-func (r managementReader) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]store.RolePermissionBinding, error) {
+func (r managementReader) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error) {
 	if r.rbac == nil {
 		return nil, errors.New("rbac repository is unavailable")
 	}
