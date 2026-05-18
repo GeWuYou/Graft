@@ -17,7 +17,7 @@ export type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
 export { supportedLocales } from '@/contracts/i18n/locales';
 
 const langModules = import.meta.glob<{ default: Record<string, unknown> }>('./lang/*.json', { eager: true });
-const moduleLangModules = import.meta.glob<{ default: Record<string, unknown> }>('../modules/*/locales/*.json', {
+const moduleLangModules = import.meta.glob<{ default: Record<string, unknown> }>('../modules/*/locales/**/*.json', {
   eager: true,
 });
 
@@ -57,7 +57,7 @@ Object.entries(langModules).forEach(([path, module]) => {
 });
 
 Object.entries(moduleLangModules).forEach(([path, module]) => {
-  const code = path.match(/\.\.\/modules\/[^/]+\/locales\/([^.]+)\.json$/)?.[1] as SupportedLocale | undefined;
+  const code = path.match(/\/([^./]+)\.json$/)?.[1] as SupportedLocale | undefined;
   if (!code || !supportedLocales.includes(code)) return;
 
   messages[code] = {

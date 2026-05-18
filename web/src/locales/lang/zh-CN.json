@@ -328,43 +328,43 @@
         "back": "回到首页",
         "reload": "重新加载"
       }
-    }
-  },
-  "notification": {
-    "contract": "合同动态",
-    "invoice": "票务动态",
-    "meeting": "会议通知",
-    "msg1": "腾讯大厦一楼改造施工项目 已通过审核！",
-    "msg2": "三季度生产原材料采购项目 开票成功！",
-    "msg3": "2021-01-01 10:00的【国家电网线下签约】会议即将开始，请提前10分钟前往 会议室1 进行签到！",
-    "msg4": "一季度生产原材料采购项目 开票成功！"
-  },
-  "list": {
-    "base": {
-      "export": "导出合同",
-      "create": "新建合同",
-      "select": "已选",
-      "items": "项",
-      "contractName": "合同名称",
-      "contractStatus": "合同状态",
-      "contractNum": "合同编号",
-      "contractType": "合同类型",
-      "contractPayType": "合同收支类型",
-      "contractAmount": "合同金额",
-      "operation": "操作",
-      "detail": "详情",
-      "delete": "删除",
-      "pay": "付款",
-      "receive": "收款",
-      "placeholder": "请输入内容搜索",
-      "deleteConfirm": "确认删除当前所选合同？",
-      "deleteTip": "删除后，{name}的所有合同信息将被清空，且无法恢复",
-      "contractStatusEnum": {
-        "fail": "审核失败",
-        "audit": "待审核",
-        "executing": "履行中",
-        "pending": "待履行",
-        "finish": "已完成"
+    },
+    "notification": {
+      "contract": "合同动态",
+      "invoice": "票务动态",
+      "meeting": "会议通知",
+      "msg1": "腾讯大厦一楼改造施工项目 已通过审核！",
+      "msg2": "三季度生产原材料采购项目 开票成功！",
+      "msg3": "2021-01-01 10:00的【国家电网线下签约】会议即将开始，请提前10分钟前往 会议室1 进行签到！",
+      "msg4": "一季度生产原材料采购项目 开票成功！"
+    },
+    "list": {
+      "base": {
+        "export": "导出合同",
+        "create": "新建合同",
+        "select": "已选",
+        "items": "项",
+        "contractName": "合同名称",
+        "contractStatus": "合同状态",
+        "contractNum": "合同编号",
+        "contractType": "合同类型",
+        "contractPayType": "合同收支类型",
+        "contractAmount": "合同金额",
+        "operation": "操作",
+        "detail": "详情",
+        "delete": "删除",
+        "pay": "付款",
+        "receive": "收款",
+        "placeholder": "请输入内容搜索",
+        "deleteConfirm": "确认删除当前所选合同？",
+        "deleteTip": "删除后，{name}的所有合同信息将被清空，且无法恢复",
+        "contractStatusEnum": {
+          "fail": "审核失败",
+          "audit": "待审核",
+          "executing": "履行中",
+          "pending": "待履行",
+          "finish": "已完成"
+        }
       }
     }
   }

@@ -25,7 +25,7 @@
               {{ t('user.userList.refresh') }}
             </t-button>
             <t-button v-permission="permissionCodes.CREATE" theme="default" variant="base" disabled>
-              {{ t('list.base.create') }}
+              {{ t('app.list.base.create') }}
             </t-button>
           </div>
         </t-card>

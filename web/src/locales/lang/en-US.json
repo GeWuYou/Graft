@@ -318,9 +318,9 @@
       },
       "browserIncompatible": {
         "title": "Browser is incompatible",
-        "subtitle": "the browser version you are using is too outdated to open the current webpage.",
+        "subtitle": "The browser version you are using is too outdated to open this page.",
         "back": "Back to homepage",
-        "recommend": "TDesign Starter recommend the following browser"
+        "recommend": "TDesign Starter recommends the following browsers"
       },
       "networkError": {
         "title": "Network Error",
@@ -328,43 +328,43 @@
         "back": "Back to homepage",
         "reload": "Reload"
       }
-    }
-  },
-  "notification": {
-    "contract": "Contract Updates",
-    "invoice": "Invoice Updates",
-    "meeting": "Meeting Notification",
-    "msg1": "Tencent Building First Floor Renovation Project has passed audit!",
-    "msg2": "Third Quarter Raw Material Procurement Project invoicing successful!",
-    "msg3": "Meeting 【State Grid Offline Signing】at 2021-01-01 10:00 is about to start, please arrive at Conference Room 1 10 minutes early for check-in!",
-    "msg4": "First Quarter Raw Material Procurement Project invoicing successful!"
-  },
-  "list": {
-    "base": {
-      "export": "export",
-      "create": "create",
-      "select": "select",
-      "items": "items",
-      "contractName": "Name",
-      "contractStatus": "Status",
-      "contractNum": "Number",
-      "contractType": "Type",
-      "contractPayType": "Pay Type",
-      "contractAmount": "Amount",
-      "operation": "Operation",
-      "detail": "detail",
-      "delete": "delete",
-      "pay": "pay",
-      "receive": "received",
-      "placeholder": "please enter to search",
-      "deleteConfirm": "Confirm delete selected contracts?",
-      "deleteTip": "After deletion, all contract information of {name} will be cleared and cannot be recovered",
-      "contractStatusEnum": {
-        "fail": "fail",
-        "audit": "audit",
-        "executing": "executing",
-        "pending": "pending",
-        "finish": "finish"
+    },
+    "notification": {
+      "contract": "Contract Updates",
+      "invoice": "Invoice Updates",
+      "meeting": "Meeting Notification",
+      "msg1": "Tencent Building First Floor Renovation Project has passed audit!",
+      "msg2": "Third Quarter Raw Material Procurement Project invoicing successful!",
+      "msg3": "Meeting 【State Grid Offline Signing】at 2021-01-01 10:00 is about to start, please arrive at Conference Room 1 10 minutes early for check-in!",
+      "msg4": "First Quarter Raw Material Procurement Project invoicing successful!"
+    },
+    "list": {
+      "base": {
+        "export": "export",
+        "create": "create",
+        "select": "select",
+        "items": "items",
+        "contractName": "Name",
+        "contractStatus": "Status",
+        "contractNum": "Number",
+        "contractType": "Type",
+        "contractPayType": "Pay Type",
+        "contractAmount": "Amount",
+        "operation": "Operation",
+        "detail": "detail",
+        "delete": "delete",
+        "pay": "pay",
+        "receive": "received",
+        "placeholder": "please enter to search",
+        "deleteConfirm": "Confirm delete selected contracts?",
+        "deleteTip": "After deletion, all contract information of {name} will be cleared and cannot be recovered",
+        "contractStatusEnum": {
+          "fail": "fail",
+          "audit": "audit",
+          "executing": "executing",
+          "pending": "pending",
+          "finish": "finish"
+        }
       }
     }
   }
