@@ -3061,6 +3061,58 @@ func TestRestrictedSessionCannotAccessBusinessRoutes(t *testing.T) {
 	assertForbiddenResponse(t, recorder, "en-US")
 }
 
+// TestRestrictedSessionCanReadBootstrap 验证 must_change_password=true 的受限会话
+// 仍可访问 bootstrap 契约，以便 web 恢复当前用户、权限与受限态快照。
+func TestRestrictedSessionCanReadBootstrap(t *testing.T) {
+	currentHash, err := newPasswordHasher().Hash(defaultAdminPassword)
+	if err != nil {
+		t.Fatalf("hash default admin password: %v", err)
+	}
+
+	authRepo := &pluginTestAuthRepository{
+		getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
+			if candidate != defaultAdminUsername {
+				return store.UserCredential{}, store.ErrUserNotFound
+			}
+			return store.UserCredential{
+				UserID:             9,
+				Username:           defaultAdminUsername,
+				PasswordHash:       &currentHash,
+				MustChangePassword: true,
+			}, nil
+		},
+	}
+	_, engine := newPluginTestContextWithPermissions(
+		t,
+		fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)),
+		authRepo,
+		map[uint64][]store.Permission{
+			9: {{Code: usercontract.UserReadPermission.String()}},
+		},
+	)
+
+	currentSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodGet, "/api/auth/bootstrap", 9, currentSessionID)
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+
+	payload := decodeSuccessData[bootstrapResponse](t, recorder)
+	if !payload.MustChangePassword {
+		t.Fatalf("expected restricted bootstrap snapshot, got %#v", payload)
+	}
+	if payload.User.Username != defaultAdminUsername || payload.User.DisplayName != defaultAdminDisplay {
+		t.Fatalf("expected default admin identity, got %#v", payload.User)
+	}
+	if !slices.Contains(payload.Permissions, usercontract.UserReadPermission.String()) {
+		t.Fatalf("expected bootstrap permissions to include %s, got %#v", usercontract.UserReadPermission.String(), payload.Permissions)
+	}
+}
+
 // TestRestrictedSessionCannotUseNormalChangePasswordRoute 验证
 // 受限会话不能再复用普通 change-password 接口。
 func TestRestrictedSessionCannotUseNormalChangePasswordRoute(t *testing.T) {
