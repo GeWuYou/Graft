@@ -69,6 +69,7 @@ import { useRouter } from 'vue-router';
 
 import LogoFull from '@/assets/assets-logo-full.svg?component';
 import { prefix } from '@/config/global';
+import { AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
 import { t } from '@/locales';
 import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
 import { getActive } from '@/router';
@@ -151,7 +152,7 @@ const handleLogout = async () => {
     await user.logout();
   } finally {
     await router.push({
-      path: '/login',
+      path: AUTH_ROUTE_PATH.LOGIN,
     });
   }
 };

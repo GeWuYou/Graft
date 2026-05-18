@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 
+import { AUTH_ROUTE_NAME } from '@/contracts/auth/routes';
 import { LOCALE } from '@/contracts/i18n/locales';
 import type { TRouterInfo, TTabRouterType } from '@/utils/types';
 
@@ -20,7 +21,7 @@ const state = {
 
 // 不需要做多标签tabs页缓存的列表 值为每个页面对应的name 如 DashboardDetail
 // const ignoreCacheRoutes = ['DashboardDetail'];
-const ignoreCacheRoutes = ['login'];
+const ignoreCacheRoutes: string[] = [AUTH_ROUTE_NAME.LOGIN];
 
 export const useTabsRouterStore = defineStore('tabsRouter', {
   state: () => state,

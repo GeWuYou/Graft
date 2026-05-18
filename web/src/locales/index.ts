@@ -25,6 +25,29 @@ const langCode: SupportedLocale[] = [];
 const messages: I18nOptions['messages'] = {};
 const langList: DropdownOption[] = [];
 
+function isPlainMessageRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+export function mergeLocaleMessages(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged = { ...target };
+
+  for (const [key, value] of Object.entries(source)) {
+    const existing = merged[key];
+    if (isPlainMessageRecord(existing) && isPlainMessageRecord(value)) {
+      merged[key] = mergeLocaleMessages(existing, value);
+      continue;
+    }
+
+    merged[key] = value;
+  }
+
+  return merged;
+}
+
 Object.entries(langModules).forEach(([path, module]) => {
   const code = path.match(/\.\/lang\/([^.]+)\.json$/)?.[1] as SupportedLocale | undefined;
   if (!code || !supportedLocales.includes(code)) return;
@@ -37,13 +60,8 @@ Object.entries(moduleLangModules).forEach(([path, module]) => {
   const code = path.match(/\.\.\/modules\/[^/]+\/locales\/([^.]+)\.json$/)?.[1] as SupportedLocale | undefined;
   if (!code || !supportedLocales.includes(code)) return;
 
-  const mergedMessages = {
-    ...((messages[code] ?? {}) as Record<string, unknown>),
-    ...module.default,
-  };
-
   messages[code] = {
-    ...mergedMessages,
+    ...mergeLocaleMessages((messages[code] ?? {}) as Record<string, unknown>, module.default),
   } as NonNullable<I18nOptions['messages']>[SupportedLocale];
 });
 

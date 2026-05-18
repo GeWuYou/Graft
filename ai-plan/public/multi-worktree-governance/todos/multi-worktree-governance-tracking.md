@@ -65,14 +65,12 @@
   - `web/src/config/**` is still present in the live tree and remains platform configuration owned by the shell layer
   - no runtime files were changed in this slice; it only updates governance, active tracking, and archived historical recovery notes
   - archived `mvp-extension-path/web` materials remain historical context only and must not be treated as the active recovery entry
-- The current `2026-05-18` post-migration shell hotspot review on `web/src/app/**`, `web/src/locales/**`, and module
-  registration surfaces found three follow-up gaps that are still within the shared shell-owned integration layer:
-  - module registration currently rejects duplicate `menuPath` only; it does not reject duplicate stable `routeName`
-    values or their derived child route names
-  - the login route contract is still fragmented across shell-owned runtime files as bare `'/login'` and `'login'`
-    values instead of one canonical auth-route contract
-  - the locale aggregator still does a shallow top-level merge for module catalogs, so any future module-level `menu`
-    or other shared namespace can overwrite previously merged shell/module messages
+- The current shell-owned follow-up slice on `2026-05-18` closes the previously recorded web hotspot gaps:
+  - module registration now auto-discovers `modules/*/index.ts` and rejects duplicate `moduleId`, `menuPath`,
+    stable `routeName`, and derived child route names
+  - login route name/path truth now lives in platform auth-route contracts instead of scattered shell literals
+  - locale aggregation now deep-merges module catalogs so future module-owned namespaces do not overwrite unrelated
+    shell/module message trees at the top level
 - The first expected future long-lived feature directions are:
   - `RBAC`
   - `server-status-dashboard`
@@ -152,6 +150,12 @@
   - `find web/src/modules -maxdepth 3 -type f | sort | rg 'index\\.ts$|bootstrap-routes\\.ts$|locales/|contract/'`
   - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/utils/route/bootstrap.test.ts src/utils/route/title.test.ts src/locales/index.test.ts`
   - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+- The follow-up shell-owned gap-closure slice revalidated with:
+  - `rg -n "from '@/modules/[^']+/(types|api|pages|locales)|from \\\"@/modules/[^\\\"]+/(types|api|pages|locales)\\\"" web/src`
+  - `rg -n "'/login'|\"/login\"|'login'|\"login\"" web/src --glob '!web/src/app/auth/index.vue' --glob '!web/src/locales/**'`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/modules/index.test.ts src/router/index.test.ts src/locales/index.test.ts src/permission.test.ts`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`
 
 ## Immediate Next Step
 
@@ -162,11 +166,10 @@
   - preserve `web/src/app/**` and other shell-owned code as consumers of module registrations instead of holders of
     feature route truth
   - preserve `web/src/shared/**` as the only valid cross-module reusable asset layer
-- For the next shell-owned follow-up slice, fix the review gaps in this order:
-  - add duplicate stable-route guards to the module registration layer, including derived child route names
-  - introduce canonical login route name/path contracts and replace shell-owned `'/login'` / `'login'` literals
-  - harden locale catalog aggregation so module-owned message merges cannot overwrite unrelated shell/module trees at
-    the top level
+- Keep the current shell-owned baseline for future `web` worktree ownership:
+  - auto-discovered module registration remains the only module-to-shell integration path
+  - login route name/path remains a platform contract instead of a scattered shell literal
+  - locale aggregation remains deep-merge based for module-owned catalogs
 - Before creating the first additional worktree, decide the exact owned scope and shared-hotspot policy for:
   - `RBAC`
   - `server-status-dashboard`

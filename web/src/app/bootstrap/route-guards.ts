@@ -76,7 +76,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
         }
 
         const runtimeHomePath = resolveRuntimeHomePath(permissionStore.asyncRoutes);
-        if (to.path === '/login' || isRootEntryPath(to.path)) {
+        if (to.path === AUTH_ROUTE_PATH.LOGIN || isRootEntryPath(to.path)) {
           if (isRestrictedSession()) {
             redirectToRestrictedSession();
             return;
@@ -109,7 +109,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
         userStore.clearSessionState();
         permissionStore.restoreRoutes();
         next({
-          path: '/login',
+          path: AUTH_ROUTE_PATH.LOGIN,
           query: { redirect: encodeURIComponent(to.fullPath) },
         });
         NProgress.done();
@@ -131,7 +131,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
         }
 
         const runtimeHomePath = resolveRuntimeHomePath(permissionStore.asyncRoutes);
-        if (to.path === '/login' || isRootEntryPath(to.path)) {
+        if (to.path === AUTH_ROUTE_PATH.LOGIN || isRootEntryPath(to.path)) {
           next({ path: runtimeHomePath, replace: true });
           return;
         }
@@ -148,7 +148,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
           next();
         } else {
           next({
-            path: '/login',
+            path: AUTH_ROUTE_PATH.LOGIN,
             query: { redirect: encodeURIComponent(to.fullPath) },
           });
         }
@@ -158,7 +158,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
   });
 
   targetRouter.afterEach((to) => {
-    if (to.path === '/login') {
+    if (to.path === AUTH_ROUTE_PATH.LOGIN) {
       const userStore = useUserStore();
       const permissionStore = getPermissionStore();
 

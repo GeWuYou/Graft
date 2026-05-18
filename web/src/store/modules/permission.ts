@@ -3,12 +3,13 @@ import { defineStore } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
 
 import type { BootstrapResponse } from '@/api/model/authModel';
+import { AUTH_ROUTE_PATH } from '@/contracts/auth/routes';
 import { store } from '@/store';
 import { transformBootstrapMenusToRoutes } from '@/utils/route/bootstrap';
 
 export const usePermissionStore = defineStore('permission', {
   state: () => ({
-    whiteListRouters: ['/login'] as string[],
+    whiteListRouters: [AUTH_ROUTE_PATH.LOGIN] as string[],
     bootstrapSnapshot: null as BootstrapResponse | null,
     routers: [] as RouteRecordRaw[],
     removeRoutes: [] as RouteRecordRaw[],

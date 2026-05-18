@@ -133,3 +133,22 @@
     canonical auth-route contract
   - locale aggregation still does a shallow top-level merge for module catalogs, so future module-owned `menu` or
     other shared namespaces can overwrite earlier shell/module messages
+
+## 2026-05-18 shell hotspot closure for parallel web worktrees
+
+- Reworked `web/src/modules/index.ts` from hand-written module imports into eager module auto-discovery over
+  `modules/*/index.ts`, so future module onboarding no longer defaults to a shared registry edit.
+- Extended registration validation so the shell now rejects duplicate `moduleId`, duplicate `menuPath`, duplicate stable
+  parent route names, and duplicate derived child route names before route bootstrap can continue.
+- Promoted login route name/path into the platform auth-route contract and replaced shell-owned `'/login'` / `'login'`
+  literals across router, guards, request, permission, tabs-router, header logout, and theme-workbench visibility.
+- Hardened locale aggregation with recursive deep merge semantics so module-owned locale trees can extend shared
+  namespaces without top-level overwrite drift.
+- Added focused regression coverage for:
+  - module registration collision handling
+  - router login route canonical contract usage
+  - locale deep-merge semantics
+- Revalidated the slice with host Windows Bun direct checks:
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/modules/index.test.ts src/router/index.test.ts src/locales/index.test.ts src/permission.test.ts`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`

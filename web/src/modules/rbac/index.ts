@@ -6,3 +6,5 @@ export const rbacModuleRegistration: WebModuleRegistration = {
   moduleId: 'rbac',
   bootstrapRoutes: rbacBootstrapRouteRegistrations,
 };
+
+export default rbacModuleRegistration;

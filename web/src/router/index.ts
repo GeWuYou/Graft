@@ -39,8 +39,8 @@ const exceptionRouterList: Array<RouteRecordRaw> = [
 
 const defaultRouterList: Array<RouteRecordRaw> = [
   {
-    path: '/login',
-    name: 'login',
+    path: AUTH_ROUTE_PATH.LOGIN,
+    name: AUTH_ROUTE_NAME.LOGIN,
     component: () => import('@/app/auth/index.vue'),
   },
   {
