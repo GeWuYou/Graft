@@ -127,7 +127,6 @@ func NewRuntime() (*Runtime, error) {
 
 	plugins, err := pluginregistry.BuildPlugins(plugin.BuildContext{
 		Services: services,
-		Stores:   stores,
 	})
 	if err != nil {
 		_ = runtime.closeCoreResources()
@@ -249,8 +248,26 @@ func (r *Runtime) registerCoreServices() error {
 		return err
 	}
 
-	if err := r.services.RegisterSingleton((*store.Factory)(nil), func(_ container.Resolver) (any, error) {
-		return r.stores, nil
+	if err := r.services.RegisterSingleton((*store.AuditRepository)(nil), func(_ container.Resolver) (any, error) {
+		return r.stores.Audit(), nil
+	}); err != nil {
+		return err
+	}
+
+	if err := r.services.RegisterSingleton((*store.UserRepository)(nil), func(_ container.Resolver) (any, error) {
+		return r.stores.Users(), nil
+	}); err != nil {
+		return err
+	}
+
+	if err := r.services.RegisterSingleton((*store.AuthRepository)(nil), func(_ container.Resolver) (any, error) {
+		return r.stores.Auth(), nil
+	}); err != nil {
+		return err
+	}
+
+	if err := r.services.RegisterSingleton((*store.RBACRepository)(nil), func(_ container.Resolver) (any, error) {
+		return r.stores.RBAC(), nil
 	}); err != nil {
 		return err
 	}

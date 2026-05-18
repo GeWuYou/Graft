@@ -1,6 +1,11 @@
 package audit
 
-import "graft/server/internal/plugin"
+import (
+	"fmt"
+
+	"graft/server/internal/plugin"
+	"graft/server/internal/store"
+)
 
 // NewDescriptor exposes the audit plugin's stable metadata and builder.
 func NewDescriptor() plugin.Descriptor {
@@ -14,7 +19,12 @@ func NewDescriptor() plugin.Descriptor {
 		PluginVersion: instance.Version(),
 		Dependencies:  append([]string(nil), instance.DependsOn()...),
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
-			return NewPlugin(ctx.Stores.Audit())
+			repo, err := plugin.ResolveService[store.AuditRepository](ctx.Services, (*store.AuditRepository)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve audit repository: %w", err)
+			}
+
+			return NewPlugin(repo)
 		}),
 	}
 }

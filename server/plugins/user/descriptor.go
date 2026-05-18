@@ -1,7 +1,10 @@
 package user
 
 import (
+	"fmt"
+
 	"graft/server/internal/plugin"
+	"graft/server/internal/store"
 	"graft/server/plugins/user/storeadapter"
 )
 
@@ -14,9 +17,18 @@ func NewDescriptor() plugin.Descriptor {
 		PluginVersion: instance.Version(),
 		Dependencies:  append([]string(nil), instance.DependsOn()...),
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
+			userRepo, err := plugin.ResolveService[store.UserRepository](ctx.Services, (*store.UserRepository)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve user repository: %w", err)
+			}
+			authRepo, err := plugin.ResolveService[store.AuthRepository](ctx.Services, (*store.AuthRepository)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve auth repository: %w", err)
+			}
+
 			return NewPlugin(
-				storeadapter.NewUserRepositoryAdapter(ctx.Stores.Users()),
-				storeadapter.NewAuthRepositoryAdapter(ctx.Stores.Auth()),
+				storeadapter.NewUserRepositoryAdapter(userRepo),
+				storeadapter.NewAuthRepositoryAdapter(authRepo),
 			), nil
 		}),
 	}

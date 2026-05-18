@@ -365,3 +365,31 @@
     `server/plugins/user/**`
   - move the next Phase 2/3 slice to plugin-owned persistence implementation ownership under `storeent/**`, `ent/**`,
     and `migrations/**` instead of reopening direct shared-store imports
+
+## 2026-05-18 server Phase 2e explicit-repository builder decoupling
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, recovered through the active
+  `multi-worktree-governance` parent topic, and executed the slice through `graft-multi-agent-task`.
+- Used a bounded multi-agent wave for two read-only explorer sidecars while keeping the actual implementation on the
+  local critical path because the write scope stayed tightly coupled across `plugin.BuildContext`, runtime service
+  registration, and plugin descriptors.
+- Closed the remaining generalized builder/container backdoor without starting Phase 3 prematurely:
+  - removed `store.Factory` from `plugin.BuildContext`
+  - added `plugin.ResolveService(...)` as the explicit typed singleton resolution helper for builder wiring
+  - rewired `server/internal/app/runtime.go` to register `store.{Audit,User,Auth,RBAC}Repository` singletons instead
+    of exporting `store.Factory` through the shared runtime container
+  - rewired `server/plugins/{audit,rbac,user}/descriptor.go` so each Builder resolves only the repository boundary it
+    actually needs, then adapts that repository into plugin-local store contracts
+- Updated the audit plugin README and active topic tracking so repository truth no longer claims that plugins receive
+  `Stores` through `plugin.Context`.
+- The read-only Phase 3 sidecar recommended `user` as the first plugin-owned Ent/migration owner:
+  - `users` plus `refresh_sessions` are the smaller extraction than `rbac`
+  - the mixed `user_roles` bridge should stay out of the first user-owned Ent/migration cut
+- Validation for the slice finished with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/app ./plugins/user ./plugins/rbac ./plugins/audit`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+- Resulting readiness update:
+  - active plugin lifecycle code and compile-time builders no longer expose a generalized `store.Factory` backdoor
+  - the next honest backend hotspot is Phase 3 ownership migration for `internal/store/**`, `internal/store/entstore/**`,
+    `internal/ent/**`, and Atlas migrations, starting with the `user` plugin's independent `users` /
+    `refresh_sessions` slice or a deliberately scoped dev CLI cleanup if that path is chosen first

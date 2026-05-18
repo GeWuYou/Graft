@@ -1,7 +1,10 @@
 package rbac
 
 import (
+	"fmt"
+
 	"graft/server/internal/plugin"
+	"graft/server/internal/store"
 	"graft/server/plugins/rbac/storeadapter"
 )
 
@@ -14,7 +17,12 @@ func NewDescriptor() plugin.Descriptor {
 		PluginVersion: instance.Version(),
 		Dependencies:  append([]string(nil), instance.DependsOn()...),
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
-			return NewPlugin(storeadapter.NewInternalRepositoryAdapter(ctx.Stores.RBAC())), nil
+			repo, err := plugin.ResolveService[store.RBACRepository](ctx.Services, (*store.RBACRepository)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve rbac repository: %w", err)
+			}
+
+			return NewPlugin(storeadapter.NewInternalRepositoryAdapter(repo)), nil
 		}),
 	}
 }

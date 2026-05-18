@@ -25,7 +25,7 @@
 
 ## 关键依赖
 
-* 依赖 `plugin.Context` 提供的 `EventBus`、`Router`、`Logger` 与 `Stores`
+* 依赖 `plugin.Context` 提供的 `EventBus`、`Router`、`Logger`，并在 Builder 阶段显式解析 `store.AuditRepository`
 * 写入逻辑复用 `server/internal/audit` 和 `store.AuditRepository`
 
 ## 维护提示

@@ -200,7 +200,7 @@ func (p *i18nFreezeRecorderPlugin) Boot(ctx *plugin.Context) error {
 func (p *i18nFreezeRecorderPlugin) Shutdown(_ *plugin.Context) error { return nil }
 
 // TestRegisterCoreServicesExposesRuntimeSingletons 验证 core 装配会把配置、
-// event bus、store factory 与 Redis 客户端注册到运行时容器中。
+// event bus、显式仓储边界与 Redis 客户端注册到运行时容器中。
 func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	redisClient := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
 	t.Cleanup(func() {
@@ -250,8 +250,11 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*zap.Logger)(nil), runtimeLogger, "logger")
 	assertResolvedService(t, runtime.services, (*i18n.Service)(nil), localizer, "i18n service")
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
-	assertResolvedService(t, runtime.services, (*store.Factory)(nil), store.Factory(stores), "store factory")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
+	assertResolvableService(t, runtime.services, (*store.AuditRepository)(nil), "audit repository")
+	assertResolvableService(t, runtime.services, (*store.UserRepository)(nil), "user repository")
+	assertResolvableService(t, runtime.services, (*store.AuthRepository)(nil), "auth repository")
+	assertResolvableService(t, runtime.services, (*store.RBACRepository)(nil), "rbac repository")
 }
 
 func assertResolvedService[T comparable](t *testing.T, resolver container.Resolver, key any, expected T, name string) {
@@ -268,6 +271,14 @@ func assertResolvedService[T comparable](t *testing.T, resolver container.Resolv
 	}
 	if resolved != expected {
 		t.Fatalf("expected resolved %s to reuse runtime instance", name)
+	}
+}
+
+func assertResolvableService(t *testing.T, resolver container.Resolver, key any, name string) {
+	t.Helper()
+
+	if _, err := resolver.Resolve(key); err != nil {
+		t.Fatalf("resolve %s: %v", name, err)
 	}
 }
 

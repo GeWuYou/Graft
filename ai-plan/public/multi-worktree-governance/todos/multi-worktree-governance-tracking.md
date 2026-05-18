@@ -149,6 +149,18 @@
     `pluginapi.RBACBootstrapService` path instead of the removed repository-backed compatibility bootstrap seam
   - the remaining Phase 2 hotspot is therefore narrowed further to core still registering `store.Factory` for
     transitional service/container needs, while active plugin lifecycle code no longer consumes it directly
+- The current `2026-05-18` Phase 2e explicit-repository builder slice has now landed on the same branch:
+  - `plugin.BuildContext` no longer exposes `store.Factory`
+  - `server/internal/app/runtime.go` now registers explicit `store.{Audit,User,Auth,RBAC}Repository` singletons
+    instead of re-exporting the generalized `store.Factory` through the runtime container
+  - `server/plugins/{audit,rbac,user}/descriptor.go` now resolve only the repository boundary each plugin needs during
+    Builder wiring, then adapt that repository into the plugin-local store contract when needed
+  - `store.Factory` remains an internal runtime helper for assembly and dev CLI flows, but it is no longer a
+    container-visible or builder-visible general business-store backdoor
+  - the remaining backend hotspot is therefore narrowed to the still-centralized `internal/store/**` /
+    `internal/store/entstore/**` implementation ownership plus Phase 3 `internal/ent/**` and migration ownership
+  - the next Phase 3 owner should start with `user`, not `rbac`, because `users` plus `refresh_sessions` form the
+    smaller persistence slice and the mixed `user_roles` bridge should stay out of the first extraction
 
 ## Shared Hotspots
 
@@ -225,6 +237,9 @@
   - `rg -n 'ctx\\.Stores\\(|internal/store|internal/ent/migrate|internal/ent/schema|pluginregistry|Descriptor|Builder' server/internal server/plugins --glob '!server/internal/ent/**'`
 - The current `server` Phase 2d builder-wiring slice was validated with:
   - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/app ./internal/cli ./plugins/user ./plugins/rbac ./plugins/audit ./plugins/scheduler`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+- The current `server` Phase 2e explicit-repository builder slice was validated with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/app ./plugins/user ./plugins/rbac ./plugins/audit`
   - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
 - Current frontend structure and ownership surfaces were grounded with:
   - `find web/src -maxdepth 3 -type d | sort`

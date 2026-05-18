@@ -19,7 +19,6 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
-	"graft/server/internal/store"
 )
 
 // Plugin 定义所有后端插件都必须实现的稳定生命周期契约。
@@ -64,9 +63,9 @@ type Builder interface {
 // BuildContext 暴露插件构造阶段允许消费的最小 core 资源。
 //
 // 它只服务于 compile-time builder wiring，不进入插件运行时热路径。
+// 这里保留显式服务解析边界，避免 builder 重新拿回泛化的业务仓储工厂入口。
 type BuildContext struct {
 	Services *container.Container
-	Stores   store.Factory
 }
 
 // BuilderFunc 允许用普通函数实现 Builder。
@@ -79,6 +78,26 @@ func (f BuilderFunc) Build(ctx BuildContext) (Plugin, error) {
 	}
 
 	return f(ctx)
+}
+
+// ResolveService 解析一个 builder 或插件生命周期允许消费的显式单例服务。
+func ResolveService[T any](resolver container.Resolver, key any) (T, error) {
+	var zero T
+	if resolver == nil {
+		return zero, errors.New("service resolver is required")
+	}
+
+	resolvedAny, err := resolver.Resolve(key)
+	if err != nil {
+		return zero, err
+	}
+
+	resolved, ok := resolvedAny.(T)
+	if !ok {
+		return zero, fmt.Errorf("resolved service %T has unexpected type %T", key, resolvedAny)
+	}
+
+	return resolved, nil
 }
 
 // Descriptor 定义 compile-time 插件元数据与运行时构造入口。
