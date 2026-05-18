@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -90,7 +89,7 @@ func TestManagerOrderedRejectsDependencyCycle(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected dependency cycle error")
 	}
-	if !errors.Is(err, errors.New("plugin dependency cycle detected")) && !strings.Contains(err.Error(), "cycle") {
+	if !strings.Contains(err.Error(), "plugin dependency cycle detected") {
 		t.Fatalf("expected dependency cycle error, got %v", err)
 	}
 }

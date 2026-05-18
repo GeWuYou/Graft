@@ -7,17 +7,17 @@ import (
 	"graft/server/internal/store"
 )
 
+const (
+	pluginID      = "audit"
+	pluginVersion = "0.1.0"
+)
+
 // NewDescriptor exposes the audit plugin's stable metadata and builder.
 func NewDescriptor() plugin.Descriptor {
-	instance, err := NewPlugin(nil)
-	if err != nil {
-		instance = &Plugin{}
-	}
-
 	return plugin.Descriptor{
-		ID:            instance.Name(),
-		PluginVersion: instance.Version(),
-		Dependencies:  append([]string(nil), instance.DependsOn()...),
+		ID:            pluginID,
+		PluginVersion: pluginVersion,
+		Dependencies:  nil,
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
 			repo, err := plugin.ResolveService[store.AuditRepository](ctx.Services, (*store.AuditRepository)(nil))
 			if err != nil {

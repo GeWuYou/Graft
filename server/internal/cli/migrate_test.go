@@ -142,6 +142,39 @@ func TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState(t *testing.T) {
 	}
 }
 
+// TestResolveMigrationDirsRejectsRegistryWithoutAtlasState 验证默认 registry 目录
+// 若全部缺少 Atlas 状态，会显式报错而不是静默跳过迁移。
+func TestResolveMigrationDirsRejectsRegistryWithoutAtlasState(t *testing.T) {
+	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
+	originalReadDir := migrateReadDir
+	defer func() {
+		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
+		migrateReadDir = originalReadDir
+	}()
+
+	root := t.TempDir()
+	coreDir := filepath.Join(root, "server", defaultMigrationDir)
+	pluginDir := filepath.Join(root, "server", "plugins", "user", "migrations")
+	for _, dir := range []string{coreDir, pluginDir} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{defaultMigrationDir, "plugins/user/migrations"}, nil
+	}
+	migrateReadDir = os.ReadDir
+
+	_, err := resolveMigrationDirs(root, defaultMigrationDir)
+	if err == nil {
+		t.Fatal("expected empty atlas-state registry error")
+	}
+	if !strings.Contains(err.Error(), "no migration directories with atlas state found") {
+		t.Fatalf("expected atlas-state guidance, got %v", err)
+	}
+}
+
 // TestResolveMigrationDirsKeepsExplicitDirWithoutAtlasState 验证显式传入的迁移目录
 // 仍按用户要求参与执行，而不是被默认链路的 Atlas 状态过滤逻辑跳过。
 func TestResolveMigrationDirsKeepsExplicitDirWithoutAtlasState(t *testing.T) {

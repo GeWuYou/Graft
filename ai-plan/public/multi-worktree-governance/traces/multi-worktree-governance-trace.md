@@ -509,3 +509,33 @@
   - continue the real Phase 3 ownership split by separating the shared Ent/schema and mixed Atlas history around the
     `users` / `refresh_sessions` vs `user_roles` / `rbac` boundary, now that the default migrate path no longer
     assumes every declared plugin migration directory is already active
+
+## 2026-05-19 backend wiring-hardening follow-up
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, classified the work as `server`, and recovered
+  through the active `multi-worktree-governance` parent topic before executing an explicit commit/push request.
+- Reviewed the dirty worktree and kept the owned scope narrow:
+  - included the coherent backend hardening slice under `server/**`
+  - updated the active topic tracking/trace files for recovery honesty
+  - excluded the unrelated `.agents/skills/graft-task-closeout/SKILL.md` wording edit from commit scope
+- Hardened the compile-time/runtime wiring edges without reopening centralized business-store coupling:
+  - `server/plugins/{audit,rbac,user}/descriptor.go` now defines stable plugin IDs, versions, and dependencies
+    directly instead of constructing runtime plugin instances for metadata
+  - `server/internal/app/runtime.go` now fails explicitly when transitional repository providers are unavailable,
+    and `server/internal/app/runtime_test.go` now resolves non-nil repository singletons in coverage
+  - `server/internal/cli/dev_reset.go` now routes dev-only default-admin reset wiring through
+    `user.NewAuthRepositoryForReset`, `user.NewRBACBootstrapServiceForReset`, and `pluginapi.RBACBootstrapService`
+  - `server/plugins/rbac/bootstrap_service.go` and `server/plugins/rbac/storeadapter/internal_store.go` now return
+    `nil` for nil inputs so transitional helpers fail cleanly instead of wrapping absent repositories
+  - `server/internal/cli/migrate.go` now rejects a compile-time registry whose default migration chain has no
+    Atlas-state directories, and `server/internal/cli/migrate_test.go` covers that failure mode
+- Tightened regression coverage and test hygiene around the same slice:
+  - removed the obsolete repository-shaped RBAC dev-reset stub after the reset path moved to the bootstrap capability
+  - simplified the plugin dependency-cycle assertion to check the emitted error text directly
+  - added ordering and determinism assertions to `pluginregistrygen` descriptor tests
+- Validation for the slice finished with:
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend`
+- Immediate next step after this slice:
+  - continue the real Phase 3 ownership split by separating the shared Ent/schema and mixed Atlas history around the
+    `users` / `refresh_sessions` vs `user_roles` / `rbac` boundary, now that builder/runtime seams fail earlier and
+    the default migrate chain reports empty registry state explicitly

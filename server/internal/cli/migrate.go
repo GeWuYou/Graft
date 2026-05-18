@@ -174,6 +174,10 @@ func resolveMigrationDirs(baseDir string, migrationDir string) ([]string, error)
 		resolved = append(resolved, absDir)
 	}
 
+	if len(resolved) == 0 {
+		return nil, fmt.Errorf("no migration directories with atlas state found in compile-time registry")
+	}
+
 	return resolved, nil
 }
 

@@ -31,17 +31,17 @@ func NewPlugin(repository rbacstore.Repository) *Plugin {
 
 // Name 返回插件稳定标识。
 func (p *Plugin) Name() string {
-	return "rbac"
+	return pluginID
 }
 
 // Version 返回当前插件版本。
 func (p *Plugin) Version() string {
-	return "0.1.0"
+	return pluginVersion
 }
 
 // DependsOn 声明当前最小授权插件依赖用户插件已完成认证主体解析。
 func (p *Plugin) DependsOn() []string {
-	return []string{"user"}
+	return append([]string(nil), pluginDependencies...)
 }
 
 // Register 注册跨插件可复用的授权服务。

@@ -192,6 +192,18 @@
     - default migrate wiring no longer assumes every declared plugin migration directory is immediately runnable
     - the actual `users` / `refresh_sessions` vs `user_roles` / `rbac` ownership split still requires a later schema
       and Atlas-history migration slice
+- The current `2026-05-19` backend wiring-hardening follow-up slice has now landed on the same branch:
+  - `server/plugins/{audit,rbac,user}/descriptor.go` now declares stable compile-time plugin metadata directly instead
+    of instantiating runtime plugin values just to derive IDs, versions, or dependencies
+  - `server/internal/app/runtime.go` now rejects missing repository singletons explicitly when transitional
+    `store.Factory` wiring is unavailable, preventing silent nil resolutions at runtime assembly boundaries
+  - `server/internal/cli/dev_reset.go` now depends on plugin-root reset helpers plus
+    `pluginapi.RBACBootstrapService`, keeping private adapter ownership inside `server/plugins/user/**`
+  - `server/internal/cli/migrate.go` now fails fast when the compile-time registry produces no Atlas-state migration
+    directories, instead of silently continuing with an empty automatic apply chain
+  - focused tests now cover the hardened resolution and ordering paths in `internal/app`, `internal/cli`,
+    `internal/plugin`, and `internal/pluginregistry`, while nil-safe helpers were added to the RBAC transitional
+    bootstrap/adapter seams
 
 ## Shared Hotspots
 
@@ -276,7 +288,8 @@
 - The current `server` Phase 3b migration-directory gating slice was validated with:
   - `cd server && go test ./internal/cli`
   - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
-  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+- The current `2026-05-19` backend wiring-hardening follow-up slice was validated with:
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend`
 - Current frontend structure and ownership surfaces were grounded with:
   - `find web/src -maxdepth 3 -type d | sort`
   - `rg --files web/src | rg "^(web/src/(api|contracts|app|modules|components|store|router|shared|pages|hooks|utils))"`

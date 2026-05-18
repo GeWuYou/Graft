@@ -6,12 +6,35 @@ import (
 	"os"
 	"strings"
 
+	"graft/server/internal/ent"
 	"graft/server/internal/pluginapi"
+	"graft/server/internal/store"
+	rbacplugin "graft/server/plugins/rbac"
+	rbacstoreadapter "graft/server/plugins/rbac/storeadapter"
 	userstore "graft/server/plugins/user/store"
+	"graft/server/plugins/user/storeadapter"
+	"graft/server/plugins/user/storeent"
 )
 
 // AuthRepositoryForReset narrows the dev-reset helper to the plugin-owned auth boundary.
 type AuthRepositoryForReset = userstore.AuthRepository
+
+// NewAuthRepositoryForReset exposes the user plugin's dev-reset auth boundary.
+func NewAuthRepositoryForReset(client *ent.Client) (AuthRepositoryForReset, error) {
+	return storeent.NewAuthRepository(client)
+}
+
+// NewRBACBootstrapServiceForReset exposes the dev-reset RBAC capability through
+// the plugin root package instead of leaking private adapter ownership to core.
+func NewRBACBootstrapServiceForReset(repo store.RBACRepository) pluginapi.RBACBootstrapService {
+	return rbacplugin.NewBootstrapService(rbacstoreadapter.NewInternalRepositoryAdapter(repo))
+}
+
+// NewAuthRepositoryForResetFromInternal adapts transitional internal auth
+// repositories into the plugin-owned dev-reset boundary.
+func NewAuthRepositoryForResetFromInternal(repo store.AuthRepository) AuthRepositoryForReset {
+	return storeadapter.NewAuthRepositoryAdapter(repo)
+}
 
 // ResetDefaultAdminForDevelopment 在开发环境里把默认管理员重置回首次登录受限态。
 //

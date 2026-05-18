@@ -265,24 +265,36 @@ func (r *Runtime) registerCoreServices() error {
 		{
 			key: (*store.AuditRepository)(nil),
 			provider: func() (any, error) {
+				if r.stores == nil {
+					return nil, errors.New("audit repository is unavailable")
+				}
 				return r.stores.Audit(), nil
 			},
 		},
 		{
 			key: (*store.UserRepository)(nil),
 			provider: func() (any, error) {
+				if r.stores == nil {
+					return nil, errors.New("user repository is unavailable")
+				}
 				return r.stores.Users(), nil
 			},
 		},
 		{
 			key: (*store.AuthRepository)(nil),
 			provider: func() (any, error) {
+				if r.stores == nil {
+					return nil, errors.New("auth repository is unavailable")
+				}
 				return r.stores.Auth(), nil
 			},
 		},
 		{
 			key: (*store.RBACRepository)(nil),
 			provider: func() (any, error) {
+				if r.stores == nil {
+					return nil, errors.New("rbac repository is unavailable")
+				}
 				return r.stores.RBAC(), nil
 			},
 		},

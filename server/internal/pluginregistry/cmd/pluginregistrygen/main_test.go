@@ -92,4 +92,7 @@ func TestRenderGeneratedFileIncludesSortedDescriptors(t *testing.T) {
 			t.Fatalf("expected generated source to contain %q, got:\n%s", snippet, source)
 		}
 	}
+	if strings.Index(source, "auditplugin.NewDescriptor()") > strings.Index(source, "userplugin.NewDescriptor()") {
+		t.Fatalf("expected generated descriptors to remain sorted, got:\n%s", source)
+	}
 }

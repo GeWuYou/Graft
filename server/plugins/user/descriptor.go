@@ -8,14 +8,17 @@ import (
 	"graft/server/plugins/user/storeent"
 )
 
+const (
+	pluginID      = "user"
+	pluginVersion = "0.1.0"
+)
+
 // NewDescriptor exposes the user plugin's stable metadata and builder.
 func NewDescriptor() plugin.Descriptor {
-	instance := NewPlugin(nil, nil)
-
 	return plugin.Descriptor{
-		ID:            instance.Name(),
-		PluginVersion: instance.Version(),
-		Dependencies:  append([]string(nil), instance.DependsOn()...),
+		ID:            pluginID,
+		PluginVersion: pluginVersion,
+		Dependencies:  nil,
 		MigrationPath: []string{"plugins/user/migrations"},
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
 			client, err := plugin.ResolveService[*ent.Client](ctx.Services, (*ent.Client)(nil))

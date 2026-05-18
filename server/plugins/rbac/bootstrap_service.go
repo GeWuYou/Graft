@@ -15,6 +15,10 @@ type bootstrapService struct {
 
 // NewBootstrapService exposes the stable RBAC bootstrap capability over a plugin-local repository.
 func NewBootstrapService(rbac rbacstore.Repository) pluginapi.RBACBootstrapService {
+	if rbac == nil {
+		return nil
+	}
+
 	return bootstrapService{rbac: rbac}
 }
 

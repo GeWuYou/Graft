@@ -13,6 +13,10 @@ import (
 
 // NewInternalRepositoryAdapter 把过渡期共享 store 仓储收敛为 RBAC 插件私有仓储契约。
 func NewInternalRepositoryAdapter(repo internalstore.RBACRepository) rbacstore.Repository {
+	if repo == nil {
+		return nil
+	}
+
 	return internalRepositoryAdapter{delegate: repo}
 }
 

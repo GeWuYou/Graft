@@ -38,12 +38,12 @@ func NewPlugin(repo store.AuditRepository) (*Plugin, error) {
 
 // Name 返回插件稳定标识。
 func (p *Plugin) Name() string {
-	return "audit"
+	return pluginID
 }
 
 // Version 返回当前插件版本。
 func (p *Plugin) Version() string {
-	return "0.1.0"
+	return pluginVersion
 }
 
 // DependsOn 返回当前插件依赖列表。

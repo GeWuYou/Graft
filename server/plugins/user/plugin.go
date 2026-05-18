@@ -49,12 +49,12 @@ func NewPlugin(userRepo userstore.UserRepository, authRepo userstore.AuthReposit
 
 // Name 返回插件的稳定标识。
 func (p *Plugin) Name() string {
-	return "user"
+	return pluginID
 }
 
 // Version 返回当前示例插件版本。
 func (p *Plugin) Version() string {
-	return "0.1.0"
+	return pluginVersion
 }
 
 // DependsOn 返回当前插件的依赖列表。
@@ -136,14 +136,9 @@ func (p *Plugin) Boot(ctx *plugin.Context) error {
 		return errors.New("default admin bootstrap service is unavailable")
 	}
 
-	resolved, err := ctx.Services.Resolve((*pluginapi.RBACBootstrapService)(nil))
+	rbacBootstrap, err := resolveService[pluginapi.RBACBootstrapService](ctx, (*pluginapi.RBACBootstrapService)(nil), "rbac bootstrap service")
 	if err != nil {
-		return fmt.Errorf("resolve rbac bootstrap service: %w", err)
-	}
-
-	rbacBootstrap, ok := resolved.(pluginapi.RBACBootstrapService)
-	if !ok {
-		return fmt.Errorf("resolve rbac bootstrap service: unexpected type %T", resolved)
+		return err
 	}
 
 	if err := p.defaultAdminAuth.ensureDefaultAdmin(ctx.LifecycleContext, rbacBootstrap, ctx.PermissionRegistry.Items()); err != nil {
