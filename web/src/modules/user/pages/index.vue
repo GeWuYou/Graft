@@ -7,14 +7,14 @@
             <span class="summary-metric__label">{{ t('user.userList.countLabel') }}</span>
             <span class="summary-metric__value">{{ users.length }}</span>
           </div>
-          <div class="summary-hint">{{ t('user.userList.hint') }}</div>
+          <div class="summary-hint">{{ t('user.userList.hint', { endpoint: userApiPath }) }}</div>
         </t-card>
       </t-col>
       <t-col :span="12">
         <t-card class="summary-card" :bordered="false" :title="t('user.userList.apiTitle')">
           <div class="summary-meta">
             <span
-              >{{ t('user.userList.endpointLabel') }}<code>{{ t('user.userList.endpointValue') }}</code></span
+              >{{ t('user.userList.endpointLabel') }}<code>{{ userApiPath }}</code></span
             >
             <span
               >{{ t('user.userList.fieldsLabel') }}<code>{{ t('user.userList.fieldsValue') }}</code></span
@@ -145,6 +145,7 @@ import { usePermissionStore } from '@/store';
 
 import { assignUserRoles, getRoles, getUserRoleBindings } from '../api/user-roles';
 import { getUsers } from '../api/users';
+import { USER_API_PATH } from '../contract/paths';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserListItem } from '../types/user';
 
@@ -169,6 +170,7 @@ const roleOptionsReady = ref(false);
 const roleLoadWarning = ref('');
 const permissionCodes = USER_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
+const userApiPath = USER_API_PATH.USERS;
 
 const showOperationColumn = computed(() =>
   permissionStore.hasAnyPermission([

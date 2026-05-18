@@ -1,0 +1,64 @@
+{
+  "rbac": {
+    "roleList": {
+      "listTitle": "Role Overview",
+      "countLabel": "Role Count",
+      "hint": "This page only wires the minimal role-management loop: list, create, update, and permission assignment.",
+      "apiTitle": "Live Contracts",
+      "endpointLabel": "Endpoints: ",
+      "endpointValue": "GET /api/roles | GET /api/permissions",
+      "fieldsLabel": "Minimal fields: ",
+      "fieldsValue": "id, name, display, description, builtin | id, code, display, category",
+      "refresh": "Refresh",
+      "create": "Create Role",
+      "dataTitle": "Role List",
+      "permissionSummary": "{count} permissions are loaded for the minimal assignment flow.",
+      "builtinYes": "Builtin",
+      "builtinNo": "Custom",
+      "emptyDescription": "No description",
+      "empty": "No role data",
+      "loadFailed": "Failed to load role-management data",
+      "permissionLoadFailed": "Failed to load permission definitions. Showing role list only.",
+      "permissionUnavailable": "No assignable permission definitions are loaded for this session.",
+      "createSuccess": "Role created",
+      "updateSuccess": "Role updated",
+      "submitFailed": "Failed to submit role changes",
+      "assignPermissions": "Assign Permissions",
+      "assignSuccess": "Role permissions updated",
+      "assignFailed": "Failed to update role permissions",
+      "columns": {
+        "id": "ID",
+        "name": "Name",
+        "display": "Display",
+        "description": "Description",
+        "builtin": "Type"
+      },
+      "form": {
+        "createTitle": "Create Role",
+        "editTitle": "Edit Role",
+        "name": "Role Name",
+        "namePlaceholder": "Enter a stable role name",
+        "display": "Display Name",
+        "displayPlaceholder": "Enter the UI display name",
+        "description": "Description",
+        "descriptionPlaceholder": "Enter a short role description, optional",
+        "cancel": "Cancel",
+        "confirm": "Submit",
+        "required": {
+          "name": "Role name is required",
+          "display": "Display name is required"
+        }
+      },
+      "permissionDialog": {
+        "title": "Assign Role Permissions",
+        "currentRole": "Current role: {name}",
+        "currentRoleEmpty": "No role selected",
+        "groupHint": "{count} permissions in this category.",
+        "category": "Category: {category}",
+        "selectionLoadFailed": "Failed to load the current role permissions, so no replace write was attempted.",
+        "selectionUnavailable": "The current role permissions could not be restored safely, so empty replace submission is blocked.",
+        "confirm": "Save Assignment"
+      }
+    }
+  }
+}

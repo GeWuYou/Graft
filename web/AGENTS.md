@@ -52,6 +52,7 @@ web/src/
 ├─ modules/
 ├─ shared/
 ├─ contracts/
+├─ config/
 ├─ locales/
 ├─ router/
 ├─ store/
@@ -77,6 +78,10 @@ web/src/
 - `contracts/`
   - 平台级前端稳定契约
   - 不放模块私有契约
+- `config/`
+  - 壳层级平台配置真值
+  - 仅承载主题、样式、全局 UI 或应用装配所需的配置入口
+  - 不承载模块业务配置真值
 - `locales/`
   - 应用级 locale 状态、消息目录、查找入口与回退策略
 - `router/`
@@ -114,6 +119,7 @@ web/src/
   - `router/**`
   - `locales/**`
   - 平台级 `contracts/**`
+  - `config/**`
   - 平台级 `api/**`
   - 平台级 `types/**`
   - 平台级 `utils/**`
@@ -127,6 +133,7 @@ web/src/
 
 - `app/**`、`layouts/**`、`router/**`、`store/**` 只能消费：
   - `shared/**`
+  - `config/**`
   - 平台级 `contracts/**`、`api/**`、`types/**`、`utils/**`
   - 模块显式对外暴露的注册面或稳定契约
 - `app/**`、`layouts/**`、`router/**` 不得直接导入其他模块的：

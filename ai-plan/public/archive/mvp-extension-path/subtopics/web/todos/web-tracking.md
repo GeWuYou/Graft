@@ -12,6 +12,9 @@
 
 ## Current Recovery Point
 
+- 历史说明：本文件位于 `ai-plan/public/archive/mvp-extension-path/subtopics/web/`，只保留 `mvp-extension-path/web`
+  的历史恢复上下文；当前活动恢复入口不是这里，而是 `ai-plan/public/multi-worktree-governance/`。
+
 - 当前 RBAC MVP 第一波前端实施已冻结为“共享权限消费基础 + 现有 `/users` 真入口接线增强”切片：只允许修改
   `permission` store、permission directive、`user` store 的 bootstrap roles/permissions 消费，以及当前
   `/users` 页面上的权限显隐；本轮不新增 `/roles` 页面、不新增第二批动态菜单、不做完整 CRUD UI。
@@ -47,6 +50,11 @@
 - 当前运行面治理已冻结单一路径：`bootstrap -> module registry -> route -> page`。主运行面不得再保留 demo route、playground page、独立 mock page、feature 自带 runtime 或绕过 bootstrap/menu 的入口。
 - PR #10 的最近一次 review follow-up 已补齐用户页版权年份、用户页列表页文案 i18n、接口说明 `<code>` 展示、用户页样式深度选择器兼容写法，以及 `request` / `user` store 在 refresh 失败路径上的重复清理与重复 refresh 防护；相关 `web` 完成态校验继续以 host Windows Bun `bun run check` 为准。
 - 详细前端实现历史保留在 `subtopics/web/traces/web-trace.md`。
+- 历史迁移落点补记：
+  - 后续 `web` 架构迁移已把模块真值收口到 `web/src/modules/<name>/**`
+  - `web/src/shared/**` 已成为跨模块业务无关复用层
+  - 如果 `web/src/config/**` 仍存在，它继续属于壳层平台配置，而不是模块 owned scope
+  - 本归档文档不再声明当前活动 worktree 的完成态或活跃验证结果
 
 ## Active Risks
 
@@ -127,8 +135,21 @@
 - 本次 bootstrap 菜单 `title_key`-first 收敛直接校验：
   - `cd web && bun run test:run -- src/utils/route/bootstrap.test.ts src/utils/route/title.test.ts`
   - `cd web && bun run typecheck`
+- 后续 `app + modules + shared` owned-scope 迁移已在当前活动分支继续落地，历史归档只补记结果，不再声称这是当前默认恢复入口：
+  - `app` 已拥有 startup、route guard、restricted-session 恢复、providers 和 shell-only directive
+  - `user` / `rbac` 模块消息源已迁入 `modules/<name>/locales/**`
+  - `user` 页面/API 路径已收口到 `modules/user/contract/paths.ts`
+  - `web/src/config/**` 仍保留为 shell-owned 平台配置目录
+- 该后续迁移的直接校验结果：
+  - `rg -n '"user"|"rbac"' web/src/locales/lang/zh-CN.json web/src/locales/lang/en-US.json`
+  - `rg -n "from '@/modules/[^']+/(types|api|pages|locales)|from \\\"@/modules/[^\\\"]+/(types|api|pages|locales)\\\"" web/src`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/permission.test.ts src/locales/index.test.ts src/modules/user/pages/index.test.ts`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`
 
 ## Immediate Next Step
+
+- 历史状态说明：以下 “Next Step” 保留的是当时 `mvp-extension-path/web` 仍为活动子主题时的下一步，不代表当前活动主题 `multi-worktree-governance` 的执行入口。
 
 - 先把 permission helper / directive 和 `/users` 页最小权限显隐做实，再决定是否进入 `/roles` 新页面；不要在当前切片里同时扩展第二批动态菜单映射。
 - 在后端最小写 API 仍未完成主代理验证前，保持 `web` 对 RBAC 第二波的状态为“等待稳定契约 + 等待验证结果”，不要提前开启角色写操作 UI。

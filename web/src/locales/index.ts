@@ -17,6 +17,9 @@ export type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
 export { supportedLocales } from '@/contracts/i18n/locales';
 
 const langModules = import.meta.glob<{ default: Record<string, unknown> }>('./lang/*.json', { eager: true });
+const moduleLangModules = import.meta.glob<{ default: Record<string, unknown> }>('../modules/**/locales/*.json', {
+  eager: true,
+});
 
 const langCode: SupportedLocale[] = [];
 const messages: I18nOptions['messages'] = {};
@@ -28,6 +31,20 @@ Object.entries(langModules).forEach(([path, module]) => {
   langCode.push(code);
   messages[code] = { ...module.default, componentsLocale: toTDesignLocale(code) };
   langList.push({ content: module.default.lang as string, value: code });
+});
+
+Object.entries(moduleLangModules).forEach(([path, module]) => {
+  const code = path.match(/\.\.\/modules\/[^/]+\/locales\/([^.]+)\.json$/)?.[1] as SupportedLocale | undefined;
+  if (!code || !supportedLocales.includes(code)) return;
+
+  const mergedMessages = {
+    ...((messages[code] ?? {}) as Record<string, unknown>),
+    ...module.default,
+  };
+
+  messages[code] = {
+    ...mergedMessages,
+  } as NonNullable<I18nOptions['messages']>[SupportedLocale];
 });
 
 export { langCode };

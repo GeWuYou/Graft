@@ -80,7 +80,8 @@ async function loadPermissionGuards() {
   vi.resetModules();
   guardState.beforeEachHandlers.length = 0;
   guardState.afterEachHandlers.length = 0;
-  await import('./permission');
+  const { registerRouteGuards } = await import('@/app/bootstrap/route-guards');
+  registerRouteGuards();
   return {
     beforeEach: guardState.beforeEachHandlers[0],
     afterEach: guardState.afterEachHandlers[0],

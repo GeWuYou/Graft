@@ -36,7 +36,7 @@
           <language-switcher />
           <t-dropdown :min-column-width="120" trigger="click">
             <template #dropdown>
-              <t-dropdown-item class="operations-dropdown-container-item" @click="handleNav('/users')">
+              <t-dropdown-item class="operations-dropdown-container-item" @click="handleNav(USER_ROUTE_PATH.LIST)">
                 <user-circle-icon />{{ t('layout.header.user') }}
               </t-dropdown-item>
               <t-dropdown-item class="operations-dropdown-container-item" @click="handleLogout">
@@ -70,6 +70,7 @@ import { useRouter } from 'vue-router';
 import LogoFull from '@/assets/assets-logo-full.svg?component';
 import { prefix } from '@/config/global';
 import { t } from '@/locales';
+import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
 import { getActive } from '@/router';
 import LanguageSwitcher from '@/shared/components/LanguageSwitcher.vue';
 import { useSettingStore, useUserStore } from '@/store';

@@ -86,3 +86,32 @@
 - Keep the recovery mapping aligned with the current root branch until the repository returns to `main` or the first
   dedicated worktree/topic pair is created.
 - Freeze the first additional `web` worktree owned scopes against the now-landed final ownership baseline.
+
+## 2026-05-18 web migration documentation slice
+
+- Rechecked the live `web` tree for the documentation-only migration slice and confirmed `web/src/config/**` still
+  exists alongside the landed `app/modules/shared` ownership baseline.
+- Updated `web/AGENTS.md` and `ai-plan/design/前端架构设计.md` so `config/**` is now explicit shell-owned platform
+  configuration instead of an implied leftover directory.
+- Updated the active `multi-worktree-governance` tracking file to record:
+  - what already moved into `modules/**` and `shared/**`
+  - what remains shell-owned, including `config/**`
+  - that archived `mvp-extension-path/web` materials are historical recovery context only
+- Left validation reporting intentionally narrow and honest:
+  - expected final frontend completion entry remains `cd web && bun run check`
+  - no runtime validation result is recorded for this slice because only documentation/tracking files changed
+
+## 2026-05-18 shell-owned runtime migration slice
+
+- Moved the real web startup path into `web/src/app/bootstrap/**`, including app creation, route-guard wiring,
+  restricted-session recovery, and the shell-owned permission directive, while reducing root `main.ts` to a thin
+  bootstrap entrypoint.
+- Moved provider composition into `web/src/app/providers/**`, reducing root `App.vue` to a thin shell-owned wrapper and
+  keeping the existing `router-view + locale + theme workbench` runtime behavior unchanged.
+- Added `web/src/modules/user/contract/paths.ts` as the single truth for `/users` and `/api/users`, rewired the user
+  bootstrap route, user API client, header navigation, and user page endpoint display to consume that contract.
+- Moved `user.*` and `rbac.*` locale catalogs into `web/src/modules/{user,rbac}/locales/**`, updated the root locale
+  aggregator to merge module-owned catalogs, and removed the empty historical `components/`, `hooks/`, `contracts/user`,
+  `contracts/rbac`, `directives/`, `constants/`, and `router/modules/` directories.
+- Revalidated the runtime slice with targeted search checks, focused Vitest/typecheck, and one full host Windows Bun
+  `bun run check` pass with the Vite warning surface back to zero.

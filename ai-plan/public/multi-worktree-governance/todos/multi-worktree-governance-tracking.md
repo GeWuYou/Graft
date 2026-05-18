@@ -43,9 +43,10 @@
   - `server` is already close to plugin-oriented parallel execution, and future long-lived worktree ownership should be
     plugin-first.
   - `web` final ownership now follows three explicit layers:
-    - `shell-owned`: `web/src/app/**`, `web/src/layouts/**`, `web/src/router/**`, `web/src/utils/route/**`,
-      `web/src/store/modules/user.ts`, `web/src/store/modules/permission.ts`, `web/src/permission.ts`,
-      `web/src/locales/**`, platform `web/src/contracts/**`, and other platform bootstrap surfaces
+    - `shell-owned`: `web/src/app/**`, `web/src/app/bootstrap/**`, `web/src/app/providers/**`, `web/src/layouts/**`,
+      `web/src/router/**`, `web/src/config/**`, `web/src/utils/route/**`, `web/src/store/modules/user.ts`,
+      `web/src/store/modules/permission.ts`, `web/src/locales/**`, platform `web/src/contracts/**`, and other platform
+      bootstrap surfaces
     - `module-owned`: `web/src/modules/<name>/**` holds page, API, type, contract, locale, and bootstrap-route truth
       for one module
     - `shared-owned`: `web/src/shared/**` is reserved for business-agnostic reusable assets and is not feature-owned by
@@ -60,6 +61,10 @@
     have been removed from the codebase and are no longer valid steady-state ownership surfaces
   - cross-module stable DTOs now follow the final rule that they must live under `modules/<name>/contract/**`, while
     `types/**` stays private to the owning module
+- This documentation/tracking-only migration slice on `2026-05-18` records the remaining shell-owned truth explicitly:
+  - `web/src/config/**` is still present in the live tree and remains platform configuration owned by the shell layer
+  - no runtime files were changed in this slice; it only updates governance, active tracking, and archived historical recovery notes
+  - archived `mvp-extension-path/web` materials remain historical context only and must not be treated as the active recovery entry
 - The first expected future long-lived feature directions are:
   - `RBAC`
   - `server-status-dashboard`
@@ -80,7 +85,6 @@
 - `web/src/utils/route/bootstrap.ts`
 - `web/src/store/modules/user.ts`
 - `web/src/store/modules/permission.ts`
-- `web/src/permission.ts`
 - `web/src/layouts/**`
 - `web/src/locales/lang/zh-CN.json`
 - `web/src/locales/lang/en-US.json`
@@ -118,12 +122,21 @@
 - Current frontend structure and ownership surfaces were grounded with:
   - `find web/src -maxdepth 3 -type d | sort`
   - `rg --files web/src | rg "^(web/src/(api|contracts|app|modules|components|store|router|shared|pages|hooks|utils))"`
+  - `rg --files web/src | rg '(^web/src/config/|/config/)'`
   - `sed -n '1,260p' ai-plan/design/前端架构设计.md`
 - Cross-module DTO boundary cleanup was checked with:
   - `rg -n "from '@/modules/[^']+/types/|from \\\"@/modules/[^\\\"]+/types/\" web/src/modules`
-- This slice used targeted consistency searches plus a narrow `web` boundary cleanup; no full `web` runtime validation
-  was run because the primary owned scope is governance/documentation and the code change stayed inside module-owned
-  boundaries.
+- This slice used targeted consistency searches plus documentation/tracking updates only; no full `web` runtime validation
+  was run because the owned scope is docs/tracking and this change did not modify runtime code.
+- Validation expectation for eventual runtime completion remains unchanged:
+  - `cd web && bun run check`
+- Later runtime migration on the same branch completed the behavior-preserving shell/module cleanup and revalidated with:
+  - `rg -n '"user"|"rbac"' web/src/locales/lang/zh-CN.json web/src/locales/lang/en-US.json`
+  - `rg -n "from '@/modules/[^']+/(types|api|pages|locales)|from \\\"@/modules/[^\\\"]+/(types|api|pages|locales)\\\"" web/src`
+  - `rg -n \"'/users'|\\\"/users\\\"|'/api/users'|\\\"/api/users\\\"\" web/src --glob '!web/src/modules/user/contract/paths.ts' --glob '!web/src/**/*.test.ts'`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/permission.test.ts src/locales/index.test.ts src/modules/user/pages/index.test.ts`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`
 
 ## Immediate Next Step
 
@@ -153,6 +166,7 @@
   - `web/src/app/**`
   - `web/src/layouts/**`
   - `web/src/router/**`
+  - `web/src/config/**`
   - `web/src/utils/route/**`
   - `web/src/store/modules/user.ts`
   - `web/src/store/modules/permission.ts`

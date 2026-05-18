@@ -25,4 +25,11 @@ describe('locales bootstrap', () => {
 
     expect(localStorage.getItem(STORAGE_KEY.LOCALE)).toBe('en-US');
   });
+
+  it('merges module-owned locale catalogs into the app i18n registry', async () => {
+    const { i18n } = await import('./index');
+
+    expect(i18n.global.t('user.userList.listTitle')).toBe('用户列表');
+    expect(i18n.global.t('rbac.roleList.listTitle')).toBe('角色概览');
+  });
 });

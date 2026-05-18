@@ -37,7 +37,10 @@ LayoutMap.set('IFRAME', IFRAME);
 
 let dynamicViewsModules: Record<string, () => Promise<Record<string, unknown>>>;
 
-const appPageModules = import.meta.glob<Record<string, unknown>>('../../app/**/*.vue');
+const appPageModules = import.meta.glob<Record<string, unknown>>([
+  '../../app/**/*.vue',
+  '!../../app/providers/**/*.vue',
+]);
 const modulePageModules = import.meta.glob<Record<string, unknown>>('../../modules/**/pages/**/*.vue');
 
 // 动态引入路由组件
