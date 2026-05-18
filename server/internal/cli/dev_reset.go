@@ -10,27 +10,35 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/database"
+	"graft/server/internal/ent"
 	"graft/server/internal/store"
 	"graft/server/internal/store/entstore"
 	rbacplugin "graft/server/plugins/rbac"
 	rbacstoreadapter "graft/server/plugins/rbac/storeadapter"
 	"graft/server/plugins/user"
-	"graft/server/plugins/user/storeadapter"
+	"graft/server/plugins/user/storeent"
 )
 
 var (
 	devResetLoadConfig = config.Load
 	devResetOpenDB     = database.Open
 	devResetCloseDB    = database.Close
-	devResetNewFactory = func(resources *database.Resources) (store.Factory, error) {
-		return entstore.NewFactory(resources.Client)
+	devResetNewAuthRepository = func(client *ent.Client) (user.AuthRepositoryForReset, error) {
+		return storeent.NewAuthRepository(client)
 	}
-	devResetAdmin = func(ctx context.Context, authRepo store.AuthRepository, rbacRepo store.RBACRepository) error {
+	devResetAdmin = func(ctx context.Context, authRepo user.AuthRepositoryForReset, rbacRepo store.RBACRepository) error {
 		return user.ResetDefaultAdminForDevelopment(
 			ctx,
-			storeadapter.NewAuthRepositoryAdapter(authRepo),
+			authRepo,
 			rbacplugin.NewBootstrapService(rbacstoreadapter.NewInternalRepositoryAdapter(rbacRepo)),
 		)
+	}
+	devResetResolveRBACRepository = func(resources *database.Resources) (store.RBACRepository, error) {
+		factory, err := entstore.NewFactory(resources.Client)
+		if err != nil {
+			return nil, err
+		}
+		return factory.RBAC(), nil
 	}
 )
 
@@ -69,12 +77,16 @@ func runDevResetAdmin(cmd *cobra.Command) (err error) {
 		}
 	}()
 
-	factory, err := devResetNewFactory(resources)
+	authRepo, err := devResetNewAuthRepository(resources.Client)
 	if err != nil {
-		return fmt.Errorf("create ent store factory: %w", err)
+		return fmt.Errorf("create user auth repository: %w", err)
+	}
+	rbacRepo, err := devResetResolveRBACRepository(resources)
+	if err != nil {
+		return fmt.Errorf("create rbac repository: %w", err)
 	}
 
-	if err := devResetAdmin(cmd.Context(), factory.Auth(), factory.RBAC()); err != nil {
+	if err := devResetAdmin(cmd.Context(), authRepo, rbacRepo); err != nil {
 		return fmt.Errorf("reset default admin: %w", err)
 	}
 

@@ -161,6 +161,23 @@
     `internal/store/entstore/**` implementation ownership plus Phase 3 `internal/ent/**` and migration ownership
   - the next Phase 3 owner should start with `user`, not `rbac`, because `users` plus `refresh_sessions` form the
     smaller persistence slice and the mixed `user_roles` bridge should stay out of the first extraction
+- The current `2026-05-18` Phase 3a user storeent extraction slice has now landed on the same branch:
+  - `server/plugins/user/storeent/**` now owns the live Ent-backed user/auth/session repository implementation that the
+    runtime `user` plugin consumes
+  - `server/plugins/user/descriptor.go` now resolves the shared `*ent.Client` from the runtime container and builds
+    plugin-owned `user` repositories directly, instead of adapting shared `internal/store` repositories into the
+    plugin-local contract
+  - `server/internal/app/runtime.go` now exposes the shared `*ent.Client` as an explicit builder-visible singleton so
+    plugin-owned persistence implementations can be wired without reopening `store.Factory`
+  - `server/internal/cli/dev_reset.go` now enters the user plugin through the plugin-owned auth repository contract for
+    the dev-only default-admin reset path, while keeping the RBAC side transitional
+  - `server/plugins/user/migrations/README.md` now freezes `plugins/user/migrations/**` as the plugin-owned migration
+    boundary for future user-only versions, without rewriting the existing mixed Atlas history yet
+  - the remaining Phase 3 blockers are now explicit:
+    - `server/internal/ent/schema/{user,refresh_session,user_role,role}.go` still form one shared Ent graph
+    - historical Atlas file `server/internal/ent/migrate/migrations/202605140001_auth_rbac_foundation.sql` still mixes
+      `users`, `refresh_sessions`, `user_roles`, `roles`, `permissions`, and `role_permissions`
+    - `user_roles` remains outside this first extraction and must stay out until the user/RBAC bridge is split safely
 
 ## Shared Hotspots
 

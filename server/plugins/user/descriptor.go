@@ -3,9 +3,9 @@ package user
 import (
 	"fmt"
 
+	"graft/server/internal/ent"
 	"graft/server/internal/plugin"
-	"graft/server/internal/store"
-	"graft/server/plugins/user/storeadapter"
+	"graft/server/plugins/user/storeent"
 )
 
 // NewDescriptor exposes the user plugin's stable metadata and builder.
@@ -16,20 +16,22 @@ func NewDescriptor() plugin.Descriptor {
 		ID:            instance.Name(),
 		PluginVersion: instance.Version(),
 		Dependencies:  append([]string(nil), instance.DependsOn()...),
+		MigrationPath: []string{"plugins/user/migrations"},
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
-			userRepo, err := plugin.ResolveService[store.UserRepository](ctx.Services, (*store.UserRepository)(nil))
+			client, err := plugin.ResolveService[*ent.Client](ctx.Services, (*ent.Client)(nil))
 			if err != nil {
-				return nil, fmt.Errorf("resolve user repository: %w", err)
+				return nil, fmt.Errorf("resolve ent client: %w", err)
 			}
-			authRepo, err := plugin.ResolveService[store.AuthRepository](ctx.Services, (*store.AuthRepository)(nil))
+			userRepo, err := storeent.NewUserRepository(client)
 			if err != nil {
-				return nil, fmt.Errorf("resolve auth repository: %w", err)
+				return nil, fmt.Errorf("build user storeent repository: %w", err)
+			}
+			authRepo, err := storeent.NewAuthRepository(client)
+			if err != nil {
+				return nil, fmt.Errorf("build user auth storeent repository: %w", err)
 			}
 
-			return NewPlugin(
-				storeadapter.NewUserRepositoryAdapter(userRepo),
-				storeadapter.NewAuthRepositoryAdapter(authRepo),
-			), nil
+			return NewPlugin(userRepo, authRepo), nil
 		}),
 	}
 }

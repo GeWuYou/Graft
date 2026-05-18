@@ -15,7 +15,9 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/database"
 	"graft/server/internal/eventbus"
+	"graft/server/internal/ent"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -208,6 +210,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	})
 	runtimeLogger := zap.NewNop()
 	runtimeEventBus := eventbus.New(runtimeLogger)
+	entClient := ent.NewClient()
 
 	cfg := &config.Config{
 		App: config.AppConfig{Name: "graft", Env: "test"},
@@ -236,6 +239,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		config:   cfg,
 		logger:   runtimeLogger,
 		i18n:     localizer,
+		database: &database.Resources{Client: entClient},
 		redis:    redisClient,
 		eventBus: runtimeEventBus,
 		services: container.New(),
@@ -250,6 +254,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*zap.Logger)(nil), runtimeLogger, "logger")
 	assertResolvedService(t, runtime.services, (*i18n.Service)(nil), localizer, "i18n service")
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
+	assertResolvedService(t, runtime.services, (*ent.Client)(nil), entClient, "ent client")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
 	assertResolvableService(t, runtime.services, (*store.AuditRepository)(nil), "audit repository")
 	assertResolvableService(t, runtime.services, (*store.UserRepository)(nil), "user repository")

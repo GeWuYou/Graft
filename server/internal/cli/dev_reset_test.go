@@ -11,29 +11,11 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/database"
+	"graft/server/internal/ent"
 	"graft/server/internal/store"
+	"graft/server/plugins/user"
+	userstore "graft/server/plugins/user/store"
 )
-
-type testDevResetFactory struct {
-	auth store.AuthRepository
-	rbac store.RBACRepository
-}
-
-func (f testDevResetFactory) Audit() store.AuditRepository {
-	return nil
-}
-
-func (f testDevResetFactory) Users() store.UserRepository {
-	return nil
-}
-
-func (f testDevResetFactory) Auth() store.AuthRepository {
-	return f.auth
-}
-
-func (f testDevResetFactory) RBAC() store.RBACRepository {
-	return f.rbac
-}
 
 func TestRunDevResetAdminRejectsNonDevelopmentEnv(t *testing.T) {
 	originalLoadConfig := devResetLoadConfig
@@ -64,13 +46,15 @@ func TestRunDevResetAdminResetsDefaultAdmin(t *testing.T) {
 	originalLoadConfig := devResetLoadConfig
 	originalOpenDB := devResetOpenDB
 	originalCloseDB := devResetCloseDB
-	originalNewFactory := devResetNewFactory
+	originalNewAuthRepository := devResetNewAuthRepository
+	originalResolveRBACRepository := devResetResolveRBACRepository
 	originalResetAdmin := devResetAdmin
 	defer func() {
 		devResetLoadConfig = originalLoadConfig
 		devResetOpenDB = originalOpenDB
 		devResetCloseDB = originalCloseDB
-		devResetNewFactory = originalNewFactory
+		devResetNewAuthRepository = originalNewAuthRepository
+		devResetResolveRBACRepository = originalResolveRBACRepository
 		devResetAdmin = originalResetAdmin
 	}()
 
@@ -87,14 +71,15 @@ func TestRunDevResetAdminResetsDefaultAdmin(t *testing.T) {
 		steps = append(steps, "close-db")
 		return nil
 	}
-	devResetNewFactory = func(_ *database.Resources) (store.Factory, error) {
-		steps = append(steps, "new-factory")
-		return testDevResetFactory{
-			auth: pluginTestAuthRepositoryStub{},
-			rbac: pluginTestRBACRepositoryStub{},
-		}, nil
+	devResetNewAuthRepository = func(_ *ent.Client) (user.AuthRepositoryForReset, error) {
+		steps = append(steps, "new-auth-repository")
+		return userAuthRepositoryForResetStub{}, nil
 	}
-	devResetAdmin = func(_ context.Context, _ store.AuthRepository, _ store.RBACRepository) error {
+	devResetResolveRBACRepository = func(*database.Resources) (store.RBACRepository, error) {
+		steps = append(steps, "new-rbac-repository")
+		return rbacRepositoryForBootstrapStub{}, nil
+	}
+	devResetAdmin = func(_ context.Context, _ user.AuthRepositoryForReset, _ store.RBACRepository) error {
 		steps = append(steps, "reset-admin")
 		return nil
 	}
@@ -111,7 +96,8 @@ func TestRunDevResetAdminResetsDefaultAdmin(t *testing.T) {
 	expectedSteps := []string{
 		"load-config",
 		"open-db:" + testDevResetDatabaseURL(),
-		"new-factory",
+		"new-auth-repository",
+		"new-rbac-repository",
 		"reset-admin",
 		"close-db",
 	}
@@ -127,13 +113,15 @@ func TestRunDevResetAdminWrapsResetFailure(t *testing.T) {
 	originalLoadConfig := devResetLoadConfig
 	originalOpenDB := devResetOpenDB
 	originalCloseDB := devResetCloseDB
-	originalNewFactory := devResetNewFactory
+	originalNewAuthRepository := devResetNewAuthRepository
+	originalResolveRBACRepository := devResetResolveRBACRepository
 	originalResetAdmin := devResetAdmin
 	defer func() {
 		devResetLoadConfig = originalLoadConfig
 		devResetOpenDB = originalOpenDB
 		devResetCloseDB = originalCloseDB
-		devResetNewFactory = originalNewFactory
+		devResetNewAuthRepository = originalNewAuthRepository
+		devResetResolveRBACRepository = originalResolveRBACRepository
 		devResetAdmin = originalResetAdmin
 	}()
 
@@ -146,13 +134,13 @@ func TestRunDevResetAdminWrapsResetFailure(t *testing.T) {
 	devResetCloseDB = func(*database.Resources) error {
 		return nil
 	}
-	devResetNewFactory = func(_ *database.Resources) (store.Factory, error) {
-		return testDevResetFactory{
-			auth: pluginTestAuthRepositoryStub{},
-			rbac: pluginTestRBACRepositoryStub{},
-		}, nil
+	devResetNewAuthRepository = func(_ *ent.Client) (user.AuthRepositoryForReset, error) {
+		return userAuthRepositoryForResetStub{}, nil
 	}
-	devResetAdmin = func(context.Context, store.AuthRepository, store.RBACRepository) error {
+	devResetResolveRBACRepository = func(*database.Resources) (store.RBACRepository, error) {
+		return rbacRepositoryForBootstrapStub{}, nil
+	}
+	devResetAdmin = func(context.Context, user.AuthRepositoryForReset, store.RBACRepository) error {
 		return errors.New("boom")
 	}
 
@@ -165,107 +153,107 @@ func TestRunDevResetAdminWrapsResetFailure(t *testing.T) {
 	}
 }
 
-type pluginTestAuthRepositoryStub struct{}
+type userAuthRepositoryForResetStub struct{}
 
-func (pluginTestAuthRepositoryStub) GetUserCredentialByUsername(context.Context, string) (store.UserCredential, error) {
-	return store.UserCredential{}, nil
+func (userAuthRepositoryForResetStub) GetUserCredentialByUsername(context.Context, string) (userstore.UserCredential, error) {
+	return userstore.UserCredential{}, nil
 }
 
-func (pluginTestAuthRepositoryStub) SetPasswordHash(context.Context, store.SetPasswordHashInput) error {
+func (userAuthRepositoryForResetStub) SetPasswordHash(context.Context, userstore.SetPasswordHashInput) error {
 	return nil
 }
 
-func (pluginTestAuthRepositoryStub) EnsureUserCredential(context.Context, store.EnsureUserCredentialInput) (store.UserCredential, error) {
-	return store.UserCredential{}, nil
+func (userAuthRepositoryForResetStub) EnsureUserCredential(context.Context, userstore.EnsureUserCredentialInput) (userstore.UserCredential, error) {
+	return userstore.UserCredential{}, nil
 }
 
-func (pluginTestAuthRepositoryStub) CreateRefreshSession(context.Context, store.CreateRefreshSessionInput) (store.RefreshSession, error) {
-	return store.RefreshSession{}, nil
+func (userAuthRepositoryForResetStub) CreateRefreshSession(context.Context, userstore.CreateRefreshSessionInput) (userstore.RefreshSession, error) {
+	return userstore.RefreshSession{}, nil
 }
 
-func (pluginTestAuthRepositoryStub) GetRefreshSessionByTokenID(context.Context, string) (store.RefreshSession, error) {
-	return store.RefreshSession{}, nil
+func (userAuthRepositoryForResetStub) GetRefreshSessionByTokenID(context.Context, string) (userstore.RefreshSession, error) {
+	return userstore.RefreshSession{}, nil
 }
 
-func (pluginTestAuthRepositoryStub) RevokeRefreshSession(context.Context, store.RevokeRefreshSessionInput) error {
+func (userAuthRepositoryForResetStub) RevokeRefreshSession(context.Context, userstore.RevokeRefreshSessionInput) error {
 	return nil
 }
 
-func (pluginTestAuthRepositoryStub) RevokeRefreshSessionsByUserID(context.Context, store.RevokeRefreshSessionsByUserIDInput) error {
+func (userAuthRepositoryForResetStub) RevokeRefreshSessionsByUserID(context.Context, userstore.RevokeRefreshSessionsByUserIDInput) error {
 	return nil
 }
 
-func (pluginTestAuthRepositoryStub) RevokeOtherRefreshSessionsByUserID(context.Context, store.RevokeOtherRefreshSessionsInput) error {
+func (userAuthRepositoryForResetStub) RevokeOtherRefreshSessionsByUserID(context.Context, userstore.RevokeOtherRefreshSessionsInput) error {
 	return nil
 }
 
-func (pluginTestAuthRepositoryStub) RevokeRefreshSessionByUserID(context.Context, store.RevokeRefreshSessionByUserIDInput) error {
+func (userAuthRepositoryForResetStub) RevokeRefreshSessionByUserID(context.Context, userstore.RevokeRefreshSessionByUserIDInput) error {
 	return nil
 }
 
-func (pluginTestAuthRepositoryStub) ListActiveRefreshSessionsByUserID(context.Context, store.ListActiveRefreshSessionsByUserIDInput) ([]store.RefreshSession, error) {
+func (userAuthRepositoryForResetStub) ListActiveRefreshSessionsByUserID(context.Context, userstore.ListActiveRefreshSessionsByUserIDInput) ([]userstore.RefreshSession, error) {
 	return nil, nil
 }
 
-func (pluginTestAuthRepositoryStub) RotateRefreshSession(context.Context, store.RotateRefreshSessionInput) (store.RefreshSession, error) {
-	return store.RefreshSession{}, nil
+func (userAuthRepositoryForResetStub) RotateRefreshSession(context.Context, userstore.RotateRefreshSessionInput) (userstore.RefreshSession, error) {
+	return userstore.RefreshSession{}, nil
 }
 
-type pluginTestRBACRepositoryStub struct{}
+type rbacRepositoryForBootstrapStub struct{}
 
-func (pluginTestRBACRepositoryStub) EnsureRole(context.Context, store.EnsureRoleInput) (store.Role, error) {
+func (rbacRepositoryForBootstrapStub) EnsureRole(context.Context, store.EnsureRoleInput) (store.Role, error) {
 	return store.Role{}, nil
 }
 
-func (pluginTestRBACRepositoryStub) EnsurePermission(context.Context, store.EnsurePermissionInput) (store.Permission, error) {
+func (rbacRepositoryForBootstrapStub) EnsurePermission(context.Context, store.EnsurePermissionInput) (store.Permission, error) {
 	return store.Permission{}, nil
 }
 
-func (pluginTestRBACRepositoryStub) CreateRole(context.Context, store.CreateRoleInput) (store.Role, error) {
+func (rbacRepositoryForBootstrapStub) CreateRole(context.Context, store.CreateRoleInput) (store.Role, error) {
 	return store.Role{}, nil
 }
 
-func (pluginTestRBACRepositoryStub) UpdateRole(context.Context, store.UpdateRoleInput) (store.Role, error) {
+func (rbacRepositoryForBootstrapStub) UpdateRole(context.Context, store.UpdateRoleInput) (store.Role, error) {
 	return store.Role{}, nil
 }
 
-func (pluginTestRBACRepositoryStub) AssignPermissionsToRole(context.Context, store.AssignPermissionsToRoleInput) error {
+func (rbacRepositoryForBootstrapStub) AssignPermissionsToRole(context.Context, store.AssignPermissionsToRoleInput) error {
 	return nil
 }
 
-func (pluginTestRBACRepositoryStub) ReplacePermissionsForRole(context.Context, store.ReplacePermissionsForRoleInput) error {
+func (rbacRepositoryForBootstrapStub) ReplacePermissionsForRole(context.Context, store.ReplacePermissionsForRoleInput) error {
 	return nil
 }
 
-func (pluginTestRBACRepositoryStub) AssignRoleToUser(context.Context, store.AssignRoleToUserInput) error {
+func (rbacRepositoryForBootstrapStub) AssignRoleToUser(context.Context, store.AssignRoleToUserInput) error {
 	return nil
 }
 
-func (pluginTestRBACRepositoryStub) ReplaceRolesForUser(context.Context, store.ReplaceRolesForUserInput) error {
+func (rbacRepositoryForBootstrapStub) ReplaceRolesForUser(context.Context, store.ReplaceRolesForUserInput) error {
 	return nil
 }
 
-func (pluginTestRBACRepositoryStub) GetRoleByID(context.Context, uint64) (store.Role, error) {
+func (rbacRepositoryForBootstrapStub) GetRoleByID(context.Context, uint64) (store.Role, error) {
 	return store.Role{}, nil
 }
 
-func (pluginTestRBACRepositoryStub) ListRolesByUserID(context.Context, uint64) ([]store.Role, error) {
+func (rbacRepositoryForBootstrapStub) ListRolesByUserID(context.Context, uint64) ([]store.Role, error) {
 	return nil, nil
 }
 
-func (pluginTestRBACRepositoryStub) ListRoles(context.Context) ([]store.Role, error) {
+func (rbacRepositoryForBootstrapStub) ListRoles(context.Context) ([]store.Role, error) {
 	return nil, nil
 }
 
-func (pluginTestRBACRepositoryStub) ListPermissionsByUserID(context.Context, uint64) ([]store.Permission, error) {
+func (rbacRepositoryForBootstrapStub) ListPermissionsByUserID(context.Context, uint64) ([]store.Permission, error) {
 	return nil, nil
 }
 
-func (pluginTestRBACRepositoryStub) ListPermissions(context.Context) ([]store.Permission, error) {
+func (rbacRepositoryForBootstrapStub) ListPermissions(context.Context) ([]store.Permission, error) {
 	return nil, nil
 }
 
-func (pluginTestRBACRepositoryStub) ListRolePermissionBindings(context.Context, uint64) ([]store.RolePermissionBinding, error) {
+func (rbacRepositoryForBootstrapStub) ListRolePermissionBindings(context.Context, uint64) ([]store.RolePermissionBinding, error) {
 	return nil, nil
 }
 

@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/database"
+	"graft/server/internal/ent"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -224,56 +225,87 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 }
 
 func (r *Runtime) registerCoreServices() error {
-	if err := r.services.RegisterSingleton((*config.Config)(nil), func(_ container.Resolver) (any, error) {
-		return r.config, nil
-	}); err != nil {
-		return err
+	registrations := []struct {
+		key      any
+		provider func() (any, error)
+	}{
+		{
+			key: (*config.Config)(nil),
+			provider: func() (any, error) {
+				return r.config, nil
+			},
+		},
+		{
+			key: (*zap.Logger)(nil),
+			provider: func() (any, error) {
+				return r.logger, nil
+			},
+		},
+		{
+			key: (*i18n.Service)(nil),
+			provider: func() (any, error) {
+				return r.i18n, nil
+			},
+		},
+		{
+			key: (*eventbus.Bus)(nil),
+			provider: func() (any, error) {
+				return r.eventBus, nil
+			},
+		},
+		{
+			key: (*ent.Client)(nil),
+			provider: func() (any, error) {
+				if r.database == nil || r.database.Client == nil {
+					return nil, errors.New("ent client is unavailable")
+				}
+				return r.database.Client, nil
+			},
+		},
+		{
+			key: (*store.AuditRepository)(nil),
+			provider: func() (any, error) {
+				return r.stores.Audit(), nil
+			},
+		},
+		{
+			key: (*store.UserRepository)(nil),
+			provider: func() (any, error) {
+				return r.stores.Users(), nil
+			},
+		},
+		{
+			key: (*store.AuthRepository)(nil),
+			provider: func() (any, error) {
+				return r.stores.Auth(), nil
+			},
+		},
+		{
+			key: (*store.RBACRepository)(nil),
+			provider: func() (any, error) {
+				return r.stores.RBAC(), nil
+			},
+		},
+		{
+			key: (*redis.Client)(nil),
+			provider: func() (any, error) {
+				return r.redis, nil
+			},
+		},
 	}
 
-	if err := r.services.RegisterSingleton((*zap.Logger)(nil), func(_ container.Resolver) (any, error) {
-		return r.logger, nil
-	}); err != nil {
-		return err
+	for _, registration := range registrations {
+		if err := r.registerSingleton(registration.key, registration.provider); err != nil {
+			return err
+		}
 	}
 
-	if err := r.services.RegisterSingleton((*i18n.Service)(nil), func(_ container.Resolver) (any, error) {
-		return r.i18n, nil
-	}); err != nil {
-		return err
-	}
+	return nil
+}
 
-	if err := r.services.RegisterSingleton((*eventbus.Bus)(nil), func(_ container.Resolver) (any, error) {
-		return r.eventBus, nil
-	}); err != nil {
-		return err
-	}
-
-	if err := r.services.RegisterSingleton((*store.AuditRepository)(nil), func(_ container.Resolver) (any, error) {
-		return r.stores.Audit(), nil
-	}); err != nil {
-		return err
-	}
-
-	if err := r.services.RegisterSingleton((*store.UserRepository)(nil), func(_ container.Resolver) (any, error) {
-		return r.stores.Users(), nil
-	}); err != nil {
-		return err
-	}
-
-	if err := r.services.RegisterSingleton((*store.AuthRepository)(nil), func(_ container.Resolver) (any, error) {
-		return r.stores.Auth(), nil
-	}); err != nil {
-		return err
-	}
-
-	if err := r.services.RegisterSingleton((*store.RBACRepository)(nil), func(_ container.Resolver) (any, error) {
-		return r.stores.RBAC(), nil
-	}); err != nil {
-		return err
-	}
-
-	return r.services.RegisterSingleton((*redis.Client)(nil), func(_ container.Resolver) (any, error) {
-		return r.redis, nil
+func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error {
+	return r.services.RegisterSingleton(key, func(_ container.Resolver) (any, error) {
+		return provider()
 	})
 }
 

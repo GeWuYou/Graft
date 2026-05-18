@@ -393,3 +393,39 @@
   - the next honest backend hotspot is Phase 3 ownership migration for `internal/store/**`, `internal/store/entstore/**`,
     `internal/ent/**`, and Atlas migrations, starting with the `user` plugin's independent `users` /
     `refresh_sessions` slice or a deliberately scoped dev CLI cleanup if that path is chosen first
+
+## 2026-05-18 server Phase 3a user storeent extraction
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, recovered through the active
+  `multi-worktree-governance` parent topic, and executed the slice through `graft-multi-agent-task`.
+- Used a bounded multi-agent wave for two read-only explorer sidecars to map:
+  - the `user` vs `user_roles` / `rbac` Ent coupling points
+  - the runtime, builder, dev CLI, and migrate entrypoints that would be touched by the first `user` persistence move
+- Kept the implementation critical path local and chose the smallest honest Phase 3 slice:
+  - move live `user` persistence implementation ownership into `server/plugins/user/storeent/**`
+  - expose the shared `*ent.Client` explicitly to builders
+  - avoid pretending the mixed historical Atlas chain or shared Ent graph has already been fully split
+- Landed the runtime ownership move with these boundary changes:
+  - added `server/plugins/user/storeent/**` as the plugin-owned Ent-backed implementation of the user/auth/session
+    repository contract
+  - rewired `server/plugins/user/descriptor.go` to resolve the shared `*ent.Client` from the runtime container and
+    construct plugin-owned repositories directly instead of adapting shared `internal/store` repositories
+  - rewired `server/internal/app/runtime.go` to register the shared `*ent.Client` as an explicit singleton service for
+    compile-time builder wiring
+  - rewired `server/internal/cli/dev_reset.go` so the dev-only default-admin reset path now enters the user plugin
+    through the plugin-owned auth repository contract instead of the old user auth compatibility adapter
+- Landed the migration-boundary groundwork without rewriting Atlas history:
+  - added `server/plugins/user/migrations/README.md` as the plugin-owned migration boundary marker for future
+    user-only versions
+  - intentionally kept the mixed historical `202605140001_auth_rbac_foundation.sql` chain under
+    `server/internal/ent/migrate/migrations/**` because it still owns `users`, `refresh_sessions`, `user_roles`,
+    `roles`, `permissions`, and `role_permissions` together
+- Explicit non-goals left for the next Phase 3 slice:
+  - no plugin-owned `server/plugins/user/ent/**` generate path yet
+  - no split of the shared Ent graph around `user_roles`
+  - no rewrite of the existing mixed Atlas revision history
+- Focused validation for the slice finished with:
+  - `cd server && go test ./internal/app ./internal/cli ./plugins/user ./plugins/rbac ./plugins/user/storeent`
+- Immediate next step after this slice:
+  - split the remaining shared Ent/schema and migration history along the `users` / `refresh_sessions` vs
+    `user_roles` / `rbac` boundary without reopening runtime store-factory coupling

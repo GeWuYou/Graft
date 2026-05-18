@@ -10,6 +10,9 @@ import (
 	userstore "graft/server/plugins/user/store"
 )
 
+// AuthRepositoryForReset narrows the dev-reset helper to the plugin-owned auth boundary.
+type AuthRepositoryForReset = userstore.AuthRepository
+
 // ResetDefaultAdminForDevelopment 在开发环境里把默认管理员重置回首次登录受限态。
 //
 // 该 helper 只复用当前 user 插件已冻结的默认管理员真值：
