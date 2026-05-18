@@ -18,12 +18,13 @@
       <register-panel v-else @register-success="switchType('login')" />
     </div>
 
-    <footer class="copyright">{{ t('common.copyright') }}</footer>
+    <footer class="copyright">{{ t(MESSAGE_KEY.COMMON_COPYRIGHT) }}</footer>
   </div>
 </template>
 <script setup lang="ts">
 import { ref } from 'vue';
 
+import { MESSAGE_KEY } from '@/contracts/api/messages';
 import { t } from '@/locales';
 
 import LoginHeader from './components/Header.vue';

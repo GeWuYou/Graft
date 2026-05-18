@@ -75,7 +75,7 @@
     <t-form-item class="check-container" name="checked">
       <t-checkbox v-model="formData.checked">{{ t('app.auth.register.agreeTerms') }} </t-checkbox>
       <span>{{ t('app.auth.register.serviceTerms') }}</span>
-      {{ t('common.conjunction') }}
+      {{ t(MESSAGE_KEY.COMMON_CONJUNCTION) }}
       <span>{{ t('app.auth.register.privacyStatement') }}</span>
     </t-form-item>
 
@@ -95,6 +95,7 @@ import type { FormRule, SubmitContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, ref } from 'vue';
 
+import { MESSAGE_KEY } from '@/contracts/api/messages';
 import { t } from '@/locales';
 import { useCounter } from '@/shared/composables';
 
