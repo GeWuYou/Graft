@@ -189,12 +189,12 @@
   "app": {
     "auth": {
       "login": {
-        "title": "Login in",
-        "noAccount": "No Account?",
-        "haveAccount": "Exist Account?",
-        "createAccount": "Create Account",
-        "remember": "Remember Account",
-        "forget": "Forget Account",
+        "title": "Log in",
+        "noAccount": "Don't have an account?",
+        "haveAccount": "Already have an account?",
+        "createAccount": "Create one",
+        "remember": "Remember me",
+        "forget": "Forgot account?",
         "signIn": "Sign in",
         "register": {
           "phonePlaceholder": "Please enter your phone number",
@@ -237,7 +237,7 @@
           "account": "account is required",
           "phone": "phone is required",
           "password": "password is required",
-          "verification": "verification code is require"
+          "verification": "verification code is required"
         },
         "forcePasswordChange": {
           "title": "Change password before continuing",
@@ -288,36 +288,36 @@
     },
     "result": {
       "403": {
-        "tips": "sorry, you don not have permission to access this page. Please contact the creator through WeCom",
-        "back": "Back to homepage"
+        "tips": "Sorry, you do not have permission to access this page. Please contact the creator through WeCom.",
+        "back": "Back to home"
       },
       "404": {
         "subtitle": "Sorry, the page is not found",
         "back": "Back to homepage"
       },
       "500": {
-        "subtitle": "Sorry, the server is error",
-        "back": "Back to homepage"
+        "subtitle": "Sorry, the server encountered an error",
+        "back": "Back to home"
       },
       "fail": {
-        "title": "Create fail",
+        "title": "Creation failed",
         "subtitle": "Sorry, your project creation has failed",
-        "back": "Back to homepage",
+        "back": "Back to home",
         "modify": "Back to modify"
       },
       "success": {
-        "title": "Project is created",
+        "title": "Project created",
         "subtitle": "Contact the person in charge of distributing the application",
-        "back": "Back to homepage",
+        "back": "Back to home",
         "progress": "Check Progress"
       },
       "maintenance": {
         "title": "System maintenance",
         "subtitle": "Please try again later",
-        "back": "Back to homepage"
+        "back": "Back to home"
       },
       "browserIncompatible": {
-        "title": "browser is incompatible",
+        "title": "Browser is incompatible",
         "subtitle": "the browser version you are using is too outdated to open the current webpage.",
         "back": "Back to homepage",
         "recommend": "TDesign Starter recommend the following browser"

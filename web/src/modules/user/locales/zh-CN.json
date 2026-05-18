@@ -2,9 +2,9 @@
   "user": {
     "profile": {
       "markDay": "下午好，今天是你加入鹅厂的第 100 天",
-      "greeting": "Hi，Image",
+      "greeting": "你好，Image",
       "unit": "（次）",
-      "account": "My Account",
+      "account": "我的账户",
       "organization": "腾讯/腾讯公司/某事业群/某产品部/某运营中心/商户服务组",
       "personalInfo": {
         "title": "个人信息",
@@ -59,6 +59,7 @@
         "roleLoadFailed": "角色定义加载失败。",
         "selectionLoadFailed": "当前角色分配数据加载失败，恢复前将保持禁用保存。",
         "retry": "重试",
+        "cancel": "取消",
         "confirm": "保存角色分配"
       }
     }

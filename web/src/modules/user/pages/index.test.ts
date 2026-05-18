@@ -473,7 +473,7 @@ describe('UserPage', () => {
     await submitButton!.trigger('click');
     await flushPromises();
 
-    const cancelButton = findButtonByText(wrapper, 'rbac.roleList.form.cancel');
+    const cancelButton = findButtonByText(wrapper, 'user.userList.roleDialog.cancel');
     expect(cancelButton).toBeDefined();
 
     await cancelButton!.trigger('click');
@@ -514,7 +514,7 @@ describe('UserPage', () => {
     await submitButton!.trigger('click');
     await flushPromises();
 
-    const cancelButton = findButtonByText(wrapper, 'rbac.roleList.form.cancel');
+    const cancelButton = findButtonByText(wrapper, 'user.userList.roleDialog.cancel');
     expect(cancelButton).toBeDefined();
 
     await cancelButton!.trigger('click');
@@ -550,7 +550,7 @@ describe('UserPage', () => {
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    const cancelButton = findButtonByText(wrapper, 'rbac.roleList.form.cancel');
+    const cancelButton = findButtonByText(wrapper, 'user.userList.roleDialog.cancel');
     expect(cancelButton).toBeDefined();
 
     await cancelButton!.trigger('click');
@@ -594,7 +594,7 @@ describe('UserPage', () => {
     await openDialogButton!.trigger('click');
     await flushPromises();
 
-    const cancelButton = findButtonByText(wrapper, 'rbac.roleList.form.cancel');
+    const cancelButton = findButtonByText(wrapper, 'user.userList.roleDialog.cancel');
     expect(cancelButton).toBeDefined();
 
     await cancelButton!.trigger('click');

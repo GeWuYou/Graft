@@ -17,7 +17,7 @@ export type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
 export { supportedLocales } from '@/contracts/i18n/locales';
 
 const langModules = import.meta.glob<{ default: Record<string, unknown> }>('./lang/*.json', { eager: true });
-const moduleLangModules = import.meta.glob<{ default: Record<string, unknown> }>('../modules/**/locales/*.json', {
+const moduleLangModules = import.meta.glob<{ default: Record<string, unknown> }>('../modules/*/locales/*.json', {
   eager: true,
 });
 

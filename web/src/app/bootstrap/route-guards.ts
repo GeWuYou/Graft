@@ -12,6 +12,33 @@ import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
 NProgress.configure({ showSpinner: false });
 
+function collectBootstrapRouteNames(routes: RouteRecordRaw[]): string[] {
+  const routeNames: string[] = [];
+
+  for (const route of routes) {
+    if (typeof route.name === 'string') {
+      routeNames.push(route.name);
+    }
+
+    for (const child of route.children ?? []) {
+      if (typeof child.name === 'string') {
+        routeNames.push(child.name);
+      }
+    }
+  }
+
+  return routeNames;
+}
+
+function removeMountedBootstrapRoutes(targetRouter: Router, routes: RouteRecordRaw[]) {
+  const routeNames = collectBootstrapRouteNames(routes).reverse();
+  routeNames.forEach((routeName) => {
+    if (targetRouter.hasRoute(routeName)) {
+      targetRouter.removeRoute(routeName);
+    }
+  });
+}
+
 // registerRouteGuards wires shell-owned auth/bootstrap recovery into the single router runtime.
 export function registerRouteGuards(targetRouter: Router = router) {
   targetRouter.beforeEach(async (to, from, next) => {
@@ -25,6 +52,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
     // initializeRoutes 只在拿到最新 bootstrap 菜单快照后调用，确保动态路由
     // 与当前会话的后端菜单/权限结果保持一致，而不是复用旧的 demo 路由树。
     const initializeRoutes = async () => {
+      removeMountedBootstrapRoutes(targetRouter, permissionStore.asyncRoutes);
       const routeList = await permissionStore.buildAsyncRoutes();
       routeList.forEach((item: RouteRecordRaw) => {
         targetRouter.addRoute(item);
@@ -106,6 +134,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
         MessagePlugin.error(message);
         // bootstrap 恢复失败意味着当前会话无法再信任，需要同时清理本地 token
         // 和已挂载的动态路由，再把用户送回登录页重新建立会话。
+        removeMountedBootstrapRoutes(targetRouter, permissionStore.asyncRoutes);
         userStore.clearSessionState();
         permissionStore.restoreRoutes();
         next({
@@ -162,6 +191,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
       const userStore = useUserStore();
       const permissionStore = getPermissionStore();
 
+      removeMountedBootstrapRoutes(targetRouter, permissionStore.asyncRoutes);
       userStore.clearSessionState();
       permissionStore.restoreRoutes();
     }

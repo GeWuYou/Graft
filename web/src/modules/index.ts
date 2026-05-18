@@ -4,9 +4,27 @@ type WebModuleRegistrationModule = {
   default: WebModuleRegistration;
 };
 
+type WebModuleBootstrapRoutesModule = {
+  [key: string]: unknown;
+};
+
 const moduleRegistrationModules = import.meta.glob<WebModuleRegistrationModule>('./*/index.ts', {
   eager: true,
 });
+const moduleBootstrapRouteModules = import.meta.glob<WebModuleBootstrapRoutesModule>('./*/bootstrap-routes.ts', {
+  eager: true,
+});
+
+export function resolveModuleRegistrationModulePaths(
+  registrationModulePaths: string[],
+  bootstrapRouteModulePaths: string[],
+) {
+  const moduleDirectories = new Set(
+    bootstrapRouteModulePaths.map((modulePath) => modulePath.replace(/\/bootstrap-routes\.ts$/, '')),
+  );
+
+  return registrationModulePaths.filter((modulePath) => moduleDirectories.has(modulePath.replace(/\/index\.ts$/, '')));
+}
 
 function isBootstrapRouteRegistration(value: unknown): value is BootstrapRouteRegistration {
   return Boolean(
@@ -30,8 +48,13 @@ function isWebModuleRegistration(value: unknown): value is WebModuleRegistration
 
 function loadModuleRegistrations() {
   const moduleIdRegistry = new Set<string>();
+  const moduleRegistrationPaths = resolveModuleRegistrationModulePaths(
+    Object.keys(moduleRegistrationModules),
+    Object.keys(moduleBootstrapRouteModules),
+  );
 
-  return Object.entries(moduleRegistrationModules).map(([modulePath, registrationModule]) => {
+  return moduleRegistrationPaths.map((modulePath) => {
+    const registrationModule = moduleRegistrationModules[modulePath];
     const registration = registrationModule.default;
     if (!isWebModuleRegistration(registration)) {
       throw new Error(`invalid module registration export: ${modulePath}`);

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildBootstrapRouteRegistrationMap, getBootstrapRouteRegistration } from './index';
+import {
+  buildBootstrapRouteRegistrationMap,
+  getBootstrapRouteRegistration,
+  resolveModuleRegistrationModulePaths,
+} from './index';
 import type { WebModuleRegistration } from './types';
 
 describe('module registration aggregation', () => {
@@ -90,5 +94,14 @@ describe('module registration aggregation', () => {
     expect(() => buildBootstrapRouteRegistrationMap(duplicateChildNameRegistrations)).toThrow(
       /duplicate bootstrap route name \(child\)/,
     );
+  });
+
+  it('only treats directories with bootstrap route declarations as web modules', () => {
+    expect(
+      resolveModuleRegistrationModulePaths(
+        ['./user/index.ts', './rbac/index.ts', './shared/index.ts'],
+        ['./user/bootstrap-routes.ts', './rbac/bootstrap-routes.ts'],
+      ),
+    ).toEqual(['./user/index.ts', './rbac/index.ts']);
   });
 });

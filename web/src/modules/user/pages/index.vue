@@ -118,7 +118,7 @@
 
           <div class="dialog-actions">
             <t-button variant="outline" @click="closeUserRoleDialog">
-              {{ t('rbac.roleList.form.cancel') }}
+              {{ t('user.userList.roleDialog.cancel') }}
             </t-button>
             <t-button
               theme="primary"
