@@ -140,22 +140,22 @@
   - `rg -n '"user"|"rbac"' web/src/locales/lang/zh-CN.json web/src/locales/lang/en-US.json`
   - `rg -n "from '@/modules/[^']+/(types|api|pages|locales)|from \\\"@/modules/[^\\\"]+/(types|api|pages|locales)\\\"" web/src`
   - `rg -n \"'/users'|\\\"/users\\\"|'/api/users'|\\\"/api/users\\\"\" web/src --glob '!web/src/modules/user/contract/paths.ts' --glob '!web/src/**/*.test.ts'`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/permission.test.ts src/locales/index.test.ts src/modules/user/pages/index.test.ts`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`
+  - `cd web && bun run test:run -- src/permission.test.ts src/locales/index.test.ts src/modules/user/pages/index.test.ts`
+  - `cd web && bun run typecheck`
+  - `cd web && bun run check`
 - This hotspot review rechecked the post-migration shell-owned surfaces with:
   - `git status --short`
   - `find web/src/app -maxdepth 3 -type f | sort`
   - `find web/src/locales -maxdepth 3 -type f | sort`
   - `find web/src/modules -maxdepth 3 -type f | sort | rg 'index\\.ts$|bootstrap-routes\\.ts$|locales/|contract/'`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/utils/route/bootstrap.test.ts src/utils/route/title.test.ts src/locales/index.test.ts`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+  - `cd web && bun run test:run -- src/utils/route/bootstrap.test.ts src/utils/route/title.test.ts src/locales/index.test.ts`
+  - `cd web && bun run typecheck`
 - The follow-up shell-owned gap-closure slice revalidated with:
   - `rg -n "from '@/modules/[^']+/(types|api|pages|locales)|from \\\"@/modules/[^\\\"]+/(types|api|pages|locales)\\\"" web/src`
   - `rg -n "'/login'|\"/login\"|'login'|\"login\"" web/src --glob '!web/src/app/auth/index.vue' --glob '!web/src/locales/**'`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/modules/index.test.ts src/router/index.test.ts src/locales/index.test.ts src/permission.test.ts`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`
+  - `cd web && bun run test:run -- src/modules/index.test.ts src/router/index.test.ts src/locales/index.test.ts src/permission.test.ts`
+  - `cd web && bun run typecheck`
+  - `cd web && bun run check`
 
 ## Immediate Next Step
 

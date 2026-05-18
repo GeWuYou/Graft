@@ -124,8 +124,8 @@
 - Confirmed the current worktree was clean and kept the slice review-only for `web/src/app/**`, `web/src/locales/**`,
   and module registration surfaces; multi-agent work was not justified because the scope stayed small and shell-owned.
 - Focused validation stayed green with:
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/utils/route/bootstrap.test.ts src/utils/route/title.test.ts src/locales/index.test.ts`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+  - `cd web && bun run test:run -- src/utils/route/bootstrap.test.ts src/utils/route/title.test.ts src/locales/index.test.ts`
+  - `cd web && bun run typecheck`
 - The review found three shared-hotspot follow-ups to schedule before future long-lived web worktrees start depending on
   these shell surfaces:
   - module registration enforces duplicate `menuPath` only and still allows duplicate stable `routeName` values
@@ -148,7 +148,7 @@
   - module registration collision handling
   - router login route canonical contract usage
   - locale deep-merge semantics
-- Revalidated the slice with host Windows Bun direct checks:
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/modules/index.test.ts src/router/index.test.ts src/locales/index.test.ts src/permission.test.ts`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`
+- Revalidated the slice with repository-portable Bun command forms:
+  - `cd web && bun run test:run -- src/modules/index.test.ts src/router/index.test.ts src/locales/index.test.ts src/permission.test.ts`
+  - `cd web && bun run typecheck`
+  - `cd web && bun run check`

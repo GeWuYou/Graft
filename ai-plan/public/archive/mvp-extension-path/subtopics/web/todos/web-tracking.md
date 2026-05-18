@@ -143,9 +143,9 @@
 - 该后续迁移的直接校验结果：
   - `rg -n '"user"|"rbac"' web/src/locales/lang/zh-CN.json web/src/locales/lang/en-US.json`
   - `rg -n "from '@/modules/[^']+/(types|api|pages|locales)|from \\\"@/modules/[^\\\"]+/(types|api|pages|locales)\\\"" web/src`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/permission.test.ts src/locales/index.test.ts src/modules/user/pages/index.test.ts`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
-  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`
+  - `cd web && bun run test:run -- src/permission.test.ts src/locales/index.test.ts src/modules/user/pages/index.test.ts`
+  - `cd web && bun run typecheck`
+  - `cd web && bun run check`
 
 ## Immediate Next Step
 
