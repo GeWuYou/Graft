@@ -62,6 +62,25 @@
   - platform contracts remain under `web/src/contracts/**`
   - root-level business compatibility bridges are no longer part of the runtime surface
 
+## 2026-05-18 AGENTS split and contract-boundary follow-up
+
+- Split repository governance into one root startup-governance document plus two subdomain execution-truth documents:
+  - root `AGENTS.md` now keeps repository-only governance such as startup, recovery, validation ownership, commit flow,
+    CI/CD, subagent rules, and done-state rules
+  - `web/AGENTS.md` now owns frontend execution truth
+  - `server/AGENTS.md` now owns backend execution truth
+- Updated `ai-plan/design/AI任务追踪与恢复设计.md` so recovery design explicitly describes the new layering and keeps
+  `ai-plan/` out of daily execution-rule ownership.
+- Updated `ai-plan/design/前端架构设计.md` and `ai-plan/design/插件与依赖注入设计.md` so they remain architecture-truth
+  documents while deferring execution-level rule lists to the new subdomain `AGENTS.md` files.
+- Narrowed the remaining `web` module boundary by moving `rbac` DTOs that are consumed outside the module into
+  `web/src/modules/rbac/contract/**`, then updating `user` and internal `rbac` call sites to stop using
+  cross-module `types/**` imports.
+- The resulting frontend baseline is now explicit:
+  - shell code consumes module registrations and stable module contracts
+  - cross-module stable DTOs live in `modules/<name>/contract/**`
+  - `modules/<name>/types/**` stays private to the owning module
+
 ## Next Step
 
 - Keep the recovery mapping aligned with the current root branch until the repository returns to `main` or the first

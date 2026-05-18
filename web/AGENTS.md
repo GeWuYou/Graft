@@ -1,0 +1,241 @@
+# web/AGENTS.md
+
+本文件是 `web` 前端工作的执行真值，覆盖 `web` 的实现边界、目录所有权、契约落点、UI 规范与完成态校验。
+
+仓库级启动、恢复、提交与跨仓治理仍以根 `AGENTS.md` 为准；本文件不重复定义第二套启动或提交流程。
+
+## 1. 适用范围
+
+适用范围：
+
+- `web/src/**`
+- `web/package.json`、前端校验脚本与前端样式/测试配置
+- 前端模块脚手架、页面接入、共享资产抽取与前端契约治理
+
+前端任务改动前，至少读取这些文档：
+
+- `../AGENTS.md`
+- `../ai-plan/design/前端架构设计.md`
+- `../ai-plan/design/TDesign-MCP-辅助开发规范.md`
+- `../ai-plan/design/契约治理与魔法值治理规范.md`
+  - 当任务涉及路由名、路径、权限码、存储键、请求头、认证方案、错误码、稳定状态枚举或跨模块 typed contract 时必须读取
+
+如代码与文档分叉，先更新文档或在同一改动中一起更新。
+
+## 2. 固定技术选择
+
+`web` 的固定技术栈是：
+
+- `Vue 3`
+- `TypeScript`
+- `Vite`
+- `TDesign Vue Next`
+- `Pinia`
+- `Vue Router`
+- `Axios`
+- `UnoCSS`
+
+禁止在未先更新设计文档的情况下：
+
+- 切换到 React、Naive UI 或其他主 UI 体系
+- 把 `UnoCSS` 升级为整套视觉体系重写工具
+- 引入与 `TDesign Vue Next` 平行的第二套后台 UI 运行基线
+
+## 3. 目录真值
+
+`web/src` 的长期运行面固定为：
+
+```text
+web/src/
+├─ app/
+├─ layouts/
+├─ modules/
+├─ shared/
+├─ contracts/
+├─ locales/
+├─ router/
+├─ store/
+├─ api/
+├─ style/
+├─ assets/
+├─ types/
+└─ utils/
+```
+
+目录职责冻结如下：
+
+- `app/`
+  - 壳层页面、异常页、认证页与应用装配入口
+  - 不承载业务模块长期实现真值
+- `layouts/`
+  - 后台壳布局、导航、面包屑和壳层组件
+- `modules/<name>/`
+  - 某个业务模块的唯一长期真值
+  - 默认目录为 `pages`、`components`、`api`、`contract`、`types`、`locales`
+- `shared/`
+  - 跨模块复用且无业务语义的组件、composables、helpers、样式片段
+- `contracts/`
+  - 平台级前端稳定契约
+  - 不放模块私有契约
+- `locales/`
+  - 应用级 locale 状态、消息目录、查找入口与回退策略
+- `router/`
+  - 静态路由与动态路由装配
+- `store/`
+  - 跨页面共享状态
+  - 不收纳页面局部表单状态
+- `api/`
+  - 平台级 request/auth/session adapter
+  - 不放模块业务 API 真值
+- `style/`
+  - 全局样式与壳层样式基线
+- `types/`
+  - 平台级类型边界
+  - 不放模块私有类型真值
+- `utils/`
+  - 平台级工具、路由装配工具、日志与请求基础设施
+  - 不作为模块实现溢出的默认落点
+
+冻结规则：
+
+- `web/src/modules/<name>/**` 是业务模块页面、API、模块私有契约、局部类型、模块消息源与模块注册面的唯一长期真值
+- `web/src/shared/**` 是唯一允许的跨模块业务无关复用层
+- 永远不要重新引入根级 `web/src/pages/**` 作为运行面
+- 永远不要重新引入根级模块专属 `web/src/api/**`、`web/src/api/model/**` 或 `web/src/contracts/<module>/**`
+- 根级 `components/`、`hooks/`、业务专属 `utils/` 不是最终所有权层；如有新增同类目录，必须先证明它属于平台级基础设施
+
+## 4. 模块边界与导入规则
+
+所有权边界：
+
+- `shell-owned`
+  - `app/**`
+  - `layouts/**`
+  - `router/**`
+  - `locales/**`
+  - 平台级 `contracts/**`
+  - 平台级 `api/**`
+  - 平台级 `types/**`
+  - 平台级 `utils/**`
+  - 全局 `store/**`
+- `module-owned`
+  - `modules/<name>/**`
+- `shared-owned`
+  - `shared/**`
+
+导入约束：
+
+- `app/**`、`layouts/**`、`router/**`、`store/**` 只能消费：
+  - `shared/**`
+  - 平台级 `contracts/**`、`api/**`、`types/**`、`utils/**`
+  - 模块显式对外暴露的注册面或稳定契约
+- `app/**`、`layouts/**`、`router/**` 不得直接导入其他模块的：
+  - `pages/**`
+  - `components/**`
+  - `api/**`
+  - `types/**`
+  - `locales/**`
+- `modules/**` 不得反向导入 `app/**`
+- 模块之间允许跨边界消费的长期真值只有另一模块的 `contract/**`
+- `modules/<name>/types/**` 一律视为模块私有实现细节
+- 禁止新增跨模块 `@/modules/<other>/types/**` 导入
+- 如果某个 DTO、字面量联合、权限码、路径、表格查询形状或 capability type 需要被其他模块、壳层或平台基础设施稳定消费，必须提升到 `modules/<name>/contract/**`
+- 根级 `contracts/**` 只收口平台级稳定契约；不要把模块契约提升到根级来逃避模块边界
+
+共享提升规则：
+
+- 只有同时满足“被多个模块或壳层复用”且“无业务语义”时，资产才允许提升到 `shared/**`
+- 带有 `user`、`rbac`、`plugin`、权限码、路由名、DTO、API path、模块文案语义的资产，不得进入 `shared/**`
+- 业务相关但需要跨模块稳定复用时，继续由所属模块持有，并通过 `contract/**` 暴露
+- `shared/**` 不是临时存放区；无法说明复用边界和无业务语义时，不得放入
+
+## 5. 路由、模块注册与 i18n
+
+路由与注册面规则：
+
+- `router/**` 只拥有静态路由和动态装配逻辑，不拥有模块页面真值
+- 模块接入壳层的唯一新功能入口是 `modules/<name>/index.ts`
+- 模块对外声明 bootstrap 动态路由的唯一入口是 `modules/<name>/bootstrap-routes.ts`
+- `bootstrap-routes.ts` 只声明模块可接入壳层所需的最小注册信息，不扩散页面实现细节到壳层
+- 壳层只消费模块注册结果，不直接维护“页面 path -> 模块页面组件”的第二套长期白名单
+- 新增模块时，默认按 `pages`、`components`、`api`、`contract`、`types`、`locales` 组织
+- 新增模块时，至少补齐模块目录、`index.ts` 与 `bootstrap-routes.ts`
+- 如果某个默认目录在当前切片暂时不存在，必须保证对应真值仍留在模块边界内，不得回退到根级平台目录
+- 路由名必须稳定且唯一；不得为同一语义并行维护多套 route name 或 path 常量
+
+i18n 与标题规则：
+
+- `title_key` 是前端菜单与动态路由标题的唯一长期真值
+- 上游返回的 `title` 只允许在 adapter 或 bootstrap 装配边界作为外部输入回退
+- 模块和壳层内部不得长期并行维护 `title_key + 自己的 title 文案` 两套真值
+- 新增消息 key 必须带边界前缀，能从 key 看出归属边界
+- 建议前缀：
+  - `app.*`
+  - `layout.*`
+  - `menu.*`
+  - `<module>.*`
+- 模块私有消息源优先放在 `modules/<name>/locales/**`
+- 应用级 locale 状态、回退语言、持久化策略与消息查找入口继续收口在 `locales/**`
+
+契约落点规则：
+
+- 平台级路由名、特殊路径、存储键、请求头、认证方案、平台错误码等稳定契约放在根级 `contracts/**`
+- 模块级权限码、API path、跨模块 DTO、模块稳定状态值、模块消息 key 常量等稳定契约放在 `modules/<name>/contract/**`
+- 模块私有 `types/**` 不得充当跨模块 contract
+- 不得通过 alias、根级 re-export 或兼容副本维持第二套长期契约真值
+
+## 6. UI 与 TDesign
+
+UI 约束：
+
+- `TDesign Vue Next` 是唯一主 UI 体系
+- `UnoCSS` 只用于辅助布局和少量原子样式
+- 不得随意覆盖 TDesign 内部 DOM；涉及组件 DOM、插槽、事件、props、升级影响时，先查 TDesign MCP 或官方文档
+- AI 生成或修改 `web` 代码时，默认按 `vue-next` 组件资料执行，不凭经验猜测组件 API
+- 新页面优先复用既有后台模式：页头、筛选区、表格、抽屉、弹窗、状态标签、操作列
+- `web/ai-libs/**` 只是本地参考源，不是运行时依赖，也不是第二个前端真值
+
+## 7. 验证与工具链
+
+前端完成态的强制校验入口是：
+
+```bash
+bun run check
+```
+
+执行顺序固定为：
+
+1. `format:check`
+2. `typecheck`
+3. `lint`
+4. `stylelint`
+5. `test:run`
+6. `build`
+
+执行规则：
+
+- 功能完成、任务完成、准备合并时，必须跑完整 `bun run check`
+- 中间迭代可先跑最小直接验证，但不能把局部验证当作完成态
+- 默认完成态要求 `typecheck`、`lint`、`stylelint`、`test:run`、`build` 全部零 warning
+- `Vitest` 是正式前端测试基线，不把“前端没有测试”当作默认前提
+- `Stylelint` 用于约束样式覆盖边界，避免随意改写 TDesign 结构
+- 不允许用大面积 `as any`、`any` 或关闭 strict 的方式绕过类型问题；必须把不安全边界收口到 adapter、client、schema 或迁移兼容层
+
+WSL 规则：
+
+- 在 WSL 场景下，`web` 的安装、开发、校验、构建、预览默认都通过宿主机 Windows Bun 执行
+- 不得使用 WSL Linux Bun 刷新 `web/node_modules`
+- 不得在宿主机 Bun 为当前真值时混用 WSL Bun 生成前端依赖目录
+- 如前端工具链例外规则发生变化，必须同步更新 `.ai/environment/tools.ai.yaml`
+
+## 8. 禁止事项
+
+禁止新增或恢复以下做法：
+
+- 根级 `web/src/pages/**` 运行面
+- 模块专属根级 `api/model/contracts` 兼容桥
+- 跨模块导入他人模块的 `types/**`
+- 壳层直接持有模块页面真值
+- 未经文档依据的 TDesign DOM 猜测式样式覆盖
+- 把业务语义资产塞进 `shared/**`
+- 把平台级基础设施塞进模块目录，或把模块真值塞回根级平台目录

@@ -175,7 +175,8 @@ import {
   updateRole,
 } from '../api/rbac';
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
-import type { CreateRolePayload, PermissionListItem, RoleListItem } from '../types/rbac';
+import type { RoleListItem } from '../contract/role';
+import type { CreateRolePayload, PermissionListItem } from '../types/rbac';
 
 defineOptions({
   name: 'RolesIndex',

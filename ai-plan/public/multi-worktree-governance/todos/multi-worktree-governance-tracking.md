@@ -17,6 +17,9 @@
 
 ## Repository Truth
 
+- `AGENTS.md`
+- `web/AGENTS.md`
+- `server/AGENTS.md`
 - `ai-plan/design/项目设计.md`
 - `ai-plan/design/插件与依赖注入设计.md`
 - `ai-plan/design/前端架构设计.md`
@@ -32,6 +35,10 @@
   shows no additional worktrees.
 - The immediate governance task on this branch is not to preserve compatibility bridges. It is to lock the final
   post-compatibility ownership model and recovery truth before the first dedicated long-lived worktree is created.
+- Repository governance is now split into:
+  - root `AGENTS.md` for startup, recovery, validation ownership, closeout/commit, and subagent rules
+  - `web/AGENTS.md` for frontend execution truth
+  - `server/AGENTS.md` for backend execution truth
 - Current boundary facts are frozen as follows:
   - `server` is already close to plugin-oriented parallel execution, and future long-lived worktree ownership should be
     plugin-first.
@@ -51,6 +58,8 @@
   - module registration is now the only allowed new feature-to-shell integration path
   - root-level module files under `web/src/api/**`, `web/src/api/model/**`, and `web/src/contracts/{user,rbac}/**`
     have been removed from the codebase and are no longer valid steady-state ownership surfaces
+  - cross-module stable DTOs now follow the final rule that they must live under `modules/<name>/contract/**`, while
+    `types/**` stays private to the owning module
 - The first expected future long-lived feature directions are:
   - `RBAC`
   - `server-status-dashboard`
@@ -104,12 +113,17 @@
   - `git status --short`
 - Documentation consistency was checked with:
   - `rg -n "multi-worktree|worktree|兼容|compat|shared/|app/|modules/|refactor/web-module-boundaries|primary-main|main" ai-plan/public/multi-worktree-governance ai-plan/design/前端架构设计.md ai-plan/public/README.md`
+- AGENTS split consistency was checked with:
+  - `rg -n "web/AGENTS.md|server/AGENTS.md|Subdomain governance|执行真值|前端执行级治理真值|后端执行级治理真值" AGENTS.md web/AGENTS.md server/AGENTS.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/design/前端架构设计.md ai-plan/design/插件与依赖注入设计.md`
 - Current frontend structure and ownership surfaces were grounded with:
   - `find web/src -maxdepth 3 -type d | sort`
   - `rg --files web/src | rg "^(web/src/(api|contracts|app|modules|components|store|router|shared|pages|hooks|utils))"`
   - `sed -n '1,260p' ai-plan/design/前端架构设计.md`
-- This slice intentionally used targeted consistency searches only; no `web` runtime validation was run because the
-  owned scope is documentation-only.
+- Cross-module DTO boundary cleanup was checked with:
+  - `rg -n "from '@/modules/[^']+/types/|from \\\"@/modules/[^\\\"]+/types/\" web/src/modules`
+- This slice used targeted consistency searches plus a narrow `web` boundary cleanup; no full `web` runtime validation
+  was run because the primary owned scope is governance/documentation and the code change stayed inside module-owned
+  boundaries.
 
 ## Immediate Next Step
 
@@ -125,6 +139,9 @@
   - `server-status-dashboard`
 - Once the first real worktree/topic pair exists, add it to `ai-plan/public/README.md` and create its dedicated
   tracking/trace files instead of continuing to stage feature recovery on the root branch.
+- Use the new split governance layout as the baseline for future worktree setup:
+  - root `AGENTS.md` remains the only startup-governance source
+  - `web/AGENTS.md` and `server/AGENTS.md` own daily execution rules inside their boundaries
 
 ## Web Owned Scope Freeze
 

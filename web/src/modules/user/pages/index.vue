@@ -140,7 +140,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
-import type { RoleListItem } from '@/modules/rbac/types/rbac';
+import type { RoleListItem } from '@/modules/rbac/contract/role';
 import { usePermissionStore } from '@/store';
 
 import { assignUserRoles, getRoles, getUserRoleBindings } from '../api/user-roles';
