@@ -115,3 +115,21 @@
   `contracts/rbac`, `directives/`, `constants/`, and `router/modules/` directories.
 - Revalidated the runtime slice with targeted search checks, focused Vitest/typecheck, and one full host Windows Bun
   `bun run check` pass with the Vite warning surface back to zero.
+
+## 2026-05-18 post-migration shell hotspot review
+
+- Re-ran startup preflight on `refactor/web-module-boundaries`, then recovered through the active
+  `multi-worktree-governance` topic plus archived `mvp-extension-path/web` historical tracking before reviewing the
+  live shell-owned web surfaces.
+- Confirmed the current worktree was clean and kept the slice review-only for `web/src/app/**`, `web/src/locales/**`,
+  and module registration surfaces; multi-agent work was not justified because the scope stayed small and shell-owned.
+- Focused validation stayed green with:
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run test:run -- src/utils/route/bootstrap.test.ts src/utils/route/title.test.ts src/locales/index.test.ts`
+  - `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run typecheck`
+- The review found three shared-hotspot follow-ups to schedule before future long-lived web worktrees start depending on
+  these shell surfaces:
+  - module registration enforces duplicate `menuPath` only and still allows duplicate stable `routeName` values
+  - login route name/path truth is still fragmented across shell-owned runtime files as bare literals instead of a
+    canonical auth-route contract
+  - locale aggregation still does a shallow top-level merge for module catalogs, so future module-owned `menu` or
+    other shared namespaces can overwrite earlier shell/module messages
