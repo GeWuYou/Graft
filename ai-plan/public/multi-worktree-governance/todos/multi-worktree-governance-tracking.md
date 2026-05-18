@@ -186,6 +186,15 @@
   - `cd web && bun run test:run -- src/modules/index.test.ts src/router/index.test.ts src/locales/index.test.ts src/permission.test.ts`
   - `cd web && bun run typecheck`
   - `cd web && bun run check`
+- The current `server` Phase 1 registry-wiring slice revalidated the landed implementation with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/cli`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage buildtest`
+- The current `server` runtime baseline now matches the Phase 1 ownership direction:
+  - `serve` consumes compile-time generated plugin descriptors instead of a hand-written plugin list
+  - `migrate` consumes registry-derived default migration directories instead of a hard-coded single core path
+  - `server/internal/pluginregistry/generated.go` is now the only centralized plugin wiring hotspot
+  - each current plugin exports its own `NewDescriptor()` shim under `server/plugins/<name>/descriptor.go`
 
 ## Immediate Next Step
 
@@ -213,6 +222,10 @@
 - Use the new split governance layout as the baseline for future worktree setup:
   - root `AGENTS.md` remains the only startup-governance source
   - `web/AGENTS.md` and `server/AGENTS.md` own daily execution rules inside their boundaries
+- Continue backend work from the landed Phase 1 baseline instead of reopening hand-written wiring:
+  - preserve `plugin.Descriptor` / `plugin.Builder` as the only new plugin onboarding seam
+  - keep `generated.go` as the sole centralized plugin-list artifact
+  - start Phase 2 only after the next slice chooses one plugin-owned store/capability migration boundary
 
 ## Server Owned Scope Freeze
 

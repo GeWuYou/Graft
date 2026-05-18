@@ -189,3 +189,34 @@
   - future third-party compatibility boundaries without implementing runtime plugins now
 - Recorded the resulting backend owned-scope baseline in the active topic tracking file so future worktree creation can
   reference one repository-local truth instead of chat-only planning output.
+
+## 2026-05-18 server Phase 1 registry wiring
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, recovered through the active
+  `multi-worktree-governance` parent topic, and executed the slice through `graft-multi-agent-task`.
+- Used a bounded multi-agent wave for two read-only explorer sidecars plus one worker-owned descriptor shim slice, while
+  keeping `internal/plugin`, `internal/pluginregistry`, CLI integration, review, and validation on the local critical path.
+- Added `plugin.Descriptor` and `plugin.Builder` to `server/internal/plugin`, keeping descriptor metadata as the
+  canonical compile-time truth while still validating runtime plugin metadata drift during `Build()`.
+- Added `server/internal/pluginregistry/**` with:
+  - `registry.go` for descriptor snapshots, ordered runtime plugin construction, and default migration directory
+    aggregation
+  - `generate.go` plus `cmd/pluginregistrygen/main.go` for deterministic registry generation
+  - generated hotspot `generated.go` as the only centralized plugin list
+- Added `server/plugins/{audit,user,rbac,scheduler}/descriptor.go` so each existing plugin now owns its compile-time
+  descriptor shim locally instead of relying on `serve.go` imports.
+- Rewired `server/internal/cli/serve.go` to consume `pluginregistry.BuildPlugins()` and rewired
+  `server/internal/cli/migrate.go` so the default migration path now resolves through registry-derived directory lists.
+- Added focused regression coverage for:
+  - descriptor and dependency ordering in `server/internal/plugin/plugin_test.go`
+  - registry generator determinism and missing-descriptor failure in
+    `server/internal/pluginregistry/cmd/pluginregistrygen/main_test.go`
+  - registry-driven serve and migrate behavior in `server/internal/cli/serve_test.go` and
+    `server/internal/cli/migrate_test.go`
+- Validation for the slice finished with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/cli`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage buildtest`
+- Immediate next step after this slice:
+  - preserve the new compile-time registry seam as the only central wiring path
+  - choose one Phase 2 boundary for plugin-private store/capability migration instead of reopening core-owned wiring

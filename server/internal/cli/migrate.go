@@ -12,10 +12,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/config"
+	"graft/server/internal/pluginregistry"
 )
 
 // defaultMigrationDir 定义 server 模块内 Atlas 版本化迁移目录的默认相对路径。
-const defaultMigrationDir = "internal/ent/migrate/migrations"
+const defaultMigrationDir = pluginregistry.DefaultCoreMigrationDir
 
 // 这些变量保留为可替换的命令边界，便于测试覆盖 Atlas 查找、子进程执行和
 // 当前工作目录解析，而不把真实系统依赖硬编码到测试中。
@@ -23,6 +24,7 @@ var migrateLookPath = exec.LookPath
 var migrateCommandContext = exec.CommandContext
 var migrateGetwd = os.Getwd
 var migrateStdin io.Reader = os.Stdin
+var migrateRegistryMigrationDirs = pluginregistry.MigrationDirs
 
 // migrateUpOptions 封装一次显式迁移执行所需的输入。
 type migrateUpOptions struct {
@@ -76,7 +78,7 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
 		}
 	}
 
-	absDir, err := resolveMigrationDir(workingDir, opts.migrationDir)
+	absDirs, err := resolveMigrationDirs(workingDir, opts.migrationDir)
 	if err != nil {
 		return fmt.Errorf("resolve migration dir: %w", err)
 	}
@@ -91,20 +93,22 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
 		commandContext = context.Background()
 	}
 
-	command := migrateCommandContext(
-		commandContext,
-		atlasPath,
-		"migrate",
-		"apply",
-		"--dir", "file://"+filepath.ToSlash(absDir),
-		"--url", cfg.Database.URL,
-	)
-	command.Stdout = cmd.OutOrStdout()
-	command.Stderr = cmd.ErrOrStderr()
-	command.Stdin = migrateStdin
+	for _, absDir := range absDirs {
+		command := migrateCommandContext(
+			commandContext,
+			atlasPath,
+			"migrate",
+			"apply",
+			"--dir", "file://"+filepath.ToSlash(absDir),
+			"--url", cfg.Database.URL,
+		)
+		command.Stdout = cmd.OutOrStdout()
+		command.Stderr = cmd.ErrOrStderr()
+		command.Stdin = migrateStdin
 
-	if err := command.Run(); err != nil {
-		return fmt.Errorf("apply atlas migrations: %w", err)
+		if err := command.Run(); err != nil {
+			return fmt.Errorf("apply atlas migrations from %s: %w", absDir, err)
+		}
 	}
 
 	return nil
@@ -126,7 +130,38 @@ func findAtlasCLI() (string, error) {
 	)
 }
 
-// resolveMigrationDir 从当前目录向上搜索可用的迁移目录。
+// resolveMigrationDirs 从当前目录向上搜索可用的迁移目录集合。
+//
+// 默认目录不再直接等同于单个 core 迁移路径；它会先回到 compile-time
+// registry 读取当前进程声明的完整目录集合，再逐一解析为绝对路径。
+func resolveMigrationDirs(baseDir string, migrationDir string) ([]string, error) {
+	if strings.TrimSpace(migrationDir) == "" {
+		return nil, fmt.Errorf("migration dir is required")
+	}
+
+	searchDirs := []string{migrationDir}
+	if migrationDir == defaultMigrationDir {
+		var err error
+		searchDirs, err = migrateRegistryMigrationDirs()
+		if err != nil {
+			return nil, fmt.Errorf("load compile-time migration registry: %w", err)
+		}
+	}
+
+	resolved := make([]string, 0, len(searchDirs))
+	for _, current := range searchDirs {
+		absDir, err := resolveMigrationDir(baseDir, current)
+		if err != nil {
+			return nil, err
+		}
+
+		resolved = append(resolved, absDir)
+	}
+
+	return resolved, nil
+}
+
+// resolveMigrationDir 从当前目录向上搜索可用的单个迁移目录。
 //
 // 默认目录同时支持仓库根目录和 `server` 模块根目录两种工作目录，减少 IDE、
 // Shell 和测试环境切换时对单一 cwd 约定的依赖。
@@ -136,7 +171,7 @@ func resolveMigrationDir(baseDir string, migrationDir string) (string, error) {
 	}
 
 	searchDirs := []string{migrationDir}
-	if migrationDir == defaultMigrationDir {
+	if !strings.HasPrefix(filepath.ToSlash(migrationDir), "server/") {
 		searchDirs = append(searchDirs, filepath.Join("server", migrationDir))
 	}
 
