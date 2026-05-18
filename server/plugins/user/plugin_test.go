@@ -35,6 +35,7 @@ import (
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
 	"graft/server/plugins/rbac"
+	rbacstoreadapter "graft/server/plugins/rbac/storeadapter"
 	usercontract "graft/server/plugins/user/contract"
 	userstore "graft/server/plugins/user/store"
 	"graft/server/plugins/user/storeadapter"
@@ -79,35 +80,6 @@ func adaptTestAuthRepository(repo store.AuthRepository) userstoreAuthPair {
 type userstoreAuthPair struct {
 	auth            userstore.AuthRepository
 	passwordChanges userstore.PasswordChangeRepository
-}
-
-// pluginTestStoreFactory 为插件路由测试提供最小仓储装配。
-type pluginTestStoreFactory struct {
-	audit       store.AuditRepository
-	auth        store.AuthRepository
-	rbac        store.RBACRepository
-	users       store.UserRepository
-	permissions map[uint64][]store.Permission
-}
-
-func (f pluginTestStoreFactory) Audit() store.AuditRepository {
-	return f.audit
-}
-
-func (f pluginTestStoreFactory) Auth() store.AuthRepository {
-	return f.auth
-}
-
-func (f pluginTestStoreFactory) Users() store.UserRepository {
-	return f.users
-}
-
-func (f pluginTestStoreFactory) RBAC() store.RBACRepository {
-	if f.rbac != nil {
-		return f.rbac
-	}
-
-	return pluginTestRBACRepository{permissions: f.permissions}
 }
 
 // pluginTestAuthRepository 以内存状态模拟认证仓储的最小行为。
@@ -527,29 +499,26 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 		I18n:     i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		Router:   engine.Group("/api"),
 		Services: container.New(),
-		Stores: pluginTestStoreFactory{
-			auth:  authRepo,
-			users: userRepo,
-			rbac: pluginTestRBACRepository{
-				roles: map[uint64][]store.Role{
-					7: {{ID: 1, Name: "admin", Display: "管理员"}},
-					8: {{ID: 2, Name: "viewer", Display: "只读用户"}},
-					9: {{ID: 1, Name: "admin", Display: "管理员"}},
-				},
-				permissions: permissions,
-			},
-			permissions: permissions,
-		},
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
 	}
 
-	pluginInstance := NewPlugin()
+	pluginInstance := NewPlugin(
+		storeadapter.NewUserRepositoryAdapter(userRepo),
+		storeadapter.NewAuthRepositoryAdapter(authRepo),
+	)
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
-	if err := rbac.NewPlugin().Register(ctx); err != nil {
+	if err := rbac.NewPlugin(rbacstoreadapter.NewInternalRepositoryAdapter(pluginTestRBACRepository{
+		roles: map[uint64][]store.Role{
+			7: {{ID: 1, Name: "admin", Display: "管理员"}},
+			8: {{ID: 2, Name: "viewer", Display: "只读用户"}},
+			9: {{ID: 1, Name: "admin", Display: "管理员"}},
+		},
+		permissions: permissions,
+	})).Register(ctx); err != nil {
 		t.Fatalf("register rbac plugin: %v", err)
 	}
 	if err := pluginInstance.Boot(ctx); err != nil {
@@ -1026,7 +995,7 @@ func newDefaultAdminBootAuthRepository(t *testing.T, ensuredDefaultAdmin *bool) 
 	}
 }
 
-func newDefaultAdminBootPluginContext(authRepo store.AuthRepository, rbacRepo store.RBACRepository) *plugin.Context {
+func newDefaultAdminBootPluginContext(_ store.AuthRepository, _ store.RBACRepository) *plugin.Context {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 
@@ -1044,7 +1013,6 @@ func newDefaultAdminBootPluginContext(authRepo store.AuthRepository, rbacRepo st
 		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		Router:             engine.Group(testAPIBasePath),
 		Services:           container.New(),
-		Stores:             pluginTestStoreFactory{auth: authRepo, rbac: rbacRepo, users: pluginTestUserRepository{}, permissions: map[uint64][]store.Permission{}},
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
@@ -1349,14 +1317,17 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 
 	ctx := newDefaultAdminBootPluginContext(authRepo, rbacRepo)
 
-	pluginInstance := NewPlugin()
+	pluginInstance := NewPlugin(
+		storeadapter.NewUserRepositoryAdapter(pluginTestUserRepository{}),
+		storeadapter.NewAuthRepositoryAdapter(authRepo),
+	)
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 	if ensuredDefaultAdmin {
 		t.Fatal("expected register to stay side-effect free for default admin bootstrap")
 	}
-	if err := rbac.NewPlugin().Register(ctx); err != nil {
+	if err := rbac.NewPlugin(rbacstoreadapter.NewInternalRepositoryAdapter(rbacRepo)).Register(ctx); err != nil {
 		t.Fatalf("register rbac plugin: %v", err)
 	}
 
@@ -1391,11 +1362,14 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
 
 	ctx := newDefaultAdminBootPluginContext(authRepo, rbacRepo)
-	pluginInstance := NewPlugin()
+	pluginInstance := NewPlugin(
+		storeadapter.NewUserRepositoryAdapter(pluginTestUserRepository{}),
+		storeadapter.NewAuthRepositoryAdapter(authRepo),
+	)
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
-	if err := rbac.NewPlugin().Register(ctx); err != nil {
+	if err := rbac.NewPlugin(rbacstoreadapter.NewInternalRepositoryAdapter(rbacRepo)).Register(ctx); err != nil {
 		t.Fatalf("register rbac plugin: %v", err)
 	}
 	if err := pluginInstance.Boot(ctx); err != nil {
@@ -1417,7 +1391,10 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 // fail closed，而不是继续让用户路由带着未绑定的授权器启动。
 func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
 	ctx := newDefaultAdminBootPluginContext(&pluginTestAuthRepository{}, pluginTestRBACRepository{})
-	pluginInstance := NewPlugin()
+	pluginInstance := NewPlugin(
+		storeadapter.NewUserRepositoryAdapter(pluginTestUserRepository{}),
+		storeadapter.NewAuthRepositoryAdapter(&pluginTestAuthRepository{}),
+	)
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}

@@ -13,6 +13,11 @@ type bootstrapService struct {
 	rbac rbacstore.Repository
 }
 
+// NewBootstrapService exposes the stable RBAC bootstrap capability over a plugin-local repository.
+func NewBootstrapService(rbac rbacstore.Repository) pluginapi.RBACBootstrapService {
+	return bootstrapService{rbac: rbac}
+}
+
 func (s bootstrapService) EnsureDefaultAdminAccess(
 	ctx context.Context,
 	userID uint64,

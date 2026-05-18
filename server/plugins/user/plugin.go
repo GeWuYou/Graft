@@ -23,6 +23,8 @@ type Plugin struct {
 	defaultAdminAuth *authService
 	routeAuthorizer  *deferredAuthorizer
 	bootstrapAccess  *deferredRBACAccessService
+	userRepo         userstore.UserRepository
+	authRepo         userstore.AuthRepository
 }
 
 type userListResponse struct {
@@ -38,8 +40,11 @@ type userListItem struct {
 }
 
 // NewPlugin 创建示例用户插件。
-func NewPlugin() *Plugin {
-	return &Plugin{}
+func NewPlugin(userRepo userstore.UserRepository, authRepo userstore.AuthRepository) *Plugin {
+	return &Plugin{
+		userRepo: userRepo,
+		authRepo: authRepo,
+	}
 }
 
 // Name 返回插件的稳定标识。

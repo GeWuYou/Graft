@@ -21,7 +21,6 @@ import (
 	"graft/server/internal/pluginapi"
 	usercontract "graft/server/plugins/user/contract"
 	userstore "graft/server/plugins/user/store"
-	"graft/server/plugins/user/storeadapter"
 )
 
 func registerUserPermissions(registry *permission.Registry, pluginName string) {
@@ -75,8 +74,14 @@ type registeredServices struct {
 }
 
 func (p *Plugin) registerServices(ctx *plugin.Context) (registeredServices, error) {
-	userRepo := storeadapter.NewUserRepositoryAdapter(ctx.Stores.Users())
-	authRepo := storeadapter.NewAuthRepositoryAdapter(ctx.Stores.Auth())
+	userRepo := p.userRepo
+	authRepo := p.authRepo
+	if userRepo == nil {
+		return registeredServices{}, errors.New("user repository is unavailable")
+	}
+	if authRepo == nil {
+		return registeredServices{}, errors.New("auth repository is unavailable")
+	}
 	userSvc := userService{users: userRepo}
 	if err := ctx.Services.RegisterSingleton((*pluginapi.UserService)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil

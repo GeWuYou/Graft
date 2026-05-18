@@ -58,19 +58,27 @@ type Plugin interface {
 // Builder 当前只负责构造插件实例；后续 capability 或插件私有依赖装配
 // 可以继续沿这条边界扩展，而不把共享接线重新塞回中心化 CLI 文件。
 type Builder interface {
-	Build() (Plugin, error)
+	Build(BuildContext) (Plugin, error)
+}
+
+// BuildContext 暴露插件构造阶段允许消费的最小 core 资源。
+//
+// 它只服务于 compile-time builder wiring，不进入插件运行时热路径。
+type BuildContext struct {
+	Services *container.Container
+	Stores   store.Factory
 }
 
 // BuilderFunc 允许用普通函数实现 Builder。
-type BuilderFunc func() (Plugin, error)
+type BuilderFunc func(BuildContext) (Plugin, error)
 
 // Build 执行函数式 Builder。
-func (f BuilderFunc) Build() (Plugin, error) {
+func (f BuilderFunc) Build(ctx BuildContext) (Plugin, error) {
 	if f == nil {
 		return nil, errors.New("plugin builder is required")
 	}
 
-	return f()
+	return f(ctx)
 }
 
 // Descriptor 定义 compile-time 插件元数据与运行时构造入口。
@@ -125,12 +133,12 @@ func (d Descriptor) Validate() error {
 
 // Build 根据描述符构造一个运行时插件实例，并校验运行时元数据没有偏离
 // compile-time 描述符的 canonical truth。
-func (d Descriptor) Build() (Plugin, error) {
+func (d Descriptor) Build(ctx BuildContext) (Plugin, error) {
 	if err := d.Validate(); err != nil {
 		return nil, err
 	}
 
-	built, err := d.Builder.Build()
+	built, err := d.Builder.Build(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("build plugin %s: %w", d.Name(), err)
 	}
@@ -172,7 +180,6 @@ type Context struct {
 	Redis              *redis.Client
 	Router             gin.IRouter
 	Services           *container.Container
-	Stores             store.Factory
 	MenuRegistry       *menu.Registry
 	PermissionRegistry *permission.Registry
 	CronRegistry       *cronx.Registry

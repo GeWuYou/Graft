@@ -23,15 +23,6 @@ import (
 	"graft/server/internal/store"
 )
 
-type pluginTestStoreFactory struct {
-	audit store.AuditRepository
-}
-
-func (f pluginTestStoreFactory) Audit() store.AuditRepository { return f.audit }
-func (f pluginTestStoreFactory) Users() store.UserRepository  { return nil }
-func (f pluginTestStoreFactory) Auth() store.AuthRepository   { return nil }
-func (f pluginTestStoreFactory) RBAC() store.RBACRepository   { return nil }
-
 type memoryAuditRepository struct {
 	items []store.AuditLog
 }
@@ -103,13 +94,16 @@ func newPluginTestContext(t *testing.T, repo store.AuditRepository) (*plugin.Con
 		EventBus:           bus,
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
-		Stores:             pluginTestStoreFactory{audit: repo},
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
 	}
 
-	if err := NewPlugin().Register(ctx); err != nil {
+	pluginInstance, err := NewPlugin(repo)
+	if err != nil {
+		t.Fatalf("build audit plugin: %v", err)
+	}
+	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register audit plugin: %v", err)
 	}
 

@@ -10,6 +10,6 @@ func NewDescriptor() plugin.Descriptor {
 		ID:            instance.Name(),
 		PluginVersion: instance.Version(),
 		Dependencies:  append([]string(nil), instance.DependsOn()...),
-		Builder:       plugin.BuilderFunc(func() (plugin.Plugin, error) { return NewPlugin(), nil }),
+		Builder:       plugin.BuilderFunc(func(plugin.BuildContext) (plugin.Plugin, error) { return NewPlugin(), nil }),
 	}
 }

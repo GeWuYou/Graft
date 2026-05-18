@@ -126,6 +126,29 @@
     dev-only RBAC bootstrap compatibility helper used by `ResetDefaultAdminForDevelopment`
   - the remaining backend hotspots are therefore narrowed further to shared contracts plus still-centralized
     `internal/store/**`, `internal/store/entstore/**`, `internal/ent/**`, and migration ownership
+- The current `2026-05-18` readiness review for parallel `server` worktrees concludes:
+  - Phase 1 is effectively complete: compile-time descriptors, generated registry, registry-driven `serve`, and
+    registry-derived migration directory resolution are all live
+  - Phase 2 is only partially complete: `rbac` and `user` now own private `store/**` contracts, but `plugin.Context`
+    still exposes `Stores store.Factory`, runtime plugins still enter persistence through compatibility adapters, and
+    `server/internal/cli/dev_reset.go` still coordinates reset behavior through centralized `internal/store/**`
+  - Phase 3 has not started in earnest: business Ent schema, generated Ent code, and Atlas migration truth are still
+    centralized under `server/internal/ent/**` and `internal/ent/migrate/migrations`
+  - the branch is therefore suitable for limited plugin-feature parallelism on top of the current seams, but not yet
+    for low-conflict long-lived parallel worktrees that modify plugin persistence, schema, or migrations independently
+- The current `2026-05-18` Phase 2d builder-wiring slice has now landed on the same branch:
+  - `plugin.Builder` now receives explicit `plugin.BuildContext`, and `app.NewRuntime()` now builds runtime plugins only
+    after core services and `store.Factory` are available
+  - `server/internal/cli/serve.go` no longer builds plugin instances directly; plugin construction now happens inside
+    runtime assembly where core resources exist
+  - `server/plugins/user/**`, `server/plugins/rbac/**`, and `server/plugins/audit/**` now receive plugin-private
+    repository adapters during construction instead of reading repositories from `plugin.Context.Stores`
+  - `plugin.Context` no longer exposes `Stores store.Factory`, so active plugin runtime paths cannot reopen the
+    centralized business-store entrypoint by default
+  - `server/plugins/user/dev_reset.go` and `server/internal/cli/dev_reset.go` now consume the stable
+    `pluginapi.RBACBootstrapService` path instead of the removed repository-backed compatibility bootstrap seam
+  - the remaining Phase 2 hotspot is therefore narrowed further to core still registering `store.Factory` for
+    transitional service/container needs, while active plugin lifecycle code no longer consumes it directly
 
 ## Shared Hotspots
 
@@ -187,6 +210,22 @@
   - `rg -n "multi-worktree|worktree|兼容|compat|shared/|app/|modules/|refactor/web-module-boundaries|primary-main|main" ai-plan/public/multi-worktree-governance ai-plan/design/前端架构设计.md ai-plan/public/README.md`
 - AGENTS split consistency was checked with:
   - `rg -n "web/AGENTS.md|server/AGENTS.md|Subdomain governance|执行真值|前端执行级治理真值|后端执行级治理真值" AGENTS.md web/AGENTS.md server/AGENTS.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/design/前端架构设计.md ai-plan/design/插件与依赖注入设计.md`
+- The current `server` readiness review for multi-worktree execution was grounded with:
+  - `sed -n '1,260p' server/internal/plugin/plugin.go`
+  - `sed -n '1,260p' server/internal/cli/serve.go`
+  - `sed -n '1,260p' server/internal/cli/migrate.go`
+  - `sed -n '1,240p' server/internal/pluginregistry/registry.go`
+  - `sed -n '1,240p' server/internal/pluginregistry/generated.go`
+  - `sed -n '1,260p' server/internal/pluginapi/rbac.go`
+  - `sed -n '1,260p' server/plugins/rbac/storeadapter/internal_store.go`
+  - `sed -n '1,260p' server/plugins/user/storeadapter/internal_store.go`
+  - `sed -n '1,220p' server/plugins/user/bootstrap_admin.go`
+  - `find server/internal/ent -maxdepth 3 -type d | sort`
+  - `find server/plugins -maxdepth 3 -type d | sort`
+  - `rg -n 'ctx\\.Stores\\(|internal/store|internal/ent/migrate|internal/ent/schema|pluginregistry|Descriptor|Builder' server/internal server/plugins --glob '!server/internal/ent/**'`
+- The current `server` Phase 2d builder-wiring slice was validated with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/app ./internal/cli ./plugins/user ./plugins/rbac ./plugins/audit ./plugins/scheduler`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
 - Current frontend structure and ownership surfaces were grounded with:
   - `find web/src -maxdepth 3 -type d | sort`
   - `rg --files web/src | rg "^(web/src/(api|contracts|app|modules|components|store|router|shared|pages|hooks|utils))"`

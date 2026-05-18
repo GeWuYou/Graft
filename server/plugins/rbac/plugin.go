@@ -13,7 +13,6 @@ import (
 	"graft/server/internal/pluginapi"
 	rbaccontract "graft/server/plugins/rbac/contract"
 	rbacstore "graft/server/plugins/rbac/store"
-	"graft/server/plugins/rbac/storeadapter"
 )
 
 // Plugin 是 MVP 阶段最小可用的 RBAC 插件。
@@ -21,11 +20,13 @@ import (
 // 当前实现同时承载两类稳定边界：
 //   - 暴露 `pluginapi.Authorizer`，把权限判断收敛为统一后端安全边界
 //   - 提供角色/权限只读管理路由，供 `web` 消费真实 RBAC 快照
-type Plugin struct{}
+type Plugin struct {
+	repository rbacstore.Repository
+}
 
 // NewPlugin 创建最小 RBAC 插件。
-func NewPlugin() *Plugin {
-	return &Plugin{}
+func NewPlugin(repository rbacstore.Repository) *Plugin {
+	return &Plugin{repository: repository}
 }
 
 // Name 返回插件稳定标识。
@@ -52,7 +53,10 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 	registerRBACPermissions(ctx.PermissionRegistry, p.Name())
 	registerRBACMenu(ctx.MenuRegistry, p.Name())
-	repository := storeadapter.NewInternalRepositoryAdapter(ctx.Stores.RBAC())
+	repository := p.repository
+	if repository == nil {
+		return errors.New("rbac repository is unavailable")
+	}
 	if err := ctx.Services.RegisterSingleton((*pluginapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
 		return accessService{rbac: repository}, nil
 	}); err != nil {

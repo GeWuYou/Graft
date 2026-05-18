@@ -98,16 +98,16 @@ func TestManagerOrderedRejectsDependencyCycle(t *testing.T) {
 // TestOrderDescriptorsIsIndependentFromInputOrder 验证描述符排序不依赖生成输入顺序。
 func TestOrderDescriptorsIsIndependentFromInputOrder(t *testing.T) {
 	input := []Descriptor{
-		{ID: "scheduler", PluginVersion: "0.1.0", Builder: BuilderFunc(func() (Plugin, error) {
+		{ID: "scheduler", PluginVersion: "0.1.0", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
 			return testPlugin{name: "scheduler", version: "0.1.0"}, nil
 		})},
-		{ID: "rbac", PluginVersion: "0.1.0", Dependencies: []string{"user"}, Builder: BuilderFunc(func() (Plugin, error) {
+		{ID: "rbac", PluginVersion: "0.1.0", Dependencies: []string{"user"}, Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
 			return testPlugin{name: "rbac", version: "0.1.0", dependsOn: []string{"user"}}, nil
 		})},
-		{ID: "audit", PluginVersion: "0.1.0", Builder: BuilderFunc(func() (Plugin, error) {
+		{ID: "audit", PluginVersion: "0.1.0", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
 			return testPlugin{name: "audit", version: "0.1.0"}, nil
 		})},
-		{ID: "user", PluginVersion: "0.1.0", Builder: BuilderFunc(func() (Plugin, error) {
+		{ID: "user", PluginVersion: "0.1.0", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
 			return testPlugin{name: "user", version: "0.1.0"}, nil
 		})},
 	}
@@ -135,12 +135,12 @@ func TestDescriptorBuildWrapsCanonicalMetadata(t *testing.T) {
 		ID:            "rbac",
 		PluginVersion: "0.2.0",
 		Dependencies:  []string{"user"},
-		Builder: BuilderFunc(func() (Plugin, error) {
+		Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
 			return testPlugin{name: "rbac", version: "0.2.0", dependsOn: []string{"user"}}, nil
 		}),
 	}
 
-	built, err := descriptor.Build()
+	built, err := descriptor.Build(BuildContext{})
 	if err != nil {
 		t.Fatalf("build descriptor: %v", err)
 	}
@@ -163,12 +163,12 @@ func TestDescriptorBuildRejectsRuntimeMetadataDrift(t *testing.T) {
 		ID:            "rbac",
 		PluginVersion: "0.2.0",
 		Dependencies:  []string{"user"},
-		Builder: BuilderFunc(func() (Plugin, error) {
+		Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
 			return testPlugin{name: "rbac-v2", version: "0.2.0", dependsOn: []string{"user"}}, nil
 		}),
 	}
 
-	_, err := descriptor.Build()
+	_, err := descriptor.Build(BuildContext{})
 	if err == nil {
 		t.Fatal("expected descriptor metadata drift error")
 	}

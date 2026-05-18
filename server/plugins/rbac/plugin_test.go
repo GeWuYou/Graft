@@ -47,27 +47,6 @@ type testRBACRepository struct {
 	permissionsErr     error
 }
 
-type testUserRepository struct {
-	users map[uint64]store.User
-}
-
-func (r testUserRepository) GetByID(_ context.Context, id uint64) (store.User, error) {
-	if user, ok := r.users[id]; ok {
-		return user, nil
-	}
-
-	return store.User{}, store.ErrUserNotFound
-}
-
-func (r testUserRepository) List(_ context.Context) ([]store.User, error) {
-	items := make([]store.User, 0, len(r.users))
-	for _, user := range r.users {
-		items = append(items, user)
-	}
-
-	return items, nil
-}
-
 type testUserService struct {
 	users map[uint64]store.User
 }
@@ -192,16 +171,6 @@ func (r testRBACRepository) ListRolePermissionBindings(ctx context.Context, role
 	return bindings, nil
 }
 
-type pluginTestStoreFactory struct {
-	users store.UserRepository
-	rbac  store.RBACRepository
-}
-
-func (f pluginTestStoreFactory) Audit() store.AuditRepository { return nil }
-func (f pluginTestStoreFactory) Users() store.UserRepository  { return f.users }
-func (f pluginTestStoreFactory) Auth() store.AuthRepository   { return nil }
-func (f pluginTestStoreFactory) RBAC() store.RBACRepository   { return f.rbac }
-
 type testAuthService struct {
 	user pluginapi.CurrentUser
 }
@@ -242,15 +211,6 @@ func newPluginTestContext(t *testing.T, repo store.RBACRepository) (*plugin.Cont
 		I18n:             i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		Router:           engine.Group("/api"),
 		Services:         container.New(),
-		Stores: pluginTestStoreFactory{
-			users: testUserRepository{
-				users: map[uint64]store.User{
-					7: {ID: 7, Username: "alice", Display: "Alice"},
-					8: {ID: 8, Username: "bob", Display: "Bob"},
-				},
-			},
-			rbac: repo,
-		},
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
@@ -274,7 +234,7 @@ func newPluginTestContext(t *testing.T, repo store.RBACRepository) (*plugin.Cont
 		t.Fatalf("register user service: %v", err)
 	}
 
-	if err := NewPlugin().Register(ctx); err != nil {
+	if err := NewPlugin(storeadapter.NewInternalRepositoryAdapter(repo)).Register(ctx); err != nil {
 		t.Fatalf("register rbac plugin: %v", err)
 	}
 

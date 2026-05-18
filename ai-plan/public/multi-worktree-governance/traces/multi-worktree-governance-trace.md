@@ -218,6 +218,68 @@
   - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
   - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage buildtest`
 - Immediate next step after this slice:
+  - continue Phase 2 by removing centralized business-store entry from plugin runtime wiring before opening the first
+    long-lived backend feature worktrees
+
+## 2026-05-18 server readiness review for parallel worktrees
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, recovered through the active
+  `multi-worktree-governance` parent topic, and reviewed the live backend wiring against the topic plan and
+  `server/AGENTS.md`.
+- Confirmed the compile-time registry baseline is live:
+  - `plugin.Descriptor.Build()` is the canonical runtime construction boundary
+  - `serve` now builds plugins from `pluginregistry.BuildPlugins()`
+  - `migrate` now resolves default migration directories through `pluginregistry.MigrationDirs()`
+  - `server/internal/pluginregistry/generated.go` is the only centralized plugin list
+- Confirmed the service/store decoupling is only partial:
+  - `server/plugins/rbac/store/**` and `server/plugins/user/store/**` now own plugin-private repository contracts
+  - both plugins still reach persistence through temporary `storeadapter/internal_store.go` seams over
+    `server/internal/store/**`
+  - `plugin.Context` still exposes `Stores store.Factory`, so runtime plugin wiring still offers a centralized
+    business-store entrypoint
+  - `server/plugins/user/bootstrap_admin.go` still contains a repository-backed RBAC bootstrap compatibility helper
+    over `internalstore.RBACRepository`
+- Confirmed the largest merge hotspots remain unresolved:
+  - business Ent schema and generated code still live in `server/internal/ent/**`
+  - default Atlas migration truth still starts from `internal/ent/migrate/migrations`
+  - CLI dev/reset flow still depends on centralized `internal/store/**`
+- Conclusion:
+  - the branch can already support limited parallel feature work inside plugin-local HTTP/service logic
+  - it does not yet meet the stricter goal of low-conflict long-lived parallel worktrees for persistence/schema-heavy
+    plugin development
+- Immediate next step:
+  - complete Phase 2 runtime decoupling first, then start Phase 3 Ent/migration ownership migration before declaring
+    backend worktree readiness
+
+## 2026-05-18 server Phase 2d builder-wiring decoupling
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, recovered through the active
+  `multi-worktree-governance` parent topic, and implemented the next backend decoupling slice locally without
+  multi-agent work because the write scope stayed tightly coupled across plugin/runtime assembly boundaries.
+- Moved runtime plugin construction behind explicit core-owned build context:
+  - `plugin.Builder` now consumes `plugin.BuildContext`
+  - `pluginregistry.BuildPlugins(...)` now requires that build context
+  - `app.NewRuntime()` now constructs plugins only after core services and `store.Factory` exist
+  - `serve` no longer constructs plugin instances directly
+- Narrowed active plugin runtime dependencies:
+  - `user`, `rbac`, and `audit` plugins now receive their repository adapters during construction
+  - active plugin lifecycle code no longer reads repositories from `plugin.Context.Stores`
+  - `plugin.Context` no longer exposes `Stores`, reducing the chance of new runtime business-store backflow
+- Closed the remaining default-admin compatibility seam introduced by earlier slices:
+  - removed the repository-backed RBAC bootstrap helper from `server/plugins/user/bootstrap_admin.go`
+  - `user` dev reset now consumes the stable `pluginapi.RBACBootstrapService`
+  - `server/internal/cli/dev_reset.go` now builds that capability through the RBAC plugin-local adapter path
+- Validation for the slice finished with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/app ./internal/cli ./plugins/user ./plugins/rbac ./plugins/audit ./plugins/scheduler`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+- Resulting readiness update:
+  - Phase 2 is still not fully complete because `store.Factory` remains registered inside core and Ent/migration
+    ownership is still centralized
+  - but active plugin lifecycle code is now materially closer to the target multi-worktree model because repository
+    wiring moved from runtime context access into compile-time builder/runtime assembly
+- Immediate next step:
+  - begin Phase 3 by defining the first plugin-owned Ent/migration split, starting with the smaller/lower-risk owner
+    between `rbac` and `user`
   - preserve the new compile-time registry seam as the only central wiring path
   - choose one Phase 2 boundary for plugin-private store/capability migration instead of reopening core-owned wiring
 

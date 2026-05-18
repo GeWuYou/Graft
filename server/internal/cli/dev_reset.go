@@ -12,6 +12,8 @@ import (
 	"graft/server/internal/database"
 	"graft/server/internal/store"
 	"graft/server/internal/store/entstore"
+	rbacplugin "graft/server/plugins/rbac"
+	rbacstoreadapter "graft/server/plugins/rbac/storeadapter"
 	"graft/server/plugins/user"
 	"graft/server/plugins/user/storeadapter"
 )
@@ -24,7 +26,11 @@ var (
 		return entstore.NewFactory(resources.Client)
 	}
 	devResetAdmin = func(ctx context.Context, authRepo store.AuthRepository, rbacRepo store.RBACRepository) error {
-		return user.ResetDefaultAdminForDevelopment(ctx, storeadapter.NewAuthRepositoryAdapter(authRepo), rbacRepo)
+		return user.ResetDefaultAdminForDevelopment(
+			ctx,
+			storeadapter.NewAuthRepositoryAdapter(authRepo),
+			rbacplugin.NewBootstrapService(rbacstoreadapter.NewInternalRepositoryAdapter(rbacRepo)),
+		)
 	}
 )
 

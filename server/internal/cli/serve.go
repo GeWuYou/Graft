@@ -9,17 +9,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/app"
-	"graft/server/internal/plugin"
-	"graft/server/internal/pluginregistry"
 )
 
 type runtimeRunner interface {
 	Run(context.Context) error
 }
 
-var serveBuildPlugins = pluginregistry.BuildPlugins
-var serveNewRuntime = func(plugins ...plugin.Plugin) (runtimeRunner, error) {
-	return app.NewRuntime(plugins...)
+var serveNewRuntime = func() (runtimeRunner, error) {
+	return app.NewRuntime()
 }
 var serveNotifyContext = signal.NotifyContext
 
@@ -40,12 +37,7 @@ func newServeCommand() *cobra.Command {
 // 它把 CLI 上下文转换为可响应 SIGINT 和 SIGTERM 的运行时上下文，让
 // `app.Runtime` 能沿同一条显式生命周期路径完成关闭。
 func runServe(cmd *cobra.Command, _ []string) error {
-	plugins, err := serveBuildPlugins()
-	if err != nil {
-		return fmt.Errorf("build runtime plugins: %w", err)
-	}
-
-	runtime, err := serveNewRuntime(plugins...)
+	runtime, err := serveNewRuntime()
 	if err != nil {
 		return fmt.Errorf("create runtime: %w", err)
 	}

@@ -23,6 +23,7 @@ import (
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
+	"graft/server/internal/pluginregistry"
 	"graft/server/internal/redisx"
 	"graft/server/internal/store"
 	"graft/server/internal/store/entstore"
@@ -61,7 +62,7 @@ type Runtime struct {
 // 返回：
 //   - *Runtime: 已完成 core 资源装配和插件登记的运行时对象。
 //   - error: 当配置、数据库、Redis 或核心服务注册失败时返回错误，并尽力回收已创建资源。
-func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
+func NewRuntime() (*Runtime, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
@@ -124,6 +125,15 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 
 	runtime.registerCoreRoutes(server.Engine())
 
+	plugins, err := pluginregistry.BuildPlugins(plugin.BuildContext{
+		Services: services,
+		Stores:   stores,
+	})
+	if err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, fmt.Errorf("build runtime plugins: %w", err)
+	}
+
 	for _, current := range plugins {
 		if err := runtime.pluginManager.RegisterPlugin(current); err != nil {
 			_ = runtime.closeCoreResources()
@@ -154,7 +164,6 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		Redis:              r.redis,
 		Router:             r.server.Engine().Group("/api"),
 		Services:           r.services,
-		Stores:             r.stores,
 		MenuRegistry:       r.menuRegistry,
 		PermissionRegistry: r.permissionRegistry,
 		CronRegistry:       r.cronRegistry,

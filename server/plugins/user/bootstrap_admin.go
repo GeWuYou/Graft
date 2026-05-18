@@ -9,7 +9,6 @@ import (
 
 	"graft/server/internal/permission"
 	"graft/server/internal/pluginapi"
-	internalstore "graft/server/internal/store"
 	userstore "graft/server/plugins/user/store"
 )
 
@@ -88,75 +87,6 @@ func (s authService) reconcileDefaultAdminCredential(
 	return credential, nil
 }
 
-func ensureRolePermissions(
-	ctx context.Context,
-	rbac internalstore.RBACRepository,
-	roleID uint64,
-	permissions []permission.Item,
-) error {
-	permissionIDs := make([]uint64, 0, len(permissions))
-	for _, item := range permissions {
-		record, err := rbac.EnsurePermission(ctx, internalstore.EnsurePermissionInput{
-			Code:        item.Code,
-			Display:     item.Name,
-			Description: stringPtrOrNil(item.Description),
-			Category:    item.Category,
-		})
-		if err != nil {
-			return fmt.Errorf("ensure permission %s: %w", item.Code, err)
-		}
-		permissionIDs = append(permissionIDs, record.ID)
-	}
-	if len(permissionIDs) == 0 {
-		return nil
-	}
-
-	if err := rbac.AssignPermissionsToRole(ctx, internalstore.AssignPermissionsToRoleInput{
-		RoleID:        roleID,
-		PermissionIDs: permissionIDs,
-	}); err != nil {
-		return fmt.Errorf("assign permissions to default admin role: %w", err)
-	}
-
-	return nil
-}
-
-func ensureDefaultAdminAccess(
-	ctx context.Context,
-	rbac internalstore.RBACRepository,
-	userID uint64,
-	permissions []permission.Item,
-) error {
-	role, err := rbac.EnsureRole(ctx, internalstore.EnsureRoleInput{
-		Name:    defaultAdminRoleName,
-		Display: "管理员",
-		Builtin: true,
-	})
-	if err != nil {
-		return fmt.Errorf("ensure default admin role: %w", err)
-	}
-
-	if err := ensureRolePermissions(ctx, rbac, role.ID, permissions); err != nil {
-		return err
-	}
-	if err := rbac.AssignRoleToUser(ctx, internalstore.AssignRoleToUserInput{
-		UserID: userID,
-		RoleID: role.ID,
-	}); err != nil {
-		return fmt.Errorf("assign default admin role to user: %w", err)
-	}
-
-	return nil
-}
-
-func stringPtrOrNil(value string) *string {
-	if value == "" {
-		return nil
-	}
-	result := value
-	return &result
-}
-
 func permissionSeedsFromItems(items []permission.Item) []pluginapi.PermissionSeed {
 	seeds := make([]pluginapi.PermissionSeed, 0, len(items))
 	for _, item := range items {
@@ -170,31 +100,3 @@ func permissionSeedsFromItems(items []permission.Item) []pluginapi.PermissionSee
 
 	return seeds
 }
-
-type repositoryBackedRBACBootstrapService struct {
-	rbac internalstore.RBACRepository
-}
-
-func (s repositoryBackedRBACBootstrapService) EnsureDefaultAdminAccess(
-	ctx context.Context,
-	userID uint64,
-	permissions []pluginapi.PermissionSeed,
-) error {
-	if s.rbac == nil {
-		return errors.New("rbac repository is unavailable")
-	}
-
-	items := make([]permission.Item, 0, len(permissions))
-	for _, permissionSeed := range permissions {
-		items = append(items, permission.Item{
-			Code:        permissionSeed.Code,
-			Name:        permissionSeed.Display,
-			Description: permissionSeed.Description,
-			Category:    permissionSeed.Category,
-		})
-	}
-
-	return ensureDefaultAdminAccess(ctx, s.rbac, userID, items)
-}
-
-var _ pluginapi.RBACBootstrapService = repositoryBackedRBACBootstrapService{}

@@ -23,7 +23,7 @@ func OrderedDescriptors() ([]plugin.Descriptor, error) {
 }
 
 // BuildPlugins 根据 compile-time 描述符构造运行时插件集合。
-func BuildPlugins() ([]plugin.Plugin, error) {
+func BuildPlugins(buildCtx plugin.BuildContext) ([]plugin.Plugin, error) {
 	ordered, err := OrderedDescriptors()
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func BuildPlugins() ([]plugin.Plugin, error) {
 
 	built := make([]plugin.Plugin, 0, len(ordered))
 	for _, descriptor := range ordered {
-		instance, err := descriptor.Build()
+		instance, err := descriptor.Build(buildCtx)
 		if err != nil {
 			return nil, fmt.Errorf("build plugin %s: %w", descriptor.Name(), err)
 		}
