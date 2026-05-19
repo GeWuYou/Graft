@@ -2,11 +2,11 @@ package user
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"strings"
 
-	"graft/server/internal/ent"
 	"graft/server/internal/pluginapi"
 	userstore "graft/server/plugins/user/store"
 	"graft/server/plugins/user/storeent"
@@ -16,8 +16,13 @@ import (
 type AuthRepositoryForReset = userstore.AuthRepository
 
 // NewAuthRepositoryForReset exposes the user plugin's dev-reset auth boundary.
-func NewAuthRepositoryForReset(client *ent.Client) (AuthRepositoryForReset, error) {
-	return storeent.NewAuthRepository(client)
+func NewAuthRepositoryForReset(sqlDB *sql.DB) (AuthRepositoryForReset, error) {
+	storeRuntime, err := storeent.NewRuntime(sqlDB)
+	if err != nil {
+		return nil, err
+	}
+
+	return storeRuntime.NewAuthRepository()
 }
 
 // ResetDefaultAdminForDevelopment 在开发环境里把默认管理员重置回首次登录受限态。

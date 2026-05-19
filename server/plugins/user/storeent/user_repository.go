@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"graft/server/internal/ent"
+	ent "graft/server/plugins/user/ent"
 	userent "graft/server/plugins/user/ent/user"
 	userstore "graft/server/plugins/user/store"
 )
@@ -15,6 +15,10 @@ type userRepository struct {
 
 // NewUserRepository builds the user plugin's Ent-backed user repository.
 func NewUserRepository(client *ent.Client) (userstore.UserRepository, error) {
+	return newUserRepository(client)
+}
+
+func newUserRepository(client *ent.Client) (*userRepository, error) {
 	if client == nil {
 		return nil, fmt.Errorf("user storeent requires a non-nil ent client")
 	}

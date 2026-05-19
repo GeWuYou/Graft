@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -11,7 +12,6 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/database"
-	"graft/server/internal/ent"
 	"graft/server/internal/pluginapi"
 	"graft/server/plugins/user"
 	userstore "graft/server/plugins/user/store"
@@ -71,7 +71,7 @@ func TestRunDevResetAdminResetsDefaultAdmin(t *testing.T) {
 		steps = append(steps, "close-db")
 		return nil
 	}
-	devResetNewAuthRepository = func(_ *ent.Client) (user.AuthRepositoryForReset, error) {
+	devResetNewAuthRepository = func(_ *sql.DB) (user.AuthRepositoryForReset, error) {
 		steps = append(steps, "new-auth-repository")
 		return userAuthRepositoryForResetStub{}, nil
 	}
@@ -134,7 +134,7 @@ func TestRunDevResetAdminWrapsResetFailure(t *testing.T) {
 	devResetCloseDB = func(*database.Resources) error {
 		return nil
 	}
-	devResetNewAuthRepository = func(_ *ent.Client) (user.AuthRepositoryForReset, error) {
+	devResetNewAuthRepository = func(_ *sql.DB) (user.AuthRepositoryForReset, error) {
 		return userAuthRepositoryForResetStub{}, nil
 	}
 	devResetResolveRBACBootstrap = func(*database.Resources) (pluginapi.RBACBootstrapService, error) {

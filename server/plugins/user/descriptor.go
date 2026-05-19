@@ -1,9 +1,9 @@
 package user
 
 import (
+	"database/sql"
 	"fmt"
 
-	"graft/server/internal/ent"
 	"graft/server/internal/plugin"
 	"graft/server/plugins/user/storeent"
 )
@@ -21,15 +21,19 @@ func NewDescriptor() plugin.Descriptor {
 		Dependencies:  nil,
 		MigrationPath: []string{"plugins/user/migrations"},
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
-			client, err := plugin.ResolveService[*ent.Client](ctx.Services, (*ent.Client)(nil))
+			sqlDB, err := plugin.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
 			if err != nil {
-				return nil, fmt.Errorf("resolve ent client: %w", err)
+				return nil, fmt.Errorf("resolve sql db: %w", err)
 			}
-			userRepo, err := storeent.NewUserRepository(client)
+			storeRuntime, err := storeent.NewRuntime(sqlDB)
+			if err != nil {
+				return nil, fmt.Errorf("build user storeent runtime: %w", err)
+			}
+			userRepo, err := storeRuntime.NewUserRepository()
 			if err != nil {
 				return nil, fmt.Errorf("build user storeent repository: %w", err)
 			}
-			authRepo, err := storeent.NewAuthRepository(client)
+			authRepo, err := storeRuntime.NewAuthRepository()
 			if err != nil {
 				return nil, fmt.Errorf("build user auth storeent repository: %w", err)
 			}

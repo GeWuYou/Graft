@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -192,6 +193,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	runtimeLogger := zap.NewNop()
 	runtimeEventBus := eventbus.New(runtimeLogger)
 	entClient := ent.NewClient()
+	sqlDB := &sql.DB{}
 
 	cfg := &config.Config{
 		App: config.AppConfig{Name: "graft", Env: "test"},
@@ -219,7 +221,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		config:   cfg,
 		logger:   runtimeLogger,
 		i18n:     localizer,
-		database: &database.Resources{Client: entClient},
+		database: &database.Resources{SQL: sqlDB, Client: entClient},
 		redis:    redisClient,
 		eventBus: runtimeEventBus,
 		services: container.New(),
@@ -234,6 +236,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*i18n.Service)(nil), localizer, "i18n service")
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
 	assertResolvedService(t, runtime.services, (*ent.Client)(nil), entClient, "ent client")
+	assertResolvedService(t, runtime.services, (*sql.DB)(nil), sqlDB, "sql db")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
 }
 

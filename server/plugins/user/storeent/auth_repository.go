@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"graft/server/internal/ent"
+	ent "graft/server/plugins/user/ent"
 	refreshsessionent "graft/server/plugins/user/ent/refreshsession"
 	userent "graft/server/plugins/user/ent/user"
 	userstore "graft/server/plugins/user/store"
@@ -18,6 +18,10 @@ type authRepository struct {
 
 // NewAuthRepository builds the user plugin's Ent-backed auth/session repository.
 func NewAuthRepository(client *ent.Client) (userstore.AuthRepository, error) {
+	return newAuthRepository(client)
+}
+
+func newAuthRepository(client *ent.Client) (*authRepository, error) {
 	if client == nil {
 		return nil, fmt.Errorf("user storeent requires a non-nil ent client")
 	}

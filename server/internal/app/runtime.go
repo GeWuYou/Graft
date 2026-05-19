@@ -3,6 +3,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -249,6 +250,15 @@ func (r *Runtime) registerCoreServices() error {
 					return nil, errors.New("ent client is unavailable")
 				}
 				return r.database.Client, nil
+			},
+		},
+		{
+			key: (*sql.DB)(nil),
+			provider: func() (any, error) {
+				if r.database == nil || r.database.SQL == nil {
+					return nil, errors.New("database sql pool is unavailable")
+				}
+				return r.database.SQL, nil
 			},
 		},
 		{

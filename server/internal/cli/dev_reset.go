@@ -71,7 +71,7 @@ func runDevResetAdmin(cmd *cobra.Command) (err error) {
 		}
 	}()
 
-	authRepo, err := devResetNewAuthRepository(resources.Client)
+	authRepo, err := devResetNewAuthRepository(resources.SQL)
 	if err != nil {
 		return fmt.Errorf("create user auth repository: %w", err)
 	}
