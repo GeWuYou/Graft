@@ -410,8 +410,8 @@
   - continue Phase 2 from the landed service-capability seam instead of reintroducing direct user/rbac repository
     coupling
   - continue after the landed RBAC and user contract moves by migrating the remaining persistence implementation
-    ownership out of `internal/store/**` / `internal/store/entstore/**`, starting with either `rbac/storeent/**` or
-    the matching `user/storeent/**` slice
+    ownership out of `internal/store/**` / `internal/store/entstore/**`, starting with the remaining
+    `rbac/storeent/**` extraction and the matching `ent/schema` + Atlas migration ownership split
 - Keep the landed docs/automation loop workflow aligned before relying on it for long-running repository work:
   - keep `graft-multi-agent-loop` as an outer wrapper only; do not let it redefine startup, closeout, or commit rules
   - keep `graft-multi-agent-task` and `graft-task-closeout` aligned on the dual-channel closeout contract
