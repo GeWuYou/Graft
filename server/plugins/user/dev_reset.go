@@ -9,8 +9,6 @@ import (
 	"graft/server/internal/ent"
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
-	rbacplugin "graft/server/plugins/rbac"
-	rbacstoreadapter "graft/server/plugins/rbac/storeadapter"
 	userstore "graft/server/plugins/user/store"
 	"graft/server/plugins/user/storeadapter"
 	"graft/server/plugins/user/storeent"
@@ -22,12 +20,6 @@ type AuthRepositoryForReset = userstore.AuthRepository
 // NewAuthRepositoryForReset exposes the user plugin's dev-reset auth boundary.
 func NewAuthRepositoryForReset(client *ent.Client) (AuthRepositoryForReset, error) {
 	return storeent.NewAuthRepository(client)
-}
-
-// NewRBACBootstrapServiceForReset exposes the dev-reset RBAC capability through
-// the plugin root package instead of leaking private adapter ownership to core.
-func NewRBACBootstrapServiceForReset(repo store.RBACRepository) pluginapi.RBACBootstrapService {
-	return rbacplugin.NewBootstrapService(rbacstoreadapter.NewInternalRepositoryAdapter(repo))
 }
 
 // NewAuthRepositoryForResetFromInternal adapts transitional internal auth
