@@ -3,9 +3,9 @@ package rbac
 import (
 	"fmt"
 
+	"graft/server/internal/ent"
 	"graft/server/internal/plugin"
-	"graft/server/internal/store"
-	"graft/server/plugins/rbac/storeadapter"
+	"graft/server/plugins/rbac/storeent"
 )
 
 const (
@@ -21,13 +21,18 @@ func NewDescriptor() plugin.Descriptor {
 		ID:            pluginID,
 		PluginVersion: pluginVersion,
 		Dependencies:  append([]string(nil), pluginDependencies...),
+		MigrationPath: []string{"plugins/rbac/migrations"},
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
-			repo, err := plugin.ResolveService[store.RBACRepository](ctx.Services, (*store.RBACRepository)(nil))
+			client, err := plugin.ResolveService[*ent.Client](ctx.Services, (*ent.Client)(nil))
 			if err != nil {
-				return nil, fmt.Errorf("resolve rbac repository: %w", err)
+				return nil, fmt.Errorf("resolve ent client: %w", err)
+			}
+			repo, err := storeent.NewRepository(client)
+			if err != nil {
+				return nil, fmt.Errorf("build rbac storeent repository: %w", err)
 			}
 
-			return NewPlugin(storeadapter.NewInternalRepositoryAdapter(repo)), nil
+			return NewPlugin(repo), nil
 		}),
 	}
 }

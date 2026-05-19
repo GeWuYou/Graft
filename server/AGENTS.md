@@ -174,6 +174,12 @@
   - cross-plugin business ability
   - dev/reset hook
   - stable query/service contract
+- `user` 作为 `rbac` 的上游插件时，只暴露稳定用户能力：
+  - 用户存在性检查
+  - 用户基础身份查询
+  - 用户删除前约束检查
+- `user` 不拥有 `user_roles`，也不对外暴露角色分配实现细节、`user_roles` repository、`user_roles` schema 或对应 Ent 包
+- `rbac` 若需要校验 `user_id`，必须通过 `user` 暴露的稳定 capability / contract 完成；禁止直接 import `user` 的 Ent 包或其它私有持久化实现
 - 同一高风险语义只能有一个 canonical definition
 - route contract 优先保持 `group path + route fragment` 真相，不要为同一语义并存多套 full path 常量
 - `permission code`、`event name`、`message key`、`header name`、`auth scheme`、共享状态枚举都属于高风险 contract
@@ -241,6 +247,9 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - 一个 migration 只能修改：
   - 当前 owner 拥有的表
   - 或 core-owned 表
+- `user_roles` 的最终表 owner 是 `rbac`
+- `rbac` 拥有 `user_roles` 的 Ent schema、repository、migration 与测试
+- 历史 mixed Atlas migration 不重写；若要把 ownership checkpoint 写入迁移链，只允许通过 `rbac` 的 forward-only migration 增量记录
 - 禁止：
   - `rbac` migration 修改 `user` 表
   - `audit` migration 修改 `rbac` 表
@@ -305,6 +314,12 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - `ai-plan/**`
 
 除白名单外，其它目录默认视为 owned scope，不应被多个长期工作树共同持有。
+
+与 `user` / `rbac` 边界直接相关的多工作树规则再补充为：
+
+- `RBAC` worktree 可以修改 `user_roles` 相关的 schema、repository、migration、测试与 plugin-local contract
+- `User` worktree 不直接修改 `user_roles`
+- `User` worktree 若需要配合角色分配语义，只能修改 `user` 自有稳定 capability / contract，并通过共享治理文档或共享稳定边界与 `RBAC` worktree 对齐
 
 ## 10. Go 编码规则
 

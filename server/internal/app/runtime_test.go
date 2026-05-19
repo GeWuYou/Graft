@@ -106,17 +106,11 @@ func (runtimeTestStoreFactory) Auth() store.AuthRepository {
 	return runtimeTestAuthRepository{}
 }
 
-func (runtimeTestStoreFactory) RBAC() store.RBACRepository {
-	return runtimeTestRBACRepository{}
-}
-
 type runtimeTestUserRepository struct{}
 
 type runtimeTestAuditRepository struct{}
 
 type runtimeTestAuthRepository struct{}
-
-type runtimeTestRBACRepository struct{}
 
 func (runtimeTestUserRepository) GetByID(context.Context, uint64) (store.User, error) {
 	return store.User{}, nil
@@ -172,62 +166,6 @@ func (runtimeTestAuthRepository) ListActiveRefreshSessionsByUserID(context.Conte
 
 func (runtimeTestAuthRepository) RotateRefreshSession(context.Context, store.RotateRefreshSessionInput) (store.RefreshSession, error) {
 	return store.RefreshSession{}, nil
-}
-
-func (runtimeTestRBACRepository) EnsureRole(context.Context, store.EnsureRoleInput) (store.Role, error) {
-	return store.Role{}, nil
-}
-
-func (runtimeTestRBACRepository) EnsurePermission(context.Context, store.EnsurePermissionInput) (store.Permission, error) {
-	return store.Permission{}, nil
-}
-
-func (runtimeTestRBACRepository) CreateRole(context.Context, store.CreateRoleInput) (store.Role, error) {
-	return store.Role{}, nil
-}
-
-func (runtimeTestRBACRepository) UpdateRole(context.Context, store.UpdateRoleInput) (store.Role, error) {
-	return store.Role{}, nil
-}
-
-func (runtimeTestRBACRepository) AssignPermissionsToRole(context.Context, store.AssignPermissionsToRoleInput) error {
-	return nil
-}
-
-func (runtimeTestRBACRepository) ReplacePermissionsForRole(context.Context, store.ReplacePermissionsForRoleInput) error {
-	return nil
-}
-
-func (runtimeTestRBACRepository) AssignRoleToUser(context.Context, store.AssignRoleToUserInput) error {
-	return nil
-}
-
-func (runtimeTestRBACRepository) ReplaceRolesForUser(context.Context, store.ReplaceRolesForUserInput) error {
-	return nil
-}
-
-func (runtimeTestRBACRepository) GetRoleByID(context.Context, uint64) (store.Role, error) {
-	return store.Role{}, nil
-}
-
-func (runtimeTestRBACRepository) ListRolesByUserID(context.Context, uint64) ([]store.Role, error) {
-	return nil, nil
-}
-
-func (runtimeTestRBACRepository) ListRoles(context.Context) ([]store.Role, error) {
-	return nil, nil
-}
-
-func (runtimeTestRBACRepository) ListPermissionsByUserID(context.Context, uint64) ([]store.Permission, error) {
-	return nil, nil
-}
-
-func (runtimeTestRBACRepository) ListPermissions(context.Context) ([]store.Permission, error) {
-	return nil, nil
-}
-
-func (runtimeTestRBACRepository) ListRolePermissionBindings(context.Context, uint64) ([]store.RolePermissionBinding, error) {
-	return nil, nil
 }
 
 type eventBusRecorderPlugin struct {
@@ -379,7 +317,6 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvableService(t, runtime.services, (*store.AuditRepository)(nil), "audit repository")
 	assertResolvableService(t, runtime.services, (*store.UserRepository)(nil), "user repository")
 	assertResolvableService(t, runtime.services, (*store.AuthRepository)(nil), "auth repository")
-	assertResolvableService(t, runtime.services, (*store.RBACRepository)(nil), "rbac repository")
 }
 
 func assertResolvedService[T comparable](t *testing.T, resolver container.Resolver, key any, expected T, name string) {

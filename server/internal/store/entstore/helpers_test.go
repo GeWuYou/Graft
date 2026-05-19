@@ -333,30 +333,3 @@ func TestAuthRepositoryListActiveRefreshSessionsByUserIDRejectsInvalidID(t *test
 		t.Fatalf("expected ErrInvalidID, got %v", err)
 	}
 }
-
-// TestRBACRepositoryRejectsInvalidID 验证 RBAC 查询不会再把无效标识静默吞掉。
-func TestRBACRepositoryRejectsInvalidID(t *testing.T) {
-	repo := &rbacRepository{}
-
-	if _, err := repo.GetRoleByID(context.Background(), 0); !errors.Is(err, store.ErrInvalidID) {
-		t.Fatalf("expected GetRoleByID to return ErrInvalidID, got %v", err)
-	}
-	if _, err := repo.UpdateRole(context.Background(), store.UpdateRoleInput{ID: 0}); !errors.Is(err, store.ErrInvalidID) {
-		t.Fatalf("expected UpdateRole to return ErrInvalidID, got %v", err)
-	}
-	if _, err := repo.ListRolesByUserID(context.Background(), 0); !errors.Is(err, store.ErrInvalidID) {
-		t.Fatalf("expected ListRolesByUserID to return ErrInvalidID, got %v", err)
-	}
-	if _, err := repo.ListRolePermissionBindings(context.Background(), 0); !errors.Is(err, store.ErrInvalidID) {
-		t.Fatalf("expected ListRolePermissionBindings to return ErrInvalidID, got %v", err)
-	}
-	if _, err := repo.ListPermissionsByUserID(context.Background(), 0); !errors.Is(err, store.ErrInvalidID) {
-		t.Fatalf("expected ListPermissionsByUserID to return ErrInvalidID, got %v", err)
-	}
-	if err := repo.ReplacePermissionsForRole(context.Background(), store.ReplacePermissionsForRoleInput{RoleID: 0}); !errors.Is(err, store.ErrInvalidID) {
-		t.Fatalf("expected ReplacePermissionsForRole to return ErrInvalidID, got %v", err)
-	}
-	if err := repo.ReplaceRolesForUser(context.Background(), store.ReplaceRolesForUserInput{UserID: 0}); !errors.Is(err, store.ErrInvalidID) {
-		t.Fatalf("expected ReplaceRolesForUser to return ErrInvalidID, got %v", err)
-	}
-}

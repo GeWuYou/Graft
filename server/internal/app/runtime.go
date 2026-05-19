@@ -290,15 +290,6 @@ func (r *Runtime) registerCoreServices() error {
 			},
 		},
 		{
-			key: (*store.RBACRepository)(nil),
-			provider: func() (any, error) {
-				if r.stores == nil {
-					return nil, errors.New("rbac repository is unavailable")
-				}
-				return r.stores.RBAC(), nil
-			},
-		},
-		{
 			key: (*redis.Client)(nil),
 			provider: func() (any, error) {
 				return r.redis, nil

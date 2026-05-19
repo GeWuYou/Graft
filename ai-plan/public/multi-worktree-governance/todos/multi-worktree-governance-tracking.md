@@ -159,8 +159,8 @@
     container-visible or builder-visible general business-store backdoor
   - the remaining backend hotspot is therefore narrowed to the still-centralized `internal/store/**` /
     `internal/store/entstore/**` implementation ownership plus Phase 3 `internal/ent/**` and migration ownership
-  - the next Phase 3 owner should start with `user`, not `rbac`, because `users` plus `refresh_sessions` form the
-    smaller persistence slice and the mixed `user_roles` bridge should stay out of the first extraction
+  - that earlier sequencing note only described the first extraction order; it is no longer the final ownership truth
+    for `user_roles`
 - The current `2026-05-18` Phase 3a user storeent extraction slice has now landed on the same branch:
   - `server/plugins/user/storeent/**` now owns the live Ent-backed user/auth/session repository implementation that the
     runtime `user` plugin consumes
@@ -239,8 +239,21 @@
     - historical Atlas file `server/internal/ent/migrate/migrations/202605140001_auth_rbac_foundation.sql` remains the
       immutable mixed history root for `users`, `refresh_sessions`, `user_roles`, `roles`, `permissions`, and
       `role_permissions`
-    - `user_roles` ownership is still shared with `rbac`, so this slice intentionally stops short of a full user/RBAC
-      Ent graph split
+- The current `2026-05-19` Phase 3 owner-decision governance checkpoint supersedes the older shared-ownership wording:
+  - `user_roles` now has one final owner: `rbac`
+  - `rbac` owns the future `user_roles` Ent schema, repository, migration, and test truth
+  - `user` does not own `user_roles` and does not expose role-assignment implementation details
+  - `user` only exposes stable user capability surfaces needed by other plugins:
+    - user existence checks
+    - basic identity lookup
+    - pre-delete constraint checks
+  - `rbac` must validate `user_id` through those stable `user` capabilities or contracts, not by importing `user`
+    plugin-private Ent packages
+  - the historical mixed Atlas root remains immutable; the ownership checkpoint must be recorded later only through an
+    `rbac` forward-only migration
+  - multi-worktree ownership is now explicit:
+    - `RBAC` worktree may modify `user_roles`
+    - `User` worktree must not modify `user_roles` directly
 
 ## Shared Hotspots
 
@@ -431,7 +444,8 @@
     coupling
   - continue after the landed RBAC and user contract moves by migrating the remaining persistence implementation
     ownership out of `internal/store/**` / `internal/store/entstore/**`, starting with the remaining
-    `rbac/storeent/**` extraction and the matching `ent/schema` + Atlas migration ownership split
+    `rbac/storeent/**` extraction plus the `user_roles` ownership checkpoint that must land as `rbac`-owned
+    `ent/schema` + forward-only Atlas migration truth
 - Keep the landed docs/automation loop workflow aligned before relying on it for long-running repository work:
   - keep `graft-multi-agent-loop` as an outer wrapper only; do not let it redefine startup, closeout, or commit rules
   - keep `graft-multi-agent-task` and `graft-task-closeout` aligned on the dual-channel closeout contract
@@ -491,3 +505,20 @@
   - `web/src/shared/**`
 - Root-level module-specific files under `web/src/api/**`, `web/src/api/model/**`, and `web/src/contracts/{user,rbac}/**`
   are not valid long-lived owned scope and must not be reintroduced by a feature worktree.
+
+## 2026-05-19 server Phase 3e RBAC plugin-local persistence slice
+
+- `server/plugins/rbac/descriptor.go` now resolves the shared `*ent.Client` and builds plugin-owned
+  `server/plugins/rbac/storeent/**` repositories directly instead of adapting `internal/store.RBACRepository`.
+- live `server/plugins/rbac/**` runtime wiring and `server/internal/cli/dev_reset.go` no longer depend on
+  `server/plugins/rbac/storeadapter/internal_store.go` or `internal/store/entstore.NewFactory(...).RBAC()`.
+- `server/plugins/rbac/write_service.go` now performs `user_id` existence checks through stable
+  `pluginapi.UserService.GetUserByID`, keeping the frozen `user_roles -> rbac` ownership truth without expanding
+  `pluginapi`.
+- `server/plugins/rbac/migrations/**` now contains a forward-only no-op checkpoint plus `atlas.sum`, making the
+  plugin-owned RBAC migration directory runnable without pretending the mixed historical Atlas chain was rewritten.
+- the transitional shared RBAC store implementation and `store.Factory.RBAC()` outlet have been removed because they
+  became dead paths once runtime and dev-reset wiring moved to the plugin-owned boundary.
+- `server/plugins/rbac/plugin_test.go`, `server/plugins/user/plugin_test.go`, and
+  `server/plugins/user/dev_reset_test.go` now exercise the plugin through `server/plugins/rbac/store/**` directly,
+  which made `server/plugins/rbac/storeadapter/internal_store.go` and `server/internal/store/rbac.go` removable.

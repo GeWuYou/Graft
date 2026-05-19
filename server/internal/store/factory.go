@@ -14,7 +14,4 @@ type Factory interface {
 
 	// Auth 返回认证能力可依赖的最小仓储边界。
 	Auth() AuthRepository
-
-	// RBAC 返回角色与权限解析可依赖的最小仓储边界。
-	RBAC() RBACRepository
 }

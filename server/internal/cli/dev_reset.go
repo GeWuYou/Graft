@@ -11,9 +11,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/database"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store/entstore"
 	"graft/server/plugins/rbac"
-	rbacstoreadapter "graft/server/plugins/rbac/storeadapter"
 	"graft/server/plugins/user"
 )
 
@@ -30,11 +28,11 @@ var (
 		)
 	}
 	devResetResolveRBACBootstrap = func(resources *database.Resources) (pluginapi.RBACBootstrapService, error) {
-		factory, err := entstore.NewFactory(resources.Client)
+		repo, err := rbac.NewRepositoryForReset(resources.Client)
 		if err != nil {
 			return nil, err
 		}
-		return rbac.NewBootstrapServiceForReset(rbacstoreadapter.NewInternalRepositoryAdapter(factory.RBAC())), nil
+		return rbac.NewBootstrapServiceForReset(repo), nil
 	}
 )
 

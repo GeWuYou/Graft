@@ -314,6 +314,34 @@
   - preserve the new compile-time registry seam as the only central wiring path
   - choose one Phase 2 boundary for plugin-private store/capability migration instead of reopening core-owned wiring
 
+## 2026-05-19 server Phase 3 owner-decision governance checkpoint
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, recovered through the active
+  `multi-worktree-governance` parent topic, and executed the bounded round through `graft-multi-agent-task`.
+- Kept the slice local; `graft-multi-agent-batch` was not used because the change was a tightly coupled governance
+  update across `server/AGENTS.md` and active `ai-plan/**` truth.
+- Converted the newly approved Phase 3 owner decision into repository truth without touching production code:
+  - `server/AGENTS.md` now states that `user_roles` has one final owner, `rbac`
+  - backend governance now explicitly assigns `user_roles` Ent schema, repository, migration, and test ownership to
+    `rbac`
+  - backend governance now explicitly forbids `user` from owning `user_roles` or exposing role-assignment
+    implementation details
+  - the topic roadmap and plugin/DI design now require `rbac` to validate `user_id` through stable `user` capability
+    or contract surfaces instead of importing `user` Ent packages
+  - multi-worktree rules now explicitly allow `RBAC` worktrees to modify `user_roles` while forbidding direct
+    `user_roles` edits from `User` worktrees
+  - the active topic tracking file now records that the historical mixed Atlas root remains immutable and that any
+    ownership checkpoint must land later as an `rbac` forward-only migration
+  - this checkpoint supersedes the earlier historical note from the Phase 3d trace that still described `user_roles`
+    ownership as shared
+- Validation stayed documentation-only and intentionally narrow:
+  - no backend code validation was required because no production code, generated code, or migration files changed in
+    this round
+  - consistency was checked with targeted repository search over the changed governance and tracking files
+- Immediate next step:
+  - execute the remaining `rbac` persistence extraction and ownership-checkpoint slice under the now-frozen
+    `user_roles -> rbac` truth
+
 ## 2026-05-18 server Phase 2a service-capability decoupling
 
 - Re-ran startup preflight on `refactor/server-module-boundaries`, recovered through the active
@@ -630,3 +658,56 @@
   - when `graft-multi-agent-loop` is used again, the outer main agent should dispatch the first bounded round to one
     worker subagent, require the round closeout contract, retry once on malformed/missing closeout, and stop as
     `blocked` on the second failure instead of taking over implementation locally
+
+## 2026-05-19 server Phase 3e RBAC plugin-local persistence slice
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, classified the work as `server`, recovered through
+  the active `multi-worktree-governance` parent topic, and executed this bounded round under
+  `graft-multi-agent-loop` without `graft-multi-agent-batch` because the write scope stayed tightly coupled across
+  descriptor wiring, dev CLI reset wiring, RBAC service semantics, and migration ownership.
+- Moved the live RBAC persistence entrypoint onto the plugin-owned boundary:
+  - added `server/plugins/rbac/storeent/**` as the live Ent-backed RBAC repository implementation
+  - changed `server/plugins/rbac/descriptor.go` to resolve shared `*ent.Client` and build the plugin-owned RBAC
+    repository directly
+  - removed live runtime reliance on `server/plugins/rbac/storeadapter/internal_store.go`
+- Finished the dev-only reset decoupling on the same boundary:
+  - `server/internal/cli/dev_reset.go` now creates the RBAC bootstrap service from
+    `rbac.NewRepositoryForReset(resources.Client)`
+  - `server/plugins/rbac/dev_reset.go` now exposes the plugin-owned repository helper for this reset path
+- Kept `user_roles -> rbac` ownership honest without expanding `pluginapi`:
+  - `server/plugins/rbac/write_service.go` now checks target user existence via stable
+    `pluginapi.UserService.GetUserByID` before user-role replacement writes
+  - repository-local RBAC writes no longer depend on a shared-store adapter layer for user-not-found semantics
+- Added the first honest RBAC migration-boundary checkpoint without rewriting mixed history:
+  - `server/plugins/rbac/migrations/202605190002_rbac_plugin_boundary_checkpoint.sql`
+  - `server/plugins/rbac/migrations/atlas.sum`
+  - `server/plugins/rbac/migrations/README.md`
+- Removed transitional dead paths once the live wiring no longer referenced them:
+  - deleted `server/internal/store/entstore/rbac_repository.go`
+  - deleted `server/internal/store/entstore/rbac_repository_test.go`
+  - removed `store.Factory.RBAC()` and the runtime/container-visible `store.RBACRepository` singleton
+- Validation for the slice finished with:
+  - focused direct tests: `cd server && go test ./plugins/rbac ./plugins/rbac/storeent ./internal/app ./internal/cli ./internal/store/entstore ./internal/store/...`
+  - backend lint gate execution slice: `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+- Immediate next step after this slice:
+  - continue the ownership split by reducing or deleting the remaining shared `internal/store/**` surface for
+    non-RBAC paths, while keeping future `user_roles` schema/migration truth inside `server/plugins/rbac/**`
+
+## 2026-05-19 server Phase 3f RBAC compatibility cleanup slice
+
+- Continued the same bounded `server` round under `graft-multi-agent-loop` without `graft-multi-agent-batch`; the
+  remaining work was a tightly coupled compatibility cleanup across RBAC tests, user plugin embedded-RBAC tests, and
+  active tracking truth.
+- Removed the last runtime-dead shared RBAC compatibility layer:
+  - deleted `server/plugins/rbac/storeadapter/internal_store.go`
+  - deleted `server/internal/store/rbac.go`
+- Moved the remaining test-only callers onto the plugin-local RBAC store boundary:
+  - `server/plugins/rbac/plugin_test.go` now uses `server/plugins/rbac/store.Repository` test doubles directly
+  - `server/plugins/user/plugin_test.go` and `server/plugins/user/dev_reset_test.go` now model embedded RBAC plugin
+    behavior with `server/plugins/rbac/store/**` DTOs and inputs instead of shared-store RBAC types
+- Kept active recovery truth honest:
+  - updated `ai-plan/public/multi-worktree-governance/todos/multi-worktree-governance-tracking.md` to record that the
+    test layer no longer depends on the temporary adapter or shared RBAC store file
+- Validation for this cleanup slice finished with:
+  - `cd server && go test ./plugins/rbac ./plugins/user`
+  - `cd server && go test ./internal/store/...`

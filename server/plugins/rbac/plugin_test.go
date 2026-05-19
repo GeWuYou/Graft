@@ -24,9 +24,8 @@ import (
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
 	rbaccontract "graft/server/plugins/rbac/contract"
-	"graft/server/plugins/rbac/storeadapter"
+	store "graft/server/plugins/rbac/store"
 )
 
 type testRBACRepository struct {
@@ -48,7 +47,7 @@ type testRBACRepository struct {
 }
 
 type testUserService struct {
-	users map[uint64]store.User
+	users map[uint64]pluginapi.UserSummary
 }
 
 func (s testUserService) GetUserByID(_ context.Context, id uint64) (pluginapi.UserSummary, error) {
@@ -57,11 +56,7 @@ func (s testUserService) GetUserByID(_ context.Context, id uint64) (pluginapi.Us
 		return pluginapi.UserSummary{}, pluginapi.ErrUserNotFound
 	}
 
-	return pluginapi.UserSummary{
-		ID:       user.ID,
-		Username: user.Username,
-		Display:  user.Display,
-	}, nil
+	return user, nil
 }
 
 func (r testRBACRepository) EnsureRole(_ context.Context, _ store.EnsureRoleInput) (store.Role, error) {
@@ -199,18 +194,18 @@ func (s testAuthService) ParseAccessToken(_ context.Context, token string) (*plu
 	}, nil
 }
 
-func newPluginTestContext(t *testing.T, repo store.RBACRepository) (*plugin.Context, *gin.Engine) {
+func newPluginTestContext(t *testing.T, repo store.Repository) (*plugin.Context, *gin.Engine) {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	ctx := &plugin.Context{
-		LifecycleContext: context.Background(),
-		Logger:           zap.NewNop(),
-		Config:           &config.Config{},
-		I18n:             i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		Router:           engine.Group("/api"),
-		Services:         container.New(),
+		LifecycleContext:   context.Background(),
+		Logger:             zap.NewNop(),
+		Config:             &config.Config{},
+		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Router:             engine.Group("/api"),
+		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
@@ -225,7 +220,7 @@ func newPluginTestContext(t *testing.T, repo store.RBACRepository) (*plugin.Cont
 	}
 	if err := ctx.Services.RegisterSingleton((*pluginapi.UserService)(nil), func(container.Resolver) (any, error) {
 		return testUserService{
-			users: map[uint64]store.User{
+			users: map[uint64]pluginapi.UserSummary{
 				7: {ID: 7, Username: "alice", Display: "Alice"},
 				8: {ID: 8, Username: "bob", Display: "Bob"},
 			},
@@ -234,7 +229,7 @@ func newPluginTestContext(t *testing.T, repo store.RBACRepository) (*plugin.Cont
 		t.Fatalf("register user service: %v", err)
 	}
 
-	if err := NewPlugin(storeadapter.NewInternalRepositoryAdapter(repo)).Register(ctx); err != nil {
+	if err := NewPlugin(repo).Register(ctx); err != nil {
 		t.Fatalf("register rbac plugin: %v", err)
 	}
 
@@ -257,7 +252,7 @@ func newAuthorizedJSONRequest(method string, path string, body any) *http.Reques
 
 // TestAuthorizerRejectsUnauthenticatedRequest 验证缺少主体时会返回稳定未登录错误。
 func TestAuthorizerRejectsUnauthenticatedRequest(t *testing.T) {
-	service := authorizer{rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{})}
+	service := authorizer{rbac: testRBACRepository{}}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{}, "user.read")
 	if !errors.Is(err, pluginapi.ErrUnauthenticated) {
@@ -268,9 +263,9 @@ func TestAuthorizerRejectsUnauthenticatedRequest(t *testing.T) {
 // TestAuthorizerAllowsGrantedPermission 验证命中的权限码会被授权通过。
 func TestAuthorizerAllowsGrantedPermission(t *testing.T) {
 	service := authorizer{
-		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
+		rbac: testRBACRepository{
 			permissionsByUser: []store.Permission{{Code: "user.read"}},
-		}),
+		},
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{
@@ -284,9 +279,9 @@ func TestAuthorizerAllowsGrantedPermission(t *testing.T) {
 // TestAuthorizerRejectsMissingPermission 验证未命中权限码时会返回稳定拒绝错误。
 func TestAuthorizerRejectsMissingPermission(t *testing.T) {
 	service := authorizer{
-		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
+		rbac: testRBACRepository{
 			permissionsByUser: []store.Permission{{Code: "dashboard.view"}},
-		}),
+		},
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{
@@ -301,9 +296,9 @@ func TestAuthorizerRejectsMissingPermission(t *testing.T) {
 func TestAuthorizerPropagatesRepositoryFailure(t *testing.T) {
 	repositoryErr := errors.New("repository failed")
 	service := authorizer{
-		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
+		rbac: testRBACRepository{
 			permissionsErr: repositoryErr,
-		}),
+		},
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{
@@ -740,7 +735,7 @@ func TestUserRoleBindingRouteReturnsUserNotFound(t *testing.T) {
 func TestUserRoleAssignRouteReturnsUserNotFound(t *testing.T) {
 	repo := testRBACRepository{
 		replaceUserRoles: func(_ context.Context, _ store.ReplaceRolesForUserInput) error {
-			return store.ErrUserNotFound
+			return pluginapi.ErrUserNotFound
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
 	}
@@ -928,14 +923,14 @@ func TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser(t *testing.T
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/9/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/8/roles/assign", map[string]any{
 		"role_ids": []uint64{2},
 	}))
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
-	if !reflect.DeepEqual(received, store.ReplaceRolesForUserInput{UserID: 9, RoleIDs: []uint64{2}}) {
+	if !reflect.DeepEqual(received, store.ReplaceRolesForUserInput{UserID: 8, RoleIDs: []uint64{2}}) {
 		t.Fatalf("unexpected replace input for other user: %#v", received)
 	}
 }

@@ -1,33 +1,42 @@
-package entstore
+package storeent
 
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"graft/server/internal/ent"
 	entpermission "graft/server/internal/ent/permission"
 	entrole "graft/server/internal/ent/role"
 	entrolepermission "graft/server/internal/ent/rolepermission"
 	entuserrole "graft/server/internal/ent/userrole"
-	"graft/server/internal/store"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
-type rbacRepository struct {
+type repository struct {
 	client *ent.Client
 }
 
-// EnsureRole 幂等确保目标角色存在。
-func (r *rbacRepository) EnsureRole(ctx context.Context, input store.EnsureRoleInput) (store.Role, error) {
+// NewRepository builds the RBAC plugin's Ent-backed repository.
+func NewRepository(client *ent.Client) (rbacstore.Repository, error) {
+	if client == nil {
+		return nil, fmt.Errorf("rbac storeent requires a non-nil ent client")
+	}
+
+	return &repository{client: client}, nil
+}
+
+func (r *repository) EnsureRole(ctx context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
 	record, err := r.findRoleByName(ctx, input.Name)
 	if err == nil {
 		record, err = r.upgradeRoleBuiltinIfNeeded(ctx, record, input.Builtin, "upgrade ensured role builtin state")
 		if err != nil {
-			return store.Role{}, err
+			return rbacstore.Role{}, err
 		}
 		return toStoreRole(record), nil
 	}
 	if !ent.IsNotFound(err) {
-		return store.Role{}, fmt.Errorf("query ensured role by name: %w", err)
+		return rbacstore.Role{}, fmt.Errorf("query ensured role by name: %w", err)
 	}
 
 	record, err = r.createRoleRecord(ctx, input)
@@ -35,66 +44,18 @@ func (r *rbacRepository) EnsureRole(ctx context.Context, input store.EnsureRoleI
 		if ent.IsConstraintError(err) {
 			record, err = r.findRoleAfterCreateConflict(ctx, input)
 			if err != nil {
-				return store.Role{}, err
+				return rbacstore.Role{}, err
 			}
 			return toStoreRole(record), nil
 		}
 
-		return store.Role{}, fmt.Errorf("create ensured role: %w", err)
+		return rbacstore.Role{}, fmt.Errorf("create ensured role: %w", err)
 	}
 
 	return toStoreRole(record), nil
 }
 
-func (r *rbacRepository) findRoleByName(ctx context.Context, name string) (*ent.Role, error) {
-	return r.client.Role.Query().
-		Where(entrole.NameEQ(name)).
-		Only(ctx)
-}
-
-func (r *rbacRepository) createRoleRecord(ctx context.Context, input store.EnsureRoleInput) (*ent.Role, error) {
-	return r.client.Role.Create().
-		SetName(input.Name).
-		SetDisplay(input.Display).
-		SetNillableDescription(input.Description).
-		SetBuiltin(input.Builtin).
-		Save(ctx)
-}
-
-func (r *rbacRepository) findRoleAfterCreateConflict(
-	ctx context.Context,
-	input store.EnsureRoleInput,
-) (*ent.Role, error) {
-	record, err := r.findRoleByName(ctx, input.Name)
-	if err != nil {
-		return nil, fmt.Errorf("re-query ensured role after conflict: %w", err)
-	}
-
-	return r.upgradeRoleBuiltinIfNeeded(ctx, record, input.Builtin, "upgrade ensured role builtin state after conflict")
-}
-
-func (r *rbacRepository) upgradeRoleBuiltinIfNeeded(
-	ctx context.Context,
-	record *ent.Role,
-	builtin bool,
-	errorContext string,
-) (*ent.Role, error) {
-	if !builtin || record.Builtin {
-		return record, nil
-	}
-
-	updated, err := r.client.Role.UpdateOneID(record.ID).
-		SetBuiltin(true).
-		Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", errorContext, err)
-	}
-
-	return updated, nil
-}
-
-// EnsurePermission 幂等确保目标权限存在。
-func (r *rbacRepository) EnsurePermission(ctx context.Context, input store.EnsurePermissionInput) (store.Permission, error) {
+func (r *repository) EnsurePermission(ctx context.Context, input rbacstore.EnsurePermissionInput) (rbacstore.Permission, error) {
 	return ensureUniqueEntity(
 		func() (*ent.Permission, error) {
 			return r.client.Permission.Query().
@@ -116,8 +77,7 @@ func (r *rbacRepository) EnsurePermission(ctx context.Context, input store.Ensur
 	)
 }
 
-// CreateRole 显式创建一个角色。
-func (r *rbacRepository) CreateRole(ctx context.Context, input store.CreateRoleInput) (store.Role, error) {
+func (r *repository) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
 	record, err := r.client.Role.Create().
 		SetName(input.Name).
 		SetDisplay(input.Display).
@@ -126,20 +86,19 @@ func (r *rbacRepository) CreateRole(ctx context.Context, input store.CreateRoleI
 		Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
-			return store.Role{}, store.ErrRoleNameConflict
+			return rbacstore.Role{}, rbacstore.ErrRoleNameConflict
 		}
 
-		return store.Role{}, fmt.Errorf("create role: %w", err)
+		return rbacstore.Role{}, fmt.Errorf("create role: %w", err)
 	}
 
 	return toStoreRole(record), nil
 }
 
-// UpdateRole 按稳定 ID 更新一个角色。
-func (r *rbacRepository) UpdateRole(ctx context.Context, input store.UpdateRoleInput) (store.Role, error) {
+func (r *repository) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
 	roleID, err := toEntID(input.ID)
 	if err != nil {
-		return store.Role{}, err
+		return rbacstore.Role{}, err
 	}
 
 	record, err := r.client.Role.UpdateOneID(roleID).
@@ -150,19 +109,18 @@ func (r *rbacRepository) UpdateRole(ctx context.Context, input store.UpdateRoleI
 	if err != nil {
 		switch {
 		case ent.IsNotFound(err):
-			return store.Role{}, store.ErrRoleNotFound
+			return rbacstore.Role{}, rbacstore.ErrRoleNotFound
 		case ent.IsConstraintError(err):
-			return store.Role{}, store.ErrRoleNameConflict
+			return rbacstore.Role{}, rbacstore.ErrRoleNameConflict
 		default:
-			return store.Role{}, fmt.Errorf("update role %d: %w", input.ID, err)
+			return rbacstore.Role{}, fmt.Errorf("update role %d: %w", input.ID, err)
 		}
 	}
 
 	return toStoreRole(record), nil
 }
 
-// AssignPermissionsToRole 幂等把一组权限绑定到角色。
-func (r *rbacRepository) AssignPermissionsToRole(ctx context.Context, input store.AssignPermissionsToRoleInput) error {
+func (r *repository) AssignPermissionsToRole(ctx context.Context, input rbacstore.AssignPermissionsToRoleInput) error {
 	roleID, err := toEntID(input.RoleID)
 	if err != nil {
 		return err
@@ -202,8 +160,7 @@ func (r *rbacRepository) AssignPermissionsToRole(ctx context.Context, input stor
 	return nil
 }
 
-// ReplacePermissionsForRole 把角色权限覆盖为目标集合。
-func (r *rbacRepository) ReplacePermissionsForRole(ctx context.Context, input store.ReplacePermissionsForRoleInput) error {
+func (r *repository) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
 	return replaceStableAssignmentWithConfig(
 		ctx,
 		r.client,
@@ -213,8 +170,7 @@ func (r *rbacRepository) ReplacePermissionsForRole(ctx context.Context, input st
 	)
 }
 
-// AssignRoleToUser 幂等把目标角色绑定到用户。
-func (r *rbacRepository) AssignRoleToUser(ctx context.Context, input store.AssignRoleToUserInput) error {
+func (r *repository) AssignRoleToUser(ctx context.Context, input rbacstore.AssignRoleToUserInput) error {
 	userID, err := toEntID(input.UserID)
 	if err != nil {
 		return err
@@ -222,14 +178,6 @@ func (r *rbacRepository) AssignRoleToUser(ctx context.Context, input store.Assig
 	roleID, err := toEntID(input.RoleID)
 	if err != nil {
 		return err
-	}
-
-	userExists, err := userRecordExists(ctx, r.client.User.Get, userID)
-	if err != nil {
-		return fmt.Errorf("check user %d before assigning role: %w", input.UserID, err)
-	}
-	if !userExists {
-		return store.ErrUserNotFound
 	}
 
 	exists, err := r.client.UserRole.Query().
@@ -250,7 +198,15 @@ func (r *rbacRepository) AssignRoleToUser(ctx context.Context, input store.Assig
 		SetRoleID(roleID).
 		Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
-			return nil
+			duplicate, duplicateErr := r.client.UserRole.Query().
+				Where(
+					entuserrole.UserIDEQ(userID),
+					entuserrole.RoleIDEQ(roleID),
+				).
+				Exist(ctx)
+			if duplicateErr == nil && duplicate {
+				return nil
+			}
 		}
 
 		return fmt.Errorf("assign role %d to user %d: %w", input.RoleID, input.UserID, err)
@@ -259,8 +215,7 @@ func (r *rbacRepository) AssignRoleToUser(ctx context.Context, input store.Assig
 	return nil
 }
 
-// ReplaceRolesForUser 把用户角色覆盖为目标集合。
-func (r *rbacRepository) ReplaceRolesForUser(ctx context.Context, input store.ReplaceRolesForUserInput) error {
+func (r *repository) ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {
 	return replaceStableAssignmentWithConfig(
 		ctx,
 		r.client,
@@ -270,11 +225,10 @@ func (r *rbacRepository) ReplaceRolesForUser(ctx context.Context, input store.Re
 	)
 }
 
-// GetRoleByID 按稳定 ID 返回单个角色记录。
-func (r *rbacRepository) GetRoleByID(ctx context.Context, roleID uint64) (store.Role, error) {
+func (r *repository) GetRoleByID(ctx context.Context, roleID uint64) (rbacstore.Role, error) {
 	id, err := toEntID(roleID)
 	if err != nil {
-		return store.Role{}, err
+		return rbacstore.Role{}, err
 	}
 
 	record, err := r.client.Role.Query().
@@ -282,17 +236,16 @@ func (r *rbacRepository) GetRoleByID(ctx context.Context, roleID uint64) (store.
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			return store.Role{}, store.ErrRoleNotFound
+			return rbacstore.Role{}, rbacstore.ErrRoleNotFound
 		}
 
-		return store.Role{}, fmt.Errorf("get role by id %d: %w", roleID, err)
+		return rbacstore.Role{}, fmt.Errorf("get role by id %d: %w", roleID, err)
 	}
 
 	return toStoreRole(record), nil
 }
 
-// ListRolesByUserID 返回指定用户当前绑定的全部角色。
-func (r *rbacRepository) ListRolesByUserID(ctx context.Context, userID uint64) ([]store.Role, error) {
+func (r *repository) ListRolesByUserID(ctx context.Context, userID uint64) ([]rbacstore.Role, error) {
 	id, err := toEntID(userID)
 	if err != nil {
 		return nil, err
@@ -306,7 +259,7 @@ func (r *rbacRepository) ListRolesByUserID(ctx context.Context, userID uint64) (
 		return nil, fmt.Errorf("list roles by user id: %w", err)
 	}
 
-	roles := make([]store.Role, 0, len(records))
+	roles := make([]rbacstore.Role, 0, len(records))
 	for _, record := range records {
 		roles = append(roles, toStoreRole(record))
 	}
@@ -314,8 +267,7 @@ func (r *rbacRepository) ListRolesByUserID(ctx context.Context, userID uint64) (
 	return roles, nil
 }
 
-// ListRoles 返回当前稳定排序下的全部角色快照。
-func (r *rbacRepository) ListRoles(ctx context.Context) ([]store.Role, error) {
+func (r *repository) ListRoles(ctx context.Context) ([]rbacstore.Role, error) {
 	records, err := r.client.Role.Query().
 		Order(ent.Asc(entrole.FieldID)).
 		All(ctx)
@@ -323,7 +275,7 @@ func (r *rbacRepository) ListRoles(ctx context.Context) ([]store.Role, error) {
 		return nil, fmt.Errorf("list roles: %w", err)
 	}
 
-	roles := make([]store.Role, 0, len(records))
+	roles := make([]rbacstore.Role, 0, len(records))
 	for _, record := range records {
 		roles = append(roles, toStoreRole(record))
 	}
@@ -331,8 +283,7 @@ func (r *rbacRepository) ListRoles(ctx context.Context) ([]store.Role, error) {
 	return roles, nil
 }
 
-// ListPermissionsByUserID 返回指定用户经由角色解析得到的全部权限点。
-func (r *rbacRepository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]store.Permission, error) {
+func (r *repository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]rbacstore.Permission, error) {
 	id, err := toEntID(userID)
 	if err != nil {
 		return nil, err
@@ -346,7 +297,7 @@ func (r *rbacRepository) ListPermissionsByUserID(ctx context.Context, userID uin
 		return nil, fmt.Errorf("list user roles for permissions: %w", err)
 	}
 	if len(roleRecords) == 0 {
-		return []store.Permission{}, nil
+		return []rbacstore.Permission{}, nil
 	}
 
 	roleIDs := make([]int, 0, len(roleRecords))
@@ -362,7 +313,7 @@ func (r *rbacRepository) ListPermissionsByUserID(ctx context.Context, userID uin
 		return nil, fmt.Errorf("list permissions by user id: %w", err)
 	}
 
-	permissions := make([]store.Permission, 0, len(records))
+	permissions := make([]rbacstore.Permission, 0, len(records))
 	for _, record := range records {
 		permissions = append(permissions, toStorePermission(record))
 	}
@@ -370,8 +321,7 @@ func (r *rbacRepository) ListPermissionsByUserID(ctx context.Context, userID uin
 	return permissions, nil
 }
 
-// ListPermissions 返回当前稳定排序下的全部权限快照。
-func (r *rbacRepository) ListPermissions(ctx context.Context) ([]store.Permission, error) {
+func (r *repository) ListPermissions(ctx context.Context) ([]rbacstore.Permission, error) {
 	records, err := r.client.Permission.Query().
 		Order(ent.Asc(entpermission.FieldID)).
 		All(ctx)
@@ -379,7 +329,7 @@ func (r *rbacRepository) ListPermissions(ctx context.Context) ([]store.Permissio
 		return nil, fmt.Errorf("list permissions: %w", err)
 	}
 
-	permissions := make([]store.Permission, 0, len(records))
+	permissions := make([]rbacstore.Permission, 0, len(records))
 	for _, record := range records {
 		permissions = append(permissions, toStorePermission(record))
 	}
@@ -387,8 +337,7 @@ func (r *rbacRepository) ListPermissions(ctx context.Context) ([]store.Permissio
 	return permissions, nil
 }
 
-// ListRolePermissionBindings 返回指定角色当前绑定的权限关系快照。
-func (r *rbacRepository) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]store.RolePermissionBinding, error) {
+func (r *repository) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error) {
 	id, err := toEntID(roleID)
 	if err != nil {
 		return nil, err
@@ -396,7 +345,7 @@ func (r *rbacRepository) ListRolePermissionBindings(ctx context.Context, roleID 
 
 	if _, err := r.client.Role.Get(ctx, id); err != nil {
 		if ent.IsNotFound(err) {
-			return nil, store.ErrRoleNotFound
+			return nil, rbacstore.ErrRoleNotFound
 		}
 		return nil, fmt.Errorf("get role for permission bindings: %w", err)
 	}
@@ -409,15 +358,75 @@ func (r *rbacRepository) ListRolePermissionBindings(ctx context.Context, roleID 
 		return nil, fmt.Errorf("list role permission bindings: %w", err)
 	}
 
-	bindings := make([]store.RolePermissionBinding, 0, len(records))
+	bindings := make([]rbacstore.RolePermissionBinding, 0, len(records))
 	for _, record := range records {
-		bindings = append(bindings, store.RolePermissionBinding{
+		bindings = append(bindings, rbacstore.RolePermissionBinding{
 			RoleID:       roleID,
 			PermissionID: toStoreID(record.PermissionID),
 		})
 	}
 
 	return bindings, nil
+}
+
+func (r *repository) findRoleByName(ctx context.Context, name string) (*ent.Role, error) {
+	return r.client.Role.Query().
+		Where(entrole.NameEQ(name)).
+		Only(ctx)
+}
+
+func (r *repository) createRoleRecord(ctx context.Context, input rbacstore.EnsureRoleInput) (*ent.Role, error) {
+	return r.client.Role.Create().
+		SetName(input.Name).
+		SetDisplay(input.Display).
+		SetNillableDescription(input.Description).
+		SetBuiltin(input.Builtin).
+		Save(ctx)
+}
+
+func (r *repository) findRoleAfterCreateConflict(
+	ctx context.Context,
+	input rbacstore.EnsureRoleInput,
+) (*ent.Role, error) {
+	record, err := r.findRoleByName(ctx, input.Name)
+	if err != nil {
+		return nil, fmt.Errorf("re-query ensured role after conflict: %w", err)
+	}
+
+	return r.upgradeRoleBuiltinIfNeeded(ctx, record, input.Builtin, "upgrade ensured role builtin state after conflict")
+}
+
+func (r *repository) upgradeRoleBuiltinIfNeeded(
+	ctx context.Context,
+	record *ent.Role,
+	builtin bool,
+	errorContext string,
+) (*ent.Role, error) {
+	if !builtin || record.Builtin {
+		return record, nil
+	}
+
+	updated, err := r.client.Role.UpdateOneID(record.ID).
+		SetBuiltin(true).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", errorContext, err)
+	}
+
+	return updated, nil
+}
+
+func toEntID(id uint64) (int, error) {
+	if id == 0 || id > math.MaxInt {
+		return 0, rbacstore.ErrInvalidID
+	}
+
+	return int(id), nil
+}
+
+func toStoreID(id int) uint64 {
+	//nolint:gosec // Ent IDs come from the controlled schema and remain positive.
+	return uint64(id)
 }
 
 func toUniqueEntIDs(ids []uint64) ([]int, error) {
@@ -463,6 +472,43 @@ type stableAssignmentSetConfig struct {
 	createBinding        func(tx *ent.Tx, relationID int) error
 }
 
+type stableAssignmentConfigTemplate struct {
+	startContext         string
+	commitFormat         string
+	checkTargetContext   string
+	countRelationContext string
+	deleteStaleContext   string
+	checkBindingContext  string
+	createBindingContext string
+	targetMissing        error
+	relationMissing      error
+	checkTargetExists    func(context.Context, *ent.Tx, int) (bool, error)
+	countRelationRecords func(context.Context, *ent.Tx, []int) (int, error)
+	deleteStale          func(context.Context, *ent.Tx, int, []int) error
+	bindingExists        func(context.Context, *ent.Tx, int, int) (bool, error)
+	createBinding        func(context.Context, *ent.Tx, int, int) error
+}
+
+func replaceStableAssignmentWithConfig(
+	ctx context.Context,
+	client *ent.Client,
+	targetID uint64,
+	relationIDs []uint64,
+	build func(ctx context.Context, targetID uint64, entTargetID int, relationIDs []int) stableAssignmentSetConfig,
+) error {
+	entTargetID, err := toEntID(targetID)
+	if err != nil {
+		return err
+	}
+
+	entRelationIDs, err := toUniqueEntIDs(relationIDs)
+	if err != nil {
+		return err
+	}
+
+	return replaceStableAssignmentSet(ctx, client, build(ctx, targetID, entTargetID, entRelationIDs))
+}
+
 func replaceStableAssignmentSet(
 	ctx context.Context,
 	client *ent.Client,
@@ -499,43 +545,6 @@ func replaceStableAssignmentSet(
 	return nil
 }
 
-func replaceStableAssignmentWithConfig(
-	ctx context.Context,
-	client *ent.Client,
-	targetID uint64,
-	relationIDs []uint64,
-	build func(ctx context.Context, targetID uint64, entTargetID int, relationIDs []int) stableAssignmentSetConfig,
-) error {
-	entTargetID, err := toEntID(targetID)
-	if err != nil {
-		return err
-	}
-
-	entRelationIDs, err := toUniqueEntIDs(relationIDs)
-	if err != nil {
-		return err
-	}
-
-	return replaceStableAssignmentSet(ctx, client, build(ctx, targetID, entTargetID, entRelationIDs))
-}
-
-type stableAssignmentConfigTemplate struct {
-	startContext         string
-	commitFormat         string
-	checkTargetContext   string
-	countRelationContext string
-	deleteStaleContext   string
-	checkBindingContext  string
-	createBindingContext string
-	targetMissing        error
-	relationMissing      error
-	checkTargetExists    func(context.Context, *ent.Tx, int) (bool, error)
-	countRelationRecords func(context.Context, *ent.Tx, []int) (int, error)
-	deleteStale          func(context.Context, *ent.Tx, int, []int) error
-	bindingExists        func(context.Context, *ent.Tx, int, int) (bool, error)
-	createBinding        func(context.Context, *ent.Tx, int, int) error
-}
-
 func buildRolePermissionAssignmentConfig(
 	ctx context.Context,
 	targetID uint64,
@@ -550,8 +559,8 @@ func buildRolePermissionAssignmentConfig(
 		deleteStaleContext:   "delete stale permissions for role %d",
 		checkBindingContext:  "check role permission replacement",
 		createBindingContext: "replace permission %d for role %d",
-		targetMissing:        store.ErrRoleNotFound,
-		relationMissing:      store.ErrPermissionNotFound,
+		targetMissing:        rbacstore.ErrRoleNotFound,
+		relationMissing:      rbacstore.ErrPermissionNotFound,
 		checkTargetExists:    roleTargetExists,
 		countRelationRecords: countPermissionsByIDs,
 		deleteStale:          deleteStaleRolePermissions,
@@ -574,9 +583,9 @@ func buildUserRoleAssignmentConfig(
 		deleteStaleContext:   "delete stale roles for user %d",
 		checkBindingContext:  "check user role replacement",
 		createBindingContext: "replace role %d for user %d",
-		targetMissing:        store.ErrUserNotFound,
-		relationMissing:      store.ErrRoleNotFound,
-		checkTargetExists:    userTargetExists,
+		checkTargetExists:    userRoleTargetExists,
+		targetMissing:        nil,
+		relationMissing:      rbacstore.ErrRoleNotFound,
 		countRelationRecords: countRolesByIDs,
 		deleteStale:          deleteStaleUserRoles,
 		bindingExists:        userRoleBindingExists,
@@ -653,8 +662,8 @@ func createRolePermissionBinding(ctx context.Context, tx *ent.Tx, targetID int, 
 	return err
 }
 
-func userTargetExists(ctx context.Context, tx *ent.Tx, targetID int) (bool, error) {
-	return userRecordExists(ctx, tx.User.Get, targetID)
+func userRoleTargetExists(context.Context, *ent.Tx, int) (bool, error) {
+	return true, nil
 }
 
 func countRolesByIDs(ctx context.Context, tx *ent.Tx, ids []int) (int, error) {
@@ -684,27 +693,12 @@ func createUserRoleBinding(ctx context.Context, tx *ent.Tx, targetID int, relati
 	return err
 }
 
-func userRecordExists(
-	ctx context.Context,
-	get func(context.Context, int) (*ent.User, error),
-	targetID int,
-) (bool, error) {
-	if _, err := get(ctx, targetID); err != nil {
-		if ent.IsNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	return true, nil
-}
-
 func ensureStableAssignmentTarget(tx *ent.Tx, config stableAssignmentSetConfig) error {
 	exists, err := config.checkTargetExists(tx)
 	if err != nil {
 		return fmt.Errorf(config.checkTargetContext+": %w", config.targetID, err)
 	}
-	if !exists {
+	if !exists && config.targetMissing != nil {
 		return config.targetMissing
 	}
 
@@ -757,8 +751,41 @@ func insertStableAssignments(tx *ent.Tx, config stableAssignmentSetConfig) error
 	return nil
 }
 
-func toStoreRole(record *ent.Role) store.Role {
-	return store.Role{
+func ensureUniqueEntity[T any](
+	query func() (T, error),
+	create func() (T, error),
+	mapResult func(T) rbacstore.Permission,
+	queryContext string,
+	createContext string,
+	conflictQueryContext string,
+) (rbacstore.Permission, error) {
+	record, err := query()
+	if err == nil {
+		return mapResult(record), nil
+	}
+	if !ent.IsNotFound(err) {
+		return rbacstore.Permission{}, fmt.Errorf("%s: %w", queryContext, err)
+	}
+
+	record, err = create()
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			record, err = query()
+			if err != nil {
+				return rbacstore.Permission{}, fmt.Errorf("%s: %w", conflictQueryContext, err)
+			}
+
+			return mapResult(record), nil
+		}
+
+		return rbacstore.Permission{}, fmt.Errorf("%s: %w", createContext, err)
+	}
+
+	return mapResult(record), nil
+}
+
+func toStoreRole(record *ent.Role) rbacstore.Role {
+	return rbacstore.Role{
 		ID:          toStoreID(record.ID),
 		Name:        record.Name,
 		Display:     record.Display,
@@ -769,8 +796,8 @@ func toStoreRole(record *ent.Role) store.Role {
 	}
 }
 
-func toStorePermission(record *ent.Permission) store.Permission {
-	return store.Permission{
+func toStorePermission(record *ent.Permission) rbacstore.Permission {
+	return rbacstore.Permission{
 		ID:          toStoreID(record.ID),
 		Code:        record.Code,
 		Display:     record.Display,
@@ -779,39 +806,4 @@ func toStorePermission(record *ent.Permission) store.Permission {
 		CreatedAt:   record.CreatedAt,
 		UpdatedAt:   record.UpdatedAt,
 	}
-}
-
-func ensureUniqueEntity[Entity any, Result any](
-	lookup func() (*Entity, error),
-	create func() (*Entity, error),
-	toResult func(*Entity) Result,
-	queryErrMsg string,
-	createErrMsg string,
-	conflictErrMsg string,
-) (Result, error) {
-	record, err := lookup()
-	if err == nil {
-		return toResult(record), nil
-	}
-	if !ent.IsNotFound(err) {
-		var zero Result
-		return zero, fmt.Errorf("%s: %w", queryErrMsg, err)
-	}
-
-	record, err = create()
-	if err != nil {
-		if ent.IsConstraintError(err) {
-			record, lookupErr := lookup()
-			if lookupErr != nil {
-				var zero Result
-				return zero, fmt.Errorf("%s: %w", conflictErrMsg, lookupErr)
-			}
-			return toResult(record), nil
-		}
-
-		var zero Result
-		return zero, fmt.Errorf("%s: %w", createErrMsg, err)
-	}
-
-	return toResult(record), nil
 }

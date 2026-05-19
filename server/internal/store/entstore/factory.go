@@ -14,7 +14,6 @@ type Factory struct {
 	auditRepo store.AuditRepository
 	userRepo  store.UserRepository
 	authRepo  store.AuthRepository
-	rbacRepo  store.RBACRepository
 }
 
 // NewFactory 使用传入的 Ent 客户端装配各个仓储实现。
@@ -29,7 +28,6 @@ func NewFactory(client *ent.Client) (*Factory, error) {
 		auditRepo: &auditRepository{client: client},
 		userRepo:  &userRepository{client: client},
 		authRepo:  &authRepository{client: client},
-		rbacRepo:  &rbacRepository{client: client},
 	}, nil
 }
 
@@ -46,9 +44,4 @@ func (f *Factory) Users() store.UserRepository {
 // Auth 返回复用同一 Ent 客户端的认证仓储实现。
 func (f *Factory) Auth() store.AuthRepository {
 	return f.authRepo
-}
-
-// RBAC 返回复用同一 Ent 客户端的 RBAC 仓储实现。
-func (f *Factory) RBAC() store.RBACRepository {
-	return f.rbacRepo
 }

@@ -26,7 +26,8 @@ type writeManagementService interface {
 }
 
 type managementWriter struct {
-	rbac rbacstore.Repository
+	users pluginapi.UserService
+	rbac  rbacstore.Repository
 }
 
 func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
@@ -81,8 +82,14 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input r
 }
 
 func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {
+	if w.users == nil {
+		return errors.New("user service is unavailable")
+	}
 	if w.rbac == nil {
 		return errors.New("rbac repository is unavailable")
+	}
+	if _, err := w.users.GetUserByID(ctx, input.UserID); err != nil {
+		return err
 	}
 	if err := w.ensureActorKeepsBuiltinAdminRole(ctx, input); err != nil {
 		return err

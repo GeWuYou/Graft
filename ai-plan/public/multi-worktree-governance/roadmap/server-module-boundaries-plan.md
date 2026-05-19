@@ -38,6 +38,9 @@
 - 一个 migration 只能修改：
   - 当前 owner 拥有的表
   - 或 `core-owned` 表
+- `user_roles` 的最终 owner 固定为 `rbac`
+- `rbac` 拥有 `user_roles` 的 Ent schema、repository、migration 与测试
+- 历史 mixed Atlas migration 保持 immutable；后续只允许通过 `rbac` 的 forward-only migration 记录 ownership checkpoint
 - 禁止：
   - `rbac` migration 修改 `user` 表
   - `audit` migration 修改 `rbac` 表
@@ -78,6 +81,8 @@
   - cross-plugin business ability
   - dev/reset hook
   - stable query/service contract
+- `user` 对 `rbac` 只暴露稳定用户能力，例如用户存在性检查、用户基础身份查询、用户删除前约束检查。
+- `rbac` 校验 `user_id` 时必须调用 `user` 的稳定 capability / contract，不得直接 import `user` 的 Ent 包。
 - capability registry 不能演变成 generalized service locator；调用方只能拿到明确声明的稳定能力。
 
 ### Shared Hotspot Whitelist
@@ -92,6 +97,8 @@
   - `ai-plan/**`
 - 其它目录默认视为 owned scope，不应被多个长期工作树共同持有。
 - 若某个路径需要长期共享，必须先进入白名单治理文档，而不是默认开放。
+- `RBAC` worktree 可以修改 `user_roles` 相关的 schema、repository、migration、测试与 plugin-local contract。
+- `User` worktree 不直接修改 `user_roles`；若需协同，只能通过 `user` 自有稳定 capability / contract 与共享治理文档对齐。
 
 ### No Business Logic Backflow
 
@@ -230,12 +237,15 @@
 - 清理跨插件 relation 和 schema backflow
 - `internal/ent/**` 收缩到 core-owned schema
 - 业务表迁移到各插件自有 `ent/**` 与 `migrations/**`
+- `user_roles` ownership 在 Phase 3 结束时必须落到 `rbac`，而不是继续停留在 `user` / `rbac` 共享状态
 
 ### Phase 3 验收标准
 
 - 每个插件独立 ent generate，只写本插件 `ent/**`
 - 每个 migration 只修改 owner 自己的表或 core-owned 表
 - `rbac` 不再通过源码级 schema 依赖 `user` 内部实现
+- `rbac` 通过 `user` 的稳定 capability / contract 校验 `user_id`，不直接依赖 `user` 的 Ent 包
+- `user_roles` 的 schema、repository、migration、测试只由 `rbac` worktree 维护
 - 两个并行分支分别修改 `plugins/user/**` 与 `plugins/rbac/**`，合并时不再要求解决共享 schema、共享 migration、共享 store factory 冲突
 - 可单独提交，必要时通过数据迁移顺序和兼容窗口平滑落地
 
