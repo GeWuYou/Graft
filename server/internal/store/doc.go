@@ -1,4 +1,4 @@
-// Package store 定义暴露给插件的中立持久化契约。
+// Package store 保留 shared persistence 的文档占位。
 //
-// 这些契约由 core 持有，插件只依赖显式仓储能力，不直接导入或泄漏具体 ORM 客户端。
+// user/auth 共享仓储契约已迁回插件私有边界；不要在这里重新引入业务插件仓储。
 package store

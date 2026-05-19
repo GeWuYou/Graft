@@ -26,8 +26,6 @@ import (
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginregistry"
 	"graft/server/internal/redisx"
-	"graft/server/internal/store"
-	"graft/server/internal/store/entstore"
 )
 
 const pluginShutdownTimeout = 5 * time.Second
@@ -48,7 +46,6 @@ type Runtime struct {
 	server             *httpx.Server
 	eventBus           eventbus.Bus
 	services           *container.Container
-	stores             store.Factory
 	menuRegistry       *menu.Registry
 	permissionRegistry *permission.Registry
 	cronRegistry       *cronx.Registry
@@ -90,13 +87,6 @@ func NewRuntime() (*Runtime, error) {
 	server := httpx.NewServer()
 	eventBus := eventbus.New(runtimeLogger)
 	services := container.New()
-	stores, err := entstore.NewFactory(databaseResources.Client)
-	if err != nil {
-		_ = redisClient.Close()
-		_ = database.Close(databaseResources)
-		_ = logger.Close(runtimeLogger)
-		return nil, fmt.Errorf("create ent store factory: %w", err)
-	}
 	localizer := i18n.New(cfg.I18n)
 	menuRegistry := menu.NewRegistry()
 	permissionRegistry := permission.NewRegistry()
@@ -112,7 +102,6 @@ func NewRuntime() (*Runtime, error) {
 		server:             server,
 		eventBus:           eventBus,
 		services:           services,
-		stores:             stores,
 		menuRegistry:       menuRegistry,
 		permissionRegistry: permissionRegistry,
 		cronRegistry:       cronRegistry,
@@ -260,24 +249,6 @@ func (r *Runtime) registerCoreServices() error {
 					return nil, errors.New("ent client is unavailable")
 				}
 				return r.database.Client, nil
-			},
-		},
-		{
-			key: (*store.UserRepository)(nil),
-			provider: func() (any, error) {
-				if r.stores == nil {
-					return nil, errors.New("user repository is unavailable")
-				}
-				return r.stores.Users(), nil
-			},
-		},
-		{
-			key: (*store.AuthRepository)(nil),
-			provider: func() (any, error) {
-				if r.stores == nil {
-					return nil, errors.New("auth repository is unavailable")
-				}
-				return r.stores.Auth(), nil
 			},
 		},
 		{
