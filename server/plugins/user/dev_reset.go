@@ -19,10 +19,15 @@ type AuthRepositoryForReset = userstore.AuthRepository
 func NewAuthRepositoryForReset(sqlDB *sql.DB) (AuthRepositoryForReset, error) {
 	storeRuntime, err := storeent.NewRuntime(sqlDB)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build user storeent runtime: %w", err)
 	}
 
-	return storeRuntime.NewAuthRepository()
+	authRepo, err := storeRuntime.NewAuthRepository()
+	if err != nil {
+		return nil, fmt.Errorf("build user auth storeent repository: %w", err)
+	}
+
+	return authRepo, nil
 }
 
 // ResetDefaultAdminForDevelopment 在开发环境里把默认管理员重置回首次登录受限态。
