@@ -14,6 +14,8 @@
 - Preserve the final `web` ownership model and the current `server` compile-time modular-monolith ownership model until
   dedicated worktrees are created.
 - Keep historical detail available in topic-local archive snapshots instead of carrying it in the default recovery path.
+- Land the confirmed server multi-worktree truth so future implementation rounds do not drift on what still blocks
+  long-lived feature-worktree `functional zero-sharing`.
 
 ## Repository Truth
 
@@ -49,19 +51,24 @@
   - compile-time modular monolith only; no runtime plugin loading, discovery, hot-load lifecycle, or generalized
     service locator
   - zero-shared means functional worktree zero-sharing, not absolute zero-sharing of every tracked file
+  - current state has NOT yet reached long-lived feature-worktree functional zero-sharing
   - plugin-first owned scope under `server/plugins/<name>/**`
   - long-lived server feature worktrees should normally own only `server/plugins/<name>/**`
   - shared stable backend boundary under `server/internal/pluginapi/**` and `server/internal/contract/**`
   - centralized generated hotspot limited to `server/internal/pluginregistry/generated.go`
   - shared contracts, registry wiring, CLI wiring, `AGENTS.md`, `ai-plan/**`, and migration-entry changes belong to
     short-lived integration/core slices, not to standing feature-worktree ownership
+  - current confirmed blockers are:
+    - runtime/core still depends on `server/internal/ent/**`
+    - the default migration entry still includes the historical core/shared migration chain
+    - `server/internal/ent/**` remains a compatibility shell/shared hotspot
   - `server/internal/ent/**` remains transitional only: no new business truth may land there; it may stay as a
     temporary compatibility shell until import/runtime/test/generation dependencies are cleared
   - physical deletion of `server/internal/ent/**` is allowed only after those dependencies are cleared
   - `user_roles` final owner is `rbac`
   - `user_roles` should stay at a `user_id / role_id` identifier boundary, not cross-plugin Ent edges
-  - fresh DB rebuild is an allowed ownership-checkpoint posture; historical mixed migration compatibility is not
-    required
+  - because the project is still early, whole-database rebuild is an allowed ownership-checkpoint posture as long as
+    functionality remains unchanged; historical mixed migration replay compatibility is not required
   - new business logic must not flow back into `server/internal/store/**` or non-core-owned portions of
     `server/internal/ent/**`
 - The latest backend ownership slices already landed:
@@ -138,12 +145,31 @@
 
 - If future backend slices reopen `server/internal/store/**` or shared `server/internal/ent/**` as business landing
   zones, the first real multi-worktree merge wave will recreate avoidable hotspot churn.
+- If future backend slices assume functional zero-sharing is already achieved before the runtime/core and migration-entry
+  dependencies are removed, the first long-lived feature worktrees will still collide on `internal/ent/**` and the
+  shared migration chain.
 - If future frontend slices reintroduce module truth outside `web/src/modules/<name>/**`, the `web` ownership freeze
   becomes unenforceable.
 - If the repository root branch changes again and `ai-plan/public/README.md` is not updated in the same slice, future
   startup recovery will land on stale branch/worktree assumptions.
 - If the first dedicated worktree/topic pair is created without an explicit owned-scope definition, this governance
   topic will continue accumulating feature-specific history that belongs elsewhere.
+
+## Phased Path To Functional Zero-Sharing
+
+- Phase 1 is already acceptable as a short-lived integration hotspot posture:
+  - keep compile-time generated plugin registry in place
+  - keep registry and CLI wiring in bounded shared slices only
+- Phase 2 continues plugin-local ownership hardening:
+  - avoid reopening shared store seams
+  - keep new business logic inside `server/plugins/<name>/**`
+  - keep cross-plugin collaboration on capability/contract boundaries
+- Phase 3 is the remaining blocker-clearing phase before long-lived feature-worktree functional zero-sharing:
+  - remove runtime/core dependence on `server/internal/ent/**` for business-plugin truth
+  - move the default migration entry off the historical core/shared replay chain and onto an owner-aligned baseline
+  - shrink `server/internal/ent/**` to core-owned-only residue, then delete it once import/runtime/test/generation
+    dependencies are gone
+  - preserve `user_roles -> rbac` ownership while keeping the allowed early-phase whole-database rebuild posture
 
 ## Latest Validation
 

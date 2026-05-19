@@ -1,5 +1,22 @@
 # Multi Worktree Governance Trace
 
+## 2026-05-19 server functional zero-sharing not yet reached
+
+- Recorded the current server governance conclusion so later implementation rounds do not over-claim the baseline:
+  - long-lived feature-worktree `functional zero-sharing` has NOT yet been reached
+  - compile-time generated plugin registry is already acceptable as a short-lived integration hotspot
+- Made the remaining blockers explicit in the active trace:
+  - runtime/core still depends on `server/internal/ent/**`
+  - the default migration entry still includes the historical core/shared migration chain
+  - `server/internal/ent/**` remains a compatibility shell/shared hotspot
+- Locked the agreed early-phase migration allowance into the active topic truth:
+  - whole-database rebuild is allowed while the project is still early
+  - historical mixed migration replay compatibility is not required as long as functionality remains unchanged
+- Recorded the phased implementation direction required to reach the target posture:
+  - keep registry/CLI hotspot handling short-lived and integration-scoped
+  - finish the plugin-local ownership hardening without reopening shared store seams
+  - clear the runtime/core and migration-entry dependencies that still force `internal/ent/**` to stay shared
+
 ## 2026-05-19 Phase 1 server functional zero-sharing governance freeze
 
 - Tightened the active server governance truth for Phase 1 multi-worktree ownership without changing code or roadmap:

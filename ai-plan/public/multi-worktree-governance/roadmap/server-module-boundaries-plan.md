@@ -4,6 +4,10 @@
 
 - 目标是把 `server` 治理成长期可并行开发的单体：业务按插件拆分、运行仍是单进程、接线仍是 compile-time、启动顺序仍 deterministic。
 - 本轮不做运行时插件平台，不引入动态发现、热加载、外部插件市场、分布式插件协议，也不把当前单体演进成微服务。
+- 当前状态尚未达到长期 feature-worktree `functional zero-sharing`：
+  - runtime/core 仍依赖 `server/internal/ent/**`
+  - 默认 migration 入口仍串接历史 core/shared migration chain
+  - `server/internal/ent/**` 仍是兼容壳与共享热点
 - 完成后应满足三类验收：
   - `user`、`rbac`、未来新插件可在独立工作树长期开发，主冲突面限制在少数刻意共享热点
   - 新增插件低冲突接入，不再要求手改一批中心化核心文件
@@ -40,7 +44,8 @@
   - 或 `core-owned` 表
 - `user_roles` 的最终 owner 固定为 `rbac`
 - `rbac` 拥有 `user_roles` 的 Ent schema、repository、migration 与测试
-- 历史 mixed Atlas migration 保持 immutable；后续只允许通过 `rbac` 的 forward-only migration 记录 ownership checkpoint
+- 当前阶段允许 whole-database rebuild；只要项目功能不变，不要求保留历史 mixed migration replay 兼容性
+- 历史 mixed Atlas migration 可视为过渡遗留，不再作为长期兼容约束；后续以新的 ownership checkpoint 为准
 - 禁止：
   - `rbac` migration 修改 `user` 表
   - `audit` migration 修改 `rbac` 表
@@ -253,6 +258,8 @@
 - `internal/ent/**` 收缩到 core-owned schema
 - 业务表迁移到各插件自有 `ent/**` 与 `migrations/**`
 - `user_roles` ownership 在 Phase 3 结束时必须落到 `rbac`，而不是继续停留在 `user` / `rbac` 共享状态
+- 解除 runtime/core 对 `server/internal/ent/**` 业务层的依赖，使其不再是长期 feature worktree 的共享阻塞点
+- 将默认 migration 入口从历史 core/shared replay 链收敛到新的 owner-aligned migration baseline
 
 ### Phase 3 验收标准
 
@@ -262,7 +269,9 @@
 - `rbac` 通过 `user` 的稳定 capability / contract 校验 `user_id`，不直接依赖 `user` 的 Ent 包
 - `user_roles` 的 schema、repository、migration、测试只由 `rbac` worktree 维护
 - 两个并行分支分别修改 `plugins/user/**` 与 `plugins/rbac/**`，合并时不再要求解决共享 schema、共享 migration、共享 store factory 冲突
-- 可单独提交，必要时通过数据迁移顺序和兼容窗口平滑落地
+- 默认 runtime 不再依赖 `server/internal/ent/**` 承载业务插件共享真相
+- 默认 migration 入口不再要求重放历史 mixed core/shared chain 才能启动
+- 当前早期阶段允许通过 whole-database rebuild 落地该 ownership checkpoint；不要求保留历史 mixed migration replay 兼容窗口
 
 ## Standard Plugin Onboarding Flow
 
