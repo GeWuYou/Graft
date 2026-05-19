@@ -17,7 +17,6 @@ import (
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/database"
-	"graft/server/internal/ent"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -241,15 +240,6 @@ func (r *Runtime) registerCoreServices() error {
 			key: (*eventbus.Bus)(nil),
 			provider: func() (any, error) {
 				return r.eventBus, nil
-			},
-		},
-		{
-			key: (*ent.Client)(nil),
-			provider: func() (any, error) {
-				if r.database == nil || r.database.Client == nil {
-					return nil, errors.New("ent client is unavailable")
-				}
-				return r.database.Client, nil
 			},
 		},
 		{

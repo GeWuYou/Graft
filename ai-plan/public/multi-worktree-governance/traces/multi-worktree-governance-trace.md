@@ -1,5 +1,17 @@
 # Multi Worktree Governance Trace
 
+## 2026-05-19 shared internal-ent Go residue removed
+
+- Deleted the remaining `server/internal/ent/**` Go packages, generated code, forwarder schema shells, and tests after
+  verifying no non-doc Go imports outside that tree still depended on them.
+- Preserved only `server/internal/ent/migrate/migrations/**` as the explicit/manual historical migration path:
+  - the default migration chain already points at the owner-aligned plugin registry
+  - `pluginregistry.HistoricalSharedMigrationDir` remains the only live non-doc reference into that historical path
+- Updated the active governance truth to match the new boundary:
+  - `internal/ent/**` is no longer a live compatibility shell or runtime dependency surface
+  - future work must not silently recreate shared Ent code under `server/internal/ent/**`
+  - the remaining `internal/ent` residue is historical SQL state, not active plugin/runtime truth
+
 ## 2026-05-19 server functional zero-sharing not yet reached
 
 - Recorded the current server governance conclusion so later implementation rounds do not over-claim the baseline:

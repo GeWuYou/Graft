@@ -16,8 +16,10 @@ import (
 	"graft/server/internal/pluginregistry"
 )
 
-// defaultMigrationDir 定义 server 模块内 Atlas 版本化迁移目录的默认相对路径。
-const defaultMigrationDir = pluginregistry.DefaultCoreMigrationDir
+// defaultMigrationDir 定义 `server` 模块默认迁移链使用的 registry 选择器。
+const defaultMigrationDir = pluginregistry.DefaultMigrationDir
+
+const migrationFileMode = 0o600
 
 // 这些变量保留为可替换的命令边界，便于测试覆盖 Atlas 查找、子进程执行和
 // 当前工作目录解析，而不把真实系统依赖硬编码到测试中。
@@ -27,6 +29,10 @@ var migrateGetwd = os.Getwd
 var migrateStdin io.Reader = os.Stdin
 var migrateRegistryMigrationDirs = pluginregistry.MigrationDirs
 var migrateReadDir = os.ReadDir
+var migrateReadFile = os.ReadFile
+var migrateWriteFile = os.WriteFile
+var migrateMkdirTemp = os.MkdirTemp
+var migrateRemoveAll = os.RemoveAll
 
 // migrateUpOptions 封装一次显式迁移执行所需的输入。
 type migrateUpOptions struct {
@@ -45,7 +51,7 @@ func newMigrateCommand() *cobra.Command {
 		Use:   "migrate",
 		Short: "Run explicit database migration commands",
 	}
-	command.PersistentFlags().StringVar(&migrationDir, "dir", defaultMigrationDir, "migration directory")
+	command.PersistentFlags().StringVar(&migrationDir, "dir", defaultMigrationDir, "migration directory or owner-aligned default chain")
 
 	command.AddCommand(&cobra.Command{
 		Use:   "up",
@@ -95,25 +101,163 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
 		commandContext = context.Background()
 	}
 
+	absDirs, cleanup, err := prepareMigrationDirs(commandContext, atlasPath, opts.migrationDir, absDirs)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	return applyAtlasMigrations(commandContext, atlasPath, cmd, cfg.Database.URL, absDirs)
+}
+
+func synthesizeDefaultMigrationDir(commandContext context.Context, atlasPath string, sourceDirs []string) (string, func(), error) {
+	tempDir, err := migrateMkdirTemp("", "graft-atlas-default-*")
+	if err != nil {
+		return "", nil, fmt.Errorf("create temporary default migration dir: %w", err)
+	}
+
+	cleanup := func() {
+		_ = migrateRemoveAll(tempDir)
+	}
+
+	if err := copyMigrationFilesIntoDir(tempDir, sourceDirs); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+
+	if err := runAtlasMigrationCommand(
+		commandContext,
+		atlasPath,
+		nil,
+		"hash",
+		"--dir", "file://"+filepath.ToSlash(tempDir),
+	); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("hash synthesized default migration dir %s: %w", tempDir, err)
+	}
+
+	return tempDir, cleanup, nil
+}
+
+func prepareMigrationDirs(commandContext context.Context, atlasPath string, migrationDir string, absDirs []string) ([]string, func(), error) {
+	if migrationDir != defaultMigrationDir {
+		return absDirs, func() {}, nil
+	}
+
+	defaultDir, cleanup, err := synthesizeDefaultMigrationDir(commandContext, atlasPath, absDirs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return []string{defaultDir}, cleanup, nil
+}
+
+func applyAtlasMigrations(commandContext context.Context, atlasPath string, cmd *cobra.Command, databaseURL string, absDirs []string) error {
 	for _, absDir := range absDirs {
-		command := migrateCommandContext(
+		if err := runAtlasMigrationCommand(
 			commandContext,
 			atlasPath,
-			"migrate",
+			cmd,
 			"apply",
 			"--dir", "file://"+filepath.ToSlash(absDir),
-			"--url", cfg.Database.URL,
-		)
-		command.Stdout = cmd.OutOrStdout()
-		command.Stderr = cmd.ErrOrStderr()
-		command.Stdin = migrateStdin
-
-		if err := command.Run(); err != nil {
+			"--url", databaseURL,
+		); err != nil {
 			return fmt.Errorf("apply atlas migrations from %s: %w", absDir, err)
 		}
 	}
 
 	return nil
+}
+
+func copyMigrationFilesIntoDir(targetDir string, sourceDirs []string) error {
+	copiedAny := false
+	copiedNames := make(map[string]string, len(sourceDirs))
+
+	for _, sourceDir := range sourceDirs {
+		copied, err := copyMigrationFilesFromSource(targetDir, sourceDir, copiedNames)
+		if err != nil {
+			return err
+		}
+		copiedAny = copiedAny || copied
+	}
+
+	if !copiedAny {
+		return fmt.Errorf("default migration chain has no SQL migration files")
+	}
+
+	return nil
+}
+
+func copyMigrationFilesFromSource(targetDir string, sourceDir string, copiedNames map[string]string) (bool, error) {
+	entries, err := migrateReadDir(sourceDir)
+	if err != nil {
+		return false, fmt.Errorf("read migration dir %s: %w", sourceDir, err)
+	}
+
+	copiedAny := false
+	for _, entry := range entries {
+		copied, err := copyMigrationFileEntry(targetDir, sourceDir, entry, copiedNames)
+		if err != nil {
+			return false, err
+		}
+		copiedAny = copiedAny || copied
+	}
+
+	return copiedAny, nil
+}
+
+func copyMigrationFileEntry(targetDir string, sourceDir string, entry os.DirEntry, copiedNames map[string]string) (bool, error) {
+	if entry.IsDir() {
+		return false, nil
+	}
+
+	name := entry.Name()
+	if filepath.Ext(name) != ".sql" {
+		return false, nil
+	}
+
+	if previousSource, exists := copiedNames[name]; exists {
+		return false, fmt.Errorf("duplicate migration filename %s from %s and %s", name, previousSource, sourceDir)
+	}
+
+	if err := copyMigrationFile(targetDir, sourceDir, name); err != nil {
+		return false, err
+	}
+
+	copiedNames[name] = sourceDir
+	return true, nil
+}
+
+func copyMigrationFile(targetDir string, sourceDir string, name string) error {
+	sourcePath := filepath.Join(sourceDir, name)
+	content, err := migrateReadFile(sourcePath)
+	if err != nil {
+		return fmt.Errorf("read migration file %s: %w", sourcePath, err)
+	}
+
+	targetPath := filepath.Join(targetDir, name)
+	if err := migrateWriteFile(targetPath, content, migrationFileMode); err != nil {
+		return fmt.Errorf("write synthesized migration file %s: %w", targetPath, err)
+	}
+
+	return nil
+}
+
+func runAtlasMigrationCommand(commandContext context.Context, atlasPath string, cmd *cobra.Command, args ...string) error {
+	command := migrateCommandContext(commandContext, atlasPath, append([]string{"migrate"}, args...)...)
+
+	stdout := io.Discard
+	stderr := io.Discard
+	if cmd != nil {
+		stdout = cmd.OutOrStdout()
+		stderr = cmd.ErrOrStderr()
+	}
+
+	command.Stdout = stdout
+	command.Stderr = stderr
+	command.Stdin = migrateStdin
+
+	return command.Run()
 }
 
 // findAtlasCLI 解析本地可执行的 Atlas CLI 路径。

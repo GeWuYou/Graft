@@ -19,6 +19,7 @@ func NewDescriptor() plugin.Descriptor {
 		ID:            pluginID,
 		PluginVersion: pluginVersion,
 		Dependencies:  nil,
+		MigrationPath: []string{"plugins/audit/migrations"},
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
 			sqlDB, err := plugin.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
 			if err != nil {

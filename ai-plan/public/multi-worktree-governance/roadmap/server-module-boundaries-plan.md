@@ -4,10 +4,10 @@
 
 - 目标是把 `server` 治理成长期可并行开发的单体：业务按插件拆分、运行仍是单进程、接线仍是 compile-time、启动顺序仍 deterministic。
 - 本轮不做运行时插件平台，不引入动态发现、热加载、外部插件市场、分布式插件协议，也不把当前单体演进成微服务。
-- 当前状态尚未达到长期 feature-worktree `functional zero-sharing`：
-  - runtime/core 仍依赖 `server/internal/ent/**`
-  - 默认 migration 入口仍串接历史 core/shared migration chain
-  - `server/internal/ent/**` 仍是兼容壳与共享热点
+- 当前 server 基线已经清除先前阻断长期 feature-worktree `functional zero-sharing` 的 `internal/ent` 依赖：
+  - runtime/core 不再依赖 `server/internal/ent/**`
+  - 默认 migration 入口不再串接历史 core/shared migration chain
+  - `server/internal/ent/**` 的 Go/schema 兼容层已删除，仅保留显式/manual 历史 migration 目录
 - 完成后应满足三类验收：
   - `user`、`rbac`、未来新插件可在独立工作树长期开发，主冲突面限制在少数刻意共享热点
   - 新增插件低冲突接入，不再要求手改一批中心化核心文件
@@ -59,7 +59,7 @@
 
 - 每个插件独立进行 Ent generate。
 - 生成代码只能写入 `server/plugins/<name>/ent/**`。
-- `server/internal/ent/**` 只允许承载 `core-owned` schema 与其生成产物。
+- `server/internal/ent/**` 不再承载 live Ent schema 或生成产物；仅 `server/internal/ent/migrate/migrations/**` 保留历史共享 migration 目录。
 - 禁止：
   - 聚合式全局业务 ent generate
   - 一个插件修改其它插件的 ent 产物
@@ -182,7 +182,7 @@
   - `server/internal/cronx/**`
   - `server/internal/redisx/**`
   - `server/internal/migration/**`
-  - `server/internal/ent/**` 仅限 core-owned schema
+  - `server/internal/ent/migrate/migrations/**` 仅限历史共享 Atlas migration 目录
 - `shared-stable-boundary`
   - `server/internal/pluginapi/**`
   - `server/internal/contract/**`
@@ -255,10 +255,10 @@
 - 完成 Ent ownership 迁移
 - 完成 migration ownership 迁移
 - 清理跨插件 relation 和 schema backflow
-- `internal/ent/**` 收缩到 core-owned schema
+- 删除 `internal/ent/**` 的共享 Go/schema 残留，仅保留历史 migration 目录
 - 业务表迁移到各插件自有 `ent/**` 与 `migrations/**`
 - `user_roles` ownership 在 Phase 3 结束时必须落到 `rbac`，而不是继续停留在 `user` / `rbac` 共享状态
-- 解除 runtime/core 对 `server/internal/ent/**` 业务层的依赖，使其不再是长期 feature worktree 的共享阻塞点
+- 保持 runtime/core 不重新依赖 `server/internal/ent/**`，使其不再成为长期 feature worktree 的共享阻塞点
 - 将默认 migration 入口从历史 core/shared replay 链收敛到新的 owner-aligned migration baseline
 
 ### Phase 3 验收标准
@@ -270,6 +270,7 @@
 - `user_roles` 的 schema、repository、migration、测试只由 `rbac` worktree 维护
 - 两个并行分支分别修改 `plugins/user/**` 与 `plugins/rbac/**`，合并时不再要求解决共享 schema、共享 migration、共享 store factory 冲突
 - 默认 runtime 不再依赖 `server/internal/ent/**` 承载业务插件共享真相
+- `server/internal/ent/migrate/migrations/**` 仅作为显式/manual 历史链保留，不再影响默认开发或长期 feature worktree owned scope
 - 默认 migration 入口不再要求重放历史 mixed core/shared chain 才能启动
 - 当前早期阶段允许通过 whole-database rebuild 落地该 ownership checkpoint；不要求保留历史 mixed migration replay 兼容窗口
 

@@ -65,10 +65,8 @@
   - 平台声明式注册面与公共运行时能力
 - `internal/store`、`internal/store/entstore`
   - 仅保留现阶段尚未迁出的 core-owned 数据访问边界；长期方向不是继续集中新增业务仓储
-- `internal/ent/schema`
-  - 仅保留 core-owned Ent schema 真相
 - `internal/ent/migrate/migrations`
-  - 仅保留 core-owned Atlas versioned migration 真相
+  - 仅保留历史共享 Atlas migration 目录，供显式/manual 诊断或回放使用；它不再属于默认 migration 链
 - `plugins/*`
   - 业务插件与插件自有 contract；长期方向下每个插件还应拥有自己的 capability、store、storeent、ent 与 migrations
 
@@ -241,19 +239,17 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
   `AGENTS.md`、`ai-plan/**` 与 migration 入口变更都属于短生命周期 integration / core slice，不属于长期 feature
   worktree 的 standing ownership
 - `internal/pluginregistry/generated.go` 当前仍保持 tracked；但长生命周期 feature worktree 不得直接修改它，相关改动必须回到显式集成切片统一协调
-- `internal/ent/**` 目前仍是过渡性共享热点，不等于长期 owner 已冻结；在导入、运行时、测试与生成依赖全部清除前，不得把它视为可安全独占的 plugin-owned 面
-- `internal/ent/**` 里不得继续新增业务真相；若暂时保留，只能作为兼容 shell 或迁移过渡层
-- 只有在 import、runtime、test 与 generation 依赖都清除后，`internal/ent/**` 才允许被物理删除
+- 共享 `internal/ent` Go 代码与 schema 兼容层已经删除；不得在该路径重新引入业务 schema、生成产物或 runtime 依赖
+- `internal/ent/migrate/migrations/**` 仍保留为历史共享 migration 目录，但仅允许显式/manual 使用；它不是默认 migration 链的一部分
 - 当前后端 ownership checkpoint 允许 fresh DB rebuild；不要求为历史 mixed migration 继续维持兼容回放能力
 
 规则：
 
-- `internal/ent/schema/**` 只允许承载 core-owned Ent schema 真相，或在依赖未清除前保留最小兼容 forwarder shell；不得重新落入新的业务真相
-- `internal/ent/migrate/migrations/**` 只允许承载 core-owned versioned migration 真相
+- `internal/ent/migrate/migrations/**` 只允许承载历史共享 Atlas migration 真相；不得新增新的默认 migration、业务 schema 真相或新的 owner-aligned 基线
 - 每个业务插件应长期收敛到自己的：
   - `plugins/<name>/ent/**`
   - `plugins/<name>/migrations/**`
-- `internal/ent/*.go` 与 `internal/ent/<entity>/**` 中的生成产物默认视为派生结果，不要手改生成代码来“修行为”
+- live Ent 生成产物只允许存在于 `plugins/<name>/ent/**`；不得把生成代码重新集中回 `internal/ent/**`
 - schema 变化必须通过显式 Ent 生成与显式 migration 流程落地，不允许靠 runtime 自动同步数据库
 - `graft migrate up` 是显式迁移入口；`graft serve` 不得隐式修改 schema
 - migration 文件必须保持可审计、可回放、可按版本追踪；不要把业务初始化偷偷塞进不可追踪的启动逻辑
@@ -276,19 +272,19 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 当任务修改以下任一内容时：
 
-- `internal/ent/schema/**`
-- `internal/ent/generate.go`
-- Ent 生成入口
+- 任一 live Ent schema 路径，例如 `plugins/<name>/ent/schema/**`
+- 任一 live Ent 生成入口，例如 `plugins/<name>/ent/generate.go`
+- Atlas/Ent 迁移生成相关配置
 - 任何影响 schema 语义的手写代码
 
 完成态必须额外执行：
 
-- `cd server && go generate ./internal/ent`
+- 对受影响的 live Ent 包运行对应的 `go generate`
 - 通过现有显式 migration 流程生成或更新 migration 文件
-- `cd server && go test ./internal/ent/...`
+- 对受影响的 Ent 包运行最小直接 `go test`
 - `cd server && go test ./...`
 
-不要声称 schema 已完成治理但缺少生成结果或 migration 对应更新。
+不要声称 schema 已完成治理但缺少生成结果或 migration 对应更新。若未来需要恢复 core-owned Ent 生成入口，必须先在文档中显式声明该路径，而不是静默复活 `internal/ent/**`。
 
 ## 9.1 多工作树 owned scope
 
@@ -315,7 +311,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
   - `internal/cronx/**`
   - `internal/redisx/**`
   - `internal/migration/**`
-  - `internal/ent/**` 仅限 core-owned schema
+  - `internal/ent/migrate/migrations/**` 仅限历史共享 Atlas migration 目录
 
 允许长期共享修改的白名单仅包括：
 
@@ -344,7 +340,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - 该 worktree 拥有哪些 `plugin-owned` 或 `core-owned` 目录
 - 允许触碰哪些 `shared-stable-boundary`
 - 是否允许触碰 `generated-shared-hotspot`
-- 遇到 `internal/ent/**`、`internal/app/**`、`internal/plugin/**` 这类 core 共享面时，是回到 `main` 治理还是切出单独 core worktree
+- 遇到 `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/plugin/**` 这类 core 共享面时，是回到 `main` 治理还是切出单独 core worktree
 
 shared hotspot 处理规则如下：
 
@@ -356,7 +352,7 @@ shared hotspot 处理规则如下：
   - 该文件只能承载 compile-time registry 的机械生成结果，不允许手写业务规则、兼容分支或第二套插件真相
   - 若多个长期 worktree 同时需要修改它，应把该变更视为可预期冲突面，并通过短生命周期集成或共享基线串行收口，而不是扩大共享编辑范围
 - `core-owned` 高冲突面
-  - `internal/ent/**`、`internal/app/**`、`internal/plugin/**`、`internal/migration/**` 默认不是长期共享编辑面
+  - `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/plugin/**`、`internal/migration/**` 默认不是长期共享编辑面
   - 某个插件 worktree 一旦需要持续修改这些目录，必须先明确它是在进行 core-owned 治理还是插件 feature 开发；两者不要混在同一长期 worktree 里无限扩张
 
 从 `main` 共享基线切换到 dedicated long-lived worktree 前，至少满足：
