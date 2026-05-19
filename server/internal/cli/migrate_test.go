@@ -18,30 +18,30 @@ import (
 )
 
 type migrateTestHooks struct {
-	getwd                func() (string, error)
-	lookPath             func(string) (string, error)
-	commandContext       func(context.Context, string, ...string) *exec.Cmd
-	stdin                io.Reader
+	getwd                 func() (string, error)
+	lookPath              func(string) (string, error)
+	commandContext        func(context.Context, string, ...string) *exec.Cmd
+	stdin                 io.Reader
 	registryMigrationDirs func() ([]string, error)
-	readDir              func(string) ([]os.DirEntry, error)
-	readFile             func(string) ([]byte, error)
-	writeFile            func(string, []byte, os.FileMode) error
-	mkdirTemp            func(string, string) (string, error)
-	removeAll            func(string) error
+	readDir               func(string) ([]os.DirEntry, error)
+	readFile              func(string) ([]byte, error)
+	writeFile             func(string, []byte, os.FileMode) error
+	mkdirTemp             func(string, string) (string, error)
+	removeAll             func(string) error
 }
 
 func captureMigrateTestHooks() migrateTestHooks {
 	return migrateTestHooks{
-		getwd:                migrateGetwd,
-		lookPath:             migrateLookPath,
-		commandContext:       migrateCommandContext,
-		stdin:                migrateStdin,
+		getwd:                 migrateGetwd,
+		lookPath:              migrateLookPath,
+		commandContext:        migrateCommandContext,
+		stdin:                 migrateStdin,
 		registryMigrationDirs: migrateRegistryMigrationDirs,
-		readDir:              migrateReadDir,
-		readFile:             migrateReadFile,
-		writeFile:            migrateWriteFile,
-		mkdirTemp:            migrateMkdirTemp,
-		removeAll:            migrateRemoveAll,
+		readDir:               migrateReadDir,
+		readFile:              migrateReadFile,
+		writeFile:             migrateWriteFile,
+		mkdirTemp:             migrateMkdirTemp,
+		removeAll:             migrateRemoveAll,
 	}
 }
 
@@ -551,6 +551,57 @@ func TestRunMigrateUpSynthesizesDefaultChain(t *testing.T) {
 		"202605190002_rbac.sql",
 		"202605190003_audit.sql",
 	})
+}
+
+func TestRunMigrateUpIncludesAtlasHashStderr(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	root := t.TempDir()
+	userDir := filepath.Join(root, "server", "plugins", "user", "migrations")
+	dirs := []string{userDir}
+	createMigrationFixture(t, dirs, map[string]string{
+		filepath.Join(userDir, "202605190001_user.sql"): "CREATE TABLE users (id bigint);\n",
+	})
+	writeAtlasStateFiles(t, dirs)
+
+	setMigrateCommandTestEnv(t)
+
+	migrateGetwd = func() (string, error) {
+		return root, nil
+	}
+	migrateLookPath = func(_ string) (string, error) {
+		return "/usr/bin/atlas", nil
+	}
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{"plugins/user/migrations"}, nil
+	}
+	useRealMigrateFileOps(os.RemoveAll)
+
+	atlasInvocations := 0
+	migrateCommandContext = func(_ context.Context, _ string, args ...string) *exec.Cmd {
+		atlasInvocations++
+		if len(args) >= 2 && args[0] == "migrate" && args[1] == "hash" {
+			return exec.Command("sh", "-c", "printf 'atlas hash failed: malformed sql\\n' >&2; exit 1")
+		}
+
+		return exec.Command("true")
+	}
+	migrateStdin = strings.NewReader("")
+
+	err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: defaultMigrationDir})
+	if err == nil {
+		t.Fatal("expected atlas hash error")
+	}
+	if !strings.Contains(err.Error(), "hash synthesized default migration dir") {
+		t.Fatalf("expected synthesized dir context, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "atlas hash failed: malformed sql") {
+		t.Fatalf("expected atlas stderr in error, got %v", err)
+	}
+	if atlasInvocations != 1 {
+		t.Fatalf("expected hash failure to stop before apply, got %d atlas invocations", atlasInvocations)
+	}
 }
 
 func TestRunMigrateUpRejectsDuplicateMigrationFilenames(t *testing.T) {

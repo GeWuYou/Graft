@@ -7,7 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +24,7 @@ import (
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
+	testent "graft/server/internal/testent"
 )
 
 type shutdownRecorderPlugin struct {
@@ -236,7 +237,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
 	assertResolvedService(t, runtime.services, (*sql.DB)(nil), sqlDB, "sql db")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
-	assertServiceKeyNotRegistered(t, runtime.services, "*ent.Client")
+	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
 }
 
 func assertResolvedService[T comparable](t *testing.T, resolver container.Resolver, key any, expected T, name string) {
@@ -256,14 +257,15 @@ func assertResolvedService[T comparable](t *testing.T, resolver container.Resolv
 	}
 }
 
-func assertServiceKeyNotRegistered(t *testing.T, c *container.Container, key string) {
+func assertServiceKeyNotRegistered(t *testing.T, resolver container.Resolver, key any, name string) {
 	t.Helper()
 
-	providers := reflect.ValueOf(c).Elem().FieldByName("providers")
-	for _, providerKey := range providers.MapKeys() {
-		if providerKey.String() == key {
-			t.Fatalf("expected runtime services to omit %s", key)
-		}
+	_, err := resolver.Resolve(key)
+	if err == nil {
+		t.Fatalf("expected runtime services to omit %s", name)
+	}
+	if !strings.Contains(err.Error(), "service not registered") {
+		t.Fatalf("expected %s to be unregistered, got %v", name, err)
 	}
 }
 

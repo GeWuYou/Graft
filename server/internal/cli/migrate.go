@@ -125,15 +125,17 @@ func synthesizeDefaultMigrationDir(commandContext context.Context, atlasPath str
 		return "", nil, err
 	}
 
+	var hashStderr strings.Builder
 	if err := runAtlasMigrationCommand(
 		commandContext,
 		atlasPath,
 		nil,
+		&hashStderr,
 		"hash",
 		"--dir", "file://"+filepath.ToSlash(tempDir),
 	); err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("hash synthesized default migration dir %s: %w", tempDir, err)
+		return "", nil, fmt.Errorf("hash synthesized default migration dir %s: %w", tempDir, wrapAtlasCommandError(err, hashStderr.String()))
 	}
 
 	return tempDir, cleanup, nil
@@ -158,6 +160,7 @@ func applyAtlasMigrations(commandContext context.Context, atlasPath string, cmd 
 			commandContext,
 			atlasPath,
 			cmd,
+			nil,
 			"apply",
 			"--dir", "file://"+filepath.ToSlash(absDir),
 			"--url", databaseURL,
@@ -243,7 +246,7 @@ func copyMigrationFile(targetDir string, sourceDir string, name string) error {
 	return nil
 }
 
-func runAtlasMigrationCommand(commandContext context.Context, atlasPath string, cmd *cobra.Command, args ...string) error {
+func runAtlasMigrationCommand(commandContext context.Context, atlasPath string, cmd *cobra.Command, stderrCapture io.Writer, args ...string) error {
 	command := migrateCommandContext(commandContext, atlasPath, append([]string{"migrate"}, args...)...)
 
 	stdout := io.Discard
@@ -252,12 +255,24 @@ func runAtlasMigrationCommand(commandContext context.Context, atlasPath string, 
 		stdout = cmd.OutOrStdout()
 		stderr = cmd.ErrOrStderr()
 	}
+	if stderrCapture != nil {
+		stderr = io.MultiWriter(stderr, stderrCapture)
+	}
 
 	command.Stdout = stdout
 	command.Stderr = stderr
 	command.Stdin = migrateStdin
 
 	return command.Run()
+}
+
+func wrapAtlasCommandError(err error, stderr string) error {
+	stderr = strings.TrimSpace(stderr)
+	if stderr == "" {
+		return err
+	}
+
+	return fmt.Errorf("%w: %s", err, stderr)
 }
 
 // findAtlasCLI 解析本地可执行的 Atlas CLI 路径。
