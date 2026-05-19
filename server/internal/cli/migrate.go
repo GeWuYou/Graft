@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -155,23 +156,16 @@ func resolveMigrationDirs(baseDir string, migrationDir string) ([]string, error)
 	for _, current := range searchDirs {
 		absDir, err := resolveMigrationDir(baseDir, current)
 		if err != nil {
+			if shouldSkipMissingMigrationDir(includeAllResolvedDirs, err) {
+				continue
+			}
 			return nil, err
 		}
 
-		if includeAllResolvedDirs {
-			resolved = append(resolved, absDir)
-			continue
-		}
-
-		hasAtlasState, err := directoryContainsAtlasState(absDir)
+		resolved, err = appendResolvedMigrationDir(resolved, absDir, includeAllResolvedDirs)
 		if err != nil {
 			return nil, err
 		}
-		if !hasAtlasState {
-			continue
-		}
-
-		resolved = append(resolved, absDir)
 	}
 
 	if len(resolved) == 0 {
@@ -179,6 +173,26 @@ func resolveMigrationDirs(baseDir string, migrationDir string) ([]string, error)
 	}
 
 	return resolved, nil
+}
+
+func shouldSkipMissingMigrationDir(includeAllResolvedDirs bool, err error) bool {
+	return !includeAllResolvedDirs && errors.Is(err, os.ErrNotExist)
+}
+
+func appendResolvedMigrationDir(resolved []string, absDir string, includeAllResolvedDirs bool) ([]string, error) {
+	if includeAllResolvedDirs {
+		return append(resolved, absDir), nil
+	}
+
+	hasAtlasState, err := directoryContainsAtlasState(absDir)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAtlasState {
+		return resolved, nil
+	}
+
+	return append(resolved, absDir), nil
 }
 
 // resolveMigrationDir 从当前目录向上搜索可用的单个迁移目录。
@@ -221,7 +235,7 @@ func resolveMigrationDir(baseDir string, migrationDir string) (string, error) {
 		current = parent
 	}
 
-	return "", fmt.Errorf("cannot find migration dir %q from %s", migrationDir, baseDir)
+	return "", fmt.Errorf("cannot find migration dir %q from %s: %w", migrationDir, baseDir, os.ErrNotExist)
 }
 
 func directoryContainsAtlasState(absDir string) (bool, error) {

@@ -142,6 +142,41 @@ func TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState(t *testing.T) {
 	}
 }
 
+// TestResolveMigrationDirsSkipsMissingRegistryDirs 验证默认 registry 链路会跳过
+// 尚未创建的插件迁移目录，而不是让缺失目录阻断全部迁移。
+func TestResolveMigrationDirsSkipsMissingRegistryDirs(t *testing.T) {
+	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
+	originalReadDir := migrateReadDir
+	defer func() {
+		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
+		migrateReadDir = originalReadDir
+	}()
+
+	root := t.TempDir()
+	coreDir := filepath.Join(root, "server", defaultMigrationDir)
+	if err := os.MkdirAll(coreDir, 0o750); err != nil {
+		t.Fatalf("mkdir %s: %v", coreDir, err)
+	}
+	if err := os.WriteFile(filepath.Join(coreDir, "atlas.sum"), []byte("core"), 0o600); err != nil {
+		t.Fatalf("write atlas.sum: %v", err)
+	}
+
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{defaultMigrationDir, "plugins/user/migrations"}, nil
+	}
+	migrateReadDir = os.ReadDir
+
+	resolved, err := resolveMigrationDirs(root, defaultMigrationDir)
+	if err != nil {
+		t.Fatalf("resolve migration dirs: %v", err)
+	}
+
+	expected := []string{coreDir}
+	if !reflect.DeepEqual(resolved, expected) {
+		t.Fatalf("expected %v, got %v", expected, resolved)
+	}
+}
+
 // TestResolveMigrationDirsRejectsRegistryWithoutAtlasState 验证默认 registry 目录
 // 若全部缺少 Atlas 状态，会显式报错而不是静默跳过迁移。
 func TestResolveMigrationDirsRejectsRegistryWithoutAtlasState(t *testing.T) {
