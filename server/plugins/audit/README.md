@@ -25,8 +25,8 @@
 
 ## 关键依赖
 
-* 依赖 `plugin.Context` 提供的 `EventBus`、`Router`、`Logger`，并在 Builder 阶段显式解析 `*ent.Client`
-* 写入逻辑复用 `server/internal/audit`、`server/plugins/audit/store` 和 `server/plugins/audit/storeent`
+* 依赖 `plugin.Context` 提供的 `EventBus`、`Router`、`Logger`，并在 Builder 阶段显式解析共享 `*sql.DB`
+* 写入逻辑复用 `server/internal/audit`、`server/plugins/audit/store` 和插件自有 `storeent` SQL repository
 
 ## 维护提示
 

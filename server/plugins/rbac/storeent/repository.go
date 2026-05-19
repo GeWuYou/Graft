@@ -2,477 +2,515 @@ package storeent
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"strings"
+	"time"
 
-	"graft/server/internal/ent"
-	rbacpermission "graft/server/plugins/rbac/ent/permission"
-	rbacrole "graft/server/plugins/rbac/ent/role"
-	rbacrolepermission "graft/server/plugins/rbac/ent/rolepermission"
-	rbacuserrole "graft/server/plugins/rbac/ent/userrole"
+	sqlite3 "github.com/mattn/go-sqlite3"
+
 	rbacstore "graft/server/plugins/rbac/store"
 )
 
 type repository struct {
-	client *ent.Client
+	db *sql.DB
 }
 
-// NewRepository builds the RBAC plugin's Ent-backed repository.
-func NewRepository(client *ent.Client) (rbacstore.Repository, error) {
-	if client == nil {
-		return nil, fmt.Errorf("rbac storeent requires a non-nil ent client")
+// NewRepository 基于共享连接池构建 RBAC 插件的 SQL repository。
+func NewRepository(db *sql.DB) (rbacstore.Repository, error) {
+	if db == nil {
+		return nil, errors.New("rbac repository requires a non-nil sql db")
 	}
 
-	return &repository{client: client}, nil
+	return &repository{db: db}, nil
 }
 
+//nolint:cyclop // 重复键重试流程需要保持显式，才能维持这个稳定 upsert 边界的可审计性。
 func (r *repository) EnsureRole(ctx context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
 	record, err := r.findRoleByName(ctx, input.Name)
 	if err == nil {
-		record, err = r.upgradeRoleBuiltinIfNeeded(ctx, record, input.Builtin, "upgrade ensured role builtin state")
-		if err != nil {
-			return rbacstore.Role{}, err
+		if input.Builtin && !record.Builtin {
+			record, err = r.setRoleBuiltin(ctx, record.ID, true, "upgrade ensured role builtin state")
+			if err != nil {
+				return rbacstore.Role{}, err
+			}
 		}
-		return toStoreRole(record), nil
+		return record, nil
 	}
-	if !ent.IsNotFound(err) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return rbacstore.Role{}, fmt.Errorf("query ensured role by name: %w", err)
 	}
 
 	record, err = r.createRoleRecord(ctx, input)
-	if err != nil {
-		if ent.IsConstraintError(err) {
-			record, err = r.findRoleAfterCreateConflict(ctx, input)
-			if err != nil {
-				return rbacstore.Role{}, err
-			}
-			return toStoreRole(record), nil
-		}
-
+	if err == nil {
+		return record, nil
+	}
+	if !isUniqueViolation(err) {
 		return rbacstore.Role{}, fmt.Errorf("create ensured role: %w", err)
 	}
 
-	return toStoreRole(record), nil
+	record, err = r.findRoleByName(ctx, input.Name)
+	if err != nil {
+		return rbacstore.Role{}, fmt.Errorf("re-query ensured role after conflict: %w", err)
+	}
+	if input.Builtin && !record.Builtin {
+		record, err = r.setRoleBuiltin(ctx, record.ID, true, "upgrade ensured role builtin state after conflict")
+		if err != nil {
+			return rbacstore.Role{}, err
+		}
+	}
+
+	return record, nil
 }
 
 func (r *repository) EnsurePermission(ctx context.Context, input rbacstore.EnsurePermissionInput) (rbacstore.Permission, error) {
-	return ensureUniqueEntity(
-		func() (*ent.Permission, error) {
-			return r.client.Permission.Query().
-				Where(rbacpermission.CodeEQ(input.Code)).
-				Only(ctx)
-		},
-		func() (*ent.Permission, error) {
-			return r.client.Permission.Create().
-				SetCode(input.Code).
-				SetDisplay(input.Display).
-				SetNillableDescription(input.Description).
-				SetCategory(input.Category).
-				Save(ctx)
-		},
-		toStorePermission,
-		"query ensured permission by code",
-		"create ensured permission",
-		"re-query ensured permission after conflict",
-	)
+	record, err := r.findPermissionByCode(ctx, input.Code)
+	if err == nil {
+		return record, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return rbacstore.Permission{}, fmt.Errorf("query ensured permission by code: %w", err)
+	}
+
+	record, err = r.createPermissionRecord(ctx, input)
+	if err == nil {
+		return record, nil
+	}
+	if !isUniqueViolation(err) {
+		return rbacstore.Permission{}, fmt.Errorf("create ensured permission: %w", err)
+	}
+
+	record, err = r.findPermissionByCode(ctx, input.Code)
+	if err != nil {
+		return rbacstore.Permission{}, fmt.Errorf("re-query ensured permission after conflict: %w", err)
+	}
+	return record, nil
 }
 
 func (r *repository) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
-	record, err := r.client.Role.Create().
-		SetName(input.Name).
-		SetDisplay(input.Display).
-		SetNillableDescription(input.Description).
-		SetBuiltin(input.Builtin).
-		Save(ctx)
+	record, err := r.createRoleRecord(ctx, rbacstore.EnsureRoleInput(input))
 	if err != nil {
-		if ent.IsConstraintError(err) {
+		if isUniqueViolation(err) {
 			return rbacstore.Role{}, rbacstore.ErrRoleNameConflict
 		}
-
 		return rbacstore.Role{}, fmt.Errorf("create role: %w", err)
 	}
-
-	return toStoreRole(record), nil
+	return record, nil
 }
 
 func (r *repository) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
-	roleID, err := toEntID(input.ID)
+	roleID, err := toDBID(input.ID)
 	if err != nil {
 		return rbacstore.Role{}, err
 	}
 
-	record, err := r.client.Role.UpdateOneID(roleID).
-		SetName(input.Name).
-		SetDisplay(input.Display).
-		SetNillableDescription(input.Description).
-		Save(ctx)
+	record, err := r.queryRoleByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return rbacstore.Role{}, rbacstore.ErrRoleNotFound
+		}
+		return rbacstore.Role{}, fmt.Errorf("get role by id %d: %w", input.ID, err)
+	}
+
+	record.Name = input.Name
+	record.Display = input.Display
+	record.Description = input.Description
+	record.UpdatedAt = time.Now().UTC()
+
+	row := r.db.QueryRowContext(
+		ctx,
+		`UPDATE roles
+		SET name = $2, display = $3, description = $4, updated_at = $5
+		WHERE id = $1
+		RETURNING id, name, display, description, builtin, created_at, updated_at`,
+		roleID,
+		record.Name,
+		record.Display,
+		nullableString(record.Description),
+		record.UpdatedAt,
+	)
+
+	updated, err := scanRole(row)
 	if err != nil {
 		switch {
-		case ent.IsNotFound(err):
+		case errors.Is(err, sql.ErrNoRows):
 			return rbacstore.Role{}, rbacstore.ErrRoleNotFound
-		case ent.IsConstraintError(err):
+		case isUniqueViolation(err):
 			return rbacstore.Role{}, rbacstore.ErrRoleNameConflict
 		default:
 			return rbacstore.Role{}, fmt.Errorf("update role %d: %w", input.ID, err)
 		}
 	}
 
-	return toStoreRole(record), nil
+	return updated, nil
 }
 
 func (r *repository) AssignPermissionsToRole(ctx context.Context, input rbacstore.AssignPermissionsToRoleInput) error {
-	roleID, err := toEntID(input.RoleID)
+	roleID, err := toDBID(input.RoleID)
 	if err != nil {
 		return err
 	}
 
-	for _, permissionID := range input.PermissionIDs {
-		entPermissionID, err := toEntID(permissionID)
+	for _, permissionIDValue := range input.PermissionIDs {
+		permissionID, err := toDBID(permissionIDValue)
 		if err != nil {
 			return err
 		}
 
-		exists, err := r.client.RolePermission.Query().
-			Where(
-				rbacrolepermission.RoleIDEQ(roleID),
-				rbacrolepermission.PermissionIDEQ(entPermissionID),
-			).
-			Exist(ctx)
-		if err != nil {
-			return fmt.Errorf("check role permission assignment: %w", err)
-		}
-		if exists {
+		_, err = r.db.ExecContext(
+			ctx,
+			`INSERT INTO role_permissions (role_id, permission_id, created_at)
+			VALUES ($1, $2, $3)`,
+			roleID,
+			permissionID,
+			time.Now().UTC(),
+		)
+		if err == nil || isUniqueViolation(err) {
 			continue
 		}
 
-		if _, err := r.client.RolePermission.Create().
-			SetRoleID(roleID).
-			SetPermissionID(entPermissionID).
-			Save(ctx); err != nil {
-			if ent.IsConstraintError(err) {
-				continue
-			}
-
-			return fmt.Errorf("assign permission %d to role %d: %w", permissionID, input.RoleID, err)
-		}
+		return fmt.Errorf("assign permission %d to role %d: %w", permissionIDValue, input.RoleID, err)
 	}
 
 	return nil
 }
 
 func (r *repository) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
-	return replaceStableAssignmentWithConfig(
+	return r.replaceStableAssignments(
 		ctx,
-		r.client,
 		input.RoleID,
 		input.PermissionIDs,
-		buildRolePermissionAssignmentConfig,
+		replaceAssignmentConfig{
+			startContext:         "start replace role permissions tx",
+			commitFormat:         "commit replace role permissions for role %d",
+			checkTargetContext:   "check role %d before replacing permissions",
+			countRelationContext: "count permissions for role %d replacement",
+			deleteStaleContext:   "delete stale permissions for role %d",
+			checkBindingContext:  "check role permission replacement",
+			createBindingContext: "replace permission %d for role %d",
+			targetMissing:        rbacstore.ErrRoleNotFound,
+			relationMissing:      rbacstore.ErrPermissionNotFound,
+			checkTargetExists: func(ctx context.Context, tx *sql.Tx, targetID int64) (bool, error) {
+				return recordExists(ctx, tx, "SELECT 1 FROM roles WHERE id = $1", targetID)
+			},
+			countRelationRecords: func(ctx context.Context, tx *sql.Tx, ids []int64) (int, error) {
+				return countRecordsByIDs(ctx, tx, "permissions", ids)
+			},
+			deleteStale: func(ctx context.Context, tx *sql.Tx, targetID int64, ids []int64) error {
+				return deleteStableRolePermissions(ctx, tx, targetID, ids)
+			},
+			bindingExists: func(ctx context.Context, tx *sql.Tx, targetID int64, relationID int64) (bool, error) {
+				return recordExists(
+					ctx,
+					tx,
+					"SELECT 1 FROM role_permissions WHERE role_id = $1 AND permission_id = $2",
+					targetID,
+					relationID,
+				)
+			},
+			createBinding: func(ctx context.Context, tx *sql.Tx, targetID int64, relationID int64) error {
+				_, err := tx.ExecContext(
+					ctx,
+					`INSERT INTO role_permissions (role_id, permission_id, created_at)
+					VALUES ($1, $2, $3)`,
+					targetID,
+					relationID,
+					time.Now().UTC(),
+				)
+				return err
+			},
+		},
 	)
 }
 
 func (r *repository) AssignRoleToUser(ctx context.Context, input rbacstore.AssignRoleToUserInput) error {
-	userID, err := toEntID(input.UserID)
+	userID, err := toDBID(input.UserID)
 	if err != nil {
 		return err
 	}
-	roleID, err := toEntID(input.RoleID)
+	roleID, err := toDBID(input.RoleID)
 	if err != nil {
 		return err
 	}
 
-	exists, err := r.client.UserRole.Query().
-		Where(
-			rbacuserrole.UserIDEQ(userID),
-			rbacuserrole.RoleIDEQ(roleID),
-		).
-		Exist(ctx)
-	if err != nil {
-		return fmt.Errorf("check user role assignment: %w", err)
-	}
-	if exists {
+	_, err = r.db.ExecContext(
+		ctx,
+		`INSERT INTO user_roles (user_id, role_id, created_at)
+		VALUES ($1, $2, $3)`,
+		userID,
+		roleID,
+		time.Now().UTC(),
+	)
+	if err == nil || isUniqueViolation(err) {
 		return nil
 	}
 
-	if _, err := r.client.UserRole.Create().
-		SetUserID(userID).
-		SetRoleID(roleID).
-		Save(ctx); err != nil {
-		if ent.IsConstraintError(err) {
-			duplicate, duplicateErr := r.client.UserRole.Query().
-				Where(
-					rbacuserrole.UserIDEQ(userID),
-					rbacuserrole.RoleIDEQ(roleID),
-				).
-				Exist(ctx)
-			if duplicateErr == nil && duplicate {
-				return nil
-			}
-		}
-
-		return fmt.Errorf("assign role %d to user %d: %w", input.RoleID, input.UserID, err)
-	}
-
-	return nil
+	return fmt.Errorf("assign role %d to user %d: %w", input.RoleID, input.UserID, err)
 }
 
 func (r *repository) ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {
-	return replaceStableAssignmentWithConfig(
+	return r.replaceStableAssignments(
 		ctx,
-		r.client,
 		input.UserID,
 		input.RoleIDs,
-		buildUserRoleAssignmentConfig,
+		replaceAssignmentConfig{
+			startContext:         "start replace user roles tx",
+			commitFormat:         "commit replace user roles for user %d",
+			checkTargetContext:   "check user %d before replacing roles",
+			countRelationContext: "count roles for user %d replacement",
+			deleteStaleContext:   "delete stale roles for user %d",
+			checkBindingContext:  "check user role replacement",
+			createBindingContext: "replace role %d for user %d",
+			targetMissing:        nil,
+			relationMissing:      rbacstore.ErrRoleNotFound,
+			checkTargetExists: func(context.Context, *sql.Tx, int64) (bool, error) {
+				return true, nil
+			},
+			countRelationRecords: func(ctx context.Context, tx *sql.Tx, ids []int64) (int, error) {
+				return countRecordsByIDs(ctx, tx, "roles", ids)
+			},
+			deleteStale: func(ctx context.Context, tx *sql.Tx, targetID int64, ids []int64) error {
+				return deleteStableUserRoles(ctx, tx, targetID, ids)
+			},
+			bindingExists: func(ctx context.Context, tx *sql.Tx, targetID int64, relationID int64) (bool, error) {
+				return recordExists(
+					ctx,
+					tx,
+					"SELECT 1 FROM user_roles WHERE user_id = $1 AND role_id = $2",
+					targetID,
+					relationID,
+				)
+			},
+			createBinding: func(ctx context.Context, tx *sql.Tx, targetID int64, relationID int64) error {
+				_, err := tx.ExecContext(
+					ctx,
+					`INSERT INTO user_roles (user_id, role_id, created_at)
+					VALUES ($1, $2, $3)`,
+					targetID,
+					relationID,
+					time.Now().UTC(),
+				)
+				return err
+			},
+		},
 	)
 }
 
 func (r *repository) GetRoleByID(ctx context.Context, roleID uint64) (rbacstore.Role, error) {
-	id, err := toEntID(roleID)
+	id, err := toDBID(roleID)
 	if err != nil {
 		return rbacstore.Role{}, err
 	}
 
-	record, err := r.client.Role.Query().
-		Where(rbacrole.IDEQ(id)).
-		Only(ctx)
+	record, err := r.queryRoleByID(ctx, id)
 	if err != nil {
-		if ent.IsNotFound(err) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return rbacstore.Role{}, rbacstore.ErrRoleNotFound
 		}
-
 		return rbacstore.Role{}, fmt.Errorf("get role by id %d: %w", roleID, err)
 	}
 
-	return toStoreRole(record), nil
+	return record, nil
 }
 
 func (r *repository) ListRolesByUserID(ctx context.Context, userID uint64) ([]rbacstore.Role, error) {
-	id, err := toEntID(userID)
+	id, err := toDBID(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	records, err := r.client.UserRole.Query().
-		Where(rbacuserrole.UserIDEQ(id)).
-		QueryRole().
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list roles by user id: %w", err)
-	}
-
-	roles := make([]rbacstore.Role, 0, len(records))
-	for _, record := range records {
-		roles = append(roles, toStoreRole(record))
-	}
-
-	return roles, nil
+	return queryAndScanRows(
+		ctx,
+		r.db,
+		"list roles by user id",
+		`SELECT r.id, r.name, r.display, r.description, r.builtin, r.created_at, r.updated_at
+		FROM user_roles ur
+		INNER JOIN roles r ON r.id = ur.role_id
+		WHERE ur.user_id = $1
+		ORDER BY r.id ASC`,
+		scanRoleRows,
+		id,
+	)
 }
 
 func (r *repository) ListRoles(ctx context.Context) ([]rbacstore.Role, error) {
-	records, err := r.client.Role.Query().
-		Order(ent.Asc(rbacrole.FieldID)).
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list roles: %w", err)
-	}
-
-	roles := make([]rbacstore.Role, 0, len(records))
-	for _, record := range records {
-		roles = append(roles, toStoreRole(record))
-	}
-
-	return roles, nil
+	return queryAndScanRows(
+		ctx,
+		r.db,
+		"list roles",
+		`SELECT id, name, display, description, builtin, created_at, updated_at
+		FROM roles
+		ORDER BY id ASC`,
+		scanRoleRows,
+	)
 }
 
 func (r *repository) ListPermissionsByUserID(ctx context.Context, userID uint64) ([]rbacstore.Permission, error) {
-	id, err := toEntID(userID)
+	id, err := toDBID(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	roleRecords, err := r.client.UserRole.Query().
-		Where(rbacuserrole.UserIDEQ(id)).
-		QueryRole().
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list user roles for permissions: %w", err)
-	}
-	if len(roleRecords) == 0 {
-		return []rbacstore.Permission{}, nil
-	}
-
-	roleIDs := make([]int, 0, len(roleRecords))
-	for _, roleRecord := range roleRecords {
-		roleIDs = append(roleIDs, roleRecord.ID)
-	}
-
-	records, err := r.client.Permission.Query().
-		Where(rbacpermission.HasRolePermissionsWith(rbacrolepermission.RoleIDIn(roleIDs...))).
-		Unique(true).
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list permissions by user id: %w", err)
-	}
-
-	permissions := make([]rbacstore.Permission, 0, len(records))
-	for _, record := range records {
-		permissions = append(permissions, toStorePermission(record))
-	}
-
-	return permissions, nil
+	return queryAndScanRows(
+		ctx,
+		r.db,
+		"list permissions by user id",
+		`SELECT DISTINCT p.id, p.code, p.display, p.description, p.category, p.created_at, p.updated_at
+		FROM user_roles ur
+		INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
+		INNER JOIN permissions p ON p.id = rp.permission_id
+		WHERE ur.user_id = $1
+		ORDER BY p.id ASC`,
+		scanPermissionRows,
+		id,
+	)
 }
 
 func (r *repository) ListPermissions(ctx context.Context) ([]rbacstore.Permission, error) {
-	records, err := r.client.Permission.Query().
-		Order(ent.Asc(rbacpermission.FieldID)).
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list permissions: %w", err)
-	}
-
-	permissions := make([]rbacstore.Permission, 0, len(records))
-	for _, record := range records {
-		permissions = append(permissions, toStorePermission(record))
-	}
-
-	return permissions, nil
+	return queryAndScanRows(
+		ctx,
+		r.db,
+		"list permissions",
+		`SELECT id, code, display, description, category, created_at, updated_at
+		FROM permissions
+		ORDER BY id ASC`,
+		scanPermissionRows,
+	)
 }
 
 func (r *repository) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error) {
-	id, err := toEntID(roleID)
+	id, err := toDBID(roleID)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := r.client.Role.Get(ctx, id); err != nil {
-		if ent.IsNotFound(err) {
+	if _, err := r.queryRoleByID(ctx, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, rbacstore.ErrRoleNotFound
 		}
 		return nil, fmt.Errorf("get role for permission bindings: %w", err)
 	}
 
-	records, err := r.client.RolePermission.Query().
-		Where(rbacrolepermission.RoleIDEQ(id)).
-		Order(ent.Asc(rbacrolepermission.FieldPermissionID)).
-		All(ctx)
+	rows, err := r.db.QueryContext(
+		ctx,
+		`SELECT permission_id
+		FROM role_permissions
+		WHERE role_id = $1
+		ORDER BY permission_id ASC`,
+		id,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list role permission bindings: %w", err)
 	}
-
-	bindings := make([]rbacstore.RolePermissionBinding, 0, len(records))
-	for _, record := range records {
+	bindings := make([]rbacstore.RolePermissionBinding, 0)
+	for rows.Next() {
+		var permissionID int64
+		if err := rows.Scan(&permissionID); err != nil {
+			return nil, fmt.Errorf("scan role permission binding: %w", err)
+		}
 		bindings = append(bindings, rbacstore.RolePermissionBinding{
 			RoleID:       roleID,
-			PermissionID: toStoreID(record.PermissionID),
+			PermissionID: toStoreID(permissionID),
 		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate role permission bindings: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close role permission bindings rows: %w", err)
 	}
 
 	return bindings, nil
 }
 
-func (r *repository) findRoleByName(ctx context.Context, name string) (*ent.Role, error) {
-	return r.client.Role.Query().
-		Where(rbacrole.NameEQ(name)).
-		Only(ctx)
+func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Role, error) {
+	return scanRole(r.db.QueryRowContext(
+		ctx,
+		`SELECT id, name, display, description, builtin, created_at, updated_at
+		FROM roles
+		WHERE id = $1`,
+		id,
+	))
 }
 
-func (r *repository) createRoleRecord(ctx context.Context, input rbacstore.EnsureRoleInput) (*ent.Role, error) {
-	return r.client.Role.Create().
-		SetName(input.Name).
-		SetDisplay(input.Display).
-		SetNillableDescription(input.Description).
-		SetBuiltin(input.Builtin).
-		Save(ctx)
+func (r *repository) findRoleByName(ctx context.Context, name string) (rbacstore.Role, error) {
+	return scanRole(r.db.QueryRowContext(
+		ctx,
+		`SELECT id, name, display, description, builtin, created_at, updated_at
+		FROM roles
+		WHERE name = $1`,
+		strings.TrimSpace(name),
+	))
 }
 
-func (r *repository) findRoleAfterCreateConflict(
-	ctx context.Context,
-	input rbacstore.EnsureRoleInput,
-) (*ent.Role, error) {
-	record, err := r.findRoleByName(ctx, input.Name)
+func (r *repository) createRoleRecord(ctx context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
+	now := time.Now().UTC()
+	return scanRole(r.db.QueryRowContext(
+		ctx,
+		`INSERT INTO roles (name, display, description, builtin, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, name, display, description, builtin, created_at, updated_at`,
+		strings.TrimSpace(input.Name),
+		input.Display,
+		nullableString(input.Description),
+		input.Builtin,
+		now,
+		now,
+	))
+}
+
+func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool, errorContext string) (rbacstore.Role, error) {
+	dbID, err := toDBID(id)
 	if err != nil {
-		return nil, fmt.Errorf("re-query ensured role after conflict: %w", err)
+		return rbacstore.Role{}, err
 	}
 
-	return r.upgradeRoleBuiltinIfNeeded(ctx, record, input.Builtin, "upgrade ensured role builtin state after conflict")
-}
-
-func (r *repository) upgradeRoleBuiltinIfNeeded(
-	ctx context.Context,
-	record *ent.Role,
-	builtin bool,
-	errorContext string,
-) (*ent.Role, error) {
-	if !builtin || record.Builtin {
-		return record, nil
-	}
-
-	updated, err := r.client.Role.UpdateOneID(record.ID).
-		SetBuiltin(true).
-		Save(ctx)
+	record, err := scanRole(r.db.QueryRowContext(
+		ctx,
+		`UPDATE roles
+		SET builtin = $2, updated_at = $3
+		WHERE id = $1
+		RETURNING id, name, display, description, builtin, created_at, updated_at`,
+		dbID,
+		builtin,
+		time.Now().UTC(),
+	))
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", errorContext, err)
+		return rbacstore.Role{}, fmt.Errorf("%s: %w", errorContext, err)
 	}
-
-	return updated, nil
+	return record, nil
 }
 
-func toEntID(id uint64) (int, error) {
-	if id == 0 || id > math.MaxInt {
-		return 0, rbacstore.ErrInvalidID
-	}
-
-	return int(id), nil
+func (r *repository) findPermissionByCode(ctx context.Context, code string) (rbacstore.Permission, error) {
+	return scanPermission(r.db.QueryRowContext(
+		ctx,
+		`SELECT id, code, display, description, category, created_at, updated_at
+		FROM permissions
+		WHERE code = $1`,
+		strings.TrimSpace(code),
+	))
 }
 
-func toStoreID(id int) uint64 {
-	//nolint:gosec // Ent IDs come from the controlled schema and remain positive.
-	return uint64(id)
+func (r *repository) createPermissionRecord(ctx context.Context, input rbacstore.EnsurePermissionInput) (rbacstore.Permission, error) {
+	now := time.Now().UTC()
+	return scanPermission(r.db.QueryRowContext(
+		ctx,
+		`INSERT INTO permissions (code, display, description, category, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, code, display, description, category, created_at, updated_at`,
+		strings.TrimSpace(input.Code),
+		input.Display,
+		nullableString(input.Description),
+		input.Category,
+		now,
+		now,
+	))
 }
 
-func toUniqueEntIDs(ids []uint64) ([]int, error) {
-	if len(ids) == 0 {
-		return []int{}, nil
-	}
-
-	converted := make([]int, 0, len(ids))
-	seen := make(map[int]struct{}, len(ids))
-	for _, id := range ids {
-		entID, err := toEntID(id)
-		if err != nil {
-			return nil, err
-		}
-		if _, ok := seen[entID]; ok {
-			continue
-		}
-
-		seen[entID] = struct{}{}
-		converted = append(converted, entID)
-	}
-
-	return converted, nil
-}
-
-type stableAssignmentSetConfig struct {
-	startContext         string
-	commitContext        string
-	checkTargetContext   string
-	countRelationContext string
-	deleteStaleContext   string
-	checkBindingContext  string
-	createBindingContext string
-	targetID             uint64
-	relationIDs          []int
-	relationCount        int
-	targetMissing        error
-	relationMissing      error
-	checkTargetExists    func(tx *ent.Tx) (bool, error)
-	countRelationRecords func(tx *ent.Tx, ids []int) (int, error)
-	deleteStale          func(tx *ent.Tx, ids []int) error
-	bindingExists        func(tx *ent.Tx, relationID int) (bool, error)
-	createBinding        func(tx *ent.Tx, relationID int) error
-}
-
-type stableAssignmentConfigTemplate struct {
+type replaceAssignmentConfig struct {
 	startContext         string
 	commitFormat         string
 	checkTargetContext   string
@@ -482,328 +520,393 @@ type stableAssignmentConfigTemplate struct {
 	createBindingContext string
 	targetMissing        error
 	relationMissing      error
-	checkTargetExists    func(context.Context, *ent.Tx, int) (bool, error)
-	countRelationRecords func(context.Context, *ent.Tx, []int) (int, error)
-	deleteStale          func(context.Context, *ent.Tx, int, []int) error
-	bindingExists        func(context.Context, *ent.Tx, int, int) (bool, error)
-	createBinding        func(context.Context, *ent.Tx, int, int) error
+	checkTargetExists    func(context.Context, *sql.Tx, int64) (bool, error)
+	countRelationRecords func(context.Context, *sql.Tx, []int64) (int, error)
+	deleteStale          func(context.Context, *sql.Tx, int64, []int64) error
+	bindingExists        func(context.Context, *sql.Tx, int64, int64) (bool, error)
+	createBinding        func(context.Context, *sql.Tx, int64, int64) error
 }
 
-func replaceStableAssignmentWithConfig(
+//nolint:gocognit,gocyclo // 这里保持替换事务步骤显式且有序，便于审查稳定赋值语义。
+func (r *repository) replaceStableAssignments(
 	ctx context.Context,
-	client *ent.Client,
 	targetID uint64,
 	relationIDs []uint64,
-	build func(ctx context.Context, targetID uint64, entTargetID int, relationIDs []int) stableAssignmentSetConfig,
+	config replaceAssignmentConfig,
 ) error {
-	entTargetID, err := toEntID(targetID)
+	dbTargetID, err := toDBID(targetID)
+	if err != nil {
+		return err
+	}
+	dbRelationIDs, err := toUniqueDBIDs(relationIDs)
 	if err != nil {
 		return err
 	}
 
-	entRelationIDs, err := toUniqueEntIDs(relationIDs)
-	if err != nil {
-		return err
-	}
-
-	return replaceStableAssignmentSet(ctx, client, build(ctx, targetID, entTargetID, entRelationIDs))
-}
-
-func replaceStableAssignmentSet(
-	ctx context.Context,
-	client *ent.Client,
-	config stableAssignmentSetConfig,
-) error {
-	tx, err := client.Tx(ctx)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("%s: %w", config.startContext, err)
 	}
+	committed := false
 	defer func() {
-		if tx != nil {
+		if !committed {
 			_ = tx.Rollback()
 		}
 	}()
 
-	if err := ensureStableAssignmentTarget(tx, config); err != nil {
+	if err := ensureAssignmentTarget(ctx, tx, targetID, dbTargetID, config); err != nil {
 		return err
 	}
-	if err := validateStableAssignmentRelations(tx, config); err != nil {
+	if err := validateAssignmentRelations(ctx, tx, targetID, dbRelationIDs, config); err != nil {
 		return err
 	}
-	if err := deleteStableAssignments(tx, config); err != nil {
+	if err := deleteAssignmentStaleRows(ctx, tx, targetID, dbTargetID, dbRelationIDs, config); err != nil {
 		return err
 	}
-	if err := insertStableAssignments(tx, config); err != nil {
+	if err := insertAssignmentRows(ctx, tx, targetID, dbTargetID, dbRelationIDs, config); err != nil {
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s: %w", config.commitContext, err)
+		return fmt.Errorf(config.commitFormat+": %w", targetID, err)
 	}
-	tx = nil
-
+	committed = true
 	return nil
 }
 
-func buildRolePermissionAssignmentConfig(
+func ensureAssignmentTarget(
 	ctx context.Context,
+	tx *sql.Tx,
 	targetID uint64,
-	entTargetID int,
-	entRelationIDs []int,
-) stableAssignmentSetConfig {
-	return buildStableAssignmentConfig(ctx, targetID, entTargetID, entRelationIDs, stableAssignmentConfigTemplate{
-		startContext:         "start replace role permissions tx",
-		commitFormat:         "commit replace role permissions for role %d",
-		checkTargetContext:   "check role %d before replacing permissions",
-		countRelationContext: "count permissions for role %d replacement",
-		deleteStaleContext:   "delete stale permissions for role %d",
-		checkBindingContext:  "check role permission replacement",
-		createBindingContext: "replace permission %d for role %d",
-		targetMissing:        rbacstore.ErrRoleNotFound,
-		relationMissing:      rbacstore.ErrPermissionNotFound,
-		checkTargetExists:    roleTargetExists,
-		countRelationRecords: countPermissionsByIDs,
-		deleteStale:          deleteStaleRolePermissions,
-		bindingExists:        rolePermissionBindingExists,
-		createBinding:        createRolePermissionBinding,
-	})
-}
-
-func buildUserRoleAssignmentConfig(
-	ctx context.Context,
-	targetID uint64,
-	entTargetID int,
-	entRelationIDs []int,
-) stableAssignmentSetConfig {
-	return buildStableAssignmentConfig(ctx, targetID, entTargetID, entRelationIDs, stableAssignmentConfigTemplate{
-		startContext:         "start replace user roles tx",
-		commitFormat:         "commit replace user roles for user %d",
-		checkTargetContext:   "check user %d before replacing roles",
-		countRelationContext: "count roles for user %d replacement",
-		deleteStaleContext:   "delete stale roles for user %d",
-		checkBindingContext:  "check user role replacement",
-		createBindingContext: "replace role %d for user %d",
-		checkTargetExists:    userRoleTargetExists,
-		targetMissing:        nil,
-		relationMissing:      rbacstore.ErrRoleNotFound,
-		countRelationRecords: countRolesByIDs,
-		deleteStale:          deleteStaleUserRoles,
-		bindingExists:        userRoleBindingExists,
-		createBinding:        createUserRoleBinding,
-	})
-}
-
-func buildStableAssignmentConfig(
-	ctx context.Context,
-	targetID uint64,
-	entTargetID int,
-	entRelationIDs []int,
-	template stableAssignmentConfigTemplate,
-) stableAssignmentSetConfig {
-	return stableAssignmentSetConfig{
-		startContext:         template.startContext,
-		commitContext:        fmt.Sprintf(template.commitFormat, targetID),
-		checkTargetContext:   template.checkTargetContext,
-		countRelationContext: template.countRelationContext,
-		deleteStaleContext:   template.deleteStaleContext,
-		checkBindingContext:  template.checkBindingContext,
-		createBindingContext: template.createBindingContext,
-		targetID:             targetID,
-		relationIDs:          entRelationIDs,
-		relationCount:        len(entRelationIDs),
-		targetMissing:        template.targetMissing,
-		relationMissing:      template.relationMissing,
-		checkTargetExists: func(tx *ent.Tx) (bool, error) {
-			return template.checkTargetExists(ctx, tx, entTargetID)
-		},
-		countRelationRecords: func(tx *ent.Tx, ids []int) (int, error) {
-			return template.countRelationRecords(ctx, tx, ids)
-		},
-		deleteStale: func(tx *ent.Tx, ids []int) error {
-			return template.deleteStale(ctx, tx, entTargetID, ids)
-		},
-		bindingExists: func(tx *ent.Tx, relationID int) (bool, error) {
-			return template.bindingExists(ctx, tx, entTargetID, relationID)
-		},
-		createBinding: func(tx *ent.Tx, relationID int) error {
-			return template.createBinding(ctx, tx, entTargetID, relationID)
-		},
-	}
-}
-
-func roleTargetExists(ctx context.Context, tx *ent.Tx, targetID int) (bool, error) {
-	return tx.Role.Query().Where(rbacrole.IDEQ(targetID)).Exist(ctx)
-}
-
-func countPermissionsByIDs(ctx context.Context, tx *ent.Tx, ids []int) (int, error) {
-	return tx.Permission.Query().Where(rbacpermission.IDIn(ids...)).Count(ctx)
-}
-
-func deleteStaleRolePermissions(ctx context.Context, tx *ent.Tx, targetID int, ids []int) error {
-	deleteQuery := tx.RolePermission.Delete().Where(rbacrolepermission.RoleIDEQ(targetID))
-	if len(ids) > 0 {
-		deleteQuery = deleteQuery.Where(rbacrolepermission.Not(rbacrolepermission.PermissionIDIn(ids...)))
-	}
-	_, err := deleteQuery.Exec(ctx)
-	return err
-}
-
-func rolePermissionBindingExists(ctx context.Context, tx *ent.Tx, targetID int, relationID int) (bool, error) {
-	return tx.RolePermission.Query().
-		Where(
-			rbacrolepermission.RoleIDEQ(targetID),
-			rbacrolepermission.PermissionIDEQ(relationID),
-		).
-		Exist(ctx)
-}
-
-func createRolePermissionBinding(ctx context.Context, tx *ent.Tx, targetID int, relationID int) error {
-	_, err := tx.RolePermission.Create().SetRoleID(targetID).SetPermissionID(relationID).Save(ctx)
-	return err
-}
-
-func userRoleTargetExists(context.Context, *ent.Tx, int) (bool, error) {
-	return true, nil
-}
-
-func countRolesByIDs(ctx context.Context, tx *ent.Tx, ids []int) (int, error) {
-	return tx.Role.Query().Where(rbacrole.IDIn(ids...)).Count(ctx)
-}
-
-func deleteStaleUserRoles(ctx context.Context, tx *ent.Tx, targetID int, ids []int) error {
-	deleteQuery := tx.UserRole.Delete().Where(rbacuserrole.UserIDEQ(targetID))
-	if len(ids) > 0 {
-		deleteQuery = deleteQuery.Where(rbacuserrole.Not(rbacuserrole.RoleIDIn(ids...)))
-	}
-	_, err := deleteQuery.Exec(ctx)
-	return err
-}
-
-func userRoleBindingExists(ctx context.Context, tx *ent.Tx, targetID int, relationID int) (bool, error) {
-	return tx.UserRole.Query().
-		Where(
-			rbacuserrole.UserIDEQ(targetID),
-			rbacuserrole.RoleIDEQ(relationID),
-		).
-		Exist(ctx)
-}
-
-func createUserRoleBinding(ctx context.Context, tx *ent.Tx, targetID int, relationID int) error {
-	_, err := tx.UserRole.Create().SetUserID(targetID).SetRoleID(relationID).Save(ctx)
-	return err
-}
-
-func ensureStableAssignmentTarget(tx *ent.Tx, config stableAssignmentSetConfig) error {
-	exists, err := config.checkTargetExists(tx)
+	dbTargetID int64,
+	config replaceAssignmentConfig,
+) error {
+	exists, err := config.checkTargetExists(ctx, tx, dbTargetID)
 	if err != nil {
-		return fmt.Errorf(config.checkTargetContext+": %w", config.targetID, err)
+		return fmt.Errorf(config.checkTargetContext+": %w", targetID, err)
 	}
 	if !exists && config.targetMissing != nil {
 		return config.targetMissing
 	}
-
 	return nil
 }
 
-func validateStableAssignmentRelations(tx *ent.Tx, config stableAssignmentSetConfig) error {
-	if config.relationCount == 0 {
+func validateAssignmentRelations(
+	ctx context.Context,
+	tx *sql.Tx,
+	targetID uint64,
+	dbRelationIDs []int64,
+	config replaceAssignmentConfig,
+) error {
+	if len(dbRelationIDs) == 0 {
 		return nil
 	}
 
-	count, err := config.countRelationRecords(tx, config.relationIDs)
+	count, err := config.countRelationRecords(ctx, tx, dbRelationIDs)
 	if err != nil {
-		return fmt.Errorf(config.countRelationContext+": %w", config.targetID, err)
+		return fmt.Errorf(config.countRelationContext+": %w", targetID, err)
 	}
-	if count != config.relationCount {
+	if count != len(dbRelationIDs) {
 		return config.relationMissing
 	}
 
 	return nil
 }
 
-func deleteStableAssignments(tx *ent.Tx, config stableAssignmentSetConfig) error {
-	if err := config.deleteStale(tx, config.relationIDs); err != nil {
-		return fmt.Errorf(config.deleteStaleContext+": %w", config.targetID, err)
+func deleteAssignmentStaleRows(
+	ctx context.Context,
+	tx *sql.Tx,
+	targetID uint64,
+	dbTargetID int64,
+	dbRelationIDs []int64,
+	config replaceAssignmentConfig,
+) error {
+	if err := config.deleteStale(ctx, tx, dbTargetID, dbRelationIDs); err != nil {
+		return fmt.Errorf(config.deleteStaleContext+": %w", targetID, err)
 	}
-
 	return nil
 }
 
-func insertStableAssignments(tx *ent.Tx, config stableAssignmentSetConfig) error {
-	for _, relationID := range config.relationIDs {
-		exists, err := config.bindingExists(tx, relationID)
+func insertAssignmentRows(
+	ctx context.Context,
+	tx *sql.Tx,
+	targetID uint64,
+	dbTargetID int64,
+	dbRelationIDs []int64,
+	config replaceAssignmentConfig,
+) error {
+	for _, relationID := range dbRelationIDs {
+		bindingExists, err := config.bindingExists(ctx, tx, dbTargetID, relationID)
 		if err != nil {
 			return fmt.Errorf("%s: %w", config.checkBindingContext, err)
 		}
-		if exists {
+		if bindingExists {
 			continue
 		}
 
-		if err := config.createBinding(tx, relationID); err != nil {
-			if ent.IsConstraintError(err) {
+		if err := config.createBinding(ctx, tx, dbTargetID, relationID); err != nil {
+			if isUniqueViolation(err) {
 				continue
 			}
-
-			return fmt.Errorf(config.createBindingContext+": %w", relationID, config.targetID, err)
+			return fmt.Errorf(config.createBindingContext+": %w", relationID, targetID, err)
 		}
 	}
 
 	return nil
 }
 
-func ensureUniqueEntity[T any](
-	query func() (T, error),
-	create func() (T, error),
-	mapResult func(T) rbacstore.Permission,
-	queryContext string,
-	createContext string,
-	conflictQueryContext string,
-) (rbacstore.Permission, error) {
-	record, err := query()
-	if err == nil {
-		return mapResult(record), nil
-	}
-	if !ent.IsNotFound(err) {
-		return rbacstore.Permission{}, fmt.Errorf("%s: %w", queryContext, err)
-	}
-
-	record, err = create()
-	if err != nil {
-		if ent.IsConstraintError(err) {
-			record, err = query()
-			if err != nil {
-				return rbacstore.Permission{}, fmt.Errorf("%s: %w", conflictQueryContext, err)
-			}
-
-			return mapResult(record), nil
+//nolint:gosec // 查询形状只由固定 SQL 片段和占位符数量拼装。
+func deleteStableRolePermissions(ctx context.Context, tx *sql.Tx, roleID int64, permissionIDs []int64) error {
+	query := "DELETE FROM role_permissions WHERE role_id = ?"
+	args := []any{roleID}
+	if len(permissionIDs) > 0 {
+		query += " AND permission_id NOT IN (" + placeholders(len(permissionIDs)) + ")"
+		for _, id := range permissionIDs {
+			args = append(args, id)
 		}
-
-		return rbacstore.Permission{}, fmt.Errorf("%s: %w", createContext, err)
 	}
-
-	return mapResult(record), nil
+	query, args = rebindPositional(query, args)
+	_, err := tx.ExecContext(ctx, query, args...)
+	return err
 }
 
-func toStoreRole(record *ent.Role) rbacstore.Role {
+//nolint:gosec // 查询形状只由固定 SQL 片段和占位符数量拼装。
+func deleteStableUserRoles(ctx context.Context, tx *sql.Tx, userID int64, roleIDs []int64) error {
+	query := "DELETE FROM user_roles WHERE user_id = ?"
+	args := []any{userID}
+	if len(roleIDs) > 0 {
+		query += " AND role_id NOT IN (" + placeholders(len(roleIDs)) + ")"
+		for _, id := range roleIDs {
+			args = append(args, id)
+		}
+	}
+	query, args = rebindPositional(query, args)
+	_, err := tx.ExecContext(ctx, query, args...)
+	return err
+}
+
+//nolint:gosec // 调用方只会传入本包拥有的固定表名。
+func countRecordsByIDs(ctx context.Context, tx *sql.Tx, table string, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE id IN (%s)", table, placeholders(len(ids)))
+	args := make([]any, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	query, args = rebindPositional(query, args)
+
+	var count int
+	if err := tx.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func recordExists(ctx context.Context, tx *sql.Tx, query string, args ...any) (bool, error) {
+	var marker int
+	err := tx.QueryRowContext(ctx, query, args...).Scan(&marker)
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+type roleScanner interface {
+	Scan(dest ...any) error
+}
+
+//nolint:dupl // role 与 permission 的行映射器需要有意保持镜像结构。
+func scanRole(scanner roleScanner) (rbacstore.Role, error) {
+	var (
+		id          int64
+		name        string
+		display     string
+		description sql.NullString
+		builtin     bool
+		createdAt   time.Time
+		updatedAt   time.Time
+	)
+	if err := scanner.Scan(&id, &name, &display, &description, &builtin, &createdAt, &updatedAt); err != nil {
+		return rbacstore.Role{}, err
+	}
+
 	return rbacstore.Role{
-		ID:          toStoreID(record.ID),
-		Name:        record.Name,
-		Display:     record.Display,
-		Description: record.Description,
-		Builtin:     record.Builtin,
-		CreatedAt:   record.CreatedAt,
-		UpdatedAt:   record.UpdatedAt,
-	}
+		ID:          toStoreID(id),
+		Name:        name,
+		Display:     display,
+		Description: nullStringPtr(description),
+		Builtin:     builtin,
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
+	}, nil
 }
 
-func toStorePermission(record *ent.Permission) rbacstore.Permission {
-	return rbacstore.Permission{
-		ID:          toStoreID(record.ID),
-		Code:        record.Code,
-		Display:     record.Display,
-		Description: record.Description,
-		Category:    record.Category,
-		CreatedAt:   record.CreatedAt,
-		UpdatedAt:   record.UpdatedAt,
+func scanRoleRows(rows *sql.Rows) ([]rbacstore.Role, error) {
+	roles := make([]rbacstore.Role, 0)
+	for rows.Next() {
+		role, err := scanRole(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan role: %w", err)
+		}
+		roles = append(roles, role)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
+type permissionScanner interface {
+	Scan(dest ...any) error
+}
+
+//nolint:dupl // role 与 permission 的行映射器需要有意保持镜像结构。
+func scanPermission(scanner permissionScanner) (rbacstore.Permission, error) {
+	var (
+		id          int64
+		code        string
+		display     string
+		description sql.NullString
+		category    string
+		createdAt   time.Time
+		updatedAt   time.Time
+	)
+	if err := scanner.Scan(&id, &code, &display, &description, &category, &createdAt, &updatedAt); err != nil {
+		return rbacstore.Permission{}, err
+	}
+
+	return rbacstore.Permission{
+		ID:          toStoreID(id),
+		Code:        code,
+		Display:     display,
+		Description: nullStringPtr(description),
+		Category:    category,
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
+	}, nil
+}
+
+func scanPermissionRows(rows *sql.Rows) ([]rbacstore.Permission, error) {
+	permissions := make([]rbacstore.Permission, 0)
+	for rows.Next() {
+		permission, err := scanPermission(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan permission: %w", err)
+		}
+		permissions = append(permissions, permission)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return permissions, nil
+}
+
+func queryAndScanRows[T any](
+	ctx context.Context,
+	db *sql.DB,
+	contextLabel string,
+	query string,
+	scan func(*sql.Rows) ([]T, error),
+	args ...any,
+) ([]T, error) {
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", contextLabel, err)
+	}
+
+	items, err := scan(rows)
+	closeErr := rows.Close()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", contextLabel, err)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("close %s rows: %w", contextLabel, closeErr)
+	}
+	return items, nil
+}
+
+func toDBID(id uint64) (int64, error) {
+	if id == 0 || id > math.MaxInt64 {
+		return 0, rbacstore.ErrInvalidID
+	}
+	return int64(id), nil
+}
+
+func toStoreID(id int64) uint64 {
+	//nolint:gosec // 数据库 ID 来自受控 schema，并保持为正数。
+	return uint64(id)
+}
+
+func toUniqueDBIDs(ids []uint64) ([]int64, error) {
+	if len(ids) == 0 {
+		return []int64{}, nil
+	}
+
+	converted := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		dbID, err := toDBID(id)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := seen[dbID]; ok {
+			continue
+		}
+		seen[dbID] = struct{}{}
+		converted = append(converted, dbID)
+	}
+	slices.Sort(converted)
+	return converted, nil
+}
+
+func nullableString(value *string) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func nullStringPtr(value sql.NullString) *string {
+	if !value.Valid {
+		return nil
+	}
+	result := value.String
+	return &result
+}
+
+func placeholders(n int) string {
+	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
+}
+
+func rebindPositional(query string, args []any) (string, []any) {
+	for index := range args {
+		query = strings.Replace(query, "?", fmt.Sprintf("$%d", index+1), 1)
+	}
+	return query, args
+}
+
+func isUniqueViolation(err error) bool {
+	type postgresCodeCarrier interface {
+		SQLState() string
+	}
+	var pgErr postgresCodeCarrier
+	if errors.As(err, &pgErr) && pgErr.SQLState() == "23505" {
+		return true
+	}
+
+	var sqliteErr sqlite3.Error
+	if errors.As(err, &sqliteErr) {
+		return sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique || sqliteErr.ExtendedCode == sqlite3.ErrConstraintPrimaryKey
+	}
+
+	// pgx surfaces duplicate-key failures with SQLSTATE 23505 in the error text
+	// when the concrete pgconn type is only available transitively.
+	return strings.Contains(strings.ToLower(err.Error()), "duplicate key") ||
+		strings.Contains(strings.ToLower(err.Error()), "sqlstate 23505")
 }

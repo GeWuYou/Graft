@@ -1,69 +1,96 @@
-// Package storeent provides the audit plugin's Ent-backed repository implementation.
+// Package storeent 提供 audit 插件基于 SQL 的 repository 实现。
 package storeent
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
-	"graft/server/internal/ent"
 	auditstore "graft/server/plugins/audit/store"
 )
 
 type repository struct {
-	client *ent.Client
+	db *sql.DB
 }
 
-// NewRepository builds the audit plugin's Ent-backed repository.
-func NewRepository(client *ent.Client) (auditstore.AuditRepository, error) {
-	if client == nil {
-		return nil, errors.New("audit storeent repository requires a non-nil ent client")
+// NewRepository 基于共享连接池构建 audit 插件的 SQL repository。
+func NewRepository(db *sql.DB) (auditstore.AuditRepository, error) {
+	if db == nil {
+		return nil, errors.New("audit repository requires a non-nil sql db")
 	}
 
-	return &repository{client: client}, nil
+	return &repository{db: db}, nil
 }
 
-// CreateAuditLog persists one minimal audit record.
+// CreateAuditLog 持久化一条最小审计日志记录。
 func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
-	builder := r.client.AuditLog.Create().
-		SetOperatorName(input.OperatorName).
-		SetAction(input.Action).
-		SetResourceType(input.ResourceType).
-		SetResourceID(input.ResourceID).
-		SetRequestMethod(input.RequestMethod).
-		SetRequestPath(input.RequestPath).
-		SetIP(input.IP).
-		SetUserAgent(input.UserAgent).
-		SetSuccess(input.Success).
-		SetErrorMessage(input.ErrorMessage).
-		SetCreatedAt(input.CreatedAt)
-	if input.OperatorID != nil {
-		builder = builder.SetOperatorID(*input.OperatorID)
+	if r == nil || r.db == nil {
+		return auditstore.AuditLog{}, errors.New("audit repository is unavailable")
+	}
+	record := auditstore.AuditLog{
+		OperatorID:    input.OperatorID,
+		OperatorName:  input.OperatorName,
+		Action:        input.Action,
+		ResourceType:  input.ResourceType,
+		ResourceID:    input.ResourceID,
+		RequestMethod: input.RequestMethod,
+		RequestPath:   input.RequestPath,
+		IP:            input.IP,
+		UserAgent:     input.UserAgent,
+		Success:       input.Success,
+		ErrorMessage:  input.ErrorMessage,
+		CreatedAt:     input.CreatedAt,
 	}
 
-	record, err := builder.Save(ctx)
+	row := r.db.QueryRowContext(
+		ctx,
+		`INSERT INTO audit_logs (
+			operator_id,
+			operator_name,
+			action,
+			resource_type,
+			resource_id,
+			request_method,
+			request_path,
+			ip,
+			user_agent,
+			success,
+			error_message,
+			created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		RETURNING id`,
+		nullableUint64(input.OperatorID),
+		input.OperatorName,
+		input.Action,
+		input.ResourceType,
+		input.ResourceID,
+		input.RequestMethod,
+		input.RequestPath,
+		input.IP,
+		input.UserAgent,
+		input.Success,
+		input.ErrorMessage,
+		input.CreatedAt,
+	)
+	var id int64
+	err := row.Scan(&id)
 	if err != nil {
 		return auditstore.AuditLog{}, fmt.Errorf("create audit log: %w", err)
 	}
-
-	return auditstore.AuditLog{
-		ID:            toStoreID(record.ID),
-		OperatorID:    record.OperatorID,
-		OperatorName:  record.OperatorName,
-		Action:        record.Action,
-		ResourceType:  record.ResourceType,
-		ResourceID:    record.ResourceID,
-		RequestMethod: record.RequestMethod,
-		RequestPath:   record.RequestPath,
-		IP:            record.IP,
-		UserAgent:     record.UserAgent,
-		Success:       record.Success,
-		ErrorMessage:  record.ErrorMessage,
-		CreatedAt:     record.CreatedAt,
-	}, nil
+	record.ID = toStoreID(id)
+	return record, nil
 }
 
-func toStoreID(id int) uint64 {
-	//nolint:gosec // Ent IDs come from the controlled schema and remain positive.
+func nullableUint64(value *uint64) any {
+	if value == nil {
+		return nil
+	}
+
+	return *value
+}
+
+func toStoreID(id int64) uint64 {
+	//nolint:gosec // 数据库 ID 来自受控 schema，并保持为正数。
 	return uint64(id)
 }

@@ -2,14 +2,76 @@ package storeent
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"graft/server/internal/ent/enttest"
 	rbacstore "graft/server/plugins/rbac/store"
 )
+
+func openTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+
+	db, err := sql.Open("sqlite3", "file:rbac-plugin-storeent?mode=memory&cache=shared&_fk=1")
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	schema := []string{
+		`CREATE TABLE users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT NOT NULL UNIQUE,
+			display TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE roles (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			display TEXT NOT NULL,
+			description TEXT NULL,
+			builtin BOOLEAN NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL
+		);`,
+		`CREATE TABLE permissions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			code TEXT NOT NULL UNIQUE,
+			display TEXT NOT NULL,
+			description TEXT NULL,
+			category TEXT NOT NULL DEFAULT 'api',
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL
+		);`,
+		`CREATE TABLE user_roles (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			created_at DATETIME NOT NULL,
+			role_id INTEGER NOT NULL,
+			user_id INTEGER NOT NULL,
+			UNIQUE(user_id, role_id)
+		);`,
+		`CREATE TABLE role_permissions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			created_at DATETIME NOT NULL,
+			permission_id INTEGER NOT NULL,
+			role_id INTEGER NOT NULL,
+			UNIQUE(role_id, permission_id)
+		);`,
+	}
+	for _, statement := range schema {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatalf("create test schema: %v", err)
+		}
+	}
+
+	return db
+}
 
 func TestRepositoryRejectsInvalidID(t *testing.T) {
 	repo := &repository{}
@@ -38,38 +100,58 @@ func TestRepositoryRejectsInvalidID(t *testing.T) {
 }
 
 func TestRepositoryUserRoleWriteOperations(t *testing.T) {
-	client := enttest.Open(t, "sqlite3", "file:rbac-plugin-user-role-write-ops?mode=memory&cache=shared&_fk=1")
-	defer func() { _ = client.Close() }()
+	db := openTestDB(t)
+	repo := &repository{db: db}
 
-	repo := &repository{client: client}
-
-	role, err := client.Role.Create().
-		SetName("editor").
-		SetDisplay("编辑").
-		Save(context.Background())
+	now := time.Now().UTC()
+	roleResult, err := db.ExecContext(context.Background(),
+		`INSERT INTO roles (name, display, description, builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)`,
+		"editor", "编辑", nil, false, now, now,
+	)
 	if err != nil {
 		t.Fatalf("seed role: %v", err)
 	}
-	user, err := client.User.Create().
-		SetUsername("alice").
-		SetDisplay("Alice").
-		Save(context.Background())
+	roleID, err := roleResult.LastInsertId()
+	if err != nil {
+		t.Fatalf("read role id: %v", err)
+	}
+	userResult, err := db.ExecContext(context.Background(),
+		`INSERT INTO users (username, display, created_at, updated_at)
+		VALUES (?, ?, ?, ?)`,
+		"alice", "Alice", now, now,
+	)
 	if err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
+	userID, err := userResult.LastInsertId()
+	if err != nil {
+		t.Fatalf("read user id: %v", err)
+	}
 
 	if err := repo.AssignRoleToUser(context.Background(), rbacstore.AssignRoleToUserInput{
-		UserID: toStoreID(user.ID),
-		RoleID: toStoreID(role.ID),
+		UserID: toStoreID(userID),
+		RoleID: toStoreID(roleID),
 	}); err != nil {
 		t.Fatalf("assign role to user: %v", err)
 	}
 
-	bindings, err := client.UserRole.Query().All(context.Background())
+	rows, err := db.QueryContext(context.Background(), `SELECT user_id, role_id FROM user_roles`)
 	if err != nil {
 		t.Fatalf("query user roles: %v", err)
 	}
-	if len(bindings) != 1 {
-		t.Fatalf("expected one user-role binding, got %#v", bindings)
+
+	count := 0
+	for rows.Next() {
+		count++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate user roles: %v", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("close user roles rows: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one user-role binding, got %d", count)
 	}
 }

@@ -1,9 +1,9 @@
 package audit
 
 import (
+	"database/sql"
 	"fmt"
 
-	"graft/server/internal/ent"
 	"graft/server/internal/plugin"
 	"graft/server/plugins/audit/storeent"
 )
@@ -20,13 +20,13 @@ func NewDescriptor() plugin.Descriptor {
 		PluginVersion: pluginVersion,
 		Dependencies:  nil,
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
-			client, err := plugin.ResolveService[*ent.Client](ctx.Services, (*ent.Client)(nil))
+			sqlDB, err := plugin.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
 			if err != nil {
-				return nil, fmt.Errorf("resolve ent client: %w", err)
+				return nil, fmt.Errorf("resolve sql db: %w", err)
 			}
-			repo, err := storeent.NewRepository(client)
+			repo, err := storeent.NewRepository(sqlDB)
 			if err != nil {
-				return nil, fmt.Errorf("build audit storeent repository: %w", err)
+				return nil, fmt.Errorf("build audit repository: %w", err)
 			}
 
 			return NewPlugin(repo)
