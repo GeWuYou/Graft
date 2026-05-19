@@ -2,12 +2,12 @@ package rbac
 
 import (
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
-	"graft/server/plugins/rbac/storeadapter"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
-// NewBootstrapServiceForReset keeps the transitional internal-store adapter
-// inside the RBAC plugin boundary for the dev-only reset-admin CLI flow.
-func NewBootstrapServiceForReset(repo store.RBACRepository) pluginapi.RBACBootstrapService {
-	return NewBootstrapService(storeadapter.NewInternalRepositoryAdapter(repo))
+// NewBootstrapServiceForReset exposes the dev-reset helper on the plugin-local
+// RBAC repository contract; composition roots adapt transitional dependencies
+// before crossing this boundary.
+func NewBootstrapServiceForReset(repo rbacstore.Repository) pluginapi.RBACBootstrapService {
+	return NewBootstrapService(repo)
 }

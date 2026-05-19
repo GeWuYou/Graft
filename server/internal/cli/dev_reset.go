@@ -13,6 +13,7 @@ import (
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store/entstore"
 	"graft/server/plugins/rbac"
+	rbacstoreadapter "graft/server/plugins/rbac/storeadapter"
 	"graft/server/plugins/user"
 )
 
@@ -33,7 +34,7 @@ var (
 		if err != nil {
 			return nil, err
 		}
-		return rbac.NewBootstrapServiceForReset(factory.RBAC()), nil
+		return rbac.NewBootstrapServiceForReset(rbacstoreadapter.NewInternalRepositoryAdapter(factory.RBAC())), nil
 	}
 )
 
