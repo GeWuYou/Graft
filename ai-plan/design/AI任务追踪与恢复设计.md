@@ -66,6 +66,17 @@
 `ai-plan/` 只提供恢复材料与恢复入口，不负责定义第二套 boot 链、关闭流程或启动闸门，也不应再承担
 `server` / `web` 的日常执行级规则清单。
 
+当仓库使用 `graft-multi-agent-loop` 时，它是同一主会话内的串行 subagent 编排模式，而不是外部 fresh-session
+runner：
+
+- 外层 main agent 负责 startup receipt、恢复入口、预算、停止条件、closeout 解析、验收与下一轮派发
+- 每个实现 round 默认委派给一个 `worker` subagent，通过 `graft-multi-agent-task` 执行
+- 外层 main agent 在 active round 期间不得编辑 repo-tracked 实现文件
+- round closeout 缺失、畸形或自相矛盾时，使用 `retry_once_then_blocked`：
+  - 先用新的 worker subagent 重试一次
+  - 第二次仍失败则 fail closed 为 `blocked`
+- 该模式不恢复 `run_loop.py`、`test_run_loop.py` 或 `codex exec --ephemeral` 风格的外部 fresh-session runner
+
 ### 3.2 主题级恢复材料
 
 `ai-plan/public/<topic>/todos/` 用于主题级跟踪：

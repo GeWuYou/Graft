@@ -23,8 +23,11 @@ startup; it does not replace repository rules.
 5. Inspect the current repository state before assuming toolchains or entrypoints exist.
 6. Identify the first concrete boundary decision before editing.
 7. Assess whether `graft-multi-agent-batch` is justified:
-   - use it only when the task is large enough, write scopes stay disjoint, and the main agent can keep the critical
-     path local
+   - use it only when the task is large enough, write scopes stay disjoint, and the current slice owner can keep the
+     immediate blocking step local
+   - when the task explicitly uses `graft-multi-agent-loop`, the outer loop owner may instead delegate the whole
+     bounded round to one worker subagent and keep only orchestration, budget tracking, acceptance, and stop
+     conditions local
    - do not enable it for small, overlapping, or review-hostile slices
 8. Before edits, tell the user what you read, how you classified the task, whether multi-agent work is justified, and
    the first implementation step.

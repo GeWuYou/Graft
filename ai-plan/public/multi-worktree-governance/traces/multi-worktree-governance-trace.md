@@ -539,3 +539,33 @@
   - continue the real Phase 3 ownership split by separating the shared Ent/schema and mixed Atlas history around the
     `users` / `refresh_sessions` vs `user_roles` / `rbac` boundary, now that builder/runtime seams fail earlier and
     the default migrate chain reports empty registry state explicitly
+
+## 2026-05-19 docs automation loop serial-subagent contract correction
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, classified the work as `docs/automation`, and
+  recovered through the active `multi-worktree-governance` parent topic before correcting the approved
+  `graft-multi-agent-loop` contract.
+- Corrected the active governance truth away from the still-conflicting "outer main agent keeps the implementation
+  critical path local" wording:
+  - root `AGENTS.md` now documents the explicit `graft-multi-agent-loop` exception under subagent rules
+  - `graft-multi-agent-loop` now defines a same-session serial subagent orchestrator where the outer main agent owns
+    orchestration, budget tracking, stop conditions, closeout parsing, acceptance, and next-round dispatch
+  - each implementation round is now documented as delegated to exactly one worker subagent by default
+  - the outer main agent is now explicitly forbidden from editing repo-tracked implementation files during active loop
+    rounds
+- Tightened the failure contract instead of leaving local recovery ambiguous:
+  - missing, malformed, or contradictory worker closeout now retries once with a fresh worker subagent
+  - the second closeout failure now fails closed as `blocked`
+  - active governance no longer describes local main-agent recovery as a valid fallback for malformed round closeout
+- Kept the loop correction constrained to governance/design/tracking only:
+  - did not restore `run_loop.py`, `test_run_loop.py`, or `codex exec --ephemeral` style external fresh-session
+    runners
+  - did not change `graft-task-closeout` JSON fields
+  - did not modify production runtime code, `server` code, `web` code, or CLI behavior
+  - left the existing dirty `server/internal/ent/**` worktree changes untouched because they are outside this slice
+- Consistency validation for the correction used targeted searches only:
+  - `rg -n "critical path local|critical path in the main agent|same-session main-agent delegation loop|fresh-session|codex exec --ephemeral|run_loop.py|graft-multi-agent-loop|retry|blocked" AGENTS.md .agents/skills ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/multi-worktree-governance`
+- Immediate next step after this slice:
+  - when `graft-multi-agent-loop` is used again, the outer main agent should dispatch the first bounded round to one
+    worker subagent, require the round closeout contract, retry once on malformed/missing closeout, and stop as
+    `blocked` on the second failure instead of taking over implementation locally

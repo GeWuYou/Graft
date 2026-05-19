@@ -350,6 +350,16 @@
   - `python3 /root/.codex/skills/.system/skill-creator/scripts/generate_openai_yaml.py --help`
 - This slice adds a new repository skill plus local automation runner only; runtime validation expectations for actual
   `server` and `web` feature work remain unchanged.
+- The current `2026-05-19` docs/automation loop contract-correction slice was grounded with:
+  - `sed -n '1,260p' AGENTS.md`
+  - `sed -n '1,260p' .agents/skills/graft-multi-agent-loop/SKILL.md`
+  - `sed -n '1,220p' .agents/skills/graft-multi-agent-task/SKILL.md`
+  - `sed -n '1,220p' .agents/skills/graft-boot/SKILL.md`
+  - `sed -n '1,220p' .agents/skills/graft-multi-agent-batch/SKILL.md`
+  - `sed -n '1,260p' ai-plan/design/AI任务追踪与恢复设计.md`
+  - `rg -n "critical path local|critical path in the main agent|same-session main-agent delegation loop|fresh-session|codex exec --ephemeral|run_loop.py|graft-multi-agent-loop|retry|blocked" AGENTS.md .agents/skills ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/multi-worktree-governance`
+- This slice changes governance text only; it does not restore any external fresh-session runner, does not change
+  `graft-task-closeout` JSON fields, and does not modify production runtime code, `server` code, `web` code, or CLI behavior.
 
 ## Immediate Next Step
 
@@ -385,11 +395,15 @@
   - continue after the landed RBAC and user contract moves by migrating the remaining persistence implementation
     ownership out of `internal/store/**` / `internal/store/entstore/**`, starting with either `rbac/storeent/**` or
     the matching `user/storeent/**` slice
-- Validate and harden the new docs/automation loop workflow before relying on it for long-running repository work:
+- Keep the landed docs/automation loop workflow aligned before relying on it for long-running repository work:
   - keep `graft-multi-agent-loop` as an outer wrapper only; do not let it redefine startup, closeout, or commit rules
-  - keep `graft-multi-agent-task` and `graft-task-closeout` aligned on the new dual-channel closeout contract
-  - require JSON closeout as the primary machine-readable control surface interpreted by the main agent instead of an
-    external fresh-session parser
+  - keep `graft-multi-agent-task` and `graft-task-closeout` aligned on the dual-channel closeout contract
+  - keep `graft-multi-agent-loop` documented as a same-session serial subagent orchestrator:
+    - outer main agent owns orchestration, budget, stop conditions, closeout parsing, acceptance, and next-round dispatch
+    - each implementation round is delegated to exactly one worker subagent by default
+    - the outer main agent must not edit repo-tracked implementation files during active rounds
+    - malformed or missing worker closeout follows `retry_once_then_blocked`
+  - do not restore `run_loop.py`, `test_run_loop.py`, or `codex exec --ephemeral`-style external fresh-session runners
 
 ## Server Owned Scope Freeze
 

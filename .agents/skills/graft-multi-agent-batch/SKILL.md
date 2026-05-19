@@ -15,14 +15,16 @@ Use this skill only when all of the following are true:
 
 * the task is large enough that parallel work materially shortens it
 * the write sets can stay disjoint
-* the main agent can keep the critical path local
+* the current execution owner can keep its immediate blocking step local
 * reviewability will still be acceptable after integration
 
 ## Coordination Workflow
 
 1. Run the normal `graft-boot` grounding flow first and establish the startup receipt required by `AGENTS.md`.
 2. Treat `graft-boot`'s multi-agent suitability check as the activation gate; do not delegate just because parallelism is available.
-3. Identify the immediate blocking step and keep it local.
+3. Identify the immediate blocking step and keep it local to the current execution owner.
+   - when this batch runs inside one `graft-multi-agent-loop` round, the current execution owner is the delegated
+     worker subagent, not the outer loop orchestrator
 4. Split only non-blocking work into disjoint slices.
 5. Use `explorer` subagents for read-only discovery or comparison.
 6. Use `worker` subagents only for bounded implementation slices with explicit ownership.

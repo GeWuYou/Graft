@@ -26,8 +26,11 @@ Typical triggers:
 ## Workflow
 
 1. Ensure the current turn already has the startup receipt required by root `AGENTS.md`.
-2. Use `graft-multi-agent-batch` as the execution workflow:
-   - keep the critical path local
+2. Use `graft-multi-agent-batch` as the execution workflow when the active slice actually benefits from internal
+   delegation:
+   - the agent executing the current slice keeps its immediate blocking step local
+   - when this wrapper is running as one round under `graft-multi-agent-loop`, that execution owner is the delegated
+     worker subagent rather than the outer loop orchestrator
    - split only disjoint, reviewable slices
    - pass inherited startup context to every subagent
 3. Keep this wrapper concise during execution:
@@ -45,6 +48,9 @@ Typical triggers:
    - one fenced ` ```json ` block containing the machine-readable closeout result
 9. If a delegated round cannot safely emit the required closeout, stop and return a clearly blocked state to the main
    agent instead of silently continuing outside the loop contract.
+10. When this wrapper is running under `graft-multi-agent-loop`, it owns only the delegated round:
+   - it must not assume the outer loop orchestrator will finish the implementation locally
+   - it must return a usable closeout or an explicit blocked state for the current round
 
 ## Boundaries
 

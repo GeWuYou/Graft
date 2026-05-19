@@ -1,11 +1,13 @@
 ---
 name: graft-multi-agent-loop
-description: Repository-specific loop orchestrator for Graft multi-agent tasks. Use when one bounded task should run through repeated main-agent-managed rounds of `graft-multi-agent-task` until closeout stops emitting a next-session startup prompt or an execution budget stops the loop.
+description: Repository-specific loop orchestrator for Graft multi-agent tasks. Use when one bounded task should run through repeated same-session serial worker-subagent rounds of `graft-multi-agent-task` until closeout stops emitting a next-session startup prompt or an execution budget stops the loop.
 ---
 
 # Graft Multi-Agent Loop
 
-Use this skill when a `Graft` task should run as a sequence of bounded delegated rounds under one main-agent session.
+Use this skill when a `Graft` task should run as a sequence of bounded delegated rounds under one main-agent session,
+with the main agent acting as the loop orchestrator and each implementation round delegated to one worker subagent by
+default.
 
 Treat root `AGENTS.md` as the only governance source. This skill is only an outer automation wrapper around
 `graft-multi-agent-task`; it does not define a second startup path, a second validation contract, or a second commit
@@ -17,7 +19,7 @@ Use this skill when all of the following are true:
 
 * the task should be executed through `graft-multi-agent-task`
 * the task may require multiple future-session handoffs before it is actually complete
-* you want the main agent to keep coordinating delegated rounds until closeout says to stop or a budget is exhausted
+* you want the main agent to keep coordinating serial delegated rounds until closeout says to stop or a budget is exhausted
 
 Typical triggers:
 
@@ -35,14 +37,20 @@ Typical triggers:
    - `max_runtime_minutes`
    - `allowed_scopes`
    - validation failure policy
-3. Keep the critical path in the main agent and use delegated rounds only for bounded execution slices:
-   - use `graft-multi-agent-task` to define each round
-   - use `graft-multi-agent-batch` only when the round itself benefits from parallel subagent work
-   - keep budget tracking, stop conditions, and final acceptance in the main agent
-4. For each round, require the delegated execution path to:
-   - run the slice through `$graft-multi-agent-task`
-   - keep closeout human-readable
-   - emit the required machine-readable JSON closeout result
+3. Keep orchestration in the main agent and delegate each bounded implementation round to exactly one `worker`
+   subagent by default:
+   - build one round prompt that restates the inherited startup context, owned scope, remaining budget, allowed scopes,
+     validation expectations, and required closeout format
+   - require the worker round to run the slice through `$graft-multi-agent-task`
+   - use an `explorer` subagent instead of a `worker` only when the round is genuinely read-only
+   - allow `graft-multi-agent-batch` only inside the delegated round when that round itself benefits from parallel
+     subagent work
+4. During an active round, keep the outer main agent limited to orchestration work:
+   - inspect repository state or returned artifacts as needed for acceptance
+   - wait for the worker result
+   - parse the closeout JSON and track remaining budget
+   - decide whether to accept, retry, continue, or stop
+   - do not edit repo-tracked implementation files for the active round
 5. Let the main agent decide whether to continue based on:
    - closeout JSON
    - the presence or absence of `Next-session startup prompt:`
@@ -50,16 +58,17 @@ Typical triggers:
    - scope expansion
    - risk level
    - remaining budget
-6. If a delegated round stalls, omits closeout, or returns contradictory closeout:
-   - do not silently continue as an ordinary task
-   - either mark the loop `blocked`, or recover the coherent owned slice locally and then close out explicitly through
-     `graft-task-closeout`
+6. If a delegated worker round stalls, omits closeout, or returns contradictory closeout:
+   - retry the same bounded round once with a fresh worker subagent
+   - if the second worker still fails to emit a usable closeout, stop the loop as `blocked`
+   - do not recover the implementation locally and do not silently continue outside the loop contract
    - keep the stop reason explicit in the final closeout
 7. Stop when:
    - no further next-session startup prompt is emitted
    - the closeout JSON says `continue: false`
    - a budget limit is exhausted
    - validation fails under a stop-on-failure policy
+   - a worker closeout fails twice under the retry-once policy
    - the delegated round expands scope or reports high risk
 
 ## Output Contract
@@ -91,3 +100,5 @@ replacement control plane.
 * do not treat the loop as permission to skip closeout, validation, or scoped commit rules
 * do not let a stalled or malformed delegated round silently downgrade into untracked main-agent execution
 * do not assume a delegated round can inherit unstated governance; the round prompt must restate the inherited context
+* do not reintroduce `run_loop.py`, `test_run_loop.py`, or `codex exec --ephemeral` style external fresh-session
+  runners as part of this skill
