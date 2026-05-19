@@ -298,7 +298,7 @@
 ## Latest Validation
 
 - Commit-scope diagnosis on `2026-05-18` confirmed one recurrent Git/IDE ambiguity:
-  - `git status --short` showed the current `web` slice as ` M` on five files, which means modified but unstaged
+  - `git status --short` showed the current `web` slice as unstaged modifications on five files
   - `git diff --cached --name-only` was therefore correctly empty because the Git index had no staged entries
   - JetBrains changelist checkboxes or selected-file UI state must not be treated as Git staged proof in repository
     commit workflows; the `graft-commit` skill now calls this out explicitly
@@ -396,8 +396,8 @@
   - `sed -n '1,260p' .agents/skills/graft-task-closeout/SKILL.md`
   - `sed -n '190,215p' AGENTS.md`
   - `sed -n '1,260p' ai-plan/design/AI任务追踪与恢复设计.md`
-  - `python3 /root/.codex/skills/.system/skill-creator/scripts/init_skill.py --help`
-  - `python3 /root/.codex/skills/.system/skill-creator/scripts/generate_openai_yaml.py --help`
+  - `run init_skill.py --help (skill-creator script)`
+  - `run generate_openai_yaml.py --help (skill-creator script)`
 - This slice adds a new repository skill plus local automation runner only; runtime validation expectations for actual
   `server` and `web` feature work remain unchanged.
 - The current `2026-05-19` docs/automation loop contract-correction slice was grounded with:

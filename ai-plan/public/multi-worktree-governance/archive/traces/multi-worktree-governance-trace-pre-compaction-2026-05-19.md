@@ -158,7 +158,7 @@
 - Re-ran startup preflight on `refactor/web-module-boundaries` for a docs/automation investigation into why
   `$graft-commit` appeared to miss files after a prior `$graft-push`.
 - Confirmed the reported symptom was not a Git index bug:
-  - `git status --short` showed five `web` files as ` M`
+  - `git status --short` showed five `web` files as unstaged modifications
   - `git diff --cached --name-only` returned empty
   - that combination means the files were modified in the working tree but never staged into the Git index
 - Root cause was workflow ambiguity, not command failure: the repository skill text did not state explicitly that IDE
