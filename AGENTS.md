@@ -604,11 +604,29 @@ Exception for `graft-multi-agent-loop`:
   implementation round to exactly one worker subagent by default instead of keeping that round's implementation local
 - in that loop mode, the outer main agent keeps orchestration, budget tracking, stop conditions, closeout parsing,
   acceptance, and next-round dispatch local
+- in that loop mode, the outer main agent runs bounded orchestration rather than real-time remote control:
+  - timeout alone does not mean the worker is stalled
+  - each round carries an explicit checkpoint budget, defaulting to `1`
+  - high-risk or long-running rounds may raise the checkpoint budget to `2` or `3`, but that increase must be written
+    into the round budget up front
+  - checkpoint interrupts may be used only for health checks, never to change the round goal, broaden scope, or append
+    new implementation requirements
+  - checkpoint interrupts must respect an explicit cooldown; do not repeatedly interrupt an active worker
 - in that loop mode, the outer main agent must not edit repo-tracked implementation files during an active round; it
   may only inspect state, evaluate the returned closeout, and decide whether to accept, retry, or stop
+- in that loop mode, stalled-state judgment must be stricter than elapsed time alone:
+  - a worker is not considered stalled until soft timeout has been exceeded, there has been prolonged lack of output or
+    tool activity, the worker has not entered closeout, and a checkpoint request still fails to produce a usable status
+  - usable checkpoint status must include current phase, changed files, last validation, next action, can-continue
+    judgment, estimated remaining minutes, ETA confidence, and current risks or blockers
+  - ETA only guides the next wait window; it must not override the round's total runtime budget
+  - if ETA repeatedly misses, progress is not substantive, or no closeout arrives, lower worker reliability and fall
+    through `retry_once_then_blocked`
 - in that loop mode, a missing, malformed, or contradictory worker closeout must be retried once with a fresh worker
   subagent and must fail closed as `blocked` on the second failure instead of downgrading into main-agent
   implementation
+- in that loop mode, a retry worker must inherit the partial diff, relevant logs, validation evidence, and the
+  previous worker failure reason before retrying the same bounded round
 
 Use subagents this way:
 

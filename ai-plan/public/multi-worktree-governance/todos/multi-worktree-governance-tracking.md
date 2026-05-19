@@ -454,6 +454,8 @@
     - each implementation round is delegated to exactly one worker subagent by default
     - the outer main agent must not edit repo-tracked implementation files during active rounds
     - malformed or missing worker closeout follows `retry_once_then_blocked`
+    - `timeout != stalled`; bounded checkpoint plus ETA-based health checks mediate long waits before retry/block
+    - checkpoint interrupts remain health checks only and must not broaden scope or turn the loop into remote control
   - do not restore `run_loop.py`, `test_run_loop.py`, or `codex exec --ephemeral`-style external fresh-session runners
 
 ## Server Owned Scope Freeze

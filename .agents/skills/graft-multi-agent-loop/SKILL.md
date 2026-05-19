@@ -37,33 +37,72 @@ Typical triggers:
    - `max_runtime_minutes`
    - `allowed_scopes`
    - validation failure policy
+   - `checkpoint_budget` with default `1`
+   - checkpoint cooldown
+   - `soft_timeout_minutes`
+   - `short_grace_window`
+   - `default_grace_window`
+   - `max_grace_window`
 3. Keep orchestration in the main agent and delegate each bounded implementation round to exactly one `worker`
    subagent by default:
    - build one round prompt that restates the inherited startup context, owned scope, remaining budget, allowed scopes,
-     validation expectations, and required closeout format
+     validation expectations, health-check rules, and required closeout format
    - require the worker round to run the slice through `$graft-multi-agent-task`
    - use an `explorer` subagent instead of a `worker` only when the round is genuinely read-only
    - allow `graft-multi-agent-batch` only inside the delegated round when that round itself benefits from parallel
-     subagent work
+     subagent work; inside loop rounds, default sidecars to read-only `explorer` subagents unless a bounded write slice
+     is clearly justified
 4. During an active round, keep the outer main agent limited to orchestration work:
    - inspect repository state or returned artifacts as needed for acceptance
    - wait for the worker result
    - parse the closeout JSON and track remaining budget
    - decide whether to accept, retry, continue, or stop
    - do not edit repo-tracked implementation files for the active round
-5. Let the main agent decide whether to continue based on:
+5. Treat `timeout != stalled`:
+   - exceeding one wait window or one soft timeout is not enough on its own to declare the worker stalled
+   - stalled judgment requires all of the following:
+     - the round has exceeded soft timeout
+     - there has been prolonged lack of output or tool activity
+     - the worker has not reached closeout
+     - a checkpoint request still fails to return a usable health response
+6. Use bounded checkpoint requests instead of ad-hoc remote control:
+   - every round starts with `checkpoint_budget=1` unless the round budget explicitly raises it to `2` or `3`
+   - checkpoint requests use `interrupt=true`
+   - checkpoint requests are health checks only and must not change the task goal, broaden scope, or append new
+     implementation requirements
+   - enforce checkpoint cooldown; do not send frequent back-to-back interrupts
+   - the worker must respond with a structured status containing:
+     - `current_phase`
+     - `changed_files`
+     - `last_validation`
+     - `next_action`
+     - `can_continue`
+     - `estimated_remaining_minutes`
+     - `eta_confidence`
+     - `risks_or_blockers`
+7. After a usable checkpoint, set the next wait window from ETA without breaking the total round budget:
+   - `eta_confidence=high`: wait `estimated_remaining_minutes`, capped by `max_grace_window`
+   - `eta_confidence=medium`: wait `min(estimated_remaining_minutes, default_grace_window)`
+   - `eta_confidence=low`: wait only `short_grace_window`, then checkpoint again or move to retry/block
+   - ETA is advisory only; it must not justify exceeding the round's remaining runtime budget
+8. Let the main agent decide whether to continue based on:
    - closeout JSON
    - the presence or absence of `Next-session startup prompt:`
    - repeated prompts
    - scope expansion
    - risk level
    - remaining budget
-6. If a delegated worker round stalls, omits closeout, or returns contradictory closeout:
+9. If a delegated worker round stalls, omits closeout, or returns contradictory closeout:
+   - degrade worker reliability when ETA repeatedly misses, there is no substantive progress, or no closeout arrives
+   - if the worker gives no response, a malformed response, `can_continue=false`, or exhausts checkpoint budget,
+     enter `retry_once_then_blocked`
    - retry the same bounded round once with a fresh worker subagent
+   - the retry worker must inherit the partial diff, relevant logs, validation evidence, and the previous worker
+     failure reason
    - if the second worker still fails to emit a usable closeout, stop the loop as `blocked`
    - do not recover the implementation locally and do not silently continue outside the loop contract
    - keep the stop reason explicit in the final closeout
-7. Stop when:
+10. Stop when:
    - no further next-session startup prompt is emitted
    - the closeout JSON says `continue: false`
    - a budget limit is exhausted
@@ -92,12 +131,16 @@ Every delegated round run through this loop must end with:
 The main agent treats the JSON block as the primary control surface. The keyword line is a human-readable mirror, not a
 replacement control plane.
 
+Checkpoint responses are not a second closeout format. They are bounded health reports used only to decide the next
+wait window or whether to enter `retry_once_then_blocked`.
+
 ## Boundaries
 
 * do not use this skill as a substitute for `graft-boot`
 * do not bypass `graft-multi-agent-task`; this skill only orchestrates repeated delegated rounds of it
 * do not let the loop broaden ownership beyond the declared `allowed_scopes`
 * do not treat the loop as permission to skip closeout, validation, or scoped commit rules
+* do not let checkpoint interrupts turn the loop into real-time remote control of the worker
 * do not let a stalled or malformed delegated round silently downgrade into untracked main-agent execution
 * do not assume a delegated round can inherit unstated governance; the round prompt must restate the inherited context
 * do not reintroduce `run_loop.py`, `test_run_loop.py`, or `codex exec --ephemeral` style external fresh-session

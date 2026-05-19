@@ -46,9 +46,17 @@ Typical triggers:
    round and end the closeout with both:
    - a human-readable line beginning with `Next-session startup prompt:` when another round is required
    - one fenced ` ```json ` block containing the machine-readable closeout result
-9. If a delegated round cannot safely emit the required closeout, stop and return a clearly blocked state to the main
+9. When the current task is being orchestrated by `graft-multi-agent-loop`, it may receive bounded checkpoint requests
+   from the outer main agent:
+   - treat checkpoint interrupts as health checks only
+   - do not change the round goal, broaden scope, or append extra implementation work because of a checkpoint
+   - reply with a structured status containing `current_phase`, `changed_files`, `last_validation`, `next_action`,
+     `can_continue`, `estimated_remaining_minutes`, `eta_confidence`, and `risks_or_blockers`
+   - keep the final implementation responsibility, validation, and closeout with the current round worker even if the
+     round used `graft-multi-agent-batch` internally
+10. If a delegated round cannot safely emit the required closeout, stop and return a clearly blocked state to the main
    agent instead of silently continuing outside the loop contract.
-10. When this wrapper is running under `graft-multi-agent-loop`, it owns only the delegated round:
+11. When this wrapper is running under `graft-multi-agent-loop`, it owns only the delegated round:
    - it must not assume the outer loop orchestrator will finish the implementation locally
    - it must return a usable closeout or an explicit blocked state for the current round
 
@@ -79,3 +87,15 @@ When reporting progress or closeout from this wrapper, keep the result brief and
    - `remaining_budget`
    - `scope_expanded`
    - `risk_level`
+
+When a loop-orchestrated worker answers a checkpoint request instead of a final closeout, keep the response short and
+structured. It must include:
+
+1. `current_phase`
+2. `changed_files`
+3. `last_validation`
+4. `next_action`
+5. `can_continue`
+6. `estimated_remaining_minutes`
+7. `eta_confidence`
+8. `risks_or_blockers`

@@ -72,8 +72,38 @@ runner：
 - 外层 main agent 负责 startup receipt、恢复入口、预算、停止条件、closeout 解析、验收与下一轮派发
 - 每个实现 round 默认委派给一个 `worker` subagent，通过 `graft-multi-agent-task` 执行
 - 外层 main agent 在 active round 期间不得编辑 repo-tracked 实现文件
+- 外层 main agent 做的是 bounded orchestration，不是实时 remote-control worker
+- `timeout != stalled`；stalled 判定至少同时要求：
+  - 已超过 soft timeout
+  - 长时间无输出或无 tool activity
+  - worker 尚未进入 closeout
+  - 发送 checkpoint request 后仍无有效响应
+- 每个 round 默认 `checkpoint_budget=1`
+- 高风险或长运行 round 可显式提升到 `2` 或 `3`，但必须写进 round budget
+- checkpoint request 使用 `interrupt=true`，且只能用于健康检查：
+  - 不允许改变任务目标
+  - 不允许扩大 scope
+  - 不允许追加新的实现需求
+- checkpoint request 必须受 cooldown 约束，避免把 loop 退化为高频人工遥控
+- worker 的 checkpoint 响应必须包含：
+  - `current_phase`
+  - `changed_files`
+  - `last_validation`
+  - `next_action`
+  - `can_continue`
+  - `estimated_remaining_minutes`
+  - `eta_confidence`
+  - `risks_or_blockers`
+- 外层 main agent 根据 ETA 只调整下一次等待窗口：
+  - `high`：等待 `estimated_remaining_minutes`，但不超过 `max_grace_window`
+  - `medium`：等待 `min(estimated_remaining_minutes, default_grace_window)`
+  - `low`：只等待 `short_grace_window`
+- ETA 只是建议，不得突破 round 总预算
+- 如果 ETA 连续失准、无实质进展或长期无 closeout，先降低 worker reliability，再进入
+  `retry_once_then_blocked`
 - round closeout 缺失、畸形或自相矛盾时，使用 `retry_once_then_blocked`：
   - 先用新的 worker subagent 重试一次
+  - retry worker 必须继承 partial diff、相关 logs、validation 结果与 previous worker failure reason
   - 第二次仍失败则 fail closed 为 `blocked`
 - 该模式不恢复 `run_loop.py`、`test_run_loop.py` 或 `codex exec --ephemeral` 风格的外部 fresh-session runner
 

@@ -659,6 +659,35 @@
     worker subagent, require the round closeout contract, retry once on malformed/missing closeout, and stop as
     `blocked` on the second failure instead of taking over implementation locally
 
+## 2026-05-19 docs automation loop checkpoint-and-ETA health protocol hardening
+
+- Re-ran startup preflight on `refactor/server-module-boundaries`, classified the work as `docs/automation`, and
+  recovered through the active `multi-worktree-governance` parent topic after observing a long-running same-session
+  worker that was healthy but silent for extended waits.
+- Tightened the active governance so loop waiting no longer equates elapsed time with a stall:
+  - root `AGENTS.md` now states that `timeout != stalled`
+  - stalled judgment now requires soft-timeout overrun, prolonged lack of output or tool activity, missing closeout,
+    and a failed checkpoint response instead of elapsed time alone
+  - loop rounds now carry explicit checkpoint budget, cooldown, and grace-window concepts
+- Added bounded checkpoint rules rather than encouraging frequent interrupt-driven steering:
+  - checkpoint requests remain `interrupt=true` health checks only
+  - checkpoint requests may not change the task goal, broaden scope, or append implementation work
+  - default checkpoint budget is `1`; higher values must be written into the round budget for high-risk or long-running
+    rounds
+  - worker checkpoint responses now require structured phase, validation, next-action, ETA, and blocker fields
+- Bound ETA to orchestration instead of letting it become a second scheduler:
+  - `high` / `medium` / `low` confidence now map to capped grace windows
+  - ETA remains advisory and may not exceed the round's total runtime budget
+  - repeated ETA misses or lack of substantive progress now lower worker reliability before
+    `retry_once_then_blocked`
+- Kept the hardening constrained to governance and recovery truth:
+  - updated `.agents/skills/graft-multi-agent-loop/SKILL.md`
+  - updated `.agents/skills/graft-multi-agent-task/SKILL.md`
+  - updated `.agents/skills/graft-multi-agent-batch/SKILL.md`
+  - updated `ai-plan/design/AI任务追踪与恢复设计.md`
+  - updated the active topic tracking file
+- Consistency validation for the protocol hardening used targeted repository search over the changed governance files.
+
 ## 2026-05-19 server Phase 3e RBAC plugin-local persistence slice
 
 - Re-ran startup preflight on `refactor/server-module-boundaries`, classified the work as `server`, recovered through

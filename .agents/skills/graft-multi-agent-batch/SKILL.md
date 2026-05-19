@@ -26,6 +26,9 @@ Use this skill only when all of the following are true:
    - when this batch runs inside one `graft-multi-agent-loop` round, the current execution owner is the delegated
      worker subagent, not the outer loop orchestrator
 4. Split only non-blocking work into disjoint slices.
+   - when this batch runs inside one `graft-multi-agent-loop` round, default sidecars to read-only `explorer`
+     subagents; add write-capable `worker` sidecars only when the round remains reviewable and the current worker still
+     owns final integration, validation, and closeout
 5. Use `explorer` subagents for read-only discovery or comparison.
 6. Use `worker` subagents only for bounded implementation slices with explicit ownership.
 7. For every subagent, specify:
