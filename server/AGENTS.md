@@ -233,9 +233,22 @@
 
 Ent 与 Atlas 是后端数据库真相链路的一部分。
 
+多工作树 Phase 1 治理补充：
+
+- 这里说的“zero-shared”指功能开发工作树的零共享，不是要求所有 tracked file 都绝对零共享
+- 长生命周期的 `server` feature worktree 正常情况下只拥有 `server/plugins/<name>/**`
+- `internal/pluginapi/**`、`internal/contract/**`、`internal/pluginregistry/generated.go`、`cmd/graft/**`、
+  `AGENTS.md`、`ai-plan/**` 与 migration 入口变更都属于短生命周期 integration / core slice，不属于长期 feature
+  worktree 的 standing ownership
+- `internal/pluginregistry/generated.go` 当前仍保持 tracked；但长生命周期 feature worktree 不得直接修改它，相关改动必须回到显式集成切片统一协调
+- `internal/ent/**` 目前仍是过渡性共享热点，不等于长期 owner 已冻结；在导入、运行时、测试与生成依赖全部清除前，不得把它视为可安全独占的 plugin-owned 面
+- `internal/ent/**` 里不得继续新增业务真相；若暂时保留，只能作为兼容 shell 或迁移过渡层
+- 只有在 import、runtime、test 与 generation 依赖都清除后，`internal/ent/**` 才允许被物理删除
+- 当前后端 ownership checkpoint 允许 fresh DB rebuild；不要求为历史 mixed migration 继续维持兼容回放能力
+
 规则：
 
-- `internal/ent/schema/**` 只允许承载 core-owned Ent schema 真相
+- `internal/ent/schema/**` 只允许承载 core-owned Ent schema 真相，或在依赖未清除前保留最小兼容 forwarder shell；不得重新落入新的业务真相
 - `internal/ent/migrate/migrations/**` 只允许承载 core-owned versioned migration 真相
 - 每个业务插件应长期收敛到自己的：
   - `plugins/<name>/ent/**`
@@ -258,6 +271,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
   - 稳定外键，由表 owner 明确声明
   - application-level contract 协作
 - 每个插件独立进行 Ent generate，生成代码只能写入 `plugins/<name>/ent/**`
+- `user_roles` 的协作边界保持为 `user_id / role_id` 标识符级别；不要通过跨插件 Ent edge、跨插件 Ent entity 或跨插件 repository 暴露角色分配耦合
 - 禁止聚合式全局业务 Ent generate、禁止一个插件修改其它插件的 ent 产物、禁止插件修改 core ent runtime
 
 当任务修改以下任一内容时：

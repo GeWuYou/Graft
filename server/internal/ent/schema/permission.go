@@ -1,55 +1,28 @@
 package schema
 
 import (
-	"regexp"
-	"time"
-
 	"entgo.io/ent"
-	entsql "entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/edge"
-	"entgo.io/ent/schema/field"
+
+	rbacschema "graft/server/plugins/rbac/ent/schema"
 )
 
-// Permission 定义 RBAC 权限点的持久化模型。
+// Permission 保留 internal/ent 的兼容引用面，真正 schema 真值由 rbac 插件拥有。
 type Permission struct {
 	ent.Schema
 }
 
-// Annotations 返回 permissions 表名映射。
+// Annotations 转发到 rbac 插件拥有的 schema 真值。
 func (Permission) Annotations() []schema.Annotation {
-	return []schema.Annotation{
-		entsql.Annotation{Table: "permissions"},
-	}
+	return rbacschema.Permission{}.Annotations()
 }
 
-// Fields 返回权限点字段定义。
+// Fields 转发到 rbac 插件拥有的 schema 真值。
 func (Permission) Fields() []ent.Field {
-	return []ent.Field{
-		field.String("code").
-			NotEmpty().
-			Match(regexp.MustCompile(`^[a-z0-9]+(\.[a-z0-9]+)+$`)).
-			Unique(),
-		field.String("display").
-			NotEmpty(),
-		field.String("description").
-			Optional().
-			Nillable(),
-		field.String("category").
-			NotEmpty().
-			Default("api"),
-		field.Time("created_at").
-			Immutable().
-			Default(time.Now),
-		field.Time("updated_at").
-			Default(time.Now).
-			UpdateDefault(time.Now),
-	}
+	return rbacschema.Permission{}.Fields()
 }
 
-// Edges 返回权限点相关的关系定义。
+// Edges 转发到 rbac 插件拥有的 schema 真值。
 func (Permission) Edges() []ent.Edge {
-	return []ent.Edge{
-		edge.To("role_permissions", RolePermission.Type),
-	}
+	return rbacschema.Permission{}.Edges()
 }

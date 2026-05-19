@@ -1,5 +1,22 @@
 # Multi Worktree Governance Trace
 
+## 2026-05-19 Phase 1 server functional zero-sharing governance freeze
+
+- Tightened the active server governance truth for Phase 1 multi-worktree ownership without changing code or roadmap:
+  - clarified that zero-shared means functional worktree zero-sharing, not absolute tracked-file zero-sharing
+  - froze long-lived server feature worktrees to normally owning only `server/plugins/<name>/**`
+  - recorded that shared contracts, registry wiring, CLI wiring, `AGENTS.md`, `ai-plan/**`, and migration-entry
+    changes belong to short-lived integration/core slices
+- Made the remaining shared backend hotspots explicit instead of leaving them implied:
+  - `server/internal/ent/**` stays transitional only, cannot accept new business truth, may remain as a compatibility
+    shell, and can be physically deleted only after import/runtime/test/generation dependencies are cleared
+  - `server/internal/pluginregistry/generated.go` remains tracked for now, but long-lived feature worktrees must not
+    directly modify it
+- Locked the ownership semantics that still matter before any deeper implementation slice:
+  - `user_roles` stays owned by `rbac` at a `user_id / role_id` identifier boundary rather than cross-plugin Ent edges
+  - fresh DB rebuild is acceptable for this ownership checkpoint; historical mixed migration compatibility is not a
+    Phase 1 requirement
+
 ## 2026-05-19 long-lived worktree mapping rules made explicit
 
 - Expanded the active public recovery docs so the root-only state is operationally clear:

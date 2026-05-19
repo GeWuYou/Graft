@@ -48,10 +48,20 @@
 - The frozen `server` ownership model is:
   - compile-time modular monolith only; no runtime plugin loading, discovery, hot-load lifecycle, or generalized
     service locator
+  - zero-shared means functional worktree zero-sharing, not absolute zero-sharing of every tracked file
   - plugin-first owned scope under `server/plugins/<name>/**`
+  - long-lived server feature worktrees should normally own only `server/plugins/<name>/**`
   - shared stable backend boundary under `server/internal/pluginapi/**` and `server/internal/contract/**`
   - centralized generated hotspot limited to `server/internal/pluginregistry/generated.go`
+  - shared contracts, registry wiring, CLI wiring, `AGENTS.md`, `ai-plan/**`, and migration-entry changes belong to
+    short-lived integration/core slices, not to standing feature-worktree ownership
+  - `server/internal/ent/**` remains transitional only: no new business truth may land there; it may stay as a
+    temporary compatibility shell until import/runtime/test/generation dependencies are cleared
+  - physical deletion of `server/internal/ent/**` is allowed only after those dependencies are cleared
   - `user_roles` final owner is `rbac`
+  - `user_roles` should stay at a `user_id / role_id` identifier boundary, not cross-plugin Ent edges
+  - fresh DB rebuild is an allowed ownership-checkpoint posture; historical mixed migration compatibility is not
+    required
   - new business logic must not flow back into `server/internal/store/**` or non-core-owned portions of
     `server/internal/ent/**`
 - The latest backend ownership slices already landed:
@@ -115,9 +125,14 @@
   - or serialized hotspot updates after the feature-owned slice lands
 - `server/internal/pluginregistry/generated.go` remains the only accepted centralized plugin wiring artifact; parallel
   plugin work may each prepare their own plugin-local changes, but registry regeneration still requires explicit merge
-  coordination.
+  coordination. The file stays tracked for now, yet long-lived feature worktrees must not directly modify it.
 - `server/internal/ent/**` and `server/internal/ent/migrate/migrations/**` remain shared backend hotspots until the
   deeper ownership migration finishes; do not treat them as safe default parallel-worktree surfaces.
+- `server/internal/ent/**` is transitional only. Keep it free of new business truth, use it only as a temporary
+  compatibility shell where still needed, and delete it only after import/runtime/test/generation dependencies are
+  fully removed.
+- Fresh DB rebuild is an accepted validation posture for this ownership checkpoint; the topic does not require ongoing
+  compatibility with historical mixed migration chains.
 
 ## Active Risks
 
@@ -153,6 +168,7 @@
 - Keep `multi-worktree-governance` limited to shared baseline governance while the repository root remains the only
   active worktree.
 - For the next backend slice, continue reducing deeper `internal/ent/**` and migration ownership hotspots without
-  weakening the frozen `rbac` ownership over `user_roles`.
+  weakening the frozen `rbac` ownership over `user_roles`, and keep any shared wiring or migration-entry changes in
+  short-lived integration/core slices instead of feature-owned worktrees.
 - Before creating the first dedicated long-lived worktree/topic pair, record its owned scope and shared-hotspot policy
   in `ai-plan/public/README.md` and give it its own tracking/trace files instead of extending this governance topic.

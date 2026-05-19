@@ -2,28 +2,21 @@ package schema
 
 import (
 	"entgo.io/ent"
+
+	rbacschema "graft/server/plugins/rbac/ent/schema"
 )
 
-// RolePermission 定义角色与权限点的关联模型。
+// RolePermission 保留 internal/ent 的兼容引用面，真正 schema 真值由 rbac 插件拥有。
 type RolePermission struct {
 	ent.Schema
 }
 
-// Mixin 返回角色权限关联复用的表元数据与字段定义。
+// Mixin 转发到 rbac 插件拥有的 schema 真值。
 func (RolePermission) Mixin() []ent.Mixin {
-	return []ent.Mixin{
-		associationRelationMixin{
-			table: "role_permissions",
-			left:  "role_id",
-			right: "permission_id",
-		},
-	}
+	return rbacschema.RolePermission{}.Mixin()
 }
 
-// Edges 返回角色权限关联的关系定义。
+// Edges 转发到 rbac 插件拥有的 schema 真值。
 func (RolePermission) Edges() []ent.Edge {
-	return associationRelationEdges(
-		associationEdgeSpec{name: "role", entityType: Role.Type, ref: "role_permissions", field: "role_id"},
-		associationEdgeSpec{name: "permission", entityType: Permission.Type, ref: "role_permissions", field: "permission_id"},
-	)
+	return rbacschema.RolePermission{}.Edges()
 }
