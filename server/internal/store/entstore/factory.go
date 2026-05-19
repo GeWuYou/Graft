@@ -11,9 +11,8 @@ import (
 //
 // 它只负责装配仓储，不拥有传入 Ent 客户端的生命周期。
 type Factory struct {
-	auditRepo store.AuditRepository
-	userRepo  store.UserRepository
-	authRepo  store.AuthRepository
+	userRepo store.UserRepository
+	authRepo store.AuthRepository
 }
 
 // NewFactory 使用传入的 Ent 客户端装配各个仓储实现。
@@ -25,15 +24,9 @@ func NewFactory(client *ent.Client) (*Factory, error) {
 	}
 
 	return &Factory{
-		auditRepo: &auditRepository{client: client},
-		userRepo:  &userRepository{client: client},
-		authRepo:  &authRepository{client: client},
+		userRepo: &userRepository{client: client},
+		authRepo: &authRepository{client: client},
 	}, nil
-}
-
-// Audit 返回复用同一 Ent 客户端的审计仓储实现。
-func (f *Factory) Audit() store.AuditRepository {
-	return f.auditRepo
 }
 
 // Users 返回复用同一 Ent 客户端的用户仓储实现。

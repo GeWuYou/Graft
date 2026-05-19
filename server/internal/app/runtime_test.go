@@ -98,18 +98,11 @@ func (runtimeTestStoreFactory) Users() store.UserRepository {
 	return runtimeTestUserRepository{}
 }
 
-func (runtimeTestStoreFactory) Audit() store.AuditRepository {
-	return runtimeTestAuditRepository{}
-}
-
 func (runtimeTestStoreFactory) Auth() store.AuthRepository {
 	return runtimeTestAuthRepository{}
 }
 
 type runtimeTestUserRepository struct{}
-
-type runtimeTestAuditRepository struct{}
-
 type runtimeTestAuthRepository struct{}
 
 func (runtimeTestUserRepository) GetByID(context.Context, uint64) (store.User, error) {
@@ -118,10 +111,6 @@ func (runtimeTestUserRepository) GetByID(context.Context, uint64) (store.User, e
 
 func (runtimeTestUserRepository) List(context.Context) ([]store.User, error) {
 	return nil, nil
-}
-
-func (runtimeTestAuditRepository) CreateAuditLog(context.Context, store.CreateAuditLogInput) (store.AuditLog, error) {
-	return store.AuditLog{}, nil
 }
 
 func (runtimeTestAuthRepository) GetUserCredentialByUsername(context.Context, string) (store.UserCredential, error) {
