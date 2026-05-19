@@ -33,12 +33,10 @@ import (
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
 	"graft/server/plugins/rbac"
 	rbacstore "graft/server/plugins/rbac/store"
 	usercontract "graft/server/plugins/user/contract"
-	userstore "graft/server/plugins/user/store"
-	"graft/server/plugins/user/storeadapter"
+	store "graft/server/plugins/user/store"
 )
 
 type successEnvelope[T any] struct {
@@ -69,17 +67,16 @@ func decodeSuccessData[T any](t *testing.T, recorder *httptest.ResponseRecorder)
 }
 
 func adaptTestAuthRepository(repo store.AuthRepository) userstoreAuthPair {
-	auth := storeadapter.NewAuthRepositoryAdapter(repo)
-	pair := userstoreAuthPair{auth: auth}
+	pair := userstoreAuthPair{auth: repo}
 	if passwordRepo, ok := repo.(store.PasswordChangeRepository); ok {
-		pair.passwordChanges = storeadapter.NewPasswordChangeRepositoryAdapter(passwordRepo)
+		pair.passwordChanges = passwordRepo
 	}
 	return pair
 }
 
 type userstoreAuthPair struct {
-	auth            userstore.AuthRepository
-	passwordChanges userstore.PasswordChangeRepository
+	auth            store.AuthRepository
+	passwordChanges store.PasswordChangeRepository
 }
 
 // pluginTestAuthRepository 以内存状态模拟认证仓储的最小行为。
@@ -496,18 +493,15 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 			FallbackLocale:   "zh-CN",
 			SupportedLocales: []string{"zh-CN", "en-US"},
 		}},
-		I18n:     i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		Router:   engine.Group("/api"),
-		Services: container.New(),
+		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Router:             engine.Group("/api"),
+		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
 	}
 
-	pluginInstance := NewPlugin(
-		storeadapter.NewUserRepositoryAdapter(userRepo),
-		storeadapter.NewAuthRepositoryAdapter(authRepo),
-	)
+	pluginInstance := NewPlugin(userRepo, authRepo)
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
@@ -1318,8 +1312,8 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	ctx := newDefaultAdminBootPluginContext(authRepo, rbacRepo)
 
 	pluginInstance := NewPlugin(
-		storeadapter.NewUserRepositoryAdapter(pluginTestUserRepository{}),
-		storeadapter.NewAuthRepositoryAdapter(authRepo),
+		pluginTestUserRepository{},
+		authRepo,
 	)
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
@@ -1363,8 +1357,8 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 
 	ctx := newDefaultAdminBootPluginContext(authRepo, rbacRepo)
 	pluginInstance := NewPlugin(
-		storeadapter.NewUserRepositoryAdapter(pluginTestUserRepository{}),
-		storeadapter.NewAuthRepositoryAdapter(authRepo),
+		pluginTestUserRepository{},
+		authRepo,
 	)
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
@@ -1392,8 +1386,8 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
 	ctx := newDefaultAdminBootPluginContext(&pluginTestAuthRepository{}, pluginTestRBACRepository{})
 	pluginInstance := NewPlugin(
-		storeadapter.NewUserRepositoryAdapter(pluginTestUserRepository{}),
-		storeadapter.NewAuthRepositoryAdapter(&pluginTestAuthRepository{}),
+		pluginTestUserRepository{},
+		&pluginTestAuthRepository{},
 	)
 	if err := pluginInstance.Register(ctx); err != nil {
 		t.Fatalf("register plugin: %v", err)
@@ -1585,12 +1579,12 @@ func TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales(t *testing.T) {
 // TestAuthServiceCurrentUserRequiresClaims 验证当前主体解析要求调用链先建立稳定 claims。
 func TestAuthServiceCurrentUserRequiresClaims(t *testing.T) {
 	service := authService{
-		users: storeadapter.NewUserRepositoryAdapter(pluginTestUserRepository{
+		users: pluginTestUserRepository{
 			getByID: func(context.Context, uint64) (store.User, error) {
 				t.Fatal("user repository should not be called when claims are missing")
 				return store.User{}, nil
 			},
-		}),
+		},
 	}
 
 	_, err := service.CurrentUser(context.Background())
@@ -1891,7 +1885,7 @@ func TestLoginDoesNotIssueOrphanedAccessToken(t *testing.T) {
 		RefreshCookieName:     "graft_refresh_token",
 		RefreshCookiePath:     "/",
 		RefreshCookieSameSite: "lax",
-	}, storeadapter.NewAuthRepositoryAdapter(&pluginTestAuthRepository{
+	}, &pluginTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
 			if username != "alice" {
 				return store.UserCredential{}, store.ErrUserNotFound
@@ -1902,7 +1896,7 @@ func TestLoginDoesNotIssueOrphanedAccessToken(t *testing.T) {
 				PasswordHash: &passwordHash,
 			}, nil
 		},
-	}), storeadapter.NewUserRepositoryAdapter(pluginTestUserRepository{
+	}, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -1913,7 +1907,7 @@ func TestLoginDoesNotIssueOrphanedAccessToken(t *testing.T) {
 				Display:  "Alice",
 			}, nil
 		},
-	}))
+	})
 	if err != nil {
 		t.Fatalf("new auth service: %v", err)
 	}

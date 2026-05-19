@@ -9,21 +9,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
-	"graft/server/plugins/user/storeadapter"
+	userstore "graft/server/plugins/user/store"
 )
 
 type passwordChangeAtomicAuthRepository struct {
 	*pluginTestAuthRepository
 	changePasswordAndRevokeOtherRefreshSessions func(
 		ctx context.Context,
-		input store.ChangePasswordAndRevokeOtherRefreshSessionsInput,
+		input userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput,
 	) error
 }
 
 func (r *passwordChangeAtomicAuthRepository) ChangePasswordAndRevokeOtherRefreshSessions(
 	ctx context.Context,
-	input store.ChangePasswordAndRevokeOtherRefreshSessionsInput,
+	input userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput,
 ) error {
 	if r.changePasswordAndRevokeOtherRefreshSessions == nil {
 		return errors.New("changePasswordAndRevokeOtherRefreshSessions callback is nil")
@@ -40,18 +39,18 @@ func TestChangeCurrentUserPasswordUsesAtomicRepositoryOperation(t *testing.T) {
 	currentHash := string(currentHashBytes)
 
 	var called bool
-	var received store.ChangePasswordAndRevokeOtherRefreshSessionsInput
+	var received userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput
 	repo := &passwordChangeAtomicAuthRepository{
 		pluginTestAuthRepository: &pluginTestAuthRepository{
-			getUserCredentialByUsername: func(context.Context, string) (store.UserCredential, error) {
-				return store.UserCredential{
+			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
+				return userstore.UserCredential{
 					UserID:       7,
 					Username:     "alice",
 					PasswordHash: &currentHash,
 				}, nil
 			},
 		},
-		changePasswordAndRevokeOtherRefreshSessions: func(_ context.Context, input store.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
+		changePasswordAndRevokeOtherRefreshSessions: func(_ context.Context, input userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
 			called = true
 			received = input
 			return nil
@@ -115,8 +114,8 @@ func TestChangeCurrentUserPasswordRejectsMissingCurrentPassword(t *testing.T) {
 
 	repo := &passwordChangeAtomicAuthRepository{
 		pluginTestAuthRepository: &pluginTestAuthRepository{
-			getUserCredentialByUsername: func(context.Context, string) (store.UserCredential, error) {
-				return store.UserCredential{
+			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
+				return userstore.UserCredential{
 					UserID:             7,
 					Username:           "alice",
 					PasswordHash:       &currentHash,
@@ -124,7 +123,7 @@ func TestChangeCurrentUserPasswordRejectsMissingCurrentPassword(t *testing.T) {
 				}, nil
 			},
 		},
-		changePasswordAndRevokeOtherRefreshSessions: func(context.Context, store.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
+		changePasswordAndRevokeOtherRefreshSessions: func(context.Context, userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
 			t.Fatal("expected atomic password change operation not to be called")
 			return nil
 		},
@@ -164,11 +163,11 @@ func TestCompleteRequiredPasswordChangeAllowsRestrictedSessionWithoutCurrentPass
 	}
 
 	var called bool
-	var received store.ChangePasswordAndRevokeOtherRefreshSessionsInput
+	var received userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput
 	repo := &passwordChangeAtomicAuthRepository{
 		pluginTestAuthRepository: &pluginTestAuthRepository{
-			getUserCredentialByUsername: func(context.Context, string) (store.UserCredential, error) {
-				return store.UserCredential{
+			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
+				return userstore.UserCredential{
 					UserID:             9,
 					Username:           defaultAdminUsername,
 					PasswordHash:       &currentHash,
@@ -176,7 +175,7 @@ func TestCompleteRequiredPasswordChangeAllowsRestrictedSessionWithoutCurrentPass
 				}, nil
 			},
 		},
-		changePasswordAndRevokeOtherRefreshSessions: func(_ context.Context, input store.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
+		changePasswordAndRevokeOtherRefreshSessions: func(_ context.Context, input userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
 			called = true
 			received = input
 			return nil
@@ -227,15 +226,15 @@ func TestCompleteRequiredPasswordChangeRejectsNonRestrictedSession(t *testing.T)
 
 	repo := &passwordChangeAtomicAuthRepository{
 		pluginTestAuthRepository: &pluginTestAuthRepository{
-			getUserCredentialByUsername: func(context.Context, string) (store.UserCredential, error) {
-				return store.UserCredential{
+			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
+				return userstore.UserCredential{
 					UserID:       7,
 					Username:     "alice",
 					PasswordHash: &currentHash,
 				}, nil
 			},
 		},
-		changePasswordAndRevokeOtherRefreshSessions: func(context.Context, store.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
+		changePasswordAndRevokeOtherRefreshSessions: func(context.Context, userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
 			t.Fatal("expected atomic password change operation not to be called")
 			return nil
 		},
@@ -277,8 +276,8 @@ func TestCompleteRequiredPasswordChangeRejectsPasswordReuse(t *testing.T) {
 
 	repo := &passwordChangeAtomicAuthRepository{
 		pluginTestAuthRepository: &pluginTestAuthRepository{
-			getUserCredentialByUsername: func(context.Context, string) (store.UserCredential, error) {
-				return store.UserCredential{
+			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
+				return userstore.UserCredential{
 					UserID:             7,
 					Username:           "alice",
 					PasswordHash:       &currentHash,
@@ -286,7 +285,7 @@ func TestCompleteRequiredPasswordChangeRejectsPasswordReuse(t *testing.T) {
 				}, nil
 			},
 		},
-		changePasswordAndRevokeOtherRefreshSessions: func(context.Context, store.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
+		changePasswordAndRevokeOtherRefreshSessions: func(context.Context, userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
 			t.Fatal("expected atomic password change operation not to be called")
 			return nil
 		},
@@ -327,15 +326,15 @@ func TestChangeCurrentUserPasswordRequiresAtomicRepositoryOperation(t *testing.T
 	currentHash := string(currentHashBytes)
 
 	service := authService{
-		auth: storeadapter.NewAuthRepositoryAdapter(&pluginTestAuthRepository{
-			getUserCredentialByUsername: func(context.Context, string) (store.UserCredential, error) {
-				return store.UserCredential{
+		auth: &pluginTestAuthRepository{
+			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
+				return userstore.UserCredential{
 					UserID:       7,
 					Username:     "alice",
 					PasswordHash: &currentHash,
 				}, nil
 			},
-		}),
+		},
 		passwords:     newPasswordHasher(),
 		policy:        newPasswordPolicy(),
 		refreshTokens: &refreshTokenManager{now: func() time.Time { return time.Date(2026, 5, 16, 8, 30, 0, 0, time.UTC) }},
@@ -368,15 +367,15 @@ func TestChangeCurrentUserPasswordRejectsMismatchedRequestPrincipal(t *testing.T
 
 	repo := &passwordChangeAtomicAuthRepository{
 		pluginTestAuthRepository: &pluginTestAuthRepository{
-			getUserCredentialByUsername: func(context.Context, string) (store.UserCredential, error) {
-				return store.UserCredential{
+			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
+				return userstore.UserCredential{
 					UserID:       7,
 					Username:     "alice",
 					PasswordHash: &currentHash,
 				}, nil
 			},
 		},
-		changePasswordAndRevokeOtherRefreshSessions: func(context.Context, store.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
+		changePasswordAndRevokeOtherRefreshSessions: func(context.Context, userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
 			t.Fatal("expected atomic password change operation not to be called")
 			return nil
 		},

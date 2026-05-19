@@ -8,9 +8,7 @@ import (
 
 	"graft/server/internal/ent"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
 	userstore "graft/server/plugins/user/store"
-	"graft/server/plugins/user/storeadapter"
 	"graft/server/plugins/user/storeent"
 )
 
@@ -20,12 +18,6 @@ type AuthRepositoryForReset = userstore.AuthRepository
 // NewAuthRepositoryForReset exposes the user plugin's dev-reset auth boundary.
 func NewAuthRepositoryForReset(client *ent.Client) (AuthRepositoryForReset, error) {
 	return storeent.NewAuthRepository(client)
-}
-
-// NewAuthRepositoryForResetFromInternal adapts transitional internal auth
-// repositories into the plugin-owned dev-reset boundary.
-func NewAuthRepositoryForResetFromInternal(repo store.AuthRepository) AuthRepositoryForReset {
-	return storeadapter.NewAuthRepositoryAdapter(repo)
 }
 
 // ResetDefaultAdminForDevelopment 在开发环境里把默认管理员重置回首次登录受限态。

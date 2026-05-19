@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
 	rbacstore "graft/server/plugins/rbac/store"
-	"graft/server/plugins/user/storeadapter"
+	userstore "graft/server/plugins/user/store"
 )
 
 // TestResetDefaultAdminForDevelopmentResetsCredentialAndRole 验证 dev-only 重置会把
@@ -26,7 +25,7 @@ func TestResetDefaultAdminForDevelopmentResetsCredentialAndRole(t *testing.T) {
 
 	if err := ResetDefaultAdminForDevelopment(
 		context.Background(),
-		storeadapter.NewAuthRepositoryAdapter(state.authRepo),
+		state.authRepo,
 		devResetRBACBootstrapStub{state: state},
 	); err != nil {
 		t.Fatalf("reset default admin: %v", err)
@@ -41,7 +40,7 @@ func TestResetDefaultAdminForDevelopmentRejectsNonDevelopmentEnv(t *testing.T) {
 	state := newDevResetState(t, "unused")
 	err := ResetDefaultAdminForDevelopment(
 		context.Background(),
-		storeadapter.NewAuthRepositoryAdapter(state.authRepo),
+		state.authRepo,
 		devResetRBACBootstrapStub{state: state},
 	)
 	if err == nil {
@@ -57,7 +56,7 @@ func TestResetDefaultAdminForDevelopmentRejectsNonDevelopmentEnv(t *testing.T) {
 
 type devResetState struct {
 	ensured                bool
-	setPasswordInput       store.SetPasswordHashInput
+	setPasswordInput       userstore.SetPasswordHashInput
 	assignRoleInput        rbacstore.AssignRoleToUserInput
 	assignPermissionsInput rbacstore.AssignPermissionsToRoleInput
 	authRepo               *pluginTestAuthRepository
@@ -119,21 +118,21 @@ func newDevResetState(t *testing.T, currentHash string) *devResetState {
 
 	state := &devResetState{}
 	state.authRepo = &pluginTestAuthRepository{
-		ensureUserCredential: func(_ context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
+		ensureUserCredential: func(_ context.Context, input userstore.EnsureUserCredentialInput) (userstore.UserCredential, error) {
 			state.ensured = true
-			return store.UserCredential{
+			return userstore.UserCredential{
 				UserID:             9,
 				Username:           input.Username,
 				PasswordHash:       &currentHash,
 				MustChangePassword: false,
 			}, nil
 		},
-		setPasswordHash: func(_ context.Context, input store.SetPasswordHashInput) error {
+		setPasswordHash: func(_ context.Context, input userstore.SetPasswordHashInput) error {
 			state.setPasswordInput = input
 			return nil
 		},
 	}
-	state.authRepo.refreshSessions = map[string]store.RefreshSession{
+	state.authRepo.refreshSessions = map[string]userstore.RefreshSession{
 		"session-a": {
 			UserID:    9,
 			TokenID:   "session-a",
