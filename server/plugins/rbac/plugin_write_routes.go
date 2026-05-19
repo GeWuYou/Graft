@@ -14,8 +14,9 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/plugin"
-	"graft/server/internal/store"
+	"graft/server/internal/pluginapi"
 	rbaccontract "graft/server/plugins/rbac/contract"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
 type createRoleRequest struct {
@@ -64,7 +65,7 @@ func registerRoleWriteRoutes(
 			invalidField: "permission_ids",
 			readIDs:      readRolePermissionIDs,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
-				return writer.ReplacePermissionsForRole(ctx, store.ReplacePermissionsForRoleInput{
+				return writer.ReplacePermissionsForRole(ctx, rbacstore.ReplacePermissionsForRoleInput{
 					RoleID:        targetID,
 					PermissionIDs: ids,
 				})
@@ -175,7 +176,7 @@ func registerUserRoleRoutes(
 
 		roleIDs, err := reader.ListRoleIDsByUserID(ginCtx.Request.Context(), userID)
 		if err != nil {
-			if errors.Is(err, store.ErrUserNotFound) {
+			if errors.Is(err, pluginapi.ErrUserNotFound) {
 				writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusNotFound, messagecontract.UserNotFound, nil)
 				return
 			}
@@ -196,7 +197,7 @@ func registerUserRoleRoutes(
 			invalidField: "role_ids",
 			readIDs:      readUserRoleIDs,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
-				return writer.ReplaceRolesForUser(ctx, store.ReplaceRolesForUserInput{
+				return writer.ReplaceRolesForUser(ctx, rbacstore.ReplaceRolesForUserInput{
 					UserID:  targetID,
 					RoleIDs: ids,
 				})
@@ -241,13 +242,13 @@ func handleReplaceStableIDsRoute(
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 
-func normalizeCreateRoleInput(request createRoleRequest) (store.CreateRoleInput, bool) {
+func normalizeCreateRoleInput(request createRoleRequest) (rbacstore.CreateRoleInput, bool) {
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
-		return store.CreateRoleInput{}, false
+		return rbacstore.CreateRoleInput{}, false
 	}
 
-	return store.CreateRoleInput{
+	return rbacstore.CreateRoleInput{
 		Name:        name,
 		Display:     strings.TrimSpace(request.Display),
 		Description: normalizeOptionalString(request.Description),
@@ -255,13 +256,13 @@ func normalizeCreateRoleInput(request createRoleRequest) (store.CreateRoleInput,
 	}, true
 }
 
-func normalizeUpdateRoleInput(roleID uint64, request updateRoleRequest) (store.UpdateRoleInput, bool) {
+func normalizeUpdateRoleInput(roleID uint64, request updateRoleRequest) (rbacstore.UpdateRoleInput, bool) {
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
-		return store.UpdateRoleInput{}, false
+		return rbacstore.UpdateRoleInput{}, false
 	}
 
-	return store.UpdateRoleInput{
+	return rbacstore.UpdateRoleInput{
 		ID:          roleID,
 		Name:        name,
 		Display:     strings.TrimSpace(request.Display),
@@ -327,7 +328,7 @@ func parseManagementID(input string) (uint64, error) {
 	return id, nil
 }
 
-func toRoleListItem(role store.Role) roleListItem {
+func toRoleListItem(role rbacstore.Role) roleListItem {
 	return roleListItem{
 		ID:          role.ID,
 		Name:        role.Name,
@@ -350,17 +351,17 @@ func writeRBACManagementError(
 	details := map[string]any(nil)
 
 	switch {
-	case errors.Is(err, store.ErrRoleNotFound):
+	case errors.Is(err, rbacstore.ErrRoleNotFound):
 		status = http.StatusNotFound
 		key = messagecontract.RoleNotFound
-	case errors.Is(err, store.ErrUserNotFound):
+	case errors.Is(err, pluginapi.ErrUserNotFound):
 		status = http.StatusNotFound
 		key = messagecontract.UserNotFound
-	case errors.Is(err, store.ErrRoleNameConflict):
+	case errors.Is(err, rbacstore.ErrRoleNameConflict):
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument
 		details = map[string]any{"field": "name"}
-	case errors.Is(err, store.ErrPermissionNotFound):
+	case errors.Is(err, rbacstore.ErrPermissionNotFound):
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument
 		details = map[string]any{"field": "permission_ids"}
@@ -371,7 +372,7 @@ func writeRBACManagementError(
 	case errors.Is(err, errCannotRemoveOwnAdminRole):
 		status = http.StatusForbidden
 		key = messagecontract.RbacCannotRemoveOwnAdminRole
-	case errors.Is(err, errInvalidPermissionIDs), errors.Is(err, errInvalidRoleIDs), errors.Is(err, store.ErrInvalidID):
+	case errors.Is(err, errInvalidPermissionIDs), errors.Is(err, errInvalidRoleIDs), errors.Is(err, rbacstore.ErrInvalidID):
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument
 		details = map[string]any{"field": invalidField}

@@ -15,15 +15,7 @@ import (
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
-	"graft/server/internal/store"
 )
-
-type pluginTestStoreFactory struct{}
-
-func (pluginTestStoreFactory) Audit() store.AuditRepository { return nil }
-func (pluginTestStoreFactory) Users() store.UserRepository  { return nil }
-func (pluginTestStoreFactory) Auth() store.AuthRepository   { return nil }
-func (pluginTestStoreFactory) RBAC() store.RBACRepository   { return nil }
 
 type stopContextRecorderRuntime struct {
 	registeredJobs []cronx.Job
@@ -55,7 +47,6 @@ func newPluginTestContext() *plugin.Context {
 		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
 		EventBus:           eventbus.New(zap.NewNop()),
 		Services:           container.New(),
-		Stores:             pluginTestStoreFactory{},
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),

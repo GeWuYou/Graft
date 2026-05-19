@@ -41,11 +41,9 @@ type User struct {
 type UserEdges struct {
 	// RefreshSessions holds the value of the refresh_sessions edge.
 	RefreshSessions []*RefreshSession `json:"refresh_sessions,omitempty"`
-	// UserRoles holds the value of the user_roles edge.
-	UserRoles []*UserRole `json:"user_roles,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [1]bool
 }
 
 // RefreshSessionsOrErr returns the RefreshSessions value or an error if the edge
@@ -55,15 +53,6 @@ func (e UserEdges) RefreshSessionsOrErr() ([]*RefreshSession, error) {
 		return e.RefreshSessions, nil
 	}
 	return nil, &NotLoadedError{edge: "refresh_sessions"}
-}
-
-// UserRolesOrErr returns the UserRoles value or an error if the edge
-// was not loaded in eager-loading.
-func (e UserEdges) UserRolesOrErr() ([]*UserRole, error) {
-	if e.loadedTypes[1] {
-		return e.UserRoles, nil
-	}
-	return nil, &NotLoadedError{edge: "user_roles"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -160,11 +149,6 @@ func (_m *User) Value(name string) (ent.Value, error) {
 // QueryRefreshSessions queries the "refresh_sessions" edge of the User entity.
 func (_m *User) QueryRefreshSessions() *RefreshSessionQuery {
 	return NewUserClient(_m.config).QueryRefreshSessions(_m)
-}
-
-// QueryUserRoles queries the "user_roles" edge of the User entity.
-func (_m *User) QueryUserRoles() *UserRoleQuery {
-	return NewUserClient(_m.config).QueryUserRoles(_m)
 }
 
 // Update returns a builder for updating this User.

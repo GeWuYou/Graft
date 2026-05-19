@@ -149,7 +149,7 @@ func (_c *UserRoleCreate) createSpec() (*UserRole, *sqlgraph.CreateSpec) {
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   userrole.UserTable,
 			Columns: []string{userrole.UserColumn},
 			Bidi:    false,

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
 var (
@@ -19,41 +19,41 @@ var (
 const builtinAdminRoleName = "admin"
 
 type writeManagementService interface {
-	CreateRole(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
-	UpdateRole(ctx context.Context, input store.UpdateRoleInput) (store.Role, error)
-	ReplacePermissionsForRole(ctx context.Context, input store.ReplacePermissionsForRoleInput) error
-	ReplaceRolesForUser(ctx context.Context, input store.ReplaceRolesForUserInput) error
+	CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error)
+	UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error)
+	ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error
+	ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error
 }
 
 type managementWriter struct {
-	rbac store.RBACRepository
+	rbac rbacstore.Repository
 }
 
-func (w managementWriter) CreateRole(ctx context.Context, input store.CreateRoleInput) (store.Role, error) {
+func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
 	if w.rbac == nil {
-		return store.Role{}, errors.New("rbac repository is unavailable")
+		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
 	}
 
 	return w.rbac.CreateRole(ctx, input)
 }
 
-func (w managementWriter) UpdateRole(ctx context.Context, input store.UpdateRoleInput) (store.Role, error) {
+func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
 	if w.rbac == nil {
-		return store.Role{}, errors.New("rbac repository is unavailable")
+		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
 	}
 
 	current, err := w.rbac.GetRoleByID(ctx, input.ID)
 	if err != nil {
-		return store.Role{}, err
+		return rbacstore.Role{}, err
 	}
 	if current.Builtin && strings.TrimSpace(current.Name) != strings.TrimSpace(input.Name) {
-		return store.Role{}, errBuiltinRoleNameImmutable
+		return rbacstore.Role{}, errBuiltinRoleNameImmutable
 	}
 
 	return w.rbac.UpdateRole(ctx, input)
 }
 
-func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input store.ReplacePermissionsForRoleInput) error {
+func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
 	if w.rbac == nil {
 		return errors.New("rbac repository is unavailable")
 	}
@@ -66,7 +66,7 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input s
 	}
 
 	if err := w.rbac.ReplacePermissionsForRole(ctx, input); err != nil {
-		if errors.Is(err, store.ErrPermissionNotFound) {
+		if errors.Is(err, rbacstore.ErrPermissionNotFound) {
 			if validationErr := ensurePermissionIDsExist(ctx, w.rbac, input.PermissionIDs); validationErr != nil {
 				return validationErr
 			}
@@ -80,7 +80,7 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input s
 	return nil
 }
 
-func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input store.ReplaceRolesForUserInput) error {
+func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {
 	if w.rbac == nil {
 		return errors.New("rbac repository is unavailable")
 	}
@@ -89,7 +89,7 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input store.R
 	}
 
 	if err := w.rbac.ReplaceRolesForUser(ctx, input); err != nil {
-		if errors.Is(err, store.ErrRoleNotFound) {
+		if errors.Is(err, rbacstore.ErrRoleNotFound) {
 			if validationErr := ensureRoleIDsExist(ctx, w.rbac, input.RoleIDs); validationErr != nil {
 				return validationErr
 			}
@@ -103,7 +103,7 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input store.R
 	return nil
 }
 
-func (w managementWriter) ensureActorKeepsBuiltinAdminRole(ctx context.Context, input store.ReplaceRolesForUserInput) error {
+func (w managementWriter) ensureActorKeepsBuiltinAdminRole(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {
 	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.User == nil || requestAuth.User.ID == 0 {
 		return nil
@@ -131,17 +131,17 @@ func (w managementWriter) ensureActorKeepsBuiltinAdminRole(ctx context.Context, 
 	return errCannotRemoveOwnAdminRole
 }
 
-func findBuiltinAdminRole(roles []store.Role) (store.Role, bool) {
+func findBuiltinAdminRole(roles []rbacstore.Role) (rbacstore.Role, bool) {
 	for _, role := range roles {
 		if role.Builtin && strings.TrimSpace(role.Name) == builtinAdminRoleName {
 			return role, true
 		}
 	}
 
-	return store.Role{}, false
+	return rbacstore.Role{}, false
 }
 
-func ensurePermissionIDsExist(ctx context.Context, repository store.RBACRepository, permissionIDs []uint64) error {
+func ensurePermissionIDsExist(ctx context.Context, repository rbacstore.Repository, permissionIDs []uint64) error {
 	if len(permissionIDs) == 0 {
 		return nil
 	}
@@ -165,7 +165,7 @@ func ensurePermissionIDsExist(ctx context.Context, repository store.RBACReposito
 	return nil
 }
 
-func ensureRoleIDsExist(ctx context.Context, repository store.RBACRepository, roleIDs []uint64) error {
+func ensureRoleIDsExist(ctx context.Context, repository rbacstore.Repository, roleIDs []uint64) error {
 	if len(roleIDs) == 0 {
 		return nil
 	}

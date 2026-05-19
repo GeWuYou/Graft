@@ -10,6 +10,7 @@ import (
 
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
+	"graft/server/plugins/user/storeadapter"
 )
 
 type passwordChangeAtomicAuthRepository struct {
@@ -58,9 +59,10 @@ func TestChangeCurrentUserPasswordUsesAtomicRepositoryOperation(t *testing.T) {
 	}
 
 	fixedNow := time.Date(2026, 5, 16, 8, 30, 0, 0, time.UTC)
+	pair := adaptTestAuthRepository(repo)
 	service := authService{
-		auth:            repo,
-		passwordChanges: repo,
+		auth:            pair.auth,
+		passwordChanges: pair.passwordChanges,
 		passwords:       newPasswordHasher(),
 		policy:          newPasswordPolicy(),
 		refreshTokens:   &refreshTokenManager{now: func() time.Time { return fixedNow }},
@@ -128,9 +130,10 @@ func TestChangeCurrentUserPasswordRejectsMissingCurrentPassword(t *testing.T) {
 		},
 	}
 
+	pair := adaptTestAuthRepository(repo)
 	service := authService{
-		auth:            repo,
-		passwordChanges: repo,
+		auth:            pair.auth,
+		passwordChanges: pair.passwordChanges,
 		passwords:       newPasswordHasher(),
 		policy:          newPasswordPolicy(),
 		refreshTokens:   &refreshTokenManager{now: func() time.Time { return time.Date(2026, 5, 16, 8, 30, 0, 0, time.UTC) }},
@@ -181,9 +184,10 @@ func TestCompleteRequiredPasswordChangeAllowsRestrictedSessionWithoutCurrentPass
 	}
 
 	fixedNow := time.Date(2026, 5, 16, 8, 30, 0, 0, time.UTC)
+	pair := adaptTestAuthRepository(repo)
 	service := authService{
-		auth:            repo,
-		passwordChanges: repo,
+		auth:            pair.auth,
+		passwordChanges: pair.passwordChanges,
 		passwords:       newPasswordHasher(),
 		policy:          newPasswordPolicy(),
 		refreshTokens:   &refreshTokenManager{now: func() time.Time { return fixedNow }},
@@ -237,9 +241,10 @@ func TestCompleteRequiredPasswordChangeRejectsNonRestrictedSession(t *testing.T)
 		},
 	}
 
+	pair := adaptTestAuthRepository(repo)
 	service := authService{
-		auth:            repo,
-		passwordChanges: repo,
+		auth:            pair.auth,
+		passwordChanges: pair.passwordChanges,
 		passwords:       newPasswordHasher(),
 		policy:          newPasswordPolicy(),
 		refreshTokens:   &refreshTokenManager{now: func() time.Time { return time.Date(2026, 5, 16, 8, 30, 0, 0, time.UTC) }},
@@ -287,9 +292,10 @@ func TestCompleteRequiredPasswordChangeRejectsPasswordReuse(t *testing.T) {
 		},
 	}
 
+	pair := adaptTestAuthRepository(repo)
 	service := authService{
-		auth:            repo,
-		passwordChanges: repo,
+		auth:            pair.auth,
+		passwordChanges: pair.passwordChanges,
 		passwords:       newPasswordHasher(),
 		policy:          newPasswordPolicy(),
 		refreshTokens:   &refreshTokenManager{now: func() time.Time { return time.Date(2026, 5, 16, 8, 30, 0, 0, time.UTC) }},
@@ -321,7 +327,7 @@ func TestChangeCurrentUserPasswordRequiresAtomicRepositoryOperation(t *testing.T
 	currentHash := string(currentHashBytes)
 
 	service := authService{
-		auth: &pluginTestAuthRepository{
+		auth: storeadapter.NewAuthRepositoryAdapter(&pluginTestAuthRepository{
 			getUserCredentialByUsername: func(context.Context, string) (store.UserCredential, error) {
 				return store.UserCredential{
 					UserID:       7,
@@ -329,7 +335,7 @@ func TestChangeCurrentUserPasswordRequiresAtomicRepositoryOperation(t *testing.T
 					PasswordHash: &currentHash,
 				}, nil
 			},
-		},
+		}),
 		passwords:     newPasswordHasher(),
 		policy:        newPasswordPolicy(),
 		refreshTokens: &refreshTokenManager{now: func() time.Time { return time.Date(2026, 5, 16, 8, 30, 0, 0, time.UTC) }},
@@ -376,9 +382,10 @@ func TestChangeCurrentUserPasswordRejectsMismatchedRequestPrincipal(t *testing.T
 		},
 	}
 
+	pair := adaptTestAuthRepository(repo)
 	service := authService{
-		auth:            repo,
-		passwordChanges: repo,
+		auth:            pair.auth,
+		passwordChanges: pair.passwordChanges,
 		passwords:       newPasswordHasher(),
 		policy:          newPasswordPolicy(),
 		refreshTokens:   &refreshTokenManager{now: func() time.Time { return time.Date(2026, 5, 16, 8, 30, 0, 0, time.UTC) }},

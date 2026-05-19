@@ -9,6 +9,7 @@
 这个模块负责：
 
 * 定义插件生命周期接口
+* 定义 `plugin.Descriptor` 与 `plugin.Builder` 这条 compile-time 接线边界
 * 暴露插件可见的运行时上下文
 * 按依赖关系排序插件
 
@@ -21,13 +22,14 @@
 ## 主要入口
 
 * `doc.go`：包职责与边界说明
-* `plugin.go`：插件接口、上下文与管理器实现
+* `plugin.go`：插件接口、描述符、Builder、上下文与管理器实现
 
 ## 关键依赖
 
 * 由 `server/internal/app` 在运行时装配阶段调用
 * 依赖 `container`、`menu`、`permission`、`cronx`、`eventbus`、`store`、`logger`、`i18n` 等核心能力
 * 供 `server/plugins/*` 中的业务插件实现和消费
+* 由 `server/internal/pluginregistry` 消费，用于生成 compile-time registry
 
 ## 维护提示
 

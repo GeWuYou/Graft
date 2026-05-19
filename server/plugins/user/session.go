@@ -12,7 +12,7 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	userstore "graft/server/plugins/user/store"
 )
 
 var (
@@ -45,7 +45,7 @@ type refreshResult struct {
 }
 
 type refreshSessionGrant struct {
-	Session       store.RefreshSession
+	Session       userstore.RefreshSession
 	Token         string
 	TokenExpiryAt time.Time
 }
@@ -238,7 +238,7 @@ func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken stri
 	}
 	session, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.TokenID)
 	if err != nil {
-		if errors.Is(err, store.ErrRefreshSessionNotFound) {
+		if errors.Is(err, userstore.ErrRefreshSessionNotFound) {
 			return errInvalidRefreshToken
 		}
 		return err
@@ -249,11 +249,11 @@ func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken stri
 		return errInvalidRefreshToken
 	}
 
-	if err := s.auth.RevokeRefreshSession(ctx, store.RevokeRefreshSessionInput{
+	if err := s.auth.RevokeRefreshSession(ctx, userstore.RevokeRefreshSessionInput{
 		TokenID:   claims.TokenID,
 		RevokedAt: now,
 	}); err != nil {
-		if errors.Is(err, store.ErrRefreshSessionNotFound) {
+		if errors.Is(err, userstore.ErrRefreshSessionNotFound) {
 			return errInvalidRefreshToken
 		}
 		return err
@@ -309,20 +309,20 @@ func (s authService) parseRefreshClaims(refreshToken string) (*refreshTokenSubje
 func (s authService) loadRefreshActor(
 	ctx context.Context,
 	userID uint64,
-) (store.User, store.UserCredential, error) {
+) (userstore.User, userstore.UserCredential, error) {
 	record, err := s.users.GetByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, store.ErrUserNotFound) {
-			return store.User{}, store.UserCredential{}, errInvalidRefreshToken
+		if errors.Is(err, userstore.ErrUserNotFound) {
+			return userstore.User{}, userstore.UserCredential{}, errInvalidRefreshToken
 		}
-		return store.User{}, store.UserCredential{}, err
+		return userstore.User{}, userstore.UserCredential{}, err
 	}
 	credential, err := s.auth.GetUserCredentialByUsername(ctx, record.Username)
 	if err != nil {
-		if errors.Is(err, store.ErrUserNotFound) {
-			return store.User{}, store.UserCredential{}, errInvalidRefreshToken
+		if errors.Is(err, userstore.ErrUserNotFound) {
+			return userstore.User{}, userstore.UserCredential{}, errInvalidRefreshToken
 		}
-		return store.User{}, store.UserCredential{}, err
+		return userstore.User{}, userstore.UserCredential{}, err
 	}
 
 	return record, credential, nil
@@ -344,7 +344,7 @@ func (s authService) validateActiveRefreshSession(
 	return nil
 }
 
-func validateRefreshRotationAllowed(credential store.UserCredential) error {
+func validateRefreshRotationAllowed(credential userstore.UserCredential) error {
 	if credential.MustChangePassword {
 		return errRequiredPasswordChangeOnly
 	}
@@ -356,8 +356,8 @@ func (s authService) rotateRefreshSession(
 	ctx context.Context,
 	currentTokenID string,
 	now time.Time,
-) (store.RefreshSession, error) {
-	nextSession, err := s.auth.RotateRefreshSession(ctx, store.RotateRefreshSessionInput{
+) (userstore.RefreshSession, error) {
+	nextSession, err := s.auth.RotateRefreshSession(ctx, userstore.RotateRefreshSessionInput{
 		CurrentTokenID: currentTokenID,
 		NewTokenID:     uuid.NewString(),
 		Now:            now,
@@ -365,16 +365,16 @@ func (s authService) rotateRefreshSession(
 		NewExpiresAt:   now.Add(s.refreshTokens.ttl),
 	})
 	if err != nil {
-		return store.RefreshSession{}, mapRefreshSessionRepositoryError(err)
+		return userstore.RefreshSession{}, mapRefreshSessionRepositoryError(err)
 	}
 
 	return nextSession, nil
 }
 
 func (s authService) issueRefreshRotationResult(
-	record store.User,
-	credential store.UserCredential,
-	nextSession store.RefreshSession,
+	record userstore.User,
+	credential userstore.UserCredential,
+	nextSession userstore.RefreshSession,
 ) (refreshResult, error) {
 	nextRefreshToken, nextRefreshExpiry, err := s.refreshTokens.Issue(refreshTokenSubject{
 		UserID:    record.ID,
@@ -409,7 +409,7 @@ func (s authService) issueRefreshRotationResult(
 }
 
 func mapRefreshSessionRepositoryError(err error) error {
-	if errors.Is(err, store.ErrRefreshSessionNotFound) {
+	if errors.Is(err, userstore.ErrRefreshSessionNotFound) {
 		return errInvalidRefreshToken
 	}
 
@@ -470,7 +470,7 @@ func (s authService) RevokeAllUserSessions(ctx context.Context, userID uint64) e
 		return errors.New("auth repository is unavailable")
 	}
 
-	return s.auth.RevokeRefreshSessionsByUserID(ctx, store.RevokeRefreshSessionsByUserIDInput{
+	return s.auth.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
 		UserID:    userID,
 		RevokedAt: s.nowUTC(),
 	})
@@ -502,12 +502,12 @@ func (s authService) RevokeUserSession(ctx context.Context, userID uint64, sessi
 		return errSessionNotFound
 	}
 
-	if err := s.auth.RevokeRefreshSessionByUserID(ctx, store.RevokeRefreshSessionByUserIDInput{
+	if err := s.auth.RevokeRefreshSessionByUserID(ctx, userstore.RevokeRefreshSessionByUserIDInput{
 		UserID:    userID,
 		TokenID:   strings.TrimSpace(sessionID),
 		RevokedAt: s.nowUTC(),
 	}); err != nil {
-		if errors.Is(err, store.ErrRefreshSessionNotFound) {
+		if errors.Is(err, userstore.ErrRefreshSessionNotFound) {
 			return errSessionNotFound
 		}
 		return err
@@ -538,7 +538,7 @@ func (s authService) ListUserSessions(ctx context.Context, userID uint64, option
 	}
 
 	requestAuth, _ := pluginapi.RequestAuthContextFromContext(ctx)
-	sessions, err := s.auth.ListActiveRefreshSessionsByUserID(ctx, store.ListActiveRefreshSessionsByUserIDInput{
+	sessions, err := s.auth.ListActiveRefreshSessionsByUserID(ctx, userstore.ListActiveRefreshSessionsByUserIDInput{
 		UserID: userID,
 		Now:    s.nowUTC(),
 	})
@@ -577,7 +577,7 @@ func (s authService) validateAccessSession(ctx context.Context, claims *pluginap
 
 	session, err := s.auth.GetRefreshSessionByTokenID(ctx, claims.SessionID)
 	if err != nil {
-		if errors.Is(err, store.ErrRefreshSessionNotFound) {
+		if errors.Is(err, userstore.ErrRefreshSessionNotFound) {
 			return errAccessSessionFailed
 		}
 		return err
@@ -602,7 +602,7 @@ func (s authService) createRefreshSession(ctx context.Context, userID uint64) (r
 	tokenID := uuid.NewString()
 	issuedAt := s.refreshTokens.now().UTC()
 	expiresAt := issuedAt.Add(s.refreshTokens.ttl)
-	session, err := s.auth.CreateRefreshSession(ctx, store.CreateRefreshSessionInput{
+	session, err := s.auth.CreateRefreshSession(ctx, userstore.CreateRefreshSessionInput{
 		UserID:    userID,
 		TokenID:   tokenID,
 		ExpiresAt: expiresAt,

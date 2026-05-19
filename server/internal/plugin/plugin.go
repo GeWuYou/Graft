@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -18,7 +19,6 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
-	"graft/server/internal/store"
 )
 
 // Plugin 定义所有后端插件都必须实现的稳定生命周期契约。
@@ -52,6 +52,125 @@ type Plugin interface {
 	Shutdown(ctx *Context) error
 }
 
+// Builder 定义 compile-time 插件描述符到运行时插件实例的显式构造边界。
+//
+// Builder 当前只负责构造插件实例；后续 capability 或插件私有依赖装配
+// 可以继续沿这条边界扩展，而不把共享接线重新塞回中心化 CLI 文件。
+type Builder interface {
+	Build(BuildContext) (Plugin, error)
+}
+
+// BuildContext 暴露插件构造阶段允许消费的最小 core 资源。
+//
+// 它只服务于 compile-time builder wiring，不进入插件运行时热路径。
+// 这里保留显式服务解析边界，避免 builder 重新拿回泛化的业务仓储工厂入口。
+type BuildContext struct {
+	Services *container.Container
+}
+
+// BuilderFunc 允许用普通函数实现 Builder。
+type BuilderFunc func(BuildContext) (Plugin, error)
+
+// Build 执行函数式 Builder。
+func (f BuilderFunc) Build(ctx BuildContext) (Plugin, error) {
+	if f == nil {
+		return nil, errors.New("plugin builder is required")
+	}
+
+	return f(ctx)
+}
+
+// ResolveService 解析一个 builder 或插件生命周期允许消费的显式单例服务。
+func ResolveService[T any](resolver container.Resolver, key any) (T, error) {
+	var zero T
+	if resolver == nil {
+		return zero, errors.New("service resolver is required")
+	}
+
+	resolvedAny, err := resolver.Resolve(key)
+	if err != nil {
+		return zero, err
+	}
+
+	resolved, ok := resolvedAny.(T)
+	if !ok {
+		return zero, fmt.Errorf("resolved service %T has unexpected type %T", key, resolvedAny)
+	}
+
+	return resolved, nil
+}
+
+// Descriptor 定义 compile-time 插件元数据与运行时构造入口。
+//
+// Descriptor 是未来生成式 plugin registry 的稳定输入：它收敛插件名、版本、
+// 依赖与迁移目录等元数据，并把真正的运行时实例化动作交给 Builder。
+type Descriptor struct {
+	ID            string
+	PluginVersion string
+	Dependencies  []string
+	MigrationPath []string
+	Builder       Builder
+}
+
+// Name 返回描述符的稳定插件标识。
+func (d Descriptor) Name() string {
+	return strings.TrimSpace(d.ID)
+}
+
+// Version 返回描述符声明的插件版本。
+func (d Descriptor) Version() string {
+	return strings.TrimSpace(d.PluginVersion)
+}
+
+// DependsOn 返回描述符声明的依赖列表。
+func (d Descriptor) DependsOn() []string {
+	return trimStringsPreserveDuplicates(d.Dependencies)
+}
+
+// MigrationDirs 返回描述符声明的插件自有迁移目录。
+func (d Descriptor) MigrationDirs() []string {
+	return trimNonEmptyStrings(d.MigrationPath)
+}
+
+// Validate 校验描述符的最小 compile-time 元数据完整性。
+func (d Descriptor) Validate() error {
+	if d.Name() == "" {
+		return errors.New("plugin descriptor name is required")
+	}
+	if d.Version() == "" {
+		return fmt.Errorf("plugin descriptor %s version is required", d.Name())
+	}
+	if d.Builder == nil {
+		return fmt.Errorf("plugin descriptor %s builder is required", d.Name())
+	}
+	if _, err := normalizeDependencies(d.Name(), d.DependsOn()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Build 根据描述符构造一个运行时插件实例，并校验运行时元数据没有偏离
+// compile-time 描述符的 canonical truth。
+func (d Descriptor) Build(ctx BuildContext) (Plugin, error) {
+	if err := d.Validate(); err != nil {
+		return nil, err
+	}
+
+	built, err := d.Builder.Build(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("build plugin %s: %w", d.Name(), err)
+	}
+	if built == nil {
+		return nil, fmt.Errorf("build plugin %s: builder returned nil plugin", d.Name())
+	}
+	if err := ensureBuiltPluginMatchesDescriptor(d, built); err != nil {
+		return nil, err
+	}
+
+	return describedPlugin{descriptor: d, delegate: built}, nil
+}
+
 // Context 向插件暴露允许使用的显式运行时句柄。
 //
 // 这里聚合的是插件生命周期真正需要的核心能力，目的是让插件通过稳定
@@ -80,7 +199,6 @@ type Context struct {
 	Redis              *redis.Client
 	Router             gin.IRouter
 	Services           *container.Container
-	Stores             store.Factory
 	MenuRegistry       *menu.Registry
 	PermissionRegistry *permission.Registry
 	CronRegistry       *cronx.Registry
@@ -125,54 +243,147 @@ func (m *Manager) RegisterPlugin(p Plugin) error {
 // 排序失败时会返回缺失依赖或依赖环错误，调用方不应在错误场景下继续
 // 执行插件生命周期。
 func (m *Manager) Ordered() ([]Plugin, error) {
-	total := len(m.plugins)
+	return orderByDependencies(m.plugins)
+}
+
+// OrderDescriptors 按依赖关系返回稳定的描述符顺序。
+//
+// 它复用与运行时插件相同的拓扑排序规则，使 compile-time registry 和
+// runtime lifecycle 使用同一套依赖真相，而不是各自维护第二份排序逻辑。
+func OrderDescriptors(descriptors []Descriptor) ([]Descriptor, error) {
+	return orderByDependencies(descriptors)
+}
+
+type describedPlugin struct {
+	descriptor Descriptor
+	delegate   Plugin
+}
+
+func (p describedPlugin) Name() string {
+	return p.descriptor.Name()
+}
+
+func (p describedPlugin) Version() string {
+	return p.descriptor.Version()
+}
+
+func (p describedPlugin) DependsOn() []string {
+	return p.descriptor.DependsOn()
+}
+
+func (p describedPlugin) Register(ctx *Context) error {
+	return p.delegate.Register(ctx)
+}
+
+func (p describedPlugin) Boot(ctx *Context) error {
+	return p.delegate.Boot(ctx)
+}
+
+func (p describedPlugin) Shutdown(ctx *Context) error {
+	return p.delegate.Shutdown(ctx)
+}
+
+func ensureBuiltPluginMatchesDescriptor(descriptor Descriptor, built Plugin) error {
+	if name := strings.TrimSpace(built.Name()); name != descriptor.Name() {
+		return fmt.Errorf(
+			"build plugin %s: runtime plugin name %q does not match descriptor",
+			descriptor.Name(),
+			name,
+		)
+	}
+	if version := strings.TrimSpace(built.Version()); version != descriptor.Version() {
+		return fmt.Errorf(
+			"build plugin %s: runtime plugin version %q does not match descriptor",
+			descriptor.Name(),
+			version,
+		)
+	}
+
+	expectedDependencies, err := normalizeDependencies(descriptor.Name(), descriptor.DependsOn())
+	if err != nil {
+		return err
+	}
+	actualDependencies, err := normalizeDependencies(descriptor.Name(), built.DependsOn())
+	if err != nil {
+		return fmt.Errorf("build plugin %s: invalid runtime dependencies: %w", descriptor.Name(), err)
+	}
+	if !sameStringSet(expectedDependencies, actualDependencies) {
+		return fmt.Errorf(
+			"build plugin %s: runtime dependencies %v do not match descriptor %v",
+			descriptor.Name(),
+			actualDependencies,
+			expectedDependencies,
+		)
+	}
+
+	return nil
+}
+
+type dependencyTarget interface {
+	Name() string
+	DependsOn() []string
+}
+
+func orderByDependencies[T dependencyTarget](items []T) ([]T, error) {
+	total := len(items)
 	if total == 0 {
 		return nil, nil
 	}
 
-	index, inDegree := buildPluginIndex(m.plugins)
-	edges, err := buildPluginEdges(m.plugins, index, inDegree)
+	index, inDegree, err := buildDependencyIndex(items)
+	if err != nil {
+		return nil, err
+	}
+	edges, err := buildDependencyEdges(items, index, inDegree)
 	if err != nil {
 		return nil, err
 	}
 
-	ordered := resolvePluginOrder(index, inDegree, edges, total)
-	if len(ordered) != total {
-		return nil, errors.New("plugin dependency cycle detected")
-	}
-
-	return ordered, nil
+	return resolveDependencyOrder(index, inDegree, edges, total)
 }
 
-func buildPluginIndex(plugins []Plugin) (map[string]Plugin, map[string]int) {
-	index := make(map[string]Plugin, len(plugins))
-	inDegree := make(map[string]int, len(plugins))
-	for _, p := range plugins {
-		name := p.Name()
-		index[name] = p
+func buildDependencyIndex[T dependencyTarget](items []T) (map[string]T, map[string]int, error) {
+	index := make(map[string]T, len(items))
+	inDegree := make(map[string]int, len(items))
+	for _, item := range items {
+		name := strings.TrimSpace(item.Name())
+		if name == "" {
+			return nil, nil, errors.New("plugin name is required")
+		}
+		if _, exists := index[name]; exists {
+			return nil, nil, fmt.Errorf("plugin already registered: %s", name)
+		}
+
+		index[name] = item
 		inDegree[name] = 0
 	}
 
-	return index, inDegree
+	return index, inDegree, nil
 }
 
-func buildPluginEdges(plugins []Plugin, index map[string]Plugin, inDegree map[string]int) (map[string][]string, error) {
-	edges := make(map[string][]string, len(plugins))
-	for _, p := range plugins {
-		for _, dependency := range p.DependsOn() {
+func buildDependencyEdges[T dependencyTarget](items []T, index map[string]T, inDegree map[string]int) (map[string][]string, error) {
+	edges := make(map[string][]string, len(items))
+	for _, item := range items {
+		name := strings.TrimSpace(item.Name())
+		dependencies, err := normalizeDependencies(name, item.DependsOn())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, dependency := range dependencies {
 			if _, ok := index[dependency]; !ok {
-				return nil, fmt.Errorf("plugin %s depends on missing plugin %s", p.Name(), dependency)
+				return nil, fmt.Errorf("plugin %s depends on missing plugin %s", name, dependency)
 			}
 
-			edges[dependency] = append(edges[dependency], p.Name())
-			inDegree[p.Name()]++
+			edges[dependency] = append(edges[dependency], name)
+			inDegree[name]++
 		}
 	}
 
 	return edges, nil
 }
 
-func resolvePluginOrder(index map[string]Plugin, inDegree map[string]int, edges map[string][]string, total int) []Plugin {
+func resolveDependencyOrder[T dependencyTarget](index map[string]T, inDegree map[string]int, edges map[string][]string, total int) ([]T, error) {
 	queue := make([]string, 0, total)
 	for name, degree := range inDegree {
 		if degree == 0 {
@@ -181,7 +392,7 @@ func resolvePluginOrder(index map[string]Plugin, inDegree map[string]int, edges 
 	}
 
 	sort.Strings(queue)
-	ordered := make([]Plugin, 0, total)
+	ordered := make([]T, 0, total)
 	for len(queue) > 0 {
 		name := queue[0]
 		queue = queue[1:]
@@ -196,5 +407,69 @@ func resolvePluginOrder(index map[string]Plugin, inDegree map[string]int, edges 
 		}
 	}
 
-	return ordered
+	if len(ordered) != total {
+		return nil, errors.New("plugin dependency cycle detected")
+	}
+
+	return ordered, nil
+}
+
+func normalizeDependencies(pluginName string, dependencies []string) ([]string, error) {
+	normalized := trimStringsPreserveDuplicates(dependencies)
+	seen := make(map[string]struct{}, len(normalized))
+	for _, dependency := range normalized {
+		if dependency == "" {
+			return nil, fmt.Errorf("plugin %s has an empty dependency name", pluginName)
+		}
+		if dependency == pluginName {
+			return nil, fmt.Errorf("plugin %s cannot depend on itself", pluginName)
+		}
+		if _, exists := seen[dependency]; exists {
+			return nil, fmt.Errorf("plugin %s depends on duplicate plugin %s", pluginName, dependency)
+		}
+		seen[dependency] = struct{}{}
+	}
+
+	return normalized, nil
+}
+
+func trimStringsPreserveDuplicates(values []string) []string {
+	trimmed := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed = append(trimmed, strings.TrimSpace(value))
+	}
+
+	return trimmed
+}
+
+func trimNonEmptyStrings(values []string) []string {
+	trimmed := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+
+		trimmed = append(trimmed, value)
+	}
+
+	return trimmed
+}
+
+func sameStringSet(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+
+	leftCopy := append([]string(nil), left...)
+	rightCopy := append([]string(nil), right...)
+	sort.Strings(leftCopy)
+	sort.Strings(rightCopy)
+	for index := range leftCopy {
+		if leftCopy[index] != rightCopy[index] {
+			return false
+		}
+	}
+
+	return true
 }

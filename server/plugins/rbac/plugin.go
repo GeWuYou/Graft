@@ -11,8 +11,8 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
 	rbaccontract "graft/server/plugins/rbac/contract"
+	rbacstore "graft/server/plugins/rbac/store"
 )
 
 // Plugin 是 MVP 阶段最小可用的 RBAC 插件。
@@ -20,26 +20,28 @@ import (
 // 当前实现同时承载两类稳定边界：
 //   - 暴露 `pluginapi.Authorizer`，把权限判断收敛为统一后端安全边界
 //   - 提供角色/权限只读管理路由，供 `web` 消费真实 RBAC 快照
-type Plugin struct{}
+type Plugin struct {
+	repository rbacstore.Repository
+}
 
 // NewPlugin 创建最小 RBAC 插件。
-func NewPlugin() *Plugin {
-	return &Plugin{}
+func NewPlugin(repository rbacstore.Repository) *Plugin {
+	return &Plugin{repository: repository}
 }
 
 // Name 返回插件稳定标识。
 func (p *Plugin) Name() string {
-	return "rbac"
+	return pluginID
 }
 
 // Version 返回当前插件版本。
 func (p *Plugin) Version() string {
-	return "0.1.0"
+	return pluginVersion
 }
 
 // DependsOn 声明当前最小授权插件依赖用户插件已完成认证主体解析。
 func (p *Plugin) DependsOn() []string {
-	return []string{"user"}
+	return append([]string(nil), pluginDependencies...)
 }
 
 // Register 注册跨插件可复用的授权服务。
@@ -51,9 +53,33 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 	registerRBACPermissions(ctx.PermissionRegistry, p.Name())
 	registerRBACMenu(ctx.MenuRegistry, p.Name())
-	repository := ctx.Stores.RBAC()
+	repository := p.repository
+	if repository == nil {
+		return errors.New("rbac repository is unavailable")
+	}
+	if err := ctx.Services.RegisterSingleton((*pluginapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
+		return accessService{rbac: repository}, nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*pluginapi.RBACBootstrapService)(nil), func(_ container.Resolver) (any, error) {
+		return bootstrapService{rbac: repository}, nil
+	}); err != nil {
+		return err
+	}
+
+	resolvedUserService, err := ctx.Services.Resolve((*pluginapi.UserService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve user service: %w", err)
+	}
+
+	userService, ok := resolvedUserService.(pluginapi.UserService)
+	if !ok {
+		return fmt.Errorf("resolve user service: unexpected type %T", resolvedUserService)
+	}
+
 	readService := managementReader{
-		users: ctx.Stores.Users(),
+		users: userService,
 		rbac:  repository,
 	}
 	writeService := managementWriter{rbac: repository}
@@ -134,7 +160,7 @@ func (p *Plugin) Shutdown(_ *plugin.Context) error {
 }
 
 type authorizer struct {
-	rbac store.RBACRepository
+	rbac rbacstore.Repository
 }
 
 // Authorize 基于稳定 RBAC 仓储判断请求主体是否拥有指定权限。

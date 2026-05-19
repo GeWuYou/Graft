@@ -137,7 +137,7 @@ func (_u *UserRoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   userrole.UserTable,
 			Columns: []string{userrole.UserColumn},
 			Bidi:    false,
@@ -150,7 +150,7 @@ func (_u *UserRoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   userrole.UserTable,
 			Columns: []string{userrole.UserColumn},
 			Bidi:    false,
@@ -350,7 +350,7 @@ func (_u *UserRoleUpdateOne) sqlSave(ctx context.Context) (_node *UserRole, err 
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   userrole.UserTable,
 			Columns: []string{userrole.UserColumn},
 			Bidi:    false,
@@ -363,7 +363,7 @@ func (_u *UserRoleUpdateOne) sqlSave(ctx context.Context) (_node *UserRole, err 
 	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   userrole.UserTable,
 			Columns: []string{userrole.UserColumn},
 			Bidi:    false,

@@ -26,6 +26,7 @@ import (
 	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
 	rbaccontract "graft/server/plugins/rbac/contract"
+	"graft/server/plugins/rbac/storeadapter"
 )
 
 type testRBACRepository struct {
@@ -46,25 +47,21 @@ type testRBACRepository struct {
 	permissionsErr     error
 }
 
-type testUserRepository struct {
+type testUserService struct {
 	users map[uint64]store.User
 }
 
-func (r testUserRepository) GetByID(_ context.Context, id uint64) (store.User, error) {
-	if user, ok := r.users[id]; ok {
-		return user, nil
+func (s testUserService) GetUserByID(_ context.Context, id uint64) (pluginapi.UserSummary, error) {
+	user, ok := s.users[id]
+	if !ok {
+		return pluginapi.UserSummary{}, pluginapi.ErrUserNotFound
 	}
 
-	return store.User{}, store.ErrUserNotFound
-}
-
-func (r testUserRepository) List(_ context.Context) ([]store.User, error) {
-	items := make([]store.User, 0, len(r.users))
-	for _, user := range r.users {
-		items = append(items, user)
-	}
-
-	return items, nil
+	return pluginapi.UserSummary{
+		ID:       user.ID,
+		Username: user.Username,
+		Display:  user.Display,
+	}, nil
 }
 
 func (r testRBACRepository) EnsureRole(_ context.Context, _ store.EnsureRoleInput) (store.Role, error) {
@@ -174,16 +171,6 @@ func (r testRBACRepository) ListRolePermissionBindings(ctx context.Context, role
 	return bindings, nil
 }
 
-type pluginTestStoreFactory struct {
-	users store.UserRepository
-	rbac  store.RBACRepository
-}
-
-func (f pluginTestStoreFactory) Audit() store.AuditRepository { return nil }
-func (f pluginTestStoreFactory) Users() store.UserRepository  { return f.users }
-func (f pluginTestStoreFactory) Auth() store.AuthRepository   { return nil }
-func (f pluginTestStoreFactory) RBAC() store.RBACRepository   { return f.rbac }
-
 type testAuthService struct {
 	user pluginapi.CurrentUser
 }
@@ -218,21 +205,12 @@ func newPluginTestContext(t *testing.T, repo store.RBACRepository) (*plugin.Cont
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	ctx := &plugin.Context{
-		LifecycleContext:   context.Background(),
-		Logger:             zap.NewNop(),
-		Config:             &config.Config{},
-		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		Router:             engine.Group("/api"),
-		Services:           container.New(),
-		Stores: pluginTestStoreFactory{
-			users: testUserRepository{
-				users: map[uint64]store.User{
-					7: {ID: 7, Username: "alice", Display: "Alice"},
-					8: {ID: 8, Username: "bob", Display: "Bob"},
-				},
-			},
-			rbac: repo,
-		},
+		LifecycleContext: context.Background(),
+		Logger:           zap.NewNop(),
+		Config:           &config.Config{},
+		I18n:             i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Router:           engine.Group("/api"),
+		Services:         container.New(),
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
@@ -245,8 +223,18 @@ func newPluginTestContext(t *testing.T, repo store.RBACRepository) (*plugin.Cont
 	}); err != nil {
 		t.Fatalf("register auth service: %v", err)
 	}
+	if err := ctx.Services.RegisterSingleton((*pluginapi.UserService)(nil), func(container.Resolver) (any, error) {
+		return testUserService{
+			users: map[uint64]store.User{
+				7: {ID: 7, Username: "alice", Display: "Alice"},
+				8: {ID: 8, Username: "bob", Display: "Bob"},
+			},
+		}, nil
+	}); err != nil {
+		t.Fatalf("register user service: %v", err)
+	}
 
-	if err := NewPlugin().Register(ctx); err != nil {
+	if err := NewPlugin(storeadapter.NewInternalRepositoryAdapter(repo)).Register(ctx); err != nil {
 		t.Fatalf("register rbac plugin: %v", err)
 	}
 
@@ -269,7 +257,7 @@ func newAuthorizedJSONRequest(method string, path string, body any) *http.Reques
 
 // TestAuthorizerRejectsUnauthenticatedRequest 验证缺少主体时会返回稳定未登录错误。
 func TestAuthorizerRejectsUnauthenticatedRequest(t *testing.T) {
-	service := authorizer{rbac: testRBACRepository{}}
+	service := authorizer{rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{})}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{}, "user.read")
 	if !errors.Is(err, pluginapi.ErrUnauthenticated) {
@@ -280,9 +268,9 @@ func TestAuthorizerRejectsUnauthenticatedRequest(t *testing.T) {
 // TestAuthorizerAllowsGrantedPermission 验证命中的权限码会被授权通过。
 func TestAuthorizerAllowsGrantedPermission(t *testing.T) {
 	service := authorizer{
-		rbac: testRBACRepository{
+		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
 			permissionsByUser: []store.Permission{{Code: "user.read"}},
-		},
+		}),
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{
@@ -296,9 +284,9 @@ func TestAuthorizerAllowsGrantedPermission(t *testing.T) {
 // TestAuthorizerRejectsMissingPermission 验证未命中权限码时会返回稳定拒绝错误。
 func TestAuthorizerRejectsMissingPermission(t *testing.T) {
 	service := authorizer{
-		rbac: testRBACRepository{
+		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
 			permissionsByUser: []store.Permission{{Code: "dashboard.view"}},
-		},
+		}),
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{
@@ -313,9 +301,9 @@ func TestAuthorizerRejectsMissingPermission(t *testing.T) {
 func TestAuthorizerPropagatesRepositoryFailure(t *testing.T) {
 	repositoryErr := errors.New("repository failed")
 	service := authorizer{
-		rbac: testRBACRepository{
+		rbac: storeadapter.NewInternalRepositoryAdapter(testRBACRepository{
 			permissionsErr: repositoryErr,
-		},
+		}),
 	}
 
 	err := service.Authorize(context.Background(), pluginapi.RequestAuthContext{

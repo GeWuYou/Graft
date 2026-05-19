@@ -15,6 +15,8 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/database"
+	"graft/server/internal/ent"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -93,19 +95,139 @@ func TestShutdownPluginsAggregatesErrors(t *testing.T) {
 type runtimeTestStoreFactory struct{}
 
 func (runtimeTestStoreFactory) Users() store.UserRepository {
-	return nil
+	return runtimeTestUserRepository{}
 }
 
 func (runtimeTestStoreFactory) Audit() store.AuditRepository {
-	return nil
+	return runtimeTestAuditRepository{}
 }
 
 func (runtimeTestStoreFactory) Auth() store.AuthRepository {
-	return nil
+	return runtimeTestAuthRepository{}
 }
 
 func (runtimeTestStoreFactory) RBAC() store.RBACRepository {
+	return runtimeTestRBACRepository{}
+}
+
+type runtimeTestUserRepository struct{}
+
+type runtimeTestAuditRepository struct{}
+
+type runtimeTestAuthRepository struct{}
+
+type runtimeTestRBACRepository struct{}
+
+func (runtimeTestUserRepository) GetByID(context.Context, uint64) (store.User, error) {
+	return store.User{}, nil
+}
+
+func (runtimeTestUserRepository) List(context.Context) ([]store.User, error) {
+	return nil, nil
+}
+
+func (runtimeTestAuditRepository) CreateAuditLog(context.Context, store.CreateAuditLogInput) (store.AuditLog, error) {
+	return store.AuditLog{}, nil
+}
+
+func (runtimeTestAuthRepository) GetUserCredentialByUsername(context.Context, string) (store.UserCredential, error) {
+	return store.UserCredential{}, nil
+}
+
+func (runtimeTestAuthRepository) SetPasswordHash(context.Context, store.SetPasswordHashInput) error {
 	return nil
+}
+
+func (runtimeTestAuthRepository) EnsureUserCredential(context.Context, store.EnsureUserCredentialInput) (store.UserCredential, error) {
+	return store.UserCredential{}, nil
+}
+
+func (runtimeTestAuthRepository) CreateRefreshSession(context.Context, store.CreateRefreshSessionInput) (store.RefreshSession, error) {
+	return store.RefreshSession{}, nil
+}
+
+func (runtimeTestAuthRepository) GetRefreshSessionByTokenID(context.Context, string) (store.RefreshSession, error) {
+	return store.RefreshSession{}, nil
+}
+
+func (runtimeTestAuthRepository) RevokeRefreshSession(context.Context, store.RevokeRefreshSessionInput) error {
+	return nil
+}
+
+func (runtimeTestAuthRepository) RevokeRefreshSessionsByUserID(context.Context, store.RevokeRefreshSessionsByUserIDInput) error {
+	return nil
+}
+
+func (runtimeTestAuthRepository) RevokeOtherRefreshSessionsByUserID(context.Context, store.RevokeOtherRefreshSessionsInput) error {
+	return nil
+}
+
+func (runtimeTestAuthRepository) RevokeRefreshSessionByUserID(context.Context, store.RevokeRefreshSessionByUserIDInput) error {
+	return nil
+}
+
+func (runtimeTestAuthRepository) ListActiveRefreshSessionsByUserID(context.Context, store.ListActiveRefreshSessionsByUserIDInput) ([]store.RefreshSession, error) {
+	return nil, nil
+}
+
+func (runtimeTestAuthRepository) RotateRefreshSession(context.Context, store.RotateRefreshSessionInput) (store.RefreshSession, error) {
+	return store.RefreshSession{}, nil
+}
+
+func (runtimeTestRBACRepository) EnsureRole(context.Context, store.EnsureRoleInput) (store.Role, error) {
+	return store.Role{}, nil
+}
+
+func (runtimeTestRBACRepository) EnsurePermission(context.Context, store.EnsurePermissionInput) (store.Permission, error) {
+	return store.Permission{}, nil
+}
+
+func (runtimeTestRBACRepository) CreateRole(context.Context, store.CreateRoleInput) (store.Role, error) {
+	return store.Role{}, nil
+}
+
+func (runtimeTestRBACRepository) UpdateRole(context.Context, store.UpdateRoleInput) (store.Role, error) {
+	return store.Role{}, nil
+}
+
+func (runtimeTestRBACRepository) AssignPermissionsToRole(context.Context, store.AssignPermissionsToRoleInput) error {
+	return nil
+}
+
+func (runtimeTestRBACRepository) ReplacePermissionsForRole(context.Context, store.ReplacePermissionsForRoleInput) error {
+	return nil
+}
+
+func (runtimeTestRBACRepository) AssignRoleToUser(context.Context, store.AssignRoleToUserInput) error {
+	return nil
+}
+
+func (runtimeTestRBACRepository) ReplaceRolesForUser(context.Context, store.ReplaceRolesForUserInput) error {
+	return nil
+}
+
+func (runtimeTestRBACRepository) GetRoleByID(context.Context, uint64) (store.Role, error) {
+	return store.Role{}, nil
+}
+
+func (runtimeTestRBACRepository) ListRolesByUserID(context.Context, uint64) ([]store.Role, error) {
+	return nil, nil
+}
+
+func (runtimeTestRBACRepository) ListRoles(context.Context) ([]store.Role, error) {
+	return nil, nil
+}
+
+func (runtimeTestRBACRepository) ListPermissionsByUserID(context.Context, uint64) ([]store.Permission, error) {
+	return nil, nil
+}
+
+func (runtimeTestRBACRepository) ListPermissions(context.Context) ([]store.Permission, error) {
+	return nil, nil
+}
+
+func (runtimeTestRBACRepository) ListRolePermissionBindings(context.Context, uint64) ([]store.RolePermissionBinding, error) {
+	return nil, nil
 }
 
 type eventBusRecorderPlugin struct {
@@ -200,7 +322,7 @@ func (p *i18nFreezeRecorderPlugin) Boot(ctx *plugin.Context) error {
 func (p *i18nFreezeRecorderPlugin) Shutdown(_ *plugin.Context) error { return nil }
 
 // TestRegisterCoreServicesExposesRuntimeSingletons 验证 core 装配会把配置、
-// event bus、store factory 与 Redis 客户端注册到运行时容器中。
+// event bus、显式仓储边界与 Redis 客户端注册到运行时容器中。
 func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	redisClient := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
 	t.Cleanup(func() {
@@ -208,6 +330,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	})
 	runtimeLogger := zap.NewNop()
 	runtimeEventBus := eventbus.New(runtimeLogger)
+	entClient := ent.NewClient()
 
 	cfg := &config.Config{
 		App: config.AppConfig{Name: "graft", Env: "test"},
@@ -236,6 +359,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		config:   cfg,
 		logger:   runtimeLogger,
 		i18n:     localizer,
+		database: &database.Resources{Client: entClient},
 		redis:    redisClient,
 		eventBus: runtimeEventBus,
 		services: container.New(),
@@ -250,8 +374,12 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*zap.Logger)(nil), runtimeLogger, "logger")
 	assertResolvedService(t, runtime.services, (*i18n.Service)(nil), localizer, "i18n service")
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
-	assertResolvedService(t, runtime.services, (*store.Factory)(nil), store.Factory(stores), "store factory")
+	assertResolvedService(t, runtime.services, (*ent.Client)(nil), entClient, "ent client")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
+	assertResolvableService(t, runtime.services, (*store.AuditRepository)(nil), "audit repository")
+	assertResolvableService(t, runtime.services, (*store.UserRepository)(nil), "user repository")
+	assertResolvableService(t, runtime.services, (*store.AuthRepository)(nil), "auth repository")
+	assertResolvableService(t, runtime.services, (*store.RBACRepository)(nil), "rbac repository")
 }
 
 func assertResolvedService[T comparable](t *testing.T, resolver container.Resolver, key any, expected T, name string) {
@@ -268,6 +396,18 @@ func assertResolvedService[T comparable](t *testing.T, resolver container.Resolv
 	}
 	if resolved != expected {
 		t.Fatalf("expected resolved %s to reuse runtime instance", name)
+	}
+}
+
+func assertResolvableService(t *testing.T, resolver container.Resolver, key any, name string) {
+	t.Helper()
+
+	resolved, err := resolver.Resolve(key)
+	if err != nil {
+		t.Fatalf("resolve %s: %v", name, err)
+	}
+	if resolved == nil {
+		t.Fatalf("resolve %s: got nil service", name)
 	}
 }
 

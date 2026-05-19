@@ -45,6 +45,5 @@ func (User) Fields() []ent.Field {
 func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("refresh_sessions", RefreshSession.Type),
-		edge.To("user_roles", UserRole.Type),
 	}
 }

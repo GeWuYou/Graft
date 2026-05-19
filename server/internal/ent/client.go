@@ -1141,22 +1141,6 @@ func (c *UserClient) QueryRefreshSessions(_m *User) *RefreshSessionQuery {
 	return query
 }
 
-// QueryUserRoles queries the user_roles edge of a User.
-func (c *UserClient) QueryUserRoles(_m *User) *UserRoleQuery {
-	query := (&UserRoleClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(userrole.Table, userrole.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.UserRolesTable, user.UserRolesColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -1298,7 +1282,7 @@ func (c *UserRoleClient) QueryUser(_m *UserRole) *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(userrole.Table, userrole.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, userrole.UserTable, userrole.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, userrole.UserTable, userrole.UserColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

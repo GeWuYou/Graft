@@ -71,8 +71,13 @@ func (UserRole) Mixin() []ent.Mixin {
 
 // Edges 返回用户角色关联的关系定义。
 func (UserRole) Edges() []ent.Edge {
-	return associationRelationEdges(
-		associationEdgeSpec{name: "user", entityType: User.Type, ref: "user_roles", field: "user_id"},
-		associationEdgeSpec{name: "role", entityType: Role.Type, ref: "user_roles", field: "role_id"},
-	)
+	return []ent.Edge{
+		edge.To("user", User.Type).
+			Field("user_id").
+			Required().
+			Unique(),
+		associationRelationEdge(
+			associationEdgeSpec{name: "role", entityType: Role.Type, ref: "user_roles", field: "role_id"},
+		),
+	}
 }

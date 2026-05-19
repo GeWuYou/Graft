@@ -3,11 +3,11 @@
 ## Topic
 
 - Topic: `multi-worktree-governance`
-- Branch: `refactor/web-module-boundaries`
+- Branch: `refactor/server-module-boundaries`
 - Worktree: repository root only; no dedicated long-lived worktree exists yet
 - Scope: keep `mvp-extension-path` archived, reconcile recovery truth with the current root-branch reality, freeze the
-  final post-compatibility `web` ownership model, and prepare stable owned scopes before creating dedicated long-lived
-  worktrees.
+  final post-compatibility `web` ownership model, add the matching `server` compile-time modular-monolith ownership
+  baseline, and prepare stable owned scopes before creating dedicated long-lived worktrees.
 
 ## Goal
 
@@ -31,7 +31,7 @@
 
 - `mvp-extension-path` has been completed as the old long-lived MVP topic; its recovery materials now belong under
   `ai-plan/public/archive/mvp-extension-path/` and are no longer the default active entry.
-- The repository is currently running from the root worktree on branch `refactor/web-module-boundaries`; `git worktree list`
+- The repository is currently running from the root worktree on branch `refactor/server-module-boundaries`; `git worktree list`
   shows no additional worktrees.
 - The immediate governance task on this branch is not to preserve compatibility bridges. It is to lock the final
   post-compatibility ownership model and recovery truth before the first dedicated long-lived worktree is created.
@@ -42,6 +42,13 @@
 - Current boundary facts are frozen as follows:
   - `server` is already close to plugin-oriented parallel execution, and future long-lived worktree ownership should be
     plugin-first.
+  - `server` long-term governance stays on compile-time modular monolith:
+    - no runtime plugin loading
+    - no runtime plugin discovery
+    - no hot-load lifecycle
+    - no generalized reflection plugin system
+    - no generalized service locator
+    - keep single-process deterministic startup
   - `web` final ownership now follows three explicit layers:
     - `shell-owned`: `web/src/app/**`, `web/src/app/bootstrap/**`, `web/src/app/providers/**`, `web/src/layouts/**`,
       `web/src/router/**`, `web/src/config/**`, `web/src/utils/route/**`, `web/src/store/modules/user.ts`,
@@ -79,15 +86,151 @@
   - a real long-lived worktree
   - a declared owned scope
   - a clear shared-hotspot integration path
+- The current `2026-05-18` `server` governance slice freezes the intended backend ownership baseline in
+  `ai-plan/public/multi-worktree-governance/roadmap/server-module-boundaries-plan.md`:
+  - `shared-stable-boundary`: `server/internal/pluginapi/**`, `server/internal/contract/**`
+  - `generated-shared-hotspot`: `server/internal/pluginregistry/generated.go`
+  - `plugin-owned`: `server/plugins/<name>/**`
+  - `core-owned`: runtime/infrastructure packages only
+  - `internal/store/**` and `internal/ent/**` are no longer valid steady-state landing zones for new business logic
+    once the corresponding plugin-owned boundary exists
+- The current `2026-05-18` Phase 2a service-decoupling slice has now landed on the same branch:
+  - `server/internal/pluginapi/rbac.go` defines stable `PermissionSeed`, `RBACAccessService`, and
+    `RBACBootstrapService`
+  - `server/plugins/rbac/**` now registers RBAC access/bootstrap capabilities and no longer reads user existence
+    through `ctx.Stores.Users()`
+  - `server/plugins/user/**` now consumes deferred RBAC capabilities for bootstrap reads and default-admin bootstrapping
+    instead of direct runtime `RBACRepository` calls
+  - the remaining backend merge hotspots are therefore narrowed further to shared contracts plus still-centralized
+    `internal/store/**`, `internal/ent/**`, and migration ownership
+- The current `2026-05-18` Phase 2b RBAC private-store contract slice has now landed on the same branch:
+  - `server/plugins/rbac/store/**` now owns RBAC plugin-private repository DTOs, inputs, errors, and repository
+    contract shape
+  - `server/plugins/rbac/**` runtime code now depends on the local RBAC store contract instead of
+    `server/internal/store/rbac.go`
+  - `server/plugins/rbac/storeadapter/internal_store.go` is the temporary compatibility seam that adapts
+    `ctx.Stores.RBAC()` into the plugin-local repository contract without reopening direct `user` / `rbac`
+    repository coupling
+  - `server/internal/pluginapi/user.go` now defines `pluginapi.ErrUserNotFound` as the shared cross-plugin
+    not-found semantic used by RBAC user-role routes
+  - the remaining backend hotspot for RBAC persistence is therefore narrowed to the temporary adapter plus the still
+    centralized `internal/store/**` / `internal/store/entstore/**` implementation ownership that must be migrated in a
+    later slice
+- The current `2026-05-18` Phase 2c user private-store contract slice has now landed on the same branch:
+  - `server/plugins/user/store/**` now owns the user plugin's private user/auth/session repository contract surface
+  - `server/plugins/user/storeadapter/internal_store.go` is the temporary compatibility seam that adapts
+    `ctx.Stores.Users()` and `ctx.Stores.Auth()` into that plugin-local contract without changing runtime behavior
+  - `server/plugins/user/**` runtime code now depends on the local user store contract instead of directly importing
+    `server/internal/store/{user,auth}.go`
+  - the remaining direct `internal/store` dependency inside `server/plugins/user/**` is now limited to the
+    dev-only RBAC bootstrap compatibility helper used by `ResetDefaultAdminForDevelopment`
+  - the remaining backend hotspots are therefore narrowed further to shared contracts plus still-centralized
+    `internal/store/**`, `internal/store/entstore/**`, `internal/ent/**`, and migration ownership
+- The current `2026-05-18` readiness review for parallel `server` worktrees concludes:
+  - Phase 1 is effectively complete: compile-time descriptors, generated registry, registry-driven `serve`, and
+    registry-derived migration directory resolution are all live
+  - Phase 2 is only partially complete: `rbac` and `user` now own private `store/**` contracts, but `plugin.Context`
+    still exposes `Stores store.Factory`, runtime plugins still enter persistence through compatibility adapters, and
+    `server/internal/cli/dev_reset.go` still coordinates reset behavior through centralized `internal/store/**`
+  - Phase 3 has not started in earnest: business Ent schema, generated Ent code, and Atlas migration truth are still
+    centralized under `server/internal/ent/**` and `internal/ent/migrate/migrations`
+  - the branch is therefore suitable for limited plugin-feature parallelism on top of the current seams, but not yet
+    for low-conflict long-lived parallel worktrees that modify plugin persistence, schema, or migrations independently
+- The current `2026-05-18` Phase 2d builder-wiring slice has now landed on the same branch:
+  - `plugin.Builder` now receives explicit `plugin.BuildContext`, and `app.NewRuntime()` now builds runtime plugins only
+    after core services and `store.Factory` are available
+  - `server/internal/cli/serve.go` no longer builds plugin instances directly; plugin construction now happens inside
+    runtime assembly where core resources exist
+  - `server/plugins/user/**`, `server/plugins/rbac/**`, and `server/plugins/audit/**` now receive plugin-private
+    repository adapters during construction instead of reading repositories from `plugin.Context.Stores`
+  - `plugin.Context` no longer exposes `Stores store.Factory`, so active plugin runtime paths cannot reopen the
+    centralized business-store entrypoint by default
+  - `server/plugins/user/dev_reset.go` and `server/internal/cli/dev_reset.go` now consume the stable
+    `pluginapi.RBACBootstrapService` path instead of the removed repository-backed compatibility bootstrap seam
+  - the remaining Phase 2 hotspot is therefore narrowed further to core still registering `store.Factory` for
+    transitional service/container needs, while active plugin lifecycle code no longer consumes it directly
+- The current `2026-05-18` Phase 2e explicit-repository builder slice has now landed on the same branch:
+  - `plugin.BuildContext` no longer exposes `store.Factory`
+  - `server/internal/app/runtime.go` now registers explicit `store.{Audit,User,Auth,RBAC}Repository` singletons
+    instead of re-exporting the generalized `store.Factory` through the runtime container
+  - `server/plugins/{audit,rbac,user}/descriptor.go` now resolve only the repository boundary each plugin needs during
+    Builder wiring, then adapt that repository into the plugin-local store contract when needed
+  - `store.Factory` remains an internal runtime helper for assembly and dev CLI flows, but it is no longer a
+    container-visible or builder-visible general business-store backdoor
+  - the remaining backend hotspot is therefore narrowed to the still-centralized `internal/store/**` /
+    `internal/store/entstore/**` implementation ownership plus Phase 3 `internal/ent/**` and migration ownership
+  - the next Phase 3 owner should start with `user`, not `rbac`, because `users` plus `refresh_sessions` form the
+    smaller persistence slice and the mixed `user_roles` bridge should stay out of the first extraction
+- The current `2026-05-18` Phase 3a user storeent extraction slice has now landed on the same branch:
+  - `server/plugins/user/storeent/**` now owns the live Ent-backed user/auth/session repository implementation that the
+    runtime `user` plugin consumes
+  - `server/plugins/user/descriptor.go` now resolves the shared `*ent.Client` from the runtime container and builds
+    plugin-owned `user` repositories directly, instead of adapting shared `internal/store` repositories into the
+    plugin-local contract
+  - `server/internal/app/runtime.go` now exposes the shared `*ent.Client` as an explicit builder-visible singleton so
+    plugin-owned persistence implementations can be wired without reopening `store.Factory`
+  - `server/internal/cli/dev_reset.go` now enters the user plugin through the plugin-owned auth repository contract for
+    the dev-only default-admin reset path, while keeping the RBAC side transitional
+  - `server/plugins/user/migrations/README.md` now freezes `plugins/user/migrations/**` as the plugin-owned migration
+    boundary for future user-only versions, without rewriting the existing mixed Atlas history yet
+  - the remaining Phase 3 blockers are now explicit:
+    - `server/internal/ent/schema/{user,refresh_session,user_role,role}.go` still form one shared Ent graph
+    - historical Atlas file `server/internal/ent/migrate/migrations/202605140001_auth_rbac_foundation.sql` still mixes
+      `users`, `refresh_sessions`, `user_roles`, `roles`, `permissions`, and `role_permissions`
+    - `user_roles` remains outside this first extraction and must stay out until the user/RBAC bridge is split safely
+- The current `2026-05-18` Phase 3b migration-directory gating slice has now landed on the same branch:
+  - `server/internal/cli/migrate.go` now treats compile-time registry migration directories differently from
+    user-specified `--dir` input:
+    - explicit `--dir` paths still run exactly as requested
+    - the default registry-driven migration chain now skips plugin-owned directories that do not yet contain
+      `atlas.sum`
+  - this keeps `server/plugins/user/migrations/**` declared as the plugin-owned future boundary without pretending the
+    directory already owns live Atlas history
+  - the slice intentionally does not rewrite `202605140001_auth_rbac_foundation.sql`, does not generate
+    `plugins/user/migrations/atlas.sum`, and does not claim the shared Ent graph around `user_roles` is already split
+  - the remaining honest Phase 3 gap is therefore unchanged in structure but narrower operationally:
+    - default migrate wiring no longer assumes every declared plugin migration directory is immediately runnable
+    - the actual `users` / `refresh_sessions` vs `user_roles` / `rbac` ownership split still requires a later schema
+      and Atlas-history migration slice
+- The current `2026-05-19` backend wiring-hardening follow-up slice has now landed on the same branch:
+  - `server/plugins/{audit,rbac,user}/descriptor.go` now declares stable compile-time plugin metadata directly instead
+    of instantiating runtime plugin values just to derive IDs, versions, or dependencies
+  - `server/internal/app/runtime.go` now rejects missing repository singletons explicitly when transitional
+    `store.Factory` wiring is unavailable, preventing silent nil resolutions at runtime assembly boundaries
+  - `server/internal/cli/dev_reset.go` now depends on plugin-root reset helpers plus
+    `pluginapi.RBACBootstrapService`, keeping private adapter ownership inside `server/plugins/user/**`
+  - `server/internal/cli/migrate.go` now fails fast when the compile-time registry produces no Atlas-state migration
+    directories, instead of silently continuing with an empty automatic apply chain
+  - focused tests now cover the hardened resolution and ordering paths in `internal/app`, `internal/cli`,
+    `internal/plugin`, and `internal/pluginregistry`, while nil-safe helpers were added to the RBAC transitional
+    bootstrap/adapter seams
+- The current `2026-05-19` Phase 3c user-role reverse-edge narrowing slice has now landed on the same branch:
+  - `server/internal/ent/schema/user.go` no longer declares the unused reverse `user_roles` edge from `User`
+  - `server/internal/ent/schema/user_role.go` now keeps the `user_id` foreign-key relation as a one-way `UserRole ->
+    User` Ent edge instead of depending on the removed `User.user_roles` back-reference
+  - regenerated shared `server/internal/ent/**` code now drops the generated `User` API surface that only existed to
+    support the reverse `user_roles` traversal, while keeping runtime behavior and the shared `*ent.Client` shape
+    otherwise intact
+  - this slice intentionally does not create `server/plugins/user/ent/**`, does not introduce plugin-owned user Ent
+    generation yet, and does not rewrite the mixed Atlas history or generate `plugins/user/migrations/atlas.sum`
+  - the remaining honest Phase 3 blockers are therefore narrower and more explicit:
+    - `server/internal/store/entstore/rbac_repository.go` still imports shared generated `internal/ent/user` and still
+      checks user existence through the shared Ent client for `user_roles` writes
+    - `server/plugins/user/**` still consumes the shared generated `internal/ent/**` client because no plugin-owned
+      `user/ent/**` generation path exists yet
+    - historical Atlas file `server/internal/ent/migrate/migrations/202605140001_auth_rbac_foundation.sql` remains the
+      immutable mixed history root for `users`, `refresh_sessions`, `user_roles`, `roles`, `permissions`, and
+      `role_permissions`
 
 ## Shared Hotspots
 
-- `server/internal/app/runtime.go`
-- `server/internal/store/factory.go`
-- `server/internal/store/entstore/factory.go`
 - `server/internal/pluginapi/**`
-- `server/internal/ent/schema/**`
-- migrations
+- `server/internal/contract/**`
+- `server/internal/pluginregistry/generated.go`
+- `server/cmd/graft/**`
+- `server/AGENTS.md`
+- `AGENTS.md`
+- `ai-plan/**`
 - `web/src/utils/route/bootstrap.ts`
 - `web/src/store/modules/user.ts`
 - `web/src/store/modules/permission.ts`
@@ -107,12 +250,17 @@
 
 ## Active Risks
 
-- If a future long-lived worktree is created before shared hotspot ownership is frozen, the first merge wave will
-  recreate hidden dual-truth and integration churn.
+- If a future `server` long-lived worktree still depends on shared edits in `internal/store/**`, `internal/ent/**`, or
+  hand-written plugin registration lists, the first merge wave will recreate backend hotspot churn.
+- If plugin dependency rules are not enforced, future plugins will quietly re-form source-level coupling through
+  cross-plugin `service` / `storeent` / `ent/schema` imports.
+- If migration ownership is not enforced, table ownership will drift back into shared migration hotspots.
 - If `web` continues to let module-specific truth linger under root `api/model/contracts` surfaces, future worktrees
   will keep competing over files that are no longer valid steady-state ownership boundaries.
 - If the recovery index is not refreshed when the repository root branch changes again, future boot/recovery flows will
   land on stale branch/worktree assumptions instead of current governance truth.
+- If future looped multi-session automation relies on free-form closeout only, the runner will be brittle against
+  wording drift and may continue or stop on the wrong round.
 
 ## Latest Validation
 
@@ -126,10 +274,39 @@
   - `git branch --show-current`
   - `git worktree list`
   - `git status --short`
+- The current `server` governance baseline was grounded with:
+  - `sed -n '1,320p' server/AGENTS.md`
+  - `sed -n '1,260p' ai-plan/design/插件与依赖注入设计.md`
+  - `sed -n '1,260p' ai-plan/design/项目设计.md`
+  - `find server -maxdepth 3 -type d | sort`
+  - `rg --files server | sort`
 - Documentation consistency was checked with:
   - `rg -n "multi-worktree|worktree|兼容|compat|shared/|app/|modules/|refactor/web-module-boundaries|primary-main|main" ai-plan/public/multi-worktree-governance ai-plan/design/前端架构设计.md ai-plan/public/README.md`
 - AGENTS split consistency was checked with:
   - `rg -n "web/AGENTS.md|server/AGENTS.md|Subdomain governance|执行真值|前端执行级治理真值|后端执行级治理真值" AGENTS.md web/AGENTS.md server/AGENTS.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/design/前端架构设计.md ai-plan/design/插件与依赖注入设计.md`
+- The current `server` readiness review for multi-worktree execution was grounded with:
+  - `sed -n '1,260p' server/internal/plugin/plugin.go`
+  - `sed -n '1,260p' server/internal/cli/serve.go`
+  - `sed -n '1,260p' server/internal/cli/migrate.go`
+  - `sed -n '1,240p' server/internal/pluginregistry/registry.go`
+  - `sed -n '1,240p' server/internal/pluginregistry/generated.go`
+  - `sed -n '1,260p' server/internal/pluginapi/rbac.go`
+  - `sed -n '1,260p' server/plugins/rbac/storeadapter/internal_store.go`
+  - `sed -n '1,260p' server/plugins/user/storeadapter/internal_store.go`
+  - `sed -n '1,220p' server/plugins/user/bootstrap_admin.go`
+  - `find server/internal/ent -maxdepth 3 -type d | sort`
+  - `find server/plugins -maxdepth 3 -type d | sort`
+  - `rg -n 'ctx\\.Stores\\(|internal/store|internal/ent/migrate|internal/ent/schema|pluginregistry|Descriptor|Builder' server/internal server/plugins --glob '!server/internal/ent/**'`
+- The current `server` Phase 2d builder-wiring slice was validated with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/app ./internal/cli ./plugins/user ./plugins/rbac ./plugins/audit ./plugins/scheduler`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+- The current `server` Phase 2e explicit-repository builder slice was validated with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/app ./plugins/user ./plugins/rbac ./plugins/audit`
+- The current `server` Phase 3b migration-directory gating slice was validated with:
+  - `cd server && go test ./internal/cli`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+- The current `2026-05-19` backend wiring-hardening follow-up slice was validated with:
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend`
 - Current frontend structure and ownership surfaces were grounded with:
   - `find web/src -maxdepth 3 -type d | sort`
   - `rg --files web/src | rg "^(web/src/(api|contracts|app|modules|components|store|router|shared|pages|hooks|utils))"`
@@ -161,11 +338,55 @@
   - `cd web && bun run test:run -- src/modules/index.test.ts src/router/index.test.ts src/locales/index.test.ts src/permission.test.ts`
   - `cd web && bun run typecheck`
   - `cd web && bun run check`
+- The current `server` Phase 1 registry-wiring slice revalidated the landed implementation with:
+  - `cd server && go test ./internal/plugin ./internal/pluginregistry/... ./internal/cli`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage lint`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend --stage buildtest`
+- The current `server` runtime baseline now matches the Phase 1 ownership direction:
+  - `serve` consumes compile-time generated plugin descriptors instead of a hand-written plugin list
+  - `migrate` consumes registry-derived default migration directories instead of a hard-coded single core path
+  - `server/internal/pluginregistry/generated.go` is now the only centralized plugin wiring hotspot
+  - each current plugin exports its own `NewDescriptor()` shim under `server/plugins/<name>/descriptor.go`
+- The current `server` Phase 2a service-decoupling slice revalidated the landed implementation with:
+  - `cd server && go test ./plugins/rbac ./plugins/user ./internal/cli`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend`
+- The current `server` Phase 2b RBAC private-store contract slice revalidated the landed implementation with:
+  - `cd server && go test ./plugins/rbac`
+  - `cd server && go test ./plugins/rbac ./plugins/user ./internal/cli`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend`
+- The current `server` Phase 2c user private-store contract slice revalidated the landed implementation with:
+  - `cd server && go test ./plugins/user ./internal/cli`
+  - `cd server && go test ./plugins/rbac ./plugins/user ./internal/cli`
+  - `cd server && env GOCACHE=/tmp/go-build go run ./cmd/graft validate backend`
+- The current `2026-05-18` docs/automation loop-orchestrator slice was grounded with:
+  - `sed -n '1,220p' .agents/skills/graft-multi-agent-task/SKILL.md`
+  - `sed -n '1,260p' .agents/skills/graft-task-closeout/SKILL.md`
+  - `sed -n '190,215p' AGENTS.md`
+  - `sed -n '1,260p' ai-plan/design/AI任务追踪与恢复设计.md`
+  - `python3 /root/.codex/skills/.system/skill-creator/scripts/init_skill.py --help`
+  - `python3 /root/.codex/skills/.system/skill-creator/scripts/generate_openai_yaml.py --help`
+- This slice adds a new repository skill plus local automation runner only; runtime validation expectations for actual
+  `server` and `web` feature work remain unchanged.
+- The current `2026-05-19` docs/automation loop contract-correction slice was grounded with:
+  - `sed -n '1,260p' AGENTS.md`
+  - `sed -n '1,260p' .agents/skills/graft-multi-agent-loop/SKILL.md`
+  - `sed -n '1,220p' .agents/skills/graft-multi-agent-task/SKILL.md`
+  - `sed -n '1,220p' .agents/skills/graft-boot/SKILL.md`
+  - `sed -n '1,220p' .agents/skills/graft-multi-agent-batch/SKILL.md`
+  - `sed -n '1,260p' ai-plan/design/AI任务追踪与恢复设计.md`
+  - `rg -n "critical path local|critical path in the main agent|same-session main-agent delegation loop|fresh-session|codex exec --ephemeral|run_loop.py|graft-multi-agent-loop|retry|blocked" AGENTS.md .agents/skills ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/multi-worktree-governance`
+- This slice changes governance text only; it does not restore any external fresh-session runner, does not change
+  `graft-task-closeout` JSON fields, and does not modify production runtime code, `server` code, `web` code, or CLI behavior.
 
 ## Immediate Next Step
 
 - Keep using `multi-worktree-governance` on the current root branch until the repository either returns to `main` with
   the same baseline or creates the first dedicated worktree/topic pair.
+- Keep the landed `server` governance baseline as the default for future backend worktree ownership:
+  - plugin-first owned scope under `server/plugins/<name>/**`
+  - compile-time generated plugin registry as the only allowed central plugin wiring artifact
+  - `internal/pluginapi/**` and `internal/contract/**` as the only stable shared backend API boundary
+  - no new business logic backflow into `internal/store/**`, `internal/ent/**`, or core runtime packages
 - Keep the landed module-boundary refactor as the baseline for future `web` worktree ownership:
   - preserve `web/src/modules/user/**` and `web/src/modules/rbac/**` as module-owned feature truth
   - preserve `web/src/app/**` and other shell-owned code as consumers of module registrations instead of holders of
@@ -183,6 +404,51 @@
 - Use the new split governance layout as the baseline for future worktree setup:
   - root `AGENTS.md` remains the only startup-governance source
   - `web/AGENTS.md` and `server/AGENTS.md` own daily execution rules inside their boundaries
+- Continue backend work from the landed Phase 1 baseline instead of reopening hand-written wiring:
+  - preserve `plugin.Descriptor` / `plugin.Builder` as the only new plugin onboarding seam
+  - keep `generated.go` as the sole centralized plugin-list artifact
+  - continue Phase 2 from the landed service-capability seam instead of reintroducing direct user/rbac repository
+    coupling
+  - continue after the landed RBAC and user contract moves by migrating the remaining persistence implementation
+    ownership out of `internal/store/**` / `internal/store/entstore/**`, starting with the remaining
+    `rbac/storeent/**` extraction and the matching `ent/schema` + Atlas migration ownership split
+- Keep the landed docs/automation loop workflow aligned before relying on it for long-running repository work:
+  - keep `graft-multi-agent-loop` as an outer wrapper only; do not let it redefine startup, closeout, or commit rules
+  - keep `graft-multi-agent-task` and `graft-task-closeout` aligned on the dual-channel closeout contract
+  - keep `graft-multi-agent-loop` documented as a same-session serial subagent orchestrator:
+    - outer main agent owns orchestration, budget, stop conditions, closeout parsing, acceptance, and next-round dispatch
+    - each implementation round is delegated to exactly one worker subagent by default
+    - the outer main agent must not edit repo-tracked implementation files during active rounds
+    - malformed or missing worker closeout follows `retry_once_then_blocked`
+  - do not restore `run_loop.py`, `test_run_loop.py`, or `codex exec --ephemeral`-style external fresh-session runners
+
+## Server Owned Scope Freeze
+
+- Future `server` long-lived worktrees should own one plugin boundary at a time:
+  - `server/plugins/user/**`
+  - `server/plugins/rbac/**`
+  - future `server/plugins/server-status/**` or equivalent plugin path
+- `shared-stable-boundary` directories stay centrally integrated:
+  - `server/internal/pluginapi/**`
+  - `server/internal/contract/**`
+- `generated-shared-hotspot` stays centrally integrated:
+  - `server/internal/pluginregistry/generated.go`
+- `core-owned` runtime assets stay centrally integrated and are not long-lived feature-owned scope:
+  - `server/internal/app/**`
+  - `server/internal/plugin/**`
+  - `server/internal/httpx/**`
+  - `server/internal/config/**`
+  - `server/internal/logger/**`
+  - `server/internal/database/**`
+  - `server/internal/container/**`
+  - `server/internal/eventbus/**`
+  - `server/internal/menu/**`
+  - `server/internal/permission/**`
+  - `server/internal/cronx/**`
+  - `server/internal/redisx/**`
+  - `server/internal/migration/**`
+  - `server/internal/ent/**` 仅限 core-owned schema
+- `server/internal/store/**` 与 `server/internal/ent/**` 不是未来业务插件 steady-state owned scope，业务真相迁出后不得重新回流
 
 ## Web Owned Scope Freeze
 

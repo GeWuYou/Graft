@@ -3825,9 +3825,6 @@ type UserMutation struct {
 	refresh_sessions        map[int]struct{}
 	removedrefresh_sessions map[int]struct{}
 	clearedrefresh_sessions bool
-	user_roles              map[int]struct{}
-	removeduser_roles       map[int]struct{}
-	cleareduser_roles       bool
 	done                    bool
 	oldValue                func(context.Context) (*User, error)
 	predicates              []predicate.User
@@ -4263,60 +4260,6 @@ func (m *UserMutation) ResetRefreshSessions() {
 	m.removedrefresh_sessions = nil
 }
 
-// AddUserRoleIDs adds the "user_roles" edge to the UserRole entity by ids.
-func (m *UserMutation) AddUserRoleIDs(ids ...int) {
-	if m.user_roles == nil {
-		m.user_roles = make(map[int]struct{})
-	}
-	for i := range ids {
-		m.user_roles[ids[i]] = struct{}{}
-	}
-}
-
-// ClearUserRoles clears the "user_roles" edge to the UserRole entity.
-func (m *UserMutation) ClearUserRoles() {
-	m.cleareduser_roles = true
-}
-
-// UserRolesCleared reports if the "user_roles" edge to the UserRole entity was cleared.
-func (m *UserMutation) UserRolesCleared() bool {
-	return m.cleareduser_roles
-}
-
-// RemoveUserRoleIDs removes the "user_roles" edge to the UserRole entity by IDs.
-func (m *UserMutation) RemoveUserRoleIDs(ids ...int) {
-	if m.removeduser_roles == nil {
-		m.removeduser_roles = make(map[int]struct{})
-	}
-	for i := range ids {
-		delete(m.user_roles, ids[i])
-		m.removeduser_roles[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedUserRoles returns the removed IDs of the "user_roles" edge to the UserRole entity.
-func (m *UserMutation) RemovedUserRolesIDs() (ids []int) {
-	for id := range m.removeduser_roles {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// UserRolesIDs returns the "user_roles" edge IDs in the mutation.
-func (m *UserMutation) UserRolesIDs() (ids []int) {
-	for id := range m.user_roles {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ResetUserRoles resets all changes to the "user_roles" edge.
-func (m *UserMutation) ResetUserRoles() {
-	m.user_roles = nil
-	m.cleareduser_roles = false
-	m.removeduser_roles = nil
-}
-
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -4567,12 +4510,9 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 1)
 	if m.refresh_sessions != nil {
 		edges = append(edges, user.EdgeRefreshSessions)
-	}
-	if m.user_roles != nil {
-		edges = append(edges, user.EdgeUserRoles)
 	}
 	return edges
 }
@@ -4587,24 +4527,15 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgeUserRoles:
-		ids := make([]ent.Value, 0, len(m.user_roles))
-		for id := range m.user_roles {
-			ids = append(ids, id)
-		}
-		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 1)
 	if m.removedrefresh_sessions != nil {
 		edges = append(edges, user.EdgeRefreshSessions)
-	}
-	if m.removeduser_roles != nil {
-		edges = append(edges, user.EdgeUserRoles)
 	}
 	return edges
 }
@@ -4619,24 +4550,15 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgeUserRoles:
-		ids := make([]ent.Value, 0, len(m.removeduser_roles))
-		for id := range m.removeduser_roles {
-			ids = append(ids, id)
-		}
-		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 1)
 	if m.clearedrefresh_sessions {
 		edges = append(edges, user.EdgeRefreshSessions)
-	}
-	if m.cleareduser_roles {
-		edges = append(edges, user.EdgeUserRoles)
 	}
 	return edges
 }
@@ -4647,8 +4569,6 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 	switch name {
 	case user.EdgeRefreshSessions:
 		return m.clearedrefresh_sessions
-	case user.EdgeUserRoles:
-		return m.cleareduser_roles
 	}
 	return false
 }
@@ -4667,9 +4587,6 @@ func (m *UserMutation) ResetEdge(name string) error {
 	switch name {
 	case user.EdgeRefreshSessions:
 		m.ResetRefreshSessions()
-		return nil
-	case user.EdgeUserRoles:
-		m.ResetUserRoles()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)

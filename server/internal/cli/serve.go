@@ -9,11 +9,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/app"
-	"graft/server/plugins/audit"
-	"graft/server/plugins/rbac"
-	"graft/server/plugins/scheduler"
-	"graft/server/plugins/user"
 )
+
+type runtimeRunner interface {
+	Run(context.Context) error
+}
+
+var serveNewRuntime = func() (runtimeRunner, error) {
+	return app.NewRuntime()
+}
+var serveNotifyContext = signal.NotifyContext
 
 // newServeCommand 创建纯运行时启动命令。
 //
@@ -32,12 +37,7 @@ func newServeCommand() *cobra.Command {
 // 它把 CLI 上下文转换为可响应 SIGINT 和 SIGTERM 的运行时上下文，让
 // `app.Runtime` 能沿同一条显式生命周期路径完成关闭。
 func runServe(cmd *cobra.Command, _ []string) error {
-	runtime, err := app.NewRuntime(
-		audit.NewPlugin(),
-		user.NewPlugin(),
-		rbac.NewPlugin(),
-		scheduler.NewPlugin(),
-	)
+	runtime, err := serveNewRuntime()
 	if err != nil {
 		return fmt.Errorf("create runtime: %w", err)
 	}
@@ -49,7 +49,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 		baseCtx = context.Background()
 	}
 
-	runCtx, stop := signal.NotifyContext(baseCtx, syscall.SIGINT, syscall.SIGTERM)
+	runCtx, stop := serveNotifyContext(baseCtx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	if err := runtime.Run(runCtx); err != nil {

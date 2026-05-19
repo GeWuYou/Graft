@@ -15,27 +15,35 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
+	"graft/server/internal/store"
 )
 
 // Plugin 是当前 MVP 阶段的最小审计插件。
 //
 // 该插件在 Register 阶段挂载请求级自动审计中间件，并订阅主动审计事件；
 // 当前不暴露查询路由，也不承载归档和分析逻辑。
-type Plugin struct{}
+type Plugin struct {
+	recorder *auditcore.Service
+}
 
 // NewPlugin 创建最小审计插件。
-func NewPlugin() *Plugin {
-	return &Plugin{}
+func NewPlugin(repo store.AuditRepository) (*Plugin, error) {
+	recorder, err := auditcore.NewService(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Plugin{recorder: recorder}, nil
 }
 
 // Name 返回插件稳定标识。
 func (p *Plugin) Name() string {
-	return "audit"
+	return pluginID
 }
 
 // Version 返回当前插件版本。
 func (p *Plugin) Version() string {
-	return "0.1.0"
+	return pluginVersion
 }
 
 // DependsOn 返回当前插件依赖列表。
@@ -45,12 +53,11 @@ func (p *Plugin) DependsOn() []string {
 
 // Register 挂载 HTTP 自动审计与 event bus 主动审计接线。
 func (p *Plugin) Register(ctx *plugin.Context) error {
-	recorder, err := auditcore.NewService(ctx.Stores.Audit())
-	if err != nil {
-		return err
+	if p.recorder == nil {
+		return errors.New("audit recorder is unavailable")
 	}
 	if ctx.Router != nil {
-		ctx.Router.Use(requestAuditMiddleware(ctx.Logger, recorder))
+		ctx.Router.Use(requestAuditMiddleware(ctx.Logger, p.recorder))
 	}
 	if ctx.EventBus == nil {
 		return errors.New("event bus is unavailable")
@@ -62,7 +69,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 			return fmt.Errorf("unexpected audit event payload type %T", event.Payload)
 		}
 
-		return recordEvent(eventCtx, recorder, payload)
+		return recordEvent(eventCtx, p.recorder, payload)
 	})
 }
 

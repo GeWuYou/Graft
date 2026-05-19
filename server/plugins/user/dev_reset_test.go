@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
+	"graft/server/plugins/user/storeadapter"
 )
 
 // TestResetDefaultAdminForDevelopmentResetsCredentialAndRole 验证 dev-only 重置会把
@@ -21,7 +23,11 @@ func TestResetDefaultAdminForDevelopmentResetsCredentialAndRole(t *testing.T) {
 
 	state := newDevResetState(t, currentHash)
 
-	if err := ResetDefaultAdminForDevelopment(context.Background(), state.authRepo, state.rbacRepo); err != nil {
+	if err := ResetDefaultAdminForDevelopment(
+		context.Background(),
+		storeadapter.NewAuthRepositoryAdapter(state.authRepo),
+		devResetRBACBootstrapStub{state: state},
+	); err != nil {
 		t.Fatalf("reset default admin: %v", err)
 	}
 
@@ -32,7 +38,11 @@ func TestResetDefaultAdminForDevelopmentRejectsNonDevelopmentEnv(t *testing.T) {
 	t.Setenv("GRAFT_APP_ENV", "production")
 
 	state := newDevResetState(t, "unused")
-	err := ResetDefaultAdminForDevelopment(context.Background(), state.authRepo, state.rbacRepo)
+	err := ResetDefaultAdminForDevelopment(
+		context.Background(),
+		storeadapter.NewAuthRepositoryAdapter(state.authRepo),
+		devResetRBACBootstrapStub{state: state},
+	)
 	if err == nil {
 		t.Fatal("expected development env guard error")
 	}
@@ -51,6 +61,56 @@ type devResetState struct {
 	assignPermissionsInput store.AssignPermissionsToRoleInput
 	authRepo               *pluginTestAuthRepository
 	rbacRepo               pluginTestRBACRepository
+}
+
+type devResetRBACBootstrapStub struct {
+	state *devResetState
+}
+
+func (s devResetRBACBootstrapStub) EnsureDefaultAdminAccess(ctx context.Context, userID uint64, permissions []pluginapi.PermissionSeed) error {
+	role, err := s.state.rbacRepo.EnsureRole(ctx, store.EnsureRoleInput{
+		Name:    "admin",
+		Display: "管理员",
+		Builtin: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	permissionIDs := make([]uint64, 0, len(permissions))
+	for _, item := range permissions {
+		record, err := s.state.rbacRepo.EnsurePermission(ctx, store.EnsurePermissionInput{
+			Code:        item.Code,
+			Display:     item.Display,
+			Description: devResetStringPtrOrNil(item.Description),
+			Category:    item.Category,
+		})
+		if err != nil {
+			return err
+		}
+		permissionIDs = append(permissionIDs, record.ID)
+	}
+	if len(permissionIDs) > 0 {
+		if err := s.state.rbacRepo.AssignPermissionsToRole(ctx, store.AssignPermissionsToRoleInput{
+			RoleID:        role.ID,
+			PermissionIDs: permissionIDs,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return s.state.rbacRepo.AssignRoleToUser(ctx, store.AssignRoleToUserInput{
+		UserID: userID,
+		RoleID: role.ID,
+	})
+}
+
+func devResetStringPtrOrNil(value string) *string {
+	if value == "" {
+		return nil
+	}
+	result := value
+	return &result
 }
 
 func newDevResetState(t *testing.T, currentHash string) *devResetState {

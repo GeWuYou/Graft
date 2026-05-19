@@ -29,7 +29,7 @@ every public artifact.
 
 - `multi-worktree-governance`
   - Purpose: govern the shared recovery truth and final post-compatibility ownership baseline while the repository root
-    is currently carrying the topic on branch `refactor/web-module-boundaries`, before dedicated long-lived worktrees
+    is currently carrying the topic on branch `refactor/server-module-boundaries`, before dedicated long-lived worktrees
     are created.
   - Tracking: `ai-plan/public/multi-worktree-governance/todos/multi-worktree-governance-tracking.md`
   - Trace: `ai-plan/public/multi-worktree-governance/traces/multi-worktree-governance-trace.md`
@@ -39,7 +39,7 @@ every public artifact.
 
 ## Branch / Worktree To Active Topic Map
 
-- Branch: `refactor/web-module-boundaries`
+- Branch: `refactor/server-module-boundaries`
   - Priority 1: `multi-worktree-governance`
   - Note: the repository root is currently checked out to this branch and is the only active worktree reported by
     `git worktree list`; update this mapping when the root returns to `main` or when the first dedicated worktree/topic

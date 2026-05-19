@@ -196,6 +196,13 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-multi-agent-batch`
   - use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel
     slices; `graft-boot` should perform the suitability assessment before delegation starts
+- `graft-multi-agent-task`
+  - use when the user explicitly wants one bounded task to run through `graft-multi-agent-batch`, then close out
+    through `graft-task-closeout`, and commit the validated owned scope through `graft-commit` when safe
+- `graft-multi-agent-loop`
+  - use when one bounded task should be executed through repeated same-session main-agent-managed rounds of
+    `graft-multi-agent-task`, where the main agent owns orchestration, budget, closeout parsing, acceptance, and
+    next-round dispatch, and each bounded implementation round is delegated to one worker subagent by default
 - `graft-pr-review`
   - use when the task depends on the GitHub PR for the current branch, especially to extract AI review findings,
     failed checks, MegaLinter warnings, or failed test signals before local verification
@@ -591,6 +598,18 @@ independent parallel subtasks.
 The main agent must identify the critical path first. Do not delegate the immediate blocking task if the next local
 step depends on that result.
 
+Exception for `graft-multi-agent-loop`:
+
+- when the user explicitly triggers `graft-multi-agent-loop`, the outer main agent may delegate one whole bounded
+  implementation round to exactly one worker subagent by default instead of keeping that round's implementation local
+- in that loop mode, the outer main agent keeps orchestration, budget tracking, stop conditions, closeout parsing,
+  acceptance, and next-round dispatch local
+- in that loop mode, the outer main agent must not edit repo-tracked implementation files during an active round; it
+  may only inspect state, evaluate the returned closeout, and decide whether to accept, retry, or stop
+- in that loop mode, a missing, malformed, or contradictory worker closeout must be retried once with a fresh worker
+  subagent and must fail closed as `blocked` on the second failure instead of downgrading into main-agent
+  implementation
+
 Use subagents this way:
 
 - use `explorer` subagents for read-only discovery, comparison, tracing, and narrow codebase questions
@@ -603,6 +622,8 @@ Every delegation must specify:
 - the expected output format
 - the files or subsystem the subagent owns
 - any constraints about tests, diagnostics, or compatibility
+- for `graft-multi-agent-loop` rounds, the remaining budget, allowed scopes, and the required human-readable plus JSON
+  closeout contract
 
 Subagents are not allowed to revert or overwrite unrelated user changes or parallel agent changes. They must adapt to
 concurrent work instead of assuming exclusive ownership of the repository.
@@ -614,6 +635,7 @@ The main agent remains responsible for:
 - review and acceptance of every subagent result
 - final integration
 - final completion judgment
+- when `graft-multi-agent-loop` is active, retry-once malformed-closeout handling and fail-closed stop decisions
 
 Repository subagent usage is allowed in this project when it follows these rules.
 

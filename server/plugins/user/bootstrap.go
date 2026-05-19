@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"slices"
 	"strings"
 
 	"graft/server/internal/config"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	userstore "graft/server/plugins/user/store"
 )
 
 type bootstrapResponse struct {
@@ -44,8 +43,8 @@ type bootstrapLocaleSnapshot struct {
 // 该读模型继续停留在 user 插件边界内，避免为了一个受保护的 bootstrap
 // 契约，把菜单过滤、locale 快照或权限聚合拆散到 core 或新增共享抽象里。
 type bootstrapReader struct {
-	auth         store.AuthRepository
-	rbac         store.RBACRepository
+	auth         userstore.AuthRepository
+	rbac         pluginapi.RBACAccessService
 	menuRegistry *menu.Registry
 	localizer    *i18n.Service
 	localeConfig config.I18nConfig
@@ -57,8 +56,8 @@ func newBootstrapReader(
 	localeConfig config.I18nConfig,
 	localizer *i18n.Service,
 	menuRegistry *menu.Registry,
-	auth store.AuthRepository,
-	rbac store.RBACRepository,
+	auth userstore.AuthRepository,
+	rbac pluginapi.RBACAccessService,
 ) bootstrapReader {
 	return bootstrapReader{
 		auth:         auth,
@@ -90,7 +89,7 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 	}
 	credential, err := r.auth.GetUserCredentialByUsername(ctx, requestAuth.User.Username)
 	if err != nil {
-		if errors.Is(err, store.ErrUserNotFound) {
+		if errors.Is(err, userstore.ErrUserNotFound) {
 			return bootstrapResponse{}, pluginapi.ErrUnauthenticated
 		}
 		return bootstrapResponse{}, err
@@ -112,18 +111,18 @@ func (r bootstrapReader) Read(ctx context.Context, request *http.Request) (boots
 
 func (r bootstrapReader) listPermissionCodes(ctx context.Context, userID uint64) ([]string, map[string]struct{}, error) {
 	if r.rbac == nil {
-		return nil, nil, errors.New("rbac repository is unavailable")
+		return nil, nil, errors.New("rbac access service is unavailable")
 	}
 
-	permissions, err := r.rbac.ListPermissionsByUserID(ctx, userID)
+	permissions, err := r.rbac.ListPermissionCodesByUserID(ctx, userID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	codes := make([]string, 0, len(permissions))
 	codeSet := make(map[string]struct{}, len(permissions))
+	codes := make([]string, 0, len(permissions))
 	for _, permission := range permissions {
-		code := strings.TrimSpace(permission.Code)
+		code := strings.TrimSpace(permission)
 		if code == "" {
 			continue
 		}
@@ -135,37 +134,15 @@ func (r bootstrapReader) listPermissionCodes(ctx context.Context, userID uint64)
 		codes = append(codes, code)
 	}
 
-	slices.Sort(codes)
 	return codes, codeSet, nil
 }
 
 func (r bootstrapReader) listRoleNames(ctx context.Context, userID uint64) ([]string, error) {
 	if r.rbac == nil {
-		return nil, errors.New("rbac repository is unavailable")
+		return nil, errors.New("rbac access service is unavailable")
 	}
 
-	roles, err := r.rbac.ListRolesByUserID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	names := make([]string, 0, len(roles))
-	seen := make(map[string]struct{}, len(roles))
-	for _, role := range roles {
-		name := strings.TrimSpace(role.Name)
-		if name == "" {
-			continue
-		}
-		if _, exists := seen[name]; exists {
-			continue
-		}
-
-		seen[name] = struct{}{}
-		names = append(names, name)
-	}
-
-	slices.Sort(names)
-	return names, nil
+	return r.rbac.ListRoleNamesByUserID(ctx, userID)
 }
 
 func filterBootstrapMenus(registry *menu.Registry, granted map[string]struct{}) []bootstrapMenuResponse {

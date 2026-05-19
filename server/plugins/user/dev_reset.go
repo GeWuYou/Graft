@@ -6,8 +6,27 @@ import (
 	"os"
 	"strings"
 
+	"graft/server/internal/ent"
+	"graft/server/internal/pluginapi"
 	"graft/server/internal/store"
+	userstore "graft/server/plugins/user/store"
+	"graft/server/plugins/user/storeadapter"
+	"graft/server/plugins/user/storeent"
 )
+
+// AuthRepositoryForReset narrows the dev-reset helper to the plugin-owned auth boundary.
+type AuthRepositoryForReset = userstore.AuthRepository
+
+// NewAuthRepositoryForReset exposes the user plugin's dev-reset auth boundary.
+func NewAuthRepositoryForReset(client *ent.Client) (AuthRepositoryForReset, error) {
+	return storeent.NewAuthRepository(client)
+}
+
+// NewAuthRepositoryForResetFromInternal adapts transitional internal auth
+// repositories into the plugin-owned dev-reset boundary.
+func NewAuthRepositoryForResetFromInternal(repo store.AuthRepository) AuthRepositoryForReset {
+	return storeadapter.NewAuthRepositoryAdapter(repo)
+}
 
 // ResetDefaultAdminForDevelopment 在开发环境里把默认管理员重置回首次登录受限态。
 //
@@ -20,8 +39,8 @@ import (
 // 这个入口只用于 CLI 的 dev-only 调试能力，不应被运行时业务链路或 HTTP 路由直接复用。
 func ResetDefaultAdminForDevelopment(
 	ctx context.Context,
-	authRepo store.AuthRepository,
-	rbacRepo store.RBACRepository,
+	authRepo userstore.AuthRepository,
+	rbac pluginapi.RBACBootstrapService,
 ) error {
 	if !isDevelopmentResetEnv(os.Getenv("GRAFT_APP_ENV")) {
 		return fmt.Errorf("reset default admin is only available in local/test environments, got %q", strings.TrimSpace(os.Getenv("GRAFT_APP_ENV")))
@@ -32,15 +51,15 @@ func ResetDefaultAdminForDevelopment(
 		passwords: newPasswordHasher(),
 	}
 
-	return service.resetDefaultAdminForDevelopment(ctx, rbacRepo)
+	return service.resetDefaultAdminForDevelopment(ctx, rbac)
 }
 
-func (s authService) resetDefaultAdminForDevelopment(ctx context.Context, rbac store.RBACRepository) error {
+func (s authService) resetDefaultAdminForDevelopment(ctx context.Context, rbac pluginapi.RBACBootstrapService) error {
 	if s.auth == nil {
 		return fmt.Errorf("auth repository is unavailable")
 	}
 	if rbac == nil {
-		return fmt.Errorf("rbac repository is unavailable")
+		return fmt.Errorf("rbac bootstrap service is unavailable")
 	}
 
 	hash, err := s.passwords.Hash(defaultAdminPassword)
@@ -48,7 +67,7 @@ func (s authService) resetDefaultAdminForDevelopment(ctx context.Context, rbac s
 		return fmt.Errorf("hash default admin password: %w", err)
 	}
 
-	credential, err := s.auth.EnsureUserCredential(ctx, store.EnsureUserCredentialInput{
+	credential, err := s.auth.EnsureUserCredential(ctx, userstore.EnsureUserCredentialInput{
 		Username:           defaultAdminUsername,
 		Display:            defaultAdminDisplay,
 		PasswordHash:       hash,
@@ -59,7 +78,7 @@ func (s authService) resetDefaultAdminForDevelopment(ctx context.Context, rbac s
 	}
 
 	changedAt := s.nowUTC()
-	if err := s.auth.SetPasswordHash(ctx, store.SetPasswordHashInput{
+	if err := s.auth.SetPasswordHash(ctx, userstore.SetPasswordHashInput{
 		UserID:             credential.UserID,
 		PasswordHash:       hash,
 		MustChangePassword: true,
@@ -68,14 +87,14 @@ func (s authService) resetDefaultAdminForDevelopment(ctx context.Context, rbac s
 		return fmt.Errorf("reset default admin password hash: %w", err)
 	}
 
-	if err := s.auth.RevokeRefreshSessionsByUserID(ctx, store.RevokeRefreshSessionsByUserIDInput{
+	if err := s.auth.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
 		UserID:    credential.UserID,
 		RevokedAt: changedAt,
 	}); err != nil {
 		return fmt.Errorf("revoke default admin refresh sessions: %w", err)
 	}
 
-	if err := ensureDefaultAdminAccess(ctx, rbac, credential.UserID, userPermissionItems("user")); err != nil {
+	if err := rbac.EnsureDefaultAdminAccess(ctx, credential.UserID, permissionSeedsFromItems(userPermissionItems("user"))); err != nil {
 		return fmt.Errorf("ensure default admin access: %w", err)
 	}
 

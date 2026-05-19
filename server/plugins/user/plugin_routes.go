@@ -19,8 +19,8 @@ import (
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
 	usercontract "graft/server/plugins/user/contract"
+	userstore "graft/server/plugins/user/store"
 )
 
 func registerUserPermissions(registry *permission.Registry, pluginName string) {
@@ -74,18 +74,27 @@ type registeredServices struct {
 }
 
 func (p *Plugin) registerServices(ctx *plugin.Context) (registeredServices, error) {
-	userSvc := userService{users: ctx.Stores.Users()}
+	userRepo := p.userRepo
+	authRepo := p.authRepo
+	if userRepo == nil {
+		return registeredServices{}, errors.New("user repository is unavailable")
+	}
+	if authRepo == nil {
+		return registeredServices{}, errors.New("auth repository is unavailable")
+	}
+	userSvc := userService{users: userRepo}
 	if err := ctx.Services.RegisterSingleton((*pluginapi.UserService)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil
 	}); err != nil {
 		return registeredServices{}, err
 	}
 
-	authSvc, err := newAuthService(ctx.Config.Auth, ctx.Stores.Auth(), ctx.Stores.Users())
+	authSvc, err := newAuthService(ctx.Config.Auth, authRepo, userRepo)
 	if err != nil {
 		return registeredServices{}, err
 	}
-	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, ctx.Stores.Auth(), ctx.Stores.RBAC())
+	p.bootstrapAccess = newDeferredRBACAccessService()
+	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, authRepo, p.bootstrapAccess)
 	p.defaultAdminAuth = authSvc
 
 	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(_ container.Resolver) (any, error) {
@@ -182,6 +191,53 @@ func newRouteGuards(localizer *i18n.Service, authSvc *authService, authorizer pl
 }
 
 var _ pluginapi.Authorizer = (*deferredAuthorizer)(nil)
+
+type deferredRBACAccessService struct {
+	mu     sync.RWMutex
+	target pluginapi.RBACAccessService
+}
+
+func newDeferredRBACAccessService() *deferredRBACAccessService {
+	return &deferredRBACAccessService{}
+}
+
+func (s *deferredRBACAccessService) SetTarget(target pluginapi.RBACAccessService) error {
+	if target == nil {
+		return errors.New("rbac access service is required")
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.target = target
+	return nil
+}
+
+func (s *deferredRBACAccessService) ListRoleNamesByUserID(ctx context.Context, userID uint64) ([]string, error) {
+	s.mu.RLock()
+	target := s.target
+	s.mu.RUnlock()
+
+	if target == nil {
+		return nil, errors.New("rbac access service is unavailable")
+	}
+
+	return target.ListRoleNamesByUserID(ctx, userID)
+}
+
+func (s *deferredRBACAccessService) ListPermissionCodesByUserID(ctx context.Context, userID uint64) ([]string, error) {
+	s.mu.RLock()
+	target := s.target
+	s.mu.RUnlock()
+
+	if target == nil {
+		return nil, errors.New("rbac access service is unavailable")
+	}
+
+	return target.ListPermissionCodesByUserID(ctx, userID)
+}
+
+var _ pluginapi.RBACAccessService = (*deferredRBACAccessService)(nil)
 
 func newRequiredPasswordChangeGuard(localizer *i18n.Service, authSvc *authService) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
@@ -711,7 +767,7 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, message string, err error) {
 	status := http.StatusInternalServerError
 	messageKey := messagecontract.CommonInternalError
-	if errors.Is(err, store.ErrUserNotFound) {
+	if errors.Is(err, userstore.ErrUserNotFound) || errors.Is(err, pluginapi.ErrUserNotFound) {
 		status = http.StatusNotFound
 		messageKey = messagecontract.UserNotFound
 	} else {

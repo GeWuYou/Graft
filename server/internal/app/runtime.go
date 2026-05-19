@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/database"
+	"graft/server/internal/ent"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -23,6 +24,7 @@ import (
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
+	"graft/server/internal/pluginregistry"
 	"graft/server/internal/redisx"
 	"graft/server/internal/store"
 	"graft/server/internal/store/entstore"
@@ -61,7 +63,7 @@ type Runtime struct {
 // 返回：
 //   - *Runtime: 已完成 core 资源装配和插件登记的运行时对象。
 //   - error: 当配置、数据库、Redis 或核心服务注册失败时返回错误，并尽力回收已创建资源。
-func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
+func NewRuntime() (*Runtime, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
@@ -124,6 +126,14 @@ func NewRuntime(plugins ...plugin.Plugin) (*Runtime, error) {
 
 	runtime.registerCoreRoutes(server.Engine())
 
+	plugins, err := pluginregistry.BuildPlugins(plugin.BuildContext{
+		Services: services,
+	})
+	if err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, fmt.Errorf("build runtime plugins: %w", err)
+	}
+
 	for _, current := range plugins {
 		if err := runtime.pluginManager.RegisterPlugin(current); err != nil {
 			_ = runtime.closeCoreResources()
@@ -154,7 +164,6 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		Redis:              r.redis,
 		Router:             r.server.Engine().Group("/api"),
 		Services:           r.services,
-		Stores:             r.stores,
 		MenuRegistry:       r.menuRegistry,
 		PermissionRegistry: r.permissionRegistry,
 		CronRegistry:       r.cronRegistry,
@@ -216,38 +225,99 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 }
 
 func (r *Runtime) registerCoreServices() error {
-	if err := r.services.RegisterSingleton((*config.Config)(nil), func(_ container.Resolver) (any, error) {
-		return r.config, nil
-	}); err != nil {
-		return err
+	registrations := []struct {
+		key      any
+		provider func() (any, error)
+	}{
+		{
+			key: (*config.Config)(nil),
+			provider: func() (any, error) {
+				return r.config, nil
+			},
+		},
+		{
+			key: (*zap.Logger)(nil),
+			provider: func() (any, error) {
+				return r.logger, nil
+			},
+		},
+		{
+			key: (*i18n.Service)(nil),
+			provider: func() (any, error) {
+				return r.i18n, nil
+			},
+		},
+		{
+			key: (*eventbus.Bus)(nil),
+			provider: func() (any, error) {
+				return r.eventBus, nil
+			},
+		},
+		{
+			key: (*ent.Client)(nil),
+			provider: func() (any, error) {
+				if r.database == nil || r.database.Client == nil {
+					return nil, errors.New("ent client is unavailable")
+				}
+				return r.database.Client, nil
+			},
+		},
+		{
+			key: (*store.AuditRepository)(nil),
+			provider: func() (any, error) {
+				if r.stores == nil {
+					return nil, errors.New("audit repository is unavailable")
+				}
+				return r.stores.Audit(), nil
+			},
+		},
+		{
+			key: (*store.UserRepository)(nil),
+			provider: func() (any, error) {
+				if r.stores == nil {
+					return nil, errors.New("user repository is unavailable")
+				}
+				return r.stores.Users(), nil
+			},
+		},
+		{
+			key: (*store.AuthRepository)(nil),
+			provider: func() (any, error) {
+				if r.stores == nil {
+					return nil, errors.New("auth repository is unavailable")
+				}
+				return r.stores.Auth(), nil
+			},
+		},
+		{
+			key: (*store.RBACRepository)(nil),
+			provider: func() (any, error) {
+				if r.stores == nil {
+					return nil, errors.New("rbac repository is unavailable")
+				}
+				return r.stores.RBAC(), nil
+			},
+		},
+		{
+			key: (*redis.Client)(nil),
+			provider: func() (any, error) {
+				return r.redis, nil
+			},
+		},
 	}
 
-	if err := r.services.RegisterSingleton((*zap.Logger)(nil), func(_ container.Resolver) (any, error) {
-		return r.logger, nil
-	}); err != nil {
-		return err
+	for _, registration := range registrations {
+		if err := r.registerSingleton(registration.key, registration.provider); err != nil {
+			return err
+		}
 	}
 
-	if err := r.services.RegisterSingleton((*i18n.Service)(nil), func(_ container.Resolver) (any, error) {
-		return r.i18n, nil
-	}); err != nil {
-		return err
-	}
+	return nil
+}
 
-	if err := r.services.RegisterSingleton((*eventbus.Bus)(nil), func(_ container.Resolver) (any, error) {
-		return r.eventBus, nil
-	}); err != nil {
-		return err
-	}
-
-	if err := r.services.RegisterSingleton((*store.Factory)(nil), func(_ container.Resolver) (any, error) {
-		return r.stores, nil
-	}); err != nil {
-		return err
-	}
-
-	return r.services.RegisterSingleton((*redis.Client)(nil), func(_ container.Resolver) (any, error) {
-		return r.redis, nil
+func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error {
+	return r.services.RegisterSingleton(key, func(_ container.Resolver) (any, error) {
+		return provider()
 	})
 }
 

@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	userstore "graft/server/plugins/user/store"
 )
 
 type changePasswordRequest struct {
@@ -23,7 +23,7 @@ type completeRequiredPasswordChangeRequest struct {
 
 type changePasswordActor struct {
 	requestAuth pluginapi.RequestAuthContext
-	credential  store.UserCredential
+	credential  userstore.UserCredential
 }
 
 // ChangeCurrentUserPassword 在当前登录态下完成一次自助改密，并保留当前会话。
@@ -55,7 +55,7 @@ func (s authService) ChangeCurrentUserPassword(ctx context.Context, currentPassw
 	if s.passwordChanges == nil {
 		return errors.New("auth repository does not support atomic password change")
 	}
-	if err := s.passwordChanges.ChangePasswordAndRevokeOtherRefreshSessions(ctx, store.ChangePasswordAndRevokeOtherRefreshSessionsInput{
+	if err := s.passwordChanges.ChangePasswordAndRevokeOtherRefreshSessions(ctx, userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput{
 		UserID:             actor.credential.UserID,
 		PasswordHash:       hash,
 		MustChangePassword: false,
@@ -91,7 +91,7 @@ func (s authService) CompleteRequiredPasswordChange(ctx context.Context, newPass
 	if s.passwordChanges == nil {
 		return errors.New("auth repository does not support atomic password change")
 	}
-	if err := s.passwordChanges.ChangePasswordAndRevokeOtherRefreshSessions(ctx, store.ChangePasswordAndRevokeOtherRefreshSessionsInput{
+	if err := s.passwordChanges.ChangePasswordAndRevokeOtherRefreshSessions(ctx, userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput{
 		UserID:             actor.credential.UserID,
 		PasswordHash:       hash,
 		MustChangePassword: false,
@@ -113,13 +113,13 @@ func currentRequestAuth(ctx context.Context) (pluginapi.RequestAuthContext, erro
 	return requestAuth, nil
 }
 
-func (s authService) currentUserCredential(ctx context.Context, username string) (store.UserCredential, error) {
+func (s authService) currentUserCredential(ctx context.Context, username string) (userstore.UserCredential, error) {
 	credential, err := s.auth.GetUserCredentialByUsername(ctx, username)
 	if err != nil {
-		if errors.Is(err, store.ErrUserNotFound) {
-			return store.UserCredential{}, pluginapi.ErrUnauthenticated
+		if errors.Is(err, userstore.ErrUserNotFound) {
+			return userstore.UserCredential{}, pluginapi.ErrUnauthenticated
 		}
-		return store.UserCredential{}, fmt.Errorf("get current user credential: %w", err)
+		return userstore.UserCredential{}, fmt.Errorf("get current user credential: %w", err)
 	}
 
 	return credential, nil
@@ -168,7 +168,7 @@ func (s authService) isRestrictedPasswordChangeSession(ctx context.Context) (boo
 	return actor.credential.MustChangePassword, nil
 }
 
-func (s authService) validateNewPasswordAgainstCurrentHash(credential store.UserCredential, newPassword string) error {
+func (s authService) validateNewPasswordAgainstCurrentHash(credential userstore.UserCredential, newPassword string) error {
 	if err := s.policy.ValidateNewPassword(newPassword); err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (s authService) validateNewPasswordAgainstCurrentHash(credential store.User
 	return errPasswordReuseForbidden
 }
 
-func (s authService) validateCurrentPassword(credential store.UserCredential, currentPassword string) error {
+func (s authService) validateCurrentPassword(credential userstore.UserCredential, currentPassword string) error {
 	if strings.TrimSpace(currentPassword) == "" {
 		return errCurrentPasswordRequired
 	}

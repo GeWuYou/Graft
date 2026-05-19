@@ -193,7 +193,7 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "user_roles_users_user_roles",
+				Symbol:     "user_roles_users_user",
 				Columns:    []*schema.Column{UserRolesColumns[3]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
