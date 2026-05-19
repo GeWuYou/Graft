@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"graft/server/internal/store"
+	auditstore "graft/server/plugins/audit/store"
 )
 
 // RecordInput 描述一次统一审计写入所需的最小业务输入。
@@ -29,11 +29,11 @@ type RecordInput struct {
 //
 // Service 只做轻量输入规范化与默认时间补齐，不引入额外生命周期资源。
 type Service struct {
-	repo store.AuditRepository
+	repo auditstore.AuditRepository
 }
 
 // NewService 创建最小审计写入服务。
-func NewService(repo store.AuditRepository) (*Service, error) {
+func NewService(repo auditstore.AuditRepository) (*Service, error) {
 	if repo == nil {
 		return nil, errors.New("audit repository is required")
 	}
@@ -42,19 +42,19 @@ func NewService(repo store.AuditRepository) (*Service, error) {
 }
 
 // Record 写入一条统一审计记录。
-func (s *Service) Record(ctx context.Context, input RecordInput) (store.AuditLog, error) {
+func (s *Service) Record(ctx context.Context, input RecordInput) (auditstore.AuditLog, error) {
 	if s == nil || s.repo == nil {
-		return store.AuditLog{}, errors.New("audit service is unavailable")
+		return auditstore.AuditLog{}, errors.New("audit service is unavailable")
 	}
 	action := strings.TrimSpace(input.Action)
 	if action == "" {
-		return store.AuditLog{}, errors.New("audit action is required")
+		return auditstore.AuditLog{}, errors.New("audit action is required")
 	}
 	if input.CreatedAt.IsZero() {
 		input.CreatedAt = time.Now().UTC()
 	}
 
-	return s.repo.CreateAuditLog(ctx, store.CreateAuditLogInput{
+	return s.repo.CreateAuditLog(ctx, auditstore.CreateAuditLogInput{
 		OperatorID:    input.OperatorID,
 		OperatorName:  strings.TrimSpace(input.OperatorName),
 		Action:        action,

@@ -20,7 +20,7 @@ import (
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	"graft/server/plugins/audit/store"
 )
 
 type memoryAuditRepository struct {

@@ -263,15 +263,6 @@ func (r *Runtime) registerCoreServices() error {
 			},
 		},
 		{
-			key: (*store.AuditRepository)(nil),
-			provider: func() (any, error) {
-				if r.stores == nil {
-					return nil, errors.New("audit repository is unavailable")
-				}
-				return r.stores.Audit(), nil
-			},
-		},
-		{
 			key: (*store.UserRepository)(nil),
 			provider: func() (any, error) {
 				if r.stores == nil {

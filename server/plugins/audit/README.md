@@ -10,7 +10,7 @@
 
 * 在 `Register` 阶段挂载 `/api` 请求级自动审计中间件
 * 订阅 `eventbus` 上的主动审计事件并写入统一审计记录
-* 复用 `store.AuditRepository` 持久化最小审计字段
+* 通过插件自有 `store.AuditRepository` 持久化最小审计字段
 
 这个模块不负责：
 
@@ -25,8 +25,8 @@
 
 ## 关键依赖
 
-* 依赖 `plugin.Context` 提供的 `EventBus`、`Router`、`Logger`，并在 Builder 阶段显式解析 `store.AuditRepository`
-* 写入逻辑复用 `server/internal/audit` 和 `store.AuditRepository`
+* 依赖 `plugin.Context` 提供的 `EventBus`、`Router`、`Logger`，并在 Builder 阶段显式解析 `*ent.Client`
+* 写入逻辑复用 `server/internal/audit`、`server/plugins/audit/store` 和 `server/plugins/audit/storeent`
 
 ## 维护提示
 

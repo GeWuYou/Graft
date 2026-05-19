@@ -314,7 +314,6 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
 	assertResolvedService(t, runtime.services, (*ent.Client)(nil), entClient, "ent client")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
-	assertResolvableService(t, runtime.services, (*store.AuditRepository)(nil), "audit repository")
 	assertResolvableService(t, runtime.services, (*store.UserRepository)(nil), "user repository")
 	assertResolvableService(t, runtime.services, (*store.AuthRepository)(nil), "auth repository")
 }

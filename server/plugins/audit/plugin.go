@@ -15,7 +15,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/store"
+	auditstore "graft/server/plugins/audit/store"
 )
 
 // Plugin 是当前 MVP 阶段的最小审计插件。
@@ -27,7 +27,7 @@ type Plugin struct {
 }
 
 // NewPlugin 创建最小审计插件。
-func NewPlugin(repo store.AuditRepository) (*Plugin, error) {
+func NewPlugin(repo auditstore.AuditRepository) (*Plugin, error) {
 	recorder, err := auditcore.NewService(repo)
 	if err != nil {
 		return nil, err
