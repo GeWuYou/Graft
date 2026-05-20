@@ -88,10 +88,11 @@ Rider 也内置了 MCP Server，可以让外部 AI 客户端访问 IDE 工具。
 
 AI 处理 `web` 的 TDesign 页面、模块或组件时，应按下面顺序使用 MCP：
 
-1. 用 `get-component-list` 查找可用组件，并显式选择 `vue-next` 框架。
-2. 用 `get-component-docs` 查询目标组件的 props、events、slots、示例和使用约束。
-3. 涉及自定义样式、选择器、布局覆盖时，用 `get-component-dom` 查询组件 DOM 结构。
-4. 升级 `tdesign-vue-next` 或修改受版本影响的组件时，用 `get-component-changelog` 查询变更日志。
+1. 先读取仓库根 `DESIGN.md`，确认当前页的视觉语气、页面类型和禁止项。
+2. 用 `get-component-list` 查找可用组件，并显式选择 `vue-next` 框架。
+3. 用 `get-component-docs` 查询目标组件的 props、events、slots、示例和使用约束。
+4. 涉及自定义样式、选择器、布局覆盖时，用 `get-component-dom` 查询组件 DOM 结构。
+5. 升级 `tdesign-vue-next` 或修改受版本影响的组件时，用 `get-component-changelog` 查询变更日志。
 
 向 AI 发起任务时，应明确说明本项目使用 `TDesign Vue Next` / `vue-next`，避免生成 React、Vue 2 或移动端组件写法。
 

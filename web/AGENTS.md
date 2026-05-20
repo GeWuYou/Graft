@@ -15,7 +15,9 @@
 前端任务改动前，至少读取这些文档：
 
 - `../AGENTS.md`
+- `../DESIGN.md`
 - `../ai-plan/design/前端架构设计.md`
+- `../ai-plan/design/前端视觉设计规范.md`
 - `../ai-plan/design/TDesign-MCP-辅助开发规范.md`
 - `../ai-plan/design/契约治理与魔法值治理规范.md`
   - 当任务涉及路由名、路径、权限码、存储键、请求头、认证方案、错误码、稳定状态枚举或跨模块 typed contract 时必须读取
@@ -197,10 +199,12 @@ UI 约束：
 
 - `TDesign Vue Next` 是唯一主 UI 体系
 - `UnoCSS` 只用于辅助布局和少量原子样式
+- 生成或修改页面前应先读取根 `DESIGN.md`，再查 TDesign MCP 或官方文档
 - 不得随意覆盖 TDesign 内部 DOM；涉及组件 DOM、插槽、事件、props、升级影响时，先查 TDesign MCP 或官方文档
 - AI 生成或修改 `web` 代码时，默认按 `vue-next` 组件资料执行，不凭经验猜测组件 API
 - 新页面优先复用既有后台模式：页头、筛选区、表格、抽屉、弹窗、状态标签、操作列
-- `web/ai-libs/**` 只是本地参考源，不是运行时依赖，也不是第二个前端真值
+- `web/ai-libs/**` 只是 starter/demo 参考源，不是运行时依赖，也不是第二个前端真值
+- `ai-plan/design/graft-design-system/**` 是 Graft 风格参考模板目录，只作为设计参考和 AI 生成约束，不是运行时依赖
 
 主题与图表规则：
 
