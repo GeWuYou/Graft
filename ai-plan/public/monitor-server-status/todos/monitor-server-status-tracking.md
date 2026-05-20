@@ -30,6 +30,7 @@
 - This topic was split out of `multi-worktree-governance` as a standalone active topic.
 - The first implementation slice now exists in `server/plugins/monitor/**` and `web/src/modules/monitor/**`.
 - Backend plugin registration required one explicit shared-hotspot update in `server/internal/pluginregistry/generated.go`.
+- The first minimal cross-boundary `monitor/server-status` slice now passes the backend and frontend completion entrypoints in this worktree.
 
 ## Shared Hotspots
 
@@ -51,8 +52,9 @@
 
 - Server version currently uses the explicit fallback value `dev`; there is still no stronger canonical runtime version source in the current repository surface.
 - The dependency snapshot is intentionally shallow and based on existing runtime resources only; deeper health semantics would require a new scoped slice.
+- Backend validation in this WSL worktree still depends on the explicit `GIT_DIR` and `GIT_WORK_TREE` override because plain `git` resolution remains misconfigured here.
 
 ## Immediate Next Step
 
-- Validate the current cross-boundary slice with backend and frontend completion entrypoints.
-- If a follow-up round is needed, keep future work inside `server-status` depth improvements rather than broadening to new monitor capabilities.
+- No additional implementation is required for the first minimal slice unless a follow-up round is requested.
+- If a follow-up round is needed, keep it inside `server-status` depth improvements rather than broadening to new monitor capabilities.

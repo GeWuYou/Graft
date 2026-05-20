@@ -12,3 +12,5 @@
 - Registered the backend plugin through the explicit shared-hotspot exception in `server/internal/pluginregistry/generated.go`.
 - Kept the route contract at `GET /api/monitor/server-status`, the menu path at `/monitor/server-status`, and the read permission at `monitor.server-status.read`.
 - Chose the explicit server version fallback value `dev` because no stronger canonical runtime version source exists yet in current core surfaces.
+- Validated the slice with `cd server && GIT_DIR=... GIT_WORK_TREE=... go run ./cmd/graft validate backend` because plain worktree git resolution is still misconfigured in WSL.
+- Validated the frontend slice with `cd web && /mnt/c/Users/gewuyou/.bun/bin/bun.exe run check`.
