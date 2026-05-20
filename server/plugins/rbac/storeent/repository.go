@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	sqlite3 "github.com/mattn/go-sqlite3"
-
 	rbacstore "graft/server/plugins/rbac/store"
 )
 
@@ -900,9 +898,8 @@ func isUniqueViolation(err error) bool {
 		return true
 	}
 
-	var sqliteErr sqlite3.Error
-	if errors.As(err, &sqliteErr) {
-		return sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique || sqliteErr.ExtendedCode == sqlite3.ErrConstraintPrimaryKey
+	if isSQLiteUniqueViolation(err) {
+		return true
 	}
 
 	// pgx surfaces duplicate-key failures with SQLSTATE 23505 in the error text
