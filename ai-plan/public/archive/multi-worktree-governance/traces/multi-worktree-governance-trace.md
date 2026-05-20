@@ -63,8 +63,8 @@
 
 - Archived the previous active tracking and trace files into topic-local snapshots because the default recovery path had
   grown past the point where it was useful as a startup entry:
-  - `ai-plan/public/multi-worktree-governance/archive/todos/multi-worktree-governance-tracking-pre-compaction-2026-05-19.md`
-  - `ai-plan/public/multi-worktree-governance/archive/traces/multi-worktree-governance-trace-pre-compaction-2026-05-19.md`
+  - `ai-plan/public/archive/multi-worktree-governance/archive/todos/multi-worktree-governance-tracking-pre-compaction-2026-05-19.md`
+  - `ai-plan/public/archive/multi-worktree-governance/archive/traces/multi-worktree-governance-trace-pre-compaction-2026-05-19.md`
 - Replaced the active tracking file with a short recovery entry that keeps only:
   - current branch/worktree truth
   - frozen ownership baselines
@@ -105,7 +105,7 @@
 ## Historical Detail Pointer
 
 - Full milestone history from `2026-05-17` through the pre-compaction `2026-05-19` slices now lives in:
-  `ai-plan/public/multi-worktree-governance/archive/traces/multi-worktree-governance-trace-pre-compaction-2026-05-19.md`
+  `ai-plan/public/archive/multi-worktree-governance/archive/traces/multi-worktree-governance-trace-pre-compaction-2026-05-19.md`
 - Use that snapshot only when a task explicitly needs older validation logs, intermediate migration notes, or the full
   chronology of the web/server/docs governance slices.
 

@@ -177,9 +177,9 @@
 ## Archive Pointers
 
 - Pre-compaction tracking snapshot:
-  `ai-plan/public/multi-worktree-governance/archive/todos/multi-worktree-governance-tracking-pre-compaction-2026-05-19.md`
+  `ai-plan/public/archive/multi-worktree-governance/archive/todos/multi-worktree-governance-tracking-pre-compaction-2026-05-19.md`
 - Pre-compaction trace snapshot:
-  `ai-plan/public/multi-worktree-governance/archive/traces/multi-worktree-governance-trace-pre-compaction-2026-05-19.md`
+  `ai-plan/public/archive/multi-worktree-governance/archive/traces/multi-worktree-governance-trace-pre-compaction-2026-05-19.md`
 
 ## Immediate Next Step
 

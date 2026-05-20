@@ -45,26 +45,32 @@ every public artifact.
 
 ## Active Topics
 
-- `multi-worktree-governance`
-  - Purpose: govern the shared recovery truth and final post-compatibility ownership baseline while the repository root
-    is currently carrying the topic on branch `refactor/server-module-boundaries`, before dedicated long-lived worktrees
-    are created.
-  - Tracking: `ai-plan/public/multi-worktree-governance/todos/multi-worktree-governance-tracking.md`
-  - Trace: `ai-plan/public/multi-worktree-governance/traces/multi-worktree-governance-trace.md`
-  - Recovery note: use this topic only for shared baseline governance on the current repository root; once a
-    long-lived worktree/topic pair is actually created, map that worktree to its own active topic with its own
-    tracking/trace pair and keep the root governance topic focused on shared baseline policy and hotspot coordination.
+- `rbac-further-development`
+  - Purpose: hold the standalone recovery entry for the next bounded `rbac` implementation slices after the shared
+    multi-worktree governance baseline was archived.
+  - Tracking: `ai-plan/public/rbac-further-development/todos/rbac-further-development-tracking.md`
+  - Trace: `ai-plan/public/rbac-further-development/traces/rbac-further-development-trace.md`
+  - Recovery note: this topic does not own a dedicated worktree yet; create one only after the `rbac` slice keeps a
+    stable owned scope at `server/plugins/rbac/**` plus `web/src/modules/rbac/**`.
+- `monitor-server-status`
+  - Purpose: hold the standalone recovery entry and design baseline for the future `monitor` plugin and `monitor`
+    frontend module before any dedicated worktree is created.
+  - Tracking: `ai-plan/public/monitor-server-status/todos/monitor-server-status-tracking.md`
+  - Trace: `ai-plan/public/monitor-server-status/traces/monitor-server-status-trace.md`
+  - Recovery note: this topic is design-only for now and should not be treated as source-implementation ownership until
+    a later slice explicitly creates `server/plugins/monitor/**` and `web/src/modules/monitor/**`.
 
 ## Branch / Worktree To Active Topic Map
 
 - Worktree: repository root
-  - Branch: `refactor/server-module-boundaries`
-  - Active topic: `multi-worktree-governance`
-  - Role: temporary shared-baseline governance only; not a permanent home for future feature-owned recovery history
-  - Hotspot policy: may document and coordinate shared hotspots while it is the only active worktree, but future
-    dedicated feature worktrees should not treat the root as their default recovery entry once they exist
-- Branch: `refactor/server-module-boundaries`
-  - Priority 1: `multi-worktree-governance`
-  - Note: the repository root is currently checked out to this branch and is the only active worktree reported by
-    `git worktree list`; update this mapping when the root returns to `main` or when the first dedicated worktree/topic
-    pair is created.
+  - Branch: `main`
+  - Active topic: none by default
+  - Role: shared coordination point for active-topic governance only; feature recovery should enter through an explicit
+    startup prompt naming one of the active topics above until a dedicated worktree/topic pair is created
+  - Hotspot policy: shared hotspots such as `ai-plan/public/README.md` remain serialized governance slices and do not
+    grant standing feature ownership to the root worktree
+- Branch: `main`
+  - Priority 1: `rbac-further-development`
+  - Priority 2: `monitor-server-status`
+  - Note: no dedicated long-lived worktree exists yet for either topic; treat this branch-only mapping as a fallback
+    discovery hint and move each topic to its own explicit worktree mapping when dedicated worktrees are created.
