@@ -6,11 +6,16 @@ import (
 	"graft/server/internal/plugin"
 )
 
-// DefaultCoreMigrationDir 保留当前 core-owned Atlas 版本化迁移目录。
+// DefaultMigrationDir 是 `graft migrate` 默认链路使用的 owner-aligned 选择器。
 //
-// Phase 1 先让 migrate wiring 从 compile-time registry 读取完整目录集合，
-// 但当前 core migration 真相位置保持不变。
-const DefaultCoreMigrationDir = "internal/ent/migrate/migrations"
+// 它不是一个真实目录；CLI 在看到这个值时会回到 compile-time registry，
+// 按插件依赖顺序展开默认迁移目录集合。
+const DefaultMigrationDir = "default"
+
+// HistoricalSharedMigrationDir 保留历史共享 Atlas 迁移目录的显式访问路径。
+//
+// 该目录不再属于默认 apply 链路，但仍可通过 `--dir` 手动执行历史共享链。
+const HistoricalSharedMigrationDir = "internal/ent/migrate/migrations"
 
 // Descriptors 返回 compile-time 生成的插件描述符快照。
 func Descriptors() []plugin.Descriptor {
@@ -44,15 +49,15 @@ func BuildPlugins(buildCtx plugin.BuildContext) ([]plugin.Plugin, error) {
 
 // MigrationDirs 返回当前 compile-time registry 声明的默认迁移目录集合。
 //
-// 目录顺序固定为 core 先于 plugin-owned 目录，plugin-owned 部分按依赖排序
-// 展开，避免 CLI 再手写第二份插件顺序真相。
+// 默认链路只展开 plugin-owned 目录，并按依赖排序展开，避免 CLI 再手写
+// 第二份插件顺序真相。
 func MigrationDirs() ([]string, error) {
 	ordered, err := OrderedDescriptors()
 	if err != nil {
 		return nil, err
 	}
 
-	dirs := []string{DefaultCoreMigrationDir}
+	dirs := make([]string, 0, len(ordered))
 	for _, descriptor := range ordered {
 		dirs = append(dirs, descriptor.MigrationDirs()...)
 	}

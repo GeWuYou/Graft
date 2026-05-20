@@ -10,7 +10,7 @@
 
 * 暴露生成后的 `plugin.Descriptor` 集合
 * 按依赖关系构造运行时插件实例
-* 汇总当前默认迁移目录集合
+* 汇总当前 owner-aligned 默认迁移目录集合
 * 提供唯一允许的集中接线文件 `generated.go`
 
 这个模块不负责：
@@ -24,6 +24,15 @@
 * `registry.go`：描述符快照、运行时插件构造与默认迁移目录汇总
 * `generated.go`：由 `go generate ./internal/pluginregistry` 生成的唯一集中接线产物
 * `cmd/pluginregistrygen/main.go`：生成器实现
+
+## 迁移目录语义
+
+* `DefaultMigrationDir`
+  - CLI 默认值使用的选择器，不对应真实目录
+  - `graft migrate up` / `graft dev` / `graft validate smoke` 在未显式传入 `--dir` 时，会通过它展开 plugin-owned 默认迁移链
+* `HistoricalSharedMigrationDir`
+  - 保留历史共享 Atlas 迁移目录的显式路径
+  - 仅用于手动或诊断场景；它不再属于默认迁移链
 
 ## 维护提示
 

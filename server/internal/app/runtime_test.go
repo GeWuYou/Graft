@@ -17,13 +17,13 @@ import (
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/database"
-	"graft/server/internal/ent"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
+	testent "graft/server/internal/testent"
 )
 
 type shutdownRecorderPlugin struct {
@@ -184,7 +184,7 @@ func (p *i18nFreezeRecorderPlugin) Boot(ctx *plugin.Context) error {
 func (p *i18nFreezeRecorderPlugin) Shutdown(_ *plugin.Context) error { return nil }
 
 // TestRegisterCoreServicesExposesRuntimeSingletons 验证 core 装配会把配置、
-// event bus、Ent client 与 Redis 客户端注册到运行时容器中。
+// event bus、共享 SQL 连接池与 Redis 客户端注册到运行时容器中。
 func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	redisClient := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
 	t.Cleanup(func() {
@@ -192,7 +192,6 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	})
 	runtimeLogger := zap.NewNop()
 	runtimeEventBus := eventbus.New(runtimeLogger)
-	entClient := ent.NewClient()
 	sqlDB := &sql.DB{}
 
 	cfg := &config.Config{
@@ -221,7 +220,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		config:   cfg,
 		logger:   runtimeLogger,
 		i18n:     localizer,
-		database: &database.Resources{SQL: sqlDB, Client: entClient},
+		database: &database.Resources{SQL: sqlDB},
 		redis:    redisClient,
 		eventBus: runtimeEventBus,
 		services: container.New(),
@@ -235,9 +234,9 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*zap.Logger)(nil), runtimeLogger, "logger")
 	assertResolvedService(t, runtime.services, (*i18n.Service)(nil), localizer, "i18n service")
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
-	assertResolvedService(t, runtime.services, (*ent.Client)(nil), entClient, "ent client")
 	assertResolvedService(t, runtime.services, (*sql.DB)(nil), sqlDB, "sql db")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
+	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
 }
 
 func assertResolvedService[T comparable](t *testing.T, resolver container.Resolver, key any, expected T, name string) {
@@ -254,6 +253,18 @@ func assertResolvedService[T comparable](t *testing.T, resolver container.Resolv
 	}
 	if resolved != expected {
 		t.Fatalf("expected resolved %s to reuse runtime instance", name)
+	}
+}
+
+func assertServiceKeyNotRegistered(t *testing.T, resolver container.Resolver, key any, name string) {
+	t.Helper()
+
+	_, err := resolver.Resolve(key)
+	if err == nil {
+		t.Fatalf("expected runtime services to omit %s", name)
+	}
+	if !errors.Is(err, container.ErrServiceNotRegistered) {
+		t.Fatalf("expected %s to be unregistered, got %v", name, err)
 	}
 }
 

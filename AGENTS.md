@@ -206,6 +206,11 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-pr-review`
   - use when the task depends on the GitHub PR for the current branch, especially to extract AI review findings,
     failed checks, MegaLinter warnings, or failed test signals before local verification
+  - verified actionable findings from PR review must not be ignored only because the repair is large, cross-slice, or
+    likely to require a new task slice; when the fix no longer fits one safe local slice, prefer
+    `graft-multi-agent-batch` or `graft-multi-agent-loop` under the normal subagent rules
+  - only stale findings, noise, false positives, or no-longer-applicable findings may be left unfixed, and those cases
+    must be listed explicitly in the task closeout with the concrete reason
 - `graft-plugin-scaffold`
   - use when adding a new `server` plugin or shaping a plugin before implementation
 - `graft-commit`

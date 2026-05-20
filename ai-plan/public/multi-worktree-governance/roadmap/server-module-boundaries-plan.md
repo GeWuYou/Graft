@@ -4,6 +4,11 @@
 
 - 目标是把 `server` 治理成长期可并行开发的单体：业务按插件拆分、运行仍是单进程、接线仍是 compile-time、启动顺序仍 deterministic。
 - 本轮不做运行时插件平台，不引入动态发现、热加载、外部插件市场、分布式插件协议，也不把当前单体演进成微服务。
+- 当前 server 基线已经清除先前阻断长期 feature-worktree `functional zero-sharing` 的 `internal/ent` 依赖：
+  - runtime/core 不再依赖 `server/internal/ent/**`
+  - 默认 migration 入口不再串接历史 core/shared migration chain，并已通过 fresh DB 验证 owner-aligned baseline
+  - `server/internal/ent/**` 的 Go/schema 兼容层已删除，仅保留显式/manual 历史 migration 目录
+- 按当前治理口径，`server` 已达到长期 feature worktree 的 `functional zero-sharing` 基线
 - 完成后应满足三类验收：
   - `user`、`rbac`、未来新插件可在独立工作树长期开发，主冲突面限制在少数刻意共享热点
   - 新增插件低冲突接入，不再要求手改一批中心化核心文件
@@ -40,7 +45,8 @@
   - 或 `core-owned` 表
 - `user_roles` 的最终 owner 固定为 `rbac`
 - `rbac` 拥有 `user_roles` 的 Ent schema、repository、migration 与测试
-- 历史 mixed Atlas migration 保持 immutable；后续只允许通过 `rbac` 的 forward-only migration 记录 ownership checkpoint
+- 当前阶段允许 whole-database rebuild；只要项目功能不变，不要求保留历史 mixed migration replay 兼容性
+- 历史 mixed Atlas migration 可视为过渡遗留，不再作为长期兼容约束；后续以新的 ownership checkpoint 为准
 - 禁止：
   - `rbac` migration 修改 `user` 表
   - `audit` migration 修改 `rbac` 表
@@ -54,7 +60,7 @@
 
 - 每个插件独立进行 Ent generate。
 - 生成代码只能写入 `server/plugins/<name>/ent/**`。
-- `server/internal/ent/**` 只允许承载 `core-owned` schema 与其生成产物。
+- `server/internal/ent/**` 不再承载 live Ent schema 或生成产物；仅 `server/internal/ent/migrate/migrations/**` 保留历史共享 migration 目录。
 - 禁止：
   - 聚合式全局业务 ent generate
   - 一个插件修改其它插件的 ent 产物
@@ -99,6 +105,21 @@
 - 若某个路径需要长期共享，必须先进入白名单治理文档，而不是默认开放。
 - `RBAC` worktree 可以修改 `user_roles` 相关的 schema、repository、migration、测试与 plugin-local contract。
 - `User` worktree 不直接修改 `user_roles`；若需协同，只能通过 `user` 自有稳定 capability / contract 与共享治理文档对齐。
+
+### Long-Lived Worktree Mapping Rules
+
+- 长期 worktree 必须是一条显式映射，而不是“某个分支正好还在”：
+  - 一个长期 worktree 对应一个 active topic
+  - 一个 active topic 对应一份 tracking 文件和一份 trace 文件
+  - 映射记录必须写明 `Worktree`、`Branch`、owned scope、允许触碰的 shared hotspot
+- 在第一条 dedicated worktree/topic pair 真正创建前，仓库 root 只承担共享基线治理与 hotspot 协调，不承担长期
+  feature-owned 恢复历史。
+- 新建长期 worktree 时，优先按一个插件或一个明确治理 slice 切分；不要让一个 worktree 默认同时拥有多个插件和多个
+  shared hotspot。
+- 若某个 worktree 需要临时触碰 shared hotspot，必须在治理文档中先声明该例外，并把该热点修改保持为短、可串行化
+  的 bounded slice。
+- 一旦 dedicated feature worktree/topic pair 已建立，对应 feature 的恢复记录应迁出 root 治理 topic，而不是继续
+  堆积在共享治理入口里。
 
 ### No Business Logic Backflow
 
@@ -162,7 +183,7 @@
   - `server/internal/cronx/**`
   - `server/internal/redisx/**`
   - `server/internal/migration/**`
-  - `server/internal/ent/**` 仅限 core-owned schema
+  - `server/internal/ent/migrate/migrations/**` 仅限历史共享 Atlas migration 目录
 - `shared-stable-boundary`
   - `server/internal/pluginapi/**`
   - `server/internal/contract/**`
@@ -235,9 +256,11 @@
 - 完成 Ent ownership 迁移
 - 完成 migration ownership 迁移
 - 清理跨插件 relation 和 schema backflow
-- `internal/ent/**` 收缩到 core-owned schema
+- 删除 `internal/ent/**` 的共享 Go/schema 残留，仅保留历史 migration 目录
 - 业务表迁移到各插件自有 `ent/**` 与 `migrations/**`
 - `user_roles` ownership 在 Phase 3 结束时必须落到 `rbac`，而不是继续停留在 `user` / `rbac` 共享状态
+- 保持 runtime/core 不重新依赖 `server/internal/ent/**`，使其不再成为长期 feature worktree 的共享阻塞点
+- 将默认 migration 入口从历史 core/shared replay 链收敛到新的 owner-aligned migration baseline
 
 ### Phase 3 验收标准
 
@@ -247,7 +270,10 @@
 - `rbac` 通过 `user` 的稳定 capability / contract 校验 `user_id`，不直接依赖 `user` 的 Ent 包
 - `user_roles` 的 schema、repository、migration、测试只由 `rbac` worktree 维护
 - 两个并行分支分别修改 `plugins/user/**` 与 `plugins/rbac/**`，合并时不再要求解决共享 schema、共享 migration、共享 store factory 冲突
-- 可单独提交，必要时通过数据迁移顺序和兼容窗口平滑落地
+- 默认 runtime 不再依赖 `server/internal/ent/**` 承载业务插件共享真相
+- `server/internal/ent/migrate/migrations/**` 仅作为显式/manual 历史链保留，不再影响默认开发或长期 feature worktree owned scope
+- 默认 migration 入口不再要求重放历史 mixed core/shared chain 才能启动
+- 当前早期阶段允许通过 whole-database rebuild 落地该 ownership checkpoint；不要求保留历史 mixed migration replay 兼容窗口
 
 ## Standard Plugin Onboarding Flow
 

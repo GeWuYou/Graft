@@ -8,6 +8,9 @@ import (
 	"sync"
 )
 
+// ErrServiceNotRegistered 表示请求解析的服务 key 尚未在容器中注册。
+var ErrServiceNotRegistered = errors.New("service not registered")
+
 // Provider 定义单例服务的构造函数。
 //
 // Provider 在第一次成功解析前最多执行一次；返回错误时不会写入缓存，
@@ -121,7 +124,7 @@ func (c *Container) Resolve(key any) (any, error) {
 	provider, ok := c.providers[name]
 	if !ok {
 		c.mu.Unlock()
-		return nil, fmt.Errorf("service not registered: %s", name)
+		return nil, fmt.Errorf("%w: %s", ErrServiceNotRegistered, name)
 	}
 
 	call := &inflightCall{done: make(chan struct{})}
