@@ -119,6 +119,22 @@
                 : t('rbac.roleList.permissionDialog.currentRoleEmpty')
             }}
           </div>
+          <div
+            v-if="loadingRolePermissions || permissionLoadWarning"
+            class="permission-dialog-status"
+            :class="{ 'permission-dialog-status--warning': !loadingRolePermissions && Boolean(permissionLoadWarning) }"
+          >
+            <span>{{ permissionDialogStatusMessage }}</span>
+            <t-button
+              v-if="permissionLoadRetryable"
+              variant="text"
+              theme="primary"
+              :loading="loadingRolePermissions"
+              @click="retryPermissionDialogLoad"
+            >
+              {{ t('rbac.roleList.permissionDialog.retry') }}
+            </t-button>
+          </div>
 
           <div class="permissions-grid">
             <section v-for="group in permissionGroups" :key="group.category" class="permission-group">
@@ -126,10 +142,11 @@
               <div class="permission-group__hint">
                 {{ t('rbac.roleList.permissionDialog.groupHint', { count: group.items.length }) }}
               </div>
-              <div v-if="!permissionSelectionReady" class="permission-load-warning">
-                {{ t('rbac.roleList.permissionDialog.selectionUnavailable') }}
-              </div>
-              <t-checkbox-group v-model="selectedPermissionIds" class="permission-checkbox-group">
+              <t-checkbox-group
+                v-model="selectedPermissionIds"
+                :disabled="loadingRolePermissions || !permissionSelectionReady || !canAssignPermissions"
+                class="permission-checkbox-group"
+              >
                 <t-checkbox v-for="item in group.items" :key="item.id" class="permission-checkbox" :value="item.id">
                   <div class="permission-checkbox__content">
                     <span class="permission-checkbox__label">{{ item.display }}</span>
@@ -146,7 +163,7 @@
             </t-button>
             <t-button
               theme="primary"
-              :disabled="!permissionSelectionReady"
+              :disabled="!canSubmitPermissionAssignment"
               :loading="submittingPermissions"
               @click="submitPermissionAssignment"
             >
@@ -215,12 +232,21 @@ const roleFormMode = ref<RoleFormMode>('create');
 const selectedRole = ref<RoleListItem | null>(null);
 const roleForm = ref<RoleFormState>({ ...INITIAL_ROLE_FORM });
 const selectedPermissionIds = ref<number[]>([]);
+const permissionDialogSession = ref(0);
 const permissionSelectionReady = ref(false);
 const loadingRolePermissions = ref(false);
+const permissionLoadWarning = ref('');
+const permissionLoadRetryable = ref(false);
 
 const permissionCodes = RBAC_PERMISSION_CODE;
 const canReadPermissions = computed(() => permissionStore.hasPermission(permissionCodes.PERMISSION_READ));
 const canAssignPermissions = computed(() => canReadPermissions.value && permissions.value.length > 0);
+const canSubmitPermissionAssignment = computed(
+  () => canAssignPermissions.value && permissionSelectionReady.value && selectedRole.value !== null,
+);
+const permissionDialogStatusMessage = computed(() =>
+  loadingRolePermissions.value ? t('rbac.roleList.permissionDialog.loadingSelection') : permissionLoadWarning.value,
+);
 
 const roleDialogTitle = computed(() =>
   roleFormMode.value === 'create' ? t('rbac.roleList.form.createTitle') : t('rbac.roleList.form.editTitle'),
@@ -338,27 +364,58 @@ function applyRolePermissionSelection(permissionIDs: number[]) {
   return true;
 }
 
-async function loadRolePermissionSelection(roleID: number) {
-  loadingRolePermissions.value = true;
-  permissionSelectionReady.value = false;
-  selectedPermissionIds.value = [];
+function isActivePermissionDialogSession(session: number) {
+  return permissionDialogVisible.value && permissionDialogSession.value === session;
+}
+
+async function loadRolePermissionSelection(roleID: number, session: number) {
+  if (isActivePermissionDialogSession(session)) {
+    loadingRolePermissions.value = true;
+    permissionSelectionReady.value = false;
+    selectedPermissionIds.value = [];
+    permissionLoadWarning.value = '';
+    permissionLoadRetryable.value = false;
+  }
 
   try {
     const response = await getRolePermissionBindings(roleID);
-    if (!applyRolePermissionSelection(response.permission_ids)) {
-      MessagePlugin.error(t('rbac.roleList.permissionDialog.selectionUnavailable'));
+    if (!isActivePermissionDialogSession(session)) {
       return false;
     }
 
+    if (!applyRolePermissionSelection(response.permission_ids)) {
+      permissionLoadWarning.value = t('rbac.roleList.permissionDialog.selectionUnavailable');
+      permissionLoadRetryable.value = false;
+      return false;
+    }
+
+    permissionLoadWarning.value = '';
+    permissionLoadRetryable.value = false;
     return true;
   } catch (error) {
-    MessagePlugin.error(
-      error instanceof Error ? error.message : t('rbac.roleList.permissionDialog.selectionLoadFailed'),
-    );
+    if (!isActivePermissionDialogSession(session)) {
+      return false;
+    }
+
+    permissionLoadWarning.value =
+      error instanceof Error ? error.message : t('rbac.roleList.permissionDialog.selectionLoadFailed');
+    permissionLoadRetryable.value = true;
     return false;
   } finally {
-    loadingRolePermissions.value = false;
+    if (isActivePermissionDialogSession(session)) {
+      loadingRolePermissions.value = false;
+    }
   }
+}
+
+async function retryPermissionDialogLoad() {
+  if (!selectedRole.value) {
+    return;
+  }
+
+  const session = permissionDialogSession.value;
+
+  await loadRolePermissionSelection(selectedRole.value.id, session);
 }
 
 async function fetchRolePageData() {
@@ -451,19 +508,24 @@ async function openPermissionDialog(role: RoleListItem) {
     return;
   }
 
-  selectedRole.value = role;
-  if (!(await loadRolePermissionSelection(role.id))) {
-    return;
-  }
+  const session = permissionDialogSession.value + 1;
 
+  permissionDialogSession.value = session;
   permissionDialogVisible.value = true;
+  selectedRole.value = role;
+  await loadRolePermissionSelection(role.id, session);
 }
 
 function closePermissionDialog() {
+  permissionDialogSession.value += 1;
   permissionDialogVisible.value = false;
+  submittingPermissions.value = false;
   selectedRole.value = null;
   selectedPermissionIds.value = [];
+  loadingRolePermissions.value = false;
   permissionSelectionReady.value = false;
+  permissionLoadWarning.value = '';
+  permissionLoadRetryable.value = false;
 }
 
 async function submitPermissionAssignment() {
@@ -471,25 +533,36 @@ async function submitPermissionAssignment() {
     return;
   }
 
-  if (!permissionSelectionReady.value) {
+  if (!canSubmitPermissionAssignment.value) {
     MessagePlugin.error(t('rbac.roleList.permissionDialog.selectionUnavailable'));
     return;
   }
 
+  const session = permissionDialogSession.value;
+  const roleID = selectedRole.value.id;
+  const permissionIDs = sortStableIDs(selectedPermissionIds.value);
+
   submittingPermissions.value = true;
   try {
-    const permissionIDs = sortStableIDs(selectedPermissionIds.value);
-    await assignRolePermissions(selectedRole.value.id, {
+    await assignRolePermissions(roleID, {
       permission_ids: permissionIDs,
     });
-    updateRolePermissionSnapshot(selectedRole.value.id, permissionIDs);
-    selectedRole.value = roles.value.find((item) => item.id === selectedRole.value?.id) ?? selectedRole.value;
+    if (!isActivePermissionDialogSession(session)) {
+      return;
+    }
+
+    updateRolePermissionSnapshot(roleID, permissionIDs);
+    selectedRole.value = roles.value.find((item) => item.id === roleID) ?? selectedRole.value;
     MessagePlugin.success(t('rbac.roleList.assignSuccess'));
     closePermissionDialog();
   } catch (error) {
-    MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.assignFailed'));
+    if (isActivePermissionDialogSession(session)) {
+      MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.assignFailed'));
+    }
   } finally {
-    submittingPermissions.value = false;
+    if (permissionDialogSession.value === session) {
+      submittingPermissions.value = false;
+    }
   }
 }
 

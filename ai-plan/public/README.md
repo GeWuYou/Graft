@@ -50,8 +50,10 @@ every public artifact.
     multi-worktree governance baseline was archived.
   - Tracking: `ai-plan/public/rbac-further-development/todos/rbac-further-development-tracking.md`
   - Trace: `ai-plan/public/rbac-further-development/traces/rbac-further-development-trace.md`
-  - Recovery note: this topic does not own a dedicated worktree yet; create one only after the `rbac` slice keeps a
-    stable owned scope at `server/plugins/rbac/**` plus `web/src/modules/rbac/**`.
+  - Recovery note: this topic now runs from dedicated worktree
+    `/mnt/f/gewuyou/Project/Go/Graft-WorkTree/Graft-wt-rbac-further-development` on branch
+    `feat/wt-rbac-further-development`; standing ownership remains centered on `server/plugins/rbac/**` plus
+    `web/src/modules/rbac/**`, and shared-hotspot touches stay serialized exceptions.
 - `monitor-server-status`
   - Purpose: hold the standalone recovery entry and design baseline for the future `monitor` plugin and `monitor`
     frontend module before any dedicated worktree is created.
@@ -69,8 +71,15 @@ every public artifact.
     startup prompt naming one of the active topics above until a dedicated worktree/topic pair is created
   - Hotspot policy: shared hotspots such as `ai-plan/public/README.md` remain serialized governance slices and do not
     grant standing feature ownership to the root worktree
+- Worktree: `/mnt/f/gewuyou/Project/Go/Graft-WorkTree/Graft-wt-rbac-further-development`
+  - Branch: `feat/wt-rbac-further-development`
+  - Active topic: `rbac-further-development`
+  - Role: dedicated RBAC feature worktree and recovery entry for slices centered on `server/plugins/rbac/**` and
+    `web/src/modules/rbac/**`
+  - Hotspot policy: no standing shared-hotspot ownership; current serialized exception is limited to public recovery
+    docs at `ai-plan/public/README.md` and `ai-plan/public/rbac-further-development/**` while recovery truth is being
+    reconciled
 - Branch: `main`
-  - Priority 1: `rbac-further-development`
-  - Priority 2: `monitor-server-status`
-  - Note: no dedicated long-lived worktree exists yet for either topic; treat this branch-only mapping as a fallback
-    discovery hint and move each topic to its own explicit worktree mapping when dedicated worktrees are created.
+  - Priority 1: `monitor-server-status`
+  - Note: `rbac-further-development` no longer uses the `main` fallback because it now has an explicit dedicated
+    worktree/topic mapping.

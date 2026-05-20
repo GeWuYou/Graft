@@ -53,6 +53,8 @@
         "title": "Assign Role Permissions",
         "currentRole": "Current role: {name}",
         "currentRoleEmpty": "No role selected",
+        "loadingSelection": "Loading the current role permission snapshot for this dialog session.",
+        "retry": "Retry",
         "groupHint": "{count} permissions in this category.",
         "category": "Category: {category}",
         "selectionLoadFailed": "Failed to load the current role permissions, so no replace write was attempted.",

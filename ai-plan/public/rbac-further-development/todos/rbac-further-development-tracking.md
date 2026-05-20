@@ -4,19 +4,19 @@
 
 - Topic: `rbac-further-development`
 - Status: `active recovery entry`
-- Goal: keep a dedicated recovery入口 for the next RBAC feature worktree/topic pair without reopening shared-baseline governance history.
+- Goal: keep the dedicated recovery入口 aligned with the active RBAC feature worktree/topic pair without reopening shared-baseline governance history.
 - Recovery source: parent topic archived -> new standalone topic
-- Worktree: none yet
-- Branch: none yet
+- Worktree: `/mnt/f/gewuyou/Project/Go/Graft-WorkTree/Graft-wt-rbac-further-development`
+- Branch: `feat/wt-rbac-further-development`
 
 ## Scope
 
 - Owned scope:
   - `server/plugins/rbac/**`
   - `web/src/modules/rbac/**`
-- This topic is currently recovery-only. No dedicated long-lived worktree has been created yet.
-- Until a dedicated worktree/topic pair exists, this topic records entry conditions and ownership truth only; it is not
-  a standing permission to edit shared hotspots from the repository root.
+- This topic now has a dedicated long-lived worktree/topic pair.
+- The topic remains explicit about standing ownership and recovery truth; it is not a standing permission to edit
+  shared hotspots outside serialized bounded slices.
 
 ## Repository Truth
 
@@ -33,10 +33,13 @@
 ## Current Recovery Point
 
 - `multi-worktree-governance` no longer needs to carry RBAC-specific follow-up as shared-baseline history.
-- The repository root has already returned to `main`; this RBAC topic should not treat the root worktree as its
-  dedicated implementation workspace.
-- A future RBAC implementation round should start by creating an explicit dedicated worktree/topic pair, then updating
-  the public recovery mapping in the owning slice instead of extending this placeholder entry indefinitely.
+- The dedicated RBAC implementation workspace is now
+  `/mnt/f/gewuyou/Project/Go/Graft-WorkTree/Graft-wt-rbac-further-development` on
+  `feat/wt-rbac-further-development`.
+- The repository root remains a shared-governance coordination point on `main`; RBAC recovery should enter through the
+  dedicated worktree/topic mapping instead of the old branch-only fallback.
+- The current shared-hotspot exception is limited to serialized recovery-doc reconciliation under `ai-plan/public` so
+  that the public mapping matches the real worktree/branch pair.
 
 ## Shared Hotspots
 
@@ -50,16 +53,16 @@
   - `web/src/layouts/**`
   - `web/src/locales/**`
 
-## Admission Conditions For A Dedicated Worktree/Topic Pair
+## Dedicated Pair Guardrails
 
-- Create the RBAC worktree only when the next slice is primarily owned by `server/plugins/rbac/**` and/or
-  `web/src/modules/rbac/**`, rather than by shared-baseline governance.
-- Record the new worktree identity, branch name, owned scope, and any temporary hotspot exceptions in the same slice
-  that activates the dedicated pair.
+- Keep the RBAC worktree primarily owned by `server/plugins/rbac/**` and/or `web/src/modules/rbac/**`, rather than by
+  shared-baseline governance.
+- Keep the worktree identity, branch name, owned scope, and any temporary hotspot exceptions updated in the same slice
+  that changes the active-topic mapping or ownership truth.
 - Keep shared hotspot edits serialized and minimal; if the next slice is mostly about shared router/layout/contract or
   registry coordination, it should stay a bounded integration slice instead of becoming standing RBAC ownership.
 
 ## Immediate Next Step
 
-- Use this topic only as the recovery entry for the upcoming RBAC dedicated worktree/topic pair.
-- Do not assume `main` is the RBAC worktree. Create the dedicated pair first, then continue feature implementation.
+- Use this topic as the recovery entry for the active RBAC dedicated worktree/topic pair.
+- Do not fall back to `main` for RBAC feature recovery while the dedicated pair above remains active.

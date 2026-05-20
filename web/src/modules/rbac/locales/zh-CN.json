@@ -53,6 +53,8 @@
         "title": "分配角色权限",
         "currentRole": "当前角色：{name}",
         "currentRoleEmpty": "当前未选择角色",
+        "loadingSelection": "当前正在为本次弹窗会话加载角色已有权限快照。",
+        "retry": "重试",
         "groupHint": "当前分组共 {count} 条权限。",
         "category": "分组：{category}",
         "selectionLoadFailed": "角色已有权限加载失败，当前未执行覆盖写入。",

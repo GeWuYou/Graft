@@ -75,6 +75,23 @@
   gap: var(--td-comp-margin-l);
 }
 
+.permission-dialog-status {
+  align-items: center;
+  background: var(--td-bg-color-container-hover);
+  border-radius: var(--td-radius-medium);
+  color: var(--td-text-color-secondary);
+  display: flex;
+  font: var(--td-font-body-small);
+  gap: var(--td-comp-margin-s);
+  justify-content: space-between;
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-l);
+}
+
+.permission-dialog-status--warning {
+  background: var(--td-error-color-1);
+  color: var(--td-error-color);
+}
+
 .permissions-grid {
   display: grid;
   gap: var(--td-comp-margin-l);
@@ -95,12 +112,6 @@
 
 .permission-group__hint {
   color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  margin-bottom: var(--td-comp-margin-l);
-}
-
-.permission-load-warning {
-  color: var(--td-error-color);
   font: var(--td-font-body-small);
   margin-bottom: var(--td-comp-margin-l);
 }
