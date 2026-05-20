@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,8 @@ const (
 
 // Plugin implements the minimal monitor/server-status slice.
 type Plugin struct {
-	startedAt       time.Time
+	startedAtUnixNs atomic.Int64
+	db              *sql.DB
 	authService     pluginapi.AuthService
 	routeAuthorizer pluginapi.Authorizer
 }
@@ -93,7 +95,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	if err := registerMessages(ctx.I18n); err != nil {
 		return err
 	}
-	if err := p.bindAuthDependencies(ctx); err != nil {
+	if err := p.bindDependencies(ctx); err != nil {
 		return err
 	}
 
@@ -105,9 +107,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 
 // Boot records the first stable startup timestamp owned by this plugin.
 func (p *Plugin) Boot(_ *plugin.Context) error {
-	if p.startedAt.IsZero() {
-		p.startedAt = time.Now().UTC()
-	}
+	p.startedAtUnixNs.CompareAndSwap(0, time.Now().UTC().UnixNano())
 	return nil
 }
 
@@ -145,7 +145,13 @@ func registerMessages(localizer *i18n.Service) error {
 	return nil
 }
 
-func (p *Plugin) bindAuthDependencies(ctx *plugin.Context) error {
+func (p *Plugin) bindDependencies(ctx *plugin.Context) error {
+	db, err := resolveDatabaseDependency(ctx)
+	if err != nil {
+		return err
+	}
+	p.db = db
+
 	authResolved, err := ctx.Services.Resolve((*pluginapi.AuthService)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve auth service: %w", err)
@@ -169,6 +175,27 @@ func (p *Plugin) bindAuthDependencies(ctx *plugin.Context) error {
 	p.authService = authService
 	p.routeAuthorizer = authorizer
 	return nil
+}
+
+func resolveDatabaseDependency(ctx *plugin.Context) (*sql.DB, error) {
+	if ctx == nil || ctx.Services == nil {
+		return nil, nil
+	}
+
+	resolved, err := ctx.Services.Resolve((*sql.DB)(nil))
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("resolve sql db: %w", err)
+	}
+
+	db, ok := resolved.(*sql.DB)
+	if !ok {
+		return nil, fmt.Errorf("resolve sql db: unexpected type %T", resolved)
+	}
+
+	return db, nil
 }
 
 func registerMonitorPermissions(registry *permission.Registry, pluginName string) {
@@ -240,15 +267,13 @@ func buildServerStatusResponse(
 ) (serverStatusResponse, error) {
 	observedAt := time.Now().UTC()
 	startedAt := observedAt
-	if instance != nil && !instance.startedAt.IsZero() {
-		startedAt = instance.startedAt.UTC()
+	if instance != nil {
+		if startedAtUnixNs := instance.startedAtUnixNs.Load(); startedAtUnixNs > 0 {
+			startedAt = time.Unix(0, startedAtUnixNs).UTC()
+		}
 	}
 
-	databaseStatus, err := databaseHealth(ctx, pluginCtx)
-	if err != nil {
-		return serverStatusResponse{}, err
-	}
-
+	databaseStatus := databaseHealth(ctx, instance)
 	redisStatus := redisHealth(ctx, pluginCtx)
 	plugins := runtimePluginSummaries(pluginCtx)
 
@@ -271,35 +296,19 @@ func buildServerStatusResponse(
 	}, nil
 }
 
-func databaseHealth(ctx context.Context, pluginCtx *plugin.Context) (string, error) {
-	if pluginCtx == nil || pluginCtx.Services == nil {
-		return "unknown", nil
-	}
-
-	resolved, err := pluginCtx.Services.Resolve((*sql.DB)(nil))
-	if err != nil {
-		if errors.Is(err, container.ErrServiceNotRegistered) {
-			return "unknown", nil
-		}
-		return "unknown", fmt.Errorf("resolve sql db: %w", err)
-	}
-
-	db, ok := resolved.(*sql.DB)
-	if !ok {
-		return "unknown", fmt.Errorf("resolve sql db: unexpected type %T", resolved)
-	}
-	if db == nil {
-		return "unknown", nil
+func databaseHealth(ctx context.Context, instance *Plugin) string {
+	if instance == nil || instance.db == nil {
+		return "unknown"
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
 	defer cancel()
 
-	if err := db.PingContext(pingCtx); err != nil {
-		return "degraded", nil
+	if err := instance.db.PingContext(pingCtx); err != nil {
+		return "degraded"
 	}
 
-	return "healthy", nil
+	return "healthy"
 }
 
 func redisHealth(ctx context.Context, pluginCtx *plugin.Context) string {
@@ -327,7 +336,7 @@ func runtimePluginSummaries(pluginCtx *plugin.Context) []serverStatusPlugin {
 	for _, descriptor := range descriptors {
 		items = append(items, serverStatusPlugin{
 			Name:    descriptor.Name,
-			Status:  "healthy",
+			Status:  "unknown",
 			Version: descriptor.Version,
 		})
 	}

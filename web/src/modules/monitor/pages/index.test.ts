@@ -79,9 +79,14 @@ const passthroughStub = defineComponent({
       type: String,
       default: '',
     },
+    theme: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { slots }) {
-    return () => h('div', [props.title, props.description, slots.default?.()]);
+    return () =>
+      h('div', { 'data-theme': props.theme || undefined }, [props.title, props.description, slots.default?.()]);
   },
 });
 
@@ -213,6 +218,9 @@ describe('MonitorPage', () => {
     expect(wrapper.text()).toContain('user');
     expect(wrapper.text()).toContain('1h 1m 1s');
     expect(wrapper.findAll('[data-testid^="plugin-row-"]')).toHaveLength(2);
+    expect(wrapper.find('[data-theme="success"]').exists()).toBe(true);
+    expect(wrapper.find('[data-theme="danger"]').exists()).toBe(true);
+    expect(wrapper.find('[data-theme="default"]').exists()).toBe(true);
   });
 
   it('falls back to the localized load failure message when the error is empty', async () => {

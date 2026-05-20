@@ -26,13 +26,6 @@ func TestBuildServerStatusResponseIncludesCurrentSliceFields(t *testing.T) {
 		_ = db.Close()
 	})
 
-	services := container.New()
-	if err := services.RegisterSingleton((*sql.DB)(nil), func(container.Resolver) (any, error) {
-		return db, nil
-	}); err != nil {
-		t.Fatalf("register sql db: %v", err)
-	}
-
 	startedAt := time.Now().UTC().Add(-5 * time.Second).Truncate(time.Second)
 	response, err := buildServerStatusResponse(context.Background(), &plugin.Context{
 		Config: &config.Config{
@@ -41,14 +34,13 @@ func TestBuildServerStatusResponseIncludesCurrentSliceFields(t *testing.T) {
 				Env:  " prod ",
 			},
 		},
-		Services: services,
 		RuntimeMetadata: plugin.NewRuntimeMetadata([]plugin.Descriptor{
 			{ID: "audit", PluginVersion: "0.1.0"},
 			{ID: "user", PluginVersion: "0.2.0"},
 			{ID: "rbac", PluginVersion: "0.3.0", Dependencies: []string{"user"}},
 			{ID: pluginID, PluginVersion: pluginVersion, Dependencies: []string{"user", "rbac"}},
 		}),
-	}, &Plugin{startedAt: startedAt})
+	}, pluginWithStartedAt(db, startedAt))
 	if err != nil {
 		t.Fatalf("build server status response: %v", err)
 	}
@@ -67,10 +59,10 @@ func TestBuildServerStatusResponseIncludesCurrentSliceFields(t *testing.T) {
 	}
 
 	expectedPlugins := []serverStatusPlugin{
-		{Name: "audit", Status: "healthy", Version: "0.1.0"},
-		{Name: "user", Status: "healthy", Version: "0.2.0"},
-		{Name: "rbac", Status: "healthy", Version: "0.3.0"},
-		{Name: pluginID, Status: "healthy", Version: pluginVersion},
+		{Name: "audit", Status: "unknown", Version: "0.1.0"},
+		{Name: "user", Status: "unknown", Version: "0.2.0"},
+		{Name: "rbac", Status: "unknown", Version: "0.3.0"},
+		{Name: pluginID, Status: "unknown", Version: pluginVersion},
 	}
 	assertPluginSummaries(t, response.Plugins, expectedPlugins)
 }
@@ -93,6 +85,30 @@ func TestBuildServerStatusResponseUsesUnknownWhenDatabaseServiceIsAbsent(t *test
 	}
 	if response.Status != "unknown" {
 		t.Fatalf("expected overall status unknown, got %q", response.Status)
+	}
+}
+
+func TestBuildServerStatusResponseReportsDegradedOnDatabasePingError(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite database: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close sqlite database: %v", err)
+	}
+
+	response, err := buildServerStatusResponse(context.Background(), &plugin.Context{}, &Plugin{db: db})
+	if err != nil {
+		t.Fatalf("build server status response: %v", err)
+	}
+
+	if response.Dependencies.Database.Status != "degraded" {
+		t.Fatalf("expected database status degraded on ping error, got %q", response.Dependencies.Database.Status)
+	}
+	if response.Status != "degraded" {
+		t.Fatalf("expected overall status degraded on ping error, got %q", response.Status)
 	}
 }
 
@@ -128,6 +144,12 @@ func formatPluginSummary(value serverStatusPlugin) string {
 	return fmt.Sprintf("{name:%s status:%s version:%s}", value.Name, value.Status, value.Version)
 }
 
+func pluginWithStartedAt(db *sql.DB, startedAt time.Time) *Plugin {
+	pluginInstance := &Plugin{db: db}
+	pluginInstance.startedAtUnixNs.Store(startedAt.UnixNano())
+	return pluginInstance
+}
+
 func TestDeriveOverallStatus(t *testing.T) {
 	t.Parallel()
 
@@ -154,6 +176,12 @@ func TestDeriveOverallStatus(t *testing.T) {
 			databaseStatus: "unknown",
 			redisStatus:    "disabled",
 			expected:       "unknown",
+		},
+		{
+			name:           "healthy redis survives unknown database",
+			databaseStatus: "unknown",
+			redisStatus:    "healthy",
+			expected:       "healthy",
 		},
 	}
 

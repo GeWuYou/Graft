@@ -69,13 +69,15 @@
           <div v-if="serverStatus" class="dependency-list">
             <div class="dependency-item">
               <span>{{ t('monitor.serverStatus.databaseLabel') }}</span>
-              <t-tag theme="primary" variant="light">{{
+              <t-tag :theme="statusTheme(serverStatus.dependencies.database.status)" variant="light">{{
                 statusLabel(serverStatus.dependencies.database.status)
               }}</t-tag>
             </div>
             <div class="dependency-item">
               <span>{{ t('monitor.serverStatus.redisLabel') }}</span>
-              <t-tag theme="primary" variant="light">{{ statusLabel(serverStatus.dependencies.redis.status) }}</t-tag>
+              <t-tag :theme="statusTheme(serverStatus.dependencies.redis.status)" variant="light">
+                {{ statusLabel(serverStatus.dependencies.redis.status) }}
+              </t-tag>
             </div>
           </div>
           <t-empty v-else :description="t('monitor.serverStatus.empty')" />
@@ -92,7 +94,7 @@
             table-layout="fixed"
           >
             <template #status="{ row }">
-              <t-tag theme="primary" variant="light">{{ statusLabel(row.status) }}</t-tag>
+              <t-tag :theme="statusTheme(row.status)" variant="light">{{ statusLabel(row.status) }}</t-tag>
             </template>
             <template #empty>
               <t-empty :description="t('monitor.serverStatus.empty')" />
@@ -167,6 +169,19 @@ function statusLabel(status?: string) {
       return t('monitor.serverStatus.statusDisabled');
     default:
       return t('monitor.serverStatus.statusUnknown');
+  }
+}
+
+function statusTheme(status?: string) {
+  switch (status) {
+    case 'healthy':
+      return 'success';
+    case 'degraded':
+      return 'warning';
+    case 'disabled':
+      return 'danger';
+    default:
+      return 'default';
   }
 }
 
