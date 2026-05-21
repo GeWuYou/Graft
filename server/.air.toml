@@ -1,0 +1,33 @@
+#:schema https://json.schemastore.org/any.json
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/graft ./cmd/graft"
+bin = "./tmp/graft serve"
+include_ext = ["go"]
+include_file = [".env"]
+exclude_dir = ["tmp", "bin", "dist"]
+exclude_regex = ['_test\.go']
+exclude_unchanged = true
+log = "air.log"
+stop_on_error = true
+send_interrupt = true
+kill_delay = 500 # ms
+
+[build.windows]
+cmd = "go build -o ./tmp/graft.exe ./cmd/graft"
+bin = 'tmp\graft.exe serve'
+
+[log]
+time = false
+main_only = false
+silent = false
+
+[misc]
+clean_on_exit = true
+
+[screen]
+clear_on_rebuild = false
+keep_scroll = true

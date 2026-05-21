@@ -59,6 +59,35 @@ go run ./cmd/graft dev
 
 `graft dev` 会先执行显式迁移，再在迁移成功后启动服务；它是开发期编排命令，不会改变 `graft serve` 的纯运行时语义。
 
+如果你需要在本地持续开发时自动 rebuild 并重启 `graft serve`，仓库现在提供固定的 Air 配置：
+
+```bash
+cd server
+go get -tool github.com/air-verse/air@v1.65.2
+go run ./cmd/graft dev air
+```
+
+约束：
+
+* Air 只负责监听本地 Go 代码与 `.env` 变化后重新 build，并重启 `graft serve`。
+* Air 不执行 `graft dev`，也不执行 `graft migrate up`。
+* `server` 仍然按当前规则自行读取 `.env` / `server/.env`；Air 不通过 `env_files` 接管配置加载语义。
+* `graft dev air` 只是 `go tool air -c .air.toml` 的 CLI 包装，不改变 Air 配置本身。
+
+推荐流程：
+
+```bash
+cd server
+go run ./cmd/graft migrate up
+go run ./cmd/graft dev air
+```
+
+其中：
+
+* 首次本地启动，或数据库 schema / migration 发生变化时，先手动执行 `graft migrate up`。
+* 仅做日常 Go 代码调试时，直接运行 `go run ./cmd/graft dev air` 即可。
+* 如果你只想一次性“迁移后启动”，仍然继续使用 `go run ./cmd/graft dev`。
+
 如果你需要反复验证默认管理员首次登录强制改密流程，可以使用 dev-only 重置入口：
 
 ```bash

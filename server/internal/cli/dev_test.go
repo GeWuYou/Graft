@@ -65,6 +65,48 @@ func TestRunDevStopsAfterMigrationFailure(t *testing.T) {
 	}
 }
 
+// TestRunDevAirInvokesAirRunner 验证 `graft dev air` 会调用 Air 热重载执行边界。
+func TestRunDevAirInvokesAirRunner(t *testing.T) {
+	originalAirRunner := devAirRunner
+	defer func() {
+		devAirRunner = originalAirRunner
+	}()
+
+	var gotConfig string
+	devAirRunner = func(_ *cobra.Command, configPath string) error {
+		gotConfig = configPath
+		return nil
+	}
+
+	err := runDevAir(&cobra.Command{}, devAirOptions{configPath: ".air.toml"})
+	if err != nil {
+		t.Fatalf("run dev air: %v", err)
+	}
+	if gotConfig != ".air.toml" {
+		t.Fatalf("expected config path .air.toml, got %q", gotConfig)
+	}
+}
+
+// TestRunDevAirWrapsRunnerError 验证 Air 执行失败时会返回带上下文的错误。
+func TestRunDevAirWrapsRunnerError(t *testing.T) {
+	originalAirRunner := devAirRunner
+	defer func() {
+		devAirRunner = originalAirRunner
+	}()
+
+	devAirRunner = func(_ *cobra.Command, _ string) error {
+		return errors.New("air failed")
+	}
+
+	err := runDevAir(&cobra.Command{}, devAirOptions{configPath: ".air.toml"})
+	if err == nil {
+		t.Fatal("expected dev air error")
+	}
+	if !strings.Contains(err.Error(), "start Air live reload") {
+		t.Fatalf("expected air context, got %v", err)
+	}
+}
+
 // TestNewRootCommandRegistersDevCommand 验证根命令始终注册 `dev` 子命令。
 func TestNewRootCommandRegistersDevCommand(t *testing.T) {
 	command := NewRootCommand()
@@ -88,5 +130,18 @@ func TestNewRootCommandRegistersDevResetAdminCommand(t *testing.T) {
 	}
 	if found == nil || found.Name() != "reset-admin" {
 		t.Fatalf("expected reset-admin command, got %#v", found)
+	}
+}
+
+// TestNewRootCommandRegistersDevAirCommand 验证 `graft dev air` 子命令可发现。
+func TestNewRootCommandRegistersDevAirCommand(t *testing.T) {
+	command := NewRootCommand()
+
+	found, _, err := command.Find([]string{"dev", "air"})
+	if err != nil {
+		t.Fatalf("find dev air command: %v", err)
+	}
+	if found == nil || found.Name() != "air" {
+		t.Fatalf("expected air command, got %#v", found)
 	}
 }
