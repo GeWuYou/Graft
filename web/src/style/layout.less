@@ -3,9 +3,11 @@
 // layout rewrite
 
 :root {
-  --graft-page-footer-height: 44px;
-  --graft-floating-toolbar-safe-space: 96px;
-  --graft-page-bottom-safe-space: var(--graft-floating-toolbar-safe-space);
+  --graft-footer-height: 44px;
+  --graft-floating-toolbar-safe-space: 72px;
+  --graft-bottom-safe-space: var(--graft-floating-toolbar-safe-space);
+  --graft-page-footer-height: var(--graft-footer-height);
+  --graft-page-bottom-safe-space: var(--graft-bottom-safe-space);
 }
 
 .t-layout__sider {
@@ -82,8 +84,11 @@
   }
 
   &-layout {
-    height: calc(100vh - var(--td-comp-size-xxxl));
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 
     &-tabs-nav {
       max-width: 100%;
@@ -109,8 +114,29 @@
   }
 
   &-footer-layout {
+    flex: 0 0 auto;
     margin: 0;
     padding: 0;
+  }
+
+  &-page-container {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 100%;
+
+    &__main {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    &__bottom-safe-spacer {
+      flex: 0 0 var(--graft-bottom-safe-space);
+      height: var(--graft-bottom-safe-space);
+      pointer-events: none;
+    }
   }
 
   // slideBar

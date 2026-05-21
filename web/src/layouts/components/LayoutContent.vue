@@ -63,12 +63,11 @@
     <t-content :class="`${prefix}-content-layout`">
       <div :class="`${prefix}-content-layout__body`">
         <l-breadcrumb v-if="settingStore.showBreadcrumb" />
-        <l-content />
+        <page-container :show-footer="showFooter" :footer-text="footerText">
+          <l-content />
+        </page-container>
       </div>
     </t-content>
-    <t-footer v-if="showFooter" :class="`${prefix}-footer-layout`">
-      <l-footer :content="footerText" />
-    </t-footer>
   </t-layout>
 </template>
 <script setup lang="ts">
@@ -88,7 +87,7 @@ import type { TRouterInfo, TTabRemoveOptions } from '@/utils/types';
 
 import LBreadcrumb from './Breadcrumb.vue';
 import LContent from './Content.vue';
-import LFooter from './Footer.vue';
+import PageContainer from './PageContainer.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -257,12 +256,8 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: var(--td-comp-margin-xl);
   min-height: 0;
-}
-
-.t-layout[data-page-type] :deep(.tdesign-starter-footer-layout) {
-  flex: 0 0 auto;
-  margin: 0;
 }
 
 .t-layout[data-page-type='overview-dashboard'] :deep(.tdesign-starter-content-layout) {

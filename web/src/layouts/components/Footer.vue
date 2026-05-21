@@ -17,8 +17,8 @@ defineProps<{
   font: var(--td-font-body-small);
   justify-content: center;
   line-height: 20px;
-  min-height: var(--graft-page-footer-height);
-  padding: 8px 0 var(--graft-page-bottom-safe-space);
+  min-height: var(--graft-footer-height);
+  padding: 0;
   text-align: center;
 }
 </style>
