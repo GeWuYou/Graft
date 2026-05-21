@@ -154,7 +154,7 @@ repo_file_present() {
 }
 
 collect_inventory() {
-    local os_name distro version_id kernel shell_name wsl_enabled wsl_version timestamp host_bun_path host_bun_exists host_bun_version
+    local os_name distro version_id kernel shell_name wsl_enabled wsl_version timestamp
 
     os_name="$(uname -s)"
     distro="$(read_os_release PRETTY_NAME)"
@@ -162,7 +162,6 @@ collect_inventory() {
     kernel="$(uname -r)"
     shell_name="$(basename "${SHELL:-bash}")"
     timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-    host_bun_path="/mnt/c/Users/gewuyou/.bun/bin/bun.exe"
 
     if grep -qi microsoft /proc/version 2>/dev/null; then
         wsl_enabled="true"
@@ -174,14 +173,6 @@ collect_inventory() {
         wsl_version="$(wslinfo --wsl-version 2>/dev/null || printf '%s' "unknown")"
     else
         wsl_version="unknown"
-    fi
-
-    if [[ -f "${host_bun_path}" ]]; then
-        host_bun_exists="true"
-        host_bun_version="$("${host_bun_path}" --version 2>/dev/null || printf '%s' "unknown")"
-    else
-        host_bun_exists="false"
-        host_bun_version="not-installed"
     fi
 
     cat <<EOF
@@ -238,11 +229,6 @@ required_runtimes:
     version: "$(command_version bun)"
     path: "$(command_path bun)"
     purpose: "Preferred package manager when web/bun.lock is present."
-  host_bun:
-    installed: ${host_bun_exists}
-    version: "${host_bun_version}"
-    path: "${host_bun_path}"
-    purpose: "Preferred host Windows Bun for all web installs, validation, and dev commands when running from WSL."
 
 required_tools:
   git:

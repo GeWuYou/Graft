@@ -14,7 +14,6 @@ Use this skill to choose the correct validation scope for `Graft` without invent
 3. Treat root `AGENTS.md` plus repository entrypoints as validation truth:
    - `cd server && go run ./cmd/graft validate backend`
    - `cd web && bun run check`
-   - when running `web` commands from WSL, `bun` means the configured host Windows Bun unless the environment inventory says otherwise
 
 README files, tracking docs, skills, and CI workflows may point to these entrypoints or to narrower execution slices,
 but they must not redefine acceptance criteria, command order, or local-vs-CI environment rules.
@@ -33,9 +32,8 @@ but they must not redefine acceptance criteria, command order, or local-vs-CI en
    - if you use `graft validate backend --stage ...`, report it as an execution-layer slice of the unified backend entrypoint, not as a second validation contract
 3. For `web` work:
    - for completion-state work, prefer `cd web && bun run check`
-   - on WSL, interpret frontend `bun` commands as host Windows Bun commands unless `.ai/environment/tools.ai.yaml` explicitly says otherwise
    - for intermediate iteration, prefer the smallest direct command that proves the changed TypeScript, route, page, style, or test surface
-   - a Linux CI runner reusing `bun run check` does not relax the local WSL host Windows Bun rule
+   - use .ai/environment/tools.ai.yaml to confirm the repository current Bun toolchain instead of inventing a second local rule
 4. For `cross-boundary` work:
    - validate both sides when contracts, menus, routes, permissions, lifecycle semantics, or shared validation entrypoints changed
 5. For docs or automation work:

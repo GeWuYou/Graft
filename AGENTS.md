@@ -88,8 +88,7 @@ Before choosing runtimes, package managers, or CLI tools:
 - first read `.ai/environment/tools.ai.yaml` if it exists
 - use `.ai/environment/tools.raw.yaml` only when the AI-facing inventory is missing or insufficient
 - prefer repository-relevant installed tools over assumptions about what is available on the system
-- if `.ai/environment/` marks a cross-environment exception such as host Windows Bun for `web`, follow that exception
-  instead of defaulting to the current WSL shell toolchain
+- follow .ai/environment/ for repository toolchain preferences instead of guessing from the current shell alone
 - if a change affects repository toolchain expectations or environment guidance, refresh the `.ai/environment/`
   inventory in the same change instead of leaving generated environment truth stale
 
@@ -374,7 +373,6 @@ For `server` changes:
 For `web` changes:
 
 - follow `web/AGENTS.md` as the frontend execution-truth document
-- use host Windows Bun from WSL when the environment inventory requires it
 - use `bun run check` as the frontend completion entrypoint
 - keep frontend validation order aligned with repository truth and the entrypoints it names
 
@@ -544,9 +542,7 @@ When the repository adds CI workflows:
   actual toolchain or artifacts are not stable yet
 - backend CI must reuse the same `graft validate backend` entrypoint and pinned `golangci-lint` version as local
   development instead of rebuilding a second lint parameter set inside workflow YAML
-- when local `web` development in WSL requires host Windows Bun, keep that rule explicit in repository docs; a Linux CI
-  runner reusing the same `bun run check` entrypoint is an execution environment difference, not permission to relax
-  the local WSL rule
+- when local and CI environments differ, document that difference explicitly without redefining the web validation entrypoint or creating a second acceptance contract
 
 ### 12.2 Release Automation
 

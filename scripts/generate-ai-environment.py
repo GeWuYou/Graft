@@ -98,7 +98,6 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     has_node = available_tool(raw, "required_runtimes", "node")
     has_npm = available_tool(raw, "required_runtimes", "npm")
     has_bun = available_tool(raw, "required_runtimes", "bun")
-    has_host_bun = available_tool(raw, "required_runtimes", "host_bun")
     has_rg = available_tool(raw, "required_tools", "rg")
     has_jq = available_tool(raw, "required_tools", "jq")
     has_bash = available_tool(raw, "required_tools", "bash")
@@ -130,7 +129,7 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     )
     web_package_manager = select_tool(
         use_for="Installing and validating the web toolchain.",
-        preferred="host-bun" if has_host_bun and web_bun_lock else "bun" if has_bun and web_bun_lock else "npm" if has_npm else None,
+        preferred="bun" if has_bun and web_bun_lock else "npm" if has_npm else None,
         fallback="npm" if has_npm else None,
     )
     server_build_and_test = select_tool(
@@ -202,8 +201,6 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "Use rg instead of grep for repository search when rg is available.",
             "Use jq for JSON inspection; fall back to python3 if jq is unavailable.",
             "Prefer python3 over complex bash for non-trivial scripting when python3 is available.",
-            "When running from WSL, prefer the host Windows Bun for all web installs, validation, and dev commands when it is available.",
-            "Do not refresh web/node_modules with the WSL Bun binary when host Windows Bun is the active web package manager.",
             "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm.",
             "Do not assume server build or test commands are available when server/go.mod is missing.",
             "Do not assume unrelated system tools are part of the supported project environment.",

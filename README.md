@@ -145,7 +145,7 @@ gate, unless a narrowly documented temporary `nolint` is justified。new code mu
 
 1. 复制 `web/.env.example` 为 `web/.env.development`
 2. 按本地后端地址调整 `VITE_API_TARGET`
-3. 进入 `web` 目录后使用 host Windows Bun 执行 `bun run dev`
+3. 进入 `web` 目录后执行 `bun run dev`
 
 当前默认开发链路为：
 
@@ -156,7 +156,6 @@ gate, unless a narrowly documented temporary `nolint` is justified。new code mu
 
 * `web/.env.development`、`web/.env.local` 与其它 `web/.env.*` 本地文件都应保持未跟踪状态。
 * `web/.env.example` 只作为共享模板，不应放入个人密钥或机器专属地址。
-* 在 WSL 场景下，按仓库环境约定继续使用 host Windows Bun 运行 `web` 命令。
 
 ## 前端验证 `web`
 
@@ -169,10 +168,8 @@ bun run check
 
 说明：
 
-* 在 WSL 场景下，这里的 `bun` 指仓库环境清单标记的 host Windows Bun，而不是 WSL Bun。
 * `bun run check` 会按 `format:check -> typecheck -> lint -> stylelint -> test:run -> build` 顺序执行，是本地交付、
   交接和合并前的前端真值入口。
 * 开发中间态可以执行更小的直接命令，但 README、skill 和 CI 只能复用这条入口或其显式执行切片，不应再定义第二套
   完成态规则。
-* CI 在 Linux runner 上复用同一入口时，只是执行环境不同；这不改变 WSL 本地必须使用 host Windows Bun 的规则。
 * 本地 contract governance changed-scan 默认在 `pre-commit` 阶段阻断；`pre-push` 不再重复执行该扫描，推送后的正式阻断由 CI 承担。

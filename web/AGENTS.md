@@ -297,12 +297,11 @@ bun run check
 - `Stylelint` 用于约束样式覆盖边界，避免随意改写 TDesign 结构
 - 不允许用大面积 `as any`、`any` 或关闭 strict 的方式绕过类型问题；必须把不安全边界收口到 adapter、client、schema 或迁移兼容层
 
-WSL 规则：
+Bun 工具链规则：
 
-- 在 WSL 场景下，`web` 的安装、开发、校验、构建、预览默认都通过宿主机 Windows Bun 执行
-- 不得使用 WSL Linux Bun 刷新 `web/node_modules`
-- 不得在宿主机 Bun 为当前真值时混用 WSL Bun 生成前端依赖目录
-- 如前端工具链例外规则发生变化，必须同步更新 `.ai/environment/tools.ai.yaml`
+- web 的安装、开发、校验、构建、预览默认都通过仓库当前环境中的 bun 执行
+- 不得混用多套 Bun 或其他包管理器刷新 web/node_modules
+- 如前端工具链规则发生变化，必须同步更新 .ai/environment/tools.ai.yaml
 
 ## 8. 禁止事项
 

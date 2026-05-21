@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-05-14T01:14:40Z"
+generated_at_utc: "2026-05-21T11:02:42Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -40,7 +40,7 @@ tool_selection:
     fallback: "bash"
     use_for: "Non-trivial local automation and helper scripts."
   web_package_manager:
-    preferred: "host-bun"
+    preferred: "bun"
     fallback: "npm"
     use_for: "Installing and validating the web toolchain."
   server_build_and_test:
@@ -66,8 +66,6 @@ rules:
   - "Use rg instead of grep for repository search when rg is available."
   - "Use jq for JSON inspection; fall back to python3 if jq is unavailable."
   - "Prefer python3 over complex bash for non-trivial scripting when python3 is available."
-  - "When running from WSL, prefer the host Windows Bun for all web installs, validation, and dev commands when it is available."
-  - "Do not refresh web/node_modules with the WSL Bun binary when host Windows Bun is the active web package manager."
   - "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm."
   - "Do not assume server build or test commands are available when server/go.mod is missing."
   - "Do not assume unrelated system tools are part of the supported project environment."

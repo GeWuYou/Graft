@@ -25,8 +25,7 @@ python3 scripts/generate-ai-environment.py
 - Keep secrets, machine-specific credentials, and private URLs out of the inventory.
 - Read `tools.ai.yaml` first during repository startup; use `tools.raw.yaml` only when the AI-facing summary is missing
   or insufficient.
-- Keep cross-environment exceptions, such as host Windows Bun for `web` in WSL, in the generated inventory so docs and
-  automation can reference one fact source instead of restating divergent command matrices.
+- Keep the generated inventory aligned with the repository's current local toolchain so docs and automation can reference one fact source instead of restating divergent command matrices.
 - The inventory is environment truth, not startup or validation governance: root `AGENTS.md` remains the only startup
   governance source, and repository entrypoints such as `graft validate backend` / `bun run check` remain validation
   truth.

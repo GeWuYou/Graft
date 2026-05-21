@@ -75,7 +75,7 @@
 - The dependency snapshot is intentionally shallow and based on existing runtime resources only; deeper health semantics would require a new scoped slice.
 - The trend window is process-local and intentionally ephemeral; it does not survive restart and should not be presented as historical observability.
 - Backend validation in this WSL worktree still depends on the explicit `GIT_DIR` and `GIT_WORK_TREE` override because plain `git` resolution remains misconfigured here.
-- Frontend completion still depends on host Windows Bun from WSL; if that path is unavailable, the round must report the exact command gap rather than claiming full completion.
+- Frontend completion still depends on the repository bun run check entrypoint; if that command cannot run, the round must report the exact command gap rather than claiming full completion.
 
 ## Immediate Next Step
 
