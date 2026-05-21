@@ -3,5 +3,6 @@
 /bin/
 /build/
 /dist/
+/tmp/
 *.out
 graft
