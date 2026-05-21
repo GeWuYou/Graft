@@ -12,7 +12,7 @@ export interface ServerStatusPlugin {
   status_detail: string;
   version: string;
   depends_on: string[];
-  missing_dependencies: string[];
+  missing_dependencies?: string[];
 }
 
 export interface ServerStatusServer {

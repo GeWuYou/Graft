@@ -135,7 +135,7 @@
                     class="trend-legend-item"
                     data-trend-legend-item="true"
                   >
-                    <i class="trend-legend-item__dot" :style="{ backgroundColor: metric.color }" />
+                    <i class="trend-legend-item__dot" :style="{ backgroundColor: metric.color() }" />
                     <span class="trend-legend-item__text">{{ metric.shortLabel }}</span>
                     <strong class="trend-legend-item__value">{{ metric.currentValue }}</strong>
                   </span>
@@ -214,7 +214,7 @@
                 />
                 <footer class="trend-small-card__footer">
                   <span class="trend-legend-item" data-trend-legend-item="true">
-                    <i class="trend-legend-item__dot" :style="{ backgroundColor: metric.color }" />
+                    <i class="trend-legend-item__dot" :style="{ backgroundColor: metric.color() }" />
                     <span class="trend-legend-item__text">{{ metric.shortLabel }}</span>
                   </span>
                   <span v-if="metric.helperText" class="trend-section-header__helper">
@@ -266,7 +266,7 @@
               </header>
               <div class="trend-section-legend" data-trend-legend-group="focus">
                 <span class="trend-legend-item" data-trend-legend-item="true">
-                  <i class="trend-legend-item__dot" :style="{ backgroundColor: currentFocusMetric?.color }" />
+                  <i class="trend-legend-item__dot" :style="{ backgroundColor: currentFocusMetric?.color() }" />
                   <span class="trend-legend-item__text">{{ currentFocusMetric?.label }}</span>
                 </span>
                 <span v-if="focusReferenceText" class="trend-section-header__helper">
@@ -432,7 +432,7 @@ interface TrendMetricDefinition {
   unit: TrendMetricUnit;
   group: TrendMetricGroup;
   groupLabel: string;
-  color: string;
+  color: () => string;
   axis: TrendMetricAxis;
   description: string;
   formatter: (value: number | null) => string;
@@ -529,7 +529,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: '%',
       group: 'resourceUsage',
       groupLabel: t('monitor.serverStatus.trendGroupResourceUsage'),
-      color: readThemeToken('--td-brand-color', '#2F6BFF'),
+      color: () => readMetricThemeColor('--td-brand-color', '#2F6BFF'),
       axis: 'percent',
       description: t('monitor.serverStatus.chartCpuDescription'),
       formatter: formatPercentPrecise,
@@ -548,7 +548,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: '%',
       group: 'resourceUsage',
       groupLabel: t('monitor.serverStatus.trendGroupResourceUsage'),
-      color: readThemeToken('--td-success-color-5', '#1B9C6B'),
+      color: () => readMetricThemeColor('--td-success-color-5', '#1B9C6B'),
       axis: 'percent',
       description: t('monitor.serverStatus.chartHostMemoryDescription'),
       formatter: formatPercentPrecise,
@@ -567,7 +567,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'load',
       group: 'systemLoad',
       groupLabel: t('monitor.serverStatus.trendGroupSystemLoad'),
-      color: readThemeToken('--td-warning-color-5', '#D97706'),
+      color: () => readMetricThemeColor('--td-warning-color-5', '#D97706'),
       axis: 'load',
       description: t('monitor.serverStatus.chartLoadDescription'),
       formatter: formatLoadAverage,
@@ -588,7 +588,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'MB',
       group: 'goRuntime',
       groupLabel: t('monitor.serverStatus.trendGroupGoRuntime'),
-      color: readThemeToken('--td-brand-color-7', '#7B4DFF'),
+      color: () => readMetricThemeColor('--td-brand-color-7', '#7B4DFF'),
       axis: 'bytes',
       description: t('monitor.serverStatus.chartRuntimeAllocDescription'),
       formatter: formatBytes,
@@ -606,7 +606,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'MB',
       group: 'goRuntime',
       groupLabel: t('monitor.serverStatus.trendGroupGoRuntime'),
-      color: readThemeToken('--td-brand-color-5', '#17A2B8'),
+      color: () => readMetricThemeColor('--td-brand-color-5', '#17A2B8'),
       axis: 'bytes',
       description: t('monitor.serverStatus.chartRuntimeHeapDescription'),
       formatter: formatBytes,
@@ -624,7 +624,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'MB',
       group: 'goRuntime',
       groupLabel: t('monitor.serverStatus.trendGroupGoRuntime'),
-      color: readThemeToken('--td-error-color-6', '#A56A2A'),
+      color: () => readMetricThemeColor('--td-error-color-6', '#A56A2A'),
       axis: 'bytes',
       description: t('monitor.serverStatus.chartRuntimeSysDescription'),
       formatter: formatBytes,
@@ -642,7 +642,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'count',
       group: 'goRuntime',
       groupLabel: t('monitor.serverStatus.trendGroupGoRuntime'),
-      color: readThemeToken('--td-error-color-5', '#D9488B'),
+      color: () => readMetricThemeColor('--td-error-color-5', '#D9488B'),
       axis: 'count',
       description: t('monitor.serverStatus.chartGoroutinesDescription'),
       formatter: formatCountValue,
@@ -1416,7 +1416,7 @@ function buildTrendChartOptions(points: ServerStatusTrendPoint[], chartColors: T
 
 function buildOverviewUsageChartOption(labels: string[], metrics: TrendMetricDefinition[], chartColors: TChartColor) {
   return {
-    color: metrics.map((metric) => metric.color),
+    color: metrics.map((metric) => metric.color()),
     tooltip: buildTooltip(chartColors, metrics),
     grid: {
       left: '18px',
@@ -1435,7 +1435,7 @@ function buildOverviewLoadChartOption(labels: string[], metrics: TrendMetricDefi
   const loadMetric = metrics[0];
 
   return {
-    color: [loadMetric.color],
+    color: [loadMetric.color()],
     tooltip: buildTooltip(chartColors, metrics),
     grid: {
       left: '18px',
@@ -1452,7 +1452,7 @@ function buildOverviewLoadChartOption(labels: string[], metrics: TrendMetricDefi
 
 function buildSmallMultipleTrendChartOption(labels: string[], metric: TrendMetricDefinition, chartColors: TChartColor) {
   return {
-    color: [metric.color],
+    color: [metric.color()],
     tooltip: buildTooltip(chartColors, [metric]),
     grid: {
       left: '18px',
@@ -1474,7 +1474,7 @@ function buildSmallMultipleTrendChartOption(labels: string[], metric: TrendMetri
 
 function buildFocusTrendChartOption(labels: string[], metric: TrendMetricDefinition, chartColors: TChartColor) {
   return {
-    color: [metric.color],
+    color: [metric.color()],
     tooltip: buildTooltip(chartColors, [metric]),
     grid: {
       left: '18px',
@@ -1653,6 +1653,11 @@ function formatAxisValue(value: number, axisType: 'percent' | 'load' | 'bytes' |
     default:
       return `${value}`;
   }
+}
+
+function readMetricThemeColor(token: string, fallback: string) {
+  void settingStore.resolvedThemeTokensForDisplayMode;
+  return readThemeToken(token, fallback);
 }
 
 function readThemeToken(token: string, fallback: string) {
