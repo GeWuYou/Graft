@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -113,12 +112,7 @@ func TestRunDevAirWrapsRunnerError(t *testing.T) {
 // TestServerAirConfigUsesEntrypointForServe 验证仓库内置的 Air 配置使用 entrypoint 数组
 // 来表达 `graft serve`，避免把可执行文件与参数拼成一个错误路径。
 func TestServerAirConfigUsesEntrypointForServe(t *testing.T) {
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve current test file path")
-	}
-
-	configPath := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".air.toml"))
+	configPath := serverAirConfigPath(t)
 	content, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("read %s: %v", configPath, err)
@@ -130,6 +124,12 @@ func TestServerAirConfigUsesEntrypointForServe(t *testing.T) {
 	}
 	if strings.Contains(config, `bin = "./tmp/graft serve"`) {
 		t.Fatalf("legacy build.bin form must not be used because Air treats it as a single binary path:\n%s", config)
+	}
+	if !strings.Contains(config, `entrypoint = ['tmp\graft.exe', "serve"]`) {
+		t.Fatalf("expected Windows Air config to use entrypoint array for graft serve, got:\n%s", config)
+	}
+	if strings.Contains(config, `bin = 'tmp\graft.exe serve'`) {
+		t.Fatalf("legacy Windows build.bin form must not be used because Air treats it as a single binary path:\n%s", config)
 	}
 }
 
@@ -169,5 +169,25 @@ func TestNewRootCommandRegistersDevAirCommand(t *testing.T) {
 	}
 	if found == nil || found.Name() != "air" {
 		t.Fatalf("expected air command, got %#v", found)
+	}
+}
+
+func serverAirConfigPath(t *testing.T) string {
+	t.Helper()
+
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working dir: %v", err)
+	}
+	for {
+		if filepath.Base(dir) == "server" {
+			return filepath.Join(dir, ".air.toml")
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("resolve server/.air.toml")
+		}
+		dir = parent
 	}
 }
