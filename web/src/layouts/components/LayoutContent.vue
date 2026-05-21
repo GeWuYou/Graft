@@ -61,11 +61,13 @@
       </t-tab-panel>
     </t-tabs>
     <t-content :class="`${prefix}-content-layout`">
-      <l-breadcrumb v-if="settingStore.showBreadcrumb" />
-      <l-content />
+      <div :class="`${prefix}-content-layout__body`">
+        <l-breadcrumb v-if="settingStore.showBreadcrumb" />
+        <l-content />
+      </div>
     </t-content>
-    <t-footer v-if="settingStore.showFooter" :class="`${prefix}-footer-layout`">
-      <l-footer />
+    <t-footer v-if="showFooter" :class="`${prefix}-footer-layout`">
+      <l-footer :content="footerText" />
     </t-footer>
   </t-layout>
 </template>
@@ -76,7 +78,9 @@ import type { LocationQueryRaw } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
+import { MESSAGE_KEY } from '@/contracts/api/messages';
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
+import { LOCALE } from '@/contracts/i18n/locales';
 import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
 import { useSettingStore, useTabsRouterStore } from '@/store';
@@ -93,6 +97,10 @@ const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
 const tabRouters = computed(() => tabsRouterStore.tabRouters.filter((route) => route.isAlive || route.isHome));
 const activeTabPath = ref<string | null>('');
+const footerMeta = computed(() => route.meta.footer);
+const showFooter = computed(
+  () => settingStore.showFooter && footerMeta.value !== false && footerMeta.value?.visible !== false,
+);
 const pageSurfaceType = computed<'shell' | 'overview-dashboard' | 'list-form-detail'>(() => {
   if (route.path.startsWith('/monitor/')) {
     return 'overview-dashboard';
@@ -105,6 +113,29 @@ const pageSurfaceType = computed<'shell' | 'overview-dashboard' | 'list-form-det
   return 'shell';
 });
 const layoutSurfaceCls = computed(() => [`${prefix}-layout`, `${prefix}-layout--${pageSurfaceType.value}`]);
+const footerText = computed(() => {
+  const footer = footerMeta.value;
+
+  if (footer === false) {
+    return t(MESSAGE_KEY.COMMON_COPYRIGHT);
+  }
+
+  const content = footer?.content;
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  if (content) {
+    return (
+      content[locale.value as keyof LocalizedTitle] ||
+      content[LOCALE.ZH_CN] ||
+      content[LOCALE.EN_US] ||
+      t(MESSAGE_KEY.COMMON_COPYRIGHT)
+    );
+  }
+
+  return t(MESSAGE_KEY.COMMON_COPYRIGHT);
+});
 
 const { locale } = useLocale();
 
@@ -196,12 +227,42 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
 <style lang="less" scoped>
 .t-layout[data-page-type] {
   background: transparent;
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
 }
 
 .t-layout[data-page-type] :deep(.tdesign-starter-layout-tabs-nav) {
   background: var(--td-bg-color-container);
   border-bottom: 1px solid var(--td-component-stroke);
+}
+
+.t-layout[data-page-type] :deep(.t-layout__content) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.t-layout[data-page-type] :deep(.tdesign-starter-content-layout) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--td-comp-margin-xl);
+  min-height: 0;
+  padding: var(--td-comp-paddingTB-xl) var(--td-comp-paddingLR-xl) 0;
+}
+
+.t-layout[data-page-type] :deep(.tdesign-starter-content-layout__body) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.t-layout[data-page-type] :deep(.tdesign-starter-footer-layout) {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .t-layout[data-page-type='overview-dashboard'] :deep(.tdesign-starter-content-layout) {

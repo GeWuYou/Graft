@@ -2,6 +2,12 @@
 
 // layout rewrite
 
+:root {
+  --graft-page-footer-height: 44px;
+  --graft-floating-toolbar-safe-space: 96px;
+  --graft-page-bottom-safe-space: var(--graft-floating-toolbar-safe-space);
+}
+
 .t-layout__sider {
   width: fit-content;
 }
@@ -62,7 +68,7 @@
 
   &-main-wrapper {
     height: 500px;
-    overflow: scroll;
+    overflow: auto;
   }
 
   &-side-nav-layout {
@@ -77,7 +83,7 @@
 
   &-layout {
     height: calc(100vh - var(--td-comp-size-xxxl));
-    overflow-y: scroll;
+    overflow-y: auto;
 
     &-tabs-nav {
       max-width: 100%;
@@ -103,7 +109,7 @@
   }
 
   &-footer-layout {
-    margin-bottom: var(--td-comp-margin-xxl);
+    margin: 0;
     padding: 0;
   }
 

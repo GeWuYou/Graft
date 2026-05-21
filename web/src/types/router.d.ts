@@ -3,6 +3,7 @@ import 'vue-router';
 import type { Component, DefineComponent, FunctionalComponent } from 'vue';
 
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
+import type { PageFooterMeta } from '@/utils/types';
 
 export {};
 declare module 'vue-router' {
@@ -18,5 +19,6 @@ declare module 'vue-router' {
     keepAlive?: boolean;
     frameSrc?: string;
     frameBlank?: boolean;
+    footer?: false | PageFooterMeta;
   }
 }

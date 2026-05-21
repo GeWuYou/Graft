@@ -4,6 +4,12 @@ import type { LocationQueryRaw, RouteRecordName, RouteRecordRaw } from 'vue-rout
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
 
 export type ModeType = 'light' | 'dark';
+export type PageFooterContent = string | LocalizedTitle;
+
+export interface PageFooterMeta {
+  visible?: boolean;
+  content?: PageFooterContent;
+}
 
 /**
  * AppRouteMeta describes the stable route metadata consumed by the `web` shell.
@@ -30,6 +36,7 @@ export interface AppRouteMeta {
   frameSrc?: string;
   frameBlank?: boolean;
   keepAlive?: boolean;
+  footer?: false | PageFooterMeta;
 }
 
 export interface MenuRoute extends Omit<RouteRecordRaw, 'children' | 'meta'> {
