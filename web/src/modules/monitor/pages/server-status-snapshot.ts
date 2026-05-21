@@ -1,7 +1,8 @@
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { getServerStatus } from '../api/server-status';
+import { useMonitorRefreshPreferences } from '../composables/use-monitor-refresh-preferences';
 import { MONITOR_TREND_RANGE } from '../contract/trend';
 import type { ServerStatusResponse } from '../types/server-status';
 
@@ -11,37 +12,163 @@ export type DependencyDisplayStatus = 'healthy' | 'abnormal' | 'notConfigured' |
 
 export function useServerStatusSnapshot() {
   const { t } = useI18n();
+  const {
+    autoRefreshEnabled,
+    refreshIntervalOptions,
+    selectedRefreshInterval,
+    selectedRefreshIntervalLabel,
+    toggleAutoRefresh: toggleSharedAutoRefresh,
+  } = useMonitorRefreshPreferences();
 
   const loading = ref(false);
   const initialized = ref(false);
   const errorMessage = ref('');
+  const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
+  const remainingRefreshSeconds = ref<number | null>(null);
   const serverStatus = ref<ServerStatusResponse | null>(null);
+  const consecutiveFailures = ref(0);
+
+  let nextRefreshAt: number | null = null;
+  let refreshTickTimer: number | null = null;
 
   async function refreshSnapshot() {
+    stopRefreshTick();
+
+    if (loading.value) {
+      return;
+    }
+
     loading.value = true;
     errorMessage.value = '';
 
     try {
       serverStatus.value = await getServerStatus(MONITOR_TREND_RANGE.TEN_MINUTES);
+      consecutiveFailures.value = 0;
     } catch (error) {
+      consecutiveFailures.value += 1;
       errorMessage.value = resolveErrorMessage(error, t('monitor.shared.loadFailed'));
     } finally {
       loading.value = false;
       initialized.value = true;
+      scheduleNextRefresh();
     }
+  }
+
+  const refreshCountdownText = computed(() => {
+    if (!autoRefreshEnabled.value) {
+      return t('monitor.serverStatus.nextRefreshPausedByUser');
+    }
+
+    if (!isPageVisible.value) {
+      return t('monitor.serverStatus.nextRefreshPaused');
+    }
+
+    if (remainingRefreshSeconds.value === null) {
+      return t('monitor.serverStatus.nextRefreshPending');
+    }
+
+    if (consecutiveFailures.value > 0) {
+      return t('monitor.serverStatus.nextRefreshRetryIn', {
+        seconds: String(remainingRefreshSeconds.value),
+        interval: selectedRefreshIntervalLabel.value,
+      });
+    }
+
+    return t('monitor.serverStatus.nextRefreshIn', {
+      seconds: String(remainingRefreshSeconds.value),
+    });
+  });
+
+  function handleVisibilityChange() {
+    isPageVisible.value = document.visibilityState === 'visible';
+
+    if (isPageVisible.value && autoRefreshEnabled.value) {
+      void refreshSnapshot();
+      return;
+    }
+
+    stopRefreshTick();
+    remainingRefreshSeconds.value = null;
   }
 
   onMounted(() => {
     void refreshSnapshot();
+    document.addEventListener('visibilitychange', handleVisibilityChange, false);
   });
 
+  onUnmounted(() => {
+    stopRefreshTick();
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  });
+
+  watch(selectedRefreshInterval, () => {
+    scheduleNextRefresh();
+  });
+
+  function scheduleNextRefresh() {
+    stopRefreshTick();
+
+    if (!autoRefreshEnabled.value || !isPageVisible.value) {
+      remainingRefreshSeconds.value = null;
+      return;
+    }
+
+    const backoffMultiplier = consecutiveFailures.value > 0 ? 2 ** consecutiveFailures.value : 1;
+    const delaySeconds = Math.min(selectedRefreshInterval.value * backoffMultiplier, 5 * 60);
+    nextRefreshAt = Date.now() + delaySeconds * 1000;
+    updateRemainingRefreshSeconds();
+
+    refreshTickTimer = window.setInterval(() => {
+      updateRemainingRefreshSeconds();
+
+      if (remainingRefreshSeconds.value === 0) {
+        void refreshSnapshot();
+      }
+    }, 1000);
+  }
+
+  function stopRefreshTick() {
+    if (refreshTickTimer !== null) {
+      window.clearInterval(refreshTickTimer);
+      refreshTickTimer = null;
+    }
+
+    nextRefreshAt = null;
+  }
+
+  function toggleAutoRefresh() {
+    toggleSharedAutoRefresh();
+
+    if (autoRefreshEnabled.value && isPageVisible.value) {
+      void refreshSnapshot();
+      return;
+    }
+
+    stopRefreshTick();
+    remainingRefreshSeconds.value = null;
+  }
+
+  function updateRemainingRefreshSeconds() {
+    if (nextRefreshAt === null) {
+      remainingRefreshSeconds.value = null;
+      return;
+    }
+
+    remainingRefreshSeconds.value = Math.max(0, Math.ceil((nextRefreshAt - Date.now()) / 1000));
+  }
+
   return {
+    autoRefreshEnabled,
     loading,
     initialized,
     errorMessage,
+    refreshCountdownText,
+    refreshIntervalOptions,
+    selectedRefreshInterval,
     serverStatus,
     refreshSnapshot,
     observedAt: computed(() => serverStatus.value?.observed_at ?? ''),
+    toggleAutoRefresh,
   };
 }
 

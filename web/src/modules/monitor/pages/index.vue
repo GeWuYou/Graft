@@ -1,106 +1,58 @@
 <template>
-  <div
+  <server-status-page-shell
     class="monitor-dashboard"
-    data-page-type="overview-dashboard"
-    :data-status="overallStatus"
-    :data-theme-mode="settingStore.displayMode"
+    :eyebrow="t('monitor.sectionTitle')"
+    :title="t('monitor.serverStatus.overviewTitle')"
+    :description="t('monitor.serverStatus.overviewHint')"
   >
-    <header class="dashboard-header">
-      <div class="dashboard-header__main">
-        <div class="dashboard-header__title-row">
-          <div class="dashboard-header__copy">
-            <p class="dashboard-header__section">{{ t('monitor.sectionTitle') }}</p>
-            <h1 class="dashboard-header__title">{{ t('monitor.serverStatus.overviewTitle') }}</h1>
-          </div>
-          <t-tag class="dashboard-header__status" :theme="statusTheme(overallStatus)" variant="light">
-            {{ overallStatusLabel(overallStatus) }}
-          </t-tag>
-        </div>
-        <div class="dashboard-header__meta">
-          <span>{{ t('monitor.serverStatus.lastUpdated', { time: formatTimestamp(lastUpdatedAt) }) }}</span>
-          <span>{{
-            t('monitor.serverStatus.lastObserved', { time: formatTimestamp(serverStatus?.observed_at) })
-          }}</span>
-        </div>
-      </div>
+    <template #toolbar>
+      <monitor-toolbar
+        :auto-refresh-enabled="autoRefreshEnabled"
+        :loading="loading"
+        :pause-auto-refresh-label="t('monitor.serverStatus.pauseRefresh')"
+        :refresh-interval-label="t('monitor.serverStatus.refreshIntervalLabel')"
+        :refresh-interval-options="refreshIntervalOptions"
+        :refresh-interval-value="selectedRefreshInterval"
+        :refresh-now-label="t('monitor.serverStatus.refreshNow')"
+        :resume-auto-refresh-label="t('monitor.serverStatus.resumeRefresh')"
+        :show-trend-range="true"
+        :status="toolbarStatus"
+        :status-label="overallStatusLabel(overallStatus)"
+        :trend-range-label="t('monitor.serverStatus.trendWindowLabel')"
+        :trend-range-options="trendRangeOptions"
+        :trend-range-value="selectedTrendRange"
+        @refresh="() => fetchServerStatus({ manual: true })"
+        @toggle-auto-refresh="toggleAutoRefresh"
+        @update:refresh-interval-value="handleRefreshIntervalChange"
+        @update:trend-range-value="handleTrendRangeChange"
+      />
+    </template>
 
-      <aside class="dashboard-actions" :data-status="refreshFeedbackTone">
-        <div class="dashboard-actions__summary">
-          <div class="dashboard-actions__item">
-            <span class="dashboard-actions__label">{{ t('monitor.serverStatus.refreshIntervalLabel') }}</span>
-            <strong class="dashboard-actions__value">{{ t('monitor.serverStatus.refreshFixedValue') }}</strong>
-          </div>
-          <div class="dashboard-actions__item">
-            <span class="dashboard-actions__label">{{ t('monitor.serverStatus.trendWindowLabel') }}</span>
-            <strong class="dashboard-actions__value">{{ selectedTrendRangeLabel }}</strong>
-          </div>
-        </div>
-
-        <div class="dashboard-actions__controls">
-          <t-button
-            class="dashboard-actions__button"
-            theme="primary"
-            :loading="loading"
-            @click="() => fetchServerStatus({ manual: true })"
-          >
-            <template #icon>
-              <refresh-icon />
-            </template>
-            {{ t('monitor.serverStatus.refreshNow') }}
-          </t-button>
-          <t-button class="dashboard-actions__button" variant="outline" @click="toggleAutoRefresh">
-            {{ autoRefreshEnabled ? t('monitor.serverStatus.pauseRefresh') : t('monitor.serverStatus.resumeRefresh') }}
-          </t-button>
-        </div>
-      </aside>
-    </header>
-
-    <section class="dashboard-feedback" :data-status="refreshFeedbackTone">
-      <article class="dashboard-feedback__item">
-        <span class="dashboard-feedback__label">{{ t('monitor.serverStatus.refreshStateLabel') }}</span>
-        <strong class="dashboard-feedback__value">{{ refreshCountdownText }}</strong>
-      </article>
-      <article class="dashboard-feedback__item">
-        <span class="dashboard-feedback__label">{{ t('monitor.serverStatus.observedAtLabel') }}</span>
-        <strong class="dashboard-feedback__value">{{ formatTimestamp(serverStatus?.observed_at) }}</strong>
-      </article>
-    </section>
-
-    <section class="metric-grid">
-      <t-card
+    <template #summary>
+      <summary-metric-card
         v-for="card in metricCards"
         :key="card.key"
-        class="metric-card"
-        :bordered="false"
-        :data-status="card.tone"
         :data-card-key="card.key"
-      >
-        <div class="metric-card__header">
-          <span class="metric-card__label">{{ card.label }}</span>
-          <t-tag class="metric-card__status" :theme="card.tagTheme" variant="light">
-            {{ card.statusLabel }}
-          </t-tag>
-        </div>
-        <div class="metric-card__body">
-          <strong class="metric-card__value">{{ card.value }}</strong>
-          <span class="metric-card__value-side">{{ card.valueSide }}</span>
-        </div>
-        <span class="metric-card__meta">{{ card.meta }}</span>
-        <p class="metric-card__description">{{ card.description }}</p>
-      </t-card>
-    </section>
+        :title="card.label"
+        :value="card.value"
+        :value-aside="card.valueSide"
+        :description="`${card.meta} · ${card.description}`"
+        :status="metricToneToServerStatusTone(card.tone)"
+        :status-label="card.statusLabel"
+      />
+    </template>
 
-    <section class="panel-grid panel-grid--primary">
-      <t-card class="panel-card trend-panel" :bordered="false" :title="t('monitor.serverStatus.trendCardTitle')">
+    <div class="server-status-overview-layout">
+      <section-card
+        class="server-status-overview-layout__trend"
+        :title="t('monitor.serverStatus.trendCardTitle')"
+        :description="refreshCountdownText"
+        :min-height="520"
+      >
         <template #actions>
           <div class="trend-panel__actions">
             <t-radio-group v-model="selectedTrendMode" variant="default-filled" size="small">
               <t-radio-button v-for="option in trendModeOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </t-radio-button>
-            </t-radio-group>
-            <t-radio-group v-model="selectedTrendRange" variant="default-filled" size="small">
-              <t-radio-button v-for="option in trendRangeOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </t-radio-button>
             </t-radio-group>
@@ -329,9 +281,14 @@
             </div>
           </transition>
         </div>
-      </t-card>
+      </section-card>
 
-      <t-card class="panel-card status-sidebar" :bordered="false" :title="t('monitor.serverStatus.runtimeStatusTitle')">
+      <section-card
+        class="server-status-overview-layout__status"
+        :title="t('monitor.serverStatus.runtimeStatusTitle')"
+        :description="t('monitor.serverStatus.runtimeStatusSubtitle')"
+        :min-height="520"
+      >
         <div v-if="serverStatus" class="status-sidebar__content">
           <section class="status-sidebar__section" data-status-sidebar-group="dependencies">
             <header class="status-sidebar__section-header">
@@ -400,74 +357,17 @@
           </section>
         </div>
         <t-empty v-else :description="t('monitor.serverStatus.empty')" />
-      </t-card>
-    </section>
-
-    <section class="panel-grid panel-grid--runtime">
-      <t-card
-        v-for="section in runtimeSections"
-        :key="section.key"
-        class="panel-card runtime-card"
-        :bordered="false"
-        :title="section.title"
-      >
-        <template #actions>
-          <component :is="section.icon" class="runtime-card__icon" />
-        </template>
-
-        <div v-if="serverStatus" class="runtime-card__grid">
-          <div v-for="item in section.items" :key="item.key" class="runtime-card__item">
-            <span class="runtime-card__label">{{ item.label }}</span>
-            <strong class="runtime-card__value">{{ item.value }}</strong>
-          </div>
-        </div>
-        <t-empty v-else :description="t('monitor.serverStatus.empty')" />
-      </t-card>
-    </section>
-
-    <section class="panel-grid panel-grid--footer">
-      <t-card class="panel-card" :bordered="false" :title="t('monitor.serverStatus.diskDetailTitle')">
-        <div v-if="serverStatus" class="disk-detail">
-          <div class="disk-detail__summary">
-            <div class="disk-detail__item">
-              <span class="disk-detail__label">{{ t('monitor.serverStatus.diskPathLabel') }}</span>
-              <strong class="disk-detail__value">{{ diskDetail.path }}</strong>
-            </div>
-            <div class="disk-detail__item">
-              <span class="disk-detail__label">{{ t('monitor.serverStatus.diskFreeLabel') }}</span>
-              <strong class="disk-detail__value">{{ diskDetail.free }}</strong>
-            </div>
-          </div>
-
-          <t-table
-            class="disk-detail__table"
-            row-key="path"
-            size="small"
-            :data="diskDetailRows"
-            :columns="diskDetailColumns"
-          />
-        </div>
-        <t-empty v-else :description="t('monitor.serverStatus.empty')" />
-      </t-card>
-    </section>
-  </div>
+      </section-card>
+    </div>
+  </server-status-page-shell>
 </template>
 <script setup lang="ts">
 import { LineChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import {
-  ChartBubbleIcon,
-  CpuIcon,
-  DataBaseIcon,
-  InfoCircleIcon,
-  LinkIcon,
-  RefreshIcon,
-  ServerIcon,
-  TimeIcon,
-} from 'tdesign-icons-vue-next';
-import type { PrimaryTableCol, SelectProps } from 'tdesign-vue-next';
+import { DataBaseIcon, InfoCircleIcon, LinkIcon } from 'tdesign-icons-vue-next';
+import type { SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
 import type { Component } from 'vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -477,6 +377,13 @@ import type { TChartColor } from '@/config/color';
 import { useSettingStore } from '@/store';
 
 import { getServerStatus } from '../api/server-status';
+import MonitorToolbar from '../components/MonitorToolbar.vue';
+import SectionCard from '../components/SectionCard.vue';
+import type { ServerStatusTone } from '../components/server-status-ui';
+import ServerStatusPageShell from '../components/ServerStatusPageShell.vue';
+import SummaryMetricCard from '../components/SummaryMetricCard.vue';
+import { useMonitorRefreshPreferences } from '../composables/use-monitor-refresh-preferences';
+import type { MonitorRefreshInterval } from '../contract/refresh';
 import { MONITOR_TREND_RANGE, type MonitorTrendRange } from '../contract/trend';
 import type { ServerStatusDependency, ServerStatusResponse, ServerStatusTrendPoint } from '../types/server-status';
 
@@ -518,17 +425,6 @@ interface MetricCard {
   tone: MetricCardTone;
 }
 
-interface RuntimeSection {
-  key: string;
-  title: string;
-  icon: Component;
-  items: Array<{
-    key: string;
-    label: string;
-    value: string;
-  }>;
-}
-
 interface TrendMetricDefinition {
   key: FocusMetric;
   label: string;
@@ -565,10 +461,15 @@ interface StatusSidebarSummaryItem {
   value: string;
 }
 
-const FIXED_REFRESH_SECONDS = 5;
-
 const { t, locale } = useI18n();
 const settingStore = useSettingStore();
+const {
+  autoRefreshEnabled,
+  refreshIntervalOptions,
+  selectedRefreshInterval,
+  selectedRefreshIntervalLabel,
+  toggleAutoRefresh: toggleSharedAutoRefresh,
+} = useMonitorRefreshPreferences();
 const loading = ref(false);
 const serverStatus = ref<ServerStatusResponse | null>(null);
 const selectedTrendRange = ref<TrendRange>(MONITOR_TREND_RANGE.TEN_MINUTES);
@@ -577,7 +478,6 @@ const selectedFocusMetric = ref<FocusMetric>('cpu');
 const lastUpdatedAt = ref<string | null>(null);
 const consecutiveFailures = ref(0);
 const remainingRefreshSeconds = ref<number | null>(null);
-const autoRefreshEnabled = ref(true);
 const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
 
 const trendChartRefs = ref<Partial<Record<TrendChartKey, HTMLDivElement | null>>>({});
@@ -834,16 +734,6 @@ const overallStatus = computed<MonitorStatus>(() => {
   return 'unknown';
 });
 
-const refreshFeedbackTone = computed<MonitorStatus>(() => {
-  if (!autoRefreshEnabled.value) {
-    return 'disabled';
-  }
-  if (consecutiveFailures.value > 0 || !isPageVisible.value) {
-    return 'degraded';
-  }
-  return overallStatus.value;
-});
-
 const refreshCountdownText = computed(() => {
   if (!autoRefreshEnabled.value) {
     return t('monitor.serverStatus.nextRefreshPausedByUser');
@@ -857,7 +747,7 @@ const refreshCountdownText = computed(() => {
   if (consecutiveFailures.value > 0) {
     return t('monitor.serverStatus.nextRefreshRetryIn', {
       seconds: String(remainingRefreshSeconds.value),
-      interval: t('monitor.serverStatus.refreshFixedValue'),
+      interval: selectedRefreshIntervalLabel.value,
     });
   }
 
@@ -1025,183 +915,18 @@ const samplingStatusItems = computed<StatusSidebarSummaryItem[]>(() => [
     value: selectedTrendModeLabel.value,
   },
 ]);
-
-const runtimeSections = computed<RuntimeSection[]>(() => {
-  const response = serverStatus.value;
-  if (!response) {
-    return [
-      { key: 'runtime', title: t('monitor.serverStatus.runtimeGroupRuntime'), icon: TimeIcon, items: [] },
-      { key: 'process', title: t('monitor.serverStatus.runtimeGroupProcess'), icon: CpuIcon, items: [] },
-      { key: 'environment', title: t('monitor.serverStatus.runtimeGroupEnvironment'), icon: ServerIcon, items: [] },
-      { key: 'plugins', title: t('monitor.serverStatus.runtimeGroupPlugins'), icon: ChartBubbleIcon, items: [] },
-    ];
+const toolbarStatus = computed<ServerStatusTone>(() => {
+  switch (overallStatus.value) {
+    case 'healthy':
+      return 'healthy';
+    case 'degraded':
+      return 'warning';
+    case 'disabled':
+      return 'disabled';
+    default:
+      return 'unknown';
   }
-
-  const abnormalPlugins = Math.max(response.summary.total_plugins - response.summary.healthy_plugins, 0);
-
-  return [
-    {
-      key: 'runtime',
-      title: t('monitor.serverStatus.runtimeGroupRuntime'),
-      icon: TimeIcon,
-      items: [
-        { key: 'version', label: t('monitor.serverStatus.versionLabel'), value: response.server.version || '-' },
-        { key: 'app', label: t('monitor.serverStatus.appLabel'), value: response.server.app_name || '-' },
-        { key: 'env', label: t('monitor.serverStatus.envLabel'), value: response.server.app_env || '-' },
-        {
-          key: 'uptime',
-          label: t('monitor.serverStatus.uptimeLabel'),
-          value: formatUptime(response.server.uptime_seconds),
-        },
-        {
-          key: 'startedAt',
-          label: t('monitor.serverStatus.startedAtLabel'),
-          value: formatTimestamp(response.server.started_at),
-        },
-        {
-          key: 'observedAt',
-          label: t('monitor.serverStatus.observedAtLabel'),
-          value: formatTimestamp(response.observed_at),
-        },
-      ],
-    },
-    {
-      key: 'process',
-      title: t('monitor.serverStatus.runtimeGroupProcess'),
-      icon: CpuIcon,
-      items: [
-        {
-          key: 'goroutines',
-          label: t('monitor.serverStatus.goroutinesLabel'),
-          value: t('monitor.serverStatus.goroutinesValue', { count: String(response.runtime.goroutines) }),
-        },
-        {
-          key: 'alloc',
-          label: t('monitor.serverStatus.runtimeAllocLabel'),
-          value: formatBytes(response.runtime.runtime_alloc_bytes),
-        },
-        {
-          key: 'heap',
-          label: t('monitor.serverStatus.heapLabel'),
-          value: formatBytes(response.runtime.runtime_heap_in_use_bytes),
-        },
-        {
-          key: 'sys',
-          label: t('monitor.serverStatus.runtimeSysLabel'),
-          value: formatBytes(response.runtime.runtime_sys_bytes),
-        },
-        {
-          key: 'gc',
-          label: t('monitor.serverStatus.gcLabel'),
-          value: t('monitor.serverStatus.gcValue', { count: String(response.runtime.runtime_gc_cycles) }),
-        },
-        {
-          key: 'goVersion',
-          label: t('monitor.serverStatus.goVersionLabel'),
-          value: response.runtime.go_version || '-',
-        },
-      ],
-    },
-    {
-      key: 'environment',
-      title: t('monitor.serverStatus.runtimeGroupEnvironment'),
-      icon: ServerIcon,
-      items: [
-        { key: 'host', label: t('monitor.serverStatus.hostLabel'), value: response.runtime.host_name || '-' },
-        {
-          key: 'platform',
-          label: t('monitor.serverStatus.platformLabel'),
-          value: `${response.runtime.operating_system}/${response.runtime.architecture}`,
-        },
-        {
-          key: 'cpu',
-          label: t('monitor.serverStatus.cpuLabel'),
-          value: t('monitor.serverStatus.cpuValue', { count: String(response.runtime.cpu_cores) }),
-        },
-        {
-          key: 'hostMemory',
-          label: t('monitor.serverStatus.hostMemoryLabel'),
-          value: t('monitor.serverStatus.hostMemoryValue', {
-            used: formatBytes(response.runtime.host_memory_used_bytes),
-            total: formatBytes(response.runtime.host_memory_total_bytes),
-          }),
-        },
-        {
-          key: 'dependencies',
-          label: t('monitor.serverStatus.summaryDependencies'),
-          value: t('monitor.serverStatus.summaryDependenciesValue', {
-            healthy: String(response.summary.healthy_dependencies),
-            total: String(response.summary.total_dependencies),
-          }),
-        },
-        {
-          key: 'dependenciesMeta',
-          label: t('monitor.serverStatus.summaryDependenciesDetail'),
-          value: t('monitor.serverStatus.summaryDependenciesMeta', {
-            degraded: String(response.summary.degraded_dependencies),
-            disabled: String(response.summary.disabled_dependencies),
-          }),
-        },
-      ],
-    },
-    {
-      key: 'plugins',
-      title: t('monitor.serverStatus.runtimeGroupPlugins'),
-      icon: ChartBubbleIcon,
-      items: [
-        {
-          key: 'pluginTotal',
-          label: t('monitor.serverStatus.pluginRegistered'),
-          value: String(response.summary.total_plugins),
-        },
-        {
-          key: 'pluginHealthy',
-          label: t('monitor.serverStatus.pluginHealthy'),
-          value: String(response.summary.healthy_plugins),
-        },
-        {
-          key: 'pluginAbnormal',
-          label: t('monitor.serverStatus.pluginAbnormal'),
-          value: String(abnormalPlugins),
-        },
-        {
-          key: 'pluginNames',
-          label: t('monitor.serverStatus.pluginName'),
-          value: response.plugins.map((plugin) => plugin.name).join(', ') || '-',
-        },
-      ],
-    },
-  ];
 });
-
-const diskDetail = computed(() => {
-  const disk = serverStatus.value?.runtime.disk_usage;
-  return {
-    path: normalizedDiskPath(disk?.path),
-    total: formatBytes(disk?.total_bytes ?? 0),
-    used: formatBytes(disk?.used_bytes ?? 0),
-    free: formatBytes(disk?.free_bytes ?? 0),
-    percent: formatPercent(disk?.used_percent ?? null),
-  };
-});
-
-const diskDetailRows = computed(() => [
-  {
-    path: diskDetail.value.path,
-    total: diskDetail.value.total,
-    used: diskDetail.value.used,
-    free: diskDetail.value.free,
-    percent: diskDetail.value.percent,
-  },
-]);
-
-const diskDetailColumns = computed<PrimaryTableCol[]>(() => [
-  { colKey: 'path', title: t('monitor.serverStatus.diskPathLabel') },
-  { colKey: 'total', title: t('monitor.serverStatus.diskTotalLabel') },
-  { colKey: 'used', title: t('monitor.serverStatus.diskUsedLabel') },
-  { colKey: 'free', title: t('monitor.serverStatus.diskFreeLabel') },
-  { colKey: 'percent', title: t('monitor.serverStatus.diskPercentLabel') },
-]);
 
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
   const requestedTrendRange = selectedTrendRange.value;
@@ -1244,7 +969,7 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
 }
 
 function toggleAutoRefresh() {
-  autoRefreshEnabled.value = !autoRefreshEnabled.value;
+  toggleSharedAutoRefresh();
 
   if (autoRefreshEnabled.value && isPageVisible.value) {
     void fetchServerStatus({ manual: true });
@@ -1263,7 +988,7 @@ function scheduleNextRefresh() {
   }
 
   const backoffMultiplier = consecutiveFailures.value > 0 ? 2 ** consecutiveFailures.value : 1;
-  const delaySeconds = Math.min(FIXED_REFRESH_SECONDS * backoffMultiplier, 5 * 60);
+  const delaySeconds = Math.min(selectedRefreshInterval.value * backoffMultiplier, 5 * 60);
   nextRefreshAt = Date.now() + delaySeconds * 1000;
   updateRemainingRefreshSeconds();
 
@@ -1302,6 +1027,14 @@ function handleVisibilityChange() {
 
   stopRefreshTick();
   remainingRefreshSeconds.value = null;
+}
+
+function handleRefreshIntervalChange(value: number | string) {
+  selectedRefreshInterval.value = value as MonitorRefreshInterval;
+}
+
+function handleTrendRangeChange(value: number | string) {
+  selectedTrendRange.value = value as TrendRange;
 }
 
 function normalizeStatus(status?: string): MonitorStatus {
@@ -1380,6 +1113,19 @@ function metricToneToMonitorStatus(tone: MetricCardTone): MonitorStatus {
     case 'warning':
     case 'critical':
       return 'degraded';
+    default:
+      return 'unknown';
+  }
+}
+
+function metricToneToServerStatusTone(tone: MetricCardTone): ServerStatusTone {
+  switch (tone) {
+    case 'healthy':
+      return 'healthy';
+    case 'warning':
+      return 'warning';
+    case 'critical':
+      return 'error';
     default:
       return 'unknown';
   }
@@ -1934,22 +1680,6 @@ function formatUptime(totalSeconds: number) {
   return `${hours}h ${minutes}m ${seconds}s`;
 }
 
-function formatTimestamp(value?: string | null) {
-  if (!value) {
-    return '--';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale.value, {
-    dateStyle: 'medium',
-    timeStyle: 'medium',
-  }).format(date);
-}
-
 function formatTimeOnly(value?: string | null) {
   if (!value) {
     return t('monitor.serverStatus.runtimeStatusNotAvailable');
@@ -2055,6 +1785,14 @@ watch(selectedTrendRange, async (nextRange, previousRange) => {
   await fetchServerStatus();
 });
 
+watch(selectedRefreshInterval, (nextValue, previousValue) => {
+  if (nextValue === previousValue) {
+    return;
+  }
+
+  scheduleNextRefresh();
+});
+
 onMounted(async () => {
   await fetchServerStatus();
   await nextTick();
@@ -2072,4 +1810,25 @@ onUnmounted(() => {
 </script>
 <style lang="less" scoped>
 @import './index.less';
+
+.server-status-overview-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.server-status-overview-layout__trend {
+  grid-column: span 8;
+}
+
+.server-status-overview-layout__status {
+  grid-column: span 4;
+}
+
+@media (width <= 991px) {
+  .server-status-overview-layout__trend,
+  .server-status-overview-layout__status {
+    grid-column: span 12;
+  }
+}
 </style>

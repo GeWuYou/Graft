@@ -11,11 +11,24 @@ const monitorApiMocks = vi.hoisted(() => ({
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'monitor.sectionTitle': 'Server Management',
-    'monitor.shared.refresh': 'Refresh now',
     'monitor.shared.loadFailed': 'Failed to load server status',
     'monitor.shared.empty': 'No server-status snapshot is available yet',
     'monitor.shared.errorTitle': 'Snapshot request failed',
     'monitor.shared.notReported': 'Not reported',
+    'monitor.serverStatus.refreshIntervalLabel': 'Refresh cadence',
+    'monitor.serverStatus.refreshInterval5Seconds': 'Every 5 sec',
+    'monitor.serverStatus.refreshInterval10Seconds': 'Every 10 sec',
+    'monitor.serverStatus.refreshInterval30Seconds': 'Every 30 sec',
+    'monitor.serverStatus.refreshInterval1Minute': 'Every 1 min',
+    'monitor.serverStatus.refreshNow': 'Refresh now',
+    'monitor.serverStatus.pauseRefresh': 'Pause auto refresh',
+    'monitor.serverStatus.resumeRefresh': 'Resume auto refresh',
+    'monitor.serverStatus.refreshStateLabel': 'Refresh state',
+    'monitor.serverStatus.nextRefreshPausedByUser': 'Auto refresh paused',
+    'monitor.serverStatus.nextRefreshPaused': 'Next refresh paused while the page is hidden',
+    'monitor.serverStatus.nextRefreshPending': 'Preparing the next refresh',
+    'monitor.serverStatus.nextRefreshIn': 'Next refresh in {seconds}s',
+    'monitor.serverStatus.nextRefreshRetryIn': 'Retry in {seconds}s · base interval {interval}',
     'monitor.dependenciesPage.title': 'Dependencies',
     'monitor.dependenciesPage.subtitle':
       'Review health signals for PostgreSQL, Redis, and the future extension point for plugin-owned dependency checks.',
@@ -87,8 +100,38 @@ const passthroughStub = defineComponent({
 
 const buttonStub = defineComponent({
   name: 'TButtonStub',
-  setup(_props, { slots }) {
-    return () => h('button', slots.default?.());
+  emits: ['click'],
+  setup(_props, { attrs, emit, slots }) {
+    return () => h('button', { ...attrs, onClick: (event: MouseEvent) => emit('click', event) }, slots.default?.());
+  },
+});
+
+const selectStub = defineComponent({
+  name: 'TSelectStub',
+  props: {
+    modelValue: {
+      type: [Number, String],
+      default: '',
+    },
+    options: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(
+        'select',
+        {
+          ...attrs,
+          value: String(props.modelValue),
+          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+        },
+        (props.options as Array<{ label: string; value: number | string }>).map((option) =>
+          h('option', { value: String(option.value) }, option.label),
+        ),
+      );
   },
 });
 
@@ -99,6 +142,7 @@ function mountDependenciesPage() {
         't-card': passthroughStub,
         't-tag': passthroughStub,
         't-button': buttonStub,
+        't-select': selectStub,
         't-empty': passthroughStub,
       },
     },
@@ -174,6 +218,18 @@ describe('monitor dependencies page', () => {
 
     const wrapper = mountDependenciesPage();
     await flushPromises();
+    const observedAt = new Date('2026-05-21T10:30:00Z');
+    const expectedTime = new Intl.DateTimeFormat(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(observedAt);
+    const expectedDate = new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    }).format(observedAt);
 
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
     expect(wrapper.text()).toContain('Dependencies');
@@ -181,7 +237,13 @@ describe('monitor dependencies page', () => {
     expect(wrapper.text()).toContain('Redis');
     expect(wrapper.text()).toContain('Healthy');
     expect(wrapper.text()).toContain('Not configured');
+    expect(wrapper.text()).toContain('Refresh cadence');
+    expect(wrapper.text()).toContain('Every 5 sec');
+    expect(wrapper.text()).toContain('Pause auto refresh');
     expect(wrapper.text()).toContain('Plugin dependency extension');
     expect(wrapper.text()).toContain('Redis client is not configured');
+    expect(wrapper.text()).toContain(expectedTime);
+    expect(wrapper.text()).toContain(expectedDate);
+    expect(wrapper.find('[data-monitor-refresh-extra-select="true"]').exists()).toBe(false);
   });
 });

@@ -17,6 +17,7 @@
       "runtimeMemoryTitle": "Go Runtime Memory",
       "runtimeMemoryDescription": "Current in-process memory usage and garbage collection snapshot.",
       "processBuildTitle": "Process and Build",
+      "processBuildDescription": "Current service build and runtime identity.",
       "hostEnvironmentTitle": "Server Environment",
       "serverEnvironmentDescription": "Whole-server memory snapshot, not the same as Go Runtime memory.",
       "summary": {
@@ -30,7 +31,7 @@
         "gcCyclesDescription": "Completed garbage collection rounds"
       },
       "fields": {
-        "runtimeAlloc": "Runtime alloc",
+        "runtimeAlloc": "Current alloc",
         "runtimeHeap": "Heap in use",
         "runtimeSys": "Runtime sys",
         "gcCycles": "GC count",
@@ -45,6 +46,7 @@
         "platform": "Platform",
         "cpuCores": "CPU cores",
         "hostMemory": "Server memory",
+        "hostMemoryUsage": "Memory usage",
         "observedAt": "Last observed",
         "refreshFrequency": "Refresh frequency",
         "loadAverage": "Load average"
@@ -71,6 +73,7 @@
     "dependenciesPage": {
       "title": "Dependencies",
       "subtitle": "Review health signals for PostgreSQL, Redis, and the future extension point for plugin-owned dependency checks.",
+      "serviceListTitle": "Dependency Services",
       "noteTitle": "Dependency health scope",
       "noteDescription": "The current page reflects the latest aggregated snapshot. Service-specific probes can extend this area later through plugin-owned health entries.",
       "statusHealthy": "Healthy",

@@ -2,7 +2,9 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
+import DependenciesPage from './dependencies.vue';
 import MonitorPage from './index.vue';
+import RuntimePage from './runtime.vue';
 
 const monitorApiMocks = vi.hoisted(() => ({
   getServerStatus: vi.fn(),
@@ -46,8 +48,12 @@ const translations = vi.hoisted(
     'monitor.sectionTitle': 'Server Management',
     'monitor.serverStatus.overviewTitle': 'Server Status Overview',
     'monitor.serverStatus.overviewHint':
-      'Review load, CPU, memory, disk, dependency state, runtime health, and short-window trends from a single status workspace.',
+      'Review overall server resources, dependency health, and the current Go process runtime summary.',
     'monitor.serverStatus.refreshIntervalLabel': 'Refresh cadence',
+    'monitor.serverStatus.refreshInterval5Seconds': 'Every 5 sec',
+    'monitor.serverStatus.refreshInterval10Seconds': 'Every 10 sec',
+    'monitor.serverStatus.refreshInterval30Seconds': 'Every 30 sec',
+    'monitor.serverStatus.refreshInterval1Minute': 'Every 1 min',
     'monitor.serverStatus.refreshFixedValue': 'Every 5 sec',
     'monitor.serverStatus.trendWindowLabel': 'Trend window',
     'monitor.serverStatus.refreshNow': 'Refresh now',
@@ -331,7 +337,7 @@ const selectStub = defineComponent({
   name: 'TSelectStub',
   props: {
     modelValue: {
-      type: String,
+      type: [Number, String],
       default: '',
     },
     options: {
@@ -340,17 +346,17 @@ const selectStub = defineComponent({
     },
   },
   emits: ['update:modelValue'],
-  setup(props, { emit }) {
+  setup(props, { attrs, emit }) {
     return () =>
       h(
         'select',
         {
-          value: props.modelValue,
-          'data-focus-select': 'true',
+          ...attrs,
+          value: String(props.modelValue),
           onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
         },
-        (props.options as Array<{ label: string; value: string }>).map((option) =>
-          h('option', { value: option.value }, option.label),
+        (props.options as Array<{ label: string; value: number | string }>).map((option) =>
+          h('option', { value: String(option.value) }, option.label),
         ),
       );
   },
@@ -538,8 +544,15 @@ function setVisibilityState(state: 'visible' | 'hidden') {
 }
 
 function mountMonitorPage() {
-  const wrapper = mount(MonitorPage, {
-    attachTo: document.body,
+  const wrapper = mountWithGlobalStubs(MonitorPage, { attachTo: document.body });
+
+  mountedWrappers.push(wrapper);
+  return wrapper;
+}
+
+function mountWithGlobalStubs(component: object, options: { attachTo?: Element } = {}) {
+  return mount(component, {
+    attachTo: options.attachTo,
     global: {
       stubs: {
         't-button': buttonStub,
@@ -556,13 +569,23 @@ function mountMonitorPage() {
       },
     },
   });
+}
+
+function mountRuntimePage() {
+  const wrapper = mountWithGlobalStubs(RuntimePage);
+  mountedWrappers.push(wrapper);
+  return wrapper;
+}
+
+function mountDependenciesPage() {
+  const wrapper = mountWithGlobalStubs(DependenciesPage);
 
   mountedWrappers.push(wrapper);
   return wrapper;
 }
 
 function metricCardText(wrapper: VueWrapper, key: string) {
-  return wrapper.find(`.metric-card[data-card-key="${key}"]`).text();
+  return wrapper.find(`[data-card-key="${key}"]`).text();
 }
 
 function sidebarGroupText(wrapper: VueWrapper, key: string) {
@@ -601,7 +624,7 @@ describe('MonitorPage', () => {
     vi.useRealTimers();
   });
 
-  it('loads server status and renders text-first metric cards, runtime sidebar, and disk detail', async () => {
+  it('loads server status and renders the unified overview shell with trend and runtime sidebar', async () => {
     monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
 
     const wrapper = mountMonitorPage();
@@ -613,6 +636,7 @@ describe('MonitorPage', () => {
     expect(wrapper.text()).toContain('Server Status Overview');
     expect(wrapper.text()).toContain('Refresh cadence');
     expect(wrapper.text()).toContain('Every 5 sec');
+    expect(wrapper.text()).toContain('Trend window');
     expect(wrapper.text()).toContain('Refresh now');
     expect(wrapper.text()).toContain('Pause auto refresh');
     expect(wrapper.text()).toContain('Load');
@@ -624,13 +648,12 @@ describe('MonitorPage', () => {
     expect(wrapper.text()).toContain('47%');
     expect(wrapper.text()).toContain('15.1 GB / 32.0 GB');
     expect(wrapper.text()).not.toContain('RAM');
-    expect(wrapper.text()).toContain('Go Process');
-    expect(wrapper.text()).toContain('Runtime alloc');
-    expect(wrapper.text()).toContain('Runtime sys');
-    expect(wrapper.text()).toContain('Disk Detail');
+    expect(wrapper.text()).toContain('Runtime Summary');
     expect(wrapper.text()).toContain('Runtime status');
     expect(wrapper.text()).not.toContain('Dependency Status');
-    expect(wrapper.findAll('.metric-card')).toHaveLength(4);
+    expect(wrapper.findAll('.server-status-summary-card')).toHaveLength(4);
+    expect(wrapper.findAll('.server-status-overview-layout__trend')).toHaveLength(1);
+    expect(wrapper.findAll('.server-status-overview-layout__status')).toHaveLength(1);
     expect(wrapper.find('.metric-card__ring').exists()).toBe(false);
     expect(chartMocks.init).toHaveBeenCalledTimes(2);
 
@@ -758,10 +781,6 @@ describe('MonitorPage', () => {
     expect(allOverviewText).toContain('Heap');
     expect(allOverviewText).toContain('Runtime Sys');
     expect(allOverviewText).toContain('Goroutines');
-
-    const table = wrapper.find('[data-table-rows]');
-    expect(table.exists()).toBe(true);
-    expect(table.attributes('data-table-rows')).toContain('"path":"/"');
   });
 
   it('renders no chart when fewer than two samples are available', async () => {
@@ -786,7 +805,7 @@ describe('MonitorPage', () => {
 
     wrapper.findAllComponents(radioGroupStub)[0]?.vm.$emit('update:modelValue', 'focus');
     await nextTick();
-    const focusOptions = wrapper.findAll('option');
+    const focusOptions = wrapper.findAll('[data-trend-focus-select="true"] option');
     expect(focusOptions).toHaveLength(7);
     expect(focusOptions.map((option) => option.text())).toEqual([
       'Resource Usage / CPU usage',
@@ -798,7 +817,7 @@ describe('MonitorPage', () => {
       'Go Runtime / Goroutines',
     ]);
 
-    await wrapper.find('[data-focus-select="true"]').setValue('runtimeSys');
+    await wrapper.find('[data-trend-focus-select="true"]').setValue('runtimeSys');
     await nextTick();
 
     const option = getLatestChartOption<{
@@ -887,7 +906,7 @@ describe('MonitorPage', () => {
     wrapper.findAllComponents(radioGroupStub)[0]?.vm.$emit('update:modelValue', 'multi');
     await nextTick();
 
-    wrapper.findAllComponents(radioGroupStub)[1]?.vm.$emit('update:modelValue', '30m');
+    await wrapper.find('[data-monitor-refresh-extra-select="true"]').setValue('30m');
     await flushPromises();
     await nextTick();
 
@@ -986,7 +1005,7 @@ describe('MonitorPage', () => {
     expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
     expect(monitorApiMocks.getServerStatus).toHaveBeenNthCalledWith(1, '10m');
 
-    wrapper.findAllComponents(radioGroupStub)[1]?.vm.$emit('update:modelValue', '30m');
+    await wrapper.find('[data-monitor-refresh-extra-select="true"]').setValue('30m');
     await flushPromises();
 
     resolveFirstRequest(createServerStatusResponse());
@@ -994,5 +1013,34 @@ describe('MonitorPage', () => {
 
     expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(2);
     expect(monitorApiMocks.getServerStatus).toHaveBeenNthCalledWith(2, '30m');
+  });
+
+  it('shares the selected refresh cadence across overview, runtime, and dependencies pages', async () => {
+    monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
+
+    const overviewWrapper = mountMonitorPage();
+    await flushPromises();
+    await nextTick();
+
+    await overviewWrapper.find('[data-monitor-refresh-interval-select="true"]').setValue('10');
+    await nextTick();
+
+    const runtimeWrapper = mountRuntimePage();
+    await flushPromises();
+    await nextTick();
+
+    const dependenciesWrapper = mountDependenciesPage();
+    await flushPromises();
+    await nextTick();
+
+    expect(
+      (overviewWrapper.find('[data-monitor-refresh-interval-select="true"]').element as HTMLSelectElement).value,
+    ).toBe('10');
+    expect(
+      (runtimeWrapper.find('[data-monitor-refresh-interval-select="true"]').element as HTMLSelectElement).value,
+    ).toBe('10');
+    expect(
+      (dependenciesWrapper.find('[data-monitor-refresh-interval-select="true"]').element as HTMLSelectElement).value,
+    ).toBe('10');
   });
 });

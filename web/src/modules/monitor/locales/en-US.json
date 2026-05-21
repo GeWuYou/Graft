@@ -3,8 +3,12 @@
     "sectionTitle": "Server Management",
     "serverStatus": {
       "overviewTitle": "Server Status Overview",
-      "overviewHint": "Review load, CPU, memory, disk, dependency state, runtime health, and short-window trends from a single status workspace.",
+      "overviewHint": "Review overall server resources, dependency health, and the current Go process runtime summary.",
       "refreshIntervalLabel": "Refresh cadence",
+      "refreshInterval5Seconds": "Every 5 sec",
+      "refreshInterval10Seconds": "Every 10 sec",
+      "refreshInterval30Seconds": "Every 30 sec",
+      "refreshInterval1Minute": "Every 1 min",
       "refreshFixedValue": "Every 5 sec",
       "trendWindowLabel": "Trend window",
       "refreshNow": "Refresh now",

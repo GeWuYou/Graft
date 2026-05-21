@@ -11,11 +11,24 @@ const monitorApiMocks = vi.hoisted(() => ({
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'monitor.sectionTitle': 'Server Management',
-    'monitor.shared.refresh': 'Refresh now',
     'monitor.shared.loadFailed': 'Failed to load server status',
     'monitor.shared.empty': 'No server-status snapshot is available yet',
     'monitor.shared.errorTitle': 'Snapshot request failed',
     'monitor.shared.notReported': 'Not reported',
+    'monitor.serverStatus.refreshIntervalLabel': 'Refresh cadence',
+    'monitor.serverStatus.refreshInterval5Seconds': 'Every 5 sec',
+    'monitor.serverStatus.refreshInterval10Seconds': 'Every 10 sec',
+    'monitor.serverStatus.refreshInterval30Seconds': 'Every 30 sec',
+    'monitor.serverStatus.refreshInterval1Minute': 'Every 1 min',
+    'monitor.serverStatus.refreshNow': 'Refresh now',
+    'monitor.serverStatus.pauseRefresh': 'Pause auto refresh',
+    'monitor.serverStatus.resumeRefresh': 'Resume auto refresh',
+    'monitor.serverStatus.refreshStateLabel': 'Refresh state',
+    'monitor.serverStatus.nextRefreshPausedByUser': 'Auto refresh paused',
+    'monitor.serverStatus.nextRefreshPaused': 'Next refresh paused while the page is hidden',
+    'monitor.serverStatus.nextRefreshPending': 'Preparing the next refresh',
+    'monitor.serverStatus.nextRefreshIn': 'Next refresh in {seconds}s',
+    'monitor.serverStatus.nextRefreshRetryIn': 'Retry in {seconds}s · base interval {interval}',
     'monitor.runtimePage.title': 'Runtime',
     'monitor.runtimePage.subtitle':
       'Inspect the current Go process snapshot, build details, and server environment while keeping server memory separate from Go Runtime memory.',
@@ -23,7 +36,6 @@ const translations = vi.hoisted(
     'monitor.runtimePage.snapshotPending': 'Waiting for snapshot',
     'monitor.runtimePage.memoryBoundaryNotice':
       'Memory scope: server memory covers the whole server, while Go Runtime memory covers only the current service process.',
-    'monitor.runtimePage.refreshFrequencyUnit': ' s',
     'monitor.runtimePage.runtimeMemoryTitle': 'Go Runtime Memory',
     'monitor.runtimePage.runtimeMemoryDescription': 'Current in-process memory usage and garbage collection snapshot.',
     'monitor.runtimePage.processBuildTitle': 'Process and Build',
@@ -38,7 +50,7 @@ const translations = vi.hoisted(
     'monitor.runtimePage.summary.runtimeAllocDescription': 'Currently allocated by the Go runtime',
     'monitor.runtimePage.summary.gcCycles': 'GC cycles',
     'monitor.runtimePage.summary.gcCyclesDescription': 'Completed garbage collection rounds',
-    'monitor.runtimePage.fields.runtimeAlloc': 'Runtime alloc',
+    'monitor.runtimePage.fields.runtimeAlloc': 'Current alloc',
     'monitor.runtimePage.fields.runtimeHeap': 'Heap in use',
     'monitor.runtimePage.fields.runtimeSys': 'Runtime sys',
     'monitor.runtimePage.fields.gcCycles': 'GC count',
@@ -53,8 +65,8 @@ const translations = vi.hoisted(
     'monitor.runtimePage.fields.platform': 'Platform',
     'monitor.runtimePage.fields.cpuCores': 'CPU cores',
     'monitor.runtimePage.fields.hostMemory': 'Server memory',
+    'monitor.runtimePage.fields.hostMemoryUsage': 'Memory usage',
     'monitor.runtimePage.fields.observedAt': 'Last observed',
-    'monitor.runtimePage.fields.refreshFrequency': 'Refresh frequency',
     'monitor.runtimePage.fields.loadAverage': 'Load average',
     'monitor.runtimePage.fieldDescriptions.runtimeAlloc': 'Bytes currently allocated by the Go runtime.',
     'monitor.runtimePage.fieldDescriptions.runtimeHeap': 'Heap bytes actively used by the Go process.',
@@ -105,8 +117,38 @@ const passthroughStub = defineComponent({
 
 const buttonStub = defineComponent({
   name: 'TButtonStub',
-  setup(_props, { slots }) {
-    return () => h('button', slots.default?.());
+  emits: ['click'],
+  setup(_props, { attrs, emit, slots }) {
+    return () => h('button', { ...attrs, onClick: (event: MouseEvent) => emit('click', event) }, slots.default?.());
+  },
+});
+
+const selectStub = defineComponent({
+  name: 'TSelectStub',
+  props: {
+    modelValue: {
+      type: [Number, String],
+      default: '',
+    },
+    options: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(
+        'select',
+        {
+          ...attrs,
+          value: String(props.modelValue),
+          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+        },
+        (props.options as Array<{ label: string; value: number | string }>).map((option) =>
+          h('option', { value: String(option.value) }, option.label),
+        ),
+      );
   },
 });
 
@@ -117,6 +159,7 @@ function mountRuntimePage() {
         't-card': passthroughStub,
         't-tag': passthroughStub,
         't-button': buttonStub,
+        't-select': selectStub,
         't-empty': passthroughStub,
       },
     },
@@ -198,17 +241,27 @@ describe('monitor runtime page', () => {
     expect(wrapper.text()).toContain('Go Runtime Memory');
     expect(wrapper.text()).toContain('Server Environment');
     expect(wrapper.text()).toContain('Server memory');
+    expect(wrapper.text()).toContain('Memory usage');
     expect(wrapper.text()).toContain('Git commit');
     expect(wrapper.text()).toContain('Not reported');
     expect(wrapper.text()).toContain('Build version');
     expect(wrapper.text()).toContain('Go version');
-    expect(wrapper.text()).toContain('Refresh frequency');
+    expect(wrapper.text()).toContain('Refresh cadence');
+    expect(wrapper.text()).toContain('Every 5 sec');
+    expect(wrapper.text()).toContain('Pause auto refresh');
     expect(wrapper.text()).toContain('Current alloc');
     expect(wrapper.text()).toContain(
       'Memory scope: server memory covers the whole server, while Go Runtime memory covers only the current service process.',
     );
+    expect(wrapper.text()).toContain('8.00 GB / 16.0 GB');
+    expect(wrapper.text()).toContain('50%');
     expect(wrapper.text()).toContain('v0.3.2');
+    expect(wrapper.findAll('.server-status-summary-card')).toHaveLength(4);
+    expect(wrapper.findAll('.server-status-runtime-grid__card')).toHaveLength(3);
+    expect(wrapper.findAll('.server-status-kv-row')).toHaveLength(16);
+    expect(wrapper.find('[data-monitor-refresh-extra-select="true"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Snapshot Context');
+    expect(wrapper.text()).not.toContain('Metric scope');
     expect(wrapper.text().match(/Snapshot ready/g)).toHaveLength(1);
     expect(wrapper.text()).not.toContain('Data status');
   });

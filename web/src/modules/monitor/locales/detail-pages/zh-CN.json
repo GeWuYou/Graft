@@ -12,11 +12,12 @@
       "subtitle": "查看当前 Go 进程运行时快照、进程构建信息与服务器环境，并明确区分服务器内存和 Go Runtime 内存。",
       "snapshotReady": "快照已就绪",
       "snapshotPending": "等待快照",
-      "memoryBoundaryNotice": "内存口径说明：服务器内存看整台服务器，Go Runtime 内存看当前服务进程。",
+      "memoryBoundaryNotice": "内存口径：服务器内存统计整台服务器，Go Runtime 内存统计当前服务进程。",
       "refreshFrequencyUnit": " 秒",
       "runtimeMemoryTitle": "Go Runtime 内存",
       "runtimeMemoryDescription": "当前 Go 进程内部内存使用与垃圾回收快照。",
       "processBuildTitle": "进程与构建信息",
+      "processBuildDescription": "当前服务进程的构建与运行标识。",
       "hostEnvironmentTitle": "服务器环境",
       "serverEnvironmentDescription": "整机内存快照，不等同于 Go Runtime 内存。",
       "summary": {
@@ -30,7 +31,7 @@
         "gcCyclesDescription": "已完成的垃圾回收轮次"
       },
       "fields": {
-        "runtimeAlloc": "运行时已分配",
+        "runtimeAlloc": "当前已分配",
         "runtimeHeap": "Heap 内存",
         "runtimeSys": "Runtime Sys",
         "gcCycles": "GC 次数",
@@ -45,6 +46,7 @@
         "platform": "平台",
         "cpuCores": "CPU 核心数",
         "hostMemory": "服务器内存",
+        "hostMemoryUsage": "内存使用率",
         "observedAt": "最近观测",
         "refreshFrequency": "刷新频率",
         "loadAverage": "负载均值"
@@ -71,6 +73,7 @@
     "dependenciesPage": {
       "title": "依赖服务",
       "subtitle": "查看 PostgreSQL、Redis 以及未来插件依赖探测入口的健康状态。",
+      "serviceListTitle": "依赖服务列表",
       "noteTitle": "依赖健康范围",
       "noteDescription": "当前页面基于最近一次聚合快照展示依赖状态。后续插件可以通过自己的健康探测项扩展到这里，而无需再次改动顶层信息架构。",
       "statusHealthy": "健康",
