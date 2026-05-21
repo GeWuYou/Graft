@@ -4,7 +4,12 @@
 
 :root {
   --graft-footer-height: 44px;
-  --graft-floating-toolbar-safe-space: 72px;
+  --graft-floating-toolbar-height: 60px;
+  --graft-floating-toolbar-offset: 28px;
+  --graft-floating-toolbar-gap: 20px;
+  --graft-floating-toolbar-safe-space: calc(
+    var(--graft-floating-toolbar-height) + var(--graft-floating-toolbar-offset) + var(--graft-floating-toolbar-gap)
+  );
   --graft-bottom-safe-space: var(--graft-floating-toolbar-safe-space);
   --graft-page-footer-height: var(--graft-footer-height);
   --graft-page-bottom-safe-space: var(--graft-bottom-safe-space);
@@ -121,15 +126,13 @@
 
   &-page-container {
     display: flex;
-    flex: 1;
     flex-direction: column;
     min-height: 100%;
 
     &__main {
       display: flex;
-      flex: 1;
       flex-direction: column;
-      min-height: 0;
+      min-height: auto;
     }
 
     &__bottom-safe-spacer {
@@ -137,6 +140,10 @@
       height: var(--graft-bottom-safe-space);
       pointer-events: none;
     }
+  }
+
+  &-footer-layout {
+    margin-top: auto;
   }
 
   // slideBar
