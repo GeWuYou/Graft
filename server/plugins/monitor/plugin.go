@@ -43,6 +43,11 @@ const (
 	latencyPrecisionScale   = 100
 	trendStorageKeyPrefix   = "graft:monitor:server-status:trend"
 	maxProcessIDInt32       = int64(1<<31 - 1)
+
+	statusHealthy  = "healthy"
+	statusDegraded = "degraded"
+	statusDisabled = "disabled"
+	statusUnknown  = "unknown"
 )
 
 // Plugin implements the monitor/server-status slice.
@@ -376,7 +381,7 @@ func buildServerStatusResponse(
 	runtimeSnapshot := collectRuntimeSnapshot()
 	databaseStatus := databaseHealth(ctx, instance)
 	redisStatus := redisHealth(ctx, pluginCtx)
-	plugins := runtimePluginSummaries(pluginCtx)
+	plugins := runtimePluginSummaries(pluginCtx, databaseStatus, redisStatus)
 	summary := buildServerStatusSummary(databaseStatus, redisStatus, plugins)
 	trend := buildServerStatusTrend(ctx, pluginCtx, instance, observedAt, trendRange)
 
@@ -405,7 +410,7 @@ func buildServerStatusResponse(
 func databaseHealth(ctx context.Context, instance *Plugin) dependencyStatus {
 	if instance == nil || instance.db == nil {
 		return dependencyStatus{
-			Status: "unknown",
+			Status: statusUnknown,
 			Detail: "Database handle is unavailable",
 		}
 	}
@@ -417,14 +422,14 @@ func databaseHealth(ctx context.Context, instance *Plugin) dependencyStatus {
 	if err := instance.db.PingContext(pingCtx); err != nil {
 		logTrendWarning(instance, nil, "database ping failed", err)
 		return dependencyStatus{
-			Status: "degraded",
+			Status: statusDegraded,
 			Detail: "Database ping failed",
 		}
 	}
 
 	latencyMs := roundLatencyMilliseconds(time.Since(startedAt))
 	return dependencyStatus{
-		Status:    "healthy",
+		Status:    statusHealthy,
 		Detail:    "Database ping succeeded",
 		LatencyMs: &latencyMs,
 	}
@@ -433,7 +438,7 @@ func databaseHealth(ctx context.Context, instance *Plugin) dependencyStatus {
 func redisHealth(ctx context.Context, pluginCtx *plugin.Context) dependencyStatus {
 	if pluginCtx == nil || pluginCtx.Redis == nil {
 		return dependencyStatus{
-			Status: "disabled",
+			Status: statusDisabled,
 			Detail: "Redis client is not configured",
 		}
 	}
@@ -445,36 +450,81 @@ func redisHealth(ctx context.Context, pluginCtx *plugin.Context) dependencyStatu
 	if err := pluginCtx.Redis.Ping(pingCtx).Err(); err != nil {
 		logTrendWarning(nil, pluginCtx, "redis ping failed", err)
 		return dependencyStatus{
-			Status: "degraded",
+			Status: statusDegraded,
 			Detail: "Redis ping failed",
 		}
 	}
 
 	latencyMs := roundLatencyMilliseconds(time.Since(startedAt))
 	return dependencyStatus{
-		Status:    "healthy",
+		Status:    statusHealthy,
 		Detail:    "Redis ping succeeded",
 		LatencyMs: &latencyMs,
 	}
 }
 
-func runtimePluginSummaries(pluginCtx *plugin.Context) []serverStatusPlugin {
+func runtimePluginSummaries(
+	pluginCtx *plugin.Context,
+	database dependencyStatus,
+	redis dependencyStatus,
+) []serverStatusPlugin {
 	if pluginCtx == nil {
 		return nil
 	}
 
 	descriptors := pluginCtx.RuntimeMetadata.OrderedPluginDescriptors()
+	available := make(map[string]struct{}, len(descriptors))
+	for _, descriptor := range descriptors {
+		name := strings.TrimSpace(descriptor.Name)
+		if name == "" {
+			continue
+		}
+		available[name] = struct{}{}
+	}
+
+	platformStatus := deriveOverallStatus(database.Status, redis.Status)
 	items := make([]serverStatusPlugin, 0, len(descriptors))
 	for _, descriptor := range descriptors {
+		dependsOn := append([]string(nil), descriptor.DependsOn...)
 		items = append(items, serverStatusPlugin{
 			Name:      descriptor.Name,
-			Status:    "unknown",
+			Status:    deriveRuntimePluginStatus(descriptor, available, platformStatus),
 			Version:   descriptor.Version,
-			DependsOn: append([]string(nil), descriptor.DependsOn...),
+			DependsOn: dependsOn,
 		})
 	}
 
 	return items
+}
+
+// deriveRuntimePluginStatus keeps plugin runtime semantics explicit and narrow:
+// a plugin is only "healthy" when it is present in runtime metadata, its declared
+// plugin dependencies are also present, and the current shared runtime signals are
+// not degraded. Without a stronger plugin-owned liveness signal, unknown remains
+// the safe fallback when the platform itself is only partially observable.
+func deriveRuntimePluginStatus(
+	descriptor plugin.DescriptorSnapshot,
+	available map[string]struct{},
+	platformStatus string,
+) string {
+	if strings.TrimSpace(descriptor.Name) == "" || strings.TrimSpace(descriptor.Version) == "" {
+		return statusUnknown
+	}
+
+	for _, dependency := range descriptor.DependsOn {
+		if _, ok := available[strings.TrimSpace(dependency)]; !ok {
+			return statusDegraded
+		}
+	}
+
+	switch platformStatus {
+	case statusHealthy:
+		return statusHealthy
+	case statusDegraded:
+		return statusDegraded
+	default:
+		return statusUnknown
+	}
 }
 
 func buildServerStatusSummary(
@@ -489,11 +539,11 @@ func buildServerStatusSummary(
 
 	for _, dependency := range []dependencyStatus{database, redis} {
 		switch dependency.Status {
-		case "healthy":
+		case statusHealthy:
 			summary.HealthyDependencies++
-		case "degraded":
+		case statusDegraded:
 			summary.DegradedDependencies++
-		case "disabled":
+		case statusDisabled:
 			summary.DisabledDependencies++
 		default:
 			summary.UnknownDependencies++
@@ -501,7 +551,7 @@ func buildServerStatusSummary(
 	}
 
 	for _, plugin := range plugins {
-		if plugin.Status == "healthy" {
+		if plugin.Status == statusHealthy {
 			summary.HealthyPlugins++
 		}
 	}
@@ -825,16 +875,16 @@ func resolveAppEnv(pluginCtx *plugin.Context) string {
 
 func deriveOverallStatus(databaseStatus string, redisStatus string) string {
 	for _, status := range []string{databaseStatus, redisStatus} {
-		if status == "degraded" {
-			return "degraded"
+		if status == statusDegraded {
+			return statusDegraded
 		}
 	}
 
-	if databaseStatus == "healthy" || redisStatus == "healthy" {
-		return "healthy"
+	if databaseStatus == statusHealthy || redisStatus == statusHealthy {
+		return statusHealthy
 	}
 
-	return "unknown"
+	return statusUnknown
 }
 
 func parseTrendRange(raw string) monitorcontract.TrendRange {

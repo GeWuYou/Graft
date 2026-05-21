@@ -92,13 +92,13 @@ func TestBuildServerStatusResponseIncludesCurrentSliceFields(t *testing.T) {
 	assertEqual(t, "summary degraded dependencies", response.Summary.DegradedDependencies, 0)
 	assertEqual(t, "summary unknown dependencies", response.Summary.UnknownDependencies, 0)
 	assertEqual(t, "summary total plugins", response.Summary.TotalPlugins, 4)
-	assertEqual(t, "summary healthy plugins", response.Summary.HealthyPlugins, 0)
+	assertEqual(t, "summary healthy plugins", response.Summary.HealthyPlugins, 4)
 
 	expectedPlugins := []serverStatusPlugin{
-		{Name: "audit", Status: "unknown", Version: "0.1.0", DependsOn: nil},
-		{Name: "user", Status: "unknown", Version: "0.2.0", DependsOn: nil},
-		{Name: "rbac", Status: "unknown", Version: "0.3.0", DependsOn: []string{"user"}},
-		{Name: pluginID, Status: "unknown", Version: pluginVersion, DependsOn: []string{"user", "rbac"}},
+		{Name: "audit", Status: statusHealthy, Version: "0.1.0", DependsOn: nil},
+		{Name: "user", Status: statusHealthy, Version: "0.2.0", DependsOn: nil},
+		{Name: "rbac", Status: statusHealthy, Version: "0.3.0", DependsOn: []string{"user"}},
+		{Name: pluginID, Status: statusHealthy, Version: pluginVersion, DependsOn: []string{"user", "rbac"}},
 	}
 	assertPluginSummaries(t, response.Plugins, expectedPlugins)
 }
@@ -158,6 +158,62 @@ func TestBuildServerStatusResponseReportsDegradedOnDatabasePingError(t *testing.
 	if response.Status != "degraded" {
 		t.Fatalf("expected overall status degraded on ping error, got %q", response.Status)
 	}
+}
+
+func TestRuntimePluginSummariesFollowPlatformStatus(t *testing.T) {
+	t.Parallel()
+
+	pluginCtx := &plugin.Context{
+		RuntimeMetadata: plugin.NewRuntimeMetadata([]plugin.Descriptor{
+			{ID: "user", PluginVersion: "0.2.0"},
+			{ID: "rbac", PluginVersion: "0.3.0", Dependencies: []string{"user"}},
+			{ID: pluginID, PluginVersion: pluginVersion, Dependencies: []string{"user", "rbac"}},
+		}),
+	}
+
+	healthy := runtimePluginSummaries(
+		pluginCtx,
+		dependencyStatus{Status: statusHealthy},
+		dependencyStatus{Status: statusDisabled},
+	)
+	assertPluginSummaries(t, healthy, []serverStatusPlugin{
+		{Name: "user", Status: statusHealthy, Version: "0.2.0", DependsOn: nil},
+		{Name: "rbac", Status: statusHealthy, Version: "0.3.0", DependsOn: []string{"user"}},
+		{Name: pluginID, Status: statusHealthy, Version: pluginVersion, DependsOn: []string{"user", "rbac"}},
+	})
+
+	degraded := runtimePluginSummaries(
+		pluginCtx,
+		dependencyStatus{Status: statusDegraded},
+		dependencyStatus{Status: statusHealthy},
+	)
+	assertPluginSummaries(t, degraded, []serverStatusPlugin{
+		{Name: "user", Status: statusDegraded, Version: "0.2.0", DependsOn: nil},
+		{Name: "rbac", Status: statusDegraded, Version: "0.3.0", DependsOn: []string{"user"}},
+		{Name: pluginID, Status: statusDegraded, Version: pluginVersion, DependsOn: []string{"user", "rbac"}},
+	})
+}
+
+func TestRuntimePluginSummariesDegradeWhenDependencyMetadataIsMissing(t *testing.T) {
+	t.Parallel()
+
+	pluginCtx := &plugin.Context{
+		RuntimeMetadata: plugin.NewRuntimeMetadata([]plugin.Descriptor{
+			{ID: "audit", PluginVersion: "0.1.0"},
+			{ID: pluginID, PluginVersion: pluginVersion, Dependencies: []string{"user", "rbac"}},
+		}),
+	}
+
+	actual := runtimePluginSummaries(
+		pluginCtx,
+		dependencyStatus{Status: statusHealthy},
+		dependencyStatus{Status: statusDisabled},
+	)
+
+	assertPluginSummaries(t, actual, []serverStatusPlugin{
+		{Name: "audit", Status: statusHealthy, Version: "0.1.0", DependsOn: nil},
+		{Name: pluginID, Status: statusDegraded, Version: pluginVersion, DependsOn: []string{"user", "rbac"}},
+	})
 }
 
 func TestStopTrendSamplerRequiresLifecycleContext(t *testing.T) {
