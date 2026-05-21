@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"graft/server/internal/pluginapi"
 	rbacstore "graft/server/plugins/rbac/store"
@@ -87,7 +88,7 @@ func ensureRolePermissions(
 }
 
 func stringPtrOrNil(value string) *string {
-	if value == "" {
+	if strings.TrimSpace(value) == "" {
 		return nil
 	}
 	result := value
