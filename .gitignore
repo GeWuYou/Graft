@@ -45,3 +45,6 @@ web/ai-libs
 # Python cache
 __pycache__/
 *.pyc
+
+# Linux
+__linux
