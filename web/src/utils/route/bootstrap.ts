@@ -179,7 +179,8 @@ function normalizePath(path: string) {
     return '';
   }
 
-  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return withLeadingSlash === '/' ? withLeadingSlash : withLeadingSlash.replace(/\/+$/, '');
 }
 
 function parentMenuPath(path: string) {

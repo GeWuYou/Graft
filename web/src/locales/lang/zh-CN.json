@@ -1,8 +1,8 @@
 {
   "lang": "简体中文",
   "common": {
-    "appName": "TDesign Starter",
-    "copyright": "Copyright (C) 2021-2026 Tencent. All Rights Reserved",
+    "appName": "Graft 管理台",
+    "copyright": "Copyright (C) 2021-2026 Graft. All Rights Reserved",
     "conjunction": "和",
     "admin": "admin"
   },
@@ -184,6 +184,14 @@
     },
     "user_list": {
       "title": "用户管理"
+    },
+    "monitor": {
+      "server_status": {
+        "title": "服务器状态",
+        "overview": {
+          "title": "概览"
+        }
+      }
     }
   },
   "app": {
@@ -320,7 +328,7 @@
         "title": "浏览器不兼容",
         "subtitle": "抱歉，您正在使用的浏览器版本过低，无法打开当前网页。",
         "back": "回到首页",
-        "recommend": "TDesign Starter 推荐以下主流浏览器"
+        "recommend": "推荐使用以下主流浏览器"
       },
       "networkError": {
         "title": "网络异常",

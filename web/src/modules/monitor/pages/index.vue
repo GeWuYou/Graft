@@ -1,34 +1,72 @@
 <template>
-  <div class="monitor-dashboard">
-    <header class="dashboard-hero">
-      <div class="dashboard-hero__content">
-        <p class="dashboard-hero__eyebrow">{{ t('monitor.serverStatus.heroEyebrow') }}</p>
-        <h1 class="dashboard-hero__title">{{ t('monitor.serverStatus.overviewTitle') }}</h1>
-        <p class="dashboard-hero__hint">{{ t('monitor.serverStatus.overviewHint') }}</p>
+  <div
+    class="monitor-dashboard"
+    data-page-type="overview-dashboard"
+    :data-status="overallStatus"
+    :data-theme-mode="settingStore.displayMode"
+  >
+    <header class="dashboard-header">
+      <div class="dashboard-header__main">
+        <div class="dashboard-header__title-row">
+          <div class="dashboard-header__copy">
+            <p class="dashboard-header__section">{{ t('monitor.sectionTitle') }}</p>
+            <h1 class="dashboard-header__title">{{ t('monitor.serverStatus.overviewTitle') }}</h1>
+          </div>
+          <t-tag class="dashboard-header__status" :theme="statusTheme(overallStatus)" variant="light">
+            {{ overallStatusLabel(serverStatus?.status) }}
+          </t-tag>
+        </div>
+        <p class="dashboard-header__hint">{{ t('monitor.serverStatus.overviewHint') }}</p>
+        <div class="dashboard-header__meta">
+          <span>{{ t('monitor.serverStatus.lastUpdated', { time: formatTimestamp(lastUpdatedAt) }) }}</span>
+          <span>{{
+            t('monitor.serverStatus.lastObserved', { time: formatTimestamp(serverStatus?.observed_at) })
+          }}</span>
+        </div>
       </div>
-      <div class="dashboard-hero__actions">
-        <div class="dashboard-hero__control-row">
-          <span class="dashboard-hero__updated">
-            {{ t('monitor.serverStatus.lastUpdated', { time: formatTimestamp(lastUpdatedAt) }) }}
-          </span>
+      <aside class="dashboard-actions" :data-status="refreshFeedbackTone">
+        <div class="dashboard-actions__summary">
+          <div class="dashboard-actions__item">
+            <span class="dashboard-actions__label">{{ t('monitor.serverStatus.refreshIntervalLabel') }}</span>
+            <strong class="dashboard-actions__value">{{ refreshIntervalLabel }}</strong>
+          </div>
+          <div class="dashboard-actions__item">
+            <span class="dashboard-actions__label">{{ t('monitor.serverStatus.trendWindowLabel') }}</span>
+            <strong class="dashboard-actions__value">{{ selectedTrendRangeLabel }}</strong>
+          </div>
+        </div>
+        <div class="dashboard-actions__controls">
           <t-select
             v-model="refreshIntervalMode"
-            class="dashboard-hero__select"
+            class="dashboard-actions__select"
             :options="refreshIntervalOptions"
             size="small"
           />
-          <t-button theme="primary" :loading="loading" @click="() => fetchServerStatus({ manual: true })">
+          <t-button
+            class="dashboard-actions__button"
+            theme="primary"
+            :loading="loading"
+            @click="() => fetchServerStatus({ manual: true })"
+          >
             <template #icon>
               <refresh-icon />
             </template>
             {{ t('monitor.serverStatus.refresh') }}
           </t-button>
         </div>
-        <p class="dashboard-hero__countdown">
-          {{ refreshCountdownText }}
-        </p>
-      </div>
+      </aside>
     </header>
+
+    <section class="dashboard-feedback" :data-status="refreshFeedbackTone">
+      <article class="dashboard-feedback__item">
+        <span class="dashboard-feedback__label">{{ t('monitor.serverStatus.refreshStateLabel') }}</span>
+        <strong class="dashboard-feedback__value">{{ refreshCountdownText }}</strong>
+      </article>
+      <article class="dashboard-feedback__item">
+        <span class="dashboard-feedback__label">{{ t('monitor.serverStatus.observedAtLabel') }}</span>
+        <strong class="dashboard-feedback__value">{{ formatTimestamp(serverStatus?.observed_at) }}</strong>
+      </article>
+    </section>
 
     <section class="summary-grid">
       <t-card
@@ -191,6 +229,7 @@ const isPageVisible = ref(typeof document === 'undefined' ? true : document.visi
 let trendChart: echarts.ECharts | null = null;
 let refreshTickTimer: number | null = null;
 let nextRefreshAt: number | null = null;
+let pendingTrendRange: TrendRange | null = null;
 
 const trendRangeOptions = computed(() => [
   { label: t('monitor.serverStatus.trendRange10Minutes'), value: MONITOR_TREND_RANGE.TEN_MINUTES },
@@ -245,6 +284,21 @@ const refreshCountdownText = computed(() => {
 const trendPoints = computed<ServerStatusTrendPoint[]>(() => serverStatus.value?.trend.points ?? []);
 
 const hasTrendData = computed(() => trendPoints.value.length >= 2);
+const overallStatus = computed<MonitorStatus>(() => normalizeStatus(serverStatus.value?.status));
+const selectedTrendRangeLabel = computed(() => {
+  return trendRangeOptions.value.find((option) => option.value === selectedTrendRange.value)?.label ?? '--';
+});
+const refreshFeedbackTone = computed<MonitorStatus>(() => {
+  if (consecutiveFailures.value > 0 || !isPageVisible.value) {
+    return 'degraded';
+  }
+
+  if (refreshIntervalMode.value === 'manual') {
+    return 'disabled';
+  }
+
+  return overallStatus.value;
+});
 
 const pluginCounts = computed(() => {
   const rows = serverStatus.value?.plugins ?? [];
@@ -456,14 +510,18 @@ const runtimeSections = computed<RuntimeSection[]>(() => {
 });
 
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
+  const requestedTrendRange = selectedTrendRange.value;
   if (loading.value) {
+    pendingTrendRange = requestedTrendRange;
     return;
   }
 
+  let shouldRefetch = false;
+  pendingTrendRange = null;
   stopRefreshTick();
   loading.value = true;
   try {
-    serverStatus.value = await getServerStatus(selectedTrendRange.value);
+    serverStatus.value = await getServerStatus(requestedTrendRange);
     lastUpdatedAt.value = new Date().toISOString();
     consecutiveFailures.value = 0;
   } catch (error) {
@@ -476,7 +534,15 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
     }
   } finally {
     loading.value = false;
-    scheduleNextRefresh();
+    if (pendingTrendRange && pendingTrendRange !== requestedTrendRange) {
+      shouldRefetch = true;
+    } else {
+      scheduleNextRefresh();
+    }
+  }
+
+  if (shouldRefetch) {
+    void fetchServerStatus();
   }
 }
 
@@ -749,6 +815,7 @@ function buildTrendChartOption(points: ServerStatusTrendPoint[], chartColors: TC
         name: t('monitor.serverStatus.chartGoroutines'),
         type: 'line',
         smooth: true,
+        yAxisIndex: 1,
         symbol: 'circle',
         symbolSize: 8,
         ...buildTrendSeriesInteraction(),

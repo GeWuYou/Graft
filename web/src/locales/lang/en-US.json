@@ -1,8 +1,8 @@
 {
   "lang": "English",
   "common": {
-    "appName": "TDesign Starter",
-    "copyright": "Copyright (C) 2021-2026 Tencent. All Rights Reserved",
+    "appName": "Graft Admin",
+    "copyright": "Copyright (C) 2021-2026 Graft. All Rights Reserved",
     "conjunction": "and",
     "admin": "admin"
   },
@@ -184,6 +184,14 @@
     },
     "user_list": {
       "title": "User Management"
+    },
+    "monitor": {
+      "server_status": {
+        "title": "Server Status",
+        "overview": {
+          "title": "Overview"
+        }
+      }
     }
   },
   "app": {
@@ -320,7 +328,7 @@
         "title": "Browser is incompatible",
         "subtitle": "The browser version you are using is too outdated to open this page.",
         "back": "Back to homepage",
-        "recommend": "TDesign Starter recommends the following browsers"
+        "recommend": "Recommended browsers"
       },
       "networkError": {
         "title": "Network Error",

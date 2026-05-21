@@ -6,7 +6,7 @@ Use this for monitor-style dashboards and high-level operational overviews.
 
 ## Structure
 
-- Hero summary
+- Page header
 - Metric cards
 - Trend chart card
 - Status/dependency cards

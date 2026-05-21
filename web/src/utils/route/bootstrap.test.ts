@@ -85,4 +85,38 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[0]?.children?.[0]?.meta?.hidden).toBeUndefined();
     expect(routes[0]?.children?.[0]?.children?.[0]?.meta?.titleKey).toBe('menu.monitor.server_status.overview.title');
   });
+
+  it('规范化尾随斜杠后仍能正确挂载父子菜单', () => {
+    const routes = transformBootstrapMenusToRoutes([
+      {
+        code: 'monitor.section',
+        title_key: 'monitor.sectionTitle',
+        title: '服务器管理',
+        path: '/monitor/',
+        icon: 'server',
+        permission: '',
+      },
+      {
+        code: 'monitor.server-status',
+        title_key: 'menu.monitor.server_status.title',
+        title: '服务器状态',
+        path: '/monitor/server-status/',
+        icon: 'chart-bubble',
+        permission: '',
+      },
+      {
+        code: 'monitor.server-status.overview',
+        title_key: 'menu.monitor.server_status.overview.title',
+        title: '概览',
+        path: '/monitor/server-status/overview/',
+        icon: 'chart-bubble',
+        permission: 'monitor.server-status.read',
+      },
+    ]);
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.path).toBe('/monitor');
+    expect(routes[0]?.children?.[0]?.path).toBe('server-status');
+    expect(routes[0]?.children?.[0]?.children?.[0]?.path).toBe('overview');
+  });
 });

@@ -42,11 +42,15 @@ const settingStoreMock = vi.hoisted(() => ({
 
 const translations = vi.hoisted(
   (): Record<string, string> => ({
+    'monitor.sectionTitle': 'Server Management',
     'monitor.serverStatus.heroEyebrow': 'Runtime Monitor',
     'monitor.serverStatus.overviewTitle': 'Server Status Overview',
     'monitor.serverStatus.overviewHint':
       'Review runtime health, dependency state, plugin summary, and short-window trends from a single compact dashboard.',
     'monitor.serverStatus.refresh': 'Refresh',
+    'monitor.serverStatus.refreshIntervalLabel': 'Refresh cadence',
+    'monitor.serverStatus.refreshStateLabel': 'Refresh state',
+    'monitor.serverStatus.trendWindowLabel': 'Trend window',
     'monitor.serverStatus.lastObserved': 'Last observed: {time}',
     'monitor.serverStatus.lastUpdated': 'Last updated: {time}',
     'monitor.serverStatus.observedAtLabel': 'Observed at',
@@ -256,6 +260,7 @@ const radioGroupStub = defineComponent({
       default: '',
     },
   },
+  emits: ['update:modelValue'],
   setup(_props, { slots }) {
     return () => h('div', slots.default?.());
   },
@@ -423,8 +428,13 @@ describe('MonitorPage', () => {
     expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
     expect(monitorApiMocks.getServerStatus).toHaveBeenCalledWith('10m');
     expect(wrapper.text()).toContain('Server Status Overview');
+    expect(wrapper.text()).toContain('Server Management');
+    expect(wrapper.text()).toContain('Refresh cadence');
+    expect(wrapper.text()).toContain('Trend window');
+    expect(wrapper.text()).toContain('Refresh state');
     expect(wrapper.text()).toContain('Last updated:');
     expect(wrapper.text()).not.toContain('Endpoint:');
+    expect(wrapper.text()).not.toContain('Runtime Monitor');
     expect(wrapper.text()).toContain('1 / 2 healthy');
     expect(wrapper.text()).toContain('2 registered');
     expect(wrapper.text()).toContain('1 healthy · 0 abnormal · 1 unreported');
@@ -449,17 +459,26 @@ describe('MonitorPage', () => {
     expect(chartMocks.setOption).toHaveBeenCalled();
     const option = chartMocks.setOption.mock.calls.at(-1)?.[0] as {
       color: string[];
+      yAxis: Array<{
+        axisLabel?: {
+          formatter?: (value: number) => string;
+        };
+      }>;
       series: Array<{
         data: number[];
+        yAxisIndex?: number;
         areaStyle?: { opacity?: number };
         emphasis?: { focus?: string; areaStyle?: { opacity?: number } };
       }>;
     };
     expect(option.color).toEqual(['#0052D9', '#00A870', '#ED7B2F']);
+    expect(option.yAxis[0]?.axisLabel?.formatter?.(32)).toBe('32%');
     expect(option.series).toHaveLength(3);
     expect(option.series[0]?.data).toEqual([14.5, 21.2]);
     expect(option.series[1]?.data).toEqual([96, 100]);
     expect(option.series[2]?.data).toEqual([28, 32]);
+    expect(option.series[1]?.yAxisIndex).toBe(1);
+    expect(option.series[2]?.yAxisIndex).toBe(1);
     expect(option.series[0]?.areaStyle?.opacity).toBe(0);
     expect(option.series[1]?.areaStyle?.opacity).toBe(0);
     expect(option.series[2]?.areaStyle?.opacity).toBe(0);
@@ -543,5 +562,38 @@ describe('MonitorPage', () => {
     expect(messageMocks.error).toHaveBeenCalledWith('Failed to load server status');
     expect(wrapper.text()).toContain('No server-status data');
     expect(chartMocks.init).not.toHaveBeenCalled();
+  });
+
+  it('refetches the last selected trend range after an in-flight request finishes', async () => {
+    let firstRequestSettled = false;
+    let resolveFirstRequest!: (value: ReturnType<typeof createServerStatusResponse>) => void;
+    monitorApiMocks.getServerStatus.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          if (!firstRequestSettled) {
+            resolveFirstRequest = resolve;
+            firstRequestSettled = true;
+            return;
+          }
+
+          resolve(createServerStatusResponse());
+        }),
+    );
+
+    const wrapper = mountMonitorPage();
+    await nextTick();
+
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+    expect(monitorApiMocks.getServerStatus).toHaveBeenNthCalledWith(1, '10m');
+
+    await wrapper.find('select').setValue('manual');
+    wrapper.findComponent(radioGroupStub).vm.$emit('update:modelValue', '30m');
+    await flushPromises();
+
+    resolveFirstRequest(createServerStatusResponse());
+    await flushPromises();
+
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(2);
+    expect(monitorApiMocks.getServerStatus).toHaveBeenNthCalledWith(2, '30m');
   });
 });

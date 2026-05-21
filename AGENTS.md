@@ -225,6 +225,10 @@ Prefer the repository skills below when their trigger matches the task:
     versus commit-plus-handoff, while emitting the required next-task startup prompt
 - `graft-web-module-scaffold`
   - use when adding a new `web` feature module aligned with backend plugin semantics
+- `graft-web-vibe-coding`
+  - use when adding, redesigning, or reviewing `web` pages, shell surfaces, frontend AI prompts, or visual-governance
+    rules that should first declare a page type, pick one of the built-in page masters or register an extension type,
+    and enforce token/theme/i18n/visible-copy constraints before implementation
 - `graft-validation-runner`
   - use when choosing the smallest correct validation for `server`, `web`, or cross-boundary work
 

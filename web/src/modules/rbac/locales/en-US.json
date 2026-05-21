@@ -1,10 +1,13 @@
 {
   "rbac": {
     "roleList": {
+      "sectionTitle": "Access and Roles",
       "listTitle": "Role Overview",
       "countLabel": "Role Count",
-      "hint": "This page only wires the minimal role-management loop: list, create, update, and permission assignment.",
-      "apiTitle": "Live Contracts",
+      "hint": "Manage roles, core details, and permission assignments from one page.",
+      "actionTitle": "Role Operations",
+      "actionHint": "Create roles, maintain core details, and complete permission assignment from one workspace.",
+      "apiTitle": "API Details",
       "endpointLabel": "Endpoints: ",
       "endpointValue": "GET /api/roles | GET /api/permissions",
       "fieldsLabel": "Minimal fields: ",
@@ -12,7 +15,8 @@
       "refresh": "Refresh",
       "create": "Create Role",
       "dataTitle": "Role List",
-      "permissionSummary": "{count} permissions are loaded for the minimal assignment flow.",
+      "permissionSummary": "{count} permissions are loaded for role assignment.",
+      "tableHint": "Start from the table to edit a role or open permission assignment.",
       "builtinYes": "Builtin",
       "builtinNo": "Custom",
       "emptyDescription": "No description",
@@ -32,6 +36,19 @@
         "display": "Display",
         "description": "Description",
         "builtin": "Type"
+      },
+      "feedback": {
+        "permissionCatalogLabel": "Permission Catalog",
+        "permissionCatalogHint": "Catalog availability determines whether role assignment can be completed.",
+        "permissionCatalogReady": "Catalog Ready",
+        "permissionCatalogRestricted": "Permission catalog access is not available in this session.",
+        "assignmentStateLabel": "Assignment State",
+        "assignmentStateReady": "Ready to Assign",
+        "assignmentStateReadyHint": "Permission definitions are loaded, so role assignment can be saved directly.",
+        "assignmentStateUnavailable": "Catalog Pending",
+        "assignmentStateUnavailableHint": "The role list is available, but permission definitions are not ready yet.",
+        "assignmentStateRestricted": "Read-only Access",
+        "assignmentStateRestrictedHint": "This session can review roles, but permission assignment stays restricted."
       },
       "form": {
         "createTitle": "Create Role",

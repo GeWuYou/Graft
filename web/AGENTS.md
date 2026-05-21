@@ -206,6 +206,56 @@ UI 约束：
 - `web/ai-libs/**` 只是 starter/demo 参考源，不是运行时依赖，也不是第二个前端真值
 - `ai-plan/design/graft-design-system/**` 是 Graft 风格参考模板目录，只作为设计参考和 AI 生成约束，不是运行时依赖
 
+页面类型与 vibe coding 规则：
+
+- 每个前端需求都必须先声明页面类型
+- 首阶段内置 4 类基础页面母版：
+  - `shell`
+  - `auth`
+  - `overview-dashboard`
+  - `list-form-detail`
+- 这 4 类只覆盖当前 Graft 高频后台页面，不是页面类型全集
+- 若需求无法自然归入上述 4 类，必须先登记为扩展页面类型，并补充：
+  - 信息层级
+  - 组件组合
+  - 状态集合
+  - 主题响应要求
+  - i18n 要求
+  - 验收规则
+- 新增页面、重构页面、复杂布局页面：
+  - 必须先输出结构方案，再进入编码
+  - 结构方案至少包含页面类型、`page header`、`primary action area`、`main content surface`、`feedback surface`、主题依赖与 i18n 边界
+- 简单文案、样式、小交互修复：
+  - 可以直接实现
+  - 但仍必须通过页面类型、i18n、主题和可见文案自检
+
+可见文案治理规则：
+
+- 文案禁词治理只作用于用户可见 UI 文案、菜单、按钮、空态、帮助提示与页面说明
+- 文案禁词治理不作用于：
+  - `ai-plan/**`
+  - `AGENTS.md`
+  - 代码注释
+  - 测试名称
+  - 开发文档
+- 用户可见文案不得泄露：
+  - AI 调试文本
+  - starter/demo 迁移说明
+  - 实现阶段说明
+  - 仅面向开发者的契约治理术语
+- 用户可见文案默认应偏向操作语义，而不是实现语义
+
+页面骨架规则：
+
+- 关键页至少覆盖 `page header`、`primary action area`、`main content surface`、`feedback surface` 的存在性和结构稳定性
+- 不同页面类型可按母版裁剪
+- 不强制所有页面都出现 `table`、`card`、`detail` 三件套
+- 不得为了“概览感”把后台页面做成营销页 hero
+
+推荐技能：
+
+- 处理 `web` 页面、布局、文案、主题、页面母版或前端 AI 提示词任务时，优先使用仓库技能 `graft-web-vibe-coding`
+
 主题与图表规则：
 
 - 页面、模块与样式优先消费现有主题 token，例如 `--td-*`、`settingStore.chartColors` 与现有 brand theme 解析结果；不要把只适配单一明暗模式的十六进制颜色硬编码进业务页面
@@ -239,6 +289,10 @@ bun run check
 - 功能完成、任务完成、准备合并时，必须跑完整 `bun run check`
 - 中间迭代可先跑最小直接验证，但不能把局部验证当作完成态
 - 默认完成态要求 `typecheck`、`lint`、`stylelint`、`test:run`、`build` 全部零 warning
+- 前端治理测试应至少覆盖：
+  - 用户可见文案禁词范围
+  - 关键 `title_key` 解析
+  - 主题响应路径或对应最小直接验证
 - `Vitest` 是正式前端测试基线，不把“前端没有测试”当作默认前提
 - `Stylelint` 用于约束样式覆盖边界，避免随意改写 TDesign 结构
 - 不允许用大面积 `as any`、`any` 或关闭 strict 的方式绕过类型问题；必须把不安全边界收口到 adapter、client、schema 或迁移兼容层

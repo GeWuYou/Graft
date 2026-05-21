@@ -1,26 +1,28 @@
 <template>
-  <div class="role-page">
-    <t-row :gutter="[24, 24]">
-      <t-col :span="12">
-        <t-card class="summary-card" :bordered="false" :title="t('rbac.roleList.listTitle')">
-          <div class="summary-metric">
-            <span class="summary-metric__label">{{ t('rbac.roleList.countLabel') }}</span>
-            <span class="summary-metric__value">{{ roles.length }}</span>
-          </div>
-          <div class="summary-hint">{{ t('rbac.roleList.hint') }}</div>
-        </t-card>
-      </t-col>
-      <t-col :span="12">
-        <t-card class="summary-card" :bordered="false" :title="t('rbac.roleList.apiTitle')">
-          <div class="summary-meta">
-            <span
-              >{{ t('rbac.roleList.endpointLabel') }}<code>{{ t('rbac.roleList.endpointValue') }}</code></span
-            >
-            <span
-              >{{ t('rbac.roleList.fieldsLabel') }}<code>{{ t('rbac.roleList.fieldsValue') }}</code></span
-            >
-          </div>
-          <div class="summary-actions">
+  <div class="role-page" data-page-type="list-form-detail">
+    <header class="role-page__header">
+      <div class="role-page__header-copy">
+        <p class="role-page__section">{{ t('rbac.roleList.sectionTitle') }}</p>
+        <h1 class="role-page__title">{{ t('rbac.roleList.listTitle') }}</h1>
+        <p class="role-page__hint">{{ t('rbac.roleList.hint') }}</p>
+      </div>
+      <div class="role-page__metrics">
+        <article class="role-page__metric">
+          <span class="role-page__metric-label">{{ t('rbac.roleList.countLabel') }}</span>
+          <strong class="role-page__metric-value">{{ roles.length }}</strong>
+        </article>
+        <article class="role-page__metric">
+          <span class="role-page__metric-label">{{ t('rbac.roleList.feedback.assignmentStateLabel') }}</span>
+          <strong class="role-page__metric-value">{{ assignmentStateLabel }}</strong>
+        </article>
+      </div>
+    </header>
+
+    <section class="role-page__body-grid">
+      <t-card class="role-page__action-card" :bordered="false" :title="t('rbac.roleList.actionTitle')">
+        <div class="role-page__action-content">
+          <p class="role-page__action-hint">{{ t('rbac.roleList.actionHint') }}</p>
+          <div class="role-page__action-buttons">
             <t-button theme="primary" variant="outline" :loading="loading" @click="fetchRolePageData">
               {{ t('rbac.roleList.refresh') }}
             </t-button>
@@ -28,18 +30,45 @@
               {{ t('rbac.roleList.create') }}
             </t-button>
           </div>
-        </t-card>
-      </t-col>
-    </t-row>
-
-    <t-card class="table-card" :bordered="false" :title="t('rbac.roleList.dataTitle')">
-      <div class="toolbar-actions">
-        <div class="permission-summary">
-          {{ t('rbac.roleList.permissionSummary', { count: permissions.length }) }}
         </div>
+      </t-card>
+
+      <section class="role-page__feedback-grid">
+        <article class="role-page__feedback-item" :data-tone="permissionCatalogStateTone">
+          <span class="role-page__feedback-label">{{ t('rbac.roleList.feedback.permissionCatalogLabel') }}</span>
+          <div class="role-page__feedback-head">
+            <strong class="role-page__feedback-value">{{ permissionCatalogSummary }}</strong>
+            <t-tag :theme="permissionCatalogStateTagTheme" variant="light">
+              {{ permissionCatalogStateLabel }}
+            </t-tag>
+          </div>
+          <p class="role-page__feedback-hint">{{ t('rbac.roleList.feedback.permissionCatalogHint') }}</p>
+        </article>
+        <article class="role-page__feedback-item" :data-tone="assignmentFeedbackTone">
+          <div class="role-page__feedback-head">
+            <span class="role-page__feedback-label">{{ t('rbac.roleList.feedback.assignmentStateLabel') }}</span>
+            <t-tag :theme="assignmentStateTagTheme" variant="light">
+              {{ assignmentStateLabel }}
+            </t-tag>
+          </div>
+          <p class="role-page__feedback-hint">{{ assignmentStateHint }}</p>
+        </article>
+      </section>
+    </section>
+
+    <t-card class="role-page__table-card" :bordered="false" :title="t('rbac.roleList.dataTitle')">
+      <div class="role-page__table-head">
+        <p class="role-page__table-hint">{{ t('rbac.roleList.tableHint') }}</p>
       </div>
 
-      <t-table row-key="id" :data="roles" :columns="columns" :loading="loading" size="medium" table-layout="fixed">
+      <t-table
+        row-key="id"
+        :data="roles"
+        :columns="columns"
+        :loading="loading"
+        size="medium"
+        :table-layout="showOperationColumn ? 'fixed' : 'auto'"
+      >
         <template #builtin="{ row }">
           <t-tag :theme="row.builtin ? 'success' : 'default'" variant="light">
             {{ row.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
@@ -241,16 +270,79 @@ const permissionLoadRetryable = ref(false);
 const permissionCodes = RBAC_PERMISSION_CODE;
 const canReadPermissions = computed(() => permissionStore.hasPermission(permissionCodes.PERMISSION_READ));
 const canAssignPermissions = computed(() => canReadPermissions.value && permissions.value.length > 0);
+const showOperationColumn = computed(() =>
+  permissionStore.hasAnyPermission([
+    permissionCodes.ROLE_UPDATE,
+    permissionCodes.ROLE_PERMISSION_ASSIGN,
+    permissionCodes.PERMISSION_READ,
+  ]),
+);
 const canSubmitPermissionAssignment = computed(
   () => canAssignPermissions.value && permissionSelectionReady.value && selectedRole.value !== null,
 );
 const permissionDialogStatusMessage = computed(() =>
   loadingRolePermissions.value ? t('rbac.roleList.permissionDialog.loadingSelection') : permissionLoadWarning.value,
 );
+const permissionCatalogStateTone = computed(() => (canReadPermissions.value ? 'success' : 'warning'));
+const permissionCatalogStateTagTheme = computed(() => (canReadPermissions.value ? 'success' : 'warning'));
+const permissionCatalogStateLabel = computed(() =>
+  canReadPermissions.value
+    ? t('rbac.roleList.feedback.permissionCatalogReady')
+    : t('rbac.roleList.feedback.permissionCatalogRestricted'),
+);
 
 const roleDialogTitle = computed(() =>
   roleFormMode.value === 'create' ? t('rbac.roleList.form.createTitle') : t('rbac.roleList.form.editTitle'),
 );
+const permissionCatalogSummary = computed(() =>
+  canReadPermissions.value
+    ? t('rbac.roleList.permissionSummary', { count: permissions.value.length })
+    : t('rbac.roleList.feedback.permissionCatalogRestricted'),
+);
+const assignmentFeedbackTone = computed(() => {
+  if (canAssignPermissions.value) {
+    return 'success';
+  }
+
+  if (canReadPermissions.value) {
+    return 'warning';
+  }
+
+  return 'default';
+});
+const assignmentStateTagTheme = computed(() => {
+  if (canAssignPermissions.value) {
+    return 'success';
+  }
+
+  if (canReadPermissions.value) {
+    return 'warning';
+  }
+
+  return 'default';
+});
+const assignmentStateLabel = computed(() => {
+  if (canAssignPermissions.value) {
+    return t('rbac.roleList.feedback.assignmentStateReady');
+  }
+
+  if (canReadPermissions.value) {
+    return t('rbac.roleList.feedback.assignmentStateUnavailable');
+  }
+
+  return t('rbac.roleList.feedback.assignmentStateRestricted');
+});
+const assignmentStateHint = computed(() => {
+  if (canAssignPermissions.value) {
+    return t('rbac.roleList.feedback.assignmentStateReadyHint');
+  }
+
+  if (canReadPermissions.value) {
+    return t('rbac.roleList.feedback.assignmentStateUnavailableHint');
+  }
+
+  return t('rbac.roleList.feedback.assignmentStateRestrictedHint');
+});
 
 const roleFormRules = computed<Record<keyof RoleFormState, FormRule[]>>(() => ({
   name: [{ required: true, message: t('rbac.roleList.form.required.name'), type: 'error' }],
@@ -279,8 +371,9 @@ const permissionGroups = computed<PermissionGroup[]>(() => {
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
+  void showOperationColumn.value;
 
-  return [
+  const baseColumns: TdBaseTableProps['columns'] = [
     {
       title: t('rbac.roleList.columns.id'),
       colKey: 'id',
@@ -306,13 +399,18 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
       colKey: 'builtin',
       width: 120,
     },
-    {
+  ];
+
+  if (showOperationColumn.value) {
+    baseColumns.push({
       title: t('components.commonTable.operation'),
       colKey: 'operation',
       width: 220,
       fixed: 'right',
-    },
-  ];
+    });
+  }
+
+  return baseColumns;
 });
 
 function normalizeDescription(description: string) {

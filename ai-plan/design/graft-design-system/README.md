@@ -15,6 +15,9 @@ This folder stores non-runtime reference templates for Graft admin pages.
 - `overview-dashboard.md` - overview cards, metrics, charts, and status blocks.
 - `list-form-detail.md` - CRUD-style list, form, drawer, and detail patterns.
 
+These are the first-stage built-in page masters, not the full page-type universe. Extension page types are registered in
+`ai-plan/design/前端视觉设计规范.md`.
+
 ## Rules
 
 - Reference only, not importable runtime code.

@@ -121,6 +121,8 @@ vi.mock('../api/rbac', () => ({
 vi.mock('@/store', () => {
   return {
     usePermissionStore: () => ({
+      hasAnyPermission: (codes: string[]) =>
+        codes.some((code) => getTestState().permissionState.grantedCodes.includes(code)),
       hasPermission: (code: string) => getTestState().permissionState.grantedCodes.includes(code),
     }),
   };
@@ -471,8 +473,10 @@ describe('RolePage', () => {
 
     expect(rbacApiMocks.getRoles).toHaveBeenCalledTimes(1);
     expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
+    expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(wrapper.text()).toContain('editor');
     expect(wrapper.text()).toContain('rbac.roleList.permissionSummary');
+    expect(wrapper.text()).toContain('rbac.roleList.actionTitle');
   });
 
   it('submits the trimmed create payload and appends the created role', async () => {
@@ -513,6 +517,7 @@ describe('RolePage', () => {
   });
 
   it('submits the edited role payload through the update API', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.ROLE_UPDATE];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue({
       items: [],

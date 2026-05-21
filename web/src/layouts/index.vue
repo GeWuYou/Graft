@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="app-shell" v-bind="shellSurfaceAttrs">
     <template v-if="setting.layout.value === 'side'">
       <t-layout key="side" :class="mainLayoutCls">
         <t-aside><layout-side-nav /></t-aside>
@@ -44,6 +44,12 @@ const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
 const setting = storeToRefs(settingStore);
 
+const shellSurfaceAttrs = computed(() => ({
+  'data-layout-mode': settingStore.layout,
+  'data-page-type': 'shell',
+  'data-theme-mode': settingStore.displayMode,
+}));
+
 const mainLayoutCls = computed(() => [
   {
     't-layout--with-sider': settingStore.showSidebar,
@@ -85,4 +91,23 @@ watch(
   },
 );
 </script>
-<style lang="less" scoped></style>
+<style lang="less" scoped>
+.app-shell {
+  background: var(--td-bg-color-page);
+  color: var(--td-text-color-primary);
+  min-height: 100vh;
+}
+
+.app-shell[data-theme-mode='dark'] {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--td-bg-color-page) 92%, var(--td-brand-color) 8%),
+    var(--td-bg-color-page)
+  );
+}
+
+.app-shell :deep(.t-layout) {
+  background: transparent;
+  min-height: 100vh;
+}
+</style>

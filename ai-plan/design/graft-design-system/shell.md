@@ -24,6 +24,6 @@ Use this for the real backend shell only.
 
 ## Don’t
 
-- Add marketing hero blocks.
+- Add marketing-style large hero blocks.
 - Add decorative background art.
 - Create a second shell style unrelated to TDesign.

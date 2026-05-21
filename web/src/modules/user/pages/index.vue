@@ -1,38 +1,63 @@
 <template>
-  <div class="user-page">
-    <t-row :gutter="[24, 24]">
-      <t-col :span="12">
-        <t-card class="summary-card" :bordered="false" :title="t('user.userList.listTitle')">
-          <div class="summary-metric">
-            <span class="summary-metric__label">{{ t('user.userList.countLabel') }}</span>
-            <span class="summary-metric__value">{{ users.length }}</span>
-          </div>
-          <div class="summary-hint">{{ t('user.userList.hint', { endpoint: userApiPath }) }}</div>
-        </t-card>
-      </t-col>
-      <t-col :span="12">
-        <t-card class="summary-card" :bordered="false" :title="t('user.userList.apiTitle')">
-          <div class="summary-meta">
-            <span
-              >{{ t('user.userList.endpointLabel') }}<code>{{ userApiPath }}</code></span
-            >
-            <span
-              >{{ t('user.userList.fieldsLabel') }}<code>{{ t('user.userList.fieldsValue') }}</code></span
-            >
-          </div>
-          <div class="summary-actions">
+  <div class="user-page" data-page-type="list-form-detail">
+    <header class="user-page__header">
+      <div class="user-page__header-copy">
+        <p class="user-page__section">{{ t('user.userList.sectionTitle') }}</p>
+        <h1 class="user-page__title">{{ t('user.userList.listTitle') }}</h1>
+        <p class="user-page__hint">{{ t('user.userList.hint') }}</p>
+      </div>
+      <div class="user-page__metrics">
+        <article class="user-page__metric">
+          <span class="user-page__metric-label">{{ t('user.userList.countLabel') }}</span>
+          <strong class="user-page__metric-value">{{ users.length }}</strong>
+        </article>
+        <article class="user-page__metric">
+          <span class="user-page__metric-label">{{ t('user.userList.feedback.roleManagementLabel') }}</span>
+          <strong class="user-page__metric-value">{{ roleManagementStateLabel }}</strong>
+        </article>
+      </div>
+    </header>
+
+    <section class="user-page__body-grid">
+      <t-card class="user-page__action-card" :bordered="false" :title="t('user.userList.actionTitle')">
+        <div class="user-page__action-content">
+          <p class="user-page__action-hint">{{ t('user.userList.actionHint') }}</p>
+          <div class="user-page__action-buttons">
             <t-button theme="primary" variant="outline" :loading="loading" @click="fetchUsers">
               {{ t('user.userList.refresh') }}
             </t-button>
-            <t-button v-permission="permissionCodes.CREATE" theme="default" variant="base" disabled>
-              {{ t('app.list.base.create') }}
-            </t-button>
           </div>
-        </t-card>
-      </t-col>
-    </t-row>
+        </div>
+      </t-card>
 
-    <t-card class="table-card" :bordered="false" :title="t('user.userList.dataTitle')">
+      <section class="user-page__feedback-grid">
+        <article class="user-page__feedback-item" :data-tone="rowActionTone">
+          <span class="user-page__feedback-label">{{ t('user.userList.feedback.rowActionsLabel') }}</span>
+          <div class="user-page__feedback-head">
+            <strong class="user-page__feedback-value">{{ rowActionStateLabel }}</strong>
+            <t-tag :theme="rowActionTagTheme" variant="light">
+              {{ rowActionStateLabel }}
+            </t-tag>
+          </div>
+          <p class="user-page__feedback-hint">{{ rowActionStateHint }}</p>
+        </article>
+        <article class="user-page__feedback-item" :data-tone="roleManagementTone">
+          <div class="user-page__feedback-head">
+            <span class="user-page__feedback-label">{{ t('user.userList.feedback.roleManagementLabel') }}</span>
+            <t-tag :theme="roleManagementTagTheme" variant="light">
+              {{ roleManagementStateLabel }}
+            </t-tag>
+          </div>
+          <p class="user-page__feedback-hint">{{ roleManagementStateHint }}</p>
+        </article>
+      </section>
+    </section>
+
+    <t-card class="user-page__table-card" :bordered="false" :title="t('user.userList.dataTitle')">
+      <div class="user-page__table-head">
+        <p class="user-page__table-hint">{{ t('user.userList.tableHint') }}</p>
+      </div>
+
       <t-table
         row-key="id"
         :data="users"
@@ -43,9 +68,6 @@
       >
         <template #operation="{ row }">
           <div class="operation-cell">
-            <t-button v-permission="permissionCodes.UPDATE" variant="text" theme="primary" disabled>
-              {{ t('components.commonTable.detail') }}
-            </t-button>
             <t-button
               v-permission="rbacPermissionCodes.USER_ROLE_READ"
               variant="text"
@@ -53,9 +75,6 @@
               @click="handleOpenUserRoleDialog(row)"
             >
               {{ t('user.userList.assignRoles') }}
-            </t-button>
-            <t-button v-permission="permissionCodes.DISABLE" variant="text" theme="danger" disabled>
-              {{ t('components.manage') }}
             </t-button>
           </div>
         </template>
@@ -101,12 +120,16 @@
                     <div class="role-option__header">
                       <span class="role-option__label">{{ role.display }}</span>
                       <t-tag :theme="role.builtin ? 'success' : 'default'" variant="light" size="small">
-                        {{ role.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
+                        {{
+                          role.builtin
+                            ? t('user.userList.roleDialog.builtinYes')
+                            : t('user.userList.roleDialog.builtinNo')
+                        }}
                       </t-tag>
                     </div>
                     <span class="role-option__code">{{ role.name }}</span>
                     <span class="role-option__description">
-                      {{ role.description || t('rbac.roleList.emptyDescription') }}
+                      {{ role.description || t('user.userList.roleDialog.emptyDescription') }}
                     </span>
                   </div>
                 </t-checkbox>
@@ -145,8 +168,6 @@ import { usePermissionStore } from '@/store';
 
 import { assignUserRoles, getRoles, getUserRoleBindings } from '../api/user-roles';
 import { getUsers } from '../api/users';
-import { USER_API_PATH } from '../contract/paths';
-import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserListItem } from '../types/user';
 
 defineOptions({
@@ -168,22 +189,70 @@ const userRoleDialogSession = ref(0);
 const roleSelectionReady = ref(false);
 const roleOptionsReady = ref(false);
 const roleLoadWarning = ref('');
-const permissionCodes = USER_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
-const userApiPath = USER_API_PATH.USERS;
-
-const showOperationColumn = computed(() =>
-  permissionStore.hasAnyPermission([
-    permissionCodes.UPDATE,
-    permissionCodes.DISABLE,
-    rbacPermissionCodes.USER_ROLE_READ,
-  ]),
-);
+const canReadUserRoles = computed(() => permissionStore.hasPermission(rbacPermissionCodes.USER_ROLE_READ));
+const showOperationColumn = computed(() => canReadUserRoles.value);
 
 const loadingRoleDialogData = computed(() => loadingRoles.value || loadingRoleSelection.value);
 const canAssignUserRoles = computed(() => permissionStore.hasPermission(rbacPermissionCodes.USER_ROLE_ASSIGN));
 const canSubmitRoleAssignment = computed(
   () => canAssignUserRoles.value && roleSelectionReady.value && roleOptionsReady.value && selectedUser.value !== null,
+);
+const roleManagementTone = computed(() => {
+  if (canAssignUserRoles.value) {
+    return 'success';
+  }
+
+  if (canReadUserRoles.value) {
+    return 'warning';
+  }
+
+  return 'default';
+});
+const roleManagementTagTheme = computed(() => {
+  if (canAssignUserRoles.value) {
+    return 'success';
+  }
+
+  if (canReadUserRoles.value) {
+    return 'warning';
+  }
+
+  return 'default';
+});
+const roleManagementStateLabel = computed(() => {
+  if (canAssignUserRoles.value) {
+    return t('user.userList.feedback.roleManagementReady');
+  }
+
+  if (canReadUserRoles.value) {
+    return t('user.userList.feedback.roleManagementReadOnly');
+  }
+
+  return t('user.userList.feedback.roleManagementUnavailable');
+});
+const roleManagementStateHint = computed(() => {
+  if (canAssignUserRoles.value) {
+    return t('user.userList.feedback.roleManagementReadyHint');
+  }
+
+  if (canReadUserRoles.value) {
+    return t('user.userList.feedback.roleManagementReadOnlyHint');
+  }
+
+  return t('user.userList.feedback.roleManagementUnavailableHint');
+});
+const rowActionStateLabel = computed(() =>
+  showOperationColumn.value
+    ? t('user.userList.feedback.rowActionsAvailable')
+    : t('user.userList.feedback.rowActionsUnavailable'),
+);
+const rowActionTone = computed(() => (showOperationColumn.value ? 'success' : 'warning'));
+const rowActionTagTheme = computed(() => (showOperationColumn.value ? 'success' : 'warning'));
+const rowActionStateHint = computed(() =>
+  showOperationColumn.value
+    ? t('user.userList.feedback.rowActionsAvailableHint')
+    : t('user.userList.feedback.rowActionsUnavailableHint'),
 );
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
@@ -398,83 +467,4 @@ onMounted(() => {
 </script>
 <style lang="less" scoped>
 @import './index.less';
-
-.summary-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--td-comp-margin-s);
-}
-
-.operation-cell {
-  display: flex;
-  gap: var(--td-comp-margin-xs);
-  justify-content: flex-start;
-}
-
-.dialog-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--td-comp-margin-s);
-  justify-content: flex-end;
-}
-
-.permission-summary {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-medium);
-}
-
-.user-roles-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--td-comp-margin-l);
-}
-
-.role-grid {
-  display: grid;
-  gap: var(--td-comp-margin-l);
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-
-.role-option {
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-l);
-}
-
-.role-option__content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.role-option__header {
-  align-items: center;
-  display: flex;
-  gap: var(--td-comp-margin-s);
-  justify-content: space-between;
-}
-
-.role-option__label {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-small);
-}
-
-.role-option__code {
-  color: var(--td-text-color-placeholder);
-  font: var(--td-font-body-small);
-}
-
-.role-option__description {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.permission-load-warning {
-  align-items: center;
-  color: var(--td-error-color);
-  display: flex;
-  font: var(--td-font-body-small);
-  gap: var(--td-comp-margin-xs);
-  justify-content: space-between;
-}
 </style>

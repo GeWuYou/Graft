@@ -295,8 +295,10 @@ describe('UserPage', () => {
     await flushPromises();
 
     expect(userApiMocks.getUsers).toHaveBeenCalledTimes(1);
+    expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(wrapper.text()).toContain('alice');
     expect(wrapper.text()).not.toContain('user.userList.assignRoles');
+    expect(wrapper.text()).toContain('user.userList.actionTitle');
   });
 
   it('keeps replace-write blocked when the current user-role snapshot cannot be restored', async () => {

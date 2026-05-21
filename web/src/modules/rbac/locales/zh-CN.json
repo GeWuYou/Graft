@@ -1,10 +1,13 @@
 {
   "rbac": {
     "roleList": {
+      "sectionTitle": "权限与角色",
       "listTitle": "角色概览",
       "countLabel": "角色数量",
-      "hint": "当前页面只接最小角色管理闭环：角色列表、创建、更新和权限分配。",
-      "apiTitle": "真实契约",
+      "hint": "集中管理角色列表、基础信息与权限分配。",
+      "actionTitle": "角色操作",
+      "actionHint": "在同一工作面内完成角色创建、基础信息维护与权限分配。",
+      "apiTitle": "接口信息",
       "endpointLabel": "接口：",
       "endpointValue": "GET /api/roles | GET /api/permissions",
       "fieldsLabel": "最小字段：",
@@ -12,7 +15,8 @@
       "refresh": "刷新数据",
       "create": "新建角色",
       "dataTitle": "角色列表",
-      "permissionSummary": "当前已加载 {count} 条权限定义，可用于最小分配闭环。",
+      "permissionSummary": "当前已加载 {count} 条权限定义，可用于角色权限分配。",
+      "tableHint": "优先从列表中选择角色，再进入编辑或权限分配操作。",
       "builtinYes": "内置",
       "builtinNo": "自定义",
       "emptyDescription": "暂无描述",
@@ -32,6 +36,19 @@
         "display": "显示名",
         "description": "描述",
         "builtin": "类型"
+      },
+      "feedback": {
+        "permissionCatalogLabel": "权限目录",
+        "permissionCatalogHint": "权限目录状态会直接影响角色授权是否可执行。",
+        "permissionCatalogReady": "目录已就绪",
+        "permissionCatalogRestricted": "当前会话未开放权限目录读取。",
+        "assignmentStateLabel": "分配状态",
+        "assignmentStateReady": "可分配权限",
+        "assignmentStateReadyHint": "当前已加载权限目录，可直接为角色保存权限分配。",
+        "assignmentStateUnavailable": "等待权限目录",
+        "assignmentStateUnavailableHint": "角色列表已可用，但权限目录尚未就绪，暂不执行分配。",
+        "assignmentStateRestricted": "只读访问",
+        "assignmentStateRestrictedHint": "当前会话仅可查看角色信息，权限分配入口保持受限。"
       },
       "form": {
         "createTitle": "新建角色",

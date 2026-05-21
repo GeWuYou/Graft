@@ -6,12 +6,12 @@ Use this for CRUD modules and most business capabilities.
 
 ## Structure
 
-1. Title and summary
-2. Search/filter area
-3. Table or card list
+1. Page header
+2. Primary action area or filter area
+3. Main content surface
 4. Row actions
 5. Drawer or dialog form
-6. Detail panel or empty state
+6. Detail panel, empty state, or feedback surface
 
 ## Notes
 

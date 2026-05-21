@@ -29,9 +29,12 @@
       "serviceProduction": "Service Product"
     },
     "userList": {
+      "sectionTitle": "Users and Accounts",
       "listTitle": "User List",
       "countLabel": "Current user count",
-      "hint": "This page consumes GET {endpoint} directly and no longer keeps starter demo profile data.",
+      "hint": "Review users in one place and manage role access directly from the table.",
+      "actionTitle": "User Operations",
+      "actionHint": "Refresh the roster and open role management from each row when needed.",
       "apiTitle": "API Details",
       "endpointLabel": "Endpoint: ",
       "fieldsLabel": "Fields: ",
@@ -39,6 +42,7 @@
       "refresh": "Refresh List",
       "assignRoles": "Manage Roles",
       "dataTitle": "User Data",
+      "tableHint": "Locate a user in the table first, then open role management for that account.",
       "empty": "No user data yet",
       "loadFailed": "Failed to load the user list",
       "assignSuccess": "User roles updated",
@@ -50,15 +54,33 @@
         "createdAt": "Created At",
         "updatedAt": "Updated At"
       },
+      "feedback": {
+        "rowActionsLabel": "Row Actions",
+        "rowActionsAvailable": "Role Management Available",
+        "rowActionsAvailableHint": "Open the row action to review or manage role access for each user.",
+        "rowActionsUnavailable": "Read-only View",
+        "rowActionsUnavailableHint": "This session can review the roster, but role management is not exposed.",
+        "roleManagementLabel": "Role Management State",
+        "roleManagementReady": "Ready to Save",
+        "roleManagementReadyHint": "Role data can be read and saved for user assignment changes.",
+        "roleManagementReadOnly": "Read-only Review",
+        "roleManagementReadOnlyHint": "Role bindings can be inspected, but save remains disabled.",
+        "roleManagementUnavailable": "Unavailable",
+        "roleManagementUnavailableHint": "This session does not have role-management access."
+      },
       "roleDialog": {
         "title": "Manage User Roles",
         "currentUser": "Current user: {name}",
         "currentUserEmpty": "No user selected",
         "roleSummary": "{count} roles are available for assignment.",
+        "builtinYes": "Builtin",
+        "builtinNo": "Custom",
+        "emptyDescription": "No description",
         "empty": "No roles available",
         "roleLoadFailed": "Failed to load role definitions.",
         "selectionLoadFailed": "Failed to load the current role assignment. Saving stays disabled until the data is restored.",
         "retry": "Retry",
+        "cancel": "Cancel",
         "confirm": "Save Assignment"
       }
     }

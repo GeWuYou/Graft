@@ -1,5 +1,5 @@
 <template>
-  <t-layout :class="`${prefix}-layout`">
+  <t-layout :class="layoutSurfaceCls" :data-page-type="pageSurfaceType">
     <t-tabs
       v-if="settingStore.isUseTabsRouter"
       drag-sort
@@ -93,6 +93,18 @@ const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
 const tabRouters = computed(() => tabsRouterStore.tabRouters.filter((route) => route.isAlive || route.isHome));
 const activeTabPath = ref<string | null>('');
+const pageSurfaceType = computed<'shell' | 'overview-dashboard' | 'list-form-detail'>(() => {
+  if (route.path.startsWith('/monitor/')) {
+    return 'overview-dashboard';
+  }
+
+  if (route.path.startsWith('/roles') || route.path.startsWith('/users')) {
+    return 'list-form-detail';
+  }
+
+  return 'shell';
+});
+const layoutSurfaceCls = computed(() => [`${prefix}-layout`, `${prefix}-layout--${pageSurfaceType.value}`]);
 
 const { locale } = useLocale();
 
@@ -181,3 +193,18 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
   ];
 };
 </script>
+<style lang="less" scoped>
+.t-layout[data-page-type] {
+  background: transparent;
+  min-height: 100%;
+}
+
+.t-layout[data-page-type] :deep(.tdesign-starter-layout-tabs-nav) {
+  background: var(--td-bg-color-container);
+  border-bottom: 1px solid var(--td-component-stroke);
+}
+
+.t-layout[data-page-type='overview-dashboard'] :deep(.tdesign-starter-content-layout) {
+  padding-top: 16px;
+}
+</style>
