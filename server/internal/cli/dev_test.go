@@ -2,7 +2,10 @@ package cli
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -104,6 +107,29 @@ func TestRunDevAirWrapsRunnerError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "start Air live reload") {
 		t.Fatalf("expected air context, got %v", err)
+	}
+}
+
+// TestServerAirConfigUsesEntrypointForServe 验证仓库内置的 Air 配置使用 entrypoint 数组
+// 来表达 `graft serve`，避免把可执行文件与参数拼成一个错误路径。
+func TestServerAirConfigUsesEntrypointForServe(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve current test file path")
+	}
+
+	configPath := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".air.toml"))
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", configPath, err)
+	}
+
+	config := string(content)
+	if !strings.Contains(config, `entrypoint = ["./tmp/graft", "serve"]`) {
+		t.Fatalf("expected Air config to use entrypoint array for graft serve, got:\n%s", config)
+	}
+	if strings.Contains(config, `bin = "./tmp/graft serve"`) {
+		t.Fatalf("legacy build.bin form must not be used because Air treats it as a single binary path:\n%s", config)
 	}
 }
 
