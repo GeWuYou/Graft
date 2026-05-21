@@ -2,6 +2,19 @@
 
 // layout rewrite
 
+:root {
+  --graft-footer-height: 44px;
+  --graft-floating-toolbar-height: 60px;
+  --graft-floating-toolbar-offset: 28px;
+  --graft-floating-toolbar-gap: 20px;
+  --graft-floating-toolbar-safe-space: calc(
+    var(--graft-floating-toolbar-height) + var(--graft-floating-toolbar-offset) + var(--graft-floating-toolbar-gap)
+  );
+  --graft-bottom-safe-space: var(--graft-floating-toolbar-safe-space);
+  --graft-page-footer-height: var(--graft-footer-height);
+  --graft-page-bottom-safe-space: var(--graft-bottom-safe-space);
+}
+
 .t-layout__sider {
   width: fit-content;
 }
@@ -62,7 +75,7 @@
 
   &-main-wrapper {
     height: 500px;
-    overflow: scroll;
+    overflow: auto;
   }
 
   &-side-nav-layout {
@@ -76,8 +89,11 @@
   }
 
   &-layout {
-    height: calc(100vh - var(--td-comp-size-xxxl));
-    overflow-y: scroll;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 
     &-tabs-nav {
       max-width: 100%;
@@ -103,8 +119,31 @@
   }
 
   &-footer-layout {
-    margin-bottom: var(--td-comp-margin-xxl);
+    flex: 0 0 auto;
+    margin: 0;
     padding: 0;
+  }
+
+  &-page-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+
+    &__main {
+      display: flex;
+      flex-direction: column;
+      min-height: auto;
+    }
+
+    &__bottom-safe-spacer {
+      flex: 0 0 var(--graft-bottom-safe-space);
+      height: var(--graft-bottom-safe-space);
+      pointer-events: none;
+    }
+  }
+
+  &-footer-layout {
+    margin-top: auto;
   }
 
   // slideBar

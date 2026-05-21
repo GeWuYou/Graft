@@ -190,6 +190,12 @@
         "title": "Server Status",
         "overview": {
           "title": "Overview"
+        },
+        "runtime": {
+          "title": "Runtime"
+        },
+        "dependencies": {
+          "title": "Dependencies"
         }
       }
     }
