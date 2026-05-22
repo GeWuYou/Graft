@@ -496,6 +496,48 @@ func TestPermissionRoutesRejectMissingPermission(t *testing.T) {
 	}
 }
 
+// TestPermissionRoutesListPermissions 验证只读权限目录会返回时间字段与角色绑定计数。
+func TestPermissionRoutesListPermissions(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.PermissionReadPermission.String()}},
+		permissions: []store.Permission{
+			{
+				ID:               1,
+				Code:             rbaccontract.PermissionReadPermission.String(),
+				Display:          "Read Permissions",
+				Category:         "api",
+				CreatedAt:        time.Date(2026, time.May, 22, 9, 0, 0, 0, time.UTC),
+				UpdatedAt:        time.Date(2026, time.May, 23, 10, 30, 0, 0, time.UTC),
+				RoleBindingCount: 2,
+			},
+		},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequest("/api/permissions")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	var payload httpx.SuccessResponse[permissionListResponse]
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(payload.Data.Items) != 1 {
+		t.Fatalf("expected one permission item, got %#v", payload.Data.Items)
+	}
+	item := payload.Data.Items[0]
+	if item.Code != rbaccontract.PermissionReadPermission.String() ||
+		item.CreatedAt != "2026-05-22T09:00:00Z" ||
+		item.UpdatedAt != "2026-05-23T10:30:00Z" ||
+		item.RoleBindingCount != 2 {
+		t.Fatalf("unexpected permission payload: %#v", item)
+	}
+}
+
 // TestPermissionRoutesPropagateReadFailure 验证仓储读取失败会走统一本地化内部错误响应。
 func TestPermissionRoutesPropagateReadFailure(t *testing.T) {
 	repo := testRBACRepository{

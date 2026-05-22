@@ -96,22 +96,22 @@
       "refresh": "刷新",
       "retry": "重试",
       "columnSettings": "列设置",
-      "detail": "详情",
       "emptyTitle": "暂无权限数据",
       "empty": "暂无权限数据",
       "loadFailed": "权限列表加载失败",
       "errorTitle": "权限数据暂时不可用",
       "readonlyNotice": "当前权限列表为只读视图。",
-      "readonlyHint": "当前仅支持查看权限详情",
       "readonlyDescription": "权限点由系统和插件注册，当前页面用于查看权限点与模块归属。",
-      "todoHint": "TODO：后续补充权限绑定角色查看、权限模块筛选等能力。",
+      "factSourceHint": "可直接搜索 `user.create` 等权限编码，核对系统是否真实注册了该权限以及当前被多少角色使用。",
       "emptyDescription": "暂无描述",
       "columns": {
         "permission": "权限",
         "module": "模块",
         "code": "权限编码",
         "description": "说明",
-        "roleCount": "使用角色数"
+        "roleCount": "使用角色数",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间"
       },
       "toolbar": {
         "searchPlaceholder": "搜索权限编码、权限名称",

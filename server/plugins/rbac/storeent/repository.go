@@ -503,7 +503,7 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 func (r *repository) findPermissionByCode(ctx context.Context, code string) (rbacstore.Permission, error) {
 	return scanPermission(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, code, display, description, category, created_at, updated_at
+		`SELECT id, code, display, description, category, created_at, updated_at, 0 AS role_binding_count
 		FROM permissions
 		WHERE code = $1 AND deleted_at = 0`,
 		strings.TrimSpace(code),
@@ -516,7 +516,7 @@ func (r *repository) createPermissionRecord(ctx context.Context, input rbacstore
 		ctx,
 		`INSERT INTO permissions (code, display, description, category, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
 		VALUES ($1, $2, $3, $4, $5, 0, $6, 0, 0, 0)
-		RETURNING id, code, display, description, category, created_at, updated_at`,
+		RETURNING id, code, display, description, category, created_at, updated_at, 0 AS role_binding_count`,
 		strings.TrimSpace(input.Code),
 		input.Display,
 		nullableString(input.Description),

@@ -50,6 +50,8 @@ type permissionListItem struct {
 	Display          string  `json:"display"`
 	Description      *string `json:"description,omitempty"`
 	Category         string  `json:"category"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
 	RoleBindingCount int     `json:"role_binding_count"`
 }
 
@@ -262,6 +264,8 @@ func registerPermissionRoutes(
 					Display:          item.Display,
 					Description:      item.Description,
 					Category:         item.Category,
+					CreatedAt:        item.CreatedAt.UTC().Format(time.RFC3339),
+					UpdatedAt:        item.UpdatedAt.UTC().Format(time.RFC3339),
 					RoleBindingCount: item.RoleBindingCount,
 				})
 			}

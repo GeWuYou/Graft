@@ -10,6 +10,9 @@
           <t-button variant="outline" :loading="loading" @click="fetchOverview">
             {{ t('accessControl.overview.actions.refresh') }}
           </t-button>
+          <t-button v-if="canReadPermissions" theme="default" variant="outline" @click="goToPermissions">
+            {{ t('accessControl.overview.actions.viewPermissions') }}
+          </t-button>
           <t-button v-if="canCreateUsers" theme="primary" variant="outline" @click="goToUsers('create')">
             {{ t('accessControl.overview.actions.createUser') }}
           </t-button>
@@ -65,6 +68,26 @@
                 {{ t('accessControl.overview.quickLinks.roles.description') }}
               </p>
               <span class="quick-link-card__action">{{ t('accessControl.overview.quickLinks.roles.action') }}</span>
+            </button>
+            <button
+              v-if="canReadPermissions"
+              class="quick-link-card"
+              data-testid="access-control-quick-link-permissions"
+              type="button"
+              @click="goToPermissions()"
+            >
+              <div class="quick-link-card__head">
+                <span class="quick-link-card__title">{{
+                  t('accessControl.overview.quickLinks.permissions.title')
+                }}</span>
+                <span class="quick-link-card__count">{{ displayValue(permissions.length) }}</span>
+              </div>
+              <p class="quick-link-card__description">
+                {{ t('accessControl.overview.quickLinks.permissions.description') }}
+              </p>
+              <span class="quick-link-card__action">
+                {{ t('accessControl.overview.quickLinks.permissions.action') }}
+              </span>
             </button>
           </div>
         </management-table-card>
@@ -193,6 +216,7 @@ const users = ref<UserSummary[]>([]);
 const roles = ref<RoleSummary[]>([]);
 const permissions = ref<PermissionSummary[]>([]);
 const roleBindings = ref<Record<number, number[]>>({});
+const canReadPermissions = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.PERMISSION_READ));
 const canCreateUsers = computed(() => permissionStore.hasPermission(USER_PERMISSION_CODE.CREATE));
 const canCreateRoles = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.ROLE_CREATE));
 
@@ -371,6 +395,12 @@ function goToRoles(mode?: 'create') {
   void router.push({
     path: ACCESS_CONTROL_ROUTE_PATH.ROLES,
     query: mode === 'create' ? { action: 'create' } : undefined,
+  });
+}
+
+function goToPermissions() {
+  void router.push({
+    path: ACCESS_CONTROL_ROUTE_PATH.PERMISSIONS,
   });
 }
 

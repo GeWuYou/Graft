@@ -121,7 +121,11 @@ const tableStub = defineComponent({
         (props.data as Array<Record<string, unknown>>).map((row, index) =>
           h('div', { 'data-testid': `permission-row-${index}` }, [
             slots.permission?.({ row }),
-            slots.operation?.({ row }),
+            h('span', { 'data-testid': `permission-code-${index}` }, String(row.code ?? '')),
+            h('span', { 'data-testid': `permission-category-${index}` }, String(row.category ?? '')),
+            h('span', { 'data-testid': `permission-created-at-${index}` }, String(row.created_at ?? '')),
+            h('span', { 'data-testid': `permission-updated-at-${index}` }, String(row.updated_at ?? '')),
+            h('span', { 'data-testid': `permission-role-count-${index}` }, String(row.role_binding_count ?? '')),
           ]),
         ),
       );
@@ -181,6 +185,8 @@ describe('PermissionPage', () => {
           display: 'Permission Read',
           description: null,
           category: 'rbac',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 2,
         },
       ],
@@ -192,5 +198,45 @@ describe('PermissionPage', () => {
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
     expect(wrapper.text()).toContain('Permission Read');
+    expect(wrapper.get('[data-testid="permission-code-0"]').text()).toBe('permission.read');
+    expect(wrapper.get('[data-testid="permission-created-at-0"]').text()).toBeTruthy();
+    expect(wrapper.text()).toContain('rbac.permissionList.factSourceHint');
+    expect(wrapper.text()).not.toContain('rbac.permissionList.detail');
+  });
+
+  it('filters permissions by keyword', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          code: 'permission.read',
+          display: 'Permission Read',
+          description: null,
+          category: 'rbac',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
+          role_binding_count: 2,
+        },
+        {
+          id: 2,
+          code: 'user.create',
+          display: 'Create User',
+          description: 'Create users',
+          category: 'user',
+          created_at: '2026-05-21T10:00:00Z',
+          updated_at: '2026-05-23T11:00:00Z',
+          role_binding_count: 1,
+        },
+      ],
+    });
+
+    const wrapper = mountPermissionPage();
+    await flushPromises();
+
+    await wrapper.get('.toolbar__search').setValue('user.create');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="permission-row-0"]').text()).toContain('user.create');
+    expect(wrapper.text()).not.toContain('permission.read');
   });
 });

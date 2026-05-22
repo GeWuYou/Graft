@@ -53,7 +53,7 @@
 
         <div class="inline-note">
           <p>{{ t('rbac.permissionList.readonlyDescription') }}</p>
-          <p>{{ t('rbac.permissionList.todoHint') }}</p>
+          <p>{{ t('rbac.permissionList.factSourceHint') }}</p>
         </div>
 
         <management-empty-state
@@ -94,16 +94,16 @@
             }}</span>
           </template>
 
-          <template #role_count="{ row }">
-            <span>{{ row.role_binding_count ?? '-' }}</span>
+          <template #created_at="{ row }">
+            <span>{{ formatTimestamp(row.created_at) }}</span>
           </template>
 
-          <template #operation="{ row }">
-            <div class="table-actions">
-              <t-button size="small" variant="outline" @click="showReadonlyMessage(row.code)">
-                {{ t('rbac.permissionList.detail') }}
-              </t-button>
-            </div>
+          <template #updated_at="{ row }">
+            <span>{{ formatTimestamp(row.updated_at) }}</span>
+          </template>
+
+          <template #role_count="{ row }">
+            <span>{{ row.role_binding_count ?? '-' }}</span>
           </template>
 
           <template #empty>
@@ -184,7 +184,7 @@ const filters = ref<PermissionFilters>({
   category: '',
 });
 const columnDrawerVisible = ref(false);
-const visibleColumnKeys = ref(['permission', 'category', 'code', 'description', 'role_count', 'operation']);
+const visibleColumnKeys = ref(['permission', 'category', 'code', 'description', 'role_count', 'updated_at']);
 const pagination = ref({
   current: 1,
   pageSize: 10,
@@ -201,7 +201,8 @@ const columnSettingOptions = computed(() => [
   { label: t('rbac.permissionList.columns.code'), value: 'code' },
   { label: t('rbac.permissionList.columns.description'), value: 'description' },
   { label: t('rbac.permissionList.columns.roleCount'), value: 'role_count' },
-  { label: t('components.commonTable.operation'), value: 'operation' },
+  { label: t('rbac.permissionList.columns.createdAt'), value: 'created_at' },
+  { label: t('rbac.permissionList.columns.updatedAt'), value: 'updated_at' },
 ]);
 
 const filteredPermissions = computed(() => {
@@ -234,7 +235,8 @@ const visibleColumns = computed<TdBaseTableProps['columns']>(() => {
     { title: t('rbac.permissionList.columns.code'), colKey: 'code', minWidth: 240 },
     { title: t('rbac.permissionList.columns.description'), colKey: 'description', minWidth: 260 },
     { title: t('rbac.permissionList.columns.roleCount'), colKey: 'role_count', width: 120 },
-    { title: t('components.commonTable.operation'), colKey: 'operation', width: 132, fixed: 'right' },
+    { title: t('rbac.permissionList.columns.createdAt'), colKey: 'created_at', width: 196 },
+    { title: t('rbac.permissionList.columns.updatedAt'), colKey: 'updated_at', width: 196 },
   ];
 
   const visibleKeys = new Set(visibleColumnKeys.value);
@@ -266,8 +268,20 @@ function resetFilters() {
   pagination.value.current = 1;
 }
 
-function showReadonlyMessage(permissionCode: string) {
-  MessagePlugin.warning(`${t('rbac.permissionList.readonlyHint')}: ${permissionCode}`);
+function formatTimestamp(value?: string | null) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
 }
 
 onMounted(() => {
@@ -329,8 +343,7 @@ onMounted(() => {
   --td-comp-paddingTB-m: 10px;
 }
 
-.table-head,
-.table-actions {
+.table-head {
   align-items: center;
   display: flex;
   gap: 12px;
@@ -356,10 +369,6 @@ onMounted(() => {
   font: var(--td-font-title-small);
 }
 
-.table-actions :deep(.t-button) {
-  flex: 0 0 auto;
-}
-
 .drawer-panel,
 .column-grid {
   display: flex;
@@ -377,8 +386,7 @@ onMounted(() => {
     flex-wrap: wrap;
   }
 
-  .table-head,
-  .table-actions {
+  .table-head {
     align-items: stretch;
     flex-direction: column;
   }

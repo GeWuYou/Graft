@@ -96,22 +96,22 @@
       "refresh": "Refresh",
       "retry": "Retry",
       "columnSettings": "Columns",
-      "detail": "Details",
       "emptyTitle": "No permission data",
       "empty": "No permission data",
       "loadFailed": "Failed to load permissions",
       "errorTitle": "Permission data is temporarily unavailable",
       "readonlyNotice": "This permission list is currently read only.",
-      "readonlyHint": "Only permission details are available right now",
       "readonlyDescription": "Permissions are registered by the system and plugins. This page shows permission points and module ownership.",
-      "todoHint": "TODO: add role-binding visibility and permission-module filtering later.",
+      "factSourceHint": "Search for codes like `user.create` here to verify whether the permission is actually registered and how many roles currently use it.",
       "emptyDescription": "No description",
       "columns": {
         "permission": "Permission",
         "module": "Module",
         "code": "Permission Code",
         "description": "Description",
-        "roleCount": "Roles Using It"
+        "roleCount": "Roles Using It",
+        "createdAt": "Created At",
+        "updatedAt": "Updated At"
       },
       "toolbar": {
         "searchPlaceholder": "Search permission code or name",
