@@ -7,7 +7,7 @@
           <t-button theme="default" variant="outline" :loading="loading" data-testid="user-refresh" @click="fetchUsers">
             {{ t('user.userList.refresh') }}
           </t-button>
-          <t-button theme="primary" data-testid="user-create" @click="handleUnavailableAction('create')">
+          <t-button v-if="canCreateUsers" theme="primary" data-testid="user-create" @click="openUserDrawer('create')">
             {{ t('user.userList.create') }}
           </t-button>
         </template>
@@ -167,7 +167,13 @@
               >
                 {{ t('user.userList.assignRoles') }}
               </t-button>
-              <t-button size="small" theme="default" variant="outline" @click="handleUnavailableAction('edit')">
+              <t-button
+                v-if="canUpdateUsers"
+                size="small"
+                theme="default"
+                variant="outline"
+                @click="openUserDrawer('edit', row)"
+              >
                 {{ t('user.userList.edit') }}
               </t-button>
               <t-dropdown
@@ -197,9 +203,10 @@
                       {{ t('user.userList.toolbar.clearFilters') }}
                     </t-button>
                     <t-button
+                      v-if="canCreateUsers"
                       theme="primary"
                       data-testid="user-empty-create"
-                      @click="handleUnavailableAction('create')"
+                      @click="openUserDrawer('create')"
                     >
                       {{ t('user.userList.create') }}
                     </t-button>
@@ -223,6 +230,68 @@
         </template>
       </management-table-card>
     </management-page-content>
+
+    <t-drawer
+      v-model:visible="userDrawerVisible"
+      :header="userDrawerMode === 'create' ? t('user.userList.form.createTitle') : t('user.userList.form.editTitle')"
+      size="520px"
+      placement="right"
+      destroy-on-close
+    >
+      <div class="drawer-panel">
+        <t-form :data="userForm" :rules="userFormRules" label-align="top" @submit="handleUserSubmit">
+          <t-form-item :label="t('user.userList.form.username')" name="username">
+            <t-input v-model="userForm.username" :placeholder="t('user.userList.form.usernamePlaceholder')" />
+          </t-form-item>
+          <t-form-item :label="t('user.userList.form.display')" name="display">
+            <t-input v-model="userForm.display" :placeholder="t('user.userList.form.displayPlaceholder')" />
+          </t-form-item>
+          <t-form-item v-if="userDrawerMode === 'create'" :label="t('user.userList.form.password')" name="password">
+            <t-input
+              v-model="userForm.password"
+              type="password"
+              :placeholder="t('user.userList.form.passwordPlaceholder')"
+            />
+          </t-form-item>
+          <div class="drawer-actions">
+            <t-button variant="outline" @click="closeUserDrawer">
+              {{ t('user.userList.form.cancel') }}
+            </t-button>
+            <t-button theme="primary" type="submit" :loading="submittingUser">
+              {{ t('user.userList.form.confirm') }}
+            </t-button>
+          </div>
+        </t-form>
+      </div>
+    </t-drawer>
+
+    <t-dialog
+      v-model:visible="resetPasswordDialogVisible"
+      :header="t('user.userList.resetPasswordDialog.title')"
+      :confirm-btn="{ loading: submittingResetPassword, content: t('user.userList.resetPasswordDialog.confirm') }"
+      :cancel-btn="t('user.userList.resetPasswordDialog.cancel')"
+      @confirm="submitResetPassword"
+      @close="closeResetPasswordDialog"
+    >
+      <div class="drawer-panel">
+        <p class="table-head__description">
+          {{
+            t('user.userList.resetPasswordDialog.description', {
+              user: resetPasswordTarget?.display || resetPasswordTarget?.username || '-',
+            })
+          }}
+        </p>
+        <t-form :data="resetPasswordForm" label-align="top">
+          <t-form-item :label="t('user.userList.resetPasswordDialog.password')" name="password">
+            <t-input
+              v-model="resetPasswordForm.password"
+              type="password"
+              :placeholder="t('user.userList.resetPasswordDialog.passwordPlaceholder')"
+            />
+          </t-form-item>
+        </t-form>
+      </div>
+    </t-dialog>
 
     <t-drawer
       v-model:visible="userRoleDrawerVisible"
@@ -355,9 +424,10 @@
   </div>
 </template>
 <script setup lang="ts">
-import { MessagePlugin, type TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { type FormRule, MessagePlugin, type SubmitContext, type TdBaseTableProps } from 'tdesign-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import type { RoleListItem } from '@/modules/rbac/contract/role';
@@ -372,11 +442,11 @@ import {
 import { usePermissionStore } from '@/store';
 
 import { assignUserRoles, getRoles, getUserRoleBindings } from '../api/user-roles';
-import { getUsers } from '../api/users';
+import { createUser, deleteUser, getUsers, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
-import type { UserListItem } from '../types/user';
+import type { CreateUserPayload, ResetUserPasswordPayload, UpdateUserPayload, UserListItem } from '../types/user';
 
 defineOptions({
   name: 'UsersIndex',
@@ -392,6 +462,20 @@ type UserRow = UserListItem & {
   last_login_at?: string | null;
 };
 
+type UserDrawerMode = 'create' | 'edit';
+
+type UserFormState = {
+  username: string;
+  display: string;
+  password: string;
+};
+
+const INITIAL_USER_FORM: UserFormState = {
+  username: '',
+  display: '',
+  password: '',
+};
+
 const DEFAULT_VISIBLE_COLUMNS = [
   'row-select',
   'user',
@@ -404,6 +488,8 @@ const DEFAULT_VISIBLE_COLUMNS = [
 ];
 
 const { t, locale } = useI18n();
+const route = useRoute();
+const router = useRouter();
 const permissionStore = usePermissionStore();
 const users = ref<UserRow[]>([]);
 const roles = ref<RoleListItem[]>([]);
@@ -414,6 +500,17 @@ const roleSummaryRequestId = ref(0);
 const roleBindings = ref<Record<number, number[]>>({});
 const roleSummaryLoading = ref<Record<number, boolean>>({});
 const roleSummaryErrors = ref<Record<number, boolean>>({});
+const userDrawerVisible = ref(false);
+const userDrawerMode = ref<UserDrawerMode>('create');
+const userDrawerTarget = ref<UserRow | null>(null);
+const userForm = ref<UserFormState>({ ...INITIAL_USER_FORM });
+const submittingUser = ref(false);
+const resetPasswordDialogVisible = ref(false);
+const resetPasswordTarget = ref<UserRow | null>(null);
+const resetPasswordForm = ref({
+  password: '',
+});
+const submittingResetPassword = ref(false);
 const filters = ref<UserFilters>({
   keyword: '',
   roleId: undefined,
@@ -437,12 +534,16 @@ const pagination = ref({
 
 const userPermissionCodes = USER_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
+const canCreateUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.CREATE));
+const canUpdateUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.UPDATE));
+const canDisableUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.DISABLE));
 const canReadUserRoles = computed(() => permissionStore.hasPermission(rbacPermissionCodes.USER_ROLE_READ));
 const canAssignUserRoles = computed(() => permissionStore.hasPermission(rbacPermissionCodes.USER_ROLE_ASSIGN));
 const canShowOperationColumn = computed(() =>
   permissionStore.hasAnyPermission([
     userPermissionCodes.UPDATE,
     userPermissionCodes.CREATE,
+    userPermissionCodes.DISABLE,
     rbacPermissionCodes.USER_ROLE_READ,
   ]),
 );
@@ -519,19 +620,29 @@ const userRowMoreOptions = (user: UserRow) => [
       normalizeUserStatus(user.status) === USER_STATUS.DISABLED
         ? t('user.userList.moreActions.enable')
         : t('user.userList.moreActions.disable'),
-    disabled: true,
+    disabled: !canDisableUsers.value,
     value: 'toggle-status',
   },
   {
     content: t('user.userList.moreActions.resetPassword'),
-    disabled: true,
+    disabled: !canUpdateUsers.value,
     value: 'reset-password',
   },
   {
     content: t('user.userList.moreActions.delete'),
+    disabled: !canDisableUsers.value,
     value: 'delete',
   },
 ];
+
+const userFormRules = computed<Record<keyof UserFormState, FormRule[]>>(() => ({
+  username: [{ required: true, message: t('user.userList.form.required.username'), type: 'error' }],
+  display: [{ required: true, message: t('user.userList.form.required.display'), type: 'error' }],
+  password:
+    userDrawerMode.value === 'create'
+      ? [{ required: true, message: t('user.userList.form.required.password'), type: 'error' }]
+      : [],
+}));
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
@@ -733,21 +844,164 @@ function statusTheme(status?: string | null) {
   return normalizeUserStatus(status) === USER_STATUS.DISABLED ? 'danger' : 'success';
 }
 
-function handleUnavailableAction(action: 'create' | 'edit' | 'more') {
-  MessagePlugin.warning(t(`user.userList.unavailable.${action}`));
+function openUserDrawer(mode: UserDrawerMode, user?: UserRow) {
+  userDrawerMode.value = mode;
+  userDrawerTarget.value = user ?? null;
+  userForm.value = {
+    username: user?.username ?? '',
+    display: user?.display ?? '',
+    password: '',
+  };
+  userDrawerVisible.value = true;
+}
+
+function consumeCreateActionQuery() {
+  if (route.query.action !== 'create') {
+    return;
+  }
+
+  const nextQuery = { ...route.query };
+  delete nextQuery.action;
+  void router.replace({ query: nextQuery });
+}
+
+function closeUserDrawer() {
+  userDrawerVisible.value = false;
+  userDrawerTarget.value = null;
+  userForm.value = { ...INITIAL_USER_FORM };
+  submittingUser.value = false;
+}
+
+async function handleUserSubmit(ctx: SubmitContext) {
+  if (ctx.validateResult !== true || submittingUser.value) {
+    return;
+  }
+
+  submittingUser.value = true;
+  try {
+    if (userDrawerMode.value === 'create') {
+      const payload: CreateUserPayload = {
+        username: userForm.value.username.trim(),
+        display: userForm.value.display.trim(),
+        password: userForm.value.password,
+      };
+      const created = await createUser(payload);
+      users.value = [created, ...users.value];
+      MessagePlugin.success(t('user.userList.createSuccess'));
+    } else if (userDrawerTarget.value) {
+      const payload: UpdateUserPayload = {
+        username: userForm.value.username.trim(),
+        display: userForm.value.display.trim(),
+      };
+      const updated = await updateUser(userDrawerTarget.value.id, payload);
+      users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+      MessagePlugin.success(t('user.userList.editSuccess'));
+    }
+    closeUserDrawer();
+  } catch (error) {
+    MessagePlugin.error(
+      error instanceof Error
+        ? error.message
+        : userDrawerMode.value === 'create'
+          ? t('user.userList.createFailed')
+          : t('user.userList.editFailed'),
+    );
+  } finally {
+    submittingUser.value = false;
+  }
+}
+
+function openResetPasswordDialog(user: UserRow) {
+  resetPasswordTarget.value = user;
+  resetPasswordForm.value.password = '';
+  resetPasswordDialogVisible.value = true;
+}
+
+function closeResetPasswordDialog() {
+  resetPasswordDialogVisible.value = false;
+  resetPasswordTarget.value = null;
+  resetPasswordForm.value.password = '';
+  submittingResetPassword.value = false;
+}
+
+async function submitResetPassword() {
+  if (!resetPasswordTarget.value) {
+    return;
+  }
+  if (!resetPasswordForm.value.password.trim()) {
+    MessagePlugin.warning(t('user.userList.resetPasswordDialog.required'));
+    return;
+  }
+
+  submittingResetPassword.value = true;
+  try {
+    const payload: ResetUserPasswordPayload = {
+      new_password: resetPasswordForm.value.password,
+    };
+    await resetUserPassword(resetPasswordTarget.value.id, payload);
+    MessagePlugin.success(t('user.userList.resetPasswordSuccess'));
+    closeResetPasswordDialog();
+  } catch (error) {
+    MessagePlugin.error(error instanceof Error ? error.message : t('user.userList.resetPasswordFailed'));
+  } finally {
+    submittingResetPassword.value = false;
+  }
+}
+
+async function toggleUserStatus(user: UserRow) {
+  const nextStatus =
+    normalizeUserStatus(user.status) === USER_STATUS.DISABLED ? USER_STATUS.ENABLED : USER_STATUS.DISABLED;
+  const actionLabel =
+    nextStatus === USER_STATUS.DISABLED
+      ? t('user.userList.moreActions.disable')
+      : t('user.userList.moreActions.enable');
+  const confirmed = window.confirm(
+    t('user.userList.statusConfirmDescription', { user: user.display || user.username, action: actionLabel }),
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const updated = await updateUserStatus(user.id, { status: nextStatus });
+    users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+    MessagePlugin.success(t('user.userList.statusUpdateSuccess'));
+  } catch (error) {
+    MessagePlugin.error(error instanceof Error ? error.message : t('user.userList.statusUpdateFailed'));
+  }
+}
+
+async function confirmDeleteUser(user: UserRow) {
+  const confirmed = window.confirm(
+    t('user.userList.deleteConfirmDescription', { user: user.display || user.username }),
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await deleteUser(user.id);
+    users.value = users.value.filter((item) => item.id !== user.id);
+    selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== user.id);
+    delete roleBindings.value[user.id];
+    MessagePlugin.success(t('user.userList.deleteSuccess'));
+  } catch (error) {
+    MessagePlugin.error(error instanceof Error ? error.message : t('user.userList.deleteFailed'));
+  }
 }
 
 function handleUserMoreAction(payload: { value?: string | number | Record<string, unknown> }, user: UserRow) {
-  if (payload.value === 'delete') {
-    const confirmed = window.confirm(
-      t('user.userList.deleteConfirmDescription', { user: user.display || user.username }),
-    );
-    if (!confirmed) {
-      return;
-    }
+  if (payload.value === 'toggle-status') {
+    void toggleUserStatus(user);
+    return;
   }
-
-  handleUnavailableAction('more');
+  if (payload.value === 'reset-password') {
+    openResetPasswordDialog(user);
+    return;
+  }
+  if (payload.value === 'delete') {
+    void confirmDeleteUser(user);
+  }
 }
 
 function handleSelectChange(value: Array<string | number>) {
@@ -863,6 +1117,19 @@ async function submitUserRoleAssignment() {
 onMounted(() => {
   fetchUsers();
 });
+
+watch(
+  () => [route.query.action, canCreateUsers.value, userDrawerVisible.value] as const,
+  ([action, allowed, visible]) => {
+    if (action !== 'create' || !allowed || visible) {
+      return;
+    }
+
+    openUserDrawer('create');
+    consumeCreateActionQuery();
+  },
+  { immediate: true },
+);
 </script>
 <style lang="less" scoped>
 @import './index.less';

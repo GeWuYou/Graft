@@ -49,6 +49,15 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
+vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    query: {},
+  }),
+  useRouter: () => ({
+    replace: vi.fn(),
+  }),
+}));
+
 vi.mock('tdesign-vue-next', () => ({
   MessagePlugin: {
     error: messageMocks.error,
@@ -376,6 +385,7 @@ describe('RolePage', () => {
   });
 
   it('submits the trimmed create payload', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.ROLE_CREATE];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue({ items: [] });
     rbacApiMocks.createRole.mockResolvedValue({
@@ -430,6 +440,7 @@ describe('RolePage', () => {
   });
 
   it('renders the table empty state, clears filters, and opens the create drawer from the empty action', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.ROLE_CREATE];
     rbacApiMocks.getRoles.mockResolvedValue({ items: [] });
     rbacApiMocks.getPermissions.mockResolvedValue({ items: [] });
 

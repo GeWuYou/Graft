@@ -18,7 +18,7 @@ func TestRegisterUserMenuIncludesTitleKey(t *testing.T) {
 	menu := menus[0]
 	if menu.Code != "user.list" ||
 		menu.TitleKey != usercontract.UserListMenuTitle.String() ||
-		menu.Path != usercontract.UsersGroup ||
+		menu.Path != "/access-control/users" ||
 		menu.Permission != usercontract.UserReadPermission.String() {
 		t.Fatalf("expected canonical user menu contract, got %#v", menu)
 	}

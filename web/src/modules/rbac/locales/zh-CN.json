@@ -7,7 +7,7 @@
       "tableHint": "支持按角色名称、编码与类型快速筛选。",
       "refresh": "刷新",
       "retry": "重试",
-      "create": "新建角色",
+      "create": "创建角色",
       "detail": "详情",
       "edit": "编辑",
       "more": "更多",
@@ -52,7 +52,7 @@
         "clearFilters": "清空筛选"
       },
       "form": {
-        "createTitle": "新建角色",
+        "createTitle": "创建角色",
         "editTitle": "编辑角色",
         "detailTitle": "角色详情",
         "builtinNotice": "内置角色不可删除，角色编码保持只读，其它字段按权限维护。",

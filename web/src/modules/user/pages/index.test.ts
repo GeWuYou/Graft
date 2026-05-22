@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
+import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 
 import UserPage from './index.vue';
 
@@ -49,6 +50,15 @@ vi.mock('vue-i18n', () => ({
     locale: {
       value: 'en-US',
     },
+  }),
+}));
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    query: {},
+  }),
+  useRouter: () => ({
+    replace: vi.fn(),
   }),
 }));
 
@@ -349,6 +359,20 @@ describe('UserPage', () => {
     expect(wrapper.text()).not.toContain('user.userList.assignRoles');
     expect(wrapper.text()).not.toContain('user.userList.stats.totalUsers');
     expect(wrapper.text()).not.toContain('user.userList.stats.recentCreated');
+  });
+
+  it('renders the create action when the current session has user.create permission', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.CREATE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="user-create"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="user-create"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="drawer"]').attributes('data-header')).toBe('user.userList.form.createTitle');
   });
 
   it('keeps role assignment blocked when the current snapshot fails to load', async () => {

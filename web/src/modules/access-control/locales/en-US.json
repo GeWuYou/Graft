@@ -5,7 +5,7 @@
       "description": "Review the overall state of system accounts, roles, permissions, and assignments.",
       "actions": {
         "createUser": "Create User",
-        "createRole": "New Role",
+        "createRole": "Create Role",
         "viewPermissions": "View Permissions",
         "refresh": "Refresh"
       },

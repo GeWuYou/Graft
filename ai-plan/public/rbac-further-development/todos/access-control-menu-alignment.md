@@ -1,6 +1,6 @@
 # Access Control Menu Alignment
 
-- 状态：`open`
+- 状态：`implemented`
 - 范围：`web` 动态菜单契约与访问控制一级聚合
 
 ## 当前前端兼容策略
@@ -10,15 +10,15 @@
 - `modules/user` 继续拥有用户领域页面、API、types、contract、locales。
 - `modules/rbac` 继续拥有角色、权限、角色权限绑定与用户角色授权相关 API/contract/types/locales。
 
-## 后续后端契约对齐项
+## 后端契约对齐结果
 
-- 后端 bootstrap 菜单应补齐父级 `/access-control` 节点。
-- 后端菜单应优先直接下发：
+- 后端菜单现已直接下发：
   - `/access-control/overview`
   - `/access-control/users`
   - `/access-control/roles`
   - `/access-control/permissions`
-- 后端菜单 `title_key` 应优先统一为：
+- 前端动态路由装配层仍保留 legacy `/users`、`/roles`、`/permissions` 兼容归并，但不再依赖它作为主路径。
+- 后端菜单 `title_key` 现统一为：
   - `menu.access_control.title`
   - `menu.access_control.overview.title`
   - `menu.access_control.users.title`

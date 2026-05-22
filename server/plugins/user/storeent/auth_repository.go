@@ -410,6 +410,59 @@ func commitRefreshRotation(tx *ent.Tx) error {
 	return nil
 }
 
+func (r *authRepository) ResetPasswordAndRevokeRefreshSessions(
+	ctx context.Context,
+	input userstore.ResetPasswordAndRevokeSessionsInput,
+) error {
+	userID, err := toEntID(input.UserID)
+	if err != nil {
+		if err == userstore.ErrInvalidID {
+			return userstore.ErrUserNotFound
+		}
+		return err
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin reset password transaction: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err := tx.User.UpdateOneID(userID).
+		Where(userent.DeletedAtEQ(0)).
+		SetPasswordHash(input.PasswordHash).
+		SetMustChangePassword(input.MustChangePassword).
+		SetPasswordChangedAt(input.ChangedAt).
+		Exec(ctx); err != nil {
+		if ent.IsNotFound(err) {
+			return userstore.ErrUserNotFound
+		}
+		return fmt.Errorf("reset user password: %w", err)
+	}
+
+	if _, err := tx.RefreshSession.Update().
+		Where(
+			refreshsessionent.UserIDEQ(userID),
+			refreshsessionent.RevokedAtIsNil(),
+		).
+		SetRevokedAt(input.ChangedAt).
+		Save(ctx); err != nil {
+		return fmt.Errorf("revoke refresh sessions during password reset: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit reset password transaction: %w", err)
+	}
+	committed = true
+
+	return nil
+}
+
 func commitPasswordChange(tx *ent.Tx) error {
 	if commitErr := tx.Commit(); commitErr != nil {
 		if errors.Is(commitErr, context.Canceled) || errors.Is(commitErr, context.DeadlineExceeded) {

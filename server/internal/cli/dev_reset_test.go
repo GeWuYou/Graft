@@ -199,6 +199,10 @@ func (userAuthRepositoryForResetStub) RotateRefreshSession(context.Context, user
 	return userstore.RefreshSession{}, nil
 }
 
+func (userAuthRepositoryForResetStub) ResetPasswordAndRevokeRefreshSessions(context.Context, userstore.ResetPasswordAndRevokeSessionsInput) error {
+	return nil
+}
+
 type rbacBootstrapServiceStub struct{}
 
 func (rbacBootstrapServiceStub) EnsureDefaultAdminAccess(context.Context, uint64, []pluginapi.PermissionSeed) error {

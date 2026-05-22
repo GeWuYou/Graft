@@ -38,6 +38,16 @@
       "create": "创建用户",
       "edit": "编辑",
       "more": "更多",
+      "createSuccess": "用户创建成功",
+      "createFailed": "用户创建失败",
+      "editSuccess": "用户更新成功",
+      "editFailed": "用户更新失败",
+      "statusUpdateSuccess": "用户状态更新成功",
+      "statusUpdateFailed": "用户状态更新失败",
+      "resetPasswordSuccess": "用户密码重置成功",
+      "resetPasswordFailed": "用户密码重置失败",
+      "deleteSuccess": "用户删除成功",
+      "deleteFailed": "用户删除失败",
       "assignRoles": "管理角色",
       "columnSettings": "列设置",
       "empty": "暂无用户数据",
@@ -86,13 +96,40 @@
         "edit": "编辑用户能力暂未开放",
         "more": "更多用户操作暂未开放"
       },
+      "form": {
+        "createTitle": "创建用户",
+        "editTitle": "编辑用户",
+        "username": "用户名",
+        "display": "显示名",
+        "password": "初始密码",
+        "usernamePlaceholder": "输入用户名",
+        "displayPlaceholder": "输入显示名",
+        "passwordPlaceholder": "输入符合策略的初始密码",
+        "cancel": "取消",
+        "confirm": "保存",
+        "required": {
+          "username": "请输入用户名",
+          "display": "请输入显示名",
+          "password": "请输入初始密码"
+        }
+      },
       "moreActions": {
         "enable": "启用用户",
         "disable": "禁用用户",
         "resetPassword": "重置密码",
         "delete": "删除用户"
       },
-      "deleteConfirmDescription": "确认将 {user} 放入删除流程吗？当前仅保留二次确认入口，真实删除能力暂未开放。",
+      "statusConfirmDescription": "确认将 {user} {action}吗？",
+      "deleteConfirmDescription": "确认删除用户 {user} 吗？该操作会同步清退其会话。",
+      "resetPasswordDialog": {
+        "title": "重置用户密码",
+        "description": "为 {user} 设置新密码，保存后该用户需要重新登录并完成改密。",
+        "password": "新密码",
+        "passwordPlaceholder": "输入符合策略的新密码",
+        "cancel": "取消",
+        "confirm": "确认重置",
+        "required": "请输入新密码"
+      },
       "roleDialog": {
         "title": "管理用户角色",
         "currentRolesTitle": "当前角色",

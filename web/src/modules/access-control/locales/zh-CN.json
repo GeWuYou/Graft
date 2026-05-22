@@ -5,7 +5,7 @@
       "description": "查看系统账号、角色、权限与授权关系的整体状态。",
       "actions": {
         "createUser": "创建用户",
-        "createRole": "新建角色",
+        "createRole": "创建角色",
         "viewPermissions": "查看权限",
         "refresh": "刷新"
       },

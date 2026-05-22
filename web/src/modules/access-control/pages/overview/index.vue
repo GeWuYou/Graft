@@ -10,10 +10,10 @@
           <t-button variant="outline" :loading="loading" @click="fetchOverview">
             {{ t('accessControl.overview.actions.refresh') }}
           </t-button>
-          <t-button theme="primary" variant="outline" @click="goToUsers('create')">
+          <t-button v-if="canCreateUsers" theme="primary" variant="outline" @click="goToUsers('create')">
             {{ t('accessControl.overview.actions.createUser') }}
           </t-button>
-          <t-button theme="primary" @click="goToRoles('create')">
+          <t-button v-if="canCreateRoles" theme="primary" @click="goToRoles('create')">
             {{ t('accessControl.overview.actions.createRole') }}
           </t-button>
         </template>
@@ -152,8 +152,10 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { getPermissions } from '@/modules/rbac/api/rbac';
+import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import { getRoles as getUserRoles } from '@/modules/user/api/user-roles';
 import { getUsers } from '@/modules/user/api/users';
+import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 import {
   ManagementEmptyState,
   ManagementPageContent,
@@ -162,6 +164,7 @@ import {
   ManagementStatsGrid,
   ManagementTableCard,
 } from '@/shared/components/management';
+import { usePermissionStore } from '@/store';
 
 import { ACCESS_CONTROL_ROUTE_PATH } from '../../contract/bootstrap';
 
@@ -183,12 +186,15 @@ type UserSummary = {
 
 const { t } = useI18n();
 const router = useRouter();
+const permissionStore = usePermissionStore();
 const loading = ref(false);
 const loadError = ref('');
 const users = ref<UserSummary[]>([]);
 const roles = ref<RoleSummary[]>([]);
 const permissions = ref<PermissionSummary[]>([]);
 const roleBindings = ref<Record<number, number[]>>({});
+const canCreateUsers = computed(() => permissionStore.hasPermission(USER_PERMISSION_CODE.CREATE));
+const canCreateRoles = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.ROLE_CREATE));
 
 const unassignedUserCount = computed(
   () => users.value.filter((user) => (roleBindings.value[user.id] ?? []).length === 0).length,

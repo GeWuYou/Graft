@@ -13,7 +13,7 @@
           >
             {{ t('rbac.roleList.refresh') }}
           </t-button>
-          <t-button theme="primary" data-testid="role-create" @click="openCreateDrawer">
+          <t-button v-if="canCreateRoles" theme="primary" data-testid="role-create" @click="openCreateDrawer">
             {{ t('rbac.roleList.create') }}
           </t-button>
         </template>
@@ -182,7 +182,12 @@
                     >
                       {{ t('rbac.roleList.toolbar.clearFilters') }}
                     </t-button>
-                    <t-button theme="primary" data-testid="role-empty-create" @click="openCreateDrawer">
+                    <t-button
+                      v-if="canCreateRoles"
+                      theme="primary"
+                      data-testid="role-empty-create"
+                      @click="openCreateDrawer"
+                    >
                       {{ t('rbac.roleList.emptyCreate') }}
                     </t-button>
                   </div>
@@ -419,8 +424,9 @@
 </template>
 <script setup lang="ts">
 import { type FormRule, MessagePlugin, type SubmitContext, type TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import {
   ManagementEmptyState,
@@ -484,6 +490,8 @@ const INITIAL_ROLE_FORM: RoleFormState = {
 };
 
 const { t, locale } = useI18n();
+const route = useRoute();
+const router = useRouter();
 const permissionStore = usePermissionStore();
 const roles = ref<RoleListItem[]>([]);
 const permissions = ref<PermissionListItem[]>([]);
@@ -518,6 +526,7 @@ const pagination = ref({
 });
 
 const permissionCodes = RBAC_PERMISSION_CODE;
+const canCreateRoles = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_CREATE));
 const canReadPermissions = computed(() => permissionStore.hasPermission(permissionCodes.PERMISSION_READ));
 const canAssignPermissions = computed(
   () => canReadPermissions.value && permissionStore.hasPermission(permissionCodes.ROLE_PERMISSION_ASSIGN),
@@ -806,6 +815,16 @@ function openCreateDrawer() {
   roleDrawerVisible.value = true;
 }
 
+function consumeCreateActionQuery() {
+  if (route.query.action !== 'create') {
+    return;
+  }
+
+  const nextQuery = { ...route.query };
+  delete nextQuery.action;
+  void router.replace({ query: nextQuery });
+}
+
 function openEditDrawer(role: RoleListItem) {
   roleDrawerMode.value = 'update';
   roleDrawerRole.value = role;
@@ -1035,6 +1054,19 @@ function handleMoreAction(role: RoleListItem) {
 onMounted(() => {
   fetchRolePageData();
 });
+
+watch(
+  () => [route.query.action, canCreateRoles.value, roleDrawerVisible.value] as const,
+  ([action, allowed, visible]) => {
+    if (action !== 'create' || !allowed || visible) {
+      return;
+    }
+
+    openCreateDrawer();
+    consumeCreateActionQuery();
+  },
+  { immediate: true },
+);
 </script>
 <style lang="less" scoped>
 @import './index.less';

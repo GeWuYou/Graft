@@ -5,15 +5,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/i18n"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	usercontract "graft/server/plugins/user/contract"
 	userstore "graft/server/plugins/user/store"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 // Plugin 是用于验证扩展路径的示例用户能力插件。
@@ -39,6 +41,13 @@ type userListItem struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
+
+var (
+	errCannotDisableOwnUser = errors.New("cannot disable own user")
+	errCannotDeleteOwnUser  = errors.New("cannot delete own user")
+	errInvalidUserStatus    = errors.New("invalid user status")
+	errInvalidUserPayload   = errors.New("invalid user payload")
+)
 
 // NewPlugin 创建示例用户插件。
 func NewPlugin(userRepo userstore.UserRepository, authRepo userstore.AuthRepository) *Plugin {
@@ -252,6 +261,173 @@ func (s userService) ListUsers(ctx context.Context) ([]userstore.User, error) {
 	}
 
 	return s.users.List(ctx)
+}
+
+func (s userService) CreateUser(
+	ctx context.Context,
+	passwords passwordHasher,
+	policy passwordPolicy,
+	input userstore.CreateUserInput,
+) (userstore.User, error) {
+	if s.users == nil {
+		return userstore.User{}, errors.New("user repository is unavailable")
+	}
+	if strings.TrimSpace(input.Username) == "" {
+		return userstore.User{}, errInvalidUserPayload
+	}
+	if strings.TrimSpace(input.Display) == "" {
+		return userstore.User{}, errInvalidUserPayload
+	}
+	if err := policy.ValidateNewPassword(input.PasswordHash); err != nil {
+		return userstore.User{}, err
+	}
+
+	hash, err := passwords.Hash(input.PasswordHash)
+	if err != nil {
+		return userstore.User{}, err
+	}
+	input.PasswordHash = hash
+	input.Status = normalizeManagedUserStatus(input.Status)
+	input.MustChangePassword = true
+
+	return s.users.Create(ctx, input)
+}
+
+func (s userService) UpdateUser(ctx context.Context, input userstore.UpdateUserInput) (userstore.User, error) {
+	if s.users == nil {
+		return userstore.User{}, errors.New("user repository is unavailable")
+	}
+	if strings.TrimSpace(input.Username) == "" || strings.TrimSpace(input.Display) == "" {
+		return userstore.User{}, errInvalidUserPayload
+	}
+
+	return s.users.Update(ctx, input)
+}
+
+func (s userService) SetUserStatus(
+	ctx context.Context,
+	authRepo userstore.AuthRepository,
+	input userstore.SetUserStatusInput,
+) (userstore.User, error) {
+	if s.users == nil {
+		return userstore.User{}, errors.New("user repository is unavailable")
+	}
+	if authRepo == nil {
+		return userstore.User{}, errors.New("auth repository is unavailable")
+	}
+
+	status := normalizeExplicitManagedUserStatus(input.Status)
+	if status == "" {
+		return userstore.User{}, errInvalidUserStatus
+	}
+	if status == usercontract.UserStatusDisabled && requestActorOwnsUser(ctx, input.ID) {
+		return userstore.User{}, errCannotDisableOwnUser
+	}
+	input.Status = status
+
+	updated, err := s.users.SetStatus(ctx, input)
+	if err != nil {
+		return userstore.User{}, err
+	}
+	if status == usercontract.UserStatusDisabled {
+		if err := authRepo.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
+			UserID:    input.ID,
+			RevokedAt: time.Now().UTC(),
+		}); err != nil {
+			return userstore.User{}, err
+		}
+	}
+
+	return updated, nil
+}
+
+func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepository, userID uint64) error {
+	if s.users == nil {
+		return errors.New("user repository is unavailable")
+	}
+	if authRepo == nil {
+		return errors.New("auth repository is unavailable")
+	}
+	if requestActorOwnsUser(ctx, userID) {
+		return errCannotDeleteOwnUser
+	}
+
+	if err := s.users.Delete(ctx, userstore.DeleteUserInput{
+		ID:        userID,
+		DeletedAt: time.Now().UTC(),
+		ActorID:   requestActorID(ctx),
+	}); err != nil {
+		return err
+	}
+
+	return authRepo.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
+		UserID:    userID,
+		RevokedAt: time.Now().UTC(),
+	})
+}
+
+func (s userService) ResetUserPassword(
+	ctx context.Context,
+	authRepo userstore.AuthRepository,
+	passwords passwordHasher,
+	policy passwordPolicy,
+	userID uint64,
+	newPassword string,
+) error {
+	if authRepo == nil {
+		return errors.New("auth repository is unavailable")
+	}
+	if err := policy.ValidateNewPassword(newPassword); err != nil {
+		return err
+	}
+
+	hash, err := passwords.Hash(newPassword)
+	if err != nil {
+		return err
+	}
+
+	return authRepo.ResetPasswordAndRevokeRefreshSessions(ctx, userstore.ResetPasswordAndRevokeSessionsInput{
+		UserID:             userID,
+		PasswordHash:       hash,
+		MustChangePassword: true,
+		ChangedAt:          time.Now().UTC(),
+	})
+}
+
+func normalizeManagedUserStatus(status string) string {
+	switch strings.TrimSpace(status) {
+	case "", usercontract.UserStatusEnabled:
+		return usercontract.UserStatusEnabled
+	case usercontract.UserStatusDisabled:
+		return usercontract.UserStatusDisabled
+	default:
+		return ""
+	}
+}
+
+func normalizeExplicitManagedUserStatus(status string) string {
+	switch strings.TrimSpace(status) {
+	case usercontract.UserStatusEnabled:
+		return usercontract.UserStatusEnabled
+	case usercontract.UserStatusDisabled:
+		return usercontract.UserStatusDisabled
+	default:
+		return ""
+	}
+}
+
+func requestActorOwnsUser(ctx context.Context, userID uint64) bool {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	return ok && requestAuth.User != nil && requestAuth.User.ID == userID
+}
+
+func requestActorID(ctx context.Context) uint64 {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.User == nil {
+		return 0
+	}
+
+	return requestAuth.User.ID
 }
 
 // CurrentUser 根据请求上下文中已解析的访问令牌声明返回当前主体摘要。

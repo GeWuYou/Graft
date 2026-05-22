@@ -28,6 +28,14 @@ type SetPasswordHashInput struct {
 	ChangedAt          *time.Time
 }
 
+// ResetPasswordAndRevokeSessionsInput describes the minimal admin password reset input.
+type ResetPasswordAndRevokeSessionsInput struct {
+	UserID             uint64
+	PasswordHash       string
+	MustChangePassword bool
+	ChangedAt          time.Time
+}
+
 // ChangePasswordAndRevokeOtherRefreshSessionsInput describes the minimal
 // password-change input that keeps the current session alive.
 type ChangePasswordAndRevokeOtherRefreshSessionsInput struct {
@@ -128,4 +136,5 @@ type AuthRepository interface {
 	RevokeRefreshSessionByUserID(ctx context.Context, input RevokeRefreshSessionByUserIDInput) error
 	ListActiveRefreshSessionsByUserID(ctx context.Context, input ListActiveRefreshSessionsByUserIDInput) ([]RefreshSession, error)
 	RotateRefreshSession(ctx context.Context, input RotateRefreshSessionInput) (RefreshSession, error)
+	ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input ResetPasswordAndRevokeSessionsInput) error
 }

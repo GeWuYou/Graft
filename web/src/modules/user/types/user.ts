@@ -16,3 +16,22 @@ export interface UserListItem {
 export interface UserListResponse {
   items: UserListItem[];
 }
+
+export interface CreateUserPayload {
+  username: string;
+  display: string;
+  password: string;
+}
+
+export interface UpdateUserPayload {
+  username: string;
+  display: string;
+}
+
+export interface UpdateUserStatusPayload {
+  status: UserStatus;
+}
+
+export interface ResetUserPasswordPayload {
+  new_password: string;
+}

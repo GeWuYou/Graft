@@ -38,6 +38,16 @@
       "create": "Create User",
       "edit": "Edit",
       "more": "More",
+      "createSuccess": "User created",
+      "createFailed": "Failed to create user",
+      "editSuccess": "User updated",
+      "editFailed": "Failed to update user",
+      "statusUpdateSuccess": "User status updated",
+      "statusUpdateFailed": "Failed to update user status",
+      "resetPasswordSuccess": "User password reset",
+      "resetPasswordFailed": "Failed to reset user password",
+      "deleteSuccess": "User deleted",
+      "deleteFailed": "Failed to delete user",
       "assignRoles": "Manage Roles",
       "columnSettings": "Columns",
       "empty": "No user data",
@@ -86,13 +96,40 @@
         "edit": "User editing is not available yet",
         "more": "Additional user actions are not available yet"
       },
+      "form": {
+        "createTitle": "Create User",
+        "editTitle": "Edit User",
+        "username": "Username",
+        "display": "Display Name",
+        "password": "Initial Password",
+        "usernamePlaceholder": "Enter username",
+        "displayPlaceholder": "Enter display name",
+        "passwordPlaceholder": "Enter a policy-compliant initial password",
+        "cancel": "Cancel",
+        "confirm": "Save",
+        "required": {
+          "username": "Enter a username",
+          "display": "Enter a display name",
+          "password": "Enter an initial password"
+        }
+      },
       "moreActions": {
         "enable": "Enable User",
         "disable": "Disable User",
         "resetPassword": "Reset Password",
         "delete": "Delete User"
       },
-      "deleteConfirmDescription": "Confirm placing {user} into the deletion flow. Real delete capability is not available yet.",
+      "statusConfirmDescription": "Confirm {action} for {user}?",
+      "deleteConfirmDescription": "Delete user {user}? This also revokes the user's sessions.",
+      "resetPasswordDialog": {
+        "title": "Reset User Password",
+        "description": "Set a new password for {user}. After saving, the user must log in again and complete password change.",
+        "password": "New Password",
+        "passwordPlaceholder": "Enter a policy-compliant new password",
+        "cancel": "Cancel",
+        "confirm": "Reset Password",
+        "required": "Enter a new password"
+      },
       "roleDialog": {
         "title": "Manage User Roles",
         "currentRolesTitle": "Current Roles",
