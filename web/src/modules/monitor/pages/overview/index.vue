@@ -4,6 +4,7 @@
     :eyebrow="t('monitor.sectionTitle')"
     :title="t('monitor.serverStatus.overviewTitle')"
     :description="t('monitor.serverStatus.overviewHint')"
+    compact-header
   >
     <template #toolbar>
       <monitor-toolbar
@@ -47,7 +48,7 @@
         class="server-status-overview-layout__trend"
         :title="t('monitor.serverStatus.trendCardTitle')"
         :description="refreshCountdownText"
-        :min-height="520"
+        :min-height="440"
       >
         <template #actions>
           <div class="trend-panel__actions">
@@ -287,7 +288,7 @@
         class="server-status-overview-layout__status"
         :title="t('monitor.serverStatus.runtimeStatusTitle')"
         :description="t('monitor.serverStatus.runtimeStatusSubtitle')"
-        :min-height="520"
+        :min-height="440"
       >
         <div v-if="serverStatus" class="status-sidebar__content">
           <section class="status-sidebar__section" data-status-sidebar-group="dependencies">
@@ -1815,25 +1816,4 @@ onUnmounted(() => {
 </script>
 <style lang="less" scoped>
 @import './index.less';
-
-.server-status-overview-layout {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-}
-
-.server-status-overview-layout__trend {
-  grid-column: span 8;
-}
-
-.server-status-overview-layout__status {
-  grid-column: span 4;
-}
-
-@media (width <= 991px) {
-  .server-status-overview-layout__trend,
-  .server-status-overview-layout__status {
-    grid-column: span 12;
-  }
-}
 </style>

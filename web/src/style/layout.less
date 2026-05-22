@@ -131,8 +131,9 @@
 
     &__main {
       display: flex;
+      flex: 0 0 auto;
       flex-direction: column;
-      min-height: auto;
+      min-height: 0;
     }
 
     &__bottom-safe-spacer {
@@ -143,7 +144,7 @@
   }
 
   &-footer-layout {
-    margin-top: auto;
+    margin-top: var(--td-comp-margin-xl);
   }
 
   // slideBar
