@@ -8,7 +8,7 @@
           </template>
           {{ renderMenuTitle(item.title ?? item.meta?.title) }}
         </t-menu-item>
-        <t-menu-item v-else :name="item.path" :value="getMenuValue(item)" :to="String(item.path)">
+        <t-menu-item v-else :name="item.path" :value="getMenuValue(item)" @click="handleMenuItemClick(item)">
           <template #icon>
             <component :is="menuIcon(item)" class="t-icon"></component>
           </template>
@@ -27,8 +27,10 @@
 <script setup lang="ts">
 import type { PropType } from 'vue';
 import { computed, h, resolveComponent } from 'vue';
+import { useRouter } from 'vue-router';
 
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
+import { resolveMenuNavigationPath } from '@/layouts/layout-navigation';
 import { useLocale } from '@/locales/useLocale';
 import { getActive } from '@/router';
 import type { MenuRoute } from '@/utils/types';
@@ -43,6 +45,7 @@ const { navData } = defineProps({
 });
 
 const active = computed(() => getActive());
+const router = useRouter();
 
 const { locale } = useLocale();
 
@@ -119,5 +122,10 @@ const openHref = (item: MenuRoute) => {
   if (href) {
     window.open(href);
   }
+};
+
+const handleMenuItemClick = (item: MenuRoute) => {
+  const targetPath = resolveMenuNavigationPath(item);
+  void router.push(targetPath);
 };
 </script>
