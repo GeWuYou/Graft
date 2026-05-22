@@ -6,16 +6,16 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
   {
     menuPath: MONITOR_ROUTE_PATH.SERVER_STATUS_OVERVIEW,
     routeName: 'MonitorServerStatusOverview',
-    loadPage: () => import('./pages/index.vue'),
+    loadPage: () => import('./pages/overview/index.vue'),
   },
   {
     menuPath: MONITOR_ROUTE_PATH.SERVER_STATUS_RUNTIME,
     routeName: 'MonitorServerStatusRuntime',
-    loadPage: () => import('./pages/runtime.vue'),
+    loadPage: () => import('./pages/runtime/index.vue'),
   },
   {
     menuPath: MONITOR_ROUTE_PATH.SERVER_STATUS_DEPENDENCIES,
     routeName: 'MonitorServerStatusDependencies',
-    loadPage: () => import('./pages/dependencies.vue'),
+    loadPage: () => import('./pages/dependencies/index.vue'),
   },
 ];

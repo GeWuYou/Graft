@@ -376,16 +376,16 @@ import { useI18n } from 'vue-i18n';
 import type { TChartColor } from '@/config/color';
 import { useSettingStore } from '@/store';
 
-import { getServerStatus } from '../api/server-status';
-import MonitorToolbar from '../components/MonitorToolbar.vue';
-import SectionCard from '../components/SectionCard.vue';
-import type { ServerStatusTone } from '../components/server-status-ui';
-import ServerStatusPageShell from '../components/ServerStatusPageShell.vue';
-import SummaryMetricCard from '../components/SummaryMetricCard.vue';
-import { useMonitorRefreshPreferences } from '../composables/use-monitor-refresh-preferences';
-import type { MonitorRefreshInterval } from '../contract/refresh';
-import { MONITOR_TREND_RANGE, type MonitorTrendRange } from '../contract/trend';
-import type { ServerStatusDependency, ServerStatusResponse, ServerStatusTrendPoint } from '../types/server-status';
+import { getServerStatus } from '../../api/server-status';
+import MonitorToolbar from '../../components/MonitorToolbar.vue';
+import SectionCard from '../../components/SectionCard.vue';
+import type { ServerStatusTone } from '../../components/server-status-ui';
+import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
+import SummaryMetricCard from '../../components/SummaryMetricCard.vue';
+import { useMonitorRefreshPreferences } from '../../composables/use-monitor-refresh-preferences';
+import type { MonitorRefreshInterval } from '../../contract/refresh';
+import { MONITOR_TREND_RANGE, type MonitorTrendRange } from '../../contract/trend';
+import type { ServerStatusDependency, ServerStatusResponse, ServerStatusTrendPoint } from '../../types/server-status';
 
 defineOptions({
   name: 'MonitorServerStatusOverviewIndex',

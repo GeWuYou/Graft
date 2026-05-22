@@ -110,20 +110,20 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import KeyValueRow from '../components/KeyValueRow.vue';
-import MonitorToolbar from '../components/MonitorToolbar.vue';
-import SectionCard from '../components/SectionCard.vue';
-import { resolveServerStatusTone } from '../components/server-status-ui';
-import ServerStatusPageShell from '../components/ServerStatusPageShell.vue';
-import SummaryMetricCard from '../components/SummaryMetricCard.vue';
-import type { MonitorRefreshInterval } from '../contract/refresh';
+import KeyValueRow from '../../components/KeyValueRow.vue';
+import MonitorToolbar from '../../components/MonitorToolbar.vue';
+import SectionCard from '../../components/SectionCard.vue';
+import { resolveServerStatusTone } from '../../components/server-status-ui';
+import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
+import SummaryMetricCard from '../../components/SummaryMetricCard.vue';
+import type { MonitorRefreshInterval } from '../../contract/refresh';
 import {
   displayText,
   formatBytes,
   formatTimestamp,
   formatUptime,
   useServerStatusSnapshot,
-} from './server-status-snapshot';
+} from '../../shared/server-status-snapshot';
 
 const { t } = useI18n();
 const {

@@ -2,8 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
-import { resetMonitorRefreshPreferencesForTests } from '../composables/use-monitor-refresh-preferences';
-import RuntimePage from './runtime.vue';
+import { resetMonitorRefreshPreferencesForTests } from '../../composables/use-monitor-refresh-preferences';
+import RuntimePage from './index.vue';
 
 const monitorApiMocks = vi.hoisted(() => ({
   getServerStatus: vi.fn(),
@@ -89,7 +89,7 @@ const translations = vi.hoisted(
   }),
 );
 
-vi.mock('../api/server-status', () => ({
+vi.mock('../../api/server-status', () => ({
   getServerStatus: monitorApiMocks.getServerStatus,
 }));
 

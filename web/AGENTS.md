@@ -147,6 +147,7 @@ web/src/
 - `modules/**` 不得反向导入 `app/**`
 - 模块之间允许跨边界消费的长期真值只有另一模块的 `contract/**`
 - `modules/<name>/types/**` 一律视为模块私有实现细节
+- `modules/<name>/shared/**` 允许承载仅在该模块内部被多个页面或组件复用的 helper、样式片段与 composable；它不是跨模块 `shared/**` 的替代品
 - 禁止新增跨模块 `@/modules/<other>/types/**` 导入
 - 如果某个 DTO、字面量联合、权限码、路径、表格查询形状或 capability type 需要被其他模块、壳层或平台基础设施稳定消费，必须提升到 `modules/<name>/contract/**`
 - 根级 `contracts/**` 只收口平台级稳定契约；不要把模块契约提升到根级来逃避模块边界
@@ -168,6 +169,8 @@ web/src/
 - `bootstrap-routes.ts` 只声明模块可接入壳层所需的最小注册信息，不扩散页面实现细节到壳层
 - 壳层只消费模块注册结果，不直接维护“页面 path -> 模块页面组件”的第二套长期白名单
 - 新增模块时，默认按 `pages`、`components`、`api`、`contract`、`types`、`locales` 组织
+- 模块存在稳定子菜单或同级子页面时，`pages/<subpage>/index.vue` 是默认页面真值；测试与页面私有样式跟随该目录放在 `pages/<subpage>/index.test.ts`、`pages/<subpage>/index.less`
+- 模块页面之间共享但不应暴露到跨模块 `shared/**` 的 helper、样式基线与 snapshot/composable，默认放在 `modules/<name>/shared/**`
 - 新增模块时，至少补齐模块目录、`index.ts` 与 `bootstrap-routes.ts`
 - 如果某个默认目录在当前切片暂时不存在，必须保证对应真值仍留在模块边界内，不得回退到根级平台目录
 - 路由名必须稳定且唯一；不得为同一语义并行维护多套 route name 或 path 常量

@@ -2,10 +2,10 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
-import { resetMonitorRefreshPreferencesForTests } from '../composables/use-monitor-refresh-preferences';
-import DependenciesPage from './dependencies.vue';
+import { resetMonitorRefreshPreferencesForTests } from '../../composables/use-monitor-refresh-preferences';
+import DependenciesPage from '../dependencies/index.vue';
+import RuntimePage from '../runtime/index.vue';
 import MonitorPage from './index.vue';
-import RuntimePage from './runtime.vue';
 
 const monitorApiMocks = vi.hoisted(() => ({
   getServerStatus: vi.fn(),
@@ -227,7 +227,7 @@ const translations = vi.hoisted(
   }),
 );
 
-vi.mock('../api/server-status', () => ({
+vi.mock('../../api/server-status', () => ({
   getServerStatus: monitorApiMocks.getServerStatus,
 }));
 
