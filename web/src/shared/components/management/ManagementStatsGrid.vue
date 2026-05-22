@@ -21,7 +21,7 @@ export type ManagementStatItem = {
 withDefaults(
   defineProps<{
     items: ManagementStatItem[];
-    layout?: 'auto' | 'dashboard';
+    layout?: 'auto' | 'dashboard' | 'compact';
   }>(),
   {
     layout: 'auto',
@@ -39,6 +39,10 @@ withDefaults(
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.management-stats-grid--compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .management-stats-grid__item {
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-stroke);
@@ -49,6 +53,12 @@ withDefaults(
   gap: 8px;
   min-height: 112px;
   padding: 14px 16px;
+}
+
+.management-stats-grid--compact .management-stats-grid__item {
+  gap: 6px;
+  min-height: 96px;
+  padding: 12px 14px;
 }
 
 .management-stats-grid__head {
@@ -76,13 +86,15 @@ withDefaults(
 }
 
 @media (width <= 1199px) {
-  .management-stats-grid--dashboard {
+  .management-stats-grid--dashboard,
+  .management-stats-grid--compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (width <= 767px) {
-  .management-stats-grid--dashboard {
+  .management-stats-grid--dashboard,
+  .management-stats-grid--compact {
     grid-template-columns: 1fr;
   }
 }

@@ -75,7 +75,7 @@
         "disabled": "禁用"
       },
       "roleSummary": {
-        "empty": "未分配",
+        "empty": "-",
         "loading": "加载中",
         "loadFailed": "角色摘要加载失败",
         "unavailable": "-"

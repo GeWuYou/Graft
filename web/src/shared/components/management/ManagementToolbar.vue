@@ -24,7 +24,8 @@
   box-shadow: var(--td-shadow-1);
   flex-wrap: wrap;
   justify-content: space-between;
-  padding: 12px 16px;
+  min-height: 72px;
+  padding: 14px 20px;
 }
 
 .management-toolbar__filters,
@@ -35,6 +36,7 @@
 }
 
 .management-toolbar__actions {
+  flex: 0 0 auto;
   justify-content: flex-end;
 }
 

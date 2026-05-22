@@ -41,12 +41,26 @@
 
 .management-table-card__body {
   min-width: 0;
-  padding: 0 20px 20px;
+  padding: 0 20px 16px;
 }
 
 .management-table-card__footer {
   border-bottom: 0;
   border-top: 1px solid var(--td-component-stroke);
+}
+
+.management-table-card__body :deep(.t-table) {
+  --td-comp-paddingTB-m: 11px;
+
+  width: 100%;
+}
+
+.management-table-card__body :deep(.t-table th) {
+  height: 44px;
+}
+
+.management-table-card__body :deep(.t-table td) {
+  min-height: 56px;
 }
 
 @media (width <= 768px) {

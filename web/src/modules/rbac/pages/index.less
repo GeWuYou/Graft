@@ -1,3 +1,9 @@
+.role-page {
+  --graft-page-max-width: 1680px;
+  --graft-page-width-ratio: 90vw;
+  --graft-page-min-padding: 24px;
+}
+
 .toolbar__search {
   width: clamp(260px, 28vw, 320px);
 }
@@ -41,6 +47,14 @@
 .table-head__description,
 .permission-group__meta {
   margin: 0;
+}
+
+.table-head {
+  width: 100%;
+}
+
+.table-head > div {
+  min-width: 0;
 }
 
 .table-head__summary {
@@ -126,11 +140,22 @@
 
 :deep(.t-table) {
   --td-comp-paddingTB-m: 10px;
+
+  width: 100%;
 }
 
 :deep(.t-table th),
 :deep(.t-table td) {
   white-space: nowrap;
+}
+
+:deep(.t-table__content),
+:deep(.t-table table) {
+  width: 100%;
+}
+
+:deep(.t-table table) {
+  table-layout: fixed;
 }
 
 .permission-card__body {
@@ -149,6 +174,9 @@
 
 .table-actions {
   flex-wrap: nowrap;
+  gap: 8px;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .table-actions :deep(.t-button) {
@@ -161,6 +189,30 @@
 
 .drawer-actions--between {
   justify-content: space-between;
+}
+
+.role-count,
+.role-date,
+.role-type-tag {
+  white-space: nowrap;
+}
+
+.role-remark {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-identity__display,
+.role-identity__code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:deep(.t-table th:last-child),
+:deep(.t-table td:last-child) {
+  text-align: right;
 }
 
 @media (width <= 768px) {

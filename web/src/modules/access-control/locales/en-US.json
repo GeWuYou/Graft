@@ -15,7 +15,9 @@
         "totalRoles": "Total Roles",
         "totalRolesDescription": "{builtin} builtin / {custom} custom",
         "totalPermissions": "Total Permissions",
-        "totalPermissionsDescription": "System and plugin permission points combined"
+        "totalPermissionsDescription": "System and plugin permission points combined",
+        "assignmentCount": "Role Assignments",
+        "assignmentCountDescription": "{pending} accounts still need role assignments"
       },
       "status": {
         "title": "Status Summary",
@@ -62,6 +64,7 @@
       },
       "todo": {
         "title": "Pending Items",
+        "subtitle": "Keep the overview lightweight instead of turning it into a report page.",
         "emptyTitle": "No pending items",
         "emptyDescription": "There are no extra access control follow-ups right now.",
         "assignmentSyncLabel": "Complete account assignments",

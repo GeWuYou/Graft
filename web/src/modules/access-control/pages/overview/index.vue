@@ -10,7 +10,12 @@
           <t-button variant="outline" :loading="loading" @click="fetchOverview">
             {{ t('accessControl.overview.actions.refresh') }}
           </t-button>
-          <t-button theme="primary" @click="goToUsers">{{ t('accessControl.overview.actions.createUser') }}</t-button>
+          <t-button theme="primary" variant="outline" @click="goToUsers('create')">
+            {{ t('accessControl.overview.actions.createUser') }}
+          </t-button>
+          <t-button theme="primary" @click="goToRoles('create')">
+            {{ t('accessControl.overview.actions.createRole') }}
+          </t-button>
         </template>
       </management-page-header>
 
@@ -28,7 +33,7 @@
         </management-empty-state>
       </div>
 
-      <management-stats-grid :items="statItems" />
+      <management-stats-grid :items="statItems" layout="compact" />
 
       <section class="access-control-overview__grid">
         <management-table-card>
@@ -41,35 +46,25 @@
             </div>
           </template>
           <div class="quick-link-grid">
-            <button class="quick-link-card" type="button" @click="goToUsers">
+            <button class="quick-link-card" type="button" @click="goToUsers()">
               <div class="quick-link-card__head">
                 <span class="quick-link-card__title">{{ t('accessControl.overview.quickLinks.users.title') }}</span>
                 <span class="quick-link-card__count">{{ displayValue(users.length) }}</span>
               </div>
-              <p class="quick-link-card__description">{{ t('accessControl.overview.quickLinks.users.description') }}</p>
+              <p class="quick-link-card__description">
+                {{ t('accessControl.overview.quickLinks.users.description') }}
+              </p>
               <span class="quick-link-card__action">{{ t('accessControl.overview.quickLinks.users.action') }}</span>
             </button>
-            <button class="quick-link-card" type="button" @click="goToRoles">
+            <button class="quick-link-card" type="button" @click="goToRoles()">
               <div class="quick-link-card__head">
                 <span class="quick-link-card__title">{{ t('accessControl.overview.quickLinks.roles.title') }}</span>
                 <span class="quick-link-card__count">{{ displayValue(roles.length) }}</span>
               </div>
-              <p class="quick-link-card__description">{{ t('accessControl.overview.quickLinks.roles.description') }}</p>
-              <span class="quick-link-card__action">{{ t('accessControl.overview.quickLinks.roles.action') }}</span>
-            </button>
-            <button class="quick-link-card" type="button" @click="goToPermissions">
-              <div class="quick-link-card__head">
-                <span class="quick-link-card__title">{{
-                  t('accessControl.overview.quickLinks.permissions.title')
-                }}</span>
-                <span class="quick-link-card__count">{{ displayValue(permissions.length) }}</span>
-              </div>
               <p class="quick-link-card__description">
-                {{ t('accessControl.overview.quickLinks.permissions.description') }}
+                {{ t('accessControl.overview.quickLinks.roles.description') }}
               </p>
-              <span class="quick-link-card__action">{{
-                t('accessControl.overview.quickLinks.permissions.action')
-              }}</span>
+              <span class="quick-link-card__action">{{ t('accessControl.overview.quickLinks.roles.action') }}</span>
             </button>
           </div>
         </management-table-card>
@@ -97,8 +92,8 @@
         <template #head>
           <div class="section-head">
             <div>
-              <h2>{{ t('accessControl.overview.risk.title') }}</h2>
-              <p>{{ t('accessControl.overview.risk.subtitle') }}</p>
+              <h2>{{ t('accessControl.overview.todo.title') }}</h2>
+              <p>{{ t('accessControl.overview.todo.subtitle') }}</p>
             </div>
           </div>
         </template>
@@ -205,6 +200,9 @@ const emptyCustomRoleCount = computed(
   () => roles.value.filter((role) => !role.builtin && role.permission_count === 0).length,
 );
 const staleRoleCount = computed(() => roles.value.filter((role) => !role.updated_at).length);
+const totalRoleBindingCount = computed(() =>
+  Object.values(roleBindings.value).reduce((sum, ids) => sum + ids.length, 0),
+);
 
 const statItems = computed<ManagementStatItem[]>(() => [
   {
@@ -227,6 +225,13 @@ const statItems = computed<ManagementStatItem[]>(() => [
     label: t('accessControl.overview.stats.totalPermissions'),
     value: displayValue(permissions.value.length),
     description: t('accessControl.overview.stats.totalPermissionsDescription'),
+  },
+  {
+    label: t('accessControl.overview.stats.assignmentCount'),
+    value: displayValue(totalRoleBindingCount.value),
+    description: t('accessControl.overview.stats.assignmentCountDescription', {
+      pending: displayValue(unassignedUserCount.value),
+    }),
   },
 ]);
 
@@ -349,16 +354,18 @@ async function fetchOverview() {
   }
 }
 
-function goToUsers() {
-  void router.push(ACCESS_CONTROL_ROUTE_PATH.USERS);
+function goToUsers(mode?: 'create') {
+  void router.push({
+    path: ACCESS_CONTROL_ROUTE_PATH.USERS,
+    query: mode === 'create' ? { action: 'create' } : undefined,
+  });
 }
 
-function goToRoles() {
-  void router.push(ACCESS_CONTROL_ROUTE_PATH.ROLES);
-}
-
-function goToPermissions() {
-  void router.push(ACCESS_CONTROL_ROUTE_PATH.PERMISSIONS);
+function goToRoles(mode?: 'create') {
+  void router.push({
+    path: ACCESS_CONTROL_ROUTE_PATH.ROLES,
+    query: mode === 'create' ? { action: 'create' } : undefined,
+  });
 }
 
 onMounted(() => {
@@ -461,12 +468,14 @@ onMounted(() => {
 .quick-link-grid {
   display: grid;
   gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .quick-link-card {
   background: color-mix(in srgb, var(--td-brand-color) 3%, var(--td-bg-color-container));
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-large);
+  box-shadow: var(--td-shadow-1);
   color: inherit;
   cursor: pointer;
   display: grid;
@@ -480,6 +489,7 @@ onMounted(() => {
 
 .quick-link-card:hover {
   border-color: var(--td-brand-color);
+  box-shadow: var(--td-shadow-2);
   transform: translateY(-1px);
 }
 
@@ -492,15 +502,13 @@ onMounted(() => {
   margin: 0;
 }
 
-@media (width >= 960px) {
-  .quick-link-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (width <= 900px) {
   .access-control-overview__grid,
   .issue-section {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-link-grid {
     grid-template-columns: 1fr;
   }
 }

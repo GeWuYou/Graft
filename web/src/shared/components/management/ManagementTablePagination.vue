@@ -19,9 +19,9 @@ defineProps<{
 .management-table-pagination {
   align-items: center;
   display: flex;
-  gap: 16px;
+  gap: 20px;
   justify-content: space-between;
-  min-height: 56px;
+  min-height: 60px;
   width: 100%;
 }
 
@@ -45,15 +45,20 @@ defineProps<{
   align-items: center;
   display: flex;
   flex-wrap: nowrap;
-  gap: 12px;
+  gap: 14px;
   justify-content: flex-end;
+  margin-left: auto;
   width: auto;
 }
 
 .management-table-pagination__controls :deep(.t-pagination__total),
 .management-table-pagination__controls :deep(.t-pagination__page-size),
 .management-table-pagination__controls :deep(.t-pagination__list),
-.management-table-pagination__controls :deep(.t-pagination__jumper) {
+.management-table-pagination__controls :deep(.t-pagination__jumper),
+.management-table-pagination__controls :deep(.t-pagination__btn),
+.management-table-pagination__controls :deep(.t-select) {
+  align-items: center;
+  display: inline-flex;
   margin: 0;
   white-space: nowrap;
 }

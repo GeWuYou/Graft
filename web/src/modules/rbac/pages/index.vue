@@ -81,6 +81,8 @@
           :data="pagedRoles"
           :columns="visibleColumns"
           :loading="loading"
+          table-layout="fixed"
+          table-content-width="100%"
           cell-empty-content="-"
         >
           <template #role="{ row }">
@@ -91,25 +93,25 @@
           </template>
 
           <template #builtin="{ row }">
-            <t-tag :theme="row.builtin ? 'warning' : 'default'" variant="light">
+            <t-tag class="role-type-tag" :theme="row.builtin ? 'warning' : 'default'" variant="light">
               {{ row.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
             </t-tag>
           </template>
 
           <template #permission_count="{ row }">
-            <span>{{ countLabel(row.permission_count, 'rbac.roleList.permissionCount') }}</span>
+            <span class="role-count">{{ countLabel(row.permission_count, 'rbac.roleList.permissionCount') }}</span>
           </template>
 
           <template #user_count="{ row }">
-            <span>{{ countLabel(row.user_count, 'rbac.roleList.userCount') }}</span>
+            <span class="role-count">{{ countLabel(row.user_count, 'rbac.roleList.userCount') }}</span>
           </template>
 
           <template #remark="{ row }">
-            <span class="table-muted">{{ roleRemark(row) }}</span>
+            <span class="role-remark table-muted">{{ roleRemark(row) }}</span>
           </template>
 
           <template #updated_at="{ row }">
-            <span>{{ formatTimestamp(row.updated_at) }}</span>
+            <span class="role-date">{{ formatTimestamp(row.updated_at) }}</span>
           </template>
 
           <template #operation="{ row }">
@@ -631,27 +633,29 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     {
       title: t('rbac.roleList.columns.role'),
       colKey: 'role',
-      minWidth: 260,
+      minWidth: 220,
+      ellipsis: true,
     },
     {
       title: t('rbac.roleList.columns.type'),
       colKey: 'builtin',
-      width: 112,
+      width: 100,
     },
     {
       title: t('rbac.roleList.columns.permissionCount'),
       colKey: 'permission_count',
-      width: 112,
+      width: 100,
     },
     {
       title: t('rbac.roleList.columns.userCount'),
       colKey: 'user_count',
-      width: 112,
+      width: 100,
     },
     {
       title: t('rbac.roleList.columns.remark'),
       colKey: 'remark',
-      minWidth: 200,
+      minWidth: 220,
+      ellipsis: true,
     },
     {
       title: t('rbac.roleList.columns.updatedAt'),
@@ -664,7 +668,8 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     allColumns.push({
       title: t('components.commonTable.operation'),
       colKey: 'operation',
-      width: 300,
+      width: 260,
+      align: 'right',
       fixed: 'right',
     });
   }

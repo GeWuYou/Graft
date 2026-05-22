@@ -15,7 +15,9 @@
         "totalRoles": "总角色数",
         "totalRolesDescription": "内置 {builtin} / 自定义 {custom}",
         "totalPermissions": "权限总数",
-        "totalPermissionsDescription": "覆盖系统注册与插件注册的权限点"
+        "totalPermissionsDescription": "覆盖系统注册与插件注册的权限点",
+        "assignmentCount": "角色分配关系",
+        "assignmentCountDescription": "当前仍有 {pending} 个账号待补充分配"
       },
       "status": {
         "title": "状态摘要",
@@ -62,6 +64,7 @@
       },
       "todo": {
         "title": "待处理事项",
+        "subtitle": "保留轻量的风险与跟进提示，不把概览页做成报表页。",
         "emptyTitle": "暂无待处理事项",
         "emptyDescription": "当前没有额外的访问控制跟进项。",
         "assignmentSyncLabel": "账号授权补齐",

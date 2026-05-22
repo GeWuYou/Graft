@@ -95,6 +95,8 @@
           :data="pagedUsers"
           :columns="visibleColumns"
           :loading="loading"
+          table-layout="fixed"
+          table-content-width="100%"
           :selected-row-keys="selectedRowKeys"
           cell-empty-content="-"
           @select-change="handleSelectChange"
@@ -521,39 +523,41 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     {
       colKey: 'row-select',
       type: 'multiple',
-      width: 58,
+      width: 48,
       fixed: 'left' as const,
     },
     {
       title: t('user.userList.columns.user'),
       colKey: 'user',
-      minWidth: 320,
+      minWidth: 220,
+      ellipsis: true,
       fixed: 'left' as const,
     },
     {
       title: t('user.userList.columns.status'),
       colKey: 'status',
-      width: 108,
+      width: 100,
     },
     {
       title: t('user.userList.columns.roles'),
       colKey: 'roles',
-      width: 180,
+      width: 140,
+      ellipsis: true,
     },
     {
       title: t('user.userList.columns.lastLoginAt'),
       colKey: 'last_login_at',
-      width: 180,
+      width: 160,
     },
     {
       title: t('user.userList.columns.createdAt'),
       colKey: 'created_at',
-      width: 176,
+      width: 180,
     },
     {
       title: t('user.userList.columns.updatedAt'),
       colKey: 'updated_at',
-      width: 176,
+      width: 180,
     },
   ];
 
@@ -563,7 +567,8 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
         {
           title: t('components.commonTable.operation'),
           colKey: 'operation',
-          width: 192,
+          width: 220,
+          align: 'right' as const,
           fixed: 'right' as const,
         },
       ]

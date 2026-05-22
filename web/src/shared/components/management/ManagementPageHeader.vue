@@ -32,7 +32,7 @@ defineProps<{
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  padding: 16px 18px;
+  padding: 18px 20px;
 }
 
 .management-page-header__side,
