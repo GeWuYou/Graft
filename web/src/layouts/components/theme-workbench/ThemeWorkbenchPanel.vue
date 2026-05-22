@@ -118,20 +118,22 @@
                   class="layout-card"
                   :class="{
                     'layout-card--active': settingStore.layout === layoutOption.value,
-                    'layout-card--disabled': layoutOption.disabled,
                   }"
-                  :disabled="layoutOption.disabled"
-                  @click="selectLayout(layoutOption.value, layoutOption.disabled)"
+                  @click="selectLayout(layoutOption.value)"
                 >
                   <thumbnail :src="layoutOption.thumbnail" />
                   <span class="layout-card__title">{{ layoutOption.label }}</span>
-                  <span v-if="layoutOption.disabled" class="layout-card__badge">
-                    {{ t('layout.setting.workbench.layout.pending') }}
-                  </span>
                 </button>
               </div>
-              <div v-if="showMixLayoutNotice" class="layout-warning">
-                {{ t('layout.setting.workbench.layout.warning') }}
+              <div v-if="settingStore.layout === 'mix'" class="switch-list switch-list--layout">
+                <div class="switch-item">
+                  <span>{{ t('layout.setting.splitMenu') }}</span>
+                  <t-switch v-model="settingStore.splitMenu" />
+                </div>
+                <div class="switch-item">
+                  <span>{{ t('layout.setting.fixedSidebar') }}</span>
+                  <t-switch v-model="settingStore.isSidebarFixed" />
+                </div>
               </div>
             </div>
 
@@ -251,14 +253,12 @@ const layoutOptions = computed(() => [
     label: t('layout.setting.workbench.layout.mix'),
     description: t('layout.setting.workbench.layout.descriptions.mix'),
     thumbnail: 'https://tdesign.gtimg.com/tdesign-pro/setting/mix.png',
-    disabled: true,
   },
 ]);
 
 const activeTokenDefinitions = computed(() =>
   settingStore.themeTokenDefinitions.filter((item) => item.group === settingStore.activeThemeTokenGroup),
 );
-const showMixLayoutNotice = computed(() => settingStore.layout === 'mix');
 
 const activeGroupLabel = computed(() => {
   const group = groups.value.find((item) => item.key === settingStore.activeThemeWorkbenchGroup);
@@ -273,12 +273,7 @@ const closeWorkbench = () => {
   settingStore.closeThemeWorkbench();
 };
 
-// 当前布局壳只实现了 side / top 两种真实预览，禁用 mix 入口避免用户误判配置已生效。
-const selectLayout = (layout: 'side' | 'top' | 'mix', disabled?: boolean) => {
-  if (disabled) {
-    return;
-  }
-
+const selectLayout = (layout: 'side' | 'top' | 'mix') => {
   settingStore.updateConfig({ layout });
 };
 </script>
@@ -477,11 +472,6 @@ const selectLayout = (layout: 'side' | 'top' | 'mix', disabled?: boolean) => {
   transform: translateY(-1px);
 }
 
-.layout-card--disabled {
-  cursor: not-allowed;
-  opacity: 0.68;
-}
-
 .mode-card {
   align-content: start;
   justify-items: center;
@@ -574,12 +564,6 @@ const selectLayout = (layout: 'side' | 'top' | 'mix', disabled?: boolean) => {
   font-weight: 600;
 }
 
-.layout-card__badge {
-  color: var(--td-brand-color);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .brand-palette {
   display: grid;
   gap: 10px;
@@ -627,6 +611,10 @@ const selectLayout = (layout: 'side' | 'top' | 'mix', disabled?: boolean) => {
   gap: 8px;
 }
 
+.switch-list--layout {
+  margin-top: 2px;
+}
+
 .section-actions {
   display: grid;
   gap: 10px;
@@ -641,16 +629,6 @@ const selectLayout = (layout: 'side' | 'top' | 'mix', disabled?: boolean) => {
   justify-content: space-between;
   min-height: 52px;
   padding: 10px 14px;
-}
-
-.layout-warning {
-  background: color-mix(in srgb, var(--td-warning-color, #ed7b2f) 10%, var(--td-bg-color-container));
-  border: 1px solid color-mix(in srgb, var(--td-warning-color, #ed7b2f) 28%, transparent);
-  border-radius: 16px;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  line-height: 1.6;
-  padding: 12px 14px;
 }
 
 @media (width <= 860px) {

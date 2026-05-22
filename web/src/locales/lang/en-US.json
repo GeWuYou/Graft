@@ -117,13 +117,11 @@
           "side": "Side Layout",
           "top": "Top Layout",
           "mix": "Mix Layout",
-          "tip": "Only layouts with truthful runtime preview stay enabled here, so configuration and rendered shell remain aligned.",
-          "pending": "Pending",
-          "warning": "The saved layout is mix, but the current shell does not provide a faithful mixed-layout preview yet, so the page renders through a compatibility branch.",
+          "tip": "Choose side, top, or mixed navigation. Changes apply to the current shell immediately.",
           "descriptions": {
             "side": "Keeps side navigation and header together for the main admin workspace.",
             "top": "Moves navigation into the header and frees more horizontal content space.",
-            "mix": "A faithful mixed-layout preview is not wired into the current web shell yet, so this stays as a placeholder."
+            "mix": "Combines top-level header navigation with side submenus, with optional split menu behavior."
           }
         },
         "presets": {

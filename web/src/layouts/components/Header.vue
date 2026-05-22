@@ -9,7 +9,7 @@
           <t-button theme="default" shape="square" variant="text" @click="changeCollapsed">
             <t-icon class="collapsed-icon" name="view-list" />
           </t-button>
-          <search :layout="layout" />
+          <search />
         </div>
       </template>
       <template v-if="layout !== 'side'" #default>
@@ -18,7 +18,7 @@
       <template #operations>
         <div class="operations-container">
           <!-- 搜索框 -->
-          <search v-if="layout !== 'side'" :layout="layout" />
+          <search v-if="layout !== 'side'" />
 
           <!-- 全局通知 -->
           <notice />

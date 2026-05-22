@@ -1,19 +1,5 @@
 <template>
-  <div v-if="layout === 'side'" class="header-menu-search">
-    <t-input
-      class="header-search"
-      :class="[{ 'hover-active': isSearchFocus }]"
-      :placeholder="t('layout.searchPlaceholder')"
-      @blur="changeSearchFocus(false)"
-      @focus="changeSearchFocus(true)"
-    >
-      <template #prefix-icon>
-        <t-icon class="icon" name="search" size="16" />
-      </template>
-    </t-input>
-  </div>
-
-  <div v-else class="header-menu-search-left">
+  <div class="header-menu-search-left">
     <t-button
       :class="{ 'search-icon-hide': isSearchFocus }"
       theme="default"
@@ -24,6 +10,7 @@
       <t-icon name="search" />
     </t-button>
     <t-input
+      ref="searchInput"
       v-model="searchData"
       class="header-search"
       :class="[{ 'width-zero': !isSearchFocus }]"
@@ -38,62 +25,27 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 
 import { t } from '@/locales';
 
-defineProps({
-  layout: {
-    type: String,
-    default: '',
-  },
-});
-
 const isSearchFocus = ref(false);
 const searchData = ref('');
+const searchInput = ref<{ focus?: () => void } | null>(null);
+
 const changeSearchFocus = (value: boolean) => {
   if (!value) {
     searchData.value = '';
   }
   isSearchFocus.value = value;
+  if (value) {
+    nextTick(() => {
+      searchInput.value?.focus?.();
+    });
+  }
 };
 </script>
 <style lang="less" scoped>
-.header-menu-search {
-  display: flex;
-  margin-left: 16px;
-
-  .hover-active {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  .t-icon {
-    color: var(--td-text-color-primary) !important;
-  }
-
-  .header-search {
-    :deep(.t-input) {
-      border: none;
-      box-shadow: none;
-      outline: none;
-      transition: background @anim-duration-base linear;
-
-      .t-input__inner {
-        background: none;
-        transition: background @anim-duration-base linear;
-      }
-
-      &:hover {
-        background: var(--td-bg-color-secondarycontainer);
-
-        .t-input__inner {
-          background: var(--td-bg-color-secondarycontainer);
-        }
-      }
-    }
-  }
-}
-
 .t-button {
   margin: 0 8px;
   transition: opacity @anim-duration-base @anim-time-fn-easing;
