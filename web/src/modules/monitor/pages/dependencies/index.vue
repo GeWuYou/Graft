@@ -359,8 +359,8 @@ function formatDateOnly(value?: string | null) {
 
 .server-status-plugin-entry {
   align-items: flex-start;
-  background: var(--td-bg-color-container-select);
-  border: 1px dashed var(--td-component-stroke);
+  background: var(--server-status-card-background-subtle, var(--td-bg-color-container-hover));
+  border: 1px dashed var(--server-status-card-border, var(--td-component-stroke));
   border-radius: calc(var(--td-radius-large) - 2px);
   display: flex;
   flex-direction: column;

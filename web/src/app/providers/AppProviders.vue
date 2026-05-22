@@ -1,6 +1,8 @@
 <template>
   <t-config-provider :global-config="getComponentsLocale">
-    <router-view :key="locale" :class="[mode]" />
+    <div class="app-theme-surface" :class="mode" :data-theme-mode="mode">
+      <router-view :key="locale" />
+    </div>
     <setting-com />
   </t-config-provider>
 </template>
@@ -20,6 +22,13 @@ const mode = computed(() => {
 const { getComponentsLocale, locale } = useLocale();
 </script>
 <style lang="less" scoped>
+.app-theme-surface {
+  background: var(--td-bg-color-page);
+  color: var(--td-text-color-primary);
+  height: 100%;
+  min-height: 100%;
+}
+
 #nprogress .bar {
   background: var(--td-brand-color) !important;
 }

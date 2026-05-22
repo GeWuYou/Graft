@@ -35,8 +35,8 @@ withDefaults(
 </script>
 <style scoped lang="less">
 .server-status-summary-card {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
+  background: var(--server-status-card-background, var(--td-bg-color-container));
+  border: 1px solid var(--server-status-card-border-strong, var(--td-component-border));
   border-radius: var(--td-radius-large);
   display: flex;
   flex-direction: column;

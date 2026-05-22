@@ -395,8 +395,8 @@ function formatHostMemoryPercent(
 }
 
 .server-status-runtime-scope-line {
-  background: color-mix(in srgb, var(--td-bg-color-container-hover) 72%, transparent);
-  border: 1px solid var(--td-component-stroke);
+  background: var(--server-status-card-background-subtle, var(--td-bg-color-container-hover));
+  border: 1px solid var(--server-status-card-border, var(--td-component-stroke));
   border-radius: var(--td-radius-medium);
   color: var(--td-text-color-secondary);
   font-size: 12px;
@@ -412,8 +412,8 @@ function formatHostMemoryPercent(
 }
 
 .server-status-runtime-memory-hero__item {
-  background: var(--td-bg-color-container-select);
-  border: 1px solid var(--td-component-stroke);
+  background: var(--server-status-card-background-subtle, var(--td-bg-color-container-hover));
+  border: 1px solid var(--server-status-card-border, var(--td-component-stroke));
   border-radius: calc(var(--td-radius-large) - 2px);
   min-height: 92px;
   padding: 16px;

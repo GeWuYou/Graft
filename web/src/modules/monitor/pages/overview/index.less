@@ -1,7 +1,7 @@
 .monitor-dashboard {
-  --monitor-surface-background: var(--td-bg-color-container);
-  --monitor-surface-background-soft: var(--td-bg-color-container-hover);
-  --monitor-surface-border: var(--td-component-stroke);
+  --monitor-surface-background: var(--server-status-card-background, var(--td-bg-color-container));
+  --monitor-surface-background-soft: var(--server-status-card-background-subtle, var(--td-bg-color-container-hover));
+  --monitor-surface-border: var(--server-status-card-border, var(--td-component-stroke));
   --monitor-surface-muted: var(--td-text-color-secondary);
 
   display: flex;
@@ -113,7 +113,8 @@
 }
 
 .dashboard-feedback__item {
-  background: color-mix(in srgb, var(--monitor-accent, var(--td-brand-color)) 5%, var(--monitor-surface-background));
+  background: var(--monitor-surface-background-soft);
+  border-color: color-mix(in srgb, var(--monitor-accent, var(--td-brand-color)) 14%, var(--monitor-surface-border));
   padding: 16px 18px;
 }
 
@@ -139,12 +140,8 @@
 }
 
 .metric-card {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--monitor-accent, var(--td-brand-color)) 10%, var(--td-bg-color-container)),
-    var(--td-bg-color-container)
-  );
-  border: 1px solid color-mix(in srgb, var(--monitor-accent, var(--td-brand-color)) 18%, var(--td-component-stroke));
+  background: var(--monitor-surface-background);
+  border: 1px solid color-mix(in srgb, var(--monitor-accent, var(--td-brand-color)) 14%, var(--monitor-surface-border));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -390,7 +387,7 @@
 .trend-panel__focus-toolbar {
   align-items: center;
   background: var(--monitor-surface-background-soft);
-  border: 1px solid color-mix(in srgb, var(--td-brand-color) 12%, var(--monitor-surface-border));
+  border: 1px solid var(--monitor-surface-border);
   border-radius: var(--td-radius-medium);
   display: flex;
   flex: 1 1 320px;
@@ -437,8 +434,8 @@
 .trend-runtime-summary,
 .trend-small-card,
 .trend-focus-panel {
-  background: color-mix(in srgb, var(--td-brand-color) 3%, var(--monitor-surface-background));
-  border: 1px solid color-mix(in srgb, var(--td-brand-color) 10%, var(--monitor-surface-border));
+  background: var(--monitor-surface-background);
+  border: 1px solid var(--monitor-surface-border);
   border-radius: var(--td-radius-large);
   padding: 16px;
 }
@@ -617,8 +614,8 @@
 
 .dependency-item {
   align-items: center;
-  background: color-mix(in srgb, var(--monitor-accent, var(--td-brand-color)) 5%, var(--td-bg-color-container));
-  border: 1px solid color-mix(in srgb, var(--monitor-accent, var(--td-brand-color)) 16%, var(--td-component-stroke));
+  background: var(--monitor-surface-background-soft);
+  border: 1px solid color-mix(in srgb, var(--monitor-accent, var(--td-brand-color)) 14%, var(--monitor-surface-border));
   border-radius: var(--td-radius-medium);
   display: flex;
   gap: 12px;
@@ -698,7 +695,6 @@
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  padding-bottom: var(--graft-floating-toolbar-safe-space);
 }
 
 .server-status-overview-layout__trend {

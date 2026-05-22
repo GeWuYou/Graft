@@ -114,7 +114,7 @@ watch(
   }
 
   &__main {
-    background-color: #fff;
+    background-color: var(--td-bg-color-container);
     border: 0;
     box-sizing: border-box;
     height: 100%;

@@ -39,8 +39,8 @@ defineProps<{
 </script>
 <style scoped lang="less">
 .server-status-dependency-card {
-  background: var(--td-bg-color-container-select);
-  border: 1px solid var(--td-component-stroke);
+  background: var(--server-status-card-background-subtle, var(--td-bg-color-container-hover));
+  border: 1px solid var(--server-status-card-border, var(--td-component-stroke));
   border-radius: calc(var(--td-radius-large) - 2px);
   display: flex;
   flex-direction: column;

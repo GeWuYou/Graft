@@ -283,8 +283,8 @@ const canSubmitPermissionAssignment = computed(
 const permissionDialogStatusMessage = computed(() =>
   loadingRolePermissions.value ? t('rbac.roleList.permissionDialog.loadingSelection') : permissionLoadWarning.value,
 );
-const permissionCatalogStateTone = computed(() => (canReadPermissions.value ? 'success' : 'warning'));
-const permissionCatalogStateTagTheme = computed(() => (canReadPermissions.value ? 'success' : 'warning'));
+const permissionCatalogStateTone = computed(() => (canReadPermissions.value ? 'primary' : 'warning'));
+const permissionCatalogStateTagTheme = computed(() => (canReadPermissions.value ? 'primary' : 'warning'));
 const permissionCatalogStateLabel = computed(() =>
   canReadPermissions.value
     ? t('rbac.roleList.feedback.permissionCatalogReady')
@@ -301,7 +301,7 @@ const permissionCatalogSummary = computed(() =>
 );
 const assignmentFeedbackTone = computed(() => {
   if (canAssignPermissions.value) {
-    return 'success';
+    return 'primary';
   }
 
   if (canReadPermissions.value) {
@@ -312,7 +312,7 @@ const assignmentFeedbackTone = computed(() => {
 });
 const assignmentStateTagTheme = computed(() => {
   if (canAssignPermissions.value) {
-    return 'success';
+    return 'primary';
   }
 
   if (canReadPermissions.value) {

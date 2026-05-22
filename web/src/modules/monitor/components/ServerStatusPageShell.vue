@@ -45,11 +45,16 @@ defineProps<{
   --server-status-page-shell-header-gap: 16px;
   --server-status-page-shell-heading-gap: 6px;
   --server-status-page-shell-eyebrow-gap: 2px;
+  --server-status-card-background: var(--td-bg-color-container);
+  --server-status-card-background-subtle: var(--td-bg-color-container-hover);
+  --server-status-card-border: var(--td-component-stroke);
+  --server-status-card-border-strong: var(--td-component-border);
 
   display: flex;
   flex-direction: column;
   gap: var(--server-status-page-shell-gap);
   min-width: 0;
+  padding-bottom: var(--graft-floating-toolbar-safe-space);
 }
 
 .server-status-page-shell__header {

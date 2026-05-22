@@ -69,47 +69,20 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
   {
     id: 'tencent-cloud',
     label: 'Tencent Cloud',
-    description: '收敛到更贴近腾讯云控制台的亮色主色。',
+    description: '收敛到更贴近腾讯云控制台的亮色主色，不改写页面中性色。',
     brandTheme: '#0064FF',
-    tokenOverrides: {
-      light: {
-        '--td-bg-color-page': '#f5f7ff',
-        '--td-bg-color-container-hover': '#eef3ff',
-      },
-      dark: {
-        '--td-bg-color-page': '#111827',
-        '--td-bg-color-container': '#1b2333',
-      },
-    },
   },
   {
     id: 'mountain-green',
     label: 'Mountain Green',
-    description: '用更温和的绿色主色与浅色容器强化信息层次。',
+    description: '用更温和的绿色主色驱动按钮、选中态与状态强调，不改写页面中性色。',
     brandTheme: '#2BA471',
-    tokenOverrides: {
-      light: {
-        '--td-bg-color-page': '#f3faf7',
-        '--td-bg-color-container-hover': '#e8f5ef',
-      },
-      dark: {
-        '--td-bg-color-page': '#0f1f1a',
-        '--td-bg-color-container': '#142922',
-      },
-    },
   },
   {
     id: 'midnight-blue',
     label: 'Midnight Blue',
-    description: '默认以暗色工作区为主，适合长时间浏览控制台页面。',
+    description: '默认以暗色模式启动，保持 TDesign 中性深色工作区。',
     brandTheme: '#3B82F6',
     mode: 'dark',
-    tokenOverrides: {
-      dark: {
-        '--td-bg-color-page': '#0b1220',
-        '--td-bg-color-container': '#111b30',
-        '--td-bg-color-container-hover': '#16233d',
-      },
-    },
   },
 ];

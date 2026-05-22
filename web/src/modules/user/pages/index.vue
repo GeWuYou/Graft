@@ -200,7 +200,7 @@ const canSubmitRoleAssignment = computed(
 );
 const roleManagementTone = computed(() => {
   if (canAssignUserRoles.value) {
-    return 'success';
+    return 'primary';
   }
 
   if (canReadUserRoles.value) {
@@ -211,7 +211,7 @@ const roleManagementTone = computed(() => {
 });
 const roleManagementTagTheme = computed(() => {
   if (canAssignUserRoles.value) {
-    return 'success';
+    return 'primary';
   }
 
   if (canReadUserRoles.value) {
@@ -247,8 +247,8 @@ const rowActionStateLabel = computed(() =>
     ? t('user.userList.feedback.rowActionsAvailable')
     : t('user.userList.feedback.rowActionsUnavailable'),
 );
-const rowActionTone = computed(() => (showOperationColumn.value ? 'success' : 'warning'));
-const rowActionTagTheme = computed(() => (showOperationColumn.value ? 'success' : 'warning'));
+const rowActionTone = computed(() => (showOperationColumn.value ? 'primary' : 'warning'));
+const rowActionTagTheme = computed(() => (showOperationColumn.value ? 'primary' : 'warning'));
 const rowActionStateHint = computed(() =>
   showOperationColumn.value
     ? t('user.userList.feedback.rowActionsAvailableHint')

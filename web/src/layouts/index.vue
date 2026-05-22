@@ -102,14 +102,6 @@ watch(
   overflow: hidden;
 }
 
-.app-shell[data-theme-mode='dark'] {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--td-bg-color-page) 92%, var(--td-brand-color) 8%),
-    var(--td-bg-color-page)
-  );
-}
-
 .app-shell__layout,
 .app-shell__main {
   background: transparent;

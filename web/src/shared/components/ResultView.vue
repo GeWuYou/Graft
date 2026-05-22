@@ -1,11 +1,15 @@
 <template>
-  <div class="result-container">
-    <div class="result-bg-img">
-      <component :is="dynamicComponent"></component>
+  <div class="result-page" data-page-type="error-result">
+    <div class="result-container">
+      <div class="result-bg-img">
+        <component :is="dynamicComponent"></component>
+      </div>
+      <div class="result-title">{{ title }}</div>
+      <div class="result-tip">{{ tip }}</div>
+      <div class="result-actions">
+        <slot />
+      </div>
     </div>
-    <div class="result-title">{{ title }}</div>
-    <div class="result-tip">{{ tip }}</div>
-    <slot />
   </div>
 </template>
 <script setup lang="ts">
@@ -84,9 +88,18 @@ const dynamicComponent = computed(() => {
     align-items: center;
     display: flex;
     flex-direction: column;
-    height: 75vh;
     justify-content: center;
-    min-height: 400px;
+    min-height: min(720px, 76vh);
+    padding: var(--td-comp-paddingTB-xxxl) var(--td-comp-paddingLR-xl) var(--graft-page-bottom-safe-space);
+  }
+
+  &-page {
+    align-items: center;
+    background: var(--td-bg-color-page);
+    color: var(--td-text-color-primary);
+    display: flex;
+    justify-content: center;
+    min-height: 100%;
   }
 
   &-bg-img {
@@ -105,6 +118,15 @@ const dynamicComponent = computed(() => {
     color: var(--td-text-color-secondary);
     font: var(--td-font-body-medium);
     margin: var(--td-comp-margin-s) 0 var(--td-comp-margin-xxxl);
+    max-width: 520px;
+    text-align: center;
+  }
+
+  &-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--td-comp-margin-s);
+    justify-content: center;
   }
 }
 </style>
