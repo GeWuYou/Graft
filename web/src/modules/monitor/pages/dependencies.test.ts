@@ -32,7 +32,7 @@ const translations = vi.hoisted(
     'monitor.serverStatus.nextRefreshRetryIn': 'Retry in {seconds}s · base interval {interval}',
     'monitor.dependenciesPage.title': 'Dependencies',
     'monitor.dependenciesPage.subtitle':
-      'Review health signals for PostgreSQL, Redis, and the future extension point for plugin-owned dependency checks.',
+      'Review health signals for PostgreSQL, Redis, and future plugin-owned dependency checks.',
     'monitor.dependenciesPage.noteTitle': 'Dependency health scope',
     'monitor.dependenciesPage.noteDescription':
       'The current page reflects the latest aggregated snapshot. Additional services can show their own health checks here as they become available.',
@@ -46,7 +46,7 @@ const translations = vi.hoisted(
     'monitor.dependenciesPage.futureEntrySubtitle': 'Reserved for plugin-owned health probes',
     'monitor.dependenciesPage.futureEntryLabel': 'Reserved entry',
     'monitor.dependenciesPage.futureEntryHint':
-      'Additional service checks can appear here as plugin capabilities are enabled over time.',
+      'Future plugins can plug their own dependency checks in here without further menu restructuring.',
     'monitor.dependenciesPage.futureEntryDescription':
       'This card will show new dependency checks when they are available.',
     'monitor.dependenciesPage.noError': 'No current error',

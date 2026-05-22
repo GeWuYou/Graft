@@ -72,7 +72,7 @@
     },
     "dependenciesPage": {
       "title": "依赖服务",
-      "subtitle": "查看 PostgreSQL、Redis 以及未来插件依赖探测入口的健康状态。",
+      "subtitle": "查看 PostgreSQL、Redis 以及未来插件自有依赖检查的健康状态。",
       "serviceListTitle": "依赖服务列表",
       "noteTitle": "依赖健康范围",
       "noteDescription": "当前页面基于最近一次聚合快照展示依赖状态。后续接入的新服务健康检查也会在这里继续展示。",
@@ -85,7 +85,7 @@
       "futureEntryTitle": "插件依赖扩展入口",
       "futureEntrySubtitle": "预留给插件自有健康探测项",
       "futureEntryLabel": "预留入口",
-      "futureEntryHint": "随着插件能力启用，这里会继续补充新的服务健康检查。",
+      "futureEntryHint": "后续插件可以在这里接入自己的依赖检查，无需再调整菜单结构。",
       "futureEntryDescription": "当新的依赖检查可用时，会显示在这个区域。",
       "noError": "当前无错误",
       "summary": {

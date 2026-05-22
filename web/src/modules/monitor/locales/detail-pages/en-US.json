@@ -72,7 +72,7 @@
     },
     "dependenciesPage": {
       "title": "Dependencies",
-      "subtitle": "Review health signals for PostgreSQL, Redis, and the future extension point for plugin-owned dependency checks.",
+      "subtitle": "Review health signals for PostgreSQL, Redis, and future plugin-owned dependency checks.",
       "serviceListTitle": "Dependency Services",
       "noteTitle": "Dependency health scope",
       "noteDescription": "The current page reflects the latest aggregated snapshot. Additional services can show their own health checks here as they become available.",
@@ -85,7 +85,7 @@
       "futureEntryTitle": "Plugin dependency extension",
       "futureEntrySubtitle": "Reserved for plugin-owned health probes",
       "futureEntryLabel": "Reserved entry",
-      "futureEntryHint": "Additional service checks can appear here as plugin capabilities are enabled over time.",
+      "futureEntryHint": "Future plugins can plug their own dependency checks in here without further menu restructuring.",
       "futureEntryDescription": "This card will show new dependency checks when they are available.",
       "noError": "No current error",
       "summary": {

@@ -154,6 +154,32 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// DefaultDiskUsagePath resolves the runtime disk root for the current GOOS.
+func DefaultDiskUsagePath(goos string) string {
+	return DefaultDiskUsagePathForGOOS(goos, os.Getenv)
+}
+
+// DefaultDiskUsagePathForGOOS resolves the runtime disk root for a specific GOOS.
+func DefaultDiskUsagePathForGOOS(goos string, lookupEnv func(string) string) string {
+	if goos != "windows" {
+		return "/"
+	}
+
+	if lookupEnv == nil {
+		lookupEnv = func(string) string { return "" }
+	}
+
+	drive := strings.TrimSpace(lookupEnv("SystemDrive"))
+	if drive == "" {
+		drive = "C:"
+	}
+	if !strings.HasSuffix(drive, "\\") {
+		drive += "\\"
+	}
+
+	return drive
+}
+
 // Validate 校验配置是否足以让服务以确定方式启动。
 //
 // 该方法只验证 core 当前明确依赖的约束，不负责探测数据库或 Redis 的连通性；

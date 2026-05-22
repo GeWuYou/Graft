@@ -24,6 +24,7 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 	"go.uber.org/zap"
 
+	"graft/server/internal/config"
 	"graft/server/internal/container"
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
@@ -53,27 +54,7 @@ const (
 )
 
 func defaultDiskUsagePath() string {
-	return defaultDiskUsagePathForGOOS(runtime.GOOS, os.Getenv)
-}
-
-func defaultDiskUsagePathForGOOS(goos string, lookupEnv func(string) string) string {
-	if goos != "windows" {
-		return "/"
-	}
-
-	if lookupEnv == nil {
-		lookupEnv = func(string) string { return "" }
-	}
-
-	drive := strings.TrimSpace(lookupEnv("SystemDrive"))
-	if drive == "" {
-		drive = "C:"
-	}
-	if !strings.HasSuffix(drive, "\\") {
-		drive += "\\"
-	}
-
-	return drive
+	return config.DefaultDiskUsagePath(runtime.GOOS)
 }
 
 // Plugin implements the monitor/server-status slice.

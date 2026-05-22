@@ -629,7 +629,7 @@ func TestDefaultDiskUsagePathForGOOS(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := defaultDiskUsagePathForGOOS(tc.goos, func(string) string {
+			got := config.DefaultDiskUsagePathForGOOS(tc.goos, func(string) string {
 				return tc.envValue
 			})
 
