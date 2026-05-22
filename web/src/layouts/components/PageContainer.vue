@@ -3,7 +3,6 @@
     <main :class="`${prefix}-page-container__main`">
       <slot />
     </main>
-    <div :class="`${prefix}-page-container__bottom-safe-spacer`" aria-hidden="true"></div>
   </section>
 </template>
 <script setup lang="ts">

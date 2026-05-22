@@ -10,7 +10,7 @@
   --graft-floating-toolbar-safe-space: calc(
     var(--graft-floating-toolbar-height) + var(--graft-floating-toolbar-offset) + var(--graft-floating-toolbar-gap)
   );
-  --graft-bottom-safe-space: var(--graft-floating-toolbar-safe-space);
+  --graft-bottom-safe-space: 0px;
   --graft-page-footer-height: var(--graft-footer-height);
   --graft-page-bottom-safe-space: var(--graft-bottom-safe-space);
 }
@@ -134,12 +134,6 @@
       flex: 0 0 auto;
       flex-direction: column;
       min-height: 0;
-    }
-
-    &__bottom-safe-spacer {
-      flex: 0 0 var(--graft-bottom-safe-space);
-      height: var(--graft-bottom-safe-space);
-      pointer-events: none;
     }
   }
 
