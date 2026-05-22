@@ -62,6 +62,7 @@ func newDevCommand() *cobra.Command {
 
 	command.Flags().StringVar(&opts.migrationDir, "dir", defaultMigrationDir, "migration directory")
 	command.AddCommand(newDevAirCommand())
+	command.AddCommand(newDevStopAirCommand())
 	command.AddCommand(newDevResetAdminCommand())
 	return command
 }

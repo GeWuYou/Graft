@@ -181,3 +181,16 @@ func TestNewRootCommandRegistersDevAirCommand(t *testing.T) {
 		t.Fatalf("expected air command, got %#v", found)
 	}
 }
+
+// TestNewRootCommandRegistersDevStopAirCommand 验证 `graft dev stop-air` 子命令可发现。
+func TestNewRootCommandRegistersDevStopAirCommand(t *testing.T) {
+	command := NewRootCommand()
+
+	found, _, err := command.Find([]string{"dev", "stop-air"})
+	if err != nil {
+		t.Fatalf("find dev stop-air command: %v", err)
+	}
+	if found == nil || found.Name() != "stop-air" {
+		t.Fatalf("expected stop-air command, got %#v", found)
+	}
+}
