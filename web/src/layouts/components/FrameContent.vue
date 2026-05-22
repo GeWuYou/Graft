@@ -35,10 +35,6 @@ const getWrapStyle = computed((): CSSProperties => {
   };
 });
 
-const computedStyle = getComputedStyle(document.documentElement);
-const sizeXxxl = computedStyle.getPropertyValue('--td-comp-size-xxxl');
-const paddingTBXxl = computedStyle.getPropertyValue('--td-comp-paddingTB-xxl');
-
 function getOuterHeight(dom: Element) {
   let height = dom.clientHeight;
   const computedStyle = window.getComputedStyle(dom);
@@ -49,6 +45,27 @@ function getOuterHeight(dom: Element) {
   return height;
 }
 
+function resolveCssLength(value: string) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return 0;
+  }
+
+  if (/^-?\d+(\.\d+)?px$/.test(trimmedValue)) {
+    return Number.parseFloat(trimmedValue);
+  }
+
+  const measurement = document.createElement('div');
+  measurement.style.height = trimmedValue;
+  measurement.style.position = 'absolute';
+  measurement.style.visibility = 'hidden';
+  measurement.style.pointerEvents = 'none';
+  document.body.appendChild(measurement);
+  const resolvedHeight = Number.parseFloat(window.getComputedStyle(measurement).height) || 0;
+  measurement.remove();
+  return resolvedHeight;
+}
+
 function calcHeight() {
   const iframe = unref(frameRef);
   if (!iframe) {
@@ -56,15 +73,17 @@ function calcHeight() {
   }
   let clientHeight = 0;
   const { showFooter, isUseTabsRouter, showBreadcrumb } = settingStore;
-  const headerHeight = Number.parseFloat(sizeXxxl);
+  const rootStyle = window.getComputedStyle(document.documentElement);
+  const headerHeight = resolveCssLength(rootStyle.getPropertyValue('--td-comp-size-xxxl'));
   const navDom = document.querySelector('.t-tabs__nav');
   const navHeight = isUseTabsRouter && navDom ? getOuterHeight(navDom) : 0;
   const breadcrumbDom = document.querySelector('.t-breadcrumb');
   const breadcrumbHeight = showBreadcrumb && breadcrumbDom ? getOuterHeight(breadcrumbDom) : 0;
-  const contentPadding = Number.parseFloat(paddingTBXxl) * 2;
+  const contentPadding = resolveCssLength(rootStyle.getPropertyValue('--td-comp-paddingTB-xxl')) * 2;
   const footerDom = document.querySelector('.t-layout__footer');
   const footerHeight = showFooter && footerDom ? getOuterHeight(footerDom) : 0;
-  const top = headerHeight + navHeight + breadcrumbHeight + contentPadding + footerHeight + 2;
+  const bottomSafeSpace = resolveCssLength(rootStyle.getPropertyValue('--graft-page-bottom-safe-space'));
+  const top = headerHeight + navHeight + breadcrumbHeight + contentPadding + footerHeight + bottomSafeSpace + 2;
   heightRef.value = window.innerHeight - top;
   clientHeight = document.documentElement.clientHeight - top;
   iframe.style.height = `${clientHeight}px`;

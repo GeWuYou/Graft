@@ -1,0 +1,116 @@
+{
+  "monitor": {
+    "shared": {
+      "refresh": "Refresh now",
+      "loadFailed": "Failed to load server status",
+      "empty": "No server-status snapshot is available yet",
+      "errorTitle": "Snapshot request failed",
+      "notReported": "Not reported"
+    },
+    "runtimePage": {
+      "title": "Runtime",
+      "subtitle": "Inspect the current Go process snapshot, build details, and server environment while keeping server memory separate from Go Runtime memory.",
+      "snapshotReady": "Snapshot ready",
+      "snapshotPending": "Waiting for snapshot",
+      "memoryBoundaryNotice": "Memory scope: server memory covers the whole server, while Go Runtime memory covers only the current service process.",
+      "refreshFrequencyUnit": " s",
+      "runtimeMemoryTitle": "Go Runtime Memory",
+      "runtimeMemoryDescription": "Current in-process memory usage and garbage collection snapshot.",
+      "processBuildTitle": "Process and Build",
+      "processBuildDescription": "Current service build and runtime identity.",
+      "hostEnvironmentTitle": "Server Environment",
+      "serverEnvironmentDescription": "Whole-server memory snapshot, not the same as Go Runtime memory.",
+      "summary": {
+        "uptime": "Uptime",
+        "uptimeDescription": "Process running duration",
+        "goroutines": "Goroutines",
+        "goroutinesDescription": "Current Go scheduler concurrency",
+        "runtimeAlloc": "Current alloc",
+        "runtimeAllocDescription": "Currently allocated by the Go runtime",
+        "gcCycles": "GC cycles",
+        "gcCyclesDescription": "Completed garbage collection rounds"
+      },
+      "fields": {
+        "runtimeAlloc": "Current alloc",
+        "runtimeHeap": "Heap in use",
+        "runtimeSys": "Runtime sys",
+        "gcCycles": "GC count",
+        "lastGc": "Last GC time",
+        "buildVersion": "Build version",
+        "gitCommit": "Git commit",
+        "appName": "Application",
+        "appEnv": "Environment",
+        "startedAt": "Started at",
+        "goVersion": "Go version",
+        "hostName": "Host name",
+        "platform": "Platform",
+        "cpuCores": "CPU cores",
+        "hostMemory": "Server memory",
+        "hostMemoryUsage": "Memory usage",
+        "observedAt": "Last observed",
+        "refreshFrequency": "Refresh frequency",
+        "loadAverage": "Load average"
+      },
+      "fieldDescriptions": {
+        "runtimeAlloc": "Bytes currently allocated by the Go runtime.",
+        "runtimeHeap": "Heap bytes actively used by the Go process.",
+        "runtimeSys": "Total memory requested from the system by the Go runtime.",
+        "gcCycles": "Current snapshot of completed GC cycles.",
+        "lastGc": "Reserved until the backend exposes the most recent GC timestamp.",
+        "buildVersion": "Uses the current backend version field when present.",
+        "gitCommit": "Reserved until the backend exposes an explicit commit identifier.",
+        "appName": "Application identifier reported by the service.",
+        "appEnv": "Current runtime environment label.",
+        "startedAt": "First stable process startup time.",
+        "hostName": "Server host name reported by the runtime snapshot.",
+        "platform": "Operating system and architecture for the host.",
+        "cpuCores": "Logical CPU core count visible to the process.",
+        "hostMemory": "Whole-server memory snapshot, not Go Runtime memory.",
+        "observedAt": "Timestamp of the latest aggregated snapshot.",
+        "loadAverage": "1m / 5m / 15m load averages from the current server."
+      }
+    },
+    "dependenciesPage": {
+      "title": "Dependencies",
+      "subtitle": "Review health signals for PostgreSQL, Redis, and future plugin-owned dependency checks.",
+      "serviceListTitle": "Dependency Services",
+      "noteTitle": "Dependency health scope",
+      "noteDescription": "The current page reflects the latest aggregated snapshot. Additional services can show their own health checks here as they become available.",
+      "statusHealthy": "Healthy",
+      "statusAbnormal": "Abnormal",
+      "statusNotConfigured": "Not configured",
+      "statusUnknown": "Unknown",
+      "postgresqlSubtitle": "Primary relational database health",
+      "redisSubtitle": "Cache and lightweight KV health",
+      "futureEntryTitle": "Plugin dependency extension",
+      "futureEntrySubtitle": "Reserved for plugin-owned health probes",
+      "futureEntryLabel": "Reserved entry",
+      "futureEntryHint": "Future plugins can plug their own dependency checks in here without further menu restructuring.",
+      "futureEntryDescription": "This card will show new dependency checks when they are available.",
+      "noError": "No current error",
+      "summary": {
+        "healthy": "Healthy",
+        "healthyDescription": "Dependencies responding normally",
+        "abnormal": "Abnormal",
+        "abnormalDescription": "Dependencies returning degraded probes",
+        "notConfigured": "Not configured",
+        "notConfiguredDescription": "Dependencies intentionally not wired in",
+        "lastCheck": "Last check",
+        "lastCheckDescription": "Time of the latest aggregated snapshot"
+      },
+      "fields": {
+        "latency": "Response latency",
+        "checkedAt": "Last checked",
+        "errorInfo": "Error info",
+        "detail": "Probe detail",
+        "extensionEntry": "Extension entry"
+      },
+      "fieldDescriptions": {
+        "latency": "Most recent probe response duration.",
+        "checkedAt": "Currently follows the latest server-status snapshot time.",
+        "errorInfo": "Shows the latest error only when the dependency is abnormal or unknown.",
+        "detail": "Raw probe detail returned by the current backend snapshot."
+      }
+    }
+  }
+}

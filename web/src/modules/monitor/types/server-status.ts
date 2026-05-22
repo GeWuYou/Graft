@@ -9,8 +9,10 @@ export interface ServerStatusDependency {
 export interface ServerStatusPlugin {
   name: string;
   status: string;
+  status_detail: string;
   version: string;
   depends_on: string[];
+  missing_dependencies?: string[];
 }
 
 export interface ServerStatusServer {
@@ -28,11 +30,27 @@ export interface ServerStatusRuntime {
   operating_system: string;
   architecture: string;
   cpu_cores: number;
+  load_average: {
+    one_minute: number;
+    five_minutes: number;
+    fifteen_minutes: number;
+  };
+  disk_usage: {
+    path: string;
+    total_bytes: number;
+    used_bytes: number;
+    free_bytes: number;
+    used_percent: number;
+  };
+  host_memory_total_bytes: number;
+  host_memory_used_bytes: number;
+  host_memory_free_bytes: number;
+  host_memory_used_percent: number;
   goroutines: number;
-  alloc_bytes: number;
-  heap_in_use_bytes: number;
-  system_memory_bytes: number;
-  gc_cycles: number;
+  runtime_alloc_bytes: number;
+  runtime_heap_in_use_bytes: number;
+  runtime_sys_bytes: number;
+  runtime_gc_cycles: number;
 }
 
 export interface ServerStatusDependencies {
@@ -53,10 +71,14 @@ export interface ServerStatusSummary {
 export interface ServerStatusTrendPoint {
   observed_at: string;
   cpu_percent: number;
+  host_memory_used_percent: number;
+  load_average_one_minute: number;
+  load_average_five_minutes: number;
+  load_average_fifteen_minutes: number;
   goroutines: number;
-  alloc_bytes: number;
-  heap_in_use_bytes: number;
-  system_memory_bytes: number;
+  runtime_alloc_bytes: number;
+  runtime_heap_in_use_bytes: number;
+  runtime_sys_bytes: number;
 }
 
 export interface ServerStatusTrend {

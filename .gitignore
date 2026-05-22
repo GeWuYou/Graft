@@ -29,9 +29,10 @@ go.work.sum
 
 # Editor/IDE
 .idea/
+.idea
 .vscode/
 .run/
-
+.run
 # project
 # keep architecture, roadmap, and recovery docs under ai-plan/ tracked
 
@@ -39,7 +40,11 @@ go.work.sum
 .codex/
 .ai/private/
 web/ai-libs/
+web/ai-libs
 
 # Python cache
 __pycache__/
 *.pyc
+
+# Linux
+__linux

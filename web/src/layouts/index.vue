@@ -1,19 +1,19 @@
 <template>
   <div class="app-shell" v-bind="shellSurfaceAttrs">
     <template v-if="setting.layout.value === 'side'">
-      <t-layout key="side" :class="mainLayoutCls">
+      <t-layout key="side" :class="['app-shell__layout', mainLayoutCls]">
         <t-aside><layout-side-nav /></t-aside>
-        <t-layout>
-          <t-header><layout-header /></t-header>
-          <t-content><layout-content /></t-content>
+        <t-layout class="app-shell__main">
+          <t-header class="app-shell__header"><layout-header /></t-header>
+          <t-content class="app-shell__content"><layout-content /></t-content>
         </t-layout>
       </t-layout>
     </template>
 
     <template v-else>
-      <t-layout key="no-side">
-        <t-header><layout-header /> </t-header>
-        <t-layout :class="mainLayoutCls">
+      <t-layout key="no-side" class="app-shell__layout">
+        <t-header class="app-shell__header"><layout-header /> </t-header>
+        <t-layout :class="['app-shell__main', mainLayoutCls]">
           <layout-side-nav />
           <layout-content />
         </t-layout>
@@ -95,7 +95,11 @@ watch(
 .app-shell {
   background: var(--td-bg-color-page);
   color: var(--td-text-color-primary);
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .app-shell[data-theme-mode='dark'] {
@@ -106,8 +110,22 @@ watch(
   );
 }
 
-.app-shell :deep(.t-layout) {
+.app-shell__layout,
+.app-shell__main {
   background: transparent;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-shell__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-shell :deep(.t-layout),
+.app-shell :deep(.t-layout__content) {
+  min-height: 0;
 }
 </style>

@@ -58,7 +58,7 @@ describe('transformBootstrapMenusToRoutes', () => {
         title_key: 'menu.monitor.server_status.title',
         title: '服务器状态',
         path: '/monitor/server-status',
-        icon: 'chart-bubble',
+        icon: 'activity',
         permission: '',
       },
       {
@@ -66,7 +66,23 @@ describe('transformBootstrapMenusToRoutes', () => {
         title_key: 'menu.monitor.server_status.overview.title',
         title: '概览',
         path: '/monitor/server-status/overview',
-        icon: 'chart-bubble',
+        icon: 'dashboard',
+        permission: 'monitor.server-status.read',
+      },
+      {
+        code: 'monitor.server-status.runtime',
+        title_key: 'menu.monitor.server_status.runtime.title',
+        title: '运行时',
+        path: '/monitor/server-status/runtime',
+        icon: 'time',
+        permission: 'monitor.server-status.read',
+      },
+      {
+        code: 'monitor.server-status.dependencies',
+        title_key: 'menu.monitor.server_status.dependencies.title',
+        title: '依赖服务',
+        path: '/monitor/server-status/dependencies',
+        icon: 'data-base',
         permission: 'monitor.server-status.read',
       },
     ]);
@@ -80,10 +96,19 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[0]?.name).toBe('BootstrapGroupMonitorServerStatus');
     expect(routes[0]?.children?.[0]?.redirect).toBe('overview');
     expect(routes[0]?.children?.[0]?.meta?.titleKey).toBe('menu.monitor.server_status.title');
+    expect(routes[0]?.children?.[0]?.children).toHaveLength(3);
     expect(routes[0]?.children?.[0]?.children?.[0]?.path).toBe('overview');
     expect(routes[0]?.children?.[0]?.children?.[0]?.name).toBe('MonitorServerStatusOverviewIndex');
     expect(routes[0]?.children?.[0]?.children?.[0]?.meta?.hidden).toBeUndefined();
     expect(routes[0]?.children?.[0]?.children?.[0]?.meta?.titleKey).toBe('menu.monitor.server_status.overview.title');
+    expect(routes[0]?.children?.[0]?.children?.[1]?.path).toBe('runtime');
+    expect(routes[0]?.children?.[0]?.children?.[1]?.name).toBe('MonitorServerStatusRuntimeIndex');
+    expect(routes[0]?.children?.[0]?.children?.[1]?.meta?.titleKey).toBe('menu.monitor.server_status.runtime.title');
+    expect(routes[0]?.children?.[0]?.children?.[2]?.path).toBe('dependencies');
+    expect(routes[0]?.children?.[0]?.children?.[2]?.name).toBe('MonitorServerStatusDependenciesIndex');
+    expect(routes[0]?.children?.[0]?.children?.[2]?.meta?.titleKey).toBe(
+      'menu.monitor.server_status.dependencies.title',
+    );
   });
 
   it('规范化尾随斜杠后仍能正确挂载父子菜单', () => {
@@ -101,7 +126,7 @@ describe('transformBootstrapMenusToRoutes', () => {
         title_key: 'menu.monitor.server_status.title',
         title: '服务器状态',
         path: '/monitor/server-status/',
-        icon: 'chart-bubble',
+        icon: 'activity',
         permission: '',
       },
       {
@@ -109,7 +134,23 @@ describe('transformBootstrapMenusToRoutes', () => {
         title_key: 'menu.monitor.server_status.overview.title',
         title: '概览',
         path: '/monitor/server-status/overview/',
-        icon: 'chart-bubble',
+        icon: 'dashboard',
+        permission: 'monitor.server-status.read',
+      },
+      {
+        code: 'monitor.server-status.runtime',
+        title_key: 'menu.monitor.server_status.runtime.title',
+        title: '运行时',
+        path: '/monitor/server-status/runtime/',
+        icon: 'time',
+        permission: 'monitor.server-status.read',
+      },
+      {
+        code: 'monitor.server-status.dependencies',
+        title_key: 'menu.monitor.server_status.dependencies.title',
+        title: '依赖服务',
+        path: '/monitor/server-status/dependencies/',
+        icon: 'data-base',
         permission: 'monitor.server-status.read',
       },
     ]);
@@ -117,6 +158,10 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes).toHaveLength(1);
     expect(routes[0]?.path).toBe('/monitor');
     expect(routes[0]?.children?.[0]?.path).toBe('server-status');
-    expect(routes[0]?.children?.[0]?.children?.[0]?.path).toBe('overview');
+    expect(routes[0]?.children?.[0]?.children?.map((child) => child.path)).toEqual([
+      'overview',
+      'runtime',
+      'dependencies',
+    ]);
   });
 });

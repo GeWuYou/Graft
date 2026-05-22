@@ -14,6 +14,12 @@ describe('module registration aggregation', () => {
     expect(getBootstrapRouteRegistration('/monitor/server-status/overview')?.routeName).toBe(
       'MonitorServerStatusOverview',
     );
+    expect(getBootstrapRouteRegistration('/monitor/server-status/runtime')?.routeName).toBe(
+      'MonitorServerStatusRuntime',
+    );
+    expect(getBootstrapRouteRegistration('/monitor/server-status/dependencies')?.routeName).toBe(
+      'MonitorServerStatusDependencies',
+    );
   });
 
   it('rejects duplicate menu paths', () => {

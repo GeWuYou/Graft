@@ -14,31 +14,72 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 	registerMonitorMenu(registry, pluginID)
 
 	menus := registry.Items()
-	if len(menus) != 3 {
-		t.Fatalf("expected 3 registered monitor menus, got %#v", menus)
+	if len(menus) != 5 {
+		t.Fatalf("expected 5 registered monitor menus, got %#v", menus)
 	}
 
 	sectionMenu := menus[0]
-	if sectionMenu.Code != "monitor.section" ||
-		sectionMenu.TitleKey != monitorcontract.MonitorSectionTitle.String() ||
-		sectionMenu.Path != monitorcontract.MonitorGroup ||
-		sectionMenu.Permission != "" {
-		t.Fatalf("expected canonical monitor section menu contract, got %#v", sectionMenu)
-	}
+	assertMenuItem(t, sectionMenu, expectedMenuItem{
+		code:       "monitor.section",
+		titleKey:   monitorcontract.MonitorSectionTitle.String(),
+		path:       monitorcontract.MonitorGroup,
+		icon:       "server",
+		permission: "",
+	})
 
 	serverStatusMenu := menus[1]
-	if serverStatusMenu.Code != "monitor.server-status" ||
-		serverStatusMenu.TitleKey != monitorcontract.ServerStatusMenuTitle.String() ||
-		serverStatusMenu.Path != monitorcontract.ServerStatusMenuPath ||
-		serverStatusMenu.Permission != "" {
-		t.Fatalf("expected canonical monitor server-status menu contract, got %#v", serverStatusMenu)
-	}
+	assertMenuItem(t, serverStatusMenu, expectedMenuItem{
+		code:       "monitor.server-status",
+		titleKey:   monitorcontract.ServerStatusMenuTitle.String(),
+		path:       monitorcontract.ServerStatusMenuPath,
+		icon:       "activity",
+		permission: "",
+	})
 
 	overviewMenu := menus[2]
-	if overviewMenu.Code != "monitor.server-status.overview" ||
-		overviewMenu.TitleKey != monitorcontract.ServerStatusOverviewMenuTitle.String() ||
-		overviewMenu.Path != monitorcontract.ServerStatusOverviewMenuPath ||
-		overviewMenu.Permission != monitorcontract.ServerStatusReadPermission.String() {
-		t.Fatalf("expected canonical monitor overview menu contract, got %#v", overviewMenu)
+	assertMenuItem(t, overviewMenu, expectedMenuItem{
+		code:       "monitor.server-status.overview",
+		titleKey:   monitorcontract.ServerStatusOverviewMenuTitle.String(),
+		path:       monitorcontract.ServerStatusOverviewMenuPath,
+		icon:       "dashboard",
+		permission: monitorcontract.ServerStatusReadPermission.String(),
+	})
+
+	runtimeMenu := menus[3]
+	assertMenuItem(t, runtimeMenu, expectedMenuItem{
+		code:       "monitor.server-status.runtime",
+		titleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
+		path:       monitorcontract.ServerStatusRuntimeMenuPath,
+		icon:       "time",
+		permission: monitorcontract.ServerStatusReadPermission.String(),
+	})
+
+	dependenciesMenu := menus[4]
+	assertMenuItem(t, dependenciesMenu, expectedMenuItem{
+		code:       "monitor.server-status.dependencies",
+		titleKey:   monitorcontract.ServerStatusDependenciesMenuTitle.String(),
+		path:       monitorcontract.ServerStatusDependenciesMenuPath,
+		icon:       "data-base",
+		permission: monitorcontract.ServerStatusReadPermission.String(),
+	})
+}
+
+type expectedMenuItem struct {
+	code       string
+	titleKey   string
+	path       string
+	icon       string
+	permission string
+}
+
+func assertMenuItem(t *testing.T, actual menu.Item, expected expectedMenuItem) {
+	t.Helper()
+
+	if actual.Code != expected.code ||
+		actual.TitleKey != expected.titleKey ||
+		actual.Path != expected.path ||
+		actual.Icon != expected.icon ||
+		actual.Permission != expected.permission {
+		t.Fatalf("expected canonical monitor menu contract, got %#v", actual)
 	}
 }

@@ -15,4 +15,8 @@ const (
 	ServerStatusMenuTitle MenuMessageKey = "menu.monitor.server_status.title"
 	// ServerStatusOverviewMenuTitle identifies the localized title for the server-status overview menu.
 	ServerStatusOverviewMenuTitle MenuMessageKey = "menu.monitor.server_status.overview.title"
+	// ServerStatusRuntimeMenuTitle identifies the localized title for the server-status runtime menu.
+	ServerStatusRuntimeMenuTitle MenuMessageKey = "menu.monitor.server_status.runtime.title"
+	// ServerStatusDependenciesMenuTitle identifies the localized title for the server-status dependencies menu.
+	ServerStatusDependenciesMenuTitle MenuMessageKey = "menu.monitor.server_status.dependencies.title"
 )

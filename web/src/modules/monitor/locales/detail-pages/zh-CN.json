@@ -1,0 +1,116 @@
+{
+  "monitor": {
+    "shared": {
+      "refresh": "立即刷新",
+      "loadFailed": "服务器状态加载失败",
+      "empty": "当前还没有可用的服务器状态快照",
+      "errorTitle": "快照请求失败",
+      "notReported": "暂未提供"
+    },
+    "runtimePage": {
+      "title": "运行时",
+      "subtitle": "查看当前 Go 进程运行时快照、进程构建信息与服务器环境，并明确区分服务器内存和 Go Runtime 内存。",
+      "snapshotReady": "快照已就绪",
+      "snapshotPending": "等待快照",
+      "memoryBoundaryNotice": "内存口径：服务器内存统计整台服务器，Go Runtime 内存统计当前服务进程。",
+      "refreshFrequencyUnit": " 秒",
+      "runtimeMemoryTitle": "Go Runtime 内存",
+      "runtimeMemoryDescription": "当前 Go 进程内部内存使用与垃圾回收快照。",
+      "processBuildTitle": "进程与构建信息",
+      "processBuildDescription": "当前服务进程的构建与运行标识。",
+      "hostEnvironmentTitle": "服务器环境",
+      "serverEnvironmentDescription": "整机内存快照，不等同于 Go Runtime 内存。",
+      "summary": {
+        "uptime": "运行时长",
+        "uptimeDescription": "进程持续运行",
+        "goroutines": "Goroutine 数",
+        "goroutinesDescription": "当前调度并发规模",
+        "runtimeAlloc": "当前已分配内存",
+        "runtimeAllocDescription": "当前 Go Runtime 已分配",
+        "gcCycles": "GC 次数",
+        "gcCyclesDescription": "已完成的垃圾回收轮次"
+      },
+      "fields": {
+        "runtimeAlloc": "当前已分配",
+        "runtimeHeap": "Heap 内存",
+        "runtimeSys": "Runtime Sys",
+        "gcCycles": "GC 次数",
+        "lastGc": "最近 GC 时间",
+        "buildVersion": "构建版本",
+        "gitCommit": "Git Commit",
+        "appName": "应用标识",
+        "appEnv": "运行环境",
+        "startedAt": "启动时间",
+        "goVersion": "Go 版本",
+        "hostName": "主机名",
+        "platform": "平台",
+        "cpuCores": "CPU 核心数",
+        "hostMemory": "服务器内存",
+        "hostMemoryUsage": "内存使用率",
+        "observedAt": "最近观测",
+        "refreshFrequency": "刷新频率",
+        "loadAverage": "负载均值"
+      },
+      "fieldDescriptions": {
+        "runtimeAlloc": "Go Runtime 当前已分配的内存字节数。",
+        "runtimeHeap": "当前 Go 进程正在使用的堆内存。",
+        "runtimeSys": "Go Runtime 向系统申请的总内存。",
+        "gcCycles": "当前快照中已完成的 GC 轮次。",
+        "lastGc": "预留字段，等待后端补充最近一次 GC 时间。",
+        "buildVersion": "当前后端已有版本字段时直接复用。",
+        "gitCommit": "预留字段，等待后端补充显式提交标识。",
+        "appName": "服务上报的应用标识。",
+        "appEnv": "当前运行环境标签。",
+        "startedAt": "进程首次稳定启动时间。",
+        "hostName": "运行时快照上报的服务器主机名。",
+        "platform": "服务器操作系统与架构信息。",
+        "cpuCores": "当前进程可见的逻辑 CPU 核心数。",
+        "hostMemory": "整机内存快照，不等同于 Go Runtime 内存。",
+        "observedAt": "最近一次聚合快照时间。",
+        "loadAverage": "当前服务器 1m / 5m / 15m 负载均值。"
+      }
+    },
+    "dependenciesPage": {
+      "title": "依赖服务",
+      "subtitle": "查看 PostgreSQL、Redis 以及未来插件自有依赖检查的健康状态。",
+      "serviceListTitle": "依赖服务列表",
+      "noteTitle": "依赖健康范围",
+      "noteDescription": "当前页面基于最近一次聚合快照展示依赖状态。后续接入的新服务健康检查也会在这里继续展示。",
+      "statusHealthy": "健康",
+      "statusAbnormal": "异常",
+      "statusNotConfigured": "未配置",
+      "statusUnknown": "未知",
+      "postgresqlSubtitle": "主关系数据库健康状态",
+      "redisSubtitle": "缓存与轻量 KV 服务健康状态",
+      "futureEntryTitle": "插件依赖扩展入口",
+      "futureEntrySubtitle": "预留给插件自有健康探测项",
+      "futureEntryLabel": "预留入口",
+      "futureEntryHint": "后续插件可以在这里接入自己的依赖检查，无需再调整菜单结构。",
+      "futureEntryDescription": "当新的依赖检查可用时，会显示在这个区域。",
+      "noError": "当前无错误",
+      "summary": {
+        "healthy": "健康",
+        "healthyDescription": "依赖响应正常",
+        "abnormal": "异常",
+        "abnormalDescription": "探测结果返回降级或错误",
+        "notConfigured": "未配置",
+        "notConfiguredDescription": "当前刻意未接入的依赖",
+        "lastCheck": "最近检测",
+        "lastCheckDescription": "最近一次聚合快照时间"
+      },
+      "fields": {
+        "latency": "响应耗时",
+        "checkedAt": "最近检测时间",
+        "errorInfo": "错误信息",
+        "detail": "探测详情",
+        "extensionEntry": "扩展入口"
+      },
+      "fieldDescriptions": {
+        "latency": "最近一次探测的响应耗时。",
+        "checkedAt": "当前暂沿用最新 server-status 聚合快照时间。",
+        "errorInfo": "仅在依赖异常或未知时展示最近错误。",
+        "detail": "当前后端快照返回的原始探测说明。"
+      }
+    }
+  }
+}

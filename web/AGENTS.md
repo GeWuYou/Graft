@@ -71,7 +71,7 @@ web/src/
   - 壳层页面、异常页、认证页与应用装配入口
   - 不承载业务模块长期实现真值
 - `layouts/`
-  - 后台壳布局、导航、面包屑和壳层组件
+  - 后台壳布局、导航、面包屑、Footer、安全留白和壳层组件
 - `modules/<name>/`
   - 某个业务模块的唯一长期真值
   - 默认目录为 `pages`、`components`、`api`、`contract`、`types`、`locales`
@@ -192,6 +192,12 @@ i18n 与标题规则：
 - 模块级权限码、API path、跨模块 DTO、模块稳定状态值、模块消息 key 常量等稳定契约放在 `modules/<name>/contract/**`
 - 模块私有 `types/**` 不得充当跨模块 contract
 - 不得通过 alias、根级 re-export 或兼容副本维持第二套长期契约真值
+
+壳层 Footer 约定：
+
+- 全局布局默认提供统一 Footer 与底部安全留白
+- 页面级 footer 元信息应保留在路由 meta 的壳层边界内
+- 若某个页面需要禁用 Footer 或替换 footer 文案，应通过 route meta 的显式配置完成，不要在单页重复实现底部布局
 
 ## 6. UI 与 TDesign
 
