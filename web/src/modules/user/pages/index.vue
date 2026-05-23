@@ -440,7 +440,6 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { API_CODE } from '@/contracts/api/codes';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import type { RoleListItem } from '@/modules/rbac/contract/role';
 import {
@@ -460,6 +459,7 @@ import { createUser, deleteUser, getUsers, resetUserPassword, updateUser, update
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
+import { resolveCreateUserFieldError } from '../error-adapter';
 import { evaluateUserPasswordPolicy } from '../shared/password-policy';
 import type { CreateUserPayload, ResetUserPasswordPayload, UpdateUserPayload, UserListItem } from '../types/user';
 
@@ -999,10 +999,13 @@ async function handleUserSubmit(ctx: SubmitContext) {
     logger.error('failed to submit user form', error);
     if (isApiRequestError(error)) {
       const errorMessage = localizedApiErrorMessage(error.messageKey, error.message) || t('user.userList.createFailed');
+      const createField = userDrawerMode.value === 'create' ? resolveCreateUserFieldError(error) : null;
 
-      if (userDrawerMode.value === 'create' && error.code === API_CODE.AUTH_PASSWORD_POLICY_VIOLATION) {
-        passwordFieldError.value = errorMessage;
-        setUserFormFieldError('password', errorMessage);
+      if (createField) {
+        if (createField === 'password') {
+          passwordFieldError.value = errorMessage;
+        }
+        setUserFormFieldError(createField, errorMessage);
         return;
       }
 

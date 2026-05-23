@@ -127,6 +127,31 @@ func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint6
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
 }
 
+func (r routeRuntime) writeCreateUserError(ginCtx *gin.Context, message string, err error) {
+	status, messageKey, data := mapUserManagementError(err)
+	if field, ok := errorFieldFromDetails(data); ok && field == "new_password" {
+		data = map[string]any{"field": "password"}
+	}
+	if shouldLogUserManagementError(status, err) {
+		responseCode := errorCodeFromMessageKey(messageKey)
+		logFields := []zap.Field{
+			zap.String("plugin", r.pluginName),
+			zap.String("operation", userManagementOperationFromMessage(message)),
+			zap.String("method", ginCtx.Request.Method),
+			zap.String("route", ginCtx.FullPath()),
+			zap.String("response_code", responseCode),
+			zap.String("message_key", messageKey.String()),
+			zap.Error(err),
+		}
+		if field, ok := errorFieldFromDetails(data); ok {
+			logFields = append(logFields, zap.String("field", field))
+		}
+		r.logger.Error(message, logFields...)
+	}
+
+	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
+}
+
 func shouldLogUserManagementError(status int, err error) bool {
 	return status == http.StatusInternalServerError ||
 		errors.Is(err, errPasswordPolicyViolation) ||

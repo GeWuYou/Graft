@@ -60,6 +60,17 @@ post:
       content:
         application/json:
           examples:
+            invalidArgument:
+              summary: Invalid argument
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 6f1f05e4-4ffc-4cac-b218-e4602c37f81c
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: username
             passwordPolicyViolation:
               summary: Password policy violation
               value:
@@ -70,7 +81,7 @@ post:
                 messageKey: auth.password_policy_violation
                 locale: zh-CN
                 data:
-                  field: new_password
+                  field: password
           schema:
             $ref: ../components/schemas/error-response.yaml
     '401':

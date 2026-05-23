@@ -20,7 +20,7 @@ export interface ApiErrorEnvelope {
   code: ApiResponseCode;
   message: string;
   traceId: string;
-  data?: null;
+  data?: Record<string, unknown> | null;
   messageKey?: string;
   locale?: string;
 }

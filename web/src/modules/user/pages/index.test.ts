@@ -585,6 +585,11 @@ describe('UserPage', () => {
       code: API_CODE.AUTH_PASSWORD_POLICY_VIOLATION,
       message: '新密码不符合安全要求',
       messageKey: '',
+      responseData: {
+        data: {
+          field: 'password',
+        },
+      },
     });
 
     const wrapper = mountUserPage();
@@ -601,6 +606,36 @@ describe('UserPage', () => {
     expect(wrapper.get('[data-testid="validate-password"]').text()).toContain('新密码不符合安全要求');
     expect(messageMocks.error).not.toHaveBeenCalledWith('user.userList.createFailed');
     expect(messageMocks.error).not.toHaveBeenCalledWith('新密码不符合安全要求');
+  });
+
+  it('binds backend invalid argument errors to the matching create-user field', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.CREATE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+    userApiMocks.createUser.mockRejectedValue({
+      isApiRequestError: true,
+      code: API_CODE.COMMON_INVALID_ARGUMENT,
+      message: '请求参数不合法',
+      messageKey: '',
+      responseData: {
+        data: {
+          field: 'username',
+        },
+      },
+    });
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+    await wrapper.get('[data-testid="user-create"]').trigger('click');
+    await flushPromises();
+
+    await wrapper.get('input[placeholder="user.userList.form.usernamePlaceholder"]').setValue('carol');
+    await wrapper.get('input[placeholder="user.userList.form.displayPlaceholder"]').setValue('Carol');
+    await wrapper.get('input[placeholder="user.userList.form.passwordPlaceholder"]').setValue('BetterPassword123');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="validate-username"]').text()).toContain('请求参数不合法');
+    expect(messageMocks.error).not.toHaveBeenCalled();
   });
 
   it('keeps role assignment blocked when the current snapshot fails to load', async () => {
