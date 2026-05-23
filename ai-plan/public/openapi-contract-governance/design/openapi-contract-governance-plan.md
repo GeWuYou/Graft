@@ -1,5 +1,8 @@
 # Graft OpenAPI First 契约治理长分支计划
 
+> Historical status: `openapi-contract-governance` is complete, archived in place, and inactive. This document remains
+> as the final topic design record; future implementation must start under a new topic rather than continuing this one.
+
 ## 1. 结论
 
 - 建议跳过 swaggo 过渡，直接进入 OpenAPI First。

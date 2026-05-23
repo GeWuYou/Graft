@@ -1,5 +1,22 @@
 # OpenAPI Contract Governance Tracking
 
+## Closeout Status
+
+- Status: completed, archived in place, and inactive.
+- Recovery status: this topic is no longer part of the active recovery path.
+- Final Phase 3 conclusion: keep generated schema types + module-local alias layers + existing `web/src/utils/request.ts`; do not introduce `openapi-fetch` or a second runtime client.
+- Final Phase 4 conclusion: do not adopt `oapi-codegen` now; keep `spec-first + TS-first + explicit server DTOs`.
+- Final validation evidence from the completed topic:
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
+  - `cd server && go run ./cmd/graft validate backend`
+- Final closeout commits:
+  - `3d7a16a docs(openapi-contract-governance): close phase 3 evaluation`
+  - `3765d6a docs(openapi-contract-governance): close phase 4 evaluation`
+- Continuation rule: there is no next-session startup prompt for continuing `openapi-contract-governance`.
+- Follow-up rule: future work must start as a new topic. See `ai-plan/public/openapi-contract-governance/traces/oapi-codegen-followup-evaluation.md`.
+
 ## Current State
 
 - Phase 2A minimal spec and validation wiring landed in owned scope.
@@ -15,10 +32,10 @@
 
 ## Active Goals
 
-- Establish OpenAPI First as the long-term contract truth.
-- Keep `web/src/utils/request.ts` as the transport/runtime truth for token refresh, locale, and trace propagation.
-- Use generated TypeScript types without creating a second source of truth.
-- Keep `oapi-codegen` out of the server interface for the initial phases.
+- Historical completed-topic summary only; this file no longer defines an active implementation goal.
+- The settled operating model remains OpenAPI First with generated TypeScript schema consumption at the API boundary.
+- `web/src/utils/request.ts` remains the transport/runtime truth for token refresh, locale, and trace propagation.
+- `oapi-codegen` remains deferred for a separate future topic, not this completed one.
 
 ## Phase Ownership
 

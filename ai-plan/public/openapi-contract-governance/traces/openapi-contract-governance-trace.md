@@ -1,5 +1,24 @@
 # OpenAPI Contract Governance Trace
 
+## 2026-05-23 topic closeout
+
+- Marked `openapi-contract-governance` as completed, archived in place, and inactive without moving the topic directory.
+- Removed the topic from `ai-plan/public/README.md` active recovery entries and kept only a brief historical pointer.
+- Preserved the accepted final decisions in place:
+  - Phase 3 stays on generated schema types + module-local alias layers + existing `request.ts`.
+  - Phase 4 stays deferred/no-go for `oapi-codegen`; keep `spec-first + TS-first + explicit server DTOs`.
+- Recorded the final validation evidence for the completed topic:
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
+  - `cd server && go run ./cmd/graft validate backend`
+- Recorded the final closeout commits:
+  - `3d7a16a docs(openapi-contract-governance): close phase 3 evaluation`
+  - `3765d6a docs(openapi-contract-governance): close phase 4 evaluation`
+- Declared that there is no next-session startup prompt for continuing this topic.
+- Added the deferred follow-up evaluation and next-topic recommendation at
+  `ai-plan/public/openapi-contract-governance/traces/oapi-codegen-followup-evaluation.md`.
+
 ## 2026-05-23
 
 - Created dedicated worktree `feat/wt-openapi-contract-governance`.
