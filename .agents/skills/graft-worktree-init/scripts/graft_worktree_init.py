@@ -225,6 +225,8 @@ def main() -> int:
         target_dir = (worktree_root / args.branch_name).resolve()
         try:
             specs = load_manifest(manifest_path)
+        except json.JSONDecodeError as exc:
+            raise WorktreeInitError(f"Failed to parse manifest: {manifest_path}: {exc}") from exc
         except OSError as exc:
             raise WorktreeInitError(f"Failed to read manifest: {manifest_path}: {exc}") from exc
         branch_exists = local_branch_exists(repo_dir, args.branch_name)
