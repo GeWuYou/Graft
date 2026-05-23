@@ -3,6 +3,7 @@
 ## Current State
 
 - Phase 2A minimal spec and validation wiring landed in owned scope.
+- Phase 2B minimal TypeScript generation wiring now lands generated OpenAPI types in `web/src/contracts/openapi/generated/schema.ts`.
 - Root `openapi/` spec plus fragments now exist for the first covered endpoints.
 - Backend validation now has explicit OpenAPI validation wiring.
 - No OpenAPI-driven business behavior changes were introduced.
@@ -40,6 +41,19 @@
   - `cd server && go run ./cmd/graft validate backend --stage openapi`
   - `cd server && go test ./internal/cli -run 'TestRunValidateBackend(OpenAPIStage|FullStage|LintStage)|TestResolveBackendModuleRootFrom(ServerDir|RepoRoot)'`
   - `cd server && go build ./cmd/graft`
+
+## Phase 2B Notes
+
+- `web/package.json` now owns `openapi:types` and `openapi:types:check` as the minimal TypeScript generation entrypoints.
+- `openapi:types` generates `web/src/contracts/openapi/generated/schema.ts` from `openapi/openapi.yaml`, then formats the tracked output with Prettier.
+- `openapi:types:check` generates to a temporary `.ts` file, formats that temporary output, and compares it with the tracked generated file to detect drift without polluting the worktree on failure.
+- `request.ts` remains unchanged, and `modules/user/api` plus `modules/rbac/api` still use handwritten `request.get/post<T>` typing.
+- This phase does not consume generated types in business API modules and does not generate Go code.
+- Phase 2B validation evidence:
+  - `cd web && bun run openapi:types`
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
 
 ## Phase 1.6 Notes
 

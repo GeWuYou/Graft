@@ -22,3 +22,8 @@
 - Repaired the root spec after `kin-openapi` rejected `info.summary` for the current validation path.
 - Validated the repaired slice with `go run ./cmd/graft validate openapi`, `go run ./cmd/graft validate backend --stage openapi`,
   focused `go test ./internal/cli`, and `go build ./cmd/graft`.
+- Completed Phase 2B minimal web TypeScript generation wiring with `openapi-typescript`.
+- Added tracked generated output at `web/src/contracts/openapi/generated/schema.ts`.
+- Added `web` scripts for generation and freshness checking without changing `request.ts` or consuming generated types in module APIs.
+- Confirmed the generated file must be formatted after generation to satisfy the existing frontend Prettier gate.
+- Validated Phase 2B with `bun run openapi:types`, `bun run openapi:types:check`, `bun run check`, and `go run ./cmd/graft validate backend --stage openapi`.
