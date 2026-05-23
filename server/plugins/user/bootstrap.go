@@ -13,31 +13,6 @@ import (
 	userstore "graft/server/plugins/user/store"
 )
 
-type bootstrapResponse struct {
-	User               loginUserResponse       `json:"user"`
-	MustChangePassword bool                    `json:"must_change_password"`
-	Roles              []string                `json:"roles"`
-	Permissions        []string                `json:"permissions"`
-	Menus              []bootstrapMenuResponse `json:"menus"`
-	Locale             bootstrapLocaleSnapshot `json:"locale"`
-}
-
-type bootstrapMenuResponse struct {
-	Code       string `json:"code"`
-	Title      string `json:"title"`
-	TitleKey   string `json:"title_key,omitempty"`
-	Path       string `json:"path"`
-	Icon       string `json:"icon"`
-	Permission string `json:"permission"`
-}
-
-type bootstrapLocaleSnapshot struct {
-	CurrentLocale    string   `json:"current_locale"`
-	DefaultLocale    string   `json:"default_locale"`
-	FallbackLocale   string   `json:"fallback_locale"`
-	SupportedLocales []string `json:"supported_locales"`
-}
-
 // bootstrapReader 收敛 web 启动阶段依赖的最小后端快照装配。
 //
 // 该读模型继续停留在 user 插件边界内，避免为了一个受保护的 bootstrap

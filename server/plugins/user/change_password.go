@@ -12,15 +12,6 @@ import (
 	userstore "graft/server/plugins/user/store"
 )
 
-type changePasswordRequest struct {
-	CurrentPassword string `json:"current_password"`
-	NewPassword     string `json:"new_password"`
-}
-
-type completeRequiredPasswordChangeRequest struct {
-	NewPassword string `json:"new_password"`
-}
-
 type changePasswordActor struct {
 	requestAuth pluginapi.RequestAuthContext
 	credential  userstore.UserCredential

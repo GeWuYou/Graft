@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"graft/server/internal/config"
 	"graft/server/internal/pluginapi"
@@ -15,24 +14,6 @@ import (
 var errInvalidLoginCredentials = errors.New("invalid login credentials")
 
 const invalidLoginPlaceholderHash = "$2a$10$7EqJtq98hPqEX7fNZaFWoO.H8F6dPtkn6rJm5b1Pb9l.eD0P4Qh7K"
-
-type loginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type loginUserResponse struct {
-	ID          uint64 `json:"id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
-}
-
-type loginResponse struct {
-	AccessToken        string            `json:"access_token"`
-	ExpiresAt          time.Time         `json:"expires_at"`
-	MustChangePassword bool              `json:"must_change_password"`
-	User               loginUserResponse `json:"user"`
-}
 
 type loginResult struct {
 	User               pluginapi.CurrentUser

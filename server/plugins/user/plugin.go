@@ -11,7 +11,6 @@ import (
 	"time"
 
 	messagecontract "graft/server/internal/contract/message"
-	"graft/server/internal/i18n"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	usercontract "graft/server/plugins/user/contract"
@@ -27,19 +26,6 @@ type Plugin struct {
 	bootstrapAccess  *deferredRBACAccessService
 	userRepo         userstore.UserRepository
 	authRepo         userstore.AuthRepository
-}
-
-type userListResponse struct {
-	Items []userListItem `json:"items"`
-}
-
-type userListItem struct {
-	ID        uint64 `json:"id"`
-	Username  string `json:"username"`
-	Display   string `json:"display"`
-	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
 }
 
 var (
@@ -73,13 +59,6 @@ func (p *Plugin) DependsOn() []string {
 }
 
 // Register 声明用户插件需要的权限、菜单、路由和公开服务。
-//
-// 约束：
-//   - 只注册跨插件可见的稳定接口，不暴露具体仓储或 ORM 实现。
-//   - 只做声明式装配，不启动后台 goroutine 或持久占用额外资源。
-//
-// 失败语义：
-//   - 任一注册步骤失败都会中止插件装配，并由上层运行时负责整体回滚。
 func (p *Plugin) Register(ctx *plugin.Context) error {
 	if err := registerMessages(ctx.I18n); err != nil {
 		return err
@@ -98,35 +77,6 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 	if err := registerUserRoutes(ctx, p.Name(), services.user, services.auth, guards); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func registerMessages(localizer *i18n.Service) error {
-	if localizer == nil {
-		return errors.New("i18n service is unavailable")
-	}
-
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "user",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(usercontract.UserListMenuTitle.String()), Text: "用户管理"},
-			},
-		},
-		{
-			Namespace: "user",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(usercontract.UserListMenuTitle.String()), Text: "User Management"},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register user plugin messages: %w", err)
-		}
 	}
 
 	return nil
