@@ -1,0 +1,10 @@
+type: object
+required: [username, display, password]
+properties:
+  username:
+    type: string
+  display:
+    type: string
+  password:
+    type: string
+    description: Initial password. The current server policy requires at least 12 characters and both letters and digits.

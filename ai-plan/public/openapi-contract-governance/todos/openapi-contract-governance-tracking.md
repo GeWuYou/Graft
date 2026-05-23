@@ -73,6 +73,33 @@
 - During Phase 2C closeout, the tracked generated file `web/src/contracts/openapi/generated/schema.ts` was refreshed to match the current root spec, and `openapi:types:check` was fixed to format a repo-local temporary file instead of a `.prettierignore`-matched `/tmp` path.
 - Next recommended follow-up is extending the same approach from response DTO consumption into request payload governance only after the current OpenAPI coverage expands beyond the present read-focused endpoints.
 
+## Phase 2E Notes
+
+- Phase 2E starts request payload generated type consumption with one narrow pilot only: `POST /api/roles/{id}/permissions/assign`.
+- The root spec now models `ReplaceRolePermissionsRequest` under `components.schemas` and reuses it from the new RBAC write-path `requestBody`.
+- `web/src/modules/rbac/types/rbac.ts` now owns the thin generated alias for `ReplaceRolePermissionsPayload`, keeping `generated/schema.ts` imports out of page and API callsites.
+- The role-permission drawer keeps its local selection state and uses a narrow mapper to normalize that state into the generated API payload, rather than reusing the generated payload as page state.
+- `request.ts` remains unchanged, and this phase still does not introduce `openapi-fetch`, SDK generation, or Go generated code.
+- Phase 2E validation evidence:
+  - `cd web && bun run openapi:types`
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run check`
+
+## `POST /api/users` Sample Notes
+
+- A narrow cross-boundary sample now extends the root OpenAPI coverage for `POST /api/users` without broadening this topic into full write-path governance.
+- `web/src/modules/user/types/user.ts` now consumes the generated `CreateUserRequest` request payload type, keeping the generated type import behind the module-local alias boundary.
+- The current create-user sample explicitly keeps `request.ts` as the transport truth and only fixes module-level error consumption plus password-policy UX in the `user` page.
+- The create-user page now shows the real server password policy up front: at least 12 characters, letters plus digits, and no reuse of the default admin password.
+- This sample does not attempt to normalize all `server/plugins/user` or `server/plugins/rbac` write routes; future rollout should audit each route before copying the pattern.
+- Sample validation evidence:
+  - `cd web && bun run openapi:types`
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run test:run src/modules/user/pages/index.test.ts`
+  - `cd server && go test ./plugins/user/...`
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
+
 ## Phase 1.6 Notes
 
 - Phase 1.6 intentionally keeps `package user` and `package rbac` unchanged.

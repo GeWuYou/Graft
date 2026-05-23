@@ -38,3 +38,15 @@
 - Replaced the handwritten user-list response DTO definitions in `web/src/modules/user/types/user.ts`, while keeping `email` and `last_login_at` as page-local compatibility fields only.
 - Replaced the handwritten role-list response DTO definitions in `web/src/modules/rbac/contract/role.ts`, while keeping `remark` fallback compatibility page-local instead of weakening the generated alias.
 - Fixed `web/package.json` `openapi:types:check` so the temporary generated file is formatted under repo-local `.tmp/` with the project Prettier config, avoiding false drift from `.prettierignore` on `/tmp/tmp*`.
+- Started Phase 2E request payload generated type consumption with a single RBAC pilot for `POST /api/roles/{id}/permissions/assign`.
+- Added a reusable OpenAPI request schema for `permission_ids` replace semantics and wired it into the new RBAC write-path fragment.
+- Regenerated `web/src/contracts/openapi/generated/schema.ts` so the generated output now includes `ReplaceRolePermissionsRequest` and the `postRolePermissionAssign` requestBody contract.
+- Switched `web/src/modules/rbac/types/rbac.ts` to a thin generated alias for `ReplaceRolePermissionsPayload`.
+- Kept the role-permission drawer's local selection state and added a narrow mapper so generated payload types do not become page form state.
+- Validated the Phase 2E pilot with `bun run openapi:types`, `go run ./cmd/graft validate backend --stage openapi`, `bun run openapi:types:check`, and `bun run check`.
+- Added a second narrow request-payload sample for `POST /api/users`, covering the create-user request body and success response in the root OpenAPI spec while keeping the existing runtime envelope semantics unchanged.
+- Switched `web/src/modules/user/types/user.ts` create payload typing to the generated `CreateUserRequest` alias instead of the handwritten local interface.
+- Tightened the `server/plugins/user` create-user failure path with focused tests for `AUTH_PASSWORD_POLICY_VIOLATION` and structured logs that preserve `operation`, `route`, `message_key`, `response_code`, and raw error details without leaking the submitted password.
+- Updated the `web` user-create drawer so API failures surface the backend-provided message instead of collapsing to the generic "create failed" copy.
+- Added inline password-policy guidance plus weak/medium/strong strength feedback to the create-user form, aligned to the current server rule: minimum 12 characters, letters plus digits, and no reuse of `graft-admin`.
+- Validated the create-user sample with `bun run openapi:types`, `bun run openapi:types:check`, `bun run test:run src/modules/user/pages/index.test.ts`, `go test ./plugins/user/...`, and `go run ./cmd/graft validate backend --stage openapi`.

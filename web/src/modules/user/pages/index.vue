@@ -239,14 +239,19 @@
       destroy-on-close
     >
       <div class="drawer-panel">
-        <t-form :data="userForm" :rules="userFormRules" label-align="top" @submit="handleUserSubmit">
+        <t-form ref="userFormRef" :data="userForm" :rules="userFormRules" label-align="top" @submit="handleUserSubmit">
           <t-form-item :label="t('user.userList.form.username')" name="username">
             <t-input v-model="userForm.username" :placeholder="t('user.userList.form.usernamePlaceholder')" />
           </t-form-item>
           <t-form-item :label="t('user.userList.form.display')" name="display">
             <t-input v-model="userForm.display" :placeholder="t('user.userList.form.displayPlaceholder')" />
           </t-form-item>
-          <t-form-item v-if="userDrawerMode === 'create'" :label="t('user.userList.form.password')" name="password">
+          <t-form-item
+            v-if="userDrawerMode === 'create'"
+            :label="t('user.userList.form.password')"
+            :tips="passwordFieldError ? '' : t('user.userList.form.passwordPolicy.hint')"
+            name="password"
+          >
             <t-input
               v-model="userForm.password"
               type="password"
@@ -424,11 +429,18 @@
   </div>
 </template>
 <script setup lang="ts">
-import { type FormRule, MessagePlugin, type SubmitContext, type TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import {
+  type FormRule,
+  type FormValidateMessage,
+  MessagePlugin,
+  type SubmitContext,
+  type TdBaseTableProps,
+} from 'tdesign-vue-next';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { API_CODE } from '@/contracts/api/codes';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import type { RoleListItem } from '@/modules/rbac/contract/role';
 import {
@@ -441,12 +453,14 @@ import {
 } from '@/shared/components/management';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
+import { isApiRequestError } from '@/utils/request';
 
 import { assignUserRoles, getRoles, getUserRoleBindings } from '../api/user-roles';
 import { createUser, deleteUser, getUsers, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
+import { evaluateUserPasswordPolicy } from '../shared/password-policy';
 import type { CreateUserPayload, ResetUserPasswordPayload, UpdateUserPayload, UserListItem } from '../types/user';
 
 defineOptions({
@@ -473,6 +487,11 @@ type UserFormState = {
   username: string;
   display: string;
   password: string;
+};
+
+type UserFormInstance = {
+  clearValidate: (fields?: Array<keyof UserFormState>) => void;
+  setValidateMessage: (message: FormValidateMessage<UserFormState>) => void;
 };
 
 const INITIAL_USER_FORM: UserFormState = {
@@ -508,7 +527,9 @@ const roleSummaryErrors = ref<Record<number, boolean>>({});
 const userDrawerVisible = ref(false);
 const userDrawerMode = ref<UserDrawerMode>('create');
 const userDrawerTarget = ref<UserRow | null>(null);
+const userFormRef = ref<UserFormInstance | null>(null);
 const userForm = ref<UserFormState>({ ...INITIAL_USER_FORM });
+const passwordFieldError = ref('');
 const submittingUser = ref(false);
 const resetPasswordDialogVisible = ref(false);
 const resetPasswordTarget = ref<UserRow | null>(null);
@@ -644,7 +665,24 @@ const userFormRules = computed<Record<keyof UserFormState, FormRule[]>>(() => ({
   display: [{ required: true, message: t('user.userList.form.required.display'), type: 'error' }],
   password:
     userDrawerMode.value === 'create'
-      ? [{ required: true, message: t('user.userList.form.required.password'), type: 'error' }]
+      ? [
+          {
+            type: 'error',
+            validator: (value) => {
+              const errorMessage = resolveCreatePasswordError(typeof value === 'string' ? value : '', true);
+              passwordFieldError.value = errorMessage;
+              if (!errorMessage) {
+                return true;
+              }
+
+              return {
+                result: false,
+                message: errorMessage,
+                type: 'error',
+              };
+            },
+          },
+        ]
       : [],
 }));
 
@@ -852,6 +890,7 @@ function statusTheme(status?: string | null) {
 function openUserDrawer(mode: UserDrawerMode, user?: UserRow) {
   userDrawerMode.value = mode;
   userDrawerTarget.value = user ?? null;
+  passwordFieldError.value = '';
   userForm.value = {
     username: user?.username ?? '',
     display: user?.display ?? '',
@@ -873,8 +912,61 @@ function consumeCreateActionQuery() {
 function closeUserDrawer() {
   userDrawerVisible.value = false;
   userDrawerTarget.value = null;
+  passwordFieldError.value = '';
   userForm.value = { ...INITIAL_USER_FORM };
   submittingUser.value = false;
+}
+
+function resolveCreatePasswordError(password: string, requireValue: boolean) {
+  if (!password) {
+    return requireValue ? t('user.userList.form.required.password') : '';
+  }
+
+  return evaluateUserPasswordPolicy(password).meetsMinimum ? '' : t('user.userList.form.passwordPolicy.error');
+}
+
+function localizedApiErrorMessage(messageKey?: string, fallback?: string | null) {
+  if (messageKey) {
+    const translated = t(messageKey);
+    if (translated !== messageKey) {
+      return translated;
+    }
+  }
+
+  return fallback?.trim() || '';
+}
+
+function setUserFormFieldError(field: keyof UserFormState, message: string) {
+  userFormRef.value?.setValidateMessage({
+    [field]: [{ type: 'error', message }],
+  } as FormValidateMessage<UserFormState>);
+}
+
+function clearUserFormFieldError(field: keyof UserFormState) {
+  userFormRef.value?.clearValidate([field]);
+}
+
+async function syncCreatePasswordFeedback() {
+  if (userDrawerMode.value !== 'create' || !userDrawerVisible.value) {
+    passwordFieldError.value = '';
+    return;
+  }
+
+  const errorMessage = resolveCreatePasswordError(userForm.value.password, false);
+  passwordFieldError.value = errorMessage;
+
+  await nextTick();
+
+  if (userDrawerMode.value !== 'create' || !userDrawerVisible.value) {
+    return;
+  }
+
+  if (errorMessage) {
+    setUserFormFieldError('password', errorMessage);
+    return;
+  }
+
+  clearUserFormFieldError('password');
 }
 
 async function handleUserSubmit(ctx: SubmitContext) {
@@ -905,6 +997,19 @@ async function handleUserSubmit(ctx: SubmitContext) {
     closeUserDrawer();
   } catch (error) {
     logger.error('failed to submit user form', error);
+    if (isApiRequestError(error)) {
+      const errorMessage = localizedApiErrorMessage(error.messageKey, error.message) || t('user.userList.createFailed');
+
+      if (userDrawerMode.value === 'create' && error.code === API_CODE.AUTH_PASSWORD_POLICY_VIOLATION) {
+        passwordFieldError.value = errorMessage;
+        setUserFormFieldError('password', errorMessage);
+        return;
+      }
+
+      MessagePlugin.error(errorMessage);
+      return;
+    }
+
     MessagePlugin.error(
       userDrawerMode.value === 'create' ? t('user.userList.createFailed') : t('user.userList.editFailed'),
     );
@@ -1143,6 +1248,13 @@ watch(
     consumeCreateActionQuery();
   },
   { immediate: true },
+);
+
+watch(
+  () => [userDrawerVisible.value, userDrawerMode.value, userForm.value.password] as const,
+  () => {
+    void syncCreatePasswordFeedback();
+  },
 );
 </script>
 <style lang="less" scoped>

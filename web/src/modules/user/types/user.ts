@@ -12,11 +12,7 @@ export type UserListResponse = Omit<RawUserListResponse, 'items'> & {
   items: UserListItem[];
 };
 
-export interface CreateUserPayload {
-  username: string;
-  display: string;
-  password: string;
-}
+export type CreateUserPayload = components['schemas']['CreateUserRequest'];
 
 export interface UpdateUserPayload {
   username: string;

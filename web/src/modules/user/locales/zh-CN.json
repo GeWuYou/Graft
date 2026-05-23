@@ -105,6 +105,10 @@
         "usernamePlaceholder": "输入用户名",
         "displayPlaceholder": "输入显示名",
         "passwordPlaceholder": "输入符合策略的初始密码",
+        "passwordPolicy": {
+          "hint": "密码要求：至少 12 位，且同时包含字母和数字。",
+          "error": "密码至少 12 位，且需要同时包含字母和数字。"
+        },
         "cancel": "取消",
         "confirm": "保存",
         "required": {

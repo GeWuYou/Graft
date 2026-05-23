@@ -1,0 +1,81 @@
+get:
+  tags: [users]
+  summary: List users
+  operationId: getUsers
+  description: Returns the existing user list payload without changing business behavior.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: User list.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-user-list-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
+post:
+  tags: [users]
+  summary: Create user
+  operationId: postUsers
+  description: |
+    Creates a managed backend user and returns the existing success envelope. The current password policy requires at least
+    12 characters and both letters and digits.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/create-user-request.yaml
+  responses:
+    '200':
+      description: User created.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-user-item-response.yaml
+    '400':
+      description: Invalid request or password policy violation.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          examples:
+            passwordPolicyViolation:
+              summary: Password policy violation
+              value:
+                success: false
+                code: AUTH_PASSWORD_POLICY_VIOLATION
+                message: 新密码不符合安全要求
+                traceId: 6f1f05e4-4ffc-4cac-b218-e4602c37f81c
+                messageKey: auth.password_policy_violation
+                locale: zh-CN
+                data:
+                  field: new_password
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

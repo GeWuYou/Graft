@@ -1,3 +1,5 @@
+import type { components } from '@/contracts/openapi/generated/schema';
+
 export interface RolePermissionBindingResponse {
   permission_ids: number[];
 }
@@ -14,6 +16,4 @@ export interface UpdateRolePayload {
   description?: string | null;
 }
 
-export interface ReplaceRolePermissionsPayload {
-  permission_ids: number[];
-}
+export type ReplaceRolePermissionsPayload = components['schemas']['ReplaceRolePermissionsRequest'];

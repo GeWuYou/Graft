@@ -1,13 +1,15 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 
+import { API_CODE } from '@/contracts/api/codes';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 
 import UserPage from './index.vue';
 
 const userApiMocks = vi.hoisted(() => ({
+  createUser: vi.fn(),
   getUsers: vi.fn(),
 }));
 
@@ -28,6 +30,7 @@ const permissionState = vi.hoisted(() => ({
 }));
 
 vi.mock('@/modules/user/api/users', () => ({
+  createUser: userApiMocks.createUser,
   getUsers: userApiMocks.getUsers,
 }));
 
@@ -44,14 +47,18 @@ vi.mock('@/store', () => ({
   }),
 }));
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string) => key,
-    locale: {
-      value: 'en-US',
-    },
-  }),
-}));
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>();
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string) => key,
+      locale: {
+        value: 'en-US',
+      },
+    }),
+  };
+});
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({
@@ -135,6 +142,144 @@ const inputStub = defineComponent({
         value: props.modelValue,
         onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
       });
+  },
+});
+
+const formStub = defineComponent({
+  name: 'TFormStub',
+  props: {
+    data: {
+      type: Object,
+      default: () => ({}),
+    },
+    rules: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  emits: ['submit'],
+  setup(props, { emit, expose, slots, attrs }) {
+    const validateMessages = ref<Record<string, string[]>>({});
+
+    function clearValidate(fields?: string[]) {
+      if (!fields?.length) {
+        validateMessages.value = {};
+        return;
+      }
+
+      const nextMessages = { ...validateMessages.value };
+      fields.forEach((field) => {
+        delete nextMessages[field];
+      });
+      validateMessages.value = nextMessages;
+    }
+
+    function setValidateMessage(message: Record<string, Array<{ message: string }>>) {
+      const nextMessages = { ...validateMessages.value };
+      Object.entries(message).forEach(([field, items]) => {
+        nextMessages[field] = items.map((item) => item.message);
+      });
+      validateMessages.value = nextMessages;
+    }
+
+    expose({
+      clearValidate,
+      setValidateMessage,
+    });
+
+    async function validate() {
+      const nextMessages: Record<string, string[]> = {};
+      const formData = props.data as Record<string, unknown>;
+      const formRules = props.rules as Record<
+        string,
+        Array<{ required?: boolean; message?: string; validator?: (value: unknown) => unknown | Promise<unknown> }>
+      >;
+
+      for (const [field, rules] of Object.entries(formRules)) {
+        const value = formData[field];
+
+        for (const rule of rules ?? []) {
+          if (rule.required && !value) {
+            nextMessages[field] = [rule.message ?? ''];
+            break;
+          }
+
+          if (typeof rule.validator === 'function') {
+            const result = await rule.validator(value);
+            if (result !== true) {
+              const message =
+                typeof result === 'object' && result && 'message' in result ? String(result.message ?? '') : '';
+              nextMessages[field] = [message || rule.message || ''];
+              break;
+            }
+          }
+        }
+      }
+
+      validateMessages.value = nextMessages;
+
+      if (Object.keys(nextMessages).length === 0) {
+        return { validateResult: true, firstError: '' };
+      }
+
+      return {
+        validateResult: Object.fromEntries(
+          Object.entries(nextMessages).map(([field, messages]) => [
+            field,
+            messages.map((message) => ({ message, type: 'error' })),
+          ]),
+        ),
+        firstError: Object.values(nextMessages)[0]?.[0] ?? '',
+      };
+    }
+
+    return () =>
+      h(
+        'form',
+        {
+          ...attrs,
+          onSubmit: async (event: Event) => {
+            event.preventDefault();
+            emit('submit', await validate());
+          },
+        },
+        [
+          slots.default?.({ data: props.data }),
+          Object.entries(validateMessages.value).map(([field, messages]) =>
+            h(
+              'div',
+              { 'data-testid': `validate-${field}` },
+              messages.map((message) => h('p', message)),
+            ),
+          ),
+        ],
+      );
+  },
+});
+
+const formItemStub = defineComponent({
+  name: 'TFormItemStub',
+  props: {
+    label: {
+      type: String,
+      default: '',
+    },
+    name: {
+      type: String,
+      default: '',
+    },
+    tips: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props, { slots }) {
+    return () =>
+      h('div', { 'data-testid': `form-item-${props.name}` }, [
+        props.label ? h('label', props.label) : null,
+        slots.default?.(),
+        props.tips ? h('p', { 'data-testid': `form-item-tips-${props.name}` }, props.tips) : null,
+      ]);
   },
 });
 
@@ -321,6 +466,8 @@ function mountUserPage() {
         't-dropdown': passthroughStub,
         't-drawer': drawerStub,
         't-empty': passthroughStub,
+        't-form': formStub,
+        't-form-item': formItemStub,
         't-input': inputStub,
         't-pagination': paginationStub,
         't-select': selectStub,
@@ -334,6 +481,7 @@ function mountUserPage() {
 describe('UserPage', () => {
   beforeEach(() => {
     permissionState.grantedCodes = [];
+    userApiMocks.createUser.mockReset();
     userApiMocks.getUsers.mockReset();
     roleApiMocks.assignUserRoles.mockReset();
     roleApiMocks.getRoles.mockReset();
@@ -373,6 +521,86 @@ describe('UserPage', () => {
     await flushPromises();
 
     expect(wrapper.get('[data-testid="drawer"]').attributes('data-header')).toBe('user.userList.form.createTitle');
+  });
+
+  it('shows the lightweight password help text in the create drawer', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.CREATE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+    await wrapper.get('[data-testid="user-create"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="form-item-tips-password"]').text()).toContain(
+      'user.userList.form.passwordPolicy.hint',
+    );
+    expect(wrapper.text()).not.toContain('user.userList.form.passwordPolicy.strength');
+  });
+
+  it('shows a field error and hides the help text when the initial password is invalid', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.CREATE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+    await wrapper.get('[data-testid="user-create"]').trigger('click');
+    await flushPromises();
+
+    const passwordInput = wrapper.get('input[placeholder="user.userList.form.passwordPlaceholder"]');
+    await passwordInput.setValue('short');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="validate-password"]').text()).toContain(
+      'user.userList.form.passwordPolicy.error',
+    );
+    expect(wrapper.find('[data-testid="form-item-tips-password"]').exists()).toBe(false);
+  });
+
+  it('restores the help text after the initial password satisfies the policy', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.CREATE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+    await wrapper.get('[data-testid="user-create"]').trigger('click');
+    await flushPromises();
+
+    await wrapper.get('input[placeholder="user.userList.form.passwordPlaceholder"]').setValue('short');
+    await flushPromises();
+    await wrapper.get('input[placeholder="user.userList.form.passwordPlaceholder"]').setValue('BetterPassword123');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="validate-password"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="form-item-tips-password"]').text()).toContain(
+      'user.userList.form.passwordPolicy.hint',
+    );
+  });
+
+  it('binds backend password policy violations to the password field instead of a global error toast', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.CREATE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+    userApiMocks.createUser.mockRejectedValue({
+      isApiRequestError: true,
+      code: API_CODE.AUTH_PASSWORD_POLICY_VIOLATION,
+      message: '新密码不符合安全要求',
+      messageKey: '',
+    });
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+    await wrapper.get('[data-testid="user-create"]').trigger('click');
+    await flushPromises();
+
+    await wrapper.get('input[placeholder="user.userList.form.usernamePlaceholder"]').setValue('carol');
+    await wrapper.get('input[placeholder="user.userList.form.displayPlaceholder"]').setValue('Carol');
+    await wrapper.get('input[placeholder="user.userList.form.passwordPlaceholder"]').setValue('BetterPassword123');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="validate-password"]').text()).toContain('新密码不符合安全要求');
+    expect(messageMocks.error).not.toHaveBeenCalledWith('user.userList.createFailed');
+    expect(messageMocks.error).not.toHaveBeenCalledWith('新密码不符合安全要求');
   });
 
   it('keeps role assignment blocked when the current snapshot fails to load', async () => {

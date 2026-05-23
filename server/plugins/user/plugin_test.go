@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 	"golang.org/x/crypto/bcrypt"
 
 	"graft/server/internal/config"
@@ -529,12 +530,22 @@ func (r pluginTestRBACRepository) ListRolePermissionBindings(_ context.Context, 
 }
 
 func newPluginTestContext(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository) (*plugin.Context, *gin.Engine) {
-	return newPluginTestContextWithPermissions(t, userRepo, authRepo, map[uint64][]rbacstore.Permission{
+	return newPluginTestContextWithLoggerAndPermissions(t, zap.NewNop(), userRepo, authRepo, map[uint64][]rbacstore.Permission{
 		7: {{Code: usercontract.UserReadPermission.String()}},
 	})
 }
 
 func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository, permissions map[uint64][]rbacstore.Permission) (*plugin.Context, *gin.Engine) {
+	return newPluginTestContextWithLoggerAndPermissions(t, zap.NewNop(), userRepo, authRepo, permissions)
+}
+
+func newPluginTestContextWithLoggerAndPermissions(
+	t *testing.T,
+	logger *zap.Logger,
+	userRepo store.UserRepository,
+	authRepo store.AuthRepository,
+	permissions map[uint64][]rbacstore.Permission,
+) (*plugin.Context, *gin.Engine) {
 	t.Helper()
 
 	if authRepo == nil {
@@ -561,7 +572,7 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 	engine := gin.New()
 	ctx := &plugin.Context{
 		LifecycleContext: context.Background(),
-		Logger:           zap.NewNop(),
+		Logger:           logger,
 		Config: &config.Config{Auth: config.AuthConfig{
 			AccessTokenTTL:        15 * time.Minute,
 			RefreshTokenTTL:       24 * time.Hour,
@@ -1675,6 +1686,92 @@ func TestCreateUserRouteReturnsStableItem(t *testing.T) {
 	payload := decodeSuccessData[userListItem](t, recorder)
 	if payload.ID != 11 || payload.Username != "carol" || payload.Display != "Carol" || payload.Status != usercontract.UserStatusEnabled {
 		t.Fatalf("unexpected created payload: %#v", payload)
+	}
+}
+
+func TestCreateUserRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return testUser(7, "alice", "Alice"), nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		7: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserCreatePermission.String()},
+		},
+	})
+
+	sessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(t, http.MethodPost, usersRoutePath(usercontract.UserCollection), 7, sessionID, map[string]any{
+		"username": "carol",
+		"display":  "Carol",
+		"password": "short",
+	})
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusBadRequest)
+	payload := decodeErrorResponse(t, recorder)
+	assertContractErrorPayload(t, payload, messagecontract.AuthPasswordPolicyViolation, "zh-CN")
+	assertErrorFieldDetail(t, payload, "new_password")
+	if payload.Code != errorcodecontract.AuthPasswordPolicyViolation.String() {
+		t.Fatalf("expected password policy code, got %#v", payload)
+	}
+}
+
+func TestCreateUserRouteLogsPasswordPolicyViolationWithoutPasswordLeak(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	core, logs := observer.New(zap.ErrorLevel)
+	logger := zap.New(core)
+	_, engine := newPluginTestContextWithLoggerAndPermissions(t, logger, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return testUser(7, "alice", "Alice"), nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		7: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserCreatePermission.String()},
+		},
+	})
+
+	sessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
+	password := "short"
+	request := newAuthorizedJSONRequestForSession(t, http.MethodPost, usersRoutePath(usercontract.UserCollection), 7, sessionID, map[string]any{
+		"username": "carol",
+		"display":  "Carol",
+		"password": password,
+	})
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusBadRequest)
+	entries := logs.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one error log, got %d", len(entries))
+	}
+	entry := entries[0]
+	if entry.Message != "create user failed" {
+		t.Fatalf("unexpected log message: %#v", entry)
+	}
+	fields := entry.ContextMap()
+	if fields["operation"] != "create_user" || fields["route"] != "/api/users" || fields["method"] != http.MethodPost {
+		t.Fatalf("expected stable route log fields, got %#v", fields)
+	}
+	if fields["response_code"] != errorcodecontract.AuthPasswordPolicyViolation.String() || fields["message_key"] != messagecontract.AuthPasswordPolicyViolation.String() {
+		t.Fatalf("expected stable error metadata, got %#v", fields)
+	}
+	if fields["field"] != "new_password" {
+		t.Fatalf("expected new_password field detail, got %#v", fields)
+	}
+	if rendered := fmt.Sprint(fields); strings.Contains(rendered, password) {
+		t.Fatalf("expected password to stay out of logs, got %#v", fields)
 	}
 }
 

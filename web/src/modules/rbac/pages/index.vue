@@ -451,7 +451,7 @@ import {
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import type { RoleListItem } from '../contract/role';
 import type { PermissionListItem } from '../types/permission';
-import type { CreateRolePayload } from '../types/rbac';
+import type { CreateRolePayload, ReplaceRolePermissionsPayload } from '../types/rbac';
 
 defineOptions({
   name: 'RolesIndex',
@@ -806,6 +806,12 @@ function sortStableIDs(ids: number[]) {
   return ids.slice().sort((left, right) => left - right);
 }
 
+function toReplaceRolePermissionsPayload(permissionIds: number[]): ReplaceRolePermissionsPayload {
+  return {
+    permission_ids: sortStableIDs(permissionIds),
+  };
+}
+
 function normalizeRolePermissionIDs(rawPermissionIDs: number[]) {
   if (!Array.isArray(rawPermissionIDs)) {
     return null;
@@ -1032,13 +1038,11 @@ async function submitPermissionAssignment() {
   }
 
   const session = permissionDrawerSession.value;
-  const permissionIds = sortStableIDs(selectedPermissionIds.value);
+  const payload = toReplaceRolePermissionsPayload(selectedPermissionIds.value);
 
   submittingPermissions.value = true;
   try {
-    await assignRolePermissions(selectedRole.value.id, {
-      permission_ids: permissionIds,
-    });
+    await assignRolePermissions(selectedRole.value.id, payload);
 
     if (!isActivePermissionDrawerSession(session)) {
       return;

@@ -1,0 +1,10 @@
+type: object
+required: [permission_ids]
+properties:
+  permission_ids:
+    type: array
+    description: |
+      Replaces the role's permission bindings with the provided stable permission id set.
+    items:
+      type: integer
+      format: int64
