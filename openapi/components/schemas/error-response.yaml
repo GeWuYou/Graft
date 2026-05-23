@@ -1,0 +1,19 @@
+type: object
+required: [success, code, message, traceId]
+properties:
+  success:
+    type: boolean
+    enum: [false]
+  code:
+    type: string
+    description: Existing canonical error response code.
+  message:
+    type: string
+  messageKey:
+    type: string
+  locale:
+    type: string
+  traceId:
+    type: string
+  data:
+    description: Optional structured error details preserved from the current runtime.

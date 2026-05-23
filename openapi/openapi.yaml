@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: Graft Server API
+  version: 0.1.0-phase-2a
+  description: |
+    Phase 2A establishes the first minimal OpenAPI spec and validation loop for the
+    existing server runtime without changing business behavior, response envelope
+    semantics, or auth/session transport ownership.
+servers:
+  - url: /
+tags:
+  - name: health
+  - name: auth
+  - name: users
+  - name: rbac
+paths:
+  /healthz:
+    $ref: ./paths/healthz.yaml
+  /api/auth/login:
+    $ref: ./paths/auth.login.yaml
+  /api/auth/refresh:
+    $ref: ./paths/auth.refresh.yaml
+  /api/auth/logout:
+    $ref: ./paths/auth.logout.yaml
+  /api/auth/bootstrap:
+    $ref: ./paths/auth.bootstrap.yaml
+  /api/users:
+    $ref: ./paths/users.list.yaml
+  /api/roles:
+    $ref: ./paths/roles.list.yaml
+  /api/permissions:
+    $ref: ./paths/permissions.list.yaml
+components:
+  schemas:
+    ApiEnvelope:
+      $ref: ./components/schemas/api-envelope.yaml
+    ErrorResponse:
+      $ref: ./components/schemas/error-response.yaml
+    HealthResponse:
+      $ref: ./components/schemas/health-response.yaml
+    LoginRequest:
+      $ref: ./components/schemas/login-request.yaml
+    LoginUser:
+      $ref: ./components/schemas/login-user.yaml
+    LoginResponse:
+      $ref: ./components/schemas/login-response.yaml
+    BootstrapMenu:
+      $ref: ./components/schemas/bootstrap-menu.yaml
+    BootstrapLocale:
+      $ref: ./components/schemas/bootstrap-locale.yaml
+    BootstrapResponse:
+      $ref: ./components/schemas/bootstrap-response.yaml
+    UserListItem:
+      $ref: ./components/schemas/user-list-item.yaml
+    UserListResponse:
+      $ref: ./components/schemas/user-list-response.yaml
+    RoleListItem:
+      $ref: ./components/schemas/role-list-item.yaml
+    RoleListResponse:
+      $ref: ./components/schemas/role-list-response.yaml
+    PermissionListItem:
+      $ref: ./components/schemas/permission-list-item.yaml
+    PermissionListResponse:
+      $ref: ./components/schemas/permission-list-response.yaml
+  responses:
+    UnauthorizedError:
+      $ref: ./components/responses/unauthorized.yaml
+    ForbiddenError:
+      $ref: ./components/responses/forbidden.yaml
+    InternalServerError:
+      $ref: ./components/responses/internal-server-error.yaml
+  securitySchemes:
+    bearerAuth:
+      $ref: ./components/security/bearer-auth.yaml
+    refreshCookie:
+      $ref: ./components/security/refresh-cookie.yaml

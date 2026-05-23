@@ -1,0 +1,6 @@
+name: X-Graft-Locale
+in: header
+required: false
+description: Explicit locale override header already supported by the runtime.
+schema:
+  type: string

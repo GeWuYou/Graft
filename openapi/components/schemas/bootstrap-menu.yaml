@@ -1,0 +1,15 @@
+type: object
+required: [code, title, path, icon, permission]
+properties:
+  code:
+    type: string
+  title:
+    type: string
+  title_key:
+    type: string
+  path:
+    type: string
+  icon:
+    type: string
+  permission:
+    type: string

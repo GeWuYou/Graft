@@ -1,0 +1,35 @@
+post:
+  tags: [auth]
+  summary: Login with username and password
+  operationId: postAuthLogin
+  description: |
+    Authenticates the caller, writes the refresh cookie, and returns the existing success envelope.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/login-request.yaml
+  responses:
+    '200':
+      description: Login succeeded.
+      headers:
+        Set-Cookie:
+          description: |
+            Writes the HTTP-only refresh cookie. Cookie name, path, secure flag, and SameSite
+            behavior follow the current server auth config.
+          schema:
+            type: string
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-login-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

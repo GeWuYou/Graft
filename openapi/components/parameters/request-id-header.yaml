@@ -1,0 +1,8 @@
+name: X-Request-Id
+in: header
+required: false
+description: |
+  Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+  through the response header and envelope traceId field.
+schema:
+  type: string

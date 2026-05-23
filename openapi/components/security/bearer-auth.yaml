@@ -1,0 +1,5 @@
+type: http
+scheme: bearer
+bearerFormat: JWT
+description: |
+  Existing access-token authentication via the `Authorization: Bearer <token>` header.

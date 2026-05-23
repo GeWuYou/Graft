@@ -1,0 +1,16 @@
+type: object
+required: [status, defaultLocale, fallbackLocale, menus, permissions, jobs]
+properties:
+  status:
+    type: string
+    enum: [ok]
+  defaultLocale:
+    type: string
+  fallbackLocale:
+    type: string
+  menus:
+    type: integer
+  permissions:
+    type: integer
+  jobs:
+    type: integer

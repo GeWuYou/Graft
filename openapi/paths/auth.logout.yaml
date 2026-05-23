@@ -1,0 +1,29 @@
+post:
+  tags: [auth]
+  summary: Logout current refresh session
+  operationId: postAuthLogout
+  description: |
+    Revokes the current refresh session referenced by the refresh cookie and clears that cookie.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - refreshCookie: []
+  responses:
+    '200':
+      description: Logout succeeded.
+      headers:
+        Set-Cookie:
+          description: Clears the HTTP-only refresh cookie.
+          schema:
+            type: string
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-empty-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

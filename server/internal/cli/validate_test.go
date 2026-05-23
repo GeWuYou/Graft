@@ -84,11 +84,13 @@ func TestResolveBackendModuleRootFromRepoRoot(t *testing.T) {
 // TestRunValidateBackendLintStage 验证 lint 阶段会顺序执行两套 golangci-lint 配置。
 func TestRunValidateBackendLintStage(t *testing.T) {
 	originalLintRunner := backendLintRunner
+	originalOpenAPIRunner := backendOpenAPIRunner
 	originalGoTestRunner := backendGoTestRunner
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
+		backendOpenAPIRunner = originalOpenAPIRunner
 		backendGoTestRunner = originalGoTestRunner
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
@@ -97,6 +99,10 @@ func TestRunValidateBackendLintStage(t *testing.T) {
 	var steps []string
 	backendLintRunner = func(_ *cobra.Command, lintConfig string, testLintConfig string) error {
 		steps = append(steps, "lint:"+lintConfig+":"+testLintConfig)
+		return nil
+	}
+	backendOpenAPIRunner = func(_ *cobra.Command, _ string) error {
+		t.Fatal("openapi runner should not be called during lint stage")
 		return nil
 	}
 	backendGoTestRunner = func(_ *cobra.Command, _ []string) error {
@@ -124,6 +130,36 @@ func TestRunValidateBackendLintStage(t *testing.T) {
 	expected := []string{"lint:" + defaultBackendLintConfig + ":" + defaultBackendTestLintConfig}
 	if !reflect.DeepEqual(steps, expected) {
 		t.Fatalf("expected %v, got %v", expected, steps)
+	}
+}
+
+func TestRunValidateBackendOpenAPIStage(t *testing.T) {
+	originalOpenAPIRunner := backendOpenAPIRunner
+	originalLintRunner := backendLintRunner
+	defer func() {
+		backendOpenAPIRunner = originalOpenAPIRunner
+		backendLintRunner = originalLintRunner
+	}()
+
+	var calledWith string
+	backendOpenAPIRunner = func(_ *cobra.Command, spec string) error {
+		calledWith = spec
+		return nil
+	}
+	backendLintRunner = func(_ *cobra.Command, _, _ string) error {
+		t.Fatal("lint runner should not be called during openapi-only stage")
+		return nil
+	}
+
+	err := runValidateBackend(&cobra.Command{}, backendValidateOptions{
+		stage:       defaultOpenAPIStage,
+		openapiSpec: defaultOpenAPIRootSpec,
+	})
+	if err != nil {
+		t.Fatalf("run validate backend openapi stage: %v", err)
+	}
+	if calledWith != defaultOpenAPIRootSpec {
+		t.Fatalf("expected spec %q, got %q", defaultOpenAPIRootSpec, calledWith)
 	}
 }
 
@@ -538,11 +574,13 @@ func TestResolveBackendLintMergeBaseFailsWithHeadAndBaseContext(t *testing.T) {
 // TestRunValidateBackendLintStageDoesNotRunAudit 验证 blocking lint stage 不会衍生 full-repo audit 流程。
 func TestRunValidateBackendLintStageDoesNotRunAudit(t *testing.T) {
 	originalLintRunner := backendLintRunner
+	originalOpenAPIRunner := backendOpenAPIRunner
 	originalGoTestRunner := backendGoTestRunner
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
+		backendOpenAPIRunner = originalOpenAPIRunner
 		backendGoTestRunner = originalGoTestRunner
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
@@ -554,6 +592,10 @@ func TestRunValidateBackendLintStageDoesNotRunAudit(t *testing.T) {
 		if lintConfig != defaultBackendLintConfig || testLintConfig != defaultBackendTestLintConfig {
 			t.Fatalf("unexpected lint configs: %s %s", lintConfig, testLintConfig)
 		}
+		return nil
+	}
+	backendOpenAPIRunner = func(_ *cobra.Command, _ string) error {
+		t.Fatal("openapi runner should not be called during lint-only blocking stage")
 		return nil
 	}
 	backendGoTestRunner = func(_ *cobra.Command, _ []string) error {
@@ -585,10 +627,12 @@ func TestRunValidateBackendLintStageDoesNotRunAudit(t *testing.T) {
 // TestRunValidateBackendBuildTestStage 验证 buildtest 阶段会先跑 go test，再构建 `./cmd/graft`。
 func TestRunValidateBackendBuildTestStage(t *testing.T) {
 	originalLintRunner := backendLintRunner
+	originalOpenAPIRunner := backendOpenAPIRunner
 	originalGoTestRunner := backendGoTestRunner
 	originalGoBuildRunner := backendGoBuildRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
+		backendOpenAPIRunner = originalOpenAPIRunner
 		backendGoTestRunner = originalGoTestRunner
 		backendGoBuildRunner = originalGoBuildRunner
 	}()
@@ -596,6 +640,10 @@ func TestRunValidateBackendBuildTestStage(t *testing.T) {
 	var steps []string
 	backendLintRunner = func(_ *cobra.Command, _ string, _ string) error {
 		t.Fatal("lint runner should not be called during buildtest stage")
+		return nil
+	}
+	backendOpenAPIRunner = func(_ *cobra.Command, _ string) error {
+		t.Fatal("openapi runner should not be called during buildtest stage")
 		return nil
 	}
 	backendGoTestRunner = func(_ *cobra.Command, targets []string) error {
@@ -624,17 +672,23 @@ func TestRunValidateBackendBuildTestStage(t *testing.T) {
 // TestRunValidateBackendFullStageWithSmoke 验证 full 阶段会按固定顺序串联 lint、test、build 与可选 smoke。
 func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	originalLintRunner := backendLintRunner
+	originalOpenAPIRunner := backendOpenAPIRunner
 	originalGoTestRunner := backendGoTestRunner
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
+		backendOpenAPIRunner = originalOpenAPIRunner
 		backendGoTestRunner = originalGoTestRunner
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
 	}()
 
 	var steps []string
+	backendOpenAPIRunner = func(_ *cobra.Command, spec string) error {
+		steps = append(steps, "openapi:"+spec)
+		return nil
+	}
 	backendLintRunner = func(_ *cobra.Command, _ string, _ string) error {
 		steps = append(steps, "lint")
 		return nil
@@ -661,6 +715,7 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	}
 
 	expected := []string{
+		"openapi:" + defaultOpenAPIRootSpec,
 		"lint",
 		"test:./...",
 		"build",

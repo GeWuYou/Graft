@@ -1,0 +1,20 @@
+type: object
+required: [success, code, message, traceId, data]
+properties:
+  success:
+    type: boolean
+  code:
+    type: string
+    description: Existing canonical response code.
+  message:
+    type: string
+  messageKey:
+    type: string
+    description: Present on localized error flows and omitted on normal success.
+  locale:
+    type: string
+    description: Present on localized error flows and omitted on normal success.
+  traceId:
+    type: string
+    description: Mirrors the request id contract used by the current runtime.
+  data: {}

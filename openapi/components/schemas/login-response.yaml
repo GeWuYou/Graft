@@ -1,0 +1,12 @@
+type: object
+required: [access_token, expires_at, must_change_password, user]
+properties:
+  access_token:
+    type: string
+  expires_at:
+    type: string
+    format: date-time
+  must_change_password:
+    type: boolean
+  user:
+    $ref: ./login-user.yaml

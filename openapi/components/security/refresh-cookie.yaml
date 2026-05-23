@@ -1,0 +1,7 @@
+type: apiKey
+in: cookie
+name: graft_refresh_token
+description: |
+  Documents the refresh cookie transport used by auth refresh/logout flows. The runtime may
+  override the cookie name from auth config; this spec keeps the current default name as the
+  documented baseline.

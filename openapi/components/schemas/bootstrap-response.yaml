@@ -1,0 +1,21 @@
+type: object
+required: [user, must_change_password, roles, permissions, menus, locale]
+properties:
+  user:
+    $ref: ./login-user.yaml
+  must_change_password:
+    type: boolean
+  roles:
+    type: array
+    items:
+      type: string
+  permissions:
+    type: array
+    items:
+      type: string
+  menus:
+    type: array
+    items:
+      $ref: ./bootstrap-menu.yaml
+  locale:
+    $ref: ./bootstrap-locale.yaml

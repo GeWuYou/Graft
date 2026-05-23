@@ -1,0 +1,32 @@
+post:
+  tags: [auth]
+  summary: Rotate refresh session and issue a new access token
+  operationId: postAuthRefresh
+  description: |
+    Reads the configured refresh cookie, validates the current refresh session, rotates it,
+    and returns the existing success envelope.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - refreshCookie: []
+  responses:
+    '200':
+      description: Refresh succeeded.
+      headers:
+        Set-Cookie:
+          description: Writes the rotated HTTP-only refresh cookie.
+          schema:
+            type: string
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-login-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

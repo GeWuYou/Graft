@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/config"
@@ -24,6 +25,7 @@ const (
 	defaultSmokeTimeout    = 10 * time.Second
 	defaultSmokeProbeDelay = 200 * time.Millisecond
 	defaultBackendStage    = "full"
+	defaultOpenAPIStage    = "openapi"
 
 	defaultBackendLintConfig     = ".golangci.yml"
 	defaultBackendTestLintConfig = ".golangci.test.yml"
@@ -35,6 +37,7 @@ const (
 	githubBaseRefEnv             = "GITHUB_BASE_REF"
 	defaultRemoteName            = "origin"
 	defaultRemoteHeadRef         = "refs/remotes/origin/HEAD"
+	defaultOpenAPIRootSpec       = "openapi/openapi.yaml"
 	shaLength40                  = 40
 	shaLength64                  = 64
 )
@@ -53,6 +56,7 @@ type backendValidateOptions struct {
 	testLintConfig string
 	testTargets    []string
 	smoke          bool
+	openapiSpec    string
 }
 
 var smokeMigrateRunner = func(cmd *cobra.Command, migrationDir string) error {
@@ -66,6 +70,7 @@ var backendLintRunner = runBackendLint
 var backendGoTestRunner = runBackendGoTest
 var backendGoBuildRunner = runBackendGoBuild
 var backendSmokeRunner = runValidateSmoke
+var backendOpenAPIRunner = runValidateOpenAPI
 var backendCommandRunner = runBackendCommand
 var backendGitOutputRunner = runBackendGitOutput
 
@@ -88,6 +93,7 @@ func newValidateCommand() *cobra.Command {
 	}
 
 	command.AddCommand(newValidateBackendCommand())
+	command.AddCommand(newValidateOpenAPICommand())
 	command.AddCommand(newValidateSmokeCommand())
 	return command
 }
@@ -101,15 +107,17 @@ func newValidateBackendCommand() *cobra.Command {
 		stage:          defaultBackendStage,
 		lintConfig:     defaultBackendLintConfig,
 		testLintConfig: defaultBackendTestLintConfig,
+		openapiSpec:    defaultOpenAPIRootSpec,
 	}
 
 	command := &cobra.Command{
 		Use:   "backend",
 		Short: "Run the unified backend quality chain",
 		Long: "graft validate backend is the repository-local backend quality entrypoint. " +
-			"It runs golangci-lint first, then executes go test on the requested scope, " +
+			"It runs OpenAPI validation first, then golangci-lint, then executes go test on the requested scope, " +
 			"then builds ./cmd/graft, and optionally appends `graft validate smoke` when the slice needs a runtime proof.",
 		Example: "  graft validate backend\n" +
+			"  graft validate backend --stage openapi\n" +
 			"  graft validate backend --test-target ./plugins/user --test-target ./internal/httpx\n" +
 			"  graft validate backend --stage lint\n" +
 			"  graft validate backend --smoke",
@@ -120,11 +128,29 @@ func newValidateBackendCommand() *cobra.Command {
 		},
 	}
 
-	command.Flags().StringVar(&opts.stage, "stage", defaultBackendStage, "validation stage: lint, buildtest, or full")
+	command.Flags().StringVar(&opts.stage, "stage", defaultBackendStage, "validation stage: openapi, lint, buildtest, or full")
 	command.Flags().StringVar(&opts.lintConfig, "lint-config", defaultBackendLintConfig, "golangci-lint config for non-test code")
 	command.Flags().StringVar(&opts.testLintConfig, "test-lint-config", defaultBackendTestLintConfig, "golangci-lint config for test code")
 	command.Flags().StringArrayVar(&opts.testTargets, "test-target", nil, "go test package target to validate; repeatable, defaults to ./...")
 	command.Flags().BoolVar(&opts.smoke, "smoke", false, "append `graft validate smoke` after lint, test, and build")
+	command.Flags().StringVar(&opts.openapiSpec, "openapi-spec", defaultOpenAPIRootSpec, "root OpenAPI spec path relative to repository root")
+	return command
+}
+
+func newValidateOpenAPICommand() *cobra.Command {
+	var specPath string
+
+	command := &cobra.Command{
+		Use:          "openapi",
+		Short:        "Validate the root OpenAPI spec",
+		SilenceUsage: true,
+		Args:         cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runValidateOpenAPI(cmd, specPath)
+		},
+	}
+
+	command.Flags().StringVar(&specPath, "spec", defaultOpenAPIRootSpec, "root OpenAPI spec path relative to repository root")
 	return command
 }
 
@@ -158,6 +184,7 @@ func newValidateSmokeCommand() *cobra.Command {
 // runValidateBackend 执行统一的后端质量链。
 //
 // 顺序语义：
+//   - `openapi` 阶段显式验证根 OpenAPI 文档及其 fragments。
 //   - `lint` 阶段固定先跑生产代码和测试代码两套 golangci-lint 配置，显式收口
 //     不同阈值，而不是靠一份模糊配置同时兼顾两类目标。
 //   - `buildtest` 阶段固定执行最小直接覆盖范围的 `go test`，随后构建 `./cmd/graft`。
@@ -167,11 +194,16 @@ func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
 	if stage == "" {
 		stage = defaultBackendStage
 	}
+	if strings.TrimSpace(opts.openapiSpec) == "" {
+		opts.openapiSpec = defaultOpenAPIRootSpec
+	}
 	if err := validateBackendStageOptions(stage, opts.smoke); err != nil {
 		return err
 	}
 
 	switch stage {
+	case defaultOpenAPIStage:
+		return backendOpenAPIRunner(cmd, opts.openapiSpec)
 	case "lint":
 		return backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig)
 	case "buildtest":
@@ -179,7 +211,7 @@ func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
 	case "full":
 		return runFullBackendValidation(cmd, opts)
 	default:
-		return fmt.Errorf("unsupported backend validation stage %q: expected lint, buildtest, or full", stage)
+		return fmt.Errorf("unsupported backend validation stage %q: expected openapi, lint, buildtest, or full", stage)
 	}
 }
 
@@ -192,6 +224,9 @@ func validateBackendStageOptions(stage string, smoke bool) error {
 }
 
 func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) error {
+	if err := backendOpenAPIRunner(cmd, opts.openapiSpec); err != nil {
+		return err
+	}
 	if err := backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig); err != nil {
 		return err
 	}
@@ -207,6 +242,32 @@ func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) e
 		timeout:      defaultSmokeTimeout,
 	}); err != nil {
 		return fmt.Errorf("run backend smoke validation: %w", err)
+	}
+
+	return nil
+}
+
+func runValidateOpenAPI(_ *cobra.Command, specPath string) error {
+	specPath = strings.TrimSpace(specPath)
+	if specPath == "" {
+		specPath = defaultOpenAPIRootSpec
+	}
+
+	repoRoot, err := resolveRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("resolve repository root for openapi validation: %w", err)
+	}
+
+	rootSpec := filepath.Join(repoRoot, filepath.FromSlash(specPath))
+	loader := openapi3.NewLoader()
+	loader.IsExternalRefsAllowed = true
+
+	document, err := loader.LoadFromFile(rootSpec)
+	if err != nil {
+		return fmt.Errorf("load openapi spec %q: %w", rootSpec, err)
+	}
+	if err := document.Validate(loader.Context); err != nil {
+		return fmt.Errorf("validate openapi spec %q: %w", rootSpec, err)
 	}
 
 	return nil
@@ -516,6 +577,19 @@ func resolveBackendModuleRoot() (string, error) {
 	}
 
 	return "", errors.New("cannot locate server module root from current directory")
+}
+
+func resolveRepositoryRoot() (string, error) {
+	moduleRoot, err := resolveBackendModuleRoot()
+	if err != nil {
+		return "", fmt.Errorf("resolve backend module root for repository root: %w", err)
+	}
+	repoRoot := filepath.Dir(moduleRoot)
+	if _, err := backendReadFile(filepath.Join(repoRoot, "AGENTS.md")); err == nil {
+		return repoRoot, nil
+	}
+
+	return "", errors.New("could not locate repository root adjacent to server module")
 }
 
 // matchBackendModuleRoot 判断当前目录或其 `server` 子目录是否是 `server` 模块根。

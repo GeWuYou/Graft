@@ -1,0 +1,21 @@
+type: object
+required: [id, name, display, builtin, updated_at, permission_count, user_count]
+properties:
+  id:
+    type: integer
+    format: uint64
+    minimum: 0
+  name:
+    type: string
+  display:
+    type: string
+  description:
+    type: string
+  builtin:
+    type: boolean
+  updated_at:
+    type: string
+  permission_count:
+    type: integer
+  user_count:
+    type: integer

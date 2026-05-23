@@ -1,0 +1,13 @@
+type: object
+required: [current_locale, default_locale, fallback_locale, supported_locales]
+properties:
+  current_locale:
+    type: string
+  default_locale:
+    type: string
+  fallback_locale:
+    type: string
+  supported_locales:
+    type: array
+    items:
+      type: string
