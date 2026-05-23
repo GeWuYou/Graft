@@ -30,6 +30,8 @@ paths:
     $ref: ./paths/users.yaml
   /api/roles:
     $ref: ./paths/roles.list.yaml
+  /api/roles/{id}/update:
+    $ref: ./paths/roles.update.yaml
   /api/roles/{id}/permissions/assign:
     $ref: ./paths/roles.assign-permissions.yaml
   /api/permissions:
@@ -66,6 +68,12 @@ components:
       $ref: ./components/schemas/role-list-item.yaml
     RoleListResponse:
       $ref: ./components/schemas/role-list-response.yaml
+    CreateRoleRequest:
+      $ref: ./components/schemas/create-role-request.yaml
+    UpdateRoleRequest:
+      $ref: ./components/schemas/update-role-request.yaml
+    EnvelopedRoleItemResponse:
+      $ref: ./components/schemas/enveloped-role-item-response.yaml
     ReplaceRolePermissionsRequest:
       $ref: ./components/schemas/replace-role-permissions-request.yaml
     PermissionListItem:

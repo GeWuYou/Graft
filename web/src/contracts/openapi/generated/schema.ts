@@ -141,7 +141,33 @@ export interface paths {
     /** List roles */
     get: operations['getRoles'];
     put?: never;
-    post?: never;
+    /**
+     * Create role
+     * @description Creates a role with the existing backend normalization behavior for `name`,
+     *     `display`, and optional `description`.
+     */
+    post: operations['postRoles'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/roles/{id}/update': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Update role
+     * @description Updates a role with the existing backend normalization behavior for `name`,
+     *     `display`, and optional `description`.
+     */
+    post: operations['postRoleUpdate'];
     delete?: never;
     options?: never;
     head?: never;
@@ -205,6 +231,9 @@ export interface components {
     EnvelopedUserItemResponse: components['schemas']['enveloped-user-item-response'];
     RoleListItem: components['schemas']['role-list-item'];
     RoleListResponse: components['schemas']['role-list-response'];
+    CreateRoleRequest: components['schemas']['create-role-request'];
+    UpdateRoleRequest: components['schemas']['update-role-request'];
+    EnvelopedRoleItemResponse: components['schemas']['enveloped-role-item-response'];
     ReplaceRolePermissionsRequest: components['schemas']['replace-role-permissions-request'];
     PermissionListItem: components['schemas']['permission-list-item'];
     PermissionListResponse: components['schemas']['permission-list-response'];
@@ -333,6 +362,25 @@ export interface components {
     };
     'enveloped-role-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-list-response'];
+    };
+    'create-role-request': {
+      /** @description Stable role name. The server trims surrounding whitespace and rejects an empty result. */
+      name: string;
+      /** @description User-facing role display name. The server trims surrounding whitespace and rejects an empty result. */
+      display: string;
+      /** @description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null. */
+      description?: string | null;
+    };
+    'enveloped-role-item-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['role-list-item'];
+    };
+    'update-role-request': {
+      /** @description Stable role name. The server trims surrounding whitespace and rejects an empty result. */
+      name: string;
+      /** @description User-facing role display name. The server trims surrounding whitespace and rejects an empty result. */
+      display: string;
+      /** @description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null. */
+      description?: string | null;
     };
     'replace-role-permissions-request': {
       /** @description Replaces the role's permission bindings with the provided stable permission id set. */
@@ -672,6 +720,111 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRoles: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['create-role-request'];
+      };
+    };
+    responses: {
+      /** @description Role created. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-role-item-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRoleUpdate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Target role id. */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['update-role-request'];
+      };
+    };
+    responses: {
+      /** @description Role updated. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-role-item-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };

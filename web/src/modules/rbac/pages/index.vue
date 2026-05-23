@@ -451,7 +451,7 @@ import {
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import type { RoleListItem } from '../contract/role';
 import type { PermissionListItem } from '../types/permission';
-import type { CreateRolePayload, ReplaceRolePermissionsPayload } from '../types/rbac';
+import type { CreateRolePayload, ReplaceRolePermissionsPayload, UpdateRolePayload } from '../types/rbac';
 
 defineOptions({
   name: 'RolesIndex',
@@ -802,6 +802,22 @@ function normalizeDescription(description: string) {
   return trimmed ? trimmed : null;
 }
 
+function toCreateRolePayload(form: RoleFormState): CreateRolePayload {
+  return {
+    name: form.name.trim(),
+    display: form.display.trim(),
+    description: normalizeDescription(form.description),
+  };
+}
+
+function toUpdateRolePayload(form: RoleFormState): UpdateRolePayload {
+  return {
+    name: form.name.trim(),
+    display: form.display.trim(),
+    description: normalizeDescription(form.description),
+  };
+}
+
 function sortStableIDs(ids: number[]) {
   return ids.slice().sort((left, right) => left - right);
 }
@@ -896,18 +912,12 @@ async function handleRoleSubmit(ctx: SubmitContext) {
 
   submittingRole.value = true;
   try {
-    const payload: CreateRolePayload = {
-      name: roleForm.value.name.trim(),
-      display: roleForm.value.display.trim(),
-      description: normalizeDescription(roleForm.value.description),
-    };
-
     if (roleDrawerMode.value === 'create') {
-      const created = await createRole(payload);
+      const created = await createRole(toCreateRolePayload(roleForm.value));
       roles.value = [...roles.value, created].sort((left, right) => left.id - right.id);
       MessagePlugin.success(t('rbac.roleList.createSuccess'));
     } else if (roleDrawerRole.value) {
-      const updated = await updateRole(roleDrawerRole.value.id, payload);
+      const updated = await updateRole(roleDrawerRole.value.id, toUpdateRolePayload(roleForm.value));
       roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
       roleDrawerRole.value = updated;
       MessagePlugin.success(t('rbac.roleList.updateSuccess'));

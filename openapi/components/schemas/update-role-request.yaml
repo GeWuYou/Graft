@@ -1,0 +1,13 @@
+type: object
+required: [name, display]
+properties:
+  name:
+    type: string
+    description: Stable role name. The server trims surrounding whitespace and rejects an empty result.
+  display:
+    type: string
+    description: User-facing role display name. The server trims surrounding whitespace and rejects an empty result.
+  description:
+    type: string
+    nullable: true
+    description: Optional role description. The server trims surrounding whitespace and normalizes empty strings to null.

@@ -18,6 +18,11 @@ const InitUserInfo: UserInfo = {
   permissions: [],
 };
 
+type LoginFormSubmission = {
+  account: string;
+  password: string;
+};
+
 export const useUserStore = defineStore('user', {
   state: () => ({
     token: '',
@@ -61,10 +66,10 @@ export const useUserStore = defineStore('user', {
         permissions: payload.permissions,
       };
     },
-    async login(userInfo: Record<string, unknown>) {
+    async login(userInfo: LoginFormSubmission) {
       const response = await loginApi({
-        username: String(userInfo.account ?? ''),
-        password: String(userInfo.password ?? ''),
+        username: userInfo.account,
+        password: userInfo.password,
       });
       this.applyLoginResponse(response);
       await this.bootstrap();

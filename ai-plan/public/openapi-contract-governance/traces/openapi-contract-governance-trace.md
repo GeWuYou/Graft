@@ -50,3 +50,12 @@
 - Updated the `web` user-create drawer so API failures surface the backend-provided message instead of collapsing to the generic "create failed" copy.
 - Added inline password-policy guidance plus weak/medium/strong strength feedback to the create-user form, aligned to the current server rule: minimum 12 characters, letters plus digits, and no reuse of `graft-admin`.
 - Validated the create-user sample with `bun run openapi:types`, `bun run openapi:types:check`, `bun run test:run src/modules/user/pages/index.test.ts`, `go test ./plugins/user/...`, and `go run ./cmd/graft validate backend --stage openapi`.
+- Extended the same bounded request-payload rollout to `POST /api/auth/login`, which was already covered in the OpenAPI spec as `LoginRequest`.
+- Replaced the handwritten `LoginPayload` in `web/src/api/model/authModel.ts` with a thin alias over generated `components['schemas']['LoginRequest']`.
+- Kept the login page form state local in `web/src/app/auth/components/Login.vue` and preserved the explicit `account -> username` submit-time mapping inside `web/src/store/modules/user.ts`.
+- Validated the auth/user payload alias slice with `go run ./cmd/graft validate backend --stage openapi`, `bun run openapi:types`, `bun run openapi:types:check`, and `bun run check`.
+- Extended the bounded request-payload rollout to the existing RBAC role write paths `POST /api/roles` and `POST /api/roles/{id}/update`.
+- Added reusable root OpenAPI schemas for `CreateRoleRequest`, `UpdateRoleRequest`, and `EnvelopedRoleItemResponse`, and wired the new role update path fragment into `openapi/openapi.yaml`.
+- Replaced the handwritten `CreateRolePayload` and `UpdateRolePayload` in `web/src/modules/rbac/types/rbac.ts` with thin aliases over generated schema components.
+- Kept the role drawer's local form state in `web/src/modules/rbac/pages/index.vue` and moved the generated payload shaping to narrow submit-time mappers.
+- Validated the RBAC role write-path slice with `go run ./cmd/graft validate backend --stage openapi` and `bun run check`.

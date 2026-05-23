@@ -34,11 +34,7 @@ export type LoginResponse = AuthSchemas['LoginResponse'];
 export type BootstrapMenu = AuthSchemas['BootstrapMenu'];
 export type BootstrapLocale = AuthSchemas['BootstrapLocale'];
 export type BootstrapResponse = AuthSchemas['BootstrapResponse'];
-
-export interface LoginPayload {
-  username: string;
-  password: string;
-}
+export type LoginPayload = AuthSchemas['LoginRequest'];
 
 export interface ChangePasswordPayload {
   current_password: string;

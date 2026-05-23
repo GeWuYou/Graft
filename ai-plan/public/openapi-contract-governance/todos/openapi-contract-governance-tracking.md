@@ -100,6 +100,28 @@
   - `cd server && go test ./plugins/user/...`
   - `cd server && go run ./cmd/graft validate backend --stage openapi`
 
+## `POST /api/auth/login` Sample Notes
+
+- The auth/user slice now also consumes the generated `LoginRequest` payload type via the existing shell-local alias file `web/src/api/model/authModel.ts`.
+- `web/src/app/auth/components/Login.vue` keeps its current local `account/password` form state; the generated payload type is used only at the API boundary.
+- `web/src/store/modules/user.ts` keeps the explicit `account -> username` mapper before calling `loginApi`, preserving current backend behavior and avoiding generated payload types as page form state.
+- Validation evidence:
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
+  - `cd web && bun run openapi:types`
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run check`
+
+## `POST /api/roles` and `POST /api/roles/{id}/update` Sample Notes
+
+- The RBAC slice now extends the root OpenAPI coverage to the existing role create and role update write paths without changing backend runtime semantics.
+- `openapi/paths/roles.list.yaml` now models `POST /api/roles`, and `openapi/paths/roles.update.yaml` now models `POST /api/roles/{id}/update`.
+- The root spec now owns reusable `CreateRoleRequest`, `UpdateRoleRequest`, and `EnvelopedRoleItemResponse` schemas so the role write endpoints do not duplicate request or envelope structure inline.
+- `web/src/modules/rbac/types/rbac.ts` now exposes thin generated aliases for `CreateRolePayload` and `UpdateRolePayload`, keeping direct imports from `web/src/contracts/openapi/generated/schema.ts` out of page and API callsites.
+- `web/src/modules/rbac/pages/index.vue` keeps its current local drawer form state and uses narrow submit-time mappers so generated payload types remain API-boundary contracts instead of page state.
+- Validation evidence:
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
+  - `cd web && bun run check`
+
 ## Phase 1.6 Notes
 
 - Phase 1.6 intentionally keeps `package user` and `package rbac` unchanged.
