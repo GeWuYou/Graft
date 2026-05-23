@@ -24,6 +24,8 @@ Use this for CRUD modules and most business capabilities.
 - Use `Card`, `Form`, `Table`, `Drawer`, `Dialog`, `Tag`, `Pagination`.
 - For table/list management pages, use `t-empty` or the table empty slot for empty states, keep pagination stable, and
   keep empty-state surfaces token-driven instead of custom gray cards.
+- If an empty state is caused by active filters or search, provide a recovery action such as `clear filters`; read-only
+  pages should stop there, while create-capable pages may add a create action.
 
 ## Don’t
 

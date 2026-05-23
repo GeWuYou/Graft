@@ -4,6 +4,15 @@ import { defineComponent, h } from 'vue';
 
 import PermissionPage from './index.vue';
 
+const i18nMessages: Record<string, string> = {
+  'rbac.permissionCatalog.permissionRead.display': 'Read Permissions Localized',
+  'rbac.permissionCatalog.permissionRead.description': 'Localized permission description',
+  'rbac.permissionCatalog.userCreate.display': 'Create Users Localized',
+  'rbac.permissionCatalog.userCreate.description': 'Localized create-user description',
+  'rbac.permissionList.emptyDescription': 'No description',
+  'rbac.permissionList.emptyFilteredDescription': 'No permissions match the current filters',
+};
+
 const rbacApiMocks = vi.hoisted(() => ({
   getPermissions: vi.fn(),
 }));
@@ -19,7 +28,7 @@ vi.mock('../../api/rbac', () => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key: string) => key,
+    t: (key: string) => i18nMessages[key] ?? key,
     locale: {
       value: 'en-US',
     },
@@ -36,13 +45,17 @@ vi.mock('tdesign-vue-next', () => ({
 const passthroughStub = defineComponent({
   name: 'PassthroughStub',
   props: {
+    title: {
+      type: String,
+      default: '',
+    },
     description: {
       type: String,
       default: '',
     },
   },
   setup(props, { slots }) {
-    return () => h('div', [props.description, slots.default?.()]);
+    return () => h('div', [props.title, props.description, slots.default?.(), slots.action?.()]);
   },
 });
 
@@ -121,6 +134,7 @@ const tableStub = defineComponent({
         (props.data as Array<Record<string, unknown>>).map((row, index) =>
           h('div', { 'data-testid': `permission-row-${index}` }, [
             slots.permission?.({ row }),
+            slots.description?.({ row }),
             h('span', { 'data-testid': `permission-code-${index}` }, String(row.code ?? '')),
             h('span', { 'data-testid': `permission-category-${index}` }, String(row.category ?? '')),
             h('span', { 'data-testid': `permission-created-at-${index}` }, String(row.created_at ?? '')),
@@ -197,7 +211,8 @@ describe('PermissionPage', () => {
 
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
-    expect(wrapper.text()).toContain('Permission Read');
+    expect(wrapper.text()).toContain('Read Permissions Localized');
+    expect(wrapper.text()).toContain('Localized permission description');
     expect(wrapper.get('[data-testid="permission-code-0"]').text()).toBe('permission.read');
     expect(wrapper.get('[data-testid="permission-created-at-0"]').text()).toBeTruthy();
     expect(wrapper.text()).toContain('rbac.permissionList.factSourceHint');
@@ -238,5 +253,93 @@ describe('PermissionPage', () => {
 
     expect(wrapper.find('[data-testid="permission-row-0"]').text()).toContain('user.create');
     expect(wrapper.text()).not.toContain('permission.read');
+  });
+
+  it('falls back to API copy for unknown permission codes', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          code: 'custom.permission',
+          display: 'Custom Permission',
+          description: 'Custom description',
+          category: 'custom',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
+          role_binding_count: 0,
+        },
+      ],
+    });
+
+    const wrapper = mountPermissionPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Custom Permission');
+    expect(wrapper.text()).toContain('Custom description');
+  });
+
+  it('renders the default empty state without filter actions', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({ items: [] });
+
+    const wrapper = mountPermissionPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('rbac.permissionList.emptyTitle');
+    expect(wrapper.text()).toContain('rbac.permissionList.empty');
+    expect(wrapper.find('[data-testid="permission-empty-clear-filters"]').exists()).toBe(false);
+  });
+
+  it('renders the filtered empty state and clears filters from the empty action area', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          code: 'permission.read',
+          display: 'Permission Read',
+          description: null,
+          category: 'rbac',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
+          role_binding_count: 2,
+        },
+      ],
+    });
+
+    const wrapper = mountPermissionPage();
+    await flushPromises();
+
+    await wrapper.get('.toolbar__search').setValue('no-match');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('No permissions match the current filters');
+    expect(wrapper.find('[data-testid="permission-empty-clear-filters"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="permission-empty-clear-filters"]').trigger('click');
+    await flushPromises();
+
+    expect((wrapper.get('.toolbar__search').element as HTMLInputElement).value).toBe('');
+    expect(wrapper.text()).toContain('Read Permissions Localized');
+  });
+
+  it('falls back to the empty description when the localized and API descriptions are absent', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          code: 'custom.permission',
+          display: 'Custom Permission',
+          description: null,
+          category: 'custom',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
+          role_binding_count: 0,
+        },
+      ],
+    });
+
+    const wrapper = mountPermissionPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('No description');
   });
 });

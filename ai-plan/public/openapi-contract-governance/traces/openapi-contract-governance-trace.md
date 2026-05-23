@@ -27,3 +27,7 @@
 - Added `web` scripts for generation and freshness checking without changing `request.ts` or consuming generated types in module APIs.
 - Confirmed the generated file must be formatted after generation to satisfy the existing frontend Prettier gate.
 - Validated Phase 2B with `bun run openapi:types`, `bun run openapi:types:check`, `bun run check`, and `go run ./cmd/graft validate backend --stage openapi`.
+- Completed Phase 2C minimal generated TypeScript consumption pilot for `GET /api/permissions`.
+- Added a thin `rbac` module type alias layer that re-exports `PermissionListItem` and `PermissionListResponse` from `web/src/contracts/openapi/generated/schema.ts`.
+- Switched `web/src/modules/rbac/api/rbac.ts` and the two `rbac` permission-consuming pages to the module-local generated permission DTO aliases.
+- Kept `web/src/utils/request.ts`, request payload typings, `openapi/**`, and `web/src/contracts/openapi/generated/schema.ts` unchanged.

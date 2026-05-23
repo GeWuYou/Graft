@@ -55,6 +55,15 @@
   - `cd web && bun run check`
   - `cd server && go run ./cmd/graft validate backend --stage openapi`
 
+## Phase 2C Notes
+
+- Phase 2C currently covers only the `GET /api/permissions` response DTO consumption pilot inside `web/src/modules/rbac/**`.
+- `rbac` now owns a thin module-local generated type alias layer so business API files and pages do not import `generated/schema.ts` directly.
+- The pilot consumes `components['schemas']['PermissionListItem']` and `components['schemas']['PermissionListResponse']` through that alias layer.
+- `request.ts` remains the transport/runtime truth; this phase does not change envelope unwrap, auth refresh, locale propagation, or trace behavior.
+- Request payload types for role create, role update, and permission assignment remain handwritten in this phase.
+- Next recommended follow-up is evaluating the same pattern for `GET /api/roles` after this permission-list pilot stays stable under frontend validation.
+
 ## Phase 1.6 Notes
 
 - Phase 1.6 intentionally keeps `package user` and `package rbac` unchanged.

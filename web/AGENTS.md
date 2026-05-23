@@ -261,6 +261,7 @@ UI 约束：
   - 实现阶段说明
   - 仅面向开发者的契约治理术语
 - 用户可见文案默认应偏向操作语义，而不是实现语义
+- 若后端返回的是稳定业务 contract 的展示文案，例如权限码对应的名称/说明，前端应优先基于稳定键或稳定 code 在模块 `locales/**` 中完成本地化映射；接口原文只能作为未知项或迁移期回退，不得长期作为唯一 UI 真值
 
 页面骨架规则：
 
@@ -270,6 +271,7 @@ UI 约束：
 - 不得为了“概览感”把后台页面做成营销页 hero
 - table/list management 页面空态必须使用 `t-empty` 或 table empty slot；禁止在 table body 里实现自定义小灰卡片空态
 - table/list management 页面空态必须保留 header/body/footer 结构，保持分页稳定，并使用主题 token 而不是硬编码颜色
+- table/list management 页面若因 active filters 或 search 进入空态，必须提供明确的恢复动作，至少包含 `clear filters`；创建型页面可额外提供 create 动作，只读页面不得伪造创建入口
 
 推荐技能：
 

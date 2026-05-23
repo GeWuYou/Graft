@@ -98,6 +98,7 @@
       "columnSettings": "列设置",
       "emptyTitle": "暂无权限数据",
       "empty": "暂无权限数据",
+      "emptyFilteredDescription": "当前筛选条件下没有匹配权限，可清空筛选后重试。",
       "loadFailed": "权限列表加载失败",
       "errorTitle": "权限数据暂时不可用",
       "readonlyNotice": "当前权限列表为只读视图。",
@@ -117,6 +118,64 @@
         "searchPlaceholder": "搜索权限编码、权限名称",
         "modulePlaceholder": "筛选模块",
         "clearFilters": "清空筛选"
+      }
+    },
+    "permissionCatalog": {
+      "userRead": {
+        "display": "读取用户",
+        "description": "允许读取用户管理数据。"
+      },
+      "userCreate": {
+        "display": "创建用户",
+        "description": "允许创建用户管理数据。"
+      },
+      "userUpdate": {
+        "display": "更新用户",
+        "description": "允许更新用户管理数据。"
+      },
+      "userDisable": {
+        "display": "停用用户",
+        "description": "允许停用或删除受管用户。"
+      },
+      "userSessionRead": {
+        "display": "读取用户会话",
+        "description": "允许读取指定用户的活动刷新会话。"
+      },
+      "userSessionRevoke": {
+        "display": "撤销用户会话",
+        "description": "允许撤销指定用户的刷新会话。"
+      },
+      "roleRead": {
+        "display": "读取角色",
+        "description": "允许读取角色管理数据。"
+      },
+      "roleCreate": {
+        "display": "创建角色",
+        "description": "允许创建角色管理数据。"
+      },
+      "roleUpdate": {
+        "display": "更新角色",
+        "description": "允许更新角色管理数据。"
+      },
+      "rolePermissionAssign": {
+        "display": "分配角色权限",
+        "description": "允许更新角色与权限的绑定关系。"
+      },
+      "permissionRead": {
+        "display": "读取权限",
+        "description": "允许读取权限管理数据。"
+      },
+      "userRoleRead": {
+        "display": "读取用户角色",
+        "description": "允许读取用户与角色的绑定快照。"
+      },
+      "userRoleAssign": {
+        "display": "分配用户角色",
+        "description": "允许更新用户与角色的绑定关系。"
+      },
+      "monitorServerStatusRead": {
+        "display": "读取服务器状态",
+        "description": "允许读取服务器状态概览。"
       }
     }
   }

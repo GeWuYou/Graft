@@ -98,6 +98,7 @@
       "columnSettings": "Columns",
       "emptyTitle": "No permission data",
       "empty": "No permission data",
+      "emptyFilteredDescription": "No permissions match the current filters. Clear filters and try again.",
       "loadFailed": "Failed to load permissions",
       "errorTitle": "Permission data is temporarily unavailable",
       "readonlyNotice": "This permission list is currently read only.",
@@ -117,6 +118,64 @@
         "searchPlaceholder": "Search permission code or name",
         "modulePlaceholder": "Filter module",
         "clearFilters": "Clear Filters"
+      }
+    },
+    "permissionCatalog": {
+      "userRead": {
+        "display": "Read Users",
+        "description": "Allows reading user management data."
+      },
+      "userCreate": {
+        "display": "Create Users",
+        "description": "Allows creating user management data."
+      },
+      "userUpdate": {
+        "display": "Update Users",
+        "description": "Allows updating user management data."
+      },
+      "userDisable": {
+        "display": "Disable Users",
+        "description": "Allows disabling or deleting managed users."
+      },
+      "userSessionRead": {
+        "display": "Read User Sessions",
+        "description": "Allows reading active refresh sessions for a specified user."
+      },
+      "userSessionRevoke": {
+        "display": "Revoke User Sessions",
+        "description": "Allows revoking refresh sessions for a specified user."
+      },
+      "roleRead": {
+        "display": "Read Roles",
+        "description": "Allows reading role management data."
+      },
+      "roleCreate": {
+        "display": "Create Roles",
+        "description": "Allows creating role-management data."
+      },
+      "roleUpdate": {
+        "display": "Update Roles",
+        "description": "Allows updating role-management data."
+      },
+      "rolePermissionAssign": {
+        "display": "Assign Role Permissions",
+        "description": "Allows updating role-permission bindings."
+      },
+      "permissionRead": {
+        "display": "Read Permissions",
+        "description": "Allows reading permission management data."
+      },
+      "userRoleRead": {
+        "display": "Read User Roles",
+        "description": "Allows reading user-role binding snapshots."
+      },
+      "userRoleAssign": {
+        "display": "Assign User Roles",
+        "description": "Allows updating user-role bindings."
+      },
+      "monitorServerStatusRead": {
+        "display": "Read Server Status",
+        "description": "Allows reading the server status overview."
       }
     }
   }

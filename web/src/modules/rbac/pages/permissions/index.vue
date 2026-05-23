@@ -79,7 +79,7 @@
         >
           <template #permission="{ row }">
             <div class="permission-cell">
-              <span class="permission-cell__name">{{ row.display }}</span>
+              <span class="permission-cell__name">{{ localizedPermissionDisplay(row) }}</span>
               <span class="permission-cell__code">{{ row.code }}</span>
             </div>
           </template>
@@ -89,9 +89,7 @@
           </template>
 
           <template #description="{ row }">
-            <span class="permission-description">{{
-              row.description || t('rbac.permissionList.emptyDescription')
-            }}</span>
+            <span class="permission-description">{{ localizedPermissionDescription(row) }}</span>
           </template>
 
           <template #created_at="{ row }">
@@ -107,10 +105,27 @@
           </template>
 
           <template #empty>
-            <management-empty-state
-              :title="t('rbac.permissionList.emptyTitle')"
-              :description="t('rbac.permissionList.empty')"
-            />
+            <div class="table-empty-state">
+              <t-empty
+                :title="t('rbac.permissionList.emptyTitle')"
+                :description="
+                  hasActiveFilters ? t('rbac.permissionList.emptyFilteredDescription') : t('rbac.permissionList.empty')
+                "
+              >
+                <template #action>
+                  <div v-if="hasActiveFilters" class="table-empty-state__actions">
+                    <t-button
+                      theme="default"
+                      variant="outline"
+                      data-testid="permission-empty-clear-filters"
+                      @click="resetFilters"
+                    >
+                      {{ t('rbac.permissionList.toolbar.clearFilters') }}
+                    </t-button>
+                  </div>
+                </template>
+              </t-empty>
+            </div>
           </template>
         </t-table>
 
@@ -165,7 +180,8 @@ import {
 import { createLogger } from '@/utils/logger';
 
 import { getPermissions } from '../../api/rbac';
-import type { PermissionListItem } from '../../types/rbac';
+import { PERMISSION_COPY_BY_CODE } from '../../contract/permission-copy';
+import type { PermissionListItem } from '../../types/permission';
 
 defineOptions({
   name: 'PermissionIndex',
@@ -198,6 +214,8 @@ const categoryOptions = computed(() => {
   return categories.map((category) => ({ label: category, value: category }));
 });
 
+const hasActiveFilters = computed(() => Boolean(filters.value.keyword.trim() || filters.value.category));
+
 const columnSettingOptions = computed(() => [
   { label: t('rbac.permissionList.columns.permission'), value: 'permission' },
   { label: t('rbac.permissionList.columns.module'), value: 'category' },
@@ -220,7 +238,9 @@ const filteredPermissions = computed(() => {
       return true;
     }
 
-    return `${item.code} ${item.display} ${item.description ?? ''} ${item.category}`.toLowerCase().includes(keyword);
+    return `${item.code} ${localizedPermissionDisplay(item)} ${searchablePermissionDescription(item)} ${item.category}`
+      .toLowerCase()
+      .includes(keyword);
   });
 });
 
@@ -270,6 +290,41 @@ function resetFilters() {
     category: '',
   };
   pagination.value.current = 1;
+}
+
+function localizedMessage(messageKey: string, fallback?: string | null) {
+  const translated = t(messageKey);
+  if (translated !== messageKey) {
+    return translated;
+  }
+
+  return fallback?.trim() || '';
+}
+
+function localizedPermissionDisplay(permission: PermissionListItem) {
+  const copyEntry = PERMISSION_COPY_BY_CODE[permission.code];
+  if (!copyEntry) {
+    return permission.display;
+  }
+
+  return localizedMessage(copyEntry.displayKey, permission.display) || permission.display;
+}
+
+function localizedPermissionDescription(permission: PermissionListItem) {
+  const copyEntry = PERMISSION_COPY_BY_CODE[permission.code];
+  if (copyEntry) {
+    const localized = localizedMessage(copyEntry.descriptionKey, permission.description);
+    if (localized) {
+      return localized;
+    }
+  }
+
+  return permission.description?.trim() || t('rbac.permissionList.emptyDescription');
+}
+
+function searchablePermissionDescription(permission: PermissionListItem) {
+  const localized = localizedPermissionDescription(permission);
+  return localized === t('rbac.permissionList.emptyDescription') ? '' : localized;
 }
 
 function formatTimestamp(value?: string | null) {
@@ -350,6 +405,22 @@ watch(
   margin: 0;
 }
 
+.table-empty-state {
+  align-items: center;
+  background: transparent;
+  display: flex;
+  justify-content: center;
+  min-height: 288px;
+  padding: 48px 24px;
+}
+
+.table-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
 :deep(.t-table) {
   --td-comp-paddingTB-m: 10px;
 }
@@ -387,10 +458,37 @@ watch(
   gap: 12px;
 }
 
+:deep(.t-table__empty) {
+  padding: 0;
+}
+
+:deep(.t-table__empty-row td) {
+  padding-block: 0;
+}
+
+:deep(.t-empty) {
+  align-items: center;
+  text-align: center;
+}
+
+:deep(.t-empty__title) {
+  color: var(--td-text-color-primary);
+}
+
+:deep(.t-empty__description) {
+  color: var(--td-text-color-secondary);
+  max-width: 420px;
+}
+
 @media (width <= 768px) {
   .toolbar__search,
   .toolbar__select {
     width: 100%;
+  }
+
+  .table-empty-state {
+    min-height: 260px;
+    padding-inline: 16px;
   }
 
   .permission-page :deep(.management-toolbar__filters) {
