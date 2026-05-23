@@ -2,6 +2,7 @@ get:
   tags: [health]
   summary: Probe runtime health
   operationId: getHealthz
+  security: []
   description: |
     Returns the plain runtime health payload registered in `server/internal/app/runtime.go`.
     This endpoint is intentionally not wrapped in the standard API envelope.

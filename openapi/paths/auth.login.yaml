@@ -2,6 +2,7 @@ post:
   tags: [auth]
   summary: Login with username and password
   operationId: postAuthLogin
+  security: []
   description: |
     Authenticates the caller, writes the refresh cookie, and returns the existing success envelope.
   parameters:

@@ -14,7 +14,6 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
 CHECKOUT_ROOT = SKILL_DIR.parent.parent.parent
-MANIFEST_PATH = CHECKOUT_ROOT / ".worktree-shared.json"
 
 
 class WorktreeInitError(RuntimeError):
@@ -133,11 +132,11 @@ def relative_symlink(src: Path, dest: Path) -> None:
 
 def remove_legacy_local(target_dir: Path) -> bool:
     legacy = target_dir / ".local"
-    if legacy.is_symlink() or legacy.exists():
-        if legacy.is_dir() and not legacy.is_symlink():
-            raise WorktreeInitError(f"Legacy .local path exists and is not a symlink: {legacy}")
+    if legacy.is_symlink():
         legacy.unlink()
         return True
+    if legacy.exists():
+        raise WorktreeInitError(f"Legacy .local path exists and is not a symlink: {legacy}")
     return False
 
 
@@ -218,10 +217,13 @@ def main() -> int:
     args = parse_args()
     try:
         repo_dir = Path(args.repo_dir).expanduser().resolve() if args.repo_dir else resolve_git_repo(Path.cwd())
+        manifest_path = repo_dir / ".worktree-shared.json"
+        if not manifest_path.exists():
+            raise WorktreeInitError(f"Manifest not found: {manifest_path}")
         ensure_branch_name(repo_dir, args.branch_name)
         worktree_root = infer_worktree_root(repo_dir, args.worktree_root)
         target_dir = (worktree_root / args.branch_name).resolve()
-        specs = load_manifest(MANIFEST_PATH)
+        specs = load_manifest(manifest_path)
         branch_exists = local_branch_exists(repo_dir, args.branch_name)
 
         print_plan(

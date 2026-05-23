@@ -1,14 +1,28 @@
 import { request } from '@/utils/request';
 
 import { USER_API_PATH } from '../contract/paths';
+import { USER_STATUS } from '../contract/status';
 import type {
   CreateUserPayload,
+  RawUserListItem,
+  RawUserListResponse,
   ResetUserPasswordPayload,
   UpdateUserPayload,
   UpdateUserStatusPayload,
   UserListItem,
   UserListResponse,
 } from '../types/user';
+
+function normalizeUserStatus(status?: string | null) {
+  return status === USER_STATUS.DISABLED ? USER_STATUS.DISABLED : USER_STATUS.ENABLED;
+}
+
+function normalizeUserListItem(item: RawUserListItem): UserListItem {
+  return {
+    ...item,
+    status: normalizeUserStatus(item.status),
+  };
+}
 
 /**
  * getUsers 获取用户管理列表数据。
@@ -18,9 +32,16 @@ import type {
  * @returns 返回 `UserListResponse` 约定的用户列表结果。
  */
 export function getUsers() {
-  return request.get<UserListResponse>({
-    url: USER_API_PATH.USERS,
-  });
+  return request
+    .get<RawUserListResponse>({
+      url: USER_API_PATH.USERS,
+    })
+    .then(
+      (response): UserListResponse => ({
+        ...response,
+        items: response.items.map(normalizeUserListItem),
+      }),
+    );
 }
 
 /**
@@ -32,10 +53,12 @@ export function getUsers() {
  * @returns 返回新建后的 `UserListItem`。
  */
 export function createUser(payload: CreateUserPayload) {
-  return request.post<UserListItem>({
-    url: USER_API_PATH.USERS,
-    data: payload,
-  });
+  return request
+    .post<RawUserListItem>({
+      url: USER_API_PATH.USERS,
+      data: payload,
+    })
+    .then(normalizeUserListItem);
 }
 
 /**
@@ -48,10 +71,12 @@ export function createUser(payload: CreateUserPayload) {
  * @returns 返回更新后的 `UserListItem`。
  */
 export function updateUser(userId: number, payload: UpdateUserPayload) {
-  return request.post<UserListItem>({
-    url: USER_API_PATH.USER_UPDATE(userId),
-    data: payload,
-  });
+  return request
+    .post<RawUserListItem>({
+      url: USER_API_PATH.USER_UPDATE(userId),
+      data: payload,
+    })
+    .then(normalizeUserListItem);
 }
 
 /**
@@ -64,10 +89,12 @@ export function updateUser(userId: number, payload: UpdateUserPayload) {
  * @returns 返回更新后的 `UserListItem`。
  */
 export function updateUserStatus(userId: number, payload: UpdateUserStatusPayload) {
-  return request.post<UserListItem>({
-    url: USER_API_PATH.USER_STATUS(userId),
-    data: payload,
-  });
+  return request
+    .post<RawUserListItem>({
+      url: USER_API_PATH.USER_STATUS(userId),
+      data: payload,
+    })
+    .then(normalizeUserListItem);
 }
 
 /**

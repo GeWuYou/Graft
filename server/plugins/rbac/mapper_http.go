@@ -26,11 +26,14 @@ func toRoleListResponse(roles []rbacstore.Role) roleListResponse {
 
 func toRoleListItem(role rbacstore.Role) roleListItem {
 	return roleListItem{
-		ID:          role.ID,
-		Name:        role.Name,
-		Display:     role.Display,
-		Description: role.Description,
-		Builtin:     role.Builtin,
+		ID:              role.ID,
+		Name:            role.Name,
+		Display:         role.Display,
+		Description:     role.Description,
+		Builtin:         role.Builtin,
+		UpdatedAt:       role.UpdatedAt.UTC().Format(time.RFC3339),
+		PermissionCount: role.PermissionCount,
+		UserCount:       role.UserCount,
 	}
 }
 

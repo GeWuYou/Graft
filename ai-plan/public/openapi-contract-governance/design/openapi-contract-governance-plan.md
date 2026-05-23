@@ -101,7 +101,7 @@
 
 ## 9. 建议 worktree 信息
 
-- worktree 路径：`/home/gewuyou/project/go/Graft-wt/feat/wt-openapi-contract-governance`
+- worktree 标识：`feat/wt-openapi-contract-governance`（本地路径不入库）
 - 分支名：`feat/wt-openapi-contract-governance`
 - topic 名：`openapi-contract-governance`
 - ai-plan 落点：`ai-plan/public/openapi-contract-governance/`
@@ -112,4 +112,3 @@
 - 建议进入 Phase 1 实现。
 - Phase 1 最小任务清单：建立 `openapi/` 目录骨架、定义共享 envelope/security/schema 约定、为 Auth/User/RBAC/Health 建首批 fragments、把 spec 校验接到 backend validate 和 web 类型生成流程。
 - Phase 1 不允许做：swaggo 注释体系、Go server interface 生成、Monitor 全量纳入、绕过 `request.ts` 的前端直连 client、静态 docs 产物入库。
-

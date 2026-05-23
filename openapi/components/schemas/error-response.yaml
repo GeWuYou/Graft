@@ -16,4 +16,6 @@ properties:
   traceId:
     type: string
   data:
+    type: object
+    additionalProperties: true
     description: Optional structured error details preserved from the current runtime.

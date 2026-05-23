@@ -3,7 +3,7 @@ required: [id, username, display, status, created_at, updated_at]
 properties:
   id:
     type: integer
-    format: uint64
+    format: int64
     minimum: 0
   username:
     type: string

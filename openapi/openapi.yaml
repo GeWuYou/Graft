@@ -8,6 +8,8 @@ info:
     semantics, or auth/session transport ownership.
 servers:
   - url: /
+security:
+  - bearerAuth: []
 tags:
   - name: health
   - name: auth
@@ -62,13 +64,6 @@ components:
       $ref: ./components/schemas/permission-list-item.yaml
     PermissionListResponse:
       $ref: ./components/schemas/permission-list-response.yaml
-  responses:
-    UnauthorizedError:
-      $ref: ./components/responses/unauthorized.yaml
-    ForbiddenError:
-      $ref: ./components/responses/forbidden.yaml
-    InternalServerError:
-      $ref: ./components/responses/internal-server-error.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

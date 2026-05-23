@@ -206,7 +206,7 @@ export interface components {
       data: unknown;
     };
     'login-user': {
-      /** Format: uint64 */
+      /** Format: int64 */
       id: number;
       username: string;
       display_name: string;
@@ -231,10 +231,13 @@ export interface components {
       locale?: string;
       traceId: string;
       /** @description Optional structured error details preserved from the current runtime. */
-      data?: unknown;
+      data?: {
+        [key: string]: unknown;
+      };
     };
     'enveloped-empty-response': components['schemas']['api-envelope'] & {
-      data?: unknown;
+      /** @enum {unknown} */
+      data?: null;
     };
     'bootstrap-menu': {
       code: string;
@@ -262,7 +265,7 @@ export interface components {
       data?: components['schemas']['bootstrap-response'];
     };
     'user-list-item': {
-      /** Format: uint64 */
+      /** Format: int64 */
       id: number;
       username: string;
       display: string;
@@ -277,7 +280,7 @@ export interface components {
       data?: components['schemas']['user-list-response'];
     };
     'role-list-item': {
-      /** Format: uint64 */
+      /** Format: int64 */
       id: number;
       name: string;
       display: string;
@@ -294,7 +297,7 @@ export interface components {
       data?: components['schemas']['role-list-response'];
     };
     'permission-list-item': {
-      /** Format: uint64 */
+      /** Format: int64 */
       id: number;
       code: string;
       display: string;
@@ -312,24 +315,6 @@ export interface components {
     };
   };
   responses: {
-    UnauthorizedError: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content?: never;
-    };
-    ForbiddenError: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content?: never;
-    };
-    InternalServerError: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content?: never;
-    };
     /** @description Unauthorized request under existing error envelope semantics. */
     unauthorized: {
       headers: {

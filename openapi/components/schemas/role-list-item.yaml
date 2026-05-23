@@ -3,7 +3,7 @@ required: [id, name, display, builtin, updated_at, permission_count, user_count]
 properties:
   id:
     type: integer
-    format: uint64
+    format: int64
     minimum: 0
   name:
     type: string

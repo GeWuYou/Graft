@@ -11,8 +11,6 @@ every public artifact.
     generated TypeScript types, and CI drift control.
   - Tracking: `ai-plan/public/openapi-contract-governance/todos/openapi-contract-governance-tracking.md`
   - Trace: `ai-plan/public/openapi-contract-governance/traces/openapi-contract-governance-trace.md`
-  - Recovery note: this topic runs from dedicated worktree
-    `/home/gewuyou/project/go/Graft-wt/feat/wt-openapi-contract-governance` on branch
+  - Recovery note: this topic runs from dedicated worktree `feat/wt-openapi-contract-governance` on branch
     `feat/wt-openapi-contract-governance`; standing ownership is limited to governance docs, OpenAPI planning, and
     contract/SDK coordination. It does not own plugin implementation slices.
-
