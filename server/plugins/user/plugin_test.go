@@ -84,6 +84,7 @@ type pluginTestAuthRepository struct {
 	getUserCredentialByUsername func(ctx context.Context, username string) (store.UserCredential, error)
 	ensureUserCredential        func(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error)
 	setPasswordHash             func(ctx context.Context, input store.SetPasswordHashInput) error
+	resetPasswordAndRevoke      func(ctx context.Context, input store.ResetPasswordAndRevokeSessionsInput) error
 	mu                          sync.Mutex
 	refreshSessions             map[string]store.RefreshSession
 }
@@ -120,6 +121,29 @@ func (r *pluginTestAuthRepository) SetPasswordHash(ctx context.Context, input st
 	}
 
 	return nil
+}
+
+func (r *pluginTestAuthRepository) ResetPasswordAndRevokeRefreshSessions(
+	ctx context.Context,
+	input store.ResetPasswordAndRevokeSessionsInput,
+) error {
+	if r.resetPasswordAndRevoke != nil {
+		return r.resetPasswordAndRevoke(ctx, input)
+	}
+
+	if err := r.SetPasswordHash(ctx, store.SetPasswordHashInput{
+		UserID:             input.UserID,
+		PasswordHash:       input.PasswordHash,
+		MustChangePassword: input.MustChangePassword,
+		ChangedAt:          &input.ChangedAt,
+	}); err != nil {
+		return err
+	}
+
+	return r.RevokeRefreshSessionsByUserID(ctx, store.RevokeRefreshSessionsByUserIDInput{
+		UserID:    input.UserID,
+		RevokedAt: input.ChangedAt,
+	})
 }
 
 func (r *pluginTestAuthRepository) ChangePasswordAndRevokeOtherRefreshSessions(
@@ -320,6 +344,10 @@ func (r *pluginTestAuthRepository) RotateRefreshSession(_ context.Context, input
 type pluginTestUserRepository struct {
 	getByID func(ctx context.Context, id uint64) (store.User, error)
 	list    func(ctx context.Context) ([]store.User, error)
+	create  func(ctx context.Context, input store.CreateUserInput) (store.User, error)
+	update  func(ctx context.Context, input store.UpdateUserInput) (store.User, error)
+	status  func(ctx context.Context, input store.SetUserStatusInput) (store.User, error)
+	delete  func(ctx context.Context, input store.DeleteUserInput) error
 }
 
 func (r pluginTestUserRepository) GetByID(ctx context.Context, id uint64) (store.User, error) {
@@ -336,6 +364,59 @@ func (r pluginTestUserRepository) List(ctx context.Context) ([]store.User, error
 	}
 
 	return r.list(ctx)
+}
+
+func (r pluginTestUserRepository) Create(ctx context.Context, input store.CreateUserInput) (store.User, error) {
+	if r.create == nil {
+		return store.User{
+			ID:        99,
+			Username:  input.Username,
+			Display:   input.Display,
+			Status:    input.Status,
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+		}, nil
+	}
+
+	return r.create(ctx, input)
+}
+
+func (r pluginTestUserRepository) Update(ctx context.Context, input store.UpdateUserInput) (store.User, error) {
+	if r.update == nil {
+		return store.User{
+			ID:        input.ID,
+			Username:  input.Username,
+			Display:   input.Display,
+			Status:    usercontract.UserStatusEnabled,
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+		}, nil
+	}
+
+	return r.update(ctx, input)
+}
+
+func (r pluginTestUserRepository) SetStatus(ctx context.Context, input store.SetUserStatusInput) (store.User, error) {
+	if r.status == nil {
+		return store.User{
+			ID:        input.ID,
+			Username:  "alice",
+			Display:   "Alice",
+			Status:    input.Status,
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+		}, nil
+	}
+
+	return r.status(ctx, input)
+}
+
+func (r pluginTestUserRepository) Delete(ctx context.Context, input store.DeleteUserInput) error {
+	if r.delete == nil {
+		return nil
+	}
+
+	return r.delete(ctx, input)
 }
 
 type pluginTestRBACRepository struct {
@@ -553,6 +634,46 @@ func newAuthorizedRequestForSessionWithMethod(t *testing.T, method string, path 
 	}
 
 	request := httptest.NewRequest(method, path, nil)
+	setBearerAuthorizationHeader(request, token)
+	return request
+}
+
+func newAuthorizedJSONRequestForSession(
+	t *testing.T,
+	method string,
+	path string,
+	userID uint64,
+	sessionID string,
+	body any,
+) *http.Request {
+	t.Helper()
+
+	var reader io.Reader
+	if body != nil {
+		payload, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("marshal json request: %v", err)
+		}
+		reader = strings.NewReader(string(payload))
+	}
+
+	request := httptest.NewRequest(method, path, reader)
+	request.Header.Set("Content-Type", "application/json")
+	manager, err := newAccessTokenManager(config.AuthConfig{
+		AccessTokenTTL: 15 * time.Minute,
+		SigningKey:     "test-signing-key",
+	})
+	if err != nil {
+		t.Fatalf("new access token manager: %v", err)
+	}
+	token, _, err := manager.Issue(accessTokenSubject{
+		UserID:       userID,
+		SessionID:    sessionID,
+		TokenVersion: 1,
+	})
+	if err != nil {
+		t.Fatalf("issue access token: %v", err)
+	}
 	setBearerAuthorizationHeader(request, token)
 	return request
 }
@@ -841,16 +962,19 @@ func assertUserPluginRegistry(t *testing.T, ctx *plugin.Context) {
 	t.Helper()
 
 	items := ctx.PermissionRegistry.Items()
-	if len(items) < 3 {
-		t.Fatalf("expected at least three registered permissions, got %#v", items)
+	if len(items) < 6 {
+		t.Fatalf("expected at least six registered permissions, got %#v", items)
 	}
 	// 权限断言依赖 Registry.Items() 保持注册顺序，避免插件对外声明面静默漂移。
 	if items[0].Code != usercontract.UserReadPermission.String() ||
-		items[1].Code != usercontract.UserSessionRevokePermission.String() ||
-		items[2].Code != usercontract.UserSessionReadPermission.String() {
-		t.Fatalf("expected user.read, user.session.revoke and user.session.read to remain the leading user permissions, got %#v", items)
+		items[1].Code != usercontract.UserCreatePermission.String() ||
+		items[2].Code != usercontract.UserUpdatePermission.String() ||
+		items[3].Code != usercontract.UserDisablePermission.String() ||
+		items[4].Code != usercontract.UserSessionRevokePermission.String() ||
+		items[5].Code != usercontract.UserSessionReadPermission.String() {
+		t.Fatalf("expected canonical leading user permissions, got %#v", items)
 	}
-	for _, item := range items[:3] {
+	for _, item := range items[:6] {
 		if item.Category != "api" {
 			t.Fatalf("expected leading user permission %s to declare category api, got %#v", item.Code, item)
 		}
@@ -860,7 +984,7 @@ func assertUserPluginRegistry(t *testing.T, ctx *plugin.Context) {
 	if len(menuItems) == 0 {
 		t.Fatalf("expected registered menu items, got %#v", menuItems)
 	}
-	if menuItems[0].Path != usercontract.UsersGroup ||
+	if menuItems[0].Path != "/access-control/users" ||
 		menuItems[0].Code != "user.list" ||
 		menuItems[0].Permission != usercontract.UserReadPermission.String() {
 		t.Fatalf("expected leading /users menu item to remain canonical, got %#v", menuItems)
@@ -1038,15 +1162,22 @@ func assertBootstrapIdentityAndPermissions(t *testing.T, payload bootstrapRespon
 func assertBootstrapMenus(t *testing.T, menus []bootstrapMenuResponse) {
 	t.Helper()
 
-	if len(menus) != 2 {
-		t.Fatalf("expected filtered menus to keep user and public entries, got %#v", menus)
+	if len(menus) != 3 {
+		t.Fatalf("expected filtered menus to keep access-control overview, user, and public entries, got %#v", menus)
 	}
 	if menus[0].Code != "user.list" ||
-		menus[0].Path != usercontract.UsersGroup ||
-		menus[0].Permission != usercontract.UserReadPermission.String() {
+		menus[0].Path != "/access-control/users" ||
+		menus[0].Permission != usercontract.UserReadPermission.String() ||
+		menus[0].TitleKey != "menu.access_control.users.title" {
 		t.Fatalf("expected first menu to be users entry, got %#v", menus[0])
 	}
-	if menus[1].Code != "profile.self" || menus[1].Path != "/profile" || menus[1].Permission != "" {
+	if menus[1].Code != "access-control.overview" ||
+		menus[1].Path != "/access-control/overview" ||
+		menus[1].Permission != "" ||
+		menus[1].TitleKey != "menu.access_control.overview.title" {
+		t.Fatalf("expected second menu to be access-control overview entry, got %#v", menus[1])
+	}
+	if menus[2].Code != "profile.self" || menus[2].Path != "/profile" || menus[2].Permission != "" {
 		t.Fatalf("expected public profile menu, got %#v", menus[1])
 	}
 }
@@ -1493,6 +1624,235 @@ func TestUserListRouteReturnsInternalErrorContract(t *testing.T) {
 	}
 }
 
+func TestCreateUserRouteReturnsStableItem(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	createdAt := time.Date(2026, time.May, 22, 9, 0, 0, 0, time.UTC)
+	updatedAt := createdAt.Add(5 * time.Minute)
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return testUser(7, "alice", "Alice"), nil
+		},
+		create: func(_ context.Context, input store.CreateUserInput) (store.User, error) {
+			if input.Username != "carol" || input.Display != "Carol" {
+				t.Fatalf("unexpected create input: %#v", input)
+			}
+			if input.Status != usercontract.UserStatusEnabled || !input.MustChangePassword {
+				t.Fatalf("expected enabled user with required password change, got %#v", input)
+			}
+			if input.PasswordHash == "Password12345" {
+				t.Fatalf("expected hashed password, got %#v", input)
+			}
+
+			return store.User{
+				ID:        11,
+				Username:  input.Username,
+				Display:   input.Display,
+				Status:    input.Status,
+				CreatedAt: createdAt,
+				UpdatedAt: updatedAt,
+			}, nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		7: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserCreatePermission.String()},
+		},
+	})
+
+	sessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(t, http.MethodPost, usersRoutePath(usercontract.UserCollection), 7, sessionID, map[string]any{
+		"username": "carol",
+		"display":  "Carol",
+		"password": "Password12345",
+	})
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusOK)
+	payload := decodeSuccessData[userListItem](t, recorder)
+	if payload.ID != 11 || payload.Username != "carol" || payload.Display != "Carol" || payload.Status != usercontract.UserStatusEnabled {
+		t.Fatalf("unexpected created payload: %#v", payload)
+	}
+}
+
+func TestUpdateUserRouteReturnsStableItem(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return testUser(7, "alice", "Alice"), nil
+		},
+		update: func(_ context.Context, input store.UpdateUserInput) (store.User, error) {
+			if input.ID != 7 || input.Username != "alice.ops" || input.Display != "Alice Ops" {
+				t.Fatalf("unexpected update input: %#v", input)
+			}
+			return store.User{
+				ID:        input.ID,
+				Username:  input.Username,
+				Display:   input.Display,
+				Status:    usercontract.UserStatusEnabled,
+				CreatedAt: time.Date(2026, time.May, 20, 9, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, time.May, 22, 9, 30, 0, 0, time.UTC),
+			}, nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		7: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserUpdatePermission.String()},
+		},
+	})
+
+	sessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(t, http.MethodPost, usersRoutePath(usercontract.UserUpdateRoute, ":id", "7"), 7, sessionID, map[string]any{
+		"username": "alice.ops",
+		"display":  "Alice Ops",
+	})
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusOK)
+	payload := decodeSuccessData[userListItem](t, recorder)
+	if payload.Username != "alice.ops" || payload.Display != "Alice Ops" {
+		t.Fatalf("unexpected updated payload: %#v", payload)
+	}
+}
+
+func TestSetUserStatusRouteRevokesTargetSessions(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 8:
+				return testUser(8, "bob", "Bob"), nil
+			case 9:
+				return testUser(9, "admin", "Admin"), nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+		status: func(_ context.Context, input store.SetUserStatusInput) (store.User, error) {
+			return store.User{
+				ID:        input.ID,
+				Username:  "bob",
+				Display:   "Bob",
+				Status:    input.Status,
+				CreatedAt: time.Now().UTC().Add(-time.Hour),
+				UpdatedAt: time.Now().UTC(),
+			}, nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		9: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserDisablePermission.String()},
+		},
+	})
+
+	adminSession := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	targetSession := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(
+		t,
+		http.MethodPost,
+		usersRoutePath(usercontract.UserStatusRoute, ":id", "8"),
+		9,
+		adminSession,
+		map[string]any{"status": usercontract.UserStatusDisabled},
+	)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusOK)
+	payload := decodeSuccessData[userListItem](t, recorder)
+	if payload.Status != usercontract.UserStatusDisabled {
+		t.Fatalf("expected disabled payload, got %#v", payload)
+	}
+	assertSessionRevoked(t, authRepo, targetSession)
+	assertSessionActive(t, authRepo, adminSession)
+}
+
+func TestResetUserPasswordRouteUsesAtomicResetContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{
+		resetPasswordAndRevoke: func(_ context.Context, input store.ResetPasswordAndRevokeSessionsInput) error {
+			if input.UserID != 8 || !input.MustChangePassword {
+				t.Fatalf("unexpected reset input: %#v", input)
+			}
+			if input.PasswordHash == "Password12345" {
+				t.Fatalf("expected hashed password, got %#v", input)
+			}
+			return nil
+		},
+	}
+	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
+		9: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserUpdatePermission.String()},
+		},
+	})
+
+	adminSession := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(
+		t,
+		http.MethodPost,
+		usersRoutePath(usercontract.UserResetPasswordRoute, ":id", "8"),
+		9,
+		adminSession,
+		map[string]any{"new_password": "Password12345"},
+	)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusOK)
+	assertNilSuccessPayload(t, recorder)
+}
+
+func TestDeleteUserRouteRevokesSessionsAndReturnsNilPayload(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 8:
+				return testUser(8, "bob", "Bob"), nil
+			case 9:
+				return testUser(9, "admin", "Admin"), nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+		delete: func(_ context.Context, input store.DeleteUserInput) error {
+			if input.ID != 8 || input.ActorID != 9 {
+				t.Fatalf("unexpected delete input: %#v", input)
+			}
+			return nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		9: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserDisablePermission.String()},
+		},
+	})
+
+	adminSession := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	targetSession := seedRefreshSession(t, authRepo, 8, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(
+		t,
+		http.MethodPost,
+		usersRoutePath(usercontract.UserDeleteRoute, ":id", "8"),
+		9,
+		adminSession,
+		nil,
+	)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusOK)
+	assertNilSuccessPayload(t, recorder)
+	assertSessionRevoked(t, authRepo, targetSession)
+}
+
 // TestUserRouteRequiresPermissionMiddleware 验证插件路由仍复用统一的后端
 // 权限守卫契约，而不是在插件内部发散独立鉴权格式。
 func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
@@ -1549,6 +1909,18 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 
 	payload := decodeSuccessData[bootstrapResponse](t, recorder)
 	assertBootstrapPayload(t, payload)
+	if len(payload.Menus) != 3 {
+		t.Fatalf("expected filtered menus to keep access-control overview, user, and public entries, got %#v", payload.Menus)
+	}
+	if payload.Menus[0].Path != "/access-control/users" || payload.Menus[0].TitleKey != "menu.access_control.users.title" {
+		t.Fatalf("unexpected filtered user menu: %#v", payload.Menus[0])
+	}
+	if payload.Menus[1].Path != "/access-control/overview" || payload.Menus[1].TitleKey != "menu.access_control.overview.title" {
+		t.Fatalf("unexpected filtered overview menu: %#v", payload.Menus[1])
+	}
+	if payload.Menus[2].Path != "/profile" {
+		t.Fatalf("unexpected filtered public menu: %#v", payload.Menus[2])
+	}
 }
 
 // TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales 验证默认 locale 与回退 locale

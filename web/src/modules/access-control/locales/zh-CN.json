@@ -1,0 +1,89 @@
+{
+  "accessControl": {
+    "overview": {
+      "title": "访问控制概览",
+      "description": "查看系统账号、角色、权限与授权关系的整体状态。",
+      "actions": {
+        "createUser": "创建用户",
+        "createRole": "创建角色",
+        "viewPermissions": "查看权限",
+        "refresh": "刷新"
+      },
+      "stats": {
+        "totalUsers": "总用户数",
+        "totalUsersDescription": "启用 {enabled} / 禁用 {disabled}",
+        "totalRoles": "总角色数",
+        "totalRolesDescription": "内置 {builtin} / 自定义 {custom}",
+        "totalPermissions": "权限总数",
+        "totalPermissionsDescription": "覆盖系统注册与插件注册的权限点",
+        "assignmentCount": "角色分配关系",
+        "assignmentCountDescription": "当前仍有 {pending} 个账号待补充分配"
+      },
+      "status": {
+        "title": "状态摘要",
+        "subtitle": "聚焦账号分配、角色维护和内置约束的当前状态。",
+        "assignedUsers": "已完成角色分配",
+        "assignedUsersDescription": "仍有 {pending} 个账号待补充分配",
+        "customRoles": "自定义角色",
+        "customRolesDescription": "其中 {empty} 个角色尚未绑定权限",
+        "builtinRoles": "内置角色",
+        "builtinRolesDescription": "保留系统基线能力，限制删除和关键字段修改"
+      },
+      "risk": {
+        "title": "风险与待处理事项",
+        "subtitle": "优先处理未分配角色、空角色与内置角色限制说明。",
+        "groupTitle": "当前风险",
+        "emptyTitle": "暂无可识别的访问控制风险",
+        "emptyDescription": "后续接入审计日志后可展示角色与权限变更历史",
+        "defaultDescription": "当前项需要管理员进一步确认与处理。",
+        "unassignedUsers": "未分配角色的用户",
+        "emptyRoles": "无权限绑定的自定义角色",
+        "disabledUsers": "禁用用户数量",
+        "builtinNotice": "内置角色保护说明",
+        "builtinNoticeDescription": "内置角色不可删除，部分字段不可编辑",
+        "stale": "最近没有更新时间的数据提示"
+      },
+      "quickLinks": {
+        "title": "快捷入口",
+        "subtitle": "从概览页直接进入访问控制的核心管理面。",
+        "users": {
+          "title": "用户管理",
+          "description": "管理账号、状态和角色授权",
+          "action": "跳转用户管理"
+        },
+        "roles": {
+          "title": "角色管理",
+          "description": "维护角色定义和权限范围",
+          "action": "跳转角色管理"
+        },
+        "permissions": {
+          "title": "权限管理",
+          "description": "查看系统权限点和模块归属",
+          "action": "跳转权限管理"
+        }
+      },
+      "todo": {
+        "title": "待处理事项",
+        "subtitle": "保留轻量的风险与跟进提示，不把概览页做成报表页。",
+        "emptyTitle": "暂无待处理事项",
+        "emptyDescription": "当前没有额外的访问控制跟进项。",
+        "assignmentSyncLabel": "账号授权补齐",
+        "assignmentSyncState": "待处理",
+        "assignmentSyncDescription": "优先为未绑定角色的账号补充分配，当前影响 {count} 个账号。",
+        "auditLabel": "审计与趋势视图",
+        "auditState": "后续规划",
+        "auditDescription": "角色变更趋势、授权审计和统计报表将收口到后续审计日志或报表页面。"
+      },
+      "state": {
+        "loadFailedTitle": "访问控制概览暂时不可用",
+        "loadFailedDescription": "请重试加载用户、角色与权限统计。",
+        "retry": "重试",
+        "unknown": "-"
+      },
+      "navHint": "访问控制"
+    },
+    "todo": {
+      "menuContractAlignment": "动态菜单层级与 title_key 仍需后端菜单契约对齐，当前由前端聚合层兼容。"
+    }
+  }
+}

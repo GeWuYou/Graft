@@ -222,6 +222,9 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-task-closeout`
   - use as the default slice-end path after `graft-boot` work when the agent needs to decide between handoff-only
     versus commit-plus-handoff, while emitting the required next-task startup prompt
+- `graft-lessons-learned`
+  - use near task closeout when a corrected mistake, reusable anti-pattern, or stable implementation lesson should be
+    captured in `ai-plan/lessons/*`, optionally promoted into design docs, or elevated into the correct `AGENTS.md`
 - `graft-web-module-scaffold`
   - use when adding a new `web` feature module aligned with backend plugin semantics
 - `graft-web-vibe-coding`
@@ -455,6 +458,8 @@ Closeout-driven commit evaluation:
   rather than inventing a second commit path
 - if validation or ownership is insufficient, closeout must report the exact blocker and keep the handoff state honest
   instead of forcing a commit
+- before final closeout, run the Experience Capture Check defined by `graft-lessons-learned` whenever the task exposed
+  a reusable corrected mistake, anti-pattern, or promotable project lesson
 
 Task handoff and pre-handoff commit rules:
 

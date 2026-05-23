@@ -5,6 +5,9 @@ export interface PermissionListItem {
   display: string;
   description?: string | null;
   category: string;
+  created_at: string;
+  updated_at: string;
+  role_binding_count?: number | null;
 }
 
 // PermissionListResponse matches the minimal permission list contract exposed by the rbac plugin.

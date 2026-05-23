@@ -51,11 +51,16 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "username", Type: field.TypeString, Unique: true},
 		{Name: "display", Type: field.TypeString},
+		{Name: "status", Type: field.TypeString, Default: "enabled"},
 		{Name: "password_hash", Type: field.TypeString, Nullable: true},
 		{Name: "must_change_password", Type: field.TypeBool, Default: false},
 		{Name: "password_changed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "created_by", Type: field.TypeUint64, Default: 0},
 		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "updated_by", Type: field.TypeUint64, Default: 0},
+		{Name: "deleted_at", Type: field.TypeInt64, Default: 0},
+		{Name: "deleted_by", Type: field.TypeUint64, Default: 0},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{

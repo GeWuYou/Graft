@@ -7,12 +7,22 @@
   --graft-floating-toolbar-height: 60px;
   --graft-floating-toolbar-offset: 28px;
   --graft-floating-toolbar-gap: 20px;
-  --graft-floating-toolbar-safe-space: calc(
+  --graft-page-side-padding: clamp(24px, 2vw, 32px);
+  --graft-floating-toolbar-safe-area: calc(
     var(--graft-floating-toolbar-height) + var(--graft-floating-toolbar-offset) + var(--graft-floating-toolbar-gap)
   );
-  --graft-bottom-safe-space: 0px;
+  --graft-floating-toolbar-safe-space: var(--graft-floating-toolbar-safe-area);
   --graft-page-footer-height: var(--graft-footer-height);
-  --graft-page-bottom-safe-space: var(--graft-bottom-safe-space);
+  --graft-page-bottom-safe-area: calc(
+    var(--graft-page-footer-height) + var(--graft-floating-toolbar-safe-area) + var(--td-comp-margin-xl)
+  );
+  --graft-page-bottom-safe-space: var(--graft-page-bottom-safe-area);
+  --graft-page-width-ratio: 86vw;
+  --graft-page-max-width: 1440px;
+  --graft-page-min-padding: 24px;
+  --graft-page-shell-max-width: 1440px;
+  --graft-page-overview-max-width: 1520px;
+  --graft-page-management-max-width: 1680px;
 }
 
 .t-layout__sider {
@@ -85,7 +95,14 @@
   }
 
   &-content-layout {
-    padding: var(--td-comp-paddingTB-xl) var(--td-comp-paddingLR-xl);
+    padding: var(--td-comp-paddingTB-xl) var(--graft-page-side-padding);
+
+    &__body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 100%;
+    }
   }
 
   &-layout {
@@ -130,10 +147,30 @@
     min-height: 0;
 
     &__main {
+      box-sizing: border-box;
       display: flex;
       flex: 0 0 auto;
       flex-direction: column;
+      margin-inline: auto;
+      max-width: calc(100% - var(--graft-page-min-padding) * 2);
       min-height: 0;
+      min-width: 0;
+      width: min(var(--graft-page-width-ratio), var(--graft-page-max-width));
+    }
+
+    &__main--shell {
+      --graft-page-width-ratio: 86vw;
+      --graft-page-max-width: var(--graft-page-shell-max-width);
+    }
+
+    &__main--overview-dashboard {
+      --graft-page-width-ratio: 88vw;
+      --graft-page-max-width: var(--graft-page-overview-max-width);
+    }
+
+    &__main--list-form-detail {
+      --graft-page-width-ratio: 90vw;
+      --graft-page-max-width: var(--graft-page-management-max-width);
     }
   }
 
@@ -224,6 +261,13 @@
       min-width: 72px;
       transition: all 0.3s;
     }
+  }
+}
+
+@media (width <= 768px) {
+  :root {
+    --graft-page-min-padding: 16px;
+    --graft-page-side-padding: 16px;
   }
 }
 

@@ -22,24 +22,27 @@ var (
 
 // Role 表示 RBAC 角色的稳定持久化 DTO。
 type Role struct {
-	ID          uint64
-	Name        string
-	Display     string
-	Description *string
-	Builtin     bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID              uint64
+	Name            string
+	Display         string
+	Description     *string
+	Builtin         bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	PermissionCount int
+	UserCount       int
 }
 
 // Permission 表示 RBAC 权限点的稳定持久化 DTO。
 type Permission struct {
-	ID          uint64
-	Code        string
-	Display     string
-	Description *string
-	Category    string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID               uint64
+	Code             string
+	Display          string
+	Description      *string
+	Category         string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	RoleBindingCount int
 }
 
 // RolePermissionBinding 表示角色当前绑定的一条稳定权限关系。

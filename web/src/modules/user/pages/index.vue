@@ -1,125 +1,370 @@
 <template>
   <div class="user-page" data-page-type="list-form-detail">
-    <header class="user-page__header">
-      <div class="user-page__header-copy">
-        <p class="user-page__section">{{ t('user.userList.sectionTitle') }}</p>
-        <h1 class="user-page__title">{{ t('user.userList.listTitle') }}</h1>
-        <p class="user-page__hint">{{ t('user.userList.hint') }}</p>
-      </div>
-      <div class="user-page__metrics">
-        <article class="user-page__metric">
-          <span class="user-page__metric-label">{{ t('user.userList.countLabel') }}</span>
-          <strong class="user-page__metric-value">{{ users.length }}</strong>
-        </article>
-        <article class="user-page__metric">
-          <span class="user-page__metric-label">{{ t('user.userList.feedback.roleManagementLabel') }}</span>
-          <strong class="user-page__metric-value">{{ roleManagementStateLabel }}</strong>
-        </article>
-      </div>
-    </header>
+    <management-page-content>
+      <management-page-header :title="t('user.userList.listTitle')" :description="t('user.userList.hint')">
+        <template #eyebrow>{{ t('menu.access_control.title') }}</template>
+        <template #actions>
+          <t-button theme="default" variant="outline" :loading="loading" data-testid="user-refresh" @click="fetchUsers">
+            {{ t('user.userList.refresh') }}
+          </t-button>
+          <t-button v-if="canCreateUsers" theme="primary" data-testid="user-create" @click="openUserDrawer('create')">
+            {{ t('user.userList.create') }}
+          </t-button>
+        </template>
+      </management-page-header>
 
-    <section class="user-page__body-grid">
-      <t-card class="user-page__action-card" :bordered="false" :title="t('user.userList.actionTitle')">
-        <div class="user-page__action-content">
-          <p class="user-page__action-hint">{{ t('user.userList.actionHint') }}</p>
-          <div class="user-page__action-buttons">
-            <t-button theme="primary" variant="outline" :loading="loading" @click="fetchUsers">
-              {{ t('user.userList.refresh') }}
-            </t-button>
-          </div>
-        </div>
-      </t-card>
+      <management-toolbar>
+        <template #filters>
+          <t-input
+            v-model="filters.keyword"
+            clearable
+            class="toolbar__search"
+            :placeholder="t('user.userList.toolbar.searchPlaceholder')"
+          />
+          <t-select
+            v-model="filters.status"
+            clearable
+            class="toolbar__select"
+            :options="statusOptions"
+            :placeholder="t('user.userList.toolbar.statusPlaceholder')"
+          />
+          <t-select
+            v-model="filters.roleId"
+            clearable
+            class="toolbar__select"
+            :options="roleOptions"
+            :loading="roleCatalogLoading"
+            :placeholder="t('user.userList.toolbar.rolePlaceholder')"
+          />
+          <t-button theme="default" variant="text" @click="resetFilters">
+            {{ t('user.userList.toolbar.clearFilters') }}
+          </t-button>
+        </template>
+        <template #actions>
+          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
+            {{ t('user.userList.columnSettings') }}
+          </t-button>
+        </template>
+      </management-toolbar>
 
-      <section class="user-page__feedback-grid">
-        <article class="user-page__feedback-item" :data-tone="rowActionTone">
-          <span class="user-page__feedback-label">{{ t('user.userList.feedback.rowActionsLabel') }}</span>
-          <div class="user-page__feedback-head">
-            <strong class="user-page__feedback-value">{{ rowActionStateLabel }}</strong>
-            <t-tag :theme="rowActionTagTheme" variant="light">
-              {{ rowActionStateLabel }}
-            </t-tag>
-          </div>
-          <p class="user-page__feedback-hint">{{ rowActionStateHint }}</p>
-        </article>
-        <article class="user-page__feedback-item" :data-tone="roleManagementTone">
-          <div class="user-page__feedback-head">
-            <span class="user-page__feedback-label">{{ t('user.userList.feedback.roleManagementLabel') }}</span>
-            <t-tag :theme="roleManagementTagTheme" variant="light">
-              {{ roleManagementStateLabel }}
-            </t-tag>
-          </div>
-          <p class="user-page__feedback-hint">{{ roleManagementStateHint }}</p>
-        </article>
-      </section>
-    </section>
-
-    <t-card class="user-page__table-card" :bordered="false" :title="t('user.userList.dataTitle')">
-      <div class="user-page__table-head">
-        <p class="user-page__table-hint">{{ t('user.userList.tableHint') }}</p>
-      </div>
-
-      <t-table
-        row-key="id"
-        :data="users"
-        :columns="columns"
-        :loading="loading"
-        size="medium"
-        :table-layout="showOperationColumn ? 'fixed' : 'auto'"
-      >
-        <template #operation="{ row }">
-          <div class="operation-cell">
-            <t-button
-              v-permission="rbacPermissionCodes.USER_ROLE_READ"
-              variant="text"
-              theme="primary"
-              @click="handleOpenUserRoleDialog(row)"
-            >
-              {{ t('user.userList.assignRoles') }}
+      <management-table-card>
+        <template #head>
+          <div class="table-head">
+            <div>
+              <p class="table-head__summary">{{ t('user.userList.summary', { count: filteredUsers.length }) }}</p>
+              <p class="table-head__description">{{ t('user.userList.tableHint') }}</p>
+            </div>
+            <t-button v-if="hasActiveFilters" theme="default" variant="text" @click="resetFilters">
+              {{ t('user.userList.toolbar.clearFilters') }}
             </t-button>
           </div>
         </template>
-        <template #empty>
-          <t-empty :description="t('user.userList.empty')" />
+
+        <template #batch>
+          <div v-if="selectedRowKeys.length > 0" class="batch-bar">
+            <span>{{ t('user.userList.batch.selected', { count: selectedRowKeys.length }) }}</span>
+            <div class="batch-bar__actions">
+              <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.enable') }}</t-button>
+              <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.disable') }}</t-button>
+              <t-button size="small" theme="primary" variant="outline" disabled>
+                {{ t('user.userList.batch.assignRoles') }}
+              </t-button>
+              <t-button size="small" theme="default" variant="text" @click="selectedRowKeys = []">
+                {{ t('user.userList.batch.cancelSelection') }}
+              </t-button>
+            </div>
+          </div>
         </template>
-      </t-table>
-    </t-card>
+
+        <management-empty-state
+          v-if="listError && !loading"
+          tone="error"
+          :title="t('user.userList.errorTitle')"
+          :description="listError"
+        >
+          <template #actions>
+            <t-button theme="primary" variant="outline" @click="fetchUsers">
+              {{ t('user.userList.retry') }}
+            </t-button>
+          </template>
+        </management-empty-state>
+
+        <t-table
+          v-else
+          row-key="id"
+          :data="pagedUsers"
+          :columns="visibleColumns"
+          :loading="loading"
+          table-layout="fixed"
+          table-content-width="100%"
+          :selected-row-keys="selectedRowKeys"
+          cell-empty-content="-"
+          @select-change="handleSelectChange"
+        >
+          <template #user="{ row }">
+            <div class="user-cell">
+              <div class="user-cell__avatar">{{ userInitial(row.display || row.username) }}</div>
+              <div class="user-cell__meta">
+                <span class="user-cell__display">{{ row.display || row.username }}</span>
+                <span class="user-cell__username">{{ row.email || `@${row.username}` }}</span>
+              </div>
+            </div>
+          </template>
+
+          <template #status="{ row }">
+            <t-tag :theme="statusTheme(row.status)" variant="light">
+              {{ statusLabel(row.status) }}
+            </t-tag>
+          </template>
+
+          <template #roles="{ row }">
+            <div class="role-tag-list">
+              <template v-if="roleSummaryLoading[row.id]">
+                <t-tag theme="default" variant="light">{{ t('user.userList.roleSummary.loading') }}</t-tag>
+              </template>
+              <template v-else-if="roleSummaryErrors[row.id]">
+                <span class="table-muted">{{ t('user.userList.roleSummary.unavailable') }}</span>
+              </template>
+              <template v-else-if="resolveUserRoles(row.id).length > 0">
+                <t-tag
+                  v-for="role in resolveUserRoles(row.id).slice(0, 2)"
+                  :key="role.id"
+                  theme="default"
+                  variant="light-outline"
+                  size="small"
+                >
+                  {{ role.display }}
+                </t-tag>
+                <t-tag v-if="resolveUserRoles(row.id).length > 2" theme="default" variant="light-outline" size="small">
+                  +{{ resolveUserRoles(row.id).length - 2 }}
+                </t-tag>
+              </template>
+              <span v-else class="table-muted">{{ t('user.userList.roleSummary.empty') }}</span>
+            </div>
+          </template>
+
+          <template #last_login_at="{ row }">
+            <span>{{ formatTimestamp(row.last_login_at) }}</span>
+          </template>
+
+          <template #created_at="{ row }">
+            <span>{{ formatTimestamp(row.created_at) }}</span>
+          </template>
+
+          <template #updated_at="{ row }">
+            <span>{{ formatTimestamp(row.updated_at) }}</span>
+          </template>
+
+          <template #operation="{ row }">
+            <div class="table-actions">
+              <t-button
+                v-if="canReadUserRoles"
+                size="small"
+                theme="default"
+                variant="outline"
+                data-testid="user-manage-roles"
+                @click="handleOpenUserRoleDrawer(row)"
+              >
+                {{ t('user.userList.assignRoles') }}
+              </t-button>
+              <t-button
+                v-if="canUpdateUsers"
+                size="small"
+                theme="default"
+                variant="outline"
+                @click="openUserDrawer('edit', row)"
+              >
+                {{ t('user.userList.edit') }}
+              </t-button>
+              <t-dropdown
+                :options="userRowMoreOptions(row)"
+                trigger="click"
+                @click="(payload) => handleUserMoreAction(payload, row)"
+              >
+                <t-button size="small" theme="default" variant="outline">
+                  {{ t('user.userList.more') }}
+                </t-button>
+              </t-dropdown>
+            </div>
+          </template>
+
+          <template #empty>
+            <div class="table-empty-state">
+              <t-empty :title="t('user.userList.emptyTitle')" :description="t('user.userList.emptyDescription')">
+                <template #action>
+                  <div class="table-empty-state__actions">
+                    <t-button
+                      v-if="hasActiveFilters"
+                      theme="default"
+                      variant="outline"
+                      data-testid="user-empty-clear-filters"
+                      @click="resetFilters"
+                    >
+                      {{ t('user.userList.toolbar.clearFilters') }}
+                    </t-button>
+                    <t-button
+                      v-if="canCreateUsers"
+                      theme="primary"
+                      data-testid="user-empty-create"
+                      @click="openUserDrawer('create')"
+                    >
+                      {{ t('user.userList.create') }}
+                    </t-button>
+                  </div>
+                </template>
+              </t-empty>
+            </div>
+          </template>
+        </t-table>
+
+        <template #footer>
+          <management-table-pagination :summary="t('user.userList.footerTotal', { count: filteredUsers.length })">
+            <t-pagination
+              v-model:current="pagination.current"
+              v-model:page-size="pagination.pageSize"
+              :total="filteredUsers.length"
+              :page-size-options="[10, 20, 50]"
+              :show-page-number="true"
+            />
+          </management-table-pagination>
+        </template>
+      </management-table-card>
+    </management-page-content>
+
+    <t-drawer
+      v-model:visible="userDrawerVisible"
+      :header="userDrawerMode === 'create' ? t('user.userList.form.createTitle') : t('user.userList.form.editTitle')"
+      size="520px"
+      placement="right"
+      destroy-on-close
+    >
+      <div class="drawer-panel">
+        <t-form :data="userForm" :rules="userFormRules" label-align="top" @submit="handleUserSubmit">
+          <t-form-item :label="t('user.userList.form.username')" name="username">
+            <t-input v-model="userForm.username" :placeholder="t('user.userList.form.usernamePlaceholder')" />
+          </t-form-item>
+          <t-form-item :label="t('user.userList.form.display')" name="display">
+            <t-input v-model="userForm.display" :placeholder="t('user.userList.form.displayPlaceholder')" />
+          </t-form-item>
+          <t-form-item v-if="userDrawerMode === 'create'" :label="t('user.userList.form.password')" name="password">
+            <t-input
+              v-model="userForm.password"
+              type="password"
+              :placeholder="t('user.userList.form.passwordPlaceholder')"
+            />
+          </t-form-item>
+          <div class="drawer-actions">
+            <t-button variant="outline" @click="closeUserDrawer">
+              {{ t('user.userList.form.cancel') }}
+            </t-button>
+            <t-button theme="primary" type="submit" :loading="submittingUser">
+              {{ t('user.userList.form.confirm') }}
+            </t-button>
+          </div>
+        </t-form>
+      </div>
+    </t-drawer>
 
     <t-dialog
-      v-model:visible="userRoleDialogVisible"
-      :header="t('user.userList.roleDialog.title')"
-      :width="720"
-      :footer="false"
+      v-model:visible="resetPasswordDialogVisible"
+      :header="t('user.userList.resetPasswordDialog.title')"
+      :confirm-btn="{ loading: submittingResetPassword, content: t('user.userList.resetPasswordDialog.confirm') }"
+      :cancel-btn="t('user.userList.resetPasswordDialog.cancel')"
+      @confirm="submitResetPassword"
+      @close="closeResetPasswordDialog"
     >
-      <template #body>
-        <div class="user-roles-panel">
-          <div class="permission-summary">
-            {{
-              selectedUser
-                ? t('user.userList.roleDialog.currentUser', { name: selectedUser.display || selectedUser.username })
-                : t('user.userList.roleDialog.currentUserEmpty')
-            }}
-          </div>
-          <div class="permission-summary">
-            {{ t('user.userList.roleDialog.roleSummary', { count: roles.length }) }}
-          </div>
-          <div v-if="roleLoadWarning" class="permission-load-warning">
-            <span>{{ roleLoadWarning }}</span>
-            <t-button variant="text" theme="primary" :loading="loadingRoleDialogData" @click="retryUserRoleDialogLoad">
-              {{ t('user.userList.roleDialog.retry') }}
-            </t-button>
-          </div>
+      <div class="drawer-panel">
+        <p class="table-head__description">
+          {{
+            t('user.userList.resetPasswordDialog.description', {
+              user: resetPasswordTarget?.display || resetPasswordTarget?.username || '-',
+            })
+          }}
+        </p>
+        <t-form :data="resetPasswordForm" label-align="top">
+          <t-form-item :label="t('user.userList.resetPasswordDialog.password')" name="password">
+            <t-input
+              v-model="resetPasswordForm.password"
+              type="password"
+              :placeholder="t('user.userList.resetPasswordDialog.passwordPlaceholder')"
+            />
+          </t-form-item>
+        </t-form>
+      </div>
+    </t-dialog>
 
+    <t-drawer
+      v-model:visible="userRoleDrawerVisible"
+      :header="t('user.userList.roleDialog.title')"
+      size="520px"
+      placement="right"
+      destroy-on-close
+    >
+      <div class="drawer-panel" data-testid="user-role-drawer">
+        <div class="drawer-summary">
+          <div class="user-cell user-cell--drawer">
+            <div class="user-cell__avatar">{{ userInitial(selectedUser?.display || selectedUser?.username) }}</div>
+            <div class="user-cell__meta">
+              <span class="user-cell__display">{{ selectedUser?.display || '-' }}</span>
+              <span class="user-cell__username">@{{ selectedUser?.username || '-' }}</span>
+            </div>
+          </div>
+          <div class="drawer-summary__grid">
+            <div class="drawer-summary__item">
+              <span class="drawer-summary__label">{{ t('user.userList.columns.status') }}</span>
+              <t-tag :theme="statusTheme(selectedUser?.status)" variant="light">
+                {{ statusLabel(selectedUser?.status) }}
+              </t-tag>
+            </div>
+            <div class="drawer-summary__item">
+              <span class="drawer-summary__label">{{ t('user.userList.columns.createdAt') }}</span>
+              <span>{{ formatTimestamp(selectedUser?.created_at) }}</span>
+            </div>
+            <div class="drawer-summary__item">
+              <span class="drawer-summary__label">{{ t('user.userList.columns.updatedAt') }}</span>
+              <span>{{ formatTimestamp(selectedUser?.updated_at) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="drawer-section">
+          <div class="drawer-section__head">
+            <h3>{{ t('user.userList.roleDialog.currentRolesTitle') }}</h3>
+            <span class="table-muted">{{ t('user.userList.roleDialog.roleSummary', { count: roles.length }) }}</span>
+          </div>
+          <div class="role-tag-list">
+            <template v-if="currentUserRoles.length > 0">
+              <t-tag v-for="role in currentUserRoles" :key="role.id" theme="default" variant="light-outline">
+                {{ role.display }}
+              </t-tag>
+            </template>
+            <span v-else class="table-muted">{{ t('user.userList.roleDialog.noAssignedRoles') }}</span>
+          </div>
+        </section>
+
+        <div v-if="roleLoadWarning" class="inline-warning">
+          <span>{{ roleLoadWarning }}</span>
+          <t-button variant="text" theme="primary" :loading="loadingRoleDialogData" @click="retryUserRoleDrawerLoad">
+            {{ t('user.userList.roleDialog.retry') }}
+          </t-button>
+        </div>
+
+        <section class="drawer-section">
+          <div class="drawer-section__head">
+            <h3>{{ t('user.userList.roleDialog.availableRolesTitle') }}</h3>
+          </div>
           <t-checkbox-group
             v-model="selectedRoleIds"
             :disabled="loadingRoleDialogData || !roleSelectionReady || !canAssignUserRoles"
+            data-testid="role-checkbox-group"
           >
-            <div class="role-grid">
-              <label v-for="role in roles" :key="role.id" class="role-option">
+            <div class="selection-grid">
+              <label v-for="role in roles" :key="role.id" class="selection-card">
                 <t-checkbox :value="role.id">
-                  <div class="role-option__content">
-                    <div class="role-option__header">
-                      <span class="role-option__label">{{ role.display }}</span>
-                      <t-tag :theme="role.builtin ? 'success' : 'default'" variant="light" size="small">
+                  <div class="selection-card__body">
+                    <div class="selection-card__head">
+                      <span class="selection-card__title">{{ role.display }}</span>
+                      <t-tag :theme="role.builtin ? 'warning' : 'default'" variant="light" size="small">
                         {{
                           role.builtin
                             ? t('user.userList.roleDialog.builtinYes')
@@ -127,8 +372,8 @@
                         }}
                       </t-tag>
                     </div>
-                    <span class="role-option__code">{{ role.name }}</span>
-                    <span class="role-option__description">
+                    <span class="selection-card__code">{{ role.name }}</span>
+                    <span class="selection-card__description">
                       {{ role.description || t('user.userList.roleDialog.emptyDescription') }}
                     </span>
                   </div>
@@ -136,254 +381,668 @@
               </label>
             </div>
           </t-checkbox-group>
+          <t-empty
+            v-if="roles.length === 0 && !roleCatalogLoading"
+            :description="t('user.userList.roleDialog.empty')"
+          />
+        </section>
 
-          <t-empty v-if="roles.length === 0 && !loadingRoles" :description="t('user.userList.roleDialog.empty')" />
-
-          <div class="dialog-actions">
-            <t-button variant="outline" @click="closeUserRoleDialog">
-              {{ t('user.userList.roleDialog.cancel') }}
-            </t-button>
-            <t-button
-              theme="primary"
-              :disabled="!canSubmitRoleAssignment"
-              :loading="submittingRoles"
-              @click="submitUserRoleAssignment"
-            >
-              {{ t('user.userList.roleDialog.confirm') }}
-            </t-button>
-          </div>
+        <div class="drawer-actions">
+          <t-button variant="outline" data-testid="user-role-cancel" @click="closeUserRoleDrawer">
+            {{ t('user.userList.roleDialog.cancel') }}
+          </t-button>
+          <t-button
+            theme="primary"
+            data-testid="user-role-save"
+            :disabled="!canSubmitRoleAssignment"
+            :loading="submittingRoles"
+            @click="submitUserRoleAssignment"
+          >
+            {{ t('user.userList.roleDialog.confirm') }}
+          </t-button>
         </div>
-      </template>
-    </t-dialog>
+      </div>
+    </t-drawer>
+
+    <t-drawer
+      v-model:visible="columnDrawerVisible"
+      :header="t('user.userList.columnSettings')"
+      size="360px"
+      placement="right"
+      destroy-on-close
+    >
+      <div class="drawer-panel">
+        <t-checkbox-group v-model="visibleColumnKeys">
+          <div class="column-grid">
+            <t-checkbox v-for="column in columnSettingOptions" :key="column.value" :value="column.value">
+              {{ column.label }}
+            </t-checkbox>
+          </div>
+        </t-checkbox-group>
+      </div>
+    </t-drawer>
   </div>
 </template>
 <script setup lang="ts">
-import { MessagePlugin, type TableRowData, type TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { type FormRule, MessagePlugin, type SubmitContext, type TdBaseTableProps } from 'tdesign-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import type { RoleListItem } from '@/modules/rbac/contract/role';
+import {
+  ManagementEmptyState,
+  ManagementPageContent,
+  ManagementPageHeader,
+  ManagementTableCard,
+  ManagementTablePagination,
+  ManagementToolbar,
+} from '@/shared/components/management';
 import { usePermissionStore } from '@/store';
+import { createLogger } from '@/utils/logger';
 
 import { assignUserRoles, getRoles, getUserRoleBindings } from '../api/user-roles';
-import { getUsers } from '../api/users';
-import type { UserListItem } from '../types/user';
+import { createUser, deleteUser, getUsers, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
+import { USER_PERMISSION_CODE } from '../contract/permissions';
+import type { UserStatus } from '../contract/status';
+import { USER_STATUS } from '../contract/status';
+import type { CreateUserPayload, ResetUserPasswordPayload, UpdateUserPayload, UserListItem } from '../types/user';
 
 defineOptions({
   name: 'UsersIndex',
 });
 
+const logger = createLogger('user.userList');
+
+type UserFilters = {
+  keyword: string;
+  roleId: number | undefined;
+  status: '' | UserStatus;
+};
+
+type UserRow = UserListItem & {
+  last_login_at?: string | null;
+};
+
+type UserDrawerMode = 'create' | 'edit';
+
+type UserFormState = {
+  username: string;
+  display: string;
+  password: string;
+};
+
+const INITIAL_USER_FORM: UserFormState = {
+  username: '',
+  display: '',
+  password: '',
+};
+
+const DEFAULT_VISIBLE_COLUMNS = [
+  'row-select',
+  'user',
+  'status',
+  'roles',
+  'last_login_at',
+  'created_at',
+  'updated_at',
+  'operation',
+];
+
 const { t, locale } = useI18n();
+const route = useRoute();
+const router = useRouter();
 const permissionStore = usePermissionStore();
-const users = ref<UserListItem[]>([]);
+const users = ref<UserRow[]>([]);
+const roles = ref<RoleListItem[]>([]);
 const loading = ref(false);
-const loadingRoles = ref(false);
+const listError = ref('');
+const roleCatalogLoading = ref(false);
+const roleSummaryRequestId = ref(0);
+const roleBindings = ref<Record<number, number[]>>({});
+const roleSummaryLoading = ref<Record<number, boolean>>({});
+const roleSummaryErrors = ref<Record<number, boolean>>({});
+const userDrawerVisible = ref(false);
+const userDrawerMode = ref<UserDrawerMode>('create');
+const userDrawerTarget = ref<UserRow | null>(null);
+const userForm = ref<UserFormState>({ ...INITIAL_USER_FORM });
+const submittingUser = ref(false);
+const resetPasswordDialogVisible = ref(false);
+const resetPasswordTarget = ref<UserRow | null>(null);
+const resetPasswordForm = ref({
+  password: '',
+});
+const submittingResetPassword = ref(false);
+const filters = ref<UserFilters>({
+  keyword: '',
+  roleId: undefined,
+  status: '',
+});
+const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
+const columnDrawerVisible = ref(false);
+const userRoleDrawerVisible = ref(false);
+const selectedUser = ref<UserRow | null>(null);
+const selectedRoleIds = ref<number[]>([]);
 const loadingRoleSelection = ref(false);
 const submittingRoles = ref(false);
-const userRoleDialogVisible = ref(false);
-const selectedUser = ref<UserListItem | null>(null);
-const roles = ref<RoleListItem[]>([]);
-const selectedRoleIds = ref<number[]>([]);
-const userRoleDialogSession = ref(0);
 const roleSelectionReady = ref(false);
-const roleOptionsReady = ref(false);
 const roleLoadWarning = ref('');
+const drawerSession = ref(0);
+const selectedRowKeys = ref<Array<string | number>>([]);
+const pagination = ref({
+  current: 1,
+  pageSize: 10,
+});
+
+const userPermissionCodes = USER_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
+const canCreateUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.CREATE));
+const canUpdateUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.UPDATE));
+const canDisableUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.DISABLE));
 const canReadUserRoles = computed(() => permissionStore.hasPermission(rbacPermissionCodes.USER_ROLE_READ));
-const showOperationColumn = computed(() => canReadUserRoles.value);
-
-const loadingRoleDialogData = computed(() => loadingRoles.value || loadingRoleSelection.value);
 const canAssignUserRoles = computed(() => permissionStore.hasPermission(rbacPermissionCodes.USER_ROLE_ASSIGN));
+const canShowOperationColumn = computed(() =>
+  permissionStore.hasAnyPermission([
+    userPermissionCodes.UPDATE,
+    userPermissionCodes.DISABLE,
+    rbacPermissionCodes.USER_ROLE_READ,
+  ]),
+);
+const loadingRoleDialogData = computed(() => roleCatalogLoading.value || loadingRoleSelection.value);
 const canSubmitRoleAssignment = computed(
-  () => canAssignUserRoles.value && roleSelectionReady.value && roleOptionsReady.value && selectedUser.value !== null,
+  () => canAssignUserRoles.value && roleSelectionReady.value && selectedUser.value !== null,
 );
-const roleManagementTone = computed(() => {
-  if (canAssignUserRoles.value) {
-    return 'primary';
-  }
-
-  if (canReadUserRoles.value) {
-    return 'warning';
-  }
-
-  return 'default';
-});
-const roleManagementTagTheme = computed(() => {
-  if (canAssignUserRoles.value) {
-    return 'primary';
-  }
-
-  if (canReadUserRoles.value) {
-    return 'warning';
-  }
-
-  return 'default';
-});
-const roleManagementStateLabel = computed(() => {
-  if (canAssignUserRoles.value) {
-    return t('user.userList.feedback.roleManagementReady');
-  }
-
-  if (canReadUserRoles.value) {
-    return t('user.userList.feedback.roleManagementReadOnly');
-  }
-
-  return t('user.userList.feedback.roleManagementUnavailable');
-});
-const roleManagementStateHint = computed(() => {
-  if (canAssignUserRoles.value) {
-    return t('user.userList.feedback.roleManagementReadyHint');
-  }
-
-  if (canReadUserRoles.value) {
-    return t('user.userList.feedback.roleManagementReadOnlyHint');
-  }
-
-  return t('user.userList.feedback.roleManagementUnavailableHint');
-});
-const rowActionStateLabel = computed(() =>
-  showOperationColumn.value
-    ? t('user.userList.feedback.rowActionsAvailable')
-    : t('user.userList.feedback.rowActionsUnavailable'),
+const hasActiveFilters = computed(
+  () => Boolean(filters.value.keyword.trim()) || Boolean(filters.value.status) || filters.value.roleId !== undefined,
 );
-const rowActionTone = computed(() => (showOperationColumn.value ? 'primary' : 'warning'));
-const rowActionTagTheme = computed(() => (showOperationColumn.value ? 'primary' : 'warning'));
-const rowActionStateHint = computed(() =>
-  showOperationColumn.value
-    ? t('user.userList.feedback.rowActionsAvailableHint')
-    : t('user.userList.feedback.rowActionsUnavailableHint'),
+
+const statusOptions = computed(() => [
+  { label: t('user.userList.toolbar.statusAll'), value: '' },
+  { label: t('user.userList.status.enabled'), value: USER_STATUS.ENABLED },
+  { label: t('user.userList.status.disabled'), value: USER_STATUS.DISABLED },
+]);
+
+const roleOptions = computed(() =>
+  roles.value.map((role) => ({
+    label: role.display,
+    value: role.id,
+  })),
 );
+
+const columnSettingOptions = computed(() => [
+  { label: t('user.userList.columns.user'), value: 'user' },
+  { label: t('user.userList.columns.status'), value: 'status' },
+  { label: t('user.userList.columns.roles'), value: 'roles' },
+  { label: t('user.userList.columns.lastLoginAt'), value: 'last_login_at' },
+  { label: t('user.userList.columns.createdAt'), value: 'created_at' },
+  { label: t('user.userList.columns.updatedAt'), value: 'updated_at' },
+  { label: t('components.commonTable.operation'), value: 'operation' },
+]);
+
+const filteredUsers = computed(() => {
+  const keyword = filters.value.keyword.trim().toLowerCase();
+
+  return users.value.filter((user) => {
+    if (keyword) {
+      const haystack = `${user.username} ${user.display} ${user.email ?? ''}`.toLowerCase();
+      if (!haystack.includes(keyword)) {
+        return false;
+      }
+    }
+
+    if (filters.value.status && normalizeUserStatus(user.status) !== filters.value.status) {
+      return false;
+    }
+
+    if (filters.value.roleId !== undefined) {
+      const assignedRoleIds = roleBindings.value[user.id] ?? [];
+      if (!assignedRoleIds.includes(filters.value.roleId)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+});
+
+const pagedUsers = computed(() => {
+  const start = (pagination.value.current - 1) * pagination.value.pageSize;
+  return filteredUsers.value.slice(start, start + pagination.value.pageSize);
+});
+
+const currentUserRoles = computed(() => {
+  const roleIDs = selectedRoleIds.value;
+  return roles.value.filter((role) => roleIDs.includes(role.id));
+});
+
+const userRowMoreOptions = (user: UserRow) => [
+  {
+    content:
+      normalizeUserStatus(user.status) === USER_STATUS.DISABLED
+        ? t('user.userList.moreActions.enable')
+        : t('user.userList.moreActions.disable'),
+    disabled: !canDisableUsers.value,
+    value: 'toggle-status',
+  },
+  {
+    content: t('user.userList.moreActions.resetPassword'),
+    disabled: !canUpdateUsers.value,
+    value: 'reset-password',
+  },
+  {
+    content: t('user.userList.moreActions.delete'),
+    disabled: !canDisableUsers.value,
+    value: 'delete',
+  },
+];
+
+const userFormRules = computed<Record<keyof UserFormState, FormRule[]>>(() => ({
+  username: [{ required: true, message: t('user.userList.form.required.username'), type: 'error' }],
+  display: [{ required: true, message: t('user.userList.form.required.display'), type: 'error' }],
+  password:
+    userDrawerMode.value === 'create'
+      ? [{ required: true, message: t('user.userList.form.required.password'), type: 'error' }]
+      : [],
+}));
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
-  void showOperationColumn.value;
 
-  const baseColumns: TdBaseTableProps['columns'] = [
+  const baseColumns = [
     {
-      title: t('user.userList.columns.id'),
-      colKey: 'id',
+      colKey: 'row-select',
+      type: 'multiple',
+      width: 48,
+      fixed: 'left' as const,
+    },
+    {
+      title: t('user.userList.columns.user'),
+      colKey: 'user',
+      minWidth: 220,
+      ellipsis: true,
+      fixed: 'left' as const,
+    },
+    {
+      title: t('user.userList.columns.status'),
+      colKey: 'status',
       width: 100,
     },
     {
-      title: t('user.userList.columns.username'),
-      colKey: 'username',
-      minWidth: 180,
+      title: t('user.userList.columns.roles'),
+      colKey: 'roles',
+      width: 140,
+      ellipsis: true,
     },
     {
-      title: t('user.userList.columns.display'),
-      colKey: 'display',
-      minWidth: 180,
+      title: t('user.userList.columns.lastLoginAt'),
+      colKey: 'last_login_at',
+      width: 160,
     },
     {
       title: t('user.userList.columns.createdAt'),
       colKey: 'created_at',
-      minWidth: 220,
+      width: 180,
     },
     {
       title: t('user.userList.columns.updatedAt'),
       colKey: 'updated_at',
-      minWidth: 220,
+      width: 180,
     },
   ];
 
-  if (showOperationColumn.value) {
-    baseColumns.push({
-      title: t('components.commonTable.operation'),
-      colKey: 'operation',
-      width: 320,
-      fixed: 'right',
-    });
+  const allColumns = canShowOperationColumn.value
+    ? [
+        ...baseColumns,
+        {
+          title: t('components.commonTable.operation'),
+          colKey: 'operation',
+          width: 220,
+          align: 'right' as const,
+          fixed: 'right' as const,
+        },
+      ]
+    : baseColumns;
+
+  const visibleKeys = new Set(visibleColumnKeys.value);
+  return allColumns.filter((column) => visibleKeys.has(String(column.colKey))) as TdBaseTableProps['columns'];
+});
+
+const visibleColumns = computed(() => {
+  if (canShowOperationColumn.value) {
+    return columns.value;
   }
 
-  return baseColumns;
+  return (columns.value ?? []).filter((column) => column?.colKey !== 'operation');
 });
 
 async function fetchUsers() {
   loading.value = true;
+  listError.value = '';
+  roleSummaryErrors.value = {};
+  roleSummaryLoading.value = {};
+
   try {
     const response = await getUsers();
     users.value = response.items;
+    selectedRowKeys.value = [];
+    pagination.value.current = 1;
+
+    if (canReadUserRoles.value) {
+      void hydrateUserRoleSummaries(response.items);
+    } else {
+      roleBindings.value = {};
+    }
   } catch (error) {
     users.value = [];
-    MessagePlugin.error(error instanceof Error ? error.message : t('user.userList.loadFailed'));
+    logger.error('failed to fetch users', error);
+    listError.value = t('user.userList.loadFailed');
+    MessagePlugin.error(listError.value);
   } finally {
     loading.value = false;
   }
 }
 
-function isActiveUserRoleDialogSession(session: number) {
-  return userRoleDialogVisible.value && userRoleDialogSession.value === session;
-}
-
-async function ensureRoleOptionsLoaded(session: number) {
-  if (roles.value.length > 0) {
-    if (isActiveUserRoleDialogSession(session)) {
-      roleOptionsReady.value = true;
-    }
-    return isActiveUserRoleDialogSession(session);
-  }
-
-  if (isActiveUserRoleDialogSession(session)) {
-    loadingRoles.value = true;
-  }
+async function loadRoleCatalog() {
+  roleCatalogLoading.value = true;
 
   try {
     const response = await getRoles();
-
-    if (!isActiveUserRoleDialogSession(session)) {
-      return false;
-    }
-
     roles.value = response.items;
-    roleOptionsReady.value = true;
-    return true;
-  } catch (error) {
-    if (isActiveUserRoleDialogSession(session)) {
-      roles.value = [];
-      roleOptionsReady.value = false;
-    }
-    throw error;
   } finally {
-    if (isActiveUserRoleDialogSession(session)) {
-      loadingRoles.value = false;
-    }
+    roleCatalogLoading.value = false;
   }
 }
 
-function closeUserRoleDialog() {
-  userRoleDialogSession.value += 1;
-  userRoleDialogVisible.value = false;
-  submittingRoles.value = false;
-  selectedUser.value = null;
-  selectedRoleIds.value = [];
-  loadingRoles.value = false;
-  loadingRoleSelection.value = false;
-  roleSelectionReady.value = false;
-  roleOptionsReady.value = roles.value.length > 0;
-  roleLoadWarning.value = '';
+async function hydrateUserRoleSummaries(userItems: UserRow[]) {
+  const requestId = roleSummaryRequestId.value + 1;
+  roleSummaryRequestId.value = requestId;
+
+  try {
+    await loadRoleCatalog();
+  } catch {
+    return;
+  }
+
+  const nextLoading = Object.fromEntries(userItems.map((user) => [user.id, true]));
+  roleSummaryLoading.value = nextLoading;
+  roleBindings.value = {};
+  roleSummaryErrors.value = {};
+
+  const results = await Promise.allSettled(userItems.map((user) => getUserRoleBindings(user.id)));
+  if (roleSummaryRequestId.value !== requestId) {
+    return;
+  }
+
+  const nextBindings: Record<number, number[]> = {};
+  const nextErrors: Record<number, boolean> = {};
+  const nextLoadingDone: Record<number, boolean> = {};
+
+  userItems.forEach((user, index) => {
+    const result = results[index];
+    nextLoadingDone[user.id] = false;
+
+    if (result?.status === 'fulfilled') {
+      nextBindings[user.id] = result.value.role_ids;
+      return;
+    }
+
+    nextErrors[user.id] = true;
+  });
+
+  roleBindings.value = nextBindings;
+  roleSummaryErrors.value = nextErrors;
+  roleSummaryLoading.value = nextLoadingDone;
 }
 
-async function loadUserRoleDialog(user: UserListItem, session: number) {
-  selectedUser.value = user;
+function resolveUserRoles(userId: number) {
+  const assignedRoleIds = new Set(roleBindings.value[userId] ?? []);
+  return roles.value.filter((role) => assignedRoleIds.has(role.id));
+}
+
+function resetFilters() {
+  filters.value = {
+    keyword: '',
+    roleId: undefined,
+    status: '',
+  };
+  pagination.value.current = 1;
+}
+
+function formatTimestamp(value?: string | null) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(locale.value, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function userInitial(value?: string | null) {
+  if (!value) {
+    return '?';
+  }
+
+  return value.trim().slice(0, 1).toUpperCase();
+}
+
+function normalizeUserStatus(status?: string | null) {
+  return status === USER_STATUS.DISABLED ? USER_STATUS.DISABLED : USER_STATUS.ENABLED;
+}
+
+function statusLabel(status?: string | null) {
+  return normalizeUserStatus(status) === USER_STATUS.DISABLED
+    ? t('user.userList.status.disabled')
+    : t('user.userList.status.enabled');
+}
+
+function statusTheme(status?: string | null) {
+  return normalizeUserStatus(status) === USER_STATUS.DISABLED ? 'danger' : 'success';
+}
+
+function openUserDrawer(mode: UserDrawerMode, user?: UserRow) {
+  userDrawerMode.value = mode;
+  userDrawerTarget.value = user ?? null;
+  userForm.value = {
+    username: user?.username ?? '',
+    display: user?.display ?? '',
+    password: '',
+  };
+  userDrawerVisible.value = true;
+}
+
+function consumeCreateActionQuery() {
+  if (route.query.action !== 'create') {
+    return;
+  }
+
+  const nextQuery = { ...route.query };
+  delete nextQuery.action;
+  void router.replace({ query: nextQuery });
+}
+
+function closeUserDrawer() {
+  userDrawerVisible.value = false;
+  userDrawerTarget.value = null;
+  userForm.value = { ...INITIAL_USER_FORM };
+  submittingUser.value = false;
+}
+
+async function handleUserSubmit(ctx: SubmitContext) {
+  if (ctx.validateResult !== true || submittingUser.value) {
+    return;
+  }
+
+  submittingUser.value = true;
+  try {
+    if (userDrawerMode.value === 'create') {
+      const payload: CreateUserPayload = {
+        username: userForm.value.username.trim(),
+        display: userForm.value.display.trim(),
+        password: userForm.value.password,
+      };
+      const created = await createUser(payload);
+      users.value = [created, ...users.value];
+      MessagePlugin.success(t('user.userList.createSuccess'));
+    } else if (userDrawerTarget.value) {
+      const payload: UpdateUserPayload = {
+        username: userForm.value.username.trim(),
+        display: userForm.value.display.trim(),
+      };
+      const updated = await updateUser(userDrawerTarget.value.id, payload);
+      users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+      MessagePlugin.success(t('user.userList.editSuccess'));
+    }
+    closeUserDrawer();
+  } catch (error) {
+    logger.error('failed to submit user form', error);
+    MessagePlugin.error(
+      userDrawerMode.value === 'create' ? t('user.userList.createFailed') : t('user.userList.editFailed'),
+    );
+  } finally {
+    submittingUser.value = false;
+  }
+}
+
+function openResetPasswordDialog(user: UserRow) {
+  resetPasswordTarget.value = user;
+  resetPasswordForm.value.password = '';
+  resetPasswordDialogVisible.value = true;
+}
+
+function closeResetPasswordDialog() {
+  resetPasswordDialogVisible.value = false;
+  resetPasswordTarget.value = null;
+  resetPasswordForm.value.password = '';
+  submittingResetPassword.value = false;
+}
+
+async function submitResetPassword() {
+  if (!resetPasswordTarget.value) {
+    return;
+  }
+  if (!resetPasswordForm.value.password.trim()) {
+    MessagePlugin.warning(t('user.userList.resetPasswordDialog.required'));
+    return;
+  }
+
+  submittingResetPassword.value = true;
+  try {
+    const payload: ResetUserPasswordPayload = {
+      new_password: resetPasswordForm.value.password,
+    };
+    await resetUserPassword(resetPasswordTarget.value.id, payload);
+    MessagePlugin.success(t('user.userList.resetPasswordSuccess'));
+    closeResetPasswordDialog();
+  } catch (error) {
+    logger.error('failed to reset password', error);
+    MessagePlugin.error(t('user.userList.resetPasswordFailed'));
+  } finally {
+    submittingResetPassword.value = false;
+  }
+}
+
+async function toggleUserStatus(user: UserRow) {
+  const nextStatus =
+    normalizeUserStatus(user.status) === USER_STATUS.DISABLED ? USER_STATUS.ENABLED : USER_STATUS.DISABLED;
+  const actionLabel =
+    nextStatus === USER_STATUS.DISABLED
+      ? t('user.userList.moreActions.disable')
+      : t('user.userList.moreActions.enable');
+  const confirmed = window.confirm(
+    t('user.userList.statusConfirmDescription', { user: user.display || user.username, action: actionLabel }),
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const updated = await updateUserStatus(user.id, { status: nextStatus });
+    users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+    MessagePlugin.success(t('user.userList.statusUpdateSuccess'));
+  } catch (error) {
+    logger.error('failed to update status', error);
+    MessagePlugin.error(t('user.userList.statusUpdateFailed'));
+  }
+}
+
+async function confirmDeleteUser(user: UserRow) {
+  const confirmed = window.confirm(
+    t('user.userList.deleteConfirmDescription', { user: user.display || user.username }),
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await deleteUser(user.id);
+    users.value = users.value.filter((item) => item.id !== user.id);
+    selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== user.id);
+    delete roleBindings.value[user.id];
+    MessagePlugin.success(t('user.userList.deleteSuccess'));
+  } catch (error) {
+    logger.error('failed to delete user', error);
+    MessagePlugin.error(t('user.userList.deleteFailed'));
+  }
+}
+
+function handleUserMoreAction(payload: { value?: string | number | Record<string, unknown> }, user: UserRow) {
+  if (payload.value === 'toggle-status') {
+    void toggleUserStatus(user);
+    return;
+  }
+  if (payload.value === 'reset-password') {
+    openResetPasswordDialog(user);
+    return;
+  }
+  if (payload.value === 'delete') {
+    void confirmDeleteUser(user);
+  }
+}
+
+function handleSelectChange(value: Array<string | number>) {
+  selectedRowKeys.value = value;
+}
+
+function closeUserRoleDrawer() {
+  drawerSession.value += 1;
+  userRoleDrawerVisible.value = false;
+  selectedUser.value = null;
   selectedRoleIds.value = [];
   loadingRoleSelection.value = false;
+  roleSelectionReady.value = false;
+  roleLoadWarning.value = '';
+  submittingRoles.value = false;
+}
+
+function isActiveDrawerSession(session: number) {
+  return userRoleDrawerVisible.value && drawerSession.value === session;
+}
+
+async function loadUserRoleSelection(user: UserRow, session: number) {
+  selectedUser.value = user;
+  selectedRoleIds.value = [];
   roleSelectionReady.value = false;
   roleLoadWarning.value = '';
 
   try {
-    const roleOptionsLoaded = await ensureRoleOptionsLoaded(session);
-
-    if (!roleOptionsLoaded || !isActiveUserRoleDialogSession(session)) {
-      return;
-    }
+    await loadRoleCatalog();
   } catch (error) {
-    if (isActiveUserRoleDialogSession(session)) {
-      roleLoadWarning.value = error instanceof Error ? error.message : t('user.userList.roleDialog.roleLoadFailed');
+    if (isActiveDrawerSession(session)) {
+      logger.error('failed to load role catalog', error);
+      roleLoadWarning.value = t('user.userList.roleDialog.roleLoadFailed');
     }
+    return;
   }
 
-  if (!roleOptionsReady.value) {
+  if (!isActiveDrawerSession(session)) {
     return;
   }
 
@@ -391,43 +1050,38 @@ async function loadUserRoleDialog(user: UserListItem, session: number) {
   try {
     const response = await getUserRoleBindings(user.id);
 
-    if (!isActiveUserRoleDialogSession(session)) {
+    if (!isActiveDrawerSession(session)) {
       return;
     }
 
     selectedRoleIds.value = response.role_ids;
     roleSelectionReady.value = true;
   } catch (error) {
-    if (isActiveUserRoleDialogSession(session)) {
-      roleSelectionReady.value = false;
-      roleLoadWarning.value =
-        error instanceof Error ? error.message : t('user.userList.roleDialog.selectionLoadFailed');
+    if (isActiveDrawerSession(session)) {
+      logger.error('failed to load user role selection', error);
+      roleLoadWarning.value = t('user.userList.roleDialog.selectionLoadFailed');
     }
   } finally {
-    if (isActiveUserRoleDialogSession(session)) {
+    if (isActiveDrawerSession(session)) {
       loadingRoleSelection.value = false;
     }
   }
 }
 
-async function handleOpenUserRoleDialog(row: TableRowData) {
-  const user = row as UserListItem;
-  const session = userRoleDialogSession.value + 1;
+async function handleOpenUserRoleDrawer(row: UserRow) {
+  const session = drawerSession.value + 1;
 
-  userRoleDialogSession.value = session;
-  roleOptionsReady.value = false;
-  userRoleDialogVisible.value = true;
-  await loadUserRoleDialog(user, session);
+  drawerSession.value = session;
+  userRoleDrawerVisible.value = true;
+  await loadUserRoleSelection(row, session);
 }
 
-async function retryUserRoleDialogLoad() {
+async function retryUserRoleDrawerLoad() {
   if (!selectedUser.value) {
     return;
   }
 
-  const session = userRoleDialogSession.value;
-
-  await loadUserRoleDialog(selectedUser.value, session);
+  await loadUserRoleSelection(selectedUser.value, drawerSession.value);
 }
 
 async function submitUserRoleAssignment() {
@@ -435,27 +1089,31 @@ async function submitUserRoleAssignment() {
     return;
   }
 
-  const session = userRoleDialogSession.value;
-  const userId = selectedUser.value.id;
-  const roleIds = [...selectedRoleIds.value];
-
+  const session = drawerSession.value;
   submittingRoles.value = true;
+
   try {
-    await assignUserRoles(userId, {
-      role_ids: roleIds,
+    await assignUserRoles(selectedUser.value.id, {
+      role_ids: [...selectedRoleIds.value].sort((left, right) => left - right),
     });
-    if (!isActiveUserRoleDialogSession(session)) {
+
+    if (!isActiveDrawerSession(session)) {
       return;
     }
 
+    roleBindings.value = {
+      ...roleBindings.value,
+      [selectedUser.value.id]: [...selectedRoleIds.value],
+    };
     MessagePlugin.success(t('user.userList.assignSuccess'));
-    closeUserRoleDialog();
+    closeUserRoleDrawer();
   } catch (error) {
-    if (isActiveUserRoleDialogSession(session)) {
-      MessagePlugin.error(error instanceof Error ? error.message : t('user.userList.assignFailed'));
+    if (isActiveDrawerSession(session)) {
+      logger.error('failed to assign user roles', error);
+      MessagePlugin.error(t('user.userList.assignFailed'));
     }
   } finally {
-    if (userRoleDialogSession.value === session) {
+    if (drawerSession.value === session) {
       submittingRoles.value = false;
     }
   }
@@ -464,6 +1122,26 @@ async function submitUserRoleAssignment() {
 onMounted(() => {
   fetchUsers();
 });
+
+watch(
+  () => [filters.value.keyword, filters.value.status, filters.value.roleId] as const,
+  () => {
+    pagination.value.current = 1;
+  },
+);
+
+watch(
+  () => [route.query.action, canCreateUsers.value, userDrawerVisible.value] as const,
+  ([action, allowed, visible]) => {
+    if (action !== 'create' || !allowed || visible) {
+      return;
+    }
+
+    openUserDrawer('create');
+    consumeCreateActionQuery();
+  },
+  { immediate: true },
+);
 </script>
 <style lang="less" scoped>
 @import './index.less';

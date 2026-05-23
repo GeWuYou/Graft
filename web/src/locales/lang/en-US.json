@@ -177,6 +177,21 @@
     }
   },
   "menu": {
+    "access_control": {
+      "title": "Access Control",
+      "overview": {
+        "title": "Overview"
+      },
+      "users": {
+        "title": "User Management"
+      },
+      "roles": {
+        "title": "Role Management"
+      },
+      "permissions": {
+        "title": "Permission Management"
+      }
+    },
     "role_list": {
       "title": "Role Management"
     },

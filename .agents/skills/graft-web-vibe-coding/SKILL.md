@@ -88,3 +88,5 @@ Before handing off:
 - i18n ownership is correct
 - token/theme response is intact
 - no second UI baseline was introduced
+- reusable-lesson evaluation is completed through `graft-task-closeout`, or explicitly delegated to
+  `graft-lessons-learned` when this skill owns a self-contained closeout

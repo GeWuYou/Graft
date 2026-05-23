@@ -120,11 +120,23 @@ func TestServerAirConfigUsesEntrypointForServe(t *testing.T) {
 	if !strings.Contains(config, `entrypoint = ["./tmp/graft", "serve"]`) {
 		t.Fatalf("expected Air config to use entrypoint array for graft serve, got:\n%s", config)
 	}
+	if !strings.Contains(
+		config,
+		`cmd = "sh -c 'go build -o ./tmp/graft ./cmd/graft >./tmp/air.log 2>&1 || { status=$?; cat ./tmp/air.log >&2; exit $status; }'"`,
+	) {
+		t.Fatalf("expected Unix Air config to print build errors to stderr, got:\n%s", config)
+	}
 	if strings.Contains(config, `bin = "./tmp/graft serve"`) {
 		t.Fatalf("legacy build.bin form must not be used because Air treats it as a single binary path:\n%s", config)
 	}
 	if !strings.Contains(config, `entrypoint = ['tmp\graft.exe', "serve"]`) {
 		t.Fatalf("expected Windows Air config to use entrypoint array for graft serve, got:\n%s", config)
+	}
+	if !strings.Contains(
+		config,
+		`cmd = "powershell -NoProfile -Command \"$log = './tmp/air.log'; go build -o ./tmp/graft.exe ./cmd/graft *> $log; if ($LASTEXITCODE -ne 0) { Get-Content $log | Write-Error; exit $LASTEXITCODE }\""`,
+	) {
+		t.Fatalf("expected Windows Air config to print build errors to stderr, got:\n%s", config)
 	}
 	if strings.Contains(config, `bin = 'tmp\graft.exe serve'`) {
 		t.Fatalf("legacy Windows build.bin form must not be used because Air treats it as a single binary path:\n%s", config)
@@ -167,5 +179,18 @@ func TestNewRootCommandRegistersDevAirCommand(t *testing.T) {
 	}
 	if found == nil || found.Name() != "air" {
 		t.Fatalf("expected air command, got %#v", found)
+	}
+}
+
+// TestNewRootCommandRegistersDevStopAirCommand 验证 `graft dev stop-air` 子命令可发现。
+func TestNewRootCommandRegistersDevStopAirCommand(t *testing.T) {
+	command := NewRootCommand()
+
+	found, _, err := command.Find([]string{"dev", "stop-air"})
+	if err != nil {
+		t.Fatalf("find dev stop-air command: %v", err)
+	}
+	if found == nil || found.Name() != "stop-air" {
+		t.Fatalf("expected stop-air command, got %#v", found)
 	}
 }

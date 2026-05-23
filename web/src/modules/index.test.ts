@@ -9,8 +9,10 @@ import type { WebModuleRegistration } from './types';
 
 describe('module registration aggregation', () => {
   it('exposes the actual module bootstrap registration map', () => {
-    expect(getBootstrapRouteRegistration('/users')?.routeName).toBe('UserList');
-    expect(getBootstrapRouteRegistration('/roles')?.routeName).toBe('RoleList');
+    expect(getBootstrapRouteRegistration('/access-control/overview')?.routeName).toBe('AccessControlOverview');
+    expect(getBootstrapRouteRegistration('/access-control/users')?.routeName).toBe('UserList');
+    expect(getBootstrapRouteRegistration('/access-control/roles')?.routeName).toBe('RoleList');
+    expect(getBootstrapRouteRegistration('/access-control/permissions')?.routeName).toBe('PermissionList');
     expect(getBootstrapRouteRegistration('/monitor/server-status/overview')?.routeName).toBe(
       'MonitorServerStatusOverview',
     );

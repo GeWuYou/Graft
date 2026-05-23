@@ -177,6 +177,21 @@
     }
   },
   "menu": {
+    "access_control": {
+      "title": "访问控制",
+      "overview": {
+        "title": "概览"
+      },
+      "users": {
+        "title": "用户管理"
+      },
+      "roles": {
+        "title": "角色管理"
+      },
+      "permissions": {
+        "title": "权限管理"
+      }
+    },
     "role_list": {
       "title": "角色管理"
     },

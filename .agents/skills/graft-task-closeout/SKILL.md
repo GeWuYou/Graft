@@ -16,10 +16,10 @@ does not replace startup, validation, or commit rules.
 
 Typical triggers:
 
-* `close this slice`
-* `wrap up and hand off`
-* `generate the next-step startup prompt`
-* `commit current validated slice if needed and hand off`
+- `close this slice`
+- `wrap up and hand off`
+- `generate the next-step startup prompt`
+- `commit current validated slice if needed and hand off`
 
 Prefer this skill over `graft-commit` when the main question is task closeout rather than commit creation alone.
 
@@ -59,6 +59,8 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
    - whether a commit was created, and if so the scoped title and short SHA
    - whether the output is a handoff prompt only
    - what validation was used or what exact validation gap remains
+   - the `Experience capture` result, following the routing and threshold rules from `graft-lessons-learned` when the
+     task produced a reusable lesson
 8. When the caller asks for machine-readable closeout, end the result with one fenced ` ```json ` block that matches the
    closeout state and the current delegated-round budget.
 
@@ -69,7 +71,8 @@ The closeout result should stay concise and should contain:
 1. `closeout status`: `completed_no_handoff`, `committed_and_handed_off`, `handoff_only`, or `blocked`
 2. `validation`: exact command run or the exact limitation
 3. `next-step startup prompt`: only when a future turn is expected
-4. when machine-readable closeout is requested, one fenced JSON block with:
+4. `experience capture`: `none`, `added`, `updated`, `promoted`, or `deprecated`, with the lesson/doc targets when applicable
+5. when machine-readable closeout is requested, one fenced JSON block with:
    - `closeout_status`
    - `continue`
    - `next_prompt`
@@ -88,15 +91,15 @@ guessing the inherited context.
 
 When a caller such as `graft-multi-agent-loop` requests machine-readable closeout, use these rules:
 
-* keep the human-readable closeout first
-* if a future turn is required, include exactly one line beginning with `Next-session startup prompt:`
-* append exactly one fenced ` ```json ` block as the last structured artifact
-* `continue=true` requires a non-empty `next_prompt`
-* `continue=false` requires `next_prompt=null`
-* `validation.status` should be one of `passed`, `failed`, or `not_run`
-* `risk_level` should be one of `low`, `medium`, or `high`
-* `consumed_budget` must describe only the current slice or delegated round
-* `remaining_budget` must reflect the budget left after the current slice or delegated round
+- keep the human-readable closeout first
+- if a future turn is required, include exactly one line beginning with `Next-session startup prompt:`
+- append exactly one fenced ` ```json ` block as the last structured artifact
+- `continue=true` requires a non-empty `next_prompt`
+- `continue=false` requires `next_prompt=null`
+- `validation.status` should be one of `passed`, `failed`, or `not_run`
+- `risk_level` should be one of `low`, `medium`, or `high`
+- `consumed_budget` must describe only the current slice or delegated round
+- `remaining_budget` must reflect the budget left after the current slice or delegated round
 
 Recommended JSON shape:
 
@@ -135,12 +138,12 @@ Recommended JSON shape:
 
 ## Boundaries
 
-* do not treat this skill as permission to commit unrelated changes
-* do not duplicate `graft-boot`; this skill assumes startup already happened in the current turn
-* do not duplicate `graft-validation-runner`; use it when validation scope is uncertain
-* do not duplicate `graft-commit`; use its rules for every commit-eligibility decision and use it directly when the
+- do not treat this skill as permission to commit unrelated changes
+- do not duplicate `graft-boot`; this skill assumes startup already happened in the current turn
+- do not duplicate `graft-validation-runner`; use it when validation scope is uncertain
+- do not duplicate `graft-commit`; use its rules for every commit-eligibility decision and use it directly when the
   decision is to create a commit
-* do not claim the next turn can skip startup preflight
+- do not claim the next turn can skip startup preflight
 
 ## Example Startup Prompt Template
 

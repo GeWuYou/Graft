@@ -29,9 +29,13 @@ Use this skill when adding a new `server` plugin.
    - optional cron jobs
    - optional public services
 8. Add tests for dependency ordering, duplicate registration, and service resolution whenever those concerns are touched.
+9. At closeout, do not skip reusable-lesson evaluation:
+   - prefer routing the slice through `graft-task-closeout`
+   - if this skill is used as a self-contained implementation and closeout path, delegate the Experience Capture Check
+     to `graft-lessons-learned`
 
 ## Guardrails
 
-* do not push business logic into platform core
-* do not rely on hidden DI magic
-* do not expose plugin internals as cross-plugin APIs
+- do not push business logic into platform core
+- do not rely on hidden DI magic
+- do not expose plugin internals as cross-plugin APIs

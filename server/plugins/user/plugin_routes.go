@@ -34,7 +34,7 @@ func registerUserMenu(registry *menu.Registry, pluginName string) {
 		Code:       "user.list",
 		Title:      "用户管理",
 		TitleKey:   usercontract.UserListMenuTitle.String(),
-		Path:       usercontract.UsersGroup,
+		Path:       "/access-control/users",
 		Icon:       "usergroup",
 		Permission: usercontract.UserReadPermission.String(),
 		Plugin:     pluginName,
@@ -47,6 +47,27 @@ func userPermissionItems(pluginName string) []permission.Item {
 			Code:        usercontract.UserReadPermission.String(),
 			Name:        "Read Users",
 			Description: "Allows reading user management data.",
+			Category:    "api",
+			Plugin:      pluginName,
+		},
+		{
+			Code:        usercontract.UserCreatePermission.String(),
+			Name:        "Create Users",
+			Description: "Allows creating user management data.",
+			Category:    "api",
+			Plugin:      pluginName,
+		},
+		{
+			Code:        usercontract.UserUpdatePermission.String(),
+			Name:        "Update Users",
+			Description: "Allows updating user management data.",
+			Category:    "api",
+			Plugin:      pluginName,
+		},
+		{
+			Code:        usercontract.UserDisablePermission.String(),
+			Name:        "Disable Users",
+			Description: "Allows disabling or deleting managed users.",
 			Category:    "api",
 			Plugin:      pluginName,
 		},
@@ -115,6 +136,9 @@ type routeGuards struct {
 	requiredPasswordChange gin.HandlerFunc
 	restrictedSession      gin.HandlerFunc
 	userRead               gin.HandlerFunc
+	userCreate             gin.HandlerFunc
+	userUpdate             gin.HandlerFunc
+	userDisable            gin.HandlerFunc
 	userSessionRead        gin.HandlerFunc
 	userSessionRevoke      gin.HandlerFunc
 }
@@ -139,6 +163,25 @@ type routeRuntime struct {
 	localizer  *i18n.Service
 	logger     *zap.Logger
 	pluginName string
+}
+
+type createUserRequest struct {
+	Username string `json:"username"`
+	Display  string `json:"display"`
+	Password string `json:"password"`
+}
+
+type updateUserRequest struct {
+	Username string `json:"username"`
+	Display  string `json:"display"`
+}
+
+type updateUserStatusRequest struct {
+	Status string `json:"status"`
+}
+
+type resetUserPasswordRequest struct {
+	NewPassword string `json:"new_password"`
 }
 
 // deferredAuthorizer 让用户路由在 Register 阶段先完成装配，再在 Boot 阶段绑定
@@ -185,6 +228,9 @@ func newRouteGuards(localizer *i18n.Service, authSvc *authService, authorizer pl
 		authenticated:          httpx.RequirePermission(localizer, authSvc, nil, ""),
 		requiredPasswordChange: newRequiredPasswordChangeGuard(localizer, authSvc),
 		userRead:               httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserReadPermission.String()),
+		userCreate:             httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserCreatePermission.String()),
+		userUpdate:             httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserUpdatePermission.String()),
+		userDisable:            httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserDisablePermission.String()),
 		userSessionRead:        httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserSessionReadPermission.String()),
 		userSessionRevoke:      httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserSessionRevokePermission.String()),
 	}
@@ -537,6 +583,7 @@ func registerUserRoutes(
 	group := registrar.ctx.Router.Group(usercontract.UsersGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	registrar.registerUserReadRoutes(group)
+	registrar.registerUserWriteRoutes(group)
 	registrar.registerAdminSessionRoutes(group)
 
 	return nil
@@ -556,13 +603,7 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 
 		items := make([]userListItem, 0, len(users))
 		for _, user := range users {
-			items = append(items, userListItem{
-				ID:        user.ID,
-				Username:  user.Username,
-				Display:   user.Display,
-				CreatedAt: user.CreatedAt.UTC().Format(time.RFC3339),
-				UpdatedAt: user.UpdatedAt.UTC().Format(time.RFC3339),
-			})
+			items = append(items, toUserListItem(user))
 		}
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, userListResponse{Items: items})
@@ -581,6 +622,158 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, summary)
 	})
+}
+
+func (r userRouteRegistrar) registerUserWriteRoutes(group *gin.RouterGroup) {
+	r.registerCreateUserRoute(group)
+	r.registerUpdateUserRoute(group)
+	r.registerSetUserStatusRoute(group)
+	r.registerResetUserPasswordRoute(group)
+	r.registerDeleteUserRoute(group)
+}
+
+func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
+	group.POST(usercontract.UserCollection, r.guards.userCreate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		var request createUserRequest
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
+			return
+		}
+
+		created, err := r.userSvc.CreateUser(ginCtx.Request.Context(), r.authSvc.passwords, r.authSvc.policy, userstore.CreateUserInput{
+			Username:     request.Username,
+			Display:      request.Display,
+			Status:       usercontract.UserStatusEnabled,
+			ActorID:      requestActorID(ginCtx.Request.Context()),
+			PasswordHash: request.Password,
+		})
+		if err != nil {
+			r.runtime().writeUserManagementError(ginCtx, 0, "create user failed", err)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(created))
+	})
+}
+
+func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
+	group.POST(usercontract.UserUpdateRoute, r.guards.userUpdate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+		if !ok {
+			return
+		}
+
+		var request updateUserRequest
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
+			return
+		}
+
+		updated, err := r.userSvc.UpdateUser(ginCtx.Request.Context(), userstore.UpdateUserInput{
+			ID:       userID,
+			Username: request.Username,
+			Display:  request.Display,
+			ActorID:  requestActorID(ginCtx.Request.Context()),
+		})
+		if err != nil {
+			r.runtime().writeUserManagementError(ginCtx, userID, "update user failed", err)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(updated))
+	})
+}
+
+func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
+	group.POST(usercontract.UserStatusRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+		if !ok {
+			return
+		}
+
+		var request updateUserStatusRequest
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
+			return
+		}
+
+		updated, err := r.userSvc.SetUserStatus(ginCtx.Request.Context(), r.authSvc.auth, userstore.SetUserStatusInput{
+			ID:      userID,
+			Status:  request.Status,
+			ActorID: requestActorID(ginCtx.Request.Context()),
+		})
+		if err != nil {
+			r.runtime().writeUserManagementError(ginCtx, userID, "set user status failed", err)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(updated))
+	})
+}
+
+func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGroup) {
+	group.POST(usercontract.UserResetPasswordRoute, r.guards.userUpdate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+		if !ok {
+			return
+		}
+
+		var request resetUserPasswordRequest
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
+			return
+		}
+
+		if err := r.userSvc.ResetUserPassword(
+			ginCtx.Request.Context(),
+			r.authSvc.auth,
+			r.authSvc.passwords,
+			r.authSvc.policy,
+			userID,
+			request.NewPassword,
+		); err != nil {
+			r.runtime().writeUserManagementError(ginCtx, userID, "reset user password failed", err)
+			return
+		}
+
+		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+	})
+}
+
+func (r userRouteRegistrar) registerDeleteUserRoute(group *gin.RouterGroup) {
+	group.POST(usercontract.UserDeleteRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+		if !ok {
+			return
+		}
+
+		if err := r.userSvc.DeleteUser(ginCtx.Request.Context(), r.authSvc.auth, userID); err != nil {
+			r.runtime().writeUserManagementError(ginCtx, userID, "delete user failed", err)
+			return
+		}
+
+		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+	})
+}
+
+func normalizeUserStatus(status string) string {
+	switch strings.TrimSpace(status) {
+	case usercontract.UserStatusDisabled:
+		return usercontract.UserStatusDisabled
+	default:
+		return usercontract.UserStatusEnabled
+	}
+}
+
+func toUserListItem(user userstore.User) userListItem {
+	return userListItem{
+		ID:        user.ID,
+		Username:  user.Username,
+		Display:   user.Display,
+		Status:    normalizeUserStatus(user.Status),
+		CreatedAt: user.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt: user.UpdatedAt.UTC().Format(time.RFC3339),
+	}
 }
 
 func (r userRouteRegistrar) registerAdminSessionRoutes(group *gin.RouterGroup) {
@@ -779,6 +972,39 @@ func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, m
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, nil)
+}
+
+func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint64, message string, err error) {
+	status, messageKey, data := mapUserManagementError(err)
+	if status == http.StatusInternalServerError {
+		r.logger.Error(message,
+			zap.String("plugin", r.pluginName),
+			zap.Uint64("userID", userID),
+			zap.Error(err),
+		)
+	}
+
+	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
+}
+
+func mapUserManagementError(err error) (int, messagecontract.Key, map[string]any) {
+	switch {
+	case errors.Is(err, userstore.ErrUserNotFound), errors.Is(err, pluginapi.ErrUserNotFound):
+		return http.StatusNotFound, messagecontract.UserNotFound, nil
+	case errors.Is(err, userstore.ErrUsernameConflict):
+		return http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "username"}
+	case errors.Is(err, errInvalidUserPayload):
+		return http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "body"}
+	case errors.Is(err, errInvalidUserStatus):
+		return http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "status"}
+	case errors.Is(err, errCannotDisableOwnUser), errors.Is(err, errCannotDeleteOwnUser):
+		return http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "id"}
+	case errors.Is(err, errPasswordPolicyViolation), errors.Is(err, errPasswordReuseForbidden):
+		status, key := mapAuthError(err)
+		return status, key, map[string]any{"field": "new_password"}
+	default:
+		return http.StatusInternalServerError, messagecontract.CommonInternalError, nil
+	}
 }
 
 func writeLocalizedContractError(

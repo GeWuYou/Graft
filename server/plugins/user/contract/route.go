@@ -49,6 +49,18 @@ const (
 	// UserByID identifies the single-user lookup route fragment.
 	UserByID = "/:id"
 
+	// UserUpdateRoute identifies the single-user update route fragment.
+	UserUpdateRoute = "/:id/update"
+
+	// UserStatusRoute identifies the single-user status update route fragment.
+	UserStatusRoute = "/:id/status"
+
+	// UserResetPasswordRoute identifies the single-user password reset route fragment.
+	UserResetPasswordRoute = "/:id/reset-password"
+
+	// UserDeleteRoute identifies the single-user soft-delete route fragment.
+	UserDeleteRoute = "/:id/delete"
+
 	// UserSessions identifies the admin user-session list route fragment.
 	UserSessions = "/:id/sessions"
 

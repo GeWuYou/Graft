@@ -30,7 +30,15 @@ const sideMenu = computed(() => {
   if (layout === 'mix' && splitMenu) {
     newMenuRouters.forEach((menu) => {
       if (route.path.indexOf(menu.path) === 0 && menu.children?.length) {
-        newMenuRouters = menu.children.map((subMenu) => ({ ...subMenu, path: `${menu.path}/${subMenu.path}` }));
+        newMenuRouters = [
+          {
+            ...menu,
+            meta: {
+              ...menu.meta,
+              expanded: true,
+            },
+          },
+        ];
       }
     });
   }

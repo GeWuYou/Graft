@@ -38,7 +38,11 @@ func openTestDB(t *testing.T) *sql.DB {
 			description TEXT NULL,
 			builtin BOOLEAN NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
-			updated_at DATETIME NOT NULL
+			updated_at DATETIME NOT NULL,
+			created_by INTEGER NOT NULL DEFAULT 0,
+			updated_by INTEGER NOT NULL DEFAULT 0,
+			deleted_at INTEGER NOT NULL DEFAULT 0,
+			deleted_by INTEGER NOT NULL DEFAULT 0
 		);`,
 		`CREATE TABLE permissions (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,7 +51,11 @@ func openTestDB(t *testing.T) *sql.DB {
 			description TEXT NULL,
 			category TEXT NOT NULL DEFAULT 'api',
 			created_at DATETIME NOT NULL,
-			updated_at DATETIME NOT NULL
+			updated_at DATETIME NOT NULL,
+			created_by INTEGER NOT NULL DEFAULT 0,
+			updated_by INTEGER NOT NULL DEFAULT 0,
+			deleted_at INTEGER NOT NULL DEFAULT 0,
+			deleted_by INTEGER NOT NULL DEFAULT 0
 		);`,
 		`CREATE TABLE user_roles (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -154,4 +162,40 @@ func TestRepositoryUserRoleWriteOperations(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("expected one user-role binding, got %d", count)
 	}
+}
+
+func TestRepositoryEnsurePermissionAndListPermissionsIncludeTimestamps(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+
+	record, err := repo.EnsurePermission(context.Background(), rbacstore.EnsurePermissionInput{
+		Code:        "user.create",
+		Display:     "Create Users",
+		Description: stringPtr("Allows creating user management data."),
+		Category:    "api",
+	})
+	if err != nil {
+		t.Fatalf("ensure permission: %v", err)
+	}
+	if record.Code != "user.create" {
+		t.Fatalf("expected ensured permission code user.create, got %#v", record)
+	}
+	if record.CreatedAt.IsZero() || record.UpdatedAt.IsZero() {
+		t.Fatalf("expected ensured permission timestamps, got %#v", record)
+	}
+
+	permissions, err := repo.ListPermissions(context.Background())
+	if err != nil {
+		t.Fatalf("list permissions: %v", err)
+	}
+	if len(permissions) != 1 {
+		t.Fatalf("expected one permission, got %d", len(permissions))
+	}
+	if permissions[0].CreatedAt.IsZero() || permissions[0].UpdatedAt.IsZero() {
+		t.Fatalf("expected listed permission timestamps, got %#v", permissions[0])
+	}
+}
+
+func stringPtr(value string) *string {
+	return &value
 }

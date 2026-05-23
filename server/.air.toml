@@ -4,7 +4,7 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/graft ./cmd/graft"
+cmd = "sh -c 'go build -o ./tmp/graft ./cmd/graft >./tmp/air.log 2>&1 || { status=$?; cat ./tmp/air.log >&2; exit $status; }'"
 entrypoint = ["./tmp/graft", "serve"]
 include_ext = ["go"]
 include_file = [".env"]
@@ -17,7 +17,7 @@ send_interrupt = true
 kill_delay = 500 # ms
 
 [build.windows]
-cmd = "go build -o ./tmp/graft.exe ./cmd/graft"
+cmd = "powershell -NoProfile -Command \"$log = './tmp/air.log'; go build -o ./tmp/graft.exe ./cmd/graft *> $log; if ($LASTEXITCODE -ne 0) { Get-Content $log | Write-Error; exit $LASTEXITCODE }\""
 entrypoint = ['tmp\graft.exe', "serve"]
 
 [log]

@@ -121,9 +121,11 @@ func (r *repository) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleI
 	row := r.db.QueryRowContext(
 		ctx,
 		`UPDATE roles
-		SET name = $2, display = $3, description = $4, updated_at = $5
+		SET name = $2, display = $3, description = $4, updated_at = $5, updated_by = 0
 		WHERE id = $1
-		RETURNING id, name, display, description, builtin, created_at, updated_at`,
+		RETURNING id, name, display, description, builtin, created_at, updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
+			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		roleID,
 		record.Name,
 		record.Display,
@@ -192,10 +194,10 @@ func (r *repository) ReplacePermissionsForRole(ctx context.Context, input rbacst
 			targetMissing:        rbacstore.ErrRoleNotFound,
 			relationMissing:      rbacstore.ErrPermissionNotFound,
 			checkTargetExists: func(ctx context.Context, tx *sql.Tx, targetID int64) (bool, error) {
-				return recordExists(ctx, tx, "SELECT 1 FROM roles WHERE id = $1", targetID)
+				return recordExists(ctx, tx, "SELECT 1 FROM roles WHERE id = $1 AND deleted_at = 0", targetID)
 			},
 			countRelationRecords: func(ctx context.Context, tx *sql.Tx, ids []int64) (int, error) {
-				return countRecordsByIDs(ctx, tx, "permissions", ids)
+				return countRecordsByIDsWhere(ctx, tx, "permissions", "deleted_at = 0", ids)
 			},
 			deleteStale: func(ctx context.Context, tx *sql.Tx, targetID int64, ids []int64) error {
 				return deleteStableRolePermissions(ctx, tx, targetID, ids)
@@ -268,7 +270,7 @@ func (r *repository) ReplaceRolesForUser(ctx context.Context, input rbacstore.Re
 				return true, nil
 			},
 			countRelationRecords: func(ctx context.Context, tx *sql.Tx, ids []int64) (int, error) {
-				return countRecordsByIDs(ctx, tx, "roles", ids)
+				return countRecordsByIDsWhere(ctx, tx, "roles", "deleted_at = 0", ids)
 			},
 			deleteStale: func(ctx context.Context, tx *sql.Tx, targetID int64, ids []int64) error {
 				return deleteStableUserRoles(ctx, tx, targetID, ids)
@@ -324,10 +326,12 @@ func (r *repository) ListRolesByUserID(ctx context.Context, userID uint64) ([]rb
 		ctx,
 		r.db,
 		"list roles by user id",
-		`SELECT r.id, r.name, r.display, r.description, r.builtin, r.created_at, r.updated_at
+		`SELECT r.id, r.name, r.display, r.description, r.builtin, r.created_at, r.updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
+			(SELECT COUNT(*) FROM user_roles ur2 WHERE ur2.role_id = r.id) AS user_count
 		FROM user_roles ur
 		INNER JOIN roles r ON r.id = ur.role_id
-		WHERE ur.user_id = $1
+		WHERE ur.user_id = $1 AND r.deleted_at = 0
 		ORDER BY r.id ASC`,
 		scanRoleRows,
 		id,
@@ -339,8 +343,11 @@ func (r *repository) ListRoles(ctx context.Context) ([]rbacstore.Role, error) {
 		ctx,
 		r.db,
 		"list roles",
-		`SELECT id, name, display, description, builtin, created_at, updated_at
+		`SELECT id, name, display, description, builtin, created_at, updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
+			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
+		WHERE deleted_at = 0
 		ORDER BY id ASC`,
 		scanRoleRows,
 	)
@@ -356,11 +363,12 @@ func (r *repository) ListPermissionsByUserID(ctx context.Context, userID uint64)
 		ctx,
 		r.db,
 		"list permissions by user id",
-		`SELECT DISTINCT p.id, p.code, p.display, p.description, p.category, p.created_at, p.updated_at
+		`SELECT DISTINCT p.id, p.code, p.display, p.description, p.category, p.created_at, p.updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = p.id) AS role_binding_count
 		FROM user_roles ur
 		INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
 		INNER JOIN permissions p ON p.id = rp.permission_id
-		WHERE ur.user_id = $1
+		WHERE ur.user_id = $1 AND p.deleted_at = 0
 		ORDER BY p.id ASC`,
 		scanPermissionRows,
 		id,
@@ -372,8 +380,10 @@ func (r *repository) ListPermissions(ctx context.Context) ([]rbacstore.Permissio
 		ctx,
 		r.db,
 		"list permissions",
-		`SELECT id, code, display, description, category, created_at, updated_at
+		`SELECT id, code, display, description, category, created_at, updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = permissions.id) AS role_binding_count
 		FROM permissions
+		WHERE deleted_at = 0
 		ORDER BY id ASC`,
 		scanPermissionRows,
 	)
@@ -427,9 +437,11 @@ func (r *repository) ListRolePermissionBindings(ctx context.Context, roleID uint
 func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Role, error) {
 	return scanRole(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, name, display, description, builtin, created_at, updated_at
+		`SELECT id, name, display, description, builtin, created_at, updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
+			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
-		WHERE id = $1`,
+		WHERE id = $1 AND deleted_at = 0`,
 		id,
 	))
 }
@@ -437,9 +449,11 @@ func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Rol
 func (r *repository) findRoleByName(ctx context.Context, name string) (rbacstore.Role, error) {
 	return scanRole(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, name, display, description, builtin, created_at, updated_at
+		`SELECT id, name, display, description, builtin, created_at, updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
+			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
-		WHERE name = $1`,
+		WHERE name = $1 AND deleted_at = 0`,
 		strings.TrimSpace(name),
 	))
 }
@@ -448,9 +462,11 @@ func (r *repository) createRoleRecord(ctx context.Context, input rbacstore.Ensur
 	now := time.Now().UTC()
 	return scanRole(r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO roles (name, display, description, builtin, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, name, display, description, builtin, created_at, updated_at`,
+		`INSERT INTO roles (name, display, description, builtin, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
+		VALUES ($1, $2, $3, $4, $5, 0, $6, 0, 0, 0)
+		RETURNING id, name, display, description, builtin, created_at, updated_at,
+			0 AS permission_count,
+			0 AS user_count`,
 		strings.TrimSpace(input.Name),
 		input.Display,
 		nullableString(input.Description),
@@ -469,9 +485,11 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 	record, err := scanRole(r.db.QueryRowContext(
 		ctx,
 		`UPDATE roles
-		SET builtin = $2, updated_at = $3
+		SET builtin = $2, updated_at = $3, updated_by = 0
 		WHERE id = $1
-		RETURNING id, name, display, description, builtin, created_at, updated_at`,
+		RETURNING id, name, display, description, builtin, created_at, updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
+			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		dbID,
 		builtin,
 		time.Now().UTC(),
@@ -485,9 +503,9 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 func (r *repository) findPermissionByCode(ctx context.Context, code string) (rbacstore.Permission, error) {
 	return scanPermission(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, code, display, description, category, created_at, updated_at
+		`SELECT id, code, display, description, category, created_at, updated_at, 0 AS role_binding_count
 		FROM permissions
-		WHERE code = $1`,
+		WHERE code = $1 AND deleted_at = 0`,
 		strings.TrimSpace(code),
 	))
 }
@@ -496,9 +514,9 @@ func (r *repository) createPermissionRecord(ctx context.Context, input rbacstore
 	now := time.Now().UTC()
 	return scanPermission(r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO permissions (code, display, description, category, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, code, display, description, category, created_at, updated_at`,
+		`INSERT INTO permissions (code, display, description, category, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
+		VALUES ($1, $2, $3, $4, $5, 0, $6, 0, 0, 0)
+		RETURNING id, code, display, description, category, created_at, updated_at, 0 AS role_binding_count`,
 		strings.TrimSpace(input.Code),
 		input.Display,
 		nullableString(input.Description),
@@ -683,12 +701,15 @@ func deleteStableUserRoles(ctx context.Context, tx *sql.Tx, userID int64, roleID
 	return err
 }
 
-//nolint:gosec // 调用方只会传入本包拥有的固定表名。
-func countRecordsByIDs(ctx context.Context, tx *sql.Tx, table string, ids []int64) (int, error) {
+//nolint:gosec // 调用方只会传入本包拥有的固定表名和固定 where 片段。
+func countRecordsByIDsWhere(ctx context.Context, tx *sql.Tx, table string, extraWhere string, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE id IN (%s)", table, placeholders(len(ids)))
+	if strings.TrimSpace(extraWhere) != "" {
+		query = fmt.Sprintf("%s AND %s", query, extraWhere)
+	}
 	args := make([]any, 0, len(ids))
 	for _, id := range ids {
 		args = append(args, id)
@@ -722,26 +743,40 @@ type roleScanner interface {
 //nolint:dupl // role 与 permission 的行映射器需要有意保持镜像结构。
 func scanRole(scanner roleScanner) (rbacstore.Role, error) {
 	var (
-		id          int64
-		name        string
-		display     string
-		description sql.NullString
-		builtin     bool
-		createdAt   time.Time
-		updatedAt   time.Time
+		id              int64
+		name            string
+		display         string
+		description     sql.NullString
+		builtin         bool
+		createdAt       time.Time
+		updatedAt       time.Time
+		permissionCount int
+		userCount       int
 	)
-	if err := scanner.Scan(&id, &name, &display, &description, &builtin, &createdAt, &updatedAt); err != nil {
+	if err := scanner.Scan(
+		&id,
+		&name,
+		&display,
+		&description,
+		&builtin,
+		&createdAt,
+		&updatedAt,
+		&permissionCount,
+		&userCount,
+	); err != nil {
 		return rbacstore.Role{}, err
 	}
 
 	return rbacstore.Role{
-		ID:          toStoreID(id),
-		Name:        name,
-		Display:     display,
-		Description: nullStringPtr(description),
-		Builtin:     builtin,
-		CreatedAt:   createdAt,
-		UpdatedAt:   updatedAt,
+		ID:              toStoreID(id),
+		Name:            name,
+		Display:         display,
+		Description:     nullStringPtr(description),
+		Builtin:         builtin,
+		CreatedAt:       createdAt,
+		UpdatedAt:       updatedAt,
+		PermissionCount: permissionCount,
+		UserCount:       userCount,
 	}, nil
 }
 
@@ -767,26 +802,28 @@ type permissionScanner interface {
 //nolint:dupl // role 与 permission 的行映射器需要有意保持镜像结构。
 func scanPermission(scanner permissionScanner) (rbacstore.Permission, error) {
 	var (
-		id          int64
-		code        string
-		display     string
-		description sql.NullString
-		category    string
-		createdAt   time.Time
-		updatedAt   time.Time
+		id               int64
+		code             string
+		display          string
+		description      sql.NullString
+		category         string
+		createdAt        time.Time
+		updatedAt        time.Time
+		roleBindingCount int
 	)
-	if err := scanner.Scan(&id, &code, &display, &description, &category, &createdAt, &updatedAt); err != nil {
+	if err := scanner.Scan(&id, &code, &display, &description, &category, &createdAt, &updatedAt, &roleBindingCount); err != nil {
 		return rbacstore.Permission{}, err
 	}
 
 	return rbacstore.Permission{
-		ID:          toStoreID(id),
-		Code:        code,
-		Display:     display,
-		Description: nullStringPtr(description),
-		Category:    category,
-		CreatedAt:   createdAt,
-		UpdatedAt:   updatedAt,
+		ID:               toStoreID(id),
+		Code:             code,
+		Display:          display,
+		Description:      nullStringPtr(description),
+		Category:         category,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
+		RoleBindingCount: roleBindingCount,
 	}, nil
 }
 

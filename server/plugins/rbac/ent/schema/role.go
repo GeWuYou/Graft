@@ -38,9 +38,18 @@ func (Role) Fields() []ent.Field {
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now),
+		field.Uint64("created_by").
+			Immutable().
+			Default(0),
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now),
+		field.Uint64("updated_by").
+			Default(0),
+		field.Int64("deleted_at").
+			Default(0),
+		field.Uint64("deleted_by").
+			Default(0),
 	}
 }
 

@@ -90,7 +90,7 @@ const dynamicComponent = computed(() => {
     flex-direction: column;
     justify-content: center;
     min-height: min(720px, 76vh);
-    padding: var(--td-comp-paddingTB-xxxl) var(--td-comp-paddingLR-xl) var(--graft-page-bottom-safe-space);
+    padding: var(--td-comp-paddingTB-xxxl) var(--td-comp-paddingLR-xl) var(--graft-page-bottom-safe-area);
   }
 
   &-page {

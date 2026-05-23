@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	usercontract "graft/server/plugins/user/contract"
 	ent "graft/server/plugins/user/ent"
 	refreshsessionent "graft/server/plugins/user/ent/refreshsession"
 	userent "graft/server/plugins/user/ent/user"
@@ -31,7 +32,10 @@ func newAuthRepository(client *ent.Client) (*authRepository, error) {
 
 func (r *authRepository) GetUserCredentialByUsername(ctx context.Context, username string) (userstore.UserCredential, error) {
 	record, err := r.client.User.Query().
-		Where(userent.UsernameEQ(username)).
+		Where(
+			userent.UsernameEQ(username),
+			userent.DeletedAtEQ(0),
+		).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -124,7 +128,10 @@ func (r *authRepository) ChangePasswordAndRevokeOtherRefreshSessions(
 
 func (r *authRepository) EnsureUserCredential(ctx context.Context, input userstore.EnsureUserCredentialInput) (userstore.UserCredential, error) {
 	record, err := r.client.User.Query().
-		Where(userent.UsernameEQ(input.Username)).
+		Where(
+			userent.UsernameEQ(input.Username),
+			userent.DeletedAtEQ(0),
+		).
 		Only(ctx)
 	if err == nil {
 		return toStoreUserCredential(record), nil
@@ -136,6 +143,7 @@ func (r *authRepository) EnsureUserCredential(ctx context.Context, input usersto
 	record, err = r.client.User.Create().
 		SetUsername(input.Username).
 		SetDisplay(input.Display).
+		SetStatus(usercontract.UserStatusEnabled).
 		SetPasswordHash(input.PasswordHash).
 		SetMustChangePassword(input.MustChangePassword).
 		Save(ctx)
@@ -398,6 +406,59 @@ func commitRefreshRotation(tx *ent.Tx) error {
 		}
 		return fmt.Errorf("commit refresh session rotation transaction: %w", commitErr)
 	}
+
+	return nil
+}
+
+func (r *authRepository) ResetPasswordAndRevokeRefreshSessions(
+	ctx context.Context,
+	input userstore.ResetPasswordAndRevokeSessionsInput,
+) error {
+	userID, err := toEntID(input.UserID)
+	if err != nil {
+		if err == userstore.ErrInvalidID {
+			return userstore.ErrUserNotFound
+		}
+		return err
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin reset password transaction: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err := tx.User.UpdateOneID(userID).
+		Where(userent.DeletedAtEQ(0)).
+		SetPasswordHash(input.PasswordHash).
+		SetMustChangePassword(input.MustChangePassword).
+		SetPasswordChangedAt(input.ChangedAt).
+		Exec(ctx); err != nil {
+		if ent.IsNotFound(err) {
+			return userstore.ErrUserNotFound
+		}
+		return fmt.Errorf("reset user password: %w", err)
+	}
+
+	if _, err := tx.RefreshSession.Update().
+		Where(
+			refreshsessionent.UserIDEQ(userID),
+			refreshsessionent.RevokedAtIsNil(),
+		).
+		SetRevokedAt(input.ChangedAt).
+		Save(ctx); err != nil {
+		return fmt.Errorf("revoke refresh sessions during password reset: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit reset password transaction: %w", err)
+	}
+	committed = true
 
 	return nil
 }

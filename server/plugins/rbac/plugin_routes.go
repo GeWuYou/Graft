@@ -3,6 +3,7 @@ package rbac
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -21,11 +22,14 @@ type roleListResponse struct {
 }
 
 type roleListItem struct {
-	ID          uint64  `json:"id"`
-	Name        string  `json:"name"`
-	Display     string  `json:"display"`
-	Description *string `json:"description,omitempty"`
-	Builtin     bool    `json:"builtin"`
+	ID              uint64  `json:"id"`
+	Name            string  `json:"name"`
+	Display         string  `json:"display"`
+	Description     *string `json:"description,omitempty"`
+	Builtin         bool    `json:"builtin"`
+	UpdatedAt       string  `json:"updated_at"`
+	PermissionCount int     `json:"permission_count"`
+	UserCount       int     `json:"user_count"`
 }
 
 type rolePermissionBindingResponse struct {
@@ -41,11 +45,14 @@ type permissionListResponse struct {
 }
 
 type permissionListItem struct {
-	ID          uint64  `json:"id"`
-	Code        string  `json:"code"`
-	Display     string  `json:"display"`
-	Description *string `json:"description,omitempty"`
-	Category    string  `json:"category"`
+	ID               uint64  `json:"id"`
+	Code             string  `json:"code"`
+	Display          string  `json:"display"`
+	Description      *string `json:"description,omitempty"`
+	Category         string  `json:"category"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
+	RoleBindingCount int     `json:"role_binding_count"`
 }
 
 type managementGuards struct {
@@ -66,12 +73,30 @@ func registerRBACPermissions(registry *permission.Registry, pluginName string) {
 
 func registerRBACMenu(registry *menu.Registry, pluginName string) {
 	registry.Register(menu.Item{
+		Code:       "access-control.overview",
+		Title:      "概览",
+		TitleKey:   rbaccontract.AccessControlOverviewMenuTitle.String(),
+		Path:       "/access-control/overview",
+		Icon:       "secured",
+		Permission: "",
+		Plugin:     pluginName,
+	})
+	registry.Register(menu.Item{
 		Code:       "role.list",
 		Title:      "角色管理",
 		TitleKey:   rbaccontract.RoleListMenuTitle.String(),
-		Path:       rbaccontract.RolesGroup,
+		Path:       "/access-control/roles",
 		Icon:       "secured",
 		Permission: rbaccontract.RoleReadPermission.String(),
+		Plugin:     pluginName,
+	})
+	registry.Register(menu.Item{
+		Code:       "permission.list",
+		Title:      "权限管理",
+		TitleKey:   rbaccontract.PermissionListMenuTitle.String(),
+		Path:       "/access-control/permissions",
+		Icon:       "secured",
+		Permission: rbaccontract.PermissionReadPermission.String(),
 		Plugin:     pluginName,
 	})
 }
@@ -164,18 +189,21 @@ func registerRoleRoutes(
 			items := make([]roleListItem, 0, len(roles))
 			for _, role := range roles {
 				items = append(items, roleListItem{
-					ID:          role.ID,
-					Name:        role.Name,
-					Display:     role.Display,
-					Description: role.Description,
-					Builtin:     role.Builtin,
+					ID:              role.ID,
+					Name:            role.Name,
+					Display:         role.Display,
+					Description:     role.Description,
+					Builtin:         role.Builtin,
+					UpdatedAt:       role.UpdatedAt.UTC().Format(time.RFC3339),
+					PermissionCount: role.PermissionCount,
+					UserCount:       role.UserCount,
 				})
 			}
 
 			return roleListResponse{Items: items}, nil
 		},
 	))
-	group.GET(rbaccontract.RolePermissionBindingRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) {
+	group.GET(rbaccontract.RolePermissionBindingRoute, guards.permissionRead, func(ginCtx *gin.Context) {
 		roleID, err := parseManagementID(ginCtx.Param("id"))
 		if err != nil {
 			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
@@ -231,11 +259,14 @@ func registerPermissionRoutes(
 			items := make([]permissionListItem, 0, len(permissions))
 			for _, item := range permissions {
 				items = append(items, permissionListItem{
-					ID:          item.ID,
-					Code:        item.Code,
-					Display:     item.Display,
-					Description: item.Description,
-					Category:    item.Category,
+					ID:               item.ID,
+					Code:             item.Code,
+					Display:          item.Display,
+					Description:      item.Description,
+					Category:         item.Category,
+					CreatedAt:        item.CreatedAt.UTC().Format(time.RFC3339),
+					UpdatedAt:        item.UpdatedAt.UTC().Format(time.RFC3339),
+					RoleBindingCount: item.RoleBindingCount,
 				})
 			}
 

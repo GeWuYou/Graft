@@ -18,6 +18,8 @@ const (
 	FieldUsername = "username"
 	// FieldDisplay holds the string denoting the display field in the database.
 	FieldDisplay = "display"
+	// FieldStatus holds the string denoting the status field in the database.
+	FieldStatus = "status"
 	// FieldPasswordHash holds the string denoting the password_hash field in the database.
 	FieldPasswordHash = "password_hash"
 	// FieldMustChangePassword holds the string denoting the must_change_password field in the database.
@@ -26,8 +28,16 @@ const (
 	FieldPasswordChangedAt = "password_changed_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldCreatedBy holds the string denoting the created_by field in the database.
+	FieldCreatedBy = "created_by"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
+	FieldUpdatedBy = "updated_by"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
+	// FieldDeletedBy holds the string denoting the deleted_by field in the database.
+	FieldDeletedBy = "deleted_by"
 	// EdgeRefreshSessions holds the string denoting the refresh_sessions edge name in mutations.
 	EdgeRefreshSessions = "refresh_sessions"
 	// Table holds the table name of the user in the database.
@@ -46,11 +56,16 @@ var Columns = []string{
 	FieldID,
 	FieldUsername,
 	FieldDisplay,
+	FieldStatus,
 	FieldPasswordHash,
 	FieldMustChangePassword,
 	FieldPasswordChangedAt,
 	FieldCreatedAt,
+	FieldCreatedBy,
 	FieldUpdatedAt,
+	FieldUpdatedBy,
+	FieldDeletedAt,
+	FieldDeletedBy,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -68,14 +83,26 @@ var (
 	UsernameValidator func(string) error
 	// DisplayValidator is a validator for the "display" field. It is called by the builders before save.
 	DisplayValidator func(string) error
+	// DefaultStatus holds the default value on creation for the "status" field.
+	DefaultStatus string
+	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	StatusValidator func(string) error
 	// DefaultMustChangePassword holds the default value on creation for the "must_change_password" field.
 	DefaultMustChangePassword bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
+	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
+	DefaultCreatedBy uint64
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultUpdatedBy holds the default value on creation for the "updated_by" field.
+	DefaultUpdatedBy uint64
+	// DefaultDeletedAt holds the default value on creation for the "deleted_at" field.
+	DefaultDeletedAt int64
+	// DefaultDeletedBy holds the default value on creation for the "deleted_by" field.
+	DefaultDeletedBy uint64
 )
 
 // OrderOption defines the ordering options for the User queries.
@@ -94,6 +121,11 @@ func ByUsername(opts ...sql.OrderTermOption) OrderOption {
 // ByDisplay orders the results by the display field.
 func ByDisplay(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDisplay, opts...).ToFunc()
+}
+
+// ByStatus orders the results by the status field.
+func ByStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
 // ByPasswordHash orders the results by the password_hash field.
@@ -116,9 +148,29 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
 }
 
+// ByCreatedBy orders the results by the created_by field.
+func ByCreatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedBy, opts...).ToFunc()
+}
+
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByUpdatedBy orders the results by the updated_by field.
+func ByUpdatedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedBy, opts...).ToFunc()
+}
+
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByDeletedBy orders the results by the deleted_by field.
+func ByDeletedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedBy, opts...).ToFunc()
 }
 
 // ByRefreshSessionsCount orders the results by refresh_sessions count.

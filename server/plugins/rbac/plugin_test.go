@@ -325,11 +325,17 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	}
 
 	menus := ctx.MenuRegistry.Items()
-	if len(menus) != 1 {
-		t.Fatalf("expected 1 registered menu, got %d", len(menus))
+	if len(menus) != 3 {
+		t.Fatalf("expected 3 registered menus, got %d", len(menus))
 	}
-	if menus[0].Path != rbaccontract.RolesGroup || menus[0].Permission != rbaccontract.RoleReadPermission.String() {
-		t.Fatalf("unexpected registered menu: %#v", menus[0])
+	if menus[0].Path != "/access-control/overview" || menus[0].TitleKey != rbaccontract.AccessControlOverviewMenuTitle.String() {
+		t.Fatalf("unexpected overview menu: %#v", menus[0])
+	}
+	if menus[1].Path != "/access-control/roles" || menus[1].Permission != rbaccontract.RoleReadPermission.String() {
+		t.Fatalf("unexpected role menu: %#v", menus[1])
+	}
+	if menus[2].Path != "/access-control/permissions" || menus[2].Permission != rbaccontract.PermissionReadPermission.String() {
+		t.Fatalf("unexpected permission menu: %#v", menus[2])
 	}
 
 	resolved, err := ctx.Services.Resolve((*pluginapi.Authorizer)(nil))
@@ -411,7 +417,7 @@ func TestRoleRoutesListRolePermissionBindings(t *testing.T) {
 		rolePermissionIDs: map[uint64][]uint64{
 			1: {2, 5},
 		},
-		permissionsByUser: []store.Permission{{Code: rbaccontract.RolePermissionAssignPermission.String()}},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.PermissionReadPermission.String()}},
 	}
 	_, engine := newPluginTestContext(t, repo)
 
@@ -428,6 +434,34 @@ func TestRoleRoutesListRolePermissionBindings(t *testing.T) {
 	}
 	if len(payload.Data.PermissionIDs) != 2 || payload.Data.PermissionIDs[0] != 2 || payload.Data.PermissionIDs[1] != 5 {
 		t.Fatalf("unexpected role permission bindings payload: %#v", payload)
+	}
+}
+
+// TestRoleRoutesListRolePermissionBindingsRejectMissingReadPermission 验证读取角色权限绑定快照必须具备 permission.read。
+func TestRoleRoutesListRolePermissionBindingsRejectMissingReadPermission(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.RolePermissionAssignPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequest("/api/roles/1/permissions")
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d", recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != messagecontract.AuthForbidden.String() || payload.Code != "AUTH_FORBIDDEN" || payload.Locale != "en-US" {
+		t.Fatalf("unexpected forbidden payload: %#v", payload)
+	}
+	if payload.Details["permission"] != rbaccontract.PermissionReadPermission.String() {
+		t.Fatalf("expected denied permission detail, got %#v", payload)
 	}
 }
 
@@ -459,6 +493,48 @@ func TestPermissionRoutesRejectMissingPermission(t *testing.T) {
 	}
 	if payload.Details["permission"] != rbaccontract.PermissionReadPermission.String() {
 		t.Fatalf("expected denied permission detail, got %#v", payload)
+	}
+}
+
+// TestPermissionRoutesListPermissions 验证只读权限目录会返回时间字段与角色绑定计数。
+func TestPermissionRoutesListPermissions(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.PermissionReadPermission.String()}},
+		permissions: []store.Permission{
+			{
+				ID:               1,
+				Code:             rbaccontract.PermissionReadPermission.String(),
+				Display:          "Read Permissions",
+				Category:         "api",
+				CreatedAt:        time.Date(2026, time.May, 22, 9, 0, 0, 0, time.UTC),
+				UpdatedAt:        time.Date(2026, time.May, 23, 10, 30, 0, 0, time.UTC),
+				RoleBindingCount: 2,
+			},
+		},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequest("/api/permissions")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	var payload httpx.SuccessResponse[permissionListResponse]
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(payload.Data.Items) != 1 {
+		t.Fatalf("expected one permission item, got %#v", payload.Data.Items)
+	}
+	item := payload.Data.Items[0]
+	if item.Code != rbaccontract.PermissionReadPermission.String() ||
+		item.CreatedAt != "2026-05-22T09:00:00Z" ||
+		item.UpdatedAt != "2026-05-23T10:30:00Z" ||
+		item.RoleBindingCount != 2 {
+		t.Fatalf("unexpected permission payload: %#v", item)
 	}
 }
 

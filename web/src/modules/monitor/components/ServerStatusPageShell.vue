@@ -50,11 +50,12 @@ defineProps<{
   --server-status-card-border: var(--td-component-stroke);
   --server-status-card-border-strong: var(--td-component-border);
 
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--server-status-page-shell-gap);
   min-width: 0;
-  padding-bottom: var(--graft-floating-toolbar-safe-space);
+  padding-bottom: var(--graft-page-bottom-safe-area);
 }
 
 .server-status-page-shell__header {

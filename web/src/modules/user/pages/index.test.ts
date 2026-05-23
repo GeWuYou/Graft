@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
+import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 
 import UserPage from './index.vue';
 
@@ -10,7 +11,7 @@ const userApiMocks = vi.hoisted(() => ({
   getUsers: vi.fn(),
 }));
 
-const rbacApiMocks = vi.hoisted(() => ({
+const roleApiMocks = vi.hoisted(() => ({
   assignUserRoles: vi.fn(),
   getRoles: vi.fn(),
   getUserRoleBindings: vi.fn(),
@@ -19,6 +20,7 @@ const rbacApiMocks = vi.hoisted(() => ({
 const messageMocks = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
+  warning: vi.fn(),
 }));
 
 const permissionState = vi.hoisted(() => ({
@@ -30,9 +32,9 @@ vi.mock('@/modules/user/api/users', () => ({
 }));
 
 vi.mock('@/modules/user/api/user-roles', () => ({
-  assignUserRoles: rbacApiMocks.assignUserRoles,
-  getRoles: rbacApiMocks.getRoles,
-  getUserRoleBindings: rbacApiMocks.getUserRoleBindings,
+  assignUserRoles: roleApiMocks.assignUserRoles,
+  getRoles: roleApiMocks.getRoles,
+  getUserRoleBindings: roleApiMocks.getUserRoleBindings,
 }));
 
 vi.mock('@/store', () => ({
@@ -51,27 +53,117 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
+vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    query: {},
+  }),
+  useRouter: () => ({
+    replace: vi.fn(),
+  }),
+}));
+
 vi.mock('tdesign-vue-next', () => ({
   MessagePlugin: {
     error: messageMocks.error,
     success: messageMocks.success,
+    warning: messageMocks.warning,
   },
 }));
 
 const passthroughStub = defineComponent({
   name: 'PassthroughStub',
   props: {
-    title: {
+    description: {
       type: String,
       default: '',
     },
-    description: {
+    title: {
       type: String,
       default: '',
     },
   },
   setup(props, { slots }) {
-    return () => h('div', [props.title, props.description, slots.default?.()]);
+    return () => h('div', [props.title, props.description, slots.default?.(), slots.action?.()]);
+  },
+});
+
+const buttonStub = defineComponent({
+  name: 'TButtonStub',
+  props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['click'],
+  setup(props, { emit, slots, attrs }) {
+    return () =>
+      h(
+        'button',
+        {
+          ...attrs,
+          disabled: props.disabled,
+          'data-loading': String(props.loading),
+          onClick: (event: MouseEvent) => {
+            if (!props.disabled) {
+              emit('click', event);
+            }
+          },
+        },
+        slots.default?.(),
+      );
+  },
+});
+
+const inputStub = defineComponent({
+  name: 'TInputStub',
+  props: {
+    modelValue: {
+      type: String,
+      default: '',
+    },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit, attrs }) {
+    return () =>
+      h('input', {
+        ...attrs,
+        value: props.modelValue,
+        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+      });
+  },
+});
+
+const selectStub = defineComponent({
+  name: 'TSelectStub',
+  props: {
+    modelValue: {
+      type: [String, Number, null],
+      default: null,
+    },
+    options: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit, attrs }) {
+    return () =>
+      h(
+        'select',
+        {
+          ...attrs,
+          value: props.modelValue ?? '',
+          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value || null),
+        },
+        (props.options as Array<{ label: string; value: string | number | null }>).map((option) =>
+          h('option', { value: option.value ?? '' }, option.label),
+        ),
+      );
   },
 });
 
@@ -93,17 +185,14 @@ const tableStub = defineComponent({
         return h('div', slots.empty?.());
       }
 
-      const hasOperationColumn = props.columns.some(
-        (column) =>
-          typeof column === 'object' && column !== null && 'colKey' in column && column.colKey === 'operation',
-      );
-
       return h(
         'div',
-        props.data.map((row, index) =>
+        (props.data as Array<Record<string, unknown>>).map((row, index) =>
           h('div', { 'data-testid': `user-row-${index}` }, [
-            h('span', String((row as { username?: string }).username ?? '')),
-            hasOperationColumn ? slots.operation?.({ row }) : null,
+            slots.user?.({ row }),
+            slots.status?.({ row }),
+            slots.roles?.({ row }),
+            slots.operation?.({ row }),
           ]),
         ),
       );
@@ -111,8 +200,8 @@ const tableStub = defineComponent({
   },
 });
 
-const dialogStub = defineComponent({
-  name: 'TDialogStub',
+const drawerStub = defineComponent({
+  name: 'TDrawerStub',
   props: {
     header: {
       type: String,
@@ -125,44 +214,24 @@ const dialogStub = defineComponent({
   },
   setup(props, { slots }) {
     return () =>
-      props.visible
-        ? h('section', { 'data-testid': 'user-role-dialog' }, [
-            h('h2', props.header),
-            slots.body?.(),
-            slots.default?.(),
-          ])
-        : null;
+      props.visible ? h('section', { 'data-testid': 'drawer', 'data-header': props.header }, slots.default?.()) : null;
   },
 });
 
-const buttonStub = defineComponent({
-  name: 'TButtonStub',
+const paginationStub = defineComponent({
+  name: 'TPaginationStub',
   props: {
-    disabled: {
-      type: Boolean,
-      default: false,
+    current: {
+      type: Number,
+      default: 1,
     },
-    loading: {
-      type: Boolean,
-      default: false,
+    pageSize: {
+      type: Number,
+      default: 10,
     },
   },
-  emits: ['click'],
-  setup(props, { emit, slots }) {
-    return () =>
-      h(
-        'button',
-        {
-          disabled: props.disabled,
-          'data-loading': String(props.loading),
-          onClick: (event: MouseEvent) => {
-            if (!props.disabled) {
-              emit('click', event);
-            }
-          },
-        },
-        slots.default?.(),
-      );
+  setup(_, { attrs }) {
+    return () => h('div', { ...attrs, 'data-testid': 'pagination' });
   },
 });
 
@@ -196,12 +265,12 @@ const checkboxStub = defineComponent({
   name: 'TCheckboxStub',
   props: {
     value: {
-      type: Number,
-      required: true,
+      type: [Number, Boolean],
+      default: undefined,
     },
   },
   setup(props, { slots }) {
-    return () => h('label', { 'data-role-id': String(props.value) }, slots.default?.());
+    return () => h('label', { 'data-role-id': String(props.value ?? '') }, slots.default?.());
   },
 });
 
@@ -212,6 +281,7 @@ function createUserListResponse() {
         id: 7,
         username: 'alice',
         display: 'Alice',
+        status: 'enabled',
         created_at: '2026-05-17T00:00:00Z',
         updated_at: '2026-05-17T00:00:00Z',
       },
@@ -228,21 +298,12 @@ function createRoleListResponse() {
         display: 'Editor',
         description: 'Editor role',
         builtin: false,
+        updated_at: '2026-05-18T00:00:00Z',
+        permission_count: 3,
+        user_count: 1,
       },
     ],
   };
-}
-
-function createDeferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  let reject!: (reason?: unknown) => void;
-
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-
-  return { promise, resolve, reject };
 }
 
 function mountUserPage() {
@@ -255,13 +316,14 @@ function mountUserPage() {
       },
       stubs: {
         't-button': buttonStub,
-        't-card': passthroughStub,
         't-checkbox': checkboxStub,
         't-checkbox-group': checkboxGroupStub,
-        't-col': passthroughStub,
-        't-dialog': dialogStub,
+        't-dropdown': passthroughStub,
+        't-drawer': drawerStub,
         't-empty': passthroughStub,
-        't-row': passthroughStub,
+        't-input': inputStub,
+        't-pagination': paginationStub,
+        't-select': selectStub,
         't-table': tableStub,
         't-tag': passthroughStub,
       },
@@ -269,26 +331,23 @@ function mountUserPage() {
   });
 }
 
-function findButtonByText(wrapper: ReturnType<typeof mountUserPage>, text: string) {
-  return wrapper.findAll('button').find((button) => button.text().trim() === text);
-}
-
 describe('UserPage', () => {
   beforeEach(() => {
     permissionState.grantedCodes = [];
     userApiMocks.getUsers.mockReset();
-    rbacApiMocks.assignUserRoles.mockReset();
-    rbacApiMocks.getRoles.mockReset();
-    rbacApiMocks.getUserRoleBindings.mockReset();
+    roleApiMocks.assignUserRoles.mockReset();
+    roleApiMocks.getRoles.mockReset();
+    roleApiMocks.getUserRoleBindings.mockReset();
     messageMocks.error.mockReset();
     messageMocks.success.mockReset();
+    messageMocks.warning.mockReset();
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('loads users on mount and hides operation controls without permissions', async () => {
+  it('loads users on mount without rendering role management controls for read-only sessions', async () => {
     userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
 
     const wrapper = mountUserPage();
@@ -296,323 +355,86 @@ describe('UserPage', () => {
 
     expect(userApiMocks.getUsers).toHaveBeenCalledTimes(1);
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
-    expect(wrapper.text()).toContain('alice');
+    expect(wrapper.text()).toContain('Alice');
     expect(wrapper.text()).not.toContain('user.userList.assignRoles');
-    expect(wrapper.text()).toContain('user.userList.actionTitle');
+    expect(wrapper.text()).not.toContain('user.userList.stats.totalUsers');
+    expect(wrapper.text()).not.toContain('user.userList.stats.recentCreated');
   });
 
-  it('keeps replace-write blocked when the current user-role snapshot cannot be restored', async () => {
+  it('renders the create action when the current session has user.create permission', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.CREATE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="user-create"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="user-create"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="drawer"]').attributes('data-header')).toBe('user.userList.form.createTitle');
+  });
+
+  it('keeps role assignment blocked when the current snapshot fails to load', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
     userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
-    rbacApiMocks.getUserRoleBindings.mockRejectedValue(new Error('selection load failed'));
+    roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    roleApiMocks.getUserRoleBindings
+      .mockResolvedValueOnce({ role_ids: [2] })
+      .mockRejectedValueOnce(new Error('selection load failed'));
 
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
-
-    await openDialogButton!.trigger('click');
+    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
     await flushPromises();
 
-    expect(rbacApiMocks.getRoles).toHaveBeenCalledTimes(1);
-    expect(rbacApiMocks.getUserRoleBindings).toHaveBeenCalledWith(7);
-    expect(wrapper.text()).toContain('selection load failed');
-
-    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
-    expect(submitButton).toBeDefined();
-    expect(submitButton!.attributes('disabled')).toBeDefined();
-
-    await submitButton!.trigger('click');
-    expect(rbacApiMocks.assignUserRoles).not.toHaveBeenCalled();
+    expect(roleApiMocks.getUserRoleBindings).toHaveBeenCalledWith(7);
+    expect(wrapper.text()).toContain('user.userList.roleDialog.selectionLoadFailed');
+    expect(wrapper.get('[data-testid="role-checkbox-group"]').attributes('data-disabled')).toBe('true');
+    expect(wrapper.get('[data-testid="user-role-save"]').attributes('disabled')).toBeDefined();
   });
 
-  it('retries the dialog load in place after role definitions fail to load', async () => {
+  it('submits the selected role snapshot and closes the drawer on success', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
     userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles
-      .mockRejectedValueOnce(new Error('role load failed'))
-      .mockResolvedValueOnce(createRoleListResponse());
-    rbacApiMocks.getUserRoleBindings.mockResolvedValue({
-      role_ids: [2],
-    });
+    roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    roleApiMocks.getUserRoleBindings.mockResolvedValue({ role_ids: [2] });
+    roleApiMocks.assignUserRoles.mockResolvedValue(null);
 
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
-
-    await openDialogButton!.trigger('click');
+    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="user-role-save"]').trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('role load failed');
-
-    const retryButton = findButtonByText(wrapper, 'user.userList.roleDialog.retry');
-    expect(retryButton).toBeDefined();
-
-    await retryButton!.trigger('click');
-    await flushPromises();
-
-    expect(rbacApiMocks.getRoles).toHaveBeenCalledTimes(2);
-    expect(rbacApiMocks.getUserRoleBindings).toHaveBeenCalledWith(7);
-    expect(wrapper.text()).not.toContain('role load failed');
-
-    const checkboxGroup = wrapper.get('[data-testid="role-checkbox-group"]');
-    expect(checkboxGroup.attributes('data-disabled')).toBe('false');
-    expect(checkboxGroup.attributes('data-selected-role-ids')).toBe('[2]');
-  });
-
-  it('keeps the role checkbox group disabled when the actor lacks assign permission', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ];
-    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
-    rbacApiMocks.getUserRoleBindings.mockResolvedValue({
-      role_ids: [2],
-    });
-
-    const wrapper = mountUserPage();
-    await flushPromises();
-
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
-
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    const checkboxGroup = wrapper.get('[data-testid="role-checkbox-group"]');
-    expect(checkboxGroup.attributes('data-disabled')).toBe('true');
-
-    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
-    expect(submitButton).toBeDefined();
-    expect(submitButton!.attributes('disabled')).toBeDefined();
-  });
-
-  it('submits the restored role snapshot for the selected user and closes the dialog on success', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
-    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
-    rbacApiMocks.getUserRoleBindings.mockResolvedValue({
-      role_ids: [2],
-    });
-    rbacApiMocks.assignUserRoles.mockResolvedValue(null);
-
-    const wrapper = mountUserPage();
-    await flushPromises();
-
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
-
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
-    expect(submitButton).toBeDefined();
-    expect(submitButton!.attributes('disabled')).toBeUndefined();
-
-    await submitButton!.trigger('click');
-    await flushPromises();
-
-    expect(rbacApiMocks.assignUserRoles).toHaveBeenCalledWith(7, {
-      role_ids: [2],
-    });
+    expect(roleApiMocks.assignUserRoles).toHaveBeenCalledWith(7, { role_ids: [2] });
     expect(messageMocks.success).toHaveBeenCalledWith('user.userList.assignSuccess');
-    expect(wrapper.find('[data-testid="user-role-dialog"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="user-role-drawer"]').exists()).toBe(false);
   });
 
-  it('shows an error toast and keeps the dialog open when the role assignment submit fails', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
-    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
-    rbacApiMocks.getUserRoleBindings.mockResolvedValue({
-      role_ids: [2],
-    });
-    rbacApiMocks.assignUserRoles.mockRejectedValue(new Error('assign failed'));
+  it('renders the table empty state and clears filters from the empty action area', async () => {
+    userApiMocks.getUsers.mockResolvedValue({ items: [] });
+    roleApiMocks.getRoles.mockResolvedValue({ items: [] });
 
     const wrapper = mountUserPage();
     await flushPromises();
 
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
+    expect(wrapper.text()).toContain('user.userList.emptyTitle');
+    expect(wrapper.text()).toContain('user.userList.emptyDescription');
+    expect(wrapper.find('[data-testid="user-empty-clear-filters"]').exists()).toBe(false);
 
-    await openDialogButton!.trigger('click');
+    await wrapper.get('input[placeholder="user.userList.toolbar.searchPlaceholder"]').setValue('alice');
     await flushPromises();
 
-    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
-    expect(submitButton).toBeDefined();
-
-    await submitButton!.trigger('click');
+    expect(wrapper.find('[data-testid="user-empty-clear-filters"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="user-empty-clear-filters"]').trigger('click');
     await flushPromises();
 
-    expect(messageMocks.error).toHaveBeenCalledWith('assign failed');
-    expect(wrapper.find('[data-testid="user-role-dialog"]').exists()).toBe(true);
-  });
-
-  it('ignores stale submit success after the dialog is closed and reopened', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
-    const firstAssignRequest = createDeferred<null>();
-
-    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
-    rbacApiMocks.getUserRoleBindings.mockResolvedValue({
-      role_ids: [2],
-    });
-    rbacApiMocks.assignUserRoles.mockImplementationOnce(() => firstAssignRequest.promise).mockResolvedValueOnce(null);
-
-    const wrapper = mountUserPage();
-    await flushPromises();
-
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
-
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
-    expect(submitButton).toBeDefined();
-
-    await submitButton!.trigger('click');
-    await flushPromises();
-
-    const cancelButton = findButtonByText(wrapper, 'user.userList.roleDialog.cancel');
-    expect(cancelButton).toBeDefined();
-
-    await cancelButton!.trigger('click');
-    await flushPromises();
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    firstAssignRequest.resolve(null);
-    await flushPromises();
-
-    expect(messageMocks.success).not.toHaveBeenCalled();
-    expect(wrapper.find('[data-testid="user-role-dialog"]').exists()).toBe(true);
-  });
-
-  it('ignores stale submit errors after the dialog is closed and reopened', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
-    const firstAssignRequest = createDeferred<null>();
-
-    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
-    rbacApiMocks.getUserRoleBindings.mockResolvedValue({
-      role_ids: [2],
-    });
-    rbacApiMocks.assignUserRoles.mockImplementationOnce(() => firstAssignRequest.promise).mockResolvedValueOnce(null);
-
-    const wrapper = mountUserPage();
-    await flushPromises();
-
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
-
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    const submitButton = findButtonByText(wrapper, 'user.userList.roleDialog.confirm');
-    expect(submitButton).toBeDefined();
-
-    await submitButton!.trigger('click');
-    await flushPromises();
-
-    const cancelButton = findButtonByText(wrapper, 'user.userList.roleDialog.cancel');
-    expect(cancelButton).toBeDefined();
-
-    await cancelButton!.trigger('click');
-    await flushPromises();
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    firstAssignRequest.reject(new Error('stale failure'));
-    await flushPromises();
-
-    expect(messageMocks.error).not.toHaveBeenCalled();
-    expect(wrapper.find('[data-testid="user-role-dialog"]').exists()).toBe(true);
-  });
-
-  it('ignores stale user-role responses after the dialog is closed and reopened', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
-    const firstRoleBindingRequest = createDeferred<{ role_ids: number[] }>();
-
-    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
-    rbacApiMocks.getUserRoleBindings
-      .mockImplementationOnce(() => firstRoleBindingRequest.promise)
-      .mockResolvedValueOnce({
-        role_ids: [],
-      });
-
-    const wrapper = mountUserPage();
-    await flushPromises();
-
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
-
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    const cancelButton = findButtonByText(wrapper, 'user.userList.roleDialog.cancel');
-    expect(cancelButton).toBeDefined();
-
-    await cancelButton!.trigger('click');
-    await flushPromises();
-
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    const checkboxGroup = wrapper.get('[data-testid="role-checkbox-group"]');
-    expect(checkboxGroup.attributes('data-selected-role-ids')).toBe('[]');
-
-    firstRoleBindingRequest.resolve({
-      role_ids: [2],
-    });
-    await flushPromises();
-
-    expect(wrapper.get('[data-testid="role-checkbox-group"]').attributes('data-selected-role-ids')).toBe('[]');
-    expect(rbacApiMocks.getUserRoleBindings).toHaveBeenCalledTimes(2);
-  });
-
-  it('ignores stale role-definition responses after the dialog is closed and reopened', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
-    const firstRoleListRequest = createDeferred<ReturnType<typeof createRoleListResponse>>();
-
-    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
-    rbacApiMocks.getRoles
-      .mockImplementationOnce(() => firstRoleListRequest.promise)
-      .mockResolvedValueOnce({
-        items: [],
-      });
-    rbacApiMocks.getUserRoleBindings.mockResolvedValue({
-      role_ids: [],
-    });
-
-    const wrapper = mountUserPage();
-    await flushPromises();
-
-    const openDialogButton = findButtonByText(wrapper, 'user.userList.assignRoles');
-    expect(openDialogButton).toBeDefined();
-
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    const cancelButton = findButtonByText(wrapper, 'user.userList.roleDialog.cancel');
-    expect(cancelButton).toBeDefined();
-
-    await cancelButton!.trigger('click');
-    await flushPromises();
-
-    await openDialogButton!.trigger('click');
-    await flushPromises();
-
-    expect(wrapper.text()).toContain('user.userList.roleDialog.empty');
-    expect(rbacApiMocks.getUserRoleBindings).toHaveBeenCalledTimes(1);
-
-    firstRoleListRequest.resolve(createRoleListResponse());
-    await flushPromises();
-
-    expect(wrapper.text()).toContain('user.userList.roleDialog.empty');
-    expect(wrapper.text()).not.toContain('Editor');
-    expect(rbacApiMocks.getRoles).toHaveBeenCalledTimes(2);
+    expect(
+      (wrapper.get('input[placeholder="user.userList.toolbar.searchPlaceholder"]').element as HTMLInputElement).value,
+    ).toBe('');
   });
 });

@@ -480,6 +480,9 @@ func runBackendCommand(cmd *cobra.Command, name string, args ...string) error {
 	}
 
 	if err := command.Run(); err != nil {
+		if commandContext.Err() != nil {
+			return commandContext.Err()
+		}
 		return fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
 	}
 

@@ -3,8 +3,12 @@ export interface RoleListItem {
   id: number;
   name: string;
   display: string;
+  remark?: string | null;
   description?: string | null;
   builtin: boolean;
+  updated_at: string;
+  permission_count: number;
+  user_count: number;
 }
 
 // RoleListResponse matches the minimal role list contract exposed by the rbac plugin.

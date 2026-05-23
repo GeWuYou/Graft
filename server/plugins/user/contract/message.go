@@ -10,5 +10,5 @@ func (k MenuMessageKey) String() string {
 
 const (
 	// UserListMenuTitle identifies the localized title for the user list menu.
-	UserListMenuTitle MenuMessageKey = "menu.user_list.title"
+	UserListMenuTitle MenuMessageKey = "menu.access_control.users.title"
 )

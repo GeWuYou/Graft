@@ -22,9 +22,12 @@ Use this for CRUD modules and most business capabilities.
 ## Do
 
 - Use `Card`, `Form`, `Table`, `Drawer`, `Dialog`, `Tag`, `Pagination`.
+- For table/list management pages, use `t-empty` or the table empty slot for empty states, keep pagination stable, and
+  keep empty-state surfaces token-driven instead of custom gray cards.
 
 ## Don’t
 
 - Split the same data into too many competing panels.
 - Hide operations in custom click-only controls.
 - Recreate starter demo pages as new truth.
+- Build table empty states as custom small gray cards inside the table body.

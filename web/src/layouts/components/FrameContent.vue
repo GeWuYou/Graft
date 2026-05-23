@@ -82,7 +82,7 @@ function calcHeight() {
   const contentPadding = resolveCssLength(rootStyle.getPropertyValue('--td-comp-paddingTB-xxl')) * 2;
   const footerDom = document.querySelector('.t-layout__footer');
   const footerHeight = showFooter && footerDom ? getOuterHeight(footerDom) : 0;
-  const bottomSafeSpace = resolveCssLength(rootStyle.getPropertyValue('--graft-page-bottom-safe-space'));
+  const bottomSafeSpace = resolveCssLength(rootStyle.getPropertyValue('--graft-page-bottom-safe-area'));
   const top = headerHeight + navHeight + breadcrumbHeight + contentPadding + footerHeight + bottomSafeSpace + 2;
   heightRef.value = window.innerHeight - top;
   clientHeight = document.documentElement.clientHeight - top;

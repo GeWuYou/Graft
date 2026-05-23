@@ -268,6 +268,8 @@ UI 约束：
 - 不同页面类型可按母版裁剪
 - 不强制所有页面都出现 `table`、`card`、`detail` 三件套
 - 不得为了“概览感”把后台页面做成营销页 hero
+- table/list management 页面空态必须使用 `t-empty` 或 table empty slot；禁止在 table body 里实现自定义小灰卡片空态
+- table/list management 页面空态必须保留 header/body/footer 结构，保持分页稳定，并使用主题 token 而不是硬编码颜色
 
 推荐技能：
 

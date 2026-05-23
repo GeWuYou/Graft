@@ -26,9 +26,13 @@ Use this skill when adding a new `web` feature module.
 5. Use TDesign as the primary component system.
 6. Keep page-local state inside the page unless a shared store is clearly justified.
 7. If the module changes backend menu or permission semantics, treat it as cross-boundary work and validate both sides.
+8. At closeout, do not skip reusable-lesson evaluation:
+   - prefer routing the slice through `graft-task-closeout`
+   - if this skill is used as a self-contained implementation and closeout path, delegate the Experience Capture Check
+     to `graft-lessons-learned`
 
 ## Guardrails
 
-* do not invent parallel frontend-only authorization rules
-* do not mix multiple UI libraries
-* do not move page-local form state into a store without a clear shared-state reason
+- do not invent parallel frontend-only authorization rules
+- do not mix multiple UI libraries
+- do not move page-local form state into a store without a clear shared-state reason

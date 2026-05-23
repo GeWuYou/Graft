@@ -1,0 +1,89 @@
+{
+  "accessControl": {
+    "overview": {
+      "title": "Access Control Overview",
+      "description": "Review the overall state of system accounts, roles, permissions, and assignments.",
+      "actions": {
+        "createUser": "Create User",
+        "createRole": "Create Role",
+        "viewPermissions": "View Permissions",
+        "refresh": "Refresh"
+      },
+      "stats": {
+        "totalUsers": "Total Users",
+        "totalUsersDescription": "{enabled} enabled / {disabled} disabled",
+        "totalRoles": "Total Roles",
+        "totalRolesDescription": "{builtin} builtin / {custom} custom",
+        "totalPermissions": "Total Permissions",
+        "totalPermissionsDescription": "System and plugin permission points combined",
+        "assignmentCount": "Role Assignments",
+        "assignmentCountDescription": "{pending} accounts still need role assignments"
+      },
+      "status": {
+        "title": "Status Summary",
+        "subtitle": "Focus on account assignment, role maintenance, and builtin constraints.",
+        "assignedUsers": "Assigned Users",
+        "assignedUsersDescription": "{pending} accounts still need role assignments",
+        "customRoles": "Custom Roles",
+        "customRolesDescription": "{empty} of them still have no permissions",
+        "builtinRoles": "Builtin Roles",
+        "builtinRolesDescription": "Protect the system baseline and keep critical fields constrained"
+      },
+      "risk": {
+        "title": "Risks and Follow-up",
+        "subtitle": "Review unassigned users, empty roles, and builtin-role constraints first.",
+        "groupTitle": "Current Risks",
+        "emptyTitle": "No recognizable access control risks",
+        "emptyDescription": "Role and permission history can be shown after audit logs are added.",
+        "defaultDescription": "This item still needs an administrator review.",
+        "unassignedUsers": "Users without roles",
+        "emptyRoles": "Custom roles without permissions",
+        "disabledUsers": "Disabled users",
+        "builtinNotice": "Builtin role protection",
+        "builtinNoticeDescription": "Builtin roles cannot be deleted and some fields stay read-only",
+        "stale": "Records without recent update timestamps"
+      },
+      "quickLinks": {
+        "title": "Quick Links",
+        "subtitle": "Jump directly into the core access control management pages.",
+        "users": {
+          "title": "User Management",
+          "description": "Manage accounts, statuses, and role assignments",
+          "action": "Open User Management"
+        },
+        "roles": {
+          "title": "Role Management",
+          "description": "Maintain role definitions and permission scope",
+          "action": "Open Role Management"
+        },
+        "permissions": {
+          "title": "Permission Management",
+          "description": "Review system permissions and module ownership",
+          "action": "Open Permission Management"
+        }
+      },
+      "todo": {
+        "title": "Pending Items",
+        "subtitle": "Keep the overview lightweight instead of turning it into a report page.",
+        "emptyTitle": "No pending items",
+        "emptyDescription": "There are no extra access control follow-ups right now.",
+        "assignmentSyncLabel": "Complete account assignments",
+        "assignmentSyncState": "Pending",
+        "assignmentSyncDescription": "Prioritize role assignments for unbound accounts. {count} accounts are affected right now.",
+        "auditLabel": "Audit and trend views",
+        "auditState": "Planned",
+        "auditDescription": "Role change trends, authorization audit, and reporting should move into future audit-log or report pages."
+      },
+      "state": {
+        "loadFailedTitle": "Access control overview is unavailable",
+        "loadFailedDescription": "Retry loading user, role, and permission statistics.",
+        "retry": "Retry",
+        "unknown": "-"
+      },
+      "navHint": "Access Control"
+    },
+    "todo": {
+      "menuContractAlignment": "Dynamic menu hierarchy and title_key still need backend contract alignment. The frontend aggregation layer currently bridges the gap."
+    }
+  }
+}
