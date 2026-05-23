@@ -4,6 +4,8 @@
 
 - Phase 2A minimal spec and validation wiring landed in owned scope.
 - Phase 2B minimal TypeScript generation wiring now lands generated OpenAPI types in `web/src/contracts/openapi/generated/schema.ts`.
+- Phase 3 generated TypeScript consumption is now complete for the currently modeled `auth`, `user`, and `rbac` web API surface through module-local alias layers.
+- Phase 3 lightweight client evaluation is closed with a "do not introduce `openapi-fetch` now" result; `web/src/utils/request.ts` remains the transport/runtime truth.
 - Root `openapi/` spec plus fragments now exist for the first covered endpoints.
 - Backend validation now has explicit OpenAPI validation wiring.
 - No OpenAPI-driven business behavior changes were introduced.
@@ -128,6 +130,21 @@
 - Validation evidence:
   - `cd server && go run ./cmd/graft validate backend --stage openapi`
   - `cd web && bun run check`
+
+## Phase 3 Notes
+
+- Phase 3 is considered complete for the current rollout scope because generated OpenAPI types now cover both response DTO consumption and the currently modeled request payload consumption in `auth`, `user`, and `rbac`.
+- The accepted integration pattern stays unchanged:
+  - generate canonical schema types into `web/src/contracts/openapi/generated/schema.ts`
+  - expose module-local aliases from `web/src/api/model/authModel.ts`, `web/src/modules/user/types/user.ts`, `web/src/modules/rbac/contract/role.ts`, `web/src/modules/rbac/types/permission.ts`, and `web/src/modules/rbac/types/rbac.ts`
+  - keep `request.ts` as the only transport/runtime owner for token refresh, locale propagation, envelope unwrap, auth-failure redirect, and trace/message-key error normalization
+- The optional SDK/client evaluation is closed for now with "no `openapi-fetch` rollout" because introducing a second client layer would either duplicate `request.ts` semantics or weaken the current canonical transport boundary.
+- New modules may keep using generated OpenAPI schema aliases at the API boundary, but should not bypass `request.ts` or turn generated payload types into long-lived page state by default.
+- This result intentionally does not add a generated runtime SDK, does not change backend behavior, and does not change the delayed Phase 4 Go-generation evaluation.
+- Phase 3 validation evidence:
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
 
 ## Phase 1.6 Notes
 

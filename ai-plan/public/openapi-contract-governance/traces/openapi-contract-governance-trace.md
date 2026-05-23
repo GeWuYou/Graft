@@ -65,3 +65,8 @@
 - Ran the Phase 2E user write payload rollout validation closeout for the `web` side.
 - Rechecked `web/package.json` `openapi:types:check` against the current worktree and confirmed the repo-local `.tmp/` plus project-Prettier alignment fix is already present; no additional `web/package.json` or `.prettierignore` change was required in this slice.
 - Validated the closeout state with `cd web && bun run openapi:types:check` and the full frontend entrypoint `cd web && bun run check`.
+- Audited the current codebase against the original Phase 3 goal and confirmed the generated TypeScript consumption target is already satisfied by the existing `auth`, `user`, and `rbac` alias layers over `web/src/contracts/openapi/generated/schema.ts`.
+- Confirmed `web/package.json` has no `openapi-fetch` dependency and no separate generated runtime client exists in the current web tree.
+- Closed the optional lightweight client evaluation with a "do not introduce `openapi-fetch` now" result because `web/src/utils/request.ts` still owns the repository's token refresh, locale header propagation, envelope unwrap, auth-failure redirect, and API error normalization semantics.
+- Recorded Phase 3 as complete without widening runtime scope, keeping generated schema aliases as the preferred API-boundary consumption pattern and leaving Phase 4 Go-generation evaluation unchanged.
+- Revalidated the accepted Phase 3 closeout state with `cd web && bun run openapi:types:check`, `cd web && bun run check`, and `cd server && go run ./cmd/graft validate backend --stage openapi`.

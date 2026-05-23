@@ -81,6 +81,7 @@
 - 不做事项：不绕开 token refresh、locale、traceId。
 - 验收标准：新模块能优先用生成类型/SDK，旧 API 不被破坏。
 - 是否允许生成代码：允许。
+- 当前结论：先不引入 `openapi-fetch` 或第二套 runtime client；以生成 schema 类型 + 模块本地 alias + 现有 `request.ts` transport 语义作为 Phase 3 完成态。
 
 ### Phase 4
 
