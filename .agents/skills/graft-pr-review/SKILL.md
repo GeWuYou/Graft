@@ -38,7 +38,7 @@ Shortcut: `$graft-pr-review`
 8. Fix every `actionable-local` finding in the current slice unless another higher-priority blocker from the same PR must be handled first.
 9. Do not ignore `actionable-large` findings. When a verified finding no longer fits one safe local slice:
    - prefer `$graft-multi-agent-batch` when the repair can be split into disjoint parallel slices with reviewable ownership
-   - prefer `$graft-multi-agent-loop` when the repair needs repeated bounded rounds, retryable orchestration, or a serialized continuation path
+   - prefer `$graft-multi-agent-loop` when the repair needs to be repeated in bounded rounds, retryable orchestration, or a serialized continuation path
    - if neither multi-agent path is justified yet, report the finding as `blocked` or `next-slice required`; do not silently drop it from the review outcome
 10. At task closeout, list every verified finding and its disposition:
     - `fixed`
@@ -49,7 +49,7 @@ Shortcut: `$graft-pr-review`
 11. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
 12. Do not ignore any verified suggestion. If the repair grows large:
     - prefer `$graft-multi-agent-batch` when the work splits into disjoint reviewable slices
-    - prefer `$graft-multi-agent-loop` when the work needs repeated bounded rounds
+    - prefer `$graft-multi-agent-loop` when the work needs to be repeated in bounded rounds
     - if neither is justified yet, report the finding as `blocked` or `next-slice required` with the reason
 13. If any finding is reported as `noise` or AI misjudgment, explicitly record:
     - which finding it was
