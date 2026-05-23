@@ -202,3 +202,54 @@ Do not start the next phase from an uncommitted validated phase boundary. Each c
 2. run the strongest honest validation for that slice
 3. commit the validated owned scope with `$graft-commit`
 4. emit the next-session startup prompt for the following phase
+
+## Final Phase 5 Closure
+
+### Final Covered Route Status
+
+| Route | Final state | Evidence |
+| --- | --- | --- |
+| `POST /api/users` | `aligned` | accepted baseline remains unchanged across server, OpenAPI, and web module consumption |
+| `POST /api/users/{id}/update` | `aligned` | backend field semantics, explicit OpenAPI `400`/`404` examples, and module-local field binding are all covered |
+| `POST /api/users/{id}/status` | `aligned` | backend field semantics, explicit OpenAPI `400`/`404` examples, and structured module-local feedback are all covered |
+| `POST /api/users/{id}/reset-password` | `aligned` | backend returns `data.field=new_password`, OpenAPI examples match, and the user module maps that route-local field into the dialog password surface |
+| `POST /api/roles` | `aligned` | backend `data.field=name`, explicit OpenAPI `400` example, and RBAC form field binding are all covered |
+| `POST /api/roles/{id}/update` | `aligned` | backend `data.field=name`, explicit OpenAPI `400`/`404` examples, and RBAC form field binding are all covered |
+| `POST /api/roles/{id}/permissions/assign` | `aligned` | backend `data.field=permission_ids`, explicit OpenAPI `400`/`404` examples, regenerated web types, and permission-drawer-local error handling are all covered |
+| `POST /api/auth/login` | `defer` | remained outside the rollout because Phase 5 found no shared-envelope or field-convention blocker requiring auth changes |
+
+### Final Validation Closure
+
+Phase 5 reran the strongest honest validation for the covered rollout:
+
+- `git diff --check`
+- `git status --short`
+- `rg` consistency scans across `ai-plan/public/write-interface-error-contract-standardization`, `openapi`,
+  `server/plugins/user`, `server/plugins/rbac`, `web/src/modules/user`, and `web/src/modules/rbac`
+- `cd server && go test ./plugins/user/...`
+- `cd server && go test ./plugins/rbac/...`
+- `cd server && go run ./cmd/graft validate backend --stage openapi`
+- `cd web && bun run openapi:types:check`
+- `cd web && bun run test:run src/modules/user/pages/index.test.ts src/modules/rbac/pages/index.test.ts`
+- `cd web && bun run check`
+
+All commands passed in the current worktree after the Phase 4 generated-type regeneration and scoped commit.
+
+### Final Readiness Verdict
+
+`ready_for_oapi_codegen_types_only_spike: true`
+
+Reason:
+
+- all currently covered write routes in the accepted rollout now follow one coherent write-error contract pattern
+- canonical envelope semantics remain unchanged: `success`, `code`, `message`, `messageKey`, `locale`, `traceId`,
+  `data`
+- `httpx` remains the only backend envelope owner
+- `request.ts` remains the only frontend transport/runtime owner
+- plugin-local handlers, DTOs, and route registration remain the runtime truth
+- covered web modules consume structured field errors locally instead of pushing field semantics into `request.ts`
+- OpenAPI examples and the regenerated frontend schema are aligned with actual backend behavior for the covered routes
+
+Remaining blockers:
+
+- none inside the accepted covered rollout for a future isolated `oapi-codegen` Go types-only evaluation

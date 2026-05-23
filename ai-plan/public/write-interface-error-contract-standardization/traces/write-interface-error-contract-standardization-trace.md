@@ -161,3 +161,43 @@
   - `request.ts` remains the transport truth
   - backend envelope ownership remains in `httpx`
   - generated OpenAPI web types are aligned with the covered write-route contract surface
+
+## 2026-05-24 Phase 5 validation closure and readiness verdict
+
+- Executed the final cross-boundary validation closure for the covered rollout in the current worktree:
+  - `git diff --check`
+  - `git status --short`
+  - `rg` consistency scans across topic docs, `openapi`, `server/plugins/user`, `server/plugins/rbac`,
+    `web/src/modules/user`, and `web/src/modules/rbac`
+  - `cd server && go test ./plugins/user/...`
+  - `cd server && go test ./plugins/rbac/...`
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run test:run src/modules/user/pages/index.test.ts src/modules/rbac/pages/index.test.ts`
+  - `cd web && bun run check`
+- Confirmed the covered route verdict after the full validation rerun:
+  - `POST /api/users`
+    - aligned
+  - `POST /api/users/{id}/update`
+    - aligned
+  - `POST /api/users/{id}/status`
+    - aligned
+  - `POST /api/users/{id}/reset-password`
+    - aligned
+  - `POST /api/roles`
+    - aligned
+  - `POST /api/roles/{id}/update`
+    - aligned
+  - `POST /api/roles/{id}/permissions/assign`
+    - aligned
+  - `POST /api/auth/login`
+    - still deferred, but no longer a blocker for the covered write-route readiness judgment
+- Reconfirmed the final contract-governance constraints stayed intact:
+  - canonical envelope semantics remain `success`, `code`, `message`, `messageKey`, `locale`, `traceId`, `data`
+  - `server/internal/httpx` remains the only backend envelope owner
+  - `web/src/utils/request.ts` remains the only frontend transport/runtime owner
+  - plugin-local handlers and DTOs remain the backend runtime truth
+  - module-local adapters remain the frontend owner of field-surface error handling
+- Final topic verdict:
+  - `ready_for_oapi_codegen_types_only_spike: true`
+  - no remaining blocker was found inside the accepted covered rollout for a future isolated Go types-only evaluation
