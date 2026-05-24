@@ -51,6 +51,13 @@ type successEnvelope[T any] struct {
 	Data    T      `json:"data"`
 }
 
+type loginResponse struct {
+	AccessToken        string            `json:"access_token"`
+	ExpiresAt          time.Time         `json:"expires_at"`
+	MustChangePassword bool              `json:"must_change_password"`
+	User               loginUserResponse `json:"user"`
+}
+
 const testAPIBasePath = "/api"
 
 func decodeSuccessData[T any](t *testing.T, recorder *httptest.ResponseRecorder) T {

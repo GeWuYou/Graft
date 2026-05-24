@@ -21,13 +21,6 @@ type loginUserResponse struct {
 	DisplayName string `json:"display_name"`
 }
 
-type loginResponse struct {
-	AccessToken        string            `json:"access_token"`
-	ExpiresAt          time.Time         `json:"expires_at"`
-	MustChangePassword bool              `json:"must_change_password"`
-	User               loginUserResponse `json:"user"`
-}
-
 type bootstrapResponse struct {
 	User               loginUserResponse       `json:"user"`
 	MustChangePassword bool                    `json:"must_change_password"`
