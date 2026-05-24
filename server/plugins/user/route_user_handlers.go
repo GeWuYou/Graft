@@ -8,9 +8,9 @@ import (
 	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
+	openapicontract "graft/server/internal/contract/openapi"
 	"graft/server/internal/httpx"
 	usercontract "graft/server/plugins/user/contract"
-	userstore "graft/server/plugins/user/store"
 )
 
 func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
@@ -58,7 +58,7 @@ func (r userRouteRegistrar) registerUserWriteRoutes(group *gin.RouterGroup) {
 
 func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserCollection, r.guards.userCreate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		var request createUserRequest
+		var request openapicontract.PostUsersJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
@@ -68,13 +68,8 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		created, err := r.userSvc.CreateUser(ginCtx.Request.Context(), r.authSvc.passwords, r.authSvc.policy, userstore.CreateUserInput{
-			Username:     request.Username,
-			Display:      request.Display,
-			Status:       usercontract.UserStatusEnabled,
-			ActorID:      requestActorID(ginCtx.Request.Context()),
-			PasswordHash: request.Password,
-		})
+		command := toCreateUserCommand(request, requestActorID(ginCtx.Request.Context()))
+		created, err := r.userSvc.CreateUser(ginCtx.Request.Context(), r.authSvc.passwords, r.authSvc.policy, command)
 		if err != nil {
 			r.runtime().writeCreateUserError(ginCtx, "create user failed", err)
 			return
@@ -84,7 +79,7 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 	})
 }
 
-func invalidCreateUserField(request createUserRequest) (string, bool) {
+func invalidCreateUserField(request openapicontract.PostUsersJSONRequestBody) (string, bool) {
 	switch {
 	case strings.TrimSpace(request.Username) == "":
 		return "username", true
@@ -104,18 +99,14 @@ func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		var request updateUserRequest
+		var request openapicontract.PostUserUpdateJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
 
-		updated, err := r.userSvc.UpdateUser(ginCtx.Request.Context(), userstore.UpdateUserInput{
-			ID:       userID,
-			Username: request.Username,
-			Display:  request.Display,
-			ActorID:  requestActorID(ginCtx.Request.Context()),
-		})
+		command := toUpdateUserCommand(request, userID, requestActorID(ginCtx.Request.Context()))
+		updated, err := r.userSvc.UpdateUser(ginCtx.Request.Context(), command)
 		if err != nil {
 			r.runtime().writeUserManagementError(ginCtx, userID, "update user failed", err)
 			return
@@ -132,17 +123,18 @@ func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		var request updateUserStatusRequest
+		var request openapicontract.PostUserStatusJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		command, ok := toUpdateUserStatusCommand(request, userID, requestActorID(ginCtx.Request.Context()))
+		if !ok {
+			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "status")
+			return
+		}
 
-		updated, err := r.userSvc.SetUserStatus(ginCtx.Request.Context(), r.authSvc.auth, userstore.SetUserStatusInput{
-			ID:      userID,
-			Status:  request.Status,
-			ActorID: requestActorID(ginCtx.Request.Context()),
-		})
+		updated, err := r.userSvc.SetUserStatus(ginCtx.Request.Context(), r.authSvc.auth, command)
 		if err != nil {
 			r.runtime().writeUserManagementError(ginCtx, userID, "set user status failed", err)
 			return

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ import (
 	errorcodecontract "graft/server/internal/contract/errorcode"
 	httpheadercontract "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
+	openapicontract "graft/server/internal/contract/openapi"
 	"graft/server/internal/cronx"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -1689,6 +1691,53 @@ func TestCreateUserRouteReturnsStableItem(t *testing.T) {
 	}
 }
 
+func TestCreateUserMapperBuildsBusinessCommand(t *testing.T) {
+	command := toCreateUserCommand(openapicontract.PostUsersJSONRequestBody{
+		Username: "carol",
+		Display:  "Carol",
+		Password: "Password12345",
+	}, 7)
+
+	if command.Username != "carol" || command.Display != "Carol" || command.Password != "Password12345" || command.ActorID != 7 {
+		t.Fatalf("unexpected create user command: %#v", command)
+	}
+}
+
+func TestUpdateUserMapperBuildsBusinessCommand(t *testing.T) {
+	command := toUpdateUserCommand(openapicontract.PostUserUpdateJSONRequestBody{
+		Username: "carol.ops",
+		Display:  "Carol Ops",
+	}, 11, 7)
+
+	if command.ID != 11 || command.Username != "carol.ops" || command.Display != "Carol Ops" || command.ActorID != 7 {
+		t.Fatalf("unexpected update user command: %#v", command)
+	}
+}
+
+func TestUpdateUserStatusMapperBuildsBusinessCommand(t *testing.T) {
+	command, ok := toUpdateUserStatusCommand(openapicontract.PostUserStatusJSONRequestBody{
+		Status: openapicontract.PostUserStatusJSONBodyStatusDisabled,
+	}, 11, 7)
+	if !ok {
+		t.Fatal("expected status mapper to accept generated enum")
+	}
+
+	if command.ID != 11 || command.Status != usercontract.UserStatusDisabled || command.ActorID != 7 {
+		t.Fatalf("unexpected update user status command: %#v", command)
+	}
+}
+
+func TestUserServiceCreateUserDoesNotImportOpenAPIContract(t *testing.T) {
+	content, err := os.ReadFile("plugin.go")
+	if err != nil {
+		t.Fatalf("read plugin.go: %v", err)
+	}
+
+	if strings.Contains(string(content), "internal/contract/openapi") {
+		t.Fatalf("service implementation must not import openapi contract package")
+	}
+}
+
 func TestCreateUserRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
 	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
@@ -1931,6 +1980,46 @@ func TestSetUserStatusRouteRevokesTargetSessions(t *testing.T) {
 	}
 	assertSessionRevoked(t, authRepo, targetSession)
 	assertSessionActive(t, authRepo, adminSession)
+}
+
+func TestSetUserStatusRouteRejectsUnknownGeneratedEnumValue(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			switch id {
+			case 8:
+				return testUser(8, "bob", "Bob"), nil
+			case 9:
+				return testUser(9, "admin", "Admin"), nil
+			default:
+				return store.User{}, store.ErrUserNotFound
+			}
+		},
+		status: func(context.Context, store.SetUserStatusInput) (store.User, error) {
+			t.Fatal("expected repository status update not to be called")
+			return store.User{}, nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		9: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserDisablePermission.String()},
+		},
+	})
+
+	adminSession := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(
+		t,
+		http.MethodPost,
+		usersRoutePath(usercontract.UserStatusRoute, ":id", "8"),
+		9,
+		adminSession,
+		map[string]any{"status": "paused"},
+	)
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertInvalidArgumentFieldResponse(t, recorder, "en-US", "status")
 }
 
 func TestResetUserPasswordRouteUsesAtomicResetContract(t *testing.T) {
