@@ -16,7 +16,6 @@ const (
 	modulePath         = "graft/server"
 	pluginRegistryRoot = "internal/pluginregistry"
 	pluginsDirName     = "plugins"
-	pluginEntryFile    = "plugin.go"
 	descriptorFile     = "descriptor.go"
 	generatedFileName  = "generated.go"
 	generatedFilePerm  = 0o600
@@ -68,9 +67,6 @@ func collectPluginPackages(pluginsRoot string) ([]pluginPackage, error) {
 		}
 
 		pluginDir := filepath.Join(pluginsRoot, name)
-		if !fileExists(filepath.Join(pluginDir, pluginEntryFile)) {
-			continue
-		}
 		if !fileExists(filepath.Join(pluginDir, descriptorFile)) {
 			return nil, fmt.Errorf("plugin package %s is missing %s", name, descriptorFile)
 		}

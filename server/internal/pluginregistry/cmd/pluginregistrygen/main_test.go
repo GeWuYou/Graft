@@ -20,10 +20,8 @@ func TestCollectPluginPackagesSortsDeterministically(t *testing.T) {
 		if err := os.MkdirAll(dir, testDirPerm); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
-		for _, file := range []string{pluginEntryFile, descriptorFile} {
-			if err := os.WriteFile(filepath.Join(dir, file), []byte("package "+name+"\n"), testFilePerm); err != nil {
-				t.Fatalf("write %s: %v", file, err)
-			}
+		if err := os.WriteFile(filepath.Join(dir, descriptorFile), []byte("package "+name+"\n"), testFilePerm); err != nil {
+			t.Fatalf("write %s: %v", descriptorFile, err)
 		}
 	}
 
@@ -55,9 +53,6 @@ func TestCollectPluginPackagesRejectsMissingDescriptor(t *testing.T) {
 	dir := filepath.Join(root, "user")
 	if err := os.MkdirAll(dir, testDirPerm); err != nil {
 		t.Fatalf("mkdir plugin dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, pluginEntryFile), []byte("package user\n"), testFilePerm); err != nil {
-		t.Fatalf("write plugin.go: %v", err)
 	}
 
 	_, err := collectPluginPackages(root)
