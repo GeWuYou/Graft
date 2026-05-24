@@ -23,3 +23,58 @@ get:
       $ref: ../components/responses/forbidden.yaml
     '500':
       $ref: ../components/responses/internal-server-error.yaml
+post:
+  tags: [rbac]
+  summary: Create role
+  operationId: postRoles
+  description: |
+    Creates a role with the existing backend normalization behavior for `name`,
+    `display`, and optional `description`.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/create-role-request.yaml
+  responses:
+    '200':
+      description: Role created.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-role-item-response.yaml
+    '400':
+      description: Invalid request payload.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          examples:
+            invalidArgument:
+              summary: Role name conflict
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: c74600e8-a3ae-4028-b4fc-f3573049c2ca
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: name
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

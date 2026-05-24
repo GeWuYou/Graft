@@ -119,7 +119,72 @@ export interface paths {
      */
     get: operations['getUsers'];
     put?: never;
-    post?: never;
+    /**
+     * Create user
+     * @description Creates a managed backend user and returns the existing success envelope. The current password policy requires at least
+     *     12 characters and both letters and digits.
+     */
+    post: operations['postUsers'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/update': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Update user
+     * @description Updates the managed user profile fields that the existing backend route already accepts.
+     */
+    post: operations['postUserUpdate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Update user status
+     * @description Updates the managed user status with the existing backend enable/disable semantics.
+     */
+    post: operations['postUserStatus'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/reset-password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reset user password
+     * @description Resets the managed user password using the existing backend reset semantics.
+     */
+    post: operations['postUserResetPassword'];
     delete?: never;
     options?: never;
     head?: never;
@@ -136,7 +201,54 @@ export interface paths {
     /** List roles */
     get: operations['getRoles'];
     put?: never;
-    post?: never;
+    /**
+     * Create role
+     * @description Creates a role with the existing backend normalization behavior for `name`,
+     *     `display`, and optional `description`.
+     */
+    post: operations['postRoles'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/roles/{id}/update': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Update role
+     * @description Updates a role with the existing backend normalization behavior for `name`,
+     *     `display`, and optional `description`.
+     */
+    post: operations['postRoleUpdate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/roles/{id}/permissions/assign': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Replace role permissions
+     * @description Replaces the role's permission bindings with the provided stable permission id set
+     *     and preserves the existing replace semantics for `permission_ids`.
+     */
+    post: operations['postRolePermissionAssign'];
     delete?: never;
     options?: never;
     head?: never;
@@ -170,13 +282,22 @@ export interface components {
     LoginRequest: components['schemas']['login-request'];
     LoginUser: components['schemas']['login-user'];
     LoginResponse: components['schemas']['login-response'];
+    CreateUserRequest: components['schemas']['create-user-request'];
+    UpdateUserRequest: components['schemas']['update-user-request'];
+    UpdateUserStatusRequest: components['schemas']['update-user-status-request'];
+    ResetUserPasswordRequest: components['schemas']['reset-user-password-request'];
     BootstrapMenu: components['schemas']['bootstrap-menu'];
     BootstrapLocale: components['schemas']['bootstrap-locale'];
     BootstrapResponse: components['schemas']['bootstrap-response'];
     UserListItem: components['schemas']['user-list-item'];
     UserListResponse: components['schemas']['user-list-response'];
+    EnvelopedUserItemResponse: components['schemas']['enveloped-user-item-response'];
     RoleListItem: components['schemas']['role-list-item'];
     RoleListResponse: components['schemas']['role-list-response'];
+    CreateRoleRequest: components['schemas']['create-role-request'];
+    UpdateRoleRequest: components['schemas']['update-role-request'];
+    EnvelopedRoleItemResponse: components['schemas']['enveloped-role-item-response'];
+    ReplaceRolePermissionsRequest: components['schemas']['replace-role-permissions-request'];
     PermissionListItem: components['schemas']['permission-list-item'];
     PermissionListResponse: components['schemas']['permission-list-response'];
     'health-response': {
@@ -279,6 +400,26 @@ export interface components {
     'enveloped-user-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['user-list-response'];
     };
+    'create-user-request': {
+      username: string;
+      display: string;
+      /** @description Initial password. The current server policy requires at least 12 characters and both letters and digits. */
+      password: string;
+    };
+    'enveloped-user-item-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['user-list-item'];
+    };
+    'update-user-request': {
+      username: string;
+      display: string;
+    };
+    'update-user-status-request': {
+      /** @enum {string} */
+      status: 'enabled' | 'disabled';
+    };
+    'reset-user-password-request': {
+      new_password: string;
+    };
     'role-list-item': {
       /** Format: int64 */
       id: number;
@@ -295,6 +436,29 @@ export interface components {
     };
     'enveloped-role-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-list-response'];
+    };
+    'create-role-request': {
+      /** @description Stable role name. The server trims surrounding whitespace and rejects an empty result. */
+      name: string;
+      /** @description User-facing role display name. The server trims surrounding whitespace and rejects an empty result. */
+      display: string;
+      /** @description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null. */
+      description?: string | null;
+    };
+    'enveloped-role-item-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['role-list-item'];
+    };
+    'update-role-request': {
+      /** @description Stable role name. The server trims surrounding whitespace and rejects an empty result. */
+      name: string;
+      /** @description User-facing role display name. The server trims surrounding whitespace and rejects an empty result. */
+      display: string;
+      /** @description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null. */
+      description?: string | null;
+    };
+    'replace-role-permissions-request': {
+      /** @description Replaces the role's permission bindings with the provided stable permission id set. */
+      permission_ids: number[];
     };
     'permission-list-item': {
       /** Format: int64 */
@@ -555,6 +719,229 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postUsers: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['create-user-request'];
+      };
+    };
+    responses: {
+      /** @description User created. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-user-item-response'];
+        };
+      };
+      /** @description Invalid request or password policy violation. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUserUpdate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Target user id. */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['update-user-request'];
+      };
+    };
+    responses: {
+      /** @description User updated. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-user-item-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUserStatus: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Target user id. */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['update-user-status-request'];
+      };
+    };
+    responses: {
+      /** @description User status updated. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-user-item-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUserResetPassword: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Target user id. */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['reset-user-password-request'];
+      };
+    };
+    responses: {
+      /** @description Password reset. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid request or password policy violation. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getRoles: {
     parameters: {
       query?: never;
@@ -584,6 +971,170 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRoles: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['create-role-request'];
+      };
+    };
+    responses: {
+      /** @description Role created. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-role-item-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRoleUpdate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Target role id. */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['update-role-request'];
+      };
+    };
+    responses: {
+      /** @description Role updated. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-role-item-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRolePermissionAssign: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Target role id. */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['replace-role-permissions-request'];
+      };
+    };
+    responses: {
+      /** @description Role permissions replaced. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };

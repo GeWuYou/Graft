@@ -1,0 +1,81 @@
+post:
+  tags: [users]
+  summary: Update user status
+  operationId: postUserStatus
+  description: |
+    Updates the managed user status with the existing backend enable/disable semantics.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      description: Target user id.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/update-user-status-request.yaml
+  responses:
+    '200':
+      description: User status updated.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-user-item-response.yaml
+    '400':
+      description: Invalid request payload.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          examples:
+            invalidStatus:
+              summary: Unsupported status value
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 6f5cb7e0-7d6d-4dc6-a32f-137ac9b01757
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: status
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: User not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          examples:
+            userNotFound:
+              summary: Target user not found
+              value:
+                success: false
+                code: USER_NOT_FOUND
+                message: User not found
+                traceId: 6f5cb7e0-7d6d-4dc6-a32f-137ac9b01757
+                messageKey: user.not_found
+                locale: en-US
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

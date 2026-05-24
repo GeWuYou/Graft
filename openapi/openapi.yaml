@@ -27,9 +27,19 @@ paths:
   /api/auth/bootstrap:
     $ref: ./paths/auth.bootstrap.yaml
   /api/users:
-    $ref: ./paths/users.list.yaml
+    $ref: ./paths/users.yaml
+  /api/users/{id}/update:
+    $ref: ./paths/users.update.yaml
+  /api/users/{id}/status:
+    $ref: ./paths/users.status.yaml
+  /api/users/{id}/reset-password:
+    $ref: ./paths/users.reset-password.yaml
   /api/roles:
     $ref: ./paths/roles.list.yaml
+  /api/roles/{id}/update:
+    $ref: ./paths/roles.update.yaml
+  /api/roles/{id}/permissions/assign:
+    $ref: ./paths/roles.assign-permissions.yaml
   /api/permissions:
     $ref: ./paths/permissions.list.yaml
 components:
@@ -46,6 +56,14 @@ components:
       $ref: ./components/schemas/login-user.yaml
     LoginResponse:
       $ref: ./components/schemas/login-response.yaml
+    CreateUserRequest:
+      $ref: ./components/schemas/create-user-request.yaml
+    UpdateUserRequest:
+      $ref: ./components/schemas/update-user-request.yaml
+    UpdateUserStatusRequest:
+      $ref: ./components/schemas/update-user-status-request.yaml
+    ResetUserPasswordRequest:
+      $ref: ./components/schemas/reset-user-password-request.yaml
     BootstrapMenu:
       $ref: ./components/schemas/bootstrap-menu.yaml
     BootstrapLocale:
@@ -56,10 +74,20 @@ components:
       $ref: ./components/schemas/user-list-item.yaml
     UserListResponse:
       $ref: ./components/schemas/user-list-response.yaml
+    EnvelopedUserItemResponse:
+      $ref: ./components/schemas/enveloped-user-item-response.yaml
     RoleListItem:
       $ref: ./components/schemas/role-list-item.yaml
     RoleListResponse:
       $ref: ./components/schemas/role-list-response.yaml
+    CreateRoleRequest:
+      $ref: ./components/schemas/create-role-request.yaml
+    UpdateRoleRequest:
+      $ref: ./components/schemas/update-role-request.yaml
+    EnvelopedRoleItemResponse:
+      $ref: ./components/schemas/enveloped-role-item-response.yaml
+    ReplaceRolePermissionsRequest:
+      $ref: ./components/schemas/replace-role-permissions-request.yaml
     PermissionListItem:
       $ref: ./components/schemas/permission-list-item.yaml
     PermissionListResponse:

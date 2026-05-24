@@ -159,11 +159,17 @@ const resetWorkbench = () => {
 }
 
 :deep(.theme-workbench-dock__main.t-button) {
+  .theme-workbench-dock-button-base();
+
+  font-weight: 600;
+}
+
+// 主入口与快捷入口都需要同一套展开/收起交互动效，统一收口避免后续样式漂移。
+.theme-workbench-dock-button-base() {
   align-items: center;
   border-radius: 999px;
   display: inline-flex;
   flex: 0 0 auto;
-  font-weight: 600;
   height: 44px;
   justify-content: center;
   min-width: 44px;
@@ -177,85 +183,80 @@ const resetWorkbench = () => {
     box-shadow 0.18s ease,
     color 0.18s ease,
     transform 0.18s ease;
+}
+
+.theme-workbench-dock-button-text-base() {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-width 0.22s ease,
+    margin-inline-start 0.22s ease,
+    opacity 0.16s ease;
+  white-space: nowrap;
+}
+
+.theme-workbench-dock-button-label-margin-collapsed() {
+  margin-left: 0;
+}
+
+.theme-workbench-dock-button-active-base(@min-width) {
+  min-width: @min-width;
+  padding-inline: 16px;
+}
+
+.theme-workbench-dock-button-label-margin-expanded() {
+  margin-left: 8px;
+}
+
+.theme-workbench-dock-button-text-active() {
+  max-width: 96px;
+  opacity: 1;
 }
 
 // 激活态 pill 需要围绕按钮中心展开，否则图标和文字会整体向一侧偏移。
 :deep(.theme-workbench-dock__main .t-button__text) {
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition:
-    max-width 0.22s ease,
-    margin-inline-start 0.22s ease,
-    opacity 0.16s ease;
-  white-space: nowrap;
+  .theme-workbench-dock-button-text-base();
 }
 
 :deep(.theme-workbench-dock__main .t-icon + .t-button__text:not(:empty)) {
-  margin-left: 0;
+  .theme-workbench-dock-button-label-margin-collapsed();
 }
 
 :deep(.theme-workbench-dock__main.theme-workbench-dock__action--active.t-button) {
-  min-width: 132px;
-  padding-inline: 16px;
+  .theme-workbench-dock-button-active-base(132px);
 }
 
 :deep(.theme-workbench-dock__main.theme-workbench-dock__action--active.t-button .t-icon + .t-button__text:not(:empty)) {
-  margin-left: 8px;
+  .theme-workbench-dock-button-label-margin-expanded();
 }
 
 :deep(.theme-workbench-dock__main.theme-workbench-dock__action--active.t-button .t-button__text) {
-  max-width: 96px;
-  opacity: 1;
+  .theme-workbench-dock-button-text-active();
 }
 
 :deep(.theme-workbench-dock__action.t-button) {
-  align-items: center;
-  border-radius: 999px;
-  display: inline-flex;
-  flex: 0 0 auto;
-  height: 44px;
-  justify-content: center;
-  min-width: 44px;
-  overflow: hidden;
-  padding: 0;
-  transition:
-    min-width 0.22s ease,
-    padding-inline 0.22s ease,
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease;
+  .theme-workbench-dock-button-base();
 }
 
 :deep(.theme-workbench-dock__action .t-button__text) {
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition:
-    max-width 0.22s ease,
-    margin-inline-start 0.22s ease,
-    opacity 0.16s ease;
-  white-space: nowrap;
+  .theme-workbench-dock-button-text-base();
 }
 
 :deep(.theme-workbench-dock__action .t-icon + .t-button__text:not(:empty)) {
-  margin-left: 0;
+  .theme-workbench-dock-button-label-margin-collapsed();
 }
 
 :deep(.theme-workbench-dock__action--active.t-button) {
-  min-width: 116px;
-  padding-inline: 16px;
+  .theme-workbench-dock-button-active-base(116px);
 }
 
 :deep(.theme-workbench-dock__action--active.t-button .t-icon + .t-button__text:not(:empty)) {
-  margin-left: 8px;
+  .theme-workbench-dock-button-label-margin-expanded();
 }
 
 :deep(.theme-workbench-dock__action--active.t-button .t-button__text) {
-  max-width: 96px;
-  opacity: 1;
+  .theme-workbench-dock-button-text-active();
 }
 
 :deep(.theme-workbench-dock__reset.t-button) {

@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import RolePage from './index.vue';
@@ -40,14 +40,18 @@ vi.mock('@/store', () => ({
   }),
 }));
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string) => key,
-    locale: {
-      value: 'en-US',
-    },
-  }),
-}));
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>();
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string) => key,
+      locale: {
+        value: 'en-US',
+      },
+    }),
+  };
+});
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({
@@ -226,8 +230,46 @@ const drawerStub = defineComponent({
 
 const formStub = defineComponent({
   name: 'TFormStub',
+  props: {
+    data: {
+      type: Object,
+      default: () => ({}),
+    },
+    rules: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
   emits: ['submit'],
-  setup(_, { emit, slots }) {
+  setup(props, { emit, expose, slots }) {
+    const validateMessages = ref<Record<string, string[]>>({});
+
+    function clearValidate(fields?: string[]) {
+      if (!fields?.length) {
+        validateMessages.value = {};
+        return;
+      }
+
+      const nextMessages = { ...validateMessages.value };
+      fields.forEach((field) => {
+        delete nextMessages[field];
+      });
+      validateMessages.value = nextMessages;
+    }
+
+    function setValidateMessage(message: Record<string, Array<{ message: string }>>) {
+      const nextMessages = { ...validateMessages.value };
+      Object.entries(message).forEach(([field, items]) => {
+        nextMessages[field] = items.map((item) => item.message);
+      });
+      validateMessages.value = nextMessages;
+    }
+
+    expose({
+      clearValidate,
+      setValidateMessage,
+    });
+
     return () =>
       h(
         'form',
@@ -238,8 +280,38 @@ const formStub = defineComponent({
             emit('submit', { validateResult: true });
           },
         },
-        slots.default?.(),
+        [
+          slots.default?.({ data: props.data }),
+          Object.entries(validateMessages.value).map(([field, messages]) =>
+            h(
+              'div',
+              { 'data-testid': `validate-${field}` },
+              messages.map((message) => h('p', message)),
+            ),
+          ),
+        ],
       );
+  },
+});
+
+const formItemStub = defineComponent({
+  name: 'TFormItemStub',
+  props: {
+    label: {
+      type: String,
+      default: '',
+    },
+    name: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props, { slots }) {
+    return () =>
+      h('div', { 'data-testid': `form-item-${props.name}` }, [
+        props.label ? h('label', props.label) : null,
+        slots.default?.(),
+      ]);
   },
 });
 
@@ -338,7 +410,7 @@ function mountRolePage() {
         't-drawer': drawerStub,
         't-empty': passthroughStub,
         't-form': formStub,
-        't-form-item': passthroughStub,
+        't-form-item': formItemStub,
         't-input': inputStub,
         't-select': selectStub,
         't-table': tableStub,
@@ -429,6 +501,37 @@ describe('RolePage', () => {
     expect(messageMocks.success).toHaveBeenCalledWith('rbac.roleList.createSuccess');
   });
 
+  it('binds role form invalid-argument errors to the name field', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.ROLE_CREATE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue({ items: [] });
+    rbacApiMocks.createRole.mockRejectedValue({
+      isApiRequestError: true,
+      status: 400,
+      code: 'COMMON_INVALID_ARGUMENT',
+      message: '角色编码已存在',
+      messageKey: '',
+      responseData: {
+        data: {
+          field: 'name',
+        },
+      },
+    });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-create"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('input[placeholder="rbac.roleList.form.namePlaceholder"]').setValue('reviewer');
+    await wrapper.get('input[placeholder="rbac.roleList.form.displayPlaceholder"]').setValue('Reviewer');
+    await wrapper.get('[data-testid="role-form"]').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="validate-name"]').text()).toContain('角色编码已存在');
+    expect(messageMocks.error).not.toHaveBeenCalled();
+  });
+
   it('submits the restored permission snapshot for the selected role', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
@@ -448,6 +551,62 @@ describe('RolePage', () => {
       permission_ids: [1, 2],
     });
     expect(messageMocks.success).toHaveBeenCalledWith('rbac.roleList.assignSuccess');
+  });
+
+  it('keeps permission assignment errors local when the backend rejects permission_ids', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [2, 1, 2] });
+    rbacApiMocks.assignRolePermissions.mockRejectedValue({
+      isApiRequestError: true,
+      status: 400,
+      code: 'COMMON_INVALID_ARGUMENT',
+      message: '权限列表包含无效条目',
+      messageKey: '',
+      responseData: {
+        data: {
+          field: 'permission_ids',
+        },
+      },
+    });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('权限列表包含无效条目');
+    expect(messageMocks.error).not.toHaveBeenCalledWith('rbac.roleList.assignFailed');
+  });
+
+  it('keeps role-not-found assignment failures in the permission drawer feedback surface', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [2, 1, 2] });
+    rbacApiMocks.assignRolePermissions.mockRejectedValue({
+      isApiRequestError: true,
+      status: 404,
+      code: 'ROLE_NOT_FOUND',
+      message: '角色不存在',
+      messageKey: 'role.not_found',
+      responseData: {},
+    });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('角色不存在');
+    expect(messageMocks.error).not.toHaveBeenCalledWith('rbac.roleList.assignFailed');
   });
 
   it('renders the table empty state, clears filters, and opens the create drawer from the empty action', async () => {

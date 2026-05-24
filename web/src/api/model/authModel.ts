@@ -20,7 +20,7 @@ export interface ApiErrorEnvelope {
   code: ApiResponseCode;
   message: string;
   traceId: string;
-  data?: null;
+  data?: Record<string, unknown> | null;
   messageKey?: string;
   locale?: string;
 }
@@ -34,16 +34,7 @@ export type LoginResponse = AuthSchemas['LoginResponse'];
 export type BootstrapMenu = AuthSchemas['BootstrapMenu'];
 export type BootstrapLocale = AuthSchemas['BootstrapLocale'];
 export type BootstrapResponse = AuthSchemas['BootstrapResponse'];
-
-export interface LoginPayload {
-  username: string;
-  password: string;
-}
-
-export interface ChangePasswordPayload {
-  current_password: string;
-  new_password: string;
-}
+export type LoginPayload = AuthSchemas['LoginRequest'];
 
 export interface CompleteRequiredPasswordChangePayload {
   new_password: string;

@@ -1,48 +1,14 @@
 <template>
-  <server-status-page-shell
-    :eyebrow="t('monitor.sectionTitle')"
-    :title="t('monitor.runtimePage.title')"
-    :description="t('monitor.runtimePage.subtitle')"
-    compact-header
+  <monitor-status-page-frame
+    v-bind="frameProps"
+    @refresh="refreshSnapshot"
+    @toggle-auto-refresh="toggleAutoRefresh"
+    @update:refresh-interval-value="handleRefreshIntervalChange"
   >
-    <template #toolbar>
-      <monitor-toolbar
-        :auto-refresh-enabled="autoRefreshEnabled"
-        :loading="loading"
-        :pause-auto-refresh-label="t('monitor.serverStatus.pauseRefresh')"
-        :refresh-interval-label="t('monitor.serverStatus.refreshIntervalLabel')"
-        :refresh-interval-options="refreshIntervalOptions"
-        :refresh-interval-value="selectedRefreshInterval"
-        :refresh-now-label="t('monitor.serverStatus.refreshNow')"
-        :resume-auto-refresh-label="t('monitor.serverStatus.resumeRefresh')"
-        :show-trend-range="false"
-        :status="headerStatus"
-        :status-label="headerStatusLabel"
-        :trend-range-label-placeholder="t('monitor.serverStatus.trendWindowLabel')"
-        @refresh="refreshSnapshot"
-        @toggle-auto-refresh="toggleAutoRefresh"
-        @update:refresh-interval-value="handleRefreshIntervalChange"
-      />
-    </template>
-
     <template #headerHint>
       <div class="server-status-runtime-scope-line">
         {{ t('monitor.runtimePage.memoryBoundaryNotice') }}
       </div>
-    </template>
-
-    <template #summary>
-      <summary-metric-card
-        v-for="metric in summaryMetrics"
-        :key="metric.key"
-        :title="metric.label"
-        :value="metric.value"
-        :description="metric.description"
-      />
-    </template>
-
-    <template #feedback>
-      <section-card v-if="errorMessage" :title="t('monitor.shared.errorTitle')" :description="errorMessage" />
     </template>
 
     <div class="server-status-runtime-grid">
@@ -102,21 +68,18 @@
         </div>
       </section-card>
     </div>
-
-    <t-empty v-if="initialized && !serverStatus && !loading" :description="t('monitor.shared.empty')" />
-  </server-status-page-shell>
+  </monitor-status-page-frame>
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import KeyValueRow from '../../components/KeyValueRow.vue';
-import MonitorToolbar from '../../components/MonitorToolbar.vue';
+import MonitorStatusPageFrame from '../../components/MonitorStatusPageFrame.vue';
 import SectionCard from '../../components/SectionCard.vue';
 import { resolveServerStatusTone } from '../../components/server-status-ui';
-import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
-import SummaryMetricCard from '../../components/SummaryMetricCard.vue';
 import type { MonitorRefreshInterval } from '../../contract/refresh';
+import { buildStandardMonitorStatusFrameProps } from '../../shared/frame-props';
 import {
   displayText,
   formatBytes,
@@ -126,6 +89,10 @@ import {
 } from '../../shared/server-status-snapshot';
 
 const { t } = useI18n();
+/* jscpd:ignore-start */
+// 这里保留页面本地 snapshot 解构，避免为压低重复率再抽一层“万能页面上下文”。
+// 若未来删除或改造该代码，必须同步移除对应 jscpd ignore，重新评估是否仍需保留本地解构。
+const snapshot = useServerStatusSnapshot();
 const {
   autoRefreshEnabled,
   errorMessage,
@@ -137,7 +104,8 @@ const {
   selectedRefreshInterval,
   serverStatus,
   toggleAutoRefresh,
-} = useServerStatusSnapshot();
+} = snapshot;
+/* jscpd:ignore-end */
 
 const headerStatus = computed(() => resolveServerStatusTone(serverStatus.value?.status));
 const headerStatusLabel = computed(() =>
@@ -175,6 +143,34 @@ const summaryMetrics = computed(() => {
     },
   ];
 });
+
+/* jscpd:ignore-start */
+// 这里保留页面级 frame 配置，页面标题、摘要和状态语义直接贴近页面实现更易维护。
+// 若未来删除或改造该代码，必须同步移除对应 jscpd ignore，重新评估是否仍需保留页面本地配置。
+const frameProps = computed(() =>
+  buildStandardMonitorStatusFrameProps({
+    t,
+    page: {
+      eyebrow: t('monitor.sectionTitle'),
+      title: t('monitor.runtimePage.title'),
+      description: t('monitor.runtimePage.subtitle'),
+      compactHeader: true,
+      status: headerStatus.value,
+      statusLabel: headerStatusLabel.value,
+      summaryItems: summaryMetrics.value,
+    },
+    snapshot: {
+      autoRefreshEnabled: autoRefreshEnabled.value,
+      loading: loading.value,
+      refreshIntervalOptions: refreshIntervalOptions.value,
+      refreshIntervalValue: selectedRefreshInterval.value,
+      errorMessage: errorMessage.value,
+      initialized: initialized.value,
+      hasServerStatus: Boolean(serverStatus.value),
+    },
+  }),
+);
+/* jscpd:ignore-end */
 
 const runtimePrimaryFields = computed(() => {
   const runtime = serverStatus.value?.runtime;

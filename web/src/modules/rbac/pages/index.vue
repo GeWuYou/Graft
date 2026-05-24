@@ -224,7 +224,7 @@
           <span>{{ t('rbac.roleList.form.builtinNotice') }}</span>
         </div>
 
-        <t-form :data="roleForm" :rules="roleFormRules" label-align="top" @submit="handleRoleSubmit">
+        <t-form ref="roleFormRef" :data="roleForm" :rules="roleFormRules" label-align="top" @submit="handleRoleSubmit">
           <t-form-item :label="t('rbac.roleList.form.name')" name="name">
             <t-input
               v-model="roleForm.name"
@@ -424,11 +424,18 @@
   </div>
 </template>
 <script setup lang="ts">
-import { type FormRule, MessagePlugin, type SubmitContext, type TdBaseTableProps } from 'tdesign-vue-next';
+import {
+  type FormRule,
+  type FormValidateMessage,
+  MessagePlugin,
+  type SubmitContext,
+  type TdBaseTableProps,
+} from 'tdesign-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { localizedApiErrorMessage } from '@/modules/shared/localized-api-error';
 import {
   ManagementEmptyState,
   ManagementPageContent,
@@ -439,6 +446,7 @@ import {
 } from '@/shared/components/management';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
+import { isApiRequestError } from '@/utils/request';
 
 import {
   assignRolePermissions,
@@ -450,8 +458,9 @@ import {
 } from '../api/rbac';
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import type { RoleListItem } from '../contract/role';
+import { resolveRoleFormFieldError, resolveRolePermissionFieldError } from '../error-adapter';
 import type { PermissionListItem } from '../types/permission';
-import type { CreateRolePayload } from '../types/rbac';
+import type { CreateRolePayload, ReplaceRolePermissionsPayload, UpdateRolePayload } from '../types/rbac';
 
 defineOptions({
   name: 'RolesIndex',
@@ -470,6 +479,11 @@ type RoleFormState = {
   description: string;
   display: string;
   name: string;
+};
+
+type RoleFormInstance = {
+  clearValidate: (fields?: Array<keyof RoleFormState>) => void;
+  setValidateMessage: (message: FormValidateMessage<RoleFormState>) => void;
 };
 
 type PermissionGroup = {
@@ -515,6 +529,7 @@ const permissionCatalogError = ref('');
 const roleDrawerVisible = ref(false);
 const roleDrawerMode = ref<RoleDrawerMode>('create');
 const roleDrawerRole = ref<RoleListItem | null>(null);
+const roleFormRef = ref<RoleFormInstance | null>(null);
 const roleForm = ref<RoleFormState>({ ...INITIAL_ROLE_FORM });
 const submittingRole = ref(false);
 const permissionDrawerVisible = ref(false);
@@ -802,8 +817,30 @@ function normalizeDescription(description: string) {
   return trimmed ? trimmed : null;
 }
 
+function toCreateRolePayload(form: RoleFormState): CreateRolePayload {
+  return {
+    name: form.name.trim(),
+    display: form.display.trim(),
+    description: normalizeDescription(form.description),
+  };
+}
+
+function toUpdateRolePayload(form: RoleFormState): UpdateRolePayload {
+  return {
+    name: form.name.trim(),
+    display: form.display.trim(),
+    description: normalizeDescription(form.description),
+  };
+}
+
 function sortStableIDs(ids: number[]) {
   return ids.slice().sort((left, right) => left - right);
+}
+
+function toReplaceRolePermissionsPayload(permissionIds: number[]): ReplaceRolePermissionsPayload {
+  return {
+    permission_ids: sortStableIDs(permissionIds),
+  };
 }
 
 function normalizeRolePermissionIDs(rawPermissionIDs: number[]) {
@@ -880,7 +917,14 @@ function closeRoleDrawer() {
   roleDrawerVisible.value = false;
   roleDrawerRole.value = null;
   roleForm.value = { ...INITIAL_ROLE_FORM };
+  roleFormRef.value?.clearValidate();
   submittingRole.value = false;
+}
+
+function setRoleFormFieldError(field: keyof RoleFormState, message: string) {
+  roleFormRef.value?.setValidateMessage({
+    [field]: [{ type: 'error', message }],
+  } as FormValidateMessage<RoleFormState>);
 }
 
 async function handleRoleSubmit(ctx: SubmitContext) {
@@ -890,18 +934,12 @@ async function handleRoleSubmit(ctx: SubmitContext) {
 
   submittingRole.value = true;
   try {
-    const payload: CreateRolePayload = {
-      name: roleForm.value.name.trim(),
-      display: roleForm.value.display.trim(),
-      description: normalizeDescription(roleForm.value.description),
-    };
-
     if (roleDrawerMode.value === 'create') {
-      const created = await createRole(payload);
+      const created = await createRole(toCreateRolePayload(roleForm.value));
       roles.value = [...roles.value, created].sort((left, right) => left.id - right.id);
       MessagePlugin.success(t('rbac.roleList.createSuccess'));
     } else if (roleDrawerRole.value) {
-      const updated = await updateRole(roleDrawerRole.value.id, payload);
+      const updated = await updateRole(roleDrawerRole.value.id, toUpdateRolePayload(roleForm.value));
       roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
       roleDrawerRole.value = updated;
       MessagePlugin.success(t('rbac.roleList.updateSuccess'));
@@ -909,6 +947,20 @@ async function handleRoleSubmit(ctx: SubmitContext) {
 
     closeRoleDrawer();
   } catch (error) {
+    logger.error('failed to submit role form', error);
+    if (isApiRequestError(error)) {
+      const errorMessage =
+        localizedApiErrorMessage(t, error.messageKey, error.message) || t('rbac.roleList.submitFailed');
+      const field = resolveRoleFormFieldError(error);
+      if (field) {
+        setRoleFormFieldError(field, errorMessage);
+        return;
+      }
+
+      MessagePlugin.error(errorMessage);
+      return;
+    }
+
     MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.submitFailed'));
   } finally {
     submittingRole.value = false;
@@ -1032,13 +1084,13 @@ async function submitPermissionAssignment() {
   }
 
   const session = permissionDrawerSession.value;
-  const permissionIds = sortStableIDs(selectedPermissionIds.value);
+  const payload = toReplaceRolePermissionsPayload(selectedPermissionIds.value);
 
+  permissionLoadWarning.value = '';
+  permissionLoadRetryable.value = false;
   submittingPermissions.value = true;
   try {
-    await assignRolePermissions(selectedRole.value.id, {
-      permission_ids: permissionIds,
-    });
+    await assignRolePermissions(selectedRole.value.id, payload);
 
     if (!isActivePermissionDrawerSession(session)) {
       return;
@@ -1049,6 +1101,21 @@ async function submitPermissionAssignment() {
     await fetchRolePageData();
   } catch (error) {
     if (isActivePermissionDrawerSession(session)) {
+      if (isApiRequestError(error)) {
+        const errorMessage =
+          localizedApiErrorMessage(t, error.messageKey, error.message) || t('rbac.roleList.assignFailed');
+        const field = resolveRolePermissionFieldError(error);
+
+        if (field === 'permission_ids' || error.status === 404) {
+          permissionLoadWarning.value = errorMessage;
+          permissionLoadRetryable.value = false;
+          return;
+        }
+
+        MessagePlugin.error(errorMessage);
+        return;
+      }
+
       MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.assignFailed'));
     }
   } finally {

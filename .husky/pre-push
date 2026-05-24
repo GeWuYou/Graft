@@ -75,5 +75,15 @@ fi
 
 export GRAFT_LINT_BASE_REF="$base_ref"
 
+changed_files="$(git diff --name-only "$base_ref...HEAD")"
+if printf '%s\n' "$changed_files" | grep -q '^web/'; then
+  (
+    cd "$repo_root/web"
+    bun run hygiene:check
+  )
+else
+  echo "web hygiene gate: no web/** changes detected; skipping."
+fi
+
 cd "$repo_root/server"
 go run ./cmd/graft validate backend --stage lint

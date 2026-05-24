@@ -1,3 +1,5 @@
+@import '../../rbac/shared/list-page.less';
+
 .user-page {
   --graft-page-max-width: 1680px;
   --graft-page-width-ratio: 90vw;
@@ -7,24 +9,11 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.toolbar__search {
-  width: clamp(260px, 28vw, 320px);
-}
-
-.toolbar__select {
-  width: min(100%, 180px);
-}
-
-.user-page :deep(.management-toolbar__filters) {
-  flex-wrap: nowrap;
-}
-
-.toolbar__search :deep(.t-input__wrap),
-.toolbar__select :deep(.t-input__wrap),
-.toolbar__select :deep(.t-select__wrap) {
-  min-height: 36px;
+  .management-list-toolbar();
+  .management-list-header();
+  .management-list-table-empty();
+  .management-list-table-shell();
+  .management-list-mobile();
 }
 
 .table-head,
@@ -40,14 +29,6 @@
   justify-content: space-between;
 }
 
-.table-head {
-  width: 100%;
-}
-
-.table-head > div {
-  min-width: 0;
-}
-
 .table-head__summary,
 .table-head__description,
 .table-muted,
@@ -61,32 +42,6 @@
 .table-head__summary,
 .table-head__description {
   margin: 0;
-}
-
-.table-head__summary {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-small);
-  margin: 0;
-}
-
-.table-head__description {
-  font: var(--td-font-body-small);
-}
-
-.table-empty-state {
-  align-items: center;
-  background: transparent;
-  display: flex;
-  justify-content: center;
-  min-height: 288px;
-  padding: 48px 24px;
-}
-
-.table-empty-state__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
 }
 
 .user-cell {
@@ -215,53 +170,6 @@
   flex: 0 0 auto;
 }
 
-:deep(.t-table) {
-  --td-comp-paddingTB-m: 10px;
-
-  width: 100%;
-}
-
-:deep(.t-table th),
-:deep(.t-table td) {
-  white-space: nowrap;
-}
-
-:deep(.t-table__content),
-:deep(.t-table table) {
-  width: 100%;
-}
-
-:deep(.t-table table) {
-  table-layout: fixed;
-}
-
-:deep(.t-table th:last-child),
-:deep(.t-table td:last-child) {
-  text-align: right;
-}
-
-:deep(.t-table__empty) {
-  padding: 0;
-}
-
-:deep(.t-table__empty-row td) {
-  padding-block: 0;
-}
-
-:deep(.t-empty) {
-  align-items: center;
-  text-align: center;
-}
-
-:deep(.t-empty__title) {
-  color: var(--td-text-color-primary);
-}
-
-:deep(.t-empty__description) {
-  color: var(--td-text-color-secondary);
-  max-width: 420px;
-}
-
 .role-tag-list,
 .user-cell,
 .user-cell__meta {
@@ -289,20 +197,6 @@
   .inline-warning {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .toolbar__search,
-  .toolbar__select {
-    width: 100%;
-  }
-
-  .table-empty-state {
-    min-height: 260px;
-    padding-inline: 16px;
-  }
-
-  .user-page :deep(.management-toolbar__filters) {
-    flex-wrap: wrap;
   }
 
   .table-actions {

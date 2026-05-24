@@ -172,6 +172,7 @@
                 size="small"
                 theme="default"
                 variant="outline"
+                data-testid="user-edit"
                 @click="openUserDrawer('edit', row)"
               >
                 {{ t('user.userList.edit') }}
@@ -239,14 +240,19 @@
       destroy-on-close
     >
       <div class="drawer-panel">
-        <t-form :data="userForm" :rules="userFormRules" label-align="top" @submit="handleUserSubmit">
+        <t-form ref="userFormRef" :data="userForm" :rules="userFormRules" label-align="top" @submit="handleUserSubmit">
           <t-form-item :label="t('user.userList.form.username')" name="username">
             <t-input v-model="userForm.username" :placeholder="t('user.userList.form.usernamePlaceholder')" />
           </t-form-item>
           <t-form-item :label="t('user.userList.form.display')" name="display">
             <t-input v-model="userForm.display" :placeholder="t('user.userList.form.displayPlaceholder')" />
           </t-form-item>
-          <t-form-item v-if="userDrawerMode === 'create'" :label="t('user.userList.form.password')" name="password">
+          <t-form-item
+            v-if="userDrawerMode === 'create'"
+            :label="t('user.userList.form.password')"
+            :tips="passwordFieldError ? '' : t('user.userList.form.passwordPolicy.hint')"
+            name="password"
+          >
             <t-input
               v-model="userForm.password"
               type="password"
@@ -281,7 +287,7 @@
             })
           }}
         </p>
-        <t-form :data="resetPasswordForm" label-align="top">
+        <t-form ref="resetPasswordFormRef" :data="resetPasswordForm" :rules="resetPasswordFormRules" label-align="top">
           <t-form-item :label="t('user.userList.resetPasswordDialog.password')" name="password">
             <t-input
               v-model="resetPasswordForm.password"
@@ -424,13 +430,20 @@
   </div>
 </template>
 <script setup lang="ts">
-import { type FormRule, MessagePlugin, type SubmitContext, type TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import {
+  type FormRule,
+  type FormValidateMessage,
+  MessagePlugin,
+  type SubmitContext,
+  type TdBaseTableProps,
+} from 'tdesign-vue-next';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import type { RoleListItem } from '@/modules/rbac/contract/role';
+import { localizedApiErrorMessage } from '@/modules/shared/localized-api-error';
 import {
   ManagementEmptyState,
   ManagementPageContent,
@@ -441,12 +454,15 @@ import {
 } from '@/shared/components/management';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
+import { isApiRequestError } from '@/utils/request';
 
 import { assignUserRoles, getRoles, getUserRoleBindings } from '../api/user-roles';
 import { createUser, deleteUser, getUsers, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
+import { resolveResetPasswordFieldError, resolveUserFormFieldError } from '../error-adapter';
+import { evaluateUserPasswordPolicy } from '../shared/password-policy';
 import type { CreateUserPayload, ResetUserPasswordPayload, UpdateUserPayload, UserListItem } from '../types/user';
 
 defineOptions({
@@ -473,6 +489,16 @@ type UserFormState = {
   username: string;
   display: string;
   password: string;
+};
+
+type UserFormInstance = {
+  clearValidate: (fields?: Array<keyof UserFormState>) => void;
+  setValidateMessage: (message: FormValidateMessage<UserFormState>) => void;
+};
+
+type ResetPasswordFormInstance = {
+  clearValidate: (fields?: Array<'password'>) => void;
+  setValidateMessage: (message: FormValidateMessage<{ password: string }>) => void;
 };
 
 const INITIAL_USER_FORM: UserFormState = {
@@ -508,10 +534,13 @@ const roleSummaryErrors = ref<Record<number, boolean>>({});
 const userDrawerVisible = ref(false);
 const userDrawerMode = ref<UserDrawerMode>('create');
 const userDrawerTarget = ref<UserRow | null>(null);
+const userFormRef = ref<UserFormInstance | null>(null);
 const userForm = ref<UserFormState>({ ...INITIAL_USER_FORM });
+const passwordFieldError = ref('');
 const submittingUser = ref(false);
 const resetPasswordDialogVisible = ref(false);
 const resetPasswordTarget = ref<UserRow | null>(null);
+const resetPasswordFormRef = ref<ResetPasswordFormInstance | null>(null);
 const resetPasswordForm = ref({
   password: '',
 });
@@ -644,8 +673,29 @@ const userFormRules = computed<Record<keyof UserFormState, FormRule[]>>(() => ({
   display: [{ required: true, message: t('user.userList.form.required.display'), type: 'error' }],
   password:
     userDrawerMode.value === 'create'
-      ? [{ required: true, message: t('user.userList.form.required.password'), type: 'error' }]
+      ? [
+          {
+            type: 'error',
+            validator: (value) => {
+              const errorMessage = resolveCreatePasswordError(typeof value === 'string' ? value : '', true);
+              passwordFieldError.value = errorMessage;
+              if (!errorMessage) {
+                return true;
+              }
+
+              return {
+                result: false,
+                message: errorMessage,
+                type: 'error',
+              };
+            },
+          },
+        ]
       : [],
+}));
+
+const resetPasswordFormRules = computed<Record<'password', FormRule[]>>(() => ({
+  password: [{ required: true, message: t('user.userList.resetPasswordDialog.required'), type: 'error' }],
 }));
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
@@ -852,6 +902,7 @@ function statusTheme(status?: string | null) {
 function openUserDrawer(mode: UserDrawerMode, user?: UserRow) {
   userDrawerMode.value = mode;
   userDrawerTarget.value = user ?? null;
+  passwordFieldError.value = '';
   userForm.value = {
     username: user?.username ?? '',
     display: user?.display ?? '',
@@ -873,8 +924,61 @@ function consumeCreateActionQuery() {
 function closeUserDrawer() {
   userDrawerVisible.value = false;
   userDrawerTarget.value = null;
+  passwordFieldError.value = '';
   userForm.value = { ...INITIAL_USER_FORM };
+  userFormRef.value?.clearValidate();
   submittingUser.value = false;
+}
+
+function resolveCreatePasswordError(password: string, requireValue: boolean) {
+  if (!password) {
+    return requireValue ? t('user.userList.form.required.password') : '';
+  }
+
+  return evaluateUserPasswordPolicy(password).meetsMinimum ? '' : t('user.userList.form.passwordPolicy.error');
+}
+
+function setUserFormFieldError(field: keyof UserFormState, message: string) {
+  userFormRef.value?.setValidateMessage({
+    [field]: [{ type: 'error', message }],
+  } as FormValidateMessage<UserFormState>);
+}
+
+function clearUserFormFieldError(field: keyof UserFormState) {
+  userFormRef.value?.clearValidate([field]);
+}
+
+function setResetPasswordFieldError(message: string) {
+  resetPasswordFormRef.value?.setValidateMessage({
+    password: [{ type: 'error', message }],
+  });
+}
+
+function clearResetPasswordFieldError() {
+  resetPasswordFormRef.value?.clearValidate(['password']);
+}
+
+async function syncCreatePasswordFeedback() {
+  if (userDrawerMode.value !== 'create' || !userDrawerVisible.value) {
+    passwordFieldError.value = '';
+    return;
+  }
+
+  const errorMessage = resolveCreatePasswordError(userForm.value.password, false);
+  passwordFieldError.value = errorMessage;
+
+  await nextTick();
+
+  if (userDrawerMode.value !== 'create' || !userDrawerVisible.value) {
+    return;
+  }
+
+  if (errorMessage) {
+    setUserFormFieldError('password', errorMessage);
+    return;
+  }
+
+  clearUserFormFieldError('password');
 }
 
 async function handleUserSubmit(ctx: SubmitContext) {
@@ -905,6 +1009,24 @@ async function handleUserSubmit(ctx: SubmitContext) {
     closeUserDrawer();
   } catch (error) {
     logger.error('failed to submit user form', error);
+    if (isApiRequestError(error)) {
+      const fallbackMessage =
+        userDrawerMode.value === 'create' ? t('user.userList.createFailed') : t('user.userList.editFailed');
+      const errorMessage = localizedApiErrorMessage(t, error.messageKey, error.message) || fallbackMessage;
+      const field = resolveUserFormFieldError(error, userDrawerMode.value);
+
+      if (field) {
+        if (field === 'password') {
+          passwordFieldError.value = errorMessage;
+        }
+        setUserFormFieldError(field, errorMessage);
+        return;
+      }
+
+      MessagePlugin.error(errorMessage);
+      return;
+    }
+
     MessagePlugin.error(
       userDrawerMode.value === 'create' ? t('user.userList.createFailed') : t('user.userList.editFailed'),
     );
@@ -916,6 +1038,7 @@ async function handleUserSubmit(ctx: SubmitContext) {
 function openResetPasswordDialog(user: UserRow) {
   resetPasswordTarget.value = user;
   resetPasswordForm.value.password = '';
+  clearResetPasswordFieldError();
   resetPasswordDialogVisible.value = true;
 }
 
@@ -923,6 +1046,7 @@ function closeResetPasswordDialog() {
   resetPasswordDialogVisible.value = false;
   resetPasswordTarget.value = null;
   resetPasswordForm.value.password = '';
+  clearResetPasswordFieldError();
   submittingResetPassword.value = false;
 }
 
@@ -935,6 +1059,7 @@ async function submitResetPassword() {
     return;
   }
 
+  clearResetPasswordFieldError();
   submittingResetPassword.value = true;
   try {
     const payload: ResetUserPasswordPayload = {
@@ -945,6 +1070,20 @@ async function submitResetPassword() {
     closeResetPasswordDialog();
   } catch (error) {
     logger.error('failed to reset password', error);
+    if (isApiRequestError(error)) {
+      const errorMessage =
+        localizedApiErrorMessage(t, error.messageKey, error.message) || t('user.userList.resetPasswordFailed');
+      const field = resolveResetPasswordFieldError(error);
+
+      if (field === 'password') {
+        setResetPasswordFieldError(errorMessage);
+        return;
+      }
+
+      MessagePlugin.error(errorMessage);
+      return;
+    }
+
     MessagePlugin.error(t('user.userList.resetPasswordFailed'));
   } finally {
     submittingResetPassword.value = false;
@@ -971,6 +1110,13 @@ async function toggleUserStatus(user: UserRow) {
     MessagePlugin.success(t('user.userList.statusUpdateSuccess'));
   } catch (error) {
     logger.error('failed to update status', error);
+    if (isApiRequestError(error)) {
+      MessagePlugin.error(
+        localizedApiErrorMessage(t, error.messageKey, error.message) || t('user.userList.statusUpdateFailed'),
+      );
+      return;
+    }
+
     MessagePlugin.error(t('user.userList.statusUpdateFailed'));
   }
 }
@@ -1143,6 +1289,13 @@ watch(
     consumeCreateActionQuery();
   },
   { immediate: true },
+);
+
+watch(
+  () => [userDrawerVisible.value, userDrawerMode.value, userForm.value.password] as const,
+  () => {
+    void syncCreatePasswordFeedback();
+  },
 );
 </script>
 <style lang="less" scoped>

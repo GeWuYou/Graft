@@ -1,5 +1,9 @@
 # Graft OpenAPI First 契约治理长分支计划
 
+> Historical status: `openapi-contract-governance` is complete and inactive. Detailed phase history now lives in the
+> topic-local `archive/` snapshots, while this document remains the final topic design record. Future implementation
+> must start under a new topic rather than continuing this one.
+
 ## 1. 结论
 
 - 建议跳过 swaggo 过渡，直接进入 OpenAPI First。
@@ -81,6 +85,7 @@
 - 不做事项：不绕开 token refresh、locale、traceId。
 - 验收标准：新模块能优先用生成类型/SDK，旧 API 不被破坏。
 - 是否允许生成代码：允许。
+- 当前结论：先不引入 `openapi-fetch` 或第二套 runtime client；以生成 schema 类型 + 模块本地 alias + 现有 `request.ts` transport 语义作为 Phase 3 完成态。
 
 ### Phase 4
 
@@ -88,6 +93,7 @@
 - 改动范围：仅在 Auth/User/RBAC 稳定后，试点 `oapi-codegen` 生成 Go models 或 server interface。
 - 不做事项：Monitor 不先行。
 - 验收标准：若收益不明显可停留在 spec-first + TS-first。
+- 当前结论：现阶段关闭为 deferred/no-go，不引入 `oapi-codegen`。继续保持 `spec-first + TS-first + explicit server DTOs`，直到后续有更稳定的跨插件 Go contract 需求、明确的生成物归属，以及不会削弱插件显式路由/生命周期边界的验证入口。
 
 ## 8. 风险与规避
 

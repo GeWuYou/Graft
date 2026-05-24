@@ -19,7 +19,7 @@ export function cloneThemeModeTokenState(tokens?: Partial<ThemeModeTokenState>):
   };
 }
 
-export function mergeThemeTokenMaps(...sources: Array<ThemeTokenMap | undefined>): ThemeTokenMap {
+function mergeThemeTokenMaps(...sources: Array<ThemeTokenMap | undefined>): ThemeTokenMap {
   return sources.reduce<ThemeTokenMap>((merged, current) => {
     if (!current) {
       return merged;
@@ -30,16 +30,6 @@ export function mergeThemeTokenMaps(...sources: Array<ThemeTokenMap | undefined>
       ...current,
     };
   }, {});
-}
-
-export function mergeThemeModeTokenState(
-  base: ThemeModeTokenState,
-  patch?: Partial<ThemeModeTokenState>,
-): ThemeModeTokenState {
-  return {
-    light: mergeThemeTokenMaps(base.light, patch?.light),
-    dark: mergeThemeTokenMaps(base.dark, patch?.dark),
-  };
 }
 
 export function buildThemeModeSnapshot(options: {

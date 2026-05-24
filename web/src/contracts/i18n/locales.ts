@@ -35,10 +35,6 @@ export function getDefaultLocale(): SupportedLocale {
   return LOCALE.ZH_CN;
 }
 
-export function toRequestLocale(locale: string | null | undefined): SupportedLocale {
-  return normalizeLocale(locale) ?? getDefaultLocale();
-}
-
 export function toTDesignLocale(locale: SupportedLocale) {
   return tdesignLocaleMap[locale];
 }

@@ -29,6 +29,8 @@ withDefaults(
 );
 </script>
 <style scoped lang="less">
+@import './card-surface.less';
+
 .management-stats-grid {
   display: grid;
   gap: 12px;
@@ -44,10 +46,8 @@ withDefaults(
 }
 
 .management-stats-grid__item {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-large);
-  box-shadow: var(--td-shadow-1);
+  .management-card-surface();
+
   display: flex;
   flex-direction: column;
   gap: 8px;

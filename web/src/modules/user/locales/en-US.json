@@ -105,6 +105,10 @@
         "usernamePlaceholder": "Enter username",
         "displayPlaceholder": "Enter display name",
         "passwordPlaceholder": "Enter a policy-compliant initial password",
+        "passwordPolicy": {
+          "hint": "Password requirement: at least 12 characters and include both letters and digits.",
+          "error": "Password must be at least 12 characters and include both letters and digits."
+        },
         "cancel": "Cancel",
         "confirm": "Save",
         "required": {

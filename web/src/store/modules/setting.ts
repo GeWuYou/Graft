@@ -10,7 +10,6 @@ import {
   THEME_TOKEN_DEFINITIONS,
   THEME_WORKBENCH_GROUPS,
 } from '@/config/theme-workbench';
-import { store } from '@/store';
 import type {
   ThemeModeTokenState,
   ThemePresetDefinition,
@@ -330,7 +329,3 @@ export const useSettingStore = defineStore('setting', {
     ],
   },
 });
-
-export function getSettingStore() {
-  return useSettingStore(store);
-}

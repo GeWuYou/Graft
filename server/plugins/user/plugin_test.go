@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 	"golang.org/x/crypto/bcrypt"
 
 	"graft/server/internal/config"
@@ -529,12 +530,22 @@ func (r pluginTestRBACRepository) ListRolePermissionBindings(_ context.Context, 
 }
 
 func newPluginTestContext(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository) (*plugin.Context, *gin.Engine) {
-	return newPluginTestContextWithPermissions(t, userRepo, authRepo, map[uint64][]rbacstore.Permission{
+	return newPluginTestContextWithLoggerAndPermissions(t, zap.NewNop(), userRepo, authRepo, map[uint64][]rbacstore.Permission{
 		7: {{Code: usercontract.UserReadPermission.String()}},
 	})
 }
 
 func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository, permissions map[uint64][]rbacstore.Permission) (*plugin.Context, *gin.Engine) {
+	return newPluginTestContextWithLoggerAndPermissions(t, zap.NewNop(), userRepo, authRepo, permissions)
+}
+
+func newPluginTestContextWithLoggerAndPermissions(
+	t *testing.T,
+	logger *zap.Logger,
+	userRepo store.UserRepository,
+	authRepo store.AuthRepository,
+	permissions map[uint64][]rbacstore.Permission,
+) (*plugin.Context, *gin.Engine) {
 	t.Helper()
 
 	if authRepo == nil {
@@ -561,7 +572,7 @@ func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserReposi
 	engine := gin.New()
 	ctx := &plugin.Context{
 		LifecycleContext: context.Background(),
-		Logger:           zap.NewNop(),
+		Logger:           logger,
 		Config: &config.Config{Auth: config.AuthConfig{
 			AccessTokenTTL:        15 * time.Minute,
 			RefreshTokenTTL:       24 * time.Hour,
@@ -1678,6 +1689,154 @@ func TestCreateUserRouteReturnsStableItem(t *testing.T) {
 	}
 }
 
+func TestCreateUserRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return testUser(7, "alice", "Alice"), nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		7: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserCreatePermission.String()},
+		},
+	})
+
+	sessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(t, http.MethodPost, usersRoutePath(usercontract.UserCollection), 7, sessionID, map[string]any{
+		"username": "carol",
+		"display":  "Carol",
+		"password": "short",
+	})
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusBadRequest)
+	payload := decodeErrorResponse(t, recorder)
+	assertContractErrorPayload(t, payload, messagecontract.AuthPasswordPolicyViolation, "zh-CN")
+	assertErrorFieldDetail(t, payload, "password")
+	if payload.Code != errorcodecontract.AuthPasswordPolicyViolation.String() {
+		t.Fatalf("expected password policy code, got %#v", payload)
+	}
+}
+
+func TestCreateUserRouteReturnsFieldLevelInvalidArgumentContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return testUser(7, "alice", "Alice"), nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		7: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserCreatePermission.String()},
+		},
+	})
+
+	tests := []struct {
+		name  string
+		body  map[string]any
+		field string
+	}{
+		{
+			name: "missing username",
+			body: map[string]any{
+				"display":  "Carol",
+				"password": "Password12345",
+			},
+			field: "username",
+		},
+		{
+			name: "missing display",
+			body: map[string]any{
+				"username": "carol",
+				"password": "Password12345",
+			},
+			field: "display",
+		},
+		{
+			name: "missing password",
+			body: map[string]any{
+				"username": "carol",
+				"display":  "Carol",
+			},
+			field: "password",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			sessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
+			request := newAuthorizedJSONRequestForSession(t, http.MethodPost, usersRoutePath(usercontract.UserCollection), 7, sessionID, tc.body)
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, request)
+
+			assertStatus(t, recorder, http.StatusBadRequest)
+			payload := decodeErrorResponse(t, recorder)
+			assertContractErrorPayload(t, payload, messagecontract.CommonInvalidArgument, "zh-CN")
+			assertErrorFieldDetail(t, payload, tc.field)
+		})
+	}
+}
+
+func TestCreateUserRouteLogsPasswordPolicyViolationWithoutPasswordLeak(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{}
+	core, logs := observer.New(zap.ErrorLevel)
+	logger := zap.New(core)
+	_, engine := newPluginTestContextWithLoggerAndPermissions(t, logger, pluginTestUserRepository{
+		getByID: func(_ context.Context, id uint64) (store.User, error) {
+			if id != 7 {
+				return store.User{}, store.ErrUserNotFound
+			}
+			return testUser(7, "alice", "Alice"), nil
+		},
+	}, authRepo, map[uint64][]rbacstore.Permission{
+		7: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserCreatePermission.String()},
+		},
+	})
+
+	sessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
+	password := "short"
+	request := newAuthorizedJSONRequestForSession(t, http.MethodPost, usersRoutePath(usercontract.UserCollection), 7, sessionID, map[string]any{
+		"username": "carol",
+		"display":  "Carol",
+		"password": password,
+	})
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusBadRequest)
+	entries := logs.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one error log, got %d", len(entries))
+	}
+	entry := entries[0]
+	if entry.Message != "create user failed" {
+		t.Fatalf("unexpected log message: %#v", entry)
+	}
+	fields := entry.ContextMap()
+	if fields["operation"] != "create_user" || fields["route"] != "/api/users" || fields["method"] != http.MethodPost {
+		t.Fatalf("expected stable route log fields, got %#v", fields)
+	}
+	if fields["response_code"] != errorcodecontract.AuthPasswordPolicyViolation.String() || fields["message_key"] != messagecontract.AuthPasswordPolicyViolation.String() {
+		t.Fatalf("expected stable error metadata, got %#v", fields)
+	}
+	if fields["field"] != "password" {
+		t.Fatalf("expected password field detail, got %#v", fields)
+	}
+	if rendered := fmt.Sprint(fields); strings.Contains(rendered, password) {
+		t.Fatalf("expected password to stay out of logs, got %#v", fields)
+	}
+}
+
 func TestUpdateUserRouteReturnsStableItem(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
 	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
@@ -1807,6 +1966,76 @@ func TestResetUserPasswordRouteUsesAtomicResetContract(t *testing.T) {
 
 	assertStatus(t, recorder, http.StatusOK)
 	assertNilSuccessPayload(t, recorder)
+}
+
+func TestResetUserPasswordRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{
+		resetPasswordAndRevoke: func(context.Context, store.ResetPasswordAndRevokeSessionsInput) error {
+			t.Fatal("expected reset password repository operation not to be called")
+			return nil
+		},
+	}
+	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
+		9: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserUpdatePermission.String()},
+		},
+	})
+
+	adminSession := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(
+		t,
+		http.MethodPost,
+		usersRoutePath(usercontract.UserResetPasswordRoute, ":id", "8"),
+		9,
+		adminSession,
+		map[string]any{"new_password": "short"},
+	)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusBadRequest)
+	payload := decodeErrorResponse(t, recorder)
+	assertContractErrorPayload(t, payload, messagecontract.AuthPasswordPolicyViolation, "zh-CN")
+	assertErrorFieldDetail(t, payload, "new_password")
+	if payload.Code != errorcodecontract.AuthPasswordPolicyViolation.String() {
+		t.Fatalf("expected password policy code, got %#v", payload)
+	}
+}
+
+func TestResetUserPasswordRouteReturnsPasswordReuseForbiddenContract(t *testing.T) {
+	authRepo := &pluginTestAuthRepository{
+		resetPasswordAndRevoke: func(context.Context, store.ResetPasswordAndRevokeSessionsInput) error {
+			t.Fatal("expected reset password repository operation not to be called")
+			return nil
+		},
+	}
+	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
+		9: {
+			{Code: usercontract.UserReadPermission.String()},
+			{Code: usercontract.UserUpdatePermission.String()},
+		},
+	})
+
+	adminSession := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
+	request := newAuthorizedJSONRequestForSession(
+		t,
+		http.MethodPost,
+		usersRoutePath(usercontract.UserResetPasswordRoute, ":id", "8"),
+		9,
+		adminSession,
+		map[string]any{"new_password": defaultAdminPassword},
+	)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	assertStatus(t, recorder, http.StatusBadRequest)
+	payload := decodeErrorResponse(t, recorder)
+	assertContractErrorPayload(t, payload, messagecontract.AuthPasswordReuseForbidden, "zh-CN")
+	assertErrorFieldDetail(t, payload, "new_password")
+	if payload.Code != errorcodecontract.AuthPasswordReuseForbidden.String() {
+		t.Fatalf("expected password reuse code, got %#v", payload)
+	}
 }
 
 func TestDeleteUserRouteRevokesSessionsAndReturnsNilPayload(t *testing.T) {

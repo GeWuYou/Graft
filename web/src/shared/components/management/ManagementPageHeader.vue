@@ -24,11 +24,11 @@ defineProps<{
 }>();
 </script>
 <style scoped lang="less">
+@import './card-surface.less';
+
 .management-page-header {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-large);
-  box-shadow: var(--td-shadow-1);
+  .management-card-surface();
+
   display: flex;
   gap: 16px;
   justify-content: space-between;

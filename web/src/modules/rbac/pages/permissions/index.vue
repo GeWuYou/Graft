@@ -355,10 +355,15 @@ watch(
 );
 </script>
 <style scoped lang="less">
+@import '../../shared/list-page.less';
+
 .permission-page {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  .management-list-header();
+  .management-list-table-empty();
+  .management-list-table-shell();
 }
 
 .inline-note {
@@ -373,63 +378,6 @@ watch(
 
 .inline-note p {
   margin: 0;
-}
-
-.toolbar__search {
-  width: min(100%, 320px);
-}
-
-.toolbar__select {
-  width: min(100%, 220px);
-}
-
-.permission-page :deep(.management-toolbar__filters) {
-  flex-wrap: nowrap;
-}
-
-.toolbar__search :deep(.t-input__wrap),
-.toolbar__select :deep(.t-input__wrap),
-.toolbar__select :deep(.t-select__wrap) {
-  min-height: 36px;
-}
-
-.table-head__summary {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-small);
-  margin: 0;
-}
-
-.table-head__description {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  margin: 0;
-}
-
-.table-empty-state {
-  align-items: center;
-  background: transparent;
-  display: flex;
-  justify-content: center;
-  min-height: 288px;
-  padding: 48px 24px;
-}
-
-.table-empty-state__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-}
-
-:deep(.t-table) {
-  --td-comp-paddingTB-m: 10px;
-}
-
-.table-head {
-  align-items: center;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
 }
 
 .table-head__summary,
@@ -456,28 +404,6 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-:deep(.t-table__empty) {
-  padding: 0;
-}
-
-:deep(.t-table__empty-row td) {
-  padding-block: 0;
-}
-
-:deep(.t-empty) {
-  align-items: center;
-  text-align: center;
-}
-
-:deep(.t-empty__title) {
-  color: var(--td-text-color-primary);
-}
-
-:deep(.t-empty__description) {
-  color: var(--td-text-color-secondary);
-  max-width: 420px;
 }
 
 @media (width <= 768px) {

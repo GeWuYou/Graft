@@ -34,10 +34,11 @@ withDefaults(
 );
 </script>
 <style scoped lang="less">
+@import './card-surface.less';
+
 .server-status-summary-card {
-  background: var(--server-status-card-background, var(--td-bg-color-container));
-  border: 1px solid var(--server-status-card-border-strong, var(--td-component-border));
-  border-radius: var(--td-radius-large);
+  .server-status-card-surface();
+
   display: flex;
   flex-direction: column;
   gap: 10px;

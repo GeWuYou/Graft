@@ -302,14 +302,16 @@ bun run check
 2. `typecheck`
 3. `lint`
 4. `stylelint`
-5. `test:run`
-6. `build`
+5. `hygiene:check`
+6. `test:run`
+7. `build`
 
 执行规则：
 
 - 功能完成、任务完成、准备合并时，必须跑完整 `bun run check`
 - 中间迭代可先跑最小直接验证，但不能把局部验证当作完成态
 - 默认完成态要求 `typecheck`、`lint`、`stylelint`、`test:run`、`build` 全部零 warning
+- `hygiene:check` 进入完成态后，`deadcode` 与约定范围内的 `dupcode` 必须同时为 0
 - 前端治理测试应至少覆盖：
   - 用户可见文案禁词范围
   - 关键 `title_key` 解析
@@ -317,6 +319,56 @@ bun run check
 - `Vitest` 是正式前端测试基线，不把“前端没有测试”当作默认前提
 - `Stylelint` 用于约束样式覆盖边界，避免随意改写 TDesign 结构
 - 不允许用大面积 `as any`、`any` 或关闭 strict 的方式绕过类型问题；必须把不安全边界收口到 adapter、client、schema 或迁移兼容层
+
+dead-code / duplicate-code 治理规则：
+
+- `eslint-plugin-unused-imports` 继续作为未使用 import 与局部变量治理基线；不要用新工具替换现有 ESLint 规则
+- `bun run deadcode:check`
+  - 通过 `knip` 检查未使用文件、未使用导出、未使用依赖
+- `bun run deadcode:fix`
+  - 只允许尝试自动修复 `knip` 支持的安全项
+  - 当前仅限未使用导出与未使用依赖
+  - 不得自动删除未使用文件
+  - 执行后必须由主 Agent 复核 diff
+- `bun run dupcode:check`
+  - 通过 `jscpd` 检查重复代码
+  - 首轮只覆盖运行源码与 `shared` 实现：
+    - `src/app`
+    - `src/layouts`
+    - `src/modules`
+    - `src/shared`
+    - `src/api`
+    - `src/router`
+    - `src/store`
+    - `src/utils`
+    - `src/contracts`
+    - `src/config`
+- 首轮统一目录级排除：
+  - `**/*.test.*`
+  - `src/locales/**`
+  - `src/assets/**`
+  - `mock/**`
+  - `src/contracts/**/generated/**`
+  - 其他生成物与构建缓存目录
+- 所有目录级排除必须在 `knip.config.ts` 或 `.jscpd.json` 中写中文理由
+- 若误报或必须保留项落到具体业务文件/代码块：
+  - 先用显式排除收口
+  - 再在代码附近补中文维护注释
+  - 注释必须明确“若未来删除/改造该代码，必须同步移除对应排除”
+- 重复代码治理优先做“语义一致、抽象后更清晰”的合并
+- 禁止为了压低重复率制造过度抽象、万能组件或失去边界的共享层
+- 清理顺序固定为：
+  1. 先接入工具与脚本
+  2. 再清理 `deadcode` 基线
+  3. 再清理运行源码范围内的 `dupcode` 基线
+  4. 最后才允许把 `hygiene:check` 接入完成态校验、hook 与 CI 阻断
+- 当前仓库已完成第 4 步：
+  - `bun run check` 必须包含 `hygiene:check`
+  - `.husky/pre-push` 命中 `web/**` 改动时必须执行 `cd web && bun run hygiene:check`
+  - CI 保持 `web-check -> bun run check` 入口不变，由 `check` 内部阻断 dead-code / duplicate-code 问题
+- 人工验证 `pre-push` 时，可在有 `web/**` 改动的分支上执行：
+  - `GRAFT_LINT_BASE_REF=origin/main .husky/pre-push`
+  - 预期：命中 `web/**` 时先跑 `cd web && bun run hygiene:check`，无 `web/**` 改动时输出跳过提示，再继续后端 lint gate
 
 Bun 工具链规则：
 

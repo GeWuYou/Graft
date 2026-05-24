@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 
 import { MONITOR_REFRESH_INTERVAL, type MonitorRefreshInterval } from '../contract/refresh';
 
-type RefreshIntervalOption = {
+export type RefreshIntervalOption = {
   label: string;
   value: MonitorRefreshInterval;
 };

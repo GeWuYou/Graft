@@ -1,0 +1,82 @@
+post:
+  tags: [rbac]
+  summary: Replace role permissions
+  operationId: postRolePermissionAssign
+  description: |
+    Replaces the role's permission bindings with the provided stable permission id set
+    and preserves the existing replace semantics for `permission_ids`.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      description: Target role id.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/replace-role-permissions-request.yaml
+  responses:
+    '200':
+      description: Role permissions replaced.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-empty-response.yaml
+    '400':
+      description: Invalid request payload.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          examples:
+            invalidPermissionIDs:
+              summary: Unknown permission id set
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 281b7a2d-3ea2-44fa-84dc-a5521fe0301a
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: permission_ids
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Role not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          examples:
+            roleNotFound:
+              summary: Target role not found
+              value:
+                success: false
+                code: ROLE_NOT_FOUND
+                message: Role not found
+                traceId: 281b7a2d-3ea2-44fa-84dc-a5521fe0301a
+                messageKey: role.not_found
+                locale: en-US
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

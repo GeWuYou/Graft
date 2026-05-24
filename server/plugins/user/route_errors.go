@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"graft/server/internal/contract/errorcode"
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -103,15 +104,90 @@ func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, m
 
 func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint64, message string, err error) {
 	status, messageKey, data := mapUserManagementError(err)
-	if status == http.StatusInternalServerError {
-		r.logger.Error(message,
+	if shouldLogUserManagementError(status, err) {
+		responseCode := errorCodeFromMessageKey(messageKey)
+		logFields := []zap.Field{
 			zap.String("plugin", r.pluginName),
+			zap.String("operation", userManagementOperationFromMessage(message)),
+			zap.String("method", ginCtx.Request.Method),
+			zap.String("route", ginCtx.FullPath()),
+			zap.String("response_code", responseCode),
+			zap.String("message_key", messageKey.String()),
 			zap.Uint64("userID", userID),
 			zap.Error(err),
+		}
+		if field, ok := errorFieldFromDetails(data); ok {
+			logFields = append(logFields, zap.String("field", field))
+		}
+		r.logger.Error(message,
+			logFields...,
 		)
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
+}
+
+func (r routeRuntime) writeCreateUserError(ginCtx *gin.Context, message string, err error) {
+	status, messageKey, data := mapUserManagementError(err)
+	if field, ok := errorFieldFromDetails(data); ok && field == "new_password" {
+		data = map[string]any{"field": "password"}
+	}
+	if shouldLogUserManagementError(status, err) {
+		responseCode := errorCodeFromMessageKey(messageKey)
+		logFields := []zap.Field{
+			zap.String("plugin", r.pluginName),
+			zap.String("operation", userManagementOperationFromMessage(message)),
+			zap.String("method", ginCtx.Request.Method),
+			zap.String("route", ginCtx.FullPath()),
+			zap.String("response_code", responseCode),
+			zap.String("message_key", messageKey.String()),
+			zap.Error(err),
+		}
+		if field, ok := errorFieldFromDetails(data); ok {
+			logFields = append(logFields, zap.String("field", field))
+		}
+		r.logger.Error(message, logFields...)
+	}
+
+	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
+}
+
+func shouldLogUserManagementError(status int, err error) bool {
+	return status == http.StatusInternalServerError ||
+		errors.Is(err, errPasswordPolicyViolation) ||
+		errors.Is(err, errPasswordReuseForbidden)
+}
+
+func errorFieldFromDetails(data map[string]any) (string, bool) {
+	if data == nil {
+		return "", false
+	}
+	field, ok := data["field"].(string)
+	if !ok || field == "" {
+		return "", false
+	}
+	return field, true
+}
+
+func userManagementOperationFromMessage(message string) string {
+	switch message {
+	case "create user failed":
+		return "create_user"
+	case "update user failed":
+		return "update_user"
+	case "set user status failed":
+		return "set_user_status"
+	case "reset user password failed":
+		return "reset_user_password"
+	case "delete user failed":
+		return "delete_user"
+	default:
+		return "user_management"
+	}
+}
+
+func errorCodeFromMessageKey(key messagecontract.Key) string {
+	return errorcode.FromMessageKey(key).String()
 }
 
 func mapUserManagementError(err error) (int, messagecontract.Key, map[string]any) {

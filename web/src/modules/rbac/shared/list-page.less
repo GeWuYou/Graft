@@ -1,0 +1,130 @@
+.management-list-toolbar() {
+  .toolbar__search {
+    width: clamp(260px, 28vw, 320px);
+  }
+
+  .toolbar__select {
+    width: min(100%, 180px);
+  }
+
+  :deep(.management-toolbar__filters) {
+    flex-wrap: nowrap;
+  }
+
+  .toolbar__search :deep(.t-input__wrap),
+  .toolbar__select :deep(.t-input__wrap),
+  .toolbar__select :deep(.t-select__wrap) {
+    min-height: 36px;
+  }
+}
+
+.management-list-header() {
+  .table-head {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .table-head > div {
+    min-width: 0;
+  }
+
+  .table-head__summary {
+    color: var(--td-text-color-primary);
+    font: var(--td-font-title-small);
+    margin: 0;
+  }
+
+  .table-head__description {
+    color: var(--td-text-color-secondary);
+    font: var(--td-font-body-small);
+    margin: 0;
+  }
+}
+
+.management-list-table-empty() {
+  .table-empty-state {
+    align-items: center;
+    background: transparent;
+    display: flex;
+    justify-content: center;
+    min-height: 288px;
+    padding: 48px 24px;
+  }
+
+  .table-empty-state__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+  }
+}
+
+.management-list-table-shell() {
+  :deep(.t-table) {
+    --td-comp-paddingTB-m: 10px;
+
+    width: 100%;
+  }
+
+  :deep(.t-table th),
+  :deep(.t-table td) {
+    white-space: nowrap;
+  }
+
+  :deep(.t-table__content),
+  :deep(.t-table table) {
+    width: 100%;
+  }
+
+  :deep(.t-table table) {
+    table-layout: fixed;
+  }
+
+  :deep(.t-table th:last-child),
+  :deep(.t-table td:last-child) {
+    text-align: right;
+  }
+
+  :deep(.t-table__empty) {
+    padding: 0;
+  }
+
+  :deep(.t-table__empty-row td) {
+    padding-block: 0;
+  }
+
+  :deep(.t-empty) {
+    align-items: center;
+    text-align: center;
+  }
+
+  :deep(.t-empty__title) {
+    color: var(--td-text-color-primary);
+  }
+
+  :deep(.t-empty__description) {
+    color: var(--td-text-color-secondary);
+    max-width: 420px;
+  }
+}
+
+.management-list-mobile() {
+  @media (width <= 768px) {
+    .toolbar__search,
+    .toolbar__select {
+      width: 100%;
+    }
+
+    .table-empty-state {
+      min-height: 260px;
+      padding-inline: 16px;
+    }
+
+    :deep(.management-toolbar__filters) {
+      flex-wrap: wrap;
+    }
+  }
+}

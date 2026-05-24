@@ -215,9 +215,7 @@ function buildRootRoute(node: BootstrapMenuNode) {
     return buildTopLevelLeafRoute(node.menu, registration.routeName, registration.loadPage);
   }
 
-  const builtChildren = node.children
-    .map((childNode) => buildNestedRoute(childNode, node.menu.path))
-    .filter((child): child is BootstrapLeaf => Boolean(child));
+  const builtChildren = buildNestedChildren(node, node.menu.path);
 
   if (builtChildren.length === 0) {
     return null;
@@ -253,9 +251,7 @@ function buildNestedRoute(node: BootstrapMenuNode, parentFullPath: string): Boot
     };
   }
 
-  const builtChildren = node.children
-    .map((childNode) => buildNestedRoute(childNode, node.menu.path))
-    .filter((child): child is BootstrapLeaf => Boolean(child));
+  const builtChildren = buildNestedChildren(node, node.menu.path);
 
   if (builtChildren.length === 0) {
     return null;
@@ -273,6 +269,12 @@ function buildNestedRoute(node: BootstrapMenuNode, parentFullPath: string): Boot
       children: builtChildren.map((child) => child.route),
     }),
   };
+}
+
+function buildNestedChildren(node: BootstrapMenuNode, parentFullPath: string): BootstrapLeaf[] {
+  return node.children
+    .map((childNode) => buildNestedRoute(childNode, parentFullPath))
+    .filter((child): child is BootstrapLeaf => Boolean(child));
 }
 
 function buildTopLevelLeafRoute(menu: BootstrapMenu, routeName: string, loadPage: RouteRecordRaw['component']) {

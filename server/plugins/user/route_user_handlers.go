@@ -2,6 +2,7 @@ package user
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -62,6 +63,10 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		if field, ok := invalidCreateUserField(request); ok {
+			writeInvalidArgumentField(ginCtx, r.ctx.I18n, field)
+			return
+		}
 
 		created, err := r.userSvc.CreateUser(ginCtx.Request.Context(), r.authSvc.passwords, r.authSvc.policy, userstore.CreateUserInput{
 			Username:     request.Username,
@@ -71,12 +76,25 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 			PasswordHash: request.Password,
 		})
 		if err != nil {
-			r.runtime().writeUserManagementError(ginCtx, 0, "create user failed", err)
+			r.runtime().writeCreateUserError(ginCtx, "create user failed", err)
 			return
 		}
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(created))
 	})
+}
+
+func invalidCreateUserField(request createUserRequest) (string, bool) {
+	switch {
+	case strings.TrimSpace(request.Username) == "":
+		return "username", true
+	case strings.TrimSpace(request.Display) == "":
+		return "display", true
+	case strings.TrimSpace(request.Password) == "":
+		return "password", true
+	default:
+		return "", false
+	}
 }
 
 func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {

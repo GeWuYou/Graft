@@ -1,0 +1,82 @@
+post:
+  tags: [rbac]
+  summary: Update role
+  operationId: postRoleUpdate
+  description: |
+    Updates a role with the existing backend normalization behavior for `name`,
+    `display`, and optional `description`.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      description: Target role id.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/update-role-request.yaml
+  responses:
+    '200':
+      description: Role updated.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-role-item-response.yaml
+    '400':
+      description: Invalid request payload.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          examples:
+            invalidArgument:
+              summary: Builtin role name is immutable
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 9de85c93-9038-4d71-845e-ebd8342a6bfe
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: name
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Role not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          examples:
+            roleNotFound:
+              summary: Target role not found
+              value:
+                success: false
+                code: ROLE_NOT_FOUND
+                message: Role not found
+                traceId: 9de85c93-9038-4d71-845e-ebd8342a6bfe
+                messageKey: role.not_found
+                locale: en-US
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

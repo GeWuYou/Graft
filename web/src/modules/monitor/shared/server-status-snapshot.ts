@@ -6,8 +6,6 @@ import { useMonitorRefreshPreferences } from '../composables/use-monitor-refresh
 import { MONITOR_TREND_RANGE } from '../contract/trend';
 import type { ServerStatusResponse } from '../types/server-status';
 
-type TagTheme = 'success' | 'warning' | 'danger' | 'default';
-
 export type DependencyDisplayStatus = 'healthy' | 'abnormal' | 'notConfigured' | 'unknown';
 
 export function useServerStatusSnapshot() {
@@ -182,32 +180,6 @@ export function normalizeDependencyStatus(status?: string): DependencyDisplaySta
       return 'notConfigured';
     default:
       return 'unknown';
-  }
-}
-
-export function dependencyStatusTheme(status: DependencyDisplayStatus): TagTheme {
-  switch (status) {
-    case 'healthy':
-      return 'success';
-    case 'abnormal':
-      return 'danger';
-    case 'notConfigured':
-      return 'default';
-    default:
-      return 'warning';
-  }
-}
-
-export function runtimeSnapshotTheme(status?: string): TagTheme {
-  switch ((status ?? '').trim().toLowerCase()) {
-    case 'healthy':
-      return 'success';
-    case 'degraded':
-      return 'warning';
-    case 'disabled':
-      return 'default';
-    default:
-      return 'warning';
   }
 }
 

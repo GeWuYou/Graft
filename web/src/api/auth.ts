@@ -1,6 +1,5 @@
 import type {
   BootstrapResponse,
-  ChangePasswordPayload,
   CompleteRequiredPasswordChangePayload,
   LoginPayload,
   LoginResponse,
@@ -24,13 +23,6 @@ export function refresh() {
 export function logout() {
   return request.post<void>({
     url: AUTH_API_PATH.LOGOUT,
-  });
-}
-
-export function changePassword(payload: ChangePasswordPayload) {
-  return request.post<void>({
-    url: AUTH_API_PATH.CHANGE_PASSWORD,
-    data: payload,
   });
 }
 

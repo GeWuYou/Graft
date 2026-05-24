@@ -1,0 +1,38 @@
+{
+  "threshold": 0,
+  "minLines": 5,
+  "minTokens": 50,
+  "reporters": ["console"],
+  "absolute": false,
+  "gitignore": true,
+  "path": [
+    "src/app",
+    "src/layouts",
+    "src/modules",
+    "src/shared",
+    "src/api",
+    "src/router",
+    "src/store",
+    "src/utils",
+    "src/contracts",
+    "src/config"
+  ],
+  "_comment_scope": "首轮只检查运行源码与 shared 实现，不扫描测试、locale、assets、mock 与生成物。",
+  "ignore": [
+    "**/*.test.*",
+    "src/locales/**",
+    "src/assets/**",
+    "mock/**",
+    "src/contracts/**/generated/**",
+    "coverage/**",
+    "dist/**",
+    ".output/**",
+    ".turbo/**"
+  ],
+  "_comment_ignore_test": "测试文件重复暂不纳入首轮治理，后续如需收紧应单开专题处理。",
+  "_comment_ignore_locales": "语言资源存在大量结构化键值重复，首轮不作为运行面重复代码治理对象。",
+  "_comment_ignore_assets": "静态资源目录不属于源码重复治理范围。",
+  "_comment_ignore_mock": "mock 数据主要服务开发调试流程，首轮不纳入重复代码治理。",
+  "_comment_ignore_generated": "生成产物由上游契约/代码生成流程维护，禁止直接为压重复率手改。",
+  "_comment_ignore_build": "构建输出与缓存目录不属于仓库运行源码真值，统一排除。"
+}
