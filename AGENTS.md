@@ -222,6 +222,10 @@ Prefer the repository skills below when their trigger matches the task:
   - use when the user explicitly wants the current branch pushed, or when a local push/commit chain is blocked and the
     agent needs to distinguish uncommitted scope, Husky hook failures, upstream ambiguity, or remote rejection before
     deciding the safest next push step
+- `graft-pr-create`
+  - use when the user explicitly wants a pull request created or reconciled for the current branch, or when the work
+    needs a safe current-branch PR path that can create or reuse the PR against the repository default branch without
+    silently pushing, auto-merging, or overwriting user-authored PR content
 - `graft-task-closeout`
   - use as the default slice-end path after `graft-boot` work when the agent needs to decide between handoff-only
     versus commit-plus-handoff, while emitting the required next-task startup prompt
