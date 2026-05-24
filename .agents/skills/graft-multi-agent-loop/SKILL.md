@@ -60,6 +60,13 @@ Typical triggers:
    - do not edit repo-tracked implementation files for the active round
 5. Treat `timeout != stalled`:
    - exceeding one wait window or one soft timeout is not enough on its own to declare the worker stalled
+   - absence of visible `git diff` or repo-tracked file changes is not, by itself, evidence of no progress; design, read-only dependency mapping, validation setup, or edit preparation may still be active
+   - before any checkpoint request, first distinguish:
+     - `no visible diff yet`
+     - `no tool activity`
+     - `no worker output`
+     - `closeout not started`
+   - if the worker still shows recent tool activity, recent output, or other signs that an edit wave is about to start, keep waiting instead of interrupting
    - stalled judgment requires all of the following:
      - the round has exceeded soft timeout
      - there has been prolonged lack of output or tool activity
@@ -70,6 +77,9 @@ Typical triggers:
    - checkpoint requests use `interrupt=true`
    - checkpoint requests are health checks only and must not change the task goal, broaden scope, or append new
      implementation requirements
+   - do not send a checkpoint just because one or more `wait_agent` windows elapsed without a closeout
+   - the default trigger for a first checkpoint is: the round is at or beyond `soft_timeout`, has no usable closeout yet, and the main agent has reason to believe both output and tool activity have gone quiet for a prolonged period
+   - when the only signal is “still no diff”, prefer waiting; use checkpoint only after the stronger stalled signals above are also present
    - enforce checkpoint cooldown; do not send frequent back-to-back interrupts
    - the worker must respond with a structured status containing:
      - `current_phase`
@@ -85,6 +95,7 @@ Typical triggers:
    - `eta_confidence=medium`: wait `min(estimated_remaining_minutes, default_grace_window)`
    - `eta_confidence=low`: wait only `short_grace_window`, then checkpoint again or move to retry/block
    - ETA is advisory only; it must not justify exceeding the round's remaining runtime budget
+   - if the checkpoint reports the worker is in an active pre-write or early-write phase and `can_continue=true`, treat that as positive health evidence; prefer another wait window over retry escalation
 8. Let the main agent decide whether to continue based on:
    - closeout JSON
    - the presence or absence of `Next-session startup prompt:`
@@ -94,6 +105,7 @@ Typical triggers:
    - remaining budget
 9. If a delegated worker round stalls, omits closeout, or returns contradictory closeout:
    - degrade worker reliability when ETA repeatedly misses, there is no substantive progress, or no closeout arrives
+   - do not classify a round as stalled while the latest evidence still shows active tool use, active output, or a credible near-term next action
    - if the worker gives no response, a malformed response, `can_continue=false`, or exhausts checkpoint budget,
      enter `retry_once_then_blocked`
    - retry the same bounded round once with a fresh worker subagent
