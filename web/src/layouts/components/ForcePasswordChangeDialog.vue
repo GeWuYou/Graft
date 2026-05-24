@@ -55,7 +55,7 @@ import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { API_CODE } from '@/api/model/authModel';
+import { API_CODE } from '@/contracts/api/codes';
 import { t } from '@/locales';
 import { completeRestrictedPasswordChange } from '@/modules/auth/runtime/restricted-session';
 import { useAuthSessionStore } from '@/modules/auth/store';

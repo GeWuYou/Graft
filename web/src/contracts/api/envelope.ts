@@ -1,21 +1,8 @@
-import { API_CODE, type ApiCode, type ApiResponseCode } from '@/contracts/api/codes';
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
-
-export { API_CODE };
-export type { ApiCode, ApiResponseCode };
-export type {
-  BootstrapLocale,
-  BootstrapMenu,
-  BootstrapResponse,
-  CompleteRequiredPasswordChangePayload,
-  LoginPayload,
-  LoginResponse,
-  LoginUser,
-} from '@/modules/auth/types/auth';
 
 export interface ApiSuccessEnvelope<T> {
   success: true;
-  code: ApiCode;
+  code: string;
   message: string;
   traceId: string;
   data: T;
@@ -25,7 +12,7 @@ export interface ApiSuccessEnvelope<T> {
 
 export interface ApiErrorEnvelope {
   success: false;
-  code: ApiResponseCode;
+  code: string;
   message: string;
   traceId: string;
   data?: Record<string, unknown> | null;

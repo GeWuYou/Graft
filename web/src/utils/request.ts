@@ -1,7 +1,8 @@
 import type { AxiosError, AxiosResponse } from 'axios';
 import axios from 'axios';
 
-import { API_CODE, type ApiEnvelope, type ApiErrorEnvelope, type ApiResponseCode } from '@/api/model/authModel';
+import { API_CODE, type ApiResponseCode } from '@/contracts/api/codes';
+import type { ApiEnvelope, ApiErrorEnvelope } from '@/contracts/api/envelope';
 import { AUTH_SCHEME, HTTP_HEADER } from '@/contracts/api/headers';
 import { MESSAGE_KEY } from '@/contracts/api/messages';
 import { getDefaultLocale, normalizeLocale } from '@/contracts/i18n/locales';

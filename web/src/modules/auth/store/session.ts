@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { API_CODE, type ApiResponseCode } from '@/api/model/authModel';
+import { API_CODE, type ApiResponseCode } from '@/contracts/api/codes';
 import { normalizeLocale } from '@/contracts/i18n/locales';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
 import { i18n, supportedLocales } from '@/locales';
@@ -24,7 +24,7 @@ export type LoginFormSubmission = {
   password: string;
 };
 
-export const useAuthSessionStore = defineStore('user', {
+export const useAuthSessionStore = defineStore('auth-session', {
   state: () => ({
     token: '',
     bootstrapLoaded: false,

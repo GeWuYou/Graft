@@ -1,6 +1,7 @@
 import type { AxiosRequestConfig } from 'axios';
 
-import type { ApiErrorEnvelope, ApiResponseCode } from '@/api/model/authModel';
+import type { ApiResponseCode } from '@/contracts/api/codes';
+import type { ApiErrorEnvelope } from '@/contracts/api/envelope';
 
 /**
  * Axios请求配置

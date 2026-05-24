@@ -20,7 +20,8 @@
   - `server/plugins/rbac/**`
   - `web/src/modules/user/**`
   - `web/src/modules/rbac/**`
-  - `web/src/api/model/authModel.ts`
+  - `web/src/contracts/api/**`
+  - `web/src/modules/auth/**`
 - Source spec:
   - `openapi/openapi.yaml`
 - Generated output:
@@ -65,7 +66,7 @@
 ## Ownership Boundary
 
 - Standing ownership still does not include `server/internal/httpx/**` or `openapi/**`.
-- This slice now extends beyond the original `server/internal/contract/openapi/**`-only spike boundary into selected runtime consumers under `server/plugins/user/**`, `server/plugins/rbac/**`, `web/src/modules/user/**`, `web/src/modules/rbac/**`, and `web/src/api/model/authModel.ts`.
+- This slice now extends beyond the original `server/internal/contract/openapi/**`-only spike boundary into selected runtime consumers under `server/plugins/user/**`, `server/plugins/rbac/**`, `web/src/modules/user/**`, `web/src/modules/rbac/**`, `web/src/contracts/api/**`, and `web/src/modules/auth/**`.
 - The slice may adopt generated types in runtime-adjacent handlers and frontend schema consumers, but it must not change service/store ownership, plugin lifecycle wiring, backend envelope ownership, or frontend transport/runtime ownership.
 - The spike must not introduce `strict-server`, server stubs, generated client runtime, or a second backend DTO truth in runtime code.
 
