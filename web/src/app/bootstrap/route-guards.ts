@@ -5,8 +5,9 @@ import { MessagePlugin } from 'tdesign-vue-next';
 import type { Router, RouteRecordRaw } from 'vue-router';
 
 import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
+import { useAuthSessionStore } from '@/modules/auth/store';
 import router from '@/router';
-import { getPermissionStore, useUserStore } from '@/store';
+import { getPermissionStore } from '@/store';
 import { isRootEntryPath, resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH } from '@/utils/route';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
@@ -47,7 +48,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
     const permissionStore = getPermissionStore();
     const { whiteListRouters } = permissionStore;
 
-    const userStore = useUserStore();
+    const userStore = useAuthSessionStore();
 
     // initializeRoutes 只在拿到最新 bootstrap 菜单快照后调用，确保动态路由
     // 与当前会话的后端菜单/权限结果保持一致，而不是复用旧的 demo 路由树。
@@ -188,7 +189,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
 
   targetRouter.afterEach((to) => {
     if (to.path === AUTH_ROUTE_PATH.LOGIN) {
-      const userStore = useUserStore();
+      const userStore = useAuthSessionStore();
       const permissionStore = getPermissionStore();
 
       removeMountedBootstrapRoutes(targetRouter, permissionStore.asyncRoutes);

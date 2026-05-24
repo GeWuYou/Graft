@@ -57,10 +57,10 @@ import { useRouter } from 'vue-router';
 
 import { API_CODE } from '@/api/model/authModel';
 import { t } from '@/locales';
-import { usePermissionStore, useUserStore } from '@/store';
+import { completeRestrictedPasswordChange } from '@/modules/auth/runtime/restricted-session';
+import { useAuthSessionStore } from '@/modules/auth/store';
+import { usePermissionStore } from '@/store';
 import { isApiRequestError } from '@/utils/request';
-
-import { completeRestrictedPasswordChange } from './force-password-change';
 
 type ForcePasswordChangeForm = {
   newPassword: string;
@@ -76,7 +76,7 @@ const INITIAL_FORM_DATA: ForcePasswordChangeForm = {
 
 const router = useRouter();
 const permissionStore = usePermissionStore();
-const userStore = useUserStore();
+const userStore = useAuthSessionStore();
 const formRef = ref<FormInstanceFunctions>();
 const submitting = ref(false);
 const formData = ref<ForcePasswordChangeForm>({ ...INITIAL_FORM_DATA });

@@ -71,10 +71,11 @@ import LogoFull from '@/assets/assets-logo-full.svg?component';
 import { prefix } from '@/config/global';
 import { t } from '@/locales';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
+import { useAuthSessionStore } from '@/modules/auth/store';
 import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
 import { getActive } from '@/router';
 import LanguageSwitcher from '@/shared/components/LanguageSwitcher.vue';
-import { useSettingStore, useUserStore } from '@/store';
+import { useSettingStore } from '@/store';
 import type { MenuRoute, ModeType } from '@/utils/types';
 
 import MenuContent from './MenuContent.vue';
@@ -114,7 +115,7 @@ const { theme, layout, showLogo, menu, isFixed, isCompact } = defineProps({
 
 const router = useRouter();
 const settingStore = useSettingStore();
-const user = useUserStore();
+const user = useAuthSessionStore();
 
 const toggleSettingPanel = () => {
   settingStore.openThemeWorkbench('overview');

@@ -76,7 +76,10 @@ vi.mock('@/router', () => ({
 
 vi.mock('@/store', () => ({
   getPermissionStore: () => storeState.permissionStore,
-  useUserStore: () => storeState.userStore,
+}));
+
+vi.mock('@/modules/auth/store', () => ({
+  useAuthSessionStore: () => storeState.userStore,
 }));
 
 async function loadPermissionGuards() {
