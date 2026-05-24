@@ -3,7 +3,6 @@ package user
 import (
 	"context"
 	"errors"
-	"net/http"
 	"strings"
 	"time"
 
@@ -12,13 +11,14 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/pluginapi"
+	authruntime "graft/server/plugins/auth"
 	userstore "graft/server/plugins/user/store"
 )
 
 var (
-	errRefreshTokenRequired       = errors.New("refresh token is required")
-	errInvalidRefreshToken        = errors.New("invalid refresh token")
-	errExpiredRefreshToken        = errors.New("expired refresh token")
+	errRefreshTokenRequired       = authruntime.ErrRefreshTokenRequired
+	errInvalidRefreshToken        = authruntime.ErrInvalidRefreshToken
+	errExpiredRefreshToken        = authruntime.ErrExpiredRefreshToken
 	errRefreshSessionFailed       = errors.New("refresh session is unavailable")
 	errAccessSessionFailed        = errors.New("access session is unavailable")
 	errSessionNotFound            = errors.New("session not found")
@@ -29,11 +29,7 @@ var (
 	errRequiredPasswordChangeOnly = errors.New("required password change only")
 )
 
-type refreshTokenSubject struct {
-	UserID    uint64
-	SessionID string
-	TokenID   string
-}
+type refreshTokenSubject = authruntime.RefreshTokenSubject
 
 type refreshResult struct {
 	AccessToken        string
@@ -55,98 +51,50 @@ type sessionListOptions struct {
 }
 
 type refreshTokenManager struct {
-	secret []byte
-	ttl    time.Duration
-	now    func() time.Time
+	inner *authruntime.RefreshTokenManager
+	ttl   time.Duration
+	now   func() time.Time
 }
 
 type authCookieManager struct {
-	name     string
-	path     string
-	secure   bool
-	sameSite http.SameSite
+	inner authruntime.CookieManager
 }
 
 func newRefreshTokenManager(auth config.AuthConfig) (*refreshTokenManager, error) {
-	secret := strings.TrimSpace(auth.SigningKey)
-	if secret == "" {
-		secret = strings.TrimSpace(auth.JWTSecret)
-	}
-	if secret == "" {
-		return nil, errTokenSigningKeyRequired
-	}
-	if auth.RefreshTokenTTL <= 0 {
-		return nil, errors.New("refresh token ttl must be positive")
+	inner, err := authruntime.NewRefreshTokenManager(auth)
+	if err != nil {
+		return nil, err
 	}
 
 	return &refreshTokenManager{
-		secret: []byte(secret),
-		ttl:    auth.RefreshTokenTTL,
-		now:    time.Now,
+		inner: inner,
+		ttl:   auth.RefreshTokenTTL,
+		now:   time.Now,
 	}, nil
 }
 
 func newAuthCookieManager(auth config.AuthConfig) authCookieManager {
-	return authCookieManager{
-		name:     auth.RefreshCookieName,
-		path:     auth.RefreshCookiePath,
-		secure:   auth.RefreshCookieSecure,
-		sameSite: parseSameSite(strings.TrimSpace(auth.RefreshCookieSameSite)),
-	}
+	return authCookieManager{inner: authruntime.NewCookieManager(auth)}
 }
 
-// writeRefreshCookie 把 refresh token 写入当前响应 cookie。
 func (m authCookieManager) writeRefreshCookie(ctx *gin.Context, token string, expiresAt time.Time) {
-	if ctx == nil {
-		return
-	}
-
-	ctx.SetSameSite(m.sameSite)
-	ctx.SetCookie(
-		m.name,
-		token,
-		int(time.Until(expiresAt).Seconds()),
-		m.path,
-		"",
-		m.secure,
-		true,
-	)
+	m.inner.WriteRefreshCookie(ctx, token, expiresAt)
 }
 
-// clearRefreshCookie 主动让客户端删除当前 refresh token cookie。
 func (m authCookieManager) clearRefreshCookie(ctx *gin.Context) {
-	if ctx == nil {
-		return
-	}
-
-	ctx.SetSameSite(m.sameSite)
-	ctx.SetCookie(
-		m.name,
-		"",
-		-1,
-		m.path,
-		"",
-		m.secure,
-		true,
-	)
+	m.inner.ClearRefreshCookie(ctx)
 }
 
-// readRefreshCookie 从请求中读取 refresh token cookie。
 func (m authCookieManager) readRefreshCookie(ctx *gin.Context) (string, error) {
-	if ctx == nil {
-		return "", errRefreshTokenRequired
-	}
+	return m.inner.ReadRefreshCookie(ctx)
+}
 
-	value, err := ctx.Cookie(m.name)
-	if err != nil {
-		return "", errRefreshTokenRequired
-	}
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "", errRefreshTokenRequired
-	}
+func (m *refreshTokenManager) Issue(subject refreshTokenSubject) (string, time.Time, error) {
+	return m.inner.Issue(subject)
+}
 
-	return value, nil
+func (m *refreshTokenManager) Parse(token string) (*refreshTokenSubject, error) {
+	return m.inner.Parse(token)
 }
 
 // LoginWithRefresh 在登录成功后同步创建 refresh session、写入 refresh cookie，并返回新 access token。
@@ -218,9 +166,6 @@ func (s authService) RefreshWithRotation(ctx context.Context, refreshToken strin
 }
 
 // LogoutCurrentSession 读取当前 refresh token 对应的会话并吊销它。
-//
-// 该流程只处理“当前 cookie 携带的单个 refresh session”；当前用户的全量撤销
-// 由独立自助入口负责，管理员按用户批量撤销由专用管理路由负责。
 func (s authService) LogoutCurrentSession(ctx context.Context, refreshToken string) error {
 	if err := s.ensureLogoutDependencies(); err != nil {
 		return err
@@ -409,10 +354,6 @@ func mapRefreshSessionRepositoryError(err error) error {
 	return err
 }
 
-// RevokeAllCurrentUserSessions 吊销当前已认证用户名下的全部 refresh sessions。
-//
-// 该流程显式复用 request-auth 中间件已经建立的稳定请求鉴权上下文，只收敛为
-// 当前用户自助撤销；管理员代操作则复用同一批量吊销能力走独立管理路由。
 func (s authService) RevokeAllCurrentUserSessions(ctx context.Context) error {
 	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.Claims == nil {
@@ -422,10 +363,6 @@ func (s authService) RevokeAllCurrentUserSessions(ctx context.Context) error {
 	return s.RevokeAllUserSessions(ctx, requestAuth.Claims.UserID)
 }
 
-// RevokeOtherCurrentUserSessions 吊销当前登录主体除当前请求外的其它有效 refresh sessions。
-//
-// 该能力服务于“保留当前登录态并清退其它设备”的最小治理场景，继续把批量遍历与
-// 定向吊销逻辑留在 user 插件内，而不提前扩展仓储或跨插件公共契约。
 func (s authService) RevokeOtherCurrentUserSessions(ctx context.Context) error {
 	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.Claims == nil {
@@ -442,8 +379,6 @@ func (s authService) RevokeOtherCurrentUserSessions(ctx context.Context) error {
 			continue
 		}
 		if err := s.RevokeUserSession(ctx, requestAuth.Claims.UserID, session.SessionID); err != nil {
-			// 其它端会话在枚举后到定向吊销前可能已自然过期或被并发清退；这里把
-			// “已不存在可吊销会话”视为幂等成功，避免中断剩余 session 的清退。
 			if errors.Is(err, errSessionNotFound) {
 				continue
 			}
@@ -454,10 +389,6 @@ func (s authService) RevokeOtherCurrentUserSessions(ctx context.Context) error {
 	return nil
 }
 
-// RevokeAllUserSessions 吊销指定用户名下的全部 refresh sessions。
-//
-// 该能力服务于管理员代操作入口，仍然只复用现有仓储批量吊销语义，不额外扩展
-// session 模型或把治理细节上推到 core。
 func (s authService) RevokeAllUserSessions(ctx context.Context, userID uint64) error {
 	if s.auth == nil {
 		return errors.New("auth repository is unavailable")
@@ -469,10 +400,6 @@ func (s authService) RevokeAllUserSessions(ctx context.Context, userID uint64) e
 	})
 }
 
-// RevokeCurrentUserSession 吊销当前登录主体名下的单个有效 refresh session。
-//
-// 该能力只允许当前主体在自身会话集合内做定向吊销，避免把跨用户治理语义混入
-// 自助入口。
 func (s authService) RevokeCurrentUserSession(ctx context.Context, sessionID string) error {
 	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.Claims == nil {
@@ -482,10 +409,6 @@ func (s authService) RevokeCurrentUserSession(ctx context.Context, sessionID str
 	return s.RevokeUserSession(ctx, requestAuth.Claims.UserID, sessionID)
 }
 
-// RevokeUserSession 吊销指定用户名下的单个有效 refresh session。
-//
-// 该能力保持在 user 插件内，通过用户 ID 与 session ID 的显式组合约束定向
-// 吊销范围，不把底层查询或权限细节扩散到 core。
 func (s authService) RevokeUserSession(ctx context.Context, userID uint64, sessionID string) error {
 	if s.auth == nil {
 		return errors.New("auth repository is unavailable")
@@ -509,9 +432,6 @@ func (s authService) RevokeUserSession(ctx context.Context, userID uint64, sessi
 	return nil
 }
 
-// ListCurrentUserSessions 返回当前登录主体可见的有效 refresh session 摘要。
-//
-// 该能力只读取 request-auth 已建立的稳定主体上下文，不引入额外跨插件会话契约。
 func (s authService) ListCurrentUserSessions(ctx context.Context, options sessionListOptions) ([]sessionSummary, error) {
 	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.Claims == nil {
@@ -521,10 +441,6 @@ func (s authService) ListCurrentUserSessions(ctx context.Context, options sessio
 	return s.ListUserSessions(ctx, requestAuth.Claims.UserID, options)
 }
 
-// ListUserSessions 返回指定用户当前有效 refresh session 摘要。
-//
-// 该能力仍停留在 user 插件内，把持久化层 session 记录映射为最小治理视图，
-// 不把历史轮换细节或底层 ORM 结构直接暴露给调用方。
 func (s authService) ListUserSessions(ctx context.Context, userID uint64, options sessionListOptions) ([]sessionSummary, error) {
 	if s.auth == nil {
 		return nil, errors.New("auth repository is unavailable")
@@ -556,10 +472,6 @@ func (s authService) ListUserSessions(ctx context.Context, userID uint64, option
 	return summaries, nil
 }
 
-// validateAccessSession 校验 access token 绑定的最小 session 状态。
-//
-// 当前实现显式复用 refresh session 记录作为 bearer access token 的服务端登录态，
-// 这样受保护请求除了验证 JWT 本身，还会拒绝已吊销、已过期或不存在的 session。
 func (s authService) validateAccessSession(ctx context.Context, claims *pluginapi.AccessTokenClaims) error {
 	if s.auth == nil {
 		return errors.New("auth repository is unavailable")
@@ -624,20 +536,9 @@ func (s authService) nowUTC() time.Time {
 	switch {
 	case s.refreshTokens != nil && s.refreshTokens.now != nil:
 		return s.refreshTokens.now().UTC()
-	case s.tokens != nil && s.tokens.now != nil:
-		return s.tokens.now().UTC()
+	case s.tokens != nil:
+		return time.Now().UTC()
 	default:
 		return time.Now().UTC()
-	}
-}
-
-func parseSameSite(value string) http.SameSite {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "strict":
-		return http.SameSiteStrictMode
-	case "none":
-		return http.SameSiteNoneMode
-	default:
-		return http.SameSiteLaxMode
 	}
 }

@@ -34,7 +34,7 @@ func (r *Runtime) NewUserRepository() (*userRepository, error) {
 	return newUserRepository(r.client)
 }
 
-// NewAuthRepository builds the plugin-owned auth repository from the shared Ent client.
-func (r *Runtime) NewAuthRepository() (*authRepository, error) {
-	return newAuthRepository(r.client)
+// Client exposes the shared Ent client so auth-owned repositories can be built outside user ownership.
+func (r *Runtime) Client() *ent.Client {
+	return r.client
 }

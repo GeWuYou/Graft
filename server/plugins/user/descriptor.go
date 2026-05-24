@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"graft/server/internal/plugin"
+	authstoreent "graft/server/plugins/auth/storeent"
 	"graft/server/plugins/user/storeent"
 )
 
@@ -33,9 +34,9 @@ func NewDescriptor() plugin.Descriptor {
 			if err != nil {
 				return nil, fmt.Errorf("build user storeent repository: %w", err)
 			}
-			authRepo, err := storeRuntime.NewAuthRepository()
+			authRepo, err := authstoreent.NewAuthRepository(storeRuntime.Client())
 			if err != nil {
-				return nil, fmt.Errorf("build user auth storeent repository: %w", err)
+				return nil, fmt.Errorf("build auth storeent repository: %w", err)
 			}
 
 			return NewPlugin(userRepo, authRepo), nil

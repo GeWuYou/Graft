@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"graft/server/internal/pluginapi"
+	authstoreent "graft/server/plugins/auth/storeent"
 	userstore "graft/server/plugins/user/store"
 	"graft/server/plugins/user/storeent"
 )
@@ -22,9 +23,9 @@ func NewAuthRepositoryForReset(sqlDB *sql.DB) (AuthRepositoryForReset, error) {
 		return nil, fmt.Errorf("build user storeent runtime: %w", err)
 	}
 
-	authRepo, err := storeRuntime.NewAuthRepository()
+	authRepo, err := authstoreent.NewAuthRepository(storeRuntime.Client())
 	if err != nil {
-		return nil, fmt.Errorf("build user auth storeent repository: %w", err)
+		return nil, fmt.Errorf("build auth storeent repository: %w", err)
 	}
 
 	return authRepo, nil
