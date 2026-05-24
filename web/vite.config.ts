@@ -18,6 +18,7 @@ export function createViteConfig(mode: string): UserConfig {
   const apiTarget = env.VITE_API_TARGET || 'http://127.0.0.1:3000';
   const proxyEnabled = env.VITE_IS_REQUEST_PROXY === 'true';
   const mockEnabled = mode === 'mock' || env.VITE_ENABLE_MOCK === 'true';
+  const docsProxyPaths = ['/docs', '/openapi.json', '/openapi.yaml'] as const;
 
   const lessOptions = {
     javascriptEnabled: true,
@@ -119,6 +120,15 @@ export function createViteConfig(mode: string): UserConfig {
               target: apiTarget,
               changeOrigin: true,
             } satisfies ProxyOptions,
+            ...Object.fromEntries(
+              docsProxyPaths.map((proxyPath) => [
+                proxyPath,
+                {
+                  target: apiTarget,
+                  changeOrigin: true,
+                } satisfies ProxyOptions,
+              ]),
+            ),
           } as Record<string, string | ProxyOptions>)
         : undefined,
     },
