@@ -36,11 +36,6 @@ export type BootstrapLocale = AuthSchemas['BootstrapLocale'];
 export type BootstrapResponse = AuthSchemas['BootstrapResponse'];
 export type LoginPayload = AuthSchemas['LoginRequest'];
 
-export interface ChangePasswordPayload {
-  current_password: string;
-  new_password: string;
-}
-
 export interface CompleteRequiredPasswordChangePayload {
   new_password: string;
 }
