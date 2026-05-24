@@ -28,6 +28,18 @@ type CurrentUser struct {
 	DisplayName string
 }
 
+// UserAuthCredential 描述认证链路依赖的最小用户口令与受限态摘要。
+//
+// 该 DTO 只暴露登录、refresh、bootstrap 与受限会话判断真正需要的稳定字段，
+// 不泄漏 user 插件内部实体、仓储或 ORM 细节。
+type UserAuthCredential struct {
+	UserID             uint64
+	Username           string
+	PasswordHash       *string
+	MustChangePassword bool
+	PasswordChangedAt  *time.Time
+}
+
 // AccessTokenClaims 描述访问令牌中可被其它插件稳定消费的最小声明集。
 //
 // 这里仅保留身份与时效信息，不把权限列表、刷新令牌细节或额外身份系统塞进跨插件边界。
@@ -45,6 +57,27 @@ type AccessTokenClaims struct {
 type RequestAuthContext struct {
 	User   *CurrentUser
 	Claims *AccessTokenClaims
+}
+
+// AuthSessionSummary 描述认证插件对外暴露的稳定会话摘要。
+//
+// 这里保留当前会话治理与列表展示所需的最小字段，不暴露 refresh token、
+// rotation 历史或底层持久化主键。
+type AuthSessionSummary struct {
+	SessionID string
+	UserID    uint64
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	RevokedAt *time.Time
+	Current   bool
+}
+
+// AuthSessionRevokeResult 描述一次会话撤销请求的稳定结果。
+//
+// 当前阶段只暴露“是否命中并撤销成功”的最小语义，避免把底层写路径细节
+// 固化进跨插件 capability。
+type AuthSessionRevokeResult struct {
+	Revoked bool
 }
 
 // WithRequestAuthContext 返回带有稳定请求鉴权上下文的派生 context。
@@ -74,6 +107,37 @@ func RequestAuthContextFromContext(ctx context.Context) (auth RequestAuthContext
 type AuthService interface {
 	CurrentUser(ctx context.Context) (*CurrentUser, error)
 	ParseAccessToken(ctx context.Context, token string) (*AccessTokenClaims, error)
+}
+
+// AuthSessionService 暴露认证插件拥有的稳定会话治理能力。
+//
+// user 插件若继续保留 `/users/:id/sessions` 管理入口，应只依赖该 capability，
+// 而不是直接访问 refresh session store 或 ORM 实现。
+type AuthSessionService interface {
+	ListSessionsByUserID(ctx context.Context, userID uint64) ([]AuthSessionSummary, error)
+	RevokeSessionByUserID(ctx context.Context, userID uint64, sessionID string) (AuthSessionRevokeResult, error)
+	RevokeSessionsByUserID(ctx context.Context, userID uint64) (AuthSessionRevokeResult, error)
+	RevokeOtherSessionsByUserID(
+		ctx context.Context,
+		userID uint64,
+		currentSessionID string,
+	) (AuthSessionRevokeResult, error)
+}
+
+// UserAuthIdentityService 暴露 auth 插件可依赖的稳定用户身份能力。
+//
+// auth 通过它读取登录凭据、当前主体摘要与改密写路径；该接口故意不暴露
+// user 插件的仓储实现、Ent client 或管理员资源管理语义。
+type UserAuthIdentityService interface {
+	GetCredentialByUsername(ctx context.Context, username string) (UserAuthCredential, error)
+	GetCurrentUserByID(ctx context.Context, userID uint64) (CurrentUser, error)
+	SetPasswordByUserID(
+		ctx context.Context,
+		userID uint64,
+		passwordHash string,
+		mustChangePassword bool,
+		changedAt *time.Time,
+	) error
 }
 
 // Authorizer 暴露请求级授权判断能力。
