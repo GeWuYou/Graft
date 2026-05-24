@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 from typing import Any
 
 MANAGED_BLOCK_START = "<!-- graft-pr-create:managed-start -->"
@@ -225,13 +226,20 @@ def choose_merge_method(repo_info: dict[str, Any]) -> str:
 
 
 def write_temp_body(content: str) -> Path:
-    path = Path("/tmp/graft-pr-create-body.md")
-    path.write_text(content, encoding="utf-8")
-    return path
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        prefix="graft-pr-create-body-",
+        suffix=".md",
+        delete=False,
+    ) as handle:
+        handle.write(content)
+        return Path(handle.name)
 
 
 def update_pull_request(pr_number: int, *, base_branch: str | None, title: str | None, body: str | None) -> None:
     fields: list[str] = []
+    body_path: Path | None = None
     if base_branch is not None:
         fields.extend(["--base", base_branch])
     if title is not None:
@@ -241,26 +249,33 @@ def update_pull_request(pr_number: int, *, base_branch: str | None, title: str |
         fields.extend(["--body-file", str(body_path)])
     if not fields:
         return
-    run_command(["gh", "pr", "edit", str(pr_number), *fields])
+    try:
+        run_command(["gh", "pr", "edit", str(pr_number), *fields])
+    finally:
+        if body_path is not None:
+            body_path.unlink(missing_ok=True)
 
 
 def create_pull_request(*, title: str, body: str, base_branch: str, head_branch: str) -> dict[str, Any]:
     body_path = write_temp_body(body)
-    run_command(
-        [
-            "gh",
-            "pr",
-            "create",
-            "--title",
-            title,
-            "--body-file",
-            str(body_path),
-            "--base",
-            base_branch,
-            "--head",
-            head_branch,
-        ]
-    )
+    try:
+        run_command(
+            [
+                "gh",
+                "pr",
+                "create",
+                "--title",
+                title,
+                "--body-file",
+                str(body_path),
+                "--base",
+                base_branch,
+                "--head",
+                head_branch,
+            ]
+        )
+    finally:
+        body_path.unlink(missing_ok=True)
     payload = run_gh_json(
         [
             "pr",
