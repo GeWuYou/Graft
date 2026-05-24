@@ -18,6 +18,8 @@ const (
 	openapiJSONPath               = "/openapi.json"
 	openapiYAMLPath               = "/openapi.yaml"
 	openapiDocsPath               = "/docs"
+	scalarDocsScriptURL           = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.57.5/dist/browser/standalone.js"
+	scalarDocsScriptIntegrity     = "sha384-t5h38o34qqR7GUJVk2SXZl4p7wXfwNuV04PZALl5ae4ih2PEwQtGRPLiAax9r7V8"
 )
 
 var scalarDocsPageTemplate = template.Must(template.New("scalar-docs").Parse(`<!doctype html>
@@ -32,7 +34,7 @@ var scalarDocsPageTemplate = template.Must(template.New("scalar-docs").Parse(`<!
   </head>
   <body>
     <script id="api-reference" data-url="{{ .SpecURL }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference" integrity="sha384-t5h38o34qqR7GUJVk2SXZl4p7wXfwNuV04PZALl5ae4ih2PEwQtGRPLiAax9r7V8" crossorigin="anonymous"></script>
+    <script src="` + scalarDocsScriptURL + `" integrity="` + scalarDocsScriptIntegrity + `" crossorigin="anonymous"></script>
   </body>
 </html>`))
 
