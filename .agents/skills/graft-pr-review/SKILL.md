@@ -56,6 +56,7 @@ the skill may reuse that token automatically instead of requiring a second manua
    - prefer `$graft-multi-agent-batch` when the repair can be split into disjoint parallel slices with reviewable ownership
    - prefer `$graft-multi-agent-loop` when the repair needs to be repeated in bounded rounds, retryable orchestration, or a serialized continuation path
    - if neither multi-agent path is justified yet, report the finding as `blocked` or `next-slice required`; do not silently drop it from the review outcome
+   - do not mark a large verified finding as handled unless the required owned scope is actually repaired or explicitly delegated with a clear next prompt
 11. When a verified AI finding is `noise` or a clear misread, reply directly on the PR review thread instead of only carrying a local note:
     - use `--reply-comment-id <id>` plus `--reply-body` or `--reply-body-file`
     - if the reply body is still being drafted, use `--reply-dry-run` first
@@ -68,9 +69,10 @@ the skill may reuse that token automatically instead of requiring a second manua
     - `noise`
 13. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
 14. Do not ignore any verified suggestion. If the repair grows large:
-    - prefer `$graft-multi-agent-batch` when the work splits into disjoint reviewable slices
-    - prefer `$graft-multi-agent-loop` when the work needs to be repeated in bounded rounds
-    - if neither is justified yet, report the finding as `blocked` or `next-slice required` with the reason
+   - prefer `$graft-multi-agent-batch` when the work splits into disjoint reviewable slices
+   - prefer `$graft-multi-agent-loop` when the work needs to be repeated in bounded rounds
+   - if neither is justified yet, report the finding as `blocked` or `next-slice required` with the reason
+   - never collapse a still-valid large suggestion into a stale/noise label just to end the thread quickly
 15. If any finding is reported as `noise` or AI misjudgment, explicitly record:
     - which finding it was
     - the concrete local verification reason

@@ -568,7 +568,9 @@ def resolve_review_reply_body(args: argparse.Namespace) -> str:
     return str(args.reply_body or "").strip()
 
 
-def perform_review_reply(comment_id: int, reply_body: str, *, dry_run: bool = False) -> dict[str, Any]:
+def perform_review_reply(
+    pull_number: int, comment_id: int, reply_body: str, *, dry_run: bool = False
+) -> dict[str, Any]:
     """Reply to a GitHub PR review comment, or preview the request in dry-run mode."""
     if not resolve_github_token():
         raise RuntimeError("A GitHub token is required to send PR review replies.")
@@ -584,7 +586,7 @@ def perform_review_reply(comment_id: int, reply_body: str, *, dry_run: bool = Fa
         }
 
     payload, _ = post_json(
-        f"https://api.github.com/repos/{OWNER}/{REPO}/pulls/comments/{comment_id}/replies",
+        f"https://api.github.com/repos/{OWNER}/{REPO}/pulls/{pull_number}/comments/{comment_id}/replies",
         request_payload,
     )
     if not isinstance(payload, dict):
@@ -1866,6 +1868,7 @@ def main() -> None:
     if args.reply_comment_id is not None:
         reply_body = resolve_review_reply_body(args)
         result["reply_action"] = perform_review_reply(
+            result["pull_request"]["number"],
             args.reply_comment_id,
             reply_body,
             dry_run=args.reply_dry_run,
