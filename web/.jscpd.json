@@ -10,14 +10,13 @@
     "src/layouts",
     "src/modules",
     "src/shared",
-    "src/api",
     "src/router",
     "src/store",
     "src/utils",
     "src/contracts",
     "src/config"
   ],
-  "_comment_scope": "首轮只检查运行源码与 shared 实现，不扫描测试、locale、assets、mock 与生成物。",
+  "_comment_scope": "首轮只检查运行源码与 shared 实现，不扫描测试、locale、assets、mock 与生成物；避免依赖 Git 不保留的空目录占位。",
   "ignore": [
     "**/*.test.*",
     "src/locales/**",

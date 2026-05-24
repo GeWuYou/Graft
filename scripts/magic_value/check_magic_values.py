@@ -149,7 +149,18 @@ EVENT_NAME_LITERAL_RE = re.compile(r"""["'](?P<event>[a-z][a-z0-9]*(?:\.[a-z][a-
 PERMISSION_LITERAL_RE = re.compile(r"""["'](?P<permission>[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+)["']""")
 API_PATH_LITERAL_RE = re.compile(r"""["'](?P<path>/api/[A-Za-z0-9/_:-]+)["']""")
 GO_TEST_FILE_RE = re.compile(r"_test\.go$")
+TS_TEST_FILE_RE = re.compile(r"\.(?:test|spec)\.(?:ts|tsx)$")
 TEST_API_PATH_DEFINITION_RE = re.compile(r"""^\s*const\s+[A-Z0-9_]+_PATH\s*=\s*["']/api/[A-Za-z0-9/_:-]+["']""")
+TEST_ASSERTION_RE = re.compile(r"\b(?:expect|assert(?:\w+)?|require(?:\w+)?|t\.(?:Fatal|Fatalf|Error|Errorf))\b")
+TEST_GO_COMPARISON_ASSERTION_RE = re.compile(r"""^\s*if\b.*(?:==|!=).*(?:["'][^"']+["'])""")
+TEST_OBJECT_FIELD_RE = re.compile(
+    r"""\b(?:code|messageKey|permissions?|path|title_key|permission|Name)\s*:\s*["'\[]"""
+)
+TEST_ROUTE_SETUP_RE = re.compile(r"""\.\s*(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|Any)\(\s*["']/""")
+TEST_HTTP_REQUEST_RE = re.compile(r"""(?:httptest\.NewRequest|newBearerRequest)\(""")
+TEST_HEADER_SETUP_RE = re.compile(r"""\.Header\.(?:Set|Add)\(""")
+TEST_EVENT_SETUP_RE = re.compile(r"""\b(?:Subscribe|Publish)\(""")
+TEST_PERMISSION_SETUP_RE = re.compile(r"""\b(?:RequirePermission|grantedCodes)\b""")
 TEXT_FILE_SUFFIXES = {
     ".go",
     ".ts",
@@ -411,6 +422,8 @@ def is_definition_context(path: str, line_text: str, value: str) -> bool:
         return True
     if path.startswith("web/src/modules/") and "/contract/permissions." in path:
         return True
+    if path.startswith("web/src/modules/") and "/contract/paths." in path and API_PATH_RE.match(value):
+        return True
     if path.startswith("web/src/api/model/") and "API_CODE" in line_text:
         return True
     if path == "web/src/router/index.ts" and value == "/auth/restricted-session":
@@ -426,8 +439,55 @@ def is_definition_context(path: str, line_text: str, value: str) -> bool:
     return False
 
 
+def is_test_file(path: str) -> bool:
+    return bool(GO_TEST_FILE_RE.search(path) or TS_TEST_FILE_RE.search(path))
+
+
+def is_test_fixture_context(path: str, line_text: str, rule: str) -> bool:
+    if not is_test_file(path):
+        return False
+
+    # Contract-literal checks focus on runtime drift. Test fixtures are allowed
+    # to inline canonical contract values as sample inputs and assertions.
+    if rule in {
+        "header-literal",
+        "message-key-literal",
+        "error-code-literal",
+        "api-path-literal",
+        "permission-code-literal",
+        "event-name-literal",
+    }:
+        return True
+
+    if TEST_ASSERTION_RE.search(line_text):
+        return True
+    if TEST_GO_COMPARISON_ASSERTION_RE.search(line_text):
+        return True
+
+    if rule == "header-literal":
+        return bool(TEST_HEADER_SETUP_RE.search(line_text))
+
+    if rule == "api-path-literal":
+        return bool(
+            TEST_HTTP_REQUEST_RE.search(line_text)
+            or TEST_ROUTE_SETUP_RE.search(line_text)
+            or TEST_OBJECT_FIELD_RE.search(line_text)
+        )
+
+    if rule in {"message-key-literal", "error-code-literal"}:
+        return bool(TEST_OBJECT_FIELD_RE.search(line_text))
+
+    if rule == "event-name-literal":
+        return bool(TEST_EVENT_SETUP_RE.search(line_text) or "Event{" in line_text)
+
+    if rule == "permission-code-literal":
+        return bool(TEST_OBJECT_FIELD_RE.search(line_text) or TEST_PERMISSION_SETUP_RE.search(line_text))
+
+    return False
+
+
 def adjust_severity(path: str, severity: str) -> str:
-    if GO_TEST_FILE_RE.search(path) or path.endswith(".test.ts") or path.endswith(".test.tsx") or path.endswith(".spec.ts"):
+    if is_test_file(path):
         if severity in {"P0", "P1"}:
             return "P2"
         return severity
@@ -493,6 +553,8 @@ def scan_file(path: str, text: str) -> list[Finding]:
                 continue
             if is_definition_context(path, line, header):
                 continue
+            if is_test_fixture_context(path, line, "header-literal"):
+                continue
             severity = "P0" if header in {"Authorization", "X-Graft-Locale", "X-Request-Id"} else "P1"
             findings.append(
                 Finding(
@@ -509,6 +571,8 @@ def scan_file(path: str, text: str) -> list[Finding]:
         for match in MESSAGE_KEY_LITERAL_RE.finditer(line):
             key = match.group("key")
             if key in KNOWN_MESSAGE_KEYS and not is_definition_context(path, line, key):
+                if is_test_fixture_context(path, line, "message-key-literal"):
+                    continue
                 findings.append(
                     Finding(
                         rule="message-key-literal",
@@ -527,6 +591,8 @@ def scan_file(path: str, text: str) -> list[Finding]:
                 continue
             if is_definition_context(path, line, code):
                 continue
+            if is_test_fixture_context(path, line, "error-code-literal"):
+                continue
             findings.append(
                 Finding(
                     rule="error-code-literal",
@@ -542,6 +608,8 @@ def scan_file(path: str, text: str) -> list[Finding]:
         for match in API_PATH_LITERAL_RE.finditer(line):
             path_value = match.group("path")
             if is_definition_context(path, line, path_value):
+                continue
+            if is_test_fixture_context(path, line, "api-path-literal"):
                 continue
             severity = "P1" if path_value in KNOWN_SPECIAL_ROUTES else "P2"
             findings.append(
@@ -562,6 +630,8 @@ def scan_file(path: str, text: str) -> list[Finding]:
                 continue
             if is_definition_context(path, line, permission):
                 continue
+            if is_test_fixture_context(path, line, "permission-code-literal"):
+                continue
             findings.append(
                 Finding(
                     rule="permission-code-literal",
@@ -579,6 +649,8 @@ def scan_file(path: str, text: str) -> list[Finding]:
             if event_name not in KNOWN_EVENT_NAMES:
                 continue
             if is_definition_context(path, line, event_name):
+                continue
+            if is_test_fixture_context(path, line, "event-name-literal"):
                 continue
             findings.append(
                 Finding(

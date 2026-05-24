@@ -73,6 +73,68 @@ class DefinitionContextTests(unittest.TestCase):
             )
         )
 
+    def test_web_module_api_path_contract_is_canonical_definition_context(self) -> None:
+        """Module-owned API path contracts may define canonical API path literals."""
+        self.assertTrue(
+            MODULE.is_definition_context(
+                "web/src/modules/auth/contract/paths.ts",
+                "  REFRESH: '/api/auth/refresh',",
+                "/api/auth/refresh",
+            )
+        )
+        self.assertFalse(
+            MODULE.is_definition_context(
+                "web/src/modules/auth/api/auth.ts",
+                "    url: '/api/auth/refresh',",
+                "/api/auth/refresh",
+            )
+        )
+
+
+class TestFixtureExemptionTests(unittest.TestCase):
+    """Keep test-only fixtures quiet without weakening runtime checks."""
+
+    def test_scan_file_ignores_go_test_fixture_literals(self) -> None:
+        text = "\n".join(
+            [
+                'engine.Use(RequirePermission(localizer, authService, authorizer, "user.read"))',
+                'engine.GET("/api/users/:id", func(inner *gin.Context) {',
+                'request := newBearerRequest("/api/users/1", "token-1")',
+                'request.Header.Set("Accept-Language", "en-US")',
+                'if payload.MessageKey != "auth.forbidden" || payload.Code != "AUTH_FORBIDDEN" {',
+                'if err := bus.Subscribe("audit.record", func(_ context.Context, _ Event) error {',
+            ]
+        )
+
+        findings = MODULE.scan_file("server/internal/httpx/authz_test.go", text)
+
+        self.assertEqual(findings, [])
+
+    def test_scan_file_ignores_typescript_test_fixture_literals(self) -> None:
+        text = "\n".join(
+            [
+                "permissions: ['user.read'],",
+                "code: 'USER_NOT_FOUND',",
+                "messageKey: 'user.not_found',",
+                "path: '/users',",
+                "expect(messageMocks.error).not.toHaveBeenCalledWith('user.userList.statusUpdateFailed')",
+            ]
+        )
+
+        findings = MODULE.scan_file("web/src/modules/user/pages/index.test.ts", text)
+
+        self.assertEqual(findings, [])
+
+    def test_scan_file_keeps_runtime_permission_findings(self) -> None:
+        findings = MODULE.scan_file(
+            "server/internal/httpx/authz.go",
+            'engine.Use(RequirePermission(localizer, authService, authorizer, "user.read"))',
+        )
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule, "permission-code-literal")
+        self.assertEqual(findings[0].severity, "P0")
+
 
 if __name__ == "__main__":
     unittest.main()
