@@ -119,14 +119,14 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 	databaseResources, err := database.Open(cfg.Database)
 	if err != nil {
 		_ = logger.Close(runtimeLogger)
-		return nil, err
+		return nil, fmt.Errorf("open database resources: %w", err)
 	}
 
 	redisClient, err := redisx.Open(context.Background(), cfg.Redis)
 	if err != nil {
 		_ = database.Close(databaseResources)
 		_ = logger.Close(runtimeLogger)
-		return nil, err
+		return nil, fmt.Errorf("open redis client: %w", err)
 	}
 
 	return &Runtime{
@@ -214,7 +214,7 @@ func (r *Runtime) Run(runCtx context.Context) error {
 }
 
 func (r *Runtime) loadOptionalDocsAssets() error {
-	if r == nil || r.config == nil || !r.config.Docs.Enabled {
+	if r.config == nil || !r.config.Docs.Enabled {
 		return nil
 	}
 
@@ -239,7 +239,7 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 		})
 	})
 
-	if r == nil || r.config == nil || !r.config.Docs.Enabled || r.openapiDocs == nil {
+	if r.config == nil || !r.config.Docs.Enabled || r.openapiDocs == nil {
 		return
 	}
 
@@ -252,7 +252,10 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 	engine.GET(openapiDocsPath, func(ctx *gin.Context) {
 		html, err := renderScalarDocsHTML(openapiJSONPath)
 		if err != nil {
-			ctx.String(http.StatusInternalServerError, "render docs page: %v", err)
+			if r.logger != nil {
+				r.logger.Error("render docs page", zap.Error(err))
+			}
+			ctx.String(http.StatusInternalServerError, "failed to render docs page")
 			return
 		}
 		ctx.Data(http.StatusOK, "text/html; charset=utf-8", html)

@@ -857,7 +857,7 @@
                 },
                 "examples": {
                   "invalidBody": {
-                    "summary": "Missing new password",
+                    "summary": "Invalid or missing JSON body",
                     "value": {
                       "success": false,
                       "code": "COMMON_INVALID_ARGUMENT",
@@ -866,7 +866,7 @@
                       "messageKey": "common.invalid_argument",
                       "locale": "zh-CN",
                       "data": {
-                        "field": "new_password"
+                        "field": "body"
                       }
                     }
                   },
@@ -1940,7 +1940,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
             "examples": {
               "target": {
@@ -3652,9 +3653,10 @@
             "type": "object",
             "properties": {
               "data": {
-                "type": "object",
                 "nullable": true,
-                "additionalProperties": true
+                "enum": [
+                  null
+                ]
               }
             }
           }
@@ -4112,7 +4114,7 @@
             "items": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0
+              "minimum": 1
             }
           }
         },

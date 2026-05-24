@@ -6,6 +6,6 @@ properties:
     items:
       type: integer
       format: int64
-      minimum: 0
+      minimum: 1
 example:
   permission_ids: [1, 2, 9]

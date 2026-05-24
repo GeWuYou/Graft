@@ -22,6 +22,7 @@ post:
       required: true
       schema:
         type: string
+        format: uuid
       examples:
         target:
           summary: Target session id

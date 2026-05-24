@@ -678,9 +678,8 @@ export interface components {
       };
     };
     'enveloped-empty-response': components['schemas']['api-envelope'] & {
-      data?: {
-        [key: string]: unknown;
-      } | null;
+      /** @enum {unknown|null} */
+      data?: null;
     };
     'bootstrap-menu': {
       code: string;

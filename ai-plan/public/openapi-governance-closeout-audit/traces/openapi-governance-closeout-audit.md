@@ -10,7 +10,6 @@
   - `latest openapi-route-coverage-closure closeout`
 - branch / worktree:
   - `feat/wt-oapi-codegen-types-only-spike`
-  - `/home/gewuyou/project/go/Graft-wt/feat/wt-oapi-codegen-types-only-spike`
 - worktree status at start:
   - tracked modifications present in `openapi/**`, `server/internal/contract/openapi/**`, `web/src/contracts/openapi/generated/**`, and selected thin alias consumers
   - untracked additions present for new OpenAPI path/schema fragments and `server/internal/contract/openapi/route_coverage_test.go`

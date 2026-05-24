@@ -32,7 +32,7 @@ var scalarDocsPageTemplate = template.Must(template.New("scalar-docs").Parse(`<!
   </head>
   <body>
     <script id="api-reference" data-url="{{ .SpecURL }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference" integrity="sha384-t5h38o34qqR7GUJVk2SXZl4p7wXfwNuV04PZALl5ae4ih2PEwQtGRPLiAax9r7V8" crossorigin="anonymous"></script>
   </body>
 </html>`))
 
@@ -110,10 +110,8 @@ func resolveRepositoryRoot() (string, error) {
 
 	current := workingDirectory
 	for {
-		if _, err := os.Stat(filepath.Join(current, "AGENTS.md")); err == nil {
-			if _, openapiErr := os.Stat(filepath.Join(current, "openapi")); openapiErr == nil {
-				return current, nil
-			}
+		if _, openapiErr := os.Stat(filepath.Join(current, "openapi", "openapi.yaml")); openapiErr == nil {
+			return current, nil
 		}
 
 		parent := filepath.Dir(current)
