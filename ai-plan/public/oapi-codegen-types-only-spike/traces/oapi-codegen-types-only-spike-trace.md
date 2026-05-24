@@ -44,3 +44,27 @@
     - recorded only as a future candidate for a separate handwritten-DTO pure-write subgroup
 - Verified that `POST /api/users/{id}/reset-password` also stays outside the current primary sample chain because runtime still binds handwritten `resetUserPasswordRequest`.
 - Removed the temporary `reset-password` alias/test additions from `server/internal/contract/openapi/types.go` and `server/internal/contract/openapi/spike_test.go` so the spike output matches the narrowed classification boundary.
+
+## 2026-05-24 scope expansion to non-auth OpenAPI-covered interfaces
+
+- Updated the topic tracking boundary to reflect the newly approved execution scope instead of the original isolated `server/internal/contract/openapi/**`-only spike.
+- Kept the accepted baseline unchanged:
+  - `server/internal/httpx` remains the only backend envelope owner
+  - `web/src/utils/request.ts` remains the only frontend transport/runtime owner
+  - this slice still does not introduce generated client runtime, server stubs, or strict-server output
+- Recorded the new scope decision:
+  - exclude all `auth` interfaces from the current slice
+  - include the remaining non-`auth` interfaces already covered by `openapi/openapi.yaml`
+  - allow this topic to extend into selected `server/plugins/{user,rbac}` and `web/src/modules/{user,rbac}` consumers for generated type adoption
+- Recorded the current target interface set for the expanded slice:
+  - `GET/POST /api/users`
+  - `POST /api/users/{id}/update`
+  - `POST /api/users/{id}/status`
+  - `POST /api/users/{id}/reset-password`
+  - `GET/POST /api/roles`
+  - `POST /api/roles/{id}/update`
+  - `POST /api/roles/{id}/permissions/assign`
+  - `GET /api/permissions`
+  - `GET /healthz`
+- Noted that `reset-password` moved from the earlier excluded classification into the active non-`auth` migration scope.
+

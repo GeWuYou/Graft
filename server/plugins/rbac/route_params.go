@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	openapicontract "graft/server/internal/contract/openapi"
 	rbacstore "graft/server/plugins/rbac/store"
 )
 
@@ -17,7 +18,7 @@ type replaceStableIDsHandlerConfig struct {
 	write        func(ctx context.Context, targetID uint64, ids []uint64) error
 }
 
-func normalizeCreateRoleInput(request createRoleRequest) (rbacstore.CreateRoleInput, bool) {
+func normalizeCreateRoleInput(request openapicontract.PostRolesJSONRequestBody) (rbacstore.CreateRoleInput, bool) {
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
 		return rbacstore.CreateRoleInput{}, false
@@ -31,7 +32,7 @@ func normalizeCreateRoleInput(request createRoleRequest) (rbacstore.CreateRoleIn
 	}, true
 }
 
-func normalizeUpdateRoleInput(roleID uint64, request updateRoleRequest) (rbacstore.UpdateRoleInput, bool) {
+func normalizeUpdateRoleInput(roleID uint64, request openapicontract.PostRoleUpdateJSONRequestBody) (rbacstore.UpdateRoleInput, bool) {
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
 		return rbacstore.UpdateRoleInput{}, false
@@ -46,11 +47,11 @@ func normalizeUpdateRoleInput(roleID uint64, request updateRoleRequest) (rbacsto
 }
 
 func readRolePermissionIDs(ginCtx *gin.Context) ([]uint64, error) {
-	var request replaceRolePermissionsRequest
+	var request openapicontract.PostRolePermissionAssignJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		return nil, err
 	}
-	return optionalStableIDs(request.PermissionIDs), nil
+	return optionalStableIDs(request.PermissionIds), nil
 }
 
 func readUserRoleIDs(ginCtx *gin.Context) ([]uint64, error) {
@@ -58,10 +59,24 @@ func readUserRoleIDs(ginCtx *gin.Context) ([]uint64, error) {
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		return nil, err
 	}
-	return optionalStableIDs(request.RoleIDs), nil
+	return optionalRoleIDs(request.RoleIDs), nil
 }
 
-func optionalStableIDs(ids *[]uint64) []uint64 {
+func optionalStableIDs(ids []int64) []uint64 {
+	if ids == nil {
+		return nil
+	}
+	stableIDs := make([]uint64, 0, len(ids))
+	for _, id := range ids {
+		if id < 0 {
+			return append(stableIDs, 0)
+		}
+		stableIDs = append(stableIDs, uint64(id))
+	}
+	return stableIDs
+}
+
+func optionalRoleIDs(ids *[]uint64) []uint64 {
 	if ids == nil {
 		return nil
 	}

@@ -151,7 +151,7 @@ func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGrou
 			return
 		}
 
-		var request resetUserPasswordRequest
+		var request openapicontract.PostUserResetPasswordJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return

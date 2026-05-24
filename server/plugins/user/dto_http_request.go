@@ -13,7 +13,3 @@ type changePasswordRequest struct {
 type completeRequiredPasswordChangeRequest struct {
 	NewPassword string `json:"new_password"`
 }
-
-type resetUserPasswordRequest struct {
-	NewPassword string `json:"new_password"`
-}

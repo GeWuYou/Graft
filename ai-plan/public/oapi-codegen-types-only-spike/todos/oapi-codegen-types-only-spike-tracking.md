@@ -16,6 +16,11 @@
   - `server/go.mod`
   - `server/go.sum`
   - `server/internal/contract/openapi/**`
+  - `server/plugins/user/**`
+  - `server/plugins/rbac/**`
+  - `web/src/modules/user/**`
+  - `web/src/modules/rbac/**`
+  - `web/src/api/model/authModel.ts`
 - Source spec:
   - `openapi/openapi.yaml`
 - Generated output:
@@ -48,6 +53,10 @@
 - The same scaffold also exposed the current first-class risk:
   - `oapi-codegen` emits a warning because the repository root spec is OpenAPI `3.1.x`
   - generated request type naming follows route-oriented output such as `PostUsersJSONRequestBody`, not the handwritten runtime DTO names
+- The approved execution scope is now wider than the original isolated boundary:
+  - exclude all `auth` routes from this slice
+  - include the remaining non-`auth` interfaces already covered by `openapi/openapi.yaml`
+  - allow generated type adoption in selected `server` handlers and `web` schema consumers without changing backend/runtime ownership truth
 
 ## Shared Hotspots
 
@@ -55,8 +64,9 @@
 
 ## Ownership Boundary
 
-- Standing ownership does not include `server/plugins/**`, `server/internal/httpx/**`, `web/**`, or `openapi/**`.
-- The spike may add comparison-only code under `server/internal/contract/openapi/**`, but it must not push generated types into runtime handler, service, store, or plugin lifecycle paths.
+- Standing ownership still does not include `server/internal/httpx/**` or `openapi/**`.
+- This slice now extends beyond the original `server/internal/contract/openapi/**`-only spike boundary into selected runtime consumers under `server/plugins/user/**`, `server/plugins/rbac/**`, `web/src/modules/user/**`, `web/src/modules/rbac/**`, and `web/src/api/model/authModel.ts`.
+- The slice may adopt generated types in runtime-adjacent handlers and frontend schema consumers, but it must not change service/store ownership, plugin lifecycle wiring, backend envelope ownership, or frontend transport/runtime ownership.
 - The spike must not introduce `strict-server`, server stubs, generated client runtime, or a second backend DTO truth in runtime code.
 
 ## Active Risks
@@ -64,25 +74,33 @@
 - `oapi-codegen` package placement may still be awkward even in a types-only path; if the generated package cannot stay isolated, the spike should fail closed with a no-go result.
 - The root spec is shared across the current covered rollout, so the spike must consume the existing `openapi/openapi.yaml` without inventing a parallel reduced spec copy.
 - Validation must stay aligned with `graft validate backend --stage openapi` and the full backend entrypoint; a custom one-off script is not an acceptable replacement.
+- The widened slice must not blur the accepted contract baseline:
+  - `server/internal/httpx` remains the only backend envelope owner
+  - `web/src/utils/request.ts` remains the only frontend transport/runtime owner
+  - `auth` routes remain out of scope even if generated types exist for some of them
 
 ## Immediate Next Step
 
-- Finish the topic-governance cutover by renaming the dedicated branch/worktree pair and moving the two completed predecessor topics into `ai-plan/public/archive/`.
-- Record the first honest spike verdict:
-  - generation is feasible in an isolated non-runtime boundary
-  - OpenAPI 3.1 support warning remains a material caveat
-  - current generated request naming and package shape are not yet evidence for replacing handwritten runtime DTOs
-- Decide in the next bounded slice whether to stop at a documented no-go/defer result or add deeper comparison-only evaluation under the same isolated boundary.
-
-## Current Narrow Sample Chain
-
-- Keep the current primary sample chain narrow:
-  - `generated request body -> handler thin binding/thin validation -> mapper -> command/service`
-- The retained comparison-only sample set stays limited to:
-  - `POST /api/users`
+- Migrate the remaining non-`auth` interfaces already covered by the root OpenAPI spec while keeping the `types-only` boundary intact.
+- Treat the current target surface as:
+  - `GET/POST /api/users`
   - `POST /api/users/{id}/update`
   - `POST /api/users/{id}/status`
-- Do not widen the primary sample chain with runtime routes that still bind handwritten DTOs even when generated request body types exist in `server/internal/contract/openapi/generated/**`.
+  - `POST /api/users/{id}/reset-password`
+  - `GET/POST /api/roles`
+  - `POST /api/roles/{id}/update`
+  - `POST /api/roles/{id}/permissions/assign`
+  - `GET /api/permissions`
+  - `GET /healthz`
+- Keep all `auth` routes excluded from the current slice even when generated request types exist.
+
+## Current Migration Shape
+
+- Keep the current primary server chain narrow:
+  - `generated request body -> handler thin binding/thin validation -> mapper -> command/service`
+- The current non-`auth` migration target is no longer limited to the original three-route comparison sample.
+- `server` migration in this slice means generated request-body type adoption for non-`auth` OpenAPI-covered write interfaces.
+- `web` migration in this slice means generated schema type adoption or cleanup for non-`auth` OpenAPI-covered consumers; it does not mean generated client/runtime rollout.
 
 ## Auth Write Interface Classification Conclusion
 
@@ -97,7 +115,5 @@
   - runtime still binds handwritten `completeRequiredPasswordChangeRequest`
   - the current generated output does not expose a matching generated request body
   - this topic does not create that subgroup in the current slice
-- `POST /api/users/{id}/reset-password` likewise stays outside the current primary sample chain:
-  - runtime still binds handwritten `resetUserPasswordRequest`
-  - keeping a generated alias/test for it inside the isolated spike would blur the current narrow classification
-- If follow-up work is needed, open a separate secondary classification for handwritten-DTO pure-write routes instead of broadening the current primary chain.
+- `POST /api/users/{id}/reset-password` is now in scope because it is non-`auth` and covered by the root OpenAPI spec.
+- If follow-up work is needed after the current slice, keep any deeper `auth` migration as a separate secondary classification rather than broadening this non-`auth` execution scope.

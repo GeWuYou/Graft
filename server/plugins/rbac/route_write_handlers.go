@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	messagecontract "graft/server/internal/contract/message"
+	openapicontract "graft/server/internal/contract/openapi"
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	rbaccontract "graft/server/plugins/rbac/contract"
@@ -49,7 +50,7 @@ func handleCreateRoleRoute(
 	pluginName string,
 	writer writeManagementService,
 ) {
-	var request createRoleRequest
+	var request openapicontract.PostRolesJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 			"field": "body",
@@ -94,7 +95,7 @@ func handleUpdateRoleRoute(
 		return
 	}
 
-	var request updateRoleRequest
+	var request openapicontract.PostRoleUpdateJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 			"field": "body",
