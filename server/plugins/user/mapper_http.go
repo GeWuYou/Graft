@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	openapicontract "graft/server/internal/contract/openapi"
 	useropenapi "graft/server/internal/contract/openapi/user"
 	usercontract "graft/server/plugins/user/contract"
 	userstore "graft/server/plugins/user/store"
@@ -37,7 +36,7 @@ func toUpdateUserCommand(request useropenapi.PostUserUpdateJSONRequestBody, user
 	}
 }
 
-func toUpdateUserStatusCommand(request openapicontract.PostUserStatusJSONRequestBody, userID uint64, actorID uint64) (UpdateUserStatusCommand, bool) {
+func toUpdateUserStatusCommand(request useropenapi.PostUserStatusJSONRequestBody, userID uint64, actorID uint64) (UpdateUserStatusCommand, bool) {
 	status, ok := toCanonicalManagedUserStatus(request.Status)
 	if !ok {
 		return UpdateUserStatusCommand{}, false
@@ -50,11 +49,11 @@ func toUpdateUserStatusCommand(request openapicontract.PostUserStatusJSONRequest
 	}, true
 }
 
-func toCanonicalManagedUserStatus(status openapicontract.PostUserStatusJSONBodyStatus) (string, bool) {
+func toCanonicalManagedUserStatus(status useropenapi.PostUserStatusJSONBodyStatus) (string, bool) {
 	switch status {
-	case openapicontract.PostUserStatusJSONBodyStatusEnabled:
+	case useropenapi.Enabled:
 		return usercontract.UserStatusEnabled, true
-	case openapicontract.PostUserStatusJSONBodyStatusDisabled:
+	case useropenapi.Disabled:
 		return usercontract.UserStatusDisabled, true
 	default:
 		return "", false

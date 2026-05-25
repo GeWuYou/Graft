@@ -28,7 +28,6 @@ import (
 	errorcodecontract "graft/server/internal/contract/errorcode"
 	httpheadercontract "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
-	openapicontract "graft/server/internal/contract/openapi"
 	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/cronx"
 	"graft/server/internal/httpx"
@@ -1731,8 +1730,8 @@ func TestUpdateUserMapperBuildsBusinessCommand(t *testing.T) {
 }
 
 func TestUpdateUserStatusMapperBuildsBusinessCommand(t *testing.T) {
-	command, ok := toUpdateUserStatusCommand(openapicontract.PostUserStatusJSONRequestBody{
-		Status: openapicontract.PostUserStatusJSONBodyStatusDisabled,
+	command, ok := toUpdateUserStatusCommand(useropenapi.PostUserStatusJSONRequestBody{
+		Status: useropenapi.Disabled,
 	}, 11, 7)
 	if !ok {
 		t.Fatal("expected status mapper to accept generated enum")

@@ -9,7 +9,6 @@ import (
 
 	httpheader "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
-	openapicontract "graft/server/internal/contract/openapi"
 	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/httpx"
 	usercontract "graft/server/plugins/user/contract"
@@ -142,6 +141,28 @@ func (h userWriteGeneratedHandler) PostUserUpdate(
 	_ = body
 }
 
+func (h userWriteGeneratedHandler) PostUserStatus(
+	id uint64,
+	params useropenapi.PostUserStatusParams,
+	body useropenapi.PostUserStatusJSONRequestBody,
+) {
+	_ = h
+	_ = id
+	_ = params
+	_ = body
+}
+
+func (h userWriteGeneratedHandler) PostUserResetPassword(
+	id uint64,
+	params useropenapi.PostUserResetPasswordParams,
+	body useropenapi.PostUserResetPasswordJSONRequestBody,
+) {
+	_ = h
+	_ = id
+	_ = params
+	_ = body
+}
+
 func bindGeneratedUserCreateParams(ginCtx *gin.Context) useropenapi.PostUsersParams {
 	locale, requestID := bindGeneratedHeaders(ginCtx)
 	return useropenapi.PostUsersParams{
@@ -153,6 +174,22 @@ func bindGeneratedUserCreateParams(ginCtx *gin.Context) useropenapi.PostUsersPar
 func bindGeneratedUserUpdateParams(ginCtx *gin.Context) useropenapi.PostUserUpdateParams {
 	locale, requestID := bindGeneratedHeaders(ginCtx)
 	return useropenapi.PostUserUpdateParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedUserStatusParams(ginCtx *gin.Context) useropenapi.PostUserStatusParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.PostUserStatusParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedUserResetPasswordParams(ginCtx *gin.Context) useropenapi.PostUserResetPasswordParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.PostUserResetPasswordParams{
 		XGraftLocale: locale,
 		XRequestId:   requestID,
 	}
@@ -178,11 +215,12 @@ func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		var request openapicontract.PostUserStatusJSONRequestBody
+		var request useropenapi.PostUserStatusJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		userWriteGeneratedHandler{}.PostUserStatus(userID, bindGeneratedUserStatusParams(ginCtx), request)
 		command, ok := toUpdateUserStatusCommand(request, userID, requestActorID(ginCtx.Request.Context()))
 		if !ok {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "status")
@@ -206,11 +244,12 @@ func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGrou
 			return
 		}
 
-		var request openapicontract.PostUserResetPasswordJSONRequestBody
+		var request useropenapi.PostUserResetPasswordJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		userWriteGeneratedHandler{}.PostUserResetPassword(userID, bindGeneratedUserResetPasswordParams(ginCtx), request)
 
 		if err := r.userSvc.ResetUserPassword(
 			ginCtx.Request.Context(),

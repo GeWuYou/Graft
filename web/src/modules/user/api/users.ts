@@ -14,10 +14,16 @@ import type {
 
 type UsersPath = (typeof USER_API_PATH)['USERS'];
 type PostUserUpdatePath = '/api/users/{id}/update';
+type PostUserStatusPath = '/api/users/{id}/status';
+type PostUserResetPasswordPath = '/api/users/{id}/reset-password';
 type PostUsersOperation = paths[UsersPath]['post'];
 type PostUserUpdateOperation = paths[PostUserUpdatePath]['post'];
+type PostUserStatusOperation = paths[PostUserStatusPath]['post'];
+type PostUserResetPasswordOperation = paths[PostUserResetPasswordPath]['post'];
 type PostUsersRequest = PostUsersOperation['requestBody']['content']['application/json'];
 type PostUserUpdateRequest = PostUserUpdateOperation['requestBody']['content']['application/json'];
+type PostUserStatusRequest = PostUserStatusOperation['requestBody']['content']['application/json'];
+type PostUserResetPasswordRequest = PostUserResetPasswordOperation['requestBody']['content']['application/json'];
 
 function normalizeUserStatus(status?: string | null) {
   return status === USER_STATUS.DISABLED ? USER_STATUS.DISABLED : USER_STATUS.ENABLED;
@@ -98,7 +104,7 @@ export function updateUserStatus(userId: number, payload: UpdateUserStatusPayloa
   return request
     .post<RawUserListItem>({
       url: USER_API_PATH.USER_STATUS(userId),
-      data: payload,
+      data: payload satisfies PostUserStatusRequest,
     })
     .then(normalizeUserListItem);
 }
@@ -115,7 +121,7 @@ export function updateUserStatus(userId: number, payload: UpdateUserStatusPayloa
 export function resetUserPassword(userId: number, payload: ResetUserPasswordPayload) {
   return request.post<null>({
     url: USER_API_PATH.USER_RESET_PASSWORD(userId),
-    data: payload,
+    data: payload satisfies PostUserResetPasswordRequest,
   });
 }
 

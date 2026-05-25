@@ -67,6 +67,174 @@ func (e PostUsers500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostUserResetPassword400JSONResponseBodySuccess.
+const (
+	PostUserResetPassword400JSONResponseBodySuccessFalse PostUserResetPassword400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserResetPassword400JSONResponseBodySuccess enum.
+func (e PostUserResetPassword400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserResetPassword400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserResetPassword401JSONResponseBodySuccess.
+const (
+	PostUserResetPassword401JSONResponseBodySuccessFalse PostUserResetPassword401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserResetPassword401JSONResponseBodySuccess enum.
+func (e PostUserResetPassword401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserResetPassword401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserResetPassword403JSONResponseBodySuccess.
+const (
+	PostUserResetPassword403JSONResponseBodySuccessFalse PostUserResetPassword403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserResetPassword403JSONResponseBodySuccess enum.
+func (e PostUserResetPassword403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserResetPassword403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserResetPassword404JSONResponseBodySuccess.
+const (
+	PostUserResetPassword404JSONResponseBodySuccessFalse PostUserResetPassword404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserResetPassword404JSONResponseBodySuccess enum.
+func (e PostUserResetPassword404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserResetPassword404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserResetPassword500JSONResponseBodySuccess.
+const (
+	PostUserResetPassword500JSONResponseBodySuccessFalse PostUserResetPassword500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserResetPassword500JSONResponseBodySuccess enum.
+func (e PostUserResetPassword500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserResetPassword500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserStatusJSONBodyStatus.
+const (
+	Disabled PostUserStatusJSONBodyStatus = "disabled"
+	Enabled  PostUserStatusJSONBodyStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the PostUserStatusJSONBodyStatus enum.
+func (e PostUserStatusJSONBodyStatus) Valid() bool {
+	switch e {
+	case Disabled:
+		return true
+	case Enabled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserStatus400JSONResponseBodySuccess.
+const (
+	PostUserStatus400JSONResponseBodySuccessFalse PostUserStatus400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserStatus400JSONResponseBodySuccess enum.
+func (e PostUserStatus400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserStatus400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserStatus401JSONResponseBodySuccess.
+const (
+	PostUserStatus401JSONResponseBodySuccessFalse PostUserStatus401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserStatus401JSONResponseBodySuccess enum.
+func (e PostUserStatus401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserStatus401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserStatus403JSONResponseBodySuccess.
+const (
+	PostUserStatus403JSONResponseBodySuccessFalse PostUserStatus403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserStatus403JSONResponseBodySuccess enum.
+func (e PostUserStatus403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserStatus403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserStatus404JSONResponseBodySuccess.
+const (
+	PostUserStatus404JSONResponseBodySuccessFalse PostUserStatus404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserStatus404JSONResponseBodySuccess enum.
+func (e PostUserStatus404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserStatus404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserStatus500JSONResponseBodySuccess.
+const (
+	PostUserStatus500JSONResponseBodySuccessFalse PostUserStatus500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserStatus500JSONResponseBodySuccess enum.
+func (e PostUserStatus500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserStatus500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostUserUpdate400JSONResponseBodySuccess.
 const (
 	PostUserUpdate400JSONResponseBodySuccessFalse PostUserUpdate400JSONResponseBodySuccess = false
@@ -179,6 +347,69 @@ type PostUsers403JSONResponseBodySuccess bool
 // PostUsers500JSONResponseBodySuccess defines parameters for PostUsers.
 type PostUsers500JSONResponseBodySuccess bool
 
+// PostUserResetPasswordJSONBody defines parameters for PostUserResetPassword.
+type PostUserResetPasswordJSONBody struct {
+	NewPassword string `json:"new_password"`
+}
+
+// PostUserResetPasswordParams defines parameters for PostUserResetPassword.
+type PostUserResetPasswordParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostUserResetPassword400JSONResponseBodySuccess defines parameters for PostUserResetPassword.
+type PostUserResetPassword400JSONResponseBodySuccess bool
+
+// PostUserResetPassword401JSONResponseBodySuccess defines parameters for PostUserResetPassword.
+type PostUserResetPassword401JSONResponseBodySuccess bool
+
+// PostUserResetPassword403JSONResponseBodySuccess defines parameters for PostUserResetPassword.
+type PostUserResetPassword403JSONResponseBodySuccess bool
+
+// PostUserResetPassword404JSONResponseBodySuccess defines parameters for PostUserResetPassword.
+type PostUserResetPassword404JSONResponseBodySuccess bool
+
+// PostUserResetPassword500JSONResponseBodySuccess defines parameters for PostUserResetPassword.
+type PostUserResetPassword500JSONResponseBodySuccess bool
+
+// PostUserStatusJSONBody defines parameters for PostUserStatus.
+type PostUserStatusJSONBody struct {
+	Status PostUserStatusJSONBodyStatus `json:"status"`
+}
+
+// PostUserStatusParams defines parameters for PostUserStatus.
+type PostUserStatusParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostUserStatusJSONBodyStatus defines parameters for PostUserStatus.
+type PostUserStatusJSONBodyStatus string
+
+// PostUserStatus400JSONResponseBodySuccess defines parameters for PostUserStatus.
+type PostUserStatus400JSONResponseBodySuccess bool
+
+// PostUserStatus401JSONResponseBodySuccess defines parameters for PostUserStatus.
+type PostUserStatus401JSONResponseBodySuccess bool
+
+// PostUserStatus403JSONResponseBodySuccess defines parameters for PostUserStatus.
+type PostUserStatus403JSONResponseBodySuccess bool
+
+// PostUserStatus404JSONResponseBodySuccess defines parameters for PostUserStatus.
+type PostUserStatus404JSONResponseBodySuccess bool
+
+// PostUserStatus500JSONResponseBodySuccess defines parameters for PostUserStatus.
+type PostUserStatus500JSONResponseBodySuccess bool
+
 // PostUserUpdateJSONBody defines parameters for PostUserUpdate.
 type PostUserUpdateJSONBody struct {
 	Display  string `json:"display"`
@@ -212,6 +443,12 @@ type PostUserUpdate500JSONResponseBodySuccess bool
 
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
 type PostUsersJSONRequestBody PostUsersJSONBody
+
+// PostUserResetPasswordJSONRequestBody defines body for PostUserResetPassword for application/json ContentType.
+type PostUserResetPasswordJSONRequestBody PostUserResetPasswordJSONBody
+
+// PostUserStatusJSONRequestBody defines body for PostUserStatus for application/json ContentType.
+type PostUserStatusJSONRequestBody PostUserStatusJSONBody
 
 // PostUserUpdateJSONRequestBody defines body for PostUserUpdate for application/json ContentType.
 type PostUserUpdateJSONRequestBody PostUserUpdateJSONBody
