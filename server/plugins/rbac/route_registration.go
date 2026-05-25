@@ -1,8 +1,6 @@
 package rbac
 
 import (
-	"context"
-
 	"github.com/gin-gonic/gin"
 
 	rbacopenapi "graft/server/internal/contract/openapi/rbac"
@@ -11,7 +9,6 @@ import (
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
 	rbaccontract "graft/server/plugins/rbac/contract"
-	rbacstore "graft/server/plugins/rbac/store"
 )
 
 type managementGuards struct {
@@ -162,17 +159,9 @@ func registerUserRoleRoutes(
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(rbaccontract.UserRoleBindingRoute, guards.userRoleRead, handleListUserRoleBindings(ctx, pluginName, reader))
 	group.POST(rbaccontract.UserRoleAssignRoute, guards.userRoleAssign, func(ginCtx *gin.Context) {
-		handleReplaceStableIDsRoute(ginCtx, ctx, pluginName, replaceStableIDsHandlerConfig{
-			invalidField: "role_ids",
-			readIDs:      readUserRoleIDs,
-			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
-				return writer.ReplaceRolesForUser(ctx, rbacstore.ReplaceRolesForUserInput{
-					UserID:  targetID,
-					RoleIDs: ids,
-				})
-			},
-		})
+		handleAssignUserRolesRoute(ginCtx, ctx, pluginName, writer)
 	})
 }
 
 var _ rbacopenapi.ReadServerInterface = rbacReadGeneratedHandler{}
+var _ rbacopenapi.UserRoleServerInterface = rbacUserRoleGeneratedHandler{}

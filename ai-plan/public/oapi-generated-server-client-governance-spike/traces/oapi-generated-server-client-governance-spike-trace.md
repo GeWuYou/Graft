@@ -107,7 +107,7 @@ validation:
   - `getPermissions`
   - `getRoles`
   - `getRolePermissions`
-- Renamed the generated artifact to `server/internal/contract/openapi/rbac/zz_generated.read.go`.
+- Renamed the generated artifact to `server/internal/contract/openapi/rbac/zz_generated.management.go`.
 - Kept the RBAC plugin as the runtime owner of:
   - explicit route registration
   - permission middleware wiring
@@ -117,5 +117,25 @@ validation:
   router/runtime ownership.
 - Updated `web/src/modules/rbac/api/rbac.ts` so the RBAC read helpers bind to their generated OpenAPI operation types
   while still calling `request.ts`.
-- Generalized the backend freshness target naming to `backend-rbac-read` while preserving the existing monitor
+- Generalized the backend freshness target naming to `backend-rbac-management` while preserving the existing monitor
   freshness gate.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 3
+
+- Expanded the unified RBAC management generated artifact at
+  `server/internal/contract/openapi/rbac/zz_generated.management.go` to cover:
+  - `getUserRoles`
+  - `postUserRolesAssign`
+- Kept the RBAC plugin as the runtime owner of:
+  - explicit `/api/users/:id/roles` and `/api/users/:id/roles/assign` route registration
+  - permission middleware wiring
+  - `httpx` success/error envelope behavior
+  - user-role read/write service invocation
+- Bound the backend generated layer only to:
+  - path/header parameter semantics for `GET /api/users/{id}/roles`
+  - path/header/request-body shape for `POST /api/users/{id}/roles/assign`
+  - compile-time handler interface conformance via `rbacopenapi.UserRoleServerInterface`
+- Updated `web/src/modules/user/api/user-roles.ts` so user-role helpers now bind to generated OpenAPI operation types
+  while still calling `request.ts`.
+- Extended backend freshness validation through the unified `backend-rbac-management` target and kept the existing
+  monitor target intact.

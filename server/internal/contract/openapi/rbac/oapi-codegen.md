@@ -1,10 +1,12 @@
 RBAC generated server bindings are produced through `go generate`.
 
-This package is intentionally limited to the guarded RBAC read batch:
+This package is intentionally limited to a guarded RBAC management migration batch:
 
 - `getPermissions`
 - `getRoles`
 - `getRolePermissions`
+- `getUserRoles`
+- `postUserRolesAssign`
 
-The generated layer constrains header semantics and the handler-facing read shape without broadening route ownership,
-middleware ownership, or `httpx` envelope ownership.
+The generated layer constrains header semantics, request-body shape, and the handler-facing method signatures without
+broadening route ownership, middleware ownership, or `httpx` envelope ownership.

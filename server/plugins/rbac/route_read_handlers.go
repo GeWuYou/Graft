@@ -164,21 +164,73 @@ func handleListUserRoleBindings(
 	pluginName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
-	return handleStableIDResponse(
-		ctx,
-		pluginName,
-		"list user-role bindings failed",
-		func(requestCtx context.Context, targetID uint64) (userRoleBindingResponse, error) {
-			roleIDs, err := reader.ListRoleIDsByUserID(requestCtx, targetID)
-			if err != nil {
-				return userRoleBindingResponse{}, err
+	handler := rbacUserRoleGeneratedHandler{}
+
+	return func(ginCtx *gin.Context) {
+		targetID, err := parseManagementID(ginCtx.Param("id"))
+		if err != nil {
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+				"field": "id",
+			})
+			return
+		}
+
+		handler.GetUserRoles(targetID, bindGeneratedUserRoleReadParams(ginCtx))
+
+		roleIDs, err := reader.ListRoleIDsByUserID(ginCtx.Request.Context(), targetID)
+		if err != nil {
+			if errors.Is(err, pluginapi.ErrUserNotFound) {
+				writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusNotFound, messagecontract.UserNotFound, nil)
+				return
 			}
 
-			return toUserRoleBindingResponse(roleIDs), nil
-		},
-		func(err error) bool { return errors.Is(err, pluginapi.ErrUserNotFound) },
-		messagecontract.UserNotFound,
-	)
+			ctx.Logger.Error("list user-role bindings failed",
+				zap.String("plugin", pluginName),
+				zap.Uint64("targetId", targetID),
+				zap.Error(err),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserRoleBindingResponse(roleIDs))
+	}
+}
+
+type rbacUserRoleGeneratedHandler struct {
+}
+
+func (h rbacUserRoleGeneratedHandler) GetUserRoles(id uint64, params rbacopenapi.GetUserRolesParams) {
+	_ = h
+	_ = id
+	_ = params
+}
+
+func (h rbacUserRoleGeneratedHandler) PostUserRolesAssign(
+	id uint64,
+	params rbacopenapi.PostUserRolesAssignParams,
+	body rbacopenapi.PostUserRolesAssignJSONRequestBody,
+) {
+	_ = h
+	_ = id
+	_ = params
+	_ = body
+}
+
+func bindGeneratedUserRoleReadParams(ginCtx *gin.Context) rbacopenapi.GetUserRolesParams {
+	locale, requestID := bindGeneratedReadHeaders(ginCtx)
+	return rbacopenapi.GetUserRolesParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedUserRoleAssignParams(ginCtx *gin.Context) rbacopenapi.PostUserRolesAssignParams {
+	locale, requestID := bindGeneratedReadHeaders(ginCtx)
+	return rbacopenapi.PostUserRolesAssignParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
 }
 
 func handleStableIDResponse[T any](

@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	openapicontract "graft/server/internal/contract/openapi"
+	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	rbacstore "graft/server/plugins/rbac/store"
 )
 
@@ -54,12 +55,12 @@ func readRolePermissionIDs(ginCtx *gin.Context) ([]uint64, error) {
 	return optionalStableIDs(request.PermissionIds), nil
 }
 
-func readUserRoleIDs(ginCtx *gin.Context) ([]uint64, error) {
-	var request replaceUserRolesRequest
+func readGeneratedUserRoleAssignRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesAssignJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.PostUserRolesAssignJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		return nil, err
+		return rbacopenapi.PostUserRolesAssignJSONRequestBody{}, nil, err
 	}
-	return optionalRoleIDs(request.RoleIDs), nil
+	return request, optionalStableIDs(request.RoleIds), nil
 }
 
 func optionalStableIDs(ids []int64) []uint64 {
@@ -74,13 +75,6 @@ func optionalStableIDs(ids []int64) []uint64 {
 		stableIDs = append(stableIDs, uint64(id))
 	}
 	return stableIDs
-}
-
-func optionalRoleIDs(ids *[]uint64) []uint64 {
-	if ids == nil {
-		return nil
-	}
-	return *ids
 }
 
 func normalizeOptionalString(input *string) *string {

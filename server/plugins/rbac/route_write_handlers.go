@@ -161,3 +161,44 @@ func handleReplaceStableIDsRoute(
 
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
+
+func handleAssignUserRolesRoute(
+	ginCtx *gin.Context,
+	ctx *plugin.Context,
+	pluginName string,
+	writer writeManagementService,
+) {
+	targetID, err := parseManagementID(ginCtx.Param("id"))
+	if err != nil {
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+			"field": "id",
+		})
+		return
+	}
+
+	body, ids, err := readGeneratedUserRoleAssignRequest(ginCtx)
+	if err != nil {
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+			"field": "body",
+		})
+		return
+	}
+	if ids == nil || hasInvalidStableIDs(ids) {
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+			"field": "role_ids",
+		})
+		return
+	}
+
+	rbacUserRoleGeneratedHandler{}.PostUserRolesAssign(targetID, bindGeneratedUserRoleAssignParams(ginCtx), body)
+
+	if err := writer.ReplaceRolesForUser(ginCtx.Request.Context(), rbacstore.ReplaceRolesForUserInput{
+		UserID:  targetID,
+		RoleIDs: ids,
+	}); err != nil {
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "role_ids")
+		return
+	}
+
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+}

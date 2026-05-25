@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO_SENTINEL = "AGENTS.md"
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
-RBAC_READ_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.read.go")
+RBAC_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.management.go")
 MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
 MONITOR_ARGS = [
@@ -24,9 +24,9 @@ MONITOR_ARGS = [
     "--package",
     "monitor",
 ]
-RBAC_READ_ARGS = [
+RBAC_MANAGEMENT_ARGS = [
     "--include-operation-ids",
-    "getPermissions,getRoles,getRolePermissions",
+    "getPermissions,getRoles,getRolePermissions,getUserRoles,postUserRolesAssign",
     "--generate",
     "types",
     "--package",
@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["backend-monitor", "backend-rbac-permissions", "backend-rbac-read"],
+        choices=["backend-monitor", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management"],
         default="backend-monitor",
         help="Generated artifact target to validate.",
     )
@@ -78,9 +78,9 @@ def run_backend_monitor(repo_root: Path, mode: str) -> int:
 def run_backend_rbac_permissions(repo_root: Path, mode: str) -> int:
     return run_generated_target(
         repo_root=repo_root,
-        target=RBAC_READ_TARGET,
+        target=RBAC_MANAGEMENT_TARGET,
         spec=repo_root / MONITOR_SPEC,
-        generator_args=RBAC_READ_ARGS,
+        generator_args=RBAC_MANAGEMENT_ARGS,
         mode=mode,
         temp_prefix="graft-openapi-rbac-permissions-",
     )
@@ -89,11 +89,22 @@ def run_backend_rbac_permissions(repo_root: Path, mode: str) -> int:
 def run_backend_rbac_read(repo_root: Path, mode: str) -> int:
     return run_generated_target(
         repo_root=repo_root,
-        target=RBAC_READ_TARGET,
+        target=RBAC_MANAGEMENT_TARGET,
         spec=repo_root / MONITOR_SPEC,
-        generator_args=RBAC_READ_ARGS,
+        generator_args=RBAC_MANAGEMENT_ARGS,
         mode=mode,
         temp_prefix="graft-openapi-rbac-read-",
+    )
+
+
+def run_backend_rbac_management(repo_root: Path, mode: str) -> int:
+    return run_generated_target(
+        repo_root=repo_root,
+        target=RBAC_MANAGEMENT_TARGET,
+        spec=repo_root / MONITOR_SPEC,
+        generator_args=RBAC_MANAGEMENT_ARGS,
+        mode=mode,
+        temp_prefix="graft-openapi-rbac-management-",
     )
 
 
@@ -148,6 +159,8 @@ def main() -> int:
         return run_backend_rbac_permissions(repo_root, args.mode)
     if args.target == "backend-rbac-read":
         return run_backend_rbac_read(repo_root, args.mode)
+    if args.target == "backend-rbac-management":
+        return run_backend_rbac_management(repo_root, args.mode)
 
     raise SystemExit(f"unsupported target: {args.target}")
 
