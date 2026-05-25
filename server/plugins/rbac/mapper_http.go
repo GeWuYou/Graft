@@ -9,38 +9,9 @@ import (
 )
 
 func toRoleListResponse(roles []rbacstore.Role) generated.RoleListResponse {
-	// Match the generated outer response item shape exactly; the anonymous type keeps the generated `Id` field name.
-	items := make([]struct {
-		Builtin         bool    `json:"builtin"`
-		Description     *string `json:"description,omitempty"`
-		Display         string  `json:"display"`
-		Id              int64   `json:"id"` //nolint:revive // Must match the generated anonymous response field name.
-		Name            string  `json:"name"`
-		PermissionCount int     `json:"permission_count"`
-		UpdatedAt       string  `json:"updated_at"`
-		UserCount       int     `json:"user_count"`
-	}, 0, len(roles))
+	items := make([]generated.RoleListItem, 0, len(roles))
 	for _, role := range roles {
-		item := toRoleListItem(role)
-		items = append(items, struct {
-			Builtin         bool    `json:"builtin"`
-			Description     *string `json:"description,omitempty"`
-			Display         string  `json:"display"`
-			Id              int64   `json:"id"` //nolint:revive // Must match the generated anonymous response field name.
-			Name            string  `json:"name"`
-			PermissionCount int     `json:"permission_count"`
-			UpdatedAt       string  `json:"updated_at"`
-			UserCount       int     `json:"user_count"`
-		}{
-			Builtin:         item.Builtin,
-			Description:     item.Description,
-			Display:         item.Display,
-			Id:              item.Id,
-			Name:            item.Name,
-			PermissionCount: item.PermissionCount,
-			UpdatedAt:       item.UpdatedAt,
-			UserCount:       item.UserCount,
-		})
+		items = append(items, toRoleListItem(role))
 	}
 
 	return generated.RoleListResponse{Items: items}
@@ -78,38 +49,9 @@ func toUserRoleBindingResponse(roleIDs []uint64) generated.UserRoleBindingRespon
 }
 
 func toPermissionListResponse(permissions []rbacstore.Permission) generated.PermissionListResponse {
-	// Match the generated outer response item shape exactly; the anonymous type keeps the generated `Id` field name.
-	items := make([]struct {
-		Category         string  `json:"category"`
-		Code             string  `json:"code"`
-		CreatedAt        string  `json:"created_at"`
-		Description      *string `json:"description,omitempty"`
-		Display          string  `json:"display"`
-		Id               int64   `json:"id"` //nolint:revive // Must match the generated anonymous response field name.
-		RoleBindingCount int     `json:"role_binding_count"`
-		UpdatedAt        string  `json:"updated_at"`
-	}, 0, len(permissions))
+	items := make([]generated.PermissionListItem, 0, len(permissions))
 	for _, item := range permissions {
-		generatedItem := toPermissionListItem(item)
-		items = append(items, struct {
-			Category         string  `json:"category"`
-			Code             string  `json:"code"`
-			CreatedAt        string  `json:"created_at"`
-			Description      *string `json:"description,omitempty"`
-			Display          string  `json:"display"`
-			Id               int64   `json:"id"` //nolint:revive // Must match the generated anonymous response field name.
-			RoleBindingCount int     `json:"role_binding_count"`
-			UpdatedAt        string  `json:"updated_at"`
-		}{
-			Category:         generatedItem.Category,
-			Code:             generatedItem.Code,
-			CreatedAt:        generatedItem.CreatedAt,
-			Description:      generatedItem.Description,
-			Display:          generatedItem.Display,
-			Id:               generatedItem.Id,
-			RoleBindingCount: generatedItem.RoleBindingCount,
-			UpdatedAt:        generatedItem.UpdatedAt,
-		})
+		items = append(items, toPermissionListItem(item))
 	}
 
 	return generated.PermissionListResponse{Items: items}

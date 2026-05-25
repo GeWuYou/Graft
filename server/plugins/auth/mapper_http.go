@@ -20,23 +20,9 @@ func toLoginResponse(result pluginapi.AuthRefreshResult) generated.LoginResponse
 }
 
 func toBootstrapResponse(payload pluginapi.AuthBootstrapPayload) generated.BootstrapResponse {
-	menus := make([]struct {
-		Code       string  `json:"code"`
-		Icon       string  `json:"icon"`
-		Path       string  `json:"path"`
-		Permission string  `json:"permission"`
-		Title      string  `json:"title"`
-		TitleKey   *string `json:"title_key,omitempty"`
-	}, 0, len(payload.Menus))
+	menus := make([]generated.BootstrapMenu, 0, len(payload.Menus))
 	for _, item := range payload.Menus {
-		menus = append(menus, struct {
-			Code       string  `json:"code"`
-			Icon       string  `json:"icon"`
-			Path       string  `json:"path"`
-			Permission string  `json:"permission"`
-			Title      string  `json:"title"`
-			TitleKey   *string `json:"title_key,omitempty"`
-		}{
+		menus = append(menus, generated.BootstrapMenu{
 			Code:       item.Code,
 			Title:      item.Title,
 			TitleKey:   optionalStringPointer(item.TitleKey),
@@ -54,10 +40,12 @@ func toBootstrapResponse(payload pluginapi.AuthBootstrapPayload) generated.Boots
 	response.Roles = append([]string(nil), payload.Roles...)
 	response.Permissions = append([]string(nil), payload.Permissions...)
 	response.Menus = menus
-	response.Locale.CurrentLocale = payload.Locale.CurrentLocale
-	response.Locale.DefaultLocale = payload.Locale.DefaultLocale
-	response.Locale.FallbackLocale = payload.Locale.FallbackLocale
-	response.Locale.SupportedLocales = append([]string(nil), payload.Locale.SupportedLocales...)
+	response.Locale = generated.BootstrapLocale{
+		CurrentLocale:    payload.Locale.CurrentLocale,
+		DefaultLocale:    payload.Locale.DefaultLocale,
+		FallbackLocale:   payload.Locale.FallbackLocale,
+		SupportedLocales: append([]string(nil), payload.Locale.SupportedLocales...),
+	}
 
 	return response
 }

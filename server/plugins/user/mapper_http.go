@@ -1,26 +1,18 @@
 package user
 
 import (
+	"math"
 	"strings"
 	"time"
 
+	generated "graft/server/internal/contract/openapi/generated"
 	useropenapi "graft/server/internal/contract/openapi/user"
 	usercontract "graft/server/plugins/user/contract"
 	userstore "graft/server/plugins/user/store"
 )
 
-type userListResponse struct {
-	Items []userListItem `json:"items"`
-}
-
-type userListItem struct {
-	ID        uint64 `json:"id"`
-	Username  string `json:"username"`
-	Display   string `json:"display"`
-	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-}
+type userListResponse = generated.UserListResponse
+type userListItem = generated.UserListItem
 
 func normalizeUserStatus(status string) string {
 	switch strings.TrimSpace(status) {
@@ -75,11 +67,18 @@ func toCanonicalManagedUserStatus(status useropenapi.PostUserStatusJSONBodyStatu
 
 func toUserListItem(user userstore.User) userListItem {
 	return userListItem{
-		ID:        user.ID,
+		Id:        mustConvertGeneratedUserID(user.ID),
 		Username:  user.Username,
 		Display:   user.Display,
 		Status:    normalizeUserStatus(user.Status),
 		CreatedAt: user.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt: user.UpdatedAt.UTC().Format(time.RFC3339),
 	}
+}
+
+func mustConvertGeneratedUserID(id uint64) int64 {
+	if id > math.MaxInt64 {
+		panic("user generated response user id exceeds int64")
+	}
+	return int64(id)
 }

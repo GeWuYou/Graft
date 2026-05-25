@@ -36,11 +36,11 @@ type PostRolePermissionAssignJSONRequestBody = generated.PostRolePermissionAssig
 type PostUserRolesAssignJSONRequestBody = generated.PostUserRolesAssignJSONRequestBody
 
 // PostUserStatusJSONBodyStatus aliases the generated route-local status enum for POST /api/users/{id}/status.
-type PostUserStatusJSONBodyStatus = generated.PostUserStatusJSONBodyStatus
+type PostUserStatusJSONBodyStatus = generated.UpdateUserStatusRequestStatus
 
 const (
 	// PostUserStatusJSONBodyStatusEnabled is the generated status enum member for an enabled managed user.
-	PostUserStatusJSONBodyStatusEnabled = generated.PostUserStatusJSONBodyStatusEnabled
+	PostUserStatusJSONBodyStatusEnabled = generated.Enabled
 	// PostUserStatusJSONBodyStatusDisabled is the generated status enum member for a disabled managed user.
-	PostUserStatusJSONBodyStatusDisabled = generated.PostUserStatusJSONBodyStatusDisabled
+	PostUserStatusJSONBodyStatusDisabled = generated.Disabled
 )

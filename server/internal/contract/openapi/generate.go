@@ -1,3 +1,3 @@
 package openapi
 
-//go:generate go tool oapi-codegen --config oapi-codegen.yaml ../../../../openapi/openapi.yaml
+//go:generate go tool oapi-codegen --generate types --package generated -o generated/types.gen.go ../../../../openapi/dist/openapi.bundle.json

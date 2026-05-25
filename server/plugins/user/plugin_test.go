@@ -1608,7 +1608,7 @@ func TestUserListRouteReturnsStableItems(t *testing.T) {
 	if len(payload.Items) != 2 {
 		t.Fatalf("expected two list items, got %#v", payload.Items)
 	}
-	if payload.Items[0].ID != 7 || payload.Items[0].Username != "alice" || payload.Items[0].Display != "Alice" {
+	if payload.Items[0].Id != 7 || payload.Items[0].Username != "alice" || payload.Items[0].Display != "Alice" {
 		t.Fatalf("expected first stable user list item, got %#v", payload.Items[0])
 	}
 	if payload.Items[0].CreatedAt != createdAt.Format(time.RFC3339) || payload.Items[0].UpdatedAt != updatedAt.Format(time.RFC3339) {
@@ -1701,7 +1701,7 @@ func TestCreateUserRouteReturnsStableItem(t *testing.T) {
 
 	assertStatus(t, recorder, http.StatusOK)
 	payload := decodeSuccessData[userListItem](t, recorder)
-	if payload.ID != 11 || payload.Username != "carol" || payload.Display != "Carol" || payload.Status != usercontract.UserStatusEnabled {
+	if payload.Id != 11 || payload.Username != "carol" || payload.Display != "Carol" || payload.Status != usercontract.UserStatusEnabled {
 		t.Fatalf("unexpected created payload: %#v", payload)
 	}
 }

@@ -511,3 +511,37 @@ validation:
   - passed: `git diff --check`
   - passed: `cd server && go test ./plugins/rbac`
   - passed: `cd server && go run ./cmd/graft validate backend`
+
+## 2026-05-25 bundled generated response-boundary closure
+
+- Confirmed the real root cause of the remaining anonymous nested response models:
+  - the OpenAPI schemas had already extracted item/leaf components
+  - the remaining anonymous nested Go response fields were caused by generating the top-level `generated` package from the split-file spec input instead of the bundled spec input
+- Switched the top-level generated models entrypoint to bundled OpenAPI input:
+  - `server/internal/contract/openapi/generate.go` now generates `generated/types.gen.go` from `openapi/dist/openapi.bundle.json`
+  - removed the obsolete `server/internal/contract/openapi/oapi-codegen.yaml` wrapper because the bundled generation path no longer needed that config file
+- Regenerated `server/internal/contract/openapi/generated/types.gen.go` and confirmed the named nested response models now exist for:
+  - `BootstrapResponse`
+  - `UserListResponse`
+  - `RoleListResponse`
+  - `PermissionListResponse`
+  - `ServerStatusResponse`
+  - `ServerStatusTrend`
+- Updated backend response-boundary consumers to use the named generated models directly:
+  - `server/plugins/auth/mapper_http.go`
+    - bootstrap response now uses `generated.BootstrapMenu` and `generated.BootstrapLocale`
+  - `server/plugins/user/mapper_http.go`
+    - user list/item response aliases now bind directly to `generated.UserListResponse` / `generated.UserListItem`
+  - `server/plugins/rbac/mapper_http.go`
+    - RBAC list responses now use named `generated.RoleListItem` / `generated.PermissionListItem` slices instead of generated-shaped anonymous item bridges
+  - `server/plugins/monitor/plugin.go`
+    - server-status response tree now returns `generated.ServerStatusResponse` and generated nested leaf models instead of a local mirrored DTO tree
+- Kept runtime ownership unchanged:
+  - `httpx` still owns the backend success/error envelope
+  - Gin/runtime binding, middleware, service/domain/audit/permission/transaction/persistence ownership did not move under OpenAPI
+- Updated compatibility aliases that depended on old generated enum names:
+  - `server/internal/contract/openapi/types.go` now points the user-status enum alias to `generated.UpdateUserStatusRequestStatus`
+- Validation results for the bundled closure slice:
+  - passed: `git diff --check`
+  - passed: `cd server && go test ./plugins/auth ./plugins/user ./plugins/rbac ./plugins/monitor ./internal/contract/openapi ./internal/contract/openapi/generated`
+  - passed: `cd server && go run ./cmd/graft validate backend`
