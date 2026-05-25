@@ -228,3 +228,22 @@ Deferred or skipped heavier commands:
 ## Next-Session Startup Prompt
 
 See `traces/openapi-codegen-governance-audit-trace.md` for the copy-ready startup prompt.
+
+## Final Archive Record
+
+- Status: `archived`
+- Archive series: `ARCHIVED_OPENAPI_GOVERNANCE_SERIES`
+- Archive reason: this audit completed its read-first mission and its recommendations were either implemented or superseded by later closeout topics.
+- Final result: the audit remains as historical evidence for the docs MVP, bundled-spec fix, and final governance closeout decisions.
+- Final validation summary:
+  - docs-only archive update in this round
+  - no server / web / openapi runtime files changed
+  - backend and web validation not run in this round because the archive slice is documentation-only
+- Follow-up status: `superseded`
+- Superseded by:
+  - `openapi-docs-mvp`
+  - `openapi-docs-bundled-spec-fix`
+  - `openapi-governance-closeout-audit`
+- Next-session prompt: `No continuation required.`
+- Archive note:
+  - This topic is archived as part of the final OpenAPI/OAPI governance closeout. The relevant implementation, audit, generated-boundary, bundled-docs, monitor-coverage, and closeout findings have either been completed, superseded by later governance topics, or converted into guardrail-oriented follow-up guidance. No next-session recovery is required for this topic.

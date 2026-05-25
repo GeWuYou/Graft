@@ -688,3 +688,20 @@ Additional guard added in this round:
   - frontend thin alias consumption is aligned for the newly covered routes in owned scope
   - backend and frontend validation entrypoints are green
   - excluded operational/docs routes are explicitly documented with reasons
+
+## Final Archive Record
+
+- Status: `archived`
+- Archive series: `ARCHIVED_OPENAPI_GOVERNANCE_SERIES`
+- Archive reason: this closeout audit completed the final standalone governance closure and now serves as archive evidence rather than an active recovery topic.
+- Final result: the OpenAPI / OAPI governance series ended with no remaining active standalone topic and with contract-first delivery as the operating rule.
+- Final validation summary:
+  - this archive round is docs-only
+  - no server / web / openapi runtime files changed in this slice
+  - backend and web validation were not run in this round because the slice only archives topic documents
+- Follow-up status: `transferred`
+- Transferred to:
+  - `feature-delivery-with-contract-first-rule`
+- Next-session prompt: `No continuation required.`
+- Archive note:
+  - This topic is archived as part of the final OpenAPI/OAPI governance closeout. The relevant implementation, audit, generated-boundary, bundled-docs, monitor-coverage, and closeout findings have either been completed, superseded by later governance topics, or converted into guardrail-oriented follow-up guidance. No next-session recovery is required for this topic.

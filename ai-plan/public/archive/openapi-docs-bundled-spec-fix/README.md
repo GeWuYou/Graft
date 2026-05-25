@@ -45,3 +45,20 @@
 
 1. 增加 `openapi:bundle:check` 或等价 stale gate。
 2. 把 web `openapi:types:check` 与 Go `oapi-codegen` freshness gate 明确进入 CI。
+
+## Final Archive Record
+
+- Status: `archived`
+- Archive series: `ARCHIVED_OPENAPI_GOVERNANCE_SERIES`
+- Archive reason: the bundled docs spec fix completed its mission and was absorbed into the final OpenAPI docs and governance closeout state.
+- Final result: the topic remains as evidence for the bundled `/openapi.json` docs-serving fix, not as an active recovery line.
+- Final validation summary:
+  - docs-only archive update in this round
+  - no server / web / openapi runtime files changed
+  - backend and web validation not run in this round because the archive slice is documentation-only
+- Follow-up status: `superseded`
+- Superseded by:
+  - `openapi-governance-closeout-audit`
+- Next-session prompt: `No continuation required.`
+- Archive note:
+  - This topic is archived as part of the final OpenAPI/OAPI governance closeout. The relevant implementation, audit, generated-boundary, bundled-docs, monitor-coverage, and closeout findings have either been completed, superseded by later governance topics, or converted into guardrail-oriented follow-up guidance. No next-session recovery is required for this topic.

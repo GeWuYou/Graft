@@ -77,3 +77,21 @@
 1. 为 docs 页面增加最小 prod 提示文案或受限访问策略，而不是仅靠开关。
 2. 将 docs 暴露策略补进示例环境配置说明。
 3. 后续如需更强 Try-it-out 行为，再评估 Swagger UI 与更细粒度鉴权。
+
+## Final Archive Record
+
+- Status: `archived`
+- Archive series: `ARCHIVED_OPENAPI_GOVERNANCE_SERIES`
+- Archive reason: the OpenAPI docs MVP completed its mission and no longer requires standalone recovery.
+- Final result: the docs exposure slice was completed and later folded into the final OpenAPI governance closeout.
+- Final validation summary:
+  - docs-only archive update in this round
+  - no server / web / openapi runtime files changed
+  - backend and web validation not run in this round because the archive slice is documentation-only
+- Follow-up status: `superseded`
+- Superseded by:
+  - `openapi-docs-bundled-spec-fix`
+  - `openapi-governance-closeout-audit`
+- Next-session prompt: `No continuation required.`
+- Archive note:
+  - This topic is archived as part of the final OpenAPI/OAPI governance closeout. The relevant implementation, audit, generated-boundary, bundled-docs, monitor-coverage, and closeout findings have either been completed, superseded by later governance topics, or converted into guardrail-oriented follow-up guidance. No next-session recovery is required for this topic.

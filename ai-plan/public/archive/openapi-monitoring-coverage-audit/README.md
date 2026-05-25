@@ -84,3 +84,21 @@
 - 不改 Scalar 样式
 - 不移动 docs 路由
 - 不修改无关模块
+
+## Final Archive Record
+
+- Status: `archived`
+- Archive series: `ARCHIVED_OPENAPI_GOVERNANCE_SERIES`
+- Archive reason: this audit completed its monitoring-contract coverage mission and was absorbed by the later generated-governance completion and final closeout.
+- Final result: the topic remains as audit evidence only; it is not an active recovery prompt for further monitoring work.
+- Final validation summary:
+  - docs-only archive update in this round
+  - no server / web / openapi runtime files changed
+  - backend and web validation not run in this round because the archive slice is documentation-only
+- Follow-up status: `superseded`
+- Superseded by:
+  - `oapi-generated-server-client-governance-spike`
+  - `openapi-governance-closeout-audit`
+- Next-session prompt: `No continuation required.`
+- Archive note:
+  - This topic is archived as part of the final OpenAPI/OAPI governance closeout. The relevant implementation, audit, generated-boundary, bundled-docs, monitor-coverage, and closeout findings have either been completed, superseded by later governance topics, or converted into guardrail-oriented follow-up guidance. No next-session recovery is required for this topic.

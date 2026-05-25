@@ -447,3 +447,21 @@ The guarded RBAC management artifact now covers `POST /api/roles/{id}/permission
 - `cd web && bun run openapi:types:check`
 - `cd web && bun run test:run src/modules/rbac/api/rbac.test.ts`
 - `cd server && go test ./internal/contract/openapi/rbac ./plugins/rbac`
+
+## Final Archive Record
+
+- Status: `archived`
+- Archive series: `ARCHIVED_OPENAPI_GOVERNANCE_SERIES`
+- Archive reason: this topic completed the guarded generated server/client governance rollout and no longer needs standalone recovery.
+- Final result: the repository reached the intended generated-boundary closeout state without switching to generated runtime server/client ownership.
+- Final validation summary:
+  - this archive round is docs-only
+  - no server / web / openapi runtime files changed in this slice
+  - backend and web validation were not run in this round because the slice only archives topic documents
+- Follow-up status: `superseded`
+- Superseded by:
+  - `openapi-governance-closeout-audit`
+  - `feature-delivery-with-contract-first-rule`
+- Next-session prompt: `No continuation required.`
+- Archive note:
+  - This topic is archived as part of the final OpenAPI/OAPI governance closeout. The relevant implementation, audit, generated-boundary, bundled-docs, monitor-coverage, and closeout findings have either been completed, superseded by later governance topics, or converted into guardrail-oriented follow-up guidance. No next-session recovery is required for this topic.

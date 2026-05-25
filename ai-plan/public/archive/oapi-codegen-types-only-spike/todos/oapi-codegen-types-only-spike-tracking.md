@@ -27,6 +27,24 @@
   - no active recovery prompt remains for this topic
   - recommended next topic is `feature-delivery-with-contract-first-rule`
 
+## Final Archive Record
+
+- Status: `archived`
+- Archive series: `ARCHIVED_OPENAPI_GOVERNANCE_SERIES`
+- Archive reason: this spike completed its types-only governance mission and its conclusions were absorbed by the final OpenAPI governance closeout.
+- Final result: generated contract types were proven viable as a constrained boundary; generated server/client runtime adoption remained intentionally deferred.
+- Final validation summary:
+  - docs-only archive update in this round
+  - no server / web / openapi runtime files changed
+  - backend and web validation not run in this round because the archive slice is documentation-only
+- Follow-up status: `superseded`
+- Superseded by:
+  - `openapi-governance-closeout-audit`
+  - `feature-delivery-with-contract-first-rule`
+- Next-session prompt: `No continuation required.`
+- Archive note:
+  - This topic is archived as part of the final OpenAPI/OAPI governance closeout. The relevant implementation, audit, generated-boundary, bundled-docs, monitor-coverage, and closeout findings have either been completed, superseded by later governance topics, or converted into guardrail-oriented follow-up guidance. No next-session recovery is required for this topic.
+
 ## Scope
 
 - Owned scope:
