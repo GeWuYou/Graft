@@ -16,14 +16,17 @@ type UsersPath = (typeof USER_API_PATH)['USERS'];
 type PostUserUpdatePath = '/api/users/{id}/update';
 type PostUserStatusPath = '/api/users/{id}/status';
 type PostUserResetPasswordPath = '/api/users/{id}/reset-password';
+type PostUserDeletePath = '/api/users/{id}/delete';
 type PostUsersOperation = paths[UsersPath]['post'];
 type PostUserUpdateOperation = paths[PostUserUpdatePath]['post'];
 type PostUserStatusOperation = paths[PostUserStatusPath]['post'];
 type PostUserResetPasswordOperation = paths[PostUserResetPasswordPath]['post'];
+type PostUserDeleteOperation = paths[PostUserDeletePath]['post'];
 type PostUsersRequest = PostUsersOperation['requestBody']['content']['application/json'];
 type PostUserUpdateRequest = PostUserUpdateOperation['requestBody']['content']['application/json'];
 type PostUserStatusRequest = PostUserStatusOperation['requestBody']['content']['application/json'];
 type PostUserResetPasswordRequest = PostUserResetPasswordOperation['requestBody']['content']['application/json'];
+type PostUserDeleteResponse = PostUserDeleteOperation['responses']['200']['content']['application/json'];
 
 function normalizeUserStatus(status?: string | null) {
   return status === USER_STATUS.DISABLED ? USER_STATUS.DISABLED : USER_STATUS.ENABLED;
@@ -134,7 +137,7 @@ export function resetUserPassword(userId: number, payload: ResetUserPasswordPayl
  * @returns 成功时返回 `null`。
  */
 export function deleteUser(userId: number) {
-  return request.post<null>({
+  return request.post<PostUserDeleteResponse['data']>({
     url: USER_API_PATH.USER_DELETE(userId),
   });
 }

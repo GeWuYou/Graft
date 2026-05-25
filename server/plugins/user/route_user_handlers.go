@@ -163,6 +163,15 @@ func (h userWriteGeneratedHandler) PostUserResetPassword(
 	_ = body
 }
 
+func (h userWriteGeneratedHandler) PostUserDelete(
+	id uint64,
+	params useropenapi.PostUserDeleteParams,
+) {
+	_ = h
+	_ = id
+	_ = params
+}
+
 func bindGeneratedUserCreateParams(ginCtx *gin.Context) useropenapi.PostUsersParams {
 	locale, requestID := bindGeneratedHeaders(ginCtx)
 	return useropenapi.PostUsersParams{
@@ -190,6 +199,14 @@ func bindGeneratedUserStatusParams(ginCtx *gin.Context) useropenapi.PostUserStat
 func bindGeneratedUserResetPasswordParams(ginCtx *gin.Context) useropenapi.PostUserResetPasswordParams {
 	locale, requestID := bindGeneratedHeaders(ginCtx)
 	return useropenapi.PostUserResetPasswordParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedUserDeleteParams(ginCtx *gin.Context) useropenapi.PostUserDeleteParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.PostUserDeleteParams{
 		XGraftLocale: locale,
 		XRequestId:   requestID,
 	}
@@ -273,6 +290,7 @@ func (r userRouteRegistrar) registerDeleteUserRoute(group *gin.RouterGroup) {
 		if !ok {
 			return
 		}
+		userWriteGeneratedHandler{}.PostUserDelete(userID, bindGeneratedUserDeleteParams(ginCtx))
 
 		if err := r.userSvc.DeleteUser(ginCtx.Request.Context(), r.authSvc.auth, userID); err != nil {
 			r.runtime().writeUserManagementError(ginCtx, userID, "delete user failed", err)

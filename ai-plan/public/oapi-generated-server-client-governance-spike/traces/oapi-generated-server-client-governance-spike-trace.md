@@ -196,3 +196,20 @@ validation:
   request-body types while still calling `request.ts`.
 - Added a dedicated backend freshness target `backend-user-write` so the new generated user artifact is checked without
   changing monitor or RBAC ownership boundaries.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 7
+
+- Expanded the existing `server/internal/contract/openapi/user/**` write artifact to cover:
+  - `postUserDelete`
+- Kept the user plugin as the runtime owner of:
+  - explicit `/api/users/:id/delete` route registration
+  - permission middleware wiring
+  - `httpx` success/error envelope behavior
+  - user delete service invocation and session-revoke side effects
+- Bound the backend generated layer only to:
+  - path/header semantics for `POST /api/users/{id}/delete`
+  - compile-time handler interface conformance via `useropenapi.WriteServerInterface`
+- Updated `web/src/modules/user/api/users.ts` so `deleteUser()` now binds to the generated `postUserDelete` operation
+  response typing while still calling `request.ts`.
+- Kept backend freshness validation under the existing `backend-user-write` target without introducing a second user
+  generated artifact.

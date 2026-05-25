@@ -67,6 +67,81 @@ func (e PostUsers500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostUserDelete400JSONResponseBodySuccess.
+const (
+	PostUserDelete400JSONResponseBodySuccessFalse PostUserDelete400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserDelete400JSONResponseBodySuccess enum.
+func (e PostUserDelete400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserDelete400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserDelete401JSONResponseBodySuccess.
+const (
+	PostUserDelete401JSONResponseBodySuccessFalse PostUserDelete401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserDelete401JSONResponseBodySuccess enum.
+func (e PostUserDelete401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserDelete401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserDelete403JSONResponseBodySuccess.
+const (
+	PostUserDelete403JSONResponseBodySuccessFalse PostUserDelete403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserDelete403JSONResponseBodySuccess enum.
+func (e PostUserDelete403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserDelete403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserDelete404JSONResponseBodySuccess.
+const (
+	PostUserDelete404JSONResponseBodySuccessFalse PostUserDelete404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserDelete404JSONResponseBodySuccess enum.
+func (e PostUserDelete404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserDelete404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserDelete500JSONResponseBodySuccess.
+const (
+	PostUserDelete500JSONResponseBodySuccessFalse PostUserDelete500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserDelete500JSONResponseBodySuccess enum.
+func (e PostUserDelete500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserDelete500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostUserResetPassword400JSONResponseBodySuccess.
 const (
 	PostUserResetPassword400JSONResponseBodySuccessFalse PostUserResetPassword400JSONResponseBodySuccess = false
@@ -297,13 +372,13 @@ func (e PostUserUpdate404JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostUserUpdate500JSONResponseBodySuccess.
 const (
-	False PostUserUpdate500JSONResponseBodySuccess = false
+	PostUserUpdate500JSONResponseBodySuccessFalse PostUserUpdate500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostUserUpdate500JSONResponseBodySuccess enum.
 func (e PostUserUpdate500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostUserUpdate500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -346,6 +421,31 @@ type PostUsers403JSONResponseBodySuccess bool
 
 // PostUsers500JSONResponseBodySuccess defines parameters for PostUsers.
 type PostUsers500JSONResponseBodySuccess bool
+
+// PostUserDeleteParams defines parameters for PostUserDelete.
+type PostUserDeleteParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostUserDelete400JSONResponseBodySuccess defines parameters for PostUserDelete.
+type PostUserDelete400JSONResponseBodySuccess bool
+
+// PostUserDelete401JSONResponseBodySuccess defines parameters for PostUserDelete.
+type PostUserDelete401JSONResponseBodySuccess bool
+
+// PostUserDelete403JSONResponseBodySuccess defines parameters for PostUserDelete.
+type PostUserDelete403JSONResponseBodySuccess bool
+
+// PostUserDelete404JSONResponseBodySuccess defines parameters for PostUserDelete.
+type PostUserDelete404JSONResponseBodySuccess bool
+
+// PostUserDelete500JSONResponseBodySuccess defines parameters for PostUserDelete.
+type PostUserDelete500JSONResponseBodySuccess bool
 
 // PostUserResetPasswordJSONBody defines parameters for PostUserResetPassword.
 type PostUserResetPasswordJSONBody struct {

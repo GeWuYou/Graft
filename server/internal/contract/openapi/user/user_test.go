@@ -38,6 +38,15 @@ func TestPostUserResetPasswordHeadersRemainOptional(t *testing.T) {
 	}
 }
 
+func TestPostUserDeleteHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params PostUserDeleteParams
+	if params.XGraftLocale != nil || params.XRequestId != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
+	}
+}
+
 func TestPostUsersRequestBodyRequiresConcreteFieldsOnly(t *testing.T) {
 	t.Parallel()
 

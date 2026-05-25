@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { request } from '@/utils/request';
 
 import { USER_API_PATH } from '../contract/paths';
-import { createUser, resetUserPassword, updateUser, updateUserStatus } from './users';
+import { createUser, deleteUser, resetUserPassword, updateUser, updateUserStatus } from './users';
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -62,6 +62,17 @@ describe('users api', () => {
     expect(requestPost).toHaveBeenCalledWith({
       url: USER_API_PATH.USER_RESET_PASSWORD(1),
       data: payload,
+    });
+  });
+
+  it('calls the canonical user-delete path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValueOnce(null as never);
+
+    await deleteUser(1);
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: USER_API_PATH.USER_DELETE(1),
     });
   });
 });
