@@ -9,6 +9,19 @@ import (
 	userstore "graft/server/plugins/user/store"
 )
 
+type userListResponse struct {
+	Items []userListItem `json:"items"`
+}
+
+type userListItem struct {
+	ID        uint64 `json:"id"`
+	Username  string `json:"username"`
+	Display   string `json:"display"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
 func normalizeUserStatus(status string) string {
 	switch strings.TrimSpace(status) {
 	case usercontract.UserStatusDisabled:

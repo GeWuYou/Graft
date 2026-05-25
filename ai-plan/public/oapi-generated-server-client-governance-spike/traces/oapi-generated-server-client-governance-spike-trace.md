@@ -344,6 +344,38 @@ validation:
 - Remaining non-blocking gap after this slice:
   - backend response wrappers are now only partially generated-derived because some generated outer response structs use anonymous nested members and generated pointer semantics that would otherwise force broad, non-boundary-scoped bridge/test rewrites
 
+## 2026-05-25 backend dto file cleanup batch
+
+- Ran this cleanup after commit `777227b` as a bounded `graft-multi-agent-batch` wave.
+- Main-agent orchestration kept ownership of:
+  - integration review
+  - final validation
+  - closeout notes
+- Worker slice `auth + user`:
+  - removed `server/plugins/auth/dto_http.go`
+  - removed `server/plugins/user/dto_http_response.go`
+  - moved still-required explicit user boundary structs closer to their real owners:
+    - bootstrap response structs into `server/plugins/user/bootstrap.go`
+    - login/session helper structs into `server/plugins/user/session.go`
+    - user list response structs into `server/plugins/user/mapper_http.go`
+  - upgraded auth mapper output to generated OpenAPI response models in `server/plugins/auth/mapper_http.go`
+- Worker slice `rbac`:
+  - removed `server/plugins/rbac/dto_http_request.go`
+  - removed `server/plugins/rbac/dto_http_response.go`
+  - moved still-required RBAC response payload structs into `server/plugins/rbac/mapper_http.go`
+- Resulting rule after this cleanup:
+  - plugin-local `dto_http*.go` files are no longer needed for the current OpenAPI-generated boundary adapter shape
+  - explicit boundary structs may still exist, but only inline beside the mapper/bootstrap/session code that truly owns them
+  - generated outer response models are used where they fit the explicit runtime bridge cleanly
+  - where generated outer response models would force anonymous-struct churn or pointer-semantics drift, the explicit wrapper stays local instead of living in a separate DTO file
+- Validation for the full cleanup batch:
+  - passed: `git diff --check`
+  - passed: `cd server && go test ./plugins/auth ./plugins/user ./plugins/rbac`
+  - pending main-agent final pass:
+    - `cd server && go run ./cmd/graft validate backend`
+    - `cd web && bun run openapi:types:check`
+    - `cd web && bun run check`
+
 ## 2026-05-25 Phase 6 guarded progressive migration batch 11
 
 - Completed the final auth generated-contract migration batch without broadening scope.
