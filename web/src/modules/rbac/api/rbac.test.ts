@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { request } from '@/utils/request';
 
 import { RBAC_API_PATH } from '../contract/paths';
-import { assignRolePermissions, getPermissions, getRolePermissionBindings, getRoles } from './rbac';
+import {
+  assignRolePermissions,
+  createRole,
+  getPermissions,
+  getRolePermissionBindings,
+  getRoles,
+  updateRole,
+} from './rbac';
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -55,6 +62,32 @@ describe('rbac api', () => {
 
     expect(requestPost).toHaveBeenCalledWith({
       url: RBAC_API_PATH.ROLE_PERMISSION_ASSIGN(42),
+      data: payload,
+    });
+  });
+
+  it('calls the canonical role-create path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    const payload = { name: 'admin', display: 'Admin', description: 'system' };
+    requestPost.mockResolvedValueOnce({ id: 1, ...payload, builtin: false } as never);
+
+    await createRole(payload);
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: RBAC_API_PATH.ROLES,
+      data: payload,
+    });
+  });
+
+  it('calls the canonical role-update path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    const payload = { name: 'editor', display: 'Editor', description: 'updated' };
+    requestPost.mockResolvedValueOnce({ id: 42, ...payload, builtin: false } as never);
+
+    await updateRole(42, payload);
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: RBAC_API_PATH.ROLE_UPDATE(42),
       data: payload,
     });
   });

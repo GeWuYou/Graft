@@ -157,3 +157,23 @@ validation:
   body type while still calling `request.ts`.
 - Extended backend freshness validation through the same unified `backend-rbac-management` target without introducing a
   second RBAC generated artifact.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 5
+
+- Expanded the unified RBAC management generated artifact at
+  `server/internal/contract/openapi/rbac/zz_generated.management.go` to cover:
+  - `postRoles`
+  - `postRoleUpdate`
+- Kept the RBAC plugin as the runtime owner of:
+  - explicit `/api/roles` and `/api/roles/:id/update` route registration
+  - permission middleware wiring
+  - `httpx` success/error envelope behavior
+  - role write-service invocation and normalization behavior
+- Bound the backend generated layer only to:
+  - header/request-body semantics for `POST /api/roles`
+  - path/header/request-body semantics for `POST /api/roles/{id}/update`
+  - compile-time handler interface conformance via `rbacopenapi.WriteServerInterface`
+- Updated `web/src/modules/rbac/api/rbac.ts` so `createRole()` and `updateRole()` now bind to generated OpenAPI
+  operation request-body types while still calling `request.ts`.
+- Kept backend freshness validation under the same unified `backend-rbac-management` target and did not introduce a
+  second RBAC generated artifact.

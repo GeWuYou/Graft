@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	openapicontract "graft/server/internal/contract/openapi"
 	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	rbacstore "graft/server/plugins/rbac/store"
 )
@@ -19,7 +18,7 @@ type replaceStableIDsHandlerConfig struct {
 	write        func(ctx context.Context, targetID uint64, ids []uint64) error
 }
 
-func normalizeCreateRoleInput(request openapicontract.PostRolesJSONRequestBody) (rbacstore.CreateRoleInput, bool) {
+func normalizeCreateRoleInput(request rbacopenapi.PostRolesJSONRequestBody) (rbacstore.CreateRoleInput, bool) {
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
 		return rbacstore.CreateRoleInput{}, false
@@ -33,7 +32,7 @@ func normalizeCreateRoleInput(request openapicontract.PostRolesJSONRequestBody) 
 	}, true
 }
 
-func normalizeUpdateRoleInput(roleID uint64, request openapicontract.PostRoleUpdateJSONRequestBody) (rbacstore.UpdateRoleInput, bool) {
+func normalizeUpdateRoleInput(roleID uint64, request rbacopenapi.PostRoleUpdateJSONRequestBody) (rbacstore.UpdateRoleInput, bool) {
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
 		return rbacstore.UpdateRoleInput{}, false
@@ -45,14 +44,6 @@ func normalizeUpdateRoleInput(roleID uint64, request openapicontract.PostRoleUpd
 		Display:     strings.TrimSpace(request.Display),
 		Description: normalizeOptionalString(request.Description),
 	}, true
-}
-
-func readRolePermissionIDs(ginCtx *gin.Context) ([]uint64, error) {
-	var request openapicontract.PostRolePermissionAssignJSONRequestBody
-	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		return nil, err
-	}
-	return optionalStableIDs(request.PermissionIds), nil
 }
 
 func readGeneratedRolePermissionAssignRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionAssignJSONRequestBody, []uint64, error) {

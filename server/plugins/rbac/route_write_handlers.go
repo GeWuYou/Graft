@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	messagecontract "graft/server/internal/contract/message"
-	openapicontract "graft/server/internal/contract/openapi"
 	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
@@ -41,7 +40,7 @@ func handleCreateRoleRoute(
 	pluginName string,
 	writer writeManagementService,
 ) {
-	var request openapicontract.PostRolesJSONRequestBody
+	var request rbacopenapi.PostRolesJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 			"field": "body",
@@ -62,6 +61,8 @@ func handleCreateRoleRoute(
 		})
 		return
 	}
+
+	rbacWriteGeneratedHandler{}.PostRoles(bindGeneratedRoleCreateParams(ginCtx), request)
 
 	role, err := writer.CreateRole(ginCtx.Request.Context(), roleInput)
 	if err != nil {
@@ -86,7 +87,7 @@ func handleUpdateRoleRoute(
 		return
 	}
 
-	var request openapicontract.PostRoleUpdateJSONRequestBody
+	var request rbacopenapi.PostRoleUpdateJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 			"field": "body",
@@ -107,6 +108,8 @@ func handleUpdateRoleRoute(
 		})
 		return
 	}
+
+	rbacWriteGeneratedHandler{}.PostRoleUpdate(roleID, bindGeneratedRoleUpdateParams(ginCtx), request)
 
 	role, err := writer.UpdateRole(ginCtx.Request.Context(), roleInput)
 	if err != nil {
@@ -156,6 +159,26 @@ func handleReplaceStableIDsRoute(
 type rbacWriteGeneratedHandler struct {
 }
 
+func (h rbacWriteGeneratedHandler) PostRoles(
+	params rbacopenapi.PostRolesParams,
+	body rbacopenapi.PostRolesJSONRequestBody,
+) {
+	_ = h
+	_ = params
+	_ = body
+}
+
+func (h rbacWriteGeneratedHandler) PostRoleUpdate(
+	id uint64,
+	params rbacopenapi.PostRoleUpdateParams,
+	body rbacopenapi.PostRoleUpdateJSONRequestBody,
+) {
+	_ = h
+	_ = id
+	_ = params
+	_ = body
+}
+
 func (h rbacWriteGeneratedHandler) PostRolePermissionAssign(
 	id uint64,
 	params rbacopenapi.PostRolePermissionAssignParams,
@@ -176,6 +199,22 @@ func (h rbacWriteGeneratedHandler) PostUserRolesAssign(
 	_ = id
 	_ = params
 	_ = body
+}
+
+func bindGeneratedRoleCreateParams(ginCtx *gin.Context) rbacopenapi.PostRolesParams {
+	locale, requestID := bindGeneratedReadHeaders(ginCtx)
+	return rbacopenapi.PostRolesParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedRoleUpdateParams(ginCtx *gin.Context) rbacopenapi.PostRoleUpdateParams {
+	locale, requestID := bindGeneratedReadHeaders(ginCtx)
+	return rbacopenapi.PostRoleUpdateParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
 }
 
 func bindGeneratedRolePermissionAssignParams(ginCtx *gin.Context) rbacopenapi.PostRolePermissionAssignParams {
