@@ -309,3 +309,44 @@ validation:
 - Commit status:
   - committed: `a28ea34`
   - title: `feat(auth): migrate session endpoints to generated contracts`
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 11
+
+- Completed the final auth generated-contract migration batch without broadening scope.
+- This round only touched these two password-flow interfaces:
+  - `POST /api/auth/change-password`
+  - `POST /api/auth/complete-required-password-change`
+- Kept prior auth batches intact:
+  - Batch 1 commit `713a676` remains the completed refresh/logout slice
+  - Batch 2 commit `a28ea34` remains the completed current-user sessions slice
+- Expanded the existing auth generated artifact inputs for `server/internal/contract/openapi/auth/zz_generated.auth.go` to cover:
+  - `postAuthChangePassword`
+  - `postAuthCompleteRequiredPasswordChange`
+- Updated backend freshness coverage under the existing `backend-auth-session` target so Batch 3 generated auth types
+  are checked through the same repository-owned auth target rather than a second auth artifact.
+- Kept the auth plugin as the runtime owner of:
+  - explicit password route registration
+  - route-local JSON binding and field validation
+  - password-change service invocation
+  - `httpx` success/error envelope behavior
+- Bound the backend generated layer only to:
+  - header/request-body semantics for `POST /api/auth/change-password`
+  - header/request-body semantics for `POST /api/auth/complete-required-password-change`
+  - compile-time handler interface conformance via `authopenapi.ServerInterface`
+- Updated `web/src/modules/auth/api/auth.ts` so the auth module API now binds both password-flow endpoints to generated
+  OpenAPI operation types while still using `request.ts` as the only transport/runtime truth.
+- Kept the frontend page/form boundary explicit:
+  - the module API accepts generated contract payload aliases
+  - form-local state still stays outside generated transport/runtime code
+- Focused validation results:
+  - passed: `cd server && go test ./internal/contract/openapi/auth ./plugins/auth`
+  - passed: `python3 scripts/openapi_generated_freshness_check.py --target backend-auth-session --mode check`
+  - passed: `cd web && bun run test:run -- auth`
+  - passed: `cd web && bun run typecheck`
+- Completion validation results:
+  - passed: `cd server && go run ./cmd/graft validate backend`
+  - passed: `cd web && bun run check`
+  - passed: `git diff --check`
+  - passed: `git status --short` before commit showed only Batch 3 owned scope
+- Commit status:
+  - pending final scoped commit at this trace checkpoint

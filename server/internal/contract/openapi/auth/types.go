@@ -10,4 +10,9 @@ type ServerInterface interface {
 	PostAuthSessionsRevokeAll(params PostAuthSessionsRevokeAllParams)
 	PostAuthSessionsRevokeOthers(params PostAuthSessionsRevokeOthersParams)
 	PostAuthSessionRevoke(params PostAuthSessionRevokeParams)
+	PostAuthChangePassword(params PostAuthChangePasswordParams, body PostAuthChangePasswordJSONRequestBody)
+	PostAuthCompleteRequiredPasswordChange(
+		params PostAuthCompleteRequiredPasswordChangeParams,
+		body PostAuthCompleteRequiredPasswordChangeJSONRequestBody,
+	)
 }

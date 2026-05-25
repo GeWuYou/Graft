@@ -2,6 +2,7 @@ import type { paths } from '@/contracts/openapi/generated/schema';
 import { AUTH_API_PATH } from '@/modules/auth/contract/paths';
 import type {
   BootstrapResponse,
+  ChangePasswordPayload,
   CompleteRequiredPasswordChangePayload,
   LoginPayload,
   LoginResponse,
@@ -13,6 +14,8 @@ type LoginPath = (typeof AUTH_API_PATH)['LOGIN'];
 type BootstrapPath = (typeof AUTH_API_PATH)['BOOTSTRAP'];
 type RefreshPath = (typeof AUTH_API_PATH)['REFRESH'];
 type LogoutPath = (typeof AUTH_API_PATH)['LOGOUT'];
+type ChangePasswordPath = (typeof AUTH_API_PATH)['CHANGE_PASSWORD'];
+type CompleteRequiredPasswordChangePath = (typeof AUTH_API_PATH)['COMPLETE_REQUIRED_PASSWORD_CHANGE'];
 type SessionsPath = (typeof AUTH_API_PATH)['SESSIONS'];
 type SessionsRevokeAllPath = (typeof AUTH_API_PATH)['SESSIONS_REVOKE_ALL'];
 type SessionsRevokeOthersPath = (typeof AUTH_API_PATH)['SESSIONS_REVOKE_OTHERS'];
@@ -20,6 +23,8 @@ type PostAuthLoginOperation = paths[LoginPath]['post'];
 type GetAuthBootstrapOperation = paths[BootstrapPath]['get'];
 type PostAuthRefreshOperation = paths[RefreshPath]['post'];
 type PostAuthLogoutOperation = paths[LogoutPath]['post'];
+type PostAuthChangePasswordOperation = paths[ChangePasswordPath]['post'];
+type PostAuthCompleteRequiredPasswordChangeOperation = paths[CompleteRequiredPasswordChangePath]['post'];
 type GetAuthSessionsOperation = paths[SessionsPath]['get'];
 type PostAuthSessionsRevokeAllOperation = paths[SessionsRevokeAllPath]['post'];
 type PostAuthSessionsRevokeOthersOperation = paths[SessionsRevokeOthersPath]['post'];
@@ -29,6 +34,10 @@ type PostAuthLoginResponse = PostAuthLoginOperation['responses']['200']['content
 type GetAuthBootstrapResponse = GetAuthBootstrapOperation['responses']['200']['content']['application/json'];
 type PostAuthRefreshResponse = PostAuthRefreshOperation['responses']['200']['content']['application/json'];
 type PostAuthLogoutResponse = PostAuthLogoutOperation['responses']['200']['content']['application/json'];
+type PostAuthChangePasswordResponse =
+  PostAuthChangePasswordOperation['responses']['200']['content']['application/json'];
+type PostAuthCompleteRequiredPasswordChangeResponse =
+  PostAuthCompleteRequiredPasswordChangeOperation['responses']['200']['content']['application/json'];
 type GetAuthSessionsResponse = GetAuthSessionsOperation['responses']['200']['content']['application/json'];
 type PostAuthSessionsRevokeAllResponse =
   PostAuthSessionsRevokeAllOperation['responses']['200']['content']['application/json'];
@@ -39,6 +48,8 @@ type PostAuthLoginResponseData = NonNullable<PostAuthLoginResponse['data']>;
 type GetAuthBootstrapResponseData = NonNullable<GetAuthBootstrapResponse['data']>;
 type PostAuthRefreshResponseData = NonNullable<PostAuthRefreshResponse['data']>;
 type PostAuthLogoutResponseData = PostAuthLogoutResponse['data'];
+type PostAuthChangePasswordResponseData = PostAuthChangePasswordResponse['data'];
+type PostAuthCompleteRequiredPasswordChangeResponseData = PostAuthCompleteRequiredPasswordChangeResponse['data'];
 type GetAuthSessionsResponseData = NonNullable<GetAuthSessionsResponse['data']>;
 type PostAuthSessionsRevokeAllResponseData = PostAuthSessionsRevokeAllResponse['data'];
 type PostAuthSessionsRevokeOthersResponseData = PostAuthSessionsRevokeOthersResponse['data'];
@@ -95,8 +106,15 @@ export async function revokeSession(sessionID: PostAuthSessionRevokePathParams['
   });
 }
 
+export async function changePassword(payload: ChangePasswordPayload): Promise<void> {
+  await request.post<PostAuthChangePasswordResponseData>({
+    url: AUTH_API_PATH.CHANGE_PASSWORD,
+    data: payload,
+  });
+}
+
 export function completeRequiredPasswordChange(payload: CompleteRequiredPasswordChangePayload) {
-  return request.post<void>({
+  return request.post<PostAuthCompleteRequiredPasswordChangeResponseData>({
     url: AUTH_API_PATH.COMPLETE_REQUIRED_PASSWORD_CHANGE,
     data: payload,
   });

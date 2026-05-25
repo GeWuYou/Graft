@@ -164,11 +164,12 @@ func (r authRouteRegistrar) registerBootstrapRoute(authGroup *gin.RouterGroup) {
 
 func (r authRouteRegistrar) registerChangePasswordRoute(authGroup *gin.RouterGroup) {
 	authGroup.POST(authcontract.AuthChangePassword, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		var request changePasswordRequest
+		var request authopenapi.PostAuthChangePasswordJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		authGeneratedHandler{}.PostAuthChangePassword(bindGeneratedAuthChangePasswordParams(ginCtx), request)
 		if strings.TrimSpace(request.CurrentPassword) == "" {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "current_password")
 			return
@@ -189,11 +190,15 @@ func (r authRouteRegistrar) registerChangePasswordRoute(authGroup *gin.RouterGro
 
 func (r authRouteRegistrar) registerCompleteRequiredPasswordChangeRoute(authGroup *gin.RouterGroup) {
 	authGroup.POST(authcontract.AuthCompleteRequiredPasswordChange, r.guards.authenticated, r.guards.requiredPasswordChange, func(ginCtx *gin.Context) {
-		var request completeRequiredPasswordChangeRequest
+		var request authopenapi.PostAuthCompleteRequiredPasswordChangeJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		authGeneratedHandler{}.PostAuthCompleteRequiredPasswordChange(
+			bindGeneratedAuthCompleteRequiredPasswordChangeParams(ginCtx),
+			request,
+		)
 		if strings.TrimSpace(request.NewPassword) == "" {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "new_password")
 			return
@@ -270,9 +275,45 @@ func (h authGeneratedHandler) PostAuthSessionRevoke(params authopenapi.PostAuthS
 	_ = params
 }
 
+func (h authGeneratedHandler) PostAuthChangePassword(
+	params authopenapi.PostAuthChangePasswordParams,
+	body authopenapi.PostAuthChangePasswordJSONRequestBody,
+) {
+	_ = h
+	_ = params
+	_ = body
+}
+
+func (h authGeneratedHandler) PostAuthCompleteRequiredPasswordChange(
+	params authopenapi.PostAuthCompleteRequiredPasswordChangeParams,
+	body authopenapi.PostAuthCompleteRequiredPasswordChangeJSONRequestBody,
+) {
+	_ = h
+	_ = params
+	_ = body
+}
+
 func bindGeneratedAuthLoginParams(ginCtx *gin.Context) authopenapi.PostAuthLoginParams {
 	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
 	return authopenapi.PostAuthLoginParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedAuthChangePasswordParams(ginCtx *gin.Context) authopenapi.PostAuthChangePasswordParams {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	return authopenapi.PostAuthChangePasswordParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedAuthCompleteRequiredPasswordChangeParams(
+	ginCtx *gin.Context,
+) authopenapi.PostAuthCompleteRequiredPasswordChangeParams {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	return authopenapi.PostAuthCompleteRequiredPasswordChangeParams{
 		XGraftLocale: locale,
 		XRequestId:   requestID,
 	}

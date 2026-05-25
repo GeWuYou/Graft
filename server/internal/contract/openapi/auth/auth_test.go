@@ -74,6 +74,47 @@ func TestPostAuthSessionRevokeRequiresSessionIDPathParam(t *testing.T) {
 	}
 }
 
+func TestPostAuthChangePasswordHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params PostAuthChangePasswordParams
+	if params.XGraftLocale != nil || params.XRequestId != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
+	}
+}
+
+func TestPostAuthChangePasswordRequestBodyUsesGeneratedFields(t *testing.T) {
+	t.Parallel()
+
+	body := PostAuthChangePasswordJSONRequestBody{
+		CurrentPassword: "current-password-123",
+		NewPassword:     "next-password-456",
+	}
+	if body.CurrentPassword == "" || body.NewPassword == "" {
+		t.Fatalf("expected generated change-password body to expose required fields, got %#v", body)
+	}
+}
+
+func TestPostAuthCompleteRequiredPasswordChangeHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params PostAuthCompleteRequiredPasswordChangeParams
+	if params.XGraftLocale != nil || params.XRequestId != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
+	}
+}
+
+func TestPostAuthCompleteRequiredPasswordChangeRequestBodyUsesGeneratedField(t *testing.T) {
+	t.Parallel()
+
+	body := PostAuthCompleteRequiredPasswordChangeJSONRequestBody{
+		NewPassword: "next-password-456",
+	}
+	if body.NewPassword == "" {
+		t.Fatalf("expected generated complete-required-password-change body to expose required field, got %#v", body)
+	}
+}
+
 func TestPostAuthLoginRequestBodyRequiresConcreteFieldsOnly(t *testing.T) {
 	t.Parallel()
 

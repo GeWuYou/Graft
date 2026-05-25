@@ -4,6 +4,8 @@ import { request } from '@/utils/request';
 
 import { AUTH_API_PATH } from '../contract/paths';
 import {
+  changePassword,
+  completeRequiredPasswordChange,
   getBootstrap,
   listSessions,
   login,
@@ -112,6 +114,32 @@ describe('auth api', () => {
 
     expect(requestPost).toHaveBeenCalledWith({
       url: '/api/auth/sessions/session%2Fwith%20spaces/revoke',
+    });
+  });
+
+  it('calls the canonical change-password path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    const payload = { current_password: 'current-password-123', new_password: 'next-password-456' };
+    requestPost.mockResolvedValueOnce(undefined as never);
+
+    await expect(changePassword(payload)).resolves.toBeUndefined();
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: AUTH_API_PATH.CHANGE_PASSWORD,
+      data: payload,
+    });
+  });
+
+  it('calls the canonical complete-required-password-change path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    const payload = { new_password: 'next-password-456' };
+    requestPost.mockResolvedValueOnce(undefined as never);
+
+    await expect(completeRequiredPasswordChange(payload)).resolves.toBeUndefined();
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: AUTH_API_PATH.COMPLETE_REQUIRED_PASSWORD_CHANGE,
+      data: payload,
     });
   });
 });

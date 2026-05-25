@@ -53,6 +53,126 @@ func (e GetAuthBootstrap500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostAuthChangePassword400JSONResponseBodySuccess.
+const (
+	PostAuthChangePassword400JSONResponseBodySuccessFalse PostAuthChangePassword400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuthChangePassword400JSONResponseBodySuccess enum.
+func (e PostAuthChangePassword400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuthChangePassword400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuthChangePassword401JSONResponseBodySuccess.
+const (
+	PostAuthChangePassword401JSONResponseBodySuccessFalse PostAuthChangePassword401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuthChangePassword401JSONResponseBodySuccess enum.
+func (e PostAuthChangePassword401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuthChangePassword401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuthChangePassword403JSONResponseBodySuccess.
+const (
+	PostAuthChangePassword403JSONResponseBodySuccessFalse PostAuthChangePassword403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuthChangePassword403JSONResponseBodySuccess enum.
+func (e PostAuthChangePassword403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuthChangePassword403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuthChangePassword500JSONResponseBodySuccess.
+const (
+	PostAuthChangePassword500JSONResponseBodySuccessFalse PostAuthChangePassword500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuthChangePassword500JSONResponseBodySuccess enum.
+func (e PostAuthChangePassword500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuthChangePassword500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccess.
+const (
+	PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccessFalse PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccess enum.
+func (e PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccess.
+const (
+	PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccessFalse PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccess enum.
+func (e PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccess.
+const (
+	PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccessFalse PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccess enum.
+func (e PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccess.
+const (
+	PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccessFalse PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccess enum.
+func (e PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostAuthLogin401JSONResponseBodySuccess.
 const (
 	PostAuthLogin401JSONResponseBodySuccessFalse PostAuthLogin401JSONResponseBodySuccess = false
@@ -408,6 +528,61 @@ type GetAuthBootstrap403JSONResponseBodySuccess bool
 // GetAuthBootstrap500JSONResponseBodySuccess defines parameters for GetAuthBootstrap.
 type GetAuthBootstrap500JSONResponseBodySuccess bool
 
+// PostAuthChangePasswordJSONBody defines parameters for PostAuthChangePassword.
+type PostAuthChangePasswordJSONBody struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// PostAuthChangePasswordParams defines parameters for PostAuthChangePassword.
+type PostAuthChangePasswordParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostAuthChangePassword400JSONResponseBodySuccess defines parameters for PostAuthChangePassword.
+type PostAuthChangePassword400JSONResponseBodySuccess bool
+
+// PostAuthChangePassword401JSONResponseBodySuccess defines parameters for PostAuthChangePassword.
+type PostAuthChangePassword401JSONResponseBodySuccess bool
+
+// PostAuthChangePassword403JSONResponseBodySuccess defines parameters for PostAuthChangePassword.
+type PostAuthChangePassword403JSONResponseBodySuccess bool
+
+// PostAuthChangePassword500JSONResponseBodySuccess defines parameters for PostAuthChangePassword.
+type PostAuthChangePassword500JSONResponseBodySuccess bool
+
+// PostAuthCompleteRequiredPasswordChangeJSONBody defines parameters for PostAuthCompleteRequiredPasswordChange.
+type PostAuthCompleteRequiredPasswordChangeJSONBody struct {
+	NewPassword string `json:"new_password"`
+}
+
+// PostAuthCompleteRequiredPasswordChangeParams defines parameters for PostAuthCompleteRequiredPasswordChange.
+type PostAuthCompleteRequiredPasswordChangeParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccess defines parameters for PostAuthCompleteRequiredPasswordChange.
+type PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccess bool
+
+// PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccess defines parameters for PostAuthCompleteRequiredPasswordChange.
+type PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccess bool
+
+// PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccess defines parameters for PostAuthCompleteRequiredPasswordChange.
+type PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccess bool
+
+// PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccess defines parameters for PostAuthCompleteRequiredPasswordChange.
+type PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccess bool
+
 // PostAuthLoginJSONBody defines parameters for PostAuthLogin.
 type PostAuthLoginJSONBody struct {
 	Password string `json:"password"`
@@ -552,6 +727,12 @@ type PostAuthSessionRevoke404JSONResponseBodySuccess bool
 
 // PostAuthSessionRevoke500JSONResponseBodySuccess defines parameters for PostAuthSessionRevoke.
 type PostAuthSessionRevoke500JSONResponseBodySuccess bool
+
+// PostAuthChangePasswordJSONRequestBody defines body for PostAuthChangePassword for application/json ContentType.
+type PostAuthChangePasswordJSONRequestBody PostAuthChangePasswordJSONBody
+
+// PostAuthCompleteRequiredPasswordChangeJSONRequestBody defines body for PostAuthCompleteRequiredPasswordChange for application/json ContentType.
+type PostAuthCompleteRequiredPasswordChangeJSONRequestBody PostAuthCompleteRequiredPasswordChangeJSONBody
 
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody PostAuthLoginJSONBody

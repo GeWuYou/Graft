@@ -18,17 +18,24 @@ This topic owns the `monitor/server-status` pilot for generated server/client go
       - `POST /api/auth/refresh`
       - `POST /api/auth/logout`
 - Batch 2 status:
-  - completed locally in the current worktree and limited to:
+  - completed and committed:
     - `GET /api/auth/sessions`
     - `POST /api/auth/sessions/revoke-all`
     - `POST /api/auth/sessions/revoke-others`
     - `POST /api/auth/sessions/{sessionID}/revoke`
+  - commit:
+    - `a28ea34`
   - generated/backend/frontend boundaries stay explicit:
     - `server/plugins/auth/**` still owns route registration, validation, service commands, and `httpx` envelopes
     - `web/src/modules/auth/api/auth.ts` still owns module adapters over `request.ts`
-  - Batch 3 remains forbidden in this recovery slice:
+- Batch 3 status:
+  - completed in the current worktree and limited to:
     - `POST /api/auth/change-password`
     - `POST /api/auth/complete-required-password-change`
+  - generated/backend/frontend boundaries stay explicit:
+    - `server/plugins/auth/**` still owns route registration, validation, service commands, and `httpx` envelopes
+    - `web/src/modules/auth/api/auth.ts` still owns module adapters over `request.ts`
+  - no remaining auth password-flow migration is pending in this topic
 
 ## Scope
 

@@ -2,15 +2,6 @@ package auth
 
 import "time"
 
-type changePasswordRequest struct {
-	CurrentPassword string `json:"current_password"`
-	NewPassword     string `json:"new_password"`
-}
-
-type completeRequiredPasswordChangeRequest struct {
-	NewPassword string `json:"new_password"`
-}
-
 type loginUserResponse struct {
 	ID          uint64 `json:"id"`
 	Username    string `json:"username"`
