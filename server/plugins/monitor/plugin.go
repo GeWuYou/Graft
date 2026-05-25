@@ -380,9 +380,18 @@ func buildServerStatusResponse(
 		}
 	}
 
-	runtimeSnapshot := collectRuntimeSnapshot(ctx)
-	databaseStatus := databaseHealth(ctx, instance)
-	redisStatus := redisHealth(ctx, pluginCtx)
+	runtimeSnapshot, err := collectRuntimeSnapshot(ctx)
+	if err != nil {
+		return generated.ServerStatusResponse{}, err
+	}
+	databaseStatus, err := databaseHealth(ctx, instance)
+	if err != nil {
+		return generated.ServerStatusResponse{}, err
+	}
+	redisStatus, err := redisHealth(ctx, pluginCtx)
+	if err != nil {
+		return generated.ServerStatusResponse{}, err
+	}
 	plugins := runtimePluginSummaries(pluginCtx, databaseStatus, redisStatus)
 	summary := buildServerStatusSummary(databaseStatus, redisStatus, plugins)
 	trend := buildServerStatusTrend(ctx, pluginCtx, instance, observedAt, trendRange)
@@ -409,12 +418,12 @@ func buildServerStatusResponse(
 	}, nil
 }
 
-func databaseHealth(ctx context.Context, instance *Plugin) generated.ServerStatusDependency {
+func databaseHealth(ctx context.Context, instance *Plugin) (generated.ServerStatusDependency, error) {
 	if instance == nil || instance.db == nil {
 		return generated.ServerStatusDependency{
 			Status: statusUnknown,
 			Detail: "Database handle is unavailable",
-		}
+		}, nil
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
@@ -426,23 +435,26 @@ func databaseHealth(ctx context.Context, instance *Plugin) generated.ServerStatu
 		return generated.ServerStatusDependency{
 			Status: statusDegraded,
 			Detail: "Database ping failed",
-		}
+		}, nil
 	}
 
-	latencyMs := toGeneratedFloat32(roundLatencyMilliseconds(time.Since(startedAt)), "database latency ms")
+	latencyMs, err := toGeneratedFloat32(roundLatencyMilliseconds(time.Since(startedAt)), "database latency ms")
+	if err != nil {
+		return generated.ServerStatusDependency{}, fmt.Errorf("convert database latency: %w", err)
+	}
 	return generated.ServerStatusDependency{
 		Status:    statusHealthy,
 		Detail:    "Database ping succeeded",
 		LatencyMs: &latencyMs,
-	}
+	}, nil
 }
 
-func redisHealth(ctx context.Context, pluginCtx *plugin.Context) generated.ServerStatusDependency {
+func redisHealth(ctx context.Context, pluginCtx *plugin.Context) (generated.ServerStatusDependency, error) {
 	if pluginCtx == nil || pluginCtx.Redis == nil {
 		return generated.ServerStatusDependency{
 			Status: statusDisabled,
 			Detail: "Redis client is not configured",
-		}
+		}, nil
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
@@ -454,15 +466,18 @@ func redisHealth(ctx context.Context, pluginCtx *plugin.Context) generated.Serve
 		return generated.ServerStatusDependency{
 			Status: statusDegraded,
 			Detail: "Redis ping failed",
-		}
+		}, nil
 	}
 
-	latencyMs := toGeneratedFloat32(roundLatencyMilliseconds(time.Since(startedAt)), "redis latency ms")
+	latencyMs, err := toGeneratedFloat32(roundLatencyMilliseconds(time.Since(startedAt)), "redis latency ms")
+	if err != nil {
+		return generated.ServerStatusDependency{}, fmt.Errorf("convert redis latency: %w", err)
+	}
 	return generated.ServerStatusDependency{
 		Status:    statusHealthy,
 		Detail:    "Redis ping succeeded",
 		LatencyMs: &latencyMs,
-	}
+	}, nil
 }
 
 func runtimePluginSummaries(
@@ -718,11 +733,20 @@ func (p *Plugin) recordTrendSample(
 		return
 	}
 
-	runtimeSnapshot := collectRuntimeSnapshot(ctx)
+	runtimeSnapshot, err := collectRuntimeSnapshot(ctx)
+	if err != nil {
+		logTrendWarning(p, nil, "collect monitor runtime snapshot failed", err)
+		return
+	}
+	cpuPercent, err := toGeneratedFloat32(collectCPUPercent(ctx, processHandle), "cpu percent")
+	if err != nil {
+		logTrendWarning(p, nil, "convert monitor cpu sample failed", err)
+		return
+	}
 	observedAt := time.Now().UTC()
 	point := generated.ServerStatusTrendPoint{
 		ObservedAt:                observedAt,
-		CpuPercent:                toGeneratedFloat32(collectCPUPercent(ctx, processHandle), "cpu percent"),
+		CpuPercent:                cpuPercent,
 		HostMemoryUsedPercent:     runtimeSnapshot.HostMemoryUsedPercent,
 		LoadAverageOneMinute:      runtimeSnapshot.LoadAverage.OneMinute,
 		LoadAverageFiveMinutes:    runtimeSnapshot.LoadAverage.FiveMinutes,
@@ -856,10 +880,46 @@ func currentProcessID() (int32, error) {
 	return int32(pid), nil
 }
 
-func collectRuntimeSnapshot(ctx context.Context) generated.ServerStatusRuntime {
+func collectRuntimeSnapshot(ctx context.Context) (generated.ServerStatusRuntime, error) {
 	stats := runtime.MemStats{}
 	runtime.ReadMemStats(&stats)
 	hostMemory := collectHostMemory(ctx)
+	loadAverage, err := collectLoadAverage(ctx)
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	diskUsage, err := collectDiskUsage(ctx, defaultDiskUsagePath())
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	hostMemoryTotalBytes, err := mustConvertGeneratedInt64(hostMemory.Total, "host memory total bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	hostMemoryUsedBytes, err := mustConvertGeneratedInt64(hostMemory.Used, "host memory used bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	hostMemoryFreeBytes, err := mustConvertGeneratedInt64(hostMemory.Free, "host memory free bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	hostMemoryUsedPercent, err := toGeneratedFloat32(roundUsagePercent(hostMemory.UsedPercent), "host memory used percent")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	runtimeAllocBytes, err := mustConvertGeneratedInt64(stats.Alloc, "runtime alloc bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	runtimeHeapInUseBytes, err := mustConvertGeneratedInt64(stats.HeapInuse, "runtime heap in use bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	runtimeSysBytes, err := mustConvertGeneratedInt64(stats.Sys, "runtime sys bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
 
 	return generated.ServerStatusRuntime{
 		GoVersion:             runtime.Version(),
@@ -867,18 +927,18 @@ func collectRuntimeSnapshot(ctx context.Context) generated.ServerStatusRuntime {
 		OperatingSystem:       runtime.GOOS,
 		Architecture:          runtime.GOARCH,
 		CpuCores:              runtime.NumCPU(),
-		LoadAverage:           collectLoadAverage(ctx),
-		DiskUsage:             collectDiskUsage(ctx, defaultDiskUsagePath()),
-		HostMemoryTotalBytes:  mustConvertGeneratedInt64(hostMemory.Total, "host memory total bytes"),
-		HostMemoryUsedBytes:   mustConvertGeneratedInt64(hostMemory.Used, "host memory used bytes"),
-		HostMemoryFreeBytes:   mustConvertGeneratedInt64(hostMemory.Free, "host memory free bytes"),
-		HostMemoryUsedPercent: toGeneratedFloat32(roundUsagePercent(hostMemory.UsedPercent), "host memory used percent"),
+		LoadAverage:           loadAverage,
+		DiskUsage:             diskUsage,
+		HostMemoryTotalBytes:  hostMemoryTotalBytes,
+		HostMemoryUsedBytes:   hostMemoryUsedBytes,
+		HostMemoryFreeBytes:   hostMemoryFreeBytes,
+		HostMemoryUsedPercent: hostMemoryUsedPercent,
 		Goroutines:            runtime.NumGoroutine(),
-		RuntimeAllocBytes:     mustConvertGeneratedInt64(stats.Alloc, "runtime alloc bytes"),
-		RuntimeHeapInUseBytes: mustConvertGeneratedInt64(stats.HeapInuse, "runtime heap in use bytes"),
-		RuntimeSysBytes:       mustConvertGeneratedInt64(stats.Sys, "runtime sys bytes"),
+		RuntimeAllocBytes:     runtimeAllocBytes,
+		RuntimeHeapInUseBytes: runtimeHeapInUseBytes,
+		RuntimeSysBytes:       runtimeSysBytes,
 		RuntimeGcCycles:       int(stats.NumGC),
-	}
+	}, nil
 }
 
 func collectHostMemory(ctx context.Context) *mem.VirtualMemoryStat {
@@ -894,40 +954,70 @@ func collectHostMemory(ctx context.Context) *mem.VirtualMemoryStat {
 	return snapshot
 }
 
-func collectLoadAverage(ctx context.Context) generated.ServerStatusLoadAverage {
+func collectLoadAverage(ctx context.Context) (generated.ServerStatusLoadAverage, error) {
 	if ctx == nil {
-		return generated.ServerStatusLoadAverage{}
+		return generated.ServerStatusLoadAverage{}, nil
 	}
 
 	avg, err := load.AvgWithContext(ctx)
 	if err != nil || avg == nil {
-		return generated.ServerStatusLoadAverage{}
+		return generated.ServerStatusLoadAverage{}, nil
+	}
+
+	oneMinute, err := toGeneratedFloat32(avg.Load1, "load average one minute")
+	if err != nil {
+		return generated.ServerStatusLoadAverage{}, err
+	}
+	fiveMinutes, err := toGeneratedFloat32(avg.Load5, "load average five minutes")
+	if err != nil {
+		return generated.ServerStatusLoadAverage{}, err
+	}
+	fifteenMinutes, err := toGeneratedFloat32(avg.Load15, "load average fifteen minutes")
+	if err != nil {
+		return generated.ServerStatusLoadAverage{}, err
 	}
 
 	return generated.ServerStatusLoadAverage{
-		OneMinute:      toGeneratedFloat32(avg.Load1, "load average one minute"),
-		FiveMinutes:    toGeneratedFloat32(avg.Load5, "load average five minutes"),
-		FifteenMinutes: toGeneratedFloat32(avg.Load15, "load average fifteen minutes"),
-	}
+		OneMinute:      oneMinute,
+		FiveMinutes:    fiveMinutes,
+		FifteenMinutes: fifteenMinutes,
+	}, nil
 }
 
-func collectDiskUsage(ctx context.Context, path string) generated.ServerStatusDiskUsage {
+func collectDiskUsage(ctx context.Context, path string) (generated.ServerStatusDiskUsage, error) {
 	if ctx == nil {
-		return generated.ServerStatusDiskUsage{Path: path}
+		return generated.ServerStatusDiskUsage{Path: path}, nil
 	}
 
 	usage, err := disk.UsageWithContext(ctx, path)
 	if err != nil || usage == nil {
-		return generated.ServerStatusDiskUsage{Path: path}
+		return generated.ServerStatusDiskUsage{Path: path}, nil
+	}
+
+	totalBytes, err := mustConvertGeneratedInt64(usage.Total, "disk total bytes")
+	if err != nil {
+		return generated.ServerStatusDiskUsage{}, err
+	}
+	usedBytes, err := mustConvertGeneratedInt64(usage.Used, "disk used bytes")
+	if err != nil {
+		return generated.ServerStatusDiskUsage{}, err
+	}
+	freeBytes, err := mustConvertGeneratedInt64(usage.Free, "disk free bytes")
+	if err != nil {
+		return generated.ServerStatusDiskUsage{}, err
+	}
+	usedPercent, err := toGeneratedFloat32(roundUsagePercent(usage.UsedPercent), "disk used percent")
+	if err != nil {
+		return generated.ServerStatusDiskUsage{}, err
 	}
 
 	return generated.ServerStatusDiskUsage{
 		Path:        usage.Path,
-		TotalBytes:  mustConvertGeneratedInt64(usage.Total, "disk total bytes"),
-		UsedBytes:   mustConvertGeneratedInt64(usage.Used, "disk used bytes"),
-		FreeBytes:   mustConvertGeneratedInt64(usage.Free, "disk free bytes"),
-		UsedPercent: toGeneratedFloat32(roundUsagePercent(usage.UsedPercent), "disk used percent"),
-	}
+		TotalBytes:  totalBytes,
+		UsedBytes:   usedBytes,
+		FreeBytes:   freeBytes,
+		UsedPercent: usedPercent,
+	}, nil
 }
 
 func roundLatencyMilliseconds(duration time.Duration) float64 {
@@ -942,18 +1032,18 @@ func roundUsagePercent(value float64) float64 {
 	return math.Round(value*latencyPrecisionScale) / latencyPrecisionScale
 }
 
-func toGeneratedFloat32(value float64, label string) float32 {
+func toGeneratedFloat32(value float64, label string) (float32, error) {
 	if value > math.MaxFloat32 || value < -math.MaxFloat32 {
-		panic(label + " exceeds float32")
+		return 0, fmt.Errorf("%s exceeds float32: %v", label, value)
 	}
-	return float32(value)
+	return float32(value), nil
 }
 
-func mustConvertGeneratedInt64(value uint64, label string) int64 {
+func mustConvertGeneratedInt64(value uint64, label string) (int64, error) {
 	if value > math.MaxInt64 {
-		panic(label + " exceeds int64")
+		return 0, fmt.Errorf("%s exceeds int64: %d", label, value)
 	}
-	return int64(value)
+	return int64(value), nil
 }
 
 func resolveAppName(pluginCtx *plugin.Context) string {

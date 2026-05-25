@@ -71,7 +71,13 @@ func handleCreateRoleRoute(
 		return
 	}
 
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toRoleListItem(role))
+	payload, mapErr := toRoleListItem(role)
+	if mapErr != nil {
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, mapErr, "id")
+		return
+	}
+
+	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 }
 
 func handleUpdateRoleRoute(
@@ -118,7 +124,13 @@ func handleUpdateRoleRoute(
 		return
 	}
 
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toRoleListItem(role))
+	payload, mapErr := toRoleListItem(role)
+	if mapErr != nil {
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, mapErr, "id")
+		return
+	}
+
+	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 }
 
 type rbacWriteGeneratedHandler struct {

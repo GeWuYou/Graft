@@ -38,7 +38,7 @@ func handleListRoles(
 				return generated.RoleListResponse{}, err
 			}
 
-			return toRoleListResponse(roles), nil
+			return toRoleListResponse(roles)
 		},
 	)
 }
@@ -63,7 +63,7 @@ func handleListRolePermissionBindings(
 			if err != nil {
 				return generated.RolePermissionBindingResponse{}, err
 			}
-			return toRolePermissionBindingResponse(bindings), nil
+			return toRolePermissionBindingResponse(bindings)
 		},
 		isNotFound:  func(err error) bool { return errors.Is(err, rbacstore.ErrRoleNotFound) },
 		notFoundKey: messagecontract.RoleNotFound,
@@ -91,7 +91,17 @@ func handleListPermissions(
 			return
 		}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toPermissionListResponse(permissions))
+		payload, mapErr := toPermissionListResponse(permissions)
+		if mapErr != nil {
+			ctx.Logger.Error("map permissions response failed",
+				zap.String("plugin", pluginName),
+				zap.Error(mapErr),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	}
 }
 
@@ -169,7 +179,7 @@ func handleListUserRoleBindings(
 			if err != nil {
 				return generated.UserRoleBindingResponse{}, err
 			}
-			return toUserRoleBindingResponse(roleIDs), nil
+			return toUserRoleBindingResponse(roleIDs)
 		},
 		isNotFound:  func(err error) bool { return errors.Is(err, pluginapi.ErrUserNotFound) },
 		notFoundKey: messagecontract.UserNotFound,

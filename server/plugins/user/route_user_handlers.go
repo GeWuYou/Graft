@@ -28,12 +28,13 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 			return
 		}
 
-		items := make([]userListItem, 0, len(users))
-		for _, user := range users {
-			items = append(items, toUserListItem(user))
+		payload, mapErr := toUserListResponse(users)
+		if mapErr != nil {
+			r.runtime().writeResponseMappingError(ginCtx, "map user list response failed", mapErr)
+			return
 		}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, userListResponse{Items: items})
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	})
 	group.GET(usercontract.UserByID, r.guards.userRead, r.guards.restrictedSession, func(ginCtx *gin.Context) {
 		rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
@@ -42,13 +43,19 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 		}
 		userReadGeneratedHandler{}.GetUserByID(rawID, bindGeneratedUserDetailParams(ginCtx))
 
-		record, err := r.userSvc.users.GetByID(ginCtx.Request.Context(), rawID)
+		record, err := r.userSvc.GetUser(ginCtx.Request.Context(), rawID)
 		if err != nil {
 			r.runtime().writeUserLookupError(ginCtx, rawID, "get user by id failed", err)
 			return
 		}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(record))
+		payload, mapErr := toUserListItem(record)
+		if mapErr != nil {
+			r.runtime().writeResponseMappingError(ginCtx, "map user detail response failed", mapErr, zap.Uint64("userID", rawID))
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	})
 }
 
@@ -93,7 +100,13 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(created))
+		payload, mapErr := toUserListItem(created)
+		if mapErr != nil {
+			r.runtime().writeResponseMappingError(ginCtx, "map created user response failed", mapErr, zap.Uint64("userID", created.ID))
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	})
 }
 
@@ -131,7 +144,13 @@ func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(updated))
+		payload, mapErr := toUserListItem(updated)
+		if mapErr != nil {
+			r.runtime().writeResponseMappingError(ginCtx, "map updated user response failed", mapErr, zap.Uint64("userID", updated.ID))
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	})
 }
 
@@ -282,7 +301,13 @@ func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(updated))
+		payload, mapErr := toUserListItem(updated)
+		if mapErr != nil {
+			r.runtime().writeResponseMappingError(ginCtx, "map user status response failed", mapErr, zap.Uint64("userID", updated.ID))
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	})
 }
 

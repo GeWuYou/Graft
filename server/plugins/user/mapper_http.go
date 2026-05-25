@@ -1,6 +1,7 @@
 package user
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -65,15 +66,33 @@ func toCanonicalManagedUserStatus(status useropenapi.PostUserStatusJSONBodyStatu
 	}
 }
 
-func toUserListItem(user userstore.User) userListItem {
+func toUserListResponse(users []userstore.User) (userListResponse, error) {
+	items := make([]userListItem, 0, len(users))
+	for _, user := range users {
+		item, err := toUserListItem(user)
+		if err != nil {
+			return userListResponse{}, err
+		}
+		items = append(items, item)
+	}
+
+	return userListResponse{Items: items}, nil
+}
+
+func toUserListItem(user userstore.User) (userListItem, error) {
+	id, err := mustConvertGeneratedUserID(user.ID)
+	if err != nil {
+		return userListItem{}, err
+	}
+
 	return userListItem{
-		Id:        mustConvertGeneratedUserID(user.ID),
+		Id:        id,
 		Username:  user.Username,
 		Display:   user.Display,
 		Status:    normalizeUserStatus(user.Status),
 		CreatedAt: user.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt: user.UpdatedAt.UTC().Format(time.RFC3339),
-	}
+	}, nil
 }
 
 func toGeneratedSessionSummaries(items []sessionSummary) []generated.SessionSummary {
@@ -90,9 +109,9 @@ func toGeneratedSessionSummaries(items []sessionSummary) []generated.SessionSumm
 	return summaries
 }
 
-func mustConvertGeneratedUserID(id uint64) int64 {
+func mustConvertGeneratedUserID(id uint64) (int64, error) {
 	if id > math.MaxInt64 {
-		panic("user generated response user id exceeds int64")
+		return 0, fmt.Errorf("user generated response user id exceeds int64: %d", id)
 	}
-	return int64(id)
+	return int64(id), nil
 }
