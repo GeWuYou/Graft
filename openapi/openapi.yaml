@@ -3,9 +3,9 @@ info:
   title: Graft Server API
   version: 0.1.0-phase-2a
   description: |
-    Phase 2A establishes the first minimal OpenAPI spec and validation loop for the
-    existing server runtime without changing business behavior, response envelope
-    semantics, or auth/session transport ownership.
+    Establishes the OpenAPI-owned contract and validation loop for the existing
+    server runtime while preserving current business behavior, response envelope
+    semantics, and auth/session transport ownership.
 servers:
   - url: /
 security:
