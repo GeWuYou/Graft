@@ -1,3 +1,4 @@
+import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import { RBAC_API_PATH } from '../contract/paths';
@@ -10,6 +11,11 @@ import type {
   UpdateRolePayload,
 } from '../types/rbac';
 
+type PermissionsPath = (typeof RBAC_API_PATH)['PERMISSIONS'];
+type GetPermissionsOperation = paths[PermissionsPath]['get'];
+type GetPermissionsEnvelope = GetPermissionsOperation['responses'][200]['content']['application/json'];
+type GetPermissionsData = NonNullable<GetPermissionsEnvelope['data']>;
+
 export function getRoles() {
   return request.get<RoleListResponse>({
     url: RBAC_API_PATH.ROLES,
@@ -17,9 +23,9 @@ export function getRoles() {
 }
 
 export function getPermissions() {
-  return request.get<PermissionListResponse>({
+  return request.get<GetPermissionsData>({
     url: RBAC_API_PATH.PERMISSIONS,
-  });
+  }) as Promise<PermissionListResponse>;
 }
 
 export function getRolePermissionBindings(roleId: number) {

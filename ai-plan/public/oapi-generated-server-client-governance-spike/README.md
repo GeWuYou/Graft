@@ -289,3 +289,36 @@ The monitor pilot now has a minimal freshness gate on both sides.
 3. `GET /api/roles`
 
 Do not start auth/session lifecycle routes or write-heavy endpoints before those read-only slices prove stable.
+
+## Phase 6 Guarded Progressive Migration Batch 1
+
+### Verdict
+
+`GET /api/permissions` is now the first guarded progressive migration batch after the monitor pilot.
+
+- backend adds a narrow RBAC generated contract package for `getPermissions` only
+- route registration, middleware ownership, and `httpx` envelope ownership remain in the RBAC plugin
+- frontend keeps consuming the module API through `request.ts`, but `getPermissions()` is now operation-bound to the
+  generated OpenAPI response envelope data type
+- freshness gating stays explicit by extending the existing backend checker with a second opt-in target for the RBAC
+  generated artifact
+
+### Shape
+
+- Backend:
+  - `server/internal/contract/openapi/rbac/**` owns the generated `getPermissions` handler-shape/header contract only
+  - `server/plugins/rbac/**` still owns `/api/permissions` route registration, auth middleware, `httpx` success/error
+    envelopes, and read-service invocation
+- Frontend:
+  - `web/src/modules/rbac/api/rbac.ts` still exports module-owned helpers
+  - `request.ts` remains the only runtime transport owner
+  - the permissions helper now binds to `paths['/api/permissions']['get']` instead of a handwritten generic
+
+### Validation Expectation For This Batch
+
+- `git diff --check`
+- `python3 scripts/openapi_generated_freshness_check.py --target backend-monitor --mode check`
+- `python3 scripts/openapi_generated_freshness_check.py --target backend-rbac-permissions --mode check`
+- `cd web && bun run openapi:types:check`
+- `cd web && bun run test:run -- --runInBand src/modules/rbac/api/rbac.test.ts`
+- `cd server && go test ./internal/contract/openapi/rbac ./plugins/rbac`

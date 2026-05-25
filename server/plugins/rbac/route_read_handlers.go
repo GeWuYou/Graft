@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	httpheader "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
+	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
@@ -62,19 +65,46 @@ func handleListPermissions(
 	pluginName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
-	return newManagementListHandler(
-		ctx,
-		pluginName,
-		"list permissions failed",
-		func(ginCtx *gin.Context) (permissionListResponse, error) {
-			permissions, err := reader.ListPermissions(ginCtx.Request.Context())
-			if err != nil {
-				return permissionListResponse{}, err
-			}
+	handler := permissionListGeneratedHandler{}
 
-			return toPermissionListResponse(permissions), nil
-		},
-	)
+	return func(ginCtx *gin.Context) {
+		params := bindGeneratedPermissionParams(ginCtx)
+		handler.GetPermissions(params)
+
+		permissions, err := reader.ListPermissions(ginCtx.Request.Context())
+		if err != nil {
+			ctx.Logger.Error("list permissions failed",
+				zap.String("plugin", pluginName),
+				zap.Error(err),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, toPermissionListResponse(permissions))
+	}
+}
+
+type permissionListGeneratedHandler struct {
+}
+
+func (h permissionListGeneratedHandler) GetPermissions(params rbacopenapi.GetPermissionsParams) {
+	_ = h
+	_ = params
+}
+
+func bindGeneratedPermissionParams(ginCtx *gin.Context) rbacopenapi.GetPermissionsParams {
+	params := rbacopenapi.GetPermissionsParams{}
+
+	if raw := strings.TrimSpace(ginCtx.GetHeader(httpx.RequestIDHeader)); raw != "" {
+		params.XRequestId = &raw
+	}
+
+	if raw := strings.TrimSpace(ginCtx.GetHeader(string(httpheader.Locale))); raw != "" {
+		params.XGraftLocale = &raw
+	}
+
+	return params
 }
 
 func handleListUserRoleBindings(

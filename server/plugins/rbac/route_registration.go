@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
@@ -173,3 +174,5 @@ func registerUserRoleRoutes(
 		})
 	})
 }
+
+var _ rbacopenapi.PermissionServerInterface = permissionListGeneratedHandler{}

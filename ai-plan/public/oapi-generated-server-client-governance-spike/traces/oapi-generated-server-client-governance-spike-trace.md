@@ -85,3 +85,18 @@ validation:
 - Wired backend freshness into `cd server && go run ./cmd/graft validate backend` through the existing `openapi` stage.
 - Confirmed frontend freshness remains owned by `cd web && bun run openapi:types:check`; this slice does not replace it.
 - Kept the scope monitor-only and did not broaden generated runtime coverage or endpoint migration.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 1
+
+- Added `server/internal/contract/openapi/rbac/**` as a narrow generated contract package for `getPermissions` only.
+- Kept the RBAC plugin as the runtime owner of:
+  - explicit `/api/permissions` route registration
+  - permission middleware wiring
+  - `httpx` success/error envelope behavior
+  - read-service invocation
+- Added a compile-time generated handler-shape assertion for `GET /api/permissions` without switching to generated
+  router/runtime ownership.
+- Updated `web/src/modules/rbac/api/rbac.ts` so `getPermissions()` now binds to the generated OpenAPI operation type
+  while still calling `request.ts`.
+- Extended `scripts/openapi_generated_freshness_check.py` with `backend-rbac-permissions` so the new generated backend
+  artifact can be checked without weakening the existing monitor freshness gate.

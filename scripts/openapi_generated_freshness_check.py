@@ -13,6 +13,7 @@ from pathlib import Path
 
 REPO_SENTINEL = "AGENTS.md"
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
+RBAC_PERMISSIONS_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.permissions.go")
 MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
 MONITOR_ARGS = [
@@ -23,6 +24,14 @@ MONITOR_ARGS = [
     "--package",
     "monitor",
 ]
+RBAC_PERMISSIONS_ARGS = [
+    "--include-operation-ids",
+    "getPermissions",
+    "--generate",
+    "types",
+    "--package",
+    "rbacopenapi",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["backend-monitor"],
+        choices=["backend-monitor", "backend-rbac-permissions"],
         default="backend-monitor",
         help="Generated artifact target to validate.",
     )
@@ -57,31 +66,58 @@ def find_repo_root() -> Path:
 
 
 def run_backend_monitor(repo_root: Path, mode: str) -> int:
-    target = repo_root / MONITOR_TARGET
-    spec = repo_root / MONITOR_SPEC
+    return run_generated_target(
+        repo_root=repo_root,
+        target=MONITOR_TARGET,
+        spec=repo_root / MONITOR_SPEC,
+        generator_args=MONITOR_ARGS,
+        mode=mode,
+        temp_prefix="graft-openapi-monitor-",
+    )
+
+def run_backend_rbac_permissions(repo_root: Path, mode: str) -> int:
+    return run_generated_target(
+        repo_root=repo_root,
+        target=RBAC_PERMISSIONS_TARGET,
+        spec=repo_root / MONITOR_SPEC,
+        generator_args=RBAC_PERMISSIONS_ARGS,
+        mode=mode,
+        temp_prefix="graft-openapi-rbac-permissions-",
+    )
+
+
+def run_generated_target(
+    repo_root: Path,
+    target: Path,
+    spec: Path,
+    generator_args: list[str],
+    mode: str,
+    temp_prefix: str,
+) -> int:
+    tracked_target = repo_root / target
     server_module_root = repo_root / SERVER_MODULE_ROOT
 
-    with tempfile.TemporaryDirectory(prefix="graft-openapi-monitor-") as temp_dir:
-        temp_output = Path(temp_dir) / target.name
-        command = ["go", "tool", "oapi-codegen", *MONITOR_ARGS, "-o", str(temp_output), str(spec)]
+    with tempfile.TemporaryDirectory(prefix=temp_prefix) as temp_dir:
+        temp_output = Path(temp_dir) / tracked_target.name
+        command = ["go", "tool", "oapi-codegen", *generator_args, "-o", str(temp_output), str(spec)]
         subprocess.run(command, cwd=server_module_root, check=True)
 
-        actual = target.read_text(encoding="utf-8")
+        actual = tracked_target.read_text(encoding="utf-8")
         expected = temp_output.read_text(encoding="utf-8")
         if actual == expected:
-            print(f"{MONITOR_TARGET}: fresh")
+            print(f"{target}: fresh")
             return 0
 
         if mode == "fix":
-            shutil.copyfile(temp_output, target)
-            print(f"{MONITOR_TARGET}: regenerated from {MONITOR_SPEC}")
+            shutil.copyfile(temp_output, tracked_target)
+            print(f"{target}: regenerated from {MONITOR_SPEC}")
             return 0
 
         diff = difflib.unified_diff(
             actual.splitlines(keepends=True),
             expected.splitlines(keepends=True),
-            fromfile=str(MONITOR_TARGET),
-            tofile=f"{MONITOR_TARGET} (expected regenerated output)",
+            fromfile=str(target),
+            tofile=f"{target} (expected regenerated output)",
         )
         sys.stderr.writelines(diff)
         sys.stderr.write(
@@ -97,6 +133,8 @@ def main() -> int:
 
     if args.target == "backend-monitor":
         return run_backend_monitor(repo_root, args.mode)
+    if args.target == "backend-rbac-permissions":
+        return run_backend_rbac_permissions(repo_root, args.mode)
 
     raise SystemExit(f"unsupported target: {args.target}")
 
