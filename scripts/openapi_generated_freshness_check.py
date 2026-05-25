@@ -15,6 +15,7 @@ REPO_SENTINEL = "AGENTS.md"
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
 RBAC_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.management.go")
 USER_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/user/zz_generated.management.go")
+AUTH_TARGET = Path("server/internal/contract/openapi/auth/zz_generated.auth.go")
 MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
 MONITOR_ARGS = [
@@ -41,6 +42,14 @@ USER_WRITE_ARGS = [
     "--package",
     "useropenapi",
 ]
+AUTH_ARGS = [
+    "--include-operation-ids",
+    "postAuthLogin,getAuthBootstrap",
+    "--generate",
+    "types",
+    "--package",
+    "authopenapi",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["backend-monitor", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write"],
+        choices=["backend-monitor", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session"],
         default="backend-monitor",
         help="Generated artifact target to validate.",
     )
@@ -128,6 +137,17 @@ def run_backend_user_write(repo_root: Path, mode: str) -> int:
     )
 
 
+def run_backend_auth_session(repo_root: Path, mode: str) -> int:
+    return run_generated_target(
+        repo_root=repo_root,
+        target=AUTH_TARGET,
+        spec=repo_root / MONITOR_SPEC,
+        generator_args=AUTH_ARGS,
+        mode=mode,
+        temp_prefix="graft-openapi-auth-session-",
+    )
+
+
 def run_generated_target(
     repo_root: Path,
     target: Path,
@@ -183,6 +203,8 @@ def main() -> int:
         return run_backend_rbac_management(repo_root, args.mode)
     if args.target == "backend-user-write":
         return run_backend_user_write(repo_root, args.mode)
+    if args.target == "backend-auth-session":
+        return run_backend_auth_session(repo_root, args.mode)
 
     raise SystemExit(f"unsupported target: {args.target}")
 

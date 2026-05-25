@@ -8,7 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	httpheader "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
+	authopenapi "graft/server/internal/contract/openapi/auth"
 	"graft/server/internal/httpx"
 	"graft/server/internal/pluginapi"
 	authcontract "graft/server/plugins/auth/contract"
@@ -16,11 +18,12 @@ import (
 
 func (r authRouteRegistrar) registerLoginRoutes(authGroup *gin.RouterGroup) {
 	authGroup.POST(authcontract.AuthLogin, func(ginCtx *gin.Context) {
-		var request loginRequest
+		var request authopenapi.PostAuthLoginJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		authGeneratedHandler{}.PostAuthLogin(bindGeneratedAuthLoginParams(ginCtx), request)
 		normalizedUsername := strings.TrimSpace(request.Username)
 		if normalizedUsername == "" {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "username")
@@ -136,6 +139,8 @@ func (r authRouteRegistrar) registerBootstrapAndPasswordRoutes(authGroup *gin.Ro
 
 func (r authRouteRegistrar) registerBootstrapRoute(authGroup *gin.RouterGroup) {
 	authGroup.GET(authcontract.AuthBootstrap, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		authGeneratedHandler{}.GetAuthBootstrap(bindGeneratedAuthBootstrapParams(ginCtx))
+
 		payload, err := r.authFlow.ReadBootstrapPayload(ginCtx.Request.Context(), ginCtx.Request)
 		if err != nil {
 			r.runtime().writeAuthRouteError(ginCtx, "read bootstrap payload failed", err)
@@ -206,4 +211,49 @@ func handleSessionRevocation(
 
 	clearRefreshCookieWhen(ginCtx, cookies, shouldClearCookie)
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+}
+
+type authGeneratedHandler struct{}
+
+func (h authGeneratedHandler) PostAuthLogin(
+	params authopenapi.PostAuthLoginParams,
+	body authopenapi.PostAuthLoginJSONRequestBody,
+) {
+	_ = h
+	_ = params
+	_ = body
+}
+
+func (h authGeneratedHandler) GetAuthBootstrap(params authopenapi.GetAuthBootstrapParams) {
+	_ = h
+	_ = params
+}
+
+func bindGeneratedAuthLoginParams(ginCtx *gin.Context) authopenapi.PostAuthLoginParams {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	return authopenapi.PostAuthLoginParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedAuthBootstrapParams(ginCtx *gin.Context) authopenapi.GetAuthBootstrapParams {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	return authopenapi.GetAuthBootstrapParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedAuthHeaders(ginCtx *gin.Context) (*string, *string) {
+	locale := authHeaderPointer(ginCtx.GetHeader(string(httpheader.Locale)))
+	requestID := authHeaderPointer(ginCtx.GetHeader(httpx.RequestIDHeader))
+	return locale, requestID
+}
+
+func authHeaderPointer(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return &value
 }

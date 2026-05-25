@@ -1,14 +1,18 @@
+import type { paths } from '@/contracts/openapi/generated/schema';
 import { AUTH_API_PATH } from '@/modules/auth/contract/paths';
-import type {
-  BootstrapResponse,
-  CompleteRequiredPasswordChangePayload,
-  LoginPayload,
-  LoginResponse,
-} from '@/modules/auth/contract/types';
+import type { CompleteRequiredPasswordChangePayload, LoginPayload } from '@/modules/auth/contract/types';
 import { request } from '@/utils/request';
 
-export function login(payload: LoginPayload) {
-  return request.post<LoginResponse>({
+type LoginPath = (typeof AUTH_API_PATH)['LOGIN'];
+type BootstrapPath = (typeof AUTH_API_PATH)['BOOTSTRAP'];
+type PostAuthLoginOperation = paths[LoginPath]['post'];
+type GetAuthBootstrapOperation = paths[BootstrapPath]['get'];
+type PostAuthLoginRequest = PostAuthLoginOperation['requestBody']['content']['application/json'];
+type PostAuthLoginResponse = PostAuthLoginOperation['responses']['200']['content']['application/json'];
+type GetAuthBootstrapResponse = GetAuthBootstrapOperation['responses']['200']['content']['application/json'];
+
+export function login(payload: LoginPayload & PostAuthLoginRequest) {
+  return request.post<PostAuthLoginResponse['data']>({
     url: AUTH_API_PATH.LOGIN,
     data: payload,
   });
@@ -34,7 +38,7 @@ export function completeRequiredPasswordChange(payload: CompleteRequiredPassword
 }
 
 export function getBootstrap() {
-  return request.get<BootstrapResponse>({
+  return request.get<GetAuthBootstrapResponse['data']>({
     url: AUTH_API_PATH.BOOTSTRAP,
   });
 }
