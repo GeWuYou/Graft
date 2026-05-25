@@ -31,6 +31,9 @@ type PostUserUpdateRequest = PostUserUpdateOperation['requestBody']['content']['
 type PostUserStatusRequest = PostUserStatusOperation['requestBody']['content']['application/json'];
 type PostUserResetPasswordRequest = PostUserResetPasswordOperation['requestBody']['content']['application/json'];
 type PostUserDeleteResponse = PostUserDeleteOperation['responses']['200']['content']['application/json'];
+type GetUsersResponseData = NonNullable<GetUsersResponse['data']>;
+type GetUserByIdResponseData = NonNullable<GetUserByIdResponse['data']>;
+type PostUserDeleteResponseData = NonNullable<PostUserDeleteResponse['data']>;
 
 function normalizeUserStatus(status?: string | null) {
   return status === USER_STATUS.DISABLED ? USER_STATUS.DISABLED : USER_STATUS.ENABLED;
@@ -52,7 +55,7 @@ function normalizeUserListItem(item: RawUserListItem): UserListItem {
  */
 export function getUsers() {
   return request
-    .get<GetUsersResponse['data']>({
+    .get<GetUsersResponseData>({
       url: USER_API_PATH.USERS,
     })
     .then(
@@ -73,7 +76,7 @@ export function getUsers() {
  */
 export function getUserById(userId: number) {
   return request
-    .get<GetUserByIdResponse['data']>({
+    .get<GetUserByIdResponseData>({
       url: USER_API_PATH.USER_BY_ID(userId),
     })
     .then(normalizeUserListItem);
@@ -157,7 +160,7 @@ export function resetUserPassword(userId: number, payload: ResetUserPasswordPayl
  * @returns 成功时返回 `null`。
  */
 export function deleteUser(userId: number) {
-  return request.post<PostUserDeleteResponse['data']>({
+  return request.post<PostUserDeleteResponseData>({
     url: USER_API_PATH.USER_DELETE(userId),
   });
 }

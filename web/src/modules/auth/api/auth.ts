@@ -1,18 +1,25 @@
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { AUTH_API_PATH } from '@/modules/auth/contract/paths';
-import type { CompleteRequiredPasswordChangePayload, LoginPayload } from '@/modules/auth/contract/types';
+import type {
+  BootstrapResponse,
+  CompleteRequiredPasswordChangePayload,
+  LoginPayload,
+  LoginResponse,
+} from '@/modules/auth/contract/types';
 import { request } from '@/utils/request';
 
 type LoginPath = (typeof AUTH_API_PATH)['LOGIN'];
 type BootstrapPath = (typeof AUTH_API_PATH)['BOOTSTRAP'];
 type PostAuthLoginOperation = paths[LoginPath]['post'];
 type GetAuthBootstrapOperation = paths[BootstrapPath]['get'];
-type PostAuthLoginRequest = PostAuthLoginOperation['requestBody']['content']['application/json'];
 type PostAuthLoginResponse = PostAuthLoginOperation['responses']['200']['content']['application/json'];
 type GetAuthBootstrapResponse = GetAuthBootstrapOperation['responses']['200']['content']['application/json'];
+type PostAuthLoginResponseData = NonNullable<PostAuthLoginResponse['data']>;
+type GetAuthBootstrapResponseData = NonNullable<GetAuthBootstrapResponse['data']>;
 
-export function login(payload: LoginPayload & PostAuthLoginRequest) {
-  return request.post<PostAuthLoginResponse['data']>({
+// Keep generated request/response typing at the module API boundary; callers still own form-local state.
+export function login(payload: LoginPayload) {
+  return request.post<PostAuthLoginResponseData>({
     url: AUTH_API_PATH.LOGIN,
     data: payload,
   });
@@ -38,7 +45,7 @@ export function completeRequiredPasswordChange(payload: CompleteRequiredPassword
 }
 
 export function getBootstrap() {
-  return request.get<GetAuthBootstrapResponse['data']>({
+  return request.get<BootstrapResponse & GetAuthBootstrapResponseData>({
     url: AUTH_API_PATH.BOOTSTRAP,
   });
 }

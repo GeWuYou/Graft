@@ -213,3 +213,22 @@ validation:
   response typing while still calling `request.ts`.
 - Kept backend freshness validation under the existing `backend-user-write` target without introducing a second user
   generated artifact.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 8
+
+- Kept the existing auth generated artifact at `server/internal/contract/openapi/auth/zz_generated.auth.go` scoped to:
+  - `postAuthLogin`
+  - `getAuthBootstrap`
+- Kept the auth plugin as the runtime owner of:
+  - explicit `/api/auth/login` and `/api/auth/bootstrap` route registration
+  - guard and middleware wiring
+  - `httpx` success/error envelope behavior
+  - login/bootstrap service invocation and validation behavior
+- Bound the backend login route directly to the generated OpenAPI request-body type and removed the stale handwritten
+  login request DTO so the generated request shape remains the only route-entry contract for this slice.
+- Kept frontend login/bootstrap typing at the module API boundary:
+  - `web/src/modules/auth/api/auth.ts` now accepts the module-owned generated `LoginPayload` alias for login
+  - `getBootstrap()` continues to unwrap the generated operation response through `request.ts` into the module-owned
+    `BootstrapResponse` alias
+- Confirmed backend freshness coverage already exists under `backend-auth-session`; this slice did not require spec or
+  generated artifact changes.
