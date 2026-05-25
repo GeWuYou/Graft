@@ -1,10 +1,9 @@
+import type { components } from '@/contracts/openapi/generated/schema';
 import { RBAC_API_PATH } from '@/modules/rbac/contract/paths';
 import type { RoleListResponse, UserRoleBindingResponse } from '@/modules/rbac/contract/role';
 import { request } from '@/utils/request';
 
-export type ReplaceUserRolesPayload = {
-  role_ids: number[];
-};
+export type ReplaceUserRolesPayload = components['schemas']['ReplaceUserRolesRequest'];
 
 export function getRoles() {
   return request.get<RoleListResponse>({

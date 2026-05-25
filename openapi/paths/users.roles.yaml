@@ -1,0 +1,88 @@
+get:
+  tags: [rbac]
+  summary: List role bindings for one user
+  operationId: getUserRoles
+  description: Returns the role id snapshot currently bound to the target user.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      examples:
+        existing:
+          summary: Existing user id
+          value: 42
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: User role binding snapshot.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-user-role-binding-response.yaml
+          examples:
+            default:
+              summary: User role ids
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: 273c9565-6c53-44ee-bf4b-ee89523911b2
+                data:
+                  role_ids: [1, 3]
+    '400':
+      description: Invalid user id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            invalidUserID:
+              summary: Invalid user id
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 1c4afd49-5238-44e7-baad-8e0144df0984
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: id
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: User not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            userNotFound:
+              summary: Target user does not exist
+              value:
+                success: false
+                code: USER_NOT_FOUND
+                message: 用户不存在
+                traceId: 52ef74f5-cf73-4cb8-ae6f-2b73ca4b0d87
+                messageKey: user.not_found
+                locale: zh-CN
+                data: {}
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

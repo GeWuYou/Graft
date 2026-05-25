@@ -106,6 +106,126 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List current user sessions
+     * @description Returns the current authenticated user's refresh-session summaries.
+     */
+    get: operations['getAuthSessions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/sessions/revoke-all': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke all current user sessions
+     * @description Revokes all refresh sessions for the current authenticated user and clears the refresh cookie.
+     */
+    post: operations['postAuthSessionsRevokeAll'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/sessions/revoke-others': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke other current user sessions
+     * @description Revokes all refresh sessions for the current authenticated user except the current session.
+     */
+    post: operations['postAuthSessionsRevokeOthers'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/sessions/{sessionID}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke one current user session
+     * @description Revokes the specified refresh session belonging to the current authenticated user.
+     */
+    post: operations['postAuthSessionRevoke'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/change-password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Change current user password
+     * @description Changes the current authenticated user's password using the current password plus the new password.
+     */
+    post: operations['postAuthChangePassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/complete-required-password-change': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Complete required password change
+     * @description Completes the restricted-session required password change flow for the current authenticated user.
+     */
+    post: operations['postAuthCompleteRequiredPasswordChange'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/users': {
     parameters: {
       query?: never;
@@ -125,6 +245,26 @@ export interface paths {
      *     12 characters and both letters and digits.
      */
     post: operations['postUsers'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get one user
+     * @description Returns the existing managed-user summary for the specified user id.
+     */
+    get: operations['getUserById'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -191,6 +331,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/users/{id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Delete one user
+     * @description Deletes the specified managed user without changing current backend delete semantics.
+     */
+    post: operations['postUserDelete'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List sessions for one user
+     * @description Lists the target user's refresh-session summaries through the admin user-session route.
+     */
+    get: operations['getUserSessions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/sessions/{sessionID}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke one session for one user
+     * @description Revokes the specified refresh session for the target user through the admin user-session route.
+     */
+    post: operations['postUserSessionRevoke'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/sessions/revoke-all': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke all sessions for one user
+     * @description Revokes all refresh sessions for the target user through the admin user-session route.
+     */
+    post: operations['postUserSessionsRevokeAll'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/roles': {
     parameters: {
       query?: never;
@@ -207,6 +427,26 @@ export interface paths {
      *     `display`, and optional `description`.
      */
     post: operations['postRoles'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/roles/{id}/permissions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List permission bindings for one role
+     * @description Returns the permission id snapshot currently bound to the target role.
+     */
+    get: operations['getRolePermissions'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -272,6 +512,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/users/{id}/roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List role bindings for one user
+     * @description Returns the role id snapshot currently bound to the target user.
+     */
+    get: operations['getUserRoles'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/roles/assign': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Replace role bindings for one user
+     * @description Replaces the target user's role bindings with the supplied role id snapshot.
+     */
+    post: operations['postUserRolesAssign'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/monitor/server-status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read current server status snapshot
+     * @description Returns the current aggregated monitor server-status snapshot and optional redis-backed trend points.
+     */
+    get: operations['getMonitorServerStatus'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -282,6 +582,9 @@ export interface components {
     LoginRequest: components['schemas']['login-request'];
     LoginUser: components['schemas']['login-user'];
     LoginResponse: components['schemas']['login-response'];
+    ChangePasswordRequest: components['schemas']['change-password-request'];
+    CompleteRequiredPasswordChangeRequest: components['schemas']['complete-required-password-change-request'];
+    SessionSummary: components['schemas']['session-summary'];
     CreateUserRequest: components['schemas']['create-user-request'];
     UpdateUserRequest: components['schemas']['update-user-request'];
     UpdateUserStatusRequest: components['schemas']['update-user-status-request'];
@@ -292,14 +595,32 @@ export interface components {
     UserListItem: components['schemas']['user-list-item'];
     UserListResponse: components['schemas']['user-list-response'];
     EnvelopedUserItemResponse: components['schemas']['enveloped-user-item-response'];
+    EnvelopedSessionListResponse: components['schemas']['enveloped-session-list-response'];
     RoleListItem: components['schemas']['role-list-item'];
     RoleListResponse: components['schemas']['role-list-response'];
     CreateRoleRequest: components['schemas']['create-role-request'];
     UpdateRoleRequest: components['schemas']['update-role-request'];
     EnvelopedRoleItemResponse: components['schemas']['enveloped-role-item-response'];
     ReplaceRolePermissionsRequest: components['schemas']['replace-role-permissions-request'];
+    RolePermissionBindingResponse: components['schemas']['role-permission-binding-response'];
+    EnvelopedRolePermissionBindingResponse: components['schemas']['enveloped-role-permission-binding-response'];
     PermissionListItem: components['schemas']['permission-list-item'];
     PermissionListResponse: components['schemas']['permission-list-response'];
+    UserRoleBindingResponse: components['schemas']['user-role-binding-response'];
+    EnvelopedUserRoleBindingResponse: components['schemas']['enveloped-user-role-binding-response'];
+    ReplaceUserRolesRequest: components['schemas']['replace-user-roles-request'];
+    ServerStatusDependency: components['schemas']['server-status-dependency'];
+    ServerStatusPlugin: components['schemas']['server-status-plugin'];
+    ServerStatusServer: components['schemas']['server-status-server'];
+    ServerStatusLoadAverage: components['schemas']['server-status-load-average'];
+    ServerStatusDiskUsage: components['schemas']['server-status-disk-usage'];
+    ServerStatusRuntime: components['schemas']['server-status-runtime'];
+    ServerStatusDependencies: components['schemas']['server-status-dependencies'];
+    ServerStatusSummary: components['schemas']['server-status-summary'];
+    ServerStatusTrendPoint: components['schemas']['server-status-trend-point'];
+    ServerStatusTrend: components['schemas']['server-status-trend'];
+    ServerStatusResponse: components['schemas']['server-status-response'];
+    EnvelopedServerStatusResponse: components['schemas']['enveloped-server-status-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -357,7 +678,7 @@ export interface components {
       };
     };
     'enveloped-empty-response': components['schemas']['api-envelope'] & {
-      /** @enum {unknown} */
+      /** @enum {unknown|null} */
       data?: null;
     };
     'bootstrap-menu': {
@@ -384,6 +705,43 @@ export interface components {
     };
     'enveloped-bootstrap-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['bootstrap-response'];
+    };
+    /**
+     * @example {
+     *       "session_id": "b930d2e7-b704-4b5f-bd72-f66dbf35f0f6",
+     *       "created_at": "2026-05-24T08:00:00Z",
+     *       "expires_at": "2026-05-31T08:00:00Z",
+     *       "current": true
+     *     }
+     */
+    'session-summary': {
+      session_id: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      expires_at: string;
+      current: boolean;
+    };
+    'enveloped-session-list-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['session-summary'][];
+    };
+    /**
+     * @example {
+     *       "current_password": "current-password-123",
+     *       "new_password": "next-password-456"
+     *     }
+     */
+    'change-password-request': {
+      current_password: string;
+      new_password: string;
+    };
+    /**
+     * @example {
+     *       "new_password": "next-password-456"
+     *     }
+     */
+    'complete-required-password-change-request': {
+      new_password: string;
     };
     'user-list-item': {
       /** Format: int64 */
@@ -448,6 +806,21 @@ export interface components {
     'enveloped-role-item-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-list-item'];
     };
+    /**
+     * @example {
+     *       "permission_ids": [
+     *         1,
+     *         2,
+     *         9
+     *       ]
+     *     }
+     */
+    'role-permission-binding-response': {
+      permission_ids: number[];
+    };
+    'enveloped-role-permission-binding-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['role-permission-binding-response'];
+    };
     'update-role-request': {
       /** @description Stable role name. The server trims surrounding whitespace and rejects an empty result. */
       name: string;
@@ -476,6 +849,281 @@ export interface components {
     };
     'enveloped-permission-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['permission-list-response'];
+    };
+    /**
+     * @example {
+     *       "role_ids": [
+     *         1,
+     *         3
+     *       ]
+     *     }
+     */
+    'user-role-binding-response': {
+      role_ids: number[];
+    };
+    'enveloped-user-role-binding-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['user-role-binding-response'];
+    };
+    /**
+     * @example {
+     *       "role_ids": [
+     *         1,
+     *         3
+     *       ]
+     *     }
+     */
+    'replace-user-roles-request': {
+      role_ids: number[];
+    };
+    /**
+     * @example {
+     *       "version": "dev",
+     *       "started_at": "2026-05-24T08:00:00Z",
+     *       "uptime_seconds": 300,
+     *       "go_version": "go1.25.1",
+     *       "app_name": "graft",
+     *       "app_env": "prod"
+     *     }
+     */
+    'server-status-server': {
+      version: string;
+      /** Format: date-time */
+      started_at: string;
+      /** Format: int64 */
+      uptime_seconds: number;
+      go_version: string;
+      app_name: string;
+      app_env: string;
+    };
+    /**
+     * @example {
+     *       "one_minute": 0.57,
+     *       "five_minutes": 0.44,
+     *       "fifteen_minutes": 0.38
+     *     }
+     */
+    'server-status-load-average': {
+      one_minute: number;
+      five_minutes: number;
+      fifteen_minutes: number;
+    };
+    /**
+     * @example {
+     *       "path": "/",
+     *       "total_bytes": 512110190592,
+     *       "used_bytes": 187904819200,
+     *       "free_bytes": 324205371392,
+     *       "used_percent": 36.69
+     *     }
+     */
+    'server-status-disk-usage': {
+      path: string;
+      /** Format: int64 */
+      total_bytes: number;
+      /** Format: int64 */
+      used_bytes: number;
+      /** Format: int64 */
+      free_bytes: number;
+      used_percent: number;
+    };
+    /**
+     * @example {
+     *       "go_version": "go1.25.1",
+     *       "host_name": "graft-dev",
+     *       "operating_system": "linux",
+     *       "architecture": "amd64",
+     *       "cpu_cores": 8,
+     *       "load_average": {
+     *         "one_minute": 0.57,
+     *         "five_minutes": 0.44,
+     *         "fifteen_minutes": 0.38
+     *       },
+     *       "disk_usage": {
+     *         "path": "/",
+     *         "total_bytes": 512110190592,
+     *         "used_bytes": 187904819200,
+     *         "free_bytes": 324205371392,
+     *         "used_percent": 36.69
+     *       },
+     *       "host_memory_total_bytes": 34359738368,
+     *       "host_memory_used_bytes": 16819159040,
+     *       "host_memory_free_bytes": 17540579328,
+     *       "host_memory_used_percent": 48.95,
+     *       "goroutines": 37,
+     *       "runtime_alloc_bytes": 62914560,
+     *       "runtime_heap_in_use_bytes": 35651584,
+     *       "runtime_sys_bytes": 100663296,
+     *       "runtime_gc_cycles": 18
+     *     }
+     */
+    'server-status-runtime': {
+      go_version: string;
+      host_name: string;
+      operating_system: string;
+      architecture: string;
+      cpu_cores: number;
+      load_average: components['schemas']['server-status-load-average'];
+      disk_usage: components['schemas']['server-status-disk-usage'];
+      /** Format: int64 */
+      host_memory_total_bytes: number;
+      /** Format: int64 */
+      host_memory_used_bytes: number;
+      /** Format: int64 */
+      host_memory_free_bytes: number;
+      host_memory_used_percent: number;
+      goroutines: number;
+      /** Format: int64 */
+      runtime_alloc_bytes: number;
+      /** Format: int64 */
+      runtime_heap_in_use_bytes: number;
+      /** Format: int64 */
+      runtime_sys_bytes: number;
+      runtime_gc_cycles: number;
+    };
+    /**
+     * @example {
+     *       "status": "healthy",
+     *       "detail": "Database ping succeeded",
+     *       "latency_ms": 2.37
+     *     }
+     */
+    'server-status-dependency': {
+      status: string;
+      detail: string;
+      latency_ms: number | null;
+    };
+    /**
+     * @example {
+     *       "database": {
+     *         "status": "healthy",
+     *         "detail": "Database ping succeeded",
+     *         "latency_ms": 2.37
+     *       },
+     *       "redis": {
+     *         "status": "disabled",
+     *         "detail": "Redis client is not configured",
+     *         "latency_ms": null
+     *       }
+     *     }
+     */
+    'server-status-dependencies': {
+      database: components['schemas']['server-status-dependency'];
+      redis: components['schemas']['server-status-dependency'];
+    };
+    /**
+     * @example {
+     *       "total_dependencies": 2,
+     *       "healthy_dependencies": 1,
+     *       "degraded_dependencies": 0,
+     *       "unknown_dependencies": 0,
+     *       "disabled_dependencies": 1,
+     *       "total_plugins": 4,
+     *       "healthy_plugins": 4
+     *     }
+     */
+    'server-status-summary': {
+      total_dependencies: number;
+      healthy_dependencies: number;
+      degraded_dependencies: number;
+      unknown_dependencies: number;
+      disabled_dependencies: number;
+      total_plugins: number;
+      healthy_plugins: number;
+    };
+    /**
+     * @example {
+     *       "observed_at": "2026-05-24T08:05:00Z",
+     *       "cpu_percent": 21.8,
+     *       "host_memory_used_percent": 46.9,
+     *       "load_average_one_minute": 0.57,
+     *       "load_average_five_minutes": 0.44,
+     *       "load_average_fifteen_minutes": 0.38,
+     *       "goroutines": 23,
+     *       "runtime_alloc_bytes": 62914560,
+     *       "runtime_heap_in_use_bytes": 35651584,
+     *       "runtime_sys_bytes": 100663296
+     *     }
+     */
+    'server-status-trend-point': {
+      /** Format: date-time */
+      observed_at: string;
+      cpu_percent: number;
+      host_memory_used_percent: number;
+      load_average_one_minute: number;
+      load_average_five_minutes: number;
+      load_average_fifteen_minutes: number;
+      goroutines: number;
+      /** Format: int64 */
+      runtime_alloc_bytes: number;
+      /** Format: int64 */
+      runtime_heap_in_use_bytes: number;
+      /** Format: int64 */
+      runtime_sys_bytes: number;
+    };
+    /**
+     * @example {
+     *       "range": "10m",
+     *       "retention_seconds": 600,
+     *       "sample_interval_seconds": 5,
+     *       "points": [
+     *         {
+     *           "observed_at": "2026-05-24T08:05:00Z",
+     *           "cpu_percent": 21.8,
+     *           "host_memory_used_percent": 46.9,
+     *           "load_average_one_minute": 0.57,
+     *           "load_average_five_minutes": 0.44,
+     *           "load_average_fifteen_minutes": 0.38,
+     *           "goroutines": 23,
+     *           "runtime_alloc_bytes": 62914560,
+     *           "runtime_heap_in_use_bytes": 35651584,
+     *           "runtime_sys_bytes": 100663296
+     *         }
+     *       ]
+     *     }
+     */
+    'server-status-trend': {
+      /** @enum {string} */
+      range: '10m' | '30m' | '1h';
+      /** Format: int64 */
+      retention_seconds: number;
+      /** Format: int64 */
+      sample_interval_seconds: number;
+      points: components['schemas']['server-status-trend-point'][];
+    };
+    /**
+     * @example {
+     *       "name": "monitor",
+     *       "status": "healthy",
+     *       "status_detail": "Runtime metadata is present and platform signals are healthy",
+     *       "version": "0.1.0",
+     *       "depends_on": [
+     *         "user",
+     *         "rbac"
+     *       ],
+     *       "missing_dependencies": []
+     *     }
+     */
+    'server-status-plugin': {
+      name: string;
+      status: string;
+      status_detail: string;
+      version: string;
+      depends_on: string[];
+      missing_dependencies?: string[];
+    };
+    'server-status-response': {
+      status: string;
+      /** Format: date-time */
+      observed_at: string;
+      server: components['schemas']['server-status-server'];
+      runtime: components['schemas']['server-status-runtime'];
+      dependencies: components['schemas']['server-status-dependencies'];
+      summary: components['schemas']['server-status-summary'];
+      trend: components['schemas']['server-status-trend'];
+      plugins: components['schemas']['server-status-plugin'][];
+    };
+    'enveloped-server-status-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['server-status-response'];
     };
   };
   responses: {
@@ -518,6 +1166,10 @@ export interface components {
      *     through the response header and envelope traceId field.
      */
     'request-id-header': string;
+    /** @description Optional maximum number of sessions to return. The runtime accepts values from 1 to 100. */
+    'session-list-limit': number;
+    /** @description Optional trend window. Invalid values currently fall back to the backend default `10m`. */
+    'trend-range-query': '10m' | '30m' | '1h';
   };
   requestBodies: never;
   headers: {
@@ -687,6 +1339,265 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getAuthSessions: {
+    parameters: {
+      query?: {
+        /** @description Optional maximum number of sessions to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['session-list-limit'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Session list. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-session-list-response'];
+        };
+      };
+      /** @description Invalid limit parameter. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAuthSessionsRevokeAll: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sessions revoked. */
+      200: {
+        headers: {
+          /** @description Clears the existing refresh cookie when present. */
+          'Set-Cookie'?: string;
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAuthSessionsRevokeOthers: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Other sessions revoked. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAuthSessionRevoke: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        sessionID: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Session revoked. */
+      200: {
+        headers: {
+          /** @description Clears the refresh cookie when the revoked session matches the current session. */
+          'Set-Cookie'?: string;
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid session id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Session not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAuthChangePassword: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['change-password-request'];
+      };
+    };
+    responses: {
+      /** @description Password changed. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid request or password validation failure. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAuthCompleteRequiredPasswordChange: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['complete-required-password-change-request'];
+      };
+    };
+    responses: {
+      /** @description Required password change completed. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid request or password validation failure. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getUsers: {
     parameters: {
       query?: never;
@@ -762,6 +1673,60 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getUserById: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-user-item-response'];
+        };
+      };
+      /** @description Invalid user id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };
@@ -942,6 +1907,230 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postUserDelete: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User deleted. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id or protected self-delete attempt. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getUserSessions: {
+    parameters: {
+      query?: {
+        /** @description Optional maximum number of sessions to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['session-list-limit'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Session list. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-session-list-response'];
+        };
+      };
+      /** @description Invalid user id or limit parameter. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUserSessionRevoke: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+        sessionID: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Session revoked. */
+      200: {
+        headers: {
+          /** @description Clears the refresh cookie when the revoked session matches the current browser session. */
+          'Set-Cookie'?: string;
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id or session id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User or session not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUserSessionsRevokeAll: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sessions revoked. */
+      200: {
+        headers: {
+          /** @description Clears the refresh cookie when the target user matches the current browser session user. */
+          'Set-Cookie'?: string;
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getRoles: {
     parameters: {
       query?: never;
@@ -1017,6 +2206,60 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRolePermissions: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Role permission binding snapshot. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-role-permission-binding-response'];
+        };
+      };
+      /** @description Invalid role id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };
@@ -1163,6 +2406,153 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-permission-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getUserRoles: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User role binding snapshot. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-user-role-binding-response'];
+        };
+      };
+      /** @description Invalid user id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUserRolesAssign: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['replace-user-roles-request'];
+      };
+    };
+    responses: {
+      /** @description User roles replaced. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id or invalid role id list. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getMonitorServerStatus: {
+    parameters: {
+      query?: {
+        /** @description Optional trend window. Invalid values currently fall back to the backend default `10m`. */
+        trend_range?: components['parameters']['trend-range-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Server status snapshot. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-server-status-response'];
         };
       };
       401: components['responses']['unauthorized'];

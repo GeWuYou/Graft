@@ -37,6 +37,7 @@ SKIP_DIR_PREFIXES = (
     ".git/",
     ".agents/",
     ".ai/",
+    "openapi/dist/",
     "server/internal/ent/",
     "server/vendor/",
     "web/node_modules/",

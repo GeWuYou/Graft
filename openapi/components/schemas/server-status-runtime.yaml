@@ -1,0 +1,82 @@
+type: object
+required:
+  - go_version
+  - host_name
+  - operating_system
+  - architecture
+  - cpu_cores
+  - load_average
+  - disk_usage
+  - host_memory_total_bytes
+  - host_memory_used_bytes
+  - host_memory_free_bytes
+  - host_memory_used_percent
+  - goroutines
+  - runtime_alloc_bytes
+  - runtime_heap_in_use_bytes
+  - runtime_sys_bytes
+  - runtime_gc_cycles
+properties:
+  go_version:
+    type: string
+  host_name:
+    type: string
+  operating_system:
+    type: string
+  architecture:
+    type: string
+  cpu_cores:
+    type: integer
+  load_average:
+    $ref: ./server-status-load-average.yaml
+  disk_usage:
+    $ref: ./server-status-disk-usage.yaml
+  host_memory_total_bytes:
+    type: integer
+    format: int64
+  host_memory_used_bytes:
+    type: integer
+    format: int64
+  host_memory_free_bytes:
+    type: integer
+    format: int64
+  host_memory_used_percent:
+    type: number
+  goroutines:
+    type: integer
+  runtime_alloc_bytes:
+    type: integer
+    format: int64
+  runtime_heap_in_use_bytes:
+    type: integer
+    format: int64
+  runtime_sys_bytes:
+    type: integer
+    format: int64
+  runtime_gc_cycles:
+    type: integer
+example:
+  go_version: go1.25.1
+  host_name: graft-dev
+  operating_system: linux
+  architecture: amd64
+  cpu_cores: 8
+  load_average:
+    one_minute: 0.57
+    five_minutes: 0.44
+    fifteen_minutes: 0.38
+  disk_usage:
+    path: /
+    total_bytes: 512110190592
+    used_bytes: 187904819200
+    free_bytes: 324205371392
+    used_percent: 36.69
+  host_memory_total_bytes: 34359738368
+  host_memory_used_bytes: 16819159040
+  host_memory_free_bytes: 17540579328
+  host_memory_used_percent: 48.95
+  goroutines: 37
+  runtime_alloc_bytes: 62914560
+  runtime_heap_in_use_bytes: 35651584
+  runtime_sys_bytes: 100663296
+  runtime_gc_cycles: 18

@@ -1,0 +1,35 @@
+post:
+  tags: [auth]
+  summary: Revoke other current user sessions
+  operationId: postAuthSessionsRevokeOthers
+  description: Revokes all refresh sessions for the current authenticated user except the current session.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Other sessions revoked.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-empty-response.yaml
+          examples:
+            success:
+              summary: Revoke others succeeded
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: e267d95f-4316-4347-bca0-17e1e10cb1a8
+                data: null
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

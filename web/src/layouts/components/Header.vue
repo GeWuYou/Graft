@@ -28,6 +28,11 @@
               <t-icon name="logo-github" />
             </t-button>
           </t-tooltip>
+          <t-tooltip placement="bottom" content="API Docs">
+            <t-button theme="default" shape="square" variant="text" @click="navToDocs">
+              <t-icon name="book-open" />
+            </t-button>
+          </t-tooltip>
           <t-tooltip placement="bottom" :content="t('layout.header.help')">
             <t-button theme="default" shape="square" variant="text" @click="navToHelper">
               <t-icon name="help-circle" />
@@ -159,7 +164,11 @@ const handleLogout = async () => {
 };
 
 const navToGitHub = () => {
-  window.open('https://github.com/tencent/tdesign-vue-next-starter');
+  window.open('https://github.com/GeWuYou/Graft');
+};
+
+const navToDocs = () => {
+  window.open('/docs');
 };
 
 const navToHelper = () => {

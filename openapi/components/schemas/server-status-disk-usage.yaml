@@ -1,0 +1,22 @@
+type: object
+required: [path, total_bytes, used_bytes, free_bytes, used_percent]
+properties:
+  path:
+    type: string
+  total_bytes:
+    type: integer
+    format: int64
+  used_bytes:
+    type: integer
+    format: int64
+  free_bytes:
+    type: integer
+    format: int64
+  used_percent:
+    type: number
+example:
+  path: /
+  total_bytes: 512110190592
+  used_bytes: 187904819200
+  free_bytes: 324205371392
+  used_percent: 36.69

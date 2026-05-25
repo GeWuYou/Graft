@@ -1,0 +1,16 @@
+type: object
+required: [database, redis]
+properties:
+  database:
+    $ref: ./server-status-dependency.yaml
+  redis:
+    $ref: ./server-status-dependency.yaml
+example:
+  database:
+    status: healthy
+    detail: Database ping succeeded
+    latency_ms: 2.37
+  redis:
+    status: disabled
+    detail: Redis client is not configured
+    latency_ms: null

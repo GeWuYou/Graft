@@ -1,0 +1,32 @@
+type: object
+required:
+  - total_dependencies
+  - healthy_dependencies
+  - degraded_dependencies
+  - unknown_dependencies
+  - disabled_dependencies
+  - total_plugins
+  - healthy_plugins
+properties:
+  total_dependencies:
+    type: integer
+  healthy_dependencies:
+    type: integer
+  degraded_dependencies:
+    type: integer
+  unknown_dependencies:
+    type: integer
+  disabled_dependencies:
+    type: integer
+  total_plugins:
+    type: integer
+  healthy_plugins:
+    type: integer
+example:
+  total_dependencies: 2
+  healthy_dependencies: 1
+  degraded_dependencies: 0
+  unknown_dependencies: 0
+  disabled_dependencies: 1
+  total_plugins: 4
+  healthy_plugins: 4

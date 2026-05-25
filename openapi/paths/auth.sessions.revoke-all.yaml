@@ -1,0 +1,39 @@
+post:
+  tags: [auth]
+  summary: Revoke all current user sessions
+  operationId: postAuthSessionsRevokeAll
+  description: Revokes all refresh sessions for the current authenticated user and clears the refresh cookie.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Sessions revoked.
+      headers:
+        Set-Cookie:
+          description: Clears the existing refresh cookie when present.
+          schema:
+            type: string
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-empty-response.yaml
+          examples:
+            success:
+              summary: Revoke succeeded
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: 8c77ea9a-c72f-4ac2-aed5-a9e0b8a2f116
+                data: null
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

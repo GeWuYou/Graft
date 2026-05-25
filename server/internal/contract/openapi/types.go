@@ -8,6 +8,12 @@ type APIEnvelope = generated.ApiEnvelope
 // PostUsersJSONRequestBody aliases the generated JSON request body for POST /api/users.
 type PostUsersJSONRequestBody = generated.PostUsersJSONRequestBody
 
+// PostAuthChangePasswordJSONRequestBody aliases the generated JSON request body for POST /api/auth/change-password.
+type PostAuthChangePasswordJSONRequestBody = generated.PostAuthChangePasswordJSONRequestBody
+
+// PostAuthCompleteRequiredPasswordChangeJSONRequestBody aliases the generated JSON request body for POST /api/auth/complete-required-password-change.
+type PostAuthCompleteRequiredPasswordChangeJSONRequestBody = generated.PostAuthCompleteRequiredPasswordChangeJSONRequestBody
+
 // PostUserUpdateJSONRequestBody aliases the generated JSON request body for POST /api/users/{id}/update.
 type PostUserUpdateJSONRequestBody = generated.PostUserUpdateJSONRequestBody
 
@@ -25,6 +31,9 @@ type PostRoleUpdateJSONRequestBody = generated.PostRoleUpdateJSONRequestBody
 
 // PostRolePermissionAssignJSONRequestBody aliases the generated JSON request body for POST /api/roles/{id}/permissions/assign.
 type PostRolePermissionAssignJSONRequestBody = generated.PostRolePermissionAssignJSONRequestBody
+
+// PostUserRolesAssignJSONRequestBody aliases the generated JSON request body for POST /api/users/{id}/roles/assign.
+type PostUserRolesAssignJSONRequestBody = generated.PostUserRolesAssignJSONRequestBody
 
 // PostUserStatusJSONBodyStatus aliases the generated route-local status enum for POST /api/users/{id}/status.
 type PostUserStatusJSONBodyStatus = generated.PostUserStatusJSONBodyStatus

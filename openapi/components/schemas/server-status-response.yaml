@@ -1,0 +1,22 @@
+type: object
+required: [status, observed_at, server, runtime, dependencies, summary, trend, plugins]
+properties:
+  status:
+    type: string
+  observed_at:
+    type: string
+    format: date-time
+  server:
+    $ref: ./server-status-server.yaml
+  runtime:
+    $ref: ./server-status-runtime.yaml
+  dependencies:
+    $ref: ./server-status-dependencies.yaml
+  summary:
+    $ref: ./server-status-summary.yaml
+  trend:
+    $ref: ./server-status-trend.yaml
+  plugins:
+    type: array
+    items:
+      $ref: ./server-status-plugin.yaml

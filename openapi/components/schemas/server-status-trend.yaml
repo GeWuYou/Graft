@@ -1,0 +1,31 @@
+type: object
+required: [range, retention_seconds, sample_interval_seconds, points]
+properties:
+  range:
+    type: string
+    enum: [10m, 30m, 1h]
+  retention_seconds:
+    type: integer
+    format: int64
+  sample_interval_seconds:
+    type: integer
+    format: int64
+  points:
+    type: array
+    items:
+      $ref: ./server-status-trend-point.yaml
+example:
+  range: 10m
+  retention_seconds: 600
+  sample_interval_seconds: 5
+  points:
+    - observed_at: '2026-05-24T08:05:00Z'
+      cpu_percent: 21.8
+      host_memory_used_percent: 46.9
+      load_average_one_minute: 0.57
+      load_average_five_minutes: 0.44
+      load_average_fifteen_minutes: 0.38
+      goroutines: 23
+      runtime_alloc_bytes: 62914560
+      runtime_heap_in_use_bytes: 35651584
+      runtime_sys_bytes: 100663296

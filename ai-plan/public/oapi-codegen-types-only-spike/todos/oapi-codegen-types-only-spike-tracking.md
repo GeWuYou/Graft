@@ -3,10 +3,29 @@
 ## Topic
 
 - Topic: `oapi-codegen-types-only-spike`
-- Status: `active recovery entry`
+- Status: `completed and archived`
 - Goal: run one isolated `oapi-codegen` Go types-only spike without changing backend runtime ownership, plugin lifecycle wiring, or frontend runtime/client truth.
-- Recovery source: new standalone topic after archiving two completed OpenAPI governance topics
+- Recovery source: closed by `openapi-governance-closeout-audit` after the route-coverage closure reached archive-ready state
 - Branch: `feat/wt-oapi-codegen-types-only-spike`
+
+## Archive Closeout
+
+- Final status:
+  - current stage is `A + B + C + D`
+  - `E` remains intentionally deferred
+  - generated server/client remains intentionally deferred, not missing
+- Final operating conclusion:
+  - use generated Go/TS contract types plus thin consumer aliases where applicable
+  - do not switch this repository to generated server/client as the default runtime pattern
+  - future work uses contract-first feature delivery instead of reopening this spike as a standalone governance track
+- Final closure evidence:
+  - current backend business route coverage in scope is `29/29`
+  - route coverage minimal gate exists at `server/internal/contract/openapi/route_coverage_test.go`
+  - stale generated schema gate exists at `cd web && bun run openapi:types:check`
+  - the archive closeout is recorded at `ai-plan/public/openapi-governance-closeout-audit/traces/openapi-governance-closeout-audit.md`
+- Continuation rule:
+  - no active recovery prompt remains for this topic
+  - recommended next topic is `feature-delivery-with-contract-first-rule`
 
 ## Scope
 

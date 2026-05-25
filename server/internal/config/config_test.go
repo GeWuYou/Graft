@@ -141,6 +141,7 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	assertEqual(t, "default app name", cfg.App.Name, defaultAppName)
 	assertEqual(t, "default app env", cfg.App.Env, defaultAppEnv)
 	assertEqual(t, "default HTTP address", cfg.HTTP.Addr, defaultHTTPAddr)
+	assertEqual(t, "docs enabled in local env by default", cfg.Docs.Enabled, true)
 	assertEqual(t, "default database driver", cfg.Database.Driver, defaultDatabaseDriver)
 	assertEqual(t, "default database URL", cfg.Database.URL, defaultDatabaseURL)
 	assertEqual(t, "default Redis address", cfg.Redis.Addr, defaultRedisAddr)
@@ -150,6 +151,43 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale, defaultSecondaryLocale})
 	assertEqual(t, "default access token ttl", cfg.Auth.AccessTokenTTL, defaultAccessTokenTTL)
 	assertEqual(t, "jwt secret from environment", cfg.Auth.JWTSecret, "runtime-secret")
+}
+
+func TestLoadDisablesDocsByDefaultInProduction(t *testing.T) {
+	restoreEnv := clearGraftEnv(t)
+	t.Cleanup(restoreEnv)
+	chdir(t, t.TempDir())
+
+	t.Setenv("GRAFT_APP_ENV", "production")
+	t.Setenv("GRAFT_AUTH_JWT_SECRET", "runtime-secret")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.Docs.Enabled {
+		t.Fatal("expected docs to stay disabled by default in production")
+	}
+}
+
+func TestLoadAllowsExplicitDocsOverride(t *testing.T) {
+	restoreEnv := clearGraftEnv(t)
+	t.Cleanup(restoreEnv)
+	chdir(t, t.TempDir())
+
+	t.Setenv("GRAFT_APP_ENV", "production")
+	t.Setenv("GRAFT_DOCS_ENABLED", "true")
+	t.Setenv("GRAFT_AUTH_JWT_SECRET", "runtime-secret")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if !cfg.Docs.Enabled {
+		t.Fatal("expected explicit docs override to enable docs in production")
+	}
 }
 
 // TestLoadPrefersExplicitEnvFile 验证显式指定的环境文件会优先于默认

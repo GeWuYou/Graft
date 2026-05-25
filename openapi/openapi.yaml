@@ -15,6 +15,7 @@ tags:
   - name: auth
   - name: users
   - name: rbac
+  - name: monitor
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
@@ -26,22 +27,52 @@ paths:
     $ref: ./paths/auth.logout.yaml
   /api/auth/bootstrap:
     $ref: ./paths/auth.bootstrap.yaml
+  /api/auth/sessions:
+    $ref: ./paths/auth.sessions.yaml
+  /api/auth/sessions/revoke-all:
+    $ref: ./paths/auth.sessions.revoke-all.yaml
+  /api/auth/sessions/revoke-others:
+    $ref: ./paths/auth.sessions.revoke-others.yaml
+  /api/auth/sessions/{sessionID}/revoke:
+    $ref: ./paths/auth.session.revoke.yaml
+  /api/auth/change-password:
+    $ref: ./paths/auth.change-password.yaml
+  /api/auth/complete-required-password-change:
+    $ref: ./paths/auth.complete-required-password-change.yaml
   /api/users:
     $ref: ./paths/users.yaml
+  /api/users/{id}:
+    $ref: ./paths/users.detail.yaml
   /api/users/{id}/update:
     $ref: ./paths/users.update.yaml
   /api/users/{id}/status:
     $ref: ./paths/users.status.yaml
   /api/users/{id}/reset-password:
     $ref: ./paths/users.reset-password.yaml
+  /api/users/{id}/delete:
+    $ref: ./paths/users.delete.yaml
+  /api/users/{id}/sessions:
+    $ref: ./paths/users.sessions.yaml
+  /api/users/{id}/sessions/{sessionID}/revoke:
+    $ref: ./paths/users.session.revoke.yaml
+  /api/users/{id}/sessions/revoke-all:
+    $ref: ./paths/users.sessions.revoke-all.yaml
   /api/roles:
     $ref: ./paths/roles.list.yaml
+  /api/roles/{id}/permissions:
+    $ref: ./paths/roles.permissions.yaml
   /api/roles/{id}/update:
     $ref: ./paths/roles.update.yaml
   /api/roles/{id}/permissions/assign:
     $ref: ./paths/roles.assign-permissions.yaml
   /api/permissions:
     $ref: ./paths/permissions.list.yaml
+  /api/users/{id}/roles:
+    $ref: ./paths/users.roles.yaml
+  /api/users/{id}/roles/assign:
+    $ref: ./paths/users.roles.assign.yaml
+  /api/monitor/server-status:
+    $ref: ./paths/monitor.server-status.yaml
 components:
   schemas:
     ApiEnvelope:
@@ -56,6 +87,12 @@ components:
       $ref: ./components/schemas/login-user.yaml
     LoginResponse:
       $ref: ./components/schemas/login-response.yaml
+    ChangePasswordRequest:
+      $ref: ./components/schemas/change-password-request.yaml
+    CompleteRequiredPasswordChangeRequest:
+      $ref: ./components/schemas/complete-required-password-change-request.yaml
+    SessionSummary:
+      $ref: ./components/schemas/session-summary.yaml
     CreateUserRequest:
       $ref: ./components/schemas/create-user-request.yaml
     UpdateUserRequest:
@@ -76,6 +113,8 @@ components:
       $ref: ./components/schemas/user-list-response.yaml
     EnvelopedUserItemResponse:
       $ref: ./components/schemas/enveloped-user-item-response.yaml
+    EnvelopedSessionListResponse:
+      $ref: ./components/schemas/enveloped-session-list-response.yaml
     RoleListItem:
       $ref: ./components/schemas/role-list-item.yaml
     RoleListResponse:
@@ -88,10 +127,44 @@ components:
       $ref: ./components/schemas/enveloped-role-item-response.yaml
     ReplaceRolePermissionsRequest:
       $ref: ./components/schemas/replace-role-permissions-request.yaml
+    RolePermissionBindingResponse:
+      $ref: ./components/schemas/role-permission-binding-response.yaml
+    EnvelopedRolePermissionBindingResponse:
+      $ref: ./components/schemas/enveloped-role-permission-binding-response.yaml
     PermissionListItem:
       $ref: ./components/schemas/permission-list-item.yaml
     PermissionListResponse:
       $ref: ./components/schemas/permission-list-response.yaml
+    UserRoleBindingResponse:
+      $ref: ./components/schemas/user-role-binding-response.yaml
+    EnvelopedUserRoleBindingResponse:
+      $ref: ./components/schemas/enveloped-user-role-binding-response.yaml
+    ReplaceUserRolesRequest:
+      $ref: ./components/schemas/replace-user-roles-request.yaml
+    ServerStatusDependency:
+      $ref: ./components/schemas/server-status-dependency.yaml
+    ServerStatusPlugin:
+      $ref: ./components/schemas/server-status-plugin.yaml
+    ServerStatusServer:
+      $ref: ./components/schemas/server-status-server.yaml
+    ServerStatusLoadAverage:
+      $ref: ./components/schemas/server-status-load-average.yaml
+    ServerStatusDiskUsage:
+      $ref: ./components/schemas/server-status-disk-usage.yaml
+    ServerStatusRuntime:
+      $ref: ./components/schemas/server-status-runtime.yaml
+    ServerStatusDependencies:
+      $ref: ./components/schemas/server-status-dependencies.yaml
+    ServerStatusSummary:
+      $ref: ./components/schemas/server-status-summary.yaml
+    ServerStatusTrendPoint:
+      $ref: ./components/schemas/server-status-trend-point.yaml
+    ServerStatusTrend:
+      $ref: ./components/schemas/server-status-trend.yaml
+    ServerStatusResponse:
+      $ref: ./components/schemas/server-status-response.yaml
+    EnvelopedServerStatusResponse:
+      $ref: ./components/schemas/enveloped-server-status-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

@@ -5,6 +5,9 @@
       <t-button theme="default" shape="square" variant="text" @click="navToGitHub">
         <t-icon name="logo-github" class="icon" />
       </t-button>
+      <t-button theme="default" shape="square" variant="text" @click="navToDocs">
+        <t-icon name="book-open" class="icon" />
+      </t-button>
       <t-button theme="default" shape="square" variant="text" @click="navToHelper">
         <t-icon name="help-circle" class="icon" />
       </t-button>
@@ -27,7 +30,11 @@ const toggleSettingPanel = () => {
 };
 
 const navToGitHub = () => {
-  window.open('https://github.com/tencent/tdesign-vue-next-starter');
+  window.open('https://github.com/GeWuYou/Graft');
+};
+
+const navToDocs = () => {
+  window.open('/docs');
 };
 
 const navToHelper = () => {

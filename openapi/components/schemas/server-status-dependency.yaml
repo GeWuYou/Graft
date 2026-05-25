@@ -1,0 +1,14 @@
+type: object
+required: [status, detail, latency_ms]
+properties:
+  status:
+    type: string
+  detail:
+    type: string
+  latency_ms:
+    type: number
+    nullable: true
+example:
+  status: healthy
+  detail: Database ping succeeded
+  latency_ms: 2.37

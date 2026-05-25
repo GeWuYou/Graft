@@ -1,0 +1,103 @@
+get:
+  tags: [users]
+  summary: List sessions for one user
+  operationId: getUserSessions
+  description: Lists the target user's refresh-session summaries through the admin user-session route.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      examples:
+        existing:
+          summary: Existing user id
+          value: 42
+    - $ref: ../components/parameters/session-list-limit.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Session list.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-session-list-response.yaml
+          examples:
+            default:
+              summary: User session list response
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: 3613ef17-6d74-4fd3-ad57-95a8b85c39fc
+                data:
+                  - session_id: b930d2e7-b704-4b5f-bd72-f66dbf35f0f6
+                    created_at: '2026-05-24T08:00:00Z'
+                    expires_at: '2026-05-31T08:00:00Z'
+                    current: false
+    '400':
+      description: Invalid user id or limit parameter.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            invalidUserID:
+              summary: Invalid user id
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 88494675-8eb8-4ef7-aef2-bba59e5354bb
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: id
+            invalidLimit:
+              summary: Invalid limit query
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 8be28fba-94bc-4987-b0f4-c28065f7ef71
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: limit
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: User not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            userNotFound:
+              summary: Target user does not exist
+              value:
+                success: false
+                code: USER_NOT_FOUND
+                message: 用户不存在
+                traceId: 8121f9c7-9716-4352-b1d5-43a6803e4071
+                messageKey: user.not_found
+                locale: zh-CN
+                data: {}
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

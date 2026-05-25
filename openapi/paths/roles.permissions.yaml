@@ -1,0 +1,88 @@
+get:
+  tags: [rbac]
+  summary: List permission bindings for one role
+  operationId: getRolePermissions
+  description: Returns the permission id snapshot currently bound to the target role.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      examples:
+        existing:
+          summary: Existing role id
+          value: 7
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Role permission binding snapshot.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-role-permission-binding-response.yaml
+          examples:
+            default:
+              summary: Role permission ids
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: 87ca6f72-b9ce-43d0-ba73-0dce4d28d7d9
+                data:
+                  permission_ids: [1, 2, 9]
+    '400':
+      description: Invalid role id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            invalidRoleID:
+              summary: Invalid role id
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 5e89e44a-9751-4903-8dc0-b7910eb9ff34
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: id
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Role not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            roleNotFound:
+              summary: Target role does not exist
+              value:
+                success: false
+                code: ROLE_NOT_FOUND
+                message: 角色不存在
+                traceId: 9c843f70-237a-4887-8dd3-1b6723ed745b
+                messageKey: role.not_found
+                locale: zh-CN
+                data: {}
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

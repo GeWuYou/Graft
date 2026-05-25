@@ -1,0 +1,13 @@
+type: object
+required: [one_minute, five_minutes, fifteen_minutes]
+properties:
+  one_minute:
+    type: number
+  five_minutes:
+    type: number
+  fifteen_minutes:
+    type: number
+example:
+  one_minute: 0.57
+  five_minutes: 0.44
+  fifteen_minutes: 0.38

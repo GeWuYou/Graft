@@ -8,7 +8,6 @@ export type BootstrapMenu = AuthSchemas['BootstrapMenu'];
 export type BootstrapLocale = AuthSchemas['BootstrapLocale'];
 export type BootstrapResponse = AuthSchemas['BootstrapResponse'];
 export type LoginPayload = AuthSchemas['LoginRequest'];
-
-export interface CompleteRequiredPasswordChangePayload {
-  new_password: string;
-}
+export type ChangePasswordPayload = AuthSchemas['ChangePasswordRequest'];
+export type CompleteRequiredPasswordChangePayload = AuthSchemas['CompleteRequiredPasswordChangeRequest'];
+export type SessionSummary = AuthSchemas['SessionSummary'];

@@ -1,0 +1,123 @@
+get:
+  tags: [monitor]
+  summary: Read current server status snapshot
+  operationId: getMonitorServerStatus
+  description: Returns the current aggregated monitor server-status snapshot and optional redis-backed trend points.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/trend-range-query.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Server status snapshot.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-server-status-response.yaml
+          examples:
+            default:
+              summary: Current server status snapshot
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: cce7c2c1-c177-4655-ac75-dbc294fcd5ff
+                data:
+                  status: healthy
+                  observed_at: '2026-05-24T08:05:00Z'
+                  server:
+                    version: dev
+                    started_at: '2026-05-24T08:00:00Z'
+                    uptime_seconds: 300
+                    go_version: go1.25.1
+                    app_name: graft
+                    app_env: prod
+                  runtime:
+                    go_version: go1.25.1
+                    host_name: graft-dev
+                    operating_system: linux
+                    architecture: amd64
+                    cpu_cores: 8
+                    load_average:
+                      one_minute: 0.57
+                      five_minutes: 0.44
+                      fifteen_minutes: 0.38
+                    disk_usage:
+                      path: /
+                      total_bytes: 512110190592
+                      used_bytes: 187904819200
+                      free_bytes: 324205371392
+                      used_percent: 36.69
+                    host_memory_total_bytes: 34359738368
+                    host_memory_used_bytes: 16819159040
+                    host_memory_free_bytes: 17540579328
+                    host_memory_used_percent: 48.95
+                    goroutines: 37
+                    runtime_alloc_bytes: 62914560
+                    runtime_heap_in_use_bytes: 35651584
+                    runtime_sys_bytes: 100663296
+                    runtime_gc_cycles: 18
+                  dependencies:
+                    database:
+                      status: healthy
+                      detail: Database ping succeeded
+                      latency_ms: 2.37
+                    redis:
+                      status: disabled
+                      detail: Redis client is not configured
+                      latency_ms: null
+                  summary:
+                    total_dependencies: 2
+                    healthy_dependencies: 1
+                    degraded_dependencies: 0
+                    unknown_dependencies: 0
+                    disabled_dependencies: 1
+                    total_plugins: 4
+                    healthy_plugins: 4
+                  trend:
+                    range: 10m
+                    retention_seconds: 600
+                    sample_interval_seconds: 5
+                    points:
+                      - observed_at: '2026-05-24T08:05:00Z'
+                        cpu_percent: 21.8
+                        host_memory_used_percent: 46.9
+                        load_average_one_minute: 0.57
+                        load_average_five_minutes: 0.44
+                        load_average_fifteen_minutes: 0.38
+                        goroutines: 23
+                        runtime_alloc_bytes: 62914560
+                        runtime_heap_in_use_bytes: 35651584
+                        runtime_sys_bytes: 100663296
+                  plugins:
+                    - name: audit
+                      status: healthy
+                      status_detail: Runtime metadata is present and platform signals are healthy
+                      version: 0.1.0
+                      depends_on: []
+                    - name: user
+                      status: healthy
+                      status_detail: Runtime metadata is present and platform signals are healthy
+                      version: 0.2.0
+                      depends_on: []
+                    - name: rbac
+                      status: healthy
+                      status_detail: Runtime metadata is present and platform signals are healthy
+                      version: 0.3.0
+                      depends_on: [user]
+                    - name: monitor
+                      status: healthy
+                      status_detail: Runtime metadata is present and platform signals are healthy
+                      version: 0.1.0
+                      depends_on: [user, rbac]
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

@@ -1,0 +1,89 @@
+post:
+  tags: [auth]
+  summary: Revoke one current user session
+  operationId: postAuthSessionRevoke
+  description: Revokes the specified refresh session belonging to the current authenticated user.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: sessionID
+      in: path
+      required: true
+      schema:
+        type: string
+      examples:
+        current:
+          summary: Current session id
+          value: b930d2e7-b704-4b5f-bd72-f66dbf35f0f6
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Session revoked.
+      headers:
+        Set-Cookie:
+          description: Clears the refresh cookie when the revoked session matches the current session.
+          schema:
+            type: string
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-empty-response.yaml
+          examples:
+            success:
+              summary: Single-session revoke succeeded
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: 2e02dd0e-fb36-4c03-9efb-3524d7a92af0
+                data: null
+    '400':
+      description: Invalid session id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            invalidSessionID:
+              summary: Missing session id
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 86ff31dc-2514-49cc-8cf2-1276b4137b74
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: sessionID
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Session not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            sessionNotFound:
+              summary: Session does not exist
+              value:
+                success: false
+                code: AUTH_SESSION_NOT_FOUND
+                message: 会话不存在
+                traceId: 4ca8a8b1-f5e6-4acb-a1be-c95cc12e2a11
+                messageKey: auth.session_not_found
+                locale: zh-CN
+                data: {}
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

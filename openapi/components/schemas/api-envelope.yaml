@@ -17,4 +17,5 @@ properties:
   traceId:
     type: string
     description: Mirrors the request id contract used by the current runtime.
-  data: {}
+  data:
+    nullable: true

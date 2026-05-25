@@ -1,0 +1,93 @@
+get:
+  tags: [users]
+  summary: Get one user
+  operationId: getUserById
+  description: Returns the existing managed-user summary for the specified user id.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      examples:
+        existing:
+          summary: Existing user id
+          value: 42
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: User detail.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-user-item-response.yaml
+          examples:
+            default:
+              summary: User detail response
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: 6811f10f-f8a0-4799-beca-4b7cc68f64f8
+                data:
+                  id: 42
+                  username: alice
+                  display: Alice
+                  status: enabled
+                  created_at: '2026-05-01T10:00:00Z'
+                  updated_at: '2026-05-24T08:05:00Z'
+    '400':
+      description: Invalid user id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            invalidUserID:
+              summary: Invalid user id
+              value:
+                success: false
+                code: COMMON_INVALID_ARGUMENT
+                message: 请求参数不合法
+                traceId: 7b46412d-6797-4339-bfa3-0c665f13d51c
+                messageKey: common.invalid_argument
+                locale: zh-CN
+                data:
+                  field: id
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: User not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            userNotFound:
+              summary: Target user does not exist
+              value:
+                success: false
+                code: USER_NOT_FOUND
+                message: 用户不存在
+                traceId: ae95732c-11f0-4301-a9fd-bfd27c453b65
+                messageKey: user.not_found
+                locale: zh-CN
+                data: {}
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

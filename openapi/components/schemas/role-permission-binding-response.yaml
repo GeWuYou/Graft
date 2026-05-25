@@ -1,0 +1,11 @@
+type: object
+required: [permission_ids]
+properties:
+  permission_ids:
+    type: array
+    items:
+      type: integer
+      format: int64
+      minimum: 1
+example:
+  permission_ids: [1, 2, 9]

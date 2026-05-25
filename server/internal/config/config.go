@@ -36,6 +36,7 @@ const (
 type Config struct {
 	App      AppConfig
 	HTTP     HTTPConfig
+	Docs     DocsConfig
 	Database DatabaseConfig
 	Redis    RedisConfig
 	Log      LogConfig
@@ -52,6 +53,11 @@ type AppConfig struct {
 // HTTPConfig 控制 core 持有的公开 HTTP 监听配置。
 type HTTPConfig struct {
 	Addr string
+}
+
+// DocsConfig 控制 OpenAPI 文档与文档页面的公开策略。
+type DocsConfig struct {
+	Enabled bool
 }
 
 // DatabaseConfig 描述 Ent 与 Atlas 共用的 PostgreSQL 连接配置。
@@ -117,6 +123,9 @@ func Load() (*Config, error) {
 		},
 		HTTP: HTTPConfig{
 			Addr: reader.GetString("http.addr"),
+		},
+		Docs: DocsConfig{
+			Enabled: resolveDocsEnabled(reader),
 		},
 		Database: DatabaseConfig{
 			Driver: reader.GetString("database.driver"),
@@ -376,4 +385,28 @@ func setDefaults(reader *viper.Viper) {
 func parseLocaleList(raw string) []string {
 	items, _ := normalizeLocaleList(strings.Split(raw, ","))
 	return items
+}
+
+func resolveDocsEnabled(reader *viper.Viper) bool {
+	if reader == nil {
+		return defaultDocsEnabledForEnv(defaultAppEnv)
+	}
+
+	if reader.IsSet("docs.enabled") {
+		return reader.GetBool("docs.enabled")
+	}
+
+	return defaultDocsEnabledForEnv(reader.GetString("app.env"))
+}
+
+func defaultDocsEnabledForEnv(env string) bool {
+	normalizedEnv := strings.ToLower(strings.TrimSpace(env))
+	switch normalizedEnv {
+	case "", "local", "development", "dev", "test":
+		return true
+	case "prod", "production":
+		return false
+	default:
+		return false
+	}
 }

@@ -1,0 +1,11 @@
+type: object
+required: [role_ids]
+properties:
+  role_ids:
+    type: array
+    items:
+      type: integer
+      format: int64
+      minimum: 0
+example:
+  role_ids: [1, 3]

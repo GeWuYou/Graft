@@ -68,3 +68,18 @@
   - `GET /healthz`
 - Noted that `reset-password` moved from the earlier excluded classification into the active non-`auth` migration scope.
 
+## 2026-05-25 archive closeout
+
+- Closed the spike as archive-ready after the `openapi-route-coverage-closure` result reached full in-scope backend coverage.
+- Recorded the settled `oapi-codegen` stage as:
+  - current: `["A", "B", "C", "D"]`
+  - intentionally deferred: `["E"]`
+- Reconfirmed the repository operating baseline:
+  - generated server/client is intentionally deferred, not missing
+  - generated Go/TS contract types plus thin consumer aliases are the preferred contract-consumption path
+  - backend runtime ownership, plugin wiring, and frontend transport/runtime ownership remain explicit and handwritten
+- Reclassified future work:
+  - OpenAPI / `oapi-codegen` governance is no longer a standalone active topic
+  - all new or changed HTTP APIs must follow contract-first feature delivery as the default feature-slice rule
+- Cross-reference:
+  - archive closeout source of truth is `ai-plan/public/openapi-governance-closeout-audit/traces/openapi-governance-closeout-audit.md`
