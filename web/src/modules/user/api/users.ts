@@ -1,17 +1,23 @@
+import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import { USER_API_PATH } from '../contract/paths';
 import { USER_STATUS } from '../contract/status';
 import type {
-  CreateUserPayload,
   RawUserListItem,
   RawUserListResponse,
   ResetUserPasswordPayload,
-  UpdateUserPayload,
   UpdateUserStatusPayload,
   UserListItem,
   UserListResponse,
 } from '../types/user';
+
+type UsersPath = (typeof USER_API_PATH)['USERS'];
+type PostUserUpdatePath = '/api/users/{id}/update';
+type PostUsersOperation = paths[UsersPath]['post'];
+type PostUserUpdateOperation = paths[PostUserUpdatePath]['post'];
+type PostUsersRequest = PostUsersOperation['requestBody']['content']['application/json'];
+type PostUserUpdateRequest = PostUserUpdateOperation['requestBody']['content']['application/json'];
 
 function normalizeUserStatus(status?: string | null) {
   return status === USER_STATUS.DISABLED ? USER_STATUS.DISABLED : USER_STATUS.ENABLED;
@@ -52,7 +58,7 @@ export function getUsers() {
  * @param payload 创建用户所需的请求体。
  * @returns 返回新建后的 `UserListItem`。
  */
-export function createUser(payload: CreateUserPayload) {
+export function createUser(payload: PostUsersRequest) {
   return request
     .post<RawUserListItem>({
       url: USER_API_PATH.USERS,
@@ -70,7 +76,7 @@ export function createUser(payload: CreateUserPayload) {
  * @param payload 更新用户资料所需的请求体。
  * @returns 返回更新后的 `UserListItem`。
  */
-export function updateUser(userId: number, payload: UpdateUserPayload) {
+export function updateUser(userId: number, payload: PostUserUpdateRequest) {
   return request
     .post<RawUserListItem>({
       url: USER_API_PATH.USER_UPDATE(userId),

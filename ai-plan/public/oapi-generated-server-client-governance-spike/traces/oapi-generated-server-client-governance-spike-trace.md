@@ -177,3 +177,22 @@ validation:
   operation request-body types while still calling `request.ts`.
 - Kept backend freshness validation under the same unified `backend-rbac-management` target and did not introduce a
   second RBAC generated artifact.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 6
+
+- Added `server/internal/contract/openapi/user/**` as a narrow generated contract package for:
+  - `postUsers`
+  - `postUserUpdate`
+- Kept the user plugin as the runtime owner of:
+  - explicit `/api/users` and `/api/users/:id/update` route registration
+  - permission middleware wiring
+  - `httpx` success/error envelope behavior
+  - user write-service invocation and validation behavior
+- Bound the backend generated layer only to:
+  - header/request-body semantics for `POST /api/users`
+  - path/header/request-body semantics for `POST /api/users/{id}/update`
+  - compile-time handler interface conformance via `useropenapi.WriteServerInterface`
+- Updated `web/src/modules/user/api/users.ts` so `createUser()` and `updateUser()` now bind to generated OpenAPI
+  request-body types while still calling `request.ts`.
+- Added a dedicated backend freshness target `backend-user-write` so the new generated user artifact is checked without
+  changing monitor or RBAC ownership boundaries.

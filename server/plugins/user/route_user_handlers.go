@@ -7,8 +7,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	httpheader "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
 	openapicontract "graft/server/internal/contract/openapi"
+	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/httpx"
 	usercontract "graft/server/plugins/user/contract"
 )
@@ -58,11 +60,12 @@ func (r userRouteRegistrar) registerUserWriteRoutes(group *gin.RouterGroup) {
 
 func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserCollection, r.guards.userCreate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		var request openapicontract.PostUsersJSONRequestBody
+		var request useropenapi.PostUsersJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		userWriteGeneratedHandler{}.PostUsers(bindGeneratedUserCreateParams(ginCtx), request)
 		if field, ok := invalidCreateUserField(request); ok {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, field)
 			return
@@ -79,7 +82,7 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 	})
 }
 
-func invalidCreateUserField(request openapicontract.PostUsersJSONRequestBody) (string, bool) {
+func invalidCreateUserField(request useropenapi.PostUsersJSONRequestBody) (string, bool) {
 	switch {
 	case strings.TrimSpace(request.Username) == "":
 		return "username", true
@@ -99,11 +102,12 @@ func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		var request openapicontract.PostUserUpdateJSONRequestBody
+		var request useropenapi.PostUserUpdateJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
+		userWriteGeneratedHandler{}.PostUserUpdate(userID, bindGeneratedUserUpdateParams(ginCtx), request)
 
 		command := toUpdateUserCommand(request, userID, requestActorID(ginCtx.Request.Context()))
 		updated, err := r.userSvc.UpdateUser(ginCtx.Request.Context(), command)
@@ -114,6 +118,57 @@ func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, toUserListItem(updated))
 	})
+}
+
+type userWriteGeneratedHandler struct{}
+
+func (h userWriteGeneratedHandler) PostUsers(
+	params useropenapi.PostUsersParams,
+	body useropenapi.PostUsersJSONRequestBody,
+) {
+	_ = h
+	_ = params
+	_ = body
+}
+
+func (h userWriteGeneratedHandler) PostUserUpdate(
+	id uint64,
+	params useropenapi.PostUserUpdateParams,
+	body useropenapi.PostUserUpdateJSONRequestBody,
+) {
+	_ = h
+	_ = id
+	_ = params
+	_ = body
+}
+
+func bindGeneratedUserCreateParams(ginCtx *gin.Context) useropenapi.PostUsersParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.PostUsersParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedUserUpdateParams(ginCtx *gin.Context) useropenapi.PostUserUpdateParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.PostUserUpdateParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedHeaders(ginCtx *gin.Context) (*string, *string) {
+	locale := headerPointer(ginCtx.GetHeader(string(httpheader.Locale)))
+	requestID := headerPointer(ginCtx.GetHeader(httpx.RequestIDHeader))
+	return locale, requestID
+}
+
+func headerPointer(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return &value
 }
 
 func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {

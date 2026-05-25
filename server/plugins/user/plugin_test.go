@@ -29,6 +29,7 @@ import (
 	httpheadercontract "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
 	openapicontract "graft/server/internal/contract/openapi"
+	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/cronx"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -1707,7 +1708,7 @@ func TestCreateUserRouteReturnsStableItem(t *testing.T) {
 }
 
 func TestCreateUserMapperBuildsBusinessCommand(t *testing.T) {
-	command := toCreateUserCommand(openapicontract.PostUsersJSONRequestBody{
+	command := toCreateUserCommand(useropenapi.PostUsersJSONRequestBody{
 		Username: "carol",
 		Display:  "Carol",
 		Password: "Password12345",
@@ -1719,7 +1720,7 @@ func TestCreateUserMapperBuildsBusinessCommand(t *testing.T) {
 }
 
 func TestUpdateUserMapperBuildsBusinessCommand(t *testing.T) {
-	command := toUpdateUserCommand(openapicontract.PostUserUpdateJSONRequestBody{
+	command := toUpdateUserCommand(useropenapi.PostUserUpdateJSONRequestBody{
 		Username: "carol.ops",
 		Display:  "Carol Ops",
 	}, 11, 7)

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	openapicontract "graft/server/internal/contract/openapi"
+	useropenapi "graft/server/internal/contract/openapi/user"
 	usercontract "graft/server/plugins/user/contract"
 	userstore "graft/server/plugins/user/store"
 )
@@ -18,7 +19,7 @@ func normalizeUserStatus(status string) string {
 	}
 }
 
-func toCreateUserCommand(request openapicontract.PostUsersJSONRequestBody, actorID uint64) CreateUserCommand {
+func toCreateUserCommand(request useropenapi.PostUsersJSONRequestBody, actorID uint64) CreateUserCommand {
 	return CreateUserCommand{
 		Username: request.Username,
 		Display:  request.Display,
@@ -27,7 +28,7 @@ func toCreateUserCommand(request openapicontract.PostUsersJSONRequestBody, actor
 	}
 }
 
-func toUpdateUserCommand(request openapicontract.PostUserUpdateJSONRequestBody, userID uint64, actorID uint64) UpdateUserCommand {
+func toUpdateUserCommand(request useropenapi.PostUserUpdateJSONRequestBody, userID uint64, actorID uint64) UpdateUserCommand {
 	return UpdateUserCommand{
 		ID:       userID,
 		Username: request.Username,
