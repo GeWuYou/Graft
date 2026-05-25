@@ -290,35 +290,43 @@ The monitor pilot now has a minimal freshness gate on both sides.
 
 Do not start auth/session lifecycle routes or write-heavy endpoints before those read-only slices prove stable.
 
-## Phase 6 Guarded Progressive Migration Batch 1
+## Phase 6 Guarded Progressive Migration Batch 2
 
 ### Verdict
 
-`GET /api/permissions` is now the first guarded progressive migration batch after the monitor pilot.
+The guarded RBAC read migration now covers the next low-risk batch after `GET /api/permissions`.
 
-- backend adds a narrow RBAC generated contract package for `getPermissions` only
+- backend expands the narrow RBAC generated contract package to the read-only batch:
+  - `getPermissions`
+  - `getRoles`
+  - `getRolePermissions`
 - route registration, middleware ownership, and `httpx` envelope ownership remain in the RBAC plugin
-- frontend keeps consuming the module API through `request.ts`, but `getPermissions()` is now operation-bound to the
-  generated OpenAPI response envelope data type
-- freshness gating stays explicit by extending the existing backend checker with a second opt-in target for the RBAC
-  generated artifact
+- frontend keeps consuming the module API through `request.ts`, and the RBAC read helpers now bind to their generated
+  OpenAPI response envelope data types
+- freshness gating stays explicit under the broader `backend-rbac-read` target for the RBAC generated artifact
 
 ### Shape
 
 - Backend:
-  - `server/internal/contract/openapi/rbac/**` owns the generated `getPermissions` handler-shape/header contract only
-  - `server/plugins/rbac/**` still owns `/api/permissions` route registration, auth middleware, `httpx` success/error
-    envelopes, and read-service invocation
+  - `server/internal/contract/openapi/rbac/**` owns the generated RBAC read handler-shape/header contract only
+  - `server/plugins/rbac/**` still owns explicit route registration for:
+    - `/api/permissions`
+    - `/api/roles`
+    - `/api/roles/{id}/permissions`
+  - `server/plugins/rbac/**` still owns auth middleware, `httpx` success/error envelopes, and read-service invocation
 - Frontend:
   - `web/src/modules/rbac/api/rbac.ts` still exports module-owned helpers
   - `request.ts` remains the only runtime transport owner
-  - the permissions helper now binds to `paths['/api/permissions']['get']` instead of a handwritten generic
+  - the RBAC read helpers now bind to:
+    - `paths['/api/permissions']['get']`
+    - `paths['/api/roles']['get']`
+    - `paths['/api/roles/{id}/permissions']['get']`
 
 ### Validation Expectation For This Batch
 
 - `git diff --check`
 - `python3 scripts/openapi_generated_freshness_check.py --target backend-monitor --mode check`
-- `python3 scripts/openapi_generated_freshness_check.py --target backend-rbac-permissions --mode check`
+- `python3 scripts/openapi_generated_freshness_check.py --target backend-rbac-read --mode check`
 - `cd web && bun run openapi:types:check`
 - `cd web && bun run test:run -- --runInBand src/modules/rbac/api/rbac.test.ts`
 - `cd server && go test ./internal/contract/openapi/rbac ./plugins/rbac`

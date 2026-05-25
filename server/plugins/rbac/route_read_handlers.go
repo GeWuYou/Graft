@@ -23,11 +23,15 @@ func handleListRoles(
 	pluginName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
+	handler := rbacReadGeneratedHandler{}
+
 	return newManagementListHandler(
 		ctx,
 		pluginName,
 		"list roles failed",
 		func(ginCtx *gin.Context) (roleListResponse, error) {
+			handler.GetRoles(bindGeneratedRoleParams(ginCtx))
+
 			roles, err := reader.ListRoles(ginCtx.Request.Context())
 			if err != nil {
 				return roleListResponse{}, err
@@ -43,21 +47,37 @@ func handleListRolePermissionBindings(
 	pluginName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
-	return handleStableIDResponse(
-		ctx,
-		pluginName,
-		"list role permission bindings failed",
-		func(requestCtx context.Context, targetID uint64) (rolePermissionBindingResponse, error) {
-			bindings, err := reader.ListRolePermissionBindings(requestCtx, targetID)
-			if err != nil {
-				return rolePermissionBindingResponse{}, err
+	handler := rbacReadGeneratedHandler{}
+
+	return func(ginCtx *gin.Context) {
+		targetID, err := parseManagementID(ginCtx.Param("id"))
+		if err != nil {
+			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+				"field": "id",
+			})
+			return
+		}
+
+		handler.GetRolePermissions(targetID, bindGeneratedRolePermissionParams(ginCtx))
+
+		bindings, err := reader.ListRolePermissionBindings(ginCtx.Request.Context(), targetID)
+		if err != nil {
+			if errors.Is(err, rbacstore.ErrRoleNotFound) {
+				writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusNotFound, messagecontract.RoleNotFound, nil)
+				return
 			}
 
-			return toRolePermissionBindingResponse(bindings), nil
-		},
-		func(err error) bool { return errors.Is(err, rbacstore.ErrRoleNotFound) },
-		messagecontract.RoleNotFound,
-	)
+			ctx.Logger.Error("list role permission bindings failed",
+				zap.String("plugin", pluginName),
+				zap.Uint64("targetId", targetID),
+				zap.Error(err),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, toRolePermissionBindingResponse(bindings))
+	}
 }
 
 func handleListPermissions(
@@ -65,7 +85,7 @@ func handleListPermissions(
 	pluginName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
-	handler := permissionListGeneratedHandler{}
+	handler := rbacReadGeneratedHandler{}
 
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedPermissionParams(ginCtx)
@@ -85,26 +105,58 @@ func handleListPermissions(
 	}
 }
 
-type permissionListGeneratedHandler struct {
+type rbacReadGeneratedHandler struct {
 }
 
-func (h permissionListGeneratedHandler) GetPermissions(params rbacopenapi.GetPermissionsParams) {
+func (h rbacReadGeneratedHandler) GetPermissions(params rbacopenapi.GetPermissionsParams) {
 	_ = h
 	_ = params
 }
 
-func bindGeneratedPermissionParams(ginCtx *gin.Context) rbacopenapi.GetPermissionsParams {
-	params := rbacopenapi.GetPermissionsParams{}
+func (h rbacReadGeneratedHandler) GetRoles(params rbacopenapi.GetRolesParams) {
+	_ = h
+	_ = params
+}
 
+func (h rbacReadGeneratedHandler) GetRolePermissions(id uint64, params rbacopenapi.GetRolePermissionsParams) {
+	_ = h
+	_ = id
+	_ = params
+}
+
+func bindGeneratedPermissionParams(ginCtx *gin.Context) rbacopenapi.GetPermissionsParams {
+	locale, requestID := bindGeneratedReadHeaders(ginCtx)
+	return rbacopenapi.GetPermissionsParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedRoleParams(ginCtx *gin.Context) rbacopenapi.GetRolesParams {
+	locale, requestID := bindGeneratedReadHeaders(ginCtx)
+	return rbacopenapi.GetRolesParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedRolePermissionParams(ginCtx *gin.Context) rbacopenapi.GetRolePermissionsParams {
+	locale, requestID := bindGeneratedReadHeaders(ginCtx)
+	return rbacopenapi.GetRolePermissionsParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedReadHeaders(ginCtx *gin.Context) (locale *string, requestID *string) {
 	if raw := strings.TrimSpace(ginCtx.GetHeader(httpx.RequestIDHeader)); raw != "" {
-		params.XRequestId = &raw
+		requestID = &raw
 	}
 
 	if raw := strings.TrimSpace(ginCtx.GetHeader(string(httpheader.Locale))); raw != "" {
-		params.XGraftLocale = &raw
+		locale = &raw
 	}
-
-	return params
+	return locale, requestID
 }
 
 func handleListUserRoleBindings(

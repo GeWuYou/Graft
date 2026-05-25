@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO_SENTINEL = "AGENTS.md"
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
-RBAC_PERMISSIONS_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.permissions.go")
+RBAC_READ_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.read.go")
 MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
 MONITOR_ARGS = [
@@ -24,9 +24,9 @@ MONITOR_ARGS = [
     "--package",
     "monitor",
 ]
-RBAC_PERMISSIONS_ARGS = [
+RBAC_READ_ARGS = [
     "--include-operation-ids",
-    "getPermissions",
+    "getPermissions,getRoles,getRolePermissions",
     "--generate",
     "types",
     "--package",
@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["backend-monitor", "backend-rbac-permissions"],
+        choices=["backend-monitor", "backend-rbac-permissions", "backend-rbac-read"],
         default="backend-monitor",
         help="Generated artifact target to validate.",
     )
@@ -78,11 +78,22 @@ def run_backend_monitor(repo_root: Path, mode: str) -> int:
 def run_backend_rbac_permissions(repo_root: Path, mode: str) -> int:
     return run_generated_target(
         repo_root=repo_root,
-        target=RBAC_PERMISSIONS_TARGET,
+        target=RBAC_READ_TARGET,
         spec=repo_root / MONITOR_SPEC,
-        generator_args=RBAC_PERMISSIONS_ARGS,
+        generator_args=RBAC_READ_ARGS,
         mode=mode,
         temp_prefix="graft-openapi-rbac-permissions-",
+    )
+
+
+def run_backend_rbac_read(repo_root: Path, mode: str) -> int:
+    return run_generated_target(
+        repo_root=repo_root,
+        target=RBAC_READ_TARGET,
+        spec=repo_root / MONITOR_SPEC,
+        generator_args=RBAC_READ_ARGS,
+        mode=mode,
+        temp_prefix="graft-openapi-rbac-read-",
     )
 
 
@@ -135,6 +146,8 @@ def main() -> int:
         return run_backend_monitor(repo_root, args.mode)
     if args.target == "backend-rbac-permissions":
         return run_backend_rbac_permissions(repo_root, args.mode)
+    if args.target == "backend-rbac-read":
+        return run_backend_rbac_read(repo_root, args.mode)
 
     raise SystemExit(f"unsupported target: {args.target}")
 

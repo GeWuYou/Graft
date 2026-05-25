@@ -291,7 +291,7 @@ func runValidateOpenAPIFreshness() error {
 	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-monitor", "--mode", "check"); err != nil {
 		return fmt.Errorf("run backend generated freshness check: %w", err)
 	}
-	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-rbac-permissions", "--mode", "check"); err != nil {
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-rbac-read", "--mode", "check"); err != nil {
 		return fmt.Errorf("run backend generated freshness check: %w", err)
 	}
 

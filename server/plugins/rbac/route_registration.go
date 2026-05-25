@@ -175,4 +175,4 @@ func registerUserRoleRoutes(
 	})
 }
 
-var _ rbacopenapi.PermissionServerInterface = permissionListGeneratedHandler{}
+var _ rbacopenapi.ReadServerInterface = rbacReadGeneratedHandler{}

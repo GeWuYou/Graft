@@ -100,3 +100,22 @@ validation:
   while still calling `request.ts`.
 - Extended `scripts/openapi_generated_freshness_check.py` with `backend-rbac-permissions` so the new generated backend
   artifact can be checked without weakening the existing monitor freshness gate.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 2
+
+- Expanded `server/internal/contract/openapi/rbac/**` from a permissions-only artifact to a guarded RBAC read batch:
+  - `getPermissions`
+  - `getRoles`
+  - `getRolePermissions`
+- Renamed the generated artifact to `server/internal/contract/openapi/rbac/zz_generated.read.go`.
+- Kept the RBAC plugin as the runtime owner of:
+  - explicit route registration
+  - permission middleware wiring
+  - `httpx` success/error envelope behavior
+  - read-service invocation
+- Added compile-time generated handler-shape assertions for the RBAC read batch without switching to generated
+  router/runtime ownership.
+- Updated `web/src/modules/rbac/api/rbac.ts` so the RBAC read helpers bind to their generated OpenAPI operation types
+  while still calling `request.ts`.
+- Generalized the backend freshness target naming to `backend-rbac-read` while preserving the existing monitor
+  freshness gate.

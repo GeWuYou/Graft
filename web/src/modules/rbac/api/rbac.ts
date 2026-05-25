@@ -12,14 +12,22 @@ import type {
 } from '../types/rbac';
 
 type PermissionsPath = (typeof RBAC_API_PATH)['PERMISSIONS'];
+type RolesPath = (typeof RBAC_API_PATH)['ROLES'];
+type RolePermissionsPath = '/api/roles/{id}/permissions';
 type GetPermissionsOperation = paths[PermissionsPath]['get'];
+type GetRolesOperation = paths[RolesPath]['get'];
+type GetRolePermissionsOperation = paths[RolePermissionsPath]['get'];
 type GetPermissionsEnvelope = GetPermissionsOperation['responses'][200]['content']['application/json'];
+type GetRolesEnvelope = GetRolesOperation['responses'][200]['content']['application/json'];
+type GetRolePermissionsEnvelope = GetRolePermissionsOperation['responses'][200]['content']['application/json'];
 type GetPermissionsData = NonNullable<GetPermissionsEnvelope['data']>;
+type GetRolesData = NonNullable<GetRolesEnvelope['data']>;
+type GetRolePermissionsData = NonNullable<GetRolePermissionsEnvelope['data']>;
 
 export function getRoles() {
-  return request.get<RoleListResponse>({
+  return request.get<GetRolesData>({
     url: RBAC_API_PATH.ROLES,
-  });
+  }) as Promise<RoleListResponse>;
 }
 
 export function getPermissions() {
@@ -29,9 +37,9 @@ export function getPermissions() {
 }
 
 export function getRolePermissionBindings(roleId: number) {
-  return request.get<RolePermissionBindingResponse>({
+  return request.get<GetRolePermissionsData>({
     url: RBAC_API_PATH.ROLE_PERMISSIONS(roleId),
-  });
+  }) as Promise<RolePermissionBindingResponse>;
 }
 
 export function createRole(payload: CreateRolePayload) {
