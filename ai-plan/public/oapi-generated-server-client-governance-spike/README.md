@@ -13,6 +13,10 @@ that followed.
 ## Current Recovery State
 
 - Auth guarded migration and boundary audit are complete inside this topic.
+- Frontend DTO boundary verdict is now treated as a guarded follow-up governance slice:
+  - keep existing UI / ViewModel types in place
+  - keep `web/src/utils/request.ts` as the only runtime transport owner
+  - add a minimal regression gate for stale manual frontend API DTO and request/runtime bypass
 - Known completed commits:
   - `713a676`
     - Batch 1 migrated:
@@ -111,6 +115,8 @@ that followed.
   - monitor API uses operation-bound generated typing
   - pages still consume module API only
   - `request.ts` remains the only runtime transport adapter
+  - API boundary types are allowed only from generated `paths[...]` and `components['schemas'][...]`
+  - UI / ViewModel types may stay module-owned when they shape forms, filters, rows, or compatibility display models
 
 ## Validation Expectation
 

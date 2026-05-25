@@ -258,6 +258,14 @@ validation:
 ## 2026-05-25 Phase 6 guarded progressive migration batch 10
 
 - Resolved the blocked Batch 2 auth sessions migration without broadening scope.
+- Added a frontend DTO boundary follow-up governance slice without reopening broad migration scope:
+  - kept existing UI / ViewModel aliases and compatibility display models in place
+  - kept `web/src/utils/request.ts` as the only allowed frontend transport/runtime owner
+  - added a minimal frontend governance check for:
+    - suspected stale manual API DTO declarations
+    - direct `request.<method>()` usage from pages / stores
+    - generated runtime client / `fetch()` / extra `axios.create()` bypasses
+  - treated `request.ts` helpers imported by pages / stores as a separate coupling class, not as transport bypass by itself
 
 ## 2026-05-25 bridge inventory closeout for user read responses
 
