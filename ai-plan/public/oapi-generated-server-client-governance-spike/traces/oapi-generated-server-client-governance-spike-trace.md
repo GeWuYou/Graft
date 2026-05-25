@@ -254,3 +254,54 @@ validation:
   - `logout()` absorbs the generated empty envelope and still resolves as `Promise<void>`
 - Extended backend freshness validation under the existing `backend-auth-session` target without introducing a second
   auth generated artifact.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 10
+
+- Resolved the blocked Batch 2 auth sessions migration without broadening scope.
+- This round only touched these four current-user session interfaces:
+  - `GET /api/auth/sessions`
+  - `POST /api/auth/sessions/revoke-all`
+  - `POST /api/auth/sessions/revoke-others`
+  - `POST /api/auth/sessions/{sessionID}/revoke`
+- Kept Batch 1 commit `713a676` intact:
+  - `POST /api/auth/refresh`
+  - `POST /api/auth/logout`
+- Did not start Batch 3 password flows:
+  - `POST /api/auth/change-password`
+  - `POST /api/auth/complete-required-password-change`
+- Expanded the existing auth generated artifact at `server/internal/contract/openapi/auth/zz_generated.auth.go` to cover:
+  - `getAuthSessions`
+  - `postAuthSessionsRevokeAll`
+  - `postAuthSessionsRevokeOthers`
+  - `postAuthSessionRevoke`
+- Updated backend freshness coverage under the existing `backend-auth-session` target so the checked-in auth generated
+  file must match the current generator output for both Batch 1 and Batch 2 operations.
+- Kept the auth plugin as the runtime owner of:
+  - explicit session route registration
+  - route-local validation and mapper boundaries
+  - service-command invocation
+  - `httpx` success/error envelope behavior
+- Bound the backend generated layer to:
+  - `GET /api/auth/sessions` header/query semantics
+  - `POST /api/auth/sessions/revoke-all` header semantics
+  - `POST /api/auth/sessions/revoke-others` header semantics
+  - `POST /api/auth/sessions/{sessionID}/revoke` header semantics plus compile-time operation coverage
+- Recorded the current `oapi-codegen` constraint for this slice:
+  - with the repository's current `--generate types` flow, the generated Go params type for
+    `postAuthSessionRevoke` does not expose `sessionID`
+  - the plugin therefore keeps explicit `ginCtx.Param(\"sessionID\")` ownership and validation, while frontend typing
+    still consumes the generated OpenAPI path-param contract
+- Updated `web/src/modules/auth/api/auth.ts` so the auth module API now binds these four session endpoints to generated
+  OpenAPI operation types while still using `request.ts` as the only transport/runtime truth.
+- Focused validation results:
+  - passed: `cd server && go test ./internal/contract/openapi/auth ./plugins/auth`
+  - passed: `python3 scripts/openapi_generated_freshness_check.py --target backend-auth-session --mode check`
+  - passed: `cd web && bun run test:run -- auth`
+  - passed: `cd web && bun run typecheck`
+  - environment note: `cd web && bun test -- auth` is not the repository's Vitest entrypoint and runs Bun's native
+    test runner instead; it fails on existing repo-level test infrastructure assumptions such as `import.meta.glob`
+    and `vi.hoisted`
+- Completion validation results:
+  - pending at this trace point until the current worktree closeout decides whether commit conditions are fully met
+- Commit status:
+  - not committed yet at this trace point

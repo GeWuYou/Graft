@@ -3,7 +3,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { request } from '@/utils/request';
 
 import { AUTH_API_PATH } from '../contract/paths';
-import { getBootstrap, login, logout, refresh } from './auth';
+import {
+  getBootstrap,
+  listSessions,
+  login,
+  logout,
+  refresh,
+  revokeAllSessions,
+  revokeOtherSessions,
+  revokeSession,
+} from './auth';
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -56,6 +65,53 @@ describe('auth api', () => {
 
     expect(requestPost).toHaveBeenCalledWith({
       url: AUTH_API_PATH.LOGOUT,
+    });
+  });
+
+  it('calls the canonical sessions path through request.ts', async () => {
+    const requestGet = vi.mocked(request.get);
+    requestGet.mockResolvedValueOnce([{ session_id: 'session-1', current: true }] as never);
+
+    await listSessions({ limit: 10 });
+
+    expect(requestGet).toHaveBeenCalledWith({
+      url: AUTH_API_PATH.SESSIONS,
+      params: {
+        limit: 10,
+      },
+    });
+  });
+
+  it('absorbs the revoke-all envelope at the module api boundary', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValueOnce(undefined as never);
+
+    await expect(revokeAllSessions()).resolves.toBeUndefined();
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: AUTH_API_PATH.SESSIONS_REVOKE_ALL,
+    });
+  });
+
+  it('absorbs the revoke-others envelope at the module api boundary', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValueOnce(undefined as never);
+
+    await expect(revokeOtherSessions()).resolves.toBeUndefined();
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: AUTH_API_PATH.SESSIONS_REVOKE_OTHERS,
+    });
+  });
+
+  it('encodes the session revoke path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValueOnce(undefined as never);
+
+    await expect(revokeSession('session/with spaces')).resolves.toBeUndefined();
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: '/api/auth/sessions/session%2Fwith%20spaces/revoke',
     });
   });
 });

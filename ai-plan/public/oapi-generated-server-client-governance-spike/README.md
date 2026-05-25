@@ -9,6 +9,27 @@ This topic owns the `monitor/server-status` pilot for generated server/client go
 - Branch: `feat/oapi-generated-server-client-governance-spike`
 - Current recommendation: `phase5_freshness_gate_complete_monitor_pilot_ready_for_guarded_followup`
 
+## Current Recovery State
+
+- Auth guarded migration is being resumed inside this topic under tightly scoped batches.
+- Known completed commit:
+  - `713a676`
+    - Batch 1 migrated:
+      - `POST /api/auth/refresh`
+      - `POST /api/auth/logout`
+- Batch 2 status:
+  - completed locally in the current worktree and limited to:
+    - `GET /api/auth/sessions`
+    - `POST /api/auth/sessions/revoke-all`
+    - `POST /api/auth/sessions/revoke-others`
+    - `POST /api/auth/sessions/{sessionID}/revoke`
+  - generated/backend/frontend boundaries stay explicit:
+    - `server/plugins/auth/**` still owns route registration, validation, service commands, and `httpx` envelopes
+    - `web/src/modules/auth/api/auth.ts` still owns module adapters over `request.ts`
+  - Batch 3 remains forbidden in this recovery slice:
+    - `POST /api/auth/change-password`
+    - `POST /api/auth/complete-required-password-change`
+
 ## Scope
 
 - Writable scope:

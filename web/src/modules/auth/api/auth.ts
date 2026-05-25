@@ -5,6 +5,7 @@ import type {
   CompleteRequiredPasswordChangePayload,
   LoginPayload,
   LoginResponse,
+  SessionSummary,
 } from '@/modules/auth/contract/types';
 import { request } from '@/utils/request';
 
@@ -12,18 +13,42 @@ type LoginPath = (typeof AUTH_API_PATH)['LOGIN'];
 type BootstrapPath = (typeof AUTH_API_PATH)['BOOTSTRAP'];
 type RefreshPath = (typeof AUTH_API_PATH)['REFRESH'];
 type LogoutPath = (typeof AUTH_API_PATH)['LOGOUT'];
+type SessionsPath = (typeof AUTH_API_PATH)['SESSIONS'];
+type SessionsRevokeAllPath = (typeof AUTH_API_PATH)['SESSIONS_REVOKE_ALL'];
+type SessionsRevokeOthersPath = (typeof AUTH_API_PATH)['SESSIONS_REVOKE_OTHERS'];
 type PostAuthLoginOperation = paths[LoginPath]['post'];
 type GetAuthBootstrapOperation = paths[BootstrapPath]['get'];
 type PostAuthRefreshOperation = paths[RefreshPath]['post'];
 type PostAuthLogoutOperation = paths[LogoutPath]['post'];
+type GetAuthSessionsOperation = paths[SessionsPath]['get'];
+type PostAuthSessionsRevokeAllOperation = paths[SessionsRevokeAllPath]['post'];
+type PostAuthSessionsRevokeOthersOperation = paths[SessionsRevokeOthersPath]['post'];
+type PostAuthSessionRevokeOperation = paths['/api/auth/sessions/{sessionID}/revoke']['post'];
+type PostAuthSessionRevokePathParams = NonNullable<PostAuthSessionRevokeOperation['parameters']['path']>;
 type PostAuthLoginResponse = PostAuthLoginOperation['responses']['200']['content']['application/json'];
 type GetAuthBootstrapResponse = GetAuthBootstrapOperation['responses']['200']['content']['application/json'];
 type PostAuthRefreshResponse = PostAuthRefreshOperation['responses']['200']['content']['application/json'];
 type PostAuthLogoutResponse = PostAuthLogoutOperation['responses']['200']['content']['application/json'];
+type GetAuthSessionsResponse = GetAuthSessionsOperation['responses']['200']['content']['application/json'];
+type PostAuthSessionsRevokeAllResponse =
+  PostAuthSessionsRevokeAllOperation['responses']['200']['content']['application/json'];
+type PostAuthSessionsRevokeOthersResponse =
+  PostAuthSessionsRevokeOthersOperation['responses']['200']['content']['application/json'];
+type PostAuthSessionRevokeResponse = PostAuthSessionRevokeOperation['responses']['200']['content']['application/json'];
 type PostAuthLoginResponseData = NonNullable<PostAuthLoginResponse['data']>;
 type GetAuthBootstrapResponseData = NonNullable<GetAuthBootstrapResponse['data']>;
 type PostAuthRefreshResponseData = NonNullable<PostAuthRefreshResponse['data']>;
 type PostAuthLogoutResponseData = PostAuthLogoutResponse['data'];
+type GetAuthSessionsResponseData = NonNullable<GetAuthSessionsResponse['data']>;
+type PostAuthSessionsRevokeAllResponseData = PostAuthSessionsRevokeAllResponse['data'];
+type PostAuthSessionsRevokeOthersResponseData = PostAuthSessionsRevokeOthersResponse['data'];
+type PostAuthSessionRevokeResponseData = PostAuthSessionRevokeResponse['data'];
+
+type GetAuthSessionsQuery = NonNullable<GetAuthSessionsOperation['parameters']['query']>;
+
+export type ListSessionsOptions = {
+  limit?: GetAuthSessionsQuery['limit'];
+};
 
 // Keep generated request/response typing at the module API boundary; callers still own form-local state.
 export function login(payload: LoginPayload) {
@@ -45,6 +70,31 @@ export async function logout(): Promise<void> {
   });
 }
 
+export function listSessions(options: ListSessionsOptions = {}) {
+  return request.get<SessionSummary[] & GetAuthSessionsResponseData>({
+    url: AUTH_API_PATH.SESSIONS,
+    params: options.limit === undefined ? undefined : { limit: options.limit },
+  });
+}
+
+export async function revokeAllSessions(): Promise<void> {
+  await request.post<PostAuthSessionsRevokeAllResponseData>({
+    url: AUTH_API_PATH.SESSIONS_REVOKE_ALL,
+  });
+}
+
+export async function revokeOtherSessions(): Promise<void> {
+  await request.post<PostAuthSessionsRevokeOthersResponseData>({
+    url: AUTH_API_PATH.SESSIONS_REVOKE_OTHERS,
+  });
+}
+
+export async function revokeSession(sessionID: PostAuthSessionRevokePathParams['sessionID']): Promise<void> {
+  await request.post<PostAuthSessionRevokeResponseData>({
+    url: buildSessionRevokePath(sessionID),
+  });
+}
+
 export function completeRequiredPasswordChange(payload: CompleteRequiredPasswordChangePayload) {
   return request.post<void>({
     url: AUTH_API_PATH.COMPLETE_REQUIRED_PASSWORD_CHANGE,
@@ -56,4 +106,8 @@ export function getBootstrap() {
   return request.get<BootstrapResponse & GetAuthBootstrapResponseData>({
     url: AUTH_API_PATH.BOOTSTRAP,
   });
+}
+
+function buildSessionRevokePath(sessionID: PostAuthSessionRevokePathParams['sessionID']) {
+  return `/api/auth/sessions/${encodeURIComponent(sessionID)}/revoke`;
 }

@@ -12,6 +12,7 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 	authopenapi "graft/server/internal/contract/openapi/auth"
 	"graft/server/internal/httpx"
+	"graft/server/internal/i18n"
 	"graft/server/internal/pluginapi"
 	authcontract "graft/server/plugins/auth/contract"
 )
@@ -82,6 +83,8 @@ func (r authRouteRegistrar) registerLoginRoutes(authGroup *gin.RouterGroup) {
 
 func (r authRouteRegistrar) registerCurrentUserSessionRoutes(authGroup *gin.RouterGroup) {
 	authGroup.POST(authcontract.AuthSessionsRevokeAll, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		authGeneratedHandler{}.PostAuthSessionsRevokeAll(bindGeneratedAuthSessionsRevokeAllParams(ginCtx))
+
 		if err := r.authFlow.RevokeAllCurrentUserSessions(ginCtx.Request.Context()); err != nil {
 			r.runtime().writeAuthRouteError(ginCtx, "revoke all refresh sessions failed", err)
 			return
@@ -91,6 +94,8 @@ func (r authRouteRegistrar) registerCurrentUserSessionRoutes(authGroup *gin.Rout
 		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 	})
 	authGroup.POST(authcontract.AuthSessionsRevokeOthers, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		authGeneratedHandler{}.PostAuthSessionsRevokeOthers(bindGeneratedAuthSessionsRevokeOthersParams(ginCtx))
+
 		if err := r.authFlow.RevokeOtherCurrentUserSessions(ginCtx.Request.Context()); err != nil {
 			r.runtime().writeAuthRouteError(ginCtx, "revoke other user refresh sessions failed", err)
 			return
@@ -99,13 +104,14 @@ func (r authRouteRegistrar) registerCurrentUserSessionRoutes(authGroup *gin.Rout
 		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 	})
 	authGroup.GET(authcontract.AuthSessions, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		limit, err := parseSessionListLimit(ginCtx.Query("limit"))
+		params, err := bindGeneratedAuthSessionsParams(ginCtx)
 		if err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "limit")
 			return
 		}
+		authGeneratedHandler{}.GetAuthSessions(params)
 
-		sessions, err := r.authFlow.ListCurrentUserSessions(ginCtx.Request.Context(), limit)
+		sessions, err := r.authFlow.ListCurrentUserSessions(ginCtx.Request.Context(), generatedSessionListLimit(params))
 		if err != nil {
 			r.runtime().writeAuthRouteError(ginCtx, "list current user refresh sessions failed", err)
 			return
@@ -114,10 +120,11 @@ func (r authRouteRegistrar) registerCurrentUserSessionRoutes(authGroup *gin.Rout
 		httpx.WriteSuccess(ginCtx, http.StatusOK, toSessionSummaries(sessions))
 	})
 	authGroup.POST(authcontract.AuthSessionRevoke, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		sessionID, ok := readSessionIDParam(ginCtx, r.ctx.I18n)
+		params, sessionID, ok := bindGeneratedAuthSessionRevokeParams(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
 		}
+		authGeneratedHandler{}.PostAuthSessionRevoke(params)
 
 		handleSessionRevocation(
 			ginCtx,
@@ -243,6 +250,26 @@ func (h authGeneratedHandler) GetAuthBootstrap(params authopenapi.GetAuthBootstr
 	_ = params
 }
 
+func (h authGeneratedHandler) GetAuthSessions(params authopenapi.GetAuthSessionsParams) {
+	_ = h
+	_ = params
+}
+
+func (h authGeneratedHandler) PostAuthSessionsRevokeAll(params authopenapi.PostAuthSessionsRevokeAllParams) {
+	_ = h
+	_ = params
+}
+
+func (h authGeneratedHandler) PostAuthSessionsRevokeOthers(params authopenapi.PostAuthSessionsRevokeOthersParams) {
+	_ = h
+	_ = params
+}
+
+func (h authGeneratedHandler) PostAuthSessionRevoke(params authopenapi.PostAuthSessionRevokeParams) {
+	_ = h
+	_ = params
+}
+
 func bindGeneratedAuthLoginParams(ginCtx *gin.Context) authopenapi.PostAuthLoginParams {
 	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
 	return authopenapi.PostAuthLoginParams{
@@ -273,6 +300,63 @@ func bindGeneratedAuthLogoutParams(ginCtx *gin.Context) authopenapi.PostAuthLogo
 		XGraftLocale: locale,
 		XRequestId:   requestID,
 	}
+}
+
+func bindGeneratedAuthSessionsParams(ginCtx *gin.Context) (authopenapi.GetAuthSessionsParams, error) {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	limit, err := parseSessionListLimit(ginCtx.Query("limit"))
+	if err != nil {
+		return authopenapi.GetAuthSessionsParams{}, err
+	}
+
+	params := authopenapi.GetAuthSessionsParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+	if limit > 0 {
+		params.Limit = &limit
+	}
+
+	return params, nil
+}
+
+func bindGeneratedAuthSessionsRevokeAllParams(ginCtx *gin.Context) authopenapi.PostAuthSessionsRevokeAllParams {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	return authopenapi.PostAuthSessionsRevokeAllParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedAuthSessionsRevokeOthersParams(ginCtx *gin.Context) authopenapi.PostAuthSessionsRevokeOthersParams {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	return authopenapi.PostAuthSessionsRevokeOthersParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedAuthSessionRevokeParams(
+	ginCtx *gin.Context,
+	localizer *i18n.Service,
+) (authopenapi.PostAuthSessionRevokeParams, string, bool) {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	sessionID, ok := readSessionIDParam(ginCtx, localizer)
+	if !ok {
+		return authopenapi.PostAuthSessionRevokeParams{}, "", false
+	}
+
+	return authopenapi.PostAuthSessionRevokeParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}, sessionID, true
+}
+
+func generatedSessionListLimit(params authopenapi.GetAuthSessionsParams) int {
+	if params.Limit == nil {
+		return 0
+	}
+	return *params.Limit
 }
 
 func bindGeneratedAuthHeaders(ginCtx *gin.Context) (*string, *string) {
