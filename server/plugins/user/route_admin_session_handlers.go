@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/httpx"
 	"graft/server/internal/pluginapi"
 	usercontract "graft/server/plugins/user/contract"
@@ -34,6 +35,7 @@ func (r userRouteRegistrar) registerAdminSessionReadRoute(group *gin.RouterGroup
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "limit")
 			return
 		}
+		userReadGeneratedHandler{}.GetUserSessions(rawID, bindGeneratedUserSessionsParams(ginCtx, listOptions))
 
 		sessions, err := r.authSvc.ListUserSessions(ginCtx.Request.Context(), summary.ID, listOptions)
 		if err != nil {
@@ -61,6 +63,7 @@ func (r userRouteRegistrar) registerAdminRevokeSingleSessionRoute(group *gin.Rou
 		if !ok {
 			return
 		}
+		userWriteGeneratedHandler{}.PostUserSessionRevoke(rawID, sessionID, bindGeneratedUserSessionRevokeParams(ginCtx))
 
 		summary, err := r.userSvc.GetUserByID(ginCtx.Request.Context(), rawID)
 		if err != nil {
@@ -92,6 +95,7 @@ func (r userRouteRegistrar) registerAdminRevokeAllSessionsRoute(group *gin.Route
 		if !ok {
 			return
 		}
+		userWriteGeneratedHandler{}.PostUserSessionsRevokeAll(rawID, bindGeneratedUserSessionsRevokeAllParams(ginCtx))
 
 		if err := r.authSvc.RevokeAllUserSessions(ginCtx.Request.Context(), rawID); err != nil {
 			r.runtime().writeAuthRouteError(ginCtx, "admin revoke user refresh sessions failed", err, zap.Uint64("userID", rawID))
@@ -103,4 +107,62 @@ func (r userRouteRegistrar) registerAdminRevokeAllSessionsRoute(group *gin.Route
 		})
 		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 	})
+}
+
+func (h userReadGeneratedHandler) GetUserSessions(id uint64, params useropenapi.GetUserSessionsParams) {
+	_ = h
+	_ = id
+	_ = params
+}
+
+func (h userWriteGeneratedHandler) PostUserSessionsRevokeAll(
+	id uint64,
+	params useropenapi.PostUserSessionsRevokeAllParams,
+) {
+	_ = h
+	_ = id
+	_ = params
+}
+
+func (h userWriteGeneratedHandler) PostUserSessionRevoke(
+	id uint64,
+	sessionID string,
+	params useropenapi.PostUserSessionRevokeParams,
+) {
+	_ = h
+	_ = id
+	_ = sessionID
+	_ = params
+}
+
+func bindGeneratedUserSessionsParams(
+	ginCtx *gin.Context,
+	options sessionListOptions,
+) useropenapi.GetUserSessionsParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	params := useropenapi.GetUserSessionsParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+	if options.Limit > 0 {
+		params.Limit = &options.Limit
+	}
+
+	return params
+}
+
+func bindGeneratedUserSessionsRevokeAllParams(ginCtx *gin.Context) useropenapi.PostUserSessionsRevokeAllParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.PostUserSessionsRevokeAllParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedUserSessionRevokeParams(ginCtx *gin.Context) useropenapi.PostUserSessionRevokeParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.PostUserSessionRevokeParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
 }

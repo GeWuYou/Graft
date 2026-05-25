@@ -337,6 +337,231 @@ func (e PostUserResetPassword500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetUserSessions400JSONResponseBodySuccess.
+const (
+	GetUserSessions400JSONResponseBodySuccessFalse GetUserSessions400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetUserSessions400JSONResponseBodySuccess enum.
+func (e GetUserSessions400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetUserSessions400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetUserSessions401JSONResponseBodySuccess.
+const (
+	GetUserSessions401JSONResponseBodySuccessFalse GetUserSessions401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetUserSessions401JSONResponseBodySuccess enum.
+func (e GetUserSessions401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetUserSessions401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetUserSessions403JSONResponseBodySuccess.
+const (
+	GetUserSessions403JSONResponseBodySuccessFalse GetUserSessions403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetUserSessions403JSONResponseBodySuccess enum.
+func (e GetUserSessions403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetUserSessions403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetUserSessions404JSONResponseBodySuccess.
+const (
+	GetUserSessions404JSONResponseBodySuccessFalse GetUserSessions404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetUserSessions404JSONResponseBodySuccess enum.
+func (e GetUserSessions404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetUserSessions404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetUserSessions500JSONResponseBodySuccess.
+const (
+	GetUserSessions500JSONResponseBodySuccessFalse GetUserSessions500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetUserSessions500JSONResponseBodySuccess enum.
+func (e GetUserSessions500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetUserSessions500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionsRevokeAll400JSONResponseBodySuccess.
+const (
+	PostUserSessionsRevokeAll400JSONResponseBodySuccessFalse PostUserSessionsRevokeAll400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionsRevokeAll400JSONResponseBodySuccess enum.
+func (e PostUserSessionsRevokeAll400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionsRevokeAll400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionsRevokeAll401JSONResponseBodySuccess.
+const (
+	PostUserSessionsRevokeAll401JSONResponseBodySuccessFalse PostUserSessionsRevokeAll401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionsRevokeAll401JSONResponseBodySuccess enum.
+func (e PostUserSessionsRevokeAll401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionsRevokeAll401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionsRevokeAll403JSONResponseBodySuccess.
+const (
+	PostUserSessionsRevokeAll403JSONResponseBodySuccessFalse PostUserSessionsRevokeAll403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionsRevokeAll403JSONResponseBodySuccess enum.
+func (e PostUserSessionsRevokeAll403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionsRevokeAll403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionsRevokeAll404JSONResponseBodySuccess.
+const (
+	PostUserSessionsRevokeAll404JSONResponseBodySuccessFalse PostUserSessionsRevokeAll404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionsRevokeAll404JSONResponseBodySuccess enum.
+func (e PostUserSessionsRevokeAll404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionsRevokeAll404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionsRevokeAll500JSONResponseBodySuccess.
+const (
+	PostUserSessionsRevokeAll500JSONResponseBodySuccessFalse PostUserSessionsRevokeAll500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionsRevokeAll500JSONResponseBodySuccess enum.
+func (e PostUserSessionsRevokeAll500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionsRevokeAll500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionRevoke400JSONResponseBodySuccess.
+const (
+	PostUserSessionRevoke400JSONResponseBodySuccessFalse PostUserSessionRevoke400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionRevoke400JSONResponseBodySuccess enum.
+func (e PostUserSessionRevoke400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionRevoke400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionRevoke401JSONResponseBodySuccess.
+const (
+	PostUserSessionRevoke401JSONResponseBodySuccessFalse PostUserSessionRevoke401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionRevoke401JSONResponseBodySuccess enum.
+func (e PostUserSessionRevoke401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionRevoke401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionRevoke403JSONResponseBodySuccess.
+const (
+	PostUserSessionRevoke403JSONResponseBodySuccessFalse PostUserSessionRevoke403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionRevoke403JSONResponseBodySuccess enum.
+func (e PostUserSessionRevoke403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionRevoke403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionRevoke404JSONResponseBodySuccess.
+const (
+	PostUserSessionRevoke404JSONResponseBodySuccessFalse PostUserSessionRevoke404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionRevoke404JSONResponseBodySuccess enum.
+func (e PostUserSessionRevoke404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionRevoke404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostUserSessionRevoke500JSONResponseBodySuccess.
+const (
+	PostUserSessionRevoke500JSONResponseBodySuccessFalse PostUserSessionRevoke500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostUserSessionRevoke500JSONResponseBodySuccess enum.
+func (e PostUserSessionRevoke500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostUserSessionRevoke500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostUserStatusJSONBodyStatus.
 const (
 	Disabled PostUserStatusJSONBodyStatus = "disabled"
@@ -492,13 +717,13 @@ func (e PostUserUpdate404JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostUserUpdate500JSONResponseBodySuccess.
 const (
-	PostUserUpdate500JSONResponseBodySuccessFalse PostUserUpdate500JSONResponseBodySuccess = false
+	False PostUserUpdate500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostUserUpdate500JSONResponseBodySuccess enum.
 func (e PostUserUpdate500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostUserUpdate500JSONResponseBodySuccessFalse:
+	case False:
 		return true
 	default:
 		return false
@@ -640,6 +865,84 @@ type PostUserResetPassword404JSONResponseBodySuccess bool
 
 // PostUserResetPassword500JSONResponseBodySuccess defines parameters for PostUserResetPassword.
 type PostUserResetPassword500JSONResponseBodySuccess bool
+
+// GetUserSessionsParams defines parameters for GetUserSessions.
+type GetUserSessionsParams struct {
+	// Limit Optional maximum number of sessions to return. The runtime accepts values from 1 to 100.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetUserSessions400JSONResponseBodySuccess defines parameters for GetUserSessions.
+type GetUserSessions400JSONResponseBodySuccess bool
+
+// GetUserSessions401JSONResponseBodySuccess defines parameters for GetUserSessions.
+type GetUserSessions401JSONResponseBodySuccess bool
+
+// GetUserSessions403JSONResponseBodySuccess defines parameters for GetUserSessions.
+type GetUserSessions403JSONResponseBodySuccess bool
+
+// GetUserSessions404JSONResponseBodySuccess defines parameters for GetUserSessions.
+type GetUserSessions404JSONResponseBodySuccess bool
+
+// GetUserSessions500JSONResponseBodySuccess defines parameters for GetUserSessions.
+type GetUserSessions500JSONResponseBodySuccess bool
+
+// PostUserSessionsRevokeAllParams defines parameters for PostUserSessionsRevokeAll.
+type PostUserSessionsRevokeAllParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostUserSessionsRevokeAll400JSONResponseBodySuccess defines parameters for PostUserSessionsRevokeAll.
+type PostUserSessionsRevokeAll400JSONResponseBodySuccess bool
+
+// PostUserSessionsRevokeAll401JSONResponseBodySuccess defines parameters for PostUserSessionsRevokeAll.
+type PostUserSessionsRevokeAll401JSONResponseBodySuccess bool
+
+// PostUserSessionsRevokeAll403JSONResponseBodySuccess defines parameters for PostUserSessionsRevokeAll.
+type PostUserSessionsRevokeAll403JSONResponseBodySuccess bool
+
+// PostUserSessionsRevokeAll404JSONResponseBodySuccess defines parameters for PostUserSessionsRevokeAll.
+type PostUserSessionsRevokeAll404JSONResponseBodySuccess bool
+
+// PostUserSessionsRevokeAll500JSONResponseBodySuccess defines parameters for PostUserSessionsRevokeAll.
+type PostUserSessionsRevokeAll500JSONResponseBodySuccess bool
+
+// PostUserSessionRevokeParams defines parameters for PostUserSessionRevoke.
+type PostUserSessionRevokeParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostUserSessionRevoke400JSONResponseBodySuccess defines parameters for PostUserSessionRevoke.
+type PostUserSessionRevoke400JSONResponseBodySuccess bool
+
+// PostUserSessionRevoke401JSONResponseBodySuccess defines parameters for PostUserSessionRevoke.
+type PostUserSessionRevoke401JSONResponseBodySuccess bool
+
+// PostUserSessionRevoke403JSONResponseBodySuccess defines parameters for PostUserSessionRevoke.
+type PostUserSessionRevoke403JSONResponseBodySuccess bool
+
+// PostUserSessionRevoke404JSONResponseBodySuccess defines parameters for PostUserSessionRevoke.
+type PostUserSessionRevoke404JSONResponseBodySuccess bool
+
+// PostUserSessionRevoke500JSONResponseBodySuccess defines parameters for PostUserSessionRevoke.
+type PostUserSessionRevoke500JSONResponseBodySuccess bool
 
 // PostUserStatusJSONBody defines parameters for PostUserStatus.
 type PostUserStatusJSONBody struct {

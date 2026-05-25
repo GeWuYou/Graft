@@ -65,6 +65,33 @@ func TestPostUserDeleteHeadersRemainOptional(t *testing.T) {
 	}
 }
 
+func TestGetUserSessionsHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params GetUserSessionsParams
+	if params.XGraftLocale != nil || params.XRequestId != nil || params.Limit != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers/query nil, got %#v", params)
+	}
+}
+
+func TestPostUserSessionsRevokeAllHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params PostUserSessionsRevokeAllParams
+	if params.XGraftLocale != nil || params.XRequestId != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
+	}
+}
+
+func TestPostUserSessionRevokeHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params PostUserSessionRevokeParams
+	if params.XGraftLocale != nil || params.XRequestId != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
+	}
+}
+
 func TestPostUsersRequestBodyRequiresConcreteFieldsOnly(t *testing.T) {
 	t.Parallel()
 
@@ -98,5 +125,15 @@ func TestPostUserResetPasswordRequestBodyRequiresConcreteFieldOnly(t *testing.T)
 	var body PostUserResetPasswordJSONRequestBody
 	if body.NewPassword != "" {
 		t.Fatalf("expected zero-value reset-password body field to stay empty string, got %#v", body)
+	}
+}
+
+func TestGetUserSessionsLimitRemainsGeneratedOptionalPointer(t *testing.T) {
+	t.Parallel()
+
+	limit := 10
+	params := GetUserSessionsParams{Limit: &limit}
+	if params.Limit == nil || *params.Limit != 10 {
+		t.Fatalf("expected generated session list limit to remain an optional int pointer, got %#v", params)
 	}
 }

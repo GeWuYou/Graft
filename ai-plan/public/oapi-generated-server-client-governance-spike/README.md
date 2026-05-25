@@ -8,12 +8,12 @@ that followed.
 - Topic: `oapi-generated-server-client-governance-spike`
 - Task class: `cross-boundary`
 - Branch: `feat/oapi-generated-server-client-governance-spike`
-- Current recommendation: `auth_generated_boundary_audit_complete`
+- Current recommendation: `archive_topic`
 
 ## Current Recovery State
 
-- Auth guarded migration is being resumed inside this topic under tightly scoped batches.
-- Known completed commit:
+- Auth guarded migration and boundary audit are complete inside this topic.
+- Known completed commits:
   - `713a676`
     - Batch 1 migrated:
       - `POST /api/auth/refresh`
@@ -38,10 +38,26 @@ that followed.
   - generated/backend/frontend boundaries stay explicit:
     - `server/plugins/auth/**` still owns route registration, validation, service commands, and `httpx` envelopes
     - `web/src/modules/auth/api/auth.ts` still owns module adapters over `request.ts`
-  - no remaining auth migration is pending in this topic
-  - remaining audit-only concern:
-    - keep `web/src/modules/auth/contract/paths.ts` aligned with the single-session revoke template so the module does
-      not keep a second handwritten full path
+- Auth audit closeout:
+  - committed:
+    - `6fb286a`
+      - fixed the single-session revoke path drift in `web/src/modules/auth/contract/paths.ts`
+    - `5370cd8`
+      - recorded the completed auth boundary audit closeout
+  - no remaining auth migration or auth audit follow-up is pending in this topic
+  - any future generated freshness-gate expansion should run as a separate docs/automation decision instead of
+    reopening auth migration
+- Final remaining interface migration:
+  - current worktree completes:
+    - `GET /healthz`
+    - `GET /api/users/{id}/sessions`
+    - `POST /api/users/{id}/sessions/revoke-all`
+    - `POST /api/users/{id}/sessions/{sessionID}/revoke`
+  - repository OpenAPI interface migration status is now:
+    - `30 / 30` operations migrated to the guarded generated contract boundary
+    - `remaining_interfaces = []`
+  - topic recommendation remains:
+    - `archive_topic`
 
 ## Scope
 
@@ -89,6 +105,7 @@ that followed.
 
 - `git diff --check`
 - `python3 scripts/openapi_generated_freshness_check.py --target backend-monitor --mode check`
+- `python3 scripts/openapi_generated_freshness_check.py --target backend-health --mode check`
 - `cd web && bun run openapi:types:check`
 - `cd web && bun run check`
 - `cd server && go run ./cmd/graft validate backend`

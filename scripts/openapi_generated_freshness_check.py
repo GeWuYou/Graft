@@ -13,6 +13,7 @@ from pathlib import Path
 
 REPO_SENTINEL = "AGENTS.md"
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
+HEALTH_TARGET = Path("server/internal/contract/openapi/health/zz_generated.health.go")
 RBAC_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.management.go")
 USER_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/user/zz_generated.management.go")
 AUTH_TARGET = Path("server/internal/contract/openapi/auth/zz_generated.auth.go")
@@ -26,6 +27,14 @@ MONITOR_ARGS = [
     "--package",
     "monitor",
 ]
+HEALTH_ARGS = [
+    "--include-operation-ids",
+    "getHealthz",
+    "--generate",
+    "types",
+    "--package",
+    "healthopenapi",
+]
 RBAC_MANAGEMENT_ARGS = [
     "--include-operation-ids",
     "getPermissions,getRoles,getRolePermissions,postRoles,postRoleUpdate,postRolePermissionAssign,getUserRoles,postUserRolesAssign",
@@ -36,7 +45,7 @@ RBAC_MANAGEMENT_ARGS = [
 ]
 USER_WRITE_ARGS = [
     "--include-operation-ids",
-    "getUsers,getUserById,postUsers,postUserUpdate,postUserStatus,postUserResetPassword,postUserDelete",
+    "getUsers,getUserById,getUserSessions,postUsers,postUserUpdate,postUserStatus,postUserResetPassword,postUserDelete,postUserSessionsRevokeAll,postUserSessionRevoke",
     "--generate",
     "types",
     "--package",
@@ -58,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["backend-monitor", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session"],
+        choices=["backend-monitor", "backend-health", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session"],
         default="backend-monitor",
         help="Generated artifact target to validate.",
     )
@@ -92,6 +101,18 @@ def run_backend_monitor(repo_root: Path, mode: str) -> int:
         mode=mode,
         temp_prefix="graft-openapi-monitor-",
     )
+
+
+def run_backend_health(repo_root: Path, mode: str) -> int:
+    return run_generated_target(
+        repo_root=repo_root,
+        target=HEALTH_TARGET,
+        spec=repo_root / MONITOR_SPEC,
+        generator_args=HEALTH_ARGS,
+        mode=mode,
+        temp_prefix="graft-openapi-health-",
+    )
+
 
 def run_backend_rbac_permissions(repo_root: Path, mode: str) -> int:
     return run_generated_target(
@@ -195,6 +216,8 @@ def main() -> int:
 
     if args.target == "backend-monitor":
         return run_backend_monitor(repo_root, args.mode)
+    if args.target == "backend-health":
+        return run_backend_health(repo_root, args.mode)
     if args.target == "backend-rbac-permissions":
         return run_backend_rbac_permissions(repo_root, args.mode)
     if args.target == "backend-rbac-read":

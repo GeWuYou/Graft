@@ -383,3 +383,44 @@ validation:
     second handwritten full path literal
 - Updated the topic README so recovery state no longer claims the topic is still monitor-only after the completed auth
   rollout slices.
+
+## 2026-05-25 final remaining interface migration
+
+- Completed the last repository OpenAPI interfaces that were still outside the guarded generated boundary:
+  - `GET /healthz`
+  - `GET /api/users/{id}/sessions`
+  - `POST /api/users/{id}/sessions/revoke-all`
+  - `POST /api/users/{id}/sessions/{sessionID}/revoke`
+- Added `server/internal/contract/openapi/health/**` as a narrow generated contract package for `getHealthz`.
+- Kept runtime core as the owner of:
+  - explicit `/healthz` route registration
+  - plain JSON response shape without `httpx` envelope takeover
+  - runtime registry count assembly
+- Expanded the existing `server/internal/contract/openapi/user/**` management artifact to cover:
+  - `getUserSessions`
+  - `postUserSessionsRevokeAll`
+  - `postUserSessionRevoke`
+- Kept the user plugin as the runtime owner of:
+  - explicit admin user-session route registration
+  - `id` / `sessionID` / `limit` parsing and validation
+  - target-user lookup and auth-service invocation
+  - `httpx` success/error envelope behavior
+- Updated the frontend user module boundary with module-owned canonical templates and generated operation typing in:
+  - `web/src/modules/user/contract/paths.ts`
+  - `web/src/modules/user/api/user-sessions.ts`
+- Added backend freshness coverage for `healthz` through:
+  - `python3 scripts/openapi_generated_freshness_check.py --target backend-health --mode check`
+- Expanded backend freshness coverage for the user management artifact so the same `backend-user-write` target now also
+  checks the three admin user-session operations.
+- Repository OpenAPI migration status after this slice:
+  - `30 / 30` operations migrated
+  - `remaining_interfaces = []`
+- Validation results:
+  - passed: `cd server && go test ./internal/contract/openapi/health ./internal/contract/openapi/user ./plugins/user`
+  - passed: `cd web && bun run test:run -- user`
+  - passed: `cd web && bun run typecheck`
+  - passed: `python3 scripts/openapi_generated_freshness_check.py --target backend-health --mode check`
+  - passed: `python3 scripts/openapi_generated_freshness_check.py --target backend-user-write --mode check`
+  - passed: `cd server && go run ./cmd/graft validate backend`
+  - passed: `cd web && bun run check`
+  - passed: `git diff --check`

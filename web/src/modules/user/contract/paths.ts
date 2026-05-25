@@ -15,6 +15,9 @@ export const USER_ROUTE_PATH = {
  */
 export const USER_API_PATH = {
   USERS: '/api/users',
+  USER_SESSIONS_TEMPLATE: '/api/users/{id}/sessions',
+  USER_SESSIONS_REVOKE_ALL_TEMPLATE: '/api/users/{id}/sessions/revoke-all',
+  USER_SESSION_REVOKE_TEMPLATE: '/api/users/{id}/sessions/{sessionID}/revoke',
   /** USER_BY_ID 返回读取指定用户详情的接口路径。 */
   USER_BY_ID: (userId: number) => `/api/users/${userId}`,
   /** USER_UPDATE 返回更新指定用户资料的接口路径。 */
