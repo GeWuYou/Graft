@@ -5,7 +5,6 @@ import { USER_API_PATH } from '../contract/paths';
 import { USER_STATUS } from '../contract/status';
 import type {
   RawUserListItem,
-  RawUserListResponse,
   ResetUserPasswordPayload,
   UpdateUserStatusPayload,
   UserListItem,
@@ -13,15 +12,20 @@ import type {
 } from '../types/user';
 
 type UsersPath = (typeof USER_API_PATH)['USERS'];
+type GetUserByIdPath = '/api/users/{id}';
 type PostUserUpdatePath = '/api/users/{id}/update';
 type PostUserStatusPath = '/api/users/{id}/status';
 type PostUserResetPasswordPath = '/api/users/{id}/reset-password';
 type PostUserDeletePath = '/api/users/{id}/delete';
+type GetUsersOperation = paths[UsersPath]['get'];
+type GetUserByIdOperation = paths[GetUserByIdPath]['get'];
 type PostUsersOperation = paths[UsersPath]['post'];
 type PostUserUpdateOperation = paths[PostUserUpdatePath]['post'];
 type PostUserStatusOperation = paths[PostUserStatusPath]['post'];
 type PostUserResetPasswordOperation = paths[PostUserResetPasswordPath]['post'];
 type PostUserDeleteOperation = paths[PostUserDeletePath]['post'];
+type GetUsersResponse = GetUsersOperation['responses']['200']['content']['application/json'];
+type GetUserByIdResponse = GetUserByIdOperation['responses']['200']['content']['application/json'];
 type PostUsersRequest = PostUsersOperation['requestBody']['content']['application/json'];
 type PostUserUpdateRequest = PostUserUpdateOperation['requestBody']['content']['application/json'];
 type PostUserStatusRequest = PostUserStatusOperation['requestBody']['content']['application/json'];
@@ -48,7 +52,7 @@ function normalizeUserListItem(item: RawUserListItem): UserListItem {
  */
 export function getUsers() {
   return request
-    .get<RawUserListResponse>({
+    .get<GetUsersResponse['data']>({
       url: USER_API_PATH.USERS,
     })
     .then(
@@ -57,6 +61,22 @@ export function getUsers() {
         items: response.items.map(normalizeUserListItem),
       }),
     );
+}
+
+/**
+ * getUserById 读取指定用户的详情快照。
+ *
+ * 该请求调用 `USER_API_PATH.USER_BY_ID(userId)`，用于获取单个用户的现有管理视图。
+ *
+ * @param userId 需要读取的用户 ID。
+ * @returns 返回规范化后的 `UserListItem`。
+ */
+export function getUserById(userId: number) {
+  return request
+    .get<GetUserByIdResponse['data']>({
+      url: USER_API_PATH.USER_BY_ID(userId),
+    })
+    .then(normalizeUserListItem);
 }
 
 /**

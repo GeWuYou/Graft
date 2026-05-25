@@ -2,6 +2,24 @@ package useropenapi
 
 import "testing"
 
+func TestGetUsersHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params GetUsersParams
+	if params.XGraftLocale != nil || params.XRequestId != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
+	}
+}
+
+func TestGetUserByIdHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params GetUserByIdParams
+	if params.XGraftLocale != nil || params.XRequestId != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
+	}
+}
+
 func TestPostUsersHeadersRemainOptional(t *testing.T) {
 	t.Parallel()
 

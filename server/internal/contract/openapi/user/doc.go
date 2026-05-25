@@ -1,2 +1,2 @@
-// Package useropenapi provides narrow generated bindings for guarded user write migration batches.
+// Package useropenapi provides narrow generated bindings for guarded user management migration batches.
 package useropenapi

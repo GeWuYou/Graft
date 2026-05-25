@@ -14,7 +14,7 @@ from pathlib import Path
 REPO_SENTINEL = "AGENTS.md"
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
 RBAC_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.management.go")
-USER_WRITE_TARGET = Path("server/internal/contract/openapi/user/zz_generated.write.go")
+USER_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/user/zz_generated.management.go")
 MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
 MONITOR_ARGS = [
@@ -35,7 +35,7 @@ RBAC_MANAGEMENT_ARGS = [
 ]
 USER_WRITE_ARGS = [
     "--include-operation-ids",
-    "postUsers,postUserUpdate,postUserStatus,postUserResetPassword,postUserDelete",
+    "getUsers,getUserById,postUsers,postUserUpdate,postUserStatus,postUserResetPassword,postUserDelete",
     "--generate",
     "types",
     "--package",
@@ -120,7 +120,7 @@ def run_backend_rbac_management(repo_root: Path, mode: str) -> int:
 def run_backend_user_write(repo_root: Path, mode: str) -> int:
     return run_generated_target(
         repo_root=repo_root,
-        target=USER_WRITE_TARGET,
+        target=USER_MANAGEMENT_TARGET,
         spec=repo_root / MONITOR_SPEC,
         generator_args=USER_WRITE_ARGS,
         mode=mode,

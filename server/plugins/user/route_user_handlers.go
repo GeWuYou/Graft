@@ -16,6 +16,8 @@ import (
 
 func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 	group.GET(usercontract.UserCollection, r.guards.userRead, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		userReadGeneratedHandler{}.GetUsers(bindGeneratedUserListParams(ginCtx))
+
 		users, err := r.userSvc.ListUsers(ginCtx.Request.Context())
 		if err != nil {
 			r.runtime().logger.Error("list users failed",
@@ -38,6 +40,7 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 		if !ok {
 			return
 		}
+		userReadGeneratedHandler{}.GetUserById(rawID, bindGeneratedUserDetailParams(ginCtx))
 
 		summary, err := r.userSvc.GetUserByID(ginCtx.Request.Context(), rawID)
 		if err != nil {
@@ -47,6 +50,19 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, summary)
 	})
+}
+
+type userReadGeneratedHandler struct{}
+
+func (h userReadGeneratedHandler) GetUsers(params useropenapi.GetUsersParams) {
+	_ = h
+	_ = params
+}
+
+func (h userReadGeneratedHandler) GetUserById(id uint64, params useropenapi.GetUserByIdParams) {
+	_ = h
+	_ = id
+	_ = params
 }
 
 func (r userRouteRegistrar) registerUserWriteRoutes(group *gin.RouterGroup) {
@@ -175,6 +191,22 @@ func (h userWriteGeneratedHandler) PostUserDelete(
 func bindGeneratedUserCreateParams(ginCtx *gin.Context) useropenapi.PostUsersParams {
 	locale, requestID := bindGeneratedHeaders(ginCtx)
 	return useropenapi.PostUsersParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedUserListParams(ginCtx *gin.Context) useropenapi.GetUsersParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.GetUsersParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedUserDetailParams(ginCtx *gin.Context) useropenapi.GetUserByIdParams {
+	locale, requestID := bindGeneratedHeaders(ginCtx)
+	return useropenapi.GetUserByIdParams{
 		XGraftLocale: locale,
 		XRequestId:   requestID,
 	}

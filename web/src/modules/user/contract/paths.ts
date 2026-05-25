@@ -15,6 +15,8 @@ export const USER_ROUTE_PATH = {
  */
 export const USER_API_PATH = {
   USERS: '/api/users',
+  /** USER_BY_ID 返回读取指定用户详情的接口路径。 */
+  USER_BY_ID: (userId: number) => `/api/users/${userId}`,
   /** USER_UPDATE 返回更新指定用户资料的接口路径。 */
   USER_UPDATE: (userId: number) => `/api/users/${userId}/update`,
   /** USER_STATUS 返回更新指定用户启停状态的接口路径。 */

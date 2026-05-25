@@ -3,7 +3,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { request } from '@/utils/request';
 
 import { USER_API_PATH } from '../contract/paths';
-import { createUser, deleteUser, resetUserPassword, updateUser, updateUserStatus } from './users';
+import {
+  createUser,
+  deleteUser,
+  getUserById,
+  getUsers,
+  resetUserPassword,
+  updateUser,
+  updateUserStatus,
+} from './users';
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -13,6 +21,37 @@ vi.mock('@/utils/request', () => ({
 }));
 
 describe('users api', () => {
+  it('calls the canonical users-list path through request.ts', async () => {
+    const requestGet = vi.mocked(request.get);
+    requestGet.mockResolvedValueOnce({
+      items: [{ id: 1, username: 'alice', display: 'Alice', status: 'enabled', created_at: '', updated_at: '' }],
+    } as never);
+
+    await getUsers();
+
+    expect(requestGet).toHaveBeenCalledWith({
+      url: USER_API_PATH.USERS,
+    });
+  });
+
+  it('calls the canonical user-detail path through request.ts', async () => {
+    const requestGet = vi.mocked(request.get);
+    requestGet.mockResolvedValueOnce({
+      id: 1,
+      username: 'alice',
+      display: 'Alice',
+      status: 'enabled',
+      created_at: '',
+      updated_at: '',
+    } as never);
+
+    await getUserById(1);
+
+    expect(requestGet).toHaveBeenCalledWith({
+      url: USER_API_PATH.USER_BY_ID(1),
+    });
+  });
+
   it('calls the canonical user-create path through request.ts', async () => {
     const requestPost = vi.mocked(request.post);
     const payload = { username: 'alice', display: 'Alice', password: 'Password1234' };

@@ -40,3 +40,4 @@ func registerUserRoutes(
 }
 
 var _ useropenapi.WriteServerInterface = userWriteGeneratedHandler{}
+var _ useropenapi.ReadServerInterface = userReadGeneratedHandler{}
