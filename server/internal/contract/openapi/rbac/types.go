@@ -12,3 +12,9 @@ type UserRoleServerInterface interface {
 	GetUserRoles(id uint64, params GetUserRolesParams)
 	PostUserRolesAssign(id uint64, params PostUserRolesAssignParams, body PostUserRolesAssignJSONRequestBody)
 }
+
+// WriteServerInterface is the minimal generated handler contract for guarded RBAC write migration.
+type WriteServerInterface interface {
+	PostRolePermissionAssign(id uint64, params PostRolePermissionAssignParams, body PostRolePermissionAssignJSONRequestBody)
+	PostUserRolesAssign(id uint64, params PostUserRolesAssignParams, body PostUserRolesAssignJSONRequestBody)
+}

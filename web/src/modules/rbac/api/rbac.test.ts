@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { request } from '@/utils/request';
 
 import { RBAC_API_PATH } from '../contract/paths';
-import { getPermissions, getRolePermissionBindings, getRoles } from './rbac';
+import { assignRolePermissions, getPermissions, getRolePermissionBindings, getRoles } from './rbac';
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -43,6 +43,19 @@ describe('rbac api', () => {
 
     expect(requestGet).toHaveBeenCalledWith({
       url: RBAC_API_PATH.ROLE_PERMISSIONS(42),
+    });
+  });
+
+  it('calls the canonical role-permission-assign path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    const payload = { permission_ids: [2, 3] };
+    requestPost.mockResolvedValueOnce(null as never);
+
+    await assignRolePermissions(42, payload);
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: RBAC_API_PATH.ROLE_PERMISSION_ASSIGN(42),
+      data: payload,
     });
   });
 });

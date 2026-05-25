@@ -26,7 +26,7 @@ MONITOR_ARGS = [
 ]
 RBAC_MANAGEMENT_ARGS = [
     "--include-operation-ids",
-    "getPermissions,getRoles,getRolePermissions,getUserRoles,postUserRolesAssign",
+    "getPermissions,getRoles,getRolePermissions,postRolePermissionAssign,getUserRoles,postUserRolesAssign",
     "--generate",
     "types",
     "--package",

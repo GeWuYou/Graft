@@ -165,3 +165,4 @@ func registerUserRoleRoutes(
 
 var _ rbacopenapi.ReadServerInterface = rbacReadGeneratedHandler{}
 var _ rbacopenapi.UserRoleServerInterface = rbacUserRoleGeneratedHandler{}
+var _ rbacopenapi.WriteServerInterface = rbacWriteGeneratedHandler{}

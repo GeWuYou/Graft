@@ -139,3 +139,21 @@ validation:
   while still calling `request.ts`.
 - Extended backend freshness validation through the unified `backend-rbac-management` target and kept the existing
   monitor target intact.
+
+## 2026-05-25 Phase 6 guarded progressive migration batch 4
+
+- Expanded the unified RBAC management generated artifact at
+  `server/internal/contract/openapi/rbac/zz_generated.management.go` to cover:
+  - `postRolePermissionAssign`
+- Kept the RBAC plugin as the runtime owner of:
+  - explicit `/api/roles/:id/permissions/assign` route registration
+  - permission middleware wiring
+  - `httpx` success/error envelope behavior
+  - role-permission write-service invocation
+- Bound the backend generated layer only to:
+  - path/header/request-body semantics for `POST /api/roles/{id}/permissions/assign`
+  - compile-time handler interface conformance via `rbacopenapi.WriteServerInterface`
+- Updated `web/src/modules/rbac/api/rbac.ts` so `assignRolePermissions()` now binds to the generated OpenAPI request
+  body type while still calling `request.ts`.
+- Extended backend freshness validation through the same unified `backend-rbac-management` target without introducing a
+  second RBAC generated artifact.

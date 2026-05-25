@@ -1,7 +1,6 @@
 package rbac
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
@@ -9,6 +8,7 @@ import (
 
 	messagecontract "graft/server/internal/contract/message"
 	openapicontract "graft/server/internal/contract/openapi"
+	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	rbaccontract "graft/server/plugins/rbac/contract"
@@ -31,16 +31,7 @@ func registerRoleWriteRoutes(
 	})
 
 	group.POST(rbaccontract.RolePermissionAssignRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) {
-		handleReplaceStableIDsRoute(ginCtx, ctx, pluginName, replaceStableIDsHandlerConfig{
-			invalidField: "permission_ids",
-			readIDs:      readRolePermissionIDs,
-			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
-				return writer.ReplacePermissionsForRole(ctx, rbacstore.ReplacePermissionsForRoleInput{
-					RoleID:        targetID,
-					PermissionIDs: ids,
-				})
-			},
-		})
+		handleAssignRolePermissionsRoute(ginCtx, ctx, pluginName, writer)
 	})
 }
 
@@ -162,6 +153,80 @@ func handleReplaceStableIDsRoute(
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 
+type rbacWriteGeneratedHandler struct {
+}
+
+func (h rbacWriteGeneratedHandler) PostRolePermissionAssign(
+	id uint64,
+	params rbacopenapi.PostRolePermissionAssignParams,
+	body rbacopenapi.PostRolePermissionAssignJSONRequestBody,
+) {
+	_ = h
+	_ = id
+	_ = params
+	_ = body
+}
+
+func (h rbacWriteGeneratedHandler) PostUserRolesAssign(
+	id uint64,
+	params rbacopenapi.PostUserRolesAssignParams,
+	body rbacopenapi.PostUserRolesAssignJSONRequestBody,
+) {
+	_ = h
+	_ = id
+	_ = params
+	_ = body
+}
+
+func bindGeneratedRolePermissionAssignParams(ginCtx *gin.Context) rbacopenapi.PostRolePermissionAssignParams {
+	locale, requestID := bindGeneratedReadHeaders(ginCtx)
+	return rbacopenapi.PostRolePermissionAssignParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func handleAssignRolePermissionsRoute(
+	ginCtx *gin.Context,
+	ctx *plugin.Context,
+	pluginName string,
+	writer writeManagementService,
+) {
+	targetID, err := parseManagementID(ginCtx.Param("id"))
+	if err != nil {
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+			"field": "id",
+		})
+		return
+	}
+
+	body, ids, err := readGeneratedRolePermissionAssignRequest(ginCtx)
+	if err != nil {
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+			"field": "body",
+		})
+		return
+	}
+	if ids == nil || hasInvalidStableIDs(ids) {
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
+			"field": "permission_ids",
+		})
+		return
+	}
+
+	rbacWriteGeneratedHandler{}.PostRolePermissionAssign(targetID, bindGeneratedRolePermissionAssignParams(ginCtx), body)
+
+	if err := writer.ReplacePermissionsForRole(ginCtx.Request.Context(), rbacstore.ReplacePermissionsForRoleInput{
+		RoleID:        targetID,
+		PermissionIDs: ids,
+	}); err != nil {
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "permission_ids")
+		return
+	}
+
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+}
+
 func handleAssignUserRolesRoute(
 	ginCtx *gin.Context,
 	ctx *plugin.Context,
@@ -190,7 +255,7 @@ func handleAssignUserRolesRoute(
 		return
 	}
 
-	rbacUserRoleGeneratedHandler{}.PostUserRolesAssign(targetID, bindGeneratedUserRoleAssignParams(ginCtx), body)
+	rbacWriteGeneratedHandler{}.PostUserRolesAssign(targetID, bindGeneratedUserRoleAssignParams(ginCtx), body)
 
 	if err := writer.ReplaceRolesForUser(ginCtx.Request.Context(), rbacstore.ReplaceRolesForUserInput{
 		UserID:  targetID,

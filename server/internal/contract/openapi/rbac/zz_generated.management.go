@@ -172,6 +172,81 @@ func (e GetRolePermissions500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostRolePermissionAssign400JSONResponseBodySuccess.
+const (
+	PostRolePermissionAssign400JSONResponseBodySuccessFalse PostRolePermissionAssign400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRolePermissionAssign400JSONResponseBodySuccess enum.
+func (e PostRolePermissionAssign400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRolePermissionAssign400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRolePermissionAssign401JSONResponseBodySuccess.
+const (
+	PostRolePermissionAssign401JSONResponseBodySuccessFalse PostRolePermissionAssign401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRolePermissionAssign401JSONResponseBodySuccess enum.
+func (e PostRolePermissionAssign401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRolePermissionAssign401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRolePermissionAssign403JSONResponseBodySuccess.
+const (
+	PostRolePermissionAssign403JSONResponseBodySuccessFalse PostRolePermissionAssign403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRolePermissionAssign403JSONResponseBodySuccess enum.
+func (e PostRolePermissionAssign403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRolePermissionAssign403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRolePermissionAssign404JSONResponseBodySuccess.
+const (
+	PostRolePermissionAssign404JSONResponseBodySuccessFalse PostRolePermissionAssign404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRolePermissionAssign404JSONResponseBodySuccess enum.
+func (e PostRolePermissionAssign404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRolePermissionAssign404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostRolePermissionAssign500JSONResponseBodySuccess.
+const (
+	PostRolePermissionAssign500JSONResponseBodySuccessFalse PostRolePermissionAssign500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostRolePermissionAssign500JSONResponseBodySuccess enum.
+func (e PostRolePermissionAssign500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostRolePermissionAssign500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetUserRoles400JSONResponseBodySuccess.
 const (
 	GetUserRoles400JSONResponseBodySuccessFalse GetUserRoles400JSONResponseBodySuccess = false
@@ -309,13 +384,13 @@ func (e PostUserRolesAssign404JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostUserRolesAssign500JSONResponseBodySuccess.
 const (
-	False PostUserRolesAssign500JSONResponseBodySuccess = false
+	PostUserRolesAssign500JSONResponseBodySuccessFalse PostUserRolesAssign500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostUserRolesAssign500JSONResponseBodySuccess enum.
 func (e PostUserRolesAssign500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostUserRolesAssign500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -391,6 +466,37 @@ type GetRolePermissions404JSONResponseBodySuccess bool
 // GetRolePermissions500JSONResponseBodySuccess defines parameters for GetRolePermissions.
 type GetRolePermissions500JSONResponseBodySuccess bool
 
+// PostRolePermissionAssignJSONBody defines parameters for PostRolePermissionAssign.
+type PostRolePermissionAssignJSONBody struct {
+	// PermissionIds Replaces the role's permission bindings with the provided stable permission id set.
+	PermissionIds []int64 `json:"permission_ids"`
+}
+
+// PostRolePermissionAssignParams defines parameters for PostRolePermissionAssign.
+type PostRolePermissionAssignParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostRolePermissionAssign400JSONResponseBodySuccess defines parameters for PostRolePermissionAssign.
+type PostRolePermissionAssign400JSONResponseBodySuccess bool
+
+// PostRolePermissionAssign401JSONResponseBodySuccess defines parameters for PostRolePermissionAssign.
+type PostRolePermissionAssign401JSONResponseBodySuccess bool
+
+// PostRolePermissionAssign403JSONResponseBodySuccess defines parameters for PostRolePermissionAssign.
+type PostRolePermissionAssign403JSONResponseBodySuccess bool
+
+// PostRolePermissionAssign404JSONResponseBodySuccess defines parameters for PostRolePermissionAssign.
+type PostRolePermissionAssign404JSONResponseBodySuccess bool
+
+// PostRolePermissionAssign500JSONResponseBodySuccess defines parameters for PostRolePermissionAssign.
+type PostRolePermissionAssign500JSONResponseBodySuccess bool
+
 // GetUserRolesParams defines parameters for GetUserRoles.
 type GetUserRolesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -445,6 +551,9 @@ type PostUserRolesAssign404JSONResponseBodySuccess bool
 
 // PostUserRolesAssign500JSONResponseBodySuccess defines parameters for PostUserRolesAssign.
 type PostUserRolesAssign500JSONResponseBodySuccess bool
+
+// PostRolePermissionAssignJSONRequestBody defines body for PostRolePermissionAssign for application/json ContentType.
+type PostRolePermissionAssignJSONRequestBody PostRolePermissionAssignJSONBody
 
 // PostUserRolesAssignJSONRequestBody defines body for PostUserRolesAssign for application/json ContentType.
 type PostUserRolesAssignJSONRequestBody PostUserRolesAssignJSONBody

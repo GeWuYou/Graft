@@ -14,15 +14,18 @@ import type {
 type PermissionsPath = (typeof RBAC_API_PATH)['PERMISSIONS'];
 type RolesPath = (typeof RBAC_API_PATH)['ROLES'];
 type RolePermissionsPath = '/api/roles/{id}/permissions';
+type RolePermissionAssignPath = '/api/roles/{id}/permissions/assign';
 type GetPermissionsOperation = paths[PermissionsPath]['get'];
 type GetRolesOperation = paths[RolesPath]['get'];
 type GetRolePermissionsOperation = paths[RolePermissionsPath]['get'];
+type PostRolePermissionAssignOperation = paths[RolePermissionAssignPath]['post'];
 type GetPermissionsEnvelope = GetPermissionsOperation['responses'][200]['content']['application/json'];
 type GetRolesEnvelope = GetRolesOperation['responses'][200]['content']['application/json'];
 type GetRolePermissionsEnvelope = GetRolePermissionsOperation['responses'][200]['content']['application/json'];
 type GetPermissionsData = NonNullable<GetPermissionsEnvelope['data']>;
 type GetRolesData = NonNullable<GetRolesEnvelope['data']>;
 type GetRolePermissionsData = NonNullable<GetRolePermissionsEnvelope['data']>;
+type PostRolePermissionAssignRequest = PostRolePermissionAssignOperation['requestBody']['content']['application/json'];
 
 export function getRoles() {
   return request.get<GetRolesData>({
@@ -56,7 +59,10 @@ export function updateRole(roleId: number, payload: UpdateRolePayload) {
   });
 }
 
-export function assignRolePermissions(roleId: number, payload: ReplaceRolePermissionsPayload) {
+export function assignRolePermissions(
+  roleId: number,
+  payload: PostRolePermissionAssignRequest & ReplaceRolePermissionsPayload,
+) {
   return request.post<null>({
     url: RBAC_API_PATH.ROLE_PERMISSION_ASSIGN(roleId),
     data: payload,

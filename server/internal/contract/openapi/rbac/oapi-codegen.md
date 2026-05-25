@@ -5,6 +5,7 @@ This package is intentionally limited to a guarded RBAC management migration bat
 - `getPermissions`
 - `getRoles`
 - `getRolePermissions`
+- `postRolePermissionAssign`
 - `getUserRoles`
 - `postUserRolesAssign`
 

@@ -47,11 +47,29 @@ func TestPostUserRolesAssignHeadersRemainOptional(t *testing.T) {
 	}
 }
 
+func TestPostRolePermissionAssignHeadersRemainOptional(t *testing.T) {
+	t.Parallel()
+
+	var params PostRolePermissionAssignParams
+	if params.XGraftLocale != nil || params.XRequestId != nil {
+		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
+	}
+}
+
 func TestPostUserRolesAssignRequestBodyKeepsRoleIDsOptional(t *testing.T) {
 	t.Parallel()
 
 	var body PostUserRolesAssignJSONRequestBody
 	if body.RoleIds != nil {
 		t.Fatalf("expected zero-value request body to keep role ids nil, got %#v", body)
+	}
+}
+
+func TestPostRolePermissionAssignRequestBodyKeepsPermissionIDsOptional(t *testing.T) {
+	t.Parallel()
+
+	var body PostRolePermissionAssignJSONRequestBody
+	if body.PermissionIds != nil {
+		t.Fatalf("expected zero-value request body to keep permission ids nil, got %#v", body)
 	}
 }

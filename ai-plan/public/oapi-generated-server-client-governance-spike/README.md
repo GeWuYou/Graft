@@ -330,3 +330,28 @@ The guarded RBAC read migration now covers the next low-risk batch after `GET /a
 - `cd web && bun run openapi:types:check`
 - `cd web && bun run test:run -- --runInBand src/modules/rbac/api/rbac.test.ts`
 - `cd server && go test ./internal/contract/openapi/rbac ./plugins/rbac`
+
+## Phase 6 Guarded Progressive Migration Batch 4
+
+### Verdict
+
+The guarded RBAC management artifact now covers `POST /api/roles/{id}/permissions/assign` as the next write-only batch.
+
+- backend keeps the generated layer narrow:
+  - generated contract now constrains the assign-permissions path/header/request-body shape
+  - RBAC plugin still owns explicit route registration, permission middleware, service invocation, and `httpx`
+    envelopes
+- frontend keeps module API ownership:
+  - `web/src/modules/rbac/api/rbac.ts` still calls `request.ts`
+  - `assignRolePermissions()` now binds to the generated OpenAPI request-body type for the same operation
+- backend freshness gating remains unified under `backend-rbac-management`; no second generated RBAC artifact was
+  introduced
+
+### Validation Expectation For This Batch
+
+- `git diff --check`
+- `python3 scripts/openapi_generated_freshness_check.py --target backend-monitor --mode check`
+- `python3 scripts/openapi_generated_freshness_check.py --target backend-rbac-management --mode check`
+- `cd web && bun run openapi:types:check`
+- `cd web && bun run test:run src/modules/rbac/api/rbac.test.ts`
+- `cd server && go test ./internal/contract/openapi/rbac ./plugins/rbac`

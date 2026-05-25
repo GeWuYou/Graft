@@ -55,6 +55,14 @@ func readRolePermissionIDs(ginCtx *gin.Context) ([]uint64, error) {
 	return optionalStableIDs(request.PermissionIds), nil
 }
 
+func readGeneratedRolePermissionAssignRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionAssignJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.PostRolePermissionAssignJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return rbacopenapi.PostRolePermissionAssignJSONRequestBody{}, nil, err
+	}
+	return request, optionalStableIDs(request.PermissionIds), nil
+}
+
 func readGeneratedUserRoleAssignRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesAssignJSONRequestBody, []uint64, error) {
 	var request rbacopenapi.PostUserRolesAssignJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
