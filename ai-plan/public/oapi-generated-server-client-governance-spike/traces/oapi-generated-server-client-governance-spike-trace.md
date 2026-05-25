@@ -351,3 +351,35 @@ validation:
 - Commit status:
   - committed: `38a287f`
   - title: `feat(auth): migrate password flows to generated contracts`
+
+## 2026-05-25 auth boundary completeness audit
+
+- Audited the completed auth generated-contract surface without broadening scope:
+  - `POST /api/auth/login`
+  - `GET /api/auth/bootstrap`
+  - `POST /api/auth/refresh`
+  - `POST /api/auth/logout`
+  - `GET /api/auth/sessions`
+  - `POST /api/auth/sessions/revoke-all`
+  - `POST /api/auth/sessions/revoke-others`
+  - `POST /api/auth/sessions/{sessionID}/revoke`
+  - `POST /api/auth/change-password`
+  - `POST /api/auth/complete-required-password-change`
+- Confirmed the backend boundary remains complete:
+  - OpenAPI path coverage exists for all audited auth endpoints
+  - `server/internal/contract/openapi/auth/**` still exposes generated request/response/operation types for the full
+    audited auth slice
+  - `server/plugins/auth/route_handlers.go` still keeps explicit JSON binding, header/query binding, mapper
+    boundaries, service-command invocation, and `httpx` envelope ownership
+  - generated DTO types still stop at the route-entry boundary and do not leak into the service layer
+- Confirmed the frontend boundary remains complete:
+  - `web/src/modules/auth/api/auth.ts` still binds audited operations to generated OpenAPI typing while routing every
+    call through `request.ts`
+  - the auth module store/tests continue to consume only module API/helpers instead of generated runtime code
+- Fixed the one confirmed hardcoding drift risk:
+  - `web/src/modules/auth/contract/paths.ts` now owns the canonical
+    `/api/auth/sessions/{sessionID}/revoke` template
+  - `web/src/modules/auth/api/auth.ts` now builds the runtime path from that module contract constant instead of a
+    second handwritten full path literal
+- Updated the topic README so recovery state no longer claims the topic is still monitor-only after the completed auth
+  rollout slices.

@@ -2,12 +2,13 @@
 
 ## Summary
 
-This topic owns the `monitor/server-status` pilot for generated server/client governance constraints.
+This topic started with the `monitor/server-status` pilot and now records the guarded generated-contract rollout slices
+that followed.
 
 - Topic: `oapi-generated-server-client-governance-spike`
 - Task class: `cross-boundary`
 - Branch: `feat/oapi-generated-server-client-governance-spike`
-- Current recommendation: `phase5_freshness_gate_complete_monitor_pilot_ready_for_guarded_followup`
+- Current recommendation: `auth_generated_boundary_audit_complete`
 
 ## Current Recovery State
 
@@ -37,17 +38,30 @@ This topic owns the `monitor/server-status` pilot for generated server/client go
   - generated/backend/frontend boundaries stay explicit:
     - `server/plugins/auth/**` still owns route registration, validation, service commands, and `httpx` envelopes
     - `web/src/modules/auth/api/auth.ts` still owns module adapters over `request.ts`
-  - no remaining auth password-flow migration is pending in this topic
+  - no remaining auth migration is pending in this topic
+  - remaining audit-only concern:
+    - keep `web/src/modules/auth/contract/paths.ts` aligned with the single-session revoke template so the module does
+      not keep a second handwritten full path
 
 ## Scope
 
 - Writable scope:
   - `ai-plan/public/oapi-generated-server-client-governance-spike/**`
-  - `server/internal/contract/openapi/monitor/**`
-  - `server/plugins/monitor/**`
-  - `web/src/modules/monitor/**`
-- Read-only context:
   - `openapi/**`
+  - `scripts/openapi_generated_freshness_check.py`
+  - `server/internal/contract/openapi/monitor/**`
+  - `server/internal/contract/openapi/rbac/**`
+  - `server/internal/contract/openapi/user/**`
+  - `server/internal/contract/openapi/auth/**`
+  - `server/plugins/monitor/**`
+  - `server/plugins/rbac/**`
+  - `server/plugins/user/**`
+  - `server/plugins/auth/**`
+  - `web/src/modules/monitor/**`
+  - `web/src/modules/rbac/**`
+  - `web/src/modules/user/**`
+  - `web/src/modules/auth/**`
+- Read-only context:
   - `server/internal/httpx/**`
   - `web/src/utils/request.ts`
 
@@ -56,7 +70,8 @@ This topic owns the `monitor/server-status` pilot for generated server/client go
 - Keep `monitor/server-status` as the only operation in the pilot.
 - Keep `httpx` as the backend envelope and localized error owner.
 - Keep `request.ts` as the frontend transport/runtime owner.
-- Do not broaden the pilot to `auth`, `user`, or `rbac`.
+- Keep generated route/path typing module-owned; do not leave a second handwritten full-path truth when a module
+  contract constant can carry the template.
 - Do not introduce a second global router or transport truth.
 
 ## Current Implementation Shape
