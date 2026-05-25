@@ -302,6 +302,10 @@ validation:
     test runner instead; it fails on existing repo-level test infrastructure assumptions such as `import.meta.glob`
     and `vi.hoisted`
 - Completion validation results:
-  - pending at this trace point until the current worktree closeout decides whether commit conditions are fully met
+  - passed: `cd server && go run ./cmd/graft validate backend`
+  - passed: `cd web && bun run check`
+  - passed: `git diff --check`
+  - passed: `git status --short` after commit returned clean
 - Commit status:
-  - not committed yet at this trace point
+  - committed: `a28ea34`
+  - title: `feat(auth): migrate session endpoints to generated contracts`
