@@ -802,9 +802,7 @@ describe('UserPage', () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
     userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
     roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
-    roleApiMocks.getUserRoleBindings
-      .mockResolvedValueOnce({ role_ids: [2] })
-      .mockRejectedValueOnce(new Error('selection load failed'));
+    roleApiMocks.getUserRoleBindings.mockRejectedValueOnce(new Error('selection load failed'));
 
     const wrapper = mountUserPage();
     await flushPromises();

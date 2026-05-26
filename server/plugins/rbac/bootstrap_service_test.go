@@ -80,6 +80,10 @@ func (r *bootstrapServiceTestRepository) ListRolesByUserID(context.Context, uint
 	return nil, nil
 }
 
+func (r *bootstrapServiceTestRepository) ListRolesByUserIDs(context.Context, []uint64) (map[uint64][]rbacstore.Role, error) {
+	return map[uint64][]rbacstore.Role{}, nil
+}
+
 func (r *bootstrapServiceTestRepository) ListRoles(context.Context) ([]rbacstore.Role, error) {
 	return nil, nil
 }

@@ -338,6 +338,61 @@ func (r *repository) ListRolesByUserID(ctx context.Context, userID uint64) ([]rb
 	)
 }
 
+func (r *repository) ListRolesByUserIDs(ctx context.Context, userIDs []uint64) (map[uint64][]rbacstore.Role, error) {
+	if len(userIDs) == 0 {
+		return map[uint64][]rbacstore.Role{}, nil
+	}
+
+	dbIDs := make([]int64, 0, len(userIDs))
+	for _, userID := range userIDs {
+		id, err := toDBID(userID)
+		if err != nil {
+			return nil, err
+		}
+		dbIDs = append(dbIDs, id)
+	}
+
+	query, args := buildDollarInQuery(
+		`SELECT ur.user_id, r.id, r.name, r.display, r.description, r.builtin, r.created_at, r.updated_at,
+			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
+			(SELECT COUNT(*) FROM user_roles ur2 WHERE ur2.role_id = r.id) AS user_count
+		FROM user_roles ur
+		INNER JOIN roles r ON r.id = ur.role_id
+		WHERE ur.user_id IN (?) AND r.deleted_at = 0
+		ORDER BY ur.user_id ASC, r.id ASC`,
+		dbIDs,
+	)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list roles by user ids: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	rolesByUserID := make(map[uint64][]rbacstore.Role, len(userIDs))
+	for _, userID := range userIDs {
+		rolesByUserID[userID] = []rbacstore.Role{}
+	}
+
+	for rows.Next() {
+		var userID int64
+		role, scanErr := scanRoleWithUserID(rows, &userID)
+		if scanErr != nil {
+			return nil, fmt.Errorf("list roles by user ids: scan row: %w", scanErr)
+		}
+
+		targetUserID := toStoreID(userID)
+		rolesByUserID[targetUserID] = append(rolesByUserID[targetUserID], role)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list roles by user ids: iterate rows: %w", err)
+	}
+
+	return rolesByUserID, nil
+}
+
 func (r *repository) ListRoles(ctx context.Context) ([]rbacstore.Role, error) {
 	return queryAndScanRows(
 		ctx,
@@ -793,6 +848,42 @@ func scanRoleRows(rows *sql.Rows) ([]rbacstore.Role, error) {
 		return nil, err
 	}
 	return roles, nil
+}
+
+func scanRoleWithUserID(scanner interface {
+	Scan(dest ...any) error
+}, userID *int64) (rbacstore.Role, error) {
+	var record rbacstore.Role
+	var description sql.NullString
+
+	if err := scanner.Scan(
+		userID,
+		&record.ID,
+		&record.Name,
+		&record.Display,
+		&description,
+		&record.Builtin,
+		&record.CreatedAt,
+		&record.UpdatedAt,
+		&record.PermissionCount,
+		&record.UserCount,
+	); err != nil {
+		return rbacstore.Role{}, err
+	}
+
+	record.Description = nullStringPtr(description)
+	return record, nil
+}
+
+func buildDollarInQuery(base string, ids []int64) (string, []any) {
+	placeholders := make([]string, 0, len(ids))
+	args := make([]any, 0, len(ids))
+	for index, id := range ids {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", index+1))
+		args = append(args, id)
+	}
+
+	return strings.Replace(base, "(?)", "("+strings.Join(placeholders, ", ")+")", 1), args
 }
 
 type permissionScanner interface {

@@ -235,7 +235,7 @@ export interface paths {
     };
     /**
      * List users
-     * @description Returns the existing user list payload without changing business behavior.
+     * @description Returns the user list with minimal embedded role summaries so the frontend does not need per-row role reads.
      */
     get: operations['getUsers'];
     put?: never;
@@ -743,12 +743,20 @@ export interface components {
     'complete-required-password-change-request': {
       new_password: string;
     };
+    'user-role-summary': {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      display: string;
+    };
     'user-list-item': {
       /** Format: int64 */
       id: number;
       username: string;
       display: string;
       status: string;
+      /** @description Minimal role summaries embedded in the user list to avoid row-level role fetch fanout. */
+      roles: components['schemas']['user-role-summary'][];
       created_at: string;
       updated_at: string;
     };

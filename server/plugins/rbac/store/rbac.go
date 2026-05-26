@@ -119,6 +119,7 @@ type Repository interface {
 	ReplaceRolesForUser(ctx context.Context, input ReplaceRolesForUserInput) error
 	GetRoleByID(ctx context.Context, roleID uint64) (Role, error)
 	ListRolesByUserID(ctx context.Context, userID uint64) ([]Role, error)
+	ListRolesByUserIDs(ctx context.Context, userIDs []uint64) (map[uint64][]Role, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListPermissionsByUserID(ctx context.Context, userID uint64) ([]Permission, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)

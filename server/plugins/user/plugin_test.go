@@ -520,6 +520,18 @@ func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, userID ui
 	return r.roles[userID], nil
 }
 
+func (r pluginTestRBACRepository) ListRolesByUserIDs(_ context.Context, userIDs []uint64) (map[uint64][]rbacstore.Role, error) {
+	result := make(map[uint64][]rbacstore.Role, len(userIDs))
+	for _, userID := range userIDs {
+		if r.roles == nil {
+			result[userID] = []rbacstore.Role{}
+			continue
+		}
+		result[userID] = r.roles[userID]
+	}
+	return result, nil
+}
+
 func (r pluginTestRBACRepository) ListRoles(_ context.Context) ([]rbacstore.Role, error) {
 	return []rbacstore.Role{}, nil
 }

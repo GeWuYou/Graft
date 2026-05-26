@@ -123,6 +123,14 @@ func (r testRBACRepository) ListRolesByUserID(_ context.Context, _ uint64) ([]st
 	return r.rolesByUserID, nil
 }
 
+func (r testRBACRepository) ListRolesByUserIDs(_ context.Context, userIDs []uint64) (map[uint64][]store.Role, error) {
+	result := make(map[uint64][]store.Role, len(userIDs))
+	for _, userID := range userIDs {
+		result[userID] = r.rolesByUserID
+	}
+	return result, nil
+}
+
 func (r testRBACRepository) ListRoles(ctx context.Context) ([]store.Role, error) {
 	if r.listRolesFn != nil {
 		return r.listRolesFn(ctx)

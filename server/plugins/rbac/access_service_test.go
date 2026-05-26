@@ -52,6 +52,12 @@ func (r accessServiceTestRepository) ListRolesByUserID(context.Context, uint64) 
 	return r.roles, nil
 }
 
+func (r accessServiceTestRepository) ListRolesByUserIDs(context.Context, []uint64) (map[uint64][]rbacstore.Role, error) {
+	return map[uint64][]rbacstore.Role{
+		7: r.roles,
+	}, nil
+}
+
 func (r accessServiceTestRepository) ListRoles(context.Context) ([]rbacstore.Role, error) {
 	return nil, nil
 }

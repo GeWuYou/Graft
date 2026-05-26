@@ -4,6 +4,7 @@ import type { UserStatus } from '../contract/status';
 
 export type RawUserListItem = components['schemas']['UserListItem'];
 export type RawUserListResponse = components['schemas']['UserListResponse'];
+export type UserRoleSummary = components['schemas']['user-role-summary'];
 
 export type UserListItem = Omit<RawUserListItem, 'status'> & {
   status: UserStatus;

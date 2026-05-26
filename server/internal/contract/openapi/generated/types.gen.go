@@ -679,9 +679,12 @@ type UserListItem struct {
 	CreatedAt string `json:"created_at"`
 	Display   string `json:"display"`
 	Id        int64  `json:"id"`
-	Status    string `json:"status"`
-	UpdatedAt string `json:"updated_at"`
-	Username  string `json:"username"`
+
+	// Roles Minimal role summaries embedded in the user list to avoid row-level role fetch fanout.
+	Roles     []UserRoleSummary `json:"roles"`
+	Status    string            `json:"status"`
+	UpdatedAt string            `json:"updated_at"`
+	Username  string            `json:"username"`
 }
 
 // UserListResponse defines model for user-list-response.
@@ -692,6 +695,13 @@ type UserListResponse struct {
 // UserRoleBindingResponse defines model for user-role-binding-response.
 type UserRoleBindingResponse struct {
 	RoleIds []int64 `json:"role_ids"`
+}
+
+// UserRoleSummary defines model for user-role-summary.
+type UserRoleSummary struct {
+	Display string `json:"display"`
+	Id      int64  `json:"id"`
+	Name    string `json:"name"`
 }
 
 // LocaleHeader defines model for locale-header.

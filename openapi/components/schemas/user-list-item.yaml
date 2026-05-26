@@ -1,5 +1,5 @@
 type: object
-required: [id, username, display, status, created_at, updated_at]
+required: [id, username, display, status, roles, created_at, updated_at]
 properties:
   id:
     type: integer
@@ -11,6 +11,11 @@ properties:
     type: string
   status:
     type: string
+  roles:
+    type: array
+    description: Minimal role summaries embedded in the user list to avoid row-level role fetch fanout.
+    items:
+      $ref: ./user-role-summary.yaml
   created_at:
     type: string
   updated_at:

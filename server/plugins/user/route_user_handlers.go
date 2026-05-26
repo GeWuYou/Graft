@@ -28,7 +28,22 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListResponse(users)
+		userIDs := make([]uint64, 0, len(users))
+		for _, user := range users {
+			userIDs = append(userIDs, user.ID)
+		}
+
+		roleSummariesByUserID, err := r.userSvc.ListUserRoleSummaries(ginCtx.Request.Context(), userIDs)
+		if err != nil {
+			r.runtime().logger.Error("list user role summaries failed",
+				zap.String("plugin", r.pluginName),
+				zap.Error(err),
+			)
+			writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
+			return
+		}
+
+		payload, mapErr := toUserListResponse(users, roleSummariesByUserID)
 		if mapErr != nil {
 			r.runtime().writeResponseMappingError(ginCtx, "map user list response failed", mapErr)
 			return
@@ -49,7 +64,7 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListItem(record)
+		payload, mapErr := toUserListItem(record, nil)
 		if mapErr != nil {
 			r.runtime().writeResponseMappingError(ginCtx, "map user detail response failed", mapErr, zap.Uint64("userID", rawID))
 			return
@@ -100,7 +115,7 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListItem(created)
+		payload, mapErr := toUserListItem(created, nil)
 		if mapErr != nil {
 			r.runtime().writeResponseMappingError(ginCtx, "map created user response failed", mapErr, zap.Uint64("userID", created.ID))
 			return
@@ -144,7 +159,7 @@ func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListItem(updated)
+		payload, mapErr := toUserListItem(updated, nil)
 		if mapErr != nil {
 			r.runtime().writeResponseMappingError(ginCtx, "map updated user response failed", mapErr, zap.Uint64("userID", updated.ID))
 			return
@@ -301,7 +316,7 @@ func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListItem(updated)
+		payload, mapErr := toUserListItem(updated, nil)
 		if mapErr != nil {
 			r.runtime().writeResponseMappingError(ginCtx, "map user status response failed", mapErr, zap.Uint64("userID", updated.ID))
 			return

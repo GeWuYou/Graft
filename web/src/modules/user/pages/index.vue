@@ -119,15 +119,9 @@
 
           <template #roles="{ row }">
             <div class="role-tag-list">
-              <template v-if="roleSummaryLoading[row.id]">
-                <t-tag theme="default" variant="light">{{ t('user.userList.roleSummary.loading') }}</t-tag>
-              </template>
-              <template v-else-if="roleSummaryErrors[row.id]">
-                <span class="table-muted">{{ t('user.userList.roleSummary.unavailable') }}</span>
-              </template>
-              <template v-else-if="resolveUserRoles(row.id).length > 0">
+              <template v-if="(row.roles ?? []).length > 0">
                 <t-tag
-                  v-for="role in resolveUserRoles(row.id).slice(0, 2)"
+                  v-for="role in (row.roles ?? []).slice(0, 2)"
                   :key="role.id"
                   theme="default"
                   variant="light-outline"
@@ -135,8 +129,8 @@
                 >
                   {{ role.display }}
                 </t-tag>
-                <t-tag v-if="resolveUserRoles(row.id).length > 2" theme="default" variant="light-outline" size="small">
-                  +{{ resolveUserRoles(row.id).length - 2 }}
+                <t-tag v-if="(row.roles ?? []).length > 2" theme="default" variant="light-outline" size="small">
+                  +{{ (row.roles ?? []).length - 2 }}
                 </t-tag>
               </template>
               <span v-else class="table-muted">{{ t('user.userList.roleSummary.empty') }}</span>
@@ -463,7 +457,13 @@ import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
 import { resolveResetPasswordFieldError, resolveUserFormFieldError } from '../error-adapter';
 import { evaluateUserPasswordPolicy } from '../shared/password-policy';
-import type { CreateUserPayload, ResetUserPasswordPayload, UpdateUserPayload, UserListItem } from '../types/user';
+import type {
+  CreateUserPayload,
+  ResetUserPasswordPayload,
+  UpdateUserPayload,
+  UserListItem,
+  UserRoleSummary,
+} from '../types/user';
 
 defineOptions({
   name: 'UsersIndex',
@@ -527,10 +527,6 @@ const roles = ref<RoleListItem[]>([]);
 const loading = ref(false);
 const listError = ref('');
 const roleCatalogLoading = ref(false);
-const roleSummaryRequestId = ref(0);
-const roleBindings = ref<Record<number, number[]>>({});
-const roleSummaryLoading = ref<Record<number, boolean>>({});
-const roleSummaryErrors = ref<Record<number, boolean>>({});
 const userDrawerVisible = ref(false);
 const userDrawerMode = ref<UserDrawerMode>('create');
 const userDrawerTarget = ref<UserRow | null>(null);
@@ -627,7 +623,7 @@ const filteredUsers = computed(() => {
     }
 
     if (filters.value.roleId !== undefined) {
-      const assignedRoleIds = roleBindings.value[user.id] ?? [];
+      const assignedRoleIds = user.roles.map((role) => role.id);
       if (!assignedRoleIds.includes(filters.value.roleId)) {
         return false;
       }
@@ -771,20 +767,12 @@ const visibleColumns = computed(() => {
 async function fetchUsers() {
   loading.value = true;
   listError.value = '';
-  roleSummaryErrors.value = {};
-  roleSummaryLoading.value = {};
 
   try {
     const response = await getUsers();
     users.value = response.items;
     selectedRowKeys.value = [];
     pagination.value.current = 1;
-
-    if (canReadUserRoles.value) {
-      void hydrateUserRoleSummaries(response.items);
-    } else {
-      roleBindings.value = {};
-    }
   } catch (error) {
     users.value = [];
     logger.error('failed to fetch users', error);
@@ -800,56 +788,10 @@ async function loadRoleCatalog() {
 
   try {
     const response = await getRoles();
-    roles.value = response.items;
+    roles.value = response?.items ?? [];
   } finally {
     roleCatalogLoading.value = false;
   }
-}
-
-async function hydrateUserRoleSummaries(userItems: UserRow[]) {
-  const requestId = roleSummaryRequestId.value + 1;
-  roleSummaryRequestId.value = requestId;
-
-  try {
-    await loadRoleCatalog();
-  } catch {
-    return;
-  }
-
-  const nextLoading = Object.fromEntries(userItems.map((user) => [user.id, true]));
-  roleSummaryLoading.value = nextLoading;
-  roleBindings.value = {};
-  roleSummaryErrors.value = {};
-
-  const results = await Promise.allSettled(userItems.map((user) => getUserRoleBindings(user.id)));
-  if (roleSummaryRequestId.value !== requestId) {
-    return;
-  }
-
-  const nextBindings: Record<number, number[]> = {};
-  const nextErrors: Record<number, boolean> = {};
-  const nextLoadingDone: Record<number, boolean> = {};
-
-  userItems.forEach((user, index) => {
-    const result = results[index];
-    nextLoadingDone[user.id] = false;
-
-    if (result?.status === 'fulfilled') {
-      nextBindings[user.id] = result.value.role_ids;
-      return;
-    }
-
-    nextErrors[user.id] = true;
-  });
-
-  roleBindings.value = nextBindings;
-  roleSummaryErrors.value = nextErrors;
-  roleSummaryLoading.value = nextLoadingDone;
-}
-
-function resolveUserRoles(userId: number) {
-  const assignedRoleIds = new Set(roleBindings.value[userId] ?? []);
-  return roles.value.filter((role) => assignedRoleIds.has(role.id));
 }
 
 function resetFilters() {
@@ -995,7 +937,7 @@ async function handleUserSubmit(ctx: SubmitContext) {
         password: userForm.value.password,
       };
       const created = await createUser(payload);
-      users.value = [created, ...users.value];
+      users.value = [{ ...created, roles: [] as UserRoleSummary[] }, ...users.value];
       MessagePlugin.success(t('user.userList.createSuccess'));
     } else if (userDrawerTarget.value) {
       const payload: UpdateUserPayload = {
@@ -1003,7 +945,9 @@ async function handleUserSubmit(ctx: SubmitContext) {
         display: userForm.value.display.trim(),
       };
       const updated = await updateUser(userDrawerTarget.value.id, payload);
-      users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+      users.value = users.value.map((item) =>
+        item.id === updated.id ? { ...item, ...updated, roles: item.roles } : item,
+      );
       MessagePlugin.success(t('user.userList.editSuccess'));
     }
     closeUserDrawer();
@@ -1133,7 +1077,6 @@ async function confirmDeleteUser(user: UserRow) {
     await deleteUser(user.id);
     users.value = users.value.filter((item) => item.id !== user.id);
     selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== user.id);
-    delete roleBindings.value[user.id];
     MessagePlugin.success(t('user.userList.deleteSuccess'));
   } catch (error) {
     logger.error('failed to delete user', error);
@@ -1180,14 +1123,16 @@ async function loadUserRoleSelection(user: UserRow, session: number) {
   roleSelectionReady.value = false;
   roleLoadWarning.value = '';
 
-  try {
-    await loadRoleCatalog();
-  } catch (error) {
-    if (isActiveDrawerSession(session)) {
-      logger.error('failed to load role catalog', error);
-      roleLoadWarning.value = t('user.userList.roleDialog.roleLoadFailed');
+  if (roles.value.length === 0) {
+    try {
+      await loadRoleCatalog();
+    } catch (error) {
+      if (isActiveDrawerSession(session)) {
+        logger.error('failed to load role catalog', error);
+        roleLoadWarning.value = t('user.userList.roleDialog.roleLoadFailed');
+      }
+      return;
     }
-    return;
   }
 
   if (!isActiveDrawerSession(session)) {
@@ -1249,10 +1194,10 @@ async function submitUserRoleAssignment() {
       return;
     }
 
-    roleBindings.value = {
-      ...roleBindings.value,
-      [selectedUser.value.id]: [...selectedRoleIds.value],
-    };
+    const assignedRoles = roles.value.filter((role) => selectedRoleIds.value.includes(role.id));
+    users.value = users.value.map((item) =>
+      item.id === selectedUser.value?.id ? { ...item, roles: assignedRoles } : item,
+    );
     MessagePlugin.success(t('user.userList.assignSuccess'));
     closeUserRoleDrawer();
   } catch (error) {
@@ -1269,6 +1214,7 @@ async function submitUserRoleAssignment() {
 
 onMounted(() => {
   fetchUsers();
+  void loadRoleCatalog();
 });
 
 watch(
