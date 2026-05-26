@@ -1194,8 +1194,8 @@ def build_fixed_finding_reply(commit_ref: str, path: str = "") -> str:
     """Build a concise standard reply for a finding fixed in a commit."""
     cleaned_commit_ref = collapse_whitespace(commit_ref)
     cleaned_path = collapse_whitespace(path)
-    location_suffix = f"（{cleaned_path}）" if cleaned_path else ""
-    return f"已修复，见提交 {cleaned_commit_ref}{location_suffix}。如仍有疑问，请继续指出或请人工复核。"
+    location_suffix = f"({cleaned_path})" if cleaned_path else ""
+    return f"已修复, 见提交 {cleaned_commit_ref}{location_suffix}. 如仍有疑问, 请继续指出或请人工复核。"
 
 
 def build_latest_commit_review_threads(comments: list[dict[str, Any]]) -> list[dict[str, Any]]:

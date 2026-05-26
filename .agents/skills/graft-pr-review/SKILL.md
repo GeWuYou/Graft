@@ -85,26 +85,30 @@ the skill may reuse that token automatically instead of requiring a second manua
     - name the touched file or location when useful
     - do not wait in the same run for the AI reviewer to auto-close the thread
     - in later `$graft-pr-review` runs, if the thread is still open and the latest follow-up is from the AI reviewer, classify it as `contested` and either reply once more with the newer fixing commit or request human review
-16. At task closeout, list every verified finding and its disposition:
+16. When a verified finding needs human judgment before deciding whether to fix or reject it, do not reply on the PR thread in the same `$graft-pr-review` run:
+    - report it as `blocked` or `needs-human-review`
+    - include the concrete local verification reason and the tradeoff
+    - leave the AI thread unreplied until the user explicitly decides whether to fix it or manually reply
+17. At task closeout, list every verified finding and its disposition:
     - `fixed`
     - `delegated`
     - `blocked`
     - `stale`
     - `noise`
-17. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
-18. Do not ignore any verified suggestion. If the repair grows large:
+18. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
+19. Do not ignore any verified suggestion. If the repair grows large:
    - prefer `$graft-multi-agent-batch` when the work splits into disjoint reviewable slices
    - prefer `$graft-multi-agent-loop` when the work needs to be repeated in bounded rounds
    - if neither is justified yet, report the finding as `blocked` or `next-slice required` with the reason
    - never collapse a still-valid large suggestion into a stale/noise label just to end the thread quickly
-19. If any finding is reported as `noise` or AI misjudgment, explicitly record:
+20. If any finding is reported as `noise` or AI misjudgment, explicitly record:
     - which finding it was
     - the concrete local verification reason
     - why it was not adopted
     - wording suitable for replying on the PR
-20. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
+21. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
     `contested` and carry both sides' reasoning into the final summary for human judgment.
-21. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
+22. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
 
 ## Commands
 
@@ -155,6 +159,7 @@ The script should produce:
 - Exhaustive coverage confirmation that no latest-review finding section was left unclassified
 - Thread reply state for replied AI findings: `unreplied`, `pending_ai_followup`, `resolved_after_reply`, or `contested`
 - Guidance and CLI support for replying to fixed-but-still-open AI threads with the fixing commit SHA
+- Explicit closeout guidance that findings needing human review must not be auto-replied on the PR thread
 - Explicit reasons for every `stale` or `noise` finding, instead of silently omitting it from the reported outcome
 
 ## Recovery Rules
@@ -179,6 +184,8 @@ The script should produce:
   non-adoption reason that the user can reuse in the PR reply.
 - When a finding was fixed but the AI thread did not auto-close, reply once with the fixing commit SHA and location, then
   leave the thread alone until a later `graft-pr-review` run shows either resolution or a fresh AI follow-up.
+- When a finding still needs human judgment on whether to fix or reject it, do not auto-reply; surface the reason to the
+  user and wait for an explicit decision before any PR-thread response.
 - If the agent has already replied to an AI finding and a later run still sees the thread open with a fresh AI counterargument, mark that thread `contested` and leave the final decision to a human reviewer instead of auto-closing it.
 
 ## Example Triggers
