@@ -144,12 +144,16 @@
       "roleDialog": {
         "title": "管理用户角色",
         "batchTitle": "管理已选用户角色",
-        "currentRolesTitle": "当前角色",
-        "availableRolesTitle": "可分配角色",
-        "operationLabel": "操作方式",
+        "headerEyebrow": "资源关系编辑器",
+        "saveStrategyLabel": "保存方式",
+        "searchPlaceholder": "搜索角色名称、角色编码、角色描述",
+        "assignedBadge": "已分配",
+        "batchBadge": "批量编辑",
         "batchSummary": "已选择 {count} 位用户",
-        "roleSummary": "共加载 {count} 个可分配角色",
-        "noAssignedRoles": "当前未分配角色",
+        "batchDescription": "当前正在统一维护所选用户与角色之间的绑定关系。",
+        "singleDescription": "系统管理员账号，拥有后台访问权限。",
+        "inlineHint": "当前已分配 {assigned} 个角色，可在下方候选列表里直接调整关系，共 {total} 个角色可选。",
+        "footerSummary": "当前已分配 {assigned} 个角色，本次选中 {selected} 个候选项，共 {total} 个角色可用。",
         "builtinYes": "内置",
         "builtinNo": "自定义",
         "emptyDescription": "暂无描述",
@@ -161,6 +165,16 @@
           "replaceEmpty": "当前未勾选任何角色，保存替换后会清空已选用户的全部角色。",
           "add": "追加只会为已选用户新增当前勾选角色，原有角色会保留。",
           "remove": "移除只会从已选用户身上撤下当前勾选角色，其它角色会保留。"
+        },
+        "summary": {
+          "selectedUsers": "已选用户",
+          "currentSelection": "本次选中",
+          "createdAt": "创建时间",
+          "updatedAt": "更新时间"
+        },
+        "stats": {
+          "availableRoles": "可分配角色",
+          "assignedRoles": "当前已分配"
         },
         "submitBlocked": "角色变更暂时不可用，请刷新最新角色数据后重试",
         "retry": "重试",

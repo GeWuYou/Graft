@@ -273,125 +273,94 @@
       </div>
     </t-drawer>
 
-    <t-drawer
+    <assignment-drawer
       v-model:visible="permissionDrawerVisible"
-      :header="t('rbac.roleList.permissionDialog.title')"
-      size="720px"
-      placement="right"
-      destroy-on-close
+      :title="t('rbac.roleList.permissionDialog.title')"
+      size="860px"
+      @close="closePermissionDrawer"
     >
-      <div class="drawer-panel" data-testid="permission-drawer">
-        <div class="drawer-summary">
-          <div class="role-identity">
-            <div class="role-identity__main">
-              <span class="role-identity__display">{{ selectedRole?.display || '-' }}</span>
-              <span class="role-identity__code">{{ selectedRole?.name || '-' }}</span>
-            </div>
-          </div>
-          <div class="drawer-summary__grid">
-            <div class="drawer-summary__item">
-              <span class="drawer-summary__label">{{ t('rbac.roleList.columns.type') }}</span>
-              <t-tag :theme="selectedRole?.builtin ? 'warning' : 'default'" variant="light">
-                {{ selectedRole?.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
-              </t-tag>
-            </div>
-            <div class="drawer-summary__item">
-              <span class="drawer-summary__label">{{ t('rbac.roleList.columns.updatedAt') }}</span>
-              <span>{{ formatTimestamp(selectedRole?.updated_at) }}</span>
-            </div>
-          </div>
-        </div>
+      <div class="assignment-panel" data-testid="permission-drawer">
+        <assignment-header
+          :avatar-text="roleAssignmentAvatar"
+          :badges="roleAssignmentBadges"
+          :description="roleAssignmentDescription"
+          :eyebrow="t('rbac.roleList.permissionDialog.headerEyebrow')"
+          :stats="roleAssignmentStats"
+          :subtitle="roleAssignmentSubtitle"
+          :title="roleAssignmentTitle"
+        />
 
-        <div class="permission-toolbar">
-          <t-input
-            v-model="permissionKeyword"
-            clearable
-            class="toolbar__search"
-            :placeholder="t('rbac.roleList.permissionDialog.searchPlaceholder')"
+        <div class="assignment-toolbar-stack">
+          <assignment-toolbar
+            v-model:mode-value="permissionMutationMode"
+            v-model:search-value="permissionKeyword"
+            :disabled="loadingRolePermissions || submittingPermissions || !canAssignPermissions"
+            :mode-label="t('rbac.roleList.permissionDialog.saveStrategyLabel')"
+            :mode-options="permissionMutationOptions"
+            :search-placeholder="t('rbac.roleList.permissionDialog.searchPlaceholder')"
           />
-          <label class="permission-toolbar__toggle">
-            <t-checkbox v-model="permissionOnlySelected">{{
-              t('rbac.roleList.permissionDialog.onlySelected')
-            }}</t-checkbox>
+          <label class="assignment-toolbar-toggle">
+            <t-checkbox v-model="permissionOnlySelected">
+              {{ t('rbac.roleList.permissionDialog.onlySelected') }}
+            </t-checkbox>
           </label>
         </div>
 
-        <div v-if="loadingRolePermissions || permissionLoadWarning" class="inline-warning">
-          <span>{{ permissionDialogStatusMessage }}</span>
-          <t-button
-            v-if="permissionLoadRetryable"
-            variant="text"
-            theme="primary"
-            :loading="loadingRolePermissions"
-            @click="retryPermissionDrawerLoad"
-          >
-            {{ t('rbac.roleList.permissionDialog.retry') }}
-          </t-button>
-        </div>
+        <assignment-summary
+          :hint="t('rbac.roleList.permissionDialog.operationHelp')"
+          :items="roleAssignmentSummaryItems"
+          :warning="permissionDialogStatusMessage"
+          :warning-action-label="permissionLoadRetryable ? t('rbac.roleList.permissionDialog.retry') : ''"
+          :warning-action-loading="loadingRolePermissions"
+          @warning-action="retryPermissionDrawerLoad"
+        />
 
-        <div v-if="filteredPermissionGroups.length > 0" class="permission-groups">
-          <section v-for="group in filteredPermissionGroups" :key="group.category" class="permission-group">
-            <permission-group-toolbar
-              v-model="permissionMutationMode"
-              data-testid="permission-mutation-mode"
-              :title="group.title"
-              :meta="t('rbac.roleList.permissionDialog.groupHint', { count: group.items.length })"
-              :strategy-label="t('rbac.roleList.permissionDialog.saveStrategyLabel')"
-              :options="permissionMutationOptions"
-              :disabled="loadingRolePermissions || submittingPermissions || !canAssignPermissions"
-              :quick-action-disabled="permissionGroupActionsDisabled"
-              :select-group-label="t('rbac.roleList.permissionDialog.selectGroup')"
-              :clear-group-label="t('rbac.roleList.permissionDialog.clearGroup')"
-              @select-group="selectGroupPermissions(group.items)"
-              @clear-group="clearGroupPermissions(group.items)"
+        <assignment-grid
+          :empty="filteredPermissionItems.length === 0"
+          :empty-description="t('rbac.roleList.permissionDialog.empty')"
+        >
+          <t-checkbox-group
+            v-model="selectedPermissionIds"
+            class="sr-only"
+            :disabled="loadingRolePermissions || !permissionSelectionReady || !canAssignPermissions"
+            data-testid="permission-checkbox-group"
+          />
+          <div class="assignment-card-grid">
+            <assignment-card
+              v-for="item in filteredPermissionItems"
+              :key="item.id"
+              :assigned="originalPermissionIds.includes(item.id)"
+              :assigned-label="t('rbac.roleList.permissionDialog.assignedBadge')"
+              :code="item.code"
+              :description="localizedPermissionDescription(item)"
+              :disabled="
+                loadingRolePermissions ||
+                !permissionSelectionReady ||
+                !canAssignPermissions ||
+                isPermissionCardDisabled(item)
+              "
+              :selected="selectedPermissionIds.includes(item.id)"
+              :tags="[
+                { label: t('rbac.roleList.permissionDialog.categoryBadge', { category: item.category || 'general' }) },
+              ]"
+              :title="localizedPermissionDisplay(item)"
+              @toggle="toggleRolePermissionSelection(item.id)"
             />
-
-            <t-checkbox-group
-              v-model="selectedPermissionIds"
-              :disabled="loadingRolePermissions || !permissionSelectionReady || !canAssignPermissions"
-              data-testid="permission-checkbox-group"
-            >
-              <div class="permission-list">
-                <label v-for="item in group.items" :key="item.id" class="permission-card">
-                  <t-checkbox :value="item.id" :disabled="isPermissionCardDisabled(item)">
-                    <div class="permission-card__body">
-                      <div class="permission-card__head">
-                        <span class="permission-card__name">{{ localizedPermissionDisplay(item) }}</span>
-                        <span class="permission-card__code">{{ item.code }}</span>
-                      </div>
-                      <span class="permission-card__description">
-                        {{ localizedPermissionDescription(item) }}
-                      </span>
-                    </div>
-                  </t-checkbox>
-                </label>
-              </div>
-            </t-checkbox-group>
-          </section>
-        </div>
-        <t-empty v-else :description="t('rbac.roleList.permissionDialog.empty')" />
-
-        <div class="drawer-actions drawer-actions--between">
-          <span class="table-muted">
-            {{ permissionSelectionSummary }}
-          </span>
-          <div class="table-actions">
-            <t-button variant="outline" data-testid="permission-drawer-cancel" @click="closePermissionDrawer">
-              {{ t('rbac.roleList.form.cancel') }}
-            </t-button>
-            <t-button
-              theme="primary"
-              data-testid="permission-drawer-save"
-              :disabled="!canSubmitPermissionAssignment"
-              :loading="submittingPermissions"
-              @click="submitPermissionAssignment"
-            >
-              {{ t('rbac.roleList.permissionDialog.confirm') }}
-            </t-button>
           </div>
-        </div>
+        </assignment-grid>
+
+        <assignment-footer
+          :cancel-label="t('rbac.roleList.form.cancel')"
+          :confirm-disabled="!canSubmitPermissionAssignment"
+          :confirm-label="t('rbac.roleList.permissionDialog.confirm')"
+          :confirm-loading="submittingPermissions"
+          confirm-test-id="permission-drawer-save"
+          :summary="permissionSelectionSummary"
+          @cancel="closePermissionDrawer"
+          @confirm="submitPermissionAssignment"
+        />
       </div>
-    </t-drawer>
+    </assignment-drawer>
 
     <t-drawer
       v-model:visible="columnDrawerVisible"
@@ -426,6 +395,15 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { localizedApiErrorMessage } from '@/modules/shared/localized-api-error';
 import {
+  AssignmentCard,
+  AssignmentDrawer,
+  AssignmentFooter,
+  AssignmentGrid,
+  AssignmentHeader,
+  AssignmentSummary,
+  AssignmentToolbar,
+} from '@/shared/components/assignment';
+import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
@@ -433,6 +411,7 @@ import {
   ManagementTablePagination,
   ManagementToolbar,
 } from '@/shared/components/management';
+import { useAssignmentSelection } from '@/shared/composables';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
@@ -450,7 +429,6 @@ import {
   updateRole,
   updateRoleStatus,
 } from '../api/rbac';
-import PermissionGroupToolbar from '../components/PermissionGroupToolbar.vue';
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import type { RoleListItem } from '../contract/role';
 import { resolveRoleFormFieldError, resolveRolePermissionFieldError } from '../error-adapter';
@@ -490,12 +468,6 @@ type RoleFormState = {
 type RoleFormInstance = {
   clearValidate: (fields?: Array<keyof RoleFormState>) => void;
   setValidateMessage: (message: FormValidateMessage<RoleFormState>) => void;
-};
-
-type PermissionGroup = {
-  category: string;
-  items: PermissionListItem[];
-  title: string;
 };
 
 type RolePermissionMutationMode = 'replace' | 'add' | 'remove';
@@ -551,7 +523,6 @@ const submittingRole = ref(false);
 const permissionDrawerVisible = ref(false);
 const selectedRole = ref<RoleListItem | null>(null);
 const originalPermissionIds = ref<number[]>([]);
-const selectedPermissionIds = ref<number[]>([]);
 const permissionDrawerSession = ref(0);
 const permissionSelectionReady = ref(false);
 const loadingRolePermissions = ref(false);
@@ -583,13 +554,6 @@ const canShowOperationColumn = computed(() =>
     permissionCodes.PERMISSION_READ,
     permissionCodes.ROLE_PERMISSION_MANAGE,
   ]),
-);
-const permissionGroupActionsDisabled = computed(
-  () =>
-    loadingRolePermissions.value ||
-    submittingPermissions.value ||
-    !permissionSelectionReady.value ||
-    !canAssignPermissions.value,
 );
 const canSubmitPermissionAssignment = computed(() => {
   if (!canAssignPermissions.value || !permissionSelectionReady.value || selectedRole.value === null) {
@@ -717,39 +681,68 @@ const roleDrawerTitle = computed(() => {
   }
 });
 
-const filteredPermissionGroups = computed<PermissionGroup[]>(() => {
+const filteredPermissionItems = computed(() => {
   const keyword = permissionKeyword.value.trim().toLowerCase();
   const selected = new Set(selectedPermissionIds.value);
-  const groups = new Map<string, PermissionListItem[]>();
 
-  permissions.value.forEach((item) => {
-    if (permissionOnlySelected.value && !selected.has(item.id)) {
-      return;
-    }
-
-    if (keyword) {
-      const haystack = `${item.code} ${localizedPermissionDisplay(item)} ${localizedPermissionDescription(item)} ${
-        item.category
-      }`.toLowerCase();
-      if (!haystack.includes(keyword)) {
-        return;
+  return permissions.value
+    .filter((item) => {
+      if (permissionOnlySelected.value && !selected.has(item.id)) {
+        return false;
       }
-    }
 
-    const category = item.category || 'general';
-    const collection = groups.get(category) ?? [];
-    collection.push(item);
-    groups.set(category, collection);
-  });
+      if (!keyword) {
+        return true;
+      }
 
-  return Array.from(groups.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([category, items]) => ({
-      category,
-      title: t('rbac.roleList.permissionDialog.category', { category }),
-      items: items.slice().sort((left, right) => left.code.localeCompare(right.code)),
-    }));
+      return `${item.code} ${localizedPermissionDisplay(item)} ${localizedPermissionDescription(item)} ${item.category}`
+        .toLowerCase()
+        .includes(keyword);
+    })
+    .slice()
+    .sort((left, right) => left.code.localeCompare(right.code));
 });
+const { selectedIds: selectedPermissionIdsInternal } = useAssignmentSelection({
+  active: permissionDrawerVisible,
+  mode: permissionMutationMode,
+  originalIds: originalPermissionIds,
+});
+const selectedPermissionIds = selectedPermissionIdsInternal;
+const roleAssignmentTitle = computed(() => selectedRole.value?.display || '-');
+const roleAssignmentSubtitle = computed(() => selectedRole.value?.name || '-');
+const roleAssignmentDescription = computed(
+  () =>
+    resolveRoleRemark(selectedRole.value ?? ({ remark: '' } as RoleRemarkCompat)) ||
+    t('rbac.roleList.permissionDialog.headerDescription'),
+);
+const roleAssignmentAvatar = computed(() => (selectedRole.value?.display || '?').trim().slice(0, 1).toUpperCase());
+const roleAssignmentBadges = computed(() => [
+  {
+    label: selectedRole.value?.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo'),
+    theme: selectedRole.value?.builtin ? ('warning' as const) : ('default' as const),
+  },
+]);
+const roleAssignmentStats = computed(() => [
+  {
+    label: t('rbac.roleList.permissionDialog.stats.permissionCount'),
+    value: Number(selectedRole.value?.permission_count ?? 0),
+  },
+  {
+    label: t('rbac.roleList.permissionDialog.stats.userCount'),
+    value: Number(selectedRole.value?.user_count ?? 0),
+  },
+]);
+const roleAssignmentSummaryItems = computed(() => [
+  {
+    label: t('rbac.roleList.columns.updatedAt'),
+    value: formatTimestamp(selectedRole.value?.updated_at),
+  },
+  {
+    label: t('rbac.roleList.permissionDialog.summary.assigned'),
+    value: currentAssignedPermissionCount.value,
+  },
+]);
+const currentAssignedPermissionCount = computed(() => originalPermissionIds.value.length);
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
@@ -1224,29 +1217,6 @@ async function retryPermissionDrawerLoad() {
   await loadRolePermissionSelection(selectedRole.value.id, permissionDrawerSession.value);
 }
 
-function selectGroupPermissions(items: PermissionListItem[]) {
-  if (permissionGroupActionsDisabled.value) {
-    return;
-  }
-
-  const next = new Set(selectedPermissionIds.value);
-  items.forEach((item) => {
-    if (!isPermissionCardDisabled(item)) {
-      next.add(item.id);
-    }
-  });
-  selectedPermissionIds.value = sortStableIDs(Array.from(next));
-}
-
-function clearGroupPermissions(items: PermissionListItem[]) {
-  if (permissionGroupActionsDisabled.value) {
-    return;
-  }
-
-  const blocked = new Set(items.map((item) => item.id));
-  selectedPermissionIds.value = selectedPermissionIds.value.filter((id) => !blocked.has(id));
-}
-
 function isPermissionCardDisabled(item: PermissionListItem) {
   const assigned = originalPermissionIds.value.includes(item.id);
 
@@ -1258,6 +1228,19 @@ function isPermissionCardDisabled(item: PermissionListItem) {
     default:
       return false;
   }
+}
+
+function toggleRolePermissionSelection(permissionId: number) {
+  if (loadingRolePermissions.value || !permissionSelectionReady.value || !canAssignPermissions.value) {
+    return;
+  }
+
+  if (selectedPermissionIds.value.includes(permissionId)) {
+    selectedPermissionIds.value = selectedPermissionIds.value.filter((id) => id !== permissionId);
+    return;
+  }
+
+  selectedPermissionIds.value = sortStableIDs([...selectedPermissionIds.value, permissionId]);
 }
 
 async function mutateRolePermissions(
@@ -1392,14 +1375,6 @@ watch(
     pagination.value.current = 1;
   },
 );
-
-watch(permissionMutationMode, (mode) => {
-  if (!permissionSelectionReady.value) {
-    return;
-  }
-
-  selectedPermissionIds.value = mode === 'replace' ? [...originalPermissionIds.value] : [];
-});
 
 watch(
   () => [route.query.action, canCreateRoles.value, roleDrawerVisible.value] as const,

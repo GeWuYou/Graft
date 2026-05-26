@@ -91,11 +91,15 @@
       },
       "permissionDialog": {
         "title": "管理角色权限",
+        "headerEyebrow": "资源关系编辑器",
+        "headerDescription": "系统内置管理员角色，拥有全部后台管理权限。",
         "saveStrategyLabel": "保存方式",
         "operationHelp": "覆盖当前权限会用当前勾选结果替换角色现有权限；仅追加选中权限只新增本次勾选的权限；移除选中权限只移除当前勾选的已分配权限。",
         "loadingSelection": "正在加载当前角色的权限快照",
         "searchPlaceholder": "搜索权限 code、名称、描述",
         "onlySelected": "只看已选",
+        "assignedBadge": "已拥有",
+        "categoryBadge": "{category}",
         "retry": "重试",
         "groupHint": "本分组共 {count} 项权限",
         "category": "{category}",
@@ -106,6 +110,13 @@
         "selectionCount": "已选择 {selected} / {total} 项权限",
         "addSelectionCount": "本次将追加 {count} 项权限",
         "removeSelectionCount": "本次将移除 {count} 项权限",
+        "summary": {
+          "assigned": "当前已拥有"
+        },
+        "stats": {
+          "permissionCount": "权限项",
+          "userCount": "关联用户"
+        },
         "emptyDescription": "暂无描述",
         "empty": "暂无匹配的权限项",
         "confirm": "提交权限变更"

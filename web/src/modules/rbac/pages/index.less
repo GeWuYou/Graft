@@ -4,11 +4,6 @@
   --graft-page-max-width: 1680px;
   --graft-page-width-ratio: 90vw;
   --graft-page-min-padding: 24px;
-  --rbac-permission-toolbar-gap: var(--td-comp-margin-s);
-  --rbac-permission-toolbar-inset-block: var(--td-comp-paddingTB-xs);
-  --rbac-permission-toolbar-inset-inline: var(--td-comp-paddingLR-s);
-  --rbac-permission-mode-min-width: 168px;
-  --rbac-permission-group-padding: var(--td-comp-paddingTB-l);
 
   box-sizing: border-box;
   .management-list-toolbar();
@@ -19,9 +14,7 @@
 }
 
 .table-head,
-.table-actions,
-.drawer-actions,
-.drawer-summary__item {
+.table-actions {
   align-items: center;
   display: flex;
   gap: 12px;
@@ -31,28 +24,18 @@
 .table-head__summary,
 .table-head__description,
 .role-identity__code,
-.permission-card__description,
-.permission-group__meta,
-.drawer-summary__label,
 .table-muted {
   color: var(--td-text-color-secondary);
 }
 
 .table-head__summary,
-.table-head__description,
-.permission-group__meta {
+.table-head__description {
   margin: 0;
 }
 
 .role-identity,
 .role-identity__main,
-.drawer-panel,
-.drawer-summary,
-.drawer-summary__grid,
-.permission-groups,
-.permission-group,
-.permission-list,
-.permission-card__body,
+.assignment-panel,
 .column-grid {
   display: flex;
   flex-direction: column;
@@ -62,26 +45,9 @@
   gap: 4px;
 }
 
-.role-identity__display,
-.permission-card__name {
+.role-identity__display {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
-}
-
-.permission-toolbar {
-  align-items: center;
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-large);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 4px;
-  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-l);
-}
-
-.permission-toolbar__toggle {
-  display: inline-flex;
 }
 
 .inline-warning {
@@ -95,47 +61,25 @@
   padding: 12px 14px;
 }
 
-.drawer-panel,
-.drawer-summary,
-.permission-groups,
-.permission-group,
-.column-grid {
+.assignment-panel,
+.column-grid,
+.assignment-toolbar-stack {
   gap: 16px;
 }
 
-.drawer-summary {
-  border-bottom: 1px solid var(--td-component-stroke);
-  padding-bottom: 16px;
-}
-
-.permission-group {
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  padding: var(--rbac-permission-group-padding);
-}
-
-.permission-list {
+.assignment-card-grid {
+  display: grid;
   gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
-.permission-card {
-  border: 1px solid color-mix(in srgb, var(--td-brand-color) 10%, var(--td-component-stroke));
-  border-radius: var(--td-radius-medium);
-  padding: 12px;
-}
-
-.permission-card__body {
-  gap: 4px;
-}
-
-.permission-card__head {
+.assignment-toolbar-stack {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
-.drawer-actions {
-  justify-content: flex-end;
+.assignment-toolbar-toggle {
+  display: inline-flex;
 }
 
 .table-actions {
@@ -151,10 +95,6 @@
 
 .table-actions :deep(.t-dropdown) {
   flex: 0 0 auto;
-}
-
-.drawer-actions--between {
-  justify-content: space-between;
 }
 
 .role-count,
@@ -179,16 +119,16 @@
 @media (width <= 768px) {
   .table-head,
   .table-actions,
-  .drawer-actions,
-  .drawer-actions--between,
-  .inline-warning,
-  .drawer-summary__item,
-  .permission-toolbar {
+  .inline-warning {
     align-items: stretch;
     flex-direction: column;
   }
 
   .table-actions {
     flex-wrap: wrap;
+  }
+
+  .assignment-card-grid {
+    grid-template-columns: 1fr;
   }
 }

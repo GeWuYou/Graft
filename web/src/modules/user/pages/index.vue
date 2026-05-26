@@ -300,155 +300,90 @@
       </div>
     </t-dialog>
 
-    <t-drawer
+    <assignment-drawer
       v-model:visible="userRoleDrawerVisible"
-      :header="
+      :title="
         roleDialogMode === 'batch' ? t('user.userList.roleDialog.batchTitle') : t('user.userList.roleDialog.title')
       "
-      size="520px"
-      placement="right"
-      destroy-on-close
+      size="760px"
+      @close="closeUserRoleDrawer"
     >
-      <div class="drawer-panel" data-testid="user-role-drawer">
-        <div class="drawer-summary">
-          <div class="user-cell user-cell--drawer">
-            <div class="user-cell__avatar">
-              {{
-                roleDialogMode === 'batch'
-                  ? selectedBatchUserIds.length
-                  : userInitial(selectedUser?.display || selectedUser?.username)
-              }}
-            </div>
-            <div class="user-cell__meta">
-              <span class="user-cell__display">
-                {{
-                  roleDialogMode === 'batch'
-                    ? t('user.userList.roleDialog.batchSummary', { count: selectedBatchUserIds.length })
-                    : selectedUser?.display || '-'
-                }}
-              </span>
-              <span class="user-cell__username">
-                {{
-                  roleDialogMode === 'batch'
-                    ? selectedBatchUsers.map((item) => item.username).join(', ')
-                    : `@${selectedUser?.username || '-'}`
-                }}
-              </span>
-            </div>
-          </div>
-          <div class="drawer-summary__grid">
-            <div class="drawer-summary__item">
-              <span class="drawer-summary__label">{{ t('user.userList.roleDialog.operationLabel') }}</span>
-              <t-select
-                v-model="roleMutationMode"
-                :options="roleMutationOptions"
-                :disabled="submittingRoles || loadingRoleDialogData || !canAssignUserRoles"
-              />
-            </div>
-            <div class="drawer-summary__item">
-              <span class="drawer-summary__label">
-                {{
-                  roleDialogMode === 'batch'
-                    ? t('user.userList.batch.selected', { count: selectedBatchUserIds.length })
-                    : t('user.userList.columns.createdAt')
-                }}
-              </span>
-              <span>{{
-                roleDialogMode === 'batch' ? selectedBatchUsers.length : formatTimestamp(selectedUser?.created_at)
-              }}</span>
-            </div>
-            <div class="drawer-summary__item">
-              <span class="drawer-summary__label">
-                {{
-                  roleDialogMode === 'batch' ? t('user.userList.columns.roles') : t('user.userList.columns.updatedAt')
-                }}
-              </span>
-              <span>{{
-                roleDialogMode === 'batch' ? selectedRoleIds.length : formatTimestamp(selectedUser?.updated_at)
-              }}</span>
-            </div>
-          </div>
-          <p v-if="roleDialogMode === 'batch'" class="table-head__description" data-testid="batch-role-operation-hint">
-            {{ batchRoleOperationHint }}
-          </p>
-        </div>
+      <div class="assignment-panel" data-testid="user-role-drawer">
+        <assignment-header
+          :avatar-text="userAssignmentAvatar"
+          :badges="userAssignmentBadges"
+          :description="userAssignmentDescription"
+          :eyebrow="t('user.userList.roleDialog.headerEyebrow')"
+          :stats="userAssignmentStats"
+          :subtitle="userAssignmentSubtitle"
+          :title="userAssignmentTitle"
+        />
 
-        <section v-if="roleDialogMode === 'single'" class="drawer-section">
-          <div class="drawer-section__head">
-            <h3>{{ t('user.userList.roleDialog.currentRolesTitle') }}</h3>
-            <span class="table-muted">{{ t('user.userList.roleDialog.roleSummary', { count: roles.length }) }}</span>
-          </div>
-          <div class="role-tag-list">
-            <template v-if="currentUserRoles.length > 0">
-              <t-tag v-for="role in currentUserRoles" :key="role.id" theme="default" variant="light-outline">
-                {{ role.display }}
-              </t-tag>
-            </template>
-            <span v-else class="table-muted">{{ t('user.userList.roleDialog.noAssignedRoles') }}</span>
-          </div>
-        </section>
+        <assignment-toolbar
+          v-model:mode-value="roleMutationMode"
+          v-model:search-value="roleSearchKeyword"
+          :disabled="submittingRoles || loadingRoleDialogData || !canAssignUserRoles"
+          :mode-label="t('user.userList.roleDialog.saveStrategyLabel')"
+          :mode-options="roleMutationOptions"
+          :search-placeholder="t('user.userList.roleDialog.searchPlaceholder')"
+        />
 
-        <div v-if="roleLoadWarning" class="inline-warning">
-          <span>{{ roleLoadWarning }}</span>
-          <t-button variant="text" theme="primary" :loading="loadingRoleDialogData" @click="retryUserRoleDrawerLoad">
-            {{ t('user.userList.roleDialog.retry') }}
-          </t-button>
-        </div>
+        <assignment-summary
+          :hint="userAssignmentHint"
+          :hint-test-id="roleDialogMode === 'batch' ? 'batch-role-operation-hint' : ''"
+          :items="userAssignmentSummaryItems"
+          :warning="roleLoadWarning"
+          :warning-action-label="roleLoadWarning ? t('user.userList.roleDialog.retry') : ''"
+          :warning-action-loading="loadingRoleDialogData"
+          @warning-action="retryUserRoleDrawerLoad"
+        />
 
-        <section class="drawer-section">
-          <div class="drawer-section__head">
-            <h3>{{ t('user.userList.roleDialog.availableRolesTitle') }}</h3>
-          </div>
+        <assignment-grid
+          :empty="filteredAssignableRoles.length === 0 && !roleCatalogLoading"
+          :empty-description="t('user.userList.roleDialog.empty')"
+        >
           <t-checkbox-group
             v-model="selectedRoleIds"
+            class="sr-only"
             :disabled="loadingRoleDialogData || !roleSelectionReady || !canAssignUserRoles"
             data-testid="role-checkbox-group"
-          >
-            <div class="selection-grid">
-              <label v-for="role in roles" :key="role.id" class="selection-card">
-                <t-checkbox :value="role.id">
-                  <div class="selection-card__body">
-                    <div class="selection-card__head">
-                      <span class="selection-card__title">{{ role.display }}</span>
-                      <t-tag :theme="role.builtin ? 'warning' : 'default'" variant="light" size="small">
-                        {{
-                          role.builtin
-                            ? t('user.userList.roleDialog.builtinYes')
-                            : t('user.userList.roleDialog.builtinNo')
-                        }}
-                      </t-tag>
-                    </div>
-                    <span class="selection-card__code">{{ role.name }}</span>
-                    <span class="selection-card__description">
-                      {{ role.description || t('user.userList.roleDialog.emptyDescription') }}
-                    </span>
-                  </div>
-                </t-checkbox>
-              </label>
-            </div>
-          </t-checkbox-group>
-          <t-empty
-            v-if="roles.length === 0 && !roleCatalogLoading"
-            :description="t('user.userList.roleDialog.empty')"
           />
-        </section>
+          <div class="assignment-card-grid">
+            <assignment-card
+              v-for="role in filteredAssignableRoles"
+              :key="role.id"
+              :assigned="currentRoleIds.includes(role.id)"
+              :assigned-label="t('user.userList.roleDialog.assignedBadge')"
+              :code="role.name"
+              :description="role.description || t('user.userList.roleDialog.emptyDescription')"
+              :disabled="loadingRoleDialogData || !roleSelectionReady || !canAssignUserRoles"
+              :selected="selectedRoleIds.includes(role.id)"
+              :tags="[
+                {
+                  label: role.builtin
+                    ? t('user.userList.roleDialog.builtinYes')
+                    : t('user.userList.roleDialog.builtinNo'),
+                  theme: role.builtin ? 'warning' : 'default',
+                },
+              ]"
+              :title="role.display"
+              @toggle="toggleUserRoleSelection(role.id)"
+            />
+          </div>
+        </assignment-grid>
 
-        <div class="drawer-actions">
-          <t-button variant="outline" data-testid="user-role-cancel" @click="closeUserRoleDrawer">
-            {{ t('user.userList.roleDialog.cancel') }}
-          </t-button>
-          <t-button
-            theme="primary"
-            data-testid="user-role-save"
-            :disabled="!canSubmitRoleAssignment"
-            :loading="submittingRoles"
-            @click="submitUserRoleAssignment"
-          >
-            {{ t('user.userList.roleDialog.confirm') }}
-          </t-button>
-        </div>
+        <assignment-footer
+          :cancel-label="t('user.userList.roleDialog.cancel')"
+          :confirm-disabled="!canSubmitRoleAssignment"
+          :confirm-label="t('user.userList.roleDialog.confirm')"
+          :confirm-loading="submittingRoles"
+          confirm-test-id="user-role-save"
+          :summary="userAssignmentFooterSummary"
+          @cancel="closeUserRoleDrawer"
+          @confirm="submitUserRoleAssignment"
+        />
       </div>
-    </t-drawer>
+    </assignment-drawer>
 
     <t-drawer
       v-model:visible="columnDrawerVisible"
@@ -484,6 +419,15 @@ import { useRoute, useRouter } from 'vue-router';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import { localizedApiErrorMessage } from '@/modules/shared/localized-api-error';
 import {
+  AssignmentCard,
+  AssignmentDrawer,
+  AssignmentFooter,
+  AssignmentGrid,
+  AssignmentHeader,
+  AssignmentSummary,
+  AssignmentToolbar,
+} from '@/shared/components/assignment';
+import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
@@ -491,6 +435,7 @@ import {
   ManagementTablePagination,
   ManagementToolbar,
 } from '@/shared/components/management';
+import { useAssignmentSelection } from '@/shared/composables';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
@@ -596,10 +541,10 @@ const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 const columnDrawerVisible = ref(false);
 const userRoleDrawerVisible = ref(false);
 const selectedUser = ref<UserRow | null>(null);
-const selectedRoleIds = ref<number[]>([]);
 const currentRoleIds = ref<number[]>([]);
 const roleDialogMode = ref<'single' | 'batch'>('single');
 const roleMutationMode = ref<UserRoleMutation>('replace');
+const roleSearchKeyword = ref('');
 const loadingRoleSelection = ref(false);
 const submittingRoles = ref(false);
 const roleSelectionReady = ref(false);
@@ -729,10 +674,101 @@ const pagedUsers = computed(() => {
   return filteredUsers.value.slice(start, start + pagination.value.pageSize);
 });
 
-const currentUserRoles = computed(() => {
-  const roleIDs = currentRoleIds.value;
-  return roles.value.filter((role) => roleIDs.includes(role.id));
+const { selectedIds: selectedRoleIdsInternal, resetSelection: resetRoleSelection } = useAssignmentSelection({
+  active: userRoleDrawerVisible,
+  mode: roleMutationMode,
+  originalIds: currentRoleIds,
 });
+const selectedRoleIds = selectedRoleIdsInternal;
+const filteredAssignableRoles = computed(() => {
+  const keyword = roleSearchKeyword.value.trim().toLowerCase();
+
+  return roles.value.filter((role) => {
+    if (!keyword) {
+      return true;
+    }
+
+    return `${role.display} ${role.name} ${role.description ?? ''}`.toLowerCase().includes(keyword);
+  });
+});
+const userAssignmentTitle = computed(() =>
+  roleDialogMode.value === 'batch'
+    ? t('user.userList.roleDialog.batchSummary', { count: selectedBatchUserIds.value.length })
+    : selectedUser.value?.display || '-',
+);
+const userAssignmentSubtitle = computed(() =>
+  roleDialogMode.value === 'batch'
+    ? selectedBatchUsers.value.map((item) => `@${item.username}`).join(', ')
+    : `@${selectedUser.value?.username || '-'}`,
+);
+const userAssignmentDescription = computed(() =>
+  roleDialogMode.value === 'batch'
+    ? t('user.userList.roleDialog.batchDescription')
+    : t('user.userList.roleDialog.singleDescription'),
+);
+const userAssignmentAvatar = computed(() =>
+  roleDialogMode.value === 'batch'
+    ? String(selectedBatchUserIds.value.length)
+    : userInitial(selectedUser.value?.display || selectedUser.value?.username),
+);
+const userAssignmentBadges = computed(() =>
+  roleDialogMode.value === 'batch'
+    ? [{ label: t('user.userList.roleDialog.batchBadge'), theme: 'primary' as const }]
+    : [
+        {
+          label:
+            normalizeUserStatus(selectedUser.value?.status) === USER_STATUS.DISABLED
+              ? t('user.userList.status.disabled')
+              : t('user.userList.status.enabled'),
+          theme: statusTheme(selectedUser.value?.status) as 'danger' | 'success',
+        },
+      ],
+);
+const userAssignmentStats = computed(() => [
+  {
+    label: t('user.userList.roleDialog.stats.availableRoles'),
+    value: roles.value.length,
+  },
+  {
+    label: t('user.userList.roleDialog.stats.assignedRoles'),
+    value: currentRoleIds.value.length,
+  },
+]);
+const userAssignmentSummaryItems = computed(() => [
+  {
+    label:
+      roleDialogMode.value === 'batch'
+        ? t('user.userList.roleDialog.summary.selectedUsers')
+        : t('user.userList.roleDialog.summary.createdAt'),
+    value:
+      roleDialogMode.value === 'batch'
+        ? selectedBatchUsers.value.length
+        : formatTimestamp(selectedUser.value?.created_at),
+  },
+  {
+    label:
+      roleDialogMode.value === 'batch'
+        ? t('user.userList.roleDialog.summary.currentSelection')
+        : t('user.userList.roleDialog.summary.updatedAt'),
+    value:
+      roleDialogMode.value === 'batch' ? selectedRoleIds.value.length : formatTimestamp(selectedUser.value?.updated_at),
+  },
+]);
+const userAssignmentHint = computed(() =>
+  roleDialogMode.value === 'batch'
+    ? batchRoleOperationHint.value
+    : t('user.userList.roleDialog.inlineHint', {
+        assigned: currentRoleIds.value.length,
+        total: roles.value.length,
+      }),
+);
+const userAssignmentFooterSummary = computed(() =>
+  t('user.userList.roleDialog.footerSummary', {
+    assigned: currentRoleIds.value.length,
+    selected: selectedRoleIds.value.length,
+    total: roles.value.length,
+  }),
+);
 
 const userRowMoreOptions = (user: UserRow) => [
   {
@@ -1263,6 +1299,7 @@ async function handleOpenUserRoleDrawer(row: UserRow) {
 
   drawerSession.value = session;
   userRoleDrawerVisible.value = true;
+  roleSearchKeyword.value = '';
   await loadUserRoleSelection(row, session);
 }
 
@@ -1272,6 +1309,7 @@ async function openBatchUserRoleDrawer() {
   drawerSession.value = session;
   roleDialogMode.value = 'batch';
   userRoleDrawerVisible.value = true;
+  roleSearchKeyword.value = '';
   currentRoleIds.value = [];
   selectedUser.value = null;
   selectedRoleIds.value = [];
@@ -1295,6 +1333,16 @@ async function openBatchUserRoleDrawer() {
   }
 
   roleSelectionReady.value = true;
+}
+
+function toggleUserRoleSelection(roleId: number) {
+  if (loadingRoleDialogData.value || !roleSelectionReady.value || !canAssignUserRoles.value) {
+    return;
+  }
+
+  selectedRoleIds.value = selectedRoleIds.value.includes(roleId)
+    ? selectedRoleIds.value.filter((item) => item !== roleId)
+    : [...selectedRoleIds.value, roleId].sort((left, right) => left - right);
 }
 
 async function retryUserRoleDrawerLoad() {
@@ -1388,8 +1436,8 @@ function resolveRoleMutationErrorMessage(error: unknown, isBatch: boolean) {
 }
 
 watch(
-  () => [roleDialogMode.value, roleMutationMode.value, currentRoleIds.value.join(',')] as const,
-  ([dialogMode, mutationMode]) => {
+  () => roleDialogMode.value,
+  (dialogMode) => {
     if (!userRoleDrawerVisible.value) {
       return;
     }
@@ -1399,7 +1447,7 @@ watch(
       return;
     }
 
-    selectedRoleIds.value = mutationMode === 'replace' ? [...currentRoleIds.value] : [];
+    resetRoleSelection();
   },
 );
 
