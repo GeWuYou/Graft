@@ -42,6 +42,42 @@ func (e HealthResponseStatus) Valid() bool {
 	}
 }
 
+// Defines values for RoleDetailResponseStatus.
+const (
+	RoleDetailResponseStatusDisabled RoleDetailResponseStatus = "disabled"
+	RoleDetailResponseStatusEnabled  RoleDetailResponseStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the RoleDetailResponseStatus enum.
+func (e RoleDetailResponseStatus) Valid() bool {
+	switch e {
+	case RoleDetailResponseStatusDisabled:
+		return true
+	case RoleDetailResponseStatusEnabled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoleListItemStatus.
+const (
+	RoleListItemStatusDisabled RoleListItemStatus = "disabled"
+	RoleListItemStatusEnabled  RoleListItemStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the RoleListItemStatus enum.
+func (e RoleListItemStatus) Valid() bool {
+	switch e {
+	case RoleListItemStatusDisabled:
+		return true
+	case RoleListItemStatusEnabled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ServerStatusTrendRange.
 const (
 	ServerStatusTrendRangeN10m ServerStatusTrendRange = "10m"
@@ -63,18 +99,36 @@ func (e ServerStatusTrendRange) Valid() bool {
 	}
 }
 
+// Defines values for UpdateRoleStatusRequestStatus.
+const (
+	UpdateRoleStatusRequestStatusDisabled UpdateRoleStatusRequestStatus = "disabled"
+	UpdateRoleStatusRequestStatusEnabled  UpdateRoleStatusRequestStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the UpdateRoleStatusRequestStatus enum.
+func (e UpdateRoleStatusRequestStatus) Valid() bool {
+	switch e {
+	case UpdateRoleStatusRequestStatusDisabled:
+		return true
+	case UpdateRoleStatusRequestStatusEnabled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateUserStatusRequestStatus.
 const (
-	Disabled UpdateUserStatusRequestStatus = "disabled"
-	Enabled  UpdateUserStatusRequestStatus = "enabled"
+	UpdateUserStatusRequestStatusDisabled UpdateUserStatusRequestStatus = "disabled"
+	UpdateUserStatusRequestStatusEnabled  UpdateUserStatusRequestStatus = "enabled"
 )
 
 // Valid indicates whether the value is a known member of the UpdateUserStatusRequestStatus enum.
 func (e UpdateUserStatusRequestStatus) Valid() bool {
 	switch e {
-	case Disabled:
+	case UpdateUserStatusRequestStatusDisabled:
 		return true
-	case Enabled:
+	case UpdateUserStatusRequestStatusEnabled:
 		return true
 	default:
 		return false
@@ -123,6 +177,24 @@ func (e GetMonitorServerStatusParamsTrendRange) Valid() bool {
 	}
 }
 
+// Defines values for GetRolesParamsStatus.
+const (
+	Disabled GetRolesParamsStatus = "disabled"
+	Enabled  GetRolesParamsStatus = "enabled"
+)
+
+// Valid indicates whether the value is a known member of the GetRolesParamsStatus enum.
+func (e GetRolesParamsStatus) Valid() bool {
+	switch e {
+	case Disabled:
+		return true
+	case Enabled:
+		return true
+	default:
+		return false
+	}
+}
+
 // ApiEnvelope defines model for api-envelope.
 type ApiEnvelope struct {
 	// Code Existing canonical response code.
@@ -139,6 +211,12 @@ type ApiEnvelope struct {
 
 	// TraceId Mirrors the request id contract used by the current runtime.
 	TraceId string `json:"traceId"`
+}
+
+// BatchUserRolesRequest defines model for batch-user-roles-request.
+type BatchUserRolesRequest struct {
+	RoleIds []int64 `json:"role_ids"`
+	UserIds []int64 `json:"user_ids"`
 }
 
 // BootstrapLocale defines model for bootstrap-locale.
@@ -255,11 +333,47 @@ type EnvelopedLoginResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPermissionItemResponse defines model for enveloped-permission-item-response.
+type EnvelopedPermissionItemResponse struct {
+	// Code Existing canonical response code.
+	Code string                   `json:"code"`
+	Data PermissionDetailResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale  *string `json:"locale,omitempty"`
+	Message string  `json:"message"`
+
+	// MessageKey Present on localized error flows and omitted on normal success.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedPermissionListResponse defines model for enveloped-permission-list-response.
 type EnvelopedPermissionListResponse struct {
 	// Code Existing canonical response code.
 	Code string                 `json:"code"`
 	Data PermissionListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale  *string `json:"locale,omitempty"`
+	Message string  `json:"message"`
+
+	// MessageKey Present on localized error flows and omitted on normal success.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRoleDetailResponse defines model for enveloped-role-detail-response.
+type EnvelopedRoleDetailResponse struct {
+	// Code Existing canonical response code.
+	Code string             `json:"code"`
+	Data RoleDetailResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale  *string `json:"locale,omitempty"`
@@ -468,6 +582,9 @@ type LoginUser struct {
 	Username    string `json:"username"`
 }
 
+// PermissionDetailResponse defines model for permission-detail-response.
+type PermissionDetailResponse = PermissionListItem
+
 // PermissionListItem defines model for permission-list-item.
 type PermissionListItem struct {
 	Category         string  `json:"category"`
@@ -501,17 +618,38 @@ type ResetUserPasswordRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
+// RoleDetailResponse defines model for role-detail-response.
+type RoleDetailResponse struct {
+	Builtin         bool                     `json:"builtin"`
+	CreatedAt       string                   `json:"created_at"`
+	Description     *string                  `json:"description,omitempty"`
+	Display         string                   `json:"display"`
+	Id              int64                    `json:"id"`
+	Name            string                   `json:"name"`
+	PermissionCount int                      `json:"permission_count"`
+	Status          RoleDetailResponseStatus `json:"status"`
+	UpdatedAt       string                   `json:"updated_at"`
+	UserCount       int                      `json:"user_count"`
+}
+
+// RoleDetailResponseStatus defines model for RoleDetailResponse.Status.
+type RoleDetailResponseStatus string
+
 // RoleListItem defines model for role-list-item.
 type RoleListItem struct {
-	Builtin         bool    `json:"builtin"`
-	Description     *string `json:"description,omitempty"`
-	Display         string  `json:"display"`
-	Id              int64   `json:"id"`
-	Name            string  `json:"name"`
-	PermissionCount int     `json:"permission_count"`
-	UpdatedAt       string  `json:"updated_at"`
-	UserCount       int     `json:"user_count"`
+	Builtin         bool               `json:"builtin"`
+	Description     *string            `json:"description,omitempty"`
+	Display         string             `json:"display"`
+	Id              int64              `json:"id"`
+	Name            string             `json:"name"`
+	PermissionCount int                `json:"permission_count"`
+	Status          RoleListItemStatus `json:"status"`
+	UpdatedAt       string             `json:"updated_at"`
+	UserCount       int                `json:"user_count"`
 }
+
+// RoleListItemStatus defines model for RoleListItem.Status.
+type RoleListItemStatus string
 
 // RoleListResponse defines model for role-list-response.
 type RoleListResponse struct {
@@ -660,6 +798,14 @@ type UpdateRoleRequest struct {
 	Name string `json:"name"`
 }
 
+// UpdateRoleStatusRequest defines model for update-role-status-request.
+type UpdateRoleStatusRequest struct {
+	Status UpdateRoleStatusRequestStatus `json:"status"`
+}
+
+// UpdateRoleStatusRequestStatus defines model for UpdateRoleStatusRequest.Status.
+type UpdateRoleStatusRequestStatus string
+
 // UpdateUserRequest defines model for update-user-request.
 type UpdateUserRequest struct {
 	Display  string `json:"display"`
@@ -679,9 +825,12 @@ type UserListItem struct {
 	CreatedAt string `json:"created_at"`
 	Display   string `json:"display"`
 	Id        int64  `json:"id"`
-	Status    string `json:"status"`
-	UpdatedAt string `json:"updated_at"`
-	Username  string `json:"username"`
+
+	// Roles Minimal role summaries embedded in the user list to avoid row-level role fetch fanout.
+	Roles     []UserRoleSummary `json:"roles"`
+	Status    string            `json:"status"`
+	UpdatedAt string            `json:"updated_at"`
+	Username  string            `json:"username"`
 }
 
 // UserListResponse defines model for user-list-response.
@@ -692,6 +841,13 @@ type UserListResponse struct {
 // UserRoleBindingResponse defines model for user-role-binding-response.
 type UserRoleBindingResponse struct {
 	RoleIds []int64 `json:"role_ids"`
+}
+
+// UserRoleSummary defines model for user-role-summary.
+type UserRoleSummary struct {
+	Display string `json:"display"`
+	Id      int64  `json:"id"`
+	Name    string `json:"name"`
 }
 
 // LocaleHeader defines model for locale-header.
@@ -842,6 +998,19 @@ type GetMonitorServerStatusParamsTrendRange string
 
 // GetPermissionsParams defines parameters for GetPermissions.
 type GetPermissionsParams struct {
+	Keyword  *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Category *string `form:"category,omitempty" json:"category,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPermissionParams defines parameters for GetPermission.
+type GetPermissionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -852,6 +1021,10 @@ type GetPermissionsParams struct {
 
 // GetRolesParams defines parameters for GetRoles.
 type GetRolesParams struct {
+	Keyword *string               `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Builtin *bool                 `form:"builtin,omitempty" json:"builtin,omitempty"`
+	Status  *GetRolesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -860,8 +1033,31 @@ type GetRolesParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetRolesParamsStatus defines parameters for GetRoles.
+type GetRolesParamsStatus string
+
 // PostRolesParams defines parameters for PostRoles.
 type PostRolesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRoleParams defines parameters for GetRole.
+type GetRoleParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRoleDeleteParams defines parameters for PostRoleDelete.
+type PostRoleDeleteParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -880,8 +1076,38 @@ type GetRolePermissionsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostRolePermissionAssignParams defines parameters for PostRolePermissionAssign.
-type PostRolePermissionAssignParams struct {
+// PostRolePermissionsAddParams defines parameters for PostRolePermissionsAdd.
+type PostRolePermissionsAddParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRolePermissionsRemoveParams defines parameters for PostRolePermissionsRemove.
+type PostRolePermissionsRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRolePermissionsReplaceParams defines parameters for PostRolePermissionsReplace.
+type PostRolePermissionsReplaceParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRoleStatusParams defines parameters for PostRoleStatus.
+type PostRoleStatusParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -912,6 +1138,36 @@ type GetUsersParams struct {
 
 // PostUsersParams defines parameters for PostUsers.
 type PostUsersParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostUsersRolesAddParams defines parameters for PostUsersRolesAdd.
+type PostUsersRolesAddParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostUsersRolesRemoveParams defines parameters for PostUsersRolesRemove.
+type PostUsersRolesRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostUsersRolesReplaceParams defines parameters for PostUsersRolesReplace.
+type PostUsersRolesReplaceParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -960,8 +1216,28 @@ type GetUserRolesParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostUserRolesAssignParams defines parameters for PostUserRolesAssign.
-type PostUserRolesAssignParams struct {
+// PostUserRolesAddParams defines parameters for PostUserRolesAdd.
+type PostUserRolesAddParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostUserRolesRemoveParams defines parameters for PostUserRolesRemove.
+type PostUserRolesRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostUserRolesReplaceParams defines parameters for PostUserRolesReplace.
+type PostUserRolesReplaceParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -1035,8 +1311,17 @@ type PostAuthLoginJSONRequestBody = LoginRequest
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest
 
-// PostRolePermissionAssignJSONRequestBody defines body for PostRolePermissionAssign for application/json ContentType.
-type PostRolePermissionAssignJSONRequestBody = ReplaceRolePermissionsRequest
+// PostRolePermissionsAddJSONRequestBody defines body for PostRolePermissionsAdd for application/json ContentType.
+type PostRolePermissionsAddJSONRequestBody = ReplaceRolePermissionsRequest
+
+// PostRolePermissionsRemoveJSONRequestBody defines body for PostRolePermissionsRemove for application/json ContentType.
+type PostRolePermissionsRemoveJSONRequestBody = ReplaceRolePermissionsRequest
+
+// PostRolePermissionsReplaceJSONRequestBody defines body for PostRolePermissionsReplace for application/json ContentType.
+type PostRolePermissionsReplaceJSONRequestBody = ReplaceRolePermissionsRequest
+
+// PostRoleStatusJSONRequestBody defines body for PostRoleStatus for application/json ContentType.
+type PostRoleStatusJSONRequestBody = UpdateRoleStatusRequest
 
 // PostRoleUpdateJSONRequestBody defines body for PostRoleUpdate for application/json ContentType.
 type PostRoleUpdateJSONRequestBody = UpdateRoleRequest
@@ -1044,11 +1329,26 @@ type PostRoleUpdateJSONRequestBody = UpdateRoleRequest
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
 type PostUsersJSONRequestBody = CreateUserRequest
 
+// PostUsersRolesAddJSONRequestBody defines body for PostUsersRolesAdd for application/json ContentType.
+type PostUsersRolesAddJSONRequestBody = BatchUserRolesRequest
+
+// PostUsersRolesRemoveJSONRequestBody defines body for PostUsersRolesRemove for application/json ContentType.
+type PostUsersRolesRemoveJSONRequestBody = BatchUserRolesRequest
+
+// PostUsersRolesReplaceJSONRequestBody defines body for PostUsersRolesReplace for application/json ContentType.
+type PostUsersRolesReplaceJSONRequestBody = BatchUserRolesRequest
+
 // PostUserResetPasswordJSONRequestBody defines body for PostUserResetPassword for application/json ContentType.
 type PostUserResetPasswordJSONRequestBody = ResetUserPasswordRequest
 
-// PostUserRolesAssignJSONRequestBody defines body for PostUserRolesAssign for application/json ContentType.
-type PostUserRolesAssignJSONRequestBody = ReplaceUserRolesRequest
+// PostUserRolesAddJSONRequestBody defines body for PostUserRolesAdd for application/json ContentType.
+type PostUserRolesAddJSONRequestBody = ReplaceUserRolesRequest
+
+// PostUserRolesRemoveJSONRequestBody defines body for PostUserRolesRemove for application/json ContentType.
+type PostUserRolesRemoveJSONRequestBody = ReplaceUserRolesRequest
+
+// PostUserRolesReplaceJSONRequestBody defines body for PostUserRolesReplace for application/json ContentType.
+type PostUserRolesReplaceJSONRequestBody = ReplaceUserRolesRequest
 
 // PostUserStatusJSONRequestBody defines body for PostUserStatus for application/json ContentType.
 type PostUserStatusJSONRequestBody = UpdateUserStatusRequest

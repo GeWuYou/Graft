@@ -24,9 +24,19 @@
       "permissionUnavailable": "No permission catalog is available for this session.",
       "createSuccess": "Role created",
       "updateSuccess": "Role updated",
+      "statusEnabledSuccess": "Role enabled",
+      "statusDisabledSuccess": "Role disabled",
+      "statusUpdateFailed": "Failed to update role status",
+      "deleteSuccess": "Role deleted",
+      "deleteFailed": "Failed to delete role",
       "submitFailed": "Failed to submit role changes",
       "assignSuccess": "Role permissions updated",
       "assignFailed": "Failed to update role permissions",
+      "permissionActions": {
+        "replace": "Overwrite Current Permissions",
+        "add": "Append Selected Permissions Only",
+        "remove": "Remove Selected Permissions"
+      },
       "builtinYes": "Builtin",
       "builtinNo": "Custom",
       "builtinHint": "Builtin roles cannot be deleted and some fields stay read-only",
@@ -34,7 +44,17 @@
       "userCount": "{count} users",
       "moreBuiltinHint": "Builtin roles cannot be deleted. Open details for the restrictions.",
       "moreCustomHint": "Additional role actions are not available yet",
+      "lifecycle": {
+        "statusLabel": "Current status",
+        "statusEnabled": "Enabled",
+        "statusDisabled": "Disabled",
+        "deleteReady": "This custom role now satisfies the delete lifecycle rules.",
+        "deleteNeedsDisable": "Disable this custom role before deleting it.",
+        "deleteNeedsBindingsCleared": "Remove all user and permission bindings before deleting this role."
+      },
       "moreActions": {
+        "enable": "Enable Role",
+        "disable": "Disable Role",
         "delete": "Delete Role"
       },
       "columns": {
@@ -70,7 +90,9 @@
         }
       },
       "permissionDialog": {
-        "title": "Assign Role Permissions",
+        "title": "Manage Role Permissions",
+        "saveStrategyLabel": "Save Strategy",
+        "operationHelp": "Overwrite Current Permissions replaces the role's current permissions with the current selection. Append Selected Permissions Only adds only the permissions selected this time. Remove Selected Permissions removes only the already assigned permissions selected this time.",
         "loadingSelection": "Loading the current role permission snapshot",
         "searchPlaceholder": "Search permission code, name, or description",
         "onlySelected": "Show selected only",
@@ -82,14 +104,25 @@
         "selectionLoadFailed": "Failed to load the current role permissions. Retry before saving.",
         "selectionUnavailable": "The current role permission snapshot is invalid, so overwrite save is blocked.",
         "selectionCount": "{selected} / {total} permissions selected",
+        "modeSummary": "Mode: {mode}",
+        "modeValue": {
+          "replace": "Overwrite Current Permissions",
+          "add": "Append Selected Permissions",
+          "remove": "Remove Selected Permissions"
+        },
+        "addSelectionCount": "{count} permissions will be appended",
+        "removeSelectionCount": "{count} permissions will be removed",
+        "unsavedChangesConfirm": "Permission changes have not been saved. Discard them?",
         "emptyDescription": "No description",
         "empty": "No matching permissions",
-        "confirm": "Save Permissions"
+        "confirm": "Submit Permission Changes"
       }
     },
     "permissionList": {
       "listTitle": "Permission Management",
       "hint": "Review system permissions, module ownership, and authorization usage.",
+      "detail": "Details",
+      "detailTitle": "Permission Details",
       "summary": "{count} permissions shown",
       "footerTotal": "{count} permissions total",
       "tableHint": "Filter permissions by name, code, and module.",
@@ -100,6 +133,8 @@
       "empty": "No permission data",
       "emptyFilteredDescription": "No permissions match the current filters. Clear filters and try again.",
       "loadFailed": "Failed to load permissions",
+      "detailLoadFailed": "Failed to load permission details",
+      "detailLoadFailedTitle": "Permission details are temporarily unavailable",
       "errorTitle": "Permission data is temporarily unavailable",
       "readonlyNotice": "This permission list is currently read only.",
       "readonlyDescription": "Permissions are registered by the system and plugins. This page shows permission points and module ownership.",
@@ -112,7 +147,11 @@
         "description": "Description",
         "roleCount": "Roles Using It",
         "createdAt": "Created At",
-        "updatedAt": "Updated At"
+        "updatedAt": "Updated At",
+        "operation": "Actions"
+      },
+      "detailFields": {
+        "description": "Description"
       },
       "toolbar": {
         "searchPlaceholder": "Search permission code or name",

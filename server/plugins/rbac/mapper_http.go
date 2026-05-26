@@ -34,6 +34,27 @@ func toRoleListItem(role rbacstore.Role) (generated.RoleListItem, error) {
 		Display:         role.Display,
 		Description:     role.Description,
 		Builtin:         role.Builtin,
+		Status:          generated.RoleListItemStatus(role.Status),
+		UpdatedAt:       role.UpdatedAt.UTC().Format(time.RFC3339),
+		PermissionCount: role.PermissionCount,
+		UserCount:       role.UserCount,
+	}, nil
+}
+
+func toRoleDetailResponse(role rbacstore.Role) (generated.RoleDetailResponse, error) {
+	id, err := mustConvertGeneratedID(role.ID, "rbac role id")
+	if err != nil {
+		return generated.RoleDetailResponse{}, err
+	}
+
+	return generated.RoleDetailResponse{
+		Id:              id,
+		Name:            role.Name,
+		Display:         role.Display,
+		Description:     role.Description,
+		Builtin:         role.Builtin,
+		Status:          generated.RoleDetailResponseStatus(role.Status),
+		CreatedAt:       role.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:       role.UpdatedAt.UTC().Format(time.RFC3339),
 		PermissionCount: role.PermissionCount,
 		UserCount:       role.UserCount,

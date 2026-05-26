@@ -15,6 +15,10 @@ const (
 	RoleCreatePermission PermissionCode = "role.create"
 	// RoleUpdatePermission identifies update access to role-management data.
 	RoleUpdatePermission PermissionCode = "role.update"
+	// RoleStatusUpdatePermission identifies lifecycle status updates for roles.
+	RoleStatusUpdatePermission PermissionCode = "role.status.update"
+	// RoleDeletePermission identifies destructive role deletion access.
+	RoleDeletePermission PermissionCode = "role.delete"
 	// RolePermissionAssignPermission identifies write access to role-permission bindings.
 	RolePermissionAssignPermission PermissionCode = "role.permission.assign"
 	// PermissionReadPermission identifies read access to permission-management data.
@@ -30,6 +34,10 @@ const (
 	RoleCreate PermissionCode = RoleCreatePermission
 	// RoleUpdate is the canonical permission used by rbac-plugin consumers.
 	RoleUpdate PermissionCode = RoleUpdatePermission
+	// RoleStatusUpdate is the canonical permission used by rbac-plugin consumers.
+	RoleStatusUpdate PermissionCode = RoleStatusUpdatePermission
+	// RoleDelete is the canonical permission used by rbac-plugin consumers.
+	RoleDelete PermissionCode = RoleDeletePermission
 	// RolePermissionAssign is the canonical permission used by rbac-plugin consumers.
 	RolePermissionAssign PermissionCode = RolePermissionAssignPermission
 	// PermissionRead is the canonical permission used by rbac-plugin consumers.

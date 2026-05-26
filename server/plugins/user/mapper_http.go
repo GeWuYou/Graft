@@ -7,6 +7,7 @@ import (
 	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/pluginapi"
 	useropenapi "graft/server/internal/contract/openapi/user"
 	usercontract "graft/server/plugins/user/contract"
 	userstore "graft/server/plugins/user/store"
@@ -66,10 +67,13 @@ func toCanonicalManagedUserStatus(status useropenapi.PostUserStatusJSONBodyStatu
 	}
 }
 
-func toUserListResponse(users []userstore.User) (userListResponse, error) {
+func toUserListResponse(
+	users []userstore.User,
+	roleSummariesByUserID map[uint64][]pluginapi.RoleSummary,
+) (userListResponse, error) {
 	items := make([]userListItem, 0, len(users))
 	for _, user := range users {
-		item, err := toUserListItem(user)
+		item, err := toUserListItem(user, roleSummariesByUserID[user.ID])
 		if err != nil {
 			return userListResponse{}, err
 		}
@@ -79,10 +83,23 @@ func toUserListResponse(users []userstore.User) (userListResponse, error) {
 	return userListResponse{Items: items}, nil
 }
 
-func toUserListItem(user userstore.User) (userListItem, error) {
+func toUserListItem(user userstore.User, roles []pluginapi.RoleSummary) (userListItem, error) {
 	id, err := mustConvertGeneratedUserID(user.ID)
 	if err != nil {
 		return userListItem{}, err
+	}
+
+	roleItems := make([]generated.UserRoleSummary, 0, len(roles))
+	for _, role := range roles {
+		roleID, roleErr := mustConvertGeneratedUserID(role.ID)
+		if roleErr != nil {
+			return userListItem{}, roleErr
+		}
+		roleItems = append(roleItems, generated.UserRoleSummary{
+			Id:      roleID,
+			Name:    role.Name,
+			Display: role.Display,
+		})
 	}
 
 	return userListItem{
@@ -90,6 +107,7 @@ func toUserListItem(user userstore.User) (userListItem, error) {
 		Username:  user.Username,
 		Display:   user.Display,
 		Status:    normalizeUserStatus(user.Status),
+		Roles:     roleItems,
 		CreatedAt: user.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt: user.UpdatedAt.UTC().Format(time.RFC3339),
 	}, nil

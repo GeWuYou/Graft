@@ -24,9 +24,19 @@
       "permissionUnavailable": "当前没有可用的权限目录",
       "createSuccess": "角色创建成功",
       "updateSuccess": "角色更新成功",
+      "statusEnabledSuccess": "角色已启用",
+      "statusDisabledSuccess": "角色已停用",
+      "statusUpdateFailed": "角色状态更新失败",
+      "deleteSuccess": "角色删除成功",
+      "deleteFailed": "角色删除失败",
       "submitFailed": "角色提交失败",
-      "assignSuccess": "角色权限分配成功",
-      "assignFailed": "角色权限分配失败",
+      "assignSuccess": "角色权限更新成功",
+      "assignFailed": "角色权限更新失败",
+      "permissionActions": {
+        "replace": "覆盖当前权限",
+        "add": "仅追加选中权限",
+        "remove": "移除选中权限"
+      },
       "builtinYes": "内置",
       "builtinNo": "自定义",
       "builtinHint": "内置角色不可删除，部分字段不可编辑",
@@ -34,7 +44,17 @@
       "userCount": "{count} 位用户",
       "moreBuiltinHint": "内置角色不支持删除，请通过详情查看限制说明",
       "moreCustomHint": "更多角色操作暂未开放",
+      "lifecycle": {
+        "statusLabel": "当前状态",
+        "statusEnabled": "启用中",
+        "statusDisabled": "已停用",
+        "deleteReady": "这个自定义角色已经满足删除生命周期要求。",
+        "deleteNeedsDisable": "删除前需要先停用这个自定义角色。",
+        "deleteNeedsBindingsCleared": "删除前需要先移除这个角色的用户绑定和权限绑定。"
+      },
       "moreActions": {
+        "enable": "启用角色",
+        "disable": "停用角色",
         "delete": "删除角色"
       },
       "columns": {
@@ -70,10 +90,16 @@
         }
       },
       "permissionDialog": {
-        "title": "分配角色权限",
+        "title": "管理角色权限",
+        "headerEyebrow": "资源关系编辑器",
+        "headerDescription": "系统内置管理员角色，拥有全部后台管理权限。",
+        "saveStrategyLabel": "保存方式",
+        "operationHelp": "覆盖当前权限会用当前勾选结果替换角色现有权限；仅追加选中权限只新增本次勾选的权限；移除选中权限只移除当前勾选的已分配权限。",
         "loadingSelection": "正在加载当前角色的权限快照",
         "searchPlaceholder": "搜索权限 code、名称、描述",
         "onlySelected": "只看已选",
+        "assignedBadge": "已拥有",
+        "categoryBadge": "{category}",
         "retry": "重试",
         "groupHint": "本分组共 {count} 项权限",
         "category": "{category}",
@@ -82,14 +108,32 @@
         "selectionLoadFailed": "当前角色权限加载失败，请重试后再保存",
         "selectionUnavailable": "当前角色权限快照异常，已阻止覆盖保存",
         "selectionCount": "已选择 {selected} / {total} 项权限",
+        "modeSummary": "当前模式：{mode}",
+        "modeValue": {
+          "replace": "覆盖当前权限",
+          "add": "追加选中权限",
+          "remove": "移除选中权限"
+        },
+        "addSelectionCount": "本次将追加 {count} 项权限",
+        "removeSelectionCount": "本次将移除 {count} 项权限",
+        "unsavedChangesConfirm": "当前权限变更尚未保存，确认取消吗？",
+        "summary": {
+          "assigned": "当前已拥有"
+        },
+        "stats": {
+          "permissionCount": "权限项",
+          "userCount": "关联用户"
+        },
         "emptyDescription": "暂无描述",
         "empty": "暂无匹配的权限项",
-        "confirm": "保存权限"
+        "confirm": "提交权限变更"
       }
     },
     "permissionList": {
       "listTitle": "权限管理",
       "hint": "查看系统权限点、模块归属与授权使用情况。",
+      "detail": "详情",
+      "detailTitle": "权限详情",
       "summary": "已显示 {count} 项权限",
       "footerTotal": "共 {count} 项权限",
       "tableHint": "支持按权限名称、编码与模块快速筛选。",
@@ -100,6 +144,8 @@
       "empty": "暂无权限数据",
       "emptyFilteredDescription": "当前筛选条件下没有匹配权限，可清空筛选后重试。",
       "loadFailed": "权限列表加载失败",
+      "detailLoadFailed": "权限详情加载失败",
+      "detailLoadFailedTitle": "权限详情暂时不可用",
       "errorTitle": "权限数据暂时不可用",
       "readonlyNotice": "当前权限列表为只读视图。",
       "readonlyDescription": "权限点由系统和插件注册，当前页面用于查看权限点与模块归属。",
@@ -112,7 +158,11 @@
         "description": "说明",
         "roleCount": "使用角色数",
         "createdAt": "创建时间",
-        "updatedAt": "更新时间"
+        "updatedAt": "更新时间",
+        "operation": "操作"
+      },
+      "detailFields": {
+        "description": "说明"
       },
       "toolbar": {
         "searchPlaceholder": "搜索权限编码、权限名称",

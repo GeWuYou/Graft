@@ -104,6 +104,20 @@
             <span>{{ row.role_binding_count ?? '-' }}</span>
           </template>
 
+          <template #operation="{ row }">
+            <div class="table-actions">
+              <t-button
+                size="small"
+                theme="default"
+                variant="outline"
+                data-testid="permission-detail"
+                @click="openDetailDrawer(row)"
+              >
+                {{ t('rbac.permissionList.detail') }}
+              </t-button>
+            </div>
+          </template>
+
           <template #empty>
             <div class="table-empty-state">
               <t-empty
@@ -162,6 +176,53 @@
         </t-checkbox-group>
       </div>
     </t-drawer>
+
+    <t-drawer
+      v-model:visible="detailDrawerVisible"
+      :header="t('rbac.permissionList.detailTitle')"
+      size="480px"
+      placement="right"
+      destroy-on-close
+    >
+      <div class="drawer-panel permission-detail-panel">
+        <div v-if="detailError" class="inline-warning detail-warning">
+          <span>{{ t('rbac.permissionList.detailLoadFailedTitle') }}</span>
+          <span>{{ detailError }}</span>
+          <t-button v-if="detailDrawerPermission" theme="default" variant="text" @click="retryDetail">
+            {{ t('rbac.permissionList.retry') }}
+          </t-button>
+        </div>
+
+        <template v-if="detailRecord">
+          <div class="detail-header">
+            <div>
+              <p class="detail-header__title">{{ localizedPermissionDisplay(detailRecord) }}</p>
+              <p class="detail-header__code">{{ detailRecord.code }}</p>
+            </div>
+            <t-tag theme="default" variant="light">{{ detailRecord.category || '-' }}</t-tag>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-item__label">{{ t('rbac.permissionList.detailFields.description') }}</span>
+              <span class="detail-item__value">{{ localizedPermissionDescription(detailRecord) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item__label">{{ t('rbac.permissionList.columns.roleCount') }}</span>
+              <span class="detail-item__value">{{ detailRecord.role_binding_count ?? '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item__label">{{ t('rbac.permissionList.columns.createdAt') }}</span>
+              <span class="detail-item__value">{{ formatTimestamp(detailRecord.created_at) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item__label">{{ t('rbac.permissionList.columns.updatedAt') }}</span>
+              <span class="detail-item__value">{{ formatTimestamp(detailRecord.updated_at) }}</span>
+            </div>
+          </div>
+        </template>
+      </div>
+    </t-drawer>
   </div>
 </template>
 <script setup lang="ts">
@@ -179,9 +240,12 @@ import {
 } from '@/shared/components/management';
 import { createLogger } from '@/utils/logger';
 
-import { getPermissions } from '../../api/rbac';
-import { PERMISSION_COPY_BY_CODE } from '../../contract/permission-copy';
-import type { PermissionListItem } from '../../types/permission';
+import { getPermissionDetail, getPermissions } from '../../api/rbac';
+import {
+  localizedPermissionDescription as localizePermissionDescription,
+  localizedPermissionDisplay as localizePermissionDisplay,
+} from '../../shared/permission-copy';
+import type { PermissionDetailResponse, PermissionFilters, PermissionListItem } from '../../types/permission';
 
 defineOptions({
   name: 'PermissionIndex',
@@ -189,7 +253,7 @@ defineOptions({
 
 const logger = createLogger('rbac.permissionList');
 
-type PermissionFilters = {
+type PermissionFilterState = {
   keyword: string;
   category: string;
 };
@@ -198,12 +262,17 @@ const { t, locale } = useI18n();
 const loading = ref(false);
 const listError = ref('');
 const permissions = ref<PermissionListItem[]>([]);
-const filters = ref<PermissionFilters>({
+const filters = ref<PermissionFilterState>({
   keyword: '',
   category: '',
 });
 const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref(['permission', 'category', 'code', 'description', 'role_count', 'updated_at']);
+const detailDrawerVisible = ref(false);
+const detailDrawerPermission = ref<PermissionListItem | null>(null);
+const detailRecord = ref<PermissionDetailResponse | null>(null);
+const detailLoading = ref(false);
+const detailError = ref('');
 const pagination = ref({
   current: 1,
   pageSize: 10,
@@ -226,23 +295,7 @@ const columnSettingOptions = computed(() => [
   { label: t('rbac.permissionList.columns.updatedAt'), value: 'updated_at' },
 ]);
 
-const filteredPermissions = computed(() => {
-  const keyword = filters.value.keyword.trim().toLowerCase();
-
-  return permissions.value.filter((item) => {
-    if (filters.value.category && item.category !== filters.value.category) {
-      return false;
-    }
-
-    if (!keyword) {
-      return true;
-    }
-
-    return `${item.code} ${localizedPermissionDisplay(item)} ${searchablePermissionDescription(item)} ${item.category}`
-      .toLowerCase()
-      .includes(keyword);
-  });
-});
+const filteredPermissions = computed(() => permissions.value);
 
 const pagedPermissions = computed(() => {
   const start = (pagination.value.current - 1) * pagination.value.pageSize;
@@ -260,6 +313,7 @@ const visibleColumns = computed<TdBaseTableProps['columns']>(() => {
     { title: t('rbac.permissionList.columns.roleCount'), colKey: 'role_count', width: 120 },
     { title: t('rbac.permissionList.columns.createdAt'), colKey: 'created_at', width: 196 },
     { title: t('rbac.permissionList.columns.updatedAt'), colKey: 'updated_at', width: 196 },
+    { title: t('rbac.permissionList.columns.operation'), colKey: 'operation', width: 120, fixed: 'right' },
   ];
 
   const visibleKeys = new Set(visibleColumnKeys.value);
@@ -271,7 +325,16 @@ async function fetchPermissions() {
   listError.value = '';
 
   try {
-    const permissionResult = await getPermissions();
+    const requestFilters: PermissionFilters = {};
+    const keyword = filters.value.keyword.trim();
+    if (keyword) {
+      requestFilters.keyword = keyword;
+    }
+    if (filters.value.category) {
+      requestFilters.category = filters.value.category;
+    }
+
+    const permissionResult = await getPermissions(requestFilters);
     permissions.value = permissionResult.items;
     pagination.value.current = 1;
   } catch (error) {
@@ -292,39 +355,43 @@ function resetFilters() {
   pagination.value.current = 1;
 }
 
-function localizedMessage(messageKey: string, fallback?: string | null) {
-  const translated = t(messageKey);
-  if (translated !== messageKey) {
-    return translated;
-  }
-
-  return fallback?.trim() || '';
-}
-
 function localizedPermissionDisplay(permission: PermissionListItem) {
-  const copyEntry = PERMISSION_COPY_BY_CODE[permission.code];
-  if (!copyEntry) {
-    return permission.display;
-  }
-
-  return localizedMessage(copyEntry.displayKey, permission.display) || permission.display;
+  return localizePermissionDisplay(t, permission);
 }
 
 function localizedPermissionDescription(permission: PermissionListItem) {
-  const copyEntry = PERMISSION_COPY_BY_CODE[permission.code];
-  if (copyEntry) {
-    const localized = localizedMessage(copyEntry.descriptionKey, permission.description);
-    if (localized) {
-      return localized;
-    }
-  }
-
-  return permission.description?.trim() || t('rbac.permissionList.emptyDescription');
+  return localizePermissionDescription(t, permission, 'rbac.permissionList.emptyDescription');
 }
 
-function searchablePermissionDescription(permission: PermissionListItem) {
-  const localized = localizedPermissionDescription(permission);
-  return localized === t('rbac.permissionList.emptyDescription') ? '' : localized;
+async function loadPermissionDetail(permissionId: number) {
+  detailLoading.value = true;
+  detailError.value = '';
+
+  try {
+    detailRecord.value = await getPermissionDetail(permissionId);
+  } catch (error) {
+    detailRecord.value = null;
+    logger.warn('failed to fetch permission detail', error);
+    detailError.value = t('rbac.permissionList.detailLoadFailed');
+    MessagePlugin.error(detailError.value);
+  } finally {
+    detailLoading.value = false;
+  }
+}
+
+async function openDetailDrawer(permission: PermissionListItem) {
+  detailDrawerPermission.value = permission;
+  detailRecord.value = permission;
+  detailDrawerVisible.value = true;
+  await loadPermissionDetail(permission.id);
+}
+
+async function retryDetail() {
+  if (!detailDrawerPermission.value || detailLoading.value) {
+    return;
+  }
+
+  await loadPermissionDetail(detailDrawerPermission.value.id);
 }
 
 function formatTimestamp(value?: string | null) {
@@ -351,6 +418,7 @@ watch(
   () => [filters.value.keyword, filters.value.category] as const,
   () => {
     pagination.value.current = 1;
+    fetchPermissions();
   },
 );
 </script>
@@ -404,6 +472,60 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.table-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.permission-detail-panel {
+  gap: 16px;
+}
+
+.detail-warning {
+  align-items: flex-start;
+}
+
+.detail-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.detail-header__title,
+.detail-header__code,
+.detail-item__label,
+.detail-item__value {
+  margin: 0;
+}
+
+.detail-header__title {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+}
+
+.detail-header__code,
+.detail-item__label {
+  color: var(--td-text-color-secondary);
+}
+
+.detail-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.detail-item {
+  background: var(--td-bg-color-container-hover);
+  border-radius: var(--td-radius-medium);
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+.detail-item__value {
+  color: var(--td-text-color-primary);
 }
 
 @media (width <= 768px) {

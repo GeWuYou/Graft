@@ -43,6 +43,7 @@ function normalizeUserListItem(item: RawUserListItem): UserListItem {
   return {
     ...item,
     status: normalizeUserStatus(item.status),
+    roles: item.roles ?? [],
   };
 }
 

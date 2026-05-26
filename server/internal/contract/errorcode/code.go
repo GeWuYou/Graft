@@ -70,26 +70,30 @@ const (
 
 	// RoleNotFound identifies missing-role failures surfaced by RBAC management flows.
 	RoleNotFound Code = "ROLE_NOT_FOUND"
+
+	// PermissionNotFound identifies missing-permission failures surfaced by RBAC management flows.
+	PermissionNotFound Code = "PERMISSION_NOT_FOUND"
 )
 
 var messageKeyCodes = map[messagecontract.Key]Code{
-	messagecontract.AuthCurrentPasswordInvalid:  AuthCurrentPasswordInvalid,
-	messagecontract.AuthForbidden:               AuthForbidden,
-	messagecontract.AuthInvalidCredentials:      AuthInvalidCredentials,
-	messagecontract.AuthInvalidRefreshSession:   AuthInvalidRefreshSession,
-	messagecontract.AuthMissingActor:            AuthMissingActor,
-	messagecontract.AuthMissingPermission:       AuthMissingPermission,
-	messagecontract.AuthPasswordPolicyViolation: AuthPasswordPolicyViolation,
-	messagecontract.AuthPasswordReuseForbidden:  AuthPasswordReuseForbidden,
-	messagecontract.AuthSessionNotFound:         AuthSessionNotFound,
-	messagecontract.AuthTokenExpired:            AuthTokenExpired,
-	messagecontract.AuthTokenInvalid:            AuthTokenInvalid,
-	messagecontract.AuthTokenMissing:            AuthTokenMissing,
-	messagecontract.CommonInternalError:         CommonInternalError,
-	messagecontract.CommonInvalidArgument:       CommonInvalidArgument,
+	messagecontract.AuthCurrentPasswordInvalid:   AuthCurrentPasswordInvalid,
+	messagecontract.AuthForbidden:                AuthForbidden,
+	messagecontract.AuthInvalidCredentials:       AuthInvalidCredentials,
+	messagecontract.AuthInvalidRefreshSession:    AuthInvalidRefreshSession,
+	messagecontract.AuthMissingActor:             AuthMissingActor,
+	messagecontract.AuthMissingPermission:        AuthMissingPermission,
+	messagecontract.AuthPasswordPolicyViolation:  AuthPasswordPolicyViolation,
+	messagecontract.AuthPasswordReuseForbidden:   AuthPasswordReuseForbidden,
+	messagecontract.AuthSessionNotFound:          AuthSessionNotFound,
+	messagecontract.AuthTokenExpired:             AuthTokenExpired,
+	messagecontract.AuthTokenInvalid:             AuthTokenInvalid,
+	messagecontract.AuthTokenMissing:             AuthTokenMissing,
+	messagecontract.CommonInternalError:          CommonInternalError,
+	messagecontract.CommonInvalidArgument:        CommonInvalidArgument,
 	messagecontract.RbacCannotRemoveOwnAdminRole: RbacCannotRemoveOwnAdminRole,
-	messagecontract.RoleNotFound:                RoleNotFound,
-	messagecontract.UserNotFound:                UserNotFound,
+	messagecontract.PermissionNotFound:           PermissionNotFound,
+	messagecontract.RoleNotFound:                 RoleNotFound,
+	messagecontract.UserNotFound:                 UserNotFound,
 }
 
 // FromMessageKey resolves the canonical response code for a stable message key.

@@ -16,6 +16,8 @@ type managementGuards struct {
 	permissionRead       gin.HandlerFunc
 	roleCreate           gin.HandlerFunc
 	roleUpdate           gin.HandlerFunc
+	roleStatus           gin.HandlerFunc
+	roleDelete           gin.HandlerFunc
 	rolePermissionAssign gin.HandlerFunc
 	userRoleRead         gin.HandlerFunc
 	userRoleAssign       gin.HandlerFunc
@@ -81,6 +83,20 @@ func rbacPermissionItems(pluginName string) []permission.Item {
 			Plugin:      pluginName,
 		},
 		{
+			Code:        rbaccontract.RoleStatusUpdatePermission.String(),
+			Name:        "Update Role Status",
+			Description: "Allows changing role lifecycle status.",
+			Category:    "api",
+			Plugin:      pluginName,
+		},
+		{
+			Code:        rbaccontract.RoleDeletePermission.String(),
+			Name:        "Delete Roles",
+			Description: "Allows deleting disabled roles without bindings.",
+			Category:    "api",
+			Plugin:      pluginName,
+		},
+		{
 			Code:        rbaccontract.RolePermissionAssignPermission.String(),
 			Name:        "Assign Role Permissions",
 			Description: "Allows updating role-permission bindings.",
@@ -133,6 +149,7 @@ func registerRoleRoutes(
 	group := ctx.Router.Group(rbaccontract.RolesGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(rbaccontract.RoleCollection, guards.roleRead, handleListRoles(ctx, pluginName, reader))
+	group.GET(rbaccontract.RoleDetailRoute, guards.roleRead, handleGetRole(ctx, pluginName, reader))
 	group.GET(rbaccontract.RolePermissionBindingRoute, guards.permissionRead, handleListRolePermissionBindings(ctx, pluginName, reader))
 	registerRoleWriteRoutes(group, ctx, pluginName, writer, guards)
 }
@@ -146,6 +163,7 @@ func registerPermissionRoutes(
 	group := ctx.Router.Group(rbaccontract.PermissionsGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(rbaccontract.PermissionCollection, authenticated, handleListPermissions(ctx, pluginName, reader))
+	group.GET(rbaccontract.PermissionDetailRoute, authenticated, handleGetPermission(ctx, pluginName, reader))
 }
 
 func registerUserRoleRoutes(
@@ -158,9 +176,12 @@ func registerUserRoleRoutes(
 	group := ctx.Router.Group(rbaccontract.UsersGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(rbaccontract.UserRoleBindingRoute, guards.userRoleRead, handleListUserRoleBindings(ctx, pluginName, reader))
-	group.POST(rbaccontract.UserRoleAssignRoute, guards.userRoleAssign, func(ginCtx *gin.Context) {
-		handleAssignUserRolesRoute(ginCtx, ctx, pluginName, writer)
-	})
+	group.POST(rbaccontract.UserRoleReplaceRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleReplaceUserRolesRoute(ginCtx, ctx, pluginName, writer) })
+	group.POST(rbaccontract.UserRoleAddRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleAddUserRolesRoute(ginCtx, ctx, pluginName, writer) })
+	group.POST(rbaccontract.UserRoleRemoveRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleRemoveUserRolesRoute(ginCtx, ctx, pluginName, writer) })
+	group.POST(rbaccontract.BatchUserRoleReplaceRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchReplaceUserRolesRoute(ginCtx, ctx, pluginName, writer) })
+	group.POST(rbaccontract.BatchUserRoleAddRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchAddUserRolesRoute(ginCtx, ctx, pluginName, writer) })
+	group.POST(rbaccontract.BatchUserRoleRemoveRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchRemoveUserRolesRoute(ginCtx, ctx, pluginName, writer) })
 }
 
 var _ rbacopenapi.ReadServerInterface = rbacReadGeneratedHandler{}

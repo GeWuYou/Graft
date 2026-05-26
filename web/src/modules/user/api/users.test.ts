@@ -24,7 +24,17 @@ describe('users api', () => {
   it('calls the canonical users-list path through request.ts', async () => {
     const requestGet = vi.mocked(request.get);
     requestGet.mockResolvedValueOnce({
-      items: [{ id: 1, username: 'alice', display: 'Alice', status: 'enabled', created_at: '', updated_at: '' }],
+      items: [
+        {
+          id: 1,
+          username: 'alice',
+          display: 'Alice',
+          status: 'enabled',
+          roles: [{ id: 2, name: 'admin', display: 'Admin' }],
+          created_at: '',
+          updated_at: '',
+        },
+      ],
     } as never);
 
     await getUsers();
@@ -41,6 +51,7 @@ describe('users api', () => {
       username: 'alice',
       display: 'Alice',
       status: 'enabled',
+      roles: [],
       created_at: '',
       updated_at: '',
     } as never);

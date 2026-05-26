@@ -632,10 +632,19 @@ Exception for `graft-multi-agent-loop`:
 - in that loop mode, the outer main agent must not edit repo-tracked implementation files during an active round; it
   may only inspect state, evaluate the returned closeout, and decide whether to accept, retry, or stop
 - in that loop mode, stalled-state judgment must be stricter than elapsed time alone:
-  - a worker is not considered stalled until soft timeout has been exceeded, there has been prolonged lack of output or
-    tool activity, the worker has not entered closeout, and a checkpoint request still fails to produce a usable status
+  - a worker is not considered stalled until soft timeout has been exceeded, there has been prolonged lack of new
+    visible output evidence, the worker has not entered closeout, and a checkpoint request still fails to produce a
+    usable status
+  - when the current tool surface does not expose a direct activity query, the outer main agent must not translate
+    "cannot observe tool activity" into "no tool activity"; conservative loop decisions must be based only on elapsed
+    time, visible transcript evidence, the worker's latest response, and any checkpoint content
   - usable checkpoint status must include current phase, changed files, last validation, next action, can-continue
     judgment, estimated remaining minutes, ETA confidence, and current risks or blockers
+  - checkpoint responses are health reports, not round closeouts; they must never be treated as terminal state for the
+    round
+  - after any usable checkpoint with `can_continue=true`, the outer main agent must explicitly continue the same worker
+    round and resume waiting for that worker's final closeout instead of replacing, closing, or downgrading the round
+    because the latest message was a checkpoint
   - ETA only guides the next wait window; it must not override the round's total runtime budget
   - if ETA repeatedly misses, progress is not substantive, or no closeout arrives, lower worker reliability and fall
     through `retry_once_then_blocked`
@@ -644,6 +653,8 @@ Exception for `graft-multi-agent-loop`:
   implementation
 - in that loop mode, a retry worker must inherit the partial diff, relevant logs, validation evidence, and the
   previous worker failure reason before retrying the same bounded round
+  - retry is allowed only when the worker gives no usable checkpoint response, later gives no usable final closeout
+    after post-checkpoint grace handling, explicitly reports `can_continue=false`, or exhausts checkpoint budget
 
 Use subagents this way:
 

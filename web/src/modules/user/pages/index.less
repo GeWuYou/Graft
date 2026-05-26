@@ -19,10 +19,7 @@
 .table-head,
 .batch-bar,
 .batch-bar__actions,
-.table-actions,
-.drawer-actions,
-.drawer-section__head,
-.selection-card__head {
+.table-actions {
   align-items: center;
   display: flex;
   gap: 12px;
@@ -32,10 +29,7 @@
 .table-head__summary,
 .table-head__description,
 .table-muted,
-.selection-card__description,
-.selection-card__code,
-.user-cell__username,
-.drawer-summary__label {
+.user-cell__username {
   color: var(--td-text-color-secondary);
 }
 
@@ -64,18 +58,13 @@
 }
 
 .user-cell__meta,
-.drawer-panel,
-.drawer-summary,
-.drawer-summary__grid,
-.drawer-section,
-.selection-card__body,
+.assignment-panel,
 .column-grid {
   display: flex;
   flex-direction: column;
 }
 
-.user-cell__display,
-.selection-card__title {
+.user-cell__display {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
 }
@@ -103,54 +92,22 @@
   justify-content: space-between;
 }
 
-.drawer-panel {
+.assignment-panel {
   gap: 20px;
 }
 
-.drawer-summary {
-  border-bottom: 1px solid var(--td-component-stroke);
-  gap: 16px;
-  padding-bottom: 16px;
+.assignment-panel--compact {
+  gap: 20px;
 }
 
-.drawer-summary__grid {
-  gap: 12px;
-}
-
-.drawer-summary__item {
-  align-items: center;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.drawer-section {
-  gap: 12px;
-}
-
-.drawer-section__head {
-  align-items: flex-start;
-}
-
-.drawer-section__head h3 {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-medium);
-  margin: 0;
-}
-
-.selection-grid {
+.assignment-card-grid,
+.permission-card-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
 }
 
-.selection-card {
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  padding: 12px;
-}
-
-.selection-card__body,
 .column-grid {
   gap: 12px;
 }
@@ -192,8 +149,6 @@
   .batch-bar,
   .batch-bar__actions,
   .table-actions,
-  .drawer-actions,
-  .drawer-summary__item,
   .inline-warning {
     align-items: stretch;
     flex-direction: column;
@@ -203,7 +158,15 @@
     flex-wrap: wrap;
   }
 
-  .selection-grid {
+  .assignment-card-grid,
+  .permission-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (width <= 1280px) {
+  .assignment-card-grid,
+  .permission-card-grid {
     grid-template-columns: 1fr;
   }
 }

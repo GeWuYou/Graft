@@ -12,6 +12,7 @@ const roleFormFieldMap: Record<string, RoleFormField> = {
 
 const rolePermissionFieldMap: Record<string, RolePermissionField> = {
   permission_ids: 'permission_ids',
+  permissionIds: 'permission_ids',
 };
 
 export function resolveRoleFormFieldError(error: ApiRequestError): RoleFormField | null {

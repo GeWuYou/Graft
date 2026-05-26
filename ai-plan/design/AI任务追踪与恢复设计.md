@@ -75,9 +75,11 @@ runner：
 - 外层 main agent 做的是 bounded orchestration，不是实时 remote-control worker
 - `timeout != stalled`；stalled 判定至少同时要求：
   - 已超过 soft timeout
-  - 长时间无输出或无 tool activity
+  - 长时间无新的可见输出证据
   - worker 尚未进入 closeout
   - 发送 checkpoint request 后仍无有效响应
+- 如果当前工具面没有直接的 activity 查询能力，main agent 不得把“无法观测 tool activity”伪装成“无 tool activity”；
+  保守判定只能基于经过时间、可见 transcript、worker 最近一次响应，以及 checkpoint 内容
 - 每个 round 默认 `checkpoint_budget=1`
 - 高风险或长运行 round 可显式提升到 `2` 或 `3`，但必须写进 round budget
 - checkpoint request 使用 `interrupt=true`，且只能用于健康检查：
@@ -94,6 +96,9 @@ runner：
   - `estimated_remaining_minutes`
   - `eta_confidence`
   - `risks_or_blockers`
+- checkpoint 响应不是 closeout，也不是 round 终态
+- 当 checkpoint 响应 `can_continue=true` 时，外层 main agent 必须继续同一个 worker round，并显式恢复到等待该 worker
+  最终 closeout 的状态，不能因为最近一条消息是 checkpoint 就关闭、替换或判定 round malformed
 - 外层 main agent 根据 ETA 只调整下一次等待窗口：
   - `high`：等待 `estimated_remaining_minutes`，但不超过 `max_grace_window`
   - `medium`：等待 `min(estimated_remaining_minutes, default_grace_window)`
@@ -102,6 +107,7 @@ runner：
 - 如果 ETA 连续失准、无实质进展或长期无 closeout，先降低 worker reliability，再进入
   `retry_once_then_blocked`
 - round closeout 缺失、畸形或自相矛盾时，使用 `retry_once_then_blocked`：
+  - incomplete checkpoint 本身不是 retry 触发条件；必须先走 post-checkpoint grace handling
   - 先用新的 worker subagent 重试一次
   - retry worker 必须继承 partial diff、相关 logs、validation 结果与 previous worker failure reason
   - 第二次仍失败则 fail closed 为 `blocked`

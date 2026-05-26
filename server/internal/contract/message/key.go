@@ -67,4 +67,7 @@ const (
 
 	// RoleNotFound identifies missing-role failures surfaced by RBAC management flows.
 	RoleNotFound Key = "role.not_found"
+
+	// PermissionNotFound identifies missing-permission failures surfaced by RBAC management flows.
+	PermissionNotFound Key = "permission.not_found"
 )

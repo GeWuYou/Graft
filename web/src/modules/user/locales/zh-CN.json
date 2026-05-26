@@ -54,16 +54,23 @@
       "emptyDescription": "当前筛选条件下没有数据，可清空筛选或创建新数据。",
       "loadFailed": "用户列表加载失败",
       "errorTitle": "用户数据暂时不可用",
-      "assignSuccess": "用户角色更新成功",
-      "assignFailed": "用户角色更新失败",
+      "roleUpdateSuccess": "用户角色更新成功",
+      "roleUpdateFailed": "用户角色更新失败",
+      "batchRoleUpdateSuccess": "批量用户角色更新成功",
+      "batchRoleUpdateFailed": "批量用户角色更新失败",
       "emptyTitle": "暂无用户数据",
       "footerTotal": "共 {count} 位用户",
       "batch": {
         "selected": "已选择 {count} 项",
         "enable": "批量启用",
         "disable": "批量禁用",
-        "assignRoles": "批量分配角色",
+        "assignRoles": "批量管理角色",
         "cancelSelection": "取消选择"
+      },
+      "roleActions": {
+        "replace": "替换角色",
+        "add": "追加角色",
+        "remove": "移除角色"
       },
       "columns": {
         "user": "用户",
@@ -136,16 +143,50 @@
       },
       "roleDialog": {
         "title": "管理用户角色",
-        "currentRolesTitle": "当前角色",
-        "availableRolesTitle": "可分配角色",
-        "roleSummary": "共加载 {count} 个可分配角色",
-        "noAssignedRoles": "当前未分配角色",
+        "batchTitle": "管理已选用户角色",
+        "headerEyebrow": "资源关系编辑器",
+        "saveStrategyLabel": "保存方式",
+        "searchPlaceholder": "搜索角色名称、角色编码、角色描述",
+        "assignedBadge": "已分配",
+        "batchBadge": "批量编辑",
+        "batchSummary": "已选择 {count} 位用户",
+        "batchDescription": "当前正在统一维护所选用户与角色之间的绑定关系。",
+        "singleDescription": "系统管理员账号，拥有后台访问权限。",
+        "inlineHint": "当前已分配 {assigned} 个角色，可在下方候选列表里直接调整关系，共 {total} 个角色可选。",
+        "selectionCount": "已选择 {selected} / {total} 个角色",
+        "modeSummary": "当前模式：{mode}",
+        "modeValue": {
+          "replace": "覆盖当前角色",
+          "add": "追加选中角色",
+          "remove": "移除选中角色"
+        },
+        "addSelectionCount": "本次将新增 {count} 个角色",
+        "removeSelectionCount": "本次将移除 {count} 个角色",
+        "replaceSelectionCount": "本次将覆盖为 {count} 个角色",
         "builtinYes": "内置",
         "builtinNo": "自定义",
         "emptyDescription": "暂无描述",
         "empty": "暂无可用角色",
         "roleLoadFailed": "角色定义加载失败",
         "selectionLoadFailed": "当前角色分配数据加载失败，请重试后再保存",
+        "unsavedChangesConfirm": "当前角色分配尚未保存，确认取消吗？",
+        "batchOperationHint": {
+          "replace": "替换会将每位已选用户的角色整体改为当前勾选结果。",
+          "replaceEmpty": "当前未勾选任何角色，保存替换后会清空已选用户的全部角色。",
+          "add": "追加只会为已选用户新增当前勾选角色，原有角色会保留。",
+          "remove": "移除只会从已选用户身上撤下当前勾选角色，其它角色会保留。"
+        },
+        "summary": {
+          "selectedUsers": "已选用户",
+          "currentSelection": "本次选中",
+          "createdAt": "创建时间",
+          "updatedAt": "更新时间"
+        },
+        "stats": {
+          "availableRoles": "可分配角色",
+          "assignedRoles": "当前已分配"
+        },
+        "submitBlocked": "角色变更暂时不可用，请刷新最新角色数据后重试",
         "retry": "重试",
         "cancel": "取消",
         "confirm": "保存角色分配"

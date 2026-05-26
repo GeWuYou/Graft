@@ -12,24 +12,24 @@
 * 基于稳定仓储接口判断请求主体是否拥有所需权限
 * 在 `Register` 阶段向统一 `server/internal/i18n` facade 注册插件内建菜单标题 message，并通过共享菜单 contract 持有 `title_key`
 * 注册 RBAC 只读权限元数据与菜单元数据
-* 提供 `GET /api/roles`、`GET /api/permissions`、`GET /api/roles/:id/permissions` 与 `GET /api/users/:id/roles` 最小只读接口
-* 提供 `POST /api/roles`、`POST /api/roles/:id/update`、`POST /api/roles/:id/permissions/assign` 与 `POST /api/users/:id/roles/assign` 最小写接口
+* 提供 `GET /api/roles`、`GET /api/roles/:id`、`GET /api/permissions`、`GET /api/permissions/:id`、`GET /api/roles/:id/permissions` 与 `GET /api/users/:id/roles` 最小只读接口
+* 提供 `POST /api/roles`、`POST /api/roles/:id/update`、`POST /api/roles/:id/status`、`POST /api/roles/:id/delete`、`POST /api/roles/:id/permissions/replace|add|remove`、`POST /api/users/:id/roles/replace|add|remove` 与批量 `POST /api/users/roles/replace|add|remove` 写接口
 * `POST /api/users/:id/roles/assign` 在“当前登录用户修改自己”时增加后端硬保护：如果当前角色快照仍包含 builtin `admin`，replace 写入后也必须继续保留该角色；违反时返回 `403 RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE`
 
 这个模块不负责：
 
-* 超出最小范围的 RBAC 写接口，例如删除角色、禁用用户、批量治理策略或 `super_admin` bypass
+* 超出当前治理的权限元数据 CRUD、复杂审批流或 `super_admin` bypass
 * 认证登录、token 签发与刷新
 * 把具体存储实现泄漏给其它插件
 
 ## 主要入口
 
 * `doc.go`：插件用途说明
-* `plugin.go`：插件生命周期与授权服务注册
-* `plugin_routes.go`：角色/权限只读路由与角色权限快照路由
-* `plugin_write_routes.go`：用户角色只读快照路由与最小写接口路由
+* `plugin_registration.go`：插件生命周期与授权服务注册
+* `route_read_handlers.go`：角色/权限/详情只读路由与绑定快照路由
+* `route_write_handlers.go`：角色状态/删除、角色权限、用户角色与批量用户角色写接口路由
 * `read_service.go`：插件内只读管理服务收口
-* `write_service.go`：插件内最小写接口服务收口
+* `write_service.go`：插件内管理写接口服务收口
 
 ## 维护提示
 

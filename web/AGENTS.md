@@ -216,11 +216,24 @@ UI 约束：
 - `TDesign Vue Next` 是唯一主 UI 体系
 - `UnoCSS` 只用于辅助布局和少量原子样式
 - 生成或修改页面前应先读取根 `DESIGN.md`，再查 TDesign MCP 或官方文档
+- 任何新增、修改 `TDesign Vue Next` 组件用法的前端任务，编码前必须优先查询 TDesign MCP，默认查询框架固定为 `vue-next`
+- 查询范围只覆盖本轮涉及组件，不要求全量扫描，但不得跳过与当前改动直接相关的 MCP 查询
+- 至少按场景执行这些查询：
+  - `get_component_list`
+    - 确认组件名、组件分类和 `vue-next` 下可用组件范围
+  - `get_component_docs`
+    - 确认 props、events、slots、示例和推荐用法
+  - `get_component_dom`
+    - 涉及样式覆盖、DOM 结构、插槽布局、自定义选择器时必须查询
+  - `get_component_changelog`
+    - 涉及 `tdesign-vue-next` 升级、行为变化、兼容性判断或疑似版本差异时必须查询
 - 不得随意覆盖 TDesign 内部 DOM；涉及组件 DOM、插槽、事件、props、升级影响时，先查 TDesign MCP 或官方文档
 - AI 生成或修改 `web` 代码时，默认按 `vue-next` 组件资料执行，不凭经验猜测组件 API
 - 新页面优先复用既有后台模式：页头、筛选区、表格、抽屉、弹窗、状态标签、操作列
 - `web/ai-libs/**` 只是 starter/demo 参考源，不是运行时依赖，也不是第二个前端真值
 - `ai-plan/design/graft-design-system/**` 是 Graft 风格参考模板目录，只作为设计参考和 AI 生成约束，不是运行时依赖
+- `tdesign-mcp-server` 只允许作为本机 Codex MCP 开发知识源存在，禁止写入 `web/package.json`、仓库脚本、CI、hooks 或任何运行时依赖
+- 只有在 TDesign MCP 当前不可用时，才允许退回官方文档；发生 fallback 时，closeout 必须显式记录 fallback 原因和受影响组件
 
 页面类型与 vibe coding 规则：
 
@@ -269,6 +282,17 @@ UI 约束：
   - 仅面向开发者的契约治理术语
 - 用户可见文案默认应偏向操作语义，而不是实现语义
 - 若后端返回的是稳定业务 contract 的展示文案，例如权限码对应的名称/说明，前端应优先基于稳定键或稳定 code 在模块 `locales/**` 中完成本地化映射；接口原文只能作为未知项或迁移期回退，不得长期作为唯一 UI 真值
+
+前端任务 closeout 额外要求：
+
+- 若本轮涉及 `TDesign Vue Next` 组件，closeout 必须记录 `TDesign MCP preflight`
+- 推荐记录格式：
+  - `TDesign MCP preflight: used`
+  - `framework: vue-next`
+  - `components: <本轮查询的组件>`
+  - `docs checked: <get_component_docs / get_component_list / get_component_dom / get_component_changelog>`
+  - `fallback: none | official docs (<原因>)`
+- 若本轮不涉及 `TDesign Vue Next` 组件，closeout 明确写 `TDesign MCP preflight: not applicable`
 
 页面骨架规则：
 

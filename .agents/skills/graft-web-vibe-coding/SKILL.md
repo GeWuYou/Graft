@@ -10,7 +10,38 @@ Use this skill for `web` page work that needs design governance, prompt discipli
 Follow root `AGENTS.md`, `web/AGENTS.md`, `DESIGN.md`, `ai-plan/design/前端视觉设计规范.md`, and the relevant
 template under `ai-plan/design/graft-design-system/`.
 
-## 1. Declare page type first
+## 1. Run TDesign MCP preflight before coding
+
+Before page-type planning or implementation, decide whether the current slice changes `TDesign Vue Next` component
+usage.
+
+If yes:
+
+- query TDesign MCP before coding, with `framework=vue-next`
+- only query the components touched by this slice; do not do a full-library sweep
+- use the minimum relevant MCP calls:
+  - `get_component_list`
+    - confirm the component name and whether `vue-next` provides the expected component
+  - `get_component_docs`
+    - confirm props, events, slots, and supported usage
+  - `get_component_dom`
+    - required for style overrides, DOM structure assumptions, slot layout assumptions, or selector work
+  - `get_component_changelog`
+    - required when the task involves upgrade risk, version drift, or behavior differences across versions
+- record the queried components, query targets, and key conclusions in the implementation note or closeout
+
+If no:
+
+- explicitly record `TDesign MCP preflight: not applicable`
+
+If MCP is unavailable:
+
+- fall back to official TDesign documentation only
+- record the fallback reason and the affected components in closeout
+
+Do not postpone this preflight to validation or post-implementation review.
+
+## 2. Declare page type first
 
 Before coding, classify the task as one of:
 
@@ -30,7 +61,7 @@ If the task does not fit them naturally, register an extension type first and de
 - i18n requirements
 - acceptance rules
 
-## 2. Split by task size
+## 3. Split by task size
 
 For these tasks, return a structure proposal before coding:
 
@@ -57,7 +88,7 @@ For these tasks, direct implementation is allowed:
 
 Even then, still run the same self-checks.
 
-## 3. Build the page the Graft way
+## 4. Build the page the Graft way
 
 - Use `TDesign Vue Next` as the only runtime UI system.
 - Treat `web/ai-libs/tdesign-vue-next-starter` as reference only.
@@ -65,23 +96,25 @@ Even then, still run the same self-checks.
 - Keep layout console-first and operational; do not introduce marketing-style hero treatment.
 - Prefer explicit backend composition over ornamental layouts.
 
-## 4. Copy and i18n rules
+## 5. Copy and i18n rules
 
 - Visible UI copy must be product-facing.
 - Do not ship AI debug text, migration notes, demo labels, or implementation-phase explanations in user-facing copy.
 - Keep menu titles, page titles, empty states, and helper text inside the correct locale boundary.
 - `title_key` remains the stable truth for menu and route titles.
 
-## 5. Theme compatibility rules
+## 6. Theme compatibility rules
 
 - Light mode, dark mode, and custom brand theme must all remain readable.
 - Charts, tags, borders, cards, dialogs, and feedback states must react to token changes.
 - Use raw hex values only as last-resort fallback.
 
-## 6. Final self-check
+## 7. Final self-check
 
 Before handing off:
 
+- TDesign MCP preflight is recorded as `used`, `not applicable`, or `fallback to official docs`
+- when preflight was `used`, the queried components and query types are named
 - page type is declared
 - structure matches the page type
 - visible copy is clean

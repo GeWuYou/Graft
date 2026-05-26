@@ -1,0 +1,15 @@
+type: object
+required: [user_ids, role_ids]
+properties:
+  user_ids:
+    type: array
+    items:
+      type: integer
+      format: int64
+      minimum: 1
+  role_ids:
+    type: array
+    items:
+      type: integer
+      format: int64
+      minimum: 1

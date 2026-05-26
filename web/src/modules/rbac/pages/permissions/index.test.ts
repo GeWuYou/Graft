@@ -9,11 +9,17 @@ const i18nMessages: Record<string, string> = {
   'rbac.permissionCatalog.permissionRead.description': 'Localized permission description',
   'rbac.permissionCatalog.userCreate.display': 'Create Users Localized',
   'rbac.permissionCatalog.userCreate.description': 'Localized create-user description',
+  'rbac.permissionList.detail': 'Permission Details',
+  'rbac.permissionList.detailTitle': 'Permission Details',
+  'rbac.permissionList.detailLoadFailed': 'Failed to load permission details',
+  'rbac.permissionList.detailLoadFailedTitle': 'Permission details are temporarily unavailable',
+  'rbac.permissionList.detailFields.description': 'Description',
   'rbac.permissionList.emptyDescription': 'No description',
   'rbac.permissionList.emptyFilteredDescription': 'No permissions match the current filters',
 };
 
 const rbacApiMocks = vi.hoisted(() => ({
+  getPermissionDetail: vi.fn(),
   getPermissions: vi.fn(),
 }));
 
@@ -23,6 +29,7 @@ const messageMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../api/rbac', () => ({
+  getPermissionDetail: rbacApiMocks.getPermissionDetail,
   getPermissions: rbacApiMocks.getPermissions,
 }));
 
@@ -135,6 +142,7 @@ const tableStub = defineComponent({
           h('div', { 'data-testid': `permission-row-${index}` }, [
             slots.permission?.({ row }),
             slots.description?.({ row }),
+            slots.operation?.({ row }),
             h('span', { 'data-testid': `permission-code-${index}` }, String(row.code ?? '')),
             h('span', { 'data-testid': `permission-category-${index}` }, String(row.category ?? '')),
             h('span', { 'data-testid': `permission-created-at-${index}` }, String(row.created_at ?? '')),
@@ -150,13 +158,18 @@ const tableStub = defineComponent({
 const drawerStub = defineComponent({
   name: 'TDrawerStub',
   props: {
+    header: {
+      type: String,
+      default: '',
+    },
     visible: {
       type: Boolean,
       default: false,
     },
   },
   setup(props, { slots }) {
-    return () => (props.visible ? h('section', slots.default?.()) : null);
+    return () =>
+      props.visible ? h('section', { 'data-testid': 'drawer', 'data-header': props.header }, slots.default?.()) : null;
   },
 });
 
@@ -181,6 +194,7 @@ function mountPermissionPage() {
 
 describe('PermissionPage', () => {
   beforeEach(() => {
+    rbacApiMocks.getPermissionDetail.mockReset();
     rbacApiMocks.getPermissions.mockReset();
     messageMocks.error.mockReset();
     messageMocks.warning.mockReset();
@@ -211,12 +225,13 @@ describe('PermissionPage', () => {
 
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({});
     expect(wrapper.text()).toContain('Read Permissions Localized');
     expect(wrapper.text()).toContain('Localized permission description');
     expect(wrapper.get('[data-testid="permission-code-0"]').text()).toBe('permission.read');
     expect(wrapper.get('[data-testid="permission-created-at-0"]').text()).toBeTruthy();
     expect(wrapper.text()).toContain('rbac.permissionList.factSourceHint');
-    expect(wrapper.text()).not.toContain('rbac.permissionList.detail');
+    expect(wrapper.text()).toContain('Permission Details');
   });
 
   it('filters permissions by keyword', async () => {
@@ -251,8 +266,7 @@ describe('PermissionPage', () => {
     await wrapper.get('.toolbar__search').setValue('user.create');
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="permission-row-0"]').text()).toContain('user.create');
-    expect(wrapper.text()).not.toContain('permission.read');
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'user.create' });
   });
 
   it('falls back to API copy for unknown permission codes', async () => {
@@ -289,7 +303,7 @@ describe('PermissionPage', () => {
     expect(wrapper.find('[data-testid="permission-empty-clear-filters"]').exists()).toBe(false);
   });
 
-  it('renders the filtered empty state and clears filters from the empty action area', async () => {
+  it('sends filtered requests and clears filters from the toolbar action', async () => {
     rbacApiMocks.getPermissions.mockResolvedValue({
       items: [
         {
@@ -311,12 +325,16 @@ describe('PermissionPage', () => {
     await wrapper.get('.toolbar__search').setValue('no-match');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('No permissions match the current filters');
-    expect(wrapper.find('[data-testid="permission-empty-clear-filters"]').exists()).toBe(true);
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'no-match' });
 
-    await wrapper.get('[data-testid="permission-empty-clear-filters"]').trigger('click');
+    const clearButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'rbac.permissionList.toolbar.clearFilters');
+    expect(clearButton).toBeTruthy();
+    await clearButton?.trigger('click');
     await flushPromises();
 
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({});
     expect((wrapper.get('.toolbar__search').element as HTMLInputElement).value).toBe('');
     expect(wrapper.text()).toContain('Read Permissions Localized');
   });
@@ -341,5 +359,73 @@ describe('PermissionPage', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('No description');
+  });
+
+  it('opens the detail drawer and consumes permission detail when available', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          code: 'permission.read',
+          display: 'Permission Read',
+          description: null,
+          category: 'rbac',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
+          role_binding_count: 2,
+        },
+      ],
+    });
+    rbacApiMocks.getPermissionDetail.mockResolvedValue({
+      id: 1,
+      code: 'permission.read',
+      display: 'Permission Read',
+      description: 'Detail description',
+      category: 'rbac',
+      created_at: '2026-05-22T10:00:00Z',
+      updated_at: '2026-05-24T10:00:00Z',
+      role_binding_count: 3,
+    });
+
+    const wrapper = mountPermissionPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="permission-detail"]').trigger('click');
+    await flushPromises();
+
+    expect(rbacApiMocks.getPermissionDetail).toHaveBeenCalledWith(1);
+    expect(wrapper.findAll('[data-testid="drawer"]')).toHaveLength(1);
+    expect(wrapper.text()).toContain('Localized permission description');
+    expect(wrapper.text()).toContain('3');
+    expect(wrapper.text()).toContain('May 24, 2026');
+    expect(wrapper.text()).not.toContain('2026-05-24T10:00:00Z');
+  });
+
+  it('keeps the drawer open with fallback snapshot when detail loading fails', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 2,
+          code: 'custom.permission',
+          display: 'Custom Permission',
+          description: 'Snapshot description',
+          category: 'custom',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
+          role_binding_count: 1,
+        },
+      ],
+    });
+    rbacApiMocks.getPermissionDetail.mockRejectedValue(new Error('detail failed'));
+
+    const wrapper = mountPermissionPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="permission-detail"]').trigger('click');
+    await flushPromises();
+
+    expect(messageMocks.error).toHaveBeenCalledWith('Failed to load permission details');
+    expect(wrapper.text()).toContain('Permission details are temporarily unavailable');
+    expect(wrapper.text()).toContain('Snapshot description');
   });
 });

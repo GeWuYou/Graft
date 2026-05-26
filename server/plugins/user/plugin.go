@@ -172,6 +172,7 @@ func resolveService[T any](ctx *plugin.Context, key any, label string) (T, error
 // userService 把用户插件内部仓储读取收敛为跨插件稳定用户摘要服务。
 type userService struct {
 	users userstore.UserRepository
+	rbac  pluginapi.RBACAccessService
 }
 
 // authService 是 `pluginapi.AuthService` 在用户插件内的最小实现。
@@ -225,6 +226,18 @@ func (s userService) ListUsers(ctx context.Context) ([]userstore.User, error) {
 	}
 
 	return s.users.List(ctx)
+}
+
+func (s userService) ListUserRoleSummaries(ctx context.Context, userIDs []uint64) (map[uint64][]pluginapi.RoleSummary, error) {
+	if s.rbac == nil {
+		return nil, errors.New("rbac access service is unavailable")
+	}
+
+	summaries, err := s.rbac.ListRoleSummariesByUserIDs(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list user role summaries: %w", err)
+	}
+	return summaries, nil
 }
 
 func (s userService) CreateUser(

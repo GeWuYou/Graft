@@ -55,10 +55,13 @@ Typical triggers:
 
 - treat checkpoint interrupts as health checks only
 - do not change the round goal, broaden scope, or append extra implementation work because of a checkpoint
+- label checkpoint replies clearly as checkpoint status rather than final closeout
 - reply with a structured status containing `current_phase`, `changed_files`, `last_validation`, `next_action`,
   `can_continue`, `estimated_remaining_minutes`, `eta_confidence`, and `risks_or_blockers`
 - keep the final implementation responsibility, validation, and closeout with the current round worker even if the
   round used `graft-multi-agent-batch` internally
+- after replying to a checkpoint with `can_continue=true`, expect the same round to continue under the current worker;
+  do not treat the checkpoint reply as permission to stop before emitting the required final closeout
 
 11. If a delegated round cannot safely emit the required closeout, stop and return a clearly blocked state to the main
     agent instead of silently continuing outside the loop contract.
@@ -107,3 +110,10 @@ structured. It must include:
 6. `estimated_remaining_minutes`
 7. `eta_confidence`
 8. `risks_or_blockers`
+
+Checkpoint responses should also follow these formatting rules:
+
+- begin with `Checkpoint status:`
+- do not include `Next-session startup prompt:`
+- do not append the final closeout JSON block
+- if the worker can continue, leave final completion, validation, and closeout to the same worker round

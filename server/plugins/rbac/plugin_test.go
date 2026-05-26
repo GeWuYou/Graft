@@ -30,21 +30,31 @@ import (
 )
 
 type testRBACRepository struct {
-	roles              []store.Role
-	permissions        []store.Permission
-	rolesByUserID      []store.Role
-	permissionsByUser  []store.Permission
-	rolePermissionIDs  map[uint64][]uint64
-	roleByID           map[uint64]store.Role
-	listRolesFn        func(ctx context.Context) ([]store.Role, error)
-	listPermissionsFn  func(ctx context.Context) ([]store.Permission, error)
-	createRole         func(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
-	updateRole         func(ctx context.Context, input store.UpdateRoleInput) (store.Role, error)
-	replacePermission  func(ctx context.Context, input store.ReplacePermissionsForRoleInput) error
-	replaceUserRoles   func(ctx context.Context, input store.ReplaceRolesForUserInput) error
-	listRolesErr       error
-	listPermissionsErr error
-	permissionsErr     error
+	roles                 []store.Role
+	permissions           []store.Permission
+	rolesByUserID         []store.Role
+	permissionsByUser     []store.Permission
+	rolePermissionIDs     map[uint64][]uint64
+	roleByID              map[uint64]store.Role
+	permissionByID        map[uint64]store.Permission
+	listRolesFn           func(ctx context.Context, filter store.RoleFilter) ([]store.Role, error)
+	listPermissionsFn     func(ctx context.Context, filter store.PermissionFilter) ([]store.Permission, error)
+	createRole            func(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
+	updateRole            func(ctx context.Context, input store.UpdateRoleInput) (store.Role, error)
+	setRoleStatus         func(ctx context.Context, input store.SetRoleStatusInput) (store.Role, error)
+	deleteRole            func(ctx context.Context, input store.SoftDeleteRoleInput) error
+	replacePermission     func(ctx context.Context, input store.ReplacePermissionsForRoleInput) error
+	addPermission         func(ctx context.Context, input store.AddPermissionsToRoleInput) error
+	removePermission      func(ctx context.Context, input store.RemovePermissionsFromRoleInput) error
+	replaceUserRoles      func(ctx context.Context, input store.ReplaceRolesForUserInput) error
+	addUserRoles          func(ctx context.Context, input store.AddRolesToUserInput) error
+	removeUserRoles       func(ctx context.Context, input store.RemoveRolesFromUserInput) error
+	replaceUserRolesBatch func(ctx context.Context, input store.BatchUserRoleMutationInput) error
+	addUserRolesBatch     func(ctx context.Context, input store.BatchUserRoleMutationInput) error
+	removeUserRolesBatch  func(ctx context.Context, input store.BatchUserRoleMutationInput) error
+	listRolesErr          error
+	listPermissionsErr    error
+	permissionsErr        error
 }
 
 type testUserService struct {
@@ -84,6 +94,25 @@ func (r testRBACRepository) UpdateRole(ctx context.Context, input store.UpdateRo
 	return store.Role{ID: input.ID, Name: input.Name, Display: input.Display, Description: input.Description}, nil
 }
 
+func (r testRBACRepository) SetRoleStatus(ctx context.Context, input store.SetRoleStatusInput) (store.Role, error) {
+	if r.setRoleStatus != nil {
+		return r.setRoleStatus(ctx, input)
+	}
+	role, err := r.GetRoleByID(ctx, input.ID)
+	if err != nil {
+		return store.Role{}, err
+	}
+	role.Status = input.Status
+	return role, nil
+}
+
+func (r testRBACRepository) SoftDeleteRole(ctx context.Context, input store.SoftDeleteRoleInput) error {
+	if r.deleteRole != nil {
+		return r.deleteRole(ctx, input)
+	}
+	return nil
+}
+
 func (r testRBACRepository) AssignPermissionsToRole(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
 	return nil
 }
@@ -93,6 +122,20 @@ func (r testRBACRepository) ReplacePermissionsForRole(ctx context.Context, input
 		return r.replacePermission(ctx, input)
 	}
 
+	return nil
+}
+
+func (r testRBACRepository) AddPermissionsToRole(ctx context.Context, input store.AddPermissionsToRoleInput) error {
+	if r.addPermission != nil {
+		return r.addPermission(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) RemovePermissionsFromRole(ctx context.Context, input store.RemovePermissionsFromRoleInput) error {
+	if r.removePermission != nil {
+		return r.removePermission(ctx, input)
+	}
 	return nil
 }
 
@@ -108,6 +151,41 @@ func (r testRBACRepository) ReplaceRolesForUser(ctx context.Context, input store
 	return nil
 }
 
+func (r testRBACRepository) AddRolesToUser(ctx context.Context, input store.AddRolesToUserInput) error {
+	if r.addUserRoles != nil {
+		return r.addUserRoles(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) RemoveRolesFromUser(ctx context.Context, input store.RemoveRolesFromUserInput) error {
+	if r.removeUserRoles != nil {
+		return r.removeUserRoles(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) ReplaceRolesForUsersAtomically(ctx context.Context, input store.BatchUserRoleMutationInput) error {
+	if r.replaceUserRolesBatch != nil {
+		return r.replaceUserRolesBatch(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) AddRolesToUsersAtomically(ctx context.Context, input store.BatchUserRoleMutationInput) error {
+	if r.addUserRolesBatch != nil {
+		return r.addUserRolesBatch(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) RemoveRolesFromUsersAtomically(ctx context.Context, input store.BatchUserRoleMutationInput) error {
+	if r.removeUserRolesBatch != nil {
+		return r.removeUserRolesBatch(ctx, input)
+	}
+	return nil
+}
+
 func (r testRBACRepository) GetRoleByID(ctx context.Context, roleID uint64) (store.Role, error) {
 	_ = ctx
 	if r.roleByID != nil {
@@ -119,13 +197,30 @@ func (r testRBACRepository) GetRoleByID(ctx context.Context, roleID uint64) (sto
 	return store.Role{}, store.ErrRoleNotFound
 }
 
+func (r testRBACRepository) GetPermissionByID(_ context.Context, permissionID uint64) (store.Permission, error) {
+	if r.permissionByID != nil {
+		if permission, ok := r.permissionByID[permissionID]; ok {
+			return permission, nil
+		}
+	}
+	return store.Permission{}, store.ErrPermissionNotFound
+}
+
 func (r testRBACRepository) ListRolesByUserID(_ context.Context, _ uint64) ([]store.Role, error) {
 	return r.rolesByUserID, nil
 }
 
-func (r testRBACRepository) ListRoles(ctx context.Context) ([]store.Role, error) {
+func (r testRBACRepository) ListRolesByUserIDs(_ context.Context, userIDs []uint64) (map[uint64][]store.Role, error) {
+	result := make(map[uint64][]store.Role, len(userIDs))
+	for _, userID := range userIDs {
+		result[userID] = r.rolesByUserID
+	}
+	return result, nil
+}
+
+func (r testRBACRepository) ListRoles(ctx context.Context, filter store.RoleFilter) ([]store.Role, error) {
 	if r.listRolesFn != nil {
-		return r.listRolesFn(ctx)
+		return r.listRolesFn(ctx, filter)
 	}
 	if r.listRolesErr != nil {
 		return nil, r.listRolesErr
@@ -140,9 +235,9 @@ func (r testRBACRepository) ListPermissionsByUserID(_ context.Context, _ uint64)
 	return r.permissionsByUser, nil
 }
 
-func (r testRBACRepository) ListPermissions(ctx context.Context) ([]store.Permission, error) {
+func (r testRBACRepository) ListPermissions(ctx context.Context, filter store.PermissionFilter) ([]store.Permission, error) {
 	if r.listPermissionsFn != nil {
-		return r.listPermissionsFn(ctx)
+		return r.listPermissionsFn(ctx, filter)
 	}
 	if r.listPermissionsErr != nil {
 		return nil, r.listPermissionsErr
@@ -315,8 +410,8 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	ctx, _ := newPluginTestContext(t, testRBACRepository{})
 
 	items := ctx.PermissionRegistry.Items()
-	if len(items) != 7 {
-		t.Fatalf("expected 7 registered permissions, got %d", len(items))
+	if len(items) != 9 {
+		t.Fatalf("expected 9 registered permissions, got %d", len(items))
 	}
 	assertRegisteredPermissionCodes(t, items)
 	for _, item := range items {
@@ -360,6 +455,8 @@ func assertRegisteredPermissionCodes(t *testing.T, items []permission.Item) {
 		rbaccontract.RoleReadPermission.String(),
 		rbaccontract.RoleCreatePermission.String(),
 		rbaccontract.RoleUpdatePermission.String(),
+		rbaccontract.RoleStatusUpdatePermission.String(),
+		rbaccontract.RoleDeletePermission.String(),
 		rbaccontract.RolePermissionAssignPermission.String(),
 		rbaccontract.PermissionReadPermission.String(),
 		rbaccontract.UserRoleReadPermission.String(),
@@ -406,6 +503,63 @@ func TestRoleRoutesListRoles(t *testing.T) {
 	}
 	if payload.Data.Items[0].Builtin != true || payload.Data.Items[0].Name != "admin" {
 		t.Fatalf("unexpected role item: %#v", payload.Data.Items[0])
+	}
+}
+
+func TestRoleRoutesListRolesPropagatesBuiltinFilter(t *testing.T) {
+	captured := store.RoleFilter{}
+	repo := testRBACRepository{
+		listRolesFn: func(_ context.Context, filter store.RoleFilter) ([]store.Role, error) {
+			captured = filter
+			return []store.Role{}, nil
+		},
+		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleReadPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newAuthorizedRequest("/api/roles?builtin=true"))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if captured.Builtin == nil || !*captured.Builtin {
+		t.Fatalf("expected builtin filter to propagate, got %#v", captured)
+	}
+}
+
+func TestRoleRoutesListRolesRejectInvalidQueryValues(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleReadPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	cases := []struct {
+		name  string
+		path  string
+		field string
+	}{
+		{name: "status", path: "/api/roles?status=archived", field: "status"},
+		{name: "builtin", path: "/api/roles?builtin=maybe", field: "builtin"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, newAuthorizedRequest(tc.path))
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("expected status 400, got %d", recorder.Code)
+			}
+
+			var payload httpx.ErrorResponse
+			if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if payload.MessageKey != messagecontract.CommonInvalidArgument.String() || payload.Details["field"] != tc.field {
+				t.Fatalf("unexpected invalid-query payload: %#v", payload)
+			}
+		})
 	}
 }
 
@@ -539,6 +693,34 @@ func TestPermissionRoutesListPermissions(t *testing.T) {
 	}
 }
 
+// TestPermissionDetailRouteMapsMissingPermissionToDedicatedNotFound 验证权限详情读取接口会返回稳定的 permission-not-found 语义。
+func TestPermissionDetailRouteMapsMissingPermissionToDedicatedNotFound(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.PermissionReadPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequest("/api/permissions/99")
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != messagecontract.PermissionNotFound.String() || payload.Code != "PERMISSION_NOT_FOUND" {
+		t.Fatalf("unexpected permission-not-found payload: %#v", payload)
+	}
+	if payload.Locale != "en-US" {
+		t.Fatalf("expected locale en-US, got %#v", payload)
+	}
+}
+
 // TestPermissionRoutesPropagateReadFailure 验证仓储读取失败会走统一本地化内部错误响应。
 func TestPermissionRoutesPropagateReadFailure(t *testing.T) {
 	repo := testRBACRepository{
@@ -662,7 +844,7 @@ func TestRolePermissionAssignRouteReplacesRolePermissions(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
 		"permission_ids": []uint64{2, 3},
 	}))
 
@@ -691,7 +873,7 @@ func TestRolePermissionAssignRouteMapsMissingPermissionToInvalidArgument(t *test
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
 		"permission_ids": []uint64{99},
 	}))
 
@@ -715,7 +897,7 @@ func TestRolePermissionAssignRouteMapsDeletedPermissionIDsToInvalidArgument(t *t
 		roleByID: map[uint64]store.Role{
 			1: {ID: 1, Name: "editor", Display: "编辑"},
 		},
-		listPermissionsFn: func(_ context.Context) ([]store.Permission, error) {
+		listPermissionsFn: func(_ context.Context, _ store.PermissionFilter) ([]store.Permission, error) {
 			listPermissionsCalls++
 			if listPermissionsCalls == 1 {
 				return []store.Permission{
@@ -739,7 +921,7 @@ func TestRolePermissionAssignRouteMapsDeletedPermissionIDsToInvalidArgument(t *t
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
 		"permission_ids": []uint64{2, 3},
 	}))
 
@@ -753,6 +935,52 @@ func TestRolePermissionAssignRouteMapsDeletedPermissionIDsToInvalidArgument(t *t
 	}
 	if payload.MessageKey != messagecontract.CommonInvalidArgument.String() || payload.Details["field"] != "permission_ids" {
 		t.Fatalf("unexpected deleted-permission payload: %#v", payload)
+	}
+}
+
+func TestRoleStatusRouteRequiresDedicatedStatusPermission(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleUpdatePermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/status", map[string]any{
+		"status": "disabled",
+	}))
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d", recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Details["permission"] != rbaccontract.RoleStatusUpdatePermission.String() {
+		t.Fatalf("unexpected denied permission detail: %#v", payload)
+	}
+}
+
+func TestRoleDeleteRouteRequiresDedicatedDeletePermission(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleUpdatePermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/delete", nil))
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d", recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Details["permission"] != rbaccontract.RoleDeletePermission.String() {
+		t.Fatalf("unexpected denied permission detail: %#v", payload)
 	}
 }
 
@@ -819,7 +1047,7 @@ func TestUserRoleAssignRouteReturnsUserNotFound(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{1},
 	})
 	request.Header.Set(i18n.LocaleHeader, "en-US")
@@ -852,7 +1080,7 @@ func TestUserRoleAssignRouteMapsMissingRoleToInvalidArgument(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{99},
 	}))
 
@@ -873,7 +1101,7 @@ func TestUserRoleAssignRouteMapsMissingRoleToInvalidArgument(t *testing.T) {
 func TestUserRoleAssignRouteMapsDeletedRoleIDsToInvalidArgument(t *testing.T) {
 	listRolesCalls := 0
 	repo := testRBACRepository{
-		listRolesFn: func(_ context.Context) ([]store.Role, error) {
+		listRolesFn: func(_ context.Context, _ store.RoleFilter) ([]store.Role, error) {
 			listRolesCalls++
 			if listRolesCalls == 1 {
 				return []store.Role{
@@ -894,7 +1122,7 @@ func TestUserRoleAssignRouteMapsDeletedRoleIDsToInvalidArgument(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{1, 2},
 	}))
 
@@ -927,7 +1155,7 @@ func TestUserRoleAssignRouteRejectsRemovingOwnBuiltinAdmin(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{2},
 	})
 	request.Header.Set(i18n.LocaleHeader, "en-US")
@@ -968,7 +1196,7 @@ func TestUserRoleAssignRouteAllowsRetainingOwnBuiltinAdmin(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{1, 2},
 	}))
 
@@ -1000,7 +1228,7 @@ func TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser(t *testing.T
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/8/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/8/roles/replace", map[string]any{
 		"role_ids": []uint64{2},
 	}))
 

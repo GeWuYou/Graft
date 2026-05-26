@@ -2,7 +2,7 @@ get:
   tags: [users]
   summary: List users
   operationId: getUsers
-  description: Returns the existing user list payload without changing business behavior.
+  description: Returns the user list with minimal embedded role summaries so the frontend does not need per-row role reads.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

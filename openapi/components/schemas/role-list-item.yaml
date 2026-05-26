@@ -1,5 +1,5 @@
 type: object
-required: [id, name, display, builtin, updated_at, permission_count, user_count]
+required: [id, name, display, builtin, status, updated_at, permission_count, user_count]
 properties:
   id:
     type: integer
@@ -13,6 +13,9 @@ properties:
     type: string
   builtin:
     type: boolean
+  status:
+    type: string
+    enum: [enabled, disabled]
   updated_at:
     type: string
   permission_count:

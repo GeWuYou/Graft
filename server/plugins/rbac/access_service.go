@@ -40,6 +40,50 @@ func (s accessService) ListPermissionCodesByUserID(ctx context.Context, userID u
 	return stableStrings(permissions, func(permission rbacstore.Permission) string { return permission.Code }), nil
 }
 
+func (s accessService) ListRoleSummariesByUserIDs(
+	ctx context.Context,
+	userIDs []uint64,
+) (map[uint64][]pluginapi.RoleSummary, error) {
+	if s.rbac == nil {
+		return nil, errors.New("rbac repository is unavailable")
+	}
+
+	rolesByUserID, err := s.rbac.ListRolesByUserIDs(ctx, userIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	summaries := make(map[uint64][]pluginapi.RoleSummary, len(rolesByUserID))
+	for userID, roles := range rolesByUserID {
+		items := make([]pluginapi.RoleSummary, 0, len(roles))
+		for _, role := range roles {
+			items = append(items, pluginapi.RoleSummary{
+				ID:      role.ID,
+				Name:    strings.TrimSpace(role.Name),
+				Display: strings.TrimSpace(role.Display),
+			})
+		}
+		slices.SortFunc(items, func(left, right pluginapi.RoleSummary) int {
+			if left.ID == right.ID {
+				return strings.Compare(left.Name, right.Name)
+			}
+			if left.ID < right.ID {
+				return -1
+			}
+			return 1
+		})
+		summaries[userID] = items
+	}
+
+	for _, userID := range userIDs {
+		if _, ok := summaries[userID]; !ok {
+			summaries[userID] = []pluginapi.RoleSummary{}
+		}
+	}
+
+	return summaries, nil
+}
+
 var _ pluginapi.RBACAccessService = accessService{}
 
 func stableStrings[T any](items []T, extract func(T) string) []string {

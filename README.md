@@ -31,7 +31,7 @@ Graft 是一个基于 Go 和 Vue 3 的组合式后台平台，目标是通过插
 
 ## 本地启动 `server`
 
-当前 `server` 使用 `.env` 作为运行时主配置源。推荐把 GoLand 或其他 IDE 的 working directory 设为 `server`；如果从仓库根启动，程序会回退读取 `server/.env`。
+当前 `server` 使用 `.env` 作为运行时主配置源。推荐把 GoLand 或其他 IDE 的 working directory 设为 `server`；如果从仓库根启动，程序会回退读取 `server/.env`。即使 IDE 把 working directory 设到 `server/cmd/graft` 这类 `server` 子目录，程序也会向上回溯读取同一份 `server/.env`。
 
 最小启动步骤：
 

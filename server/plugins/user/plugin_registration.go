@@ -126,7 +126,8 @@ func (p *Plugin) registerServices(ctx *plugin.Context) (registeredServices, erro
 	if authRepo == nil {
 		return registeredServices{}, errors.New("auth repository is unavailable")
 	}
-	userSvc := userService{users: userRepo}
+	p.bootstrapAccess = newDeferredRBACAccessService()
+	userSvc := userService{users: userRepo, rbac: p.bootstrapAccess}
 	if err := ctx.Services.RegisterSingleton((*pluginapi.UserService)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil
 	}); err != nil {
@@ -137,7 +138,6 @@ func (p *Plugin) registerServices(ctx *plugin.Context) (registeredServices, erro
 	if err != nil {
 		return registeredServices{}, err
 	}
-	p.bootstrapAccess = newDeferredRBACAccessService()
 	bootstrapSvc := newBootstrapReader(ctx.Config.I18n, ctx.I18n, ctx.MenuRegistry, authRepo, p.bootstrapAccess)
 	p.defaultAdminAuth = authSvc
 
@@ -246,6 +246,21 @@ func (s *deferredRBACAccessService) ListPermissionCodesByUserID(ctx context.Cont
 	}
 
 	return target.ListPermissionCodesByUserID(ctx, userID)
+}
+
+func (s *deferredRBACAccessService) ListRoleSummariesByUserIDs(
+	ctx context.Context,
+	userIDs []uint64,
+) (map[uint64][]pluginapi.RoleSummary, error) {
+	s.mu.RLock()
+	target := s.target
+	s.mu.RUnlock()
+
+	if target == nil {
+		return nil, errors.New("rbac access service is unavailable")
+	}
+
+	return target.ListRoleSummariesByUserIDs(ctx, userIDs)
 }
 
 var _ pluginapi.RBACAccessService = (*deferredRBACAccessService)(nil)
