@@ -40,9 +40,12 @@ Typical triggers:
    - `checkpoint_budget` with default `1`
    - checkpoint cooldown
    - `soft_timeout_minutes`
+     - default to `30` for deep implementation rounds unless the caller explicitly sets a smaller bound
    - `short_grace_window`
    - `default_grace_window`
+     - default to `20` for deep implementation rounds unless the caller explicitly sets a smaller bound
    - `max_grace_window`
+     - default to `30` for deep implementation rounds unless the caller explicitly sets a larger bound
 3. Keep orchestration in the main agent and delegate each bounded implementation round to exactly one `worker`
    subagent by default:
    - build one round prompt that restates the inherited startup context, owned scope, remaining budget, allowed scopes,
@@ -77,6 +80,7 @@ Typical triggers:
    - checkpoint requests use `interrupt=true`
    - checkpoint requests are health checks only and must not change the task goal, broaden scope, or append new
      implementation requirements
+   - checkpoint responses are not closeouts and must not be interpreted as implicit stop signals
    - do not send a checkpoint just because one or more `wait_agent` windows elapsed without a closeout
    - the default trigger for a first checkpoint is: the round is at or beyond `soft_timeout`, has no usable closeout yet, and the main agent has reason to believe both output and tool activity have gone quiet for a prolonged period
    - when the only signal is “still no diff”, prefer waiting; use checkpoint only after the stronger stalled signals above are also present
@@ -96,6 +100,9 @@ Typical triggers:
    - `eta_confidence=low`: wait only `short_grace_window`, then checkpoint again or move to retry/block
    - ETA is advisory only; it must not justify exceeding the round's remaining runtime budget
    - if the checkpoint reports the worker is in an active pre-write or early-write phase and `can_continue=true`, treat that as positive health evidence; prefer another wait window over retry escalation
+   - after any usable checkpoint with `can_continue=true`, explicitly resume waiting for the same worker's final closeout; do not close, replace, or mark the round malformed merely because the most recent message was a checkpoint
+   - before classifying a round as missing closeout, perform at least one post-checkpoint `wait_agent` window sized from ETA or the default grace rule above
+   - if a worker later emits a valid final closeout after a prior checkpoint, accept that final closeout as the round result rather than freezing the earlier checkpoint as terminal state
 8. Let the main agent decide whether to continue based on:
    - closeout JSON
    - the presence or absence of `Next-session startup prompt:`
@@ -106,7 +113,7 @@ Typical triggers:
 9. If a delegated worker round stalls, omits closeout, or returns contradictory closeout:
    - degrade worker reliability when ETA repeatedly misses, there is no substantive progress, or no closeout arrives
    - do not classify a round as stalled while the latest evidence still shows active tool use, active output, or a credible near-term next action
-   - if the worker gives no response, a malformed response, `can_continue=false`, or exhausts checkpoint budget,
+   - if the worker gives no response, a malformed final closeout after the post-checkpoint grace handling above, `can_continue=false`, or exhausts checkpoint budget,
      enter `retry_once_then_blocked`
    - retry the same bounded round once with a fresh worker subagent
    - the retry worker must inherit the partial diff, relevant logs, validation evidence, and the previous worker
@@ -114,6 +121,7 @@ Typical triggers:
    - if the second worker still fails to emit a usable closeout, stop the loop as `blocked`
    - do not recover the implementation locally and do not silently continue outside the loop contract
    - keep the stop reason explicit in the final closeout
+   - if the first worker already produced substantive owned-scope changes, preserve that fact in the retry context and do not describe the round as diff-free unless Git still confirms there are no relevant changes
 10. Stop when:
    - no further next-session startup prompt is emitted
    - the closeout JSON says `continue: false`
