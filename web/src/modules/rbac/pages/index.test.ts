@@ -52,10 +52,16 @@ vi.mock('@/store', () => ({
 
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>();
+  const translations: Record<string, string> = {
+    'rbac.permissionCatalog.permissionRead.display': 'Read Permissions Localized',
+    'rbac.permissionCatalog.permissionRead.description': 'Localized permission description',
+    'rbac.permissionCatalog.roleUpdate.display': 'Update Roles Localized',
+    'rbac.permissionCatalog.roleUpdate.description': 'Localized update-role description',
+  };
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key,
+      t: (key: string) => translations[key] ?? key,
       locale: {
         value: 'en-US',
       },
@@ -378,13 +384,25 @@ const checkboxGroupStub = defineComponent({
 const checkboxStub = defineComponent({
   name: 'TCheckboxStub',
   props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
     value: {
       type: [Number, Boolean],
       default: undefined,
     },
   },
   setup(props, { slots }) {
-    return () => h('label', { 'data-permission-id': String(props.value ?? '') }, slots.default?.());
+    return () =>
+      h(
+        'label',
+        {
+          'data-disabled': String(props.disabled),
+          'data-permission-id': String(props.value ?? ''),
+        },
+        slots.default?.(),
+      );
   },
 });
 
@@ -587,11 +605,27 @@ describe('RolePage', () => {
     expect(messageMocks.error).not.toHaveBeenCalled();
   });
 
-  it('submits the restored permission snapshot for the selected role', async () => {
+  it('keeps replace mode submit disabled until the selection changes', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
     rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [2, 1, 2] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="permission-drawer-save"]').attributes('disabled')).toBeDefined();
+    expect(rbacApiMocks.replaceRolePermissions).not.toHaveBeenCalled();
+  });
+
+  it('allows clearing all permissions in replace mode', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1, 2] });
     rbacApiMocks.replaceRolePermissions.mockResolvedValue(null);
 
     const wrapper = mountRolePage();
@@ -599,13 +633,31 @@ describe('RolePage', () => {
 
     await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
     await flushPromises();
+    updatePermissionSelection(wrapper, []);
+    await flushPromises();
+    expect(wrapper.get('[data-testid="permission-drawer-save"]').attributes('disabled')).toBeUndefined();
+
     await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
     await flushPromises();
 
     expect(rbacApiMocks.replaceRolePermissions).toHaveBeenCalledWith(2, {
-      permission_ids: [1, 2],
+      permission_ids: [],
     });
-    expect(messageMocks.success).toHaveBeenCalledWith('rbac.roleList.assignSuccess');
+  });
+
+  it('keeps replace mode submit disabled when the selection is unchanged', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="permission-drawer-save"]').attributes('disabled')).toBeDefined();
   });
 
   it('submits only newly selected permissions in add mode', async () => {
@@ -620,8 +672,9 @@ describe('RolePage', () => {
 
     await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
     await flushPromises();
-    updatePermissionSelection(wrapper, [1, 2]);
     await setPermissionMutationMode(wrapper, 'add');
+    await flushPromises();
+    updatePermissionSelection(wrapper, [2]);
     await flushPromises();
     await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
     await flushPromises();
@@ -645,8 +698,9 @@ describe('RolePage', () => {
 
     await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
     await flushPromises();
-    updatePermissionSelection(wrapper, [2]);
     await setPermissionMutationMode(wrapper, 'remove');
+    await flushPromises();
+    updatePermissionSelection(wrapper, [1]);
     await flushPromises();
     await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
     await flushPromises();
@@ -656,6 +710,64 @@ describe('RolePage', () => {
     });
     expect(rbacApiMocks.replaceRolePermissions).not.toHaveBeenCalled();
     expect(rbacApiMocks.addRolePermissions).not.toHaveBeenCalled();
+  });
+
+  it('resets to explicit removal selection when switching to remove mode', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1, 2] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    await setPermissionMutationMode(wrapper, 'remove');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="permission-drawer-save"]').attributes('disabled')).toBeDefined();
+
+    updatePermissionSelection(wrapper, [2]);
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="permission-drawer-save"]').attributes('disabled')).toBeUndefined();
+  });
+
+  it('renders localized permission copy inside the assignment drawer', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Read Permissions Localized');
+    expect(wrapper.text()).toContain('Localized permission description');
+    expect(wrapper.text()).not.toContain('Permission Read');
+    expect(wrapper.text()).not.toContain('Read permissions');
+  });
+
+  it('matches permission search against localized copy', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('input[placeholder="rbac.roleList.permissionDialog.searchPlaceholder"]').setValue('Localized');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Read Permissions Localized');
+    expect(wrapper.text()).toContain('Update Roles Localized');
   });
 
   it('shows lifecycle guidance in the detail drawer for role delete semantics', async () => {
@@ -763,6 +875,8 @@ describe('RolePage', () => {
 
     await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
     await flushPromises();
+    updatePermissionSelection(wrapper, [2]);
+    await flushPromises();
     await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
     await flushPromises();
 
@@ -788,6 +902,8 @@ describe('RolePage', () => {
     await flushPromises();
 
     await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    updatePermissionSelection(wrapper, [2]);
     await flushPromises();
     await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
     await flushPromises();

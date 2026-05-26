@@ -33,9 +33,9 @@
       "assignSuccess": "Role permissions updated",
       "assignFailed": "Failed to update role permissions",
       "permissionActions": {
-        "replace": "Replace Permissions",
-        "add": "Add Permissions",
-        "remove": "Remove Permissions"
+        "replace": "Overwrite Current Permissions",
+        "add": "Append Selected Permissions Only",
+        "remove": "Remove Selected Permissions"
       },
       "builtinYes": "Builtin",
       "builtinNo": "Custom",
@@ -91,7 +91,8 @@
       },
       "permissionDialog": {
         "title": "Manage Role Permissions",
-        "operationLabel": "Operation",
+        "saveStrategyLabel": "Save Strategy",
+        "operationHelp": "Overwrite Current Permissions replaces the role's current permissions with the current selection. Append Selected Permissions Only adds only the permissions selected this time. Remove Selected Permissions removes only the already assigned permissions selected this time.",
         "loadingSelection": "Loading the current role permission snapshot",
         "searchPlaceholder": "Search permission code, name, or description",
         "onlySelected": "Show selected only",
@@ -103,6 +104,8 @@
         "selectionLoadFailed": "Failed to load the current role permissions. Retry before saving.",
         "selectionUnavailable": "The current role permission snapshot is invalid, so overwrite save is blocked.",
         "selectionCount": "{selected} / {total} permissions selected",
+        "addSelectionCount": "{count} permissions will be appended",
+        "removeSelectionCount": "{count} permissions will be removed",
         "emptyDescription": "No description",
         "empty": "No matching permissions",
         "confirm": "Submit Permission Changes"

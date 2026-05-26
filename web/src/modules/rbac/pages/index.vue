@@ -299,14 +299,6 @@
               <span class="drawer-summary__label">{{ t('rbac.roleList.columns.updatedAt') }}</span>
               <span>{{ formatTimestamp(selectedRole?.updated_at) }}</span>
             </div>
-            <div class="drawer-summary__item">
-              <span class="drawer-summary__label">{{ t('rbac.roleList.permissionDialog.operationLabel') }}</span>
-              <t-select
-                v-model="permissionMutationMode"
-                :options="permissionMutationOptions"
-                :disabled="loadingRolePermissions || submittingPermissions || !canAssignPermissions"
-              />
-            </div>
           </div>
         </div>
 
@@ -339,34 +331,20 @@
 
         <div v-if="filteredPermissionGroups.length > 0" class="permission-groups">
           <section v-for="group in filteredPermissionGroups" :key="group.category" class="permission-group">
-            <div class="permission-group__head">
-              <div>
-                <h3 class="permission-group__title">{{ group.title }}</h3>
-                <p class="permission-group__meta">
-                  {{ t('rbac.roleList.permissionDialog.groupHint', { count: group.items.length }) }}
-                </p>
-              </div>
-              <div class="table-actions">
-                <t-button
-                  size="small"
-                  theme="default"
-                  variant="outline"
-                  :disabled="!canAssignPermissions"
-                  @click="selectGroupPermissions(group.items)"
-                >
-                  {{ t('rbac.roleList.permissionDialog.selectGroup') }}
-                </t-button>
-                <t-button
-                  size="small"
-                  theme="default"
-                  variant="outline"
-                  :disabled="!canAssignPermissions"
-                  @click="clearGroupPermissions(group.items)"
-                >
-                  {{ t('rbac.roleList.permissionDialog.clearGroup') }}
-                </t-button>
-              </div>
-            </div>
+            <permission-group-toolbar
+              v-model="permissionMutationMode"
+              data-testid="permission-mutation-mode"
+              :title="group.title"
+              :meta="t('rbac.roleList.permissionDialog.groupHint', { count: group.items.length })"
+              :strategy-label="t('rbac.roleList.permissionDialog.saveStrategyLabel')"
+              :options="permissionMutationOptions"
+              :disabled="loadingRolePermissions || submittingPermissions || !canAssignPermissions"
+              :quick-action-disabled="permissionGroupActionsDisabled"
+              :select-group-label="t('rbac.roleList.permissionDialog.selectGroup')"
+              :clear-group-label="t('rbac.roleList.permissionDialog.clearGroup')"
+              @select-group="selectGroupPermissions(group.items)"
+              @clear-group="clearGroupPermissions(group.items)"
+            />
 
             <t-checkbox-group
               v-model="selectedPermissionIds"
@@ -375,14 +353,14 @@
             >
               <div class="permission-list">
                 <label v-for="item in group.items" :key="item.id" class="permission-card">
-                  <t-checkbox :value="item.id">
+                  <t-checkbox :value="item.id" :disabled="isPermissionCardDisabled(item)">
                     <div class="permission-card__body">
                       <div class="permission-card__head">
-                        <span class="permission-card__name">{{ item.display }}</span>
+                        <span class="permission-card__name">{{ localizedPermissionDisplay(item) }}</span>
                         <span class="permission-card__code">{{ item.code }}</span>
                       </div>
                       <span class="permission-card__description">
-                        {{ item.description || t('rbac.roleList.permissionDialog.emptyDescription') }}
+                        {{ localizedPermissionDescription(item) }}
                       </span>
                     </div>
                   </t-checkbox>
@@ -395,12 +373,7 @@
 
         <div class="drawer-actions drawer-actions--between">
           <span class="table-muted">
-            {{
-              t('rbac.roleList.permissionDialog.selectionCount', {
-                selected: selectedPermissionIds.length,
-                total: permissions.length,
-              })
-            }}
+            {{ permissionSelectionSummary }}
           </span>
           <div class="table-actions">
             <t-button variant="outline" data-testid="permission-drawer-cancel" @click="closePermissionDrawer">
@@ -477,9 +450,14 @@ import {
   updateRole,
   updateRoleStatus,
 } from '../api/rbac';
+import PermissionGroupToolbar from '../components/PermissionGroupToolbar.vue';
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import type { RoleListItem } from '../contract/role';
 import { resolveRoleFormFieldError, resolveRolePermissionFieldError } from '../error-adapter';
+import {
+  localizedPermissionDescription as localizePermissionDescription,
+  localizedPermissionDisplay as localizePermissionDisplay,
+} from '../shared/permission-copy';
 import type { PermissionListItem } from '../types/permission';
 import type {
   CreateRolePayload,
@@ -606,21 +584,34 @@ const canShowOperationColumn = computed(() =>
     permissionCodes.ROLE_PERMISSION_MANAGE,
   ]),
 );
-const canSubmitPermissionAssignment = computed(
+const permissionGroupActionsDisabled = computed(
   () =>
-    canAssignPermissions.value &&
-    permissionSelectionReady.value &&
-    selectedRole.value !== null &&
-    permissionMutationPayload.value.permission_ids.length > 0,
+    loadingRolePermissions.value ||
+    submittingPermissions.value ||
+    !permissionSelectionReady.value ||
+    !canAssignPermissions.value,
 );
+const canSubmitPermissionAssignment = computed(() => {
+  if (!canAssignPermissions.value || !permissionSelectionReady.value || selectedRole.value === null) {
+    return false;
+  }
+
+  switch (permissionMutationMode.value) {
+    case 'add':
+    case 'remove':
+      return permissionMutationPayload.value.permission_ids.length > 0;
+    default:
+      return !arePermissionIDsEqual(originalPermissionIds.value, selectedPermissionIds.value);
+  }
+});
 const hasActiveFilters = computed(() => Boolean(filters.value.keyword.trim()) || Boolean(filters.value.type));
 const permissionDialogStatusMessage = computed(() =>
   loadingRolePermissions.value ? t('rbac.roleList.permissionDialog.loadingSelection') : permissionLoadWarning.value,
 );
 const permissionMutationOptions = computed(() => [
-  { label: t('rbac.roleList.permissionActions.replace'), value: 'replace' },
-  { label: t('rbac.roleList.permissionActions.add'), value: 'add' },
-  { label: t('rbac.roleList.permissionActions.remove'), value: 'remove' },
+  { label: t('rbac.roleList.permissionActions.replace'), value: 'replace' as const },
+  { label: t('rbac.roleList.permissionActions.add'), value: 'add' as const },
+  { label: t('rbac.roleList.permissionActions.remove'), value: 'remove' as const },
 ]);
 const permissionMutationPayload = computed<RolePermissionMutationPayload>(() => {
   const original = new Set(originalPermissionIds.value);
@@ -628,12 +619,27 @@ const permissionMutationPayload = computed<RolePermissionMutationPayload>(() => 
   switch (permissionMutationMode.value) {
     case 'add':
       return toRolePermissionMutationPayload(selectedPermissionIds.value.filter((id) => !original.has(id)));
-    case 'remove': {
-      const selected = new Set(selectedPermissionIds.value);
-      return toRolePermissionMutationPayload(originalPermissionIds.value.filter((id) => !selected.has(id)));
-    }
+    case 'remove':
+      return toRolePermissionMutationPayload(selectedPermissionIds.value.filter((id) => original.has(id)));
     default:
       return toReplaceRolePermissionsPayload(selectedPermissionIds.value);
+  }
+});
+const permissionSelectionSummary = computed(() => {
+  switch (permissionMutationMode.value) {
+    case 'add':
+      return t('rbac.roleList.permissionDialog.addSelectionCount', {
+        count: permissionMutationPayload.value.permission_ids.length,
+      });
+    case 'remove':
+      return t('rbac.roleList.permissionDialog.removeSelectionCount', {
+        count: permissionMutationPayload.value.permission_ids.length,
+      });
+    default:
+      return t('rbac.roleList.permissionDialog.selectionCount', {
+        selected: selectedPermissionIds.value.length,
+        total: permissions.value.length,
+      });
   }
 });
 
@@ -722,7 +728,9 @@ const filteredPermissionGroups = computed<PermissionGroup[]>(() => {
     }
 
     if (keyword) {
-      const haystack = `${item.code} ${item.display} ${item.description ?? ''} ${item.category}`.toLowerCase();
+      const haystack = `${item.code} ${localizedPermissionDisplay(item)} ${localizedPermissionDescription(item)} ${
+        item.category
+      }`.toLowerCase();
       if (!haystack.includes(keyword)) {
         return;
       }
@@ -948,6 +956,14 @@ function sortStableIDs(ids: number[]) {
   return ids.slice().sort((left, right) => left - right);
 }
 
+function arePermissionIDsEqual(left: number[], right: number[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
 function toReplaceRolePermissionsPayload(permissionIds: number[]): ReplaceRolePermissionsPayload {
   return {
     permission_ids: sortStableIDs(permissionIds),
@@ -971,6 +987,14 @@ function normalizeRolePermissionIDs(rawPermissionIDs: number[]) {
   }
 
   return Array.from(new Set(rawPermissionIDs)).sort((left, right) => left - right);
+}
+
+function localizedPermissionDisplay(permission: PermissionListItem) {
+  return localizePermissionDisplay(t, permission);
+}
+
+function localizedPermissionDescription(permission: PermissionListItem) {
+  return localizePermissionDescription(t, permission, 'rbac.roleList.permissionDialog.emptyDescription');
 }
 
 function openCreateDrawer() {
@@ -1201,22 +1225,39 @@ async function retryPermissionDrawerLoad() {
 }
 
 function selectGroupPermissions(items: PermissionListItem[]) {
-  if (!canAssignPermissions.value) {
+  if (permissionGroupActionsDisabled.value) {
     return;
   }
 
   const next = new Set(selectedPermissionIds.value);
-  items.forEach((item) => next.add(item.id));
+  items.forEach((item) => {
+    if (!isPermissionCardDisabled(item)) {
+      next.add(item.id);
+    }
+  });
   selectedPermissionIds.value = sortStableIDs(Array.from(next));
 }
 
 function clearGroupPermissions(items: PermissionListItem[]) {
-  if (!canAssignPermissions.value) {
+  if (permissionGroupActionsDisabled.value) {
     return;
   }
 
   const blocked = new Set(items.map((item) => item.id));
   selectedPermissionIds.value = selectedPermissionIds.value.filter((id) => !blocked.has(id));
+}
+
+function isPermissionCardDisabled(item: PermissionListItem) {
+  const assigned = originalPermissionIds.value.includes(item.id);
+
+  switch (permissionMutationMode.value) {
+    case 'add':
+      return assigned;
+    case 'remove':
+      return !assigned;
+    default:
+      return false;
+  }
 }
 
 async function mutateRolePermissions(
@@ -1351,6 +1392,14 @@ watch(
     pagination.value.current = 1;
   },
 );
+
+watch(permissionMutationMode, (mode) => {
+  if (!permissionSelectionReady.value) {
+    return;
+  }
+
+  selectedPermissionIds.value = mode === 'replace' ? [...originalPermissionIds.value] : [];
+});
 
 watch(
   () => [route.query.action, canCreateRoles.value, roleDrawerVisible.value] as const,

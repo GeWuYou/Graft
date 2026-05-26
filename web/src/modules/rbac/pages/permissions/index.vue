@@ -241,7 +241,10 @@ import {
 import { createLogger } from '@/utils/logger';
 
 import { getPermissionDetail, getPermissions } from '../../api/rbac';
-import { PERMISSION_COPY_BY_CODE } from '../../contract/permission-copy';
+import {
+  localizedPermissionDescription as localizePermissionDescription,
+  localizedPermissionDisplay as localizePermissionDisplay,
+} from '../../shared/permission-copy';
 import type { PermissionDetailResponse, PermissionFilters, PermissionListItem } from '../../types/permission';
 
 defineOptions({
@@ -352,34 +355,12 @@ function resetFilters() {
   pagination.value.current = 1;
 }
 
-function localizedMessage(messageKey: string, fallback?: string | null) {
-  const translated = t(messageKey);
-  if (translated !== messageKey) {
-    return translated;
-  }
-
-  return fallback?.trim() || '';
-}
-
 function localizedPermissionDisplay(permission: PermissionListItem) {
-  const copyEntry = PERMISSION_COPY_BY_CODE[permission.code];
-  if (!copyEntry) {
-    return permission.display;
-  }
-
-  return localizedMessage(copyEntry.displayKey, permission.display) || permission.display;
+  return localizePermissionDisplay(t, permission);
 }
 
 function localizedPermissionDescription(permission: PermissionListItem) {
-  const copyEntry = PERMISSION_COPY_BY_CODE[permission.code];
-  if (copyEntry) {
-    const localized = localizedMessage(copyEntry.descriptionKey, permission.description);
-    if (localized) {
-      return localized;
-    }
-  }
-
-  return permission.description?.trim() || t('rbac.permissionList.emptyDescription');
+  return localizePermissionDescription(t, permission, 'rbac.permissionList.emptyDescription');
 }
 
 async function loadPermissionDetail(permissionId: number) {

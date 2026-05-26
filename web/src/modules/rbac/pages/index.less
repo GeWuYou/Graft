@@ -4,6 +4,11 @@
   --graft-page-max-width: 1680px;
   --graft-page-width-ratio: 90vw;
   --graft-page-min-padding: 24px;
+  --rbac-permission-toolbar-gap: var(--td-comp-margin-s);
+  --rbac-permission-toolbar-inset-block: var(--td-comp-paddingTB-xs);
+  --rbac-permission-toolbar-inset-inline: var(--td-comp-paddingLR-s);
+  --rbac-permission-mode-min-width: 168px;
+  --rbac-permission-group-padding: var(--td-comp-paddingTB-l);
 
   box-sizing: border-box;
   .management-list-toolbar();
@@ -16,7 +21,6 @@
 .table-head,
 .table-actions,
 .drawer-actions,
-.permission-group__head,
 .drawer-summary__item {
   align-items: center;
   display: flex;
@@ -59,17 +63,21 @@
 }
 
 .role-identity__display,
-.permission-card__name,
-.permission-group__title {
+.permission-card__name {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
 }
 
 .permission-toolbar {
   align-items: center;
+  background: var(--td-bg-color-secondarycontainer);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-large);
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  margin-top: 4px;
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-l);
 }
 
 .permission-toolbar__toggle {
@@ -103,7 +111,7 @@
 .permission-group {
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
-  padding: 14px;
+  padding: var(--rbac-permission-group-padding);
 }
 
 .permission-list {
@@ -171,7 +179,6 @@
 @media (width <= 768px) {
   .table-head,
   .table-actions,
-  .permission-group__head,
   .drawer-actions,
   .drawer-actions--between,
   .inline-warning,
