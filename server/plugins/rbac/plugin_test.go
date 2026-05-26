@@ -36,12 +36,19 @@ type testRBACRepository struct {
 	permissionsByUser  []store.Permission
 	rolePermissionIDs  map[uint64][]uint64
 	roleByID           map[uint64]store.Role
-	listRolesFn        func(ctx context.Context) ([]store.Role, error)
-	listPermissionsFn  func(ctx context.Context) ([]store.Permission, error)
+	permissionByID     map[uint64]store.Permission
+	listRolesFn        func(ctx context.Context, filter store.RoleFilter) ([]store.Role, error)
+	listPermissionsFn  func(ctx context.Context, filter store.PermissionFilter) ([]store.Permission, error)
 	createRole         func(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
 	updateRole         func(ctx context.Context, input store.UpdateRoleInput) (store.Role, error)
+	setRoleStatus      func(ctx context.Context, input store.SetRoleStatusInput) (store.Role, error)
+	deleteRole         func(ctx context.Context, input store.SoftDeleteRoleInput) error
 	replacePermission  func(ctx context.Context, input store.ReplacePermissionsForRoleInput) error
+	addPermission      func(ctx context.Context, input store.AddPermissionsToRoleInput) error
+	removePermission   func(ctx context.Context, input store.RemovePermissionsFromRoleInput) error
 	replaceUserRoles   func(ctx context.Context, input store.ReplaceRolesForUserInput) error
+	addUserRoles       func(ctx context.Context, input store.AddRolesToUserInput) error
+	removeUserRoles    func(ctx context.Context, input store.RemoveRolesFromUserInput) error
 	listRolesErr       error
 	listPermissionsErr error
 	permissionsErr     error
@@ -84,6 +91,22 @@ func (r testRBACRepository) UpdateRole(ctx context.Context, input store.UpdateRo
 	return store.Role{ID: input.ID, Name: input.Name, Display: input.Display, Description: input.Description}, nil
 }
 
+func (r testRBACRepository) SetRoleStatus(ctx context.Context, input store.SetRoleStatusInput) (store.Role, error) {
+	if r.setRoleStatus != nil {
+		return r.setRoleStatus(ctx, input)
+	}
+	role, _ := r.GetRoleByID(ctx, input.ID)
+	role.Status = input.Status
+	return role, nil
+}
+
+func (r testRBACRepository) SoftDeleteRole(ctx context.Context, input store.SoftDeleteRoleInput) error {
+	if r.deleteRole != nil {
+		return r.deleteRole(ctx, input)
+	}
+	return nil
+}
+
 func (r testRBACRepository) AssignPermissionsToRole(_ context.Context, _ store.AssignPermissionsToRoleInput) error {
 	return nil
 }
@@ -93,6 +116,20 @@ func (r testRBACRepository) ReplacePermissionsForRole(ctx context.Context, input
 		return r.replacePermission(ctx, input)
 	}
 
+	return nil
+}
+
+func (r testRBACRepository) AddPermissionsToRole(ctx context.Context, input store.AddPermissionsToRoleInput) error {
+	if r.addPermission != nil {
+		return r.addPermission(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) RemovePermissionsFromRole(ctx context.Context, input store.RemovePermissionsFromRoleInput) error {
+	if r.removePermission != nil {
+		return r.removePermission(ctx, input)
+	}
 	return nil
 }
 
@@ -108,6 +145,20 @@ func (r testRBACRepository) ReplaceRolesForUser(ctx context.Context, input store
 	return nil
 }
 
+func (r testRBACRepository) AddRolesToUser(ctx context.Context, input store.AddRolesToUserInput) error {
+	if r.addUserRoles != nil {
+		return r.addUserRoles(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) RemoveRolesFromUser(ctx context.Context, input store.RemoveRolesFromUserInput) error {
+	if r.removeUserRoles != nil {
+		return r.removeUserRoles(ctx, input)
+	}
+	return nil
+}
+
 func (r testRBACRepository) GetRoleByID(ctx context.Context, roleID uint64) (store.Role, error) {
 	_ = ctx
 	if r.roleByID != nil {
@@ -117,6 +168,15 @@ func (r testRBACRepository) GetRoleByID(ctx context.Context, roleID uint64) (sto
 	}
 
 	return store.Role{}, store.ErrRoleNotFound
+}
+
+func (r testRBACRepository) GetPermissionByID(_ context.Context, permissionID uint64) (store.Permission, error) {
+	if r.permissionByID != nil {
+		if permission, ok := r.permissionByID[permissionID]; ok {
+			return permission, nil
+		}
+	}
+	return store.Permission{}, store.ErrPermissionNotFound
 }
 
 func (r testRBACRepository) ListRolesByUserID(_ context.Context, _ uint64) ([]store.Role, error) {
@@ -131,9 +191,9 @@ func (r testRBACRepository) ListRolesByUserIDs(_ context.Context, userIDs []uint
 	return result, nil
 }
 
-func (r testRBACRepository) ListRoles(ctx context.Context) ([]store.Role, error) {
+func (r testRBACRepository) ListRoles(ctx context.Context, filter store.RoleFilter) ([]store.Role, error) {
 	if r.listRolesFn != nil {
-		return r.listRolesFn(ctx)
+		return r.listRolesFn(ctx, filter)
 	}
 	if r.listRolesErr != nil {
 		return nil, r.listRolesErr
@@ -148,9 +208,9 @@ func (r testRBACRepository) ListPermissionsByUserID(_ context.Context, _ uint64)
 	return r.permissionsByUser, nil
 }
 
-func (r testRBACRepository) ListPermissions(ctx context.Context) ([]store.Permission, error) {
+func (r testRBACRepository) ListPermissions(ctx context.Context, filter store.PermissionFilter) ([]store.Permission, error) {
 	if r.listPermissionsFn != nil {
-		return r.listPermissionsFn(ctx)
+		return r.listPermissionsFn(ctx, filter)
 	}
 	if r.listPermissionsErr != nil {
 		return nil, r.listPermissionsErr
@@ -670,7 +730,7 @@ func TestRolePermissionAssignRouteReplacesRolePermissions(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
 		"permission_ids": []uint64{2, 3},
 	}))
 
@@ -699,7 +759,7 @@ func TestRolePermissionAssignRouteMapsMissingPermissionToInvalidArgument(t *test
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
 		"permission_ids": []uint64{99},
 	}))
 
@@ -723,7 +783,7 @@ func TestRolePermissionAssignRouteMapsDeletedPermissionIDsToInvalidArgument(t *t
 		roleByID: map[uint64]store.Role{
 			1: {ID: 1, Name: "editor", Display: "编辑"},
 		},
-		listPermissionsFn: func(_ context.Context) ([]store.Permission, error) {
+		listPermissionsFn: func(_ context.Context, _ store.PermissionFilter) ([]store.Permission, error) {
 			listPermissionsCalls++
 			if listPermissionsCalls == 1 {
 				return []store.Permission{
@@ -747,7 +807,7 @@ func TestRolePermissionAssignRouteMapsDeletedPermissionIDsToInvalidArgument(t *t
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
 		"permission_ids": []uint64{2, 3},
 	}))
 
@@ -827,7 +887,7 @@ func TestUserRoleAssignRouteReturnsUserNotFound(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{1},
 	})
 	request.Header.Set(i18n.LocaleHeader, "en-US")
@@ -860,7 +920,7 @@ func TestUserRoleAssignRouteMapsMissingRoleToInvalidArgument(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{99},
 	}))
 
@@ -881,7 +941,7 @@ func TestUserRoleAssignRouteMapsMissingRoleToInvalidArgument(t *testing.T) {
 func TestUserRoleAssignRouteMapsDeletedRoleIDsToInvalidArgument(t *testing.T) {
 	listRolesCalls := 0
 	repo := testRBACRepository{
-		listRolesFn: func(_ context.Context) ([]store.Role, error) {
+		listRolesFn: func(_ context.Context, _ store.RoleFilter) ([]store.Role, error) {
 			listRolesCalls++
 			if listRolesCalls == 1 {
 				return []store.Role{
@@ -902,7 +962,7 @@ func TestUserRoleAssignRouteMapsDeletedRoleIDsToInvalidArgument(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{1, 2},
 	}))
 
@@ -935,7 +995,7 @@ func TestUserRoleAssignRouteRejectsRemovingOwnBuiltinAdmin(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{2},
 	})
 	request.Header.Set(i18n.LocaleHeader, "en-US")
@@ -976,7 +1036,7 @@ func TestUserRoleAssignRouteAllowsRetainingOwnBuiltinAdmin(t *testing.T) {
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
 		"role_ids": []uint64{1, 2},
 	}))
 
@@ -1008,7 +1068,7 @@ func TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser(t *testing.T
 	_, engine := newPluginTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
-	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/8/roles/assign", map[string]any{
+	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/8/roles/replace", map[string]any{
 		"role_ids": []uint64{2},
 	}))
 

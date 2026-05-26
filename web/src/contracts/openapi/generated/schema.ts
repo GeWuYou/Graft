@@ -433,6 +433,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/roles/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one role */
+    get: operations['getRole'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/roles/{id}/permissions': {
     parameters: {
       query?: never;
@@ -447,6 +464,66 @@ export interface paths {
     get: operations['getRolePermissions'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/roles/{id}/permissions/replace': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Replace role permissions
+     * @description Replaces the role's permission bindings with the provided stable permission id set.
+     */
+    post: operations['postRolePermissionsReplace'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/roles/{id}/permissions/add': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Add role permissions
+     * @description Adds the provided stable permission ids to the target role without clearing existing bindings.
+     */
+    post: operations['postRolePermissionsAdd'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/roles/{id}/permissions/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Remove role permissions
+     * @description Removes the provided stable permission ids from the target role.
+     */
+    post: operations['postRolePermissionsRemove'];
     delete?: never;
     options?: never;
     head?: never;
@@ -474,7 +551,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/roles/{id}/permissions/assign': {
+  '/api/roles/{id}/status': {
     parameters: {
       query?: never;
       header?: never;
@@ -484,11 +561,30 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Replace role permissions
-     * @description Replaces the role's permission bindings with the provided stable permission id set
-     *     and preserves the existing replace semantics for `permission_ids`.
+     * Update role status
+     * @description Enables or disables one role under the RBAC lifecycle rules.
      */
-    post: operations['postRolePermissionAssign'];
+    post: operations['postRoleStatus'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/roles/{id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Delete one role
+     * @description Soft deletes one custom disabled role when the RBAC lifecycle rules permit deletion.
+     */
+    post: operations['postRoleDelete'];
     delete?: never;
     options?: never;
     head?: never;
@@ -504,6 +600,23 @@ export interface paths {
     };
     /** List permissions */
     get: operations['getPermissions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/permissions/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one permission */
+    get: operations['getPermission'];
     put?: never;
     post?: never;
     delete?: never;
@@ -532,7 +645,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/users/{id}/roles/assign': {
+  '/api/users/{id}/roles/replace': {
     parameters: {
       query?: never;
       header?: never;
@@ -545,7 +658,107 @@ export interface paths {
      * Replace role bindings for one user
      * @description Replaces the target user's role bindings with the supplied role id snapshot.
      */
-    post: operations['postUserRolesAssign'];
+    post: operations['postUserRolesReplace'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/roles/add': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Add role bindings for one user
+     * @description Adds the supplied role ids to the target user without clearing existing bindings.
+     */
+    post: operations['postUserRolesAdd'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/{id}/roles/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Remove role bindings for one user
+     * @description Removes the supplied role ids from the target user.
+     */
+    post: operations['postUserRolesRemove'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/roles/replace': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Replace role bindings for many users
+     * @description Replaces the role bindings for the supplied user id set in one batch transaction.
+     */
+    post: operations['postUsersRolesReplace'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/roles/add': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Add role bindings for many users
+     * @description Adds the supplied role ids to the supplied user id set in one batch transaction.
+     */
+    post: operations['postUsersRolesAdd'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/users/roles/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Remove role bindings for many users
+     * @description Removes the supplied role ids from the supplied user id set in one batch transaction.
+     */
+    post: operations['postUsersRolesRemove'];
     delete?: never;
     options?: never;
     head?: never;
@@ -597,18 +810,24 @@ export interface components {
     EnvelopedUserItemResponse: components['schemas']['enveloped-user-item-response'];
     EnvelopedSessionListResponse: components['schemas']['enveloped-session-list-response'];
     RoleListItem: components['schemas']['role-list-item'];
+    RoleDetailResponse: components['schemas']['role-detail-response'];
     RoleListResponse: components['schemas']['role-list-response'];
     CreateRoleRequest: components['schemas']['create-role-request'];
     UpdateRoleRequest: components['schemas']['update-role-request'];
+    UpdateRoleStatusRequest: components['schemas']['update-role-status-request'];
     EnvelopedRoleItemResponse: components['schemas']['enveloped-role-item-response'];
+    EnvelopedRoleDetailResponse: components['schemas']['enveloped-role-detail-response'];
     ReplaceRolePermissionsRequest: components['schemas']['replace-role-permissions-request'];
     RolePermissionBindingResponse: components['schemas']['role-permission-binding-response'];
     EnvelopedRolePermissionBindingResponse: components['schemas']['enveloped-role-permission-binding-response'];
+    PermissionDetailResponse: components['schemas']['permission-detail-response'];
     PermissionListItem: components['schemas']['permission-list-item'];
     PermissionListResponse: components['schemas']['permission-list-response'];
+    EnvelopedPermissionItemResponse: components['schemas']['enveloped-permission-item-response'];
     UserRoleBindingResponse: components['schemas']['user-role-binding-response'];
     EnvelopedUserRoleBindingResponse: components['schemas']['enveloped-user-role-binding-response'];
     ReplaceUserRolesRequest: components['schemas']['replace-user-roles-request'];
+    BatchUserRolesRequest: components['schemas']['batch-user-roles-request'];
     ServerStatusDependency: components['schemas']['server-status-dependency'];
     ServerStatusPlugin: components['schemas']['server-status-plugin'];
     ServerStatusServer: components['schemas']['server-status-server'];
@@ -793,6 +1012,8 @@ export interface components {
       display: string;
       description?: string;
       builtin: boolean;
+      /** @enum {string} */
+      status: 'enabled' | 'disabled';
       updated_at: string;
       permission_count: number;
       user_count: number;
@@ -814,6 +1035,12 @@ export interface components {
     'enveloped-role-item-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-list-item'];
     };
+    'role-detail-response': components['schemas']['role-list-item'] & {
+      created_at: string;
+    };
+    'enveloped-role-detail-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['role-detail-response'];
+    };
     /**
      * @example {
      *       "permission_ids": [
@@ -829,6 +1056,10 @@ export interface components {
     'enveloped-role-permission-binding-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-permission-binding-response'];
     };
+    'replace-role-permissions-request': {
+      /** @description Replaces the role's permission bindings with the provided stable permission id set. */
+      permission_ids: number[];
+    };
     'update-role-request': {
       /** @description Stable role name. The server trims surrounding whitespace and rejects an empty result. */
       name: string;
@@ -837,9 +1068,9 @@ export interface components {
       /** @description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null. */
       description?: string | null;
     };
-    'replace-role-permissions-request': {
-      /** @description Replaces the role's permission bindings with the provided stable permission id set. */
-      permission_ids: number[];
+    'update-role-status-request': {
+      /** @enum {string} */
+      status: 'enabled' | 'disabled';
     };
     'permission-list-item': {
       /** Format: int64 */
@@ -857,6 +1088,10 @@ export interface components {
     };
     'enveloped-permission-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['permission-list-response'];
+    };
+    'permission-detail-response': components['schemas']['permission-list-item'];
+    'enveloped-permission-item-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['permission-detail-response'];
     };
     /**
      * @example {
@@ -881,6 +1116,10 @@ export interface components {
      *     }
      */
     'replace-user-roles-request': {
+      role_ids: number[];
+    };
+    'batch-user-roles-request': {
+      user_ids: number[];
       role_ids: number[];
     };
     /**
@@ -2141,7 +2380,11 @@ export interface operations {
   };
   getRoles: {
     parameters: {
-      query?: never;
+      query?: {
+        keyword?: string;
+        builtin?: boolean;
+        status?: 'enabled' | 'disabled';
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
@@ -2217,6 +2460,60 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getRole: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Role detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-role-detail-response'];
+        };
+      };
+      /** @description Invalid role id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getRolePermissions: {
     parameters: {
       query?: never;
@@ -2259,6 +2556,180 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRolePermissionsReplace: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['replace-role-permissions-request'];
+      };
+    };
+    responses: {
+      /** @description Role permissions replaced. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role or permission not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRolePermissionsAdd: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['replace-role-permissions-request'];
+      };
+    };
+    responses: {
+      /** @description Role permissions added. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role or permission not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRolePermissionsRemove: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['replace-role-permissions-request'];
+      };
+    };
+    responses: {
+      /** @description Role permissions removed. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role or permission not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -2330,7 +2801,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postRolePermissionAssign: {
+  postRoleStatus: {
     parameters: {
       query?: never;
       header?: {
@@ -2343,25 +2814,24 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Target role id. */
         id: number;
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['replace-role-permissions-request'];
+        'application/json': components['schemas']['update-role-status-request'];
       };
     };
     responses: {
-      /** @description Role permissions replaced. */
+      /** @description Role status updated. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-empty-response'];
+          'application/json': components['schemas']['enveloped-role-item-response'];
         };
       };
       /** @description Invalid request payload. */
@@ -2386,12 +2856,89 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      /** @description Role lifecycle conflict. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRoleDelete: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Role deleted. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid role id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Role lifecycle conflict. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };
   getPermissions: {
     parameters: {
-      query?: never;
+      query?: {
+        keyword?: string;
+        category?: string;
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
@@ -2418,6 +2965,60 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getPermission: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Permission detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-permission-item-response'];
+        };
+      };
+      /** @description Invalid permission id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Permission not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };
@@ -2475,7 +3076,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postUserRolesAssign: {
+  postUserRolesReplace: {
     parameters: {
       query?: never;
       header?: {
@@ -2520,8 +3121,352 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description User not found. */
+      /** @description User or role not found. */
       404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description User-role lifecycle conflict. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUserRolesAdd: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['replace-user-roles-request'];
+      };
+    };
+    responses: {
+      /** @description User roles added. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id or invalid role id list. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User or role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description User-role lifecycle conflict. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUserRolesRemove: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['replace-user-roles-request'];
+      };
+    };
+    responses: {
+      /** @description User roles removed. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id or invalid role id list. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User or role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description User-role lifecycle conflict. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUsersRolesReplace: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['batch-user-roles-request'];
+      };
+    };
+    responses: {
+      /** @description User roles replaced in batch. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id set or role id set. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User or role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description User-role lifecycle conflict. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUsersRolesAdd: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['batch-user-roles-request'];
+      };
+    };
+    responses: {
+      /** @description User roles added in batch. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id set or role id set. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User or role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description User-role lifecycle conflict. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postUsersRolesRemove: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['batch-user-roles-request'];
+      };
+    };
+    responses: {
+      /** @description User roles removed in batch. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid user id set or role id set. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description User or role not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description User-role lifecycle conflict. */
+      409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;

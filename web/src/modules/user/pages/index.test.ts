@@ -18,9 +18,10 @@ const userApiMocks = vi.hoisted(() => ({
 }));
 
 const roleApiMocks = vi.hoisted(() => ({
-  assignUserRoles: vi.fn(),
+  mutateBatchUserRoles: vi.fn(),
   getRoles: vi.fn(),
   getUserRoleBindings: vi.fn(),
+  mutateUserRoles: vi.fn(),
 }));
 
 const messageMocks = vi.hoisted(() => ({
@@ -43,9 +44,10 @@ vi.mock('@/modules/user/api/users', () => ({
 }));
 
 vi.mock('@/modules/user/api/user-roles', () => ({
-  assignUserRoles: roleApiMocks.assignUserRoles,
+  mutateBatchUserRoles: roleApiMocks.mutateBatchUserRoles,
   getRoles: roleApiMocks.getRoles,
   getUserRoleBindings: roleApiMocks.getUserRoleBindings,
+  mutateUserRoles: roleApiMocks.mutateUserRoles,
 }));
 
 vi.mock('@/store', () => ({
@@ -465,6 +467,7 @@ const checkboxGroupStub = defineComponent({
       default: () => [],
     },
   },
+  emits: ['update:modelValue'],
   setup(props, { slots }) {
     return () =>
       h(
@@ -552,6 +555,21 @@ function mountUserPage() {
   });
 }
 
+function updateRoleSelection(wrapper: ReturnType<typeof mountUserPage>, ids: number[]) {
+  const checkboxGroup = wrapper.getComponent(checkboxGroupStub);
+  checkboxGroup.vm.$emit('update:modelValue', ids);
+}
+
+function setRoleMutationMode(wrapper: ReturnType<typeof mountUserPage>, mode: 'replace' | 'add' | 'remove') {
+  const selects = wrapper.findAll('select');
+  const mutationSelect = selects.at(-1);
+  if (!mutationSelect) {
+    throw new Error('role mutation select not found');
+  }
+
+  return mutationSelect.setValue(mode);
+}
+
 describe('UserPage', () => {
   beforeEach(() => {
     permissionState.grantedCodes = [];
@@ -561,9 +579,10 @@ describe('UserPage', () => {
     userApiMocks.resetUserPassword.mockReset();
     userApiMocks.updateUser.mockReset();
     userApiMocks.updateUserStatus.mockReset();
-    roleApiMocks.assignUserRoles.mockReset();
+    roleApiMocks.mutateBatchUserRoles.mockReset();
     roleApiMocks.getRoles.mockReset();
     roleApiMocks.getUserRoleBindings.mockReset();
+    roleApiMocks.mutateUserRoles.mockReset();
     messageMocks.error.mockReset();
     messageMocks.success.mockReset();
     messageMocks.warning.mockReset();
@@ -821,7 +840,7 @@ describe('UserPage', () => {
     userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
     roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     roleApiMocks.getUserRoleBindings.mockResolvedValue({ role_ids: [2] });
-    roleApiMocks.assignUserRoles.mockResolvedValue(null);
+    roleApiMocks.mutateUserRoles.mockResolvedValue(null);
 
     const wrapper = mountUserPage();
     await flushPromises();
@@ -831,8 +850,135 @@ describe('UserPage', () => {
     await wrapper.get('[data-testid="user-role-save"]').trigger('click');
     await flushPromises();
 
-    expect(roleApiMocks.assignUserRoles).toHaveBeenCalledWith(7, { role_ids: [2] });
-    expect(messageMocks.success).toHaveBeenCalledWith('user.userList.assignSuccess');
+    expect(roleApiMocks.mutateUserRoles).toHaveBeenCalledWith(7, 'replace', { role_ids: [2] });
+    expect(messageMocks.success).toHaveBeenCalledWith('user.userList.roleUpdateSuccess');
+    expect(wrapper.find('[data-testid="user-role-drawer"]').exists()).toBe(false);
+  });
+
+  it('submits only newly selected roles in single-user add mode', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
+    userApiMocks.getUsers.mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          username: 'alice',
+          display: 'Alice',
+          status: 'enabled',
+          roles: [],
+          created_at: '2026-05-17T00:00:00Z',
+          updated_at: '2026-05-17T00:00:00Z',
+        },
+      ],
+    });
+    roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    roleApiMocks.getUserRoleBindings.mockResolvedValue({ role_ids: [] });
+    roleApiMocks.mutateUserRoles.mockResolvedValue(null);
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await flushPromises();
+    await setRoleMutationMode(wrapper, 'add');
+    updateRoleSelection(wrapper, [2]);
+    await flushPromises();
+    await wrapper.get('[data-testid="user-role-save"]').trigger('click');
+    await flushPromises();
+
+    expect(roleApiMocks.mutateUserRoles).toHaveBeenCalledWith(7, 'add', { role_ids: [2] });
+    expect(messageMocks.success).toHaveBeenCalledWith('user.userList.roleUpdateSuccess');
+  });
+
+  it('submits only selected roles in single-user remove mode', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
+    userApiMocks.getUsers.mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          username: 'alice',
+          display: 'Alice',
+          status: 'enabled',
+          roles: [
+            {
+              id: 2,
+              name: 'editor',
+              display: 'Editor',
+            },
+          ],
+          created_at: '2026-05-17T00:00:00Z',
+          updated_at: '2026-05-17T00:00:00Z',
+        },
+      ],
+    });
+    roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    roleApiMocks.getUserRoleBindings.mockResolvedValue({ role_ids: [2] });
+    roleApiMocks.mutateUserRoles.mockResolvedValue(null);
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await flushPromises();
+    await setRoleMutationMode(wrapper, 'remove');
+    updateRoleSelection(wrapper, [2]);
+    await flushPromises();
+    await wrapper.get('[data-testid="user-role-save"]').trigger('click');
+    await flushPromises();
+
+    expect(roleApiMocks.mutateUserRoles).toHaveBeenCalledWith(7, 'remove', { role_ids: [2] });
+    expect(messageMocks.success).toHaveBeenCalledWith('user.userList.roleUpdateSuccess');
+  });
+
+  it('submits batch role add through the existing selection bar', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
+    userApiMocks.getUsers.mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          username: 'alice',
+          display: 'Alice',
+          status: 'enabled',
+          roles: [],
+          created_at: '2026-05-17T00:00:00Z',
+          updated_at: '2026-05-17T00:00:00Z',
+        },
+        {
+          id: 8,
+          username: 'bob',
+          display: 'Bob',
+          status: 'enabled',
+          roles: [],
+          created_at: '2026-05-17T00:00:00Z',
+          updated_at: '2026-05-17T00:00:00Z',
+        },
+      ],
+    });
+    roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    roleApiMocks.mutateBatchUserRoles.mockResolvedValue(null);
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    await wrapper.vm.$data;
+    await wrapper.getComponent(UserPage).vm.handleSelectChange?.([7, 8]);
+    await flushPromises();
+
+    await wrapper.get('[data-testid="user-batch-manage-roles"]').trigger('click');
+    await flushPromises();
+
+    const selects = wrapper.findAll('select');
+    await selects[2]?.setValue('add');
+    await flushPromises();
+    updateRoleSelection(wrapper, [2]);
+    await flushPromises();
+    await wrapper.get('[data-testid="user-role-save"]').trigger('click');
+    await flushPromises();
+
+    expect(roleApiMocks.mutateBatchUserRoles).toHaveBeenCalledWith('add', {
+      user_ids: [7, 8],
+      role_ids: [2],
+    });
+    expect(messageMocks.success).toHaveBeenCalledWith('user.userList.batchRoleUpdateSuccess');
     expect(wrapper.find('[data-testid="user-role-drawer"]').exists()).toBe(false);
   });
 

@@ -1,0 +1,7 @@
+allOf:
+  - $ref: ./role-list-item.yaml
+  - type: object
+    required: [created_at]
+    properties:
+      created_at:
+        type: string

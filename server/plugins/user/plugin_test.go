@@ -438,10 +438,16 @@ type pluginTestRBACRepository struct {
 	ensurePermission        func(ctx context.Context, input rbacstore.EnsurePermissionInput) (rbacstore.Permission, error)
 	createRole              func(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error)
 	updateRole              func(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error)
+	setRoleStatus           func(ctx context.Context, input rbacstore.SetRoleStatusInput) (rbacstore.Role, error)
+	softDeleteRole          func(ctx context.Context, input rbacstore.SoftDeleteRoleInput) error
 	assignPermissionsToRole func(ctx context.Context, input rbacstore.AssignPermissionsToRoleInput) error
 	replacePermissions      func(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error
+	addPermissionsToRole    func(ctx context.Context, input rbacstore.AddPermissionsToRoleInput) error
+	removePermissions       func(ctx context.Context, input rbacstore.RemovePermissionsFromRoleInput) error
 	assignRoleToUser        func(ctx context.Context, input rbacstore.AssignRoleToUserInput) error
 	replaceRolesForUser     func(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error
+	addRolesToUser          func(ctx context.Context, input rbacstore.AddRolesToUserInput) error
+	removeRolesFromUser     func(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error
 }
 
 func (r pluginTestRBACRepository) EnsureRole(ctx context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
@@ -476,6 +482,22 @@ func (r pluginTestRBACRepository) UpdateRole(ctx context.Context, input rbacstor
 	return rbacstore.Role{ID: input.ID, Name: input.Name, Display: input.Display, Description: input.Description}, nil
 }
 
+func (r pluginTestRBACRepository) SetRoleStatus(ctx context.Context, input rbacstore.SetRoleStatusInput) (rbacstore.Role, error) {
+	if r.setRoleStatus != nil {
+		return r.setRoleStatus(ctx, input)
+	}
+
+	return rbacstore.Role{ID: input.ID, Status: input.Status}, nil
+}
+
+func (r pluginTestRBACRepository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDeleteRoleInput) error {
+	if r.softDeleteRole != nil {
+		return r.softDeleteRole(ctx, input)
+	}
+
+	return nil
+}
+
 func (r pluginTestRBACRepository) AssignPermissionsToRole(ctx context.Context, input rbacstore.AssignPermissionsToRoleInput) error {
 	if r.assignPermissionsToRole != nil {
 		return r.assignPermissionsToRole(ctx, input)
@@ -487,6 +509,22 @@ func (r pluginTestRBACRepository) AssignPermissionsToRole(ctx context.Context, i
 func (r pluginTestRBACRepository) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
 	if r.replacePermissions != nil {
 		return r.replacePermissions(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) AddPermissionsToRole(ctx context.Context, input rbacstore.AddPermissionsToRoleInput) error {
+	if r.addPermissionsToRole != nil {
+		return r.addPermissionsToRole(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) RemovePermissionsFromRole(ctx context.Context, input rbacstore.RemovePermissionsFromRoleInput) error {
+	if r.removePermissions != nil {
+		return r.removePermissions(ctx, input)
 	}
 
 	return nil
@@ -508,8 +546,28 @@ func (r pluginTestRBACRepository) ReplaceRolesForUser(ctx context.Context, input
 	return nil
 }
 
+func (r pluginTestRBACRepository) AddRolesToUser(ctx context.Context, input rbacstore.AddRolesToUserInput) error {
+	if r.addRolesToUser != nil {
+		return r.addRolesToUser(ctx, input)
+	}
+
+	return nil
+}
+
+func (r pluginTestRBACRepository) RemoveRolesFromUser(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error {
+	if r.removeRolesFromUser != nil {
+		return r.removeRolesFromUser(ctx, input)
+	}
+
+	return nil
+}
+
 func (r pluginTestRBACRepository) GetRoleByID(_ context.Context, roleID uint64) (rbacstore.Role, error) {
 	return rbacstore.Role{ID: roleID}, nil
+}
+
+func (r pluginTestRBACRepository) GetPermissionByID(_ context.Context, permissionID uint64) (rbacstore.Permission, error) {
+	return rbacstore.Permission{ID: permissionID}, nil
 }
 
 func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, userID uint64) ([]rbacstore.Role, error) {
@@ -532,7 +590,7 @@ func (r pluginTestRBACRepository) ListRolesByUserIDs(_ context.Context, userIDs 
 	return result, nil
 }
 
-func (r pluginTestRBACRepository) ListRoles(_ context.Context) ([]rbacstore.Role, error) {
+func (r pluginTestRBACRepository) ListRoles(_ context.Context, _ rbacstore.RoleFilter) ([]rbacstore.Role, error) {
 	return []rbacstore.Role{}, nil
 }
 
@@ -544,7 +602,7 @@ func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, use
 	return r.permissions[userID], nil
 }
 
-func (r pluginTestRBACRepository) ListPermissions(_ context.Context) ([]rbacstore.Permission, error) {
+func (r pluginTestRBACRepository) ListPermissions(_ context.Context, _ rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return []rbacstore.Permission{}, nil
 }
 

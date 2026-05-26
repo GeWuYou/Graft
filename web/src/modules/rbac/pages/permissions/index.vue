@@ -181,7 +181,7 @@ import { createLogger } from '@/utils/logger';
 
 import { getPermissions } from '../../api/rbac';
 import { PERMISSION_COPY_BY_CODE } from '../../contract/permission-copy';
-import type { PermissionListItem } from '../../types/permission';
+import type { PermissionFilters, PermissionListItem } from '../../types/permission';
 
 defineOptions({
   name: 'PermissionIndex',
@@ -189,7 +189,7 @@ defineOptions({
 
 const logger = createLogger('rbac.permissionList');
 
-type PermissionFilters = {
+type PermissionFilterState = {
   keyword: string;
   category: string;
 };
@@ -198,7 +198,7 @@ const { t, locale } = useI18n();
 const loading = ref(false);
 const listError = ref('');
 const permissions = ref<PermissionListItem[]>([]);
-const filters = ref<PermissionFilters>({
+const filters = ref<PermissionFilterState>({
   keyword: '',
   category: '',
 });
@@ -226,23 +226,7 @@ const columnSettingOptions = computed(() => [
   { label: t('rbac.permissionList.columns.updatedAt'), value: 'updated_at' },
 ]);
 
-const filteredPermissions = computed(() => {
-  const keyword = filters.value.keyword.trim().toLowerCase();
-
-  return permissions.value.filter((item) => {
-    if (filters.value.category && item.category !== filters.value.category) {
-      return false;
-    }
-
-    if (!keyword) {
-      return true;
-    }
-
-    return `${item.code} ${localizedPermissionDisplay(item)} ${searchablePermissionDescription(item)} ${item.category}`
-      .toLowerCase()
-      .includes(keyword);
-  });
-});
+const filteredPermissions = computed(() => permissions.value);
 
 const pagedPermissions = computed(() => {
   const start = (pagination.value.current - 1) * pagination.value.pageSize;
@@ -271,7 +255,16 @@ async function fetchPermissions() {
   listError.value = '';
 
   try {
-    const permissionResult = await getPermissions();
+    const requestFilters: PermissionFilters = {};
+    const keyword = filters.value.keyword.trim();
+    if (keyword) {
+      requestFilters.keyword = keyword;
+    }
+    if (filters.value.category) {
+      requestFilters.category = filters.value.category;
+    }
+
+    const permissionResult = await getPermissions(requestFilters);
     permissions.value = permissionResult.items;
     pagination.value.current = 1;
   } catch (error) {
@@ -322,11 +315,6 @@ function localizedPermissionDescription(permission: PermissionListItem) {
   return permission.description?.trim() || t('rbac.permissionList.emptyDescription');
 }
 
-function searchablePermissionDescription(permission: PermissionListItem) {
-  const localized = localizedPermissionDescription(permission);
-  return localized === t('rbac.permissionList.emptyDescription') ? '' : localized;
-}
-
 function formatTimestamp(value?: string | null) {
   if (!value) {
     return '-';
@@ -351,6 +339,7 @@ watch(
   () => [filters.value.keyword, filters.value.category] as const,
   () => {
     pagination.value.current = 1;
+    fetchPermissions();
   },
 );
 </script>

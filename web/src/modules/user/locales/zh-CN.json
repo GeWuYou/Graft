@@ -54,16 +54,23 @@
       "emptyDescription": "当前筛选条件下没有数据，可清空筛选或创建新数据。",
       "loadFailed": "用户列表加载失败",
       "errorTitle": "用户数据暂时不可用",
-      "assignSuccess": "用户角色更新成功",
-      "assignFailed": "用户角色更新失败",
+      "roleUpdateSuccess": "用户角色更新成功",
+      "roleUpdateFailed": "用户角色更新失败",
+      "batchRoleUpdateSuccess": "批量用户角色更新成功",
+      "batchRoleUpdateFailed": "批量用户角色更新失败",
       "emptyTitle": "暂无用户数据",
       "footerTotal": "共 {count} 位用户",
       "batch": {
         "selected": "已选择 {count} 项",
         "enable": "批量启用",
         "disable": "批量禁用",
-        "assignRoles": "批量分配角色",
+        "assignRoles": "批量管理角色",
         "cancelSelection": "取消选择"
+      },
+      "roleActions": {
+        "replace": "替换角色",
+        "add": "追加角色",
+        "remove": "移除角色"
       },
       "columns": {
         "user": "用户",
@@ -136,8 +143,11 @@
       },
       "roleDialog": {
         "title": "管理用户角色",
+        "batchTitle": "管理已选用户角色",
         "currentRolesTitle": "当前角色",
         "availableRolesTitle": "可分配角色",
+        "operationLabel": "操作方式",
+        "batchSummary": "已选择 {count} 位用户",
         "roleSummary": "共加载 {count} 个可分配角色",
         "noAssignedRoles": "当前未分配角色",
         "builtinYes": "内置",
@@ -146,6 +156,7 @@
         "empty": "暂无可用角色",
         "roleLoadFailed": "角色定义加载失败",
         "selectionLoadFailed": "当前角色分配数据加载失败，请重试后再保存",
+        "submitBlocked": "角色变更暂时不可用，请刷新最新角色数据后重试",
         "retry": "重试",
         "cancel": "取消",
         "confirm": "保存角色分配"

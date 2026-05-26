@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { RBAC_API_PATH } from '@/modules/rbac/contract/paths';
 import { request } from '@/utils/request';
 
-import { assignUserRoles, getRoles, getUserRoleBindings } from './user-roles';
+import { USER_API_PATH } from '../contract/paths';
+import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } from './user-roles';
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -20,7 +20,7 @@ describe('user role api', () => {
     await getRoles();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLES,
+      url: USER_API_PATH.ROLES,
     });
   });
 
@@ -31,19 +31,43 @@ describe('user role api', () => {
     await getUserRoleBindings(42);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.USER_ROLES(42),
+      url: USER_API_PATH.USER_ROLES(42),
     });
   });
 
-  it('calls the canonical user role assign path through request.ts', async () => {
+  it('calls the single-user replace path through request.ts', async () => {
     const requestPost = vi.mocked(request.post);
     requestPost.mockResolvedValueOnce(null as never);
 
-    await assignUserRoles(42, { role_ids: [1, 3] });
+    await mutateUserRoles(42, 'replace', { role_ids: [1, 3] });
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.USER_ROLE_ASSIGN(42),
+      url: USER_API_PATH.USER_ROLE_REPLACE(42),
       data: { role_ids: [1, 3] },
+    });
+  });
+
+  it('calls the single-user add path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValueOnce(null as never);
+
+    await mutateUserRoles(42, 'add', { role_ids: [2] });
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: USER_API_PATH.USER_ROLE_ADD(42),
+      data: { role_ids: [2] },
+    });
+  });
+
+  it('calls the batch remove path through request.ts', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValueOnce(null as never);
+
+    await mutateBatchUserRoles('remove', { user_ids: [7, 9], role_ids: [2] });
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: USER_API_PATH.BATCH_USER_ROLE_REMOVE,
+      data: { user_ids: [7, 9], role_ids: [2] },
     });
   });
 });

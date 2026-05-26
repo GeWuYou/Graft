@@ -211,6 +211,7 @@ describe('PermissionPage', () => {
 
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({});
     expect(wrapper.text()).toContain('Read Permissions Localized');
     expect(wrapper.text()).toContain('Localized permission description');
     expect(wrapper.get('[data-testid="permission-code-0"]').text()).toBe('permission.read');
@@ -251,8 +252,7 @@ describe('PermissionPage', () => {
     await wrapper.get('.toolbar__search').setValue('user.create');
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="permission-row-0"]').text()).toContain('user.create');
-    expect(wrapper.text()).not.toContain('permission.read');
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'user.create' });
   });
 
   it('falls back to API copy for unknown permission codes', async () => {
@@ -289,7 +289,7 @@ describe('PermissionPage', () => {
     expect(wrapper.find('[data-testid="permission-empty-clear-filters"]').exists()).toBe(false);
   });
 
-  it('renders the filtered empty state and clears filters from the empty action area', async () => {
+  it('sends filtered requests and clears filters from the toolbar action', async () => {
     rbacApiMocks.getPermissions.mockResolvedValue({
       items: [
         {
@@ -311,12 +311,16 @@ describe('PermissionPage', () => {
     await wrapper.get('.toolbar__search').setValue('no-match');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('No permissions match the current filters');
-    expect(wrapper.find('[data-testid="permission-empty-clear-filters"]').exists()).toBe(true);
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'no-match' });
 
-    await wrapper.get('[data-testid="permission-empty-clear-filters"]').trigger('click');
+    const clearButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'rbac.permissionList.toolbar.clearFilters');
+    expect(clearButton).toBeTruthy();
+    await clearButton?.trigger('click');
     await flushPromises();
 
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({});
     expect((wrapper.get('.toolbar__search').element as HTMLInputElement).value).toBe('');
     expect(wrapper.text()).toContain('Read Permissions Localized');
   });

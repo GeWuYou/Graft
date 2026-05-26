@@ -66,7 +66,14 @@
             <div class="batch-bar__actions">
               <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.enable') }}</t-button>
               <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.disable') }}</t-button>
-              <t-button size="small" theme="primary" variant="outline" disabled>
+              <t-button
+                size="small"
+                theme="primary"
+                variant="outline"
+                :disabled="!canAssignUserRoles"
+                data-testid="user-batch-manage-roles"
+                @click="openBatchUserRoleDrawer"
+              >
                 {{ t('user.userList.batch.assignRoles') }}
               </t-button>
               <t-button size="small" theme="default" variant="text" @click="selectedRowKeys = []">
@@ -295,7 +302,9 @@
 
     <t-drawer
       v-model:visible="userRoleDrawerVisible"
-      :header="t('user.userList.roleDialog.title')"
+      :header="
+        roleDialogMode === 'batch' ? t('user.userList.roleDialog.batchTitle') : t('user.userList.roleDialog.title')
+      "
       size="520px"
       placement="right"
       destroy-on-close
@@ -303,31 +312,65 @@
       <div class="drawer-panel" data-testid="user-role-drawer">
         <div class="drawer-summary">
           <div class="user-cell user-cell--drawer">
-            <div class="user-cell__avatar">{{ userInitial(selectedUser?.display || selectedUser?.username) }}</div>
+            <div class="user-cell__avatar">
+              {{
+                roleDialogMode === 'batch'
+                  ? selectedBatchUserIds.length
+                  : userInitial(selectedUser?.display || selectedUser?.username)
+              }}
+            </div>
             <div class="user-cell__meta">
-              <span class="user-cell__display">{{ selectedUser?.display || '-' }}</span>
-              <span class="user-cell__username">@{{ selectedUser?.username || '-' }}</span>
+              <span class="user-cell__display">
+                {{
+                  roleDialogMode === 'batch'
+                    ? t('user.userList.roleDialog.batchSummary', { count: selectedBatchUserIds.length })
+                    : selectedUser?.display || '-'
+                }}
+              </span>
+              <span class="user-cell__username">
+                {{
+                  roleDialogMode === 'batch'
+                    ? selectedBatchUsers.map((item) => item.username).join(', ')
+                    : `@${selectedUser?.username || '-'}`
+                }}
+              </span>
             </div>
           </div>
           <div class="drawer-summary__grid">
             <div class="drawer-summary__item">
-              <span class="drawer-summary__label">{{ t('user.userList.columns.status') }}</span>
-              <t-tag :theme="statusTheme(selectedUser?.status)" variant="light">
-                {{ statusLabel(selectedUser?.status) }}
-              </t-tag>
+              <span class="drawer-summary__label">{{ t('user.userList.roleDialog.operationLabel') }}</span>
+              <t-select
+                v-model="roleMutationMode"
+                :options="roleMutationOptions"
+                :disabled="submittingRoles || loadingRoleDialogData || !canAssignUserRoles"
+              />
             </div>
             <div class="drawer-summary__item">
-              <span class="drawer-summary__label">{{ t('user.userList.columns.createdAt') }}</span>
-              <span>{{ formatTimestamp(selectedUser?.created_at) }}</span>
+              <span class="drawer-summary__label">
+                {{
+                  roleDialogMode === 'batch'
+                    ? t('user.userList.batch.selected', { count: selectedBatchUserIds.length })
+                    : t('user.userList.columns.createdAt')
+                }}
+              </span>
+              <span>{{
+                roleDialogMode === 'batch' ? selectedBatchUsers.length : formatTimestamp(selectedUser?.created_at)
+              }}</span>
             </div>
             <div class="drawer-summary__item">
-              <span class="drawer-summary__label">{{ t('user.userList.columns.updatedAt') }}</span>
-              <span>{{ formatTimestamp(selectedUser?.updated_at) }}</span>
+              <span class="drawer-summary__label">
+                {{
+                  roleDialogMode === 'batch' ? t('user.userList.columns.roles') : t('user.userList.columns.updatedAt')
+                }}
+              </span>
+              <span>{{
+                roleDialogMode === 'batch' ? selectedRoleIds.length : formatTimestamp(selectedUser?.updated_at)
+              }}</span>
             </div>
           </div>
         </div>
 
-        <section class="drawer-section">
+        <section v-if="roleDialogMode === 'single'" class="drawer-section">
           <div class="drawer-section__head">
             <h3>{{ t('user.userList.roleDialog.currentRolesTitle') }}</h3>
             <span class="table-muted">{{ t('user.userList.roleDialog.roleSummary', { count: roles.length }) }}</span>
@@ -436,7 +479,6 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
-import type { RoleListItem } from '@/modules/rbac/contract/role';
 import { localizedApiErrorMessage } from '@/modules/shared/localized-api-error';
 import {
   ManagementEmptyState,
@@ -450,13 +492,14 @@ import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
 
-import { assignUserRoles, getRoles, getUserRoleBindings } from '../api/user-roles';
+import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } from '../api/user-roles';
 import { createUser, deleteUser, getUsers, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
 import { resolveResetPasswordFieldError, resolveUserFormFieldError } from '../error-adapter';
 import { evaluateUserPasswordPolicy } from '../shared/password-policy';
+import type { BatchUserRoleMutationPayload, RoleListItem, UserRoleMutation } from '../types/role';
 import type {
   CreateUserPayload,
   ResetUserPasswordPayload,
@@ -551,6 +594,9 @@ const columnDrawerVisible = ref(false);
 const userRoleDrawerVisible = ref(false);
 const selectedUser = ref<UserRow | null>(null);
 const selectedRoleIds = ref<number[]>([]);
+const currentRoleIds = ref<number[]>([]);
+const roleDialogMode = ref<'single' | 'batch'>('single');
+const roleMutationMode = ref<UserRoleMutation>('replace');
 const loadingRoleSelection = ref(false);
 const submittingRoles = ref(false);
 const roleSelectionReady = ref(false);
@@ -577,12 +623,28 @@ const canShowOperationColumn = computed(() =>
   ]),
 );
 const loadingRoleDialogData = computed(() => roleCatalogLoading.value || loadingRoleSelection.value);
+const roleMutationPayload = computed(() => {
+  return {
+    role_ids: [...selectedRoleIds.value].sort((left, right) => left - right),
+  };
+});
 const canSubmitRoleAssignment = computed(
-  () => canAssignUserRoles.value && roleSelectionReady.value && selectedUser.value !== null,
+  () =>
+    canAssignUserRoles.value &&
+    roleSelectionReady.value &&
+    (roleDialogMode.value === 'batch' ? selectedRowKeys.value.length > 0 : selectedUser.value !== null) &&
+    (roleMutationMode.value === 'replace' || roleMutationPayload.value.role_ids.length > 0),
 );
 const hasActiveFilters = computed(
   () => Boolean(filters.value.keyword.trim()) || Boolean(filters.value.status) || filters.value.roleId !== undefined,
 );
+const selectedBatchUserIds = computed(() =>
+  selectedRowKeys.value.map((item) => Number(item)).filter((item) => Number.isInteger(item)),
+);
+const selectedBatchUsers = computed(() => {
+  const ids = new Set(selectedBatchUserIds.value);
+  return users.value.filter((item) => ids.has(item.id));
+});
 
 const statusOptions = computed(() => [
   { label: t('user.userList.toolbar.statusAll'), value: '' },
@@ -596,6 +658,11 @@ const roleOptions = computed(() =>
     value: role.id,
   })),
 );
+const roleMutationOptions = computed(() => [
+  { label: t('user.userList.roleActions.replace'), value: 'replace' },
+  { label: t('user.userList.roleActions.add'), value: 'add' },
+  { label: t('user.userList.roleActions.remove'), value: 'remove' },
+]);
 
 const columnSettingOptions = computed(() => [
   { label: t('user.userList.columns.user'), value: 'user' },
@@ -639,7 +706,7 @@ const pagedUsers = computed(() => {
 });
 
 const currentUserRoles = computed(() => {
-  const roleIDs = selectedRoleIds.value;
+  const roleIDs = currentRoleIds.value;
   return roles.value.filter((role) => roleIDs.includes(role.id));
 });
 
@@ -1105,6 +1172,9 @@ function handleSelectChange(value: Array<string | number>) {
 function closeUserRoleDrawer() {
   drawerSession.value += 1;
   userRoleDrawerVisible.value = false;
+  currentRoleIds.value = [];
+  roleDialogMode.value = 'single';
+  roleMutationMode.value = 'replace';
   selectedUser.value = null;
   selectedRoleIds.value = [];
   loadingRoleSelection.value = false;
@@ -1118,7 +1188,9 @@ function isActiveDrawerSession(session: number) {
 }
 
 async function loadUserRoleSelection(user: UserRow, session: number) {
+  roleDialogMode.value = 'single';
   selectedUser.value = user;
+  currentRoleIds.value = [];
   selectedRoleIds.value = [];
   roleSelectionReady.value = false;
   roleLoadWarning.value = '';
@@ -1147,7 +1219,8 @@ async function loadUserRoleSelection(user: UserRow, session: number) {
       return;
     }
 
-    selectedRoleIds.value = response.role_ids;
+    currentRoleIds.value = [...response.role_ids];
+    selectedRoleIds.value = [...response.role_ids];
     roleSelectionReady.value = true;
   } catch (error) {
     if (isActiveDrawerSession(session)) {
@@ -1169,7 +1242,43 @@ async function handleOpenUserRoleDrawer(row: UserRow) {
   await loadUserRoleSelection(row, session);
 }
 
+async function openBatchUserRoleDrawer() {
+  const session = drawerSession.value + 1;
+
+  drawerSession.value = session;
+  roleDialogMode.value = 'batch';
+  userRoleDrawerVisible.value = true;
+  currentRoleIds.value = [];
+  selectedUser.value = null;
+  selectedRoleIds.value = [];
+  roleSelectionReady.value = false;
+  roleLoadWarning.value = '';
+
+  if (roles.value.length === 0) {
+    try {
+      await loadRoleCatalog();
+    } catch (error) {
+      if (isActiveDrawerSession(session)) {
+        logger.error('failed to load role catalog for batch role operation', error);
+        roleLoadWarning.value = t('user.userList.roleDialog.roleLoadFailed');
+      }
+      return;
+    }
+  }
+
+  if (!isActiveDrawerSession(session)) {
+    return;
+  }
+
+  roleSelectionReady.value = true;
+}
+
 async function retryUserRoleDrawerLoad() {
+  if (roleDialogMode.value === 'batch') {
+    await openBatchUserRoleDrawer();
+    return;
+  }
+
   if (!selectedUser.value) {
     return;
   }
@@ -1178,7 +1287,7 @@ async function retryUserRoleDrawerLoad() {
 }
 
 async function submitUserRoleAssignment() {
-  if (!selectedUser.value || !canSubmitRoleAssignment.value) {
+  if (!canSubmitRoleAssignment.value) {
     return;
   }
 
@@ -1186,24 +1295,57 @@ async function submitUserRoleAssignment() {
   submittingRoles.value = true;
 
   try {
-    await assignUserRoles(selectedUser.value.id, {
-      role_ids: [...selectedRoleIds.value].sort((left, right) => left - right),
-    });
+    if (roleDialogMode.value === 'batch') {
+      const payload: BatchUserRoleMutationPayload = {
+        user_ids: selectedBatchUserIds.value,
+        role_ids: roleMutationPayload.value.role_ids,
+      };
+      await mutateBatchUserRoles(roleMutationMode.value, payload);
+    } else if (selectedUser.value) {
+      await mutateUserRoles(selectedUser.value.id, roleMutationMode.value, roleMutationPayload.value);
+    }
 
     if (!isActiveDrawerSession(session)) {
       return;
     }
 
-    const assignedRoles = roles.value.filter((role) => selectedRoleIds.value.includes(role.id));
-    users.value = users.value.map((item) =>
-      item.id === selectedUser.value?.id ? { ...item, roles: assignedRoles } : item,
-    );
-    MessagePlugin.success(t('user.userList.assignSuccess'));
+    const mutationRoleIDs = new Set(roleMutationPayload.value.role_ids);
+    const mutationRoles = roles.value.filter((role) => mutationRoleIDs.has(role.id));
+    const applyRoleMutation = (currentRoles: UserRoleSummary[]) => {
+      if (roleMutationMode.value === 'replace') {
+        return mutationRoles;
+      }
+
+      if (roleMutationMode.value === 'add') {
+        const merged = [...currentRoles];
+        mutationRoles.forEach((role) => {
+          if (!merged.some((existing) => existing.id === role.id)) {
+            merged.push(role);
+          }
+        });
+        return merged;
+      }
+
+      return currentRoles.filter((role) => !mutationRoleIDs.has(role.id));
+    };
+
+    if (roleDialogMode.value === 'batch') {
+      const targetIds = new Set(selectedBatchUserIds.value);
+      users.value = users.value.map((item) =>
+        targetIds.has(item.id) ? { ...item, roles: applyRoleMutation(item.roles) } : item,
+      );
+      MessagePlugin.success(t('user.userList.batchRoleUpdateSuccess'));
+    } else {
+      users.value = users.value.map((item) =>
+        item.id === selectedUser.value?.id ? { ...item, roles: applyRoleMutation(item.roles) } : item,
+      );
+      MessagePlugin.success(t('user.userList.roleUpdateSuccess'));
+    }
     closeUserRoleDrawer();
   } catch (error) {
     if (isActiveDrawerSession(session)) {
-      logger.error('failed to assign user roles', error);
-      MessagePlugin.error(t('user.userList.assignFailed'));
+      logger.error('failed to mutate user roles', error);
+      MessagePlugin.error(resolveRoleMutationErrorMessage(error, roleDialogMode.value === 'batch'));
     }
   } finally {
     if (drawerSession.value === session) {
@@ -1211,6 +1353,35 @@ async function submitUserRoleAssignment() {
     }
   }
 }
+
+function resolveRoleMutationErrorMessage(error: unknown, isBatch: boolean) {
+  const fallbackMessage = isBatch ? t('user.userList.batchRoleUpdateFailed') : t('user.userList.roleUpdateFailed');
+  if (!isApiRequestError(error)) {
+    return fallbackMessage;
+  }
+
+  return localizedApiErrorMessage(t, error.messageKey, error.message) || fallbackMessage;
+}
+
+watch(
+  () => [roleDialogMode.value, roleMutationMode.value, currentRoleIds.value.join(',')] as const,
+  ([dialogMode, mutationMode]) => {
+    if (!userRoleDrawerVisible.value) {
+      return;
+    }
+
+    if (dialogMode === 'batch') {
+      selectedRoleIds.value = [];
+      return;
+    }
+
+    selectedRoleIds.value = mutationMode === 'replace' ? [...currentRoleIds.value] : [];
+  },
+);
+
+defineExpose({
+  handleSelectChange,
+});
 
 onMounted(() => {
   fetchUsers();

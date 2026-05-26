@@ -184,7 +184,7 @@ func TestRepositoryEnsurePermissionAndListPermissionsIncludeTimestamps(t *testin
 		t.Fatalf("expected ensured permission timestamps, got %#v", record)
 	}
 
-	permissions, err := repo.ListPermissions(context.Background())
+	permissions, err := repo.ListPermissions(context.Background(), rbacstore.PermissionFilter{})
 	if err != nil {
 		t.Fatalf("list permissions: %v", err)
 	}

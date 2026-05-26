@@ -114,6 +114,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 			permissionRead:       httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.PermissionReadPermission.String()),
 			roleCreate:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleCreatePermission.String()),
 			roleUpdate:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleUpdatePermission.String()),
+			roleDelete:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleUpdatePermission.String()),
 			rolePermissionAssign: httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RolePermissionAssignPermission.String()),
 			userRoleRead:         httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleReadPermission.String()),
 			userRoleAssign:       httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleAssignPermission.String()),

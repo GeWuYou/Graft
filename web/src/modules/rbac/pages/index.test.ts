@@ -6,11 +6,16 @@ import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import RolePage from './index.vue';
 
 const rbacApiMocks = vi.hoisted(() => ({
-  assignRolePermissions: vi.fn(),
+  addRolePermissions: vi.fn(),
   createRole: vi.fn(),
+  deleteRole: vi.fn(),
   getPermissions: vi.fn(),
+  getRoleDetail: vi.fn(),
   getRolePermissionBindings: vi.fn(),
   getRoles: vi.fn(),
+  removeRolePermissions: vi.fn(),
+  replaceRolePermissions: vi.fn(),
+  updateRoleStatus: vi.fn(),
   updateRole: vi.fn(),
 }));
 
@@ -25,11 +30,16 @@ const permissionState = vi.hoisted(() => ({
 }));
 
 vi.mock('../api/rbac', () => ({
-  assignRolePermissions: rbacApiMocks.assignRolePermissions,
+  addRolePermissions: rbacApiMocks.addRolePermissions,
   createRole: rbacApiMocks.createRole,
+  deleteRole: rbacApiMocks.deleteRole,
   getPermissions: rbacApiMocks.getPermissions,
+  getRoleDetail: rbacApiMocks.getRoleDetail,
   getRolePermissionBindings: rbacApiMocks.getRolePermissionBindings,
   getRoles: rbacApiMocks.getRoles,
+  removeRolePermissions: rbacApiMocks.removeRolePermissions,
+  replaceRolePermissions: rbacApiMocks.replaceRolePermissions,
+  updateRoleStatus: rbacApiMocks.updateRoleStatus,
   updateRole: rbacApiMocks.updateRole,
 }));
 
@@ -327,6 +337,7 @@ const checkboxGroupStub = defineComponent({
       default: () => [],
     },
   },
+  emits: ['update:modelValue'],
   setup(props, { slots }) {
     return () =>
       h(
@@ -423,14 +434,34 @@ function mountRolePage() {
   });
 }
 
+function updatePermissionSelection(wrapper: ReturnType<typeof mountRolePage>, ids: number[]) {
+  const checkboxGroup = wrapper.getComponent(checkboxGroupStub);
+  checkboxGroup.vm.$emit('update:modelValue', ids);
+}
+
+function setPermissionMutationMode(wrapper: ReturnType<typeof mountRolePage>, mode: 'replace' | 'add' | 'remove') {
+  const selects = wrapper.findAll('select');
+  const mutationSelect = selects.at(-1);
+  if (!mutationSelect) {
+    throw new Error('permission mutation select not found');
+  }
+
+  return mutationSelect.setValue(mode);
+}
+
 describe('RolePage', () => {
   beforeEach(() => {
     permissionState.grantedCodes = [];
-    rbacApiMocks.assignRolePermissions.mockReset();
+    rbacApiMocks.addRolePermissions.mockReset();
     rbacApiMocks.createRole.mockReset();
+    rbacApiMocks.deleteRole.mockReset();
     rbacApiMocks.getPermissions.mockReset();
+    rbacApiMocks.getRoleDetail.mockReset();
     rbacApiMocks.getRolePermissionBindings.mockReset();
     rbacApiMocks.getRoles.mockReset();
+    rbacApiMocks.removeRolePermissions.mockReset();
+    rbacApiMocks.replaceRolePermissions.mockReset();
+    rbacApiMocks.updateRoleStatus.mockReset();
     rbacApiMocks.updateRole.mockReset();
     messageMocks.error.mockReset();
     messageMocks.success.mockReset();
@@ -533,11 +564,11 @@ describe('RolePage', () => {
   });
 
   it('submits the restored permission snapshot for the selected role', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
     rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [2, 1, 2] });
-    rbacApiMocks.assignRolePermissions.mockResolvedValue(null);
+    rbacApiMocks.replaceRolePermissions.mockResolvedValue(null);
 
     const wrapper = mountRolePage();
     await flushPromises();
@@ -547,18 +578,68 @@ describe('RolePage', () => {
     await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
     await flushPromises();
 
-    expect(rbacApiMocks.assignRolePermissions).toHaveBeenCalledWith(2, {
+    expect(rbacApiMocks.replaceRolePermissions).toHaveBeenCalledWith(2, {
       permission_ids: [1, 2],
     });
     expect(messageMocks.success).toHaveBeenCalledWith('rbac.roleList.assignSuccess');
   });
 
+  it('submits only newly selected permissions in add mode', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1] });
+    rbacApiMocks.addRolePermissions.mockResolvedValue(null);
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    updatePermissionSelection(wrapper, [1, 2]);
+    await setPermissionMutationMode(wrapper, 'add');
+    await flushPromises();
+    await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
+    await flushPromises();
+
+    expect(rbacApiMocks.addRolePermissions).toHaveBeenCalledWith(2, {
+      permission_ids: [2],
+    });
+    expect(rbacApiMocks.replaceRolePermissions).not.toHaveBeenCalled();
+    expect(rbacApiMocks.removeRolePermissions).not.toHaveBeenCalled();
+  });
+
+  it('submits only removed permissions in remove mode', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1, 2] });
+    rbacApiMocks.removeRolePermissions.mockResolvedValue(null);
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    updatePermissionSelection(wrapper, [2]);
+    await setPermissionMutationMode(wrapper, 'remove');
+    await flushPromises();
+    await wrapper.get('[data-testid="permission-drawer-save"]').trigger('click');
+    await flushPromises();
+
+    expect(rbacApiMocks.removeRolePermissions).toHaveBeenCalledWith(2, {
+      permission_ids: [1],
+    });
+    expect(rbacApiMocks.replaceRolePermissions).not.toHaveBeenCalled();
+    expect(rbacApiMocks.addRolePermissions).not.toHaveBeenCalled();
+  });
+
   it('keeps permission assignment errors local when the backend rejects permission_ids', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
     rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [2, 1, 2] });
-    rbacApiMocks.assignRolePermissions.mockRejectedValue({
+    rbacApiMocks.replaceRolePermissions.mockRejectedValue({
       isApiRequestError: true,
       status: 400,
       code: 'COMMON_INVALID_ARGUMENT',
@@ -584,11 +665,11 @@ describe('RolePage', () => {
   });
 
   it('keeps role-not-found assignment failures in the permission drawer feedback surface', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_MANAGE];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
     rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [2, 1, 2] });
-    rbacApiMocks.assignRolePermissions.mockRejectedValue({
+    rbacApiMocks.replaceRolePermissions.mockRejectedValue({
       isApiRequestError: true,
       status: 404,
       code: 'ROLE_NOT_FOUND',

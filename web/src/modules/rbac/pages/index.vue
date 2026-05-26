@@ -291,6 +291,14 @@
               <span class="drawer-summary__label">{{ t('rbac.roleList.columns.updatedAt') }}</span>
               <span>{{ formatTimestamp(selectedRole?.updated_at) }}</span>
             </div>
+            <div class="drawer-summary__item">
+              <span class="drawer-summary__label">{{ t('rbac.roleList.permissionDialog.operationLabel') }}</span>
+              <t-select
+                v-model="permissionMutationMode"
+                :options="permissionMutationOptions"
+                :disabled="loadingRolePermissions || submittingPermissions || !canAssignPermissions"
+              />
+            </div>
           </div>
         </div>
 
@@ -449,18 +457,30 @@ import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
 
 import {
-  assignRolePermissions,
+  addRolePermissions,
   createRole,
+  deleteRole,
   getPermissions,
+  getRoleDetail,
   getRolePermissionBindings,
   getRoles,
+  removeRolePermissions,
+  replaceRolePermissions,
   updateRole,
+  updateRoleStatus,
 } from '../api/rbac';
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import type { RoleListItem } from '../contract/role';
 import { resolveRoleFormFieldError, resolveRolePermissionFieldError } from '../error-adapter';
 import type { PermissionListItem } from '../types/permission';
-import type { CreateRolePayload, ReplaceRolePermissionsPayload, UpdateRolePayload } from '../types/rbac';
+import type {
+  CreateRolePayload,
+  ReplaceRolePermissionsPayload,
+  RoleDetailResponse,
+  RolePermissionBindingResponse,
+  RolePermissionMutationPayload,
+  UpdateRolePayload,
+} from '../types/rbac';
 
 defineOptions({
   name: 'RolesIndex',
@@ -492,8 +512,18 @@ type PermissionGroup = {
   title: string;
 };
 
+type RolePermissionMutationMode = 'replace' | 'add' | 'remove';
+
 type RoleRemarkCompat = RoleListItem & {
   remark?: string | null;
+};
+
+type RoleStatusCompat = RoleListItem & {
+  description?: string | null;
+  disabled?: boolean;
+  enabled?: boolean;
+  status?: string | null;
+  deleted_at?: string | null;
 };
 
 const DEFAULT_VISIBLE_COLUMNS = [
@@ -534,11 +564,13 @@ const roleForm = ref<RoleFormState>({ ...INITIAL_ROLE_FORM });
 const submittingRole = ref(false);
 const permissionDrawerVisible = ref(false);
 const selectedRole = ref<RoleListItem | null>(null);
+const originalPermissionIds = ref<number[]>([]);
 const selectedPermissionIds = ref<number[]>([]);
 const permissionDrawerSession = ref(0);
 const permissionSelectionReady = ref(false);
 const loadingRolePermissions = ref(false);
 const submittingPermissions = ref(false);
+const permissionMutationMode = ref<RolePermissionMutationMode>('replace');
 const permissionLoadWarning = ref('');
 const permissionLoadRetryable = ref(false);
 const permissionKeyword = ref('');
@@ -552,25 +584,50 @@ const pagination = ref({
 const permissionCodes = RBAC_PERMISSION_CODE;
 const canCreateRoles = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_CREATE));
 const canUpdateRoles = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_UPDATE));
+const canDeleteRoles = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_DELETE));
+const canToggleRoleStatus = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_STATUS_UPDATE));
 const canReadPermissions = computed(() => permissionStore.hasPermission(permissionCodes.PERMISSION_READ));
 const canAssignPermissions = computed(
-  () => canReadPermissions.value && permissionStore.hasPermission(permissionCodes.ROLE_PERMISSION_ASSIGN),
+  () => canReadPermissions.value && permissionStore.hasPermission(permissionCodes.ROLE_PERMISSION_MANAGE),
 );
 const canOpenPermissionDrawer = computed(() => canReadPermissions.value && permissions.value.length > 0);
 const canShowOperationColumn = computed(() =>
   permissionStore.hasAnyPermission([
     permissionCodes.ROLE_UPDATE,
     permissionCodes.PERMISSION_READ,
-    permissionCodes.ROLE_PERMISSION_ASSIGN,
+    permissionCodes.ROLE_PERMISSION_MANAGE,
   ]),
 );
 const canSubmitPermissionAssignment = computed(
-  () => canAssignPermissions.value && permissionSelectionReady.value && selectedRole.value !== null,
+  () =>
+    canAssignPermissions.value &&
+    permissionSelectionReady.value &&
+    selectedRole.value !== null &&
+    permissionMutationPayload.value.permission_ids.length > 0,
 );
 const hasActiveFilters = computed(() => Boolean(filters.value.keyword.trim()) || Boolean(filters.value.type));
 const permissionDialogStatusMessage = computed(() =>
   loadingRolePermissions.value ? t('rbac.roleList.permissionDialog.loadingSelection') : permissionLoadWarning.value,
 );
+const permissionMutationOptions = computed(() => [
+  { label: t('rbac.roleList.permissionActions.replace'), value: 'replace' },
+  { label: t('rbac.roleList.permissionActions.add'), value: 'add' },
+  { label: t('rbac.roleList.permissionActions.remove'), value: 'remove' },
+]);
+const permissionMutationPayload = computed<RolePermissionMutationPayload>(() => {
+  const original = new Set(originalPermissionIds.value);
+
+  switch (permissionMutationMode.value) {
+    case 'add':
+      return toRolePermissionMutationPayload(selectedPermissionIds.value.filter((id) => !original.has(id)));
+    case 'remove': {
+      const selected = new Set(selectedPermissionIds.value);
+      return toRolePermissionMutationPayload(originalPermissionIds.value.filter((id) => !selected.has(id)));
+    }
+    default:
+      return toReplaceRolePermissionsPayload(selectedPermissionIds.value);
+  }
+});
 
 const roleTypeOptions = computed(() => [
   { label: t('rbac.roleList.toolbar.typeAll'), value: '' },
@@ -616,10 +673,15 @@ const pagedRoles = computed(() => {
   return filteredRoles.value.slice(start, start + pagination.value.pageSize);
 });
 
-const roleRowMoreOptions = (role: RoleListItem) => [
+const roleRowMoreOptions = (role: RoleStatusCompat) => [
+  {
+    content: isRoleEnabled(role) ? t('rbac.roleList.moreActions.disable') : t('rbac.roleList.moreActions.enable'),
+    disabled: role.builtin || !canToggleRoleStatus.value,
+    value: 'toggle-status',
+  },
   {
     content: t('rbac.roleList.moreActions.delete'),
-    disabled: role.builtin,
+    disabled: role.builtin || !canDeleteRoles.value,
     value: 'delete',
   },
 ];
@@ -807,6 +869,26 @@ function resolveRoleRemark(role: RoleRemarkCompat) {
   return role.remark ?? role.description ?? '';
 }
 
+function isRoleEnabled(role: RoleStatusCompat) {
+  if (role.status === 'enabled') {
+    return true;
+  }
+
+  if (role.status === 'disabled') {
+    return false;
+  }
+
+  if (typeof role.enabled === 'boolean') {
+    return role.enabled;
+  }
+
+  if (typeof role.disabled === 'boolean') {
+    return !role.disabled;
+  }
+
+  return true;
+}
+
 function roleRemark(role: RoleListItem) {
   const remark = resolveRoleRemark(role).trim();
   return remark || '-';
@@ -838,6 +920,12 @@ function sortStableIDs(ids: number[]) {
 }
 
 function toReplaceRolePermissionsPayload(permissionIds: number[]): ReplaceRolePermissionsPayload {
+  return {
+    permission_ids: sortStableIDs(permissionIds),
+  };
+}
+
+function toRolePermissionMutationPayload(permissionIds: number[]): RolePermissionMutationPayload {
   return {
     permission_ids: sortStableIDs(permissionIds),
   };
@@ -894,21 +982,36 @@ function handleRoleMoreAction(
     return;
   }
 
-  if (action === 'delete') {
-    handleMoreAction(role);
+  if (action === 'toggle-status') {
+    void toggleRoleStatus(role);
     return;
   }
 
-  handleMoreAction(role);
+  if (action === 'delete') {
+    void removeRole(role);
+    return;
+  }
+
+  void handleMoreAction(role);
 }
 
-function openDetailDrawer(role: RoleListItem) {
+async function openDetailDrawer(role: RoleListItem) {
+  let detail: RoleDetailResponse = {
+    ...role,
+    created_at: role.updated_at,
+  };
+  try {
+    detail = await getRoleDetail(role.id);
+  } catch (error) {
+    logger.warn('failed to load role detail, falling back to list item snapshot', error);
+  }
+
   roleDrawerMode.value = 'detail';
-  roleDrawerRole.value = role;
+  roleDrawerRole.value = detail;
   roleForm.value = {
-    name: role.name,
-    display: role.display,
-    description: resolveRoleRemark(role),
+    name: detail.name,
+    display: detail.display,
+    description: resolveRoleRemark(detail),
   };
   roleDrawerVisible.value = true;
 }
@@ -974,14 +1077,20 @@ function isActivePermissionDrawerSession(session: number) {
 function applyRolePermissionSelection(permissionIDs: number[]) {
   const normalized = normalizeRolePermissionIDs(permissionIDs);
   if (normalized === null) {
+    originalPermissionIds.value = [];
     selectedPermissionIds.value = [];
     permissionSelectionReady.value = false;
     return false;
   }
 
+  originalPermissionIds.value = normalized;
   selectedPermissionIds.value = normalized;
   permissionSelectionReady.value = true;
   return true;
+}
+
+function extractPermissionIDs(response: RolePermissionBindingResponse & { permissionIds?: number[] }) {
+  return response.permission_ids ?? response.permissionIds ?? [];
 }
 
 async function loadRolePermissionSelection(roleId: number, session: number) {
@@ -999,7 +1108,7 @@ async function loadRolePermissionSelection(roleId: number, session: number) {
       return false;
     }
 
-    if (!applyRolePermissionSelection(response.permission_ids)) {
+    if (!applyRolePermissionSelection(extractPermissionIDs(response))) {
       permissionLoadWarning.value = t('rbac.roleList.permissionDialog.selectionUnavailable');
       permissionLoadRetryable.value = false;
       return false;
@@ -1032,6 +1141,7 @@ async function openPermissionDrawer(role: RoleListItem) {
   permissionDrawerSession.value = session;
   permissionDrawerVisible.value = true;
   selectedRole.value = role;
+  permissionMutationMode.value = 'replace';
   permissionKeyword.value = '';
   permissionOnlySelected.value = false;
   await loadRolePermissionSelection(role.id, session);
@@ -1041,12 +1151,14 @@ function closePermissionDrawer() {
   permissionDrawerSession.value += 1;
   permissionDrawerVisible.value = false;
   selectedRole.value = null;
+  originalPermissionIds.value = [];
   selectedPermissionIds.value = [];
   permissionSelectionReady.value = false;
   loadingRolePermissions.value = false;
   permissionLoadWarning.value = '';
   permissionLoadRetryable.value = false;
   submittingPermissions.value = false;
+  permissionMutationMode.value = 'replace';
   permissionKeyword.value = '';
   permissionOnlySelected.value = false;
 }
@@ -1078,19 +1190,33 @@ function clearGroupPermissions(items: PermissionListItem[]) {
   selectedPermissionIds.value = selectedPermissionIds.value.filter((id) => !blocked.has(id));
 }
 
+async function mutateRolePermissions(
+  roleId: number,
+  payload: ReplaceRolePermissionsPayload | RolePermissionMutationPayload,
+) {
+  switch (permissionMutationMode.value) {
+    case 'add':
+      return addRolePermissions(roleId, payload);
+    case 'remove':
+      return removeRolePermissions(roleId, payload);
+    default:
+      return replaceRolePermissions(roleId, payload);
+  }
+}
+
 async function submitPermissionAssignment() {
   if (!selectedRole.value || !canSubmitPermissionAssignment.value || loadingRolePermissions.value) {
     return;
   }
 
   const session = permissionDrawerSession.value;
-  const payload = toReplaceRolePermissionsPayload(selectedPermissionIds.value);
+  const payload = permissionMutationPayload.value;
 
   permissionLoadWarning.value = '';
   permissionLoadRetryable.value = false;
   submittingPermissions.value = true;
   try {
-    await assignRolePermissions(selectedRole.value.id, payload);
+    await mutateRolePermissions(selectedRole.value.id, payload);
 
     if (!isActivePermissionDrawerSession(session)) {
       return;
@@ -1125,8 +1251,47 @@ async function submitPermissionAssignment() {
   }
 }
 
-function handleMoreAction(role: RoleListItem) {
-  MessagePlugin.warning(role.builtin ? t('rbac.roleList.moreBuiltinHint') : t('rbac.roleList.moreCustomHint'));
+async function handleMoreAction(role: RoleListItem) {
+  if (role.builtin) {
+    MessagePlugin.warning(t('rbac.roleList.moreBuiltinHint'));
+    return;
+  }
+
+  MessagePlugin.warning(t('rbac.roleList.moreCustomHint'));
+}
+
+async function toggleRoleStatus(role: RoleStatusCompat) {
+  if (!canToggleRoleStatus.value || role.builtin) {
+    return;
+  }
+
+  try {
+    const updated = await updateRoleStatus(role.id, {
+      status: isRoleEnabled(role) ? 'disabled' : 'enabled',
+    });
+    roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
+    MessagePlugin.success(
+      isRoleEnabled(updated) ? t('rbac.roleList.statusEnabledSuccess') : t('rbac.roleList.statusDisabledSuccess'),
+    );
+  } catch (error) {
+    logger.error('failed to update role status', error);
+    MessagePlugin.error(t('rbac.roleList.statusUpdateFailed'));
+  }
+}
+
+async function removeRole(role: RoleListItem) {
+  if (!canDeleteRoles.value || role.builtin) {
+    return;
+  }
+
+  try {
+    await deleteRole(role.id);
+    roles.value = roles.value.filter((item) => item.id !== role.id);
+    MessagePlugin.success(t('rbac.roleList.deleteSuccess'));
+  } catch (error) {
+    logger.error('failed to delete role', error);
+    MessagePlugin.error(t('rbac.roleList.deleteFailed'));
+  }
 }
 
 onMounted(() => {

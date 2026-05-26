@@ -16,8 +16,27 @@ var (
 	// ErrRoleNameConflict 表示目标角色名称已被其它角色占用。
 	ErrRoleNameConflict = errors.New("role name conflict")
 
+	// ErrRoleBuiltinImmutable 表示 builtin 角色不允许执行禁用或删除等破坏性生命周期操作。
+	ErrRoleBuiltinImmutable = errors.New("builtin role is immutable")
+
+	// ErrRoleEnabledDeletionForbidden 表示启用中的角色不能直接删除。
+	ErrRoleEnabledDeletionForbidden = errors.New("enabled role cannot be deleted")
+
+	// ErrRoleBindingsExist 表示角色仍然存在用户或权限绑定，不能执行需要空绑定的生命周期动作。
+	ErrRoleBindingsExist = errors.New("role bindings exist")
+
+	// ErrRoleDisabledAssignmentForbidden 表示禁用角色不能参与新的授权绑定。
+	ErrRoleDisabledAssignmentForbidden = errors.New("disabled role cannot be assigned")
+
 	// ErrInvalidID 表示调用方提供的稳定标识不满足当前仓储契约要求。
 	ErrInvalidID = errors.New("invalid id")
+)
+
+const (
+	// RoleStatusEnabled 表示角色当前可参与鉴权与绑定。
+	RoleStatusEnabled = "enabled"
+	// RoleStatusDisabled 表示角色已被停用，不能参与新的授权绑定。
+	RoleStatusDisabled = "disabled"
 )
 
 // Role 表示 RBAC 角色的稳定持久化 DTO。
@@ -27,6 +46,7 @@ type Role struct {
 	Display         string
 	Description     *string
 	Builtin         bool
+	Status          string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	PermissionCount int
@@ -43,6 +63,18 @@ type Permission struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	RoleBindingCount int
+}
+
+// RoleFilter 描述角色列表读取支持的局部过滤条件。
+type RoleFilter struct {
+	Status string
+	Query  string
+}
+
+// PermissionFilter 描述权限列表读取支持的局部过滤条件。
+type PermissionFilter struct {
+	Category string
+	Query    string
 }
 
 // RolePermissionBinding 表示角色当前绑定的一条稳定权限关系。
@@ -83,6 +115,17 @@ type UpdateRoleInput struct {
 	Description *string
 }
 
+// SetRoleStatusInput 描述一次角色启停状态更新所需的输入。
+type SetRoleStatusInput struct {
+	ID     uint64
+	Status string
+}
+
+// SoftDeleteRoleInput 描述一次角色软删除所需的输入。
+type SoftDeleteRoleInput struct {
+	ID uint64
+}
+
 // AssignPermissionsToRoleInput 描述一次角色权限最小绑定所需的输入。
 type AssignPermissionsToRoleInput struct {
 	RoleID        uint64
@@ -91,6 +134,18 @@ type AssignPermissionsToRoleInput struct {
 
 // ReplacePermissionsForRoleInput 描述一次角色权限覆盖写入所需的输入。
 type ReplacePermissionsForRoleInput struct {
+	RoleID        uint64
+	PermissionIDs []uint64
+}
+
+// AddPermissionsToRoleInput 描述一次角色权限增量绑定所需的输入。
+type AddPermissionsToRoleInput struct {
+	RoleID        uint64
+	PermissionIDs []uint64
+}
+
+// RemovePermissionsFromRoleInput 描述一次角色权限解绑所需的输入。
+type RemovePermissionsFromRoleInput struct {
 	RoleID        uint64
 	PermissionIDs []uint64
 }
@@ -107,21 +162,46 @@ type ReplaceRolesForUserInput struct {
 	RoleIDs []uint64
 }
 
+// AddRolesToUserInput 描述一次用户角色增量绑定所需的输入。
+type AddRolesToUserInput struct {
+	UserID  uint64
+	RoleIDs []uint64
+}
+
+// RemoveRolesFromUserInput 描述一次用户角色解绑所需的输入。
+type RemoveRolesFromUserInput struct {
+	UserID  uint64
+	RoleIDs []uint64
+}
+
+// BatchUserRoleMutationInput 描述一次批量用户角色写入所需的输入。
+type BatchUserRoleMutationInput struct {
+	UserIDs []uint64
+	RoleIDs []uint64
+}
+
 // Repository 暴露 RBAC 插件私有持久化能力。
 type Repository interface {
 	EnsureRole(ctx context.Context, input EnsureRoleInput) (Role, error)
 	EnsurePermission(ctx context.Context, input EnsurePermissionInput) (Permission, error)
 	CreateRole(ctx context.Context, input CreateRoleInput) (Role, error)
 	UpdateRole(ctx context.Context, input UpdateRoleInput) (Role, error)
+	SetRoleStatus(ctx context.Context, input SetRoleStatusInput) (Role, error)
+	SoftDeleteRole(ctx context.Context, input SoftDeleteRoleInput) error
 	AssignPermissionsToRole(ctx context.Context, input AssignPermissionsToRoleInput) error
 	ReplacePermissionsForRole(ctx context.Context, input ReplacePermissionsForRoleInput) error
+	AddPermissionsToRole(ctx context.Context, input AddPermissionsToRoleInput) error
+	RemovePermissionsFromRole(ctx context.Context, input RemovePermissionsFromRoleInput) error
 	AssignRoleToUser(ctx context.Context, input AssignRoleToUserInput) error
 	ReplaceRolesForUser(ctx context.Context, input ReplaceRolesForUserInput) error
+	AddRolesToUser(ctx context.Context, input AddRolesToUserInput) error
+	RemoveRolesFromUser(ctx context.Context, input RemoveRolesFromUserInput) error
 	GetRoleByID(ctx context.Context, roleID uint64) (Role, error)
+	GetPermissionByID(ctx context.Context, permissionID uint64) (Permission, error)
 	ListRolesByUserID(ctx context.Context, userID uint64) ([]Role, error)
 	ListRolesByUserIDs(ctx context.Context, userIDs []uint64) (map[uint64][]Role, error)
-	ListRoles(ctx context.Context) ([]Role, error)
+	ListRoles(ctx context.Context, filter RoleFilter) ([]Role, error)
 	ListPermissionsByUserID(ctx context.Context, userID uint64) ([]Permission, error)
-	ListPermissions(ctx context.Context) ([]Permission, error)
+	ListPermissions(ctx context.Context, filter PermissionFilter) ([]Permission, error)
 	ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]RolePermissionBinding, error)
 }

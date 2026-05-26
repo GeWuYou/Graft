@@ -64,7 +64,23 @@ func (r *bootstrapServiceTestRepository) UpdateRole(context.Context, rbacstore.U
 	return rbacstore.Role{}, nil
 }
 
+func (r *bootstrapServiceTestRepository) SetRoleStatus(context.Context, rbacstore.SetRoleStatusInput) (rbacstore.Role, error) {
+	return rbacstore.Role{}, nil
+}
+
+func (r *bootstrapServiceTestRepository) SoftDeleteRole(context.Context, rbacstore.SoftDeleteRoleInput) error {
+	return nil
+}
+
 func (r *bootstrapServiceTestRepository) ReplacePermissionsForRole(context.Context, rbacstore.ReplacePermissionsForRoleInput) error {
+	return nil
+}
+
+func (r *bootstrapServiceTestRepository) AddPermissionsToRole(context.Context, rbacstore.AddPermissionsToRoleInput) error {
+	return nil
+}
+
+func (r *bootstrapServiceTestRepository) RemovePermissionsFromRole(context.Context, rbacstore.RemovePermissionsFromRoleInput) error {
 	return nil
 }
 
@@ -72,8 +88,20 @@ func (r *bootstrapServiceTestRepository) ReplaceRolesForUser(context.Context, rb
 	return nil
 }
 
+func (r *bootstrapServiceTestRepository) AddRolesToUser(context.Context, rbacstore.AddRolesToUserInput) error {
+	return nil
+}
+
+func (r *bootstrapServiceTestRepository) RemoveRolesFromUser(context.Context, rbacstore.RemoveRolesFromUserInput) error {
+	return nil
+}
+
 func (r *bootstrapServiceTestRepository) GetRoleByID(context.Context, uint64) (rbacstore.Role, error) {
 	return rbacstore.Role{}, nil
+}
+
+func (r *bootstrapServiceTestRepository) GetPermissionByID(context.Context, uint64) (rbacstore.Permission, error) {
+	return rbacstore.Permission{}, nil
 }
 
 func (r *bootstrapServiceTestRepository) ListRolesByUserID(context.Context, uint64) ([]rbacstore.Role, error) {
@@ -84,7 +112,7 @@ func (r *bootstrapServiceTestRepository) ListRolesByUserIDs(context.Context, []u
 	return map[uint64][]rbacstore.Role{}, nil
 }
 
-func (r *bootstrapServiceTestRepository) ListRoles(context.Context) ([]rbacstore.Role, error) {
+func (r *bootstrapServiceTestRepository) ListRoles(context.Context, rbacstore.RoleFilter) ([]rbacstore.Role, error) {
 	return nil, nil
 }
 
@@ -92,7 +120,7 @@ func (r *bootstrapServiceTestRepository) ListPermissionsByUserID(context.Context
 	return nil, nil
 }
 
-func (r *bootstrapServiceTestRepository) ListPermissions(context.Context) ([]rbacstore.Permission, error) {
+func (r *bootstrapServiceTestRepository) ListPermissions(context.Context, rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return nil, nil
 }
 

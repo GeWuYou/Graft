@@ -5,6 +5,22 @@ get:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
+    - name: keyword
+      in: query
+      required: false
+      schema:
+        type: string
+    - name: builtin
+      in: query
+      required: false
+      schema:
+        type: boolean
+    - name: status
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [enabled, disabled]
   security:
     - bearerAuth: []
   responses:

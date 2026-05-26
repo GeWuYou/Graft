@@ -41,6 +41,10 @@ func writeRBACManagementError(
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument
 		details = map[string]any{"field": "permission_ids"}
+	case errors.Is(err, rbacstore.ErrRoleBuiltinImmutable), errors.Is(err, rbacstore.ErrRoleEnabledDeletionForbidden), errors.Is(err, rbacstore.ErrRoleBindingsExist), errors.Is(err, rbacstore.ErrRoleDisabledAssignmentForbidden):
+		status = http.StatusConflict
+		key = messagecontract.CommonInvalidArgument
+		details = map[string]any{"field": invalidField}
 	case errors.Is(err, errBuiltinRoleNameImmutable):
 		status = http.StatusBadRequest
 		key = messagecontract.CommonInvalidArgument

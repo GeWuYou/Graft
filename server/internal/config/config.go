@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -350,15 +351,54 @@ func loadDotenv() error {
 		return nil
 	}
 
-	if _, err := os.Stat(".env"); err == nil {
-		return godotenv.Load(".env")
+	dotenvPath, err := findDotenvPath()
+	if err != nil {
+		return err
 	}
-
-	if _, err := os.Stat("server/.env"); err == nil {
-		return godotenv.Load("server/.env")
+	if dotenvPath != "" {
+		return godotenv.Load(dotenvPath)
 	}
 
 	return nil
+}
+
+func findDotenvPath() (string, error) {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("resolve working directory: %w", err)
+	}
+
+	for _, dir := range walkToRoot(workingDir) {
+		for _, candidate := range []string{
+			filepath.Join(dir, ".env"),
+			filepath.Join(dir, "server", ".env"),
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate, nil
+			} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+				return "", fmt.Errorf("stat dotenv candidate %s: %w", candidate, err)
+			}
+		}
+	}
+
+	return "", nil
+}
+
+func walkToRoot(start string) []string {
+	if strings.TrimSpace(start) == "" {
+		return nil
+	}
+
+	dirs := []string{}
+	current := filepath.Clean(start)
+	for {
+		dirs = append(dirs, current)
+		parent := filepath.Dir(current)
+		if parent == current {
+			return dirs
+		}
+		current = parent
+	}
 }
 
 func setDefaults(reader *viper.Viper) {

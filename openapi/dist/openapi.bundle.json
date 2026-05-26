@@ -2251,6 +2251,34 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "builtin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "enabled",
+                "disabled"
+              ]
+            }
           }
         ],
         "security": [
@@ -2367,6 +2395,94 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/roles/{id}": {
+      "get": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Get one role",
+        "operationId": "getRole",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-role-detail-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid role id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Role not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -2517,6 +2633,303 @@
         }
       }
     },
+    "/api/roles/{id}/permissions/replace": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Replace role permissions",
+        "operationId": "postRolePermissionsReplace",
+        "description": "Replaces the role's permission bindings with the provided stable permission id set.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/replace-role-permissions-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role permissions replaced.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Role or permission not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/roles/{id}/permissions/add": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Add role permissions",
+        "operationId": "postRolePermissionsAdd",
+        "description": "Adds the provided stable permission ids to the target role without clearing existing bindings.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/replace-role-permissions-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role permissions added.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Role or permission not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/roles/{id}/permissions/remove": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Remove role permissions",
+        "operationId": "postRolePermissionsRemove",
+        "description": "Removes the provided stable permission ids from the target role.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/replace-role-permissions-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role permissions removed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Role or permission not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/roles/{id}/update": {
       "post": {
         "tags": [
@@ -2646,14 +3059,14 @@
         }
       }
     },
-    "/api/roles/{id}/permissions/assign": {
+    "/api/roles/{id}/status": {
       "post": {
         "tags": [
           "rbac"
         ],
-        "summary": "Replace role permissions",
-        "operationId": "postRolePermissionAssign",
-        "description": "Replaces the role's permission bindings with the provided stable permission id set\nand preserves the existing replace semantics for `permission_ids`.\n",
+        "summary": "Update role status",
+        "operationId": "postRoleStatus",
+        "description": "Enables or disables one role under the RBAC lifecycle rules.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -2665,7 +3078,6 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "description": "Target role id.",
             "schema": {
               "type": "integer",
               "format": "int64",
@@ -2683,14 +3095,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/replace-role-permissions-request"
+                "$ref": "#/components/schemas/update-role-status-request"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Role permissions replaced.",
+            "description": "Role status updated.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -2699,7 +3111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-empty-response"
+                  "$ref": "#/components/schemas/enveloped-role-item-response"
                 }
               }
             }
@@ -2713,22 +3125,6 @@
             },
             "content": {
               "application/json": {
-                "examples": {
-                  "invalidPermissionIDs": {
-                    "summary": "Unknown permission id set",
-                    "value": {
-                      "success": false,
-                      "code": "COMMON_INVALID_ARGUMENT",
-                      "message": "请求参数不合法",
-                      "traceId": "281b7a2d-3ea2-44fa-84dc-a5521fe0301a",
-                      "messageKey": "common.invalid_argument",
-                      "locale": "zh-CN",
-                      "data": {
-                        "field": "permission_ids"
-                      }
-                    }
-                  }
-                },
                 "schema": {
                   "$ref": "#/components/schemas/error-response"
                 }
@@ -2750,19 +3146,125 @@
             },
             "content": {
               "application/json": {
-                "examples": {
-                  "roleNotFound": {
-                    "summary": "Target role not found",
-                    "value": {
-                      "success": false,
-                      "code": "ROLE_NOT_FOUND",
-                      "message": "Role not found",
-                      "traceId": "281b7a2d-3ea2-44fa-84dc-a5521fe0301a",
-                      "messageKey": "role.not_found",
-                      "locale": "en-US"
-                    }
-                  }
-                },
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Role lifecycle conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/roles/{id}/delete": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Delete one role",
+        "operationId": "postRoleDelete",
+        "description": "Soft deletes one custom disabled role when the RBAC lifecycle rules permit deletion.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role deleted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid role id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Role not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Role lifecycle conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/error-response"
                 }
@@ -2788,6 +3290,22 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "security": [
@@ -2816,6 +3334,94 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/permissions/{id}": {
+      "get": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Get one permission",
+        "operationId": "getPermission",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-permission-item-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid permission id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Permission not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -2965,13 +3571,13 @@
         }
       }
     },
-    "/api/users/{id}/roles/assign": {
+    "/api/users/{id}/roles/replace": {
       "post": {
         "tags": [
           "rbac"
         ],
         "summary": "Replace role bindings for one user",
-        "operationId": "postUserRolesAssign",
+        "operationId": "postUserRolesReplace",
         "description": "Replaces the target user's role bindings with the supplied role id snapshot.",
         "parameters": [
           {
@@ -2988,12 +3594,6 @@
               "type": "integer",
               "format": "int64",
               "minimum": 1
-            },
-            "examples": {
-              "existing": {
-                "summary": "Existing user id",
-                "value": 42
-              }
             }
           }
         ],
@@ -3008,17 +3608,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/replace-user-roles-request"
-              },
-              "examples": {
-                "replace": {
-                  "summary": "Replace user roles",
-                  "value": {
-                    "role_ids": [
-                      1,
-                      3
-                    ]
-                  }
-                }
               }
             }
           }
@@ -3035,18 +3624,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-empty-response"
-                },
-                "examples": {
-                  "success": {
-                    "summary": "Replace user roles succeeded",
-                    "value": {
-                      "success": true,
-                      "code": "OK",
-                      "message": "success",
-                      "traceId": "c47e4da3-d42a-4f47-a389-e324a65a4d74",
-                      "data": null
-                    }
-                  }
                 }
               }
             }
@@ -3062,50 +3639,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/error-response"
-                },
-                "examples": {
-                  "invalidUserID": {
-                    "summary": "Invalid user id",
-                    "value": {
-                      "success": false,
-                      "code": "COMMON_INVALID_ARGUMENT",
-                      "message": "请求参数不合法",
-                      "traceId": "db2f0f01-3dd7-4a70-8f1f-70d0b12fd7a1",
-                      "messageKey": "common.invalid_argument",
-                      "locale": "zh-CN",
-                      "data": {
-                        "field": "id"
-                      }
-                    }
-                  },
-                  "invalidRoleIDs": {
-                    "summary": "Invalid role id list",
-                    "value": {
-                      "success": false,
-                      "code": "COMMON_INVALID_ARGUMENT",
-                      "message": "请求参数不合法",
-                      "traceId": "4cabbe31-bb74-42aa-9620-71603ef7f36d",
-                      "messageKey": "common.invalid_argument",
-                      "locale": "zh-CN",
-                      "data": {
-                        "field": "role_ids"
-                      }
-                    }
-                  },
-                  "ownAdminProtection": {
-                    "summary": "Own admin role cannot be removed",
-                    "value": {
-                      "success": false,
-                      "code": "RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE",
-                      "message": "当前登录用户不能移除自己的管理员角色",
-                      "traceId": "3d282420-b704-4e9b-9056-2920dc84e5d2",
-                      "messageKey": "rbac.cannot_remove_own_admin_role",
-                      "locale": "zh-CN",
-                      "data": {
-                        "field": "role_ids"
-                      }
-                    }
-                  }
                 }
               }
             }
@@ -3117,7 +3650,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "User not found.",
+            "description": "User or role not found.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -3127,20 +3660,561 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/error-response"
-                },
-                "examples": {
-                  "userNotFound": {
-                    "summary": "Target user does not exist",
-                    "value": {
-                      "success": false,
-                      "code": "USER_NOT_FOUND",
-                      "message": "用户不存在",
-                      "traceId": "66aaadf5-773f-40b9-98bd-feeec79f80ab",
-                      "messageKey": "user.not_found",
-                      "locale": "zh-CN",
-                      "data": {}
-                    }
-                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User-role lifecycle conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/roles/add": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Add role bindings for one user",
+        "operationId": "postUserRolesAdd",
+        "description": "Adds the supplied role ids to the target user without clearing existing bindings.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/replace-user-roles-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User roles added.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user id or invalid role id list.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "User or role not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User-role lifecycle conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/roles/remove": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Remove role bindings for one user",
+        "operationId": "postUserRolesRemove",
+        "description": "Removes the supplied role ids from the target user.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/replace-user-roles-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User roles removed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user id or invalid role id list.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "User or role not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User-role lifecycle conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/users/roles/replace": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Replace role bindings for many users",
+        "operationId": "postUsersRolesReplace",
+        "description": "Replaces the role bindings for the supplied user id set in one batch transaction.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/batch-user-roles-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User roles replaced in batch.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user id set or role id set.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "User or role not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User-role lifecycle conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/users/roles/add": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Add role bindings for many users",
+        "operationId": "postUsersRolesAdd",
+        "description": "Adds the supplied role ids to the supplied user id set in one batch transaction.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/batch-user-roles-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User roles added in batch.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user id set or role id set.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "User or role not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User-role lifecycle conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/users/roles/remove": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Remove role bindings for many users",
+        "operationId": "postUsersRolesRemove",
+        "description": "Removes the supplied role ids from the supplied user id set in one batch transaction.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/batch-user-roles-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User roles removed in batch.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user id set or role id set.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "User or role not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User-role lifecycle conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
                 }
               }
             }
@@ -3395,6 +4469,9 @@
       "RoleListItem": {
         "$ref": "#/components/schemas/role-list-item"
       },
+      "RoleDetailResponse": {
+        "$ref": "#/components/schemas/role-detail-response"
+      },
       "RoleListResponse": {
         "$ref": "#/components/schemas/role-list-response"
       },
@@ -3404,8 +4481,14 @@
       "UpdateRoleRequest": {
         "$ref": "#/components/schemas/update-role-request"
       },
+      "UpdateRoleStatusRequest": {
+        "$ref": "#/components/schemas/update-role-status-request"
+      },
       "EnvelopedRoleItemResponse": {
         "$ref": "#/components/schemas/enveloped-role-item-response"
+      },
+      "EnvelopedRoleDetailResponse": {
+        "$ref": "#/components/schemas/enveloped-role-detail-response"
       },
       "ReplaceRolePermissionsRequest": {
         "$ref": "#/components/schemas/replace-role-permissions-request"
@@ -3416,11 +4499,17 @@
       "EnvelopedRolePermissionBindingResponse": {
         "$ref": "#/components/schemas/enveloped-role-permission-binding-response"
       },
+      "PermissionDetailResponse": {
+        "$ref": "#/components/schemas/permission-detail-response"
+      },
       "PermissionListItem": {
         "$ref": "#/components/schemas/permission-list-item"
       },
       "PermissionListResponse": {
         "$ref": "#/components/schemas/permission-list-response"
+      },
+      "EnvelopedPermissionItemResponse": {
+        "$ref": "#/components/schemas/enveloped-permission-item-response"
       },
       "UserRoleBindingResponse": {
         "$ref": "#/components/schemas/user-role-binding-response"
@@ -3430,6 +4519,9 @@
       },
       "ReplaceUserRolesRequest": {
         "$ref": "#/components/schemas/replace-user-roles-request"
+      },
+      "BatchUserRolesRequest": {
+        "$ref": "#/components/schemas/batch-user-roles-request"
       },
       "ServerStatusDependency": {
         "$ref": "#/components/schemas/server-status-dependency"
@@ -4040,6 +5132,7 @@
           "name",
           "display",
           "builtin",
+          "status",
           "updated_at",
           "permission_count",
           "user_count"
@@ -4061,6 +5154,13 @@
           },
           "builtin": {
             "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ]
           },
           "updated_at": {
             "type": "string"
@@ -4139,6 +5239,39 @@
           }
         ]
       },
+      "role-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/role-list-item"
+          },
+          {
+            "type": "object",
+            "required": [
+              "created_at"
+            ],
+            "properties": {
+              "created_at": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-role-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/role-detail-response"
+              }
+            }
+          }
+        ]
+      },
       "role-permission-binding-response": {
         "type": "object",
         "required": [
@@ -4177,6 +5310,22 @@
           }
         ]
       },
+      "replace-role-permissions-request": {
+        "type": "object",
+        "required": [
+          "permission_ids"
+        ],
+        "properties": {
+          "permission_ids": {
+            "type": "array",
+            "description": "Replaces the role's permission bindings with the provided stable permission id set.\n",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
       "update-role-request": {
         "type": "object",
         "required": [
@@ -4199,19 +5348,18 @@
           }
         }
       },
-      "replace-role-permissions-request": {
+      "update-role-status-request": {
         "type": "object",
         "required": [
-          "permission_ids"
+          "status"
         ],
         "properties": {
-          "permission_ids": {
-            "type": "array",
-            "description": "Replaces the role's permission bindings with the provided stable permission id set.\n",
-            "items": {
-              "type": "integer",
-              "format": "int64"
-            }
+          "status": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ]
           }
         }
       },
@@ -4284,6 +5432,28 @@
           }
         ]
       },
+      "permission-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/permission-list-item"
+          }
+        ]
+      },
+      "enveloped-permission-item-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/permission-detail-response"
+              }
+            }
+          }
+        ]
+      },
       "user-role-binding-response": {
         "type": "object",
         "required": [
@@ -4341,6 +5511,31 @@
             1,
             3
           ]
+        }
+      },
+      "batch-user-roles-request": {
+        "type": "object",
+        "required": [
+          "user_ids",
+          "role_ids"
+        ],
+        "properties": {
+          "user_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
         }
       },
       "server-status-server": {

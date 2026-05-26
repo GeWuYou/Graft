@@ -56,37 +56,37 @@ func TestGetUserRolesHeadersRemainOptional(t *testing.T) {
 	}
 }
 
-func TestPostUserRolesAssignHeadersRemainOptional(t *testing.T) {
+func TestPostUserRolesReplaceHeadersRemainOptional(t *testing.T) {
 	t.Parallel()
 
-	var params PostUserRolesAssignParams
+	var params PostUserRolesReplaceParams
 	if params.XGraftLocale != nil || params.XRequestId != nil {
 		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
 	}
 }
 
-func TestPostRolePermissionAssignHeadersRemainOptional(t *testing.T) {
+func TestPostRolePermissionsReplaceHeadersRemainOptional(t *testing.T) {
 	t.Parallel()
 
-	var params PostRolePermissionAssignParams
+	var params PostRolePermissionsReplaceParams
 	if params.XGraftLocale != nil || params.XRequestId != nil {
 		t.Fatalf("expected zero-value generated params to keep optional headers nil, got %#v", params)
 	}
 }
 
-func TestPostUserRolesAssignRequestBodyKeepsRoleIDsOptional(t *testing.T) {
+func TestPostUserRolesReplaceRequestBodyKeepsRoleIDsOptional(t *testing.T) {
 	t.Parallel()
 
-	var body PostUserRolesAssignJSONRequestBody
+	var body PostUserRolesReplaceJSONRequestBody
 	if body.RoleIds != nil {
 		t.Fatalf("expected zero-value request body to keep role ids nil, got %#v", body)
 	}
 }
 
-func TestPostRolePermissionAssignRequestBodyKeepsPermissionIDsOptional(t *testing.T) {
+func TestPostRolePermissionsReplaceRequestBodyKeepsPermissionIDsOptional(t *testing.T) {
 	t.Parallel()
 
-	var body PostRolePermissionAssignJSONRequestBody
+	var body PostRolePermissionsReplaceJSONRequestBody
 	if body.PermissionIds != nil {
 		t.Fatalf("expected zero-value request body to keep permission ids nil, got %#v", body)
 	}

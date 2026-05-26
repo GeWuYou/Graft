@@ -24,9 +24,19 @@
       "permissionUnavailable": "No permission catalog is available for this session.",
       "createSuccess": "Role created",
       "updateSuccess": "Role updated",
+      "statusEnabledSuccess": "Role enabled",
+      "statusDisabledSuccess": "Role disabled",
+      "statusUpdateFailed": "Failed to update role status",
+      "deleteSuccess": "Role deleted",
+      "deleteFailed": "Failed to delete role",
       "submitFailed": "Failed to submit role changes",
       "assignSuccess": "Role permissions updated",
       "assignFailed": "Failed to update role permissions",
+      "permissionActions": {
+        "replace": "Replace Permissions",
+        "add": "Add Permissions",
+        "remove": "Remove Permissions"
+      },
       "builtinYes": "Builtin",
       "builtinNo": "Custom",
       "builtinHint": "Builtin roles cannot be deleted and some fields stay read-only",
@@ -35,6 +45,8 @@
       "moreBuiltinHint": "Builtin roles cannot be deleted. Open details for the restrictions.",
       "moreCustomHint": "Additional role actions are not available yet",
       "moreActions": {
+        "enable": "Enable Role",
+        "disable": "Disable Role",
         "delete": "Delete Role"
       },
       "columns": {
@@ -70,7 +82,8 @@
         }
       },
       "permissionDialog": {
-        "title": "Assign Role Permissions",
+        "title": "Manage Role Permissions",
+        "operationLabel": "Operation",
         "loadingSelection": "Loading the current role permission snapshot",
         "searchPlaceholder": "Search permission code, name, or description",
         "onlySelected": "Show selected only",
@@ -84,7 +97,7 @@
         "selectionCount": "{selected} / {total} permissions selected",
         "emptyDescription": "No description",
         "empty": "No matching permissions",
-        "confirm": "Save Permissions"
+        "confirm": "Submit Permission Changes"
       }
     },
     "permissionList": {

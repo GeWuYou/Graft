@@ -18,6 +18,17 @@ type replaceStableIDsHandlerConfig struct {
 	write                func(ctx context.Context, targetID uint64, ids []uint64) error
 }
 
+type batchStableIDsHandlerConfig struct {
+	invalidField         string
+	readAndBindGenerated func(ginCtx *gin.Context) (batchStableIDSet, error)
+	write                func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error
+}
+
+type batchStableIDSet struct {
+	userIDs []uint64
+	roleIDs []uint64
+}
+
 func normalizeCreateRoleInput(request rbacopenapi.PostRolesJSONRequestBody) (rbacstore.CreateRoleInput, bool) {
 	name := strings.TrimSpace(request.Name)
 	if name == "" {
@@ -46,20 +57,96 @@ func normalizeUpdateRoleInput(roleID uint64, request rbacopenapi.PostRoleUpdateJ
 	}, true
 }
 
-func readGeneratedRolePermissionAssignRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionAssignJSONRequestBody, []uint64, error) {
-	var request rbacopenapi.PostRolePermissionAssignJSONRequestBody
+func readGeneratedRolePermissionReplaceRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionsReplaceJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.PostRolePermissionsReplaceJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		return rbacopenapi.PostRolePermissionAssignJSONRequestBody{}, nil, err
+		return rbacopenapi.PostRolePermissionsReplaceJSONRequestBody{}, nil, err
 	}
 	return request, optionalStableIDs(request.PermissionIds), nil
 }
 
-func readGeneratedUserRoleAssignRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesAssignJSONRequestBody, []uint64, error) {
-	var request rbacopenapi.PostUserRolesAssignJSONRequestBody
+func readGeneratedRolePermissionAddRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionsAddJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.PostRolePermissionsAddJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		return rbacopenapi.PostUserRolesAssignJSONRequestBody{}, nil, err
+		return rbacopenapi.PostRolePermissionsAddJSONRequestBody{}, nil, err
+	}
+	return request, optionalStableIDs(request.PermissionIds), nil
+}
+
+func readGeneratedRolePermissionRemoveRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionsRemoveJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.PostRolePermissionsRemoveJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return rbacopenapi.PostRolePermissionsRemoveJSONRequestBody{}, nil, err
+	}
+	return request, optionalStableIDs(request.PermissionIds), nil
+}
+
+func readGeneratedUserRoleReplaceRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesReplaceJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.PostUserRolesReplaceJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return rbacopenapi.PostUserRolesReplaceJSONRequestBody{}, nil, err
 	}
 	return request, optionalStableIDs(request.RoleIds), nil
+}
+
+func readGeneratedUserRoleAddRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesAddJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.PostUserRolesAddJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return rbacopenapi.PostUserRolesAddJSONRequestBody{}, nil, err
+	}
+	return request, optionalStableIDs(request.RoleIds), nil
+}
+
+func readGeneratedUserRoleRemoveRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesRemoveJSONRequestBody, []uint64, error) {
+	var request rbacopenapi.PostUserRolesRemoveJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return rbacopenapi.PostUserRolesRemoveJSONRequestBody{}, nil, err
+	}
+	return request, optionalStableIDs(request.RoleIds), nil
+}
+
+func readGeneratedBatchUserRoleReplaceRequest(ginCtx *gin.Context) (rbacopenapi.PostUsersRolesReplaceJSONRequestBody, batchStableIDSet, error) {
+	var request rbacopenapi.PostUsersRolesReplaceJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return rbacopenapi.PostUsersRolesReplaceJSONRequestBody{}, batchStableIDSet{}, err
+	}
+	return request, batchStableIDSet{
+		userIDs: optionalStableIDs(request.UserIds),
+		roleIDs: optionalStableIDs(request.RoleIds),
+	}, nil
+}
+
+func readGeneratedBatchUserRoleAddRequest(ginCtx *gin.Context) (rbacopenapi.PostUsersRolesAddJSONRequestBody, batchStableIDSet, error) {
+	var request rbacopenapi.PostUsersRolesAddJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return rbacopenapi.PostUsersRolesAddJSONRequestBody{}, batchStableIDSet{}, err
+	}
+	return request, batchStableIDSet{
+		userIDs: optionalStableIDs(request.UserIds),
+		roleIDs: optionalStableIDs(request.RoleIds),
+	}, nil
+}
+
+func readGeneratedBatchUserRoleRemoveRequest(ginCtx *gin.Context) (rbacopenapi.PostUsersRolesRemoveJSONRequestBody, batchStableIDSet, error) {
+	var request rbacopenapi.PostUsersRolesRemoveJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		return rbacopenapi.PostUsersRolesRemoveJSONRequestBody{}, batchStableIDSet{}, err
+	}
+	return request, batchStableIDSet{
+		userIDs: optionalStableIDs(request.UserIds),
+		roleIDs: optionalStableIDs(request.RoleIds),
+	}, nil
+}
+
+func normalizeRoleStatusInput(request rbacopenapi.PostRoleStatusJSONRequestBody) (string, bool) {
+	switch request.Status {
+	case rbacopenapi.PostRoleStatusJSONBodyStatusEnabled:
+		return rbacstore.RoleStatusEnabled, true
+	case rbacopenapi.PostRoleStatusJSONBodyStatusDisabled:
+		return rbacstore.RoleStatusDisabled, true
+	default:
+		return "", false
+	}
 }
 
 func optionalStableIDs(ids []int64) []uint64 {

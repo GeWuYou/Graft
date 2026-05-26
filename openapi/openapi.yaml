@@ -59,18 +59,40 @@ paths:
     $ref: ./paths/users.sessions.revoke-all.yaml
   /api/roles:
     $ref: ./paths/roles.list.yaml
+  /api/roles/{id}:
+    $ref: ./paths/roles.detail.yaml
   /api/roles/{id}/permissions:
     $ref: ./paths/roles.permissions.yaml
+  /api/roles/{id}/permissions/replace:
+    $ref: ./paths/roles.permissions.replace.yaml
+  /api/roles/{id}/permissions/add:
+    $ref: ./paths/roles.permissions.add.yaml
+  /api/roles/{id}/permissions/remove:
+    $ref: ./paths/roles.permissions.remove.yaml
   /api/roles/{id}/update:
     $ref: ./paths/roles.update.yaml
-  /api/roles/{id}/permissions/assign:
-    $ref: ./paths/roles.assign-permissions.yaml
+  /api/roles/{id}/status:
+    $ref: ./paths/roles.status.yaml
+  /api/roles/{id}/delete:
+    $ref: ./paths/roles.delete.yaml
   /api/permissions:
     $ref: ./paths/permissions.list.yaml
+  /api/permissions/{id}:
+    $ref: ./paths/permissions.detail.yaml
   /api/users/{id}/roles:
     $ref: ./paths/users.roles.yaml
-  /api/users/{id}/roles/assign:
-    $ref: ./paths/users.roles.assign.yaml
+  /api/users/{id}/roles/replace:
+    $ref: ./paths/users.roles.replace.yaml
+  /api/users/{id}/roles/add:
+    $ref: ./paths/users.roles.add.yaml
+  /api/users/{id}/roles/remove:
+    $ref: ./paths/users.roles.remove.yaml
+  /api/users/roles/replace:
+    $ref: ./paths/users.roles.batch.replace.yaml
+  /api/users/roles/add:
+    $ref: ./paths/users.roles.batch.add.yaml
+  /api/users/roles/remove:
+    $ref: ./paths/users.roles.batch.remove.yaml
   /api/monitor/server-status:
     $ref: ./paths/monitor.server-status.yaml
 components:
@@ -117,30 +139,42 @@ components:
       $ref: ./components/schemas/enveloped-session-list-response.yaml
     RoleListItem:
       $ref: ./components/schemas/role-list-item.yaml
+    RoleDetailResponse:
+      $ref: ./components/schemas/role-detail-response.yaml
     RoleListResponse:
       $ref: ./components/schemas/role-list-response.yaml
     CreateRoleRequest:
       $ref: ./components/schemas/create-role-request.yaml
     UpdateRoleRequest:
       $ref: ./components/schemas/update-role-request.yaml
+    UpdateRoleStatusRequest:
+      $ref: ./components/schemas/update-role-status-request.yaml
     EnvelopedRoleItemResponse:
       $ref: ./components/schemas/enveloped-role-item-response.yaml
+    EnvelopedRoleDetailResponse:
+      $ref: ./components/schemas/enveloped-role-detail-response.yaml
     ReplaceRolePermissionsRequest:
       $ref: ./components/schemas/replace-role-permissions-request.yaml
     RolePermissionBindingResponse:
       $ref: ./components/schemas/role-permission-binding-response.yaml
     EnvelopedRolePermissionBindingResponse:
       $ref: ./components/schemas/enveloped-role-permission-binding-response.yaml
+    PermissionDetailResponse:
+      $ref: ./components/schemas/permission-detail-response.yaml
     PermissionListItem:
       $ref: ./components/schemas/permission-list-item.yaml
     PermissionListResponse:
       $ref: ./components/schemas/permission-list-response.yaml
+    EnvelopedPermissionItemResponse:
+      $ref: ./components/schemas/enveloped-permission-item-response.yaml
     UserRoleBindingResponse:
       $ref: ./components/schemas/user-role-binding-response.yaml
     EnvelopedUserRoleBindingResponse:
       $ref: ./components/schemas/enveloped-user-role-binding-response.yaml
     ReplaceUserRolesRequest:
       $ref: ./components/schemas/replace-user-roles-request.yaml
+    BatchUserRolesRequest:
+      $ref: ./components/schemas/batch-user-roles-request.yaml
     ServerStatusDependency:
       $ref: ./components/schemas/server-status-dependency.yaml
     ServerStatusPlugin:

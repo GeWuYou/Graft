@@ -10,8 +10,10 @@ import (
 )
 
 type readManagementService interface {
-	ListRoles(ctx context.Context) ([]rbacstore.Role, error)
-	ListPermissions(ctx context.Context) ([]rbacstore.Permission, error)
+	GetRole(ctx context.Context, roleID uint64) (rbacstore.Role, error)
+	GetPermission(ctx context.Context, permissionID uint64) (rbacstore.Permission, error)
+	ListRoles(ctx context.Context, filter rbacstore.RoleFilter) ([]rbacstore.Role, error)
+	ListPermissions(ctx context.Context, filter rbacstore.PermissionFilter) ([]rbacstore.Permission, error)
 	ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error)
 	ListRoleIDsByUserID(ctx context.Context, userID uint64) ([]uint64, error)
 }
@@ -21,20 +23,36 @@ type managementReader struct {
 	rbac  rbacstore.Repository
 }
 
-func (r managementReader) ListRoles(ctx context.Context) ([]rbacstore.Role, error) {
+func (r managementReader) GetRole(ctx context.Context, roleID uint64) (rbacstore.Role, error) {
 	if r.rbac == nil {
-		return nil, errors.New("rbac repository is unavailable")
+		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
 	}
 
-	return r.rbac.ListRoles(ctx)
+	return r.rbac.GetRoleByID(ctx, roleID)
 }
 
-func (r managementReader) ListPermissions(ctx context.Context) ([]rbacstore.Permission, error) {
+func (r managementReader) GetPermission(ctx context.Context, permissionID uint64) (rbacstore.Permission, error) {
+	if r.rbac == nil {
+		return rbacstore.Permission{}, errors.New("rbac repository is unavailable")
+	}
+
+	return r.rbac.GetPermissionByID(ctx, permissionID)
+}
+
+func (r managementReader) ListRoles(ctx context.Context, filter rbacstore.RoleFilter) ([]rbacstore.Role, error) {
 	if r.rbac == nil {
 		return nil, errors.New("rbac repository is unavailable")
 	}
 
-	return r.rbac.ListPermissions(ctx)
+	return r.rbac.ListRoles(ctx, filter)
+}
+
+func (r managementReader) ListPermissions(ctx context.Context, filter rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
+	if r.rbac == nil {
+		return nil, errors.New("rbac repository is unavailable")
+	}
+
+	return r.rbac.ListPermissions(ctx, filter)
 }
 
 func (r managementReader) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error) {
