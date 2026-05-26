@@ -67,13 +67,13 @@ governance source: root AGENTS.md
 task class: docs/automation
 recovery source:
   - current repository state
-  - ai-plan/public/oapi-generated-server-client-governance-spike/README.md
-  - ai-plan/public/oapi-generated-server-client-governance-spike/traces/oapi-generated-server-client-governance-spike-trace.md
+  - ai-plan/public/archive/oapi-generated-server-client-governance-spike/README.md
+  - ai-plan/public/archive/oapi-generated-server-client-governance-spike/traces/oapi-generated-server-client-governance-spike-trace.md
   - ai-plan/public/README.md
 branch / worktree:
   - feat/oapi-generated-server-client-governance-spike
 owned scope:
-  - ai-plan/public/oapi-generated-server-client-governance-spike/**
+  - ai-plan/public/archive/oapi-generated-server-client-governance-spike/**
   - ai-plan/public/README.md if topic status changes
   - docs/traces/todos only
 forbidden scope:

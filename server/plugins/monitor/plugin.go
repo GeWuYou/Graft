@@ -318,21 +318,22 @@ func registerMonitorRoutes(
 
 func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
-		params, err := bindGeneratedMonitorParams(ginCtx)
-		if err != nil {
-			httpx.AbortLocalizedError(ginCtx, handler.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-			return
-		}
-
+		params := bindGeneratedMonitorParams(ginCtx)
 		handler.GetMonitorServerStatus(params)
 		trendRange := parseGeneratedTrendRange(params.TrendRange)
 		payload, buildErr := buildServerStatusResponse(ginCtx.Request.Context(), handler.ctx, handler.instance, trendRange)
 		if buildErr != nil {
-			handler.ctx.Logger.Error("build monitor server status failed",
-				zap.String("plugin", handler.pluginName),
-				zap.Error(buildErr),
-			)
-			httpx.AbortLocalizedError(ginCtx, handler.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			var localizer *i18n.Service
+			if handler.ctx != nil {
+				localizer = handler.ctx.I18n
+				if handler.ctx.Logger != nil {
+					handler.ctx.Logger.Error("build monitor server status failed",
+						zap.String("plugin", handler.pluginName),
+						zap.Error(buildErr),
+					)
+				}
+			}
+			httpx.AbortLocalizedError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 			return
 		}
 
@@ -344,15 +345,14 @@ func (h *monitorServerHandler) GetMonitorServerStatus(params monitoropenapi.GetM
 	_ = params
 }
 
-func bindGeneratedMonitorParams(ginCtx *gin.Context) (monitoropenapi.GetMonitorServerStatusParams, error) {
+func bindGeneratedMonitorParams(ginCtx *gin.Context) monitoropenapi.GetMonitorServerStatusParams {
 	params := monitoropenapi.GetMonitorServerStatusParams{}
 
 	if raw := strings.TrimSpace(ginCtx.Query(monitorcontract.TrendRangeQueryKey)); raw != "" {
 		value := monitoropenapi.GetMonitorServerStatusParamsTrendRange(raw)
-		if !value.Valid() {
-			return params, fmt.Errorf("invalid trend_range: %s", raw)
+		if value.Valid() {
+			params.TrendRange = &value
 		}
-		params.TrendRange = &value
 	}
 
 	if raw := strings.TrimSpace(ginCtx.GetHeader(httpx.RequestIDHeader)); raw != "" {
@@ -363,7 +363,7 @@ func bindGeneratedMonitorParams(ginCtx *gin.Context) (monitoropenapi.GetMonitorS
 		params.XGraftLocale = &raw
 	}
 
-	return params, nil
+	return params
 }
 
 func buildServerStatusResponse(

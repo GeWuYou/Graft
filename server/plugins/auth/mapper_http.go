@@ -1,25 +1,30 @@
 package auth
 
 import (
+	"fmt"
 	"math"
 
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/pluginapi"
 )
 
-func toLoginResponse(result pluginapi.AuthRefreshResult) generated.LoginResponse {
+func toLoginResponse(result pluginapi.AuthRefreshResult) (generated.LoginResponse, error) {
 	var response generated.LoginResponse
 	response.AccessToken = result.AccessToken
 	response.ExpiresAt = result.AccessExpiry
 	response.MustChangePassword = result.MustChangePassword
-	response.User.Id = mustConvertGeneratedUserID(result.User.ID)
+	convertedID, err := mustConvertGeneratedUserID(result.User.ID)
+	if err != nil {
+		return generated.LoginResponse{}, err
+	}
+	response.User.Id = convertedID
 	response.User.Username = result.User.Username
 	response.User.DisplayName = result.User.DisplayName
 
-	return response
+	return response, nil
 }
 
-func toBootstrapResponse(payload pluginapi.AuthBootstrapPayload) generated.BootstrapResponse {
+func toBootstrapResponse(payload pluginapi.AuthBootstrapPayload) (generated.BootstrapResponse, error) {
 	menus := make([]generated.BootstrapMenu, 0, len(payload.Menus))
 	for _, item := range payload.Menus {
 		menus = append(menus, generated.BootstrapMenu{
@@ -33,7 +38,11 @@ func toBootstrapResponse(payload pluginapi.AuthBootstrapPayload) generated.Boots
 	}
 
 	var response generated.BootstrapResponse
-	response.User.Id = mustConvertGeneratedUserID(payload.User.ID)
+	convertedID, err := mustConvertGeneratedUserID(payload.User.ID)
+	if err != nil {
+		return generated.BootstrapResponse{}, err
+	}
+	response.User.Id = convertedID
 	response.User.Username = payload.User.Username
 	response.User.DisplayName = payload.User.DisplayName
 	response.MustChangePassword = payload.MustChangePassword
@@ -47,14 +56,14 @@ func toBootstrapResponse(payload pluginapi.AuthBootstrapPayload) generated.Boots
 		SupportedLocales: append([]string(nil), payload.Locale.SupportedLocales...),
 	}
 
-	return response
+	return response, nil
 }
 
-func mustConvertGeneratedUserID(id uint64) int64 {
+func mustConvertGeneratedUserID(id uint64) (int64, error) {
 	if id > math.MaxInt64 {
-		panic("auth generated response user id exceeds int64")
+		return 0, fmt.Errorf("auth generated response user id exceeds int64: %d", id)
 	}
-	return int64(id)
+	return int64(id), nil
 }
 
 func optionalStringPointer(value string) *string {

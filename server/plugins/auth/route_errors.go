@@ -42,6 +42,18 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 	writeLocalizedContractError(ginCtx, r.localizer, mapped.Status, mapped.MessageKey, mapped.Data)
 }
 
+func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
+	logFields := append([]zap.Field{
+		zap.String("plugin", r.pluginName),
+		zap.String("method", ginCtx.Request.Method),
+		zap.String("route", ginCtx.FullPath()),
+		zap.Error(err),
+	}, fields...)
+	r.logger.Error(message, logFields...)
+
+	writeLocalizedContractError(ginCtx, r.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+}
+
 func readSessionIDParam(ginCtx *gin.Context, localizer *i18n.Service) (string, bool) {
 	sessionID := strings.TrimSpace(ginCtx.Param("sessionID"))
 	if sessionID == "" {

@@ -7,10 +7,9 @@ type ReadServerInterface interface {
 	GetRolePermissions(id uint64, params GetRolePermissionsParams)
 }
 
-// UserRoleServerInterface is the minimal generated handler contract for guarded user-role GET/assign migration.
+// UserRoleServerInterface is the minimal generated handler contract for guarded user-role read migration.
 type UserRoleServerInterface interface {
 	GetUserRoles(id uint64, params GetUserRolesParams)
-	PostUserRolesAssign(id uint64, params PostUserRolesAssignParams, body PostUserRolesAssignJSONRequestBody)
 }
 
 // WriteServerInterface is the minimal generated handler contract for guarded RBAC write migration.

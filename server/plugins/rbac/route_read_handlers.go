@@ -195,17 +195,6 @@ func (h rbacUserRoleGeneratedHandler) GetUserRoles(id uint64, params rbacopenapi
 	_ = params
 }
 
-func (h rbacUserRoleGeneratedHandler) PostUserRolesAssign(
-	id uint64,
-	params rbacopenapi.PostUserRolesAssignParams,
-	body rbacopenapi.PostUserRolesAssignJSONRequestBody,
-) {
-	_ = h
-	_ = id
-	_ = params
-	_ = body
-}
-
 func bindGeneratedUserRoleReadParams(ginCtx *gin.Context) rbacopenapi.GetUserRolesParams {
 	locale, requestID := bindGeneratedReadHeaders(ginCtx)
 	return rbacopenapi.GetUserRolesParams{

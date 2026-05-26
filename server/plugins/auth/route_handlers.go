@@ -18,67 +18,85 @@ import (
 )
 
 func (r authRouteRegistrar) registerLoginRoutes(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthLogin, func(ginCtx *gin.Context) {
-		var request authopenapi.PostAuthLoginJSONRequestBody
-		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
-			return
-		}
-		authGeneratedHandler{}.PostAuthLogin(bindGeneratedAuthLoginParams(ginCtx), request)
-		normalizedUsername := strings.TrimSpace(request.Username)
-		if normalizedUsername == "" {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "username")
-			return
-		}
-		if request.Password == "" {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "password")
-			return
-		}
+	authGroup.POST(authcontract.AuthLogin, r.handleLoginRoute)
+	authGroup.POST(authcontract.AuthRefresh, r.handleRefreshRoute)
+	authGroup.POST(authcontract.AuthLogout, r.handleLogoutRoute)
+}
 
-		result, err := r.authFlow.StartLogin(ginCtx.Request.Context(), normalizedUsername, request.Password)
-		if err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "login failed", err)
-			return
-		}
+func (r authRouteRegistrar) handleLoginRoute(ginCtx *gin.Context) {
+	var request authopenapi.PostAuthLoginJSONRequestBody
+	if err := ginCtx.ShouldBindJSON(&request); err != nil {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
+		return
+	}
+	authGeneratedHandler{}.PostAuthLogin(bindGeneratedAuthLoginParams(ginCtx), request)
+	normalizedUsername := strings.TrimSpace(request.Username)
+	if normalizedUsername == "" {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "username")
+		return
+	}
+	if request.Password == "" {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "password")
+		return
+	}
 
-		r.cookies.WriteRefreshCookie(ginCtx, result.RefreshToken, result.RefreshExpiry)
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toLoginResponse(result))
-	})
-	authGroup.POST(authcontract.AuthRefresh, func(ginCtx *gin.Context) {
-		authGeneratedHandler{}.PostAuthRefresh(bindGeneratedAuthRefreshParams(ginCtx))
+	result, err := r.authFlow.StartLogin(ginCtx.Request.Context(), normalizedUsername, request.Password)
+	if err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "login failed", err)
+		return
+	}
 
-		refreshToken, err := r.cookies.ReadRefreshCookie(ginCtx)
-		if err != nil {
-			writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
-			return
-		}
+	payload, mapErr := toLoginResponse(result)
+	if mapErr != nil {
+		r.runtime().writeResponseMappingError(ginCtx, "map login response failed", mapErr, zap.Uint64("userID", result.User.ID))
+		return
+	}
 
-		result, err := r.authFlow.RefreshSession(ginCtx.Request.Context(), refreshToken)
-		if err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "refresh session failed", err)
-			return
-		}
+	r.cookies.WriteRefreshCookie(ginCtx, result.RefreshToken, result.RefreshExpiry)
+	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+}
 
-		r.cookies.WriteRefreshCookie(ginCtx, result.RefreshToken, result.RefreshExpiry)
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toLoginResponse(result))
-	})
-	authGroup.POST(authcontract.AuthLogout, func(ginCtx *gin.Context) {
-		authGeneratedHandler{}.PostAuthLogout(bindGeneratedAuthLogoutParams(ginCtx))
+func (r authRouteRegistrar) handleRefreshRoute(ginCtx *gin.Context) {
+	authGeneratedHandler{}.PostAuthRefresh(bindGeneratedAuthRefreshParams(ginCtx))
 
-		refreshToken, err := r.cookies.ReadRefreshCookie(ginCtx)
-		if err != nil {
-			writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
-			return
-		}
+	refreshToken, err := r.cookies.ReadRefreshCookie(ginCtx)
+	if err != nil {
+		writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
+		return
+	}
 
-		if err := r.authFlow.LogoutCurrentSession(ginCtx.Request.Context(), refreshToken); err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "logout session failed", err)
-			return
-		}
+	result, err := r.authFlow.RefreshSession(ginCtx.Request.Context(), refreshToken)
+	if err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "refresh session failed", err)
+		return
+	}
 
-		r.cookies.ClearRefreshCookie(ginCtx)
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-	})
+	payload, mapErr := toLoginResponse(result)
+	if mapErr != nil {
+		r.runtime().writeResponseMappingError(ginCtx, "map refresh response failed", mapErr, zap.Uint64("userID", result.User.ID))
+		return
+	}
+
+	r.cookies.WriteRefreshCookie(ginCtx, result.RefreshToken, result.RefreshExpiry)
+	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+}
+
+func (r authRouteRegistrar) handleLogoutRoute(ginCtx *gin.Context) {
+	authGeneratedHandler{}.PostAuthLogout(bindGeneratedAuthLogoutParams(ginCtx))
+
+	refreshToken, err := r.cookies.ReadRefreshCookie(ginCtx)
+	if err != nil {
+		writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
+		return
+	}
+
+	if err := r.authFlow.LogoutCurrentSession(ginCtx.Request.Context(), refreshToken); err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "logout session failed", err)
+		return
+	}
+
+	r.cookies.ClearRefreshCookie(ginCtx)
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 
 func (r authRouteRegistrar) registerCurrentUserSessionRoutes(authGroup *gin.RouterGroup) {
@@ -158,7 +176,13 @@ func (r authRouteRegistrar) registerBootstrapRoute(authGroup *gin.RouterGroup) {
 			return
 		}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toBootstrapResponse(payload))
+		response, mapErr := toBootstrapResponse(payload)
+		if mapErr != nil {
+			r.runtime().writeResponseMappingError(ginCtx, "map bootstrap response failed", mapErr, zap.Uint64("userID", payload.User.ID))
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 	})
 }
 
