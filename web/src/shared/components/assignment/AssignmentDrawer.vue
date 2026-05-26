@@ -45,9 +45,6 @@ const bodyRef = ref<HTMLDivElement | null>(null);
 
 function handleVisibleChange(value: boolean) {
   emit('update:visible', value);
-  if (!value) {
-    emit('close');
-  }
 }
 
 watch(
