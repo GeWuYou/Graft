@@ -15,6 +15,7 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
+	healthopenapi "graft/server/internal/contract/openapi/health"
 	"graft/server/internal/cronx"
 	"graft/server/internal/database"
 	"graft/server/internal/eventbus"
@@ -229,6 +230,7 @@ func (r *Runtime) loadOptionalDocsAssets() error {
 
 func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 	engine.GET("/healthz", func(ctx *gin.Context) {
+		coreHealthGeneratedHandler{}.GetHealthz()
 		ctx.JSON(http.StatusOK, gin.H{
 			"status":         "ok",
 			"defaultLocale":  r.i18n.DefaultLocale(),
@@ -260,6 +262,14 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 		}
 		ctx.Data(http.StatusOK, "text/html; charset=utf-8", html)
 	})
+}
+
+var _ healthopenapi.ServerInterface = coreHealthGeneratedHandler{}
+
+type coreHealthGeneratedHandler struct{}
+
+func (h coreHealthGeneratedHandler) GetHealthz() {
+	_ = h
 }
 
 func (r *Runtime) registerCoreServices() error {

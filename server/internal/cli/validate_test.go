@@ -163,6 +163,56 @@ func TestRunValidateBackendOpenAPIStage(t *testing.T) {
 	}
 }
 
+func TestRunValidateOpenAPIInvokesFreshnessCheck(t *testing.T) {
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	originalFreshnessRunner := backendOpenAPIFreshnessRunner
+	defer func() {
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+		backendOpenAPIFreshnessRunner = originalFreshnessRunner
+	}()
+
+	repoDir := t.TempDir()
+	serverDir := filepath.Join(repoDir, "server")
+	specDir := filepath.Join(repoDir, "openapi")
+
+	if err := os.MkdirAll(serverDir, 0o750); err != nil {
+		t.Fatalf("mkdir server dir: %v", err)
+	}
+	if err := os.MkdirAll(specDir, 0o750); err != nil {
+		t.Fatalf("mkdir spec dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "AGENTS.md"), []byte("test\n"), 0o600); err != nil {
+		t.Fatalf("write AGENTS: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	spec := "openapi: 3.0.3\ninfo:\n  title: Test\n  version: 1.0.0\npaths: {}\n"
+	if err := os.WriteFile(filepath.Join(specDir, "openapi.yaml"), []byte(spec), 0o600); err != nil {
+		t.Fatalf("write openapi spec: %v", err)
+	}
+
+	backendGetwd = func() (string, error) {
+		return serverDir, nil
+	}
+	backendReadFile = os.ReadFile
+
+	called := 0
+	backendOpenAPIFreshnessRunner = func() error {
+		called++
+		return nil
+	}
+
+	if err := runValidateOpenAPI(&cobra.Command{}, defaultOpenAPIRootSpec); err != nil {
+		t.Fatalf("run validate openapi: %v", err)
+	}
+	if called != 1 {
+		t.Fatalf("expected freshness check to run once, got %d", called)
+	}
+}
+
 // TestRunBackendLintUsesChangedFileScopedArgs 验证 blocking lint gate 采用 changed-file scoped 语义，
 // 并且不会在该路径里运行 full-repo audit。
 func TestRunBackendLintUsesChangedFileScopedArgs(t *testing.T) {

@@ -5,4 +5,8 @@ export const AUTH_API_PATH = {
   LOGIN: '/api/auth/login',
   LOGOUT: '/api/auth/logout',
   REFRESH: '/api/auth/refresh',
+  SESSIONS: '/api/auth/sessions',
+  SESSION_REVOKE_TEMPLATE: '/api/auth/sessions/{sessionID}/revoke',
+  SESSIONS_REVOKE_ALL: '/api/auth/sessions/revoke-all',
+  SESSIONS_REVOKE_OTHERS: '/api/auth/sessions/revoke-others',
 } as const;

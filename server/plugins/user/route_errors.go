@@ -144,6 +144,18 @@ func (r routeRuntime) writeCreateUserError(ginCtx *gin.Context, message string, 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
 }
 
+func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
+	logFields := append([]zap.Field{
+		zap.String("plugin", r.pluginName),
+		zap.String("method", ginCtx.Request.Method),
+		zap.String("route", ginCtx.FullPath()),
+		zap.Error(err),
+	}, fields...)
+	r.logger.Error(message, logFields...)
+
+	writeLocalizedContractError(ginCtx, r.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
+}
+
 func shouldLogUserManagementError(status int, err error) bool {
 	return status == http.StatusInternalServerError ||
 		errors.Is(err, errPasswordPolicyViolation) ||

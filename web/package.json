@@ -27,7 +27,8 @@
     "contract:check:changed": "sh ../scripts/run_python.sh ../scripts/magic_value/check_magic_values.py --mode changed",
     "openapi:types": "mkdir -p src/contracts/openapi/generated && bunx openapi-typescript ../openapi/openapi.yaml -o src/contracts/openapi/generated/schema.ts && bunx prettier --write src/contracts/openapi/generated/schema.ts",
     "openapi:types:check": "sh -c 'mkdir -p .tmp; tmp=.tmp/openapi-types-check.ts; trap \"rm -f \\\"$tmp\\\"\" EXIT; bunx openapi-typescript ../openapi/openapi.yaml -o \"$tmp\" >/dev/null && bunx prettier --config .prettierrc.json --ignore-path .prettierignore --no-error-on-unmatched-pattern --write \"$tmp\" >/dev/null && cmp -s \"$tmp\" src/contracts/openapi/generated/schema.ts'",
-    "check": "bun run format:check && bun run typecheck && bun run lint && bun run stylelint && bun run hygiene:check && bun run test:run && bun run build"
+    "openapi:frontend-governance:check": "bun run scripts/check-openapi-frontend-governance.ts",
+    "check": "bun run format:check && bun run typecheck && bun run openapi:frontend-governance:check && bun run lint && bun run stylelint && bun run hygiene:check && bun run test:run && bun run build"
   },
   "dependencies": {
     "@vueuse/core": "^14.2.0",

@@ -16,3 +16,4 @@ export type CreateUserPayload = components['schemas']['CreateUserRequest'];
 export type UpdateUserPayload = components['schemas']['UpdateUserRequest'];
 export type UpdateUserStatusPayload = components['schemas']['UpdateUserStatusRequest'];
 export type ResetUserPasswordPayload = components['schemas']['ResetUserPasswordRequest'];
+export type SessionSummary = components['schemas']['SessionSummary'];

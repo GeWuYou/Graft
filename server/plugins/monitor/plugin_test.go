@@ -16,6 +16,7 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
+	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/plugin"
 	monitorcontract "graft/server/plugins/monitor/contract"
 )
@@ -82,7 +83,7 @@ func TestBuildServerStatusResponseUsesUnknownWhenDatabaseServiceIsAbsent(t *test
 	if response.Status != "unknown" {
 		t.Fatalf("expected overall status unknown, got %q", response.Status)
 	}
-	if response.Trend.Range != monitorcontract.TrendRange10Minutes.String() {
+	if string(response.Trend.Range) != monitorcontract.TrendRange10Minutes.String() {
 		t.Fatalf("expected default trend range in response, got %q", response.Trend.Range)
 	}
 }
@@ -127,10 +128,10 @@ func TestRuntimePluginSummariesFollowPlatformStatus(t *testing.T) {
 
 	healthy := runtimePluginSummaries(
 		pluginCtx,
-		dependencyStatus{Status: statusHealthy},
-		dependencyStatus{Status: statusDisabled},
+		generated.ServerStatusDependency{Status: statusHealthy},
+		generated.ServerStatusDependency{Status: statusDisabled},
 	)
-	assertPluginSummaries(t, healthy, []serverStatusPlugin{
+	assertPluginSummaries(t, healthy, []generated.ServerStatusPlugin{
 		{Name: "user", Status: statusHealthy, StatusDetail: "Runtime metadata is present and platform signals are healthy", Version: "0.2.0", DependsOn: nil},
 		{Name: "rbac", Status: statusHealthy, StatusDetail: "Runtime metadata is present and platform signals are healthy", Version: "0.3.0", DependsOn: []string{"user"}},
 		{Name: pluginID, Status: statusHealthy, StatusDetail: "Runtime metadata is present and platform signals are healthy", Version: pluginVersion, DependsOn: []string{"user", "rbac"}},
@@ -138,10 +139,10 @@ func TestRuntimePluginSummariesFollowPlatformStatus(t *testing.T) {
 
 	degraded := runtimePluginSummaries(
 		pluginCtx,
-		dependencyStatus{Status: statusDegraded},
-		dependencyStatus{Status: statusHealthy},
+		generated.ServerStatusDependency{Status: statusDegraded},
+		generated.ServerStatusDependency{Status: statusHealthy},
 	)
-	assertPluginSummaries(t, degraded, []serverStatusPlugin{
+	assertPluginSummaries(t, degraded, []generated.ServerStatusPlugin{
 		{Name: "user", Status: statusDegraded, StatusDetail: "Runtime metadata is present, but shared runtime signals are degraded", Version: "0.2.0", DependsOn: nil},
 		{Name: "rbac", Status: statusDegraded, StatusDetail: "Runtime metadata is present, but shared runtime signals are degraded", Version: "0.3.0", DependsOn: []string{"user"}},
 		{Name: pluginID, Status: statusDegraded, StatusDetail: "Runtime metadata is present, but shared runtime signals are degraded", Version: pluginVersion, DependsOn: []string{"user", "rbac"}},
@@ -160,11 +161,11 @@ func TestRuntimePluginSummariesDegradeWhenDependencyMetadataIsMissing(t *testing
 
 	actual := runtimePluginSummaries(
 		pluginCtx,
-		dependencyStatus{Status: statusHealthy},
-		dependencyStatus{Status: statusDisabled},
+		generated.ServerStatusDependency{Status: statusHealthy},
+		generated.ServerStatusDependency{Status: statusDisabled},
 	)
 
-	assertPluginSummaries(t, actual, []serverStatusPlugin{
+	assertPluginSummaries(t, actual, []generated.ServerStatusPlugin{
 		{Name: "audit", Status: statusHealthy, StatusDetail: "Runtime metadata is present and platform signals are healthy", Version: "0.1.0", DependsOn: nil},
 		{
 			Name:                pluginID,
@@ -172,7 +173,7 @@ func TestRuntimePluginSummariesDegradeWhenDependencyMetadataIsMissing(t *testing
 			StatusDetail:        "Missing runtime dependencies: user, rbac",
 			Version:             pluginVersion,
 			DependsOn:           []string{"user", "rbac"},
-			MissingDependencies: []string{"user", "rbac"},
+			MissingDependencies: stringSlicePointer("user", "rbac"),
 		},
 	})
 }
@@ -211,51 +212,47 @@ func TestLoadTrendPointsHonorsRequestedRange(t *testing.T) {
 
 	storageKey := trendStorageKey("graft", "trend-host")
 	observedAt := time.Date(2026, 5, 20, 9, 0, 0, 0, time.UTC)
-	points := []serverStatusTrendPoint{
+	points := []generated.ServerStatusTrendPoint{
 		{
-			ObservedAt:             observedAt.Add(-45 * time.Minute).Format(time.RFC3339),
-			CPUPercent:             9.2,
-			HostMemoryUsedPercent:  37.5,
-			LoadAverageOneMinute:   0.21,
-			LoadAverageFiveMinutes: 0.18,
-			LoadAverageFifteenMins: 0.16,
-			Goroutines:             11,
-			RuntimeAllocBytes:      32 * 1024 * 1024,
-			RuntimeHeapInUseBytes:  18 * 1024 * 1024,
-			RuntimeSysBytes:        64 * 1024 * 1024,
+			ObservedAt:                observedAt.Add(-45 * time.Minute),
+			CpuPercent:                9.2,
+			HostMemoryUsedPercent:     37.5,
+			LoadAverageOneMinute:      0.21,
+			LoadAverageFiveMinutes:    0.18,
+			LoadAverageFifteenMinutes: 0.16,
+			Goroutines:                11,
+			RuntimeAllocBytes:         32 * 1024 * 1024,
+			RuntimeHeapInUseBytes:     18 * 1024 * 1024,
+			RuntimeSysBytes:           64 * 1024 * 1024,
 		},
 		{
-			ObservedAt:             observedAt.Add(-20 * time.Minute).Format(time.RFC3339),
-			CPUPercent:             14.4,
-			HostMemoryUsedPercent:  41.2,
-			LoadAverageOneMinute:   0.33,
-			LoadAverageFiveMinutes: 0.26,
-			LoadAverageFifteenMins: 0.22,
-			Goroutines:             17,
-			RuntimeAllocBytes:      48 * 1024 * 1024,
-			RuntimeHeapInUseBytes:  28 * 1024 * 1024,
-			RuntimeSysBytes:        80 * 1024 * 1024,
+			ObservedAt:                observedAt.Add(-20 * time.Minute),
+			CpuPercent:                14.4,
+			HostMemoryUsedPercent:     41.2,
+			LoadAverageOneMinute:      0.33,
+			LoadAverageFiveMinutes:    0.26,
+			LoadAverageFifteenMinutes: 0.22,
+			Goroutines:                17,
+			RuntimeAllocBytes:         48 * 1024 * 1024,
+			RuntimeHeapInUseBytes:     28 * 1024 * 1024,
+			RuntimeSysBytes:           80 * 1024 * 1024,
 		},
 		{
-			ObservedAt:             observedAt.Add(-5 * time.Minute).Format(time.RFC3339),
-			CPUPercent:             21.8,
-			HostMemoryUsedPercent:  46.9,
-			LoadAverageOneMinute:   0.57,
-			LoadAverageFiveMinutes: 0.44,
-			LoadAverageFifteenMins: 0.38,
-			Goroutines:             23,
-			RuntimeAllocBytes:      60 * 1024 * 1024,
-			RuntimeHeapInUseBytes:  34 * 1024 * 1024,
-			RuntimeSysBytes:        96 * 1024 * 1024,
+			ObservedAt:                observedAt.Add(-5 * time.Minute),
+			CpuPercent:                21.8,
+			HostMemoryUsedPercent:     46.9,
+			LoadAverageOneMinute:      0.57,
+			LoadAverageFiveMinutes:    0.44,
+			LoadAverageFifteenMinutes: 0.38,
+			Goroutines:                23,
+			RuntimeAllocBytes:         60 * 1024 * 1024,
+			RuntimeHeapInUseBytes:     34 * 1024 * 1024,
+			RuntimeSysBytes:           96 * 1024 * 1024,
 		},
 	}
 
 	for _, point := range points {
-		pointTime, err := time.Parse(time.RFC3339, point.ObservedAt)
-		if err != nil {
-			t.Fatalf("parse observed_at: %v", err)
-		}
-		if err := storeTrendPoint(ctx, redisClient, storageKey, pointTime, point); err != nil {
+		if err := storeTrendPoint(ctx, redisClient, storageKey, point.ObservedAt, point); err != nil {
 			t.Fatalf("store trend point: %v", err)
 		}
 	}
@@ -302,37 +299,33 @@ func TestBuildServerStatusResponseLoadsRedisTrendPoints(t *testing.T) {
 
 	observedAt := time.Now().UTC()
 	storageKey := trendStorageKey("graft", resolveHostName())
-	for _, point := range []serverStatusTrendPoint{
+	for _, point := range []generated.ServerStatusTrendPoint{
 		{
-			ObservedAt:             observedAt.Add(-25 * time.Minute).Format(time.RFC3339),
-			CPUPercent:             12.4,
-			HostMemoryUsedPercent:  39.1,
-			LoadAverageOneMinute:   0.28,
-			LoadAverageFiveMinutes: 0.24,
-			LoadAverageFifteenMins: 0.19,
-			Goroutines:             15,
-			RuntimeAllocBytes:      40 * 1024 * 1024,
-			RuntimeHeapInUseBytes:  22 * 1024 * 1024,
-			RuntimeSysBytes:        72 * 1024 * 1024,
+			ObservedAt:                observedAt.Add(-25 * time.Minute),
+			CpuPercent:                12.4,
+			HostMemoryUsedPercent:     39.1,
+			LoadAverageOneMinute:      0.28,
+			LoadAverageFiveMinutes:    0.24,
+			LoadAverageFifteenMinutes: 0.19,
+			Goroutines:                15,
+			RuntimeAllocBytes:         40 * 1024 * 1024,
+			RuntimeHeapInUseBytes:     22 * 1024 * 1024,
+			RuntimeSysBytes:           72 * 1024 * 1024,
 		},
 		{
-			ObservedAt:             observedAt.Add(-8 * time.Minute).Format(time.RFC3339),
-			CPUPercent:             18.7,
-			HostMemoryUsedPercent:  44.3,
-			LoadAverageOneMinute:   0.49,
-			LoadAverageFiveMinutes: 0.35,
-			LoadAverageFifteenMins: 0.27,
-			Goroutines:             19,
-			RuntimeAllocBytes:      55 * 1024 * 1024,
-			RuntimeHeapInUseBytes:  30 * 1024 * 1024,
-			RuntimeSysBytes:        88 * 1024 * 1024,
+			ObservedAt:                observedAt.Add(-8 * time.Minute),
+			CpuPercent:                18.7,
+			HostMemoryUsedPercent:     44.3,
+			LoadAverageOneMinute:      0.49,
+			LoadAverageFiveMinutes:    0.35,
+			LoadAverageFifteenMinutes: 0.27,
+			Goroutines:                19,
+			RuntimeAllocBytes:         55 * 1024 * 1024,
+			RuntimeHeapInUseBytes:     30 * 1024 * 1024,
+			RuntimeSysBytes:           88 * 1024 * 1024,
 		},
 	} {
-		pointTime, err := time.Parse(time.RFC3339, point.ObservedAt)
-		if err != nil {
-			t.Fatalf("parse trend point time: %v", err)
-		}
-		if err := storeTrendPoint(ctx, redisClient, storageKey, pointTime, point); err != nil {
+		if err := storeTrendPoint(ctx, redisClient, storageKey, point.ObservedAt, point); err != nil {
 			t.Fatalf("store redis trend point: %v", err)
 		}
 	}
@@ -349,12 +342,12 @@ func TestBuildServerStatusResponseLoadsRedisTrendPoints(t *testing.T) {
 		t.Fatalf("build response with redis trend: %v", err)
 	}
 
-	assertEqual(t, "redis trend range", response.Trend.Range, monitorcontract.TrendRange30Minutes.String())
+	assertEqual(t, "redis trend range", string(response.Trend.Range), monitorcontract.TrendRange30Minutes.String())
 	if len(response.Trend.Points) != 2 {
 		t.Fatalf("expected 2 redis-backed trend points, got %d", len(response.Trend.Points))
 	}
-	if response.Trend.Points[1].CPUPercent != 18.7 {
-		t.Fatalf("expected cpu percent from redis-backed trend point, got %v", response.Trend.Points[1].CPUPercent)
+	if response.Trend.Points[1].CpuPercent != 18.7 {
+		t.Fatalf("expected cpu percent from redis-backed trend point, got %v", response.Trend.Points[1].CpuPercent)
 	}
 	if response.Trend.Points[1].HostMemoryUsedPercent != 44.3 {
 		t.Fatalf("expected host memory percent from redis-backed trend point, got %v", response.Trend.Points[1].HostMemoryUsedPercent)
@@ -453,7 +446,7 @@ func assertEqual[T comparable](t *testing.T, field string, actual T, expected T)
 	}
 }
 
-func assertCurrentSliceResponseStatus(t *testing.T, response serverStatusResponse, startedAt time.Time) {
+func assertCurrentSliceResponseStatus(t *testing.T, response generated.ServerStatusResponse, startedAt time.Time) {
 	t.Helper()
 
 	assertEqual(t, "overall status", response.Status, "healthy")
@@ -465,7 +458,7 @@ func assertCurrentSliceResponseStatus(t *testing.T, response serverStatusRespons
 	assertEqual(t, "redis status", response.Dependencies.Redis.Status, "disabled")
 	assertEqual(t, "redis detail", response.Dependencies.Redis.Detail, "Redis client is not configured")
 	assertEqual(t, "server version", response.Server.Version, fallbackServerVersion)
-	assertEqual(t, "started_at", response.Server.StartedAt, startedAt.Format(time.RFC3339))
+	assertEqual(t, "started_at", response.Server.StartedAt, startedAt)
 	assertEqual(t, "go version", response.Server.GoVersion, runtime.Version())
 	assertEqual(t, "app name", response.Server.AppName, "graft")
 	assertEqual(t, "app env", response.Server.AppEnv, "prod")
@@ -474,15 +467,15 @@ func assertCurrentSliceResponseStatus(t *testing.T, response serverStatusRespons
 	}
 }
 
-func assertCurrentSliceRuntimeSnapshot(t *testing.T, response serverStatusResponse) {
+func assertCurrentSliceRuntimeSnapshot(t *testing.T, response generated.ServerStatusResponse) {
 	t.Helper()
 
 	assertEqual(t, "runtime go version", response.Runtime.GoVersion, runtime.Version())
 	assertEqual(t, "runtime operating system", response.Runtime.OperatingSystem, runtime.GOOS)
 	assertEqual(t, "runtime architecture", response.Runtime.Architecture, runtime.GOARCH)
 	assertEqual(t, "runtime disk path", response.Runtime.DiskUsage.Path, defaultDiskUsagePath())
-	if response.Runtime.CPUCores < 1 {
-		t.Fatalf("expected cpu cores to be positive, got %d", response.Runtime.CPUCores)
+	if response.Runtime.CpuCores < 1 {
+		t.Fatalf("expected cpu cores to be positive, got %d", response.Runtime.CpuCores)
 	}
 	if response.Runtime.Goroutines < 1 {
 		t.Fatalf("expected goroutines to be positive, got %d", response.Runtime.Goroutines)
@@ -518,10 +511,10 @@ func assertCurrentSliceRuntimeSnapshot(t *testing.T, response serverStatusRespon
 	}
 }
 
-func assertCurrentSliceTrendSnapshot(t *testing.T, response serverStatusResponse) {
+func assertCurrentSliceTrendSnapshot(t *testing.T, response generated.ServerStatusResponse) {
 	t.Helper()
 
-	assertEqual(t, "trend range", response.Trend.Range, monitorcontract.TrendRange10Minutes.String())
+	assertEqual(t, "trend range", string(response.Trend.Range), monitorcontract.TrendRange10Minutes.String())
 	assertEqual(t, "trend retention seconds", response.Trend.RetentionSeconds, int64(monitorcontract.TrendRange10Minutes.Duration().Seconds()))
 	assertEqual(t, "trend sample interval seconds", response.Trend.SampleIntervalSeconds, int64(trendSampleInterval.Seconds()))
 	if len(response.Trend.Points) != 0 {
@@ -529,7 +522,7 @@ func assertCurrentSliceTrendSnapshot(t *testing.T, response serverStatusResponse
 	}
 }
 
-func assertCurrentSliceSummary(t *testing.T, response serverStatusResponse) {
+func assertCurrentSliceSummary(t *testing.T, response generated.ServerStatusResponse) {
 	t.Helper()
 
 	assertEqual(t, "summary total dependencies", response.Summary.TotalDependencies, 2)
@@ -541,10 +534,10 @@ func assertCurrentSliceSummary(t *testing.T, response serverStatusResponse) {
 	assertEqual(t, "summary healthy plugins", response.Summary.HealthyPlugins, 4)
 }
 
-func assertCurrentSlicePluginSummaries(t *testing.T, actual []serverStatusPlugin) {
+func assertCurrentSlicePluginSummaries(t *testing.T, actual []generated.ServerStatusPlugin) {
 	t.Helper()
 
-	assertPluginSummaries(t, actual, []serverStatusPlugin{
+	assertPluginSummaries(t, actual, []generated.ServerStatusPlugin{
 		{Name: "audit", Status: statusHealthy, StatusDetail: "Runtime metadata is present and platform signals are healthy", Version: "0.1.0", DependsOn: nil},
 		{Name: "user", Status: statusHealthy, StatusDetail: "Runtime metadata is present and platform signals are healthy", Version: "0.2.0", DependsOn: nil},
 		{Name: "rbac", Status: statusHealthy, StatusDetail: "Runtime metadata is present and platform signals are healthy", Version: "0.3.0", DependsOn: []string{"user"}},
@@ -552,7 +545,7 @@ func assertCurrentSlicePluginSummaries(t *testing.T, actual []serverStatusPlugin
 	})
 }
 
-func assertPluginSummaries(t *testing.T, actual []serverStatusPlugin, expected []serverStatusPlugin) {
+func assertPluginSummaries(t *testing.T, actual []generated.ServerStatusPlugin, expected []generated.ServerStatusPlugin) {
 	t.Helper()
 
 	if len(actual) != len(expected) {
@@ -566,7 +559,7 @@ func assertPluginSummaries(t *testing.T, actual []serverStatusPlugin, expected [
 			got.StatusDetail != want.StatusDetail ||
 			got.Version != want.Version ||
 			!sameStrings(got.DependsOn, want.DependsOn) ||
-			!sameStrings(got.MissingDependencies, want.MissingDependencies) {
+			!sameOptionalStrings(got.MissingDependencies, want.MissingDependencies) {
 			t.Fatalf(
 				"expected plugin summary %s at index %d to be %s, got %s",
 				want.Name,
@@ -592,7 +585,26 @@ func sameStrings(actual []string, expected []string) bool {
 	return true
 }
 
-func formatPluginSummary(value serverStatusPlugin) string {
+func sameOptionalStrings(actual *[]string, expected *[]string) bool {
+	switch {
+	case actual == nil && expected == nil:
+		return true
+	case actual == nil || expected == nil:
+		return false
+	default:
+		return sameStrings(*actual, *expected)
+	}
+}
+
+func stringSlicePointer(values ...string) *[]string {
+	if len(values) == 0 {
+		return nil
+	}
+	items := append([]string(nil), values...)
+	return &items
+}
+
+func formatPluginSummary(value generated.ServerStatusPlugin) string {
 	return fmt.Sprintf(
 		"{name:%s status:%s status_detail:%s version:%s depends_on:%v missing_dependencies:%v}",
 		value.Name,

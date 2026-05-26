@@ -1,6 +1,7 @@
 package user
 
 import (
+	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	usercontract "graft/server/plugins/user/contract"
@@ -37,3 +38,6 @@ func registerUserRoutes(
 
 	return nil
 }
+
+var _ useropenapi.WriteServerInterface = userWriteGeneratedHandler{}
+var _ useropenapi.ReadServerInterface = userReadGeneratedHandler{}

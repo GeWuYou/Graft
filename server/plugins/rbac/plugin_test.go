@@ -17,6 +17,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	messagecontract "graft/server/internal/contract/message"
+	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/cronx"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -393,7 +394,7 @@ func TestRoleRoutesListRoles(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
 
-	var payload httpx.SuccessResponse[roleListResponse]
+	var payload httpx.SuccessResponse[generated.RoleListResponse]
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
@@ -428,11 +429,11 @@ func TestRoleRoutesListRolePermissionBindings(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
 
-	var payload httpx.SuccessResponse[rolePermissionBindingResponse]
+	var payload httpx.SuccessResponse[generated.RolePermissionBindingResponse]
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if len(payload.Data.PermissionIDs) != 2 || payload.Data.PermissionIDs[0] != 2 || payload.Data.PermissionIDs[1] != 5 {
+	if len(payload.Data.PermissionIds) != 2 || payload.Data.PermissionIds[0] != 2 || payload.Data.PermissionIds[1] != 5 {
 		t.Fatalf("unexpected role permission bindings payload: %#v", payload)
 	}
 }
@@ -522,7 +523,7 @@ func TestPermissionRoutesListPermissions(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
 
-	var payload httpx.SuccessResponse[permissionListResponse]
+	var payload httpx.SuccessResponse[generated.PermissionListResponse]
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
@@ -602,11 +603,11 @@ func TestRoleCreateRouteCreatesRole(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
 
-	var payload httpx.SuccessResponse[roleListItem]
+	var payload httpx.SuccessResponse[generated.RoleListItem]
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if !payload.Success || payload.Data.ID != 3 || payload.Data.Name != "operator" {
+	if !payload.Success || payload.Data.Id != 3 || payload.Data.Name != "operator" {
 		t.Fatalf("unexpected create-role payload: %#v", payload)
 	}
 }
@@ -773,11 +774,11 @@ func TestUserRoleBindingRouteReturnsStableRoleIDs(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
 
-	var payload httpx.SuccessResponse[userRoleBindingResponse]
+	var payload httpx.SuccessResponse[generated.UserRoleBindingResponse]
 	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if len(payload.Data.RoleIDs) != 2 || payload.Data.RoleIDs[0] != 2 || payload.Data.RoleIDs[1] != 5 {
+	if len(payload.Data.RoleIds) != 2 || payload.Data.RoleIds[0] != 2 || payload.Data.RoleIds[1] != 5 {
 		t.Fatalf("unexpected user-role bindings payload: %#v", payload)
 	}
 }

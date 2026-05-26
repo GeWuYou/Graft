@@ -31,6 +31,12 @@ var (
 
 type refreshTokenSubject = authruntime.RefreshTokenSubject
 
+type loginUserResponse struct {
+	ID          uint64 `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+}
+
 type refreshResult struct {
 	AccessToken        string
 	AccessExpiry       time.Time
@@ -48,6 +54,13 @@ type refreshSessionGrant struct {
 
 type sessionListOptions struct {
 	Limit int
+}
+
+type sessionSummary struct {
+	SessionID string    `json:"session_id"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	Current   bool      `json:"current"`
 }
 
 type refreshTokenManager struct {

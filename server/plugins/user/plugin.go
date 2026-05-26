@@ -208,6 +208,16 @@ func (s userService) GetUserByID(ctx context.Context, id uint64) (pluginapi.User
 	}, nil
 }
 
+// GetUser keeps route handlers on the public service boundary while preserving
+// the full managed-user record needed for HTTP response mapping.
+func (s userService) GetUser(ctx context.Context, id uint64) (userstore.User, error) {
+	if s.users == nil {
+		return userstore.User{}, errors.New("user repository is unavailable")
+	}
+
+	return s.users.GetByID(ctx, id)
+}
+
 // ListUsers 读取用户列表，供当前插件路由在不暴露 store factory 的前提下复用。
 func (s userService) ListUsers(ctx context.Context) ([]userstore.User, error) {
 	if s.users == nil {

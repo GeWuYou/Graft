@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -71,6 +73,7 @@ var backendGoTestRunner = runBackendGoTest
 var backendGoBuildRunner = runBackendGoBuild
 var backendSmokeRunner = runValidateSmoke
 var backendOpenAPIRunner = runValidateOpenAPI
+var backendOpenAPIFreshnessRunner = runValidateOpenAPIFreshness
 var backendCommandRunner = runBackendCommand
 var backendGitOutputRunner = runBackendGitOutput
 
@@ -268,6 +271,41 @@ func runValidateOpenAPI(_ *cobra.Command, specPath string) error {
 	}
 	if err := document.Validate(loader.Context); err != nil {
 		return fmt.Errorf("validate openapi spec %q: %w", rootSpec, err)
+	}
+
+	if err := backendOpenAPIFreshnessRunner(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runValidateOpenAPIFreshness() error {
+	repoRoot, err := resolveRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("resolve repository root for generated freshness validation: %w", err)
+	}
+
+	scriptPath := filepath.Join(repoRoot, "scripts", "openapi_generated_freshness_check.py")
+	cmd := &cobra.Command{}
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-monitor", "--mode", "check"); err != nil {
+		return fmt.Errorf("run backend generated freshness check: %w", err)
+	}
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-health", "--mode", "check"); err != nil {
+		return fmt.Errorf("run backend generated freshness check: %w", err)
+	}
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-rbac-management", "--mode", "check"); err != nil {
+		return fmt.Errorf("run backend generated freshness check: %w", err)
+	}
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-user-write", "--mode", "check"); err != nil {
+		return fmt.Errorf("run backend generated freshness check: %w", err)
+	}
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-auth-session", "--mode", "check"); err != nil {
+		return fmt.Errorf("run backend generated freshness check: %w", err)
+	}
+	boundaryAuditPath := filepath.Join(repoRoot, "scripts", "openapi_generated_backend_boundary_audit.py")
+	if err := backendCommandRunner(cmd, "python3", boundaryAuditPath); err != nil {
+		return fmt.Errorf("run backend generated DTO boundary audit: %w", err)
 	}
 
 	return nil
@@ -621,7 +659,12 @@ func matchBackendModuleRoot(dir string) (string, bool, error) {
 // 某些运行环境会把默认的 `$HOME/.cache` 设为只读；这里把 `go` 与
 // `golangci-lint` 的缓存统一导向系统临时目录，避免统一质量链受宿主缓存策略影响。
 func buildBackendCommandEnv() ([]string, error) {
-	cacheRoot := filepath.Join(os.TempDir(), defaultBackendCacheRoot)
+	moduleRoot, err := resolveBackendModuleRoot()
+	if err != nil {
+		return nil, fmt.Errorf("resolve backend module root for cache env: %w", err)
+	}
+
+	cacheRoot := filepath.Join(os.TempDir(), defaultBackendCacheRoot, backendCacheNamespace(moduleRoot))
 	goCacheDir := filepath.Join(cacheRoot, "go-build")
 	xdgCacheDir := filepath.Join(cacheRoot, "xdg")
 	golangciCacheDir := filepath.Join(cacheRoot, "golangci-lint")
@@ -639,6 +682,11 @@ func buildBackendCommandEnv() ([]string, error) {
 		"GOLANGCI_LINT_CACHE="+golangciCacheDir,
 	)
 	return env, nil
+}
+
+func backendCacheNamespace(moduleRoot string) string {
+	sum := sha256.Sum256([]byte(moduleRoot))
+	return hex.EncodeToString(sum[:8])
 }
 
 // runValidateSmoke 执行最小运行时 smoke 验证闭环。

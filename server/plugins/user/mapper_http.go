@@ -1,13 +1,19 @@
 package user
 
 import (
+	"fmt"
+	"math"
 	"strings"
 	"time"
 
-	openapicontract "graft/server/internal/contract/openapi"
+	generated "graft/server/internal/contract/openapi/generated"
+	useropenapi "graft/server/internal/contract/openapi/user"
 	usercontract "graft/server/plugins/user/contract"
 	userstore "graft/server/plugins/user/store"
 )
+
+type userListResponse = generated.UserListResponse
+type userListItem = generated.UserListItem
 
 func normalizeUserStatus(status string) string {
 	switch strings.TrimSpace(status) {
@@ -18,7 +24,7 @@ func normalizeUserStatus(status string) string {
 	}
 }
 
-func toCreateUserCommand(request openapicontract.PostUsersJSONRequestBody, actorID uint64) CreateUserCommand {
+func toCreateUserCommand(request useropenapi.PostUsersJSONRequestBody, actorID uint64) CreateUserCommand {
 	return CreateUserCommand{
 		Username: request.Username,
 		Display:  request.Display,
@@ -27,7 +33,7 @@ func toCreateUserCommand(request openapicontract.PostUsersJSONRequestBody, actor
 	}
 }
 
-func toUpdateUserCommand(request openapicontract.PostUserUpdateJSONRequestBody, userID uint64, actorID uint64) UpdateUserCommand {
+func toUpdateUserCommand(request useropenapi.PostUserUpdateJSONRequestBody, userID uint64, actorID uint64) UpdateUserCommand {
 	return UpdateUserCommand{
 		ID:       userID,
 		Username: request.Username,
@@ -36,7 +42,7 @@ func toUpdateUserCommand(request openapicontract.PostUserUpdateJSONRequestBody, 
 	}
 }
 
-func toUpdateUserStatusCommand(request openapicontract.PostUserStatusJSONRequestBody, userID uint64, actorID uint64) (UpdateUserStatusCommand, bool) {
+func toUpdateUserStatusCommand(request useropenapi.PostUserStatusJSONRequestBody, userID uint64, actorID uint64) (UpdateUserStatusCommand, bool) {
 	status, ok := toCanonicalManagedUserStatus(request.Status)
 	if !ok {
 		return UpdateUserStatusCommand{}, false
@@ -49,24 +55,63 @@ func toUpdateUserStatusCommand(request openapicontract.PostUserStatusJSONRequest
 	}, true
 }
 
-func toCanonicalManagedUserStatus(status openapicontract.PostUserStatusJSONBodyStatus) (string, bool) {
+func toCanonicalManagedUserStatus(status useropenapi.PostUserStatusJSONBodyStatus) (string, bool) {
 	switch status {
-	case openapicontract.PostUserStatusJSONBodyStatusEnabled:
+	case useropenapi.Enabled:
 		return usercontract.UserStatusEnabled, true
-	case openapicontract.PostUserStatusJSONBodyStatusDisabled:
+	case useropenapi.Disabled:
 		return usercontract.UserStatusDisabled, true
 	default:
 		return "", false
 	}
 }
 
-func toUserListItem(user userstore.User) userListItem {
+func toUserListResponse(users []userstore.User) (userListResponse, error) {
+	items := make([]userListItem, 0, len(users))
+	for _, user := range users {
+		item, err := toUserListItem(user)
+		if err != nil {
+			return userListResponse{}, err
+		}
+		items = append(items, item)
+	}
+
+	return userListResponse{Items: items}, nil
+}
+
+func toUserListItem(user userstore.User) (userListItem, error) {
+	id, err := mustConvertGeneratedUserID(user.ID)
+	if err != nil {
+		return userListItem{}, err
+	}
+
 	return userListItem{
-		ID:        user.ID,
+		Id:        id,
 		Username:  user.Username,
 		Display:   user.Display,
 		Status:    normalizeUserStatus(user.Status),
 		CreatedAt: user.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt: user.UpdatedAt.UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func toGeneratedSessionSummaries(items []sessionSummary) []generated.SessionSummary {
+	summaries := make([]generated.SessionSummary, 0, len(items))
+	for _, item := range items {
+		summaries = append(summaries, generated.SessionSummary{
+			SessionId: item.SessionID,
+			CreatedAt: item.CreatedAt,
+			ExpiresAt: item.ExpiresAt,
+			Current:   item.Current,
+		})
 	}
+
+	return summaries
+}
+
+func mustConvertGeneratedUserID(id uint64) (int64, error) {
+	if id > math.MaxInt64 {
+		return 0, fmt.Errorf("user generated response user id exceeds int64: %d", id)
+	}
+	return int64(id), nil
 }

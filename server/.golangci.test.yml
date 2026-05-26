@@ -83,6 +83,7 @@ linters:
     paths:
       - "^vendor/"
       - "^third_party/"
+      - "^internal/contract/openapi/monitor/zz_generated.*\\.go$"
       - "^internal/ent/migrate/migrations/"
       - "^internal/ent/(auditlog|permission|refreshsession|role|rolepermission|user|userrole|predicate|hook)/"
       - "^internal/ent/(auditlog|permission|refreshsession|role|rolepermission|user|userrole)\\.go$"

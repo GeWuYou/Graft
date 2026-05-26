@@ -26,7 +26,10 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
+	"graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
+	generated "graft/server/internal/contract/openapi/generated"
+	monitoropenapi "graft/server/internal/contract/openapi/monitor"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -71,107 +74,12 @@ type Plugin struct {
 	samplerDone   chan struct{}
 }
 
-type serverStatusResponse struct {
-	Status       string                   `json:"status"`
-	ObservedAt   string                   `json:"observed_at"`
-	Server       serverStatusServer       `json:"server"`
-	Runtime      serverStatusRuntime      `json:"runtime"`
-	Dependencies serverStatusDependencies `json:"dependencies"`
-	Summary      serverStatusSummary      `json:"summary"`
-	Trend        serverStatusTrend        `json:"trend"`
-	Plugins      []serverStatusPlugin     `json:"plugins"`
-}
+var _ monitoropenapi.ServerInterface = (*monitorServerHandler)(nil)
 
-type serverStatusServer struct {
-	Version       string `json:"version"`
-	StartedAt     string `json:"started_at"`
-	UptimeSeconds int64  `json:"uptime_seconds"`
-	GoVersion     string `json:"go_version"`
-	AppName       string `json:"app_name"`
-	AppEnv        string `json:"app_env"`
-}
-
-type serverStatusDependencies struct {
-	Database dependencyStatus `json:"database"`
-	Redis    dependencyStatus `json:"redis"`
-}
-
-type dependencyStatus struct {
-	Status    string   `json:"status"`
-	Detail    string   `json:"detail"`
-	LatencyMs *float64 `json:"latency_ms"`
-}
-
-type serverStatusPlugin struct {
-	Name                string   `json:"name"`
-	Status              string   `json:"status"`
-	StatusDetail        string   `json:"status_detail"`
-	Version             string   `json:"version"`
-	DependsOn           []string `json:"depends_on"`
-	MissingDependencies []string `json:"missing_dependencies,omitempty"`
-}
-
-type serverStatusRuntime struct {
-	GoVersion             string                  `json:"go_version"`
-	HostName              string                  `json:"host_name"`
-	OperatingSystem       string                  `json:"operating_system"`
-	Architecture          string                  `json:"architecture"`
-	CPUCores              int                     `json:"cpu_cores"`
-	LoadAverage           serverStatusLoadAverage `json:"load_average"`
-	DiskUsage             serverStatusDiskUsage   `json:"disk_usage"`
-	HostMemoryTotalBytes  uint64                  `json:"host_memory_total_bytes"`
-	HostMemoryUsedBytes   uint64                  `json:"host_memory_used_bytes"`
-	HostMemoryFreeBytes   uint64                  `json:"host_memory_free_bytes"`
-	HostMemoryUsedPercent float64                 `json:"host_memory_used_percent"`
-	Goroutines            int                     `json:"goroutines"`
-	RuntimeAllocBytes     uint64                  `json:"runtime_alloc_bytes"`
-	RuntimeHeapInUseBytes uint64                  `json:"runtime_heap_in_use_bytes"`
-	RuntimeSysBytes       uint64                  `json:"runtime_sys_bytes"`
-	RuntimeGCCycles       uint32                  `json:"runtime_gc_cycles"`
-}
-
-type serverStatusLoadAverage struct {
-	OneMinute      float64 `json:"one_minute"`
-	FiveMinutes    float64 `json:"five_minutes"`
-	FifteenMinutes float64 `json:"fifteen_minutes"`
-}
-
-type serverStatusDiskUsage struct {
-	Path        string  `json:"path"`
-	TotalBytes  uint64  `json:"total_bytes"`
-	UsedBytes   uint64  `json:"used_bytes"`
-	FreeBytes   uint64  `json:"free_bytes"`
-	UsedPercent float64 `json:"used_percent"`
-}
-
-type serverStatusSummary struct {
-	TotalDependencies    int `json:"total_dependencies"`
-	HealthyDependencies  int `json:"healthy_dependencies"`
-	DegradedDependencies int `json:"degraded_dependencies"`
-	UnknownDependencies  int `json:"unknown_dependencies"`
-	DisabledDependencies int `json:"disabled_dependencies"`
-	TotalPlugins         int `json:"total_plugins"`
-	HealthyPlugins       int `json:"healthy_plugins"`
-}
-
-type serverStatusTrend struct {
-	Range                 string                   `json:"range"`
-	RetentionSeconds      int64                    `json:"retention_seconds"`
-	SampleIntervalSeconds int64                    `json:"sample_interval_seconds"`
-	Points                []serverStatusTrendPoint `json:"points"`
-}
-
-type serverStatusTrendPoint struct {
-	ObservedAt             string  `json:"observed_at"`
-	CPUPercent             float64 `json:"cpu_percent"`
-	HostMemoryUsedPercent  float64 `json:"host_memory_used_percent"`
-	LoadAverageOneMinute   float64 `json:"load_average_one_minute"`
-	LoadAverageFiveMinutes float64 `json:"load_average_five_minutes"`
-	LoadAverageFifteenMins float64 `json:"load_average_fifteen_minutes"`
-	Goroutines             int     `json:"goroutines"`
-	RuntimeAllocBytes      uint64  `json:"runtime_alloc_bytes"`
-	RuntimeHeapInUseBytes  uint64  `json:"runtime_heap_in_use_bytes"`
-	RuntimeSysBytes        uint64  `json:"runtime_sys_bytes"`
+type monitorServerHandler struct {
+	ctx        *plugin.Context
+	instance   *Plugin
+	pluginName string
 }
 
 // NewPlugin creates the monitor plugin.
@@ -400,20 +308,47 @@ func registerMonitorRoutes(
 	group.GET(
 		monitorcontract.ServerStatusRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, monitorcontract.ServerStatusReadPermission.String()),
-		newServerStatusHandler(ctx, instance, pluginName),
+		newServerStatusHandler(&monitorServerHandler{
+			ctx:        ctx,
+			instance:   instance,
+			pluginName: pluginName,
+		}),
 	)
 }
 
-func newServerStatusHandler(ctx *plugin.Context, instance *Plugin, pluginName string) gin.HandlerFunc {
+func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
-		trendRange := parseTrendRange(ginCtx.Query(monitorcontract.TrendRangeQueryKey))
-		payload, err := buildServerStatusResponse(ginCtx.Request.Context(), ctx, instance, trendRange)
-		if err != nil {
-			ctx.Logger.Error("build monitor server status failed",
-				zap.String("plugin", pluginName),
-				zap.Error(err),
-			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		params := bindGeneratedMonitorParams(ginCtx)
+		if err := handler.GetMonitorServerStatus(ginCtx.Request.Context(), params); err != nil {
+			var localizer *i18n.Service
+			if handler.ctx != nil {
+				localizer = handler.ctx.I18n
+				if handler.ctx.Logger != nil {
+					handler.ctx.Logger.Error("validate monitor server status params failed",
+						zap.String("plugin", handler.pluginName),
+						zap.String("request_id", httpx.EnsureRequestID(ginCtx)),
+						zap.Error(err),
+					)
+				}
+			}
+			httpx.AbortLocalizedError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+		trendRange := parseGeneratedTrendRange(params.TrendRange)
+		payload, buildErr := buildServerStatusResponse(ginCtx.Request.Context(), handler.ctx, handler.instance, trendRange)
+		if buildErr != nil {
+			var localizer *i18n.Service
+			if handler.ctx != nil {
+				localizer = handler.ctx.I18n
+				if handler.ctx.Logger != nil {
+					handler.ctx.Logger.Error("build monitor server status failed",
+						zap.String("plugin", handler.pluginName),
+						zap.String("request_id", httpx.EnsureRequestID(ginCtx)),
+						zap.Error(buildErr),
+					)
+				}
+			}
+			httpx.AbortLocalizedError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 			return
 		}
 
@@ -421,12 +356,39 @@ func newServerStatusHandler(ctx *plugin.Context, instance *Plugin, pluginName st
 	}
 }
 
+func (h *monitorServerHandler) GetMonitorServerStatus(ctx context.Context, params monitoropenapi.GetMonitorServerStatusParams) error {
+	_ = ctx
+	_ = params
+	return nil
+}
+
+func bindGeneratedMonitorParams(ginCtx *gin.Context) monitoropenapi.GetMonitorServerStatusParams {
+	params := monitoropenapi.GetMonitorServerStatusParams{}
+
+	if raw := strings.TrimSpace(ginCtx.Query(monitorcontract.TrendRangeQueryKey)); raw != "" {
+		value := monitoropenapi.GetMonitorServerStatusParamsTrendRange(raw)
+		if value.Valid() {
+			params.TrendRange = &value
+		}
+	}
+
+	if raw := strings.TrimSpace(ginCtx.GetHeader(httpx.RequestIDHeader)); raw != "" {
+		params.XRequestId = &raw
+	}
+
+	if raw := strings.TrimSpace(ginCtx.GetHeader(string(httpheader.Locale))); raw != "" {
+		params.XGraftLocale = &raw
+	}
+
+	return params
+}
+
 func buildServerStatusResponse(
 	ctx context.Context,
 	pluginCtx *plugin.Context,
 	instance *Plugin,
 	trendRange monitorcontract.TrendRange,
-) (serverStatusResponse, error) {
+) (generated.ServerStatusResponse, error) {
 	observedAt := time.Now().UTC()
 	startedAt := observedAt
 	if instance != nil {
@@ -435,26 +397,35 @@ func buildServerStatusResponse(
 		}
 	}
 
-	runtimeSnapshot := collectRuntimeSnapshot(ctx)
-	databaseStatus := databaseHealth(ctx, instance)
-	redisStatus := redisHealth(ctx, pluginCtx)
+	runtimeSnapshot, err := collectRuntimeSnapshot(ctx)
+	if err != nil {
+		return generated.ServerStatusResponse{}, err
+	}
+	databaseStatus, err := databaseHealth(ctx, instance)
+	if err != nil {
+		return generated.ServerStatusResponse{}, err
+	}
+	redisStatus, err := redisHealth(ctx, pluginCtx)
+	if err != nil {
+		return generated.ServerStatusResponse{}, err
+	}
 	plugins := runtimePluginSummaries(pluginCtx, databaseStatus, redisStatus)
 	summary := buildServerStatusSummary(databaseStatus, redisStatus, plugins)
 	trend := buildServerStatusTrend(ctx, pluginCtx, instance, observedAt, trendRange)
 
-	return serverStatusResponse{
+	return generated.ServerStatusResponse{
 		Status:     deriveOverallStatus(databaseStatus.Status, redisStatus.Status),
-		ObservedAt: observedAt.Format(time.RFC3339),
-		Server: serverStatusServer{
+		ObservedAt: observedAt,
+		Server: generated.ServerStatusServer{
 			Version:       fallbackServerVersion,
-			StartedAt:     startedAt.Format(time.RFC3339),
+			StartedAt:     startedAt,
 			UptimeSeconds: int64(observedAt.Sub(startedAt).Seconds()),
 			GoVersion:     runtime.Version(),
 			AppName:       resolveAppName(pluginCtx),
 			AppEnv:        resolveAppEnv(pluginCtx),
 		},
 		Runtime: runtimeSnapshot,
-		Dependencies: serverStatusDependencies{
+		Dependencies: generated.ServerStatusDependencies{
 			Database: databaseStatus,
 			Redis:    redisStatus,
 		},
@@ -464,12 +435,12 @@ func buildServerStatusResponse(
 	}, nil
 }
 
-func databaseHealth(ctx context.Context, instance *Plugin) dependencyStatus {
+func databaseHealth(ctx context.Context, instance *Plugin) (generated.ServerStatusDependency, error) {
 	if instance == nil || instance.db == nil {
-		return dependencyStatus{
+		return generated.ServerStatusDependency{
 			Status: statusUnknown,
 			Detail: "Database handle is unavailable",
-		}
+		}, nil
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
@@ -478,26 +449,29 @@ func databaseHealth(ctx context.Context, instance *Plugin) dependencyStatus {
 	startedAt := time.Now()
 	if err := instance.db.PingContext(pingCtx); err != nil {
 		logTrendWarning(instance, nil, "database ping failed", err)
-		return dependencyStatus{
+		return generated.ServerStatusDependency{
 			Status: statusDegraded,
 			Detail: "Database ping failed",
-		}
+		}, nil
 	}
 
-	latencyMs := roundLatencyMilliseconds(time.Since(startedAt))
-	return dependencyStatus{
+	latencyMs, err := toGeneratedFloat32(roundLatencyMilliseconds(time.Since(startedAt)), "database latency ms")
+	if err != nil {
+		return generated.ServerStatusDependency{}, fmt.Errorf("convert database latency: %w", err)
+	}
+	return generated.ServerStatusDependency{
 		Status:    statusHealthy,
 		Detail:    "Database ping succeeded",
 		LatencyMs: &latencyMs,
-	}
+	}, nil
 }
 
-func redisHealth(ctx context.Context, pluginCtx *plugin.Context) dependencyStatus {
+func redisHealth(ctx context.Context, pluginCtx *plugin.Context) (generated.ServerStatusDependency, error) {
 	if pluginCtx == nil || pluginCtx.Redis == nil {
-		return dependencyStatus{
+		return generated.ServerStatusDependency{
 			Status: statusDisabled,
 			Detail: "Redis client is not configured",
-		}
+		}, nil
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
@@ -506,25 +480,28 @@ func redisHealth(ctx context.Context, pluginCtx *plugin.Context) dependencyStatu
 	startedAt := time.Now()
 	if err := pluginCtx.Redis.Ping(pingCtx).Err(); err != nil {
 		logTrendWarning(nil, pluginCtx, "redis ping failed", err)
-		return dependencyStatus{
+		return generated.ServerStatusDependency{
 			Status: statusDegraded,
 			Detail: "Redis ping failed",
-		}
+		}, nil
 	}
 
-	latencyMs := roundLatencyMilliseconds(time.Since(startedAt))
-	return dependencyStatus{
+	latencyMs, err := toGeneratedFloat32(roundLatencyMilliseconds(time.Since(startedAt)), "redis latency ms")
+	if err != nil {
+		return generated.ServerStatusDependency{}, fmt.Errorf("convert redis latency: %w", err)
+	}
+	return generated.ServerStatusDependency{
 		Status:    statusHealthy,
 		Detail:    "Redis ping succeeded",
 		LatencyMs: &latencyMs,
-	}
+	}, nil
 }
 
 func runtimePluginSummaries(
 	pluginCtx *plugin.Context,
-	database dependencyStatus,
-	redis dependencyStatus,
-) []serverStatusPlugin {
+	database generated.ServerStatusDependency,
+	redis generated.ServerStatusDependency,
+) []generated.ServerStatusPlugin {
 	if pluginCtx == nil {
 		return nil
 	}
@@ -540,18 +517,22 @@ func runtimePluginSummaries(
 	}
 
 	platformStatus := deriveOverallStatus(database.Status, redis.Status)
-	items := make([]serverStatusPlugin, 0, len(descriptors))
+	items := make([]generated.ServerStatusPlugin, 0, len(descriptors))
 	for _, descriptor := range descriptors {
 		dependsOn := append([]string(nil), descriptor.DependsOn...)
 		status, statusDetail, missingDependencies := deriveRuntimePluginObservation(descriptor, available, platformStatus)
-		items = append(items, serverStatusPlugin{
-			Name:                descriptor.Name,
-			Status:              status,
-			StatusDetail:        statusDetail,
-			Version:             descriptor.Version,
-			DependsOn:           dependsOn,
-			MissingDependencies: missingDependencies,
-		})
+		item := generated.ServerStatusPlugin{
+			Name:         descriptor.Name,
+			Status:       status,
+			StatusDetail: statusDetail,
+			Version:      descriptor.Version,
+			DependsOn:    dependsOn,
+		}
+		if len(missingDependencies) > 0 {
+			missing := append([]string(nil), missingDependencies...)
+			item.MissingDependencies = &missing
+		}
+		items = append(items, item)
 	}
 
 	return items
@@ -598,16 +579,16 @@ func deriveRuntimePluginObservation(
 }
 
 func buildServerStatusSummary(
-	database dependencyStatus,
-	redis dependencyStatus,
-	plugins []serverStatusPlugin,
-) serverStatusSummary {
-	summary := serverStatusSummary{
-		TotalDependencies: len([]dependencyStatus{database, redis}),
+	database generated.ServerStatusDependency,
+	redis generated.ServerStatusDependency,
+	plugins []generated.ServerStatusPlugin,
+) generated.ServerStatusSummary {
+	summary := generated.ServerStatusSummary{
+		TotalDependencies: len([]generated.ServerStatusDependency{database, redis}),
 		TotalPlugins:      len(plugins),
 	}
 
-	for _, dependency := range []dependencyStatus{database, redis} {
+	for _, dependency := range []generated.ServerStatusDependency{database, redis} {
 		switch dependency.Status {
 		case statusHealthy:
 			summary.HealthyDependencies++
@@ -635,10 +616,10 @@ func buildServerStatusTrend(
 	instance *Plugin,
 	observedAt time.Time,
 	trendRange monitorcontract.TrendRange,
-) serverStatusTrend {
+) generated.ServerStatusTrend {
 	retention := trendRange.Duration()
-	trend := serverStatusTrend{
-		Range:                 trendRange.String(),
+	trend := generated.ServerStatusTrend{
+		Range:                 generated.ServerStatusTrendRange(trendRange.String()),
 		RetentionSeconds:      int64(retention.Seconds()),
 		SampleIntervalSeconds: int64(trendSampleInterval.Seconds()),
 		Points:                nil,
@@ -769,19 +750,28 @@ func (p *Plugin) recordTrendSample(
 		return
 	}
 
-	runtimeSnapshot := collectRuntimeSnapshot(ctx)
+	runtimeSnapshot, err := collectRuntimeSnapshot(ctx)
+	if err != nil {
+		logTrendWarning(p, nil, "collect monitor runtime snapshot failed", err)
+		return
+	}
+	cpuPercent, err := toGeneratedFloat32(collectCPUPercent(ctx, processHandle), "cpu percent")
+	if err != nil {
+		logTrendWarning(p, nil, "convert monitor cpu sample failed", err)
+		return
+	}
 	observedAt := time.Now().UTC()
-	point := serverStatusTrendPoint{
-		ObservedAt:             observedAt.Format(time.RFC3339),
-		CPUPercent:             collectCPUPercent(ctx, processHandle),
-		HostMemoryUsedPercent:  runtimeSnapshot.HostMemoryUsedPercent,
-		LoadAverageOneMinute:   runtimeSnapshot.LoadAverage.OneMinute,
-		LoadAverageFiveMinutes: runtimeSnapshot.LoadAverage.FiveMinutes,
-		LoadAverageFifteenMins: runtimeSnapshot.LoadAverage.FifteenMinutes,
-		Goroutines:             runtimeSnapshot.Goroutines,
-		RuntimeAllocBytes:      runtimeSnapshot.RuntimeAllocBytes,
-		RuntimeHeapInUseBytes:  runtimeSnapshot.RuntimeHeapInUseBytes,
-		RuntimeSysBytes:        runtimeSnapshot.RuntimeSysBytes,
+	point := generated.ServerStatusTrendPoint{
+		ObservedAt:                observedAt,
+		CpuPercent:                cpuPercent,
+		HostMemoryUsedPercent:     runtimeSnapshot.HostMemoryUsedPercent,
+		LoadAverageOneMinute:      runtimeSnapshot.LoadAverage.OneMinute,
+		LoadAverageFiveMinutes:    runtimeSnapshot.LoadAverage.FiveMinutes,
+		LoadAverageFifteenMinutes: runtimeSnapshot.LoadAverage.FifteenMinutes,
+		Goroutines:                runtimeSnapshot.Goroutines,
+		RuntimeAllocBytes:         runtimeSnapshot.RuntimeAllocBytes,
+		RuntimeHeapInUseBytes:     runtimeSnapshot.RuntimeHeapInUseBytes,
+		RuntimeSysBytes:           runtimeSnapshot.RuntimeSysBytes,
 	}
 
 	if err := storeTrendPoint(ctx, redisClient, storageKey, observedAt, point); err != nil {
@@ -807,7 +797,7 @@ func storeTrendPoint(
 	redisClient *redis.Client,
 	storageKey string,
 	observedAt time.Time,
-	point serverStatusTrendPoint,
+	point generated.ServerStatusTrendPoint,
 ) error {
 	payload, err := json.Marshal(point)
 	if err != nil {
@@ -837,7 +827,7 @@ func loadTrendPoints(
 	storageKey string,
 	observedAt time.Time,
 	retention time.Duration,
-) ([]serverStatusTrendPoint, error) {
+) ([]generated.ServerStatusTrendPoint, error) {
 	if redisClient == nil {
 		return nil, nil
 	}
@@ -854,9 +844,9 @@ func loadTrendPoints(
 		return nil, fmt.Errorf("range redis trend points: %w", err)
 	}
 
-	points := make([]serverStatusTrendPoint, 0, len(members))
+	points := make([]generated.ServerStatusTrendPoint, 0, len(members))
 	for _, member := range members {
-		var point serverStatusTrendPoint
+		var point generated.ServerStatusTrendPoint
 		if err := json.Unmarshal([]byte(member), &point); err != nil {
 			continue
 		}
@@ -907,29 +897,65 @@ func currentProcessID() (int32, error) {
 	return int32(pid), nil
 }
 
-func collectRuntimeSnapshot(ctx context.Context) serverStatusRuntime {
+func collectRuntimeSnapshot(ctx context.Context) (generated.ServerStatusRuntime, error) {
 	stats := runtime.MemStats{}
 	runtime.ReadMemStats(&stats)
 	hostMemory := collectHostMemory(ctx)
+	loadAverage, err := collectLoadAverage(ctx)
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	diskUsage, err := collectDiskUsage(ctx, defaultDiskUsagePath())
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	hostMemoryTotalBytes, err := mustConvertGeneratedInt64(hostMemory.Total, "host memory total bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	hostMemoryUsedBytes, err := mustConvertGeneratedInt64(hostMemory.Used, "host memory used bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	hostMemoryFreeBytes, err := mustConvertGeneratedInt64(hostMemory.Free, "host memory free bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	hostMemoryUsedPercent, err := toGeneratedFloat32(roundUsagePercent(hostMemory.UsedPercent), "host memory used percent")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	runtimeAllocBytes, err := mustConvertGeneratedInt64(stats.Alloc, "runtime alloc bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	runtimeHeapInUseBytes, err := mustConvertGeneratedInt64(stats.HeapInuse, "runtime heap in use bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
+	runtimeSysBytes, err := mustConvertGeneratedInt64(stats.Sys, "runtime sys bytes")
+	if err != nil {
+		return generated.ServerStatusRuntime{}, err
+	}
 
-	return serverStatusRuntime{
+	return generated.ServerStatusRuntime{
 		GoVersion:             runtime.Version(),
 		HostName:              resolveHostName(),
 		OperatingSystem:       runtime.GOOS,
 		Architecture:          runtime.GOARCH,
-		CPUCores:              runtime.NumCPU(),
-		LoadAverage:           collectLoadAverage(ctx),
-		DiskUsage:             collectDiskUsage(ctx, defaultDiskUsagePath()),
-		HostMemoryTotalBytes:  hostMemory.Total,
-		HostMemoryUsedBytes:   hostMemory.Used,
-		HostMemoryFreeBytes:   hostMemory.Free,
-		HostMemoryUsedPercent: roundUsagePercent(hostMemory.UsedPercent),
+		CpuCores:              runtime.NumCPU(),
+		LoadAverage:           loadAverage,
+		DiskUsage:             diskUsage,
+		HostMemoryTotalBytes:  hostMemoryTotalBytes,
+		HostMemoryUsedBytes:   hostMemoryUsedBytes,
+		HostMemoryFreeBytes:   hostMemoryFreeBytes,
+		HostMemoryUsedPercent: hostMemoryUsedPercent,
 		Goroutines:            runtime.NumGoroutine(),
-		RuntimeAllocBytes:     stats.Alloc,
-		RuntimeHeapInUseBytes: stats.HeapInuse,
-		RuntimeSysBytes:       stats.Sys,
-		RuntimeGCCycles:       stats.NumGC,
-	}
+		RuntimeAllocBytes:     runtimeAllocBytes,
+		RuntimeHeapInUseBytes: runtimeHeapInUseBytes,
+		RuntimeSysBytes:       runtimeSysBytes,
+		RuntimeGcCycles:       int(stats.NumGC),
+	}, nil
 }
 
 func collectHostMemory(ctx context.Context) *mem.VirtualMemoryStat {
@@ -945,40 +971,70 @@ func collectHostMemory(ctx context.Context) *mem.VirtualMemoryStat {
 	return snapshot
 }
 
-func collectLoadAverage(ctx context.Context) serverStatusLoadAverage {
+func collectLoadAverage(ctx context.Context) (generated.ServerStatusLoadAverage, error) {
 	if ctx == nil {
-		return serverStatusLoadAverage{}
+		return generated.ServerStatusLoadAverage{}, nil
 	}
 
 	avg, err := load.AvgWithContext(ctx)
 	if err != nil || avg == nil {
-		return serverStatusLoadAverage{}
+		return generated.ServerStatusLoadAverage{}, nil
 	}
 
-	return serverStatusLoadAverage{
-		OneMinute:      avg.Load1,
-		FiveMinutes:    avg.Load5,
-		FifteenMinutes: avg.Load15,
+	oneMinute, err := toGeneratedFloat32(avg.Load1, "load average one minute")
+	if err != nil {
+		return generated.ServerStatusLoadAverage{}, err
 	}
+	fiveMinutes, err := toGeneratedFloat32(avg.Load5, "load average five minutes")
+	if err != nil {
+		return generated.ServerStatusLoadAverage{}, err
+	}
+	fifteenMinutes, err := toGeneratedFloat32(avg.Load15, "load average fifteen minutes")
+	if err != nil {
+		return generated.ServerStatusLoadAverage{}, err
+	}
+
+	return generated.ServerStatusLoadAverage{
+		OneMinute:      oneMinute,
+		FiveMinutes:    fiveMinutes,
+		FifteenMinutes: fifteenMinutes,
+	}, nil
 }
 
-func collectDiskUsage(ctx context.Context, path string) serverStatusDiskUsage {
+func collectDiskUsage(ctx context.Context, path string) (generated.ServerStatusDiskUsage, error) {
 	if ctx == nil {
-		return serverStatusDiskUsage{Path: path}
+		return generated.ServerStatusDiskUsage{Path: path}, nil
 	}
 
 	usage, err := disk.UsageWithContext(ctx, path)
 	if err != nil || usage == nil {
-		return serverStatusDiskUsage{Path: path}
+		return generated.ServerStatusDiskUsage{Path: path}, nil
 	}
 
-	return serverStatusDiskUsage{
-		Path:        usage.Path,
-		TotalBytes:  usage.Total,
-		UsedBytes:   usage.Used,
-		FreeBytes:   usage.Free,
-		UsedPercent: roundUsagePercent(usage.UsedPercent),
+	totalBytes, err := mustConvertGeneratedInt64(usage.Total, "disk total bytes")
+	if err != nil {
+		return generated.ServerStatusDiskUsage{}, err
 	}
+	usedBytes, err := mustConvertGeneratedInt64(usage.Used, "disk used bytes")
+	if err != nil {
+		return generated.ServerStatusDiskUsage{}, err
+	}
+	freeBytes, err := mustConvertGeneratedInt64(usage.Free, "disk free bytes")
+	if err != nil {
+		return generated.ServerStatusDiskUsage{}, err
+	}
+	usedPercent, err := toGeneratedFloat32(roundUsagePercent(usage.UsedPercent), "disk used percent")
+	if err != nil {
+		return generated.ServerStatusDiskUsage{}, err
+	}
+
+	return generated.ServerStatusDiskUsage{
+		Path:        usage.Path,
+		TotalBytes:  totalBytes,
+		UsedBytes:   usedBytes,
+		FreeBytes:   freeBytes,
+		UsedPercent: usedPercent,
+	}, nil
 }
 
 func roundLatencyMilliseconds(duration time.Duration) float64 {
@@ -991,6 +1047,20 @@ func roundCPUPercent(value float64) float64 {
 
 func roundUsagePercent(value float64) float64 {
 	return math.Round(value*latencyPrecisionScale) / latencyPrecisionScale
+}
+
+func toGeneratedFloat32(value float64, label string) (float32, error) {
+	if value > math.MaxFloat32 || value < -math.MaxFloat32 {
+		return 0, fmt.Errorf("%s exceeds float32: %v", label, value)
+	}
+	return float32(value), nil
+}
+
+func mustConvertGeneratedInt64(value uint64, label string) (int64, error) {
+	if value > math.MaxInt64 {
+		return 0, fmt.Errorf("%s exceeds int64: %d", label, value)
+	}
+	return int64(value), nil
 }
 
 func resolveAppName(pluginCtx *plugin.Context) string {
@@ -1030,6 +1100,14 @@ func parseTrendRange(raw string) monitorcontract.TrendRange {
 	default:
 		return monitorcontract.TrendRange10Minutes
 	}
+}
+
+func parseGeneratedTrendRange(raw *monitoropenapi.GetMonitorServerStatusParamsTrendRange) monitorcontract.TrendRange {
+	if raw == nil {
+		return monitorcontract.TrendRange10Minutes
+	}
+
+	return parseTrendRange(string(*raw))
 }
 
 func logTrendWarning(instance *Plugin, pluginCtx *plugin.Context, message string, err error) {

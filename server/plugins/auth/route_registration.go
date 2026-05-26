@@ -3,6 +3,7 @@ package auth
 import (
 	"github.com/gin-gonic/gin"
 
+	authopenapi "graft/server/internal/contract/openapi/auth"
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
@@ -46,3 +47,5 @@ func registerAuthRoutes(
 
 	return nil
 }
+
+var _ authopenapi.ServerInterface = authGeneratedHandler{}

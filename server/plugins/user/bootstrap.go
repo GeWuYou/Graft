@@ -27,6 +27,31 @@ type bootstrapReader struct {
 
 const localeFallbackCapacity = 2
 
+type bootstrapResponse struct {
+	User               loginUserResponse       `json:"user"`
+	MustChangePassword bool                    `json:"must_change_password"`
+	Roles              []string                `json:"roles"`
+	Permissions        []string                `json:"permissions"`
+	Menus              []bootstrapMenuResponse `json:"menus"`
+	Locale             bootstrapLocaleSnapshot `json:"locale"`
+}
+
+type bootstrapMenuResponse struct {
+	Code       string `json:"code"`
+	Title      string `json:"title"`
+	TitleKey   string `json:"title_key,omitempty"`
+	Path       string `json:"path"`
+	Icon       string `json:"icon"`
+	Permission string `json:"permission"`
+}
+
+type bootstrapLocaleSnapshot struct {
+	CurrentLocale    string   `json:"current_locale"`
+	DefaultLocale    string   `json:"default_locale"`
+	FallbackLocale   string   `json:"fallback_locale"`
+	SupportedLocales []string `json:"supported_locales"`
+}
+
 func newBootstrapReader(
 	localeConfig config.I18nConfig,
 	localizer *i18n.Service,

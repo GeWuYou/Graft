@@ -1190,6 +1190,14 @@ def classify_reply_state(thread: dict[str, Any]) -> str:
     return "pending_ai_followup"
 
 
+def build_fixed_finding_reply(commit_ref: str, path: str = "") -> str:
+    """Build a concise standard reply for a finding fixed in a commit."""
+    cleaned_commit_ref = collapse_whitespace(commit_ref)
+    cleaned_path = collapse_whitespace(path)
+    location_suffix = f"({cleaned_path})" if cleaned_path else ""
+    return f"已修复, 见提交 {cleaned_commit_ref}{location_suffix}. 如仍有疑问, 请继续指出或请人工复核。"
+
+
 def build_latest_commit_review_threads(comments: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Group review comments into normalized latest-commit review threads."""
     comment_threads: dict[int, dict[str, Any]] = {}
@@ -1846,6 +1854,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reply-comment-id", type=int, help="Reply to a specific PR review comment id.")
     parser.add_argument("--reply-body", help="Reply body text to send to GitHub.")
     parser.add_argument("--reply-body-file", help="Read the reply body from a UTF-8 text file.")
+    parser.add_argument("--reply-fixed-commit", help="Build a standard reply body for a finding fixed in this commit SHA.")
+    parser.add_argument("--reply-fixed-path", help="Optional file path to mention in the standard fixed-finding reply.")
     parser.add_argument(
         "--reply-dry-run",
         action="store_true",
@@ -1864,9 +1874,16 @@ def main() -> None:
         branch = args.branch or get_current_branch()
         pr_number = resolve_pr_number(branch)
 
+    if args.reply_fixed_commit and (args.reply_body or args.reply_body_file):
+        raise RuntimeError("Use either --reply-fixed-commit or a manual reply body, not both.")
+
     result = build_result(pr_number, branch)
     if args.reply_comment_id is not None:
-        reply_body = resolve_review_reply_body(args)
+        reply_body = (
+            build_fixed_finding_reply(args.reply_fixed_commit, args.reply_fixed_path or "")
+            if args.reply_fixed_commit
+            else resolve_review_reply_body(args)
+        )
         result["reply_action"] = perform_review_reply(
             result["pull_request"]["number"],
             args.reply_comment_id,
