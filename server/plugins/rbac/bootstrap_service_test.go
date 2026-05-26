@@ -16,12 +16,12 @@ type bootstrapServiceTestRepository struct {
 	assignPermissionsInput rbacstore.AssignPermissionsToRoleInput
 	assignRoleInput        rbacstore.AssignRoleToUserInput
 
-	roleToReturn        rbacstore.Role
-	permissionToReturn  rbacstore.Permission
-	ensureRoleErr       error
-	ensurePermissionErr error
+	roleToReturn         rbacstore.Role
+	permissionToReturn   rbacstore.Permission
+	ensureRoleErr        error
+	ensurePermissionErr  error
 	assignPermissionsErr error
-	assignRoleErr       error
+	assignRoleErr        error
 }
 
 func (r *bootstrapServiceTestRepository) EnsureRole(_ context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
@@ -93,6 +93,18 @@ func (r *bootstrapServiceTestRepository) AddRolesToUser(context.Context, rbacsto
 }
 
 func (r *bootstrapServiceTestRepository) RemoveRolesFromUser(context.Context, rbacstore.RemoveRolesFromUserInput) error {
+	return nil
+}
+
+func (r *bootstrapServiceTestRepository) ReplaceRolesForUsersAtomically(context.Context, rbacstore.BatchUserRoleMutationInput) error {
+	return nil
+}
+
+func (r *bootstrapServiceTestRepository) AddRolesToUsersAtomically(context.Context, rbacstore.BatchUserRoleMutationInput) error {
+	return nil
+}
+
+func (r *bootstrapServiceTestRepository) RemoveRolesFromUsersAtomically(context.Context, rbacstore.BatchUserRoleMutationInput) error {
 	return nil
 }
 

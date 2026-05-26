@@ -30,28 +30,31 @@ import (
 )
 
 type testRBACRepository struct {
-	roles              []store.Role
-	permissions        []store.Permission
-	rolesByUserID      []store.Role
-	permissionsByUser  []store.Permission
-	rolePermissionIDs  map[uint64][]uint64
-	roleByID           map[uint64]store.Role
-	permissionByID     map[uint64]store.Permission
-	listRolesFn        func(ctx context.Context, filter store.RoleFilter) ([]store.Role, error)
-	listPermissionsFn  func(ctx context.Context, filter store.PermissionFilter) ([]store.Permission, error)
-	createRole         func(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
-	updateRole         func(ctx context.Context, input store.UpdateRoleInput) (store.Role, error)
-	setRoleStatus      func(ctx context.Context, input store.SetRoleStatusInput) (store.Role, error)
-	deleteRole         func(ctx context.Context, input store.SoftDeleteRoleInput) error
-	replacePermission  func(ctx context.Context, input store.ReplacePermissionsForRoleInput) error
-	addPermission      func(ctx context.Context, input store.AddPermissionsToRoleInput) error
-	removePermission   func(ctx context.Context, input store.RemovePermissionsFromRoleInput) error
-	replaceUserRoles   func(ctx context.Context, input store.ReplaceRolesForUserInput) error
-	addUserRoles       func(ctx context.Context, input store.AddRolesToUserInput) error
-	removeUserRoles    func(ctx context.Context, input store.RemoveRolesFromUserInput) error
-	listRolesErr       error
-	listPermissionsErr error
-	permissionsErr     error
+	roles                 []store.Role
+	permissions           []store.Permission
+	rolesByUserID         []store.Role
+	permissionsByUser     []store.Permission
+	rolePermissionIDs     map[uint64][]uint64
+	roleByID              map[uint64]store.Role
+	permissionByID        map[uint64]store.Permission
+	listRolesFn           func(ctx context.Context, filter store.RoleFilter) ([]store.Role, error)
+	listPermissionsFn     func(ctx context.Context, filter store.PermissionFilter) ([]store.Permission, error)
+	createRole            func(ctx context.Context, input store.CreateRoleInput) (store.Role, error)
+	updateRole            func(ctx context.Context, input store.UpdateRoleInput) (store.Role, error)
+	setRoleStatus         func(ctx context.Context, input store.SetRoleStatusInput) (store.Role, error)
+	deleteRole            func(ctx context.Context, input store.SoftDeleteRoleInput) error
+	replacePermission     func(ctx context.Context, input store.ReplacePermissionsForRoleInput) error
+	addPermission         func(ctx context.Context, input store.AddPermissionsToRoleInput) error
+	removePermission      func(ctx context.Context, input store.RemovePermissionsFromRoleInput) error
+	replaceUserRoles      func(ctx context.Context, input store.ReplaceRolesForUserInput) error
+	addUserRoles          func(ctx context.Context, input store.AddRolesToUserInput) error
+	removeUserRoles       func(ctx context.Context, input store.RemoveRolesFromUserInput) error
+	replaceUserRolesBatch func(ctx context.Context, input store.BatchUserRoleMutationInput) error
+	addUserRolesBatch     func(ctx context.Context, input store.BatchUserRoleMutationInput) error
+	removeUserRolesBatch  func(ctx context.Context, input store.BatchUserRoleMutationInput) error
+	listRolesErr          error
+	listPermissionsErr    error
+	permissionsErr        error
 }
 
 type testUserService struct {
@@ -158,6 +161,27 @@ func (r testRBACRepository) AddRolesToUser(ctx context.Context, input store.AddR
 func (r testRBACRepository) RemoveRolesFromUser(ctx context.Context, input store.RemoveRolesFromUserInput) error {
 	if r.removeUserRoles != nil {
 		return r.removeUserRoles(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) ReplaceRolesForUsersAtomically(ctx context.Context, input store.BatchUserRoleMutationInput) error {
+	if r.replaceUserRolesBatch != nil {
+		return r.replaceUserRolesBatch(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) AddRolesToUsersAtomically(ctx context.Context, input store.BatchUserRoleMutationInput) error {
+	if r.addUserRolesBatch != nil {
+		return r.addUserRolesBatch(ctx, input)
+	}
+	return nil
+}
+
+func (r testRBACRepository) RemoveRolesFromUsersAtomically(ctx context.Context, input store.BatchUserRoleMutationInput) error {
+	if r.removeUserRolesBatch != nil {
+		return r.removeUserRolesBatch(ctx, input)
 	}
 	return nil
 }

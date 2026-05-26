@@ -500,6 +500,25 @@ func (r *repository) ReplaceRolesForUser(ctx context.Context, input rbacstore.Re
 	)
 }
 
+func (r *repository) ReplaceRolesForUsersAtomically(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
+	tx, committed, err := r.beginBatchUserRoleMutationTx(ctx, "start replace user roles batch tx")
+	if err != nil {
+		return err
+	}
+	defer rollbackUncommitted(tx, &committed)
+
+	for _, userID := range input.UserIDs {
+		if err := r.replaceRolesForUserTx(ctx, tx, rbacstore.ReplaceRolesForUserInput{
+			UserID:  userID,
+			RoleIDs: input.RoleIDs,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return commitBatchUserRoleMutationTx(tx, &committed, "commit replace user roles batch")
+}
+
 func (r *repository) AddRolesToUser(ctx context.Context, input rbacstore.AddRolesToUserInput) error {
 	roleIDs, err := toUniqueDBIDs(input.RoleIDs)
 	if err != nil {
@@ -531,6 +550,33 @@ func (r *repository) AddRolesToUser(ctx context.Context, input rbacstore.AddRole
 	return nil
 }
 
+func (r *repository) AddRolesToUsersAtomically(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
+	tx, committed, err := r.beginBatchUserRoleMutationTx(ctx, "start add user roles batch tx")
+	if err != nil {
+		return err
+	}
+	defer rollbackUncommitted(tx, &committed)
+
+	roleIDs, err := toUniqueDBIDs(input.RoleIDs)
+	if err != nil {
+		return err
+	}
+	if err := ensureAssignableRolesTx(ctx, tx, roleIDs); err != nil {
+		return err
+	}
+
+	for _, userID := range input.UserIDs {
+		if err := addRolesToUserTx(ctx, tx, rbacstore.AddRolesToUserInput{
+			UserID:  userID,
+			RoleIDs: input.RoleIDs,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return commitBatchUserRoleMutationTx(tx, &committed, "commit add user roles batch")
+}
+
 func (r *repository) RemoveRolesFromUser(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error {
 	userID, err := toDBID(input.UserID)
 	if err != nil {
@@ -550,6 +596,25 @@ func (r *repository) RemoveRolesFromUser(ctx context.Context, input rbacstore.Re
 		return fmt.Errorf("remove roles from user %d: %w", input.UserID, execErr)
 	}
 	return nil
+}
+
+func (r *repository) RemoveRolesFromUsersAtomically(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
+	tx, committed, err := r.beginBatchUserRoleMutationTx(ctx, "start remove user roles batch tx")
+	if err != nil {
+		return err
+	}
+	defer rollbackUncommitted(tx, &committed)
+
+	for _, userID := range input.UserIDs {
+		if err := removeRolesFromUserTx(ctx, tx, rbacstore.RemoveRolesFromUserInput{
+			UserID:  userID,
+			RoleIDs: input.RoleIDs,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return commitBatchUserRoleMutationTx(tx, &committed, "commit remove user roles batch")
 }
 
 func (r *repository) GetRoleByID(ctx context.Context, roleID uint64) (rbacstore.Role, error) {
@@ -932,12 +997,10 @@ func (r *repository) replaceStableAssignments(
 	relationIDs []uint64,
 	config replaceAssignmentConfig,
 ) error {
-	dbTargetID, err := toDBID(targetID)
-	if err != nil {
+	if _, err := toDBID(targetID); err != nil {
 		return err
 	}
-	dbRelationIDs, err := toUniqueDBIDs(relationIDs)
-	if err != nil {
+	if _, err := toUniqueDBIDs(relationIDs); err != nil {
 		return err
 	}
 
@@ -946,11 +1009,34 @@ func (r *repository) replaceStableAssignments(
 		return fmt.Errorf("%s: %w", config.startContext, err)
 	}
 	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
+	defer rollbackUncommitted(tx, &committed)
+
+	if err := replaceStableAssignmentsTx(ctx, tx, targetID, relationIDs, config); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf(config.commitFormat+": %w", targetID, err)
+	}
+	committed = true
+	return nil
+}
+
+func replaceStableAssignmentsTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	targetID uint64,
+	relationIDs []uint64,
+	config replaceAssignmentConfig,
+) error {
+	dbTargetID, err := toDBID(targetID)
+	if err != nil {
+		return err
+	}
+	dbRelationIDs, err := toUniqueDBIDs(relationIDs)
+	if err != nil {
+		return err
+	}
 
 	if err := ensureAssignmentTarget(ctx, tx, targetID, dbTargetID, config); err != nil {
 		return err
@@ -964,11 +1050,115 @@ func (r *repository) replaceStableAssignments(
 	if err := insertAssignmentRows(ctx, tx, targetID, dbTargetID, dbRelationIDs, config); err != nil {
 		return err
 	}
+	return nil
+}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf(config.commitFormat+": %w", targetID, err)
+func rollbackUncommitted(tx *sql.Tx, committed *bool) {
+	if !*committed {
+		_ = tx.Rollback()
 	}
-	committed = true
+}
+
+func (r *repository) beginBatchUserRoleMutationTx(ctx context.Context, contextText string) (*sql.Tx, bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, false, fmt.Errorf("%s: %w", contextText, err)
+	}
+	return tx, false, nil
+}
+
+func commitBatchUserRoleMutationTx(tx *sql.Tx, committed *bool, contextText string) error {
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("%s: %w", contextText, err)
+	}
+	*committed = true
+	return nil
+}
+
+func (r *repository) replaceRolesForUserTx(ctx context.Context, tx *sql.Tx, input rbacstore.ReplaceRolesForUserInput) error {
+	return replaceStableAssignmentsTx(
+		ctx,
+		tx,
+		input.UserID,
+		input.RoleIDs,
+		replaceAssignmentConfig{
+			checkTargetContext:   "check user %d before replacing roles",
+			countRelationContext: "count roles for user %d replacement",
+			deleteStaleContext:   "delete stale roles for user %d",
+			checkBindingContext:  "check user role replacement",
+			createBindingContext: "replace role %d for user %d",
+			targetMissing:        nil,
+			relationMissing:      rbacstore.ErrRoleNotFound,
+			checkTargetExists: func(context.Context, *sql.Tx, int64) (bool, error) {
+				return true, nil
+			},
+			countRelationRecords: func(ctx context.Context, tx *sql.Tx, ids []int64) (int, error) {
+				return countEnabledRolesByIDs(ctx, tx, ids)
+			},
+			deleteStale: func(ctx context.Context, tx *sql.Tx, targetID int64, ids []int64) error {
+				return deleteStableUserRoles(ctx, tx, targetID, ids)
+			},
+			bindingExists: func(ctx context.Context, tx *sql.Tx, targetID int64, relationID int64) (bool, error) {
+				return recordExists(ctx, tx, "SELECT 1 FROM user_roles WHERE user_id = $1 AND role_id = $2", targetID, relationID)
+			},
+			createBinding: func(ctx context.Context, tx *sql.Tx, targetID int64, relationID int64) error {
+				_, err := tx.ExecContext(
+					ctx,
+					`INSERT INTO user_roles (user_id, role_id, created_at)
+					VALUES ($1, $2, $3)`,
+					targetID,
+					relationID,
+					time.Now().UTC(),
+				)
+				return err
+			},
+		},
+	)
+}
+
+func addRolesToUserTx(ctx context.Context, tx *sql.Tx, input rbacstore.AddRolesToUserInput) error {
+	roleIDs, err := toUniqueDBIDs(input.RoleIDs)
+	if err != nil {
+		return err
+	}
+	userID, err := toDBID(input.UserID)
+	if err != nil {
+		return err
+	}
+	for _, roleID := range roleIDs {
+		_, execErr := tx.ExecContext(
+			ctx,
+			`INSERT INTO user_roles (user_id, role_id, created_at)
+			VALUES ($1, $2, $3)`,
+			userID,
+			roleID,
+			time.Now().UTC(),
+		)
+		if execErr == nil || isUniqueViolation(execErr) {
+			continue
+		}
+		return fmt.Errorf("add role %d to user %d: %w", roleID, input.UserID, execErr)
+	}
+	return nil
+}
+
+func removeRolesFromUserTx(ctx context.Context, tx *sql.Tx, input rbacstore.RemoveRolesFromUserInput) error {
+	userID, err := toDBID(input.UserID)
+	if err != nil {
+		return err
+	}
+	roleIDs, err := toUniqueDBIDs(input.RoleIDs)
+	if err != nil {
+		return err
+	}
+	if len(roleIDs) == 0 {
+		return nil
+	}
+
+	query, args := buildDeleteBindingsQuery("DELETE FROM user_roles WHERE user_id = ?", userID, "role_id", roleIDs)
+	if _, execErr := tx.ExecContext(ctx, query, args...); execErr != nil {
+		return fmt.Errorf("remove roles from user %d: %w", input.UserID, execErr)
+	}
 	return nil
 }
 
@@ -1375,6 +1565,18 @@ func (r *repository) ensureAssignableRoles(ctx context.Context, roleIDs []int64)
 	if err != nil {
 		return err
 	}
+	return validateAssignableRoles(rows, roleIDs)
+}
+
+func ensureAssignableRolesTx(ctx context.Context, tx *sql.Tx, roleIDs []int64) error {
+	rows, err := queryRoleAssignmentStatesTx(ctx, tx, roleIDs)
+	if err != nil {
+		return err
+	}
+	return validateAssignableRoles(rows, roleIDs)
+}
+
+func validateAssignableRoles(rows []roleAssignmentState, roleIDs []int64) error {
 	if len(rows) != len(roleIDs) {
 		return rbacstore.ErrRoleNotFound
 	}
@@ -1404,7 +1606,27 @@ func queryRoleAssignmentStates(ctx context.Context, db *sql.DB, roleIDs []int64)
 		return nil, fmt.Errorf("query role assignment states: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	result := make([]roleAssignmentState, 0, len(roleIDs))
+	return scanRoleAssignmentStates(rows)
+}
+
+func queryRoleAssignmentStatesTx(ctx context.Context, tx *sql.Tx, roleIDs []int64) ([]roleAssignmentState, error) {
+	if len(roleIDs) == 0 {
+		return []roleAssignmentState{}, nil
+	}
+	query, args := buildDollarInQuery(
+		`SELECT id, deleted_at FROM roles WHERE id IN (?)`,
+		roleIDs,
+	)
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query role assignment states: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanRoleAssignmentStates(rows)
+}
+
+func scanRoleAssignmentStates(rows *sql.Rows) ([]roleAssignmentState, error) {
+	result := make([]roleAssignmentState, 0)
 	for rows.Next() {
 		var item roleAssignmentState
 		if scanErr := rows.Scan(&item.id, &item.deletedAt); scanErr != nil {
