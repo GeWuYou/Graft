@@ -103,6 +103,8 @@
     "permissionList": {
       "listTitle": "权限管理",
       "hint": "查看系统权限点、模块归属与授权使用情况。",
+      "detail": "详情",
+      "detailTitle": "权限详情",
       "summary": "已显示 {count} 项权限",
       "footerTotal": "共 {count} 项权限",
       "tableHint": "支持按权限名称、编码与模块快速筛选。",
@@ -113,6 +115,8 @@
       "empty": "暂无权限数据",
       "emptyFilteredDescription": "当前筛选条件下没有匹配权限，可清空筛选后重试。",
       "loadFailed": "权限列表加载失败",
+      "detailLoadFailed": "权限详情加载失败",
+      "detailLoadFailedTitle": "权限详情暂时不可用",
       "errorTitle": "权限数据暂时不可用",
       "readonlyNotice": "当前权限列表为只读视图。",
       "readonlyDescription": "权限点由系统和插件注册，当前页面用于查看权限点与模块归属。",
@@ -125,7 +129,11 @@
         "description": "说明",
         "roleCount": "使用角色数",
         "createdAt": "创建时间",
-        "updatedAt": "更新时间"
+        "updatedAt": "更新时间",
+        "operation": "操作"
+      },
+      "detailFields": {
+        "description": "说明"
       },
       "toolbar": {
         "searchPlaceholder": "搜索权限编码、权限名称",

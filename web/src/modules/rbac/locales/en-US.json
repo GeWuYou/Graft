@@ -103,6 +103,8 @@
     "permissionList": {
       "listTitle": "Permission Management",
       "hint": "Review system permissions, module ownership, and authorization usage.",
+      "detail": "Details",
+      "detailTitle": "Permission Details",
       "summary": "{count} permissions shown",
       "footerTotal": "{count} permissions total",
       "tableHint": "Filter permissions by name, code, and module.",
@@ -113,6 +115,8 @@
       "empty": "No permission data",
       "emptyFilteredDescription": "No permissions match the current filters. Clear filters and try again.",
       "loadFailed": "Failed to load permissions",
+      "detailLoadFailed": "Failed to load permission details",
+      "detailLoadFailedTitle": "Permission details are temporarily unavailable",
       "errorTitle": "Permission data is temporarily unavailable",
       "readonlyNotice": "This permission list is currently read only.",
       "readonlyDescription": "Permissions are registered by the system and plugins. This page shows permission points and module ownership.",
@@ -125,7 +129,11 @@
         "description": "Description",
         "roleCount": "Roles Using It",
         "createdAt": "Created At",
-        "updatedAt": "Updated At"
+        "updatedAt": "Updated At",
+        "operation": "Actions"
+      },
+      "detailFields": {
+        "description": "Description"
       },
       "toolbar": {
         "searchPlaceholder": "Search permission code or name",
