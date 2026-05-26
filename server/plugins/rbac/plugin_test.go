@@ -693,6 +693,34 @@ func TestPermissionRoutesListPermissions(t *testing.T) {
 	}
 }
 
+// TestPermissionDetailRouteMapsMissingPermissionToDedicatedNotFound 验证权限详情读取接口会返回稳定的 permission-not-found 语义。
+func TestPermissionDetailRouteMapsMissingPermissionToDedicatedNotFound(t *testing.T) {
+	repo := testRBACRepository{
+		permissionsByUser: []store.Permission{{Code: rbaccontract.PermissionReadPermission.String()}},
+	}
+	_, engine := newPluginTestContext(t, repo)
+
+	recorder := httptest.NewRecorder()
+	request := newAuthorizedRequest("/api/permissions/99")
+	request.Header.Set(i18n.LocaleHeader, "en-US")
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", recorder.Code)
+	}
+
+	var payload httpx.ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.MessageKey != messagecontract.PermissionNotFound.String() || payload.Code != "PERMISSION_NOT_FOUND" {
+		t.Fatalf("unexpected permission-not-found payload: %#v", payload)
+	}
+	if payload.Locale != "en-US" {
+		t.Fatalf("expected locale en-US, got %#v", payload)
+	}
+}
+
 // TestPermissionRoutesPropagateReadFailure 验证仓储读取失败会走统一本地化内部错误响应。
 func TestPermissionRoutesPropagateReadFailure(t *testing.T) {
 	repo := testRBACRepository{

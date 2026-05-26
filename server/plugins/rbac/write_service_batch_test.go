@@ -91,6 +91,60 @@ func TestManagementWriterReplaceRolesForUsersPropagatesAtomicBatchError(t *testi
 	}
 }
 
+func TestManagementWriterBatchMutationsRequireAtomicBatchWriter(t *testing.T) {
+	repo := nonAtomicBatchRepo{
+		Repository: testRBACRepository{
+			roles: []rbacstore.Role{
+				{ID: 3, Name: "editor", Status: rbacstore.RoleStatusEnabled},
+			},
+			roleByID: map[uint64]rbacstore.Role{
+				3: {ID: 3, Name: "editor", Status: rbacstore.RoleStatusEnabled},
+			},
+		},
+	}
+	writer := managementWriter{
+		users: testUserService{users: map[uint64]pluginapi.UserSummary{
+			11: {ID: 11},
+		}},
+		rbac: repo,
+	}
+	input := rbacstore.BatchUserRoleMutationInput{
+		UserIDs: []uint64{11},
+		RoleIDs: []uint64{3},
+	}
+
+	for _, tc := range []struct {
+		name string
+		run  func(context.Context, managementWriter, rbacstore.BatchUserRoleMutationInput) error
+	}{
+		{
+			name: "replace",
+			run: func(ctx context.Context, writer managementWriter, input rbacstore.BatchUserRoleMutationInput) error {
+				return writer.ReplaceRolesForUsers(ctx, input)
+			},
+		},
+		{
+			name: "add",
+			run: func(ctx context.Context, writer managementWriter, input rbacstore.BatchUserRoleMutationInput) error {
+				return writer.AddRolesToUsers(ctx, input)
+			},
+		},
+		{
+			name: "remove",
+			run: func(ctx context.Context, writer managementWriter, input rbacstore.BatchUserRoleMutationInput) error {
+				return writer.RemoveRolesFromUsers(ctx, input)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.run(context.Background(), writer, input)
+			if !errors.Is(err, errAtomicBatchWriterMissing) {
+				t.Fatalf("expected %v, got %v", errAtomicBatchWriterMissing, err)
+			}
+		})
+	}
+}
+
 type atomicBatchMutationTestCase struct {
 	mode string
 }
@@ -184,4 +238,8 @@ func assertExpectedBatchInput(t *testing.T, input rbacstore.BatchUserRoleMutatio
 	if len(input.RoleIDs) != 1 || input.RoleIDs[0] != 3 {
 		t.Fatalf("unexpected role ids: %#v", input.RoleIDs)
 	}
+}
+
+type nonAtomicBatchRepo struct {
+	rbacstore.Repository
 }

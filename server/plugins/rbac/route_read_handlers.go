@@ -367,7 +367,7 @@ func handleGetPermission(
 		read:        reader.GetPermission,
 		mapResponse: toPermissionListItem,
 		isNotFound:  func(err error) bool { return errors.Is(err, rbacstore.ErrPermissionNotFound) },
-		notFoundKey: messagecontract.CommonInvalidArgument,
+		notFoundKey: messagecontract.PermissionNotFound,
 	})
 }
 

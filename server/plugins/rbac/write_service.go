@@ -14,6 +14,7 @@ var (
 	errCannotRemoveOwnAdminRole = errors.New("cannot remove own admin role")
 	errInvalidPermissionIDs     = errors.New("invalid permission ids")
 	errInvalidRoleIDs           = errors.New("invalid role ids")
+	errAtomicBatchWriterMissing = errors.New("rbac atomic batch writer is unavailable")
 )
 
 const builtinAdminRoleName = "admin"
@@ -192,28 +193,18 @@ func (w managementWriter) ReplaceRolesForUsers(ctx context.Context, input rbacst
 		func(batchWriter batchUserRoleAtomicWriter, ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
 			return batchWriter.ReplaceRolesForUsersAtomically(ctx, input)
 		},
-		func(ctx context.Context, userID uint64, roleIDs []uint64) error {
-			return w.rbac.ReplaceRolesForUser(ctx, rbacstore.ReplaceRolesForUserInput{UserID: userID, RoleIDs: roleIDs})
-		},
 	)
 }
 
 func (w managementWriter) AddRolesToUsers(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
-	if err := w.ensureRoleMutationPreconditions(ctx, input.UserIDs, input.RoleIDs); err != nil {
-		return err
-	}
-	if batchWriter, ok := w.rbac.(batchUserRoleAtomicWriter); ok {
-		return batchWriter.AddRolesToUsersAtomically(ctx, input)
-	}
-	for _, userID := range input.UserIDs {
-		if err := w.rbac.AddRolesToUser(ctx, rbacstore.AddRolesToUserInput{
-			UserID:  userID,
-			RoleIDs: input.RoleIDs,
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
+	return w.runBatchRoleMutation(
+		ctx,
+		input,
+		func(context.Context, uint64, []uint64) error { return nil },
+		func(batchWriter batchUserRoleAtomicWriter, ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
+			return batchWriter.AddRolesToUsersAtomically(ctx, input)
+		},
+	)
 }
 
 func (w managementWriter) RemoveRolesFromUsers(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
@@ -223,9 +214,6 @@ func (w managementWriter) RemoveRolesFromUsers(ctx context.Context, input rbacst
 		w.ensureActorCanRemoveRoles,
 		func(batchWriter batchUserRoleAtomicWriter, ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
 			return batchWriter.RemoveRolesFromUsersAtomically(ctx, input)
-		},
-		func(ctx context.Context, userID uint64, roleIDs []uint64) error {
-			return w.rbac.RemoveRolesFromUser(ctx, rbacstore.RemoveRolesFromUserInput{UserID: userID, RoleIDs: roleIDs})
 		},
 	)
 }
@@ -327,7 +315,6 @@ func (w managementWriter) runBatchRoleMutation(
 	input rbacstore.BatchUserRoleMutationInput,
 	check func(context.Context, uint64, []uint64) error,
 	runAtomic func(batchUserRoleAtomicWriter, context.Context, rbacstore.BatchUserRoleMutationInput) error,
-	runPerUser func(context.Context, uint64, []uint64) error,
 ) error {
 	if err := w.ensureRoleMutationPreconditions(ctx, input.UserIDs, input.RoleIDs); err != nil {
 		return err
@@ -338,12 +325,7 @@ func (w managementWriter) runBatchRoleMutation(
 	if batchWriter, ok := w.rbac.(batchUserRoleAtomicWriter); ok {
 		return runAtomic(batchWriter, ctx, input)
 	}
-	for _, userID := range input.UserIDs {
-		if err := runPerUser(ctx, userID, input.RoleIDs); err != nil {
-			return err
-		}
-	}
-	return nil
+	return errAtomicBatchWriterMissing
 }
 
 func findBuiltinAdminRole(roles []rbacstore.Role) (rbacstore.Role, bool) {
