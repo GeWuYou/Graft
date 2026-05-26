@@ -319,7 +319,21 @@ func registerMonitorRoutes(
 func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedMonitorParams(ginCtx)
-		handler.GetMonitorServerStatus(params)
+		if err := handler.GetMonitorServerStatus(ginCtx.Request.Context(), params); err != nil {
+			var localizer *i18n.Service
+			if handler.ctx != nil {
+				localizer = handler.ctx.I18n
+				if handler.ctx.Logger != nil {
+					handler.ctx.Logger.Error("validate monitor server status params failed",
+						zap.String("plugin", handler.pluginName),
+						zap.String("request_id", httpx.EnsureRequestID(ginCtx)),
+						zap.Error(err),
+					)
+				}
+			}
+			httpx.AbortLocalizedError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
 		trendRange := parseGeneratedTrendRange(params.TrendRange)
 		payload, buildErr := buildServerStatusResponse(ginCtx.Request.Context(), handler.ctx, handler.instance, trendRange)
 		if buildErr != nil {
@@ -342,8 +356,10 @@ func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	}
 }
 
-func (h *monitorServerHandler) GetMonitorServerStatus(params monitoropenapi.GetMonitorServerStatusParams) {
+func (h *monitorServerHandler) GetMonitorServerStatus(ctx context.Context, params monitoropenapi.GetMonitorServerStatusParams) error {
+	_ = ctx
 	_ = params
+	return nil
 }
 
 func bindGeneratedMonitorParams(ginCtx *gin.Context) monitoropenapi.GetMonitorServerStatusParams {
