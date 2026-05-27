@@ -247,3 +247,72 @@ Owned page-level permission usage observed in current scope:
 3. Batch 2: frontend permission, route, and action audit.
 4. Batch 3: cross-boundary contract consistency audit.
 5. Batch 4: MVP-stable decision and archive closeout.
+
+## Batch 1 Backend Audit
+
+### Backend Audit Matrix
+
+| Surface | Canonical code | Owner module | Menu usage | API guard usage | CRUD/action meaning | Error semantics | Batch 1 conclusion |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| role list/detail | `role.read` | `server/plugins/rbac` | `/access-control/roles` menu requires `role.read` | `GET /api/roles`, `GET /api/roles/:id` use `guards.roleRead` | role directory and single-role snapshot read | invalid query values -> `400 common.invalid_argument`; missing role -> `404 role.not_found`; denied -> `403 auth.forbidden` | read guard and menu reference align |
+| role create | `role.create` | `server/plugins/rbac` | none | `POST /api/roles` uses `guards.roleCreate` | create non-builtin role | invalid body/name/display -> `400 common.invalid_argument`; name conflict -> `400 common.invalid_argument`; denied -> `403 auth.forbidden` | dedicated write guard present |
+| role update | `role.update` | `server/plugins/rbac` | none | `POST /api/roles/:id/update` uses `guards.roleUpdate` | update role metadata | invalid id/body/name/display -> `400`; missing role -> `404 role.not_found`; builtin rename -> `400 field=name`; denied -> `403` | write guard present and builtin-name protection remains at service layer |
+| role status update | `role.status.update` | `server/plugins/rbac` | none | `POST /api/roles/:id/status` uses `guards.roleStatus` | enable/disable role lifecycle | invalid id/body/status -> `400`; missing role -> `404`; builtin immutable -> `409 common.invalid_argument`; denied -> `403` | status mutation has dedicated permission, not folded into `role.update` |
+| role delete | `role.delete` | `server/plugins/rbac` | none | `POST /api/roles/:id/delete` uses `guards.roleDelete` | soft-delete disabled unbound roles | invalid id -> `400`; missing role -> `404`; builtin/enabled/bound role -> `409 common.invalid_argument`; denied -> `403` | destructive path has dedicated guard and service/repository lifecycle checks |
+| role-permission snapshot | `permission.read` | `server/plugins/rbac` | none | `GET /api/roles/:id/permissions` uses `guards.permissionRead` | read current permission bindings for one role | invalid id -> `400`; missing role -> `404 role.not_found`; denied -> `403` with denied permission detail | read semantics intentionally reuse permission catalog read permission |
+| role-permission write | `role.permission.assign` | `server/plugins/rbac` | none | `POST /api/roles/:id/permissions/{replace|add|remove}` use `guards.rolePermissionAssign` | mutate role-permission bindings | invalid id/body/ids -> `400`; missing role -> `404`; deleted or missing permission IDs -> `400 field=permission_ids`; denied -> `403` | all role-permission writes guarded consistently |
+| permission list/detail | `permission.read` | `server/plugins/rbac` | `/access-control/permissions` menu requires `permission.read` | `GET /api/permissions`, `GET /api/permissions/:id` use `guards.permissionRead` | permission catalog read | invalid query -> `400`; missing permission detail -> `404 permission.not_found`; denied -> `403` | menu and guard references align |
+| user-role snapshot | `user.role.read` | `server/plugins/rbac` | none | `GET /api/users/:id/roles` uses `guards.userRoleRead` | read one user's role IDs | invalid id -> `400`; missing user -> `404 user.not_found`; denied -> `403` | read path guarded as expected |
+| user-role write | `user.role.assign` | `server/plugins/rbac` | none | `POST /api/users/:id/roles/{replace|add|remove}` and `POST /api/users/roles/{replace|add|remove}` use `guards.userRoleAssign` | mutate single-user or batch user-role bindings | invalid id/body/role_ids -> `400`; missing user -> `404 user.not_found`; deleted or missing role IDs -> `400 field=role_ids`; removing own builtin admin -> `403 rbac.cannot_remove_own_admin_role` | all single and batch writes guarded consistently |
+
+### Batch 1 Evidence-Backed Answers
+
+- Permission code uniqueness and stability:
+  - RBAC permission contracts are defined as typed `PermissionCode` constants in `server/plugins/rbac/contract/permission.go`.
+  - The file exports both `*Permission` names and consumer aliases like `RoleRead`, but all wire values collapse to the same nine stable strings; no second wire-format code was found.
+  - Registration order in `rbacPermissionItems(...)` and `plugin_test.go` snapshots the same nine codes.
+- Menu permission references all exist:
+  - `registerRBACMenu(...)` references only `role.read` and `permission.read`.
+  - Both codes are present in `rbacPermissionItems(...)`.
+  - Root and overview menu entries intentionally leave `Permission` blank as authenticated shell nodes, not missing references.
+- API guard permission references all exist:
+  - `managementGuards` is built only from the nine typed RBAC contract codes.
+  - `registerManagementRoutes(...)` uses those guards on every owned RBAC route in scope.
+- RBAC write interfaces all have guard:
+  - Role create/update/status/delete, role-permission replace/add/remove, user-role single-user replace/add/remove, and batch replace/add/remove all register explicit non-blank guards.
+- RBAC read interfaces have expected guard:
+  - Role list/detail use `role.read`.
+  - Permission list/detail and role-permission binding snapshot use `permission.read`.
+  - User-role snapshot uses `user.role.read`.
+- Role-permission and user-role read/write semantics are guarded correctly:
+  - Role-permission read/write is intentionally split between `permission.read` and `role.permission.assign`.
+  - User-role read/write is intentionally split between `user.role.read` and `user.role.assign`.
+- Builtin role or privileged semantics remain enforced at service/repository layer:
+  - builtin role rename is blocked in `managementWriter.UpdateRole(...)`
+  - builtin role disable/delete and enabled-or-bound delete restrictions are enforced by repository lifecycle checks
+  - self-removal of the actor's builtin admin role is blocked in user-role write service logic, including batch replace/remove flows
+- `403` forbidden uses standard `httpx` auth/RBAC semantics:
+  - `httpx.RequirePermission(...)` maps permission denial to `auth.forbidden` and echoes the denied permission in `details.permission`.
+  - RBAC self-lockout protection intentionally uses a dedicated domain-level `403` (`rbac.cannot_remove_own_admin_role`) after the route-level permission check passes.
+- `404` and `400` semantics are coherent:
+  - missing role, permission, and user resources map to dedicated not-found contracts
+  - malformed path/body/query input maps to `common.invalid_argument`
+  - TOCTOU-style deleted role/permission IDs are intentionally normalized to `400` argument errors instead of leaking storage-level misses as `404`
+
+### Batch 1 Conclusions
+
+- No clear low-risk backend runtime gap was proven inside the owned scope, so Batch 1 stays audit-only.
+- Backend RBAC management routes currently have explicit guard closure for all owned read and write surfaces.
+- Guarded permission semantics are specific enough to distinguish:
+  - role metadata read
+  - permission catalog read
+  - role-permission mutation
+  - user-role read
+  - user-role mutation
+- The backend still relies on documentation and tests, not registry-level runtime enforcement, for:
+  - permission code uniqueness
+  - menu-permission reference validity
+  - duplicate registration detection
+- That limitation is a governance note for later contract-hardening work, not a Batch 1 fix:
+  - current registries append declarations without duplicate or cross-reference validation
+  - current owned tests snapshot the intended permission and menu closure

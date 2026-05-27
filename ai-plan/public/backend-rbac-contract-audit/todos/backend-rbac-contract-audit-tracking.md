@@ -60,11 +60,13 @@
   - `ai-plan/public/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
 - Batch 0 updated `ai-plan/public/README.md` to register this topic as the active recovery entry.
 - Batch 0 recorded the initial audit inventory and draft matrix for backend and frontend RBAC contract surfaces.
+- Batch 1 completed the backend-only permission/menu/API/guard audit without changing runtime code.
+- Batch 1 confirmed the current backend owned scope does not need a low-risk runtime fix.
 
 ## Batch Plan
 
 1. Batch 0: topic initialization and audit inventory. Status: completed.
-2. Batch 1: backend permission/menu/API/guard audit. Status: pending.
+2. Batch 1: backend permission/menu/API/guard audit. Status: completed.
 3. Batch 2: frontend permission/route/action audit. Status: pending.
 4. Batch 3: cross-boundary consistency audit. Status: pending.
 5. Batch 4: MVP-stable decision and archive closeout. Status: pending.
@@ -106,15 +108,17 @@
 
 ## Immediate Next Step
 
-- Execute `batch-1-backend-permission-menu-api-guard-audit`.
+- Execute `batch-2-frontend-permission-route-action-audit`.
 - Focus:
-  - confirm whether current backend permission registry and route guards fully cover the intended RBAC management
-    surfaces in owned scope
-  - distinguish confirmed backend gaps from already-accepted cross-plugin ownership split
+  - audit frontend route registrations, page-level `v-permission` usage, and local runtime action guards against the
+    backend permission closure confirmed in Batch 1
+  - separate true frontend drift from already-accepted cross-plugin or shell-owned menu ownership splits
 
 ## Required Validation
 
 - Batch 0:
+  - `git diff --check`
+- Batch 1:
   - `git diff --check`
 - Later cross-boundary implementation batches:
   - required commands depend on whether runtime code changes occur
@@ -123,3 +127,31 @@
 
 - Batch 0:
   - `docs(rbac-contract-audit): initialize audit topic`
+- Batch 1:
+  - `docs(rbac-contract-audit): record backend guard audit`
+
+## Batch 1 Findings
+
+- owned backend RBAC permission surfaces still converge on nine stable wire-format codes even though the contract file
+  also exports same-value consumer aliases
+- owned backend menu permission references are currently closed inside RBAC scope:
+  - `/access-control/roles` -> `role.read`
+  - `/access-control/permissions` -> `permission.read`
+- owned backend API guards are currently closed inside RBAC scope:
+  - all role writes use dedicated write guards
+  - role-permission writes use `role.permission.assign`
+  - permission and role-permission reads use `permission.read`
+  - user-role reads use `user.role.read`
+  - user-role writes, including batch writes, use `user.role.assign`
+- builtin and privileged lifecycle protections remain enforced below the page layer:
+  - builtin role rename blocked in write service
+  - builtin/active/bound role mutation constraints enforced in repository lifecycle checks
+  - actor self-lockout from builtin admin role blocked in user-role write service
+- `403`, `404`, and `400` semantics are coherent in current owned scope:
+  - authz denial -> `403 auth.forbidden` with denied permission detail
+  - self-lockout protection -> dedicated `403 rbac.cannot_remove_own_admin_role`
+  - missing role/user/permission resources -> dedicated `404`
+  - malformed input or stale referenced IDs -> `400 common.invalid_argument`
+- no low-risk backend runtime gap was proven in owned scope
+- current registries still do not enforce uniqueness or menu-permission reference validity at runtime; tests and
+  contract discipline remain the current safeguard
