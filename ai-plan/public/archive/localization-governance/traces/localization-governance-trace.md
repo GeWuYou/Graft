@@ -32,3 +32,13 @@
 - Closed that gap by reusing the shared localized error resolver so the dialog now prefers `messageKey` and only falls back to backend message text when no translation is available.
 - Reconfirmed that menu `title_key`, OpenAPI key-field semantics, backend namespace/freeze behavior, and permission fallback semantics remain aligned with the key-first baseline.
 - Topic status is now `ready-to-archive`.
+
+## 2026-05-27 topic archived
+
+- Removed `localization-governance` from the active recovery index in `ai-plan/public/README.md`.
+- Archived the topic after the verified baseline reached `archive-ready` with no remaining blocking gaps in owned scope.
+- Froze the follow-up rule that future localization work should be handled as ordinary feature or contract slices rather than reopening a broad governance topic.
+- Kept future additive items explicitly non-blocking:
+  - permission `display_key`
+  - registry-level menu diagnostics
+  - dynamic plugin locale loading

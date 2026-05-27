@@ -3,9 +3,9 @@
 ## Topic
 
 - Topic: `localization-governance`
-- Status: `closeout-ready`
+- Status: `archived`
 - Goal: close the cross-boundary localization governance baseline after verifying the key-first runtime path and recording the remaining additive-only follow-ups.
-- Recovery source: `none`
+- Recovery source: closed after final verification reached archive-ready state
 - Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-localization-governance`
 - Branch: `feat/wt-localization-governance`
 
@@ -105,5 +105,25 @@
 
 ## Current Status
 
-- Status: `ready-to-archive`
+- Status: `archived`
 - Blocking gaps: none in the verified bounded scope after the forced-password-change dialog was aligned with key-first error rendering.
+
+## Final Archive Record
+
+- Status: `archived`
+- Archive reason: final verification closed the last remaining shell-owned key-first error rendering gap and left no blocking baseline issues in owned scope.
+- Final result:
+  - `messageKey` and `title_key` remain the canonical key-first contracts
+  - `message` and `title` remain fallback-only compatibility fields
+  - permission `display` / `description` remain fallback-only and do not block archive
+  - backend i18n registry remains registration/validation/lookup/fallback only
+  - current static plugin registration remains the accepted compile-time equivalent of future dynamic locale provider registration
+- Final validation summary:
+  - `cd web && bun run check`
+  - `git diff --check`
+- Follow-up status: `superseded`
+- Superseded by:
+  - operating rule `feature-delivery-with-key-first-localization-rule`
+- Next-session prompt: `No continuation required.`
+- Archive note:
+  - Future localization work should proceed as ordinary feature or contract slices. Do not reopen `localization-governance` as a broad active recovery topic unless the key-first baseline itself changes.
