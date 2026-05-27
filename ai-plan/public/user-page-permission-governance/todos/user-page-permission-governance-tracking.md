@@ -51,21 +51,24 @@
 ## Current Recovery Point
 
 - Batch 0 completed topic initialization.
+- Batch 1 completed the user-page permission convergence and was committed as `fae5058` (`fix(user-page-permission):
+  align user actions with centralized guards`).
 - Topic docs now exist under `ai-plan/public/user-page-permission-governance/**`.
 - The current codebase already has the canonical frontend permission building blocks:
   - bootstrap snapshot permission truth in `web/src/store/modules/permission.ts`
   - `v-permission` in `web/src/app/bootstrap/permission-directive.ts`
   - RBAC page reference usage in `web/src/modules/rbac/pages/index.vue`
-- The user-management page still carries the main remaining drift from the archived RBAC visibility work:
-  - page-local permission computed booleans in `web/src/modules/user/pages/index.vue`
-  - visible-but-disabled permission entry points in batch and dropdown actions
-  - missing explicit runtime permission guard checks on privileged handlers
+- Batch 2 regression audit confirms the owned user-management scope is now aligned with the canonical permission path:
+  - user-page visibility entry points use `v-permission`
+  - row dropdown permission-only disabled semantics were removed in favor of visibility filtering
+  - privileged handlers retain local runtime guards through `ensureUserPermission(...)`
+  - no new same-pattern drift remains in the owned `web/src/modules/user/**` scope
 
 ## Batch Plan
 
 1. Batch 0: topic initialization and current-state map. Status: completed.
 2. Batch 1: user page permission implementation. Status: completed.
-3. Batch 2: regression audit and consistency check. Status: pending.
+3. Batch 2: regression audit and consistency check. Status: completed.
 4. Batch 3: archive-ready closeout. Status: pending.
 
 ## Batch 0 Findings Summary
@@ -86,14 +89,27 @@
   - operation-column visibility is aggregated by `canShowOperationColumn`
   - privileged action handlers do not enforce a local runtime guard before API invocation
 
+## Batch 2 Audit Outcome
+
+- `web/src/modules/user/pages/index.vue`
+  - no page-local `canCreate/canUpdate/canDelete/canAssign` computed wrappers remain for template visibility
+  - no permission-only visible-but-disabled batch or dropdown action remains
+  - runtime guards remain present on create, edit, reset-password, status toggle, delete, and role-management handlers
+- `web/src/modules/rbac/pages/index.vue`
+  - still serves as the same reference pattern for `v-permission`-first critical action visibility
+  - retains local permission computed state and some disabled controls, but those are unchanged in this topic and were
+    not widened because Batch 2 found no user-page regression requiring cross-file refactor
+- Validation:
+  - `cd web && bun run check`
+  - `git diff --check`
+
 ## Immediate Next Step
 
-- Batch 2 should audit the owned `user`/`rbac` frontend scope for remaining same-pattern permission drift.
-- Preferred direction:
-  - verify no page-local `canCreate/canUpdate/canDelete/canAssign` wrappers remain in the user page for template
-    visibility only
-  - verify no dropdown or batch action still uses visible-but-disabled semantics only because of missing permission
-  - verify the user page runtime guards are aligned with the existing RBAC visibility strategy without widening scope
+- Batch 3 should perform archive-ready closeout:
+  - rerun final validation/status checks
+  - update `ai-plan/public/README.md` per topic archive convention
+  - write final archive record and remaining risks
+  - create the archive docs commit
 
 ## Validation
 

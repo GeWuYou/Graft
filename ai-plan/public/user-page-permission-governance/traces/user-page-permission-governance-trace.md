@@ -120,3 +120,39 @@
   - table data shape
   - drawer/dialog business flow
   - unrelated shell, layout, or route behavior
+
+## 2026-05-27 Batch 2 completed regression audit and consistency check
+
+- Reused the inherited startup receipt under root `AGENTS.md` for the Batch 2 `web` round.
+- Did not use `graft-multi-agent-batch`; this remained a single-worker audit round.
+- Used `graft-task-closeout` style acceptance logic for owned-scope verification, validation, and commit eligibility.
+- Verified the worktree was clean before the audit and confirmed Batch 1 had already been committed as:
+  - `fae5058` `fix(user-page-permission): align user actions with centralized guards`
+- Ran targeted `rg` audits across the owned `user` and `rbac` frontend scope:
+  - `rg -n "hasPermission|can(Create|Update|Delete|Assign|Read)|v-permission|disabled:" web/src/modules/user web/src/modules/rbac`
+  - `rg -n "handleUserMoreAction|handleOpenUserRoleDrawer|openBatchUserRoleDrawer|submitUserRoleAssignment|hasVisibleUserOperationActions" web/src/modules/user/pages/index.vue`
+- Audit conclusions for `web/src/modules/user/pages/index.vue`:
+  - no page-local `canCreate/canUpdate/canDelete/canAssign` computed wrappers remain that only mirror permission
+    codes for template visibility
+  - create, edit, and manage-role entry points remain on `v-permission`
+  - batch manage-roles visibility remains on `v-permission` rather than visible-disabled permission semantics
+  - row dropdown options are permission-filtered by `userRowMoreOptions(...)` and the dropdown trigger disappears when
+    the filtered option set is empty
+  - privileged handlers still contain runtime guards:
+    - `openUserDrawer`
+    - `openResetPasswordDialog`
+    - `toggleUserStatus`
+    - `confirmDeleteUser`
+    - `handleOpenUserRoleDrawer`
+    - `openBatchUserRoleDrawer`
+    - `submitUserRoleAssignment`
+- Audit conclusions for `web/src/modules/rbac/pages/index.vue`:
+  - it still matches the topic's intended canonical strategy for critical action visibility, using `v-permission` on
+    create, edit, and permission-management entry points
+  - remaining computed permission state and disabled controls in RBAC stay unchanged and are not a user-page
+    regression; Batch 2 did not widen scope into a cross-page refactor
+- No code fix was required in Batch 2.
+- Updated only topic tracking/trace docs to record the regression-audit result.
+- Validation passed:
+  - `cd web && bun run check`
+  - `git diff --check`
