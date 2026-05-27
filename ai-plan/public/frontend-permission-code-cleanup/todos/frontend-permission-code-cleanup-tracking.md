@@ -126,3 +126,27 @@
   - `docs(frontend-permission-cleanup): record regression audit`
 - Batch 3:
   - `docs(frontend-permission-cleanup): archive governance topic`
+
+## Batch 2 Result
+
+- ran owned-scope regression audit for:
+  - `ROLE_PERMISSION_MANAGE`
+  - canonical naming around `role.permission.assign`
+  - obsolete alias-helper or deprecated permission-constant patterns
+- audit conclusion:
+  - no remaining `ROLE_PERMISSION_MANAGE` usage exists in owned frontend runtime/type scope
+  - `web/src/modules/rbac/contract/permissions.ts` exposes only canonical
+    `ROLE_PERMISSION_ASSIGN -> role.permission.assign`
+  - no obsolete alias helper or deprecated permission constant pattern was found in owned runtime helpers
+  - no same-semantic residual fix was required after Batch 1
+- visibility-check coverage confirmed in owned scope:
+  - RBAC page assign-permission button and related computed guards use `ROLE_PERMISSION_ASSIGN`
+  - user page role-management visibility remains canonical through
+    `userRoleManagePermissionCodes = [USER_ROLE_READ, USER_ROLE_ASSIGN]`
+  - route visibility logic in `web/src/store/modules/permission.ts` remains bootstrap-driven and unchanged by this topic
+  - dropdown/action visibility checks in owned RBAC and user pages still flow through `hasPermission`,
+    `hasAnyPermission`, or `v-permission`
+- acceptance status:
+  - alias drift is closed within owned runtime scope
+  - no topic expansion was needed
+  - Batch 2 is docs-only

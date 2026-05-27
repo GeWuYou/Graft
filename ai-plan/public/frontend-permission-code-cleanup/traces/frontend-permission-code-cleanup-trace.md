@@ -74,3 +74,42 @@
 - Batch 1 closeout target:
   - create scoped commit `fix(frontend-permission-cleanup): align permission codes with canonical naming` only if both
     validations pass
+
+## 2026-05-27 Batch 2 recorded regression audit evidence
+
+- Reused the inherited startup receipt under root `AGENTS.md` for a `web` round inside `graft-multi-agent-loop`.
+- Did not use `graft-multi-agent-batch`.
+  - Reason: the round remained a single owned-scope regression audit plus topic-doc update; no parallel internal slice
+    was justified.
+- Used `graft-task-closeout` style acceptance logic for audit verification, validation, and scoped commit eligibility.
+- Confirmed the worktree was clean before the Batch 2 doc edits.
+- Ran owned-scope search audit commands:
+  - `rg -n "ROLE_PERMISSION_MANAGE" web/src/modules/rbac web/src/modules/user web/src/store/modules/permission.ts web/src/types -S`
+    - result: no matches
+  - `rg -n "role\\.permission\\.assign|ROLE_PERMISSION_ASSIGN" web/src/modules/rbac web/src/modules/user web/src/store/modules/permission.ts web/src/types -S`
+    - result: canonical RBAC references only
+    - `web/src/modules/rbac/contract/permissions.ts`
+    - `web/src/modules/rbac/pages/index.vue`
+    - `web/src/modules/rbac/pages/index.test.ts`
+    - `web/src/modules/rbac/contract/permission-copy.ts`
+  - `rg -n "alias|deprecated|ROLE_PERMISSION_" web/src/modules/rbac web/src/modules/user web/src/store/modules/permission.ts web/src/types -S`
+    - result: no obsolete alias helper or deprecated permission-constant pattern in owned runtime/type helpers
+- Reviewed owned visibility checkpoints:
+  - `web/src/modules/rbac/pages/index.vue`
+    - assign-permission action uses
+      `v-permission="{ allOf: [permissionCodes.PERMISSION_READ, permissionCodes.ROLE_PERMISSION_ASSIGN] }"`
+    - `canAssignPermissions` uses `permissionStore.hasPermission(permissionCodes.ROLE_PERMISSION_ASSIGN)`
+    - operation-column visibility still uses `permissionStore.hasAnyPermission([... permissionCodes.ROLE_PERMISSION_ASSIGN])`
+  - `web/src/modules/user/pages/index.vue`
+    - batch and row role-assignment actions continue to use `v-permission="{ allOf: userRoleManagePermissionCodes }"`
+    - user action guards remain canonical through `userPermissionCodes.*` and `userRoleManagePermissionCodes`
+  - `web/src/store/modules/permission.ts`
+    - route visibility path remains bootstrap-menu driven
+    - permission visibility helpers remain `hasPermission`, `hasAnyPermission`, and `hasAllPermissions`
+- Determined no runtime patch was required in Batch 2.
+  - Basis: the audit found no remaining alias drift in the allowed owned runtime/type scope.
+- Batch 2 validations to run:
+  - `cd web && bun run check`
+  - `git diff --check`
+- Batch 2 closeout target:
+  - create scoped commit `docs(frontend-permission-cleanup): record regression audit` only if both validations pass
