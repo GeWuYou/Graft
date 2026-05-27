@@ -74,14 +74,14 @@
 1. Batch 1: baseline audit and visibility chain map. Status: completed.
 2. Batch 2: canonical bootstrap menu and route alignment. Status: completed.
 3. Batch 3: critical element permission coverage. Status: completed.
-4. Batch 4: backend permission-guard consistency audit. Status: next.
-5. Batch 5: capability snapshot observability design.
+4. Batch 4: backend permission-guard consistency audit. Status: completed.
+5. Batch 5: capability snapshot observability design. Status: next.
 
 ## Immediate Next Step
 
-- Execute Batch 4 under `graft-multi-agent-loop`.
-- Audit backend API guard consistency across RBAC and bootstrap-adjacent management surfaces.
-- Fix only real permission-code gaps or drift; do not refactor the authorization framework.
+- Execute Batch 5 under `graft-multi-agent-loop`.
+- Design a low-cost capability snapshot observability slice only if it can stay within Option A and avoid RBAC scope expansion.
+- Keep the next round read-first on current backend/frontend snapshot surfaces before proposing instrumentation.
 
 ## Batch 1 Findings Summary
 
@@ -126,3 +126,24 @@
 - Validation completed for Batch 3:
   - `cd web && bun run check`
   - `git diff --check`
+
+## Batch 4 Decision Record
+
+- Executed the backend guard-consistency audit under Option A only and stayed inside the owned backend/recovery scope.
+- Audited explicit permission registry declarations against registered management routes on:
+  - `server/plugins/rbac/**`
+  - `server/plugins/user/**`
+  - `server/plugins/auth/**`
+  - `server/internal/httpx/**`
+- Confirmed the current backend permission-code coverage is already explicit and internally aligned:
+  - RBAC role read/write routes all use declared `httpx.RequirePermission(...)` guards backed by registered RBAC permission codes.
+  - RBAC permission-list and permission-detail routes are guarded by `permission.read`.
+  - RBAC user-role snapshot and mutation routes are guarded by `user.role.read` and `user.role.assign`.
+  - User management routes are guarded by the expected `user.read` / `user.create` / `user.update` / `user.disable` codes.
+  - Admin user-session management routes are guarded by `user.session.read` and `user.session.revoke`.
+  - Auth bootstrap and current-user session routes remain auth-owned and use authenticated/restricted-session guards rather than RBAC permission guards, which matches the current lifecycle split.
+- Confirmed the suspected restricted-session/logout asymmetry is not a backend bug in this slice:
+  - the logout route is registered under `auth` and does not pass through the management-only `restrictedSession` guard attached on `/users/**`
+  - the existing README wording is therefore descriptive rather than evidence of an unguarded management route
+- No real missing permission registry declaration, missing route guard, or naming drift requiring code changes was found in the audited scope.
+- This batch therefore closes as audit-only with no server or web implementation edits.

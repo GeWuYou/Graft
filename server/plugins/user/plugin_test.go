@@ -1284,26 +1284,35 @@ func assertBootstrapMenus(t *testing.T, menus []bootstrapMenuResponse) {
 	if len(menus) != 4 {
 		t.Fatalf("expected filtered menus to keep access-control root, overview, user, and public entries, got %#v", menus)
 	}
-	if menus[0].Code != "access-control.root" ||
-		menus[0].Path != "/access-control" ||
-		menus[0].Permission != "" ||
-		menus[0].TitleKey != "menu.access_control.title" {
-		t.Fatalf("expected first menu to be access-control root entry, got %#v", menus[0])
+
+	expected := []bootstrapMenuResponse{
+		{
+			Code:     "access-control.root",
+			Path:     "/access-control",
+			TitleKey: "menu.access_control.title",
+		},
+		{
+			Code:     "access-control.overview",
+			Path:     "/access-control/overview",
+			TitleKey: "menu.access_control.overview.title",
+		},
+		{
+			Code:       "user.list",
+			Path:       "/access-control/users",
+			Permission: usercontract.UserReadPermission.String(),
+			TitleKey:   "menu.access_control.users.title",
+		},
+		{
+			Code: "profile.self",
+			Path: "/profile",
+		},
 	}
-	if menus[1].Code != "access-control.overview" ||
-		menus[1].Path != "/access-control/overview" ||
-		menus[1].Permission != "" ||
-		menus[1].TitleKey != "menu.access_control.overview.title" {
-		t.Fatalf("expected second menu to be access-control overview entry, got %#v", menus[1])
-	}
-	if menus[2].Code != "user.list" ||
-		menus[2].Path != "/access-control/users" ||
-		menus[2].Permission != usercontract.UserReadPermission.String() ||
-		menus[2].TitleKey != "menu.access_control.users.title" {
-		t.Fatalf("expected third menu to be users entry, got %#v", menus[2])
-	}
-	if menus[3].Code != "profile.self" || menus[3].Path != "/profile" || menus[3].Permission != "" {
-		t.Fatalf("expected public profile menu, got %#v", menus[3])
+
+	for i, want := range expected {
+		got := menus[i]
+		if got.Code != want.Code || got.Path != want.Path || got.Permission != want.Permission || got.TitleKey != want.TitleKey {
+			t.Fatalf("expected bootstrap menu %d to be %#v, got %#v", i, want, got)
+		}
 	}
 }
 

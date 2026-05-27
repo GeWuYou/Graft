@@ -28,6 +28,14 @@ type bootstrapReader struct {
 
 const localeFallbackCapacity = 2
 
+const (
+	accessControlOrderRoot = iota
+	accessControlOrderOverview
+	accessControlOrderUsers
+	accessControlOrderRoles
+	accessControlOrderPermissions
+)
+
 type bootstrapResponse struct {
 	User               loginUserResponse       `json:"user"`
 	MustChangePassword bool                    `json:"must_change_password"`
@@ -207,15 +215,15 @@ func compareBootstrapMenus(left, right bootstrapMenuResponse) int {
 func accessControlBootstrapOrder(path string) (int, bool) {
 	switch path {
 	case "/access-control":
-		return 0, true
+		return accessControlOrderRoot, true
 	case "/access-control/overview":
-		return 1, true
+		return accessControlOrderOverview, true
 	case "/access-control/users":
-		return 2, true
+		return accessControlOrderUsers, true
 	case "/access-control/roles":
-		return 3, true
+		return accessControlOrderRoles, true
 	case "/access-control/permissions":
-		return 4, true
+		return accessControlOrderPermissions, true
 	default:
 		return 0, false
 	}

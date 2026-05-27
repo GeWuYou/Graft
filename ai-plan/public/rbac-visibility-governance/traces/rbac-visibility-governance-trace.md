@@ -117,3 +117,38 @@
 - Remaining known drift after this round:
   - `web/src/modules/user/pages/index.vue` still needs the same visibility-governance tightening on dangerous actions
   - backend guard consistency across RBAC and adjacent management routes still needs its dedicated Batch 4 audit
+
+## 2026-05-27 Batch 4 audited backend API guard consistency with no code gap found
+
+- Executed Batch 4 as a delegated worker round under `graft-multi-agent-loop`.
+- Kept the round inside the declared backend/recovery scope and Option A only.
+- Audited backend permission guard coverage across:
+  - `server/plugins/rbac/**`
+  - `server/plugins/user/**`
+  - `server/plugins/auth/**`
+  - `server/internal/httpx/**`
+- Compared explicit permission registry items with route registration and guard wiring.
+- Confirmed RBAC management route coverage is already explicit and consistent:
+  - role list/detail use `role.read`
+  - role create uses `role.create`
+  - role update uses `role.update`
+  - role status uses `role.status.update`
+  - role delete uses `role.delete`
+  - role-permission mutation routes use `role.permission.assign`
+  - role-permission binding snapshot uses `permission.read`
+  - permission list/detail routes use `permission.read`
+  - user-role snapshot uses `user.role.read`
+  - user-role mutation routes use `user.role.assign`
+- Confirmed bootstrap-adjacent management route coverage is also explicit and consistent:
+  - user list/detail use `user.read`
+  - user create uses `user.create`
+  - user update and password reset use `user.update`
+  - user status and delete use `user.disable`
+  - admin user-session list uses `user.session.read`
+  - admin user-session revoke routes use `user.session.revoke`
+- Verified that auth-owned bootstrap and current-user session routes intentionally use authenticated and restricted-session guards rather than RBAC permission codes, which matches the current ownership split between `auth`, `user`, and `rbac`.
+- Investigated the possible restricted-session/logout mismatch noted in `server/plugins/user/README.md` and confirmed it is not a management-route guard defect:
+  - logout is registered under `server/plugins/auth/**`
+  - the user-plugin restricted-session guard only applies to `/users/**` management routes
+  - no missing backend guard or permission registry item was found from that path
+- The round therefore produced no implementation changes; it closes as an audit-only confirmation that no real backend guard gap is present in the current owned scope.
