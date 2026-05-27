@@ -20,8 +20,8 @@ import (
 
 // Plugin 是当前 MVP 阶段的最小审计插件。
 //
-// 该插件在 Register 阶段挂载请求级自动审计中间件，并订阅主动审计事件；
-// 当前不暴露查询路由，也不承载归档和分析逻辑。
+// 该插件在 Register 阶段挂载请求级自动审计中间件、受权只读查询路由、
+// 菜单/权限声明，并订阅主动审计事件；当前不承载归档和分析逻辑。
 type Plugin struct {
 	recorder *auditcore.Service
 }
@@ -50,20 +50,34 @@ func (p *Plugin) Version() string {
 
 // DependsOn 返回当前插件依赖列表。
 func (p *Plugin) DependsOn() []string {
-	return nil
+	return []string{"user", "rbac"}
 }
 
-// Register 挂载 HTTP 自动审计与 event bus 主动审计接线。
+// Register 挂载 HTTP 自动审计、受权查询路由与 event bus 主动审计接线。
 func (p *Plugin) Register(ctx *plugin.Context) error {
 	if p.recorder == nil {
 		return errors.New("audit recorder is unavailable")
 	}
+	if err := registerAuditMessages(ctx.I18n); err != nil {
+		return err
+	}
+	registerAuditPermissions(ctx.PermissionRegistry, p.Name())
+	registerAuditMenu(ctx.MenuRegistry, p.Name())
+	if err := registerAuditService(ctx, p.recorder); err != nil {
+		return err
+	}
+
 	logger := ctx.Logger
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	if ctx.Router != nil {
 		ctx.Router.Use(requestAuditMiddleware(logger, p.recorder))
+		guard, err := p.resolveRouteGuard(ctx)
+		if err != nil {
+			return err
+		}
+		registerAuditRoutes(ctx, p.Name(), p.recorder, guard)
 	}
 	if ctx.EventBus == nil {
 		return errors.New("event bus is unavailable")

@@ -26,20 +26,23 @@
 
 - Governance source: `root AGENTS.md`
 - Task class: `cross-boundary`
-- Recovery source: `parent topic`
+- Recovery source: `subtopic`
   - `ai-plan/public/README.md`
+  - `ai-plan/public/audit-plugin-mvp/README.md`
+  - `ai-plan/public/audit-plugin-mvp/todos/audit-plugin-mvp-tracking.md`
+  - `ai-plan/public/audit-plugin-mvp/traces/audit-plugin-mvp-trace.md`
   - archived `backend-rbac-contract-audit`
   - current plugin/OpenAPI/web bootstrap implementation
 - Loop mode: `topic-completion-loop`
 
 ## Batch State
 
-- Current batch: `Batch 2 - Backend API, permission, menu, OpenAPI contract`
+- Current batch: `Batch 3 - Backend recording integration for user and RBAC actions`
 - Completed batches:
   - `Batch 0 - Exploration and worktree/topic setup`
   - `Batch 1 - Backend audit domain design and schema`
-- Pending batches:
   - `Batch 2 - Backend API, permission, menu, OpenAPI contract`
+- Pending batches:
   - `Batch 3 - Backend recording integration for user and RBAC actions`
   - `Batch 4 - Frontend audit module and page`
   - `Batch 5 - Cross-boundary integration and regression`
@@ -68,10 +71,10 @@
 
 - The current repository already contains a minimal audit plugin and historical audit-related migrations, so MVP work
   is additive and corrective rather than greenfield.
-- The existing audit plugin is write-only today; query API, permissions, menu, OpenAPI path additions, and web page
-  still need explicit implementation.
-- The first audit worktree attempt was incorrectly branched from `main`; Batch 0 corrected this by rebuilding the
-  worktree from the clean RBAC baseline before continuing.
+- Batch 2 closed only the guarded read path; richer domain write-path recording for user and RBAC mutations still belongs
+  to Batch 3.
+- The root OpenAPI spec and backend generated bundle/types are now updated for audit read closure, but frontend audit
+  module work remains untouched until Batch 4.
 
 ## Exploration Snapshot
 
@@ -80,51 +83,37 @@
   - `server/internal/pluginregistry/generated.go` is the single generated compile-time registry consumed by CLI/runtime.
   - `server/internal/pluginregistry/registry.go` expands ordered descriptors and default migration dirs.
 - Audit plugin current baseline:
-  - `server/plugins/audit/plugin.go` already mounts request-level middleware and subscribes to
-    `pluginapi.AuditRecordEventName`.
-  - `server/internal/audit/service.go` and `server/plugins/audit/store*` are write-only today; there is no read/query
-    service or HTTP API yet.
-  - Current stored fields are request-oriented `operator_*`, `action`, `resource_*`, `request_*`, `ip`, `user_agent`,
-    `success`, `error_message`, `created_at`.
-- Migration pattern:
-  - `graft migrate up` defaults to `pluginregistry.DefaultMigrationDir`, which synthesizes a temporary Atlas chain from
-    ordered plugin-owned migration dirs.
-  - `server/internal/ent/migrate/migrations` is historical shared migration storage only, not the default apply chain.
+  - `server/plugins/audit/plugin.go` mounts request-level automatic audit middleware and now also mounts guarded read
+    routes, registers plugin-owned permissions/menus/messages, and exports the read service for plugin lifecycle wiring.
+  - `server/internal/audit/service.go` remains the canonical read/write service surface; Batch 2 reused `List(ctx, query)`
+    instead of adding a parallel read model.
 - OpenAPI/generated pattern:
   - Canonical source lives in `openapi/openapi.yaml` plus `openapi/paths/**`.
-  - Backend generated types live under `server/internal/contract/openapi/**`.
-  - Web generated types live under `web/src/contracts/openapi/generated/schema.ts` and are produced by
-    `bun run openapi:types`.
+  - Batch 2 added `/api/audit/logs` plus audit list schemas, refreshed `openapi/dist/openapi.bundle.json`, and refreshed
+    `server/internal/contract/openapi/generated/types.gen.go` plus the narrow `server/internal/contract/openapi/audit/**`
+    package.
+  - Web generated schema was not refreshed in this batch because no owned-scope frontend runtime or contract consumer was
+    added yet.
 - HTTP/authz pattern:
-  - `server/internal/httpx/response.go` defines the uniform success/error envelope and request-id handling.
-  - `server/internal/httpx/authz.go` attaches `pluginapi.RequestAuthContext` after authentication and uses
-    `RequirePermission` for guarded routes.
+  - `server/internal/httpx/response.go` remains the uniform success/error envelope and request-id boundary.
+  - Audit read routes use `httpx.RequirePermission(..., "audit.read")` and keep the existing localized error behavior.
 - Frontend registration and guard pattern:
-  - `web/src/modules/index.ts` auto-registers only modules that provide both `index.ts` and `bootstrap-routes.ts`.
-  - `web/src/store/modules/permission.ts` stores bootstrap menus/permissions and derives async routes.
-  - `web/src/app/bootstrap/route-guards.ts` restores bootstrap state and mounts dynamic routes.
-  - `web/src/app/bootstrap/permission-directive.ts` implements `v-permission`, while pages often add local computed
-    permission checks before issuing requests.
-- Likely future audit insertion points:
-  - `server/plugins/user/plugin.go` service success points for create/update/status/delete/reset-password.
-  - `server/plugins/rbac/write_service.go` management writer success points for role and binding mutations.
+  - Batch 2 only registered the backend bootstrap menu contract for `/audit/logs`; no frontend page/module work was
+    started.
 
 ## Batch Implications
 
-- Batch 1 should evolve the existing audit plugin instead of creating a second audit baseline.
-- Batch 2 should add audit OpenAPI path fragments into the canonical root `openapi/**` chain and keep generated outputs
-  aligned through the existing backend/web workflows.
-- Batch 3 should keep current request-level auto audit as fallback and add richer domain events at user/rbac
-  service-writer success points.
-- Batch 4 should follow the existing `index.ts + bootstrap-routes.ts + module api/types + list page` pattern and avoid
-  inventing a new route-meta permission system.
+- Batch 3 should add domain-owned active-audit emission at user/rbac write success points instead of altering the settled
+  audit read contract.
+- Batch 4 should consume the existing `audit.read` permission, `/audit/logs` bootstrap menu path, and generated read DTO
+  contract rather than redefining page-local equivalents.
 
 ## Immediate Next Step
 
-- Start Batch 2 on top of the completed backend domain baseline:
-  - add guarded audit read API and plugin-owned route registration
-  - define audit permission/menu/OpenAPI contract without touching web yet
-  - reuse the new service `List(ctx, query)` shape instead of adding a parallel query model
+- Start Batch 3 on top of the completed Batch 2 read contract:
+  - emit explicit audit events from user-management write flows and RBAC write flows
+  - preserve request-level middleware as fallback only
+  - keep Batch 3 inside backend write-path integration without widening the API or frontend scope
 
 ## Batch 1 Snapshot
 
@@ -156,3 +145,38 @@
 - `cd server && go test ./...`
 - `cd server && go run ./cmd/graft validate backend`
 - `git diff --check`
+
+## Batch 2 Snapshot
+
+- Added plugin-owned audit contract values under `server/plugins/audit/contract/**` for:
+  - read permission code `audit.read`
+  - menu title key `menu.audit.logs.title`
+  - guarded API/menu path alignment on `/audit/logs`
+- Completed plugin registration closure for Batch 2:
+  - `DependsOn()` now declares `user`, `rbac`
+  - `Register()` now registers audit messages, permission, menu, read service, and guarded routes before event-bus
+    subscription
+  - route guard resolution now consumes the existing `pluginapi.AuthService` and `pluginapi.Authorizer`
+- Added guarded read API implementation:
+  - plugin-owned route registration at `/api/audit/logs`
+  - generated-parameter binding to `auditcore.ListQuery`
+  - generated response mapping back to the canonical `httpx` success envelope
+- Added root OpenAPI path and schemas for audit list querying and refreshed backend generated artifacts:
+  - `openapi/paths/audit.logs.yaml`
+  - `openapi/components/schemas/audit-log-list-*.yaml`
+  - `openapi/dist/openapi.bundle.json`
+  - `server/internal/contract/openapi/generated/types.gen.go`
+  - `server/internal/contract/openapi/audit/**`
+- Extended audit plugin tests to cover:
+  - new authz wiring requirements in plugin registration
+  - menu/permission/read-route smoke coverage
+
+## Batch 2 Validation
+
+- `cd server && go test ./...`
+- `cd server && go run ./cmd/graft validate backend`
+- `git diff --check`
+- OpenAPI/backend generated step executed:
+  - `cd web && bun ../scripts/openapi-bundle.mjs`
+  - `cd server && go generate ./internal/contract/openapi`
+- Web generated schema intentionally not updated in Batch 2 because no owned-scope frontend runtime or consumer was added.

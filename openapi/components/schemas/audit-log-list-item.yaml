@@ -1,0 +1,48 @@
+type: object
+required:
+  - id
+  - action
+  - resource_type
+  - success
+  - request_id
+  - ip
+  - user_agent
+  - message
+  - metadata
+  - created_at
+properties:
+  id:
+    type: integer
+    format: int64
+  actor_user_id:
+    type: integer
+    format: int64
+    nullable: true
+  actor_username:
+    type: string
+  actor_display_name:
+    type: string
+  action:
+    type: string
+  resource_type:
+    type: string
+  resource_id:
+    type: string
+  resource_name:
+    type: string
+  success:
+    type: boolean
+  request_id:
+    type: string
+  ip:
+    type: string
+  user_agent:
+    type: string
+  message:
+    type: string
+  metadata:
+    type: object
+    additionalProperties: true
+  created_at:
+    type: string
+    format: date-time

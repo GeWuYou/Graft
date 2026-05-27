@@ -75,3 +75,38 @@
   - `cd server && go run ./cmd/graft validate backend` initially failed on owned-scope lint issues, then passed after local fixes in `sanitize.go`, `pluginapi/audit.go`, `plugin.go`, and `storeent/repository.go`
   - `git diff --check` passed
 - Batch status is now truly aligned with docs: Batch 1 complete, Batch 2 remains the next batch and was not started in this round.
+
+## 2026-05-27 Batch 2 retry worker recovered partial state and closed Batch 2
+
+- Re-established startup governance from root `AGENTS.md`, `server/AGENTS.md`, `web/AGENTS.md`, and the audit topic
+  recovery docs before touching the carried-over partial diff.
+- Audited the inherited partial state instead of discarding it:
+  - kept the existing `plugin.go` lifecycle direction
+  - kept the draft audit contract and route files where they matched repository patterns
+  - rewrote only the parts that drifted from actual generated/OpenAPI/authz contracts
+- Closed the Batch 2 backend read contract by adding plugin-owned:
+  - permission code `audit.read`
+  - menu title key `menu.audit.logs.title`
+  - menu/API path alignment on `/audit/logs`
+  - guarded route registration at `/api/audit/logs`
+  - read-service registration and authz guard resolution through existing `pluginapi.AuthService` and `pluginapi.Authorizer`
+- Added audit OpenAPI contract closure:
+  - root spec path `/api/audit/logs`
+  - audit list schemas and enveloped response schema
+  - narrow generated package `server/internal/contract/openapi/audit`
+  - refreshed checked-in bundle `openapi/dist/openapi.bundle.json`
+  - refreshed backend generated types `server/internal/contract/openapi/generated/types.gen.go`
+- Corrected two real partial-state contract bugs during takeover:
+  - the first draft had route registration on `/api/audit` while menu/OpenAPI targeted `/audit/logs`
+  - the first draft bound generated `created_from` / `created_to` params as `string` instead of generated `time.Time`
+- Added/updated bounded audit plugin tests so Batch 2 registration now verifies:
+  - authz dependencies are available in the plugin context
+  - request middleware and active-event behavior still work
+  - permission/menu/read-route surface is mounted and responds on the guarded route
+- Validation result:
+  - `cd server && go test ./...` passed
+  - `cd server && go run ./cmd/graft validate backend` passed after refactoring the audit query binder to satisfy owned-scope `gocognit`
+  - `git diff --check` passed
+  - `cd web && bun ../scripts/openapi-bundle.mjs` ran to refresh the bundled spec used by backend generated types
+  - `cd server && go generate ./internal/contract/openapi` ran to refresh backend generated contract artifacts
+- Batch status is now truly aligned with docs: Batch 2 complete, next batch is Batch 3 backend write-path integration.

@@ -116,6 +116,17 @@ func newPluginTestContext(t *testing.T, repo store.AuditRepository) (*plugin.Con
 		CronRegistry:       cronx.NewRegistry(),
 	}
 
+	if err := ctx.Services.RegisterSingleton((*pluginapi.AuthService)(nil), func(container.Resolver) (any, error) {
+		return stubAuthService{user: pluginapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}}, nil
+	}); err != nil {
+		t.Fatalf("register auth service: %v", err)
+	}
+	if err := ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(container.Resolver) (any, error) {
+		return allowAuthorizer{}, nil
+	}); err != nil {
+		t.Fatalf("register authorizer: %v", err)
+	}
+
 	pluginInstance, err := NewPlugin(repo)
 	if err != nil {
 		t.Fatalf("build audit plugin: %v", err)
@@ -299,5 +310,42 @@ func TestRegisterSwallowsActiveAuditWriteErrors(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("expected active audit failure to be swallowed, got %v", err)
+	}
+}
+
+func TestRegisterExposesAuditReadSurface(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	ctx, engine, _ := newPluginTestContext(t, repo)
+
+	foundPermission := false
+	for _, item := range ctx.PermissionRegistry.Items() {
+		if item.Code == "audit.read" {
+			foundPermission = true
+			break
+		}
+	}
+	if !foundPermission {
+		t.Fatal("expected audit.read permission to be registered")
+	}
+
+	items := ctx.MenuRegistry.Items()
+	foundMenu := false
+	for _, item := range items {
+		if item.Path == "/audit/logs" && item.Permission == "audit.read" {
+			foundMenu = true
+			break
+		}
+	}
+	if !foundMenu {
+		t.Fatal("expected audit menu item to be registered")
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
 }

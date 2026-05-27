@@ -202,15 +202,44 @@ type ApiEnvelope struct {
 	Data interface{} `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
 	// TraceId Mirrors the request id contract used by the current runtime.
 	TraceId string `json:"traceId"`
+}
+
+// AuditLogListItem defines model for audit-log-list-item.
+type AuditLogListItem struct {
+	Action           string                 `json:"action"`
+	ActorDisplayName *string                `json:"actor_display_name,omitempty"`
+	ActorUserId      *int64                 `json:"actor_user_id,omitempty"`
+	ActorUsername    *string                `json:"actor_username,omitempty"`
+	CreatedAt        time.Time              `json:"created_at"`
+	Id               int64                  `json:"id"`
+	Ip               string                 `json:"ip"`
+	Message          string                 `json:"message"`
+	Metadata         map[string]interface{} `json:"metadata"`
+	RequestId        string                 `json:"request_id"`
+	ResourceId       *string                `json:"resource_id,omitempty"`
+	ResourceName     *string                `json:"resource_name,omitempty"`
+	ResourceType     string                 `json:"resource_type"`
+	Success          bool                   `json:"success"`
+	UserAgent        string                 `json:"user_agent"`
+}
+
+// AuditLogListResponse defines model for audit-log-list-response.
+type AuditLogListResponse struct {
+	Items    []AuditLogListItem `json:"items"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"page_size"`
+	Total    int                `json:"total"`
 }
 
 // BatchUserRolesRequest defines model for batch-user-roles-request.
@@ -229,12 +258,16 @@ type BootstrapLocale struct {
 
 // BootstrapMenu defines model for bootstrap-menu.
 type BootstrapMenu struct {
-	Code       string  `json:"code"`
-	Icon       string  `json:"icon"`
-	Path       string  `json:"path"`
-	Permission string  `json:"permission"`
-	Title      string  `json:"title"`
-	TitleKey   *string `json:"title_key,omitempty"`
+	Code       string `json:"code"`
+	Icon       string `json:"icon"`
+	Path       string `json:"path"`
+	Permission string `json:"permission"`
+
+	// Title Existing menu-title fallback text. Consumers should prefer title_key when present.
+	Title string `json:"title"`
+
+	// TitleKey Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only.
+	TitleKey *string `json:"title_key,omitempty"`
 }
 
 // BootstrapResponse defines model for bootstrap-response.
@@ -279,6 +312,26 @@ type CreateUserRequest struct {
 	Username string `json:"username"`
 }
 
+// EnvelopedAuditLogListResponse defines model for enveloped-audit-log-list-response.
+type EnvelopedAuditLogListResponse struct {
+	// Code Existing canonical response code.
+	Code string               `json:"code"`
+	Data AuditLogListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedBootstrapResponse defines model for enveloped-bootstrap-response.
 type EnvelopedBootstrapResponse struct {
 	// Code Existing canonical response code.
@@ -286,10 +339,12 @@ type EnvelopedBootstrapResponse struct {
 	Data BootstrapResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -304,10 +359,12 @@ type EnvelopedEmptyResponse struct {
 	Data interface{} `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -322,10 +379,12 @@ type EnvelopedLoginResponse struct {
 	Data LoginResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -340,10 +399,12 @@ type EnvelopedPermissionItemResponse struct {
 	Data PermissionDetailResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -358,10 +419,12 @@ type EnvelopedPermissionListResponse struct {
 	Data PermissionListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -376,10 +439,12 @@ type EnvelopedRoleDetailResponse struct {
 	Data RoleDetailResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -394,10 +459,12 @@ type EnvelopedRoleItemResponse struct {
 	Data RoleListItem `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -412,10 +479,12 @@ type EnvelopedRoleListResponse struct {
 	Data RoleListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -430,10 +499,12 @@ type EnvelopedRolePermissionBindingResponse struct {
 	Data RolePermissionBindingResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -448,10 +519,12 @@ type EnvelopedServerStatusResponse struct {
 	Data ServerStatusResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -466,10 +539,12 @@ type EnvelopedSessionListResponse struct {
 	Data []SessionSummary `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -484,10 +559,12 @@ type EnvelopedUserItemResponse struct {
 	Data UserListItem `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -502,10 +579,12 @@ type EnvelopedUserListResponse struct {
 	Data UserListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -520,10 +599,12 @@ type EnvelopedUserRoleBindingResponse struct {
 	Data UserRoleBindingResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
-	Locale  *string `json:"locale,omitempty"`
-	Message string  `json:"message"`
+	Locale *string `json:"locale,omitempty"`
 
-	// MessageKey Present on localized error flows and omitted on normal success.
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
 	MessageKey *string `json:"messageKey,omitempty"`
 	Success    bool    `json:"success"`
 
@@ -537,12 +618,18 @@ type ErrorResponse struct {
 	Code string `json:"code"`
 
 	// Data Optional structured error details preserved from the current runtime.
-	Data       *map[string]interface{} `json:"data,omitempty"`
-	Locale     *string                 `json:"locale,omitempty"`
-	Message    string                  `json:"message"`
-	MessageKey *string                 `json:"messageKey,omitempty"`
-	Success    ErrorResponseSuccess    `json:"success"`
-	TraceId    string                  `json:"traceId"`
+	Data *map[string]interface{} `json:"data,omitempty"`
+
+	// Locale Locale used to resolve the fallback message text in this response.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text paired with messageKey for compatibility.
+	Message string `json:"message"`
+
+	// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+	MessageKey *string              `json:"messageKey,omitempty"`
+	Success    ErrorResponseSuccess `json:"success"`
+	TraceId    string               `json:"traceId"`
 }
 
 // ErrorResponseSuccess defines model for ErrorResponse.Success.
@@ -587,14 +674,20 @@ type PermissionDetailResponse = PermissionListItem
 
 // PermissionListItem defines model for permission-list-item.
 type PermissionListItem struct {
-	Category         string  `json:"category"`
-	Code             string  `json:"code"`
-	CreatedAt        string  `json:"created_at"`
-	Description      *string `json:"description,omitempty"`
-	Display          string  `json:"display"`
-	Id               int64   `json:"id"`
-	RoleBindingCount int     `json:"role_binding_count"`
-	UpdatedAt        string  `json:"updated_at"`
+	Category string `json:"category"`
+
+	// Code Stable permission code contract.
+	Code      string `json:"code"`
+	CreatedAt string `json:"created_at"`
+
+	// Description Current server-provided fallback description text. A future key-based localization contract would be additive.
+	Description *string `json:"description,omitempty"`
+
+	// Display Current server-provided fallback display text. This schema does not yet expose a canonical display_key contract.
+	Display          string `json:"display"`
+	Id               int64  `json:"id"`
+	RoleBindingCount int    `json:"role_binding_count"`
+	UpdatedAt        string `json:"updated_at"`
 }
 
 // PermissionListResponse defines model for permission-list-response.
@@ -876,6 +969,28 @@ type bearerAuthContextKey string
 
 // refreshCookieContextKey is the context key for refreshCookie security scheme
 type refreshCookieContextKey string
+
+// GetAuditLogsParams defines parameters for GetAuditLogs.
+type GetAuditLogsParams struct {
+	Page         *int       `form:"page,omitempty" json:"page,omitempty"`
+	PageSize     *int       `form:"page_size,omitempty" json:"page_size,omitempty"`
+	ActorUserId  *int64     `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
+	Action       *string    `form:"action,omitempty" json:"action,omitempty"`
+	ResourceType *string    `form:"resource_type,omitempty" json:"resource_type,omitempty"`
+	ResourceId   *string    `form:"resource_id,omitempty" json:"resource_id,omitempty"`
+	ResourceName *string    `form:"resource_name,omitempty" json:"resource_name,omitempty"`
+	RequestId    *string    `form:"request_id,omitempty" json:"request_id,omitempty"`
+	Success      *bool      `form:"success,omitempty" json:"success,omitempty"`
+	CreatedFrom  *time.Time `form:"created_from,omitempty" json:"created_from,omitempty"`
+	CreatedTo    *time.Time `form:"created_to,omitempty" json:"created_to,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAuthBootstrapParams defines parameters for GetAuthBootstrap.
 type GetAuthBootstrapParams struct {

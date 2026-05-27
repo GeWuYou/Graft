@@ -17,13 +17,15 @@
 
 ## Current Recovery Point
 
-- Batch 1 is complete.
-- The audit plugin backend domain now carries richer persisted fields for actor identity, resource naming, request id,
-  message, and JSON metadata while keeping the existing plugin boundary intact.
-- Current focus moves to Batch 2:
-  - expose read/query capability through backend API and permission/menu/OpenAPI wiring
-  - keep the new query model aligned with existing HTTP envelope and route registration patterns
-  - avoid widening into user/rbac write-path integration before the API contract exists
+- Batch 2 is complete.
+- The audit plugin now exposes a guarded read/query API at `/api/audit/logs` with plugin-owned permission, menu, and
+  OpenAPI contract closure.
+- Backend generated contract artifacts were refreshed from the canonical root OpenAPI workflow and validated against the
+  existing HTTP envelope, request-id, and authz chain.
+- Current focus moves to Batch 3:
+  - integrate richer audit recording into user and RBAC write paths
+  - reuse the settled audit read contract instead of widening the API surface
+  - keep request-level auto audit as fallback while adding explicit domain events at write success points
 
 ## Owned Scope
 
