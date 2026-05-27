@@ -107,6 +107,7 @@ var (
 //
 // Service 保持为 `server` 唯一项目级 facade：调用方只消费 namespace、locale、
 // message key、fallback message 等稳定项目概念，而不直接依赖底层实现细节。
+// 该 facade 只拥有 key 注册、校验和回退规则，不拥有前端显示文案的长期所有权。
 type Service struct {
 	defaultLocale  string
 	fallbackLocale string
@@ -269,6 +270,13 @@ func (s *Service) Message(locale string, key string) string {
 }
 
 // Lookup 使用 facade 的稳定项目概念做一次消息解析。
+//
+// 当 catalog 中缺少目标消息时，返回顺序固定为：
+// 1. fallback locale / default locale 中的已注册文案
+// 2. 显式传入的 FallbackMessage
+// 3. 稳定 message key 自身
+//
+// 这保证跨边界调用方可以长期消费 `key + fallback`，而不是把 server 文案当成唯一真相。
 func (s *Service) Lookup(req LookupRequest) string {
 	key := strings.TrimSpace(string(req.Key))
 	if key == "" {

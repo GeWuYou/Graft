@@ -4626,11 +4626,12 @@
             "description": "Existing canonical response code."
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present."
           },
           "messageKey": {
             "type": "string",
-            "description": "Present on localized error flows and omitted on normal success."
+            "description": "Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text."
           },
           "locale": {
             "type": "string",
@@ -4725,13 +4726,16 @@
             "description": "Existing canonical error response code."
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "Existing runtime fallback text paired with messageKey for compatibility."
           },
           "messageKey": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable error localization key. Consumers should prefer this key and use message only as fallback text."
           },
           "locale": {
-            "type": "string"
+            "type": "string",
+            "description": "Locale used to resolve the fallback message text in this response."
           },
           "traceId": {
             "type": "string"
@@ -4775,10 +4779,12 @@
             "type": "string"
           },
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "Existing menu-title fallback text. Consumers should prefer title_key when present."
           },
           "title_key": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only."
           },
           "path": {
             "type": "string"
@@ -5381,13 +5387,16 @@
             "minimum": 0
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable permission code contract."
           },
           "display": {
-            "type": "string"
+            "type": "string",
+            "description": "Current server-provided fallback display text. This schema does not yet expose a canonical display_key contract."
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "description": "Current server-provided fallback description text. A future key-based localization contract would be additive."
           },
           "category": {
             "type": "string"

@@ -399,7 +399,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { localizedApiErrorMessage } from '@/modules/shared/localized-api-error';
+import { localizedApiErrorMessage, resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import {
   AssignmentCard,
   AssignmentDrawer,
@@ -872,16 +872,17 @@ async function fetchRolePageData() {
       permissionCatalogError.value = '';
     } else {
       permissions.value = [];
-      permissionCatalogError.value =
-        permissionResult.reason instanceof Error
-          ? permissionResult.reason.message
-          : t('rbac.roleList.permissionLoadFailed');
+      permissionCatalogError.value = resolveLocalizedErrorMessage(
+        t,
+        permissionResult.reason,
+        t('rbac.roleList.permissionLoadFailed'),
+      );
       MessagePlugin.warning(permissionCatalogError.value);
     }
   } catch (error) {
     roles.value = [];
     logger.error('failed to fetch role page data', error);
-    listError.value = t('rbac.roleList.loadFailed');
+    listError.value = resolveLocalizedErrorMessage(t, error, t('rbac.roleList.loadFailed'));
     MessagePlugin.error(listError.value);
   } finally {
     loading.value = false;
@@ -1156,7 +1157,7 @@ async function handleRoleSubmit(ctx: SubmitContext) {
       return;
     }
 
-    MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.submitFailed'));
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.submitFailed')));
   } finally {
     submittingRole.value = false;
   }
@@ -1212,8 +1213,11 @@ async function loadRolePermissionSelection(roleId: number, session: number) {
       return false;
     }
 
-    permissionLoadWarning.value =
-      error instanceof Error ? error.message : t('rbac.roleList.permissionDialog.selectionLoadFailed');
+    permissionLoadWarning.value = resolveLocalizedErrorMessage(
+      t,
+      error,
+      t('rbac.roleList.permissionDialog.selectionLoadFailed'),
+    );
     permissionLoadRetryable.value = true;
     return false;
   } finally {
@@ -1357,7 +1361,7 @@ async function submitPermissionAssignment() {
         return;
       }
 
-      MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.assignFailed'));
+      MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.assignFailed')));
     }
   } finally {
     if (permissionDrawerSession.value === session) {
@@ -1397,7 +1401,7 @@ async function toggleRoleStatus(role: RoleStatusCompat) {
       return;
     }
 
-    MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.statusUpdateFailed'));
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.statusUpdateFailed')));
   }
 }
 
@@ -1423,7 +1427,7 @@ async function removeRole(role: RoleStatusCompat) {
       return;
     }
 
-    MessagePlugin.error(error instanceof Error ? error.message : t('rbac.roleList.deleteFailed'));
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.deleteFailed')));
   }
 }
 

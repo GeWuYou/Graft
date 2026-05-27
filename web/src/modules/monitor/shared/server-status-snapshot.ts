@@ -1,6 +1,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
+
 import { getServerStatus } from '../api/server-status';
 import { useMonitorRefreshPreferences } from '../composables/use-monitor-refresh-preferences';
 import { MONITOR_TREND_RANGE } from '../contract/trend';
@@ -44,7 +46,7 @@ export function useServerStatusSnapshot() {
       consecutiveFailures.value = 0;
     } catch (error) {
       consecutiveFailures.value += 1;
-      errorMessage.value = resolveErrorMessage(error, t('monitor.shared.loadFailed'));
+      errorMessage.value = resolveLocalizedErrorMessage(t, error, t('monitor.shared.loadFailed'));
     } finally {
       loading.value = false;
       initialized.value = true;
@@ -249,15 +251,4 @@ export function displayText(value?: string | null) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : '--';
-}
-
-function resolveErrorMessage(error: unknown, fallbackMessage: string) {
-  if (error instanceof Error) {
-    const trimmed = error.message.trim();
-    if (trimmed) {
-      return trimmed;
-    }
-  }
-
-  return fallbackMessage;
 }

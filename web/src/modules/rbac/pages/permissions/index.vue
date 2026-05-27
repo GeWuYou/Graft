@@ -230,6 +230,7 @@ import { MessagePlugin, type TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import {
   ManagementEmptyState,
   ManagementPageContent,
@@ -340,7 +341,7 @@ async function fetchPermissions() {
   } catch (error) {
     permissions.value = [];
     logger.error('failed to fetch permissions', error);
-    listError.value = t('rbac.permissionList.loadFailed');
+    listError.value = resolveLocalizedErrorMessage(t, error, t('rbac.permissionList.loadFailed'));
     MessagePlugin.error(listError.value);
   } finally {
     loading.value = false;
@@ -372,7 +373,7 @@ async function loadPermissionDetail(permissionId: number) {
   } catch (error) {
     detailRecord.value = null;
     logger.warn('failed to fetch permission detail', error);
-    detailError.value = t('rbac.permissionList.detailLoadFailed');
+    detailError.value = resolveLocalizedErrorMessage(t, error, t('rbac.permissionList.detailLoadFailed'));
     MessagePlugin.error(detailError.value);
   } finally {
     detailLoading.value = false;

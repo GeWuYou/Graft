@@ -7,10 +7,13 @@ properties:
     minimum: 0
   code:
     type: string
+    description: Stable permission code contract.
   display:
     type: string
+    description: Current server-provided fallback display text. This schema does not yet expose a canonical display_key contract.
   description:
     type: string
+    description: Current server-provided fallback description text. A future key-based localization contract would be additive.
   category:
     type: string
   created_at:

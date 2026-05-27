@@ -374,6 +374,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { TChartColor } from '@/config/color';
+import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { useSettingStore } from '@/store';
 
 import { getServerStatus } from '../../api/server-status';
@@ -950,9 +951,7 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
     consecutiveFailures.value += 1;
 
     if (options.manual || previousFailures === 0) {
-      const fallbackMessage = t('monitor.serverStatus.loadFailed');
-      const message = error instanceof Error && error.message.trim() ? error.message : fallbackMessage;
-      MessagePlugin.error(message);
+      MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('monitor.serverStatus.loadFailed')));
     }
   } finally {
     loading.value = false;

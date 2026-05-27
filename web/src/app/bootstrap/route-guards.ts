@@ -4,8 +4,10 @@ import NProgress from 'nprogress';
 import { MessagePlugin } from 'tdesign-vue-next';
 import type { Router, RouteRecordRaw } from 'vue-router';
 
+import { t } from '@/locales';
 import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
+import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import router from '@/router';
 import { getPermissionStore } from '@/store';
 import { isRootEntryPath, resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH } from '@/utils/route';
@@ -131,7 +133,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
           next({ path: RUNTIME_ENTRY_FALLBACK_PATH, replace: true });
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Login state expired';
+        const message = resolveLocalizedErrorMessage(t, error, t('app.auth.login.loginExpired'));
         MessagePlugin.error(message);
         // bootstrap 恢复失败意味着当前会话无法再信任，需要同时清理本地 token
         // 和已挂载的动态路由，再把用户送回登录页重新建立会话。

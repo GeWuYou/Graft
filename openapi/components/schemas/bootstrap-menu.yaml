@@ -5,8 +5,10 @@ properties:
     type: string
   title:
     type: string
+    description: Existing menu-title fallback text. Consumers should prefer title_key when present.
   title_key:
     type: string
+    description: Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only.
   path:
     type: string
   icon:

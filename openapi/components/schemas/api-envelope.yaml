@@ -8,9 +8,10 @@ properties:
     description: Existing canonical response code.
   message:
     type: string
+    description: Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
   messageKey:
     type: string
-    description: Present on localized error flows and omitted on normal success.
+    description: Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
   locale:
     type: string
     description: Present on localized error flows and omitted on normal success.

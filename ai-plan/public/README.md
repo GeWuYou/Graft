@@ -10,6 +10,22 @@ every public artifact.
 
 ## Archived Topics
 
+- `localization-governance`
+  - Status: `archived`
+  - Recovery status: no continuation required; do not restore this topic into the active recovery path.
+  - Archive reason: final verification closed the last key-first error rendering gap and confirmed the localization governance baseline is stable enough to leave active recovery.
+  - Final result: key-first localization governance is frozen with `messageKey` / `title_key` as canonical contracts, fallback text remains additive compatibility only, and no blocking baseline gaps remain.
+  - Follow-up status: `superseded`
+  - Superseded by:
+    - operating rule `feature-delivery-with-key-first-localization-rule`
+  - Archived topic directory:
+    - `ai-plan/public/archive/localization-governance`
+  - Archive notes:
+    - future localization work should run as ordinary feature or contract slices instead of reopening a broad governance topic
+    - permission `display_key` remains a future additive enhancement, not a baseline blocker
+    - dynamic plugin locale loading remains intentionally deferred; the current static registration model is accepted as its compile-time equivalent
+  - Next-session prompt: `No next-session prompt required.`
+
 - `ARCHIVED_OPENAPI_GOVERNANCE_SERIES`
   - Status: `archived`
   - Recovery status: no continuation required; do not restore these topics into the active recovery path.

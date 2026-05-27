@@ -42,4 +42,5 @@
 * builtin 角色允许更新展示字段，但不允许通过写接口修改稳定名称
 * 角色/权限写操作单独通过插件内 service/usecase 收敛，而不是在路由层散落规则
 * 目标用户不存在、角色/权限 ID 无效，以及 TOCTOU 场景下已删除 ID 的错误映射，继续保持当前 focused tests 已覆盖的稳定契约
+* 当前权限列表仍只暴露 `display` / `description` 回退文案；未来若增加 `display_key`，必须以 additive contract 方式显式演进，不能把当前返回值描述成已经 key-first
 * RBAC 现阶段使用插件本地 SQL repository 直连共享 `*sql.DB`，不再通过 alias layer 反向依赖 `server/internal/ent/*`

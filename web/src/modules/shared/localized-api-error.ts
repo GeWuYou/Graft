@@ -12,3 +12,37 @@ export function localizedApiErrorMessage(
 
   return fallback?.trim() || '';
 }
+
+function hasApiRequestErrorShape(error: unknown): error is {
+  message: string;
+  messageKey?: string;
+  isApiRequestError: true;
+} {
+  return Boolean(
+    error &&
+    typeof error === 'object' &&
+    'isApiRequestError' in error &&
+    (error as { isApiRequestError?: unknown }).isApiRequestError === true &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string',
+  );
+}
+
+export function resolveLocalizedErrorMessage(
+  translate: (key: string) => string,
+  error: unknown,
+  fallbackMessage: string,
+) {
+  if (hasApiRequestErrorShape(error)) {
+    return localizedApiErrorMessage(translate, error.messageKey, error.message) || fallbackMessage;
+  }
+
+  if (error instanceof Error) {
+    const trimmed = error.message.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  return fallbackMessage;
+}

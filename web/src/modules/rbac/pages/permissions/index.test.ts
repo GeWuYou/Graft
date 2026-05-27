@@ -424,7 +424,7 @@ describe('PermissionPage', () => {
     await wrapper.get('[data-testid="permission-detail"]').trigger('click');
     await flushPromises();
 
-    expect(messageMocks.error).toHaveBeenCalledWith('Failed to load permission details');
+    expect(messageMocks.error).toHaveBeenCalledWith('detail failed');
     expect(wrapper.text()).toContain('Permission details are temporarily unavailable');
     expect(wrapper.text()).toContain('Snapshot description');
   });

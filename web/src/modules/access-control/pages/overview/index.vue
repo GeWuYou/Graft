@@ -176,6 +176,7 @@ import { useRouter } from 'vue-router';
 
 import { getPermissions } from '@/modules/rbac/api/rbac';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
+import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { getRoles as getUserRoles } from '@/modules/user/api/user-roles';
 import { getUsers } from '@/modules/user/api/users';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
@@ -378,7 +379,7 @@ async function fetchOverview() {
     roles.value = [];
     permissions.value = [];
     roleBindings.value = {};
-    loadError.value = error instanceof Error ? error.message : t('accessControl.overview.state.loadFailedDescription');
+    loadError.value = resolveLocalizedErrorMessage(t, error, t('accessControl.overview.state.loadFailedDescription'));
   } finally {
     loading.value = false;
   }

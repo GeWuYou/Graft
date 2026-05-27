@@ -252,6 +252,8 @@
         "wechatLogin": "使用微信扫一扫登录",
         "accountLogin": "使用账号登录",
         "phoneLogin": "使用手机号登录",
+        "loginExpired": "登录状态已失效，请重新登录",
+        "loginFailed": "登录失败，请重试",
         "loginSuccess": "登录成功",
         "countdown": "{count}秒后可重发",
         "input": {
@@ -283,7 +285,8 @@
           "errors": {
             "confirmMismatch": "两次输入的新密码不一致",
             "defaultPasswordForbidden": "不能继续使用默认密码 graft-admin",
-            "policyViolation": "新密码至少 12 位，且必须同时包含字母和数字"
+            "policyViolation": "新密码至少 12 位，且必须同时包含字母和数字",
+            "submitFailed": "密码修改失败，请稍后重试"
           }
         }
       },

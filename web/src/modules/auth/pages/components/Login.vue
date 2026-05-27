@@ -92,6 +92,7 @@ import { API_CODE } from '@/contracts/api/codes';
 import { t } from '@/locales';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
+import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { useCounter } from '@/shared/composables';
 import { isApiRequestError } from '@/utils/request';
 
@@ -164,11 +165,11 @@ const onSubmit = async (ctx: SubmitContext) => {
       }
 
       if (isApiRequestError(error) && error.status === 400 && error.code === API_CODE.AUTH_INVALID_CREDENTIALS) {
-        MessagePlugin.error(error.message);
+        MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('app.auth.login.loginFailed')));
         return;
       }
 
-      MessagePlugin.error(error instanceof Error ? error.message : String(error));
+      MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('app.auth.login.loginFailed')));
     }
   }
 };
