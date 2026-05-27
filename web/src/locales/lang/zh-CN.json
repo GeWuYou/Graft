@@ -285,7 +285,8 @@
           "errors": {
             "confirmMismatch": "两次输入的新密码不一致",
             "defaultPasswordForbidden": "不能继续使用默认密码 graft-admin",
-            "policyViolation": "新密码至少 12 位，且必须同时包含字母和数字"
+            "policyViolation": "新密码至少 12 位，且必须同时包含字母和数字",
+            "submitFailed": "密码修改失败，请稍后重试"
           }
         }
       },

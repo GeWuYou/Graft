@@ -285,7 +285,8 @@
           "errors": {
             "confirmMismatch": "The new passwords do not match",
             "defaultPasswordForbidden": "You cannot keep using the default password graft-admin",
-            "policyViolation": "The new password must be at least 12 characters and include both letters and numbers"
+            "policyViolation": "The new password must be at least 12 characters and include both letters and numbers",
+            "submitFailed": "Failed to update the password. Please try again."
           }
         }
       },

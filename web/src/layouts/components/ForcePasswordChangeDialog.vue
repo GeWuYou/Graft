@@ -151,7 +151,7 @@ const handleSubmit = async (ctx: SubmitContext) => {
     }
 
     MessagePlugin.error(
-      resolveLocalizedErrorMessage(t, error, t('app.auth.login.forcePasswordChange.errors.policyViolation')),
+      resolveLocalizedErrorMessage(t, error, t('app.auth.login.forcePasswordChange.errors.submitFailed')),
     );
   } finally {
     submitting.value = false;
