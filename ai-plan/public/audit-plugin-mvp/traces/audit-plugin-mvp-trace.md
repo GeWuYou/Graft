@@ -110,3 +110,31 @@
   - `cd web && bun ../scripts/openapi-bundle.mjs` ran to refresh the bundled spec used by backend generated types
   - `cd server && go generate ./internal/contract/openapi` ran to refresh backend generated contract artifacts
 - Batch status is now truly aligned with docs: Batch 2 complete, next batch is Batch 3 backend write-path integration.
+
+## 2026-05-27 Batch 3 implemented richer backend recording integration
+
+- Kept the settled Batch 2 read contract unchanged and limited Batch 3 to bounded backend write-path integration.
+- Wired `server/plugins/user` active-audit publish points into these successful management writes:
+  - create user
+  - update user
+  - set user status
+  - delete user
+  - reset user password
+- Wired `server/plugins/rbac` active-audit publish points into these successful management writes:
+  - create/update/status/delete role
+  - replace/add/remove role permissions
+  - replace/add/remove user roles
+- Preserved non-blocking semantics for audit failures on the business success path:
+  - user and rbac write services now log and swallow event-bus publish failures instead of failing the write result
+  - request-level automatic audit middleware remains as fallback coverage
+- Added request-id propagation from current user/rbac write routes into the active audit event payload without widening
+  the `/api/audit/logs` API contract or request-context architecture outside owned scope.
+- Added bounded tests to confirm:
+  - successful user active-audit publish
+  - successful rbac active-audit publish
+  - audit publish failures remain non-blocking
+- Validation result:
+  - `cd server && go test ./...` passed
+  - `cd server && go run ./cmd/graft validate backend` passed
+  - `git diff --check` passed
+- Batch status is now truly aligned with docs: Batch 3 complete, next batch is Batch 4 frontend audit module and page.

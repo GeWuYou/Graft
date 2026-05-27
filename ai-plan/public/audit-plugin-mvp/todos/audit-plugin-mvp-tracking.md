@@ -37,13 +37,13 @@
 
 ## Batch State
 
-- Current batch: `Batch 3 - Backend recording integration for user and RBAC actions`
+- Current batch: `Batch 4 - Frontend audit module and page`
 - Completed batches:
   - `Batch 0 - Exploration and worktree/topic setup`
   - `Batch 1 - Backend audit domain design and schema`
   - `Batch 2 - Backend API, permission, menu, OpenAPI contract`
-- Pending batches:
   - `Batch 3 - Backend recording integration for user and RBAC actions`
+- Pending batches:
   - `Batch 4 - Frontend audit module and page`
   - `Batch 5 - Cross-boundary integration and regression`
   - `Batch 6 - Archive-ready closeout`
@@ -71,8 +71,8 @@
 
 - The current repository already contains a minimal audit plugin and historical audit-related migrations, so MVP work
   is additive and corrective rather than greenfield.
-- Batch 2 closed only the guarded read path; richer domain write-path recording for user and RBAC mutations still belongs
-  to Batch 3.
+- Batch 3 is now closed on bounded success-path integration only; request-level fallback remains in place and broader
+  auth/session/request-context redesign remains out of scope.
 - The root OpenAPI spec and backend generated bundle/types are now updated for audit read closure, but frontend audit
   module work remains untouched until Batch 4.
 
@@ -103,17 +103,17 @@
 
 ## Batch Implications
 
-- Batch 3 should add domain-owned active-audit emission at user/rbac write success points instead of altering the settled
-  audit read contract.
+- Batch 3 added domain-owned active-audit emission at user/rbac write success points without altering the settled audit
+  read contract.
 - Batch 4 should consume the existing `audit.read` permission, `/audit/logs` bootstrap menu path, and generated read DTO
   contract rather than redefining page-local equivalents.
 
 ## Immediate Next Step
 
-- Start Batch 3 on top of the completed Batch 2 read contract:
-  - emit explicit audit events from user-management write flows and RBAC write flows
-  - preserve request-level middleware as fallback only
-  - keep Batch 3 inside backend write-path integration without widening the API or frontend scope
+- Start Batch 4 on top of the completed backend baseline:
+  - create the frontend audit module/page for the settled `/audit/logs` read surface
+  - consume the existing `audit.read` permission and generated/backend-owned read semantics
+  - keep Batch 4 inside frontend owned scope without widening backend contracts
 
 ## Batch 1 Snapshot
 
@@ -180,3 +180,30 @@
   - `cd web && bun ../scripts/openapi-bundle.mjs`
   - `cd server && go generate ./internal/contract/openapi`
 - Web generated schema intentionally not updated in Batch 2 because no owned-scope frontend runtime or consumer was added.
+
+## Batch 3 Snapshot
+
+- Added bounded richer active-audit emission in `user` success paths:
+  - create
+  - update
+  - status update
+  - delete
+  - reset password
+- Added bounded richer active-audit emission in `rbac` success paths:
+  - role create/update/status/delete
+  - role-permission replace/add/remove
+  - user-role replace/add/remove
+- Kept audit write failure non-blocking for business success paths by swallowing event-bus publish failures after
+  logging, matching the existing request-level fallback posture.
+- Propagated request ids from current user/rbac write routes into active audit events without changing the settled
+  `/api/audit/logs` read contract.
+- Added bounded tests covering:
+  - successful user active-audit publish
+  - successful rbac active-audit publish
+  - audit publish failure remaining non-blocking on user/rbac success paths
+
+## Batch 3 Validation
+
+- `cd server && go test ./...`
+- `cd server && go run ./cmd/graft validate backend`
+- `git diff --check`

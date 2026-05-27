@@ -43,6 +43,7 @@ func handleCreateRoleRoute(
 	pluginName string,
 	writer writeManagementService,
 ) {
+	requestCtx := withRBACAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 	var request rbacopenapi.PostRolesJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
@@ -67,7 +68,7 @@ func handleCreateRoleRoute(
 
 	rbacWriteGeneratedHandler{}.PostRoles(bindGeneratedRoleCreateParams(ginCtx), request)
 
-	role, err := writer.CreateRole(ginCtx.Request.Context(), roleInput)
+	role, err := writer.CreateRole(requestCtx, roleInput)
 	if err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "id")
 		return
@@ -88,6 +89,7 @@ func handleUpdateRoleRoute(
 	pluginName string,
 	writer writeManagementService,
 ) {
+	requestCtx := withRBACAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 	roleID, err := parseManagementID(ginCtx.Param("id"))
 	if err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
@@ -120,7 +122,7 @@ func handleUpdateRoleRoute(
 
 	rbacWriteGeneratedHandler{}.PostRoleUpdate(roleID, bindGeneratedRoleUpdateParams(ginCtx), request)
 
-	role, err := writer.UpdateRole(ginCtx.Request.Context(), roleInput)
+	role, err := writer.UpdateRole(requestCtx, roleInput)
 	if err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "id")
 		return
@@ -346,6 +348,7 @@ func bindGeneratedUsersRoleRemoveParams(ginCtx *gin.Context) rbacopenapi.PostUse
 }
 
 func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *plugin.Context, pluginName string, writer writeManagementService) {
+	requestCtx := withRBACAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 	roleID, err := parseManagementID(ginCtx.Param("id"))
 	if err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "id"})
@@ -365,7 +368,7 @@ func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *plugin.Context, plugi
 
 	rbacWriteGeneratedHandler{}.PostRoleStatus(roleID, bindGeneratedRoleStatusParams(ginCtx), request)
 
-	role, err := writer.SetRoleStatus(ginCtx.Request.Context(), rbacstore.SetRoleStatusInput{ID: roleID, Status: status})
+	role, err := writer.SetRoleStatus(requestCtx, rbacstore.SetRoleStatusInput{ID: roleID, Status: status})
 	if err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "status")
 		return
@@ -379,13 +382,14 @@ func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *plugin.Context, plugi
 }
 
 func handleDeleteRoleRoute(ginCtx *gin.Context, ctx *plugin.Context, pluginName string, writer writeManagementService) {
+	requestCtx := withRBACAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 	roleID, err := parseManagementID(ginCtx.Param("id"))
 	if err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "id"})
 		return
 	}
 	rbacWriteGeneratedHandler{}.PostRoleDelete(roleID, bindGeneratedRoleDeleteParams(ginCtx))
-	if err := writer.SoftDeleteRole(ginCtx.Request.Context(), rbacstore.SoftDeleteRoleInput{ID: roleID}); err != nil {
+	if err := writer.SoftDeleteRole(requestCtx, rbacstore.SoftDeleteRoleInput{ID: roleID}); err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "id")
 		return
 	}
@@ -602,7 +606,8 @@ func handleReplaceStableIDsRoute(
 		return
 	}
 
-	if err := config.write(ginCtx.Request.Context(), targetID, ids); err != nil {
+	requestCtx := withRBACAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
+	if err := config.write(requestCtx, targetID, ids); err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, config.invalidField)
 		return
 	}
@@ -625,7 +630,8 @@ func handleBatchStableIDsRoute(
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": config.invalidField})
 		return
 	}
-	if err := config.write(ginCtx.Request.Context(), request.userIDs, request.roleIDs); err != nil {
+	requestCtx := withRBACAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
+	if err := config.write(requestCtx, request.userIDs, request.roleIDs); err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, config.invalidField)
 		return
 	}

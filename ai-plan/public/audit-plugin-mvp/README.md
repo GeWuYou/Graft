@@ -17,15 +17,17 @@
 
 ## Current Recovery Point
 
-- Batch 2 is complete.
+- Batch 3 is complete.
 - The audit plugin now exposes a guarded read/query API at `/api/audit/logs` with plugin-owned permission, menu, and
   OpenAPI contract closure.
-- Backend generated contract artifacts were refreshed from the canonical root OpenAPI workflow and validated against the
-  existing HTTP envelope, request-id, and authz chain.
-- Current focus moves to Batch 3:
-  - integrate richer audit recording into user and RBAC write paths
-  - reuse the settled audit read contract instead of widening the API surface
-  - keep request-level auto audit as fallback while adding explicit domain events at write success points
+- Backend write-path integration now emits richer active audit events from bounded `user` and `rbac` success paths while
+  keeping audit publish failures non-blocking to the business write flow.
+- User and RBAC write routes now propagate request ids into those active audit events without changing the settled read
+  contract.
+- Current focus moves to Batch 4:
+  - build the frontend audit module and page on top of the settled `audit.read` permission and `/audit/logs` menu path
+  - consume the existing read contract instead of redefining page-local backend semantics
+  - keep Batch 4 inside owned frontend scope without widening backend API surface
 
 ## Owned Scope
 

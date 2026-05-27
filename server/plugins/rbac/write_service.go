@@ -3,8 +3,12 @@ package rbac
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
+	"go.uber.org/zap"
+
+	"graft/server/internal/eventbus"
 	"graft/server/internal/pluginapi"
 	rbacstore "graft/server/plugins/rbac/store"
 )
@@ -18,6 +22,8 @@ var (
 )
 
 const builtinAdminRoleName = "admin"
+
+type auditRequestIDContextKey struct{}
 
 type writeManagementService interface {
 	CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error)
@@ -42,8 +48,10 @@ type batchUserRoleAtomicWriter interface {
 }
 
 type managementWriter struct {
-	users pluginapi.UserService
-	rbac  rbacstore.Repository
+	users    pluginapi.UserService
+	rbac     rbacstore.Repository
+	auditBus eventbus.Bus
+	logger   *zap.Logger
 }
 
 func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
@@ -51,7 +59,27 @@ func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.Create
 		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
 	}
 
-	return w.rbac.CreateRole(ctx, input)
+	role, err := w.rbac.CreateRole(ctx, input)
+	if err != nil {
+		return rbacstore.Role{}, err
+	}
+
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "rbac.role.create",
+		ResourceType: "role",
+		ResourceID:   formatRBACAuditID(role.ID),
+		ResourceName: role.Name,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      "role created",
+		Metadata: map[string]any{
+			"display_name": role.Display,
+			"builtin":      role.Builtin,
+			"status":       role.Status,
+		},
+	})
+
+	return role, nil
 }
 
 func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
@@ -67,7 +95,27 @@ func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.Update
 		return rbacstore.Role{}, errBuiltinRoleNameImmutable
 	}
 
-	return w.rbac.UpdateRole(ctx, input)
+	role, err := w.rbac.UpdateRole(ctx, input)
+	if err != nil {
+		return rbacstore.Role{}, err
+	}
+
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "rbac.role.update",
+		ResourceType: "role",
+		ResourceID:   formatRBACAuditID(role.ID),
+		ResourceName: role.Name,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      "role updated",
+		Metadata: map[string]any{
+			"display_name": role.Display,
+			"builtin":      role.Builtin,
+			"status":       role.Status,
+		},
+	})
+
+	return role, nil
 }
 
 func (w managementWriter) SetRoleStatus(ctx context.Context, input rbacstore.SetRoleStatusInput) (rbacstore.Role, error) {
@@ -75,7 +123,25 @@ func (w managementWriter) SetRoleStatus(ctx context.Context, input rbacstore.Set
 		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
 	}
 
-	return w.rbac.SetRoleStatus(ctx, input)
+	role, err := w.rbac.SetRoleStatus(ctx, input)
+	if err != nil {
+		return rbacstore.Role{}, err
+	}
+
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "rbac.role.status.update",
+		ResourceType: "role",
+		ResourceID:   formatRBACAuditID(role.ID),
+		ResourceName: role.Name,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      "role status updated",
+		Metadata: map[string]any{
+			"status": role.Status,
+		},
+	})
+
+	return role, nil
 }
 
 func (w managementWriter) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDeleteRoleInput) error {
@@ -83,7 +149,25 @@ func (w managementWriter) SoftDeleteRole(ctx context.Context, input rbacstore.So
 		return errors.New("rbac repository is unavailable")
 	}
 
-	return w.rbac.SoftDeleteRole(ctx, input)
+	role, err := w.rbac.GetRoleByID(ctx, input.ID)
+	if err != nil {
+		return err
+	}
+	if err := w.rbac.SoftDeleteRole(ctx, input); err != nil {
+		return err
+	}
+
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "rbac.role.delete",
+		ResourceType: "role",
+		ResourceID:   formatRBACAuditID(role.ID),
+		ResourceName: role.Name,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      "role deleted",
+	})
+
+	return nil
 }
 
 func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
@@ -91,7 +175,8 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input r
 		return errors.New("rbac repository is unavailable")
 	}
 
-	if _, err := w.rbac.GetRoleByID(ctx, input.RoleID); err != nil {
+	role, err := w.rbac.GetRoleByID(ctx, input.RoleID)
+	if err != nil {
 		return err
 	}
 	if err := ensurePermissionIDsExist(ctx, w.rbac, input.PermissionIDs); err != nil {
@@ -110,33 +195,84 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input r
 		return err
 	}
 
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "rbac.role.permissions.replace",
+		ResourceType: "role",
+		ResourceID:   formatRBACAuditID(input.RoleID),
+		ResourceName: role.Name,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      "role permissions replaced",
+		Metadata: map[string]any{
+			"permission_ids": append([]uint64(nil), input.PermissionIDs...),
+		},
+	})
+
 	return nil
 }
 
 func (w managementWriter) AddPermissionsToRole(ctx context.Context, input rbacstore.AddPermissionsToRoleInput) error {
-	if w.rbac == nil {
-		return errors.New("rbac repository is unavailable")
-	}
-	if _, err := w.rbac.GetRoleByID(ctx, input.RoleID); err != nil {
-		return err
-	}
-	if err := ensurePermissionIDsExist(ctx, w.rbac, input.PermissionIDs); err != nil {
-		return err
-	}
-	return w.rbac.AddPermissionsToRole(ctx, input)
+	return w.mutateRolePermissions(
+		ctx,
+		input.RoleID,
+		input.PermissionIDs,
+		"rbac.role.permissions.add",
+		"role permissions added",
+		func(ctx context.Context) error {
+			return w.rbac.AddPermissionsToRole(ctx, input)
+		},
+	)
 }
 
 func (w managementWriter) RemovePermissionsFromRole(ctx context.Context, input rbacstore.RemovePermissionsFromRoleInput) error {
+	return w.mutateRolePermissions(
+		ctx,
+		input.RoleID,
+		input.PermissionIDs,
+		"rbac.role.permissions.remove",
+		"role permissions removed",
+		func(ctx context.Context) error {
+			return w.rbac.RemovePermissionsFromRole(ctx, input)
+		},
+	)
+}
+
+func (w managementWriter) mutateRolePermissions(
+	ctx context.Context,
+	roleID uint64,
+	permissionIDs []uint64,
+	action string,
+	message string,
+	run func(context.Context) error,
+) error {
 	if w.rbac == nil {
 		return errors.New("rbac repository is unavailable")
 	}
-	if _, err := w.rbac.GetRoleByID(ctx, input.RoleID); err != nil {
+	role, err := w.rbac.GetRoleByID(ctx, roleID)
+	if err != nil {
 		return err
 	}
-	if err := ensurePermissionIDsExist(ctx, w.rbac, input.PermissionIDs); err != nil {
+	if err := ensurePermissionIDsExist(ctx, w.rbac, permissionIDs); err != nil {
 		return err
 	}
-	return w.rbac.RemovePermissionsFromRole(ctx, input)
+	if err := run(ctx); err != nil {
+		return err
+	}
+
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       action,
+		ResourceType: "role",
+		ResourceID:   formatRBACAuditID(roleID),
+		ResourceName: role.Name,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      message,
+		Metadata: map[string]any{
+			"permission_ids": append([]uint64(nil), permissionIDs...),
+		},
+	})
+
+	return nil
 }
 
 func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {
@@ -146,7 +282,8 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacsto
 	if w.rbac == nil {
 		return errors.New("rbac repository is unavailable")
 	}
-	if _, err := w.users.GetUserByID(ctx, input.UserID); err != nil {
+	user, err := w.users.GetUserByID(ctx, input.UserID)
+	if err != nil {
 		return err
 	}
 	if err := w.ensureActorKeepsBuiltinAdminRole(ctx, input); err != nil {
@@ -165,24 +302,79 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacsto
 		return err
 	}
 
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "rbac.user.roles.replace",
+		ResourceType: "user",
+		ResourceID:   formatRBACAuditID(input.UserID),
+		ResourceName: user.Username,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      "user roles replaced",
+		Metadata: map[string]any{
+			"role_ids": append([]uint64(nil), input.RoleIDs...),
+		},
+	})
+
 	return nil
 }
 
 func (w managementWriter) AddRolesToUser(ctx context.Context, input rbacstore.AddRolesToUserInput) error {
+	user, err := w.users.GetUserByID(ctx, input.UserID)
+	if err != nil {
+		return err
+	}
 	if err := w.ensureRoleMutationPreconditions(ctx, []uint64{input.UserID}, input.RoleIDs); err != nil {
 		return err
 	}
-	return w.rbac.AddRolesToUser(ctx, input)
+	if err := w.rbac.AddRolesToUser(ctx, input); err != nil {
+		return err
+	}
+
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "rbac.user.roles.add",
+		ResourceType: "user",
+		ResourceID:   formatRBACAuditID(input.UserID),
+		ResourceName: user.Username,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      "user roles added",
+		Metadata: map[string]any{
+			"role_ids": append([]uint64(nil), input.RoleIDs...),
+		},
+	})
+
+	return nil
 }
 
 func (w managementWriter) RemoveRolesFromUser(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error {
+	user, err := w.users.GetUserByID(ctx, input.UserID)
+	if err != nil {
+		return err
+	}
 	if err := w.ensureRoleMutationPreconditions(ctx, []uint64{input.UserID}, input.RoleIDs); err != nil {
 		return err
 	}
 	if err := w.ensureActorCanRemoveRoles(ctx, input.UserID, input.RoleIDs); err != nil {
 		return err
 	}
-	return w.rbac.RemoveRolesFromUser(ctx, input)
+	if err := w.rbac.RemoveRolesFromUser(ctx, input); err != nil {
+		return err
+	}
+
+	w.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "rbac.user.roles.remove",
+		ResourceType: "user",
+		ResourceID:   formatRBACAuditID(input.UserID),
+		ResourceName: user.Username,
+		RequestID:    currentRBACRequestID(ctx),
+		Success:      true,
+		Message:      "user roles removed",
+		Metadata: map[string]any{
+			"role_ids": append([]uint64(nil), input.RoleIDs...),
+		},
+	})
+
+	return nil
 }
 
 func (w managementWriter) ReplaceRolesForUsers(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
@@ -336,6 +528,60 @@ func findBuiltinAdminRole(roles []rbacstore.Role) (rbacstore.Role, bool) {
 	}
 
 	return rbacstore.Role{}, false
+}
+
+func (w managementWriter) publishAudit(ctx context.Context, event pluginapi.AuditEvent) {
+	if w.auditBus == nil {
+		return
+	}
+
+	event.Operator = currentRBACAuditOperator(ctx)
+	if err := w.auditBus.Publish(ctx, eventbus.Event{
+		Name:    pluginapi.AuditRecordEventName,
+		Source:  pluginID,
+		Payload: event,
+	}); err != nil && w.logger != nil {
+		w.logger.Warn("publish rbac audit event failed",
+			zap.String("plugin", pluginID),
+			zap.String("action", strings.TrimSpace(event.Action)),
+			zap.Error(err),
+		)
+	}
+}
+
+func currentRBACAuditOperator(ctx context.Context) *pluginapi.CurrentUser {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.User == nil {
+		return nil
+	}
+
+	user := *requestAuth.User
+	return &user
+}
+
+func currentRBACRequestID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	requestID, _ := ctx.Value(auditRequestIDContextKey{}).(string)
+	return strings.TrimSpace(requestID)
+}
+
+func withRBACAuditRequestID(ctx context.Context, requestID string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if strings.TrimSpace(requestID) == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, auditRequestIDContextKey{}, strings.TrimSpace(requestID))
+}
+
+func formatRBACAuditID(id uint64) string {
+	if id == 0 {
+		return ""
+	}
+	return strconv.FormatUint(id, 10)
 }
 
 func ensurePermissionIDsExist(ctx context.Context, repository rbacstore.Repository, permissionIDs []uint64) error {

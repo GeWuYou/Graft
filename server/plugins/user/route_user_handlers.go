@@ -97,6 +97,7 @@ func (r userRouteRegistrar) registerUserWriteRoutes(group *gin.RouterGroup) {
 
 func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserCollection, r.guards.userCreate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 		var request useropenapi.PostUsersJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
@@ -108,8 +109,8 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		command := toCreateUserCommand(request, requestActorID(ginCtx.Request.Context()))
-		created, err := r.userSvc.CreateUser(ginCtx.Request.Context(), r.authSvc.passwords, r.authSvc.policy, command)
+		command := toCreateUserCommand(request, requestActorID(requestCtx))
+		created, err := r.userSvc.CreateUser(requestCtx, r.authSvc.passwords, r.authSvc.policy, command)
 		if err != nil {
 			r.runtime().writeCreateUserError(ginCtx, "create user failed", err)
 			return
@@ -140,6 +141,7 @@ func invalidCreateUserField(request useropenapi.PostUsersJSONRequestBody) (strin
 
 func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserUpdateRoute, r.guards.userUpdate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
@@ -152,8 +154,8 @@ func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 		}
 		userWriteGeneratedHandler{}.PostUserUpdate(userID, bindGeneratedUserUpdateParams(ginCtx), request)
 
-		command := toUpdateUserCommand(request, userID, requestActorID(ginCtx.Request.Context()))
-		updated, err := r.userSvc.UpdateUser(ginCtx.Request.Context(), command)
+		command := toUpdateUserCommand(request, userID, requestActorID(requestCtx))
+		updated, err := r.userSvc.UpdateUser(requestCtx, command)
 		if err != nil {
 			r.runtime().writeUserManagementError(ginCtx, userID, "update user failed", err)
 			return
@@ -293,6 +295,7 @@ func headerPointer(value string) *string {
 
 func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserStatusRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
@@ -304,13 +307,13 @@ func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 			return
 		}
 		userWriteGeneratedHandler{}.PostUserStatus(userID, bindGeneratedUserStatusParams(ginCtx), request)
-		command, ok := toUpdateUserStatusCommand(request, userID, requestActorID(ginCtx.Request.Context()))
+		command, ok := toUpdateUserStatusCommand(request, userID, requestActorID(requestCtx))
 		if !ok {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "status")
 			return
 		}
 
-		updated, err := r.userSvc.SetUserStatus(ginCtx.Request.Context(), r.authSvc.auth, command)
+		updated, err := r.userSvc.SetUserStatus(requestCtx, r.authSvc.auth, command)
 		if err != nil {
 			r.runtime().writeUserManagementError(ginCtx, userID, "set user status failed", err)
 			return
@@ -328,6 +331,7 @@ func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 
 func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserResetPasswordRoute, r.guards.userUpdate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
@@ -341,7 +345,7 @@ func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGrou
 		userWriteGeneratedHandler{}.PostUserResetPassword(userID, bindGeneratedUserResetPasswordParams(ginCtx), request)
 
 		if err := r.userSvc.ResetUserPassword(
-			ginCtx.Request.Context(),
+			requestCtx,
 			r.authSvc.auth,
 			r.authSvc.passwords,
 			r.authSvc.policy,
@@ -358,13 +362,14 @@ func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGrou
 
 func (r userRouteRegistrar) registerDeleteUserRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserDeleteRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
 		}
 		userWriteGeneratedHandler{}.PostUserDelete(userID, bindGeneratedUserDeleteParams(ginCtx))
 
-		if err := r.userSvc.DeleteUser(ginCtx.Request.Context(), r.authSvc.auth, userID); err != nil {
+		if err := r.userSvc.DeleteUser(requestCtx, r.authSvc.auth, userID); err != nil {
 			r.runtime().writeUserManagementError(ginCtx, userID, "delete user failed", err)
 			return
 		}
