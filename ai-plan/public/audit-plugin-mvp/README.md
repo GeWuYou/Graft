@@ -17,17 +17,20 @@
 
 ## Current Recovery Point
 
-- Batch 3 is complete.
-- The audit plugin now exposes a guarded read/query API at `/api/audit/logs` with plugin-owned permission, menu, and
-  OpenAPI contract closure.
-- Backend write-path integration now emits richer active audit events from bounded `user` and `rbac` success paths while
-  keeping audit publish failures non-blocking to the business write flow.
-- User and RBAC write routes now propagate request ids into those active audit events without changing the settled read
-  contract.
-- Current focus moves to Batch 4:
-  - build the frontend audit module and page on top of the settled `audit.read` permission and `/audit/logs` menu path
-  - consume the existing read contract instead of redefining page-local backend semantics
-  - keep Batch 4 inside owned frontend scope without widening backend API surface
+- Batch 4 is complete.
+- The web runtime now includes a dedicated `web/src/modules/audit/**` module that mounts the settled `/audit/logs`
+  bootstrap page and consumes the guarded `/api/audit/logs` read contract.
+- The audit page stays read-only, follows the existing `modules/index.ts + bootstrap-routes.ts + dynamic routes +
+  permission store` path, and does not introduce a second route, permission, or API-client truth.
+- Frontend generated OpenAPI schema is now refreshed so the audit module consumes checked-in generated audit DTOs rather
+  than page-local request/response aliases.
+- Batch 4 closeout is now backed by completed frontend validation:
+  - `cd web && bun run check`
+  - `git diff --check`
+- Current focus moves to Batch 5:
+  - run bounded cross-boundary integration and regression over the full audit MVP slice
+  - verify backend menu/permission/bootstrap data and web route visibility close cleanly together
+  - keep Batch 5 on regression and integration only instead of widening feature scope
 
 ## Owned Scope
 

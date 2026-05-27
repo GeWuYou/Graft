@@ -138,3 +138,50 @@
   - `cd server && go run ./cmd/graft validate backend` passed
   - `git diff --check` passed
 - Batch status is now truly aligned with docs: Batch 3 complete, next batch is Batch 4 frontend audit module and page.
+
+## 2026-05-27 Batch 4 implemented frontend audit module and page
+
+- Re-established startup governance from root `AGENTS.md`, `web/AGENTS.md`, `server/AGENTS.md`, and the audit topic
+  recovery docs before frontend implementation.
+- Ran TDesign MCP preflight under `vue-next` before coding:
+  - `get_component_list`
+  - `get_component_docs` for `table`, `input`, `select`, `date-picker`, `button`, `card`, `space`, `tag`, `loading`,
+    `empty`, `alert`, `pagination`
+  - `get_component_dom` for `table`, `card`, `alert`, `empty`
+- Declared the page as extension type `log-audit` and kept the structure on the existing management-page shell:
+  - page header
+  - filter toolbar
+  - readonly note / feedback surface
+  - table surface
+  - footer pagination
+- Added a module-owned audit web slice under `web/src/modules/audit/**` with:
+  - module registration
+  - bootstrap route declaration for `/audit/logs`
+  - route/API/permission contract values
+  - generated-schema-backed API adapter for `/api/audit/logs`
+  - read-only audit log page and locale bundles
+- Refreshed `web/src/contracts/openapi/generated/schema.ts` because the frontend now consumes the audit read contract.
+- Kept backend semantics unchanged:
+  - no backend API rewrite
+  - no permission or menu redesign
+  - no second frontend route or API client baseline
+- Added bounded frontend tests covering the new bootstrap route and page smoke path, and extended existing module /
+  route / locale governance tests for audit ownership.
+
+## 2026-05-27 Batch 4 retry worker closed the partial frontend state
+
+- Took over the carried-over Batch 4 partial diff instead of rewriting the slice from scratch.
+- Confirmed the inherited frontend module layout, bootstrap route wiring, generated schema refresh, locale additions, and
+  route governance tests were directionally correct and kept them in place.
+- Closed the remaining frontend-only validation gaps inside owned scope:
+  - wired `AUDIT_PERMISSION_CODE.READ` into visible audit page actions so the module-owned permission contract is part
+    of the real runtime surface instead of an unused side file
+  - reduced audit-page local duplication to satisfy repository `jscpd` / hygiene checks without widening into shared
+    refactors
+  - converted the audit page smoke test to explicit TDesign/directive stubs so it validates the settled page/data
+    contract instead of depending on global runtime component registration
+- Validation result:
+  - `cd web && bun run check` passed
+  - `git diff --check` passed
+- Batch status is now truly aligned with docs: Batch 4 complete and validated, next batch is Batch 5 cross-boundary
+  integration and regression.

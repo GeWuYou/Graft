@@ -22,6 +22,7 @@ describe('module registration aggregation', () => {
     expect(getBootstrapRouteRegistration('/monitor/server-status/dependencies')?.routeName).toBe(
       'MonitorServerStatusDependencies',
     );
+    expect(getBootstrapRouteRegistration('/audit/logs')?.routeName).toBe('AuditLogList');
   });
 
   it('rejects duplicate menu paths', () => {

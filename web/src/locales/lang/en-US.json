@@ -198,6 +198,11 @@
     "user_list": {
       "title": "User Management"
     },
+    "audit": {
+      "logs": {
+        "title": "Audit Logs"
+      }
+    },
     "monitor": {
       "server_status": {
         "title": "Server Status",

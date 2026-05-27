@@ -1,0 +1,57 @@
+{
+  "audit": {
+    "logList": {
+      "listTitle": "审计日志",
+      "hint": "按操作、资源、请求链路和时间窗口查看后台审计记录。",
+      "summary": "已显示 {count} 条日志",
+      "tableHint": "当前页面为只读审计视图，支持按关键字段收敛排查范围。",
+      "refresh": "刷新",
+      "retry": "重试",
+      "clearFilters": "清空筛选",
+      "footerTotal": "共 {count} 条审计日志",
+      "loadFailed": "审计日志加载失败",
+      "errorTitle": "审计日志暂时不可用",
+      "emptyTitle": "暂无审计日志",
+      "emptyDescription": "当前筛选条件下没有命中的日志记录，可调整时间范围或清空筛选后重试。",
+      "readonlyNotice": "当前页面只提供查询与定位，不支持在前端修改审计记录。",
+      "factSourceHint": "日志内容直接消费后端 settled 的 `/api/audit/logs` 读契约与 `audit.read` 权限。",
+      "filters": {
+        "actionPlaceholder": "搜索操作，如 user.create",
+        "resourceTypePlaceholder": "资源类型，如 user / role",
+        "resourceNamePlaceholder": "资源名称或显示名",
+        "requestIdPlaceholder": "请求 ID",
+        "successPlaceholder": "执行结果",
+        "successAll": "全部结果",
+        "successTrue": "成功",
+        "successFalse": "失败",
+        "createdRangePlaceholder": "选择时间范围"
+      },
+      "columns": {
+        "action": "操作",
+        "actor": "操作者",
+        "resource": "资源",
+        "result": "结果",
+        "requestId": "请求 ID",
+        "createdAt": "发生时间",
+        "context": "上下文"
+      },
+      "result": {
+        "success": "成功",
+        "failed": "失败"
+      },
+      "actor": {
+        "anonymous": "系统或匿名调用"
+      },
+      "resource": {
+        "unknown": "未命名资源"
+      },
+      "context": {
+        "ip": "IP",
+        "userAgent": "客户端",
+        "message": "消息",
+        "metadata": "元数据",
+        "none": "无额外上下文"
+      }
+    }
+  }
+}

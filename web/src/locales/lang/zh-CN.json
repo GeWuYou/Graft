@@ -198,6 +198,11 @@
     "user_list": {
       "title": "用户管理"
     },
+    "audit": {
+      "logs": {
+        "title": "审计日志"
+      }
+    },
     "monitor": {
       "server_status": {
         "title": "服务器状态",

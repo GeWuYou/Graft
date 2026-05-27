@@ -1,0 +1,57 @@
+{
+  "audit": {
+    "logList": {
+      "listTitle": "Audit Logs",
+      "hint": "Inspect backend audit records by action, resource, request trace, and time window.",
+      "summary": "{count} logs shown",
+      "tableHint": "This page is a read-only audit view and helps narrow investigations by key fields.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "clearFilters": "Clear Filters",
+      "footerTotal": "{count} audit logs total",
+      "loadFailed": "Failed to load audit logs",
+      "errorTitle": "Audit logs are temporarily unavailable",
+      "emptyTitle": "No audit logs",
+      "emptyDescription": "No records match the current filters. Adjust the time window or clear filters and try again.",
+      "readonlyNotice": "This page is read-only and does not allow audit records to be changed from the web UI.",
+      "factSourceHint": "The page consumes the settled backend `/api/audit/logs` read contract and `audit.read` permission directly.",
+      "filters": {
+        "actionPlaceholder": "Search action, such as user.create",
+        "resourceTypePlaceholder": "Resource type, such as user / role",
+        "resourceNamePlaceholder": "Resource name or display name",
+        "requestIdPlaceholder": "Request ID",
+        "successPlaceholder": "Execution result",
+        "successAll": "All Results",
+        "successTrue": "Succeeded",
+        "successFalse": "Failed",
+        "createdRangePlaceholder": "Select time range"
+      },
+      "columns": {
+        "action": "Action",
+        "actor": "Actor",
+        "resource": "Resource",
+        "result": "Result",
+        "requestId": "Request ID",
+        "createdAt": "Created At",
+        "context": "Context"
+      },
+      "result": {
+        "success": "Succeeded",
+        "failed": "Failed"
+      },
+      "actor": {
+        "anonymous": "System or anonymous caller"
+      },
+      "resource": {
+        "unknown": "Unnamed resource"
+      },
+      "context": {
+        "ip": "IP",
+        "userAgent": "Client",
+        "message": "Message",
+        "metadata": "Metadata",
+        "none": "No extra context"
+      }
+    }
+  }
+}

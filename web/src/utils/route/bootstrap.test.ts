@@ -44,9 +44,17 @@ describe('transformBootstrapMenusToRoutes', () => {
         icon: 'app',
         permission: '',
       },
+      {
+        code: 'audit.logs',
+        title_key: 'menu.audit.logs.title',
+        title: '审计日志',
+        path: '/audit/logs',
+        icon: 'history',
+        permission: 'audit.read',
+      },
     ]);
 
-    expect(routes).toHaveLength(1);
+    expect(routes).toHaveLength(2);
     expect(routes[0]?.path).toBe('/access-control');
     expect(routes[0]?.name).toBe('BootstrapGroupAccessControl');
     expect(routes[0]?.meta?.titleKey).toBe('menu.access_control.title');
@@ -61,6 +69,9 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[2]?.name).toBe('RoleListIndex');
     expect(routes[0]?.children?.[2]?.meta?.titleKey).toBe('menu.access_control.roles.title');
     expect(routes[0]?.children?.[2]?.meta?.icon).toBe('secured');
+    expect(routes[1]?.path).toBe('/audit/logs');
+    expect(routes[1]?.name).toBe('AuditLogList');
+    expect(routes[1]?.children?.[0]?.name).toBe('AuditLogListIndex');
   });
 
   it('按后端返回的规范化访问控制菜单生成分组路由', () => {

@@ -37,14 +37,14 @@
 
 ## Batch State
 
-- Current batch: `Batch 4 - Frontend audit module and page`
+- Current batch: `Batch 5 - Cross-boundary integration and regression`
 - Completed batches:
   - `Batch 0 - Exploration and worktree/topic setup`
   - `Batch 1 - Backend audit domain design and schema`
   - `Batch 2 - Backend API, permission, menu, OpenAPI contract`
   - `Batch 3 - Backend recording integration for user and RBAC actions`
-- Pending batches:
   - `Batch 4 - Frontend audit module and page`
+- Pending batches:
   - `Batch 5 - Cross-boundary integration and regression`
   - `Batch 6 - Archive-ready closeout`
 
@@ -71,10 +71,9 @@
 
 - The current repository already contains a minimal audit plugin and historical audit-related migrations, so MVP work
   is additive and corrective rather than greenfield.
-- Batch 3 is now closed on bounded success-path integration only; request-level fallback remains in place and broader
-  auth/session/request-context redesign remains out of scope.
-- The root OpenAPI spec and backend generated bundle/types are now updated for audit read closure, but frontend audit
-  module work remains untouched until Batch 4.
+- Batch 4 now closes only the frontend read surface; Batch 5 still needs end-to-end regression confirmation across
+  bootstrap menus, permission visibility, generated schema consumption, and runtime route recovery.
+- Request-level fallback and broader auth/session/request-context redesign remain intentionally out of scope.
 
 ## Exploration Snapshot
 
@@ -110,10 +109,12 @@
 
 ## Immediate Next Step
 
-- Start Batch 4 on top of the completed backend baseline:
-  - create the frontend audit module/page for the settled `/audit/logs` read surface
-  - consume the existing `audit.read` permission and generated/backend-owned read semantics
-  - keep Batch 4 inside frontend owned scope without widening backend contracts
+- Start Batch 5 on top of the validated Batch 4 frontend baseline:
+  - run bounded cross-boundary integration and regression across backend bootstrap/menu/permission data and the new
+    audit web module
+  - verify `/audit/logs` dynamic route recovery, `audit.read` visibility gating, and generated contract consumption stay
+    aligned end to end
+  - keep Batch 5 on regression and integration only instead of widening feature scope
 
 ## Batch 1 Snapshot
 
@@ -207,3 +208,34 @@
 - `cd server && go test ./...`
 - `cd server && go run ./cmd/graft validate backend`
 - `git diff --check`
+
+## Batch 4 Snapshot
+
+- Added module-owned frontend audit runtime under `web/src/modules/audit/**`:
+  - module registration entry
+  - bootstrap route declaration
+  - module contract values for route path and permission code
+  - API adapter that consumes the settled `/api/audit/logs` generated contract through the existing request adapter
+  - read-only audit log list page and locale bundles
+- Kept frontend route and permission truth aligned with the existing shell path:
+  - `modules/index.ts` module discovery
+  - bootstrap menu to dynamic route transform
+  - `audit.read` permission continues to come only from the backend bootstrap snapshot
+- Refreshed frontend generated OpenAPI schema because Batch 4 introduced a real frontend consumer of the audit read
+  contract.
+- Added bounded frontend tests for:
+  - audit bootstrap route registration
+  - module registration map exposure
+  - bootstrap route transform coverage for `/audit/logs`
+  - locale visible-copy governance inclusion
+  - audit page render smoke path
+
+## Batch 4 Validation
+
+- `cd web && bun run openapi:types`
+- `cd web && bun run check`
+- `git diff --check`
+- Retry worker closeout notes:
+  - final `bun run check` passed after wiring the audit permission contract into visible page actions, reducing
+    page-local duplication to satisfy `jscpd`, and stubbing TDesign/directive dependencies in the page smoke test
+  - no backend contract, menu, or permission semantics were changed during retry closeout
