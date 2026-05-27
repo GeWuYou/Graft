@@ -6,7 +6,43 @@ every public artifact.
 
 ## Active Topic
 
-- None.
+- `rbac-visibility-governance`
+  - Status: `active`
+  - Recovery source:
+    - `ai-plan/public/rbac-visibility-governance/README.md`
+    - `ai-plan/public/rbac-visibility-governance/todos/rbac-visibility-governance-tracking.md`
+    - `ai-plan/public/rbac-visibility-governance/traces/rbac-visibility-governance-trace.md`
+    - current RBAC implementation on branch `feat/wt-rbac-further-development`
+  - Goal: govern the existing RBAC visibility chain end to end without expanding into menu CRUD or resource CRUD.
+  - Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-rbac-further-development`
+  - Branch: `feat/wt-rbac-further-development`
+  - Owned scope:
+    - `ai-plan/public/rbac-visibility-governance/**`
+    - `ai-plan/public/README.md`
+    - `server/plugins/rbac/**`
+    - `server/internal/permission/**`
+    - `server/internal/menu/**`
+    - `server/internal/httpx/**`
+    - `server/plugins/user/bootstrap.go`
+    - `web/src/store/modules/permission.ts`
+    - `web/src/utils/route/**`
+    - `web/src/app/bootstrap/**`
+    - `web/src/modules/rbac/**`
+    - `web/src/modules/access-control/**`
+    - bounded OpenAPI/generated contract files only if required
+  - Current phase:
+    - initialize governance topic
+    - audit the current `permission -> bootstrap menus -> dynamic routes -> element visibility -> API guard` chain
+  - Guardrails:
+    - do not add menu CRUD
+    - do not add resource CRUD
+    - do not add a resource table
+    - do not move menu canonical truth from registry/bootstrap into database-owned CRUD
+  - Next-session prompt:
+    - `governance source: root AGENTS.md`
+    - `task class: cross-boundary`
+    - `recovery source: ai-plan/public/README.md + ai-plan/public/rbac-visibility-governance/README.md + ai-plan/public/rbac-visibility-governance/todos/rbac-visibility-governance-tracking.md + ai-plan/public/rbac-visibility-governance/traces/rbac-visibility-governance-trace.md + current RBAC implementation`
+    - `owned scope: ai-plan/public/rbac-visibility-governance/** + ai-plan/public/README.md + server/plugins/rbac/** + server/internal/permission/** + server/internal/menu/** + server/internal/httpx/** + server/plugins/user/bootstrap.go + web/src/store/modules/permission.ts + web/src/utils/route/** + web/src/app/bootstrap/** + web/src/modules/rbac/** + web/src/modules/access-control/** + bounded OpenAPI/generated contract files only if required`
 
 ## Archived Topics
 
