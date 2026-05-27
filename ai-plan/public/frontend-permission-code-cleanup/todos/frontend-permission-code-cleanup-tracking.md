@@ -3,7 +3,7 @@
 ## Topic
 
 - Topic: `frontend-permission-code-cleanup`
-- Status: `active`
+- Status: `archived`
 - Goal: unify frontend RBAC permission-code naming with canonical backend permission values while preserving current
   visibility behavior.
 - Recovery source:
@@ -63,8 +63,8 @@
 
 1. Batch 0: topic initialization and permission-code map. Status: completed.
 2. Batch 1: canonical permission-code alignment. Status: completed.
-3. Batch 2: regression audit. Status: pending.
-4. Batch 3: archive-ready closeout. Status: pending.
+3. Batch 2: regression audit. Status: completed.
+4. Batch 3: archive-ready closeout. Status: completed.
 
 ## Batch 0 Findings
 
@@ -150,3 +150,19 @@
   - alias drift is closed within owned runtime scope
   - no topic expansion was needed
   - Batch 2 is docs-only
+
+## Batch 3 Result
+
+- final verification recorded:
+  - `git status --short`
+  - `git branch --show-current`
+  - `cd web && bun run check`
+  - `git diff --check`
+- updated `ai-plan/public/README.md` to move this topic into the archived recovery index
+- updated topic README and trace with the final archive record
+- final acceptance status:
+  - topic is archive-ready and archived in owned docs
+  - no additional runtime fix was required in this round
+  - remaining risks stay limited to:
+    - future backend RBAC contract topic
+    - future permission observability topic

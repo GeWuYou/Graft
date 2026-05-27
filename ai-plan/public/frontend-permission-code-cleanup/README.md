@@ -3,11 +3,12 @@
 ## Status
 
 - Topic: `frontend-permission-code-cleanup`
-- Status: `active`
+- Status: `archived`
 - Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-rbac-further-development`
 - Branch: `feat/wt-rbac-further-development`
 - Task class: `web`
 - Loop mode: `topic-completion-loop`
+- Archive date: `2026-05-27`
 
 ## Goal
 
@@ -162,3 +163,23 @@ redesign work.
 2. Batch 1: replace owned-scope alias usage with canonical permission naming and remove alias-only wrapper logic.
 3. Batch 2: run regression audit, record search evidence, and fix only bounded same-semantic leftovers.
 4. Batch 3: archive-ready closeout, final validation, recovery-index update, and archive record.
+
+## Final Archive Record
+
+- Final status: `archive-ready`
+- Archive summary:
+  - owned frontend RBAC permission-code naming now uses the canonical symbolic name
+    `RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN`
+  - the historical duplicate alias `ROLE_PERMISSION_MANAGE` is no longer present in owned frontend scope
+  - page visibility and action-guard behavior remain unchanged because the canonical backend permission value stayed
+    `role.permission.assign`
+- Final validations:
+  - `git status --short`
+  - `git branch --show-current`
+  - `cd web && bun run check`
+  - `git diff --check`
+- Remaining risks:
+  - future backend RBAC contract topic
+  - future permission observability topic
+- Continuation:
+  - no continuation required for this topic

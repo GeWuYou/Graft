@@ -113,3 +113,31 @@
   - `git diff --check`
 - Batch 2 closeout target:
   - create scoped commit `docs(frontend-permission-cleanup): record regression audit` only if both validations pass
+
+## 2026-05-27 Batch 3 archived the governance topic
+
+- Reused the inherited startup receipt under root `AGENTS.md` for a `web` round inside `graft-multi-agent-loop`.
+- Did not use `graft-multi-agent-batch`.
+  - Reason: the round was a final owned-scope archive-closeout slice with no justified internal delegation.
+- Used `graft-task-closeout` style acceptance logic for terminal archive readiness, validation, and scoped commit
+  eligibility.
+- Final verification commands for this round:
+  - `git status --short`
+  - `git branch --show-current`
+  - `cd web && bun run check`
+  - `git diff --check`
+- Updated owned recovery docs only:
+  - `ai-plan/public/README.md`
+    - moved `frontend-permission-code-cleanup` into the archived recovery index
+  - `ai-plan/public/frontend-permission-code-cleanup/README.md`
+    - marked the topic archived and added the final archive record
+  - `ai-plan/public/frontend-permission-code-cleanup/todos/frontend-permission-code-cleanup-tracking.md`
+    - marked Batches 2 and 3 completed and recorded the archive-closeout result
+  - `ai-plan/public/frontend-permission-code-cleanup/traces/frontend-permission-code-cleanup-trace.md`
+    - recorded this final closeout round
+- Kept remaining risks intentionally narrow:
+  - future backend RBAC contract topic
+  - future permission observability topic
+- Batch 3 closeout target:
+  - create scoped commit `docs(frontend-permission-cleanup): archive governance topic` only if validation passes and
+    ownership remains clean

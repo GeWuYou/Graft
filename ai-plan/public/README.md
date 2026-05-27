@@ -10,6 +10,25 @@ every public artifact.
 
 ## Archived Topics
 
+- `frontend-permission-code-cleanup`
+  - Status: `archived`
+  - Recovery status: no continuation required; do not restore this topic into the active recovery path.
+  - Archive reason: the frontend-only permission-code cleanup loop completed all planned batches and removed the last
+    RBAC symbolic alias drift without widening into backend contract, OpenAPI, or permission-system redesign work.
+  - Final result: owned frontend RBAC permission usage now converges on canonical
+    `RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN -> role.permission.assign`; the historical
+    `ROLE_PERMISSION_MANAGE` alias is removed from owned scope; RBAC and user page visibility behavior remains
+    unchanged because the underlying canonical permission value did not change.
+  - Follow-up status: `follow-up-needed`
+  - Archived topic directory:
+    - `ai-plan/public/frontend-permission-code-cleanup`
+  - Archive notes:
+    - future backend RBAC contract work should run as a separate cross-boundary topic if canonical permission semantics
+      ever need to change
+    - future permission observability work should stay a separate frontend or cross-boundary topic instead of
+      reopening this cleanup loop
+  - Next-session prompt: `No continuation required. Re-run startup preflight from root AGENTS.md before any new topic.`
+
 - `user-page-permission-governance`
   - Status: `archived`
   - Recovery status: no continuation required; do not restore this topic into the active recovery path.
