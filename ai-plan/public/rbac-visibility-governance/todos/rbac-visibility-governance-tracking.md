@@ -6,7 +6,6 @@
 - Status: `archived`
 - Goal: strengthen the existing RBAC visibility closure path without introducing menu CRUD or resource CRUD.
 - Recovery source: closed after the full Option A governance loop reached archive-ready state
-- Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-rbac-further-development`
 - Branch: `feat/wt-rbac-further-development`
 
 ## Scope

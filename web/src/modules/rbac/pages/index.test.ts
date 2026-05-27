@@ -472,7 +472,7 @@ function mountRolePage() {
         permission: {
           mounted(el, binding) {
             const value = binding.value;
-            let allowed = true;
+            let allowed = false;
 
             if (typeof value === 'string') {
               allowed = permissionState.grantedCodes.includes(value);

@@ -4,7 +4,6 @@
 
 - Topic: `user-page-permission-governance`
 - Status: `archived`
-- Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-rbac-further-development`
 - Branch: `feat/wt-rbac-further-development`
 - Task class: `web`
 

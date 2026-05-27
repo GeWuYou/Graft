@@ -234,6 +234,7 @@ const permissions = ref<PermissionSummary[]>([]);
 const roleBindings = ref<Record<number, number[]>>({});
 const canReadUsers = computed(() => permissionStore.hasPermission(USER_PERMISSION_CODE.READ));
 const canReadRoles = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.ROLE_READ));
+const canReadUserRoleBindings = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.USER_ROLE_READ));
 const canReadPermissions = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.PERMISSION_READ));
 
 const unassignedUserCount = computed(
@@ -371,15 +372,17 @@ async function fetchOverview() {
   loadError.value = '';
 
   try {
-    const userResult = canReadUsers.value ? await getUsers() : { items: [] as UserSummary[] };
-    const roleResult = canReadRoles.value ? await getUserRoles() : { items: [] as RoleSummary[] };
-    const permissionResult = canReadPermissions.value ? await getPermissions() : { items: [] as PermissionSummary[] };
+    const [userResult, roleResult, permissionResult] = await Promise.all([
+      canReadUsers.value ? getUsers() : Promise.resolve({ items: [] as UserSummary[] }),
+      canReadRoles.value ? getUserRoles() : Promise.resolve({ items: [] as RoleSummary[] }),
+      canReadPermissions.value ? getPermissions() : Promise.resolve({ items: [] as PermissionSummary[] }),
+    ]);
 
     users.value = userResult.items;
     roles.value = roleResult.items;
     permissions.value = permissionResult.items;
 
-    if (canReadUsers.value && canReadRoles.value) {
+    if (canReadUsers.value && canReadRoles.value && canReadUserRoleBindings.value) {
       const bindings = await Promise.all(
         userResult.items.map(async (user) => {
           const { getUserRoleBindings } = await import('@/modules/user/api/user-roles');

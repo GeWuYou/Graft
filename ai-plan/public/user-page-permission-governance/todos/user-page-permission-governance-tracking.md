@@ -10,7 +10,6 @@
   - `ai-plan/public/README.md`
   - current RBAC/user management implementation
   - latest `rbac-visibility-governance` archive record
-- Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-rbac-further-development`
 - Branch: `feat/wt-rbac-further-development`
 
 ## Scope
@@ -52,7 +51,7 @@
 
 - Batch 0 completed topic initialization.
 - Batch 1 completed the user-page permission convergence and was committed as `fae5058` (`fix(user-page-permission):
-  align user actions with centralized guards`).
+align user actions with centralized guards`).
 - Topic docs now exist under `ai-plan/public/user-page-permission-governance/**`.
 - The current codebase already has the canonical frontend permission building blocks:
   - bootstrap snapshot permission truth in `web/src/store/modules/permission.ts`

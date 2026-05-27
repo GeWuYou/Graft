@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
+import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 
 import { ACCESS_CONTROL_ROUTE_PATH } from '../../contract/bootstrap';
 import OverviewPage from './index.vue';
@@ -90,8 +91,16 @@ function mountOverview() {
               typeof value === 'string'
                 ? permissionStoreMocks.hasPermission(value)
                 : Array.isArray(value)
-                  ? value.every((code) => permissionStoreMocks.hasPermission(code))
-                  : true;
+                  ? value.every((code: string) => permissionStoreMocks.hasPermission(code))
+                  : value && typeof value === 'object'
+                    ? (Array.isArray(value.allOf) ? value.allOf : []).every((code: string) =>
+                        permissionStoreMocks.hasPermission(code),
+                      ) &&
+                      ((Array.isArray(value.anyOf) ? value.anyOf : []).length === 0 ||
+                        (Array.isArray(value.anyOf) ? value.anyOf : []).some((code: string) =>
+                          permissionStoreMocks.hasPermission(code),
+                        ))
+                    : false;
             if (!allowed) {
               el.remove();
             }
@@ -176,6 +185,23 @@ describe('AccessControlOverviewPage', () => {
     expect(userApiMocks.getUsers).not.toHaveBeenCalled();
     expect(userRoleApiMocks.getRoles).not.toHaveBeenCalled();
     expect(rbacApiMocks.getPermissions).not.toHaveBeenCalled();
+    expect(userRoleApiMocks.getUserRoleBindings).not.toHaveBeenCalled();
+  });
+
+  it('skips user role binding requests when user role read permission is missing', async () => {
+    permissionStoreMocks.hasPermission.mockImplementation(
+      (code: string) =>
+        code === USER_PERMISSION_CODE.READ ||
+        code === RBAC_PERMISSION_CODE.ROLE_READ ||
+        code === RBAC_PERMISSION_CODE.PERMISSION_READ,
+    );
+
+    mountOverview();
+    await flushPromises();
+
+    expect(userApiMocks.getUsers).toHaveBeenCalledTimes(1);
+    expect(userRoleApiMocks.getRoles).toHaveBeenCalledTimes(1);
+    expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
     expect(userRoleApiMocks.getUserRoleBindings).not.toHaveBeenCalled();
   });
 });

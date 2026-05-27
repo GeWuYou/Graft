@@ -11,7 +11,6 @@
   - archived `rbac-visibility-governance`
   - archived `user-page-permission-governance`
   - current RBAC frontend implementation
-- Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-rbac-further-development`
 - Branch: `feat/wt-rbac-further-development`
 - Loop mode: `topic-completion-loop`
 
