@@ -59,6 +59,7 @@ import { API_CODE } from '@/contracts/api/codes';
 import { t } from '@/locales';
 import { completeRestrictedPasswordChange } from '@/modules/auth/runtime/restricted-session';
 import { useAuthSessionStore } from '@/modules/auth/store';
+import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { usePermissionStore } from '@/store';
 import { isApiRequestError } from '@/utils/request';
 
@@ -143,11 +144,15 @@ const handleSubmit = async (ctx: SubmitContext) => {
     MessagePlugin.success(t('app.auth.login.forcePasswordChange.success'));
   } catch (error) {
     if (isApiRequestError(error) && isPasswordChangeApiCode(error.code)) {
-      MessagePlugin.warning(error.message);
+      MessagePlugin.warning(
+        resolveLocalizedErrorMessage(t, error, t('app.auth.login.forcePasswordChange.errors.policyViolation')),
+      );
       return;
     }
 
-    MessagePlugin.error(error instanceof Error ? error.message : String(error));
+    MessagePlugin.error(
+      resolveLocalizedErrorMessage(t, error, t('app.auth.login.forcePasswordChange.errors.policyViolation')),
+    );
   } finally {
     submitting.value = false;
   }

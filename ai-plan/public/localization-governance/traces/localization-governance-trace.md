@@ -24,3 +24,11 @@
 - Confirmed current permission `display` / `description` payloads are still fallback-only and should evolve additively with a future `display_key` contract if needed.
 - Confirmed OpenAPI schema text remains limited to key-field, fallback, and locale semantics instead of expanding into a multilingual copy system.
 - Promoted the topic to `closeout-ready`; remaining notes are additive follow-ups rather than blocking baseline gaps.
+
+## 2026-05-27 final governance verification
+
+- Re-ran the bounded final verification round under `graft-multi-agent-task` without internal `graft-multi-agent-batch`, because the slice was a single cross-boundary audit rather than parallelizable implementation work.
+- Found one material shell-owned gap: `web/src/layouts/components/ForcePasswordChangeDialog.vue` still displayed backend `error.message` directly for password-change failures and generic exceptions.
+- Closed that gap by reusing the shared localized error resolver so the dialog now prefers `messageKey` and only falls back to backend message text when no translation is available.
+- Reconfirmed that menu `title_key`, OpenAPI key-field semantics, backend namespace/freeze behavior, and permission fallback semantics remain aligned with the key-first baseline.
+- Topic status is now `ready-to-archive`.

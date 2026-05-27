@@ -7,7 +7,7 @@ every public artifact.
 ## Active Topic
 
 - `localization-governance`
-  - Status: `closeout-ready`
+  - Status: `ready-to-archive`
   - Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-localization-governance`
   - Branch: `feat/wt-localization-governance`
   - Recovery source: `parent topic = none`

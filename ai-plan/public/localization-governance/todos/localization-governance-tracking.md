@@ -55,7 +55,8 @@
 
 ## Audit Conclusion
 
-- No material gap was found that justified a runtime code change inside the bounded slice.
+- Final verification found one remaining shell-owned error path that still surfaced raw backend `error.message` in the forced-password-change dialog.
+- The bounded slice closed that gap by routing the dialog through the shared `messageKey + message fallback` resolver instead of reading backend fallback text as canonical UI copy.
 - Frontend error rendering in the scanned `web/src/modules/**`, `web/src/app/**`, and shared helper path already routes API-localized failures through `messageKey + message fallback`:
   - `web/src/modules/shared/localized-api-error.ts`
   - `web/src/app/bootstrap/route-guards.ts`
@@ -64,6 +65,7 @@
   - `web/src/modules/rbac/pages/index.vue`
   - `web/src/modules/rbac/pages/permissions/index.vue`
   - `web/src/modules/monitor/pages/overview/index.vue`
+  - `web/src/layouts/components/ForcePasswordChangeDialog.vue`
 - Dynamic menu and route title handling already treats `title_key` as canonical and `title` as fallback:
   - `web/src/utils/route/bootstrap.ts`
   - `web/src/utils/route/title.ts`
@@ -100,3 +102,8 @@
   - add registry-level diagnostics for `server/internal/menu` if the project later wants duplicate-path or missing-`title_key` enforcement at registration time
   - evolve permission payloads additively with `display_key` only when a stable frontend-facing permission copy contract is actually needed
   - remove the current access-control compatibility normalization in `web/src/utils/route/bootstrap.ts` only after backend menu hierarchy and `title_key` payloads become fully canonical for that subtree
+
+## Current Status
+
+- Status: `ready-to-archive`
+- Blocking gaps: none in the verified bounded scope after the forced-password-change dialog was aligned with key-first error rendering.
