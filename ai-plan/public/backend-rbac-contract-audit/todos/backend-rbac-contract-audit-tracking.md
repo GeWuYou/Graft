@@ -3,7 +3,7 @@
 ## Topic
 
 - Topic: `backend-rbac-contract-audit`
-- Status: `active`
+- Status: `archived`
 - Goal: audit the current RBAC permission/menu/API/guard contract closure across `server` and `web` without modifying
   runtime code in Batch 0.
 - Branch: `feat/wt-rbac-further-development`
@@ -71,7 +71,7 @@
 2. Batch 1: backend permission/menu/API/guard audit. Status: completed.
 3. Batch 2: frontend permission/route/action audit. Status: completed.
 4. Batch 3: cross-boundary consistency audit. Status: completed.
-5. Batch 4: MVP-stable decision and archive closeout. Status: pending.
+5. Batch 4: MVP-stable decision and archive closeout. Status: completed.
 
 ## Batch 0 Findings
 
@@ -110,10 +110,10 @@
 
 ## Immediate Next Step
 
-- Execute `batch-4-mvp-stable-decision-and-archive-closeout`.
-- Focus:
-  - decide whether the current Batch 1 to Batch 3 evidence is sufficient to mark the topic archive-ready for MVP scope
-  - keep any remaining note limited to risk-only governance follow-up instead of reopening runtime drift without proof
+- No continuation required for this topic.
+- If a follow-up is needed:
+  - open a new bugfix-only topic for a proven defect inside the audited RBAC MVP scope
+  - open a new future-scope topic for data permission, org permission, tenant permission, or observability work
 
 ## Required Validation
 
@@ -128,7 +128,11 @@
   - docs-only closeout this round relied on prior Batch 1 backend validation and Batch 2 web validation
   - `git diff --check`
 - Batch 4:
-  - required commands depend on whether closeout remains docs-only
+  - `git status --short`
+  - `git branch --show-current`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `git diff --check`
 
 ## Commit Plan
 
@@ -140,6 +144,8 @@
   - `fix(rbac-contract-audit): align frontend permission usage`
 - Batch 3:
   - `docs(rbac-contract-audit): record cross-boundary audit`
+- Batch 4:
+  - `docs(rbac-contract-audit): archive MVP-stable audit`
 
 ## Batch 1 Findings
 
@@ -212,3 +218,23 @@
   - `server/plugins/rbac/README.md` no longer describes the stale `.../roles/assign` path or replace-only write semantics
 - Remaining note is risk-only rather than blocker:
   - registry and menu closure still rely on tests plus canonical ownership, not runtime duplicate/reference enforcement
+
+## Batch 4 Final Decision
+
+- Final closeout status: `archive-ready`
+- MVP-stable decision: `mvp-stable-with-risks`
+- Decision basis:
+  - Batch 1 backend audit found no proven runtime guard or permission-contract mismatch in owned scope
+  - Batch 2 frontend audit closed the only proven owned-scope visibility drift
+  - Batch 3 cross-boundary audit confirmed current backend and frontend RBAC contract closure is aligned for MVP scope
+  - final required backend and web validation passed in Batch 4
+- Archive policy:
+  - this topic line is closed for proactive feature expansion
+  - later work is bugfix-only unless a new topic is opened
+  - data permission / row-level permission, organization permission, tenant permission, and observability remain
+    future topics instead of reopen triggers for this archive
+- Residual risks:
+  - registry and menu closure still depend on tests plus disciplined canonical ownership, not runtime
+    duplicate/reference enforcement
+  - this residual risk is non-blocking for current MVP archive readiness, so the terminal decision remains
+    `mvp-stable-with-risks` rather than `blocked`

@@ -6,33 +6,33 @@ every public artifact.
 
 ## Active Topic
 
-- `backend-rbac-contract-audit`
-  - Status: `active`
-  - Task class: `cross-boundary`
-  - Branch: `feat/wt-rbac-further-development`
-  - Recovery source:
-    - archived `rbac-visibility-governance`
-    - archived `user-page-permission-governance`
-    - archived `frontend-permission-code-cleanup`
-    - current RBAC backend implementation
-    - current RBAC frontend implementation
-  - Current batch:
-    - `batch-3-cross-boundary-contract-consistency-audit`
-  - Next batch after accepted Batch 3 closeout:
-    - `batch-4-mvp-stable-decision-and-archive-closeout`
-  - Topic directory:
-    - `ai-plan/public/backend-rbac-contract-audit`
-  - Recovery notes:
-    - Batch 0 is docs-only and establishes the first RBAC contract audit inventory.
-    - Batch 1 is docs-only and records the backend permission, menu, API, and guard closure audit.
-    - Batch 2 records the frontend permission, route, and action audit, including one minimal owned-scope visibility
-      fix for permission-only disabled RBAC row actions.
-    - Batch 3 merges backend and frontend evidence into a cross-boundary closure matrix, confirms current runtime
-      alignment for MVP scope, and fixes one stale plugin README contract description without widening into runtime work.
-    - Later batches should keep backend, frontend, and cross-boundary consistency audit slices separate instead of
-      widening into runtime redesign.
+- None.
+- Re-run startup preflight from root `AGENTS.md` before opening any new topic or follow-up slice.
 
 ## Archived Topics
+
+- `backend-rbac-contract-audit`
+  - Status: `archived`
+  - Recovery status: no continuation required; do not restore this topic into the active recovery path.
+  - Archive reason: the cross-boundary RBAC contract audit completed all planned batches, passed final backend and web
+    validation, and confirmed the current MVP contract closure is stable enough to archive without widening into new
+    runtime capability work.
+  - Final result: current MVP RBAC scope is `mvp-stable-with-risks`; backend permission registry, backend guards,
+    backend menu declarations, frontend permission constants, bootstrap route registrations, and page/action visibility
+    remain aligned for the audited `/access-control/*`, role-permission, and user-role surfaces.
+  - Follow-up status: `bugfix-only`
+  - Archived topic directory:
+    - `ai-plan/public/backend-rbac-contract-audit`
+  - Archive notes:
+    - RBAC no longer takes proactive feature expansion in this topic line; later work should be bugfix-only unless a
+      new topic is opened
+    - data permission / row-level permission remains a future topic, not a follow-up inside this archive line
+    - organization or department permission model remains a future topic, not a follow-up inside this archive line
+    - tenant permission model remains a future topic, not a follow-up inside this archive line
+    - permission observability or dashboard work remains a future topic, not a follow-up inside this archive line
+    - registry and menu closure still rely on canonical ownership plus tests rather than runtime duplicate/reference
+      enforcement; this is a non-blocking hardening risk, not a reopen trigger by itself
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. If follow-up is needed, open a new bugfix-only or new-scope topic instead of resuming backend-rbac-contract-audit.`
 
 - `frontend-permission-code-cleanup`
   - Status: `archived`

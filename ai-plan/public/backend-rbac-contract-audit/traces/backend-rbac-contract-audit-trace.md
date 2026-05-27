@@ -231,3 +231,46 @@
 - Kept Batch 3 effectively docs-only for validation purposes:
   - relied on prior Batch 1 backend validation and Batch 2 web validation for unchanged runtime code
   - ran `git diff --check` for the current owned docs changes
+
+## 2026-05-27 Batch 4 completed the terminal archive closeout
+
+- Reused the inherited startup context under root `AGENTS.md` for the `cross-boundary`
+  `batch-4-mvp-stable-decision-and-archive-closeout` worker round.
+- Re-read the required startup and recovery sources for the current round:
+  - `AGENTS.md`
+  - `server/AGENTS.md`
+  - `web/AGENTS.md`
+  - `.ai/environment/tools.ai.yaml`
+  - `ai-plan/public/README.md`
+  - `ai-plan/public/backend-rbac-contract-audit/README.md`
+  - `ai-plan/public/backend-rbac-contract-audit/todos/backend-rbac-contract-audit-tracking.md`
+  - `ai-plan/public/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
+  - `ai-plan/design/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/AI任务追踪与恢复设计.md`
+- Confirmed the worktree was clean before Batch 4 archive writes.
+- Reused accepted evidence from prior completed batches:
+  - Batch 1 backend permission/menu/API/guard audit
+  - Batch 2 frontend permission/route/action audit
+  - Batch 3 cross-boundary closure matrix
+- Chose the terminal MVP decision as `mvp-stable-with-risks` instead of `mvp-stable`:
+  - current MVP closure is validated and archive-ready
+  - remaining known issues are governance-hardening risks rather than proven runtime mismatches
+  - the most concrete residual note is that permission/menu registries still rely on tests plus canonical ownership
+    instead of runtime duplicate/reference enforcement
+- Updated archive and recovery materials:
+  - `ai-plan/public/README.md`
+  - `ai-plan/public/backend-rbac-contract-audit/README.md`
+  - `ai-plan/public/backend-rbac-contract-audit/todos/backend-rbac-contract-audit-tracking.md`
+  - `ai-plan/public/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
+- Recorded the follow-up policy explicitly:
+  - no proactive RBAC feature expansion remains in this topic line
+  - later work is bugfix-only unless a new topic is opened
+  - data permission / row-level permission, organization permission, tenant permission, and observability remain
+    separate future topics
+- Ran the final required validation chain for this terminal closeout:
+  - `git status --short`
+  - `git branch --show-current`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `git diff --check`
+- Prepared the terminal archive-ready closeout and the final scoped docs commit for the owned archive materials.

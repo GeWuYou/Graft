@@ -3,10 +3,11 @@
 ## Status
 
 - Topic: `backend-rbac-contract-audit`
-- Status: `active`
+- Status: `archived`
 - Branch: `feat/wt-rbac-further-development`
 - Task class: `cross-boundary`
 - Loop mode: `topic-completion-loop`
+- Archive date: `2026-05-27`
 
 ## Goal
 
@@ -413,3 +414,42 @@ Owned page-level permission usage observed in current scope:
 - Remaining notes are risk-only, not active drift:
   - registry/menu closure still depends on tests and disciplined contract ownership
   - route visibility remains bootstrap-driven and intentionally separate from per-action authorization
+
+## Final Archive Record
+
+- Status: `archived`
+- MVP-stable decision: `mvp-stable-with-risks`
+- Archive reason: the topic completed its planned cross-boundary audit loop, final backend and web validation passed,
+  and no remaining proven runtime mismatch in owned scope requires reopening MVP delivery work.
+- Final result:
+  - backend RBAC permission registry, menu declarations, request guards, and documented route contracts remain aligned
+    with the audited frontend permission constants, bootstrap route registrations, and page/action visibility rules
+  - current MVP closure is accepted for:
+    - `/access-control/overview`
+    - `/access-control/users`
+    - `/access-control/roles`
+    - `/access-control/permissions`
+    - role-permission snapshot and mutation
+    - user-role snapshot and single-user or batch mutation
+  - Batch 2's bounded frontend visibility fix and Batch 3's bounded RBAC plugin README fix remain the only owned-scope
+    non-audit changes required by this topic line
+- Final validations:
+  - `git status --short`
+  - `git branch --show-current`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `git diff --check`
+- Follow-up policy:
+  - RBAC no longer takes proactive feature expansion in this topic line
+  - later work is bugfix-only unless a new topic is opened
+  - data permission / row-level permission remains a future topic
+  - organization or department permission model remains a future topic
+  - tenant permission model remains a future topic
+  - permission observability dashboard remains a future topic
+- Remaining risks:
+  - runtime permission and menu registries still rely on tests and disciplined canonical ownership rather than runtime
+    duplicate/reference enforcement
+  - bootstrap route visibility and per-action authorization remain intentionally separate surfaces, so future feature
+    additions still need ordinary cross-boundary contract review instead of assuming menu visibility alone is enough
+- Continuation:
+  - no continuation required for this topic
