@@ -31,11 +31,20 @@ func registerRBACPermissions(registry *permission.Registry, pluginName string) {
 
 func registerRBACMenu(registry *menu.Registry, pluginName string) {
 	registry.Register(menu.Item{
+		Code:       "access-control.root",
+		Title:      "访问控制",
+		TitleKey:   rbaccontract.AccessControlMenuTitle.String(),
+		Path:       "/access-control",
+		Icon:       "secured",
+		Permission: "",
+		Plugin:     pluginName,
+	})
+	registry.Register(menu.Item{
 		Code:       "access-control.overview",
 		Title:      "概览",
 		TitleKey:   rbaccontract.AccessControlOverviewMenuTitle.String(),
 		Path:       "/access-control/overview",
-		Icon:       "secured",
+		Icon:       "dashboard",
 		Permission: "",
 		Plugin:     pluginName,
 	})
@@ -53,7 +62,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		Title:      "权限管理",
 		TitleKey:   rbaccontract.PermissionListMenuTitle.String(),
 		Path:       "/access-control/permissions",
-		Icon:       "secured",
+		Icon:       "lock-on",
 		Permission: rbaccontract.PermissionReadPermission.String(),
 		Plugin:     pluginName,
 	})

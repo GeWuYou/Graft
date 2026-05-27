@@ -135,6 +135,7 @@ func registerMessages(localizer *i18n.Service) error {
 			Namespace: "rbac",
 			Locale:    i18n.LocaleZHCN,
 			Messages: []i18n.MessageResource{
+				{Key: i18n.MessageKey(rbaccontract.AccessControlMenuTitle.String()), Text: "访问控制"},
 				{Key: i18n.MessageKey(rbaccontract.RoleListMenuTitle.String()), Text: "角色管理"},
 				{Key: i18n.MessageKey(rbaccontract.PermissionListMenuTitle.String()), Text: "权限管理"},
 				{Key: i18n.MessageKey(rbaccontract.AccessControlOverviewMenuTitle.String()), Text: "访问控制概览"},
@@ -144,6 +145,7 @@ func registerMessages(localizer *i18n.Service) error {
 			Namespace: "rbac",
 			Locale:    i18n.LocaleENUS,
 			Messages: []i18n.MessageResource{
+				{Key: i18n.MessageKey(rbaccontract.AccessControlMenuTitle.String()), Text: "Access Control"},
 				{Key: i18n.MessageKey(rbaccontract.RoleListMenuTitle.String()), Text: "Role Management"},
 				{Key: i18n.MessageKey(rbaccontract.PermissionListMenuTitle.String()), Text: "Permission Management"},
 				{Key: i18n.MessageKey(rbaccontract.AccessControlOverviewMenuTitle.String()), Text: "Access Control Overview"},

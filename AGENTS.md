@@ -200,8 +200,9 @@ Prefer the repository skills below when their trigger matches the task:
     through `graft-task-closeout`, and commit the validated owned scope through `graft-commit` when safe
 - `graft-multi-agent-loop`
   - use when one bounded task should be executed through repeated same-session main-agent-managed rounds of
-    `graft-multi-agent-task`, where the main agent owns orchestration, budget, closeout parsing, acceptance, and
-    next-round dispatch, and each bounded implementation round is delegated to one worker subagent by default
+    `graft-multi-agent-task`, where the default mode is `topic-completion-loop`, the main agent owns orchestration,
+    batch-state maintenance, budget, closeout parsing, acceptance, and next-round dispatch, and each bounded
+    implementation round is delegated to one worker subagent by default
 - `graft-pr-review`
   - use when the task depends on the GitHub PR for the current branch, especially to extract AI review findings,
     failed checks, MegaLinter warnings, or failed test signals before local verification
@@ -619,8 +620,27 @@ Exception for `graft-multi-agent-loop`:
 
 - when the user explicitly triggers `graft-multi-agent-loop`, the outer main agent may delegate one whole bounded
   implementation round to exactly one worker subagent by default instead of keeping that round's implementation local
-- in that loop mode, the outer main agent keeps orchestration, budget tracking, stop conditions, closeout parsing,
-  acceptance, and next-round dispatch local
+- in that loop mode, the outer main agent keeps orchestration, batch-state maintenance, budget tracking, stop
+  conditions, closeout parsing, acceptance, and next-round dispatch local
+- in that loop mode, `topic-completion-loop` is the default:
+  - if the caller does not explicitly set `loop_mode`, the outer main agent must run `topic-completion-loop`
+  - `checkpoint-loop` may be used only when the caller explicitly requests it
+- in `topic-completion-loop`, the outer main agent must maintain batch state after every accepted closeout:
+  - update `completed_batches`
+  - update `pending_batches`
+  - choose `next_batch`
+  - dispatch the next worker when no terminal stop condition applies
+- when `pending_batches` becomes empty in `topic-completion-loop`, the outer main agent must run a final
+  archive-readiness check instead of stopping immediately
+  - if the acceptance conditions pass, stop as `archive-ready`
+  - if more bounded work is required, regenerate `pending_batches` and continue
+  - if no safe next batch can be defined without user help, stop as `blocked`
+- in `topic-completion-loop`, ordinary batch success must continue by default and must not stop merely because no
+  `Next-session startup prompt:` was emitted
+- in `topic-completion-loop`, `Next-session startup prompt:` is reserved for terminal handoff states:
+  - `blocked`
+  - `archive-ready`
+  - explicit user stop
 - in that loop mode, the outer main agent runs bounded orchestration rather than real-time remote control:
   - timeout alone does not mean the worker is stalled
   - each round carries an explicit checkpoint budget, defaulting to `1`
@@ -676,6 +696,7 @@ concurrent work instead of assuming exclusive ownership of the repository.
 
 The main agent remains responsible for:
 
+- batch-state updates when `graft-multi-agent-loop` is active
 - critical-path selection
 - validation planning
 - review and acceptance of every subagent result

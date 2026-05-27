@@ -7,7 +7,12 @@
           <t-button theme="default" variant="outline" :loading="loading" data-testid="user-refresh" @click="fetchUsers">
             {{ t('user.userList.refresh') }}
           </t-button>
-          <t-button v-if="canCreateUsers" theme="primary" data-testid="user-create" @click="openUserDrawer('create')">
+          <t-button
+            v-permission="userPermissionCodes.CREATE"
+            theme="primary"
+            data-testid="user-create"
+            @click="openUserDrawer('create')"
+          >
             {{ t('user.userList.create') }}
           </t-button>
         </template>
@@ -67,10 +72,10 @@
               <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.enable') }}</t-button>
               <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.disable') }}</t-button>
               <t-button
+                v-permission="{ allOf: userRoleManagePermissionCodes }"
                 size="small"
                 theme="primary"
                 variant="outline"
-                :disabled="!canAssignUserRoles"
                 data-testid="user-batch-manage-roles"
                 @click="openBatchUserRoleDrawer"
               >
@@ -159,7 +164,7 @@
           <template #operation="{ row }">
             <div class="table-actions">
               <t-button
-                v-if="canReadUserRoles"
+                v-permission="{ allOf: userRoleManagePermissionCodes }"
                 size="small"
                 theme="default"
                 variant="outline"
@@ -169,7 +174,7 @@
                 {{ t('user.userList.assignRoles') }}
               </t-button>
               <t-button
-                v-if="canUpdateUsers"
+                v-permission="userPermissionCodes.UPDATE"
                 size="small"
                 theme="default"
                 variant="outline"
@@ -179,6 +184,7 @@
                 {{ t('user.userList.edit') }}
               </t-button>
               <t-dropdown
+                v-if="userRowMoreOptions(row).length > 0"
                 :options="userRowMoreOptions(row)"
                 trigger="click"
                 @click="(payload) => handleUserMoreAction(payload, row)"
@@ -205,7 +211,7 @@
                       {{ t('user.userList.toolbar.clearFilters') }}
                     </t-button>
                     <t-button
-                      v-if="canCreateUsers"
+                      v-permission="userPermissionCodes.CREATE"
                       theme="primary"
                       data-testid="user-empty-create"
                       @click="openUserDrawer('create')"
@@ -323,7 +329,7 @@
           <assignment-toolbar
             v-model:mode-value="roleMutationMode"
             v-model:search-value="roleSearchKeyword"
-            :disabled="submittingRoles || loadingRoleDialogData || !canAssignUserRoles"
+            :disabled="submittingRoles || loadingRoleDialogData"
             :mode-label="t('user.userList.roleDialog.saveStrategyLabel')"
             :mode-options="roleMutationOptions"
             :search-placeholder="t('user.userList.roleDialog.searchPlaceholder')"
@@ -348,7 +354,7 @@
         <t-checkbox-group
           v-model="selectedRoleIds"
           class="sr-only"
-          :disabled="loadingRoleDialogData || !roleSelectionReady || !canAssignUserRoles"
+          :disabled="loadingRoleDialogData || !roleSelectionReady"
           data-testid="role-checkbox-group"
         />
         <div class="assignment-card-grid permission-card-grid">
@@ -359,7 +365,7 @@
             :assigned-label="t('user.userList.roleDialog.assignedBadge')"
             :code="role.name"
             :description="role.description || t('user.userList.roleDialog.emptyDescription')"
-            :disabled="loadingRoleDialogData || !roleSelectionReady || !canAssignUserRoles"
+            :disabled="loadingRoleDialogData || !roleSelectionReady"
             :selected="selectedRoleIds.includes(role.id)"
             :tags="[
               {
@@ -564,18 +570,7 @@ const pagination = ref({
 
 const userPermissionCodes = USER_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
-const canCreateUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.CREATE));
-const canUpdateUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.UPDATE));
-const canDisableUsers = computed(() => permissionStore.hasPermission(userPermissionCodes.DISABLE));
-const canReadUserRoles = computed(() => permissionStore.hasPermission(rbacPermissionCodes.USER_ROLE_READ));
-const canAssignUserRoles = computed(() => permissionStore.hasPermission(rbacPermissionCodes.USER_ROLE_ASSIGN));
-const canShowOperationColumn = computed(() =>
-  permissionStore.hasAnyPermission([
-    userPermissionCodes.UPDATE,
-    userPermissionCodes.DISABLE,
-    rbacPermissionCodes.USER_ROLE_READ,
-  ]),
-);
+const userRoleManagePermissionCodes = [rbacPermissionCodes.USER_ROLE_READ, rbacPermissionCodes.USER_ROLE_ASSIGN];
 const loadingRoleDialogData = computed(() => roleCatalogLoading.value || loadingRoleSelection.value);
 const roleMutationPayload = computed(() => {
   return {
@@ -583,7 +578,7 @@ const roleMutationPayload = computed(() => {
   };
 });
 const hasUserRoleSelectionChanges = computed(() => {
-  if (!canAssignUserRoles.value || !roleSelectionReady.value) {
+  if (!roleSelectionReady.value) {
     return false;
   }
 
@@ -608,7 +603,7 @@ const hasUserRoleSelectionChanges = computed(() => {
 });
 const canSubmitRoleAssignment = computed(
   () =>
-    canAssignUserRoles.value &&
+    canManageUserRoles() &&
     hasUserRoleSelectionChanges.value &&
     (roleDialogMode.value === 'batch' ? selectedRowKeys.value.length > 0 : selectedUser.value !== null) &&
     (roleMutationMode.value === 'replace' || roleMutationPayload.value.role_ids.length > 0),
@@ -851,26 +846,35 @@ const userAssignmentFooterDetails = computed(() => {
   return details;
 });
 
-const userRowMoreOptions = (user: UserRow) => [
-  {
-    content:
-      normalizeUserStatus(user.status) === USER_STATUS.DISABLED
-        ? t('user.userList.moreActions.enable')
-        : t('user.userList.moreActions.disable'),
-    disabled: !canDisableUsers.value,
-    value: 'toggle-status',
-  },
-  {
-    content: t('user.userList.moreActions.resetPassword'),
-    disabled: !canUpdateUsers.value,
-    value: 'reset-password',
-  },
-  {
-    content: t('user.userList.moreActions.delete'),
-    disabled: !canDisableUsers.value,
-    value: 'delete',
-  },
-];
+const userRowMoreOptions = (user: UserRow) => {
+  const options: Array<{ content: string; value: string }> = [];
+
+  if (permissionStore.hasPermission(userPermissionCodes.DISABLE)) {
+    options.push({
+      content:
+        normalizeUserStatus(user.status) === USER_STATUS.DISABLED
+          ? t('user.userList.moreActions.enable')
+          : t('user.userList.moreActions.disable'),
+      value: 'toggle-status',
+    });
+  }
+
+  if (permissionStore.hasPermission(userPermissionCodes.UPDATE)) {
+    options.push({
+      content: t('user.userList.moreActions.resetPassword'),
+      value: 'reset-password',
+    });
+  }
+
+  if (permissionStore.hasPermission(userPermissionCodes.DISABLE)) {
+    options.push({
+      content: t('user.userList.moreActions.delete'),
+      value: 'delete',
+    });
+  }
+
+  return options;
+};
 
 const userFormRules = computed<Record<keyof UserFormState, FormRule[]>>(() => ({
   username: [{ required: true, message: t('user.userList.form.required.username'), type: 'error' }],
@@ -947,7 +951,7 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     },
   ];
 
-  const allColumns = canShowOperationColumn.value
+  const allColumns = hasVisibleUserOperationActions()
     ? [
         ...baseColumns,
         {
@@ -965,7 +969,7 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
 });
 
 const visibleColumns = computed(() => {
-  if (canShowOperationColumn.value) {
+  if (hasVisibleUserOperationActions()) {
     return columns.value;
   }
 
@@ -1049,7 +1053,48 @@ function statusTheme(status?: string | null) {
   return normalizeUserStatus(status) === USER_STATUS.DISABLED ? 'danger' : 'success';
 }
 
+function canManageUserRoles() {
+  return permissionStore.hasAllPermissions(userRoleManagePermissionCodes);
+}
+
+function hasVisibleUserOperationActions() {
+  return (
+    canManageUserRoles() ||
+    permissionStore.hasPermission(userPermissionCodes.UPDATE) ||
+    permissionStore.hasPermission(userPermissionCodes.DISABLE)
+  );
+}
+
+function ensureUserPermission(allowed: boolean, message: string) {
+  if (allowed) {
+    return true;
+  }
+
+  MessagePlugin.warning(message);
+  return false;
+}
+
 function openUserDrawer(mode: UserDrawerMode, user?: UserRow) {
+  if (
+    mode === 'create' &&
+    !ensureUserPermission(
+      permissionStore.hasPermission(userPermissionCodes.CREATE),
+      t('user.userList.unavailable.create'),
+    )
+  ) {
+    return;
+  }
+
+  if (
+    mode === 'edit' &&
+    !ensureUserPermission(
+      permissionStore.hasPermission(userPermissionCodes.UPDATE),
+      t('user.userList.unavailable.edit'),
+    )
+  ) {
+    return;
+  }
+
   userDrawerMode.value = mode;
   userDrawerTarget.value = user ?? null;
   passwordFieldError.value = '';
@@ -1188,6 +1233,15 @@ async function handleUserSubmit(ctx: SubmitContext) {
 }
 
 function openResetPasswordDialog(user: UserRow) {
+  if (
+    !ensureUserPermission(
+      permissionStore.hasPermission(userPermissionCodes.UPDATE),
+      t('user.userList.unavailable.more'),
+    )
+  ) {
+    return;
+  }
+
   resetPasswordTarget.value = user;
   resetPasswordForm.value.password = '';
   clearResetPasswordFieldError();
@@ -1243,6 +1297,15 @@ async function submitResetPassword() {
 }
 
 async function toggleUserStatus(user: UserRow) {
+  if (
+    !ensureUserPermission(
+      permissionStore.hasPermission(userPermissionCodes.DISABLE),
+      t('user.userList.unavailable.more'),
+    )
+  ) {
+    return;
+  }
+
   const nextStatus =
     normalizeUserStatus(user.status) === USER_STATUS.DISABLED ? USER_STATUS.ENABLED : USER_STATUS.DISABLED;
   const actionLabel =
@@ -1274,6 +1337,15 @@ async function toggleUserStatus(user: UserRow) {
 }
 
 async function confirmDeleteUser(user: UserRow) {
+  if (
+    !ensureUserPermission(
+      permissionStore.hasPermission(userPermissionCodes.DISABLE),
+      t('user.userList.unavailable.more'),
+    )
+  ) {
+    return;
+  }
+
   const confirmed = window.confirm(
     t('user.userList.deleteConfirmDescription', { user: user.display || user.username }),
   );
@@ -1402,6 +1474,10 @@ async function loadUserRoleSelection(user: UserRow, session: number) {
 }
 
 async function handleOpenUserRoleDrawer(row: UserRow) {
+  if (!ensureUserPermission(canManageUserRoles(), t('user.userList.unavailable.manageRoles'))) {
+    return;
+  }
+
   const session = drawerSession.value + 1;
 
   drawerSession.value = session;
@@ -1411,6 +1487,10 @@ async function handleOpenUserRoleDrawer(row: UserRow) {
 }
 
 async function openBatchUserRoleDrawer() {
+  if (!ensureUserPermission(canManageUserRoles(), t('user.userList.unavailable.manageRoles'))) {
+    return;
+  }
+
   const session = drawerSession.value + 1;
 
   drawerSession.value = session;
@@ -1443,7 +1523,7 @@ async function openBatchUserRoleDrawer() {
 }
 
 function toggleUserRoleSelection(roleId: number) {
-  if (loadingRoleDialogData.value || !roleSelectionReady.value || !canAssignUserRoles.value) {
+  if (loadingRoleDialogData.value || !roleSelectionReady.value || !canManageUserRoles()) {
     return;
   }
 
@@ -1466,6 +1546,10 @@ async function retryUserRoleDrawerLoad() {
 }
 
 async function submitUserRoleAssignment() {
+  if (!ensureUserPermission(canManageUserRoles(), t('user.userList.unavailable.manageRoles'))) {
+    return;
+  }
+
   if (!canSubmitRoleAssignment.value) {
     return;
   }
@@ -1575,7 +1659,8 @@ watch(
 );
 
 watch(
-  () => [route.query.action, canCreateUsers.value, userDrawerVisible.value] as const,
+  () =>
+    [route.query.action, permissionStore.hasPermission(userPermissionCodes.CREATE), userDrawerVisible.value] as const,
   ([action, allowed, visible]) => {
     if (action !== 'create' || !allowed || visible) {
       return;

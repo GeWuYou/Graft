@@ -101,6 +101,7 @@
       "unavailable": {
         "create": "You do not have permission to create users",
         "edit": "You do not have permission to edit this user",
+        "manageRoles": "You do not have permission to manage user roles",
         "more": "More user actions require additional permissions"
       },
       "form": {

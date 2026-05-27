@@ -1281,23 +1281,38 @@ func assertBootstrapIdentityAndPermissions(t *testing.T, payload bootstrapRespon
 func assertBootstrapMenus(t *testing.T, menus []bootstrapMenuResponse) {
 	t.Helper()
 
-	if len(menus) != 3 {
-		t.Fatalf("expected filtered menus to keep access-control overview, user, and public entries, got %#v", menus)
+	if len(menus) != 4 {
+		t.Fatalf("expected filtered menus to keep access-control root, overview, user, and public entries, got %#v", menus)
 	}
-	if menus[0].Code != "user.list" ||
-		menus[0].Path != "/access-control/users" ||
-		menus[0].Permission != usercontract.UserReadPermission.String() ||
-		menus[0].TitleKey != "menu.access_control.users.title" {
-		t.Fatalf("expected first menu to be users entry, got %#v", menus[0])
+
+	expected := []bootstrapMenuResponse{
+		{
+			Code:     "access-control.root",
+			Path:     "/access-control",
+			TitleKey: "menu.access_control.title",
+		},
+		{
+			Code:     "access-control.overview",
+			Path:     "/access-control/overview",
+			TitleKey: "menu.access_control.overview.title",
+		},
+		{
+			Code:       "user.list",
+			Path:       "/access-control/users",
+			Permission: usercontract.UserReadPermission.String(),
+			TitleKey:   "menu.access_control.users.title",
+		},
+		{
+			Code: "profile.self",
+			Path: "/profile",
+		},
 	}
-	if menus[1].Code != "access-control.overview" ||
-		menus[1].Path != "/access-control/overview" ||
-		menus[1].Permission != "" ||
-		menus[1].TitleKey != "menu.access_control.overview.title" {
-		t.Fatalf("expected second menu to be access-control overview entry, got %#v", menus[1])
-	}
-	if menus[2].Code != "profile.self" || menus[2].Path != "/profile" || menus[2].Permission != "" {
-		t.Fatalf("expected public profile menu, got %#v", menus[1])
+
+	for i, want := range expected {
+		got := menus[i]
+		if got.Code != want.Code || got.Path != want.Path || got.Permission != want.Permission || got.TitleKey != want.TitleKey {
+			t.Fatalf("expected bootstrap menu %d to be %#v, got %#v", i, want, got)
+		}
 	}
 }
 
@@ -2337,17 +2352,20 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 
 	payload := decodeSuccessData[bootstrapResponse](t, recorder)
 	assertBootstrapPayload(t, payload)
-	if len(payload.Menus) != 3 {
-		t.Fatalf("expected filtered menus to keep access-control overview, user, and public entries, got %#v", payload.Menus)
+	if len(payload.Menus) != 4 {
+		t.Fatalf("expected filtered menus to keep access-control root, overview, user, and public entries, got %#v", payload.Menus)
 	}
-	if payload.Menus[0].Path != "/access-control/users" || payload.Menus[0].TitleKey != "menu.access_control.users.title" {
-		t.Fatalf("unexpected filtered user menu: %#v", payload.Menus[0])
+	if payload.Menus[0].Path != "/access-control" || payload.Menus[0].TitleKey != "menu.access_control.title" {
+		t.Fatalf("unexpected filtered root menu: %#v", payload.Menus[0])
 	}
 	if payload.Menus[1].Path != "/access-control/overview" || payload.Menus[1].TitleKey != "menu.access_control.overview.title" {
 		t.Fatalf("unexpected filtered overview menu: %#v", payload.Menus[1])
 	}
-	if payload.Menus[2].Path != "/profile" {
-		t.Fatalf("unexpected filtered public menu: %#v", payload.Menus[2])
+	if payload.Menus[2].Path != "/access-control/users" || payload.Menus[2].TitleKey != "menu.access_control.users.title" {
+		t.Fatalf("unexpected filtered user menu: %#v", payload.Menus[2])
+	}
+	if payload.Menus[3].Path != "/profile" {
+		t.Fatalf("unexpected filtered public menu: %#v", payload.Menus[3])
 	}
 }
 

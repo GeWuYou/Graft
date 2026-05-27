@@ -7,20 +7,19 @@ describe('resolveRuntimeHomePath', () => {
   it('prefers the first visible registered runtime route', () => {
     const routes: RouteRecordRaw[] = [
       {
-        path: '/users',
-        redirect: '/users/index',
+        path: '/access-control',
+        redirect: '/access-control/overview',
         children: [
           {
-            path: 'index',
-            name: 'UserListIndex',
-            meta: { hidden: true },
+            path: 'overview',
+            name: 'AccessControlOverviewIndex',
             component: async () => ({ default: {} }),
           },
         ],
       },
     ];
 
-    expect(resolveRuntimeHomePath(routes)).toBe('/users');
+    expect(resolveRuntimeHomePath(routes)).toBe('/access-control');
   });
 
   it('falls back to the runtime exception page when no visible page is registered', () => {

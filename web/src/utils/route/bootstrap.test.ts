@@ -6,6 +6,14 @@ describe('transformBootstrapMenusToRoutes', () => {
   it('只为当前 web 已接入的 bootstrap 菜单生成动态路由', () => {
     const routes = transformBootstrapMenusToRoutes([
       {
+        code: 'access-control.root',
+        title_key: 'menu.access_control.title',
+        title: '访问控制',
+        path: '/access-control',
+        icon: 'secured',
+        permission: '',
+      },
+      {
         code: 'access-control.overview',
         title_key: 'menu.access_control.overview.title',
         title: '概览',
@@ -14,20 +22,20 @@ describe('transformBootstrapMenusToRoutes', () => {
         permission: '',
       },
       {
-        code: 'role.list',
-        title_key: 'menu.role_list.title',
-        title: '角色管理',
-        path: '/roles',
-        icon: 'secured',
-        permission: 'role.read',
-      },
-      {
         code: 'user.list',
-        title_key: 'menu.user_list.title',
+        title_key: 'menu.access_control.users.title',
         title: '用户管理',
-        path: '/users',
+        path: '/access-control/users',
         icon: 'usergroup',
         permission: 'user.read',
+      },
+      {
+        code: 'role.list',
+        title_key: 'menu.access_control.roles.title',
+        title: '角色管理',
+        path: '/access-control/roles',
+        icon: 'secured',
+        permission: 'role.read',
       },
       {
         code: 'unknown.feature',
@@ -55,43 +63,7 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[2]?.meta?.icon).toBe('secured');
   });
 
-  it('后端未返回访问控制概览时前端仍补出概览菜单', () => {
-    const routes = transformBootstrapMenusToRoutes([
-      {
-        code: 'role.list',
-        title_key: 'menu.role_list.title',
-        title: '角色管理',
-        path: '/roles',
-        icon: 'secured',
-        permission: 'role.read',
-      },
-      {
-        code: 'user.list',
-        title_key: 'menu.user_list.title',
-        title: '用户管理',
-        path: '/users',
-        icon: 'usergroup',
-        permission: 'user.read',
-      },
-      {
-        code: 'permission.list',
-        title_key: 'menu.permission_list.title',
-        title: '权限管理',
-        path: '/permissions',
-        icon: 'secured',
-        permission: 'permission.read',
-      },
-    ]);
-
-    expect(routes).toHaveLength(1);
-    expect(routes[0]?.path).toBe('/access-control');
-    expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'users', 'roles', 'permissions']);
-    expect(routes[0]?.children?.[0]?.name).toBe('AccessControlOverviewIndex');
-    expect(routes[0]?.children?.[0]?.meta?.titleKey).toBe('menu.access_control.overview.title');
-    expect(routes[0]?.children?.[3]?.meta?.icon).toBe('lock-on');
-  });
-
-  it('在新旧访问控制路径同时存在时按规范化路径去重', () => {
+  it('按后端返回的规范化访问控制菜单生成分组路由', () => {
     const routes = transformBootstrapMenusToRoutes([
       {
         code: 'access-control.root',
@@ -102,15 +74,15 @@ describe('transformBootstrapMenusToRoutes', () => {
         permission: '',
       },
       {
-        code: 'user.list.legacy',
-        title_key: 'menu.user_list.title',
-        title: '用户管理',
-        path: '/users',
-        icon: 'usergroup',
-        permission: 'user.read',
+        code: 'access-control.overview',
+        title_key: 'menu.access_control.overview.title',
+        title: '概览',
+        path: '/access-control/overview',
+        icon: 'dashboard',
+        permission: '',
       },
       {
-        code: 'user.list.current',
+        code: 'user.list',
         title_key: 'menu.access_control.users.title',
         title: '用户管理',
         path: '/access-control/users',
@@ -118,15 +90,15 @@ describe('transformBootstrapMenusToRoutes', () => {
         permission: 'user.read',
       },
       {
-        code: 'role.list.legacy',
-        title_key: 'menu.role_list.title',
+        code: 'role.list',
+        title_key: 'menu.access_control.roles.title',
         title: '角色管理',
-        path: '/roles',
+        path: '/access-control/roles',
         icon: 'secured',
         permission: 'role.read',
       },
       {
-        code: 'permission.list.current',
+        code: 'permission.list',
         title_key: 'menu.access_control.permissions.title',
         title: '权限管理',
         path: '/access-control/permissions',
@@ -137,7 +109,8 @@ describe('transformBootstrapMenusToRoutes', () => {
 
     expect(routes).toHaveLength(1);
     expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'users', 'roles', 'permissions']);
-    expect(routes[0]?.children?.filter((child) => child.path === 'users')).toHaveLength(1);
+    expect(routes[0]?.children?.[0]?.name).toBe('AccessControlOverviewIndex');
+    expect(routes[0]?.children?.[3]?.meta?.icon).toBe('lock-on');
   });
 
   it('为监控模块合成显式父级导航并避免 index 面包屑段', () => {

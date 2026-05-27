@@ -69,8 +69,27 @@
 当仓库使用 `graft-multi-agent-loop` 时，它是同一主会话内的串行 subagent 编排模式，而不是外部 fresh-session
 runner：
 
-- 外层 main agent 负责 startup receipt、恢复入口、预算、停止条件、closeout 解析、验收与下一轮派发
+- 默认 loop mode 是 `topic-completion-loop`
+  - 如果调用方没有显式设置 `loop_mode`，外层 main agent 必须使用 `topic-completion-loop`
+  - `checkpoint-loop` 只能在调用方显式请求时使用，不能作为省略 `loop_mode` 时的回退
+- 外层 main agent 负责 startup receipt、恢复入口、batch state、预算、停止条件、closeout 解析、验收与下一轮派发
 - 每个实现 round 默认委派给一个 `worker` subagent，通过 `graft-multi-agent-task` 执行
+- 在 `topic-completion-loop` 中，外层 main agent 必须在每轮 closeout 验收后维护 batch state：
+  - 更新 `completed_batches`
+  - 更新 `pending_batches`
+  - 自动选择 `next_batch`
+  - 在没有 terminal stop condition 时派发下一 worker
+- 当 `pending_batches` 变为空时，外层 main agent 不能直接停止：
+  - 必须先执行 final archive-readiness check
+  - 如果验收条件全部通过，输出 `archive-ready` 并提交本轮 owned archive 或 closeout 文档
+  - 如果验收条件未通过但下一批 bounded work 明确，重新生成 `pending_batches` 并继续
+  - 如果验收条件未通过且没有安全可定义的下一批，进入 `blocked`
+- 在 `topic-completion-loop` 中，普通 batch success 的默认行为是 `success -> update batch state -> continue`
+  - 不能因为没有 `Next-session startup prompt:` 就结束 loop
+- `Next-session startup prompt:` 只用于 terminal handoff：
+  - `blocked`
+  - `archive-ready`
+  - explicit user stop
 - 外层 main agent 在 active round 期间不得编辑 repo-tracked 实现文件
 - 外层 main agent 做的是 bounded orchestration，不是实时 remote-control worker
 - `timeout != stalled`；stalled 判定至少同时要求：

@@ -75,6 +75,12 @@ The closeout result should stay concise and should contain:
 5. when machine-readable closeout is requested, one fenced JSON block with:
    - `closeout_status`
    - `continue`
+   - `loop_mode`
+   - `current_batch`
+   - `completed_batches`
+   - `pending_batches`
+   - `next_batch`
+   - `next_batch_prompt`
    - `next_prompt`
    - `stop_reason`
    - `validation`
@@ -94,8 +100,16 @@ When a caller such as `graft-multi-agent-loop` requests machine-readable closeou
 - keep the human-readable closeout first
 - if a future turn is required, include exactly one line beginning with `Next-session startup prompt:`
 - append exactly one fenced ` ```json ` block as the last structured artifact
-- `continue=true` requires a non-empty `next_prompt`
-- `continue=false` requires `next_prompt=null`
+- for ordinary closeout outside `graft-multi-agent-loop`, `continue=true` requires a non-empty `next_prompt`
+- for `graft-multi-agent-loop` in the default `topic-completion-loop` mode:
+  - `continue=true` requires `loop_mode=topic-completion-loop`
+  - `continue=true` requires updated `completed_batches` and `pending_batches`
+  - `continue=true` requires `next_batch` and `next_batch_prompt` when batches remain
+  - `pending_batches=[]` requires a final archive-readiness check before the loop may stop
+  - `continue=true` requires `next_prompt=null`
+  - `Next-session startup prompt:` must appear only for terminal handoff states such as `blocked`, `archive-ready`, or
+    explicit stop
+- `continue=false` requires `next_prompt=null` unless the closeout is a terminal handoff to a future turn
 - `validation.status` should be one of `passed`, `failed`, or `not_run`
 - `risk_level` should be one of `low`, `medium`, or `high`
 - `consumed_budget` must describe only the current slice or delegated round
@@ -107,6 +121,12 @@ Recommended JSON shape:
 {
   "closeout_status": "completed_no_handoff | committed_and_handed_off | handoff_only | blocked",
   "continue": true,
+  "loop_mode": "topic-completion-loop | checkpoint-loop | null",
+  "current_batch": "string or null",
+  "completed_batches": ["..."],
+  "pending_batches": ["..."],
+  "next_batch": "string or null",
+  "next_batch_prompt": "string or null",
   "next_prompt": "string or null",
   "stop_reason": "string or null",
   "validation": {
@@ -135,6 +155,12 @@ Recommended JSON shape:
   "risk_level": "low"
 }
 ```
+
+For `graft-multi-agent-loop` in the default `topic-completion-loop` mode, prefer this interpretation:
+
+- `continue=true` with `next_prompt=null` means same-session continuation
+- `next_batch` and `next_batch_prompt` drive the next delegated worker round
+- `Next-session startup prompt:` is emitted only when the loop reaches a terminal handoff state
 
 ## Boundaries
 

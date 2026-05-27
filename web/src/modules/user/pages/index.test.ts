@@ -54,6 +54,7 @@ vi.mock('@/modules/user/api/user-roles', () => ({
 
 vi.mock('@/store', () => ({
   usePermissionStore: () => ({
+    hasAllPermissions: (codes: string[]) => codes.every((code) => permissionState.grantedCodes.includes(code)),
     hasAnyPermission: (codes: string[]) => codes.some((code) => permissionState.grantedCodes.includes(code)),
     hasPermission: (code: string) => permissionState.grantedCodes.includes(code),
   }),
@@ -545,12 +546,66 @@ function createRoleListResponse() {
   };
 }
 
+function hasDirectivePermission(value: string | string[] | { allOf?: string[]; anyOf?: string[] }) {
+  if (typeof value === 'string') {
+    return permissionState.grantedCodes.includes(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.every((code) => permissionState.grantedCodes.includes(code));
+  }
+
+  const allOf = value?.allOf ?? [];
+  const anyOf = value?.anyOf ?? [];
+  const matchesAll = allOf.every((code) => permissionState.grantedCodes.includes(code));
+  const matchesAny = anyOf.length === 0 || anyOf.some((code) => permissionState.grantedCodes.includes(code));
+
+  return matchesAll && matchesAny;
+}
+
+type PermissionDirectiveTestElement = HTMLElement & {
+  __graftPermissionPlaceholder__?: Comment;
+};
+
+function updateDirectiveVisibility(
+  el: PermissionDirectiveTestElement,
+  value: string | string[] | { allOf?: string[]; anyOf?: string[] },
+) {
+  const allowed = hasDirectivePermission(value);
+  const parent = el.parentNode;
+
+  if (allowed) {
+    const placeholder = el.__graftPermissionPlaceholder__;
+    if (placeholder?.parentNode) {
+      placeholder.parentNode.replaceChild(el, placeholder);
+    }
+    return;
+  }
+
+  if (!parent) {
+    return;
+  }
+
+  if (!el.__graftPermissionPlaceholder__) {
+    el.__graftPermissionPlaceholder__ = document.createComment('test-permission');
+  }
+
+  if (parent.contains(el)) {
+    parent.replaceChild(el.__graftPermissionPlaceholder__, el);
+  }
+}
+
 function mountUserPage() {
   return mount(UserPage, {
     global: {
       directives: {
         permission: {
-          mounted() {},
+          mounted(el, binding) {
+            updateDirectiveVisibility(el as PermissionDirectiveTestElement, binding.value);
+          },
+          updated(el, binding) {
+            updateDirectiveVisibility(el as PermissionDirectiveTestElement, binding.value);
+          },
         },
       },
       stubs: {
@@ -1099,6 +1154,7 @@ describe('UserPage', () => {
   });
 
   it('renders the table empty state and clears filters from the empty action area', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.CREATE];
     userApiMocks.getUsers.mockResolvedValue({ items: [] });
     roleApiMocks.getRoles.mockResolvedValue({ items: [] });
 

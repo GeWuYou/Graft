@@ -1,4 +1,4 @@
 interface:
   display_name: "Graft Multi-Agent Loop"
-  short_description: "Loop delegated multi-agent slices with budgeted closeout"
-  default_prompt: "Use $graft-multi-agent-loop to run this Graft slice through repeated main-agent-managed $graft-multi-agent-task rounds until closeout stops handing off or the execution budget is exhausted."
+  short_description: "Run topic-completion loops with explicit batch-state continuation"
+  default_prompt: "Use $graft-multi-agent-loop in the default topic-completion-loop mode to run this Graft slice through repeated main-agent-managed $graft-multi-agent-task batches, updating completed_batches and pending_batches after each accepted closeout and dispatching the next batch until archive-ready, blocked, or no remaining batches."

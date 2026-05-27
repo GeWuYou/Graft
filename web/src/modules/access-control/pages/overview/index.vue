@@ -10,13 +10,23 @@
           <t-button variant="outline" :loading="loading" @click="fetchOverview">
             {{ t('accessControl.overview.actions.refresh') }}
           </t-button>
-          <t-button v-if="canReadPermissions" theme="default" variant="outline" @click="goToPermissions">
+          <t-button
+            v-permission="RBAC_PERMISSION_CODE.PERMISSION_READ"
+            theme="default"
+            variant="outline"
+            @click="goToPermissions"
+          >
             {{ t('accessControl.overview.actions.viewPermissions') }}
           </t-button>
-          <t-button v-if="canCreateUsers" theme="primary" variant="outline" @click="goToUsers('create')">
+          <t-button
+            v-permission="USER_PERMISSION_CODE.CREATE"
+            theme="primary"
+            variant="outline"
+            @click="goToUsers('create')"
+          >
             {{ t('accessControl.overview.actions.createUser') }}
           </t-button>
-          <t-button v-if="canCreateRoles" theme="primary" @click="goToRoles('create')">
+          <t-button v-permission="RBAC_PERMISSION_CODE.ROLE_CREATE" theme="primary" @click="goToRoles('create')">
             {{ t('accessControl.overview.actions.createRole') }}
           </t-button>
         </template>
@@ -49,7 +59,7 @@
             </div>
           </template>
           <div class="quick-link-grid">
-            <button class="quick-link-card" type="button" @click="goToUsers()">
+            <button v-permission="USER_PERMISSION_CODE.READ" class="quick-link-card" type="button" @click="goToUsers()">
               <div class="quick-link-card__head">
                 <span class="quick-link-card__title">{{ t('accessControl.overview.quickLinks.users.title') }}</span>
                 <span class="quick-link-card__count">{{ displayValue(users.length) }}</span>
@@ -59,7 +69,12 @@
               </p>
               <span class="quick-link-card__action">{{ t('accessControl.overview.quickLinks.users.action') }}</span>
             </button>
-            <button class="quick-link-card" type="button" @click="goToRoles()">
+            <button
+              v-permission="RBAC_PERMISSION_CODE.ROLE_READ"
+              class="quick-link-card"
+              type="button"
+              @click="goToRoles()"
+            >
               <div class="quick-link-card__head">
                 <span class="quick-link-card__title">{{ t('accessControl.overview.quickLinks.roles.title') }}</span>
                 <span class="quick-link-card__count">{{ displayValue(roles.length) }}</span>
@@ -70,7 +85,7 @@
               <span class="quick-link-card__action">{{ t('accessControl.overview.quickLinks.roles.action') }}</span>
             </button>
             <button
-              v-if="canReadPermissions"
+              v-permission="RBAC_PERMISSION_CODE.PERMISSION_READ"
               class="quick-link-card"
               data-testid="access-control-quick-link-permissions"
               type="button"
@@ -217,9 +232,10 @@ const users = ref<UserSummary[]>([]);
 const roles = ref<RoleSummary[]>([]);
 const permissions = ref<PermissionSummary[]>([]);
 const roleBindings = ref<Record<number, number[]>>({});
+const canReadUsers = computed(() => permissionStore.hasPermission(USER_PERMISSION_CODE.READ));
+const canReadRoles = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.ROLE_READ));
+const canReadUserRoleBindings = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.USER_ROLE_READ));
 const canReadPermissions = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.PERMISSION_READ));
-const canCreateUsers = computed(() => permissionStore.hasPermission(USER_PERMISSION_CODE.CREATE));
-const canCreateRoles = computed(() => permissionStore.hasPermission(RBAC_PERMISSION_CODE.ROLE_CREATE));
 
 const unassignedUserCount = computed(
   () => users.value.filter((user) => (roleBindings.value[user.id] ?? []).length === 0).length,
@@ -357,23 +373,28 @@ async function fetchOverview() {
 
   try {
     const [userResult, roleResult, permissionResult] = await Promise.all([
-      getUsers(),
-      getUserRoles(),
-      getPermissions(),
+      canReadUsers.value ? getUsers() : Promise.resolve({ items: [] as UserSummary[] }),
+      canReadRoles.value ? getUserRoles() : Promise.resolve({ items: [] as RoleSummary[] }),
+      canReadPermissions.value ? getPermissions() : Promise.resolve({ items: [] as PermissionSummary[] }),
     ]);
+
     users.value = userResult.items;
     roles.value = roleResult.items;
     permissions.value = permissionResult.items;
 
-    const bindings = await Promise.all(
-      userResult.items.map(async (user) => {
-        const { getUserRoleBindings } = await import('@/modules/user/api/user-roles');
-        const response = await getUserRoleBindings(user.id);
-        return [user.id, response.role_ids] as const;
-      }),
-    );
+    if (canReadUsers.value && canReadRoles.value && canReadUserRoleBindings.value) {
+      const bindings = await Promise.all(
+        userResult.items.map(async (user) => {
+          const { getUserRoleBindings } = await import('@/modules/user/api/user-roles');
+          const response = await getUserRoleBindings(user.id);
+          return [user.id, response.role_ids] as const;
+        }),
+      );
 
-    roleBindings.value = Object.fromEntries(bindings);
+      roleBindings.value = Object.fromEntries(bindings);
+    } else {
+      roleBindings.value = {};
+    }
   } catch (error) {
     users.value = [];
     roles.value = [];

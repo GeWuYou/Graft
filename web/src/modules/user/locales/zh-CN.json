@@ -101,6 +101,7 @@
       "unavailable": {
         "create": "无权创建用户",
         "edit": "无权编辑该用户",
+        "manageRoles": "无权管理用户角色",
         "more": "更多用户操作需要额外权限"
       },
       "form": {

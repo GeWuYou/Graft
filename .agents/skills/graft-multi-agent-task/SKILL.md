@@ -47,9 +47,12 @@ Typical triggers:
    - if this wrapper is ever forced to produce a bounded closeout without normal closeout delegation, it must still
      delegate lesson evaluation to `graft-lessons-learned`
 9. When the current task is being orchestrated by `graft-multi-agent-loop`, treat the current slice as one delegated
-   round and end the closeout with both:
-   - a human-readable line beginning with `Next-session startup prompt:` when another round is required
-   - one fenced ` ```json ` block containing the machine-readable closeout result
+   round and end the closeout with one fenced ` ```json ` block containing the machine-readable closeout result:
+   - in the default `topic-completion-loop` mode, ordinary batch success must not emit `Next-session startup prompt:`
+   - in `topic-completion-loop`, return updated batch-state fields so the outer main agent can continue in the same
+     session
+   - use `Next-session startup prompt:` only for terminal handoff states such as `blocked`, `archive-ready`, or
+     explicit stop
 10. When the current task is being orchestrated by `graft-multi-agent-loop`, it may receive bounded checkpoint requests
     from the outer main agent:
 
@@ -90,6 +93,12 @@ When reporting progress or closeout from this wrapper, keep the result brief and
 6. when the task is loop-orchestrated, a trailing JSON closeout object for the current delegated round with:
    - `closeout_status`
    - `continue`
+   - `loop_mode`
+   - `current_batch`
+   - `completed_batches`
+   - `pending_batches`
+   - `next_batch`
+   - `next_batch_prompt`
    - `next_prompt`
    - `stop_reason`
    - `validation`
@@ -117,3 +126,10 @@ Checkpoint responses should also follow these formatting rules:
 - do not include `Next-session startup prompt:`
 - do not append the final closeout JSON block
 - if the worker can continue, leave final completion, validation, and closeout to the same worker round
+
+When this wrapper runs as a `graft-multi-agent-loop` worker in the default `topic-completion-loop` mode:
+
+- `continue=true` means the outer main agent must continue the same-session loop
+- the worker must not treat `continue=true` as a request for a next-session handoff
+- if batches remain, `next_batch` and `next_batch_prompt` must be populated for the outer main agent
+- `next_prompt` must stay `null` unless the current round ends in a terminal handoff state
