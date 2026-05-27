@@ -4,10 +4,17 @@
 list only active topics, and help the current branch or worktree land on the right recovery documents without scanning
 every public artifact.
 
-## Active Topic
+## Active Topics
 
-- None.
-- Re-run startup preflight from root `AGENTS.md` before opening any new topic or follow-up slice.
+- `audit-plugin-mvp`
+  - Purpose: hold the dedicated recovery entry for the audit plugin MVP loop spanning `server` and `web`, starting
+    from exploration and then closing through bounded implementation batches.
+  - Tracking: `ai-plan/public/audit-plugin-mvp/todos/audit-plugin-mvp-tracking.md`
+  - Trace: `ai-plan/public/audit-plugin-mvp/traces/audit-plugin-mvp-trace.md`
+  - Recovery note: this topic now runs from dedicated worktree
+    `/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp` on branch `feat/wt-audit-plugin-mvp`; standing
+    ownership is centered on `server/plugins/audit/**` and `web/src/modules/audit/**`, while shared-hotspot touches
+    remain serialized exceptions.
 
 ## Archived Topics
 
@@ -129,3 +136,21 @@ every public artifact.
     - future HTTP feature work follows `feature-delivery-with-contract-first-rule`
     - do not reopen a broad OpenAPI / `oapi-codegen` governance topic unless contract governance itself changes
   - Next-session prompt: `No next-session prompt required.`
+
+## Branch / Worktree To Active Topic Map
+
+- Worktree: repository root
+  - Branch: `main`
+  - Active topic: none by default
+  - Role: shared coordination point for active-topic governance only; feature recovery should enter through an explicit
+    startup prompt naming an active topic instead of assuming root carries feature state
+  - Hotspot policy: shared hotspots such as `ai-plan/public/README.md` remain serialized governance slices and do not
+    grant standing feature ownership to the root worktree
+- Worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp`
+  - Branch: `feat/wt-audit-plugin-mvp`
+  - Active topic: `audit-plugin-mvp`
+  - Role: dedicated audit plugin MVP worktree and recovery entry for slices centered on `server/plugins/audit/**` and
+    `web/src/modules/audit/**`
+  - Hotspot policy: no standing shared-hotspot ownership; current serialized exception is limited to public recovery
+    docs at `ai-plan/public/README.md` and `ai-plan/public/audit-plugin-mvp/**` while the topic baseline is being
+    established
