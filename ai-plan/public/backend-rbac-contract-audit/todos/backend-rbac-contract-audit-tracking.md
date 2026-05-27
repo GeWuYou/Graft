@@ -70,7 +70,7 @@
 1. Batch 0: topic initialization and audit inventory. Status: completed.
 2. Batch 1: backend permission/menu/API/guard audit. Status: completed.
 3. Batch 2: frontend permission/route/action audit. Status: completed.
-4. Batch 3: cross-boundary consistency audit. Status: pending.
+4. Batch 3: cross-boundary consistency audit. Status: completed.
 5. Batch 4: MVP-stable decision and archive closeout. Status: pending.
 
 ## Batch 0 Findings
@@ -110,12 +110,10 @@
 
 ## Immediate Next Step
 
-- Execute `batch-3-cross-boundary-contract-consistency-audit`.
+- Execute `batch-4-mvp-stable-decision-and-archive-closeout`.
 - Focus:
-  - verify the remaining cross-boundary closure between backend menu owners, frontend bootstrap route owners, and page
-    entrypoints under `/access-control/**`
-  - confirm shared path and permission semantics stay consistent across backend contracts, bootstrap snapshots, and
-    frontend API or route usage
+  - decide whether the current Batch 1 to Batch 3 evidence is sufficient to mark the topic archive-ready for MVP scope
+  - keep any remaining note limited to risk-only governance follow-up instead of reopening runtime drift without proof
 
 ## Required Validation
 
@@ -126,8 +124,11 @@
 - Batch 2:
   - `cd web && bun run check`
   - `git diff --check`
-- Later cross-boundary implementation batches:
-  - required commands depend on whether runtime code changes occur
+- Batch 3:
+  - docs-only closeout this round relied on prior Batch 1 backend validation and Batch 2 web validation
+  - `git diff --check`
+- Batch 4:
+  - required commands depend on whether closeout remains docs-only
 
 ## Commit Plan
 
@@ -137,6 +138,8 @@
   - `docs(rbac-contract-audit): record backend guard audit`
 - Batch 2:
   - `fix(rbac-contract-audit): align frontend permission usage`
+- Batch 3:
+  - `docs(rbac-contract-audit): record cross-boundary audit`
 
 ## Batch 1 Findings
 
@@ -183,3 +186,29 @@
 - one proven low-risk owned-scope drift was corrected:
   - RBAC role-row `More` dropdown no longer exposes permission-missing actions as disabled entries
   - builtin/lifecycle disabled semantics remain intact because they encode business state, not permission absence
+
+## Batch 3 Findings
+
+- Batch 1 and Batch 2 evidence now merge into one cross-boundary closure path for current MVP scope:
+  - backend permission registry
+  - backend API guards
+  - backend menu declarations
+  - frontend permission constants
+  - frontend bootstrap route registrations
+  - frontend page and action visibility
+- Required capability surfaces are aligned in current owned scope:
+  - role list/detail/create/update/status/delete
+  - permission list/detail/filter/read-only behavior
+  - role-permission list/replace/add/remove
+  - user-role list/replace/add/remove/batch
+  - user management manage-roles entry
+  - dynamic menu bootstrap
+  - route visibility
+  - button/action visibility
+  - builtin role/permission protection
+  - auth forbidden / unauthorized separation
+- No new runtime drift was proven in Batch 3.
+- One tiny owned-scope documentation drift was corrected:
+  - `server/plugins/rbac/README.md` no longer describes the stale `.../roles/assign` path or replace-only write semantics
+- Remaining note is risk-only rather than blocker:
+  - registry and menu closure still rely on tests plus canonical ownership, not runtime duplicate/reference enforcement

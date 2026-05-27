@@ -17,9 +17,9 @@ every public artifact.
     - current RBAC backend implementation
     - current RBAC frontend implementation
   - Current batch:
-    - `batch-2-frontend-permission-route-action-audit`
-  - Next batch after accepted Batch 2 closeout:
     - `batch-3-cross-boundary-contract-consistency-audit`
+  - Next batch after accepted Batch 3 closeout:
+    - `batch-4-mvp-stable-decision-and-archive-closeout`
   - Topic directory:
     - `ai-plan/public/backend-rbac-contract-audit`
   - Recovery notes:
@@ -27,6 +27,8 @@ every public artifact.
     - Batch 1 is docs-only and records the backend permission, menu, API, and guard closure audit.
     - Batch 2 records the frontend permission, route, and action audit, including one minimal owned-scope visibility
       fix for permission-only disabled RBAC row actions.
+    - Batch 3 merges backend and frontend evidence into a cross-boundary closure matrix, confirms current runtime
+      alignment for MVP scope, and fixes one stale plugin README contract description without widening into runtime work.
     - Later batches should keep backend, frontend, and cross-boundary consistency audit slices separate instead of
       widening into runtime redesign.
 

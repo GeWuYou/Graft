@@ -170,3 +170,64 @@
   - added a focused page test proving permission-missing `More` actions no longer render
 - Updated topic docs and recovery metadata to carry the Batch 2 audit matrix, findings, and next-step pointer into
   Batch 3.
+
+## 2026-05-27 Batch 3 completed the cross-boundary consistency audit
+
+- Reused the inherited startup context under root `AGENTS.md` for the `cross-boundary` Batch 3 worker round.
+- Re-read the required startup and recovery sources for the current round:
+  - `AGENTS.md`
+  - `server/AGENTS.md`
+  - `web/AGENTS.md`
+  - `.ai/environment/tools.ai.yaml`
+  - `ai-plan/public/README.md`
+  - `ai-plan/public/backend-rbac-contract-audit/README.md`
+  - `ai-plan/public/backend-rbac-contract-audit/todos/backend-rbac-contract-audit-tracking.md`
+  - `ai-plan/public/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
+  - `ai-plan/design/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/AI任务追踪与恢复设计.md`
+- Confirmed the worktree was clean before Batch 3 writes.
+- Re-verified the backend-to-frontend closure surfaces instead of assuming Batch 1 and Batch 2 conclusions:
+  - `server/plugins/rbac/contract/permission.go`
+  - `server/plugins/rbac/plugin_registration.go`
+  - `server/plugins/rbac/route_registration.go`
+  - `server/internal/httpx/authz.go`
+  - `server/internal/httpx/authz_test.go`
+  - `server/plugins/user/plugin_registration.go`
+  - `server/plugins/user/bootstrap.go`
+  - `web/src/modules/rbac/contract/permissions.ts`
+  - `web/src/modules/user/contract/permissions.ts`
+  - `web/src/modules/rbac/bootstrap-routes.ts`
+  - `web/src/modules/user/bootstrap-routes.ts`
+  - `web/src/modules/access-control/bootstrap-routes.ts`
+  - `web/src/store/modules/permission.ts`
+  - `web/src/utils/route/bootstrap.ts`
+  - `web/src/utils/route/bootstrap.test.ts`
+  - `web/src/modules/rbac/pages/index.vue`
+  - `web/src/modules/rbac/pages/index.test.ts`
+  - `web/src/modules/user/pages/index.vue`
+  - `web/src/modules/user/pages/index.test.ts`
+- Merged Batch 1 backend evidence and Batch 2 frontend evidence into one Batch 3 cross-boundary matrix covering:
+  - role CRUD surfaces
+  - permission list/detail/read-only surfaces
+  - role-permission snapshot and mutation surfaces
+  - user-role snapshot and single-user or batch mutation surfaces
+  - user manage-roles entry semantics
+  - bootstrap menu ordering and dynamic route assembly
+  - route visibility versus action visibility separation
+  - builtin protection and authn/authz error separation
+- Confirmed the current owned runtime scope is aligned and did not justify a runtime fix:
+  - no backend-only gap
+  - no frontend-only gap
+  - no blocker within current MVP scope
+- Found one bounded documentation drift in owned scope:
+  - `server/plugins/rbac/README.md` still described stale `.../roles/assign` wording and replace-only write semantics
+- Applied the smallest fix:
+  - updated `server/plugins/rbac/README.md` to match current `replace | add | remove` contracts
+- Updated:
+  - `ai-plan/public/README.md`
+  - `ai-plan/public/backend-rbac-contract-audit/README.md`
+  - `ai-plan/public/backend-rbac-contract-audit/todos/backend-rbac-contract-audit-tracking.md`
+  - `ai-plan/public/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
+- Kept Batch 3 effectively docs-only for validation purposes:
+  - relied on prior Batch 1 backend validation and Batch 2 web validation for unchanged runtime code
+  - ran `git diff --check` for the current owned docs changes

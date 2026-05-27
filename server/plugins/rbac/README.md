@@ -14,7 +14,7 @@
 * 注册 RBAC 只读权限元数据与菜单元数据
 * 提供 `GET /api/roles`、`GET /api/roles/:id`、`GET /api/permissions`、`GET /api/permissions/:id`、`GET /api/roles/:id/permissions` 与 `GET /api/users/:id/roles` 最小只读接口
 * 提供 `POST /api/roles`、`POST /api/roles/:id/update`、`POST /api/roles/:id/status`、`POST /api/roles/:id/delete`、`POST /api/roles/:id/permissions/replace|add|remove`、`POST /api/users/:id/roles/replace|add|remove` 与批量 `POST /api/users/roles/replace|add|remove` 写接口
-* `POST /api/users/:id/roles/assign` 在“当前登录用户修改自己”时增加后端硬保护：如果当前角色快照仍包含 builtin `admin`，replace 写入后也必须继续保留该角色；违反时返回 `403 RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE`
+* `POST /api/users/:id/roles/replace` 与批量 `POST /api/users/roles/replace` 在“当前登录用户修改自己”时增加后端硬保护：如果当前角色快照仍包含 builtin `admin`，replace 写入后也必须继续保留该角色；违反时返回 `403 RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE`
 
 这个模块不负责：
 
@@ -38,7 +38,7 @@
 * handler 不直接扩散 repository 或 ORM 细节
 * 权限判断继续统一走 `pluginapi.Authorizer` 与 `httpx.RequirePermission`
 * 用户角色最小读面只返回稳定 `role_ids` 快照，角色详情继续由 `GET /api/roles` 持有
-* 角色权限和用户角色写入都保持 replace 语义，并继续把 `permission_ids` / `role_ids` 作为稳定请求字段
+* 角色权限和用户角色写入继续保持 `replace | add | remove` 三种稳定语义，并继续把 `permission_ids` / `role_ids` 作为稳定请求字段
 * builtin 角色允许更新展示字段，但不允许通过写接口修改稳定名称
 * 角色/权限写操作单独通过插件内 service/usecase 收敛，而不是在路由层散落规则
 * 目标用户不存在、角色/权限 ID 无效，以及 TOCTOU 场景下已删除 ID 的错误映射，继续保持当前 focused tests 已覆盖的稳定契约
