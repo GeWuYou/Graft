@@ -1,6 +1,6 @@
 {
   "monitor": {
-    "sectionTitle": "Server Management",
+    "sectionTitle": "Service Management",
     "serverStatus": {
       "overviewTitle": "Server Status Overview",
       "overviewHint": "Review overall server resources, dependency health, and the current Go process runtime summary.",

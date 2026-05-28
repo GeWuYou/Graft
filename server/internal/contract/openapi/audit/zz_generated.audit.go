@@ -11,6 +11,102 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetAuditLogsParamsResult.
+const (
+	GetAuditLogsParamsResultDENIED  GetAuditLogsParamsResult = "DENIED"
+	GetAuditLogsParamsResultERROR   GetAuditLogsParamsResult = "ERROR"
+	GetAuditLogsParamsResultFAILED  GetAuditLogsParamsResult = "FAILED"
+	GetAuditLogsParamsResultSUCCESS GetAuditLogsParamsResult = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsResult enum.
+func (e GetAuditLogsParamsResult) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsResultDENIED:
+		return true
+	case GetAuditLogsParamsResultERROR:
+		return true
+	case GetAuditLogsParamsResultFAILED:
+		return true
+	case GetAuditLogsParamsResultSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogsParamsRiskLevel.
+const (
+	GetAuditLogsParamsRiskLevelCRITICAL GetAuditLogsParamsRiskLevel = "CRITICAL"
+	GetAuditLogsParamsRiskLevelHIGH     GetAuditLogsParamsRiskLevel = "HIGH"
+	GetAuditLogsParamsRiskLevelLOW      GetAuditLogsParamsRiskLevel = "LOW"
+	GetAuditLogsParamsRiskLevelMEDIUM   GetAuditLogsParamsRiskLevel = "MEDIUM"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsRiskLevel enum.
+func (e GetAuditLogsParamsRiskLevel) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsRiskLevelCRITICAL:
+		return true
+	case GetAuditLogsParamsRiskLevelHIGH:
+		return true
+	case GetAuditLogsParamsRiskLevelLOW:
+		return true
+	case GetAuditLogsParamsRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogs200JSONResponseBodyDataItemsResult.
+const (
+	GetAuditLogs200JSONResponseBodyDataItemsResultDENIED  GetAuditLogs200JSONResponseBodyDataItemsResult = "DENIED"
+	GetAuditLogs200JSONResponseBodyDataItemsResultERROR   GetAuditLogs200JSONResponseBodyDataItemsResult = "ERROR"
+	GetAuditLogs200JSONResponseBodyDataItemsResultFAILED  GetAuditLogs200JSONResponseBodyDataItemsResult = "FAILED"
+	GetAuditLogs200JSONResponseBodyDataItemsResultSUCCESS GetAuditLogs200JSONResponseBodyDataItemsResult = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogs200JSONResponseBodyDataItemsResult enum.
+func (e GetAuditLogs200JSONResponseBodyDataItemsResult) Valid() bool {
+	switch e {
+	case GetAuditLogs200JSONResponseBodyDataItemsResultDENIED:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsResultERROR:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsResultFAILED:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsResultSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogs200JSONResponseBodyDataItemsRiskLevel.
+const (
+	GetAuditLogs200JSONResponseBodyDataItemsRiskLevelCRITICAL GetAuditLogs200JSONResponseBodyDataItemsRiskLevel = "CRITICAL"
+	GetAuditLogs200JSONResponseBodyDataItemsRiskLevelHIGH     GetAuditLogs200JSONResponseBodyDataItemsRiskLevel = "HIGH"
+	GetAuditLogs200JSONResponseBodyDataItemsRiskLevelLOW      GetAuditLogs200JSONResponseBodyDataItemsRiskLevel = "LOW"
+	GetAuditLogs200JSONResponseBodyDataItemsRiskLevelMEDIUM   GetAuditLogs200JSONResponseBodyDataItemsRiskLevel = "MEDIUM"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogs200JSONResponseBodyDataItemsRiskLevel enum.
+func (e GetAuditLogs200JSONResponseBodyDataItemsRiskLevel) Valid() bool {
+	switch e {
+	case GetAuditLogs200JSONResponseBodyDataItemsRiskLevelCRITICAL:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsRiskLevelHIGH:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsRiskLevelLOW:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogs400JSONResponseBodySuccess.
 const (
 	GetAuditLogs400JSONResponseBodySuccessFalse GetAuditLogs400JSONResponseBodySuccess = false
@@ -181,17 +277,19 @@ type refreshCookieContextKey string
 
 // GetAuditLogsParams defines parameters for GetAuditLogs.
 type GetAuditLogsParams struct {
-	Page         *int       `form:"page,omitempty" json:"page,omitempty"`
-	PageSize     *int       `form:"page_size,omitempty" json:"page_size,omitempty"`
-	ActorUserId  *int64     `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
-	Action       *string    `form:"action,omitempty" json:"action,omitempty"`
-	ResourceType *string    `form:"resource_type,omitempty" json:"resource_type,omitempty"`
-	ResourceId   *string    `form:"resource_id,omitempty" json:"resource_id,omitempty"`
-	ResourceName *string    `form:"resource_name,omitempty" json:"resource_name,omitempty"`
-	RequestId    *string    `form:"request_id,omitempty" json:"request_id,omitempty"`
-	Success      *bool      `form:"success,omitempty" json:"success,omitempty"`
-	CreatedFrom  *time.Time `form:"created_from,omitempty" json:"created_from,omitempty"`
-	CreatedTo    *time.Time `form:"created_to,omitempty" json:"created_to,omitempty"`
+	Page         *int                         `form:"page,omitempty" json:"page,omitempty"`
+	PageSize     *int                         `form:"page_size,omitempty" json:"page_size,omitempty"`
+	ActorUserId  *int64                       `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
+	Action       *string                      `form:"action,omitempty" json:"action,omitempty"`
+	ResourceType *string                      `form:"resource_type,omitempty" json:"resource_type,omitempty"`
+	ResourceId   *string                      `form:"resource_id,omitempty" json:"resource_id,omitempty"`
+	ResourceName *string                      `form:"resource_name,omitempty" json:"resource_name,omitempty"`
+	RequestId    *string                      `form:"request_id,omitempty" json:"request_id,omitempty"`
+	Result       *GetAuditLogsParamsResult    `form:"result,omitempty" json:"result,omitempty"`
+	RiskLevel    *GetAuditLogsParamsRiskLevel `form:"risk_level,omitempty" json:"risk_level,omitempty"`
+	Success      *bool                        `form:"success,omitempty" json:"success,omitempty"`
+	CreatedFrom  *time.Time                   `form:"created_from,omitempty" json:"created_from,omitempty"`
+	CreatedTo    *time.Time                   `form:"created_to,omitempty" json:"created_to,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
@@ -200,6 +298,18 @@ type GetAuditLogsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetAuditLogsParamsResult defines parameters for GetAuditLogs.
+type GetAuditLogsParamsResult string
+
+// GetAuditLogsParamsRiskLevel defines parameters for GetAuditLogs.
+type GetAuditLogsParamsRiskLevel string
+
+// GetAuditLogs200JSONResponseBodyDataItemsResult defines parameters for GetAuditLogs.
+type GetAuditLogs200JSONResponseBodyDataItemsResult string
+
+// GetAuditLogs200JSONResponseBodyDataItemsRiskLevel defines parameters for GetAuditLogs.
+type GetAuditLogs200JSONResponseBodyDataItemsRiskLevel string
 
 // GetAuditLogs400JSONResponseBodySuccess defines parameters for GetAuditLogs.
 type GetAuditLogs400JSONResponseBodySuccess bool

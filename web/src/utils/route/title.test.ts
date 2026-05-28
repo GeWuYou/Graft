@@ -8,9 +8,9 @@ describe('localizeRouteTitle', () => {
       'zh-CN': '用户管理',
       'en-US': 'User Management',
     });
-    expect(localizeRouteTitle('服务器管理', 'monitor.sectionTitle')).toEqual({
-      'zh-CN': '服务器管理',
-      'en-US': 'Server Management',
+    expect(localizeRouteTitle('服务管理', 'monitor.sectionTitle')).toEqual({
+      'zh-CN': '服务管理',
+      'en-US': 'Service Management',
     });
   });
 

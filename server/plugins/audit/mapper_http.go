@@ -73,6 +73,21 @@ func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, e
 		CreatedAt:    item.CreatedAt.UTC(),
 	}
 
+	appendAuditLogOptionalStrings(&converted, item)
+	appendAuditLogOptionalEnums(&converted, item)
+	appendAuditLogOptionalRequest(&converted, item)
+
+	if err := appendAuditLogActorUserID(&converted, item.ActorUserID); err != nil {
+		return generated.AuditLogListItem{}, err
+	}
+	if err := appendAuditLogMetadata(&converted, item.Metadata); err != nil {
+		return generated.AuditLogListItem{}, err
+	}
+
+	return converted, nil
+}
+
+func appendAuditLogOptionalStrings(converted *generated.AuditLogListItem, item auditstore.AuditLog) {
 	if item.ActorUsername != "" {
 		actorUsername := item.ActorUsername
 		converted.ActorUsername = &actorUsername
@@ -89,24 +104,74 @@ func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, e
 		resourceName := item.ResourceName
 		converted.ResourceName = &resourceName
 	}
+	if item.TargetType != "" {
+		targetType := item.TargetType
+		converted.TargetType = &targetType
+	}
+	if item.TargetLabel != "" {
+		targetLabel := item.TargetLabel
+		converted.TargetLabel = &targetLabel
+	}
+	if item.TraceID != "" {
+		traceID := item.TraceID
+		converted.TraceId = &traceID
+	}
+	if item.SessionID != "" {
+		sessionID := item.SessionID
+		converted.SessionId = &sessionID
+	}
+}
 
-	if item.ActorUserID != nil {
-		actorUserID, actorErr := mustConvertAuditGeneratedID(*item.ActorUserID, "audit actor user id")
-		if actorErr != nil {
-			return generated.AuditLogListItem{}, actorErr
-		}
-		converted.ActorUserId = &actorUserID
+func appendAuditLogOptionalEnums(converted *generated.AuditLogListItem, item auditstore.AuditLog) {
+	if item.Result != "" {
+		result := generated.AuditLogListItemResult(item.Result)
+		converted.Result = &result
+	}
+	if item.RiskLevel != "" {
+		riskLevel := generated.AuditLogListItemRiskLevel(item.RiskLevel)
+		converted.RiskLevel = &riskLevel
+	}
+}
+
+func appendAuditLogOptionalRequest(converted *generated.AuditLogListItem, item auditstore.AuditLog) {
+	if item.RequestMethod != "" {
+		requestMethod := item.RequestMethod
+		converted.RequestMethod = &requestMethod
+	}
+	if item.RequestPath != "" {
+		requestPath := item.RequestPath
+		converted.RequestPath = &requestPath
+	}
+	if item.StatusCode > 0 {
+		statusCode := item.StatusCode
+		converted.StatusCode = &statusCode
+	}
+}
+
+func appendAuditLogActorUserID(converted *generated.AuditLogListItem, actorUserID *uint64) error {
+	if actorUserID == nil {
+		return nil
 	}
 
-	if len(item.Metadata) > 0 {
-		var metadata map[string]any
-		if err := json.Unmarshal(item.Metadata, &metadata); err != nil {
-			return generated.AuditLogListItem{}, fmt.Errorf("decode audit metadata: %w", err)
-		}
-		converted.Metadata = metadata
+	convertedActorUserID, err := mustConvertAuditGeneratedID(*actorUserID, "audit actor user id")
+	if err != nil {
+		return err
+	}
+	converted.ActorUserId = &convertedActorUserID
+	return nil
+}
+
+func appendAuditLogMetadata(converted *generated.AuditLogListItem, rawMetadata json.RawMessage) error {
+	if len(rawMetadata) == 0 {
+		return nil
 	}
 
-	return converted, nil
+	var metadata map[string]any
+	if err := json.Unmarshal(rawMetadata, &metadata); err != nil {
+		return fmt.Errorf("decode audit metadata: %w", err)
+	}
+	converted.Metadata = metadata
+	return nil
 }
 
 func toAuditOverviewItems(items []auditstore.OverviewItem) ([]map[string]any, error) {

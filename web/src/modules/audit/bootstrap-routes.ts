@@ -12,12 +12,16 @@ export const auditBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
       dashboard: true,
       pageKind: 'overview',
       semanticTitle: {
-        'zh-CN': '安全审计 · 概览',
-        'en-US': 'Audit Overview',
+        'zh-CN': '安全审计 - 概览',
+        'en-US': 'Security Audit - Overview',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '概览',
+        'en-US': 'Overview',
       },
       tabTitle: {
-        'zh-CN': '安全审计 · 概览',
-        'en-US': 'Audit Overview',
+        'zh-CN': '安全审计 - 概览',
+        'en-US': 'Security Audit - Overview',
       },
     },
   },
@@ -27,15 +31,18 @@ export const auditBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
     meta: {
       domain: 'audit',
       tabGroup: 'audit',
-      pageKind: 'investigation',
-      investigationSurface: true,
+      pageKind: 'list',
       semanticTitle: {
-        'zh-CN': '安全审计 · 日志调查',
-        'en-US': 'Audit Log Investigation',
+        'zh-CN': '安全审计 - 审计日志',
+        'en-US': 'Security Audit - Audit Logs',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '审计日志',
+        'en-US': 'Audit Logs',
       },
       tabTitle: {
-        'zh-CN': '安全审计 · 日志',
-        'en-US': 'Audit Logs',
+        'zh-CN': '安全审计 - 审计日志',
+        'en-US': 'Security Audit - Audit Logs',
       },
     },
   },

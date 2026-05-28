@@ -7,6 +7,8 @@ export type AuditOverviewSummary = components['schemas']['AuditOverviewSummary']
 export type AuditOverviewResponse = components['schemas']['AuditOverviewResponse'];
 
 export type AuditOverviewWindow = '24h' | '7d' | '30d';
+export type AuditRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type AuditResult = 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
 
 export type AuditLogQuery = {
   page?: number;
@@ -17,6 +19,8 @@ export type AuditLogQuery = {
   resource_id?: string;
   resource_name?: string;
   request_id?: string;
+  result?: AuditResult;
+  risk_level?: AuditRiskLevel;
   success?: boolean;
   created_from?: string;
   created_to?: string;

@@ -13,12 +13,16 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
       dashboard: true,
       pageKind: 'overview',
       semanticTitle: {
-        'zh-CN': '服务监控 · 概览',
-        'en-US': 'Server Overview',
+        'zh-CN': '服务管理 - 概览',
+        'en-US': 'Service Management - Overview',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '概览',
+        'en-US': 'Overview',
       },
       tabTitle: {
-        'zh-CN': '服务监控 · 概览',
-        'en-US': 'Server Overview',
+        'zh-CN': '服务管理 - 概览',
+        'en-US': 'Service Management - Overview',
       },
     },
   },
@@ -32,12 +36,16 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
       dashboard: true,
       pageKind: 'runtime',
       semanticTitle: {
-        'zh-CN': '服务监控 · 运行时',
-        'en-US': 'Server Runtime',
+        'zh-CN': '服务管理 - 运行时',
+        'en-US': 'Service Management - Runtime',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '运行时',
+        'en-US': 'Runtime',
       },
       tabTitle: {
-        'zh-CN': '服务监控 · 运行时',
-        'en-US': 'Server Runtime',
+        'zh-CN': '服务管理 - 运行时',
+        'en-US': 'Service Management - Runtime',
       },
     },
   },
@@ -51,12 +59,16 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
       dashboard: true,
       pageKind: 'overview',
       semanticTitle: {
-        'zh-CN': '服务监控 · 依赖服务',
-        'en-US': 'Server Dependencies',
+        'zh-CN': '服务管理 - 依赖服务',
+        'en-US': 'Service Management - Dependencies',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '依赖服务',
+        'en-US': 'Dependencies',
       },
       tabTitle: {
-        'zh-CN': '服务监控 · 依赖服务',
-        'en-US': 'Server Dependencies',
+        'zh-CN': '服务管理 - 依赖服务',
+        'en-US': 'Service Management - Dependencies',
       },
     },
   },

@@ -2,7 +2,7 @@
   <div class="audit-page" data-page-type="list-form-detail">
     <management-page-content>
       <management-page-header :title="t('audit.logList.title')" :description="t('audit.logList.description')">
-        <template #eyebrow>{{ t('menu.audit.logs.title') }}</template>
+        <template #eyebrow>{{ t('menu.audit.title') }}</template>
         <template #actions>
           <t-space size="small" wrap>
             <t-button
@@ -85,7 +85,7 @@ defineOptions({
   name: 'AuditLogListIndex',
 });
 
-type PresetKey = 'all' | 'failed-auth' | 'rbac-changes' | 'sensitive-ops';
+type PresetKey = 'all' | 'today-anomalies' | 'permission-denied' | 'sensitive-ops' | 'auth-failed' | 'high-risk';
 
 const logger = createLogger('audit.logs');
 const { t } = useI18n();
@@ -118,9 +118,11 @@ const filters = ref<AuditClientFilterState>({
 
 const presetViews = computed(() => [
   { key: 'all' as const, title: t('audit.logList.presets.all') },
-  { key: 'failed-auth' as const, title: t('audit.logList.presets.failedAuth') },
-  { key: 'rbac-changes' as const, title: t('audit.logList.presets.rbacChanges') },
+  { key: 'today-anomalies' as const, title: t('audit.logList.presets.todayAnomalies') },
+  { key: 'permission-denied' as const, title: t('audit.logList.presets.permissionDenied') },
   { key: 'sensitive-ops' as const, title: t('audit.logList.presets.sensitiveOps') },
+  { key: 'auth-failed' as const, title: t('audit.logList.presets.authFailed') },
+  { key: 'high-risk' as const, title: t('audit.logList.presets.highRisk') },
 ]);
 
 const hasClientOnlyFilters = computed(() =>
@@ -154,10 +156,11 @@ function buildQuery(): AuditLogQuery {
   if (filters.value.resource) {
     query.resource_type = filters.value.resource;
   }
-  if (filters.value.result === 'success') {
-    query.success = true;
-  } else if (filters.value.result === 'failed') {
-    query.success = false;
+  if (filters.value.result !== 'all') {
+    query.result = filters.value.result;
+  }
+  if (filters.value.riskLevel !== 'all') {
+    query.risk_level = filters.value.riskLevel;
   }
   if (filters.value.createdRange[0]) {
     query.created_from = toISOStringOrRaw(filters.value.createdRange[0]);
@@ -204,18 +207,32 @@ function applyPreset(preset: PresetKey) {
     filters.value.action = '';
     filters.value.result = 'all';
     filters.value.resource = '';
-  } else if (preset === 'failed-auth') {
+    filters.value.riskLevel = 'all';
+  } else if (preset === 'today-anomalies') {
+    filters.value.action = '';
+    filters.value.result = 'ERROR';
+    filters.value.resource = '';
+    filters.value.riskLevel = 'HIGH';
+  } else if (preset === 'permission-denied') {
+    filters.value.action = '';
+    filters.value.result = 'DENIED';
+    filters.value.resource = '';
+    filters.value.riskLevel = 'CRITICAL';
+  } else if (preset === 'auth-failed') {
     filters.value.action = 'auth';
-    filters.value.result = 'failed';
+    filters.value.result = 'FAILED';
     filters.value.resource = 'auth';
-  } else if (preset === 'rbac-changes') {
-    filters.value.action = 'role';
-    filters.value.result = 'all';
-    filters.value.resource = 'role';
+    filters.value.riskLevel = 'HIGH';
   } else if (preset === 'sensitive-ops') {
     filters.value.action = '';
     filters.value.result = 'all';
     filters.value.resource = '';
+    filters.value.riskLevel = 'HIGH';
+  } else if (preset === 'high-risk') {
+    filters.value.action = '';
+    filters.value.result = 'all';
+    filters.value.resource = '';
+    filters.value.riskLevel = 'CRITICAL';
   }
 
   pagination.value.current = 1;
@@ -256,7 +273,13 @@ function toISOStringOrRaw(value: string) {
 
 function applyRoutePreset() {
   const preset = route.query.preset;
-  if (preset === 'failed-auth' || preset === 'rbac-changes' || preset === 'sensitive-ops') {
+  if (
+    preset === 'today-anomalies' ||
+    preset === 'permission-denied' ||
+    preset === 'sensitive-ops' ||
+    preset === 'auth-failed' ||
+    preset === 'high-risk'
+  ) {
     applyPreset(preset);
     return true;
   }

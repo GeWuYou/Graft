@@ -126,15 +126,18 @@ const actionOptions = computed(() => [
 
 const resultOptions = computed(() => [
   { label: t('audit.logList.filterOptions.allResults'), value: 'all' },
-  { label: t('audit.logList.filterOptions.success'), value: 'success' },
-  { label: t('audit.logList.filterOptions.failed'), value: 'failed' },
+  { label: t('audit.logList.filterOptions.SUCCESS'), value: 'SUCCESS' },
+  { label: t('audit.logList.filterOptions.FAILED'), value: 'FAILED' },
+  { label: t('audit.logList.filterOptions.DENIED'), value: 'DENIED' },
+  { label: t('audit.logList.filterOptions.ERROR'), value: 'ERROR' },
 ]);
 
 const riskOptions = computed(() => [
   { label: t('audit.logList.filterOptions.allRisk'), value: 'all' },
-  { label: t('audit.logList.filterOptions.highRisk'), value: 'high' },
-  { label: t('audit.logList.filterOptions.sensitive'), value: 'sensitive' },
-  { label: t('audit.logList.filterOptions.normal'), value: 'normal' },
+  { label: t('audit.logList.filterOptions.LOW'), value: 'LOW' },
+  { label: t('audit.logList.filterOptions.MEDIUM'), value: 'MEDIUM' },
+  { label: t('audit.logList.filterOptions.HIGH'), value: 'HIGH' },
+  { label: t('audit.logList.filterOptions.CRITICAL'), value: 'CRITICAL' },
 ]);
 
 const dateRangePlaceholder = computed(() => [

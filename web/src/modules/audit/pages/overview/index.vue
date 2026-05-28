@@ -1,21 +1,23 @@
 <template>
   <div class="audit-overview" data-page-type="overview-dashboard">
-    <management-page-content>
-      <management-page-header :title="t('audit.overview.title')" :description="t('audit.overview.description')">
-        <template #eyebrow>{{ t('menu.audit.overview.title') }}</template>
-        <template #actions>
-          <t-space size="small" wrap>
-            <t-radio-group v-model="activeWindow" size="small" variant="default-filled">
-              <t-radio-button v-for="option in timeRangeOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </t-radio-button>
-            </t-radio-group>
-            <t-button theme="default" variant="outline" :loading="loading" @click="fetchOverview">
-              {{ t('audit.overview.refresh') }}
-            </t-button>
-          </t-space>
-        </template>
-      </management-page-header>
+    <governance-dashboard-shell
+      domain="audit"
+      :eyebrow="t('menu.audit.title')"
+      :title="t('audit.overview.title')"
+      :description="t('audit.overview.description')"
+    >
+      <template #actions>
+        <t-space size="small" wrap>
+          <t-radio-group v-model="activeWindow" size="small" variant="default-filled">
+            <t-radio-button v-for="option in timeRangeOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </t-radio-button>
+          </t-radio-group>
+          <t-button theme="default" variant="outline" :loading="loading" @click="fetchOverview">
+            {{ t('audit.overview.refresh') }}
+          </t-button>
+        </t-space>
+      </template>
 
       <management-empty-state
         v-if="errorMessage && !loading"
@@ -30,11 +32,20 @@
         </template>
       </management-empty-state>
 
-      <audit-stats :items="stats" />
+      <template #summary>
+        <governance-summary-card
+          v-for="item in stats"
+          :key="item.key"
+          kind="activity"
+          :title="item.title"
+          :value="item.value"
+          :description="item.meta"
+          :value-aside="item.unit"
+        />
+      </template>
 
       <section class="audit-overview__grid">
-        <t-card class="audit-overview__card" size="small">
-          <template #header>{{ t('audit.overview.sections.failedAuth') }}</template>
+        <governance-section :title="t('audit.overview.sections.failedAuth')">
           <div class="audit-overview__list">
             <article v-for="item in failedAuthItems" :key="item.key" class="audit-overview__list-item">
               <div>
@@ -47,10 +58,9 @@
               </div>
             </article>
           </div>
-        </t-card>
+        </governance-section>
 
-        <t-card class="audit-overview__card" size="small">
-          <template #header>{{ t('audit.overview.sections.permissionDenied') }}</template>
+        <governance-section :title="t('audit.overview.sections.permissionDenied')">
           <div class="audit-overview__list">
             <article v-for="item in permissionDeniedItems" :key="item.key" class="audit-overview__list-item">
               <div>
@@ -63,12 +73,11 @@
               </div>
             </article>
           </div>
-        </t-card>
+        </governance-section>
       </section>
 
       <section class="audit-overview__grid audit-overview__grid--bottom">
-        <t-card class="audit-overview__card" size="small">
-          <template #header>{{ t('audit.overview.sections.sensitiveOps') }}</template>
+        <governance-section :title="t('audit.overview.sections.sensitiveOps')">
           <div class="audit-overview__list">
             <article v-for="item in sensitiveItems" :key="item.key" class="audit-overview__list-item">
               <div>
@@ -81,11 +90,10 @@
               </div>
             </article>
           </div>
-        </t-card>
+        </governance-section>
 
         <div class="audit-overview__stack">
-          <t-card class="audit-overview__card" size="small">
-            <template #header>{{ t('audit.overview.sections.shortcuts') }}</template>
+          <governance-section :title="t('audit.overview.sections.shortcuts')">
             <div class="audit-overview__shortcut-list">
               <button
                 v-for="entry in shortcuts"
@@ -98,10 +106,9 @@
                 <span>{{ entry.description }}</span>
               </button>
             </div>
-          </t-card>
+          </governance-section>
 
-          <t-card class="audit-overview__card" size="small">
-            <template #header>{{ t('audit.overview.sections.riskWatch') }}</template>
+          <governance-section :title="t('audit.overview.sections.riskWatch')">
             <div class="audit-overview__watch-list">
               <article v-for="item in watchItems" :key="item.key" class="audit-overview__watch-item">
                 <div>
@@ -111,10 +118,10 @@
                 <t-tag :theme="item.theme" variant="light-outline" size="small">{{ item.tag }}</t-tag>
               </article>
             </div>
-          </t-card>
+          </governance-section>
         </div>
       </section>
-    </management-page-content>
+    </governance-dashboard-shell>
   </div>
 </template>
 <script setup lang="ts">
@@ -124,11 +131,11 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
-import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { GovernanceDashboardShell, GovernanceSection, GovernanceSummaryCard } from '@/shared/components/governance';
+import { ManagementEmptyState } from '@/shared/components/management';
 import { createLogger } from '@/utils/logger';
 
 import { getAuditOverview } from '../../api/audit';
-import AuditStats from '../../components/AuditStats.vue';
 import { AUDIT_ROUTE_PATH } from '../../contract/paths';
 import type { AuditOverviewItem, AuditOverviewResponse, AuditOverviewWindow } from '../../types/audit';
 
@@ -157,7 +164,6 @@ const stats = computed(() => [
     value: String(overview.value?.summary.total_logs ?? 0),
     unit: t('audit.overview.stats.totalLogs.unit'),
     meta: t('audit.overview.stats.totalLogs.meta'),
-    theme: 'default' as const,
   },
   {
     key: 'failed',
@@ -165,7 +171,6 @@ const stats = computed(() => [
     value: String(overview.value?.summary.failed_operations ?? 0),
     unit: t('audit.overview.stats.failedToday.unit'),
     meta: t('audit.overview.stats.failedToday.meta'),
-    theme: 'danger' as const,
   },
   {
     key: 'risk',
@@ -173,7 +178,6 @@ const stats = computed(() => [
     value: String(overview.value?.summary.high_risk_events ?? 0),
     unit: t('audit.overview.stats.highRisk.unit'),
     meta: t('audit.overview.stats.highRisk.meta'),
-    theme: 'warning' as const,
   },
   {
     key: 'sensitive',
@@ -181,7 +185,6 @@ const stats = computed(() => [
     value: String(overview.value?.summary.sensitive_operations ?? 0),
     unit: t('audit.overview.stats.sensitiveOps.unit'),
     meta: t('audit.overview.stats.sensitiveOps.meta'),
-    theme: 'primary' as const,
   },
 ]);
 
@@ -289,15 +292,6 @@ onMounted(() => {
 });
 </script>
 <style scoped lang="less">
-@import '../../../rbac/shared/list-page.less';
-
-.audit-overview {
-  .management-list-header();
-  .management-list-mobile();
-
-  gap: 16px;
-}
-
 .audit-overview,
 .audit-overview__stack,
 .audit-overview__list,
@@ -320,10 +314,6 @@ onMounted(() => {
 .audit-overview__list,
 .audit-overview__watch-list {
   gap: 16px;
-}
-
-.audit-overview__card {
-  border-radius: var(--td-radius-large);
 }
 
 .audit-overview__list-item,

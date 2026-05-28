@@ -7,6 +7,34 @@ import (
 	"time"
 )
 
+// AuditRiskLevel classifies the relative severity of one audit event.
+type AuditRiskLevel string
+
+const (
+	// AuditRiskLevelLow marks routine low-risk audit activity.
+	AuditRiskLevelLow AuditRiskLevel = "LOW"
+	// AuditRiskLevelMedium marks elevated audit activity that still needs operator review.
+	AuditRiskLevelMedium AuditRiskLevel = "MEDIUM"
+	// AuditRiskLevelHigh marks high-risk audit activity.
+	AuditRiskLevelHigh AuditRiskLevel = "HIGH"
+	// AuditRiskLevelCritical marks critical audit activity that needs urgent review.
+	AuditRiskLevelCritical AuditRiskLevel = "CRITICAL"
+)
+
+// AuditResult normalizes the outcome of one audit event.
+type AuditResult string
+
+const (
+	// AuditResultSuccess marks successful audit activity.
+	AuditResultSuccess AuditResult = "SUCCESS"
+	// AuditResultFailed marks a failed operation without an explicit deny or system error.
+	AuditResultFailed AuditResult = "FAILED"
+	// AuditResultDenied marks operations rejected by authorization.
+	AuditResultDenied AuditResult = "DENIED"
+	// AuditResultError marks operations that failed because of system-level errors.
+	AuditResultError AuditResult = "ERROR"
+)
+
 // AuditLog is the audit plugin's stable DTO for a persisted audit record.
 type AuditLog struct {
 	ID               uint64
@@ -23,6 +51,15 @@ type AuditLog struct {
 	UserAgent        string
 	Message          string
 	Metadata         json.RawMessage
+	Result           AuditResult
+	RiskLevel        AuditRiskLevel
+	TargetType       string
+	TargetLabel      string
+	TraceID          string
+	SessionID        string
+	RequestMethod    string
+	RequestPath      string
+	StatusCode       int
 	CreatedAt        time.Time
 }
 
@@ -53,6 +90,8 @@ type ListAuditLogsQuery struct {
 	ResourceName string
 	Success      *bool
 	RequestID    string
+	Result       AuditResult
+	RiskLevel    AuditRiskLevel
 	CreatedFrom  *time.Time
 	CreatedTo    *time.Time
 	Limit        int

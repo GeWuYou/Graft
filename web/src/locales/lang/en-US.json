@@ -208,7 +208,7 @@
       }
     },
     "server": {
-      "title": "Server Management",
+      "title": "Service Management",
       "overview": {
         "title": "Overview"
       },

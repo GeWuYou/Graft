@@ -16,30 +16,29 @@ const { locale } = useLocale();
 const route = useRoute();
 
 interface BreadcrumbItem {
-  path: string;
   to: string;
   title: string;
 }
 
 const crumbs = computed(() => {
-  const pathArray = route.path.split('/');
-  pathArray.shift();
-
-  const breadcrumbs = pathArray.reduce<BreadcrumbItem[]>((breadcrumbArray, path, idx) => {
-    // 如果路由下有hiddenBreadcrumb或当前遍历到参数则隐藏
-    const meta = route.matched[idx]?.meta;
-    if (meta?.hiddenBreadcrumb || Object.values(route.params).includes(path)) {
+  return route.matched.reduce<BreadcrumbItem[]>((breadcrumbArray, matchedRoute) => {
+    const { meta, path } = matchedRoute;
+    if (meta?.hiddenBreadcrumb) {
       return breadcrumbArray;
     }
-    const title = renderLocalizedTitle(resolveRouteLocalizedTitle(meta, 'breadcrumb'), locale.value, path);
+
+    const title = renderLocalizedTitle(resolveRouteLocalizedTitle(meta, 'breadcrumb'), locale.value, '');
+    if (!title) {
+      return breadcrumbArray;
+    }
+
     breadcrumbArray.push({
-      path,
-      to: breadcrumbArray[idx - 1] ? `${breadcrumbArray[idx - 1].to}/${path}` : `/${path}`,
+      to: path,
       title,
     });
+
     return breadcrumbArray;
   }, []);
-  return breadcrumbs;
 });
 </script>
 <style scoped>

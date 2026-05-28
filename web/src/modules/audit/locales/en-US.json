@@ -3,7 +3,7 @@
     "audit": {
       "title": "Security Audit",
       "overview": {
-        "title": "Security Audit"
+        "title": "Overview"
       },
       "logs": {
         "title": "Audit Logs"
@@ -15,18 +15,21 @@
       "unknownActor": "Anonymous",
       "unknownResource": "Unknown resource",
       "result": {
-        "success": "Success",
-        "failed": "Failed"
+        "SUCCESS": "Success",
+        "FAILED": "Business Failed",
+        "DENIED": "Denied",
+        "ERROR": "System Error"
       },
       "risk": {
-        "high": "High Risk",
-        "sensitive": "Sensitive",
-        "normal": "Routine"
+        "LOW": "Low",
+        "MEDIUM": "Medium",
+        "HIGH": "High",
+        "CRITICAL": "Critical"
       }
     },
     "overview": {
-      "title": "Security Audit",
-      "description": "Review recent anomalies, risk items, and common audit entry points.",
+      "title": "Overview",
+      "description": "Review recent anomalies, risk behavior, and high-risk operation trends.",
       "refresh": "Refresh",
       "retry": "Retry",
       "errorTitle": "Audit overview is temporarily unavailable",
@@ -177,7 +180,7 @@
     },
     "logList": {
       "title": "Audit Logs",
-      "description": "Filter audit records and inspect request context in the detail drawer.",
+      "description": "Query system operation logs and inspect request context.",
       "refresh": "Refresh",
       "retry": "Retry",
       "detail": "View Details",
@@ -194,9 +197,11 @@
       "detailTitle": "Audit Detail",
       "presets": {
         "all": "All",
-        "failedAuth": "Failed Authentication",
-        "rbacChanges": "RBAC Changes",
-        "sensitiveOps": "Sensitive Operations"
+        "todayAnomalies": "Today's Anomalies",
+        "permissionDenied": "Permission Denied",
+        "sensitiveOps": "Sensitive Operations",
+        "authFailed": "Auth Failed",
+        "highRisk": "High Risk"
       },
       "actions": {
         "search": "Search",
@@ -209,7 +214,7 @@
         "actorPlaceholder": "Actor",
         "actionPlaceholder": "Action type",
         "datePlaceholder": "Time range",
-        "resourcePlaceholder": "Resource",
+        "resourcePlaceholder": "Target Object",
         "resultPlaceholder": "Result",
         "riskPlaceholder": "Risk level",
         "sessionPlaceholder": "Session ID",
@@ -222,17 +227,20 @@
         "permission": "Permission",
         "session": "Session",
         "allResults": "All results",
-        "success": "Success",
-        "failed": "Failed",
+        "SUCCESS": "Success",
+        "FAILED": "Business Failed",
+        "DENIED": "Denied",
+        "ERROR": "System Error",
         "allRisk": "All risk",
-        "highRisk": "High Risk",
-        "sensitive": "Sensitive",
-        "normal": "Routine"
+        "LOW": "Low",
+        "MEDIUM": "Medium",
+        "HIGH": "High",
+        "CRITICAL": "Critical"
       },
       "columns": {
         "action": "Action",
         "actor": "Actor",
-        "resource": "Resource",
+        "resource": "Target Object",
         "result": "Result",
         "risk": "Risk",
         "createdAt": "Time"
@@ -257,6 +265,11 @@
           "path": "Path",
           "status": "Status",
           "latency": "Latency"
+        },
+        "actions": {
+          "copyTraceId": "Copy",
+          "copySuccess": "Trace ID copied",
+          "toggleMetadata": "Show raw metadata"
         },
         "related": {
           "sameRequest": "Same Request Chain",

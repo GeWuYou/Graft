@@ -90,14 +90,14 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[1]?.meta?.domain).toBe('audit');
     expect(routes[1]?.meta?.dashboard).toBe(true);
     expect(routes[1]?.meta?.pageKind).toBe('overview');
-    expect(routes[1]?.meta?.tabTitle?.['zh-CN']).toBe('安全审计 · 概览');
+    expect(routes[1]?.meta?.tabTitle?.['zh-CN']).toBe('安全审计 - 概览');
     expect(routes[1]?.children?.[0]?.name).toBe('AuditOverviewIndex');
     expect(routes[2]?.path).toBe('/audit/logs');
     expect(routes[2]?.name).toBe('AuditLogList');
     expect(routes[2]?.meta?.titleKey).toBe('menu.audit.logs.title');
     expect(routes[2]?.meta?.orderNo).toBe(2);
     expect(routes[2]?.meta?.domain).toBe('audit');
-    expect(routes[2]?.meta?.pageKind).toBe('investigation');
+    expect(routes[2]?.meta?.pageKind).toBe('list');
     expect(routes[2]?.children?.[0]?.name).toBe('AuditLogListIndex');
   });
 
@@ -159,13 +159,13 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[2]?.meta?.pageKind).toBe('list');
   });
 
-  it('为服务器管理模块合成显式父级导航并保持 canonical IA 顺序', () => {
+  it('为服务管理模块合成显式父级导航并保持 canonical IA 顺序', () => {
     const routes = transformBootstrapMenusToRoutes([
       {
         code: 'server.section',
         order: 20,
         title_key: 'menu.server.title',
-        title: '服务器管理',
+        title: '服务管理',
         path: '/server',
         icon: 'server',
         permission: '',
@@ -224,7 +224,7 @@ describe('transformBootstrapMenusToRoutes', () => {
         code: 'server.section',
         order: 20,
         title_key: 'menu.server.title',
-        title: '服务器管理',
+        title: '服务管理',
         path: '/server/',
         icon: 'server',
         permission: '',

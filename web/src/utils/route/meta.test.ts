@@ -8,9 +8,9 @@ describe('route meta helpers', () => {
   it('resolves domain-aware title chains for tabs and breadcrumbs', () => {
     const meta = {
       title: { 'zh-CN': '概览', 'en-US': 'Overview' },
-      semanticTitle: { 'zh-CN': '安全审计 · 概览', 'en-US': 'Audit Overview' },
-      breadcrumbTitle: { 'zh-CN': '审计概览', 'en-US': 'Audit Crumb' },
-      tabTitle: { 'zh-CN': '安全审计 · 概览', 'en-US': 'Audit Overview' },
+      semanticTitle: { 'zh-CN': '安全审计 - 概览', 'en-US': 'Security Audit - Overview' },
+      breadcrumbTitle: { 'zh-CN': '概览', 'en-US': 'Overview' },
+      tabTitle: { 'zh-CN': '安全审计 - 概览', 'en-US': 'Security Audit - Overview' },
     };
 
     expect(resolveRouteLocalizedTitle(meta, 'page')).toEqual(meta.semanticTitle);
@@ -30,8 +30,8 @@ describe('route meta helpers', () => {
       [LOCALE.ZH_CN]: '概览',
       [LOCALE.EN_US]: '概览',
     });
-    expect(renderLocalizedTitle({ 'zh-CN': '安全审计 · 概览', 'en-US': 'Audit Overview' }, LOCALE.EN_US)).toBe(
-      'Audit Overview',
-    );
+    expect(
+      renderLocalizedTitle({ 'zh-CN': '安全审计 - 概览', 'en-US': 'Security Audit - Overview' }, LOCALE.EN_US),
+    ).toBe('Security Audit - Overview');
   });
 });

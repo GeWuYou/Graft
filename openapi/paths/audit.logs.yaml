@@ -51,6 +51,18 @@ get:
       required: false
       schema:
         type: string
+    - name: result
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [SUCCESS, FAILED, DENIED, ERROR]
+    - name: risk_level
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [LOW, MEDIUM, HIGH, CRITICAL]
     - name: success
       in: query
       required: false

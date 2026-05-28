@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,9 @@ type repository struct {
 const defaultFilterCapacity = 8
 const paginationParamCount = 2
 const overviewRecentLimit = 3
+const httpStatusForbidden = 403
+
+var sensitiveAuditActionKeywords = []string{"delete", "reset", "grant", "assign", "revoke", "remove", "replace", "update_role", "update_permission"}
 
 // NewRepository 基于共享连接池构建 audit 插件的 SQL repository。
 func NewRepository(db *sql.DB) (auditstore.AuditRepository, error) {
@@ -158,6 +162,7 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 		if err != nil {
 			return auditstore.ListAuditLogsResult{}, err
 		}
+		enrichAuditLog(&record)
 		items = append(items, record)
 	}
 	if err := rows.Err(); err != nil {
@@ -220,6 +225,8 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 	addScalarFilter(add, "resource_name = $%d", query.ResourceName)
 	addBoolFilter(&clauses, &args, "success = $%d", query.Success)
 	addScalarFilter(add, "request_id = $%d", query.RequestID)
+	addScalarFilter(add, "CASE WHEN success THEN 'SUCCESS' ELSE CASE WHEN (metadata ->> 'status_code') = '403' THEN 'DENIED' WHEN COALESCE(metadata ->> 'error_kind', '') = 'system' OR COALESCE(metadata ->> 'error', '') <> '' THEN 'ERROR' ELSE 'FAILED' END END = $%d", string(query.Result))
+	addScalarFilter(add, riskLevelWhereClause(query.RiskLevel, len(args)+1), string(query.RiskLevel))
 	addTimeFilter(&clauses, &args, "created_at >= $%d", query.CreatedFrom)
 	addTimeFilter(&clauses, &args, "created_at <= $%d", query.CreatedTo)
 	if len(clauses) == 0 {
@@ -293,8 +300,186 @@ func scanAuditLog(scanner interface {
 		record.ActorUserID = &value
 	}
 	record.Metadata = cloneRawMessage(metadata)
+	enrichAuditLog(&record)
 
 	return record, nil
+}
+
+func enrichAuditLog(record *auditstore.AuditLog) {
+	if record == nil {
+		return
+	}
+
+	metadata := decodeAuditMetadata(record.Metadata)
+	record.TraceID = stringMetadataValue(metadata, "trace_id")
+	if record.TraceID == "" {
+		record.TraceID = record.RequestID
+	}
+	record.SessionID = stringMetadataValue(metadata, "session_id")
+	record.RequestMethod = stringMetadataValue(metadata, "request_method")
+	record.RequestPath = stringMetadataValue(metadata, "request_path")
+	record.StatusCode = intMetadataValue(metadata, "status_code")
+	record.TargetType = normalizeAuditTargetType(record.ResourceType)
+	record.TargetLabel = firstNonEmpty(record.ResourceName, displayTargetLabel(record.TargetType), record.ResourceID)
+	record.Result = classifyAuditResult(*record, metadata)
+	record.RiskLevel = classifyAuditRiskLevel(*record)
+}
+
+func decodeAuditMetadata(raw json.RawMessage) map[string]any {
+	if len(raw) == 0 {
+		return map[string]any{}
+	}
+
+	var metadata map[string]any
+	if err := json.Unmarshal(raw, &metadata); err != nil {
+		return map[string]any{}
+	}
+
+	return metadata
+}
+
+func stringMetadataValue(metadata map[string]any, key string) string {
+	value, ok := metadata[key]
+	if !ok {
+		return ""
+	}
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case float64:
+		return strings.TrimSpace(fmt.Sprintf("%.0f", typed))
+	default:
+		return ""
+	}
+}
+
+func intMetadataValue(metadata map[string]any, key string) int {
+	value, ok := metadata[key]
+	if !ok {
+		return 0
+	}
+	switch typed := value.(type) {
+	case float64:
+		return int(typed)
+	case int:
+		return typed
+	case string:
+		parsed, err := strconv.Atoi(strings.TrimSpace(typed))
+		if err == nil {
+			return parsed
+		}
+	}
+	return 0
+}
+
+func classifyAuditResult(record auditstore.AuditLog, metadata map[string]any) auditstore.AuditResult {
+	if record.Success {
+		return auditstore.AuditResultSuccess
+	}
+
+	statusCode := record.StatusCode
+	if statusCode == 0 {
+		statusCode = intMetadataValue(metadata, "status_code")
+	}
+	if statusCode == httpStatusForbidden {
+		return auditstore.AuditResultDenied
+	}
+	if statusCode >= 500 || stringMetadataValue(metadata, "error_kind") == "system" || stringMetadataValue(metadata, "error") != "" {
+		return auditstore.AuditResultError
+	}
+
+	return auditstore.AuditResultFailed
+}
+
+func classifyAuditRiskLevel(record auditstore.AuditLog) auditstore.AuditRiskLevel {
+	action := strings.ToLower(strings.TrimSpace(record.Action))
+
+	if record.Result == auditstore.AuditResultError || record.Result == auditstore.AuditResultDenied {
+		return auditstore.AuditRiskLevelCritical
+	}
+	if containsAny(action, []string{"reset_password", "update_permission", "update_role", "assign_role", "token_revoke"}) {
+		return auditstore.AuditRiskLevelCritical
+	}
+	if record.Result == auditstore.AuditResultFailed || containsAny(action, sensitiveAuditActionKeywords) {
+		return auditstore.AuditRiskLevelHigh
+	}
+	if containsAny(action, []string{"login_failed", "login", "permission", "role", "auth"}) {
+		return auditstore.AuditRiskLevelMedium
+	}
+	return auditstore.AuditRiskLevelLow
+}
+
+func containsAny(source string, keywords []string) bool {
+	for _, keyword := range keywords {
+		if strings.Contains(source, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeAuditTargetType(resourceType string) string {
+	switch strings.ToLower(strings.TrimSpace(resourceType)) {
+	case "user", "users":
+		return "USER"
+	case "role", "roles":
+		return "ROLE"
+	case "permission", "permissions":
+		return "PERMISSION"
+	case "audit":
+		return "AUDIT"
+	case "monitor", "server-status", "server_status":
+		return "SERVER_STATUS"
+	case "auth", "session", "sessions", "login":
+		return "AUTH"
+	default:
+		if resourceType == "" {
+			return "AUDIT"
+		}
+		return strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(resourceType), "-", "_"))
+	}
+}
+
+func displayTargetLabel(targetType string) string {
+	switch targetType {
+	case "USER":
+		return "用户"
+	case "ROLE":
+		return "角色"
+	case "PERMISSION":
+		return "权限"
+	case "AUDIT":
+		return "审计"
+	case "SERVER_STATUS":
+		return "服务器状态"
+	case "AUTH":
+		return "认证"
+	default:
+		return ""
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func riskLevelWhereClause(level auditstore.AuditRiskLevel, position int) string {
+	if level == "" {
+		return ""
+	}
+
+	return fmt.Sprintf(`CASE
+		WHEN success = false AND ((metadata ->> 'status_code') = '403' OR COALESCE(metadata ->> 'error_kind', '') = 'system' OR COALESCE(metadata ->> 'error', '') <> '') THEN 'CRITICAL'
+		WHEN LOWER(action) LIKE '%%reset_password%%' OR LOWER(action) LIKE '%%update_permission%%' OR LOWER(action) LIKE '%%update_role%%' OR LOWER(action) LIKE '%%assign_role%%' OR LOWER(action) LIKE '%%token_revoke%%' THEN 'CRITICAL'
+		WHEN success = false OR LOWER(action) LIKE '%%delete%%' OR LOWER(action) LIKE '%%reset%%' OR LOWER(action) LIKE '%%grant%%' OR LOWER(action) LIKE '%%assign%%' OR LOWER(action) LIKE '%%revoke%%' OR LOWER(action) LIKE '%%remove%%' OR LOWER(action) LIKE '%%replace%%' THEN 'HIGH'
+		WHEN LOWER(action) LIKE '%%login_failed%%' OR LOWER(action) LIKE '%%login%%' OR LOWER(action) LIKE '%%permission%%' OR LOWER(action) LIKE '%%role%%' OR LOWER(action) LIKE '%%auth%%' THEN 'MEDIUM'
+		ELSE 'LOW'
+	END = $%d`, position)
 }
 
 const overviewSummarySQL = `

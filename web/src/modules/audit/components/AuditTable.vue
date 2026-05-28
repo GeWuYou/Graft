@@ -44,8 +44,8 @@
       </template>
 
       <template #result="{ row }">
-        <t-tag :theme="row.success ? 'success' : 'danger'" variant="light-outline" size="small">
-          {{ row.success ? t('audit.common.result.success') : t('audit.common.result.failed') }}
+        <t-tag :theme="resultTone(row)" variant="light-outline" size="small">
+          {{ resultLabel(row, t) }}
         </t-tag>
       </template>
 
@@ -109,6 +109,8 @@ import {
   formatAuditTimestamp,
   resourceLabel,
   resourceSecondaryLabel,
+  resultLabel,
+  resultTone,
   riskLabel,
   riskTone,
 } from '../shared/presentation';

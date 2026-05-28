@@ -2,6 +2,7 @@
   <t-drawer
     :visible="visible"
     :header="t('audit.logList.detailTitle')"
+    :footer="false"
     destroy-on-close
     placement="right"
     size="640px"
@@ -29,7 +30,7 @@
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.result') }}</span>
-            <strong>{{ record.success ? t('audit.common.result.success') : t('audit.common.result.failed') }}</strong>
+            <strong>{{ resultLabel(record, t) }}</strong>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.columns.createdAt') }}</span>
@@ -41,7 +42,12 @@
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.traceId') }}</span>
-            <strong class="audit-detail__mono">{{ traceIdForRecord(record) }}</strong>
+            <div class="audit-detail__copy-line">
+              <strong class="audit-detail__mono">{{ traceIdForRecord(record) }}</strong>
+              <t-button size="small" theme="default" variant="text" @click="copyTraceId(record)">
+                {{ t('audit.logList.drawer.actions.copyTraceId') }}
+              </t-button>
+            </div>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.sessionId') }}</span>
@@ -63,15 +69,19 @@
         <div class="audit-detail__grid">
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.method') }}</span>
-            <strong>{{ metadataLookup(record, 'request_method') || '-' }}</strong>
+            <strong>{{ record.request_method || metadataLookup(record, 'request_method') || '-' }}</strong>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.path') }}</span>
-            <strong>{{ metadataLookup(record, 'request_path') || metadataLookup(record, 'path') || '-' }}</strong>
+            <strong>{{
+              record.request_path || metadataLookup(record, 'request_path') || metadataLookup(record, 'path') || '-'
+            }}</strong>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.status') }}</span>
-            <strong>{{ metadataLookup(record, 'status_code') || metadataLookup(record, 'status') || '-' }}</strong>
+            <strong>{{
+              record.status_code || metadataLookup(record, 'status_code') || metadataLookup(record, 'status') || '-'
+            }}</strong>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.latency') }}</span>
@@ -113,7 +123,7 @@
         <h4>{{ t('audit.logList.drawer.sections.risk') }}</h4>
         <div class="audit-detail__tags">
           <t-tag :theme="riskTone(record)" variant="light-outline">{{ riskLabel(record, t) }}</t-tag>
-          <t-tag v-if="!record.success" theme="danger" variant="light-outline">
+          <t-tag v-if="record.result === 'FAILED' || record.result === 'ERROR'" theme="danger" variant="light-outline">
             {{ t('audit.logList.drawer.risk.failedOperation') }}
           </t-tag>
           <t-tag v-if="isSensitiveAction(record)" theme="warning" variant="light-outline">
@@ -127,12 +137,16 @@
 
       <section class="audit-detail__section">
         <h4>{{ t('audit.logList.drawer.sections.metadata') }}</h4>
-        <pre class="audit-detail__code">{{ metadataDetail(record.metadata) }}</pre>
+        <details class="audit-detail__metadata">
+          <summary>{{ t('audit.logList.drawer.actions.toggleMetadata') }}</summary>
+          <pre class="audit-detail__code">{{ metadataDetail(record.metadata) }}</pre>
+        </details>
       </section>
     </div>
   </t-drawer>
 </template>
 <script setup lang="ts">
+import { MessagePlugin } from 'tdesign-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -144,6 +158,7 @@ import {
   metadataLookup,
   resourceDetailLabel,
   resourceLabel,
+  resultLabel,
   riskLabel,
   riskTone,
   sessionIdForRecord,
@@ -162,6 +177,16 @@ defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+async function copyTraceId(record: AuditLogListItem) {
+  const traceId = traceIdForRecord(record);
+  if (!traceId || traceId === '-') {
+    return;
+  }
+
+  await navigator.clipboard.writeText(traceId);
+  MessagePlugin.success(t('audit.logList.drawer.actions.copySuccess'));
+}
 
 const sameRequestRows = computed(() => {
   const record = props.record;
@@ -253,6 +278,12 @@ const sameResourceRows = computed(() => {
   font-family: var(--td-font-family-medium);
 }
 
+.audit-detail__copy-line {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
 .audit-detail__related-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -284,6 +315,11 @@ const sameResourceRows = computed(() => {
   margin: 0;
   overflow: auto;
   padding: 12px;
+}
+
+.audit-detail__metadata summary {
+  cursor: pointer;
+  margin-bottom: 8px;
 }
 
 @media (width <= 768px) {

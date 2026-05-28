@@ -1,9 +1,10 @@
 import type { AuditLogListItem } from '../types/audit';
+import type { AuditResult as AuditResultEnum, AuditRiskLevel as AuditRiskLevelEnum } from '../types/audit';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
-export type AuditRiskValue = 'high' | 'sensitive' | 'normal';
-export type AuditResultValue = 'all' | 'success' | 'failed';
+export type AuditRiskValue = 'all' | AuditRiskLevelEnum;
+export type AuditResultValue = 'all' | AuditResultEnum;
 
 export type AuditClientFilterState = {
   keyword: string;
@@ -27,29 +28,34 @@ export function actorSecondaryLabel(row: AuditLogListItem) {
 
 export function resourceLabel(row: AuditLogListItem, t: Translate) {
   return (
+    row.target_label ||
     row.resource_name ||
     resourceSecondaryLabel(row) ||
+    row.request_path ||
     metadataLookup(row, 'request_path') ||
     t('audit.common.unknownResource')
   );
 }
 
 export function resourceSecondaryLabel(row: AuditLogListItem) {
-  const secondary = [row.resource_type, row.resource_id].filter(Boolean);
+  const secondary = [targetTypeLabel(row.target_type), row.resource_id].filter(Boolean);
   return secondary.join(' / ') || '-';
 }
 
 export function resourceDetailLabel(row: AuditLogListItem, t: Translate) {
-  const label = row.resource_name || resourceSecondaryLabel(row) || metadataLookup(row, 'request_path');
-  return [label, row.resource_type, row.resource_id].filter(Boolean).join(' / ') || t('audit.common.unknownResource');
+  const label = row.target_label || row.resource_name || resourceSecondaryLabel(row) || row.request_path;
+  return (
+    [label, targetTypeLabel(row.target_type), row.resource_id].filter(Boolean).join(' / ') ||
+    t('audit.common.unknownResource')
+  );
 }
 
 export function traceIdForRecord(row: AuditLogListItem) {
-  return metadataLookup(row, 'trace_id') || row.request_id || '-';
+  return row.trace_id || metadataLookup(row, 'trace_id') || row.request_id || '-';
 }
 
 export function sessionIdForRecord(row: AuditLogListItem) {
-  return metadataLookup(row, 'session_id') || '-';
+  return row.session_id || metadataLookup(row, 'session_id') || '-';
 }
 
 export function metadataLookup(row: AuditLogListItem, key: string) {
@@ -71,35 +77,67 @@ export function metadataDetail(metadata: AuditLogListItem['metadata']) {
 }
 
 export function isSensitiveAction(row: AuditLogListItem) {
-  const action = row.action.toLowerCase();
-  return ['delete', 'role', 'permission', 'reset', 'grant', 'assign'].some((keyword) => action.includes(keyword));
+  return ['HIGH', 'CRITICAL'].includes(row.risk_level ?? '');
 }
 
-function riskValue(row: AuditLogListItem): AuditRiskValue {
-  if (!row.success) {
-    return 'high';
-  }
-  if (isSensitiveAction(row)) {
-    return 'sensitive';
-  }
-  return 'normal';
+function riskValue(row: AuditLogListItem): AuditRiskLevelEnum {
+  return row.risk_level || 'LOW';
 }
 
 export function riskTone(row: AuditLogListItem) {
   const level = riskValue(row);
 
-  if (level === 'high') {
+  if (level === 'CRITICAL') {
     return 'danger' as const;
   }
-  if (level === 'sensitive') {
+  if (level === 'HIGH') {
     return 'warning' as const;
   }
-  return 'success' as const;
+  if (level === 'MEDIUM') {
+    return 'primary' as const;
+  }
+  return 'default' as const;
 }
 
 export function riskLabel(row: AuditLogListItem, t: Translate) {
   const level = riskValue(row);
   return t(`audit.common.risk.${level}`);
+}
+
+export function resultTone(row: AuditLogListItem) {
+  switch (row.result) {
+    case 'SUCCESS':
+      return 'success' as const;
+    case 'DENIED':
+      return 'warning' as const;
+    case 'ERROR':
+      return 'danger' as const;
+    default:
+      return 'danger' as const;
+  }
+}
+
+export function resultLabel(row: AuditLogListItem, t: Translate) {
+  return t(`audit.common.result.${row.result || 'FAILED'}`);
+}
+
+function targetTypeLabel(value?: string | null) {
+  switch (value) {
+    case 'USER':
+      return '用户';
+    case 'ROLE':
+      return '角色';
+    case 'PERMISSION':
+      return '权限';
+    case 'AUDIT':
+      return '审计';
+    case 'SERVER_STATUS':
+      return '服务器状态';
+    case 'AUTH':
+      return '认证';
+    default:
+      return value || '';
+  }
 }
 
 export function formatAuditTimestamp(value?: string | null) {
@@ -164,14 +202,11 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
     return false;
   }
 
-  if (filters.result === 'success' && !row.success) {
-    return false;
-  }
-  if (filters.result === 'failed' && row.success) {
+  if (filters.result !== 'all' && row.result !== filters.result) {
     return false;
   }
 
-  if (filters.riskLevel !== 'all' && riskValue(row) !== filters.riskLevel) {
+  if (filters.riskLevel !== 'all' && (row.risk_level || 'LOW') !== filters.riskLevel) {
     return false;
   }
 

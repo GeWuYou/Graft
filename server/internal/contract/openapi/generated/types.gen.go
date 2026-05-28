@@ -12,6 +12,90 @@ const (
 	RefreshCookieScopes refreshCookieContextKey = "refreshCookie.Scopes"
 )
 
+// Defines values for AuditLogListItemResult.
+const (
+	AuditLogListItemResultDENIED  AuditLogListItemResult = "DENIED"
+	AuditLogListItemResultERROR   AuditLogListItemResult = "ERROR"
+	AuditLogListItemResultFAILED  AuditLogListItemResult = "FAILED"
+	AuditLogListItemResultSUCCESS AuditLogListItemResult = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the AuditLogListItemResult enum.
+func (e AuditLogListItemResult) Valid() bool {
+	switch e {
+	case AuditLogListItemResultDENIED:
+		return true
+	case AuditLogListItemResultERROR:
+		return true
+	case AuditLogListItemResultFAILED:
+		return true
+	case AuditLogListItemResultSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditLogListItemRiskLevel.
+const (
+	AuditLogListItemRiskLevelCRITICAL AuditLogListItemRiskLevel = "CRITICAL"
+	AuditLogListItemRiskLevelHIGH     AuditLogListItemRiskLevel = "HIGH"
+	AuditLogListItemRiskLevelLOW      AuditLogListItemRiskLevel = "LOW"
+	AuditLogListItemRiskLevelMEDIUM   AuditLogListItemRiskLevel = "MEDIUM"
+)
+
+// Valid indicates whether the value is a known member of the AuditLogListItemRiskLevel enum.
+func (e AuditLogListItemRiskLevel) Valid() bool {
+	switch e {
+	case AuditLogListItemRiskLevelCRITICAL:
+		return true
+	case AuditLogListItemRiskLevelHIGH:
+		return true
+	case AuditLogListItemRiskLevelLOW:
+		return true
+	case AuditLogListItemRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditOverviewResponseWindow.
+const (
+	AuditOverviewResponseWindowN24h AuditOverviewResponseWindow = "24h"
+	AuditOverviewResponseWindowN30d AuditOverviewResponseWindow = "30d"
+	AuditOverviewResponseWindowN7d  AuditOverviewResponseWindow = "7d"
+)
+
+// Valid indicates whether the value is a known member of the AuditOverviewResponseWindow enum.
+func (e AuditOverviewResponseWindow) Valid() bool {
+	switch e {
+	case AuditOverviewResponseWindowN24h:
+		return true
+	case AuditOverviewResponseWindowN30d:
+		return true
+	case AuditOverviewResponseWindowN7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EnvelopedAuditOverviewResponseSuccess.
+const (
+	True EnvelopedAuditOverviewResponseSuccess = true
+)
+
+// Valid indicates whether the value is a known member of the EnvelopedAuditOverviewResponseSuccess enum.
+func (e EnvelopedAuditOverviewResponseSuccess) Valid() bool {
+	switch e {
+	case True:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErrorResponseSuccess.
 const (
 	False ErrorResponseSuccess = false
@@ -156,6 +240,75 @@ func (e TrendRangeQuery) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditLogsParamsResult.
+const (
+	GetAuditLogsParamsResultDENIED  GetAuditLogsParamsResult = "DENIED"
+	GetAuditLogsParamsResultERROR   GetAuditLogsParamsResult = "ERROR"
+	GetAuditLogsParamsResultFAILED  GetAuditLogsParamsResult = "FAILED"
+	GetAuditLogsParamsResultSUCCESS GetAuditLogsParamsResult = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsResult enum.
+func (e GetAuditLogsParamsResult) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsResultDENIED:
+		return true
+	case GetAuditLogsParamsResultERROR:
+		return true
+	case GetAuditLogsParamsResultFAILED:
+		return true
+	case GetAuditLogsParamsResultSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogsParamsRiskLevel.
+const (
+	GetAuditLogsParamsRiskLevelCRITICAL GetAuditLogsParamsRiskLevel = "CRITICAL"
+	GetAuditLogsParamsRiskLevelHIGH     GetAuditLogsParamsRiskLevel = "HIGH"
+	GetAuditLogsParamsRiskLevelLOW      GetAuditLogsParamsRiskLevel = "LOW"
+	GetAuditLogsParamsRiskLevelMEDIUM   GetAuditLogsParamsRiskLevel = "MEDIUM"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsRiskLevel enum.
+func (e GetAuditLogsParamsRiskLevel) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsRiskLevelCRITICAL:
+		return true
+	case GetAuditLogsParamsRiskLevelHIGH:
+		return true
+	case GetAuditLogsParamsRiskLevelLOW:
+		return true
+	case GetAuditLogsParamsRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditOverviewParamsWindow.
+const (
+	GetAuditOverviewParamsWindowN24h GetAuditOverviewParamsWindow = "24h"
+	GetAuditOverviewParamsWindowN30d GetAuditOverviewParamsWindow = "30d"
+	GetAuditOverviewParamsWindowN7d  GetAuditOverviewParamsWindow = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditOverviewParamsWindow enum.
+func (e GetAuditOverviewParamsWindow) Valid() bool {
+	switch e {
+	case GetAuditOverviewParamsWindowN24h:
+		return true
+	case GetAuditOverviewParamsWindowN30d:
+		return true
+	case GetAuditOverviewParamsWindowN7d:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetMonitorServerStatusParamsTrendRange.
 const (
 	N10m GetMonitorServerStatusParamsTrendRange = "10m"
@@ -217,22 +370,37 @@ type ApiEnvelope struct {
 
 // AuditLogListItem defines model for audit-log-list-item.
 type AuditLogListItem struct {
-	Action           string                 `json:"action"`
-	ActorDisplayName *string                `json:"actor_display_name,omitempty"`
-	ActorUserId      *int64                 `json:"actor_user_id,omitempty"`
-	ActorUsername    *string                `json:"actor_username,omitempty"`
-	CreatedAt        time.Time              `json:"created_at"`
-	Id               int64                  `json:"id"`
-	Ip               string                 `json:"ip"`
-	Message          string                 `json:"message"`
-	Metadata         map[string]interface{} `json:"metadata"`
-	RequestId        string                 `json:"request_id"`
-	ResourceId       *string                `json:"resource_id,omitempty"`
-	ResourceName     *string                `json:"resource_name,omitempty"`
-	ResourceType     string                 `json:"resource_type"`
-	Success          bool                   `json:"success"`
-	UserAgent        string                 `json:"user_agent"`
+	Action           string                     `json:"action"`
+	ActorDisplayName *string                    `json:"actor_display_name,omitempty"`
+	ActorUserId      *int64                     `json:"actor_user_id,omitempty"`
+	ActorUsername    *string                    `json:"actor_username,omitempty"`
+	CreatedAt        time.Time                  `json:"created_at"`
+	Id               int64                      `json:"id"`
+	Ip               string                     `json:"ip"`
+	Message          string                     `json:"message"`
+	Metadata         map[string]interface{}     `json:"metadata"`
+	RequestId        string                     `json:"request_id"`
+	RequestMethod    *string                    `json:"request_method,omitempty"`
+	RequestPath      *string                    `json:"request_path,omitempty"`
+	ResourceId       *string                    `json:"resource_id,omitempty"`
+	ResourceName     *string                    `json:"resource_name,omitempty"`
+	ResourceType     string                     `json:"resource_type"`
+	Result           *AuditLogListItemResult    `json:"result,omitempty"`
+	RiskLevel        *AuditLogListItemRiskLevel `json:"risk_level,omitempty"`
+	SessionId        *string                    `json:"session_id,omitempty"`
+	StatusCode       *int                       `json:"status_code,omitempty"`
+	Success          bool                       `json:"success"`
+	TargetLabel      *string                    `json:"target_label,omitempty"`
+	TargetType       *string                    `json:"target_type,omitempty"`
+	TraceId          *string                    `json:"trace_id,omitempty"`
+	UserAgent        string                     `json:"user_agent"`
 }
+
+// AuditLogListItemResult defines model for AuditLogListItem.Result.
+type AuditLogListItemResult string
+
+// AuditLogListItemRiskLevel defines model for AuditLogListItem.RiskLevel.
+type AuditLogListItemRiskLevel string
 
 // AuditLogListResponse defines model for audit-log-list-response.
 type AuditLogListResponse struct {
@@ -240,6 +408,43 @@ type AuditLogListResponse struct {
 	Page     int                `json:"page"`
 	PageSize int                `json:"page_size"`
 	Total    int                `json:"total"`
+}
+
+// AuditOverviewItem defines model for audit-overview-item.
+type AuditOverviewItem struct {
+	Action           string                 `json:"action"`
+	ActorDisplayName *string                `json:"actor_display_name,omitempty"`
+	ActorUserId      *int64                 `json:"actor_user_id,omitempty"`
+	ActorUsername    *string                `json:"actor_username,omitempty"`
+	CreatedAt        time.Time              `json:"created_at"`
+	Id               int64                  `json:"id"`
+	Message          string                 `json:"message"`
+	Metadata         map[string]interface{} `json:"metadata"`
+	RequestId        string                 `json:"request_id"`
+	ResourceId       *string                `json:"resource_id,omitempty"`
+	ResourceName     *string                `json:"resource_name,omitempty"`
+	ResourceType     *string                `json:"resource_type,omitempty"`
+	Success          bool                   `json:"success"`
+}
+
+// AuditOverviewResponse defines model for audit-overview-response.
+type AuditOverviewResponse struct {
+	FailedAuth          []AuditOverviewItem         `json:"failed_auth"`
+	PermissionDenied    []AuditOverviewItem         `json:"permission_denied"`
+	SensitiveOperations []AuditOverviewItem         `json:"sensitive_operations"`
+	Summary             AuditOverviewSummary        `json:"summary"`
+	Window              AuditOverviewResponseWindow `json:"window"`
+}
+
+// AuditOverviewResponseWindow defines model for AuditOverviewResponse.Window.
+type AuditOverviewResponseWindow string
+
+// AuditOverviewSummary defines model for audit-overview-summary.
+type AuditOverviewSummary struct {
+	FailedOperations    int `json:"failed_operations"`
+	HighRiskEvents      int `json:"high_risk_events"`
+	SensitiveOperations int `json:"sensitive_operations"`
+	TotalLogs           int `json:"total_logs"`
 }
 
 // BatchUserRolesRequest defines model for batch-user-roles-request.
@@ -334,6 +539,15 @@ type EnvelopedAuditLogListResponse struct {
 	// TraceId Mirrors the request id contract used by the current runtime.
 	TraceId string `json:"traceId"`
 }
+
+// EnvelopedAuditOverviewResponse defines model for enveloped-audit-overview-response.
+type EnvelopedAuditOverviewResponse struct {
+	Data    AuditOverviewResponse                 `json:"data"`
+	Success EnvelopedAuditOverviewResponseSuccess `json:"success"`
+}
+
+// EnvelopedAuditOverviewResponseSuccess defines model for EnvelopedAuditOverviewResponse.Success.
+type EnvelopedAuditOverviewResponseSuccess bool
 
 // EnvelopedBootstrapResponse defines model for enveloped-bootstrap-response.
 type EnvelopedBootstrapResponse struct {
@@ -975,17 +1189,19 @@ type refreshCookieContextKey string
 
 // GetAuditLogsParams defines parameters for GetAuditLogs.
 type GetAuditLogsParams struct {
-	Page         *int       `form:"page,omitempty" json:"page,omitempty"`
-	PageSize     *int       `form:"page_size,omitempty" json:"page_size,omitempty"`
-	ActorUserId  *int64     `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
-	Action       *string    `form:"action,omitempty" json:"action,omitempty"`
-	ResourceType *string    `form:"resource_type,omitempty" json:"resource_type,omitempty"`
-	ResourceId   *string    `form:"resource_id,omitempty" json:"resource_id,omitempty"`
-	ResourceName *string    `form:"resource_name,omitempty" json:"resource_name,omitempty"`
-	RequestId    *string    `form:"request_id,omitempty" json:"request_id,omitempty"`
-	Success      *bool      `form:"success,omitempty" json:"success,omitempty"`
-	CreatedFrom  *time.Time `form:"created_from,omitempty" json:"created_from,omitempty"`
-	CreatedTo    *time.Time `form:"created_to,omitempty" json:"created_to,omitempty"`
+	Page         *int                         `form:"page,omitempty" json:"page,omitempty"`
+	PageSize     *int                         `form:"page_size,omitempty" json:"page_size,omitempty"`
+	ActorUserId  *int64                       `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
+	Action       *string                      `form:"action,omitempty" json:"action,omitempty"`
+	ResourceType *string                      `form:"resource_type,omitempty" json:"resource_type,omitempty"`
+	ResourceId   *string                      `form:"resource_id,omitempty" json:"resource_id,omitempty"`
+	ResourceName *string                      `form:"resource_name,omitempty" json:"resource_name,omitempty"`
+	RequestId    *string                      `form:"request_id,omitempty" json:"request_id,omitempty"`
+	Result       *GetAuditLogsParamsResult    `form:"result,omitempty" json:"result,omitempty"`
+	RiskLevel    *GetAuditLogsParamsRiskLevel `form:"risk_level,omitempty" json:"risk_level,omitempty"`
+	Success      *bool                        `form:"success,omitempty" json:"success,omitempty"`
+	CreatedFrom  *time.Time                   `form:"created_from,omitempty" json:"created_from,omitempty"`
+	CreatedTo    *time.Time                   `form:"created_to,omitempty" json:"created_to,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -994,6 +1210,27 @@ type GetAuditLogsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
+
+// GetAuditLogsParamsResult defines parameters for GetAuditLogs.
+type GetAuditLogsParamsResult string
+
+// GetAuditLogsParamsRiskLevel defines parameters for GetAuditLogs.
+type GetAuditLogsParamsRiskLevel string
+
+// GetAuditOverviewParams defines parameters for GetAuditOverview.
+type GetAuditOverviewParams struct {
+	Window *GetAuditOverviewParamsWindow `form:"window,omitempty" json:"window,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetAuditOverviewParamsWindow defines parameters for GetAuditOverview.
+type GetAuditOverviewParamsWindow string
 
 // GetAuthBootstrapParams defines parameters for GetAuthBootstrap.
 type GetAuthBootstrapParams struct {

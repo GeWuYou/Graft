@@ -11,12 +11,16 @@ export const rbacBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
       tabGroup: 'rbac',
       pageKind: 'list',
       semanticTitle: {
-        'zh-CN': '访问控制 · 角色管理',
-        'en-US': 'Access Roles',
+        'zh-CN': '访问控制 - 角色管理',
+        'en-US': 'Access Control - Role Management',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '角色管理',
+        'en-US': 'Role Management',
       },
       tabTitle: {
-        'zh-CN': '访问控制 · 角色',
-        'en-US': 'Access Roles',
+        'zh-CN': '访问控制 - 角色管理',
+        'en-US': 'Access Control - Role Management',
       },
     },
   },
@@ -28,12 +32,16 @@ export const rbacBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
       tabGroup: 'rbac',
       pageKind: 'list',
       semanticTitle: {
-        'zh-CN': '访问控制 · 权限管理',
-        'en-US': 'Access Permissions',
+        'zh-CN': '访问控制 - 权限管理',
+        'en-US': 'Access Control - Permission Management',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '权限管理',
+        'en-US': 'Permission Management',
       },
       tabTitle: {
-        'zh-CN': '访问控制 · 权限',
-        'en-US': 'Access Permissions',
+        'zh-CN': '访问控制 - 权限管理',
+        'en-US': 'Access Control - Permission Management',
       },
     },
   },

@@ -74,21 +74,6 @@ vi.mock('@/utils/logger', () => ({
   }),
 }));
 
-vi.mock('../../components/AuditStats.vue', () => ({
-  default: defineComponent({
-    name: 'AuditStatsStub',
-    props: {
-      items: {
-        type: Array,
-        default: () => [],
-      },
-    },
-    setup(props) {
-      return () => h('div', { 'data-testid': 'audit-stats' }, JSON.stringify(props.items));
-    },
-  }),
-}));
-
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: routerMocks.push,
@@ -97,17 +82,18 @@ vi.mock('vue-router', () => ({
 
 const passthroughStub = defineComponent({
   name: 'PassthroughStub',
-  props: ['title', 'description', 'items'],
+  props: ['title', 'description', 'items', 'value', 'valueAside'],
   setup(props, { slots }) {
     return () =>
-      h('div', [props.title, props.description, JSON.stringify(props.items), slots.default?.(), slots.actions?.()]);
-  },
-});
-
-const cardStub = defineComponent({
-  name: 'TCardStub',
-  setup(_, { slots }) {
-    return () => h('section', [slots.header?.(), slots.default?.()]);
+      h('div', [
+        props.title,
+        props.description,
+        props.value,
+        props.valueAside,
+        JSON.stringify(props.items),
+        slots.default?.(),
+        slots.actions?.(),
+      ]);
   },
 });
 
@@ -194,10 +180,10 @@ describe('AuditOverviewPage', () => {
       global: {
         plugins: [i18n],
         stubs: {
-          'management-page-content': passthroughStub,
-          'management-page-header': passthroughStub,
+          'governance-dashboard-shell': passthroughStub,
+          'governance-section': passthroughStub,
+          'governance-summary-card': passthroughStub,
           'management-empty-state': passthroughStub,
-          't-card': cardStub,
           't-button': buttonStub,
           't-radio-group': radioGroupStub,
           't-radio-button': radioButtonStub,
@@ -215,7 +201,7 @@ describe('AuditOverviewPage', () => {
     expect(wrapper.text()).toContain('Recent Permission Denied');
     expect(wrapper.text()).toContain('Recent Sensitive Operations');
     expect(wrapper.text()).toContain('Quick Links');
-    expect(wrapper.text()).toContain('12');
+    expect(wrapper.text()).toContain('Refresh');
 
     await wrapper.get('button[type="button"]').trigger('click');
     expect(routerMocks.push).toHaveBeenCalled();

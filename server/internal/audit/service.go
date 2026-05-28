@@ -50,6 +50,8 @@ type ListQuery struct {
 	ResourceName string
 	Success      *bool
 	RequestID    string
+	Result       auditstore.AuditResult
+	RiskLevel    auditstore.AuditRiskLevel
 	CreatedFrom  *time.Time
 	CreatedTo    *time.Time
 }
@@ -142,6 +144,8 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		ResourceName: strings.TrimSpace(query.ResourceName),
 		Success:      query.Success,
 		RequestID:    strings.TrimSpace(query.RequestID),
+		Result:       normalizeAuditResult(query.Result),
+		RiskLevel:    normalizeAuditRiskLevel(query.RiskLevel),
 		CreatedFrom:  query.CreatedFrom,
 		CreatedTo:    query.CreatedTo,
 		Limit:        pageSize,
@@ -157,6 +161,36 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+func normalizeAuditResult(result auditstore.AuditResult) auditstore.AuditResult {
+	switch auditstore.AuditResult(strings.ToUpper(strings.TrimSpace(string(result)))) {
+	case auditstore.AuditResultSuccess:
+		return auditstore.AuditResultSuccess
+	case auditstore.AuditResultFailed:
+		return auditstore.AuditResultFailed
+	case auditstore.AuditResultDenied:
+		return auditstore.AuditResultDenied
+	case auditstore.AuditResultError:
+		return auditstore.AuditResultError
+	default:
+		return ""
+	}
+}
+
+func normalizeAuditRiskLevel(level auditstore.AuditRiskLevel) auditstore.AuditRiskLevel {
+	switch auditstore.AuditRiskLevel(strings.ToUpper(strings.TrimSpace(string(level)))) {
+	case auditstore.AuditRiskLevelLow:
+		return auditstore.AuditRiskLevelLow
+	case auditstore.AuditRiskLevelMedium:
+		return auditstore.AuditRiskLevelMedium
+	case auditstore.AuditRiskLevelHigh:
+		return auditstore.AuditRiskLevelHigh
+	case auditstore.AuditRiskLevelCritical:
+		return auditstore.AuditRiskLevelCritical
+	default:
+		return ""
+	}
 }
 
 // Overview returns the aggregated overview payload for the selected window.

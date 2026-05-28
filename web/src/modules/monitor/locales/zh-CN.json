@@ -1,6 +1,6 @@
 {
   "monitor": {
-    "sectionTitle": "服务器管理",
+    "sectionTitle": "服务管理",
     "serverStatus": {
       "overviewTitle": "服务器状态总览",
       "overviewHint": "查看服务器整体资源、依赖健康状态与 Go 进程运行摘要。",

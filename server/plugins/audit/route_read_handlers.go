@@ -133,6 +133,7 @@ func bindGeneratedAuditListParams(
 		return params, query, field
 	}
 	bindAuditStringFilters(ginCtx, &params, &query)
+	bindAuditEnumFilters(ginCtx, &params, &query)
 	if field := bindAuditSuccessFilter(ginCtx, &params, &query); field != "" {
 		return params, query, field
 	}
@@ -197,6 +198,19 @@ func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLo
 	bindAuditStringFilter(ginCtx, "resource_id", &params.ResourceId, &query.ResourceID)
 	bindAuditStringFilter(ginCtx, "resource_name", &params.ResourceName, &query.ResourceName)
 	bindAuditStringFilter(ginCtx, "request_id", &params.RequestId, &query.RequestID)
+}
+
+func bindAuditEnumFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) {
+	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("result"))); raw != "" {
+		value := auditopenapi.GetAuditLogsParamsResult(raw)
+		params.Result = &value
+		query.Result = auditstore.AuditResult(raw)
+	}
+	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("risk_level"))); raw != "" {
+		value := auditopenapi.GetAuditLogsParamsRiskLevel(raw)
+		params.RiskLevel = &value
+		query.RiskLevel = auditstore.AuditRiskLevel(raw)
+	}
 }
 
 func bindAuditStringFilter(ginCtx *gin.Context, key string, targetParam **string, targetQuery *string) {

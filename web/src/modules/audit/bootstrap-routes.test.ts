@@ -19,7 +19,7 @@ describe('audit bootstrap route registrations', () => {
         ...AUDIT_BOOTSTRAP_ROUTE.LOG_LIST,
         meta: expect.objectContaining({
           domain: 'audit',
-          pageKind: 'investigation',
+          pageKind: 'list',
         }),
       }),
     ]);

@@ -12,12 +12,16 @@ export const accessControlBootstrapRouteRegistrations: BootstrapRouteRegistratio
       dashboard: true,
       pageKind: 'overview',
       semanticTitle: {
-        'zh-CN': '访问控制 · 概览',
-        'en-US': 'Access Overview',
+        'zh-CN': '访问控制 - 概览',
+        'en-US': 'Access Control - Overview',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '概览',
+        'en-US': 'Overview',
       },
       tabTitle: {
-        'zh-CN': '访问控制 · 概览',
-        'en-US': 'Access Overview',
+        'zh-CN': '访问控制 - 概览',
+        'en-US': 'Access Control - Overview',
       },
     },
   },

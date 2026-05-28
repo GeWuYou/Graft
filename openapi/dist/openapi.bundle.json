@@ -4313,6 +4313,34 @@
             }
           },
           {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUCCESS",
+                "FAILED",
+                "DENIED",
+                "ERROR"
+              ]
+            }
+          },
+          {
+            "name": "risk_level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL"
+              ]
+            }
+          },
+          {
             "name": "success",
             "in": "query",
             "required": false,
@@ -5842,7 +5870,37 @@
           "success": {
             "type": "boolean"
           },
+          "result": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "FAILED",
+              "DENIED",
+              "ERROR"
+            ]
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "target_type": {
+            "type": "string"
+          },
+          "target_label": {
+            "type": "string"
+          },
           "request_id": {
+            "type": "string"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "session_id": {
             "type": "string"
           },
           "ip": {
@@ -5850,6 +5908,15 @@
           },
           "user_agent": {
             "type": "string"
+          },
+          "request_method": {
+            "type": "string"
+          },
+          "request_path": {
+            "type": "string"
+          },
+          "status_code": {
+            "type": "integer"
           },
           "message": {
             "type": "string"

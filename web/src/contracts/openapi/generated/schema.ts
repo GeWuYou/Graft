@@ -1192,9 +1192,20 @@ export interface components {
       resource_id?: string;
       resource_name?: string;
       success: boolean;
+      /** @enum {string} */
+      result?: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
+      /** @enum {string} */
+      risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+      target_type?: string;
+      target_label?: string;
       request_id: string;
+      trace_id?: string;
+      session_id?: string;
       ip: string;
       user_agent: string;
+      request_method?: string;
+      request_path?: string;
+      status_code?: number;
       message: string;
       metadata: {
         [key: string]: unknown;
@@ -3617,6 +3628,8 @@ export interface operations {
         resource_id?: string;
         resource_name?: string;
         request_id?: string;
+        result?: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
+        risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
         success?: boolean;
         created_from?: string;
         created_to?: string;

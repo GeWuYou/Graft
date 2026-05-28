@@ -18,9 +18,18 @@ const auditApiMocks = vi.hoisted(() => ({
         resource_id: '12',
         resource_name: 'Ops Admin',
         success: false,
+        result: 'DENIED',
+        risk_level: 'CRITICAL',
+        target_type: 'ROLE',
+        target_label: '角色',
         request_id: 'req-1',
+        trace_id: 'trace-1',
+        session_id: 'sess-1',
         ip: '127.0.0.1',
         user_agent: 'vitest',
+        request_method: 'POST',
+        request_path: '/api/roles/12/delete',
+        status_code: 403,
         message: 'role removed',
         metadata: {
           trace_id: 'trace-1',
@@ -93,7 +102,7 @@ vi.mock('../../components/AuditDetailDrawer.vue', () => ({
 vi.mock('vue-router', () => ({
   useRoute: () => ({
     query: {
-      preset: 'rbac-changes',
+      preset: 'permission-denied',
     },
   }),
 }));
@@ -136,12 +145,12 @@ const i18n = createI18n({
         common: {
           unknownActor: 'Anonymous',
           unknownResource: 'Unknown resource',
-          result: { success: 'Success', failed: 'Failed' },
-          risk: { high: 'High Risk', sensitive: 'Sensitive', normal: 'Routine' },
+          result: { SUCCESS: 'Success', FAILED: 'Business Failed', DENIED: 'Denied', ERROR: 'System Error' },
+          risk: { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical' },
         },
         logList: {
           title: 'Audit Logs',
-          description: 'Filter audit records and inspect request context in the detail drawer.',
+          description: 'Query system operation logs and inspect request context.',
           refresh: 'Refresh',
           retry: 'Retry',
           detail: 'View Details',
@@ -158,9 +167,11 @@ const i18n = createI18n({
           detailTitle: 'Audit Detail',
           presets: {
             all: 'All',
-            failedAuth: 'Failed Authentication',
-            rbacChanges: 'RBAC Changes',
+            todayAnomalies: "Today's Anomalies",
+            permissionDenied: 'Permission Denied',
             sensitiveOps: 'Sensitive Operations',
+            authFailed: 'Auth Failed',
+            highRisk: 'High Risk',
           },
           actions: {
             search: 'Search',
@@ -173,7 +184,7 @@ const i18n = createI18n({
             actorPlaceholder: 'Actor',
             actionPlaceholder: 'Action type',
             datePlaceholder: 'Time range',
-            resourcePlaceholder: 'Resource',
+            resourcePlaceholder: 'Target Object',
             resultPlaceholder: 'Result',
             riskPlaceholder: 'Risk',
             sessionPlaceholder: 'Session ID',
@@ -186,17 +197,20 @@ const i18n = createI18n({
             permission: 'Permission',
             session: 'Session',
             allResults: 'All results',
-            success: 'Success',
-            failed: 'Failed',
+            SUCCESS: 'Success',
+            FAILED: 'Business Failed',
+            DENIED: 'Denied',
+            ERROR: 'System Error',
             allRisk: 'All risk',
-            highRisk: 'High Risk',
-            sensitive: 'Sensitive',
-            normal: 'Routine',
+            LOW: 'Low',
+            MEDIUM: 'Medium',
+            HIGH: 'High',
+            CRITICAL: 'Critical',
           },
           columns: {
             action: 'Action',
             actor: 'Actor',
-            resource: 'Resource',
+            resource: 'Target Object',
             result: 'Result',
             risk: 'Risk',
             createdAt: 'Time',
@@ -259,7 +273,7 @@ describe('AuditLogsPage', () => {
 
     expect(auditApiMocks.getAuditLogs).toHaveBeenCalledWith(
       expect.objectContaining({
-        resource_type: 'role',
+        result: 'DENIED',
       }),
     );
     expect(wrapper.text()).toContain('1 records shown');
