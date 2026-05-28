@@ -5,6 +5,8 @@ import type { LocalizedTitle } from '@/contracts/i18n/locales';
 
 export type ModeType = 'light' | 'dark';
 export type PageFooterContent = string | LocalizedTitle;
+export type GovernanceDomain = 'rbac' | 'audit' | 'monitor';
+export type AppRoutePageKind = 'overview' | 'list' | 'detail' | 'runtime' | 'investigation';
 
 export interface PageFooterMeta {
   visible?: boolean;
@@ -27,6 +29,15 @@ export interface PageFooterMeta {
 export interface AppRouteMeta {
   title?: LocalizedTitle;
   titleKey?: string;
+  domain?: GovernanceDomain;
+  domainTitle?: LocalizedTitle;
+  semanticTitle?: LocalizedTitle;
+  breadcrumbTitle?: LocalizedTitle;
+  tabTitle?: LocalizedTitle;
+  tabGroup?: string;
+  dashboard?: boolean;
+  pageKind?: AppRoutePageKind;
+  investigationSurface?: boolean;
   icon?: string | Component | FunctionalComponent | (() => VNodeChild);
   orderNo?: number;
   hidden?: boolean;

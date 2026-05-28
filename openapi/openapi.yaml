@@ -15,6 +15,7 @@ tags:
   - name: auth
   - name: users
   - name: rbac
+  - name: audit
   - name: monitor
 paths:
   /healthz:
@@ -93,6 +94,8 @@ paths:
     $ref: ./paths/users.roles.batch.add.yaml
   /api/users/roles/remove:
     $ref: ./paths/users.roles.batch.remove.yaml
+  /api/audit/logs:
+    $ref: ./paths/audit.logs.yaml
   /api/monitor/server-status:
     $ref: ./paths/monitor.server-status.yaml
 components:
@@ -175,6 +178,12 @@ components:
       $ref: ./components/schemas/replace-user-roles-request.yaml
     BatchUserRolesRequest:
       $ref: ./components/schemas/batch-user-roles-request.yaml
+    AuditLogListItem:
+      $ref: ./components/schemas/audit-log-list-item.yaml
+    AuditLogListResponse:
+      $ref: ./components/schemas/audit-log-list-response.yaml
+    EnvelopedAuditLogListResponse:
+      $ref: ./components/schemas/enveloped-audit-log-list-response.yaml
     ServerStatusDependency:
       $ref: ./components/schemas/server-status-dependency.yaml
     ServerStatusPlugin:

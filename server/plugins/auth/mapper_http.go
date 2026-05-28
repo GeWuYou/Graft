@@ -33,6 +33,7 @@ func toBootstrapResponse(payload pluginapi.AuthBootstrapPayload) (generated.Boot
 			TitleKey:   optionalStringPointer(item.TitleKey),
 			Path:       item.Path,
 			Icon:       item.Icon,
+			Order:      item.Order,
 			Permission: item.Permission,
 		})
 	}

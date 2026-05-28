@@ -17,10 +17,10 @@ func TestMigrationDirsUsesPluginOwnedBaseline(t *testing.T) {
 	}
 
 	expected := []string{
-		"plugins/audit/migrations",
 		"plugins/user/migrations",
 		"plugins/auth/migrations",
 		"plugins/rbac/migrations",
+		"plugins/audit/migrations",
 	}
 	if !reflect.DeepEqual(dirs, expected) {
 		t.Fatalf("expected %v, got %v", expected, dirs)

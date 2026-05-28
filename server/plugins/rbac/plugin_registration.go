@@ -83,8 +83,10 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		rbac:  repository,
 	}
 	writeService := managementWriter{
-		users: userService,
-		rbac:  repository,
+		users:    userService,
+		rbac:     repository,
+		auditBus: ctx.EventBus,
+		logger:   ctx.Logger,
 	}
 
 	if err := ctx.Services.RegisterSingleton((*pluginapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {

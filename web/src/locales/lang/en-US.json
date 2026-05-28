@@ -198,18 +198,24 @@
     "user_list": {
       "title": "User Management"
     },
-    "monitor": {
-      "server_status": {
-        "title": "Server Status",
-        "overview": {
-          "title": "Overview"
-        },
-        "runtime": {
-          "title": "Runtime"
-        },
-        "dependencies": {
-          "title": "Dependencies"
-        }
+    "audit": {
+      "overview": {
+        "title": "Overview"
+      },
+      "logs": {
+        "title": "Audit Logs"
+      }
+    },
+    "server": {
+      "title": "Server Management",
+      "overview": {
+        "title": "Overview"
+      },
+      "runtime": {
+        "title": "Runtime"
+      },
+      "dependencies": {
+        "title": "Dependencies"
       }
     }
   },

@@ -23,21 +23,29 @@ If yes:
   - `get_component_list`
     - confirm the component name and whether `vue-next` provides the expected component
   - `get_component_docs`
-    - confirm props, events, slots, and supported usage
+    - confirm props, events, slots, supported usage, and recommended practice
   - `get_component_dom`
     - required for style overrides, DOM structure assumptions, slot layout assumptions, or selector work
   - `get_component_changelog`
     - required when the task involves upgrade risk, version drift, or behavior differences across versions
-- record the queried components, query targets, and key conclusions in the implementation note or closeout
+- record closeout evidence with:
+  - `ui_component_change: yes`
+  - `mcp_queried: yes`
+  - `framework: vue-next`
+  - `components: ...`
+  - `queries: ...`
+  - `adoption: adopted | partially_adopted | not_adopted`
+  - `reason: ...`
 
 If no:
 
 - explicitly record `TDesign MCP preflight: not applicable`
+- record closeout evidence with `ui_component_change: no`, `mcp_queried: no`, and `framework: not-applicable`
 
 If MCP is unavailable:
 
 - fall back to official TDesign documentation only
-- record the fallback reason and the affected components in closeout
+- record `mcp_queried: fallback_to_official_docs`, the fallback reason, and the affected components in closeout
 
 Do not postpone this preflight to validation or post-implementation review.
 
@@ -114,7 +122,7 @@ Even then, still run the same self-checks.
 Before handing off:
 
 - TDesign MCP preflight is recorded as `used`, `not applicable`, or `fallback to official docs`
-- when preflight was `used`, the queried components and query types are named
+- when preflight was `used`, the closeout names the queried components, query types, adoption status, and reason
 - page type is declared
 - structure matches the page type
 - visible copy is clean

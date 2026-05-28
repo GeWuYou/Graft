@@ -13,15 +13,11 @@ describe('module registration aggregation', () => {
     expect(getBootstrapRouteRegistration('/access-control/users')?.routeName).toBe('UserList');
     expect(getBootstrapRouteRegistration('/access-control/roles')?.routeName).toBe('RoleList');
     expect(getBootstrapRouteRegistration('/access-control/permissions')?.routeName).toBe('PermissionList');
-    expect(getBootstrapRouteRegistration('/monitor/server-status/overview')?.routeName).toBe(
-      'MonitorServerStatusOverview',
-    );
-    expect(getBootstrapRouteRegistration('/monitor/server-status/runtime')?.routeName).toBe(
-      'MonitorServerStatusRuntime',
-    );
-    expect(getBootstrapRouteRegistration('/monitor/server-status/dependencies')?.routeName).toBe(
-      'MonitorServerStatusDependencies',
-    );
+    expect(getBootstrapRouteRegistration('/server/overview')?.routeName).toBe('MonitorServerStatusOverview');
+    expect(getBootstrapRouteRegistration('/server/runtime')?.routeName).toBe('MonitorServerStatusRuntime');
+    expect(getBootstrapRouteRegistration('/server/dependencies')?.routeName).toBe('MonitorServerStatusDependencies');
+    expect(getBootstrapRouteRegistration('/audit/overview')?.routeName).toBe('AuditOverview');
+    expect(getBootstrapRouteRegistration('/audit/logs')?.routeName).toBe('AuditLogList');
   });
 
   it('rejects duplicate menu paths', () => {

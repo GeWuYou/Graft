@@ -8,8 +8,20 @@ describe('rbac bootstrap route registrations', () => {
     expect(rbacBootstrapRouteRegistrations).toHaveLength(2);
     expect(rbacBootstrapRouteRegistrations).toEqual(
       expect.arrayContaining([
-        expect.objectContaining(RBAC_BOOTSTRAP_ROUTE.ROLE_LIST),
-        expect.objectContaining(RBAC_BOOTSTRAP_ROUTE.PERMISSION_LIST),
+        expect.objectContaining({
+          ...RBAC_BOOTSTRAP_ROUTE.ROLE_LIST,
+          meta: expect.objectContaining({
+            domain: 'rbac',
+            pageKind: 'list',
+          }),
+        }),
+        expect.objectContaining({
+          ...RBAC_BOOTSTRAP_ROUTE.PERMISSION_LIST,
+          meta: expect.objectContaining({
+            domain: 'rbac',
+            pageKind: 'list',
+          }),
+        }),
       ]),
     );
   });

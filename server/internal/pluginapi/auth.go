@@ -98,6 +98,7 @@ type AuthBootstrapMenuItem struct {
 	TitleKey   string
 	Path       string
 	Icon       string
+	Order      int
 	Permission string
 }
 

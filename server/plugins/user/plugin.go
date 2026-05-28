@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
+	"graft/server/internal/eventbus"
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
@@ -35,6 +38,8 @@ var (
 	errInvalidUserStatus    = errors.New("invalid user status")
 	errInvalidUserPayload   = errors.New("invalid user payload")
 )
+
+type auditRequestIDContextKey struct{}
 
 // NewPlugin 创建示例用户插件。
 func NewPlugin(userRepo userstore.UserRepository, authRepo userstore.AuthRepository) *Plugin {
@@ -171,8 +176,10 @@ func resolveService[T any](ctx *plugin.Context, key any, label string) (T, error
 
 // userService 把用户插件内部仓储读取收敛为跨插件稳定用户摘要服务。
 type userService struct {
-	users userstore.UserRepository
-	rbac  pluginapi.RBACAccessService
+	users    userstore.UserRepository
+	rbac     pluginapi.RBACAccessService
+	auditBus eventbus.Bus
+	logger   *zap.Logger
 }
 
 // authService 是 `pluginapi.AuthService` 在用户插件内的最小实现。
@@ -274,7 +281,28 @@ func (s userService) CreateUser(
 		ActorID:            command.ActorID,
 	}
 
-	return s.users.Create(ctx, input)
+	created, err := s.users.Create(ctx, input)
+	if err != nil {
+		return userstore.User{}, err
+	}
+
+	s.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "user.create",
+		ResourceType: "user",
+		ResourceID:   formatUserAuditID(created.ID),
+		ResourceName: created.Username,
+		RequestID:    currentRequestID(ctx),
+		Success:      true,
+		Message:      "user created",
+		Metadata: map[string]any{
+			"username":           created.Username,
+			"display_name":       created.Display,
+			"status":             created.Status,
+			"must_change_password": true,
+		},
+	})
+
+	return created, nil
 }
 
 func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) (userstore.User, error) {
@@ -287,12 +315,32 @@ func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) 
 		return userstore.User{}, errInvalidUserPayload
 	}
 
-	return s.users.Update(ctx, userstore.UpdateUserInput{
+	updated, err := s.users.Update(ctx, userstore.UpdateUserInput{
 		ID:       command.ID,
 		Username: username,
 		Display:  display,
 		ActorID:  command.ActorID,
 	})
+	if err != nil {
+		return userstore.User{}, err
+	}
+
+	s.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "user.update",
+		ResourceType: "user",
+		ResourceID:   formatUserAuditID(updated.ID),
+		ResourceName: updated.Username,
+		RequestID:    currentRequestID(ctx),
+		Success:      true,
+		Message:      "user updated",
+		Metadata: map[string]any{
+			"username":     updated.Username,
+			"display_name": updated.Display,
+			"status":       updated.Status,
+		},
+	})
+
+	return updated, nil
 }
 
 func (s userService) SetUserStatus(
@@ -334,6 +382,20 @@ func (s userService) SetUserStatus(
 		}
 	}
 
+	s.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "user.status.update",
+		ResourceType: "user",
+		ResourceID:   formatUserAuditID(updated.ID),
+		ResourceName: updated.Username,
+		RequestID:    currentRequestID(ctx),
+		Success:      true,
+		Message:      "user status updated",
+		Metadata: map[string]any{
+			"username": updated.Username,
+			"status":   updated.Status,
+		},
+	})
+
 	return updated, nil
 }
 
@@ -356,10 +418,23 @@ func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepo
 		return err
 	}
 
-	return authRepo.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
+	if err := authRepo.RevokeRefreshSessionsByUserID(ctx, userstore.RevokeRefreshSessionsByUserIDInput{
 		UserID:    userID,
 		RevokedAt: time.Now().UTC(),
+	}); err != nil {
+		return err
+	}
+
+	s.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "user.delete",
+		ResourceType: "user",
+		ResourceID:   formatUserAuditID(userID),
+		RequestID:    currentRequestID(ctx),
+		Success:      true,
+		Message:      "user deleted",
 	})
+
+	return nil
 }
 
 func (s userService) ResetUserPassword(
@@ -382,12 +457,28 @@ func (s userService) ResetUserPassword(
 		return err
 	}
 
-	return authRepo.ResetPasswordAndRevokeRefreshSessions(ctx, userstore.ResetPasswordAndRevokeSessionsInput{
+	if err := authRepo.ResetPasswordAndRevokeRefreshSessions(ctx, userstore.ResetPasswordAndRevokeSessionsInput{
 		UserID:             userID,
 		PasswordHash:       hash,
 		MustChangePassword: true,
 		ChangedAt:          time.Now().UTC(),
+	}); err != nil {
+		return err
+	}
+
+	s.publishAudit(ctx, pluginapi.AuditEvent{
+		Action:       "user.password.reset",
+		ResourceType: "user",
+		ResourceID:   formatUserAuditID(userID),
+		RequestID:    currentRequestID(ctx),
+		Success:      true,
+		Message:      "user password reset",
+		Metadata: map[string]any{
+			"must_change_password": true,
+		},
 	})
+
+	return nil
 }
 
 func normalizeManagedUserStatus(status string) string {
@@ -424,6 +515,60 @@ func requestActorID(ctx context.Context) uint64 {
 	}
 
 	return requestAuth.User.ID
+}
+
+func (s userService) publishAudit(ctx context.Context, event pluginapi.AuditEvent) {
+	if s.auditBus == nil {
+		return
+	}
+
+	event.Operator = currentAuditOperator(ctx)
+	if err := s.auditBus.Publish(ctx, eventbus.Event{
+		Name:    pluginapi.AuditRecordEventName,
+		Source:  pluginID,
+		Payload: event,
+	}); err != nil && s.logger != nil {
+		s.logger.Warn("publish user audit event failed",
+			zap.String("plugin", pluginID),
+			zap.String("action", strings.TrimSpace(event.Action)),
+			zap.Error(err),
+		)
+	}
+}
+
+func currentAuditOperator(ctx context.Context) *pluginapi.CurrentUser {
+	requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.User == nil {
+		return nil
+	}
+
+	user := *requestAuth.User
+	return &user
+}
+
+func currentRequestID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	requestID, _ := ctx.Value(auditRequestIDContextKey{}).(string)
+	return strings.TrimSpace(requestID)
+}
+
+func withAuditRequestID(ctx context.Context, requestID string) context.Context {
+	if strings.TrimSpace(requestID) == "" {
+		return ctx
+	}
+	if ctx == nil {
+		return nil
+	}
+	return context.WithValue(ctx, auditRequestIDContextKey{}, strings.TrimSpace(requestID))
+}
+
+func formatUserAuditID(id uint64) string {
+	if id == 0 {
+		return ""
+	}
+	return strconv.FormatUint(id, 10)
 }
 
 // CurrentUser 根据请求上下文中已解析的访问令牌声明返回当前主体摘要。

@@ -25,6 +25,13 @@ export type ApiEnvelope<T> = ApiSuccessEnvelope<T> | ApiErrorEnvelope;
 export interface AppBootstrapRouteMeta {
   title: LocalizedTitle;
   titleKey?: string;
+  semanticTitle?: LocalizedTitle;
+  breadcrumbTitle?: LocalizedTitle;
+  tabTitle?: LocalizedTitle;
+  domain?: string;
+  tabGroup?: string;
+  dashboard?: boolean;
+  pageKind?: string;
   icon?: string;
   permission?: string;
 }

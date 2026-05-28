@@ -12,17 +12,20 @@ const AuditRecordEventName = "audit.record"
 // - Action 必填；其余字符串字段允许为空，audit 插件会按需 trim 后落库。
 // - Operator 可为空，表示当前事件不绑定明确操作者。
 // - CreatedAt 为零值时由接收方补齐当前 UTC 时间；非零值会原样保留。
-// - ErrorMessage 允许为空，通常只在 Success 为 false 时携带稳定失败语义。
+// - Message 允许为空，通常只在 Success 为 false 时携带稳定失败语义。
 type AuditEvent struct {
 	Operator      *CurrentUser
 	Action        string
 	ResourceType  string
 	ResourceID    string
+	ResourceName  string
 	RequestMethod string
 	RequestPath   string
+	RequestID     string
 	IP            string
 	UserAgent     string
 	Success       bool
-	ErrorMessage  string
+	Message       string
+	Metadata      map[string]any
 	CreatedAt     time.Time
 }

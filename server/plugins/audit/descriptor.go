@@ -13,12 +13,14 @@ const (
 	pluginVersion = "0.1.0"
 )
 
+var pluginDependencies = []string{"user", "rbac"}
+
 // NewDescriptor exposes the audit plugin's stable metadata and builder.
 func NewDescriptor() plugin.Descriptor {
 	return plugin.Descriptor{
 		ID:            pluginID,
 		PluginVersion: pluginVersion,
-		Dependencies:  nil,
+		Dependencies:  append([]string(nil), pluginDependencies...),
 		MigrationPath: []string{"plugins/audit/migrations"},
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
 			sqlDB, err := plugin.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

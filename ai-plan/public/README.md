@@ -4,11 +4,49 @@
 list only active topics, and help the current branch or worktree land on the right recovery documents without scanning
 every public artifact.
 
-## Active Topic
+Overlay note:
 
-- None.
+- archived topic wording is historical evidence, not current normative governance
+- if archived wording conflicts with current authority-first rules, follow root `AGENTS.md` and current design docs
+- bounded scope continues to forbid unrelated expansion, but never forbids required authority repair
+
+## Active Topics
+
+  - `audit-plugin-mvp`
+  - Purpose: hold the dedicated recovery entry for the audit plugin MVP loop spanning `server` and `web`, starting
+    from exploration and then closing through bounded implementation batches.
+  - Tracking: `ai-plan/public/audit-plugin-mvp/todos/audit-plugin-mvp-tracking.md`
+  - Trace: `ai-plan/public/audit-plugin-mvp/traces/audit-plugin-mvp-trace.md`
+  - Recovery note: this topic now runs from the dedicated `feat/wt-audit-plugin-mvp` worktree on branch
+    `feat/wt-audit-plugin-mvp`; standing ownership is centered on `server/plugins/audit/**` and
+    `web/src/modules/audit/**`, while shared-hotspot touches remain serialized exceptions. This owned scope guides
+    default responsibility, not canonical authority; if future audit drift is traced to upstream authority, escalate
+    and repair there rather than adding downstream compatibility.
 
 ## Archived Topics
+
+- `backend-rbac-contract-audit`
+  - Status: `archived`
+  - Recovery status: no continuation required; do not restore this topic into the active recovery path.
+  - Archive reason: the cross-boundary RBAC contract audit completed all planned batches, passed final backend and web
+    validation, and confirmed the current MVP contract closure is stable enough to archive without widening into new
+    runtime capability work.
+  - Final result: current MVP RBAC scope is `mvp-stable-with-risks`; backend permission registry, backend guards,
+    backend menu declarations, frontend permission constants, bootstrap route registrations, and page/action visibility
+    remain aligned for the audited `/access-control/*`, role-permission, and user-role surfaces.
+  - Follow-up status: `bugfix-only`
+  - Archived topic directory:
+    - `ai-plan/public/archive/backend-rbac-contract-audit`
+  - Archive notes:
+    - RBAC no longer takes proactive feature expansion in this topic line; later work should be bugfix-only unless a
+      new topic is opened
+    - data permission / row-level permission remains a future topic, not a follow-up inside this archive line
+    - organization or department permission model remains a future topic, not a follow-up inside this archive line
+    - tenant permission model remains a future topic, not a follow-up inside this archive line
+    - permission observability or dashboard work remains a future topic, not a follow-up inside this archive line
+    - registry and menu closure still rely on canonical ownership plus tests rather than runtime duplicate/reference
+      enforcement; this is a non-blocking hardening risk, not a reopen trigger by itself
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. If follow-up is needed, open a new bugfix-only or new-scope topic instead of resuming backend-rbac-contract-audit.`
 
 - `frontend-permission-code-cleanup`
   - Status: `archived`
@@ -105,3 +143,21 @@ every public artifact.
     - future HTTP feature work follows `feature-delivery-with-contract-first-rule`
     - do not reopen a broad OpenAPI / `oapi-codegen` governance topic unless contract governance itself changes
   - Next-session prompt: `No next-session prompt required.`
+
+## Branch / Worktree To Active Topic Map
+
+- Worktree: repository root
+  - Branch: `main`
+  - Active topic: none by default
+  - Role: shared coordination point for active-topic governance only; feature recovery should enter through an explicit
+    startup prompt naming an active topic instead of assuming root carries feature state
+  - Hotspot policy: shared hotspots such as `ai-plan/public/README.md` remain serialized governance slices and do not
+    grant standing feature ownership to the root worktree
+- Worktree: `feat/wt-audit-plugin-mvp`
+  - Branch: `feat/wt-audit-plugin-mvp`
+  - Active topic: `audit-plugin-mvp`
+  - Role: dedicated audit plugin MVP worktree and recovery entry for slices centered on `server/plugins/audit/**` and
+    `web/src/modules/audit/**`
+  - Hotspot policy: no standing shared-hotspot ownership; current serialized exception is limited to public recovery
+    docs at `ai-plan/public/README.md` and `ai-plan/public/audit-plugin-mvp/**` while the topic baseline is being
+    established

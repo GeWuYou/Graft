@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"graft/server/internal/container"
 	"graft/server/internal/i18n"
@@ -16,6 +17,8 @@ import (
 	"graft/server/internal/pluginapi"
 	usercontract "graft/server/plugins/user/contract"
 )
+
+const userMenuOrderList = 2
 
 func registerUserPermissions(registry *permission.Registry, pluginName string) {
 	for _, item := range userPermissionItems(pluginName) {
@@ -30,6 +33,7 @@ func registerUserMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   usercontract.UserListMenuTitle.String(),
 		Path:       "/access-control/users",
 		Icon:       "usergroup",
+		Order:      userMenuOrderList,
 		Permission: usercontract.UserReadPermission.String(),
 		Plugin:     pluginName,
 	})
@@ -126,8 +130,17 @@ func (p *Plugin) registerServices(ctx *plugin.Context) (registeredServices, erro
 	if authRepo == nil {
 		return registeredServices{}, errors.New("auth repository is unavailable")
 	}
+	logger := ctx.Logger
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	p.bootstrapAccess = newDeferredRBACAccessService()
-	userSvc := userService{users: userRepo, rbac: p.bootstrapAccess}
+	userSvc := userService{
+		users:    userRepo,
+		rbac:     p.bootstrapAccess,
+		auditBus: ctx.EventBus,
+		logger:   logger,
+	}
 	if err := ctx.Services.RegisterSingleton((*pluginapi.UserService)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil
 	}); err != nil {

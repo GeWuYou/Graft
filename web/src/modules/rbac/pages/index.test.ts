@@ -929,6 +929,19 @@ describe('RolePage', () => {
     expect(messageMocks.warning).toHaveBeenCalledWith('rbac.roleList.lifecycle.deleteNeedsDisable');
   });
 
+  it('hides more actions that are missing permission instead of rendering disabled permission-only entries', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.ROLE_UPDATE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue({ items: [] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="dropdown"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="role-edit"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('rbac.roleList.moreActions.delete');
+  });
+
   it('blocks delete when the disabled role still has bindings', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.ROLE_DELETE];
     rbacApiMocks.getRoles.mockResolvedValue({

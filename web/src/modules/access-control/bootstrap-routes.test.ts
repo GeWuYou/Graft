@@ -6,6 +6,13 @@ import { ACCESS_CONTROL_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 describe('access control bootstrap route registrations', () => {
   it('uses the canonical access control bootstrap contract values', () => {
     expect(accessControlBootstrapRouteRegistrations).toHaveLength(1);
-    expect(accessControlBootstrapRouteRegistrations[0]).toMatchObject(ACCESS_CONTROL_BOOTSTRAP_ROUTE.OVERVIEW);
+    expect(accessControlBootstrapRouteRegistrations[0]).toMatchObject({
+      ...ACCESS_CONTROL_BOOTSTRAP_ROUTE.OVERVIEW,
+      meta: expect.objectContaining({
+        domain: 'rbac',
+        dashboard: true,
+        pageKind: 'overview',
+      }),
+    });
   });
 });

@@ -1,36 +1,35 @@
 <template>
   <div class="access-control-overview" data-page-type="overview-dashboard">
-    <management-page-content>
-      <management-page-header
-        :title="t('accessControl.overview.title')"
-        :description="t('accessControl.overview.description')"
-      >
-        <template #eyebrow>{{ t('accessControl.overview.navHint') }}</template>
-        <template #actions>
-          <t-button variant="outline" :loading="loading" @click="fetchOverview">
-            {{ t('accessControl.overview.actions.refresh') }}
-          </t-button>
-          <t-button
-            v-permission="RBAC_PERMISSION_CODE.PERMISSION_READ"
-            theme="default"
-            variant="outline"
-            @click="goToPermissions"
-          >
-            {{ t('accessControl.overview.actions.viewPermissions') }}
-          </t-button>
-          <t-button
-            v-permission="USER_PERMISSION_CODE.CREATE"
-            theme="primary"
-            variant="outline"
-            @click="goToUsers('create')"
-          >
-            {{ t('accessControl.overview.actions.createUser') }}
-          </t-button>
-          <t-button v-permission="RBAC_PERMISSION_CODE.ROLE_CREATE" theme="primary" @click="goToRoles('create')">
-            {{ t('accessControl.overview.actions.createRole') }}
-          </t-button>
-        </template>
-      </management-page-header>
+    <governance-dashboard-shell
+      domain="access-control"
+      :eyebrow="t('accessControl.overview.navHint')"
+      :title="t('accessControl.overview.title')"
+      :description="t('accessControl.overview.description')"
+    >
+      <template #actions>
+        <t-button variant="outline" :loading="loading" @click="fetchOverview">
+          {{ t('accessControl.overview.actions.refresh') }}
+        </t-button>
+        <t-button
+          v-permission="RBAC_PERMISSION_CODE.PERMISSION_READ"
+          theme="default"
+          variant="outline"
+          @click="goToPermissions"
+        >
+          {{ t('accessControl.overview.actions.viewPermissions') }}
+        </t-button>
+        <t-button
+          v-permission="USER_PERMISSION_CODE.CREATE"
+          theme="primary"
+          variant="outline"
+          @click="goToUsers('create')"
+        >
+          {{ t('accessControl.overview.actions.createUser') }}
+        </t-button>
+        <t-button v-permission="RBAC_PERMISSION_CODE.ROLE_CREATE" theme="primary" @click="goToRoles('create')">
+          {{ t('accessControl.overview.actions.createRole') }}
+        </t-button>
+      </template>
 
       <div v-if="loadError" class="access-control-overview__feedback">
         <management-empty-state
@@ -46,18 +45,23 @@
         </management-empty-state>
       </div>
 
-      <management-stats-grid :items="statItems" layout="compact" />
+      <template #summary>
+        <governance-summary-card
+          v-for="item in statItems"
+          :key="item.label"
+          kind="status"
+          :title="item.label"
+          :value="String(item.value)"
+          :description="item.description ?? ''"
+        />
+      </template>
 
       <section class="access-control-overview__grid">
-        <management-table-card>
-          <template #head>
-            <div class="section-head">
-              <div>
-                <h2>{{ t('accessControl.overview.quickLinks.title') }}</h2>
-                <p>{{ t('accessControl.overview.quickLinks.subtitle') }}</p>
-              </div>
-            </div>
-          </template>
+        <governance-action-panel
+          kind="navigation"
+          :title="t('accessControl.overview.quickLinks.title')"
+          :description="t('accessControl.overview.quickLinks.subtitle')"
+        >
           <div class="quick-link-grid">
             <button v-permission="USER_PERMISSION_CODE.READ" class="quick-link-card" type="button" @click="goToUsers()">
               <div class="quick-link-card__head">
@@ -105,17 +109,13 @@
               </span>
             </button>
           </div>
-        </management-table-card>
+        </governance-action-panel>
 
-        <management-table-card>
-          <template #head>
-            <div class="section-head">
-              <div>
-                <h2>{{ t('accessControl.overview.status.title') }}</h2>
-                <p>{{ t('accessControl.overview.status.subtitle') }}</p>
-              </div>
-            </div>
-          </template>
+        <governance-section
+          kind="status"
+          :title="t('accessControl.overview.status.title')"
+          :description="t('accessControl.overview.status.subtitle')"
+        >
           <div class="status-list">
             <article v-for="item in statusItems" :key="item.label" class="status-list__item">
               <span class="status-list__label">{{ item.label }}</span>
@@ -123,18 +123,14 @@
               <p class="status-list__description">{{ item.description }}</p>
             </article>
           </div>
-        </management-table-card>
+        </governance-section>
       </section>
 
-      <management-table-card>
-        <template #head>
-          <div class="section-head">
-            <div>
-              <h2>{{ t('accessControl.overview.todo.title') }}</h2>
-              <p>{{ t('accessControl.overview.todo.subtitle') }}</p>
-            </div>
-          </div>
-        </template>
+      <governance-section
+        kind="workflow"
+        :title="t('accessControl.overview.todo.title')"
+        :description="t('accessControl.overview.todo.subtitle')"
+      >
         <div class="issue-section">
           <div class="issue-section__block">
             <div class="issue-section__heading">
@@ -180,8 +176,8 @@
             />
           </div>
         </div>
-      </management-table-card>
-    </management-page-content>
+      </governance-section>
+    </governance-dashboard-shell>
   </div>
 </template>
 <script setup lang="ts">
@@ -196,13 +192,13 @@ import { getRoles as getUserRoles } from '@/modules/user/api/user-roles';
 import { getUsers } from '@/modules/user/api/users';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 import {
-  ManagementEmptyState,
-  ManagementPageContent,
-  ManagementPageHeader,
-  type ManagementStatItem,
-  ManagementStatsGrid,
-  ManagementTableCard,
-} from '@/shared/components/management';
+  GovernanceActionPanel,
+  GovernanceDashboardShell,
+  GovernanceSection,
+  GovernanceSummaryCard,
+} from '@/shared/components/governance';
+import { ManagementEmptyState } from '@/shared/components/management';
+import type { ManagementStatItem } from '@/shared/components/management/ManagementStatsGrid.vue';
 import { usePermissionStore } from '@/store';
 
 import { ACCESS_CONTROL_ROUTE_PATH } from '../../contract/bootstrap';

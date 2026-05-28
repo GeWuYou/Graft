@@ -101,6 +101,7 @@ func (b authFlowBridge) ReadBootstrapPayload(ctx context.Context, request *http.
 			TitleKey:   item.TitleKey,
 			Path:       item.Path,
 			Icon:       item.Icon,
+			Order:      item.Order,
 			Permission: item.Permission,
 		})
 	}

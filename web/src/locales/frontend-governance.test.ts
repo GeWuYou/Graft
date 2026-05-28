@@ -65,6 +65,16 @@ const visibleScopes: VisibleScope[] = [
     filePath: resolve(process.cwd(), 'src/modules/access-control/locales/en-US.json'),
     paths: ['accessControl.overview'],
   },
+  {
+    label: 'audit zh visible ui',
+    filePath: resolve(process.cwd(), 'src/modules/audit/locales/zh-CN.json'),
+    paths: ['audit.logList'],
+  },
+  {
+    label: 'audit en visible ui',
+    filePath: resolve(process.cwd(), 'src/modules/audit/locales/en-US.json'),
+    paths: ['audit.logList'],
+  },
 ];
 
 const bannedVisibleCopyPatterns = [/starter/i, /demo/i, /最小闭环/, /真实契约/, /\bdebug\b/i, /调试/u];
@@ -89,8 +99,12 @@ describe('frontend visible-copy governance', () => {
       'menu.user_list.title',
       'menu.access_control.title',
       'menu.access_control.overview.title',
-      'menu.monitor.server_status.title',
-      'menu.monitor.server_status.overview.title',
+      'menu.server.title',
+      'menu.server.overview.title',
+      'menu.server.runtime.title',
+      'menu.server.dependencies.title',
+      'menu.audit.overview.title',
+      'menu.audit.logs.title',
     ];
 
     requiredKeys.forEach((key) => {

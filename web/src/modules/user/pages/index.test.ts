@@ -865,7 +865,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="user-edit"]').trigger('click');
+    await wrapper.get('[data-testid="dropdown-option-edit"]').trigger('click');
     await flushPromises();
     await wrapper.get('input[placeholder="user.userList.form.usernamePlaceholder"]').setValue('alice');
     await wrapper.get('input[placeholder="user.userList.form.displayPlaceholder"]').setValue('Alice Updated');

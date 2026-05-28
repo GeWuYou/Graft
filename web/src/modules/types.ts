@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import type { AppRouteMeta } from '@/utils/types';
+
 // BootstrapRouteRegistration 描述一个前端模块向壳层声明的 bootstrap 动态路由入口。
 //
 // 当前阶段只收敛最小运行面：模块显式声明菜单 path、稳定 route name 和页面加载器，
@@ -8,6 +10,7 @@ export type BootstrapRouteRegistration = {
   menuPath: string;
   routeName: string;
   loadPage: RouteRecordRaw['component'];
+  meta?: Partial<AppRouteMeta>;
 };
 
 // WebModuleRegistration 描述一个前端模块对壳层暴露的最小公共注册面。

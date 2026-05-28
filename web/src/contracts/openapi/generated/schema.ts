@@ -765,6 +765,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/audit/logs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List audit logs
+     * @description Returns a guarded paged audit-log list for MVP read-only inspection.
+     */
+    get: operations['getAuditLogs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/monitor/server-status': {
     parameters: {
       query?: never;
@@ -828,6 +848,9 @@ export interface components {
     EnvelopedUserRoleBindingResponse: components['schemas']['enveloped-user-role-binding-response'];
     ReplaceUserRolesRequest: components['schemas']['replace-user-roles-request'];
     BatchUserRolesRequest: components['schemas']['batch-user-roles-request'];
+    AuditLogListItem: components['schemas']['audit-log-list-item'];
+    AuditLogListResponse: components['schemas']['audit-log-list-response'];
+    EnvelopedAuditLogListResponse: components['schemas']['enveloped-audit-log-list-response'];
     ServerStatusDependency: components['schemas']['server-status-dependency'];
     ServerStatusPlugin: components['schemas']['server-status-plugin'];
     ServerStatusServer: components['schemas']['server-status-server'];
@@ -857,8 +880,9 @@ export interface components {
       success: boolean;
       /** @description Existing canonical response code. */
       code: string;
+      /** @description Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present. */
       message: string;
-      /** @description Present on localized error flows and omitted on normal success. */
+      /** @description Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text. */
       messageKey?: string;
       /** @description Present on localized error flows and omitted on normal success. */
       locale?: string;
@@ -887,8 +911,11 @@ export interface components {
       success: false;
       /** @description Existing canonical error response code. */
       code: string;
+      /** @description Existing runtime fallback text paired with messageKey for compatibility. */
       message: string;
+      /** @description Stable error localization key. Consumers should prefer this key and use message only as fallback text. */
       messageKey?: string;
+      /** @description Locale used to resolve the fallback message text in this response. */
       locale?: string;
       traceId: string;
       /** @description Optional structured error details preserved from the current runtime. */
@@ -902,7 +929,11 @@ export interface components {
     };
     'bootstrap-menu': {
       code: string;
+      /** @description Canonical menu order declared by the backend. Lower values render first within the same parent. */
+      order?: number;
+      /** @description Existing menu-title fallback text. Consumers should prefer title_key when present. */
       title: string;
+      /** @description Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only. */
       title_key?: string;
       path: string;
       icon: string;
@@ -1075,8 +1106,11 @@ export interface components {
     'permission-list-item': {
       /** Format: int64 */
       id: number;
+      /** @description Stable permission code contract. */
       code: string;
+      /** @description Current server-provided fallback display text. This schema does not yet expose a canonical display_key contract. */
       display: string;
+      /** @description Current server-provided fallback description text. A future key-based localization contract would be additive. */
       description?: string;
       category: string;
       created_at: string;
@@ -1121,6 +1155,37 @@ export interface components {
     'batch-user-roles-request': {
       user_ids: number[];
       role_ids: number[];
+    };
+    'audit-log-list-item': {
+      /** Format: int64 */
+      id: number;
+      /** Format: int64 */
+      actor_user_id?: number | null;
+      actor_username?: string;
+      actor_display_name?: string;
+      action: string;
+      resource_type: string;
+      resource_id?: string;
+      resource_name?: string;
+      success: boolean;
+      request_id: string;
+      ip: string;
+      user_agent: string;
+      message: string;
+      metadata: {
+        [key: string]: unknown;
+      };
+      /** Format: date-time */
+      created_at: string;
+    };
+    'audit-log-list-response': {
+      items: components['schemas']['audit-log-list-item'][];
+      total: number;
+      page: number;
+      page_size: number;
+    };
+    'enveloped-audit-log-list-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['audit-log-list-response'];
     };
     /**
      * @example {
@@ -3475,6 +3540,60 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAuditLogs: {
+    parameters: {
+      query?: {
+        page?: number;
+        page_size?: number;
+        actor_user_id?: number;
+        action?: string;
+        resource_type?: string;
+        resource_id?: string;
+        resource_name?: string;
+        request_id?: string;
+        success?: boolean;
+        created_from?: string;
+        created_to?: string;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Audit log page. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-audit-log-list-response'];
+        };
+      };
+      /** @description Invalid list filter or pagination query. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

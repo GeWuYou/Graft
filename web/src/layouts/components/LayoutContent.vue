@@ -83,6 +83,7 @@ import { LOCALE } from '@/contracts/i18n/locales';
 import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
 import { useSettingStore, useTabsRouterStore } from '@/store';
+import { renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
 import type { TRouterInfo, TTabRemoveOptions } from '@/utils/types';
 
 import LBreadcrumb from './Breadcrumb.vue';
@@ -98,17 +99,7 @@ const tabRouters = computed(() => tabsRouterStore.tabRouters.filter((route) => r
 const activeTabPath = ref<string | null>('');
 const footerMeta = computed(() => route.meta.footer);
 const showFooter = computed(() => false);
-const pageSurfaceType = computed<'shell' | 'overview-dashboard' | 'list-form-detail'>(() => {
-  if (route.path.startsWith('/monitor/') || route.path.startsWith('/access-control/')) {
-    return 'overview-dashboard';
-  }
-
-  if (route.path.startsWith('/roles') || route.path.startsWith('/users')) {
-    return 'list-form-detail';
-  }
-
-  return 'shell';
-});
+const pageSurfaceType = computed(() => resolvePageSurfaceType(route.meta));
 const layoutSurfaceCls = computed(() => [`${prefix}-layout`, `${prefix}-layout--${pageSurfaceType.value}`]);
 const footerText = computed(() => {
   const footer = footerMeta.value;
@@ -157,10 +148,7 @@ const handleRemove = (options: TTabRemoveOptions) => {
   }
 };
 
-const renderTitle = (title?: LocalizedTitle) => {
-  if (!title) return '';
-  return title[locale.value as keyof LocalizedTitle] || '';
-};
+const renderTitle = (title?: LocalizedTitle) => renderLocalizedTitle(title, locale.value);
 const handleRefresh = (route: TRouterInfo, routeIdx: number) => {
   tabsRouterStore.startTabRefresh(routeIdx);
   nextTick(() => {

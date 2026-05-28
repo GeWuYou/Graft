@@ -108,7 +108,7 @@
           :columns="visibleColumns"
           :loading="loading"
           table-layout="fixed"
-          table-content-width="100%"
+          :table-content-width="tableContentWidth"
           :selected-row-keys="selectedRowKeys"
           cell-empty-content="-"
           @select-change="handleSelectChange"
@@ -162,38 +162,12 @@
           </template>
 
           <template #operation="{ row }">
-            <div class="table-actions">
-              <t-button
-                v-permission="{ allOf: userRoleManagePermissionCodes }"
-                size="small"
-                theme="default"
-                variant="outline"
-                data-testid="user-manage-roles"
-                @click="handleOpenUserRoleDrawer(row)"
-              >
-                {{ t('user.userList.assignRoles') }}
-              </t-button>
-              <t-button
-                v-permission="userPermissionCodes.UPDATE"
-                size="small"
-                theme="default"
-                variant="outline"
-                data-testid="user-edit"
-                @click="openUserDrawer('edit', row)"
-              >
-                {{ t('user.userList.edit') }}
-              </t-button>
-              <t-dropdown
-                v-if="userRowMoreOptions(row).length > 0"
-                :options="userRowMoreOptions(row)"
-                trigger="click"
-                @click="(payload) => handleUserMoreAction(payload, row)"
-              >
-                <t-button size="small" theme="default" variant="outline">
-                  {{ t('user.userList.more') }}
-                </t-button>
-              </t-dropdown>
-            </div>
+            <table-action-menu
+              :actions="userRowActions(row)"
+              :more-label="t('user.userList.more')"
+              more-label-fallback="更多"
+              @action="(action) => handleUserRowAction(action, row)"
+            />
           </template>
 
           <template #empty>
@@ -275,6 +249,52 @@
             </t-button>
           </div>
         </t-form>
+      </div>
+    </t-drawer>
+
+    <t-drawer
+      v-model:visible="detailDrawerVisible"
+      :header="t('user.userList.detailTitle')"
+      size="520px"
+      placement="right"
+      destroy-on-close
+    >
+      <div v-if="detailUser" class="drawer-panel user-detail-panel">
+        <div class="detail-header">
+          <div class="user-cell">
+            <div class="user-cell__avatar">{{ userInitial(detailUser.display || detailUser.username) }}</div>
+            <div class="user-cell__meta">
+              <span class="user-cell__display">{{ detailUser.display || detailUser.username }}</span>
+              <span class="user-cell__username">@{{ detailUser.username }}</span>
+            </div>
+          </div>
+          <t-tag :theme="statusTheme(detailUser.status)" variant="light">
+            {{ statusLabel(detailUser.status) }}
+          </t-tag>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-item__label">{{ t('user.userList.detailFields.email') }}</span>
+            <span class="detail-item__value">{{ detailUser.email || '-' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-item__label">{{ t('user.userList.columns.roles') }}</span>
+            <span class="detail-item__value">{{ roleSummaryText(detailUser) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-item__label">{{ t('user.userList.columns.lastLoginAt') }}</span>
+            <span class="detail-item__value">{{ formatTimestamp(detailUser.last_login_at) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-item__label">{{ t('user.userList.columns.createdAt') }}</span>
+            <span class="detail-item__value">{{ formatTimestamp(detailUser.created_at) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-item__label">{{ t('user.userList.columns.updatedAt') }}</span>
+            <span class="detail-item__value">{{ formatTimestamp(detailUser.updated_at) }}</span>
+          </div>
+        </div>
       </div>
     </t-drawer>
 
@@ -440,12 +460,20 @@ import {
   AssignmentToolbar,
 } from '@/shared/components/assignment';
 import {
+  buildVisibleColumns,
+  calculateTableContentWidth,
+  createActionColumn,
+  createStatusColumn,
+  createTextColumn,
+  createTimeColumn,
+  formatCompactDateTime,
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
   ManagementTableCard,
   ManagementTablePagination,
   ManagementToolbar,
+  TableActionMenu,
 } from '@/shared/components/management';
 import { useAssignmentSelection } from '@/shared/composables';
 import { usePermissionStore } from '@/store';
@@ -510,16 +538,7 @@ const INITIAL_USER_FORM: UserFormState = {
   password: '',
 };
 
-const DEFAULT_VISIBLE_COLUMNS = [
-  'row-select',
-  'user',
-  'status',
-  'roles',
-  'last_login_at',
-  'created_at',
-  'updated_at',
-  'operation',
-];
+const DEFAULT_VISIBLE_COLUMNS = ['row-select', 'user', 'status', 'roles', 'last_login_at', 'updated_at', 'operation'];
 
 const { t, locale } = useI18n();
 const route = useRoute();
@@ -539,6 +558,8 @@ const passwordFieldError = ref('');
 const submittingUser = ref(false);
 const resetPasswordDialogVisible = ref(false);
 const resetPasswordTarget = ref<UserRow | null>(null);
+const detailDrawerVisible = ref(false);
+const detailUser = ref<UserRow | null>(null);
 const resetPasswordFormRef = ref<ResetPasswordFormInstance | null>(null);
 const resetPasswordForm = ref({
   password: '',
@@ -847,7 +868,15 @@ const userAssignmentFooterDetails = computed(() => {
 });
 
 const userRowMoreOptions = (user: UserRow) => {
-  const options: Array<{ content: string; value: string }> = [];
+  const options: Array<{ content: string; fallbackLabel: string; value: string }> = [];
+
+  if (permissionStore.hasPermission(userPermissionCodes.UPDATE)) {
+    options.push({
+      content: t('user.userList.edit'),
+      fallbackLabel: '编辑',
+      value: 'edit',
+    });
+  }
 
   if (permissionStore.hasPermission(userPermissionCodes.DISABLE)) {
     options.push({
@@ -855,6 +884,7 @@ const userRowMoreOptions = (user: UserRow) => {
         normalizeUserStatus(user.status) === USER_STATUS.DISABLED
           ? t('user.userList.moreActions.enable')
           : t('user.userList.moreActions.disable'),
+      fallbackLabel: normalizeUserStatus(user.status) === USER_STATUS.DISABLED ? '启用用户' : '禁用用户',
       value: 'toggle-status',
     });
   }
@@ -862,6 +892,7 @@ const userRowMoreOptions = (user: UserRow) => {
   if (permissionStore.hasPermission(userPermissionCodes.UPDATE)) {
     options.push({
       content: t('user.userList.moreActions.resetPassword'),
+      fallbackLabel: '重置密码',
       value: 'reset-password',
     });
   }
@@ -869,6 +900,7 @@ const userRowMoreOptions = (user: UserRow) => {
   if (permissionStore.hasPermission(userPermissionCodes.DISABLE)) {
     options.push({
       content: t('user.userList.moreActions.delete'),
+      fallbackLabel: '删除用户',
       value: 'delete',
     });
   }
@@ -915,57 +947,27 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
       type: 'multiple',
       width: 48,
       fixed: 'left' as const,
+      align: 'center' as const,
     },
-    {
-      title: t('user.userList.columns.user'),
-      colKey: 'user',
-      minWidth: 220,
-      ellipsis: true,
-      fixed: 'left' as const,
-    },
-    {
-      title: t('user.userList.columns.status'),
-      colKey: 'status',
-      width: 100,
-    },
-    {
-      title: t('user.userList.columns.roles'),
-      colKey: 'roles',
-      width: 140,
-      ellipsis: true,
-    },
-    {
-      title: t('user.userList.columns.lastLoginAt'),
-      colKey: 'last_login_at',
-      width: 160,
-    },
-    {
-      title: t('user.userList.columns.createdAt'),
-      colKey: 'created_at',
-      width: 180,
-    },
-    {
-      title: t('user.userList.columns.updatedAt'),
-      colKey: 'updated_at',
-      width: 180,
-    },
+    createTextColumn(t('user.userList.columns.user'), 'user', {
+      width: 320,
+      fixed: 'left',
+    }),
+    createStatusColumn(t('user.userList.columns.status'), 'status', 96),
+    createTextColumn(t('user.userList.columns.roles'), 'roles', {
+      align: 'center',
+      width: 148,
+    }),
+    createTimeColumn(t('user.userList.columns.lastLoginAt'), 'last_login_at', 152),
+    createTimeColumn(t('user.userList.columns.createdAt'), 'created_at', 160),
+    createTimeColumn(t('user.userList.columns.updatedAt'), 'updated_at', 160),
   ];
 
   const allColumns = hasVisibleUserOperationActions()
-    ? [
-        ...baseColumns,
-        {
-          title: t('components.commonTable.operation'),
-          colKey: 'operation',
-          width: 220,
-          align: 'right' as const,
-          fixed: 'right' as const,
-        },
-      ]
+    ? [...baseColumns, createActionColumn(t('components.commonTable.operation'), 160)]
     : baseColumns;
 
-  const visibleKeys = new Set(visibleColumnKeys.value);
-  return allColumns.filter((column) => visibleKeys.has(String(column.colKey))) as TdBaseTableProps['columns'];
+  return buildVisibleColumns(allColumns, visibleColumnKeys.value) as TdBaseTableProps['columns'];
 });
 
 const visibleColumns = computed(() => {
@@ -975,6 +977,8 @@ const visibleColumns = computed(() => {
 
   return (columns.value ?? []).filter((column) => column?.colKey !== 'operation');
 });
+
+const tableContentWidth = computed(() => calculateTableContentWidth(visibleColumns.value));
 
 async function fetchUsers() {
   loading.value = true;
@@ -1016,19 +1020,7 @@ function resetFilters() {
 }
 
 function formatTimestamp(value?: string | null) {
-  if (!value) {
-    return '-';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale.value, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
+  return formatCompactDateTime(value);
 }
 
 function userInitial(value?: string | null) {
@@ -1037,6 +1029,14 @@ function userInitial(value?: string | null) {
   }
 
   return value.trim().slice(0, 1).toUpperCase();
+}
+
+function roleSummaryText(user: UserRow) {
+  if ((user.roles ?? []).length === 0) {
+    return t('user.userList.roleSummary.empty');
+  }
+
+  return user.roles.map((role) => role.display).join(' / ');
 }
 
 function normalizeUserStatus(status?: string | null) {
@@ -1063,6 +1063,53 @@ function hasVisibleUserOperationActions() {
     permissionStore.hasPermission(userPermissionCodes.UPDATE) ||
     permissionStore.hasPermission(userPermissionCodes.DISABLE)
   );
+}
+
+function userRowActions(user: UserRow) {
+  const actions: Array<{ disabled?: boolean; fallbackLabel?: string; label: string; testId?: string; value: string }> =
+    [];
+
+  if (canManageUserRoles()) {
+    actions.push({
+      label: t('user.userList.assignRoles'),
+      testId: 'user-manage-roles',
+      value: 'manage-roles',
+    });
+  }
+
+  actions.push({
+    fallbackLabel: '详情',
+    label: t('components.commonTable.detail'),
+    testId: 'user-detail',
+    value: 'detail',
+  });
+
+  userRowMoreOptions(user).forEach((option) => {
+    actions.push({
+      disabled: false,
+      fallbackLabel: option.fallbackLabel,
+      label: option.content,
+      testId: option.value === 'edit' ? 'user-edit' : undefined,
+      value: option.value,
+    });
+  });
+
+  return actions;
+}
+
+function handleUserRowAction(action: string, user: UserRow) {
+  if (action === 'detail') {
+    detailUser.value = user;
+    detailDrawerVisible.value = true;
+    return;
+  }
+
+  if (action === 'manage-roles') {
+    void handleOpenUserRoleDrawer(user);
+    return;
+  }
+
+  handleUserMoreAction({ value: action }, user);
 }
 
 function ensureUserPermission(allowed: boolean, message: string) {
@@ -1365,6 +1412,10 @@ async function confirmDeleteUser(user: UserRow) {
 }
 
 function handleUserMoreAction(payload: { value?: string | number | Record<string, unknown> }, user: UserRow) {
+  if (payload.value === 'edit') {
+    openUserDrawer('edit', user);
+    return;
+  }
   if (payload.value === 'toggle-status') {
     void toggleUserStatus(user);
     return;

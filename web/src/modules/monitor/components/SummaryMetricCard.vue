@@ -1,19 +1,20 @@
 <template>
-  <article class="server-status-summary-card">
-    <div class="server-status-summary-card__top">
-      <span class="server-status-summary-card__title">{{ title }}</span>
-      <status-tag v-if="statusLabel" :label="statusLabel" :status="status" />
-    </div>
-
-    <div class="server-status-summary-card__value-row">
-      <strong class="server-status-summary-card__value">{{ value }}</strong>
-      <span v-if="valueAside" class="server-status-summary-card__aside">{{ valueAside }}</span>
-    </div>
-
-    <p class="server-status-summary-card__description">{{ description }}</p>
-  </article>
+  <governance-summary-card
+    class="server-status-summary-card"
+    kind="status"
+    :title="title"
+    :value="value"
+    :value-aside="valueAside"
+    :description="description"
+  >
+    <template v-if="statusLabel" #badge>
+      <status-tag :label="statusLabel" :status="status" />
+    </template>
+  </governance-summary-card>
 </template>
 <script setup lang="ts">
+import { GovernanceSummaryCard } from '@/shared/components/governance';
+
 import type { ServerStatusTone } from './server-status-ui';
 import StatusTag from './StatusTag.vue';
 
@@ -33,59 +34,3 @@ withDefaults(
   },
 );
 </script>
-<style scoped lang="less">
-@import './card-surface.less';
-
-.server-status-summary-card {
-  .server-status-card-surface();
-
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 128px;
-  padding: 16px 18px;
-}
-
-.server-status-summary-card__top {
-  align-items: flex-start;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.server-status-summary-card__title {
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 20px;
-}
-
-.server-status-summary-card__value-row {
-  align-items: baseline;
-  display: flex;
-  flex: 1;
-  gap: 10px;
-}
-
-.server-status-summary-card__value {
-  color: var(--td-text-color-primary);
-  font-size: 26px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-
-.server-status-summary-card__aside {
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.server-status-summary-card__description {
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 18px;
-  margin: 0;
-}
-</style>

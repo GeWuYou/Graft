@@ -5,6 +5,7 @@ import type { BootstrapMenu } from '@/modules/auth/contract/types';
 import { BLANK_LAYOUT, LAYOUT } from '@/utils/route/constant';
 import type { AppRouteMeta } from '@/utils/types';
 
+import { resolveRouteLocalizedTitle } from './meta';
 import { localizeRouteTitle } from './title';
 
 type BootstrapMenuNode = {
@@ -112,7 +113,7 @@ function buildNestedRoute(node: BootstrapMenuNode, parentFullPath: string): Boot
         path: relativePath,
         name: `${registration.routeName}Index`,
         component: registration.loadPage,
-        meta: buildRouteMeta(node.menu, false),
+        meta: buildRouteMeta(node.menu, false, registration.meta),
       }),
     };
   }
@@ -144,34 +145,42 @@ function buildNestedChildren(node: BootstrapMenuNode, parentFullPath: string): B
 }
 
 function buildTopLevelLeafRoute(menu: BootstrapMenu, routeName: string, loadPage: RouteRecordRaw['component']) {
+  const registration = getBootstrapRouteRegistration(menu.path);
+  const routeMeta = buildRouteMeta(menu, true, registration?.meta);
   return toRouteRecordRaw({
     path: menu.path,
     component: LAYOUT,
     redirect: `${menu.path}/index`,
     name: routeName,
-    meta: buildRouteMeta(menu, true),
+    meta: routeMeta,
     children: [
       toRouteRecordRaw({
         path: 'index',
         name: `${routeName}Index`,
         component: loadPage,
         meta: {
+          ...registration?.meta,
           hidden: true,
           hiddenBreadcrumb: true,
-          title: localizeRouteTitle(menu.title, menu.title_key),
+          title: routeMeta.title,
           titleKey: menu.title_key,
+          semanticTitle: resolveRouteLocalizedTitle(routeMeta, 'page'),
+          breadcrumbTitle: resolveRouteLocalizedTitle(routeMeta, 'breadcrumb'),
+          tabTitle: resolveRouteLocalizedTitle(routeMeta, 'tab'),
         },
       }),
     ],
   });
 }
 
-function buildRouteMeta(menu: BootstrapMenu, single: boolean): AppRouteMeta {
+function buildRouteMeta(menu: BootstrapMenu, single: boolean, metaPatch?: Partial<AppRouteMeta>): AppRouteMeta {
   return {
     title: localizeRouteTitle(menu.title, menu.title_key),
     titleKey: menu.title_key,
     icon: menu.icon,
+    orderNo: menu.order ?? 0,
     single,
+    ...metaPatch,
   };
 }
 

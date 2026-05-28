@@ -19,6 +19,7 @@ func TestRegisterUserMenuIncludesTitleKey(t *testing.T) {
 	if menu.Code != "user.list" ||
 		menu.TitleKey != usercontract.UserListMenuTitle.String() ||
 		menu.Path != "/access-control/users" ||
+		menu.Order != 2 ||
 		menu.Permission != usercontract.UserReadPermission.String() {
 		t.Fatalf("expected canonical user menu contract, got %#v", menu)
 	}
@@ -34,10 +35,11 @@ func TestFilterBootstrapMenusIncludesTitleKeyAndFallback(t *testing.T) {
 	}
 	if menus[0].Code != "user.list" ||
 		menus[0].TitleKey != usercontract.UserListMenuTitle.String() ||
+		menus[0].Order != 2 ||
 		menus[0].Title != "用户管理" {
 		t.Fatalf("expected canonical user bootstrap menu, got %#v", menus[0])
 	}
-	if menus[1].Code != "profile.self" || menus[1].TitleKey != "" || menus[1].Title != "个人中心" {
+	if menus[1].Code != "profile.self" || menus[1].TitleKey != "" || menus[1].Order != 999 || menus[1].Title != "个人中心" {
 		t.Fatalf("expected fallback-only public menu, got %#v", menus[1])
 	}
 }
@@ -50,6 +52,7 @@ func testMenuRegistry() *menu.Registry {
 		Title: "个人中心",
 		Path:  "/profile",
 		Icon:  "user",
+		Order: 999,
 	})
 
 	return registry

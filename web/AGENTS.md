@@ -4,6 +4,12 @@
 
 仓库级启动、恢复、提交与跨仓治理仍以根 `AGENTS.md` 为准；本文件不重复定义第二套启动或提交流程。
 
+authority-first overlay：
+
+- `web` owned scope 表示前端长期实现归属，不表示前端拥有 shared contract / route / menu 语义的最终 authority
+- bounded scope forbids unrelated expansion, not required authority repair
+- 当前端症状来自上游 authority drift 时，应优先修 authority owner，再同步 `web` 消费层；不要默认用 display mapping、legacy path 归并、alias 或 adapter 层给上游擦屁股
+
 ## 1. 适用范围
 
 适用范围：
@@ -197,11 +203,13 @@ i18n 与标题规则：
 - 模块私有 `types/**` 不得充当跨模块 contract
 - 不得通过 alias、根级 re-export 或兼容副本维持第二套长期契约真值
 - OpenAPI generated frontend boundary 额外约束：
+  - generated schema 是 derived artifact；authority 仍来自 OpenAPI source 与 canonical contract owner
   - API boundary 类型只能来自 `@/contracts/openapi/generated/schema` 的 `paths[...]` 或 `components['schemas'][...]`
   - `src/utils/request.ts`、`src/contracts/api/envelope.ts`、`src/types/axios.d.ts` 属于 runtime allowed 边界
   - 页面表单、筛选器、表格行、兼容显示模型属于 UI / ViewModel allowed，但不得伪装成新的 API `Request` / `Response` / `DTO`
   - 页面与 store 不得直接发起 `request.<method>()` 调用；应继续只消费模块 `api/**` 入口
   - 不得新增 generated runtime client、`fetch()`、或额外 `axios.create()` / axios 实例绕过 `request.ts`
+  - 不得把 generated schema 当成拒绝 authority repair 的理由；若 generated consumer 与 authority drift 不一致，应修 source input 后重新生成
 
 壳层 Footer 约定：
 
@@ -222,7 +230,7 @@ UI 约束：
   - `get_component_list`
     - 确认组件名、组件分类和 `vue-next` 下可用组件范围
   - `get_component_docs`
-    - 确认 props、events、slots、示例和推荐用法
+    - 确认 props、events、slots、示例、推荐用法和最佳实践
   - `get_component_dom`
     - 涉及样式覆盖、DOM 结构、插槽布局、自定义选择器时必须查询
   - `get_component_changelog`
@@ -234,6 +242,7 @@ UI 约束：
 - `ai-plan/design/graft-design-system/**` 是 Graft 风格参考模板目录，只作为设计参考和 AI 生成约束，不是运行时依赖
 - `tdesign-mcp-server` 只允许作为本机 Codex MCP 开发知识源存在，禁止写入 `web/package.json`、仓库脚本、CI、hooks 或任何运行时依赖
 - 只有在 TDesign MCP 当前不可用时，才允许退回官方文档；发生 fallback 时，closeout 必须显式记录 fallback 原因和受影响组件
+- 这里的“必须先查 MCP”属于前端治理和 closeout 审计要求，不要求引入依赖 MCP 实时可用性的 CI、hook 或仓库脚本硬门禁
 
 页面类型与 vibe coding 规则：
 
@@ -288,11 +297,15 @@ UI 约束：
 - 若本轮涉及 `TDesign Vue Next` 组件，closeout 必须记录 `TDesign MCP preflight`
 - 推荐记录格式：
   - `TDesign MCP preflight: used`
+  - `ui_component_change: yes`
+  - `mcp_queried: yes`
   - `framework: vue-next`
   - `components: <本轮查询的组件>`
-  - `docs checked: <get_component_docs / get_component_list / get_component_dom / get_component_changelog>`
-  - `fallback: none | official docs (<原因>)`
+  - `queries: <get_component_list / get_component_docs / get_component_dom / get_component_changelog>`
+  - `adoption: adopted | partially_adopted | not_adopted`
+  - `reason: <采用原因 / 未采用原因 / fallback 原因>`
 - 若本轮不涉及 `TDesign Vue Next` 组件，closeout 明确写 `TDesign MCP preflight: not applicable`
+- 若 MCP 不可用并回退官方文档，closeout 明确写 `mcp_queried: fallback_to_official_docs`，并写明受影响组件和 fallback 原因
 
 页面骨架规则：
 

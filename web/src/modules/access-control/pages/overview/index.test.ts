@@ -65,10 +65,16 @@ const passthroughStub = defineComponent({
   },
 });
 
-const pageHeaderStub = defineComponent({
-  name: 'ManagementPageHeaderStub',
+const dashboardShellStub = defineComponent({
+  name: 'GovernanceDashboardShellStub',
   setup(_, { slots }) {
-    return () => h('section', [h('div', slots.eyebrow?.()), h('div', slots.actions?.()), h('div', slots.default?.())]);
+    return () =>
+      h('section', [
+        h('div', slots.eyebrow?.()),
+        h('div', slots.actions?.()),
+        h('div', slots.summary?.()),
+        h('div', slots.default?.()),
+      ]);
   },
 });
 
@@ -109,10 +115,10 @@ function mountOverview() {
       },
       stubs: {
         'management-empty-state': passthroughStub,
-        'management-page-content': passthroughStub,
-        'management-page-header': pageHeaderStub,
-        'management-stats-grid': passthroughStub,
-        'management-table-card': passthroughStub,
+        'governance-dashboard-shell': dashboardShellStub,
+        'governance-summary-card': passthroughStub,
+        'governance-section': passthroughStub,
+        'governance-action-panel': passthroughStub,
         't-button': buttonStub,
         't-tag': passthroughStub,
       },
@@ -160,6 +166,7 @@ describe('AccessControlOverviewPage', () => {
     );
 
     await wrapper.get('[data-testid="access-control-quick-link-permissions"]').trigger('click');
+    await flushPromises();
 
     expect(routerMocks.push).toHaveBeenCalledWith({
       path: ACCESS_CONTROL_ROUTE_PATH.PERMISSIONS,
