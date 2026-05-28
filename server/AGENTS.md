@@ -380,6 +380,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - schema 变化必须通过显式 Ent 生成与显式 migration 流程落地，不允许靠 runtime 自动同步数据库
 - `graft migrate up` 是显式迁移入口；`graft serve` 不得隐式修改 schema
 - migration 文件必须保持可审计、可回放、可按版本追踪；不要把业务初始化偷偷塞进不可追踪的启动逻辑
+- 默认 migration 链会把所有 live plugin-owned migration 目录聚合成一个 Atlas 目录；因此 `plugins/<name>/migrations/*.sql` 的数字版本前缀必须跨插件全局唯一，不能只在单个插件目录内唯一
 - 当前默认 migration 链中的每张 live 表都必须有中文表注释，每个 live 列都必须有中文列注释
 - `plugins/<name>/ent/schema/**` 是当前数据库注释治理的上游真相之一；新增表必须补 `schema.Comment(...)`，新增列必须补 `field.Comment(...)`
 - 表级 Ent 注释应同时开启对应 SQL comment 输出能力，例如结合 `entsql.WithComments(true)` 使用
@@ -639,6 +640,7 @@ shared hotspot 处理规则如下：
 后端完成态的仓库内显式 CLI 入口是：
 
 - `cd server && go run ./cmd/graft validate backend`
+- 若暂存区包含 `server/plugins/*/migrations/*.sql`，`.husky/pre-commit` 必须阻断默认链中的跨插件 migration version 冲突
 
 如果已经构建出 `graft` 可执行文件，`graft validate backend` 只是同一入口的另一种调用方式；不要再发明第二套 blocking validation 命令。
 

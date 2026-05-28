@@ -605,6 +605,32 @@ func TestRunMigrateUpIncludesAtlasHashStderr(t *testing.T) {
 }
 
 func TestRunMigrateUpRejectsDuplicateMigrationFilenames(t *testing.T) {
+	assertDuplicateSynthesizedDefaultChainError(
+		t,
+		map[string]string{
+			"user": "202605190001_shared.sql",
+			"rbac": "202605190001_shared.sql",
+		},
+		"duplicate migration filename 202605190001_shared.sql",
+		"synthesized default chain is invalid",
+	)
+}
+
+func TestRunMigrateUpRejectsDuplicateMigrationVersions(t *testing.T) {
+	assertDuplicateSynthesizedDefaultChainError(
+		t,
+		map[string]string{
+			"user": "202605280001_user.sql",
+			"rbac": "202605280001_rbac.sql",
+		},
+		"duplicate migration version 202605280001",
+		"synthesized default chain has version conflicts",
+	)
+}
+
+func assertDuplicateSynthesizedDefaultChainError(t *testing.T, filenames map[string]string, expectedErr string, atlasGuardMessage string) {
+	t.Helper()
+
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
 
@@ -613,8 +639,8 @@ func TestRunMigrateUpRejectsDuplicateMigrationFilenames(t *testing.T) {
 	rbacDir := filepath.Join(root, "server", "plugins", "rbac", "migrations")
 	dirs := []string{userDir, rbacDir}
 	createMigrationFixture(t, dirs, map[string]string{
-		filepath.Join(userDir, "202605190001_shared.sql"): "SELECT 1;\n",
-		filepath.Join(rbacDir, "202605190001_shared.sql"): "SELECT 1;\n",
+		filepath.Join(userDir, filenames["user"]): "SELECT 1;\n",
+		filepath.Join(rbacDir, filenames["rbac"]): "SELECT 1;\n",
 	})
 	writeAtlasStateFiles(t, dirs)
 
@@ -640,13 +666,13 @@ func TestRunMigrateUpRejectsDuplicateMigrationFilenames(t *testing.T) {
 
 	err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: defaultMigrationDir})
 	if err == nil {
-		t.Fatal("expected duplicate filename error")
+		t.Fatal("expected synthesized default chain validation error")
 	}
-	if !strings.Contains(err.Error(), "duplicate migration filename 202605190001_shared.sql") {
-		t.Fatalf("expected duplicate filename guidance, got %v", err)
+	if !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("expected duplicate migration guidance, got %v", err)
 	}
 	if atlasInvoked {
-		t.Fatal("atlas should not run when synthesized default chain is invalid")
+		t.Fatal("atlas should not run when " + atlasGuardMessage)
 	}
 }
 

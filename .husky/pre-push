@@ -2,6 +2,8 @@
 set -eu
 
 repo_root="$(git rev-parse --show-toplevel)"
+python_runner="$repo_root/scripts/run_python.sh"
+migration_version_checker="$repo_root/scripts/check_migration_versions.py"
 
 resolve_fetch_target() {
   ref="$1"
@@ -74,6 +76,19 @@ if ! git rev-parse --verify --quiet "$base_ref^{commit}" >/dev/null; then
 fi
 
 export GRAFT_LINT_BASE_REF="$base_ref"
+
+if [ ! -f "$python_runner" ]; then
+  echo "migration version gate: missing python runner $python_runner" >&2
+  exit 1
+fi
+
+if [ ! -f "$migration_version_checker" ]; then
+  echo "migration version gate: missing checker $migration_version_checker" >&2
+  exit 1
+fi
+
+cd "$repo_root"
+sh "$python_runner" "$migration_version_checker" --mode all
 
 changed_files="$(git diff --name-only "$base_ref...HEAD")"
 if printf '%s\n' "$changed_files" | grep -q '^web/'; then

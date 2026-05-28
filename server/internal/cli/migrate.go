@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -20,6 +21,9 @@ import (
 const defaultMigrationDir = pluginregistry.DefaultMigrationDir
 
 const migrationFileMode = 0o600
+const migrationVersionMatchCount = 2
+
+var migrationVersionPattern = regexp.MustCompile(`^(\d+)_.*\.sql$`)
 
 // 这些变量保留为可替换的命令边界，便于测试覆盖 Atlas 查找、子进程执行和
 // 当前工作目录解析，而不把真实系统依赖硬编码到测试中。
@@ -175,9 +179,10 @@ func applyAtlasMigrations(commandContext context.Context, atlasPath string, cmd 
 func copyMigrationFilesIntoDir(targetDir string, sourceDirs []string) error {
 	copiedAny := false
 	copiedNames := make(map[string]string, len(sourceDirs))
+	copiedVersions := make(map[string]string, len(sourceDirs))
 
 	for _, sourceDir := range sourceDirs {
-		copied, err := copyMigrationFilesFromSource(targetDir, sourceDir, copiedNames)
+		copied, err := copyMigrationFilesFromSource(targetDir, sourceDir, copiedNames, copiedVersions)
 		if err != nil {
 			return err
 		}
@@ -191,7 +196,7 @@ func copyMigrationFilesIntoDir(targetDir string, sourceDirs []string) error {
 	return nil
 }
 
-func copyMigrationFilesFromSource(targetDir string, sourceDir string, copiedNames map[string]string) (bool, error) {
+func copyMigrationFilesFromSource(targetDir string, sourceDir string, copiedNames map[string]string, copiedVersions map[string]string) (bool, error) {
 	entries, err := migrateReadDir(sourceDir)
 	if err != nil {
 		return false, fmt.Errorf("read migration dir %s: %w", sourceDir, err)
@@ -199,7 +204,7 @@ func copyMigrationFilesFromSource(targetDir string, sourceDir string, copiedName
 
 	copiedAny := false
 	for _, entry := range entries {
-		copied, err := copyMigrationFileEntry(targetDir, sourceDir, entry, copiedNames)
+		copied, err := copyMigrationFileEntry(targetDir, sourceDir, entry, copiedNames, copiedVersions)
 		if err != nil {
 			return false, err
 		}
@@ -209,7 +214,7 @@ func copyMigrationFilesFromSource(targetDir string, sourceDir string, copiedName
 	return copiedAny, nil
 }
 
-func copyMigrationFileEntry(targetDir string, sourceDir string, entry os.DirEntry, copiedNames map[string]string) (bool, error) {
+func copyMigrationFileEntry(targetDir string, sourceDir string, entry os.DirEntry, copiedNames map[string]string, copiedVersions map[string]string) (bool, error) {
 	if entry.IsDir() {
 		return false, nil
 	}
@@ -221,6 +226,12 @@ func copyMigrationFileEntry(targetDir string, sourceDir string, entry os.DirEntr
 
 	if previousSource, exists := copiedNames[name]; exists {
 		return false, fmt.Errorf("duplicate migration filename %s from %s and %s", name, previousSource, sourceDir)
+	}
+	if version := migrationFileVersion(name); version != "" {
+		if previousSource, exists := copiedVersions[version]; exists {
+			return false, fmt.Errorf("duplicate migration version %s from %s and %s", version, previousSource, sourceDir)
+		}
+		copiedVersions[version] = sourceDir
 	}
 
 	if err := copyMigrationFile(targetDir, sourceDir, name); err != nil {
@@ -244,6 +255,15 @@ func copyMigrationFile(targetDir string, sourceDir string, name string) error {
 	}
 
 	return nil
+}
+
+func migrationFileVersion(name string) string {
+	matches := migrationVersionPattern.FindStringSubmatch(name)
+	if len(matches) != migrationVersionMatchCount {
+		return ""
+	}
+
+	return matches[1]
 }
 
 func runAtlasMigrationCommand(commandContext context.Context, atlasPath string, cmd *cobra.Command, stderrCapture io.Writer, args ...string) error {

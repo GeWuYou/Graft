@@ -4,6 +4,7 @@ set -eu
 repo_root="$(git rev-parse --show-toplevel)"
 scanner="$repo_root/scripts/magic_value/check_magic_values.py"
 python_runner="$repo_root/scripts/run_python.sh"
+migration_version_checker="$repo_root/scripts/check_migration_versions.py"
 run_lint_staged=0
 
 for path in $(git diff --cached --name-only --diff-filter=ACMR); do
@@ -34,3 +35,10 @@ fi
 
 cd "$repo_root"
 sh "$python_runner" "$scanner" --mode changed
+
+if [ ! -f "$migration_version_checker" ]; then
+  echo "migration version gate: missing checker $migration_version_checker" >&2
+  exit 1
+fi
+
+sh "$python_runner" "$migration_version_checker" --mode changed
