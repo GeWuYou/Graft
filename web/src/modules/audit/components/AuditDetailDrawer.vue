@@ -184,8 +184,12 @@ async function copyTraceId(record: AuditLogListItem) {
     return;
   }
 
-  await navigator.clipboard.writeText(traceId);
-  MessagePlugin.success(t('audit.logList.drawer.actions.copySuccess'));
+  try {
+    await navigator.clipboard.writeText(traceId);
+    MessagePlugin.success(t('audit.logList.drawer.actions.copySuccess'));
+  } catch {
+    MessagePlugin.error(t('audit.logList.drawer.actions.copyFail'));
+  }
 }
 
 const sameRequestRows = computed(() => {

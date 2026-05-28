@@ -87,7 +87,7 @@ func handleReadAuditOverview(
 
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedAuditOverviewParams(ginCtx)
-		window := parseGeneratedOverviewWindow(params.Window)
+		window := normalizeOverviewWindow(params.Window)
 
 		result, err := reader.Overview(ginCtx, window)
 		if err != nil {
@@ -133,7 +133,9 @@ func bindGeneratedAuditListParams(
 		return params, query, field
 	}
 	bindAuditStringFilters(ginCtx, &params, &query)
-	bindAuditEnumFilters(ginCtx, &params, &query)
+	if field := bindAuditEnumFilters(ginCtx, &params, &query); field != "" {
+		return params, query, field
+	}
 	if field := bindAuditSuccessFilter(ginCtx, &params, &query); field != "" {
 		return params, query, field
 	}
@@ -200,17 +202,28 @@ func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLo
 	bindAuditStringFilter(ginCtx, "request_id", &params.RequestId, &query.RequestID)
 }
 
-func bindAuditEnumFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) {
+func bindAuditEnumFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
 	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("result"))); raw != "" {
+		switch auditstore.AuditResult(raw) {
+		case auditstore.AuditResultSuccess, auditstore.AuditResultFailed, auditstore.AuditResultDenied, auditstore.AuditResultError:
+		default:
+			return "result"
+		}
 		value := auditopenapi.GetAuditLogsParamsResult(raw)
 		params.Result = &value
 		query.Result = auditstore.AuditResult(raw)
 	}
 	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("risk_level"))); raw != "" {
+		switch auditstore.AuditRiskLevel(raw) {
+		case auditstore.AuditRiskLevelLow, auditstore.AuditRiskLevelMedium, auditstore.AuditRiskLevelHigh, auditstore.AuditRiskLevelCritical:
+		default:
+			return "risk_level"
+		}
 		value := auditopenapi.GetAuditLogsParamsRiskLevel(raw)
 		params.RiskLevel = &value
 		query.RiskLevel = auditstore.AuditRiskLevel(raw)
 	}
+	return ""
 }
 
 func bindAuditStringFilter(ginCtx *gin.Context, key string, targetParam **string, targetQuery *string) {
@@ -336,7 +349,7 @@ func bindGeneratedAuditOverviewParams(ginCtx *gin.Context) auditopenapi.GetAudit
 	return params
 }
 
-func parseGeneratedOverviewWindow(value *auditopenapi.GetAuditOverviewParamsWindow) auditstore.OverviewWindow {
+func normalizeOverviewWindow(value *auditopenapi.GetAuditOverviewParamsWindow) auditstore.OverviewWindow {
 	if value == nil {
 		return auditstore.OverviewWindow24Hours
 	}

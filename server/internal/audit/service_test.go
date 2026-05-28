@@ -190,3 +190,21 @@ func TestServiceListPropagatesRepositoryError(t *testing.T) {
 		t.Fatalf("expected repository error, got %v", err)
 	}
 }
+
+func TestServiceOverviewDelegatesWindowWithoutNormalization(t *testing.T) {
+	repo := &stubAuditRepository{
+		overview: auditstore.AuditOverview{Window: "custom"},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.Overview(context.Background(), "custom")
+	if err != nil {
+		t.Fatalf("overview: %v", err)
+	}
+	if repo.overviewWnd != "custom" {
+		t.Fatalf("expected raw window to be delegated, got %q", repo.overviewWnd)
+	}
+}

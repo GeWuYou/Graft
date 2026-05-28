@@ -261,14 +261,15 @@
           "sessionId": "Session ID",
           "ip": "IP",
           "userAgent": "User-Agent",
-          "method": "Method",
-          "path": "Path",
-          "status": "Status",
-          "latency": "Latency"
+          "method": "请求方法",
+          "path": "请求路径",
+          "status": "状态码",
+          "latency": "耗时"
         },
         "actions": {
           "copyTraceId": "复制",
           "copySuccess": "Trace ID 已复制",
+          "copyFail": "复制 Trace ID 失败",
           "toggleMetadata": "展开原始元数据"
         },
         "related": {

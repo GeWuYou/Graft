@@ -274,3 +274,20 @@ func TestOverviewSQLUsesPostgresJSONBExtraction(t *testing.T) {
 		}
 	}
 }
+
+func TestAuditResultWhereClauseHandlesServerErrors(t *testing.T) {
+	clause := auditResultWhereClause()
+	if !strings.Contains(clause, "(metadata ->> 'status_code')::int >= 500") {
+		t.Fatalf("expected 5xx branch in audit result clause, got %s", clause)
+	}
+}
+
+func TestRiskLevelWhereClauseKeepsEscapedLikePatterns(t *testing.T) {
+	clause := riskLevelWhereClause()
+	if !strings.Contains(clause, "LIKE '%%delete%%'") {
+		t.Fatalf("expected escaped LIKE wildcard in risk level clause, got %s", clause)
+	}
+	if !strings.Contains(clause, "(metadata ->> 'status_code')::int >= 500") {
+		t.Fatalf("expected 5xx branch in risk level clause, got %s", clause)
+	}
+}

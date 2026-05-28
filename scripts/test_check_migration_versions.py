@@ -10,11 +10,13 @@ from check_migration_versions import candidate_dirs, validate
 
 
 class CandidateDirsTest(unittest.TestCase):
-    def test_changed_mode_collects_staged_plugin_migration_dirs(self) -> None:
+    def test_changed_mode_includes_all_plugin_migration_dirs_for_global_conflict_checks(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            migration_dir = root / "server" / "plugins" / "user" / "migrations"
-            migration_dir.mkdir(parents=True)
+            user_dir = root / "server" / "plugins" / "user" / "migrations"
+            rbac_dir = root / "server" / "plugins" / "rbac" / "migrations"
+            user_dir.mkdir(parents=True)
+            rbac_dir.mkdir(parents=True)
 
             with patch(
                 "check_migration_versions.subprocess.check_output",
@@ -22,7 +24,7 @@ class CandidateDirsTest(unittest.TestCase):
             ):
                 dirs = candidate_dirs(root, "changed")
 
-            self.assertEqual(dirs, [migration_dir])
+            self.assertEqual(dirs, [rbac_dir, user_dir])
 
 
 class ValidateTest(unittest.TestCase):

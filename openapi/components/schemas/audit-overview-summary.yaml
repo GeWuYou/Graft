@@ -7,9 +7,13 @@ required:
 properties:
   total_logs:
     type: integer
+    minimum: 0
   failed_operations:
     type: integer
+    minimum: 0
   high_risk_events:
     type: integer
+    minimum: 0
   sensitive_operations:
     type: integer
+    minimum: 0

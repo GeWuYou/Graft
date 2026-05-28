@@ -225,8 +225,8 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 	addScalarFilter(add, "resource_name = $%d", query.ResourceName)
 	addBoolFilter(&clauses, &args, "success = $%d", query.Success)
 	addScalarFilter(add, "request_id = $%d", query.RequestID)
-	addScalarFilter(add, "CASE WHEN success THEN 'SUCCESS' ELSE CASE WHEN (metadata ->> 'status_code') = '403' THEN 'DENIED' WHEN COALESCE(metadata ->> 'error_kind', '') = 'system' OR COALESCE(metadata ->> 'error', '') <> '' THEN 'ERROR' ELSE 'FAILED' END END = $%d", string(query.Result))
-	addScalarFilter(add, riskLevelWhereClause(query.RiskLevel, len(args)+1), string(query.RiskLevel))
+	addScalarFilter(add, auditResultWhereClause(), string(query.Result))
+	addScalarFilter(add, riskLevelWhereClause(), string(query.RiskLevel))
 	addTimeFilter(&clauses, &args, "created_at >= $%d", query.CreatedFrom)
 	addTimeFilter(&clauses, &args, "created_at <= $%d", query.CreatedTo)
 	if len(clauses) == 0 {
@@ -468,18 +468,37 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-func riskLevelWhereClause(level auditstore.AuditRiskLevel, position int) string {
-	if level == "" {
-		return ""
-	}
+func auditResultWhereClause() string {
+	return `CASE
+		WHEN success THEN 'SUCCESS'
+		ELSE CASE
+			WHEN (metadata ->> 'status_code') = '403' THEN 'DENIED'
+			WHEN (
+				COALESCE(metadata ->> 'status_code', '') ~ '^[0-9]+$'
+				AND (metadata ->> 'status_code')::int >= 500
+			) OR COALESCE(metadata ->> 'error_kind', '') = 'system'
+			  OR COALESCE(metadata ->> 'error', '') <> '' THEN 'ERROR'
+			ELSE 'FAILED'
+		END
+	END = $%d`
+}
 
-	return fmt.Sprintf(`CASE
-		WHEN success = false AND ((metadata ->> 'status_code') = '403' OR COALESCE(metadata ->> 'error_kind', '') = 'system' OR COALESCE(metadata ->> 'error', '') <> '') THEN 'CRITICAL'
+func riskLevelWhereClause() string {
+	return `CASE
+		WHEN success = false AND (
+			(metadata ->> 'status_code') = '403'
+			OR (
+				COALESCE(metadata ->> 'status_code', '') ~ '^[0-9]+$'
+				AND (metadata ->> 'status_code')::int >= 500
+			)
+			OR COALESCE(metadata ->> 'error_kind', '') = 'system'
+			OR COALESCE(metadata ->> 'error', '') <> ''
+		) THEN 'CRITICAL'
 		WHEN LOWER(action) LIKE '%%reset_password%%' OR LOWER(action) LIKE '%%update_permission%%' OR LOWER(action) LIKE '%%update_role%%' OR LOWER(action) LIKE '%%assign_role%%' OR LOWER(action) LIKE '%%token_revoke%%' THEN 'CRITICAL'
 		WHEN success = false OR LOWER(action) LIKE '%%delete%%' OR LOWER(action) LIKE '%%reset%%' OR LOWER(action) LIKE '%%grant%%' OR LOWER(action) LIKE '%%assign%%' OR LOWER(action) LIKE '%%revoke%%' OR LOWER(action) LIKE '%%remove%%' OR LOWER(action) LIKE '%%replace%%' THEN 'HIGH'
 		WHEN LOWER(action) LIKE '%%login_failed%%' OR LOWER(action) LIKE '%%login%%' OR LOWER(action) LIKE '%%permission%%' OR LOWER(action) LIKE '%%role%%' OR LOWER(action) LIKE '%%auth%%' THEN 'MEDIUM'
 		ELSE 'LOW'
-	END = $%d`, position)
+	END = $%d`
 }
 
 const overviewSummarySQL = `

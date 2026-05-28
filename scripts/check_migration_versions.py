@@ -35,11 +35,12 @@ def staged_paths(root: Path) -> list[Path]:
 
 def candidate_dirs(root: Path, mode: str) -> list[Path]:
     base = root / "server" / "plugins"
+    all_dirs = {path for path in base.glob("*/migrations") if path.is_dir()}
     if mode == "all":
-        return sorted(path for path in base.glob("*/migrations") if path.is_dir())
+        return sorted(all_dirs)
 
     staged = staged_paths(root)
-    dirs: set[Path] = set()
+    dirs: set[Path] = set(all_dirs)
     for path in staged:
         try:
             relative = path.relative_to(root)

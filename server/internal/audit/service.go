@@ -17,10 +17,6 @@ const (
 	maxPageSize     = 200
 )
 
-const (
-	defaultOverviewWindow = auditstore.OverviewWindow24Hours
-)
-
 // RecordInput describes one audit record write at the service boundary.
 type RecordInput struct {
 	ActorUserID      *uint64
@@ -197,17 +193,6 @@ func normalizeAuditRiskLevel(level auditstore.AuditRiskLevel) auditstore.AuditRi
 func (s *Service) Overview(ctx context.Context, window auditstore.OverviewWindow) (OverviewResult, error) {
 	if s == nil || s.repo == nil {
 		return OverviewResult{}, errors.New("audit service is unavailable")
-	}
-
-	switch strings.TrimSpace(string(window)) {
-	case "", string(defaultOverviewWindow):
-		window = defaultOverviewWindow
-	case string(auditstore.OverviewWindow7Days):
-		window = auditstore.OverviewWindow7Days
-	case string(auditstore.OverviewWindow30Days):
-		window = auditstore.OverviewWindow30Days
-	default:
-		window = defaultOverviewWindow
 	}
 
 	return s.repo.ReadAuditOverview(ctx, window)
