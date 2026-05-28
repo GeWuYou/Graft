@@ -11,12 +11,12 @@ func (k MenuMessageKey) String() string {
 const (
 	// MonitorSectionTitle identifies the localized title for the monitor navigation group.
 	MonitorSectionTitle MenuMessageKey = "monitor.sectionTitle"
-	// ServerStatusMenuTitle identifies the localized title for the server-status menu.
-	ServerStatusMenuTitle MenuMessageKey = "menu.monitor.server_status.title"
-	// ServerStatusOverviewMenuTitle identifies the localized title for the server-status overview menu.
-	ServerStatusOverviewMenuTitle MenuMessageKey = "menu.monitor.server_status.overview.title"
-	// ServerStatusRuntimeMenuTitle identifies the localized title for the server-status runtime menu.
-	ServerStatusRuntimeMenuTitle MenuMessageKey = "menu.monitor.server_status.runtime.title"
-	// ServerStatusDependenciesMenuTitle identifies the localized title for the server-status dependencies menu.
-	ServerStatusDependenciesMenuTitle MenuMessageKey = "menu.monitor.server_status.dependencies.title"
+	// ServerStatusMenuTitle identifies the localized title for the server management root menu.
+	ServerStatusMenuTitle MenuMessageKey = "menu.server.title"
+	// ServerStatusOverviewMenuTitle identifies the localized title for the server overview menu.
+	ServerStatusOverviewMenuTitle MenuMessageKey = "menu.server.overview.title"
+	// ServerStatusRuntimeMenuTitle identifies the localized title for the server runtime menu.
+	ServerStatusRuntimeMenuTitle MenuMessageKey = "menu.server.runtime.title"
+	// ServerStatusDependenciesMenuTitle identifies the localized title for the server dependencies menu.
+	ServerStatusDependenciesMenuTitle MenuMessageKey = "menu.server.dependencies.title"
 )

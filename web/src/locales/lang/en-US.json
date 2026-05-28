@@ -199,22 +199,23 @@
       "title": "User Management"
     },
     "audit": {
+      "overview": {
+        "title": "Overview"
+      },
       "logs": {
         "title": "Audit Logs"
       }
     },
-    "monitor": {
-      "server_status": {
-        "title": "Server Status",
-        "overview": {
-          "title": "Overview"
-        },
-        "runtime": {
-          "title": "Runtime"
-        },
-        "dependencies": {
-          "title": "Dependencies"
-        }
+    "server": {
+      "title": "Server Management",
+      "overview": {
+        "title": "Overview"
+      },
+      "runtime": {
+        "title": "Runtime"
+      },
+      "dependencies": {
+        "title": "Dependencies"
       }
     }
   },

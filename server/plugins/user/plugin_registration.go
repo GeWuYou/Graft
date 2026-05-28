@@ -18,6 +18,8 @@ import (
 	usercontract "graft/server/plugins/user/contract"
 )
 
+const userMenuOrderList = 2
+
 func registerUserPermissions(registry *permission.Registry, pluginName string) {
 	for _, item := range userPermissionItems(pluginName) {
 		registry.Register(item)
@@ -31,6 +33,7 @@ func registerUserMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   usercontract.UserListMenuTitle.String(),
 		Path:       "/access-control/users",
 		Icon:       "usergroup",
+		Order:      userMenuOrderList,
 		Permission: usercontract.UserReadPermission.String(),
 		Plugin:     pluginName,
 	})

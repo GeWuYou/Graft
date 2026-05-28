@@ -240,6 +240,13 @@ func registerMonitorPermissions(registry *permission.Registry, pluginName string
 	})
 }
 
+const (
+	monitorMenuOrderRoot         = 100
+	monitorMenuOrderOverview     = 101
+	monitorMenuOrderRuntime      = 102
+	monitorMenuOrderDependencies = 103
+)
+
 func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 	if registry == nil {
 		return
@@ -249,18 +256,20 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Code:       "monitor.section",
 		Title:      "服务器管理",
 		TitleKey:   monitorcontract.MonitorSectionTitle.String(),
-		Path:       monitorcontract.MonitorGroup,
+		Path:       monitorcontract.ServerStatusMenuPath,
 		Icon:       "server",
+		Order:      monitorMenuOrderRoot,
 		Permission: "",
 		Plugin:     pluginName,
 	})
 
 	registry.Register(menu.Item{
 		Code:       "monitor.server-status",
-		Title:      "服务器状态",
+		Title:      "服务器管理",
 		TitleKey:   monitorcontract.ServerStatusMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusMenuPath,
 		Icon:       "activity",
+		Order:      monitorMenuOrderRoot,
 		Permission: "",
 		Plugin:     pluginName,
 	})
@@ -271,6 +280,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   monitorcontract.ServerStatusOverviewMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusOverviewMenuPath,
 		Icon:       "dashboard",
+		Order:      monitorMenuOrderOverview,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
 		Plugin:     pluginName,
 	})
@@ -281,6 +291,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusRuntimeMenuPath,
 		Icon:       "time",
+		Order:      monitorMenuOrderRuntime,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
 		Plugin:     pluginName,
 	})
@@ -291,6 +302,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   monitorcontract.ServerStatusDependenciesMenuTitle.String(),
 		Path:       monitorcontract.ServerStatusDependenciesMenuPath,
 		Icon:       "data-base",
+		Order:      monitorMenuOrderDependencies,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
 		Plugin:     pluginName,
 	})

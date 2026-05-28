@@ -23,6 +23,14 @@ type managementGuards struct {
 	userRoleAssign       gin.HandlerFunc
 }
 
+const (
+	accessControlMenuOrderRoot        = 0
+	accessControlMenuOrderOverview    = 1
+	accessControlMenuOrderUsers       = 2
+	accessControlMenuOrderRoles       = 3
+	accessControlMenuOrderPermissions = 4
+)
+
 func registerRBACPermissions(registry *permission.Registry, pluginName string) {
 	for _, item := range rbacPermissionItems(pluginName) {
 		registry.Register(item)
@@ -36,6 +44,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   rbaccontract.AccessControlMenuTitle.String(),
 		Path:       "/access-control",
 		Icon:       "secured",
+		Order:      accessControlMenuOrderRoot,
 		Permission: "",
 		Plugin:     pluginName,
 	})
@@ -45,6 +54,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   rbaccontract.AccessControlOverviewMenuTitle.String(),
 		Path:       "/access-control/overview",
 		Icon:       "dashboard",
+		Order:      accessControlMenuOrderOverview,
 		Permission: "",
 		Plugin:     pluginName,
 	})
@@ -54,6 +64,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   rbaccontract.RoleListMenuTitle.String(),
 		Path:       "/access-control/roles",
 		Icon:       "secured",
+		Order:      accessControlMenuOrderRoles,
 		Permission: rbaccontract.RoleReadPermission.String(),
 		Plugin:     pluginName,
 	})
@@ -63,6 +74,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		TitleKey:   rbaccontract.PermissionListMenuTitle.String(),
 		Path:       "/access-control/permissions",
 		Icon:       "lock-on",
+		Order:      accessControlMenuOrderPermissions,
 		Permission: rbaccontract.PermissionReadPermission.String(),
 		Plugin:     pluginName,
 	})

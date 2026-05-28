@@ -1,5 +1,90 @@
 {
   "audit": {
+    "overview": {
+      "title": "审计概览",
+      "description": "先查看审计规模、近期高信号事件与当前排查面，再决定是否进入日志明细。",
+      "contractTag": "Canonical Contract",
+      "refresh": "刷新",
+      "timelineTitle": "近期审计事件",
+      "timelineSubtitle": "展示当前 dashboard 切片中最值得继续下钻的操作样本。",
+      "statusSuccess": "成功",
+      "statusFailed": "失败",
+      "surfaceTitle": "重点排查面",
+      "surfaceSubtitle": "优先关注最常触发日志排查的业务域。",
+      "guidanceTitle": "排查指引",
+      "guidanceSubtitle": "用概览决定是否继续留在 dashboard，或进入日志列表做细查。",
+      "cards": {
+        "today": {
+          "title": "今日事件数",
+          "subtitle": "24 小时总量",
+          "meta": "包含成功与失败的写操作事件。"
+        },
+        "failed": {
+          "title": "失败事件",
+          "subtitle": "24 小时异常",
+          "meta": "用于判断是否应该从失败操作开始细查。"
+        },
+        "actors": {
+          "title": "活跃操作者",
+          "subtitle": "唯一身份数",
+          "meta": "统计当前切片内出现过的用户或服务身份。"
+        },
+        "latency": {
+          "title": "写入时延",
+          "subtitle": "中位耗时",
+          "meta": "在图表接入前，先用稳定占位指标表达处理延迟。"
+        }
+      },
+      "timeline": {
+        "items": {
+          "roleExport": {
+            "title": "角色权限导出完成",
+            "description": "RBAC 导出已成功完成，可继续用于后续审查。"
+          },
+          "schedulerStop": {
+            "title": "调度任务停用请求被拒绝",
+            "description": "受保护的调度停用操作失败，建议进入日志明细继续排查。"
+          },
+          "permissionReplace": {
+            "title": "权限绑定替换完成",
+            "description": "一次完整的权限替换操作已成功落地，建议复核影响范围。"
+          }
+        }
+      },
+      "surfaces": {
+        "rbac": {
+          "title": "RBAC 变更",
+          "description": "角色、权限与用户绑定操作仍是审计排查最常见的来源。",
+          "value": "需重点关注"
+        },
+        "sessions": {
+          "title": "会话与登录操作",
+          "description": "当前样本中的认证侧活动较稳定，风险相对较低。",
+          "value": "整体稳定"
+        },
+        "plugins": {
+          "title": "插件操作",
+          "description": "重点留意插件生命周期与调度动作的跨边界影响。",
+          "value": "持续观察"
+        }
+      },
+      "guidance": {
+        "items": {
+          "scope": {
+            "title": "先缩小排查范围",
+            "description": "先用概览确定 actor、资源域或失败状态，再进入日志表格。"
+          },
+          "trace": {
+            "title": "再切入请求细节",
+            "description": "当近期事件可疑时，进入日志页查看 request ID、IP 和 metadata。"
+          },
+          "next": {
+            "title": "关联后再升级处理",
+            "description": "概览只负责路由排查方向，最终结论仍应来自日志明细。"
+          }
+        }
+      }
+    },
     "logList": {
       "listTitle": "审计日志",
       "hint": "按操作、资源、请求链路和时间窗口查看后台审计记录。",

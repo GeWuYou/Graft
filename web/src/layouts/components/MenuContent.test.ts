@@ -49,11 +49,25 @@ describe('MenuContent', () => {
       },
     });
 
+    const submenuStub = defineComponent({
+      name: 'TSubmenuStub',
+      setup(_, { slots }) {
+        return () => h('div', slots.default?.());
+      },
+    });
+
+    const iconStub = defineComponent({
+      name: 'TIconStub',
+      setup() {
+        return () => h('i');
+      },
+    });
+
     const wrapper = mount(MenuContent, {
       props: {
         navData: [
           {
-            path: '/monitor',
+            path: '/server',
             meta: {
               title: {
                 'zh-CN': '服务器管理',
@@ -63,25 +77,13 @@ describe('MenuContent', () => {
             },
             children: [
               {
-                path: 'server-status',
-                redirect: 'overview',
+                path: 'overview',
                 meta: {
                   title: {
-                    'zh-CN': '服务器状态',
-                    'en-US': 'Server Status',
+                    'zh-CN': '概览',
+                    'en-US': 'Overview',
                   },
                 },
-                children: [
-                  {
-                    path: 'overview',
-                    meta: {
-                      title: {
-                        'zh-CN': '概览',
-                        'en-US': 'Overview',
-                      },
-                    },
-                  },
-                ],
               },
             ],
           },
@@ -90,14 +92,14 @@ describe('MenuContent', () => {
       global: {
         stubs: {
           't-menu-item': menuItemStub,
-          't-submenu': true,
-          't-icon': true,
+          't-submenu': submenuStub,
+          't-icon': iconStub,
         },
       },
     });
 
-    await wrapper.get('button[data-menu-value="/monitor"]').trigger('click');
+    await wrapper.get('button[data-menu-value="/server"]').trigger('click');
 
-    expect(pushMock).toHaveBeenCalledWith('/monitor/server-status/overview');
+    expect(pushMock).toHaveBeenCalledWith('/server/overview');
   });
 });

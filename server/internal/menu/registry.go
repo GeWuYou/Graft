@@ -9,6 +9,8 @@ type Item struct {
 	TitleKey string
 	Path     string
 	Icon     string
+	// Order 是后端声明的 canonical 导航排序值；数值越小越靠前。
+	Order int
 	// Permission 记录访问该菜单所需的后端权限编码；留空表示暂不做权限门控。
 	Permission string
 	// Plugin 标记菜单归属的插件，便于启动诊断与后续按插件裁剪导航。

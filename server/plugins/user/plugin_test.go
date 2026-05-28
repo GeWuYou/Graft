@@ -1289,28 +1289,32 @@ func assertBootstrapMenus(t *testing.T, menus []bootstrapMenuResponse) {
 		{
 			Code:     "access-control.root",
 			Path:     "/access-control",
+			Order:    0,
 			TitleKey: "menu.access_control.title",
 		},
 		{
 			Code:     "access-control.overview",
 			Path:     "/access-control/overview",
+			Order:    1,
 			TitleKey: "menu.access_control.overview.title",
 		},
 		{
 			Code:       "user.list",
 			Path:       "/access-control/users",
+			Order:      2,
 			Permission: usercontract.UserReadPermission.String(),
 			TitleKey:   "menu.access_control.users.title",
 		},
 		{
-			Code: "profile.self",
-			Path: "/profile",
+			Code:  "profile.self",
+			Path:  "/profile",
+			Order: 999,
 		},
 	}
 
 	for i, want := range expected {
 		got := menus[i]
-		if got.Code != want.Code || got.Path != want.Path || got.Permission != want.Permission || got.TitleKey != want.TitleKey {
+		if got.Code != want.Code || got.Path != want.Path || got.Permission != want.Permission || got.TitleKey != want.TitleKey || got.Order != want.Order {
 			t.Fatalf("expected bootstrap menu %d to be %#v, got %#v", i, want, got)
 		}
 	}
@@ -2334,12 +2338,14 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 		Title: "个人中心",
 		Path:  "/profile",
 		Icon:  "user-circle",
+		Order: 999,
 	})
 	ctx.MenuRegistry.Register(menu.Item{
 		Code:       "audit.list",
 		Title:      "审计日志",
 		Path:       "/audit",
 		Icon:       "secured",
+		Order:      200,
 		Permission: "audit.read",
 	})
 
@@ -2358,14 +2364,26 @@ func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 	if payload.Menus[0].Path != "/access-control" || payload.Menus[0].TitleKey != "menu.access_control.title" {
 		t.Fatalf("unexpected filtered root menu: %#v", payload.Menus[0])
 	}
+	if payload.Menus[0].Order != 0 {
+		t.Fatalf("unexpected filtered root menu order: %#v", payload.Menus[0])
+	}
 	if payload.Menus[1].Path != "/access-control/overview" || payload.Menus[1].TitleKey != "menu.access_control.overview.title" {
 		t.Fatalf("unexpected filtered overview menu: %#v", payload.Menus[1])
+	}
+	if payload.Menus[1].Order != 1 {
+		t.Fatalf("unexpected filtered overview menu order: %#v", payload.Menus[1])
 	}
 	if payload.Menus[2].Path != "/access-control/users" || payload.Menus[2].TitleKey != "menu.access_control.users.title" {
 		t.Fatalf("unexpected filtered user menu: %#v", payload.Menus[2])
 	}
+	if payload.Menus[2].Order != 2 {
+		t.Fatalf("unexpected filtered user menu order: %#v", payload.Menus[2])
+	}
 	if payload.Menus[3].Path != "/profile" {
 		t.Fatalf("unexpected filtered public menu: %#v", payload.Menus[3])
+	}
+	if payload.Menus[3].Order != 999 {
+		t.Fatalf("unexpected filtered public menu order: %#v", payload.Menus[3])
 	}
 }
 

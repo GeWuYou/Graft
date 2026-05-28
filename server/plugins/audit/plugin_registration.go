@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"graft/server/internal/container"
 	auditcore "graft/server/internal/audit"
+	"graft/server/internal/container"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -13,6 +13,12 @@ import (
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	auditcontract "graft/server/plugins/audit/contract"
+)
+
+const (
+	auditMenuOrderRoot     = 200
+	auditMenuOrderOverview = 201
+	auditMenuOrderLogs     = 202
 )
 
 func registerAuditPermissions(registry *permission.Registry, pluginName string) {
@@ -35,11 +41,34 @@ func registerAuditMenu(registry *menu.Registry, pluginName string) {
 	}
 
 	registry.Register(menu.Item{
+		Code:       "audit.root",
+		Title:      "安全审计",
+		TitleKey:   auditcontract.AuditRootMenuTitle.String(),
+		Path:       auditcontract.AuditMenuPath,
+		Icon:       "secured",
+		Order:      auditMenuOrderRoot,
+		Permission: "",
+		Plugin:     pluginName,
+	})
+
+	registry.Register(menu.Item{
+		Code:       "audit.overview",
+		Title:      "概览",
+		TitleKey:   auditcontract.AuditOverviewMenuTitle.String(),
+		Path:       auditcontract.AuditOverviewMenuPath,
+		Icon:       "dashboard",
+		Order:      auditMenuOrderOverview,
+		Permission: auditcontract.AuditReadPermission.String(),
+		Plugin:     pluginName,
+	})
+
+	registry.Register(menu.Item{
 		Code:       "audit.logs",
 		Title:      "审计日志",
 		TitleKey:   auditcontract.AuditLogMenuTitle.String(),
-		Path:       auditcontract.AuditMenuPath,
+		Path:       auditcontract.AuditLogsMenuPath,
 		Icon:       "history",
+		Order:      auditMenuOrderLogs,
 		Permission: auditcontract.AuditReadPermission.String(),
 		Plugin:     pluginName,
 	})
@@ -55,6 +84,8 @@ func registerAuditMessages(localizer *i18n.Service) error {
 			Namespace: "audit",
 			Locale:    i18n.LocaleZHCN,
 			Messages: []i18n.MessageResource{
+				{Key: i18n.MessageKey(auditcontract.AuditRootMenuTitle.String()), Text: "安全审计"},
+				{Key: i18n.MessageKey(auditcontract.AuditOverviewMenuTitle.String()), Text: "概览"},
 				{Key: i18n.MessageKey(auditcontract.AuditLogMenuTitle.String()), Text: "审计日志"},
 			},
 		},
@@ -62,6 +93,8 @@ func registerAuditMessages(localizer *i18n.Service) error {
 			Namespace: "audit",
 			Locale:    i18n.LocaleENUS,
 			Messages: []i18n.MessageResource{
+				{Key: i18n.MessageKey(auditcontract.AuditRootMenuTitle.String()), Text: "Security Audit"},
+				{Key: i18n.MessageKey(auditcontract.AuditOverviewMenuTitle.String()), Text: "Overview"},
 				{Key: i18n.MessageKey(auditcontract.AuditLogMenuTitle.String()), Text: "Audit Logs"},
 			},
 		},

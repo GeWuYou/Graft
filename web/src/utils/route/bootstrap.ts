@@ -171,6 +171,7 @@ function buildRouteMeta(menu: BootstrapMenu, single: boolean): AppRouteMeta {
     title: localizeRouteTitle(menu.title, menu.title_key),
     titleKey: menu.title_key,
     icon: menu.icon,
+    orderNo: menu.order ?? 0,
     single,
   };
 }

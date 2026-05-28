@@ -260,6 +260,7 @@ type BootstrapLocale struct {
 type BootstrapMenu struct {
 	Code       string `json:"code"`
 	Icon       string `json:"icon"`
+	Order      int    `json:"order"`
 	Path       string `json:"path"`
 	Permission string `json:"permission"`
 

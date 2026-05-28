@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 
-import AuditPage from './index.vue';
+import AuditLogsPage from './index.vue';
 
-vi.mock('../api/audit', () => ({
+vi.mock('../../api/audit', () => ({
   getAuditLogs: vi.fn(async () => ({
     items: [
       {
@@ -180,6 +180,42 @@ const dropdownStub = defineComponent({
   },
 });
 
+const paginationStub = defineComponent({
+  name: 'TPaginationStub',
+  setup(_, { slots }) {
+    return () => h('div', slots.default?.());
+  },
+});
+
+const tagStub = defineComponent({
+  name: 'TTagStub',
+  setup(_, { slots }) {
+    return () => h('span', slots.default?.());
+  },
+});
+
+const tableActionMenuStub = defineComponent({
+  name: 'TableActionMenuStub',
+  props: {
+    actions: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  emits: ['action'],
+  setup(props, { emit }) {
+    return () =>
+      h(
+        'button',
+        {
+          'data-testid': (props.actions[0] as { testId?: string } | undefined)?.testId ?? 'action',
+          onClick: () => emit('action', 'detail'),
+        },
+        'detail',
+      );
+  },
+});
+
 const i18n = createI18n({
   legacy: false,
   locale: 'en-US',
@@ -276,9 +312,9 @@ const i18n = createI18n({
   },
 });
 
-describe('AuditPage', () => {
+describe('AuditLogsPage', () => {
   it('renders audit list rows from the settled API contract', async () => {
-    const wrapper = mount(AuditPage, {
+    const wrapper = mount(AuditLogsPage, {
       global: {
         plugins: [i18n],
         directives: {
@@ -293,16 +329,17 @@ describe('AuditPage', () => {
           'management-table-card': passthroughStub,
           'management-table-pagination': passthroughStub,
           'management-toolbar': passthroughStub,
+          'table-action-menu': tableActionMenuStub,
           't-button': buttonStub,
           't-date-range-picker': dateRangePickerStub,
           't-empty': passthroughStub,
           't-input': inputStub,
           't-drawer': drawerStub,
           't-dropdown': dropdownStub,
-          't-pagination': passthroughStub,
+          't-pagination': paginationStub,
           't-select': selectStub,
           't-table': tableStub,
-          't-tag': passthroughStub,
+          't-tag': tagStub,
         },
       },
     });

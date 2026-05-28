@@ -929,6 +929,8 @@ export interface components {
     };
     'bootstrap-menu': {
       code: string;
+      /** @description Canonical menu order declared by the backend. Lower values render first within the same parent. */
+      order?: number;
       /** @description Existing menu-title fallback text. Consumers should prefer title_key when present. */
       title: string;
       /** @description Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only. */

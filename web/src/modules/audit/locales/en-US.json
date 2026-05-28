@@ -1,5 +1,90 @@
 {
   "audit": {
+    "overview": {
+      "title": "Audit Overview",
+      "description": "Review audit volume, recent high-signal events, and the current investigation surface before opening the log list.",
+      "contractTag": "Canonical Contract",
+      "refresh": "Refresh",
+      "timelineTitle": "Recent Audit Events",
+      "timelineSubtitle": "High-signal operations sampled for the current dashboard slice.",
+      "statusSuccess": "Succeeded",
+      "statusFailed": "Failed",
+      "surfaceTitle": "Focus Surfaces",
+      "surfaceSubtitle": "Prioritize the domains that most often lead to log drill-down work.",
+      "guidanceTitle": "Investigation Guidance",
+      "guidanceSubtitle": "Use the dashboard to decide whether to stay at overview level or move into detailed logs.",
+      "cards": {
+        "today": {
+          "title": "Events Today",
+          "subtitle": "24h total",
+          "meta": "Includes successful and failed write-side operations."
+        },
+        "failed": {
+          "title": "Failed Events",
+          "subtitle": "24h anomalies",
+          "meta": "Use this to decide whether detailed triage should start from failures."
+        },
+        "actors": {
+          "title": "Active Actors",
+          "subtitle": "Distinct operators",
+          "meta": "Unique users or service identities observed in the current slice."
+        },
+        "latency": {
+          "title": "Write Latency",
+          "subtitle": "Median pipeline latency",
+          "meta": "Placeholder metric until charted latency distribution is wired in."
+        }
+      },
+      "timeline": {
+        "items": {
+          "roleExport": {
+            "title": "Role permission export completed",
+            "description": "RBAC export finished successfully and is available for downstream review."
+          },
+          "schedulerStop": {
+            "title": "Scheduler job stop request rejected",
+            "description": "A protected scheduler stop action failed and should be reviewed in detailed logs."
+          },
+          "permissionReplace": {
+            "title": "Permission binding replaced",
+            "description": "A full permission replacement succeeded and may require follow-up review."
+          }
+        }
+      },
+      "surfaces": {
+        "rbac": {
+          "title": "RBAC changes",
+          "description": "Role, permission, and user binding operations continue to dominate audit investigation volume.",
+          "value": "Needs attention"
+        },
+        "sessions": {
+          "title": "Session and login actions",
+          "description": "Authentication-side activity is stable and mostly low risk in the current sample.",
+          "value": "Stable"
+        },
+        "plugins": {
+          "title": "Plugin operations",
+          "description": "Watch plugin lifecycle and scheduler actions for cross-boundary operational impact.",
+          "value": "Observed"
+        }
+      },
+      "guidance": {
+        "items": {
+          "scope": {
+            "title": "Start from the narrowest scope",
+            "description": "Use the overview to choose actor, resource family, or failure state before opening the log table."
+          },
+          "trace": {
+            "title": "Pivot into request detail",
+            "description": "When a recent event looks suspicious, continue into the log list and inspect request ID, IP, and metadata."
+          },
+          "next": {
+            "title": "Escalate only after correlation",
+            "description": "Treat overview metrics as routing signals; final incident conclusions still belong to the detailed log page."
+          }
+        }
+      }
+    },
     "logList": {
       "listTitle": "Audit Logs",
       "hint": "Inspect backend audit records by action, resource, request trace, and time window.",

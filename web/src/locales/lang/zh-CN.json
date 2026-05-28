@@ -199,22 +199,23 @@
       "title": "用户管理"
     },
     "audit": {
+      "overview": {
+        "title": "概览"
+      },
       "logs": {
         "title": "审计日志"
       }
     },
-    "monitor": {
-      "server_status": {
-        "title": "服务器状态",
-        "overview": {
-          "title": "概览"
-        },
-        "runtime": {
-          "title": "运行时"
-        },
-        "dependencies": {
-          "title": "依赖服务"
-        }
+    "server": {
+      "title": "服务器管理",
+      "overview": {
+        "title": "概览"
+      },
+      "runtime": {
+        "title": "运行时"
+      },
+      "dependencies": {
+        "title": "依赖服务"
       }
     }
   },

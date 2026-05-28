@@ -22,8 +22,9 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 	assertMenuItem(t, sectionMenu, expectedMenuItem{
 		code:       "monitor.section",
 		titleKey:   monitorcontract.MonitorSectionTitle.String(),
-		path:       monitorcontract.MonitorGroup,
+		path:       monitorcontract.ServerStatusMenuPath,
 		icon:       "server",
+		order:      100,
 		permission: "",
 	})
 
@@ -33,6 +34,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		titleKey:   monitorcontract.ServerStatusMenuTitle.String(),
 		path:       monitorcontract.ServerStatusMenuPath,
 		icon:       "activity",
+		order:      100,
 		permission: "",
 	})
 
@@ -42,6 +44,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		titleKey:   monitorcontract.ServerStatusOverviewMenuTitle.String(),
 		path:       monitorcontract.ServerStatusOverviewMenuPath,
 		icon:       "dashboard",
+		order:      101,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
 
@@ -51,6 +54,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		titleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
 		path:       monitorcontract.ServerStatusRuntimeMenuPath,
 		icon:       "time",
+		order:      102,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
 
@@ -60,6 +64,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		titleKey:   monitorcontract.ServerStatusDependenciesMenuTitle.String(),
 		path:       monitorcontract.ServerStatusDependenciesMenuPath,
 		icon:       "data-base",
+		order:      103,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
 }
@@ -69,6 +74,7 @@ type expectedMenuItem struct {
 	titleKey   string
 	path       string
 	icon       string
+	order      int
 	permission string
 }
 
@@ -79,6 +85,7 @@ func assertMenuItem(t *testing.T, actual menu.Item, expected expectedMenuItem) {
 		actual.TitleKey != expected.titleKey ||
 		actual.Path != expected.path ||
 		actual.Icon != expected.icon ||
+		actual.Order != expected.order ||
 		actual.Permission != expected.permission {
 		t.Fatalf("expected canonical monitor menu contract, got %#v", actual)
 	}

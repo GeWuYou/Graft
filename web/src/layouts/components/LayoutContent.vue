@@ -99,11 +99,15 @@ const activeTabPath = ref<string | null>('');
 const footerMeta = computed(() => route.meta.footer);
 const showFooter = computed(() => false);
 const pageSurfaceType = computed<'shell' | 'overview-dashboard' | 'list-form-detail'>(() => {
-  if (route.path.startsWith('/monitor/') || route.path.startsWith('/access-control/')) {
+  if (
+    route.path.startsWith('/server/') ||
+    route.path.startsWith('/audit/overview') ||
+    route.path.startsWith('/access-control/')
+  ) {
     return 'overview-dashboard';
   }
 
-  if (route.path.startsWith('/roles') || route.path.startsWith('/users')) {
+  if (route.path.startsWith('/audit/logs') || route.path.startsWith('/roles') || route.path.startsWith('/users')) {
     return 'list-form-detail';
   }
 

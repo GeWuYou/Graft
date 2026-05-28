@@ -12,6 +12,12 @@ const (
 	// AuditCollection identifies the audit-log collection route fragment.
 	AuditCollection = "/logs"
 
-	// AuditMenuPath identifies the audit page path exposed through bootstrap menus.
-	AuditMenuPath = "/audit/logs"
+	// AuditMenuPath identifies the canonical audit root menu path.
+	AuditMenuPath = AuditGroup
+
+	// AuditOverviewMenuPath identifies the canonical audit overview menu path.
+	AuditOverviewMenuPath = AuditGroup + "/overview"
+
+	// AuditLogsMenuPath identifies the canonical audit logs menu path.
+	AuditLogsMenuPath = AuditGroup + AuditCollection
 )

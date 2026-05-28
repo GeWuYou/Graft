@@ -3,6 +3,7 @@ package rbac
 import (
 	"testing"
 
+	"graft/server/internal/menu"
 	rbaccontract "graft/server/plugins/rbac/contract"
 )
 
@@ -14,24 +15,70 @@ func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
 		t.Fatalf("expected 4 registered menus, got %d", len(menus))
 	}
 
-	if menus[0].Path != "/access-control" ||
-		menus[0].TitleKey != rbaccontract.AccessControlMenuTitle.String() {
-		t.Fatalf("unexpected root menu: %#v", menus[0])
+	assertRBACMenuItem(t, menus[0], expectedRBACMenuItem{
+		path:     "/access-control",
+		titleKey: rbaccontract.AccessControlMenuTitle.String(),
+		icon:     "secured",
+		order:    0,
+	})
+	assertRBACMenuItem(
+		t,
+		menus[1],
+		expectedRBACMenuItem{
+			path:     "/access-control/overview",
+			titleKey: rbaccontract.AccessControlOverviewMenuTitle.String(),
+			icon:     "dashboard",
+			order:    1,
+		},
+	)
+	assertRBACMenuItem(
+		t,
+		menus[2],
+		expectedRBACMenuItem{
+			path:       "/access-control/roles",
+			titleKey:   rbaccontract.RoleListMenuTitle.String(),
+			icon:       "secured",
+			order:      3,
+			permission: rbaccontract.RoleReadPermission.String(),
+		},
+	)
+	assertRBACMenuItem(
+		t,
+		menus[3],
+		expectedRBACMenuItem{
+			path:       "/access-control/permissions",
+			titleKey:   rbaccontract.PermissionListMenuTitle.String(),
+			icon:       "lock-on",
+			order:      4,
+			permission: rbaccontract.PermissionReadPermission.String(),
+		},
+	)
+}
+
+type expectedRBACMenuItem struct {
+	path       string
+	titleKey   string
+	icon       string
+	order      int
+	permission string
+}
+
+func assertRBACMenuItem(t *testing.T, item menu.Item, expected expectedRBACMenuItem) {
+	t.Helper()
+
+	if item.Path != expected.path {
+		t.Fatalf("unexpected menu path: %#v", item)
 	}
-	if menus[1].Path != "/access-control/overview" ||
-		menus[1].Icon != "dashboard" ||
-		menus[1].TitleKey != rbaccontract.AccessControlOverviewMenuTitle.String() {
-		t.Fatalf("unexpected overview menu: %#v", menus[1])
+	if item.TitleKey != expected.titleKey {
+		t.Fatalf("unexpected menu title key: %#v", item)
 	}
-	if menus[2].Path != "/access-control/roles" ||
-		menus[2].TitleKey != rbaccontract.RoleListMenuTitle.String() ||
-		menus[2].Permission != rbaccontract.RoleReadPermission.String() {
-		t.Fatalf("unexpected role menu: %#v", menus[2])
+	if item.Icon != expected.icon {
+		t.Fatalf("unexpected menu icon: %#v", item)
 	}
-	if menus[3].Path != "/access-control/permissions" ||
-		menus[3].Icon != "lock-on" ||
-		menus[3].TitleKey != rbaccontract.PermissionListMenuTitle.String() ||
-		menus[3].Permission != rbaccontract.PermissionReadPermission.String() {
-		t.Fatalf("unexpected permission menu: %#v", menus[3])
+	if item.Order != expected.order {
+		t.Fatalf("unexpected menu order: %#v", item)
+	}
+	if item.Permission != expected.permission {
+		t.Fatalf("unexpected menu permission: %#v", item)
 	}
 }

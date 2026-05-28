@@ -7,20 +7,16 @@ import { flattenMixHeaderMenus, resolveMenuNavigationPath } from './layout-navig
 describe('layout navigation helpers', () => {
   it('resolves a grouped monitor menu to the first visible leaf page', () => {
     const monitorMenu: MenuRoute = {
-      path: '/monitor',
+      path: '/server',
       children: [
         {
-          path: 'server-status',
-          redirect: 'overview',
-          children: [
-            { path: 'overview', meta: { titleKey: 'menu.monitor.server_status.overview.title' } },
-            { path: 'runtime', meta: { titleKey: 'menu.monitor.server_status.runtime.title' } },
-          ],
+          path: 'overview',
+          meta: { titleKey: 'menu.server.overview.title' },
         },
       ],
     };
 
-    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/monitor/server-status/overview');
+    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/server/overview');
   });
 
   it('prefers the route redirect when a menu entry already defines one', () => {
@@ -34,43 +30,40 @@ describe('layout navigation helpers', () => {
 
   it('follows redirected child groups until the first visible leaf page', () => {
     const monitorMenu: MenuRoute = {
-      path: '/monitor',
-      redirect: '/monitor/server-status',
+      path: '/audit',
+      redirect: '/audit/overview',
       children: [
         {
-          path: 'server-status',
-          redirect: 'overview',
-          children: [
-            { path: 'overview', meta: { titleKey: 'menu.monitor.server_status.overview.title' } },
-            { path: 'runtime', meta: { titleKey: 'menu.monitor.server_status.runtime.title' } },
-          ],
+          path: 'overview',
+          meta: { titleKey: 'menu.audit.overview.title' },
+        },
+        {
+          path: 'logs',
+          meta: { titleKey: 'menu.audit.logs.title' },
         },
       ],
     };
 
-    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/monitor/server-status/overview');
+    expect(resolveMenuNavigationPath(monitorMenu)).toBe('/audit/overview');
   });
 
   it('flattens mix header menus into direct leaf navigation targets', () => {
     const menus = flattenMixHeaderMenus([
       {
-        path: '/monitor',
-        redirect: '/monitor/server-status',
+        path: '/server',
         children: [
           {
-            path: 'server-status',
-            redirect: 'overview',
-            children: [{ path: 'overview' }],
+            path: 'overview',
           },
         ],
         meta: {
-          titleKey: 'monitor.sectionTitle',
+          titleKey: 'menu.server.title',
         },
       },
     ]);
 
     expect(menus).toHaveLength(1);
-    expect(menus[0]?.path).toBe('/monitor/server-status/overview');
+    expect(menus[0]?.path).toBe('/server/overview');
     expect(menus[0]?.children).toEqual([]);
     expect(menus[0]?.redirect).toBeUndefined();
     expect(menus[0]?.meta?.single).toBe(true);

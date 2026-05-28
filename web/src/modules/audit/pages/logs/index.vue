@@ -286,9 +286,9 @@ import {
 } from '@/shared/components/management';
 import { createLogger } from '@/utils/logger';
 
-import { getAuditLogs } from '../api/audit';
-import { AUDIT_PERMISSION_CODE } from '../contract/permissions';
-import type { AuditLogListItem, AuditLogQuery } from '../types/audit';
+import { getAuditLogs } from '../../api/audit';
+import { AUDIT_PERMISSION_CODE } from '../../contract/permissions';
+import type { AuditLogListItem, AuditLogQuery } from '../../types/audit';
 
 defineOptions({
   name: 'AuditLogListIndex',
@@ -301,7 +301,7 @@ type AuditFilterState = {
   successValue: '' | 'true' | 'false';
 };
 
-const logger = createLogger('audit.logList');
+const logger = createLogger('audit.logs');
 const { t, locale } = useI18n();
 
 const loading = ref(false);
@@ -506,7 +506,7 @@ watch(
 );
 </script>
 <style scoped lang="less">
-@import '../../rbac/shared/list-page.less';
+@import '../../../rbac/shared/list-page.less';
 
 .audit-page {
   display: flex;
