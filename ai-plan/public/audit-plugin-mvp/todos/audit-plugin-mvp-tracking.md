@@ -3,27 +3,40 @@
 ## Topic
 
 - Topic: `audit-plugin-mvp`
-- Status: `active`
-- Goal: establish and close the audit plugin MVP through bounded cross-boundary batches.
+- Status: `archived`
+- Goal: deliver and close the audit plugin MVP as a bounded cross-boundary slice with explicit logging boundaries and
+  policy-governed security audit inclusion.
 - Recovery source:
   - `ai-plan/public/README.md`
-  - archived `ai-plan/public/archive/backend-rbac-contract-audit` topic
-  - current plugin registry implementation
-  - current user plugin implementation
-  - current rbac plugin implementation
-  - current OpenAPI/generated contract workflow
-  - current web module/bootstrap/route implementation
+  - `ai-plan/public/audit-plugin-mvp/README.md`
+  - `ai-plan/public/audit-plugin-mvp/todos/audit-plugin-mvp-tracking.md`
+  - `ai-plan/public/audit-plugin-mvp/traces/audit-plugin-mvp-trace.md`
+  - archived `ai-plan/public/archive/backend-rbac-contract-audit`
 - Worktree: `feat/wt-audit-plugin-mvp`
 - Branch: `feat/wt-audit-plugin-mvp`
+- Task class: `cross-boundary`
+- Loop mode: `topic-completion-loop`
 
 ## Scope
 
-- Owned scope follows the topic README and startup prompt.
-- Forbidden scope includes unrelated RBAC expansion, auth redesign, global layout redesign, broad i18n refactor, and
-  unrelated generated or formatting churn.
-- Interpretation rule:
-  - bounded scope forbids unrelated expansion, not required authority repair
-  - owned scope is not the same thing as canonical authority boundary
+- Owned recovery-doc scope:
+  - `ai-plan/public/audit-plugin-mvp/**`
+  - `ai-plan/public/README.md`
+- Historical implementation scope closed by this topic:
+  - `server/plugins/audit/**`
+  - `server/internal/audit/**`
+  - `server/internal/httpx/**`
+  - `server/internal/pluginapi/**`
+  - `server/plugins/auth/**`
+  - `server/plugins/rbac/**`
+  - `server/plugins/user/**`
+  - `openapi/**`
+  - `web/src/modules/audit/**`
+- Forbidden continuation scope:
+  - reopening runtime implementation without a new topic
+  - broad request-log or system-log product work inside this archived line
+  - regex or expression-based policy engines
+  - SOC, real-time alerting, geo/IP risk analysis, or other out-of-MVP security expansion
 
 ## Startup Receipt
 
@@ -34,13 +47,23 @@
   - `ai-plan/public/audit-plugin-mvp/README.md`
   - `ai-plan/public/audit-plugin-mvp/todos/audit-plugin-mvp-tracking.md`
   - `ai-plan/public/audit-plugin-mvp/traces/audit-plugin-mvp-trace.md`
-  - archived `ai-plan/public/archive/backend-rbac-contract-audit`
-  - current plugin/OpenAPI/web bootstrap implementation
-- Loop mode: `topic-completion-loop`
+- Authority summary:
+  - canonical authority for this closeout round is the topic recovery documentation itself
+  - runtime truth for the completed implementation remained in the settled `server` and `web` owned slices validated in
+    prior batches
+
+## Current Recovery Point
+
+- Batch 8 closeout completed.
+- The topic is archive-ready and no further same-session batches remain.
+- Topic docs now reflect the real extended history:
+  - Batch 6 backend audit policy boundary convergence completed and validated
+  - Batch 7 frontend audit semantics alignment completed and validated
+  - Batch 8 archive-readiness review completed without reopening implementation
 
 ## Batch State
 
-- Current batch: `Batch 6 - Archive-ready closeout`
+- Current batch: `Batch 8 - Topic closeout and archive-readiness`
 - Completed batches:
   - `Batch 0 - Exploration and worktree/topic setup`
   - `Batch 1 - Backend audit domain design and schema`
@@ -48,221 +71,65 @@
   - `Batch 3 - Backend recording integration for user and RBAC actions`
   - `Batch 4 - Frontend audit module and page`
   - `Batch 5 - Cross-boundary integration and regression`
+  - `Batch 6 - Backend audit policy boundary convergence`
+  - `Batch 7 - Frontend audit semantics alignment`
+  - `Batch 8 - Topic closeout and archive-readiness`
 - Pending batches:
-  - `Batch 6 - Archive-ready closeout`
+  - none
 
-## Batch 0 Checklist
+## Final Topic Outcome
 
-- [x] Read root `AGENTS.md`
-- [x] Read `.ai/environment/tools.ai.yaml`
-- [x] Read `server/AGENTS.md`
-- [x] Read `web/AGENTS.md`
-- [x] Read `ai-plan/public/README.md`
-- [x] Check `git status --short`
-- [x] Check current branch and worktree list
-- [x] Confirm the RBAC source worktree is clean
-- [x] Create dedicated worktree `feat/wt-audit-plugin-mvp` from the RBAC baseline
-- [x] Re-run startup preflight in the new worktree
-- [x] Update `ai-plan/public/README.md` mapping
-- [x] Create topic recovery docs
-- [x] Record exploration findings
-- [ ] Run `git diff --check`
-- [ ] Re-check `git status --short`
-- [ ] Create docs-only setup commit
+- Accepted MVP logging boundary:
+  - `Access Log / Request Log -> Audit Policy -> Audit Log`
+- Accepted scope split:
+  - ordinary request traffic belongs to service-management logging
+  - internal runtime and background behavior belongs to application or system logging
+  - only security-relevant or sensitive business events belong to audit logging
+- Accepted audit-policy governance:
+  - default include and exclude rules are seeded through plugin-owned SQL migration data
+  - owned middleware and handlers no longer need path-based hardcoded skip rules for `healthz`, monitor polling,
+    bootstrap, or audit overview reads
+  - candidate events from request flow, auth, and authorization still converge through evaluator-based final policy
+    decision
+- Accepted frontend semantics:
+  - audit overview and audit logs now describe security audit events rather than generic traffic
+  - audit drawer language uses `审计目标` / `目标对象` / `操作对象`
+  - no audit-policy UI was added in this MVP line
 
-## Risks
+## Validation Record
 
-- The current repository already contains a minimal audit plugin and historical audit-related migrations, so MVP work
-  is additive and corrective rather than greenfield.
-- Batch 5 closed the current MVP integration path through validation and targeted regression checks, but Batch 6 still
-  needs final archive-ready review of topic docs and any remaining governance notes.
-- Request-level fallback and broader auth/session/request-context redesign remain intentionally out of scope.
+- Batch 6 backend validation:
+  - `cd server && go test ./plugins/audit/... ./internal/audit/... ./internal/httpx/...`
+  - `cd server && go run ./cmd/graft validate backend`
+- Batch 7 frontend validation:
+  - `cd web && bun run test:run src/modules/audit/pages/overview/index.test.ts src/modules/audit/pages/logs/index.test.ts`
+  - `cd web && bun run check`
+- Batch 8 closeout validation:
+  - docs-only review of the recorded Batch 6 and Batch 7 evidence
+  - `git diff --check` should be run by the integrating orchestrator if needed for the final docs diff
 
-## Exploration Snapshot
+## Follow-up Policy
 
-- Plugin registration:
-  - `server/plugins/<name>/descriptor.go` owns `plugin.Descriptor` metadata and plugin-owned migration dirs.
-  - `server/internal/pluginregistry/generated.go` is the single generated compile-time registry consumed by CLI/runtime.
-  - `server/internal/pluginregistry/registry.go` expands ordered descriptors and default migration dirs.
-- Audit plugin current baseline:
-  - `server/plugins/audit/plugin.go` mounts request-level automatic audit middleware and now also mounts guarded read
-    routes, registers plugin-owned permissions/menus/messages, and exports the read service for plugin lifecycle wiring.
-  - `server/internal/audit/service.go` remains the canonical read/write service surface; Batch 2 reused `List(ctx, query)`
-    instead of adding a parallel read model.
-- OpenAPI/generated pattern:
-  - Canonical source lives in `openapi/openapi.yaml` plus `openapi/paths/**`.
-  - Batch 2 added `/api/audit/logs` plus audit list schemas, refreshed `openapi/dist/openapi.bundle.json`, and refreshed
-    `server/internal/contract/openapi/generated/types.gen.go` plus the narrow `server/internal/contract/openapi/audit/**`
-    package.
-  - Web generated schema was not refreshed in this batch because no owned-scope frontend runtime or contract consumer was
-    added yet.
-  - Generated artifacts are derived outputs, not authority; future drift must be repaired in source input first, then
-    regenerated.
-- HTTP/authz pattern:
-  - `server/internal/httpx/response.go` remains the uniform success/error envelope and request-id boundary.
-  - Audit read routes use `httpx.RequirePermission(..., "audit.read")` and keep the existing localized error behavior.
-- Frontend registration and guard pattern:
-  - Batch 2 only registered the backend bootstrap menu contract for `/audit/logs`; no frontend page/module work was
-    started.
+- No continuation required for this topic.
+- Future work should open a new topic instead of reviving this archive if it needs:
+  - audit-policy management UI
+  - dedicated request-log product surfaces
+  - dedicated system-log product surfaces
+  - more expressive policy matching such as regex or condition expressions
+  - risk scoring, anomaly detection, or SOC-style workflows
 
-## Batch Implications
+## Commit Plan
 
-- Batch 3 added domain-owned active-audit emission at user/rbac write success points without altering the settled audit
-  read contract.
-- Batch 4 should consume the existing `audit.read` permission, `/audit/logs` bootstrap menu path, and generated read DTO
-  contract rather than redefining page-local equivalents.
+- Batch 8:
+  - `docs(audit-plugin-mvp): archive audit policy topic`
 
-## Immediate Next Step
+## Final Decision
 
-- Start Batch 6 on top of the validated Batch 5 integration baseline:
-  - run archive-ready closeout for the full audit plugin MVP topic
-  - confirm recovery docs, validations, and owned-scope commits are sufficient for archive or identify any final
-    bounded closeout-only gap
-
-## Batch 1 Snapshot
-
-- Extended the audit persistence contract and plugin-owned SQL repository from request-only fields to a richer audit
-  domain:
-  - actor user id / username / display name
-  - action
-  - resource type / id / name
-  - success result
-  - request id
-  - ip / user agent
-  - message
-  - JSON metadata
-  - created at
-- Added `internal/audit` service-layer support for:
-  - `Record(ctx, input)` with normalization and sensitive-data redaction
-  - `List(ctx, query)` with bounded pagination/filter normalization
-- Preserved non-blocking audit semantics on both paths:
-  - request middleware still logs write failures without breaking the request
-  - active event subscription now swallows malformed payload / write failures after logging
-- Added plugin-owned migration `202605270001_audit_log_domain_upgrade.sql` and refreshed `plugins/audit/migrations/atlas.sum`.
-- Added bounded tests for:
-  - service sanitization and pagination normalization
-  - SQL repository create/list behavior and filters
-  - plugin non-blocking active-audit failure behavior
-
-## Batch 1 Validation
-
-- `cd server && go test ./...`
-- `cd server && go run ./cmd/graft validate backend`
-- `git diff --check`
-
-## Batch 2 Snapshot
-
-- Added plugin-owned audit contract values under `server/plugins/audit/contract/**` for:
-  - read permission code `audit.read`
-  - menu title key `menu.audit.logs.title`
-  - guarded API/menu path alignment on `/audit/logs`
-- Completed plugin registration closure for Batch 2:
-  - `DependsOn()` now declares `user`, `rbac`
-  - `Register()` now registers audit messages, permission, menu, read service, and guarded routes before event-bus
-    subscription
-  - route guard resolution now consumes the existing `pluginapi.AuthService` and `pluginapi.Authorizer`
-- Added guarded read API implementation:
-  - plugin-owned route registration at `/api/audit/logs`
-  - generated-parameter binding to `auditcore.ListQuery`
-  - generated response mapping back to the canonical `httpx` success envelope
-- Added root OpenAPI path and schemas for audit list querying and refreshed backend generated artifacts:
-  - `openapi/paths/audit.logs.yaml`
-  - `openapi/components/schemas/audit-log-list-*.yaml`
-  - `openapi/dist/openapi.bundle.json`
-  - `server/internal/contract/openapi/generated/types.gen.go`
-  - `server/internal/contract/openapi/audit/**`
-- Extended audit plugin tests to cover:
-  - new authz wiring requirements in plugin registration
-  - menu/permission/read-route smoke coverage
-
-## Batch 2 Validation
-
-- `cd server && go test ./...`
-- `cd server && go run ./cmd/graft validate backend`
-- `git diff --check`
-- OpenAPI/backend generated step executed:
-  - `cd web && bun ../scripts/openapi-bundle.mjs`
-  - `cd server && go generate ./internal/contract/openapi`
-- Web generated schema intentionally not updated in Batch 2 because no owned-scope frontend runtime or consumer was added.
-
-## Batch 3 Snapshot
-
-- Added bounded richer active-audit emission in `user` success paths:
-  - create
-  - update
-  - status update
-  - delete
-  - reset password
-- Added bounded richer active-audit emission in `rbac` success paths:
-  - role create/update/status/delete
-  - role-permission replace/add/remove
-  - user-role replace/add/remove
-- Kept audit write failure non-blocking for business success paths by swallowing event-bus publish failures after
-  logging, matching the existing request-level fallback posture.
-- Propagated request ids from current user/rbac write routes into active audit events without changing the settled
-  `/api/audit/logs` read contract.
-- Added bounded tests covering:
-  - successful user active-audit publish
-  - successful rbac active-audit publish
-  - audit publish failure remaining non-blocking on user/rbac success paths
-
-## Batch 3 Validation
-
-- `cd server && go test ./...`
-- `cd server && go run ./cmd/graft validate backend`
-- `git diff --check`
-
-## Batch 4 Snapshot
-
-- Added module-owned frontend audit runtime under `web/src/modules/audit/**`:
-  - module registration entry
-  - bootstrap route declaration
-  - module contract values for route path and permission code
-  - API adapter that consumes the settled `/api/audit/logs` generated contract through the existing request adapter
-  - read-only audit log list page and locale bundles
-- Kept frontend route and permission truth aligned with the existing shell path:
-  - `modules/index.ts` module discovery
-  - bootstrap menu to dynamic route transform
-  - `audit.read` permission continues to come only from the backend bootstrap snapshot
-- Refreshed frontend generated OpenAPI schema because Batch 4 introduced a real frontend consumer of the audit read
-  contract.
-- Added bounded frontend tests for:
-  - audit bootstrap route registration
-  - module registration map exposure
-  - bootstrap route transform coverage for `/audit/logs`
-  - locale visible-copy governance inclusion
-  - audit page render smoke path
-
-## Batch 4 Validation
-
-- `cd web && bun run openapi:types`
-- `cd web && bun run check`
-- `git diff --check`
-- Retry worker closeout notes:
-  - final `bun run check` passed after wiring the audit permission contract into visible page actions, reducing
-    page-local duplication to satisfy `jscpd`, and stubbing TDesign/directive dependencies in the page smoke test
-  - no backend contract, menu, or permission semantics were changed during retry closeout
-
-## Batch 5 Snapshot
-
-- Ran bounded cross-boundary integration and regression over the full settled audit MVP slice without widening feature
-  scope.
-- Reconfirmed the backend-to-frontend closure points stay aligned:
-  - backend plugin registration still publishes canonical `audit.read`
-  - backend bootstrap menu still exposes `/audit/logs` with `menu.audit.logs.title`
-  - guarded backend read route remains `/api/audit/logs`
-  - frontend bootstrap route recovery still mounts `/audit/logs` through the module registration path
-  - frontend audit page still consumes generated OpenAPI DTOs and the shared request-envelope adapter
-- Reused and verified existing bounded regression tests as closure proof:
-  - `server/plugins/audit/plugin_test.go` read-surface coverage
-  - `web/src/utils/route/bootstrap.test.ts` bootstrap recovery coverage for `/audit/logs`
-  - `web/src/modules/audit/bootstrap-routes.test.ts` module registration identity coverage
-  - `web/src/modules/audit/pages/index.test.ts` generated-contract-backed page render smoke coverage
-- No bounded regression fix was required; the worktree stayed code-clean outside recovery-doc updates.
-
-## Batch 5 Validation
-
-- `cd server && go test ./...`
-- `cd server && go run ./cmd/graft validate backend`
-- `cd web && bun run check`
-- `git diff --check`
+- Final closeout status: `archive-ready`
+- Decision basis:
+  - the planned implementation batches are complete
+  - Batch 6 and Batch 7 validation evidence is explicit and internally consistent
+  - the remaining notes are future-scope product or rule-engine work, not blockers to MVP archive readiness
+- Remaining risks:
+  - audit policy remains intentionally limited to a small rule vocabulary
+  - request-log and system-log productization remains out of scope for this archived topic

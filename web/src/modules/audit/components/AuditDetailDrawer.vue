@@ -25,7 +25,7 @@
             <strong>{{ actorLabel(record, t) }}</strong>
           </div>
           <div class="audit-detail__item">
-            <span>{{ t('audit.logList.columns.resource') }}</span>
+            <span>{{ t('audit.logList.drawer.fields.target') }}</span>
             <strong>{{ resourceDetailLabel(record, t) }}</strong>
           </div>
           <div class="audit-detail__item">

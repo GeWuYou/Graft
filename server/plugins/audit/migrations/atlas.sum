@@ -1,4 +1,5 @@
-h1:X3qwlHToAye8ah98OW0ifAMwnF17dv11+FAI0GLwpIo=
+h1:REUFL+JDdv8fbUWpaYiC0ANTh7fdxMLJsodZuWDWZtY=
 202605190003_audit_plugin_boundary_baseline.sql h1:yLli+vfO3T7xwOlPQ1sS5rSo7qiOe3L5TS3cZwpapVw=
 202605270001_audit_log_domain_upgrade.sql h1:JGk3rebZEfxmlbbnAsbyVl5dLNWsQBRsAPymyRis6K4=
 202605280003_audit_table_and_column_comments.sql h1:3ukdKR4G+gZcmoQt2QqWYZV4jg/tmBeSEuEFTtxbDGw=
+202605280004_audit_policy_rules.sql h1:rt0KsYnX+2D+ANeQ9iELX42rS1THZnULuk+I+bOyS+Y=

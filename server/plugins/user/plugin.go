@@ -12,8 +12,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"graft/server/internal/eventbus"
 	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/eventbus"
+	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
 	authcontract "graft/server/plugins/auth/contract"
@@ -77,7 +78,12 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		return err
 	}
 	p.routeAuthorizer = newDeferredAuthorizer()
-	guards := newRouteGuards(ctx.I18n, services.auth, p.routeAuthorizer)
+	guards := newRouteGuards(
+		ctx.I18n,
+		services.auth,
+		p.routeAuthorizer,
+		httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, pluginID),
+	)
 	authGroup := ctx.Router.Group(authcontract.AuthGroup)
 	guards.restrictedSession = newRestrictedSessionGuard(
 		ctx.I18n,
@@ -295,9 +301,9 @@ func (s userService) CreateUser(
 		Success:      true,
 		Message:      "user created",
 		Metadata: map[string]any{
-			"username":           created.Username,
-			"display_name":       created.Display,
-			"status":             created.Status,
+			"username":             created.Username,
+			"display_name":         created.Display,
+			"status":               created.Status,
 			"must_change_password": true,
 		},
 	})

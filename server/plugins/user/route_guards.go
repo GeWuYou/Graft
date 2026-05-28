@@ -13,16 +13,21 @@ import (
 	usercontract "graft/server/plugins/user/contract"
 )
 
-func newRouteGuards(localizer *i18n.Service, authSvc *authService, authorizer pluginapi.Authorizer) routeGuards {
+func newRouteGuards(
+	localizer *i18n.Service,
+	authSvc *authService,
+	authorizer pluginapi.Authorizer,
+	publisher httpx.SecurityAuditPublisher,
+) routeGuards {
 	return routeGuards{
-		authenticated:          httpx.RequirePermission(localizer, authSvc, nil, ""),
+		authenticated:          httpx.RequirePermission(localizer, authSvc, nil, "", publisher),
 		requiredPasswordChange: newRequiredPasswordChangeGuard(localizer, authSvc),
-		userRead:               httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserReadPermission.String()),
-		userCreate:             httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserCreatePermission.String()),
-		userUpdate:             httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserUpdatePermission.String()),
-		userDisable:            httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserDisablePermission.String()),
-		userSessionRead:        httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserSessionReadPermission.String()),
-		userSessionRevoke:      httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserSessionRevokePermission.String()),
+		userRead:               httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserReadPermission.String(), publisher),
+		userCreate:             httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserCreatePermission.String(), publisher),
+		userUpdate:             httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserUpdatePermission.String(), publisher),
+		userDisable:            httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserDisablePermission.String(), publisher),
+		userSessionRead:        httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserSessionReadPermission.String(), publisher),
+		userSessionRevoke:      httpx.RequirePermission(localizer, authSvc, authorizer, usercontract.UserSessionRevokePermission.String(), publisher),
 	}
 }
 

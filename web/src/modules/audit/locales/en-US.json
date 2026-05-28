@@ -28,8 +28,8 @@
       }
     },
     "overview": {
-      "title": "Overview",
-      "description": "Review recent anomalies, risk behavior, and high-risk operation trends.",
+      "title": "Security Audit Overview",
+      "description": "Focus on security-audit events tied to authentication, authorization, and sensitive operations, excluding health checks, monitor polling, and page-load noise.",
       "refresh": "Refresh",
       "retry": "Retry",
       "errorTitle": "Audit overview is temporarily unavailable",
@@ -45,9 +45,9 @@
         "sensitive": "Review"
       },
       "sections": {
-        "failedAuth": "Recent Failed Authentication",
-        "permissionDenied": "Recent Permission Denied",
-        "sensitiveOps": "Recent Sensitive Operations",
+        "failedAuth": "Recent Authentication Failures",
+        "permissionDenied": "Recent Permission Denials",
+        "sensitiveOps": "Recent Sensitive Audit Events",
         "shortcuts": "Quick Links",
         "riskWatch": "Recent Risk"
       },
@@ -63,7 +63,7 @@
           }
         },
         "failedToday": {
-          "title": "Failed Operations Today",
+          "title": "Security Failures Today",
           "unit": "events",
           "meta": "watch",
           "values": {
@@ -83,7 +83,7 @@
           }
         },
         "sensitiveOps": {
-          "title": "Sensitive Operations",
+          "title": "Sensitive Audit Operations",
           "unit": "actions",
           "meta": "write path",
           "values": {
@@ -149,15 +149,15 @@
       "shortcuts": {
         "failedAuth": {
           "title": "Open Failed Authentication",
-          "description": "Apply the failed authentication preset"
+          "description": "Review failed sign-ins, token failures, and other authentication audit events"
         },
         "rbacChanges": {
           "title": "Open RBAC Changes",
-          "description": "Review role and permission records"
+          "description": "Review role, permission, and assignment audit events"
         },
         "sensitiveOps": {
           "title": "Open Sensitive Operations",
-          "description": "Locate privileged write actions"
+          "description": "Locate export, delete, and other privileged write audit events"
         }
       },
       "watch": {
@@ -180,14 +180,14 @@
     },
     "logList": {
       "title": "Audit Logs",
-      "description": "Query system operation logs and inspect request context.",
+      "description": "Query security audit events and inspect request and permission context; health checks, monitor polling, and bootstrap requests are not part of the default audit dataset.",
       "refresh": "Refresh",
       "retry": "Retry",
       "detail": "View Details",
       "more": "More",
-      "summary": "{count} records shown",
-      "tableHint": "The default table keeps core fields only. Chain context moves to the detail drawer.",
-      "footerTotal": "{count} logs total",
+      "summary": "{count} security audit records shown",
+      "tableHint": "The table shows only policy-matched security audit events. Request chain and permission context move to the detail drawer.",
+      "footerTotal": "{count} audit events total",
       "footerFiltered": "{count} records matched on this page",
       "currentPageFiltered": "Current page filter",
       "loadFailed": "Failed to load audit logs",
@@ -197,7 +197,7 @@
       "detailTitle": "Audit Detail",
       "presets": {
         "all": "All",
-        "todayAnomalies": "Today's Anomalies",
+        "todayAnomalies": "Today's Security Anomalies",
         "permissionDenied": "Permission Denied",
         "sensitiveOps": "Sensitive Operations",
         "authFailed": "Auth Failed",
@@ -210,11 +210,11 @@
         "hideAdvanced": "Hide Advanced"
       },
       "filters": {
-        "keywordPlaceholder": "Keyword: action, request ID, resource",
+        "keywordPlaceholder": "Keyword: action, request ID, audit target, operated object",
         "actorPlaceholder": "Actor",
         "actionPlaceholder": "Action type",
         "datePlaceholder": "Time range",
-        "resourcePlaceholder": "Target Object",
+        "resourcePlaceholder": "Audit Target / Target Object / Operated Object",
         "resultPlaceholder": "Result",
         "riskPlaceholder": "Risk level",
         "sessionPlaceholder": "Session ID",
@@ -240,7 +240,7 @@
       "columns": {
         "action": "Action",
         "actor": "Actor",
-        "resource": "Target Object",
+        "resource": "Audit Target",
         "result": "Result",
         "risk": "Risk",
         "createdAt": "Time"
@@ -248,13 +248,14 @@
       "drawer": {
         "messageFallback": "No additional message",
         "sections": {
-          "basic": "Basic Info",
-          "request": "Request Info",
-          "correlation": "Correlation",
+          "basic": "Event Summary",
+          "request": "Request Context",
+          "correlation": "Related Context",
           "risk": "Risk Analysis",
           "metadata": "Metadata"
         },
         "fields": {
+          "target": "Audit Target",
           "result": "Result",
           "requestId": "Request ID",
           "traceId": "Trace ID",
@@ -274,7 +275,7 @@
         "related": {
           "sameRequest": "Same Request Chain",
           "sameActor": "Recent Actions by Actor",
-          "sameResource": "Recent Changes on Resource",
+          "sameResource": "Recent Changes on Audit Target",
           "empty": "No more related records in the current list"
         },
         "risk": {

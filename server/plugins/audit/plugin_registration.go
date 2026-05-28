@@ -130,8 +130,9 @@ func (p *Plugin) resolveRouteGuard(ctx *plugin.Context) (auditGuard, error) {
 		return auditGuard{}, fmt.Errorf("resolve route authorizer: unexpected type %T", resolvedAuthorizer)
 	}
 
+	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, pluginID)
 	return auditGuard{
-		read: httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditReadPermission.String()),
+		read: httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditReadPermission.String(), publisher),
 	}, nil
 }
 

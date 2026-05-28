@@ -7,6 +7,38 @@ import (
 	"time"
 )
 
+// AuditSource identifies where one audit candidate originated.
+type AuditSource string
+
+const (
+	// AuditSourceRequest marks request-derived candidates.
+	AuditSourceRequest AuditSource = "REQUEST"
+	// AuditSourceSecurityEvent marks auth/authz security-event candidates.
+	AuditSourceSecurityEvent AuditSource = "SECURITY_EVENT"
+	// AuditSourceDomainEvent marks plugin-published business events.
+	AuditSourceDomainEvent AuditSource = "DOMAIN_EVENT"
+)
+
+// AuditPolicyEffect describes the final effect of one policy rule.
+type AuditPolicyEffect string
+
+const (
+	// AuditPolicyEffectInclude writes a candidate into the audit log.
+	AuditPolicyEffectInclude AuditPolicyEffect = "include"
+	// AuditPolicyEffectExclude drops a candidate before audit persistence.
+	AuditPolicyEffectExclude AuditPolicyEffect = "exclude"
+)
+
+// AuditPolicyMatchType describes the route/event match mode supported in MVP.
+type AuditPolicyMatchType string
+
+const (
+	// AuditPolicyMatchTypeExact requires an exact match.
+	AuditPolicyMatchTypeExact AuditPolicyMatchType = "exact"
+	// AuditPolicyMatchTypePrefix requires a prefix match.
+	AuditPolicyMatchTypePrefix AuditPolicyMatchType = "prefix"
+)
+
 // AuditRiskLevel classifies the relative severity of one audit event.
 type AuditRiskLevel string
 
@@ -79,6 +111,59 @@ type CreateAuditLogInput struct {
 	Message          string
 	Metadata         json.RawMessage
 	CreatedAt        time.Time
+}
+
+// AuditCandidate is the normalized input evaluated before one audit record is written.
+type AuditCandidate struct {
+	Source           AuditSource
+	ActorUserID      *uint64
+	ActorUsername    string
+	ActorDisplayName string
+	Action           string
+	ResourceType     string
+	ResourceID       string
+	ResourceName     string
+	TargetType       string
+	EventType        string
+	RequestMethod    string
+	RequestPath      string
+	StatusCode       int
+	RequestID        string
+	TraceID          string
+	SessionID        string
+	IP               string
+	UserAgent        string
+	Success          bool
+	Message          string
+	Metadata         json.RawMessage
+	CreatedAt        time.Time
+}
+
+// AuditPolicyRule is the plugin-owned persistence DTO for one policy rule.
+type AuditPolicyRule struct {
+	ID            uint64
+	Name          string
+	Description   string
+	Source        AuditSource
+	Enabled       bool
+	Priority      int
+	Effect        AuditPolicyEffect
+	MatchType     AuditPolicyMatchType
+	Method        string
+	PathPattern   string
+	EventType     string
+	RiskLevel     AuditRiskLevel
+	TargetType    string
+	ConditionExpr string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+// AuditPolicyDecision is the stable result returned by the evaluator.
+type AuditPolicyDecision struct {
+	Matched bool
+	Allowed bool
+	Rule    *AuditPolicyRule
 }
 
 // ListAuditLogsQuery describes the audit plugin's stable repository-side query contract.
@@ -155,4 +240,5 @@ type AuditRepository interface {
 	CreateAuditLog(ctx context.Context, input CreateAuditLogInput) (AuditLog, error)
 	ListAuditLogs(ctx context.Context, query ListAuditLogsQuery) (ListAuditLogsResult, error)
 	ReadAuditOverview(ctx context.Context, window OverviewWindow) (AuditOverview, error)
+	ListAuditPolicyRules(ctx context.Context) ([]AuditPolicyRule, error)
 }

@@ -142,8 +142,9 @@ const i18n = createI18n({
       },
       audit: {
         overview: {
-          title: 'Security Audit',
-          description: 'Review recent anomalies, risk items, and common audit entry points.',
+          title: 'Security Audit Overview',
+          description:
+            'Focus on security-audit events tied to authentication, authorization, and sensitive operations, excluding health checks, monitor polling, and page-load noise.',
           refresh: 'Refresh',
           retry: 'Retry',
           errorTitle: 'Audit overview is temporarily unavailable',
@@ -151,22 +152,31 @@ const i18n = createI18n({
           timeRanges: { '24h': 'Last 24h', '7d': 'Last 7d', '30d': 'Last 30d' },
           itemResult: { failed: 'Failed', denied: 'Denied', sensitive: 'Review' },
           sections: {
-            failedAuth: 'Recent Failed Authentication',
-            permissionDenied: 'Recent Permission Denied',
-            sensitiveOps: 'Recent Sensitive Operations',
+            failedAuth: 'Recent Authentication Failures',
+            permissionDenied: 'Recent Permission Denials',
+            sensitiveOps: 'Recent Sensitive Audit Events',
             shortcuts: 'Quick Links',
             riskWatch: 'Recent Risk',
           },
           stats: {
             totalLogs: { title: 'Audit Logs', unit: 'events', meta: 'window' },
-            failedToday: { title: 'Failed Operations Today', unit: 'events', meta: 'watch' },
+            failedToday: { title: 'Security Failures Today', unit: 'events', meta: 'watch' },
             highRisk: { title: 'High-Risk Events', unit: 'items', meta: 'failed' },
-            sensitiveOps: { title: 'Sensitive Operations', unit: 'actions', meta: 'write' },
+            sensitiveOps: { title: 'Sensitive Audit Operations', unit: 'actions', meta: 'write' },
           },
           shortcuts: {
-            failedAuth: { title: 'Open Failed Authentication', description: 'Apply the failed authentication preset' },
-            rbacChanges: { title: 'Open RBAC Changes', description: 'Review role and permission records' },
-            sensitiveOps: { title: 'Open Sensitive Operations', description: 'Locate privileged write actions' },
+            failedAuth: {
+              title: 'Open Failed Authentication',
+              description: 'Review failed sign-ins, token failures, and other authentication audit events',
+            },
+            rbacChanges: {
+              title: 'Open RBAC Changes',
+              description: 'Review role, permission, and assignment audit events',
+            },
+            sensitiveOps: {
+              title: 'Open Sensitive Operations',
+              description: 'Locate export, delete, and other privileged write audit events',
+            },
           },
         },
       },
@@ -197,9 +207,11 @@ describe('AuditOverviewPage', () => {
 
     expect(auditApiMocks.getAuditOverview).toHaveBeenCalledWith({ window: '24h' });
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
-    expect(wrapper.text()).toContain('Recent Failed Authentication');
-    expect(wrapper.text()).toContain('Recent Permission Denied');
-    expect(wrapper.text()).toContain('Recent Sensitive Operations');
+    expect(wrapper.text()).toContain('Security Audit Overview');
+    expect(wrapper.text()).toContain('excluding health checks, monitor polling, and page-load noise');
+    expect(wrapper.text()).toContain('Recent Authentication Failures');
+    expect(wrapper.text()).toContain('Recent Permission Denials');
+    expect(wrapper.text()).toContain('Recent Sensitive Audit Events');
     expect(wrapper.text()).toContain('Quick Links');
     expect(wrapper.text()).toContain('Refresh');
 

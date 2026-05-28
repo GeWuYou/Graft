@@ -106,21 +106,22 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	}
 
 	routeAuthorizer := authorizer{rbac: repository}
+	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, pluginID)
 	registerManagementRoutes(
 		ctx,
 		p.Name(),
 		readService,
 		writeService,
 		managementGuards{
-			roleRead:             httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleReadPermission.String()),
-			permissionRead:       httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.PermissionReadPermission.String()),
-			roleCreate:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleCreatePermission.String()),
-			roleUpdate:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleUpdatePermission.String()),
-			roleStatus:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleStatusUpdatePermission.String()),
-			roleDelete:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleDeletePermission.String()),
-			rolePermissionAssign: httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RolePermissionAssignPermission.String()),
-			userRoleRead:         httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleReadPermission.String()),
-			userRoleAssign:       httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleAssignPermission.String()),
+			roleRead:             httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleReadPermission.String(), publisher),
+			permissionRead:       httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.PermissionReadPermission.String(), publisher),
+			roleCreate:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleCreatePermission.String(), publisher),
+			roleUpdate:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleUpdatePermission.String(), publisher),
+			roleStatus:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleStatusUpdatePermission.String(), publisher),
+			roleDelete:           httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RoleDeletePermission.String(), publisher),
+			rolePermissionAssign: httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.RolePermissionAssignPermission.String(), publisher),
+			userRoleRead:         httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleReadPermission.String(), publisher),
+			userRoleAssign:       httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleAssignPermission.String(), publisher),
 		},
 	)
 

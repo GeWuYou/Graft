@@ -14,12 +14,14 @@ type stubAuditRepository struct {
 	createdInput auditstore.CreateAuditLogInput
 	listQuery    auditstore.ListAuditLogsQuery
 	overviewWnd  auditstore.OverviewWindow
+	policyRules  []auditstore.AuditPolicyRule
 	createResult auditstore.AuditLog
 	listResult   auditstore.ListAuditLogsResult
 	overview     auditstore.AuditOverview
 	createErr    error
 	listErr      error
 	overviewErr  error
+	policyErr    error
 }
 
 func (r *stubAuditRepository) CreateAuditLog(_ context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
@@ -47,6 +49,13 @@ func (r *stubAuditRepository) ReadAuditOverview(_ context.Context, window audits
 		return auditstore.AuditOverview{}, r.overviewErr
 	}
 	return r.overview, nil
+}
+
+func (r *stubAuditRepository) ListAuditPolicyRules(_ context.Context) ([]auditstore.AuditPolicyRule, error) {
+	if r.policyErr != nil {
+		return nil, r.policyErr
+	}
+	return append([]auditstore.AuditPolicyRule(nil), r.policyRules...), nil
 }
 
 func TestServiceRecordSanitizesSensitiveFields(t *testing.T) {
@@ -206,5 +215,191 @@ func TestServiceOverviewDelegatesWindowWithoutNormalization(t *testing.T) {
 	}
 	if repo.overviewWnd != "custom" {
 		t.Fatalf("expected raw window to be delegated, got %q", repo.overviewWnd)
+	}
+}
+
+func TestServiceRecordCandidateAppliesMatchingPolicy(t *testing.T) {
+	repo := &stubAuditRepository{
+		policyRules: []auditstore.AuditPolicyRule{
+			{
+				ID:        7,
+				Name:      "domain.user.create",
+				Source:    auditstore.AuditSourceDomainEvent,
+				Enabled:   true,
+				Priority:  10,
+				Effect:    auditstore.AuditPolicyEffectInclude,
+				EventType: "user.create",
+				MatchType: auditstore.AuditPolicyMatchTypeExact,
+				CreatedAt: time.Now().UTC(),
+				UpdatedAt: time.Now().UTC(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	actorID := uint64(9)
+	record, recorded, err := service.RecordCandidate(context.Background(), auditstore.AuditCandidate{
+		Source:           auditstore.AuditSourceDomainEvent,
+		ActorUserID:      &actorID,
+		ActorUsername:    "bob",
+		ActorDisplayName: "Bob",
+		Action:           "user.create",
+		EventType:        "user.create",
+		ResourceType:     "user",
+		ResourceID:       "9",
+		RequestID:        "req-9",
+		Success:          true,
+		Message:          "created",
+	})
+	if err != nil {
+		t.Fatalf("record candidate: %v", err)
+	}
+	if !recorded {
+		t.Fatal("expected candidate to be recorded")
+	}
+	if record.ID == 0 || repo.createdInput.Action != "user.create" {
+		t.Fatalf("unexpected persisted record %#v %#v", record, repo.createdInput)
+	}
+}
+
+func TestServiceRecordCandidateSkipsUnmatchedPolicy(t *testing.T) {
+	repo := &stubAuditRepository{
+		policyRules: []auditstore.AuditPolicyRule{
+			{
+				Name:        "request.login",
+				Source:      auditstore.AuditSourceRequest,
+				Enabled:     true,
+				Priority:    10,
+				Effect:      auditstore.AuditPolicyEffectInclude,
+				Method:      "POST",
+				PathPattern: "/api/auth/login",
+				MatchType:   auditstore.AuditPolicyMatchTypeExact,
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, recorded, err := service.RecordCandidate(context.Background(), auditstore.AuditCandidate{
+		Source:        auditstore.AuditSourceRequest,
+		Action:        "GET /api/users/:id",
+		RequestMethod: "GET",
+		RequestPath:   "/api/users/:id",
+		Success:       true,
+	})
+	if err != nil {
+		t.Fatalf("record candidate: %v", err)
+	}
+	if recorded {
+		t.Fatal("expected candidate to be skipped")
+	}
+	if repo.createdInput.Action != "" {
+		t.Fatalf("expected no record write, got %#v", repo.createdInput)
+	}
+}
+
+func TestServiceRecordCandidateSkipsExcludedPolicy(t *testing.T) {
+	repo := &stubAuditRepository{
+		policyRules: []auditstore.AuditPolicyRule{
+			{
+				Name:        "request.monitor.exclude",
+				Source:      auditstore.AuditSourceRequest,
+				Enabled:     true,
+				Priority:    1,
+				Effect:      auditstore.AuditPolicyEffectExclude,
+				Method:      "GET",
+				PathPattern: "/api/monitor",
+				MatchType:   auditstore.AuditPolicyMatchTypePrefix,
+			},
+			{
+				Name:        "request.monitor.include.fallback",
+				Source:      auditstore.AuditSourceRequest,
+				Enabled:     true,
+				Priority:    20,
+				Effect:      auditstore.AuditPolicyEffectInclude,
+				Method:      "GET",
+				PathPattern: "/api/monitor/server-status",
+				MatchType:   auditstore.AuditPolicyMatchTypeExact,
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, recorded, err := service.RecordCandidate(context.Background(), auditstore.AuditCandidate{
+		Source:        auditstore.AuditSourceRequest,
+		Action:        "GET /api/monitor/server-status",
+		RequestMethod: "GET",
+		RequestPath:   "/api/monitor/server-status",
+		Success:       true,
+	})
+	if err != nil {
+		t.Fatalf("record candidate: %v", err)
+	}
+	if recorded {
+		t.Fatal("expected candidate to be excluded")
+	}
+	if repo.createdInput.Action != "" {
+		t.Fatalf("expected no record write, got %#v", repo.createdInput)
+	}
+}
+
+func TestServiceRecordCandidateWritesPolicyDecisionMetadata(t *testing.T) {
+	repo := &stubAuditRepository{
+		policyRules: []auditstore.AuditPolicyRule{
+			{
+				ID:        11,
+				Name:      "security.auth.permission_denied",
+				Source:    auditstore.AuditSourceSecurityEvent,
+				Enabled:   true,
+				Priority:  10,
+				Effect:    auditstore.AuditPolicyEffectInclude,
+				EventType: "auth.permission.denied",
+				MatchType: auditstore.AuditPolicyMatchTypeExact,
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, recorded, err := service.RecordCandidate(context.Background(), auditstore.AuditCandidate{
+		Source:        auditstore.AuditSourceSecurityEvent,
+		Action:        "auth.permission.denied",
+		EventType:     "auth.permission.denied",
+		RequestMethod: "GET",
+		RequestPath:   "/api/roles",
+		RequestID:     "req-denied",
+		Success:       false,
+		Message:       "auth.forbidden",
+		StatusCode:    403,
+	})
+	if err != nil {
+		t.Fatalf("record candidate: %v", err)
+	}
+	if !recorded {
+		t.Fatal("expected candidate to be recorded")
+	}
+
+	var metadata map[string]any
+	if err := json.Unmarshal(repo.createdInput.Metadata, &metadata); err != nil {
+		t.Fatalf("unmarshal metadata: %v", err)
+	}
+	if metadata["audit_source"] != string(auditstore.AuditSourceSecurityEvent) {
+		t.Fatalf("expected audit source metadata, got %#v", metadata)
+	}
+	if metadata["request_path"] != "/api/roles" {
+		t.Fatalf("expected request path metadata, got %#v", metadata)
+	}
+	if metadata["policy_rule_name"] != "security.auth.permission_denied" {
+		t.Fatalf("expected matched rule metadata, got %#v", metadata)
 	}
 }

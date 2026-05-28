@@ -150,14 +150,15 @@ const i18n = createI18n({
         },
         logList: {
           title: 'Audit Logs',
-          description: 'Query system operation logs and inspect request context.',
+          description:
+            'Query security audit events and inspect request and permission context; health checks, monitor polling, and bootstrap requests are not part of the default audit dataset.',
           refresh: 'Refresh',
           retry: 'Retry',
           detail: 'View Details',
           more: 'More',
-          summary: '{count} records shown',
+          summary: '{count} security audit records shown',
           tableHint: 'Core fields only',
-          footerTotal: '{count} logs total',
+          footerTotal: '{count} audit events total',
           footerFiltered: '{count} records matched on this page',
           currentPageFiltered: 'Current page filter',
           loadFailed: 'Failed to load audit logs',
@@ -167,7 +168,7 @@ const i18n = createI18n({
           detailTitle: 'Audit Detail',
           presets: {
             all: 'All',
-            todayAnomalies: "Today's Anomalies",
+            todayAnomalies: "Today's Security Anomalies",
             permissionDenied: 'Permission Denied',
             sensitiveOps: 'Sensitive Operations',
             authFailed: 'Auth Failed',
@@ -180,11 +181,11 @@ const i18n = createI18n({
             hideAdvanced: 'Hide Advanced',
           },
           filters: {
-            keywordPlaceholder: 'Keyword',
+            keywordPlaceholder: 'Keyword: action, request ID, audit target, operated object',
             actorPlaceholder: 'Actor',
             actionPlaceholder: 'Action type',
             datePlaceholder: 'Time range',
-            resourcePlaceholder: 'Target Object',
+            resourcePlaceholder: 'Audit Target / Target Object / Operated Object',
             resultPlaceholder: 'Result',
             riskPlaceholder: 'Risk',
             sessionPlaceholder: 'Session ID',
@@ -210,7 +211,7 @@ const i18n = createI18n({
           columns: {
             action: 'Action',
             actor: 'Actor',
-            resource: 'Target Object',
+            resource: 'Audit Target',
             result: 'Result',
             risk: 'Risk',
             createdAt: 'Time',
@@ -218,13 +219,14 @@ const i18n = createI18n({
           drawer: {
             messageFallback: 'No additional message',
             sections: {
-              basic: 'Basic Info',
-              request: 'Request Info',
-              correlation: 'Correlation',
+              basic: 'Event Summary',
+              request: 'Request Context',
+              correlation: 'Related Context',
               risk: 'Risk',
               metadata: 'Metadata',
             },
             fields: {
+              target: 'Audit Target',
               result: 'Result',
               requestId: 'Request ID',
               traceId: 'Trace ID',
@@ -239,7 +241,7 @@ const i18n = createI18n({
             related: {
               sameRequest: 'Same Request Chain',
               sameActor: 'Recent Actions by Actor',
-              sameResource: 'Recent Changes on Resource',
+              sameResource: 'Recent Changes on Audit Target',
               empty: 'No more related records in the current list',
             },
             risk: {
@@ -276,7 +278,10 @@ describe('AuditLogsPage', () => {
         result: 'DENIED',
       }),
     );
-    expect(wrapper.text()).toContain('1 records shown');
+    expect(wrapper.text()).toContain('1 security audit records shown');
+    expect(wrapper.text()).toContain(
+      'health checks, monitor polling, and bootstrap requests are not part of the default audit dataset',
+    );
     expect(wrapper.text()).toContain('req-1');
 
     await wrapper.get('[data-testid="audit-detail"]').trigger('click');

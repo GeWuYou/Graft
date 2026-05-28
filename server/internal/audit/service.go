@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -15,6 +16,13 @@ const (
 	defaultPage     = 1
 	defaultPageSize = 20
 	maxPageSize     = 200
+)
+
+var (
+	// ErrNilAuditRepository indicates the service was built without the plugin-owned repository.
+	ErrNilAuditRepository = errors.New("audit repository is required")
+	// ErrAuditServiceUnavailable indicates the service or its repository dependency is unavailable at runtime.
+	ErrAuditServiceUnavailable = errors.New("audit service is unavailable")
 )
 
 // RecordInput describes one audit record write at the service boundary.
@@ -71,7 +79,7 @@ type Service struct {
 // NewService creates the audit service.
 func NewService(repo auditstore.AuditRepository) (*Service, error) {
 	if repo == nil {
-		return nil, errors.New("audit repository is required")
+		return nil, ErrNilAuditRepository
 	}
 
 	return &Service{repo: repo}, nil
@@ -80,7 +88,7 @@ func NewService(repo auditstore.AuditRepository) (*Service, error) {
 // Record writes one audit record after normalizing stable fields and redacting sensitive data.
 func (s *Service) Record(ctx context.Context, input RecordInput) (auditstore.AuditLog, error) {
 	if s == nil || s.repo == nil {
-		return auditstore.AuditLog{}, errors.New("audit service is unavailable")
+		return auditstore.AuditLog{}, ErrAuditServiceUnavailable
 	}
 
 	action := strings.TrimSpace(input.Action)
@@ -117,7 +125,7 @@ func (s *Service) Record(ctx context.Context, input RecordInput) (auditstore.Aud
 // List returns a bounded page of audit records.
 func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error) {
 	if s == nil || s.repo == nil {
-		return ListResult{}, errors.New("audit service is unavailable")
+		return ListResult{}, ErrAuditServiceUnavailable
 	}
 
 	page := query.Page
@@ -192,10 +200,178 @@ func normalizeAuditRiskLevel(level auditstore.AuditRiskLevel) auditstore.AuditRi
 // Overview returns the aggregated overview payload for the selected window.
 func (s *Service) Overview(ctx context.Context, window auditstore.OverviewWindow) (OverviewResult, error) {
 	if s == nil || s.repo == nil {
-		return OverviewResult{}, errors.New("audit service is unavailable")
+		return OverviewResult{}, ErrAuditServiceUnavailable
 	}
 
 	return s.repo.ReadAuditOverview(ctx, window)
+}
+
+// RecordCandidate writes one normalized candidate after policy evaluation approves it.
+func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.AuditCandidate) (auditstore.AuditLog, bool, error) {
+	if s == nil || s.repo == nil {
+		return auditstore.AuditLog{}, false, ErrAuditServiceUnavailable
+	}
+
+	evaluator, err := NewPolicyEvaluator(s.repo)
+	if err != nil {
+		return auditstore.AuditLog{}, false, err
+	}
+
+	decision, err := evaluator.Evaluate(ctx, candidate)
+	if err != nil {
+		return auditstore.AuditLog{}, false, err
+	}
+	if !decision.Matched || !decision.Allowed {
+		return auditstore.AuditLog{}, false, nil
+	}
+
+	record, err := s.Record(ctx, RecordInput{
+		ActorUserID:      candidate.ActorUserID,
+		ActorUsername:    candidate.ActorUsername,
+		ActorDisplayName: candidate.ActorDisplayName,
+		Action:           normalizeCandidateAction(candidate),
+		ResourceType:     candidate.ResourceType,
+		ResourceID:       candidate.ResourceID,
+		ResourceName:     candidate.ResourceName,
+		Success:          candidate.Success,
+		RequestID:        candidate.RequestID,
+		IP:               candidate.IP,
+		UserAgent:        candidate.UserAgent,
+		Message:          candidate.Message,
+		Metadata:         candidateMetadata(candidate, decision),
+		CreatedAt:        candidate.CreatedAt,
+	})
+	if err != nil {
+		return auditstore.AuditLog{}, false, err
+	}
+
+	return record, true, nil
+}
+
+func normalizeCandidateAction(candidate auditstore.AuditCandidate) string {
+	if eventType := strings.TrimSpace(candidate.EventType); eventType != "" {
+		return eventType
+	}
+
+	return strings.TrimSpace(candidate.Action)
+}
+
+func candidateMetadata(candidate auditstore.AuditCandidate, decision auditstore.AuditPolicyDecision) any {
+	metadata := decodeCandidateMetadata(candidate.Metadata)
+	metadata["audit_source"] = candidate.Source
+	metadata["request_method"] = strings.TrimSpace(candidate.RequestMethod)
+	metadata["request_path"] = strings.TrimSpace(candidate.RequestPath)
+	metadata["status_code"] = candidate.StatusCode
+	if traceID := strings.TrimSpace(candidate.TraceID); traceID != "" {
+		metadata["trace_id"] = traceID
+	}
+	if sessionID := strings.TrimSpace(candidate.SessionID); sessionID != "" {
+		metadata["session_id"] = sessionID
+	}
+	if eventType := strings.TrimSpace(candidate.EventType); eventType != "" {
+		metadata["event_type"] = eventType
+	}
+	if targetType := strings.TrimSpace(candidate.TargetType); targetType != "" {
+		metadata["target_type"] = targetType
+	}
+	if decision.Rule != nil {
+		metadata["policy_rule_id"] = decision.Rule.ID
+		metadata["policy_rule_name"] = decision.Rule.Name
+		metadata["policy_effect"] = decision.Rule.Effect
+	}
+	return metadata
+}
+
+func decodeCandidateMetadata(raw json.RawMessage) map[string]any {
+	if len(raw) == 0 {
+		return map[string]any{}
+	}
+
+	var metadata map[string]any
+	if err := json.Unmarshal(raw, &metadata); err != nil || metadata == nil {
+		return map[string]any{}
+	}
+
+	return metadata
+}
+
+func classifyCandidateRiskLevel(candidate auditstore.AuditCandidate) auditstore.AuditRiskLevel {
+	record := auditstore.AuditLog{
+		Action:       normalizeCandidateAction(candidate),
+		Success:      candidate.Success,
+		ResourceType: candidate.ResourceType,
+	}
+	record.Metadata = mustMarshalMetadata(candidateMetadata(candidate, auditstore.AuditPolicyDecision{}))
+	record.RequestPath = candidate.RequestPath
+	record.StatusCode = candidate.StatusCode
+	record.Result = classifyCandidateResult(record, decodeCandidateMetadata(record.Metadata))
+	return classifyCandidateAuditRiskLevel(record)
+}
+
+func mustMarshalMetadata(value any) json.RawMessage {
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return json.RawMessage([]byte("{}"))
+	}
+	return payload
+}
+
+func classifyCandidateResult(record auditstore.AuditLog, metadata map[string]any) auditstore.AuditResult {
+	if record.Success {
+		return auditstore.AuditResultSuccess
+	}
+
+	statusCode := record.StatusCode
+	if statusCode == 0 {
+		if raw, ok := metadata["status_code"]; ok {
+			switch typed := raw.(type) {
+			case float64:
+				statusCode = int(typed)
+			case int:
+				statusCode = typed
+			}
+		}
+	}
+	if statusCode == http.StatusForbidden {
+		return auditstore.AuditResultDenied
+	}
+
+	if errorKind, _ := metadata["error_kind"].(string); statusCode >= http.StatusInternalServerError || strings.TrimSpace(errorKind) == "system" {
+		return auditstore.AuditResultError
+	}
+	if errorText, _ := metadata["error"].(string); strings.TrimSpace(errorText) != "" {
+		return auditstore.AuditResultError
+	}
+
+	return auditstore.AuditResultFailed
+}
+
+func classifyCandidateAuditRiskLevel(record auditstore.AuditLog) auditstore.AuditRiskLevel {
+	action := strings.ToLower(strings.TrimSpace(record.Action))
+
+	if record.Result == auditstore.AuditResultError || record.Result == auditstore.AuditResultDenied {
+		return auditstore.AuditRiskLevelCritical
+	}
+	if containsAny(action, []string{"reset_password", "update_permission", "update_role", "assign_role", "token_revoke"}) {
+		return auditstore.AuditRiskLevelCritical
+	}
+	if record.Result == auditstore.AuditResultFailed || containsAny(action, []string{"delete", "reset", "grant", "assign", "revoke", "remove", "replace", "update_role", "update_permission"}) {
+		return auditstore.AuditRiskLevelHigh
+	}
+	if containsAny(action, []string{"login_failed", "login", "permission", "role", "auth"}) {
+		return auditstore.AuditRiskLevelMedium
+	}
+
+	return auditstore.AuditRiskLevelLow
+}
+
+func containsAny(source string, keywords []string) bool {
+	for _, keyword := range keywords {
+		if strings.Contains(source, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 func sanitizeMetadata(input any) (json.RawMessage, error) {

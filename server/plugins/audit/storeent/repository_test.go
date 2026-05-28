@@ -40,6 +40,24 @@ func openTestDB(t *testing.T) *sql.DB {
 		message TEXT NOT NULL DEFAULT '',
 		metadata TEXT NOT NULL DEFAULT '{}',
 		created_at DATETIME NOT NULL
+	);
+	CREATE TABLE audit_policy_rules (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		description TEXT NOT NULL DEFAULT '',
+		source TEXT NOT NULL DEFAULT '',
+		enabled BOOLEAN NOT NULL DEFAULT 1,
+		priority INTEGER NOT NULL DEFAULT 100,
+		effect TEXT NOT NULL,
+		match_type TEXT NOT NULL DEFAULT 'exact',
+		method TEXT NOT NULL DEFAULT '',
+		path_pattern TEXT NOT NULL DEFAULT '',
+		event_type TEXT NOT NULL DEFAULT '',
+		risk_level TEXT NOT NULL DEFAULT '',
+		target_type TEXT NOT NULL DEFAULT '',
+		condition_expr TEXT NOT NULL DEFAULT '',
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
 	);`
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("create audit schema: %v", err)
@@ -258,6 +276,39 @@ func TestRepositoryReadAuditOverview(t *testing.T) {
 	}
 	if len(overview.SensitiveOps) != 2 {
 		t.Fatalf("unexpected sensitive ops items: %#v", overview.SensitiveOps)
+	}
+}
+
+func TestRepositoryListAuditPolicyRulesOrdersByPriority(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	now := time.Date(2026, 5, 28, 12, 0, 0, 0, time.UTC)
+	if _, err := db.Exec(`
+		INSERT INTO audit_policy_rules (
+			name, description, source, enabled, priority, effect, match_type, method, path_pattern, event_type, risk_level, target_type, condition_expr, created_at, updated_at
+		) VALUES
+			('later', '', 'REQUEST', 1, 20, 'include', 'exact', 'GET', '/api/z', '', '', '', '', ?, ?),
+			('first', '', 'DOMAIN_EVENT', 1, 10, 'include', 'exact', '', '', 'user.create', '', '', '', ?, ?)
+	`, now, now, now, now); err != nil {
+		t.Fatalf("seed policy rules: %v", err)
+	}
+
+	rules, err := repo.ListAuditPolicyRules(context.Background())
+	if err != nil {
+		t.Fatalf("list audit policy rules: %v", err)
+	}
+	if len(rules) != 2 {
+		t.Fatalf("expected 2 rules, got %d", len(rules))
+	}
+	if rules[0].Name != "first" || rules[0].Source != auditstore.AuditSourceDomainEvent {
+		t.Fatalf("unexpected first rule %#v", rules[0])
+	}
+	if rules[1].Method != "GET" || rules[1].PathPattern != "/api/z" {
+		t.Fatalf("unexpected second rule %#v", rules[1])
 	}
 }
 

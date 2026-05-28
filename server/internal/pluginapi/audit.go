@@ -5,6 +5,16 @@ import "time"
 // AuditRecordEventName 是业务插件主动发布审计事件时使用的稳定事件名。
 const AuditRecordEventName = "audit.record"
 
+// AuditEventKind identifies the audit candidate source class published on the bus.
+type AuditEventKind string
+
+const (
+	// AuditEventKindDomain marks business-domain audit events published by plugins.
+	AuditEventKindDomain AuditEventKind = "DOMAIN_EVENT"
+	// AuditEventKindSecurity marks auth/authz security events emitted from request guards.
+	AuditEventKindSecurity AuditEventKind = "SECURITY_EVENT"
+)
+
 // AuditEvent 描述跨插件可发布的最小审计事件载荷。
 //
 // 该 DTO 服务于“主动审计”路径：发布方提供明确业务语义，audit 插件负责
@@ -14,6 +24,7 @@ const AuditRecordEventName = "audit.record"
 // - CreatedAt 为零值时由接收方补齐当前 UTC 时间；非零值会原样保留。
 // - Message 允许为空，通常只在 Success 为 false 时携带稳定失败语义。
 type AuditEvent struct {
+	Kind          AuditEventKind
 	Operator      *CurrentUser
 	Action        string
 	ResourceType  string
@@ -21,6 +32,7 @@ type AuditEvent struct {
 	ResourceName  string
 	RequestMethod string
 	RequestPath   string
+	StatusCode    int
 	RequestID     string
 	IP            string
 	UserAgent     string

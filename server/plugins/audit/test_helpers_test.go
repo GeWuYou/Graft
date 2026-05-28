@@ -19,3 +19,7 @@ func (stubAuditRepository) ListAuditLogs(context.Context, auditstore.ListAuditLo
 func (stubAuditRepository) ReadAuditOverview(context.Context, auditstore.OverviewWindow) (auditstore.AuditOverview, error) {
 	return auditstore.AuditOverview{}, nil
 }
+
+func (stubAuditRepository) ListAuditPolicyRules(context.Context) ([]auditstore.AuditPolicyRule, error) {
+	return nil, nil
+}
