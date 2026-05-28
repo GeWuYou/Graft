@@ -23,6 +23,8 @@ type associationRelationMixin struct {
 func (m associationRelationMixin) Annotations() []schema.Annotation {
 	return []schema.Annotation{
 		entsqlAnnotation(m.table),
+		entsql.WithComments(true),
+		schema.Comment(associationTableComment(m.table)),
 	}
 }
 

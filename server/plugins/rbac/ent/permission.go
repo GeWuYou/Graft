@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"graft/server/plugins/user/ent/user"
+	"graft/server/plugins/rbac/ent/permission"
 	"strings"
 	"time"
 
@@ -12,23 +12,19 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// 用户基础信息表（用户插件）
-type User struct {
+// 权限点信息表（RBAC 插件）
+type Permission struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
-	// 用户名，用于登录和唯一标识
-	Username string `json:"username,omitempty"`
-	// 显示名称，用于后台展示
+	// 权限点编码，采用点分层级格式
+	Code string `json:"code,omitempty"`
+	// 权限点显示名称
 	Display string `json:"display,omitempty"`
-	// 状态：enabled 启用，disabled 禁用
-	Status string `json:"status,omitempty"`
-	// 密码哈希值
-	PasswordHash *string `json:"-"`
-	// 是否必须在下次登录后修改密码
-	MustChangePassword bool `json:"must_change_password,omitempty"`
-	// 最近一次修改密码时间
-	PasswordChangedAt *time.Time `json:"password_changed_at,omitempty"`
+	// 权限点描述
+	Description *string `json:"description,omitempty"`
+	// 权限类别：api 表示接口权限
+	Category string `json:"category,omitempty"`
 	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 创建人用户 ID，0 表示系统
@@ -42,41 +38,39 @@ type User struct {
 	// 删除人用户 ID，0 表示未删除
 	DeletedBy uint64 `json:"deleted_by,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
-	// The values are being populated by the UserQuery when eager-loading is set.
-	Edges        UserEdges `json:"edges"`
+	// The values are being populated by the PermissionQuery when eager-loading is set.
+	Edges        PermissionEdges `json:"edges"`
 	selectValues sql.SelectValues
 }
 
-// UserEdges holds the relations/edges for other nodes in the graph.
-type UserEdges struct {
-	// RefreshSessions holds the value of the refresh_sessions edge.
-	RefreshSessions []*RefreshSession `json:"refresh_sessions,omitempty"`
+// PermissionEdges holds the relations/edges for other nodes in the graph.
+type PermissionEdges struct {
+	// RolePermissions holds the value of the role_permissions edge.
+	RolePermissions []*RolePermission `json:"role_permissions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
 }
 
-// RefreshSessionsOrErr returns the RefreshSessions value or an error if the edge
+// RolePermissionsOrErr returns the RolePermissions value or an error if the edge
 // was not loaded in eager-loading.
-func (e UserEdges) RefreshSessionsOrErr() ([]*RefreshSession, error) {
+func (e PermissionEdges) RolePermissionsOrErr() ([]*RolePermission, error) {
 	if e.loadedTypes[0] {
-		return e.RefreshSessions, nil
+		return e.RolePermissions, nil
 	}
-	return nil, &NotLoadedError{edge: "refresh_sessions"}
+	return nil, &NotLoadedError{edge: "role_permissions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*User) scanValues(columns []string) ([]any, error) {
+func (*Permission) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldMustChangePassword:
-			values[i] = new(sql.NullBool)
-		case user.FieldID, user.FieldCreatedBy, user.FieldUpdatedBy, user.FieldDeletedAt, user.FieldDeletedBy:
+		case permission.FieldID, permission.FieldCreatedBy, permission.FieldUpdatedBy, permission.FieldDeletedAt, permission.FieldDeletedBy:
 			values[i] = new(sql.NullInt64)
-		case user.FieldUsername, user.FieldDisplay, user.FieldStatus, user.FieldPasswordHash:
+		case permission.FieldCode, permission.FieldDisplay, permission.FieldDescription, permission.FieldCategory:
 			values[i] = new(sql.NullString)
-		case user.FieldPasswordChangedAt, user.FieldCreatedAt, user.FieldUpdatedAt:
+		case permission.FieldCreatedAt, permission.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -86,88 +80,75 @@ func (*User) scanValues(columns []string) ([]any, error) {
 }
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
-// to the User fields.
-func (_m *User) assignValues(columns []string, values []any) error {
+// to the Permission fields.
+func (_m *Permission) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldID:
+		case permission.FieldID:
 			value, ok := values[i].(*sql.NullInt64)
 			if !ok {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int(value.Int64)
-		case user.FieldUsername:
+		case permission.FieldCode:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field username", values[i])
+				return fmt.Errorf("unexpected type %T for field code", values[i])
 			} else if value.Valid {
-				_m.Username = value.String
+				_m.Code = value.String
 			}
-		case user.FieldDisplay:
+		case permission.FieldDisplay:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field display", values[i])
 			} else if value.Valid {
 				_m.Display = value.String
 			}
-		case user.FieldStatus:
+		case permission.FieldDescription:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field status", values[i])
+				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
-				_m.Status = value.String
+				_m.Description = new(string)
+				*_m.Description = value.String
 			}
-		case user.FieldPasswordHash:
+		case permission.FieldCategory:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field password_hash", values[i])
+				return fmt.Errorf("unexpected type %T for field category", values[i])
 			} else if value.Valid {
-				_m.PasswordHash = new(string)
-				*_m.PasswordHash = value.String
+				_m.Category = value.String
 			}
-		case user.FieldMustChangePassword:
-			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field must_change_password", values[i])
-			} else if value.Valid {
-				_m.MustChangePassword = value.Bool
-			}
-		case user.FieldPasswordChangedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field password_changed_at", values[i])
-			} else if value.Valid {
-				_m.PasswordChangedAt = new(time.Time)
-				*_m.PasswordChangedAt = value.Time
-			}
-		case user.FieldCreatedAt:
+		case permission.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
 			}
-		case user.FieldCreatedBy:
+		case permission.FieldCreatedBy:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field created_by", values[i])
 			} else if value.Valid {
 				_m.CreatedBy = uint64(value.Int64)
 			}
-		case user.FieldUpdatedAt:
+		case permission.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case user.FieldUpdatedBy:
+		case permission.FieldUpdatedBy:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_by", values[i])
 			} else if value.Valid {
 				_m.UpdatedBy = uint64(value.Int64)
 			}
-		case user.FieldDeletedAt:
+		case permission.FieldDeletedAt:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
 			} else if value.Valid {
 				_m.DeletedAt = value.Int64
 			}
-		case user.FieldDeletedBy:
+		case permission.FieldDeletedBy:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field deleted_by", values[i])
 			} else if value.Valid {
@@ -180,58 +161,53 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	return nil
 }
 
-// Value returns the ent.Value that was dynamically selected and assigned to the User.
+// Value returns the ent.Value that was dynamically selected and assigned to the Permission.
 // This includes values selected through modifiers, order, etc.
-func (_m *User) Value(name string) (ent.Value, error) {
+func (_m *Permission) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryRefreshSessions queries the "refresh_sessions" edge of the User entity.
-func (_m *User) QueryRefreshSessions() *RefreshSessionQuery {
-	return NewUserClient(_m.config).QueryRefreshSessions(_m)
+// QueryRolePermissions queries the "role_permissions" edge of the Permission entity.
+func (_m *Permission) QueryRolePermissions() *RolePermissionQuery {
+	return NewPermissionClient(_m.config).QueryRolePermissions(_m)
 }
 
-// Update returns a builder for updating this User.
-// Note that you need to call User.Unwrap() before calling this method if this User
+// Update returns a builder for updating this Permission.
+// Note that you need to call Permission.Unwrap() before calling this method if this Permission
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (_m *User) Update() *UserUpdateOne {
-	return NewUserClient(_m.config).UpdateOne(_m)
+func (_m *Permission) Update() *PermissionUpdateOne {
+	return NewPermissionClient(_m.config).UpdateOne(_m)
 }
 
-// Unwrap unwraps the User entity that was returned from a transaction after it was closed,
+// Unwrap unwraps the Permission entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (_m *User) Unwrap() *User {
+func (_m *Permission) Unwrap() *Permission {
 	_tx, ok := _m.config.driver.(*txDriver)
 	if !ok {
-		panic("ent: User is not a transactional entity")
+		panic("ent: Permission is not a transactional entity")
 	}
 	_m.config.driver = _tx.drv
 	return _m
 }
 
 // String implements the fmt.Stringer.
-func (_m *User) String() string {
+func (_m *Permission) String() string {
 	var builder strings.Builder
-	builder.WriteString("User(")
+	builder.WriteString("Permission(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
-	builder.WriteString("username=")
-	builder.WriteString(_m.Username)
+	builder.WriteString("code=")
+	builder.WriteString(_m.Code)
 	builder.WriteString(", ")
 	builder.WriteString("display=")
 	builder.WriteString(_m.Display)
 	builder.WriteString(", ")
-	builder.WriteString("status=")
-	builder.WriteString(_m.Status)
-	builder.WriteString(", ")
-	builder.WriteString("password_hash=<sensitive>")
-	builder.WriteString(", ")
-	builder.WriteString("must_change_password=")
-	builder.WriteString(fmt.Sprintf("%v", _m.MustChangePassword))
-	builder.WriteString(", ")
-	if v := _m.PasswordChangedAt; v != nil {
-		builder.WriteString("password_changed_at=")
-		builder.WriteString(v.Format(time.ANSIC))
+	if v := _m.Description; v != nil {
+		builder.WriteString("description=")
+		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("category=")
+	builder.WriteString(_m.Category)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
@@ -254,5 +230,5 @@ func (_m *User) String() string {
 	return builder.String()
 }
 
-// Users is a parsable slice of User.
-type Users []*User
+// Permissions is a parsable slice of Permission.
+type Permissions []*Permission

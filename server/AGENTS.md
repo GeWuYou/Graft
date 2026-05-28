@@ -380,6 +380,12 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - schema 变化必须通过显式 Ent 生成与显式 migration 流程落地，不允许靠 runtime 自动同步数据库
 - `graft migrate up` 是显式迁移入口；`graft serve` 不得隐式修改 schema
 - migration 文件必须保持可审计、可回放、可按版本追踪；不要把业务初始化偷偷塞进不可追踪的启动逻辑
+- 当前默认 migration 链中的每张 live 表都必须有中文表注释，每个 live 列都必须有中文列注释
+- `plugins/<name>/ent/schema/**` 是当前数据库注释治理的上游真相之一；新增表必须补 `schema.Comment(...)`，新增列必须补 `field.Comment(...)`
+- 表级 Ent 注释应同时开启对应 SQL comment 输出能力，例如结合 `entsql.WithComments(true)` 使用
+- migration SQL 必须显式落 `COMMENT ON TABLE` 与 `COMMENT ON COLUMN`，不能只在 Ent schema 中声明而不写入版本化迁移
+- 数据库注释必须表达真实业务语义；禁止字段名直译、空泛注释、中英混写或与实际枚举/状态语义不一致
+- `server/internal/ent/migrate/migrations/**` 属于 archived/manual replay legacy，不是当前数据库注释治理的权威来源；默认不在该目录补注释
 - 一个 migration 只能修改：
   - 当前 owner 拥有的表
   - 或 core-owned 表
@@ -410,6 +416,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - 通过现有显式 migration 流程生成或更新 migration 文件
 - 对受影响的 Ent 包运行最小直接 `go test`
 - `cd server && go test ./...`
+- 检查默认 migration 链中的 live 表/列注释是否完整
 
 不要声称 schema 已完成治理但缺少生成结果或 migration 对应更新。若未来需要恢复 core-owned Ent 生成入口，必须先在文档中显式声明该路径，而不是静默复活 `internal/ent/**`。
 

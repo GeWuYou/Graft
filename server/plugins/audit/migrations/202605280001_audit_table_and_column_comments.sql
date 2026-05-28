@@ -1,0 +1,16 @@
+COMMENT ON TABLE "audit_logs" IS '审计日志表（审计插件）';
+COMMENT ON COLUMN "audit_logs"."id" IS '主键 ID';
+COMMENT ON COLUMN "audit_logs"."action" IS '审计动作标识';
+COMMENT ON COLUMN "audit_logs"."resource_type" IS '资源类型';
+COMMENT ON COLUMN "audit_logs"."resource_id" IS '资源 ID';
+COMMENT ON COLUMN "audit_logs"."ip" IS '请求来源 IP 地址';
+COMMENT ON COLUMN "audit_logs"."user_agent" IS '请求客户端标识';
+COMMENT ON COLUMN "audit_logs"."success" IS '是否执行成功';
+COMMENT ON COLUMN "audit_logs"."created_at" IS '创建时间';
+COMMENT ON COLUMN "audit_logs"."actor_user_id" IS '操作人用户 ID，为空表示匿名或无法识别';
+COMMENT ON COLUMN "audit_logs"."actor_display_name" IS '操作人显示名称';
+COMMENT ON COLUMN "audit_logs"."message" IS '审计结果说明或错误信息';
+COMMENT ON COLUMN "audit_logs"."actor_username" IS '操作人用户名';
+COMMENT ON COLUMN "audit_logs"."resource_name" IS '资源名称';
+COMMENT ON COLUMN "audit_logs"."request_id" IS '请求 ID';
+COMMENT ON COLUMN "audit_logs"."metadata" IS '扩展审计元数据，使用 JSON 对象存储';

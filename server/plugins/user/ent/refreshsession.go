@@ -13,24 +13,24 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// RefreshSession is the model entity for the RefreshSession schema.
+// 刷新令牌会话表（用户插件）
 type RefreshSession struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
-	// UserID holds the value of the "user_id" field.
+	// 所属用户 ID
 	UserID int `json:"user_id,omitempty"`
-	// TokenID holds the value of the "token_id" field.
+	// 刷新令牌唯一标识
 	TokenID string `json:"token_id,omitempty"`
-	// ExpiresAt holds the value of the "expires_at" field.
+	// 过期时间
 	ExpiresAt time.Time `json:"expires_at,omitempty"`
-	// RevokedAt holds the value of the "revoked_at" field.
+	// 撤销时间，为空表示未撤销
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`
-	// ReplacedByTokenID holds the value of the "replaced_by_token_id" field.
+	// 轮换后替换当前令牌的新令牌 ID
 	ReplacedByTokenID *string `json:"replaced_by_token_id,omitempty"`
-	// CreatedAt holds the value of the "created_at" field.
+	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
-	// UpdatedAt holds the value of the "updated_at" field.
+	// 更新时间
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the RefreshSessionQuery when eager-loading is set.

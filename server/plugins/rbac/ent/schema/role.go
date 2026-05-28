@@ -19,6 +19,8 @@ type Role struct {
 func (Role) Annotations() []schema.Annotation {
 	return []schema.Annotation{
 		entsql.Annotation{Table: "roles"},
+		schema.Comment("角色信息表（RBAC 插件）"),
+		entsql.WithComments(true),
 	}
 }
 
@@ -26,29 +28,39 @@ func (Role) Annotations() []schema.Annotation {
 func (Role) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name").
+			Comment("角色标识名称，用于唯一识别角色").
 			NotEmpty().
 			Unique(),
 		field.String("display").
+			Comment("角色显示名称").
 			NotEmpty(),
 		field.String("description").
+			Comment("角色描述").
 			Optional().
 			Nillable(),
 		field.Bool("builtin").
+			Comment("是否为系统内置角色").
 			Default(false),
 		field.Time("created_at").
+			Comment("创建时间").
 			Immutable().
 			Default(time.Now),
 		field.Uint64("created_by").
+			Comment("创建人用户 ID，0 表示系统").
 			Immutable().
 			Default(0),
 		field.Time("updated_at").
+			Comment("更新时间").
 			Default(time.Now).
 			UpdateDefault(time.Now),
 		field.Uint64("updated_by").
+			Comment("最后更新人用户 ID，0 表示系统").
 			Default(0),
 		field.Int64("deleted_at").
+			Comment("软删除时间戳，0 表示未删除").
 			Default(0),
 		field.Uint64("deleted_by").
+			Comment("删除人用户 ID，0 表示未删除").
 			Default(0),
 	}
 }

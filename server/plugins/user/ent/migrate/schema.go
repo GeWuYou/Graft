@@ -12,17 +12,18 @@ var (
 	// RefreshSessionsColumns holds the columns for the "refresh_sessions" table.
 	RefreshSessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "token_id", Type: field.TypeString, Unique: true},
-		{Name: "expires_at", Type: field.TypeTime},
-		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
-		{Name: "replaced_by_token_id", Type: field.TypeString, Nullable: true},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "user_id", Type: field.TypeInt},
+		{Name: "token_id", Type: field.TypeString, Unique: true, Comment: "刷新令牌唯一标识"},
+		{Name: "expires_at", Type: field.TypeTime, Comment: "过期时间"},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true, Comment: "撤销时间，为空表示未撤销"},
+		{Name: "replaced_by_token_id", Type: field.TypeString, Nullable: true, Comment: "轮换后替换当前令牌的新令牌 ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "user_id", Type: field.TypeInt, Comment: "所属用户 ID"},
 	}
 	// RefreshSessionsTable holds the schema information for the "refresh_sessions" table.
 	RefreshSessionsTable = &schema.Table{
 		Name:       "refresh_sessions",
+		Comment:    "刷新令牌会话表（用户插件）",
 		Columns:    RefreshSessionsColumns,
 		PrimaryKey: []*schema.Column{RefreshSessionsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
@@ -49,22 +50,23 @@ var (
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "username", Type: field.TypeString, Unique: true},
-		{Name: "display", Type: field.TypeString},
-		{Name: "status", Type: field.TypeString, Default: "enabled"},
-		{Name: "password_hash", Type: field.TypeString, Nullable: true},
-		{Name: "must_change_password", Type: field.TypeBool, Default: false},
-		{Name: "password_changed_at", Type: field.TypeTime, Nullable: true},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "created_by", Type: field.TypeUint64, Default: 0},
-		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "updated_by", Type: field.TypeUint64, Default: 0},
-		{Name: "deleted_at", Type: field.TypeInt64, Default: 0},
-		{Name: "deleted_by", Type: field.TypeUint64, Default: 0},
+		{Name: "username", Type: field.TypeString, Unique: true, Comment: "用户名，用于登录和唯一标识"},
+		{Name: "display", Type: field.TypeString, Comment: "显示名称，用于后台展示"},
+		{Name: "status", Type: field.TypeString, Comment: "状态：enabled 启用，disabled 禁用", Default: "enabled"},
+		{Name: "password_hash", Type: field.TypeString, Nullable: true, Comment: "密码哈希值"},
+		{Name: "must_change_password", Type: field.TypeBool, Comment: "是否必须在下次登录后修改密码", Default: false},
+		{Name: "password_changed_at", Type: field.TypeTime, Nullable: true, Comment: "最近一次修改密码时间"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "created_by", Type: field.TypeUint64, Comment: "创建人用户 ID，0 表示系统", Default: 0},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "updated_by", Type: field.TypeUint64, Comment: "最后更新人用户 ID，0 表示系统", Default: 0},
+		{Name: "deleted_at", Type: field.TypeInt64, Comment: "软删除时间戳，0 表示未删除", Default: 0},
+		{Name: "deleted_by", Type: field.TypeUint64, Comment: "删除人用户 ID，0 表示未删除", Default: 0},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
 		Name:       "users",
+		Comment:    "用户基础信息表（用户插件）",
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
 	}
@@ -79,5 +81,8 @@ func init() {
 	RefreshSessionsTable.ForeignKeys[0].RefTable = UsersTable
 	RefreshSessionsTable.Annotation = &entsql.Annotation{
 		Table: "refresh_sessions",
+	}
+	UsersTable.Annotation = &entsql.Annotation{
+		Table: "users",
 	}
 }
