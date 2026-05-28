@@ -12,16 +12,7 @@ Overlay note:
 
 ## Active Topics
 
-- `request-correlation-access-logging`
-  - Status: `active`
-  - Task class: `server`
-  - Recovery status: active implementation topic for Phase 1 logging-governance follow-up.
-  - Goal: implement global request correlation and structured access logging while preserving `zap` as the backend
-    application logger baseline.
-  - Recovery docs:
-    - `ai-plan/public/request-correlation-access-logging/README.md`
-    - `ai-plan/public/request-correlation-access-logging/todos/request-correlation-access-logging-tracking.md`
-    - `ai-plan/public/request-correlation-access-logging/traces/request-correlation-access-logging-trace.md`
+- none
 
 ## Archived Topics
 
@@ -43,6 +34,29 @@ Overlay note:
     - OpenTelemetry, remote frontend telemetry, and request-log productization remain future scope, not archive
       blockers
   - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat logging-governance as archived design evidence and open a new bounded implementation topic if logging changes are needed.`
+
+- `logging-unification-rollout`
+  - Status: `archive-ready`
+  - Recovery status: completed bounded rollout for MVP logging closure; no further continuation required inside this
+    topic unless a new bounded follow-up is opened.
+  - Archive reason: completed the remaining in-scope logging unification work after archived `logging-governance` and
+    archive-ready `request-correlation-access-logging`, then passed bounded backend and web validation.
+  - Final result:
+    - backend CLI fatal paths now use the shared `zap` logger baseline through `server/internal/logger`
+    - Ent debug defaults in owned scope no longer fall back to stdlib `log.Println`
+    - security-event metadata now lands with a canonical request/trace/actor/route field dictionary while preserving
+      current legacy audit aliases
+    - frontend now has shell-owned global error sinks plus default route/request-correlation logger context
+  - Follow-up status: `new-topic-only`
+  - Archived topic directory:
+    - `ai-plan/public/logging-unification-rollout`
+  - Archive notes:
+    - `traceId` still intentionally aliases `requestId` in MVP; no separate tracing platform was introduced
+    - plugin-owned domain audit paths still contain some manual request-id injection outside this topic's allowed
+      scope; this remained a documented non-goal for the bounded rollout rather than a reopened authority drift inside
+      owned scope
+    - metrics stays an explicit future boundary; this topic did not backfill metrics by parsing logs
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat logging-unification-rollout as archive-ready evidence; open a new bounded topic only if plugin-owned domain audit context or a future metrics/tracing platform needs work.`
 
 - `audit-plugin-mvp`
   - Status: `archived`
@@ -211,11 +225,15 @@ Overlay note:
     - no standing feature ownership; archived governance evidence remains under `ai-plan/public/logging-governance/**`
       and the temporary assessment output under `temp/logging-governance-assessment.md`
 - Worktree: `feat/wt-audit-plugin-mvp`
-  - Branch: `feat/request-correlation-access-logging`
-  - Active topic: `request-correlation-access-logging`
-  - Archived topic history: `logging-governance`
-  - Role: bounded backend implementation worktree for Phase 1 logging-governance follow-up covering global request
-    correlation and structured access logging
+  - Branch: `feat/logging-unification-rollout`
+  - Active topic: none
+  - Archived topic history:
+    - `logging-governance`
+    - `logging-unification-rollout`
+  - Recovery dependency:
+    - archive-ready `request-correlation-access-logging`
+  - Role: retained worktree state for the archive-ready MVP logging closure rollout after request correlation and
+    structured access logging landed
   - Hotspot policy:
-    - active topic owns `ai-plan/public/request-correlation-access-logging/**`
+    - no standing feature ownership; `ai-plan/public/logging-unification-rollout/**` remains historical recovery evidence
     - archived governance evidence remains under `ai-plan/public/logging-governance/**`

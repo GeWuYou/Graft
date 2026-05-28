@@ -173,4 +173,34 @@ describe('createLogger', () => {
     );
     expect(transportLog.mock.calls[0]?.[0]).not.toHaveProperty('error');
   });
+
+  it('merges global context ahead of logger-local context and per-call meta', async () => {
+    vi.stubEnv('DEV', true);
+    vi.stubEnv('PROD', false);
+    vi.stubEnv('VITE_LOG_LEVEL', 'debug');
+
+    const { createLogger, patchGlobalLoggerContext } = await loadLoggerModule();
+    patchGlobalLoggerContext({
+      route: '/roles',
+      requestId: 'req-7',
+    });
+
+    createLogger('request')
+      .withContext({
+        requestId: 'req-local',
+      })
+      .info('merged context', {
+        traceId: 'trace-7',
+      });
+
+    expect(transportLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meta: {
+          route: '/roles',
+          requestId: 'req-local',
+          traceId: 'trace-7',
+        },
+      }),
+    );
+  });
 });

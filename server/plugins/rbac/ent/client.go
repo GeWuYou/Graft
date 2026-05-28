@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
+	"strings"
 
 	"graft/server/plugins/rbac/ent/migrate"
 
@@ -20,6 +20,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"go.uber.org/zap"
 )
 
 // Client is the client that holds all ent builders.
@@ -72,9 +73,22 @@ type (
 
 // newConfig creates a new config for the client.
 func newConfig(opts ...Option) config {
-	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
+	cfg := config{log: defaultDebugLog, hooks: &hooks{}, inters: &inters{}}
 	cfg.options(opts...)
 	return cfg
+}
+
+func defaultDebugLog(args ...any) {
+	message := strings.TrimSpace(fmt.Sprint(args...))
+	if message == "" {
+		return
+	}
+
+	zap.L().Debug("ent debug",
+		zap.String("plugin", "rbac"),
+		zap.String("component", "ent"),
+		zap.String("message", message),
+	)
 }
 
 // options applies the options on the config object.

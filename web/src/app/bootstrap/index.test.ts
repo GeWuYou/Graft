@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const healPersistedState = vi.fn();
+const afterEachMock = vi.fn();
 const registerRouteGuards = vi.fn();
 const registerPermissionDirective = vi.fn();
+const loggerError = vi.fn();
+const patchGlobalLoggerContext = vi.fn();
 const useMock = vi.fn();
 const mountMock = vi.fn();
 
 vi.mock('vue', () => ({
   createApp: () => ({
+    config: {},
     use: useMock,
     mount: mountMock,
   }),
@@ -22,7 +26,14 @@ vi.mock('@/App.vue', () => ({
 }));
 
 vi.mock('@/router', () => ({
-  default: {},
+  default: {
+    currentRoute: {
+      value: {
+        path: '/login',
+      },
+    },
+    afterEach: afterEachMock,
+  },
 }));
 
 vi.mock('@/locales', () => ({
@@ -44,12 +55,24 @@ vi.mock('./permission-directive', () => ({
   registerPermissionDirective,
 }));
 
+vi.mock('@/utils/logger', () => ({
+  createLogger: () => ({
+    withContext: () => ({
+      error: loggerError,
+    }),
+  }),
+  patchGlobalLoggerContext,
+}));
+
 describe('bootstrapApp', () => {
   beforeEach(() => {
     vi.resetModules();
+    afterEachMock.mockReset();
     healPersistedState.mockReset();
     registerRouteGuards.mockReset();
     registerPermissionDirective.mockReset();
+    loggerError.mockReset();
+    patchGlobalLoggerContext.mockReset();
     useMock.mockReset();
     mountMock.mockReset();
   });
@@ -60,6 +83,10 @@ describe('bootstrapApp', () => {
     bootstrapApp();
 
     expect(registerRouteGuards).toHaveBeenCalledTimes(1);
+    expect(afterEachMock).toHaveBeenCalledTimes(1);
+    expect(patchGlobalLoggerContext).toHaveBeenCalledWith({
+      route: '/login',
+    });
     expect(healPersistedState).toHaveBeenCalledTimes(1);
     expect(useMock).toHaveBeenCalledTimes(4);
     expect(registerPermissionDirective).toHaveBeenCalledTimes(1);

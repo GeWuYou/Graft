@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -282,13 +283,25 @@ func (p eventBusSecurityAuditPublisher) Publish(
 		return
 	}
 
+	requestID := EnsureRequestID(ctx)
+	requestPath := currentRequestAuditPath(ctx)
+	metadata = canonicalizeSecurityEventMetadata(
+		metadata,
+		eventType,
+		p.source,
+		requestID,
+		requestPath,
+		strings.TrimSpace(ctx.Request.Method),
+		status,
+	)
+
 	event := pluginapi.AuditEvent{
 		Kind:          pluginapi.AuditEventKindSecurity,
 		Action:        string(eventType),
 		RequestMethod: strings.TrimSpace(ctx.Request.Method),
-		RequestPath:   currentRequestAuditPath(ctx),
+		RequestPath:   requestPath,
 		StatusCode:    status,
-		RequestID:     EnsureRequestID(ctx),
+		RequestID:     requestID,
 		IP:            strings.TrimSpace(ctx.ClientIP()),
 		UserAgent:     strings.TrimSpace(ctx.Request.UserAgent()),
 		Success:       false,
@@ -298,6 +311,8 @@ func (p eventBusSecurityAuditPublisher) Publish(
 	if requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx.Request.Context()); ok && requestAuth.User != nil {
 		user := *requestAuth.User
 		event.Operator = &user
+		event.Metadata["actorId"] = strconv.FormatUint(user.ID, 10)
+		event.Metadata["actorType"] = "user"
 	}
 
 	if err := p.bus.Publish(ctx.Request.Context(), eventbus.Event{
@@ -332,6 +347,39 @@ func cloneSecurityAuditMetadata(metadata map[string]any) map[string]any {
 	for key, value := range metadata {
 		cloned[key] = value
 	}
+	return cloned
+}
+
+func canonicalizeSecurityEventMetadata(
+	metadata map[string]any,
+	eventType securityAuditEventType,
+	source string,
+	requestID string,
+	route string,
+	method string,
+	status int,
+) map[string]any {
+	cloned := cloneSecurityAuditMetadata(metadata)
+	if cloned == nil {
+		cloned = map[string]any{}
+	}
+
+	cloned["requestId"] = requestID
+	cloned["traceId"] = requestID
+	cloned["route"] = route
+	cloned["method"] = method
+	cloned["path"] = route
+	cloned["status"] = status
+	cloned["plugin"] = firstNonEmptyTrimmed(source, "httpx")
+	cloned["component"] = "httpx.authz"
+	cloned["eventType"] = string(eventType)
+	cloned["riskLevel"] = "CRITICAL"
+
+	if permission, ok := cloned["permission"].(string); ok && strings.TrimSpace(permission) != "" {
+		cloned["targetType"] = "permission"
+		cloned["targetId"] = strings.TrimSpace(permission)
+	}
+
 	return cloned
 }
 

@@ -78,7 +78,7 @@ func TestNewServerAppliesGlobalRequestIDAndAccessLog(t *testing.T) {
 	}
 
 	fields := entry.ContextMap()
-	if fields["request_id"] != requestID || fields["trace_id"] != requestID {
+	if fields["requestId"] != requestID || fields["traceId"] != requestID {
 		t.Fatalf("expected request and trace ids to match header, got %#v", fields)
 	}
 	if fields["method"] != http.MethodGet || fields["path"] != "/healthz" || fields["route"] != "/healthz" {
@@ -87,7 +87,7 @@ func TestNewServerAppliesGlobalRequestIDAndAccessLog(t *testing.T) {
 	if fields["status"] != int64(http.StatusNoContent) {
 		t.Fatalf("expected status field, got %#v", fields["status"])
 	}
-	if fields["client_ip"] != "203.0.113.9" || fields["user_agent"] != "httpx-test" {
+	if fields["clientIp"] != "203.0.113.9" || fields["userAgent"] != "httpx-test" {
 		t.Fatalf("expected client metadata fields, got %#v", fields)
 	}
 	if _, ok := fields["latency"]; !ok {

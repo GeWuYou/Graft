@@ -37,6 +37,8 @@ function mergeContext(baseContext: LoggerContext, nextContext: LoggerContext): L
   };
 }
 
+let globalContext: LoggerContext = {};
+
 // context 默认作为结构化字段参与输出；当单次 meta 也是对象时，让单次 meta 覆盖同名 context。
 function mergeMeta(context: LoggerContext, meta: unknown): unknown {
   const hasContext = Object.keys(context).length > 0;
@@ -98,6 +100,10 @@ function createTransport(currentLevel: LogLevel): LoggerTransport {
   return createConsolaTransport();
 }
 
+function resolveGlobalContext(): LoggerContext {
+  return { ...globalContext };
+}
+
 class LoggerCore implements Logger {
   constructor(
     private readonly moduleName: string,
@@ -140,7 +146,8 @@ class LoggerCore implements Logger {
       return;
     }
 
-    const mergedMeta = mergeMeta(this.context, meta);
+    const mergedContext = mergeContext(resolveGlobalContext(), this.context);
+    const mergedMeta = mergeMeta(mergedContext, meta);
     const event: LogEvent = {
       level,
       moduleName: this.moduleName,
@@ -159,4 +166,18 @@ const defaultTransport = createTransport(defaultLogLevel);
 
 export function createLogger(moduleName: string): Logger {
   return new LoggerCore(normalizeModuleSegment(moduleName), defaultLogLevel, defaultTransport);
+}
+
+export function patchGlobalLoggerContext(context: LoggerContext): void {
+  const nextContext: LoggerContext = { ...globalContext };
+
+  Object.entries(context).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      delete nextContext[key];
+      return;
+    }
+    nextContext[key] = value;
+  });
+
+  globalContext = nextContext;
 }

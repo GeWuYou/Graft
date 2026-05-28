@@ -396,8 +396,17 @@ func TestServiceRecordCandidateWritesPolicyDecisionMetadata(t *testing.T) {
 	if metadata["audit_source"] != string(auditstore.AuditSourceSecurityEvent) {
 		t.Fatalf("expected audit source metadata, got %#v", metadata)
 	}
+	if metadata["auditSource"] != string(auditstore.AuditSourceSecurityEvent) {
+		t.Fatalf("expected canonical audit source metadata, got %#v", metadata)
+	}
 	if metadata["request_path"] != "/api/roles" {
 		t.Fatalf("expected request path metadata, got %#v", metadata)
+	}
+	if metadata["route"] != "/api/roles" || metadata["path"] != "/api/roles" {
+		t.Fatalf("expected canonical request identity metadata, got %#v", metadata)
+	}
+	if metadata["requestId"] != "req-denied" || metadata["traceId"] != "req-denied" {
+		t.Fatalf("expected canonical correlation metadata, got %#v", metadata)
 	}
 	if metadata["policy_rule_name"] != "security.auth.permission_denied" {
 		t.Fatalf("expected matched rule metadata, got %#v", metadata)

@@ -20,15 +20,15 @@ func newAccessLogMiddleware(logger *zap.Logger) gin.HandlerFunc {
 		ctx.Next()
 
 		fields := []zap.Field{
-			zap.String("request_id", requestID),
-			zap.String("trace_id", requestID),
+			zap.String("requestId", requestID),
+			zap.String("traceId", requestID),
 			zap.String("method", strings.TrimSpace(ctx.Request.Method)),
 			zap.String("path", currentRequestPath(ctx)),
 			zap.String("route", currentRequestRoute(ctx)),
 			zap.Int("status", ctx.Writer.Status()),
 			zap.Duration("latency", time.Since(startedAt)),
-			zap.String("client_ip", strings.TrimSpace(ctx.ClientIP())),
-			zap.String("user_agent", strings.TrimSpace(ctx.Request.UserAgent())),
+			zap.String("clientIp", strings.TrimSpace(ctx.ClientIP())),
+			zap.String("userAgent", strings.TrimSpace(ctx.Request.UserAgent())),
 		}
 
 		logAccess(logger, ctx.Writer.Status(), fields...)

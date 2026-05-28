@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -258,26 +259,68 @@ func normalizeCandidateAction(candidate auditstore.AuditCandidate) string {
 
 func candidateMetadata(candidate auditstore.AuditCandidate, decision auditstore.AuditPolicyDecision) any {
 	metadata := decodeCandidateMetadata(candidate.Metadata)
-	metadata["audit_source"] = candidate.Source
-	metadata["request_method"] = strings.TrimSpace(candidate.RequestMethod)
-	metadata["request_path"] = strings.TrimSpace(candidate.RequestPath)
-	metadata["status_code"] = candidate.StatusCode
-	if traceID := strings.TrimSpace(candidate.TraceID); traceID != "" {
-		metadata["trace_id"] = traceID
+	requestMethod := firstNonEmptyTrimmed(strings.TrimSpace(candidate.RequestMethod), stringValue(metadata["method"]), stringValue(metadata["request_method"]))
+	requestPath := firstNonEmptyTrimmed(strings.TrimSpace(candidate.RequestPath), stringValue(metadata["route"]), stringValue(metadata["path"]), stringValue(metadata["request_path"]))
+	requestID := firstNonEmptyTrimmed(strings.TrimSpace(candidate.RequestID), stringValue(metadata["requestId"]), stringValue(metadata["request_id"]))
+	traceID := firstNonEmptyTrimmed(strings.TrimSpace(candidate.TraceID), stringValue(metadata["traceId"]), stringValue(metadata["trace_id"]), requestID)
+	eventType := firstNonEmptyTrimmed(strings.TrimSpace(candidate.EventType), stringValue(metadata["eventType"]), stringValue(metadata["event_type"]))
+	targetType := firstNonEmptyTrimmed(strings.TrimSpace(candidate.TargetType), stringValue(metadata["targetType"]), stringValue(metadata["target_type"]))
+	targetID := firstNonEmptyTrimmed(strings.TrimSpace(candidate.ResourceID), stringValue(metadata["targetId"]), stringValue(metadata["target_id"]))
+	status := firstNonZeroInt(candidate.StatusCode, intValue(metadata["status"]), intValue(metadata["status_code"]))
+	actorID := ""
+	if candidate.ActorUserID != nil {
+		actorID = strconv.FormatUint(*candidate.ActorUserID, 10)
 	}
-	if sessionID := strings.TrimSpace(candidate.SessionID); sessionID != "" {
+	actorID = firstNonEmptyTrimmed(actorID, stringValue(metadata["actorId"]), stringValue(metadata["actor_id"]))
+	actorType := firstNonEmptyTrimmed(stringValue(metadata["actorType"]), stringValue(metadata["actor_type"]))
+	if actorType == "" && actorID != "" {
+		actorType = "user"
+	}
+
+	metadata["auditSource"] = string(candidate.Source)
+	metadata["requestId"] = requestID
+	metadata["traceId"] = traceID
+	metadata["method"] = requestMethod
+	metadata["path"] = requestPath
+	metadata["route"] = requestPath
+	metadata["status"] = status
+	if actorID != "" {
+		metadata["actorId"] = actorID
+	}
+	if actorType != "" {
+		metadata["actorType"] = actorType
+	}
+	if eventType != "" {
+		metadata["eventType"] = eventType
+	}
+	if targetType != "" {
+		metadata["targetType"] = targetType
+	}
+	if targetID != "" {
+		metadata["targetId"] = targetID
+	}
+	if sessionID := firstNonEmptyTrimmed(strings.TrimSpace(candidate.SessionID), stringValue(metadata["sessionId"]), stringValue(metadata["session_id"])); sessionID != "" {
+		metadata["sessionId"] = sessionID
 		metadata["session_id"] = sessionID
-	}
-	if eventType := strings.TrimSpace(candidate.EventType); eventType != "" {
-		metadata["event_type"] = eventType
-	}
-	if targetType := strings.TrimSpace(candidate.TargetType); targetType != "" {
-		metadata["target_type"] = targetType
 	}
 	if decision.Rule != nil {
 		metadata["policy_rule_id"] = decision.Rule.ID
 		metadata["policy_rule_name"] = decision.Rule.Name
 		metadata["policy_effect"] = decision.Rule.Effect
+	}
+	metadata["audit_source"] = metadata["auditSource"]
+	metadata["request_method"] = metadata["method"]
+	metadata["request_path"] = metadata["path"]
+	metadata["status_code"] = metadata["status"]
+	metadata["trace_id"] = metadata["traceId"]
+	if eventType != "" {
+		metadata["event_type"] = eventType
+	}
+	if targetType != "" {
+		metadata["target_type"] = targetType
+	}
+	if targetID != "" {
+		metadata["target_id"] = targetID
 	}
 	return metadata
 }
@@ -372,6 +415,47 @@ func containsAny(source string, keywords []string) bool {
 		}
 	}
 	return false
+}
+
+func stringValue(value any) string {
+	typed, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(typed)
+}
+
+func intValue(value any) int {
+	switch typed := value.(type) {
+	case int:
+		return typed
+	case int32:
+		return int(typed)
+	case int64:
+		return int(typed)
+	case float64:
+		return int(typed)
+	default:
+		return 0
+	}
+}
+
+func firstNonZeroInt(values ...int) int {
+	for _, value := range values {
+		if value != 0 {
+			return value
+		}
+	}
+	return 0
+}
+
+func firstNonEmptyTrimmed(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func sanitizeMetadata(input any) (json.RawMessage, error) {

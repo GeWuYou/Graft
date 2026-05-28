@@ -33,6 +33,10 @@ const { mockUserStore, locationReplace } = vi.hoisted(() => ({
   locationReplace: vi.fn(),
 }));
 
+const { patchGlobalLoggerContext } = vi.hoisted(() => ({
+  patchGlobalLoggerContext: vi.fn(),
+}));
+
 const USERS_API_PATH = '/api/users';
 
 vi.mock('axios', () => {
@@ -107,6 +111,10 @@ vi.mock('axios', () => {
     },
   };
 });
+
+vi.mock('@/utils/logger', () => ({
+  patchGlobalLoggerContext,
+}));
 
 async function loadRequestModule() {
   vi.resetModules();

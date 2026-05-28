@@ -4,12 +4,14 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"graft/server/internal/cli"
+	"graft/server/internal/logger"
+
+	"go.uber.org/zap"
 )
 
 // main 执行 Graft 的显式 CLI 入口。
@@ -19,10 +21,17 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	bootstrapLogger := logger.NewBootstrap()
+	defer func() {
+		_ = logger.Close(bootstrapLogger)
+	}()
+
 	if err := cli.NewRootCommand().ExecuteContext(ctx); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return
 		}
-		log.Fatalf("execute graft command: %v", err)
+		bootstrapLogger.Error("execute graft command failed", zap.Error(err))
+		_ = logger.Close(bootstrapLogger)
+		os.Exit(1)
 	}
 }

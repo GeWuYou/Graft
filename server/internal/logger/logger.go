@@ -3,12 +3,19 @@ package logger
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"graft/server/internal/config"
+)
+
+const (
+	bootstrapAppName  = "graft"
+	bootstrapAppEnv   = "local"
+	bootstrapLogLevel = "info"
 )
 
 // New 按运行时配置创建统一的结构化日志实例。
@@ -20,24 +27,58 @@ func New(cfg *config.Config) (*zap.Logger, error) {
 		return nil, errors.New("config is required")
 	}
 
+	logger, err := buildLogger(strings.TrimSpace(cfg.App.Name), strings.TrimSpace(cfg.App.Env), strings.TrimSpace(cfg.Log.Level))
+	if err != nil {
+		return nil, err
+	}
+
+	// runtime logger 是仓库内应用日志的唯一主基线；同步替换 zap 全局 logger，
+	// 让需要全局入口的基础设施不会绕开同一后端。
+	zap.ReplaceGlobals(logger)
+	return logger, nil
+}
+
+// NewBootstrap 创建不依赖完整 runtime config 的早期 CLI logger。
+func NewBootstrap() *zap.Logger {
+	appEnv := strings.TrimSpace(os.Getenv("GRAFT_APP_ENV"))
+	if appEnv == "" {
+		appEnv = bootstrapAppEnv
+	}
+	logLevel := strings.TrimSpace(os.Getenv("GRAFT_LOG_LEVEL"))
+	if logLevel == "" {
+		logLevel = bootstrapLogLevel
+	}
+
+	logger, err := buildLogger(bootstrapAppName, appEnv, logLevel)
+	if err != nil {
+		fallback := zap.NewNop()
+		zap.ReplaceGlobals(fallback)
+		return fallback
+	}
+
+	zap.ReplaceGlobals(logger)
+	return logger
+}
+
+func buildLogger(appName string, appEnv string, logLevel string) (*zap.Logger, error) {
 	zapConfig := zap.NewProductionConfig()
-	if cfg.App.Env == "local" || cfg.App.Env == "test" {
+	if appEnv == "local" || appEnv == "test" {
 		zapConfig = zap.NewDevelopmentConfig()
 		zapConfig.Encoding = "console"
 		zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	}
 
-	level, err := zap.ParseAtomicLevel(strings.TrimSpace(cfg.Log.Level))
+	level, err := zap.ParseAtomicLevel(logLevel)
 	if err != nil {
-		return nil, fmt.Errorf("parse log level %q: %w", cfg.Log.Level, err)
+		return nil, fmt.Errorf("parse log level %q: %w", logLevel, err)
 	}
 	zapConfig.Level = level
 
 	logger, err := zapConfig.Build(
 		zap.AddCaller(),
 		zap.Fields(
-			zap.String("app", cfg.App.Name),
-			zap.String("env", cfg.App.Env),
+			zap.String("app", firstNonEmpty(appName, bootstrapAppName)),
+			zap.String("env", firstNonEmpty(appEnv, bootstrapAppEnv)),
 		),
 	)
 	if err != nil {
@@ -72,4 +113,13 @@ func isIgnorableSyncError(err error) bool {
 	return strings.Contains(message, "invalid argument") ||
 		strings.Contains(message, "bad file descriptor") ||
 		strings.Contains(message, "inappropriate ioctl")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
