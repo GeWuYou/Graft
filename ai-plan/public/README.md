@@ -4,6 +4,12 @@
 list only active topics, and help the current branch or worktree land on the right recovery documents without scanning
 every public artifact.
 
+Overlay note:
+
+- archived topic wording is historical evidence, not current normative governance
+- if archived wording conflicts with current authority-first rules, follow root `AGENTS.md` and current design docs
+- bounded scope continues to forbid unrelated expansion, but never forbids required authority repair
+
 ## Active Topics
 
 - `audit-plugin-mvp`
@@ -14,7 +20,8 @@ every public artifact.
   - Recovery note: this topic now runs from dedicated worktree
     `/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp` on branch `feat/wt-audit-plugin-mvp`; standing
     ownership is centered on `server/plugins/audit/**` and `web/src/modules/audit/**`, while shared-hotspot touches
-    remain serialized exceptions.
+    remain serialized exceptions. This owned scope guides default responsibility, not canonical authority; if future
+    audit drift is traced to upstream authority, escalate and repair there rather than adding downstream compatibility.
 
 ## Archived Topics
 

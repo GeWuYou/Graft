@@ -5,6 +5,12 @@
 它约束后端架构、插件边界、Go 编码、Ent / migration 与 backend 校验链。
 仓库级启动、恢复、提交、协作与跨仓库治理仍以根 `AGENTS.md` 为准；本文件不重复定义那些规则。
 
+authority-first overlay：
+
+- `server` owned scope 表示后端长期实现归属，不表示 `server` 可以单边决定 shared contract 的最终 authority
+- bounded scope forbids unrelated expansion, not required authority repair
+- 如果后端实现发现 drift 来自 OpenAPI source、shared contract、frontend bootstrap 依赖或其它上游 authority，必须升级到正确 authority owner，而不是默认要求另一端兼容
+
 ## 1. 适用范围
 
 适用目录：
@@ -71,6 +77,7 @@
   - 是 `core runtime`
   - 还是某个 `plugin`
   - 还是 `shared-stable-boundary`
+- 归属判断之前，先做 authority discovery，确认当前看到的是 authority 错误还是下游 consumer 偏差
 - 若 owner 无法明确，就先更新治理或设计文档，再写实现
 - 任何新能力都必须先回答：
   - 谁拥有运行时生命周期
@@ -444,6 +451,12 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - `ai-plan/**`
 
 除白名单外，其它目录默认视为 owned scope，不应被多个长期工作树共同持有。
+
+overlay 解释：
+
+- 这些 owned scope / hotspot 规则用于降低长期冲突，不用于阻止必要的 authority escalation
+- 若 authority 位于共享契约、OpenAPI source、compile-time wiring 或跨端 bootstrap 语义，允许通过最小必要 cross-boundary 切片修复
+- 不得把 worktree 隔离语义误用成“由下游 consumer 继续兼容上游 drift”
 
 长期多工作树默认分两类：
 

@@ -125,13 +125,16 @@ The minimum startup preflight is:
 2. read this root `AGENTS.md`
 3. read `.ai/environment/tools.ai.yaml` when it exists; use `.ai/environment/tools.raw.yaml` only when the AI-facing
    summary is missing or insufficient
-4. classify the task as one of:
+4. run authority discovery for the reported problem:
+   - identify the canonical source-of-truth owner before freezing implementation scope
+   - decide whether the observed symptom is local or downstream from an upstream authority drift
+5. classify the task as one of:
    - `server`
    - `web`
    - `cross-boundary`
    - `docs/automation`
-5. read the required subdomain `AGENTS.md` files for the chosen task class
-6. decide whether the current turn needs recovery context from `ai-plan/public/README.md`
+6. read the required subdomain `AGENTS.md` files for the chosen task class
+7. decide whether the current turn needs recovery context from `ai-plan/public/README.md`
 
 The minimum startup receipt is:
 
@@ -141,6 +144,8 @@ The minimum startup receipt is:
   - one of `server` / `web` / `cross-boundary` / `docs/automation`
 - `recovery source`
   - `none`, `parent topic`, or `subtopic`
+- `authority summary`
+  - canonical owner or `unknown-needs-escalation`
 
 Fail-closed startup rules:
 
@@ -152,6 +157,79 @@ Fail-closed startup rules:
   valid boot path
 - lightweight lookups may happen before the receipt, but repository-level conclusions, edits, and subagent delegation
   must wait until the receipt is established
+- if authority discovery shows the real source of truth sits outside the initially assumed local slice, the task must be
+  promoted to the correct authority owner or to `cross-boundary` before implementation continues
+
+### 4.2 Authority-First Governance
+
+`Graft` is a unified mono repo. `server`、`web`、OpenAPI source、plugin descriptors、bootstrap metadata、typed contract
+definitions and generated artifacts are one repository change graph, not independent systems integrating over slow
+release boundaries.
+
+Authority rules:
+
+- `owned scope` means standing responsibility and default work area; it does not redefine canonical authority
+- bounded scope forbids unrelated expansion, not required authority repair
+- when a bug or drift is downstream from an upstream authority, fix the highest broken source of truth first
+- if the authority repair changes both `server` and `web`, or changes a shared contract / OpenAPI / bootstrap semantic,
+  the task is `cross-boundary` even when the first symptom appeared on only one side
+- generated artifacts are derived outputs, not canonical authority and not a justification for preserving downstream
+  compatibility drift
+
+Default authority chain examples:
+
+- product IA / module intent
+- `server` plugin descriptor / menu / permission / route contract
+- canonical OpenAPI or typed contract source input
+- generated artifacts
+- `web` bootstrap route/menu assembly
+- UI render / page-local view model
+
+When the observed mismatch is between layers, agents must repair the highest incorrect layer they can safely validate in
+the same slice rather than normalizing the mismatch in a lower layer by default.
+
+### 4.3 Source-of-Truth Escalation
+
+Before adding local compatibility, agents must explicitly check whether the real authority sits in:
+
+- `server/plugins/<name>/contract/**`
+- `server/plugins/<name>/descriptor.go` or equivalent plugin/menu/permission declarations
+- `server/internal/contract/**`
+- OpenAPI source inputs such as `openapi/**`
+- `web/src/modules/<name>/contract/**`
+- `web` bootstrap metadata and route/menu registration boundaries
+
+Escalation rules:
+
+- if the authority is upstream from the symptom, escalate and repair upstream in the same slice when feasible
+- if the authority owner sits outside the initial local slice, widen only to the minimum authority-repair scope
+- do not reinterpret `owned scope` as permission to leave upstream authority drift unfixed
+- if a worker or subagent discovers authority outside its inherited owned scope, it must report the escalation instead of
+  silently implementing a downstream-only compatibility patch
+
+### 4.4 Anti-Compatibility Rule
+
+Compatibility is an exception mechanism, not the default answer.
+
+Before introducing any of the following:
+
+- fallback
+- alias
+- compatibility layer
+- legacy path
+- mapping layer
+- adapter layer
+- compatibility DTO
+
+the task must first prove why the source of truth cannot be repaired directly in the same slice.
+
+Allowed compatibility only when all of the following are recorded:
+
+- the canonical authority owner
+- why direct authority repair is not being done now
+- affected downstream consumers
+- expiry or cleanup trigger
+- validation scope for both the compatibility bridge and the eventual cleanup path
 
 Resume and restart rules:
 
@@ -690,6 +768,14 @@ Every delegation must specify:
 - any constraints about tests, diagnostics, or compatibility
 - for `graft-multi-agent-loop` rounds, the remaining budget, allowed scopes, and the required human-readable plus JSON
   closeout contract
+- whether authority escalation outside the local owned scope is allowed or expected
+
+Authority escalation override:
+
+- `owned scope` isolation, minimal diff preference, worktree isolation, and recovery isolation do not override required
+  source-of-truth repair
+- when a subagent discovers that the real authority is upstream or cross-boundary, it must return
+  `authority_escalation_required` with the suspected owner instead of implementing local compatibility by default
 
 Subagents are not allowed to revert or overwrite unrelated user changes or parallel agent changes. They must adapt to
 concurrent work instead of assuming exclusive ownership of the repository.
@@ -752,6 +838,8 @@ Use these workflow rules:
 - when working from a tracked topic, update the corresponding tracking document in the same change
 - when work is clearly scoped to one subtopic, update that subtopic tracking document in the same change and keep the
   parent topic focused on cross-boundary milestones, shared risks, and shared next steps
+- tracking and trace documents must record authority discovery when it materially changes task classification, owned
+  scope interpretation, or compatibility decisions
 - for complex work, maintain a matching trace that records the current date, key decisions, validation milestones, and
   the immediate next step
 - keep active tracking and trace files concise enough to serve as recovery entrypoints
@@ -819,6 +907,7 @@ A task is done only when all relevant items below are satisfied:
 - new module work keeps the `menu + route + page + api + permission` path explicit
 - any new or changed high-risk contract follows the canonical ownership, lifecycle, and compatibility rules in
   `ai-plan/design/契约治理与魔法值治理规范.md`
+- any introduced compatibility branch records why direct authority repair was not completed in the same slice
 - affected code has the required comments and documentation
 - affected code follows the applicable subdomain execution-truth document
 - the changed area passed direct validation, or the exact validation gap was reported

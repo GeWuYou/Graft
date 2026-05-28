@@ -4,6 +4,12 @@
 
 仓库级启动、恢复、提交与跨仓治理仍以根 `AGENTS.md` 为准；本文件不重复定义第二套启动或提交流程。
 
+authority-first overlay：
+
+- `web` owned scope 表示前端长期实现归属，不表示前端拥有 shared contract / route / menu 语义的最终 authority
+- bounded scope forbids unrelated expansion, not required authority repair
+- 当前端症状来自上游 authority drift 时，应优先修 authority owner，再同步 `web` 消费层；不要默认用 display mapping、legacy path 归并、alias 或 adapter 层给上游擦屁股
+
 ## 1. 适用范围
 
 适用范围：
@@ -197,11 +203,13 @@ i18n 与标题规则：
 - 模块私有 `types/**` 不得充当跨模块 contract
 - 不得通过 alias、根级 re-export 或兼容副本维持第二套长期契约真值
 - OpenAPI generated frontend boundary 额外约束：
+  - generated schema 是 derived artifact；authority 仍来自 OpenAPI source 与 canonical contract owner
   - API boundary 类型只能来自 `@/contracts/openapi/generated/schema` 的 `paths[...]` 或 `components['schemas'][...]`
   - `src/utils/request.ts`、`src/contracts/api/envelope.ts`、`src/types/axios.d.ts` 属于 runtime allowed 边界
   - 页面表单、筛选器、表格行、兼容显示模型属于 UI / ViewModel allowed，但不得伪装成新的 API `Request` / `Response` / `DTO`
   - 页面与 store 不得直接发起 `request.<method>()` 调用；应继续只消费模块 `api/**` 入口
   - 不得新增 generated runtime client、`fetch()`、或额外 `axios.create()` / axios 实例绕过 `request.ts`
+  - 不得把 generated schema 当成拒绝 authority repair 的理由；若 generated consumer 与 authority drift 不一致，应修 source input 后重新生成
 
 壳层 Footer 约定：
 

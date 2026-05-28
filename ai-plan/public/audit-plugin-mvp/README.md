@@ -18,7 +18,7 @@
 ## Current Recovery Point
 
 - Batch 5 is complete.
-- Cross-boundary integration and regression confirmed the settled audit MVP closure without widening scope:
+- Cross-boundary integration and regression confirmed the settled audit MVP closure without widening into unrelated scope:
   - backend plugin registration still exposes canonical `audit.read` permission, `/audit/logs` menu path, and guarded
     `/api/audit/logs` read route
   - web bootstrap recovery still mounts `/audit/logs` through `modules/index.ts + bootstrap-routes.ts + dynamic routes
@@ -39,6 +39,12 @@
   - decide whether any final archive docs or governance notes are still required before archiving
 
 ## Owned Scope
+
+- Interpretation rule:
+  - owned scope records standing responsibility and bounded execution surface
+  - bounded scope forbids unrelated expansion, not required authority repair
+  - if future audit drift is traced to upstream authority such as plugin contract, OpenAPI source, or shared bootstrap
+    semantics, escalate and repair there instead of adding local compatibility by default
 
 - Recovery docs:
   - `ai-plan/public/audit-plugin-mvp/**`

@@ -21,6 +21,9 @@
 - Owned scope follows the topic README and startup prompt.
 - Forbidden scope includes unrelated RBAC expansion, auth redesign, global layout redesign, broad i18n refactor, and
   unrelated generated or formatting churn.
+- Interpretation rule:
+  - bounded scope forbids unrelated expansion, not required authority repair
+  - owned scope is not the same thing as canonical authority boundary
 
 ## Startup Receipt
 
@@ -93,6 +96,8 @@
     package.
   - Web generated schema was not refreshed in this batch because no owned-scope frontend runtime or contract consumer was
     added yet.
+  - Generated artifacts are derived outputs, not authority; future drift must be repaired in source input first, then
+    regenerated.
 - HTTP/authz pattern:
   - `server/internal/httpx/response.go` remains the uniform success/error envelope and request-id boundary.
   - Audit read routes use `httpx.RequirePermission(..., "audit.read")` and keep the existing localized error behavior.
