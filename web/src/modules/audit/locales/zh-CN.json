@@ -1,113 +1,329 @@
 {
   "audit": {
     "overview": {
-      "title": "审计概览",
-      "description": "先查看审计规模、近期高信号事件与当前排查面，再决定是否进入日志明细。",
+      "title": "安全审计 · 概览",
+      "description": "把审计首页当作调查工作台使用：先识别值得下钻的风险波动，再按请求链、操作者与资源关联进入日志排查。",
       "contractTag": "Canonical Contract",
-      "refresh": "刷新",
-      "timelineTitle": "近期审计事件",
-      "timelineSubtitle": "展示当前 dashboard 切片中最值得继续下钻的操作样本。",
       "statusSuccess": "成功",
       "statusFailed": "失败",
-      "surfaceTitle": "重点排查面",
-      "surfaceSubtitle": "优先关注最常触发日志排查的业务域。",
-      "guidanceTitle": "排查指引",
-      "guidanceSubtitle": "用概览决定是否继续留在 dashboard，或进入日志列表做细查。",
-      "cards": {
-        "today": {
-          "title": "今日事件数",
-          "subtitle": "24 小时总量",
-          "meta": "包含成功与失败的写操作事件。"
-        },
-        "failed": {
-          "title": "失败事件",
-          "subtitle": "24 小时异常",
-          "meta": "用于判断是否应该从失败操作开始细查。"
-        },
-        "actors": {
-          "title": "活跃操作者",
-          "subtitle": "唯一身份数",
-          "meta": "统计当前切片内出现过的用户或服务身份。"
-        },
-        "latency": {
-          "title": "写入时延",
-          "subtitle": "中位耗时",
-          "meta": "在图表接入前，先用稳定占位指标表达处理延迟。"
-        }
+      "timeRanges": {
+        "24h": "最近 24h",
+        "7d": "最近 7d",
+        "30d": "最近 30d"
       },
-      "timeline": {
-        "items": {
-          "roleExport": {
-            "title": "角色权限导出完成",
-            "description": "RBAC 导出已成功完成，可继续用于后续审查。"
-          },
-          "schedulerStop": {
-            "title": "调度任务停用请求被拒绝",
-            "description": "受保护的调度停用操作失败，建议进入日志明细继续排查。"
-          },
-          "permissionReplace": {
-            "title": "权限绑定替换完成",
-            "description": "一次完整的权限替换操作已成功落地，建议复核影响范围。"
+      "heroSignals": {
+        "queue": {
+          "label": "待排查队列",
+          "meta": "仍需继续做 actor 或 request 级细查的案例。",
+          "values": {
+            "24h": "08 个活跃案例",
+            "7d": "17 个活跃案例",
+            "30d": "36 个活跃案例"
+          }
+        },
+        "scope": {
+          "label": "最高风险范围",
+          "meta": "当前窗口的风险主要集中在 RBAC 与会话控制。",
+          "values": {
+            "24h": "RBAC 权限漂移",
+            "7d": "权限拒绝聚集",
+            "30d": "跨插件抖动"
+          }
+        },
+        "correlation": {
+          "label": "跨系统关联",
+          "meta": "已经与 monitor 与插件生命周期联动的信号数。",
+          "values": {
+            "24h": "03 条关联链",
+            "7d": "06 条关联链",
+            "30d": "11 条关联链"
           }
         }
       },
-      "surfaces": {
-        "rbac": {
-          "title": "RBAC 变更",
-          "description": "角色、权限与用户绑定操作仍是审计排查最常见的来源。",
-          "value": "需重点关注"
+      "cards": {
+        "failedAuth": {
+          "title": "失败认证",
+          "aside": "事件",
+          "description": "优先识别重复登录失败，避免它扩散成权限拒绝噪声。",
+          "badge": "异常",
+          "values": {
+            "24h": "12",
+            "7d": "53",
+            "30d": "168"
+          }
         },
-        "sessions": {
-          "title": "会话与登录操作",
-          "description": "当前样本中的认证侧活动较稳定，风险相对较低。",
-          "value": "整体稳定"
+        "permissionDenied": {
+          "title": "权限拒绝",
+          "aside": "事件",
+          "description": "可作为 request chain 分析与角色归属复核的入口。",
+          "badge": "关联",
+          "values": {
+            "24h": "09",
+            "7d": "44",
+            "30d": "121"
+          }
         },
-        "plugins": {
-          "title": "插件操作",
-          "description": "重点留意插件生命周期与调度动作的跨边界影响。",
-          "value": "持续观察"
+        "sensitiveActions": {
+          "title": "敏感操作",
+          "aside": "操作",
+          "description": "高权限写操作必须能被 actor、role、resource 解释清楚。",
+          "badge": "复核",
+          "values": {
+            "24h": "18",
+            "7d": "67",
+            "30d": "204"
+          }
+        },
+        "escalation": {
+          "title": "升级候选",
+          "aside": "案例",
+          "description": "已达到继续做深度事件分析阈值的调查路径。",
+          "badge": "升级",
+          "values": {
+            "24h": "03",
+            "7d": "11",
+            "30d": "29"
+          }
         }
       },
-      "guidance": {
+      "trendTitle": "风险趋势层",
+      "trendSubtitle": "先观察趋势变化，再决定从请求链、actor 还是 plugin slice 开始调查。",
+      "anomalyTitle": "异常高亮",
+      "anomalySubtitle": "优先处理需要关联分析的波动，而不是被动浏览统计数字。",
+      "trends": {
+        "failedAuth": {
+          "title": "失败认证上升",
+          "description": "近期失败登录比基线增长更快，应优先排查。",
+          "compareText": "相较于前一观察窗口",
+          "values": {
+            "24h": "12 次失败认证",
+            "7d": "53 次失败认证",
+            "30d": "168 次失败认证"
+          },
+          "changes": {
+            "24h": "+41%",
+            "7d": "+18%",
+            "30d": "+09%"
+          }
+        },
+        "permissionDenied": {
+          "title": "权限拒绝集中",
+          "description": "权限拒绝正在少量 actor/resource 上形成聚集。",
+          "compareText": "相较于前一观察窗口",
+          "values": {
+            "24h": "09 次拒绝操作",
+            "7d": "44 次拒绝操作",
+            "30d": "121 次拒绝操作"
+          },
+          "changes": {
+            "24h": "+22%",
+            "7d": "+11%",
+            "30d": "+04%"
+          }
+        },
+        "pluginLifecycle": {
+          "title": "插件生命周期抖动",
+          "description": "插件重载与调度控制正在制造下游审计调查负担。",
+          "compareText": "相较于前一观察窗口",
+          "values": {
+            "24h": "04 组生命周期聚集",
+            "7d": "09 组生命周期聚集",
+            "30d": "21 组生命周期聚集"
+          },
+          "changes": {
+            "24h": "+16%",
+            "7d": "+08%",
+            "30d": "+03%"
+          }
+        }
+      },
+      "anomalies": {
+        "suspiciousIp": {
+          "title": "可疑 IP 序列",
+          "description": "同一边缘网络出现多次失败登录与权限拒绝。",
+          "values": {
+            "24h": "2 组 IP",
+            "7d": "5 组 IP",
+            "30d": "9 组 IP"
+          }
+        },
+        "tokenAnomaly": {
+          "title": "Token 刷新异常",
+          "description": "刷新行为与权限拒绝过于接近，需继续关联分析。",
+          "values": {
+            "24h": "1 条链路",
+            "7d": "4 条链路",
+            "30d": "7 条链路"
+          }
+        },
+        "privilegeEscalation": {
+          "title": "权限升级路径",
+          "description": "角色绑定与敏感写操作出现在同一调查走廊中。",
+          "values": {
+            "24h": "3 条路径",
+            "7d": "7 条路径",
+            "30d": "15 条路径"
+          }
+        }
+      },
+      "hotspotTitle": "风险热点",
+      "hotspotSubtitle": "按 actor、resource 与 plugin 边界分组，决定下一步应该看哪里。",
+      "hotspots": {
+        "actor": {
+          "group": "Actor 热点",
+          "title": "高权限操作者操作集中",
+          "description": "少数管理员承担了大部分角色和权限变更。",
+          "scores": {
+            "24h": "高",
+            "7d": "高",
+            "30d": "中"
+          },
+          "meta": {
+            "one": "4 个 actor 产生 68% 敏感写操作",
+            "two": "2 个 actor 同时出现在失败认证与拒绝链路",
+            "three": "建议先从 actor timeline 开始"
+          }
+        },
+        "resource": {
+          "group": "Resource 热点",
+          "title": "RBAC 与会话资源",
+          "description": "角色绑定与会话控制在拒绝或重试操作中反复出现。",
+          "scores": {
+            "24h": "高",
+            "7d": "中",
+            "30d": "中"
+          },
+          "meta": {
+            "one": "角色资源主导写侧复核",
+            "two": "会话资源主导失败流程",
+            "three": "按资源下钻可保持请求链更短"
+          }
+        },
+        "plugin": {
+          "group": "Plugin 热点",
+          "title": "生命周期与调度控制",
+          "description": "插件重载与调度停用在多个域都带来了后续审计关注。",
+          "scores": {
+            "24h": "中",
+            "7d": "中",
+            "30d": "高"
+          },
+          "meta": {
+            "one": "生命周期变更与 monitor 噪声有关联",
+            "two": "调度动作的 deny rate 偏高",
+            "three": "保持 plugin 与 monitor trace 联动"
+          }
+        }
+      },
+      "entryTitle": "调查入口",
+      "entrySubtitle": "从具体问题进入日志工作台，而不是继续看泛化事件列表。",
+      "entries": {
+        "failedAuth": {
+          "title": "调查失败认证",
+          "description": "从失败登录开始，再切到 request 与 actor 的关联链。",
+          "query": "预设：failed auth · result=false · resource=session"
+        },
+        "rbacChanges": {
+          "title": "复核 RBAC 变更",
+          "description": "查看角色更新、权限绑定漂移与 actor 归属变化。",
+          "query": "预设：role 变更 · resource=role"
+        },
+        "sensitiveOps": {
+          "title": "追踪敏感操作",
+          "description": "沿着 delete、reset、role assignment 这类写路径继续下钻。",
+          "query": "预设：敏感写操作 · actor/resource pivot"
+        },
+        "pluginOps": {
+          "title": "关联插件操作",
+          "description": "把插件生命周期和运行态或权限异常连起来看。",
+          "query": "预设：plugin actions · cross-system correlation"
+        }
+      },
+      "correlationTitle": "跨系统关联层",
+      "correlationSubtitle": "Audit 不应孤立存在，需要与 monitor、auth 与 plugin lifecycle 联动。",
+      "correlations": {
+        "pluginReload": {
+          "title": "插件重载后拒绝上升",
+          "description": "一次 reload 窗口后，短时间内出现权限拒绝集中。",
+          "nextStep": "打开 plugin operations 预设并沿 shared request chain 继续排查。",
+          "status": "待跟进"
+        },
+        "authSpike": {
+          "title": "失败认证后跟随角色变更",
+          "description": "认证失败聚集紧贴高权限角色调整之前出现。",
+          "nextStep": "关联 actor timeline 并检查角色归属变化。",
+          "status": "升级候选"
+        },
+        "monitorLink": {
+          "title": "运行信号与审计抖动联动",
+          "description": "监控在调度动作激增时同时报告了瞬时运行异常。",
+          "nextStep": "复核 request ID 时保持 monitor 与 audit 视图联动。",
+          "status": "已关联"
+        }
+      },
+      "timelineTitle": "调查时间线",
+      "timelineSubtitle": "展示一条采样链路，说明事件如何演化成需要进入日志页的案例。",
+      "timeline": {
         "items": {
-          "scope": {
-            "title": "先缩小排查范围",
-            "description": "先用概览确定 actor、资源域或失败状态，再进入日志表格。"
+          "failedSignin": {
+            "title": "检测到失败登录突增",
+            "description": "同一高权限 actor 窗口内出现多次登录失败。",
+            "context": "建议先从 actor pivot 入手。"
           },
-          "trace": {
-            "title": "再切入请求细节",
-            "description": "当近期事件可疑时，进入日志页查看 request ID、IP 和 metadata。"
+          "roleModify": {
+            "title": "角色成员发生变更",
+            "description": "失败登录之后紧接着出现一次成功的角色绑定修改。",
+            "context": "应关联角色归属与前序请求链。"
           },
-          "next": {
-            "title": "关联后再升级处理",
-            "description": "概览只负责路由排查方向，最终结论仍应来自日志明细。"
+          "pluginReload": {
+            "title": "同窗口内发生插件重载",
+            "description": "生命周期事件与同一操作时段重叠，不应脱离视野。",
+            "context": "建议继续联动 plugin timeline 与 runtime health。"
+          },
+          "permissionDenied": {
+            "title": "变更后出现权限拒绝",
+            "description": "角色调整之后出现拒绝请求，可能反映漂移或误用。",
+            "context": "必须完成 same actor / same request 复核后再升级处理。"
           }
         }
       }
     },
     "logList": {
       "listTitle": "审计日志",
-      "hint": "按操作、资源、请求链路和时间窗口查看后台审计记录。",
+      "hint": "按请求链、操作者、资源与时间窗口排查后台审计记录，而不是把日志页当作被动档案表。",
       "summary": "已显示 {count} 条日志",
-      "tableHint": "当前页面为只读审计视图，支持按关键字段收敛排查范围。",
+      "tableHint": "使用预设视图、关联搜索与快捷动作，把可疑信号收敛成可执行的调查路径。",
       "refresh": "刷新",
       "detail": "详情",
       "more": "更多",
-      "detailTitle": "审计详情",
+      "detailTitle": "审计调查详情",
       "retry": "重试",
       "clearFilters": "清空筛选",
       "footerTotal": "共 {count} 条审计日志",
       "loadFailed": "审计日志加载失败",
       "errorTitle": "审计日志暂时不可用",
       "emptyTitle": "暂无审计日志",
-      "emptyDescription": "当前筛选条件下没有命中的日志记录，可调整时间范围或清空筛选后重试。",
-      "readonlyNotice": "当前页面只提供查询与定位，不支持在前端修改审计记录。",
+      "emptyDescription": "当前筛选条件下没有命中的日志记录，可调整时间范围、请求链或预设视图后重试。",
+      "readonlyNotice": "当前工作台只提供查询与定位，不支持在前端修改审计记录。",
       "factSourceHint": "日志内容直接消费后端 settled 的 `/api/audit/logs` 读契约与 `audit.read` 权限。",
+      "correlationTitle": "关联搜索",
+      "correlationSubtitle": "从 request ID、actor、resource 或 session 线索开始，再逐步缩小表格范围。",
+      "presets": {
+        "all": "全部事件",
+        "failedAuth": "失败认证",
+        "rbacChanges": "RBAC 变更",
+        "permissionDenied": "权限拒绝",
+        "pluginOps": "插件操作",
+        "sensitiveOps": "敏感操作"
+      },
       "filters": {
         "actionPlaceholder": "搜索操作，如 user.create",
         "resourceTypePlaceholder": "资源类型，如 user / role",
         "resourceNamePlaceholder": "资源名称或显示名",
-        "requestIdPlaceholder": "请求 ID",
+        "requestIdPlaceholder": "请求 ID 或 trace 线索",
+        "actorPlaceholder": "操作者显示名或用户名",
+        "resourcePlaceholder": "资源 ID 或 pivot token",
+        "sessionPlaceholder": "会话 ID",
         "successPlaceholder": "执行结果",
         "successAll": "全部结果",
         "successTrue": "成功",
@@ -123,9 +339,29 @@
         "createdAt": "发生时间",
         "context": "上下文"
       },
+      "quickActions": {
+        "sameRequest": "同一请求",
+        "sameActor": "同一操作者"
+      },
+      "density": {
+        "comfortable": "舒适密度",
+        "compact": "紧凑密度",
+        "switchCompact": "切换到紧凑",
+        "switchComfortable": "切换到舒适"
+      },
       "result": {
         "success": "成功",
         "failed": "失败"
+      },
+      "risk": {
+        "failed": "高风险",
+        "sensitive": "敏感",
+        "normal": "常规"
+      },
+      "riskSignals": {
+        "authAnomaly": "认证异常",
+        "privilegeSensitive": "权限敏感",
+        "requestTraceable": "可追踪请求链"
       },
       "actor": {
         "anonymous": "系统或匿名调用"
@@ -133,27 +369,80 @@
       "resource": {
         "unknown": "未命名资源"
       },
+      "investigationSignals": {
+        "requestChain": {
+          "title": "可追踪请求覆盖率",
+          "description": "当前结果中有多少行可以沿 request 或 trace 继续串联。",
+          "action": "切到最新 request chain"
+        },
+        "rbacRisk": {
+          "title": "RBAC 敏感切片",
+          "description": "这些行更可能需要角色、权限或归属复核。",
+          "action": "打开 RBAC 变更预设"
+        },
+        "failedFlow": {
+          "title": "失败操作切片",
+          "description": "这些行应重点检查重试循环、拒绝访问或 actor 误用。",
+          "action": "打开失败认证预设"
+        }
+      },
+      "expanded": {
+        "correlationTitle": "关联快照",
+        "correlationSummary": "{actor} 在请求 {requestId} 中操作了 {resource}。",
+        "tags": {
+          "request": "请求",
+          "actor": "操作者",
+          "resource": "资源",
+          "noRequest": "无请求 ID"
+        }
+      },
+      "timeline": {
+        "actorTitle": "Actor 时间线",
+        "requestTitle": "Request 时间线",
+        "resourceTitle": "Resource 时间线"
+      },
       "detailSections": {
         "basic": "基本信息",
         "request": "请求信息",
+        "context": "上下文快照",
+        "correlation": "关联链路",
+        "timeline": "时间线视图",
+        "risk": "风险分析",
         "metadata": "元数据"
       },
       "detailFields": {
         "requestId": "请求 ID",
+        "traceId": "Trace ID",
+        "sessionId": "Session ID",
         "ip": "IP",
         "userAgent": "User-Agent",
-        "message": "消息"
+        "message": "消息",
+        "plugin": "插件",
+        "endpoint": "接口",
+        "relatedRole": "相关角色",
+        "relatedPermission": "相关权限",
+        "beforeSnapshot": "变更前快照",
+        "afterSnapshot": "变更后快照"
+      },
+      "detailHero": "{actor} 对 {resource} 发起了操作，请求链：{requestId}。",
+      "correlationItems": {
+        "sameRequest": {
+          "title": "同一请求链",
+          "description": "围绕请求 {requestId} 收敛工作台结果，查看前后事件。",
+          "empty": "当前行没有 request ID，请求链关联能力有限。"
+        },
+        "sameActor": {
+          "title": "同一操作者",
+          "description": "继续查看 {actor} 的相邻动作，区分常规操作与升级风险。"
+        },
+        "sameResource": {
+          "title": "同一资源",
+          "description": "继续查看 {resource} 的相邻访问路径，判断是否存在重复异常模式。"
+        }
       },
       "copyMetadata": "复制元数据",
       "copyMetadataSuccess": "元数据已复制",
-      "copyMetadataFailed": "复制元数据失败",
-      "context": {
-        "ip": "IP",
-        "userAgent": "客户端",
-        "message": "消息",
-        "metadata": "元数据",
-        "none": "无额外上下文"
-      }
+      "copyMetadataFailed": "复制元数据失败"
     }
   }
 }

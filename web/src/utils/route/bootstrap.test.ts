@@ -87,11 +87,17 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[1]?.name).toBe('AuditOverview');
     expect(routes[1]?.meta?.titleKey).toBe('menu.audit.overview.title');
     expect(routes[1]?.meta?.orderNo).toBe(1);
+    expect(routes[1]?.meta?.domain).toBe('audit');
+    expect(routes[1]?.meta?.dashboard).toBe(true);
+    expect(routes[1]?.meta?.pageKind).toBe('overview');
+    expect(routes[1]?.meta?.tabTitle?.['zh-CN']).toBe('安全审计 · 概览');
     expect(routes[1]?.children?.[0]?.name).toBe('AuditOverviewIndex');
     expect(routes[2]?.path).toBe('/audit/logs');
     expect(routes[2]?.name).toBe('AuditLogList');
     expect(routes[2]?.meta?.titleKey).toBe('menu.audit.logs.title');
     expect(routes[2]?.meta?.orderNo).toBe(2);
+    expect(routes[2]?.meta?.domain).toBe('audit');
+    expect(routes[2]?.meta?.pageKind).toBe('investigation');
     expect(routes[2]?.children?.[0]?.name).toBe('AuditLogListIndex');
   });
 
@@ -148,6 +154,9 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'users', 'roles', 'permissions']);
     expect(routes[0]?.children?.[0]?.name).toBe('AccessControlOverviewIndex');
     expect(routes[0]?.children?.[3]?.meta?.icon).toBe('lock-on');
+    expect(routes[0]?.children?.[0]?.meta?.domain).toBe('rbac');
+    expect(routes[0]?.children?.[0]?.meta?.dashboard).toBe(true);
+    expect(routes[0]?.children?.[2]?.meta?.pageKind).toBe('list');
   });
 
   it('为服务器管理模块合成显式父级导航并保持 canonical IA 顺序', () => {
@@ -199,8 +208,11 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'runtime', 'dependencies']);
     expect(routes[0]?.children?.[0]?.name).toBe('MonitorServerStatusOverviewIndex');
     expect(routes[0]?.children?.[0]?.meta?.orderNo).toBe(1);
+    expect(routes[0]?.children?.[0]?.meta?.domain).toBe('monitor');
+    expect(routes[0]?.children?.[0]?.meta?.dashboard).toBe(true);
     expect(routes[0]?.children?.[1]?.name).toBe('MonitorServerStatusRuntimeIndex');
     expect(routes[0]?.children?.[1]?.meta?.orderNo).toBe(2);
+    expect(routes[0]?.children?.[1]?.meta?.pageKind).toBe('runtime');
     expect(routes[0]?.children?.[2]?.name).toBe('MonitorServerStatusDependenciesIndex');
     expect(routes[0]?.children?.[2]?.meta?.titleKey).toBe('menu.server.dependencies.title');
     expect(routes[0]?.children?.[2]?.meta?.orderNo).toBe(3);

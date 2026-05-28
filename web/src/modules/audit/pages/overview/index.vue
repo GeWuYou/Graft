@@ -1,164 +1,459 @@
 <template>
   <div class="audit-overview" data-page-type="overview-dashboard">
-    <management-page-content>
-      <management-page-header :title="t('audit.overview.title')" :description="t('audit.overview.description')">
-        <template #eyebrow>{{ t('menu.audit.overview.title') }}</template>
-        <template #actions>
-          <t-space size="small">
-            <t-tag theme="primary" variant="light-outline">{{ t('audit.overview.contractTag') }}</t-tag>
-          </t-space>
-        </template>
-      </management-page-header>
-
-      <section class="audit-overview__summary-grid">
-        <t-card v-for="item in summaryCards" :key="item.key" :title="item.title" :subtitle="item.subtitle" bordered>
-          <t-statistic :value="item.value" :suffix="item.unit" />
-          <p class="audit-overview__card-meta">{{ item.meta }}</p>
-        </t-card>
-      </section>
-
-      <section class="audit-overview__main-grid">
-        <t-card :title="t('audit.overview.timelineTitle')" :subtitle="t('audit.overview.timelineSubtitle')" bordered>
-          <t-list split>
-            <t-list-item v-for="entry in recentEvents" :key="entry.id">
-              <t-list-item-meta :title="entry.title" :description="entry.description" />
-              <template #action>
-                <t-tag :theme="entry.success ? 'success' : 'danger'" variant="light-outline" size="small">
-                  {{ entry.success ? t('audit.overview.statusSuccess') : t('audit.overview.statusFailed') }}
-                </t-tag>
-              </template>
-            </t-list-item>
-          </t-list>
-        </t-card>
-
-        <t-card :title="t('audit.overview.surfaceTitle')" :subtitle="t('audit.overview.surfaceSubtitle')" bordered>
-          <div class="audit-overview__surface-stack">
-            <div v-for="surface in focusSurfaces" :key="surface.key" class="audit-overview__surface-item">
-              <div>
-                <h3>{{ surface.title }}</h3>
-                <p>{{ surface.description }}</p>
-              </div>
-              <t-tag :theme="surface.tone" variant="light-outline">{{ surface.value }}</t-tag>
-            </div>
-          </div>
-        </t-card>
-      </section>
-
-      <t-card :title="t('audit.overview.guidanceTitle')" :subtitle="t('audit.overview.guidanceSubtitle')" bordered>
-        <t-space direction="vertical" size="small" class="audit-overview__guidance">
-          <div v-for="item in guidanceItems" :key="item.title" class="audit-overview__guidance-item">
-            <strong>{{ item.title }}</strong>
-            <span>{{ item.description }}</span>
-          </div>
+    <governance-dashboard-shell
+      domain="audit"
+      :eyebrow="t('menu.audit.overview.title')"
+      :title="t('audit.overview.title')"
+      :description="t('audit.overview.description')"
+    >
+      <template #actions>
+        <t-space size="small" wrap>
+          <t-radio-group v-model="activeWindow" variant="default-filled" size="small">
+            <t-radio-button v-for="option in timeRangeOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </t-radio-button>
+          </t-radio-group>
+          <t-tag theme="warning" variant="light-outline">{{ t('audit.overview.contractTag') }}</t-tag>
         </t-space>
-      </t-card>
-    </management-page-content>
+      </template>
+
+      <template #headerHint>
+        <div class="audit-overview__hero-strip">
+          <div v-for="signal in heroSignals" :key="signal.key" class="audit-overview__hero-signal">
+            <span class="audit-overview__hero-label">{{ signal.label }}</span>
+            <strong class="audit-overview__hero-value">{{ signal.value }}</strong>
+            <span class="audit-overview__hero-meta">{{ signal.meta }}</span>
+          </div>
+        </div>
+      </template>
+
+      <template #summary>
+        <governance-summary-card
+          v-for="item in summaryCards"
+          :key="item.key"
+          kind="risk"
+          :title="item.title"
+          :value="item.value"
+          :value-aside="item.valueAside"
+          :description="item.description"
+          :badge="item.badge"
+        />
+      </template>
+
+      <section class="audit-overview__grid audit-overview__grid--hero">
+        <governance-section
+          kind="trend"
+          :title="t('audit.overview.trendTitle')"
+          :description="t('audit.overview.trendSubtitle')"
+        >
+          <div class="audit-overview__trend-list">
+            <article v-for="trend in trendSignals" :key="trend.key" class="audit-overview__trend-card">
+              <div class="audit-overview__trend-head">
+                <div>
+                  <h3>{{ trend.title }}</h3>
+                  <p>{{ trend.description }}</p>
+                </div>
+                <t-tag :theme="trend.tone" variant="light-outline" size="small">{{ trend.changeLabel }}</t-tag>
+              </div>
+              <div class="audit-overview__sparkline" aria-hidden="true">
+                <span
+                  v-for="(point, index) in trend.points"
+                  :key="`${trend.key}-${index}`"
+                  class="audit-overview__sparkline-bar"
+                  :style="{ height: `${point}%` }"
+                />
+              </div>
+              <div class="audit-overview__trend-footer">
+                <strong>{{ trend.currentValue }}</strong>
+                <span>{{ trend.compareText }}</span>
+              </div>
+            </article>
+          </div>
+        </governance-section>
+
+        <governance-action-panel
+          kind="investigation"
+          :title="t('audit.overview.anomalyTitle')"
+          :description="t('audit.overview.anomalySubtitle')"
+        >
+          <div class="audit-overview__anomaly-list">
+            <button v-for="alert in anomalySignals" :key="alert.key" type="button" class="audit-overview__anomaly-item">
+              <div>
+                <strong>{{ alert.title }}</strong>
+                <p>{{ alert.description }}</p>
+              </div>
+              <t-tag :theme="alert.tone" variant="light-outline" size="small">{{ alert.value }}</t-tag>
+            </button>
+          </div>
+        </governance-action-panel>
+      </section>
+
+      <section class="audit-overview__grid audit-overview__grid--split">
+        <governance-section
+          kind="investigation"
+          :title="t('audit.overview.hotspotTitle')"
+          :description="t('audit.overview.hotspotSubtitle')"
+        >
+          <div class="audit-overview__hotspot-grid">
+            <article v-for="hotspot in hotspots" :key="hotspot.key" class="audit-overview__hotspot-card">
+              <div class="audit-overview__hotspot-head">
+                <span>{{ hotspot.group }}</span>
+                <t-tag :theme="hotspot.tone" variant="light-outline" size="small">{{ hotspot.score }}</t-tag>
+              </div>
+              <h3>{{ hotspot.title }}</h3>
+              <p>{{ hotspot.description }}</p>
+              <ul class="audit-overview__hotspot-meta">
+                <li v-for="item in hotspot.meta" :key="item">{{ item }}</li>
+              </ul>
+            </article>
+          </div>
+        </governance-section>
+
+        <governance-action-panel
+          kind="workflow"
+          :title="t('audit.overview.entryTitle')"
+          :description="t('audit.overview.entrySubtitle')"
+        >
+          <div class="audit-overview__entry-list">
+            <button
+              v-for="entry in investigationEntries"
+              :key="entry.key"
+              type="button"
+              class="audit-overview__entry-item"
+            >
+              <div>
+                <strong>{{ entry.title }}</strong>
+                <p>{{ entry.description }}</p>
+              </div>
+              <span class="audit-overview__entry-query">{{ entry.query }}</span>
+            </button>
+          </div>
+        </governance-action-panel>
+      </section>
+
+      <section class="audit-overview__grid audit-overview__grid--split">
+        <governance-section
+          kind="workflow"
+          :title="t('audit.overview.correlationTitle')"
+          :description="t('audit.overview.correlationSubtitle')"
+        >
+          <div class="audit-overview__correlation-list">
+            <article v-for="item in correlations" :key="item.key" class="audit-overview__correlation-item">
+              <div class="audit-overview__correlation-head">
+                <strong>{{ item.title }}</strong>
+                <t-tag :theme="item.tone" variant="light-outline" size="small">{{ item.status }}</t-tag>
+              </div>
+              <p>{{ item.description }}</p>
+              <span>{{ item.nextStep }}</span>
+            </article>
+          </div>
+        </governance-section>
+
+        <governance-section
+          kind="investigation"
+          :title="t('audit.overview.timelineTitle')"
+          :description="t('audit.overview.timelineSubtitle')"
+        >
+          <div class="audit-overview__timeline-list">
+            <article v-for="entry in timelineEntries" :key="entry.id" class="audit-overview__timeline-item">
+              <div class="audit-overview__timeline-marker">
+                <span />
+              </div>
+              <div class="audit-overview__timeline-content">
+                <div class="audit-overview__timeline-head">
+                  <strong>{{ entry.title }}</strong>
+                  <t-tag :theme="entry.success ? 'success' : 'danger'" variant="light-outline" size="small">
+                    {{ entry.success ? t('audit.overview.statusSuccess') : t('audit.overview.statusFailed') }}
+                  </t-tag>
+                </div>
+                <p>{{ entry.description }}</p>
+                <span>{{ entry.context }}</span>
+              </div>
+            </article>
+          </div>
+        </governance-section>
+      </section>
+    </governance-dashboard-shell>
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import {
+  GovernanceActionPanel,
+  GovernanceDashboardShell,
+  GovernanceSection,
+  GovernanceSummaryCard,
+} from '@/shared/components/governance';
 
 defineOptions({
   name: 'AuditOverviewIndex',
 });
 
+type AuditWindow = '24h' | '7d' | '30d';
+
 const { t } = useI18n();
+const activeWindow = ref<AuditWindow>('24h');
+
+const timeRangeOptions = computed(() => [
+  { label: t('audit.overview.timeRanges.24h'), value: '24h' as const },
+  { label: t('audit.overview.timeRanges.7d'), value: '7d' as const },
+  { label: t('audit.overview.timeRanges.30d'), value: '30d' as const },
+]);
+
+const heroSignals = computed(() => [
+  {
+    key: 'queue',
+    label: t('audit.overview.heroSignals.queue.label'),
+    value: t(`audit.overview.heroSignals.queue.values.${activeWindow.value}`),
+    meta: t('audit.overview.heroSignals.queue.meta'),
+  },
+  {
+    key: 'scope',
+    label: t('audit.overview.heroSignals.scope.label'),
+    value: t(`audit.overview.heroSignals.scope.values.${activeWindow.value}`),
+    meta: t('audit.overview.heroSignals.scope.meta'),
+  },
+  {
+    key: 'correlation',
+    label: t('audit.overview.heroSignals.correlation.label'),
+    value: t(`audit.overview.heroSignals.correlation.values.${activeWindow.value}`),
+    meta: t('audit.overview.heroSignals.correlation.meta'),
+  },
+]);
 
 const summaryCards = computed(() => [
   {
-    key: 'today',
-    title: t('audit.overview.cards.today.title'),
-    subtitle: t('audit.overview.cards.today.subtitle'),
-    value: 248,
-    unit: '',
-    meta: t('audit.overview.cards.today.meta'),
+    key: 'failed-auth',
+    title: t('audit.overview.cards.failedAuth.title'),
+    value: t(`audit.overview.cards.failedAuth.values.${activeWindow.value}`),
+    valueAside: t('audit.overview.cards.failedAuth.aside'),
+    description: t('audit.overview.cards.failedAuth.description'),
+    badge: t('audit.overview.cards.failedAuth.badge'),
   },
   {
-    key: 'failed',
-    title: t('audit.overview.cards.failed.title'),
-    subtitle: t('audit.overview.cards.failed.subtitle'),
-    value: 12,
-    unit: '',
-    meta: t('audit.overview.cards.failed.meta'),
+    key: 'permission-denied',
+    title: t('audit.overview.cards.permissionDenied.title'),
+    value: t(`audit.overview.cards.permissionDenied.values.${activeWindow.value}`),
+    valueAside: t('audit.overview.cards.permissionDenied.aside'),
+    description: t('audit.overview.cards.permissionDenied.description'),
+    badge: t('audit.overview.cards.permissionDenied.badge'),
   },
   {
-    key: 'actors',
-    title: t('audit.overview.cards.actors.title'),
-    subtitle: t('audit.overview.cards.actors.subtitle'),
-    value: 19,
-    unit: '',
-    meta: t('audit.overview.cards.actors.meta'),
+    key: 'sensitive-actions',
+    title: t('audit.overview.cards.sensitiveActions.title'),
+    value: t(`audit.overview.cards.sensitiveActions.values.${activeWindow.value}`),
+    valueAside: t('audit.overview.cards.sensitiveActions.aside'),
+    description: t('audit.overview.cards.sensitiveActions.description'),
+    badge: t('audit.overview.cards.sensitiveActions.badge'),
   },
   {
-    key: 'latency',
-    title: t('audit.overview.cards.latency.title'),
-    subtitle: t('audit.overview.cards.latency.subtitle'),
-    value: 87,
-    unit: 'ms',
-    meta: t('audit.overview.cards.latency.meta'),
-  },
-]);
-
-const recentEvents = computed(() => [
-  {
-    id: '1',
-    title: t('audit.overview.timeline.items.roleExport.title'),
-    description: t('audit.overview.timeline.items.roleExport.description'),
-    success: true,
-  },
-  {
-    id: '2',
-    title: t('audit.overview.timeline.items.schedulerStop.title'),
-    description: t('audit.overview.timeline.items.schedulerStop.description'),
-    success: false,
-  },
-  {
-    id: '3',
-    title: t('audit.overview.timeline.items.permissionReplace.title'),
-    description: t('audit.overview.timeline.items.permissionReplace.description'),
-    success: true,
+    key: 'escalation',
+    title: t('audit.overview.cards.escalation.title'),
+    value: t(`audit.overview.cards.escalation.values.${activeWindow.value}`),
+    valueAside: t('audit.overview.cards.escalation.aside'),
+    description: t('audit.overview.cards.escalation.description'),
+    badge: t('audit.overview.cards.escalation.badge'),
   },
 ]);
 
-const focusSurfaces = computed(() => [
+const trendSignals = computed(() => [
   {
-    key: 'rbac',
-    title: t('audit.overview.surfaces.rbac.title'),
-    description: t('audit.overview.surfaces.rbac.description'),
-    value: t('audit.overview.surfaces.rbac.value'),
+    key: 'failed-auth',
+    title: t('audit.overview.trends.failedAuth.title'),
+    description: t('audit.overview.trends.failedAuth.description'),
+    changeLabel: t(`audit.overview.trends.failedAuth.changes.${activeWindow.value}`),
+    currentValue: t(`audit.overview.trends.failedAuth.values.${activeWindow.value}`),
+    compareText: t('audit.overview.trends.failedAuth.compareText'),
+    tone: 'danger' as const,
+    points:
+      activeWindow.value === '24h'
+        ? [22, 28, 62, 44, 80, 58, 41]
+        : activeWindow.value === '7d'
+          ? [16, 34, 52, 63, 71, 55, 48]
+          : [18, 29, 43, 51, 70, 64, 53],
+  },
+  {
+    key: 'permission-denied',
+    title: t('audit.overview.trends.permissionDenied.title'),
+    description: t('audit.overview.trends.permissionDenied.description'),
+    changeLabel: t(`audit.overview.trends.permissionDenied.changes.${activeWindow.value}`),
+    currentValue: t(`audit.overview.trends.permissionDenied.values.${activeWindow.value}`),
+    compareText: t('audit.overview.trends.permissionDenied.compareText'),
+    tone: 'warning' as const,
+    points:
+      activeWindow.value === '24h'
+        ? [18, 22, 40, 57, 49, 61, 38]
+        : activeWindow.value === '7d'
+          ? [14, 20, 33, 41, 45, 51, 46]
+          : [10, 16, 25, 34, 42, 39, 31],
+  },
+  {
+    key: 'plugin-lifecycle',
+    title: t('audit.overview.trends.pluginLifecycle.title'),
+    description: t('audit.overview.trends.pluginLifecycle.description'),
+    changeLabel: t(`audit.overview.trends.pluginLifecycle.changes.${activeWindow.value}`),
+    currentValue: t(`audit.overview.trends.pluginLifecycle.values.${activeWindow.value}`),
+    compareText: t('audit.overview.trends.pluginLifecycle.compareText'),
+    tone: 'primary' as const,
+    points:
+      activeWindow.value === '24h'
+        ? [12, 16, 18, 42, 36, 20, 14]
+        : activeWindow.value === '7d'
+          ? [8, 12, 15, 33, 37, 24, 18]
+          : [6, 10, 16, 24, 31, 22, 18],
+  },
+]);
+
+const anomalySignals = computed(() => [
+  {
+    key: 'suspicious-ip',
+    title: t('audit.overview.anomalies.suspiciousIp.title'),
+    description: t('audit.overview.anomalies.suspiciousIp.description'),
+    value: t(`audit.overview.anomalies.suspiciousIp.values.${activeWindow.value}`),
+    tone: 'danger' as const,
+  },
+  {
+    key: 'token-anomaly',
+    title: t('audit.overview.anomalies.tokenAnomaly.title'),
+    description: t('audit.overview.anomalies.tokenAnomaly.description'),
+    value: t(`audit.overview.anomalies.tokenAnomaly.values.${activeWindow.value}`),
     tone: 'warning' as const,
   },
   {
-    key: 'sessions',
-    title: t('audit.overview.surfaces.sessions.title'),
-    description: t('audit.overview.surfaces.sessions.description'),
-    value: t('audit.overview.surfaces.sessions.value'),
-    tone: 'success' as const,
-  },
-  {
-    key: 'plugins',
-    title: t('audit.overview.surfaces.plugins.title'),
-    description: t('audit.overview.surfaces.plugins.description'),
-    value: t('audit.overview.surfaces.plugins.value'),
+    key: 'privilege-escalation',
+    title: t('audit.overview.anomalies.privilegeEscalation.title'),
+    description: t('audit.overview.anomalies.privilegeEscalation.description'),
+    value: t(`audit.overview.anomalies.privilegeEscalation.values.${activeWindow.value}`),
     tone: 'primary' as const,
   },
 ]);
 
-const guidanceItems = computed(() => [
+const hotspots = computed(() => [
   {
-    title: t('audit.overview.guidance.items.scope.title'),
-    description: t('audit.overview.guidance.items.scope.description'),
+    key: 'actor',
+    group: t('audit.overview.hotspots.actor.group'),
+    title: t('audit.overview.hotspots.actor.title'),
+    description: t('audit.overview.hotspots.actor.description'),
+    score: t(`audit.overview.hotspots.actor.scores.${activeWindow.value}`),
+    tone: 'danger' as const,
+    meta: [
+      t('audit.overview.hotspots.actor.meta.one'),
+      t('audit.overview.hotspots.actor.meta.two'),
+      t('audit.overview.hotspots.actor.meta.three'),
+    ],
   },
   {
-    title: t('audit.overview.guidance.items.trace.title'),
-    description: t('audit.overview.guidance.items.trace.description'),
+    key: 'resource',
+    group: t('audit.overview.hotspots.resource.group'),
+    title: t('audit.overview.hotspots.resource.title'),
+    description: t('audit.overview.hotspots.resource.description'),
+    score: t(`audit.overview.hotspots.resource.scores.${activeWindow.value}`),
+    tone: 'warning' as const,
+    meta: [
+      t('audit.overview.hotspots.resource.meta.one'),
+      t('audit.overview.hotspots.resource.meta.two'),
+      t('audit.overview.hotspots.resource.meta.three'),
+    ],
   },
   {
-    title: t('audit.overview.guidance.items.next.title'),
-    description: t('audit.overview.guidance.items.next.description'),
+    key: 'plugin',
+    group: t('audit.overview.hotspots.plugin.group'),
+    title: t('audit.overview.hotspots.plugin.title'),
+    description: t('audit.overview.hotspots.plugin.description'),
+    score: t(`audit.overview.hotspots.plugin.scores.${activeWindow.value}`),
+    tone: 'primary' as const,
+    meta: [
+      t('audit.overview.hotspots.plugin.meta.one'),
+      t('audit.overview.hotspots.plugin.meta.two'),
+      t('audit.overview.hotspots.plugin.meta.three'),
+    ],
+  },
+]);
+
+const investigationEntries = computed(() => [
+  {
+    key: 'failed-auth',
+    title: t('audit.overview.entries.failedAuth.title'),
+    description: t('audit.overview.entries.failedAuth.description'),
+    query: t('audit.overview.entries.failedAuth.query'),
+  },
+  {
+    key: 'rbac-changes',
+    title: t('audit.overview.entries.rbacChanges.title'),
+    description: t('audit.overview.entries.rbacChanges.description'),
+    query: t('audit.overview.entries.rbacChanges.query'),
+  },
+  {
+    key: 'sensitive-ops',
+    title: t('audit.overview.entries.sensitiveOps.title'),
+    description: t('audit.overview.entries.sensitiveOps.description'),
+    query: t('audit.overview.entries.sensitiveOps.query'),
+  },
+  {
+    key: 'plugin-ops',
+    title: t('audit.overview.entries.pluginOps.title'),
+    description: t('audit.overview.entries.pluginOps.description'),
+    query: t('audit.overview.entries.pluginOps.query'),
+  },
+]);
+
+const correlations = computed(() => [
+  {
+    key: 'plugin-reload',
+    title: t('audit.overview.correlations.pluginReload.title'),
+    description: t('audit.overview.correlations.pluginReload.description'),
+    nextStep: t('audit.overview.correlations.pluginReload.nextStep'),
+    status: t('audit.overview.correlations.pluginReload.status'),
+    tone: 'warning' as const,
+  },
+  {
+    key: 'auth-spike',
+    title: t('audit.overview.correlations.authSpike.title'),
+    description: t('audit.overview.correlations.authSpike.description'),
+    nextStep: t('audit.overview.correlations.authSpike.nextStep'),
+    status: t('audit.overview.correlations.authSpike.status'),
+    tone: 'danger' as const,
+  },
+  {
+    key: 'monitor-link',
+    title: t('audit.overview.correlations.monitorLink.title'),
+    description: t('audit.overview.correlations.monitorLink.description'),
+    nextStep: t('audit.overview.correlations.monitorLink.nextStep'),
+    status: t('audit.overview.correlations.monitorLink.status'),
+    tone: 'primary' as const,
+  },
+]);
+
+const timelineEntries = computed(() => [
+  {
+    id: '1',
+    title: t('audit.overview.timeline.items.failedSignin.title'),
+    description: t('audit.overview.timeline.items.failedSignin.description'),
+    context: t('audit.overview.timeline.items.failedSignin.context'),
+    success: false,
+  },
+  {
+    id: '2',
+    title: t('audit.overview.timeline.items.roleModify.title'),
+    description: t('audit.overview.timeline.items.roleModify.description'),
+    context: t('audit.overview.timeline.items.roleModify.context'),
+    success: true,
+  },
+  {
+    id: '3',
+    title: t('audit.overview.timeline.items.pluginReload.title'),
+    description: t('audit.overview.timeline.items.pluginReload.description'),
+    context: t('audit.overview.timeline.items.pluginReload.context'),
+    success: true,
+  },
+  {
+    id: '4',
+    title: t('audit.overview.timeline.items.permissionDenied.title'),
+    description: t('audit.overview.timeline.items.permissionDenied.description'),
+    context: t('audit.overview.timeline.items.permissionDenied.context'),
+    success: false,
   },
 ]);
 </script>
@@ -166,86 +461,229 @@ const guidanceItems = computed(() => [
 .audit-overview {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
-.audit-overview__summary-grid {
+.audit-overview__hero-strip {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.audit-overview__card-meta {
+.audit-overview__hero-signal,
+.audit-overview__trend-card,
+.audit-overview__hotspot-card,
+.audit-overview__correlation-item,
+.audit-overview__timeline-item,
+.audit-overview__anomaly-item,
+.audit-overview__entry-item {
+  background: color-mix(in srgb, var(--td-bg-color-container) 94%, var(--td-warning-color-1));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 88%, var(--td-warning-color-4));
+  border-radius: var(--td-radius-large);
+}
+
+.audit-overview__hero-signal {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+}
+
+.audit-overview__hero-label,
+.audit-overview__hero-meta,
+.audit-overview__trend-card p,
+.audit-overview__hotspot-card p,
+.audit-overview__correlation-item p,
+.audit-overview__correlation-item span,
+.audit-overview__timeline-content p,
+.audit-overview__timeline-content span,
+.audit-overview__entry-item p,
+.audit-overview__entry-query {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
-  margin: 12px 0 0;
 }
 
-.audit-overview__main-grid {
+.audit-overview__hero-value {
+  color: var(--td-text-color-primary);
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.audit-overview__grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
 }
 
-.audit-overview__surface-stack {
-  display: flex;
-  flex-direction: column;
+.audit-overview__grid--hero {
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr);
+}
+
+.audit-overview__grid--split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.audit-overview__trend-list,
+.audit-overview__correlation-list,
+.audit-overview__timeline-list,
+.audit-overview__entry-list,
+.audit-overview__anomaly-list {
+  display: grid;
   gap: 12px;
 }
 
-.audit-overview__surface-item {
-  align-items: center;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
+.audit-overview__trend-list,
+.audit-overview__hotspot-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.audit-overview__trend-card,
+.audit-overview__hotspot-card,
+.audit-overview__correlation-item,
+.audit-overview__timeline-item,
+.audit-overview__anomaly-item,
+.audit-overview__entry-item {
   padding: 16px;
 }
 
-.audit-overview__surface-item h3 {
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  margin: 0 0 4px;
-}
-
-.audit-overview__surface-item p {
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  margin: 0;
-}
-
-.audit-overview__guidance {
+.audit-overview__anomaly-item,
+.audit-overview__entry-item {
+  align-items: flex-start;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  text-align: left;
   width: 100%;
 }
 
-.audit-overview__guidance-item {
+.audit-overview__trend-head,
+.audit-overview__correlation-head,
+.audit-overview__hotspot-head,
+.audit-overview__timeline-head {
+  align-items: flex-start;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 12px;
+  justify-content: space-between;
 }
 
-.audit-overview__guidance-item span {
-  color: var(--td-text-color-secondary);
+.audit-overview__trend-head h3,
+.audit-overview__hotspot-card h3,
+.audit-overview__timeline-content strong,
+.audit-overview__correlation-item strong,
+.audit-overview__anomaly-item strong,
+.audit-overview__entry-item strong {
+  color: var(--td-text-color-primary);
+  margin: 0;
+}
+
+.audit-overview__trend-head p,
+.audit-overview__hotspot-card p,
+.audit-overview__correlation-item p,
+.audit-overview__timeline-content p,
+.audit-overview__anomaly-item p,
+.audit-overview__entry-item p {
+  font-size: 12px;
+  line-height: 18px;
+  margin: 4px 0 0;
+}
+
+.audit-overview__sparkline {
+  align-items: end;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  height: 72px;
+  margin: 18px 0 14px;
+}
+
+.audit-overview__sparkline-bar {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--td-warning-color-5) 32%, white),
+    var(--td-warning-color-5)
+  );
+  border-radius: 999px 999px 6px 6px;
+}
+
+.audit-overview__trend-footer {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+}
+
+.audit-overview__trend-footer strong {
+  color: var(--td-text-color-primary);
+  font-size: 22px;
+}
+
+.audit-overview__hotspot-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.audit-overview__hotspot-head span,
+.audit-overview__hotspot-meta,
+.audit-overview__entry-query {
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.audit-overview__hotspot-meta {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+
+.audit-overview__timeline-item {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 20px minmax(0, 1fr);
+}
+
+.audit-overview__timeline-marker {
+  display: flex;
+  justify-content: center;
+}
+
+.audit-overview__timeline-marker span {
+  background: var(--td-warning-color-5);
+  border-radius: 999px;
+  display: inline-flex;
+  height: 10px;
+  margin-top: 6px;
+  width: 10px;
+}
+
+.audit-overview__timeline-content {
+  display: grid;
+  gap: 6px;
 }
 
 @media (width <= 1200px) {
-  .audit-overview__summary-grid {
+  .audit-overview__hero-strip,
+  .audit-overview__trend-list,
+  .audit-overview__hotspot-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .audit-overview__main-grid {
+  .audit-overview__grid--hero,
+  .audit-overview__grid--split {
     grid-template-columns: 1fr;
   }
 }
 
 @media (width <= 768px) {
-  .audit-overview__summary-grid {
+  .audit-overview__hero-strip,
+  .audit-overview__trend-list,
+  .audit-overview__hotspot-grid {
     grid-template-columns: 1fr;
   }
 
-  .audit-overview__surface-item {
-    align-items: flex-start;
+  .audit-overview__anomaly-item,
+  .audit-overview__entry-item,
+  .audit-overview__trend-head,
+  .audit-overview__correlation-head,
+  .audit-overview__timeline-head,
+  .audit-overview__hotspot-head {
     flex-direction: column;
   }
 }

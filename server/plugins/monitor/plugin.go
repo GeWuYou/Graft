@@ -264,17 +264,6 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 	})
 
 	registry.Register(menu.Item{
-		Code:       "monitor.server-status",
-		Title:      "服务器管理",
-		TitleKey:   monitorcontract.ServerStatusMenuTitle.String(),
-		Path:       monitorcontract.ServerStatusMenuPath,
-		Icon:       "activity",
-		Order:      monitorMenuOrderRoot,
-		Permission: "",
-		Plugin:     pluginName,
-	})
-
-	registry.Register(menu.Item{
 		Code:       "monitor.server-status.overview",
 		Title:      "概览",
 		TitleKey:   monitorcontract.ServerStatusOverviewMenuTitle.String(),

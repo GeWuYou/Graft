@@ -13,16 +13,24 @@ vi.mock('../../api/audit', () => ({
         actor_user_id: 1,
         actor_username: 'admin',
         actor_display_name: 'Admin',
-        action: 'user.create',
-        resource_type: 'user',
+        action: 'role.delete',
+        resource_type: 'role',
         resource_id: '12',
-        resource_name: 'Alice',
-        success: true,
+        resource_name: 'Ops Admin',
+        success: false,
         request_id: 'req-1',
         ip: '127.0.0.1',
         user_agent: 'vitest',
-        message: 'created user',
-        metadata: { source: 'test' },
+        message: 'role removed',
+        metadata: {
+          source: 'test',
+          trace_id: 'trace-1',
+          session_id: 'sess-1',
+          plugin: 'rbac',
+          endpoint: '/api/rbac/roles/12',
+          role: 'ops-admin',
+          permission: 'rbac.role.delete',
+        },
         created_at: '2026-05-27T08:00:00Z',
       },
     ],
@@ -53,9 +61,24 @@ const passthroughStub = defineComponent({
       type: String,
       default: '',
     },
+    summary: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { slots }) {
-    return () => h('div', [props.title, props.description, slots.default?.(), slots.action?.(), slots.actions?.()]);
+    return () =>
+      h('div', [
+        props.title,
+        props.description,
+        props.summary,
+        slots.default?.(),
+        slots.action?.(),
+        slots.actions?.(),
+        slots.filters?.(),
+        slots.head?.(),
+        slots.footer?.(),
+      ]);
   },
 });
 
@@ -123,7 +146,6 @@ const dateRangePickerStub = defineComponent({
       default: () => [],
     },
   },
-  emits: ['update:modelValue'],
   setup(_, { slots }) {
     return () => h('div', { 'data-testid': 'audit-date-range-picker' }, slots.default?.());
   },
@@ -153,6 +175,7 @@ const tableStub = defineComponent({
             slots.result?.({ row }),
             slots.created_at?.({ row }),
             slots.operation?.({ row }),
+            slots.expandedRow?.({ row }),
           ]),
         ),
       );
@@ -170,13 +193,6 @@ const drawerStub = defineComponent({
   },
   setup(props, { slots }) {
     return () => (props.visible ? h('section', { 'data-testid': 'audit-drawer' }, slots.default?.()) : null);
-  },
-});
-
-const dropdownStub = defineComponent({
-  name: 'TDropdownStub',
-  setup(_, { slots }) {
-    return () => h('div', slots.default?.());
   },
 });
 
@@ -205,14 +221,31 @@ const tableActionMenuStub = defineComponent({
   emits: ['action'],
   setup(props, { emit }) {
     return () =>
-      h(
-        'button',
-        {
-          'data-testid': (props.actions[0] as { testId?: string } | undefined)?.testId ?? 'action',
-          onClick: () => emit('action', 'detail'),
-        },
-        'detail',
-      );
+      h('div', [
+        h(
+          'button',
+          {
+            'data-testid': (props.actions[0] as { testId?: string } | undefined)?.testId ?? 'action-detail',
+            onClick: () => emit('action', 'detail'),
+          },
+          'detail',
+        ),
+        h(
+          'button',
+          {
+            'data-testid': (props.actions[1] as { testId?: string } | undefined)?.testId ?? 'action-same-request',
+            onClick: () => emit('action', 'same-request'),
+          },
+          'same-request',
+        ),
+      ]);
+  },
+});
+
+const spaceStub = defineComponent({
+  name: 'TSpaceStub',
+  setup(_, { slots }) {
+    return () => h('div', slots.default?.());
   },
 });
 
@@ -226,9 +259,6 @@ const i18n = createI18n({
           logs: {
             title: 'Audit Logs',
           },
-        },
-        access_control: {
-          title: 'Access Control',
         },
       },
       components: {
@@ -245,7 +275,7 @@ const i18n = createI18n({
           refresh: 'Refresh',
           detail: 'Details',
           more: 'More',
-          detailTitle: 'Audit Details',
+          detailTitle: 'Audit Investigation Detail',
           retry: 'Retry',
           clearFilters: 'Clear Filters',
           footerTotal: '{count} audit logs total',
@@ -255,11 +285,24 @@ const i18n = createI18n({
           emptyDescription: 'No records',
           readonlyNotice: 'Read only',
           factSourceHint: 'Contract source',
+          correlationTitle: 'Correlation Search',
+          correlationSubtitle: 'Correlation subtitle',
+          presets: {
+            all: 'All Events',
+            failedAuth: 'Failed Authentication',
+            rbacChanges: 'RBAC Changes',
+            permissionDenied: 'Permission Denied',
+            pluginOps: 'Plugin Operations',
+            sensitiveOps: 'Sensitive Ops',
+          },
           filters: {
             actionPlaceholder: 'Action',
             resourceTypePlaceholder: 'Resource type',
             resourceNamePlaceholder: 'Resource name',
             requestIdPlaceholder: 'Request ID',
+            actorPlaceholder: 'Actor',
+            resourcePlaceholder: 'Resource',
+            sessionPlaceholder: 'Session',
             successPlaceholder: 'Result',
             successAll: 'All',
             successTrue: 'Succeeded',
@@ -275,9 +318,29 @@ const i18n = createI18n({
             createdAt: 'Created At',
             context: 'Context',
           },
+          quickActions: {
+            sameRequest: 'Same Request',
+            sameActor: 'Same Actor',
+          },
+          density: {
+            comfortable: 'Comfortable Density',
+            compact: 'Compact Density',
+            switchCompact: 'Switch to Compact',
+            switchComfortable: 'Switch to Comfortable',
+          },
           result: {
             success: 'Succeeded',
             failed: 'Failed',
+          },
+          risk: {
+            failed: 'High Risk',
+            sensitive: 'Sensitive',
+            normal: 'Routine',
+          },
+          riskSignals: {
+            authAnomaly: 'Auth anomaly',
+            privilegeSensitive: 'Privilege sensitive',
+            requestTraceable: 'Request traceable',
           },
           actor: {
             anonymous: 'Anonymous',
@@ -285,27 +348,68 @@ const i18n = createI18n({
           resource: {
             unknown: 'Unknown',
           },
+          investigationSignals: {
+            requestChain: { title: 'Traceable request coverage', description: 'desc', action: 'Pivot request chain' },
+            rbacRisk: { title: 'RBAC-sensitive slice', description: 'desc', action: 'Open RBAC change preset' },
+            failedFlow: { title: 'Failed operation slice', description: 'desc', action: 'Open failed-auth preset' },
+          },
+          expanded: {
+            correlationTitle: 'Correlation snapshot',
+            correlationSummary: '{actor} touched {resource} in request {requestId}.',
+            tags: {
+              request: 'Request',
+              actor: 'Actor',
+              resource: 'Resource',
+              noRequest: 'No request id',
+            },
+          },
+          timeline: {
+            actorTitle: 'Actor timeline',
+            requestTitle: 'Request timeline',
+            resourceTitle: 'Resource timeline',
+          },
           detailSections: {
             basic: 'Basic Info',
             request: 'Request Info',
+            context: 'Context Snapshot',
+            correlation: 'Correlation Chain',
+            timeline: 'Timeline View',
+            risk: 'Risk Analysis',
             metadata: 'Metadata',
           },
           detailFields: {
             requestId: 'Request ID',
+            traceId: 'Trace ID',
+            sessionId: 'Session ID',
             ip: 'IP',
             userAgent: 'User-Agent',
             message: 'Message',
+            plugin: 'Plugin',
+            endpoint: 'Endpoint',
+            relatedRole: 'Related Role',
+            relatedPermission: 'Related Permission',
+            beforeSnapshot: 'Before Snapshot',
+            afterSnapshot: 'After Snapshot',
+          },
+          detailHero: '{actor} acted on {resource}. Request chain: {requestId}.',
+          correlationItems: {
+            sameRequest: {
+              title: 'Same request chain',
+              description: 'Filter around request {requestId}.',
+              empty: 'No request ID',
+            },
+            sameActor: {
+              title: 'Same actor',
+              description: 'Review nearby actions by {actor}.',
+            },
+            sameResource: {
+              title: 'Same resource',
+              description: 'Review nearby actions for {resource}.',
+            },
           },
           copyMetadata: 'Copy Metadata',
           copyMetadataSuccess: 'Metadata copied',
           copyMetadataFailed: 'Failed to copy metadata',
-          context: {
-            ip: 'IP',
-            userAgent: 'Client',
-            message: 'Message',
-            metadata: 'Metadata',
-            none: 'None',
-          },
         },
       },
     },
@@ -313,7 +417,7 @@ const i18n = createI18n({
 });
 
 describe('AuditLogsPage', () => {
-  it('renders audit list rows from the settled API contract', async () => {
+  it('renders investigation workflow surfaces and rich detail information', async () => {
     const wrapper = mount(AuditLogsPage, {
       global: {
         plugins: [i18n],
@@ -335,9 +439,9 @@ describe('AuditLogsPage', () => {
           't-empty': passthroughStub,
           't-input': inputStub,
           't-drawer': drawerStub,
-          't-dropdown': dropdownStub,
           't-pagination': paginationStub,
           't-select': selectStub,
+          't-space': spaceStub,
           't-table': tableStub,
           't-tag': tagStub,
         },
@@ -346,12 +450,26 @@ describe('AuditLogsPage', () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Audit Logs');
-    expect(wrapper.text()).toContain('user.create');
-    expect(wrapper.text()).toContain('Admin');
-    expect(wrapper.text()).toContain('Alice');
+    expect(wrapper.text()).toContain('Correlation Search');
+    expect(wrapper.text()).toContain('Failed Authentication');
+    expect(wrapper.text()).toContain('Traceable request coverage');
+    expect(wrapper.text()).toContain('RBAC-sensitive slice');
+    expect(wrapper.text()).toContain('role.delete');
+    expect(wrapper.text()).toContain('High Risk');
+    expect(wrapper.text()).toContain('Correlation snapshot');
+
     await wrapper.get('[data-testid="audit-detail"]').trigger('click');
     await flushPromises();
-    expect(wrapper.text()).toContain('req-1');
+
+    expect(wrapper.text()).toContain('Trace ID');
+    expect(wrapper.text()).toContain('trace-1');
+    expect(wrapper.text()).toContain('Context Snapshot');
+    expect(wrapper.text()).toContain('Correlation Chain');
+    expect(wrapper.text()).toContain('Risk Analysis');
+    expect(wrapper.text()).toContain('Plugin');
+
+    await wrapper.get('[data-testid="audit-same-request"]').trigger('click');
+    await flushPromises();
+    expect((wrapper.get('input[placeholder="Request ID"]').element as HTMLInputElement).value).toBe('req-1');
   });
 });

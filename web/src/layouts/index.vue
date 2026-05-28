@@ -32,6 +32,7 @@ import { useRoute } from 'vue-router';
 import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
 import { useSettingStore, useTabsRouterStore } from '@/store';
+import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
 import type { AppRouteMeta } from '@/utils/types';
 
 import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vue';
@@ -60,7 +61,7 @@ const appendNewRoute = () => {
   const {
     path,
     query,
-    meta: { hidden, title },
+    meta: { hidden },
     name,
   } = route;
 
@@ -68,7 +69,11 @@ const appendNewRoute = () => {
     return;
   }
 
-  const titleObj = typeof title === 'string' ? { [LOCALE.ZH_CN]: title, [LOCALE.EN_US]: title } : title;
+  const titleObj = toLocalizedTitle(resolveRouteLocalizedTitle(route.meta as AppRouteMeta, 'tab')) ??
+    toLocalizedTitle(resolveRouteLocalizedTitle(route.meta as AppRouteMeta, 'page')) ?? {
+      [LOCALE.ZH_CN]: '',
+      [LOCALE.EN_US]: '',
+    };
   tabsRouterStore.appendTabRouterList({
     path,
     query,

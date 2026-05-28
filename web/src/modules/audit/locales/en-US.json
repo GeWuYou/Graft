@@ -2,112 +2,328 @@
   "audit": {
     "overview": {
       "title": "Audit Overview",
-      "description": "Review audit volume, recent high-signal events, and the current investigation surface before opening the log list.",
+      "description": "Use the audit workbench to identify investigation-worthy spikes, pivot by request or actor, and correlate suspicious changes before opening raw logs.",
       "contractTag": "Canonical Contract",
-      "refresh": "Refresh",
-      "timelineTitle": "Recent Audit Events",
-      "timelineSubtitle": "High-signal operations sampled for the current dashboard slice.",
       "statusSuccess": "Succeeded",
       "statusFailed": "Failed",
-      "surfaceTitle": "Focus Surfaces",
-      "surfaceSubtitle": "Prioritize the domains that most often lead to log drill-down work.",
-      "guidanceTitle": "Investigation Guidance",
-      "guidanceSubtitle": "Use the dashboard to decide whether to stay at overview level or move into detailed logs.",
-      "cards": {
-        "today": {
-          "title": "Events Today",
-          "subtitle": "24h total",
-          "meta": "Includes successful and failed write-side operations."
-        },
-        "failed": {
-          "title": "Failed Events",
-          "subtitle": "24h anomalies",
-          "meta": "Use this to decide whether detailed triage should start from failures."
-        },
-        "actors": {
-          "title": "Active Actors",
-          "subtitle": "Distinct operators",
-          "meta": "Unique users or service identities observed in the current slice."
-        },
-        "latency": {
-          "title": "Write Latency",
-          "subtitle": "Median pipeline latency",
-          "meta": "Placeholder metric until charted latency distribution is wired in."
-        }
+      "timeRanges": {
+        "24h": "24h",
+        "7d": "7d",
+        "30d": "30d"
       },
-      "timeline": {
-        "items": {
-          "roleExport": {
-            "title": "Role permission export completed",
-            "description": "RBAC export finished successfully and is available for downstream review."
-          },
-          "schedulerStop": {
-            "title": "Scheduler job stop request rejected",
-            "description": "A protected scheduler stop action failed and should be reviewed in detailed logs."
-          },
-          "permissionReplace": {
-            "title": "Permission binding replaced",
-            "description": "A full permission replacement succeeded and may require follow-up review."
+      "heroSignals": {
+        "queue": {
+          "label": "Open investigation queue",
+          "meta": "Cases that still need actor or request-level triage.",
+          "values": {
+            "24h": "08 active cases",
+            "7d": "17 active cases",
+            "30d": "36 active cases"
+          }
+        },
+        "scope": {
+          "label": "Highest-risk scope",
+          "meta": "Current slice concentrates on RBAC and session control events.",
+          "values": {
+            "24h": "RBAC privilege drift",
+            "7d": "Permission deny cluster",
+            "30d": "Cross-plugin churn"
+          }
+        },
+        "correlation": {
+          "label": "Cross-system correlation",
+          "meta": "Signals already linked to monitor and plugin lifecycle surfaces.",
+          "values": {
+            "24h": "03 live correlations",
+            "7d": "06 live correlations",
+            "30d": "11 live correlations"
           }
         }
       },
-      "surfaces": {
-        "rbac": {
-          "title": "RBAC changes",
-          "description": "Role, permission, and user binding operations continue to dominate audit investigation volume.",
-          "value": "Needs attention"
+      "cards": {
+        "failedAuth": {
+          "title": "Failed Authentication",
+          "aside": "events",
+          "description": "Watch repeated failed sign-in attempts before they spread into permission-denied noise.",
+          "badge": "Anomaly",
+          "values": {
+            "24h": "12",
+            "7d": "53",
+            "30d": "168"
+          }
         },
-        "sessions": {
-          "title": "Session and login actions",
-          "description": "Authentication-side activity is stable and mostly low risk in the current sample.",
-          "value": "Stable"
+        "permissionDenied": {
+          "title": "Permission Denied",
+          "aside": "events",
+          "description": "Use as an entry point for request-chain analysis and role ownership review.",
+          "badge": "Correlate",
+          "values": {
+            "24h": "09",
+            "7d": "44",
+            "30d": "121"
+          }
         },
-        "plugins": {
-          "title": "Plugin operations",
-          "description": "Watch plugin lifecycle and scheduler actions for cross-boundary operational impact.",
-          "value": "Observed"
+        "sensitiveActions": {
+          "title": "Sensitive Operations",
+          "aside": "ops",
+          "description": "Privilege-sensitive writes that should be explainable by actor, role, and resource.",
+          "badge": "Review",
+          "values": {
+            "24h": "18",
+            "7d": "67",
+            "30d": "204"
+          }
+        },
+        "escalation": {
+          "title": "Escalation Candidates",
+          "aside": "cases",
+          "description": "Investigation paths that already crossed the threshold for deeper incident review.",
+          "badge": "Escalate",
+          "values": {
+            "24h": "03",
+            "7d": "11",
+            "30d": "29"
+          }
         }
       },
-      "guidance": {
+      "trendTitle": "Risk Trend Layer",
+      "trendSubtitle": "Track trend shifts before picking a request chain, actor, or plugin slice for detailed investigation.",
+      "anomalyTitle": "Anomaly Highlights",
+      "anomalySubtitle": "Prioritize spikes that deserve correlation work instead of passive monitoring.",
+      "trends": {
+        "failedAuth": {
+          "title": "Failed auth spike",
+          "description": "Recent failed authentication activity is rising faster than baseline.",
+          "compareText": "Compared with the prior observation window",
+          "values": {
+            "24h": "12 failed auth events",
+            "7d": "53 failed auth events",
+            "30d": "168 failed auth events"
+          },
+          "changes": {
+            "24h": "+41%",
+            "7d": "+18%",
+            "30d": "+09%"
+          }
+        },
+        "permissionDenied": {
+          "title": "Permission deny concentration",
+          "description": "Permission-denied responses are clustering around a small actor/resource set.",
+          "compareText": "Compared with the prior observation window",
+          "values": {
+            "24h": "09 denied operations",
+            "7d": "44 denied operations",
+            "30d": "121 denied operations"
+          },
+          "changes": {
+            "24h": "+22%",
+            "7d": "+11%",
+            "30d": "+04%"
+          }
+        },
+        "pluginLifecycle": {
+          "title": "Plugin lifecycle churn",
+          "description": "Plugin reload and scheduler-control events are creating downstream investigation load.",
+          "compareText": "Compared with the prior observation window",
+          "values": {
+            "24h": "04 lifecycle clusters",
+            "7d": "09 lifecycle clusters",
+            "30d": "21 lifecycle clusters"
+          },
+          "changes": {
+            "24h": "+16%",
+            "7d": "+08%",
+            "30d": "+03%"
+          }
+        }
+      },
+      "anomalies": {
+        "suspiciousIp": {
+          "title": "Suspicious IP sequence",
+          "description": "Multiple failed sign-ins and denied requests from the same edge network.",
+          "values": {
+            "24h": "2 IP groups",
+            "7d": "5 IP groups",
+            "30d": "9 IP groups"
+          }
+        },
+        "tokenAnomaly": {
+          "title": "Token refresh anomaly",
+          "description": "Refresh activity is arriving too close to permission-denied responses.",
+          "values": {
+            "24h": "1 chain",
+            "7d": "4 chains",
+            "30d": "7 chains"
+          }
+        },
+        "privilegeEscalation": {
+          "title": "Privilege escalation path",
+          "description": "Role binding and sensitive writes appear within the same investigation corridor.",
+          "values": {
+            "24h": "3 paths",
+            "7d": "7 paths",
+            "30d": "15 paths"
+          }
+        }
+      },
+      "hotspotTitle": "Risk Hotspots",
+      "hotspotSubtitle": "Group by actor, resource, and plugin boundary to decide where the next drilldown belongs.",
+      "hotspots": {
+        "actor": {
+          "group": "Actor hotspot",
+          "title": "Operations by privileged operators",
+          "description": "A small set of admins account for most role and permission mutations in the current slice.",
+          "scores": {
+            "24h": "High",
+            "7d": "High",
+            "30d": "Medium"
+          },
+          "meta": {
+            "one": "4 actors produced 68% of sensitive writes",
+            "two": "2 actors overlap failed auth and denied traces",
+            "three": "Pivot by actor timeline before escalation"
+          }
+        },
+        "resource": {
+          "group": "Resource hotspot",
+          "title": "RBAC and session resources",
+          "description": "Role bindings and session controls keep reappearing across denied or retried operations.",
+          "scores": {
+            "24h": "High",
+            "7d": "Medium",
+            "30d": "Medium"
+          },
+          "meta": {
+            "one": "Role resources dominate write-side review",
+            "two": "Session resources dominate failed flows",
+            "three": "Resource pivot keeps request chain small"
+          }
+        },
+        "plugin": {
+          "group": "Plugin hotspot",
+          "title": "Lifecycle and scheduler controls",
+          "description": "Plugin reloads and scheduler stops are causing downstream audit attention in multiple domains.",
+          "scores": {
+            "24h": "Medium",
+            "7d": "Medium",
+            "30d": "High"
+          },
+          "meta": {
+            "one": "Lifecycle changes correlate with monitor noise",
+            "two": "Scheduler actions show elevated deny rates",
+            "three": "Keep plugin and monitor traces linked"
+          }
+        }
+      },
+      "entryTitle": "Investigation Entry Points",
+      "entrySubtitle": "Open the log workbench from a concrete question, not from a generic event list.",
+      "entries": {
+        "failedAuth": {
+          "title": "Investigate failed authentication",
+          "description": "Start from authentication failures, then pivot into request and actor correlation.",
+          "query": "Preset: failed auth · result=false · resource=session"
+        },
+        "rbacChanges": {
+          "title": "Review RBAC changes",
+          "description": "Inspect role updates, permission binding shifts, and actor ownership drift.",
+          "query": "Preset: role mutations · resource=role"
+        },
+        "sensitiveOps": {
+          "title": "Trace sensitive operations",
+          "description": "Follow delete, reset, and role-assignment flows that need stronger justification.",
+          "query": "Preset: sensitive writes · actor/resource pivot"
+        },
+        "pluginOps": {
+          "title": "Correlate plugin operations",
+          "description": "Check plugin lifecycle events against runtime or permission anomalies.",
+          "query": "Preset: plugin actions · cross-system correlation"
+        }
+      },
+      "correlationTitle": "Cross-System Correlation",
+      "correlationSubtitle": "Audit should not stay isolated from monitor, auth, or plugin lifecycle signals.",
+      "correlations": {
+        "pluginReload": {
+          "title": "Plugin reload followed by deny spike",
+          "description": "A reload window was followed by a short-lived permission-denied concentration.",
+          "nextStep": "Open plugin operations preset and trace the shared request chain.",
+          "status": "Needs follow-up"
+        },
+        "authSpike": {
+          "title": "Failed auth preceding role mutation",
+          "description": "Authentication failures cluster immediately before a privileged role adjustment.",
+          "nextStep": "Correlate actor timeline and inspect role ownership change.",
+          "status": "Escalation candidate"
+        },
+        "monitorLink": {
+          "title": "Runtime signal linked to audit churn",
+          "description": "Monitor reports transient runtime instability during a burst of scheduler actions.",
+          "nextStep": "Keep monitor and audit tabs aligned while reviewing request IDs.",
+          "status": "Linked"
+        }
+      },
+      "timelineTitle": "Investigation Timeline",
+      "timelineSubtitle": "A sampled chain that shows how events become cases worth opening in the log workbench.",
+      "timeline": {
         "items": {
-          "scope": {
-            "title": "Start from the narrowest scope",
-            "description": "Use the overview to choose actor, resource family, or failure state before opening the log table."
+          "failedSignin": {
+            "title": "Failed sign-in burst detected",
+            "description": "Multiple sign-in failures appear for the same privileged actor window.",
+            "context": "Actor pivot suggested before opening the log table."
           },
-          "trace": {
-            "title": "Pivot into request detail",
-            "description": "When a recent event looks suspicious, continue into the log list and inspect request ID, IP, and metadata."
+          "roleModify": {
+            "title": "Role membership changed",
+            "description": "A successful role binding update followed the failed sign-in sequence.",
+            "context": "Link with role ownership and prior request chain."
           },
-          "next": {
-            "title": "Escalate only after correlation",
-            "description": "Treat overview metrics as routing signals; final incident conclusions still belong to the detailed log page."
+          "pluginReload": {
+            "title": "Plugin reloaded during review window",
+            "description": "Lifecycle activity overlaps the same operating period and should stay visible.",
+            "context": "Correlate plugin timeline and runtime health."
+          },
+          "permissionDenied": {
+            "title": "Permission denied after mutation",
+            "description": "A denied request appears after the role change and may signal drift or misuse.",
+            "context": "Escalate only after same actor and same request review."
           }
         }
       }
     },
     "logList": {
       "listTitle": "Audit Logs",
-      "hint": "Inspect backend audit records by action, resource, request trace, and time window.",
+      "hint": "Investigate backend audit records by request chain, actor, resource, and time window instead of treating the list as a passive archive.",
       "summary": "{count} logs shown",
-      "tableHint": "This page is a read-only audit view and helps narrow investigations by key fields.",
+      "tableHint": "Use presets, correlation filters, and quick actions to move from a suspicious signal into a concrete investigation path.",
       "refresh": "Refresh",
       "detail": "Details",
       "more": "More",
-      "detailTitle": "Audit Details",
+      "detailTitle": "Audit Investigation Detail",
       "retry": "Retry",
       "clearFilters": "Clear Filters",
       "footerTotal": "{count} audit logs total",
       "loadFailed": "Failed to load audit logs",
       "errorTitle": "Audit logs are temporarily unavailable",
       "emptyTitle": "No audit logs",
-      "emptyDescription": "No records match the current filters. Adjust the time window or clear filters and try again.",
-      "readonlyNotice": "This page is read-only and does not allow audit records to be changed from the web UI.",
+      "emptyDescription": "No records match the current filters. Adjust the time window, request chain, or preset and try again.",
+      "readonlyNotice": "This workbench is read-only. It helps investigate audit trails, not change audit records.",
       "factSourceHint": "The page consumes the settled backend `/api/audit/logs` read contract and `audit.read` permission directly.",
+      "correlationTitle": "Correlation Search",
+      "correlationSubtitle": "Start from request ID, actor, resource, or session clues and then narrow the table.",
+      "presets": {
+        "all": "All Events",
+        "failedAuth": "Failed Authentication",
+        "rbacChanges": "RBAC Changes",
+        "permissionDenied": "Permission Denied",
+        "pluginOps": "Plugin Operations",
+        "sensitiveOps": "Sensitive Ops"
+      },
       "filters": {
         "actionPlaceholder": "Search action, such as user.create",
         "resourceTypePlaceholder": "Resource type, such as user / role",
         "resourceNamePlaceholder": "Resource name or display name",
-        "requestIdPlaceholder": "Request ID",
+        "requestIdPlaceholder": "Request ID or trace clue",
+        "actorPlaceholder": "Actor display name or username",
+        "resourcePlaceholder": "Resource ID or pivot token",
+        "sessionPlaceholder": "Session ID",
         "successPlaceholder": "Execution result",
         "successAll": "All Results",
         "successTrue": "Succeeded",
@@ -123,9 +339,29 @@
         "createdAt": "Created At",
         "context": "Context"
       },
+      "quickActions": {
+        "sameRequest": "Same Request",
+        "sameActor": "Same Actor"
+      },
+      "density": {
+        "comfortable": "Comfortable Density",
+        "compact": "Compact Density",
+        "switchCompact": "Switch to Compact",
+        "switchComfortable": "Switch to Comfortable"
+      },
       "result": {
         "success": "Succeeded",
         "failed": "Failed"
+      },
+      "risk": {
+        "failed": "High Risk",
+        "sensitive": "Sensitive",
+        "normal": "Routine"
+      },
+      "riskSignals": {
+        "authAnomaly": "Auth anomaly",
+        "privilegeSensitive": "Privilege sensitive",
+        "requestTraceable": "Request traceable"
       },
       "actor": {
         "anonymous": "System or anonymous caller"
@@ -133,27 +369,80 @@
       "resource": {
         "unknown": "Unnamed resource"
       },
+      "investigationSignals": {
+        "requestChain": {
+          "title": "Traceable request coverage",
+          "description": "How many current rows can be chained by request or trace identifiers.",
+          "action": "Pivot to the latest request chain"
+        },
+        "rbacRisk": {
+          "title": "RBAC-sensitive slice",
+          "description": "Rows that likely need role, permission, or ownership review.",
+          "action": "Open RBAC change preset"
+        },
+        "failedFlow": {
+          "title": "Failed operation slice",
+          "description": "Rows that should be reviewed for retry loops, denied access, or actor misuse.",
+          "action": "Open failed-auth preset"
+        }
+      },
+      "expanded": {
+        "correlationTitle": "Correlation snapshot",
+        "correlationSummary": "{actor} touched {resource} in request {requestId}.",
+        "tags": {
+          "request": "Request",
+          "actor": "Actor",
+          "resource": "Resource",
+          "noRequest": "No request id"
+        }
+      },
+      "timeline": {
+        "actorTitle": "Actor timeline",
+        "requestTitle": "Request timeline",
+        "resourceTitle": "Resource timeline"
+      },
       "detailSections": {
         "basic": "Basic Info",
         "request": "Request Info",
+        "context": "Context Snapshot",
+        "correlation": "Correlation Chain",
+        "timeline": "Timeline View",
+        "risk": "Risk Analysis",
         "metadata": "Metadata"
       },
       "detailFields": {
         "requestId": "Request ID",
+        "traceId": "Trace ID",
+        "sessionId": "Session ID",
         "ip": "IP",
         "userAgent": "User-Agent",
-        "message": "Message"
+        "message": "Message",
+        "plugin": "Plugin",
+        "endpoint": "Endpoint",
+        "relatedRole": "Related Role",
+        "relatedPermission": "Related Permission",
+        "beforeSnapshot": "Before Snapshot",
+        "afterSnapshot": "After Snapshot"
+      },
+      "detailHero": "{actor} acted on {resource}. Request chain: {requestId}.",
+      "correlationItems": {
+        "sameRequest": {
+          "title": "Same request chain",
+          "description": "Filter the workbench around request {requestId} and inspect preceding or following events.",
+          "empty": "No request ID is available for this row, so request-chain correlation is limited."
+        },
+        "sameActor": {
+          "title": "Same actor",
+          "description": "Investigate surrounding actions by {actor} to distinguish routine work from escalation."
+        },
+        "sameResource": {
+          "title": "Same resource",
+          "description": "Continue with the same resource path for {resource} and compare repeated access patterns."
+        }
       },
       "copyMetadata": "Copy Metadata",
       "copyMetadataSuccess": "Metadata copied",
-      "copyMetadataFailed": "Failed to copy metadata",
-      "context": {
-        "ip": "IP",
-        "userAgent": "Client",
-        "message": "Message",
-        "metadata": "Metadata",
-        "none": "No extra context"
-      }
+      "copyMetadataFailed": "Failed to copy metadata"
     }
   }
 }

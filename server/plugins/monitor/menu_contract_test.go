@@ -14,8 +14,8 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 	registerMonitorMenu(registry, pluginID)
 
 	menus := registry.Items()
-	if len(menus) != 5 {
-		t.Fatalf("expected 5 registered monitor menus, got %#v", menus)
+	if len(menus) != 4 {
+		t.Fatalf("expected 4 registered monitor menus, got %#v", menus)
 	}
 
 	sectionMenu := menus[0]
@@ -28,17 +28,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		permission: "",
 	})
 
-	serverStatusMenu := menus[1]
-	assertMenuItem(t, serverStatusMenu, expectedMenuItem{
-		code:       "monitor.server-status",
-		titleKey:   monitorcontract.ServerStatusMenuTitle.String(),
-		path:       monitorcontract.ServerStatusMenuPath,
-		icon:       "activity",
-		order:      100,
-		permission: "",
-	})
-
-	overviewMenu := menus[2]
+	overviewMenu := menus[1]
 	assertMenuItem(t, overviewMenu, expectedMenuItem{
 		code:       "monitor.server-status.overview",
 		titleKey:   monitorcontract.ServerStatusOverviewMenuTitle.String(),
@@ -48,7 +38,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
 
-	runtimeMenu := menus[3]
+	runtimeMenu := menus[2]
 	assertMenuItem(t, runtimeMenu, expectedMenuItem{
 		code:       "monitor.server-status.runtime",
 		titleKey:   monitorcontract.ServerStatusRuntimeMenuTitle.String(),
@@ -58,7 +48,7 @@ func TestRegisterMonitorMenuIncludesThreeLevelEntries(t *testing.T) {
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
 
-	dependenciesMenu := menus[4]
+	dependenciesMenu := menus[3]
 	assertMenuItem(t, dependenciesMenu, expectedMenuItem{
 		code:       "monitor.server-status.dependencies",
 		titleKey:   monitorcontract.ServerStatusDependenciesMenuTitle.String(),
