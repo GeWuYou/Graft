@@ -1,0 +1,33 @@
+get:
+  tags: [audit]
+  summary: Read audit overview
+  operationId: getAuditOverview
+  description: Returns real aggregated audit-overview data for the selected window.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: window
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [24h, 7d, 30d]
+        default: 24h
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Audit overview snapshot.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-audit-overview-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

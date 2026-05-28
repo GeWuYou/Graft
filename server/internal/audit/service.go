@@ -17,6 +17,10 @@ const (
 	maxPageSize     = 200
 )
 
+const (
+	defaultOverviewWindow = auditstore.OverviewWindow24Hours
+)
+
 // RecordInput describes one audit record write at the service boundary.
 type RecordInput struct {
 	ActorUserID      *uint64
@@ -57,6 +61,9 @@ type ListResult struct {
 	Page     int
 	PageSize int
 }
+
+// OverviewResult contains the read model for the audit overview page.
+type OverviewResult = auditstore.AuditOverview
 
 // Service writes and queries audit records through the plugin-owned repository boundary.
 type Service struct {
@@ -150,6 +157,26 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+// Overview returns the aggregated overview payload for the selected window.
+func (s *Service) Overview(ctx context.Context, window auditstore.OverviewWindow) (OverviewResult, error) {
+	if s == nil || s.repo == nil {
+		return OverviewResult{}, errors.New("audit service is unavailable")
+	}
+
+	switch strings.TrimSpace(string(window)) {
+	case "", string(defaultOverviewWindow):
+		window = defaultOverviewWindow
+	case string(auditstore.OverviewWindow7Days):
+		window = auditstore.OverviewWindow7Days
+	case string(auditstore.OverviewWindow30Days):
+		window = auditstore.OverviewWindow30Days
+	default:
+		window = defaultOverviewWindow
+	}
+
+	return s.repo.ReadAuditOverview(ctx, window)
 }
 
 func sanitizeMetadata(input any) (json.RawMessage, error) {

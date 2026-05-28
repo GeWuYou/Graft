@@ -199,6 +199,7 @@
       "title": "用户管理"
     },
     "audit": {
+      "title": "安全审计",
       "overview": {
         "title": "概览"
       },

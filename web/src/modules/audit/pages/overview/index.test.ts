@@ -1,66 +1,127 @@
-import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 
 import AuditOverviewPage from './index.vue';
 
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+}));
+
+const auditApiMocks = vi.hoisted(() => ({
+  getAuditOverview: vi.fn(async () => ({
+    window: '24h',
+    summary: {
+      total_logs: 12,
+      failed_operations: 3,
+      high_risk_events: 5,
+      sensitive_operations: 4,
+    },
+    failed_auth: [
+      {
+        id: 1,
+        actor_display_name: 'ops-admin',
+        action: 'POST /api/auth/login',
+        success: false,
+        request_id: 'req-1',
+        message: '',
+        metadata: { request_path: '/api/auth/login' },
+        created_at: '2026-05-27T08:00:00Z',
+      },
+    ],
+    permission_denied: [
+      {
+        id: 2,
+        actor_display_name: 'viewer-01',
+        action: 'rbac.role.delete',
+        success: false,
+        request_id: 'req-2',
+        message: 'common.forbidden',
+        metadata: { request_path: '/api/roles/1/delete' },
+        created_at: '2026-05-27T08:05:00Z',
+      },
+    ],
+    sensitive_operations: [
+      {
+        id: 3,
+        actor_display_name: 'security-lead',
+        resource_name: 'alice',
+        resource_type: 'user',
+        resource_id: '42',
+        action: 'user.password.reset',
+        success: true,
+        request_id: 'req-3',
+        message: '',
+        metadata: { request_path: '/api/users/42/reset-password' },
+        created_at: '2026-05-27T08:10:00Z',
+      },
+    ],
+  })),
+}));
+
+vi.mock('../../api/audit', () => ({
+  getAuditOverview: auditApiMocks.getAuditOverview,
+}));
+
+vi.mock('@/modules/shared/localized-api-error', () => ({
+  resolveLocalizedErrorMessage: () => 'load failed',
+}));
+
+vi.mock('@/utils/logger', () => ({
+  createLogger: () => ({
+    error: vi.fn(),
+  }),
+}));
+
+vi.mock('../../components/AuditStats.vue', () => ({
+  default: defineComponent({
+    name: 'AuditStatsStub',
+    props: {
+      items: {
+        type: Array,
+        default: () => [],
+      },
+    },
+    setup(props) {
+      return () => h('div', { 'data-testid': 'audit-stats' }, JSON.stringify(props.items));
+    },
+  }),
+}));
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({
+    push: routerMocks.push,
+  }),
+}));
+
 const passthroughStub = defineComponent({
   name: 'PassthroughStub',
-  props: {
-    title: {
-      type: String,
-      default: '',
-    },
-    subtitle: {
-      type: String,
-      default: '',
-    },
-    description: {
-      type: String,
-      default: '',
-    },
-    value: {
-      type: String,
-      default: '',
-    },
-    badge: {
-      type: String,
-      default: '',
-    },
-  },
+  props: ['title', 'description', 'items'],
   setup(props, { slots }) {
     return () =>
-      h('div', [
-        props.title,
-        props.subtitle,
-        props.description,
-        props.value,
-        props.badge,
-        slots.default?.(),
-        slots.actions?.(),
-        slots.action?.(),
-        slots.summary?.(),
-        slots.headerHint?.(),
-      ]);
+      h('div', [props.title, props.description, JSON.stringify(props.items), slots.default?.(), slots.actions?.()]);
   },
 });
 
-const tagStub = defineComponent({
-  name: 'TTagStub',
+const cardStub = defineComponent({
+  name: 'TCardStub',
   setup(_, { slots }) {
-    return () => h('span', slots.default?.());
+    return () => h('section', [slots.header?.(), slots.default?.()]);
+  },
+});
+
+const buttonStub = defineComponent({
+  name: 'TButtonStub',
+  emits: ['click'],
+  setup(_, { emit, slots }) {
+    return () => h('button', { onClick: () => emit('click') }, slots.default?.());
   },
 });
 
 const radioGroupStub = defineComponent({
   name: 'TRadioGroupStub',
-  props: {
-    modelValue: {
-      type: String,
-      default: '',
-    },
-  },
+  props: { modelValue: { type: String, default: '' } },
   setup(_, { slots }) {
     return () => h('div', slots.default?.());
   },
@@ -73,6 +134,13 @@ const radioButtonStub = defineComponent({
   },
 });
 
+const tagStub = defineComponent({
+  name: 'TTagStub',
+  setup(_, { slots }) {
+    return () => h('span', slots.default?.());
+  },
+});
+
 const i18n = createI18n({
   legacy: false,
   locale: 'en-US',
@@ -80,182 +148,39 @@ const i18n = createI18n({
     'en-US': {
       menu: {
         audit: {
+          title: 'Security Audit',
           overview: {
-            title: 'Overview',
+            title: 'Security Audit',
           },
         },
       },
       audit: {
         overview: {
-          title: 'Audit Overview',
-          description: 'Investigation workbench',
-          contractTag: 'Canonical Contract',
-          statusSuccess: 'Succeeded',
-          statusFailed: 'Failed',
-          trendTitle: 'Risk Trend Layer',
-          trendSubtitle: 'Track risk trends',
-          anomalyTitle: 'Anomaly Highlights',
-          anomalySubtitle: 'Anomaly help',
-          hotspotTitle: 'Risk Hotspots',
-          hotspotSubtitle: 'Hotspot help',
-          entryTitle: 'Investigation Entry Points',
-          entrySubtitle: 'Entry help',
-          correlationTitle: 'Cross-System Correlation',
-          correlationSubtitle: 'Correlation help',
-          timelineTitle: 'Investigation Timeline',
-          timelineSubtitle: 'Timeline help',
-          timeRanges: {
-            '24h': '24h',
-            '7d': '7d',
-            '30d': '30d',
+          title: 'Security Audit',
+          description: 'Review recent anomalies, risk items, and common audit entry points.',
+          refresh: 'Refresh',
+          retry: 'Retry',
+          errorTitle: 'Audit overview is temporarily unavailable',
+          loadFailed: 'Failed to load audit overview',
+          timeRanges: { '24h': 'Last 24h', '7d': 'Last 7d', '30d': 'Last 30d' },
+          itemResult: { failed: 'Failed', denied: 'Denied', sensitive: 'Review' },
+          sections: {
+            failedAuth: 'Recent Failed Authentication',
+            permissionDenied: 'Recent Permission Denied',
+            sensitiveOps: 'Recent Sensitive Operations',
+            shortcuts: 'Quick Links',
+            riskWatch: 'Recent Risk',
           },
-          heroSignals: {
-            queue: {
-              label: 'Queue',
-              meta: 'Queue meta',
-              values: { '24h': '08 active cases', '7d': '17 active cases', '30d': '36 active cases' },
-            },
-            scope: {
-              label: 'Scope',
-              meta: 'Scope meta',
-              values: { '24h': 'RBAC privilege drift', '7d': 'Permission deny cluster', '30d': 'Cross-plugin churn' },
-            },
-            correlation: {
-              label: 'Correlation',
-              meta: 'Correlation meta',
-              values: { '24h': '03 live correlations', '7d': '06 live correlations', '30d': '11 live correlations' },
-            },
+          stats: {
+            totalLogs: { title: 'Audit Logs', unit: 'events', meta: 'window' },
+            failedToday: { title: 'Failed Operations Today', unit: 'events', meta: 'watch' },
+            highRisk: { title: 'High-Risk Events', unit: 'items', meta: 'failed' },
+            sensitiveOps: { title: 'Sensitive Operations', unit: 'actions', meta: 'write' },
           },
-          cards: {
-            failedAuth: {
-              title: 'Failed Authentication',
-              aside: 'events',
-              description: 'Failed auth desc',
-              badge: 'Anomaly',
-              values: { '24h': '12', '7d': '53', '30d': '168' },
-            },
-            permissionDenied: {
-              title: 'Permission Denied',
-              aside: 'events',
-              description: 'Permission denied desc',
-              badge: 'Correlate',
-              values: { '24h': '09', '7d': '44', '30d': '121' },
-            },
-            sensitiveActions: {
-              title: 'Sensitive Operations',
-              aside: 'ops',
-              description: 'Sensitive desc',
-              badge: 'Review',
-              values: { '24h': '18', '7d': '67', '30d': '204' },
-            },
-            escalation: {
-              title: 'Escalation Candidates',
-              aside: 'cases',
-              description: 'Escalation desc',
-              badge: 'Escalate',
-              values: { '24h': '03', '7d': '11', '30d': '29' },
-            },
-          },
-          trends: {
-            failedAuth: {
-              title: 'Failed auth spike',
-              description: 'desc',
-              compareText: 'compare',
-              values: {
-                '24h': '12 failed auth events',
-                '7d': '53 failed auth events',
-                '30d': '168 failed auth events',
-              },
-              changes: { '24h': '+41%', '7d': '+18%', '30d': '+09%' },
-            },
-            permissionDenied: {
-              title: 'Permission deny concentration',
-              description: 'desc',
-              compareText: 'compare',
-              values: { '24h': '09 denied operations', '7d': '44 denied operations', '30d': '121 denied operations' },
-              changes: { '24h': '+22%', '7d': '+11%', '30d': '+04%' },
-            },
-            pluginLifecycle: {
-              title: 'Plugin lifecycle churn',
-              description: 'desc',
-              compareText: 'compare',
-              values: { '24h': '04 lifecycle clusters', '7d': '09 lifecycle clusters', '30d': '21 lifecycle clusters' },
-              changes: { '24h': '+16%', '7d': '+08%', '30d': '+03%' },
-            },
-          },
-          anomalies: {
-            suspiciousIp: {
-              title: 'Suspicious IP sequence',
-              description: 'desc',
-              values: { '24h': '2 IP groups', '7d': '5 IP groups', '30d': '9 IP groups' },
-            },
-            tokenAnomaly: {
-              title: 'Token refresh anomaly',
-              description: 'desc',
-              values: { '24h': '1 chain', '7d': '4 chains', '30d': '7 chains' },
-            },
-            privilegeEscalation: {
-              title: 'Privilege escalation path',
-              description: 'desc',
-              values: { '24h': '3 paths', '7d': '7 paths', '30d': '15 paths' },
-            },
-          },
-          hotspots: {
-            actor: {
-              group: 'Actor hotspot',
-              title: 'Privileged operators',
-              description: 'desc',
-              scores: { '24h': 'High', '7d': 'High', '30d': 'Medium' },
-              meta: { one: 'one', two: 'two', three: 'three' },
-            },
-            resource: {
-              group: 'Resource hotspot',
-              title: 'RBAC resources',
-              description: 'desc',
-              scores: { '24h': 'High', '7d': 'Medium', '30d': 'Medium' },
-              meta: { one: 'one', two: 'two', three: 'three' },
-            },
-            plugin: {
-              group: 'Plugin hotspot',
-              title: 'Lifecycle',
-              description: 'desc',
-              scores: { '24h': 'Medium', '7d': 'Medium', '30d': 'High' },
-              meta: { one: 'one', two: 'two', three: 'three' },
-            },
-          },
-          entries: {
-            failedAuth: { title: 'Investigate failed authentication', description: 'desc', query: 'preset query' },
-            rbacChanges: { title: 'Review RBAC changes', description: 'desc', query: 'preset query' },
-            sensitiveOps: { title: 'Trace sensitive operations', description: 'desc', query: 'preset query' },
-            pluginOps: { title: 'Correlate plugin operations', description: 'desc', query: 'preset query' },
-          },
-          correlations: {
-            pluginReload: {
-              title: 'Plugin reload followed by deny spike',
-              description: 'desc',
-              nextStep: 'next',
-              status: 'Needs follow-up',
-            },
-            authSpike: {
-              title: 'Failed auth preceding role mutation',
-              description: 'desc',
-              nextStep: 'next',
-              status: 'Escalation candidate',
-            },
-            monitorLink: {
-              title: 'Runtime signal linked to audit churn',
-              description: 'desc',
-              nextStep: 'next',
-              status: 'Linked',
-            },
-          },
-          timeline: {
-            items: {
-              failedSignin: { title: 'Failed sign-in burst detected', description: 'desc', context: 'context' },
-              roleModify: { title: 'Role membership changed', description: 'desc', context: 'context' },
-              pluginReload: { title: 'Plugin reloaded during review window', description: 'desc', context: 'context' },
-              permissionDenied: { title: 'Permission denied after mutation', description: 'desc', context: 'context' },
-            },
+          shortcuts: {
+            failedAuth: { title: 'Open Failed Authentication', description: 'Apply the failed authentication preset' },
+            rbacChanges: { title: 'Open RBAC Changes', description: 'Review role and permission records' },
+            sensitiveOps: { title: 'Open Sensitive Operations', description: 'Locate privileged write actions' },
           },
         },
       },
@@ -264,32 +189,35 @@ const i18n = createI18n({
 });
 
 describe('AuditOverviewPage', () => {
-  it('renders the investigation-first dashboard hierarchy', () => {
+  it('renders the streamlined workbench overview and opens a quick link', async () => {
     const wrapper = mount(AuditOverviewPage, {
       global: {
         plugins: [i18n],
         stubs: {
-          'governance-dashboard-shell': passthroughStub,
-          'governance-summary-card': passthroughStub,
-          'governance-section': passthroughStub,
-          'governance-action-panel': passthroughStub,
-          't-space': passthroughStub,
-          't-tag': tagStub,
+          'management-page-content': passthroughStub,
+          'management-page-header': passthroughStub,
+          'management-empty-state': passthroughStub,
+          't-card': cardStub,
+          't-button': buttonStub,
           't-radio-group': radioGroupStub,
           't-radio-button': radioButtonStub,
+          't-space': passthroughStub,
+          't-tag': tagStub,
         },
       },
     });
 
+    await flushPromises();
+
+    expect(auditApiMocks.getAuditOverview).toHaveBeenCalledWith({ window: '24h' });
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
-    expect(wrapper.text()).toContain('Audit Overview');
-    expect(wrapper.text()).toContain('Risk Trend Layer');
-    expect(wrapper.text()).toContain('Anomaly Highlights');
-    expect(wrapper.text()).toContain('Risk Hotspots');
-    expect(wrapper.text()).toContain('Investigation Entry Points');
-    expect(wrapper.text()).toContain('Cross-System Correlation');
-    expect(wrapper.text()).toContain('Investigation Timeline');
-    expect(wrapper.text()).toContain('Failed auth spike');
-    expect(wrapper.text()).toContain('Plugin reload followed by deny spike');
+    expect(wrapper.text()).toContain('Recent Failed Authentication');
+    expect(wrapper.text()).toContain('Recent Permission Denied');
+    expect(wrapper.text()).toContain('Recent Sensitive Operations');
+    expect(wrapper.text()).toContain('Quick Links');
+    expect(wrapper.text()).toContain('12');
+
+    await wrapper.get('button[type="button"]').trigger('click');
+    expect(routerMocks.push).toHaveBeenCalled();
   });
 });

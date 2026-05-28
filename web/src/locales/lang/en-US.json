@@ -199,6 +199,7 @@
       "title": "User Management"
     },
     "audit": {
+      "title": "Security Audit",
       "overview": {
         "title": "Overview"
       },

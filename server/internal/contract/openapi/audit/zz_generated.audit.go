@@ -71,6 +71,108 @@ func (e GetAuditLogs500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditOverviewParamsWindow.
+const (
+	GetAuditOverviewParamsWindowN24h GetAuditOverviewParamsWindow = "24h"
+	GetAuditOverviewParamsWindowN30d GetAuditOverviewParamsWindow = "30d"
+	GetAuditOverviewParamsWindowN7d  GetAuditOverviewParamsWindow = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditOverviewParamsWindow enum.
+func (e GetAuditOverviewParamsWindow) Valid() bool {
+	switch e {
+	case GetAuditOverviewParamsWindowN24h:
+		return true
+	case GetAuditOverviewParamsWindowN30d:
+		return true
+	case GetAuditOverviewParamsWindowN7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditOverview200JSONResponseBodyDataWindow.
+const (
+	GetAuditOverview200JSONResponseBodyDataWindowN24h GetAuditOverview200JSONResponseBodyDataWindow = "24h"
+	GetAuditOverview200JSONResponseBodyDataWindowN30d GetAuditOverview200JSONResponseBodyDataWindow = "30d"
+	GetAuditOverview200JSONResponseBodyDataWindowN7d  GetAuditOverview200JSONResponseBodyDataWindow = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditOverview200JSONResponseBodyDataWindow enum.
+func (e GetAuditOverview200JSONResponseBodyDataWindow) Valid() bool {
+	switch e {
+	case GetAuditOverview200JSONResponseBodyDataWindowN24h:
+		return true
+	case GetAuditOverview200JSONResponseBodyDataWindowN30d:
+		return true
+	case GetAuditOverview200JSONResponseBodyDataWindowN7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditOverview200JSONResponseBodySuccess.
+const (
+	True GetAuditOverview200JSONResponseBodySuccess = true
+)
+
+// Valid indicates whether the value is a known member of the GetAuditOverview200JSONResponseBodySuccess enum.
+func (e GetAuditOverview200JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case True:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditOverview401JSONResponseBodySuccess.
+const (
+	GetAuditOverview401JSONResponseBodySuccessFalse GetAuditOverview401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAuditOverview401JSONResponseBodySuccess enum.
+func (e GetAuditOverview401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAuditOverview401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditOverview403JSONResponseBodySuccess.
+const (
+	GetAuditOverview403JSONResponseBodySuccessFalse GetAuditOverview403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAuditOverview403JSONResponseBodySuccess enum.
+func (e GetAuditOverview403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAuditOverview403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditOverview500JSONResponseBodySuccess.
+const (
+	False GetAuditOverview500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAuditOverview500JSONResponseBodySuccess enum.
+func (e GetAuditOverview500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case False:
+		return true
+	default:
+		return false
+	}
+}
+
 // bearerAuthContextKey is the context key for bearerAuth security scheme
 type bearerAuthContextKey string
 
@@ -110,3 +212,33 @@ type GetAuditLogs403JSONResponseBodySuccess bool
 
 // GetAuditLogs500JSONResponseBodySuccess defines parameters for GetAuditLogs.
 type GetAuditLogs500JSONResponseBodySuccess bool
+
+// GetAuditOverviewParams defines parameters for GetAuditOverview.
+type GetAuditOverviewParams struct {
+	Window *GetAuditOverviewParamsWindow `form:"window,omitempty" json:"window,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetAuditOverviewParamsWindow defines parameters for GetAuditOverview.
+type GetAuditOverviewParamsWindow string
+
+// GetAuditOverview200JSONResponseBodyDataWindow defines parameters for GetAuditOverview.
+type GetAuditOverview200JSONResponseBodyDataWindow string
+
+// GetAuditOverview200JSONResponseBodySuccess defines parameters for GetAuditOverview.
+type GetAuditOverview200JSONResponseBodySuccess bool
+
+// GetAuditOverview401JSONResponseBodySuccess defines parameters for GetAuditOverview.
+type GetAuditOverview401JSONResponseBodySuccess bool
+
+// GetAuditOverview403JSONResponseBodySuccess defines parameters for GetAuditOverview.
+type GetAuditOverview403JSONResponseBodySuccess bool
+
+// GetAuditOverview500JSONResponseBodySuccess defines parameters for GetAuditOverview.
+type GetAuditOverview500JSONResponseBodySuccess bool

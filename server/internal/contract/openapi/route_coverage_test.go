@@ -57,6 +57,7 @@ func TestRequiredLiveRoutesStayCoveredByRootSpec(t *testing.T) {
 		"/api/users/roles/add",
 		"/api/users/roles/remove",
 		"/api/audit/logs",
+		"/api/audit/overview",
 		"/api/monitor/server-status",
 	}
 

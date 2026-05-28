@@ -258,9 +258,11 @@ type BootstrapLocale struct {
 
 // BootstrapMenu defines model for bootstrap-menu.
 type BootstrapMenu struct {
-	Code       string `json:"code"`
-	Icon       string `json:"icon"`
-	Order      int    `json:"order"`
+	Code string `json:"code"`
+	Icon string `json:"icon"`
+
+	// Order Canonical menu order declared by the backend. Lower values render first within the same parent.
+	Order      *int   `json:"order,omitempty"`
 	Path       string `json:"path"`
 	Permission string `json:"permission"`
 

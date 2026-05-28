@@ -1,0 +1,25 @@
+type: object
+required:
+  - window
+  - summary
+  - failed_auth
+  - permission_denied
+  - sensitive_operations
+properties:
+  window:
+    type: string
+    enum: [24h, 7d, 30d]
+  summary:
+    $ref: ./audit-overview-summary.yaml
+  failed_auth:
+    type: array
+    items:
+      $ref: ./audit-overview-item.yaml
+  permission_denied:
+    type: array
+    items:
+      $ref: ./audit-overview-item.yaml
+  sensitive_operations:
+    type: array
+    items:
+      $ref: ./audit-overview-item.yaml

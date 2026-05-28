@@ -12,6 +12,9 @@ const (
 	// AuditCollection identifies the audit-log collection route fragment.
 	AuditCollection = "/logs"
 
+	// AuditOverviewCollection identifies the audit overview route fragment.
+	AuditOverviewCollection = "/overview"
+
 	// AuditMenuPath identifies the canonical audit root menu path.
 	AuditMenuPath = AuditGroup
 
@@ -20,4 +23,7 @@ const (
 
 	// AuditLogsMenuPath identifies the canonical audit logs menu path.
 	AuditLogsMenuPath = AuditGroup + AuditCollection
+
+	// AuditOverviewAPIPath identifies the canonical audit overview API path.
+	AuditOverviewAPIPath = AuditGroup + AuditOverviewCollection
 )

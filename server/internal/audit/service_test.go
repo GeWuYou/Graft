@@ -13,10 +13,13 @@ import (
 type stubAuditRepository struct {
 	createdInput auditstore.CreateAuditLogInput
 	listQuery    auditstore.ListAuditLogsQuery
+	overviewWnd  auditstore.OverviewWindow
 	createResult auditstore.AuditLog
 	listResult   auditstore.ListAuditLogsResult
+	overview     auditstore.AuditOverview
 	createErr    error
 	listErr      error
+	overviewErr  error
 }
 
 func (r *stubAuditRepository) CreateAuditLog(_ context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
@@ -36,6 +39,14 @@ func (r *stubAuditRepository) ListAuditLogs(_ context.Context, query auditstore.
 		return auditstore.ListAuditLogsResult{}, r.listErr
 	}
 	return r.listResult, nil
+}
+
+func (r *stubAuditRepository) ReadAuditOverview(_ context.Context, window auditstore.OverviewWindow) (auditstore.AuditOverview, error) {
+	r.overviewWnd = window
+	if r.overviewErr != nil {
+		return auditstore.AuditOverview{}, r.overviewErr
+	}
+	return r.overview, nil
 }
 
 func TestServiceRecordSanitizesSensitiveFields(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 func registerAuditRoutes(ctx *plugin.Context, pluginName string, reader auditReader, guard auditGuard) {
 	group := ctx.Router.Group(auditcontract.AuditGroup)
 	group.Use(httpx.RequestIDMiddleware())
+	group.GET(auditcontract.AuditOverviewCollection, guard.read, handleReadAuditOverview(ctx, pluginName, reader))
 	group.GET(auditcontract.AuditCollection, guard.read, handleListAuditLogs(ctx, pluginName, reader))
 }
 

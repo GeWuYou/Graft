@@ -15,3 +15,7 @@ func (stubAuditRepository) CreateAuditLog(context.Context, auditstore.CreateAudi
 func (stubAuditRepository) ListAuditLogs(context.Context, auditstore.ListAuditLogsQuery) (auditstore.ListAuditLogsResult, error) {
 	return auditstore.ListAuditLogsResult{}, nil
 }
+
+func (stubAuditRepository) ReadAuditOverview(context.Context, auditstore.OverviewWindow) (auditstore.AuditOverview, error) {
+	return auditstore.AuditOverview{}, nil
+}

@@ -103,6 +103,7 @@ describe('frontend visible-copy governance', () => {
       'menu.server.overview.title',
       'menu.server.runtime.title',
       'menu.server.dependencies.title',
+      'menu.audit.title',
       'menu.audit.overview.title',
       'menu.audit.logs.title',
     ];

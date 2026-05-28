@@ -5,4 +5,5 @@ export const AUDIT_ROUTE_PATH = {
 
 export const AUDIT_API_PATH = {
   LOGS: '/api/audit/logs',
+  OVERVIEW: '/api/audit/overview',
 } as const;

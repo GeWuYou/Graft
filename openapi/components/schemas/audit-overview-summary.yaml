@@ -1,0 +1,15 @@
+type: object
+required:
+  - total_logs
+  - failed_operations
+  - high_risk_events
+  - sensitive_operations
+properties:
+  total_logs:
+    type: integer
+  failed_operations:
+    type: integer
+  high_risk_events:
+    type: integer
+  sensitive_operations:
+    type: integer

@@ -33,7 +33,7 @@ func toBootstrapResponse(payload pluginapi.AuthBootstrapPayload) (generated.Boot
 			TitleKey:   optionalStringPointer(item.TitleKey),
 			Path:       item.Path,
 			Icon:       item.Icon,
-			Order:      item.Order,
+			Order:      optionalIntPointer(item.Order),
 			Permission: item.Permission,
 		})
 	}
@@ -71,6 +71,10 @@ func optionalStringPointer(value string) *string {
 	if value == "" {
 		return nil
 	}
+	return &value
+}
+
+func optionalIntPointer(value int) *int {
 	return &value
 }
 

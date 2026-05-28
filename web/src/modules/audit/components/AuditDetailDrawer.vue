@@ -1,0 +1,296 @@
+<template>
+  <t-drawer
+    :visible="visible"
+    :header="t('audit.logList.detailTitle')"
+    destroy-on-close
+    placement="right"
+    size="640px"
+    @update:visible="$emit('update:visible', $event)"
+  >
+    <div v-if="record" class="audit-detail">
+      <section class="audit-detail__hero">
+        <div>
+          <strong>{{ record.action }}</strong>
+          <p>{{ record.message || t('audit.logList.drawer.messageFallback') }}</p>
+        </div>
+        <t-tag :theme="riskTone(record)" variant="light-outline">{{ riskLabel(record, t) }}</t-tag>
+      </section>
+
+      <section class="audit-detail__section">
+        <h4>{{ t('audit.logList.drawer.sections.basic') }}</h4>
+        <div class="audit-detail__grid">
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.columns.actor') }}</span>
+            <strong>{{ actorLabel(record, t) }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.columns.resource') }}</span>
+            <strong>{{ resourceDetailLabel(record, t) }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.result') }}</span>
+            <strong>{{ record.success ? t('audit.common.result.success') : t('audit.common.result.failed') }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.columns.createdAt') }}</span>
+            <strong>{{ formatAuditTimestamp(record.created_at) }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.requestId') }}</span>
+            <strong class="audit-detail__mono">{{ record.request_id }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.traceId') }}</span>
+            <strong class="audit-detail__mono">{{ traceIdForRecord(record) }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.sessionId') }}</span>
+            <strong class="audit-detail__mono">{{ sessionIdForRecord(record) }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.ip') }}</span>
+            <strong>{{ record.ip || '-' }}</strong>
+          </div>
+          <div class="audit-detail__item audit-detail__item--full">
+            <span>{{ t('audit.logList.drawer.fields.userAgent') }}</span>
+            <strong>{{ record.user_agent || '-' }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="audit-detail__section">
+        <h4>{{ t('audit.logList.drawer.sections.request') }}</h4>
+        <div class="audit-detail__grid">
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.method') }}</span>
+            <strong>{{ metadataLookup(record, 'request_method') || '-' }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.path') }}</span>
+            <strong>{{ metadataLookup(record, 'request_path') || metadataLookup(record, 'path') || '-' }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.status') }}</span>
+            <strong>{{ metadataLookup(record, 'status_code') || metadataLookup(record, 'status') || '-' }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.latency') }}</span>
+            <strong>{{ metadataLookup(record, 'latency') || '-' }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="audit-detail__section">
+        <h4>{{ t('audit.logList.drawer.sections.correlation') }}</h4>
+        <div class="audit-detail__related-grid">
+          <article class="audit-detail__related-card">
+            <strong>{{ t('audit.logList.drawer.related.sameRequest') }}</strong>
+            <ul>
+              <li v-for="item in sameRequestRows" :key="item.id">
+                {{ item.action }} · {{ formatAuditTimestamp(item.created_at) }}
+              </li>
+              <li v-if="sameRequestRows.length === 0">{{ t('audit.logList.drawer.related.empty') }}</li>
+            </ul>
+          </article>
+          <article class="audit-detail__related-card">
+            <strong>{{ t('audit.logList.drawer.related.sameActor') }}</strong>
+            <ul>
+              <li v-for="item in sameActorRows" :key="item.id">{{ item.action }} · {{ resourceLabel(item, t) }}</li>
+              <li v-if="sameActorRows.length === 0">{{ t('audit.logList.drawer.related.empty') }}</li>
+            </ul>
+          </article>
+          <article class="audit-detail__related-card">
+            <strong>{{ t('audit.logList.drawer.related.sameResource') }}</strong>
+            <ul>
+              <li v-for="item in sameResourceRows" :key="item.id">{{ actorLabel(item, t) }} · {{ item.action }}</li>
+              <li v-if="sameResourceRows.length === 0">{{ t('audit.logList.drawer.related.empty') }}</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="audit-detail__section">
+        <h4>{{ t('audit.logList.drawer.sections.risk') }}</h4>
+        <div class="audit-detail__tags">
+          <t-tag :theme="riskTone(record)" variant="light-outline">{{ riskLabel(record, t) }}</t-tag>
+          <t-tag v-if="!record.success" theme="danger" variant="light-outline">
+            {{ t('audit.logList.drawer.risk.failedOperation') }}
+          </t-tag>
+          <t-tag v-if="isSensitiveAction(record)" theme="warning" variant="light-outline">
+            {{ t('audit.logList.drawer.risk.sensitiveOperation') }}
+          </t-tag>
+          <t-tag v-if="record.request_id" theme="default" variant="light-outline">
+            {{ t('audit.logList.drawer.risk.requestTrace') }}
+          </t-tag>
+        </div>
+      </section>
+
+      <section class="audit-detail__section">
+        <h4>{{ t('audit.logList.drawer.sections.metadata') }}</h4>
+        <pre class="audit-detail__code">{{ metadataDetail(record.metadata) }}</pre>
+      </section>
+    </div>
+  </t-drawer>
+</template>
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+import {
+  actorLabel,
+  formatAuditTimestamp,
+  isSensitiveAction,
+  metadataDetail,
+  metadataLookup,
+  resourceDetailLabel,
+  resourceLabel,
+  riskLabel,
+  riskTone,
+  sessionIdForRecord,
+  traceIdForRecord,
+} from '../shared/presentation';
+import type { AuditLogListItem } from '../types/audit';
+
+const props = defineProps<{
+  record: AuditLogListItem | null;
+  rows: AuditLogListItem[];
+  visible: boolean;
+}>();
+
+defineEmits<{
+  (e: 'update:visible', value: boolean): void;
+}>();
+
+const { t } = useI18n();
+
+const sameRequestRows = computed(() => {
+  const record = props.record;
+  if (!record?.request_id) {
+    return [];
+  }
+
+  return props.rows.filter((item) => item.id !== record.id && item.request_id === record.request_id).slice(0, 3);
+});
+
+const sameActorRows = computed(() => {
+  const record = props.record;
+  if (!record?.actor_user_id) {
+    return [];
+  }
+
+  return props.rows.filter((item) => item.id !== record.id && item.actor_user_id === record.actor_user_id).slice(0, 3);
+});
+
+const sameResourceRows = computed(() => {
+  const record = props.record;
+  if (!record?.resource_id) {
+    return [];
+  }
+
+  return props.rows
+    .filter(
+      (item) =>
+        item.id !== record.id && item.resource_type === record.resource_type && item.resource_id === record.resource_id,
+    )
+    .slice(0, 3);
+});
+</script>
+<style scoped lang="less">
+.audit-detail,
+.audit-detail__section,
+.audit-detail__related-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.audit-detail {
+  gap: 20px;
+}
+
+.audit-detail__hero,
+.audit-detail__related-grid,
+.audit-detail__grid,
+.audit-detail__tags {
+  display: grid;
+  gap: 12px;
+}
+
+.audit-detail__hero {
+  align-items: flex-start;
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-large);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 16px;
+}
+
+.audit-detail__hero p,
+.audit-detail__item span,
+.audit-detail__related-card li {
+  color: var(--td-text-color-secondary);
+}
+
+.audit-detail__hero p,
+.audit-detail__section h4 {
+  margin: 0;
+}
+
+.audit-detail__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.audit-detail__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.audit-detail__item--full {
+  grid-column: 1 / -1;
+}
+
+.audit-detail__mono {
+  font-family: var(--td-font-family-medium);
+}
+
+.audit-detail__related-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.audit-detail__related-card {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  gap: 10px;
+  padding: 14px;
+}
+
+.audit-detail__related-card ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 16px;
+}
+
+.audit-detail__tags {
+  grid-template-columns: repeat(auto-fit, minmax(120px, max-content));
+}
+
+.audit-detail__code {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+@media (width <= 768px) {
+  .audit-detail__hero,
+  .audit-detail__grid,
+  .audit-detail__related-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -96,6 +96,8 @@ paths:
     $ref: ./paths/users.roles.batch.remove.yaml
   /api/audit/logs:
     $ref: ./paths/audit.logs.yaml
+  /api/audit/overview:
+    $ref: ./paths/audit.overview.yaml
   /api/monitor/server-status:
     $ref: ./paths/monitor.server-status.yaml
 components:
@@ -184,6 +186,14 @@ components:
       $ref: ./components/schemas/audit-log-list-response.yaml
     EnvelopedAuditLogListResponse:
       $ref: ./components/schemas/enveloped-audit-log-list-response.yaml
+    AuditOverviewItem:
+      $ref: ./components/schemas/audit-overview-item.yaml
+    AuditOverviewSummary:
+      $ref: ./components/schemas/audit-overview-summary.yaml
+    AuditOverviewResponse:
+      $ref: ./components/schemas/audit-overview-response.yaml
+    EnvelopedAuditOverviewResponse:
+      $ref: ./components/schemas/enveloped-audit-overview-response.yaml
     ServerStatusDependency:
       $ref: ./components/schemas/server-status-dependency.yaml
     ServerStatusPlugin:

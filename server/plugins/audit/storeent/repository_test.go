@@ -187,3 +187,90 @@ func TestRepositoryListAuditLogsRejectsInvalidPagination(t *testing.T) {
 		t.Fatalf("expected invalid offset error, got %v", err)
 	}
 }
+
+func TestRepositoryReadAuditOverview(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	seed := []auditstore.CreateAuditLogInput{
+		{
+			Action:       "POST /api/auth/login",
+			ResourceType: "auth",
+			Success:      false,
+			RequestID:    "req-auth",
+			Message:      "common.invalid_argument",
+			Metadata:     json.RawMessage(`{"request_path":"/api/auth/login","status_code":400}`),
+			CreatedAt:    now.Add(-2 * time.Hour),
+		},
+		{
+			Action:       "rbac.role.delete",
+			ResourceType: "role",
+			ResourceID:   "12",
+			ResourceName: "Ops Admin",
+			Success:      false,
+			RequestID:    "req-role",
+			Message:      "common.forbidden",
+			Metadata:     json.RawMessage(`{"request_path":"/api/roles/12/delete","status_code":403}`),
+			CreatedAt:    now.Add(-time.Hour),
+		},
+		{
+			Action:       "user.password.reset",
+			ResourceType: "user",
+			ResourceID:   "42",
+			ResourceName: "alice",
+			Success:      true,
+			RequestID:    "req-user",
+			Message:      "",
+			Metadata:     json.RawMessage(`{"request_path":"/api/users/42/reset-password","status_code":200}`),
+			CreatedAt:    now.Add(-30 * time.Minute),
+		},
+	}
+	for _, item := range seed {
+		if _, err := repo.CreateAuditLog(ctx, item); err != nil {
+			t.Fatalf("seed audit log: %v", err)
+		}
+	}
+
+	overview, err := repo.ReadAuditOverview(ctx, auditstore.OverviewWindow24Hours)
+	if err != nil {
+		t.Fatalf("read audit overview: %v", err)
+	}
+
+	if overview.Window != auditstore.OverviewWindow24Hours {
+		t.Fatalf("expected 24h window, got %q", overview.Window)
+	}
+	if overview.Summary.TotalLogs != 3 || overview.Summary.FailedOperations != 2 {
+		t.Fatalf("unexpected overview summary: %#v", overview.Summary)
+	}
+	if overview.Summary.HighRiskEvents != 3 || overview.Summary.SensitiveOperations != 2 {
+		t.Fatalf("unexpected risk counters: %#v", overview.Summary)
+	}
+	if len(overview.FailedAuth) != 1 || overview.FailedAuth[0].RequestID != "req-auth" {
+		t.Fatalf("unexpected failed auth items: %#v", overview.FailedAuth)
+	}
+	if len(overview.PermissionDenied) != 1 || overview.PermissionDenied[0].RequestID != "req-role" {
+		t.Fatalf("unexpected permission denied items: %#v", overview.PermissionDenied)
+	}
+	if len(overview.SensitiveOps) != 2 {
+		t.Fatalf("unexpected sensitive ops items: %#v", overview.SensitiveOps)
+	}
+}
+
+func TestOverviewSQLUsesPostgresJSONBExtraction(t *testing.T) {
+	for name, clause := range map[string]string{
+		"failed auth":       overviewFailedAuthWhere,
+		"permission denied": overviewPermissionDeniedWhere,
+	} {
+		if strings.Contains(clause, "json_extract(") {
+			t.Fatalf("%s clause should not use sqlite json_extract: %s", name, clause)
+		}
+		if !strings.Contains(clause, "metadata ->>") {
+			t.Fatalf("%s clause should use postgres jsonb text extraction: %s", name, clause)
+		}
+	}
+}

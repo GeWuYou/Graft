@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ type repository struct {
 
 const defaultFilterCapacity = 8
 const paginationParamCount = 2
+const overviewRecentLimit = 3
 
 // NewRepository 基于共享连接池构建 audit 插件的 SQL repository。
 func NewRepository(db *sql.DB) (auditstore.AuditRepository, error) {
@@ -165,6 +167,43 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 	return auditstore.ListAuditLogsResult{Items: items, Total: total}, nil
 }
 
+// ReadAuditOverview aggregates real overview data from the settled audit log table.
+func (r *repository) ReadAuditOverview(ctx context.Context, window auditstore.OverviewWindow) (auditstore.AuditOverview, error) {
+	if r == nil || r.db == nil {
+		return auditstore.AuditOverview{}, errors.New("audit repository is unavailable")
+	}
+
+	now := time.Now().UTC()
+	startedAt := overviewWindowStart(now, window)
+	args := []any{startedAt}
+
+	summary, err := r.readAuditOverviewSummary(ctx, args)
+	if err != nil {
+		return auditstore.AuditOverview{}, err
+	}
+
+	failedAuth, err := r.readAuditOverviewItems(ctx, args, overviewFailedAuthWhere)
+	if err != nil {
+		return auditstore.AuditOverview{}, err
+	}
+	permissionDenied, err := r.readAuditOverviewItems(ctx, args, overviewPermissionDeniedWhere)
+	if err != nil {
+		return auditstore.AuditOverview{}, err
+	}
+	sensitiveOps, err := r.readAuditOverviewItems(ctx, args, overviewSensitiveOpsWhere)
+	if err != nil {
+		return auditstore.AuditOverview{}, err
+	}
+
+	return auditstore.AuditOverview{
+		Window:           window,
+		Summary:          summary,
+		FailedAuth:       failedAuth,
+		PermissionDenied: failedAuthUniqueByRequest(failedAuth, permissionDenied),
+		SensitiveOps:     sensitiveOps,
+	}, nil
+}
+
 func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 	clauses := make([]string, 0, defaultFilterCapacity)
 	args := make([]any, 0, defaultFilterCapacity)
@@ -256,6 +295,187 @@ func scanAuditLog(scanner interface {
 	record.Metadata = cloneRawMessage(metadata)
 
 	return record, nil
+}
+
+const overviewSummarySQL = `
+SELECT
+	COUNT(*) AS total_logs,
+	COUNT(*) FILTER (WHERE success = false) AS failed_operations,
+	COUNT(*) FILTER (
+		WHERE success = false
+		   OR LOWER(action) LIKE '%delete%'
+		   OR LOWER(action) LIKE '%reset%'
+		   OR LOWER(action) LIKE '%grant%'
+		   OR LOWER(action) LIKE '%assign%'
+		   OR LOWER(action) LIKE '%revoke%'
+		   OR LOWER(action) LIKE '%remove%'
+		   OR LOWER(action) LIKE '%replace%'
+	) AS high_risk_events,
+	COUNT(*) FILTER (
+		WHERE LOWER(action) LIKE '%delete%'
+		   OR LOWER(action) LIKE '%reset%'
+		   OR LOWER(action) LIKE '%grant%'
+		   OR LOWER(action) LIKE '%assign%'
+		   OR LOWER(action) LIKE '%revoke%'
+		   OR LOWER(action) LIKE '%remove%'
+		   OR LOWER(action) LIKE '%replace%'
+	) AS sensitive_operations
+FROM audit_logs
+WHERE created_at >= $1
+`
+
+const overviewRecentBaseSQL = `
+SELECT
+	id,
+	actor_user_id,
+	actor_username,
+	actor_display_name,
+	action,
+	resource_type,
+	resource_id,
+	resource_name,
+	success,
+	request_id,
+	message,
+	metadata,
+	created_at
+FROM audit_logs
+WHERE created_at >= $1 AND %s
+ORDER BY created_at DESC, id DESC
+LIMIT 3
+`
+
+func metadataTextValueSQL(column string, key string) string {
+	return fmt.Sprintf("COALESCE(%s ->> '%s', '')", column, key)
+}
+
+var (
+	overviewMetadataRequestPathSQL = metadataTextValueSQL("metadata", "request_path")
+	overviewMetadataStatusCodeSQL  = metadataTextValueSQL("metadata", "status_code")
+)
+
+const overviewSensitiveOpsWhere = `
+	LOWER(action) LIKE '%delete%'
+	OR LOWER(action) LIKE '%reset%'
+	OR LOWER(action) LIKE '%grant%'
+	OR LOWER(action) LIKE '%assign%'
+	OR LOWER(action) LIKE '%revoke%'
+	OR LOWER(action) LIKE '%remove%'
+	OR LOWER(action) LIKE '%replace%'
+`
+
+var overviewFailedAuthWhere = `
+	success = false AND (
+		LOWER(action) LIKE '%auth%'
+		OR resource_type = 'auth'
+		OR resource_type = 'session'
+		OR LOWER(` + overviewMetadataRequestPathSQL + `) LIKE '/api/auth%'
+	)
+`
+
+var overviewPermissionDeniedWhere = `
+	success = false AND (
+		` + overviewMetadataStatusCodeSQL + ` = '403'
+		OR message = 'common.forbidden'
+		OR LOWER(message) LIKE '%forbidden%'
+		OR LOWER(message) LIKE '%permission%'
+	)
+`
+
+func overviewWindowStart(now time.Time, window auditstore.OverviewWindow) time.Time {
+	switch window {
+	case auditstore.OverviewWindow7Days:
+		return now.Add(-7 * 24 * time.Hour)
+	case auditstore.OverviewWindow30Days:
+		return now.Add(-30 * 24 * time.Hour)
+	default:
+		return now.Add(-24 * time.Hour)
+	}
+}
+
+func (r *repository) readAuditOverviewSummary(ctx context.Context, args []any) (auditstore.OverviewSummary, error) {
+	var summary auditstore.OverviewSummary
+	if err := r.db.QueryRowContext(ctx, overviewSummarySQL, args...).Scan(
+		&summary.TotalLogs,
+		&summary.FailedOperations,
+		&summary.HighRiskEvents,
+		&summary.SensitiveOperations,
+	); err != nil {
+		return auditstore.OverviewSummary{}, fmt.Errorf("read audit overview summary: %w", err)
+	}
+	return summary, nil
+}
+
+func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, where string) ([]auditstore.OverviewItem, error) {
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(overviewRecentBaseSQL, where), args...)
+	if err != nil {
+		return nil, fmt.Errorf("read audit overview items: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	items := make([]auditstore.OverviewItem, 0, overviewRecentLimit)
+	for rows.Next() {
+		item, scanErr := scanAuditOverviewItem(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate audit overview items: %w", err)
+	}
+
+	return items, nil
+}
+
+func scanAuditOverviewItem(scanner interface {
+	Scan(dest ...any) error
+}) (auditstore.OverviewItem, error) {
+	var (
+		item        auditstore.OverviewItem
+		actorUserID sql.NullInt64
+		metadata    []byte
+	)
+	if err := scanner.Scan(
+		&item.ID,
+		&actorUserID,
+		&item.ActorUsername,
+		&item.ActorDisplayName,
+		&item.Action,
+		&item.ResourceType,
+		&item.ResourceID,
+		&item.ResourceName,
+		&item.Success,
+		&item.RequestID,
+		&item.Message,
+		&metadata,
+		&item.CreatedAt,
+	); err != nil {
+		return auditstore.OverviewItem{}, fmt.Errorf("scan audit overview item: %w", err)
+	}
+
+	if actorUserID.Valid {
+		value := toStoreID(actorUserID.Int64)
+		item.ActorUserID = &value
+	}
+	item.Metadata = cloneRawMessage(metadata)
+	return item, nil
+}
+
+func failedAuthUniqueByRequest(primary []auditstore.OverviewItem, fallback []auditstore.OverviewItem) []auditstore.OverviewItem {
+	items := append([]auditstore.OverviewItem(nil), fallback...)
+	slices.SortFunc(items, func(a, b auditstore.OverviewItem) int {
+		return b.CreatedAt.Compare(a.CreatedAt)
+	})
+	if len(items) > overviewRecentLimit {
+		items = items[:overviewRecentLimit]
+	}
+	if len(items) > 0 {
+		return items
+	}
+	return primary
 }
 
 func nullableUint64(value *uint64) any {

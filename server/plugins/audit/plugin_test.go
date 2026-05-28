@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,6 +55,48 @@ func (r *memoryAuditRepository) ListAuditLogs(_ context.Context, _ store.ListAud
 	return store.ListAuditLogsResult{Items: append([]store.AuditLog(nil), r.items...), Total: len(r.items)}, nil
 }
 
+func (r *memoryAuditRepository) ReadAuditOverview(_ context.Context, window store.OverviewWindow) (store.AuditOverview, error) {
+	return store.AuditOverview{
+		Window: window,
+		Summary: store.OverviewSummary{
+			TotalLogs:           len(r.items),
+			FailedOperations:    1,
+			HighRiskEvents:      2,
+			SensitiveOperations: 1,
+		},
+		FailedAuth: []store.OverviewItem{
+			{
+				ID:        1,
+				Action:    "POST /api/auth/login",
+				RequestID: "req-auth",
+				Success:   false,
+				CreatedAt: time.Now().UTC(),
+			},
+		},
+		PermissionDenied: []store.OverviewItem{
+			{
+				ID:        2,
+				Action:    "rbac.role.delete",
+				RequestID: "req-role",
+				Success:   false,
+				CreatedAt: time.Now().UTC(),
+			},
+		},
+		SensitiveOps: []store.OverviewItem{
+			{
+				ID:           3,
+				Action:       "user.password.reset",
+				ResourceType: "user",
+				ResourceID:   "42",
+				ResourceName: "alice",
+				RequestID:    "req-user",
+				Success:      true,
+				CreatedAt:    time.Now().UTC(),
+			},
+		},
+	}, nil
+}
+
 type failingAuditRepository struct{}
 
 func (failingAuditRepository) CreateAuditLog(context.Context, store.CreateAuditLogInput) (store.AuditLog, error) {
@@ -62,6 +105,10 @@ func (failingAuditRepository) CreateAuditLog(context.Context, store.CreateAuditL
 
 func (failingAuditRepository) ListAuditLogs(context.Context, store.ListAuditLogsQuery) (store.ListAuditLogsResult, error) {
 	return store.ListAuditLogsResult{}, nil
+}
+
+func (failingAuditRepository) ReadAuditOverview(context.Context, store.OverviewWindow) (store.AuditOverview, error) {
+	return store.AuditOverview{}, errors.New("overview failed")
 }
 
 type stubAuthService struct {
@@ -349,5 +396,25 @@ func TestRegisterExposesAuditReadSurface(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+}
+
+func TestAuditOverviewRouteReturnsPayload(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newPluginTestContext(t, repo)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/overview?window=7d", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), `"window":"7d"`) {
+		t.Fatalf("expected overview window in response, got %s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"failed_auth"`) {
+		t.Fatalf("expected failed_auth in response, got %s", recorder.Body.String())
 	}
 }

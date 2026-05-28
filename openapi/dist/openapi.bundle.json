@@ -4387,6 +4387,69 @@
         }
       }
     },
+    "/api/audit/overview": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Read audit overview",
+        "operationId": "getAuditOverview",
+        "description": "Returns real aggregated audit-overview data for the selected window.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "default": "24h"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit overview snapshot.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-overview-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/monitor/server-status": {
       "get": {
         "tags": [
@@ -4693,6 +4756,18 @@
       },
       "EnvelopedAuditLogListResponse": {
         "$ref": "#/components/schemas/enveloped-audit-log-list-response"
+      },
+      "AuditOverviewItem": {
+        "$ref": "#/components/schemas/audit-overview-item"
+      },
+      "AuditOverviewSummary": {
+        "$ref": "#/components/schemas/audit-overview-summary"
+      },
+      "AuditOverviewResponse": {
+        "$ref": "#/components/schemas/audit-overview-response"
+      },
+      "EnvelopedAuditOverviewResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-overview-response"
       },
       "ServerStatusDependency": {
         "$ref": "#/components/schemas/server-status-dependency"
@@ -5829,6 +5904,146 @@
             }
           }
         ]
+      },
+      "audit-overview-summary": {
+        "type": "object",
+        "required": [
+          "total_logs",
+          "failed_operations",
+          "high_risk_events",
+          "sensitive_operations"
+        ],
+        "properties": {
+          "total_logs": {
+            "type": "integer"
+          },
+          "failed_operations": {
+            "type": "integer"
+          },
+          "high_risk_events": {
+            "type": "integer"
+          },
+          "sensitive_operations": {
+            "type": "integer"
+          }
+        }
+      },
+      "audit-overview-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "success",
+          "request_id",
+          "message",
+          "metadata",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "actor_user_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "actor_username": {
+            "type": "string"
+          },
+          "actor_display_name": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "resource_type": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "resource_name": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "audit-overview-response": {
+        "type": "object",
+        "required": [
+          "window",
+          "summary",
+          "failed_auth",
+          "permission_denied",
+          "sensitive_operations"
+        ],
+        "properties": {
+          "window": {
+            "type": "string",
+            "enum": [
+              "24h",
+              "7d",
+              "30d"
+            ]
+          },
+          "summary": {
+            "$ref": "#/components/schemas/audit-overview-summary"
+          },
+          "failed_auth": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/audit-overview-item"
+            }
+          },
+          "permission_denied": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/audit-overview-item"
+            }
+          },
+          "sensitive_operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/audit-overview-item"
+            }
+          }
+        }
+      },
+      "enveloped-audit-overview-response": {
+        "type": "object",
+        "required": [
+          "success",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/audit-overview-response"
+          }
+        }
       },
       "server-status-server": {
         "type": "object",
