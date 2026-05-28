@@ -33,7 +33,6 @@ func handleListAuditLogs(
 	pluginName string,
 	reader auditReader,
 ) gin.HandlerFunc {
-	handler := auditReadGeneratedHandler{}
 	logger := zap.NewNop()
 	if ctx != nil && ctx.Logger != nil {
 		logger = ctx.Logger
@@ -47,7 +46,7 @@ func handleListAuditLogs(
 			})
 			return
 		}
-		handler.GetAuditLogs(params)
+		_ = params
 
 		result, err := reader.List(ginCtx, query)
 		if err != nil {

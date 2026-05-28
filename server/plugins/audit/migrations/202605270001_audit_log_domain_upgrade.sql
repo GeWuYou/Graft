@@ -1,6 +1,8 @@
 ALTER TABLE "audit_logs" RENAME COLUMN "operator_id" TO "actor_user_id";
 ALTER TABLE "audit_logs" RENAME COLUMN "operator_name" TO "actor_display_name";
 ALTER TABLE "audit_logs" RENAME COLUMN "error_message" TO "message";
+ALTER TABLE "audit_logs" DROP COLUMN "request_method";
+ALTER TABLE "audit_logs" DROP COLUMN "request_path";
 
 ALTER TABLE "audit_logs"
   ADD COLUMN "actor_username" character varying NOT NULL DEFAULT '',

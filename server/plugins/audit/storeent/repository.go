@@ -174,7 +174,7 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 		clauses = append(clauses, fmt.Sprintf(format, len(args)))
 	}
 
-	addStringFilter(&clauses, &args, "actor_user_id = $%d", query.ActorUserID)
+	addUint64Filter(&clauses, &args, "actor_user_id = $%d", query.ActorUserID)
 	addScalarFilter(add, "action = $%d", query.Action)
 	addScalarFilter(add, "resource_type = $%d", query.ResourceType)
 	addScalarFilter(add, "resource_id = $%d", query.ResourceID)
@@ -197,7 +197,7 @@ func addScalarFilter(add func(string, any), format string, value string) {
 	add(format, value)
 }
 
-func addStringFilter(clauses *[]string, args *[]any, format string, value *uint64) {
+func addUint64Filter(clauses *[]string, args *[]any, format string, value *uint64) {
 	if value == nil {
 		return
 	}

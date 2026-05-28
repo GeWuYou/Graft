@@ -753,7 +753,7 @@ function formatTimestamp(value?: string | null) {
 }
 
 function toISOStringOrRaw(value: string) {
-  const date = new Date(value);
+  const date = new Date(value.replace(' ', 'T'));
   return Number.isNaN(date.getTime()) ? value : date.toISOString();
 }
 
