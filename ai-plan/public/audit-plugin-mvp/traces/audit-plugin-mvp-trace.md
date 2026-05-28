@@ -212,3 +212,21 @@
 - No bounded integration defect was discovered, so no owned-scope runtime code fix was required in Batch 5.
 - Batch status is now truly aligned with docs: Batch 5 complete and validated, next batch is Batch 6 archive-ready
   closeout.
+
+## 2026-05-28 server governance docs slice recorded
+
+- Ran a docs-only governance slice to institutionalize the current server agent development flow instead of changing
+  backend business code.
+- Updated `server/AGENTS.md` to add:
+  - `Server Task Lifecycle`
+  - boundary decision matrix
+  - plugin implementation checklist
+  - explicit prohibitions
+  - closeout record template
+- Updated `ai-plan/design/插件与依赖注入设计.md` to explain why the server execution truth must stay in
+  `server/AGENTS.md` and why compile-time registry, explicit migration/startup separation, and plugin-owned boundaries
+  require these workflow rules.
+- This slice touched governance docs only:
+  - no `server/internal/**` runtime implementation changed
+  - no `server/plugins/**` business implementation changed
+  - no schema or migration implementation changed

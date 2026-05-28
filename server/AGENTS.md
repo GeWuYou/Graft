@@ -39,7 +39,74 @@
 - 先判断是否是后端架构真相漂移
 - 属于文档失真时，更新文档，不要默许代码继续偏离
 
-## 3. 当前后端结构边界
+## 3. Server Task Lifecycle
+
+后端任务默认按这条固定生命周期执行，不为单个切片发明第二套流程。
+
+### 3.1 Startup Preflight
+
+- 先完成根 `AGENTS.md` 要求的 startup preflight，再进入 `server` 任务实现
+- 至少确认：
+  - governance source 是根 `AGENTS.md`
+  - task class 是 `server`、`cross-boundary` 或 `docs/automation with server impact`
+  - `.ai/environment/tools.ai.yaml` 已读取
+  - `server/AGENTS.md` 已读取
+- 只有在根 `AGENTS.md` 要求恢复上下文时，才继续读取 `ai-plan/public/README.md` 与对应 topic 文档
+- 没有 startup receipt 时，不进入后端实现、验证结论或 closeout
+
+### 3.2 Task Classification
+
+- `server`
+  - 只修改 `server/**`，且不会改变 `web` 的 menu、route、permission、OpenAPI 消费或共享契约语义
+- `cross-boundary`
+  - 同时影响 `server` 与 `web`，或改变共享 contract、menu、permission、route、OpenAPI、生命周期语义
+- `docs/automation with server impact`
+  - 只改治理文档、追踪文档、脚本或自动化，但这些内容会改变后端 agent 的执行方式、验证说明或 closeout 口径
+
+如果分类结果是 `cross-boundary`，先回到根 `AGENTS.md` 追加读取 `web/AGENTS.md`，不要继续把本文件当作唯一规则来源。
+
+### 3.3 Boundary Decision
+
+- 开始写代码前，先判断改动归属：
+  - 是 `core runtime`
+  - 还是某个 `plugin`
+  - 还是 `shared-stable-boundary`
+- 若 owner 无法明确，就先更新治理或设计文档，再写实现
+- 任何新能力都必须先回答：
+  - 谁拥有运行时生命周期
+  - 谁拥有持久化真相
+  - 谁拥有 route / menu / permission / message / capability
+
+### 3.4 Implementation Path
+
+- `core runtime` 改动只进入显式 core 边界，例如 `internal/app`、`internal/httpx`、`internal/plugin`、`internal/container`
+- 业务能力默认进入 `plugins/<name>/**`
+- 跨插件协作先设计 capability / contract，再写业务实现
+- 数据结构变更先确认 schema owner，再进入 Ent generate 与 migration 流程
+
+### 3.5 Validation
+
+- 后端完成态统一走现有显式 CLI：
+  - `graft validate backend --stage lint`
+  - `go test` 最小直接覆盖范围
+  - `go build ./cmd/graft`
+  - 需要运行时证明时再跑 `graft validate smoke`
+- 文档治理切片不需要伪造运行时验证，但要如实说明为什么未跑
+- 不为当前切片发明第二套 shell 验证脚本、CI-only 流程或 hook-only 流程
+
+### 3.6 Closeout
+
+- 每个后端切片结束时都要留下统一 closeout 记录
+- closeout 至少说明：
+  - task class
+  - owned scope
+  - boundary decision
+  - 是否涉及 schema / migration
+  - 实际运行的验证命令与结果
+  - 跳过的验证项与原因
+- 本文件只要求 closeout 可审计，不要求在本轮把这些记录升级为 CI、hook 或脚本硬门禁
+
+## 4. 当前后端结构边界
 
 当前 `server` 的执行面以这些目录为主：
 
@@ -72,7 +139,7 @@
 
 除这些显式边界外，不要再发明隐藏 runtime surface。新的平台级入口如果不能清楚归入现有边界，先更新设计再写代码。
 
-## 4. 后端目标与核心边界
+## 5. 后端目标与核心边界
 
 `server` 是组合式后台平台的运行时，不是单一业务应用。
 
@@ -89,7 +156,29 @@
 - 通过 package global、`init()`、隐式扫描或反射魔法制造运行时行为
 - 把插件私有实现暴露成跨插件公共 API
 
-## 5. 插件生命周期与边界
+## 6. 边界判定矩阵
+
+后端任务在进入实现前，先用下表决定 owner；不能跳过这一步直接写代码。
+
+| 目标 | 默认归属 | 说明 |
+| --- | --- | --- |
+| runtime 装配、启动/关闭顺序、core 生命周期 | `server/internal/app/**` | 只放平台级 runtime 行为 |
+| CLI、显式迁移、显式验证、开发编排 | `server/cmd/**`、`server/internal/cli/**` | `serve`、`migrate`、`dev`、`validate` 保持显式入口 |
+| HTTP 通用能力、统一响应、共性中间件 | `server/internal/httpx/**` | 不承载插件业务规则 |
+| 容器、事件总线、菜单/权限/cron 注册器 | `server/internal/**` 对应 core 包 | 只放平台公共能力 |
+| 业务 API、业务 service、业务 store、业务 schema、业务 migration | `server/plugins/<name>/**` | 默认 plugin-owned |
+| 跨插件 capability、共享 DTO、稳定事件名 | `server/internal/pluginapi/**` | 只放稳定跨插件公开面 |
+| 平台级 typed contract | `server/internal/contract/**` | 只放平台共用 contract |
+| 插件私有稳定 contract | `server/plugins/<name>/contract/**` | route fragment、permission code、message key 等 |
+| 历史共享 migration 回放 | `server/internal/ent/migrate/migrations/**` | 仅显式/manual 使用，不是默认链 |
+
+补充规则：
+
+- 新业务能力默认先问“能否直接放进 `server/plugins/<name>/**`”；除非它是平台基础设施，否则不要先放 `internal/**`
+- 新的业务 schema、Ent 生成产物、业务 migration 真相不允许回流 `server/internal/ent/**`
+- 插件间协作默认优先扩展 `pluginapi` 或稳定 `contract`，而不是直接引用对方内部实现
+
+## 7. 插件生命周期与边界
 
 当前 backend plugin 都遵循 `Name / Version / DependsOn / Register / Boot / Shutdown` 契约。
 
@@ -105,7 +194,7 @@
 后续治理允许新增 `plugin.Descriptor`、`plugin.Builder` 与 compile-time generated plugin registry，作为显式装配
 抽象；这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
 
-### 5.1 生命周期规则
+### 7.1 生命周期规则
 
 - `Register`
   - 只做声明式注册
@@ -120,7 +209,7 @@
   - 必须停止 goroutine、ticker、timer、event subscription、scheduler job、外部句柄
   - 不得以 `context.Background()` 逃避关闭语义；优先使用 runtime 注入的生命周期上下文
 
-### 5.2 依赖规则
+### 7.2 依赖规则
 
 - 插件依赖通过 `DependsOn()` 声明
 - 服务依赖通过稳定接口解析
@@ -137,7 +226,7 @@
 - 插件不能直接依赖其它插件的内部 repository、handler、store、Ent entity
 - 若需要跨插件业务能力，必须通过 capability interface 或 stable DTO contract 暴露
 
-### 5.3 插件公开面规则
+### 7.3 插件公开面规则
 
 插件运行时可见能力必须能追溯到生命周期：
 
@@ -151,7 +240,31 @@
 
 如果某个运行时能力无法追溯到 `Register -> Boot -> Shutdown`，就说明边界失控。
 
-## 6. `internal/pluginapi` 与契约边界
+## 8. Plugin Implementation Checklist
+
+当后端任务属于 plugin 路径时，默认按这份 checklist 检查实现是否完整：
+
+- `descriptor`
+  - 是否声明稳定 plugin ID、版本、依赖、migration path、builder
+- `plugin lifecycle`
+  - 是否实现 `Name / Version / DependsOn / Register / Boot / Shutdown`
+  - `Register -> Boot -> Shutdown` 职责是否清晰
+- `routes`
+  - 路由是否留在插件边界内，且只编排输入输出、鉴权和响应映射
+- `service`
+  - 业务用例是否下沉到插件 service，而不是堆在 handler 或 core
+- `store / storeent`
+  - 持久化边界是否留在插件内，没有回流 `internal/store/**`
+- `migration`
+  - schema 变更是否落到插件自有 migration，且 owner 明确
+- `messages / permissions / menus`
+  - 对外可见能力是否在 `Register` 阶段声明，并与 contract 对齐
+- `tests`
+  - 是否覆盖直接受影响的 service、route、store、contract 或 lifecycle 路径
+- `README`
+  - 插件 README 是否能说明职责边界、主要入口、关键依赖与不负责的范围
+
+## 9. `internal/pluginapi` 与契约边界
 
 跨插件公开接口统一收敛到稳定边界：
 
@@ -191,7 +304,7 @@
 - 管理员按用户维度的 session 治理若继续暴露在 `/users/:id/sessions`，它也只是 `user` 的管理入口；session 持久化、token/cookie、rotation/revoke 真相仍归 `auth`
 - 兼容 alias 只能临时存在，不能演变成永久第二真相
 
-## 7. DI 与运行时装配
+## 10. DI 与运行时装配
 
 `internal/container` 是轻量显式单例容器，不是通用 service locator。
 
@@ -219,7 +332,7 @@
 - 共享资源如 logger、database、redis、event bus、scheduler 由 runtime 管理生命周期
 - 不允许在业务代码里临时 new 基础设施依赖来绕开 runtime
 
-## 8. Core、store 与 HTTP 边界
+## 11. Core、store 与 HTTP 边界
 
 规则：
 
@@ -234,7 +347,7 @@
 - 插件的 handler / route 文件只编排 HTTP 输入输出与授权边界，不直接堆业务事务脚本
 - 一旦某个业务边界迁移到插件目录，禁止把 repository、service、handler 重新回流到 `internal/store/**`、`internal/app/**` 或其它 core runtime 包
 
-## 9. Ent 与 migration 规则
+## 12. Ent 与 migration 规则
 
 Ent 与 Atlas 是后端数据库真相链路的一部分。
 
@@ -293,7 +406,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 不要声称 schema 已完成治理但缺少生成结果或 migration 对应更新。若未来需要恢复 core-owned Ent 生成入口，必须先在文档中显式声明该路径，而不是静默复活 `internal/ent/**`。
 
-## 9.1 多工作树 owned scope
+## 12.1 多工作树 owned scope
 
 `server` 的长期多工作树 owned scope 以插件优先：
 
@@ -381,11 +494,24 @@ shared hotspot 处理规则如下：
 - `User` worktree 不直接修改 `user_roles`
 - `User` worktree 若需要配合角色分配语义，只能修改 `user` 自有稳定 capability / contract，并通过共享治理文档或共享稳定边界与 `RBAC` worktree 对齐
 
-## 10. Go 编码规则
+## 13. 明确禁止项
+
+以下事项默认禁止，除非先更新治理与设计真相：
+
+- 在 `Register` 阶段启动 goroutine、定时任务、长时间 I/O、阻塞初始化或其它运行时行为
+- 在 `Boot` 阶段做 schema 修改、隐式迁移、运行时补注册路由/权限/菜单/message/service
+- 让 `graft serve` 隐式执行 migration、schema sync 或其它数据库结构修改
+- 让 plugin 直接引用其它 plugin 的内部 repository、service、handler、storeent、Ent entity、schema 或 migration
+- 在 `server/internal/ent/**` 重新引入新的业务真相、业务 schema、业务生成产物
+- 实现 runtime plugin scan、dynamic discovery、hot plug、reflection-heavy plugin system
+- 把 container 当成通用 service locator，在业务路径里随手 `Resolve`
+- 通过 `init()`、package global、隐式扫描把运行时行为偷偷塞进 core 或 plugin
+
+## 14. Go 编码规则
 
 本节适用于 `server` 下手写 Go 代码。
 
-### 10.1 文件与包
+### 14.1 文件与包
 
 - 文件名全小写，多个单词用下划线
 - 测试文件使用 `*_test.go`
@@ -394,7 +520,7 @@ shared hotspot 处理规则如下：
 - package 名短、小写、无下划线，并表达明确职责
 - 不用 `manager`、`helper`、`common`、`utils` 充当万能包名
 
-### 10.2 类型、函数与字段命名
+### 14.2 类型、函数与字段命名
 
 - 导出标识符用 `PascalCase`
 - 非导出标识符用 `lowerCamelCase`
@@ -406,7 +532,7 @@ shared hotspot 处理规则如下：
 - 函数名使用清晰动词；不要滥用 `Do`、`Handle`、`Process`、`Run`
 - 结构体字段名必须表达角色，不使用难懂缩写
 
-### 10.3 Context
+### 14.3 Context
 
 - 请求链路必须透传 `context.Context`
 - `context.Context` 必须是函数第一个参数
@@ -415,7 +541,7 @@ shared hotspot 处理规则如下：
 - 请求派生 goroutine 必须响应 `context cancel`
 - `context.Value` 只用于请求级元数据，不用来塞 service、logger、config、repository
 
-### 10.4 HTTP、DTO 与 API 边界
+### 14.4 HTTP、DTO 与 API 边界
 
 - handler 不直接暴露 Ent entity
 - request / response 必须显式定义 DTO
@@ -424,7 +550,7 @@ shared hotspot 处理规则如下：
 - 不把 `map[string]any` 当主响应结构
 - route handler 先做输入校验、鉴权、调用 service，再做响应映射；不要把业务编排堆在 Gin handler 里
 
-### 10.5 配置
+### 14.5 配置
 
 - 配置统一通过 `internal/config` 加载
 - 业务代码不直接 `os.Getenv`
@@ -433,7 +559,7 @@ shared hotspot 处理规则如下：
 - 配置结构表达业务语义，不照抄环境变量原文命名
 - 不把运行时状态、句柄、请求上下文塞进 config
 
-### 10.6 Wiring 与依赖注入
+### 14.6 Wiring 与依赖注入
 
 - 依赖必须显式 wiring
 - 不允许隐藏全局单例
@@ -442,7 +568,7 @@ shared hotspot 处理规则如下：
 - 插件不能绕过 runtime 直接控制其它插件内部状态
 - wiring 依赖保持单向；core 不反向依赖业务实现
 
-### 10.7 鉴权与安全
+### 14.7 鉴权与安全
 
 - 权限判断通过 middleware、auth service 或 permission checker 统一处理
 - 不在 handler 内散落硬编码角色判断
@@ -452,7 +578,7 @@ shared hotspot 处理规则如下：
 - 不向前端泄漏敏感内部错误、数据库细节、token 内容、secret 内容
 - 认证相关时间语义统一使用 UTC 或仓库统一时区策略
 
-### 10.8 事务
+### 14.8 事务
 
 - 事务边界优先放在 service / usecase 层
 - handler 不直接编排数据库事务
@@ -461,7 +587,7 @@ shared hotspot 处理规则如下：
 - `Rollback` 必须通过 `defer` 保证
 - `Commit` 后不得继续使用旧 `tx`
 
-### 10.9 错误处理
+### 14.9 错误处理
 
 - 显式处理 `error`
 - 包装错误统一使用 `fmt.Errorf("context: %w", err)`
@@ -470,7 +596,7 @@ shared hotspot 处理规则如下：
 - 除启动期不可恢复的编程错误外，底层逻辑不直接 `panic`
 - handler 不把底层数据库错误直接返回给前端
 
-### 10.10 并发与资源生命周期
+### 14.10 并发与资源生命周期
 
 - 新增 goroutine 必须有明确生命周期与退出条件
 - 禁止无边界后台 goroutine
@@ -479,7 +605,7 @@ shared hotspot 处理规则如下：
 - 不允许无限重试循环且没有 `sleep`、`backoff` 或 `context cancel`
 - 不允许 silently recover panic 后继续假装系统健康
 
-### 10.11 日志与注释
+### 14.11 日志与注释
 
 - 业务日志统一通过日志模块输出；不要用 `fmt.Println` 或 `log.Println`
 - 请求链路日志应带稳定请求标识
@@ -488,7 +614,7 @@ shared hotspot 处理规则如下：
 - 导出类型、函数、常量写 GoDoc，首句以标识符开头
 - 注释解释职责、边界、副作用、生命周期，不复述显然代码
 
-## 11. 后端验证链
+## 15. 后端验证链
 
 后端完成态的仓库内显式 CLI 入口是：
 
@@ -496,7 +622,7 @@ shared hotspot 处理规则如下：
 
 如果已经构建出 `graft` 可执行文件，`graft validate backend` 只是同一入口的另一种调用方式；不要再发明第二套 blocking validation 命令。
 
-### 11.1 固定规则
+### 15.1 固定规则
 
 - backend blocking lint gate 唯一入口是 `graft validate backend --stage lint`
 - 统一使用 `golangci-lint v2.12.2`
@@ -508,14 +634,14 @@ shared hotspot 处理规则如下：
   - `go build ./cmd/graft`
   - 需要运行时证明时再跑 `graft validate smoke`
 
-### 11.2 选择最小正确验证
+### 15.2 选择最小正确验证
 
 - 只改 plugin 内业务逻辑时，优先测受影响 package，并补 `go build ./cmd/graft`
 - 改 `internal/httpx`、`internal/plugin`、`internal/container`、`internal/app` 等 core 边界时，默认扩大到覆盖相关 `internal/...` 测试
 - 改 schema、migration、store、plugin public contract 时，不要只跑单包 smoke 代替单元或集成验证
 - 只有当任务确实需要证明迁移与运行时启动链条时，才追加 `graft validate smoke`
 
-### 11.3 不允许的完成态说法
+### 15.3 不允许的完成态说法
 
 以下情况不能称为“后端已完成”：
 
@@ -524,7 +650,47 @@ shared hotspot 处理规则如下：
 - 修改 Ent schema 后没生成代码、没补 migration 或没做相关测试
 - 用“已有历史 warning”或“CI 以后会看”来跳过当前切片验证
 
-## 12. 评审关注点
+## 16. Closeout 记录模板
+
+后端切片 closeout 默认至少包含这些字段；可以写在最终说明、tracking、trace 或任务 closeout 中，但字段不能缺失。
+
+- `Task class`
+  - `server` / `cross-boundary` / `docs/automation with server impact`
+- `Owned scope`
+  - 本轮确认拥有的目录、文件或共享边界
+- `Boundary decision`
+  - 本轮改动属于 `core runtime`、`plugin-owned` 还是 `shared-stable-boundary`
+- `Schema/migration touched`
+  - `yes` / `no`
+  - 若是 `yes`，补充受影响路径与 owner
+- `Validation commands`
+  - 实际运行过的命令
+- `Validation results`
+  - pass / fail / not run，并说明范围
+- `Skipped validations and reasons`
+  - 任何没跑的预期验证都要写原因
+- `Shared/governance docs touched`
+  - 是否修改了 `AGENTS.md`、`ai-plan/**`、共享治理文档
+
+推荐格式：
+
+```text
+Task class: server
+Owned scope: server/plugins/audit/**, server/AGENTS.md
+Boundary decision: plugin-owned audit slice with shared governance doc touch
+Schema/migration touched: no
+Validation commands:
+- cd server && go run ./cmd/graft validate backend --stage lint
+- cd server && go test ./plugins/audit/...
+Validation results:
+- lint passed
+- plugin tests passed
+Skipped validations and reasons:
+- graft validate smoke not run; this slice does not change runtime startup or migration behavior
+Shared/governance docs touched: yes
+```
+
+## 17. 评审关注点
 
 后端评审默认优先看这些问题：
 
