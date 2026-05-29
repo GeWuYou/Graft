@@ -123,6 +123,7 @@
       "listTitle": "Permission Management",
       "hint": "Review system permissions, module ownership, and authorization usage.",
       "detail": "Details",
+      "viewAudit": "View Related Audit",
       "detailTitle": "Permission Details",
       "summary": "{count} permissions shown",
       "footerTotal": "{count} permissions total",

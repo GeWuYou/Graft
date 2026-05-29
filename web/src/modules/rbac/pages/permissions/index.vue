@@ -115,10 +115,16 @@
                   testId: 'permission-detail',
                   value: 'detail',
                 },
+                {
+                  fallbackLabel: '查看审计',
+                  label: t('rbac.permissionList.viewAudit'),
+                  testId: 'permission-view-audit',
+                  value: 'view-audit',
+                },
               ]"
               :more-label="t('rbac.permissionList.more')"
               more-label-fallback="更多"
-              @action="() => openDetailDrawer(row)"
+              @action="(action) => handlePermissionAction(action, row)"
             />
           </template>
 
@@ -233,6 +239,7 @@
 import { MessagePlugin, type TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import {
@@ -252,6 +259,7 @@ import {
   ManagementToolbar,
   TableActionMenu,
 } from '@/shared/components/management';
+import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { createLogger } from '@/utils/logger';
 
 import { getPermissionDetail, getPermissions } from '../../api/rbac';
@@ -266,6 +274,7 @@ defineOptions({
 });
 
 const logger = createLogger('rbac.permissionList');
+const router = useRouter();
 
 type PermissionFilterState = {
   keyword: string;
@@ -364,7 +373,7 @@ async function fetchPermissions() {
     permissions.value = [];
     logger.error('failed to fetch permissions', error);
     listError.value = resolveLocalizedErrorMessage(t, error, t('rbac.permissionList.loadFailed'));
-    MessagePlugin.error(listError.value);
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, listError.value));
   } finally {
     loading.value = false;
   }
@@ -396,10 +405,25 @@ async function loadPermissionDetail(permissionId: number) {
     detailRecord.value = null;
     logger.warn('failed to fetch permission detail', error);
     detailError.value = resolveLocalizedErrorMessage(t, error, t('rbac.permissionList.detailLoadFailed'));
-    MessagePlugin.error(detailError.value);
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, detailError.value));
   } finally {
     detailLoading.value = false;
   }
+}
+
+function handlePermissionAction(action: string, permission: PermissionListItem) {
+  if (action === 'view-audit') {
+    void router.push({
+      path: '/audit/logs',
+      query: {
+        resourceType: 'permission',
+        keyword: permission.code,
+      },
+    });
+    return;
+  }
+
+  void openDetailDrawer(permission);
 }
 
 async function openDetailDrawer(permission: PermissionListItem) {

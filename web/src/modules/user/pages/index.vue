@@ -476,6 +476,7 @@ import {
   TableActionMenu,
 } from '@/shared/components/management';
 import { useAssignmentSelection } from '@/shared/composables';
+import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
@@ -1084,6 +1085,15 @@ function userRowActions(user: UserRow) {
     value: 'detail',
   });
 
+  if (permissionStore.hasPermission('audit.read')) {
+    actions.push({
+      fallbackLabel: '查看审计',
+      label: t('user.userList.viewAudit'),
+      testId: 'user-view-audit',
+      value: 'view-audit',
+    });
+  }
+
   userRowMoreOptions(user).forEach((option) => {
     actions.push({
       disabled: false,
@@ -1106,6 +1116,17 @@ function handleUserRowAction(action: string, user: UserRow) {
 
   if (action === 'manage-roles') {
     void handleOpenUserRoleDrawer(user);
+    return;
+  }
+
+  if (action === 'view-audit') {
+    void router.push({
+      path: '/audit/logs',
+      query: {
+        resourceType: 'user',
+        resourceId: String(user.id),
+      },
+    });
     return;
   }
 
@@ -1238,7 +1259,7 @@ async function handleUserSubmit(ctx: SubmitContext) {
       };
       const created = await createUser(payload);
       users.value = [{ ...created, roles: [] as UserRoleSummary[] }, ...users.value];
-      MessagePlugin.success(t('user.userList.createSuccess'));
+      MessagePlugin.success(formatHintedMessage(t, t('user.userList.createSuccess')));
     } else if (userDrawerTarget.value) {
       const payload: UpdateUserPayload = {
         username: userForm.value.username.trim(),
@@ -1248,7 +1269,7 @@ async function handleUserSubmit(ctx: SubmitContext) {
       users.value = users.value.map((item) =>
         item.id === updated.id ? { ...item, ...updated, roles: item.roles } : item,
       );
-      MessagePlugin.success(t('user.userList.editSuccess'));
+      MessagePlugin.success(formatHintedMessage(t, t('user.userList.editSuccess')));
     }
     closeUserDrawer();
   } catch (error) {
@@ -1267,12 +1288,15 @@ async function handleUserSubmit(ctx: SubmitContext) {
         return;
       }
 
-      MessagePlugin.error(errorMessage);
+      MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, errorMessage));
       return;
     }
 
     MessagePlugin.error(
-      userDrawerMode.value === 'create' ? t('user.userList.createFailed') : t('user.userList.editFailed'),
+      formatHintedMessage(
+        t,
+        userDrawerMode.value === 'create' ? t('user.userList.createFailed') : t('user.userList.editFailed'),
+      ),
     );
   } finally {
     submittingUser.value = false;
@@ -1319,7 +1343,7 @@ async function submitResetPassword() {
       new_password: resetPasswordForm.value.password,
     };
     await resetUserPassword(resetPasswordTarget.value.id, payload);
-    MessagePlugin.success(t('user.userList.resetPasswordSuccess'));
+    MessagePlugin.success(formatHintedMessage(t, t('user.userList.resetPasswordSuccess')));
     closeResetPasswordDialog();
   } catch (error) {
     logger.error('failed to reset password', error);
@@ -1333,11 +1357,11 @@ async function submitResetPassword() {
         return;
       }
 
-      MessagePlugin.error(errorMessage);
+      MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, errorMessage));
       return;
     }
 
-    MessagePlugin.error(t('user.userList.resetPasswordFailed'));
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('user.userList.resetPasswordFailed')));
   } finally {
     submittingResetPassword.value = false;
   }
@@ -1369,17 +1393,15 @@ async function toggleUserStatus(user: UserRow) {
   try {
     const updated = await updateUserStatus(user.id, { status: nextStatus });
     users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
-    MessagePlugin.success(t('user.userList.statusUpdateSuccess'));
+    MessagePlugin.success(formatHintedMessage(t, t('user.userList.statusUpdateSuccess')));
   } catch (error) {
     logger.error('failed to update status', error);
     if (isApiRequestError(error)) {
-      MessagePlugin.error(
-        localizedApiErrorMessage(t, error.messageKey, error.message) || t('user.userList.statusUpdateFailed'),
-      );
+      MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('user.userList.statusUpdateFailed')));
       return;
     }
 
-    MessagePlugin.error(t('user.userList.statusUpdateFailed'));
+    MessagePlugin.error(formatHintedMessage(t, t('user.userList.statusUpdateFailed')));
   }
 }
 
@@ -1404,10 +1426,10 @@ async function confirmDeleteUser(user: UserRow) {
     await deleteUser(user.id);
     users.value = users.value.filter((item) => item.id !== user.id);
     selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== user.id);
-    MessagePlugin.success(t('user.userList.deleteSuccess'));
+    MessagePlugin.success(formatHintedMessage(t, t('user.userList.deleteSuccess')));
   } catch (error) {
     logger.error('failed to delete user', error);
-    MessagePlugin.error(t('user.userList.deleteFailed'));
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('user.userList.deleteFailed')));
   }
 }
 
@@ -1648,18 +1670,24 @@ async function submitUserRoleAssignment() {
       users.value = users.value.map((item) =>
         targetIds.has(item.id) ? { ...item, roles: applyRoleMutation(item.roles) } : item,
       );
-      MessagePlugin.success(t('user.userList.batchRoleUpdateSuccess'));
+      MessagePlugin.success(formatHintedMessage(t, t('user.userList.batchRoleUpdateSuccess')));
     } else {
       users.value = users.value.map((item) =>
         item.id === selectedUser.value?.id ? { ...item, roles: applyRoleMutation(item.roles) } : item,
       );
-      MessagePlugin.success(t('user.userList.roleUpdateSuccess'));
+      MessagePlugin.success(formatHintedMessage(t, t('user.userList.roleUpdateSuccess')));
     }
     closeUserRoleDrawer();
   } catch (error) {
     if (isActiveDrawerSession(session)) {
       logger.error('failed to mutate user roles', error);
-      MessagePlugin.error(resolveRoleMutationErrorMessage(error, roleDialogMode.value === 'batch'));
+      MessagePlugin.error(
+        resolveErrorMessageWithCorrelation(
+          t,
+          error,
+          resolveRoleMutationErrorMessage(error, roleDialogMode.value === 'batch'),
+        ),
+      );
     }
   } finally {
     if (drawerSession.value === session) {

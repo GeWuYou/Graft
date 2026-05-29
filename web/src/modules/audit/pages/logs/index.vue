@@ -71,6 +71,7 @@ import { useRoute } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { describeCorrelationId, formatMessageWithCorrelation } from '@/shared/correlation';
 import { createLogger } from '@/utils/logger';
 
 import { getAuditLogs } from '../../api/audit';
@@ -114,6 +115,7 @@ const filters = ref<AuditClientFilterState>({
   result: 'all',
   riskLevel: 'all',
   session: '',
+  requestId: '',
   traceId: '',
 });
 
@@ -133,6 +135,7 @@ const hasClientOnlyFilters = computed(() =>
     filters.value.resource ||
     filters.value.resourceId ||
     filters.value.session ||
+    filters.value.requestId ||
     filters.value.traceId,
   ),
 );
@@ -160,6 +163,11 @@ function buildQuery(): AuditLogQuery {
   }
   if (filters.value.resourceId) {
     query.resource_id = filters.value.resourceId;
+  }
+  if (filters.value.requestId) {
+    query.request_id = filters.value.requestId;
+  } else if (filters.value.traceId) {
+    query.request_id = filters.value.traceId;
   }
   if (filters.value.result !== 'all') {
     query.result = filters.value.result;
@@ -197,7 +205,12 @@ async function fetchAuditLogs() {
     total.value = 0;
     logger.error('failed to fetch audit logs', error);
     listError.value = resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed'));
-    MessagePlugin.error(listError.value);
+    MessagePlugin.error(
+      formatMessageWithCorrelation(
+        listError.value,
+        describeCorrelationId(t, filters.value.requestId || filters.value.traceId),
+      ),
+    );
   } finally {
     if (requestSeq === latestRequestSeq.value) {
       loading.value = false;
@@ -267,6 +280,7 @@ function resetFilters() {
     result: 'all',
     riskLevel: 'all',
     session: '',
+    requestId: '',
     traceId: '',
   };
   activePreset.value = 'all';
@@ -316,6 +330,7 @@ function applyRouteFilters() {
     result: (firstQueryValue(route.query.result) as AuditClientFilterState['result']) || 'all',
     riskLevel: (firstQueryValue(route.query.riskLevel) as AuditClientFilterState['riskLevel']) || 'all',
     session: firstQueryValue(route.query.session),
+    requestId: firstQueryValue(route.query.requestId),
     traceId: firstQueryValue(route.query.traceId),
   };
 
@@ -327,6 +342,7 @@ function applyRouteFilters() {
     nextFilters.result !== 'all' ||
     nextFilters.riskLevel !== 'all' ||
     nextFilters.session ||
+    nextFilters.requestId ||
     nextFilters.traceId,
   );
 }
@@ -360,6 +376,9 @@ function syncRouteQuery() {
   }
   if (filters.value.session) {
     query.session = filters.value.session;
+  }
+  if (filters.value.requestId) {
+    query.requestId = filters.value.requestId;
   }
   if (filters.value.traceId) {
     query.traceId = filters.value.traceId;

@@ -134,6 +134,7 @@
       "listTitle": "权限管理",
       "hint": "查看系统权限点、模块归属与授权使用情况。",
       "detail": "详情",
+      "viewAudit": "查看相关审计",
       "detailTitle": "权限详情",
       "summary": "已显示 {count} 项权限",
       "footerTotal": "共 {count} 项权限",

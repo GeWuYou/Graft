@@ -14,6 +14,12 @@
     "common": {
       "unknownActor": "Anonymous",
       "unknownResource": "Unknown resource",
+      "source": {
+        "REQUEST": "Audit Event",
+        "SECURITY_EVENT": "Security Event",
+        "DOMAIN_EVENT": "Domain Audit",
+        "UNKNOWN": "Unclassified Event"
+      },
       "result": {
         "SUCCESS": "Success",
         "FAILED": "Business Failed",
@@ -50,6 +56,11 @@
         "sensitiveOps": "Recent Sensitive Audit Events",
         "shortcuts": "Quick Links",
         "riskWatch": "Recent Risk"
+      },
+      "futureRiskWatch": {
+        "title": "Risk summary and trend remain a later phase",
+        "description": "This overview only shows real audit aggregates today. High-risk summaries, trends, and security timelines stay in a future topic.",
+        "tag": "Future"
       },
       "stats": {
         "totalLogs": {
@@ -187,6 +198,7 @@
       "more": "More",
       "summary": "{count} security audit records shown",
       "tableHint": "The table shows only policy-matched security audit events. Request chain and permission context move to the detail drawer.",
+      "reasonFallback": "No additional reason",
       "footerTotal": "{count} audit events total",
       "footerFiltered": "{count} records matched on this page",
       "currentPageFiltered": "Current page filter",
@@ -219,6 +231,7 @@
         "resultPlaceholder": "Result",
         "riskPlaceholder": "Risk level",
         "sessionPlaceholder": "Session ID",
+        "requestIdPlaceholder": "Troubleshooting ID / Request ID",
         "traceIdPlaceholder": "Trace ID"
       },
       "filterOptions": {
@@ -242,6 +255,7 @@
         "action": "Action",
         "actor": "Actor",
         "resource": "Audit Target",
+        "correlation": "Troubleshooting ID",
         "result": "Result",
         "risk": "Risk",
         "createdAt": "Time"
@@ -257,7 +271,9 @@
         },
         "fields": {
           "target": "Audit Target",
+          "source": "Event Type",
           "result": "Result",
+          "reason": "Reason / Notes",
           "requestId": "Request ID",
           "traceId": "Trace ID",
           "sessionId": "Session ID",
@@ -269,8 +285,12 @@
           "latency": "Latency"
         },
         "actions": {
+          "copyRequestId": "Copy",
+          "copyRequestIdSuccess": "Request ID copied",
+          "copyRequestIdFail": "Failed to copy Request ID",
           "copyTraceId": "Copy",
           "copySuccess": "Trace ID copied",
+          "copyFail": "Failed to copy Trace ID",
           "toggleMetadata": "Show raw metadata"
         },
         "related": {
@@ -285,6 +305,12 @@
           "requestTrace": "Request trace available"
         }
       }
+    },
+    "correlation": {
+      "idLabel": "Troubleshooting ID: {id}",
+      "hintRequestOnly": "Troubleshooting ID: {requestId}",
+      "hintTraceOnly": "Troubleshooting ID: {traceId}",
+      "hintRequestAndTrace": "Troubleshooting ID: {requestId} / Trace: {traceId}"
     }
   }
 }

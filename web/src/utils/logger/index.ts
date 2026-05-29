@@ -181,3 +181,7 @@ export function patchGlobalLoggerContext(context: LoggerContext): void {
 
   globalContext = nextContext;
 }
+
+export function readGlobalLoggerContext(): LoggerContext {
+  return resolveGlobalContext();
+}

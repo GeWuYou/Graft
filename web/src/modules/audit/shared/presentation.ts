@@ -16,8 +16,11 @@ export type AuditClientFilterState = {
   result: AuditResultValue;
   riskLevel: 'all' | AuditRiskValue;
   session: string;
+  requestId: string;
   traceId: string;
 };
+
+type AuditSourceValue = 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT' | 'UNKNOWN';
 
 export function actorLabel(row: AuditLogListItem, t: Translate) {
   return row.actor_display_name || row.actor_username || t('audit.common.unknownActor');
@@ -38,7 +41,7 @@ export function resourceLabel(row: AuditLogListItem, t: Translate) {
   );
 }
 
-export function resourceSecondaryLabel(row: AuditLogListItem) {
+function resourceSecondaryLabel(row: AuditLogListItem) {
   const secondary = [targetTypeLabel(row.target_type), row.resource_id].filter(Boolean);
   return secondary.join(' / ') || '-';
 }
@@ -55,8 +58,46 @@ export function traceIdForRecord(row: AuditLogListItem) {
   return row.trace_id || metadataLookup(row, 'trace_id') || row.request_id || '-';
 }
 
+export function requestIdForRecord(row: AuditLogListItem) {
+  return row.request_id || metadataLookup(row, 'request_id') || traceIdForRecord(row);
+}
+
 export function sessionIdForRecord(row: AuditLogListItem) {
   return row.session_id || metadataLookup(row, 'session_id') || '-';
+}
+
+export function reasonForRecord(row: AuditLogListItem, t: Translate) {
+  return (
+    metadataLookup(row, 'reason') ||
+    metadataLookup(row, 'deny_reason') ||
+    metadataLookup(row, 'error_reason') ||
+    row.message ||
+    t('audit.logList.reasonFallback')
+  );
+}
+
+function sourceForRecord(row: AuditLogListItem): AuditSourceValue {
+  const source = (
+    metadataLookup(row, 'auditSource') ||
+    metadataLookup(row, 'audit_source') ||
+    metadataLookup(row, 'source')
+  )
+    .trim()
+    .toUpperCase();
+
+  if (source === 'REQUEST' || source === 'SECURITY_EVENT' || source === 'DOMAIN_EVENT') {
+    return source;
+  }
+
+  if (row.result === 'DENIED' || row.result === 'ERROR') {
+    return 'SECURITY_EVENT';
+  }
+
+  return 'UNKNOWN';
+}
+
+export function sourceLabel(row: AuditLogListItem, t: Translate) {
+  return t(`audit.common.source.${sourceForRecord(row)}`);
 }
 
 export function metadataLookup(row: AuditLogListItem, key: string) {
@@ -171,12 +212,14 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
   const resource = filters.resource.trim().toLowerCase();
   const resourceId = filters.resourceId.trim().toLowerCase();
   const session = filters.session.trim().toLowerCase();
+  const requestId = filters.requestId.trim().toLowerCase();
   const traceId = filters.traceId.trim().toLowerCase();
 
   if (keyword) {
     const keywordSource = [
       row.action,
       row.request_id,
+      row.trace_id,
       row.message,
       actorLabel(row, t),
       resourceLabel(row, t),
@@ -217,6 +260,10 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
   }
 
   if (session && !includesText(sessionIdForRecord(row), session)) {
+    return false;
+  }
+
+  if (requestId && !includesText(requestIdForRecord(row), requestId)) {
     return false;
   }
 

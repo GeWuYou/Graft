@@ -143,12 +143,15 @@
 ## Phase C Rollout Result
 
 - Added route-query-driven audit-log filter hydration and URL sync for shareable governance views.
-- Added `resourceId` as a bounded audit-console filter and client-side match field.
-- Added RBAC role-list entrypoint to jump into filtered audit logs when the operator has audit read permission.
+- Added first-class audit correlation visibility: `requestId` / `traceId` display, copy, URL filters, and server-side request-id query mapping.
+- Added first-class audit context fields: `source` (`audit event` vs `security event`), `actor`, `action`, `resource`, `result`, and `reason`.
+- Added RBAC role-list, RBAC permission-list, and user-list navigation into `/audit/logs` with bounded related-audit queries.
+- Added correlation-aware success/error hints on user and RBAC write operations so operators can retain the latest troubleshooting id.
 - Preserved intentionally:
   - existing audit backend query contract
   - current page structure and shell layout
   - no broad audit-console redesign
+  - P2 risk summary, trend, and timeline remain future scope; fake overview risk-watch runtime copy was removed
 
 ## Phase C Validation
 

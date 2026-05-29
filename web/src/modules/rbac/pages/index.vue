@@ -387,6 +387,7 @@ import {
   TableActionMenu,
 } from '@/shared/components/management';
 import { useAssignmentSelection } from '@/shared/composables';
+import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
@@ -1136,12 +1137,12 @@ async function handleRoleSubmit(ctx: SubmitContext) {
     if (roleDrawerMode.value === 'create') {
       const created = await createRole(toCreateRolePayload(roleForm.value));
       roles.value = [...roles.value, created].sort((left, right) => left.id - right.id);
-      MessagePlugin.success(t('rbac.roleList.createSuccess'));
+      MessagePlugin.success(formatHintedMessage(t, t('rbac.roleList.createSuccess')));
     } else if (roleDrawerRole.value) {
       const updated = await updateRole(roleDrawerRole.value.id, toUpdateRolePayload(roleForm.value));
       roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
       roleDrawerRole.value = updated;
-      MessagePlugin.success(t('rbac.roleList.updateSuccess'));
+      MessagePlugin.success(formatHintedMessage(t, t('rbac.roleList.updateSuccess')));
     }
 
     closeRoleDrawer();
@@ -1156,11 +1157,11 @@ async function handleRoleSubmit(ctx: SubmitContext) {
         return;
       }
 
-      MessagePlugin.error(errorMessage);
+      MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, errorMessage));
       return;
     }
 
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.submitFailed')));
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.submitFailed')));
   } finally {
     submittingRole.value = false;
   }
@@ -1344,7 +1345,7 @@ async function submitPermissionAssignment() {
       return;
     }
 
-    MessagePlugin.success(t('rbac.roleList.assignSuccess'));
+    MessagePlugin.success(formatHintedMessage(t, t('rbac.roleList.assignSuccess')));
     closePermissionDrawer();
     await fetchRolePageData();
   } catch (error) {
@@ -1360,11 +1361,11 @@ async function submitPermissionAssignment() {
           return;
         }
 
-        MessagePlugin.error(errorMessage);
+        MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, errorMessage));
         return;
       }
 
-      MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.assignFailed')));
+      MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.assignFailed')));
     }
   } finally {
     if (permissionDrawerSession.value === session) {
@@ -1393,18 +1394,19 @@ async function toggleRoleStatus(role: RoleStatusCompat) {
     });
     roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
     MessagePlugin.success(
-      isRoleEnabled(updated) ? t('rbac.roleList.statusEnabledSuccess') : t('rbac.roleList.statusDisabledSuccess'),
+      formatHintedMessage(
+        t,
+        isRoleEnabled(updated) ? t('rbac.roleList.statusEnabledSuccess') : t('rbac.roleList.statusDisabledSuccess'),
+      ),
     );
   } catch (error) {
     logger.error('failed to update role status', error);
     if (isApiRequestError(error)) {
-      MessagePlugin.error(
-        localizedApiErrorMessage(t, error.messageKey, error.message) || t('rbac.roleList.statusUpdateFailed'),
-      );
+      MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.statusUpdateFailed')));
       return;
     }
 
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.statusUpdateFailed')));
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.statusUpdateFailed')));
   }
 }
 
@@ -1420,17 +1422,15 @@ async function removeRole(role: RoleStatusCompat) {
   try {
     await deleteRole(role.id);
     roles.value = roles.value.filter((item) => item.id !== role.id);
-    MessagePlugin.success(t('rbac.roleList.deleteSuccess'));
+    MessagePlugin.success(formatHintedMessage(t, t('rbac.roleList.deleteSuccess')));
   } catch (error) {
     logger.error('failed to delete role', error);
     if (isApiRequestError(error)) {
-      MessagePlugin.error(
-        localizedApiErrorMessage(t, error.messageKey, error.message) || t('rbac.roleList.deleteFailed'),
-      );
+      MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.deleteFailed')));
       return;
     }
 
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.deleteFailed')));
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.deleteFailed')));
   }
 }
 

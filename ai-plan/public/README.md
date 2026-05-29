@@ -82,6 +82,9 @@ Overlay note:
     - security-event metadata now lands with a canonical request/trace/actor/route field dictionary while preserving
       current legacy audit aliases
     - frontend now has shell-owned global error sinks plus default route/request-correlation logger context
+    - audit log UI now exposes request/trace troubleshooting ids, copy affordances, reason/source visibility, and URL-shareable filters without inventing fake backend contracts
+    - access-control user/role/permission pages now link into related audit records and preserve correlation hints in owned success/error prompts
+    - fake runtime audit-risk watch copy was removed from the overview surface; P2 summaries, trends, and timelines remain future scope
   - Follow-up status: `new-topic-only`
   - Archived topic directory:
     - `ai-plan/public/archive/logging-unification-rollout`

@@ -70,8 +70,12 @@ Hard order：
 
 ## Phase C Acceptance
 
-- frontend audit filters now support URL-driven governance queries including `resourceId`
-- RBAC role list now exposes audit-navigation entrypoints for operators with audit read permission
+- frontend audit filters now support URL-driven governance queries including `requestId`, `traceId`, and `resourceId`
+- audit logs now expose `requestId` / `traceId` visibility, copy actions, and canonical troubleshooting-id filtering
+- audit logs now surface `actor`, `action`, `resource`, `result`, `reason`, and event-source distinction (`security event` vs `audit event`)
+- RBAC role list, RBAC permission list, and user list now expose related-audit navigation entrypoints for operators with audit read permission
+- frontend write-success and write-failure prompts in owned access-control scope now preserve correlation hints for operator troubleshooting
+- fake overview risk-watch runtime content was removed; P2 analytics remain future scope
 - bounded frontend validation passed:
   - `cd web && bun run check`
 

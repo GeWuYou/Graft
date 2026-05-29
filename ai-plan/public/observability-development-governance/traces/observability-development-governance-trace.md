@@ -62,14 +62,19 @@
 
 - Kept authority-first scope bounded to frontend consumption surfaces:
   - `web/src/modules/audit/**`
-  - `web/src/modules/rbac/pages/index.vue`
+  - `web/src/modules/rbac/**`
+  - `web/src/modules/user/**`
+  - `web/src/shared/correlation.ts`
 - Added route-query-driven audit filter hydration and in-place URL sync so governance views are shareable without inventing a second frontend-only audit model.
-- Added `resourceId` filtering to the audit log page and client-side presentation helpers.
-- Added RBAC role-list navigation into `/audit/logs` with `resourceType=role` and `resourceId=<id>` when the operator has audit read permission.
+- Added `requestId` / `traceId` visibility, copy actions, and bounded query mapping to the canonical backend `request_id` filter.
+- Added `source` and `reason` presentation so operators can distinguish security events from broader audit events without inventing fake backend fields.
+- Added RBAC role-list, RBAC permission-list, and user-list navigation into `/audit/logs` with bounded related-audit queries.
+- Added correlation-aware success/error hints on user and RBAC write operations using the latest canonical frontend request correlation snapshot.
 - Preserved intentionally:
   - existing backend audit query contract
   - current shell/page structure
   - no full audit-console redesign
+- Removed the runtime use of static overview risk-watch copy because it presented fake governance signals; P2 analytics remain future work.
 - Validation passed:
   - `cd web && bun run check`
 

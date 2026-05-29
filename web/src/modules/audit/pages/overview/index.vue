@@ -110,12 +110,14 @@
 
           <governance-section :title="t('audit.overview.sections.riskWatch')">
             <div class="audit-overview__watch-list">
-              <article v-for="item in watchItems" :key="item.key" class="audit-overview__watch-item">
+              <article class="audit-overview__watch-item">
                 <div>
-                  <strong>{{ item.title }}</strong>
-                  <p>{{ item.description }}</p>
+                  <strong>{{ t('audit.overview.futureRiskWatch.title') }}</strong>
+                  <p>{{ t('audit.overview.futureRiskWatch.description') }}</p>
                 </div>
-                <t-tag :theme="item.theme" variant="light-outline" size="small">{{ item.tag }}</t-tag>
+                <t-tag theme="default" variant="light-outline" size="small">
+                  {{ t('audit.overview.futureRiskWatch.tag') }}
+                </t-tag>
               </article>
             </div>
           </governance-section>
@@ -220,16 +222,6 @@ const shortcuts = computed(() => [
     preset: 'sensitive-ops',
   },
 ]);
-
-const watchItems = computed<
-  Array<{
-    key: string;
-    title: string;
-    description: string;
-    tag: string;
-    theme: 'default' | 'primary' | 'warning' | 'danger' | 'success';
-  }>
->(() => []);
 
 function openShortcut(preset: string) {
   void router.push({

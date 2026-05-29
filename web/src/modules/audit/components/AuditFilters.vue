@@ -77,6 +77,13 @@
             @update:model-value="updateField('session', $event)"
           />
           <t-input
+            :model-value="modelValue.requestId"
+            class="audit-filters__input"
+            clearable
+            :placeholder="t('audit.logList.filters.requestIdPlaceholder')"
+            @update:model-value="updateField('requestId', $event)"
+          />
+          <t-input
             :model-value="modelValue.traceId"
             class="audit-filters__input"
             clearable
