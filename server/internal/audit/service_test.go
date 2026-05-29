@@ -14,13 +14,16 @@ type stubAuditRepository struct {
 	createdInput auditstore.CreateAuditLogInput
 	listQuery    auditstore.ListAuditLogsQuery
 	overviewWnd  auditstore.OverviewWindow
+	incidentID   uint64
 	policyRules  []auditstore.AuditPolicyRule
 	createResult auditstore.AuditLog
 	listResult   auditstore.ListAuditLogsResult
 	overview     auditstore.AuditOverview
+	incident     auditstore.AuditIncident
 	createErr    error
 	listErr      error
 	overviewErr  error
+	incidentErr  error
 	policyErr    error
 }
 
@@ -49,6 +52,14 @@ func (r *stubAuditRepository) ReadAuditOverview(_ context.Context, window audits
 		return auditstore.AuditOverview{}, r.overviewErr
 	}
 	return r.overview, nil
+}
+
+func (r *stubAuditRepository) ReadIncident(_ context.Context, eventID uint64) (auditstore.AuditIncident, error) {
+	r.incidentID = eventID
+	if r.incidentErr != nil {
+		return auditstore.AuditIncident{}, r.incidentErr
+	}
+	return r.incident, nil
 }
 
 func (r *stubAuditRepository) ListAuditPolicyRules(_ context.Context) ([]auditstore.AuditPolicyRule, error) {
@@ -215,6 +226,42 @@ func TestServiceOverviewDelegatesWindowWithoutNormalization(t *testing.T) {
 	}
 	if repo.overviewWnd != "custom" {
 		t.Fatalf("expected raw window to be delegated, got %q", repo.overviewWnd)
+	}
+}
+
+func TestServiceIncidentDelegatesSeedEventID(t *testing.T) {
+	repo := &stubAuditRepository{
+		incident: auditstore.AuditIncident{
+			Incident: auditstore.AuditIncidentSummary{IncidentKey: "incident:req-1"},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.Incident(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("incident: %v", err)
+	}
+	if repo.incidentID != 42 {
+		t.Fatalf("expected seed event id 42, got %d", repo.incidentID)
+	}
+	if result.Incident.IncidentKey != "incident:req-1" {
+		t.Fatalf("unexpected incident result %#v", result)
+	}
+}
+
+func TestServiceIncidentRejectsZeroEventID(t *testing.T) {
+	repo := &stubAuditRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.Incident(context.Background(), 0)
+	if err == nil || err.Error() != "audit incident event id is required" {
+		t.Fatalf("expected missing event id error, got %v", err)
 	}
 }
 

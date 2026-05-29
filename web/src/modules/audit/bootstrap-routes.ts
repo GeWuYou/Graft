@@ -46,4 +46,25 @@ export const auditBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
       },
     },
   },
+  {
+    ...AUDIT_BOOTSTRAP_ROUTE.INCIDENT_DETAIL,
+    loadPage: () => import('./pages/incident/index.vue'),
+    meta: {
+      domain: 'audit',
+      tabGroup: 'audit',
+      pageKind: 'detail',
+      semanticTitle: {
+        'zh-CN': '安全审计 - 事件钻取',
+        'en-US': 'Security Audit - Incident Drilldown',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '事件钻取',
+        'en-US': 'Incident Drilldown',
+      },
+      tabTitle: {
+        'zh-CN': '安全审计 - 事件钻取',
+        'en-US': 'Security Audit - Incident Drilldown',
+      },
+    },
+  },
 ];

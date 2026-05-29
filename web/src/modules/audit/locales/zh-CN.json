@@ -7,6 +7,9 @@
       },
       "logs": {
         "title": "审计日志"
+      },
+      "incident": {
+        "title": "事件钻取"
       }
     }
   },
@@ -195,6 +198,39 @@
           "tag": "持续复核"
         }
       }
+    },
+    "incident": {
+      "title": "安全事件钻取",
+      "description": "围绕一个规范安全时间线种子事件展示 audit 拥有的事件上下文。",
+      "errorTitle": "事件钻取暂时不可用",
+      "loadFailed": "事件钻取加载失败",
+      "invalidEventId": "事件种子 ID 无效。",
+      "actions": {
+        "refresh": "刷新",
+        "retry": "重试",
+        "openRequest": "查看种子请求"
+      },
+      "sections": {
+        "summary": "事件摘要",
+        "monitorContext": "监控上下文",
+        "relatedEvents": "关联审计事件",
+        "relatedActors": "关联操作者",
+        "relatedResources": "关联资源",
+        "relatedRequests": "关联请求"
+      },
+      "fields": {
+        "riskLevel": "风险等级",
+        "window": "事件窗口",
+        "reason": "关联原因",
+        "seedAction": "种子动作",
+        "seedResource": "种子资源"
+      },
+      "monitorState": {
+        "available": "可用",
+        "partial": "部分可用",
+        "unavailable": "不可用"
+      },
+      "eventCount": "关联 {count} 条事件"
     },
     "logList": {
       "title": "审计日志",

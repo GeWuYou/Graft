@@ -1,0 +1,102 @@
+type: object
+required:
+  - seed_event
+  - incident
+  - related_events
+  - related_actors
+  - related_resources
+  - related_requests
+  - monitor_context
+properties:
+  seed_event:
+    $ref: ./audit-log-list-item.yaml
+  incident:
+    type: object
+    required:
+      - incident_key
+      - title
+      - summary
+      - risk_level
+      - started_at
+      - ended_at
+      - correlation_reason
+    properties:
+      incident_key:
+        type: string
+      title:
+        type: string
+      summary:
+        type: string
+      risk_level:
+        type: string
+        enum: [LOW, MEDIUM, HIGH, CRITICAL]
+      started_at:
+        type: string
+        format: date-time
+      ended_at:
+        type: string
+        format: date-time
+      correlation_reason:
+        type: string
+  related_events:
+    type: array
+    items:
+      $ref: ./audit-log-list-item.yaml
+  related_actors:
+    type: array
+    items:
+      type: object
+      required: [event_count]
+      properties:
+        actor_user_id:
+          type: integer
+          format: int64
+          nullable: true
+        actor_username:
+          type: string
+        actor_display_name:
+          type: string
+        event_count:
+          type: integer
+          minimum: 0
+  related_resources:
+    type: array
+    items:
+      type: object
+      required: [resource_type, resource_id, resource_name, event_count]
+      properties:
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+        resource_name:
+          type: string
+        event_count:
+          type: integer
+          minimum: 0
+  related_requests:
+    type: array
+    items:
+      type: object
+      required: [request_id, event_count, started_at, ended_at]
+      properties:
+        request_id:
+          type: string
+        event_count:
+          type: integer
+          minimum: 0
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+  monitor_context:
+    type: object
+    required: [state, reason]
+    properties:
+      state:
+        type: string
+        enum: [available, partial, unavailable]
+      reason:
+        type: string

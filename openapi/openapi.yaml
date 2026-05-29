@@ -98,6 +98,8 @@ paths:
     $ref: ./paths/audit.logs.yaml
   /api/audit/overview:
     $ref: ./paths/audit.overview.yaml
+  /api/audit/incidents/{event_id}:
+    $ref: ./paths/audit.incident.yaml
   /api/monitor/server-status:
     $ref: ./paths/monitor.server-status.yaml
 components:
@@ -200,6 +202,10 @@ components:
       $ref: ./components/schemas/audit-overview-response.yaml
     EnvelopedAuditOverviewResponse:
       $ref: ./components/schemas/enveloped-audit-overview-response.yaml
+    AuditIncidentResponse:
+      $ref: ./components/schemas/audit-incident-response.yaml
+    EnvelopedAuditIncidentResponse:
+      $ref: ./components/schemas/enveloped-audit-incident-response.yaml
     ServerStatusDependency:
       $ref: ./components/schemas/server-status-dependency.yaml
     ServerStatusPlugin:

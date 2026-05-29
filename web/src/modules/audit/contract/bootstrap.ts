@@ -9,4 +9,8 @@ export const AUDIT_BOOTSTRAP_ROUTE = {
     menuPath: AUDIT_ROUTE_PATH.LOGS,
     routeName: 'AuditLogList',
   },
+  INCIDENT_DETAIL: {
+    menuPath: AUDIT_ROUTE_PATH.INCIDENT_DETAIL,
+    routeName: 'AuditIncidentDetail',
+  },
 } as const;

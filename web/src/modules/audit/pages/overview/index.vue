@@ -171,7 +171,7 @@
               <button
                 class="audit-overview__timeline-item audit-overview__timeline-item--button"
                 type="button"
-                @click="openSecurityTimelineItem(item.request_id)"
+                @click="openSecurityTimelineItem(item.incident_seed.event_id)"
               >
                 <strong>{{ item.action }}</strong>
                 <p>{{ item.resource_name || item.resource_type || t('audit.common.unknownResource') }}</p>
@@ -197,7 +197,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { buildAuditLogsLocation, buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
+import { buildAuditIncidentLocation, buildAuditLogsLocation } from '@/modules/audit/contract/deep-link';
 import type { AuditPresetKey } from '@/modules/audit/contract/presets';
 import { resolveAuditPresetKey } from '@/modules/audit/contract/presets';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
@@ -335,12 +335,12 @@ function openRiskGroup(riskLevel: string) {
   void router.push(buildAuditLogsLocation({ riskLevel }));
 }
 
-function openSecurityTimelineItem(requestId?: string) {
-  if (!requestId) {
+function openSecurityTimelineItem(eventId?: number) {
+  if (!eventId) {
     return;
   }
 
-  void router.push(buildAuditRequestLocation(requestId));
+  void router.push(buildAuditIncidentLocation(eventId));
 }
 
 async function fetchOverview() {

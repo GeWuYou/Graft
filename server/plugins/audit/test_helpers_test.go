@@ -20,6 +20,10 @@ func (stubAuditRepository) ReadAuditOverview(context.Context, auditstore.Overvie
 	return auditstore.AuditOverview{}, nil
 }
 
+func (stubAuditRepository) ReadIncident(context.Context, uint64) (auditstore.AuditIncident, error) {
+	return auditstore.AuditIncident{}, nil
+}
+
 func (stubAuditRepository) ListAuditPolicyRules(context.Context) ([]auditstore.AuditPolicyRule, error) {
 	return nil, nil
 }

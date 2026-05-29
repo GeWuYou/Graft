@@ -5,7 +5,7 @@ import { AUDIT_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
 describe('audit bootstrap route registrations', () => {
   it('uses the canonical audit bootstrap identity contract values', () => {
-    expect(auditBootstrapRouteRegistrations).toHaveLength(2);
+    expect(auditBootstrapRouteRegistrations).toHaveLength(3);
     expect(auditBootstrapRouteRegistrations).toEqual([
       expect.objectContaining({
         ...AUDIT_BOOTSTRAP_ROUTE.OVERVIEW,
@@ -20,6 +20,13 @@ describe('audit bootstrap route registrations', () => {
         meta: expect.objectContaining({
           domain: 'audit',
           pageKind: 'list',
+        }),
+      }),
+      expect.objectContaining({
+        ...AUDIT_BOOTSTRAP_ROUTE.INCIDENT_DETAIL,
+        meta: expect.objectContaining({
+          domain: 'audit',
+          pageKind: 'detail',
         }),
       }),
     ]);

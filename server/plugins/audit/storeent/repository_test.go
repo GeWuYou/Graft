@@ -273,6 +273,98 @@ func TestRepositoryListAuditLogsRejectsInvalidPagination(t *testing.T) {
 	}
 }
 
+func TestRepositoryReadIncidentCorrelatesBoundedContext(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	actorID := uint64(7)
+	base := time.Date(2026, 5, 29, 12, 0, 0, 0, time.UTC)
+	seed, err := repo.CreateAuditLog(ctx, auditstore.CreateAuditLogInput{
+		ActorUserID:      &actorID,
+		ActorUsername:    "alice",
+		ActorDisplayName: "Alice",
+		Action:           "auth.permission.denied",
+		ResourceType:     "role",
+		ResourceID:       "9",
+		ResourceName:     "ops-admin",
+		Success:          false,
+		RequestID:        "req-incident",
+		Message:          "common.forbidden",
+		Metadata:         json.RawMessage(`{"auditSource":"SECURITY_EVENT","status_code":403,"session_id":"sess-1","trace_id":"trace-1"}`),
+		CreatedAt:        base,
+	})
+	if err != nil {
+		t.Fatalf("create seed log: %v", err)
+	}
+
+	for _, item := range []auditstore.CreateAuditLogInput{
+		{
+			ActorUserID:      &actorID,
+			ActorUsername:    "alice",
+			ActorDisplayName: "Alice",
+			Action:           "rbac.role.delete",
+			ResourceType:     "role",
+			ResourceID:       "9",
+			ResourceName:     "ops-admin",
+			Success:          false,
+			RequestID:        "req-incident",
+			Message:          "delete denied",
+			Metadata:         json.RawMessage(`{"status_code":403,"session_id":"sess-1","trace_id":"trace-1"}`),
+			CreatedAt:        base.Add(2 * time.Minute),
+		},
+		{
+			Action:       "user.update",
+			ResourceType: "user",
+			ResourceID:   "20",
+			Success:      true,
+			RequestID:    "req-other",
+			Message:      "outside correlation",
+			Metadata:     json.RawMessage(`{"status_code":200}`),
+			CreatedAt:    base.Add(90 * time.Minute),
+		},
+	} {
+		if _, err := repo.CreateAuditLog(ctx, item); err != nil {
+			t.Fatalf("seed incident context log: %v", err)
+		}
+	}
+
+	incident, err := repo.ReadIncident(ctx, seed.ID)
+	if err != nil {
+		t.Fatalf("read incident: %v", err)
+	}
+	assertIncidentCorrelation(t, incident, seed.ID)
+}
+
+func assertIncidentCorrelation(t *testing.T, incident auditstore.AuditIncident, seedID uint64) {
+	t.Helper()
+
+	if incident.SeedEvent.ID != seedID {
+		t.Fatalf("expected seed event id %d, got %d", seedID, incident.SeedEvent.ID)
+	}
+	if incident.Incident.IncidentKey != "incident:req:req-incident" {
+		t.Fatalf("unexpected incident key %q", incident.Incident.IncidentKey)
+	}
+	if len(incident.RelatedEvents) != 2 {
+		t.Fatalf("expected two bounded related events, got %d", len(incident.RelatedEvents))
+	}
+	if len(incident.RelatedActors) != 1 || incident.RelatedActors[0].EventCount != 2 {
+		t.Fatalf("expected one correlated actor summary, got %#v", incident.RelatedActors)
+	}
+	if len(incident.RelatedResources) != 1 || incident.RelatedResources[0].ResourceID != "9" {
+		t.Fatalf("expected one correlated resource summary, got %#v", incident.RelatedResources)
+	}
+	if len(incident.RelatedRequests) != 1 || incident.RelatedRequests[0].RequestID != "req-incident" {
+		t.Fatalf("expected one correlated request summary, got %#v", incident.RelatedRequests)
+	}
+	if incident.MonitorContext.State != auditstore.MonitorContextStateUnavailable {
+		t.Fatalf("expected monitor context to stay unavailable in current authority, got %#v", incident.MonitorContext)
+	}
+}
+
 func TestRepositoryReadAuditOverview(t *testing.T) {
 	db := openTestDB(t)
 	repo, err := NewRepository(db)

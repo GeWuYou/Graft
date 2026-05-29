@@ -68,11 +68,18 @@ properties:
     type: array
     items:
       type: object
-      required: [id, created_at, source, risk_level, action, result, request_id]
+      required: [id, incident_seed, created_at, source, risk_level, action, result, request_id]
       properties:
         id:
           type: integer
           format: int64
+        incident_seed:
+          type: object
+          required: [event_id]
+          properties:
+            event_id:
+              type: integer
+              format: int64
         created_at:
           type: string
           format: date-time

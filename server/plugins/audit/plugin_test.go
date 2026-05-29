@@ -100,6 +100,39 @@ func (r *memoryAuditRepository) ReadAuditOverview(_ context.Context, window stor
 	}, nil
 }
 
+func (r *memoryAuditRepository) ReadIncident(_ context.Context, eventID uint64) (store.AuditIncident, error) {
+	for _, item := range r.items {
+		if item.ID == eventID {
+			return store.AuditIncident{
+				SeedEvent: item,
+				Incident: store.AuditIncidentSummary{
+					IncidentKey:       "incident:req:" + item.RequestID,
+					Title:             "Audit incident",
+					Summary:           "Seed event drilldown",
+					RiskLevel:         store.AuditRiskLevelHigh,
+					StartedAt:         item.CreatedAt,
+					EndedAt:           item.CreatedAt,
+					CorrelationReason: "Correlated by stable request_id first.",
+				},
+				RelatedEvents: []store.AuditLog{item},
+				RelatedRequests: []store.AuditIncidentRequest{
+					{
+						RequestID:  item.RequestID,
+						EventCount: 1,
+						StartedAt:  item.CreatedAt,
+						EndedAt:    item.CreatedAt,
+					},
+				},
+				MonitorContext: store.AuditIncidentMonitorContext{
+					State:  store.MonitorContextStateUnavailable,
+					Reason: "Current monitor authority only supports bounded evidence links and short-retention trend context for this incident workflow.",
+				},
+			}, nil
+		}
+	}
+	return store.AuditIncident{}, store.ErrIncidentNotFound
+}
+
 func (r *memoryAuditRepository) ListAuditPolicyRules(_ context.Context) ([]store.AuditPolicyRule, error) {
 	if len(r.rules) == 0 {
 		return defaultPluginTestPolicyRules(), nil
@@ -119,6 +152,10 @@ func (failingAuditRepository) ListAuditLogs(context.Context, store.ListAuditLogs
 
 func (failingAuditRepository) ReadAuditOverview(context.Context, store.OverviewWindow) (store.AuditOverview, error) {
 	return store.AuditOverview{}, errors.New("overview failed")
+}
+
+func (failingAuditRepository) ReadIncident(context.Context, uint64) (store.AuditIncident, error) {
+	return store.AuditIncident{}, errors.New("incident failed")
 }
 
 func (failingAuditRepository) ListAuditPolicyRules(context.Context) ([]store.AuditPolicyRule, error) {
@@ -339,6 +376,16 @@ func defaultPluginTestPolicyRules() []store.AuditPolicyRule {
 			MatchType:   store.AuditPolicyMatchTypeExact,
 		},
 		{
+			Name:        "request.audit.incidents.exclude",
+			Source:      store.AuditSourceRequest,
+			Enabled:     true,
+			Priority:    5,
+			Effect:      store.AuditPolicyEffectExclude,
+			Method:      http.MethodGet,
+			PathPattern: "/api/audit/incidents/",
+			MatchType:   store.AuditPolicyMatchTypePrefix,
+		},
+		{
 			Name:      "security.auth.permission_denied",
 			Source:    store.AuditSourceSecurityEvent,
 			Enabled:   true,
@@ -375,6 +422,40 @@ func defaultPluginTestPolicyRules() []store.AuditPolicyRule {
 			EventType: "user.profile.update",
 			MatchType: store.AuditPolicyMatchTypeExact,
 		},
+	}
+}
+
+func TestAuditIncidentEndpointReturnsAuditOwnedIncident(t *testing.T) {
+	repo := &memoryAuditRepository{
+		items: []store.AuditLog{
+			{
+				ID:               7,
+				Action:           "auth.permission.denied",
+				RequestID:        "req-incident-1",
+				ActorDisplayName: "Alice",
+				ActorUsername:    "alice",
+				Success:          false,
+				Message:          "common.forbidden",
+				CreatedAt:        time.Date(2026, 5, 29, 12, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+	_, engine, _ := newPluginTestContext(t, repo)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/incidents/7", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, "\"incident_key\":\"incident:req:req-incident-1\"") {
+		t.Fatalf("expected canonical incident key in response body, got %s", body)
+	}
+	if !strings.Contains(body, "\"request_id\":\"req-incident-1\"") {
+		t.Fatalf("expected stable request id in response body, got %s", body)
 	}
 }
 

@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,10 +23,12 @@ import (
 type auditReader interface {
 	List(ctx context.Context, query auditcore.ListQuery) (auditcore.ListResult, error)
 	Overview(ctx context.Context, window auditstore.OverviewWindow) (auditcore.OverviewResult, error)
+	Incident(ctx context.Context, eventID uint64) (auditcore.IncidentResult, error)
 }
 
 type auditListResult = auditcore.ListResult
 type auditOverviewResult = auditcore.OverviewResult
+type auditIncidentResult = auditcore.IncidentResult
 
 type auditGuard struct {
 	read gin.HandlerFunc
@@ -113,9 +116,70 @@ func handleReadAuditOverview(
 	}
 }
 
+func handleReadAuditIncident(
+	ctx *plugin.Context,
+	pluginName string,
+	reader auditReader,
+) gin.HandlerFunc {
+	logger := zap.NewNop()
+	if ctx != nil && ctx.Logger != nil {
+		logger = ctx.Logger
+	}
+
+	return func(ginCtx *gin.Context) {
+		eventID, ok, err := parseOptionalUint64Param(ginCtx, "eventID")
+		if err != nil || !ok {
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
+				"field": "event_id",
+			})
+			return
+		}
+
+		result, readErr := reader.Incident(ginCtx, eventID)
+		if readErr != nil {
+			if errors.Is(readErr, auditstore.ErrIncidentNotFound) {
+				httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{
+					"field": "event_id",
+				})
+				return
+			}
+			logger.Error("read audit incident failed",
+				zap.String("plugin", pluginName),
+				zap.Uint64("event_id", eventID),
+				zap.Error(readErr),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		payload, mapErr := toAuditIncidentResponse(result)
+		if mapErr != nil {
+			logger.Error("map audit incident response failed",
+				zap.String("plugin", pluginName),
+				zap.Uint64("event_id", eventID),
+				zap.Error(mapErr),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+	}
+}
+
 type auditReadGeneratedHandler struct{}
 
 func (h auditReadGeneratedHandler) GetAuditLogs(params auditopenapi.GetAuditLogsParams) {
+	_ = h
+	_ = params
+}
+
+func (h auditReadGeneratedHandler) GetAuditOverview(params auditopenapi.GetAuditOverviewParams) {
+	_ = h
+	_ = params
+}
+
+func (h auditReadGeneratedHandler) GetAuditIncident(params auditopenapi.GetAuditIncidentParams) {
 	_ = h
 	_ = params
 }
@@ -295,6 +359,19 @@ func parseOptionalIntQuery(ginCtx *gin.Context, key string) (int, bool, error) {
 
 func parseOptionalUint64Query(ginCtx *gin.Context, key string) (uint64, bool, error) {
 	raw := strings.TrimSpace(ginCtx.Query(key))
+	if raw == "" {
+		return 0, false, nil
+	}
+
+	value, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		return 0, false, err
+	}
+	return value, true, nil
+}
+
+func parseOptionalUint64Param(ginCtx *gin.Context, key string) (uint64, bool, error) {
+	raw := strings.TrimSpace(ginCtx.Param(key))
 	if raw == "" {
 		return 0, false, nil
 	}

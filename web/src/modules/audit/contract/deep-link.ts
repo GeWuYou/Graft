@@ -83,7 +83,13 @@ export function buildAuditRequestLocation(requestId: string) {
   });
 }
 
-export function buildAuditEvidenceLocation(context: AuditEvidenceContext) {
+export function buildAuditIncidentLocation(eventId: number | string) {
+  return {
+    path: AUDIT_ROUTE_PATH.INCIDENT_DETAIL.replace(':eventId', String(eventId)),
+  };
+}
+
+function buildAuditEvidenceLocation(context: AuditEvidenceContext) {
   return buildAuditLogsLocation({
     action: context.action,
     actionPrefix: context.action_prefix,
@@ -97,4 +103,22 @@ export function buildAuditEvidenceLocation(context: AuditEvidenceContext) {
     createdFrom: context.created_from,
     createdTo: context.created_to,
   });
+}
+
+type EvidenceLink = components['schemas']['EvidenceLink'];
+
+export function buildAuditEvidenceTargetLocation(link: EvidenceLink) {
+  if (link.link_state !== 'available') {
+    return null;
+  }
+
+  if (link.target_kind === 'audit_incident' && link.incident_seed?.event_id) {
+    return buildAuditIncidentLocation(link.incident_seed.event_id);
+  }
+
+  if (link.audit_context) {
+    return buildAuditEvidenceLocation(link.audit_context);
+  }
+
+  return null;
 }

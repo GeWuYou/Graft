@@ -74,6 +74,9 @@ type ListResult struct {
 // OverviewResult contains the read model for the audit overview page.
 type OverviewResult = auditstore.AuditOverview
 
+// IncidentResult contains the audit-owned incident drilldown read model.
+type IncidentResult = auditstore.AuditIncident
+
 // Service writes and queries audit records through the plugin-owned repository boundary.
 type Service struct {
 	repo auditstore.AuditRepository
@@ -222,6 +225,18 @@ func (s *Service) Overview(ctx context.Context, window auditstore.OverviewWindow
 	}
 
 	return s.repo.ReadAuditOverview(ctx, window)
+}
+
+// Incident returns the audit-owned incident drilldown for one stable seed event.
+func (s *Service) Incident(ctx context.Context, eventID uint64) (IncidentResult, error) {
+	if s == nil || s.repo == nil {
+		return IncidentResult{}, ErrAuditServiceUnavailable
+	}
+	if eventID == 0 {
+		return IncidentResult{}, errors.New("audit incident event id is required")
+	}
+
+	return s.repo.ReadIncident(ctx, eventID)
 }
 
 // RecordCandidate writes one normalized candidate after policy evaluation approves it.

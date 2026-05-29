@@ -7,6 +7,9 @@
       },
       "logs": {
         "title": "Audit Logs"
+      },
+      "incident": {
+        "title": "Incident Drilldown"
       }
     }
   },
@@ -195,6 +198,39 @@
           "tag": "Needs review"
         }
       }
+    },
+    "incident": {
+      "title": "Security Incident Drilldown",
+      "description": "Audit-owned incident context for one canonical security timeline seed event.",
+      "errorTitle": "Audit incident drilldown is temporarily unavailable",
+      "loadFailed": "Failed to load audit incident drilldown",
+      "invalidEventId": "The incident seed event id is invalid.",
+      "actions": {
+        "refresh": "Refresh",
+        "retry": "Retry",
+        "openRequest": "Open seed request"
+      },
+      "sections": {
+        "summary": "Incident Summary",
+        "monitorContext": "Monitor Context",
+        "relatedEvents": "Related Audit Events",
+        "relatedActors": "Related Actors",
+        "relatedResources": "Related Resources",
+        "relatedRequests": "Related Requests"
+      },
+      "fields": {
+        "riskLevel": "Risk level",
+        "window": "Incident window",
+        "reason": "Correlation reason",
+        "seedAction": "Seed action",
+        "seedResource": "Seed resource"
+      },
+      "monitorState": {
+        "available": "Available",
+        "partial": "Partial",
+        "unavailable": "Unavailable"
+      },
+      "eventCount": "{count} related events"
     },
     "logList": {
       "title": "Audit Logs",

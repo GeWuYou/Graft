@@ -43,6 +43,21 @@ const auditApiMocks = vi.hoisted(() => ({
         created_at: '2026-05-27T08:05:00Z',
       },
     ],
+    security_timeline: [
+      {
+        id: 11,
+        incident_seed: { event_id: 42 },
+        created_at: '2026-05-27T08:12:00Z',
+        source: 'SECURITY_EVENT',
+        risk_level: 'HIGH',
+        action: 'auth.failed',
+        result: 'FAILED',
+        request_id: 'req-incident-42',
+        resource_name: 'console',
+      },
+    ],
+    risk_groups: [],
+    trend: { bucket_unit: 'hour', bucket_size: 1, points: [] },
     sensitive_operations: [
       {
         id: 3,
@@ -156,6 +171,8 @@ const i18n = createI18n({
             failedAuth: 'Recent Authentication Failures',
             permissionDenied: 'Recent Permission Denials',
             sensitiveOps: 'Recent Sensitive Audit Events',
+            trend: 'Risk Trend',
+            securityTimeline: 'Security Event Timeline',
             shortcuts: 'Quick Links',
             riskWatch: 'Recent Risk',
           },
@@ -180,6 +197,10 @@ const i18n = createI18n({
             },
           },
         },
+        common: {
+          risk: { HIGH: 'High' },
+          source: { SECURITY_EVENT: 'Security Event' },
+        },
       },
     },
   },
@@ -200,6 +221,8 @@ describe('AuditOverviewPage', () => {
           't-radio-button': radioButtonStub,
           't-space': passthroughStub,
           't-tag': tagStub,
+          't-timeline': passthroughStub,
+          't-timeline-item': passthroughStub,
         },
       },
     });
@@ -222,6 +245,38 @@ describe('AuditOverviewPage', () => {
       query: {
         preset: 'auth-failed',
       },
+    });
+  });
+
+  it('navigates security timeline items to the canonical audit incident drilldown', async () => {
+    const wrapper = mount(AuditOverviewPage, {
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'governance-dashboard-shell': passthroughStub,
+          'governance-section': passthroughStub,
+          'governance-summary-card': passthroughStub,
+          'management-empty-state': passthroughStub,
+          't-button': buttonStub,
+          't-radio-group': radioGroupStub,
+          't-radio-button': radioButtonStub,
+          't-space': passthroughStub,
+          't-tag': tagStub,
+          't-timeline': passthroughStub,
+          't-timeline-item': passthroughStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const timelineButton = wrapper.findAll('button[type="button"]').find((item) => item.text().includes('auth.failed'));
+
+    expect(timelineButton).toBeTruthy();
+    await timelineButton!.trigger('click');
+
+    expect(routerMocks.push).toHaveBeenLastCalledWith({
+      path: '/audit/incidents/42',
     });
   });
 });

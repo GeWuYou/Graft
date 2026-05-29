@@ -593,7 +593,7 @@ function createServerStatusResponse() {
         summary: 'CPU usage reached 84.2% in the current monitor window.',
         evidence_links: [
           {
-            target_kind: 'audit_context',
+            target_kind: 'audit_incident',
             link_state: 'available',
             title: 'Review related audit activity',
             reason: 'Check audit records from the same bounded monitor window.',
@@ -601,10 +601,8 @@ function createServerStatusResponse() {
               created_from: '2026-05-20T08:50:00Z',
               created_to: '2026-05-20T09:00:00Z',
             },
-            audit_context: {
-              source: 'SECURITY_EVENT',
-              created_from: '2026-05-20T08:50:00Z',
-              created_to: '2026-05-20T09:00:00Z',
+            incident_seed: {
+              event_id: 42,
             },
           },
         ],
@@ -886,7 +884,7 @@ describe('MonitorPage', () => {
     expect(allOverviewText).toContain('Goroutines');
   });
 
-  it('opens audit logs from backend-owned anomaly evidence context', async () => {
+  it('opens the audit incident drilldown from backend-owned anomaly evidence links', async () => {
     monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
 
     const wrapper = mountMonitorPage();
@@ -896,12 +894,7 @@ describe('MonitorPage', () => {
     await wrapper.get('[data-anomaly-key="resource_cpu_pressure"] button').trigger('click');
 
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/audit/logs',
-      query: {
-        source: 'SECURITY_EVENT',
-        createdFrom: '2026-05-20T08:50:00Z',
-        createdTo: '2026-05-20T09:00:00Z',
-      },
+      path: '/audit/incidents/42',
     });
   });
 

@@ -4499,6 +4499,95 @@
         }
       }
     },
+    "/api/audit/incidents/{event_id}": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Read audit incident drilldown",
+        "operationId": "getAuditIncident",
+        "description": "Returns the audit-owned incident context for one stable security timeline seed event.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit incident drilldown payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-incident-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid incident seed event id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Audit incident seed event was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/monitor/server-status": {
       "get": {
         "tags": [
@@ -4854,6 +4943,12 @@
       },
       "EnvelopedAuditOverviewResponse": {
         "$ref": "#/components/schemas/enveloped-audit-overview-response"
+      },
+      "AuditIncidentResponse": {
+        "$ref": "#/components/schemas/audit-incident-response"
+      },
+      "EnvelopedAuditIncidentResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-incident-response"
       },
       "ServerStatusDependency": {
         "$ref": "#/components/schemas/server-status-dependency"
@@ -6258,6 +6353,7 @@
               "type": "object",
               "required": [
                 "id",
+                "incident_seed",
                 "created_at",
                 "source",
                 "risk_level",
@@ -6269,6 +6365,18 @@
                 "id": {
                   "type": "integer",
                   "format": "int64"
+                },
+                "incident_seed": {
+                  "type": "object",
+                  "required": [
+                    "event_id"
+                  ],
+                  "properties": {
+                    "event_id": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  }
                 },
                 "created_at": {
                   "type": "string",
@@ -6358,6 +6466,189 @@
             "$ref": "#/components/schemas/audit-overview-response"
           }
         }
+      },
+      "audit-incident-response": {
+        "type": "object",
+        "required": [
+          "seed_event",
+          "incident",
+          "related_events",
+          "related_actors",
+          "related_resources",
+          "related_requests",
+          "monitor_context"
+        ],
+        "properties": {
+          "seed_event": {
+            "$ref": "#/components/schemas/audit-log-list-item"
+          },
+          "incident": {
+            "type": "object",
+            "required": [
+              "incident_key",
+              "title",
+              "summary",
+              "risk_level",
+              "started_at",
+              "ended_at",
+              "correlation_reason"
+            ],
+            "properties": {
+              "incident_key": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "risk_level": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH",
+                  "CRITICAL"
+                ]
+              },
+              "started_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "ended_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "correlation_reason": {
+                "type": "string"
+              }
+            }
+          },
+          "related_events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/audit-log-list-item"
+            }
+          },
+          "related_actors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "event_count"
+              ],
+              "properties": {
+                "actor_user_id": {
+                  "type": "integer",
+                  "format": "int64",
+                  "nullable": true
+                },
+                "actor_username": {
+                  "type": "string"
+                },
+                "actor_display_name": {
+                  "type": "string"
+                },
+                "event_count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "related_resources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "resource_type",
+                "resource_id",
+                "resource_name",
+                "event_count"
+              ],
+              "properties": {
+                "resource_type": {
+                  "type": "string"
+                },
+                "resource_id": {
+                  "type": "string"
+                },
+                "resource_name": {
+                  "type": "string"
+                },
+                "event_count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "related_requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "request_id",
+                "event_count",
+                "started_at",
+                "ended_at"
+              ],
+              "properties": {
+                "request_id": {
+                  "type": "string"
+                },
+                "event_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "started_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "ended_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "monitor_context": {
+            "type": "object",
+            "required": [
+              "state",
+              "reason"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "available",
+                  "partial",
+                  "unavailable"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "enveloped-audit-incident-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-incident-response"
+              }
+            }
+          }
+        ]
       },
       "server-status-server": {
         "type": "object",

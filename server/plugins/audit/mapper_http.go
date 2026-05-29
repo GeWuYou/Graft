@@ -56,6 +56,7 @@ func toAuditOverviewResponse(result auditOverviewResult) (map[string]any, error)
 		}
 		securityTimeline = append(securityTimeline, map[string]any{
 			"id":                 id,
+			"incident_seed":      map[string]any{"event_id": id},
 			"created_at":         item.CreatedAt.UTC(),
 			"source":             string(item.Source),
 			"risk_level":         string(item.RiskLevel),
@@ -89,13 +90,122 @@ func toAuditOverviewResponse(result auditOverviewResult) (map[string]any, error)
 			"high_risk_events":     result.Summary.HighRiskEvents,
 			"sensitive_operations": result.Summary.SensitiveOperations,
 		},
-		"risk_groups":         riskGroups,
-		"trend":               map[string]any{"bucket_unit": result.Trend.BucketUnit, "bucket_size": result.Trend.BucketSize, "points": trendPoints},
-		"security_timeline":   securityTimeline,
+		"risk_groups":          riskGroups,
+		"trend":                map[string]any{"bucket_unit": result.Trend.BucketUnit, "bucket_size": result.Trend.BucketSize, "points": trendPoints},
+		"security_timeline":    securityTimeline,
 		"failed_auth":          failedAuth,
 		"permission_denied":    permissionDenied,
 		"sensitive_operations": sensitiveOps,
 	}, nil
+}
+
+func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error) {
+	seedEvent, err := toAuditLogListItem(result.SeedEvent)
+	if err != nil {
+		return nil, err
+	}
+
+	relatedEvents, err := toAuditIncidentRelatedEvents(result.RelatedEvents)
+	if err != nil {
+		return nil, err
+	}
+	relatedActors, err := toAuditIncidentActors(result.RelatedActors)
+	if err != nil {
+		return nil, err
+	}
+	relatedResources := toAuditIncidentResources(result.RelatedResources)
+	relatedRequests := toAuditIncidentRequests(result.RelatedRequests)
+
+	return map[string]any{
+		"seed_event": seedEvent,
+		"incident": map[string]any{
+			"incident_key":       result.Incident.IncidentKey,
+			"title":              result.Incident.Title,
+			"summary":            result.Incident.Summary,
+			"risk_level":         string(result.Incident.RiskLevel),
+			"started_at":         result.Incident.StartedAt.UTC(),
+			"ended_at":           result.Incident.EndedAt.UTC(),
+			"correlation_reason": result.Incident.CorrelationReason,
+		},
+		"related_events":    relatedEvents,
+		"related_actors":    relatedActors,
+		"related_resources": relatedResources,
+		"related_requests":  relatedRequests,
+		"monitor_context": map[string]any{
+			"state":  string(result.MonitorContext.State),
+			"reason": result.MonitorContext.Reason,
+		},
+	}, nil
+}
+
+func toAuditIncidentRelatedEvents(events []auditstore.AuditLog) ([]generated.AuditLogListItem, error) {
+	relatedEvents := make([]generated.AuditLogListItem, 0, len(events))
+	for _, item := range events {
+		converted, err := toAuditLogListItem(item)
+		if err != nil {
+			return nil, err
+		}
+		relatedEvents = append(relatedEvents, converted)
+	}
+	return relatedEvents, nil
+}
+
+func toAuditIncidentActors(actors []auditstore.AuditIncidentActor) ([]map[string]any, error) {
+	relatedActors := make([]map[string]any, 0, len(actors))
+	for _, actor := range actors {
+		entry, err := toAuditIncidentActor(actor)
+		if err != nil {
+			return nil, err
+		}
+		relatedActors = append(relatedActors, entry)
+	}
+	return relatedActors, nil
+}
+
+func toAuditIncidentActor(actor auditstore.AuditIncidentActor) (map[string]any, error) {
+	entry := map[string]any{
+		"event_count": actor.EventCount,
+	}
+	if actor.ActorUserID != nil {
+		convertedID, err := mustConvertAuditGeneratedID(*actor.ActorUserID, "audit incident actor user id")
+		if err != nil {
+			return nil, err
+		}
+		entry["actor_user_id"] = convertedID
+	}
+	if actor.ActorUsername != "" {
+		entry["actor_username"] = actor.ActorUsername
+	}
+	if actor.ActorDisplayName != "" {
+		entry["actor_display_name"] = actor.ActorDisplayName
+	}
+	return entry, nil
+}
+
+func toAuditIncidentResources(resources []auditstore.AuditIncidentResource) []map[string]any {
+	relatedResources := make([]map[string]any, 0, len(resources))
+	for _, resource := range resources {
+		relatedResources = append(relatedResources, map[string]any{
+			"resource_type": resource.ResourceType,
+			"resource_id":   resource.ResourceID,
+			"resource_name": resource.ResourceName,
+			"event_count":   resource.EventCount,
+		})
+	}
+	return relatedResources
+}
+
+func toAuditIncidentRequests(requests []auditstore.AuditIncidentRequest) []map[string]any {
+	relatedRequests := make([]map[string]any, 0, len(requests))
+	for _, request := range requests {
+		relatedRequests = append(relatedRequests, map[string]any{
+			"request_id":  request.RequestID,
+			"event_count": request.EventCount,
+			"started_at":  request.StartedAt.UTC(),
+			"ended_at":    request.EndedAt.UTC(),
+		})
+	}
+	return relatedRequests
 }
 
 func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, error) {

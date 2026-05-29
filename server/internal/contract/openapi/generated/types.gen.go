@@ -81,6 +81,51 @@ func (e AuditEvidenceContextSource) Valid() bool {
 	}
 }
 
+// Defines values for AuditIncidentResponseIncidentRiskLevel.
+const (
+	AuditIncidentResponseIncidentRiskLevelCRITICAL AuditIncidentResponseIncidentRiskLevel = "CRITICAL"
+	AuditIncidentResponseIncidentRiskLevelHIGH     AuditIncidentResponseIncidentRiskLevel = "HIGH"
+	AuditIncidentResponseIncidentRiskLevelLOW      AuditIncidentResponseIncidentRiskLevel = "LOW"
+	AuditIncidentResponseIncidentRiskLevelMEDIUM   AuditIncidentResponseIncidentRiskLevel = "MEDIUM"
+)
+
+// Valid indicates whether the value is a known member of the AuditIncidentResponseIncidentRiskLevel enum.
+func (e AuditIncidentResponseIncidentRiskLevel) Valid() bool {
+	switch e {
+	case AuditIncidentResponseIncidentRiskLevelCRITICAL:
+		return true
+	case AuditIncidentResponseIncidentRiskLevelHIGH:
+		return true
+	case AuditIncidentResponseIncidentRiskLevelLOW:
+		return true
+	case AuditIncidentResponseIncidentRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditIncidentResponseMonitorContextState.
+const (
+	AuditIncidentResponseMonitorContextStateAvailable   AuditIncidentResponseMonitorContextState = "available"
+	AuditIncidentResponseMonitorContextStatePartial     AuditIncidentResponseMonitorContextState = "partial"
+	AuditIncidentResponseMonitorContextStateUnavailable AuditIncidentResponseMonitorContextState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the AuditIncidentResponseMonitorContextState enum.
+func (e AuditIncidentResponseMonitorContextState) Valid() bool {
+	switch e {
+	case AuditIncidentResponseMonitorContextStateAvailable:
+		return true
+	case AuditIncidentResponseMonitorContextStatePartial:
+		return true
+	case AuditIncidentResponseMonitorContextStateUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditLogListItemResult.
 const (
 	AuditLogListItemResultDENIED  AuditLogListItemResult = "DENIED"
@@ -335,22 +380,22 @@ func (e ErrorResponseSuccess) Valid() bool {
 
 // Defines values for EvidenceLinkLinkState.
 const (
-	Available   EvidenceLinkLinkState = "available"
-	Empty       EvidenceLinkLinkState = "empty"
-	Unavailable EvidenceLinkLinkState = "unavailable"
-	Unsupported EvidenceLinkLinkState = "unsupported"
+	EvidenceLinkLinkStateAvailable   EvidenceLinkLinkState = "available"
+	EvidenceLinkLinkStateEmpty       EvidenceLinkLinkState = "empty"
+	EvidenceLinkLinkStateUnavailable EvidenceLinkLinkState = "unavailable"
+	EvidenceLinkLinkStateUnsupported EvidenceLinkLinkState = "unsupported"
 )
 
 // Valid indicates whether the value is a known member of the EvidenceLinkLinkState enum.
 func (e EvidenceLinkLinkState) Valid() bool {
 	switch e {
-	case Available:
+	case EvidenceLinkLinkStateAvailable:
 		return true
-	case Empty:
+	case EvidenceLinkLinkStateEmpty:
 		return true
-	case Unavailable:
+	case EvidenceLinkLinkStateUnavailable:
 		return true
-	case Unsupported:
+	case EvidenceLinkLinkStateUnsupported:
 		return true
 	default:
 		return false
@@ -647,22 +692,22 @@ func (e GetAuditLogsParamsResult) Valid() bool {
 
 // Defines values for GetAuditLogsParamsRiskLevel.
 const (
-	CRITICAL GetAuditLogsParamsRiskLevel = "CRITICAL"
-	HIGH     GetAuditLogsParamsRiskLevel = "HIGH"
-	LOW      GetAuditLogsParamsRiskLevel = "LOW"
-	MEDIUM   GetAuditLogsParamsRiskLevel = "MEDIUM"
+	GetAuditLogsParamsRiskLevelCRITICAL GetAuditLogsParamsRiskLevel = "CRITICAL"
+	GetAuditLogsParamsRiskLevelHIGH     GetAuditLogsParamsRiskLevel = "HIGH"
+	GetAuditLogsParamsRiskLevelLOW      GetAuditLogsParamsRiskLevel = "LOW"
+	GetAuditLogsParamsRiskLevelMEDIUM   GetAuditLogsParamsRiskLevel = "MEDIUM"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditLogsParamsRiskLevel enum.
 func (e GetAuditLogsParamsRiskLevel) Valid() bool {
 	switch e {
-	case CRITICAL:
+	case GetAuditLogsParamsRiskLevelCRITICAL:
 		return true
-	case HIGH:
+	case GetAuditLogsParamsRiskLevelHIGH:
 		return true
-	case LOW:
+	case GetAuditLogsParamsRiskLevelLOW:
 		return true
-	case MEDIUM:
+	case GetAuditLogsParamsRiskLevelMEDIUM:
 		return true
 	default:
 		return false
@@ -773,6 +818,49 @@ type AuditEvidenceContextRiskLevel string
 // AuditEvidenceContextSource defines model for AuditEvidenceContext.Source.
 type AuditEvidenceContextSource string
 
+// AuditIncidentResponse defines model for audit-incident-response.
+type AuditIncidentResponse struct {
+	Incident struct {
+		CorrelationReason string                                 `json:"correlation_reason"`
+		EndedAt           time.Time                              `json:"ended_at"`
+		IncidentKey       string                                 `json:"incident_key"`
+		RiskLevel         AuditIncidentResponseIncidentRiskLevel `json:"risk_level"`
+		StartedAt         time.Time                              `json:"started_at"`
+		Summary           string                                 `json:"summary"`
+		Title             string                                 `json:"title"`
+	} `json:"incident"`
+	MonitorContext struct {
+		Reason string                                   `json:"reason"`
+		State  AuditIncidentResponseMonitorContextState `json:"state"`
+	} `json:"monitor_context"`
+	RelatedActors []struct {
+		ActorDisplayName *string `json:"actor_display_name,omitempty"`
+		ActorUserId      *int64  `json:"actor_user_id,omitempty"`
+		ActorUsername    *string `json:"actor_username,omitempty"`
+		EventCount       int     `json:"event_count"`
+	} `json:"related_actors"`
+	RelatedEvents   []AuditLogListItem `json:"related_events"`
+	RelatedRequests []struct {
+		EndedAt    time.Time `json:"ended_at"`
+		EventCount int       `json:"event_count"`
+		RequestId  string    `json:"request_id"`
+		StartedAt  time.Time `json:"started_at"`
+	} `json:"related_requests"`
+	RelatedResources []struct {
+		EventCount   int    `json:"event_count"`
+		ResourceId   string `json:"resource_id"`
+		ResourceName string `json:"resource_name"`
+		ResourceType string `json:"resource_type"`
+	} `json:"related_resources"`
+	SeedEvent AuditLogListItem `json:"seed_event"`
+}
+
+// AuditIncidentResponseIncidentRiskLevel defines model for AuditIncidentResponse.Incident.RiskLevel.
+type AuditIncidentResponseIncidentRiskLevel string
+
+// AuditIncidentResponseMonitorContextState defines model for AuditIncidentResponse.MonitorContext.State.
+type AuditIncidentResponseMonitorContextState string
+
 // AuditLogListItem defines model for audit-log-list-item.
 type AuditLogListItem struct {
 	Action           string                     `json:"action"`
@@ -851,17 +939,20 @@ type AuditOverviewResponse struct {
 		RiskLevel AuditOverviewResponseRiskGroupsRiskLevel `json:"risk_level"`
 	} `json:"risk_groups"`
 	SecurityTimeline []struct {
-		Action           string                                         `json:"action"`
-		ActorDisplayName *string                                        `json:"actor_display_name,omitempty"`
-		ActorUsername    *string                                        `json:"actor_username,omitempty"`
-		CreatedAt        time.Time                                      `json:"created_at"`
-		Id               int64                                          `json:"id"`
-		RequestId        string                                         `json:"request_id"`
-		ResourceName     *string                                        `json:"resource_name,omitempty"`
-		ResourceType     *string                                        `json:"resource_type,omitempty"`
-		Result           AuditOverviewResponseSecurityTimelineResult    `json:"result"`
-		RiskLevel        AuditOverviewResponseSecurityTimelineRiskLevel `json:"risk_level"`
-		Source           AuditOverviewResponseSecurityTimelineSource    `json:"source"`
+		Action           string    `json:"action"`
+		ActorDisplayName *string   `json:"actor_display_name,omitempty"`
+		ActorUsername    *string   `json:"actor_username,omitempty"`
+		CreatedAt        time.Time `json:"created_at"`
+		Id               int64     `json:"id"`
+		IncidentSeed     struct {
+			EventId int64 `json:"event_id"`
+		} `json:"incident_seed"`
+		RequestId    string                                         `json:"request_id"`
+		ResourceName *string                                        `json:"resource_name,omitempty"`
+		ResourceType *string                                        `json:"resource_type,omitempty"`
+		Result       AuditOverviewResponseSecurityTimelineResult    `json:"result"`
+		RiskLevel    AuditOverviewResponseSecurityTimelineRiskLevel `json:"risk_level"`
+		Source       AuditOverviewResponseSecurityTimelineSource    `json:"source"`
 	} `json:"security_timeline"`
 	SensitiveOperations []AuditOverviewItem  `json:"sensitive_operations"`
 	Summary             AuditOverviewSummary `json:"summary"`
@@ -977,6 +1068,26 @@ type CreateUserRequest struct {
 	// Password Initial password. The current server policy requires at least 12 characters and both letters and digits.
 	Password string `json:"password"`
 	Username string `json:"username"`
+}
+
+// EnvelopedAuditIncidentResponse defines model for enveloped-audit-incident-response.
+type EnvelopedAuditIncidentResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data AuditIncidentResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
 }
 
 // EnvelopedAuditLogListResponse defines model for enveloped-audit-log-list-response.
@@ -1695,6 +1806,16 @@ type bearerAuthContextKey string
 
 // refreshCookieContextKey is the context key for refreshCookie security scheme
 type refreshCookieContextKey string
+
+// GetAuditIncidentParams defines parameters for GetAuditIncident.
+type GetAuditIncidentParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAuditLogsParams defines parameters for GetAuditLogs.
 type GetAuditLogsParams struct {

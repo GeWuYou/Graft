@@ -12,6 +12,7 @@ func registerAuditRoutes(ctx *plugin.Context, pluginName string, reader auditRea
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(auditcontract.AuditOverviewCollection, guard.read, handleReadAuditOverview(ctx, pluginName, reader))
 	group.GET(auditcontract.AuditCollection, guard.read, handleListAuditLogs(ctx, pluginName, reader))
+	group.GET(auditcontract.AuditIncidentItem, guard.read, handleReadAuditIncident(ctx, pluginName, reader))
 }
 
 var _ auditopenapi.ReadServerInterface = auditReadGeneratedHandler{}

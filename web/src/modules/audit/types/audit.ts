@@ -5,6 +5,13 @@ export type AuditLogListResponse = components['schemas']['audit-log-list-respons
 export type AuditOverviewItem = components['schemas']['AuditOverviewItem'];
 export type AuditOverviewSummary = components['schemas']['AuditOverviewSummary'];
 export type AuditOverviewResponse = components['schemas']['AuditOverviewResponse'];
+export type AuditIncidentResponse = components['schemas']['AuditIncidentResponse'];
+export type AuditIncidentSeed = AuditOverviewResponse['security_timeline'][number]['incident_seed'];
+export type AuditIncidentSummary = AuditIncidentResponse['incident'];
+export type AuditIncidentActor = AuditIncidentResponse['related_actors'][number];
+export type AuditIncidentResource = AuditIncidentResponse['related_resources'][number];
+export type AuditIncidentRequest = AuditIncidentResponse['related_requests'][number];
+export type AuditIncidentMonitorContext = AuditIncidentResponse['monitor_context'];
 
 export type AuditOverviewWindow = '24h' | '7d' | '30d';
 export type AuditRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';

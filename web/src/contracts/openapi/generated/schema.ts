@@ -805,6 +805,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/audit/incidents/{event_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read audit incident drilldown
+     * @description Returns the audit-owned incident context for one stable security timeline seed event.
+     */
+    get: operations['getAuditIncident'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/monitor/server-status': {
     parameters: {
       query?: never;
@@ -878,6 +898,8 @@ export interface components {
     EvidenceLink: components['schemas']['evidence-link'];
     AuditOverviewResponse: components['schemas']['audit-overview-response'];
     EnvelopedAuditOverviewResponse: components['schemas']['enveloped-audit-overview-response'];
+    AuditIncidentResponse: components['schemas']['audit-incident-response'];
+    EnvelopedAuditIncidentResponse: components['schemas']['enveloped-audit-incident-response'];
     ServerStatusDependency: components['schemas']['server-status-dependency'];
     ServerStatusPlugin: components['schemas']['server-status-plugin'];
     ServerStatusServer: components['schemas']['server-status-server'];
@@ -1285,6 +1307,10 @@ export interface components {
       security_timeline: {
         /** Format: int64 */
         id: number;
+        incident_seed: {
+          /** Format: int64 */
+          event_id: number;
+        };
         /** Format: date-time */
         created_at: string;
         /** @enum {string} */
@@ -1308,6 +1334,51 @@ export interface components {
       /** @enum {boolean} */
       success: true;
       data: components['schemas']['audit-overview-response'];
+    };
+    'audit-incident-response': {
+      seed_event: components['schemas']['audit-log-list-item'];
+      incident: {
+        incident_key: string;
+        title: string;
+        summary: string;
+        /** @enum {string} */
+        risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+        /** Format: date-time */
+        started_at: string;
+        /** Format: date-time */
+        ended_at: string;
+        correlation_reason: string;
+      };
+      related_events: components['schemas']['audit-log-list-item'][];
+      related_actors: {
+        /** Format: int64 */
+        actor_user_id?: number | null;
+        actor_username?: string;
+        actor_display_name?: string;
+        event_count: number;
+      }[];
+      related_resources: {
+        resource_type: string;
+        resource_id: string;
+        resource_name: string;
+        event_count: number;
+      }[];
+      related_requests: {
+        request_id: string;
+        event_count: number;
+        /** Format: date-time */
+        started_at: string;
+        /** Format: date-time */
+        ended_at: string;
+      }[];
+      monitor_context: {
+        /** @enum {string} */
+        state: 'available' | 'partial' | 'unavailable';
+        reason: string;
+      };
+    };
+    'enveloped-audit-incident-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['audit-incident-response'];
     };
     /**
      * @example {
@@ -3817,6 +3888,60 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAuditIncident: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        event_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Audit incident drilldown payload. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-audit-incident-response'];
+        };
+      };
+      /** @description Invalid incident seed event id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Audit incident seed event was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };

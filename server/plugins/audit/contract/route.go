@@ -15,6 +15,9 @@ const (
 	// AuditOverviewCollection identifies the audit overview route fragment.
 	AuditOverviewCollection = "/overview"
 
+	// AuditIncidentItem identifies the audit incident route fragment.
+	AuditIncidentItem = "/incidents/:eventID"
+
 	// AuditMenuPath identifies the canonical audit root menu path.
 	AuditMenuPath = AuditGroup
 
@@ -26,4 +29,7 @@ const (
 
 	// AuditOverviewAPIPath identifies the canonical audit overview API path.
 	AuditOverviewAPIPath = AuditGroup + AuditOverviewCollection
+
+	// AuditIncidentAPIPath identifies the canonical audit incident API path template.
+	AuditIncidentAPIPath = AuditGroup + "/incidents/{event_id}"
 )

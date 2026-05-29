@@ -412,7 +412,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import type { TChartColor } from '@/config/color';
-import { buildAuditEvidenceLocation } from '@/modules/audit/contract/deep-link';
+import { buildAuditEvidenceTargetLocation } from '@/modules/audit/contract/deep-link';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { useSettingStore } from '@/store';
@@ -1236,7 +1236,11 @@ function anomalySeverityLabel(severity?: string) {
 }
 
 function firstAvailableEvidenceLink(anomaly: ServerStatusAnomaly): EvidenceLink | undefined {
-  return anomaly.evidence_links.find((item) => item.link_state === 'available' && item.audit_context);
+  return anomaly.evidence_links.find(
+    (item) =>
+      item.link_state === 'available' &&
+      ((item.target_kind === 'audit_incident' && item.incident_seed?.event_id) || item.audit_context),
+  );
 }
 
 function anomalyEvidenceHint(anomaly: ServerStatusAnomaly) {
@@ -1250,11 +1254,16 @@ function anomalyEvidenceHint(anomaly: ServerStatusAnomaly) {
 
 function openAnomalyEvidence(anomaly: ServerStatusAnomaly) {
   const link = firstAvailableEvidenceLink(anomaly);
-  if (!link?.audit_context) {
+  if (!link) {
     return;
   }
 
-  void router.push(buildAuditEvidenceLocation(link.audit_context));
+  const target = buildAuditEvidenceTargetLocation(link);
+  if (!target) {
+    return;
+  }
+
+  void router.push(target);
 }
 
 function formatPercent(percent: number | null) {
