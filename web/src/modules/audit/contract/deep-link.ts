@@ -7,6 +7,7 @@ export type AuditLogsRouteQuery = Partial<{
   keyword: string;
   actor: string;
   action: string;
+  actionPrefix: string;
   source: string;
   createdFrom: string;
   createdTo: string;
@@ -34,6 +35,7 @@ export function parseAuditLogsRouteQuery(query: LocationQuery | AuditLogsRouteQu
     keyword: trimQueryValue(firstQueryValue(query.keyword)),
     actor: trimQueryValue(firstQueryValue(query.actor)),
     action: trimQueryValue(firstQueryValue(query.action)),
+    actionPrefix: trimQueryValue(firstQueryValue(query.actionPrefix)),
     source: trimQueryValue(firstQueryValue(query.source)),
     createdFrom: trimQueryValue(firstQueryValue(query.createdFrom)),
     createdTo: trimQueryValue(firstQueryValue(query.createdTo)),

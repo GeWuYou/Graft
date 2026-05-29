@@ -196,6 +196,7 @@ func bindAuditActorUserID(ginCtx *gin.Context, params *auditopenapi.GetAuditLogs
 
 func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) {
 	bindAuditStringFilter(ginCtx, "action", &params.Action, &query.Action)
+	bindAuditStringFilter(ginCtx, "action_prefix", &params.ActionPrefix, &query.ActionPrefix)
 	bindAuditStringFilter(ginCtx, "resource_type", &params.ResourceType, &query.ResourceType)
 	bindAuditStringFilter(ginCtx, "resource_id", &params.ResourceId, &query.ResourceID)
 	bindAuditStringFilter(ginCtx, "resource_name", &params.ResourceName, &query.ResourceName)

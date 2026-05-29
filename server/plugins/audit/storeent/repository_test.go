@@ -133,6 +133,73 @@ func TestRepositoryCreateAndListAuditLogs(t *testing.T) {
 	}
 }
 
+func TestRepositoryListAuditLogsSupportsActionPrefix(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	seed := []auditstore.CreateAuditLogInput{
+		{
+			Action:       "rbac.role.create",
+			ResourceType: "role",
+			ResourceID:   "1",
+			ResourceName: "ops-admin",
+			Success:      true,
+			RequestID:    "req-rbac-role",
+			Message:      "role created",
+			Metadata:     json.RawMessage(`{"request_path":"/api/roles","status_code":200}`),
+			CreatedAt:    now.Add(-2 * time.Hour),
+		},
+		{
+			Action:       "rbac.user.roles.add",
+			ResourceType: "user",
+			ResourceID:   "9",
+			ResourceName: "alice",
+			Success:      true,
+			RequestID:    "req-rbac-user-role",
+			Message:      "user roles added",
+			Metadata:     json.RawMessage(`{"request_path":"/api/users/9/roles/add","status_code":200}`),
+			CreatedAt:    now.Add(-time.Hour),
+		},
+		{
+			Action:       "auth.permission.denied",
+			ResourceType: "role",
+			ResourceID:   "12",
+			ResourceName: "Ops Admin",
+			Success:      false,
+			RequestID:    "req-authz",
+			Message:      "common.forbidden",
+			Metadata:     json.RawMessage(`{"request_path":"/api/roles/12/delete","status_code":403}`),
+			CreatedAt:    now.Add(-30 * time.Minute),
+		},
+	}
+	for _, item := range seed {
+		if _, err := repo.CreateAuditLog(ctx, item); err != nil {
+			t.Fatalf("seed audit log: %v", err)
+		}
+	}
+
+	result, err := repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
+		ActionPrefix: "rbac.",
+		Limit:        10,
+		Offset:       0,
+	})
+	if err != nil {
+		t.Fatalf("list prefixed audit logs: %v", err)
+	}
+
+	if result.Total != 2 || len(result.Items) != 2 {
+		t.Fatalf("expected two rbac audit logs, got %#v", result)
+	}
+	if !strings.HasPrefix(result.Items[0].Action, "rbac.") || !strings.HasPrefix(result.Items[1].Action, "rbac.") {
+		t.Fatalf("expected rbac-prefixed actions, got %#v", result.Items)
+	}
+}
+
 func TestRepositoryListAuditLogsAppliesFilters(t *testing.T) {
 	db := openTestDB(t)
 	repo, err := NewRepository(db)

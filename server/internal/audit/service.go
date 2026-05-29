@@ -50,6 +50,7 @@ type ListQuery struct {
 	PageSize     int
 	ActorUserID  *uint64
 	Action       string
+	ActionPrefix string
 	Source       auditstore.AuditSource
 	ResourceType string
 	ResourceID   string
@@ -145,6 +146,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	result, err := s.repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
 		ActorUserID:  query.ActorUserID,
 		Action:       strings.TrimSpace(query.Action),
+		ActionPrefix: strings.TrimSpace(query.ActionPrefix),
 		Source:       normalizeAuditSource(query.Source),
 		ResourceType: strings.TrimSpace(query.ResourceType),
 		ResourceID:   strings.TrimSpace(query.ResourceID),

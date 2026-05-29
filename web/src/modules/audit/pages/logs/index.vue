@@ -135,6 +135,9 @@ function buildQuery(): AuditLogQuery {
   if (filters.value.action) {
     query.action = filters.value.action;
   }
+  if (filters.value.actionPrefix) {
+    query.action_prefix = filters.value.actionPrefix;
+  }
   if (filters.value.source) {
     query.source = filters.value.source as AuditLogQuery['source'];
   }
@@ -229,6 +232,7 @@ function createDefaultFilters(): AuditClientFilterState {
     keyword: '',
     actor: '',
     action: '',
+    actionPrefix: '',
     source: '',
     createdRange: [],
     resourceType: '',
@@ -262,6 +266,7 @@ function applyRouteFilters() {
     keyword: query.keyword ?? '',
     actor: query.actor ?? '',
     action: query.action || presetDefaults.action || '',
+    actionPrefix: query.actionPrefix || presetDefaults.actionPrefix || '',
     source: query.source || presetDefaults.source || '',
     createdRange: query.createdFrom || query.createdTo ? [query.createdFrom ?? '', query.createdTo ?? ''] : [],
     resourceType: query.resourceType || presetDefaults.resourceType || '',
@@ -286,6 +291,7 @@ function buildRouteQuery() {
     keyword: filters.value.keyword,
     actor: filters.value.actor,
     action: filters.value.action,
+    actionPrefix: filters.value.actionPrefix,
     source: filters.value.source,
     createdFrom,
     createdTo,

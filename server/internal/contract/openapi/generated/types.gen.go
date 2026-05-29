@@ -1421,6 +1421,7 @@ type GetAuditLogsParams struct {
 	PageSize     *int                         `form:"page_size,omitempty" json:"page_size,omitempty"`
 	ActorUserId  *int64                       `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
 	Action       *string                      `form:"action,omitempty" json:"action,omitempty"`
+	ActionPrefix *string                      `form:"action_prefix,omitempty" json:"action_prefix,omitempty"`
 	Source       *GetAuditLogsParamsSource    `form:"source,omitempty" json:"source,omitempty"`
 	ResourceType *string                      `form:"resource_type,omitempty" json:"resource_type,omitempty"`
 	ResourceId   *string                      `form:"resource_id,omitempty" json:"resource_id,omitempty"`

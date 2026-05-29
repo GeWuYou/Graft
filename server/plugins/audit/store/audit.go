@@ -171,6 +171,7 @@ type AuditPolicyDecision struct {
 type ListAuditLogsQuery struct {
 	ActorUserID  *uint64
 	Action       string
+	ActionPrefix string
 	Source       AuditSource
 	ResourceType string
 	ResourceID   string

@@ -16,6 +16,7 @@ export type AuditLogQuery = {
   page_size?: number;
   actor_user_id?: number;
   action?: string;
+  action_prefix?: string;
   source?: AuditSource;
   resource_type?: string;
   resource_id?: string;

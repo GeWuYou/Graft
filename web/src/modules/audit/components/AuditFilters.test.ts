@@ -149,6 +149,7 @@ describe('AuditFilters', () => {
           keyword: '',
           actor: 'admin',
           action: '',
+          actionPrefix: '',
           source: '',
           createdRange: [],
           resourceType: '',

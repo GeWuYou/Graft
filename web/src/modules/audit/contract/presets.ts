@@ -3,6 +3,7 @@ import type { AuditClientFilterState } from '../shared/presentation';
 export type AuditPresetKey =
   | 'all'
   | 'today-anomalies'
+  | 'rbac-changes'
   | 'permission-denied'
   | 'sensitive-ops'
   | 'auth-failed'
@@ -27,6 +28,13 @@ const AUDIT_PRESET_DEFINITIONS: readonly AuditPresetDefinition[] = [
       source: 'SECURITY_EVENT',
       result: 'ERROR',
       riskLevel: 'HIGH',
+    },
+  },
+  {
+    key: 'rbac-changes',
+    titleKey: 'audit.logList.presets.rbacChanges',
+    defaults: {
+      actionPrefix: 'rbac.',
     },
   },
   {
@@ -69,7 +77,6 @@ const AUDIT_PRESET_KEY_SET = new Set<AuditPresetKey>(AUDIT_PRESET_DEFINITIONS.ma
 
 const AUDIT_PRESET_ALIASES: Record<string, AuditPresetKey> = {
   'failed-auth': 'auth-failed',
-  'rbac-changes': 'permission-denied',
 };
 
 export function listAuditPresets() {

@@ -4281,6 +4281,14 @@
             }
           },
           {
+            "name": "action_prefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "source",
             "in": "query",
             "required": false,

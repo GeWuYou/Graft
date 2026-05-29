@@ -10,6 +10,7 @@ export type AuditClientFilterState = {
   keyword: string;
   actor: string;
   action: string;
+  actionPrefix: string;
   source: string;
   createdRange: string[];
   resourceType: string;
@@ -211,6 +212,7 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
   const keyword = filters.keyword.trim().toLowerCase();
   const actor = filters.actor.trim().toLowerCase();
   const action = filters.action.trim().toLowerCase();
+  const actionPrefix = filters.actionPrefix.trim().toLowerCase();
   const source = filters.source.trim().toUpperCase();
   const resourceType = filters.resourceType.trim().toLowerCase();
   const resourceName = filters.resourceName.trim().toLowerCase();
@@ -244,6 +246,10 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
   }
 
   if (action && !includesText(row.action, action)) {
+    return false;
+  }
+
+  if (actionPrefix && !row.action.toLowerCase().startsWith(actionPrefix)) {
     return false;
   }
 

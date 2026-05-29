@@ -248,6 +248,7 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 
 	addUint64Filter(&clauses, &args, "actor_user_id = $%d", query.ActorUserID)
 	addScalarFilter(add, "action = $%d", query.Action)
+	addPrefixFilter(add, "action LIKE $%d ESCAPE '\\'", query.ActionPrefix)
 	addScalarFilter(add, sourceWhereClause(), string(query.Source))
 	addScalarFilter(add, "resource_type = $%d", query.ResourceType)
 	addScalarFilter(add, "resource_id = $%d", query.ResourceID)
@@ -270,6 +271,23 @@ func addScalarFilter(add func(string, any), format string, value string) {
 		return
 	}
 	add(format, value)
+}
+
+func addPrefixFilter(add func(string, any), format string, value string) {
+	if value == "" {
+		return
+	}
+
+	add(format, escapeLikePattern(value)+"%")
+}
+
+func escapeLikePattern(value string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"%", "\\%",
+		"_", "\\_",
+	)
+	return replacer.Replace(value)
 }
 
 func addUint64Filter(clauses *[]string, args *[]any, format string, value *uint64) {

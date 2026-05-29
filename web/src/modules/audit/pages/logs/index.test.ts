@@ -180,6 +180,7 @@ const i18n = createI18n({
           presets: {
             all: 'All',
             todayAnomalies: "Today's Security Anomalies",
+            rbacChanges: 'RBAC Changes',
             permissionDenied: 'Permission Denied',
             sensitiveOps: 'Sensitive Operations',
             authFailed: 'Auth Failed',
@@ -409,7 +410,7 @@ describe('AuditLogsPage', () => {
 
   it('maps legacy overview preset keys to the canonical local preset authority', async () => {
     expect(resolveAuditPresetKey('failed-auth')).toBe('auth-failed');
-    expect(resolveAuditPresetKey('rbac-changes')).toBe('permission-denied');
+    expect(resolveAuditPresetKey('rbac-changes')).toBe('rbac-changes');
 
     const { replaceSpy, router, wrapper } = await mountPage({ preset: 'failed-auth' });
     replaceSpy.mockClear();
@@ -438,6 +439,17 @@ describe('AuditLogsPage', () => {
         resource_type: 'auth',
         risk_level: 'HIGH',
         source: 'REQUEST',
+      }),
+    );
+  });
+
+  it('applies the canonical rbac preset to the backend query contract', async () => {
+    const { wrapper } = await mountPage({ preset: 'rbac-changes' });
+
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"actionPrefix":"rbac."');
+    expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action_prefix: 'rbac.',
       }),
     );
   });
