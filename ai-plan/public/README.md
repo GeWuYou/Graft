@@ -12,7 +12,7 @@ Overlay note:
 
 ## Active Topics
 
-- none
+- No active public recovery topics.
 
 ## Archived Topics
 
@@ -34,6 +34,24 @@ Overlay note:
     - further audit-console analytics expansion must open a new bounded topic instead of reusing this closed follow-up
     - `web` remains a downstream consumer of the backend/OpenAPI analytics contracts; no frontend-derived fallback analytics were accepted
   - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat observability-development-governance as archived evidence and open a new bounded topic only if observability, metrics-governance, or another audit-console follow-up is required.`
+
+- `metrics-governance`
+  - Status: `archived`
+  - Recovery status: completed the bounded authority-discovery, inventory, MVP-decision, and final closeout loop; no active continuation remains.
+  - Archive reason: the topic confirmed that current metric-like authority is already bounded and aligned, so the truthful MVP is doc-only closure rather than runtime rollout.
+  - Final result:
+    - `server/plugins/monitor/**` remains the only current runtime metric-like authority
+    - `openapi/paths/monitor.server-status.yaml` remains the canonical shared wire surface for that monitor payload
+    - `web/src/modules/monitor/**` remains a downstream consumer only
+    - outside the monitor read model, metrics remain `Metric Candidate / Metric Placeholder` governance under `ai-plan/design/日志治理开发规范.md`
+  - Follow-up status: `new-topic-only`
+  - Archived topic directory:
+    - `ai-plan/public/archive/metrics-governance`
+  - Archive notes:
+    - future metrics implementation must open a new bounded topic instead of reopening this archive line
+    - future non-placeholder metrics work must define canonical owner, taxonomy, retention/aggregation, and operator consumer contracts before implementation starts
+    - this topic did not justify OpenTelemetry, Prometheus, Grafana, exporters, log parsing, or fake dashboards
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat metrics-governance as archived evidence and open a new bounded topic only if explicit non-placeholder metrics authority is needed.`
 
 - `plugin-audit-correlation-governance`
   - Status: `archived`
