@@ -95,7 +95,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 			return nil
 		}
 
-		if err := recordEvent(eventCtx, p.recorder, payload); err != nil {
+		if err := recordEvent(eventCtx, logger, p.recorder, payload); err != nil {
 			logger.Error("write active audit log failed",
 				zap.String("plugin", pluginID),
 				zap.String("event", pluginapi.AuditRecordEventName),
@@ -143,9 +143,26 @@ func requestAuditMiddleware(logger *zap.Logger, recorder *auditcore.Service) gin
 	}
 }
 
-func recordEvent(ctx context.Context, recorder *auditcore.Service, payload pluginapi.AuditEvent) error {
-	_, _, err := recorder.RecordCandidate(ctx, eventAuditCandidate(ctx, payload))
-	return err
+func recordEvent(ctx context.Context, logger *zap.Logger, recorder *auditcore.Service, payload pluginapi.AuditEvent) error {
+	candidate := eventAuditCandidate(ctx, payload)
+	_, recorded, err := recorder.RecordCandidate(ctx, candidate)
+	if err != nil {
+		return err
+	}
+	if recorded || candidate.Source != auditstore.AuditSourceSecurityEvent {
+		return nil
+	}
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	logger.Warn("skip security audit candidate by policy",
+		zap.String("plugin", pluginID),
+		zap.String("action", candidate.Action),
+		zap.String("eventType", candidate.EventType),
+		zap.String("path", candidate.RequestPath),
+	)
+	return nil
 }
 
 func requestAuditCandidate(ctx *gin.Context) auditstore.AuditCandidate {

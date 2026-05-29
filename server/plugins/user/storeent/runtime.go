@@ -3,8 +3,10 @@ package storeent
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	entsql "entgo.io/ent/dialect/sql"
+	"go.uber.org/zap"
 
 	ent "graft/server/plugins/user/ent"
 )
@@ -25,7 +27,21 @@ func NewRuntime(sqlDB *sql.DB) (*Runtime, error) {
 
 	driver := entsql.OpenDB("postgres", sqlDB)
 	return &Runtime{
-		client: ent.NewClient(ent.Driver(driver)),
+		client: ent.NewClient(
+			ent.Driver(driver),
+			ent.Log(func(args ...any) {
+				message := strings.TrimSpace(fmt.Sprint(args...))
+				if message == "" {
+					return
+				}
+
+				zap.L().Debug("ent debug",
+					zap.String("plugin", "user"),
+					zap.String("component", "ent"),
+					zap.String("message", message),
+				)
+			}),
+		),
 	}, nil
 }
 

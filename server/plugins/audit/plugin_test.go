@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
@@ -165,13 +166,17 @@ func (denyAuthorizer) Authorize(_ context.Context, _ pluginapi.RequestAuthContex
 }
 
 func newPluginTestContext(t *testing.T, repo store.AuditRepository) (*plugin.Context, *gin.Engine, eventbus.Bus) {
+	return newPluginTestContextWithLogger(t, repo, zap.NewNop())
+}
+
+func newPluginTestContextWithLogger(t *testing.T, repo store.AuditRepository, logger *zap.Logger) (*plugin.Context, *gin.Engine, eventbus.Bus) {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	bus := eventbus.New(zap.NewNop())
 	ctx := &plugin.Context{
-		Logger:             zap.NewNop(),
+		Logger:             logger,
 		Config:             &config.Config{},
 		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		EventBus:           bus,
@@ -517,6 +522,52 @@ func TestRegisterSwallowsActiveAuditWriteErrors(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("expected active audit failure to be swallowed, got %v", err)
+	}
+}
+
+func TestRegisterWarnsWhenSecurityAuditEventIsSkippedByPolicy(t *testing.T) {
+	repo := &memoryAuditRepository{
+		rules: []store.AuditPolicyRule{
+			{
+				Name:      "domain.user.profile.update",
+				Source:    store.AuditSourceDomainEvent,
+				Enabled:   true,
+				Priority:  10,
+				Effect:    store.AuditPolicyEffectInclude,
+				EventType: "user.profile.update",
+				MatchType: store.AuditPolicyMatchTypeExact,
+			},
+		},
+	}
+	core, observed := observer.New(zap.WarnLevel)
+	logger := zap.New(core)
+	_, _, bus := newPluginTestContextWithLogger(t, repo, logger)
+
+	err := bus.Publish(context.Background(), eventbus.Event{
+		Name: pluginapi.AuditRecordEventName,
+		Payload: pluginapi.AuditEvent{
+			Kind:         pluginapi.AuditEventKindSecurity,
+			Action:       "auth.permission.denied",
+			RequestPath:  "/api/roles/12",
+			ResourceType: "role",
+			ResourceID:   "12",
+			Success:      false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("publish security audit event: %v", err)
+	}
+	if len(repo.items) != 0 {
+		t.Fatalf("expected skipped security event to avoid persistence, got %d records", len(repo.items))
+	}
+
+	entries := observed.FilterMessage("skip security audit candidate by policy").All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one warn log for skipped security event, got %d", len(entries))
+	}
+	fields := entries[0].ContextMap()
+	if fields["action"] != "auth.permission.denied" || fields["path"] != "/api/roles/12" {
+		t.Fatalf("expected warn log to preserve candidate context, got %#v", fields)
 	}
 }
 

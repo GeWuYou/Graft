@@ -161,6 +161,9 @@ function syncLoggerCorrelation(traceId: string | undefined) {
     return;
   }
 
+  // syncLoggerCorrelation 按后端 request/audit 契约把同一个 normalized 同时写入
+  // patchGlobalLoggerContext 的 requestId 与 traceId；当前运行时中 traceId 就是 request id，
+  // 因此前端不能在这里再发明第二个相关性值。
   patchGlobalLoggerContext({
     requestId: normalized,
     traceId: normalized,
