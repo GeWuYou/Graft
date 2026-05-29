@@ -188,11 +188,11 @@ async function fetchAuditLogs() {
     total.value = 0;
     logger.error('failed to fetch audit logs', error);
     listError.value = resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed'));
+    const correlationId = filters.value.requestId || filters.value.traceId;
     MessagePlugin.error(
-      formatMessageWithCorrelation(
-        listError.value,
-        describeCorrelationId(t, filters.value.requestId || filters.value.traceId),
-      ),
+      correlationId
+        ? formatMessageWithCorrelation(listError.value, describeCorrelationId(t, correlationId))
+        : listError.value,
     );
   } finally {
     if (requestSeq === latestRequestSeq.value) {
@@ -263,7 +263,7 @@ function applyRouteFilters() {
     actor: query.actor ?? '',
     action: query.action || presetDefaults.action || '',
     source: query.source || presetDefaults.source || '',
-    createdRange: [query.createdFrom, query.createdTo].filter(Boolean) as string[],
+    createdRange: query.createdFrom || query.createdTo ? [query.createdFrom ?? '', query.createdTo ?? ''] : [],
     resourceType: query.resourceType || presetDefaults.resourceType || '',
     resourceName: query.resourceName ?? '',
     resourceId: query.resourceId ?? '',

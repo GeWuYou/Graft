@@ -247,6 +247,15 @@ func TestRepositoryReadAuditOverview(t *testing.T) {
 			Metadata:     json.RawMessage(`{"request_path":"/api/users/42/reset-password","status_code":200}`),
 			CreatedAt:    now.Add(-30 * time.Minute),
 		},
+		{
+			Action:       "POST /api/auth/refresh",
+			ResourceType: "auth",
+			Success:      false,
+			RequestID:    "req-malformed",
+			Message:      "refresh failed",
+			Metadata:     json.RawMessage(`{"request_path":"/api/auth/refresh","status_code":"oops","error":"token refresh failed"}`),
+			CreatedAt:    now.Add(-15 * time.Minute),
+		},
 	}
 	for _, item := range seed {
 		if _, err := repo.CreateAuditLog(ctx, item); err != nil {
@@ -259,16 +268,22 @@ func TestRepositoryReadAuditOverview(t *testing.T) {
 		t.Fatalf("read audit overview: %v", err)
 	}
 
+	assertOverviewSummary(t, overview)
+}
+
+func assertOverviewSummary(t *testing.T, overview auditstore.AuditOverview) {
+	t.Helper()
+
 	if overview.Window != auditstore.OverviewWindow24Hours {
 		t.Fatalf("expected 24h window, got %q", overview.Window)
 	}
-	if overview.Summary.TotalLogs != 3 || overview.Summary.FailedOperations != 2 {
+	if overview.Summary.TotalLogs != 4 || overview.Summary.FailedOperations != 3 {
 		t.Fatalf("unexpected overview summary: %#v", overview.Summary)
 	}
-	if overview.Summary.HighRiskEvents != 3 || overview.Summary.SensitiveOperations != 2 {
+	if overview.Summary.HighRiskEvents != 4 || overview.Summary.SensitiveOperations != 2 {
 		t.Fatalf("unexpected risk counters: %#v", overview.Summary)
 	}
-	if len(overview.FailedAuth) != 1 || overview.FailedAuth[0].RequestID != "req-auth" {
+	if len(overview.FailedAuth) != 2 || overview.FailedAuth[0].RequestID != "req-malformed" || overview.FailedAuth[1].RequestID != "req-auth" {
 		t.Fatalf("unexpected failed auth items: %#v", overview.FailedAuth)
 	}
 	if len(overview.PermissionDenied) != 1 || overview.PermissionDenied[0].RequestID != "req-role" {
@@ -276,6 +291,13 @@ func TestRepositoryReadAuditOverview(t *testing.T) {
 	}
 	if len(overview.SensitiveOps) != 2 {
 		t.Fatalf("unexpected sensitive ops items: %#v", overview.SensitiveOps)
+	}
+	riskCounts := map[string]int{}
+	for _, item := range overview.RiskGroups {
+		riskCounts[item.Key] = item.Count
+	}
+	if riskCounts["critical_security"] != 1 || riskCounts["auth_failures"] != 2 {
+		t.Fatalf("unexpected risk groups: %#v", overview.RiskGroups)
 	}
 }
 

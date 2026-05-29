@@ -80,7 +80,7 @@ vi.mock('../../components/AuditFilters.vue', () => ({
                 emit('update:modelValue', {
                   ...props.modelValue,
                   actor: 'route-admin',
-                  createdRange: ['2026-05-01 10:00:00', '2026-05-02 18:30:00'],
+                  createdRange: ['2026-05-01T10:00:00Z', '2026-05-02T18:30:00Z'],
                   result: 'FAILED',
                 }),
             },
@@ -315,21 +315,21 @@ describe('AuditLogsPage', () => {
   it('restores deep-link filters including created range and keeps backend request shape unchanged', async () => {
     const { wrapper } = await mountPage({
       actor: 'alice',
-      createdFrom: '2026-05-01 10:00:00',
-      createdTo: '2026-05-02 18:30:00',
+      createdFrom: '2026-05-01T10:00:00Z',
+      createdTo: '2026-05-02T18:30:00Z',
       result: 'FAILED',
     });
 
     expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"actor":"alice"');
     expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain(
-      '"createdRange":["2026-05-01 10:00:00","2026-05-02 18:30:00"]',
+      '"createdRange":["2026-05-01T10:00:00Z","2026-05-02T18:30:00Z"]',
     );
     expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 10,
       result: 'FAILED',
-      created_from: '2026-05-01T02:00:00.000Z',
-      created_to: '2026-05-02T10:30:00.000Z',
+      created_from: '2026-05-01T10:00:00.000Z',
+      created_to: '2026-05-02T18:30:00.000Z',
     });
   });
 
@@ -384,8 +384,8 @@ describe('AuditLogsPage', () => {
         path: '/audit/logs',
         query: expect.objectContaining({
           actor: 'route-admin',
-          createdFrom: '2026-05-01 10:00:00',
-          createdTo: '2026-05-02 18:30:00',
+          createdFrom: '2026-05-01T10:00:00Z',
+          createdTo: '2026-05-02T18:30:00Z',
           preset: 'permission-denied',
           result: 'FAILED',
         }),
@@ -393,16 +393,16 @@ describe('AuditLogsPage', () => {
     );
     expect(router.currentRoute.value.query).toMatchObject({
       actor: 'route-admin',
-      createdFrom: '2026-05-01 10:00:00',
-      createdTo: '2026-05-02 18:30:00',
+      createdFrom: '2026-05-01T10:00:00Z',
+      createdTo: '2026-05-02T18:30:00Z',
       preset: 'permission-denied',
       result: 'FAILED',
     });
     expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
       expect.objectContaining({
         result: 'FAILED',
-        created_from: '2026-05-01T02:00:00.000Z',
-        created_to: '2026-05-02T10:30:00.000Z',
+        created_from: '2026-05-01T10:00:00.000Z',
+        created_to: '2026-05-02T18:30:00.000Z',
       }),
     );
   });

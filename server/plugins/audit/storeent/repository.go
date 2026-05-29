@@ -667,7 +667,14 @@ FROM (
 			WHERE success = false
 			  AND (
 				(metadata ->> 'status_code') = '403'
-				OR CAST(COALESCE(NULLIF(metadata ->> 'status_code', ''), '0') AS INTEGER) >= 500
+				OR (
+					COALESCE(NULLIF(metadata ->> 'status_code', ''), '') <> ''
+					AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+						metadata ->> 'status_code',
+						'0', ''
+					), '1', ''), '2', ''), '3', ''), '4', ''), '5', ''), '6', ''), '7', ''), '8', ''), '9', '') = ''
+					AND CAST(metadata ->> 'status_code' AS INTEGER) >= 500
+				)
 				OR COALESCE(metadata ->> 'error_kind', '') = 'system'
 				OR COALESCE(metadata ->> 'error', '') <> ''
 			  )

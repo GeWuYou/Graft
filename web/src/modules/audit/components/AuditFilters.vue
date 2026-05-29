@@ -283,7 +283,10 @@ const selectedDefinition = computed(() => definitionMap.value.get(selectedDefini
 
 const availableDefinitions = computed(() =>
   definitions.value.filter(
-    (definition) => !isFieldActive(definition.key) || definition.key === selectedDefinitionKey.value,
+    (definition) =>
+      !isFieldActive(definition.key) ||
+      definition.key === selectedDefinitionKey.value ||
+      activeFilterTags.value.some((tag) => tag.key === definition.key),
   ),
 );
 

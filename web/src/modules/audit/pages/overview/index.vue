@@ -213,7 +213,7 @@ defineOptions({
   name: 'AuditOverviewIndex',
 });
 
-const { t } = useI18n();
+const { locale, t } = useI18n();
 const router = useRouter();
 const logger = createLogger('audit.overview');
 const activeWindow = ref<AuditOverviewWindow>('24h');
@@ -413,10 +413,11 @@ function formatBucketLabel(value?: string) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
+  const currentLocale = locale.value || undefined;
   if (overview.value?.trend?.bucket_unit === 'day') {
-    return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(date);
+    return new Intl.DateTimeFormat(currentLocale, { month: '2-digit', day: '2-digit' }).format(date);
   }
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit' }).format(date);
+  return new Intl.DateTimeFormat(currentLocale, { month: '2-digit', day: '2-digit', hour: '2-digit' }).format(date);
 }
 
 function formatTime(value?: string) {
@@ -427,7 +428,7 @@ function formatTime(value?: string) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(locale.value || undefined, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
