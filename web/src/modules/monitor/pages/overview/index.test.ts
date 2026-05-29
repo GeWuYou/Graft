@@ -650,14 +650,17 @@ describe('MonitorPage', () => {
     resizeObserverMocks.observe.mockClear();
     resizeObserverMocks.unobserve.mockClear();
     resizeObserverMocks.disconnect.mockClear();
+    settingStoreMock.brandTheme = '#0052D9';
     document.body.innerHTML = '';
     setVisibilityState('visible');
     document.documentElement.style.setProperty('--td-brand-color', '#0052D9');
-    document.documentElement.style.setProperty('--td-brand-color-7', '#003cab');
-    document.documentElement.style.setProperty('--td-success-color-5', '#00A870');
-    document.documentElement.style.setProperty('--td-success-color-6', '#078d5c');
-    document.documentElement.style.setProperty('--td-warning-color-5', '#ED7B2F');
-    document.documentElement.style.setProperty('--td-warning-color-6', '#d96c1f');
+    document.documentElement.style.setProperty('--graft-monitor-cpu-color', '#2F6BFF');
+    document.documentElement.style.setProperty('--graft-monitor-memory-color', '#16A085');
+    document.documentElement.style.setProperty('--graft-monitor-load-color', '#D97706');
+    document.documentElement.style.setProperty('--graft-monitor-runtime-alloc-color', '#7B61FF');
+    document.documentElement.style.setProperty('--graft-monitor-runtime-heap-color', '#1F8EF1');
+    document.documentElement.style.setProperty('--graft-monitor-runtime-sys-color', '#C47A2C');
+    document.documentElement.style.setProperty('--graft-monitor-goroutines-color', '#D9488B');
     document.documentElement.style.setProperty('--td-text-color-brand', '#4f46e5');
   });
 
@@ -707,8 +710,8 @@ describe('MonitorPage', () => {
     const overviewChartOptions = chartMocks.setOption.mock.calls.map((call) => call[0]) as Array<{
       color?: string[];
     }>;
-    expect(overviewChartOptions.some((option) => option.color?.includes('#0052D9'))).toBe(true);
-    expect(overviewChartOptions.some((option) => option.color?.includes('#00A870'))).toBe(true);
+    expect(overviewChartOptions.some((option) => option.color?.includes('#2F6BFF'))).toBe(true);
+    expect(overviewChartOptions.some((option) => option.color?.includes('#16A085'))).toBe(true);
 
     const loadCardText = metricCardText(wrapper, 'load');
     const cpuCardText = metricCardText(wrapper, 'cpu');
@@ -947,6 +950,26 @@ describe('MonitorPage', () => {
     expect(multiOptions[3]?.yAxis[0]?.axisLabel?.formatter?.(100)).toBe('100 MB');
     expect(multiOptions[6]?.series[0]?.name).toBe('Goroutines');
     expect(multiOptions[6]?.yAxis[0]?.axisLabel?.formatter?.(32)).toBe('32');
+  });
+
+  it('keeps CPU and memory trend colors distinct when the brand theme switches to green', async () => {
+    monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
+    settingStoreMock.brandTheme = '#2BA471';
+    document.documentElement.style.setProperty('--td-brand-color', '#2BA471');
+    document.documentElement.style.setProperty('--graft-monitor-cpu-color', '#2F6BFF');
+    document.documentElement.style.setProperty('--graft-monitor-memory-color', '#16A085');
+
+    mountMonitorPage();
+    await flushPromises();
+    await nextTick();
+
+    const usageOption = chartMocks.setOption.mock.calls
+      .map((call) => call[0] as { series?: Array<{ name: string }>; color?: string[] })
+      .find((option) => option.series?.some((series) => series.name === 'CPU usage'));
+
+    expect(usageOption?.color).toEqual(['#2F6BFF', '#16A085']);
+    expect(usageOption?.color?.[0]).not.toBe('#2BA471');
+    expect(usageOption?.color?.[0]).not.toBe(usageOption?.color?.[1]);
   });
 
   it('keeps the selected trend mode when the range changes', async () => {
