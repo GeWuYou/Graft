@@ -215,6 +215,7 @@
       "emptyDescription": "Adjust filters and try again.",
       "detailTitle": "Audit Detail",
       "presets": {
+        "label": "Quick filters",
         "all": "All",
         "todayAnomalies": "Today's Security Anomalies",
         "permissionDenied": "Permission Denied",
@@ -225,11 +226,29 @@
       "actions": {
         "search": "Search",
         "reset": "Reset",
+        "addFilter": "Add filter",
         "showAdvanced": "Advanced Filters",
         "hideAdvanced": "Hide Advanced"
       },
+      "builder": {
+        "title": "Filter fields",
+        "hint": "Choose a field and set its value. Active conditions appear as removable tags.",
+        "fields": {
+          "action": "Action type",
+          "result": "Result",
+          "riskLevel": "Risk level",
+          "source": "Event type",
+          "actor": "Actor",
+          "resourceName": "Audit target",
+          "resourceType": "Target type",
+          "requestId": "Request ID",
+          "traceId": "Trace ID",
+          "session": "Session ID",
+          "resourceId": "Resource ID"
+        }
+      },
       "filters": {
-        "keywordPlaceholder": "Keyword: action, request ID, audit target, operated object",
+        "keywordPlaceholder": "Search actions, users, targets, request ID...",
         "actorPlaceholder": "Actor",
         "actionPlaceholder": "Action type",
         "sourcePlaceholder": "Event type",

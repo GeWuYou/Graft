@@ -4,31 +4,20 @@
       <management-page-header :title="t('audit.logList.title')" :description="t('audit.logList.description')">
         <template #eyebrow>{{ t('menu.audit.title') }}</template>
         <template #actions>
-          <t-space size="small" wrap>
-            <t-button
-              v-for="preset in presetViews"
-              :key="preset.key"
-              size="small"
-              :theme="activePreset === preset.key ? 'primary' : 'default'"
-              :variant="activePreset === preset.key ? 'base' : 'outline'"
-              @click="applyPreset(preset.key)"
-            >
-              {{ preset.title }}
-            </t-button>
-            <t-button theme="default" variant="outline" :loading="loading" @click="fetchAuditLogs">
-              {{ t('audit.logList.refresh') }}
-            </t-button>
-          </t-space>
+          <t-button theme="default" variant="outline" :loading="loading" @click="fetchAuditLogs">
+            {{ t('audit.logList.refresh') }}
+          </t-button>
         </template>
       </management-page-header>
 
       <audit-filters
         v-model="filters"
-        :advanced-visible="advancedVisible"
+        :active-preset="activePreset"
         :loading="loading"
+        :presets="presetViews"
+        @apply-preset="applyPreset"
         @reset="resetFilters"
         @search="handleSearch"
-        @toggle-advanced="advancedVisible = !advancedVisible"
       />
 
       <management-empty-state
@@ -97,7 +86,6 @@ const listError = ref('');
 const rows = ref<AuditLogListItem[]>([]);
 const total = ref(0);
 const activePreset = ref<PresetKey>('all');
-const advancedVisible = ref(false);
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
 const latestRequestSeq = ref(0);
@@ -322,16 +310,6 @@ function applyRouteFilters() {
 
   filters.value = nextFilters;
   activePreset.value = nextPreset || 'all';
-  advancedVisible.value = Boolean(
-    nextFilters.resourceType ||
-    nextFilters.resourceName ||
-    nextFilters.resourceId ||
-    nextFilters.result !== 'all' ||
-    nextFilters.riskLevel !== 'all' ||
-    nextFilters.session ||
-    nextFilters.requestId ||
-    nextFilters.traceId,
-  );
 }
 
 function syncRouteQuery() {

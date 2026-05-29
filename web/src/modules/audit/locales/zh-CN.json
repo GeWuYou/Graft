@@ -215,6 +215,7 @@
       "emptyDescription": "调整筛选条件后重试。",
       "detailTitle": "审计详情",
       "presets": {
+        "label": "快捷筛选",
         "all": "全部",
         "todayAnomalies": "今日安全异常",
         "permissionDenied": "权限拒绝",
@@ -225,11 +226,29 @@
       "actions": {
         "search": "查询",
         "reset": "重置",
+        "addFilter": "添加筛选条件",
         "showAdvanced": "高级筛选",
         "hideAdvanced": "收起高级筛选"
       },
+      "builder": {
+        "title": "筛选字段",
+        "hint": "选择一个字段后立即设置条件，已设置字段会显示为可移除标签。",
+        "fields": {
+          "action": "操作类型",
+          "result": "结果",
+          "riskLevel": "风险等级",
+          "source": "事件类型",
+          "actor": "操作人",
+          "resourceName": "审计目标",
+          "resourceType": "目标类型",
+          "requestId": "Request ID",
+          "traceId": "Trace ID",
+          "session": "Session ID",
+          "resourceId": "资源 ID"
+        }
+      },
       "filters": {
-        "keywordPlaceholder": "关键字搜索：操作、请求 ID、审计目标、操作对象",
+        "keywordPlaceholder": "搜索操作、用户、目标对象、请求ID...",
         "actorPlaceholder": "操作者",
         "actionPlaceholder": "操作类型",
         "sourcePlaceholder": "事件类型",

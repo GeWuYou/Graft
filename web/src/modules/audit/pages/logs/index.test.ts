@@ -61,12 +61,14 @@ vi.mock('@/utils/logger', () => ({
 vi.mock('../../components/AuditFilters.vue', () => ({
   default: defineComponent({
     name: 'AuditFiltersStub',
-    emits: ['search', 'reset', 'toggle-advanced', 'update:modelValue'],
+    props: ['presets', 'activePreset'],
+    emits: ['search', 'reset', 'apply-preset', 'update:modelValue'],
     setup(_, { emit }) {
       return () =>
         h('div', [
           h('button', { 'data-testid': 'audit-search', onClick: () => emit('search') }, 'search'),
           h('button', { 'data-testid': 'audit-reset', onClick: () => emit('reset') }, 'reset'),
+          h('button', { 'data-testid': 'audit-preset', onClick: () => emit('apply-preset', 'high-risk') }, 'preset'),
         ]);
     },
   }),
@@ -298,5 +300,33 @@ describe('AuditLogsPage', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('true');
     expect(wrapper.text()).toContain('req-1');
+  });
+
+  it('applies quick preset from filters and refetches with unchanged query contract', async () => {
+    const wrapper = mount(AuditLogsPage, {
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'management-empty-state': passthroughStub,
+          'management-page-content': passthroughStub,
+          'management-page-header': passthroughStub,
+          't-button': buttonStub,
+          't-space': passthroughStub,
+        },
+      },
+    });
+
+    await flushPromises();
+    auditApiMocks.getAuditLogs.mockClear();
+
+    await wrapper.get('[data-testid="audit-preset"]').trigger('click');
+    await flushPromises();
+
+    expect(auditApiMocks.getAuditLogs).toHaveBeenCalledWith({
+      page: 1,
+      page_size: 10,
+      risk_level: 'CRITICAL',
+      source: 'SECURITY_EVENT',
+    });
   });
 });
