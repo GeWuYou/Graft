@@ -9,12 +9,15 @@ export type AuditOverviewResponse = components['schemas']['AuditOverviewResponse
 export type AuditOverviewWindow = '24h' | '7d' | '30d';
 export type AuditRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type AuditResult = 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
+export type AuditSource = 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
 
 export type AuditLogQuery = {
   page?: number;
   page_size?: number;
   actor_user_id?: number;
   action?: string;
+  action_prefix?: string;
+  source?: AuditSource;
   resource_type?: string;
   resource_id?: string;
   resource_name?: string;

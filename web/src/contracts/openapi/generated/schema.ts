@@ -1188,6 +1188,8 @@ export interface components {
       actor_username?: string;
       actor_display_name?: string;
       action: string;
+      /** @enum {string} */
+      source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
       resource_type: string;
       resource_id?: string;
       resource_name?: string;
@@ -1235,6 +1237,8 @@ export interface components {
       actor_user_id?: number | null;
       actor_username?: string;
       actor_display_name?: string;
+      /** @enum {string} */
+      source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
       action: string;
       resource_type?: string;
       resource_id?: string;
@@ -1252,6 +1256,46 @@ export interface components {
       /** @enum {string} */
       window: '24h' | '7d' | '30d';
       summary: components['schemas']['audit-overview-summary'];
+      risk_groups: {
+        key: string;
+        label_key: string;
+        count: number;
+        /** @enum {string} */
+        risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+      }[];
+      trend: {
+        /** @enum {string} */
+        bucket_unit: 'hour' | 'day';
+        bucket_size: number;
+        points: {
+          /** Format: date-time */
+          bucket_start: string;
+          /** Format: date-time */
+          bucket_end: string;
+          total: number;
+          failed: number;
+          high_risk: number;
+          security_events: number;
+        }[];
+      };
+      security_timeline: {
+        /** Format: int64 */
+        id: number;
+        /** Format: date-time */
+        created_at: string;
+        /** @enum {string} */
+        source: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
+        /** @enum {string} */
+        risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+        action: string;
+        /** @enum {string} */
+        result: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
+        request_id: string;
+        actor_display_name?: string;
+        actor_username?: string;
+        resource_name?: string;
+        resource_type?: string;
+      }[];
       failed_auth: components['schemas']['audit-overview-item'][];
       permission_denied: components['schemas']['audit-overview-item'][];
       sensitive_operations: components['schemas']['audit-overview-item'][];
@@ -3624,6 +3668,8 @@ export interface operations {
         page_size?: number;
         actor_user_id?: number;
         action?: string;
+        action_prefix?: string;
+        source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
         resource_type?: string;
         resource_id?: string;
         resource_name?: string;

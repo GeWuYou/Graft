@@ -121,7 +121,7 @@ type Service struct {
 }
 
 // New 使用配置快照创建项目级 i18n facade。
-func New(cfg config.I18nConfig) *Service {
+func New(cfg config.I18nConfig) (*Service, error) {
 	supported := make([]language.Tag, 0, len(cfg.SupportedLocales))
 	supportedSet := make(map[string]struct{}, len(cfg.SupportedLocales))
 	for _, locale := range cfg.SupportedLocales {
@@ -152,7 +152,19 @@ func New(cfg config.I18nConfig) *Service {
 	}
 	service.defaultLocale = canonicalizeLocale(cfg.DefaultLocale, supported)
 	service.fallbackLocale = canonicalizeLocale(cfg.FallbackLocale, supported)
-	service.registerDefaultCatalogs()
+	if err := service.registerDefaultCatalogs(); err != nil {
+		return nil, fmt.Errorf("register default i18n catalogs: %w", err)
+	}
+	return service, nil
+}
+
+// MustNew is a test-oriented helper for callers that expect a static i18n
+// fixture and prefer setup failure over plumbing errors through each test body.
+func MustNew(cfg config.I18nConfig) *Service {
+	service, err := New(cfg)
+	if err != nil {
+		panic(err)
+	}
 	return service
 }
 
@@ -303,7 +315,7 @@ func (s *Service) Lookup(req LookupRequest) string {
 	return key
 }
 
-func (s *Service) registerDefaultCatalogs() {
+func (s *Service) registerDefaultCatalogs() error {
 	registrations := make([]Registration, 0, len(s.supported))
 	for _, locale := range s.SupportedLocales() {
 		registrations = append(registrations, Registration{
@@ -328,9 +340,11 @@ func (s *Service) registerDefaultCatalogs() {
 
 	for _, registration := range registrations {
 		if err := s.RegisterMessages(registration); err != nil {
-			panic(fmt.Sprintf("register default i18n catalogs: %v", err))
+			return err
 		}
 	}
+
+	return nil
 }
 
 func (s *Service) messageFromCatalog(locale string, key string) string {

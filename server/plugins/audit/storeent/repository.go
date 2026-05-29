@@ -22,7 +22,19 @@ type repository struct {
 const defaultFilterCapacity = 8
 const paginationParamCount = 2
 const overviewRecentLimit = 3
+const overviewRiskGroupLimit = 4
+const overviewTrendPointLimit = 12
+const overviewSecurityTimelineLimit = 6
 const httpStatusForbidden = 403
+const overviewTrendDayStep = "1 day"
+const overviewTrendThreeDayStep = "3 day"
+const overviewTrendTwoHourStep = "2 hour"
+const overviewTrendDayBucketSize = 1
+const overviewTrendThreeDayBucketSize = 3
+const overviewTrendTwoHourBucketSize = 2
+const overviewTrendOneDayDuration = 24 * time.Hour
+const overviewTrendThreeDayDuration = 72 * time.Hour
+const overviewTrendTwoHourDuration = 2 * time.Hour
 
 var sensitiveAuditActionKeywords = []string{"delete", "reset", "grant", "assign", "revoke", "remove", "replace", "update_role", "update_permission"}
 
@@ -128,6 +140,7 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 	//nolint:gosec // Query text is assembled from fixed SQL fragments; all dynamic values stay parameterized.
 	selectSQL := `SELECT
 		id,
+		COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
 		actor_user_id,
 		actor_username,
 		actor_display_name,
@@ -186,6 +199,18 @@ func (r *repository) ReadAuditOverview(ctx context.Context, window auditstore.Ov
 	if err != nil {
 		return auditstore.AuditOverview{}, err
 	}
+	riskGroups, err := r.readOverviewRiskGroups(ctx, args)
+	if err != nil {
+		return auditstore.AuditOverview{}, err
+	}
+	trend, err := r.readOverviewTrend(ctx, window, startedAt, now)
+	if err != nil {
+		return auditstore.AuditOverview{}, err
+	}
+	securityTimeline, err := r.readOverviewSecurityTimeline(ctx, args)
+	if err != nil {
+		return auditstore.AuditOverview{}, err
+	}
 
 	failedAuth, err := r.readAuditOverviewItems(ctx, args, overviewFailedAuthWhere)
 	if err != nil {
@@ -203,6 +228,9 @@ func (r *repository) ReadAuditOverview(ctx context.Context, window auditstore.Ov
 	return auditstore.AuditOverview{
 		Window:           window,
 		Summary:          summary,
+		RiskGroups:       riskGroups,
+		Trend:            trend,
+		SecurityTimeline: securityTimeline,
 		FailedAuth:       failedAuth,
 		PermissionDenied: failedAuthUniqueByRequest(failedAuth, permissionDenied),
 		SensitiveOps:     sensitiveOps,
@@ -220,6 +248,8 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 
 	addUint64Filter(&clauses, &args, "actor_user_id = $%d", query.ActorUserID)
 	addScalarFilter(add, "action = $%d", query.Action)
+	addPrefixFilter(add, "action LIKE $%d ESCAPE '\\'", query.ActionPrefix)
+	addScalarFilter(add, sourceWhereClause(), string(query.Source))
 	addScalarFilter(add, "resource_type = $%d", query.ResourceType)
 	addScalarFilter(add, "resource_id = $%d", query.ResourceID)
 	addScalarFilter(add, "resource_name = $%d", query.ResourceName)
@@ -241,6 +271,23 @@ func addScalarFilter(add func(string, any), format string, value string) {
 		return
 	}
 	add(format, value)
+}
+
+func addPrefixFilter(add func(string, any), format string, value string) {
+	if value == "" {
+		return
+	}
+
+	add(format, escapeLikePattern(value)+"%")
+}
+
+func escapeLikePattern(value string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"%", "\\%",
+		"_", "\\_",
+	)
+	return replacer.Replace(value)
 }
 
 func addUint64Filter(clauses *[]string, args *[]any, format string, value *uint64) {
@@ -277,6 +324,7 @@ func scanAuditLog(scanner interface {
 	)
 	if err := scanner.Scan(
 		&record.ID,
+		&record.Source,
 		&actorUserID,
 		&record.ActorUsername,
 		&record.ActorDisplayName,
@@ -311,6 +359,7 @@ func enrichAuditLog(record *auditstore.AuditLog) {
 	}
 
 	metadata := decodeAuditMetadata(record.Metadata)
+	record.Source = normalizeAuditSource(metadataTextFirst(metadata, "auditSource", "audit_source"))
 	record.TraceID = stringMetadataValue(metadata, "trace_id")
 	if record.TraceID == "" {
 		record.TraceID = record.RequestID
@@ -351,6 +400,15 @@ func stringMetadataValue(metadata map[string]any, key string) string {
 	default:
 		return ""
 	}
+}
+
+func metadataTextFirst(metadata map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value := stringMetadataValue(metadata, key); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func intMetadataValue(metadata map[string]any, key string) int {
@@ -468,6 +526,19 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func normalizeAuditSource(value string) auditstore.AuditSource {
+	switch auditstore.AuditSource(strings.ToUpper(strings.TrimSpace(value))) {
+	case auditstore.AuditSourceRequest:
+		return auditstore.AuditSourceRequest
+	case auditstore.AuditSourceSecurityEvent:
+		return auditstore.AuditSourceSecurityEvent
+	case auditstore.AuditSourceDomainEvent:
+		return auditstore.AuditSourceDomainEvent
+	default:
+		return ""
+	}
+}
+
 func auditResultWhereClause() string {
 	return `CASE
 		WHEN success THEN 'SUCCESS'
@@ -501,6 +572,10 @@ func riskLevelWhereClause() string {
 	END = $%d`
 }
 
+func sourceWhereClause() string {
+	return `COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') = $%d`
+}
+
 const overviewSummarySQL = `
 SELECT
 	COUNT(*) AS total_logs,
@@ -531,6 +606,7 @@ WHERE created_at >= $1
 const overviewRecentBaseSQL = `
 SELECT
 	id,
+	COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
 	actor_user_id,
 	actor_username,
 	actor_display_name,
@@ -597,6 +673,102 @@ func overviewWindowStart(now time.Time, window auditstore.OverviewWindow) time.T
 	}
 }
 
+//nolint:gosec // Query text is assembled from fixed SQL fragments; all dynamic values stay parameterized.
+var overviewRiskGroupsSQL = `
+SELECT key, label_key, risk_level, count
+FROM (
+	SELECT
+		'critical_security' AS key,
+		'audit.overview.riskGroups.criticalSecurity' AS label_key,
+		'CRITICAL' AS risk_level,
+		COUNT(*) FILTER (
+			WHERE success = false
+			  AND (
+				(metadata ->> 'status_code') = '403'
+				OR (
+					COALESCE(NULLIF(metadata ->> 'status_code', ''), '') <> ''
+					AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+						metadata ->> 'status_code',
+						'0', ''
+					), '1', ''), '2', ''), '3', ''), '4', ''), '5', ''), '6', ''), '7', ''), '8', ''), '9', '') = ''
+					AND CAST(metadata ->> 'status_code' AS INTEGER) >= 500
+				)
+				OR COALESCE(metadata ->> 'error_kind', '') = 'system'
+				OR COALESCE(metadata ->> 'error', '') <> ''
+			  )
+		) AS count
+	FROM audit_logs
+	WHERE created_at >= $1
+	UNION ALL
+	SELECT
+		'high_risk_operations',
+		'audit.overview.riskGroups.highRiskOperations',
+		'HIGH',
+		COUNT(*) FILTER (
+			WHERE success = false
+			   OR LOWER(action) LIKE '%delete%'
+			   OR LOWER(action) LIKE '%reset%'
+			   OR LOWER(action) LIKE '%grant%'
+			   OR LOWER(action) LIKE '%assign%'
+			   OR LOWER(action) LIKE '%revoke%'
+			   OR LOWER(action) LIKE '%remove%'
+			   OR LOWER(action) LIKE '%replace%'
+		)
+	FROM audit_logs
+	WHERE created_at >= $1
+	UNION ALL
+	SELECT
+		'auth_failures',
+		'audit.overview.riskGroups.authFailures',
+		'HIGH',
+		COUNT(*) FILTER (WHERE ` + overviewFailedAuthWhere + `)
+	FROM audit_logs
+	WHERE created_at >= $1
+	UNION ALL
+	SELECT
+		'permission_denials',
+		'audit.overview.riskGroups.permissionDenials',
+		'CRITICAL',
+		COUNT(*) FILTER (WHERE ` + overviewPermissionDeniedWhere + `)
+	FROM audit_logs
+	WHERE created_at >= $1
+) groups
+WHERE count > 0
+ORDER BY count DESC, key ASC
+LIMIT 4
+`
+
+var overviewSecurityTimelineSQL = `
+SELECT
+	id,
+	created_at,
+	COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+	action,
+	request_id,
+	actor_display_name,
+	actor_username,
+	resource_name,
+	resource_type,
+	success,
+	message,
+	metadata
+FROM audit_logs
+WHERE created_at >= $1
+  AND (
+	COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') = 'SECURITY_EVENT'
+	OR NOT success
+	OR LOWER(action) LIKE '%delete%'
+	OR LOWER(action) LIKE '%reset%'
+	OR LOWER(action) LIKE '%grant%'
+	OR LOWER(action) LIKE '%assign%'
+	OR LOWER(action) LIKE '%revoke%'
+	OR LOWER(action) LIKE '%remove%'
+	OR LOWER(action) LIKE '%replace%'
+  )
+ORDER BY created_at DESC, id DESC
+LIMIT 6
+`
+
 func (r *repository) readAuditOverviewSummary(ctx context.Context, args []any) (auditstore.OverviewSummary, error) {
 	var summary auditstore.OverviewSummary
 	if err := r.db.QueryRowContext(ctx, overviewSummarySQL, args...).Scan(
@@ -608,6 +780,294 @@ func (r *repository) readAuditOverviewSummary(ctx context.Context, args []any) (
 		return auditstore.OverviewSummary{}, fmt.Errorf("read audit overview summary: %w", err)
 	}
 	return summary, nil
+}
+
+func (r *repository) readOverviewRiskGroups(ctx context.Context, args []any) ([]auditstore.OverviewRiskGroup, error) {
+	rows, err := r.db.QueryContext(ctx, overviewRiskGroupsSQL, args...)
+	if err != nil {
+		return nil, fmt.Errorf("read audit overview risk groups: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	groups := make([]auditstore.OverviewRiskGroup, 0, overviewRiskGroupLimit)
+	for rows.Next() {
+		var group auditstore.OverviewRiskGroup
+		if err := rows.Scan(&group.Key, &group.LabelKey, &group.RiskLevel, &group.Count); err != nil {
+			return nil, fmt.Errorf("scan audit overview risk group: %w", err)
+		}
+		groups = append(groups, group)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate audit overview risk groups: %w", err)
+	}
+
+	return groups, nil
+}
+
+func (r *repository) readOverviewTrend(
+	ctx context.Context,
+	window auditstore.OverviewWindow,
+	startedAt time.Time,
+	now time.Time,
+) (auditstore.OverviewTrend, error) {
+	bucketUnit, bucketSize, step := overviewTrendConfig(window)
+	//nolint:gosec // step comes from overviewTrendConfig and is limited to fixed internal interval literals.
+	seriesSQL := fmt.Sprintf(`
+SELECT
+	bucket_start,
+	bucket_start + INTERVAL '%[1]s' AS bucket_end,
+	COUNT(logs.id) AS total,
+	COUNT(*) FILTER (WHERE logs.success = false) AS failed,
+	COUNT(*) FILTER (
+		WHERE logs.success = false
+		   OR LOWER(logs.action) LIKE '%%delete%%'
+		   OR LOWER(logs.action) LIKE '%%reset%%'
+		   OR LOWER(logs.action) LIKE '%%grant%%'
+		   OR LOWER(logs.action) LIKE '%%assign%%'
+		   OR LOWER(logs.action) LIKE '%%revoke%%'
+		   OR LOWER(logs.action) LIKE '%%remove%%'
+		   OR LOWER(logs.action) LIKE '%%replace%%'
+	) AS high_risk,
+	COUNT(*) FILTER (
+		WHERE COALESCE(logs.metadata ->> 'auditSource', logs.metadata ->> 'audit_source', '') = 'SECURITY_EVENT'
+	) AS security_events
+FROM generate_series($1::timestamptz, $2::timestamptz - INTERVAL '%[1]s', INTERVAL '%[1]s') AS bucket_start
+LEFT JOIN audit_logs logs
+	ON logs.created_at >= bucket_start
+	AND logs.created_at < bucket_start + INTERVAL '%[1]s'
+GROUP BY bucket_start
+ORDER BY bucket_start ASC
+`, step)
+
+	rows, err := r.db.QueryContext(ctx, seriesSQL, startedAt, now)
+	if err != nil {
+		return r.readOverviewTrendFallback(ctx, startedAt, now, bucketUnit, bucketSize, step)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	points := make([]auditstore.OverviewTrendPoint, 0, overviewTrendPointLimit)
+	for rows.Next() {
+		var point auditstore.OverviewTrendPoint
+		if err := rows.Scan(&point.BucketStart, &point.BucketEnd, &point.Total, &point.Failed, &point.HighRisk, &point.SecurityEvents); err != nil {
+			return auditstore.OverviewTrend{}, fmt.Errorf("scan audit overview trend: %w", err)
+		}
+		points = append(points, point)
+	}
+	if err := rows.Err(); err != nil {
+		return auditstore.OverviewTrend{}, fmt.Errorf("iterate audit overview trend: %w", err)
+	}
+
+	return auditstore.OverviewTrend{
+		BucketUnit: bucketUnit,
+		BucketSize: bucketSize,
+		Points:     points,
+	}, nil
+}
+
+func buildOverviewTrendPoints(startedAt time.Time, now time.Time, stepDuration time.Duration) []auditstore.OverviewTrendPoint {
+	points := make([]auditstore.OverviewTrendPoint, 0, overviewTrendPointLimit)
+	for bucketStart := startedAt; bucketStart.Before(now); bucketStart = bucketStart.Add(stepDuration) {
+		bucketEnd := bucketStart.Add(stepDuration)
+		if bucketEnd.After(now) {
+			bucketEnd = now
+		}
+		points = append(points, auditstore.OverviewTrendPoint{
+			BucketStart: bucketStart,
+			BucketEnd:   bucketEnd,
+		})
+	}
+
+	return points
+}
+
+func applyOverviewTrendRecord(points []auditstore.OverviewTrendPoint, record auditstore.AuditLog, startedAt time.Time, stepDuration time.Duration) {
+	index := int(record.CreatedAt.Sub(startedAt) / stepDuration)
+	if index < 0 || index >= len(points) {
+		return
+	}
+
+	points[index].Total++
+	if !record.Success {
+		points[index].Failed++
+	}
+	if record.RiskLevel == auditstore.AuditRiskLevelHigh || record.RiskLevel == auditstore.AuditRiskLevelCritical {
+		points[index].HighRisk++
+	}
+	if record.Source == auditstore.AuditSourceSecurityEvent {
+		points[index].SecurityEvents++
+	}
+}
+
+func (r *repository) readOverviewTrendFallback(
+	ctx context.Context,
+	startedAt time.Time,
+	now time.Time,
+	bucketUnit string,
+	bucketSize int,
+	step string,
+) (auditstore.OverviewTrend, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT
+	id,
+	action,
+	success,
+	request_id,
+	resource_type,
+	resource_id,
+	resource_name,
+	actor_username,
+	actor_display_name,
+	message,
+	metadata,
+	created_at
+FROM audit_logs
+WHERE created_at >= $1 AND created_at < $2
+ORDER BY created_at ASC, id ASC
+`, startedAt, now)
+	if err != nil {
+		return auditstore.OverviewTrend{}, fmt.Errorf("read audit overview trend: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	stepDuration := parseOverviewTrendStep(step)
+	points := buildOverviewTrendPoints(startedAt, now, stepDuration)
+
+	for rows.Next() {
+		record, scanErr := scanAuditTrendRecord(rows)
+		if scanErr != nil {
+			return auditstore.OverviewTrend{}, scanErr
+		}
+		enrichAuditLog(&record)
+		applyOverviewTrendRecord(points, record, startedAt, stepDuration)
+	}
+	if err := rows.Err(); err != nil {
+		return auditstore.OverviewTrend{}, fmt.Errorf("iterate audit overview trend: %w", err)
+	}
+
+	return auditstore.OverviewTrend{
+		BucketUnit: bucketUnit,
+		BucketSize: bucketSize,
+		Points:     points,
+	}, nil
+}
+
+func parseOverviewTrendStep(step string) time.Duration {
+	switch step {
+	case overviewTrendDayStep:
+		return overviewTrendOneDayDuration
+	case overviewTrendThreeDayStep:
+		return overviewTrendThreeDayDuration
+	default:
+		return overviewTrendTwoHourDuration
+	}
+}
+
+func scanAuditTrendRecord(scanner interface {
+	Scan(dest ...any) error
+}) (auditstore.AuditLog, error) {
+	var (
+		record   auditstore.AuditLog
+		metadata []byte
+	)
+	if err := scanner.Scan(
+		&record.ID,
+		&record.Action,
+		&record.Success,
+		&record.RequestID,
+		&record.ResourceType,
+		&record.ResourceID,
+		&record.ResourceName,
+		&record.ActorUsername,
+		&record.ActorDisplayName,
+		&record.Message,
+		&metadata,
+		&record.CreatedAt,
+	); err != nil {
+		return auditstore.AuditLog{}, fmt.Errorf("scan audit overview trend record: %w", err)
+	}
+	record.Metadata = cloneRawMessage(metadata)
+	return record, nil
+}
+
+func overviewTrendConfig(window auditstore.OverviewWindow) (string, int, string) {
+	switch window {
+	case auditstore.OverviewWindow7Days:
+		return "day", overviewTrendDayBucketSize, overviewTrendDayStep
+	case auditstore.OverviewWindow30Days:
+		return "day", overviewTrendThreeDayBucketSize, overviewTrendThreeDayStep
+	default:
+		return "hour", overviewTrendTwoHourBucketSize, overviewTrendTwoHourStep
+	}
+}
+
+func (r *repository) readOverviewSecurityTimeline(ctx context.Context, args []any) ([]auditstore.OverviewSecurityTimelineItem, error) {
+	rows, err := r.db.QueryContext(ctx, overviewSecurityTimelineSQL, args...)
+	if err != nil {
+		return nil, fmt.Errorf("read audit overview security timeline: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	items := make([]auditstore.OverviewSecurityTimelineItem, 0, overviewSecurityTimelineLimit)
+	for rows.Next() {
+		var (
+			item     auditstore.OverviewSecurityTimelineItem
+			success  bool
+			message  string
+			metadata []byte
+		)
+		if err := rows.Scan(
+			&item.ID,
+			&item.CreatedAt,
+			&item.Source,
+			&item.Action,
+			&item.RequestID,
+			&item.ActorDisplayName,
+			&item.ActorUsername,
+			&item.ResourceName,
+			&item.ResourceType,
+			&success,
+			&message,
+			&metadata,
+		); err != nil {
+			return nil, fmt.Errorf("scan audit overview security timeline: %w", err)
+		}
+
+		record := auditstore.AuditLog{
+			ID:               item.ID,
+			Source:           item.Source,
+			Action:           item.Action,
+			ResourceName:     item.ResourceName,
+			ResourceType:     item.ResourceType,
+			Success:          success,
+			RequestID:        item.RequestID,
+			ActorDisplayName: item.ActorDisplayName,
+			ActorUsername:    item.ActorUsername,
+			Message:          message,
+			Metadata:         cloneRawMessage(metadata),
+			CreatedAt:        item.CreatedAt,
+		}
+		enrichAuditLog(&record)
+		item.Source = record.Source
+		item.RiskLevel = record.RiskLevel
+		item.Result = record.Result
+		if item.ResourceName == "" {
+			item.ResourceName = firstNonEmpty(record.TargetLabel, record.ResourceType)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate audit overview security timeline: %w", err)
+	}
+
+	return items, nil
 }
 
 func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, where string) ([]auditstore.OverviewItem, error) {
@@ -644,6 +1104,7 @@ func scanAuditOverviewItem(scanner interface {
 	)
 	if err := scanner.Scan(
 		&item.ID,
+		&item.Source,
 		&actorUserID,
 		&item.ActorUsername,
 		&item.ActorDisplayName,

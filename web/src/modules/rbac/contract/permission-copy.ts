@@ -1,3 +1,4 @@
+import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { MONITOR_PERMISSION_CODE } from '@/modules/monitor/contract/permissions';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 
@@ -45,6 +46,14 @@ export const PERMISSION_COPY_BY_CODE: Record<string, PermissionCopyEntry> = {
     displayKey: 'rbac.permissionCatalog.roleUpdate.display',
     descriptionKey: 'rbac.permissionCatalog.roleUpdate.description',
   },
+  [RBAC_PERMISSION_CODE.ROLE_STATUS_UPDATE]: {
+    displayKey: 'rbac.permissionCatalog.roleStatusUpdate.display',
+    descriptionKey: 'rbac.permissionCatalog.roleStatusUpdate.description',
+  },
+  [RBAC_PERMISSION_CODE.ROLE_DELETE]: {
+    displayKey: 'rbac.permissionCatalog.roleDelete.display',
+    descriptionKey: 'rbac.permissionCatalog.roleDelete.description',
+  },
   [RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN]: {
     displayKey: 'rbac.permissionCatalog.rolePermissionAssign.display',
     descriptionKey: 'rbac.permissionCatalog.rolePermissionAssign.description',
@@ -64,5 +73,9 @@ export const PERMISSION_COPY_BY_CODE: Record<string, PermissionCopyEntry> = {
   [MONITOR_PERMISSION_CODE.SERVER_STATUS_READ]: {
     displayKey: 'rbac.permissionCatalog.monitorServerStatusRead.display',
     descriptionKey: 'rbac.permissionCatalog.monitorServerStatusRead.description',
+  },
+  [AUDIT_PERMISSION_CODE.READ]: {
+    displayKey: 'rbac.permissionCatalog.auditRead.display',
+    descriptionKey: 'rbac.permissionCatalog.auditRead.description',
   },
 };

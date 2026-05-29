@@ -368,12 +368,13 @@ import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { DataBaseIcon, InfoCircleIcon, LinkIcon } from 'tdesign-icons-vue-next';
 import type { SelectProps } from 'tdesign-vue-next';
-import { MessagePlugin } from 'tdesign-vue-next';
 import type { Component } from 'vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import type { TChartColor } from '@/config/color';
+import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { useSettingStore } from '@/store';
 
@@ -393,6 +394,7 @@ defineOptions({
 });
 
 echarts.use([TooltipComponent, LegendComponent, GridComponent, MarkLineComponent, LineChart, CanvasRenderer]);
+const router = useRouter();
 
 type MonitorStatus = 'healthy' | 'degraded' | 'disabled' | 'unknown';
 type MetricCardTone = 'healthy' | 'warning' | 'critical' | 'unknown';
@@ -413,7 +415,6 @@ type TrendChartKey =
   | 'multi-runtimeSys'
   | 'multi-goroutines'
   | 'focus';
-
 interface MetricCard {
   key: string;
   label: string;
@@ -951,7 +952,14 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
     consecutiveFailures.value += 1;
 
     if (options.manual || previousFailures === 0) {
-      MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('monitor.serverStatus.loadFailed')));
+      const message = resolveLocalizedErrorMessage(t, error, t('monitor.serverStatus.loadFailed'));
+      openCorrelationErrorNotification({
+        router,
+        title: t('audit.correlation.errorTitle'),
+        message,
+        requestId: requestIdFromError(error),
+        translate: t,
+      });
     }
   } finally {
     loading.value = false;

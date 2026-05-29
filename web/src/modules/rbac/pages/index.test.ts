@@ -59,6 +59,8 @@ vi.mock('vue-i18n', async (importOriginal) => {
     'rbac.permissionCatalog.permissionRead.description': 'Localized permission description',
     'rbac.permissionCatalog.roleUpdate.display': 'Update Roles Localized',
     'rbac.permissionCatalog.roleUpdate.description': 'Localized update-role description',
+    'rbac.permissionCatalog.auditRead.display': 'Read Audit Localized',
+    'rbac.permissionCatalog.auditRead.description': 'Localized audit description',
   };
   return {
     ...actual,
@@ -461,6 +463,14 @@ function createPermissionListResponse() {
         category: 'role',
         role_binding_count: 1,
       },
+      {
+        id: 3,
+        code: 'audit.read',
+        display: 'Audit Read',
+        description: 'Read audit logs',
+        category: 'audit',
+        role_binding_count: 1,
+      },
     ],
   };
 }
@@ -849,8 +859,12 @@ describe('RolePage', () => {
 
     expect(wrapper.text()).toContain('Read Permissions Localized');
     expect(wrapper.text()).toContain('Localized permission description');
+    expect(wrapper.text()).toContain('Read Audit Localized');
+    expect(wrapper.text()).toContain('Localized audit description');
     expect(wrapper.text()).not.toContain('Permission Read');
     expect(wrapper.text()).not.toContain('Read permissions');
+    expect(wrapper.text()).not.toContain('Audit Read');
+    expect(wrapper.text()).not.toContain('Read audit logs');
   });
 
   it('matches permission search against localized copy', async () => {

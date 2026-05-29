@@ -38,6 +38,7 @@
       "create": "Create User",
       "edit": "Edit",
       "more": "More",
+      "viewAudit": "View Related Audit",
       "createSuccess": "User created",
       "createFailed": "Failed to create user",
       "editSuccess": "User updated",

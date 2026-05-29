@@ -44,7 +44,7 @@ func newPluginTestContext() *plugin.Context {
 	return &plugin.Context{
 		Logger:             zap.NewNop(),
 		Config:             &config.Config{},
-		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
+		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
 		EventBus:           eventbus.New(zap.NewNop()),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),

@@ -358,6 +358,9 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
+import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
+import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { localizedApiErrorMessage, resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import {
   AssignmentCard,
@@ -386,6 +389,7 @@ import {
   TableActionMenu,
 } from '@/shared/components/management';
 import { useAssignmentSelection } from '@/shared/composables';
+import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
@@ -515,6 +519,7 @@ const canAssignPermissions = computed(
 const canOpenPermissionDrawer = computed(() => canReadPermissions.value && permissions.value.length > 0);
 const canShowOperationColumn = computed(() =>
   permissionStore.hasAnyPermission([
+    AUDIT_PERMISSION_CODE.READ,
     permissionCodes.ROLE_UPDATE,
     permissionCodes.ROLE_DELETE,
     permissionCodes.ROLE_STATUS_UPDATE,
@@ -703,6 +708,14 @@ function roleRowActions(role: RoleListItem) {
       label: t('rbac.roleList.assignPermissions'),
       testId: 'role-assign-permissions',
       value: 'assign-permissions',
+    });
+  }
+
+  if (permissionStore.hasPermission(AUDIT_PERMISSION_CODE.READ)) {
+    actions.push({
+      label: t('rbac.roleList.viewAudit'),
+      testId: 'role-view-audit',
+      value: 'view-audit',
     });
   }
 
@@ -1068,6 +1081,11 @@ function handleRoleRowAction(action: string, role: RoleListItem) {
     return;
   }
 
+  if (action === 'view-audit') {
+    void router.push(buildAuditResourceLocation('role', String(role.id), role.display || role.name));
+    return;
+  }
+
   handleRoleMoreAction({ value: action }, role);
 }
 
@@ -1116,12 +1134,12 @@ async function handleRoleSubmit(ctx: SubmitContext) {
     if (roleDrawerMode.value === 'create') {
       const created = await createRole(toCreateRolePayload(roleForm.value));
       roles.value = [...roles.value, created].sort((left, right) => left.id - right.id);
-      MessagePlugin.success(t('rbac.roleList.createSuccess'));
+      MessagePlugin.success(formatHintedMessage(t('rbac.roleList.createSuccess')));
     } else if (roleDrawerRole.value) {
       const updated = await updateRole(roleDrawerRole.value.id, toUpdateRolePayload(roleForm.value));
       roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
       roleDrawerRole.value = updated;
-      MessagePlugin.success(t('rbac.roleList.updateSuccess'));
+      MessagePlugin.success(formatHintedMessage(t('rbac.roleList.updateSuccess')));
     }
 
     closeRoleDrawer();
@@ -1136,11 +1154,19 @@ async function handleRoleSubmit(ctx: SubmitContext) {
         return;
       }
 
-      MessagePlugin.error(errorMessage);
+      const message = resolveErrorMessageWithCorrelation(t, error, errorMessage);
+      MessagePlugin.error(message);
+      openCorrelationErrorNotification({
+        router,
+        title: t('audit.correlation.errorTitle'),
+        message,
+        requestId: requestIdFromError(error),
+        translate: t,
+      });
       return;
     }
 
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.submitFailed')));
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.submitFailed')));
   } finally {
     submittingRole.value = false;
   }
@@ -1324,7 +1350,7 @@ async function submitPermissionAssignment() {
       return;
     }
 
-    MessagePlugin.success(t('rbac.roleList.assignSuccess'));
+    MessagePlugin.success(formatHintedMessage(t('rbac.roleList.assignSuccess')));
     closePermissionDrawer();
     await fetchRolePageData();
   } catch (error) {
@@ -1340,11 +1366,19 @@ async function submitPermissionAssignment() {
           return;
         }
 
-        MessagePlugin.error(errorMessage);
+        const message = resolveErrorMessageWithCorrelation(t, error, errorMessage);
+        MessagePlugin.error(message);
+        openCorrelationErrorNotification({
+          router,
+          title: t('audit.correlation.errorTitle'),
+          message,
+          requestId: requestIdFromError(error),
+          translate: t,
+        });
         return;
       }
 
-      MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.assignFailed')));
+      MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.assignFailed')));
     }
   } finally {
     if (permissionDrawerSession.value === session) {
@@ -1373,18 +1407,26 @@ async function toggleRoleStatus(role: RoleStatusCompat) {
     });
     roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
     MessagePlugin.success(
-      isRoleEnabled(updated) ? t('rbac.roleList.statusEnabledSuccess') : t('rbac.roleList.statusDisabledSuccess'),
+      formatHintedMessage(
+        isRoleEnabled(updated) ? t('rbac.roleList.statusEnabledSuccess') : t('rbac.roleList.statusDisabledSuccess'),
+      ),
     );
   } catch (error) {
     logger.error('failed to update role status', error);
     if (isApiRequestError(error)) {
-      MessagePlugin.error(
-        localizedApiErrorMessage(t, error.messageKey, error.message) || t('rbac.roleList.statusUpdateFailed'),
-      );
+      const message = resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.statusUpdateFailed'));
+      MessagePlugin.error(message);
+      openCorrelationErrorNotification({
+        router,
+        title: t('audit.correlation.errorTitle'),
+        message,
+        requestId: requestIdFromError(error),
+        translate: t,
+      });
       return;
     }
 
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.statusUpdateFailed')));
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.statusUpdateFailed')));
   }
 }
 
@@ -1400,17 +1442,23 @@ async function removeRole(role: RoleStatusCompat) {
   try {
     await deleteRole(role.id);
     roles.value = roles.value.filter((item) => item.id !== role.id);
-    MessagePlugin.success(t('rbac.roleList.deleteSuccess'));
+    MessagePlugin.success(formatHintedMessage(t('rbac.roleList.deleteSuccess')));
   } catch (error) {
     logger.error('failed to delete role', error);
     if (isApiRequestError(error)) {
-      MessagePlugin.error(
-        localizedApiErrorMessage(t, error.messageKey, error.message) || t('rbac.roleList.deleteFailed'),
-      );
+      const message = resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.deleteFailed'));
+      MessagePlugin.error(message);
+      openCorrelationErrorNotification({
+        router,
+        title: t('audit.correlation.errorTitle'),
+        message,
+        requestId: requestIdFromError(error),
+        translate: t,
+      });
       return;
     }
 
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('rbac.roleList.deleteFailed')));
+    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.deleteFailed')));
   }
 }
 

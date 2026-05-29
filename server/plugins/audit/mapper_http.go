@@ -28,6 +28,46 @@ func toAuditLogListResponse(result auditListResult) (generated.AuditLogListRespo
 }
 
 func toAuditOverviewResponse(result auditOverviewResult) (map[string]any, error) {
+	riskGroups := make([]map[string]any, 0, len(result.RiskGroups))
+	for _, group := range result.RiskGroups {
+		riskGroups = append(riskGroups, map[string]any{
+			"key":        group.Key,
+			"label_key":  group.LabelKey,
+			"count":      group.Count,
+			"risk_level": string(group.RiskLevel),
+		})
+	}
+	trendPoints := make([]map[string]any, 0, len(result.Trend.Points))
+	for _, point := range result.Trend.Points {
+		trendPoints = append(trendPoints, map[string]any{
+			"bucket_start":    point.BucketStart.UTC(),
+			"bucket_end":      point.BucketEnd.UTC(),
+			"total":           point.Total,
+			"failed":          point.Failed,
+			"high_risk":       point.HighRisk,
+			"security_events": point.SecurityEvents,
+		})
+	}
+	securityTimeline := make([]map[string]any, 0, len(result.SecurityTimeline))
+	for _, item := range result.SecurityTimeline {
+		id, err := mustConvertAuditGeneratedID(item.ID, "audit overview security timeline id")
+		if err != nil {
+			return nil, err
+		}
+		securityTimeline = append(securityTimeline, map[string]any{
+			"id":                 id,
+			"created_at":         item.CreatedAt.UTC(),
+			"source":             string(item.Source),
+			"risk_level":         string(item.RiskLevel),
+			"action":             item.Action,
+			"result":             string(item.Result),
+			"request_id":         item.RequestID,
+			"actor_display_name": item.ActorDisplayName,
+			"actor_username":     item.ActorUsername,
+			"resource_name":      item.ResourceName,
+			"resource_type":      item.ResourceType,
+		})
+	}
 	failedAuth, err := toAuditOverviewItems(result.FailedAuth)
 	if err != nil {
 		return nil, err
@@ -49,6 +89,9 @@ func toAuditOverviewResponse(result auditOverviewResult) (map[string]any, error)
 			"high_risk_events":     result.Summary.HighRiskEvents,
 			"sensitive_operations": result.Summary.SensitiveOperations,
 		},
+		"risk_groups":         riskGroups,
+		"trend":               map[string]any{"bucket_unit": result.Trend.BucketUnit, "bucket_size": result.Trend.BucketSize, "points": trendPoints},
+		"security_timeline":   securityTimeline,
 		"failed_auth":          failedAuth,
 		"permission_denied":    permissionDenied,
 		"sensitive_operations": sensitiveOps,
@@ -123,6 +166,10 @@ func appendAuditLogOptionalStrings(converted *generated.AuditLogListItem, item a
 }
 
 func appendAuditLogOptionalEnums(converted *generated.AuditLogListItem, item auditstore.AuditLog) {
+	if item.Source != "" {
+		source := generated.AuditLogListItemSource(item.Source)
+		converted.Source = &source
+	}
 	if item.Result != "" {
 		result := generated.AuditLogListItemResult(item.Result)
 		converted.Result = &result
@@ -194,6 +241,7 @@ func toAuditOverviewItem(item auditstore.OverviewItem) (map[string]any, error) {
 
 	converted := map[string]any{
 		"id":         id,
+		"source":     string(item.Source),
 		"action":     item.Action,
 		"success":    item.Success,
 		"request_id": item.RequestID,

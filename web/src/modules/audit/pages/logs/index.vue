@@ -4,31 +4,20 @@
       <management-page-header :title="t('audit.logList.title')" :description="t('audit.logList.description')">
         <template #eyebrow>{{ t('menu.audit.title') }}</template>
         <template #actions>
-          <t-space size="small" wrap>
-            <t-button
-              v-for="preset in presetViews"
-              :key="preset.key"
-              size="small"
-              :theme="activePreset === preset.key ? 'primary' : 'default'"
-              :variant="activePreset === preset.key ? 'base' : 'outline'"
-              @click="applyPreset(preset.key)"
-            >
-              {{ preset.title }}
-            </t-button>
-            <t-button theme="default" variant="outline" :loading="loading" @click="fetchAuditLogs">
-              {{ t('audit.logList.refresh') }}
-            </t-button>
-          </t-space>
+          <t-button theme="default" variant="outline" :loading="loading" @click="fetchAuditLogs">
+            {{ t('audit.logList.refresh') }}
+          </t-button>
         </template>
       </management-page-header>
 
       <audit-filters
         v-model="filters"
-        :advanced-visible="advancedVisible"
+        :active-preset="activePreset"
         :loading="loading"
+        :presets="presetViews"
+        @apply-preset="applyPreset"
         @reset="resetFilters"
         @search="handleSearch"
-        @toggle-advanced="advancedVisible = !advancedVisible"
       />
 
       <management-empty-state
@@ -65,18 +54,21 @@
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { describeCorrelationId, formatMessageWithCorrelation } from '@/shared/correlation';
 import { createLogger } from '@/utils/logger';
 
 import { getAuditLogs } from '../../api/audit';
 import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
 import AuditTable from '../../components/AuditTable.vue';
+import { buildAuditLogsLocation, parseAuditLogsRouteQuery } from '../../contract/deep-link';
+import { getAuditPresetDefaults, listAuditPresets, resolveAuditPresetKey } from '../../contract/presets';
 import type { AuditClientFilterState } from '../../shared/presentation';
 import { matchesAuditRow } from '../../shared/presentation';
 import type { AuditLogListItem, AuditLogQuery } from '../../types/audit';
@@ -85,18 +77,16 @@ defineOptions({
   name: 'AuditLogListIndex',
 });
 
-type PresetKey = 'all' | 'today-anomalies' | 'permission-denied' | 'sensitive-ops' | 'auth-failed' | 'high-risk';
-
 const logger = createLogger('audit.logs');
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 
 const loading = ref(false);
 const listError = ref('');
 const rows = ref<AuditLogListItem[]>([]);
 const total = ref(0);
-const activePreset = ref<PresetKey>('all');
-const advancedVisible = ref(false);
+const activePreset = ref(resolveAuditPresetKey(''));
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
 const latestRequestSeq = ref(0);
@@ -105,32 +95,24 @@ const pagination = ref({
   pageSize: 10,
 });
 const filters = ref<AuditClientFilterState>({
-  keyword: '',
-  actor: '',
-  action: '',
-  createdRange: [],
-  resource: '',
-  result: 'all',
-  riskLevel: 'all',
-  session: '',
-  traceId: '',
+  ...createDefaultFilters(),
 });
+const applyingRoute = ref(false);
 
-const presetViews = computed(() => [
-  { key: 'all' as const, title: t('audit.logList.presets.all') },
-  { key: 'today-anomalies' as const, title: t('audit.logList.presets.todayAnomalies') },
-  { key: 'permission-denied' as const, title: t('audit.logList.presets.permissionDenied') },
-  { key: 'sensitive-ops' as const, title: t('audit.logList.presets.sensitiveOps') },
-  { key: 'auth-failed' as const, title: t('audit.logList.presets.authFailed') },
-  { key: 'high-risk' as const, title: t('audit.logList.presets.highRisk') },
-]);
+const presetViews = computed(() =>
+  listAuditPresets().map((preset) => ({
+    key: preset.key,
+    title: t(preset.titleKey),
+  })),
+);
 
 const hasClientOnlyFilters = computed(() =>
   Boolean(
     filters.value.keyword ||
     filters.value.actor ||
-    filters.value.resource ||
+    filters.value.resourceId ||
     filters.value.session ||
+    filters.value.requestId ||
     filters.value.traceId,
   ),
 );
@@ -151,10 +133,27 @@ function buildQuery(): AuditLogQuery {
   };
 
   if (filters.value.action) {
-    query.resource_type = filters.value.action === 'auth' ? 'auth' : filters.value.action;
+    query.action = filters.value.action;
   }
-  if (filters.value.resource) {
-    query.resource_type = filters.value.resource;
+  if (filters.value.actionPrefix) {
+    query.action_prefix = filters.value.actionPrefix;
+  }
+  if (filters.value.source) {
+    query.source = filters.value.source as AuditLogQuery['source'];
+  }
+  if (filters.value.resourceType) {
+    query.resource_type = filters.value.resourceType;
+  }
+  if (filters.value.resourceName) {
+    query.resource_name = filters.value.resourceName;
+  }
+  if (filters.value.resourceId) {
+    query.resource_id = filters.value.resourceId;
+  }
+  if (filters.value.requestId) {
+    query.request_id = filters.value.requestId;
+  } else if (filters.value.traceId) {
+    query.request_id = filters.value.traceId;
   }
   if (filters.value.result !== 'all') {
     query.result = filters.value.result;
@@ -192,7 +191,12 @@ async function fetchAuditLogs() {
     total.value = 0;
     logger.error('failed to fetch audit logs', error);
     listError.value = resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed'));
-    MessagePlugin.error(listError.value);
+    const correlationId = filters.value.requestId || filters.value.traceId;
+    MessagePlugin.error(
+      correlationId
+        ? formatMessageWithCorrelation(listError.value, describeCorrelationId(t, correlationId))
+        : listError.value,
+    );
   } finally {
     if (requestSeq === latestRequestSeq.value) {
       loading.value = false;
@@ -200,65 +204,46 @@ async function fetchAuditLogs() {
   }
 }
 
-function applyPreset(preset: PresetKey) {
+function applyPreset(preset: typeof activePreset.value) {
   activePreset.value = preset;
-
-  if (preset === 'all') {
-    filters.value.action = '';
-    filters.value.result = 'all';
-    filters.value.resource = '';
-    filters.value.riskLevel = 'all';
-  } else if (preset === 'today-anomalies') {
-    filters.value.action = '';
-    filters.value.result = 'ERROR';
-    filters.value.resource = '';
-    filters.value.riskLevel = 'HIGH';
-  } else if (preset === 'permission-denied') {
-    filters.value.action = '';
-    filters.value.result = 'DENIED';
-    filters.value.resource = '';
-    filters.value.riskLevel = 'CRITICAL';
-  } else if (preset === 'auth-failed') {
-    filters.value.action = 'auth';
-    filters.value.result = 'FAILED';
-    filters.value.resource = 'auth';
-    filters.value.riskLevel = 'HIGH';
-  } else if (preset === 'sensitive-ops') {
-    filters.value.action = '';
-    filters.value.result = 'all';
-    filters.value.resource = '';
-    filters.value.riskLevel = 'HIGH';
-  } else if (preset === 'high-risk') {
-    filters.value.action = '';
-    filters.value.result = 'all';
-    filters.value.resource = '';
-    filters.value.riskLevel = 'CRITICAL';
-  }
+  filters.value = {
+    ...createDefaultFilters(),
+    ...getAuditPresetDefaults(preset),
+  };
 
   pagination.value.current = 1;
-  fetchAuditLogs();
+  updateRouteQuery();
 }
 
 function handleSearch() {
   pagination.value.current = 1;
-  fetchAuditLogs();
+  updateRouteQuery();
 }
 
 function resetFilters() {
-  filters.value = {
+  filters.value = createDefaultFilters();
+  activePreset.value = 'all';
+  pagination.value.current = 1;
+  updateRouteQuery();
+}
+
+function createDefaultFilters(): AuditClientFilterState {
+  return {
     keyword: '',
     actor: '',
     action: '',
+    actionPrefix: '',
+    source: '',
     createdRange: [],
-    resource: '',
+    resourceType: '',
+    resourceName: '',
+    resourceId: '',
     result: 'all',
     riskLevel: 'all',
     session: '',
+    requestId: '',
     traceId: '',
   };
-  activePreset.value = 'all';
-  pagination.value.current = 1;
-  fetchAuditLogs();
 }
 
 function openDetailDrawer(row: AuditLogListItem) {
@@ -271,26 +256,86 @@ function toISOStringOrRaw(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toISOString();
 }
 
-function applyRoutePreset() {
-  const preset = route.query.preset;
-  if (
-    preset === 'today-anomalies' ||
-    preset === 'permission-denied' ||
-    preset === 'sensitive-ops' ||
-    preset === 'auth-failed' ||
-    preset === 'high-risk'
-  ) {
-    applyPreset(preset);
-    return true;
-  }
-  return false;
+function applyRouteFilters() {
+  const query = parseAuditLogsRouteQuery(route.query);
+  const nextPreset = resolveAuditPresetKey(query.preset ?? '');
+  const presetDefaults = getAuditPresetDefaults(nextPreset);
+  const nextFilters: AuditClientFilterState = {
+    ...createDefaultFilters(),
+    ...presetDefaults,
+    keyword: query.keyword ?? '',
+    actor: query.actor ?? '',
+    action: query.action || presetDefaults.action || '',
+    actionPrefix: query.actionPrefix || presetDefaults.actionPrefix || '',
+    source: query.source || presetDefaults.source || '',
+    createdRange: query.createdFrom || query.createdTo ? [query.createdFrom ?? '', query.createdTo ?? ''] : [],
+    resourceType: query.resourceType || presetDefaults.resourceType || '',
+    resourceName: query.resourceName ?? '',
+    resourceId: query.resourceId ?? '',
+    result: (query.result as AuditClientFilterState['result']) || presetDefaults.result || 'all',
+    riskLevel: (query.riskLevel as AuditClientFilterState['riskLevel']) || presetDefaults.riskLevel || 'all',
+    session: query.session ?? '',
+    requestId: query.requestId ?? '',
+    traceId: query.traceId ?? '',
+  };
+
+  filters.value = nextFilters;
+  activePreset.value = nextPreset;
 }
 
-onMounted(() => {
-  if (!applyRoutePreset()) {
-    fetchAuditLogs();
+function buildRouteQuery() {
+  const [createdFrom = '', createdTo = ''] = filters.value.createdRange;
+
+  return {
+    preset: activePreset.value === 'all' ? '' : activePreset.value,
+    keyword: filters.value.keyword,
+    actor: filters.value.actor,
+    action: filters.value.action,
+    actionPrefix: filters.value.actionPrefix,
+    source: filters.value.source,
+    createdFrom,
+    createdTo,
+    resourceType: filters.value.resourceType,
+    resourceName: filters.value.resourceName,
+    resourceId: filters.value.resourceId,
+    result: filters.value.result === 'all' ? '' : filters.value.result,
+    riskLevel: filters.value.riskLevel === 'all' ? '' : filters.value.riskLevel,
+    session: filters.value.session,
+    requestId: filters.value.requestId,
+    traceId: filters.value.traceId,
+  };
+}
+
+async function updateRouteQuery() {
+  if (applyingRoute.value) {
+    return;
   }
-});
+
+  const nextLocation = buildAuditLogsLocation(buildRouteQuery());
+  const currentLocation = buildAuditLogsLocation(route.query);
+
+  if (JSON.stringify(nextLocation.query) === JSON.stringify(currentLocation.query)) {
+    await fetchAuditLogs();
+    return;
+  }
+
+  await router.replace(nextLocation);
+}
+
+watch(
+  () => route.query,
+  async () => {
+    applyingRoute.value = true;
+    try {
+      applyRouteFilters();
+    } finally {
+      applyingRoute.value = false;
+    }
+    pagination.value.current = 1;
+    await fetchAuditLogs();
+  },
+  { immediate: true },
+);
 </script>
 <style scoped lang="less">
 @import '../../../rbac/shared/list-page.less';

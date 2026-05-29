@@ -11,6 +11,7 @@
       "detail": "Details",
       "edit": "Edit",
       "more": "More",
+      "viewAudit": "View Audit",
       "assignPermissions": "Assign Permissions",
       "columnSettings": "Columns",
       "emptyTitle": "No role data",
@@ -122,6 +123,7 @@
       "listTitle": "Permission Management",
       "hint": "Review system permissions, module ownership, and authorization usage.",
       "detail": "Details",
+      "viewAudit": "View Related Audit",
       "detailTitle": "Permission Details",
       "summary": "{count} permissions shown",
       "footerTotal": "{count} permissions total",
@@ -196,6 +198,14 @@
         "display": "Update Roles",
         "description": "Allows updating role-management data."
       },
+      "roleStatusUpdate": {
+        "display": "Update Role Status",
+        "description": "Allows enabling or disabling roles."
+      },
+      "roleDelete": {
+        "display": "Delete Roles",
+        "description": "Allows deleting custom roles that satisfy the lifecycle requirements."
+      },
       "rolePermissionAssign": {
         "display": "Assign Role Permissions",
         "description": "Allows updating role-permission bindings."
@@ -215,6 +225,10 @@
       "monitorServerStatusRead": {
         "display": "Read Server Status",
         "description": "Allows reading the server status overview."
+      },
+      "auditRead": {
+        "display": "Read Audit Logs",
+        "description": "Allows viewing the audit overview and audit logs."
       }
     }
   }

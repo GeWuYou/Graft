@@ -33,15 +33,21 @@
       </management-empty-state>
 
       <template #summary>
-        <governance-summary-card
+        <button
           v-for="item in stats"
           :key="item.key"
-          kind="activity"
-          :title="item.title"
-          :value="item.value"
-          :description="item.meta"
-          :value-aside="item.unit"
-        />
+          class="audit-overview__summary-action"
+          type="button"
+          @click="openSummary(item.key)"
+        >
+          <governance-summary-card
+            kind="activity"
+            :title="item.title"
+            :value="item.value"
+            :description="item.meta"
+            :value-aside="item.unit"
+          />
+        </button>
       </template>
 
       <section class="audit-overview__grid">
@@ -93,6 +99,26 @@
         </governance-section>
 
         <div class="audit-overview__stack">
+          <governance-section :title="t('audit.overview.sections.riskWatch')">
+            <div class="audit-overview__watch-list">
+              <button
+                v-for="group in riskGroups"
+                :key="group.key"
+                class="audit-overview__watch-item audit-overview__watch-item--button"
+                type="button"
+                @click="openRiskGroup(group.risk_level)"
+              >
+                <div>
+                  <strong>{{ t(group.label_key) }}</strong>
+                  <p>{{ t('audit.overview.riskGroups.meta', { count: group.count }) }}</p>
+                </div>
+                <t-tag :theme="riskTheme(group.risk_level)" variant="light-outline" size="small">
+                  {{ t(`audit.common.risk.${group.risk_level}`) }}
+                </t-tag>
+              </button>
+            </div>
+          </governance-section>
+
           <governance-section :title="t('audit.overview.sections.shortcuts')">
             <div class="audit-overview__shortcut-list">
               <button
@@ -107,19 +133,60 @@
               </button>
             </div>
           </governance-section>
-
-          <governance-section :title="t('audit.overview.sections.riskWatch')">
-            <div class="audit-overview__watch-list">
-              <article v-for="item in watchItems" :key="item.key" class="audit-overview__watch-item">
-                <div>
-                  <strong>{{ item.title }}</strong>
-                  <p>{{ item.description }}</p>
-                </div>
-                <t-tag :theme="item.theme" variant="light-outline" size="small">{{ item.tag }}</t-tag>
-              </article>
-            </div>
-          </governance-section>
         </div>
+      </section>
+
+      <section class="audit-overview__grid audit-overview__grid--bottom">
+        <governance-section :title="t('audit.overview.sections.trend')">
+          <div class="audit-overview__trend">
+            <div v-for="point in trendPoints" :key="point.key" class="audit-overview__trend-point">
+              <div class="audit-overview__trend-bars">
+                <div
+                  class="audit-overview__trend-bar audit-overview__trend-bar--total"
+                  :style="{ height: point.totalHeight }"
+                />
+                <div
+                  class="audit-overview__trend-bar audit-overview__trend-bar--risk"
+                  :style="{ height: point.highRiskHeight }"
+                />
+                <div
+                  class="audit-overview__trend-bar audit-overview__trend-bar--security"
+                  :style="{ height: point.securityHeight }"
+                />
+              </div>
+              <strong>{{ point.label }}</strong>
+              <span>{{ t('audit.overview.trend.pointMeta', point.meta) }}</span>
+            </div>
+          </div>
+        </governance-section>
+
+        <governance-section :title="t('audit.overview.sections.securityTimeline')">
+          <t-timeline class="audit-overview__timeline" mode="same">
+            <t-timeline-item
+              v-for="item in securityTimeline"
+              :key="item.id"
+              :label="formatTime(item.created_at)"
+              :dot-color="timelineDotColor(item.risk_level)"
+            >
+              <button
+                class="audit-overview__timeline-item audit-overview__timeline-item--button"
+                type="button"
+                @click="openSecurityTimelineItem(item.request_id)"
+              >
+                <strong>{{ item.action }}</strong>
+                <p>{{ item.resource_name || item.resource_type || t('audit.common.unknownResource') }}</p>
+                <div class="audit-overview__timeline-meta">
+                  <t-tag :theme="riskTheme(item.risk_level)" variant="light-outline" size="small">
+                    {{ t(`audit.common.risk.${item.risk_level}`) }}
+                  </t-tag>
+                  <t-tag theme="default" variant="light-outline" size="small">
+                    {{ t(`audit.common.source.${item.source}`) }}
+                  </t-tag>
+                </div>
+              </button>
+            </t-timeline-item>
+          </t-timeline>
+        </governance-section>
       </section>
     </governance-dashboard-shell>
   </div>
@@ -130,20 +197,23 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { buildAuditLogsLocation, buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
+import type { AuditPresetKey } from '@/modules/audit/contract/presets';
+import { resolveAuditPresetKey } from '@/modules/audit/contract/presets';
+import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { GovernanceDashboardShell, GovernanceSection, GovernanceSummaryCard } from '@/shared/components/governance';
 import { ManagementEmptyState } from '@/shared/components/management';
 import { createLogger } from '@/utils/logger';
 
 import { getAuditOverview } from '../../api/audit';
-import { AUDIT_ROUTE_PATH } from '../../contract/paths';
 import type { AuditOverviewItem, AuditOverviewResponse, AuditOverviewWindow } from '../../types/audit';
 
 defineOptions({
   name: 'AuditOverviewIndex',
 });
 
-const { t } = useI18n();
+const { locale, t } = useI18n();
 const router = useRouter();
 const logger = createLogger('audit.overview');
 const activeWindow = ref<AuditOverviewWindow>('24h');
@@ -200,42 +270,77 @@ const sensitiveItems = computed(() =>
   toOverviewCards(overview.value?.sensitive_operations, t('audit.overview.itemResult.sensitive')),
 );
 
+const riskGroups = computed(() => overview.value?.risk_groups ?? []);
+const securityTimeline = computed(() => overview.value?.security_timeline ?? []);
+const trendPoints = computed(() => {
+  const points = overview.value?.trend?.points ?? [];
+  const maxTotal = Math.max(...points.map((point) => point.total), 1);
+
+  return points.map((point) => ({
+    key: `${point.bucket_start}-${point.bucket_end}`,
+    label: formatBucketLabel(point.bucket_start),
+    totalHeight: `${Math.max((point.total / maxTotal) * 100, 8)}%`,
+    highRiskHeight: `${Math.max((point.high_risk / maxTotal) * 100, point.high_risk > 0 ? 8 : 0)}%`,
+    securityHeight: `${Math.max((point.security_events / maxTotal) * 100, point.security_events > 0 ? 8 : 0)}%`,
+    meta: {
+      total: point.total,
+      highRisk: point.high_risk,
+      security: point.security_events,
+    },
+  }));
+});
+
 const shortcuts = computed(() => [
   {
     key: 'failed',
     title: t('audit.overview.shortcuts.failedAuth.title'),
     description: t('audit.overview.shortcuts.failedAuth.description'),
-    preset: 'failed-auth',
+    preset: resolveAuditPresetKey('failed-auth'),
   },
   {
     key: 'rbac',
     title: t('audit.overview.shortcuts.rbacChanges.title'),
     description: t('audit.overview.shortcuts.rbacChanges.description'),
-    preset: 'rbac-changes',
+    preset: resolveAuditPresetKey('rbac-changes'),
   },
   {
     key: 'sensitive',
     title: t('audit.overview.shortcuts.sensitiveOps.title'),
     description: t('audit.overview.shortcuts.sensitiveOps.description'),
-    preset: 'sensitive-ops',
+    preset: resolveAuditPresetKey('sensitive-ops'),
   },
 ]);
 
-const watchItems = computed<
-  Array<{
-    key: string;
-    title: string;
-    description: string;
-    tag: string;
-    theme: 'default' | 'primary' | 'warning' | 'danger' | 'success';
-  }>
->(() => []);
+function openShortcut(preset: AuditPresetKey) {
+  void router.push(buildAuditLogsLocation({ preset }));
+}
 
-function openShortcut(preset: string) {
-  void router.push({
-    path: AUDIT_ROUTE_PATH.LOGS,
-    query: { preset },
-  });
+function openSummary(key: string) {
+  switch (key) {
+    case 'failed':
+      void router.push(buildAuditLogsLocation({ result: 'FAILED' }));
+      return;
+    case 'risk':
+      void router.push(buildAuditLogsLocation({ riskLevel: 'HIGH' }));
+      return;
+    case 'sensitive':
+      void router.push(buildAuditLogsLocation({ riskLevel: 'HIGH', source: 'DOMAIN_EVENT' }));
+      return;
+    default:
+      void router.push(buildAuditLogsLocation({}));
+  }
+}
+
+function openRiskGroup(riskLevel: string) {
+  void router.push(buildAuditLogsLocation({ riskLevel }));
+}
+
+function openSecurityTimelineItem(requestId?: string) {
+  if (!requestId) {
+    return;
+  }
+
+  void router.push(buildAuditRequestLocation(requestId));
 }
 
 async function fetchOverview() {
@@ -249,6 +354,13 @@ async function fetchOverview() {
     logger.error('failed to fetch audit overview', error);
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('audit.overview.loadFailed'));
     MessagePlugin.error(errorMessage.value);
+    openCorrelationErrorNotification({
+      router,
+      title: t('audit.correlation.errorTitle'),
+      message: errorMessage.value,
+      requestId: requestIdFromError(error),
+      translate: t,
+    });
   } finally {
     loading.value = false;
   }
@@ -267,6 +379,47 @@ function toOverviewCards(items: AuditOverviewItem[] | undefined, result: string)
   }));
 }
 
+function riskTheme(level?: string) {
+  if (level === 'CRITICAL') {
+    return 'danger';
+  }
+  if (level === 'HIGH') {
+    return 'warning';
+  }
+  if (level === 'MEDIUM') {
+    return 'primary';
+  }
+  return 'default';
+}
+
+function timelineDotColor(level?: string) {
+  if (level === 'CRITICAL') {
+    return 'var(--td-error-color)';
+  }
+  if (level === 'HIGH') {
+    return 'var(--td-warning-color)';
+  }
+  if (level === 'MEDIUM') {
+    return 'var(--td-brand-color)';
+  }
+  return 'var(--td-text-color-placeholder)';
+}
+
+function formatBucketLabel(value?: string) {
+  if (!value) {
+    return '-';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  const currentLocale = locale.value || undefined;
+  if (overview.value?.trend?.bucket_unit === 'day') {
+    return new Intl.DateTimeFormat(currentLocale, { month: '2-digit', day: '2-digit' }).format(date);
+  }
+  return new Intl.DateTimeFormat(currentLocale, { month: '2-digit', day: '2-digit', hour: '2-digit' }).format(date);
+}
+
 function formatTime(value?: string) {
   if (!value) {
     return '-';
@@ -275,7 +428,7 @@ function formatTime(value?: string) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(locale.value || undefined, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -312,7 +465,8 @@ onMounted(() => {
 
 .audit-overview__stack,
 .audit-overview__list,
-.audit-overview__watch-list {
+.audit-overview__watch-list,
+.audit-overview__timeline {
   gap: 16px;
 }
 
@@ -348,6 +502,73 @@ onMounted(() => {
   cursor: pointer;
   text-align: left;
   width: 100%;
+}
+
+.audit-overview__summary-action,
+.audit-overview__watch-item--button,
+.audit-overview__timeline-item--button {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.audit-overview__trend {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  min-height: 240px;
+}
+
+.audit-overview__trend-point {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audit-overview__trend-bars {
+  align-items: end;
+  display: flex;
+  gap: 4px;
+  height: 160px;
+}
+
+.audit-overview__trend-bar {
+  border-radius: 999px 999px 0 0;
+  min-height: 0;
+  width: 10px;
+}
+
+.audit-overview__trend-bar--total {
+  background: color-mix(in srgb, var(--td-brand-color) 35%, white);
+}
+
+.audit-overview__trend-bar--risk {
+  background: var(--td-warning-color);
+}
+
+.audit-overview__trend-bar--security {
+  background: var(--td-error-color);
+}
+
+.audit-overview__timeline-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audit-overview__timeline-item p {
+  color: var(--td-text-color-secondary);
+  margin: 0;
+}
+
+.audit-overview__timeline-meta {
+  display: flex;
+  gap: 8px;
 }
 
 @media (width <= 1280px) {

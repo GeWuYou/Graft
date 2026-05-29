@@ -2,6 +2,9 @@ type: object
 required:
   - window
   - summary
+  - risk_groups
+  - trend
+  - security_timeline
   - failed_auth
   - permission_denied
   - sensitive_operations
@@ -11,6 +14,89 @@ properties:
     enum: [24h, 7d, 30d]
   summary:
     $ref: ./audit-overview-summary.yaml
+  risk_groups:
+    type: array
+    items:
+      type: object
+      required: [key, label_key, count, risk_level]
+      properties:
+        key:
+          type: string
+        label_key:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+        risk_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+  trend:
+    type: object
+    required: [bucket_unit, bucket_size, points]
+    properties:
+      bucket_unit:
+        type: string
+        enum: [hour, day]
+      bucket_size:
+        type: integer
+        minimum: 1
+      points:
+        type: array
+        items:
+          type: object
+          required: [bucket_start, bucket_end, total, failed, high_risk, security_events]
+          properties:
+            bucket_start:
+              type: string
+              format: date-time
+            bucket_end:
+              type: string
+              format: date-time
+            total:
+              type: integer
+              minimum: 0
+            failed:
+              type: integer
+              minimum: 0
+            high_risk:
+              type: integer
+              minimum: 0
+            security_events:
+              type: integer
+              minimum: 0
+  security_timeline:
+    type: array
+    items:
+      type: object
+      required: [id, created_at, source, risk_level, action, result, request_id]
+      properties:
+        id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum: [REQUEST, SECURITY_EVENT, DOMAIN_EVENT]
+        risk_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        action:
+          type: string
+        result:
+          type: string
+          enum: [SUCCESS, FAILED, DENIED, ERROR]
+        request_id:
+          type: string
+        actor_display_name:
+          type: string
+        actor_username:
+          type: string
+        resource_name:
+          type: string
+        resource_type:
+          type: string
   failed_auth:
     type: array
     items:

@@ -1,0 +1,41 @@
+# Metrics Governance Trace
+
+## 2026-05-29
+
+- Opened `metrics-governance` as a new active topic instead of extending archived `observability-development-governance`.
+- Re-ran startup preflight against root `AGENTS.md`, read `server/AGENTS.md`, `web/AGENTS.md`, environment inventory, and required design/recovery materials.
+- Confirmed the current authority chain for metric-like runtime data:
+  - `server/plugins/monitor/**` owns the current server-status read model
+  - `openapi/**` owns the shared wire contract
+  - generated server/frontend types are derived artifacts only
+  - `web/src/modules/monitor/**` remains a downstream consumer
+- Confirmed Batch 1 should remain doc-only:
+  - no proven runtime drift required repair
+  - no metrics platform authority exists yet beyond the bounded monitor server-status surface
+  - no OpenTelemetry, Prometheus, Grafana, fake dashboard, or log-parsing rollout is justified
+- Completed Batch 2 inventory across `server/plugins/monitor`, `server/internal`, `openapi`, and `web/src/modules/monitor`:
+  - the only real sampled metric-like runtime path is the monitor plugin trend sampler in `server/plugins/monitor/plugin.go`
+  - stable trend-range semantics still live in `server/plugins/monitor/contract/trend.go`
+  - cross-boundary trend payload authority still lives in `openapi/components/parameters/trend-range-query.yaml` and `openapi/components/schemas/server-status-trend*.yaml`
+  - frontend monitor cards, focus modes, and metric copy are downstream presentation only
+- Checked likely accidental-authority candidates and rejected them:
+  - audit overview `trend`, `risk_groups`, and `security_timeline` are audit analytics read models, not metrics authority
+  - generated server/frontend OpenAPI types are derived artifacts only
+  - monitor page labels containing `metric` do not define collection, retention, or label semantics
+- Batch 2 conclusion:
+  - no missing consumer sync or contract drift was found
+  - the current gap is upstream metrics lifecycle governance, not downstream implementation breakage
+  - Batch 3 should decide whether the smallest justified MVP is doc-only closure or one bounded authority repair
+- Re-ran the Batch 3 authority decision against the current design docs and live code surfaces:
+  - `ai-plan/design/日志治理开发规范.md` still defines metrics outside monitor as placeholder-only governance
+  - `server/plugins/monitor/**` plus `openapi/paths/monitor.server-status.yaml` are already aligned as the only current canonical metric-like surfaces
+  - no OpenAPI drift, generated-artifact drift, or frontend consumer drift was found
+- Batch 3 conclusion:
+  - no safe runtime/OpenAPI/web MVP implementation is justified
+  - the smallest truthful MVP is doc-only closure that keeps monitor trend data bounded and leaves broader metrics work unimplemented
+- Batch 4 closeout:
+  - moved `metrics-governance` into `ai-plan/public/archive/metrics-governance`
+  - updated the public recovery index to remove `metrics-governance` from active topics and preserve it as archived evidence
+  - ran narrow doc-level validation with `git diff --check`
+  - ran a recovery-reference scan with `rg -n "metrics-governance" ai-plan/public`
+  - confirmed archive-ready status because the topic closed truthfully as doc-only governance work with no remaining justified implementation slice

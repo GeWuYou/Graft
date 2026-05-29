@@ -327,7 +327,7 @@ func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 				if handler.ctx.Logger != nil {
 					handler.ctx.Logger.Error("validate monitor server status params failed",
 						zap.String("plugin", handler.pluginName),
-						zap.String("request_id", httpx.EnsureRequestID(ginCtx)),
+						zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
 						zap.Error(err),
 					)
 				}
@@ -344,7 +344,7 @@ func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 				if handler.ctx.Logger != nil {
 					handler.ctx.Logger.Error("build monitor server status failed",
 						zap.String("plugin", handler.pluginName),
-						zap.String("request_id", httpx.EnsureRequestID(ginCtx)),
+						zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
 						zap.Error(buildErr),
 					)
 				}

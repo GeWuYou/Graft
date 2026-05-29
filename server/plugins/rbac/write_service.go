@@ -23,8 +23,6 @@ var (
 
 const builtinAdminRoleName = "admin"
 
-type auditRequestIDContextKey struct{}
-
 type writeManagementService interface {
 	CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error)
 	UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error)
@@ -69,7 +67,6 @@ func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.Create
 		ResourceType: "role",
 		ResourceID:   formatRBACAuditID(role.ID),
 		ResourceName: role.Name,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      "role created",
 		Metadata: map[string]any{
@@ -105,7 +102,6 @@ func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.Update
 		ResourceType: "role",
 		ResourceID:   formatRBACAuditID(role.ID),
 		ResourceName: role.Name,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      "role updated",
 		Metadata: map[string]any{
@@ -133,7 +129,6 @@ func (w managementWriter) SetRoleStatus(ctx context.Context, input rbacstore.Set
 		ResourceType: "role",
 		ResourceID:   formatRBACAuditID(role.ID),
 		ResourceName: role.Name,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      "role status updated",
 		Metadata: map[string]any{
@@ -162,7 +157,6 @@ func (w managementWriter) SoftDeleteRole(ctx context.Context, input rbacstore.So
 		ResourceType: "role",
 		ResourceID:   formatRBACAuditID(role.ID),
 		ResourceName: role.Name,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      "role deleted",
 	})
@@ -200,7 +194,6 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input r
 		ResourceType: "role",
 		ResourceID:   formatRBACAuditID(input.RoleID),
 		ResourceName: role.Name,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      "role permissions replaced",
 		Metadata: map[string]any{
@@ -264,7 +257,6 @@ func (w managementWriter) mutateRolePermissions(
 		ResourceType: "role",
 		ResourceID:   formatRBACAuditID(roleID),
 		ResourceName: role.Name,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      message,
 		Metadata: map[string]any{
@@ -307,7 +299,6 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacsto
 		ResourceType: "user",
 		ResourceID:   formatRBACAuditID(input.UserID),
 		ResourceName: user.Username,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      "user roles replaced",
 		Metadata: map[string]any{
@@ -335,7 +326,6 @@ func (w managementWriter) AddRolesToUser(ctx context.Context, input rbacstore.Ad
 		ResourceType: "user",
 		ResourceID:   formatRBACAuditID(input.UserID),
 		ResourceName: user.Username,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      "user roles added",
 		Metadata: map[string]any{
@@ -366,7 +356,6 @@ func (w managementWriter) RemoveRolesFromUser(ctx context.Context, input rbacsto
 		ResourceType: "user",
 		ResourceID:   formatRBACAuditID(input.UserID),
 		ResourceName: user.Username,
-		RequestID:    currentRBACRequestID(ctx),
 		Success:      true,
 		Message:      "user roles removed",
 		Metadata: map[string]any{
@@ -557,24 +546,6 @@ func currentRBACAuditOperator(ctx context.Context) *pluginapi.CurrentUser {
 
 	user := *requestAuth.User
 	return &user
-}
-
-func currentRBACRequestID(ctx context.Context) string {
-	if ctx == nil {
-		return ""
-	}
-	requestID, _ := ctx.Value(auditRequestIDContextKey{}).(string)
-	return strings.TrimSpace(requestID)
-}
-
-func withRBACAuditRequestID(ctx context.Context, requestID string) context.Context {
-	if strings.TrimSpace(requestID) == "" {
-		return ctx
-	}
-	if ctx == nil {
-		return nil
-	}
-	return context.WithValue(ctx, auditRequestIDContextKey{}, strings.TrimSpace(requestID))
 }
 
 func formatRBACAuditID(id uint64) string {

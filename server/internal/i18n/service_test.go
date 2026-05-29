@@ -9,7 +9,7 @@ import (
 )
 
 func newTestService() *Service {
-	return New(config.I18nConfig{
+	return MustNew(config.I18nConfig{
 		DefaultLocale:    "zh-CN",
 		FallbackLocale:   "en-US",
 		SupportedLocales: []string{"zh-CN", "en-US"},

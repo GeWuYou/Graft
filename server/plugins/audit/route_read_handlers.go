@@ -196,6 +196,7 @@ func bindAuditActorUserID(ginCtx *gin.Context, params *auditopenapi.GetAuditLogs
 
 func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) {
 	bindAuditStringFilter(ginCtx, "action", &params.Action, &query.Action)
+	bindAuditStringFilter(ginCtx, "action_prefix", &params.ActionPrefix, &query.ActionPrefix)
 	bindAuditStringFilter(ginCtx, "resource_type", &params.ResourceType, &query.ResourceType)
 	bindAuditStringFilter(ginCtx, "resource_id", &params.ResourceId, &query.ResourceID)
 	bindAuditStringFilter(ginCtx, "resource_name", &params.ResourceName, &query.ResourceName)
@@ -203,6 +204,16 @@ func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLo
 }
 
 func bindAuditEnumFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
+	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("source"))); raw != "" {
+		switch auditstore.AuditSource(raw) {
+		case auditstore.AuditSourceRequest, auditstore.AuditSourceSecurityEvent, auditstore.AuditSourceDomainEvent:
+		default:
+			return "source"
+		}
+		value := auditopenapi.GetAuditLogsParamsSource(raw)
+		params.Source = &value
+		query.Source = auditstore.AuditSource(raw)
+	}
 	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("result"))); raw != "" {
 		switch auditstore.AuditResult(raw) {
 		case auditstore.AuditResultSuccess, auditstore.AuditResultFailed, auditstore.AuditResultDenied, auditstore.AuditResultError:

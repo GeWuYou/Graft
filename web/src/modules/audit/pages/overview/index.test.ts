@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 
+import { AUDIT_ROUTE_PATH } from '../../contract/paths';
 import AuditOverviewPage from './index.vue';
 
 const routerMocks = vi.hoisted(() => ({
@@ -185,7 +186,7 @@ const i18n = createI18n({
 });
 
 describe('AuditOverviewPage', () => {
-  it('renders the streamlined workbench overview and opens a quick link', async () => {
+  it('renders the streamlined workbench overview and opens a quick link with canonical preset keys', async () => {
     const wrapper = mount(AuditOverviewPage, {
       global: {
         plugins: [i18n],
@@ -216,6 +217,11 @@ describe('AuditOverviewPage', () => {
     expect(wrapper.text()).toContain('Refresh');
 
     await wrapper.get('button[type="button"]').trigger('click');
-    expect(routerMocks.push).toHaveBeenCalled();
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: AUDIT_ROUTE_PATH.LOGS,
+      query: {
+        preset: 'auth-failed',
+      },
+    });
   });
 });

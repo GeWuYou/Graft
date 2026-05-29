@@ -50,6 +50,8 @@ type ListQuery struct {
 	PageSize     int
 	ActorUserID  *uint64
 	Action       string
+	ActionPrefix string
+	Source       auditstore.AuditSource
 	ResourceType string
 	ResourceID   string
 	ResourceName string
@@ -144,6 +146,8 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	result, err := s.repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
 		ActorUserID:  query.ActorUserID,
 		Action:       strings.TrimSpace(query.Action),
+		ActionPrefix: strings.TrimSpace(query.ActionPrefix),
+		Source:       normalizeAuditSource(query.Source),
 		ResourceType: strings.TrimSpace(query.ResourceType),
 		ResourceID:   strings.TrimSpace(query.ResourceID),
 		ResourceName: strings.TrimSpace(query.ResourceName),
@@ -166,6 +170,19 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+func normalizeAuditSource(source auditstore.AuditSource) auditstore.AuditSource {
+	switch auditstore.AuditSource(strings.ToUpper(strings.TrimSpace(string(source)))) {
+	case auditstore.AuditSourceRequest:
+		return auditstore.AuditSourceRequest
+	case auditstore.AuditSourceSecurityEvent:
+		return auditstore.AuditSourceSecurityEvent
+	case auditstore.AuditSourceDomainEvent:
+		return auditstore.AuditSourceDomainEvent
+	default:
+		return ""
+	}
 }
 
 func normalizeAuditResult(result auditstore.AuditResult) auditstore.AuditResult {

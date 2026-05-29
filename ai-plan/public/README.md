@@ -12,9 +12,46 @@ Overlay note:
 
 ## Active Topics
 
-- none
+- No active public recovery topics.
 
 ## Archived Topics
+
+- `observability-development-governance`
+  - Status: `archived`
+  - Recovery status: the original three phases completed locally with bounded server and web validation; the bounded P2 audit-console analytics follow-up also completed locally and is now archived as part of this topic's final evidence.
+  - Archive reason: the topic completed its three-phase governance loop plus the bounded post-Phase-C analytics follow-up without widening into metrics rollout, broad audit-console redesign, or fake frontend-derived observability.
+  - Final result:
+    - backend observability development standards now record canonical `App Log / Access Log / Error Log / Audit Event / Security Event / Metric Candidate` intent and bounded compliance expectations
+    - bounded server logging-governance fixes landed in the approved authority paths without reopening unrelated generated or metrics scope
+    - audit console governance UX now exposes canonical troubleshooting ids and related-audit navigation in owned frontend scope
+    - the bounded P2 follow-up added backend-owned `risk_groups`, `trend`, and `security_timeline` on `/audit/overview`
+    - `/audit/logs` now exposes first-class `source` query semantics backed by existing backend `AuditSource` authority
+  - Follow-up status: `new-topic-only`
+  - Archived topic directory:
+    - `ai-plan/public/archive/observability-development-governance`
+  - Archive notes:
+    - future `metrics-governance` work must open a separate bounded topic instead of extending this archive line
+    - further audit-console analytics expansion must open a new bounded topic instead of reusing this closed follow-up
+    - `web` remains a downstream consumer of the backend/OpenAPI analytics contracts; no frontend-derived fallback analytics were accepted
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat observability-development-governance as archived evidence and open a new bounded topic only if observability, metrics-governance, or another audit-console follow-up is required.`
+
+- `metrics-governance`
+  - Status: `archived`
+  - Recovery status: completed the bounded authority-discovery, inventory, MVP-decision, and final closeout loop; no active continuation remains.
+  - Archive reason: the topic confirmed that current metric-like authority is already bounded and aligned, so the truthful MVP is doc-only closure rather than runtime rollout.
+  - Final result:
+    - `server/plugins/monitor/**` remains the only current runtime metric-like authority
+    - `openapi/paths/monitor.server-status.yaml` remains the canonical shared wire surface for that monitor payload
+    - `web/src/modules/monitor/**` remains a downstream consumer only
+    - outside the monitor read model, metrics remain `Metric Candidate / Metric Placeholder` governance under `ai-plan/design/日志治理开发规范.md`
+  - Follow-up status: `new-topic-only`
+  - Archived topic directory:
+    - `ai-plan/public/archive/metrics-governance`
+  - Archive notes:
+    - future metrics implementation must open a new bounded topic instead of reopening this archive line
+    - future non-placeholder metrics work must define canonical owner, taxonomy, retention/aggregation, and operator consumer contracts before implementation starts
+    - this topic did not justify OpenTelemetry, Prometheus, Grafana, exporters, log parsing, or fake dashboards
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat metrics-governance as archived evidence and open a new bounded topic only if explicit non-placeholder metrics authority is needed.`
 
 - `plugin-audit-correlation-governance`
   - Status: `archived`
@@ -69,6 +106,9 @@ Overlay note:
     - security-event metadata now lands with a canonical request/trace/actor/route field dictionary while preserving
       current legacy audit aliases
     - frontend now has shell-owned global error sinks plus default route/request-correlation logger context
+    - audit log UI now exposes request/trace troubleshooting ids, copy affordances, reason/source visibility, and URL-shareable filters without inventing fake backend contracts
+    - access-control user/role/permission pages now link into related audit records and preserve correlation hints in owned success/error prompts
+    - fake runtime audit-risk watch copy was removed from the overview surface; P2 summaries, trends, and timelines remain future scope
   - Follow-up status: `new-topic-only`
   - Archived topic directory:
     - `ai-plan/public/archive/logging-unification-rollout`
@@ -278,3 +318,17 @@ Overlay note:
     - no standing feature ownership; `ai-plan/public/archive/logging-unification-rollout/**` remains historical
       recovery evidence
     - archived governance evidence remains under `ai-plan/public/archive/logging-governance/**`
+- Worktree: `feat/wt-audit-plugin-mvp`
+  - Branch: `feat/observability-development-governance`
+  - Active topic: none
+  - Archived topic history:
+    - `logging-governance`
+    - `logging-unification-rollout`
+    - `observability-development-governance`
+  - Recovery dependency:
+    - archived `request-correlation-access-logging`
+    - archived `plugin-audit-correlation-governance`
+  - Role: retained worktree state for the archived observability governance closure and bounded audit-console analytics follow-up after the canonical backend-owned analytics contracts landed
+  - Hotspot policy:
+    - no standing feature ownership; `ai-plan/public/archive/observability-development-governance/**` remains historical recovery evidence
+    - archived governance evidence remains under `ai-plan/public/archive/logging-governance/**` and `ai-plan/public/archive/logging-unification-rollout/**`

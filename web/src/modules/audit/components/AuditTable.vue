@@ -25,7 +25,7 @@
       <template #action="{ row }">
         <div class="stack-cell">
           <strong>{{ row.action }}</strong>
-          <span class="stack-cell__secondary">{{ row.request_id }}</span>
+          <span class="stack-cell__secondary">{{ sourceLabel(row, t) }}</span>
         </div>
       </template>
 
@@ -39,7 +39,14 @@
       <template #resource="{ row }">
         <div class="stack-cell">
           <strong>{{ resourceLabel(row, t) }}</strong>
-          <span class="stack-cell__secondary">{{ resourceSecondaryLabel(row) }}</span>
+          <span class="stack-cell__secondary">{{ reasonForRecord(row, t) }}</span>
+        </div>
+      </template>
+
+      <template #correlation="{ row }">
+        <div class="stack-cell">
+          <strong>{{ requestIdForRecord(row) }}</strong>
+          <span class="stack-cell__secondary">{{ traceIdForRecord(row) }}</span>
         </div>
       </template>
 
@@ -107,12 +114,15 @@ import {
   actorLabel,
   actorSecondaryLabel,
   formatAuditTimestamp,
+  reasonForRecord,
+  requestIdForRecord,
   resourceLabel,
-  resourceSecondaryLabel,
   resultLabel,
   resultTone,
   riskLabel,
   riskTone,
+  sourceLabel,
+  traceIdForRecord,
 } from '../shared/presentation';
 import type { AuditLogListItem } from '../types/audit';
 
@@ -145,6 +155,7 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     createTextColumn(t('audit.logList.columns.action'), 'action', { fixed: 'left', minWidth: 260 }),
     createTextColumn(t('audit.logList.columns.actor'), 'actor', { width: 180 }),
     createTextColumn(t('audit.logList.columns.resource'), 'resource', { width: 220 }),
+    createTextColumn(t('audit.logList.columns.correlation'), 'correlation', { width: 220 }),
     createStatusColumn(t('audit.logList.columns.result'), 'result', 110),
     createStatusColumn(t('audit.logList.columns.risk'), 'risk', 120),
     createTimeColumn(t('audit.logList.columns.createdAt'), 'created_at', 168),

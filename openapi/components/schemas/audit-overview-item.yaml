@@ -19,6 +19,9 @@ properties:
     type: string
   actor_display_name:
     type: string
+  source:
+    type: string
+    enum: [REQUEST, SECURITY_EVENT, DOMAIN_EVENT]
   action:
     type: string
   resource_type:

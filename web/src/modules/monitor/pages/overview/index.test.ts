@@ -15,6 +15,11 @@ const messageMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
+const correlationActionMocks = vi.hoisted(() => ({
+  openCorrelationErrorNotification: vi.fn(),
+  requestIdFromError: vi.fn(() => ''),
+}));
+
 const chartMocks = vi.hoisted(() => {
   const setOption = vi.fn();
   const resize = vi.fn();
@@ -287,6 +292,11 @@ vi.mock('tdesign-vue-next', async () => {
     },
   };
 });
+
+vi.mock('@/modules/audit/shared/correlation-actions', () => ({
+  openCorrelationErrorNotification: correlationActionMocks.openCorrelationErrorNotification,
+  requestIdFromError: correlationActionMocks.requestIdFromError,
+}));
 
 vi.mock('echarts/core', async () => {
   const actual = await vi.importActual<typeof import('echarts/core')>('echarts/core');
@@ -630,6 +640,9 @@ describe('MonitorPage', () => {
     vi.stubGlobal('ResizeObserver', resizeObserverMocks.ResizeObserverMock);
     monitorApiMocks.getServerStatus.mockReset();
     messageMocks.error.mockReset();
+    correlationActionMocks.openCorrelationErrorNotification.mockReset();
+    correlationActionMocks.requestIdFromError.mockReset();
+    correlationActionMocks.requestIdFromError.mockReturnValue('');
     chartMocks.init.mockClear();
     chartMocks.setOption.mockClear();
     chartMocks.resize.mockClear();
@@ -690,6 +703,12 @@ describe('MonitorPage', () => {
     expect(wrapper.findAll('.server-status-overview-layout__status')).toHaveLength(1);
     expect(wrapper.find('.metric-card__ring').exists()).toBe(false);
     expect(chartMocks.init).toHaveBeenCalledTimes(2);
+
+    const overviewChartOptions = chartMocks.setOption.mock.calls.map((call) => call[0]) as Array<{
+      color?: string[];
+    }>;
+    expect(overviewChartOptions.some((option) => option.color?.includes('#0052D9'))).toBe(true);
+    expect(overviewChartOptions.some((option) => option.color?.includes('#00A870'))).toBe(true);
 
     const loadCardText = metricCardText(wrapper, 'load');
     const cpuCardText = metricCardText(wrapper, 'cpu');
@@ -1027,7 +1046,14 @@ describe('MonitorPage', () => {
     const wrapper = mountMonitorPage();
     await flushPromises();
 
-    expect(messageMocks.error).toHaveBeenCalledWith('Failed to load server status');
+    expect(messageMocks.error).not.toHaveBeenCalled();
+    expect(correlationActionMocks.openCorrelationErrorNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'audit.correlation.errorTitle',
+        message: 'Failed to load server status',
+        requestId: '',
+      }),
+    );
     expect(wrapper.text()).toContain('No server-status data');
     expect(chartMocks.init).not.toHaveBeenCalled();
   });

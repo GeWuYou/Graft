@@ -60,6 +60,159 @@ func (e AuditLogListItemRiskLevel) Valid() bool {
 	}
 }
 
+// Defines values for AuditLogListItemSource.
+const (
+	AuditLogListItemSourceDOMAINEVENT   AuditLogListItemSource = "DOMAIN_EVENT"
+	AuditLogListItemSourceREQUEST       AuditLogListItemSource = "REQUEST"
+	AuditLogListItemSourceSECURITYEVENT AuditLogListItemSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the AuditLogListItemSource enum.
+func (e AuditLogListItemSource) Valid() bool {
+	switch e {
+	case AuditLogListItemSourceDOMAINEVENT:
+		return true
+	case AuditLogListItemSourceREQUEST:
+		return true
+	case AuditLogListItemSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditOverviewItemSource.
+const (
+	AuditOverviewItemSourceDOMAINEVENT   AuditOverviewItemSource = "DOMAIN_EVENT"
+	AuditOverviewItemSourceREQUEST       AuditOverviewItemSource = "REQUEST"
+	AuditOverviewItemSourceSECURITYEVENT AuditOverviewItemSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the AuditOverviewItemSource enum.
+func (e AuditOverviewItemSource) Valid() bool {
+	switch e {
+	case AuditOverviewItemSourceDOMAINEVENT:
+		return true
+	case AuditOverviewItemSourceREQUEST:
+		return true
+	case AuditOverviewItemSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditOverviewResponseRiskGroupsRiskLevel.
+const (
+	AuditOverviewResponseRiskGroupsRiskLevelCRITICAL AuditOverviewResponseRiskGroupsRiskLevel = "CRITICAL"
+	AuditOverviewResponseRiskGroupsRiskLevelHIGH     AuditOverviewResponseRiskGroupsRiskLevel = "HIGH"
+	AuditOverviewResponseRiskGroupsRiskLevelLOW      AuditOverviewResponseRiskGroupsRiskLevel = "LOW"
+	AuditOverviewResponseRiskGroupsRiskLevelMEDIUM   AuditOverviewResponseRiskGroupsRiskLevel = "MEDIUM"
+)
+
+// Valid indicates whether the value is a known member of the AuditOverviewResponseRiskGroupsRiskLevel enum.
+func (e AuditOverviewResponseRiskGroupsRiskLevel) Valid() bool {
+	switch e {
+	case AuditOverviewResponseRiskGroupsRiskLevelCRITICAL:
+		return true
+	case AuditOverviewResponseRiskGroupsRiskLevelHIGH:
+		return true
+	case AuditOverviewResponseRiskGroupsRiskLevelLOW:
+		return true
+	case AuditOverviewResponseRiskGroupsRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditOverviewResponseSecurityTimelineResult.
+const (
+	AuditOverviewResponseSecurityTimelineResultDENIED  AuditOverviewResponseSecurityTimelineResult = "DENIED"
+	AuditOverviewResponseSecurityTimelineResultERROR   AuditOverviewResponseSecurityTimelineResult = "ERROR"
+	AuditOverviewResponseSecurityTimelineResultFAILED  AuditOverviewResponseSecurityTimelineResult = "FAILED"
+	AuditOverviewResponseSecurityTimelineResultSUCCESS AuditOverviewResponseSecurityTimelineResult = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the AuditOverviewResponseSecurityTimelineResult enum.
+func (e AuditOverviewResponseSecurityTimelineResult) Valid() bool {
+	switch e {
+	case AuditOverviewResponseSecurityTimelineResultDENIED:
+		return true
+	case AuditOverviewResponseSecurityTimelineResultERROR:
+		return true
+	case AuditOverviewResponseSecurityTimelineResultFAILED:
+		return true
+	case AuditOverviewResponseSecurityTimelineResultSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditOverviewResponseSecurityTimelineRiskLevel.
+const (
+	AuditOverviewResponseSecurityTimelineRiskLevelCRITICAL AuditOverviewResponseSecurityTimelineRiskLevel = "CRITICAL"
+	AuditOverviewResponseSecurityTimelineRiskLevelHIGH     AuditOverviewResponseSecurityTimelineRiskLevel = "HIGH"
+	AuditOverviewResponseSecurityTimelineRiskLevelLOW      AuditOverviewResponseSecurityTimelineRiskLevel = "LOW"
+	AuditOverviewResponseSecurityTimelineRiskLevelMEDIUM   AuditOverviewResponseSecurityTimelineRiskLevel = "MEDIUM"
+)
+
+// Valid indicates whether the value is a known member of the AuditOverviewResponseSecurityTimelineRiskLevel enum.
+func (e AuditOverviewResponseSecurityTimelineRiskLevel) Valid() bool {
+	switch e {
+	case AuditOverviewResponseSecurityTimelineRiskLevelCRITICAL:
+		return true
+	case AuditOverviewResponseSecurityTimelineRiskLevelHIGH:
+		return true
+	case AuditOverviewResponseSecurityTimelineRiskLevelLOW:
+		return true
+	case AuditOverviewResponseSecurityTimelineRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditOverviewResponseSecurityTimelineSource.
+const (
+	AuditOverviewResponseSecurityTimelineSourceDOMAINEVENT   AuditOverviewResponseSecurityTimelineSource = "DOMAIN_EVENT"
+	AuditOverviewResponseSecurityTimelineSourceREQUEST       AuditOverviewResponseSecurityTimelineSource = "REQUEST"
+	AuditOverviewResponseSecurityTimelineSourceSECURITYEVENT AuditOverviewResponseSecurityTimelineSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the AuditOverviewResponseSecurityTimelineSource enum.
+func (e AuditOverviewResponseSecurityTimelineSource) Valid() bool {
+	switch e {
+	case AuditOverviewResponseSecurityTimelineSourceDOMAINEVENT:
+		return true
+	case AuditOverviewResponseSecurityTimelineSourceREQUEST:
+		return true
+	case AuditOverviewResponseSecurityTimelineSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditOverviewResponseTrendBucketUnit.
+const (
+	Day  AuditOverviewResponseTrendBucketUnit = "day"
+	Hour AuditOverviewResponseTrendBucketUnit = "hour"
+)
+
+// Valid indicates whether the value is a known member of the AuditOverviewResponseTrendBucketUnit enum.
+func (e AuditOverviewResponseTrendBucketUnit) Valid() bool {
+	switch e {
+	case Day:
+		return true
+	case Hour:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditOverviewResponseWindow.
 const (
 	AuditOverviewResponseWindowN24h AuditOverviewResponseWindow = "24h"
@@ -240,24 +393,45 @@ func (e TrendRangeQuery) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditLogsParamsSource.
+const (
+	GetAuditLogsParamsSourceDOMAINEVENT   GetAuditLogsParamsSource = "DOMAIN_EVENT"
+	GetAuditLogsParamsSourceREQUEST       GetAuditLogsParamsSource = "REQUEST"
+	GetAuditLogsParamsSourceSECURITYEVENT GetAuditLogsParamsSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsSource enum.
+func (e GetAuditLogsParamsSource) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsSourceDOMAINEVENT:
+		return true
+	case GetAuditLogsParamsSourceREQUEST:
+		return true
+	case GetAuditLogsParamsSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogsParamsResult.
 const (
-	GetAuditLogsParamsResultDENIED  GetAuditLogsParamsResult = "DENIED"
-	GetAuditLogsParamsResultERROR   GetAuditLogsParamsResult = "ERROR"
-	GetAuditLogsParamsResultFAILED  GetAuditLogsParamsResult = "FAILED"
-	GetAuditLogsParamsResultSUCCESS GetAuditLogsParamsResult = "SUCCESS"
+	DENIED  GetAuditLogsParamsResult = "DENIED"
+	ERROR   GetAuditLogsParamsResult = "ERROR"
+	FAILED  GetAuditLogsParamsResult = "FAILED"
+	SUCCESS GetAuditLogsParamsResult = "SUCCESS"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditLogsParamsResult enum.
 func (e GetAuditLogsParamsResult) Valid() bool {
 	switch e {
-	case GetAuditLogsParamsResultDENIED:
+	case DENIED:
 		return true
-	case GetAuditLogsParamsResultERROR:
+	case ERROR:
 		return true
-	case GetAuditLogsParamsResultFAILED:
+	case FAILED:
 		return true
-	case GetAuditLogsParamsResultSUCCESS:
+	case SUCCESS:
 		return true
 	default:
 		return false
@@ -388,6 +562,7 @@ type AuditLogListItem struct {
 	Result           *AuditLogListItemResult    `json:"result,omitempty"`
 	RiskLevel        *AuditLogListItemRiskLevel `json:"risk_level,omitempty"`
 	SessionId        *string                    `json:"session_id,omitempty"`
+	Source           *AuditLogListItemSource    `json:"source,omitempty"`
 	StatusCode       *int                       `json:"status_code,omitempty"`
 	Success          bool                       `json:"success"`
 	TargetLabel      *string                    `json:"target_label,omitempty"`
@@ -402,6 +577,9 @@ type AuditLogListItemResult string
 // AuditLogListItemRiskLevel defines model for AuditLogListItem.RiskLevel.
 type AuditLogListItemRiskLevel string
 
+// AuditLogListItemSource defines model for AuditLogListItem.Source.
+type AuditLogListItemSource string
+
 // AuditLogListResponse defines model for audit-log-list-response.
 type AuditLogListResponse struct {
 	Items    []AuditLogListItem `json:"items"`
@@ -412,29 +590,79 @@ type AuditLogListResponse struct {
 
 // AuditOverviewItem defines model for audit-overview-item.
 type AuditOverviewItem struct {
-	Action           string                 `json:"action"`
-	ActorDisplayName *string                `json:"actor_display_name,omitempty"`
-	ActorUserId      *int64                 `json:"actor_user_id,omitempty"`
-	ActorUsername    *string                `json:"actor_username,omitempty"`
-	CreatedAt        time.Time              `json:"created_at"`
-	Id               int64                  `json:"id"`
-	Message          string                 `json:"message"`
-	Metadata         map[string]interface{} `json:"metadata"`
-	RequestId        string                 `json:"request_id"`
-	ResourceId       *string                `json:"resource_id,omitempty"`
-	ResourceName     *string                `json:"resource_name,omitempty"`
-	ResourceType     *string                `json:"resource_type,omitempty"`
-	Success          bool                   `json:"success"`
+	Action           string                   `json:"action"`
+	ActorDisplayName *string                  `json:"actor_display_name,omitempty"`
+	ActorUserId      *int64                   `json:"actor_user_id,omitempty"`
+	ActorUsername    *string                  `json:"actor_username,omitempty"`
+	CreatedAt        time.Time                `json:"created_at"`
+	Id               int64                    `json:"id"`
+	Message          string                   `json:"message"`
+	Metadata         map[string]interface{}   `json:"metadata"`
+	RequestId        string                   `json:"request_id"`
+	ResourceId       *string                  `json:"resource_id,omitempty"`
+	ResourceName     *string                  `json:"resource_name,omitempty"`
+	ResourceType     *string                  `json:"resource_type,omitempty"`
+	Source           *AuditOverviewItemSource `json:"source,omitempty"`
+	Success          bool                     `json:"success"`
 }
+
+// AuditOverviewItemSource defines model for AuditOverviewItem.Source.
+type AuditOverviewItemSource string
 
 // AuditOverviewResponse defines model for audit-overview-response.
 type AuditOverviewResponse struct {
-	FailedAuth          []AuditOverviewItem         `json:"failed_auth"`
-	PermissionDenied    []AuditOverviewItem         `json:"permission_denied"`
-	SensitiveOperations []AuditOverviewItem         `json:"sensitive_operations"`
-	Summary             AuditOverviewSummary        `json:"summary"`
-	Window              AuditOverviewResponseWindow `json:"window"`
+	FailedAuth       []AuditOverviewItem `json:"failed_auth"`
+	PermissionDenied []AuditOverviewItem `json:"permission_denied"`
+	RiskGroups       []struct {
+		Count     int                                      `json:"count"`
+		Key       string                                   `json:"key"`
+		LabelKey  string                                   `json:"label_key"`
+		RiskLevel AuditOverviewResponseRiskGroupsRiskLevel `json:"risk_level"`
+	} `json:"risk_groups"`
+	SecurityTimeline []struct {
+		Action           string                                         `json:"action"`
+		ActorDisplayName *string                                        `json:"actor_display_name,omitempty"`
+		ActorUsername    *string                                        `json:"actor_username,omitempty"`
+		CreatedAt        time.Time                                      `json:"created_at"`
+		Id               int64                                          `json:"id"`
+		RequestId        string                                         `json:"request_id"`
+		ResourceName     *string                                        `json:"resource_name,omitempty"`
+		ResourceType     *string                                        `json:"resource_type,omitempty"`
+		Result           AuditOverviewResponseSecurityTimelineResult    `json:"result"`
+		RiskLevel        AuditOverviewResponseSecurityTimelineRiskLevel `json:"risk_level"`
+		Source           AuditOverviewResponseSecurityTimelineSource    `json:"source"`
+	} `json:"security_timeline"`
+	SensitiveOperations []AuditOverviewItem  `json:"sensitive_operations"`
+	Summary             AuditOverviewSummary `json:"summary"`
+	Trend               struct {
+		BucketSize int                                  `json:"bucket_size"`
+		BucketUnit AuditOverviewResponseTrendBucketUnit `json:"bucket_unit"`
+		Points     []struct {
+			BucketEnd      time.Time `json:"bucket_end"`
+			BucketStart    time.Time `json:"bucket_start"`
+			Failed         int       `json:"failed"`
+			HighRisk       int       `json:"high_risk"`
+			SecurityEvents int       `json:"security_events"`
+			Total          int       `json:"total"`
+		} `json:"points"`
+	} `json:"trend"`
+	Window AuditOverviewResponseWindow `json:"window"`
 }
+
+// AuditOverviewResponseRiskGroupsRiskLevel defines model for AuditOverviewResponse.RiskGroups.RiskLevel.
+type AuditOverviewResponseRiskGroupsRiskLevel string
+
+// AuditOverviewResponseSecurityTimelineResult defines model for AuditOverviewResponse.SecurityTimeline.Result.
+type AuditOverviewResponseSecurityTimelineResult string
+
+// AuditOverviewResponseSecurityTimelineRiskLevel defines model for AuditOverviewResponse.SecurityTimeline.RiskLevel.
+type AuditOverviewResponseSecurityTimelineRiskLevel string
+
+// AuditOverviewResponseSecurityTimelineSource defines model for AuditOverviewResponse.SecurityTimeline.Source.
+type AuditOverviewResponseSecurityTimelineSource string
+
+// AuditOverviewResponseTrendBucketUnit defines model for AuditOverviewResponse.Trend.BucketUnit.
+type AuditOverviewResponseTrendBucketUnit string
 
 // AuditOverviewResponseWindow defines model for AuditOverviewResponse.Window.
 type AuditOverviewResponseWindow string
@@ -1193,6 +1421,8 @@ type GetAuditLogsParams struct {
 	PageSize     *int                         `form:"page_size,omitempty" json:"page_size,omitempty"`
 	ActorUserId  *int64                       `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
 	Action       *string                      `form:"action,omitempty" json:"action,omitempty"`
+	ActionPrefix *string                      `form:"action_prefix,omitempty" json:"action_prefix,omitempty"`
+	Source       *GetAuditLogsParamsSource    `form:"source,omitempty" json:"source,omitempty"`
 	ResourceType *string                      `form:"resource_type,omitempty" json:"resource_type,omitempty"`
 	ResourceId   *string                      `form:"resource_id,omitempty" json:"resource_id,omitempty"`
 	ResourceName *string                      `form:"resource_name,omitempty" json:"resource_name,omitempty"`
@@ -1210,6 +1440,9 @@ type GetAuditLogsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
+
+// GetAuditLogsParamsSource defines parameters for GetAuditLogs.
+type GetAuditLogsParamsSource string
 
 // GetAuditLogsParamsResult defines parameters for GetAuditLogs.
 type GetAuditLogsParamsResult string

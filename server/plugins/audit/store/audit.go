@@ -70,6 +70,7 @@ const (
 // AuditLog is the audit plugin's stable DTO for a persisted audit record.
 type AuditLog struct {
 	ID               uint64
+	Source           AuditSource
 	ActorUserID      *uint64
 	ActorUsername    string
 	ActorDisplayName string
@@ -170,6 +171,8 @@ type AuditPolicyDecision struct {
 type ListAuditLogsQuery struct {
 	ActorUserID  *uint64
 	Action       string
+	ActionPrefix string
+	Source       AuditSource
 	ResourceType string
 	ResourceID   string
 	ResourceName string
@@ -212,6 +215,7 @@ type OverviewSummary struct {
 // OverviewItem is one recent event preview shown in the overview workbench.
 type OverviewItem struct {
 	ID               uint64
+	Source           AuditSource
 	ActorUserID      *uint64
 	ActorUsername    string
 	ActorDisplayName string
@@ -226,10 +230,53 @@ type OverviewItem struct {
 	CreatedAt        time.Time
 }
 
+// OverviewRiskGroup is one bounded backend-owned risk grouping summary.
+type OverviewRiskGroup struct {
+	Key       string
+	LabelKey  string
+	Count     int
+	RiskLevel AuditRiskLevel
+}
+
+// OverviewTrendPoint is one server-computed bucket in the overview trend series.
+type OverviewTrendPoint struct {
+	BucketStart    time.Time
+	BucketEnd      time.Time
+	Total          int
+	Failed         int
+	HighRisk       int
+	SecurityEvents int
+}
+
+// OverviewTrend describes the fixed-bucket trend shape for the selected window.
+type OverviewTrend struct {
+	BucketUnit string
+	BucketSize int
+	Points     []OverviewTrendPoint
+}
+
+// OverviewSecurityTimelineItem is one bounded recent security event preview.
+type OverviewSecurityTimelineItem struct {
+	ID               uint64
+	CreatedAt        time.Time
+	Source           AuditSource
+	RiskLevel        AuditRiskLevel
+	Action           string
+	Result           AuditResult
+	RequestID        string
+	ActorDisplayName string
+	ActorUsername    string
+	ResourceName     string
+	ResourceType     string
+}
+
 // AuditOverview groups window-level counters with the recent slices used by the overview page.
 type AuditOverview struct {
 	Window           OverviewWindow
 	Summary          OverviewSummary
+	RiskGroups       []OverviewRiskGroup
+	Trend            OverviewTrend
+	SecurityTimeline []OverviewSecurityTimelineItem
 	FailedAuth       []OverviewItem
 	PermissionDenied []OverviewItem
 	SensitiveOps     []OverviewItem

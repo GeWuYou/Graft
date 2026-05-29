@@ -130,10 +130,18 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("open redis client: %w", err)
 	}
 
+	localizer, err := i18n.New(cfg.I18n)
+	if err != nil {
+		_ = redisClient.Close()
+		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
+		return nil, fmt.Errorf("create i18n service: %w", err)
+	}
+
 	return &Runtime{
 		config:             cfg,
 		logger:             runtimeLogger,
-		i18n:               i18n.New(cfg.I18n),
+		i18n:               localizer,
 		database:           databaseResources,
 		redis:              redisClient,
 		server:             httpx.NewServer(runtimeLogger),

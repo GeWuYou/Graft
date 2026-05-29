@@ -448,6 +448,9 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
+import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
+import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import { localizedApiErrorMessage } from '@/modules/shared/localized-api-error';
 import {
@@ -476,6 +479,7 @@ import {
   TableActionMenu,
 } from '@/shared/components/management';
 import { useAssignmentSelection } from '@/shared/composables';
+import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
@@ -590,6 +594,7 @@ const pagination = ref({
 });
 
 const userPermissionCodes = USER_PERMISSION_CODE;
+const auditPermissionCodes = AUDIT_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
 const userRoleManagePermissionCodes = [rbacPermissionCodes.USER_ROLE_READ, rbacPermissionCodes.USER_ROLE_ASSIGN];
 const loadingRoleDialogData = computed(() => roleCatalogLoading.value || loadingRoleSelection.value);
@@ -1060,6 +1065,7 @@ function canManageUserRoles() {
 function hasVisibleUserOperationActions() {
   return (
     canManageUserRoles() ||
+    permissionStore.hasPermission(auditPermissionCodes.READ) ||
     permissionStore.hasPermission(userPermissionCodes.UPDATE) ||
     permissionStore.hasPermission(userPermissionCodes.DISABLE)
   );
@@ -1084,6 +1090,15 @@ function userRowActions(user: UserRow) {
     value: 'detail',
   });
 
+  if (permissionStore.hasPermission(auditPermissionCodes.READ)) {
+    actions.push({
+      fallbackLabel: '查看审计',
+      label: t('user.userList.viewAudit'),
+      testId: 'user-view-audit',
+      value: 'view-audit',
+    });
+  }
+
   userRowMoreOptions(user).forEach((option) => {
     actions.push({
       disabled: false,
@@ -1106,6 +1121,11 @@ function handleUserRowAction(action: string, user: UserRow) {
 
   if (action === 'manage-roles') {
     void handleOpenUserRoleDrawer(user);
+    return;
+  }
+
+  if (action === 'view-audit') {
+    void router.push(buildAuditResourceLocation('user', String(user.id), user.display || user.username));
     return;
   }
 
@@ -1238,7 +1258,7 @@ async function handleUserSubmit(ctx: SubmitContext) {
       };
       const created = await createUser(payload);
       users.value = [{ ...created, roles: [] as UserRoleSummary[] }, ...users.value];
-      MessagePlugin.success(t('user.userList.createSuccess'));
+      MessagePlugin.success(formatHintedMessage(t('user.userList.createSuccess')));
     } else if (userDrawerTarget.value) {
       const payload: UpdateUserPayload = {
         username: userForm.value.username.trim(),
@@ -1248,7 +1268,7 @@ async function handleUserSubmit(ctx: SubmitContext) {
       users.value = users.value.map((item) =>
         item.id === updated.id ? { ...item, ...updated, roles: item.roles } : item,
       );
-      MessagePlugin.success(t('user.userList.editSuccess'));
+      MessagePlugin.success(formatHintedMessage(t('user.userList.editSuccess')));
     }
     closeUserDrawer();
   } catch (error) {
@@ -1267,12 +1287,22 @@ async function handleUserSubmit(ctx: SubmitContext) {
         return;
       }
 
-      MessagePlugin.error(errorMessage);
+      const message = resolveErrorMessageWithCorrelation(t, error, errorMessage);
+      MessagePlugin.error(message);
+      openCorrelationErrorNotification({
+        router,
+        title: t('audit.correlation.errorTitle'),
+        message,
+        requestId: requestIdFromError(error),
+        translate: t,
+      });
       return;
     }
 
     MessagePlugin.error(
-      userDrawerMode.value === 'create' ? t('user.userList.createFailed') : t('user.userList.editFailed'),
+      formatHintedMessage(
+        userDrawerMode.value === 'create' ? t('user.userList.createFailed') : t('user.userList.editFailed'),
+      ),
     );
   } finally {
     submittingUser.value = false;
@@ -1319,7 +1349,7 @@ async function submitResetPassword() {
       new_password: resetPasswordForm.value.password,
     };
     await resetUserPassword(resetPasswordTarget.value.id, payload);
-    MessagePlugin.success(t('user.userList.resetPasswordSuccess'));
+    MessagePlugin.success(formatHintedMessage(t('user.userList.resetPasswordSuccess')));
     closeResetPasswordDialog();
   } catch (error) {
     logger.error('failed to reset password', error);
@@ -1333,11 +1363,27 @@ async function submitResetPassword() {
         return;
       }
 
-      MessagePlugin.error(errorMessage);
+      const message = resolveErrorMessageWithCorrelation(t, error, errorMessage);
+      MessagePlugin.error(message);
+      openCorrelationErrorNotification({
+        router,
+        title: t('audit.correlation.errorTitle'),
+        message,
+        requestId: requestIdFromError(error),
+        translate: t,
+      });
       return;
     }
 
-    MessagePlugin.error(t('user.userList.resetPasswordFailed'));
+    const message = resolveErrorMessageWithCorrelation(t, error, t('user.userList.resetPasswordFailed'));
+    MessagePlugin.error(message);
+    openCorrelationErrorNotification({
+      router,
+      title: t('audit.correlation.errorTitle'),
+      message,
+      requestId: requestIdFromError(error),
+      translate: t,
+    });
   } finally {
     submittingResetPassword.value = false;
   }
@@ -1369,17 +1415,23 @@ async function toggleUserStatus(user: UserRow) {
   try {
     const updated = await updateUserStatus(user.id, { status: nextStatus });
     users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
-    MessagePlugin.success(t('user.userList.statusUpdateSuccess'));
+    MessagePlugin.success(formatHintedMessage(t('user.userList.statusUpdateSuccess')));
   } catch (error) {
     logger.error('failed to update status', error);
     if (isApiRequestError(error)) {
-      MessagePlugin.error(
-        localizedApiErrorMessage(t, error.messageKey, error.message) || t('user.userList.statusUpdateFailed'),
-      );
+      const message = resolveErrorMessageWithCorrelation(t, error, t('user.userList.statusUpdateFailed'));
+      MessagePlugin.error(message);
+      openCorrelationErrorNotification({
+        router,
+        title: t('audit.correlation.errorTitle'),
+        message,
+        requestId: requestIdFromError(error),
+        translate: t,
+      });
       return;
     }
 
-    MessagePlugin.error(t('user.userList.statusUpdateFailed'));
+    MessagePlugin.error(formatHintedMessage(t('user.userList.statusUpdateFailed')));
   }
 }
 
@@ -1404,10 +1456,18 @@ async function confirmDeleteUser(user: UserRow) {
     await deleteUser(user.id);
     users.value = users.value.filter((item) => item.id !== user.id);
     selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== user.id);
-    MessagePlugin.success(t('user.userList.deleteSuccess'));
+    MessagePlugin.success(formatHintedMessage(t('user.userList.deleteSuccess')));
   } catch (error) {
     logger.error('failed to delete user', error);
-    MessagePlugin.error(t('user.userList.deleteFailed'));
+    const message = resolveErrorMessageWithCorrelation(t, error, t('user.userList.deleteFailed'));
+    MessagePlugin.error(message);
+    openCorrelationErrorNotification({
+      router,
+      title: t('audit.correlation.errorTitle'),
+      message,
+      requestId: requestIdFromError(error),
+      translate: t,
+    });
   }
 }
 
@@ -1648,18 +1708,24 @@ async function submitUserRoleAssignment() {
       users.value = users.value.map((item) =>
         targetIds.has(item.id) ? { ...item, roles: applyRoleMutation(item.roles) } : item,
       );
-      MessagePlugin.success(t('user.userList.batchRoleUpdateSuccess'));
+      MessagePlugin.success(formatHintedMessage(t('user.userList.batchRoleUpdateSuccess')));
     } else {
       users.value = users.value.map((item) =>
         item.id === selectedUser.value?.id ? { ...item, roles: applyRoleMutation(item.roles) } : item,
       );
-      MessagePlugin.success(t('user.userList.roleUpdateSuccess'));
+      MessagePlugin.success(formatHintedMessage(t('user.userList.roleUpdateSuccess')));
     }
     closeUserRoleDrawer();
   } catch (error) {
     if (isActiveDrawerSession(session)) {
       logger.error('failed to mutate user roles', error);
-      MessagePlugin.error(resolveRoleMutationErrorMessage(error, roleDialogMode.value === 'batch'));
+      MessagePlugin.error(
+        resolveErrorMessageWithCorrelation(
+          t,
+          error,
+          resolveRoleMutationErrorMessage(error, roleDialogMode.value === 'batch'),
+        ),
+      );
     }
   } finally {
     if (drawerSession.value === session) {

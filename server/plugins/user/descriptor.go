@@ -6,6 +6,8 @@ import (
 
 	"graft/server/internal/plugin"
 	"graft/server/plugins/user/storeent"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -25,7 +27,11 @@ func NewDescriptor() plugin.Descriptor {
 			if err != nil {
 				return nil, fmt.Errorf("resolve sql db: %w", err)
 			}
-			storeRuntime, err := storeent.NewRuntime(sqlDB)
+			runtimeLogger, err := plugin.ResolveService[*zap.Logger](ctx.Services, (*zap.Logger)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve runtime logger: %w", err)
+			}
+			storeRuntime, err := storeent.NewRuntime(sqlDB, runtimeLogger)
 			if err != nil {
 				return nil, fmt.Errorf("build user storeent runtime: %w", err)
 			}

@@ -216,7 +216,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 			SupportedLocales: []string{"zh-CN", "en-US"},
 		},
 	}
-	localizer := i18n.New(cfg.I18n)
+	localizer := i18n.MustNew(cfg.I18n)
 	runtime := &Runtime{
 		config:   cfg,
 		logger:   runtimeLogger,
@@ -286,7 +286,7 @@ func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
 			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
 		},
 		logger:             zap.NewNop(),
-		i18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           runtimeEventBus,
 		services:           container.New(),
@@ -326,7 +326,7 @@ func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
 			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
 		},
 		logger:             zap.NewNop(),
-		i18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
 		services:           container.New(),
@@ -368,7 +368,7 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 		t.Fatalf("register plugin: %v", err)
 	}
 
-	localizer := i18n.New(config.I18nConfig{
+	localizer := i18n.MustNew(config.I18nConfig{
 		DefaultLocale:    "zh-CN",
 		FallbackLocale:   "zh-CN",
 		SupportedLocales: []string{"zh-CN", "en-US"},
@@ -432,7 +432,7 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 	cronRegistry.Register(cronx.Job{Name: "audit", Schedule: "0 0 * * *"})
 
 	runtime := &Runtime{
-		i18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		menuRegistry:       menuRegistry,
 		permissionRegistry: permissionRegistry,
 		cronRegistry:       cronRegistry,
@@ -482,7 +482,7 @@ func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 
 	runtime := &Runtime{
 		config:             &config.Config{Docs: config.DocsConfig{Enabled: true}},
-		i18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),
@@ -502,7 +502,7 @@ func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {
 
 	runtime := &Runtime{
 		config:             &config.Config{Docs: config.DocsConfig{Enabled: false}},
-		i18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),

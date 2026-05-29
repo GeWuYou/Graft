@@ -88,6 +88,10 @@ vi.mock('tdesign-vue-next', () => ({
     success: messageMocks.success,
     warning: messageMocks.warning,
   },
+  NotifyPlugin: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
 }));
 
 vi.stubGlobal('confirm', confirmMock);

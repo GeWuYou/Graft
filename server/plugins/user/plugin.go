@@ -40,8 +40,6 @@ var (
 	errInvalidUserPayload   = errors.New("invalid user payload")
 )
 
-type auditRequestIDContextKey struct{}
-
 // NewPlugin 创建示例用户插件。
 func NewPlugin(userRepo userstore.UserRepository, authRepo userstore.AuthRepository) *Plugin {
 	return &Plugin{
@@ -297,7 +295,6 @@ func (s userService) CreateUser(
 		ResourceType: "user",
 		ResourceID:   formatUserAuditID(created.ID),
 		ResourceName: created.Username,
-		RequestID:    currentRequestID(ctx),
 		Success:      true,
 		Message:      "user created",
 		Metadata: map[string]any{
@@ -336,7 +333,6 @@ func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) 
 		ResourceType: "user",
 		ResourceID:   formatUserAuditID(updated.ID),
 		ResourceName: updated.Username,
-		RequestID:    currentRequestID(ctx),
 		Success:      true,
 		Message:      "user updated",
 		Metadata: map[string]any{
@@ -393,7 +389,6 @@ func (s userService) SetUserStatus(
 		ResourceType: "user",
 		ResourceID:   formatUserAuditID(updated.ID),
 		ResourceName: updated.Username,
-		RequestID:    currentRequestID(ctx),
 		Success:      true,
 		Message:      "user status updated",
 		Metadata: map[string]any{
@@ -435,7 +430,6 @@ func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepo
 		Action:       "user.delete",
 		ResourceType: "user",
 		ResourceID:   formatUserAuditID(userID),
-		RequestID:    currentRequestID(ctx),
 		Success:      true,
 		Message:      "user deleted",
 	})
@@ -476,7 +470,6 @@ func (s userService) ResetUserPassword(
 		Action:       "user.password.reset",
 		ResourceType: "user",
 		ResourceID:   formatUserAuditID(userID),
-		RequestID:    currentRequestID(ctx),
 		Success:      true,
 		Message:      "user password reset",
 		Metadata: map[string]any{
@@ -550,24 +543,6 @@ func currentAuditOperator(ctx context.Context) *pluginapi.CurrentUser {
 
 	user := *requestAuth.User
 	return &user
-}
-
-func currentRequestID(ctx context.Context) string {
-	if ctx == nil {
-		return ""
-	}
-	requestID, _ := ctx.Value(auditRequestIDContextKey{}).(string)
-	return strings.TrimSpace(requestID)
-}
-
-func withAuditRequestID(ctx context.Context, requestID string) context.Context {
-	if strings.TrimSpace(requestID) == "" {
-		return ctx
-	}
-	if ctx == nil {
-		return nil
-	}
-	return context.WithValue(ctx, auditRequestIDContextKey{}, strings.TrimSpace(requestID))
 }
 
 func formatUserAuditID(id uint64) string {

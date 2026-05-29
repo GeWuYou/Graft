@@ -14,6 +14,12 @@
     "common": {
       "unknownActor": "Anonymous",
       "unknownResource": "Unknown resource",
+      "source": {
+        "REQUEST": "Audit Event",
+        "SECURITY_EVENT": "Security Event",
+        "DOMAIN_EVENT": "Domain Audit",
+        "UNKNOWN": "Unclassified Event"
+      },
       "result": {
         "SUCCESS": "Success",
         "FAILED": "Business Failed",
@@ -48,8 +54,20 @@
         "failedAuth": "Recent Authentication Failures",
         "permissionDenied": "Recent Permission Denials",
         "sensitiveOps": "Recent Sensitive Audit Events",
+        "trend": "Risk Trend",
+        "securityTimeline": "Security Event Timeline",
         "shortcuts": "Quick Links",
         "riskWatch": "Recent Risk"
+      },
+      "riskGroups": {
+        "criticalSecurity": "Critical Security Failures",
+        "highRiskOperations": "High-Risk Operations",
+        "authFailures": "Authentication Failures",
+        "permissionDenials": "Permission Denials",
+        "meta": "{count} events in the current window"
+      },
+      "trend": {
+        "pointMeta": "Total {total} / High risk {highRisk} / Security {security}"
       },
       "stats": {
         "totalLogs": {
@@ -187,6 +205,7 @@
       "more": "More",
       "summary": "{count} security audit records shown",
       "tableHint": "The table shows only policy-matched security audit events. Request chain and permission context move to the detail drawer.",
+      "reasonFallback": "No additional reason",
       "footerTotal": "{count} audit events total",
       "footerFiltered": "{count} records matched on this page",
       "currentPageFiltered": "Current page filter",
@@ -196,8 +215,10 @@
       "emptyDescription": "Adjust filters and try again.",
       "detailTitle": "Audit Detail",
       "presets": {
+        "label": "Quick filters",
         "all": "All",
         "todayAnomalies": "Today's Security Anomalies",
+        "rbacChanges": "RBAC Changes",
         "permissionDenied": "Permission Denied",
         "sensitiveOps": "Sensitive Operations",
         "authFailed": "Auth Failed",
@@ -206,26 +227,54 @@
       "actions": {
         "search": "Search",
         "reset": "Reset",
+        "addFilter": "Add filter",
         "showAdvanced": "Advanced Filters",
         "hideAdvanced": "Hide Advanced"
       },
+      "builder": {
+        "title": "Filter fields",
+        "hint": "Choose a field and set its value. Active conditions appear as removable tags.",
+        "fields": {
+          "action": "Action type",
+          "result": "Result",
+          "riskLevel": "Risk level",
+          "source": "Event type",
+          "actor": "Actor",
+          "resourceName": "Audit target",
+          "resourceType": "Target type",
+          "requestId": "Request ID",
+          "traceId": "Trace ID",
+          "session": "Session ID",
+          "resourceId": "Resource ID"
+        }
+      },
       "filters": {
-        "keywordPlaceholder": "Keyword: action, request ID, audit target, operated object",
+        "keywordPlaceholder": "Search actions, users, targets, request ID...",
         "actorPlaceholder": "Actor",
         "actionPlaceholder": "Action type",
+        "sourcePlaceholder": "Event type",
         "datePlaceholder": "Time range",
-        "resourcePlaceholder": "Audit Target / Target Object / Operated Object",
+        "resourceTypePlaceholder": "Audit target type",
+        "resourceNamePlaceholder": "Audit target / target name",
+        "resourceIdPlaceholder": "Resource ID",
         "resultPlaceholder": "Result",
         "riskPlaceholder": "Risk level",
         "sessionPlaceholder": "Session ID",
+        "requestIdPlaceholder": "Troubleshooting ID / Request ID",
         "traceIdPlaceholder": "Trace ID"
       },
       "filterOptions": {
         "allActions": "All actions",
+        "allSource": "All event types",
+        "allResourceTypes": "All target types",
         "auth": "Authentication",
         "role": "Role",
         "permission": "Permission",
         "session": "Session",
+        "userResource": "User",
+        "roleResource": "Role",
+        "permissionResource": "Permission",
+        "authResource": "Authentication",
         "allResults": "All results",
         "SUCCESS": "Success",
         "FAILED": "Business Failed",
@@ -241,6 +290,7 @@
         "action": "Action",
         "actor": "Actor",
         "resource": "Audit Target",
+        "correlation": "Troubleshooting ID",
         "result": "Result",
         "risk": "Risk",
         "createdAt": "Time"
@@ -256,7 +306,9 @@
         },
         "fields": {
           "target": "Audit Target",
+          "source": "Event Type",
           "result": "Result",
+          "reason": "Reason / Notes",
           "requestId": "Request ID",
           "traceId": "Trace ID",
           "sessionId": "Session ID",
@@ -268,8 +320,12 @@
           "latency": "Latency"
         },
         "actions": {
+          "copyRequestId": "Copy",
+          "copyRequestIdSuccess": "Request ID copied",
+          "copyRequestIdFail": "Failed to copy Request ID",
           "copyTraceId": "Copy",
           "copySuccess": "Trace ID copied",
+          "copyFail": "Failed to copy Trace ID",
           "toggleMetadata": "Show raw metadata"
         },
         "related": {
@@ -284,6 +340,21 @@
           "requestTrace": "Request trace available"
         }
       }
+    },
+    "correlation": {
+      "errorTitle": "Operation failed",
+      "requestIdLabel": "Request ID:",
+      "traceIdLabel": "Trace ID:",
+      "copyRequestIdAction": "Copy",
+      "viewAuditAction": "View Audit",
+      "copyRequestIdSuccessTitle": "Request ID copied",
+      "copyRequestIdSuccessContent": "The request ID is ready for troubleshooting.",
+      "copyRequestIdErrorTitle": "Copy failed",
+      "copyRequestIdErrorContent": "Unable to copy the request ID from this browser.",
+      "idLabel": "Troubleshooting ID: {id}",
+      "hintRequestOnly": "Troubleshooting ID: {requestId}",
+      "hintTraceOnly": "Troubleshooting ID: {traceId}",
+      "hintRequestAndTrace": "Troubleshooting ID: {requestId} / Trace: {traceId}"
     }
   }
 }

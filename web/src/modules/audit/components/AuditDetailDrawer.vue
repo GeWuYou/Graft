@@ -29,8 +29,16 @@
             <strong>{{ resourceDetailLabel(record, t) }}</strong>
           </div>
           <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.source') }}</span>
+            <strong>{{ sourceLabel(record, t) }}</strong>
+          </div>
+          <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.result') }}</span>
             <strong>{{ resultLabel(record, t) }}</strong>
+          </div>
+          <div class="audit-detail__item audit-detail__item--full">
+            <span>{{ t('audit.logList.drawer.fields.reason') }}</span>
+            <strong>{{ reasonForRecord(record, t) }}</strong>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.columns.createdAt') }}</span>
@@ -38,7 +46,12 @@
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.requestId') }}</span>
-            <strong class="audit-detail__mono">{{ record.request_id }}</strong>
+            <div class="audit-detail__copy-line">
+              <strong class="audit-detail__mono">{{ requestIdForRecord(record) }}</strong>
+              <t-button size="small" theme="default" variant="text" @click="copyRequestId(record)">
+                {{ t('audit.logList.drawer.actions.copyRequestId') }}
+              </t-button>
+            </div>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.traceId') }}</span>
@@ -156,12 +169,15 @@ import {
   isSensitiveAction,
   metadataDetail,
   metadataLookup,
+  reasonForRecord,
+  requestIdForRecord,
   resourceDetailLabel,
   resourceLabel,
   resultLabel,
   riskLabel,
   riskTone,
   sessionIdForRecord,
+  sourceLabel,
   traceIdForRecord,
 } from '../shared/presentation';
 import type { AuditLogListItem } from '../types/audit';
@@ -189,6 +205,20 @@ async function copyTraceId(record: AuditLogListItem) {
     MessagePlugin.success(t('audit.logList.drawer.actions.copySuccess'));
   } catch {
     MessagePlugin.error(t('audit.logList.drawer.actions.copyFail'));
+  }
+}
+
+async function copyRequestId(record: AuditLogListItem) {
+  const requestId = requestIdForRecord(record);
+  if (!requestId || requestId === '-') {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(requestId);
+    MessagePlugin.success(t('audit.logList.drawer.actions.copyRequestIdSuccess'));
+  } catch {
+    MessagePlugin.error(t('audit.logList.drawer.actions.copyRequestIdFail'));
   }
 }
 

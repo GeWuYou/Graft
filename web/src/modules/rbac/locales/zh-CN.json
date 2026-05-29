@@ -11,6 +11,7 @@
       "detail": "详情",
       "edit": "编辑",
       "more": "更多",
+      "viewAudit": "查看审计",
       "assignPermissions": "分配权限",
       "columnSettings": "列设置",
       "emptyTitle": "暂无角色数据",
@@ -133,6 +134,7 @@
       "listTitle": "权限管理",
       "hint": "查看系统权限点、模块归属与授权使用情况。",
       "detail": "详情",
+      "viewAudit": "查看相关审计",
       "detailTitle": "权限详情",
       "summary": "已显示 {count} 项权限",
       "footerTotal": "共 {count} 项权限",
@@ -207,6 +209,14 @@
         "display": "更新角色",
         "description": "允许更新角色管理数据。"
       },
+      "roleStatusUpdate": {
+        "display": "更新角色状态",
+        "description": "允许启用或停用角色。"
+      },
+      "roleDelete": {
+        "display": "删除角色",
+        "description": "允许删除满足生命周期要求的自定义角色。"
+      },
       "rolePermissionAssign": {
         "display": "分配角色权限",
         "description": "允许更新角色与权限的绑定关系。"
@@ -226,6 +236,10 @@
       "monitorServerStatusRead": {
         "display": "读取服务器状态",
         "description": "允许读取服务器状态概览。"
+      },
+      "auditRead": {
+        "display": "读取审计日志",
+        "description": "允许查看审计概览与审计日志。"
       }
     }
   }

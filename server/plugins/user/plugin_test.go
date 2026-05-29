@@ -666,7 +666,7 @@ func newPluginTestContextWithLoggerAndPermissions(
 			FallbackLocale:   "zh-CN",
 			SupportedLocales: []string{"zh-CN", "en-US"},
 		}},
-		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
@@ -1247,7 +1247,7 @@ func newDefaultAdminBootPluginContext(_ store.AuthRepository, _ rbacstore.Reposi
 			RefreshCookieSameSite: "lax",
 			RefreshCookiePath:     "/",
 		}},
-		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		Router:             engine.Group(testAPIBasePath),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
@@ -2396,7 +2396,7 @@ func TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales(t *testing.T) {
 			FallbackLocale:   "zh-CN",
 			SupportedLocales: nil,
 		},
-		i18n.New(config.I18nConfig{
+		i18n.MustNew(config.I18nConfig{
 			DefaultLocale:    "zh-CN",
 			FallbackLocale:   "zh-CN",
 			SupportedLocales: []string{"zh-CN"},

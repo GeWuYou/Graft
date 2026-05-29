@@ -20,9 +20,12 @@ type Runtime struct {
 }
 
 // NewRuntime builds the user plugin's Ent runtime on top of the shared SQL pool.
-func NewRuntime(sqlDB *sql.DB) (*Runtime, error) {
+func NewRuntime(sqlDB *sql.DB, runtimeLogger *zap.Logger) (*Runtime, error) {
 	if sqlDB == nil {
 		return nil, fmt.Errorf("user storeent runtime requires a non-nil sql db")
+	}
+	if runtimeLogger == nil {
+		return nil, fmt.Errorf("user storeent runtime requires a non-nil logger")
 	}
 
 	driver := entsql.OpenDB("postgres", sqlDB)
@@ -35,7 +38,7 @@ func NewRuntime(sqlDB *sql.DB) (*Runtime, error) {
 					return
 				}
 
-				zap.L().Debug("ent debug",
+				runtimeLogger.Debug("ent debug",
 					zap.String("plugin", "user"),
 					zap.String("component", "ent"),
 					zap.String("message", message),

@@ -48,7 +48,7 @@ func assertLocalizedErrorDetails(t *testing.T, recorder *httptest.ResponseRecord
 func TestWriteLocalizedErrorUsesResolvedLocaleAndFallbackMessage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	service := i18n.New(config.I18nConfig{
+	service := i18n.MustNew(config.I18nConfig{
 		DefaultLocale:    "zh-CN",
 		FallbackLocale:   "zh-CN",
 		SupportedLocales: []string{"zh-CN", "en-US"},

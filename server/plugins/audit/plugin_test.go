@@ -178,7 +178,7 @@ func newPluginTestContextWithLogger(t *testing.T, repo store.AuditRepository, lo
 	ctx := &plugin.Context{
 		Logger:             logger,
 		Config:             &config.Config{},
-		I18n:               i18n.New(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		EventBus:           bus,
 		Router:             engine.Group("/api"),
 		Services:           container.New(),

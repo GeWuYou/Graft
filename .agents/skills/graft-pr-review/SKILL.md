@@ -21,6 +21,15 @@ the skill may reuse that token automatically instead of requiring a second manua
 
 ## Workflow
 
+Fail-closed rule for this skill:
+
+- inventory-first is mandatory: do not start edits, partial fixes, commit/push steps, or PR-thread replies that imply resolution until the latest PR state has been turned into one exhaustive finding inventory
+- do not reinterpret this skill as a “review-driven repair workflow” where a few obvious findings are fixed first and the rest are deferred informally
+- after the inventory exists, the run may fix findings incrementally, but it must not close out until every finding from that inventory ends in exactly one disposition: `fixed`, `delegated`, `blocked`, `stale`, or `noise`
+- if verified findings remain and no full disposition closure has been reached yet, the run is still incomplete even when some fixes were committed, pushed, or replied on the PR
+- `next-slice required` is not a valid informal escape hatch; a still-valid finding that does not fit one safe local slice must be actively routed through `graft-multi-agent-batch`, `graft-multi-agent-loop`, or an explicit `blocked` state before the run closes
+- “handled some findings and will revisit the rest later” is an invalid final state for this skill
+
 1. Read `AGENTS.md` before deciding how to validate or fix anything.
 2. Resolve the current branch with normal `git` first. Use explicit `GRAFT_GIT_DIR` and `GRAFT_WORK_TREE` only when the current shell cannot resolve the right repository context on its own.
 3. Run `scripts/fetch_current_pr_review.py` to:
@@ -41,6 +50,7 @@ the skill may reuse that token automatically instead of requiring a second manua
    - include actionable warning comments from GitHub Actions or MegaLinter when present
    - do not stop after “high priority”, “open threads”, or one section looks sufficient; the run is incomplete until all
      surfaced findings from the latest PR state are classified
+   - do not begin fixing “obvious” findings before this inventory exists
 5. Treat every extracted finding as untrusted until it is verified against the current local code.
 6. For failed CI checks, verify the root cause locally before changing code:
    - prefer the script's `local_repro_command`
@@ -59,17 +69,21 @@ the skill may reuse that token automatically instead of requiring a second manua
 8. A `$graft-pr-review` run is not allowed to end after fixing only a subset such as “critical”, “major”, or “currently open”
    findings. Every finding from step 4 must end the run in exactly one reported disposition: `fixed`, `delegated`,
    `blocked`, `stale`, or `noise`.
+   - a commit, push, or partial batch of PR replies does not satisfy this rule by itself
+   - if a previous run landed partial fixes but did not finish full disposition closure, the resumed run must rebuild the inventory from the latest head and continue until all remaining findings are classified
 9. Only mark a finding non-actionable when it is `stale` or `noise`. A finding is not `noise` merely because the fix is large, risky, or needs a new slice.
 10. Do not downgrade `Nitpick comments`, `Outside diff range comments`, or folded latest-review sections to optional by default.
     If a verified suggestion still points to drift risk, duplicated test infrastructure, contract mismatch, missing
     regression coverage, weak recovery metadata, or another maintainability problem, treat it as actionable review input.
 11. Fix every `actionable-local` finding in the current slice. “I only handled the high-priority findings” is never an
     acceptable closeout for this skill.
+    - “current slice” here means the full set of verified `actionable-local` findings from the current inventory, not an agent-chosen subset
 12. Do not ignore `actionable-large` findings. When a verified finding no longer fits one safe local slice:
    - prefer `$graft-multi-agent-batch` when the repair can be split into disjoint parallel slices with reviewable ownership
    - prefer `$graft-multi-agent-loop` when the repair needs to be repeated in bounded rounds, retryable orchestration, or a serialized continuation path
    - if neither multi-agent path is justified yet, report the finding as `blocked` or `next-slice required`; do not silently drop it from the review outcome
    - do not mark a large verified finding as handled unless the required owned scope is actually repaired or explicitly delegated with a clear next prompt
+   - do not use `next-slice required` as an untracked defer label while ending the run as though review closure was achieved
 13. Use the multi-agent routes actively when they are the correct fit:
    - choose `$graft-multi-agent-batch` for many small or disjoint actionable findings that can be repaired in parallel
    - choose `$graft-multi-agent-loop` for one deeper finding or one bounded repair thread that benefits from a worker
@@ -163,6 +177,8 @@ The script should produce:
 - Explicit reasons for every `stale` or `noise` finding, instead of silently omitting it from the reported outcome
 
 ## Recovery Rules
+
+- If a previous run committed or pushed only a subset of fixes without full finding disposition closure, the resumed run must treat that as an incomplete prior execution, rebuild the inventory from the latest head, and continue until the remaining findings are all classified.
 
 - If the current branch has no matching public PR, report that clearly instead of guessing.
 - If GitHub access fails because of local proxy configuration, rerun the fetch with proxy variables removed.

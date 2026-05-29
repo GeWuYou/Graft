@@ -17,7 +17,7 @@ import (
 )
 
 func newTestLocalizer() *i18n.Service {
-	return i18n.New(config.I18nConfig{
+	return i18n.MustNew(config.I18nConfig{
 		DefaultLocale:    "zh-CN",
 		FallbackLocale:   "zh-CN",
 		SupportedLocales: []string{"zh-CN", "en-US"},

@@ -10,6 +10,8 @@ import (
 	"graft/server/internal/pluginapi"
 	userstore "graft/server/plugins/user/store"
 	"graft/server/plugins/user/storeent"
+
+	"go.uber.org/zap"
 )
 
 // AuthRepositoryForReset narrows the dev-reset helper to the plugin-owned auth boundary.
@@ -17,7 +19,7 @@ type AuthRepositoryForReset = userstore.AuthRepository
 
 // NewAuthRepositoryForReset exposes the user plugin's dev-reset auth boundary.
 func NewAuthRepositoryForReset(sqlDB *sql.DB) (AuthRepositoryForReset, error) {
-	storeRuntime, err := storeent.NewRuntime(sqlDB)
+	storeRuntime, err := storeent.NewRuntime(sqlDB, zap.NewNop())
 	if err != nil {
 		return nil, fmt.Errorf("build user storeent runtime: %w", err)
 	}

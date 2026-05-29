@@ -97,7 +97,7 @@ func (r userRouteRegistrar) registerUserWriteRoutes(group *gin.RouterGroup) {
 
 func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserCollection, r.guards.userCreate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
+		requestCtx := ginCtx.Request.Context()
 		var request useropenapi.PostUsersJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
@@ -141,7 +141,7 @@ func invalidCreateUserField(request useropenapi.PostUsersJSONRequestBody) (strin
 
 func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserUpdateRoute, r.guards.userUpdate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
+		requestCtx := ginCtx.Request.Context()
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
@@ -295,7 +295,7 @@ func headerPointer(value string) *string {
 
 func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserStatusRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
+		requestCtx := ginCtx.Request.Context()
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
@@ -331,7 +331,7 @@ func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 
 func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserResetPasswordRoute, r.guards.userUpdate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
+		requestCtx := ginCtx.Request.Context()
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return
@@ -362,7 +362,7 @@ func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGrou
 
 func (r userRouteRegistrar) registerDeleteUserRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserDeleteRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := withAuditRequestID(ginCtx.Request.Context(), ginCtx.GetHeader(httpx.RequestIDHeader))
+		requestCtx := ginCtx.Request.Context()
 		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
 		if !ok {
 			return

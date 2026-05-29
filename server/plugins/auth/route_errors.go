@@ -45,7 +45,7 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	logFields := append([]zap.Field{
 		zap.String("plugin", r.pluginName),
-		zap.String("request_id", httpx.EnsureRequestID(ginCtx)),
+		zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
 		zap.String("method", ginCtx.Request.Method),
 		zap.String("route", ginCtx.FullPath()),
 		zap.Error(err),

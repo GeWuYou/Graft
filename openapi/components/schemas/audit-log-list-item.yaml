@@ -24,6 +24,9 @@ properties:
     type: string
   action:
     type: string
+  source:
+    type: string
+    enum: [REQUEST, SECURITY_EVENT, DOMAIN_EVENT]
   resource_type:
     type: string
   resource_id:

@@ -38,6 +38,7 @@
       "create": "创建用户",
       "edit": "编辑",
       "more": "更多",
+      "viewAudit": "查看相关审计",
       "createSuccess": "用户创建成功",
       "createFailed": "用户创建失败",
       "editSuccess": "用户更新成功",
