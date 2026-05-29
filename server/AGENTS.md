@@ -144,6 +144,15 @@ authority-first overlay：
 - `plugins/*`
   - 业务插件与插件自有 contract；长期方向下每个插件还应拥有自己的 capability、store、storeent、ent 与 migrations
 
+Observability authority overlay：
+
+- `plugins/audit/**` 拥有 audit facts、incident read model、audit analytics 与 audit evidence consumer 语义
+- `plugins/monitor/**` 拥有 monitor facts、anomaly、trend 与 monitor evidence 语义
+- `internal/httpx/**` 拥有 request correlation、access logging 与 security-event bridge authority
+- `internal/logger/**` 拥有 `AppLogger` / `Error Log` baseline
+- `openapi/**` 是 shared wire contract authority；`internal/contract/openapi/**` 仅是 derived artifact consumer boundary
+- `internal/pluginapi/**` 中的 observability capability 只允许暴露 bounded evidence、stable ingest、或 narrow identity/authz-style ability，不得暴露 plugin internals
+
 除这些显式边界外，不要再发明隐藏 runtime surface。新的平台级入口如果不能清楚归入现有边界，先更新设计再写代码。
 
 ## 5. 后端目标与核心边界
@@ -184,6 +193,10 @@ authority-first overlay：
 - 新业务能力默认先问“能否直接放进 `server/plugins/<name>/**`”；除非它是平台基础设施，否则不要先放 `internal/**`
 - 新的业务 schema、Ent 生成产物、业务 migration 真相不允许回流 `server/internal/ent/**`
 - 插件间协作默认优先扩展 `pluginapi` 或稳定 `contract`，而不是直接引用对方内部实现
+- 若协作涉及 observability：
+  - `audit` 只能消费 monitor-owned evidence，不得反向拥有 monitor anomaly truth
+  - `monitor` 不得推断 audit incident / policy truth
+  - capability DTO 若在 pluginapi、plugin store、OpenAPI 三层同时存在，必须能说明 canonical owner 与 derived mapping path
 
 ## 7. 插件生命周期与边界
 

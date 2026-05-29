@@ -16,6 +16,25 @@ Overlay note:
 
 ## Archived Topics
 
+- `observability-governance-closeout`
+  - Status: `archived`
+  - Recovery status: completed the bounded Observability Phase C governance closeout; authority ownership, EvidenceLink governance, plugin capability governance, observability boundaries, and Phase D logging readiness are now documented without widening into runtime feature work.
+  - Archive reason: the truthful remaining work was governance consolidation, not new observability implementation, and that consolidation is now complete.
+  - Final result:
+    - formalized audit / monitor / OpenAPI / generated artifact / web-consumer authority ownership
+    - formalized `EvidenceLink` as backend-owned canonical drilldown contract and documented frontend consumer limits
+    - documented observability capability expectations for `server/internal/pluginapi/**`
+    - published an explicit observability boundary matrix across audit, monitor, logging, metrics, and tracing
+    - recorded truthful Phase D logging readiness as `Partially Ready`
+  - Follow-up status: `new-topic-only`
+  - Archived topic directory:
+    - `ai-plan/public/observability-governance-closeout`
+  - Archive notes:
+    - no new feature work was accepted in this topic
+    - metadata fallback in audit UI remains a documented governance gap rather than a reopened runtime implementation slice
+    - Phase D must start as a new bounded authority-definition topic, not as immediate feature rollout
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat observability-governance-closeout as archived governance evidence. Open a new bounded topic only if Phase D log-explorer authority definition or another explicit observability follow-up is required.`
+
 - `audit-monitor-phase-b-integration`
   - Status: `archived`
   - Recovery status: completed the bounded Phase B authority-discovery, design, and final maturity-review loop; Phase B is closed and no active continuation remains until a new bounded topic is opened.

@@ -210,6 +210,11 @@ i18n 与标题规则：
   - 页面与 store 不得直接发起 `request.<method>()` 调用；应继续只消费模块 `api/**` 入口
   - 不得新增 generated runtime client、`fetch()`、或额外 `axios.create()` / axios 实例绕过 `request.ts`
   - 不得把 generated schema 当成拒绝 authority repair 的理由；若 generated consumer 与 authority drift 不一致，应修 source input 后重新生成
+  - observability consumer 额外约束：
+    - `EvidenceLink`、audit incident、monitor anomaly、audit evidence context 的 authority 在 backend + OpenAPI source
+    - `web` 只能消费 canonical fields，不得发明新的 evidence target kind、incident seed 语义或 monitor/anomaly ownership
+    - monitor-origin、return location、query preset 等仅属于 UI navigation context，不得提升为 evidence authority
+    - metadata fallback 只能作为临时消费兼容，不得成为新的长期 contract source
 
 壳层 Footer 约定：
 
