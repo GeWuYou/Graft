@@ -54,9 +54,9 @@
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
@@ -67,6 +67,8 @@ import { getAuditLogs } from '../../api/audit';
 import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
 import AuditTable from '../../components/AuditTable.vue';
+import { buildAuditLogsLocation, parseAuditLogsRouteQuery } from '../../contract/deep-link';
+import { getAuditPresetDefaults, listAuditPresets, resolveAuditPresetKey } from '../../contract/presets';
 import type { AuditClientFilterState } from '../../shared/presentation';
 import { matchesAuditRow } from '../../shared/presentation';
 import type { AuditLogListItem, AuditLogQuery } from '../../types/audit';
@@ -75,17 +77,16 @@ defineOptions({
   name: 'AuditLogListIndex',
 });
 
-type PresetKey = 'all' | 'today-anomalies' | 'permission-denied' | 'sensitive-ops' | 'auth-failed' | 'high-risk';
-
 const logger = createLogger('audit.logs');
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 
 const loading = ref(false);
 const listError = ref('');
 const rows = ref<AuditLogListItem[]>([]);
 const total = ref(0);
-const activePreset = ref<PresetKey>('all');
+const activePreset = ref(resolveAuditPresetKey(''));
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
 const latestRequestSeq = ref(0);
@@ -96,15 +97,14 @@ const pagination = ref({
 const filters = ref<AuditClientFilterState>({
   ...createDefaultFilters(),
 });
+const applyingRoute = ref(false);
 
-const presetViews = computed(() => [
-  { key: 'all' as const, title: t('audit.logList.presets.all') },
-  { key: 'today-anomalies' as const, title: t('audit.logList.presets.todayAnomalies') },
-  { key: 'permission-denied' as const, title: t('audit.logList.presets.permissionDenied') },
-  { key: 'sensitive-ops' as const, title: t('audit.logList.presets.sensitiveOps') },
-  { key: 'auth-failed' as const, title: t('audit.logList.presets.authFailed') },
-  { key: 'high-risk' as const, title: t('audit.logList.presets.highRisk') },
-]);
+const presetViews = computed(() =>
+  listAuditPresets().map((preset) => ({
+    key: preset.key,
+    title: t(preset.titleKey),
+  })),
+);
 
 const hasClientOnlyFilters = computed(() =>
   Boolean(
@@ -201,29 +201,27 @@ async function fetchAuditLogs() {
   }
 }
 
-function applyPreset(preset: PresetKey) {
+function applyPreset(preset: typeof activePreset.value) {
   activePreset.value = preset;
   filters.value = {
     ...createDefaultFilters(),
-    ...presetFilterOverrides(preset),
+    ...getAuditPresetDefaults(preset),
   };
 
   pagination.value.current = 1;
-  syncRouteQuery();
-  fetchAuditLogs();
+  updateRouteQuery();
 }
 
 function handleSearch() {
   pagination.value.current = 1;
-  fetchAuditLogs();
+  updateRouteQuery();
 }
 
 function resetFilters() {
   filters.value = createDefaultFilters();
   activePreset.value = 'all';
   pagination.value.current = 1;
-  syncRouteQuery();
-  fetchAuditLogs();
+  updateRouteQuery();
 }
 
 function createDefaultFilters(): AuditClientFilterState {
@@ -244,23 +242,6 @@ function createDefaultFilters(): AuditClientFilterState {
   };
 }
 
-function presetFilterOverrides(preset: PresetKey): Partial<AuditClientFilterState> {
-  switch (preset) {
-    case 'today-anomalies':
-      return { source: 'SECURITY_EVENT', result: 'ERROR', riskLevel: 'HIGH' };
-    case 'permission-denied':
-      return { source: 'SECURITY_EVENT', result: 'DENIED', riskLevel: 'CRITICAL' };
-    case 'auth-failed':
-      return { source: 'REQUEST', result: 'FAILED', resourceType: 'auth', riskLevel: 'HIGH' };
-    case 'sensitive-ops':
-      return { riskLevel: 'HIGH' };
-    case 'high-risk':
-      return { source: 'SECURITY_EVENT', riskLevel: 'CRITICAL' };
-    default:
-      return {};
-  }
-}
-
 function openDetailDrawer(row: AuditLogListItem) {
   detailRecord.value = row;
   detailDrawerVisible.value = true;
@@ -271,103 +252,84 @@ function toISOStringOrRaw(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toISOString();
 }
 
-function applyRoutePreset() {
-  const preset = route.query.preset;
-  if (
-    preset === 'today-anomalies' ||
-    preset === 'permission-denied' ||
-    preset === 'sensitive-ops' ||
-    preset === 'auth-failed' ||
-    preset === 'high-risk'
-  ) {
-    applyPreset(preset);
-    return true;
-  }
-  return false;
-}
-
-function firstQueryValue(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
-
 function applyRouteFilters() {
-  const nextPreset = firstQueryValue(route.query.preset) as PresetKey | '';
+  const query = parseAuditLogsRouteQuery(route.query);
+  const nextPreset = resolveAuditPresetKey(query.preset ?? '');
+  const presetDefaults = getAuditPresetDefaults(nextPreset);
   const nextFilters: AuditClientFilterState = {
-    keyword: firstQueryValue(route.query.keyword),
-    actor: firstQueryValue(route.query.actor),
-    action: firstQueryValue(route.query.action),
-    source: firstQueryValue(route.query.source),
-    createdRange: [],
-    resourceType: firstQueryValue(route.query.resourceType),
-    resourceName: firstQueryValue(route.query.resourceName),
-    resourceId: firstQueryValue(route.query.resourceId),
-    result: (firstQueryValue(route.query.result) as AuditClientFilterState['result']) || 'all',
-    riskLevel: (firstQueryValue(route.query.riskLevel) as AuditClientFilterState['riskLevel']) || 'all',
-    session: firstQueryValue(route.query.session),
-    requestId: firstQueryValue(route.query.requestId),
-    traceId: firstQueryValue(route.query.traceId),
+    ...createDefaultFilters(),
+    ...presetDefaults,
+    keyword: query.keyword ?? '',
+    actor: query.actor ?? '',
+    action: query.action || presetDefaults.action || '',
+    source: query.source || presetDefaults.source || '',
+    createdRange: [query.createdFrom, query.createdTo].filter(Boolean) as string[],
+    resourceType: query.resourceType || presetDefaults.resourceType || '',
+    resourceName: query.resourceName ?? '',
+    resourceId: query.resourceId ?? '',
+    result: (query.result as AuditClientFilterState['result']) || presetDefaults.result || 'all',
+    riskLevel: (query.riskLevel as AuditClientFilterState['riskLevel']) || presetDefaults.riskLevel || 'all',
+    session: query.session ?? '',
+    requestId: query.requestId ?? '',
+    traceId: query.traceId ?? '',
   };
 
   filters.value = nextFilters;
-  activePreset.value = nextPreset || 'all';
+  activePreset.value = nextPreset;
 }
 
-function syncRouteQuery() {
-  const query: Record<string, string> = {};
+function buildRouteQuery() {
+  const [createdFrom = '', createdTo = ''] = filters.value.createdRange;
 
-  if (activePreset.value !== 'all') {
-    query.preset = activePreset.value;
-  }
-  if (filters.value.keyword) {
-    query.keyword = filters.value.keyword;
-  }
-  if (filters.value.actor) {
-    query.actor = filters.value.actor;
-  }
-  if (filters.value.action) {
-    query.action = filters.value.action;
-  }
-  if (filters.value.source) {
-    query.source = filters.value.source;
-  }
-  if (filters.value.resourceType) {
-    query.resourceType = filters.value.resourceType;
-  }
-  if (filters.value.resourceName) {
-    query.resourceName = filters.value.resourceName;
-  }
-  if (filters.value.resourceId) {
-    query.resourceId = filters.value.resourceId;
-  }
-  if (filters.value.result !== 'all') {
-    query.result = filters.value.result;
-  }
-  if (filters.value.riskLevel !== 'all') {
-    query.riskLevel = filters.value.riskLevel;
-  }
-  if (filters.value.session) {
-    query.session = filters.value.session;
-  }
-  if (filters.value.requestId) {
-    query.requestId = filters.value.requestId;
-  }
-  if (filters.value.traceId) {
-    query.traceId = filters.value.traceId;
-  }
-
-  void history.replaceState(
-    history.state,
-    '',
-    `${route.path}${new URLSearchParams(query).toString() ? `?${new URLSearchParams(query).toString()}` : ''}`,
-  );
+  return {
+    preset: activePreset.value === 'all' ? '' : activePreset.value,
+    keyword: filters.value.keyword,
+    actor: filters.value.actor,
+    action: filters.value.action,
+    source: filters.value.source,
+    createdFrom,
+    createdTo,
+    resourceType: filters.value.resourceType,
+    resourceName: filters.value.resourceName,
+    resourceId: filters.value.resourceId,
+    result: filters.value.result === 'all' ? '' : filters.value.result,
+    riskLevel: filters.value.riskLevel === 'all' ? '' : filters.value.riskLevel,
+    session: filters.value.session,
+    requestId: filters.value.requestId,
+    traceId: filters.value.traceId,
+  };
 }
 
-onMounted(() => {
-  applyRouteFilters();
-  if (!applyRoutePreset()) {
-    fetchAuditLogs();
+async function updateRouteQuery() {
+  if (applyingRoute.value) {
+    return;
   }
-});
+
+  const nextLocation = buildAuditLogsLocation(buildRouteQuery());
+  const currentLocation = buildAuditLogsLocation(route.query);
+
+  if (JSON.stringify(nextLocation.query) === JSON.stringify(currentLocation.query)) {
+    await fetchAuditLogs();
+    return;
+  }
+
+  await router.replace(nextLocation);
+}
+
+watch(
+  () => route.query,
+  async () => {
+    applyingRoute.value = true;
+    try {
+      applyRouteFilters();
+    } finally {
+      applyingRoute.value = false;
+    }
+    pagination.value.current = 1;
+    await fetchAuditLogs();
+  },
+  { immediate: true },
+);
 </script>
 <style scoped lang="less">
 @import '../../../rbac/shared/list-page.less';

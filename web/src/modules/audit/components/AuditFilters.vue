@@ -122,9 +122,8 @@ import { useI18n } from 'vue-i18n';
 
 import { ManagementToolbar } from '@/shared/components/management';
 
+import type { AuditPresetKey } from '../contract/presets';
 import type { AuditClientFilterState } from '../shared/presentation';
-
-type PresetKey = 'all' | 'today-anomalies' | 'permission-denied' | 'sensitive-ops' | 'auth-failed' | 'high-risk';
 
 type FilterKey = Exclude<keyof AuditClientFilterState, 'keyword' | 'createdRange'>;
 type SelectFilterKey = 'action' | 'source' | 'resourceType' | 'result' | 'riskLevel';
@@ -153,14 +152,14 @@ type TextDefinition = BaseDefinition<TextFilterKey> & {
 type FilterDefinition = SelectDefinition | TextDefinition;
 
 const props = defineProps<{
-  activePreset: PresetKey;
+  activePreset: AuditPresetKey;
   loading?: boolean;
   modelValue: AuditClientFilterState;
-  presets: { key: PresetKey; title: string }[];
+  presets: { key: AuditPresetKey; title: string }[];
 }>();
 
 const emit = defineEmits<{
-  (e: 'apply-preset', preset: PresetKey): void;
+  (e: 'apply-preset', preset: AuditPresetKey): void;
   (e: 'reset'): void;
   (e: 'search'): void;
   (e: 'update:modelValue', value: AuditClientFilterState): void;

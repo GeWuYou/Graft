@@ -1,8 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { resolveAuditPresetKey } from '../../contract/presets';
 import AuditLogsPage from './index.vue';
 
 const auditApiMocks = vi.hoisted(() => ({
@@ -61,14 +63,29 @@ vi.mock('@/utils/logger', () => ({
 vi.mock('../../components/AuditFilters.vue', () => ({
   default: defineComponent({
     name: 'AuditFiltersStub',
-    props: ['presets', 'activePreset'],
+    props: ['presets', 'activePreset', 'modelValue'],
     emits: ['search', 'reset', 'apply-preset', 'update:modelValue'],
-    setup(_, { emit }) {
+    setup(props, { emit }) {
       return () =>
         h('div', [
+          h('span', { 'data-testid': 'audit-filter-model' }, JSON.stringify(props.modelValue)),
           h('button', { 'data-testid': 'audit-search', onClick: () => emit('search') }, 'search'),
           h('button', { 'data-testid': 'audit-reset', onClick: () => emit('reset') }, 'reset'),
           h('button', { 'data-testid': 'audit-preset', onClick: () => emit('apply-preset', 'high-risk') }, 'preset'),
+          h(
+            'button',
+            {
+              'data-testid': 'audit-route-sync',
+              onClick: () =>
+                emit('update:modelValue', {
+                  ...props.modelValue,
+                  actor: 'route-admin',
+                  createdRange: ['2026-05-01 10:00:00', '2026-05-02 18:30:00'],
+                  result: 'FAILED',
+                }),
+            },
+            'sync-route',
+          ),
         ]);
     },
   }),
@@ -97,14 +114,6 @@ vi.mock('../../components/AuditDetailDrawer.vue', () => ({
     props: ['visible', 'record'],
     setup(props) {
       return () => h('div', [String(props.visible), props.record?.request_id]);
-    },
-  }),
-}));
-
-vi.mock('vue-router', () => ({
-  useRoute: () => ({
-    query: {
-      preset: 'permission-denied',
     },
   }),
 }));
@@ -269,10 +278,26 @@ const i18n = createI18n({
 });
 
 describe('AuditLogsPage', () => {
-  it('loads preset-backed records and opens the detail drawer', async () => {
+  beforeEach(() => {
+    auditApiMocks.getAuditLogs.mockClear();
+  });
+
+  async function mountPage(initialQuery: Record<string, string> = { preset: 'permission-denied' }) {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/audit/logs', component: AuditLogsPage }],
+    });
+
+    await router.push({
+      path: '/audit/logs',
+      query: initialQuery,
+    });
+    await router.isReady();
+
+    const replaceSpy = vi.spyOn(router, 'replace');
     const wrapper = mount(AuditLogsPage, {
       global: {
-        plugins: [i18n],
+        plugins: [i18n, router],
         stubs: {
           'management-empty-state': passthroughStub,
           'management-page-content': passthroughStub,
@@ -284,10 +309,38 @@ describe('AuditLogsPage', () => {
     });
 
     await flushPromises();
+    return { router, replaceSpy, wrapper };
+  }
+
+  it('restores deep-link filters including created range and keeps backend request shape unchanged', async () => {
+    const { wrapper } = await mountPage({
+      actor: 'alice',
+      createdFrom: '2026-05-01 10:00:00',
+      createdTo: '2026-05-02 18:30:00',
+      result: 'FAILED',
+    });
+
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"actor":"alice"');
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain(
+      '"createdRange":["2026-05-01 10:00:00","2026-05-02 18:30:00"]',
+    );
+    expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith({
+      page: 1,
+      page_size: 10,
+      result: 'FAILED',
+      created_from: '2026-05-01T02:00:00.000Z',
+      created_to: '2026-05-02T10:30:00.000Z',
+    });
+  });
+
+  it('loads preset-backed records and opens the detail drawer', async () => {
+    const { wrapper } = await mountPage();
 
     expect(auditApiMocks.getAuditLogs).toHaveBeenCalledWith(
       expect.objectContaining({
         result: 'DENIED',
+        risk_level: 'CRITICAL',
+        source: 'SECURITY_EVENT',
       }),
     );
     expect(wrapper.text()).toContain('1 security audit records shown');
@@ -303,20 +356,7 @@ describe('AuditLogsPage', () => {
   });
 
   it('applies quick preset from filters and refetches with unchanged query contract', async () => {
-    const wrapper = mount(AuditLogsPage, {
-      global: {
-        plugins: [i18n],
-        stubs: {
-          'management-empty-state': passthroughStub,
-          'management-page-content': passthroughStub,
-          'management-page-header': passthroughStub,
-          't-button': buttonStub,
-          't-space': passthroughStub,
-        },
-      },
-    });
-
-    await flushPromises();
+    const { wrapper } = await mountPage();
     auditApiMocks.getAuditLogs.mockClear();
 
     await wrapper.get('[data-testid="audit-preset"]').trigger('click');
@@ -328,5 +368,77 @@ describe('AuditLogsPage', () => {
       risk_level: 'CRITICAL',
       source: 'SECURITY_EVENT',
     });
+  });
+
+  it('syncs interactive filters into route query for reload and sharing', async () => {
+    const { replaceSpy, router, wrapper } = await mountPage();
+    auditApiMocks.getAuditLogs.mockClear();
+    replaceSpy.mockClear();
+
+    await wrapper.get('[data-testid="audit-route-sync"]').trigger('click');
+    await wrapper.get('[data-testid="audit-search"]').trigger('click');
+    await flushPromises();
+
+    expect(replaceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/audit/logs',
+        query: expect.objectContaining({
+          actor: 'route-admin',
+          createdFrom: '2026-05-01 10:00:00',
+          createdTo: '2026-05-02 18:30:00',
+          preset: 'permission-denied',
+          result: 'FAILED',
+        }),
+      }),
+    );
+    expect(router.currentRoute.value.query).toMatchObject({
+      actor: 'route-admin',
+      createdFrom: '2026-05-01 10:00:00',
+      createdTo: '2026-05-02 18:30:00',
+      preset: 'permission-denied',
+      result: 'FAILED',
+    });
+    expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        result: 'FAILED',
+        created_from: '2026-05-01T02:00:00.000Z',
+        created_to: '2026-05-02T10:30:00.000Z',
+      }),
+    );
+  });
+
+  it('maps legacy overview preset keys to the canonical local preset authority', async () => {
+    expect(resolveAuditPresetKey('failed-auth')).toBe('auth-failed');
+    expect(resolveAuditPresetKey('rbac-changes')).toBe('permission-denied');
+
+    const { replaceSpy, router, wrapper } = await mountPage({ preset: 'failed-auth' });
+    replaceSpy.mockClear();
+    auditApiMocks.getAuditLogs.mockClear();
+
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"resourceType":"auth"');
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"result":"FAILED"');
+
+    await wrapper.get('[data-testid="audit-search"]').trigger('click');
+    await flushPromises();
+
+    expect(replaceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/audit/logs',
+        query: expect.objectContaining({
+          preset: 'auth-failed',
+        }),
+      }),
+    );
+    expect(router.currentRoute.value.query).toMatchObject({
+      preset: 'auth-failed',
+    });
+    expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        result: 'FAILED',
+        resource_type: 'auth',
+        risk_level: 'HIGH',
+        source: 'REQUEST',
+      }),
+    );
   });
 });

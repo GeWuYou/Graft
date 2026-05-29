@@ -198,6 +198,8 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { buildAuditLogsLocation, buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
+import type { AuditPresetKey } from '@/modules/audit/contract/presets';
+import { resolveAuditPresetKey } from '@/modules/audit/contract/presets';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { GovernanceDashboardShell, GovernanceSection, GovernanceSummaryCard } from '@/shared/components/governance';
 import { ManagementEmptyState } from '@/shared/components/management';
@@ -293,23 +295,23 @@ const shortcuts = computed(() => [
     key: 'failed',
     title: t('audit.overview.shortcuts.failedAuth.title'),
     description: t('audit.overview.shortcuts.failedAuth.description'),
-    preset: 'failed-auth',
+    preset: resolveAuditPresetKey('failed-auth'),
   },
   {
     key: 'rbac',
     title: t('audit.overview.shortcuts.rbacChanges.title'),
     description: t('audit.overview.shortcuts.rbacChanges.description'),
-    preset: 'rbac-changes',
+    preset: resolveAuditPresetKey('rbac-changes'),
   },
   {
     key: 'sensitive',
     title: t('audit.overview.shortcuts.sensitiveOps.title'),
     description: t('audit.overview.shortcuts.sensitiveOps.description'),
-    preset: 'sensitive-ops',
+    preset: resolveAuditPresetKey('sensitive-ops'),
   },
 ]);
 
-function openShortcut(preset: string) {
+function openShortcut(preset: AuditPresetKey) {
   void router.push(buildAuditLogsLocation({ preset }));
 }
 
