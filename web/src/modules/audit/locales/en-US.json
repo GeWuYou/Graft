@@ -208,7 +208,12 @@
       "actions": {
         "refresh": "Refresh",
         "retry": "Retry",
-        "openRequest": "Open seed request"
+        "openRequest": "Open seed request",
+        "backToMonitor": "Back to monitor",
+        "openMonitorContext": "Open monitor context",
+        "openRelatedRequest": "Open related request",
+        "openActorEvents": "Open actor events",
+        "openResourceEvents": "Open resource events"
       },
       "sections": {
         "summary": "Incident Summary",
@@ -263,6 +268,7 @@
       "actions": {
         "search": "Search",
         "reset": "Reset",
+        "backToMonitor": "Back to monitor",
         "addFilter": "Add filter",
         "showAdvanced": "Advanced Filters",
         "hideAdvanced": "Hide Advanced"
@@ -362,7 +368,10 @@
           "copyTraceId": "Copy",
           "copySuccess": "Trace ID copied",
           "copyFail": "Failed to copy Trace ID",
-          "toggleMetadata": "Show raw metadata"
+          "toggleMetadata": "Show raw metadata",
+          "backToMonitor": "Back to monitor",
+          "openIncident": "Open incident",
+          "openRelatedEvents": "Open related events"
         },
         "related": {
           "sameRequest": "Same Request Chain",

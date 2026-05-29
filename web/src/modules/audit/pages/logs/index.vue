@@ -4,6 +4,9 @@
       <management-page-header :title="t('audit.logList.title')" :description="t('audit.logList.description')">
         <template #eyebrow>{{ t('menu.audit.title') }}</template>
         <template #actions>
+          <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
+            {{ t('audit.logList.actions.backToMonitor') }}
+          </t-button>
           <t-button theme="default" variant="outline" :loading="loading" @click="fetchAuditLogs">
             {{ t('audit.logList.refresh') }}
           </t-button>
@@ -49,7 +52,12 @@
       />
     </management-page-content>
 
-    <audit-detail-drawer v-model:visible="detailDrawerVisible" :record="detailRecord" :rows="rows" />
+    <audit-detail-drawer
+      v-model:visible="detailDrawerVisible"
+      :record="detailRecord"
+      :rows="rows"
+      :monitor-origin="navigationContext.monitorOrigin"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -68,6 +76,11 @@ import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
 import AuditTable from '../../components/AuditTable.vue';
 import { buildAuditLogsLocation, parseAuditLogsRouteQuery } from '../../contract/deep-link';
+import {
+  buildMonitorReturnLocation,
+  resolveAuditNavigationContext,
+  withMonitorOrigin,
+} from '../../contract/navigation';
 import { getAuditPresetDefaults, listAuditPresets, resolveAuditPresetKey } from '../../contract/presets';
 import type { AuditClientFilterState } from '../../shared/presentation';
 import { matchesAuditRow } from '../../shared/presentation';
@@ -98,6 +111,8 @@ const filters = ref<AuditClientFilterState>({
   ...createDefaultFilters(),
 });
 const applyingRoute = ref(false);
+const navigationContext = computed(() => resolveAuditNavigationContext(route.query));
+const monitorReturnLocation = computed(() => buildMonitorReturnLocation(route.query));
 
 const presetViews = computed(() =>
   listAuditPresets().map((preset) => ({
@@ -311,8 +326,11 @@ async function updateRouteQuery() {
     return;
   }
 
-  const nextLocation = buildAuditLogsLocation(buildRouteQuery());
-  const currentLocation = buildAuditLogsLocation(route.query);
+  const nextLocation = withMonitorOrigin(
+    buildAuditLogsLocation(buildRouteQuery()),
+    navigationContext.value.monitorOrigin,
+  );
+  const currentLocation = withMonitorOrigin(buildAuditLogsLocation(route.query), navigationContext.value.monitorOrigin);
 
   if (JSON.stringify(nextLocation.query) === JSON.stringify(currentLocation.query)) {
     await fetchAuditLogs();
@@ -336,6 +354,14 @@ watch(
   },
   { immediate: true },
 );
+
+function returnToMonitor() {
+  if (!monitorReturnLocation.value) {
+    return;
+  }
+
+  void router.push(monitorReturnLocation.value);
+}
 </script>
 <style scoped lang="less">
 @import '../../../rbac/shared/list-page.less';

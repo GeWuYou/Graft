@@ -5,6 +5,9 @@
         <template #eyebrow>{{ t('menu.audit.title') }}</template>
         <template #actions>
           <t-space size="small" wrap>
+            <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
+              {{ t('audit.incident.actions.backToMonitor') }}
+            </t-button>
             <t-button theme="default" variant="outline" @click="openSeedRequest">
               {{ t('audit.incident.actions.openRequest') }}
             </t-button>
@@ -62,6 +65,15 @@
                   {{ t(`audit.incident.monitorState.${incident.monitor_context.state}`) }}
                 </t-tag>
                 <p class="audit-incident-page__text">{{ incident.monitor_context.reason }}</p>
+                <t-button
+                  v-if="monitorReturnLocation"
+                  theme="primary"
+                  variant="text"
+                  size="small"
+                  @click="returnToMonitor"
+                >
+                  {{ t('audit.incident.actions.openMonitorContext') }}
+                </t-button>
               </t-space>
             </t-card>
           </t-col>
@@ -76,6 +88,15 @@
                     <strong>{{ item.action }}</strong>
                     <span>{{ resourceLabel(item, t) }}</span>
                     <span>{{ formatAuditTimestamp(item.created_at) }}</span>
+                    <t-button
+                      v-if="item.request_id"
+                      size="small"
+                      theme="primary"
+                      variant="text"
+                      @click="openRequest(item.request_id)"
+                    >
+                      {{ t('audit.incident.actions.openRelatedRequest') }}
+                    </t-button>
                   </t-space>
                 </t-list-item>
               </t-list>
@@ -94,6 +115,15 @@
                       actor.actor_display_name || actor.actor_username || t('audit.common.unknownActor')
                     }}</strong>
                     <span>{{ t('audit.incident.eventCount', { count: actor.event_count }) }}</span>
+                    <t-button
+                      v-if="actor.actor_display_name || actor.actor_username"
+                      size="small"
+                      theme="primary"
+                      variant="text"
+                      @click="openActor(actor.actor_display_name || actor.actor_username || '')"
+                    >
+                      {{ t('audit.incident.actions.openActorEvents') }}
+                    </t-button>
                   </t-space>
                 </t-list-item>
               </t-list>
@@ -111,6 +141,16 @@
                     <strong>{{ resource.resource_name || resource.resource_type }}</strong>
                     <span>{{ resource.resource_type }} / {{ resource.resource_id }}</span>
                     <span>{{ t('audit.incident.eventCount', { count: resource.event_count }) }}</span>
+                    <t-button
+                      size="small"
+                      theme="primary"
+                      variant="text"
+                      @click="
+                        openResource(resource.resource_type, resource.resource_id, resource.resource_name ?? undefined)
+                      "
+                    >
+                      {{ t('audit.incident.actions.openResourceEvents') }}
+                    </t-button>
                   </t-space>
                 </t-list-item>
               </t-list>
@@ -128,6 +168,9 @@
                       >{{ formatAuditTimestamp(request.started_at) }} -
                       {{ formatAuditTimestamp(request.ended_at) }}</span
                     >
+                    <t-button size="small" theme="primary" variant="text" @click="openRequest(request.request_id)">
+                      {{ t('audit.incident.actions.openRelatedRequest') }}
+                    </t-button>
                   </t-space>
                 </t-list-item>
               </t-list>
@@ -149,7 +192,13 @@ import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } fro
 import { createLogger } from '@/utils/logger';
 
 import { getAuditIncident } from '../../api/audit';
-import { buildAuditRequestLocation } from '../../contract/deep-link';
+import {
+  buildAuditRelatedActorLocation,
+  buildAuditRelatedResourceLocation,
+  buildAuditRequestLocationWithOrigin,
+  buildMonitorReturnLocation,
+  resolveAuditNavigationContext,
+} from '../../contract/navigation';
 import { formatAuditTimestamp, resourceLabel, riskTone } from '../../shared/presentation';
 import type { AuditIncidentResponse } from '../../types/audit';
 
@@ -168,6 +217,8 @@ const incident = ref<AuditIncidentResponse | null>(null);
 const eventId = computed(() => Number(route.params.eventId));
 const incidentTitle = computed(() => incident.value?.incident.title ?? t('audit.incident.title'));
 const incidentDescription = computed(() => incident.value?.incident.summary ?? t('audit.incident.description'));
+const navigationContext = computed(() => resolveAuditNavigationContext(route.query));
+const monitorReturnLocation = computed(() => buildMonitorReturnLocation(route.query));
 
 function monitorStateTheme(state: AuditIncidentResponse['monitor_context']['state']) {
   switch (state) {
@@ -185,7 +236,28 @@ function openSeedRequest() {
   if (!requestId) {
     return;
   }
-  void router.push(buildAuditRequestLocation(requestId));
+  void router.push(buildAuditRequestLocationWithOrigin(requestId, navigationContext.value.monitorOrigin));
+}
+
+function openRequest(requestId: string) {
+  void router.push(buildAuditRequestLocationWithOrigin(requestId, navigationContext.value.monitorOrigin));
+}
+
+function openActor(actor: string) {
+  void router.push(buildAuditRelatedActorLocation(actor, navigationContext.value.monitorOrigin));
+}
+
+function openResource(resourceType: string, resourceId: string, resourceName?: string) {
+  void router.push(
+    buildAuditRelatedResourceLocation(resourceType, resourceId, resourceName, navigationContext.value.monitorOrigin),
+  );
+}
+
+function returnToMonitor() {
+  if (!monitorReturnLocation.value) {
+    return;
+  }
+  void router.push(monitorReturnLocation.value);
 }
 
 async function fetchIncident() {

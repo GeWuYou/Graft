@@ -105,12 +105,31 @@
 
       <section class="audit-detail__section">
         <h4>{{ t('audit.logList.drawer.sections.correlation') }}</h4>
+        <div class="audit-detail__actions">
+          <t-button
+            v-if="monitorReturnLocation"
+            size="small"
+            theme="primary"
+            variant="outline"
+            @click="openMonitorContext"
+          >
+            {{ t('audit.logList.drawer.actions.backToMonitor') }}
+          </t-button>
+          <t-button v-if="incidentLocation" size="small" theme="default" variant="outline" @click="openIncident">
+            {{ t('audit.logList.drawer.actions.openIncident') }}
+          </t-button>
+          <t-button v-if="record" size="small" theme="default" variant="outline" @click="openRelatedRecord">
+            {{ t('audit.logList.drawer.actions.openRelatedEvents') }}
+          </t-button>
+        </div>
         <div class="audit-detail__related-grid">
           <article class="audit-detail__related-card">
             <strong>{{ t('audit.logList.drawer.related.sameRequest') }}</strong>
             <ul>
               <li v-for="item in sameRequestRows" :key="item.id">
-                {{ item.action }} · {{ formatAuditTimestamp(item.created_at) }}
+                <button type="button" class="audit-detail__link-button" @click="openRequest(item.request_id)">
+                  {{ item.action }} · {{ formatAuditTimestamp(item.created_at) }}
+                </button>
               </li>
               <li v-if="sameRequestRows.length === 0">{{ t('audit.logList.drawer.related.empty') }}</li>
             </ul>
@@ -118,14 +137,22 @@
           <article class="audit-detail__related-card">
             <strong>{{ t('audit.logList.drawer.related.sameActor') }}</strong>
             <ul>
-              <li v-for="item in sameActorRows" :key="item.id">{{ item.action }} · {{ resourceLabel(item, t) }}</li>
+              <li v-for="item in sameActorRows" :key="item.id">
+                <button type="button" class="audit-detail__link-button" @click="openRelatedActor(item)">
+                  {{ item.action }} · {{ resourceLabel(item, t) }}
+                </button>
+              </li>
               <li v-if="sameActorRows.length === 0">{{ t('audit.logList.drawer.related.empty') }}</li>
             </ul>
           </article>
           <article class="audit-detail__related-card">
             <strong>{{ t('audit.logList.drawer.related.sameResource') }}</strong>
             <ul>
-              <li v-for="item in sameResourceRows" :key="item.id">{{ actorLabel(item, t) }} · {{ item.action }}</li>
+              <li v-for="item in sameResourceRows" :key="item.id">
+                <button type="button" class="audit-detail__link-button" @click="openRelatedResource(item)">
+                  {{ actorLabel(item, t) }} · {{ item.action }}
+                </button>
+              </li>
               <li v-if="sameResourceRows.length === 0">{{ t('audit.logList.drawer.related.empty') }}</li>
             </ul>
           </article>
@@ -162,7 +189,18 @@
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
+import type { MonitorOriginContext } from '@/modules/monitor/contract/navigation';
+import { buildMonitorLocationFromOrigin } from '@/modules/monitor/contract/navigation';
+
+import {
+  buildAuditIncidentLocationWithOrigin,
+  buildAuditRelatedActorLocation,
+  buildAuditRelatedRecordLocation,
+  buildAuditRelatedResourceLocation,
+  buildAuditRequestLocationWithOrigin,
+} from '../contract/navigation';
 import {
   actorLabel,
   formatAuditTimestamp,
@@ -186,6 +224,7 @@ const props = defineProps<{
   record: AuditLogListItem | null;
   rows: AuditLogListItem[];
   visible: boolean;
+  monitorOrigin?: MonitorOriginContext | null;
 }>();
 
 defineEmits<{
@@ -193,6 +232,7 @@ defineEmits<{
 }>();
 
 const { t } = useI18n();
+const router = useRouter();
 
 async function copyTraceId(record: AuditLogListItem) {
   const traceId = traceIdForRecord(record);
@@ -220,6 +260,68 @@ async function copyRequestId(record: AuditLogListItem) {
   } catch {
     MessagePlugin.error(t('audit.logList.drawer.actions.copyRequestIdFail'));
   }
+}
+
+const incidentLocation = computed(() => {
+  const eventId = Number(props.record?.metadata?.incident_seed_event_id);
+  return Number.isFinite(eventId) && eventId > 0
+    ? buildAuditIncidentLocationWithOrigin(eventId, props.monitorOrigin)
+    : null;
+});
+
+const monitorReturnLocation = computed(() =>
+  props.monitorOrigin ? buildMonitorLocationFromOrigin(props.monitorOrigin) : null,
+);
+
+function openMonitorContext() {
+  if (!monitorReturnLocation.value) {
+    return;
+  }
+
+  void router.push(monitorReturnLocation.value);
+}
+
+function openIncident() {
+  if (!incidentLocation.value) {
+    return;
+  }
+
+  void router.push(incidentLocation.value);
+}
+
+function openRelatedRecord() {
+  if (!props.record) {
+    return;
+  }
+
+  void router.push(buildAuditRelatedRecordLocation(props.record, props.monitorOrigin));
+}
+
+function openRequest(requestId?: string | null) {
+  if (!requestId) {
+    return;
+  }
+
+  void router.push(buildAuditRequestLocationWithOrigin(requestId, props.monitorOrigin));
+}
+
+function openRelatedActor(row: AuditLogListItem) {
+  const actor = row.actor_display_name || row.actor_username;
+  if (!actor) {
+    return;
+  }
+
+  void router.push(buildAuditRelatedActorLocation(actor, props.monitorOrigin));
+}
+
+function openRelatedResource(row: AuditLogListItem) {
+  if (!row.resource_type || !row.resource_id) {
+    return;
+  }
+
+  void router.push(
+    buildAuditRelatedResourceLocation(row.resource_type, row.resource_id, row.resource_name, props.monitorOrigin),
+  );
 }
 
 const sameRequestRows = computed(() => {
@@ -260,6 +362,22 @@ const sameResourceRows = computed(() => {
 .audit-detail__related-card {
   display: flex;
   flex-direction: column;
+}
+
+.audit-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.audit-detail__link-button {
+  background: transparent;
+  border: 0;
+  color: var(--td-brand-color);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
 }
 
 .audit-detail {

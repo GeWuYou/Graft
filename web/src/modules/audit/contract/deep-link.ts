@@ -1,7 +1,9 @@
 import type { LocationQuery, LocationQueryValue } from 'vue-router';
 
 import type { components } from '@/contracts/openapi/generated/schema';
+import type { MonitorOriginContext } from '@/modules/monitor/contract/navigation';
 
+import { withMonitorOrigin } from './navigation';
 import { AUDIT_ROUTE_PATH } from './paths';
 
 type AuditEvidenceContext = components['schemas']['AuditEvidenceContext'];
@@ -107,17 +109,17 @@ function buildAuditEvidenceLocation(context: AuditEvidenceContext) {
 
 type EvidenceLink = components['schemas']['EvidenceLink'];
 
-export function buildAuditEvidenceTargetLocation(link: EvidenceLink) {
+export function buildAuditEvidenceTargetLocation(link: EvidenceLink, monitorOrigin?: MonitorOriginContext | null) {
   if (link.link_state !== 'available') {
     return null;
   }
 
   if (link.target_kind === 'audit_incident' && link.incident_seed?.event_id) {
-    return buildAuditIncidentLocation(link.incident_seed.event_id);
+    return withMonitorOrigin(buildAuditIncidentLocation(link.incident_seed.event_id), monitorOrigin);
   }
 
   if (link.audit_context) {
-    return buildAuditEvidenceLocation(link.audit_context);
+    return withMonitorOrigin(buildAuditEvidenceLocation(link.audit_context), monitorOrigin);
   }
 
   return null;

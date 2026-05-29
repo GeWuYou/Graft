@@ -111,9 +111,9 @@ vi.mock('../../components/AuditTable.vue', () => ({
 vi.mock('../../components/AuditDetailDrawer.vue', () => ({
   default: defineComponent({
     name: 'AuditDetailDrawerStub',
-    props: ['visible', 'record'],
+    props: ['visible', 'record', 'monitorOrigin'],
     setup(props) {
-      return () => h('div', [String(props.visible), props.record?.request_id]);
+      return () => h('div', [String(props.visible), props.record?.request_id, JSON.stringify(props.monitorOrigin)]);
     },
   }),
 }));
@@ -189,6 +189,7 @@ const i18n = createI18n({
           actions: {
             search: 'Search',
             reset: 'Reset',
+            backToMonitor: 'Back to monitor',
             showAdvanced: 'Advanced Filters',
             hideAdvanced: 'Hide Advanced',
           },
@@ -354,6 +355,42 @@ describe('AuditLogsPage', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('true');
     expect(wrapper.text()).toContain('req-1');
+  });
+
+  it('keeps monitor return context when syncing log filters', async () => {
+    const { replaceSpy, router, wrapper } = await mountPage({
+      preset: 'permission-denied',
+      monitorView: 'overview',
+      monitorTrendRange: '10m',
+      monitorAnomalyKey: 'resource_cpu_pressure',
+      monitorScopeRef: 'runtime:cpu',
+    });
+
+    auditApiMocks.getAuditLogs.mockClear();
+    replaceSpy.mockClear();
+
+    await wrapper.get('[data-testid="audit-route-sync"]').trigger('click');
+    await wrapper.get('[data-testid="audit-search"]').trigger('click');
+    await flushPromises();
+
+    expect(replaceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/audit/logs',
+        query: expect.objectContaining({
+          monitorView: 'overview',
+          monitorTrendRange: '10m',
+          monitorAnomalyKey: 'resource_cpu_pressure',
+          monitorScopeRef: 'runtime:cpu',
+        }),
+      }),
+    );
+    expect(router.currentRoute.value.query).toMatchObject({
+      monitorView: 'overview',
+      monitorTrendRange: '10m',
+      monitorAnomalyKey: 'resource_cpu_pressure',
+      monitorScopeRef: 'runtime:cpu',
+    });
+    expect(wrapper.text()).toContain('"view":"overview"');
   });
 
   it('applies quick preset from filters and refetches with unchanged query contract', async () => {

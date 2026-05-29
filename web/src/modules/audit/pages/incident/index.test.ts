@@ -11,6 +11,12 @@ const routerMocks = vi.hoisted(() => ({
 
 const routeMocks = vi.hoisted(() => ({
   params: { eventId: '42' },
+  query: {
+    monitorView: 'overview',
+    monitorTrendRange: '10m',
+    monitorAnomalyKey: 'resource_cpu_pressure',
+    monitorScopeRef: 'runtime:cpu',
+  },
 }));
 
 const auditApiMocks = vi.hoisted(() => ({
@@ -154,6 +160,11 @@ const i18n = createI18n({
             refresh: 'Refresh',
             retry: 'Retry',
             openRequest: 'Open seed request',
+            backToMonitor: 'Back to monitor',
+            openMonitorContext: 'Open monitor context',
+            openRelatedRequest: 'Open related request',
+            openActorEvents: 'Open actor events',
+            openResourceEvents: 'Open resource events',
           },
           sections: {
             summary: 'Incident Summary',
@@ -184,6 +195,7 @@ const i18n = createI18n({
 
 describe('AuditIncidentPage', () => {
   it('loads the canonical incident drilldown and renders the related context panels', async () => {
+    routerMocks.push.mockReset();
     const wrapper = mount(IncidentPage, {
       global: {
         plugins: [i18n],
@@ -218,10 +230,29 @@ describe('AuditIncidentPage', () => {
     expect(wrapper.text()).toContain('Related Requests');
     expect(wrapper.text()).toContain('Monitor retention still covers the tail of this incident window.');
 
-    await wrapper.get('button').trigger('click');
+    const buttons = wrapper.findAll('button');
+
+    await buttons[0]!.trigger('click');
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: '/server/overview',
+      query: {
+        monitorView: 'overview',
+        monitorTrendRange: '10m',
+        monitorAnomalyKey: 'resource_cpu_pressure',
+        monitorScopeRef: 'runtime:cpu',
+      },
+    });
+
+    await buttons[1]!.trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith({
       path: '/audit/logs',
-      query: { requestId: 'req-42' },
+      query: {
+        requestId: 'req-42',
+        monitorView: 'overview',
+        monitorTrendRange: '10m',
+        monitorAnomalyKey: 'resource_cpu_pressure',
+        monitorScopeRef: 'runtime:cpu',
+      },
     });
   });
 });

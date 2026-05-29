@@ -424,8 +424,10 @@ import type { ServerStatusTone } from '../../components/server-status-ui';
 import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
 import SummaryMetricCard from '../../components/SummaryMetricCard.vue';
 import { useMonitorRefreshPreferences } from '../../composables/use-monitor-refresh-preferences';
+import { normalizeMonitorOriginContext } from '../../contract/navigation';
 import type { MonitorRefreshInterval } from '../../contract/refresh';
-import { MONITOR_TREND_RANGE, type MonitorTrendRange } from '../../contract/trend';
+import type { MonitorTrendRange } from '../../contract/trend';
+import { MONITOR_TREND_RANGE } from '../../contract/trend';
 import type {
   EvidenceLink,
   ServerStatusAnomaly,
@@ -1258,7 +1260,15 @@ function openAnomalyEvidence(anomaly: ServerStatusAnomaly) {
     return;
   }
 
-  const target = buildAuditEvidenceTargetLocation(link);
+  const target = buildAuditEvidenceTargetLocation(
+    link,
+    normalizeMonitorOriginContext({
+      view: 'overview',
+      trendRange: selectedTrendRange.value,
+      anomalyKey: anomaly.anomaly_key,
+      scopeRef: anomaly.scope_ref,
+    }),
+  );
   if (!target) {
     return;
   }

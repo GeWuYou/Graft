@@ -884,6 +884,30 @@ describe('MonitorPage', () => {
     expect(allOverviewText).toContain('Goroutines');
   });
 
+  it('preserves monitor origin when opening audit evidence from an anomaly', async () => {
+    monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+
+    routerMocks.push.mockReset();
+
+    const actionButtons = wrapper.findAll('button').filter((button) => button.text().includes('Open audit evidence'));
+    expect(actionButtons).toHaveLength(1);
+
+    await actionButtons[0]!.trigger('click');
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: '/audit/incidents/42',
+      query: {
+        monitorView: 'overview',
+        monitorTrendRange: '10m',
+        monitorAnomalyKey: 'resource_cpu_pressure',
+        monitorScopeRef: 'runtime.cpu',
+      },
+    });
+  });
+
   it('opens the audit incident drilldown from backend-owned anomaly evidence links', async () => {
     monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
 
@@ -895,6 +919,12 @@ describe('MonitorPage', () => {
 
     expect(routerMocks.push).toHaveBeenCalledWith({
       path: '/audit/incidents/42',
+      query: {
+        monitorView: 'overview',
+        monitorTrendRange: '10m',
+        monitorAnomalyKey: 'resource_cpu_pressure',
+        monitorScopeRef: 'runtime.cpu',
+      },
     });
   });
 

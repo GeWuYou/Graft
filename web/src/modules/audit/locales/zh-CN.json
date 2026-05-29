@@ -208,7 +208,12 @@
       "actions": {
         "refresh": "刷新",
         "retry": "重试",
-        "openRequest": "查看种子请求"
+        "openRequest": "查看种子请求",
+        "backToMonitor": "返回监控",
+        "openMonitorContext": "打开监控上下文",
+        "openRelatedRequest": "查看关联请求",
+        "openActorEvents": "查看操作者事件",
+        "openResourceEvents": "查看资源事件"
       },
       "sections": {
         "summary": "事件摘要",
@@ -263,6 +268,7 @@
       "actions": {
         "search": "查询",
         "reset": "重置",
+        "backToMonitor": "返回监控",
         "addFilter": "添加筛选条件",
         "showAdvanced": "高级筛选",
         "hideAdvanced": "收起高级筛选"
@@ -362,7 +368,10 @@
           "copyTraceId": "复制",
           "copySuccess": "Trace ID 已复制",
           "copyFail": "复制 Trace ID 失败",
-          "toggleMetadata": "展开原始元数据"
+          "toggleMetadata": "展开原始元数据",
+          "backToMonitor": "返回监控",
+          "openIncident": "打开事件钻取",
+          "openRelatedEvents": "查看关联事件"
         },
         "related": {
           "sameRequest": "同 Request Chain",
