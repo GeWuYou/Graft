@@ -211,6 +211,7 @@
         "openRequest": "Open seed request",
         "backToMonitor": "Back to monitor",
         "openMonitorContext": "Open monitor context",
+        "openEvidenceLink": "Open evidence",
         "openRelatedRequest": "Open related request",
         "openActorEvents": "Open actor events",
         "openResourceEvents": "Open resource events"
@@ -218,6 +219,7 @@
       "sections": {
         "summary": "Incident Summary",
         "monitorContext": "Monitor Context",
+        "evidenceLinks": "Evidence Links",
         "relatedEvents": "Related Audit Events",
         "relatedActors": "Related Actors",
         "relatedResources": "Related Resources",
@@ -235,6 +237,32 @@
         "partial": "Partial",
         "unavailable": "Unavailable"
       },
+      "evidenceState": {
+        "available": "Available",
+        "empty": "Empty",
+        "unavailable": "Unavailable",
+        "unsupported": "Unsupported"
+      },
+      "scopeKind": {
+        "dependency": "Dependency",
+        "plugin": "Plugin",
+        "runtime": "Runtime",
+        "resource": "Resource"
+      },
+      "anomalyKey": {
+        "dependency_status_degraded": "Dependency degraded",
+        "dependency_status_unknown": "Dependency unknown",
+        "plugin_dependency_missing": "Plugin dependency missing",
+        "resource_cpu_pressure": "CPU pressure",
+        "resource_memory_pressure": "Memory pressure",
+        "resource_disk_pressure": "Disk pressure",
+        "runtime_goroutine_pressure": "Goroutine pressure",
+        "runtime_heap_pressure": "Heap pressure",
+        "system_load_pressure": "System load pressure"
+      },
+      "scopeLabel": "{kind}: {ref}",
+      "observedAt": "Observed at {value}",
+      "evidenceWindow": "{from} - {to}",
       "eventCount": "{count} related events"
     },
     "logList": {

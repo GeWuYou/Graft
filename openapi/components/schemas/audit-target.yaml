@@ -1,0 +1,14 @@
+type: object
+required: [kind, type, label]
+properties:
+  kind:
+    type: string
+    enum: [resource, actor, request, session, incident]
+  type:
+    type: string
+  id:
+    type: string
+  label:
+    type: string
+  route_ref:
+    type: string

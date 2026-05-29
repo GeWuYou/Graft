@@ -194,6 +194,8 @@ components:
       $ref: ./components/schemas/audit-overview-summary.yaml
     AuditEvidenceContext:
       $ref: ./components/schemas/audit-evidence-context.yaml
+    AuditTarget:
+      $ref: ./components/schemas/audit-target.yaml
     EvidenceLinkTimeWindow:
       $ref: ./components/schemas/evidence-link-time-window.yaml
     EvidenceLink:
@@ -204,6 +206,8 @@ components:
       $ref: ./components/schemas/enveloped-audit-overview-response.yaml
     AuditIncidentResponse:
       $ref: ./components/schemas/audit-incident-response.yaml
+    AuditIncidentMonitorEvidence:
+      $ref: ./components/schemas/audit-incident-monitor-evidence.yaml
     EnvelopedAuditIncidentResponse:
       $ref: ./components/schemas/enveloped-audit-incident-response.yaml
     ServerStatusDependency:

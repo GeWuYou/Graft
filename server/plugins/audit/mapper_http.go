@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
 	auditstore "graft/server/plugins/audit/store"
@@ -132,8 +133,14 @@ func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error)
 		"related_resources": relatedResources,
 		"related_requests":  relatedRequests,
 		"monitor_context": map[string]any{
-			"state":  string(result.MonitorContext.State),
-			"reason": result.MonitorContext.Reason,
+			"state":          string(result.MonitorContext.State),
+			"summary":        result.MonitorContext.Summary,
+			"reason":         result.MonitorContext.Reason,
+			"anomaly_key":    result.MonitorContext.AnomalyKey,
+			"scope_kind":     result.MonitorContext.ScopeKind,
+			"scope_ref":      result.MonitorContext.ScopeRef,
+			"observed_at":    optionalAuditObservedAt(result.MonitorContext.ObservedAt),
+			"evidence_links": toAuditEvidenceLinks(result.MonitorContext.EvidenceLinks),
 		},
 	}, nil
 }
@@ -236,8 +243,114 @@ func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, e
 	if err := appendAuditLogMetadata(&converted, item.Metadata); err != nil {
 		return generated.AuditLogListItem{}, err
 	}
+	appendAuditLogTarget(&converted, item.Target)
 
 	return converted, nil
+}
+
+func appendAuditLogTarget(converted *generated.AuditLogListItem, target auditstore.AuditTarget) {
+	converted.Target = generated.AuditTarget{
+		Kind:  generated.AuditTargetKind(target.Kind),
+		Type:  target.Type,
+		Label: target.Label,
+	}
+	if target.ID != "" {
+		targetID := target.ID
+		converted.Target.Id = &targetID
+	}
+	if target.RouteRef != "" {
+		routeRef := target.RouteRef
+		converted.Target.RouteRef = &routeRef
+	}
+}
+
+func optionalAuditObservedAt(value *time.Time) any {
+	if value == nil || value.IsZero() {
+		return nil
+	}
+	return value.UTC()
+}
+
+func toAuditEvidenceLinks(links []auditstore.EvidenceLink) []map[string]any {
+	converted := make([]map[string]any, 0, len(links))
+	for _, link := range links {
+		entry := toAuditEvidenceLink(link)
+		converted = append(converted, entry)
+	}
+	return converted
+}
+
+func toAuditEvidenceLink(link auditstore.EvidenceLink) map[string]any {
+	entry := map[string]any{
+		"target_kind": link.TargetKind,
+		"link_state":  link.LinkState,
+		"title":       link.Title,
+	}
+	appendAuditEvidenceReason(entry, link.Reason)
+	appendAuditEvidenceTimeWindow(entry, link.TimeWindow)
+	appendAuditEvidenceContext(entry, link.AuditContext)
+	appendAuditEvidenceIncidentSeed(entry, link.IncidentSeed)
+	return entry
+}
+
+func appendAuditEvidenceReason(entry map[string]any, reason string) {
+	if reason != "" {
+		entry["reason"] = reason
+	}
+}
+
+func appendAuditEvidenceTimeWindow(entry map[string]any, window *auditstore.EvidenceLinkTimeWindow) {
+	if window == nil {
+		return
+	}
+	entry["time_window"] = map[string]any{
+		"created_from": window.CreatedFrom.UTC(),
+		"created_to":   window.CreatedTo.UTC(),
+	}
+}
+
+func appendAuditEvidenceContext(entry map[string]any, context *auditstore.AuditEvidenceContext) {
+	if context == nil {
+		return
+	}
+
+	converted := map[string]any{}
+	appendAuditEvidenceContextString(converted, "action", context.Action)
+	appendAuditEvidenceContextString(converted, "action_prefix", context.ActionPrefix)
+	appendAuditEvidenceContextString(converted, "source", string(context.Source))
+	appendAuditEvidenceContextString(converted, "resource_type", context.ResourceType)
+	appendAuditEvidenceContextString(converted, "resource_id", context.ResourceID)
+	appendAuditEvidenceContextString(converted, "resource_name", context.ResourceName)
+	appendAuditEvidenceContextString(converted, "request_id", context.RequestID)
+	appendAuditEvidenceContextString(converted, "result", string(context.Result))
+	appendAuditEvidenceContextString(converted, "risk_level", string(context.RiskLevel))
+	appendAuditEvidenceContextTime(converted, "created_from", context.CreatedFrom)
+	appendAuditEvidenceContextTime(converted, "created_to", context.CreatedTo)
+
+	entry["audit_context"] = converted
+}
+
+func appendAuditEvidenceContextString(entry map[string]any, key string, value string) {
+	if value != "" {
+		entry[key] = value
+	}
+}
+
+func appendAuditEvidenceContextTime(entry map[string]any, key string, value *time.Time) {
+	if value == nil || value.IsZero() {
+		return
+	}
+	entry[key] = value.UTC()
+}
+
+func appendAuditEvidenceIncidentSeed(entry map[string]any, seed *auditstore.IncidentSeedLink) {
+	if seed == nil {
+		return
+	}
+	id, err := mustConvertAuditGeneratedID(seed.EventID, "audit evidence incident seed id")
+	if err == nil {
+		entry["incident_seed"] = map[string]any{"event_id": id}
+	}
 }
 
 func appendAuditLogOptionalStrings(converted *generated.AuditLogListItem, item auditstore.AuditLog) {

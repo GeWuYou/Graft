@@ -12,6 +12,7 @@ export type AuditIncidentActor = AuditIncidentResponse['related_actors'][number]
 export type AuditIncidentResource = AuditIncidentResponse['related_resources'][number];
 export type AuditIncidentRequest = AuditIncidentResponse['related_requests'][number];
 export type AuditIncidentMonitorContext = AuditIncidentResponse['monitor_context'];
+export type EvidenceLink = components['schemas']['EvidenceLink'];
 
 export type AuditOverviewWindow = '24h' | '7d' | '30d';
 export type AuditRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';

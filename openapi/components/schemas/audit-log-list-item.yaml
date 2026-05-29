@@ -3,6 +3,7 @@ required:
   - id
   - action
   - resource_type
+  - target
   - success
   - request_id
   - ip
@@ -41,6 +42,8 @@ properties:
   risk_level:
     type: string
     enum: [LOW, MEDIUM, HIGH, CRITICAL]
+  target:
+    $ref: ./audit-target.yaml
   target_type:
     type: string
   target_label:

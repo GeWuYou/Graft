@@ -211,6 +211,7 @@
         "openRequest": "查看种子请求",
         "backToMonitor": "返回监控",
         "openMonitorContext": "打开监控上下文",
+        "openEvidenceLink": "打开证据",
         "openRelatedRequest": "查看关联请求",
         "openActorEvents": "查看操作者事件",
         "openResourceEvents": "查看资源事件"
@@ -218,6 +219,7 @@
       "sections": {
         "summary": "事件摘要",
         "monitorContext": "监控上下文",
+        "evidenceLinks": "证据链接",
         "relatedEvents": "关联审计事件",
         "relatedActors": "关联操作者",
         "relatedResources": "关联资源",
@@ -235,6 +237,32 @@
         "partial": "部分可用",
         "unavailable": "不可用"
       },
+      "evidenceState": {
+        "available": "可用",
+        "empty": "空结果",
+        "unavailable": "不可用",
+        "unsupported": "暂不支持"
+      },
+      "scopeKind": {
+        "dependency": "依赖",
+        "plugin": "插件",
+        "runtime": "运行时",
+        "resource": "资源"
+      },
+      "anomalyKey": {
+        "dependency_status_degraded": "依赖降级",
+        "dependency_status_unknown": "依赖状态未知",
+        "plugin_dependency_missing": "插件依赖缺失",
+        "resource_cpu_pressure": "CPU 压力",
+        "resource_memory_pressure": "内存压力",
+        "resource_disk_pressure": "磁盘压力",
+        "runtime_goroutine_pressure": "Goroutine 压力",
+        "runtime_heap_pressure": "堆内存压力",
+        "system_load_pressure": "系统负载压力"
+      },
+      "scopeLabel": "{kind}：{ref}",
+      "observedAt": "观测时间：{value}",
+      "evidenceWindow": "{from} - {to}",
       "eventCount": "关联 {count} 条事件"
     },
     "logList": {

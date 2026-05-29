@@ -68,7 +68,29 @@ const auditApiMocks = vi.hoisted(() => ({
     ],
     monitor_context: {
       state: 'partial',
+      summary: 'Monitor evidence remains partially available for the incident window.',
       reason: 'Monitor retention still covers the tail of this incident window.',
+      anomaly_key: 'resource_cpu_pressure',
+      scope_kind: 'runtime',
+      scope_ref: 'runtime:cpu',
+      observed_at: '2026-05-27T08:12:00Z',
+      evidence_links: [
+        {
+          target_kind: 'audit_context',
+          link_state: 'available',
+          title: 'Open bounded audit evidence',
+          reason: 'Review audit records in the correlated monitor window.',
+          time_window: {
+            created_from: '2026-05-27T08:00:00Z',
+            created_to: '2026-05-27T08:12:00Z',
+          },
+          audit_context: {
+            action_prefix: 'auth.',
+            source: 'SECURITY_EVENT',
+            request_id: 'req-42',
+          },
+        },
+      ],
     },
   })),
 }));
@@ -162,6 +184,7 @@ const i18n = createI18n({
             openRequest: 'Open seed request',
             backToMonitor: 'Back to monitor',
             openMonitorContext: 'Open monitor context',
+            openEvidenceLink: 'Open evidence',
             openRelatedRequest: 'Open related request',
             openActorEvents: 'Open actor events',
             openResourceEvents: 'Open resource events',
@@ -169,6 +192,7 @@ const i18n = createI18n({
           sections: {
             summary: 'Incident Summary',
             monitorContext: 'Monitor Context',
+            evidenceLinks: 'Evidence Links',
             relatedEvents: 'Related Audit Events',
             relatedActors: 'Related Actors',
             relatedResources: 'Related Resources',
@@ -186,6 +210,21 @@ const i18n = createI18n({
             partial: 'Partial',
             unavailable: 'Unavailable',
           },
+          evidenceState: {
+            available: 'Available',
+            empty: 'Empty',
+            unavailable: 'Unavailable',
+            unsupported: 'Unsupported',
+          },
+          anomalyKey: {
+            resource_cpu_pressure: 'CPU pressure',
+          },
+          scopeKind: {
+            runtime: 'Runtime',
+          },
+          scopeLabel: '{kind}: {ref}',
+          observedAt: 'Observed at {value}',
+          evidenceWindow: '{from} - {to}',
           eventCount: '{count} related events',
         },
       },
@@ -224,11 +263,15 @@ describe('AuditIncidentPage', () => {
     expect(wrapper.text()).toContain('Correlated failed sign-ins within the same bounded investigation window.');
     expect(wrapper.text()).toContain('Incident Summary');
     expect(wrapper.text()).toContain('Monitor Context');
+    expect(wrapper.text()).toContain('Evidence Links');
     expect(wrapper.text()).toContain('Related Audit Events');
     expect(wrapper.text()).toContain('Related Actors');
     expect(wrapper.text()).toContain('Related Resources');
     expect(wrapper.text()).toContain('Related Requests');
+    expect(wrapper.text()).toContain('Monitor evidence remains partially available for the incident window.');
     expect(wrapper.text()).toContain('Monitor retention still covers the tail of this incident window.');
+    expect(wrapper.text()).toContain('CPU pressure');
+    expect(wrapper.text()).toContain('Runtime: runtime:cpu');
 
     const buttons = wrapper.findAll('button');
 
@@ -247,6 +290,22 @@ describe('AuditIncidentPage', () => {
     expect(routerMocks.push).toHaveBeenCalledWith({
       path: '/audit/logs',
       query: {
+        requestId: 'req-42',
+        monitorView: 'overview',
+        monitorTrendRange: '10m',
+        monitorAnomalyKey: 'resource_cpu_pressure',
+        monitorScopeRef: 'runtime:cpu',
+      },
+    });
+
+    const evidenceButton = buttons.find((button) => button.text() === 'Open evidence');
+    expect(evidenceButton).toBeTruthy();
+    await evidenceButton!.trigger('click');
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: '/audit/logs',
+      query: {
+        actionPrefix: 'auth.',
+        source: 'SECURITY_EVENT',
         requestId: 'req-42',
         monitorView: 'overview',
         monitorTrendRange: '10m',

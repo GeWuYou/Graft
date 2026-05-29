@@ -4932,6 +4932,9 @@
       "AuditEvidenceContext": {
         "$ref": "#/components/schemas/audit-evidence-context"
       },
+      "AuditTarget": {
+        "$ref": "#/components/schemas/audit-target"
+      },
       "EvidenceLinkTimeWindow": {
         "$ref": "#/components/schemas/evidence-link-time-window"
       },
@@ -4946,6 +4949,9 @@
       },
       "AuditIncidentResponse": {
         "$ref": "#/components/schemas/audit-incident-response"
+      },
+      "AuditIncidentMonitorEvidence": {
+        "$ref": "#/components/schemas/audit-incident-monitor-evidence"
       },
       "EnvelopedAuditIncidentResponse": {
         "$ref": "#/components/schemas/enveloped-audit-incident-response"
@@ -5981,12 +5987,45 @@
           }
         }
       },
+      "audit-target": {
+        "type": "object",
+        "required": [
+          "kind",
+          "type",
+          "label"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "resource",
+              "actor",
+              "request",
+              "session",
+              "incident"
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "route_ref": {
+            "type": "string"
+          }
+        }
+      },
       "audit-log-list-item": {
         "type": "object",
         "required": [
           "id",
           "action",
           "resource_type",
+          "target",
           "success",
           "request_id",
           "ip",
@@ -6051,6 +6090,9 @@
               "HIGH",
               "CRITICAL"
             ]
+          },
+          "target": {
+            "$ref": "#/components/schemas/audit-target"
           },
           "target_type": {
             "type": "string"
@@ -6467,6 +6509,190 @@
           }
         }
       },
+      "evidence-link-time-window": {
+        "type": "object",
+        "required": [
+          "created_from",
+          "created_to"
+        ],
+        "properties": {
+          "created_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "audit-evidence-context": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "action_prefix": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "REQUEST",
+              "SECURITY_EVENT",
+              "DOMAIN_EVENT"
+            ]
+          },
+          "resource_type": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "resource_name": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "FAILED",
+              "DENIED",
+              "ERROR"
+            ]
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "created_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "evidence-link": {
+        "type": "object",
+        "required": [
+          "target_kind",
+          "link_state",
+          "title"
+        ],
+        "properties": {
+          "target_kind": {
+            "type": "string",
+            "enum": [
+              "audit_context",
+              "audit_incident"
+            ]
+          },
+          "link_state": {
+            "type": "string",
+            "enum": [
+              "available",
+              "empty",
+              "unsupported",
+              "unavailable"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "time_window": {
+            "$ref": "#/components/schemas/evidence-link-time-window"
+          },
+          "audit_context": {
+            "$ref": "#/components/schemas/audit-evidence-context"
+          },
+          "incident_seed": {
+            "type": "object",
+            "required": [
+              "event_id"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          }
+        }
+      },
+      "audit-incident-monitor-evidence": {
+        "type": "object",
+        "required": [
+          "state",
+          "summary",
+          "evidence_links"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "available",
+              "partial",
+              "unavailable"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "anomaly_key": {
+            "type": "string",
+            "enum": [
+              "dependency_status_degraded",
+              "dependency_status_unknown",
+              "plugin_dependency_missing",
+              "resource_cpu_pressure",
+              "resource_memory_pressure",
+              "resource_disk_pressure",
+              "runtime_goroutine_pressure",
+              "runtime_heap_pressure",
+              "system_load_pressure"
+            ]
+          },
+          "scope_kind": {
+            "type": "string",
+            "enum": [
+              "dependency",
+              "plugin",
+              "runtime",
+              "resource"
+            ]
+          },
+          "scope_ref": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence_links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/evidence-link"
+            }
+          }
+        }
+      },
       "audit-incident-response": {
         "type": "object",
         "required": [
@@ -6614,24 +6840,7 @@
             }
           },
           "monitor_context": {
-            "type": "object",
-            "required": [
-              "state",
-              "reason"
-            ],
-            "properties": {
-              "state": {
-                "type": "string",
-                "enum": [
-                  "available",
-                  "partial",
-                  "unavailable"
-                ]
-              },
-              "reason": {
-                "type": "string"
-              }
-            }
+            "$ref": "#/components/schemas/audit-incident-monitor-evidence"
           }
         }
       },
@@ -7113,130 +7322,6 @@
             "rbac"
           ],
           "missing_dependencies": []
-        }
-      },
-      "evidence-link-time-window": {
-        "type": "object",
-        "required": [
-          "created_from",
-          "created_to"
-        ],
-        "properties": {
-          "created_from": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "created_to": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "audit-evidence-context": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string"
-          },
-          "action_prefix": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string",
-            "enum": [
-              "REQUEST",
-              "SECURITY_EVENT",
-              "DOMAIN_EVENT"
-            ]
-          },
-          "resource_type": {
-            "type": "string"
-          },
-          "resource_id": {
-            "type": "string"
-          },
-          "resource_name": {
-            "type": "string"
-          },
-          "request_id": {
-            "type": "string"
-          },
-          "result": {
-            "type": "string",
-            "enum": [
-              "SUCCESS",
-              "FAILED",
-              "DENIED",
-              "ERROR"
-            ]
-          },
-          "risk_level": {
-            "type": "string",
-            "enum": [
-              "LOW",
-              "MEDIUM",
-              "HIGH",
-              "CRITICAL"
-            ]
-          },
-          "created_from": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "created_to": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "evidence-link": {
-        "type": "object",
-        "required": [
-          "target_kind",
-          "link_state",
-          "title"
-        ],
-        "properties": {
-          "target_kind": {
-            "type": "string",
-            "enum": [
-              "audit_context",
-              "audit_incident"
-            ]
-          },
-          "link_state": {
-            "type": "string",
-            "enum": [
-              "available",
-              "empty",
-              "unsupported",
-              "unavailable"
-            ]
-          },
-          "title": {
-            "type": "string"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "time_window": {
-            "$ref": "#/components/schemas/evidence-link-time-window"
-          },
-          "audit_context": {
-            "$ref": "#/components/schemas/audit-evidence-context"
-          },
-          "incident_seed": {
-            "type": "object",
-            "required": [
-              "event_id"
-            ],
-            "properties": {
-              "event_id": {
-                "type": "integer",
-                "format": "int64"
-              }
-            }
-          }
         }
       },
       "server-status-anomaly": {

@@ -263,7 +263,12 @@ async function copyRequestId(record: AuditLogListItem) {
 }
 
 const incidentLocation = computed(() => {
-  const eventId = Number(props.record?.metadata?.incident_seed_event_id);
+  const target = props.record?.target;
+  if (target?.kind !== 'incident') {
+    return null;
+  }
+
+  const eventId = Number(target.id);
   return Number.isFinite(eventId) && eventId > 0
     ? buildAuditIncidentLocationWithOrigin(eventId, props.monitorOrigin)
     : null;

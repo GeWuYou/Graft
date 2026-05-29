@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	auditcontract "graft/server/plugins/audit/contract"
 	auditstore "graft/server/plugins/audit/store"
 )
 
@@ -288,10 +289,61 @@ func (r *repository) ReadIncident(ctx context.Context, eventID uint64) (auditsto
 		RelatedResources: relatedResources,
 		RelatedRequests:  relatedRequests,
 		MonitorContext: auditstore.AuditIncidentMonitorContext{
-			State:  auditstore.MonitorContextStateUnavailable,
-			Reason: "Current monitor authority only supports bounded evidence links and short-retention trend context for this incident workflow.",
+			State:         auditstore.MonitorContextStateUnavailable,
+			Summary:       "Canonical monitor evidence is bounded to typed audit evidence links for this incident workflow.",
+			Reason:        "No direct monitor anomaly is attached to the current bounded incident correlation window.",
+			EvidenceLinks: buildIncidentMonitorEvidenceLinks(seed, relatedEvents),
 		},
 	}, nil
+}
+
+func buildIncidentMonitorEvidenceLinks(seed auditstore.AuditLog, relatedEvents []auditstore.AuditLog) []auditstore.EvidenceLink {
+	window := incidentEvidenceWindow(relatedEvents)
+	link := auditstore.EvidenceLink{
+		TargetKind: "audit_incident",
+		LinkState:  "available",
+		Title:      "Audit incident evidence",
+		IncidentSeed: &auditstore.IncidentSeedLink{
+			EventID: seed.ID,
+		},
+	}
+	if window != nil {
+		link.TimeWindow = window
+	}
+
+	context := auditstore.AuditEvidenceContext{
+		RequestID:    seed.RequestID,
+		ResourceType: seed.ResourceType,
+		ResourceID:   seed.ResourceID,
+		ResourceName: seed.ResourceName,
+		Result:       seed.Result,
+		RiskLevel:    seed.RiskLevel,
+	}
+	if seed.Source != "" {
+		context.Source = seed.Source
+	}
+	if window != nil {
+		context.CreatedFrom = &window.CreatedFrom
+		context.CreatedTo = &window.CreatedTo
+	}
+	link.AuditContext = &context
+
+	return []auditstore.EvidenceLink{link}
+}
+
+func incidentEvidenceWindow(events []auditstore.AuditLog) *auditstore.EvidenceLinkTimeWindow {
+	if len(events) == 0 {
+		return nil
+	}
+	startedAt := incidentStartedAt(events)
+	endedAt := incidentEndedAt(events)
+	if startedAt.IsZero() || endedAt.IsZero() {
+		return nil
+	}
+	return &auditstore.EvidenceLinkTimeWindow{
+		CreatedFrom: startedAt,
+		CreatedTo:   endedAt,
+	}
 }
 
 func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
@@ -427,8 +479,73 @@ func enrichAuditLog(record *auditstore.AuditLog) {
 	record.StatusCode = intMetadataValue(metadata, "status_code")
 	record.TargetType = normalizeAuditTargetType(record.ResourceType)
 	record.TargetLabel = firstNonEmpty(record.ResourceName, displayTargetLabel(record.TargetType), record.ResourceID)
+	record.Target = buildAuditTarget(*record)
 	record.Result = classifyAuditResult(*record, metadata)
 	record.RiskLevel = classifyAuditRiskLevel(*record)
+}
+
+func buildAuditTarget(record auditstore.AuditLog) auditstore.AuditTarget {
+	targetType := firstNonEmpty(record.TargetType, record.ResourceType)
+	label := firstNonEmpty(record.TargetLabel, record.ResourceName, record.ResourceID, record.Action)
+	target := auditstore.AuditTarget{
+		Kind:  "resource",
+		Type:  targetType,
+		ID:    record.ResourceID,
+		Label: label,
+	}
+
+	switch {
+	case record.RequestID != "":
+		target.Kind = "request"
+		target.Type = firstNonEmpty(target.Type, "request")
+		target.ID = record.RequestID
+		target.Label = firstNonEmpty(label, record.RequestID)
+	case record.SessionID != "":
+		target.Kind = "session"
+		target.Type = firstNonEmpty(target.Type, "session")
+		target.ID = record.SessionID
+		target.Label = firstNonEmpty(label, record.SessionID)
+	case record.ActorUserID != nil || record.ActorUsername != "" || record.ActorDisplayName != "":
+		target.Kind = "actor"
+		target.Type = firstNonEmpty(target.Type, "user")
+		if target.ID == "" && record.ActorUserID != nil {
+			target.ID = strconv.FormatUint(*record.ActorUserID, 10)
+		}
+		target.Label = firstNonEmpty(record.ActorDisplayName, record.ActorUsername, target.Label)
+	}
+
+	if shouldLinkAuditIncident(record) {
+		target.Kind = "incident"
+		target.Type = firstNonEmpty(target.Type, "incident")
+		target.ID = strconv.FormatUint(record.ID, 10)
+		target.Label = firstNonEmpty(target.Label, label, record.Action, target.ID)
+		target.RouteRef = strings.Replace(auditcontract.AuditIncidentItem, ":eventID", target.ID, 1)
+	}
+
+	if target.Label == "" {
+		target.Label = firstNonEmpty(target.Type, target.Kind, record.Action)
+	}
+
+	return target
+}
+
+func shouldLinkAuditIncident(record auditstore.AuditLog) bool {
+	switch record.Result {
+	case auditstore.AuditResultDenied, auditstore.AuditResultError:
+		return true
+	}
+
+	switch record.Source {
+	case auditstore.AuditSourceSecurityEvent:
+		return true
+	}
+
+	switch record.RiskLevel {
+	case auditstore.AuditRiskLevelHigh, auditstore.AuditRiskLevelCritical:
+		return true
+	}
+
+	return false
 }
 
 func (r *repository) readAuditLogByID(ctx context.Context, eventID uint64) (auditstore.AuditLog, error) {

@@ -92,11 +92,4 @@ properties:
           type: string
           format: date-time
   monitor_context:
-    type: object
-    required: [state, reason]
-    properties:
-      state:
-        type: string
-        enum: [available, partial, unavailable]
-      reason:
-        type: string
+    $ref: ./audit-incident-monitor-evidence.yaml

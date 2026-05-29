@@ -1,0 +1,34 @@
+type: object
+required: [state, summary, evidence_links]
+properties:
+  state:
+    type: string
+    enum: [available, partial, unavailable]
+  summary:
+    type: string
+  reason:
+    type: string
+  anomaly_key:
+    type: string
+    enum:
+      - dependency_status_degraded
+      - dependency_status_unknown
+      - plugin_dependency_missing
+      - resource_cpu_pressure
+      - resource_memory_pressure
+      - resource_disk_pressure
+      - runtime_goroutine_pressure
+      - runtime_heap_pressure
+      - system_load_pressure
+  scope_kind:
+    type: string
+    enum: [dependency, plugin, runtime, resource]
+  scope_ref:
+    type: string
+  observed_at:
+    type: string
+    format: date-time
+  evidence_links:
+    type: array
+    items:
+      $ref: ./evidence-link.yaml

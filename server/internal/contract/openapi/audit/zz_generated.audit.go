@@ -35,21 +35,195 @@ func (e GetAuditIncident200JSONResponseBodyDataIncidentRiskLevel) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey.
+const (
+	DependencyStatusDegraded GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "dependency_status_degraded"
+	DependencyStatusUnknown  GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "dependency_status_unknown"
+	PluginDependencyMissing  GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "plugin_dependency_missing"
+	ResourceCpuPressure      GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "resource_cpu_pressure"
+	ResourceDiskPressure     GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "resource_disk_pressure"
+	ResourceMemoryPressure   GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "resource_memory_pressure"
+	RuntimeGoroutinePressure GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "runtime_goroutine_pressure"
+	RuntimeHeapPressure      GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "runtime_heap_pressure"
+	SystemLoadPressure       GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "system_load_pressure"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey enum.
+func (e GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey) Valid() bool {
+	switch e {
+	case DependencyStatusDegraded:
+		return true
+	case DependencyStatusUnknown:
+		return true
+	case PluginDependencyMissing:
+		return true
+	case ResourceCpuPressure:
+		return true
+	case ResourceDiskPressure:
+		return true
+	case ResourceMemoryPressure:
+		return true
+	case RuntimeGoroutinePressure:
+		return true
+	case RuntimeHeapPressure:
+		return true
+	case SystemLoadPressure:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult.
+const (
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResultDENIED  GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult = "DENIED"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResultERROR   GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult = "ERROR"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResultFAILED  GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult = "FAILED"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResultSUCCESS GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult enum.
+func (e GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult) Valid() bool {
+	switch e {
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResultDENIED:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResultERROR:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResultFAILED:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResultSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel.
+const (
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevelCRITICAL GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel = "CRITICAL"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevelHIGH     GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel = "HIGH"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevelLOW      GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel = "LOW"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevelMEDIUM   GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel = "MEDIUM"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel enum.
+func (e GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel) Valid() bool {
+	switch e {
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevelCRITICAL:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevelHIGH:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevelLOW:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource.
+const (
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSourceDOMAINEVENT   GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource = "DOMAIN_EVENT"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSourceREQUEST       GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource = "REQUEST"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSourceSECURITYEVENT GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource enum.
+func (e GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource) Valid() bool {
+	switch e {
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSourceDOMAINEVENT:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSourceREQUEST:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState.
+const (
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkStateAvailable   GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState = "available"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkStateEmpty       GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState = "empty"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkStateUnavailable GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState = "unavailable"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkStateUnsupported GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState enum.
+func (e GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState) Valid() bool {
+	switch e {
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkStateAvailable:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkStateEmpty:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkStateUnavailable:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkStateUnsupported:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTargetKind.
+const (
+	AuditContext  GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTargetKind = "audit_context"
+	AuditIncident GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTargetKind = "audit_incident"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTargetKind enum.
+func (e GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTargetKind) Valid() bool {
+	switch e {
+	case AuditContext:
+		return true
+	case AuditIncident:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind.
+const (
+	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindDependency GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "dependency"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindPlugin     GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "plugin"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindResource   GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "resource"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindRuntime    GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "runtime"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind enum.
+func (e GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind) Valid() bool {
+	switch e {
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindDependency:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindPlugin:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindResource:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextState.
 const (
-	Available   GetAuditIncident200JSONResponseBodyDataMonitorContextState = "available"
-	Partial     GetAuditIncident200JSONResponseBodyDataMonitorContextState = "partial"
-	Unavailable GetAuditIncident200JSONResponseBodyDataMonitorContextState = "unavailable"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextStateAvailable   GetAuditIncident200JSONResponseBodyDataMonitorContextState = "available"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextStatePartial     GetAuditIncident200JSONResponseBodyDataMonitorContextState = "partial"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextStateUnavailable GetAuditIncident200JSONResponseBodyDataMonitorContextState = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataMonitorContextState enum.
 func (e GetAuditIncident200JSONResponseBodyDataMonitorContextState) Valid() bool {
 	switch e {
-	case Available:
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextStateAvailable:
 		return true
-	case Partial:
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextStatePartial:
 		return true
-	case Unavailable:
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextStateUnavailable:
 		return true
 	default:
 		return false
@@ -125,6 +299,33 @@ func (e GetAuditIncident200JSONResponseBodyDataRelatedEventsSource) Valid() bool
 	}
 }
 
+// Defines values for GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind.
+const (
+	GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindActor    GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind = "actor"
+	GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindIncident GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind = "incident"
+	GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindRequest  GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind = "request"
+	GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindResource GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind = "resource"
+	GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindSession  GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind = "session"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind enum.
+func (e GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind) Valid() bool {
+	switch e {
+	case GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindActor:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindIncident:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindRequest:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindResource:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKindSession:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditIncident200JSONResponseBodyDataSeedEventResult.
 const (
 	GetAuditIncident200JSONResponseBodyDataSeedEventResultDENIED  GetAuditIncident200JSONResponseBodyDataSeedEventResult = "DENIED"
@@ -188,6 +389,33 @@ func (e GetAuditIncident200JSONResponseBodyDataSeedEventSource) Valid() bool {
 	case GetAuditIncident200JSONResponseBodyDataSeedEventSourceREQUEST:
 		return true
 	case GetAuditIncident200JSONResponseBodyDataSeedEventSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind.
+const (
+	GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindActor    GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind = "actor"
+	GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindIncident GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind = "incident"
+	GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindRequest  GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind = "request"
+	GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindResource GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind = "resource"
+	GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindSession  GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind = "session"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind enum.
+func (e GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind) Valid() bool {
+	switch e {
+	case GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindActor:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindIncident:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindRequest:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindResource:
+		return true
+	case GetAuditIncident200JSONResponseBodyDataSeedEventTargetKindSession:
 		return true
 	default:
 		return false
@@ -407,6 +635,33 @@ func (e GetAuditLogs200JSONResponseBodyDataItemsSource) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditLogs200JSONResponseBodyDataItemsTargetKind.
+const (
+	GetAuditLogs200JSONResponseBodyDataItemsTargetKindActor    GetAuditLogs200JSONResponseBodyDataItemsTargetKind = "actor"
+	GetAuditLogs200JSONResponseBodyDataItemsTargetKindIncident GetAuditLogs200JSONResponseBodyDataItemsTargetKind = "incident"
+	GetAuditLogs200JSONResponseBodyDataItemsTargetKindRequest  GetAuditLogs200JSONResponseBodyDataItemsTargetKind = "request"
+	GetAuditLogs200JSONResponseBodyDataItemsTargetKindResource GetAuditLogs200JSONResponseBodyDataItemsTargetKind = "resource"
+	GetAuditLogs200JSONResponseBodyDataItemsTargetKindSession  GetAuditLogs200JSONResponseBodyDataItemsTargetKind = "session"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogs200JSONResponseBodyDataItemsTargetKind enum.
+func (e GetAuditLogs200JSONResponseBodyDataItemsTargetKind) Valid() bool {
+	switch e {
+	case GetAuditLogs200JSONResponseBodyDataItemsTargetKindActor:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsTargetKindIncident:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsTargetKindRequest:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsTargetKindResource:
+		return true
+	case GetAuditLogs200JSONResponseBodyDataItemsTargetKindSession:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogs400JSONResponseBodySuccess.
 const (
 	GetAuditLogs400JSONResponseBodySuccessFalse GetAuditLogs400JSONResponseBodySuccess = false
@@ -556,22 +811,22 @@ func (e GetAuditOverview200JSONResponseBodyDataRiskGroupsRiskLevel) Valid() bool
 
 // Defines values for GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult.
 const (
-	DENIED  GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult = "DENIED"
-	ERROR   GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult = "ERROR"
-	FAILED  GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult = "FAILED"
-	SUCCESS GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult = "SUCCESS"
+	GetAuditOverview200JSONResponseBodyDataSecurityTimelineResultDENIED  GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult = "DENIED"
+	GetAuditOverview200JSONResponseBodyDataSecurityTimelineResultERROR   GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult = "ERROR"
+	GetAuditOverview200JSONResponseBodyDataSecurityTimelineResultFAILED  GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult = "FAILED"
+	GetAuditOverview200JSONResponseBodyDataSecurityTimelineResultSUCCESS GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult = "SUCCESS"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult enum.
 func (e GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult) Valid() bool {
 	switch e {
-	case DENIED:
+	case GetAuditOverview200JSONResponseBodyDataSecurityTimelineResultDENIED:
 		return true
-	case ERROR:
+	case GetAuditOverview200JSONResponseBodyDataSecurityTimelineResultERROR:
 		return true
-	case FAILED:
+	case GetAuditOverview200JSONResponseBodyDataSecurityTimelineResultFAILED:
 		return true
-	case SUCCESS:
+	case GetAuditOverview200JSONResponseBodyDataSecurityTimelineResultSUCCESS:
 		return true
 	default:
 		return false
@@ -580,22 +835,22 @@ func (e GetAuditOverview200JSONResponseBodyDataSecurityTimelineResult) Valid() b
 
 // Defines values for GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel.
 const (
-	CRITICAL GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel = "CRITICAL"
-	HIGH     GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel = "HIGH"
-	LOW      GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel = "LOW"
-	MEDIUM   GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel = "MEDIUM"
+	GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevelCRITICAL GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel = "CRITICAL"
+	GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevelHIGH     GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel = "HIGH"
+	GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevelLOW      GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel = "LOW"
+	GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevelMEDIUM   GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel = "MEDIUM"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel enum.
 func (e GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevel) Valid() bool {
 	switch e {
-	case CRITICAL:
+	case GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevelCRITICAL:
 		return true
-	case HIGH:
+	case GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevelHIGH:
 		return true
-	case LOW:
+	case GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevelLOW:
 		return true
-	case MEDIUM:
+	case GetAuditOverview200JSONResponseBodyDataSecurityTimelineRiskLevelMEDIUM:
 		return true
 	default:
 		return false
@@ -625,19 +880,19 @@ func (e GetAuditOverview200JSONResponseBodyDataSecurityTimelineSource) Valid() b
 
 // Defines values for GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource.
 const (
-	GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceDOMAINEVENT   GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "DOMAIN_EVENT"
-	GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceREQUEST       GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "REQUEST"
-	GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceSECURITYEVENT GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "SECURITY_EVENT"
+	DOMAINEVENT   GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "DOMAIN_EVENT"
+	REQUEST       GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "REQUEST"
+	SECURITYEVENT GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "SECURITY_EVENT"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource enum.
 func (e GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource) Valid() bool {
 	switch e {
-	case GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceDOMAINEVENT:
+	case DOMAINEVENT:
 		return true
-	case GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceREQUEST:
+	case REQUEST:
 		return true
-	case GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceSECURITYEVENT:
+	case SECURITYEVENT:
 		return true
 	default:
 		return false
@@ -762,6 +1017,27 @@ type GetAuditIncidentParams struct {
 // GetAuditIncident200JSONResponseBodyDataIncidentRiskLevel defines parameters for GetAuditIncident.
 type GetAuditIncident200JSONResponseBodyDataIncidentRiskLevel string
 
+// GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey string
+
+// GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult string
+
+// GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel string
+
+// GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource string
+
+// GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState string
+
+// GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTargetKind defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTargetKind string
+
+// GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind string
+
 // GetAuditIncident200JSONResponseBodyDataMonitorContextState defines parameters for GetAuditIncident.
 type GetAuditIncident200JSONResponseBodyDataMonitorContextState string
 
@@ -774,6 +1050,9 @@ type GetAuditIncident200JSONResponseBodyDataRelatedEventsRiskLevel string
 // GetAuditIncident200JSONResponseBodyDataRelatedEventsSource defines parameters for GetAuditIncident.
 type GetAuditIncident200JSONResponseBodyDataRelatedEventsSource string
 
+// GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind string
+
 // GetAuditIncident200JSONResponseBodyDataSeedEventResult defines parameters for GetAuditIncident.
 type GetAuditIncident200JSONResponseBodyDataSeedEventResult string
 
@@ -782,6 +1061,9 @@ type GetAuditIncident200JSONResponseBodyDataSeedEventRiskLevel string
 
 // GetAuditIncident200JSONResponseBodyDataSeedEventSource defines parameters for GetAuditIncident.
 type GetAuditIncident200JSONResponseBodyDataSeedEventSource string
+
+// GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind defines parameters for GetAuditIncident.
+type GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind string
 
 // GetAuditIncident400JSONResponseBodySuccess defines parameters for GetAuditIncident.
 type GetAuditIncident400JSONResponseBodySuccess bool
@@ -841,6 +1123,9 @@ type GetAuditLogs200JSONResponseBodyDataItemsRiskLevel string
 
 // GetAuditLogs200JSONResponseBodyDataItemsSource defines parameters for GetAuditLogs.
 type GetAuditLogs200JSONResponseBodyDataItemsSource string
+
+// GetAuditLogs200JSONResponseBodyDataItemsTargetKind defines parameters for GetAuditLogs.
+type GetAuditLogs200JSONResponseBodyDataItemsTargetKind string
 
 // GetAuditLogs400JSONResponseBodySuccess defines parameters for GetAuditLogs.
 type GetAuditLogs400JSONResponseBodySuccess bool

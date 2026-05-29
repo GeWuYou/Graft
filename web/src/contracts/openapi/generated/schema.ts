@@ -894,11 +894,13 @@ export interface components {
     AuditOverviewItem: components['schemas']['audit-overview-item'];
     AuditOverviewSummary: components['schemas']['audit-overview-summary'];
     AuditEvidenceContext: components['schemas']['audit-evidence-context'];
+    AuditTarget: components['schemas']['audit-target'];
     EvidenceLinkTimeWindow: components['schemas']['evidence-link-time-window'];
     EvidenceLink: components['schemas']['evidence-link'];
     AuditOverviewResponse: components['schemas']['audit-overview-response'];
     EnvelopedAuditOverviewResponse: components['schemas']['enveloped-audit-overview-response'];
     AuditIncidentResponse: components['schemas']['audit-incident-response'];
+    AuditIncidentMonitorEvidence: components['schemas']['audit-incident-monitor-evidence'];
     EnvelopedAuditIncidentResponse: components['schemas']['enveloped-audit-incident-response'];
     ServerStatusDependency: components['schemas']['server-status-dependency'];
     ServerStatusPlugin: components['schemas']['server-status-plugin'];
@@ -1206,6 +1208,14 @@ export interface components {
       user_ids: number[];
       role_ids: number[];
     };
+    'audit-target': {
+      /** @enum {string} */
+      kind: 'resource' | 'actor' | 'request' | 'session' | 'incident';
+      type: string;
+      id?: string;
+      label: string;
+      route_ref?: string;
+    };
     'audit-log-list-item': {
       /** Format: int64 */
       id: number;
@@ -1224,6 +1234,7 @@ export interface components {
       result?: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
       /** @enum {string} */
       risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+      target: components['schemas']['audit-target'];
       target_type?: string;
       target_label?: string;
       request_id: string;
@@ -1335,6 +1346,67 @@ export interface components {
       success: true;
       data: components['schemas']['audit-overview-response'];
     };
+    'evidence-link-time-window': {
+      /** Format: date-time */
+      created_from: string;
+      /** Format: date-time */
+      created_to: string;
+    };
+    'audit-evidence-context': {
+      action?: string;
+      action_prefix?: string;
+      /** @enum {string} */
+      source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
+      resource_type?: string;
+      resource_id?: string;
+      resource_name?: string;
+      request_id?: string;
+      /** @enum {string} */
+      result?: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
+      /** @enum {string} */
+      risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+      /** Format: date-time */
+      created_from?: string;
+      /** Format: date-time */
+      created_to?: string;
+    };
+    'evidence-link': {
+      /** @enum {string} */
+      target_kind: 'audit_context' | 'audit_incident';
+      /** @enum {string} */
+      link_state: 'available' | 'empty' | 'unsupported' | 'unavailable';
+      title: string;
+      reason?: string;
+      time_window?: components['schemas']['evidence-link-time-window'];
+      audit_context?: components['schemas']['audit-evidence-context'];
+      incident_seed?: {
+        /** Format: int64 */
+        event_id: number;
+      };
+    };
+    'audit-incident-monitor-evidence': {
+      /** @enum {string} */
+      state: 'available' | 'partial' | 'unavailable';
+      summary: string;
+      reason?: string;
+      /** @enum {string} */
+      anomaly_key?:
+        | 'dependency_status_degraded'
+        | 'dependency_status_unknown'
+        | 'plugin_dependency_missing'
+        | 'resource_cpu_pressure'
+        | 'resource_memory_pressure'
+        | 'resource_disk_pressure'
+        | 'runtime_goroutine_pressure'
+        | 'runtime_heap_pressure'
+        | 'system_load_pressure';
+      /** @enum {string} */
+      scope_kind?: 'dependency' | 'plugin' | 'runtime' | 'resource';
+      scope_ref?: string;
+      /** Format: date-time */
+      observed_at?: string;
+      evidence_links: components['schemas']['evidence-link'][];
+    };
     'audit-incident-response': {
       seed_event: components['schemas']['audit-log-list-item'];
       incident: {
@@ -1371,11 +1443,7 @@ export interface components {
         /** Format: date-time */
         ended_at: string;
       }[];
-      monitor_context: {
-        /** @enum {string} */
-        state: 'available' | 'partial' | 'unavailable';
-        reason: string;
-      };
+      monitor_context: components['schemas']['audit-incident-monitor-evidence'];
     };
     'enveloped-audit-incident-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-incident-response'];
@@ -1615,44 +1683,6 @@ export interface components {
       version: string;
       depends_on: string[];
       missing_dependencies?: string[];
-    };
-    'evidence-link-time-window': {
-      /** Format: date-time */
-      created_from: string;
-      /** Format: date-time */
-      created_to: string;
-    };
-    'audit-evidence-context': {
-      action?: string;
-      action_prefix?: string;
-      /** @enum {string} */
-      source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
-      resource_type?: string;
-      resource_id?: string;
-      resource_name?: string;
-      request_id?: string;
-      /** @enum {string} */
-      result?: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
-      /** @enum {string} */
-      risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-      /** Format: date-time */
-      created_from?: string;
-      /** Format: date-time */
-      created_to?: string;
-    };
-    'evidence-link': {
-      /** @enum {string} */
-      target_kind: 'audit_context' | 'audit_incident';
-      /** @enum {string} */
-      link_state: 'available' | 'empty' | 'unsupported' | 'unavailable';
-      title: string;
-      reason?: string;
-      time_window?: components['schemas']['evidence-link-time-window'];
-      audit_context?: components['schemas']['audit-evidence-context'];
-      incident_seed?: {
-        /** Format: int64 */
-        event_id: number;
-      };
     };
     'server-status-anomaly': {
       /** @enum {string} */

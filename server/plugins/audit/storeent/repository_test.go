@@ -365,6 +365,33 @@ func assertIncidentCorrelation(t *testing.T, incident auditstore.AuditIncident, 
 	}
 }
 
+func TestBuildAuditTargetPromotesIncidentTargets(t *testing.T) {
+	record := auditstore.AuditLog{
+		ID:          42,
+		Source:      auditstore.AuditSourceSecurityEvent,
+		Action:      "auth.failed",
+		ResourceType: "AUTH",
+		ResourceID:  "console",
+		ResourceName: "Console",
+		Result:      auditstore.AuditResultFailed,
+		RiskLevel:   auditstore.AuditRiskLevelHigh,
+		TargetType:  "AUTH",
+		TargetLabel: "Console",
+	}
+
+	target := buildAuditTarget(record)
+
+	if target.Kind != "incident" {
+		t.Fatalf("expected incident target kind, got %#v", target)
+	}
+	if target.ID != "42" {
+		t.Fatalf("expected incident target id 42, got %#v", target)
+	}
+	if target.RouteRef != "/incidents/42" {
+		t.Fatalf("expected canonical incident route ref, got %#v", target)
+	}
+}
+
 func TestRepositoryReadAuditOverview(t *testing.T) {
 	db := openTestDB(t)
 	repo, err := NewRepository(db)

@@ -92,6 +92,7 @@ type AuditLog struct {
 	Metadata         json.RawMessage
 	Result           AuditResult
 	RiskLevel        AuditRiskLevel
+	Target           AuditTarget
 	TargetType       string
 	TargetLabel      string
 	TraceID          string
@@ -100,6 +101,15 @@ type AuditLog struct {
 	RequestPath      string
 	StatusCode       int
 	CreatedAt        time.Time
+}
+
+// AuditTarget is the canonical typed target exposed by audit read models.
+type AuditTarget struct {
+	Kind     string
+	Type     string
+	ID       string
+	Label    string
+	RouteRef string
 }
 
 // CreateAuditLogInput describes the minimum fields required to persist an audit record.
@@ -342,8 +352,51 @@ const (
 
 // AuditIncidentMonitorContext returns the bounded monitor participation state attached to one incident.
 type AuditIncidentMonitorContext struct {
-	State  MonitorContextState
-	Reason string
+	State         MonitorContextState
+	Summary       string
+	Reason        string
+	AnomalyKey    string
+	ScopeKind     string
+	ScopeRef      string
+	ObservedAt    *time.Time
+	EvidenceLinks []EvidenceLink
+}
+
+// EvidenceLinkTimeWindow keeps canonical bounded evidence timing for drilldown links.
+type EvidenceLinkTimeWindow struct {
+	CreatedFrom time.Time
+	CreatedTo   time.Time
+}
+
+// AuditEvidenceContext points consumers at canonical audit evidence filters.
+type AuditEvidenceContext struct {
+	Action       string
+	ActionPrefix string
+	Source       AuditSource
+	ResourceType string
+	ResourceID   string
+	ResourceName string
+	RequestID    string
+	Result       AuditResult
+	RiskLevel    AuditRiskLevel
+	CreatedFrom  *time.Time
+	CreatedTo    *time.Time
+}
+
+// IncidentSeedLink points at one stable audit incident seed event.
+type IncidentSeedLink struct {
+	EventID uint64
+}
+
+// EvidenceLink is the canonical cross-surface evidence link DTO reused by audit and monitor.
+type EvidenceLink struct {
+	TargetKind   string
+	LinkState    string
+	Title        string
+	Reason       string
+	TimeWindow   *EvidenceLinkTimeWindow
+	AuditContext *AuditEvidenceContext
+	IncidentSeed *IncidentSeedLink
 }
 
 // AuditIncident is the canonical incident drilldown payload owned by the audit plugin.

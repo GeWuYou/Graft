@@ -64,7 +64,24 @@
                 <t-tag :theme="monitorStateTheme(incident.monitor_context.state)" variant="light-outline">
                   {{ t(`audit.incident.monitorState.${incident.monitor_context.state}`) }}
                 </t-tag>
-                <p class="audit-incident-page__text">{{ incident.monitor_context.reason }}</p>
+                <p class="audit-incident-page__text">{{ incident.monitor_context.summary }}</p>
+                <p
+                  v-if="incident.monitor_context.reason"
+                  class="audit-incident-page__text audit-incident-page__text--subtle"
+                >
+                  {{ incident.monitor_context.reason }}
+                </p>
+                <t-space v-if="monitorContextMeta.length" size="8px" wrap>
+                  <t-tag
+                    v-for="item in monitorContextMeta"
+                    :key="item.label"
+                    theme="default"
+                    variant="light-outline"
+                    size="small"
+                  >
+                    {{ item.label }}
+                  </t-tag>
+                </t-space>
                 <t-button
                   v-if="monitorReturnLocation"
                   theme="primary"
@@ -75,6 +92,46 @@
                   {{ t('audit.incident.actions.openMonitorContext') }}
                 </t-button>
               </t-space>
+            </t-card>
+          </t-col>
+        </t-row>
+
+        <t-row
+          v-if="incident.monitor_context.evidence_links.length"
+          :gutter="[16, 16]"
+          class="audit-incident-page__panels"
+        >
+          <t-col :xs="12">
+            <t-card :title="t('audit.incident.sections.evidenceLinks')">
+              <t-list split>
+                <t-list-item
+                  v-for="(link, index) in incident.monitor_context.evidence_links"
+                  :key="`${link.target_kind}-${index}`"
+                >
+                  <t-space direction="vertical" size="4">
+                    <strong>{{ link.title }}</strong>
+                    <span class="audit-incident-page__text">{{ evidenceStateLabel(link.link_state) }}</span>
+                    <span v-if="link.reason" class="audit-incident-page__text">{{ link.reason }}</span>
+                    <span v-if="link.time_window" class="audit-incident-page__text audit-incident-page__text--subtle">
+                      {{
+                        t('audit.incident.evidenceWindow', {
+                          from: formatAuditTimestamp(link.time_window.created_from),
+                          to: formatAuditTimestamp(link.time_window.created_to),
+                        })
+                      }}
+                    </span>
+                    <t-button
+                      v-if="evidenceTargetLocation(link)"
+                      size="small"
+                      theme="primary"
+                      variant="text"
+                      @click="openEvidenceLink(link)"
+                    >
+                      {{ t('audit.incident.actions.openEvidenceLink') }}
+                    </t-button>
+                  </t-space>
+                </t-list-item>
+              </t-list>
             </t-card>
           </t-col>
         </t-row>
@@ -192,6 +249,7 @@ import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } fro
 import { createLogger } from '@/utils/logger';
 
 import { getAuditIncident } from '../../api/audit';
+import { buildAuditEvidenceTargetLocation } from '../../contract/deep-link';
 import {
   buildAuditRelatedActorLocation,
   buildAuditRelatedResourceLocation,
@@ -200,7 +258,7 @@ import {
   resolveAuditNavigationContext,
 } from '../../contract/navigation';
 import { formatAuditTimestamp, resourceLabel, riskTone } from '../../shared/presentation';
-import type { AuditIncidentResponse } from '../../types/audit';
+import type { AuditIncidentMonitorContext, AuditIncidentResponse, EvidenceLink } from '../../types/audit';
 
 defineOptions({
   name: 'AuditIncidentIndex',
@@ -219,6 +277,27 @@ const incidentTitle = computed(() => incident.value?.incident.title ?? t('audit.
 const incidentDescription = computed(() => incident.value?.incident.summary ?? t('audit.incident.description'));
 const navigationContext = computed(() => resolveAuditNavigationContext(route.query));
 const monitorReturnLocation = computed(() => buildMonitorReturnLocation(route.query));
+const monitorContextMeta = computed(() => {
+  const context = incident.value?.monitor_context;
+  if (!context) {
+    return [];
+  }
+
+  return [
+    context.anomaly_key ? { label: t(`audit.incident.anomalyKey.${context.anomaly_key}`) } : null,
+    context.scope_kind && context.scope_ref
+      ? {
+          label: t('audit.incident.scopeLabel', {
+            kind: t(`audit.incident.scopeKind.${context.scope_kind}`),
+            ref: context.scope_ref,
+          }),
+        }
+      : null,
+    context.observed_at
+      ? { label: t('audit.incident.observedAt', { value: formatAuditTimestamp(context.observed_at) }) }
+      : null,
+  ].filter((item): item is { label: string } => Boolean(item));
+});
 
 function monitorStateTheme(state: AuditIncidentResponse['monitor_context']['state']) {
   switch (state) {
@@ -229,6 +308,23 @@ function monitorStateTheme(state: AuditIncidentResponse['monitor_context']['stat
     default:
       return 'default';
   }
+}
+
+function evidenceStateLabel(state: AuditIncidentMonitorContext['evidence_links'][number]['link_state']) {
+  return t(`audit.incident.evidenceState.${state}`);
+}
+
+function evidenceTargetLocation(link: EvidenceLink) {
+  return buildAuditEvidenceTargetLocation(link, navigationContext.value.monitorOrigin);
+}
+
+function openEvidenceLink(link: EvidenceLink) {
+  const target = evidenceTargetLocation(link);
+  if (!target) {
+    return;
+  }
+
+  void router.push(target);
 }
 
 function openSeedRequest() {
@@ -292,5 +388,9 @@ onMounted(fetchIncident);
 .audit-incident-page__text {
   color: var(--td-text-color-secondary);
   margin: 0;
+}
+
+.audit-incident-page__text--subtle {
+  color: var(--td-text-color-placeholder);
 }
 </style>
