@@ -49,6 +49,7 @@ const overviewTrendOneDayDuration = 24 * time.Hour
 const overviewTrendThreeDayDuration = 72 * time.Hour
 const overviewTrendTwoHourDuration = 2 * time.Hour
 const incidentCorrelationWindow = 30 * time.Minute
+const incidentCandidateScanLimit = 200
 
 var sensitiveAuditActionKeywords = []string{"delete", "reset", "grant", "assign", "revoke", "remove", "replace", "update_role", "update_permission"}
 
@@ -624,7 +625,7 @@ func buildAuditTarget(record auditstore.AuditLog) auditstore.AuditTarget {
 		target.Type = firstNonEmpty(target.Type, "incident")
 		target.ID = strconv.FormatUint(record.ID, 10)
 		target.Label = firstNonEmpty(target.Label, label, record.Action, target.ID)
-		target.RouteRef = strings.Replace(auditcontract.AuditIncidentItem, ":eventID", target.ID, 1)
+		target.RouteRef = strings.Replace(auditcontract.AuditIncidentItem, ":"+auditcontract.AuditIncidentParam, target.ID, 1)
 	}
 
 	if target.Label == "" {
@@ -703,8 +704,9 @@ func (r *repository) readIncidentCandidateLogs(ctx context.Context, windowStart 
 		metadata,
 		created_at
 	FROM audit_logs
-	WHERE created_at >= $1 AND created_at <= $2
-	ORDER BY created_at DESC, id DESC`, windowStart, windowEnd)
+		WHERE created_at >= $1 AND created_at <= $2
+		ORDER BY created_at DESC, id DESC
+		LIMIT $3`, windowStart, windowEnd, incidentCandidateScanLimit)
 	if err != nil {
 		return nil, fmt.Errorf("read audit incident candidates: %w", err)
 	}
@@ -727,14 +729,9 @@ func (r *repository) readIncidentCandidateLogs(ctx context.Context, windowStart 
 }
 
 func correlateIncidentEvents(seed auditstore.AuditLog, candidates []auditstore.AuditLog) []auditstore.AuditLog {
-	related := make([]auditstore.AuditLog, 0, incidentRelatedEventLimit)
-	for _, candidate := range candidates {
-		if incidentMatches(seed, candidate) {
-			related = append(related, candidate)
-		}
-		if len(related) == incidentRelatedEventLimit {
-			break
-		}
+	related, seedIncluded := collectRelatedIncidentEvents(seed, candidates)
+	if !seedIncluded {
+		related = append(related, seed)
 	}
 	slices.SortStableFunc(related, func(a auditstore.AuditLog, b auditstore.AuditLog) int {
 		switch {
@@ -751,6 +748,42 @@ func correlateIncidentEvents(seed auditstore.AuditLog, candidates []auditstore.A
 		}
 	})
 	return related
+}
+
+func collectRelatedIncidentEvents(seed auditstore.AuditLog, candidates []auditstore.AuditLog) ([]auditstore.AuditLog, bool) {
+	related := make([]auditstore.AuditLog, 0, incidentRelatedEventLimit)
+	otherLimit := incidentRelatedEventLimit - 1
+	seedIncluded := false
+	for _, candidate := range candidates {
+		related, seedIncluded = appendRelatedIncidentCandidate(seed, candidate, related, seedIncluded, otherLimit)
+		if seedIncluded && len(related) == incidentRelatedEventLimit {
+			break
+		}
+	}
+	return related, seedIncluded
+}
+
+func appendRelatedIncidentCandidate(
+	seed auditstore.AuditLog,
+	candidate auditstore.AuditLog,
+	related []auditstore.AuditLog,
+	seedIncluded bool,
+	otherLimit int,
+) ([]auditstore.AuditLog, bool) {
+	if candidate.ID == seed.ID {
+		if seedIncluded {
+			return related, true
+		}
+		return append(related, candidate), true
+	}
+	if !incidentMatches(seed, candidate) {
+		return related, seedIncluded
+	}
+	if !seedIncluded && len(related) >= otherLimit {
+		return related, seedIncluded
+	}
+
+	return append(related, candidate), seedIncluded
 }
 
 func incidentMatches(seed auditstore.AuditLog, candidate auditstore.AuditLog) bool {

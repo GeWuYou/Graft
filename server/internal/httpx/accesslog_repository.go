@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -151,6 +152,10 @@ func (r *accessLogRepository) createAccessLog(
 	input CreateAccessLogInput,
 ) (AccessLog, error) {
 	record := normalizeCreateAccessLogInput(input)
+	userIDValue, err := nullableUint64(record.UserID)
+	if err != nil {
+		return AccessLog{}, fmt.Errorf("create access log: %w", err)
+	}
 
 	args := []any{
 		record.RequestID,
@@ -161,7 +166,7 @@ func (r *accessLogRepository) createAccessLog(
 		record.DurationMS,
 		nullableString(record.ClientIP),
 		nullableString(record.UserAgent),
-		nullableUint64(record.UserID),
+		userIDValue,
 		nullableString(record.Username),
 		nullableInt64(record.RequestSize),
 		nullableInt64(record.ResponseSize),
@@ -188,7 +193,11 @@ func (r *accessLogRepository) createAccessLog(
 	if err := queryer.QueryRowContext(ctx, query, args...).Scan(&id); err != nil {
 		return AccessLog{}, fmt.Errorf("create access log: %w", err)
 	}
+	if id < 0 {
+		return AccessLog{}, fmt.Errorf("create access log: negative id %d", id)
+	}
 
+	//nolint:gosec // Negative values are rejected above, so this database-generated identifier stays non-negative.
 	record.ID = uint64(id)
 	return record, nil
 }
@@ -241,11 +250,15 @@ func nullableString(value string) any {
 	return trimmed
 }
 
-func nullableUint64(value *uint64) any {
+func nullableUint64(value *uint64) (any, error) {
 	if value == nil {
-		return nil
+		return nil, nil
 	}
-	return int64(*value)
+	if *value > math.MaxInt64 {
+		return nil, fmt.Errorf("user id %d exceeds bigint range", *value)
+	}
+
+	return int64(*value), nil
 }
 
 func nullableInt64(value *int64) any {

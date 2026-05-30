@@ -96,7 +96,22 @@ func TestNewServerAppliesGlobalRequestIDAndAccessLog(t *testing.T) {
 		t.Fatalf("expected one access log entry, got %d", len(entries))
 	}
 
-	entry := entries[0]
+	assertAccessLogEntry(t, entries[0], requestID)
+
+	if len(repo.created) != 1 {
+		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
+	}
+	if repo.created[0].RequestID != requestID {
+		t.Fatalf("expected persisted request id %q, got %#v", requestID, repo.created[0])
+	}
+	if repo.created[0].ResponseSize != nil && *repo.created[0].ResponseSize < 0 {
+		t.Fatalf("expected bounded response size when present, got %#v", repo.created[0].ResponseSize)
+	}
+}
+
+func assertAccessLogEntry(t *testing.T, entry observer.LoggedEntry, requestID string) {
+	t.Helper()
+
 	if entry.Message != "http access" {
 		t.Fatalf("expected access log message, got %q", entry.Message)
 	}
@@ -119,16 +134,6 @@ func TestNewServerAppliesGlobalRequestIDAndAccessLog(t *testing.T) {
 	}
 	if _, ok := fields["latency"]; !ok {
 		t.Fatalf("expected latency field, got %#v", fields)
-	}
-
-	if len(repo.created) != 1 {
-		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
-	}
-	if repo.created[0].RequestID != requestID {
-		t.Fatalf("expected persisted request id %q, got %#v", requestID, repo.created[0])
-	}
-	if repo.created[0].ResponseSize != nil && *repo.created[0].ResponseSize < 0 {
-		t.Fatalf("expected bounded response size when present, got %#v", repo.created[0].ResponseSize)
 	}
 }
 

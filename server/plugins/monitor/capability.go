@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -68,7 +69,7 @@ func (c incidentEvidenceCapability) ResolveAuditIncidentMonitorEvidence(
 			Availability: pluginapi.MonitorEvidenceCapabilityUnavailable,
 			Summary:      "Monitor capability could not reconstruct current anomaly context.",
 			Reason:       "Monitor capability is unavailable.",
-		}, err
+		}, fmt.Errorf("resolve audit incident monitor evidence: %w", err)
 	}
 
 	anomaly, ok := matchIncidentAnomaly(response.Anomalies, input)
@@ -85,12 +86,12 @@ func (c incidentEvidenceCapability) ResolveAuditIncidentMonitorEvidence(
 
 	observedAt := anomaly.ObservedAt.UTC()
 	return pluginapi.ResolvedAuditIncidentMonitorEvidence{
-		Availability: pluginapi.MonitorEvidenceAvailable,
-		Summary:      anomaly.Summary,
-		AnomalyKey:   string(anomaly.AnomalyKey),
-		ScopeKind:    string(anomaly.ScopeKind),
-		ScopeRef:     anomaly.ScopeRef,
-		ObservedAt:   &observedAt,
+		Availability:  pluginapi.MonitorEvidenceAvailable,
+		Summary:       anomaly.Summary,
+		AnomalyKey:    string(anomaly.AnomalyKey),
+		ScopeKind:     string(anomaly.ScopeKind),
+		ScopeRef:      anomaly.ScopeRef,
+		ObservedAt:    &observedAt,
 		EvidenceLinks: toMonitorEvidenceLinks(anomaly.EvidenceLinks, input),
 	}, nil
 }

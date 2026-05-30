@@ -311,7 +311,7 @@ function openRequest(requestId?: string | null) {
 }
 
 function openRelatedActor(row: AuditLogListItem) {
-  const actor = row.actor_display_name || row.actor_username;
+  const actor = row.actor_username || row.actor_display_name;
   if (!actor) {
     return;
   }

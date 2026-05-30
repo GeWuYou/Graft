@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 const (
 	httpStatusBadRequest          = 400
 	httpStatusInternalServerError = 500
+	accessLogPersistTimeout       = 500 * time.Millisecond
 )
 
 func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository) gin.HandlerFunc {
@@ -86,7 +88,10 @@ func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogReposi
 		return
 	}
 
-	if _, err := repo.CreateAccessLog(ctx.Request.Context(), record); err != nil {
+	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx.Request.Context()), accessLogPersistTimeout)
+	defer cancel()
+
+	if _, err := repo.CreateAccessLog(persistCtx, record); err != nil {
 		logger.Error("persist access log failed",
 			zap.String("requestId", record.RequestID),
 			zap.String("method", record.Method),

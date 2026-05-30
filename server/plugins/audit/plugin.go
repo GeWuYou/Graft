@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	auditcore "graft/server/internal/audit"
+	"graft/server/internal/container"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
@@ -122,7 +123,10 @@ func (p *Plugin) Boot(ctx *plugin.Context) error {
 
 	resolved, err := ctx.Services.Resolve((*pluginapi.MonitorIncidentEvidenceService)(nil))
 	if err != nil {
-		return nil
+		if errors.Is(err, container.ErrServiceNotRegistered) {
+			return nil
+		}
+		return fmt.Errorf("resolve monitor incident evidence service: %w", err)
 	}
 
 	service, ok := resolved.(pluginapi.MonitorIncidentEvidenceService)

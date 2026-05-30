@@ -10,9 +10,8 @@ const accessLogRedactedValue = "[REDACTED]"
 const accessLogSplitPairParts = 2
 
 var sensitiveAccessLogPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)(authorization\s*:\s*bearer\s+)\S+`),
-	regexp.MustCompile(`(?i)(authorization\s*=\s*bearer\s+)\S+`),
-	regexp.MustCompile(`(?i)(authorization\s*=\s*)\S+(?:\s+\S+)?`),
+	regexp.MustCompile(`(?i)(authorization\s*:\s*)[^\r\n]+`),
+	regexp.MustCompile(`(?i)(authorization\s*=\s*)[^\r\n]+`),
 	regexp.MustCompile(`(?i)(cookie\s*:\s*)[^\r\n]+`),
 	regexp.MustCompile(`(?i)(\"?(?:password|passwd|pwd|token|secret|authorization|cookie|set-cookie|access_token|refresh_token|client_secret|api_key)\"?\s*[:=]\s*)\"?[^",;\s]+\"?`),
 }

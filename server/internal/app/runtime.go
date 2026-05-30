@@ -31,8 +31,15 @@ import (
 
 const pluginShutdownTimeout = 5 * time.Second
 
-var newAccessLogRepository = httpx.NewAccessLogRepository
-var openRedisClient = redisx.Open
+type runtimeCoreDeps struct {
+	newAccessLogRepository func(*sql.DB) (httpx.AccessLogRepository, error)
+	openRedisClient        func(context.Context, config.RedisConfig) (*redis.Client, error)
+}
+
+var defaultRuntimeCoreDeps = runtimeCoreDeps{
+	newAccessLogRepository: httpx.NewAccessLogRepository,
+	openRedisClient:        redisx.Open,
+}
 
 // Runtime 持有 MVP 运行时的核心资源与插件生命周期执行入口。
 //
@@ -115,6 +122,17 @@ func NewRuntime() (*Runtime, error) {
 }
 
 func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
+	return newRuntimeCoreWithDeps(cfg, defaultRuntimeCoreDeps)
+}
+
+func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
+	if deps.newAccessLogRepository == nil {
+		deps.newAccessLogRepository = httpx.NewAccessLogRepository
+	}
+	if deps.openRedisClient == nil {
+		deps.openRedisClient = redisx.Open
+	}
+
 	runtimeLogger, err := logger.New(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create logger: %w", err)
@@ -126,7 +144,7 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("open database resources: %w", err)
 	}
 
-	redisClient, err := openRedisClient(context.Background(), cfg.Redis)
+	redisClient, err := deps.openRedisClient(context.Background(), cfg.Redis)
 	if err != nil {
 		_ = database.Close(databaseResources)
 		_ = logger.Close(runtimeLogger)
@@ -141,7 +159,7 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("create i18n service: %w", err)
 	}
 
-	accessLogRepo, err := newAccessLogRepository(databaseResources.SQL)
+	accessLogRepo, err := deps.newAccessLogRepository(databaseResources.SQL)
 	if err != nil {
 		_ = redisClient.Close()
 		_ = database.Close(databaseResources)

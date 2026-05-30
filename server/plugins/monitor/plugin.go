@@ -518,7 +518,7 @@ func buildDependencyAnomalies(
 				ObservedAt: observedAt,
 				Summary:    dependency.Detail,
 				EvidenceLinks: []generated.EvidenceLink{
-					unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for dependency health anomalies in Phase B1."),
+					unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for this dependency health issue."),
 				},
 			})
 		case statusUnknown:
@@ -531,7 +531,7 @@ func buildDependencyAnomalies(
 				ObservedAt: observedAt,
 				Summary:    dependency.Detail,
 				EvidenceLinks: []generated.EvidenceLink{
-					unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for dependency observability gaps in Phase B1."),
+					unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for this dependency observability gap."),
 				},
 			})
 		}
@@ -562,7 +562,7 @@ func buildPluginDependencyAnomalies(
 			ObservedAt: observedAt,
 			Summary:    item.StatusDetail,
 			EvidenceLinks: []generated.EvidenceLink{
-				unavailableEvidenceLink(windowStart, observedAt, "Phase B1 does not yet project plugin dependency anomalies into audit-owned evidence."),
+				unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for this plugin dependency issue."),
 			},
 		})
 	}

@@ -173,11 +173,11 @@
                     }}</strong>
                     <span>{{ t('audit.incident.eventCount', { count: actor.event_count }) }}</span>
                     <t-button
-                      v-if="actor.actor_display_name || actor.actor_username"
+                      v-if="actor.actor_username || actor.actor_display_name"
                       size="small"
                       theme="primary"
                       variant="text"
-                      @click="openActor(actor.actor_display_name || actor.actor_username || '')"
+                      @click="openActor(actor.actor_username || actor.actor_display_name || '')"
                     >
                       {{ t('audit.incident.actions.openActorEvents') }}
                     </t-button>

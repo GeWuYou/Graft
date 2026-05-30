@@ -17,6 +17,7 @@ import (
 	auditopenapi "graft/server/internal/contract/openapi/audit"
 	"graft/server/internal/httpx"
 	"graft/server/internal/plugin"
+	auditcontract "graft/server/plugins/audit/contract"
 	auditstore "graft/server/plugins/audit/store"
 )
 
@@ -127,7 +128,7 @@ func handleReadAuditIncident(
 	}
 
 	return func(ginCtx *gin.Context) {
-		eventID, ok, err := parseOptionalUint64Param(ginCtx, "eventID")
+		eventID, ok, err := parseOptionalUint64Param(ginCtx, auditcontract.AuditIncidentParam)
 		if err != nil || !ok {
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
 				"field": "event_id",

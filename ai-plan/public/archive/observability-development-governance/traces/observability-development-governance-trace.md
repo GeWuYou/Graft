@@ -143,3 +143,14 @@
 - Moved the completed topic recovery materials from `ai-plan/public/observability-development-governance/**` to `ai-plan/public/archive/observability-development-governance/**`.
 - Updated the public recovery index so this topic no longer appears under active topics.
 - Recorded this topic as archived historical evidence for future observability, metrics-governance, or audit-console follow-up topics only.
+
+## 2026-05-30 PR review remediation closed current TDesign MCP preflight gap
+
+- Re-ran startup governance from root `AGENTS.md`, plus `server/AGENTS.md` and `web/AGENTS.md`, before verifying PR review findings against local `HEAD`.
+- Ran TDesign MCP preflight under `vue-next` for the touched audit UI surfaces:
+  - `get_component_list`
+  - `get_component_docs` for `button`, `space`, `card`, `descriptions`, `tag`, `list`, `row`, `col`, `timeline`
+- Used the preflight to keep the existing TDesign component usage stable while fixing bounded review findings in:
+  - `web/src/modules/audit/components/AuditDetailDrawer.vue`
+  - `web/src/modules/audit/pages/incident/index.vue`
+  - `web/src/modules/audit/pages/overview/index.vue`

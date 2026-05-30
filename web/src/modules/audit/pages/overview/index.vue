@@ -171,7 +171,7 @@
               <button
                 class="audit-overview__timeline-item audit-overview__timeline-item--button"
                 type="button"
-                @click="openSecurityTimelineItem(item.incident_seed.event_id)"
+                @click="openSecurityTimelineItem(item.incident_seed?.event_id)"
               >
                 <strong>{{ item.action }}</strong>
                 <p>{{ item.resource_name || item.resource_type || t('audit.common.unknownResource') }}</p>

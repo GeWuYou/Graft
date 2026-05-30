@@ -38,9 +38,7 @@ func (r *runtimeAccessLogRecorderRepo) CreateAccessLog(_ context.Context, input 
 }
 
 func (r *runtimeAccessLogRecorderRepo) CreateAccessLogs(_ context.Context, inputs []httpx.CreateAccessLogInput) ([]httpx.AccessLog, error) {
-	for _, input := range inputs {
-		r.created = append(r.created, input)
-	}
+	r.created = append(r.created, inputs...)
 	return []httpx.AccessLog{}, nil
 }
 
@@ -265,23 +263,19 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	recorderRepo := &runtimeAccessLogRecorderRepo{}
-	originalFactory := newAccessLogRepository
-	originalOpenRedisClient := openRedisClient
-	newAccessLogRepository = func(db *sql.DB) (httpx.AccessLogRepository, error) {
-		if db == nil {
-			t.Fatal("expected runtime assembly to pass shared sql db into access log repository factory")
-		}
-		return recorderRepo, nil
+	deps := runtimeCoreDeps{
+		newAccessLogRepository: func(db *sql.DB) (httpx.AccessLogRepository, error) {
+			if db == nil {
+				t.Fatal("expected runtime assembly to pass shared sql db into access log repository factory")
+			}
+			return recorderRepo, nil
+		},
+		openRedisClient: func(context.Context, config.RedisConfig) (*redis.Client, error) {
+			return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"}), nil
+		},
 	}
-	openRedisClient = func(context.Context, config.RedisConfig) (*redis.Client, error) {
-		return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"}), nil
-	}
-	t.Cleanup(func() {
-		newAccessLogRepository = originalFactory
-		openRedisClient = originalOpenRedisClient
-	})
 
-	runtime, err := newRuntimeCore(&config.Config{
+	runtime, err := newRuntimeCoreWithDeps(&config.Config{
 		App: config.AppConfig{Name: "graft", Env: "test"},
 		HTTP: config.HTTPConfig{
 			Addr: "127.0.0.1:0",
@@ -301,7 +295,7 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 			FallbackLocale:   "zh-CN",
 			SupportedLocales: []string{"zh-CN", "en-US"},
 		},
-	})
+	}, deps)
 	if err != nil {
 		t.Fatalf("new runtime core: %v", err)
 	}
