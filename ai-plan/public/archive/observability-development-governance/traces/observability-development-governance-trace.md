@@ -150,6 +150,12 @@
 - Ran TDesign MCP preflight under `vue-next` for the touched audit UI surfaces:
   - `get_component_list`
   - `get_component_docs` for `button`, `space`, `card`, `descriptions`, `tag`, `list`, `row`, `col`, `timeline`
+- TDesign MCP preflight: used
+  - framework: `vue-next`
+  - components: `button`, `space`, `card`, `descriptions`, `tag`, `list`, `row`, `col`, `timeline`
+  - queries: `get_component_list`, `get_component_docs`
+  - fallback: none
+- Verified the incident detail page shares this PR-closeout evidence because `web/src/modules/audit/pages/incident/index.vue` consumes the same TDesign surface set (`t-card`, `t-descriptions`, `t-tag`, `t-list`, `t-row`, `t-col`, `t-space`, `t-button`) within the bounded audit module slice.
 - Used the preflight to keep the existing TDesign component usage stable while fixing bounded review findings in:
   - `web/src/modules/audit/components/AuditDetailDrawer.vue`
   - `web/src/modules/audit/pages/incident/index.vue`

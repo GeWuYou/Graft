@@ -6528,12 +6528,15 @@
       },
       "audit-evidence-context": {
         "type": "object",
+        "description": "Optional audit evidence filters used to correlate evidence links and narrow audit investigation context.",
         "properties": {
           "action": {
-            "type": "string"
+            "type": "string",
+            "description": "Exact audit action identifier to match."
           },
           "action_prefix": {
-            "type": "string"
+            "type": "string",
+            "description": "Action namespace prefix used for broader matching such as `user.`."
           },
           "source": {
             "type": "string",
@@ -6541,19 +6544,24 @@
               "REQUEST",
               "SECURITY_EVENT",
               "DOMAIN_EVENT"
-            ]
+            ],
+            "description": "Canonical audit event source category."
           },
           "resource_type": {
-            "type": "string"
+            "type": "string",
+            "description": "Resource type associated with the audit record."
           },
           "resource_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable resource identifier associated with the audit record."
           },
           "resource_name": {
-            "type": "string"
+            "type": "string",
+            "description": "Human-readable resource label captured with the audit record."
           },
           "request_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Correlation request identifier used to trace related records."
           },
           "result": {
             "type": "string",
@@ -6562,7 +6570,8 @@
               "FAILED",
               "DENIED",
               "ERROR"
-            ]
+            ],
+            "description": "Audit result classification for the matching evidence set."
           },
           "risk_level": {
             "type": "string",
@@ -6571,15 +6580,18 @@
               "MEDIUM",
               "HIGH",
               "CRITICAL"
-            ]
+            ],
+            "description": "Risk classification for matched audit evidence."
           },
           "created_from": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Inclusive RFC 3339 lower bound for audit record creation time."
           },
           "created_to": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Inclusive RFC 3339 upper bound for audit record creation time."
           }
         }
       },
@@ -6635,6 +6647,7 @@
       },
       "audit-incident-monitor-evidence": {
         "type": "object",
+        "description": "Monitor evidence linked to an audit incident, describing anomaly scope, observation time, and deep-link evidence navigation.",
         "required": [
           "state",
           "summary",
@@ -6647,16 +6660,20 @@
               "available",
               "partial",
               "unavailable"
-            ]
+            ],
+            "description": "Availability of correlated monitor evidence for this incident."
           },
           "summary": {
-            "type": "string"
+            "type": "string",
+            "description": "Human-readable summary of the correlated monitor evidence."
           },
           "reason": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional explanation when evidence is partial or unavailable."
           },
           "anomaly_key": {
             "type": "string",
+            "description": "Canonical anomaly identifier describing the monitor condition tied to the incident.",
             "enum": [
               "dependency_status_degraded",
               "dependency_status_unknown",
@@ -6676,17 +6693,21 @@
               "plugin",
               "runtime",
               "resource"
-            ]
+            ],
+            "description": "Scope category that owns the anomaly target."
           },
           "scope_ref": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable scope identifier used to reopen the owning monitor view."
           },
           "observed_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "RFC 3339 timestamp when the anomaly was observed."
           },
           "evidence_links": {
             "type": "array",
+            "description": "Canonical evidence links that deep-link into related monitor or audit investigation surfaces.",
             "items": {
               "$ref": "#/components/schemas/evidence-link"
             }

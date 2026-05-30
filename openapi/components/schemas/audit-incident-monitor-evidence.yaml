@@ -1,15 +1,20 @@
 type: object
+description: Monitor evidence linked to an audit incident, describing anomaly scope, observation time, and deep-link evidence navigation.
 required: [state, summary, evidence_links]
 properties:
   state:
     type: string
     enum: [available, partial, unavailable]
+    description: Availability of correlated monitor evidence for this incident.
   summary:
     type: string
+    description: Human-readable summary of the correlated monitor evidence.
   reason:
     type: string
+    description: Optional explanation when evidence is partial or unavailable.
   anomaly_key:
     type: string
+    description: Canonical anomaly identifier describing the monitor condition tied to the incident.
     enum:
       - dependency_status_degraded
       - dependency_status_unknown
@@ -23,12 +28,16 @@ properties:
   scope_kind:
     type: string
     enum: [dependency, plugin, runtime, resource]
+    description: Scope category that owns the anomaly target.
   scope_ref:
     type: string
+    description: Stable scope identifier used to reopen the owning monitor view.
   observed_at:
     type: string
     format: date-time
+    description: RFC 3339 timestamp when the anomaly was observed.
   evidence_links:
     type: array
+    description: Canonical evidence links that deep-link into related monitor or audit investigation surfaces.
     items:
       $ref: ./evidence-link.yaml

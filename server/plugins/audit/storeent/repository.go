@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -92,6 +93,10 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 		Metadata:         metadata,
 		CreatedAt:        input.CreatedAt,
 	}
+	actorUserID, err := nullableUint64(input.ActorUserID)
+	if err != nil {
+		return auditstore.AuditLog{}, fmt.Errorf("create audit log: %w", err)
+	}
 
 	row := r.db.QueryRowContext(
 		ctx,
@@ -112,7 +117,7 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 			created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id`,
-		nullableUint64(input.ActorUserID),
+		actorUserID,
 		input.ActorUsername,
 		input.ActorDisplayName,
 		input.Action,
@@ -583,11 +588,11 @@ func enrichAuditLog(record *auditstore.AuditLog) {
 	record.RequestMethod = stringMetadataValue(metadata, "request_method")
 	record.RequestPath = stringMetadataValue(metadata, "request_path")
 	record.StatusCode = intMetadataValue(metadata, "status_code")
+	record.Result = classifyAuditResult(*record, metadata)
+	record.RiskLevel = classifyAuditRiskLevel(*record)
 	record.TargetType = normalizeAuditTargetType(record.ResourceType)
 	record.TargetLabel = firstNonEmpty(record.ResourceName, displayTargetLabel(record.TargetType), record.ResourceID)
 	record.Target = buildAuditTarget(*record)
-	record.Result = classifyAuditResult(*record, metadata)
-	record.RiskLevel = classifyAuditRiskLevel(*record)
 }
 
 func buildAuditTarget(record auditstore.AuditLog) auditstore.AuditTarget {
@@ -1804,12 +1809,15 @@ func failedAuthUniqueByRequest(primary []auditstore.OverviewItem, fallback []aud
 	return primary
 }
 
-func nullableUint64(value *uint64) any {
+func nullableUint64(value *uint64) (any, error) {
 	if value == nil {
-		return nil
+		return nil, nil
+	}
+	if *value > math.MaxInt64 {
+		return nil, fmt.Errorf("actor user id %d exceeds bigint range", *value)
 	}
 
-	return *value
+	return *value, nil
 }
 
 func toStoreID(id int64) uint64 {

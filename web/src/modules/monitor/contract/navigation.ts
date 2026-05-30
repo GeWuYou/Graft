@@ -51,12 +51,14 @@ export function normalizeMonitorOriginContext(context: MonitorOriginContext): Mo
 export function buildMonitorOriginQuery(context: MonitorOriginContext) {
   const normalized = normalizeMonitorOriginContext(context);
 
-  return {
-    [MONITOR_ORIGIN_QUERY_KEY.VIEW]: normalized.view ?? '',
-    [MONITOR_ORIGIN_QUERY_KEY.TREND_RANGE]: normalized.trendRange ?? '',
-    [MONITOR_ORIGIN_QUERY_KEY.ANOMALY_KEY]: normalized.anomalyKey ?? '',
-    [MONITOR_ORIGIN_QUERY_KEY.SCOPE_REF]: normalized.scopeRef ?? '',
-  };
+  return Object.fromEntries(
+    [
+      [MONITOR_ORIGIN_QUERY_KEY.VIEW, normalized.view],
+      [MONITOR_ORIGIN_QUERY_KEY.TREND_RANGE, normalized.trendRange],
+      [MONITOR_ORIGIN_QUERY_KEY.ANOMALY_KEY, normalized.anomalyKey],
+      [MONITOR_ORIGIN_QUERY_KEY.SCOPE_REF, normalized.scopeRef],
+    ].filter(([, value]) => value !== undefined && value !== ''),
+  ) as Record<string, string>;
 }
 
 export function parseMonitorOriginQuery(query: Record<string, unknown>): MonitorOriginContext | null {

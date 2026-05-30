@@ -1,29 +1,41 @@
 type: object
+description: Optional audit evidence filters used to correlate evidence links and narrow audit investigation context.
 properties:
   action:
     type: string
+    description: Exact audit action identifier to match.
   action_prefix:
     type: string
+    description: Action namespace prefix used for broader matching such as `user.`.
   source:
     type: string
     enum: [REQUEST, SECURITY_EVENT, DOMAIN_EVENT]
+    description: Canonical audit event source category.
   resource_type:
     type: string
+    description: Resource type associated with the audit record.
   resource_id:
     type: string
+    description: Stable resource identifier associated with the audit record.
   resource_name:
     type: string
+    description: Human-readable resource label captured with the audit record.
   request_id:
     type: string
+    description: Correlation request identifier used to trace related records.
   result:
     type: string
     enum: [SUCCESS, FAILED, DENIED, ERROR]
+    description: Audit result classification for the matching evidence set.
   risk_level:
     type: string
     enum: [LOW, MEDIUM, HIGH, CRITICAL]
+    description: Risk classification for matched audit evidence.
   created_from:
     type: string
     format: date-time
+    description: Inclusive RFC 3339 lower bound for audit record creation time.
   created_to:
     type: string
     format: date-time
+    description: Inclusive RFC 3339 upper bound for audit record creation time.

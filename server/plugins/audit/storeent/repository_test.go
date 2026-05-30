@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -143,6 +144,28 @@ func TestRepositoryCreateAndListAuditLogs(t *testing.T) {
 	}
 	if string(result.Items[1].Metadata) != `{"field":"display"}` {
 		t.Fatalf("expected metadata to round-trip, got %s", result.Items[1].Metadata)
+	}
+}
+
+func TestRepositoryCreateAuditLogRejectsActorUserIDOutsideBigIntRange(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	overflow := uint64(math.MaxInt64) + 1
+	_, err = repo.CreateAuditLog(context.Background(), auditstore.CreateAuditLogInput{
+		ActorUserID: &overflow,
+		Action:      "audit.test",
+		Success:     true,
+		CreatedAt:   time.Now().UTC(),
+	})
+	if err == nil {
+		t.Fatalf("expected bigint range error")
+	}
+	if !strings.Contains(err.Error(), "exceeds bigint range") {
+		t.Fatalf("expected bigint range error, got %v", err)
 	}
 }
 
