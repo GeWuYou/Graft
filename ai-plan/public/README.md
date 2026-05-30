@@ -12,7 +12,39 @@ Overlay note:
 
 ## Active Topics
 
-- No active public recovery topics.
+- `phase-d-access-log-contract-definition`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded governance-only topic for future `Access Log` contract authority.
+  - Scope outcome:
+    - formalized `Access Log` vs `Audit Log` vs `Security Event` boundary matrix
+    - defined canonical access-log schema, query contract, sort contract, and pagination contract
+    - defined future operator workflow and ownership matrix for `server -> openapi -> web`
+    - recorded truthful runtime gaps without approving storage, API, or UI work
+  - Topic directory:
+    - `ai-plan/public/phase-d-access-log-contract-definition`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic phase-d-access-log-contract-definition. Owned scope: server/internal/httpx/**, server/internal/logger/**, server/internal/pluginapi/**, openapi/**, ai-plan/design/**, and ai-plan/public/phase-d-access-log-contract-definition/** only. Open the next bounded topic only as phase-d-access-log-runtime-storage, and do not add explorer UI, query APIs, or durable tables until runtime storage authority is explicitly approved.`
+
+- `phase-d-log-explorer-authority-definition`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded governance-only authority-definition topic for future `Log Explorer`.
+  - Scope outcome:
+    - formalized `Audit Domain` vs `Log Explorer Domain`
+    - formalized log ownership, retention, contract ownership, and investigation workflow matrices
+    - recorded truthful runtime readiness as `Partially Ready`
+  - Topic directory:
+    - `ai-plan/public/phase-d-log-explorer-authority-definition`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat phase-d-log-explorer-authority-definition as current authority evidence. Open a new bounded runtime topic only if retention authority and runtime log-explorer storage authority are being explicitly repaired before API/page work.`
+
+- `phase-d-log-retention-and-storage-authority`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded server runtime governance topic for retention, storage, and cleanup authority.
+  - Scope outcome:
+    - verified runtime logging write-path and storage matrix from code
+    - formalized that only audit logs currently have durable repository-owned storage authority
+    - formalized that app/access log retention cleanup is `not-ready` inside repository runtime until a future storage authority exists
+  - Topic directory:
+    - `ai-plan/public/phase-d-log-retention-and-storage-authority`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: server. Recovery source: parent topic phase-d-log-retention-and-storage-authority. Owned scope: server/internal/httpx/**, server/internal/logger/**, server/internal/pluginapi/**, ai-plan/design/**, ai-plan/public/phase-d-log-retention-and-storage-authority/**, and openapi/** only if authority becomes necessary. Open the next bounded topic only as phase-d-access-log-contract-definition, and do not add UI or query APIs unless access-log contract authority remains truthful to current storage reality.`
 
 ## Archived Topics
 

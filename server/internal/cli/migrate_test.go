@@ -202,7 +202,7 @@ func TestResolveMigrationDirRejectsMissingPath(t *testing.T) {
 }
 
 // TestResolveMigrationDirsUsesCompileTimeRegistry 验证默认迁移目录会先回到
-// compile-time registry 读取目录集合。
+// compile-time registry 读取 live owner-aligned 目录集合。
 func TestResolveMigrationDirsUsesCompileTimeRegistry(t *testing.T) {
 	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
 	originalReadDir := migrateReadDir
@@ -212,21 +212,22 @@ func TestResolveMigrationDirsUsesCompileTimeRegistry(t *testing.T) {
 	}()
 
 	root := t.TempDir()
+	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "plugins", "audit", "migrations")
 	pluginDir := filepath.Join(root, "server", "plugins", "user", "migrations")
-	for _, dir := range []string{auditDir, pluginDir} {
+	for _, dir := range []string{coreDir, auditDir, pluginDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
-	for _, dir := range []string{auditDir, pluginDir} {
+	for _, dir := range []string{coreDir, auditDir, pluginDir} {
 		if err := os.WriteFile(filepath.Join(dir, "atlas.sum"), []byte(filepath.Base(dir)), 0o600); err != nil {
 			t.Fatalf("write atlas.sum in %s: %v", dir, err)
 		}
 	}
 
 	migrateRegistryMigrationDirs = func() ([]string, error) {
-		return []string{"plugins/audit/migrations", "plugins/user/migrations"}, nil
+		return []string{"internal/httpx/migrations", "plugins/audit/migrations", "plugins/user/migrations"}, nil
 	}
 	migrateReadDir = os.ReadDir
 
@@ -235,7 +236,7 @@ func TestResolveMigrationDirsUsesCompileTimeRegistry(t *testing.T) {
 		t.Fatalf("resolve migration dirs: %v", err)
 	}
 
-	expected := []string{auditDir, pluginDir}
+	expected := []string{coreDir, auditDir, pluginDir}
 	if !reflect.DeepEqual(resolved, expected) {
 		t.Fatalf("expected %v, got %v", expected, resolved)
 	}
@@ -252,19 +253,23 @@ func TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState(t *testing.T) {
 	}()
 
 	root := t.TempDir()
+	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "plugins", "audit", "migrations")
 	pluginDir := filepath.Join(root, "server", "plugins", "user", "migrations")
-	for _, dir := range []string{auditDir, pluginDir} {
+	for _, dir := range []string{coreDir, auditDir, pluginDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
+	}
+	if err := os.WriteFile(filepath.Join(coreDir, "atlas.sum"), []byte("httpx"), 0o600); err != nil {
+		t.Fatalf("write atlas.sum: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(auditDir, "atlas.sum"), []byte("audit"), 0o600); err != nil {
 		t.Fatalf("write atlas.sum: %v", err)
 	}
 
 	migrateRegistryMigrationDirs = func() ([]string, error) {
-		return []string{"plugins/audit/migrations", "plugins/user/migrations"}, nil
+		return []string{"internal/httpx/migrations", "plugins/audit/migrations", "plugins/user/migrations"}, nil
 	}
 	migrateReadDir = os.ReadDir
 
@@ -273,7 +278,7 @@ func TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState(t *testing.T) {
 		t.Fatalf("resolve migration dirs: %v", err)
 	}
 
-	expected := []string{auditDir}
+	expected := []string{coreDir, auditDir}
 	if !reflect.DeepEqual(resolved, expected) {
 		t.Fatalf("expected %v, got %v", expected, resolved)
 	}
@@ -290,16 +295,22 @@ func TestResolveMigrationDirsSkipsMissingRegistryDirs(t *testing.T) {
 	}()
 
 	root := t.TempDir()
+	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "plugins", "audit", "migrations")
-	if err := os.MkdirAll(auditDir, 0o750); err != nil {
-		t.Fatalf("mkdir %s: %v", auditDir, err)
+	for _, dir := range []string{coreDir, auditDir} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(coreDir, "atlas.sum"), []byte("httpx"), 0o600); err != nil {
+		t.Fatalf("write atlas.sum: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(auditDir, "atlas.sum"), []byte("audit"), 0o600); err != nil {
 		t.Fatalf("write atlas.sum: %v", err)
 	}
 
 	migrateRegistryMigrationDirs = func() ([]string, error) {
-		return []string{"plugins/audit/migrations", "plugins/user/migrations"}, nil
+		return []string{"internal/httpx/migrations", "plugins/audit/migrations", "plugins/user/migrations"}, nil
 	}
 	migrateReadDir = os.ReadDir
 
@@ -308,7 +319,7 @@ func TestResolveMigrationDirsSkipsMissingRegistryDirs(t *testing.T) {
 		t.Fatalf("resolve migration dirs: %v", err)
 	}
 
-	expected := []string{auditDir}
+	expected := []string{coreDir, auditDir}
 	if !reflect.DeepEqual(resolved, expected) {
 		t.Fatalf("expected %v, got %v", expected, resolved)
 	}
@@ -325,16 +336,17 @@ func TestResolveMigrationDirsRejectsRegistryWithoutAtlasState(t *testing.T) {
 	}()
 
 	root := t.TempDir()
+	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "plugins", "audit", "migrations")
 	pluginDir := filepath.Join(root, "server", "plugins", "user", "migrations")
-	for _, dir := range []string{auditDir, pluginDir} {
+	for _, dir := range []string{coreDir, auditDir, pluginDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
 
 	migrateRegistryMigrationDirs = func() ([]string, error) {
-		return []string{"plugins/audit/migrations", "plugins/user/migrations"}, nil
+		return []string{"internal/httpx/migrations", "plugins/audit/migrations", "plugins/user/migrations"}, nil
 	}
 	migrateReadDir = os.ReadDir
 
@@ -499,18 +511,20 @@ func TestRunMigrateUpFallsBackToBackgroundContext(t *testing.T) {
 	}
 }
 
-// TestRunMigrateUpSynthesizesDefaultChain 验证默认迁移路径会把 plugin-owned
+// TestRunMigrateUpSynthesizesDefaultChain 验证默认迁移路径会把 live owner-aligned
 // 迁移目录合成为单一 Atlas 版本链，再对数据库执行一次 apply。
 func TestRunMigrateUpSynthesizesDefaultChain(t *testing.T) {
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
 
 	root := t.TempDir()
+	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "plugins", "audit", "migrations")
 	rbacDir := filepath.Join(root, "server", "plugins", "rbac", "migrations")
 	userDir := filepath.Join(root, "server", "plugins", "user", "migrations")
-	dirs := []string{auditDir, rbacDir, userDir}
+	dirs := []string{coreDir, auditDir, rbacDir, userDir}
 	createMigrationFixture(t, dirs, map[string]string{
+		filepath.Join(coreDir, "202605300001_access_log.sql"): "CREATE TABLE access_logs (id bigint);\n",
 		filepath.Join(userDir, "202605190001_user.sql"):   "CREATE TABLE users (id bigint);\n",
 		filepath.Join(rbacDir, "202605190002_rbac.sql"):   "CREATE TABLE roles (id bigint);\n",
 		filepath.Join(auditDir, "202605190003_audit.sql"): "CREATE TABLE audit_logs (id bigint);\n",
@@ -527,6 +541,7 @@ func TestRunMigrateUpSynthesizesDefaultChain(t *testing.T) {
 	}
 	migrateRegistryMigrationDirs = func() ([]string, error) {
 		return []string{
+			"internal/httpx/migrations",
 			"plugins/user/migrations",
 			"plugins/rbac/migrations",
 			"plugins/audit/migrations",
@@ -550,6 +565,7 @@ func TestRunMigrateUpSynthesizesDefaultChain(t *testing.T) {
 		"202605190001_user.sql",
 		"202605190002_rbac.sql",
 		"202605190003_audit.sql",
+		"202605300001_access_log.sql",
 	})
 }
 

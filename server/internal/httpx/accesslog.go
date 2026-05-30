@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	"graft/server/internal/pluginapi"
 )
 
 const (
@@ -13,7 +15,7 @@ const (
 	httpStatusInternalServerError = 500
 )
 
-func newAccessLogMiddleware(logger *zap.Logger) gin.HandlerFunc {
+func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository) gin.HandlerFunc {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -24,19 +26,74 @@ func newAccessLogMiddleware(logger *zap.Logger) gin.HandlerFunc {
 
 		ctx.Next()
 
+		record := buildAccessLogRecord(ctx, requestID, startedAt)
 		fields := []zap.Field{
-			zap.String("requestId", requestID),
-			zap.String("traceId", requestID),
-			zap.String("method", strings.TrimSpace(ctx.Request.Method)),
-			zap.String("path", currentRequestPath(ctx)),
-			zap.String("route", currentRequestRoute(ctx)),
-			zap.Int("status", ctx.Writer.Status()),
-			zap.Duration("latency", time.Since(startedAt)),
-			zap.String("clientIp", strings.TrimSpace(ctx.ClientIP())),
-			zap.String("userAgent", strings.TrimSpace(ctx.Request.UserAgent())),
+			zap.String("requestId", record.RequestID),
+			zap.String("traceId", record.RequestID),
+			zap.String("method", record.Method),
+			zap.String("path", record.Path),
+			zap.String("route", record.Route),
+			zap.Int("status", record.StatusCode),
+			zap.Duration("latency", time.Duration(record.DurationMS)*time.Millisecond),
+			zap.String("clientIp", record.ClientIP),
+			zap.String("userAgent", record.UserAgent),
 		}
 
+		if record.UserID != nil {
+			fields = append(fields, zap.Uint64("userId", *record.UserID))
+		}
+		if record.Username != "" {
+			fields = append(fields, zap.String("username", record.Username))
+		}
+		if record.RequestSize != nil {
+			fields = append(fields, zap.Int64("requestSize", *record.RequestSize))
+		}
+		if record.ResponseSize != nil {
+			fields = append(fields, zap.Int64("responseSize", *record.ResponseSize))
+		}
+		fields = append(fields, zap.Time("occurredAt", record.OccurredAt))
+
+		persistAccessLog(ctx, logger, repo, record)
 		logAccess(logger, ctx.Writer.Status(), fields...)
+	}
+}
+
+func buildAccessLogRecord(ctx *gin.Context, requestID string, startedAt time.Time) CreateAccessLogInput {
+	record := CreateAccessLogInput{
+		RequestID:    strings.TrimSpace(requestID),
+		Method:       strings.TrimSpace(ctx.Request.Method),
+		Path:         sanitizeAccessLogPath(currentRequestPath(ctx)),
+		Route:        sanitizeAccessLogRoute(currentRequestRoute(ctx)),
+		StatusCode:   ctx.Writer.Status(),
+		DurationMS:   time.Since(startedAt).Milliseconds(),
+		ClientIP:     strings.TrimSpace(ctx.ClientIP()),
+		UserAgent:    sanitizeAccessLogFreeText(strings.TrimSpace(ctx.Request.UserAgent())),
+		RequestSize:  currentRequestSize(ctx),
+		ResponseSize: currentResponseSize(ctx),
+		OccurredAt:   time.Now().UTC(),
+	}
+
+	if requestAuth, ok := pluginapi.RequestAuthContextFromContext(ctx.Request.Context()); ok && requestAuth.User != nil {
+		record.UserID = cloneUint64Pointer(&requestAuth.User.ID)
+		record.Username = strings.TrimSpace(requestAuth.User.Username)
+	}
+
+	return record
+}
+
+func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogRepository, record CreateAccessLogInput) {
+	if repo == nil {
+		return
+	}
+
+	if _, err := repo.CreateAccessLog(ctx.Request.Context(), record); err != nil {
+		logger.Error("persist access log failed",
+			zap.String("requestId", record.RequestID),
+			zap.String("method", record.Method),
+			zap.String("path", record.Path),
+			zap.Int("statusCode", record.StatusCode),
+			zap.Error(err),
+		)
 	}
 }
 
@@ -65,4 +122,30 @@ func currentRequestRoute(ctx *gin.Context) string {
 	}
 
 	return strings.TrimSpace(ctx.FullPath())
+}
+
+func currentRequestSize(ctx *gin.Context) *int64 {
+	if ctx == nil || ctx.Request == nil {
+		return nil
+	}
+
+	if ctx.Request.ContentLength < 0 {
+		return nil
+	}
+
+	size := ctx.Request.ContentLength
+	return &size
+}
+
+func currentResponseSize(ctx *gin.Context) *int64 {
+	if ctx == nil || ctx.Writer == nil {
+		return nil
+	}
+
+	size := int64(ctx.Writer.Size())
+	if size < 0 {
+		return nil
+	}
+
+	return &size
 }

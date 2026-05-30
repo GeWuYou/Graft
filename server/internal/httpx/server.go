@@ -28,6 +28,7 @@ const (
 type Server struct {
 	engine *gin.Engine
 	mu     sync.Mutex
+	repo   AccessLogRepository
 	// server 持有当前运行中的 http.Server 指针，用于串行化 Run/Shutdown
 	// 的所有权切换，避免重复关闭或重复启动同一个生命周期槽位。
 	server *http.Server
@@ -37,10 +38,19 @@ type Server struct {
 //
 // 返回的服务默认挂载全局 request-id、中台统一 access log 与恢复中间件，
 // 便于 core 和插件在统一入口上继续注册路由。
-func NewServer(logger *zap.Logger) *Server {
+func NewServer(logger *zap.Logger, repo ...AccessLogRepository) *Server {
 	engine := gin.New()
-	engine.Use(RequestIDMiddleware(), newAccessLogMiddleware(logger), gin.Recovery())
-	return &Server{engine: engine}
+
+	var accessLogRepo AccessLogRepository
+	for _, candidate := range repo {
+		if candidate != nil {
+			accessLogRepo = candidate
+			break
+		}
+	}
+
+	engine.Use(RequestIDMiddleware(), newAccessLogMiddleware(logger, accessLogRepo), gin.Recovery())
+	return &Server{engine: engine, repo: accessLogRepo}
 }
 
 // Engine 返回供 core 和插件注册路由使用的根路由。

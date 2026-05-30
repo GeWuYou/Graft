@@ -150,6 +150,8 @@ Observability authority overlay：
 - `plugins/monitor/**` 拥有 monitor facts、anomaly、trend 与 monitor evidence 语义
 - `internal/httpx/**` 拥有 request correlation、access logging 与 security-event bridge authority
 - `internal/logger/**` 拥有 `AppLogger` / `Error Log` baseline
+- future `Log Explorer` authority 必须建立在 `internal/logger/**` 与 `internal/httpx/**` 的 logging semantics 之上，而不是建立在 `plugins/audit/**` 持久化表之上
+- `plugins/audit/**` 可以消费 logging correlation 作为调查入口，但不是 `Access Log Explorer` / `App Log Explorer` 的 canonical owner
 - `openapi/**` 是 shared wire contract authority；`internal/contract/openapi/**` 仅是 derived artifact consumer boundary
 - `internal/pluginapi/**` 中的 observability capability 只允许暴露 bounded evidence、stable ingest、或 narrow identity/authz-style ability，不得暴露 plugin internals
 

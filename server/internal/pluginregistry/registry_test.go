@@ -8,15 +8,16 @@ import (
 	"testing"
 )
 
-// TestMigrationDirsUsesPluginOwnedBaseline 验证默认迁移链不再包含历史共享目录，
-// 而是只消费 compile-time registry 声明的 plugin-owned 目录。
-func TestMigrationDirsUsesPluginOwnedBaseline(t *testing.T) {
+// TestMigrationDirsUsesOwnerAlignedBaseline 验证默认迁移链不再包含历史共享目录，
+// 而是消费 live core-owned + plugin-owned 目录。
+func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 	dirs, err := MigrationDirs()
 	if err != nil {
 		t.Fatalf("migration dirs: %v", err)
 	}
 
 	expected := []string{
+		"internal/httpx/migrations",
 		"plugins/user/migrations",
 		"plugins/auth/migrations",
 		"plugins/rbac/migrations",

@@ -17,6 +17,8 @@ const DefaultMigrationDir = "default"
 // 该目录不再属于默认 apply 链路，但仍可通过 `--dir` 手动执行历史共享链。
 const HistoricalSharedMigrationDir = "internal/ent/migrate/migrations"
 
+const accessLogMigrationDir = "internal/httpx/migrations"
+
 // Descriptors 返回 compile-time 生成的插件描述符快照。
 func Descriptors() []plugin.Descriptor {
 	return append([]plugin.Descriptor(nil), generatedDescriptors...)
@@ -47,17 +49,23 @@ func BuildPlugins(buildCtx plugin.BuildContext) ([]plugin.Plugin, error) {
 	return built, nil
 }
 
+// CoreMigrationDirs 返回当前默认链路中的 core-owned live 迁移目录集合。
+func CoreMigrationDirs() []string {
+	return []string{accessLogMigrationDir}
+}
+
 // MigrationDirs 返回当前 compile-time registry 声明的默认迁移目录集合。
 //
-// 默认链路只展开 plugin-owned 目录，并按依赖排序展开，避免 CLI 再手写
-// 第二份插件顺序真相。
+// 默认链路先展开 live core-owned 目录，再按依赖排序展开 plugin-owned 目录，
+// 避免 CLI 再手写第二份迁移顺序真相。
 func MigrationDirs() ([]string, error) {
 	ordered, err := OrderedDescriptors()
 	if err != nil {
 		return nil, err
 	}
 
-	dirs := make([]string, 0, len(ordered))
+	dirs := make([]string, 0, len(CoreMigrationDirs())+len(ordered))
+	dirs = append(dirs, CoreMigrationDirs()...)
 	for _, descriptor := range ordered {
 		dirs = append(dirs, descriptor.MigrationDirs()...)
 	}

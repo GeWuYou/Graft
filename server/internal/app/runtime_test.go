@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -26,6 +27,26 @@ import (
 	"graft/server/internal/plugin"
 	testent "graft/server/internal/testent"
 )
+
+type runtimeAccessLogRecorderRepo struct {
+	created []httpx.CreateAccessLogInput
+}
+
+func (r *runtimeAccessLogRecorderRepo) CreateAccessLog(_ context.Context, input httpx.CreateAccessLogInput) (httpx.AccessLog, error) {
+	r.created = append(r.created, input)
+	return httpx.AccessLog{}, nil
+}
+
+func (r *runtimeAccessLogRecorderRepo) CreateAccessLogs(_ context.Context, inputs []httpx.CreateAccessLogInput) ([]httpx.AccessLog, error) {
+	for _, input := range inputs {
+		r.created = append(r.created, input)
+	}
+	return []httpx.AccessLog{}, nil
+}
+
+func (r *runtimeAccessLogRecorderRepo) DeleteAccessLogsBefore(context.Context, time.Time) (int64, error) {
+	return 0, nil
+}
 
 type shutdownRecorderPlugin struct {
 	name        string
@@ -238,6 +259,74 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*sql.DB)(nil), sqlDB, "sql db")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
 	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
+}
+
+func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	recorderRepo := &runtimeAccessLogRecorderRepo{}
+	originalFactory := newAccessLogRepository
+	originalOpenRedisClient := openRedisClient
+	newAccessLogRepository = func(db *sql.DB) (httpx.AccessLogRepository, error) {
+		if db == nil {
+			t.Fatal("expected runtime assembly to pass shared sql db into access log repository factory")
+		}
+		return recorderRepo, nil
+	}
+	openRedisClient = func(context.Context, config.RedisConfig) (*redis.Client, error) {
+		return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"}), nil
+	}
+	t.Cleanup(func() {
+		newAccessLogRepository = originalFactory
+		openRedisClient = originalOpenRedisClient
+	})
+
+	runtime, err := newRuntimeCore(&config.Config{
+		App: config.AppConfig{Name: "graft", Env: "test"},
+		HTTP: config.HTTPConfig{
+			Addr: "127.0.0.1:0",
+		},
+		Database: config.DatabaseConfig{
+			Driver: "postgres",
+			URL:    "postgres://graft@localhost:5432/graft?sslmode=disable",
+		},
+		Redis: config.RedisConfig{
+			Addr: "127.0.0.1:6379",
+		},
+		Log: config.LogConfig{
+			Level: "info",
+		},
+		I18n: config.I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "zh-CN",
+			SupportedLocales: []string{"zh-CN", "en-US"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("new runtime core: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = runtime.closeCoreResources()
+	})
+
+	runtime.server.Engine().GET("/access-log-check", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/access-log-check", nil)
+	request.RemoteAddr = "203.0.113.10:3456"
+	recorder := httptest.NewRecorder()
+	runtime.server.Engine().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+	if len(recorderRepo.created) != 1 {
+		t.Fatalf("expected runtime server to persist one access log, got %d", len(recorderRepo.created))
+	}
+	if recorderRepo.created[0].Path != "/access-log-check" || recorderRepo.created[0].Route != "/access-log-check" {
+		t.Fatalf("expected canonical access-log route fields, got %#v", recorderRepo.created[0])
+	}
 }
 
 func assertResolvedService[T comparable](t *testing.T, resolver container.Resolver, key any, expected T, name string) {

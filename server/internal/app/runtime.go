@@ -31,6 +31,9 @@ import (
 
 const pluginShutdownTimeout = 5 * time.Second
 
+var newAccessLogRepository = httpx.NewAccessLogRepository
+var openRedisClient = redisx.Open
+
 // Runtime 持有 MVP 运行时的核心资源与插件生命周期执行入口。
 //
 // Runtime 把配置、数据库、Redis、HTTP 服务、注册中心和插件管理器集中
@@ -123,7 +126,7 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("open database resources: %w", err)
 	}
 
-	redisClient, err := redisx.Open(context.Background(), cfg.Redis)
+	redisClient, err := openRedisClient(context.Background(), cfg.Redis)
 	if err != nil {
 		_ = database.Close(databaseResources)
 		_ = logger.Close(runtimeLogger)
@@ -138,13 +141,21 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("create i18n service: %w", err)
 	}
 
+	accessLogRepo, err := newAccessLogRepository(databaseResources.SQL)
+	if err != nil {
+		_ = redisClient.Close()
+		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
+		return nil, fmt.Errorf("create access log repository: %w", err)
+	}
+
 	return &Runtime{
 		config:             cfg,
 		logger:             runtimeLogger,
 		i18n:               localizer,
 		database:           databaseResources,
 		redis:              redisClient,
-		server:             httpx.NewServer(runtimeLogger),
+		server:             httpx.NewServer(runtimeLogger, accessLogRepo),
 		eventBus:           eventbus.New(runtimeLogger),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
