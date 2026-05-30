@@ -432,6 +432,31 @@ func TestValidateRejectsMissingAuthTokenTTLs(t *testing.T) {
 	assertValidateError(t, cfg, "")
 }
 
+func TestValidateRejectsNonPositiveAccessLogRetention(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.HTTPX.AccessLogRetention = 0
+
+	assertValidateError(t, cfg, "GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
+}
+
+func TestDefaultAccessLogRetentionForEnv(t *testing.T) {
+	testCases := []struct {
+		env  string
+		want time.Duration
+	}{
+		{env: "development", want: 3 * 24 * time.Hour},
+		{env: "staging", want: 7 * 24 * time.Hour},
+		{env: "production", want: 30 * 24 * time.Hour},
+		{env: "local", want: 3 * 24 * time.Hour},
+	}
+
+	for _, testCase := range testCases {
+		if got := defaultAccessLogRetentionForEnv(testCase.env); got != testCase.want {
+			t.Fatalf("env %q: expected %s, got %s", testCase.env, testCase.want, got)
+		}
+	}
+}
+
 // TestValidateRejectsUnsafeCookieMode 验证 SameSite=None 时必须同时开启安全 cookie。
 func TestValidateRejectsUnsafeCookieMode(t *testing.T) {
 	cfg := validConfigForValidateTests()
@@ -483,6 +508,9 @@ func validConfigForValidateTests() *Config {
 		},
 		HTTP: HTTPConfig{
 			Addr: ":8080",
+		},
+		HTTPX: HTTPXConfig{
+			AccessLogRetention: 3 * 24 * time.Hour,
 		},
 		Database: DatabaseConfig{
 			Driver: "postgres",

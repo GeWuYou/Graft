@@ -7,10 +7,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	applog "graft/server/internal/logger"
 	"graft/server/internal/pluginapi"
 )
 
@@ -32,6 +34,10 @@ func (r authRouteRegistrar) runtime() routeRuntime {
 	}
 }
 
+func (r routeRuntime) appLogger() applog.AppLogger {
+	return applog.NewAppLogger(r.logger).Named("plugins.auth.route")
+}
+
 func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	mapped := r.authFlow.RouteError(err)
 	if mapped.Status == http.StatusInternalServerError {
@@ -43,16 +49,36 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 }
 
 func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
-	logFields := append([]zap.Field{
-		zap.String("plugin", r.pluginName),
-		zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
-		zap.String("method", ginCtx.Request.Method),
-		zap.String("route", ginCtx.FullPath()),
-		zap.Error(err),
-	}, fields...)
-	r.logger.Error(message, logFields...)
+	appFields := []applog.Field{
+		applog.StringField("plugin", r.pluginName),
+		applog.ErrorField(err),
+	}
+	for _, field := range fields {
+		appFields = append(appFields, applog.Field{
+			Key:   field.Key,
+			Value: zapFieldValue(field),
+		})
+	}
+	r.appLogger().Error(ginCtx.Request.Context(), message, appFields...)
 
 	writeLocalizedContractError(ginCtx, r.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+}
+
+func zapFieldValue(field zap.Field) any {
+	switch field.Type {
+	case zapcore.StringType:
+		return field.String
+	case zapcore.Uint64Type:
+		return field.Integer
+	case zapcore.Int64Type, zapcore.Int32Type, zapcore.Int16Type, zapcore.Int8Type:
+		return field.Integer
+	case zapcore.Uint32Type, zapcore.Uint16Type, zapcore.Uint8Type, zapcore.UintptrType:
+		return field.Integer
+	case zapcore.BoolType:
+		return field.Integer == 1
+	default:
+		return field.Interface
+	}
 }
 
 func readSessionIDParam(ginCtx *gin.Context, localizer *i18n.Service) (string, bool) {

@@ -31,6 +31,7 @@ import (
 
 type runtimeAccessLogRecorderRepo struct {
 	created []httpx.CreateAccessLogInput
+	deleted []time.Time
 }
 
 func (r *runtimeAccessLogRecorderRepo) CreateAccessLog(_ context.Context, input httpx.CreateAccessLogInput) (httpx.AccessLog, error) {
@@ -43,7 +44,8 @@ func (r *runtimeAccessLogRecorderRepo) CreateAccessLogs(_ context.Context, input
 	return []httpx.AccessLog{}, nil
 }
 
-func (r *runtimeAccessLogRecorderRepo) DeleteAccessLogsBefore(context.Context, time.Time) (int64, error) {
+func (r *runtimeAccessLogRecorderRepo) DeleteAccessLogsBefore(_ context.Context, cutoff time.Time) (int64, error) {
+	r.deleted = append(r.deleted, cutoff)
 	return 0, nil
 }
 
@@ -629,6 +631,60 @@ func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {
 		if recorder.Code != http.StatusNotFound {
 			t.Fatalf("%s: expected status %d, got %d", path, http.StatusNotFound, recorder.Code)
 		}
+	}
+}
+
+func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *testing.T) {
+	recorderRepo := &runtimeAccessLogRecorderRepo{}
+	deps := runtimeCoreDeps{
+		newAccessLogRepository: func(_ *sql.DB) (httpx.AccessLogRepository, error) {
+			return recorderRepo, nil
+		},
+		openRedisClient: func(context.Context, config.RedisConfig) (*redis.Client, error) {
+			return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"}), nil
+		},
+	}
+
+	runtime, err := newRuntimeCoreWithDeps(&config.Config{
+		App:   config.AppConfig{Name: "graft", Env: "test"},
+		HTTP:  config.HTTPConfig{Addr: ":8080"},
+		HTTPX: config.HTTPXConfig{AccessLogRetention: 3 * 24 * time.Hour},
+		Database: config.DatabaseConfig{
+			Driver: "postgres",
+			URL:    "postgres://graft@localhost:5432/graft?sslmode=disable",
+		},
+		Redis: config.RedisConfig{Addr: "localhost:6379"},
+		Log:   config.LogConfig{Level: "info"},
+		I18n:  config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}},
+		Auth: config.AuthConfig{
+			AccessTokenTTL:        time.Minute,
+			RefreshTokenTTL:       time.Hour,
+			JWTSecret:             "secret",
+			RefreshCookieName:     "refresh",
+			RefreshCookiePath:     "/",
+			RefreshCookieSameSite: "lax",
+		},
+	}, deps)
+	if err != nil {
+		t.Fatalf("new runtime core: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = runtime.closeCoreResources()
+	})
+
+	if err := runtime.registerAccessLogRetentionJob(); err != nil {
+		t.Fatalf("register retention job: %v", err)
+	}
+
+	items := runtime.cronRegistry.Items()
+	if len(items) != 1 {
+		t.Fatalf("expected one registered retention job, got %d", len(items))
+	}
+	if items[0].Name != "httpx.access-log-retention-cleanup" {
+		t.Fatalf("expected retention job name, got %q", items[0].Name)
+	}
+	if len(recorderRepo.deleted) != 0 {
+		t.Fatalf("expected startup registration to avoid cleanup execution, got %d deletions", len(recorderRepo.deleted))
 	}
 }
 

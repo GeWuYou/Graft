@@ -37,6 +37,7 @@ const (
 type Config struct {
 	App      AppConfig
 	HTTP     HTTPConfig
+	HTTPX    HTTPXConfig
 	Docs     DocsConfig
 	Database DatabaseConfig
 	Redis    RedisConfig
@@ -54,6 +55,11 @@ type AppConfig struct {
 // HTTPConfig 控制 core 持有的公开 HTTP 监听配置。
 type HTTPConfig struct {
 	Addr string
+}
+
+// HTTPXConfig 描述 core-owned httpx 运行时配置。
+type HTTPXConfig struct {
+	AccessLogRetention time.Duration
 }
 
 // DocsConfig 控制 OpenAPI 文档与文档页面的公开策略。
@@ -124,6 +130,9 @@ func Load() (*Config, error) {
 		},
 		HTTP: HTTPConfig{
 			Addr: reader.GetString("http.addr"),
+		},
+		HTTPX: HTTPXConfig{
+			AccessLogRetention: reader.GetDuration("httpx.access_log_retention"),
 		},
 		Docs: DocsConfig{
 			Enabled: resolveDocsEnabled(reader),
@@ -202,6 +211,7 @@ func (c *Config) Validate() error {
 	validators := []func(*Config) error{
 		validateAppConfig,
 		validateHTTPConfig,
+		validateHTTPXConfig,
 		validateDatabaseConfig,
 		validateRedisConfig,
 		validateI18nConfig,
@@ -226,6 +236,14 @@ func validateAppConfig(c *Config) error {
 func validateHTTPConfig(c *Config) error {
 	if strings.TrimSpace(c.HTTP.Addr) == "" {
 		return errors.New("GRAFT_HTTP_ADDR is required")
+	}
+
+	return nil
+}
+
+func validateHTTPXConfig(c *Config) error {
+	if c.HTTPX.AccessLogRetention <= 0 {
+		return errors.New("GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
 	}
 
 	return nil
@@ -429,6 +447,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.name", defaultAppName)
 	reader.SetDefault("app.env", defaultAppEnv)
 	reader.SetDefault("http.addr", defaultHTTPAddr)
+	reader.SetDefault("httpx.access_log_retention", defaultAccessLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
 	reader.SetDefault("database.url", defaultDatabaseURL)
 	reader.SetDefault("redis.addr", defaultRedisAddr)
@@ -472,5 +491,18 @@ func defaultDocsEnabledForEnv(env string) bool {
 		return false
 	default:
 		return false
+	}
+}
+
+func defaultAccessLogRetentionForEnv(env string) time.Duration {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "prod", "production":
+		return 30 * 24 * time.Hour
+	case "staging", "stage":
+		return 7 * 24 * time.Hour
+	case "", "local", "development", "dev", "test":
+		return 3 * 24 * time.Hour
+	default:
+		return 7 * 24 * time.Hour
 	}
 }

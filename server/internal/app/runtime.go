@@ -95,6 +95,11 @@ func NewRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
+	if err := runtime.registerAccessLogRetentionJob(); err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, fmt.Errorf("register access-log retention job: %w", err)
+	}
+
 	runtime.registerCoreRoutes(runtime.server.Engine())
 
 	orderedDescriptors, err := pluginregistry.OrderedDescriptors()
@@ -384,7 +389,9 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 		html, err := renderScalarDocsHTML(openapiJSONPath)
 		if err != nil {
 			if r.logger != nil {
-				r.logger.Error("render docs page", zap.Error(err))
+				logger.NewAppLogger(r.logger).
+					Named("internal.app.runtime").
+					Error(ctx.Request.Context(), "render docs page", logger.ErrorField(err))
 			}
 			ctx.String(http.StatusInternalServerError, "failed to render docs page")
 			return
@@ -460,6 +467,19 @@ func (r *Runtime) registerCoreServices() error {
 	}
 
 	return nil
+}
+
+func (r *Runtime) registerAccessLogRetentionJob() error {
+	if r == nil || r.server == nil {
+		return errors.New("runtime server is unavailable")
+	}
+
+	return httpx.RegisterAccessLogRetentionCleanupJob(
+		r.cronRegistry,
+		r.logger,
+		r.server.AccessLogRepository(),
+		r.config.HTTPX,
+	)
 }
 
 func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error {

@@ -11,6 +11,7 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	usercontract "graft/server/plugins/user/contract"
 )
 
@@ -20,10 +21,14 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 
 		users, err := r.userSvc.ListUsers(ginCtx.Request.Context())
 		if err != nil {
-			r.runtime().logger.Error("list users failed",
-				zap.String("plugin", r.pluginName),
-				zap.Error(err),
-			)
+			logger.NewAppLogger(r.ctx.Logger).
+				Named("plugins.user.route.read").
+				Error(
+					ginCtx.Request.Context(),
+					"list users failed",
+					logger.StringField("plugin", r.pluginName),
+					logger.ErrorField(err),
+				)
 			writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 			return
 		}
@@ -35,10 +40,14 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 
 		roleSummariesByUserID, err := r.userSvc.ListUserRoleSummaries(ginCtx.Request.Context(), userIDs)
 		if err != nil {
-			r.runtime().logger.Error("list user role summaries failed",
-				zap.String("plugin", r.pluginName),
-				zap.Error(err),
-			)
+			logger.NewAppLogger(r.ctx.Logger).
+				Named("plugins.user.route.read").
+				Error(
+					ginCtx.Request.Context(),
+					"list user role summaries failed",
+					logger.StringField("plugin", r.pluginName),
+					logger.ErrorField(err),
+				)
 			writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
 			return
 		}
