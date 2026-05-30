@@ -67,7 +67,8 @@
         "highRiskOperations": "高风险操作聚集",
         "authFailures": "认证失败聚集",
         "permissionDenials": "权限拒绝聚集",
-        "meta": "当前窗口共 {count} 条"
+        "meta": "当前窗口共 {count} 条",
+        "action": "查看相关事件"
       },
       "trend": {
         "pointMeta": "总量 {total} / 高风险 {highRisk} / 安全事件 {security}"
@@ -208,7 +209,7 @@
       "actions": {
         "refresh": "刷新",
         "retry": "重试",
-        "openRequest": "查看种子请求",
+        "openRequest": "查看关联请求",
         "backToMonitor": "返回监控",
         "openMonitorContext": "打开监控上下文",
         "openEvidenceLink": "打开证据",
@@ -269,8 +270,9 @@
       "title": "审计日志",
       "description": "按条件检索安全审计事件，并查看请求与权限上下文；健康检查、监控轮询和 bootstrap 请求不属于默认审计数据集。",
       "refresh": "刷新",
+      "columnSettings": "列设置",
       "retry": "重试",
-      "detail": "查看详情",
+      "detail": "详情",
       "more": "更多",
       "summary": "当前展示 {count} 条安全审计记录",
       "tableHint": "列表仅展示策略命中的安全审计事件，请求链路与权限上下文收口到详情抽屉。",
@@ -333,6 +335,15 @@
         "requestIdPlaceholder": "排障编号 / Request ID",
         "traceIdPlaceholder": "Trace ID"
       },
+      "sort": {
+        "title": "排序",
+        "tagPrefix": "排序",
+        "fieldPlaceholder": "排序字段",
+        "directionPlaceholder": "排序方向",
+        "createdAt": "创建时间",
+        "asc": "升序",
+        "desc": "降序"
+      },
       "filterOptions": {
         "allActions": "全部操作",
         "allSource": "全部事件类型",
@@ -347,7 +358,7 @@
         "authResource": "认证",
         "allResults": "全部结果",
         "SUCCESS": "成功",
-        "FAILED": "业务失败",
+        "FAILED": "失败",
         "DENIED": "权限拒绝",
         "ERROR": "系统异常",
         "allRisk": "全部风险",
@@ -379,11 +390,11 @@
           "source": "事件类型",
           "result": "结果",
           "reason": "原因 / 说明",
-          "requestId": "Request ID",
-          "traceId": "Trace ID",
-          "sessionId": "Session ID",
+          "requestId": "请求 ID",
+          "traceId": "链路 ID",
+          "sessionId": "会话 ID",
           "ip": "IP",
-          "userAgent": "User-Agent",
+          "userAgent": "用户代理",
           "method": "请求方法",
           "path": "请求路径",
           "status": "状态码",
@@ -391,14 +402,16 @@
         },
         "actions": {
           "copyRequestId": "复制",
-          "copyRequestIdSuccess": "Request ID 已复制",
-          "copyRequestIdFail": "复制 Request ID 失败",
+          "copyRequestIdSuccess": "请求 ID 已复制",
+          "copyRequestIdFail": "复制请求 ID 失败",
           "copyTraceId": "复制",
-          "copySuccess": "Trace ID 已复制",
-          "copyFail": "复制 Trace ID 失败",
+          "copySuccess": "链路 ID 已复制",
+          "copyFail": "复制链路 ID 失败",
           "toggleMetadata": "展开原始元数据",
           "backToMonitor": "返回监控",
           "openIncident": "打开事件钻取",
+          "viewRelatedRequest": "查看关联请求",
+          "openAccessLogByTraceId": "按 Trace ID 打开访问日志",
           "openRelatedEvents": "查看关联事件"
         },
         "related": {

@@ -67,7 +67,8 @@
         "highRiskOperations": "High-Risk Operations",
         "authFailures": "Authentication Failures",
         "permissionDenials": "Permission Denials",
-        "meta": "{count} events in the current window"
+        "meta": "{count} events in the current window",
+        "action": "View related events"
       },
       "trend": {
         "pointMeta": "Total {total} / High risk {highRisk} / Security {security}"
@@ -208,11 +209,11 @@
       "actions": {
         "refresh": "Refresh",
         "retry": "Retry",
-        "openRequest": "Open seed request",
+        "openRequest": "View Related Request",
         "backToMonitor": "Back to monitor",
         "openMonitorContext": "Open monitor context",
         "openEvidenceLink": "Open evidence",
-        "openRelatedRequest": "Open related request",
+        "openRelatedRequest": "View Related Request",
         "openActorEvents": "Open actor events",
         "openResourceEvents": "Open resource events"
       },
@@ -269,8 +270,9 @@
       "title": "Audit Logs",
       "description": "Query security audit events and inspect request and permission context; health checks, monitor polling, and bootstrap requests are not part of the default audit dataset.",
       "refresh": "Refresh",
+      "columnSettings": "Columns",
       "retry": "Retry",
-      "detail": "View Details",
+      "detail": "Detail",
       "more": "More",
       "summary": "{count} security audit records shown",
       "tableHint": "The table shows only policy-matched security audit events. Request chain and permission context move to the detail drawer.",
@@ -333,6 +335,15 @@
         "requestIdPlaceholder": "Troubleshooting ID / Request ID",
         "traceIdPlaceholder": "Trace ID"
       },
+      "sort": {
+        "title": "Sort",
+        "tagPrefix": "Sort",
+        "fieldPlaceholder": "Sort By",
+        "directionPlaceholder": "Sort Order",
+        "createdAt": "Created At",
+        "asc": "Ascending",
+        "desc": "Descending"
+      },
       "filterOptions": {
         "allActions": "All actions",
         "allSource": "All event types",
@@ -347,7 +358,7 @@
         "authResource": "Authentication",
         "allResults": "All results",
         "SUCCESS": "Success",
-        "FAILED": "Business Failed",
+        "FAILED": "Failed",
         "DENIED": "Denied",
         "ERROR": "System Error",
         "allRisk": "All risk",
@@ -399,6 +410,8 @@
           "toggleMetadata": "Show raw metadata",
           "backToMonitor": "Back to monitor",
           "openIncident": "Open incident",
+          "viewRelatedRequest": "View Related Request",
+          "openAccessLogByTraceId": "Open Access Log By Trace ID",
           "openRelatedEvents": "Open related events"
         },
         "related": {

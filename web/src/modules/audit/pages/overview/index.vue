@@ -101,21 +101,20 @@
         <div class="audit-overview__stack">
           <governance-section :title="t('audit.overview.sections.riskWatch')">
             <div class="audit-overview__watch-list">
-              <button
-                v-for="group in riskGroups"
-                :key="group.key"
-                class="audit-overview__watch-item audit-overview__watch-item--button"
-                type="button"
-                @click="openRiskGroup(group.risk_level)"
-              >
-                <div>
+              <article v-for="group in riskGroups" :key="group.key" class="audit-overview__watch-item">
+                <div class="audit-overview__watch-content">
                   <strong>{{ t(group.label_key) }}</strong>
                   <p>{{ t('audit.overview.riskGroups.meta', { count: group.count }) }}</p>
                 </div>
-                <t-tag :theme="riskTheme(group.risk_level)" variant="light-outline" size="small">
-                  {{ t(`audit.common.risk.${group.risk_level}`) }}
-                </t-tag>
-              </button>
+                <div class="audit-overview__watch-actions">
+                  <t-tag :theme="riskTheme(group.risk_level)" variant="light-outline" size="small">
+                    {{ t(`audit.common.risk.${group.risk_level}`) }}
+                  </t-tag>
+                  <t-button size="small" theme="primary" variant="text" @click="openRiskGroup(group.risk_level)">
+                    {{ riskGroupActionLabel }}
+                  </t-button>
+                </div>
+              </article>
             </div>
           </governance-section>
 
@@ -138,24 +137,33 @@
 
       <section class="audit-overview__grid audit-overview__grid--bottom">
         <governance-section :title="t('audit.overview.sections.trend')">
-          <div class="audit-overview__trend">
-            <div v-for="point in trendPoints" :key="point.key" class="audit-overview__trend-point">
-              <div class="audit-overview__trend-bars">
-                <div
-                  class="audit-overview__trend-bar audit-overview__trend-bar--total"
-                  :style="{ height: point.totalHeight }"
-                />
-                <div
-                  class="audit-overview__trend-bar audit-overview__trend-bar--risk"
-                  :style="{ height: point.highRiskHeight }"
-                />
-                <div
-                  class="audit-overview__trend-bar audit-overview__trend-bar--security"
-                  :style="{ height: point.securityHeight }"
-                />
-              </div>
-              <strong>{{ point.label }}</strong>
-              <span>{{ t('audit.overview.trend.pointMeta', point.meta) }}</span>
+          <div class="audit-overview__trend-scroll">
+            <div class="audit-overview__trend" :style="trendTrackStyle">
+              <t-tooltip v-for="point in trendPoints" :key="point.key" placement="top" theme="default">
+                <template #content>
+                  <div class="audit-overview__trend-tooltip">
+                    <strong>{{ point.tooltipLabel }}</strong>
+                    <span>{{ t('audit.overview.trend.pointMeta', point.meta) }}</span>
+                  </div>
+                </template>
+                <div class="audit-overview__trend-point">
+                  <div class="audit-overview__trend-bars">
+                    <div
+                      class="audit-overview__trend-bar audit-overview__trend-bar--total"
+                      :style="{ height: point.totalHeight }"
+                    />
+                    <div
+                      class="audit-overview__trend-bar audit-overview__trend-bar--risk"
+                      :style="{ height: point.highRiskHeight }"
+                    />
+                    <div
+                      class="audit-overview__trend-bar audit-overview__trend-bar--security"
+                      :style="{ height: point.securityHeight }"
+                    />
+                  </div>
+                  <strong>{{ point.axisLabel }}</strong>
+                </div>
+              </t-tooltip>
             </div>
           </div>
         </governance-section>
@@ -184,6 +192,15 @@
                   </t-tag>
                 </div>
               </button>
+              <t-button
+                v-if="item.request_id"
+                size="small"
+                theme="default"
+                variant="text"
+                @click.stop="openSecurityTimelineRequest(item.request_id)"
+              >
+                {{ relatedRequestActionLabel }}
+              </t-button>
             </t-timeline-item>
           </t-timeline>
         </governance-section>
@@ -192,11 +209,12 @@
   </div>
 </template>
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next';
+import { MessagePlugin, Tooltip as TTooltip } from 'tdesign-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
 import { buildAuditIncidentLocation, buildAuditLogsLocation } from '@/modules/audit/contract/deep-link';
 import type { AuditPresetKey } from '@/modules/audit/contract/presets';
 import { resolveAuditPresetKey } from '@/modules/audit/contract/presets';
@@ -275,10 +293,12 @@ const securityTimeline = computed(() => overview.value?.security_timeline ?? [])
 const trendPoints = computed(() => {
   const points = overview.value?.trend?.points ?? [];
   const maxTotal = Math.max(...points.map((point) => point.total), 1);
+  const labelStep = resolveTrendLabelStep(points.length);
 
-  return points.map((point) => ({
+  return points.map((point, index) => ({
     key: `${point.bucket_start}-${point.bucket_end}`,
-    label: formatBucketLabel(point.bucket_start),
+    axisLabel: index % labelStep === 0 || index === points.length - 1 ? formatTrendAxisLabel(point.bucket_start) : '',
+    tooltipLabel: formatTrendTooltipLabel(point.bucket_start, point.bucket_end),
     totalHeight: `${Math.max((point.total / maxTotal) * 100, 8)}%`,
     highRiskHeight: `${Math.max((point.high_risk / maxTotal) * 100, point.high_risk > 0 ? 8 : 0)}%`,
     securityHeight: `${Math.max((point.security_events / maxTotal) * 100, point.security_events > 0 ? 8 : 0)}%`,
@@ -288,6 +308,13 @@ const trendPoints = computed(() => {
       security: point.security_events,
     },
   }));
+});
+
+const trendTrackStyle = computed(() => {
+  const pointCount = Math.max(trendPoints.value.length, 1);
+  return {
+    minWidth: `${Math.max(pointCount * 72, 320)}px`,
+  };
 });
 
 const shortcuts = computed(() => [
@@ -311,6 +338,9 @@ const shortcuts = computed(() => [
   },
 ]);
 
+const riskGroupActionLabel = computed(() => t('audit.overview.riskGroups.action'));
+const relatedRequestActionLabel = computed(() => t('audit.logList.drawer.actions.viewRelatedRequest'));
+
 function openShortcut(preset: AuditPresetKey) {
   void router.push(buildAuditLogsLocation({ preset }));
 }
@@ -321,10 +351,10 @@ function openSummary(key: string) {
       void router.push(buildAuditLogsLocation({ result: 'FAILED' }));
       return;
     case 'risk':
-      void router.push(buildAuditLogsLocation({ riskLevel: 'HIGH' }));
+      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH' }));
       return;
     case 'sensitive':
-      void router.push(buildAuditLogsLocation({ riskLevel: 'HIGH', source: 'DOMAIN_EVENT' }));
+      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH', source: 'DOMAIN_EVENT' }));
       return;
     default:
       void router.push(buildAuditLogsLocation({}));
@@ -332,7 +362,7 @@ function openSummary(key: string) {
 }
 
 function openRiskGroup(riskLevel: string) {
-  void router.push(buildAuditLogsLocation({ riskLevel }));
+  void router.push(buildAuditLogsLocation({ risk_level: riskLevel }));
 }
 
 function openSecurityTimelineItem(eventId?: number) {
@@ -341,6 +371,14 @@ function openSecurityTimelineItem(eventId?: number) {
   }
 
   void router.push(buildAuditIncidentLocation(eventId));
+}
+
+function openSecurityTimelineRequest(requestId?: string) {
+  if (!requestId) {
+    return;
+  }
+
+  void router.push(buildAccessLogRequestLocation(requestId));
 }
 
 async function fetchOverview() {
@@ -406,6 +444,32 @@ function timelineDotColor(level?: string) {
 }
 
 function formatBucketLabel(value?: string) {
+  return formatTrendDateTime(value, { month: '2-digit', day: '2-digit', hour: '2-digit' });
+}
+
+function formatTrendAxisLabel(value?: string) {
+  return formatTrendDateTime(value, { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatTrendTooltipLabel(start?: string, end?: string) {
+  const startLabel = formatBucketLabel(start);
+  if (!end) {
+    return startLabel;
+  }
+  return `${startLabel} - ${formatBucketLabel(end)}`;
+}
+
+function resolveTrendLabelStep(pointCount: number) {
+  if (pointCount <= 6) {
+    return 1;
+  }
+  if (pointCount <= 12) {
+    return 2;
+  }
+  return 3;
+}
+
+function formatTrendDateTime(value: string | undefined, timeOptions: Intl.DateTimeFormatOptions) {
   if (!value) {
     return '-';
   }
@@ -414,10 +478,9 @@ function formatBucketLabel(value?: string) {
     return value;
   }
   const currentLocale = locale.value || undefined;
-  if (overview.value?.trend?.bucket_unit === 'day') {
-    return new Intl.DateTimeFormat(currentLocale, { month: '2-digit', day: '2-digit' }).format(date);
-  }
-  return new Intl.DateTimeFormat(currentLocale, { month: '2-digit', day: '2-digit', hour: '2-digit' }).format(date);
+  const options: Intl.DateTimeFormatOptions =
+    overview.value?.trend?.bucket_unit === 'day' ? { month: '2-digit', day: '2-digit' } : timeOptions;
+  return new Intl.DateTimeFormat(currentLocale, options).format(date);
 }
 
 function formatTime(value?: string) {
@@ -473,13 +536,35 @@ onMounted(() => {
 .audit-overview__list-item,
 .audit-overview__watch-item,
 .audit-overview__shortcut {
-  align-items: center;
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
   display: flex;
   gap: 12px;
   justify-content: space-between;
   padding: 14px 16px;
+}
+
+.audit-overview__list-item,
+.audit-overview__shortcut,
+.audit-overview__watch-actions {
+  align-items: center;
+}
+
+.audit-overview__watch-content,
+.audit-overview__watch-actions {
+  display: flex;
+}
+
+.audit-overview__watch-content {
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.audit-overview__watch-actions {
+  flex-shrink: 0;
+  gap: 8px;
 }
 
 .audit-overview__list-item p,
@@ -505,7 +590,6 @@ onMounted(() => {
 }
 
 .audit-overview__summary-action,
-.audit-overview__watch-item--button,
 .audit-overview__timeline-item--button {
   background: transparent;
   border: 0;
@@ -515,19 +599,26 @@ onMounted(() => {
   width: 100%;
 }
 
+.audit-overview__trend-scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
 .audit-overview__trend {
   align-items: end;
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
   min-height: 240px;
 }
 
 .audit-overview__trend-point {
   align-items: center;
+  cursor: default;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .audit-overview__trend-bars {
@@ -553,6 +644,26 @@ onMounted(() => {
 
 .audit-overview__trend-bar--security {
   background: var(--td-error-color);
+}
+
+.audit-overview__trend-point strong {
+  color: var(--td-text-color-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+  min-height: 20px;
+  text-align: center;
+}
+
+.audit-overview__trend-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 220px;
+}
+
+.audit-overview__trend-tooltip span {
+  color: var(--td-text-color-secondary);
 }
 
 .audit-overview__timeline-item {
@@ -584,6 +695,10 @@ onMounted(() => {
   .audit-overview__shortcut {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .audit-overview__watch-actions {
+    width: 100%;
   }
 }
 </style>

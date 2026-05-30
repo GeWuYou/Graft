@@ -1,0 +1,132 @@
+{
+  "menu": {
+    "logCenter": {
+      "title": "Log Center"
+    },
+    "accessLog": {
+      "title": "Access Logs"
+    }
+  },
+  "accessLog": {
+    "page": {
+      "title": "Access Logs",
+      "description": "Inspect request traffic for troubleshooting with fast pivots across correlation, actor, and response facts.",
+      "columnSettings": "Columns",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "errorTitle": "Access logs are temporarily unavailable",
+      "loadFailed": "Failed to load access logs",
+      "summary": "{count} access logs on this page",
+      "footerTotal": "{count} total records",
+      "emptyTitle": "No access logs",
+      "emptyDescription": "Adjust filters and try again.",
+      "emptyRequestDescription": "No retained access log matches this request ID. The request may be outside the current access-log retention window.",
+      "emptyTraceDescription": "No retained access log matches this trace ID. The correlated request may have expired from access-log retention.",
+      "detailTitle": "Request Detail",
+      "searchPlaceholder": "Search request ID, trace ID, path, or username",
+      "tableHint": "The table keeps core request facts visible. Open the drawer for the full request context."
+    },
+    "actions": {
+      "search": "Search",
+      "reset": "Reset",
+      "addFilter": "Add Filter",
+      "detail": "Detail",
+      "viewRelatedAuditRecords": "View Related Audit Records",
+      "openAuditByRequestId": "Open Audit Search By Request ID",
+      "openAuditByTraceId": "Open Audit Search By Trace ID",
+      "copy": "Copy",
+      "copySuccess": "Copied",
+      "copyFail": "Copy failed"
+    },
+    "presets": {
+      "label": "Quick Filters",
+      "all": "All",
+      "todayErrors": "Today's Errors",
+      "status4xx": "4xx",
+      "status5xx": "5xx",
+      "slowRequests": "Slow Requests",
+      "currentUser": "Current User",
+      "lastHour": "Last Hour"
+    },
+    "filters": {
+      "requestId": "Request ID",
+      "traceId": "Trace ID",
+      "userId": "User ID",
+      "user": "User",
+      "method": "Method",
+      "path": "Path",
+      "pathMatch": "Path Match",
+      "route": "Route Template",
+      "statusCode": "Status Code",
+      "durationMin": "Min Duration",
+      "durationMax": "Max Duration",
+      "occurredRange": "Time Range",
+      "sortBy": "Sort By",
+      "sortOrder": "Sort Order",
+      "pathMatchExact": "Exact",
+      "pathMatchPrefix": "Prefix",
+      "sortOccurredAt": "Occurred At",
+      "sortDuration": "Duration",
+      "sortStatusCode": "Status Code",
+      "sortAsc": "Ascending",
+      "sortDesc": "Descending"
+    },
+    "sort": {
+      "title": "Sort",
+      "tagPrefix": "Sort",
+      "fieldPlaceholder": "Sort By",
+      "directionPlaceholder": "Sort Order"
+    },
+    "builder": {
+      "title": "Filters",
+      "hint": "Add only the conditions you need instead of filling a large static form.",
+      "fields": {
+        "requestId": "Request ID",
+        "traceId": "Trace ID",
+        "userId": "User ID",
+        "username": "Username",
+        "method": "Method",
+        "path": "Path",
+        "statusCode": "Status Code",
+        "durationMinMs": "Min Duration",
+        "durationMaxMs": "Max Duration"
+      }
+    },
+    "columns": {
+      "occurredAt": "Time",
+      "method": "Method",
+      "path": "Path",
+      "statusCode": "Status Code",
+      "durationMs": "Duration",
+      "user": "User",
+      "requestId": "Request ID",
+      "operation": "Operation"
+    },
+    "path": {
+      "routeTemplateValue": "Route template: {route}"
+    },
+    "user": {
+      "anonymous": "Anonymous User",
+      "noUserId": "No user ID",
+      "unauthenticated": "Unauthenticated request",
+      "userIdValue": "User ID: {id}"
+    },
+    "detail": {
+      "basic": "Basic Facts",
+      "network": "Network",
+      "size": "Transfer Size",
+      "requestId": "Request ID",
+      "traceId": "Trace ID",
+      "route": "Route Template",
+      "relatedAudit": "Related Audit Investigation",
+      "clientIp": "Client IP",
+      "userAgent": "User-Agent",
+      "requestSize": "Request Size",
+      "responseSize": "Response Size",
+      "userId": "User ID",
+      "username": "Username",
+      "context": "Full Request Context",
+      "toggleContext": "Expand full request context JSON"
+    }
+  }
+}

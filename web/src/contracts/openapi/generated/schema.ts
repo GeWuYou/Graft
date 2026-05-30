@@ -845,6 +845,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/access-log': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List access logs
+     * @description Returns the canonical paged access-log explorer surface.
+     */
+    get: operations['getAccessLogs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/access-log/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get access log detail */
+    get: operations['getAccessLogDetail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -915,6 +952,10 @@ export interface components {
     ServerStatusAnomaly: components['schemas']['server-status-anomaly'];
     ServerStatusResponse: components['schemas']['server-status-response'];
     EnvelopedServerStatusResponse: components['schemas']['enveloped-server-status-response'];
+    AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
+    AccessLogListResponse: components['schemas']['access-log-list-response'];
+    EnvelopedAccessLogListResponse: components['schemas']['enveloped-access-log-list-response'];
+    EnvelopedAccessLogDetailResponse: components['schemas']['enveloped-access-log-detail-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -1352,22 +1393,44 @@ export interface components {
       /** Format: date-time */
       created_to: string;
     };
+    /** @description Optional audit evidence filters used to correlate evidence links and narrow audit investigation context. */
     'audit-evidence-context': {
+      /** @description Exact audit action identifier to match. */
       action?: string;
+      /** @description Action namespace prefix used for broader matching such as `user.`. */
       action_prefix?: string;
-      /** @enum {string} */
+      /**
+       * @description Canonical audit event source category.
+       * @enum {string}
+       */
       source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
+      /** @description Resource type associated with the audit record. */
       resource_type?: string;
+      /** @description Stable resource identifier associated with the audit record. */
       resource_id?: string;
+      /** @description Human-readable resource label captured with the audit record. */
       resource_name?: string;
+      /** @description Correlation request identifier used to trace related records. */
       request_id?: string;
-      /** @enum {string} */
+      /**
+       * @description Audit result classification for the matching evidence set.
+       * @enum {string}
+       */
       result?: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
-      /** @enum {string} */
+      /**
+       * @description Risk classification for matched audit evidence.
+       * @enum {string}
+       */
       risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Inclusive RFC 3339 lower bound for audit record creation time.
+       */
       created_from?: string;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Inclusive RFC 3339 upper bound for audit record creation time.
+       */
       created_to?: string;
     };
     'evidence-link': {
@@ -1384,12 +1447,21 @@ export interface components {
         event_id: number;
       };
     };
+    /** @description Monitor evidence linked to an audit incident, describing anomaly scope, observation time, and deep-link evidence navigation. */
     'audit-incident-monitor-evidence': {
-      /** @enum {string} */
+      /**
+       * @description Availability of correlated monitor evidence for this incident.
+       * @enum {string}
+       */
       state: 'available' | 'partial' | 'unavailable';
+      /** @description Human-readable summary of the correlated monitor evidence. */
       summary: string;
+      /** @description Optional explanation when evidence is partial or unavailable. */
       reason?: string;
-      /** @enum {string} */
+      /**
+       * @description Canonical anomaly identifier describing the monitor condition tied to the incident.
+       * @enum {string}
+       */
       anomaly_key?:
         | 'dependency_status_degraded'
         | 'dependency_status_unknown'
@@ -1400,11 +1472,19 @@ export interface components {
         | 'runtime_goroutine_pressure'
         | 'runtime_heap_pressure'
         | 'system_load_pressure';
-      /** @enum {string} */
+      /**
+       * @description Scope category that owns the anomaly target.
+       * @enum {string}
+       */
       scope_kind?: 'dependency' | 'plugin' | 'runtime' | 'resource';
+      /** @description Stable scope identifier used to reopen the owning monitor view. */
       scope_ref?: string;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description RFC 3339 timestamp when the anomaly was observed.
+       */
       observed_at?: string;
+      /** @description Canonical evidence links that deep-link into related monitor or audit investigation surfaces. */
       evidence_links: components['schemas']['evidence-link'][];
     };
     'audit-incident-response': {
@@ -1722,6 +1802,41 @@ export interface components {
     };
     'enveloped-server-status-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['server-status-response'];
+    };
+    'access-log-detail-response': {
+      /** Format: int64 */
+      id: number;
+      request_id: string;
+      trace_id: string;
+      method: string;
+      path: string;
+      route: string;
+      status_code: number;
+      /** Format: int64 */
+      duration_ms: number;
+      client_ip: string;
+      user_agent: string;
+      /** Format: int64 */
+      user_id?: number | null;
+      username: string;
+      /** Format: int64 */
+      request_size?: number | null;
+      /** Format: int64 */
+      response_size?: number | null;
+      /** Format: date-time */
+      occurred_at: string;
+    };
+    'access-log-list-response': {
+      items: components['schemas']['access-log-detail-response'][];
+      total: number;
+      page: number;
+      page_size: number;
+    };
+    'enveloped-access-log-list-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['access-log-list-response'];
+    };
+    'enveloped-access-log-detail-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['access-log-detail-response'];
     };
   };
   responses: {
@@ -3847,6 +3962,8 @@ export interface operations {
         success?: boolean;
         created_from?: string;
         created_to?: string;
+        sort_by?: 'created_at';
+        sort_order?: 'asc' | 'desc';
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -4007,6 +4124,120 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAccessLogs: {
+    parameters: {
+      query?: {
+        page?: number;
+        page_size?: number;
+        request_id?: string;
+        trace_id?: string;
+        user_id?: number;
+        username?: string;
+        method?: string;
+        path?: string;
+        path_match?: 'exact' | 'prefix';
+        route?: string;
+        status_code?: number;
+        duration_min_ms?: number;
+        duration_max_ms?: number;
+        occurred_from?: string;
+        occurred_to?: string;
+        sort_by?: 'occurred_at' | 'duration_ms' | 'status_code';
+        sort_order?: 'asc' | 'desc';
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Access log page. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-access-log-list-response'];
+        };
+      };
+      /** @description Invalid access log query. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAccessLogDetail: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Access log detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-access-log-detail-response'];
+        };
+      };
+      /** @description Invalid access log id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Access log not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };

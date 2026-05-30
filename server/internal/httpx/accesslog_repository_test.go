@@ -23,6 +23,7 @@ func newAccessLogSQLiteDB(t *testing.T) *sql.DB {
 	schema := `CREATE TABLE access_logs (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		request_id TEXT NOT NULL,
+		trace_id TEXT NULL,
 		method TEXT NOT NULL,
 		path TEXT NOT NULL,
 		route TEXT NULL,
@@ -64,6 +65,7 @@ func TestAccessLogRepositoryCreateAndBatchCreate(t *testing.T) {
 
 	first, err := repo.CreateAccessLog(ctx, CreateAccessLogInput{
 		RequestID:    "req-1",
+		TraceID:      "req-1",
 		Method:       "POST",
 		Path:         "/api/login?token=secret",
 		Route:        "/api/login",
@@ -90,10 +92,14 @@ func TestAccessLogRepositoryCreateAndBatchCreate(t *testing.T) {
 	if first.UserAgent != "curl authorization=[REDACTED]" {
 		t.Fatalf("expected sanitized user agent, got %q", first.UserAgent)
 	}
+	if first.TraceID != "" {
+		t.Fatalf("expected trace id identical to request id to normalize to empty, got %q", first.TraceID)
+	}
 
 	batch, err := repo.CreateAccessLogs(ctx, []CreateAccessLogInput{
 		{
 			RequestID:  "req-2",
+			TraceID:    "req-2",
 			Method:     "GET",
 			Path:       "/healthz",
 			Route:      "/healthz",
@@ -103,6 +109,7 @@ func TestAccessLogRepositoryCreateAndBatchCreate(t *testing.T) {
 		},
 		{
 			RequestID:  "req-3",
+			TraceID:    "trace-3",
 			Method:     "GET",
 			Path:       "/api/users/password=guessme",
 			Route:      "/api/users/:id",
@@ -121,6 +128,9 @@ func TestAccessLogRepositoryCreateAndBatchCreate(t *testing.T) {
 	if batch[1].Path != "/api/users/password=[REDACTED]" {
 		t.Fatalf("expected batch sanitization, got %q", batch[1].Path)
 	}
+	if batch[0].TraceID != "" {
+		t.Fatalf("expected batch trace id alias to normalize to empty, got %q", batch[0].TraceID)
+	}
 }
 
 func TestAccessLogRepositoryDeleteBefore(t *testing.T) {
@@ -129,8 +139,8 @@ func TestAccessLogRepositoryDeleteBefore(t *testing.T) {
 	base := time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)
 
 	_, err := repo.CreateAccessLogs(ctx, []CreateAccessLogInput{
-		{RequestID: "req-old", Method: "GET", Path: "/old", StatusCode: 200, DurationMS: 1, OccurredAt: base},
-		{RequestID: "req-keep", Method: "GET", Path: "/keep", StatusCode: 200, DurationMS: 1, OccurredAt: base.Add(time.Hour)},
+		{RequestID: "req-old", TraceID: "trace-old", Method: "GET", Path: "/old", StatusCode: 200, DurationMS: 1, OccurredAt: base},
+		{RequestID: "req-keep", TraceID: "trace-keep", Method: "GET", Path: "/keep", StatusCode: 200, DurationMS: 1, OccurredAt: base.Add(time.Hour)},
 	})
 	if err != nil {
 		t.Fatalf("seed access logs: %v", err)
@@ -143,5 +153,235 @@ func TestAccessLogRepositoryDeleteBefore(t *testing.T) {
 
 	if deleted != 1 {
 		t.Fatalf("expected one deleted row, got %d", deleted)
+	}
+}
+
+func TestAccessLogRepositoryListAccessLogsSortNormalization(t *testing.T) {
+	repo := newSQLiteAccessLogRepository(t)
+	ctx := context.Background()
+	base := time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)
+
+	seedAccessLogSortNormalizationCases(ctx, t, repo, base)
+
+	testCases := []struct {
+		name      string
+		query     AccessLogListQuery
+		wantOrder []string
+	}{
+		{
+			name: "occurred at desc",
+			query: AccessLogListQuery{
+				Page:      1,
+				PageSize:  10,
+				SortBy:    AccessLogSortOccurredAt,
+				SortOrder: AccessLogSortOrderDesc,
+			},
+			wantOrder: []string{"req-b", "req-c", "req-a"},
+		},
+		{
+			name: "duration asc",
+			query: AccessLogListQuery{
+				Page:      1,
+				PageSize:  10,
+				SortBy:    AccessLogSortDurationMS,
+				SortOrder: AccessLogSortOrderAsc,
+			},
+			wantOrder: []string{"req-b", "req-a", "req-c"},
+		},
+		{
+			name: "status desc",
+			query: AccessLogListQuery{
+				Page:      1,
+				PageSize:  10,
+				SortBy:    AccessLogSortStatusCode,
+				SortOrder: AccessLogSortOrderDesc,
+			},
+			wantOrder: []string{"req-c", "req-a", "req-b"},
+		},
+		{
+			name: "invalid sort by falls back to occurred at",
+			query: AccessLogListQuery{
+				Page:      1,
+				PageSize:  10,
+				SortBy:    AccessLogSortField("occurred_at; DROP TABLE access_logs; --"),
+				SortOrder: AccessLogSortOrderAsc,
+			},
+			wantOrder: []string{"req-a", "req-c", "req-b"},
+		},
+		{
+			name: "invalid sort order falls back to desc",
+			query: AccessLogListQuery{
+				Page:      1,
+				PageSize:  10,
+				SortBy:    AccessLogSortOccurredAt,
+				SortOrder: AccessLogSortOrder("asc; DROP TABLE access_logs; --"),
+			},
+			wantOrder: []string{"req-b", "req-c", "req-a"},
+		},
+		{
+			name: "invalid sort by and order still list safely",
+			query: AccessLogListQuery{
+				Page:      1,
+				PageSize:  10,
+				SortBy:    AccessLogSortField("status_code desc; DROP TABLE access_logs; --"),
+				SortOrder: AccessLogSortOrder("desc NULLS LAST"),
+			},
+			wantOrder: []string{"req-b", "req-c", "req-a"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result, listErr := repo.ListAccessLogs(ctx, testCase.query)
+			if listErr != nil {
+				t.Fatalf("list access logs: %v", listErr)
+			}
+			assertAccessLogRequestOrder(t, result, testCase.wantOrder)
+		})
+	}
+}
+
+func TestAccessLogRepositoryListAccessLogsTreatsTraceIDFilterAsRequestIDAlias(t *testing.T) {
+	repo := newSQLiteAccessLogRepository(t)
+	ctx := context.Background()
+	base := time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)
+
+	_, err := repo.CreateAccessLogs(ctx, []CreateAccessLogInput{
+		{RequestID: "req-1", TraceID: "req-1", Method: "GET", Path: "/a", StatusCode: 200, DurationMS: 1, OccurredAt: base},
+		{RequestID: "req-2", TraceID: "trace-kept", Method: "POST", Path: "/b", StatusCode: 201, DurationMS: 2, OccurredAt: base.Add(time.Minute)},
+		{RequestID: "req-3", TraceID: "trace-other", Method: "GET", Path: "/c", StatusCode: 500, DurationMS: 3, OccurredAt: base.Add(2 * time.Minute)},
+	})
+	if err != nil {
+		t.Fatalf("seed access logs: %v", err)
+	}
+
+	result, err := repo.ListAccessLogs(ctx, AccessLogListQuery{
+		Page:      1,
+		PageSize:  10,
+		TraceID:   "req-2",
+		SortBy:    AccessLogSortOccurredAt,
+		SortOrder: AccessLogSortOrderAsc,
+	})
+	if err != nil {
+		t.Fatalf("list access logs by trace id: %v", err)
+	}
+
+	if result.Total != 1 {
+		t.Fatalf("expected total 1, got %d", result.Total)
+	}
+	assertAccessLogRequestOrder(t, result, []string{"req-2"})
+	if result.Items[0].TraceID != "trace-kept" {
+		t.Fatalf("expected stored independent trace id to remain readable, got %#v", result.Items[0])
+	}
+}
+
+func TestAccessLogRepositoryListAccessLogsEscapesPrefixPathWildcards(t *testing.T) {
+	repo := newSQLiteAccessLogRepository(t)
+	ctx := context.Background()
+	base := time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)
+
+	_, err := repo.CreateAccessLogs(ctx, []CreateAccessLogInput{
+		{RequestID: "req-underscore-match", Method: "GET", Path: "/api/a_b", StatusCode: 200, DurationMS: 1, OccurredAt: base},
+		{RequestID: "req-underscore-miss", Method: "GET", Path: "/api/axb", StatusCode: 200, DurationMS: 1, OccurredAt: base.Add(time.Minute)},
+		{RequestID: "req-percent-match", Method: "GET", Path: "/api/100%/detail", StatusCode: 200, DurationMS: 1, OccurredAt: base.Add(2 * time.Minute)},
+		{RequestID: "req-backslash-match", Method: "GET", Path: "/files/a\\b", StatusCode: 200, DurationMS: 1, OccurredAt: base.Add(3 * time.Minute)},
+		{RequestID: "req-backslash-miss", Method: "GET", Path: "/files/ab", StatusCode: 200, DurationMS: 1, OccurredAt: base.Add(4 * time.Minute)},
+	})
+	if err != nil {
+		t.Fatalf("seed access logs: %v", err)
+	}
+
+	testCases := []struct {
+		name      string
+		path      string
+		wantOrder []string
+	}{
+		{
+			name:      "underscore remains literal",
+			path:      "/api/a_b",
+			wantOrder: []string{"req-underscore-match"},
+		},
+		{
+			name:      "percent remains literal",
+			path:      "/api/100%",
+			wantOrder: []string{"req-percent-match"},
+		},
+		{
+			name:      "backslash remains literal",
+			path:      "/files/a\\",
+			wantOrder: []string{"req-backslash-match"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result, listErr := repo.ListAccessLogs(ctx, AccessLogListQuery{
+				Page:          1,
+				PageSize:      10,
+				Path:          testCase.path,
+				PathMatchMode: AccessLogPathMatchPrefix,
+				SortBy:        AccessLogSortOccurredAt,
+				SortOrder:     AccessLogSortOrderAsc,
+			})
+			if listErr != nil {
+				t.Fatalf("list access logs by prefix path: %v", listErr)
+			}
+			assertAccessLogRequestOrder(t, result, testCase.wantOrder)
+		})
+	}
+}
+
+func seedAccessLogSortNormalizationCases(
+	ctx context.Context,
+	t *testing.T,
+	repo AccessLogRepository,
+	base time.Time,
+) {
+	t.Helper()
+
+	_, err := repo.CreateAccessLogs(ctx, []CreateAccessLogInput{
+		{
+			RequestID:  "req-a",
+			TraceID:    "trace-a",
+			Method:     "GET",
+			Path:       "/a",
+			StatusCode: 404,
+			DurationMS: 15,
+			OccurredAt: base,
+		},
+		{
+			RequestID:  "req-b",
+			TraceID:    "trace-b",
+			Method:     "GET",
+			Path:       "/b",
+			StatusCode: 200,
+			DurationMS: 5,
+			OccurredAt: base.Add(2 * time.Minute),
+		},
+		{
+			RequestID:  "req-c",
+			TraceID:    "trace-c",
+			Method:     "GET",
+			Path:       "/c",
+			StatusCode: 500,
+			DurationMS: 30,
+			OccurredAt: base.Add(time.Minute),
+		},
+	})
+	if err != nil {
+		t.Fatalf("seed access logs: %v", err)
+	}
+}
+
+func assertAccessLogRequestOrder(t *testing.T, result AccessLogListResult, wantOrder []string) {
+	t.Helper()
+
+	if len(result.Items) != len(wantOrder) {
+		t.Fatalf("expected %d items, got %d", len(wantOrder), len(result.Items))
+	}
+	for index, wantRequestID := range wantOrder {
+		if result.Items[index].RequestID != wantRequestID {
+			t.Fatalf("item %d: expected request id %q, got %q", index, wantRequestID, result.Items[index].RequestID)
+		}
 	}
 }

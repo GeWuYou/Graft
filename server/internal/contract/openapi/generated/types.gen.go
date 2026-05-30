@@ -735,6 +735,63 @@ func (e TrendRangeQuery) Valid() bool {
 	}
 }
 
+// Defines values for GetAccessLogsParamsPathMatch.
+const (
+	Exact  GetAccessLogsParamsPathMatch = "exact"
+	Prefix GetAccessLogsParamsPathMatch = "prefix"
+)
+
+// Valid indicates whether the value is a known member of the GetAccessLogsParamsPathMatch enum.
+func (e GetAccessLogsParamsPathMatch) Valid() bool {
+	switch e {
+	case Exact:
+		return true
+	case Prefix:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAccessLogsParamsSortBy.
+const (
+	DurationMs GetAccessLogsParamsSortBy = "duration_ms"
+	OccurredAt GetAccessLogsParamsSortBy = "occurred_at"
+	StatusCode GetAccessLogsParamsSortBy = "status_code"
+)
+
+// Valid indicates whether the value is a known member of the GetAccessLogsParamsSortBy enum.
+func (e GetAccessLogsParamsSortBy) Valid() bool {
+	switch e {
+	case DurationMs:
+		return true
+	case OccurredAt:
+		return true
+	case StatusCode:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAccessLogsParamsSortOrder.
+const (
+	GetAccessLogsParamsSortOrderAsc  GetAccessLogsParamsSortOrder = "asc"
+	GetAccessLogsParamsSortOrderDesc GetAccessLogsParamsSortOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetAccessLogsParamsSortOrder enum.
+func (e GetAccessLogsParamsSortOrder) Valid() bool {
+	switch e {
+	case GetAccessLogsParamsSortOrderAsc:
+		return true
+	case GetAccessLogsParamsSortOrderDesc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogsParamsSource.
 const (
 	DOMAINEVENT   GetAuditLogsParamsSource = "DOMAIN_EVENT"
@@ -804,6 +861,39 @@ func (e GetAuditLogsParamsRiskLevel) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditLogsParamsSortBy.
+const (
+	CreatedAt GetAuditLogsParamsSortBy = "created_at"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsSortBy enum.
+func (e GetAuditLogsParamsSortBy) Valid() bool {
+	switch e {
+	case CreatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogsParamsSortOrder.
+const (
+	GetAuditLogsParamsSortOrderAsc  GetAuditLogsParamsSortOrder = "asc"
+	GetAuditLogsParamsSortOrderDesc GetAuditLogsParamsSortOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsSortOrder enum.
+func (e GetAuditLogsParamsSortOrder) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsSortOrderAsc:
+		return true
+	case GetAuditLogsParamsSortOrderDesc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditOverviewParamsWindow.
 const (
 	GetAuditOverviewParamsWindowN24h GetAuditOverviewParamsWindow = "24h"
@@ -864,6 +954,33 @@ func (e GetRolesParamsStatus) Valid() bool {
 	}
 }
 
+// AccessLogDetailResponse defines model for access-log-detail-response.
+type AccessLogDetailResponse struct {
+	ClientIp     string    `json:"client_ip"`
+	DurationMs   int64     `json:"duration_ms"`
+	Id           int64     `json:"id"`
+	Method       string    `json:"method"`
+	OccurredAt   time.Time `json:"occurred_at"`
+	Path         string    `json:"path"`
+	RequestId    string    `json:"request_id"`
+	RequestSize  *int64    `json:"request_size,omitempty"`
+	ResponseSize *int64    `json:"response_size,omitempty"`
+	Route        string    `json:"route"`
+	StatusCode   int       `json:"status_code"`
+	TraceId      string    `json:"trace_id"`
+	UserAgent    string    `json:"user_agent"`
+	UserId       *int64    `json:"user_id,omitempty"`
+	Username     string    `json:"username"`
+}
+
+// AccessLogListResponse defines model for access-log-list-response.
+type AccessLogListResponse struct {
+	Items    []AccessLogDetailResponse `json:"items"`
+	Page     int                       `json:"page"`
+	PageSize int                       `json:"page_size"`
+	Total    int                       `json:"total"`
+}
+
 // ApiEnvelope defines model for api-envelope.
 type ApiEnvelope struct {
 	// Code Existing canonical response code.
@@ -884,49 +1001,85 @@ type ApiEnvelope struct {
 	TraceId string `json:"traceId"`
 }
 
-// AuditEvidenceContext defines model for audit-evidence-context.
+// AuditEvidenceContext Optional audit evidence filters used to correlate evidence links and narrow audit investigation context.
 type AuditEvidenceContext struct {
-	Action       *string                        `json:"action,omitempty"`
-	ActionPrefix *string                        `json:"action_prefix,omitempty"`
-	CreatedFrom  *time.Time                     `json:"created_from,omitempty"`
-	CreatedTo    *time.Time                     `json:"created_to,omitempty"`
-	RequestId    *string                        `json:"request_id,omitempty"`
-	ResourceId   *string                        `json:"resource_id,omitempty"`
-	ResourceName *string                        `json:"resource_name,omitempty"`
-	ResourceType *string                        `json:"resource_type,omitempty"`
-	Result       *AuditEvidenceContextResult    `json:"result,omitempty"`
-	RiskLevel    *AuditEvidenceContextRiskLevel `json:"risk_level,omitempty"`
-	Source       *AuditEvidenceContextSource    `json:"source,omitempty"`
+	// Action Exact audit action identifier to match.
+	Action *string `json:"action,omitempty"`
+
+	// ActionPrefix Action namespace prefix used for broader matching such as `user.`.
+	ActionPrefix *string `json:"action_prefix,omitempty"`
+
+	// CreatedFrom Inclusive RFC 3339 lower bound for audit record creation time.
+	CreatedFrom *time.Time `json:"created_from,omitempty"`
+
+	// CreatedTo Inclusive RFC 3339 upper bound for audit record creation time.
+	CreatedTo *time.Time `json:"created_to,omitempty"`
+
+	// RequestId Correlation request identifier used to trace related records.
+	RequestId *string `json:"request_id,omitempty"`
+
+	// ResourceId Stable resource identifier associated with the audit record.
+	ResourceId *string `json:"resource_id,omitempty"`
+
+	// ResourceName Human-readable resource label captured with the audit record.
+	ResourceName *string `json:"resource_name,omitempty"`
+
+	// ResourceType Resource type associated with the audit record.
+	ResourceType *string `json:"resource_type,omitempty"`
+
+	// Result Audit result classification for the matching evidence set.
+	Result *AuditEvidenceContextResult `json:"result,omitempty"`
+
+	// RiskLevel Risk classification for matched audit evidence.
+	RiskLevel *AuditEvidenceContextRiskLevel `json:"risk_level,omitempty"`
+
+	// Source Canonical audit event source category.
+	Source *AuditEvidenceContextSource `json:"source,omitempty"`
 }
 
-// AuditEvidenceContextResult defines model for AuditEvidenceContext.Result.
+// AuditEvidenceContextResult Audit result classification for the matching evidence set.
 type AuditEvidenceContextResult string
 
-// AuditEvidenceContextRiskLevel defines model for AuditEvidenceContext.RiskLevel.
+// AuditEvidenceContextRiskLevel Risk classification for matched audit evidence.
 type AuditEvidenceContextRiskLevel string
 
-// AuditEvidenceContextSource defines model for AuditEvidenceContext.Source.
+// AuditEvidenceContextSource Canonical audit event source category.
 type AuditEvidenceContextSource string
 
-// AuditIncidentMonitorEvidence defines model for audit-incident-monitor-evidence.
+// AuditIncidentMonitorEvidence Monitor evidence linked to an audit incident, describing anomaly scope, observation time, and deep-link evidence navigation.
 type AuditIncidentMonitorEvidence struct {
-	AnomalyKey    *AuditIncidentMonitorEvidenceAnomalyKey `json:"anomaly_key,omitempty"`
-	EvidenceLinks []EvidenceLink                          `json:"evidence_links"`
-	ObservedAt    *time.Time                              `json:"observed_at,omitempty"`
-	Reason        *string                                 `json:"reason,omitempty"`
-	ScopeKind     *AuditIncidentMonitorEvidenceScopeKind  `json:"scope_kind,omitempty"`
-	ScopeRef      *string                                 `json:"scope_ref,omitempty"`
-	State         AuditIncidentMonitorEvidenceState       `json:"state"`
-	Summary       string                                  `json:"summary"`
+	// AnomalyKey Canonical anomaly identifier describing the monitor condition tied to the incident.
+	AnomalyKey *AuditIncidentMonitorEvidenceAnomalyKey `json:"anomaly_key,omitempty"`
+
+	// EvidenceLinks Canonical evidence links that deep-link into related monitor or audit investigation surfaces.
+	EvidenceLinks []EvidenceLink `json:"evidence_links"`
+
+	// ObservedAt RFC 3339 timestamp when the anomaly was observed.
+	ObservedAt *time.Time `json:"observed_at,omitempty"`
+
+	// Reason Optional explanation when evidence is partial or unavailable.
+	Reason *string `json:"reason,omitempty"`
+
+	// ScopeKind Scope category that owns the anomaly target.
+	ScopeKind *AuditIncidentMonitorEvidenceScopeKind `json:"scope_kind,omitempty"`
+
+	// ScopeRef Stable scope identifier used to reopen the owning monitor view.
+	ScopeRef *string `json:"scope_ref,omitempty"`
+
+	// State Availability of correlated monitor evidence for this incident.
+	State AuditIncidentMonitorEvidenceState `json:"state"`
+
+	// Summary Human-readable summary of the correlated monitor evidence.
+	Summary string `json:"summary"`
 }
 
-// AuditIncidentMonitorEvidenceAnomalyKey defines model for AuditIncidentMonitorEvidence.AnomalyKey.
+// AuditIncidentMonitorEvidenceAnomalyKey Canonical anomaly identifier describing the monitor condition tied to the incident.
 type AuditIncidentMonitorEvidenceAnomalyKey string
 
-// AuditIncidentMonitorEvidenceScopeKind defines model for AuditIncidentMonitorEvidence.ScopeKind.
+// AuditIncidentMonitorEvidenceScopeKind Scope category that owns the anomaly target.
 type AuditIncidentMonitorEvidenceScopeKind string
 
-// AuditIncidentMonitorEvidenceState defines model for AuditIncidentMonitorEvidence.State.
+// AuditIncidentMonitorEvidenceState Availability of correlated monitor evidence for this incident.
 type AuditIncidentMonitorEvidenceState string
 
 // AuditIncidentResponse defines model for audit-incident-response.
@@ -940,6 +1093,8 @@ type AuditIncidentResponse struct {
 		Summary           string                                 `json:"summary"`
 		Title             string                                 `json:"title"`
 	} `json:"incident"`
+
+	// MonitorContext Monitor evidence linked to an audit incident, describing anomaly scope, observation time, and deep-link evidence navigation.
 	MonitorContext AuditIncidentMonitorEvidence `json:"monitor_context"`
 	RelatedActors  []struct {
 		ActorDisplayName *string `json:"actor_display_name,omitempty"`
@@ -1186,6 +1341,46 @@ type CreateUserRequest struct {
 	// Password Initial password. The current server policy requires at least 12 characters and both letters and digits.
 	Password string `json:"password"`
 	Username string `json:"username"`
+}
+
+// EnvelopedAccessLogDetailResponse defines model for enveloped-access-log-detail-response.
+type EnvelopedAccessLogDetailResponse struct {
+	// Code Existing canonical response code.
+	Code string                  `json:"code"`
+	Data AccessLogDetailResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAccessLogListResponse defines model for enveloped-access-log-list-response.
+type EnvelopedAccessLogListResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data AccessLogListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
 }
 
 // EnvelopedAuditIncidentResponse defines model for enveloped-audit-incident-response.
@@ -1542,6 +1737,7 @@ type ErrorResponseSuccess bool
 
 // EvidenceLink defines model for evidence-link.
 type EvidenceLink struct {
+	// AuditContext Optional audit evidence filters used to correlate evidence links and narrow audit investigation context.
 	AuditContext *AuditEvidenceContext `json:"audit_context,omitempty"`
 	IncidentSeed *struct {
 		EventId int64 `json:"event_id"`
@@ -1925,6 +2121,53 @@ type bearerAuthContextKey string
 // refreshCookieContextKey is the context key for refreshCookie security scheme
 type refreshCookieContextKey string
 
+// GetAccessLogsParams defines parameters for GetAccessLogs.
+type GetAccessLogsParams struct {
+	Page          *int                          `form:"page,omitempty" json:"page,omitempty"`
+	PageSize      *int                          `form:"page_size,omitempty" json:"page_size,omitempty"`
+	RequestId     *string                       `form:"request_id,omitempty" json:"request_id,omitempty"`
+	TraceId       *string                       `form:"trace_id,omitempty" json:"trace_id,omitempty"`
+	UserId        *int64                        `form:"user_id,omitempty" json:"user_id,omitempty"`
+	Username      *string                       `form:"username,omitempty" json:"username,omitempty"`
+	Method        *string                       `form:"method,omitempty" json:"method,omitempty"`
+	Path          *string                       `form:"path,omitempty" json:"path,omitempty"`
+	PathMatch     *GetAccessLogsParamsPathMatch `form:"path_match,omitempty" json:"path_match,omitempty"`
+	Route         *string                       `form:"route,omitempty" json:"route,omitempty"`
+	StatusCode    *int                          `form:"status_code,omitempty" json:"status_code,omitempty"`
+	DurationMinMs *int64                        `form:"duration_min_ms,omitempty" json:"duration_min_ms,omitempty"`
+	DurationMaxMs *int64                        `form:"duration_max_ms,omitempty" json:"duration_max_ms,omitempty"`
+	OccurredFrom  *time.Time                    `form:"occurred_from,omitempty" json:"occurred_from,omitempty"`
+	OccurredTo    *time.Time                    `form:"occurred_to,omitempty" json:"occurred_to,omitempty"`
+	SortBy        *GetAccessLogsParamsSortBy    `form:"sort_by,omitempty" json:"sort_by,omitempty"`
+	SortOrder     *GetAccessLogsParamsSortOrder `form:"sort_order,omitempty" json:"sort_order,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetAccessLogsParamsPathMatch defines parameters for GetAccessLogs.
+type GetAccessLogsParamsPathMatch string
+
+// GetAccessLogsParamsSortBy defines parameters for GetAccessLogs.
+type GetAccessLogsParamsSortBy string
+
+// GetAccessLogsParamsSortOrder defines parameters for GetAccessLogs.
+type GetAccessLogsParamsSortOrder string
+
+// GetAccessLogDetailParams defines parameters for GetAccessLogDetail.
+type GetAccessLogDetailParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetAuditIncidentParams defines parameters for GetAuditIncident.
 type GetAuditIncidentParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -1952,6 +2195,8 @@ type GetAuditLogsParams struct {
 	Success      *bool                        `form:"success,omitempty" json:"success,omitempty"`
 	CreatedFrom  *time.Time                   `form:"created_from,omitempty" json:"created_from,omitempty"`
 	CreatedTo    *time.Time                   `form:"created_to,omitempty" json:"created_to,omitempty"`
+	SortBy       *GetAuditLogsParamsSortBy    `form:"sort_by,omitempty" json:"sort_by,omitempty"`
+	SortOrder    *GetAuditLogsParamsSortOrder `form:"sort_order,omitempty" json:"sort_order,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -1969,6 +2214,12 @@ type GetAuditLogsParamsResult string
 
 // GetAuditLogsParamsRiskLevel defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevel string
+
+// GetAuditLogsParamsSortBy defines parameters for GetAuditLogs.
+type GetAuditLogsParamsSortBy string
+
+// GetAuditLogsParamsSortOrder defines parameters for GetAuditLogs.
+type GetAuditLogsParamsSortOrder string
 
 // GetAuditOverviewParams defines parameters for GetAuditOverview.
 type GetAuditOverviewParams struct {

@@ -4,5 +4,13 @@ This directory is the core-owned migration boundary for `server/internal/httpx`.
 chain because access-log runtime semantics and durable storage authority both belong to
 `server/internal/httpx/**`.
 
+Live migration rules in this directory follow `server/AGENTS.md` exactly:
+
+- every new live table must have a Chinese `COMMENT ON TABLE`
+- every live column must have a Chinese `COMMENT ON COLUMN`
+- handwritten migration SQL must persist those comments explicitly rather than relying on
+  comments declared elsewhere
+- completion validation must include a check that live table and column comments are complete
+
 The historical shared chain under `server/internal/ent/migrate/migrations` remains available
 only for explicit/manual replay and is not the canonical owner for new live migrations.

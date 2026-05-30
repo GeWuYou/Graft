@@ -25,13 +25,14 @@ func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository) gin.Ha
 	return func(ctx *gin.Context) {
 		startedAt := time.Now()
 		requestID := EnsureRequestID(ctx)
+		traceID := EnsureTraceID(ctx)
 
 		ctx.Next()
 
-		record := buildAccessLogRecord(ctx, requestID, startedAt)
+		record := buildAccessLogRecord(ctx, requestID, traceID, startedAt)
 		fields := []zap.Field{
 			zap.String("requestId", record.RequestID),
-			zap.String("traceId", record.RequestID),
+			zap.String("traceId", record.TraceID),
 			zap.String("method", record.Method),
 			zap.String("path", record.Path),
 			zap.String("route", record.Route),
@@ -60,9 +61,10 @@ func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository) gin.Ha
 	}
 }
 
-func buildAccessLogRecord(ctx *gin.Context, requestID string, startedAt time.Time) CreateAccessLogInput {
+func buildAccessLogRecord(ctx *gin.Context, requestID string, traceID string, startedAt time.Time) CreateAccessLogInput {
 	record := CreateAccessLogInput{
 		RequestID:    strings.TrimSpace(requestID),
+		TraceID:      strings.TrimSpace(traceID),
 		Method:       strings.TrimSpace(ctx.Request.Method),
 		Path:         sanitizeAccessLogPath(currentRequestPath(ctx)),
 		Route:        sanitizeAccessLogRoute(currentRequestRoute(ctx)),

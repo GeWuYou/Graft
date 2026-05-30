@@ -122,6 +122,7 @@
     "permissionList": {
       "listTitle": "Permission Management",
       "hint": "Review system permissions, module ownership, and authorization usage.",
+      "more": "More",
       "detail": "Details",
       "viewAudit": "View Related Audit",
       "detailTitle": "Permission Details",

@@ -1,0 +1,115 @@
+get:
+  tags: [access-log]
+  summary: List access logs
+  operationId: getAccessLogs
+  description: Returns the canonical paged access-log explorer surface.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: request_id
+      in: query
+      schema:
+        type: string
+    - name: trace_id
+      in: query
+      schema:
+        type: string
+    - name: user_id
+      in: query
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    - name: username
+      in: query
+      schema:
+        type: string
+    - name: method
+      in: query
+      schema:
+        type: string
+    - name: path
+      in: query
+      schema:
+        type: string
+    - name: path_match
+      in: query
+      schema:
+        type: string
+        enum: [exact, prefix]
+    - name: route
+      in: query
+      schema:
+        type: string
+    - name: status_code
+      in: query
+      schema:
+        type: integer
+    - name: duration_min_ms
+      in: query
+      schema:
+        type: integer
+        format: int64
+    - name: duration_max_ms
+      in: query
+      schema:
+        type: integer
+        format: int64
+    - name: occurred_from
+      in: query
+      schema:
+        type: string
+        format: date-time
+    - name: occurred_to
+      in: query
+      schema:
+        type: string
+        format: date-time
+    - name: sort_by
+      in: query
+      schema:
+        type: string
+        enum: [occurred_at, duration_ms, status_code]
+    - name: sort_order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Access log page.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-access-log-list-response.yaml
+    '400':
+      description: Invalid access log query.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

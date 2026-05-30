@@ -65,9 +65,10 @@ func RequirePermission(
 	auditPublisher := firstSecurityAuditPublisher(auditPublishers...)
 	return func(ctx *gin.Context) {
 		requestID := EnsureRequestID(ctx)
+		traceID := EnsureTraceID(ctx)
 		ctx.Request = ctx.Request.WithContext(WithRequestAuditContext(ctx.Request.Context(), RequestAuditContext{
 			RequestID: requestID,
-			TraceID:   requestID,
+			TraceID:   traceID,
 			Route:     currentRequestAuditPath(ctx),
 			Method:    strings.TrimSpace(ctx.Request.Method),
 			ClientIP:  strings.TrimSpace(ctx.ClientIP()),
@@ -292,6 +293,7 @@ func (p eventBusSecurityAuditPublisher) Publish(
 	}
 
 	requestID := EnsureRequestID(ctx)
+	traceID := EnsureTraceID(ctx)
 	requestPath := currentRequestAuditPath(ctx)
 	metadata = canonicalizeSecurityEventMetadata(
 		metadata,
@@ -299,6 +301,7 @@ func (p eventBusSecurityAuditPublisher) Publish(
 			eventType: eventType,
 			source:    p.source,
 			requestID: requestID,
+			traceID:   traceID,
 			route:     requestPath,
 			method:    strings.TrimSpace(ctx.Request.Method),
 			status:    status,
@@ -364,6 +367,7 @@ type securityEventContext struct {
 	eventType securityAuditEventType
 	source    string
 	requestID string
+	traceID   string
 	route     string
 	method    string
 	status    int
@@ -376,7 +380,7 @@ func canonicalizeSecurityEventMetadata(metadata map[string]any, eventCtx securit
 	}
 
 	cloned["requestId"] = eventCtx.requestID
-	cloned["traceId"] = eventCtx.requestID
+	cloned["traceId"] = eventCtx.traceID
 	cloned["route"] = eventCtx.route
 	cloned["method"] = eventCtx.method
 	cloned["path"] = eventCtx.route

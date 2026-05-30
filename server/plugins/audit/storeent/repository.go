@@ -163,6 +163,7 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 
 	queryArgs := append([]any{}, args...)
 	queryArgs = append(queryArgs, query.Limit, query.Offset)
+	orderBySQL := buildAuditLogOrderBy(query)
 
 	//nolint:gosec // Query text is assembled from fixed SQL fragments; all dynamic values stay parameterized.
 	selectSQL := `SELECT
@@ -183,7 +184,8 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 		metadata,
 		created_at
 	FROM audit_logs` + whereSQL + fmt.Sprintf(
-		" ORDER BY created_at DESC, id DESC LIMIT $%d OFFSET $%d",
+		" %s LIMIT $%d OFFSET $%d",
+		orderBySQL,
 		len(args)+1,
 		len(args)+paginationParamCount,
 	)
@@ -210,6 +212,14 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 	}
 
 	return auditstore.ListAuditLogsResult{Items: items, Total: total}, nil
+}
+
+func buildAuditLogOrderBy(query auditstore.ListAuditLogsQuery) string {
+	if query.SortBy == "created_at" && query.SortOrder == "asc" {
+		return "ORDER BY created_at ASC, id ASC"
+	}
+
+	return "ORDER BY created_at DESC, id DESC"
 }
 
 // ReadAuditOverview aggregates real overview data from the settled audit log table.

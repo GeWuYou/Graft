@@ -16,6 +16,7 @@ import (
 
 const localizedErrorMessageKeyContextKey = "httpx.localized_error_message_key"
 const requestIDContextKey = "httpx.request_id"
+const traceIDContextKey = "httpx.trace_id"
 
 type requestAuditContextKey struct{}
 
@@ -142,6 +143,28 @@ func EnsureRequestID(ctx *gin.Context) string {
 	ctx.Set(requestIDContextKey, requestID)
 	ctx.Writer.Header().Set(RequestIDHeader, requestID)
 	return requestID
+}
+
+// EnsureTraceID reads the incoming trace identifier when present and falls back
+// to the canonical request id when no distinct trace id is available.
+func EnsureTraceID(ctx *gin.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	if current, ok := ctx.Get(traceIDContextKey); ok {
+		if traceID, ok := current.(string); ok && strings.TrimSpace(traceID) != "" {
+			return traceID
+		}
+	}
+
+	traceID := strings.TrimSpace(ctx.GetHeader(traceIDFallbackHeader))
+	if traceID == "" {
+		traceID = EnsureRequestID(ctx)
+	}
+
+	ctx.Set(traceIDContextKey, traceID)
+	return traceID
 }
 
 // WithRequestAuditContext attaches the canonical request audit snapshot to one

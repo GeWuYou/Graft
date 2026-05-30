@@ -116,6 +116,15 @@ const i18n = createI18n({
             resourceIdPlaceholder: '资源 ID',
             datePlaceholder: '时间范围',
           },
+          sort: {
+            title: '排序',
+            tagPrefix: '排序',
+            fieldPlaceholder: '排序字段',
+            directionPlaceholder: '排序方向',
+            createdAt: '创建时间',
+            asc: '升序',
+            desc: '降序',
+          },
           filterOptions: {
             auth: '认证',
             role: '角色',
@@ -161,6 +170,7 @@ describe('AuditFilters', () => {
           session: '',
           requestId: '',
           traceId: '',
+          sorters: [{ field: 'created_at', direction: 'desc' }],
         },
         presets: [
           { key: 'all', title: '全部' },
@@ -182,18 +192,23 @@ describe('AuditFilters', () => {
     });
 
     expect(wrapper.find('input').attributes('placeholder')).toBe('搜索操作、用户、目标对象、请求ID...');
+    expect(wrapper.text()).toContain('排序：创建时间 ↓');
     expect(wrapper.text()).toContain('操作人：admin');
     expect(wrapper.text()).toContain('结果：业务失败');
 
     const tags = wrapper.findAllComponents(tagStub);
     tags[0]?.vm.$emit('close');
     tags[1]?.vm.$emit('close');
+    tags[2]?.vm.$emit('close');
 
     expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
+      sorters: [],
+    });
+    expect(wrapper.emitted('update:modelValue')?.[1]?.[0]).toMatchObject({
       actor: 'admin',
       result: 'all',
     });
-    expect(wrapper.emitted('update:modelValue')?.[1]?.[0]).toMatchObject({
+    expect(wrapper.emitted('update:modelValue')?.[2]?.[0]).toMatchObject({
       actor: '',
       result: 'FAILED',
     });

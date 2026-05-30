@@ -38,13 +38,34 @@
             max-width="240"
             theme="primary"
             variant="light-outline"
-            @close="clearField(tag.key)"
+            @close="tag.key === 'sorter' ? clearSorter() : clearField(tag.key)"
           >
             {{ tag.label }}
           </t-tag>
         </div>
 
         <div class="audit-filters__bottom-row">
+          <div class="audit-filters__sort-row">
+            <span class="audit-filters__sort-label">{{ t('audit.logList.sort.title') }}</span>
+            <t-select
+              :model-value="sortFieldValue"
+              clearable
+              class="audit-filters__sort-select"
+              :options="sortFieldOptions"
+              :placeholder="t('audit.logList.sort.fieldPlaceholder')"
+              @update:model-value="updateSortField($event)"
+            />
+            <t-select
+              v-if="sortFieldValue"
+              :model-value="sortDirectionValue"
+              clearable
+              class="audit-filters__sort-select"
+              :options="sortDirectionOptions"
+              :placeholder="t('audit.logList.sort.directionPlaceholder')"
+              @update:model-value="updateSortDirection($event)"
+            />
+          </div>
+
           <t-popup
             v-model:visible="builderVisible"
             attach="body"
@@ -121,11 +142,18 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ManagementToolbar } from '@/shared/components/management';
+import {
+  getSingleSorter,
+  normalizeSingleSorterDirection,
+  normalizeSingleSorterField,
+  prependSingleSorterTag,
+} from '@/shared/observability';
 
 import type { AuditPresetKey } from '../contract/presets';
 import type { AuditClientFilterState } from '../shared/presentation';
+import type { AuditSortBy, AuditSortOrder } from '../types/audit';
 
-type FilterKey = Exclude<keyof AuditClientFilterState, 'keyword' | 'createdRange'>;
+type FilterKey = Exclude<keyof AuditClientFilterState, 'keyword' | 'createdRange' | 'sorters'>;
 type SelectFilterKey = 'action' | 'source' | 'resourceType' | 'result' | 'riskLevel';
 type TextFilterKey = Exclude<FilterKey, SelectFilterKey>;
 
@@ -202,6 +230,13 @@ const riskOptions = computed<FilterOption[]>(() => [
   { label: t('audit.logList.filterOptions.MEDIUM'), value: 'MEDIUM' },
   { label: t('audit.logList.filterOptions.HIGH'), value: 'HIGH' },
   { label: t('audit.logList.filterOptions.CRITICAL'), value: 'CRITICAL' },
+]);
+const sortFieldOptions = computed<FilterOption[]>(() => [
+  { label: t('audit.logList.sort.createdAt'), value: 'created_at' },
+]);
+const sortDirectionOptions = computed<FilterOption[]>(() => [
+  { label: t('audit.logList.sort.desc'), value: 'desc' },
+  { label: t('audit.logList.sort.asc'), value: 'asc' },
 ]);
 
 const definitions = computed<FilterDefinition[]>(() => [
@@ -280,6 +315,9 @@ const definitions = computed<FilterDefinition[]>(() => [
 
 const definitionMap = computed(() => new Map(definitions.value.map((item) => [item.key, item])));
 const selectedDefinition = computed(() => definitionMap.value.get(selectedDefinitionKey.value));
+const activeSorter = computed(() => getSingleSorter(props.modelValue.sorters));
+const sortFieldValue = computed(() => activeSorter.value?.field ?? '');
+const sortDirectionValue = computed(() => activeSorter.value?.direction ?? '');
 
 const availableDefinitions = computed(() =>
   definitions.value.filter(
@@ -290,14 +328,21 @@ const availableDefinitions = computed(() =>
   ),
 );
 
-const activeFilterTags = computed(() =>
-  definitions.value
+const activeFilterTags = computed(() => {
+  const filterTags = definitions.value
     .map((definition) => {
       const label = buildTagLabel(definition);
       return label ? { key: definition.key, label } : null;
     })
-    .filter((item): item is { key: FilterKey; label: string } => Boolean(item)),
-);
+    .filter((item): item is { key: FilterKey; label: string } => Boolean(item));
+
+  return prependSingleSorterTag(
+    filterTags,
+    activeSorter.value,
+    sortFieldOptions.value,
+    t('audit.logList.sort.tagPrefix'),
+  );
+});
 
 const dateRangePlaceholder = computed(() => [
   t('audit.logList.filters.datePlaceholder'),
@@ -353,6 +398,13 @@ function clearField(key: FilterKey) {
   updateField(key, '' as AuditClientFilterState[typeof key]);
 }
 
+function clearSorter() {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    sorters: [],
+  });
+}
+
 function textValue(key: TextFilterKey) {
   return props.modelValue[key];
 }
@@ -368,6 +420,28 @@ function normalizeTextValue(value: string | number | undefined) {
 
 function normalizeSelectValue(value: string | number | Array<string | number> | undefined) {
   return typeof value === 'string' ? value : '';
+}
+
+function updateSortField(value: string | number | Array<string | number> | undefined) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    sorters: normalizeSingleSorterField(value, activeSorter.value?.direction, normalizeSortField),
+  });
+}
+
+function updateSortDirection(value: string | number | Array<string | number> | undefined) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    sorters: normalizeSingleSorterDirection(value, activeSorter.value?.field, normalizeSortDirection),
+  });
+}
+
+function normalizeSortField(value: string): AuditSortBy {
+  return value === 'created_at' ? 'created_at' : 'created_at';
+}
+
+function normalizeSortDirection(value: string): AuditSortOrder {
+  return value === 'asc' ? 'asc' : 'desc';
 }
 </script>
 <style scoped lang="less">
@@ -416,6 +490,25 @@ function normalizeSelectValue(value: string | number | Array<string | number> | 
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
+}
+
+.audit-filters__sort-row {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.audit-filters__sort-label {
+  color: var(--td-text-color-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.audit-filters__sort-select {
+  min-width: 160px;
 }
 
 .audit-filters__preset-label {
@@ -505,6 +598,7 @@ function normalizeSelectValue(value: string | number | Array<string | number> | 
   .audit-filters__keyword,
   .audit-filters__date,
   .audit-filters__actions,
+  .audit-filters__sort-row,
   .audit-filters__preset-row {
     min-width: 0;
     width: 100%;

@@ -25,6 +25,7 @@ import (
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
+	"graft/server/internal/pluginapi"
 	"graft/server/internal/pluginregistry"
 	"graft/server/internal/redisx"
 )
@@ -92,6 +93,11 @@ func NewRuntime() (*Runtime, error) {
 	if err := runtime.registerCoreServices(); err != nil {
 		_ = runtime.closeCoreResources()
 		return nil, err
+	}
+
+	if err := runtime.registerAccessLogRetentionJob(); err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, fmt.Errorf("register access-log retention job: %w", err)
 	}
 
 	runtime.registerCoreRoutes(runtime.server.Engine())
@@ -194,20 +200,7 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 // 返回：
 //   - error: 返回注册、启动、监听、关闭阶段的首个失败，并按需要聚合插件关闭或 core 资源回收错误。
 func (r *Runtime) Run(runCtx context.Context) error {
-	pluginCtx := &plugin.Context{
-		LifecycleContext:   runCtx,
-		Config:             r.config,
-		Logger:             r.logger,
-		I18n:               r.i18n,
-		EventBus:           r.eventBus,
-		Redis:              r.redis,
-		Router:             r.server.Engine().Group("/api"),
-		Services:           r.services,
-		RuntimeMetadata:    r.runtimeMetadata,
-		MenuRegistry:       r.menuRegistry,
-		PermissionRegistry: r.permissionRegistry,
-		CronRegistry:       r.cronRegistry,
-	}
+	pluginCtx := r.newPluginContext(runCtx)
 
 	ordered, err := r.pluginManager.Ordered()
 	if err != nil {
@@ -215,25 +208,21 @@ func (r *Runtime) Run(runCtx context.Context) error {
 	}
 
 	booted := make([]plugin.Plugin, 0, len(ordered))
-	for _, p := range ordered {
-		// Register 阶段只允许声明能力，不应启动长期运行行为；一旦失败，
-		// 当前插件及其后续插件都不再继续，避免部分注册状态继续扩散。
-		if err := p.Register(pluginCtx); err != nil {
-			return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("register plugin %s: %w", p.Name(), err))
-		}
+	if err := r.registerPlugins(pluginCtx, ordered, booted); err != nil {
+		return err
+	}
+
+	if err := r.registerAccessLogExplorer(pluginCtx, booted); err != nil {
+		return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("resolve access-log auth service: %w", err))
 	}
 
 	if err := r.i18n.Freeze(); err != nil {
 		return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("freeze i18n registry: %w", err))
 	}
 
-	for _, p := range ordered {
-		// 只有完成 Register 的插件才会进入 Boot。booted 只记录真正成功启动
-		// 的插件，确保失败清理不会误关未启动插件。
-		if err := p.Boot(pluginCtx); err != nil {
-			return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("boot plugin %s: %w", p.Name(), err))
-		}
-		booted = append(booted, p)
+	booted, err = r.bootPlugins(pluginCtx, ordered, booted)
+	if err != nil {
+		return err
 	}
 
 	if err := r.server.Run(runCtx, r.config.HTTP.Addr); err != nil {
@@ -249,6 +238,114 @@ func (r *Runtime) Run(runCtx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *Runtime) registerPlugins(pluginCtx *plugin.Context, ordered []plugin.Plugin, booted []plugin.Plugin) error {
+	for _, p := range ordered {
+		// Register 阶段只允许声明能力，不应启动长期运行行为；一旦失败，
+		// 当前插件及其后续插件都不再继续，避免部分注册状态继续扩散。
+		if err := p.Register(pluginCtx); err != nil {
+			return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("register plugin %s: %w", p.Name(), err))
+		}
+	}
+
+	return nil
+}
+
+func (r *Runtime) bootPlugins(
+	pluginCtx *plugin.Context,
+	ordered []plugin.Plugin,
+	booted []plugin.Plugin,
+) ([]plugin.Plugin, error) {
+	for _, p := range ordered {
+		// 只有完成 Register 的插件才会进入 Boot。booted 只记录真正成功启动
+		// 的插件，确保失败清理不会误关未启动插件。
+		if err := p.Boot(pluginCtx); err != nil {
+			return nil, r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("boot plugin %s: %w", p.Name(), err))
+		}
+		booted = append(booted, p)
+	}
+
+	return booted, nil
+}
+
+func (r *Runtime) newPluginContext(runCtx context.Context) *plugin.Context {
+	return &plugin.Context{
+		LifecycleContext:   runCtx,
+		Config:             r.config,
+		Logger:             r.logger,
+		I18n:               r.i18n,
+		EventBus:           r.eventBus,
+		Redis:              r.redis,
+		Router:             r.server.Engine().Group("/api"),
+		Services:           r.services,
+		RuntimeMetadata:    r.runtimeMetadata,
+		MenuRegistry:       r.menuRegistry,
+		PermissionRegistry: r.permissionRegistry,
+		CronRegistry:       r.cronRegistry,
+	}
+}
+
+func (r *Runtime) registerAccessLogExplorer(pluginCtx *plugin.Context, booted []plugin.Plugin) error {
+	authService, err := r.resolveAccessLogAuthService()
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	authorizer, err := r.resolveAccessLogAuthorizer()
+	if err != nil {
+		return err
+	}
+
+	if err := httpx.RegisterAccessLogExplorer(
+		httpx.AccessLogExplorerRegistration{
+			I18n:               r.i18n,
+			MenuRegistry:       r.menuRegistry,
+			PermissionRegistry: r.permissionRegistry,
+			EventBus:           r.eventBus,
+		},
+		r.server.Engine().Group("/api"),
+		r.server.AccessLogRepository(),
+		authService,
+		authorizer,
+	); err != nil {
+		return fmt.Errorf("register access-log explorer: %w", err)
+	}
+
+	_ = pluginCtx
+	_ = booted
+	return nil
+}
+
+func (r *Runtime) resolveAccessLogAuthService() (pluginapi.AuthService, error) {
+	authResolved, err := r.services.Resolve((*pluginapi.AuthService)(nil))
+	if err != nil {
+		return nil, err
+	}
+
+	authService, ok := authResolved.(pluginapi.AuthService)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type %T", authResolved)
+	}
+
+	return authService, nil
+}
+
+func (r *Runtime) resolveAccessLogAuthorizer() (pluginapi.Authorizer, error) {
+	authorizerResolved, err := r.services.Resolve((*pluginapi.Authorizer)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve access-log authorizer: %w", err)
+	}
+
+	authorizer, ok := authorizerResolved.(pluginapi.Authorizer)
+	if !ok {
+		return nil, fmt.Errorf("resolve access-log authorizer: unexpected type %T", authorizerResolved)
+	}
+
+	return authorizer, nil
 }
 
 func (r *Runtime) loadOptionalDocsAssets() error {
@@ -292,7 +389,9 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 		html, err := renderScalarDocsHTML(openapiJSONPath)
 		if err != nil {
 			if r.logger != nil {
-				r.logger.Error("render docs page", zap.Error(err))
+				logger.NewAppLogger(r.logger).
+					Named("internal.app.runtime").
+					Error(ctx.Request.Context(), "render docs page", logger.ErrorField(err))
 			}
 			ctx.String(http.StatusInternalServerError, "failed to render docs page")
 			return
@@ -324,6 +423,12 @@ func (r *Runtime) registerCoreServices() error {
 			key: (*zap.Logger)(nil),
 			provider: func() (any, error) {
 				return r.logger, nil
+			},
+		},
+		{
+			key: (*logger.AppLogger)(nil),
+			provider: func() (any, error) {
+				return logger.NewAppLogger(r.logger), nil
 			},
 		},
 		{
@@ -362,6 +467,19 @@ func (r *Runtime) registerCoreServices() error {
 	}
 
 	return nil
+}
+
+func (r *Runtime) registerAccessLogRetentionJob() error {
+	if r == nil || r.server == nil {
+		return errors.New("runtime server is unavailable")
+	}
+
+	return httpx.RegisterAccessLogRetentionCleanupJob(
+		r.cronRegistry,
+		r.logger,
+		r.server.AccessLogRepository(),
+		r.config.HTTPX,
+	)
 }
 
 func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error {

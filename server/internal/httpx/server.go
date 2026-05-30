@@ -61,6 +61,17 @@ func (s *Server) Engine() *gin.Engine {
 	return s.engine
 }
 
+// AccessLogRepository 返回当前 HTTP 运行时绑定的访问日志仓储。
+//
+// 该方法用于让 core runtime 在装配 access-log explorer 时复用同一份
+// access-log authority，而不是在其它边界重新构造第二个仓储实例。
+func (s *Server) AccessLogRepository() AccessLogRepository {
+	if s == nil {
+		return nil
+	}
+	return s.repo
+}
+
 // Run 启动 HTTP 服务，并把服务生命周期绑定到给定上下文。
 //
 // 当监听提前失败时直接返回错误；当上下文取消时，Run 会触发一次优雅关闭，

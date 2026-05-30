@@ -12,6 +12,42 @@ Overlay note:
 
 ## Active Topics
 
+- `phase-d-app-log-operator-workflow-definition`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded governance-only topic that defines minimum operator workflows before approving durable `App Log` storage or explorer work.
+  - Scope outcome:
+    - identified developer, operator/admin, and support/debugging consumers
+    - defined minimum runtime-error, background-job, plugin-startup, and request-correlation workflows
+    - defined required and forbidden App Log query dimensions
+    - confirmed durable `App Log` storage remains deferred after workflow analysis
+  - Topic directory:
+    - `ai-plan/public/phase-d-app-log-operator-workflow-definition`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: server. Recovery source: parent topic phase-d-app-log-operator-workflow-definition. Owned scope: server/internal/logger/**, ai-plan/design/**, ai-plan/public/phase-d-app-log-operator-workflow-definition/**, and other authority files only if required by retention/authz readiness analysis. Open the next bounded topic only as phase-d-app-log-retention-authz-and-storage-readiness, and do not add schema, migrations, cleanup jobs, APIs, or UI in that turn.`
+
+- `phase-d-app-log-durable-storage-decision`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded governance-only decision topic for repository-owned `App Log` durable storage.
+  - Scope outcome:
+    - kept `server/internal/logger/**` as canonical `App Log` authority
+    - decided durable `App Log` storage is deferred until a future operator workflow is explicitly defined
+    - recorded external collection via process logger output as the current truthful path
+    - listed the workflow, authz, retention, and redaction questions that must be answered before any schema topic
+  - Topic directory:
+    - `ai-plan/public/phase-d-app-log-durable-storage-decision`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: server. Recovery source: parent topic phase-d-app-log-durable-storage-decision. Owned scope: server/internal/logger/**, ai-plan/design/**, ai-plan/public/phase-d-app-log-durable-storage-decision/**, and other authority files only if required by workflow definition. Open the next bounded topic only as phase-d-app-log-operator-workflow-definition, and do not add schema, migrations, cleanup jobs, APIs, or UI in that turn.`
+
+- `phase-d-access-log-investigation-workflow`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded cross-boundary implementation topic for the operator investigation workflow from audit evidence into canonical access-log records.
+  - Scope outcome:
+    - extended backend access-log explorer query/detail semantics with canonical `trace_id` support
+    - aligned OpenAPI and generated contracts with the implemented access-log investigation fields
+    - wired web access-log deep links for request-id and trace-id seeded investigation
+    - changed audit investigation entrypoints to jump into `Access Log` as the canonical related-request surface
+  - Topic directory:
+    - `ai-plan/public/phase-d-access-log-investigation-workflow`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic phase-d-access-log-investigation-workflow. Owned scope: server/internal/httpx/**, openapi/**, web/src/modules/access-log/**, web/src/modules/audit/**, ai-plan/public/phase-d-access-log-investigation-workflow/**, and other authority files only if required by a bounded follow-up. Treat this topic as archive-ready evidence and open a new bounded topic instead of extending it in place.`
+
 - `phase-d-access-log-contract-definition`
   - Status: `archive-ready`
   - Recovery status: completed the bounded governance-only topic for future `Access Log` contract authority.
@@ -22,7 +58,19 @@ Overlay note:
     - recorded truthful runtime gaps without approving storage, API, or UI work
   - Topic directory:
     - `ai-plan/public/phase-d-access-log-contract-definition`
-  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic phase-d-access-log-contract-definition. Owned scope: server/internal/httpx/**, server/internal/logger/**, server/internal/pluginapi/**, openapi/**, ai-plan/design/**, and ai-plan/public/phase-d-access-log-contract-definition/** only. Open the next bounded topic only as phase-d-access-log-runtime-storage, and do not add explorer UI, query APIs, or durable tables until runtime storage authority is explicitly approved.`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: server. Recovery source: parent topic phase-d-access-log-contract-definition. Owned scope: server/internal/httpx/**, ai-plan/design/**, and phase-d runtime-storage materials only. Open the next bounded topic only as phase-d-access-log-runtime-storage, and keep scope on owner-aligned durable storage/runtime assembly rather than explorer/UI work.`
+
+- `phase-d-access-log-retention-governance`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded cross-boundary authority-definition topic for access-log retention governance.
+  - Scope outcome:
+    - chose `server/internal/httpx/**` as the canonical retention-policy owner
+    - defined configurable retention with environment-specific defaults
+    - chose future scheduled maintenance cleanup as the canonical direction without approving runtime jobs
+    - defined explorer behavior after expiry and storage lifecycle expectations
+  - Topic directory:
+    - `ai-plan/public/phase-d-access-log-retention-governance`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic phase-d-access-log-retention-governance. Owned scope: server/internal/httpx/**, ai-plan/design/**, ai-plan/public/phase-d-access-log-retention-governance/**, and other authority files only if required by runtime wiring. Open the next bounded topic only as phase-d-access-log-retention-runtime, and do not add archive/export, retention UI, or broader observability features.`
 
 - `phase-d-log-explorer-authority-definition`
   - Status: `archive-ready`
@@ -40,11 +88,11 @@ Overlay note:
   - Recovery status: completed the bounded server runtime governance topic for retention, storage, and cleanup authority.
   - Scope outcome:
     - verified runtime logging write-path and storage matrix from code
-    - formalized that only audit logs currently have durable repository-owned storage authority
-    - formalized that app/access log retention cleanup is `not-ready` inside repository runtime until a future storage authority exists
+    - documented then-current retention/storage authority assumptions before access-log durable storage landed
+    - now serves as historical evidence only where later access-log runtime/storage and retention docs do not supersede it
   - Topic directory:
     - `ai-plan/public/phase-d-log-retention-and-storage-authority`
-  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: server. Recovery source: parent topic phase-d-log-retention-and-storage-authority. Owned scope: server/internal/httpx/**, server/internal/logger/**, server/internal/pluginapi/**, ai-plan/design/**, ai-plan/public/phase-d-log-retention-and-storage-authority/**, and openapi/** only if authority becomes necessary. Open the next bounded topic only as phase-d-access-log-contract-definition, and do not add UI or query APIs unless access-log contract authority remains truthful to current storage reality.`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat phase-d-log-retention-and-storage-authority as historical evidence only. If the task is specifically about access-log lifecycle, continue from the newer access-log runtime-storage and retention-governance topics instead of reusing the older generic log-retention assumptions.`
 
 ## Archived Topics
 

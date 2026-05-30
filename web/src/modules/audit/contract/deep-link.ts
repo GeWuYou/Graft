@@ -12,20 +12,23 @@ export type AuditLogsRouteQuery = Partial<{
   preset: string;
   keyword: string;
   actor: string;
-  actorUserId: string;
+  user_id: string;
+  username: string;
   action: string;
-  actionPrefix: string;
+  action_prefix: string;
   source: string;
-  createdFrom: string;
-  createdTo: string;
-  resourceType: string;
-  resourceName: string;
-  resourceId: string;
+  occurred_from: string;
+  occurred_to: string;
+  resource_type: string;
+  resource_name: string;
+  resource_id: string;
   result: string;
-  riskLevel: string;
+  risk_level: string;
   session: string;
-  requestId: string;
-  traceId: string;
+  request_id: string;
+  trace_id: string;
+  sort_by: string;
+  sort_order: string;
 }>;
 
 function trimQueryValue(value: unknown) {
@@ -41,20 +44,23 @@ export function parseAuditLogsRouteQuery(query: LocationQuery | AuditLogsRouteQu
     preset: trimQueryValue(firstQueryValue(query.preset)),
     keyword: trimQueryValue(firstQueryValue(query.keyword)),
     actor: trimQueryValue(firstQueryValue(query.actor)),
-    actorUserId: trimQueryValue(firstQueryValue(query.actorUserId)),
+    user_id: trimQueryValue(firstQueryValue(query.user_id)),
+    username: trimQueryValue(firstQueryValue(query.username)),
     action: trimQueryValue(firstQueryValue(query.action)),
-    actionPrefix: trimQueryValue(firstQueryValue(query.actionPrefix)),
+    action_prefix: trimQueryValue(firstQueryValue(query.action_prefix)),
     source: trimQueryValue(firstQueryValue(query.source)),
-    createdFrom: trimQueryValue(firstQueryValue(query.createdFrom)),
-    createdTo: trimQueryValue(firstQueryValue(query.createdTo)),
-    resourceType: trimQueryValue(firstQueryValue(query.resourceType)),
-    resourceName: trimQueryValue(firstQueryValue(query.resourceName)),
-    resourceId: trimQueryValue(firstQueryValue(query.resourceId)),
+    occurred_from: trimQueryValue(firstQueryValue(query.occurred_from)),
+    occurred_to: trimQueryValue(firstQueryValue(query.occurred_to)),
+    resource_type: trimQueryValue(firstQueryValue(query.resource_type)),
+    resource_name: trimQueryValue(firstQueryValue(query.resource_name)),
+    resource_id: trimQueryValue(firstQueryValue(query.resource_id)),
     result: trimQueryValue(firstQueryValue(query.result)),
-    riskLevel: trimQueryValue(firstQueryValue(query.riskLevel)),
+    risk_level: trimQueryValue(firstQueryValue(query.risk_level)),
     session: trimQueryValue(firstQueryValue(query.session)),
-    requestId: trimQueryValue(firstQueryValue(query.requestId)),
-    traceId: trimQueryValue(firstQueryValue(query.traceId)),
+    request_id: trimQueryValue(firstQueryValue(query.request_id)),
+    trace_id: trimQueryValue(firstQueryValue(query.trace_id)),
+    sort_by: trimQueryValue(firstQueryValue(query.sort_by)),
+    sort_order: trimQueryValue(firstQueryValue(query.sort_order)),
   };
 }
 
@@ -75,15 +81,21 @@ export function buildAuditLogsLocation(query: AuditLogsRouteQuery) {
 
 export function buildAuditResourceLocation(resourceType: string, resourceId: string, resourceName?: string) {
   return buildAuditLogsLocation({
-    resourceType,
-    resourceName,
-    resourceId,
+    resource_name: resourceName,
+    resource_type: resourceType,
+    resource_id: resourceId,
   });
 }
 
 export function buildAuditRequestLocation(requestId: string) {
   return buildAuditLogsLocation({
-    requestId,
+    request_id: requestId,
+  });
+}
+
+export function buildAuditTraceLocation(traceId: string) {
+  return buildAuditLogsLocation({
+    trace_id: traceId,
   });
 }
 
@@ -96,16 +108,16 @@ export function buildAuditIncidentLocation(eventId: number | string) {
 function buildAuditEvidenceLocation(context: AuditEvidenceContext) {
   return buildAuditLogsLocation({
     action: context.action,
-    actionPrefix: context.action_prefix,
+    action_prefix: context.action_prefix,
     source: context.source,
-    resourceType: context.resource_type,
-    resourceId: context.resource_id,
-    resourceName: context.resource_name,
-    requestId: context.request_id,
+    resource_type: context.resource_type,
+    resource_id: context.resource_id,
+    resource_name: context.resource_name,
+    request_id: context.request_id,
     result: context.result,
-    riskLevel: context.risk_level,
-    createdFrom: context.created_from,
-    createdTo: context.created_to,
+    risk_level: context.risk_level,
+    occurred_from: context.created_from,
+    occurred_to: context.created_to,
   });
 }
 

@@ -42,7 +42,7 @@
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.columns.createdAt') }}</span>
-            <strong>{{ formatAuditTimestamp(record.created_at) }}</strong>
+            <strong>{{ formatAuditTimestamp(record.created_at, locale) }}</strong>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.requestId') }}</span>
@@ -118,6 +118,24 @@
           <t-button v-if="incidentLocation" size="small" theme="default" variant="outline" @click="openIncident">
             {{ t('audit.logList.drawer.actions.openIncident') }}
           </t-button>
+          <t-button
+            v-if="requestIdForRecord(record) !== '-'"
+            size="small"
+            theme="default"
+            variant="outline"
+            @click="openRelatedRequest"
+          >
+            {{ t('audit.logList.drawer.actions.viewRelatedRequest') }}
+          </t-button>
+          <t-button
+            v-if="traceIdForRecord(record) !== '-'"
+            size="small"
+            theme="default"
+            variant="outline"
+            @click="openRelatedTrace"
+          >
+            {{ t('audit.logList.drawer.actions.openAccessLogByTraceId') }}
+          </t-button>
           <t-button v-if="record" size="small" theme="default" variant="outline" @click="openRelatedRecord">
             {{ t('audit.logList.drawer.actions.openRelatedEvents') }}
           </t-button>
@@ -128,7 +146,7 @@
             <ul>
               <li v-for="item in sameRequestRows" :key="item.id">
                 <button type="button" class="audit-detail__link-button" @click="openRequest(item.request_id)">
-                  {{ item.action }} · {{ formatAuditTimestamp(item.created_at) }}
+                  {{ item.action }} · {{ formatAuditTimestamp(item.created_at, locale) }}
                 </button>
               </li>
               <li v-if="sameRequestRows.length === 0">{{ t('audit.logList.drawer.related.empty') }}</li>
@@ -193,13 +211,15 @@ import { useRouter } from 'vue-router';
 
 import type { MonitorOriginContext } from '@/modules/monitor/contract/navigation';
 import { buildMonitorLocationFromOrigin } from '@/modules/monitor/contract/navigation';
+import { copyText } from '@/shared/observability';
 
 import {
+  buildAccessLogRequestLocationWithOrigin,
+  buildAccessLogTraceLocationWithOrigin,
   buildAuditIncidentLocationWithOrigin,
   buildAuditRelatedActorLocation,
   buildAuditRelatedRecordLocation,
   buildAuditRelatedResourceLocation,
-  buildAuditRequestLocationWithOrigin,
 } from '../contract/navigation';
 import {
   actorLabel,
@@ -231,7 +251,7 @@ defineEmits<{
   (e: 'update:visible', value: boolean): void;
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
 
 async function copyTraceId(record: AuditLogListItem) {
@@ -241,7 +261,11 @@ async function copyTraceId(record: AuditLogListItem) {
   }
 
   try {
-    await navigator.clipboard.writeText(traceId);
+    const copied = await copyText(traceId);
+    if (!copied) {
+      MessagePlugin.error(t('audit.logList.drawer.actions.copyFail'));
+      return;
+    }
     MessagePlugin.success(t('audit.logList.drawer.actions.copySuccess'));
   } catch {
     MessagePlugin.error(t('audit.logList.drawer.actions.copyFail'));
@@ -255,7 +279,11 @@ async function copyRequestId(record: AuditLogListItem) {
   }
 
   try {
-    await navigator.clipboard.writeText(requestId);
+    const copied = await copyText(requestId);
+    if (!copied) {
+      MessagePlugin.error(t('audit.logList.drawer.actions.copyRequestIdFail'));
+      return;
+    }
     MessagePlugin.success(t('audit.logList.drawer.actions.copyRequestIdSuccess'));
   } catch {
     MessagePlugin.error(t('audit.logList.drawer.actions.copyRequestIdFail'));
@@ -307,7 +335,25 @@ function openRequest(requestId?: string | null) {
     return;
   }
 
-  void router.push(buildAuditRequestLocationWithOrigin(requestId, props.monitorOrigin));
+  void router.push(buildAccessLogRequestLocationWithOrigin(requestId, props.monitorOrigin));
+}
+
+function openRelatedRequest() {
+  const requestId = props.record ? requestIdForRecord(props.record) : '-';
+  if (!requestId || requestId === '-') {
+    return;
+  }
+
+  void router.push(buildAccessLogRequestLocationWithOrigin(requestId, props.monitorOrigin));
+}
+
+function openRelatedTrace() {
+  const traceId = props.record ? traceIdForRecord(props.record) : '-';
+  if (!traceId || traceId === '-') {
+    return;
+  }
+
+  void router.push(buildAccessLogTraceLocationWithOrigin(traceId, props.monitorOrigin));
 }
 
 function openRelatedActor(row: AuditLogListItem) {

@@ -11,13 +11,13 @@ describe('audit navigation context', () => {
   it('preserves monitor origin on audit locations', () => {
     expect(
       buildAuditLogsLocationWithOrigin(
-        { requestId: 'req-1' },
+        { request_id: 'req-1' },
         { view: 'overview', trendRange: '10m', anomalyKey: 'cpu_pressure', scopeRef: 'runtime:cpu' },
       ),
     ).toEqual({
       path: '/audit/logs',
       query: {
-        requestId: 'req-1',
+        request_id: 'req-1',
         monitorView: 'overview',
         monitorTrendRange: '10m',
         monitorAnomalyKey: 'cpu_pressure',
@@ -28,7 +28,7 @@ describe('audit navigation context', () => {
 
   it('restores canonical monitor return target from audit route query', () => {
     const query = {
-      requestId: 'req-1',
+      request_id: 'req-1',
       monitorView: 'dependencies',
       monitorTrendRange: '30m',
       monitorAnomalyKey: 'dependency_status_degraded',
@@ -65,7 +65,8 @@ describe('audit navigation context', () => {
       path: '/audit/logs',
       query: {
         actor: 'alice',
-        actorUserId: '42',
+        username: 'alice',
+        user_id: '42',
         monitorView: 'overview',
         monitorTrendRange: '10m',
         monitorAnomalyKey: 'cpu_pressure',

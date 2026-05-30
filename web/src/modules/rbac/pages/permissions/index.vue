@@ -110,20 +110,18 @@
             <table-action-menu
               :actions="[
                 {
-                  fallbackLabel: '详情',
                   label: t('rbac.permissionList.detail'),
                   testId: 'permission-detail',
                   value: 'detail',
                 },
                 {
-                  fallbackLabel: '查看审计',
                   label: t('rbac.permissionList.viewAudit'),
                   testId: 'permission-view-audit',
                   value: 'view-audit',
                 },
               ]"
               :more-label="t('rbac.permissionList.more')"
-              more-label-fallback="更多"
+              :more-label-fallback="t('rbac.permissionList.more')"
               @action="(action) => handlePermissionAction(action, row)"
             />
           </template>
@@ -425,9 +423,9 @@ function handlePermissionAction(action: string, permission: PermissionListItem) 
   if (action === 'view-audit') {
     void router.push(
       buildAuditLogsLocation({
-        resourceType: 'permission',
-        resourceName: localizedPermissionDisplay(permission),
-        resourceId: String(permission.id),
+        resource_type: 'permission',
+        resource_name: localizedPermissionDisplay(permission),
+        resource_id: String(permission.id),
       }),
     );
     return;

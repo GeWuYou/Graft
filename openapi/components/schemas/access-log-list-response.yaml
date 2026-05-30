@@ -1,0 +1,17 @@
+type: object
+required:
+  - items
+  - total
+  - page
+  - page_size
+properties:
+  items:
+    type: array
+    items:
+      $ref: ./access-log-detail-response.yaml
+  total:
+    type: integer
+  page:
+    type: integer
+  page_size:
+    type: integer

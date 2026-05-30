@@ -1,0 +1,54 @@
+type: object
+required:
+  - id
+  - request_id
+  - trace_id
+  - method
+  - path
+  - route
+  - status_code
+  - duration_ms
+  - client_ip
+  - user_agent
+  - username
+  - occurred_at
+properties:
+  id:
+    type: integer
+    format: int64
+  request_id:
+    type: string
+  trace_id:
+    type: string
+  method:
+    type: string
+  path:
+    type: string
+  route:
+    type: string
+  status_code:
+    type: integer
+  duration_ms:
+    type: integer
+    format: int64
+  client_ip:
+    type: string
+  user_agent:
+    type: string
+  user_id:
+    type: integer
+    format: int64
+    nullable: true
+  username:
+    type: string
+  request_size:
+    type: integer
+    format: int64
+    nullable: true
+  response_size:
+    type: integer
+    format: int64
+    nullable: true
+  occurred_at:
+    type: string
+    format: date-time
