@@ -334,6 +334,15 @@
         "requestIdPlaceholder": "排障编号 / Request ID",
         "traceIdPlaceholder": "Trace ID"
       },
+      "sort": {
+        "title": "排序",
+        "tagPrefix": "排序",
+        "fieldPlaceholder": "排序字段",
+        "directionPlaceholder": "排序方向",
+        "createdAt": "创建时间",
+        "asc": "升序",
+        "desc": "降序"
+      },
       "filterOptions": {
         "allActions": "全部操作",
         "allSource": "全部事件类型",

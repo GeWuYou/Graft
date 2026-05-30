@@ -776,16 +776,16 @@ func (e GetAccessLogsParamsSortBy) Valid() bool {
 
 // Defines values for GetAccessLogsParamsSortOrder.
 const (
-	Asc  GetAccessLogsParamsSortOrder = "asc"
-	Desc GetAccessLogsParamsSortOrder = "desc"
+	GetAccessLogsParamsSortOrderAsc  GetAccessLogsParamsSortOrder = "asc"
+	GetAccessLogsParamsSortOrderDesc GetAccessLogsParamsSortOrder = "desc"
 )
 
 // Valid indicates whether the value is a known member of the GetAccessLogsParamsSortOrder enum.
 func (e GetAccessLogsParamsSortOrder) Valid() bool {
 	switch e {
-	case Asc:
+	case GetAccessLogsParamsSortOrderAsc:
 		return true
-	case Desc:
+	case GetAccessLogsParamsSortOrderDesc:
 		return true
 	default:
 		return false
@@ -855,6 +855,39 @@ func (e GetAuditLogsParamsRiskLevel) Valid() bool {
 	case GetAuditLogsParamsRiskLevelLOW:
 		return true
 	case GetAuditLogsParamsRiskLevelMEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogsParamsSortBy.
+const (
+	CreatedAt GetAuditLogsParamsSortBy = "created_at"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsSortBy enum.
+func (e GetAuditLogsParamsSortBy) Valid() bool {
+	switch e {
+	case CreatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogsParamsSortOrder.
+const (
+	GetAuditLogsParamsSortOrderAsc  GetAuditLogsParamsSortOrder = "asc"
+	GetAuditLogsParamsSortOrderDesc GetAuditLogsParamsSortOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsSortOrder enum.
+func (e GetAuditLogsParamsSortOrder) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsSortOrderAsc:
+		return true
+	case GetAuditLogsParamsSortOrderDesc:
 		return true
 	default:
 		return false
@@ -2162,6 +2195,8 @@ type GetAuditLogsParams struct {
 	Success      *bool                        `form:"success,omitempty" json:"success,omitempty"`
 	CreatedFrom  *time.Time                   `form:"created_from,omitempty" json:"created_from,omitempty"`
 	CreatedTo    *time.Time                   `form:"created_to,omitempty" json:"created_to,omitempty"`
+	SortBy       *GetAuditLogsParamsSortBy    `form:"sort_by,omitempty" json:"sort_by,omitempty"`
+	SortOrder    *GetAuditLogsParamsSortOrder `form:"sort_order,omitempty" json:"sort_order,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -2179,6 +2214,12 @@ type GetAuditLogsParamsResult string
 
 // GetAuditLogsParamsRiskLevel defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevel string
+
+// GetAuditLogsParamsSortBy defines parameters for GetAuditLogs.
+type GetAuditLogsParamsSortBy string
+
+// GetAuditLogsParamsSortOrder defines parameters for GetAuditLogs.
+type GetAuditLogsParamsSortOrder string
 
 // GetAuditOverviewParams defines parameters for GetAuditOverview.
 type GetAuditOverviewParams struct {

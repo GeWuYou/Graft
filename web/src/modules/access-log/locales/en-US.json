@@ -71,6 +71,12 @@
       "sortAsc": "Ascending",
       "sortDesc": "Descending"
     },
+    "sort": {
+      "title": "Sort",
+      "tagPrefix": "Sort",
+      "fieldPlaceholder": "Sort By",
+      "directionPlaceholder": "Sort Order"
+    },
     "builder": {
       "title": "Filters",
       "hint": "Add only the conditions you need instead of filling a large static form.",
@@ -83,9 +89,7 @@
         "path": "Path",
         "statusCode": "Status Code",
         "durationMinMs": "Min Duration",
-        "durationMaxMs": "Max Duration",
-        "sortBy": "Sort By",
-        "sortOrder": "Sort Order"
+        "durationMaxMs": "Max Duration"
       }
     },
     "columns": {

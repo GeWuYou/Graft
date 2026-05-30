@@ -61,6 +61,8 @@ type ListQuery struct {
 	RiskLevel    auditstore.AuditRiskLevel
 	CreatedFrom  *time.Time
 	CreatedTo    *time.Time
+	SortBy       string
+	SortOrder    string
 }
 
 // ListResult contains one page of audit records plus the total count.
@@ -160,6 +162,8 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		RiskLevel:    normalizeAuditRiskLevel(query.RiskLevel),
 		CreatedFrom:  query.CreatedFrom,
 		CreatedTo:    query.CreatedTo,
+		SortBy:       normalizeAuditSortBy(query.SortBy),
+		SortOrder:    normalizeAuditSortOrder(query.SortOrder),
 		Limit:        pageSize,
 		Offset:       (page - 1) * pageSize,
 	})
@@ -173,6 +177,20 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+func normalizeAuditSortBy(value string) string {
+	if strings.TrimSpace(value) == "created_at" {
+		return "created_at"
+	}
+	return ""
+}
+
+func normalizeAuditSortOrder(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "asc") {
+		return "asc"
+	}
+	return ""
 }
 
 func normalizeAuditSource(source auditstore.AuditSource) auditstore.AuditSource {

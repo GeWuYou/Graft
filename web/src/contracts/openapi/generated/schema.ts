@@ -3962,6 +3962,8 @@ export interface operations {
         success?: boolean;
         created_from?: string;
         created_to?: string;
+        sort_by?: 'created_at';
+        sort_order?: 'asc' | 'desc';
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

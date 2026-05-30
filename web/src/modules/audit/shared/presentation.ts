@@ -2,6 +2,7 @@ import { formatLocaleDateTime } from '@/shared/observability';
 
 import type { AuditLogListItem } from '../types/audit';
 import type { AuditResult as AuditResultEnum, AuditRiskLevel as AuditRiskLevelEnum } from '../types/audit';
+import type { AuditSorter } from '../types/audit';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
@@ -24,6 +25,7 @@ export type AuditClientFilterState = {
   session: string;
   requestId: string;
   traceId: string;
+  sorters: AuditSorter[];
 };
 
 type AuditSourceValue = 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT' | 'UNKNOWN';

@@ -334,6 +334,15 @@
         "requestIdPlaceholder": "Troubleshooting ID / Request ID",
         "traceIdPlaceholder": "Trace ID"
       },
+      "sort": {
+        "title": "Sort",
+        "tagPrefix": "Sort",
+        "fieldPlaceholder": "Sort By",
+        "directionPlaceholder": "Sort Order",
+        "createdAt": "Created At",
+        "asc": "Ascending",
+        "desc": "Descending"
+      },
       "filterOptions": {
         "allActions": "All actions",
         "allSource": "All event types",

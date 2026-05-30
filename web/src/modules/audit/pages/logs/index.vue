@@ -89,6 +89,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { describeCorrelationId, formatMessageWithCorrelation } from '@/shared/correlation';
+import { createSingleSorter, getSingleSorter } from '@/shared/observability';
 import { createLogger } from '@/utils/logger';
 
 import { getAuditLogs } from '../../api/audit';
@@ -174,6 +175,7 @@ const footerSummary = computed(() =>
 );
 
 function buildQuery(): AuditLogQuery {
+  const sorter = getSingleSorter(filters.value.sorters);
   const query: AuditLogQuery = {
     page: pagination.value.current,
     page_size: pagination.value.pageSize,
@@ -213,6 +215,12 @@ function buildQuery(): AuditLogQuery {
   }
   if (filters.value.createdRange[1]) {
     query.created_to = toISOStringOrRaw(filters.value.createdRange[1]);
+  }
+  if (sorter?.field) {
+    query.sort_by = sorter.field;
+    if (sorter.direction) {
+      query.sort_order = sorter.direction;
+    }
   }
 
   return query;
@@ -256,6 +264,7 @@ function applyPreset(preset: typeof activePreset.value) {
   filters.value = {
     ...createDefaultFilters(),
     ...getAuditPresetDefaults(preset),
+    sorters: filters.value.sorters,
   };
 
   pagination.value.current = 1;
@@ -291,6 +300,7 @@ function createDefaultFilters(): AuditClientFilterState {
     session: '',
     requestId: '',
     traceId: '',
+    sorters: createSingleSorter('created_at', 'desc'),
   };
 }
 
@@ -326,6 +336,9 @@ function applyRouteFilters() {
     session: query.session ?? '',
     requestId: query.request_id ?? '',
     traceId: query.trace_id ?? '',
+    sorters: query.sort_by
+      ? createSingleSorter('created_at', normalizeSortOrder(query.sort_order || 'desc'))
+      : filters.value.sorters,
   };
 
   filters.value = nextFilters;
@@ -334,6 +347,7 @@ function applyRouteFilters() {
 
 function buildRouteQuery() {
   const [occurredFrom = '', occurredTo = ''] = filters.value.createdRange;
+  const sorter = getSingleSorter(filters.value.sorters);
 
   return {
     preset: activePreset.value === 'all' ? '' : activePreset.value,
@@ -353,6 +367,8 @@ function buildRouteQuery() {
     session: filters.value.session,
     request_id: filters.value.requestId,
     trace_id: filters.value.traceId,
+    sort_by: sorter?.field ?? '',
+    sort_order: sorter?.field ? (sorter.direction ?? '') : '',
   };
 }
 
@@ -396,6 +412,10 @@ function returnToMonitor() {
   }
 
   void router.push(monitorReturnLocation.value);
+}
+
+function normalizeSortOrder(value: string) {
+  return value === 'asc' ? 'asc' : 'desc';
 }
 </script>
 <style scoped lang="less">

@@ -83,6 +83,7 @@ vi.mock('../../components/AuditFilters.vue', () => ({
                   actorUserId: '7',
                   createdRange: ['2026-05-01T10:00:00Z', '2026-05-02T18:30:00Z'],
                   result: 'FAILED',
+                  sorters: [{ field: 'created_at', direction: 'asc' }],
                 }),
             },
             'sync-route',
@@ -336,6 +337,8 @@ describe('AuditLogsPage', () => {
       result: 'FAILED',
       created_from: '2026-05-01T10:00:00.000Z',
       created_to: '2026-05-02T18:30:00.000Z',
+      sort_by: 'created_at',
+      sort_order: 'desc',
     });
   });
 
@@ -347,6 +350,8 @@ describe('AuditLogsPage', () => {
         result: 'DENIED',
         risk_level: 'CRITICAL',
         source: 'SECURITY_EVENT',
+        sort_by: 'created_at',
+        sort_order: 'desc',
       }),
     );
     expect(wrapper.text()).toContain('1 security audit records shown');
@@ -409,6 +414,8 @@ describe('AuditLogsPage', () => {
       page_size: 10,
       risk_level: 'CRITICAL',
       source: 'SECURITY_EVENT',
+      sort_by: 'created_at',
+      sort_order: 'desc',
     });
   });
 
@@ -431,6 +438,8 @@ describe('AuditLogsPage', () => {
           occurred_to: '2026-05-02T18:30:00Z',
           preset: 'permission-denied',
           result: 'FAILED',
+          sort_by: 'created_at',
+          sort_order: 'asc',
         }),
       }),
     );
@@ -441,12 +450,16 @@ describe('AuditLogsPage', () => {
       occurred_to: '2026-05-02T18:30:00Z',
       preset: 'permission-denied',
       result: 'FAILED',
+      sort_by: 'created_at',
+      sort_order: 'asc',
     });
     expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
       expect.objectContaining({
         result: 'FAILED',
         created_from: '2026-05-01T10:00:00.000Z',
         created_to: '2026-05-02T18:30:00.000Z',
+        sort_by: 'created_at',
+        sort_order: 'asc',
       }),
     );
   });

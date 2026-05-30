@@ -47,6 +47,27 @@
         </div>
 
         <div class="access-log-filters__bottom-row">
+          <div class="access-log-filters__sort-row">
+            <span class="access-log-filters__sort-label">{{ t('accessLog.sort.title') }}</span>
+            <t-select
+              :model-value="sortFieldValue"
+              clearable
+              class="access-log-filters__sort-select"
+              :options="sortByOptions"
+              :placeholder="t('accessLog.sort.fieldPlaceholder')"
+              @update:model-value="updateSortField($event)"
+            />
+            <t-select
+              v-if="sortFieldValue"
+              :model-value="sortDirectionValue"
+              clearable
+              class="access-log-filters__sort-select"
+              :options="sortOrderOptions"
+              :placeholder="t('accessLog.sort.directionPlaceholder')"
+              @update:model-value="updateSortDirection($event)"
+            />
+          </div>
+
           <t-popup
             v-model:visible="builderVisible"
             attach="body"
@@ -125,6 +146,12 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ManagementToolbar } from '@/shared/components/management';
+import {
+  getSingleSorter,
+  normalizeSingleSorterDirection,
+  normalizeSingleSorterField,
+  prependSingleSorterTag,
+} from '@/shared/observability';
 
 import type {
   AccessLogFilterState,
@@ -141,8 +168,8 @@ type AccessLogPresetKey =
   | 'slowRequests'
   | 'currentUser'
   | 'lastHour';
-type FilterKey = Exclude<keyof AccessLogFilterState, 'keyword' | 'occurredRange' | 'pathMatch' | 'route'>;
-type SelectFilterKey = 'method' | 'sortBy' | 'sortOrder';
+type FilterKey = Exclude<keyof AccessLogFilterState, 'keyword' | 'occurredRange' | 'pathMatch' | 'route' | 'sorters'>;
+type SelectFilterKey = 'method';
 
 type FilterDefinition = {
   key: FilterKey;
@@ -240,32 +267,21 @@ const definitions = computed<FilterDefinition[]>(() => [
     fieldLabel: t('accessLog.builder.fields.durationMaxMs'),
     placeholder: t('accessLog.filters.durationMax'),
   },
-  {
-    key: 'sortBy',
-    kind: 'select',
-    fieldLabel: t('accessLog.builder.fields.sortBy'),
-    placeholder: t('accessLog.filters.sortBy'),
-    options: sortByOptions.value,
-  },
-  {
-    key: 'sortOrder',
-    kind: 'select',
-    fieldLabel: t('accessLog.builder.fields.sortOrder'),
-    placeholder: t('accessLog.filters.sortOrder'),
-    options: sortOrderOptions.value,
-  },
 ]);
 
 const selectedDefinition = computed(() =>
   definitions.value.find((definition) => definition.key === selectedDefinitionKey.value),
 );
+const activeSorter = computed(() => getSingleSorter(props.modelValue.sorters));
+const sortFieldValue = computed(() => activeSorter.value?.field ?? '');
+const sortDirectionValue = computed(() => activeSorter.value?.direction ?? '');
 const dateRangePlaceholder = computed(() => [
   t('accessLog.filters.occurredRange'),
   t('accessLog.filters.occurredRange'),
 ]);
 
-const activeFilterTags = computed(() =>
-  definitions.value
+const activeFilterTags = computed(() => {
+  const filterTags = definitions.value
     .map((definition) => {
       const rawValue = props.modelValue[definition.key];
       const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
@@ -278,8 +294,10 @@ const activeFilterTags = computed(() =>
           : String(value);
       return { key: definition.key, label: `${definition.fieldLabel}：${label}` };
     })
-    .filter((item): item is { key: FilterKey; label: string } => Boolean(item)),
-);
+    .filter((item): item is { key: FilterKey; label: string } => Boolean(item));
+
+  return prependSingleSorterTag(filterTags, activeSorter.value, sortByOptions.value, t('accessLog.sort.tagPrefix'));
+});
 
 function updateField<Key extends keyof AccessLogFilterState>(key: Key, value: AccessLogFilterState[Key]) {
   emit('update:modelValue', {
@@ -289,16 +307,15 @@ function updateField<Key extends keyof AccessLogFilterState>(key: Key, value: Ac
 }
 
 function updateSelectField(key: SelectFilterKey, value: string | number | Array<string | number> | undefined) {
-  updateField(key, normalizeSelect(key, value));
+  updateField(key, normalizeSelect(value));
 }
 
-function clearField(key: FilterKey) {
-  if (key === 'sortBy') {
-    updateField('sortBy', 'occurred_at');
-    return;
-  }
-  if (key === 'sortOrder') {
-    updateField('sortOrder', 'desc');
+function clearField(key: FilterKey | 'sorter') {
+  if (key === 'sorter') {
+    emit('update:modelValue', {
+      ...props.modelValue,
+      sorters: [],
+    });
     return;
   }
   if (key === 'method') {
@@ -316,15 +333,8 @@ function normalizeTextValue(value: string | number | undefined) {
   return typeof value === 'string' ? value : '';
 }
 
-function normalizeSelect(key: SelectFilterKey, value: string | number | Array<string | number> | undefined) {
-  const candidate = typeof value === 'string' ? value : '';
-  if (key === 'sortBy') {
-    return normalizeSortBy(candidate);
-  }
-  if (key === 'sortOrder') {
-    return normalizeSortOrder(candidate);
-  }
-  return candidate;
+function normalizeSelect(value: string | number | Array<string | number> | undefined) {
+  return typeof value === 'string' ? value : '';
 }
 
 function normalizeSortBy(value: string): AccessLogSortBy {
@@ -333,6 +343,20 @@ function normalizeSortBy(value: string): AccessLogSortBy {
 
 function normalizeSortOrder(value: string): AccessLogSortOrder {
   return value === 'asc' ? 'asc' : 'desc';
+}
+
+function updateSortField(value: string | number | Array<string | number> | undefined) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    sorters: normalizeSingleSorterField(value, activeSorter.value?.direction, normalizeSortBy),
+  });
+}
+
+function updateSortDirection(value: string | number | Array<string | number> | undefined) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    sorters: normalizeSingleSorterDirection(value, activeSorter.value?.field, normalizeSortOrder),
+  });
 }
 
 void (null as unknown as AccessLogPathMatch);
@@ -383,6 +407,25 @@ void (null as unknown as AccessLogPathMatch);
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
+}
+
+.access-log-filters__sort-row {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.access-log-filters__sort-label {
+  color: var(--td-text-color-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.access-log-filters__sort-select {
+  min-width: 160px;
 }
 
 .access-log-filters__preset-label {
@@ -481,6 +524,7 @@ void (null as unknown as AccessLogPathMatch);
   .access-log-filters__keyword,
   .access-log-filters__date,
   .access-log-filters__actions,
+  .access-log-filters__sort-row,
   .access-log-filters__preset-row {
     min-width: 0;
     width: 100%;

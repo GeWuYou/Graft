@@ -207,6 +207,9 @@ func bindGeneratedAuditListParams(
 	if field := bindAuditCreatedRange(ginCtx, &params, &query); field != "" {
 		return params, query, field
 	}
+	if field := bindAuditSort(ginCtx, &params, &query); field != "" {
+		return params, query, field
+	}
 
 	return params, query, ""
 }
@@ -340,6 +343,33 @@ func bindAuditCreatedRange(ginCtx *gin.Context, params *auditopenapi.GetAuditLog
 		converted := createdTo.UTC()
 		params.CreatedTo = &converted
 		query.CreatedTo = &createdTo
+	}
+
+	return ""
+}
+
+func bindAuditSort(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
+	sortBy := strings.TrimSpace(ginCtx.Query("sort_by"))
+	if sortBy != "" {
+		if sortBy != "created_at" {
+			return "sort_by"
+		}
+		sortByValue := auditopenapi.GetAuditLogsParamsSortBy(sortBy)
+		params.SortBy = &sortByValue
+		query.SortBy = sortBy
+	}
+
+	sortOrder := strings.TrimSpace(ginCtx.Query("sort_order"))
+	if sortOrder != "" {
+		if sortBy == "" {
+			return "sort_order"
+		}
+		if sortOrder != "asc" && sortOrder != "desc" {
+			return "sort_order"
+		}
+		sortOrderValue := auditopenapi.GetAuditLogsParamsSortOrder(sortOrder)
+		params.SortOrder = &sortOrderValue
+		query.SortOrder = sortOrder
 	}
 
 	return ""

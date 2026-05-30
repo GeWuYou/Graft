@@ -1,4 +1,5 @@
 import type { components } from '@/contracts/openapi/generated/schema';
+import type { QuerySorter } from '@/shared/observability';
 
 export type AccessLogItem = components['schemas']['access-log-detail-response'];
 export type AccessLogListResponse = components['schemas']['access-log-list-response'];
@@ -7,6 +8,7 @@ export type AccessLogDetailResponse = components['schemas']['AccessLogDetailResp
 export type AccessLogSortBy = 'occurred_at' | 'duration_ms' | 'status_code';
 export type AccessLogSortOrder = 'asc' | 'desc';
 export type AccessLogPathMatch = 'exact' | 'prefix';
+export type AccessLogSorter = QuerySorter<AccessLogSortBy>;
 
 export type AccessLogQuery = {
   page?: number;
@@ -42,6 +44,5 @@ export type AccessLogFilterState = {
   durationMinMs: string;
   durationMaxMs: string;
   occurredRange: string[];
-  sortBy: AccessLogSortBy;
-  sortOrder: AccessLogSortOrder;
+  sorters: AccessLogSorter[];
 };

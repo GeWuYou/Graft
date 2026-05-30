@@ -71,6 +71,12 @@
       "sortAsc": "升序",
       "sortDesc": "降序"
     },
+    "sort": {
+      "title": "排序",
+      "tagPrefix": "排序",
+      "fieldPlaceholder": "排序字段",
+      "directionPlaceholder": "排序方向"
+    },
     "builder": {
       "title": "筛选条件",
       "hint": "按需叠加条件，避免固定大表单占满页面。",
@@ -83,9 +89,7 @@
         "path": "路径",
         "statusCode": "状态码",
         "durationMinMs": "最小耗时",
-        "durationMaxMs": "最大耗时",
-        "sortBy": "排序字段",
-        "sortOrder": "排序方向"
+        "durationMaxMs": "最大耗时"
       }
     },
     "columns": {

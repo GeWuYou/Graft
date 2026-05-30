@@ -81,6 +81,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthSessionStore } from '@/modules/auth/store';
 import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/modules/shared/localized-api-error';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { createSingleSorter, getSingleSorter } from '@/shared/observability';
 import { createLogger as createModuleLogger } from '@/utils/logger';
 
 import { getAccessLogDetail, getAccessLogs } from '../../api/access-log';
@@ -174,19 +175,24 @@ function createDefaultFilters(): AccessLogFilterState {
     durationMinMs: '',
     durationMaxMs: '',
     occurredRange: [],
-    sortBy: 'occurred_at',
-    sortOrder: 'desc',
+    sorters: createSingleSorter('occurred_at', 'desc'),
   };
 }
 
 function buildQuery(): AccessLogQuery {
+  const sorter = getSingleSorter(filters.value.sorters);
   const query: AccessLogQuery = {
     page: pagination.value.current,
     page_size: pagination.value.pageSize,
-    sort_by: filters.value.sortBy,
-    sort_order: filters.value.sortOrder,
     path_match: filters.value.pathMatch,
   };
+
+  if (sorter?.field) {
+    query.sort_by = sorter.field;
+    if (sorter.direction) {
+      query.sort_order = sorter.direction;
+    }
+  }
 
   if (filters.value.requestId) query.request_id = filters.value.requestId;
   if (filters.value.traceId) query.trace_id = filters.value.traceId;
@@ -252,6 +258,7 @@ function applyPreset(preset: AccessLogPresetKey) {
     ...buildPresetFilters(preset),
     requestId: filters.value.requestId,
     traceId: filters.value.traceId,
+    sorters: filters.value.sorters,
   };
   pagination.value.current = 1;
   void updateRouteQuery();
@@ -296,6 +303,8 @@ function applyRouteFilters() {
     username = '',
     occurred_from: occurredFrom = '',
     occurred_to: occurredTo = '',
+    sort_by: sortBy = '',
+    sort_order: sortOrder = '',
   } = parseAccessLogRouteQuery(route.query);
   filters.value = {
     ...filters.value,
@@ -304,11 +313,15 @@ function applyRouteFilters() {
     userId,
     username,
     occurredRange: occurredFrom || occurredTo ? [occurredFrom, occurredTo] : [],
+    sorters: sortBy
+      ? createSingleSorter(normalizeSortBy(sortBy), normalizeSortOrder(sortOrder || 'desc'))
+      : filters.value.sorters,
   };
   deepLinkCorrelation.value = requestId ? 'requestId' : traceId ? 'traceId' : null;
 }
 
 function buildRouteQuery() {
+  const sorter = getSingleSorter(filters.value.sorters);
   return buildAccessLogLocation({
     request_id: filters.value.requestId,
     trace_id: filters.value.traceId,
@@ -316,6 +329,8 @@ function buildRouteQuery() {
     username: filters.value.username,
     occurred_from: filters.value.occurredRange[0],
     occurred_to: filters.value.occurredRange[1],
+    sort_by: sorter?.field ?? '',
+    sort_order: sorter?.field ? (sorter.direction ?? '') : '',
   });
 }
 
@@ -331,6 +346,8 @@ async function updateRouteQuery() {
   const currentUsername = typeof route.query.username === 'string' ? route.query.username : '';
   const currentOccurredFrom = typeof route.query.occurred_from === 'string' ? route.query.occurred_from : '';
   const currentOccurredTo = typeof route.query.occurred_to === 'string' ? route.query.occurred_to : '';
+  const currentSortBy = typeof route.query.sort_by === 'string' ? route.query.sort_by : '';
+  const currentSortOrder = typeof route.query.sort_order === 'string' ? route.query.sort_order : '';
   const nextQuery = targetLocation.query as Record<string, string>;
 
   if (
@@ -339,7 +356,9 @@ async function updateRouteQuery() {
     currentUserId === (nextQuery.user_id ?? '') &&
     currentUsername === (nextQuery.username ?? '') &&
     currentOccurredFrom === (nextQuery.occurred_from ?? '') &&
-    currentOccurredTo === (nextQuery.occurred_to ?? '')
+    currentOccurredTo === (nextQuery.occurred_to ?? '') &&
+    currentSortBy === (nextQuery.sort_by ?? '') &&
+    currentSortOrder === (nextQuery.sort_order ?? '')
   ) {
     await fetchAccessLogs();
     return;
@@ -410,6 +429,8 @@ watch(
     route.query.username,
     route.query.occurred_from,
     route.query.occurred_to,
+    route.query.sort_by,
+    route.query.sort_order,
   ],
   () => {
     applyingRoute.value = true;
@@ -423,6 +444,14 @@ watch(
   },
   { immediate: true },
 );
+
+function normalizeSortBy(value: string) {
+  return value === 'duration_ms' || value === 'status_code' ? value : 'occurred_at';
+}
+
+function normalizeSortOrder(value: string) {
+  return value === 'asc' ? 'asc' : 'desc';
+}
 </script>
 <style scoped lang="less">
 .column-grid {
