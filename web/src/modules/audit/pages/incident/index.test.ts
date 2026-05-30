@@ -288,7 +288,7 @@ describe('AuditIncidentPage', () => {
 
     await buttons[1]!.trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith({
-      path: '/access-log',
+      path: '/logs/access',
       query: {
         request_id: 'req-42',
         monitorView: 'overview',

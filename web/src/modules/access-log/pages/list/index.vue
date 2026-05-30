@@ -2,7 +2,7 @@
   <div data-page-type="list-form-detail">
     <management-page-content>
       <management-page-header :title="t('accessLog.page.title')" :description="t('accessLog.page.description')">
-        <template #eyebrow>{{ t('menu.accessLog.title') }}</template>
+        <template #eyebrow>{{ t('menu.logCenter.title') }}</template>
         <template #actions>
           <t-button theme="default" variant="outline" :loading="loading" @click="fetchAccessLogs">
             {{ t('accessLog.page.refresh') }}
@@ -10,7 +10,15 @@
         </template>
       </management-page-header>
 
-      <access-log-filters v-model="filters" :loading="loading" @reset="resetFilters" @search="handleSearch" />
+      <access-log-filters
+        v-model="filters"
+        :active-preset="activePreset"
+        :loading="loading"
+        :presets="presetViews"
+        @apply-preset="applyPreset"
+        @reset="resetFilters"
+        @search="handleSearch"
+      />
 
       <management-empty-state
         v-if="listError && !loading"
@@ -29,13 +37,13 @@
         v-else
         v-model:current="pagination.current"
         v-model:page-size="pagination.pageSize"
-        :description="t('accessLog.page.description')"
+        :description="t('accessLog.page.tableHint')"
         :empty-description="emptyDescription"
         :footer-summary="footerSummary"
         :loading="loading"
-        :rows="rows"
+        :rows="displayRows"
         :summary="tableSummary"
-        :total="total"
+        :total="tableTotal"
         @detail="openDetail"
         @page-change="fetchAccessLogs"
       />
@@ -50,6 +58,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { useAuthSessionStore } from '@/modules/auth/store';
 import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/modules/shared/localized-api-error';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { createLogger as createModuleLogger } from '@/utils/logger';
@@ -58,22 +67,27 @@ import { getAccessLogDetail, getAccessLogs } from '../../api/access-log';
 import AccessLogDetailDrawer from '../../components/AccessLogDetailDrawer.vue';
 import AccessLogFilters from '../../components/AccessLogFilters.vue';
 import AccessLogTable from '../../components/AccessLogTable.vue';
-import {
-  buildAccessLogLocation,
-  buildAccessLogRequestLocation,
-  buildAccessLogTraceLocation,
-  parseAccessLogRouteQuery,
-} from '../../contract/deep-link';
+import { buildAccessLogLocation, parseAccessLogRouteQuery } from '../../contract/deep-link';
 import type { AccessLogFilterState, AccessLogItem, AccessLogQuery } from '../../types/access-log';
 
 defineOptions({
   name: 'AccessLogListIndex',
 });
 
+type AccessLogPresetKey =
+  | 'all'
+  | 'todayErrors'
+  | 'status4xx'
+  | 'status5xx'
+  | 'slowRequests'
+  | 'currentUser'
+  | 'lastHour';
+
 const { t } = useI18n();
 const logger = createModuleLogger('access-log.list');
 const route = useRoute();
 const router = useRouter();
+const authSessionStore = useAuthSessionStore();
 
 const loading = ref(false);
 const listError = ref('');
@@ -82,6 +96,7 @@ const total = ref(0);
 const detailVisible = ref(false);
 const detailRecord = ref<AccessLogItem | null>(null);
 const applyingRoute = ref(false);
+const activePreset = ref<AccessLogPresetKey>('all');
 const pagination = ref({
   current: 1,
   pageSize: 20,
@@ -89,7 +104,19 @@ const pagination = ref({
 const filters = ref<AccessLogFilterState>(createDefaultFilters());
 const deepLinkCorrelation = ref<'requestId' | 'traceId' | null>(null);
 
-const tableSummary = computed(() => t('accessLog.page.summary', { count: rows.value.length }));
+const presetViews = computed(() => [
+  { key: 'all' as const, title: t('accessLog.presets.all') },
+  { key: 'todayErrors' as const, title: t('accessLog.presets.todayErrors') },
+  { key: 'status4xx' as const, title: t('accessLog.presets.status4xx') },
+  { key: 'status5xx' as const, title: t('accessLog.presets.status5xx') },
+  { key: 'slowRequests' as const, title: t('accessLog.presets.slowRequests') },
+  { key: 'currentUser' as const, title: t('accessLog.presets.currentUser') },
+  { key: 'lastHour' as const, title: t('accessLog.presets.lastHour') },
+]);
+
+const displayRows = computed(() => rows.value.filter((row) => matchesClientFilters(row, filters.value)));
+const tableTotal = computed(() => displayRows.value.length);
+const tableSummary = computed(() => t('accessLog.page.summary', { count: displayRows.value.length }));
 const footerSummary = computed(() => t('accessLog.page.footerTotal', { count: total.value }));
 const emptyDescription = computed(() => {
   if (deepLinkCorrelation.value === 'requestId') {
@@ -100,20 +127,10 @@ const emptyDescription = computed(() => {
   }
   return t('accessLog.page.emptyDescription');
 });
-const routeLocation = computed(() => {
-  if (filters.value.requestId) {
-    return buildAccessLogRequestLocation(filters.value.requestId);
-  }
-
-  if (filters.value.traceId) {
-    return buildAccessLogTraceLocation(filters.value.traceId);
-  }
-
-  return buildAccessLogLocation({});
-});
 
 function createDefaultFilters(): AccessLogFilterState {
   return {
+    keyword: '',
     requestId: '',
     traceId: '',
     userId: '',
@@ -185,14 +202,54 @@ async function openDetail(row: AccessLogItem) {
 }
 
 function resetFilters() {
+  activePreset.value = 'all';
   filters.value = createDefaultFilters();
   pagination.value.current = 1;
   void updateRouteQuery();
 }
 
 function handleSearch() {
+  activePreset.value = 'all';
   pagination.value.current = 1;
   void updateRouteQuery();
+}
+
+function applyPreset(preset: AccessLogPresetKey) {
+  activePreset.value = preset;
+  filters.value = {
+    ...createDefaultFilters(),
+    ...buildPresetFilters(preset),
+    requestId: filters.value.requestId,
+    traceId: filters.value.traceId,
+  };
+  pagination.value.current = 1;
+  void updateRouteQuery();
+}
+
+function buildPresetFilters(preset: AccessLogPresetKey): Partial<AccessLogFilterState> {
+  const now = new Date();
+  const currentUsername = authSessionStore.userInfo.username;
+  switch (preset) {
+    case 'todayErrors': {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      return { statusCode: '400', occurredRange: [start.toISOString(), now.toISOString()] };
+    }
+    case 'status4xx':
+      return { statusCode: '400' };
+    case 'status5xx':
+      return { statusCode: '500' };
+    case 'slowRequests':
+      return { durationMinMs: '3000' };
+    case 'currentUser':
+      return { username: currentUsername || '' };
+    case 'lastHour': {
+      const start = new Date(now.getTime() - 60 * 60 * 1000);
+      return { occurredRange: [start.toISOString(), now.toISOString()] };
+    }
+    default:
+      return {};
+  }
 }
 
 function normalizeOccurredAt(value: string) {
@@ -202,38 +259,19 @@ function normalizeOccurredAt(value: string) {
 
 function applyRouteFilters() {
   const { request_id: requestId = '', trace_id: traceId = '' } = parseAccessLogRouteQuery(route.query);
-  filters.value = withCorrelationFilters(filters.value, requestId, traceId);
-  deepLinkCorrelation.value = detectCorrelationMode(requestId, traceId);
-}
-
-function isCurrentRouteQuery(targetQuery: Record<string, string>) {
-  const currentQuery = buildAccessLogLocation(route.query).query as Record<string, string>;
-  const targetEntries = Object.entries(targetQuery);
-
-  return (
-    Object.keys(currentQuery).length === targetEntries.length &&
-    targetEntries.every(([key, value]) => currentQuery[key] === value)
-  );
-}
-
-function withCorrelationFilters(
-  baseFilters: AccessLogFilterState,
-  requestId: string,
-  traceId: string,
-): AccessLogFilterState {
-  return {
-    ...baseFilters,
+  filters.value = {
+    ...filters.value,
     requestId,
     traceId,
   };
+  deepLinkCorrelation.value = requestId ? 'requestId' : traceId ? 'traceId' : null;
 }
 
-function detectCorrelationMode(requestId: string, traceId: string): 'requestId' | 'traceId' | null {
-  if (requestId) {
-    return 'requestId';
-  }
-
-  return traceId ? 'traceId' : null;
+function buildRouteQuery() {
+  return buildAccessLogLocation({
+    request_id: filters.value.requestId,
+    trace_id: filters.value.traceId,
+  });
 }
 
 async function updateRouteQuery() {
@@ -241,25 +279,79 @@ async function updateRouteQuery() {
     return;
   }
 
-  if (isCurrentRouteQuery(routeLocation.value.query as Record<string, string>)) {
+  const targetLocation = buildRouteQuery();
+  const currentRequestId = typeof route.query.request_id === 'string' ? route.query.request_id : '';
+  const currentTraceId = typeof route.query.trace_id === 'string' ? route.query.trace_id : '';
+  const nextQuery = targetLocation.query as Record<string, string>;
+
+  if (currentRequestId === (nextQuery.request_id ?? '') && currentTraceId === (nextQuery.trace_id ?? '')) {
     await fetchAccessLogs();
     return;
   }
 
-  await router.replace(routeLocation.value);
+  await router.replace(targetLocation);
+}
+
+function matchesClientFilters(row: AccessLogItem, state: AccessLogFilterState) {
+  if (state.keyword) {
+    const keyword = state.keyword.toLowerCase();
+    const haystack = [row.request_id, row.trace_id, row.path, row.route, row.username, row.method]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    if (!haystack.includes(keyword)) {
+      return false;
+    }
+  }
+
+  if (state.requestId && row.request_id !== state.requestId) {
+    return false;
+  }
+  if (state.traceId && row.trace_id !== state.traceId) {
+    return false;
+  }
+  if (state.userId && String(row.user_id ?? '') !== state.userId) {
+    return false;
+  }
+  if (state.username && !(row.username || '').toLowerCase().includes(state.username.toLowerCase())) {
+    return false;
+  }
+  if (state.method && row.method !== state.method) {
+    return false;
+  }
+  if (state.path) {
+    const candidate = row.path || '';
+    if (state.pathMatch === 'prefix' ? !candidate.startsWith(state.path) : candidate !== state.path) {
+      return false;
+    }
+  }
+  if (state.statusCode) {
+    if (state.statusCode === '400' && (row.status_code < 400 || row.status_code >= 500)) {
+      return false;
+    }
+    if (state.statusCode === '500' && row.status_code < 500) {
+      return false;
+    }
+    if (state.statusCode !== '400' && state.statusCode !== '500' && row.status_code !== Number(state.statusCode)) {
+      return false;
+    }
+  }
+  if (state.durationMinMs && row.duration_ms < Number(state.durationMinMs)) {
+    return false;
+  }
+  if (state.durationMaxMs && row.duration_ms > Number(state.durationMaxMs)) {
+    return false;
+  }
+
+  return true;
 }
 
 watch(
   () => [route.query.request_id, route.query.trace_id],
-  ([requestId, traceId]) => {
+  () => {
     applyingRoute.value = true;
     try {
-      const hasQuery = Boolean(requestId) || Boolean(traceId);
-      if (!hasQuery && !filters.value.requestId && !filters.value.traceId) {
-        deepLinkCorrelation.value = null;
-      } else {
-        applyRouteFilters();
-      }
+      applyRouteFilters();
     } finally {
       applyingRoute.value = false;
     }

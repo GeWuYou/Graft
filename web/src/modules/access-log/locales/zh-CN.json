@@ -1,16 +1,16 @@
 {
   "menu": {
+    "logCenter": {
+      "title": "日志中心"
+    },
     "accessLog": {
-      "title": "访问日志",
-      "list": {
-        "title": "访问日志查询"
-      }
+      "title": "访问日志"
     }
   },
   "accessLog": {
     "page": {
-      "title": "访问日志查询",
-      "description": "基于规范访问日志字段筛选和查看单次请求事实。",
+      "title": "访问日志",
+      "description": "面向请求观测与排障，按请求链路、用户与响应特征快速定位访问事实。",
       "refresh": "刷新",
       "retry": "重试",
       "errorTitle": "访问日志暂时不可用",
@@ -21,11 +21,14 @@
       "emptyDescription": "调整筛选条件后重试。",
       "emptyRequestDescription": "当前保留范围内没有匹配该 Request ID 的访问日志，请求可能已经超出访问日志保留窗口。",
       "emptyTraceDescription": "当前保留范围内没有匹配该 Trace ID 的访问日志，关联请求可能已经过期。",
-      "detailTitle": "请求详情"
+      "detailTitle": "请求详情",
+      "searchPlaceholder": "搜索请求 ID、Trace ID、路径、用户名",
+      "tableHint": "列表保留核心请求观测字段，完整上下文请展开详情抽屉。"
     },
     "actions": {
       "search": "查询",
       "reset": "重置",
+      "addFilter": "添加筛选条件",
       "detail": "查看详情",
       "viewRelatedAuditRecords": "查看关联审计记录",
       "openAuditByRequestId": "按 Request ID 打开审计搜索",
@@ -33,6 +36,16 @@
       "copy": "复制",
       "copySuccess": "已复制",
       "copyFail": "复制失败"
+    },
+    "presets": {
+      "label": "快捷筛选",
+      "all": "全部",
+      "todayErrors": "今日异常",
+      "status4xx": "4xx",
+      "status5xx": "5xx",
+      "slowRequests": "慢请求",
+      "currentUser": "当前用户",
+      "lastHour": "最近一小时"
     },
     "filters": {
       "requestId": "请求 ID",
@@ -57,14 +70,32 @@
       "sortAsc": "升序",
       "sortDesc": "降序"
     },
+    "builder": {
+      "title": "筛选条件",
+      "hint": "按需叠加条件，避免固定大表单占满页面。",
+      "fields": {
+        "requestId": "请求 ID",
+        "traceId": "Trace ID",
+        "userId": "用户 ID",
+        "username": "用户名",
+        "method": "方法",
+        "path": "路径",
+        "statusCode": "状态码",
+        "durationMinMs": "最小耗时",
+        "durationMaxMs": "最大耗时",
+        "sortBy": "排序字段",
+        "sortOrder": "排序方向"
+      }
+    },
     "columns": {
       "occurredAt": "时间",
       "method": "方法",
       "path": "路径",
-      "statusCode": "状态",
+      "statusCode": "状态码",
       "durationMs": "耗时",
       "user": "用户",
-      "requestId": "请求 ID"
+      "requestId": "请求 ID",
+      "operation": "操作"
     },
     "detail": {
       "basic": "基础信息",
@@ -79,7 +110,8 @@
       "requestSize": "请求大小",
       "responseSize": "响应大小",
       "userId": "用户 ID",
-      "username": "用户名"
+      "username": "用户名",
+      "context": "完整请求上下文"
     }
   }
 }

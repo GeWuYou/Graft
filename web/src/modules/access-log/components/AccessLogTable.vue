@@ -22,20 +22,18 @@
       <template #path="{ row }">
         <div class="stack-cell">
           <strong>{{ row.path }}</strong>
-          <span class="stack-cell__secondary">{{ row.route || '-' }}</span>
+          <span class="stack-cell__secondary">{{
+            row.trace_id ? `Trace ${truncateMiddle(row.trace_id, 24)}` : row.route || '-'
+          }}</span>
         </div>
       </template>
       <template #status_code="{ row }">
-        <t-tag
-          :theme="row.status_code >= 500 ? 'danger' : row.status_code >= 400 ? 'warning' : 'success'"
-          variant="light-outline"
-          size="small"
-        >
+        <t-tag :theme="statusTheme(row.status_code)" variant="light-outline" size="small">
           {{ row.status_code }}
         </t-tag>
       </template>
       <template #duration_ms="{ row }">
-        <span>{{ row.duration_ms }} ms</span>
+        <span :class="{ 'duration-danger': row.duration_ms >= 3000 }">{{ row.duration_ms }} ms</span>
       </template>
       <template #user="{ row }">
         <div class="stack-cell">
@@ -44,10 +42,7 @@
         </div>
       </template>
       <template #request_id="{ row }">
-        <strong class="table-mono">{{ row.request_id }}</strong>
-      </template>
-      <template #occurred_at="{ row }">
-        <span>{{ formatCompactDateTime(row.occurred_at) }}</span>
+        <strong class="table-mono" :title="row.request_id">{{ truncateMiddle(row.request_id, 22) }}</strong>
       </template>
       <template #operation="{ row }">
         <table-action-menu
@@ -118,16 +113,38 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
   return [
     createTimeColumn(t('accessLog.columns.occurredAt'), 'occurred_at', 176),
     createTextColumn(t('accessLog.columns.method'), 'method', { width: 110, fixed: 'left' }),
-    createTextColumn(t('accessLog.columns.path'), 'path', { minWidth: 280 }),
+    createTextColumn(t('accessLog.columns.path'), 'path', { minWidth: 320 }),
     createTextColumn(t('accessLog.columns.statusCode'), 'status_code', { width: 110 }),
     createTextColumn(t('accessLog.columns.durationMs'), 'duration_ms', { width: 120 }),
-    createTextColumn(t('accessLog.columns.user'), 'user', { width: 180 }),
+    createTextColumn(t('accessLog.columns.user'), 'user', { width: 160 }),
     createTextColumn(t('accessLog.columns.requestId'), 'request_id', { width: 220 }),
-    createActionColumn(t('components.commonTable.operation'), 96),
+    createActionColumn(t('accessLog.columns.operation'), 96),
   ];
 });
 
 const tableContentWidth = computed(() => calculateTableContentWidth(columns.value));
+
+function statusTheme(statusCode: number) {
+  if (statusCode >= 500) {
+    return 'danger';
+  }
+  if (statusCode >= 400) {
+    return 'warning';
+  }
+  return 'success';
+}
+
+function truncateMiddle(value: string, maxLength: number) {
+  if (!value || value.length <= maxLength) {
+    return value || '-';
+  }
+
+  const prefixLength = Math.max(6, Math.floor((maxLength - 1) / 2));
+  const suffixLength = Math.max(6, maxLength - prefixLength - 1);
+  return `${value.slice(0, prefixLength)}…${value.slice(-suffixLength)}`;
+}
+
+void formatCompactDateTime;
 </script>
 <style scoped lang="less">
 .table-head__summary,
@@ -149,5 +166,10 @@ const tableContentWidth = computed(() => calculateTableContentWidth(columns.valu
 
 .table-empty-state {
   padding: 24px 0 8px;
+}
+
+.duration-danger {
+  color: var(--td-error-color);
+  font-weight: 600;
 }
 </style>

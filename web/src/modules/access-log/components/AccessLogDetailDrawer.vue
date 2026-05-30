@@ -5,7 +5,7 @@
     :footer="false"
     destroy-on-close
     placement="right"
-    size="640px"
+    size="720px"
     @update:visible="$emit('update:visible', $event)"
   >
     <div v-if="record" class="access-log-detail">
@@ -40,9 +40,9 @@
             <span>{{ t('accessLog.detail.requestId') }}</span>
             <div class="access-log-detail__copy-line">
               <strong class="access-log-detail__mono">{{ record.request_id }}</strong>
-              <t-button size="small" theme="default" variant="text" @click="copyValue(record.request_id)">{{
-                t('accessLog.actions.copy')
-              }}</t-button>
+              <t-button size="small" theme="default" variant="text" @click="copyValue(record.request_id)">
+                {{ t('accessLog.actions.copy') }}
+              </t-button>
             </div>
           </div>
           <div class="access-log-detail__item access-log-detail__item--full">
@@ -99,6 +99,13 @@
         </div>
       </section>
 
+      <section class="access-log-detail__section">
+        <h4>{{ t('accessLog.detail.context') }}</h4>
+        <div class="access-log-detail__context">
+          <pre>{{ JSON.stringify(record, null, 2) }}</pre>
+        </div>
+      </section>
+
       <section v-if="relatedActions.length" class="access-log-detail__section">
         <h4>{{ t('accessLog.detail.relatedAudit') }}</h4>
         <div class="access-log-detail__actions">
@@ -138,6 +145,7 @@ defineEmits<{
 
 const { t } = useI18n();
 const router = useRouter();
+
 const relatedActions = computed(() => {
   const record = props.record;
   if (!record) {
@@ -147,13 +155,8 @@ const relatedActions = computed(() => {
   const actions = [];
   if (record.request_id) {
     actions.push({
-      key: 'audit-records',
-      label: t('accessLog.actions.viewRelatedAuditRecords'),
-      onClick: () => void router.push(buildAuditRequestLocation(record.request_id)),
-    });
-    actions.push({
       key: 'audit-request',
-      label: t('accessLog.actions.openAuditByRequestId'),
+      label: t('accessLog.actions.viewRelatedAuditRecords'),
       onClick: () => void router.push(buildAuditRequestLocation(record.request_id)),
     });
   }
@@ -164,7 +167,6 @@ const relatedActions = computed(() => {
       onClick: () => void router.push(buildAuditTraceLocation(record.trace_id)),
     });
   }
-
   return actions;
 });
 
@@ -219,6 +221,20 @@ async function copyValue(value: string) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.access-log-detail__context {
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-border);
+  border-radius: 12px;
+  overflow: auto;
+  padding: 12px;
+}
+
+.access-log-detail__context pre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .access-log-detail__mono {

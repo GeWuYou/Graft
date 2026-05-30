@@ -10,16 +10,16 @@ export const accessLogBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
       tabGroup: 'access-log',
       pageKind: 'list',
       semanticTitle: {
-        'zh-CN': '访问日志 - 访问日志查询',
-        'en-US': 'Access Logs - Explorer',
+        'zh-CN': '日志中心 - 访问日志',
+        'en-US': 'Log Center - Access Logs',
       },
       breadcrumbTitle: {
-        'zh-CN': '访问日志查询',
-        'en-US': 'Access Log Explorer',
+        'zh-CN': '访问日志',
+        'en-US': 'Access Logs',
       },
       tabTitle: {
-        'zh-CN': '访问日志 - 访问日志查询',
-        'en-US': 'Access Logs - Explorer',
+        'zh-CN': '日志中心 - 访问日志',
+        'en-US': 'Log Center - Access Logs',
       },
     },
   },

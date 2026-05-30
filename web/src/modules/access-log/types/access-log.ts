@@ -29,6 +29,7 @@ export type AccessLogQuery = {
 };
 
 export type AccessLogFilterState = {
+  keyword: string;
   requestId: string;
   traceId: string;
   userId: string;

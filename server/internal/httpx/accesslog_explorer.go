@@ -21,8 +21,9 @@ import (
 const (
 	// AccessLogReadPermission 约束 access-log explorer 的只读访问权限码。
 	AccessLogReadPermission = "access_log.read"
-	accessLogMenuRootPath   = "/access-log"
-	accessLogMenuCodeRoot   = "access-log.root"
+	accessLogMenuRootPath   = "/logs"
+	accessLogMenuListPath   = "/logs/access"
+	accessLogMenuCodeRoot   = "log-center.root"
 	accessLogMenuCodeList   = "access-log.list"
 	accessLogPluginOwner    = "core.httpx"
 	accessLogRouteGroup     = "/access-log"
@@ -53,16 +54,16 @@ func registerAccessLogExplorerMessages(localizer *i18n.Service) error {
 			Namespace: "access-log",
 			Locale:    i18n.LocaleZHCN,
 			Messages: []i18n.MessageResource{
+				{Key: "menu.logCenter.title", Text: "日志中心"},
 				{Key: "menu.accessLog.title", Text: "访问日志"},
-				{Key: "menu.accessLog.explorer", Text: "访问日志查询"},
 			},
 		},
 		{
 			Namespace: "access-log",
 			Locale:    i18n.LocaleENUS,
 			Messages: []i18n.MessageResource{
+				{Key: "menu.logCenter.title", Text: "Log Center"},
 				{Key: "menu.accessLog.title", Text: "Access Logs"},
-				{Key: "menu.accessLog.explorer", Text: "Access Log Explorer"},
 			},
 		},
 	} {
@@ -95,19 +96,19 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 
 	registry.Register(menu.Item{
 		Code:       accessLogMenuCodeRoot,
-		Title:      "访问日志",
-		TitleKey:   "menu.accessLog.title",
+		Title:      "日志中心",
+		TitleKey:   "menu.logCenter.title",
 		Path:       accessLogMenuRootPath,
-		Icon:       "history",
+		Icon:       "bulletpoint",
 		Order:      accessLogMenuRootOrder,
 		Permission: "",
 		Plugin:     accessLogPluginOwner,
 	})
 	registry.Register(menu.Item{
 		Code:       accessLogMenuCodeList,
-		Title:      "访问日志查询",
-		TitleKey:   "menu.accessLog.explorer",
-		Path:       accessLogMenuRootPath,
+		Title:      "访问日志",
+		TitleKey:   "menu.accessLog.title",
+		Path:       accessLogMenuListPath,
 		Icon:       "search",
 		Order:      accessLogMenuListOrder,
 		Permission: AccessLogReadPermission,
