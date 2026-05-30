@@ -419,6 +419,12 @@ func (r *Runtime) registerCoreServices() error {
 			},
 		},
 		{
+			key: (*logger.AppLogger)(nil),
+			provider: func() (any, error) {
+				return logger.NewAppLogger(r.logger), nil
+			},
+		},
+		{
 			key: (*i18n.Service)(nil),
 			provider: func() (any, error) {
 				return r.i18n, nil

@@ -22,6 +22,7 @@ import (
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/plugin"
@@ -264,6 +265,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
 	assertResolvedService(t, runtime.services, (*sql.DB)(nil), sqlDB, "sql db")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
+	assertAppLoggerRegistered(t, runtime.services)
 	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
 }
 
@@ -345,6 +347,23 @@ func assertResolvedService[T comparable](t *testing.T, resolver container.Resolv
 	}
 	if resolved != expected {
 		t.Fatalf("expected resolved %s to reuse runtime instance", name)
+	}
+}
+
+func assertAppLoggerRegistered(t *testing.T, resolver container.Resolver) {
+	t.Helper()
+
+	resolved, err := resolver.Resolve((*logger.AppLogger)(nil))
+	if err != nil {
+		t.Fatalf("resolve app logger: %v", err)
+	}
+
+	appLogger, ok := resolved.(logger.AppLogger)
+	if !ok {
+		t.Fatalf("expected app logger, got %T", resolved)
+	}
+	if appLogger == nil {
+		t.Fatal("expected non-nil app logger")
 	}
 }
 
