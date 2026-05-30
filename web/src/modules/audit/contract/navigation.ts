@@ -66,9 +66,16 @@ export function buildAuditLogsLocationWithOrigin(
 
 export function buildAuditRelatedActorLocation(
   actor: string,
+  actorUserId?: number | string | null,
   monitorOrigin?: MonitorOriginContext | null,
 ): RouteLocationWithQuery {
-  return buildAuditLogsLocationWithOrigin({ actor }, monitorOrigin);
+  return buildAuditLogsLocationWithOrigin(
+    {
+      actor,
+      actorUserId: actorUserId === null || actorUserId === undefined ? '' : String(actorUserId),
+    },
+    monitorOrigin,
+  );
 }
 
 export function buildAuditRelatedResourceLocation(
@@ -93,7 +100,11 @@ export function buildAuditRelatedRecordLocation(
   }
 
   if (row.actor_display_name || row.actor_username) {
-    return buildAuditRelatedActorLocation(row.actor_display_name || row.actor_username || '', monitorOrigin);
+    return buildAuditRelatedActorLocation(
+      row.actor_username || row.actor_display_name || '',
+      row.actor_user_id,
+      monitorOrigin,
+    );
   }
 
   return buildAuditLogsLocationWithOrigin({}, monitorOrigin);

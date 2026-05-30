@@ -173,11 +173,11 @@
                     }}</strong>
                     <span>{{ t('audit.incident.eventCount', { count: actor.event_count }) }}</span>
                     <t-button
-                      v-if="actor.actor_username || actor.actor_display_name"
+                      v-if="actor.actor_user_id || actor.actor_username || actor.actor_display_name"
                       size="small"
                       theme="primary"
                       variant="text"
-                      @click="openActor(actor.actor_username || actor.actor_display_name || '')"
+                      @click="openActor(actor.actor_username || actor.actor_display_name || '', actor.actor_user_id)"
                     >
                       {{ t('audit.incident.actions.openActorEvents') }}
                     </t-button>
@@ -339,8 +339,14 @@ function openRequest(requestId: string) {
   void router.push(buildAuditRequestLocationWithOrigin(requestId, navigationContext.value.monitorOrigin));
 }
 
-function openActor(actor: string) {
-  void router.push(buildAuditRelatedActorLocation(actor, navigationContext.value.monitorOrigin));
+function openActor(actor: string, actorUserId?: number | null) {
+  void router.push(
+    buildAuditRelatedActorLocation(
+      actor || String(actorUserId ?? ''),
+      actorUserId,
+      navigationContext.value.monitorOrigin,
+    ),
+  );
 }
 
 function openResource(resourceType: string, resourceId: string, resourceName?: string) {

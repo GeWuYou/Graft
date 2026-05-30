@@ -311,12 +311,12 @@ function openRequest(requestId?: string | null) {
 }
 
 function openRelatedActor(row: AuditLogListItem) {
-  const actor = row.actor_username || row.actor_display_name;
+  const actor = row.actor_user_id?.toString() || row.actor_username || row.actor_display_name;
   if (!actor) {
     return;
   }
 
-  void router.push(buildAuditRelatedActorLocation(actor, props.monitorOrigin));
+  void router.push(buildAuditRelatedActorLocation(actor, row.actor_user_id, props.monitorOrigin));
 }
 
 function openRelatedResource(row: AuditLogListItem) {

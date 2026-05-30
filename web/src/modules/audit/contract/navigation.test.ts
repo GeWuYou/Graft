@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildAuditLogsLocationWithOrigin,
+  buildAuditRelatedActorLocation,
   buildMonitorReturnLocation,
   resolveAuditNavigationContext,
 } from './navigation';
@@ -48,6 +49,27 @@ describe('audit navigation context', () => {
         monitorTrendRange: '30m',
         monitorAnomalyKey: 'dependency_status_degraded',
         monitorScopeRef: 'postgresql',
+      },
+    });
+  });
+
+  it('builds actor locations with stable actor user id when available', () => {
+    expect(
+      buildAuditRelatedActorLocation('alice', 42, {
+        view: 'overview',
+        trendRange: '10m',
+        anomalyKey: 'cpu_pressure',
+        scopeRef: 'runtime:cpu',
+      }),
+    ).toEqual({
+      path: '/audit/logs',
+      query: {
+        actor: 'alice',
+        actorUserId: '42',
+        monitorView: 'overview',
+        monitorTrendRange: '10m',
+        monitorAnomalyKey: 'cpu_pressure',
+        monitorScopeRef: 'runtime:cpu',
       },
     });
   });

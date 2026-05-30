@@ -80,6 +80,7 @@ vi.mock('../../components/AuditFilters.vue', () => ({
                 emit('update:modelValue', {
                   ...props.modelValue,
                   actor: 'route-admin',
+                  actorUserId: '7',
                   createdRange: ['2026-05-01T10:00:00Z', '2026-05-02T18:30:00Z'],
                   result: 'FAILED',
                 }),
@@ -422,6 +423,7 @@ describe('AuditLogsPage', () => {
         path: '/audit/logs',
         query: expect.objectContaining({
           actor: 'route-admin',
+          actorUserId: '7',
           createdFrom: '2026-05-01T10:00:00Z',
           createdTo: '2026-05-02T18:30:00Z',
           preset: 'permission-denied',
@@ -431,6 +433,7 @@ describe('AuditLogsPage', () => {
     );
     expect(router.currentRoute.value.query).toMatchObject({
       actor: 'route-admin',
+      actorUserId: '7',
       createdFrom: '2026-05-01T10:00:00Z',
       createdTo: '2026-05-02T18:30:00Z',
       preset: 'permission-denied',

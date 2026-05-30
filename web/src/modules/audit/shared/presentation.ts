@@ -9,6 +9,7 @@ export type AuditResultValue = 'all' | AuditResultEnum;
 export type AuditClientFilterState = {
   keyword: string;
   actor: string;
+  actorUserId: string;
   action: string;
   actionPrefix: string;
   source: string;
@@ -211,6 +212,7 @@ function includesText(source: string, search: string) {
 export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilterState, t: Translate) {
   const keyword = filters.keyword.trim().toLowerCase();
   const actor = filters.actor.trim().toLowerCase();
+  const actorUserId = filters.actorUserId.trim();
   const action = filters.action.trim().toLowerCase();
   const actionPrefix = filters.actionPrefix.trim().toLowerCase();
   const source = filters.source.trim().toUpperCase();
@@ -242,6 +244,10 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
   }
 
   if (actor && !includesText(`${actorLabel(row, t)} ${actorSecondaryLabel(row)}`, actor)) {
+    return false;
+  }
+
+  if (actorUserId && String(row.actor_user_id ?? '') !== actorUserId) {
     return false;
   }
 

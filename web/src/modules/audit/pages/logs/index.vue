@@ -125,6 +125,7 @@ const hasClientOnlyFilters = computed(() =>
   Boolean(
     filters.value.keyword ||
     filters.value.actor ||
+    filters.value.actorUserId ||
     filters.value.resourceId ||
     filters.value.session ||
     filters.value.requestId ||
@@ -246,6 +247,7 @@ function createDefaultFilters(): AuditClientFilterState {
   return {
     keyword: '',
     actor: '',
+    actorUserId: '',
     action: '',
     actionPrefix: '',
     source: '',
@@ -280,6 +282,7 @@ function applyRouteFilters() {
     ...presetDefaults,
     keyword: query.keyword ?? '',
     actor: query.actor ?? '',
+    actorUserId: query.actorUserId ?? '',
     action: query.action || presetDefaults.action || '',
     actionPrefix: query.actionPrefix || presetDefaults.actionPrefix || '',
     source: query.source || presetDefaults.source || '',
@@ -305,6 +308,7 @@ function buildRouteQuery() {
     preset: activePreset.value === 'all' ? '' : activePreset.value,
     keyword: filters.value.keyword,
     actor: filters.value.actor,
+    actorUserId: filters.value.actorUserId,
     action: filters.value.action,
     actionPrefix: filters.value.actionPrefix,
     source: filters.value.source,
