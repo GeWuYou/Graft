@@ -11,6 +11,7 @@
     "page": {
       "title": "Access Logs",
       "description": "Inspect request traffic for troubleshooting with fast pivots across correlation, actor, and response facts.",
+      "columnSettings": "Columns",
       "refresh": "Refresh",
       "retry": "Retry",
       "errorTitle": "Access logs are temporarily unavailable",
@@ -29,7 +30,7 @@
       "search": "Search",
       "reset": "Reset",
       "addFilter": "Add Filter",
-      "detail": "View Detail",
+      "detail": "Detail",
       "viewRelatedAuditRecords": "View Related Audit Records",
       "openAuditByRequestId": "Open Audit Search By Request ID",
       "openAuditByTraceId": "Open Audit Search By Trace ID",

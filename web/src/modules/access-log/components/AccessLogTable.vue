@@ -22,9 +22,7 @@
       <template #path="{ row }">
         <div class="stack-cell">
           <strong>{{ row.path }}</strong>
-          <span class="stack-cell__secondary">{{
-            row.trace_id ? `Trace ${truncateMiddle(row.trace_id, 24)}` : row.route || '-'
-          }}</span>
+          <span class="stack-cell__secondary">{{ row.route || '-' }}</span>
         </div>
       </template>
       <template #status_code="{ row }">
@@ -42,7 +40,10 @@
         </div>
       </template>
       <template #request_id="{ row }">
-        <strong class="table-mono" :title="row.request_id">{{ truncateMiddle(row.request_id, 22) }}</strong>
+        <log-id-text :display-value="row.request_id || '-'" :tooltip="row.request_id || '-'" />
+      </template>
+      <template #occurred_at="{ row }">
+        <span>{{ formatCompactDateTime(row.occurred_at, locale) }}</span>
       </template>
       <template #operation="{ row }">
         <table-action-menu
@@ -83,12 +84,14 @@ import {
   formatCompactDateTime,
   ManagementTableCard,
   ManagementTablePagination,
+  resolveManagedColumns,
   TableActionMenu,
 } from '@/shared/components/management';
+import { LogIdText } from '@/shared/observability';
 
 import type { AccessLogItem } from '../types/access-log';
 
-defineProps<{
+const props = defineProps<{
   description: string;
   emptyDescription: string;
   footerSummary: string;
@@ -96,6 +99,7 @@ defineProps<{
   rows: AccessLogItem[];
   summary: string;
   total: number;
+  visibleColumnKeys?: string[];
 }>();
 
 defineEmits<{
@@ -110,16 +114,18 @@ const { t, locale } = useI18n();
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
-  return [
+  const allColumns: TdBaseTableProps['columns'] = [
     createTimeColumn(t('accessLog.columns.occurredAt'), 'occurred_at', 176),
     createTextColumn(t('accessLog.columns.method'), 'method', { width: 110, fixed: 'left' }),
     createTextColumn(t('accessLog.columns.path'), 'path', { minWidth: 320 }),
     createTextColumn(t('accessLog.columns.statusCode'), 'status_code', { width: 110 }),
     createTextColumn(t('accessLog.columns.durationMs'), 'duration_ms', { width: 120 }),
     createTextColumn(t('accessLog.columns.user'), 'user', { width: 160 }),
-    createTextColumn(t('accessLog.columns.requestId'), 'request_id', { width: 220 }),
-    createActionColumn(t('accessLog.columns.operation'), 96),
+    createTextColumn(t('accessLog.columns.requestId'), 'request_id', { width: 240 }),
+    createActionColumn(t('accessLog.columns.operation'), 104),
   ];
+
+  return resolveManagedColumns(allColumns, props.visibleColumnKeys, ['operation']);
 });
 
 const tableContentWidth = computed(() => calculateTableContentWidth(columns.value));
@@ -134,17 +140,7 @@ function statusTheme(statusCode: number) {
   return 'success';
 }
 
-function truncateMiddle(value: string, maxLength: number) {
-  if (!value || value.length <= maxLength) {
-    return value || '-';
-  }
-
-  const prefixLength = Math.max(6, Math.floor((maxLength - 1) / 2));
-  const suffixLength = Math.max(6, maxLength - prefixLength - 1);
-  return `${value.slice(0, prefixLength)}…${value.slice(-suffixLength)}`;
-}
-
-void formatCompactDateTime;
+void LogIdText;
 </script>
 <style scoped lang="less">
 .table-head__summary,
@@ -158,10 +154,6 @@ void formatCompactDateTime;
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.table-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .table-empty-state {

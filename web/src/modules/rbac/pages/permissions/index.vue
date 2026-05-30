@@ -425,9 +425,9 @@ function handlePermissionAction(action: string, permission: PermissionListItem) 
   if (action === 'view-audit') {
     void router.push(
       buildAuditLogsLocation({
-        resourceType: 'permission',
-        resourceName: localizedPermissionDisplay(permission),
-        resourceId: String(permission.id),
+        resource_type: 'permission',
+        resource_name: localizedPermissionDisplay(permission),
+        resource_id: String(permission.id),
       }),
     );
     return;

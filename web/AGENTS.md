@@ -216,7 +216,8 @@ i18n 与标题规则：
     - monitor-origin、return location、query preset 等仅属于 UI navigation context，不得提升为 evidence authority
     - metadata fallback 只能作为临时消费兼容，不得成为新的长期 contract source
     - future `Log Explorer` 页面若被批准实现，只能消费 backend-owned logging contract；不得把 audit table DTO、monitor trend payload、或前端 metadata 推断当成 access/app log authority
-    - `Audit` 页面到 future `Log Explorer` 的跳转只能依赖 canonical correlation fields，例如 `requestId`、`traceId`、`actorId`、bounded time window；不得在前端发明第二套 investigation authority
+- `Audit` 页面到 future `Log Explorer` 的跳转只能依赖 canonical correlation fields，例如 `requestId`、`traceId`、`actorId`、bounded time window；不得在前端发明第二套 investigation authority
+- 涉及多字段检索、筛选构建器、URL query 回填、详情抽屉联动的增强列表页时，优先判断是否属于 `query-builder-list-detail` 页型，并同步遵循 `web/docs/frontend-log-page-guidelines.md`
 
 壳层 Footer 约定：
 

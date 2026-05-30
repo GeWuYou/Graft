@@ -42,7 +42,7 @@
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.columns.createdAt') }}</span>
-            <strong>{{ formatAuditTimestamp(record.created_at) }}</strong>
+            <strong>{{ formatAuditTimestamp(record.created_at, locale) }}</strong>
           </div>
           <div class="audit-detail__item">
             <span>{{ t('audit.logList.drawer.fields.requestId') }}</span>
@@ -146,7 +146,7 @@
             <ul>
               <li v-for="item in sameRequestRows" :key="item.id">
                 <button type="button" class="audit-detail__link-button" @click="openRequest(item.request_id)">
-                  {{ item.action }} · {{ formatAuditTimestamp(item.created_at) }}
+                  {{ item.action }} · {{ formatAuditTimestamp(item.created_at, locale) }}
                 </button>
               </li>
               <li v-if="sameRequestRows.length === 0">{{ t('audit.logList.drawer.related.empty') }}</li>
@@ -250,7 +250,7 @@ defineEmits<{
   (e: 'update:visible', value: boolean): void;
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
 
 async function copyTraceId(record: AuditLogListItem) {

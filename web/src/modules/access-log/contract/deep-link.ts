@@ -5,9 +5,20 @@ import { ACCESS_LOG_ROUTE_PATH } from './paths';
 export type AccessLogRouteQuery = Partial<{
   request_id: string;
   trace_id: string;
+  user_id: string;
+  username: string;
+  occurred_from: string;
+  occurred_to: string;
 }>;
 
-const ACCESS_LOG_QUERY_KEYS = ['request_id', 'trace_id'] as const;
+const ACCESS_LOG_QUERY_KEYS = [
+  'request_id',
+  'trace_id',
+  'user_id',
+  'username',
+  'occurred_from',
+  'occurred_to',
+] as const;
 type AccessLogQueryKey = (typeof ACCESS_LOG_QUERY_KEYS)[number];
 
 function readQueryString(source: LocationQuery | AccessLogRouteQuery, key: AccessLogQueryKey) {

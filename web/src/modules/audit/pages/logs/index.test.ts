@@ -273,6 +273,9 @@ const i18n = createI18n({
               sensitiveOperation: 'Sensitive write',
               requestTrace: 'Request trace available',
             },
+            actions: {
+              viewRelatedRequest: 'View Related Request',
+            },
           },
         },
       },
@@ -317,9 +320,9 @@ describe('AuditLogsPage', () => {
 
   it('restores deep-link filters including created range and keeps backend request shape unchanged', async () => {
     const { wrapper } = await mountPage({
-      actor: 'alice',
-      createdFrom: '2026-05-01T10:00:00Z',
-      createdTo: '2026-05-02T18:30:00Z',
+      username: 'alice',
+      occurred_from: '2026-05-01T10:00:00Z',
+      occurred_to: '2026-05-02T18:30:00Z',
       result: 'FAILED',
     });
 
@@ -422,20 +425,20 @@ describe('AuditLogsPage', () => {
       expect.objectContaining({
         path: '/audit/logs',
         query: expect.objectContaining({
-          actor: 'route-admin',
-          actorUserId: '7',
-          createdFrom: '2026-05-01T10:00:00Z',
-          createdTo: '2026-05-02T18:30:00Z',
+          username: 'route-admin',
+          user_id: '7',
+          occurred_from: '2026-05-01T10:00:00Z',
+          occurred_to: '2026-05-02T18:30:00Z',
           preset: 'permission-denied',
           result: 'FAILED',
         }),
       }),
     );
     expect(router.currentRoute.value.query).toMatchObject({
-      actor: 'route-admin',
-      actorUserId: '7',
-      createdFrom: '2026-05-01T10:00:00Z',
-      createdTo: '2026-05-02T18:30:00Z',
+      username: 'route-admin',
+      user_id: '7',
+      occurred_from: '2026-05-01T10:00:00Z',
+      occurred_to: '2026-05-02T18:30:00Z',
       preset: 'permission-denied',
       result: 'FAILED',
     });

@@ -12,6 +12,7 @@ export {
   createStatusColumn,
   createTextColumn,
   createTimeColumn,
+  resolveManagedColumns,
 } from './table-columns';
 export { default as TableActionMenu } from './TableActionMenu.vue';
 export { formatCompactDateTime } from './time';

@@ -11,6 +11,7 @@
     "page": {
       "title": "访问日志",
       "description": "面向请求观测与排障，按请求链路、用户与响应特征快速定位访问事实。",
+      "columnSettings": "列设置",
       "refresh": "刷新",
       "retry": "重试",
       "errorTitle": "访问日志暂时不可用",
@@ -29,7 +30,7 @@
       "search": "查询",
       "reset": "重置",
       "addFilter": "添加筛选条件",
-      "detail": "查看详情",
+      "detail": "详情",
       "viewRelatedAuditRecords": "查看关联审计记录",
       "openAuditByRequestId": "按 Request ID 打开审计搜索",
       "openAuditByTraceId": "按 Trace ID 打开审计搜索",

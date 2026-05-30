@@ -1,9 +1,12 @@
 <template>
-  <div class="audit-page" data-page-type="list-form-detail">
+  <div class="audit-page" data-page-type="query-builder-list-detail">
     <management-page-content>
       <management-page-header :title="t('audit.logList.title')" :description="t('audit.logList.description')">
         <template #eyebrow>{{ t('menu.audit.title') }}</template>
         <template #actions>
+          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
+            {{ t('audit.logList.columnSettings') }}
+          </t-button>
           <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
             {{ t('audit.logList.actions.backToMonitor') }}
           </t-button>
@@ -47,10 +50,27 @@
         :rows="displayRows"
         :summary="tableSummary"
         :total="tableTotal"
+        :visible-column-keys="visibleColumnKeys"
         @detail="openDetailDrawer"
         @page-change="fetchAuditLogs"
       />
     </management-page-content>
+
+    <t-drawer
+      v-model:visible="columnDrawerVisible"
+      :header="t('audit.logList.columnSettings')"
+      :footer="false"
+      placement="right"
+      size="320px"
+    >
+      <t-checkbox-group v-model="visibleColumnKeys">
+        <div class="column-grid">
+          <t-checkbox v-for="column in columnSettingOptions" :key="column.value" :value="column.value">
+            {{ column.label }}
+          </t-checkbox>
+        </div>
+      </t-checkbox-group>
+    </t-drawer>
 
     <audit-detail-drawer
       v-model:visible="detailDrawerVisible"
@@ -103,6 +123,8 @@ const activePreset = ref(resolveAuditPresetKey(''));
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
 const latestRequestSeq = ref(0);
+const columnDrawerVisible = ref(false);
+const visibleColumnKeys = ref(['action', 'actor', 'resource', 'correlation', 'result', 'risk', 'created_at']);
 const pagination = ref({
   current: 1,
   pageSize: 10,
@@ -120,6 +142,15 @@ const presetViews = computed(() =>
     title: t(preset.titleKey),
   })),
 );
+const columnSettingOptions = computed(() => [
+  { label: t('audit.logList.columns.action'), value: 'action' },
+  { label: t('audit.logList.columns.actor'), value: 'actor' },
+  { label: t('audit.logList.columns.resource'), value: 'resource' },
+  { label: t('audit.logList.columns.correlation'), value: 'correlation' },
+  { label: t('audit.logList.columns.result'), value: 'result' },
+  { label: t('audit.logList.columns.risk'), value: 'risk' },
+  { label: t('audit.logList.columns.createdAt'), value: 'created_at' },
+]);
 
 const hasClientOnlyFilters = computed(() =>
   Boolean(
@@ -281,20 +312,20 @@ function applyRouteFilters() {
     ...createDefaultFilters(),
     ...presetDefaults,
     keyword: query.keyword ?? '',
-    actor: query.actor ?? '',
-    actorUserId: query.actorUserId ?? '',
+    actor: query.username || query.actor || '',
+    actorUserId: query.user_id ?? '',
     action: query.action || presetDefaults.action || '',
-    actionPrefix: query.actionPrefix || presetDefaults.actionPrefix || '',
+    actionPrefix: query.action_prefix || presetDefaults.actionPrefix || '',
     source: query.source || presetDefaults.source || '',
-    createdRange: query.createdFrom || query.createdTo ? [query.createdFrom ?? '', query.createdTo ?? ''] : [],
-    resourceType: query.resourceType || presetDefaults.resourceType || '',
-    resourceName: query.resourceName ?? '',
-    resourceId: query.resourceId ?? '',
+    createdRange: query.occurred_from || query.occurred_to ? [query.occurred_from ?? '', query.occurred_to ?? ''] : [],
+    resourceType: query.resource_type || presetDefaults.resourceType || '',
+    resourceName: query.resource_name ?? '',
+    resourceId: query.resource_id ?? '',
     result: (query.result as AuditClientFilterState['result']) || presetDefaults.result || 'all',
-    riskLevel: (query.riskLevel as AuditClientFilterState['riskLevel']) || presetDefaults.riskLevel || 'all',
+    riskLevel: (query.risk_level as AuditClientFilterState['riskLevel']) || presetDefaults.riskLevel || 'all',
     session: query.session ?? '',
-    requestId: query.requestId ?? '',
-    traceId: query.traceId ?? '',
+    requestId: query.request_id ?? '',
+    traceId: query.trace_id ?? '',
   };
 
   filters.value = nextFilters;
@@ -302,26 +333,26 @@ function applyRouteFilters() {
 }
 
 function buildRouteQuery() {
-  const [createdFrom = '', createdTo = ''] = filters.value.createdRange;
+  const [occurredFrom = '', occurredTo = ''] = filters.value.createdRange;
 
   return {
     preset: activePreset.value === 'all' ? '' : activePreset.value,
     keyword: filters.value.keyword,
-    actor: filters.value.actor,
-    actorUserId: filters.value.actorUserId,
+    username: filters.value.actor,
+    user_id: filters.value.actorUserId,
     action: filters.value.action,
-    actionPrefix: filters.value.actionPrefix,
+    action_prefix: filters.value.actionPrefix,
     source: filters.value.source,
-    createdFrom,
-    createdTo,
-    resourceType: filters.value.resourceType,
-    resourceName: filters.value.resourceName,
-    resourceId: filters.value.resourceId,
+    occurred_from: occurredFrom,
+    occurred_to: occurredTo,
+    resource_type: filters.value.resourceType,
+    resource_name: filters.value.resourceName,
+    resource_id: filters.value.resourceId,
     result: filters.value.result === 'all' ? '' : filters.value.result,
-    riskLevel: filters.value.riskLevel === 'all' ? '' : filters.value.riskLevel,
+    risk_level: filters.value.riskLevel === 'all' ? '' : filters.value.riskLevel,
     session: filters.value.session,
-    requestId: filters.value.requestId,
-    traceId: filters.value.traceId,
+    request_id: filters.value.requestId,
+    trace_id: filters.value.traceId,
   };
 }
 
@@ -380,5 +411,11 @@ function returnToMonitor() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.column-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 </style>

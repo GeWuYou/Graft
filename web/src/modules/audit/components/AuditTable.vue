@@ -44,10 +44,7 @@
       </template>
 
       <template #correlation="{ row }">
-        <div class="stack-cell">
-          <strong>{{ requestIdForRecord(row) }}</strong>
-          <span class="stack-cell__secondary">{{ traceIdForRecord(row) }}</span>
-        </div>
+        <log-id-text :display-value="requestIdForRecord(row)" :tooltip="requestIdForRecord(row)" />
       </template>
 
       <template #result="{ row }">
@@ -63,7 +60,7 @@
       </template>
 
       <template #created_at="{ row }">
-        <span>{{ formatAuditTimestamp(row.created_at) }}</span>
+        <span>{{ formatAuditTimestamp(row.created_at, locale) }}</span>
       </template>
 
       <template #operation="{ row }">
@@ -107,8 +104,10 @@ import {
   createTimeColumn,
   ManagementTableCard,
   ManagementTablePagination,
+  resolveManagedColumns,
   TableActionMenu,
 } from '@/shared/components/management';
+import { LogIdText } from '@/shared/observability';
 
 import {
   actorLabel,
@@ -122,11 +121,10 @@ import {
   riskLabel,
   riskTone,
   sourceLabel,
-  traceIdForRecord,
 } from '../shared/presentation';
 import type { AuditLogListItem } from '../types/audit';
 
-defineProps<{
+const props = defineProps<{
   description: string;
   footerSummary: string;
   loading?: boolean;
@@ -134,6 +132,7 @@ defineProps<{
   rows: AuditLogListItem[];
   summary: string;
   total: number;
+  visibleColumnKeys?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -151,16 +150,18 @@ const pageSize = defineModel<number>('pageSize', { required: true });
 const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
 
-  return [
+  const allColumns: TdBaseTableProps['columns'] = [
     createTextColumn(t('audit.logList.columns.action'), 'action', { fixed: 'left', minWidth: 260 }),
     createTextColumn(t('audit.logList.columns.actor'), 'actor', { width: 180 }),
     createTextColumn(t('audit.logList.columns.resource'), 'resource', { width: 220 }),
-    createTextColumn(t('audit.logList.columns.correlation'), 'correlation', { width: 220 }),
-    createStatusColumn(t('audit.logList.columns.result'), 'result', 110),
+    createTextColumn(t('audit.logList.columns.correlation'), 'correlation', { width: 240 }),
+    createStatusColumn(t('audit.logList.columns.result'), 'result', 132),
     createStatusColumn(t('audit.logList.columns.risk'), 'risk', 120),
-    createTimeColumn(t('audit.logList.columns.createdAt'), 'created_at', 168),
-    createActionColumn(t('components.commonTable.operation'), 96),
+    createTimeColumn(t('audit.logList.columns.createdAt'), 'created_at', 220),
+    createActionColumn(t('components.commonTable.operation'), 104),
   ];
+
+  return resolveManagedColumns(allColumns, props.visibleColumnKeys, ['operation']);
 });
 
 const tableContentWidth = computed(() => calculateTableContentWidth(columns.value));
@@ -188,6 +189,7 @@ function emitPageChange() {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .table-empty-state {

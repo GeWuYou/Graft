@@ -41,6 +41,7 @@ Extension page types may be registered when a page does not naturally fit the fi
 - `settings`
 - `workflow`
 - `editor`
+- `query-builder-list-detail`
 - `log-audit`
 - `error-result`
 - `docs-help`

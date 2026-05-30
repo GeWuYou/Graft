@@ -14,7 +14,7 @@
         <div class="access-log-detail__grid">
           <div class="access-log-detail__item">
             <span>{{ t('accessLog.columns.occurredAt') }}</span
-            ><strong>{{ record.occurred_at }}</strong>
+            ><strong>{{ formatCompactDateTime(record.occurred_at, locale) }}</strong>
           </div>
           <div class="access-log-detail__item">
             <span>{{ t('accessLog.columns.method') }}</span
@@ -131,6 +131,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { buildAuditRequestLocation, buildAuditTraceLocation } from '@/modules/audit/contract/deep-link';
+import { formatCompactDateTime } from '@/shared/components/management';
 
 import type { AccessLogItem } from '../types/access-log';
 
@@ -143,7 +144,7 @@ defineEmits<{
   (e: 'update:visible', value: boolean): void;
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
 
 const relatedActions = computed(() => {

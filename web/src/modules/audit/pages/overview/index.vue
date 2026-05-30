@@ -331,10 +331,10 @@ function openSummary(key: string) {
       void router.push(buildAuditLogsLocation({ result: 'FAILED' }));
       return;
     case 'risk':
-      void router.push(buildAuditLogsLocation({ riskLevel: 'HIGH' }));
+      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH' }));
       return;
     case 'sensitive':
-      void router.push(buildAuditLogsLocation({ riskLevel: 'HIGH', source: 'DOMAIN_EVENT' }));
+      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH', source: 'DOMAIN_EVENT' }));
       return;
     default:
       void router.push(buildAuditLogsLocation({}));
@@ -342,7 +342,7 @@ function openSummary(key: string) {
 }
 
 function openRiskGroup(riskLevel: string) {
-  void router.push(buildAuditLogsLocation({ riskLevel }));
+  void router.push(buildAuditLogsLocation({ risk_level: riskLevel }));
 }
 
 function openSecurityTimelineItem(eventId?: number) {

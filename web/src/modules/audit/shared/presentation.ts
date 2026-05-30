@@ -1,3 +1,5 @@
+import { formatLocaleDateTime } from '@/shared/observability';
+
 import type { AuditLogListItem } from '../types/audit';
 import type { AuditResult as AuditResultEnum, AuditRiskLevel as AuditRiskLevelEnum } from '../types/audit';
 
@@ -186,23 +188,8 @@ function targetTypeLabel(value?: string | null) {
   }
 }
 
-export function formatAuditTimestamp(value?: string | null) {
-  if (!value) {
-    return '-';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+export function formatAuditTimestamp(value?: string | null, locale?: string) {
+  return formatLocaleDateTime(value, locale);
 }
 
 function includesText(source: string, search: string) {

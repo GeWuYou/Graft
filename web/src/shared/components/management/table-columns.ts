@@ -113,6 +113,18 @@ export function buildVisibleColumns(
   return (columns ?? []).filter((column) => visibleKeySet.has(String(column?.colKey)));
 }
 
+export function resolveManagedColumns(
+  columns: TdBaseTableProps['columns'],
+  visibleKeys?: string[],
+  alwaysVisibleKeys: string[] = [],
+) {
+  if (!visibleKeys?.length) {
+    return columns;
+  }
+
+  return buildVisibleColumns(columns, visibleKeys, alwaysVisibleKeys);
+}
+
 export function calculateTableContentWidth(columns: TdBaseTableProps['columns']) {
   const totalWidth = (columns ?? []).reduce((sum, column) => {
     if (typeof column?.width === 'number') {

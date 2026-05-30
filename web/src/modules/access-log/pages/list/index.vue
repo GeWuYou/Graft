@@ -1,9 +1,12 @@
 <template>
-  <div data-page-type="list-form-detail">
+  <div data-page-type="query-builder-list-detail">
     <management-page-content>
       <management-page-header :title="t('accessLog.page.title')" :description="t('accessLog.page.description')">
         <template #eyebrow>{{ t('menu.logCenter.title') }}</template>
         <template #actions>
+          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
+            {{ t('accessLog.page.columnSettings') }}
+          </t-button>
           <t-button theme="default" variant="outline" :loading="loading" @click="fetchAccessLogs">
             {{ t('accessLog.page.refresh') }}
           </t-button>
@@ -44,10 +47,27 @@
         :rows="displayRows"
         :summary="tableSummary"
         :total="tableTotal"
+        :visible-column-keys="visibleColumnKeys"
         @detail="openDetail"
         @page-change="fetchAccessLogs"
       />
     </management-page-content>
+
+    <t-drawer
+      v-model:visible="columnDrawerVisible"
+      :header="t('accessLog.page.columnSettings')"
+      :footer="false"
+      placement="right"
+      size="320px"
+    >
+      <t-checkbox-group v-model="visibleColumnKeys">
+        <div class="column-grid">
+          <t-checkbox v-for="column in columnSettingOptions" :key="column.value" :value="column.value">
+            {{ column.label }}
+          </t-checkbox>
+        </div>
+      </t-checkbox-group>
+    </t-drawer>
 
     <access-log-detail-drawer v-model:visible="detailVisible" :record="detailRecord" />
   </div>
@@ -97,6 +117,8 @@ const detailVisible = ref(false);
 const detailRecord = ref<AccessLogItem | null>(null);
 const applyingRoute = ref(false);
 const activePreset = ref<AccessLogPresetKey>('all');
+const columnDrawerVisible = ref(false);
+const visibleColumnKeys = ref(['occurred_at', 'method', 'path', 'status_code', 'duration_ms', 'user', 'request_id']);
 const pagination = ref({
   current: 1,
   pageSize: 20,
@@ -112,6 +134,15 @@ const presetViews = computed(() => [
   { key: 'slowRequests' as const, title: t('accessLog.presets.slowRequests') },
   { key: 'currentUser' as const, title: t('accessLog.presets.currentUser') },
   { key: 'lastHour' as const, title: t('accessLog.presets.lastHour') },
+]);
+const columnSettingOptions = computed(() => [
+  { label: t('accessLog.columns.occurredAt'), value: 'occurred_at' },
+  { label: t('accessLog.columns.method'), value: 'method' },
+  { label: t('accessLog.columns.path'), value: 'path' },
+  { label: t('accessLog.columns.statusCode'), value: 'status_code' },
+  { label: t('accessLog.columns.durationMs'), value: 'duration_ms' },
+  { label: t('accessLog.columns.user'), value: 'user' },
+  { label: t('accessLog.columns.requestId'), value: 'request_id' },
 ]);
 
 const displayRows = computed(() => rows.value.filter((row) => matchesClientFilters(row, filters.value)));
@@ -258,11 +289,21 @@ function normalizeOccurredAt(value: string) {
 }
 
 function applyRouteFilters() {
-  const { request_id: requestId = '', trace_id: traceId = '' } = parseAccessLogRouteQuery(route.query);
+  const {
+    request_id: requestId = '',
+    trace_id: traceId = '',
+    user_id: userId = '',
+    username = '',
+    occurred_from: occurredFrom = '',
+    occurred_to: occurredTo = '',
+  } = parseAccessLogRouteQuery(route.query);
   filters.value = {
     ...filters.value,
     requestId,
     traceId,
+    userId,
+    username,
+    occurredRange: occurredFrom || occurredTo ? [occurredFrom, occurredTo] : [],
   };
   deepLinkCorrelation.value = requestId ? 'requestId' : traceId ? 'traceId' : null;
 }
@@ -271,6 +312,10 @@ function buildRouteQuery() {
   return buildAccessLogLocation({
     request_id: filters.value.requestId,
     trace_id: filters.value.traceId,
+    user_id: filters.value.userId,
+    username: filters.value.username,
+    occurred_from: filters.value.occurredRange[0],
+    occurred_to: filters.value.occurredRange[1],
   });
 }
 
@@ -282,9 +327,20 @@ async function updateRouteQuery() {
   const targetLocation = buildRouteQuery();
   const currentRequestId = typeof route.query.request_id === 'string' ? route.query.request_id : '';
   const currentTraceId = typeof route.query.trace_id === 'string' ? route.query.trace_id : '';
+  const currentUserId = typeof route.query.user_id === 'string' ? route.query.user_id : '';
+  const currentUsername = typeof route.query.username === 'string' ? route.query.username : '';
+  const currentOccurredFrom = typeof route.query.occurred_from === 'string' ? route.query.occurred_from : '';
+  const currentOccurredTo = typeof route.query.occurred_to === 'string' ? route.query.occurred_to : '';
   const nextQuery = targetLocation.query as Record<string, string>;
 
-  if (currentRequestId === (nextQuery.request_id ?? '') && currentTraceId === (nextQuery.trace_id ?? '')) {
+  if (
+    currentRequestId === (nextQuery.request_id ?? '') &&
+    currentTraceId === (nextQuery.trace_id ?? '') &&
+    currentUserId === (nextQuery.user_id ?? '') &&
+    currentUsername === (nextQuery.username ?? '') &&
+    currentOccurredFrom === (nextQuery.occurred_from ?? '') &&
+    currentOccurredTo === (nextQuery.occurred_to ?? '')
+  ) {
     await fetchAccessLogs();
     return;
   }
@@ -347,7 +403,14 @@ function matchesClientFilters(row: AccessLogItem, state: AccessLogFilterState) {
 }
 
 watch(
-  () => [route.query.request_id, route.query.trace_id],
+  () => [
+    route.query.request_id,
+    route.query.trace_id,
+    route.query.user_id,
+    route.query.username,
+    route.query.occurred_from,
+    route.query.occurred_to,
+  ],
   () => {
     applyingRoute.value = true;
     try {
@@ -361,3 +424,10 @@ watch(
   { immediate: true },
 );
 </script>
+<style scoped lang="less">
+.column-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+</style>

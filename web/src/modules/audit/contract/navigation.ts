@@ -87,7 +87,8 @@ export function buildAuditRelatedActorLocation(
   return buildAuditLogsLocationWithOrigin(
     {
       actor,
-      actorUserId: actorUserId === null || actorUserId === undefined ? '' : String(actorUserId),
+      username: actor,
+      user_id: actorUserId === null || actorUserId === undefined ? '' : String(actorUserId),
     },
     monitorOrigin,
   );
@@ -99,7 +100,10 @@ export function buildAuditRelatedResourceLocation(
   resourceName?: string,
   monitorOrigin?: MonitorOriginContext | null,
 ): RouteLocationWithQuery {
-  return buildAuditLogsLocationWithOrigin({ resourceType, resourceId, resourceName }, monitorOrigin);
+  return buildAuditLogsLocationWithOrigin(
+    { resource_type: resourceType, resource_id: resourceId, resource_name: resourceName },
+    monitorOrigin,
+  );
 }
 
 export function buildAuditRelatedRecordLocation(
