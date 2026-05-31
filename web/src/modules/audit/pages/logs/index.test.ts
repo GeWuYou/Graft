@@ -170,8 +170,6 @@ const i18n = createI18n({
           retry: 'Retry',
           detail: 'View Details',
           more: 'More',
-          summary: '{count} security audit records shown',
-          tableHint: 'Core fields only',
           footerTotal: '{count} audit events total',
           footerFiltered: '{count} records matched on this page',
           currentPageFiltered: 'Current page filter',
@@ -182,6 +180,7 @@ const i18n = createI18n({
           detailTitle: 'Audit Detail',
           presets: {
             all: 'All',
+            failedOperations: 'Failed Operations',
             todayAnomalies: "Today's Security Anomalies",
             rbacChanges: 'RBAC Changes',
             permissionDenied: 'Permission Denied',
@@ -381,10 +380,8 @@ describe('AuditLogsPage', () => {
         sort_order: 'desc',
       }),
     );
-    expect(wrapper.text()).toContain('1 security audit records shown');
-    expect(wrapper.text()).toContain(
-      'health checks, monitor polling, and bootstrap requests are not part of the default audit dataset',
-    );
+    expect(wrapper.text()).not.toContain('security audit records shown');
+    expect(wrapper.text()).not.toContain('Core fields only');
     expect(wrapper.text()).toContain('req-1');
 
     await wrapper.get('[data-testid="audit-detail"]').trigger('click');
@@ -445,6 +442,18 @@ describe('AuditLogsPage', () => {
       sort_by: 'created_at',
       sort_order: 'desc',
     });
+  });
+
+  it('does not send an implicit preset when the route has no time range', async () => {
+    const { wrapper } = await mountPage({});
+
+    expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith({
+      page: 1,
+      page_size: 10,
+      sort_by: 'created_at',
+      sort_order: 'desc',
+    });
+    expect(wrapper.text()).toContain('req-1');
   });
 
   it('syncs interactive filters into route query for reload and sharing', async () => {
@@ -521,6 +530,46 @@ describe('AuditLogsPage', () => {
       expect.objectContaining({
         preset: 'last_24h',
         scope: 'auth_failures',
+      }),
+    );
+  });
+
+  it('preserves canonical all_logs scope when rewriting the route query', async () => {
+    const { replaceSpy, wrapper } = await mountPage({ preset: 'last_24h', scope: 'all_logs' });
+
+    replaceSpy.mockClear();
+    await wrapper.get('[data-testid="audit-search"]').trigger('click');
+    await flushPromises();
+
+    expect(replaceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({
+          preset: 'last_24h',
+          scope: 'all_logs',
+        }),
+      }),
+    );
+  });
+
+  it('preserves failed_operations scope from overview drilldown', async () => {
+    const { replaceSpy, wrapper } = await mountPage({ preset: 'last_24h', scope: 'failed_operations' });
+
+    replaceSpy.mockClear();
+    await wrapper.get('[data-testid="audit-search"]').trigger('click');
+    await flushPromises();
+
+    expect(replaceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({
+          preset: 'last_24h',
+          scope: 'failed_operations',
+        }),
+      }),
+    );
+    expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        preset: 'last_24h',
+        scope: 'failed_operations',
       }),
     );
   });

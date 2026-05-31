@@ -502,6 +502,9 @@ func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAu
 	if query.CreatedFrom != nil || query.CreatedTo != nil {
 		return
 	}
+	if query.TimePreset == "" {
+		return
+	}
 
 	now := time.Now().UTC()
 	startedAt := auditPresetStart(now, query.TimePreset)

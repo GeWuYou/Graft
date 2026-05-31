@@ -77,6 +77,7 @@ const i18n = createI18n({
           presets: {
             label: '快捷筛选',
             all: '全部',
+            failedOperations: '失败操作',
             highRisk: '高风险',
           },
           actions: {

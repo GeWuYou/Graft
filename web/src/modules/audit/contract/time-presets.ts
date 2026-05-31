@@ -11,9 +11,3 @@ const AUDIT_TIME_PRESET_SET = new Set<AuditTimePreset>(Object.values(AUDIT_TIME_
 export function resolveAuditTimePreset(value: string): AuditTimePreset {
   return AUDIT_TIME_PRESET_SET.has(value as AuditTimePreset) ? (value as AuditTimePreset) : AUDIT_TIME_PRESET.LAST_24H;
 }
-
-export const AUDIT_TIME_PRESET_TITLE_KEY: Record<AuditTimePreset, string> = {
-  [AUDIT_TIME_PRESET.LAST_24H]: 'audit.overview.timeRanges.24h',
-  [AUDIT_TIME_PRESET.LAST_7D]: 'audit.overview.timeRanges.7d',
-  [AUDIT_TIME_PRESET.LAST_30D]: 'audit.overview.timeRanges.30d',
-};

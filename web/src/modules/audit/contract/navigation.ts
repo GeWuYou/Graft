@@ -10,7 +10,7 @@ import {
 } from '@/modules/monitor/contract/navigation';
 
 import type { AuditLogListItem } from '../types/audit';
-import { buildAuditIncidentLocation, buildAuditLogsLocation, buildAuditRequestLocation } from './deep-link';
+import { buildAuditLogsLocation, buildAuditRequestLocation } from './deep-link';
 
 export type AuditNavigationContext = {
   monitorOrigin: MonitorOriginContext | null;
@@ -42,13 +42,6 @@ export function withMonitorOrigin(
       ...buildMonitorOriginQuery(normalized),
     },
   };
-}
-
-export function buildAuditIncidentLocationWithOrigin(
-  eventId: number | string,
-  monitorOrigin?: MonitorOriginContext | null,
-): RouteLocationWithQuery {
-  return withMonitorOrigin(buildAuditIncidentLocation(eventId) as RouteLocationWithQuery, monitorOrigin);
 }
 
 function buildAuditRequestLocationWithOrigin(

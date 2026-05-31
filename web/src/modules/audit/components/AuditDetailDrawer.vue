@@ -102,9 +102,6 @@
           >
             {{ t('audit.logList.drawer.actions.backToMonitor') }}
           </t-button>
-          <t-button v-if="incidentLocation" size="small" theme="default" variant="outline" @click="openIncident">
-            {{ t('audit.logList.drawer.actions.openIncident') }}
-          </t-button>
           <t-button
             v-if="requestIdForRecord(record) !== '-'"
             size="small"
@@ -196,7 +193,6 @@ import { copyText, LogJsonPanel } from '@/shared/observability';
 
 import {
   buildAccessLogRequestLocationWithOrigin,
-  buildAuditIncidentLocationWithOrigin,
   buildAuditRelatedActorLocation,
   buildAuditRelatedRecordLocation,
   buildAuditRelatedResourceLocation,
@@ -265,18 +261,6 @@ async function copyRequestId(record: AuditLogListItem) {
   }
 }
 
-const incidentLocation = computed(() => {
-  const target = props.record?.target;
-  if (target?.kind !== 'incident') {
-    return null;
-  }
-
-  const eventId = Number(target.id);
-  return Number.isFinite(eventId) && eventId > 0
-    ? buildAuditIncidentLocationWithOrigin(eventId, props.monitorOrigin)
-    : null;
-});
-
 const monitorReturnLocation = computed(() =>
   props.monitorOrigin ? buildMonitorLocationFromOrigin(props.monitorOrigin) : null,
 );
@@ -287,14 +271,6 @@ function openMonitorContext() {
   }
 
   void router.push(monitorReturnLocation.value);
-}
-
-function openIncident() {
-  if (!incidentLocation.value) {
-    return;
-  }
-
-  void router.push(incidentLocation.value);
 }
 
 function openRelatedRecord() {

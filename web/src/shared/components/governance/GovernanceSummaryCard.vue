@@ -12,7 +12,7 @@
       <span v-if="valueAside" class="governance-summary-card__aside">{{ valueAside }}</span>
     </div>
 
-    <p class="governance-summary-card__description">{{ description }}</p>
+    <p v-if="description" class="governance-summary-card__description">{{ description }}</p>
   </article>
 </template>
 <script setup lang="ts">
@@ -20,12 +20,13 @@ withDefaults(
   defineProps<{
     title: string;
     value: string;
-    description: string;
+    description?: string;
     valueAside?: string;
     badge?: string;
     kind?: 'metric' | 'risk' | 'status' | 'activity';
   }>(),
   {
+    description: '',
     valueAside: '',
     badge: '',
     kind: 'metric',

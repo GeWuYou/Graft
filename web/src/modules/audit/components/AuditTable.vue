@@ -126,12 +126,12 @@ import {
 import type { AuditLogListItem } from '../types/audit';
 
 const props = defineProps<{
-  description: string;
+  description?: string;
   footerSummary: string;
   loading?: boolean;
   localFilterActive?: boolean;
   rows: AuditLogListItem[];
-  summary: string;
+  summary?: string;
   total: number;
   visibleColumnKeys?: string[];
 }>();

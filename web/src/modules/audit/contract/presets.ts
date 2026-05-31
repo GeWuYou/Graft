@@ -2,6 +2,7 @@ import { AUDIT_SCOPE, type AuditScope } from './scopes';
 
 export type AuditQuickPresetKey =
   | 'all'
+  | 'failed-operations'
   | 'rbac-changes'
   | 'permission-denied'
   | 'sensitive-ops'
@@ -16,6 +17,11 @@ export type AuditQuickPresetDefinition = {
 
 const AUDIT_PRESET_DEFINITIONS: readonly AuditQuickPresetDefinition[] = [
   { key: 'all', titleKey: 'audit.logList.presets.all', scope: '' },
+  {
+    key: 'failed-operations',
+    titleKey: 'audit.logList.presets.failedOperations',
+    scope: AUDIT_SCOPE.FAILED_OPERATIONS,
+  },
   { key: 'rbac-changes', titleKey: 'audit.logList.presets.rbacChanges', scope: AUDIT_SCOPE.RBAC_CHANGES },
   {
     key: 'permission-denied',

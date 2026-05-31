@@ -148,6 +148,53 @@ func TestRepositoryCreateAndListAuditLogs(t *testing.T) {
 	}
 }
 
+func TestRepositoryListAuditLogsDoesNotApplyImplicitTimePreset(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	oldCreatedAt := time.Now().UTC().Add(-45 * 24 * time.Hour)
+	recentCreatedAt := time.Now().UTC().Add(-2 * time.Hour)
+	for _, item := range []auditstore.CreateAuditLogInput{
+		{
+			Action:       "audit.old",
+			ResourceType: "user",
+			ResourceID:   "1",
+			Success:      true,
+			RequestID:    "req-old",
+			CreatedAt:    oldCreatedAt,
+		},
+		{
+			Action:       "audit.recent",
+			ResourceType: "user",
+			ResourceID:   "2",
+			Success:      true,
+			RequestID:    "req-recent",
+			CreatedAt:    recentCreatedAt,
+		},
+	} {
+		if _, err := repo.CreateAuditLog(ctx, item); err != nil {
+			t.Fatalf("seed audit log: %v", err)
+		}
+	}
+
+	result, err := repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
+		ResourceType: "user",
+		Limit:        10,
+		Offset:       0,
+	})
+	if err != nil {
+		t.Fatalf("list audit logs: %v", err)
+	}
+
+	if result.Total != 2 || len(result.Items) != 2 {
+		t.Fatalf("expected both old and recent logs without implicit preset, got %#v", result)
+	}
+}
+
 func TestRepositoryCreateAuditLogRejectsActorUserIDOutsideBigIntRange(t *testing.T) {
 	db := openTestDB(t)
 	repo, err := NewRepository(db, nil)

@@ -40,13 +40,7 @@
           type="button"
           @click="openSummary(item.key)"
         >
-          <governance-summary-card
-            kind="activity"
-            :title="item.title"
-            :value="item.value"
-            :description="item.meta"
-            :value-aside="item.unit"
-          />
+          <governance-summary-card kind="activity" :title="item.title" :value="item.value" :value-aside="item.unit" />
         </button>
       </template>
 
@@ -280,28 +274,24 @@ const stats = computed(() => [
     title: t('audit.overview.stats.totalLogs.title'),
     value: String(overview.value?.summary.total_logs ?? 0),
     unit: t('audit.overview.stats.totalLogs.unit'),
-    meta: t('audit.overview.stats.totalLogs.meta'),
   },
   {
     key: 'failed',
     title: t('audit.overview.stats.failedWindow.title'),
     value: String(overview.value?.summary.failed_operations ?? 0),
     unit: t('audit.overview.stats.failedWindow.unit'),
-    meta: t('audit.overview.stats.failedWindow.meta'),
   },
   {
     key: 'risk',
     title: t('audit.overview.stats.highRisk.title'),
     value: String(overview.value?.summary.high_risk_events ?? 0),
     unit: t('audit.overview.stats.highRisk.unit'),
-    meta: t('audit.overview.stats.highRisk.meta'),
   },
   {
     key: 'sensitive',
     title: t('audit.overview.stats.sensitiveOps.title'),
     value: String(overview.value?.summary.sensitive_operations ?? 0),
     unit: t('audit.overview.stats.sensitiveOps.unit'),
-    meta: t('audit.overview.stats.sensitiveOps.meta'),
   },
 ]);
 

@@ -84,7 +84,7 @@
       },
       "stats": {
         "totalLogs": {
-          "title": "Audit Logs",
+          "title": "Audit Log Count",
           "unit": "events",
           "meta": "all records",
           "values": {
@@ -94,7 +94,7 @@
           }
         },
         "failedWindow": {
-          "title": "Security Failures in Window",
+          "title": "Security Failure Count",
           "unit": "events",
           "meta": "current window",
           "values": {
@@ -104,7 +104,7 @@
           }
         },
         "highRisk": {
-          "title": "High-Risk Events",
+          "title": "High-Risk Event Count",
           "unit": "items",
           "meta": "current window",
           "values": {
@@ -114,7 +114,7 @@
           }
         },
         "sensitiveOps": {
-          "title": "Sensitive Audit Operations",
+          "title": "Sensitive Operation Count",
           "unit": "actions",
           "meta": "current window",
           "values": {
@@ -283,9 +283,6 @@
       "retry": "Retry",
       "detail": "Detail",
       "more": "More",
-      "summary": "{count} security audit records shown",
-      "timeRangeLabel": "Time range: {value}",
-      "tableHint": "The table shows only policy-matched security audit events. Request chain and permission context move to the detail drawer.",
       "reasonFallback": "No additional reason",
       "footerTotal": "{count} audit events total",
       "footerFiltered": "{count} records matched on this page",
@@ -298,6 +295,7 @@
       "presets": {
         "label": "Quick filters",
         "all": "All",
+        "failedOperations": "Failed Operations",
         "todayAnomalies": "Today's Security Anomalies",
         "rbacChanges": "RBAC Changes",
         "permissionDenied": "Permission Denied",

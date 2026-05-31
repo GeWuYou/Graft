@@ -128,6 +128,7 @@ const passthroughStub = defineComponent({
         props.value,
         props.valueAside,
         JSON.stringify(props.items),
+        slots.summary?.(),
         slots.default?.(),
         slots.actions?.(),
       ]);
@@ -210,10 +211,10 @@ const i18n = createI18n({
             securityValue: 'Security events: {value}',
           },
           stats: {
-            totalLogs: { title: 'Audit Logs', unit: 'events', meta: 'all records' },
-            failedWindow: { title: 'Security Failures in Window', unit: 'events', meta: 'current window' },
-            highRisk: { title: 'High-Risk Events', unit: 'items', meta: 'current window' },
-            sensitiveOps: { title: 'Sensitive Audit Operations', unit: 'actions', meta: 'current window' },
+            totalLogs: { title: 'Audit Log Count', unit: 'events', meta: 'all records' },
+            failedWindow: { title: 'Security Failure Count', unit: 'events', meta: 'current window' },
+            highRisk: { title: 'High-Risk Event Count', unit: 'items', meta: 'current window' },
+            sensitiveOps: { title: 'Sensitive Operation Count', unit: 'actions', meta: 'current window' },
           },
           shortcuts: {
             failedAuth: {
@@ -287,10 +288,78 @@ describe('AuditOverviewPage', () => {
         path: AUDIT_ROUTE_PATH.LOGS,
         query: expect.objectContaining({
           preset: 'last_24h',
-          scope: 'auth_failures',
+          scope: 'all_logs',
         }),
       }),
     );
+  });
+
+  it('opens the failed summary card with failed_operations scope', async () => {
+    routerMocks.push.mockClear();
+
+    const wrapper = mount(AuditOverviewPage, {
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'governance-dashboard-shell': passthroughStub,
+          'governance-section': passthroughStub,
+          'governance-summary-card': passthroughStub,
+          'management-empty-state': passthroughStub,
+          't-button': buttonStub,
+          't-radio-group': radioGroupStub,
+          't-radio-button': radioButtonStub,
+          't-space': passthroughStub,
+          't-tag': tagStub,
+          't-timeline': passthroughStub,
+          't-timeline-item': passthroughStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    await wrapper.findAll('button[type="button"]')[1]!.trigger('click');
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: AUDIT_ROUTE_PATH.LOGS,
+      query: {
+        preset: 'last_24h',
+        scope: 'failed_operations',
+      },
+    });
+  });
+
+  it('uses the updated overview stat labels', async () => {
+    const wrapper = mount(AuditOverviewPage, {
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'governance-dashboard-shell': passthroughStub,
+          'governance-section': passthroughStub,
+          'governance-summary-card': passthroughStub,
+          'management-empty-state': passthroughStub,
+          't-button': buttonStub,
+          't-radio-group': radioGroupStub,
+          't-radio-button': radioButtonStub,
+          't-space': passthroughStub,
+          't-tag': tagStub,
+          't-timeline': passthroughStub,
+          't-timeline-item': passthroughStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const summaryCards = wrapper
+      .findAllComponents({ name: 'PassthroughStub' })
+      .map((item) => item.props('title'))
+      .filter((value) => typeof value === 'string');
+
+    expect(summaryCards).toContain('Audit Log Count');
+    expect(summaryCards).toContain('Security Failure Count');
+    expect(summaryCards).toContain('High-Risk Event Count');
+    expect(summaryCards).toContain('Sensitive Operation Count');
   });
 
   it('renders the trend chart only when enough meaningful points are present', async () => {

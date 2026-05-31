@@ -232,6 +232,19 @@ func normalizeAuditSource(source auditstore.AuditSource) auditstore.AuditSource 
 
 func normalizeAuditTimePreset(value auditstore.AuditTimePreset) auditstore.AuditTimePreset {
 	switch auditstore.AuditTimePreset(strings.TrimSpace(string(value))) {
+	case auditstore.AuditTimePresetLast24Hours:
+		return auditstore.AuditTimePresetLast24Hours
+	case auditstore.AuditTimePresetLast7Days:
+		return auditstore.AuditTimePresetLast7Days
+	case auditstore.AuditTimePresetLast30Days:
+		return auditstore.AuditTimePresetLast30Days
+	default:
+		return ""
+	}
+}
+
+func normalizeAuditOverviewTimePreset(value auditstore.AuditTimePreset) auditstore.AuditTimePreset {
+	switch auditstore.AuditTimePreset(strings.TrimSpace(string(value))) {
 	case auditstore.AuditTimePresetLast7Days:
 		return auditstore.AuditTimePresetLast7Days
 	case auditstore.AuditTimePresetLast30Days:
@@ -300,7 +313,7 @@ func (s *Service) Overview(ctx context.Context, preset auditstore.AuditTimePrese
 		return OverviewResult{}, ErrAuditServiceUnavailable
 	}
 
-	return s.repo.ReadAuditOverview(ctx, normalizeAuditTimePreset(preset))
+	return s.repo.ReadAuditOverview(ctx, normalizeAuditOverviewTimePreset(preset))
 }
 
 // Incident returns the audit-owned incident drilldown for one stable seed event.

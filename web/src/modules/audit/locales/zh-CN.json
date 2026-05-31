@@ -84,7 +84,7 @@
       },
       "stats": {
         "totalLogs": {
-          "title": "审计日志总数",
+          "title": "审计日志数",
           "unit": "条",
           "meta": "全量",
           "values": {
@@ -94,7 +94,7 @@
           }
         },
         "failedWindow": {
-          "title": "当前窗口安全失败事件",
+          "title": "安全失败事件数",
           "unit": "次",
           "meta": "当前窗口",
           "values": {
@@ -104,7 +104,7 @@
           }
         },
         "highRisk": {
-          "title": "高风险事件",
+          "title": "高风险事件数",
           "unit": "条",
           "meta": "当前窗口",
           "values": {
@@ -114,7 +114,7 @@
           }
         },
         "sensitiveOps": {
-          "title": "敏感操作审计次数",
+          "title": "敏感操作数",
           "unit": "次",
           "meta": "当前窗口",
           "values": {
@@ -283,9 +283,6 @@
       "retry": "重试",
       "detail": "详情",
       "more": "更多",
-      "summary": "当前展示 {count} 条安全审计记录",
-      "timeRangeLabel": "时间范围：{value}",
-      "tableHint": "列表仅展示策略命中的安全审计事件，请求链路与权限上下文收口到详情抽屉。",
       "reasonFallback": "无补充原因",
       "footerTotal": "共 {count} 条审计事件",
       "footerFiltered": "当前页匹配 {count} 条记录",
@@ -298,6 +295,7 @@
       "presets": {
         "label": "快捷筛选",
         "all": "全部",
+        "failedOperations": "失败操作",
         "todayAnomalies": "今日安全异常",
         "rbacChanges": "RBAC 变更",
         "permissionDenied": "权限拒绝",

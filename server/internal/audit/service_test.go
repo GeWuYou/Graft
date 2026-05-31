@@ -193,8 +193,30 @@ func TestServiceListNormalizesPagination(t *testing.T) {
 	if repo.listQuery.Action != "user.create" || repo.listQuery.ResourceType != "user" || repo.listQuery.RequestID != "req-1" {
 		t.Fatalf("expected trimmed filters, got %#v", repo.listQuery)
 	}
+	if repo.listQuery.TimePreset != "" {
+		t.Fatalf("expected list query preset to stay empty by default, got %q", repo.listQuery.TimePreset)
+	}
 	if result.Page != defaultPage || result.PageSize != maxPageSize || result.Total != 42 || len(result.Items) != 1 {
 		t.Fatalf("unexpected list result %#v", result)
+	}
+}
+
+func TestServiceListPreservesExplicitPreset(t *testing.T) {
+	repo := &stubAuditRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.List(context.Background(), ListQuery{
+		TimePreset: auditstore.AuditTimePresetLast24Hours,
+	})
+	if err != nil {
+		t.Fatalf("list audit logs: %v", err)
+	}
+
+	if repo.listQuery.TimePreset != auditstore.AuditTimePresetLast24Hours {
+		t.Fatalf("expected explicit preset to be preserved, got %q", repo.listQuery.TimePreset)
 	}
 }
 
