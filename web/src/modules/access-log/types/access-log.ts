@@ -26,6 +26,8 @@ export type AccessLogQuery = {
   duration_max_ms?: number;
   started_from?: string;
   started_to?: string;
+  occurred_from?: string;
+  occurred_to?: string;
   sort_by?: AccessLogSortBy;
   sort_order?: AccessLogSortOrder;
 };
@@ -43,5 +45,6 @@ export type AccessLogFilterState = {
   durationMinMs: string;
   durationMaxMs: string;
   startedRange: string[];
+  occurredRange: string[];
   sorters: AccessLogSorter[];
 };

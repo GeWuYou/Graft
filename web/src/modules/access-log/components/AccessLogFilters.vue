@@ -91,16 +91,34 @@
                   <div class="access-log-filter-builder__editor-title">
                     {{ selectedDefinition.fieldLabel }}
                   </div>
-                  <t-date-range-picker
-                    v-if="selectedDefinition.kind === 'date-range'"
-                    :model-value="modelValue.startedRange"
-                    allow-input
-                    clearable
-                    enable-time-picker
-                    format="YYYY-MM-DD HH:mm:ss"
-                    :placeholder="selectedDefinition.placeholder"
-                    @update:model-value="updateStartedRange"
-                  />
+                  <div v-if="selectedDefinition.kind === 'date-range'" class="access-log-filter-builder__time-group">
+                    <div class="access-log-filter-builder__time-field">
+                      <div class="access-log-filter-builder__time-label">{{ t('accessLog.filters.startedRange') }}</div>
+                      <t-date-range-picker
+                        :model-value="modelValue.startedRange"
+                        allow-input
+                        clearable
+                        enable-time-picker
+                        format="YYYY-MM-DD HH:mm:ss"
+                        :placeholder="selectedDefinition.startedPlaceholder"
+                        @update:model-value="updateStartedRange"
+                      />
+                    </div>
+                    <div class="access-log-filter-builder__time-field">
+                      <div class="access-log-filter-builder__time-label">
+                        {{ t('accessLog.filters.occurredRange') }}
+                      </div>
+                      <t-date-range-picker
+                        :model-value="modelValue.occurredRange"
+                        allow-input
+                        clearable
+                        enable-time-picker
+                        format="YYYY-MM-DD HH:mm:ss"
+                        :placeholder="selectedDefinition.occurredPlaceholder"
+                        @update:model-value="updateOccurredRange"
+                      />
+                    </div>
+                  </div>
                   <t-select
                     v-else-if="selectedDefinition.kind === 'select'"
                     :model-value="props.modelValue[selectedDefinition.key]"
@@ -168,7 +186,7 @@ type AccessLogPresetKey =
   | 'slowRequests'
   | 'currentUser'
   | 'lastHour';
-type FilterKey = Exclude<keyof AccessLogFilterState, 'keyword' | 'pathMatch' | 'route' | 'sorters'>;
+type FilterKey = Exclude<keyof AccessLogFilterState, 'keyword' | 'pathMatch' | 'route' | 'sorters' | 'occurredRange'>;
 type SelectFilterKey = 'method';
 type BaseFilterDefinition<Key extends FilterKey> = {
   key: Key;
@@ -185,7 +203,8 @@ type SelectFilterDefinition = BaseFilterDefinition<'method'> & {
 };
 type DateRangeFilterDefinition = BaseFilterDefinition<'startedRange'> & {
   kind: 'date-range';
-  placeholder: string[];
+  startedPlaceholder: string[];
+  occurredPlaceholder: string[];
 };
 type FilterDefinition = TextFilterDefinition | SelectFilterDefinition | DateRangeFilterDefinition;
 
@@ -226,8 +245,9 @@ const definitions = computed<FilterDefinition[]>(() => [
   {
     key: 'startedRange',
     kind: 'date-range',
-    fieldLabel: t('accessLog.builder.fields.startedRange'),
-    placeholder: [t('accessLog.filters.startedRange'), t('accessLog.filters.startedRange')],
+    fieldLabel: t('accessLog.builder.fields.time'),
+    startedPlaceholder: [t('accessLog.filters.startedRange'), t('accessLog.filters.startedRange')],
+    occurredPlaceholder: [t('accessLog.filters.occurredRange'), t('accessLog.filters.occurredRange')],
   },
   {
     key: 'requestId',
@@ -291,14 +311,25 @@ const activeFilterTags = computed(() => {
   const filterTags = definitions.value
     .map((definition) => {
       if (definition.key === 'startedRange') {
-        const [from = '', to = ''] = props.modelValue.startedRange;
-        if (!from && !to) {
-          return null;
+        const tags: Array<{ key: FilterKey | 'occurredRange'; label: string }> = [];
+        const [startedFrom = '', startedTo = ''] = props.modelValue.startedRange;
+        const [occurredFrom = '', occurredTo = ''] = props.modelValue.occurredRange;
+
+        if (startedFrom || startedTo) {
+          tags.push({
+            key: definition.key,
+            label: `${t('accessLog.filters.startedRange')}：${[startedFrom, startedTo].filter(Boolean).join(' ~ ')}`,
+          });
         }
-        return {
-          key: definition.key,
-          label: `${definition.fieldLabel}：${[from, to].filter(Boolean).join(' ~ ')}`,
-        };
+
+        if (occurredFrom || occurredTo) {
+          tags.push({
+            key: 'occurredRange',
+            label: `${t('accessLog.filters.occurredRange')}：${[occurredFrom, occurredTo].filter(Boolean).join(' ~ ')}`,
+          });
+        }
+
+        return tags;
       }
 
       const rawValue = props.modelValue[definition.key];
@@ -312,7 +343,8 @@ const activeFilterTags = computed(() => {
           : String(value);
       return { key: definition.key, label: `${definition.fieldLabel}：${label}` };
     })
-    .filter((item): item is { key: FilterKey; label: string } => Boolean(item));
+    .flat()
+    .filter((item): item is { key: FilterKey | 'occurredRange'; label: string } => Boolean(item));
 
   return prependSingleSorterTag(filterTags, activeSorter.value, sortByOptions.value, t('accessLog.sort.tagPrefix'));
 });
@@ -335,7 +367,14 @@ function updateStartedRange(value: string[] | undefined) {
   });
 }
 
-function clearField(key: FilterKey | 'sorter') {
+function updateOccurredRange(value: string[] | undefined) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    occurredRange: Array.isArray(value) ? value : [],
+  });
+}
+
+function clearField(key: FilterKey | 'occurredRange' | 'sorter') {
   if (key === 'sorter') {
     emit('update:modelValue', {
       ...props.modelValue,
@@ -351,6 +390,13 @@ function clearField(key: FilterKey | 'sorter') {
     emit('update:modelValue', {
       ...props.modelValue,
       startedRange: [],
+    });
+    return;
+  }
+  if (key === 'occurredRange') {
+    emit('update:modelValue', {
+      ...props.modelValue,
+      occurredRange: [],
     });
     return;
   }
@@ -517,6 +563,24 @@ void (null as unknown as AccessLogPathMatch);
   background: var(--td-brand-color-light);
   border-color: var(--td-brand-color);
   box-shadow: inset 0 0 0 1px var(--td-brand-color-focus);
+}
+
+.access-log-filter-builder__time-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.access-log-filter-builder__time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.access-log-filter-builder__time-label {
+  color: var(--td-text-color-primary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .access-log-filter-builder__editor {

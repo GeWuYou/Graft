@@ -344,6 +344,64 @@ func TestAccessLogRepositoryListAccessLogsEscapesPrefixPathWildcards(t *testing.
 	}
 }
 
+func TestAccessLogRepositoryListAccessLogsFiltersStartedAtAndOccurredAtIndependently(t *testing.T) {
+	repo := newSQLiteAccessLogRepository(t)
+	ctx := context.Background()
+	base := time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)
+
+	_, err := repo.CreateAccessLogs(ctx, []CreateAccessLogInput{
+		{
+			RequestID:  "req-a",
+			Method:     "GET",
+			Path:       "/a",
+			StatusCode: 200,
+			DurationMS: 10,
+			StartedAt:  base.Add(-90 * time.Minute),
+			OccurredAt: base.Add(-60 * time.Minute),
+		},
+		{
+			RequestID:  "req-b",
+			Method:     "GET",
+			Path:       "/b",
+			StatusCode: 200,
+			DurationMS: 10,
+			StartedAt:  base.Add(-30 * time.Minute),
+			OccurredAt: base.Add(-5 * time.Minute),
+		},
+		{
+			RequestID:  "req-c",
+			Method:     "GET",
+			Path:       "/c",
+			StatusCode: 200,
+			DurationMS: 10,
+			StartedAt:  base.Add(-15 * time.Minute),
+			OccurredAt: base.Add(15 * time.Minute),
+		},
+	})
+	if err != nil {
+		t.Fatalf("seed access logs: %v", err)
+	}
+
+	result, err := repo.ListAccessLogs(ctx, AccessLogListQuery{
+		Page:         1,
+		PageSize:     10,
+		StartedFrom:  timePointer(base.Add(-40 * time.Minute)),
+		StartedTo:    timePointer(base),
+		OccurredFrom: timePointer(base.Add(-10 * time.Minute)),
+		OccurredTo:   timePointer(base),
+		SortBy:       AccessLogSortStartedAt,
+		SortOrder:    AccessLogSortOrderAsc,
+	})
+	if err != nil {
+		t.Fatalf("list access logs with independent time filters: %v", err)
+	}
+
+	if result.Total != 1 {
+		t.Fatalf("expected total 1, got %d", result.Total)
+	}
+	assertAccessLogRequestOrder(t, result, []string{"req-b"})
+}
+
 func seedAccessLogSortNormalizationCases(
 	ctx context.Context,
 	t *testing.T,
@@ -397,4 +455,8 @@ func assertAccessLogRequestOrder(t *testing.T, result AccessLogListResult, wantO
 			t.Fatalf("item %d: expected request id %q, got %q", index, wantRequestID, result.Items[index].RequestID)
 		}
 	}
+}
+
+func timePointer(value time.Time) *time.Time {
+	return &value
 }

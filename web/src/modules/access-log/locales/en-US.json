@@ -80,7 +80,7 @@
       "title": "Filters",
       "hint": "Add only the conditions you need instead of filling a large static form.",
       "fields": {
-        "startedRange": "Request Start Time",
+        "time": "Time",
         "requestId": "Request ID",
         "userId": "User ID",
         "username": "Username",

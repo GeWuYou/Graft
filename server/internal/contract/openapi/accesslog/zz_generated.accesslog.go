@@ -229,6 +229,8 @@ type GetAccessLogsParams struct {
 	DurationMaxMs *int64                        `form:"duration_max_ms,omitempty" json:"duration_max_ms,omitempty"`
 	StartedFrom   *time.Time                    `form:"started_from,omitempty" json:"started_from,omitempty"`
 	StartedTo     *time.Time                    `form:"started_to,omitempty" json:"started_to,omitempty"`
+	OccurredFrom  *time.Time                    `form:"occurred_from,omitempty" json:"occurred_from,omitempty"`
+	OccurredTo    *time.Time                    `form:"occurred_to,omitempty" json:"occurred_to,omitempty"`
 	SortBy        *GetAccessLogsParamsSortBy    `form:"sort_by,omitempty" json:"sort_by,omitempty"`
 	SortOrder     *GetAccessLogsParamsSortOrder `form:"sort_order,omitempty" json:"sort_order,omitempty"`
 

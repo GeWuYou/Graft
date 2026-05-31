@@ -80,7 +80,7 @@
       "title": "筛选条件",
       "hint": "按需叠加条件，避免固定大表单占满页面。",
       "fields": {
-        "startedRange": "请求开始时间",
+        "time": "时间",
         "requestId": "请求 ID",
         "userId": "用户 ID",
         "username": "用户名",

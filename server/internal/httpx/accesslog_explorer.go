@@ -428,26 +428,22 @@ func bindPrimaryAccessLogTimeFilters(ctx *gin.Context, query *AccessLogListQuery
 	}
 	query.StartedTo = startedTo
 
+	occurredFrom, invalidKey := parseOptionalRFC3339QueryValue(ctx, "occurred_from")
+	if invalidKey != "" {
+		return invalidKey
+	}
+	query.OccurredFrom = occurredFrom
+
+	occurredTo, invalidKey := parseOptionalRFC3339QueryValue(ctx, "occurred_to")
+	if invalidKey != "" {
+		return invalidKey
+	}
+	query.OccurredTo = occurredTo
+
 	return ""
 }
 
-func bindLegacyAccessLogTimeFilters(ctx *gin.Context, query *AccessLogListQuery) string {
-	if query.StartedFrom == nil {
-		startedFrom, invalidKey := parseOptionalRFC3339QueryValue(ctx, "occurred_from")
-		if invalidKey != "" {
-			return invalidKey
-		}
-		query.StartedFrom = startedFrom
-	}
-
-	if query.StartedTo == nil {
-		startedTo, invalidKey := parseOptionalRFC3339QueryValue(ctx, "occurred_to")
-		if invalidKey != "" {
-			return invalidKey
-		}
-		query.StartedTo = startedTo
-	}
-
+func bindLegacyAccessLogTimeFilters(_ *gin.Context, _ *AccessLogListQuery) string {
 	return ""
 }
 

@@ -4158,6 +4158,8 @@ export interface operations {
         duration_max_ms?: number;
         started_from?: string;
         started_to?: string;
+        occurred_from?: string;
+        occurred_to?: string;
         sort_by?: 'started_at' | 'occurred_at' | 'duration_ms' | 'status_code';
         sort_order?: 'asc' | 'desc';
       };

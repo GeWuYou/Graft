@@ -90,6 +90,8 @@ type AccessLogListQuery struct {
 	DurationMaxMS *int64
 	StartedFrom   *time.Time
 	StartedTo     *time.Time
+	OccurredFrom  *time.Time
+	OccurredTo    *time.Time
 	SortBy        AccessLogSortField
 	SortOrder     AccessLogSortOrder
 }
@@ -558,6 +560,8 @@ func (r *accessLogRepository) buildAccessLogWhereClause(query AccessLogListQuery
 	appendAccessLogOptionalInt64Filter(&conditions, &args, r, "duration_ms <=", query.DurationMaxMS)
 	appendAccessLogOptionalTimeFilter(&conditions, &args, r, "started_at >=", query.StartedFrom)
 	appendAccessLogOptionalTimeFilter(&conditions, &args, r, "started_at <=", query.StartedTo)
+	appendAccessLogOptionalTimeFilter(&conditions, &args, r, "occurred_at >=", query.OccurredFrom)
+	appendAccessLogOptionalTimeFilter(&conditions, &args, r, "occurred_at <=", query.OccurredTo)
 
 	if len(conditions) == 0 {
 		return "", args

@@ -76,6 +76,16 @@ get:
       schema:
         type: string
         format: date-time
+    - name: occurred_from
+      in: query
+      schema:
+        type: string
+        format: date-time
+    - name: occurred_to
+      in: query
+      schema:
+        type: string
+        format: date-time
     - name: sort_by
       in: query
       schema:
