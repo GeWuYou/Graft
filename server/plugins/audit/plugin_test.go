@@ -313,6 +313,24 @@ func TestAuditLogsRouteAcceptsCanonicalFilters(t *testing.T) {
 	}
 }
 
+func TestAuditLogsRouteAcceptsBracketedArrayFilters(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newPluginTestContext(t, repo)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/audit/logs?action_keywords[]=delete&action_keywords[]=reset&resource_types[]=auth&resource_types[]=session&results[]=FAILED&risk_levels[]=HIGH",
+		nil,
+	)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+}
+
 func TestRequirePermissionPublishesSecurityAuditEvent(t *testing.T) {
 	repo := &memoryAuditRepository{}
 	ctx, engine, _ := newPluginTestContext(t, repo)

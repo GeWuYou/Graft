@@ -385,7 +385,7 @@ const shortcuts = computed(() => [
     title: t('audit.overview.shortcuts.sensitiveOps.title'),
     description: t('audit.overview.shortcuts.sensitiveOps.description'),
     query: buildOverviewAuditQuery({
-      action_keywords: 'delete,reset,grant,assign,revoke,remove,replace,update_role,update_permission',
+      action_keywords: 'delete,reset,grant,assign,revoke,remove,replace',
     }),
   },
 ]);
@@ -416,7 +416,7 @@ function openSummary(key: string) {
       void router.push(
         buildAuditLogsLocation(
           buildOverviewAuditQuery({
-            action_keywords: 'delete,reset,grant,assign,revoke,remove,replace,update_role,update_permission',
+            action_keywords: 'delete,reset,grant,assign,revoke,remove,replace',
           }),
         ),
       );

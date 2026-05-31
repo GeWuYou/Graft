@@ -268,6 +268,43 @@ describe('request auth handling', () => {
     );
   });
 
+  it('serializes array params with repeated canonical keys', async () => {
+    const { request, serializeRequestParams } = await loadRequestModule();
+
+    requestHandler.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        success: true,
+        code: API_CODE.OK,
+        message: 'OK',
+        traceId: 'trace-users',
+        data: {
+          ok: true,
+        },
+      },
+    });
+
+    await expect(
+      request.get<{ ok: boolean }>({
+        url: USERS_API_PATH,
+        params: {
+          action_keywords: ['delete', 'reset'],
+          resource_types: ['auth', 'session'],
+          risk_levels: ['HIGH', 'CRITICAL'],
+        },
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    const serialized = serializeRequestParams({
+      action_keywords: ['delete', 'reset'],
+      resource_types: ['auth', 'session'],
+      risk_levels: ['HIGH', 'CRITICAL'],
+    });
+    expect(serialized).toBe(
+      'action_keywords=delete&action_keywords=reset&resource_types=auth&resource_types=session&risk_levels=HIGH&risk_levels=CRITICAL',
+    );
+  });
+
   it('prefers the current runtime locale over stale stored locale values', async () => {
     const { request } = await loadRequestModule();
     const { i18n } = await import('@/locales');

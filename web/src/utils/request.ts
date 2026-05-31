@@ -34,6 +34,34 @@ type AuthSessionBridge = {
 const AUTH_REFRESH_URL = AUTH_API_PATH.REFRESH;
 let authSessionBridge: AuthSessionBridge | null = null;
 
+export function serializeRequestParams(params: Record<string, unknown>) {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item === undefined || item === null || item === '') {
+          continue;
+        }
+        searchParams.append(key, String(item));
+      }
+      continue;
+    }
+
+    if (value === '') {
+      continue;
+    }
+
+    searchParams.append(key, String(value));
+  }
+
+  return searchParams.toString();
+}
+
 function resolveBaseURL() {
   if (import.meta.env.VITE_IS_REQUEST_PROXY === 'true') {
     return '';
@@ -46,6 +74,9 @@ function resolveBaseURL() {
 const client = axios.create({
   baseURL: resolveBaseURL(),
   withCredentials: true,
+  paramsSerializer: {
+    serialize: serializeRequestParams,
+  },
 });
 
 client.interceptors.request.use((config) => {

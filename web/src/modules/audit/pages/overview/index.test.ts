@@ -434,6 +434,42 @@ describe('AuditOverviewPage', () => {
     });
   });
 
+  it('opens sensitive summary with the same keyword scope used by overview counters', async () => {
+    routerMocks.push.mockClear();
+
+    const wrapper = mount(AuditOverviewPage, {
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'governance-dashboard-shell': passthroughStub,
+          'governance-section': passthroughStub,
+          'governance-summary-card': passthroughStub,
+          'management-empty-state': passthroughStub,
+          't-button': buttonStub,
+          't-radio-group': radioGroupStub,
+          't-radio-button': radioButtonStub,
+          't-space': passthroughStub,
+          't-tag': tagStub,
+          't-timeline': passthroughStub,
+          't-timeline-item': passthroughStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    await wrapper.findAll('button[type="button"]')[3]!.trigger('click');
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: AUDIT_ROUTE_PATH.LOGS,
+      query: expect.objectContaining({
+        action_keywords: 'delete,reset,grant,assign,revoke,remove,replace',
+        created_from: expect.any(String),
+        created_to: expect.any(String),
+      }),
+    });
+  });
+
   it('uses the updated overview stat labels', async () => {
     const wrapper = mount(AuditOverviewPage, {
       global: {

@@ -26,17 +26,7 @@ const AUDIT_PRESET_DEFINITIONS: readonly AuditQuickPresetDefinition[] = [
 ] as const;
 
 const RBAC_ACTION_PREFIXES = ['rbac.', 'role.', 'permission.'] as const;
-const SENSITIVE_ACTION_KEYWORDS = [
-  'delete',
-  'reset',
-  'grant',
-  'assign',
-  'revoke',
-  'remove',
-  'replace',
-  'update_role',
-  'update_permission',
-] as const;
+const SENSITIVE_ACTION_KEYWORDS = ['delete', 'reset', 'grant', 'assign', 'revoke', 'remove', 'replace'] as const;
 const AUTH_RESOURCE_TYPES = ['auth', 'session'] as const;
 const AUTH_ACTION_KEYWORDS = ['auth', 'login'] as const;
 const AUTH_REQUEST_PATH_PREFIXES = ['/api/auth'] as const;

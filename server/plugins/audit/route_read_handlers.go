@@ -302,19 +302,19 @@ func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLo
 }
 
 func bindAuditStringSliceFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) {
-	if values := normalizeAuditStringQuerySlice(ginCtx.QueryArray("action_prefixes")); len(values) > 0 {
+	if values := normalizeAuditStringQuerySlice(queryArrayCompat(ginCtx, "action_prefixes")); len(values) > 0 {
 		params.ActionPrefixes = &values
 		query.ActionPrefixes = values
 	}
-	if values := normalizeAuditStringQuerySlice(ginCtx.QueryArray("action_keywords")); len(values) > 0 {
+	if values := normalizeAuditStringQuerySlice(queryArrayCompat(ginCtx, "action_keywords")); len(values) > 0 {
 		params.ActionKeywords = &values
 		query.ActionKeywords = values
 	}
-	if values := normalizeAuditStringQuerySlice(ginCtx.QueryArray("resource_types")); len(values) > 0 {
+	if values := normalizeAuditStringQuerySlice(queryArrayCompat(ginCtx, "resource_types")); len(values) > 0 {
 		params.ResourceTypes = &values
 		query.ResourceTypes = values
 	}
-	if values := normalizeAuditStringQuerySlice(ginCtx.QueryArray("request_path_prefixes")); len(values) > 0 {
+	if values := normalizeAuditStringQuerySlice(queryArrayCompat(ginCtx, "request_path_prefixes")); len(values) > 0 {
 		params.RequestPathPrefixes = &values
 		query.RequestPathPrefixes = values
 	}
@@ -327,7 +327,7 @@ func bindAuditEnumFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogs
 	if errField := bindAuditResultFilter(ginCtx, params, query); errField != "" {
 		return errField
 	}
-	if values, normalized, ok := bindAuditResultSliceFilter(ginCtx.QueryArray("results")); !ok {
+	if values, normalized, ok := bindAuditResultSliceFilter(queryArrayCompat(ginCtx, "results")); !ok {
 		return "results"
 	} else if len(values) > 0 {
 		params.Results = &values
@@ -336,7 +336,7 @@ func bindAuditEnumFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogs
 	if errField := bindAuditRiskLevelFilter(ginCtx, params, query); errField != "" {
 		return errField
 	}
-	if values, normalized, ok := bindAuditRiskLevelSliceFilter(ginCtx.QueryArray("risk_levels")); !ok {
+	if values, normalized, ok := bindAuditRiskLevelSliceFilter(queryArrayCompat(ginCtx, "risk_levels")); !ok {
 		return "risk_levels"
 	} else if len(values) > 0 {
 		params.RiskLevels = &values
@@ -488,6 +488,19 @@ func normalizeAuditStringQuerySlice(values []string) []string {
 		return nil
 	}
 	return normalized
+}
+
+func queryArrayCompat(ginCtx *gin.Context, key string) []string {
+	values := ginCtx.QueryArray(key)
+	bracketValues := ginCtx.QueryArray(key + "[]")
+	if len(bracketValues) == 0 {
+		return values
+	}
+
+	combined := make([]string, 0, len(values)+len(bracketValues))
+	combined = append(combined, values...)
+	combined = append(combined, bracketValues...)
+	return combined
 }
 
 func bindAuditStringFilter(ginCtx *gin.Context, key string, targetParam **string, targetQuery *string) {
