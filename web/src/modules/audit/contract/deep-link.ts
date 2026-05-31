@@ -10,25 +10,31 @@ type AuditEvidenceContext = components['schemas']['AuditEvidenceContext'];
 
 export type AuditLogsRouteQuery = Partial<{
   preset: string;
-  scope: string;
   keyword: string;
   actor: string;
   user_id: string;
   username: string;
+  success: string;
   action: string;
   action_prefix: string;
+  action_prefixes: string;
+  action_keywords: string;
   source: string;
   created_from: string;
   created_to: string;
   occurred_from: string;
   occurred_to: string;
   resource_type: string;
+  resource_types: string;
   resource_name: string;
   resource_id: string;
   result: string;
+  results: string;
   risk_level: string;
+  risk_levels: string;
   session: string;
   request_id: string;
+  request_path_prefixes: string;
   sort_by: string;
   sort_order: string;
 }>;
@@ -44,23 +50,29 @@ function firstQueryValue(value: LocationQueryValue | LocationQueryValue[] | unde
 export function parseAuditLogsRouteQuery(query: LocationQuery | AuditLogsRouteQuery): AuditLogsRouteQuery {
   return {
     preset: trimQueryValue(firstQueryValue(query.preset)),
-    scope: trimQueryValue(firstQueryValue(query.scope)),
     keyword: trimQueryValue(firstQueryValue(query.keyword)),
     actor: trimQueryValue(firstQueryValue(query.actor)),
     user_id: trimQueryValue(firstQueryValue(query.user_id)),
     username: trimQueryValue(firstQueryValue(query.username)),
+    success: trimQueryValue(firstQueryValue(query.success)),
     action: trimQueryValue(firstQueryValue(query.action)),
     action_prefix: trimQueryValue(firstQueryValue(query.action_prefix)),
+    action_prefixes: trimQueryValue(firstQueryValue(query.action_prefixes)),
+    action_keywords: trimQueryValue(firstQueryValue(query.action_keywords)),
     source: trimQueryValue(firstQueryValue(query.source)),
     created_from: trimQueryValue(firstQueryValue(query.created_from ?? query.occurred_from)),
     created_to: trimQueryValue(firstQueryValue(query.created_to ?? query.occurred_to)),
     resource_type: trimQueryValue(firstQueryValue(query.resource_type)),
+    resource_types: trimQueryValue(firstQueryValue(query.resource_types)),
     resource_name: trimQueryValue(firstQueryValue(query.resource_name)),
     resource_id: trimQueryValue(firstQueryValue(query.resource_id)),
     result: trimQueryValue(firstQueryValue(query.result)),
+    results: trimQueryValue(firstQueryValue(query.results)),
     risk_level: trimQueryValue(firstQueryValue(query.risk_level)),
+    risk_levels: trimQueryValue(firstQueryValue(query.risk_levels)),
     session: trimQueryValue(firstQueryValue(query.session)),
     request_id: trimQueryValue(firstQueryValue(query.request_id)),
+    request_path_prefixes: trimQueryValue(firstQueryValue(query.request_path_prefixes)),
     sort_by: trimQueryValue(firstQueryValue(query.sort_by)),
     sort_order: trimQueryValue(firstQueryValue(query.sort_order)),
   };
@@ -91,7 +103,6 @@ export function buildAuditResourceLocation(resourceType: string, resourceId: str
 
 export function buildAuditRequestLocation(requestId: string) {
   return buildAuditLogsLocation({
-    scope: '',
     request_id: requestId,
   });
 }

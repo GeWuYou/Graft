@@ -477,18 +477,23 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 	}
 
 	addAuditPresetRange(&clauses, &args, query)
-	addAuditScopeFilter(&clauses, &args, query.Scope)
 	addUint64Filter(&clauses, &args, "actor_user_id = $%d", query.ActorUserID)
 	addScalarFilter(add, "action = $%d", query.Action)
 	addPrefixFilter(add, "action LIKE $%d ESCAPE '\\'", query.ActionPrefix)
+	addPrefixAnyFilter(&clauses, &args, "action", query.ActionPrefixes)
+	addKeywordAnyFilter(&clauses, &args, "action", query.ActionKeywords)
 	addScalarFilter(add, sourceWhereClause(), string(query.Source))
 	addScalarFilter(add, "resource_type = $%d", query.ResourceType)
+	addAnyScalarFilter(&clauses, &args, "resource_type", query.ResourceTypes)
 	addScalarFilter(add, "resource_id = $%d", query.ResourceID)
 	addScalarFilter(add, "resource_name = $%d", query.ResourceName)
+	addPrefixAnyJSONMetadataFilter(&clauses, &args, "request_path", query.RequestPathPrefixes)
 	addBoolFilter(&clauses, &args, "success = $%d", query.Success)
 	addScalarFilter(add, "request_id = $%d", query.RequestID)
 	addScalarFilter(add, auditResultWhereClause(), string(query.Result))
+	addAnyExpressionFilter(&clauses, &args, auditResultWhereClause(), auditResultValues(query.Results))
 	addScalarFilter(add, riskLevelWhereClause(), string(query.RiskLevel))
+	addAnyExpressionFilter(&clauses, &args, riskLevelWhereClause(), auditRiskLevelValues(query.RiskLevels))
 	addTimeFilter(&clauses, &args, "created_at >= $%d", query.CreatedFrom)
 	addTimeFilter(&clauses, &args, "created_at <= $%d", query.CreatedTo)
 	if len(clauses) == 0 {
@@ -511,14 +516,6 @@ func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAu
 	addTimeFilter(clauses, args, "created_at >= $%d", &startedAt)
 }
 
-func addAuditScopeFilter(clauses *[]string, _ *[]any, scope auditstore.AuditLogScope) {
-	scopeSQL := auditScopeWhereClause(scope)
-	if scopeSQL == "" {
-		return
-	}
-	*clauses = append(*clauses, scopeSQL)
-}
-
 func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Time {
 	switch preset {
 	case auditstore.AuditTimePresetLast7Days:
@@ -528,43 +525,6 @@ func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Tim
 	default:
 		return now.Add(-24 * time.Hour)
 	}
-}
-
-func auditScopeWhereClause(scope auditstore.AuditLogScope) string {
-	switch scope {
-	case auditstore.AuditLogScopeFailedOperations:
-		return "success = false"
-	case auditstore.AuditLogScopeHighRiskEvents:
-		return highRiskWhereClause()
-	case auditstore.AuditLogScopeSensitiveOperations:
-		return sensitiveOperationsWhereClause()
-	case auditstore.AuditLogScopeCriticalSecurity:
-		return criticalSecurityWhereClause()
-	case auditstore.AuditLogScopeHighRiskOperations:
-		return highRiskOperationsWhereClause()
-	case auditstore.AuditLogScopeAuthFailures:
-		return overviewFailedAuthWhere
-	case auditstore.AuditLogScopePermissionDenials:
-		return overviewPermissionDeniedWhere
-	case auditstore.AuditLogScopeRbacChanges:
-		return rbacChangesWhereClause()
-	default:
-		return ""
-	}
-}
-
-func criticalSecurityWhereClause() string {
-	return `(
-		success = false AND (
-			(metadata ->> 'status_code') = '403'
-			OR (
-				COALESCE(metadata ->> 'status_code', '') ~ '^[0-9]+$'
-				AND (metadata ->> 'status_code')::int >= 500
-			)
-			OR COALESCE(metadata ->> 'error_kind', '') = 'system'
-			OR COALESCE(metadata ->> 'error', '') <> ''
-		)
-	)`
 }
 
 func highRiskOperationsWhereClause() string {
@@ -596,10 +556,6 @@ func sensitiveOperationsWhereClause() string {
 	)`
 }
 
-func rbacChangesWhereClause() string {
-	return `(LOWER(action) LIKE 'rbac.%' OR LOWER(action) LIKE 'role.%' OR LOWER(action) LIKE 'permission.%')`
-}
-
 func addScalarFilter(add func(string, any), format string, value string) {
 	if value == "" {
 		return
@@ -613,6 +569,104 @@ func addPrefixFilter(add func(string, any), format string, value string) {
 	}
 
 	add(format, escapeLikePattern(value)+"%")
+}
+
+func addPrefixAnyFilter(clauses *[]string, args *[]any, column string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+
+	orClauses := make([]string, 0, len(values))
+	for _, value := range values {
+		*args = append(*args, escapeLikePattern(value)+"%")
+		orClauses = append(orClauses, fmt.Sprintf("%s LIKE $%d ESCAPE '\\\\'", column, len(*args)))
+	}
+	*clauses = append(*clauses, "("+strings.Join(orClauses, " OR ")+")")
+}
+
+func addKeywordAnyFilter(clauses *[]string, args *[]any, column string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+
+	orClauses := make([]string, 0, len(values))
+	for _, value := range values {
+		*args = append(*args, "%"+escapeLikePattern(strings.ToLower(value))+"%")
+		orClauses = append(orClauses, fmt.Sprintf("LOWER(%s) LIKE $%d ESCAPE '\\\\'", column, len(*args)))
+	}
+	*clauses = append(*clauses, "("+strings.Join(orClauses, " OR ")+")")
+}
+
+func addAnyScalarFilter(clauses *[]string, args *[]any, column string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+
+	orClauses := make([]string, 0, len(values))
+	for _, value := range values {
+		*args = append(*args, value)
+		orClauses = append(orClauses, fmt.Sprintf("%s = $%d", column, len(*args)))
+	}
+	*clauses = append(*clauses, "("+strings.Join(orClauses, " OR ")+")")
+}
+
+func addPrefixAnyJSONMetadataFilter(clauses *[]string, args *[]any, key string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+
+	orClauses := make([]string, 0, len(values))
+	for _, value := range values {
+		*args = append(*args, escapeLikePattern(strings.ToLower(value))+"%")
+		orClauses = append(
+			orClauses,
+			fmt.Sprintf("LOWER(COALESCE(metadata ->> '%s', '')) LIKE $%d ESCAPE '\\\\'", key, len(*args)),
+		)
+	}
+	*clauses = append(*clauses, "("+strings.Join(orClauses, " OR ")+")")
+}
+
+func addAnyExpressionFilter(clauses *[]string, args *[]any, expression string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+
+	orClauses := make([]string, 0, len(values))
+	for _, value := range values {
+		*args = append(*args, value)
+		orClauses = append(orClauses, fmt.Sprintf(expression, len(*args)))
+	}
+	*clauses = append(*clauses, "("+strings.Join(orClauses, " OR ")+")")
+}
+
+func auditResultValues(values []auditstore.AuditResult) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		result = append(result, string(value))
+	}
+	return result
+}
+
+func auditRiskLevelValues(values []auditstore.AuditRiskLevel) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		result = append(result, string(value))
+	}
+	return result
 }
 
 func escapeLikePattern(value string) string {

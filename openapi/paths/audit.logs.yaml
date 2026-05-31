@@ -31,21 +31,6 @@ get:
       required: false
       schema:
         type: string
-    - name: scope
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-          - all_logs
-          - failed_operations
-          - high_risk_events
-          - sensitive_operations
-          - critical_security
-          - high_risk_operations
-          - auth_failures
-          - permission_denials
-          - rbac_changes
     - name: preset
       in: query
       required: false
@@ -57,6 +42,24 @@ get:
       required: false
       schema:
         type: string
+    - name: action_prefixes
+      in: query
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+    - name: action_keywords
+      in: query
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
     - name: source
       in: query
       required: false
@@ -68,6 +71,15 @@ get:
       required: false
       schema:
         type: string
+    - name: resource_types
+      in: query
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
     - name: resource_id
       in: query
       required: false
@@ -78,6 +90,15 @@ get:
       required: false
       schema:
         type: string
+    - name: request_path_prefixes
+      in: query
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
     - name: request_id
       in: query
       required: false
@@ -89,12 +110,32 @@ get:
       schema:
         type: string
         enum: [SUCCESS, FAILED, DENIED, ERROR]
+    - name: results
+      in: query
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+          enum: [SUCCESS, FAILED, DENIED, ERROR]
     - name: risk_level
       in: query
       required: false
       schema:
         type: string
         enum: [LOW, MEDIUM, HIGH, CRITICAL]
+    - name: risk_levels
+      in: query
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
     - name: success
       in: query
       required: false

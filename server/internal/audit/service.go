@@ -51,16 +51,21 @@ type ListQuery struct {
 	ActorUserID  *uint64
 	Action       string
 	ActionPrefix string
-	Scope        auditstore.AuditLogScope
+	ActionPrefixes []string
+	ActionKeywords []string
 	TimePreset   auditstore.AuditTimePreset
 	Source       auditstore.AuditSource
 	ResourceType string
+	ResourceTypes []string
 	ResourceID   string
 	ResourceName string
+	RequestPathPrefixes []string
 	Success      *bool
 	RequestID    string
 	Result       auditstore.AuditResult
+	Results      []auditstore.AuditResult
 	RiskLevel    auditstore.AuditRiskLevel
+	RiskLevels   []auditstore.AuditRiskLevel
 	CreatedFrom  *time.Time
 	CreatedTo    *time.Time
 	SortBy       string
@@ -154,16 +159,21 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		ActorUserID:  query.ActorUserID,
 		Action:       strings.TrimSpace(query.Action),
 		ActionPrefix: strings.TrimSpace(query.ActionPrefix),
-		Scope:        normalizeAuditLogScope(query.Scope),
+		ActionPrefixes: normalizeAuditStringFilters(query.ActionPrefixes),
+		ActionKeywords: normalizeAuditStringFilters(query.ActionKeywords),
 		TimePreset:   normalizeAuditTimePreset(query.TimePreset),
 		Source:       normalizeAuditSource(query.Source),
 		ResourceType: strings.TrimSpace(query.ResourceType),
+		ResourceTypes: normalizeAuditStringFilters(query.ResourceTypes),
 		ResourceID:   strings.TrimSpace(query.ResourceID),
 		ResourceName: strings.TrimSpace(query.ResourceName),
+		RequestPathPrefixes: normalizeAuditStringFilters(query.RequestPathPrefixes),
 		Success:      query.Success,
 		RequestID:    strings.TrimSpace(query.RequestID),
 		Result:       normalizeAuditResult(query.Result),
+		Results:      normalizeAuditResults(query.Results),
 		RiskLevel:    normalizeAuditRiskLevel(query.RiskLevel),
+		RiskLevels:   normalizeAuditRiskLevels(query.RiskLevels),
 		CreatedFrom:  normalizeAuditCreatedFrom(query.CreatedFrom),
 		CreatedTo:    normalizeAuditCreatedTo(query.CreatedTo),
 		SortBy:       normalizeAuditSortBy(query.SortBy),
@@ -230,6 +240,25 @@ func normalizeAuditSource(source auditstore.AuditSource) auditstore.AuditSource 
 	}
 }
 
+func normalizeAuditStringFilters(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		normalized = append(normalized, trimmed)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
 func normalizeAuditTimePreset(value auditstore.AuditTimePreset) auditstore.AuditTimePreset {
 	switch auditstore.AuditTimePreset(strings.TrimSpace(string(value))) {
 	case auditstore.AuditTimePresetLast24Hours:
@@ -254,29 +283,6 @@ func normalizeAuditOverviewTimePreset(value auditstore.AuditTimePreset) auditsto
 	}
 }
 
-func normalizeAuditLogScope(value auditstore.AuditLogScope) auditstore.AuditLogScope {
-	switch auditstore.AuditLogScope(strings.TrimSpace(string(value))) {
-	case auditstore.AuditLogScopeFailedOperations:
-		return auditstore.AuditLogScopeFailedOperations
-	case auditstore.AuditLogScopeHighRiskEvents:
-		return auditstore.AuditLogScopeHighRiskEvents
-	case auditstore.AuditLogScopeSensitiveOperations:
-		return auditstore.AuditLogScopeSensitiveOperations
-	case auditstore.AuditLogScopeCriticalSecurity:
-		return auditstore.AuditLogScopeCriticalSecurity
-	case auditstore.AuditLogScopeHighRiskOperations:
-		return auditstore.AuditLogScopeHighRiskOperations
-	case auditstore.AuditLogScopeAuthFailures:
-		return auditstore.AuditLogScopeAuthFailures
-	case auditstore.AuditLogScopePermissionDenials:
-		return auditstore.AuditLogScopePermissionDenials
-	case auditstore.AuditLogScopeRbacChanges:
-		return auditstore.AuditLogScopeRbacChanges
-	default:
-		return auditstore.AuditLogScopeAllLogs
-	}
-}
-
 func normalizeAuditResult(result auditstore.AuditResult) auditstore.AuditResult {
 	switch auditstore.AuditResult(strings.ToUpper(strings.TrimSpace(string(result)))) {
 	case auditstore.AuditResultSuccess:
@@ -292,6 +298,25 @@ func normalizeAuditResult(result auditstore.AuditResult) auditstore.AuditResult 
 	}
 }
 
+func normalizeAuditResults(results []auditstore.AuditResult) []auditstore.AuditResult {
+	if len(results) == 0 {
+		return nil
+	}
+
+	normalized := make([]auditstore.AuditResult, 0, len(results))
+	for _, result := range results {
+		value := normalizeAuditResult(result)
+		if value == "" {
+			continue
+		}
+		normalized = append(normalized, value)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
 func normalizeAuditRiskLevel(level auditstore.AuditRiskLevel) auditstore.AuditRiskLevel {
 	switch auditstore.AuditRiskLevel(strings.ToUpper(strings.TrimSpace(string(level)))) {
 	case auditstore.AuditRiskLevelLow:
@@ -305,6 +330,25 @@ func normalizeAuditRiskLevel(level auditstore.AuditRiskLevel) auditstore.AuditRi
 	default:
 		return ""
 	}
+}
+
+func normalizeAuditRiskLevels(levels []auditstore.AuditRiskLevel) []auditstore.AuditRiskLevel {
+	if len(levels) == 0 {
+		return nil
+	}
+
+	normalized := make([]auditstore.AuditRiskLevel, 0, len(levels))
+	for _, level := range levels {
+		value := normalizeAuditRiskLevel(level)
+		if value == "" {
+			continue
+		}
+		normalized = append(normalized, value)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 // Overview returns the aggregated overview payload for the selected window.

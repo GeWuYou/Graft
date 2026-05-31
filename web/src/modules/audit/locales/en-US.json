@@ -183,8 +183,8 @@
           "description": "Review failed sign-ins, token failures, and other authentication audit events"
         },
         "rbacChanges": {
-          "title": "Open RBAC Changes",
-          "description": "Review role, permission, and assignment audit events"
+          "title": "Open Permission Configuration Changes",
+          "description": "Review role, permission, resource, and menu configuration changes"
         },
         "sensitiveOps": {
           "title": "Open Sensitive Operations",
@@ -203,7 +203,7 @@
           "tag": "Auth failure"
         },
         "rbacWindow": {
-          "title": "Sensitive operations still active during RBAC change window",
+          "title": "Sensitive operations still active during permission configuration changes",
           "description": "Session and permission writes continued after role grants.",
           "tag": "Needs review"
         }
@@ -297,7 +297,7 @@
         "all": "All",
         "failedOperations": "Failed Operations",
         "todayAnomalies": "Today's Security Anomalies",
-        "rbacChanges": "RBAC Changes",
+        "rbacChanges": "Permission Configuration Changes",
         "permissionDenied": "Permission Denied",
         "sensitiveOps": "Sensitive Operations",
         "authFailed": "Auth Failed",
@@ -315,13 +315,20 @@
         "title": "Filter fields",
         "hint": "Choose a field and set its value. Active conditions appear as removable tags.",
         "fields": {
+          "success": "Success state",
           "action": "Action type",
+          "actionPrefixes": "Action groups",
+          "actionKeywords": "Action keywords",
           "result": "Result",
+          "results": "Result set",
           "riskLevel": "Risk level",
+          "riskLevels": "Risk level set",
           "source": "Event type",
           "actor": "Actor",
           "resourceName": "Audit target",
           "resourceType": "Target type",
+          "resourceTypes": "Target type set",
+          "requestPathPrefixes": "Request path prefixes",
           "requestId": "Request ID",
           "session": "Session ID",
           "resourceId": "Resource ID"
@@ -331,15 +338,22 @@
         "keywordPlaceholder": "Search actions, users, targets, request ID...",
         "actorPlaceholder": "Actor",
         "actionPlaceholder": "Action type",
+        "actionPrefixesPlaceholder": "Select action groups",
+        "actionKeywordsPlaceholder": "Type an action keyword and press Enter",
+        "successPlaceholder": "Success state",
         "sourcePlaceholder": "Event type",
         "datePlaceholder": "Time range",
         "resourceTypePlaceholder": "Audit target type",
+        "resourceTypesPlaceholder": "Select target type set",
         "resourceNamePlaceholder": "Audit target / target name",
         "resourceIdPlaceholder": "Resource ID",
         "resultPlaceholder": "Result",
+        "resultsPlaceholder": "Select result set",
         "riskPlaceholder": "Risk level",
+        "riskLevelsPlaceholder": "Select risk level set",
         "sessionPlaceholder": "Session ID",
-        "requestIdPlaceholder": "Request ID"
+        "requestIdPlaceholder": "Request ID",
+        "requestPathPrefixesPlaceholder": "Type a request path prefix and press Enter"
       },
       "sort": {
         "title": "Sort",
@@ -355,8 +369,12 @@
         "allSource": "All event types",
         "allResourceTypes": "All target types",
         "auth": "Authentication",
+        "authPrefix": "Authentication actions",
+        "rbacPrefix": "Permission configuration actions",
         "role": "Role",
+        "rolePrefix": "Role actions",
         "permission": "Permission",
+        "permissionPrefix": "Permission actions",
         "session": "Session",
         "userResource": "User",
         "roleResource": "Role",

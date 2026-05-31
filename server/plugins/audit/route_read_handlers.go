@@ -197,10 +197,14 @@ func bindGeneratedAuditListParams(
 	if field := bindAuditActorUserID(ginCtx, &params, &query); field != "" {
 		return params, query, field
 	}
-	if field := bindAuditScopeAndPreset(ginCtx, &params, &query); field != "" {
+	if field := bindAuditPreset(ginCtx, &params, &query); field != "" {
+		return params, query, field
+	}
+	if field := rejectLegacyAuditScope(ginCtx); field != "" {
 		return params, query, field
 	}
 	bindAuditStringFilters(ginCtx, &params, &query)
+	bindAuditStringSliceFilters(ginCtx, &params, &query)
 	if field := bindAuditEnumFilters(ginCtx, &params, &query); field != "" {
 		return params, query, field
 	}
@@ -265,16 +269,7 @@ func bindAuditActorUserID(ginCtx *gin.Context, params *auditopenapi.GetAuditLogs
 	return ""
 }
 
-func bindAuditScopeAndPreset(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
-	if raw := strings.TrimSpace(ginCtx.Query("scope")); raw != "" {
-		value := auditopenapi.GetAuditLogsParamsScope(raw)
-		if !value.Valid() {
-			return "scope"
-		}
-		params.Scope = &value
-		query.Scope = auditstore.AuditLogScope(raw)
-	}
-
+func bindAuditPreset(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
 	if raw := strings.TrimSpace(ginCtx.Query("preset")); raw != "" {
 		value := auditopenapi.GetAuditLogsParamsPreset(raw)
 		if !value.Valid() {
@@ -287,6 +282,13 @@ func bindAuditScopeAndPreset(ginCtx *gin.Context, params *auditopenapi.GetAuditL
 	return ""
 }
 
+func rejectLegacyAuditScope(ginCtx *gin.Context) string {
+	if strings.TrimSpace(ginCtx.Query("scope")) != "" {
+		return "scope"
+	}
+	return ""
+}
+
 func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) {
 	bindAuditStringFilter(ginCtx, "action", &params.Action, &query.Action)
 	bindAuditStringFilter(ginCtx, "action_prefix", &params.ActionPrefix, &query.ActionPrefix)
@@ -296,38 +298,193 @@ func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLo
 	bindAuditStringFilter(ginCtx, "request_id", &params.RequestId, &query.RequestID)
 }
 
+func bindAuditStringSliceFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) {
+	if values := normalizeAuditStringQuerySlice(ginCtx.QueryArray("action_prefixes")); len(values) > 0 {
+		params.ActionPrefixes = &values
+		query.ActionPrefixes = values
+	}
+	if values := normalizeAuditStringQuerySlice(ginCtx.QueryArray("action_keywords")); len(values) > 0 {
+		params.ActionKeywords = &values
+		query.ActionKeywords = values
+	}
+	if values := normalizeAuditStringQuerySlice(ginCtx.QueryArray("resource_types")); len(values) > 0 {
+		params.ResourceTypes = &values
+		query.ResourceTypes = values
+	}
+	if values := normalizeAuditStringQuerySlice(ginCtx.QueryArray("request_path_prefixes")); len(values) > 0 {
+		params.RequestPathPrefixes = &values
+		query.RequestPathPrefixes = values
+	}
+}
+
 func bindAuditEnumFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
+	if errField := bindAuditSourceFilter(ginCtx, params, query); errField != "" {
+		return errField
+	}
+	if errField := bindAuditResultFilter(ginCtx, params, query); errField != "" {
+		return errField
+	}
+	if values, normalized, ok := bindAuditResultSliceFilter(ginCtx.QueryArray("results")); !ok {
+		return "results"
+	} else if len(values) > 0 {
+		params.Results = &values
+		query.Results = normalized
+	}
+	if errField := bindAuditRiskLevelFilter(ginCtx, params, query); errField != "" {
+		return errField
+	}
+	if values, normalized, ok := bindAuditRiskLevelSliceFilter(ginCtx.QueryArray("risk_levels")); !ok {
+		return "risk_levels"
+	} else if len(values) > 0 {
+		params.RiskLevels = &values
+		query.RiskLevels = normalized
+	}
+	return ""
+}
+
+func bindAuditSourceFilter(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
 	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("source"))); raw != "" {
 		switch auditstore.AuditSource(raw) {
 		case auditstore.AuditSourceRequest, auditstore.AuditSourceSecurityEvent, auditstore.AuditSourceDomainEvent:
+			value := auditopenapi.GetAuditLogsParamsSource(raw)
+			params.Source = &value
+			query.Source = auditstore.AuditSource(raw)
 		default:
 			return "source"
 		}
-		value := auditopenapi.GetAuditLogsParamsSource(raw)
-		params.Source = &value
-		query.Source = auditstore.AuditSource(raw)
 	}
+
+	return ""
+}
+
+func bindAuditResultFilter(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
 	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("result"))); raw != "" {
 		switch auditstore.AuditResult(raw) {
 		case auditstore.AuditResultSuccess, auditstore.AuditResultFailed, auditstore.AuditResultDenied, auditstore.AuditResultError:
+			value := auditopenapi.GetAuditLogsParamsResult(raw)
+			params.Result = &value
+			query.Result = auditstore.AuditResult(raw)
 		default:
 			return "result"
 		}
-		value := auditopenapi.GetAuditLogsParamsResult(raw)
-		params.Result = &value
-		query.Result = auditstore.AuditResult(raw)
 	}
+
+	return ""
+}
+
+func bindAuditRiskLevelFilter(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
 	if raw := strings.ToUpper(strings.TrimSpace(ginCtx.Query("risk_level"))); raw != "" {
 		switch auditstore.AuditRiskLevel(raw) {
 		case auditstore.AuditRiskLevelLow, auditstore.AuditRiskLevelMedium, auditstore.AuditRiskLevelHigh, auditstore.AuditRiskLevelCritical:
+			value := auditopenapi.GetAuditLogsParamsRiskLevel(raw)
+			params.RiskLevel = &value
+			query.RiskLevel = auditstore.AuditRiskLevel(raw)
 		default:
 			return "risk_level"
 		}
-		value := auditopenapi.GetAuditLogsParamsRiskLevel(raw)
-		params.RiskLevel = &value
-		query.RiskLevel = auditstore.AuditRiskLevel(raw)
 	}
+
 	return ""
+}
+
+func bindAuditResultSliceFilter(rawValues []string) ([]auditopenapi.GetAuditLogsParamsResults, []auditstore.AuditResult, bool) {
+	normalized, ok := normalizeAuditEnumQuerySlice(rawValues, func(value string) bool {
+		switch auditstore.AuditResult(value) {
+		case auditstore.AuditResultSuccess, auditstore.AuditResultFailed, auditstore.AuditResultDenied, auditstore.AuditResultError:
+			return true
+		default:
+			return false
+		}
+	})
+	if !ok {
+		return nil, nil, false
+	}
+
+	return collectAuditResultSlice(normalized), collectAuditStoreResultSlice(normalized), true
+}
+
+func bindAuditRiskLevelSliceFilter(rawValues []string) ([]auditopenapi.GetAuditLogsParamsRiskLevels, []auditstore.AuditRiskLevel, bool) {
+	normalized, ok := normalizeAuditEnumQuerySlice(rawValues, func(value string) bool {
+		switch auditstore.AuditRiskLevel(value) {
+		case auditstore.AuditRiskLevelLow, auditstore.AuditRiskLevelMedium, auditstore.AuditRiskLevelHigh, auditstore.AuditRiskLevelCritical:
+			return true
+		default:
+			return false
+		}
+	})
+	if !ok {
+		return nil, nil, false
+	}
+
+	return collectAuditRiskLevelSlice(normalized), collectAuditStoreRiskLevelSlice(normalized), true
+}
+
+func normalizeAuditEnumQuerySlice(rawValues []string, isAllowed func(string) bool) ([]string, bool) {
+	if len(rawValues) == 0 {
+		return nil, true
+	}
+
+	normalized := make([]string, 0, len(rawValues))
+	for _, raw := range rawValues {
+		value := strings.ToUpper(strings.TrimSpace(raw))
+		if !isAllowed(value) {
+			return nil, false
+		}
+		normalized = append(normalized, value)
+	}
+
+	return normalized, true
+}
+
+func collectAuditResultSlice(values []string) []auditopenapi.GetAuditLogsParamsResults {
+	collected := make([]auditopenapi.GetAuditLogsParamsResults, 0, len(values))
+	for _, value := range values {
+		collected = append(collected, auditopenapi.GetAuditLogsParamsResults(value))
+	}
+	return collected
+}
+
+func collectAuditStoreResultSlice(values []string) []auditstore.AuditResult {
+	collected := make([]auditstore.AuditResult, 0, len(values))
+	for _, value := range values {
+		collected = append(collected, auditstore.AuditResult(value))
+	}
+	return collected
+}
+
+func collectAuditRiskLevelSlice(values []string) []auditopenapi.GetAuditLogsParamsRiskLevels {
+	collected := make([]auditopenapi.GetAuditLogsParamsRiskLevels, 0, len(values))
+	for _, value := range values {
+		collected = append(collected, auditopenapi.GetAuditLogsParamsRiskLevels(value))
+	}
+	return collected
+}
+
+func collectAuditStoreRiskLevelSlice(values []string) []auditstore.AuditRiskLevel {
+	collected := make([]auditstore.AuditRiskLevel, 0, len(values))
+	for _, value := range values {
+		collected = append(collected, auditstore.AuditRiskLevel(value))
+	}
+	return collected
+}
+
+func normalizeAuditStringQuerySlice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	normalized := make([]string, 0, len(values))
+	for _, raw := range values {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			continue
+		}
+		normalized = append(normalized, trimmed)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 func bindAuditStringFilter(ginCtx *gin.Context, key string, targetParam **string, targetQuery *string) {

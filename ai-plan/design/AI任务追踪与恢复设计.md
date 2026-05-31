@@ -138,6 +138,22 @@ runner：
   - 第二次仍失败则 fail closed 为 `blocked`
 - 该模式不恢复 `run_loop.py`、`test_run_loop.py` 或 `codex exec --ephemeral` 风格的外部 fresh-session runner
 
+当仓库使用 `graft-multi-agent-batch` 时，它是同一会话内的一次并行 batch wave，而不是主 agent 对多个 worker 的实时遥控：
+
+- outer main agent 负责切片、派发、验收与后续验证准备，不负责替代 active worker 完成其已委派的实现切片
+- 对 write-capable worker，`timeout != stalled`
+  - 一次 wait window 超时不等于 stalled
+  - `no visible diff yet` 不等于 stalled
+  - checkpoint 前必须先区分 `no visible diff yet`、`no new visible output evidence`、`closeout not started`
+- batch wave 中的 checkpoint 也是 bounded health check：
+  - 不允许改变任务目标
+  - 不允许扩大 scope
+  - 不允许把 checkpoint 响应解释成主 agent 接管实现的许可
+- 当 checkpoint 响应 `can_continue=true` 时，必须继续同一个 worker slice，并至少给一个 post-checkpoint grace
+  window 等待最终 closeout
+- 如果 worker closeout 缺失、畸形或自相矛盾，先用新的 worker 重试同一 bounded slice 一次
+- 第二次仍失败时，该 slice 必须显式进入 `blocked` 或由 batch wave 显式停止；不能由主 agent 静默本地接手补完
+
 ### 3.2 主题级恢复材料
 
 `ai-plan/public/<topic>/todos/` 用于主题级跟踪：

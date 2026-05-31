@@ -46,6 +46,8 @@ Extension page types may be registered when a page does not naturally fit the fi
 - `error-result`
 - `docs-help`
 
+For `query-builder-list-detail` and `log-audit` pages, quick presets must compile into visible, editable filter fields.
+
 Rules:
 
 - Every frontend task must declare a page type before implementation.

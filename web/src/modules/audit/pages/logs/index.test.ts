@@ -81,9 +81,16 @@ vi.mock('../../components/AuditFilters.vue', () => ({
                   ...props.modelValue,
                   actor: 'route-admin',
                   actorUserId: '7',
+                  success: 'all',
                   createdRange: ['2026-05-01 10:00:00', '2026-05-02 18:30:00'],
+                  actionPrefixes: [],
+                  actionKeywords: [],
+                  requestPathPrefixes: [],
+                  resourceTypes: [],
                   result: 'FAILED',
+                  results: [],
                   sorters: [{ field: 'created_at', direction: 'asc' }],
+                  riskLevels: [],
                 }),
             },
             'sync-route',
@@ -182,7 +189,7 @@ const i18n = createI18n({
             all: 'All',
             failedOperations: 'Failed Operations',
             todayAnomalies: "Today's Security Anomalies",
-            rbacChanges: 'RBAC Changes',
+            rbacChanges: 'Permission Configuration Changes',
             permissionDenied: 'Permission Denied',
             sensitiveOps: 'Sensitive Operations',
             authFailed: 'Auth Failed',
@@ -192,6 +199,7 @@ const i18n = createI18n({
             search: 'Search',
             reset: 'Reset',
             backToMonitor: 'Back to monitor',
+            addFilter: 'Add filter',
             showAdvanced: 'Advanced Filters',
             hideAdvanced: 'Hide Advanced',
           },
@@ -199,23 +207,57 @@ const i18n = createI18n({
             keywordPlaceholder: 'Keyword: action, request ID, audit target, operated object',
             actorPlaceholder: 'Actor',
             actionPlaceholder: 'Action type',
+            actionPrefixesPlaceholder: 'Select action groups',
+            actionKeywordsPlaceholder: 'Type an action keyword and press Enter',
+            successPlaceholder: 'Success state',
             datePlaceholder: 'Time range',
             sourcePlaceholder: 'Source',
             resourceTypePlaceholder: 'Audit target type',
+            resourceTypesPlaceholder: 'Select target type set',
             resourceNamePlaceholder: 'Audit target / target name',
             resourceIdPlaceholder: 'Resource ID',
             resultPlaceholder: 'Result',
+            resultsPlaceholder: 'Select result set',
             riskPlaceholder: 'Risk',
+            riskLevelsPlaceholder: 'Select risk level set',
             sessionPlaceholder: 'Session ID',
             requestIdPlaceholder: 'Request ID',
+            requestPathPrefixesPlaceholder: 'Type a request path prefix and press Enter',
+          },
+          builder: {
+            title: 'Filter fields',
+            hint: 'Choose a field and set its value. Active conditions appear as removable tags.',
+            fields: {
+              success: 'Success state',
+              action: 'Action type',
+              actionPrefixes: 'Action groups',
+              actionKeywords: 'Action keywords',
+              result: 'Result',
+              results: 'Result set',
+              riskLevel: 'Risk level',
+              riskLevels: 'Risk level set',
+              source: 'Event type',
+              actor: 'Actor',
+              resourceName: 'Audit target',
+              resourceType: 'Target type',
+              resourceTypes: 'Target type set',
+              requestPathPrefixes: 'Request path prefixes',
+              requestId: 'Request ID',
+              session: 'Session ID',
+              resourceId: 'Resource ID',
+            },
           },
           filterOptions: {
             allActions: 'All actions',
             allSource: 'All source',
             allResourceTypes: 'All target types',
             auth: 'Authentication',
+            authPrefix: 'Authentication actions',
+            rbacPrefix: 'Permission configuration actions',
             role: 'Role',
+            rolePrefix: 'Role actions',
             permission: 'Permission',
+            permissionPrefix: 'Permission actions',
             session: 'Session',
             userResource: 'User',
             roleResource: 'Role',
@@ -292,7 +334,7 @@ describe('AuditLogsPage', () => {
     auditApiMocks.getAuditLogs.mockClear();
   });
 
-  async function mountPage(initialQuery: Record<string, string> = { preset: 'last_24h', scope: 'permission_denials' }) {
+  async function mountPage(initialQuery: Record<string, string> = { preset: 'last_24h', results: 'DENIED' }) {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [{ path: '/audit/logs', component: AuditLogsPage }],
@@ -375,7 +417,7 @@ describe('AuditLogsPage', () => {
     expect(auditApiMocks.getAuditLogs).toHaveBeenCalledWith(
       expect.objectContaining({
         preset: 'last_24h',
-        scope: 'permission_denials',
+        results: ['DENIED'],
         sort_by: 'created_at',
         sort_order: 'desc',
       }),
@@ -393,7 +435,7 @@ describe('AuditLogsPage', () => {
   it('keeps monitor return context when syncing log filters', async () => {
     const { replaceSpy, router, wrapper } = await mountPage({
       preset: 'last_24h',
-      scope: 'permission_denials',
+      results: 'DENIED',
       monitorView: 'overview',
       monitorTrendRange: '10m',
       monitorAnomalyKey: 'resource_cpu_pressure',
@@ -438,7 +480,7 @@ describe('AuditLogsPage', () => {
       page: 1,
       page_size: 10,
       preset: 'last_24h',
-      scope: 'high_risk_events',
+      risk_levels: ['HIGH', 'CRITICAL'],
       sort_by: 'created_at',
       sort_order: 'desc',
     });
@@ -503,7 +545,13 @@ describe('AuditLogsPage', () => {
     expect(resolveAuditPresetKey('failed-auth')).toBe('auth-failed');
     expect(resolveAuditPresetKey('rbac-changes')).toBe('rbac-changes');
 
-    const { replaceSpy, router, wrapper } = await mountPage({ preset: 'last_24h', scope: 'auth_failures' });
+    const { replaceSpy, router, wrapper } = await mountPage({
+      preset: 'last_24h',
+      success: 'false',
+      resource_types: 'auth,session',
+      action_keywords: 'auth,login',
+      request_path_prefixes: '/api/auth',
+    });
     replaceSpy.mockClear();
     auditApiMocks.getAuditLogs.mockClear();
 
@@ -518,24 +566,33 @@ describe('AuditLogsPage', () => {
         path: '/audit/logs',
         query: expect.objectContaining({
           preset: 'last_24h',
-          scope: 'auth_failures',
+          success: 'false',
+          resource_types: 'auth,session',
+          action_keywords: 'auth,login',
+          request_path_prefixes: '/api/auth',
         }),
       }),
     );
     expect(router.currentRoute.value.query).toMatchObject({
       preset: 'last_24h',
-      scope: 'auth_failures',
+      success: 'false',
+      resource_types: 'auth,session',
+      action_keywords: 'auth,login',
+      request_path_prefixes: '/api/auth',
     });
     expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
       expect.objectContaining({
         preset: 'last_24h',
-        scope: 'auth_failures',
+        success: false,
+        resource_types: ['auth', 'session'],
+        action_keywords: ['auth', 'login'],
+        request_path_prefixes: ['/api/auth'],
       }),
     );
   });
 
-  it('preserves canonical all_logs scope when rewriting the route query', async () => {
-    const { replaceSpy, wrapper } = await mountPage({ preset: 'last_24h', scope: 'all_logs' });
+  it('keeps explicit filters empty when rewriting a plain preset-only route query', async () => {
+    const { replaceSpy, wrapper } = await mountPage({ preset: 'last_24h' });
 
     replaceSpy.mockClear();
     await wrapper.get('[data-testid="audit-search"]').trigger('click');
@@ -545,14 +602,13 @@ describe('AuditLogsPage', () => {
       expect.objectContaining({
         query: expect.objectContaining({
           preset: 'last_24h',
-          scope: 'all_logs',
         }),
       }),
     );
   });
 
-  it('preserves failed_operations scope from overview drilldown', async () => {
-    const { replaceSpy, wrapper } = await mountPage({ preset: 'last_24h', scope: 'failed_operations' });
+  it('preserves failed-operations explicit filters from overview drilldown', async () => {
+    const { replaceSpy, wrapper } = await mountPage({ preset: 'last_24h', success: 'false' });
 
     replaceSpy.mockClear();
     await wrapper.get('[data-testid="audit-search"]').trigger('click');
@@ -562,26 +618,26 @@ describe('AuditLogsPage', () => {
       expect.objectContaining({
         query: expect.objectContaining({
           preset: 'last_24h',
-          scope: 'failed_operations',
+          success: 'false',
         }),
       }),
     );
     expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
       expect.objectContaining({
         preset: 'last_24h',
-        scope: 'failed_operations',
+        success: false,
       }),
     );
   });
 
   it('applies the canonical rbac preset to the backend query contract', async () => {
-    const { wrapper } = await mountPage({ preset: 'last_24h', scope: 'rbac_changes' });
+    const { wrapper } = await mountPage({ preset: 'last_24h', action_prefixes: 'rbac.,role.,permission.' });
 
     expect(wrapper.get('[data-testid="audit-filter-model"]').text()).not.toContain('"actionPrefix":"rbac."');
     expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
       expect.objectContaining({
         preset: 'last_24h',
-        scope: 'rbac_changes',
+        action_prefixes: ['rbac.', 'role.', 'permission.'],
       }),
     );
   });

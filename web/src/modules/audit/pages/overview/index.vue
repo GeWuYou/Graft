@@ -119,7 +119,7 @@
                 :key="entry.key"
                 class="audit-overview__shortcut"
                 type="button"
-                @click="openShortcut(entry.scope)"
+                @click="openShortcut(entry.query)"
               >
                 <strong>{{ entry.title }}</strong>
                 <span>{{ entry.description }}</span>
@@ -238,7 +238,6 @@ import { useRouter } from 'vue-router';
 
 import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
 import { buildAuditLogsLocation } from '@/modules/audit/contract/deep-link';
-import { AUDIT_SCOPE } from '@/modules/audit/contract/scopes';
 import { AUDIT_TIME_PRESET, type AuditTimePreset } from '@/modules/audit/contract/time-presets';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
@@ -366,59 +365,83 @@ const shortcuts = computed(() => [
     key: 'failed',
     title: t('audit.overview.shortcuts.failedAuth.title'),
     description: t('audit.overview.shortcuts.failedAuth.description'),
-    scope: AUDIT_SCOPE.AUTH_FAILURES,
+    query: buildOverviewAuditQuery({
+      success: 'false',
+      resource_types: 'auth,session',
+      action_keywords: 'auth,login',
+      request_path_prefixes: '/api/auth',
+    }),
   },
   {
     key: 'rbac',
     title: t('audit.overview.shortcuts.rbacChanges.title'),
     description: t('audit.overview.shortcuts.rbacChanges.description'),
-    scope: AUDIT_SCOPE.RBAC_CHANGES,
+    query: buildOverviewAuditQuery({
+      action_prefixes: 'rbac.,role.,permission.',
+    }),
   },
   {
     key: 'sensitive',
     title: t('audit.overview.shortcuts.sensitiveOps.title'),
     description: t('audit.overview.shortcuts.sensitiveOps.description'),
-    scope: AUDIT_SCOPE.SENSITIVE_OPERATIONS,
+    query: buildOverviewAuditQuery({
+      action_keywords: 'delete,reset,grant,assign,revoke,remove,replace,update_role,update_permission',
+    }),
   },
 ]);
 
 const riskGroupActionLabel = computed(() => t('audit.overview.riskGroups.action'));
 const relatedRequestActionLabel = computed(() => t('audit.logList.drawer.actions.viewRelatedRequest'));
 
-function openShortcut(scope: string) {
-  void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope }));
+function buildOverviewAuditQuery(query: Record<string, string>) {
+  return {
+    preset: activeWindow.value,
+    ...query,
+  };
+}
+
+function openShortcut(query: Record<string, string>) {
+  void router.push(buildAuditLogsLocation(query));
 }
 
 function openSummary(key: string) {
   switch (key) {
     case 'failed':
-      void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope: AUDIT_SCOPE.FAILED_OPERATIONS }));
+      void router.push(buildAuditLogsLocation(buildOverviewAuditQuery({ success: 'false' })));
       return;
     case 'risk':
-      void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope: AUDIT_SCOPE.HIGH_RISK_EVENTS }));
+      void router.push(buildAuditLogsLocation(buildOverviewAuditQuery({ risk_levels: 'HIGH,CRITICAL' })));
       return;
     case 'sensitive':
-      void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope: AUDIT_SCOPE.SENSITIVE_OPERATIONS }));
+      void router.push(
+        buildAuditLogsLocation(
+          buildOverviewAuditQuery({
+            action_keywords: 'delete,reset,grant,assign,revoke,remove,replace,update_role,update_permission',
+          }),
+        ),
+      );
       return;
     default:
-      void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope: AUDIT_SCOPE.ALL_LOGS }));
+      void router.push(buildAuditLogsLocation(buildOverviewAuditQuery({})));
   }
 }
 
 function openRiskGroup(groupKey: string) {
-  const scopeByGroupKey: Record<string, string> = {
-    critical_security: AUDIT_SCOPE.CRITICAL_SECURITY,
-    high_risk_operations: AUDIT_SCOPE.HIGH_RISK_OPERATIONS,
-    auth_failures: AUDIT_SCOPE.AUTH_FAILURES,
-    permission_denials: AUDIT_SCOPE.PERMISSION_DENIALS,
+  const queryByGroupKey: Record<string, Record<string, string>> = {
+    critical_security: { results: 'DENIED,ERROR' },
+    high_risk_operations: {
+      action_keywords: 'delete,reset,grant,assign,revoke,remove,replace,update_role,update_permission',
+    },
+    auth_failures: {
+      success: 'false',
+      resource_types: 'auth,session',
+      action_keywords: 'auth,login',
+      request_path_prefixes: '/api/auth',
+    },
+    permission_denials: { results: 'DENIED' },
   };
 
-  void router.push(
-    buildAuditLogsLocation({
-      preset: activeWindow.value,
-      scope: scopeByGroupKey[groupKey] || AUDIT_SCOPE.ALL_LOGS,
-    }),
-  );
+  void router.push(buildAuditLogsLocation(buildOverviewAuditQuery(queryByGroupKey[groupKey] || {})));
 }
 
 function openSecurityTimelineRequest(requestId?: string) {

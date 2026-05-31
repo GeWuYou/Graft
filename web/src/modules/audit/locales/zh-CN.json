@@ -183,8 +183,8 @@
           "description": "查看失败登录、令牌失效等认证失败审计事件"
         },
         "rbacChanges": {
-          "title": "查看 RBAC 变更",
-          "description": "查看角色、权限与授权变更相关的审计事件"
+          "title": "查看权限配置变更",
+          "description": "查看角色、权限、资源、菜单等配置调整记录"
         },
         "sensitiveOps": {
           "title": "查看敏感操作",
@@ -203,7 +203,7 @@
           "tag": "认证失败"
         },
         "rbacWindow": {
-          "title": "RBAC 变更窗口仍有敏感操作",
+          "title": "权限配置调整期间仍有敏感操作",
           "description": "角色授权后仍有会话与权限类写操作进入日志。",
           "tag": "持续复核"
         }
@@ -297,7 +297,7 @@
         "all": "全部",
         "failedOperations": "失败操作",
         "todayAnomalies": "今日安全异常",
-        "rbacChanges": "RBAC 变更",
+        "rbacChanges": "权限配置变更",
         "permissionDenied": "权限拒绝",
         "sensitiveOps": "敏感操作",
         "authFailed": "认证失败",
@@ -315,13 +315,20 @@
         "title": "筛选字段",
         "hint": "选择一个字段后立即设置条件，已设置字段会显示为可移除标签。",
         "fields": {
+          "success": "成功状态",
           "action": "操作类型",
+          "actionPrefixes": "操作分类",
+          "actionKeywords": "操作关键词",
           "result": "结果",
+          "results": "结果集合",
           "riskLevel": "风险等级",
+          "riskLevels": "风险等级集合",
           "source": "事件类型",
           "actor": "操作人",
           "resourceName": "审计目标",
           "resourceType": "目标类型",
+          "resourceTypes": "目标类型集合",
+          "requestPathPrefixes": "请求路径前缀",
           "requestId": "请求 ID",
           "session": "Session ID",
           "resourceId": "资源 ID"
@@ -331,15 +338,22 @@
         "keywordPlaceholder": "搜索操作、用户、目标对象、请求ID...",
         "actorPlaceholder": "操作者",
         "actionPlaceholder": "操作类型",
+        "actionPrefixesPlaceholder": "选择操作分类",
+        "actionKeywordsPlaceholder": "输入操作关键词后回车",
+        "successPlaceholder": "成功状态",
         "sourcePlaceholder": "事件类型",
         "datePlaceholder": "时间范围",
         "resourceTypePlaceholder": "审计目标类型",
+        "resourceTypesPlaceholder": "选择目标类型集合",
         "resourceNamePlaceholder": "审计目标 / 目标名称",
         "resourceIdPlaceholder": "资源 ID",
         "resultPlaceholder": "结果",
+        "resultsPlaceholder": "选择结果集合",
         "riskPlaceholder": "风险等级",
+        "riskLevelsPlaceholder": "选择风险等级集合",
         "sessionPlaceholder": "Session ID",
-        "requestIdPlaceholder": "请求 ID"
+        "requestIdPlaceholder": "请求 ID",
+        "requestPathPrefixesPlaceholder": "输入请求路径前缀后回车"
       },
       "sort": {
         "title": "排序",
@@ -355,8 +369,12 @@
         "allSource": "全部事件类型",
         "allResourceTypes": "全部目标类型",
         "auth": "认证",
+        "authPrefix": "认证动作",
+        "rbacPrefix": "权限配置动作",
         "role": "角色",
+        "rolePrefix": "角色动作",
         "permission": "权限",
+        "permissionPrefix": "权限动作",
         "session": "会话",
         "userResource": "用户",
         "roleResource": "角色",

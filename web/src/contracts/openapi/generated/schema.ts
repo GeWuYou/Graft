@@ -3953,25 +3953,21 @@ export interface operations {
         page_size?: number;
         actor_user_id?: number;
         action?: string;
-        scope?:
-          | 'all_logs'
-          | 'failed_operations'
-          | 'high_risk_events'
-          | 'sensitive_operations'
-          | 'critical_security'
-          | 'high_risk_operations'
-          | 'auth_failures'
-          | 'permission_denials'
-          | 'rbac_changes';
         preset?: 'last_24h' | 'last_7d' | 'last_30d';
         action_prefix?: string;
+        action_prefixes?: string[];
+        action_keywords?: string[];
         source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
         resource_type?: string;
+        resource_types?: string[];
         resource_id?: string;
         resource_name?: string;
+        request_path_prefixes?: string[];
         request_id?: string;
         result?: 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
+        results?: ('SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR')[];
         risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+        risk_levels?: ('LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL')[];
         success?: boolean;
         created_from?: string;
         created_to?: string;

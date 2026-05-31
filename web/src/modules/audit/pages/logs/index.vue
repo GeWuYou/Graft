@@ -107,11 +107,10 @@ import {
   withMonitorOrigin,
 } from '../../contract/navigation';
 import {
+  applyAuditPresetFilters,
   type AuditQuickPresetKey,
-  getAuditPresetScope,
   listAuditPresets,
   resolveAuditPresetKey,
-  resolveAuditPresetKeyFromScope,
 } from '../../contract/presets';
 import { type AuditTimePreset, resolveAuditTimePreset } from '../../contract/time-presets';
 import type { AuditClientFilterState } from '../../shared/presentation';
@@ -133,7 +132,6 @@ const rows = ref<AuditLogListItem[]>([]);
 const total = ref(0);
 const activePreset = ref<AuditQuickPresetKey>(resolveAuditPresetKey(''));
 const activeTimePreset = ref<AuditTimePreset | ''>('');
-const activeScope = ref('');
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
 const latestRequestSeq = ref(0);
@@ -192,24 +190,26 @@ function buildQuery(): AuditLogQuery {
     page_size: pagination.value.pageSize,
   };
 
-  const scope = getAuditPresetScope(activePreset.value);
-  if (activeScope.value) {
-    query.scope = activeScope.value;
-  } else if (scope) {
-    query.scope = scope;
-  }
-
   if (filters.value.action) {
     query.action = filters.value.action;
   }
   if (filters.value.actionPrefix) {
     query.action_prefix = filters.value.actionPrefix;
   }
+  if (filters.value.actionPrefixes.length) {
+    query.action_prefixes = [...filters.value.actionPrefixes];
+  }
+  if (filters.value.actionKeywords.length) {
+    query.action_keywords = [...filters.value.actionKeywords];
+  }
   if (filters.value.source) {
     query.source = filters.value.source as AuditLogQuery['source'];
   }
   if (filters.value.resourceType) {
     query.resource_type = filters.value.resourceType;
+  }
+  if (filters.value.resourceTypes.length) {
+    query.resource_types = [...filters.value.resourceTypes];
   }
   if (filters.value.resourceName) {
     query.resource_name = filters.value.resourceName;
@@ -223,8 +223,20 @@ function buildQuery(): AuditLogQuery {
   if (filters.value.result !== 'all') {
     query.result = filters.value.result;
   }
+  if (filters.value.results.length) {
+    query.results = [...filters.value.results];
+  }
   if (filters.value.riskLevel !== 'all') {
     query.risk_level = filters.value.riskLevel;
+  }
+  if (filters.value.riskLevels.length) {
+    query.risk_levels = [...filters.value.riskLevels];
+  }
+  if (filters.value.success !== 'all') {
+    query.success = filters.value.success === 'true';
+  }
+  if (filters.value.requestPathPrefixes.length) {
+    query.request_path_prefixes = [...filters.value.requestPathPrefixes];
   }
   if (filters.value.createdRange[0]) {
     query.created_from = localDateTimeToUtcIso(filters.value.createdRange[0]);
@@ -280,8 +292,7 @@ async function fetchAuditLogs() {
 
 function applyPreset(preset: typeof activePreset.value) {
   activePreset.value = preset;
-  activeScope.value = getAuditPresetScope(preset);
-  filters.value = { ...createDefaultFilters(), sorters: filters.value.sorters };
+  filters.value = applyAuditPresetFilters(preset, filters.value, createDefaultFilters);
 
   pagination.value.current = 1;
   updateRouteQuery();
@@ -295,7 +306,6 @@ function handleSearch() {
 function resetFilters() {
   filters.value = createDefaultFilters();
   activePreset.value = 'all';
-  activeScope.value = '';
   pagination.value.current = 1;
   updateRouteQuery();
 }
@@ -305,15 +315,22 @@ function createDefaultFilters(): AuditClientFilterState {
     keyword: '',
     actor: '',
     actorUserId: '',
+    success: 'all',
     action: '',
     actionPrefix: '',
+    actionPrefixes: [],
+    actionKeywords: [],
+    requestPathPrefixes: [],
     source: '',
     createdRange: [],
     resourceType: '',
+    resourceTypes: [],
     resourceName: '',
     resourceId: '',
     result: 'all',
+    results: [],
     riskLevel: 'all',
+    riskLevels: [],
     session: '',
     requestId: '',
     sorters: createSingleSorter('created_at', 'desc'),
@@ -327,23 +344,28 @@ function openDetailDrawer(row: AuditLogListItem) {
 
 function applyRouteFilters() {
   const query = parseAuditLogsRouteQuery(route.query);
-  const nextPreset = resolveAuditPresetKeyFromScope(query.scope ?? '');
   activeTimePreset.value = query.preset ? resolveAuditTimePreset(query.preset) : '';
-  activeScope.value = query.scope ?? '';
   const nextFilters: AuditClientFilterState = {
     ...createDefaultFilters(),
     keyword: query.keyword ?? '',
     actor: query.username || query.actor || '',
     actorUserId: query.user_id ?? '',
+    success: query.success === 'true' ? 'true' : query.success === 'false' ? 'false' : 'all',
     action: query.action || '',
     actionPrefix: query.action_prefix || '',
+    actionPrefixes: splitRouteList(query.action_prefixes),
+    actionKeywords: splitRouteList(query.action_keywords),
+    requestPathPrefixes: splitRouteList(query.request_path_prefixes),
     source: query.source || '',
     createdRange: normalizeRouteRangeForPageState([query.created_from ?? '', query.created_to ?? '']),
     resourceType: query.resource_type || '',
+    resourceTypes: splitRouteList(query.resource_types),
     resourceName: query.resource_name ?? '',
     resourceId: query.resource_id ?? '',
     result: (query.result as AuditClientFilterState['result']) || 'all',
+    results: splitRouteList(query.results) as AuditClientFilterState['results'],
     riskLevel: (query.risk_level as AuditClientFilterState['riskLevel']) || 'all',
+    riskLevels: splitRouteList(query.risk_levels) as AuditClientFilterState['riskLevels'],
     session: query.session ?? '',
     requestId: query.request_id ?? '',
     sorters: query.sort_by
@@ -352,7 +374,7 @@ function applyRouteFilters() {
   };
 
   filters.value = nextFilters;
-  activePreset.value = nextPreset;
+  activePreset.value = inferPresetFromFilters(nextFilters);
 }
 
 function buildRouteQuery() {
@@ -361,20 +383,26 @@ function buildRouteQuery() {
 
   return {
     preset: createdFrom || createdTo ? '' : activeTimePreset.value,
-    scope: activeScope.value,
     keyword: filters.value.keyword,
     username: filters.value.actor,
     user_id: filters.value.actorUserId,
+    success: filters.value.success === 'all' ? '' : filters.value.success,
     action: filters.value.action,
     action_prefix: filters.value.actionPrefix,
+    action_prefixes: joinRouteList(filters.value.actionPrefixes),
+    action_keywords: joinRouteList(filters.value.actionKeywords),
+    request_path_prefixes: joinRouteList(filters.value.requestPathPrefixes),
     source: filters.value.source,
     created_from: createdFrom,
     created_to: createdTo,
     resource_type: filters.value.resourceType,
+    resource_types: joinRouteList(filters.value.resourceTypes),
     resource_name: filters.value.resourceName,
     resource_id: filters.value.resourceId,
     result: filters.value.result === 'all' ? '' : filters.value.result,
+    results: joinRouteList(filters.value.results),
     risk_level: filters.value.riskLevel === 'all' ? '' : filters.value.riskLevel,
+    risk_levels: joinRouteList(filters.value.riskLevels),
     session: filters.value.session,
     request_id: filters.value.requestId,
     sort_by: sorter?.field ?? '',
@@ -426,6 +454,50 @@ function returnToMonitor() {
 
 function normalizeSortOrder(value: string) {
   return value === 'asc' ? 'asc' : 'desc';
+}
+
+function splitRouteList(value: string | undefined) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinRouteList(values: string[]) {
+  return values.length ? values.join(',') : '';
+}
+
+function inferPresetFromFilters(value: AuditClientFilterState): AuditQuickPresetKey {
+  if (
+    value.success === 'false' &&
+    value.resourceTypes.join(',') === 'auth,session' &&
+    value.actionKeywords.join(',') === 'auth,login' &&
+    value.requestPathPrefixes.join(',') === '/api/auth'
+  ) {
+    return 'auth-failed';
+  }
+  if (value.success === 'false' && !value.actionKeywords.length && !value.resourceTypes.length) {
+    return 'failed-operations';
+  }
+  if (value.actionPrefixes.join(',') === 'rbac.,role.,permission.') {
+    return 'rbac-changes';
+  }
+  if (value.results.join(',') === 'DENIED') {
+    return 'permission-denied';
+  }
+  if (
+    value.actionKeywords.join(',') === 'delete,reset,grant,assign,revoke,remove,replace,update_role,update_permission'
+  ) {
+    return 'sensitive-ops';
+  }
+  if (value.riskLevels.join(',') === 'HIGH,CRITICAL') {
+    return 'high-risk';
+  }
+  return 'all';
 }
 </script>
 <style scoped lang="less">

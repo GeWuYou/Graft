@@ -222,8 +222,8 @@ const i18n = createI18n({
               description: 'Review failed sign-ins, token failures, and other authentication audit events',
             },
             rbacChanges: {
-              title: 'Open RBAC Changes',
-              description: 'Review role, permission, and assignment audit events',
+              title: 'Open Permission Configuration Changes',
+              description: 'Review role, permission, resource, and menu configuration changes',
             },
             sensitiveOps: {
               title: 'Open Sensitive Operations',
@@ -288,13 +288,12 @@ describe('AuditOverviewPage', () => {
         path: AUDIT_ROUTE_PATH.LOGS,
         query: expect.objectContaining({
           preset: 'last_24h',
-          scope: 'all_logs',
         }),
       }),
     );
   });
 
-  it('opens the failed summary card with failed_operations scope', async () => {
+  it('opens the failed summary card with explicit failed-operation filters', async () => {
     routerMocks.push.mockClear();
 
     const wrapper = mount(AuditOverviewPage, {
@@ -324,7 +323,7 @@ describe('AuditOverviewPage', () => {
       path: AUDIT_ROUTE_PATH.LOGS,
       query: {
         preset: 'last_24h',
-        scope: 'failed_operations',
+        success: 'false',
       },
     });
   });

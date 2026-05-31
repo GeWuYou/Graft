@@ -13,15 +13,22 @@ export type AuditClientFilterState = {
   keyword: string;
   actor: string;
   actorUserId: string;
+  success: 'all' | 'true' | 'false';
   action: string;
   actionPrefix: string;
+  actionPrefixes: string[];
+  actionKeywords: string[];
+  requestPathPrefixes: string[];
   source: string;
   createdRange: string[];
   resourceType: string;
+  resourceTypes: string[];
   resourceName: string;
   resourceId: string;
   result: AuditResultValue;
+  results: AuditResultEnum[];
   riskLevel: 'all' | AuditRiskValue;
+  riskLevels: AuditRiskLevelEnum[];
   session: string;
   requestId: string;
   sorters: AuditSorter[];
@@ -207,12 +214,19 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
   const keyword = filters.keyword.trim().toLowerCase();
   const actor = filters.actor.trim().toLowerCase();
   const actorUserId = filters.actorUserId.trim();
+  const success = filters.success;
   const action = filters.action.trim().toLowerCase();
   const actionPrefix = filters.actionPrefix.trim().toLowerCase();
+  const actionPrefixes = filters.actionPrefixes.map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const actionKeywords = filters.actionKeywords.map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const requestPathPrefixes = filters.requestPathPrefixes.map((item) => item.trim().toLowerCase()).filter(Boolean);
   const source = filters.source.trim().toUpperCase();
   const resourceType = filters.resourceType.trim().toLowerCase();
+  const resourceTypes = filters.resourceTypes.map((item) => item.trim().toLowerCase()).filter(Boolean);
   const resourceName = filters.resourceName.trim().toLowerCase();
   const resourceId = filters.resourceId.trim().toLowerCase();
+  const results = filters.results;
+  const riskLevels = filters.riskLevels;
   const session = filters.session.trim().toLowerCase();
   const requestId = filters.requestId.trim().toLowerCase();
   if (keyword) {
@@ -243,11 +257,23 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
     return false;
   }
 
+  if (success !== 'all' && row.success !== (success === 'true')) {
+    return false;
+  }
+
   if (action && !includesText(row.action, action)) {
     return false;
   }
 
   if (actionPrefix && !row.action.toLowerCase().startsWith(actionPrefix)) {
+    return false;
+  }
+
+  if (actionPrefixes.length && !actionPrefixes.some((prefix) => row.action.toLowerCase().startsWith(prefix))) {
+    return false;
+  }
+
+  if (actionKeywords.length && !actionKeywords.some((keywordItem) => row.action.toLowerCase().includes(keywordItem))) {
     return false;
   }
 
@@ -259,6 +285,15 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
     return false;
   }
 
+  if (
+    resourceTypes.length &&
+    !resourceTypes.some((resourceTypeItem) =>
+      includesText(`${row.resource_type || ''} ${row.target_type || ''}`, resourceTypeItem),
+    )
+  ) {
+    return false;
+  }
+
   if (resourceName && !includesText(`${resourceDetailLabel(row, t)} ${row.message}`, resourceName)) {
     return false;
   }
@@ -267,7 +302,15 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
     return false;
   }
 
+  if (results.length && !results.includes(row.result || 'FAILED')) {
+    return false;
+  }
+
   if (filters.result !== 'all' && row.result !== filters.result) {
+    return false;
+  }
+
+  if (riskLevels.length && !riskLevels.includes(row.risk_level || 'LOW')) {
     return false;
   }
 
@@ -281,6 +324,13 @@ export function matchesAuditRow(row: AuditLogListItem, filters: AuditClientFilte
 
   if (requestId && !includesText(requestIdForRecord(row), requestId)) {
     return false;
+  }
+
+  if (requestPathPrefixes.length) {
+    const requestPath = (row.request_path || metadataLookup(row, 'request_path')).toLowerCase();
+    if (!requestPathPrefixes.some((prefix) => requestPath.startsWith(prefix))) {
+      return false;
+    }
   }
 
   return true;

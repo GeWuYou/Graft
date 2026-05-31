@@ -53,10 +53,23 @@ const dateRangeStub = defineComponent({
 
 const selectStub = defineComponent({
   name: 'TSelectStub',
-  props: ['modelValue'],
+  props: ['modelValue', 'multiple', 'options', 'placeholder'],
   emits: ['update:modelValue'],
-  setup() {
-    return () => h('div', 'select');
+  setup(props) {
+    return () =>
+      h(
+        'div',
+        JSON.stringify({ modelValue: props.modelValue, multiple: props.multiple, placeholder: props.placeholder }),
+      );
+  },
+});
+
+const tagInputStub = defineComponent({
+  name: 'TTagInputStub',
+  props: ['modelValue', 'inputProps'],
+  emits: ['update:modelValue'],
+  setup(props) {
+    return () => h('div', JSON.stringify({ modelValue: props.modelValue, inputProps: props.inputProps }));
   },
 });
 
@@ -89,13 +102,20 @@ const i18n = createI18n({
             title: '筛选字段',
             hint: 'hint',
             fields: {
+              success: '成功状态',
               action: '操作类型',
+              actionPrefixes: '操作分类',
+              actionKeywords: '操作关键词',
               result: '结果',
+              results: '结果集合',
               riskLevel: '风险等级',
+              riskLevels: '风险等级集合',
               source: '事件类型',
               actor: '操作人',
               resourceName: '审计目标',
               resourceType: '目标类型',
+              resourceTypes: '目标类型集合',
+              requestPathPrefixes: '请求路径前缀',
               requestId: '请求 ID',
               session: 'Session ID',
               resourceId: '资源 ID',
@@ -104,15 +124,22 @@ const i18n = createI18n({
           filters: {
             keywordPlaceholder: '搜索操作、用户、目标对象、请求ID...',
             actionPlaceholder: '操作类型',
+            actionPrefixesPlaceholder: '选择操作分类',
+            actionKeywordsPlaceholder: '输入操作关键词后回车',
+            successPlaceholder: '成功状态',
             resultPlaceholder: '结果',
+            resultsPlaceholder: '选择结果集合',
             riskPlaceholder: '风险等级',
+            riskLevelsPlaceholder: '选择风险等级集合',
             sourcePlaceholder: '事件类型',
             actorPlaceholder: '操作者',
             resourceNamePlaceholder: '审计目标',
             resourceTypePlaceholder: '目标类型',
+            resourceTypesPlaceholder: '选择目标类型集合',
             requestIdPlaceholder: '请求 ID',
             sessionPlaceholder: 'Session ID',
             resourceIdPlaceholder: '资源 ID',
+            requestPathPrefixesPlaceholder: '输入请求路径前缀后回车',
             datePlaceholder: '时间范围',
           },
           sort: {
@@ -126,8 +153,12 @@ const i18n = createI18n({
           },
           filterOptions: {
             auth: '认证',
+            authPrefix: '认证动作',
+            rbacPrefix: '权限配置动作',
             role: '角色',
+            rolePrefix: '角色动作',
             permission: '权限',
+            permissionPrefix: '权限动作',
             session: '会话',
             userResource: '用户',
             roleResource: '角色',
@@ -157,15 +188,22 @@ describe('AuditFilters', () => {
           keyword: '',
           actor: 'admin',
           actorUserId: '',
+          success: 'all',
           action: '',
           actionPrefix: '',
+          actionPrefixes: ['rbac.', 'role.'],
+          actionKeywords: [],
+          requestPathPrefixes: [],
           source: '',
           createdRange: [],
           resourceType: '',
+          resourceTypes: [],
           resourceName: '',
           resourceId: '',
           result: 'FAILED',
+          results: ['DENIED'],
           riskLevel: 'all',
+          riskLevels: ['HIGH', 'CRITICAL'],
           session: '',
           requestId: '',
           sorters: [{ field: 'created_at', direction: 'desc' }],
@@ -185,30 +223,53 @@ describe('AuditFilters', () => {
           't-popup': passthroughStub,
           't-date-range-picker': dateRangeStub,
           't-select': selectStub,
+          't-tag-input': tagInputStub,
         },
       },
     });
 
     expect(wrapper.find('input').attributes('placeholder')).toBe('搜索操作、用户、目标对象、请求ID...');
     expect(wrapper.text()).toContain('排序：创建时间 ↓');
-    expect(wrapper.text()).toContain('操作人：admin');
     expect(wrapper.text()).toContain('结果：业务失败');
+    expect(wrapper.text()).toContain('操作分类：权限配置动作、角色动作');
+    expect(wrapper.text()).toContain('结果集合：权限拒绝');
+    expect(wrapper.text()).toContain('风险等级集合：高风险、严重');
 
     const tags = wrapper.findAllComponents(tagStub);
     tags[0]?.vm.$emit('close');
     tags[1]?.vm.$emit('close');
     tags[2]?.vm.$emit('close');
+    tags[3]?.vm.$emit('close');
 
-    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
+    const updates = (wrapper.emitted('update:modelValue')?.map((entry) => entry[0]) ?? []) as Array<
+      Record<string, unknown>
+    >;
+
+    expect(updates[0]).toMatchObject({
       sorters: [],
     });
-    expect(wrapper.emitted('update:modelValue')?.[1]?.[0]).toMatchObject({
-      actor: 'admin',
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        result: 'all',
+      }),
+    );
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        actionPrefixes: [],
+      }),
+    );
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        results: [],
+      }),
+    );
+    expect(updates).not.toContainEqual(
+      expect.objectContaining({
+        actor: '',
+      }),
+    );
+    expect(updates.find((item) => item.result === 'all')).toMatchObject({
       result: 'all',
-    });
-    expect(wrapper.emitted('update:modelValue')?.[2]?.[0]).toMatchObject({
-      actor: '',
-      result: 'FAILED',
     });
   });
 });
