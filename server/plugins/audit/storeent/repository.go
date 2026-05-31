@@ -1254,7 +1254,7 @@ func sourceWhereClause() string {
 
 const overviewSummarySQL = `
 SELECT
-	COUNT(*) AS total_logs,
+	(SELECT COUNT(*) FROM audit_logs) AS total_logs,
 	COUNT(*) FILTER (WHERE success = false) AS failed_operations,
 	COUNT(*) FILTER (
 		WHERE success = false

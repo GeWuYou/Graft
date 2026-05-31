@@ -213,10 +213,10 @@ const i18n = createI18n({
             securityValue: 'Security events {value}',
           },
           stats: {
-            totalLogs: { title: 'Audit Logs', unit: 'events', meta: 'window' },
-            failedToday: { title: 'Security Failures Today', unit: 'events', meta: 'watch' },
-            highRisk: { title: 'High-Risk Events', unit: 'items', meta: 'failed' },
-            sensitiveOps: { title: 'Sensitive Audit Operations', unit: 'actions', meta: 'write' },
+            totalLogs: { title: 'Audit Logs', unit: 'events', meta: 'all records' },
+            failedWindow: { title: 'Security Failures in Window', unit: 'events', meta: 'current window' },
+            highRisk: { title: 'High-Risk Events', unit: 'items', meta: 'current window' },
+            sensitiveOps: { title: 'Sensitive Audit Operations', unit: 'actions', meta: 'current window' },
           },
           shortcuts: {
             failedAuth: {
@@ -285,12 +285,16 @@ describe('AuditOverviewPage', () => {
     expect(wrapper.text()).toContain('Trend analysis will appear after more audit events are collected.');
 
     await wrapper.get('button[type="button"]').trigger('click');
-    expect(routerMocks.push).toHaveBeenCalledWith({
-      path: AUDIT_ROUTE_PATH.LOGS,
-      query: {
-        preset: 'auth-failed',
-      },
-    });
+    expect(routerMocks.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: AUDIT_ROUTE_PATH.LOGS,
+        query: expect.objectContaining({
+          preset: 'auth-failed',
+          occurred_from: expect.any(String),
+          occurred_to: expect.any(String),
+        }),
+      }),
+    );
   });
 
   it('renders the trend chart only when enough meaningful points are present', async () => {

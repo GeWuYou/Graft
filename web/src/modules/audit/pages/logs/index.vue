@@ -165,7 +165,7 @@ const hasClientOnlyFilters = computed(() =>
 );
 
 const displayRows = computed(() => rows.value.filter((row) => matchesAuditRow(row, filters.value, t)));
-const tableTotal = computed(() => (hasClientOnlyFilters.value ? displayRows.value.length : total.value));
+const tableTotal = computed(() => total.value);
 const tableSummary = computed(() => t('audit.logList.summary', { count: displayRows.value.length }));
 const footerSummary = computed(() =>
   hasClientOnlyFilters.value

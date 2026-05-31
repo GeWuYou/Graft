@@ -86,17 +86,17 @@
         "totalLogs": {
           "title": "Audit Logs",
           "unit": "events",
-          "meta": "window",
+          "meta": "all records",
           "values": {
             "24h": "4,812",
             "7d": "26,430",
             "30d": "101,208"
           }
         },
-        "failedToday": {
-          "title": "Security Failures Today",
+        "failedWindow": {
+          "title": "Security Failures in Window",
           "unit": "events",
-          "meta": "watch",
+          "meta": "current window",
           "values": {
             "24h": "37",
             "7d": "126",
@@ -106,7 +106,7 @@
         "highRisk": {
           "title": "High-Risk Events",
           "unit": "items",
-          "meta": "failed or abnormal",
+          "meta": "current window",
           "values": {
             "24h": "12",
             "7d": "41",
@@ -116,7 +116,7 @@
         "sensitiveOps": {
           "title": "Sensitive Audit Operations",
           "unit": "actions",
-          "meta": "write path",
+          "meta": "current window",
           "values": {
             "24h": "28",
             "7d": "94",
@@ -409,7 +409,8 @@
           "copyRequestId": "Copy",
           "copyRequestIdSuccess": "Request ID copied",
           "copyRequestIdFail": "Failed to copy Request ID",
-          "toggleMetadata": "Show raw metadata",
+          "expandMetadata": "Expand raw metadata",
+          "collapseMetadata": "Collapse raw metadata",
           "copyMetadata": "Copy JSON",
           "copyMetadataSuccess": "Metadata JSON copied",
           "copyMetadataFail": "Failed to copy metadata JSON",

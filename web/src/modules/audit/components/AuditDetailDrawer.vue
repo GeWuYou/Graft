@@ -173,7 +173,8 @@
 
       <log-json-panel
         :title="t('audit.logList.drawer.sections.metadata')"
-        :toggle-label="t('audit.logList.drawer.actions.toggleMetadata')"
+        :expand-label="t('audit.logList.drawer.actions.expandMetadata')"
+        :collapse-label="t('audit.logList.drawer.actions.collapseMetadata')"
         :copy-label="t('audit.logList.drawer.actions.copyMetadata')"
         :copy-success-label="t('audit.logList.drawer.actions.copyMetadataSuccess')"
         :copy-fail-label="t('audit.logList.drawer.actions.copyMetadataFail')"
@@ -473,7 +474,7 @@ const sameResourceRows = computed(() => {
 }
 
 .audit-detail__tags {
-  grid-template-columns: repeat(auto-fit, minmax(120px, max-content));
+  grid-template-columns: repeat(auto-fit, minmax(0, max-content));
 }
 
 @media (width <= 768px) {

@@ -86,7 +86,8 @@
 
       <log-json-panel
         :title="t('accessLog.detail.context')"
-        :toggle-label="t('accessLog.detail.toggleContext')"
+        :expand-label="t('accessLog.detail.expandContext')"
+        :collapse-label="t('accessLog.detail.collapseContext')"
         :copy-label="t('accessLog.detail.copyContext')"
         :copy-success-label="t('accessLog.detail.copyContextSuccess')"
         :copy-fail-label="t('accessLog.detail.copyContextFail')"

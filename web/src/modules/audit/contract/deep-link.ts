@@ -93,7 +93,7 @@ export function buildAuditRequestLocation(requestId: string) {
 
 export function buildAuditIncidentLocation(eventId: number | string) {
   return {
-    path: AUDIT_ROUTE_PATH.INCIDENT_DETAIL.replace(':eventId', String(eventId)),
+    path: AUDIT_ROUTE_PATH.INCIDENT_DETAIL.replace(':event_id', String(eventId)),
   };
 }
 

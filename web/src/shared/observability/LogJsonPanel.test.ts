@@ -14,7 +14,7 @@ const collapseStub = defineComponent({
 const collapsePanelStub = defineComponent({
   name: 'TCollapsePanelStub',
   setup(_, { slots }) {
-    return () => h('section', [slots.header?.(), slots.default?.()]);
+    return () => h('section', [slots.header?.(), slots.headerRightContent?.(), slots.default?.()]);
   },
 });
 
@@ -42,7 +42,8 @@ describe('LogJsonPanel', () => {
     const wrapper = mount(LogJsonPanel, {
       props: {
         title: 'Metadata',
-        toggleLabel: 'Expand JSON',
+        expandLabel: 'Expand JSON',
+        collapseLabel: 'Collapse JSON',
         copyLabel: 'Copy JSON',
         copySuccessLabel: 'Copied',
         copyFailLabel: 'Failed',
@@ -67,7 +68,8 @@ describe('LogJsonPanel', () => {
     const wrapper = mount(LogJsonPanel, {
       props: {
         title: 'Metadata',
-        toggleLabel: 'Expand JSON',
+        expandLabel: 'Expand JSON',
+        collapseLabel: 'Collapse JSON',
         copyLabel: 'Copy JSON',
         copySuccessLabel: 'Copied',
         copyFailLabel: 'Failed',

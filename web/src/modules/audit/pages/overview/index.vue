@@ -292,10 +292,10 @@ const stats = computed(() => [
   },
   {
     key: 'failed',
-    title: t('audit.overview.stats.failedToday.title'),
+    title: t('audit.overview.stats.failedWindow.title'),
     value: String(overview.value?.summary.failed_operations ?? 0),
-    unit: t('audit.overview.stats.failedToday.unit'),
-    meta: t('audit.overview.stats.failedToday.meta'),
+    unit: t('audit.overview.stats.failedWindow.unit'),
+    meta: t('audit.overview.stats.failedWindow.meta'),
   },
   {
     key: 'risk',
@@ -405,31 +405,32 @@ const riskGroupActionLabel = computed(() => t('audit.overview.riskGroups.action'
 const relatedRequestActionLabel = computed(() => t('audit.logList.drawer.actions.viewRelatedRequest'));
 
 function canOpenSecurityTimelineIncident(item: AuditOverviewResponse['security_timeline'][number]) {
-  return Boolean(item.incident_seed?.event_id && item.request_id);
+  return Boolean(item.incident_seed?.event_id);
 }
 
 function openShortcut(preset: AuditPresetKey) {
-  void router.push(buildAuditLogsLocation({ preset }));
+  void router.push(buildAuditLogsLocation({ preset, ...buildOverviewWindowQuery() }));
 }
 
 function openSummary(key: string) {
+  const windowQuery = buildOverviewWindowQuery();
   switch (key) {
     case 'failed':
-      void router.push(buildAuditLogsLocation({ result: 'FAILED' }));
+      void router.push(buildAuditLogsLocation({ result: 'FAILED', ...windowQuery }));
       return;
     case 'risk':
-      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH' }));
+      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH', ...windowQuery }));
       return;
     case 'sensitive':
-      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH', source: 'DOMAIN_EVENT' }));
+      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH', source: 'DOMAIN_EVENT', ...windowQuery }));
       return;
     default:
-      void router.push(buildAuditLogsLocation({}));
+      void router.push(buildAuditLogsLocation(windowQuery));
   }
 }
 
 function openRiskGroup(riskLevel: string) {
-  void router.push(buildAuditLogsLocation({ risk_level: riskLevel }));
+  void router.push(buildAuditLogsLocation({ risk_level: riskLevel, ...buildOverviewWindowQuery() }));
 }
 
 function openSecurityTimelineItem(eventId?: number) {
@@ -580,6 +581,28 @@ function formatTime(value?: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+function buildOverviewWindowQuery() {
+  const now = new Date();
+  const startedAt = new Date(now);
+
+  switch (activeWindow.value) {
+    case '30d':
+      startedAt.setUTCDate(startedAt.getUTCDate() - 30);
+      break;
+    case '7d':
+      startedAt.setUTCDate(startedAt.getUTCDate() - 7);
+      break;
+    default:
+      startedAt.setUTCHours(startedAt.getUTCHours() - 24);
+      break;
+  }
+
+  return {
+    occurred_from: startedAt.toISOString(),
+    occurred_to: now.toISOString(),
+  };
 }
 
 watch(activeWindow, () => {

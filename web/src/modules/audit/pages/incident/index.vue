@@ -273,7 +273,7 @@ const loading = ref(false);
 const errorMessage = ref('');
 const incident = ref<AuditIncidentResponse | null>(null);
 
-const eventId = computed(() => Number(route.params.eventId));
+const eventId = computed(() => Number(route.params.event_id));
 const incidentTitle = computed(() => incident.value?.incident.title ?? t('audit.incident.title'));
 const incidentDescription = computed(() => incident.value?.incident.summary ?? t('audit.incident.description'));
 const navigationContext = computed(() => resolveAuditNavigationContext(route.query));
@@ -384,7 +384,7 @@ async function fetchIncident() {
     loading.value = false;
   }
 }
-watch(() => route.params.eventId, fetchIncident);
+watch(() => route.params.event_id, fetchIncident);
 onMounted(fetchIncident);
 </script>
 <style scoped>

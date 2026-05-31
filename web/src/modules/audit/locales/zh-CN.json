@@ -86,17 +86,17 @@
         "totalLogs": {
           "title": "审计日志总数",
           "unit": "条",
-          "meta": "当前窗口",
+          "meta": "全量",
           "values": {
             "24h": "4,812",
             "7d": "26,430",
             "30d": "101,208"
           }
         },
-        "failedToday": {
-          "title": "今日安全失败事件",
+        "failedWindow": {
+          "title": "当前窗口安全失败事件",
           "unit": "次",
-          "meta": "需关注",
+          "meta": "当前窗口",
           "values": {
             "24h": "37",
             "7d": "126",
@@ -106,7 +106,7 @@
         "highRisk": {
           "title": "高风险事件",
           "unit": "条",
-          "meta": "失败或异常",
+          "meta": "当前窗口",
           "values": {
             "24h": "12",
             "7d": "41",
@@ -116,7 +116,7 @@
         "sensitiveOps": {
           "title": "敏感操作审计次数",
           "unit": "次",
-          "meta": "写操作",
+          "meta": "当前窗口",
           "values": {
             "24h": "28",
             "7d": "94",
@@ -409,7 +409,8 @@
           "copyRequestId": "复制",
           "copyRequestIdSuccess": "请求 ID 已复制",
           "copyRequestIdFail": "复制请求 ID 失败",
-          "toggleMetadata": "展开原始元数据",
+          "expandMetadata": "展开原始元数据",
+          "collapseMetadata": "收起原始元数据",
           "copyMetadata": "复制 JSON",
           "copyMetadataSuccess": "元数据 JSON 已复制",
           "copyMetadataFail": "复制元数据 JSON 失败",

@@ -10,7 +10,7 @@ const routerMocks = vi.hoisted(() => ({
 }));
 
 const routeMocks = vi.hoisted(() => ({
-  params: { eventId: '42' },
+  params: { event_id: '42' },
   query: {
     monitorView: 'overview',
     monitorTrendRange: '10m',
