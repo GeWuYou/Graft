@@ -282,11 +282,15 @@ const i18n = createI18n({
           scope: {
             eyebrow: 'Business drilldown',
             lockedTag: 'Scope mode',
-            readonlyTag: 'Readonly',
+            readonlyTag: 'Read-only',
             projectionTitle: 'Scope conditions',
             hint: 'Scope-owned conditions are display-only. Exit business drilldown to remove them, or convert to normal filters before editing them.',
             exitAction: 'Exit business drilldown',
             convertAction: 'Convert to normal filters',
+            unknownValue: 'Unnamed condition',
+          },
+          businessCategory: {
+            sensitiveOperations: 'Sensitive operations',
           },
           filters: {
             keywordPlaceholder: 'Keyword: action, request ID, audit target, operated object',
@@ -669,8 +673,9 @@ describe('AuditLogsPage', () => {
     });
     expect(wrapper.text()).toContain('Business drilldown');
     expect(wrapper.text()).toContain('Sensitive Operations');
-    expect(wrapper.text()).toContain('Readonly');
-    expect(wrapper.text()).toContain('sensitive_operations');
+    expect(wrapper.text()).toContain('Read-only');
+    expect(wrapper.text()).toContain('Sensitive operations');
+    expect(wrapper.text()).not.toContain('sensitive_operations');
   });
 
   it('exits business drilldown by removing scope only', async () => {

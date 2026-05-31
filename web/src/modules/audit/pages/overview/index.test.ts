@@ -272,6 +272,7 @@ const i18n = createI18n({
             totalValue: 'Total {value}',
             highRiskValue: 'High risk: {value}',
             securityValue: 'Security events: {value}',
+            highRiskRatio: 'High-risk ratio: {value}',
           },
           riskGroups: {
             criticalSecurity: 'Critical Security Failures',
@@ -528,8 +529,9 @@ describe('AuditOverviewPage', () => {
     expect(wrapper.text()).toContain('High risk');
     expect(wrapper.text()).toContain('Security events');
     expect(wrapper.findAll('.audit-overview__trend-point')).toHaveLength(3);
-    expect(wrapper.text()).toContain('7');
-    expect(wrapper.text()).toContain('0');
+    expect(wrapper.findAll('.audit-overview__trend-line')).toHaveLength(3);
+    expect(wrapper.findAll('.audit-overview__trend-marker')).toHaveLength(9);
+    expect(wrapper.text()).toContain('High-risk ratio: 43%');
   });
 
   it('navigates security timeline items with the current request CTA-only interaction', async () => {

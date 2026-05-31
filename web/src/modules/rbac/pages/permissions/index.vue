@@ -239,7 +239,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { buildAuditLogsLocation } from '@/modules/audit/contract/deep-link';
+import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import {
@@ -422,11 +422,7 @@ async function loadPermissionDetail(permissionId: number) {
 function handlePermissionAction(action: string, permission: PermissionListItem) {
   if (action === 'view-audit') {
     void router.push(
-      buildAuditLogsLocation({
-        resource_type: 'permission',
-        resource_name: localizedPermissionDisplay(permission),
-        resource_id: String(permission.id),
-      }),
+      buildAuditResourceLocation('permission', String(permission.id), localizedPermissionDisplay(permission)),
     );
     return;
   }

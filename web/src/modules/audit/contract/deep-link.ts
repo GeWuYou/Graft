@@ -5,6 +5,7 @@ import type { MonitorOriginContext } from '@/modules/monitor/contract/navigation
 
 import { withMonitorOrigin } from './navigation';
 import { AUDIT_ROUTE_PATH } from './paths';
+import { AUDIT_DRILLDOWN_SCOPE } from './presets';
 
 type AuditEvidenceContext = components['schemas']['AuditEvidenceContext'];
 
@@ -91,6 +92,16 @@ export function buildAuditLogsLocation(query: AuditLogsRouteQuery) {
   };
 }
 
+function buildAuditScopeLocation(
+  scope: components['schemas']['AuditDrilldownScope'],
+  query: Omit<AuditLogsRouteQuery, 'scope'> = {},
+) {
+  return buildAuditLogsLocation({
+    ...query,
+    scope,
+  });
+}
+
 export function buildAuditResourceLocation(resourceType: string, resourceId: string, resourceName?: string) {
   return buildAuditLogsLocation({
     resource_name: resourceName,
@@ -103,6 +114,14 @@ export function buildAuditRequestLocation(requestId: string) {
   return buildAuditLogsLocation({
     request_id: requestId,
   });
+}
+
+export function buildAuditPermissionDeniedLocation(query: Omit<AuditLogsRouteQuery, 'scope'> = {}) {
+  return buildAuditScopeLocation(AUDIT_DRILLDOWN_SCOPE.PERMISSION_DENIALS, query);
+}
+
+export function buildAuditRbacChangesLocation(query: Omit<AuditLogsRouteQuery, 'scope'> = {}) {
+  return buildAuditScopeLocation(AUDIT_DRILLDOWN_SCOPE.RBAC_CHANGES, query);
 }
 
 function buildAuditIncidentLocation(eventId: number | string) {

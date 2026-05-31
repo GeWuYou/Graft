@@ -314,11 +314,12 @@
       "scope": {
         "eyebrow": "Business drilldown",
         "lockedTag": "Scope mode",
-        "readonlyTag": "Readonly",
+        "readonlyTag": "Read-only",
         "projectionTitle": "Scope conditions",
         "hint": "Scope-owned conditions are display-only. Exit business drilldown to remove them, or convert to normal filters before editing them.",
         "exitAction": "Exit business drilldown",
-        "convertAction": "Convert to normal filters"
+        "convertAction": "Convert to normal filters",
+        "unknownValue": "Unnamed condition"
       },
       "businessCategory": {
         "failedOperations": "Failed operations",

@@ -313,12 +313,13 @@
       },
       "scope": {
         "eyebrow": "业务钻取",
-        "lockedTag": "Scope 模式",
+        "lockedTag": "钻取模式",
         "readonlyTag": "只读",
-        "projectionTitle": "Scope 条件",
-        "hint": "Scope 拥有的条件仅用于展示。退出业务钻取会移除 scope，转换为普通筛选后才可自由编辑这些条件。",
+        "projectionTitle": "钻取条件",
+        "hint": "业务钻取拥有的条件仅用于展示。退出业务钻取会移除该钻取条件，转换为普通筛选后才可自由编辑这些条件。",
         "exitAction": "退出业务钻取",
-        "convertAction": "转换为普通筛选"
+        "convertAction": "转换为普通筛选",
+        "unknownValue": "未命名条件"
       },
       "businessCategory": {
         "failedOperations": "失败操作",

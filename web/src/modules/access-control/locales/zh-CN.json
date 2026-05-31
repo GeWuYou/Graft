@@ -60,6 +60,16 @@
           "title": "权限管理",
           "description": "查看系统权限点和模块归属",
           "action": "跳转权限管理"
+        },
+        "auditRbac": {
+          "title": "权限配置变更",
+          "description": "打开近期角色、权限与授权配置变更的审计业务钻取",
+          "action": "打开审计钻取"
+        },
+        "auditPermissionDenied": {
+          "title": "权限拒绝事件",
+          "description": "打开近期鉴权拒绝与受阻操作的审计业务钻取",
+          "action": "打开审计钻取"
         }
       },
       "todo": {

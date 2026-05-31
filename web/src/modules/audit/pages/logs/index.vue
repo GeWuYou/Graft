@@ -43,14 +43,14 @@
         <p class="audit-scope-card__hint">{{ t('audit.logList.scope.hint') }}</p>
 
         <t-collapse
-          v-if="scopeState.projection.items?.length"
+          v-if="localizedScopeProjectionItems.length"
           :value="scopePanelValue"
           @change="handleScopePanelChange"
         >
           <t-collapse-panel value="projection" :header="t('audit.logList.scope.projectionTitle')">
             <div class="audit-scope-card__projection-list">
               <article
-                v-for="item in scopeState.projection.items"
+                v-for="item in localizedScopeProjectionItems"
                 :key="item.key"
                 class="audit-scope-card__projection-item"
               >
@@ -62,7 +62,7 @@
                 </div>
                 <div class="audit-scope-card__projection-values">
                   <t-tag
-                    v-for="value in item.values ?? []"
+                    v-for="value in item.localizedValues"
                     :key="`${item.key}-${value}`"
                     theme="default"
                     variant="light-outline"
@@ -239,6 +239,14 @@ const presetViews = computed(() =>
   listAuditPresets().map((preset) => ({
     key: preset.key,
     title: t(preset.titleKey),
+  })),
+);
+const localizedScopeProjectionItems = computed(() =>
+  (scopeState.value?.projection.items ?? []).map((item) => ({
+    ...item,
+    localizedValues: (item.values ?? [])
+      .map((value) => formatScopeProjectionValue(item.key, value))
+      .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index),
   })),
 );
 const columnSettingOptions = computed(() => [
@@ -845,6 +853,36 @@ function buildPresetCreatedRange(preset: AuditTimePreset | '') {
 
 function resolvePresetTimeWindow(preset: AuditQuickPresetKey): AuditTimePreset | '' {
   return preset === 'all' ? '' : AUDIT_TIME_PRESET.LAST_24H;
+}
+
+function formatScopeProjectionValue(key: string, value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return '';
+  }
+
+  if (key === 'business_category') {
+    switch (normalized) {
+      case AUDIT_BUSINESS_CATEGORY.FAILED_OPERATIONS:
+        return t('audit.logList.businessCategory.failedOperations');
+      case AUDIT_BUSINESS_CATEGORY.HIGH_RISK_OPERATIONS:
+        return t('audit.logList.businessCategory.highRiskOperations');
+      case AUDIT_BUSINESS_CATEGORY.SENSITIVE_OPERATIONS:
+        return t('audit.logList.businessCategory.sensitiveOperations');
+      case AUDIT_BUSINESS_CATEGORY.AUTH_FAILURES:
+        return t('audit.logList.businessCategory.authFailures');
+      case AUDIT_BUSINESS_CATEGORY.PERMISSION_DENIALS:
+        return t('audit.logList.businessCategory.permissionDenials');
+      case AUDIT_BUSINESS_CATEGORY.RBAC_CHANGES:
+        return t('audit.logList.businessCategory.rbacChanges');
+      case AUDIT_BUSINESS_CATEGORY.CRITICAL_SECURITY:
+        return t('audit.logList.businessCategory.criticalSecurity');
+      default:
+        return t('audit.logList.scope.unknownValue');
+    }
+  }
+
+  return normalized;
 }
 </script>
 <style scoped lang="less">

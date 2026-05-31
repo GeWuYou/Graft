@@ -108,6 +108,40 @@
                 {{ t('accessControl.overview.quickLinks.permissions.action') }}
               </span>
             </button>
+            <button
+              v-permission="RBAC_PERMISSION_CODE.ROLE_READ"
+              class="quick-link-card"
+              data-testid="access-control-audit-link-rbac-changes"
+              type="button"
+              @click="goToAuditRbacChanges"
+            >
+              <div class="quick-link-card__head">
+                <span class="quick-link-card__title">{{ t('accessControl.overview.quickLinks.auditRbac.title') }}</span>
+              </div>
+              <p class="quick-link-card__description">
+                {{ t('accessControl.overview.quickLinks.auditRbac.description') }}
+              </p>
+              <span class="quick-link-card__action">{{ t('accessControl.overview.quickLinks.auditRbac.action') }}</span>
+            </button>
+            <button
+              v-permission="RBAC_PERMISSION_CODE.PERMISSION_READ"
+              class="quick-link-card"
+              data-testid="access-control-audit-link-permission-denied"
+              type="button"
+              @click="goToAuditPermissionDenied"
+            >
+              <div class="quick-link-card__head">
+                <span class="quick-link-card__title">{{
+                  t('accessControl.overview.quickLinks.auditPermissionDenied.title')
+                }}</span>
+              </div>
+              <p class="quick-link-card__description">
+                {{ t('accessControl.overview.quickLinks.auditPermissionDenied.description') }}
+              </p>
+              <span class="quick-link-card__action">{{
+                t('accessControl.overview.quickLinks.auditPermissionDenied.action')
+              }}</span>
+            </button>
           </div>
         </governance-action-panel>
 
@@ -185,6 +219,8 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { buildAuditPermissionDeniedLocation, buildAuditRbacChangesLocation } from '@/modules/audit/contract/deep-link';
+import { AUDIT_TIME_PRESET } from '@/modules/audit/contract/time-presets';
 import { getPermissions } from '@/modules/rbac/api/rbac';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
@@ -420,6 +456,22 @@ function goToPermissions() {
   void router.push({
     path: ACCESS_CONTROL_ROUTE_PATH.PERMISSIONS,
   });
+}
+
+function goToAuditRbacChanges() {
+  void router.push(
+    buildAuditRbacChangesLocation({
+      preset: AUDIT_TIME_PRESET.LAST_24H,
+    }),
+  );
+}
+
+function goToAuditPermissionDenied() {
+  void router.push(
+    buildAuditPermissionDeniedLocation({
+      preset: AUDIT_TIME_PRESET.LAST_24H,
+    }),
+  );
 }
 
 onMounted(() => {

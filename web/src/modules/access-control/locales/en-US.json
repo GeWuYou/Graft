@@ -60,6 +60,16 @@
           "title": "Permission Management",
           "description": "Review system permissions and module ownership",
           "action": "Open Permission Management"
+        },
+        "auditRbac": {
+          "title": "Permission Configuration Changes",
+          "description": "Open audit drilldown for recent role, permission, and authorization configuration changes",
+          "action": "Open Audit Drilldown"
+        },
+        "auditPermissionDenied": {
+          "title": "Permission Denied Events",
+          "description": "Open audit drilldown for recent authorization denials and blocked operations",
+          "action": "Open Audit Drilldown"
         }
       },
       "todo": {

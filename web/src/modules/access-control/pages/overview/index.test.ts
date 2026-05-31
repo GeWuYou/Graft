@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+import { AUDIT_ROUTE_PATH } from '@/modules/audit/contract/paths';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 
@@ -136,7 +137,7 @@ describe('AccessControlOverviewPage', () => {
     rbacApiMocks.getPermissions.mockReset();
 
     permissionStoreMocks.hasPermission.mockImplementation(
-      (code: string) => code === RBAC_PERMISSION_CODE.PERMISSION_READ,
+      (code: string) => code === RBAC_PERMISSION_CODE.PERMISSION_READ || code === RBAC_PERMISSION_CODE.ROLE_READ,
     );
     userApiMocks.getUsers.mockResolvedValue({
       items: [{ id: 1, status: 'enabled' }],
@@ -170,6 +171,38 @@ describe('AccessControlOverviewPage', () => {
 
     expect(routerMocks.push).toHaveBeenCalledWith({
       path: ACCESS_CONTROL_ROUTE_PATH.PERMISSIONS,
+    });
+  });
+
+  it('opens rbac change audit drilldown from the overview quick links', async () => {
+    const wrapper = mountOverview();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="access-control-audit-link-rbac-changes"]').trigger('click');
+    await flushPromises();
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: AUDIT_ROUTE_PATH.LOGS,
+      query: {
+        preset: 'last_24h',
+        scope: 'rbac_changes',
+      },
+    });
+  });
+
+  it('opens permission denied audit drilldown from the overview quick links', async () => {
+    const wrapper = mountOverview();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="access-control-audit-link-permission-denied"]').trigger('click');
+    await flushPromises();
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: AUDIT_ROUTE_PATH.LOGS,
+      query: {
+        preset: 'last_24h',
+        scope: 'permission_denials',
+      },
     });
   });
 
