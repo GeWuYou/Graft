@@ -23,7 +23,7 @@ import (
 
 type auditReader interface {
 	List(ctx context.Context, query auditcore.ListQuery) (auditcore.ListResult, error)
-	Overview(ctx context.Context, window auditstore.OverviewWindow) (auditcore.OverviewResult, error)
+	Overview(ctx context.Context, preset auditstore.AuditTimePreset) (auditcore.OverviewResult, error)
 	Incident(ctx context.Context, eventID uint64) (auditcore.IncidentResult, error)
 }
 
@@ -91,9 +91,9 @@ func handleReadAuditOverview(
 
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedAuditOverviewParams(ginCtx)
-		window := normalizeOverviewWindow(params.Window)
+		preset := normalizeAuditOverviewPreset(params.Preset)
 
-		result, err := reader.Overview(ginCtx, window)
+		result, err := reader.Overview(ginCtx, preset)
 		if err != nil {
 			logger.Error("read audit overview failed",
 				zap.String("plugin", pluginName),
@@ -197,6 +197,9 @@ func bindGeneratedAuditListParams(
 	if field := bindAuditActorUserID(ginCtx, &params, &query); field != "" {
 		return params, query, field
 	}
+	if field := bindAuditScopeAndPreset(ginCtx, &params, &query); field != "" {
+		return params, query, field
+	}
 	bindAuditStringFilters(ginCtx, &params, &query)
 	if field := bindAuditEnumFilters(ginCtx, &params, &query); field != "" {
 		return params, query, field
@@ -259,6 +262,28 @@ func bindAuditActorUserID(ginCtx *gin.Context, params *auditopenapi.GetAuditLogs
 	}
 	params.ActorUserId = &converted
 	query.ActorUserID = &value
+	return ""
+}
+
+func bindAuditScopeAndPreset(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *auditcore.ListQuery) string {
+	if raw := strings.TrimSpace(ginCtx.Query("scope")); raw != "" {
+		value := auditopenapi.GetAuditLogsParamsScope(raw)
+		if !value.Valid() {
+			return "scope"
+		}
+		params.Scope = &value
+		query.Scope = auditstore.AuditLogScope(raw)
+	}
+
+	if raw := strings.TrimSpace(ginCtx.Query("preset")); raw != "" {
+		value := auditopenapi.GetAuditLogsParamsPreset(raw)
+		if !value.Valid() {
+			return "preset"
+		}
+		params.Preset = &value
+		query.TimePreset = auditstore.AuditTimePreset(raw)
+	}
+
 	return ""
 }
 
@@ -458,26 +483,26 @@ func bindGeneratedAuditOverviewParams(ginCtx *gin.Context) auditopenapi.GetAudit
 		XRequestId:   requestID,
 	}
 
-	if raw := strings.TrimSpace(ginCtx.Query("window")); raw != "" {
-		value := auditopenapi.GetAuditOverviewParamsWindow(raw)
+	if raw := strings.TrimSpace(ginCtx.Query("preset")); raw != "" {
+		value := auditopenapi.GetAuditOverviewParamsPreset(raw)
 		if value.Valid() {
-			params.Window = &value
+			params.Preset = &value
 		}
 	}
 
 	return params
 }
 
-func normalizeOverviewWindow(value *auditopenapi.GetAuditOverviewParamsWindow) auditstore.OverviewWindow {
+func normalizeAuditOverviewPreset(value *auditopenapi.GetAuditOverviewParamsPreset) auditstore.AuditTimePreset {
 	if value == nil {
-		return auditstore.OverviewWindow24Hours
+		return auditstore.AuditTimePresetLast24Hours
 	}
 	switch strings.TrimSpace(string(*value)) {
-	case string(auditstore.OverviewWindow7Days):
-		return auditstore.OverviewWindow7Days
-	case string(auditstore.OverviewWindow30Days):
-		return auditstore.OverviewWindow30Days
+	case string(auditstore.AuditTimePresetLast7Days):
+		return auditstore.AuditTimePresetLast7Days
+	case string(auditstore.AuditTimePresetLast30Days):
+		return auditstore.AuditTimePresetLast30Days
 	default:
-		return auditstore.OverviewWindow24Hours
+		return auditstore.AuditTimePresetLast24Hours
 	}
 }

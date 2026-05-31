@@ -293,7 +293,7 @@ describe('AuditLogsPage', () => {
     auditApiMocks.getAuditLogs.mockClear();
   });
 
-  async function mountPage(initialQuery: Record<string, string> = { preset: 'permission-denied' }) {
+  async function mountPage(initialQuery: Record<string, string> = { preset: 'last_24h', scope: 'permission_denials' }) {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [{ path: '/audit/logs', component: AuditLogsPage }],
@@ -375,9 +375,8 @@ describe('AuditLogsPage', () => {
 
     expect(auditApiMocks.getAuditLogs).toHaveBeenCalledWith(
       expect.objectContaining({
-        result: 'DENIED',
-        risk_level: 'CRITICAL',
-        source: 'SECURITY_EVENT',
+        preset: 'last_24h',
+        scope: 'permission_denials',
         sort_by: 'created_at',
         sort_order: 'desc',
       }),
@@ -396,7 +395,8 @@ describe('AuditLogsPage', () => {
 
   it('keeps monitor return context when syncing log filters', async () => {
     const { replaceSpy, router, wrapper } = await mountPage({
-      preset: 'permission-denied',
+      preset: 'last_24h',
+      scope: 'permission_denials',
       monitorView: 'overview',
       monitorTrendRange: '10m',
       monitorAnomalyKey: 'resource_cpu_pressure',
@@ -440,8 +440,8 @@ describe('AuditLogsPage', () => {
     expect(auditApiMocks.getAuditLogs).toHaveBeenCalledWith({
       page: 1,
       page_size: 10,
-      risk_level: 'CRITICAL',
-      source: 'SECURITY_EVENT',
+      preset: 'last_24h',
+      scope: 'high_risk_events',
       sort_by: 'created_at',
       sort_order: 'desc',
     });
@@ -464,7 +464,6 @@ describe('AuditLogsPage', () => {
           user_id: '7',
           created_from: '2026-05-01T10:00:00Z',
           created_to: '2026-05-02T18:30:00Z',
-          preset: 'permission-denied',
           result: 'FAILED',
           sort_by: 'created_at',
           sort_order: 'asc',
@@ -476,7 +475,6 @@ describe('AuditLogsPage', () => {
       user_id: '7',
       created_from: '2026-05-01T10:00:00Z',
       created_to: '2026-05-02T18:30:00Z',
-      preset: 'permission-denied',
       result: 'FAILED',
       sort_by: 'created_at',
       sort_order: 'asc',
@@ -496,12 +494,12 @@ describe('AuditLogsPage', () => {
     expect(resolveAuditPresetKey('failed-auth')).toBe('auth-failed');
     expect(resolveAuditPresetKey('rbac-changes')).toBe('rbac-changes');
 
-    const { replaceSpy, router, wrapper } = await mountPage({ preset: 'failed-auth' });
+    const { replaceSpy, router, wrapper } = await mountPage({ preset: 'last_24h', scope: 'auth_failures' });
     replaceSpy.mockClear();
     auditApiMocks.getAuditLogs.mockClear();
 
-    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"resourceType":"auth"');
-    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"result":"FAILED"');
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).not.toContain('"resourceType":"auth"');
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"result":"all"');
 
     await wrapper.get('[data-testid="audit-search"]').trigger('click');
     await flushPromises();
@@ -510,30 +508,31 @@ describe('AuditLogsPage', () => {
       expect.objectContaining({
         path: '/audit/logs',
         query: expect.objectContaining({
-          preset: 'auth-failed',
+          preset: 'last_24h',
+          scope: 'auth_failures',
         }),
       }),
     );
     expect(router.currentRoute.value.query).toMatchObject({
-      preset: 'auth-failed',
+      preset: 'last_24h',
+      scope: 'auth_failures',
     });
     expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        result: 'FAILED',
-        resource_type: 'auth',
-        risk_level: 'HIGH',
-        source: 'REQUEST',
+        preset: 'last_24h',
+        scope: 'auth_failures',
       }),
     );
   });
 
   it('applies the canonical rbac preset to the backend query contract', async () => {
-    const { wrapper } = await mountPage({ preset: 'rbac-changes' });
+    const { wrapper } = await mountPage({ preset: 'last_24h', scope: 'rbac_changes' });
 
-    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"actionPrefix":"rbac."');
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).not.toContain('"actionPrefix":"rbac."');
     expect(auditApiMocks.getAuditLogs).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        action_prefix: 'rbac.',
+        preset: 'last_24h',
+        scope: 'rbac_changes',
       }),
     );
   });

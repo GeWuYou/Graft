@@ -6,13 +6,13 @@ get:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
-    - name: window
+    - name: preset
       in: query
       required: false
       schema:
         type: string
-        enum: [24h, 7d, 30d]
-        default: 24h
+        enum: [last_24h, last_7d, last_30d]
+        default: last_24h
   security:
     - bearerAuth: []
   responses:

@@ -15,7 +15,7 @@ export type AuditIncidentRequest = AuditIncidentResponse['related_requests'][num
 export type AuditIncidentMonitorContext = AuditIncidentResponse['monitor_context'];
 export type EvidenceLink = components['schemas']['EvidenceLink'];
 
-export type AuditOverviewWindow = '24h' | '7d' | '30d';
+export type AuditTimePreset = components['schemas']['AuditOverviewResponse']['time_preset'];
 export type AuditRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type AuditResult = 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
 export type AuditSource = 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
@@ -26,6 +26,8 @@ export type AuditSorter = QuerySorter<AuditSortBy>;
 export type AuditLogQuery = {
   page?: number;
   page_size?: number;
+  preset?: AuditTimePreset;
+  scope?: string;
   actor_user_id?: number;
   action?: string;
   action_prefix?: string;
@@ -44,7 +46,5 @@ export type AuditLogQuery = {
 };
 
 export type AuditOverviewQuery = {
-  window?: AuditOverviewWindow;
-  from?: string;
-  to?: string;
+  preset?: AuditTimePreset;
 };

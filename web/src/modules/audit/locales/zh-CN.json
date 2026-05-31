@@ -48,7 +48,6 @@
         "7d": "最近 7 天",
         "30d": "最近 30 天"
       },
-      "currentWindow": "统计窗口：{from} - {to}",
       "itemResult": {
         "failed": "失败",
         "denied": "拒绝",
@@ -285,6 +284,7 @@
       "detail": "详情",
       "more": "更多",
       "summary": "当前展示 {count} 条安全审计记录",
+      "timeRangeLabel": "时间范围：{value}",
       "tableHint": "列表仅展示策略命中的安全审计事件，请求链路与权限上下文收口到详情抽屉。",
       "reasonFallback": "无补充原因",
       "footerTotal": "共 {count} 条审计事件",

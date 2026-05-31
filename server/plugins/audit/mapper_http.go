@@ -84,7 +84,7 @@ func toAuditOverviewResponse(result auditOverviewResult) (map[string]any, error)
 	}
 
 	return map[string]any{
-		"window": string(result.Window),
+		"time_preset": string(result.TimePreset),
 		"summary": map[string]any{
 			"total_logs":           result.Summary.TotalLogs,
 			"failed_operations":    result.Summary.FailedOperations,

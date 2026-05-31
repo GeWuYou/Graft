@@ -127,6 +127,7 @@ func TestRepositoryCreateAndListAuditLogs(t *testing.T) {
 
 	result, err := repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
 		ResourceType: "user",
+		TimePreset:   auditstore.AuditTimePresetLast30Days,
 		Limit:        10,
 		Offset:       0,
 	})
@@ -221,6 +222,7 @@ func TestRepositoryListAuditLogsSupportsActionPrefix(t *testing.T) {
 
 	result, err := repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
 		ActionPrefix: "rbac.",
+		TimePreset:   auditstore.AuditTimePresetLast30Days,
 		Limit:        10,
 		Offset:       0,
 	})
@@ -275,6 +277,7 @@ func TestRepositoryListAuditLogsAppliesFilters(t *testing.T) {
 		Action:    "user.update",
 		Success:   &success,
 		RequestID: "req-keep",
+		TimePreset: auditstore.AuditTimePresetLast30Days,
 		Limit:     10,
 		Offset:    0,
 	})
@@ -517,7 +520,7 @@ func TestRepositoryReadAuditOverview(t *testing.T) {
 		}
 	}
 
-	overview, err := repo.ReadAuditOverview(ctx, auditstore.OverviewWindow24Hours)
+	overview, err := repo.ReadAuditOverview(ctx, auditstore.AuditTimePresetLast24Hours)
 	if err != nil {
 		t.Fatalf("read audit overview: %v", err)
 	}
@@ -528,8 +531,8 @@ func TestRepositoryReadAuditOverview(t *testing.T) {
 func assertOverviewSummary(t *testing.T, overview auditstore.AuditOverview) {
 	t.Helper()
 
-	if overview.Window != auditstore.OverviewWindow24Hours {
-		t.Fatalf("expected 24h window, got %q", overview.Window)
+	if overview.TimePreset != auditstore.AuditTimePresetLast24Hours {
+		t.Fatalf("expected last_24h preset, got %q", overview.TimePreset)
 	}
 	if overview.Summary.TotalLogs != 4 || overview.Summary.FailedOperations != 3 {
 		t.Fatalf("unexpected overview summary: %#v", overview.Summary)

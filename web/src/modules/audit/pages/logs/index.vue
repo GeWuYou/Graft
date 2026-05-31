@@ -102,7 +102,19 @@ import {
   resolveAuditNavigationContext,
   withMonitorOrigin,
 } from '../../contract/navigation';
-import { getAuditPresetDefaults, listAuditPresets, resolveAuditPresetKey } from '../../contract/presets';
+import {
+  type AuditQuickPresetKey,
+  getAuditPresetScope,
+  listAuditPresets,
+  resolveAuditPresetKey,
+  resolveAuditPresetKeyFromScope,
+} from '../../contract/presets';
+import {
+  AUDIT_TIME_PRESET,
+  AUDIT_TIME_PRESET_TITLE_KEY,
+  type AuditTimePreset,
+  resolveAuditTimePreset,
+} from '../../contract/time-presets';
 import type { AuditClientFilterState } from '../../shared/presentation';
 import { matchesAuditRow } from '../../shared/presentation';
 import type { AuditLogListItem, AuditLogQuery } from '../../types/audit';
@@ -120,7 +132,8 @@ const loading = ref(false);
 const listError = ref('');
 const rows = ref<AuditLogListItem[]>([]);
 const total = ref(0);
-const activePreset = ref(resolveAuditPresetKey(''));
+const activePreset = ref<AuditQuickPresetKey>(resolveAuditPresetKey(''));
+const activeTimePreset = ref<AuditTimePreset>(AUDIT_TIME_PRESET.LAST_24H);
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
 const latestRequestSeq = ref(0);
@@ -166,7 +179,14 @@ const hasClientOnlyFilters = computed(() =>
 
 const displayRows = computed(() => rows.value.filter((row) => matchesAuditRow(row, filters.value, t)));
 const tableTotal = computed(() => total.value);
-const tableSummary = computed(() => t('audit.logList.summary', { count: displayRows.value.length }));
+const tableSummary = computed(() => {
+  const timeRangeLabel =
+    filters.value.createdRange[0] || filters.value.createdRange[1]
+      ? t('audit.logList.filters.datePlaceholder')
+      : t(AUDIT_TIME_PRESET_TITLE_KEY[activeTimePreset.value]);
+
+  return `${t('audit.logList.summary', { count: displayRows.value.length })} · ${t('audit.logList.timeRangeLabel', { value: timeRangeLabel })}`;
+});
 const footerSummary = computed(() =>
   hasClientOnlyFilters.value
     ? t('audit.logList.footerFiltered', { count: displayRows.value.length })
@@ -179,6 +199,11 @@ function buildQuery(): AuditLogQuery {
     page: pagination.value.current,
     page_size: pagination.value.pageSize,
   };
+
+  const scope = getAuditPresetScope(activePreset.value);
+  if (scope) {
+    query.scope = scope;
+  }
 
   if (filters.value.action) {
     query.action = filters.value.action;
@@ -212,6 +237,9 @@ function buildQuery(): AuditLogQuery {
   }
   if (filters.value.createdRange[1]) {
     query.created_to = toISOStringOrRaw(filters.value.createdRange[1]);
+  }
+  if (!query.created_from && !query.created_to) {
+    query.preset = activeTimePreset.value;
   }
   if (sorter?.field) {
     query.sort_by = sorter.field;
@@ -258,11 +286,7 @@ async function fetchAuditLogs() {
 
 function applyPreset(preset: typeof activePreset.value) {
   activePreset.value = preset;
-  filters.value = {
-    ...createDefaultFilters(),
-    ...getAuditPresetDefaults(preset),
-    sorters: filters.value.sorters,
-  };
+  filters.value = { ...createDefaultFilters(), sorters: filters.value.sorters };
 
   pagination.value.current = 1;
   updateRouteQuery();
@@ -312,23 +336,23 @@ function toISOStringOrRaw(value: string) {
 
 function applyRouteFilters() {
   const query = parseAuditLogsRouteQuery(route.query);
-  const nextPreset = resolveAuditPresetKey(query.preset ?? '');
-  const presetDefaults = getAuditPresetDefaults(nextPreset);
+  const nextPreset = resolveAuditPresetKeyFromScope(query.scope ?? '');
+  activeTimePreset.value =
+    query.created_from || query.created_to ? activeTimePreset.value : resolveAuditTimePreset(query.preset ?? '');
   const nextFilters: AuditClientFilterState = {
     ...createDefaultFilters(),
-    ...presetDefaults,
     keyword: query.keyword ?? '',
     actor: query.username || query.actor || '',
     actorUserId: query.user_id ?? '',
-    action: query.action || presetDefaults.action || '',
-    actionPrefix: query.action_prefix || presetDefaults.actionPrefix || '',
-    source: query.source || presetDefaults.source || '',
+    action: query.action || '',
+    actionPrefix: query.action_prefix || '',
+    source: query.source || '',
     createdRange: query.created_from || query.created_to ? [query.created_from ?? '', query.created_to ?? ''] : [],
-    resourceType: query.resource_type || presetDefaults.resourceType || '',
+    resourceType: query.resource_type || '',
     resourceName: query.resource_name ?? '',
     resourceId: query.resource_id ?? '',
-    result: (query.result as AuditClientFilterState['result']) || presetDefaults.result || 'all',
-    riskLevel: (query.risk_level as AuditClientFilterState['riskLevel']) || presetDefaults.riskLevel || 'all',
+    result: (query.result as AuditClientFilterState['result']) || 'all',
+    riskLevel: (query.risk_level as AuditClientFilterState['riskLevel']) || 'all',
     session: query.session ?? '',
     requestId: query.request_id ?? '',
     sorters: query.sort_by
@@ -345,7 +369,8 @@ function buildRouteQuery() {
   const sorter = getSingleSorter(filters.value.sorters);
 
   return {
-    preset: activePreset.value === 'all' ? '' : activePreset.value,
+    preset: createdFrom || createdTo ? '' : activeTimePreset.value,
+    scope: getAuditPresetScope(activePreset.value),
     keyword: filters.value.keyword,
     username: filters.value.actor,
     user_id: filters.value.actorUserId,

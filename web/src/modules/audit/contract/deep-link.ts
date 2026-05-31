@@ -10,6 +10,7 @@ type AuditEvidenceContext = components['schemas']['AuditEvidenceContext'];
 
 export type AuditLogsRouteQuery = Partial<{
   preset: string;
+  scope: string;
   keyword: string;
   actor: string;
   user_id: string;
@@ -43,6 +44,7 @@ function firstQueryValue(value: LocationQueryValue | LocationQueryValue[] | unde
 export function parseAuditLogsRouteQuery(query: LocationQuery | AuditLogsRouteQuery): AuditLogsRouteQuery {
   return {
     preset: trimQueryValue(firstQueryValue(query.preset)),
+    scope: trimQueryValue(firstQueryValue(query.scope)),
     keyword: trimQueryValue(firstQueryValue(query.keyword)),
     actor: trimQueryValue(firstQueryValue(query.actor)),
     user_id: trimQueryValue(firstQueryValue(query.user_id)),
@@ -89,6 +91,7 @@ export function buildAuditResourceLocation(resourceType: string, resourceId: str
 
 export function buildAuditRequestLocation(requestId: string) {
   return buildAuditLogsLocation({
+    scope: '',
     request_id: requestId,
   });
 }

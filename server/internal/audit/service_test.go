@@ -13,7 +13,7 @@ import (
 type stubAuditRepository struct {
 	createdInput auditstore.CreateAuditLogInput
 	listQuery    auditstore.ListAuditLogsQuery
-	overviewWnd  auditstore.OverviewWindow
+	overviewWnd  auditstore.AuditTimePreset
 	incidentID   uint64
 	policyRules  []auditstore.AuditPolicyRule
 	createResult auditstore.AuditLog
@@ -46,7 +46,7 @@ func (r *stubAuditRepository) ListAuditLogs(_ context.Context, query auditstore.
 	return r.listResult, nil
 }
 
-func (r *stubAuditRepository) ReadAuditOverview(_ context.Context, window auditstore.OverviewWindow) (auditstore.AuditOverview, error) {
+func (r *stubAuditRepository) ReadAuditOverview(_ context.Context, window auditstore.AuditTimePreset) (auditstore.AuditOverview, error) {
 	r.overviewWnd = window
 	if r.overviewErr != nil {
 		return auditstore.AuditOverview{}, r.overviewErr
@@ -211,9 +211,9 @@ func TestServiceListPropagatesRepositoryError(t *testing.T) {
 	}
 }
 
-func TestServiceOverviewDelegatesWindowWithoutNormalization(t *testing.T) {
+func TestServiceOverviewNormalizesPreset(t *testing.T) {
 	repo := &stubAuditRepository{
-		overview: auditstore.AuditOverview{Window: "custom"},
+		overview: auditstore.AuditOverview{TimePreset: auditstore.AuditTimePresetLast24Hours},
 	}
 	service, err := NewService(repo)
 	if err != nil {
@@ -224,8 +224,8 @@ func TestServiceOverviewDelegatesWindowWithoutNormalization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("overview: %v", err)
 	}
-	if repo.overviewWnd != "custom" {
-		t.Fatalf("expected raw window to be delegated, got %q", repo.overviewWnd)
+	if repo.overviewWnd != auditstore.AuditTimePresetLast24Hours {
+		t.Fatalf("expected preset to normalize to last_24h, got %q", repo.overviewWnd)
 	}
 }
 

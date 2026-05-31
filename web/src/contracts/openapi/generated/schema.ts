@@ -1332,7 +1332,7 @@ export interface components {
     };
     'audit-overview-response': {
       /** @enum {string} */
-      window: '24h' | '7d' | '30d';
+      time_preset: 'last_24h' | 'last_7d' | 'last_30d';
       summary: components['schemas']['audit-overview-summary'];
       risk_groups: {
         key: string;
@@ -3951,6 +3951,17 @@ export interface operations {
         page_size?: number;
         actor_user_id?: number;
         action?: string;
+        scope?:
+          | 'all_logs'
+          | 'failed_operations'
+          | 'high_risk_events'
+          | 'sensitive_operations'
+          | 'critical_security'
+          | 'high_risk_operations'
+          | 'auth_failures'
+          | 'permission_denials'
+          | 'rbac_changes';
+        preset?: 'last_24h' | 'last_7d' | 'last_30d';
         action_prefix?: string;
         source?: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
         resource_type?: string;
@@ -4007,7 +4018,7 @@ export interface operations {
   getAuditOverview: {
     parameters: {
       query?: {
-        window?: '24h' | '7d' | '30d';
+        preset?: 'last_24h' | 'last_7d' | 'last_30d';
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

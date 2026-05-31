@@ -1,6 +1,6 @@
 type: object
 required:
-  - window
+  - time_preset
   - summary
   - risk_groups
   - trend
@@ -9,9 +9,9 @@ required:
   - permission_denied
   - sensitive_operations
 properties:
-  window:
+  time_preset:
     type: string
-    enum: [24h, 7d, 30d]
+    enum: [last_24h, last_7d, last_30d]
   summary:
     $ref: ./audit-overview-summary.yaml
   risk_groups:

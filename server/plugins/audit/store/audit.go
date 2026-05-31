@@ -188,6 +188,8 @@ type ListAuditLogsQuery struct {
 	ActorUserID  *uint64
 	Action       string
 	ActionPrefix string
+	Scope        AuditLogScope
+	TimePreset   AuditTimePreset
 	Source       AuditSource
 	ResourceType string
 	ResourceID   string
@@ -210,16 +212,40 @@ type ListAuditLogsResult struct {
 	Total int
 }
 
-// OverviewWindow identifies the supported overview aggregation window.
-type OverviewWindow string
+// AuditTimePreset identifies the supported relative time preset.
+type AuditTimePreset string
 
 const (
-	// OverviewWindow24Hours selects the trailing 24-hour overview window.
-	OverviewWindow24Hours OverviewWindow = "24h"
-	// OverviewWindow7Days selects the trailing 7-day overview window.
-	OverviewWindow7Days OverviewWindow = "7d"
-	// OverviewWindow30Days selects the trailing 30-day overview window.
-	OverviewWindow30Days OverviewWindow = "30d"
+	// AuditTimePresetLast24Hours selects the trailing 24-hour window.
+	AuditTimePresetLast24Hours AuditTimePreset = "last_24h"
+	// AuditTimePresetLast7Days selects the trailing 7-day window.
+	AuditTimePresetLast7Days AuditTimePreset = "last_7d"
+	// AuditTimePresetLast30Days selects the trailing 30-day window.
+	AuditTimePresetLast30Days AuditTimePreset = "last_30d"
+)
+
+// AuditLogScope identifies the canonical semantic scope reused by overview cards and log queries.
+type AuditLogScope string
+
+const (
+	// AuditLogScopeAllLogs selects all audit logs within the active time constraint.
+	AuditLogScopeAllLogs AuditLogScope = "all_logs"
+	// AuditLogScopeFailedOperations selects all failed operations within the active time constraint.
+	AuditLogScopeFailedOperations AuditLogScope = "failed_operations"
+	// AuditLogScopeHighRiskEvents selects all high-risk events within the active time constraint.
+	AuditLogScopeHighRiskEvents AuditLogScope = "high_risk_events"
+	// AuditLogScopeSensitiveOperations selects all sensitive operations within the active time constraint.
+	AuditLogScopeSensitiveOperations AuditLogScope = "sensitive_operations"
+	// AuditLogScopeCriticalSecurity selects critical security anomalies within the active time constraint.
+	AuditLogScopeCriticalSecurity AuditLogScope = "critical_security"
+	// AuditLogScopeHighRiskOperations selects high-risk operations within the active time constraint.
+	AuditLogScopeHighRiskOperations AuditLogScope = "high_risk_operations"
+	// AuditLogScopeAuthFailures selects authentication failures within the active time constraint.
+	AuditLogScopeAuthFailures AuditLogScope = "auth_failures"
+	// AuditLogScopePermissionDenials selects permission denials within the active time constraint.
+	AuditLogScopePermissionDenials AuditLogScope = "permission_denials"
+	// AuditLogScopeRbacChanges selects RBAC changes within the active time constraint.
+	AuditLogScopeRbacChanges AuditLogScope = "rbac_changes"
 )
 
 // OverviewSummary aggregates audit activity counts for the selected window.
@@ -290,7 +316,7 @@ type OverviewSecurityTimelineItem struct {
 
 // AuditOverview groups window-level counters with the recent slices used by the overview page.
 type AuditOverview struct {
-	Window           OverviewWindow
+	TimePreset       AuditTimePreset
 	Summary          OverviewSummary
 	RiskGroups       []OverviewRiskGroup
 	Trend            OverviewTrend
@@ -416,7 +442,7 @@ type AuditIncident struct {
 type AuditRepository interface {
 	CreateAuditLog(ctx context.Context, input CreateAuditLogInput) (AuditLog, error)
 	ListAuditLogs(ctx context.Context, query ListAuditLogsQuery) (ListAuditLogsResult, error)
-	ReadAuditOverview(ctx context.Context, window OverviewWindow) (AuditOverview, error)
+	ReadAuditOverview(ctx context.Context, preset AuditTimePreset) (AuditOverview, error)
 	ReadIncident(ctx context.Context, eventID uint64) (AuditIncident, error)
 	ListAuditPolicyRules(ctx context.Context) ([]AuditPolicyRule, error)
 }

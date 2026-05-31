@@ -149,7 +149,7 @@ import {
   prependSingleSorterTag,
 } from '@/shared/observability';
 
-import type { AuditPresetKey } from '../contract/presets';
+import type { AuditQuickPresetKey } from '../contract/presets';
 import type { AuditClientFilterState } from '../shared/presentation';
 import type { AuditSortBy, AuditSortOrder } from '../types/audit';
 
@@ -180,14 +180,14 @@ type TextDefinition = BaseDefinition<TextFilterKey> & {
 type FilterDefinition = SelectDefinition | TextDefinition;
 
 const props = defineProps<{
-  activePreset: AuditPresetKey;
+  activePreset: AuditQuickPresetKey;
   loading?: boolean;
   modelValue: AuditClientFilterState;
-  presets: { key: AuditPresetKey; title: string }[];
+  presets: { key: AuditQuickPresetKey; title: string }[];
 }>();
 
 const emit = defineEmits<{
-  (e: 'apply-preset', preset: AuditPresetKey): void;
+  (e: 'apply-preset', preset: AuditQuickPresetKey): void;
   (e: 'reset'): void;
   (e: 'search'): void;
   (e: 'update:modelValue', value: AuditClientFilterState): void;

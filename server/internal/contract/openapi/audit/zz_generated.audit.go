@@ -497,6 +497,66 @@ func (e GetAuditIncident500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditLogsParamsScope.
+const (
+	AllLogs             GetAuditLogsParamsScope = "all_logs"
+	AuthFailures        GetAuditLogsParamsScope = "auth_failures"
+	CriticalSecurity    GetAuditLogsParamsScope = "critical_security"
+	FailedOperations    GetAuditLogsParamsScope = "failed_operations"
+	HighRiskEvents      GetAuditLogsParamsScope = "high_risk_events"
+	HighRiskOperations  GetAuditLogsParamsScope = "high_risk_operations"
+	PermissionDenials   GetAuditLogsParamsScope = "permission_denials"
+	RbacChanges         GetAuditLogsParamsScope = "rbac_changes"
+	SensitiveOperations GetAuditLogsParamsScope = "sensitive_operations"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsScope enum.
+func (e GetAuditLogsParamsScope) Valid() bool {
+	switch e {
+	case AllLogs:
+		return true
+	case AuthFailures:
+		return true
+	case CriticalSecurity:
+		return true
+	case FailedOperations:
+		return true
+	case HighRiskEvents:
+		return true
+	case HighRiskOperations:
+		return true
+	case PermissionDenials:
+		return true
+	case RbacChanges:
+		return true
+	case SensitiveOperations:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditLogsParamsPreset.
+const (
+	GetAuditLogsParamsPresetLast24h GetAuditLogsParamsPreset = "last_24h"
+	GetAuditLogsParamsPresetLast30d GetAuditLogsParamsPreset = "last_30d"
+	GetAuditLogsParamsPresetLast7d  GetAuditLogsParamsPreset = "last_7d"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsPreset enum.
+func (e GetAuditLogsParamsPreset) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsPresetLast24h:
+		return true
+	case GetAuditLogsParamsPresetLast30d:
+		return true
+	case GetAuditLogsParamsPresetLast7d:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogsParamsSource.
 const (
 	GetAuditLogsParamsSourceDOMAINEVENT   GetAuditLogsParamsSource = "DOMAIN_EVENT"
@@ -755,21 +815,21 @@ func (e GetAuditLogs500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for GetAuditOverviewParamsWindow.
+// Defines values for GetAuditOverviewParamsPreset.
 const (
-	GetAuditOverviewParamsWindowN24h GetAuditOverviewParamsWindow = "24h"
-	GetAuditOverviewParamsWindowN30d GetAuditOverviewParamsWindow = "30d"
-	GetAuditOverviewParamsWindowN7d  GetAuditOverviewParamsWindow = "7d"
+	GetAuditOverviewParamsPresetLast24h GetAuditOverviewParamsPreset = "last_24h"
+	GetAuditOverviewParamsPresetLast30d GetAuditOverviewParamsPreset = "last_30d"
+	GetAuditOverviewParamsPresetLast7d  GetAuditOverviewParamsPreset = "last_7d"
 )
 
-// Valid indicates whether the value is a known member of the GetAuditOverviewParamsWindow enum.
-func (e GetAuditOverviewParamsWindow) Valid() bool {
+// Valid indicates whether the value is a known member of the GetAuditOverviewParamsPreset enum.
+func (e GetAuditOverviewParamsPreset) Valid() bool {
 	switch e {
-	case GetAuditOverviewParamsWindowN24h:
+	case GetAuditOverviewParamsPresetLast24h:
 		return true
-	case GetAuditOverviewParamsWindowN30d:
+	case GetAuditOverviewParamsPresetLast30d:
 		return true
-	case GetAuditOverviewParamsWindowN7d:
+	case GetAuditOverviewParamsPresetLast7d:
 		return true
 	default:
 		return false
@@ -932,6 +992,27 @@ func (e GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource) Valid(
 	}
 }
 
+// Defines values for GetAuditOverview200JSONResponseBodyDataTimePreset.
+const (
+	Last24h GetAuditOverview200JSONResponseBodyDataTimePreset = "last_24h"
+	Last30d GetAuditOverview200JSONResponseBodyDataTimePreset = "last_30d"
+	Last7d  GetAuditOverview200JSONResponseBodyDataTimePreset = "last_7d"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditOverview200JSONResponseBodyDataTimePreset enum.
+func (e GetAuditOverview200JSONResponseBodyDataTimePreset) Valid() bool {
+	switch e {
+	case Last24h:
+		return true
+	case Last30d:
+		return true
+	case Last7d:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditOverview200JSONResponseBodyDataTrendBucketUnit.
 const (
 	Day  GetAuditOverview200JSONResponseBodyDataTrendBucketUnit = "day"
@@ -944,27 +1025,6 @@ func (e GetAuditOverview200JSONResponseBodyDataTrendBucketUnit) Valid() bool {
 	case Day:
 		return true
 	case Hour:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetAuditOverview200JSONResponseBodyDataWindow.
-const (
-	GetAuditOverview200JSONResponseBodyDataWindowN24h GetAuditOverview200JSONResponseBodyDataWindow = "24h"
-	GetAuditOverview200JSONResponseBodyDataWindowN30d GetAuditOverview200JSONResponseBodyDataWindow = "30d"
-	GetAuditOverview200JSONResponseBodyDataWindowN7d  GetAuditOverview200JSONResponseBodyDataWindow = "7d"
-)
-
-// Valid indicates whether the value is a known member of the GetAuditOverview200JSONResponseBodyDataWindow enum.
-func (e GetAuditOverview200JSONResponseBodyDataWindow) Valid() bool {
-	switch e {
-	case GetAuditOverview200JSONResponseBodyDataWindowN24h:
-		return true
-	case GetAuditOverview200JSONResponseBodyDataWindowN30d:
-		return true
-	case GetAuditOverview200JSONResponseBodyDataWindowN7d:
 		return true
 	default:
 		return false
@@ -1119,6 +1179,8 @@ type GetAuditLogsParams struct {
 	PageSize     *int                         `form:"page_size,omitempty" json:"page_size,omitempty"`
 	ActorUserId  *int64                       `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
 	Action       *string                      `form:"action,omitempty" json:"action,omitempty"`
+	Scope        *GetAuditLogsParamsScope     `form:"scope,omitempty" json:"scope,omitempty"`
+	Preset       *GetAuditLogsParamsPreset    `form:"preset,omitempty" json:"preset,omitempty"`
 	ActionPrefix *string                      `form:"action_prefix,omitempty" json:"action_prefix,omitempty"`
 	Source       *GetAuditLogsParamsSource    `form:"source,omitempty" json:"source,omitempty"`
 	ResourceType *string                      `form:"resource_type,omitempty" json:"resource_type,omitempty"`
@@ -1140,6 +1202,12 @@ type GetAuditLogsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetAuditLogsParamsScope defines parameters for GetAuditLogs.
+type GetAuditLogsParamsScope string
+
+// GetAuditLogsParamsPreset defines parameters for GetAuditLogs.
+type GetAuditLogsParamsPreset string
 
 // GetAuditLogsParamsSource defines parameters for GetAuditLogs.
 type GetAuditLogsParamsSource string
@@ -1182,7 +1250,7 @@ type GetAuditLogs500JSONResponseBodySuccess bool
 
 // GetAuditOverviewParams defines parameters for GetAuditOverview.
 type GetAuditOverviewParams struct {
-	Window *GetAuditOverviewParamsWindow `form:"window,omitempty" json:"window,omitempty"`
+	Preset *GetAuditOverviewParamsPreset `form:"preset,omitempty" json:"preset,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
@@ -1192,8 +1260,8 @@ type GetAuditOverviewParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
-// GetAuditOverviewParamsWindow defines parameters for GetAuditOverview.
-type GetAuditOverviewParamsWindow string
+// GetAuditOverviewParamsPreset defines parameters for GetAuditOverview.
+type GetAuditOverviewParamsPreset string
 
 // GetAuditOverview200JSONResponseBodyDataFailedAuthSource defines parameters for GetAuditOverview.
 type GetAuditOverview200JSONResponseBodyDataFailedAuthSource string
@@ -1216,11 +1284,11 @@ type GetAuditOverview200JSONResponseBodyDataSecurityTimelineSource string
 // GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource defines parameters for GetAuditOverview.
 type GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource string
 
+// GetAuditOverview200JSONResponseBodyDataTimePreset defines parameters for GetAuditOverview.
+type GetAuditOverview200JSONResponseBodyDataTimePreset string
+
 // GetAuditOverview200JSONResponseBodyDataTrendBucketUnit defines parameters for GetAuditOverview.
 type GetAuditOverview200JSONResponseBodyDataTrendBucketUnit string
-
-// GetAuditOverview200JSONResponseBodyDataWindow defines parameters for GetAuditOverview.
-type GetAuditOverview200JSONResponseBodyDataWindow string
 
 // GetAuditOverview200JSONResponseBodySuccess defines parameters for GetAuditOverview.
 type GetAuditOverview200JSONResponseBodySuccess bool

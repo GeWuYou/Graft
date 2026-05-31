@@ -14,7 +14,7 @@ const routerMocks = vi.hoisted(() => ({
 const auditApiMocks = vi.hoisted(() => ({
   getAuditOverview: vi.fn(
     async (): Promise<AuditOverviewResponse> => ({
-      window: '24h',
+      time_preset: 'last_24h',
       summary: {
         total_logs: 12,
         failed_operations: 3,
@@ -197,7 +197,6 @@ const i18n = createI18n({
             shortcuts: 'Quick Links',
             riskWatch: 'Recent Risk',
           },
-          currentWindow: 'Window: {from} - {to}',
           trend: {
             emptyTitle: 'Not enough risk events yet',
             emptyDescription: 'Trend analysis will appear after more audit events are collected.',
@@ -270,7 +269,7 @@ describe('AuditOverviewPage', () => {
 
     await flushPromises();
 
-    expect(auditApiMocks.getAuditOverview).toHaveBeenCalledWith({ window: '24h' });
+    expect(auditApiMocks.getAuditOverview).toHaveBeenCalledWith({ preset: 'last_24h' });
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
     expect(wrapper.text()).toContain('Security Audit Overview');
     expect(wrapper.text()).toContain('excluding health checks, monitor polling, and page-load noise');
@@ -287,18 +286,16 @@ describe('AuditOverviewPage', () => {
       expect.objectContaining({
         path: AUDIT_ROUTE_PATH.LOGS,
         query: expect.objectContaining({
-          preset: 'auth-failed',
-          created_from: expect.any(String),
-          created_to: expect.any(String),
+          preset: 'last_24h',
+          scope: 'auth_failures',
         }),
       }),
     );
-    expect(wrapper.text()).toContain('Window:');
   });
 
   it('renders the trend chart only when enough meaningful points are present', async () => {
     const overviewWithTrend: AuditOverviewResponse = {
-      window: '24h',
+      time_preset: 'last_24h',
       summary: {
         total_logs: 18,
         failed_operations: 4,

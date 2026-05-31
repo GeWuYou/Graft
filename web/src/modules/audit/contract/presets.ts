@@ -1,81 +1,35 @@
-import type { AuditClientFilterState } from '../shared/presentation';
+import { AUDIT_SCOPE, type AuditScope } from './scopes';
 
-export type AuditPresetKey =
+export type AuditQuickPresetKey =
   | 'all'
-  | 'today-anomalies'
   | 'rbac-changes'
   | 'permission-denied'
   | 'sensitive-ops'
   | 'auth-failed'
   | 'high-risk';
 
-export type AuditPresetDefinition = {
-  key: AuditPresetKey;
+export type AuditQuickPresetDefinition = {
+  key: AuditQuickPresetKey;
   titleKey: string;
-  defaults: Partial<AuditClientFilterState>;
+  scope: AuditScope | '';
 };
 
-const AUDIT_PRESET_DEFINITIONS: readonly AuditPresetDefinition[] = [
-  {
-    key: 'all',
-    titleKey: 'audit.logList.presets.all',
-    defaults: {},
-  },
-  {
-    key: 'today-anomalies',
-    titleKey: 'audit.logList.presets.todayAnomalies',
-    defaults: {
-      source: 'SECURITY_EVENT',
-      result: 'ERROR',
-      riskLevel: 'HIGH',
-    },
-  },
-  {
-    key: 'rbac-changes',
-    titleKey: 'audit.logList.presets.rbacChanges',
-    defaults: {
-      actionPrefix: 'rbac.',
-    },
-  },
+const AUDIT_PRESET_DEFINITIONS: readonly AuditQuickPresetDefinition[] = [
+  { key: 'all', titleKey: 'audit.logList.presets.all', scope: '' },
+  { key: 'rbac-changes', titleKey: 'audit.logList.presets.rbacChanges', scope: AUDIT_SCOPE.RBAC_CHANGES },
   {
     key: 'permission-denied',
     titleKey: 'audit.logList.presets.permissionDenied',
-    defaults: {
-      source: 'SECURITY_EVENT',
-      result: 'DENIED',
-      riskLevel: 'CRITICAL',
-    },
+    scope: AUDIT_SCOPE.PERMISSION_DENIALS,
   },
-  {
-    key: 'sensitive-ops',
-    titleKey: 'audit.logList.presets.sensitiveOps',
-    defaults: {
-      riskLevel: 'HIGH',
-    },
-  },
-  {
-    key: 'auth-failed',
-    titleKey: 'audit.logList.presets.authFailed',
-    defaults: {
-      source: 'REQUEST',
-      result: 'FAILED',
-      resourceType: 'auth',
-      riskLevel: 'HIGH',
-    },
-  },
-  {
-    key: 'high-risk',
-    titleKey: 'audit.logList.presets.highRisk',
-    defaults: {
-      source: 'SECURITY_EVENT',
-      riskLevel: 'CRITICAL',
-    },
-  },
+  { key: 'sensitive-ops', titleKey: 'audit.logList.presets.sensitiveOps', scope: AUDIT_SCOPE.SENSITIVE_OPERATIONS },
+  { key: 'auth-failed', titleKey: 'audit.logList.presets.authFailed', scope: AUDIT_SCOPE.AUTH_FAILURES },
+  { key: 'high-risk', titleKey: 'audit.logList.presets.highRisk', scope: AUDIT_SCOPE.HIGH_RISK_EVENTS },
 ] as const;
 
-const AUDIT_PRESET_KEY_SET = new Set<AuditPresetKey>(AUDIT_PRESET_DEFINITIONS.map((preset) => preset.key));
+const AUDIT_PRESET_KEY_SET = new Set<AuditQuickPresetKey>(AUDIT_PRESET_DEFINITIONS.map((preset) => preset.key));
 
-const AUDIT_PRESET_ALIASES: Record<string, AuditPresetKey> = {
+const AUDIT_PRESET_ALIASES: Record<string, AuditQuickPresetKey> = {
   'failed-auth': 'auth-failed',
 };
 
@@ -83,13 +37,18 @@ export function listAuditPresets() {
   return AUDIT_PRESET_DEFINITIONS;
 }
 
-export function getAuditPresetDefaults(key: AuditPresetKey): Partial<AuditClientFilterState> {
-  return AUDIT_PRESET_DEFINITIONS.find((preset) => preset.key === key)?.defaults ?? {};
+export function getAuditPresetScope(key: AuditQuickPresetKey): AuditScope | '' {
+  return AUDIT_PRESET_DEFINITIONS.find((preset) => preset.key === key)?.scope ?? '';
 }
 
-export function resolveAuditPresetKey(value: string): AuditPresetKey {
-  if (AUDIT_PRESET_KEY_SET.has(value as AuditPresetKey)) {
-    return value as AuditPresetKey;
+export function resolveAuditPresetKeyFromScope(scope: string): AuditQuickPresetKey {
+  const matched = AUDIT_PRESET_DEFINITIONS.find((preset) => preset.scope === scope);
+  return matched?.key ?? 'all';
+}
+
+export function resolveAuditPresetKey(value: string): AuditQuickPresetKey {
+  if (AUDIT_PRESET_KEY_SET.has(value as AuditQuickPresetKey)) {
+    return value as AuditQuickPresetKey;
   }
 
   return AUDIT_PRESET_ALIASES[value] ?? 'all';

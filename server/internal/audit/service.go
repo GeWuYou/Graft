@@ -51,6 +51,8 @@ type ListQuery struct {
 	ActorUserID  *uint64
 	Action       string
 	ActionPrefix string
+	Scope        auditstore.AuditLogScope
+	TimePreset   auditstore.AuditTimePreset
 	Source       auditstore.AuditSource
 	ResourceType string
 	ResourceID   string
@@ -152,6 +154,8 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		ActorUserID:  query.ActorUserID,
 		Action:       strings.TrimSpace(query.Action),
 		ActionPrefix: strings.TrimSpace(query.ActionPrefix),
+		Scope:        normalizeAuditLogScope(query.Scope),
+		TimePreset:   normalizeAuditTimePreset(query.TimePreset),
 		Source:       normalizeAuditSource(query.Source),
 		ResourceType: strings.TrimSpace(query.ResourceType),
 		ResourceID:   strings.TrimSpace(query.ResourceID),
@@ -160,8 +164,8 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		RequestID:    strings.TrimSpace(query.RequestID),
 		Result:       normalizeAuditResult(query.Result),
 		RiskLevel:    normalizeAuditRiskLevel(query.RiskLevel),
-		CreatedFrom:  query.CreatedFrom,
-		CreatedTo:    query.CreatedTo,
+		CreatedFrom:  normalizeAuditCreatedFrom(query.CreatedFrom),
+		CreatedTo:    normalizeAuditCreatedTo(query.CreatedTo),
 		SortBy:       normalizeAuditSortBy(query.SortBy),
 		SortOrder:    normalizeAuditSortOrder(query.SortOrder),
 		Limit:        pageSize,
@@ -177,6 +181,22 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+func normalizeAuditCreatedFrom(value *time.Time) *time.Time {
+	if value == nil || value.IsZero() {
+		return nil
+	}
+	normalized := value.UTC()
+	return &normalized
+}
+
+func normalizeAuditCreatedTo(value *time.Time) *time.Time {
+	if value == nil || value.IsZero() {
+		return nil
+	}
+	normalized := value.UTC()
+	return &normalized
 }
 
 func normalizeAuditSortBy(value string) string {
@@ -207,6 +227,40 @@ func normalizeAuditSource(source auditstore.AuditSource) auditstore.AuditSource 
 		return auditstore.AuditSourceDomainEvent
 	default:
 		return ""
+	}
+}
+
+func normalizeAuditTimePreset(value auditstore.AuditTimePreset) auditstore.AuditTimePreset {
+	switch auditstore.AuditTimePreset(strings.TrimSpace(string(value))) {
+	case auditstore.AuditTimePresetLast7Days:
+		return auditstore.AuditTimePresetLast7Days
+	case auditstore.AuditTimePresetLast30Days:
+		return auditstore.AuditTimePresetLast30Days
+	default:
+		return auditstore.AuditTimePresetLast24Hours
+	}
+}
+
+func normalizeAuditLogScope(value auditstore.AuditLogScope) auditstore.AuditLogScope {
+	switch auditstore.AuditLogScope(strings.TrimSpace(string(value))) {
+	case auditstore.AuditLogScopeFailedOperations:
+		return auditstore.AuditLogScopeFailedOperations
+	case auditstore.AuditLogScopeHighRiskEvents:
+		return auditstore.AuditLogScopeHighRiskEvents
+	case auditstore.AuditLogScopeSensitiveOperations:
+		return auditstore.AuditLogScopeSensitiveOperations
+	case auditstore.AuditLogScopeCriticalSecurity:
+		return auditstore.AuditLogScopeCriticalSecurity
+	case auditstore.AuditLogScopeHighRiskOperations:
+		return auditstore.AuditLogScopeHighRiskOperations
+	case auditstore.AuditLogScopeAuthFailures:
+		return auditstore.AuditLogScopeAuthFailures
+	case auditstore.AuditLogScopePermissionDenials:
+		return auditstore.AuditLogScopePermissionDenials
+	case auditstore.AuditLogScopeRbacChanges:
+		return auditstore.AuditLogScopeRbacChanges
+	default:
+		return auditstore.AuditLogScopeAllLogs
 	}
 }
 
@@ -241,12 +295,12 @@ func normalizeAuditRiskLevel(level auditstore.AuditRiskLevel) auditstore.AuditRi
 }
 
 // Overview returns the aggregated overview payload for the selected window.
-func (s *Service) Overview(ctx context.Context, window auditstore.OverviewWindow) (OverviewResult, error) {
+func (s *Service) Overview(ctx context.Context, preset auditstore.AuditTimePreset) (OverviewResult, error) {
 	if s == nil || s.repo == nil {
 		return OverviewResult{}, ErrAuditServiceUnavailable
 	}
 
-	return s.repo.ReadAuditOverview(ctx, window)
+	return s.repo.ReadAuditOverview(ctx, normalizeAuditTimePreset(preset))
 }
 
 // Incident returns the audit-owned incident drilldown for one stable seed event.

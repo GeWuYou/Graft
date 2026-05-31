@@ -48,7 +48,6 @@
         "7d": "Last 7d",
         "30d": "Last 30d"
       },
-      "currentWindow": "Window: {from} - {to}",
       "itemResult": {
         "failed": "Failed",
         "denied": "Denied",
@@ -285,6 +284,7 @@
       "detail": "Detail",
       "more": "More",
       "summary": "{count} security audit records shown",
+      "timeRangeLabel": "Time range: {value}",
       "tableHint": "The table shows only policy-matched security audit events. Request chain and permission context move to the detail drawer.",
       "reasonFallback": "No additional reason",
       "footerTotal": "{count} audit events total",

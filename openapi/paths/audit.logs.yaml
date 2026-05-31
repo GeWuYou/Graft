@@ -31,6 +31,27 @@ get:
       required: false
       schema:
         type: string
+    - name: scope
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - all_logs
+          - failed_operations
+          - high_risk_events
+          - sensitive_operations
+          - critical_security
+          - high_risk_operations
+          - auth_failures
+          - permission_denials
+          - rbac_changes
+    - name: preset
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [last_24h, last_7d, last_30d]
     - name: action_prefix
       in: query
       required: false

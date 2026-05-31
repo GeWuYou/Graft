@@ -13,7 +13,6 @@
               {{ option.label }}
             </t-radio-button>
           </t-radio-group>
-          <span class="audit-overview__window-label">{{ currentWindowLabel }}</span>
           <t-button theme="default" variant="outline" :loading="loading" @click="fetchOverview">
             {{ t('audit.overview.refresh') }}
           </t-button>
@@ -111,7 +110,7 @@
                   <t-tag :theme="riskTheme(group.risk_level)" variant="light-outline" size="small">
                     {{ t(`audit.common.risk.${group.risk_level}`) }}
                   </t-tag>
-                  <t-button size="small" theme="primary" variant="text" @click="openRiskGroup(group.risk_level)">
+                  <t-button size="small" theme="primary" variant="text" @click="openRiskGroup(group.key)">
                     {{ riskGroupActionLabel }}
                   </t-button>
                 </div>
@@ -126,7 +125,7 @@
                 :key="entry.key"
                 class="audit-overview__shortcut"
                 type="button"
-                @click="openShortcut(entry.preset)"
+                @click="openShortcut(entry.scope)"
               >
                 <strong>{{ entry.title }}</strong>
                 <span>{{ entry.description }}</span>
@@ -245,22 +244,17 @@ import { useRouter } from 'vue-router';
 
 import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
 import { buildAuditLogsLocation } from '@/modules/audit/contract/deep-link';
-import type { AuditPresetKey } from '@/modules/audit/contract/presets';
-import { resolveAuditPresetKey } from '@/modules/audit/contract/presets';
+import { AUDIT_SCOPE } from '@/modules/audit/contract/scopes';
+import { AUDIT_TIME_PRESET, type AuditTimePreset } from '@/modules/audit/contract/time-presets';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { GovernanceDashboardShell, GovernanceSection, GovernanceSummaryCard } from '@/shared/components/governance';
 import { ManagementEmptyState } from '@/shared/components/management';
+import { formatLocaleDateTime } from '@/shared/observability';
 import { createLogger } from '@/utils/logger';
 
 import { getAuditOverview } from '../../api/audit';
-import type {
-  AuditOverviewItem,
-  AuditOverviewQuery,
-  AuditOverviewResponse,
-  AuditOverviewWindow,
-  AuditRiskLevel,
-} from '../../types/audit';
+import type { AuditOverviewItem, AuditOverviewResponse } from '../../types/audit';
 
 defineOptions({
   name: 'AuditOverviewIndex',
@@ -269,20 +263,15 @@ defineOptions({
 const { locale, t } = useI18n();
 const router = useRouter();
 const logger = createLogger('audit.overview');
-const activeWindow = ref<AuditOverviewWindow>('24h');
+const activeWindow = ref<AuditTimePreset>(AUDIT_TIME_PRESET.LAST_24H);
 const loading = ref(false);
 const errorMessage = ref('');
 const overview = ref<AuditOverviewResponse | null>(null);
-const overviewWindow = ref<Required<AuditOverviewQuery>>({
-  window: '24h',
-  from: '',
-  to: '',
-});
 
 const timeRangeOptions = computed(() => [
-  { label: t('audit.overview.timeRanges.24h'), value: '24h' as const },
-  { label: t('audit.overview.timeRanges.7d'), value: '7d' as const },
-  { label: t('audit.overview.timeRanges.30d'), value: '30d' as const },
+  { label: t('audit.overview.timeRanges.24h'), value: AUDIT_TIME_PRESET.LAST_24H },
+  { label: t('audit.overview.timeRanges.7d'), value: AUDIT_TIME_PRESET.LAST_7D },
+  { label: t('audit.overview.timeRanges.30d'), value: AUDIT_TIME_PRESET.LAST_30D },
 ]);
 
 const stats = computed(() => [
@@ -382,72 +371,64 @@ const trendLegendItems = computed(() => [
   { key: 'risk', label: t('audit.overview.trend.legend.highRisk') },
   { key: 'security', label: t('audit.overview.trend.legend.security') },
 ]);
-const currentWindowLabel = computed(() =>
-  t('audit.overview.currentWindow', {
-    from: formatWindowDateTime(overviewWindow.value.from),
-    to: formatWindowDateTime(overviewWindow.value.to),
-  }),
-);
-
 const shortcuts = computed(() => [
   {
     key: 'failed',
     title: t('audit.overview.shortcuts.failedAuth.title'),
     description: t('audit.overview.shortcuts.failedAuth.description'),
-    preset: resolveAuditPresetKey('failed-auth'),
+    scope: AUDIT_SCOPE.AUTH_FAILURES,
   },
   {
     key: 'rbac',
     title: t('audit.overview.shortcuts.rbacChanges.title'),
     description: t('audit.overview.shortcuts.rbacChanges.description'),
-    preset: resolveAuditPresetKey('rbac-changes'),
+    scope: AUDIT_SCOPE.RBAC_CHANGES,
   },
   {
     key: 'sensitive',
     title: t('audit.overview.shortcuts.sensitiveOps.title'),
     description: t('audit.overview.shortcuts.sensitiveOps.description'),
-    preset: resolveAuditPresetKey('sensitive-ops'),
+    scope: AUDIT_SCOPE.SENSITIVE_OPERATIONS,
   },
 ]);
 
 const riskGroupActionLabel = computed(() => t('audit.overview.riskGroups.action'));
 const relatedRequestActionLabel = computed(() => t('audit.logList.drawer.actions.viewRelatedRequest'));
 
-function openShortcut(preset: AuditPresetKey) {
-  void router.push(buildAuditLogsLocation({ preset, ...buildOverviewWindowQuery() }));
+function openShortcut(scope: string) {
+  void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope }));
 }
 
 function openSummary(key: string) {
-  const windowQuery = buildOverviewWindowQuery();
   switch (key) {
     case 'failed':
-      void router.push(
-        buildAuditLogsLocation({
-          preset: resolveAuditPresetKey('auth-failed'),
-          result: 'FAILED',
-          ...windowQuery,
-        }),
-      );
+      void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope: AUDIT_SCOPE.FAILED_OPERATIONS }));
       return;
     case 'risk':
-      void router.push(buildAuditLogsLocation({ preset: resolveAuditPresetKey('high-risk'), ...windowQuery }));
+      void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope: AUDIT_SCOPE.HIGH_RISK_EVENTS }));
       return;
     case 'sensitive':
-      void router.push(buildAuditLogsLocation({ risk_level: 'HIGH', source: 'DOMAIN_EVENT', ...windowQuery }));
+      void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope: AUDIT_SCOPE.SENSITIVE_OPERATIONS }));
       return;
     default:
-      void router.push(buildAuditLogsLocation(windowQuery));
+      void router.push(buildAuditLogsLocation({ preset: activeWindow.value, scope: AUDIT_SCOPE.ALL_LOGS }));
   }
 }
 
-function openRiskGroup(riskLevel: AuditRiskLevel) {
-  const query = buildOverviewWindowQuery();
-  if (riskLevel === 'CRITICAL') {
-    void router.push(buildAuditLogsLocation({ preset: resolveAuditPresetKey('high-risk'), ...query }));
-    return;
-  }
+function openRiskGroup(groupKey: string) {
+  const scopeByGroupKey: Record<string, string> = {
+    critical_security: AUDIT_SCOPE.CRITICAL_SECURITY,
+    high_risk_operations: AUDIT_SCOPE.HIGH_RISK_OPERATIONS,
+    auth_failures: AUDIT_SCOPE.AUTH_FAILURES,
+    permission_denials: AUDIT_SCOPE.PERMISSION_DENIALS,
+  };
 
-  void router.push(buildAuditLogsLocation({ risk_level: riskLevel, ...query }));
+  void router.push(
+    buildAuditLogsLocation({
+      preset: activeWindow.value,
+      scope: scopeByGroupKey[groupKey] || AUDIT_SCOPE.ALL_LOGS,
+    }),
+  );
 }
 
 function openSecurityTimelineRequest(requestId?: string) {
@@ -461,11 +442,9 @@ function openSecurityTimelineRequest(requestId?: string) {
 async function fetchOverview() {
   loading.value = true;
   errorMessage.value = '';
-  const requestWindow = createOverviewWindow(activeWindow.value);
-  overviewWindow.value = requestWindow;
 
   try {
-    overview.value = await getAuditOverview({ window: requestWindow.window });
+    overview.value = await getAuditOverview({ preset: activeWindow.value });
   } catch (error) {
     overview.value = null;
     logger.error('failed to fetch audit overview', error);
@@ -579,66 +558,12 @@ function formatTrendDateTime(value: string | undefined, timeOptions: Intl.DateTi
 }
 
 function formatTime(value?: string) {
-  return formatLocaleDateTime(value, {
+  return formatLocaleDateTime(value, locale.value, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function buildOverviewWindowQuery() {
-  return {
-    created_from: overviewWindow.value.from,
-    created_to: overviewWindow.value.to,
-  };
-}
-
-function createOverviewWindow(window: AuditOverviewWindow) {
-  const now = new Date();
-  const startedAt = new Date(now);
-
-  switch (window) {
-    case '30d':
-      startedAt.setUTCDate(startedAt.getUTCDate() - 30);
-      break;
-    case '7d':
-      startedAt.setUTCDate(startedAt.getUTCDate() - 7);
-      break;
-    default:
-      startedAt.setUTCHours(startedAt.getUTCHours() - 24);
-      break;
-  }
-
-  return {
-    window,
-    from: startedAt.toISOString(),
-    to: now.toISOString(),
-  };
-}
-
-function formatWindowDateTime(value?: string) {
-  return formatLocaleDateTime(value, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
-
-function formatLocaleDateTime(value: string | undefined, options: Intl.DateTimeFormatOptions) {
-  if (!value) {
-    return '-';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale.value || undefined, options).format(date);
 }
 
 watch(activeWindow, () => {

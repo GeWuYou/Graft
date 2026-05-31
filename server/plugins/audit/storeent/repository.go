@@ -223,13 +223,13 @@ func buildAuditLogOrderBy(query auditstore.ListAuditLogsQuery) string {
 }
 
 // ReadAuditOverview aggregates real overview data from the settled audit log table.
-func (r *repository) ReadAuditOverview(ctx context.Context, window auditstore.OverviewWindow) (auditstore.AuditOverview, error) {
+func (r *repository) ReadAuditOverview(ctx context.Context, preset auditstore.AuditTimePreset) (auditstore.AuditOverview, error) {
 	if r == nil || r.db == nil {
 		return auditstore.AuditOverview{}, errors.New("audit repository is unavailable")
 	}
 
 	now := time.Now().UTC()
-	startedAt := overviewWindowStart(now, window)
+	startedAt := auditPresetStart(now, preset)
 	args := []any{startedAt}
 
 	summary, err := r.readAuditOverviewSummary(ctx, args)
@@ -240,7 +240,7 @@ func (r *repository) ReadAuditOverview(ctx context.Context, window auditstore.Ov
 	if err != nil {
 		return auditstore.AuditOverview{}, err
 	}
-	trend, err := r.readOverviewTrend(ctx, window, startedAt, now)
+	trend, err := r.readOverviewTrend(ctx, preset, startedAt, now)
 	if err != nil {
 		return auditstore.AuditOverview{}, err
 	}
@@ -263,7 +263,7 @@ func (r *repository) ReadAuditOverview(ctx context.Context, window auditstore.Ov
 	}
 
 	return auditstore.AuditOverview{
-		Window:           window,
+		TimePreset:       preset,
 		Summary:          summary,
 		RiskGroups:       riskGroups,
 		Trend:            trend,
@@ -476,6 +476,8 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 		clauses = append(clauses, fmt.Sprintf(format, len(args)))
 	}
 
+	addAuditPresetRange(&clauses, &args, query)
+	addAuditScopeFilter(&clauses, &args, query.Scope)
 	addUint64Filter(&clauses, &args, "actor_user_id = $%d", query.ActorUserID)
 	addScalarFilter(add, "action = $%d", query.Action)
 	addPrefixFilter(add, "action LIKE $%d ESCAPE '\\'", query.ActionPrefix)
@@ -494,6 +496,105 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 	}
 
 	return " WHERE " + strings.Join(clauses, " AND "), args
+}
+
+func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAuditLogsQuery) {
+	if query.CreatedFrom != nil || query.CreatedTo != nil {
+		return
+	}
+
+	now := time.Now().UTC()
+	startedAt := auditPresetStart(now, query.TimePreset)
+	addTimeFilter(clauses, args, "created_at >= $%d", &startedAt)
+}
+
+func addAuditScopeFilter(clauses *[]string, _ *[]any, scope auditstore.AuditLogScope) {
+	scopeSQL := auditScopeWhereClause(scope)
+	if scopeSQL == "" {
+		return
+	}
+	*clauses = append(*clauses, scopeSQL)
+}
+
+func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Time {
+	switch preset {
+	case auditstore.AuditTimePresetLast7Days:
+		return now.Add(-7 * 24 * time.Hour)
+	case auditstore.AuditTimePresetLast30Days:
+		return now.Add(-30 * 24 * time.Hour)
+	default:
+		return now.Add(-24 * time.Hour)
+	}
+}
+
+func auditScopeWhereClause(scope auditstore.AuditLogScope) string {
+	switch scope {
+	case auditstore.AuditLogScopeFailedOperations:
+		return "success = false"
+	case auditstore.AuditLogScopeHighRiskEvents:
+		return highRiskWhereClause()
+	case auditstore.AuditLogScopeSensitiveOperations:
+		return sensitiveOperationsWhereClause()
+	case auditstore.AuditLogScopeCriticalSecurity:
+		return criticalSecurityWhereClause()
+	case auditstore.AuditLogScopeHighRiskOperations:
+		return highRiskOperationsWhereClause()
+	case auditstore.AuditLogScopeAuthFailures:
+		return overviewFailedAuthWhere
+	case auditstore.AuditLogScopePermissionDenials:
+		return overviewPermissionDeniedWhere
+	case auditstore.AuditLogScopeRbacChanges:
+		return rbacChangesWhereClause()
+	default:
+		return ""
+	}
+}
+
+func criticalSecurityWhereClause() string {
+	return `(
+		success = false AND (
+			(metadata ->> 'status_code') = '403'
+			OR (
+				COALESCE(metadata ->> 'status_code', '') ~ '^[0-9]+$'
+				AND (metadata ->> 'status_code')::int >= 500
+			)
+			OR COALESCE(metadata ->> 'error_kind', '') = 'system'
+			OR COALESCE(metadata ->> 'error', '') <> ''
+		)
+	)`
+}
+
+func highRiskOperationsWhereClause() string {
+	return `(
+		success = false
+		OR LOWER(action) LIKE '%delete%'
+		OR LOWER(action) LIKE '%reset%'
+		OR LOWER(action) LIKE '%grant%'
+		OR LOWER(action) LIKE '%assign%'
+		OR LOWER(action) LIKE '%revoke%'
+		OR LOWER(action) LIKE '%remove%'
+		OR LOWER(action) LIKE '%replace%'
+	)`
+}
+
+func highRiskWhereClause() string {
+	return highRiskOperationsWhereClause()
+}
+
+func sensitiveOperationsWhereClause() string {
+	return `(
+		LOWER(action) LIKE '%delete%'
+		OR LOWER(action) LIKE '%reset%'
+		OR LOWER(action) LIKE '%grant%'
+		OR LOWER(action) LIKE '%assign%'
+		OR LOWER(action) LIKE '%revoke%'
+		OR LOWER(action) LIKE '%remove%'
+		OR LOWER(action) LIKE '%replace%'
+	)`
+}
+
+func rbacChangesWhereClause() string {
+	return `(LOWER(action) LIKE 'rbac.%' OR LOWER(action) LIKE 'role.%' OR LOWER(action) LIKE 'permission.%')`
 }
 
 func addScalarFilter(add func(string, any), format string, value string) {
@@ -1252,28 +1353,15 @@ func sourceWhereClause() string {
 	return `COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') = $%d`
 }
 
-const overviewSummarySQL = `
+var overviewSummarySQL = `
 SELECT
-	(SELECT COUNT(*) FROM audit_logs) AS total_logs,
+	COUNT(*) AS total_logs,
 	COUNT(*) FILTER (WHERE success = false) AS failed_operations,
 	COUNT(*) FILTER (
-		WHERE success = false
-		   OR LOWER(action) LIKE '%delete%'
-		   OR LOWER(action) LIKE '%reset%'
-		   OR LOWER(action) LIKE '%grant%'
-		   OR LOWER(action) LIKE '%assign%'
-		   OR LOWER(action) LIKE '%revoke%'
-		   OR LOWER(action) LIKE '%remove%'
-		   OR LOWER(action) LIKE '%replace%'
+		WHERE ` + highRiskWhereClause() + `
 	) AS high_risk_events,
 	COUNT(*) FILTER (
-		WHERE LOWER(action) LIKE '%delete%'
-		   OR LOWER(action) LIKE '%reset%'
-		   OR LOWER(action) LIKE '%grant%'
-		   OR LOWER(action) LIKE '%assign%'
-		   OR LOWER(action) LIKE '%revoke%'
-		   OR LOWER(action) LIKE '%remove%'
-		   OR LOWER(action) LIKE '%replace%'
+		WHERE ` + sensitiveOperationsWhereClause() + `
 	) AS sensitive_operations
 FROM audit_logs
 WHERE created_at >= $1
@@ -1337,17 +1425,6 @@ var overviewPermissionDeniedWhere = `
 		OR LOWER(message) LIKE '%permission%'
 	)
 `
-
-func overviewWindowStart(now time.Time, window auditstore.OverviewWindow) time.Time {
-	switch window {
-	case auditstore.OverviewWindow7Days:
-		return now.Add(-7 * 24 * time.Hour)
-	case auditstore.OverviewWindow30Days:
-		return now.Add(-30 * 24 * time.Hour)
-	default:
-		return now.Add(-24 * time.Hour)
-	}
-}
 
 //nolint:gosec // Query text is assembled from fixed SQL fragments; all dynamic values stay parameterized.
 var overviewRiskGroupsSQL = `
@@ -1484,11 +1561,11 @@ func (r *repository) readOverviewRiskGroups(ctx context.Context, args []any) ([]
 
 func (r *repository) readOverviewTrend(
 	ctx context.Context,
-	window auditstore.OverviewWindow,
+	preset auditstore.AuditTimePreset,
 	startedAt time.Time,
 	now time.Time,
 ) (auditstore.OverviewTrend, error) {
-	bucketUnit, bucketSize, step := overviewTrendConfig(window)
+	bucketUnit, bucketSize, step := overviewTrendConfig(preset)
 	//nolint:gosec // step comes from overviewTrendConfig and is limited to fixed internal interval literals.
 	seriesSQL := fmt.Sprintf(`
 SELECT
@@ -1671,11 +1748,11 @@ func scanAuditTrendRecord(scanner interface {
 	return record, nil
 }
 
-func overviewTrendConfig(window auditstore.OverviewWindow) (string, int, string) {
-	switch window {
-	case auditstore.OverviewWindow7Days:
+func overviewTrendConfig(preset auditstore.AuditTimePreset) (string, int, string) {
+	switch preset {
+	case auditstore.AuditTimePresetLast7Days:
 		return "day", overviewTrendDayBucketSize, overviewTrendDayStep
-	case auditstore.OverviewWindow30Days:
+	case auditstore.AuditTimePresetLast30Days:
 		return "day", overviewTrendThreeDayBucketSize, overviewTrendThreeDayStep
 	default:
 		return "hour", overviewTrendTwoHourBucketSize, overviewTrendTwoHourStep

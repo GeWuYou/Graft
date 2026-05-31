@@ -58,9 +58,9 @@ func (r *memoryAuditRepository) ListAuditLogs(_ context.Context, _ store.ListAud
 	return store.ListAuditLogsResult{Items: append([]store.AuditLog(nil), r.items...), Total: len(r.items)}, nil
 }
 
-func (r *memoryAuditRepository) ReadAuditOverview(_ context.Context, window store.OverviewWindow) (store.AuditOverview, error) {
+func (r *memoryAuditRepository) ReadAuditOverview(_ context.Context, window store.AuditTimePreset) (store.AuditOverview, error) {
 	return store.AuditOverview{
-		Window: window,
+		TimePreset: window,
 		Summary: store.OverviewSummary{
 			TotalLogs:           len(r.items),
 			FailedOperations:    1,
@@ -150,7 +150,7 @@ func (failingAuditRepository) ListAuditLogs(context.Context, store.ListAuditLogs
 	return store.ListAuditLogsResult{}, nil
 }
 
-func (failingAuditRepository) ReadAuditOverview(context.Context, store.OverviewWindow) (store.AuditOverview, error) {
+func (failingAuditRepository) ReadAuditOverview(context.Context, store.AuditTimePreset) (store.AuditOverview, error) {
 	return store.AuditOverview{}, errors.New("overview failed")
 }
 
@@ -776,7 +776,7 @@ func TestAuditOverviewRouteReturnsPayload(t *testing.T) {
 	repo := &memoryAuditRepository{}
 	_, engine, _ := newPluginTestContext(t, repo)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/audit/overview?window=7d", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/overview?preset=last_7d", nil)
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, request)
@@ -784,8 +784,8 @@ func TestAuditOverviewRouteReturnsPayload(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", recorder.Code)
 	}
-	if !strings.Contains(recorder.Body.String(), `"window":"7d"`) {
-		t.Fatalf("expected overview window in response, got %s", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), `"time_preset":"last_7d"`) {
+		t.Fatalf("expected overview preset in response, got %s", recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `"failed_auth"`) {
 		t.Fatalf("expected failed_auth in response, got %s", recorder.Body.String())
