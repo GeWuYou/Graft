@@ -1804,7 +1804,6 @@ export interface components {
      *       "name": "monitor",
      *       "status": "healthy",
      *       "status_detail": "Runtime metadata is present and platform signals are healthy",
-     *       "version": "0.1.0",
      *       "depends_on": [
      *         "user",
      *         "rbac"
@@ -1816,7 +1815,6 @@ export interface components {
       name: string;
       status: string;
       status_detail: string;
-      version: string;
       depends_on: string[];
       missing_dependencies?: string[];
     };

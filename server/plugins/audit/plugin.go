@@ -65,21 +65,6 @@ func NewPluginWithDrilldown(
 	return pluginInstance, nil
 }
 
-// Name 返回插件稳定标识。
-func (p *Plugin) Name() string {
-	return moduleID
-}
-
-// Version 返回当前插件版本。
-func (p *Plugin) Version() string {
-	return moduleVersion
-}
-
-// DependsOn 返回当前插件依赖列表。
-func (p *Plugin) DependsOn() []string {
-	return append([]string(nil), moduleDependencies...)
-}
-
 // Register 挂载 HTTP 自动审计、受权查询路由与 event bus 主动审计接线。
 func (p *Plugin) Register(ctx *plugin.Context) error {
 	if p.recorder == nil {
@@ -88,8 +73,8 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	if err := registerAuditMessages(ctx.I18n); err != nil {
 		return err
 	}
-	registerAuditPermissions(ctx.PermissionRegistry, p.Name())
-	registerAuditMenu(ctx.MenuRegistry, p.Name())
+	registerAuditPermissions(ctx.PermissionRegistry, moduleID)
+	registerAuditMenu(ctx.MenuRegistry, moduleID)
 	if err := registerAuditService(ctx, p.recorder); err != nil {
 		return err
 	}
@@ -104,7 +89,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		if err != nil {
 			return err
 		}
-		registerAuditRoutes(ctx, p.Name(), p.recorder, guard)
+		registerAuditRoutes(ctx, moduleID, p.recorder, guard)
 	}
 	if ctx.EventBus == nil {
 		return errors.New("event bus is unavailable")

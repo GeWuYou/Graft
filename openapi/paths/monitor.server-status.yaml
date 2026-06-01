@@ -98,22 +98,18 @@ get:
                     - name: audit
                       status: healthy
                       status_detail: Runtime metadata is present and platform signals are healthy
-                      version: 0.1.0
                       depends_on: []
                     - name: user
                       status: healthy
                       status_detail: Runtime metadata is present and platform signals are healthy
-                      version: 0.2.0
                       depends_on: []
                     - name: rbac
                       status: healthy
                       status_detail: Runtime metadata is present and platform signals are healthy
-                      version: 0.3.0
                       depends_on: [user]
                     - name: monitor
                       status: healthy
                       status_detail: Runtime metadata is present and platform signals are healthy
-                      version: 0.1.0
                       depends_on: [user, rbac]
                   anomalies:
                     - anomaly_key: resource_cpu_pressure

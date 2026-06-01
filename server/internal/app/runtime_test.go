@@ -63,12 +63,6 @@ type shutdownRecorderPlugin struct {
 	err         error
 }
 
-func (p shutdownRecorderPlugin) Name() string { return p.name }
-
-func (p shutdownRecorderPlugin) Version() string { return "test" }
-
-func (p shutdownRecorderPlugin) DependsOn() []string { return nil }
-
 func (p shutdownRecorderPlugin) Register(_ *plugin.Context) error { return nil }
 
 func (p shutdownRecorderPlugin) Boot(_ *plugin.Context) error { return nil }
@@ -82,10 +76,10 @@ func (p shutdownRecorderPlugin) Shutdown(_ *plugin.Context) error {
 // 以便后启动的依赖先完成资源释放。
 func TestShutdownPluginsUsesReverseOrder(t *testing.T) {
 	log := make([]string, 0, 3)
-	plugins := []plugin.Plugin{
-		shutdownRecorderPlugin{name: "user", shutdownLog: &log},
-		shutdownRecorderPlugin{name: "rbac", shutdownLog: &log},
-		shutdownRecorderPlugin{name: "audit", shutdownLog: &log},
+	plugins := []plugin.Module{
+		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "user"}, shutdownRecorderPlugin{name: "user", shutdownLog: &log}),
+		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "rbac"}, shutdownRecorderPlugin{name: "rbac", shutdownLog: &log}),
+		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "audit"}, shutdownRecorderPlugin{name: "audit", shutdownLog: &log}),
 	}
 
 	if err := shutdownPlugins(&plugin.Context{}, plugins); err != nil {
@@ -106,19 +100,21 @@ func TestShutdownPluginsUsesReverseOrder(t *testing.T) {
 // 这里直接构造返回固定错误的测试插件，目的是只锁定关闭聚合语义，
 // 不把断言耦合到 Register 或 Boot 的其它生命周期分支。
 func TestShutdownPluginsAggregatesErrors(t *testing.T) {
-	plugins := []plugin.Plugin{
-		shutdownRecorderPlugin{name: "user", shutdownLog: &[]string{}, err: errors.New("user failed")},
-		shutdownRecorderPlugin{name: "rbac", shutdownLog: &[]string{}, err: errors.New("rbac failed")},
+	userErr := errors.New("user failed")
+	rbacErr := errors.New("rbac failed")
+	plugins := []plugin.Module{
+		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "user"}, shutdownRecorderPlugin{name: "user", shutdownLog: &[]string{}, err: userErr}),
+		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "rbac"}, shutdownRecorderPlugin{name: "rbac", shutdownLog: &[]string{}, err: rbacErr}),
 	}
 
 	err := shutdownPlugins(&plugin.Context{}, plugins)
 	if err == nil {
 		t.Fatal("expected shutdown error")
 	}
-	if !errors.Is(err, plugins[0].(shutdownRecorderPlugin).err) {
+	if !errors.Is(err, userErr) {
 		t.Fatal("expected joined error to include user failure")
 	}
-	if !errors.Is(err, plugins[1].(shutdownRecorderPlugin).err) {
+	if !errors.Is(err, rbacErr) {
 		t.Fatal("expected joined error to include rbac failure")
 	}
 }
@@ -127,12 +123,6 @@ type eventBusRecorderPlugin struct {
 	registerEventBus eventbus.Bus
 	bootEventBus     eventbus.Bus
 }
-
-func (p *eventBusRecorderPlugin) Name() string { return "eventbus-recorder" }
-
-func (p *eventBusRecorderPlugin) Version() string { return "test" }
-
-func (p *eventBusRecorderPlugin) DependsOn() []string { return nil }
 
 func (p *eventBusRecorderPlugin) Register(ctx *plugin.Context) error {
 	p.registerEventBus = ctx.EventBus
@@ -152,12 +142,6 @@ type lifecycleContextRecorderPlugin struct {
 	shutdownLifecycleContext context.Context
 	shutdownLifecycleErr     error
 }
-
-func (p *lifecycleContextRecorderPlugin) Name() string { return "lifecycle-context-recorder" }
-
-func (p *lifecycleContextRecorderPlugin) Version() string { return "test" }
-
-func (p *lifecycleContextRecorderPlugin) DependsOn() []string { return nil }
 
 func (p *lifecycleContextRecorderPlugin) Register(ctx *plugin.Context) error {
 	p.registerLifecycleContext = ctx.LifecycleContext
@@ -183,12 +167,6 @@ type i18nFreezeRecorderPlugin struct {
 	bootRegisterErr error
 }
 
-func (p *i18nFreezeRecorderPlugin) Name() string { return "i18n-freeze-recorder" }
-
-func (p *i18nFreezeRecorderPlugin) Version() string { return "test" }
-
-func (p *i18nFreezeRecorderPlugin) DependsOn() []string { return nil }
-
 func (p *i18nFreezeRecorderPlugin) Register(ctx *plugin.Context) error {
 	p.registerFrozen = ctx.I18n.IsFrozen()
 	return ctx.I18n.RegisterMessages(i18n.Registration{
@@ -213,6 +191,20 @@ func (p *i18nFreezeRecorderPlugin) Boot(ctx *plugin.Context) error {
 }
 
 func (p *i18nFreezeRecorderPlugin) Shutdown(_ *plugin.Context) error { return nil }
+
+func mustDescribeRuntimeTestPlugin(spec plugin.ModuleSpec, instance plugin.Plugin) plugin.Module {
+	module, err := plugin.ModuleSpec{
+		ID:           spec.ID,
+		Dependencies: append([]string(nil), spec.Dependencies...),
+		Builder: plugin.BuilderFunc(func(plugin.BuildContext) (plugin.Plugin, error) {
+			return instance, nil
+		}),
+	}.Build(plugin.BuildContext{})
+	if err != nil {
+		panic(err)
+	}
+	return module
+}
 
 // TestRegisterCoreServicesExposesRuntimeSingletons 验证 core 装配会把配置、
 // event bus、共享 SQL 连接池与 Redis 客户端注册到运行时容器中。
@@ -388,7 +380,7 @@ func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
 
 	recorder := &eventBusRecorderPlugin{}
 	manager := plugin.NewManager()
-	if err := manager.RegisterPlugin(recorder); err != nil {
+	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "eventbus-recorder"}, recorder)); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 
@@ -429,7 +421,7 @@ func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
 
 	recorder := &lifecycleContextRecorderPlugin{}
 	manager := plugin.NewManager()
-	if err := manager.RegisterPlugin(recorder); err != nil {
+	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "lifecycle-context-recorder"}, recorder)); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 
@@ -476,7 +468,7 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 
 	recorder := &i18nFreezeRecorderPlugin{}
 	manager := plugin.NewManager()
-	if err := manager.RegisterPlugin(recorder); err != nil {
+	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "i18n-freeze-recorder"}, recorder)); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 

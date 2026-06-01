@@ -1,13 +1,11 @@
 type: object
-required: [name, status, status_detail, version, depends_on]
+required: [name, status, status_detail, depends_on]
 properties:
   name:
     type: string
   status:
     type: string
   status_detail:
-    type: string
-  version:
     type: string
   depends_on:
     type: array
@@ -21,6 +19,5 @@ example:
   name: monitor
   status: healthy
   status_detail: Runtime metadata is present and platform signals are healthy
-  version: 0.1.0
   depends_on: [user, rbac]
   missing_dependencies: []

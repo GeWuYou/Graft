@@ -11,18 +11,14 @@ import (
 )
 
 const (
-	moduleID      = "audit"
-	moduleVersion = "0.1.0"
+	moduleID = "audit"
 )
-
-var moduleDependencies = []string{"user", "rbac"}
 
 // NewModuleSpec exposes the audit module's stable compile-time metadata and builder.
 func NewModuleSpec() plugin.ModuleSpec {
 	return plugin.ModuleSpec{
 		ID:            moduleID,
-		ModuleVersion: moduleVersion,
-		Dependencies:  append([]string(nil), moduleDependencies...),
+		Dependencies:  []string{"user", "rbac"},
 		MigrationPath: []string{"plugins/audit/migrations"},
 		Builder: plugin.BuilderFunc(func(ctx plugin.BuildContext) (plugin.Plugin, error) {
 			sqlDB, err := plugin.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))

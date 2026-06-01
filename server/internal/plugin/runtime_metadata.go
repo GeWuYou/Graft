@@ -6,7 +6,6 @@ package plugin
 // compile-time registry 或构造器内部实现。
 type DescriptorSnapshot struct {
 	Name      string
-	Version   string
 	DependsOn []string
 }
 
@@ -24,7 +23,6 @@ func NewRuntimeMetadata(descriptors []ModuleSpec) RuntimeMetadata {
 	for _, descriptor := range descriptors {
 		snapshots = append(snapshots, DescriptorSnapshot{
 			Name:      descriptor.Name(),
-			Version:   descriptor.Version(),
 			DependsOn: append([]string(nil), descriptor.DependsOn()...),
 		})
 	}
@@ -38,7 +36,6 @@ func (m RuntimeMetadata) OrderedModuleDescriptors() []DescriptorSnapshot {
 	for _, descriptor := range m.orderedModuleDescriptors {
 		snapshots = append(snapshots, DescriptorSnapshot{
 			Name:      descriptor.Name,
-			Version:   descriptor.Version,
 			DependsOn: append([]string(nil), descriptor.DependsOn...),
 		})
 	}

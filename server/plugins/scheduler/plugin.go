@@ -7,6 +7,10 @@ import (
 	schedulercore "graft/server/internal/scheduler"
 )
 
+const (
+	moduleID = "scheduler"
+)
+
 // Plugin 是当前 MVP 阶段的最小调度插件。
 //
 // 该插件只负责在所有插件完成 Register 后，把 `cron registry` 中已声明的
@@ -20,21 +24,6 @@ type Plugin struct {
 // NewPlugin 创建最小调度插件。
 func NewPlugin() *Plugin {
 	return &Plugin{}
-}
-
-// Name 返回插件稳定标识。
-func (p *Plugin) Name() string {
-	return "scheduler"
-}
-
-// Version 返回当前插件版本。
-func (p *Plugin) Version() string {
-	return "0.1.0"
-}
-
-// DependsOn 返回当前插件依赖列表。
-func (p *Plugin) DependsOn() []string {
-	return nil
 }
 
 // Register 保持为空，由 Boot 在所有插件完成声明后统一装配任务。

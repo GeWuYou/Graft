@@ -2172,7 +2172,6 @@ type ServerStatusPlugin struct {
 	Name                string    `json:"name"`
 	Status              string    `json:"status"`
 	StatusDetail        string    `json:"status_detail"`
-	Version             string    `json:"version"`
 }
 
 // ServerStatusResponse defines model for server-status-response.

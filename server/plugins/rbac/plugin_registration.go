@@ -29,21 +29,6 @@ func NewPlugin(repository rbacstore.Repository) *Plugin {
 	return &Plugin{repository: repository}
 }
 
-// Name 返回插件稳定标识。
-func (p *Plugin) Name() string {
-	return moduleID
-}
-
-// Version 返回当前插件版本。
-func (p *Plugin) Version() string {
-	return moduleVersion
-}
-
-// DependsOn 声明当前最小授权插件依赖用户插件已完成认证主体解析。
-func (p *Plugin) DependsOn() []string {
-	return append([]string(nil), moduleDependencies...)
-}
-
 // Register 注册跨插件可复用的授权服务。
 //
 // Register 阶段只做稳定能力暴露与管理只读路由装配，不执行任何后台行为或耗时初始化。
@@ -51,8 +36,8 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	if err := registerMessages(ctx.I18n); err != nil {
 		return err
 	}
-	registerRBACPermissions(ctx.PermissionRegistry, p.Name())
-	registerRBACMenu(ctx.MenuRegistry, p.Name())
+	registerRBACPermissions(ctx.PermissionRegistry, moduleID)
+	registerRBACMenu(ctx.MenuRegistry, moduleID)
 	repository := p.repository
 	if repository == nil {
 		return errors.New("rbac repository is unavailable")
@@ -109,7 +94,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	registerManagementRoutes(
 		ctx,
-		p.Name(),
+		moduleID,
 		readService,
 		writeService,
 		managementGuards{

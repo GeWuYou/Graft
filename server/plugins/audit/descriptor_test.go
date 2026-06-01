@@ -1,21 +1,13 @@
 package audit
 
-import (
-	"reflect"
-	"testing"
-)
+import "testing"
 
-func TestDescriptorDependenciesMatchRuntimePlugin(t *testing.T) {
+func TestDescriptorDeclaresCanonicalDependencies(t *testing.T) {
 	t.Parallel()
 
-	repo := stubAuditRepository{}
-	instance, err := NewPlugin(repo)
-	if err != nil {
-		t.Fatalf("NewPlugin() error = %v", err)
-	}
-
 	descriptor := NewModuleSpec()
-	if !reflect.DeepEqual(descriptor.DependsOn(), instance.DependsOn()) {
-		t.Fatalf("descriptor dependencies = %v, runtime dependencies = %v", descriptor.DependsOn(), instance.DependsOn())
+	got := descriptor.DependsOn()
+	if len(got) != 2 || got[0] != "user" || got[1] != "rbac" {
+		t.Fatalf("descriptor dependencies = %v, want [user rbac]", got)
 	}
 }

@@ -7,16 +7,7 @@ import (
 )
 
 type testPlugin struct {
-	name      string
-	version   string
-	dependsOn []string
 }
-
-func (p testPlugin) Name() string { return p.name }
-
-func (p testPlugin) Version() string { return p.version }
-
-func (p testPlugin) DependsOn() []string { return append([]string(nil), p.dependsOn...) }
 
 func (p testPlugin) Register(_ *Context) error { return nil }
 
@@ -28,11 +19,11 @@ func (p testPlugin) Shutdown(_ *Context) error { return nil }
 // 不同注册顺序下仍会按依赖和字母序得到稳定的运行时顺序。
 func TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak(t *testing.T) {
 	manager := NewManager()
-	input := []Plugin{
-		testPlugin{name: "user", version: "0.1.0"},
-		testPlugin{name: "scheduler", version: "0.1.0"},
-		testPlugin{name: "rbac", version: "0.1.0", dependsOn: []string{"user"}},
-		testPlugin{name: "audit", version: "0.1.0"},
+	input := []Module{
+		describedPlugin{moduleSpec: ModuleSpec{ID: "user"}, delegate: testPlugin{}},
+		describedPlugin{moduleSpec: ModuleSpec{ID: "scheduler"}, delegate: testPlugin{}},
+		describedPlugin{moduleSpec: ModuleSpec{ID: "rbac", Dependencies: []string{"user"}}, delegate: testPlugin{}},
+		describedPlugin{moduleSpec: ModuleSpec{ID: "audit"}, delegate: testPlugin{}},
 	}
 
 	for _, current := range input {
@@ -60,7 +51,7 @@ func TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak(t *testing.T) 
 // TestManagerOrderedRejectsMissingDependency 验证缺失依赖会在排序阶段直接阻断。
 func TestManagerOrderedRejectsMissingDependency(t *testing.T) {
 	manager := NewManager()
-	if err := manager.RegisterPlugin(testPlugin{name: "rbac", version: "0.1.0", dependsOn: []string{"user"}}); err != nil {
+	if err := manager.RegisterPlugin(describedPlugin{moduleSpec: ModuleSpec{ID: "rbac", Dependencies: []string{"user"}}, delegate: testPlugin{}}); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 
@@ -76,9 +67,9 @@ func TestManagerOrderedRejectsMissingDependency(t *testing.T) {
 // TestManagerOrderedRejectsDependencyCycle 验证循环依赖会被明确识别。
 func TestManagerOrderedRejectsDependencyCycle(t *testing.T) {
 	manager := NewManager()
-	for _, current := range []Plugin{
-		testPlugin{name: "user", version: "0.1.0", dependsOn: []string{"rbac"}},
-		testPlugin{name: "rbac", version: "0.1.0", dependsOn: []string{"user"}},
+	for _, current := range []Module{
+		describedPlugin{moduleSpec: ModuleSpec{ID: "user", Dependencies: []string{"rbac"}}, delegate: testPlugin{}},
+		describedPlugin{moduleSpec: ModuleSpec{ID: "rbac", Dependencies: []string{"user"}}, delegate: testPlugin{}},
 	} {
 		if err := manager.RegisterPlugin(current); err != nil {
 			t.Fatalf("register plugin %s: %v", current.Name(), err)
@@ -97,17 +88,17 @@ func TestManagerOrderedRejectsDependencyCycle(t *testing.T) {
 // TestOrderModuleSpecsIsIndependentFromInputOrder 验证模块定义排序不依赖生成输入顺序。
 func TestOrderModuleSpecsIsIndependentFromInputOrder(t *testing.T) {
 	input := []ModuleSpec{
-		{ID: "scheduler", ModuleVersion: "0.1.0", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
-			return testPlugin{name: "scheduler", version: "0.1.0"}, nil
+		{ID: "scheduler", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
+			return testPlugin{}, nil
 		})},
-		{ID: "rbac", ModuleVersion: "0.1.0", Dependencies: []string{"user"}, Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
-			return testPlugin{name: "rbac", version: "0.1.0", dependsOn: []string{"user"}}, nil
+		{ID: "rbac", Dependencies: []string{"user"}, Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
+			return testPlugin{}, nil
 		})},
-		{ID: "audit", ModuleVersion: "0.1.0", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
-			return testPlugin{name: "audit", version: "0.1.0"}, nil
+		{ID: "audit", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
+			return testPlugin{}, nil
 		})},
-		{ID: "user", ModuleVersion: "0.1.0", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
-			return testPlugin{name: "user", version: "0.1.0"}, nil
+		{ID: "user", Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
+			return testPlugin{}, nil
 		})},
 	}
 
@@ -131,11 +122,10 @@ func TestOrderModuleSpecsIsIndependentFromInputOrder(t *testing.T) {
 // 模块定义元数据为 canonical truth。
 func TestModuleSpecBuildWrapsCanonicalMetadata(t *testing.T) {
 	descriptor := ModuleSpec{
-		ID:            "rbac",
-		ModuleVersion: "0.2.0",
-		Dependencies:  []string{"user"},
+		ID:           "rbac",
+		Dependencies: []string{"user"},
 		Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
-			return testPlugin{name: "rbac", version: "0.2.0", dependsOn: []string{"user"}}, nil
+			return testPlugin{}, nil
 		}),
 	}
 
@@ -147,47 +137,23 @@ func TestModuleSpecBuildWrapsCanonicalMetadata(t *testing.T) {
 	if built.Name() != "rbac" {
 		t.Fatalf("expected descriptor name, got %q", built.Name())
 	}
-	if built.Version() != "0.2.0" {
-		t.Fatalf("expected descriptor version, got %q", built.Version())
-	}
 	if !reflect.DeepEqual(built.DependsOn(), []string{"user"}) {
 		t.Fatalf("expected descriptor dependencies, got %v", built.DependsOn())
 	}
 }
 
-// TestModuleSpecBuildRejectsRuntimeMetadataDrift 验证运行时插件元数据一旦偏离
-// 模块定义真相就会在构造阶段被阻断。
-func TestModuleSpecBuildRejectsRuntimeMetadataDrift(t *testing.T) {
-	descriptor := ModuleSpec{
-		ID:            "rbac",
-		ModuleVersion: "0.2.0",
-		Dependencies:  []string{"user"},
-		Builder: BuilderFunc(func(BuildContext) (Plugin, error) {
-			return testPlugin{name: "rbac-v2", version: "0.2.0", dependsOn: []string{"user"}}, nil
-		}),
-	}
-
-	_, err := descriptor.Build(BuildContext{})
-	if err == nil {
-		t.Fatal("expected module spec metadata drift error")
-	}
-	if !strings.Contains(err.Error(), "does not match module spec") {
-		t.Fatalf("expected module spec mismatch error, got %v", err)
-	}
-}
-
 func TestNewRuntimeMetadataPreservesOrderedDescriptorSnapshot(t *testing.T) {
 	metadata := NewRuntimeMetadata([]ModuleSpec{
-		{ID: "audit", ModuleVersion: "0.1.0"},
-		{ID: "user", ModuleVersion: "0.2.0"},
-		{ID: "rbac", ModuleVersion: "0.3.0", Dependencies: []string{"user"}},
+		{ID: "audit"},
+		{ID: "user"},
+		{ID: "rbac", Dependencies: []string{"user"}},
 	})
 
 	got := metadata.OrderedModuleDescriptors()
 	expected := []DescriptorSnapshot{
-		{Name: "audit", Version: "0.1.0"},
-		{Name: "user", Version: "0.2.0"},
-		{Name: "rbac", Version: "0.3.0", DependsOn: []string{"user"}},
+		{Name: "audit"},
+		{Name: "user"},
+		{Name: "rbac", DependsOn: []string{"user"}},
 	}
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("expected %v, got %v", expected, got)

@@ -207,7 +207,7 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		return err
 	}
 
-	booted := make([]plugin.Plugin, 0, len(ordered))
+	booted := make([]plugin.Module, 0, len(ordered))
 	if err := r.registerPlugins(pluginCtx, ordered, booted); err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func (r *Runtime) Run(runCtx context.Context) error {
 	return nil
 }
 
-func (r *Runtime) registerPlugins(pluginCtx *plugin.Context, ordered []plugin.Plugin, booted []plugin.Plugin) error {
+func (r *Runtime) registerPlugins(pluginCtx *plugin.Context, ordered []plugin.Module, booted []plugin.Module) error {
 	for _, p := range ordered {
 		// Register 阶段只允许声明能力，不应启动长期运行行为；一旦失败，
 		// 当前插件及其后续插件都不再继续，避免部分注册状态继续扩散。
@@ -254,9 +254,9 @@ func (r *Runtime) registerPlugins(pluginCtx *plugin.Context, ordered []plugin.Pl
 
 func (r *Runtime) bootPlugins(
 	pluginCtx *plugin.Context,
-	ordered []plugin.Plugin,
-	booted []plugin.Plugin,
-) ([]plugin.Plugin, error) {
+	ordered []plugin.Module,
+	booted []plugin.Module,
+) ([]plugin.Module, error) {
 	for _, p := range ordered {
 		// 只有完成 Register 的插件才会进入 Boot。booted 只记录真正成功启动
 		// 的插件，确保失败清理不会误关未启动插件。
@@ -286,7 +286,7 @@ func (r *Runtime) newPluginContext(runCtx context.Context) *plugin.Context {
 	}
 }
 
-func (r *Runtime) registerAccessLogExplorer(pluginCtx *plugin.Context, booted []plugin.Plugin) error {
+func (r *Runtime) registerAccessLogExplorer(pluginCtx *plugin.Context, booted []plugin.Module) error {
 	authService, err := r.resolveAccessLogAuthService()
 	if errors.Is(err, container.ErrServiceNotRegistered) {
 		return nil
@@ -492,7 +492,7 @@ func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error
 //
 // 这里不在首个失败处提前返回，因为关闭阶段的目标是尽最大努力释放资源，
 // 而不是维持“全部成功或立即退出”的启动语义。
-func shutdownPlugins(ctx *plugin.Context, ordered []plugin.Plugin) error {
+func shutdownPlugins(ctx *plugin.Context, ordered []plugin.Module) error {
 	shutdownCtx, cancel := withPluginShutdownContext(ctx)
 	defer cancel()
 
@@ -551,7 +551,7 @@ func (r *Runtime) closeCoreResources() error {
 //
 // 这里保留原始失败原因，并把插件关闭和 core 资源回收错误聚合到同一个
 // 返回值中，方便调用方看到完整失败路径。
-func (r *Runtime) cleanupAfterFailure(ctx *plugin.Context, booted []plugin.Plugin, cause error) error {
+func (r *Runtime) cleanupAfterFailure(ctx *plugin.Context, booted []plugin.Module, cause error) error {
 	err := cause
 	if shutdownErr := shutdownPlugins(ctx, booted); shutdownErr != nil {
 		err = errors.Join(err, shutdownErr)

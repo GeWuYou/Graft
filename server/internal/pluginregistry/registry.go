@@ -30,14 +30,14 @@ func OrderedModuleSpecs() ([]plugin.ModuleSpec, error) {
 	return plugin.OrderModuleSpecs(ModuleSpecs())
 }
 
-// BuildModules 根据 compile-time 模块定义构造运行时插件集合。
-func BuildModules(buildCtx plugin.BuildContext) ([]plugin.Plugin, error) {
+// BuildModules 根据 compile-time 模块定义构造运行时模块集合。
+func BuildModules(buildCtx plugin.BuildContext) ([]plugin.Module, error) {
 	ordered, err := OrderedModuleSpecs()
 	if err != nil {
 		return nil, err
 	}
 
-	built := make([]plugin.Plugin, 0, len(ordered))
+	built := make([]plugin.Module, 0, len(ordered))
 	for _, descriptor := range ordered {
 		instance, err := descriptor.Build(buildCtx)
 		if err != nil {

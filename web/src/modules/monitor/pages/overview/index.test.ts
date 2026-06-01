@@ -567,7 +567,6 @@ function createServerStatusResponse() {
     plugins: [
       {
         name: 'monitor',
-        version: '0.1.0',
         status: 'healthy',
         status_detail: 'Runtime metadata is present and platform signals are healthy',
         depends_on: ['user', 'rbac'],
@@ -575,7 +574,6 @@ function createServerStatusResponse() {
       },
       {
         name: 'user',
-        version: '0.2.0',
         status: 'degraded',
         status_detail: 'Missing runtime dependencies: audit',
         depends_on: [],

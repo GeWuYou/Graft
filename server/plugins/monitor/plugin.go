@@ -124,21 +124,6 @@ func NewPlugin() *Plugin {
 	return &Plugin{}
 }
 
-// Name returns the stable plugin identifier.
-func (p *Plugin) Name() string {
-	return moduleID
-}
-
-// Version returns the current plugin version.
-func (p *Plugin) Version() string {
-	return moduleVersion
-}
-
-// DependsOn returns the plugin dependencies.
-func (p *Plugin) DependsOn() []string {
-	return append([]string(nil), moduleDependencies...)
-}
-
 // Register declares menu, permission, routes, and i18n messages.
 func (p *Plugin) Register(ctx *plugin.Context) error {
 	if err := registerMessages(ctx.I18n); err != nil {
@@ -148,12 +133,12 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		return err
 	}
 
-	registerMonitorPermissions(ctx.PermissionRegistry, p.Name())
-	registerMonitorMenu(ctx.MenuRegistry, p.Name())
+	registerMonitorPermissions(ctx.PermissionRegistry, moduleID)
+	registerMonitorMenu(ctx.MenuRegistry, moduleID)
 	if err := registerIncidentEvidenceCapability(ctx, p); err != nil {
 		return fmt.Errorf("register monitor incident evidence capability: %w", err)
 	}
-	registerMonitorRoutes(ctx, p, p.Name(), p.authService, p.routeAuthorizer)
+	registerMonitorRoutes(ctx, p, moduleID, p.authService, p.routeAuthorizer)
 	return nil
 }
 
@@ -933,7 +918,6 @@ func runtimePluginSummaries(
 			Name:         descriptor.Name,
 			Status:       status,
 			StatusDetail: statusDetail,
-			Version:      descriptor.Version,
 			DependsOn:    dependsOn,
 		}
 		if len(missingDependencies) > 0 {
@@ -956,7 +940,7 @@ func deriveRuntimePluginObservation(
 	available map[string]struct{},
 	platformStatus string,
 ) (status string, detail string, missingDependencies []string) {
-	if strings.TrimSpace(descriptor.Name) == "" || strings.TrimSpace(descriptor.Version) == "" {
+	if strings.TrimSpace(descriptor.Name) == "" {
 		return statusUnknown, "Runtime metadata is incomplete", nil
 	}
 

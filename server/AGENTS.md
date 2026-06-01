@@ -208,7 +208,14 @@ Observability authority overlay：
 
 ## 7. 插件生命周期与边界
 
-当前 backend module 在历史 `plugin` 命名下都遵循 `Name / Version / DependsOn / Register / Boot / Shutdown` 契约。
+当前 backend module 在历史 `plugin` 命名下遵循两层契约：
+
+- compile-time module authority
+  - `plugin.ModuleSpec` 持有稳定的模块标识、依赖、builder 与 migration path
+- runtime lifecycle contract
+  - 运行时插件实例只实现 `Register / Boot / Shutdown`
+  - core runtime 通过 compile-time `ModuleSpec` 包装得到 `plugin.Module` 视图，再消费稳定的 `Name()` /
+    `DependsOn()` 结果
 
 `server` 的长期并行开发方向保持为 compile-time modular monolith：
 
@@ -219,7 +226,7 @@ Observability authority overlay：
 - 不做 generalized reflection plugin system
 - 不做 generalized service locator
 
-后续治理允许新增 `plugin.Descriptor`、`plugin.Builder` 与 compile-time generated plugin registry，作为历史命名下的
+当前治理已采用 `plugin.ModuleSpec`、`plugin.Builder` 与 compile-time generated plugin registry 作为历史命名下的
 显式 module 装配抽象；这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
 
 ### 7.1 生命周期规则
@@ -239,7 +246,7 @@ Observability authority overlay：
 
 ### 7.2 依赖规则
 
-- 模块依赖通过 `DependsOn()` 声明
+- 模块依赖通过 compile-time `ModuleSpec.Dependencies` 声明
 - 服务依赖通过稳定接口解析
 - 缺失依赖、循环依赖、重复注册都属于阻断错误
 - 模块只能依赖：
@@ -273,9 +280,10 @@ Observability authority overlay：
 当后端任务属于历史 `plugin` 路径下的 module 切片时，默认按这份 checklist 检查实现是否完整：
 
 - `descriptor`
-  - 是否声明稳定 module ID、版本、依赖、migration path、builder
+  - 是否声明稳定 module ID、依赖、migration path、builder
 - `plugin lifecycle`
-  - 是否实现 `Name / Version / DependsOn / Register / Boot / Shutdown`
+  - 是否实现 `Register / Boot / Shutdown`
+  - 模块身份与依赖 authority 是否保持在 compile-time `ModuleSpec`
   - `Register -> Boot -> Shutdown` 职责是否清晰
 - `routes`
   - 路由是否留在插件边界内，且只编排输入输出、鉴权和响应映射

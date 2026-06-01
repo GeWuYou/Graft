@@ -17,21 +17,6 @@ func NewPlugin() *Plugin {
 	return &Plugin{}
 }
 
-// Name 返回插件稳定标识。
-func (p *Plugin) Name() string {
-	return moduleID
-}
-
-// Version 返回当前插件版本。
-func (p *Plugin) Version() string {
-	return moduleVersion
-}
-
-// DependsOn 返回当前插件依赖列表。
-func (p *Plugin) DependsOn() []string {
-	return []string{"user"}
-}
-
 // Register 声明 auth 插件拥有的 `/auth/*` 运行时路由。
 func (p *Plugin) Register(ctx *plugin.Context) error {
 	authService, err := resolveService[pluginapi.AuthService](ctx, (*pluginapi.AuthService)(nil), "auth service")
@@ -43,7 +28,7 @@ func (p *Plugin) Register(ctx *plugin.Context) error {
 		return err
 	}
 
-	return registerAuthRoutes(ctx, p.Name(), authService, authFlow)
+	return registerAuthRoutes(ctx, moduleID, authService, authFlow)
 }
 
 // Boot 当前没有额外运行时行为需要启动。
