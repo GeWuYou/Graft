@@ -4,7 +4,7 @@ import { defineComponent, h, KeepAlive, resolveComponent } from 'vue';
 import { createI18n } from 'vue-i18n';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { normalizeRouteRangeForPageState } from '@/shared/observability';
+import { localDateTimeToUtcIso, normalizeRouteRangeForPageState } from '@/shared/observability';
 
 import type { AuditLogListResponse } from '../../types/audit';
 import AuditLogsPage from './index.vue';
@@ -493,6 +493,7 @@ describe('AuditLogsPage', () => {
   }
 
   it('restores deep-link filters including created range and keeps backend request shape unchanged', async () => {
+    const expectedCreatedRange = normalizeRouteRangeForPageState(['2026-05-01T10:00:00Z', '2026-05-02T18:30:00Z']);
     const { wrapper } = await mountPage({
       actor: 'alice',
       created_from: '2026-05-01T10:00:00Z',
@@ -501,8 +502,8 @@ describe('AuditLogsPage', () => {
     });
 
     expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"actor":"alice"');
-    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain(
-      '"createdRange":["2026-05-01 18:00:00","2026-05-03 02:30:00"]',
+    expect(JSON.parse(wrapper.get('[data-testid="audit-filter-model"]').text()).createdRange).toEqual(
+      expectedCreatedRange,
     );
     expect(getAuditLogsMock).toHaveBeenLastCalledWith({
       page: 1,
@@ -791,6 +792,8 @@ describe('AuditLogsPage', () => {
   });
 
   it('syncs interactive filters into route query for reload and sharing', async () => {
+    const expectedCreatedFrom = localDateTimeToUtcIso('2026-05-01 10:00:00');
+    const expectedCreatedTo = localDateTimeToUtcIso('2026-05-02 18:30:00');
     const { replaceSpy, router, wrapper } = await mountPage();
     getAuditLogsMock.mockClear();
     replaceSpy.mockClear();
@@ -804,8 +807,8 @@ describe('AuditLogsPage', () => {
         path: '/audit/logs',
         query: expect.objectContaining({
           actor: 'route-admin',
-          created_from: '2026-05-01T02:00:00.000Z',
-          created_to: '2026-05-02T10:30:00.000Z',
+          created_from: expectedCreatedFrom,
+          created_to: expectedCreatedTo,
           result: 'FAILED',
           sort_by: 'created_at',
           sort_order: 'asc',
@@ -814,8 +817,8 @@ describe('AuditLogsPage', () => {
     );
     expect(router.currentRoute.value.query).toMatchObject({
       actor: 'route-admin',
-      created_from: '2026-05-01T02:00:00.000Z',
-      created_to: '2026-05-02T10:30:00.000Z',
+      created_from: expectedCreatedFrom,
+      created_to: expectedCreatedTo,
       result: 'FAILED',
       sort_by: 'created_at',
       sort_order: 'asc',
@@ -823,8 +826,8 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         result: 'FAILED',
-        created_from: '2026-05-01T02:00:00.000Z',
-        created_to: '2026-05-02T10:30:00.000Z',
+        created_from: expectedCreatedFrom,
+        created_to: expectedCreatedTo,
         sort_by: 'created_at',
         sort_order: 'asc',
       }),
