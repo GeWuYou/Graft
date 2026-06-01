@@ -397,14 +397,8 @@ async function fetchAuditLogs() {
 function applyPreset(preset: AuditQuickPresetKey) {
   filters.value = createDefaultFilters();
   routePreset.value = resolvePresetTimeWindow(preset);
-  routeScope.value = resolveScopeForPreset(preset);
-  if (preset === 'sensitive-ops') {
-    filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.SENSITIVE_OPERATIONS;
-    filters.value.createdRange = buildPresetCreatedRange(routePreset.value);
-    routeScope.value = '';
-  } else if (!routeScope.value) {
-    filters.value.createdRange = buildPresetCreatedRange(routePreset.value);
-  }
+  routeScope.value = '';
+  applyQuickPresetFilters(preset);
   pagination.value.current = 1;
   updateRouteQuery();
 }
@@ -798,22 +792,34 @@ function inferPresetFromState(value: AuditClientFilterState, scope: string): Aud
   return 'all';
 }
 
-function resolveScopeForPreset(preset: AuditQuickPresetKey): AuditDrilldownScope | '' {
+function applyQuickPresetFilters(preset: AuditQuickPresetKey) {
+  const createdRange = buildPresetCreatedRange(routePreset.value);
+  filters.value.createdRange = createdRange;
+
   switch (preset) {
     case 'failed-operations':
-      return AUDIT_DRILLDOWN_SCOPE.FAILED_OPERATIONS;
+      filters.value.result = 'FAILED';
+      filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.FAILED_OPERATIONS;
+      return;
     case 'rbac-changes':
-      return AUDIT_DRILLDOWN_SCOPE.RBAC_CHANGES;
+      filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.RBAC_CHANGES;
+      return;
     case 'permission-denied':
-      return AUDIT_DRILLDOWN_SCOPE.PERMISSION_DENIALS;
+      filters.value.result = 'DENIED';
+      filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.PERMISSION_DENIALS;
+      return;
     case 'sensitive-ops':
-      return '';
+      filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.SENSITIVE_OPERATIONS;
+      return;
     case 'auth-failed':
-      return AUDIT_DRILLDOWN_SCOPE.AUTH_FAILURES;
+      filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.AUTH_FAILURES;
+      return;
     case 'high-risk':
-      return AUDIT_DRILLDOWN_SCOPE.HIGH_RISK_OPERATIONS;
+      filters.value.riskLevels = ['HIGH', 'CRITICAL'];
+      filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.HIGH_RISK_OPERATIONS;
+      return;
     default:
-      return '';
+      return;
   }
 }
 

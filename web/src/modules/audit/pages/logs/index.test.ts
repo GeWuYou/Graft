@@ -587,8 +587,11 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenCalledWith({
       page: 1,
       page_size: 10,
+      business_category: 'high_risk_operations',
+      created_from: '2026-05-30T07:21:04.000Z',
+      created_to: '2026-05-31T07:21:04.000Z',
       preset: 'last_24h',
-      scope: 'high_risk_operations',
+      risk_levels: ['HIGH', 'CRITICAL'],
       sort: ['created_at:desc'],
     });
   });
