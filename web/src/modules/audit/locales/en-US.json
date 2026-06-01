@@ -301,6 +301,12 @@
         "authFailed": "Auth Failed",
         "highRisk": "High Risk"
       },
+      "time": {
+        "last24h": "Last 24 Hours",
+        "last7d": "Last 7 Days",
+        "last30d": "Last 30 Days",
+        "custom": "Custom Time Range"
+      },
       "actions": {
         "search": "Search",
         "reset": "Reset",
@@ -328,6 +334,16 @@
       "builder": {
         "title": "Filter fields",
         "hint": "Choose a field and set its value. Active conditions appear as removable tags.",
+        "groups": {
+          "time": "Time Range",
+          "filters": "Filter Conditions",
+          "sort": "Sort"
+        },
+        "summary": {
+          "customTime": "{range}",
+          "result": "Result {value}",
+          "sortBy": "Sort by {field} {direction}"
+        },
         "fields": {
           "businessCategory": "Business category",
           "success": "Success state",

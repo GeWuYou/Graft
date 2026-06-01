@@ -71,6 +71,12 @@ const i18n = createI18n({
   messages: {
     'zh-CN': {
       accessLog: {
+        time: {
+          last24h: '最近 24 小时',
+          last7d: '最近 7 天',
+          last30d: '最近 30 天',
+          custom: '自定义时间范围',
+        },
         page: { searchPlaceholder: '搜索请求 ID、路径、用户名' },
         actions: { search: '查询', reset: '重置', addFilter: '添加筛选条件' },
         presets: { label: '快捷筛选' },
@@ -81,8 +87,7 @@ const i18n = createI18n({
           directionPlaceholder: '排序方向',
         },
         filters: {
-          startedRange: '请求开始时间',
-          occurredRange: '请求结束时间',
+          startedRange: '请求时间',
           requestId: '请求 ID',
           userId: '用户 ID',
           username: '用户名',
@@ -101,8 +106,16 @@ const i18n = createI18n({
         builder: {
           title: '筛选条件',
           hint: 'hint',
+          groups: {
+            time: '时间范围',
+            filters: '筛选条件',
+            sort: '排序方式',
+          },
+          summary: {
+            customTime: '{range}',
+            sortBy: '按{field}{direction}',
+          },
           fields: {
-            time: '时间',
             requestId: '请求 ID',
             userId: '用户 ID',
             username: '用户名',
@@ -126,7 +139,6 @@ describe('AccessLogFilters', () => {
         modelValue: {
           keyword: '',
           startedRange: [],
-          occurredRange: [],
           requestId: 'req-1',
           userId: '',
           username: '',
@@ -167,14 +179,13 @@ describe('AccessLogFilters', () => {
     });
   });
 
-  it('renders separate started and occurred range tags and clears occurred range independently', () => {
+  it('renders unified request time summary and started range tag', () => {
     const wrapper = mount(AccessLogFilters, {
       props: {
         activePreset: 'all',
         modelValue: {
           keyword: '',
           startedRange: ['2026-05-31 10:00:00', '2026-05-31 11:00:00'],
-          occurredRange: ['2026-05-31 11:05:00', '2026-05-31 11:10:00'],
           requestId: '',
           userId: '',
           username: '',
@@ -203,15 +214,7 @@ describe('AccessLogFilters', () => {
       },
     });
 
-    expect(wrapper.text()).toContain('请求开始时间：2026-05-31 10:00:00 ~ 2026-05-31 11:00:00');
-    expect(wrapper.text()).toContain('请求结束时间：2026-05-31 11:05:00 ~ 2026-05-31 11:10:00');
-
-    const tags = wrapper.findAllComponents(tagStub);
-    tags[1]?.vm.$emit('close');
-
-    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toMatchObject({
-      occurredRange: [],
-      startedRange: ['2026-05-31 10:00:00', '2026-05-31 11:00:00'],
-    });
+    expect(wrapper.text()).toContain('2026-05-31 10:00:00 ~ 2026-05-31 11:00:00');
+    expect(wrapper.text()).toContain('时间范围');
   });
 });

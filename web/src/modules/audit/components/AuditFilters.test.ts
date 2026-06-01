@@ -87,6 +87,12 @@ const i18n = createI18n({
           },
         },
         logList: {
+          time: {
+            last24h: '最近 24 小时',
+            last7d: '最近 7 天',
+            last30d: '最近 30 天',
+            custom: '自定义时间范围',
+          },
           presets: {
             label: '快捷筛选',
             all: '全部',
@@ -101,6 +107,16 @@ const i18n = createI18n({
           builder: {
             title: '筛选字段',
             hint: 'hint',
+            groups: {
+              time: '时间范围',
+              filters: '筛选条件',
+              sort: '排序方式',
+            },
+            summary: {
+              customTime: '{range}',
+              result: '结果 {value}',
+              sortBy: '按{field}{direction}',
+            },
             fields: {
               success: '成功状态',
               action: '操作类型',
@@ -119,6 +135,7 @@ const i18n = createI18n({
               requestId: '请求 ID',
               session: 'Session ID',
               resourceId: '资源 ID',
+              businessCategory: '业务分类',
             },
           },
           filters: {
@@ -132,6 +149,7 @@ const i18n = createI18n({
             riskPlaceholder: '风险等级',
             riskLevelsPlaceholder: '选择风险等级集合',
             sourcePlaceholder: '事件类型',
+            businessCategoryPlaceholder: '业务分类',
             actorPlaceholder: '操作者',
             resourceNamePlaceholder: '审计目标',
             resourceTypePlaceholder: '目标类型',
@@ -231,6 +249,7 @@ describe('AuditFilters', () => {
     expect(wrapper.find('input').attributes('placeholder')).toBe('搜索操作、用户、目标对象、请求ID...');
     expect(wrapper.text()).toContain('排序：创建时间 ↓');
     expect(wrapper.text()).toContain('结果：业务失败');
+    expect(wrapper.text()).toContain('筛选条件');
     expect(wrapper.text()).toContain('操作分类：权限配置动作、角色动作');
     expect(wrapper.text()).toContain('结果集合：权限拒绝');
     expect(wrapper.text()).toContain('风险等级集合：高风险、严重');

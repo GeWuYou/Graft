@@ -301,6 +301,12 @@
         "authFailed": "认证失败",
         "highRisk": "高风险"
       },
+      "time": {
+        "last24h": "最近 24 小时",
+        "last7d": "最近 7 天",
+        "last30d": "最近 30 天",
+        "custom": "自定义时间范围"
+      },
       "actions": {
         "search": "查询",
         "reset": "重置",
@@ -328,6 +334,16 @@
       "builder": {
         "title": "筛选字段",
         "hint": "选择一个字段后立即设置条件，已设置字段会显示为可移除标签。",
+        "groups": {
+          "time": "时间范围",
+          "filters": "筛选条件",
+          "sort": "排序方式"
+        },
+        "summary": {
+          "customTime": "{range}",
+          "result": "结果 {value}",
+          "sortBy": "按{field}{direction}"
+        },
         "fields": {
           "businessCategory": "业务分类",
           "success": "成功状态",

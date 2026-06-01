@@ -187,7 +187,6 @@ function createDefaultFilters(): AccessLogFilterState {
     durationMinMs: '',
     durationMaxMs: '',
     startedRange: [],
-    occurredRange: [],
     sorters: createSingleSorter('started_at', 'desc'),
   };
 }
@@ -220,9 +219,6 @@ function buildQuery(): AccessLogQuery {
   if (filters.value.durationMaxMs) query.duration_max_ms = Number(filters.value.durationMaxMs);
   if (filters.value.startedRange[0]) query.started_from = localDateTimeToUtcIso(filters.value.startedRange[0]);
   if (filters.value.startedRange[1]) query.started_to = localDateTimeToUtcIso(filters.value.startedRange[1]);
-  if (filters.value.occurredRange[0]) query.occurred_from = localDateTimeToUtcIso(filters.value.occurredRange[0]);
-  if (filters.value.occurredRange[1]) query.occurred_to = localDateTimeToUtcIso(filters.value.occurredRange[1]);
-
   return query;
 }
 
@@ -309,8 +305,6 @@ function applyRouteFilters() {
     username = '',
     started_from: startedFrom = '',
     started_to: startedTo = '',
-    occurred_from: occurredFrom = '',
-    occurred_to: occurredTo = '',
     sort_by: sortBy = '',
     sort_order: sortOrder = '',
   } = parseAccessLogRouteQuery(route.query);
@@ -320,7 +314,6 @@ function applyRouteFilters() {
     userId,
     username,
     startedRange: normalizeRouteRangeForPageState([startedFrom, startedTo]),
-    occurredRange: normalizeRouteRangeForPageState([occurredFrom, occurredTo]),
     sorters: sortBy
       ? createSingleSorter(normalizeSortBy(sortBy), normalizeSortOrder(sortOrder || 'desc'))
       : filters.value.sorters,
@@ -331,15 +324,12 @@ function applyRouteFilters() {
 function buildRouteQuery() {
   const sorter = getSingleSorter(filters.value.sorters);
   const [startedFrom = '', startedTo = ''] = normalizePageStateRangeForRoute(filters.value.startedRange);
-  const [occurredFrom = '', occurredTo = ''] = normalizePageStateRangeForRoute(filters.value.occurredRange);
   return buildAccessLogLocation({
     request_id: filters.value.requestId,
     user_id: filters.value.userId,
     username: filters.value.username,
     started_from: startedFrom,
     started_to: startedTo,
-    occurred_from: occurredFrom,
-    occurred_to: occurredTo,
     sort_by: sorter?.field ?? '',
     sort_order: sorter?.field ? (sorter.direction ?? '') : '',
   });
@@ -356,8 +346,6 @@ async function updateRouteQuery() {
   const currentUsername = typeof route.query.username === 'string' ? route.query.username : '';
   const currentStartedFrom = typeof route.query.started_from === 'string' ? route.query.started_from : '';
   const currentStartedTo = typeof route.query.started_to === 'string' ? route.query.started_to : '';
-  const currentOccurredFrom = typeof route.query.occurred_from === 'string' ? route.query.occurred_from : '';
-  const currentOccurredTo = typeof route.query.occurred_to === 'string' ? route.query.occurred_to : '';
   const currentSortBy = typeof route.query.sort_by === 'string' ? route.query.sort_by : '';
   const currentSortOrder = typeof route.query.sort_order === 'string' ? route.query.sort_order : '';
   const nextQuery = targetLocation.query as Record<string, string>;
@@ -368,8 +356,6 @@ async function updateRouteQuery() {
     currentUsername === (nextQuery.username ?? '') &&
     currentStartedFrom === (nextQuery.started_from ?? '') &&
     currentStartedTo === (nextQuery.started_to ?? '') &&
-    currentOccurredFrom === (nextQuery.occurred_from ?? '') &&
-    currentOccurredTo === (nextQuery.occurred_to ?? '') &&
     currentSortBy === (nextQuery.sort_by ?? '') &&
     currentSortOrder === (nextQuery.sort_order ?? '')
   ) {
@@ -438,8 +424,6 @@ watch(
     route.query.username,
     route.query.started_from,
     route.query.started_to,
-    route.query.occurred_from,
-    route.query.occurred_to,
     route.query.sort_by,
     route.query.sort_order,
   ],
@@ -457,7 +441,7 @@ watch(
 );
 
 function normalizeSortBy(value: string) {
-  return value === 'duration_ms' || value === 'status_code' ? value : 'occurred_at';
+  return value === 'occurred_at' || value === 'duration_ms' || value === 'status_code' ? value : 'started_at';
 }
 
 function normalizeSortOrder(value: string) {

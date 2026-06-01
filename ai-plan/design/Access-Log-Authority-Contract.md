@@ -136,6 +136,8 @@ Allowed filters:
 - `path`
 - `route`
 - `status_code`
+- `started_from`
+- `started_to`
 - `occurred_from`
 - `occurred_to`
 - `user_id`
@@ -151,8 +153,10 @@ Allowed query rules:
   - exact match only against backend route template
 - `status_code`
   - exact match or bounded set match
+- `started_from` / `started_to`
+  - inclusive canonical time range on `started_at`
 - `occurred_from` / `occurred_to`
-  - inclusive time range on `occurred_at`
+  - optional secondary completed-time filter on `occurred_at`
 - `user_id`
   - exact match only
 - `username`
@@ -171,13 +175,14 @@ Forbidden filters:
 
 Allowed sort fields:
 
+- `started_at`
 - `occurred_at`
 - `duration_ms`
 - `status_code`
 
 Default sort:
 
-- `occurred_at desc`
+- `started_at desc`
 
 Forbidden sort fields:
 

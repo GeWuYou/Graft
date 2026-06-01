@@ -68,26 +68,31 @@ get:
         format: int64
     - name: started_from
       in: query
+      description: Inclusive canonical request-time lower bound on `started_at`.
       schema:
         type: string
         format: date-time
     - name: started_to
       in: query
+      description: Inclusive canonical request-time upper bound on `started_at`.
       schema:
         type: string
         format: date-time
     - name: occurred_from
       in: query
+      description: Optional completed-time lower bound on `occurred_at` for secondary filtering.
       schema:
         type: string
         format: date-time
     - name: occurred_to
       in: query
+      description: Optional completed-time upper bound on `occurred_at` for secondary filtering.
       schema:
         type: string
         format: date-time
     - name: sort_by
       in: query
+      description: Canonical default sort is `started_at desc`. Unsupported fields must be rejected.
       schema:
         type: string
         enum: [started_at, occurred_at, duration_ms, status_code]

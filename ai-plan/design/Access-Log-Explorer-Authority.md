@@ -93,7 +93,8 @@ It must not own:
 | `route` | exact | no | no | no | no | route template is more stable than raw path for grouped troubleshooting |
 | `status_code` | exact or bounded set | yes | no | no | no | supports operator filtering and secondary sort |
 | `duration_ms` | range | yes | no | no | no | range filter is canonical; free-form fuzzy search is not |
-| `occurred_at` / time range | bounded range | yes | no | no | no | timeline authority anchor |
+| `started_at` / time range | bounded range | yes | no | no | no | canonical request timeline authority anchor |
+| `occurred_at` | bounded secondary range | yes | no | no | no | completed-time refinement only |
 | `client_ip` | not approved in this topic | no | no | yes | no | sensitive/high-cardinality; keep display-only until explicit authz and privacy decision |
 | `user_agent` | not approved in this topic | no | no | yes | no | noisy/high-cardinality; display-only |
 | `request_size` | not approved in this topic | no | no | yes | no | presentational until real operator need is approved |
@@ -117,8 +118,10 @@ It must not own:
   - exact match or bounded set match
 - `duration_ms`
   - inclusive numeric range
+- `started_from` / `started_to`
+  - inclusive canonical time range on `started_at`
 - `occurred_from` / `occurred_to`
-  - inclusive time range on `occurred_at`
+  - inclusive secondary time range on `occurred_at`
 
 Forbidden query surfaces:
 
@@ -133,7 +136,8 @@ Forbidden query surfaces:
 
 | Field | Allowed | Default | Reason |
 | --- | --- | --- | --- |
-| `occurred_at` | yes | yes, `desc` | timeline-first operator workflow |
+| `started_at` | yes | yes, `desc` | canonical request-start timeline |
+| `occurred_at` | yes, as secondary filter | yes | completed-time refinement |
 | `duration_ms` | yes | no | useful for slow-request triage |
 | `status_code` | yes | no | useful for error clustering within a bounded window |
 | `request_id` | no | no | exact lookup field, not meaningful list ordering |
@@ -146,7 +150,7 @@ Forbidden query surfaces:
 
 Sort rules:
 
-- default sort is `occurred_at desc`
+- default sort is `started_at desc`
 - secondary stable tie-break should remain backend-owned
 - unsupported sort fields must be rejected, not ignored silently
 

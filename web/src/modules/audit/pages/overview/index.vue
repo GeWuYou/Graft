@@ -211,7 +211,13 @@ import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { GovernanceDashboardShell, GovernanceSection, GovernanceSummaryCard } from '@/shared/components/governance';
 import { ManagementEmptyState } from '@/shared/components/management';
-import { buildRecentHoursLocalRange, formatLocaleDateTime, localDateTimeToUtcIso } from '@/shared/observability';
+import {
+  buildRecentHoursLocalRange,
+  buildTrendAxisLabels,
+  formatLocaleDateTime,
+  formatTrendTooltipDateTime,
+  localDateTimeToUtcIso,
+} from '@/shared/observability';
 import { useSettingStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 
@@ -316,10 +322,18 @@ const trendView = computed(() => {
     };
   }
 
-  const labelStep = resolveTrendLabelStep(points.length);
+  const axisLabels = buildTrendAxisLabels(
+    points.map((point) => ({
+      key: `${point.bucket_start}-${point.bucket_end}`,
+      start: point.bucket_start,
+      end: point.bucket_end,
+    })),
+    activeWindow.value,
+    locale.value,
+  );
   const normalizedPoints = points.map((point, index) => ({
     key: `${point.bucket_start}-${point.bucket_end}`,
-    axisLabel: index % labelStep === 0 || index === points.length - 1 ? formatTrendAxisLabel(point) : '',
+    axisLabel: axisLabels[index]?.axisLabel ?? '',
     tooltipLabel: formatTrendTooltipLabel(point.bucket_start, point.bucket_end),
     total: point.total,
     highRisk: point.high_risk,
@@ -480,34 +494,12 @@ function timelineDotColor(level?: string) {
   return 'var(--td-text-color-placeholder)';
 }
 
-function formatBucketLabel(value?: string) {
-  return formatTrendDateTime(value, { month: '2-digit', day: '2-digit', hour: '2-digit' });
-}
-
-function formatTrendAxisLabel(point: AuditOverviewResponse['trend']['points'][number]) {
-  const bucketUnit = overview.value?.trend?.bucket_unit;
-  if (bucketUnit === 'day') {
-    return formatTrendDateTime(point.bucket_start, { month: '2-digit', day: '2-digit' });
-  }
-  return formatBucketHourRange(point.bucket_start, point.bucket_end);
-}
-
 function formatTrendTooltipLabel(start?: string, end?: string) {
-  const startLabel = formatBucketLabel(start);
+  const startLabel = formatTrendTooltipDateTime(start, locale.value);
   if (!end) {
     return startLabel;
   }
-  return `${startLabel} - ${formatBucketLabel(end)}`;
-}
-
-function resolveTrendLabelStep(pointCount: number) {
-  if (pointCount <= 6) {
-    return 1;
-  }
-  if (pointCount <= 12) {
-    return 2;
-  }
-  return 3;
+  return `${startLabel} - ${formatTrendTooltipDateTime(end, locale.value)}`;
 }
 
 function formatTrendValue(value: number) {
@@ -600,7 +592,7 @@ function buildTrendChartOption(): EChartsCoreOption {
       left: '18px',
       right: '18px',
       top: '52px',
-      bottom: '20px',
+      bottom: '12px',
       containLabel: true,
     },
     xAxis: {
@@ -608,6 +600,8 @@ function buildTrendChartOption(): EChartsCoreOption {
       data: points.map((point) => point.key),
       axisLabel: {
         color: chartColors.placeholderColor,
+        margin: 8,
+        hideOverlap: true,
         formatter: (value: string) => points.find((point) => point.key === value)?.axisLabel ?? '',
       },
       axisLine: {
@@ -740,34 +734,6 @@ function buildPresetLocalRange(preset: AuditTimePreset) {
     default:
       return [];
   }
-}
-
-function formatBucketHourRange(start?: string, end?: string) {
-  const startDate = start ? new Date(start) : null;
-  const endDate = end ? new Date(end) : null;
-  if (!startDate || Number.isNaN(startDate.getTime())) {
-    return '-';
-  }
-
-  const formatter = new Intl.DateTimeFormat(locale.value || undefined, { hour: '2-digit' });
-  if (!endDate || Number.isNaN(endDate.getTime())) {
-    return formatter.format(startDate);
-  }
-  return `${formatter.format(startDate)}-${formatter.format(endDate)}`;
-}
-
-function formatTrendDateTime(value: string | undefined, timeOptions: Intl.DateTimeFormatOptions) {
-  if (!value) {
-    return '-';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  const currentLocale = locale.value || undefined;
-  const options: Intl.DateTimeFormatOptions =
-    overview.value?.trend?.bucket_unit === 'day' ? { month: '2-digit', day: '2-digit' } : timeOptions;
-  return new Intl.DateTimeFormat(currentLocale, options).format(date);
 }
 
 function formatTime(value?: string) {

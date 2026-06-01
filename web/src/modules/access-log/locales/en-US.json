@@ -8,6 +8,12 @@
     }
   },
   "accessLog": {
+    "time": {
+      "last24h": "Last 24 Hours",
+      "last7d": "Last 7 Days",
+      "last30d": "Last 30 Days",
+      "custom": "Custom Time Range"
+    },
     "page": {
       "title": "Access Logs",
       "description": "Inspect request traffic for troubleshooting with fast pivots across correlation, actor, and response facts.",
@@ -57,8 +63,7 @@
       "statusCode": "Status Code",
       "durationMin": "Min Duration",
       "durationMax": "Max Duration",
-      "startedRange": "Request Start Time",
-      "occurredRange": "Request Completed Time",
+      "startedRange": "Request Time",
       "sortBy": "Sort By",
       "sortOrder": "Sort Order",
       "pathMatchExact": "Exact",
@@ -79,8 +84,16 @@
     "builder": {
       "title": "Filters",
       "hint": "Add only the conditions you need instead of filling a large static form.",
+      "groups": {
+        "time": "Time Range",
+        "filters": "Filter Conditions",
+        "sort": "Sort"
+      },
+      "summary": {
+        "customTime": "{range}",
+        "sortBy": "Sort by {field} {direction}"
+      },
       "fields": {
-        "time": "Time",
         "requestId": "Request ID",
         "userId": "User ID",
         "username": "Username",

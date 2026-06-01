@@ -10,16 +10,6 @@
             :placeholder="t('audit.logList.filters.keywordPlaceholder')"
             @update:model-value="updateField('keyword', $event)"
           />
-          <t-date-range-picker
-            :model-value="modelValue.createdRange"
-            allow-input
-            clearable
-            class="audit-filters__date"
-            enable-time-picker
-            format="YYYY-MM-DD HH:mm:ss"
-            :placeholder="dateRangePlaceholder"
-            @update:model-value="updateField('createdRange', $event)"
-          />
           <div class="audit-filters__actions">
             <t-button theme="primary" :loading="loading" @click="$emit('search')">
               {{ t('audit.logList.actions.search') }}
@@ -30,23 +20,118 @@
           </div>
         </div>
 
-        <div v-if="activeFilterTags.length" class="audit-filters__tag-row">
-          <t-tag
-            v-for="tag in activeFilterTags"
-            :key="tag.key"
-            :closable="!isLocked(tag.key)"
-            max-width="240"
-            theme="primary"
-            variant="light-outline"
-            @close="isLocked(tag.key) ? undefined : tag.key === 'sorter' ? clearSorter() : clearField(tag.key)"
-          >
-            {{ tag.label }}
-          </t-tag>
+        <div v-if="summaryText" class="audit-filters__summary">
+          {{ summaryText }}
         </div>
 
-        <div class="audit-filters__bottom-row">
-          <div class="audit-filters__sort-row">
-            <span class="audit-filters__sort-label">{{ t('audit.logList.sort.title') }}</span>
+        <section class="audit-filters__group">
+          <div class="audit-filters__group-header">
+            <span class="audit-filters__group-title">{{ t('audit.logList.builder.groups.time') }}</span>
+          </div>
+          <div class="audit-filters__group-body">
+            <t-select
+              :model-value="selectedTimePreset"
+              class="audit-filters__time-preset"
+              :options="timePresetOptions"
+              @update:model-value="updateTimePreset($event)"
+            />
+            <t-date-range-picker
+              v-if="selectedTimePreset === 'custom'"
+              :model-value="modelValue.createdRange"
+              allow-input
+              clearable
+              class="audit-filters__date"
+              enable-time-picker
+              format="YYYY-MM-DD HH:mm:ss"
+              :placeholder="dateRangePlaceholder"
+              @update:model-value="updateField('createdRange', $event)"
+            />
+          </div>
+        </section>
+
+        <section class="audit-filters__group">
+          <div class="audit-filters__group-header">
+            <span class="audit-filters__group-title">{{ t('audit.logList.builder.groups.filters') }}</span>
+          </div>
+          <div class="audit-filters__group-body audit-filters__group-body--builder">
+            <t-popup
+              v-model:visible="builderVisible"
+              attach="body"
+              destroy-on-close
+              overlay-class-name="audit-filter-builder-popup"
+              placement="bottom-left"
+              trigger="click"
+            >
+              <template #content>
+                <div class="audit-filter-builder">
+                  <div class="audit-filter-builder__header">
+                    <span class="audit-filter-builder__title">{{ t('audit.logList.builder.title') }}</span>
+                    <span class="audit-filter-builder__hint">{{ t('audit.logList.builder.hint') }}</span>
+                  </div>
+
+                  <div class="audit-filter-builder__field-list">
+                    <button
+                      v-for="definition in availableDefinitions"
+                      :key="definition.key"
+                      class="audit-filter-builder__field-button"
+                      type="button"
+                      @click="selectDefinition(definition.key)"
+                    >
+                      {{ t(definition.fieldLabelKey) }}
+                    </button>
+                  </div>
+
+                  <div v-if="selectedDefinition" class="audit-filter-builder__editor">
+                    <div class="audit-filter-builder__editor-title">
+                      {{ t(selectedDefinition.fieldLabelKey) }}
+                    </div>
+                    <t-select
+                      v-if="selectedDefinition.kind === 'select'"
+                      :model-value="selectValue(selectedDefinition.key)"
+                      clearable
+                      :options="selectedDefinition.options.value"
+                      :placeholder="t(selectedDefinition.placeholderKey)"
+                      @update:model-value="updateField(selectedDefinition.key, normalizeSelectValue($event))"
+                    />
+                    <t-select
+                      v-else-if="selectedDefinition.kind === 'multi-select'"
+                      :model-value="multiSelectValue(selectedDefinition.key)"
+                      clearable
+                      filterable
+                      multiple
+                      :min-collapsed-num="2"
+                      :options="selectedDefinition.options.value"
+                      :placeholder="t(selectedDefinition.placeholderKey)"
+                      @update:model-value="updateField(selectedDefinition.key, normalizeMultiSelectValue($event))"
+                    />
+                    <t-tag-input
+                      v-else-if="selectedDefinition.kind === 'tag-input'"
+                      :model-value="tagInputValue(selectedDefinition.key)"
+                      clearable
+                      :input-props="{ placeholder: t(selectedDefinition.placeholderKey) }"
+                      @update:model-value="updateField(selectedDefinition.key, normalizeTagInputValue($event))"
+                    />
+                    <t-input
+                      v-else
+                      :model-value="textValue(selectedDefinition.key)"
+                      clearable
+                      :placeholder="t(selectedDefinition.placeholderKey)"
+                      @update:model-value="updateField(selectedDefinition.key, normalizeTextValue($event))"
+                    />
+                  </div>
+                </div>
+              </template>
+
+              <t-button theme="default" variant="dashed"> + {{ t('audit.logList.actions.addFilter') }} </t-button>
+            </t-popup>
+          </div>
+        </section>
+
+        <section class="audit-filters__group">
+          <div class="audit-filters__group-header">
+            <span class="audit-filters__group-title">{{ t('audit.logList.builder.groups.sort') }}</span>
+          </div>
+          <div class="audit-filters__group-body audit-filters__group-body--sort">
             <t-select
               :model-value="sortFieldValue"
               clearable
@@ -65,91 +150,34 @@
               @update:model-value="updateSortDirection($event)"
             />
           </div>
+        </section>
 
-          <t-popup
-            v-model:visible="builderVisible"
-            attach="body"
-            destroy-on-close
-            overlay-class-name="audit-filter-builder-popup"
-            placement="bottom-left"
-            trigger="click"
+        <div class="audit-filters__preset-row">
+          <span class="audit-filters__preset-label">{{ t('audit.logList.presets.label') }}</span>
+          <t-button
+            v-for="preset in presets"
+            :key="preset.key"
+            size="small"
+            :theme="activePreset === preset.key ? 'primary' : 'default'"
+            :variant="activePreset === preset.key ? 'base' : 'outline'"
+            @click="$emit('apply-preset', preset.key)"
           >
-            <template #content>
-              <div class="audit-filter-builder">
-                <div class="audit-filter-builder__header">
-                  <span class="audit-filter-builder__title">{{ t('audit.logList.builder.title') }}</span>
-                  <span class="audit-filter-builder__hint">{{ t('audit.logList.builder.hint') }}</span>
-                </div>
+            {{ preset.title }}
+          </t-button>
+        </div>
 
-                <div class="audit-filter-builder__field-list">
-                  <button
-                    v-for="definition in availableDefinitions"
-                    :key="definition.key"
-                    class="audit-filter-builder__field-button"
-                    type="button"
-                    @click="selectDefinition(definition.key)"
-                  >
-                    {{ t(definition.fieldLabelKey) }}
-                  </button>
-                </div>
-
-                <div v-if="selectedDefinition" class="audit-filter-builder__editor">
-                  <div class="audit-filter-builder__editor-title">
-                    {{ t(selectedDefinition.fieldLabelKey) }}
-                  </div>
-                  <t-select
-                    v-if="selectedDefinition.kind === 'select'"
-                    :model-value="selectValue(selectedDefinition.key)"
-                    clearable
-                    :options="selectedDefinition.options.value"
-                    :placeholder="t(selectedDefinition.placeholderKey)"
-                    @update:model-value="updateField(selectedDefinition.key, normalizeSelectValue($event))"
-                  />
-                  <t-select
-                    v-else-if="selectedDefinition.kind === 'multi-select'"
-                    :model-value="multiSelectValue(selectedDefinition.key)"
-                    clearable
-                    filterable
-                    multiple
-                    :min-collapsed-num="2"
-                    :options="selectedDefinition.options.value"
-                    :placeholder="t(selectedDefinition.placeholderKey)"
-                    @update:model-value="updateField(selectedDefinition.key, normalizeMultiSelectValue($event))"
-                  />
-                  <t-tag-input
-                    v-else-if="selectedDefinition.kind === 'tag-input'"
-                    :model-value="tagInputValue(selectedDefinition.key)"
-                    clearable
-                    :input-props="{ placeholder: t(selectedDefinition.placeholderKey) }"
-                    @update:model-value="updateField(selectedDefinition.key, normalizeTagInputValue($event))"
-                  />
-                  <t-input
-                    v-else
-                    :model-value="textValue(selectedDefinition.key)"
-                    clearable
-                    :placeholder="t(selectedDefinition.placeholderKey)"
-                    @update:model-value="updateField(selectedDefinition.key, normalizeTextValue($event))"
-                  />
-                </div>
-              </div>
-            </template>
-
-            <t-button theme="default" variant="dashed"> + {{ t('audit.logList.actions.addFilter') }} </t-button>
-          </t-popup>
-
-          <div class="audit-filters__preset-row">
-            <span class="audit-filters__preset-label">{{ t('audit.logList.presets.label') }}</span>
-            <t-button
-              v-for="preset in presets"
-              :key="preset.key"
-              size="small"
-              :theme="activePreset === preset.key ? 'primary' : 'default'"
-              :variant="activePreset === preset.key ? 'base' : 'outline'"
-              @click="$emit('apply-preset', preset.key)"
-            >
-              {{ preset.title }}
-            </t-button>
-          </div>
+        <div v-if="activeFilterTags.length" class="audit-filters__tag-row">
+          <t-tag
+            v-for="tag in activeFilterTags"
+            :key="tag.key"
+            :closable="!isLocked(tag.key)"
+            max-width="240"
+            theme="primary"
+            variant="light-outline"
+            @close="isLocked(tag.key) ? undefined : tag.key === 'sorter' ? clearSorter() : clearField(tag.key)"
+          >
+            {{ tag.label }}
+          </t-tag>
         </div>
       </div>
     </template>
@@ -161,6 +189,8 @@ import { useI18n } from 'vue-i18n';
 
 import { ManagementToolbar } from '@/shared/components/management';
 import {
+  buildRecentHoursLocalRange,
+  joinQuerySummary,
   normalizeSingleSorterDirection,
   normalizeSingleSorterField,
   prependSingleSorterTag,
@@ -168,6 +198,7 @@ import {
 } from '@/shared/observability';
 
 import type { AuditQuickPresetKey } from '../contract/presets';
+import { AUDIT_TIME_PRESET, type AuditTimePreset } from '../contract/time-presets';
 import type {
   AuditFilterDefinition,
   AuditFilterKey,
@@ -181,6 +212,7 @@ import type { AuditClientFilterState } from '../shared/presentation';
 import type { AuditSortBy, AuditSortOrder } from '../types/audit';
 
 type FilterTag = { key: AuditFilterKey; label: string };
+type TimePresetSelection = AuditTimePreset | 'custom';
 
 const props = defineProps<{
   activePreset: AuditQuickPresetKey;
@@ -201,6 +233,12 @@ const { t } = useI18n();
 
 const builderVisible = ref(false);
 const selectedDefinitionKey = ref<AuditFilterKey>('actor');
+const timePresetOptions = computed(() => [
+  { label: t('audit.logList.time.last24h'), value: AUDIT_TIME_PRESET.LAST_24H },
+  { label: t('audit.logList.time.last7d'), value: AUDIT_TIME_PRESET.LAST_7D },
+  { label: t('audit.logList.time.last30d'), value: AUDIT_TIME_PRESET.LAST_30D },
+  { label: t('audit.logList.time.custom'), value: 'custom' },
+]);
 
 const actionOptions = computed<AuditFilterOption[]>(() => [
   { label: t('audit.logList.filterOptions.auth'), value: 'auth' },
@@ -395,6 +433,55 @@ const activeSorterSelection = computed(() => useSingleSorterSelection(() => prop
 const activeSorter = computed(() => activeSorterSelection.value.sorter);
 const sortFieldValue = computed(() => activeSorterSelection.value.field);
 const sortDirectionValue = computed(() => activeSorterSelection.value.direction);
+const selectedTimePreset = computed<TimePresetSelection>(() => {
+  const [from, to] = props.modelValue.createdRange;
+  if (!from || !to) {
+    return 'custom';
+  }
+
+  const now = new Date();
+  const presetRanges: AuditTimePreset[] = [
+    AUDIT_TIME_PRESET.LAST_24H,
+    AUDIT_TIME_PRESET.LAST_7D,
+    AUDIT_TIME_PRESET.LAST_30D,
+  ];
+
+  for (const preset of presetRanges) {
+    const hours = preset === AUDIT_TIME_PRESET.LAST_24H ? 24 : preset === AUDIT_TIME_PRESET.LAST_7D ? 24 * 7 : 24 * 30;
+    const range = buildRecentHoursLocalRange(now, hours);
+    if (range[0] === from && range[1] === to) {
+      return preset;
+    }
+  }
+
+  return 'custom';
+});
+const summaryText = computed(() => {
+  const timeLabel =
+    selectedTimePreset.value === 'custom'
+      ? props.modelValue.createdRange.length
+        ? t('audit.logList.builder.summary.customTime', { range: props.modelValue.createdRange.join(' ~ ') })
+        : ''
+      : (timePresetOptions.value.find((option) => option.value === selectedTimePreset.value)?.label ?? '');
+  const resultLabel =
+    props.modelValue.result !== 'all'
+      ? t('audit.logList.builder.summary.result', {
+          value:
+            resultOptions.value.find((option) => option.value === props.modelValue.result)?.label ??
+            props.modelValue.result,
+        })
+      : '';
+  const sortLabel = activeSorter.value
+    ? t('audit.logList.builder.summary.sortBy', {
+        field:
+          sortFieldOptions.value.find((option) => option.value === activeSorter.value?.field)?.label ??
+          activeSorter.value.field,
+        direction: activeSorter.value.direction === 'asc' ? t('audit.logList.sort.asc') : t('audit.logList.sort.desc'),
+      })
+    : '';
+
+  return joinQuerySummary([timeLabel, resultLabel, sortLabel]);
+});
 
 const availableDefinitions = computed(() =>
   definitions.value.filter(
@@ -427,6 +514,19 @@ const dateRangePlaceholder = computed(() => [
   t('audit.logList.filters.datePlaceholder'),
   t('audit.logList.filters.datePlaceholder'),
 ]);
+
+function updateTimePreset(value: string | number | Array<string | number> | undefined) {
+  if (typeof value !== 'string') {
+    return;
+  }
+
+  if (value === 'custom') {
+    return;
+  }
+
+  const hours = value === AUDIT_TIME_PRESET.LAST_24H ? 24 : value === AUDIT_TIME_PRESET.LAST_7D ? 24 * 7 : 24 * 30;
+  updateField('createdRange', buildRecentHoursLocalRange(new Date(), hours));
+}
 
 function updateField<Key extends keyof AuditClientFilterState>(key: Key, value: AuditClientFilterState[Key]) {
   if (isLocked(key as AuditFilterKey)) {
@@ -616,7 +716,8 @@ function normalizeSortDirection(value: string): AuditSortOrder {
 }
 
 .audit-filters__top-row,
-.audit-filters__bottom-row {
+.audit-filters__group-body,
+.audit-filters__preset-row {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -639,6 +740,39 @@ function normalizeSortDirection(value: string): AuditSortOrder {
   margin-left: auto;
 }
 
+.audit-filters__summary {
+  color: var(--td-text-color-secondary);
+  font-size: 13px;
+}
+
+.audit-filters__group {
+  background-color: var(--td-bg-color-container);
+  border-color: var(--td-component-border);
+  border-radius: var(--td-radius-large);
+  border-style: solid;
+  border-width: 1px;
+  padding: 12px;
+  padding-inline: 14px;
+}
+
+.audit-filters__group-header {
+  margin-bottom: 10px;
+}
+
+.audit-filters__group-title {
+  color: var(--td-text-color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.audit-filters__group-body--builder {
+  justify-content: flex-start;
+}
+
+.audit-filters__time-preset {
+  min-width: 180px;
+}
+
 .audit-filters__tag-row {
   display: flex;
   flex-wrap: wrap;
@@ -646,27 +780,8 @@ function normalizeSortDirection(value: string): AuditSortOrder {
 }
 
 .audit-filters__preset-row {
-  align-items: center;
-  display: flex;
   flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 8px;
   min-width: 0;
-}
-
-.audit-filters__sort-row {
-  align-items: center;
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-width: 0;
-}
-
-.audit-filters__sort-label {
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 .audit-filters__sort-select {
@@ -752,7 +867,8 @@ function normalizeSortDirection(value: string): AuditSortOrder {
 
 @media (width <= 768px) {
   .audit-filters__top-row,
-  .audit-filters__bottom-row {
+  .audit-filters__group-body,
+  .audit-filters__preset-row {
     align-items: stretch;
     flex-direction: column;
   }
