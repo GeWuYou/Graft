@@ -281,7 +281,7 @@ func accessLogSortNormalizationTestCases() []accessLogSortNormalizationCase {
 	}
 }
 
-func TestAccessLogRepositoryListAccessLogsTreatsTraceIDFilterAsRequestIDAlias(t *testing.T) {
+func TestAccessLogRepositoryListAccessLogsFiltersByTraceIDColumn(t *testing.T) {
 	repo := newSQLiteAccessLogRepository(t)
 	ctx := context.Background()
 	base := time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)
@@ -298,7 +298,7 @@ func TestAccessLogRepositoryListAccessLogsTreatsTraceIDFilterAsRequestIDAlias(t 
 	result, err := repo.ListAccessLogs(ctx, AccessLogListQuery{
 		Page:     1,
 		PageSize: 10,
-		TraceID:  "req-2",
+		TraceID:  "trace-kept",
 		Sorts: []AccessLogSort{{
 			Field: AccessLogSortOccurredAt,
 			Order: AccessLogSortOrderAsc,

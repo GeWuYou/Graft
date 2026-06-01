@@ -643,7 +643,7 @@ func (r *accessLogRepository) buildAccessLogWhereClause(query AccessLogListQuery
 	args := make([]any, 0, accessLogListClauseCapacity)
 
 	appendAccessLogEqualityFilter(&conditions, &args, r, "request_id =", query.RequestID)
-	appendAccessLogEqualityFilter(&conditions, &args, r, "request_id =", query.TraceID)
+	appendAccessLogEqualityFilter(&conditions, &args, r, "trace_id =", query.TraceID)
 	appendAccessLogKeywordFilter(&conditions, &args, r, query.Keyword)
 	appendAccessLogOptionalUint64Filter(&conditions, &args, r, "user_id =", query.UserID)
 	appendAccessLogEqualityFilter(&conditions, &args, r, "username =", query.Username)

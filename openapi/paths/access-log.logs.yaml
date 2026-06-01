@@ -21,10 +21,6 @@ get:
       in: query
       schema:
         type: string
-    - name: trace_id
-      in: query
-      schema:
-        type: string
     - name: user_id
       in: query
       schema:

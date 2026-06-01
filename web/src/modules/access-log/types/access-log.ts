@@ -15,7 +15,6 @@ export type AccessLogQuery = {
   page_size?: number;
   keyword?: string;
   request_id?: string;
-  trace_id?: string;
   user_id?: number;
   username?: string;
   method?: string;

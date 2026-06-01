@@ -132,6 +132,11 @@ Forbidden query surfaces:
 - monitor-only fields such as anomaly key, incident seed, trend dimension
 - frontend route/origin/preset semantics as backend query fields
 
+Clarification:
+
+- frontend route/query authority must not expose `trace_id` as a canonical explorer filter
+- backend may still retain a bounded `trace_id` storage/filter capability for direct API or internal troubleshooting, but that capability is not part of the `web` canonical query truth
+
 ## 6. Sort Authority Matrix
 
 | Field | Allowed | Default | Reason |

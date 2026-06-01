@@ -193,7 +193,6 @@ type GetAccessLogsParams struct {
 	Page      *int    `form:"page,omitempty" json:"page,omitempty"`
 	PageSize  *int    `form:"page_size,omitempty" json:"page_size,omitempty"`
 	RequestId *string `form:"request_id,omitempty" json:"request_id,omitempty"`
-	TraceId   *string `form:"trace_id,omitempty" json:"trace_id,omitempty"`
 	UserId    *int64  `form:"user_id,omitempty" json:"user_id,omitempty"`
 	Username  *string `form:"username,omitempty" json:"username,omitempty"`
 	Method    *string `form:"method,omitempty" json:"method,omitempty"`

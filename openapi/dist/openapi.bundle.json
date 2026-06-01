@@ -4545,7 +4545,8 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^(created_at):(asc|desc)$"
               }
             }
           }
@@ -4992,13 +4993,6 @@
             }
           },
           {
-            "name": "trace_id",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "user_id",
             "in": "query",
             "schema": {
@@ -5139,7 +5133,8 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^(started_at|occurred_at|duration_ms|status_code):(asc|desc)$"
               }
             }
           }
