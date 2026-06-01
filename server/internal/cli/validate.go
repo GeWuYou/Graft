@@ -121,7 +121,7 @@ func newValidateBackendCommand() *cobra.Command {
 			"then builds ./cmd/graft, and optionally appends `graft validate smoke` when the slice needs a runtime proof.",
 		Example: "  graft validate backend\n" +
 			"  graft validate backend --stage openapi\n" +
-			"  graft validate backend --test-target ./plugins/user --test-target ./internal/httpx\n" +
+			"  graft validate backend --test-target ./modules/user --test-target ./internal/httpx\n" +
 			"  graft validate backend --stage lint\n" +
 			"  graft validate backend --smoke",
 		SilenceUsage: true,

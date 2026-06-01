@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"graft/server/internal/drilldown"
-	auditstore "graft/server/plugins/audit/store"
+	auditstore "graft/server/modules/audit/store"
 )
 
 type stubAuditRepository struct {

@@ -97,6 +97,19 @@ Overlay note:
     - `ai-plan/public/module-symbol-and-path-authority-migration`
   - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-symbol-and-path-authority-migration. Owned scope: server/internal/plugin/**, server/internal/pluginregistry/**, server/plugins/*/descriptor.go, ai-plan/design/项目设计.md, ai-plan/design/插件与依赖注入设计.md, ai-plan/public/module-symbol-and-path-authority-migration/**, ai-plan/public/README.md, server/internal/app/runtime.go, and only the minimum additional authority files required by a new bounded follow-up. Treat module-symbol-and-path-authority-migration as archive-ready evidence and open a new bounded topic only if the repository explicitly decides to attempt one deferred rename class at its true authority owner; do not resume this closed loop in place.`
 
+- `module-physical-path-migration`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded cross-boundary physical path migration topic after `module-symbol-and-path-authority-migration` explicitly deferred directory/package path rename work as new-topic-only follow-up.
+  - Scope outcome:
+    - recorded a fresh startup receipt and authority summary for physical rename work
+    - froze the canonical rename map for `server/internal/plugin -> server/internal/module`, `server/internal/pluginregistry -> server/internal/moduleregistry`, and `server/plugins/<name> -> server/modules/<name>`
+    - completed the accepted physical move, import repair, migration path-string repair, and revive-stutter cleanup needed for the renamed module path chain
+    - completed authority cleanup so governance, package docs, and recovery truth stop presenting retired paths as canonical current authority
+    - closed with residual old-path hits limited to archived historical evidence, explicit rename history, and intentionally retained `internal/pluginapi/**` stable authority
+  - Topic directory:
+    - `ai-plan/public/module-physical-path-migration`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-physical-path-migration. Owned scope: server/internal/pluginapi/**, server/internal/module/**, server/AGENTS.md, ai-plan/design/插件与依赖注入设计.md, ai-plan/public/module-physical-path-migration/**, ai-plan/public/README.md, and only the minimum additional authority files required by exported historical symbol/path follow-up analysis. Treat module-physical-path-migration as archive-ready evidence and open a new bounded topic only if the repository explicitly decides to rename retained stable `pluginapi` or exported `Plugin` authority surfaces; do not resume this closed loop in place.`
+
 - `phase-d-log-explorer-authority-definition`
   - Status: `archive-ready`
   - Recovery status: completed the bounded governance-only authority-definition topic for future `Log Explorer`.

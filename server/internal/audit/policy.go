@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	auditstore "graft/server/plugins/audit/store"
+	auditstore "graft/server/modules/audit/store"
 )
 
 // PolicyEvaluator applies plugin-owned audit policy rules to normalized candidates.

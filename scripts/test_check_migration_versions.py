@@ -10,17 +10,17 @@ from check_migration_versions import candidate_dirs, validate
 
 
 class CandidateDirsTest(unittest.TestCase):
-    def test_changed_mode_includes_all_plugin_migration_dirs_for_global_conflict_checks(self) -> None:
+    def test_changed_mode_includes_all_module_migration_dirs_for_global_conflict_checks(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            user_dir = root / "server" / "plugins" / "user" / "migrations"
-            rbac_dir = root / "server" / "plugins" / "rbac" / "migrations"
+            user_dir = root / "server" / "modules" / "user" / "migrations"
+            rbac_dir = root / "server" / "modules" / "rbac" / "migrations"
             user_dir.mkdir(parents=True)
             rbac_dir.mkdir(parents=True)
 
             with patch(
                 "check_migration_versions.subprocess.check_output",
-                return_value="server/plugins/user/migrations/202605280001_user.sql\nserver/plugins/user/README.md\n",
+                return_value="server/modules/user/migrations/202605280001_user.sql\nserver/modules/user/README.md\n",
             ):
                 dirs = candidate_dirs(root, "changed")
 
@@ -31,8 +31,8 @@ class ValidateTest(unittest.TestCase):
     def test_validate_reports_duplicate_versions(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            user_dir = root / "server" / "plugins" / "user" / "migrations"
-            rbac_dir = root / "server" / "plugins" / "rbac" / "migrations"
+            user_dir = root / "server" / "modules" / "user" / "migrations"
+            rbac_dir = root / "server" / "modules" / "rbac" / "migrations"
             user_dir.mkdir(parents=True)
             rbac_dir.mkdir(parents=True)
             (user_dir / "202605280001_user.sql").write_text("SELECT 1;\n", encoding="utf-8")
@@ -44,16 +44,16 @@ class ValidateTest(unittest.TestCase):
                 errors,
                 [
                     "default migration chain version conflict: 202605280001 appears in "
-                    "server/plugins/user/migrations/202605280001_user.sql, "
-                    "server/plugins/rbac/migrations/202605280001_rbac.sql"
+                    "server/modules/user/migrations/202605280001_user.sql, "
+                    "server/modules/rbac/migrations/202605280001_rbac.sql"
                 ],
             )
 
     def test_validate_allows_unique_versions(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            user_dir = root / "server" / "plugins" / "user" / "migrations"
-            rbac_dir = root / "server" / "plugins" / "rbac" / "migrations"
+            user_dir = root / "server" / "modules" / "user" / "migrations"
+            rbac_dir = root / "server" / "modules" / "rbac" / "migrations"
             user_dir.mkdir(parents=True)
             rbac_dir.mkdir(parents=True)
             (user_dir / "202605280001_user.sql").write_text("SELECT 1;\n", encoding="utf-8")

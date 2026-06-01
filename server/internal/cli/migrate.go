@@ -14,11 +14,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/config"
-	"graft/server/internal/pluginregistry"
+	"graft/server/internal/moduleregistry"
 )
 
 // defaultMigrationDir 定义 `server` 模块默认迁移链使用的 registry 选择器。
-const defaultMigrationDir = pluginregistry.DefaultMigrationDir
+const defaultMigrationDir = moduleregistry.DefaultMigrationDir
 
 const migrationFileMode = 0o600
 const migrationVersionMatchCount = 2
@@ -31,7 +31,7 @@ var migrateLookPath = exec.LookPath
 var migrateCommandContext = exec.CommandContext
 var migrateGetwd = os.Getwd
 var migrateStdin io.Reader = os.Stdin
-var migrateRegistryMigrationDirs = pluginregistry.MigrationDirs
+var migrateRegistryMigrationDirs = moduleregistry.MigrationDirs
 var migrateReadDir = os.ReadDir
 var migrateReadFile = os.ReadFile
 var migrateWriteFile = os.WriteFile

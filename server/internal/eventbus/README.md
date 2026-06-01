@@ -27,7 +27,7 @@
 ## 关键依赖
 
 * 上游由 `server/internal/app` 创建并注入
-* 下游供 `server/plugins/*` 在 `Register` / `Boot` 生命周期中发布和订阅事件
+* 下游供 `server/modules/*` 在 `Register` / `Boot` 生命周期中发布和订阅事件
 
 ## 维护提示
 

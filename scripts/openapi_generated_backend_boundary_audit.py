@@ -26,28 +26,28 @@ FORBIDDEN_GENERATED_RUNTIME_PATTERNS = (
 )
 
 HANDLER_BOUNDARY_CHECKS = {
-    "server/plugins/auth/route_handlers.go": (
+    "server/modules/auth/route_handlers.go": (
         "authopenapi.PostAuthLoginJSONRequestBody",
         "authopenapi.GetAuthSessionsParams",
         "authopenapi.PostAuthChangePasswordJSONRequestBody",
     ),
-    "server/plugins/user/route_user_handlers.go": (
+    "server/modules/user/route_user_handlers.go": (
         "useropenapi.GetUsersParams",
         "useropenapi.PostUsersJSONRequestBody",
         "useropenapi.PostUserUpdateJSONRequestBody",
     ),
-    "server/plugins/user/route_admin_session_handlers.go": (
+    "server/modules/user/route_admin_session_handlers.go": (
         "useropenapi.GetUserSessionsParams",
         "useropenapi.PostUserSessionsRevokeAllParams",
         "useropenapi.PostUserSessionRevokeParams",
     ),
-    "server/plugins/rbac/route_read_handlers.go": (
+    "server/modules/rbac/route_read_handlers.go": (
         "rbacopenapi.GetPermissionsParams",
         "rbacopenapi.GetRolesParams",
         "rbacopenapi.GetRolePermissionsParams",
         "rbacopenapi.GetUserRolesParams",
     ),
-    "server/plugins/rbac/route_write_handlers.go": (
+    "server/modules/rbac/route_write_handlers.go": (
         "rbacopenapi.PostRolesJSONRequestBody",
         "rbacopenapi.PostRoleUpdateJSONRequestBody",
         "rbacopenapi.PostRoleStatusJSONRequestBody",
@@ -61,30 +61,30 @@ HANDLER_BOUNDARY_CHECKS = {
         "rbacopenapi.PostUsersRolesAddJSONRequestBody",
         "rbacopenapi.PostUsersRolesRemoveJSONRequestBody",
     ),
-    "server/plugins/monitor/plugin.go": (
+    "server/modules/monitor/plugin.go": (
         "monitoropenapi.GetMonitorServerStatusParams",
         "generated.ServerStatusResponse",
     ),
 }
 
 RESPONSE_MAPPER_CHECKS = {
-    "server/plugins/auth/mapper_http.go": (
+    "server/modules/auth/mapper_http.go": (
         "generated.LoginResponse",
         "generated.BootstrapResponse",
         "generated.SessionSummary",
     ),
-    "server/plugins/user/mapper_http.go": (
+    "server/modules/user/mapper_http.go": (
         "generated.UserListResponse",
         "generated.UserListItem",
         "generated.SessionSummary",
     ),
-    "server/plugins/rbac/mapper_http.go": (
+    "server/modules/rbac/mapper_http.go": (
         "generated.RoleListResponse",
         "generated.RolePermissionBindingResponse",
         "generated.PermissionListResponse",
         "generated.UserRoleBindingResponse",
     ),
-    "server/plugins/monitor/plugin.go": (
+    "server/modules/monitor/plugin.go": (
         "generated.ServerStatusResponse",
         "generated.ServerStatusServer",
         "generated.ServerStatusDependencies",
@@ -92,27 +92,27 @@ RESPONSE_MAPPER_CHECKS = {
 }
 
 ALLOWED_EXACT_TYPES: dict[str, tuple[str, str]] = {
-    "server/plugins/user/bootstrap.go:bootstrapResponse": (
+    "server/modules/user/bootstrap.go:bootstrapResponse": (
         "generated_mapper_allowed",
         "internal bootstrap bridge model consumed by authFlowBridge before auth mapper emits generated.BootstrapResponse",
     ),
-    "server/plugins/user/bootstrap.go:bootstrapMenuResponse": (
+    "server/modules/user/bootstrap.go:bootstrapMenuResponse": (
         "generated_mapper_allowed",
         "internal bootstrap menu bridge model consumed by authFlowBridge before auth mapper emits generated.BootstrapResponse",
     ),
-    "server/plugins/user/bootstrap.go:bootstrapLocaleSnapshot": (
+    "server/modules/user/bootstrap.go:bootstrapLocaleSnapshot": (
         "generated_mapper_allowed",
         "internal bootstrap locale bridge model consumed by authFlowBridge before auth mapper emits generated.BootstrapResponse",
     ),
-    "server/plugins/user/session.go:loginUserResponse": (
+    "server/modules/user/session.go:loginUserResponse": (
         "service_command_allowed",
         "internal auth flow identity snapshot used before pluginapi/auth generated mappers",
     ),
-    "server/plugins/user/session.go:refreshResult": (
+    "server/modules/user/session.go:refreshResult": (
         "service_command_allowed",
         "internal auth flow result model used before pluginapi.AuthRefreshResult and generated.LoginResponse mapping",
     ),
-    "server/plugins/user/session.go:sessionSummary": (
+    "server/modules/user/session.go:sessionSummary": (
         "service_command_allowed",
         "internal auth session summary model used before generated.SessionSummary mapping",
     ),
@@ -173,7 +173,7 @@ def append_category(result: AuditResult, category: str, value: str) -> None:
 
 
 def audit_type_declarations(repo_root: Path, result: AuditResult) -> None:
-    for path in sorted((repo_root / "server/plugins").rglob("*.go")):
+    for path in sorted((repo_root / "server/modules").rglob("*.go")):
         rel_path = path.relative_to(repo_root).as_posix()
         if rel_path.endswith("_test.go"):
             continue
@@ -252,12 +252,12 @@ def audit_generated_boundary_usage(repo_root: Path, result: AuditResult) -> None
 
 def audit_httpx_runtime(repo_root: Path, result: AuditResult) -> None:
     runtime_checks = {
-        "server/plugins/auth/route_handlers.go": ("httpx.WriteSuccess", "writeLocalizedContractError"),
-        "server/plugins/user/route_user_handlers.go": ("httpx.WriteSuccess", "writeLocalizedContractError"),
-        "server/plugins/user/route_admin_session_handlers.go": ("httpx.WriteSuccess",),
-        "server/plugins/rbac/route_read_handlers.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError"),
-        "server/plugins/rbac/route_write_handlers.go": ("httpx.WriteSuccess",),
-        "server/plugins/monitor/plugin.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError", "ctx.Router.Group"),
+        "server/modules/auth/route_handlers.go": ("httpx.WriteSuccess", "writeLocalizedContractError"),
+        "server/modules/user/route_user_handlers.go": ("httpx.WriteSuccess", "writeLocalizedContractError"),
+        "server/modules/user/route_admin_session_handlers.go": ("httpx.WriteSuccess",),
+        "server/modules/rbac/route_read_handlers.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError"),
+        "server/modules/rbac/route_write_handlers.go": ("httpx.WriteSuccess",),
+        "server/modules/monitor/plugin.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError", "ctx.Router.Group"),
     }
 
     for rel_path, patterns in runtime_checks.items():
@@ -292,9 +292,9 @@ def build_result() -> AuditResult:
         generated_mapper_allowed=[],
         service_command_allowed=[],
         domain_or_ent_model_allowed=[
-            "server/plugins/user/store/**: repository-owned user/auth write and read models remain internal",
-            "server/plugins/rbac/store/**: repository-owned RBAC domain/read models remain internal",
-            "server/plugins/*/ent/**: Ent models stay outside the HTTP API boundary",
+            "server/modules/user/store/**: repository-owned user/auth write and read models remain internal",
+            "server/modules/rbac/store/**: repository-owned RBAC domain/read models remain internal",
+            "server/modules/*/ent/**: Ent models stay outside the HTTP API boundary",
         ],
         httpx_runtime_allowed=[],
         stale_manual_api_request_dto=[],

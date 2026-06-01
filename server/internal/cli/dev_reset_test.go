@@ -13,8 +13,8 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/database"
 	"graft/server/internal/pluginapi"
-	"graft/server/plugins/user"
-	userstore "graft/server/plugins/user/store"
+	"graft/server/modules/user"
+	userstore "graft/server/modules/user/store"
 )
 
 func TestRunDevResetAdminRejectsNonDevelopmentEnv(t *testing.T) {

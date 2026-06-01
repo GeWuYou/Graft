@@ -55,7 +55,7 @@
 * `server/internal/logger/**` 自身的 logger 构造、全局替换、关闭与底层字段拼装
 * `server/internal/httpx/**` 的 `Access Log` 与 access-retention runtime
 * `server/internal/httpx/**` 的 security-event bridge
-* `server/internal/audit/**`、`server/plugins/audit/**` 的 audit-owned 写入与读模型错误
+* `server/internal/audit/**`、`server/modules/audit/**` 的 audit-owned 写入与读模型错误
 * `server/internal/eventbus/**`、`server/internal/scheduler/**` 这类基础设施级 runtime 实现
 * Ent debug hook、CLI bootstrap fallback、测试代码、第三方/生成代码边界
 
@@ -69,7 +69,7 @@
 
 * 推荐：`logger.NewAppLogger(base).Named("plugins.user.route").Error(ctx, "map user response failed", logger.StringField("plugin", "user"), logger.ErrorField(err))`
 * 例外：`internal/httpx/accesslog.go` 继续直接使用 raw zap 维护 access-log authority
-* 例外：`plugins/audit/**` 继续直接使用 raw zap 维护 audit-owned runtime diagnostics
+* 例外：`modules/audit/**` 继续直接使用 raw zap 维护 audit-owned runtime diagnostics
 
 当前 App Log foundation 约束：
 

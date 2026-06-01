@@ -707,13 +707,13 @@ func TestRunValidateBackendBuildTestStage(t *testing.T) {
 
 	err := runValidateBackend(&cobra.Command{}, backendValidateOptions{
 		stage:       "buildtest",
-		testTargets: []string{"./plugins/user", "./internal/httpx"},
+		testTargets: []string{"./modules/user", "./internal/httpx"},
 	})
 	if err != nil {
 		t.Fatalf("run validate backend buildtest stage: %v", err)
 	}
 
-	expected := []string{"test:./plugins/user,./internal/httpx", "build"}
+	expected := []string{"test:./modules/user,./internal/httpx", "build"}
 	if !reflect.DeepEqual(steps, expected) {
 		t.Fatalf("expected %v, got %v", expected, steps)
 	}

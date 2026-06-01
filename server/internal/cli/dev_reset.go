@@ -11,8 +11,8 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/database"
 	"graft/server/internal/pluginapi"
-	"graft/server/plugins/rbac"
-	"graft/server/plugins/user"
+	"graft/server/modules/rbac"
+	"graft/server/modules/user"
 )
 
 var (

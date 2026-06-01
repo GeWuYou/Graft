@@ -8,8 +8,9 @@
 术语补充：
 
 - 当前 backend 的 canonical 业务能力单元是 `module`
-- `server/plugins/*`、`internal/plugin*` 属于历史目录或包命名
-- 本文件仍保留这些历史命名来对应现有代码，但实现和治理语义应按 compile-time modules 理解
+- `Plugin`、`pluginapi` 等少量导出符号仍保留历史命名
+- 当前 backend 的 canonical 物理路径已经迁到 `server/modules/*`、`server/internal/module/**`、`server/internal/moduleregistry/**`
+- 除非明确讨论历史符号名，否则实现和治理语义都应按 compile-time modules 理解
 
 authority-first overlay：
 
@@ -23,7 +24,7 @@ authority-first overlay：
 
 - `server/cmd/**`
 - `server/internal/**`
-- `server/plugins/**`
+- `server/modules/**`
 
 不适用目录：
 
@@ -92,8 +93,8 @@ authority-first overlay：
 
 ### 3.4 Implementation Path
 
-- `core runtime` 改动只进入显式 core 边界，例如 `internal/app`、`internal/httpx`、`internal/plugin`、`internal/container`
-- 业务能力默认进入 `plugins/<name>/**`
+- `core runtime` 改动只进入显式 core 边界，例如 `internal/app`、`internal/httpx`、`internal/module`、`internal/container`
+- 业务能力默认进入 `modules/<name>/**`
 - 跨模块协作先设计 capability / contract，再写业务实现
 - 数据结构变更先确认 schema owner，再进入 Ent generate 与 migration 流程
 
@@ -135,8 +136,8 @@ authority-first overlay：
   - Gin server、统一响应、鉴权中间件等 HTTP 运行时边界
 - `internal/container`
   - 轻量单例 DI / service container
-- `internal/plugin`
-  - 插件契约、上下文、插件排序与生命周期管理
+- `internal/module`
+  - 模块契约、上下文、模块排序与生命周期管理
 - `internal/pluginapi`
   - 跨插件稳定接口与 DTO
 - `internal/contract`
@@ -147,17 +148,17 @@ authority-first overlay：
   - 仅保留现阶段尚未迁出的 core-owned 数据访问边界；长期方向不是继续集中新增业务仓储
 - `internal/ent/migrate/migrations`
   - 仅保留历史共享 Atlas migration 目录，供显式/manual 诊断或回放使用；它不再属于默认 migration 链
-- `plugins/*`
-  - 业务插件与插件自有 contract；长期方向下每个插件还应拥有自己的 capability、store、storeent、ent 与 migrations
+- `modules/*`
+  - 业务模块与模块自有 contract；长期方向下每个模块还应拥有自己的 capability、store、storeent、ent 与 migrations
 
 Observability authority overlay：
 
-- `plugins/audit/**` 拥有 audit facts、incident read model、audit analytics 与 audit evidence consumer 语义
-- `plugins/monitor/**` 拥有 monitor facts、anomaly、trend 与 monitor evidence 语义
+- `modules/audit/**` 拥有 audit facts、incident read model、audit analytics 与 audit evidence consumer 语义
+- `modules/monitor/**` 拥有 monitor facts、anomaly、trend 与 monitor evidence 语义
 - `internal/httpx/**` 拥有 request correlation、access logging 与 security-event bridge authority
 - `internal/logger/**` 拥有 `AppLogger` / `Error Log` baseline
-- future `Log Explorer` authority 必须建立在 `internal/logger/**` 与 `internal/httpx/**` 的 logging semantics 之上，而不是建立在 `plugins/audit/**` 持久化表之上
-- `plugins/audit/**` 可以消费 logging correlation 作为调查入口，但不是 `Access Log Explorer` / `App Log Explorer` 的 canonical owner
+- future `Log Explorer` authority 必须建立在 `internal/logger/**` 与 `internal/httpx/**` 的 logging semantics 之上，而不是建立在 `modules/audit/**` 持久化表之上
+- `modules/audit/**` 可以消费 logging correlation 作为调查入口，但不是 `Access Log Explorer` / `App Log Explorer` 的 canonical owner
 - `openapi/**` 是 shared wire contract authority；`internal/contract/openapi/**` 仅是 derived artifact consumer boundary
 - `internal/pluginapi/**` 中的 observability capability 只允许暴露 bounded evidence、stable ingest、或 narrow identity/authz-style ability，不得暴露 plugin internals
 
@@ -170,13 +171,13 @@ Observability authority overlay：
 必须保持：
 
 - core 只拥有基础设施与扩展机制
-- 业务能力只放在 `plugins/*`
+- 业务能力只放在 `modules/*`
 - 插件之间通过稳定接口协作，不直接依赖彼此内部实现
 - 装配路径显式、可追踪、可测试
 
 不要做：
 
-- 把业务规则塞进 `internal/app`、`internal/plugin`、`internal/container` 等 core 包
+- 把业务规则塞进 `internal/app`、`internal/module`、`internal/container` 等 core 包
 - 通过 package global、`init()`、隐式扫描或反射魔法制造运行时行为
 - 把插件私有实现暴露成跨插件公共 API
 
@@ -190,15 +191,15 @@ Observability authority overlay：
 | CLI、显式迁移、显式验证、开发编排 | `server/cmd/**`、`server/internal/cli/**` | `serve`、`migrate`、`dev`、`validate` 保持显式入口 |
 | HTTP 通用能力、统一响应、共性中间件 | `server/internal/httpx/**` | 不承载插件业务规则 |
 | 容器、事件总线、菜单/权限/cron 注册器 | `server/internal/**` 对应 core 包 | 只放平台公共能力 |
-| 业务 API、业务 service、业务 store、业务 schema、业务 migration | `server/plugins/<name>/**` | 默认 plugin-owned |
+| 业务 API、业务 service、业务 store、业务 schema、业务 migration | `server/modules/<name>/**` | 默认 module-owned |
 | 跨插件 capability、共享 DTO、稳定事件名 | `server/internal/pluginapi/**` | 只放稳定跨插件公开面 |
 | 平台级 typed contract | `server/internal/contract/**` | 只放平台共用 contract |
-| 插件私有稳定 contract | `server/plugins/<name>/contract/**` | route fragment、permission code、message key 等 |
+| 模块私有稳定 contract | `server/modules/<name>/contract/**` | route fragment、permission code、message key 等 |
 | 历史共享 migration 回放 | `server/internal/ent/migrate/migrations/**` | 仅显式/manual 使用，不是默认链 |
 
 补充规则：
 
-- 新业务能力默认先问“能否直接放进 `server/plugins/<name>/**`”；除非它是平台基础设施，否则不要先放 `internal/**`
+- 新业务能力默认先问“能否直接放进 `server/modules/<name>/**`”；除非它是平台基础设施，否则不要先放 `internal/**`
 - 新的业务 schema、Ent 生成产物、业务 migration 真相不允许回流 `server/internal/ent/**`
 - 插件间协作默认优先扩展 `pluginapi` 或稳定 `contract`，而不是直接引用对方内部实现
 - 若协作涉及 observability：
@@ -211,7 +212,7 @@ Observability authority overlay：
 当前 backend module 在历史 `plugin` 命名下遵循两层契约：
 
 - compile-time module authority
-  - `plugin.ModuleSpec` 持有稳定的模块标识、依赖、builder 与 migration path
+  - `module.Spec` 持有稳定的模块标识、依赖、builder 与 migration path
 - runtime lifecycle contract
   - 运行时插件实例只实现 `Register / Boot / Shutdown`
   - core runtime 通过 compile-time `ModuleSpec` 包装得到 `plugin.Module` 视图，再消费稳定的 `Name()` /
@@ -226,8 +227,8 @@ Observability authority overlay：
 - 不做 generalized reflection plugin system
 - 不做 generalized service locator
 
-当前治理已采用 `plugin.ModuleSpec`、`plugin.Builder` 与 compile-time generated plugin registry 作为历史命名下的
-显式 module 装配抽象；这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
+当前治理已采用 `module.Spec`、`module.Builder` 与 compile-time generated module registry 作为显式 module
+装配抽象；保留的 `Plugin` 接口只代表历史导出命名。这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
 
 ### 7.1 生命周期规则
 
@@ -308,7 +309,7 @@ Observability authority overlay：
   - 放跨插件能力接口、共享 DTO、稳定错误语义、稳定事件名
 - `server/internal/contract`
   - 放平台级稳定 contract，例如 header、auth scheme、error code、平台消息 key
-- `server/plugins/<plugin>/contract`
+- `server/modules/<plugin>/contract`
   - 放插件自有稳定 contract，例如 route fragment、permission code、message key
 
 规则：
@@ -336,7 +337,7 @@ Observability authority overlay：
 - route contract 优先保持 `group path + route fragment` 真相，不要为同一语义并存多套 full path 常量
 - `permission code`、`event name`、`message key`、`header name`、`auth scheme`、共享状态枚举都属于高风险 contract
 - 新增或修改高风险 contract 时，必须明确 owner 与 lifecycle：`experimental` / `stable` / `deprecated` / `removed`
-- auth route contract 的 canonical owner 固定为 `server/plugins/auth/contract`；兼容期即使暂时仍由其它插件承载运行时实现，也不得把 owner 真相写回 `user`
+- auth route contract 的 canonical owner 固定为 `server/modules/auth/contract`；兼容期即使暂时仍由其它模块承载运行时实现，也不得把 owner 真相写回 `user`
 - 管理员按用户维度的 session 治理若继续暴露在 `/users/:id/sessions`，它也只是 `user` 的管理入口；session 持久化、token/cookie、rotation/revoke 真相仍归 `auth`
 - 兼容 alias 只能临时存在，不能演变成永久第二真相
 
@@ -376,10 +377,10 @@ Observability authority overlay：
 - `internal/httpx` 负责 HTTP 运行时共性，不承载某个插件专有业务规则
 - `internal/store` 与 `internal/store/entstore` 只允许承载 core-owned 或尚未迁移完成的历史集中边界，不应继续接纳新的业务插件真相
 - 长期方向下，业务插件应收敛到：
-  - `plugins/<name>/store/**`
-  - `plugins/<name>/storeent/**`
-  - `plugins/<name>/service/**`
-  - `plugins/<name>/routes/**`
+  - `modules/<name>/store/**`
+  - `modules/<name>/storeent/**`
+  - `modules/<name>/service/**`
+  - `modules/<name>/routes/**`
 - 插件的 handler / route 文件只编排 HTTP 输入输出与授权边界，不直接堆业务事务脚本
 - 一旦某个业务边界迁移到插件目录，禁止把 repository、service、handler 重新回流到 `internal/store/**`、`internal/app/**` 或其它 core runtime 包
 
@@ -390,11 +391,11 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 多工作树 Phase 1 治理补充：
 
 - 这里说的“zero-shared”指功能开发工作树的零共享，不是要求所有 tracked file 都绝对零共享
-- 长生命周期的 `server` feature worktree 正常情况下只拥有 `server/plugins/<name>/**`
-- `internal/pluginapi/**`、`internal/contract/**`、`internal/pluginregistry/generated.go`、`cmd/graft/**`、
+- 长生命周期的 `server` feature worktree 正常情况下只拥有 `server/modules/<name>/**`
+- `internal/pluginapi/**`、`internal/contract/**`、`internal/moduleregistry/generated.go`、`cmd/graft/**`、
   `AGENTS.md`、`ai-plan/**` 与 migration 入口变更都属于短生命周期 integration / core slice，不属于长期 feature
   worktree 的 standing ownership
-- `internal/pluginregistry/generated.go` 当前仍保持 tracked；但长生命周期 feature worktree 不得直接修改它，相关改动必须回到显式集成切片统一协调
+- `internal/moduleregistry/generated.go` 当前仍保持 tracked；但长生命周期 feature worktree 不得直接修改它，相关改动必须回到显式集成切片统一协调
 - 共享 `internal/ent` Go 代码与 schema 兼容层已经删除；不得在该路径重新引入业务 schema、生成产物或 runtime 依赖
 - `internal/ent/migrate/migrations/**` 仍保留为历史共享 migration 目录，但仅允许显式/manual 使用；它不是默认 migration 链的一部分
 - 当前后端 ownership checkpoint 允许 fresh DB rebuild；不要求为历史 mixed migration 继续维持兼容回放能力
@@ -403,15 +404,15 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 - `internal/ent/migrate/migrations/**` 只允许承载历史共享 Atlas migration 真相；不得新增新的默认 migration、业务 schema 真相或新的 owner-aligned 基线
 - 每个业务插件应长期收敛到自己的：
-  - `plugins/<name>/ent/**`
-  - `plugins/<name>/migrations/**`
-- live Ent 生成产物只允许存在于 `plugins/<name>/ent/**`；不得把生成代码重新集中回 `internal/ent/**`
+  - `modules/<name>/ent/**`
+  - `modules/<name>/migrations/**`
+- live Ent 生成产物只允许存在于 `modules/<name>/ent/**`；不得把生成代码重新集中回 `internal/ent/**`
 - schema 变化必须通过显式 Ent 生成与显式 migration 流程落地，不允许靠 runtime 自动同步数据库
 - `graft migrate up` 是显式迁移入口；`graft serve` 不得隐式修改 schema
 - migration 文件必须保持可审计、可回放、可按版本追踪；不要把业务初始化偷偷塞进不可追踪的启动逻辑
-- 默认 migration 链会把所有 live plugin-owned migration 目录聚合成一个 Atlas 目录；因此 `plugins/<name>/migrations/*.sql` 的数字版本前缀必须跨插件全局唯一，不能只在单个插件目录内唯一
+- 默认 migration 链会把所有 live module-owned migration 目录聚合成一个 Atlas 目录；因此 `modules/<name>/migrations/*.sql` 的数字版本前缀必须跨模块全局唯一，不能只在单个模块目录内唯一
 - 当前默认 migration 链中的每张 live 表都必须有中文表注释，每个 live 列都必须有中文列注释
-- `plugins/<name>/ent/schema/**` 是当前数据库注释治理的上游真相之一；新增表必须补 `schema.Comment(...)`，新增列必须补 `field.Comment(...)`
+- `modules/<name>/ent/schema/**` 是当前数据库注释治理的上游真相之一；新增表必须补 `schema.Comment(...)`，新增列必须补 `field.Comment(...)`
 - 表级 Ent 注释应同时开启对应 SQL comment 输出能力，例如结合 `entsql.WithComments(true)` 使用
 - migration SQL 必须显式落 `COMMENT ON TABLE` 与 `COMMENT ON COLUMN`，不能只在 Ent schema 中声明而不写入版本化迁移
 - 数据库注释必须表达真实业务语义；禁止字段名直译、空泛注释、中英混写或与实际枚举/状态语义不一致
@@ -429,14 +430,14 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - 跨插件关联只允许：
   - 稳定外键，由表 owner 明确声明
   - application-level contract 协作
-- 每个插件独立进行 Ent generate，生成代码只能写入 `plugins/<name>/ent/**`
+- 每个模块独立进行 Ent generate，生成代码只能写入 `modules/<name>/ent/**`
 - `user_roles` 的协作边界保持为 `user_id / role_id` 标识符级别；不要通过跨插件 Ent edge、跨插件 Ent entity 或跨插件 repository 暴露角色分配耦合
 - 禁止聚合式全局业务 Ent generate、禁止一个插件修改其它插件的 ent 产物、禁止插件修改 core ent runtime
 
 当任务修改以下任一内容时：
 
-- 任一 live Ent schema 路径，例如 `plugins/<name>/ent/schema/**`
-- 任一 live Ent 生成入口，例如 `plugins/<name>/ent/generate.go`
+- 任一 live Ent schema 路径，例如 `modules/<name>/ent/schema/**`
+- 任一 live Ent 生成入口，例如 `modules/<name>/ent/generate.go`
 - Atlas/Ent 迁移生成相关配置
 - 任何影响 schema 语义的手写代码
 
@@ -458,12 +459,12 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
   - `internal/pluginapi/**`
   - `internal/contract/**`
 - `generated-shared-hotspot`
-  - `internal/pluginregistry/generated.go`
+  - `internal/moduleregistry/generated.go`
 - `plugin-owned`
-  - `plugins/<name>/**`
+  - `modules/<name>/**`
 - `core-owned`
   - `internal/app/**`
-  - `internal/plugin/**`
+  - `internal/module/**`
   - `internal/httpx/**`
   - `internal/config/**`
   - `internal/logger/**`
@@ -481,7 +482,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 - `internal/pluginapi/**`
 - `internal/contract/**`
-- `internal/pluginregistry/generated.go`
+- `internal/moduleregistry/generated.go`
 - `cmd/graft/**`
 - `AGENTS.md`
 - `server/AGENTS.md`
@@ -510,7 +511,7 @@ overlay 解释：
 - 该 worktree 拥有哪些 `plugin-owned` 或 `core-owned` 目录
 - 允许触碰哪些 `shared-stable-boundary`
 - 是否允许触碰 `generated-shared-hotspot`
-- 遇到 `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/plugin/**` 这类 core 共享面时，是回到 `main` 治理还是切出单独 core worktree
+- 遇到 `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/module/**` 这类 core 共享面时，是回到 `main` 治理还是切出单独 core worktree
 
 shared hotspot 处理规则如下：
 
@@ -518,11 +519,11 @@ shared hotspot 处理规则如下：
   - 只允许承载稳定 capability、DTO、typed contract 与共享治理文字真相
   - 进入该边界的改动必须同时说明 canonical owner 与 consumer；不要把临时业务实验塞成长期共享接口
 - `generated-shared-hotspot`
-  - `internal/pluginregistry/generated.go` 是唯一允许的集中接线产物
+  - `internal/moduleregistry/generated.go` 是唯一允许的集中接线产物
   - 该文件只能承载 compile-time registry 的机械生成结果，不允许手写业务规则、兼容分支或第二套插件真相
   - 若多个长期 worktree 同时需要修改它，应把该变更视为可预期冲突面，并通过短生命周期集成或共享基线串行收口，而不是扩大共享编辑范围
 - `core-owned` 高冲突面
-  - `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/plugin/**`、`internal/migration/**` 默认不是长期共享编辑面
+  - `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/module/**`、`internal/migration/**` 默认不是长期共享编辑面
   - 某个插件 worktree 一旦需要持续修改这些目录，必须先明确它是在进行 core-owned 治理还是插件 feature 开发；两者不要混在同一长期 worktree 里无限扩张
 
 从 `main` 共享基线切换到 dedicated long-lived worktree 前，至少满足：
@@ -669,7 +670,7 @@ shared hotspot 处理规则如下：
 后端完成态的仓库内显式 CLI 入口是：
 
 - `cd server && go run ./cmd/graft validate backend`
-- 若暂存区包含 `server/plugins/*/migrations/*.sql`，`.husky/pre-commit` 必须阻断默认链中的跨插件 migration version 冲突
+- 若暂存区包含 `server/modules/*/migrations/*.sql`，`.husky/pre-commit` 必须阻断默认链中的跨模块 migration version 冲突
 
 如果已经构建出 `graft` 可执行文件，`graft validate backend` 只是同一入口的另一种调用方式；不要再发明第二套 blocking validation 命令。
 
@@ -688,7 +689,7 @@ shared hotspot 处理规则如下：
 ### 15.2 选择最小正确验证
 
 - 只改 plugin 内业务逻辑时，优先测受影响 package，并补 `go build ./cmd/graft`
-- 改 `internal/httpx`、`internal/plugin`、`internal/container`、`internal/app` 等 core 边界时，默认扩大到覆盖相关 `internal/...` 测试
+- 改 `internal/httpx`、`internal/module`、`internal/container`、`internal/app` 等 core 边界时，默认扩大到覆盖相关 `internal/...` 测试
 - 改 schema、migration、store、plugin public contract 时，不要只跑单包 smoke 代替单元或集成验证
 - 只有当任务确实需要证明迁移与运行时启动链条时，才追加 `graft validate smoke`
 
@@ -727,7 +728,7 @@ shared hotspot 处理规则如下：
 
 ```text
 Task class: server
-Owned scope: server/plugins/audit/**, server/AGENTS.md
+Owned scope: server/modules/audit/**, server/AGENTS.md
 Boundary decision: plugin-owned audit slice with shared governance doc touch
 Schema/migration touched: no
 Validation commands:

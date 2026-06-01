@@ -23,14 +23,14 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger"
 	"graft/server/internal/menu"
+	"graft/server/internal/module"
+	"graft/server/internal/moduleregistry"
 	"graft/server/internal/permission"
-	"graft/server/internal/plugin"
 	"graft/server/internal/pluginapi"
-	"graft/server/internal/pluginregistry"
 	"graft/server/internal/redisx"
 )
 
-const pluginShutdownTimeout = 5 * time.Second
+const moduleShutdownTimeout = 5 * time.Second
 
 type runtimeCoreDeps struct {
 	newAccessLogRepository func(*sql.DB) (httpx.AccessLogRepository, error)
@@ -62,8 +62,8 @@ type Runtime struct {
 	menuRegistry       *menu.Registry
 	permissionRegistry *permission.Registry
 	cronRegistry       *cronx.Registry
-	pluginManager      *plugin.Manager
-	runtimeMetadata    plugin.RuntimeMetadata
+	moduleManager      *module.Manager
+	runtimeMetadata    module.RuntimeMetadata
 }
 
 // NewRuntime 使用给定插件构造显式的 MVP 运行时外壳。
@@ -102,14 +102,14 @@ func NewRuntime() (*Runtime, error) {
 
 	runtime.registerCoreRoutes(runtime.server.Engine())
 
-	orderedDescriptors, err := pluginregistry.OrderedModuleSpecs()
+	orderedDescriptors, err := moduleregistry.OrderedModuleSpecs()
 	if err != nil {
 		_ = runtime.closeCoreResources()
 		return nil, fmt.Errorf("order runtime plugin descriptors: %w", err)
 	}
-	runtime.runtimeMetadata = plugin.NewRuntimeMetadata(orderedDescriptors)
+	runtime.runtimeMetadata = module.NewRuntimeMetadata(orderedDescriptors)
 
-	plugins, err := pluginregistry.BuildModules(plugin.BuildContext{
+	plugins, err := moduleregistry.BuildModules(module.BuildContext{
 		Services: runtime.services,
 	})
 	if err != nil {
@@ -118,7 +118,7 @@ func NewRuntime() (*Runtime, error) {
 	}
 
 	for _, current := range plugins {
-		if err := runtime.pluginManager.RegisterPlugin(current); err != nil {
+		if err := runtime.moduleManager.RegisterPlugin(current); err != nil {
 			_ = runtime.closeCoreResources()
 			return nil, err
 		}
@@ -185,7 +185,7 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),
-		pluginManager:      plugin.NewManager(),
+		moduleManager:      module.NewManager(),
 	}, nil
 }
 
@@ -200,37 +200,37 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 // 返回：
 //   - error: 返回注册、启动、监听、关闭阶段的首个失败，并按需要聚合插件关闭或 core 资源回收错误。
 func (r *Runtime) Run(runCtx context.Context) error {
-	pluginCtx := r.newPluginContext(runCtx)
+	moduleCtx := r.newPluginContext(runCtx)
 
-	ordered, err := r.pluginManager.Ordered()
+	ordered, err := r.moduleManager.Ordered()
 	if err != nil {
 		return err
 	}
 
-	booted := make([]plugin.Module, 0, len(ordered))
-	if err := r.registerPlugins(pluginCtx, ordered, booted); err != nil {
+	booted := make([]module.Module, 0, len(ordered))
+	if err := r.registerPlugins(moduleCtx, ordered, booted); err != nil {
 		return err
 	}
 
-	if err := r.registerAccessLogExplorer(pluginCtx, booted); err != nil {
-		return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("resolve access-log auth service: %w", err))
+	if err := r.registerAccessLogExplorer(moduleCtx, booted); err != nil {
+		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("resolve access-log auth service: %w", err))
 	}
 
 	if err := r.i18n.Freeze(); err != nil {
-		return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("freeze i18n registry: %w", err))
+		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("freeze i18n registry: %w", err))
 	}
 
-	booted, err = r.bootPlugins(pluginCtx, ordered, booted)
+	booted, err = r.bootPlugins(moduleCtx, ordered, booted)
 	if err != nil {
 		return err
 	}
 
 	if err := r.server.Run(runCtx, r.config.HTTP.Addr); err != nil {
-		return r.cleanupAfterFailure(pluginCtx, booted, err)
+		return r.cleanupAfterFailure(moduleCtx, booted, err)
 	}
 
-	if err := shutdownPlugins(pluginCtx, booted); err != nil {
-		return r.cleanupAfterFailure(pluginCtx, nil, err)
+	if err := shutdownPlugins(moduleCtx, booted); err != nil {
+		return r.cleanupAfterFailure(moduleCtx, nil, err)
 	}
 
 	if err := r.closeCoreResources(); err != nil {
@@ -240,12 +240,12 @@ func (r *Runtime) Run(runCtx context.Context) error {
 	return nil
 }
 
-func (r *Runtime) registerPlugins(pluginCtx *plugin.Context, ordered []plugin.Module, booted []plugin.Module) error {
+func (r *Runtime) registerPlugins(moduleCtx *module.Context, ordered []module.Module, booted []module.Module) error {
 	for _, p := range ordered {
 		// Register 阶段只允许声明能力，不应启动长期运行行为；一旦失败，
 		// 当前插件及其后续插件都不再继续，避免部分注册状态继续扩散。
-		if err := p.Register(pluginCtx); err != nil {
-			return r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("register plugin %s: %w", p.Name(), err))
+		if err := p.Register(moduleCtx); err != nil {
+			return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("register plugin %s: %w", p.Name(), err))
 		}
 	}
 
@@ -253,15 +253,15 @@ func (r *Runtime) registerPlugins(pluginCtx *plugin.Context, ordered []plugin.Mo
 }
 
 func (r *Runtime) bootPlugins(
-	pluginCtx *plugin.Context,
-	ordered []plugin.Module,
-	booted []plugin.Module,
-) ([]plugin.Module, error) {
+	moduleCtx *module.Context,
+	ordered []module.Module,
+	booted []module.Module,
+) ([]module.Module, error) {
 	for _, p := range ordered {
 		// 只有完成 Register 的插件才会进入 Boot。booted 只记录真正成功启动
 		// 的插件，确保失败清理不会误关未启动插件。
-		if err := p.Boot(pluginCtx); err != nil {
-			return nil, r.cleanupAfterFailure(pluginCtx, booted, fmt.Errorf("boot plugin %s: %w", p.Name(), err))
+		if err := p.Boot(moduleCtx); err != nil {
+			return nil, r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("boot plugin %s: %w", p.Name(), err))
 		}
 		booted = append(booted, p)
 	}
@@ -269,8 +269,8 @@ func (r *Runtime) bootPlugins(
 	return booted, nil
 }
 
-func (r *Runtime) newPluginContext(runCtx context.Context) *plugin.Context {
-	return &plugin.Context{
+func (r *Runtime) newPluginContext(runCtx context.Context) *module.Context {
+	return &module.Context{
 		LifecycleContext:   runCtx,
 		Config:             r.config,
 		Logger:             r.logger,
@@ -286,7 +286,7 @@ func (r *Runtime) newPluginContext(runCtx context.Context) *plugin.Context {
 	}
 }
 
-func (r *Runtime) registerAccessLogExplorer(pluginCtx *plugin.Context, booted []plugin.Module) error {
+func (r *Runtime) registerAccessLogExplorer(moduleCtx *module.Context, booted []module.Module) error {
 	authService, err := r.resolveAccessLogAuthService()
 	if errors.Is(err, container.ErrServiceNotRegistered) {
 		return nil
@@ -315,7 +315,7 @@ func (r *Runtime) registerAccessLogExplorer(pluginCtx *plugin.Context, booted []
 		return fmt.Errorf("register access-log explorer: %w", err)
 	}
 
-	_ = pluginCtx
+	_ = moduleCtx
 	_ = booted
 	return nil
 }
@@ -492,7 +492,7 @@ func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error
 //
 // 这里不在首个失败处提前返回，因为关闭阶段的目标是尽最大努力释放资源，
 // 而不是维持“全部成功或立即退出”的启动语义。
-func shutdownPlugins(ctx *plugin.Context, ordered []plugin.Module) error {
+func shutdownPlugins(ctx *module.Context, ordered []module.Module) error {
 	shutdownCtx, cancel := withPluginShutdownContext(ctx)
 	defer cancel()
 
@@ -508,10 +508,10 @@ func shutdownPlugins(ctx *plugin.Context, ordered []plugin.Module) error {
 	return shutdownErr
 }
 
-func withPluginShutdownContext(ctx *plugin.Context) (*plugin.Context, context.CancelFunc) {
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), pluginShutdownTimeout)
+func withPluginShutdownContext(ctx *module.Context) (*module.Context, context.CancelFunc) {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), moduleShutdownTimeout)
 	if ctx == nil {
-		return &plugin.Context{LifecycleContext: shutdownCtx}, cancel
+		return &module.Context{LifecycleContext: shutdownCtx}, cancel
 	}
 
 	cloned := *ctx
@@ -551,7 +551,7 @@ func (r *Runtime) closeCoreResources() error {
 //
 // 这里保留原始失败原因，并把插件关闭和 core 资源回收错误聚合到同一个
 // 返回值中，方便调用方看到完整失败路径。
-func (r *Runtime) cleanupAfterFailure(ctx *plugin.Context, booted []plugin.Module, cause error) error {
+func (r *Runtime) cleanupAfterFailure(ctx *module.Context, booted []module.Module, cause error) error {
 	err := cause
 	if shutdownErr := shutdownPlugins(ctx, booted); shutdownErr != nil {
 		err = errors.Join(err, shutdownErr)

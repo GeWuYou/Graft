@@ -24,8 +24,8 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger"
 	"graft/server/internal/menu"
+	"graft/server/internal/module"
 	"graft/server/internal/permission"
-	"graft/server/internal/plugin"
 	testent "graft/server/internal/testent"
 )
 
@@ -63,11 +63,11 @@ type shutdownRecorderPlugin struct {
 	err         error
 }
 
-func (p shutdownRecorderPlugin) Register(_ *plugin.Context) error { return nil }
+func (p shutdownRecorderPlugin) Register(_ *module.Context) error { return nil }
 
-func (p shutdownRecorderPlugin) Boot(_ *plugin.Context) error { return nil }
+func (p shutdownRecorderPlugin) Boot(_ *module.Context) error { return nil }
 
-func (p shutdownRecorderPlugin) Shutdown(_ *plugin.Context) error {
+func (p shutdownRecorderPlugin) Shutdown(_ *module.Context) error {
 	*p.shutdownLog = append(*p.shutdownLog, p.name)
 	return p.err
 }
@@ -76,13 +76,13 @@ func (p shutdownRecorderPlugin) Shutdown(_ *plugin.Context) error {
 // 以便后启动的依赖先完成资源释放。
 func TestShutdownPluginsUsesReverseOrder(t *testing.T) {
 	log := make([]string, 0, 3)
-	plugins := []plugin.Module{
-		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "user"}, shutdownRecorderPlugin{name: "user", shutdownLog: &log}),
-		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "rbac"}, shutdownRecorderPlugin{name: "rbac", shutdownLog: &log}),
-		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "audit"}, shutdownRecorderPlugin{name: "audit", shutdownLog: &log}),
+	plugins := []module.Module{
+		mustDescribeRuntimeTestPlugin(module.Spec{ID: "user"}, shutdownRecorderPlugin{name: "user", shutdownLog: &log}),
+		mustDescribeRuntimeTestPlugin(module.Spec{ID: "rbac"}, shutdownRecorderPlugin{name: "rbac", shutdownLog: &log}),
+		mustDescribeRuntimeTestPlugin(module.Spec{ID: "audit"}, shutdownRecorderPlugin{name: "audit", shutdownLog: &log}),
 	}
 
-	if err := shutdownPlugins(&plugin.Context{}, plugins); err != nil {
+	if err := shutdownPlugins(&module.Context{}, plugins); err != nil {
 		t.Fatalf("shutdown plugins: %v", err)
 	}
 
@@ -102,12 +102,12 @@ func TestShutdownPluginsUsesReverseOrder(t *testing.T) {
 func TestShutdownPluginsAggregatesErrors(t *testing.T) {
 	userErr := errors.New("user failed")
 	rbacErr := errors.New("rbac failed")
-	plugins := []plugin.Module{
-		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "user"}, shutdownRecorderPlugin{name: "user", shutdownLog: &[]string{}, err: userErr}),
-		mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "rbac"}, shutdownRecorderPlugin{name: "rbac", shutdownLog: &[]string{}, err: rbacErr}),
+	plugins := []module.Module{
+		mustDescribeRuntimeTestPlugin(module.Spec{ID: "user"}, shutdownRecorderPlugin{name: "user", shutdownLog: &[]string{}, err: userErr}),
+		mustDescribeRuntimeTestPlugin(module.Spec{ID: "rbac"}, shutdownRecorderPlugin{name: "rbac", shutdownLog: &[]string{}, err: rbacErr}),
 	}
 
-	err := shutdownPlugins(&plugin.Context{}, plugins)
+	err := shutdownPlugins(&module.Context{}, plugins)
 	if err == nil {
 		t.Fatal("expected shutdown error")
 	}
@@ -124,17 +124,17 @@ type eventBusRecorderPlugin struct {
 	bootEventBus     eventbus.Bus
 }
 
-func (p *eventBusRecorderPlugin) Register(ctx *plugin.Context) error {
+func (p *eventBusRecorderPlugin) Register(ctx *module.Context) error {
 	p.registerEventBus = ctx.EventBus
 	return nil
 }
 
-func (p *eventBusRecorderPlugin) Boot(ctx *plugin.Context) error {
+func (p *eventBusRecorderPlugin) Boot(ctx *module.Context) error {
 	p.bootEventBus = ctx.EventBus
 	return nil
 }
 
-func (p *eventBusRecorderPlugin) Shutdown(_ *plugin.Context) error { return nil }
+func (p *eventBusRecorderPlugin) Shutdown(_ *module.Context) error { return nil }
 
 type lifecycleContextRecorderPlugin struct {
 	registerLifecycleContext context.Context
@@ -143,17 +143,17 @@ type lifecycleContextRecorderPlugin struct {
 	shutdownLifecycleErr     error
 }
 
-func (p *lifecycleContextRecorderPlugin) Register(ctx *plugin.Context) error {
+func (p *lifecycleContextRecorderPlugin) Register(ctx *module.Context) error {
 	p.registerLifecycleContext = ctx.LifecycleContext
 	return nil
 }
 
-func (p *lifecycleContextRecorderPlugin) Boot(ctx *plugin.Context) error {
+func (p *lifecycleContextRecorderPlugin) Boot(ctx *module.Context) error {
 	p.bootLifecycleContext = ctx.LifecycleContext
 	return nil
 }
 
-func (p *lifecycleContextRecorderPlugin) Shutdown(ctx *plugin.Context) error {
+func (p *lifecycleContextRecorderPlugin) Shutdown(ctx *module.Context) error {
 	p.shutdownLifecycleContext = ctx.LifecycleContext
 	if ctx.LifecycleContext != nil {
 		p.shutdownLifecycleErr = ctx.LifecycleContext.Err()
@@ -167,7 +167,7 @@ type i18nFreezeRecorderPlugin struct {
 	bootRegisterErr error
 }
 
-func (p *i18nFreezeRecorderPlugin) Register(ctx *plugin.Context) error {
+func (p *i18nFreezeRecorderPlugin) Register(ctx *module.Context) error {
 	p.registerFrozen = ctx.I18n.IsFrozen()
 	return ctx.I18n.RegisterMessages(i18n.Registration{
 		Namespace: "test-plugin",
@@ -178,7 +178,7 @@ func (p *i18nFreezeRecorderPlugin) Register(ctx *plugin.Context) error {
 	})
 }
 
-func (p *i18nFreezeRecorderPlugin) Boot(ctx *plugin.Context) error {
+func (p *i18nFreezeRecorderPlugin) Boot(ctx *module.Context) error {
 	p.bootFrozen = ctx.I18n.IsFrozen()
 	p.bootRegisterErr = ctx.I18n.RegisterMessages(i18n.Registration{
 		Namespace: "test-plugin",
@@ -190,20 +190,20 @@ func (p *i18nFreezeRecorderPlugin) Boot(ctx *plugin.Context) error {
 	return nil
 }
 
-func (p *i18nFreezeRecorderPlugin) Shutdown(_ *plugin.Context) error { return nil }
+func (p *i18nFreezeRecorderPlugin) Shutdown(_ *module.Context) error { return nil }
 
-func mustDescribeRuntimeTestPlugin(spec plugin.ModuleSpec, instance plugin.Plugin) plugin.Module {
-	module, err := plugin.ModuleSpec{
+func mustDescribeRuntimeTestPlugin(spec module.Spec, instance module.Plugin) module.Module {
+	builtModule, err := module.Spec{
 		ID:           spec.ID,
 		Dependencies: append([]string(nil), spec.Dependencies...),
-		Builder: plugin.BuilderFunc(func(plugin.BuildContext) (plugin.Plugin, error) {
+		Builder: module.BuilderFunc(func(module.BuildContext) (module.Plugin, error) {
 			return instance, nil
 		}),
-	}.Build(plugin.BuildContext{})
+	}.Build(module.BuildContext{})
 	if err != nil {
 		panic(err)
 	}
-	return module
+	return builtModule
 }
 
 // TestRegisterCoreServicesExposesRuntimeSingletons 验证 core 装配会把配置、
@@ -379,8 +379,8 @@ func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	recorder := &eventBusRecorderPlugin{}
-	manager := plugin.NewManager()
-	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "eventbus-recorder"}, recorder)); err != nil {
+	manager := module.NewManager()
+	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(module.Spec{ID: "eventbus-recorder"}, recorder)); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 
@@ -397,7 +397,7 @@ func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),
-		pluginManager:      manager,
+		moduleManager:      manager,
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
@@ -420,8 +420,8 @@ func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	recorder := &lifecycleContextRecorderPlugin{}
-	manager := plugin.NewManager()
-	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "lifecycle-context-recorder"}, recorder)); err != nil {
+	manager := module.NewManager()
+	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(module.Spec{ID: "lifecycle-context-recorder"}, recorder)); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 
@@ -437,7 +437,7 @@ func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),
-		pluginManager:      manager,
+		moduleManager:      manager,
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
@@ -467,8 +467,8 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	recorder := &i18nFreezeRecorderPlugin{}
-	manager := plugin.NewManager()
-	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(plugin.ModuleSpec{ID: "i18n-freeze-recorder"}, recorder)); err != nil {
+	manager := module.NewManager()
+	if err := manager.RegisterPlugin(mustDescribeRuntimeTestPlugin(module.Spec{ID: "i18n-freeze-recorder"}, recorder)); err != nil {
 		t.Fatalf("register plugin: %v", err)
 	}
 
@@ -489,7 +489,7 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),
-		pluginManager:      manager,
+		moduleManager:      manager,
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
