@@ -454,7 +454,15 @@ function matchesClientFilters(row: AccessLogItem, state: AccessLogFilterState) {
     }
   }
   if (state.statusCode) {
-    if (row.status_code !== Number(state.statusCode)) {
+    if (state.statusCode === '4xx') {
+      if (row.status_code < 400 || row.status_code >= 500) {
+        return false;
+      }
+    } else if (state.statusCode === '5xx') {
+      if (row.status_code < 500 || row.status_code >= 600) {
+        return false;
+      }
+    } else if (row.status_code !== Number(state.statusCode)) {
       return false;
     }
   }

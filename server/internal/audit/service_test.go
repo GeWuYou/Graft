@@ -235,10 +235,10 @@ func TestServiceListNormalizesSortExpressions(t *testing.T) {
 		t.Fatalf("list audit logs: %v", err)
 	}
 
-	if len(repo.listQuery.Sorts) != 2 {
-		t.Fatalf("expected two normalized sorts, got %#v", repo.listQuery.Sorts)
+	if len(repo.listQuery.Sorts) != 1 {
+		t.Fatalf("expected one normalized sort after field dedupe, got %#v", repo.listQuery.Sorts)
 	}
-	if repo.listQuery.Sorts[0] != "created_at:asc" || repo.listQuery.Sorts[1] != "created_at:desc" {
+	if repo.listQuery.Sorts[0] != "created_at:asc" {
 		t.Fatalf("unexpected normalized sorts %#v", repo.listQuery.Sorts)
 	}
 }

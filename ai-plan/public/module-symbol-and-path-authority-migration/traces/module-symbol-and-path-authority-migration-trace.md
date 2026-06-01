@@ -110,13 +110,15 @@ Verdict:
 - executed:
   - `git diff --check`
 - executed for Batch 2:
+  - `cd server && go run ./cmd/graft validate backend --stage lint`
   - `cd server && go test ./plugins/auth ./plugins/user ./plugins/rbac ./plugins/audit ./plugins/monitor`
+  - `cd server && go build ./cmd/graft`
 - Batch 2 observed failures:
   - the narrow `go test` failed when those names were renamed only in `descriptor.go`
   - that failure is the authority evidence for keeping the candidate deferred
-- not executed:
-  - broader repo validation such as `graft validate backend`, `go build ./cmd/graft`, or repo-wide `go test ./...`
-  - reason: the narrow package-scoped test already provided direct evidence that the candidate slice was unsafe
+- web validation status:
+  - `cd web && bun run check` is required before any future cross-boundary slice can be marked `archive-ready`
+  - this topic should be downgraded from `archive-ready` if a later batch changes `web` or shared contract consumers without that frontend validation
 
 ## Scope Guard
 

@@ -416,7 +416,7 @@ func TestAuditLogsRouteAcceptsRepeatedSortParams(t *testing.T) {
 	repo := &memoryAuditRepository{}
 	_, engine, _ := newPluginTestContext(t, repo)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs?sort=created_at:desc", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs?sort=created_at:desc&sort=created_at:asc", nil)
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, request)

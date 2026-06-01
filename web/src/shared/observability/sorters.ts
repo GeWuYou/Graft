@@ -184,6 +184,9 @@ export function withSorterFieldFromInput<Field extends string, TState extends { 
   fallbackDirection: SortDirection = 'desc',
 ): TState {
   const normalized = normalizeSorters(state.sorters, sortOptions);
+  if (index < 0 || index >= normalized.length) {
+    return withUpdatedSorters(state, normalized);
+  }
   const field = typeof value === 'string' ? normalizeField(value) : '';
 
   if (!field) {
@@ -235,7 +238,7 @@ function buildSorterTagLabel<Field extends string>(
 ) {
   const fieldLabel = options.find((option) => option.value === sorter.field)?.label ?? sorter.field;
   const arrow = sorter.direction === 'asc' ? '↑' : '↓';
-  return `${prefix} ${index + 1}：${[fieldLabel, arrow].filter(Boolean).join(' ')}`;
+  return `${prefix} ${index + 1}: ${[fieldLabel, arrow].filter(Boolean).join(' ')}`;
 }
 
 export function prependSorterTags<Key extends string, Field extends string>(

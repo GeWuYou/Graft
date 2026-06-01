@@ -177,7 +177,7 @@ describe('AuditFilters', () => {
     expect(wrapper.get('[data-testid="keyword-placeholder"]').text()).toBe('搜索操作、用户、目标对象、请求ID...');
 
     const tags = JSON.parse(wrapper.get('[data-testid="tags"]').text());
-    expect(tags.map((tag: { label: string }) => tag.label)).toContain('排序 1：创建时间 ↓');
+    expect(tags.map((tag: { label: string }) => tag.label)).toContain('排序 1: 创建时间 ↓');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('结果：业务失败');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('操作分类：权限配置动作、角色动作');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('结果集合：权限拒绝');

@@ -138,7 +138,7 @@ describe('AccessLogFilters', () => {
     expect(wrapper.get('[data-testid="keyword-placeholder"]').text()).toBe('搜索请求 ID、路径、用户名');
 
     const tags = JSON.parse(wrapper.get('[data-testid="tags"]').text());
-    expect(tags.map((tag: { label: string }) => tag.label)).toContain('排序 1：发生时间 ↓');
+    expect(tags.map((tag: { label: string }) => tag.label)).toContain('排序 1: 发生时间 ↓');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain('请求 ID：req-1');
     expect(tags.map((tag: { label: string }) => tag.label)).toContain(
       '请求开始时间：2026-05-31 10:00:00 ~ 2026-05-31 11:00:00',

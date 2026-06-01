@@ -309,11 +309,11 @@ func normalizeAuditSorts(values []string) []string {
 		if !ok {
 			continue
 		}
-		key := field + ":" + order
-		if _, exists := seen[key]; exists {
+		if _, exists := seen[field]; exists {
 			continue
 		}
-		seen[key] = struct{}{}
+		seen[field] = struct{}{}
+		key := field + ":" + order
 		normalized = append(normalized, key)
 	}
 	return normalized

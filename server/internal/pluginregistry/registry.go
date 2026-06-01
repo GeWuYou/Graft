@@ -22,7 +22,15 @@ const drilldownMigrationDir = "internal/drilldown/migrations"
 
 // ModuleSpecs 返回 compile-time 生成的模块定义快照。
 func ModuleSpecs() []plugin.ModuleSpec {
-	return append([]plugin.ModuleSpec(nil), generatedModuleSpecs...)
+	specs := make([]plugin.ModuleSpec, 0, len(generatedModuleSpecs))
+	for _, spec := range generatedModuleSpecs {
+		cloned := spec
+		cloned.Dependencies = append([]string(nil), spec.Dependencies...)
+		cloned.MigrationPath = append([]string(nil), spec.MigrationPath...)
+		specs = append(specs, cloned)
+	}
+
+	return specs
 }
 
 // OrderedModuleSpecs 返回按依赖关系排序后的模块定义集合。

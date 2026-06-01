@@ -69,12 +69,14 @@
   - `git diff --check`
 - Batch 2:
   - `git diff --check`
+  - `cd server && go run ./cmd/graft validate backend --stage lint`
   - `cd server && go test ./plugins/auth ./plugins/user ./plugins/rbac ./plugins/audit ./plugins/monitor`
+  - `cd server && go build ./cmd/graft`
 - Batch 2 landed state:
-  - docs-only
-  - no safe code rename accepted from the attempted descriptor candidate list
+  - docs plus authority-analysis closeout
+  - no safe descriptor-local-only code rename accepted from the attempted candidate list; runtime-linked symbol changes such as `moduleID` / `NewModuleSpec` had already landed in concrete descriptor files and were not reopened here
 - future conditional:
-  - smallest justified Go validation if Go authority files change
+  - keep `graft validate backend --stage lint`, minimum justified `go test`, and `go build ./cmd/graft` aligned with any future Go authority edits
 
 ## Notes
 

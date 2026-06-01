@@ -69,8 +69,12 @@
 
 - required baseline:
   - `git diff --check`
-- conditional:
-  - `cd server && go test ./internal/plugin/... ./internal/pluginregistry/...` when this batch touches Go files under `server/internal/plugin/**` or `server/internal/pluginregistry/**`
+- required backend completion chain when server authority files change:
+  - `cd server && go run ./cmd/graft validate backend --stage lint`
+  - `cd server && go test ./internal/plugin/... ./internal/pluginregistry/...`
+  - `cd server && go build ./cmd/graft`
+- required frontend completion entrypoint when the slice remains `cross-boundary`:
+  - `cd web && bun run check`
 - review aid:
   - consistency search across touched governance and design docs confirmed the new module-oriented narrative and historical plugin naming notes are present
 

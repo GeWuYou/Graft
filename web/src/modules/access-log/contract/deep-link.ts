@@ -58,7 +58,10 @@ export function parseAccessLogRouteQuery(query: LocationQuery | AccessLogRouteQu
 
   const rawSort = query.sort as LocationQueryValue | LocationQueryValue[] | undefined;
   if (Array.isArray(rawSort)) {
-    parsedQuery.sort = rawSort.filter((item): item is string => typeof item === 'string').map((item) => item.trim());
+    parsedQuery.sort = rawSort
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean);
   } else if (typeof rawSort === 'string' && rawSort.trim()) {
     parsedQuery.sort = rawSort.trim();
   }

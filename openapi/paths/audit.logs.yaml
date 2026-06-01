@@ -190,6 +190,7 @@ get:
         type: array
         items:
           type: string
+          pattern: '^(created_at):(asc|desc)$'
   security:
     - bearerAuth: []
   responses:

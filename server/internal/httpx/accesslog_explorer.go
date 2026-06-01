@@ -285,6 +285,7 @@ var accessLogAllowedListQueryKeys = map[string]struct{}{
 	"occurred_from":   {},
 	"occurred_to":     {},
 	"sort":            {},
+	"sort[]":          {},
 }
 
 func bindAccessLogListQuery(ctx *gin.Context) (AccessLogListQuery, string) {
@@ -485,7 +486,7 @@ func bindAccessLogStatusGroups(ctx *gin.Context, query *AccessLogListQuery) stri
 }
 
 func bindAccessLogSorts(ctx *gin.Context, query *AccessLogListQuery) string {
-	rawSorts := ctx.QueryArray("sort")
+	rawSorts := queryArrayCompat(ctx, "sort")
 	if len(rawSorts) == 0 {
 		return ""
 	}
@@ -511,6 +512,19 @@ func bindAccessLogSorts(ctx *gin.Context, query *AccessLogListQuery) string {
 	}
 	query.Sorts = sorts
 	return ""
+}
+
+func queryArrayCompat(ctx *gin.Context, key string) []string {
+	values := ctx.QueryArray(key)
+	bracketValues := ctx.QueryArray(key + "[]")
+	if len(bracketValues) == 0 {
+		return values
+	}
+
+	combined := make([]string, 0, len(values)+len(bracketValues))
+	combined = append(combined, values...)
+	combined = append(combined, bracketValues...)
+	return combined
 }
 
 func parseOptionalRFC3339QueryValue(ctx *gin.Context, key string) (*time.Time, string) {

@@ -114,6 +114,7 @@ get:
         type: array
         items:
           type: string
+          pattern: '^(started_at|occurred_at|duration_ms|status_code):(asc|desc)$'
   security:
     - bearerAuth: []
   responses:

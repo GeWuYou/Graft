@@ -16,7 +16,7 @@
 - task class: `cross-boundary`
 - recovery source: `parent topic`
 - authority summary:
-  - root `AGENTS.md` and `server/AGENTS.md` own the repository execution truth for this correction slice
+  - root `AGENTS.md`, `server/AGENTS.md`, and `web/AGENTS.md` own the repository execution truth for this correction slice
   - `ai-plan/design/项目设计.md` and `ai-plan/design/插件与依赖注入设计.md` own the architecture narrative being corrected
   - `server/internal/plugin/**` and `server/internal/pluginregistry/**` own the historical backend naming surfaces being re-described as compile-time modules
   - `ai-plan/public/**` owns branch/topic recovery mapping for this bounded correction slice
@@ -85,5 +85,8 @@ Final topic result:
 ## Validation Plan
 
 - `git diff --check`
+- `cd server && go run ./cmd/graft validate backend --stage lint`
 - `cd server && go test ./internal/plugin/... ./internal/pluginregistry/...`
+- `cd server && go build ./cmd/graft`
+- `cd web && bun run check` when the slice remains `cross-boundary`
 - consistency search across touched governance and design docs

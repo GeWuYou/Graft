@@ -111,12 +111,15 @@ This topic must not:
   - `git diff --check`
 - Batch 2 executed:
   - `git diff --check`
+  - `cd server && go run ./cmd/graft validate backend --stage lint`
   - `cd server && go test ./plugins/auth ./plugins/user ./plugins/rbac ./plugins/audit ./plugins/monitor`
+  - `cd server && go build ./cmd/graft`
 - Batch 2 result:
-  - no code rename landed after validation
+  - no safe descriptor-local-only rename landed after validation
   - the tested candidate names remain deferred because the direct package-scoped Go validation showed they are not descriptor-local-only
 - conditional for future batches:
-  - if Go files under `server/internal/plugin/**`, `server/internal/pluginregistry/**`, or `server/internal/app/runtime.go` change, run the smallest direct Go validation justified by the touched surfaces
+  - if Go files under `server/internal/plugin/**`, `server/internal/pluginregistry/**`, or `server/internal/app/runtime.go` change, keep the backend completion chain in order: `graft validate backend --stage lint`, minimum justified `go test`, then `go build ./cmd/graft`
+  - if a batch changes shared contract consumers in `web`, add `cd web && bun run check` before claiming archive readiness
 
 ## Next-Session Prompt
 
