@@ -17,7 +17,7 @@ const (
 
 var pluginDependencies = []string{"user", "rbac"}
 
-// NewDescriptor exposes the audit plugin's stable metadata and builder.
+// NewDescriptor exposes the audit module's stable compile-time metadata and builder under historical plugin naming.
 func NewDescriptor() plugin.Descriptor {
 	return plugin.Descriptor{
 		ID:            pluginID,

@@ -4,6 +4,11 @@
 
 仓库级启动、恢复、提交与跨仓治理仍以根 `AGENTS.md` 为准；本文件不重复定义第二套启动或提交流程。
 
+backend terminology note:
+
+- `web` 的 canonical 业务单元一直是 `module`
+- 当本文件提到 backend plugin semantics 时，应理解为 backend 历史 `plugin` 命名下的 compile-time modules
+
 authority-first overlay：
 
 - `web` owned scope 表示前端长期实现归属，不表示前端拥有 shared contract / route / menu 语义的最终 authority

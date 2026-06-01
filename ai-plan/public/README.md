@@ -72,6 +72,18 @@ Overlay note:
     - `ai-plan/public/phase-d-access-log-retention-governance`
   - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic phase-d-access-log-retention-governance. Owned scope: server/internal/httpx/**, ai-plan/design/**, ai-plan/public/phase-d-access-log-retention-governance/**, and other authority files only if required by runtime wiring. Open the next bounded topic only as phase-d-access-log-retention-runtime, and do not add archive/export, retention UI, or broader observability features.`
 
+- `module-oriented-modular-monolith`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded cross-boundary wording-and-comment migration that re-aligned retained historical `plugin` naming with the current module-oriented modular monolith architecture narrative.
+  - Scope outcome:
+    - updated owned governance, design, package-doc, README, and descriptor-comment surfaces so backend `plugin` naming is explicitly documented as historical compile-time module naming
+    - completed the bounded local/private helper rename slice without changing package names, import paths, generated alias shapes, or exported/runtime-facing identifiers
+    - recorded exported symbol, package/path, generator, and migration-path rename classes as deferred new-topic-only authority work
+    - confirmed no compatibility adapter, runtime feature switch, or physical rename was introduced
+  - Topic directory:
+    - `ai-plan/public/module-oriented-modular-monolith`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-oriented-modular-monolith. Owned scope: server/internal/plugin/**, server/internal/pluginregistry/**, server/plugins/*/descriptor.go, ai-plan/design/项目设计.md, ai-plan/design/插件与依赖注入设计.md, ai-plan/public/module-oriented-modular-monolith/**, ai-plan/public/README.md, and only the minimum additional authority files required by exported symbol or path migration analysis. Treat module-oriented-modular-monolith as archive-ready evidence and open a new bounded topic only as module-symbol-and-path-authority-migration; do not continue this wording-migration loop in place.`
+
 - `phase-d-log-explorer-authority-definition`
   - Status: `archive-ready`
   - Recovery status: completed the bounded governance-only authority-definition topic for future `Log Explorer`.
@@ -406,6 +418,15 @@ Overlay note:
     startup prompt naming an active topic instead of assuming root carries feature state
   - Hotspot policy: shared hotspots such as `ai-plan/public/README.md` remain serialized governance slices and do not
     grant standing feature ownership to the root worktree
+- Worktree: `feat/wt-audit-plugin-mvp`
+  - Branch: `feat/module-oriented-modular-monolith`
+  - Active topic: none
+  - Archived topic history: `module-oriented-modular-monolith`
+  - Role: retained archive-ready worktree for the completed module-oriented modular monolith wording-and-comment correction slice; future exported symbol or path cleanup must start as a new bounded topic instead of reviving this loop in place
+  - Hotspot policy:
+    - owned scope was limited to public recovery mapping, governance docs, and historical backend naming surfaces needed for this correction
+    - this worktree now preserves archive-ready evidence only; do not treat it as a standing active recovery entry
+    - any exported symbol, package/path, import, or generator rename work must open a new bounded topic with fresh startup preflight
 - Worktree: `feat/wt-audit-plugin-mvp`
   - Branch: `feat/wt-audit-plugin-mvp`
   - Active topic: none

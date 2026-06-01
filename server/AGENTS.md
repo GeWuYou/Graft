@@ -2,8 +2,14 @@
 
 本文件是 `server/` 范围内后端任务的执行真相。
 
-它约束后端架构、插件边界、Go 编码、Ent / migration 与 backend 校验链。
+它约束后端架构、模块边界、Go 编码、Ent / migration 与 backend 校验链。
 仓库级启动、恢复、提交、协作与跨仓库治理仍以根 `AGENTS.md` 为准；本文件不重复定义那些规则。
+
+术语补充：
+
+- 当前 backend 的 canonical 业务能力单元是 `module`
+- `server/plugins/*`、`internal/plugin*` 属于历史目录或包命名
+- 本文件仍保留这些历史命名来对应现有代码，但实现和治理语义应按 compile-time modules 理解
 
 authority-first overlay：
 
@@ -88,7 +94,7 @@ authority-first overlay：
 
 - `core runtime` 改动只进入显式 core 边界，例如 `internal/app`、`internal/httpx`、`internal/plugin`、`internal/container`
 - 业务能力默认进入 `plugins/<name>/**`
-- 跨插件协作先设计 capability / contract，再写业务实现
+- 跨模块协作先设计 capability / contract，再写业务实现
 - 数据结构变更先确认 schema owner，再进入 Ent generate 与 migration 流程
 
 ### 3.5 Validation
@@ -202,7 +208,7 @@ Observability authority overlay：
 
 ## 7. 插件生命周期与边界
 
-当前 backend plugin 都遵循 `Name / Version / DependsOn / Register / Boot / Shutdown` 契约。
+当前 backend module 在历史 `plugin` 命名下都遵循 `Name / Version / DependsOn / Register / Boot / Shutdown` 契约。
 
 `server` 的长期并行开发方向保持为 compile-time modular monolith：
 
@@ -213,8 +219,8 @@ Observability authority overlay：
 - 不做 generalized reflection plugin system
 - 不做 generalized service locator
 
-后续治理允许新增 `plugin.Descriptor`、`plugin.Builder` 与 compile-time generated plugin registry，作为显式装配
-抽象；这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
+后续治理允许新增 `plugin.Descriptor`、`plugin.Builder` 与 compile-time generated plugin registry，作为历史命名下的
+显式 module 装配抽象；这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
 
 ### 7.1 生命周期规则
 
@@ -233,24 +239,24 @@ Observability authority overlay：
 
 ### 7.2 依赖规则
 
-- 插件依赖通过 `DependsOn()` 声明
+- 模块依赖通过 `DependsOn()` 声明
 - 服务依赖通过稳定接口解析
 - 缺失依赖、循环依赖、重复注册都属于阻断错误
-- 插件只能依赖：
+- 模块只能依赖：
   - `internal/pluginapi/**`
   - `internal/contract/**`
-  - 其它插件公开的 capability contract 或 stable DTO contract
-- 插件不能直接 import：
-  - 其它插件的 `service/**`
-  - 其它插件的 `storeent/**`
-  - 其它插件的 `ent/schema/**`
-  - 其它插件的 migration 文件或 migration 目录
-- 插件不能直接依赖其它插件的内部 repository、handler、store、Ent entity
-- 若需要跨插件业务能力，必须通过 capability interface 或 stable DTO contract 暴露
+  - 其它模块公开的 capability contract 或 stable DTO contract
+- 模块不能直接 import：
+  - 其它模块的 `service/**`
+  - 其它模块的 `storeent/**`
+  - 其它模块的 `ent/schema/**`
+  - 其它模块的 migration 文件或 migration 目录
+- 模块不能直接依赖其它模块的内部 repository、handler、store、Ent entity
+- 若需要跨模块业务能力，必须通过 capability interface 或 stable DTO contract 暴露
 
 ### 7.3 插件公开面规则
 
-插件运行时可见能力必须能追溯到生命周期：
+模块运行时可见能力必须能追溯到生命周期：
 
 - 路由
 - 菜单
@@ -264,10 +270,10 @@ Observability authority overlay：
 
 ## 8. Plugin Implementation Checklist
 
-当后端任务属于 plugin 路径时，默认按这份 checklist 检查实现是否完整：
+当后端任务属于历史 `plugin` 路径下的 module 切片时，默认按这份 checklist 检查实现是否完整：
 
 - `descriptor`
-  - 是否声明稳定 plugin ID、版本、依赖、migration path、builder
+  - 是否声明稳定 module ID、版本、依赖、migration path、builder
 - `plugin lifecycle`
   - 是否实现 `Name / Version / DependsOn / Register / Boot / Shutdown`
   - `Register -> Boot -> Shutdown` 职责是否清晰

@@ -7,7 +7,7 @@ const (
 	pluginVersion = "0.1.0"
 )
 
-// NewDescriptor exposes the auth plugin's stable metadata and builder.
+// NewDescriptor exposes the auth module's stable compile-time metadata and builder under historical plugin naming.
 func NewDescriptor() plugin.Descriptor {
 	return plugin.Descriptor{
 		ID:            pluginID,

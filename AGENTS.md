@@ -10,7 +10,7 @@ All AI agents and contributors must follow these rules when writing, reviewing, 
 
 Primary goal:
 
-- build a backend platform that can add new capabilities quickly through plugins
+- build a module-oriented modular monolith backend that can add new capabilities quickly through compile-time modules
 
 Secondary goals:
 
@@ -73,10 +73,11 @@ before the task is considered complete.
 
 Use these names consistently in code discussions, plans, reviews, and task breakdowns:
 
-- `server` means the backend project and its runtime, plugin, and infrastructure code
+- `server` means the backend project and its runtime, module, and infrastructure code
 - `web` means the frontend project and its Vue 3 admin shell and feature modules
 - `core` means true infrastructure owned by the platform runtime
-- `plugin` means business capability registered into the platform through the plugin system
+- `module` means the canonical business capability unit in this repository
+- `plugin` is a historical backend naming term for compile-time modules, including directories such as `server/plugins/*`
 
 Do not use vague wording that blurs repository boundaries when a task is really about `server`, `web`, `core`, or a
 plugin.
@@ -193,7 +194,7 @@ the same slice rather than normalizing the mismatch in a lower layer by default.
 Before adding local compatibility, agents must explicitly check whether the real authority sits in:
 
 - `server/plugins/<name>/contract/**`
-- `server/plugins/<name>/descriptor.go` or equivalent plugin/menu/permission declarations
+- `server/plugins/<name>/descriptor.go` or equivalent module/menu/permission declarations under historical plugin naming
 - `server/internal/contract/**`
 - OpenAPI source inputs such as `openapi/**`
 - `web/src/modules/<name>/contract/**`
@@ -290,7 +291,7 @@ Prefer the repository skills below when their trigger matches the task:
   - only stale findings, noise, false positives, or no-longer-applicable findings may be left unfixed, and those cases
     must be listed explicitly in the task closeout with the concrete reason
 - `graft-plugin-scaffold`
-  - use when adding a new `server` plugin or shaping a plugin before implementation
+  - use when adding a new `server` module under historical `server/plugins/*` naming or shaping that module before implementation
 - `graft-worktree-init`
   - use when creating or rebuilding a local `Graft` git worktree and the setup should follow the repository-standard
     shared local resource rules without hard-coded machine paths
@@ -348,10 +349,10 @@ If a repository skill and this document diverge, follow `AGENTS.md` first and up
 
 ### 6.3 Architecture
 
-- plugin-oriented backend
+- module-oriented modular monolith backend
 - lightweight DI / service registry
 - no heavyweight IoC container
-- compile-time plugin registration for v1
+- compile-time module registration for v1
 
 Do not switch to React, Naive UI, or a full IoC framework unless the project docs are explicitly revised first.
 
@@ -370,22 +371,25 @@ Core runtime owns:
 - permission registry
 - menu registry
 - cron registry
-- plugin manager
+- module manager
 - service container
 
 Core runtime surface must stay explicit and small.
 
-Only documented runtime surfaces such as config, HTTP, migration, event, permission, menu, cron, plugin, service
+Only documented runtime surfaces such as config, HTTP, migration, event, permission, menu, cron, module lifecycle,
+service
 container, and repository CLI entrypoints may own platform-level startup behavior. Do not hide new runtime surfaces in
 unrelated packages, starter code, or ad-hoc background initialization.
 
-Business logic must live in plugins.
+Business logic must live in business modules. Under the current historical naming, those modules still live in
+`server/plugins/*`.
 
 ### 7.2 Plugin and Module Boundaries
 
-- `server` business behavior belongs in plugins, not in platform core
-- plugins must depend on public interfaces, not on another plugin's internal implementation
-- cross-plugin stable contracts belong in `server/internal/pluginapi` or another documented stable boundary
+- `server` business behavior belongs in modules, not in platform core
+- backend modules currently live under historical `plugins/*` naming; do not reinterpret that naming as runtime plugin platform scope
+- modules must depend on public interfaces, not on another module's internal implementation
+- cross-module stable contracts belong in `server/internal/pluginapi` or another documented stable boundary
 - `web` is a platform shell plus feature modules
 - new frontend capability should default to `web/src/modules/<name>` unless it is truly shell-owned
 - keep `menu + route + page + api + permission` ownership explicit
@@ -416,8 +420,8 @@ Do not start Docker, SSH, monitor, or workflow plugins before the core extension
 
 When asked to add a new capability:
 
-- first identify whether it belongs in `server/core`, a `server` plugin, or a `web` feature module
-- default to a plugin unless the capability is true infrastructure
+- first identify whether it belongs in `server/core`, a `server` module under historical `plugins/*` naming, or a `web` feature module
+- default to a backend module unless the capability is true infrastructure
 - default to a `web/src/modules/<name>` entry path unless the page is a shell-level concern
 - define the capability's runtime surface and lifecycle owner before implementation; entrypoints, menus, routes,
   permissions, jobs, public services, and boot/shutdown responsibilities must all have one clear home

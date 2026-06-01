@@ -1,4 +1,4 @@
-// Package plugin 定义运行时插件契约与生命周期管理能力。
+// Package plugin 定义历史命名下的运行时模块契约与生命周期管理能力。
 package plugin
 
 import (
@@ -21,7 +21,7 @@ import (
 	"graft/server/internal/permission"
 )
 
-// Plugin 定义所有后端插件都必须实现的稳定生命周期契约。
+// Plugin 定义所有后端模块在历史 plugin 命名下都必须实现的稳定生命周期契约。
 //
 // 调用方可以依赖 Register -> Boot -> Shutdown 的整体顺序；当 Register
 // 或 Boot 失败时，运行时会中止后续阶段，并按已成功启动的范围执行清理。
@@ -52,7 +52,7 @@ type Plugin interface {
 	Shutdown(ctx *Context) error
 }
 
-// Builder 定义 compile-time 插件描述符到运行时插件实例的显式构造边界。
+// Builder 定义 compile-time 模块描述符到运行时模块实例的显式构造边界。
 //
 // Builder 当前只负责构造插件实例；后续 capability 或插件私有依赖装配
 // 可以继续沿这条边界扩展，而不把共享接线重新塞回中心化 CLI 文件。
@@ -60,7 +60,7 @@ type Builder interface {
 	Build(BuildContext) (Plugin, error)
 }
 
-// BuildContext 暴露插件构造阶段允许消费的最小 core 资源。
+// BuildContext 暴露模块构造阶段允许消费的最小 core 资源。
 //
 // 它只服务于 compile-time builder wiring，不进入插件运行时热路径。
 // 这里保留显式服务解析边界，避免 builder 重新拿回泛化的业务仓储工厂入口。
@@ -100,10 +100,12 @@ func ResolveService[T any](resolver container.Resolver, key any) (T, error) {
 	return resolved, nil
 }
 
-// Descriptor 定义 compile-time 插件元数据与运行时构造入口。
+// Descriptor 定义历史命名下的 compile-time 模块元数据与运行时构造入口。
 //
-// Descriptor 是未来生成式 plugin registry 的稳定输入：它收敛插件名、版本、
-// 依赖与迁移目录等元数据，并把真正的运行时实例化动作交给 Builder。
+// Descriptor 是未来生成式 module registry 的稳定输入。当前仍保留
+// `plugin.Descriptor` 这个符号名以兼容现有代码；其 canonical 语义是
+// compile-time module descriptor。它收敛模块名、版本、依赖与迁移目录等
+// 最小元数据，并把真正的运行时实例化动作交给 Builder。
 type Descriptor struct {
 	ID            string
 	PluginVersion string
@@ -112,22 +114,24 @@ type Descriptor struct {
 	Builder       Builder
 }
 
-// Name 返回描述符的稳定插件标识。
+// Name 返回描述符的稳定模块标识。
 func (d Descriptor) Name() string {
 	return strings.TrimSpace(d.ID)
 }
 
-// Version 返回描述符声明的插件版本。
+// Version 返回描述符声明的模块版本。
+//
+// 当前版本值只作为诊断元数据，不承载独立模块版本生命周期治理。
 func (d Descriptor) Version() string {
 	return strings.TrimSpace(d.PluginVersion)
 }
 
-// DependsOn 返回描述符声明的依赖列表。
+// DependsOn 返回描述符声明的模块依赖列表。
 func (d Descriptor) DependsOn() []string {
 	return trimStringsPreserveDuplicates(d.Dependencies)
 }
 
-// MigrationDirs 返回描述符声明的插件自有迁移目录。
+// MigrationDirs 返回描述符声明的模块自有迁移目录。
 func (d Descriptor) MigrationDirs() []string {
 	return trimNonEmptyStrings(d.MigrationPath)
 }
@@ -150,7 +154,7 @@ func (d Descriptor) Validate() error {
 	return nil
 }
 
-// Build 根据描述符构造一个运行时插件实例，并校验运行时元数据没有偏离
+// Build 根据描述符构造一个运行时模块实例，并校验运行时元数据没有偏离
 // compile-time 描述符的 canonical truth。
 func (d Descriptor) Build(ctx BuildContext) (Plugin, error) {
 	if err := d.Validate(); err != nil {
@@ -171,12 +175,12 @@ func (d Descriptor) Build(ctx BuildContext) (Plugin, error) {
 	return describedPlugin{descriptor: d, delegate: built}, nil
 }
 
-// Context 向插件暴露允许使用的显式运行时句柄。
+// Context 向模块暴露允许使用的显式运行时句柄。
 //
-// 这里聚合的是插件生命周期真正需要的核心能力，目的是让插件通过稳定
+// 这里聚合的是模块生命周期真正需要的核心能力，目的是让模块通过稳定
 // 边界接入平台，而不是直接触碰 core 内部实现细节。
 //
-// Context 只承载运行时注入的公共能力，不应被插件长期持有并在生命周期
+// Context 只承载运行时注入的公共能力，不应被模块长期持有并在生命周期
 // 之外当作隐式全局变量使用。
 type Context struct {
 	// LifecycleContext 提供当前插件生命周期阶段可依赖的上下文。
@@ -205,20 +209,20 @@ type Context struct {
 	CronRegistry       *cronx.Registry
 }
 
-// Manager 负责维护插件集合并按依赖关系排序。
+// Manager 负责维护模块集合并按依赖关系排序。
 //
-// Manager 不拥有插件的业务状态；它只维护生命周期顺序与注册约束，是
-// Runtime 和插件实现之间的调度边界。
+// Manager 不拥有模块的业务状态；它只维护生命周期顺序与注册约束，是
+// Runtime 和模块实现之间的调度边界。
 type Manager struct {
 	plugins []Plugin
 }
 
-// NewManager 创建一个空的插件管理器。
+// NewManager 创建一个空的模块管理器。
 func NewManager() *Manager {
 	return &Manager{plugins: make([]Plugin, 0)}
 }
 
-// RegisterPlugin 在运行时启动前向管理器注册一个插件。
+// RegisterPlugin 在运行时启动前向管理器注册一个模块。
 //
 // 当插件为 nil 或名称重复时返回错误，避免排序阶段出现不可恢复的歧义。
 func (m *Manager) RegisterPlugin(p Plugin) error {
@@ -236,20 +240,20 @@ func (m *Manager) RegisterPlugin(p Plugin) error {
 	return nil
 }
 
-// Ordered 按声明的依赖关系返回插件启动顺序。
+// Ordered 按声明的依赖关系返回模块启动顺序。
 //
-// 这里使用显式拓扑排序而不是隐式注册顺序，避免插件接入规模增加后因为
+// 这里使用显式拓扑排序而不是隐式注册顺序，避免模块接入规模增加后因为
 // 注册位置变化而打破稳定的启动语义。
 //
 // 排序失败时会返回缺失依赖或依赖环错误，调用方不应在错误场景下继续
-// 执行插件生命周期。
+// 执行模块生命周期。
 func (m *Manager) Ordered() ([]Plugin, error) {
 	return orderByDependencies(m.plugins)
 }
 
 // OrderDescriptors 按依赖关系返回稳定的描述符顺序。
 //
-// 它复用与运行时插件相同的拓扑排序规则，使 compile-time registry 和
+// 它复用与运行时模块相同的拓扑排序规则，使 compile-time registry 和
 // runtime lifecycle 使用同一套依赖真相，而不是各自维护第二份排序逻辑。
 func OrderDescriptors(descriptors []Descriptor) ([]Descriptor, error) {
 	return orderByDependencies(descriptors)

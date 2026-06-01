@@ -2,7 +2,7 @@ package scheduler
 
 import "graft/server/internal/plugin"
 
-// NewDescriptor exposes the scheduler plugin's stable metadata and builder.
+// NewDescriptor exposes the scheduler module's stable compile-time metadata and builder under historical plugin naming.
 func NewDescriptor() plugin.Descriptor {
 	instance := NewPlugin()
 
