@@ -218,6 +218,41 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[2]?.meta?.orderNo).toBe(3);
   });
 
+  it('为日志中心访问日志页保留父级 breadcrumb 标题并使用组合 tab 标题', () => {
+    const routes = transformBootstrapMenusToRoutes([
+      {
+        code: 'log-center.root',
+        order: 210,
+        title_key: 'menu.logCenter.title',
+        title: '日志中心',
+        path: '/logs',
+        icon: 'list',
+        permission: '',
+      },
+      {
+        code: 'access-log.list',
+        order: 211,
+        title_key: 'menu.accessLog.title',
+        title: '访问日志',
+        path: '/logs/access',
+        icon: 'search',
+        permission: 'access-log.read',
+      },
+    ]);
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.path).toBe('/logs');
+    expect(routes[0]?.name).toBe('BootstrapGroupLogs');
+    expect(routes[0]?.meta?.titleKey).toBe('menu.logCenter.title');
+    expect(routes[0]?.children?.[0]?.path).toBe('access');
+    expect(routes[0]?.children?.[0]?.name).toBe('AccessLogListIndex');
+    expect(routes[0]?.children?.[0]?.meta?.titleKey).toBe('menu.accessLog.title');
+    expect(routes[0]?.children?.[0]?.meta?.pageKind).toBe('list');
+    expect(routes[0]?.children?.[0]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('访问日志');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('日志中心 - 访问日志');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Log Center - Access Logs');
+  });
+
   it('规范化尾随斜杠后仍能正确挂载父子菜单', () => {
     const routes = transformBootstrapMenusToRoutes([
       {
