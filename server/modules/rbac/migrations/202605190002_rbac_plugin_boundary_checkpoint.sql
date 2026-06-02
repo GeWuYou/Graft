@@ -1,7 +1,0 @@
--- This checkpoint makes the plugin-owned RBAC migration directory runnable without rewriting
--- the historical mixed Atlas chain that still lives under server/internal/ent/migrate/migrations.
---
--- Historical baseline remains owned by:
---   - 202605140001_auth_rbac_foundation.sql
---
--- Future RBAC-only schema changes should append new forward-only versions in this directory.

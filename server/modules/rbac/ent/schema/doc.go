@@ -1,2 +1,2 @@
-// Package schema defines the RBAC plugin's plugin-owned Ent schema truth.
+// Package schema defines the RBAC module's module-owned Ent schema truth.
 package schema

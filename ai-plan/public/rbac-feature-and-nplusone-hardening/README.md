@@ -4,8 +4,8 @@
 
 - 本轮是 `cross-boundary` 只读审计建图，不直接扩大实现范围。
 - 当前 RBAC 真值主要分布在：
-  - `server/plugins/rbac/**`
-  - `server/plugins/user/**` 中用户角色分配消费面
+  - `server/modules/rbac/**`
+  - `server/modules/user/**` 中用户角色分配消费面
   - `openapi/**`
   - `web/src/modules/rbac/**`
   - `web/src/modules/user/**` 中用户角色 UI / API
@@ -31,10 +31,10 @@
 
 | 维度 | 现状 | 证据 | 说明 |
 | --- | --- | --- | --- |
-| list | 已有 | `server/plugins/rbac/read_service.go` `ListPermissions`；`server/plugins/rbac/route_read_handlers.go` `handleListPermissions`；`openapi/paths/permissions.list.yaml`；`web/src/modules/rbac/api/rbac.ts` `getPermissions`；`web/src/modules/rbac/pages/permissions/index.vue` | 后端/前端/OpenAPI 全链路已接通 |
-| detail | 已有 | `server/plugins/rbac/route_read_handlers.go` `handleGetPermission`；`openapi/paths/permissions.detail.yaml`；`web/src/modules/rbac/api/rbac.ts` `getPermissionDetail`；`web/src/modules/rbac/pages/permissions/index.vue` | 权限页已接入详情抽屉与失败回退 |
+| list | 已有 | `server/modules/rbac/read_service.go` `ListPermissions`；`server/modules/rbac/route_read_handlers.go` `handleListPermissions`；`openapi/paths/permissions.list.yaml`；`web/src/modules/rbac/api/rbac.ts` `getPermissions`；`web/src/modules/rbac/pages/permissions/index.vue` | 后端/前端/OpenAPI 全链路已接通 |
+| detail | 已有 | `server/modules/rbac/route_read_handlers.go` `handleGetPermission`；`openapi/paths/permissions.detail.yaml`；`web/src/modules/rbac/api/rbac.ts` `getPermissionDetail`；`web/src/modules/rbac/pages/permissions/index.vue` | 权限页已接入详情抽屉与失败回退 |
 | search/filter | 后端缺失，前端本地过滤 | `permissions.list.yaml` 无 query 参数；`web/src/modules/rbac/pages/permissions/index.vue` 在前端 `computed` 里按 keyword/category 过滤 | 现状是全量拉取再本地筛选 |
-| create | 不应在当前 MVP 默认存在 | `web/src/modules/rbac/pages/permissions/index.vue` 明确 `readonlyNotice` / `readonlyDescription`；`server/plugins/rbac/route_registration.go` 只注册 `PermissionReadPermission` | 当前权限元数据以注册中心/插件声明为 canonical source，不应先做后台 CRUD |
+| create | 不应在当前 MVP 默认存在 | `web/src/modules/rbac/pages/permissions/index.vue` 明确 `readonlyNotice` / `readonlyDescription`；`server/modules/rbac/route_registration.go` 只注册 `PermissionReadPermission` | 当前权限元数据以注册中心/模块声明为 canonical source，不应先做后台 CRUD |
 | update | 不应在当前 MVP 默认存在 | 同上 | 否则会与插件声明式权限真值冲突 |
 | delete | 不应在当前 MVP 默认存在 | 同上 | 删除声明式权限同样不是当前管理面应承担的真值 |
 
@@ -65,7 +65,7 @@
 
 | 维度 | 现状 | 证据 | 说明 |
 | --- | --- | --- | --- |
-| 当前用户权限 | 已有 | `server/plugins/rbac/plugin_registration.go` `authorizer.Authorize` 读取 `ListPermissionsByUserID`；`web/src/store/modules/permission.ts` 消费 `bootstrapSnapshot.permissions` | 权限快照由 bootstrap 提供给前端，服务端按请求态重新判定 |
+| 当前用户权限 | 已有 | `server/modules/rbac/plugin_registration.go` `authorizer.Authorize` 读取 `ListPermissionsByUserID`；`web/src/store/modules/permission.ts` 消费 `bootstrapSnapshot.permissions` | 权限快照由 bootstrap 提供给前端，服务端按请求态重新判定 |
 | 当前用户菜单 | 已有 | `web/src/store/modules/permission.ts` `buildAsyncRoutes`；`web/src/utils/route/bootstrap.ts` | 菜单来自 bootstrap `menus` |
 | 动态菜单 `title_key` / fallback | 已有兼容治理 | `web/src/utils/route/bootstrap.ts` 以 `title_key` 为主，保留 `title` 兼容回退；`ai-plan/design/前端架构设计.md` 与 `契约治理` 已冻结规则 | 现状不是第二真值，但仍保留兼容 fallback |
 
@@ -124,14 +124,14 @@ OpenAPI 缺口：
 
 | 消费点 | generated 类型 | 作用 |
 | --- | --- | --- |
-| `server/plugins/rbac/route_read_handlers.go` | `generated.RoleListResponse` | 角色列表响应 |
-| `server/plugins/rbac/route_read_handlers.go` | `generated.PermissionListResponse` | 权限列表响应 |
-| `server/plugins/rbac/route_read_handlers.go` | `generated.RolePermissionBindingResponse` | 角色权限快照响应 |
-| `server/plugins/rbac/route_read_handlers.go` | `generated.UserRoleBindingResponse` | 用户角色快照响应 |
-| `server/plugins/rbac/route_write_handlers.go` | `rbacopenapi.PostRolesJSONRequestBody` | 创建角色请求体 |
-| `server/plugins/rbac/route_write_handlers.go` | `rbacopenapi.PostRoleUpdateJSONRequestBody` | 更新角色请求体 |
-| `server/plugins/rbac/route_write_handlers.go` | `rbacopenapi.PostRolePermissionAssignJSONRequestBody` | 替换角色权限请求体 |
-| `server/plugins/rbac/route_write_handlers.go` | `rbacopenapi.PostUserRolesAssignJSONRequestBody` | 替换用户角色请求体 |
+| `server/modules/rbac/route_read_handlers.go` | `generated.RoleListResponse` | 角色列表响应 |
+| `server/modules/rbac/route_read_handlers.go` | `generated.PermissionListResponse` | 权限列表响应 |
+| `server/modules/rbac/route_read_handlers.go` | `generated.RolePermissionBindingResponse` | 角色权限快照响应 |
+| `server/modules/rbac/route_read_handlers.go` | `generated.UserRoleBindingResponse` | 用户角色快照响应 |
+| `server/modules/rbac/route_write_handlers.go` | `rbacopenapi.PostRolesJSONRequestBody` | 创建角色请求体 |
+| `server/modules/rbac/route_write_handlers.go` | `rbacopenapi.PostRoleUpdateJSONRequestBody` | 更新角色请求体 |
+| `server/modules/rbac/route_write_handlers.go` | `rbacopenapi.PostRolePermissionAssignJSONRequestBody` | 替换角色权限请求体 |
+| `server/modules/rbac/route_write_handlers.go` | `rbacopenapi.PostUserRolesAssignJSONRequestBody` | 替换用户角色请求体 |
 
 说明：
 
@@ -176,13 +176,13 @@ OpenAPI 缺口：
 
 | 链路 | 风险级别 | 现状 | 证据 | 判断 |
 | --- | --- | --- | --- | --- |
-| 角色列表是否逐条查权限 | 低 | 单次 `ListRoles` 查询；权限数量与用户数量通过 SQL 子查询聚合，不逐条再发 query | `server/plugins/rbac/storeent/repository.go` `ListRoles` | 不是典型 N+1 |
-| 用户列表是否逐条查角色 | 低 | 用户列表直接消费 `GET /api/users` 的内嵌最小 `roles` 摘要；角色抽屉保留单用户读取 | `server/plugins/user/route_user_handlers.go`；`web/src/modules/user/pages/index.vue` | 列表级 N+1 已消除 |
+| 角色列表是否逐条查权限 | 低 | 单次 `ListRoles` 查询；权限数量与用户数量通过 SQL 子查询聚合，不逐条再发 query | `server/modules/rbac/storeent/repository.go` `ListRoles` | 不是典型 N+1 |
+| 用户列表是否逐条查角色 | 低 | 用户列表直接消费 `GET /api/users` 的内嵌最小 `roles` 摘要；角色抽屉保留单用户读取 | `server/modules/user/route_user_handlers.go`；`web/src/modules/user/pages/index.vue` | 列表级 N+1 已消除 |
 | bootstrap 是否逐条查菜单/权限 | 低 | 前端消费单个 bootstrap snapshot；未见前端逐条菜单/权限再请求 | `web/src/store/modules/permission.ts` / `web/src/app/bootstrap/route-guards.ts` | 当前前端侧不是 N+1 |
 | role detail 是否重复查 permission | 中 | 角色页加载时并发一次 `getRoles + getPermissions`；打开权限抽屉时再单独 `getRolePermissionBindings(role.id)` | `web/src/modules/rbac/pages/index.vue` | 不是列表级 N+1，但 detail 抽屉每次打开都会额外读绑定快照 |
 | user role assignment 是否重复查 role | 中 | 用户页会先拉一次 role catalog；打开用户角色抽屉还会再读一次当前用户 role bindings | `web/src/modules/user/pages/index.vue` | 单用户操作可接受，不是最紧急风险 |
-| 服务端权限判定是否逐请求重复查 permission | 中 | `authorizer.Authorize` 每次鉴权时调用 `ListPermissionsByUserID` | `server/plugins/rbac/plugin_registration.go` | 这是按请求级重复读取，不是单请求内 N+1，但后续可能是热路径性能点 |
-| `ReplaceRolesForUser` / `ReplacePermissionsForRole` 是否存在逐 ID roundtrip | 中 | 事务内对每个 relation ID 都做 `bindingExists` 检查并可能 insert | `server/plugins/rbac/storeent/repository.go` `replaceStableAssignments` 调用配置 | 写入链路可能随 ID 数量线性放大，但不是当前最先暴露的读侧 N+1 |
+| 服务端权限判定是否逐请求重复查 permission | 中 | `authorizer.Authorize` 每次鉴权时调用 `ListPermissionsByUserID` | `server/modules/rbac/plugin_registration.go` | 这是按请求级重复读取，不是单请求内 N+1，但后续可能是热路径性能点 |
+| `ReplaceRolesForUser` / `ReplacePermissionsForRole` 是否存在逐 ID roundtrip | 中 | 事务内对每个 relation ID 都做 `bindingExists` 检查并可能 insert | `server/modules/rbac/storeent/repository.go` `replaceStableAssignments` 调用配置 | 写入链路可能随 ID 数量线性放大，但不是当前最先暴露的读侧 N+1 |
 
 ## 推荐后续批次顺序
 

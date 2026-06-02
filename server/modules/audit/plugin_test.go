@@ -204,11 +204,11 @@ func (denyAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAuthContex
 	return moduleapi.ErrPermissionDenied
 }
 
-func newPluginTestContext(t *testing.T, repo store.AuditRepository) (*module.Context, *gin.Engine, eventbus.Bus) {
-	return newPluginTestContextWithLogger(t, repo, zap.NewNop())
+func newModuleTestContext(t *testing.T, repo store.AuditRepository) (*module.Context, *gin.Engine, eventbus.Bus) {
+	return newModuleTestContextWithLogger(t, repo, zap.NewNop())
 }
 
-func newPluginTestContextWithLogger(t *testing.T, repo store.AuditRepository, logger *zap.Logger) (*module.Context, *gin.Engine, eventbus.Bus) {
+func newModuleTestContextWithLogger(t *testing.T, repo store.AuditRepository, logger *zap.Logger) (*module.Context, *gin.Engine, eventbus.Bus) {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
@@ -259,7 +259,7 @@ func (r stubScopeMetadataRepo) GetScope(_ context.Context, module, scope string)
 	return drilldown.ScopeMetadata{}, drilldown.ErrScopeNotFound
 }
 
-func newPluginTestContextWithDrilldown(
+func newModuleTestContextWithDrilldown(
 	t *testing.T,
 	repo store.AuditRepository,
 	scopes []string,
@@ -330,7 +330,7 @@ func newPluginTestContextWithDrilldown(
 // TestRequestAuditMiddlewareSkipsUnmatchedRequest 验证未命中策略的普通请求不会落库。
 func TestRequestAuditMiddlewareSkipsUnmatchedRequest(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	ctx, engine, _ := newPluginTestContext(t, repo)
+	ctx, engine, _ := newModuleTestContext(t, repo)
 	authService := stubAuthService{user: moduleapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}}
 	authorizer := allowAuthorizer{}
 
@@ -356,7 +356,7 @@ func TestRequestAuditMiddlewareSkipsUnmatchedRequest(t *testing.T) {
 // 响应的稳定 message key 收敛为审计错误信息。
 func TestRequestAuditMiddlewareCapturesLocalizedErrorKey(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	ctx, engine, _ := newPluginTestContext(t, repo)
+	ctx, engine, _ := newModuleTestContext(t, repo)
 
 	ctx.Router.POST("/auth/login", func(ginCtx *gin.Context) {
 		httpx.WriteLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, "common.invalid_argument", nil)
@@ -382,7 +382,7 @@ func TestRequestAuditMiddlewareCapturesLocalizedErrorKey(t *testing.T) {
 
 func TestAuditLogsRouteAcceptsCanonicalFilters(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, engine, _ := newPluginTestContext(t, repo)
+	_, engine, _ := newModuleTestContext(t, repo)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs?keyword=login&actor=alice&session_id=session-1&source=REQUEST", nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -396,7 +396,7 @@ func TestAuditLogsRouteAcceptsCanonicalFilters(t *testing.T) {
 
 func TestAuditLogsRouteAcceptsBracketedArrayFilters(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, engine, _ := newPluginTestContext(t, repo)
+	_, engine, _ := newModuleTestContext(t, repo)
 
 	request := httptest.NewRequest(
 		http.MethodGet,
@@ -414,7 +414,7 @@ func TestAuditLogsRouteAcceptsBracketedArrayFilters(t *testing.T) {
 
 func TestAuditLogsRouteAcceptsRepeatedSortParams(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, engine, _ := newPluginTestContext(t, repo)
+	_, engine, _ := newModuleTestContext(t, repo)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs?sort=created_at:desc&sort=created_at:asc", nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -428,7 +428,7 @@ func TestAuditLogsRouteAcceptsRepeatedSortParams(t *testing.T) {
 
 func TestAuditLogsRouteRejectsUnknownQueryKeys(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, engine, _ := newPluginTestContext(t, repo)
+	_, engine, _ := newModuleTestContext(t, repo)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs?sort_by=created_at", nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -451,7 +451,7 @@ func TestAuditLogsRouteAcceptsRegisteredDrilldownScopes(t *testing.T) {
 		"rbac_changes",
 		"critical_security",
 	}
-	_, engine, _ := newPluginTestContextWithDrilldown(t, repo, scopes)
+	_, engine, _ := newModuleTestContextWithDrilldown(t, repo, scopes)
 
 	for _, scope := range scopes {
 		request := httptest.NewRequest(http.MethodGet, "/api/audit/logs?scope="+scope, nil)
@@ -467,7 +467,7 @@ func TestAuditLogsRouteAcceptsRegisteredDrilldownScopes(t *testing.T) {
 
 func TestAuditLogsRouteRejectsUnknownDrilldownScope(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, engine, _ := newPluginTestContextWithDrilldown(t, repo, []string{"sensitive_operations"})
+	_, engine, _ := newModuleTestContextWithDrilldown(t, repo, []string{"sensitive_operations"})
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs?scope=failed_operations", nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -489,7 +489,7 @@ func TestAuditLogsRouteRejectsUnknownDrilldownScope(t *testing.T) {
 
 func TestRequirePermissionPublishesSecurityAuditEvent(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	ctx, engine, _ := newPluginTestContext(t, repo)
+	ctx, engine, _ := newModuleTestContext(t, repo)
 
 	ctx.Router.GET(
 		"/roles",
@@ -628,7 +628,7 @@ func TestAuditIncidentEndpointReturnsAuditOwnedIncident(t *testing.T) {
 			},
 		},
 	}
-	_, engine, _ := newPluginTestContext(t, repo)
+	_, engine, _ := newModuleTestContext(t, repo)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/incidents/7", nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -651,7 +651,7 @@ func TestAuditIncidentEndpointReturnsAuditOwnedIncident(t *testing.T) {
 // 订阅路径落入统一仓储。
 func TestRegisterSubscribesActiveAuditEvents(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, _, bus := newPluginTestContext(t, repo)
+	_, _, bus := newModuleTestContext(t, repo)
 
 	requestCtx := httpx.WithRequestAuditContext(
 		moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{
@@ -710,7 +710,7 @@ func TestRegisterSubscribesActiveAuditEvents(t *testing.T) {
 
 func TestRegisterSubscribesActiveAuditEventsFallsBackToRequestAuthActor(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, _, bus := newPluginTestContext(t, repo)
+	_, _, bus := newModuleTestContext(t, repo)
 
 	requestCtx := httpx.WithRequestAuditContext(
 		moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{
@@ -749,7 +749,7 @@ func TestRegisterSubscribesActiveAuditEventsFallsBackToRequestAuthActor(t *testi
 // TestRegisterSubscribesActiveAuditEventPointers 验证主动审计事件同时兼容值类型和指针类型载荷。
 func TestRegisterSubscribesActiveAuditEventPointers(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, _, bus := newPluginTestContext(t, repo)
+	_, _, bus := newModuleTestContext(t, repo)
 
 	err := bus.Publish(context.Background(), eventbus.Event{
 		Name: moduleapi.AuditRecordEventName,
@@ -773,7 +773,7 @@ func TestRegisterSubscribesActiveAuditEventPointers(t *testing.T) {
 }
 
 func TestRegisterSwallowsActiveAuditWriteErrors(t *testing.T) {
-	ctx, _, bus := newPluginTestContext(t, failingAuditRepository{})
+	ctx, _, bus := newModuleTestContext(t, failingAuditRepository{})
 
 	if err := ctx.EventBus.Subscribe("noop", func(context.Context, eventbus.Event) error { return nil }); err != nil {
 		t.Fatalf("subscribe noop: %v", err)
@@ -810,7 +810,7 @@ func TestRegisterWarnsWhenSecurityAuditEventIsSkippedByPolicy(t *testing.T) {
 	}
 	core, observed := observer.New(zap.WarnLevel)
 	logger := zap.New(core)
-	_, _, bus := newPluginTestContextWithLogger(t, repo, logger)
+	_, _, bus := newModuleTestContextWithLogger(t, repo, logger)
 
 	err := bus.Publish(context.Background(), eventbus.Event{
 		Name: moduleapi.AuditRecordEventName,
@@ -842,7 +842,7 @@ func TestRegisterWarnsWhenSecurityAuditEventIsSkippedByPolicy(t *testing.T) {
 
 func TestRegisterSubscribesActiveAuditEventsWithoutHTTPContextDoesNotPanic(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, _, bus := newPluginTestContext(t, repo)
+	_, _, bus := newModuleTestContext(t, repo)
 
 	err := bus.Publish(context.Background(), eventbus.Event{
 		Name: moduleapi.AuditRecordEventName,
@@ -866,7 +866,7 @@ func TestRegisterSubscribesActiveAuditEventsWithoutHTTPContextDoesNotPanic(t *te
 
 func TestAuditReadRoutesStayOutOfAuditLogByPolicy(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, engine, _ := newPluginTestContext(t, repo)
+	_, engine, _ := newModuleTestContext(t, repo)
 
 	for _, path := range []string{"/api/audit/logs", "/api/audit/overview?window=7d"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
@@ -896,7 +896,7 @@ func TestRegisterRecordsRBACDomainEventWhenPolicyAllows(t *testing.T) {
 			MatchType: store.AuditPolicyMatchTypeExact,
 		}),
 	}
-	_, _, bus := newPluginTestContext(t, repo)
+	_, _, bus := newModuleTestContext(t, repo)
 
 	err := bus.Publish(context.Background(), eventbus.Event{
 		Name: moduleapi.AuditRecordEventName,
@@ -923,7 +923,7 @@ func TestRegisterRecordsRBACDomainEventWhenPolicyAllows(t *testing.T) {
 
 func TestRegisterExposesAuditReadSurface(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	ctx, engine, _ := newPluginTestContext(t, repo)
+	ctx, engine, _ := newModuleTestContext(t, repo)
 
 	foundPermission := false
 	for _, item := range ctx.PermissionRegistry.Items() {
@@ -962,7 +962,7 @@ func TestRegisterExposesAuditReadSurface(t *testing.T) {
 
 func TestAuditOverviewRouteReturnsPayload(t *testing.T) {
 	repo := &memoryAuditRepository{}
-	_, engine, _ := newPluginTestContext(t, repo)
+	_, engine, _ := newModuleTestContext(t, repo)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/audit/overview?preset=last_7d", nil)
 	request.Header.Set("Authorization", "Bearer token")

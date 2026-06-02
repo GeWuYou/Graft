@@ -25,7 +25,7 @@
 | Surface | Canonical owner | Responsible for | Must not own |
 | --- | --- | --- | --- |
 | Access Log | `server/internal/httpx/**` | request lifecycle, transport facts, latency, status, request correlation | audit truth, business-event truth, security-finding truth, frontend semantics |
-| Audit Log / Audit Event | `server/internal/audit/**` + `server/plugins/audit/**` | user action, business event, permission decision, compliance evidence | request-traffic truth, access-log storage authority |
+| Audit Log / Audit Event | `server/internal/audit/**` + `server/modules/audit/**` | user action, business event, permission decision, compliance evidence | request-traffic truth, access-log storage authority |
 | Security Event | publish in `server/internal/httpx/**`, persist through audit path | threat signal, abuse indicator, auth/authz failure, security finding candidate | generic request-traffic truth, standalone access-log authority |
 
 ### Canonical Access Log Schema

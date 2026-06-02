@@ -9,7 +9,7 @@ import (
 // DefaultMigrationDir 是 `graft migrate` 默认链路使用的 owner-aligned 选择器。
 //
 // 它不是一个真实目录；CLI 在看到这个值时会回到 compile-time registry，
-// 按插件依赖顺序展开默认迁移目录集合。
+// 按模块依赖顺序展开默认迁移目录集合。
 const DefaultMigrationDir = "default"
 
 // HistoricalSharedMigrationDir 保留历史共享 Atlas 迁移目录的显式访问路径。
@@ -65,7 +65,7 @@ func CoreMigrationDirs() []string {
 
 // MigrationDirs 返回当前 compile-time registry 声明的默认迁移目录集合。
 //
-// 默认链路先展开 live core-owned 目录，再按依赖排序展开 plugin-owned 目录，
+// 默认链路先展开 live core-owned 目录，再按依赖排序展开 module-owned 目录，
 // 避免 CLI 再手写第二份迁移顺序真相。
 func MigrationDirs() ([]string, error) {
 	ordered, err := OrderedModuleSpecs()

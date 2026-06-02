@@ -290,7 +290,7 @@ func (s testAuthService) ParseAccessToken(_ context.Context, token string) (*mod
 	}, nil
 }
 
-func newPluginTestContext(t *testing.T, repo store.Repository) (*module.Context, *gin.Engine) {
+func newModuleTestContext(t *testing.T, repo store.Repository) (*module.Context, *gin.Engine) {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
@@ -407,7 +407,7 @@ func TestAuthorizerPropagatesRepositoryFailure(t *testing.T) {
 
 // TestRegisterRegistersReadManagementContracts 验证 RBAC 插件会注册稳定的权限、菜单和共享授权服务。
 func TestRegisterRegistersReadManagementContracts(t *testing.T) {
-	ctx, _ := newPluginTestContext(t, testRBACRepository{})
+	ctx, _ := newModuleTestContext(t, testRBACRepository{})
 
 	items := ctx.PermissionRegistry.Items()
 	if len(items) != 9 {
@@ -485,7 +485,7 @@ func TestRoleRoutesListRoles(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleReadPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedRequest("/api/roles"))
@@ -518,7 +518,7 @@ func TestRoleRoutesListRolesPropagatesBuiltinFilter(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleReadPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedRequest("/api/roles?builtin=true"))
@@ -535,7 +535,7 @@ func TestRoleRoutesListRolesRejectInvalidQueryValues(t *testing.T) {
 	repo := testRBACRepository{
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleReadPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	cases := []struct {
 		name  string
@@ -577,7 +577,7 @@ func TestRoleRoutesListRolePermissionBindings(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.PermissionReadPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedRequest("/api/roles/1/permissions"))
@@ -600,7 +600,7 @@ func TestRoleRoutesListRolePermissionBindingsRejectMissingReadPermission(t *test
 	repo := testRBACRepository{
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RolePermissionAssignPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequest("/api/roles/1/permissions")
@@ -628,7 +628,7 @@ func TestPermissionRoutesRejectMissingPermission(t *testing.T) {
 	repo := testRBACRepository{
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleReadPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequest("/api/permissions")
@@ -670,7 +670,7 @@ func TestPermissionRoutesListPermissions(t *testing.T) {
 			},
 		},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequest("/api/permissions")
@@ -701,7 +701,7 @@ func TestPermissionDetailRouteMapsMissingPermissionToDedicatedNotFound(t *testin
 	repo := testRBACRepository{
 		permissionsByUser: []store.Permission{{Code: rbaccontract.PermissionReadPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequest("/api/permissions/99")
@@ -730,7 +730,7 @@ func TestPermissionRoutesPropagateReadFailure(t *testing.T) {
 		permissionsByUser:  []store.Permission{{Code: rbaccontract.PermissionReadPermission.String()}},
 		listPermissionsErr: errors.New("list permissions failed"),
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequest("/api/permissions")
@@ -775,7 +775,7 @@ func TestRoleCreateRouteCreatesRole(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleCreatePermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles", map[string]any{
@@ -805,7 +805,7 @@ func TestRoleUpdateRouteRejectsBuiltinRoleRename(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleUpdatePermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/update", map[string]any{
@@ -844,7 +844,7 @@ func TestRolePermissionAssignRouteReplacesRolePermissions(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RolePermissionAssignPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
@@ -873,7 +873,7 @@ func TestRolePermissionAssignRouteMapsMissingPermissionToInvalidArgument(t *test
 			{Code: rbaccontract.PermissionReadPermission.String()},
 		},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
@@ -921,7 +921,7 @@ func TestRolePermissionAssignRouteMapsDeletedPermissionIDsToInvalidArgument(t *t
 			{Code: rbaccontract.PermissionReadPermission.String()},
 		},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/permissions/replace", map[string]any{
@@ -945,7 +945,7 @@ func TestRoleStatusRouteRequiresDedicatedStatusPermission(t *testing.T) {
 	repo := testRBACRepository{
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleUpdatePermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/status", map[string]any{
@@ -969,7 +969,7 @@ func TestRoleDeleteRouteRequiresDedicatedDeletePermission(t *testing.T) {
 	repo := testRBACRepository{
 		permissionsByUser: []store.Permission{{Code: rbaccontract.RoleUpdatePermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/roles/1/delete", nil))
@@ -996,7 +996,7 @@ func TestUserRoleBindingRouteReturnsStableRoleIDs(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleReadPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedRequest("/api/users/7/roles"))
@@ -1019,7 +1019,7 @@ func TestUserRoleBindingRouteReturnsUserNotFound(t *testing.T) {
 	repo := testRBACRepository{
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleReadPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequest("/api/users/99/roles")
@@ -1047,7 +1047,7 @@ func TestUserRoleAssignRouteReturnsUserNotFound(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
@@ -1080,7 +1080,7 @@ func TestUserRoleAssignRouteMapsMissingRoleToInvalidArgument(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
@@ -1122,7 +1122,7 @@ func TestUserRoleAssignRouteMapsDeletedRoleIDsToInvalidArgument(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
@@ -1155,7 +1155,7 @@ func TestUserRoleAssignRouteRejectsRemovingOwnBuiltinAdmin(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
@@ -1196,7 +1196,7 @@ func TestUserRoleAssignRouteAllowsRetainingOwnBuiltinAdmin(t *testing.T) {
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/7/roles/replace", map[string]any{
@@ -1228,7 +1228,7 @@ func TestUserRoleAssignRouteAllowsRemovingBuiltinAdminFromOtherUser(t *testing.T
 		},
 		permissionsByUser: []store.Permission{{Code: rbaccontract.UserRoleAssignPermission.String()}},
 	}
-	_, engine := newPluginTestContext(t, repo)
+	_, engine := newModuleTestContext(t, repo)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newAuthorizedJSONRequest(http.MethodPost, "/api/users/8/roles/replace", map[string]any{

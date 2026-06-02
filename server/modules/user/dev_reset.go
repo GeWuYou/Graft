@@ -14,10 +14,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// AuthRepositoryForReset narrows the dev-reset helper to the plugin-owned auth boundary.
+// AuthRepositoryForReset narrows the dev-reset helper to the module-owned auth boundary.
 type AuthRepositoryForReset = userstore.AuthRepository
 
-// NewAuthRepositoryForReset exposes the user plugin's dev-reset auth boundary.
+// NewAuthRepositoryForReset exposes the user module's dev-reset auth boundary.
 func NewAuthRepositoryForReset(sqlDB *sql.DB) (AuthRepositoryForReset, error) {
 	storeRuntime, err := storeent.NewRuntime(sqlDB, zap.NewNop())
 	if err != nil {

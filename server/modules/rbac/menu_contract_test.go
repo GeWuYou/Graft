@@ -8,7 +8,7 @@ import (
 )
 
 func TestRegisterRBACMenuIncludesTitleKey(t *testing.T) {
-	ctx, _ := newPluginTestContext(t, testRBACRepository{})
+	ctx, _ := newModuleTestContext(t, testRBACRepository{})
 
 	menus := ctx.MenuRegistry.Items()
 	if len(menus) != 4 {

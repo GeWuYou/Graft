@@ -18,7 +18,7 @@
   - `server/AGENTS.md`
   - `web/AGENTS.md`
   - `ai-plan/design/项目设计.md`
-  - `ai-plan/design/插件与依赖注入设计.md`
+  - `ai-plan/design/模块与依赖注入设计.md`
   - `ai-plan/design/前端架构设计.md`
   - `server/internal/plugin/**`
   - `server/internal/pluginregistry/**`
@@ -36,7 +36,7 @@
 ## Batch Inventory
 
 - Batch 1 findings accepted for this loop:
-  - safe wording-only drift remains in authority docs such as `ai-plan/design/插件与依赖注入设计.md` and `ai-plan/design/项目设计.md`
+  - safe wording-only drift remains in authority docs such as `ai-plan/design/模块与依赖注入设计.md` and `ai-plan/design/项目设计.md`
   - doc-only frontend wording in `ai-plan/design/前端架构设计.md` is in scope only when it is not a canonical runtime symbol
   - symbol/type renames under `server/internal/plugin/**`, `server/internal/pluginregistry/**`, and descriptor-local symbol names are out of scope unless a comment or README wording-only edit is sufficient
   - physical path, import path, generator constant, migration path, and exported symbol renames remain blocked/high-risk for later batches

@@ -18,7 +18,7 @@
   - `AppLogger` remains the runtime write entry
   - `App Log` remains `process_output_only`
   - `server/internal/httpx/**` remains `Access Log` / request-correlation authority only
-  - `server/internal/audit/**` + `server/plugins/audit/**` remain `Audit Log` / `Security Event` authority
+  - `server/internal/audit/**` + `server/modules/audit/**` remain `Audit Log` / `Security Event` authority
 
 ## Goal
 
@@ -154,7 +154,7 @@ Reason:
 - no authority owner changes
 - `server/internal/logger/**` remains canonical `App Log` authority
 - `server/internal/httpx/**` remains the request-correlation and `Access Log` authority
-- `server/internal/audit/**` + `server/plugins/audit/**` remain audit/security evidence authority
+- `server/internal/audit/**` + `server/modules/audit/**` remain audit/security evidence authority
 - this topic strengthens workflow constraints but does not approve runtime storage, API, or UI
 
 ## Recommended Next Topic

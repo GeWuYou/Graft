@@ -109,7 +109,7 @@ func registerAuditMessages(localizer *i18n.Service) error {
 
 func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {
 	if ctx == nil || ctx.Services == nil {
-		return auditGuard{}, errors.New("plugin context services are unavailable")
+		return auditGuard{}, errors.New("module context services are unavailable")
 	}
 
 	resolvedAuthService, err := ctx.Services.Resolve((*moduleapi.AuthService)(nil))
@@ -138,7 +138,7 @@ func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {
 
 func registerAuditService(ctx *module.Context, reader *auditcore.Service) error {
 	if ctx == nil || ctx.Services == nil {
-		return errors.New("plugin context services are unavailable")
+		return errors.New("module context services are unavailable")
 	}
 	if reader == nil {
 		return errors.New("audit service is unavailable")

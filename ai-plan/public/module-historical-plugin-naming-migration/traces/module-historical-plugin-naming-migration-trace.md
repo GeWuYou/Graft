@@ -10,6 +10,7 @@
 - Froze the accepted remaining rename classes, exclusions, validation chain, and Batch 1-6 plan.
 - Kept the round docs/recovery only; no Batch 2 code rename started.
 - Batch 6 re-scanned active authority surfaces, classified residual hits, and closed the topic as `archive-ready`.
+- That closeout is now bounded historical evidence only; later remaining active-doc drift and live migration reset work is tracked by `server-module-semantics-and-live-migration-reset`.
 
 ## Startup Receipt
 

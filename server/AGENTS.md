@@ -40,7 +40,7 @@ authority-first overlay：
 
 - 根 `AGENTS.md`
 - `ai-plan/design/项目设计.md`
-- `ai-plan/design/插件与依赖注入设计.md`
+- `ai-plan/design/模块与依赖注入设计.md`
 
 按任务类型追加读取：
 
@@ -238,7 +238,7 @@ Observability authority overlay：
   - 不允许启动 goroutine、阻塞 I/O、长时间初始化、隐式修改外部状态
 - `Boot`
   - 只启动已经在 `Register` 阶段声明过的运行时行为
-  - 可以依赖其它插件已经注册的稳定公开服务
+  - 可以依赖其它模块已经注册的稳定公开服务
   - 不允许新增未声明的路由、权限、菜单、message、job、公开服务
 - `Shutdown`
   - 负责释放 `Boot` 启动的所有资源
@@ -262,7 +262,7 @@ Observability authority overlay：
 - 模块不能直接依赖其它模块的内部 repository、handler、store、Ent entity
 - 若需要跨模块业务能力，必须通过 capability interface 或 stable DTO contract 暴露
 
-### 7.3 插件公开面规则
+### 7.3 模块公开面规则
 
 模块运行时可见能力必须能追溯到生命周期：
 
@@ -276,30 +276,30 @@ Observability authority overlay：
 
 如果某个运行时能力无法追溯到 `Register -> Boot -> Shutdown`，就说明边界失控。
 
-## 8. Plugin Implementation Checklist
+## 8. Module Implementation Checklist
 
 当后端任务属于历史 `plugin` 路径下的 module 切片时，默认按这份 checklist 检查实现是否完整：
 
 - `descriptor`
   - 是否声明稳定 module ID、依赖、migration path、builder
-- `plugin lifecycle`
+- `module lifecycle`
   - 是否实现 `Register / Boot / Shutdown`
   - 模块身份与依赖 authority 是否保持在 compile-time `ModuleSpec`
   - `Register -> Boot -> Shutdown` 职责是否清晰
 - `routes`
-  - 路由是否留在插件边界内，且只编排输入输出、鉴权和响应映射
+  - 路由是否留在模块边界内，且只编排输入输出、鉴权和响应映射
 - `service`
-  - 业务用例是否下沉到插件 service，而不是堆在 handler 或 core
+  - 业务用例是否下沉到模块 service，而不是堆在 handler 或 core
 - `store / storeent`
-  - 持久化边界是否留在插件内，没有回流 `internal/store/**`
+  - 持久化边界是否留在模块内，没有回流 `internal/store/**`
 - `migration`
-  - schema 变更是否落到插件自有 migration，且 owner 明确
+  - schema 变更是否落到模块自有 migration，且 owner 明确
 - `messages / permissions / menus`
   - 对外可见能力是否在 `Register` 阶段声明，并与 contract 对齐
 - `tests`
   - 是否覆盖直接受影响的 service、route、store、contract 或 lifecycle 路径
 - `README`
-  - 插件 README 是否能说明职责边界、主要入口、关键依赖与不负责的范围
+  - 模块 README 是否能说明职责边界、主要入口、关键依赖与不负责的范围
 
 ## 9. `internal/moduleapi` 与契约边界
 
@@ -317,7 +317,7 @@ Observability authority overlay：
 - 跨模块只暴露 capability-oriented interface，不暴露 repository、Ent client、module private struct
 - 跨模块返回值优先使用稳定 DTO，不直接返回 Ent entity 或数据库模型
 - capability 必须在 Builder 或其它 compile-time 装配阶段注册，而不是在运行后期临时拼装
-- capability 生命周期必须稳定，明确由哪个插件提供、何时可用、何时关闭
+- capability 生命周期必须稳定，明确由哪个模块提供、何时可用、何时关闭
 - capability 只允许暴露：
   - cross-module business ability
   - dev/reset hook
@@ -364,7 +364,7 @@ Observability authority overlay：
 规则：
 
 - 依赖通过构造函数或生命周期 wiring 显式注入
-- `Resolve` 只允许出现在 runtime 装配、plugin lifecycle adapter、middleware wiring 等窄组合边界
+- `Resolve` 只允许出现在 runtime 装配、module lifecycle adapter、middleware wiring 等窄组合边界
 - handler、service、repository、store、DTO、Ent schema 里不要散落容器解析
 - 共享资源如 logger、database、redis、event bus、scheduler 由 runtime 管理生命周期
 - 不允许在业务代码里临时 new 基础设施依赖来绕开 runtime
@@ -373,10 +373,10 @@ Observability authority overlay：
 
 规则：
 
-- `internal/app` 只负责 runtime 资源装配、插件编排、关闭顺序，不承载业务用例
+- `internal/app` 只负责 runtime 资源装配、模块编排、关闭顺序，不承载业务用例
 - `internal/httpx` 负责 HTTP 运行时共性，不承载某个插件专有业务规则
 - `internal/store` 与 `internal/store/entstore` 只允许承载 core-owned 或尚未迁移完成的历史集中边界，不应继续接纳新的业务插件真相
-- 长期方向下，业务插件应收敛到：
+- 长期方向下，业务模块应收敛到：
   - `modules/<name>/store/**`
   - `modules/<name>/storeent/**`
   - `modules/<name>/service/**`
@@ -426,7 +426,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - 禁止：
   - `rbac` migration 修改 `user` 表
   - `audit` migration 修改 `rbac` 表
-  - 任一插件 migration 修改其它插件 schema
+  - 任一模块 migration 修改其它模块 schema
 - 跨插件关联只允许：
   - 稳定外键，由表 owner 明确声明
   - application-level contract 协作
@@ -453,7 +453,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 ## 12.1 多工作树 owned scope
 
-`server` 的长期多工作树 owned scope 以插件优先：
+`server` 的长期多工作树 owned scope 以模块优先：
 
 - `shared-stable-boundary`
   - `internal/pluginapi/**`

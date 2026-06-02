@@ -6,7 +6,7 @@
 - Parent topic: `multi-worktree-governance` (archived)
 - Branch: `feat/wt-monitor-server-status`
 - Worktree: `/mnt/f/gewuyou/Project/Go/Graft-WorkTree/Graft-wt-monitor-server-status`
-- Scope: first minimal implementation slice under `server/plugins/monitor/**` and `web/src/modules/monitor/**`
+- Scope: first minimal implementation slice under `server/modules/monitor/**` and `web/src/modules/monitor/**`
 
 ## Goal
 
@@ -20,7 +20,7 @@
 - `server/AGENTS.md`
 - `web/AGENTS.md`
 - `ai-plan/design/项目设计.md`
-- `ai-plan/design/插件与依赖注入设计.md`
+- `ai-plan/design/模块与依赖注入设计.md`
 - `ai-plan/design/前端架构设计.md`
 - `ai-plan/design/契约治理与魔法值治理规范.md`
 - `ai-plan/design/AI任务追踪与恢复设计.md`
@@ -28,13 +28,13 @@
 ## Current Recovery Point
 
 - This topic was split out of `multi-worktree-governance` as a standalone active topic.
-- The first implementation slice now exists in `server/plugins/monitor/**` and `web/src/modules/monitor/**`.
+- The first implementation slice now exists in `server/modules/monitor/**` and `web/src/modules/monitor/**`.
 - Backend plugin registration required one explicit shared-hotspot update in `server/internal/pluginregistry/generated.go`.
 - The first minimal cross-boundary `monitor/server-status` slice now passes the backend and frontend completion entrypoints in this worktree.
 - A server-only follow-up round now switches monitor plugin summaries from local dependency placeholders to runtime ordered plugin descriptors.
 - That follow-up required explicit shared-hotspot updates in `server/internal/app/runtime.go`, `server/internal/plugin/plugin.go`, and `server/internal/plugin/runtime_metadata.go` to inject an observation-only runtime metadata snapshot into plugin context.
 - The follow-up round passes direct package tests for `internal/plugin` and `plugins/monitor`, and also passes `cd server && GIT_DIR=... GIT_WORK_TREE=... go run ./cmd/graft validate backend`.
-- The current cross-boundary dashboard round expands the `server-status` payload inside `server/plugins/monitor/**` only:
+- The current cross-boundary dashboard round expands the `server-status` payload inside `server/modules/monitor/**` only:
   - adds runtime memory / host summary
   - adds dependency detail plus latency samples
   - adds plugin dependency lists

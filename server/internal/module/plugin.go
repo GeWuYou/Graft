@@ -28,14 +28,14 @@ import (
 type Module interface {
 	// Register 负责声明路由、权限、菜单、任务和公开服务。
 	//
-	// Register 不应启动长期后台行为；失败会阻止后续插件继续注册或启动。
+	// Register 不应启动长期后台行为；失败会阻止后续模块继续注册或启动。
 	Register(ctx *Context) error
-	// Boot 在所有插件完成注册后启动运行时行为。
+	// Boot 在所有模块完成注册后启动运行时行为。
 	//
-	// Boot 可以依赖所有已注册插件暴露的稳定能力；失败时调用方会关闭
-	// 之前已经成功启动的插件。
+	// Boot 可以依赖所有已注册模块暴露的稳定能力；失败时调用方会关闭
+	// 之前已经成功启动的模块。
 	Boot(ctx *Context) error
-	// Shutdown 在停止阶段释放插件资源，调用顺序与启动顺序相反。
+	// Shutdown 在停止阶段释放模块资源，调用顺序与启动顺序相反。
 	//
 	// Shutdown 应尽最大努力释放资源并返回错误，而不是假设失败后可以跳过
 	// 其余清理动作。
@@ -45,7 +45,7 @@ type Module interface {
 // RuntimeModule 暴露 compile-time 模块元数据与运行时生命周期的组合视图。
 //
 // core runtime 只通过这个包装后的稳定表面感知模块身份和依赖，避免要求
-// 业务插件实例再维护第二份会漂移的 Name / DependsOn authority。
+// 业务模块实例再维护第二份会漂移的 Name / DependsOn authority。
 type RuntimeModule interface {
 	Module
 	Name() string
@@ -54,7 +54,7 @@ type RuntimeModule interface {
 
 // Builder 定义 compile-time 模块描述符到运行时模块实例的显式构造边界。
 //
-// Builder 当前只负责构造模块实例；后续 capability 或插件私有依赖装配
+// Builder 当前只负责构造模块实例；后续 capability 或模块私有依赖装配
 // 可以继续沿这条边界扩展，而不把共享接线重新塞回中心化 CLI 文件。
 type Builder interface {
 	Build(BuildContext) (Module, error)
@@ -62,7 +62,7 @@ type Builder interface {
 
 // BuildContext 暴露模块构造阶段允许消费的最小 core 资源。
 //
-// 它只服务于 compile-time builder wiring，不进入插件运行时热路径。
+// 它只服务于 compile-time builder wiring，不进入模块运行时热路径。
 // 这里保留显式服务解析边界，避免 builder 重新拿回泛化的业务仓储工厂入口。
 type BuildContext struct {
 	Services *container.Container
@@ -80,7 +80,7 @@ func (f BuilderFunc) Build(ctx BuildContext) (Module, error) {
 	return f(ctx)
 }
 
-// ResolveService 解析一个 builder 或插件生命周期允许消费的显式单例服务。
+// ResolveService 解析一个 builder 或模块生命周期允许消费的显式单例服务。
 func ResolveService[T any](resolver container.Resolver, key any) (T, error) {
 	var zero T
 	if resolver == nil {

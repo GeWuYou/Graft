@@ -17,7 +17,7 @@
 - recovery source: `parent topic`
 - authority summary:
   - root `AGENTS.md`, `server/AGENTS.md`, and `web/AGENTS.md` own the repository execution truth for this correction slice
-  - `ai-plan/design/项目设计.md` and `ai-plan/design/插件与依赖注入设计.md` own the architecture narrative being corrected
+  - `ai-plan/design/项目设计.md` and `ai-plan/design/模块与依赖注入设计.md` own the architecture narrative being corrected
   - `server/internal/plugin/**` and `server/internal/pluginregistry/**` own the historical backend naming surfaces being re-described as compile-time modules
   - `ai-plan/public/**` owns branch/topic recovery mapping for this bounded correction slice
 
@@ -80,7 +80,7 @@ Final topic result:
 
 ## Next-Session Prompt
 
-`Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-oriented-modular-monolith. Owned scope: server/internal/plugin/**, server/internal/pluginregistry/**, server/plugins/*/descriptor.go, ai-plan/design/项目设计.md, ai-plan/design/插件与依赖注入设计.md, ai-plan/public/module-oriented-modular-monolith/**, ai-plan/public/README.md, and only the minimum additional authority files required by exported symbol or path migration analysis. Treat module-oriented-modular-monolith as archive-ready evidence and open a new bounded topic only as module-symbol-and-path-authority-migration; do not continue this wording-migration loop in place.`
+`Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic server-module-semantics-and-live-migration-reset. Owned scope: server/internal/module/**, server/internal/moduleregistry/**, server/internal/app/**, server/modules/**, AGENTS.md, server/AGENTS.md, web/AGENTS.md only for terminology/reference repair, active ai-plan/design/**, active ai-plan/public/**, and only the minimum additional authority files required by the next accepted batch. Treat module-oriented-modular-monolith as archive-ready evidence only; do not continue this closed wording-migration loop in place.`
 
 ## Validation Plan
 

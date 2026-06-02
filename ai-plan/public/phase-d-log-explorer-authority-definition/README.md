@@ -32,9 +32,9 @@
   - current `AppLogger` / `Error Log` authority
 - `server/internal/httpx/**`
   - current request correlation, `Access Log`, and `Security Event` bridge authority
-- `server/internal/audit/**` + `server/plugins/audit/**`
+- `server/internal/audit/**` + `server/modules/audit/**`
   - current `Audit Event` / persisted `Security Event` authority
-- `server/plugins/monitor/**`
+- `server/modules/monitor/**`
   - monitor anomaly, evidence link, and short-retention trend authority
 - `openapi/**`
   - future shared wire contract authority once a later runtime Phase D topic explicitly approves log-explorer APIs
@@ -49,7 +49,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | AppLogger / App Log | `server/internal/logger/**` | runtime app logging baseline | current process logger output only | undefined | developers, future log explorer | operator may inspect in future app-log explorer |
 | AccessLogger / Access Log | `server/internal/httpx/**` | request fact logging baseline | current structured logger output only | undefined | operators, future log explorer | request troubleshooting |
-| AuditRecorder / Audit Log | `server/internal/audit/**` + `server/plugins/audit/**` | audit evidence truth | `audit` plugin persistence | undefined | audit module, compliance/operator workflow | security/investigation workflow |
+| AuditRecorder / Audit Log | `server/internal/audit/**` + `server/modules/audit/**` | audit evidence truth | `audit` module persistence | undefined | audit module, compliance/operator workflow | security/investigation workflow |
 | SecurityEvent | `server/internal/httpx/**` publish, `audit` path persist | security evidence truth | audit persistence path | inherits audit retention until separately governed | audit incident, security workflow | operator investigation |
 | MetricsEmitter | none | no canonical runtime authority | n/a | n/a | none beyond bounded monitor payloads | not available |
 
@@ -60,7 +60,7 @@
 | Audit Log | none | no formal retention rule found in current design or runtime authority | governance gap |
 | Access Log | none | no formal retention rule found in current design or runtime authority | governance gap |
 | App Log | none | no formal retention rule found in current design or runtime authority | governance gap |
-| Monitor trend evidence | `server/plugins/monitor/**` | 1h bounded evidence window, 2h storage TTL | defined but monitor-only |
+| Monitor trend evidence | `server/modules/monitor/**` | 1h bounded evidence window, 2h storage TTL | defined but monitor-only |
 
 ### Contract Ownership Matrix
 
@@ -68,8 +68,8 @@
 | --- | --- | --- | --- |
 | App log semantics | `server/internal/logger/**` | none yet | future log-explorer backend/web consumers |
 | Access log semantics | `server/internal/httpx/**` | none yet | future log-explorer backend/web consumers |
-| Security event ingest/publish semantics | `server/internal/httpx/**` | `pluginapi.AuditEvent` event payload consumption | `server/internal/audit/**`, `server/plugins/audit/**` |
-| Audit log / incident read model | `server/plugins/audit/**` | OpenAPI generated audit schema | `web/src/modules/audit/**` |
+| Security event ingest/publish semantics | `server/internal/httpx/**` | `pluginapi.AuditEvent` event payload consumption | `server/internal/audit/**`, `server/modules/audit/**` |
+| Audit log / incident read model | `server/modules/audit/**` | OpenAPI generated audit schema | `web/src/modules/audit/**` |
 | EvidenceLink shared drilldown | backend authority + `openapi/**` | generated OpenAPI artifacts | `web/src/modules/audit/**`, `web/src/modules/monitor/**` |
 | Future Log Explorer HTTP contract | `openapi/**` after explicit approval | `server/internal/contract/openapi/**`, `web/src/contracts/openapi/generated/**` | future `web` log-explorer module |
 

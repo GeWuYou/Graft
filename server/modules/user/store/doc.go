@@ -1,2 +1,2 @@
-// Package store defines user-plugin-owned persistence contracts.
+// Package store defines user-module-owned persistence contracts.
 package store

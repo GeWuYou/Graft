@@ -1,4 +1,4 @@
-// Package store defines audit-plugin-owned persistence contracts.
+// Package store defines audit-module-owned persistence contracts.
 package store
 
 import (
@@ -176,7 +176,7 @@ type AuditCandidate struct {
 	CreatedAt        time.Time
 }
 
-// AuditPolicyRule is the plugin-owned persistence DTO for one policy rule.
+// AuditPolicyRule is the module-owned persistence DTO for one policy rule.
 type AuditPolicyRule struct {
 	ID            uint64
 	Name          string

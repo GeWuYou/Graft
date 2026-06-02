@@ -16,7 +16,7 @@
 - authority summary:
   - `server/internal/logger/**` owns app-log runtime semantics
   - `server/internal/httpx/**` owns access-log semantics and security-event publish bridge
-  - `server/internal/audit/**` + `server/plugins/audit/**` own audit/security durable persistence
+  - `server/internal/audit/**` + `server/modules/audit/**` own audit/security durable persistence
   - no upstream `web` authority is required for this bounded runtime-governance topic
 
 ## Goal
@@ -36,14 +36,14 @@
 | --- | --- | --- | --- | --- |
 | AppLogger | shared `*zap.Logger` direct write | process logger output only | core runtime init / close | `server/internal/logger/**` |
 | AccessLogger | `httpx` middleware direct write | process logger output only | HTTP middleware | `server/internal/httpx/**` |
-| AuditRecorder | request middleware or eventbus candidate -> recorder -> repository | PostgreSQL `audit_logs` | audit plugin + shared DB runtime | `server/internal/audit/**` + `server/plugins/audit/**` |
+| AuditRecorder | request middleware or eventbus candidate -> recorder -> repository | PostgreSQL `audit_logs` | audit module + shared DB runtime | `server/internal/audit/**` + `server/modules/audit/**` |
 | SecurityEvent | auth/authz guard publish -> eventbus -> audit recorder | persisted into `audit_logs` when policy includes it | publish in `httpx`, persist in audit plugin | publish: `server/internal/httpx/**`; persistence: audit path |
 
 ## Retention Matrix
 
 | Surface | Retention authority | Retention decision | Cleanup owner |
 | --- | --- | --- | --- |
-| Audit Log | recommended: `server/plugins/audit/**` | must be explicitly defined in a later audit-owned runtime slice; current value is undefined | future audit-owned scheduler job |
+| Audit Log | recommended: `server/modules/audit/**` | must be explicitly defined in a later audit-owned runtime slice; current value is undefined | future audit-owned scheduler job |
 | Access Log | none today | no repository retention authority while storage is only process output | none |
 | Application Log | none today | no repository retention authority while storage is only process output | none |
 | Security Event | inherits audit persistence line | same as audit log while persisted in `audit_logs` | same as audit cleanup owner |
@@ -63,9 +63,9 @@
 
 | Operation | Surface | Authority |
 | --- | --- | --- |
-| retention cleanup | audit log | future `server/plugins/audit/**` |
+| retention cleanup | audit log | future `server/modules/audit/**` |
 | archive | audit log | none in MVP |
-| purge | audit log | future `server/plugins/audit/**` after retention rule approval |
+| purge | audit log | future `server/modules/audit/**` after retention rule approval |
 | retention cleanup | access log | none |
 | archive | access log | none |
 | purge | access log | none |

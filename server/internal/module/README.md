@@ -7,7 +7,7 @@
 当前 canonical 语义是：
 
 * backend business capability = module
-* `plugin` 只在少量导出接口命名中保留为历史称呼
+* `plugin` 只在少量导出接口命名和文件名中保留为历史称呼
 
 ## 职责边界
 
@@ -27,7 +27,7 @@
 ## 主要入口
 
 * `doc.go`：包职责与边界说明
-* `plugin.go`：历史 `Plugin` 生命周期接口、`Spec`、`Builder`、上下文与管理器实现
+* `plugin.go`：历史文件名下的模块生命周期接口、`Spec`、`Builder`、上下文与管理器实现
 
 ## 关键依赖
 
@@ -38,4 +38,4 @@
 
 ## 维护提示
 
-如果新增能力会让模块直接依赖其它模块内部实现，或让核心开始承载业务判断，应先回看 `ai-plan/design/项目设计.md` 与 `ai-plan/design/插件与依赖注入设计.md`，再调整边界。
+如果新增能力会让模块直接依赖其它模块内部实现，或让核心开始承载业务判断，应先回看 `ai-plan/design/项目设计.md` 与 `ai-plan/design/模块与依赖注入设计.md`，再调整边界。

@@ -31,7 +31,7 @@ Before changing code or structure, read the relevant documents in `ai-plan/`.
 Authoritative repository documents:
 
 - [ai-plan/design/项目设计.md](ai-plan/design/项目设计.md)
-- [ai-plan/design/插件与依赖注入设计.md](ai-plan/design/插件与依赖注入设计.md)
+- [ai-plan/design/模块与依赖注入设计.md](ai-plan/design/模块与依赖注入设计.md)
 - [ai-plan/design/前端架构设计.md](ai-plan/design/前端架构设计.md)
 - [ai-plan/design/契约治理与魔法值治理规范.md](ai-plan/design/契约治理与魔法值治理规范.md) when the task changes
   typed contracts, magic-value governance, contract lifecycle, ownership, compatibility, drift handling, or shared

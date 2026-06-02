@@ -68,4 +68,4 @@
 
 - `module-physical-path-migration` remains archive-ready parent evidence only.
 - This topic exists to keep the remaining historical naming migration bounded by rename class instead of resuming the closed physical-path loop.
-- This topic is now closed as `archive-ready`; any future attempt to rename intentional domain-level `plugin` semantics must open a new bounded topic at the true authority owner.
+- This topic is now closed as `archive-ready`; later active-doc drift, remaining internal non-wire naming drift, and destructive live migration reset work moved to `server-module-semantics-and-live-migration-reset`.

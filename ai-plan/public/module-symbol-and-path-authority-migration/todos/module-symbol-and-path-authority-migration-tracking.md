@@ -17,7 +17,7 @@
 - `server/plugins/*/descriptor.go`
 - `server/internal/app/runtime.go`
 - `ai-plan/design/项目设计.md`
-- `ai-plan/design/插件与依赖注入设计.md`
+- `ai-plan/design/模块与依赖注入设计.md`
 - `ai-plan/public/module-symbol-and-path-authority-migration/**`
 - `ai-plan/public/README.md`
 

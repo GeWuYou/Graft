@@ -20,7 +20,7 @@
   - `server/internal/pluginregistry/**` owns the generated registry, registry-facing builder/descriptors, generator constants, and migration directory aggregation authority
   - `server/plugins/*/descriptor.go` owns descriptor-local compile-time metadata symbol names for each backend business module
   - `server/internal/app/runtime.go` is the minimum additional runtime-consumer authority file required for truthful analysis because it consumes `pluginregistry.OrderedDescriptors`, `pluginregistry.BuildPlugins`, `plugin.NewRuntimeMetadata`, and `RuntimeMetadata.OrderedPluginDescriptors`
-  - `ai-plan/design/项目设计.md` and `ai-plan/design/插件与依赖注入设计.md` remain the architecture narrative authority for deciding whether a symbol/path migration is still aligned with module-oriented modular monolith semantics
+  - `ai-plan/design/项目设计.md` and `ai-plan/design/模块与依赖注入设计.md` remain the architecture narrative authority for deciding whether a symbol/path migration is still aligned with module-oriented modular monolith semantics
   - `ai-plan/public/module-symbol-and-path-authority-migration/**` owns recovery truth for this bounded topic
 
 ## Goal
@@ -49,7 +49,7 @@ This topic must not:
   - `server/plugins/*/descriptor.go`
   - `server/internal/app/runtime.go`
   - `ai-plan/design/项目设计.md`
-  - `ai-plan/design/插件与依赖注入设计.md`
+  - `ai-plan/design/模块与依赖注入设计.md`
   - `ai-plan/public/module-symbol-and-path-authority-migration/**`
   - `ai-plan/public/README.md`
 - excluded unless later authority discovery proves they are required:
@@ -123,4 +123,4 @@ This topic must not:
 
 ## Next-Session Prompt
 
-`Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-symbol-and-path-authority-migration. Owned scope: server/internal/plugin/**, server/internal/pluginregistry/**, server/plugins/*/descriptor.go, ai-plan/design/项目设计.md, ai-plan/design/插件与依赖注入设计.md, ai-plan/public/module-symbol-and-path-authority-migration/**, ai-plan/public/README.md, server/internal/app/runtime.go, and only the minimum additional authority files required by a new bounded follow-up. Treat module-symbol-and-path-authority-migration as archive-ready evidence and open a new bounded topic only if the repository explicitly decides to attempt one deferred rename class at its true authority owner; do not resume this closed loop in place.`
+`Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic server-module-semantics-and-live-migration-reset. Owned scope: server/internal/module/**, server/internal/moduleregistry/**, server/internal/app/**, server/modules/**, AGENTS.md, server/AGENTS.md, web/AGENTS.md only for terminology/reference repair, active ai-plan/design/**, active ai-plan/public/**, and only the minimum additional authority files required by the next accepted batch. Treat module-symbol-and-path-authority-migration as archive-ready evidence only; do not resume this closed authority-inventory loop in place.`

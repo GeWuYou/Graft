@@ -44,7 +44,7 @@ func (p *Module) Shutdown(_ *module.Context) error {
 func resolveService[T any](ctx *module.Context, key any, label string) (T, error) {
 	var zero T
 	if ctx == nil || ctx.Services == nil {
-		return zero, errors.New("plugin services are unavailable")
+		return zero, errors.New("module services are unavailable")
 	}
 
 	resolved, err := ctx.Services.Resolve(key)

@@ -16,7 +16,7 @@
 ## Authority Summary
 
 - root `AGENTS.md` and `server/AGENTS.md` remain the execution-governance authority
-- `ai-plan/design/项目设计.md` and `ai-plan/design/插件与依赖注入设计.md` remain the architecture authority
+- `ai-plan/design/项目设计.md` and `ai-plan/design/模块与依赖注入设计.md` remain the architecture authority
 - `server/internal/plugin/**` and `server/internal/pluginregistry/**` remain the canonical code-comment surfaces for historical backend naming
 
 ## Validation Record

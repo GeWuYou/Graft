@@ -82,7 +82,7 @@ Overlay note:
     - confirmed no compatibility adapter, runtime feature switch, or physical rename was introduced
   - Topic directory:
     - `ai-plan/public/module-oriented-modular-monolith`
-  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-oriented-modular-monolith. Owned scope: server/internal/plugin/**, server/internal/pluginregistry/**, server/plugins/*/descriptor.go, ai-plan/design/项目设计.md, ai-plan/design/插件与依赖注入设计.md, ai-plan/public/module-oriented-modular-monolith/**, ai-plan/public/README.md, and only the minimum additional authority files required by exported symbol or path migration analysis. Treat module-oriented-modular-monolith as archive-ready evidence and open a new bounded topic only as module-symbol-and-path-authority-migration; do not continue this wording-migration loop in place.`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic server-module-semantics-and-live-migration-reset. Owned scope: server/internal/module/**, server/internal/moduleregistry/**, server/internal/app/**, server/modules/**, AGENTS.md, server/AGENTS.md, web/AGENTS.md only for terminology/reference repair, active ai-plan/design/**, active ai-plan/public/**, and only the minimum additional authority files required by the next accepted batch. Treat module-oriented-modular-monolith as archive-ready evidence only; do not resume that closed wording loop in place.`
 
 - `module-symbol-and-path-authority-migration`
   - Status: `archive-ready`
@@ -95,7 +95,7 @@ Overlay note:
     - left exported symbols, runtime-consumer names, generator constants, package paths, physical directories, import paths, migration strings, and package-scoped plugin-local constants deferred to future new-topic-only work
   - Topic directory:
     - `ai-plan/public/module-symbol-and-path-authority-migration`
-  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-symbol-and-path-authority-migration. Owned scope: server/internal/plugin/**, server/internal/pluginregistry/**, server/plugins/*/descriptor.go, ai-plan/design/项目设计.md, ai-plan/design/插件与依赖注入设计.md, ai-plan/public/module-symbol-and-path-authority-migration/**, ai-plan/public/README.md, server/internal/app/runtime.go, and only the minimum additional authority files required by a new bounded follow-up. Treat module-symbol-and-path-authority-migration as archive-ready evidence and open a new bounded topic only if the repository explicitly decides to attempt one deferred rename class at its true authority owner; do not resume this closed loop in place.`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic server-module-semantics-and-live-migration-reset. Owned scope: server/internal/module/**, server/internal/moduleregistry/**, server/internal/app/**, server/modules/**, AGENTS.md, server/AGENTS.md, web/AGENTS.md only for terminology/reference repair, active ai-plan/design/**, active ai-plan/public/**, and only the minimum additional authority files required by the next accepted batch. Treat module-symbol-and-path-authority-migration as archive-ready evidence only; do not resume that closed authority-inventory loop in place.`
 
 - `module-physical-path-migration`
   - Status: `archive-ready`
@@ -108,19 +108,30 @@ Overlay note:
     - closed with residual old-path hits limited to archived historical evidence, explicit rename history, and intentionally retained `internal/pluginapi/**` stable authority
   - Topic directory:
     - `ai-plan/public/module-physical-path-migration`
-  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-physical-path-migration. Owned scope: server/internal/pluginapi/**, server/internal/module/**, server/AGENTS.md, ai-plan/design/插件与依赖注入设计.md, ai-plan/public/module-physical-path-migration/**, ai-plan/public/README.md, and only the minimum additional authority files required by exported historical symbol/path follow-up analysis. Treat module-physical-path-migration as archive-ready evidence and open a new bounded topic only if the repository explicitly decides to rename retained stable `pluginapi` or exported `Plugin` authority surfaces; do not resume this closed loop in place.`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-physical-path-migration. Owned scope: server/internal/pluginapi/**, server/internal/module/**, server/AGENTS.md, ai-plan/design/模块与依赖注入设计.md, ai-plan/public/module-physical-path-migration/**, ai-plan/public/README.md, and only the minimum additional authority files required by exported historical symbol/path follow-up analysis. Treat module-physical-path-migration as archive-ready evidence and open a new bounded topic only if the repository explicitly decides to rename retained stable `pluginapi` or exported `Plugin` authority surfaces; do not resume this closed loop in place.`
 
 - `module-historical-plugin-naming-migration`
   - Status: `archive-ready`
-  - Recovery status: completed the bounded follow-up topic for the remaining historical `plugin` naming after physical paths were already repaired.
+  - Recovery status: completed a narrower bounded follow-up for historical naming cleanup after physical paths were repaired, but it does not cover later-discovered active-doc drift or the destructive live migration reset now tracked separately.
   - Scope outcome:
-    - completed the bounded lifecycle naming, `moduleapi`, constructor/type cleanup, and active authority wording slices at their true authority owners
-    - re-scanned active current-authority surfaces and classified the remaining `plugin` / `Plugin` hits as acceptable historical evidence or intentional domain semantics
-    - confirmed current canonical authority now points at `server/internal/moduleapi/**`, `server/internal/module/**`, `server/internal/moduleregistry/**`, and `server/modules/**`
-    - closed without reopening archive topics, adding compatibility aliases, or widening into unrelated active topics
+    - completed its accepted bounded lifecycle naming and recovery reconciliation slice without reopening archive topics or adding compatibility aliases
+    - left later active-doc drift, remaining internal non-wire naming drift, and destructive live migration reset work outside its closed scope
+    - now serves as parent evidence for the currently active `server-module-semantics-and-live-migration-reset` topic
   - Topic directory:
     - `ai-plan/public/module-historical-plugin-naming-migration`
-  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic module-historical-plugin-naming-migration. Owned scope: ai-plan/public/module-historical-plugin-naming-migration/**, ai-plan/public/README.md, and only the minimum additional authority files required by any newly opened follow-up topic. Treat module-historical-plugin-naming-migration as archive-ready evidence and open a new bounded topic only if the repository explicitly decides to rename intentional domain-level plugin semantics or another still-live authority owner beyond this closed loop; do not resume this topic in place.`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic server-module-semantics-and-live-migration-reset. Owned scope: server/internal/module/**, server/internal/moduleregistry/**, server/internal/app/**, server/modules/**, AGENTS.md, server/AGENTS.md, web/AGENTS.md only for terminology/reference repair, active ai-plan/design/**, active ai-plan/public/**, and only the minimum additional authority files required by the next accepted batch. Treat module-historical-plugin-naming-migration as archive-ready evidence only; do not resume that closed historical-naming loop in place.`
+
+- `server-module-semantics-and-live-migration-reset`
+  - Status: `archive-ready`
+  - Recovery status: completed the bounded cross-boundary topic for active recovery truth, remaining server module semantics cleanup, and the approved destructive reset of live module migrations.
+  - Scope outcome:
+    - opened a truthful recovery entry after earlier module/plugin topics proved too narrow for the remaining work
+    - completed the active design/governance wording repair, server internal non-wire naming cleanup, and destructive live module migration reset for `user` / `rbac` / `audit`
+    - reconciled active non-archive recovery routing so current authority no longer points through stale plugin-first conclusions
+    - closed with remaining `plugin` hits intentionally limited to archive/history/traces, stable shared wire/domain values, or explicit historical wording outside this topic's bounded scope
+  - Topic directory:
+    - `ai-plan/public/server-module-semantics-and-live-migration-reset`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat server-module-semantics-and-live-migration-reset as archive-ready evidence only. Open a new bounded topic only if the repository explicitly decides to rename retained shared/public plugin authority such as internal/pluginapi, generated OpenAPI values, or other stable wire/domain semantics that were intentionally excluded from this loop.`
 
 - `phase-d-log-explorer-authority-definition`
   - Status: `archive-ready`
@@ -209,7 +220,7 @@ Overlay note:
   - Recovery status: completed the bounded authority-discovery, inventory, MVP-decision, and final closeout loop; no active continuation remains.
   - Archive reason: the topic confirmed that current metric-like authority is already bounded and aligned, so the truthful MVP is doc-only closure rather than runtime rollout.
   - Final result:
-    - `server/plugins/monitor/**` remains the only current runtime metric-like authority
+    - `server/modules/monitor/**` remains the only current runtime metric-like authority
     - `openapi/paths/monitor.server-status.yaml` remains the canonical shared wire surface for that monitor payload
     - `web/src/modules/monitor/**` remains a downstream consumer only
     - outside the monitor read model, metrics remain `Metric Candidate / Metric Placeholder` governance under `ai-plan/design/日志治理开发规范.md`

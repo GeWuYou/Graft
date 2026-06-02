@@ -189,18 +189,18 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 	}, nil
 }
 
-// Run 先执行插件注册与启动，再启动 HTTP 服务。
+// Run 先执行模块注册与启动，再启动 HTTP 服务。
 //
-// 如果任一阶段失败，Run 会按已启动的实际范围反向释放插件与核心资源，
+// 如果任一阶段失败，Run 会按已启动的实际范围反向释放模块与核心资源，
 // 避免把半初始化状态泄漏到调用方。
 //
 // 参数：
-//   - runCtx: 绑定当前进程运行期的上下文；取消后会触发 HTTP 服务停止，并继续进入插件与 core 资源清理。
+//   - runCtx: 绑定当前进程运行期的上下文；取消后会触发 HTTP 服务停止，并继续进入模块与 core 资源清理。
 //
 // 返回：
-//   - error: 返回注册、启动、监听、关闭阶段的首个失败，并按需要聚合插件关闭或 core 资源回收错误。
+//   - error: 返回注册、启动、监听、关闭阶段的首个失败，并按需要聚合模块关闭或 core 资源回收错误。
 func (r *Runtime) Run(runCtx context.Context) error {
-	moduleCtx := r.newPluginContext(runCtx)
+	moduleCtx := r.newModuleContext(runCtx)
 
 	ordered, err := r.moduleManager.Ordered()
 	if err != nil {
@@ -208,7 +208,7 @@ func (r *Runtime) Run(runCtx context.Context) error {
 	}
 
 	booted := make([]module.RuntimeModule, 0, len(ordered))
-	if err := r.registerPlugins(moduleCtx, ordered, booted); err != nil {
+	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
 		return err
 	}
 
@@ -220,7 +220,7 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("freeze i18n registry: %w", err))
 	}
 
-	booted, err = r.bootPlugins(moduleCtx, ordered, booted)
+	booted, err = r.bootModules(moduleCtx, ordered, booted)
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		return r.cleanupAfterFailure(moduleCtx, booted, err)
 	}
 
-	if err := shutdownPlugins(moduleCtx, booted); err != nil {
+	if err := shutdownModules(moduleCtx, booted); err != nil {
 		return r.cleanupAfterFailure(moduleCtx, nil, err)
 	}
 
@@ -240,28 +240,28 @@ func (r *Runtime) Run(runCtx context.Context) error {
 	return nil
 }
 
-func (r *Runtime) registerPlugins(moduleCtx *module.Context, ordered []module.RuntimeModule, booted []module.RuntimeModule) error {
+func (r *Runtime) registerModules(moduleCtx *module.Context, ordered []module.RuntimeModule, booted []module.RuntimeModule) error {
 	for _, p := range ordered {
 		// Register 阶段只允许声明能力，不应启动长期运行行为；一旦失败，
-		// 当前插件及其后续插件都不再继续，避免部分注册状态继续扩散。
+		// 当前模块及其后续模块都不再继续，避免部分注册状态继续扩散。
 		if err := p.Register(moduleCtx); err != nil {
-			return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("register plugin %s: %w", p.Name(), err))
+			return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("register module %s: %w", p.Name(), err))
 		}
 	}
 
 	return nil
 }
 
-func (r *Runtime) bootPlugins(
+func (r *Runtime) bootModules(
 	moduleCtx *module.Context,
 	ordered []module.RuntimeModule,
 	booted []module.RuntimeModule,
 ) ([]module.RuntimeModule, error) {
 	for _, p := range ordered {
-		// 只有完成 Register 的插件才会进入 Boot。booted 只记录真正成功启动
-		// 的插件，确保失败清理不会误关未启动插件。
+		// 只有完成 Register 的模块才会进入 Boot。booted 只记录真正成功启动
+		// 的模块，确保失败清理不会误关未启动模块。
 		if err := p.Boot(moduleCtx); err != nil {
-			return nil, r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("boot plugin %s: %w", p.Name(), err))
+			return nil, r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("boot module %s: %w", p.Name(), err))
 		}
 		booted = append(booted, p)
 	}
@@ -269,7 +269,7 @@ func (r *Runtime) bootPlugins(
 	return booted, nil
 }
 
-func (r *Runtime) newPluginContext(runCtx context.Context) *module.Context {
+func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 	return &module.Context{
 		LifecycleContext:   runCtx,
 		Config:             r.config,
@@ -488,27 +488,27 @@ func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error
 	})
 }
 
-// shutdownPlugins 按启动逆序关闭插件，并聚合所有关闭错误。
+// shutdownModules 按启动逆序关闭模块，并聚合所有关闭错误。
 //
 // 这里不在首个失败处提前返回，因为关闭阶段的目标是尽最大努力释放资源，
 // 而不是维持“全部成功或立即退出”的启动语义。
-func shutdownPlugins(ctx *module.Context, ordered []module.RuntimeModule) error {
-	shutdownCtx, cancel := withPluginShutdownContext(ctx)
+func shutdownModules(ctx *module.Context, ordered []module.RuntimeModule) error {
+	shutdownCtx, cancel := withModuleShutdownContext(ctx)
 	defer cancel()
 
 	var shutdownErr error
 	for i := len(ordered) - 1; i >= 0; i-- {
 		// 关闭顺序必须与启动顺序相反，避免后启动的依赖还未释放时，上游
-		// 插件先被销毁，导致清理逻辑访问失效资源。
+		// 模块先被销毁，导致清理逻辑访问失效资源。
 		if err := ordered[i].Shutdown(shutdownCtx); err != nil {
-			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown plugin %s: %w", ordered[i].Name(), err))
+			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown module %s: %w", ordered[i].Name(), err))
 		}
 	}
 
 	return shutdownErr
 }
 
-func withPluginShutdownContext(ctx *module.Context) (*module.Context, context.CancelFunc) {
+func withModuleShutdownContext(ctx *module.Context) (*module.Context, context.CancelFunc) {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), moduleShutdownTimeout)
 	if ctx == nil {
 		return &module.Context{LifecycleContext: shutdownCtx}, cancel
@@ -549,11 +549,11 @@ func (r *Runtime) closeCoreResources() error {
 
 // cleanupAfterFailure 在启动或关闭中途失败后执行统一清理。
 //
-// 这里保留原始失败原因，并把插件关闭和 core 资源回收错误聚合到同一个
+// 这里保留原始失败原因，并把模块关闭和 core 资源回收错误聚合到同一个
 // 返回值中，方便调用方看到完整失败路径。
 func (r *Runtime) cleanupAfterFailure(ctx *module.Context, booted []module.RuntimeModule, cause error) error {
 	err := cause
-	if shutdownErr := shutdownPlugins(ctx, booted); shutdownErr != nil {
+	if shutdownErr := shutdownModules(ctx, booted); shutdownErr != nil {
 		err = errors.Join(err, shutdownErr)
 	}
 	if closeErr := r.closeCoreResources(); closeErr != nil {

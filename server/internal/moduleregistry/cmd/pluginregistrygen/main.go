@@ -1,4 +1,4 @@
-// Package main generates the compile-time plugin registry artifact.
+// Package main generates the compile-time module registry artifact.
 package main
 
 import (
@@ -35,7 +35,7 @@ func main() {
 	modulesRoot := filepath.Clean(filepath.Join(workdir, "..", "..", modulesDirName))
 	packages, err := collectModulePackages(modulesRoot)
 	if err != nil {
-		failf("collect plugin packages: %v", err)
+		failf("collect module packages: %v", err)
 	}
 
 	content, err := renderGeneratedFile(packages)
@@ -68,7 +68,7 @@ func collectModulePackages(modulesRoot string) ([]modulePackage, error) {
 
 		moduleDir := filepath.Join(modulesRoot, name)
 		if !fileExists(filepath.Join(moduleDir, descriptorFile)) {
-			return nil, fmt.Errorf("plugin package %s is missing %s", name, descriptorFile)
+			return nil, fmt.Errorf("module package %s is missing %s", name, descriptorFile)
 		}
 
 		packages = append(packages, modulePackage{

@@ -12,7 +12,7 @@
 ## Scope
 
 - Owned scope:
-  - `server/plugins/rbac/**`
+  - `server/modules/rbac/**`
   - `web/src/modules/rbac/**`
 - This topic now has a dedicated long-lived worktree/topic pair.
 - The topic remains explicit about standing ownership and recovery truth; it is not a standing permission to edit
@@ -25,7 +25,7 @@
 - `web/AGENTS.md`
 - `ai-plan/design/AI任务追踪与恢复设计.md`
 - `ai-plan/design/项目设计.md`
-- `ai-plan/design/插件与依赖注入设计.md`
+- `ai-plan/design/模块与依赖注入设计.md`
 - `ai-plan/design/前端架构设计.md`
 - `ai-plan/design/契约治理与魔法值治理规范.md`
 - `ai-plan/roadmap/MVP实施计划.md`
@@ -55,7 +55,7 @@
 
 ## Dedicated Pair Guardrails
 
-- Keep the RBAC worktree primarily owned by `server/plugins/rbac/**` and/or `web/src/modules/rbac/**`, rather than by
+- Keep the RBAC worktree primarily owned by `server/modules/rbac/**` and/or `web/src/modules/rbac/**`, rather than by
   shared-baseline governance.
 - Keep the worktree identity, branch name, owned scope, and any temporary hotspot exceptions updated in the same slice
   that changes the active-topic mapping or ownership truth.

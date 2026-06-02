@@ -610,17 +610,17 @@ func (r pluginTestRBACRepository) ListRolePermissionBindings(_ context.Context, 
 	return []rbacstore.RolePermissionBinding{}, nil
 }
 
-func newPluginTestContext(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository) (*module.Context, *gin.Engine) {
-	return newPluginTestContextWithLoggerAndPermissions(t, zap.NewNop(), userRepo, authRepo, map[uint64][]rbacstore.Permission{
+func newModuleTestContext(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository) (*module.Context, *gin.Engine) {
+	return newModuleTestContextWithLoggerAndPermissions(t, zap.NewNop(), userRepo, authRepo, map[uint64][]rbacstore.Permission{
 		7: {{Code: usercontract.UserReadPermission.String()}},
 	})
 }
 
-func newPluginTestContextWithPermissions(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository, permissions map[uint64][]rbacstore.Permission) (*module.Context, *gin.Engine) {
-	return newPluginTestContextWithLoggerAndPermissions(t, zap.NewNop(), userRepo, authRepo, permissions)
+func newModuleTestContextWithPermissions(t *testing.T, userRepo store.UserRepository, authRepo store.AuthRepository, permissions map[uint64][]rbacstore.Permission) (*module.Context, *gin.Engine) {
+	return newModuleTestContextWithLoggerAndPermissions(t, zap.NewNop(), userRepo, authRepo, permissions)
 }
 
-func newPluginTestContextWithLoggerAndPermissions(
+func newModuleTestContextWithLoggerAndPermissions(
 	t *testing.T,
 	logger *zap.Logger,
 	userRepo store.UserRepository,
@@ -857,7 +857,7 @@ func fixedUserRepository(users ...store.User) pluginTestUserRepository {
 func newSessionAdminEngine(t *testing.T, authRepo *pluginTestAuthRepository, users ...store.User) *gin.Engine {
 	t.Helper()
 
-	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(users...), authRepo, map[uint64][]rbacstore.Permission{
+	_, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(users...), authRepo, map[uint64][]rbacstore.Permission{
 		9: {{Code: usercontract.UserSessionReadPermission.String()}, {Code: usercontract.UserSessionRevokePermission.String()}},
 	})
 
@@ -1422,7 +1422,7 @@ func loginAliceEngine(t *testing.T, passwordHash string) (*pluginTestAuthReposit
 	t.Helper()
 
 	authRepo := newCredentialRepository("alice", 7, passwordHash)
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 	return authRepo, engine
 }
 
@@ -1430,7 +1430,7 @@ func loginAdminEngine(t *testing.T, passwordHash string) (*pluginTestAuthReposit
 	t.Helper()
 
 	authRepo := newCredentialRepository("admin", 9, passwordHash)
-	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(
+	_, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(
 		testUser(7, "alice", "Alice"),
 		testUser(8, "bob", "Bob"),
 		testUser(9, "admin", "Admin"),
@@ -1452,7 +1452,7 @@ func loginAliceAndParseSession(t *testing.T, engine *gin.Engine) (loginResponse,
 // TestRegisterPublishesContracts 验证用户插件注册时会暴露权限、菜单与稳定
 // 的跨插件用户服务。
 func TestRegisterPublishesContracts(t *testing.T) {
-	ctx, _ := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), nil)
+	ctx, _ := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), nil)
 
 	assertUserPluginRegistry(t, ctx)
 
@@ -1472,7 +1472,7 @@ func TestRegisterPublishesContracts(t *testing.T) {
 // JSON 响应，而不是继续访问仓储。
 func TestUserRouteRejectsInvalidID(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id == 7 {
 				return store.User{
@@ -1507,7 +1507,7 @@ func TestUserRouteRejectsInvalidID(t *testing.T) {
 // 与稳定错误消息，便于前端后续接入统一空态分支。
 func TestUserRouteReturnsNotFoundContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id == 7 {
 				return store.User{
@@ -1545,7 +1545,7 @@ func TestUserRouteReturnsNotFoundContract(t *testing.T) {
 // 直接把生成后的 HTTP 契约模型作为边界输出，而不是复用跨插件摘要 DTO。
 func TestUserRouteReturnsGeneratedUserListItem(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(context.Context, uint64) (store.User, error) {
 			return store.User{
 				ID:        7,
@@ -1681,7 +1681,7 @@ func TestUserListRouteReturnsStableItems(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
 	createdAt := time.Date(2026, time.May, 15, 8, 0, 0, 0, time.UTC)
 	updatedAt := createdAt.Add(2 * time.Hour)
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(context.Context, uint64) (store.User, error) {
 			return store.User{
 				ID:        7,
@@ -1733,7 +1733,7 @@ func TestUserListRouteReturnsStableItems(t *testing.T) {
 // TestUserListRouteReturnsInternalErrorContract 验证用户列表仓储失败时仍返回统一本地化错误契约。
 func TestUserListRouteReturnsInternalErrorContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(context.Context, uint64) (store.User, error) {
 			return store.User{
 				ID:        7,
@@ -1770,7 +1770,7 @@ func TestCreateUserRouteReturnsStableItem(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
 	createdAt := time.Date(2026, time.May, 22, 9, 0, 0, 0, time.UTC)
 	updatedAt := createdAt.Add(5 * time.Minute)
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -1869,7 +1869,7 @@ func TestUserServiceCreateUserDoesNotImportOpenAPIContract(t *testing.T) {
 
 func TestCreateUserRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -1903,7 +1903,7 @@ func TestCreateUserRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
 
 func TestCreateUserRouteReturnsFieldLevelInvalidArgumentContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -1967,7 +1967,7 @@ func TestCreateUserRouteLogsPasswordPolicyViolationWithoutPasswordLeak(t *testin
 	authRepo := &pluginTestAuthRepository{}
 	core, logs := observer.New(zap.ErrorLevel)
 	logger := zap.New(core)
-	_, engine := newPluginTestContextWithLoggerAndPermissions(t, logger, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithLoggerAndPermissions(t, logger, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -2017,7 +2017,7 @@ func TestCreateUserRouteLogsPasswordPolicyViolationWithoutPasswordLeak(t *testin
 
 func TestUpdateUserRouteReturnsStableItem(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -2061,7 +2061,7 @@ func TestUpdateUserRouteReturnsStableItem(t *testing.T) {
 
 func TestSetUserStatusRouteRevokesTargetSessions(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 8:
@@ -2113,7 +2113,7 @@ func TestSetUserStatusRouteRevokesTargetSessions(t *testing.T) {
 
 func TestSetUserStatusRouteRejectsUnknownGeneratedEnumValue(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 8:
@@ -2163,7 +2163,7 @@ func TestResetUserPasswordRouteUsesAtomicResetContract(t *testing.T) {
 			return nil
 		},
 	}
-	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
+	_, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
 		9: {
 			{Code: usercontract.UserReadPermission.String()},
 			{Code: usercontract.UserUpdatePermission.String()},
@@ -2193,7 +2193,7 @@ func TestResetUserPasswordRouteReturnsPasswordPolicyViolationContract(t *testing
 			return nil
 		},
 	}
-	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
+	_, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
 		9: {
 			{Code: usercontract.UserReadPermission.String()},
 			{Code: usercontract.UserUpdatePermission.String()},
@@ -2228,7 +2228,7 @@ func TestResetUserPasswordRouteReturnsPasswordReuseForbiddenContract(t *testing.
 			return nil
 		},
 	}
-	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
+	_, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(testUser(8, "bob", "Bob"), testUser(9, "admin", "Admin")), authRepo, map[uint64][]rbacstore.Permission{
 		9: {
 			{Code: usercontract.UserReadPermission.String()},
 			{Code: usercontract.UserUpdatePermission.String()},
@@ -2258,7 +2258,7 @@ func TestResetUserPasswordRouteReturnsPasswordReuseForbiddenContract(t *testing.
 
 func TestDeleteUserRouteRevokesSessionsAndReturnsNilPayload(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 8:
@@ -2303,7 +2303,7 @@ func TestDeleteUserRouteRevokesSessionsAndReturnsNilPayload(t *testing.T) {
 // TestUserRouteRequiresPermissionMiddleware 验证插件路由仍复用统一的后端
 // 权限守卫契约，而不是在插件内部发散独立鉴权格式。
 func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, nil)
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, nil)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, usersRoutePath(usercontract.UserByID, ":id", "7"), nil)
@@ -2314,7 +2314,7 @@ func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
 // TestBootstrapRouteRequiresAuthenticatedActor 验证 bootstrap 契约仍复用统一
 // 的请求鉴权中间件，而不是在插件内分叉另一套登录态判断。
 func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, nil)
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, nil)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, authRoutePath(usercontract.AuthBootstrap), nil)
@@ -2326,7 +2326,7 @@ func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
 // 去重排序后的权限列表、按权限过滤的菜单以及 locale 配置快照。
 func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	ctx, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo, map[uint64][]rbacstore.Permission{
+	ctx, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo, map[uint64][]rbacstore.Permission{
 		7: {
 			{Code: " " + usercontract.UserReadPermission.String() + " "},
 			{Code: usercontract.UserReadPermission.String()},
@@ -2471,7 +2471,7 @@ func TestAuthServiceParseAccessTokenRequiresActiveSession(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			authRepo := &pluginTestAuthRepository{}
-			ctx, _ := newPluginTestContext(t, pluginTestUserRepository{
+			ctx, _ := newModuleTestContext(t, pluginTestUserRepository{
 				getByID: func(_ context.Context, id uint64) (store.User, error) {
 					if id != 7 {
 						return store.User{}, store.ErrUserNotFound
@@ -2547,7 +2547,7 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			authRepo := &pluginTestAuthRepository{}
-			_, engine := newPluginTestContext(t, pluginTestUserRepository{
+			_, engine := newModuleTestContext(t, pluginTestUserRepository{
 				getByID: func(context.Context, uint64) (store.User, error) {
 					return store.User{
 						ID:        7,
@@ -2578,7 +2578,7 @@ func TestLoginRouteReturnsTokenAndCurrentUserSummary(t *testing.T) {
 	}
 
 	authRepo := newCredentialRepository("alice", 7, passwordHash)
-	ctx, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
+	ctx, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	payload, cookies := loginUser(t, engine, "alice", "secret", "en-US")
 	assertLoginPayload(t, payload, 7, "alice", "Alice")
@@ -2608,7 +2608,7 @@ func TestRefreshRouteRotatesSessionAndReturnsNewAccessToken(t *testing.T) {
 	}
 
 	authRepo := newCredentialRepository("alice", 7, passwordHash)
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	_, cookies := loginUser(t, engine, "alice", "secret", "")
 	refreshCookie := firstCookie(t, cookies)
@@ -2647,7 +2647,7 @@ func TestRefreshRouteRejectsRestrictedSession(t *testing.T) {
 			}, nil
 		},
 	}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)), authRepo)
 
 	_, cookies := loginUser(t, engine, defaultAdminUsername, "secret", "")
 	refreshCookie := firstCookie(t, cookies)
@@ -2673,7 +2673,7 @@ func TestRefreshRouteRejectsReusedRefreshCookie(t *testing.T) {
 	}
 
 	authRepo := newCredentialRepository("alice", 7, passwordHash)
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	_, cookies := loginUser(t, engine, "alice", "secret", "")
 	refreshCookie := firstCookie(t, cookies)
@@ -2696,7 +2696,7 @@ func TestRefreshRouteRejectsReusedRefreshCookie(t *testing.T) {
 // TestRefreshRouteRejectsMissingCookie 验证缺少 refresh cookie 时仍返回统一的
 // 本地化认证失败契约。
 func TestRefreshRouteRejectsMissingCookie(t *testing.T) {
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthRefresh), nil)
@@ -2766,7 +2766,7 @@ func TestLogoutRouteRevokesCurrentRefreshSession(t *testing.T) {
 	}
 
 	authRepo := newCredentialRepository("alice", 7, passwordHash)
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	_, cookies := loginUser(t, engine, "alice", "secret", "")
 	refreshCookie := firstCookie(t, cookies)
@@ -2786,7 +2786,7 @@ func TestLogoutRouteRevokesCurrentRefreshSession(t *testing.T) {
 // TestLogoutRouteRejectsMissingCookie 验证缺少 refresh cookie 时，logout 继续复用
 // 统一的本地化 refresh-session 错误契约。
 func TestLogoutRouteRejectsMissingCookie(t *testing.T) {
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthLogout), nil)
@@ -2844,7 +2844,7 @@ func TestRevokeAllSessionsRouteRevokesCurrentUserSessions(t *testing.T) {
 // TestRevokeAllSessionsRouteRequiresAuthenticatedActor 验证当前用户自助撤销入口继续
 // 复用统一 request-auth 守卫，而不是在插件内发散新的未登录响应格式。
 func TestRevokeAllSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeAll), nil)
@@ -2858,7 +2858,7 @@ func TestRevokeAllSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 // 只会清退自己名下的其它有效 session，不会误伤当前会话或其他用户会话。
 func TestRevokeOtherSessionsRouteRevokesNonCurrentSessions(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
 	otherSessionIDs := []string{
@@ -2924,7 +2924,7 @@ func TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces(t *testing.T) {
 		},
 	}
 
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	recorder := httptest.NewRecorder()
 	request := newAuthorizedRequestForSessionWithMethod(t, http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeOthers), 7, currentSessionID)
@@ -2941,7 +2941,7 @@ func TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces(t *testing.T) {
 // TestRevokeOtherSessionsRouteRequiresAuthenticatedActor 验证保留当前会话的批量清退
 // 入口继续复用统一 request-auth 守卫，而不是发散新的未登录响应契约。
 func TestRevokeOtherSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeOthers), nil)
@@ -2955,7 +2955,7 @@ func TestRevokeOtherSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 // revoke-others 仍幂等返回成功，且不会额外清理 refresh cookie。
 func TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
 
@@ -2973,7 +2973,7 @@ func TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession(t *testing.T) {
 // 其自身当前有效的 refresh sessions，并准确标记当前请求会话。
 func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	time.Sleep(time.Microsecond)
@@ -3006,7 +3006,7 @@ func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 // 应用显式 limit，而不要求仓储提前暴露分页协议。
 func TestListCurrentUserSessionsRouteAppliesLimit(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	time.Sleep(time.Microsecond)
@@ -3033,7 +3033,7 @@ func TestListCurrentUserSessionsRouteAppliesLimit(t *testing.T) {
 // limit，保持稳定的 invalid_argument 契约。
 func TestListCurrentUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -3053,7 +3053,7 @@ func TestListCurrentUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
 // TestListCurrentUserSessionsRouteRequiresAuthenticatedActor 验证当前用户会话列表继续
 // 复用统一 request-auth 守卫，而不是在插件内发散新的未登录契约。
 func TestListCurrentUserSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, authRoutePath(usercontract.AuthSessions), nil)
@@ -3150,7 +3150,7 @@ func TestAdminListUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
 // user.read，而是要求显式的 session 读取权限。
 func TestAdminListUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 7:
@@ -3179,7 +3179,7 @@ func TestAdminListUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 // 仍返回稳定的 user.not_found 契约，而不是把空结果伪装成成功。
 func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 9:
@@ -3214,7 +3214,7 @@ func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
 // 影响指定 session，不会误伤同用户名下其他有效 session。
 func TestRevokeCurrentUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 7:
@@ -3286,7 +3286,7 @@ func TestRevokeCurrentUserSessionRouteClearsCookieWhenRevokingCurrentSession(t *
 // 返回稳定的 session-not-found 契约。
 func TestRevokeCurrentUserSessionRouteReturnsNotFoundContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -3307,7 +3307,7 @@ func TestRevokeCurrentUserSessionRouteReturnsNotFoundContract(t *testing.T) {
 // 目标用户的指定 session，不会误伤其他用户或同用户其他会话。
 func TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, fixedUserRepository(
+	_, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(
 		testUser(7, "alice", "Alice"),
 		testUser(8, "bob", "Bob"),
 		testUser(9, "admin", "Admin"),
@@ -3361,7 +3361,7 @@ func TestAdminRevokeUserSessionRouteClearsCurrentCookieWhenRevokingSelfCurrentSe
 // 返回稳定的 session-not-found 契约。
 func TestAdminRevokeUserSessionRouteReturnsNotFoundContract(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 7:
@@ -3441,7 +3441,7 @@ func TestAdminRevokeUserSessionsRouteClearsCurrentCookieWhenRevokingSelf(t *test
 // 误复用 user.read，而是要求显式的 session 管理权限。
 func TestAdminRevokeUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -3466,7 +3466,7 @@ func TestAdminRevokeUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 // 收敛为稳定的参数错误响应。
 func TestAdminRevokeUserSessionsRouteRejectsInvalidID(t *testing.T) {
 	authRepo := &pluginTestAuthRepository{}
-	_, engine := newPluginTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 9 {
 				return store.User{}, store.ErrUserNotFound
@@ -3492,7 +3492,7 @@ func TestLoginRouteRejectsInvalidCredentials(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -3540,7 +3540,7 @@ func TestLoginRouteRejectsInvalidCredentials(t *testing.T) {
 // TestLoginRouteRejectsMissingCredentials 验证缺失用户名或密码时，登录接口会
 // 返回统一的参数校验错误而不是继续触发认证流程。
 func TestLoginRouteRejectsMissingCredentials(t *testing.T) {
-	_, engine := newPluginTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
 
 	tests := []struct {
 		name       string
@@ -3615,7 +3615,7 @@ func TestCompleteRequiredPasswordChangeRouteAllowsRestrictedSession(t *testing.T
 			return nil
 		},
 	}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()
@@ -3665,7 +3665,7 @@ func TestChangePasswordRouteRejectsMissingCurrentPassword(t *testing.T) {
 			return nil
 		},
 	}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()
@@ -3705,7 +3705,7 @@ func TestCompleteRequiredPasswordChangeRouteRejectsNonRestrictedSession(t *testi
 			return nil
 		},
 	}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()
@@ -3740,7 +3740,7 @@ func TestRestrictedSessionCannotAccessBusinessRoutes(t *testing.T) {
 			}, nil
 		},
 	}
-	_, engine := newPluginTestContextWithPermissions(
+	_, engine := newModuleTestContextWithPermissions(
 		t,
 		fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)),
 		authRepo,
@@ -3779,7 +3779,7 @@ func TestRestrictedSessionCanReadBootstrap(t *testing.T) {
 			}, nil
 		},
 	}
-	_, engine := newPluginTestContextWithPermissions(
+	_, engine := newModuleTestContextWithPermissions(
 		t,
 		fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)),
 		authRepo,
@@ -3831,7 +3831,7 @@ func TestRestrictedSessionCannotUseNormalChangePasswordRoute(t *testing.T) {
 			}, nil
 		},
 	}
-	_, engine := newPluginTestContext(t, fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)), authRepo)
+	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(9, defaultAdminUsername, defaultAdminDisplay)), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 9, time.Now().UTC().Add(time.Hour))
 	recorder := httptest.NewRecorder()

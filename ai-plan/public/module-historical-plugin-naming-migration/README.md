@@ -34,7 +34,7 @@
 
 ## Goal
 
-Open a new bounded active topic for the remaining historical plugin naming migration after physical paths were repaired.
+This archive-ready topic no longer owns the current remaining work; that active continuation now lives in `server-module-semantics-and-live-migration-reset`.
 
 This topic must:
 
@@ -171,10 +171,10 @@ This topic must not:
 ## Batch 6 Closeout
 
 - result:
-  - re-scanned active current-authority surfaces for residual `plugin` / `Plugin` / `server/plugins` / `pluginapi` hits
-  - confirmed remaining active hits are acceptable historical evidence or intentional domain semantics, not still-live canonical naming drift for this topic
-  - confirmed current canonical authority now points at `server/internal/moduleapi/**`, `server/internal/module/**`, `server/internal/moduleregistry/**`, and `server/modules/**`
-  - updated active recovery materials so this topic can truthfully close as `archive-ready`
+  - re-scanned the active current-authority surfaces that were inside this topic's accepted bounded scope
+  - confirmed no additional repair was taken inside this closed topic beyond that accepted scope
+  - left any later-discovered active-doc drift, remaining internal non-wire naming drift, and destructive live migration reset work for a new bounded topic
+  - this topic now stands only as parent evidence for `server-module-semantics-and-live-migration-reset`
 - acceptable residual hit classes:
   - active recovery summaries describing prior rename stages or archived plugin-named topics
   - governance wording that explicitly marks `plugin` as historical backend naming for compile-time modules
@@ -200,4 +200,4 @@ This topic must not:
 - terminal status:
   - `archive-ready`
 - stop reason:
-  - Batch 6 found no remaining bounded follow-up required to repair current canonical module naming authority for this topic
+  - Batch 6 found no remaining bounded follow-up required inside this topic's accepted scope; later remaining work must open a new bounded topic

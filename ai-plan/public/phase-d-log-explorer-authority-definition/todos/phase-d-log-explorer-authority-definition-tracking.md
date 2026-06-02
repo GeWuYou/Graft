@@ -24,8 +24,8 @@
 4. Confirmed current authority facts:
    - `server/internal/logger/**` owns `AppLogger`
    - `server/internal/httpx/**` owns request correlation and `Access Log`
-   - `server/internal/audit/**` + `server/plugins/audit/**` own audit persistence
-   - `server/plugins/monitor/**` owns bounded short-retention monitor evidence
+   - `server/internal/audit/**` + `server/modules/audit/**` own audit persistence
+   - `server/modules/monitor/**` owns bounded short-retention monitor evidence
 5. Confirmed current retention gaps:
    - no formal audit/access/app retention authority exists
 

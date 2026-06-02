@@ -19,7 +19,7 @@
   - `server/internal/module/**` and `server/internal/moduleregistry/**` are the current backend path authority after the accepted physical move
   - `server/internal/app/runtime.go` is the minimum runtime-consumer authority file already identified by the parent topic for registry/module path consumers
   - `server/modules/**` is the current business-module physical directory authority after the accepted move
-  - `ai-plan/design/项目设计.md` and `ai-plan/design/插件与依赖注入设计.md` remain the architecture authority for why `module` is canonical and `plugin/plugins` is historical naming
+  - `ai-plan/design/项目设计.md` and `ai-plan/design/模块与依赖注入设计.md` remain the architecture authority for why `module` is canonical and `plugin/plugins` is historical naming
   - `ai-plan/public/module-physical-path-migration/**` now owns truthful recovery for this specific physical rename topic
 
 ## Why The Parent Topic Was Not Resumed

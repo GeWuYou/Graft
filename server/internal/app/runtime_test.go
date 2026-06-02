@@ -57,33 +57,33 @@ func (r *runtimeAccessLogRecorderRepo) GetAccessLogByID(context.Context, uint64)
 	return httpx.AccessLog{}, httpx.ErrAccessLogNotFound
 }
 
-type shutdownRecorderPlugin struct {
+type shutdownRecorderModule struct {
 	name        string
 	shutdownLog *[]string
 	err         error
 }
 
-func (p shutdownRecorderPlugin) Register(_ *module.Context) error { return nil }
+func (p shutdownRecorderModule) Register(_ *module.Context) error { return nil }
 
-func (p shutdownRecorderPlugin) Boot(_ *module.Context) error { return nil }
+func (p shutdownRecorderModule) Boot(_ *module.Context) error { return nil }
 
-func (p shutdownRecorderPlugin) Shutdown(_ *module.Context) error {
+func (p shutdownRecorderModule) Shutdown(_ *module.Context) error {
 	*p.shutdownLog = append(*p.shutdownLog, p.name)
 	return p.err
 }
 
-// TestShutdownPluginsUsesReverseOrder 验证插件关闭顺序与启动顺序相反，
+// TestShutdownModulesUsesReverseOrder 验证模块关闭顺序与启动顺序相反，
 // 以便后启动的依赖先完成资源释放。
-func TestShutdownPluginsUsesReverseOrder(t *testing.T) {
+func TestShutdownModulesUsesReverseOrder(t *testing.T) {
 	log := make([]string, 0, 3)
 	modules := []module.RuntimeModule{
-		mustDescribeRuntimeTestPlugin(module.Spec{ID: "user"}, shutdownRecorderPlugin{name: "user", shutdownLog: &log}),
-		mustDescribeRuntimeTestPlugin(module.Spec{ID: "rbac"}, shutdownRecorderPlugin{name: "rbac", shutdownLog: &log}),
-		mustDescribeRuntimeTestPlugin(module.Spec{ID: "audit"}, shutdownRecorderPlugin{name: "audit", shutdownLog: &log}),
+		mustDescribeRuntimeTestModule(module.Spec{ID: "user"}, shutdownRecorderModule{name: "user", shutdownLog: &log}),
+		mustDescribeRuntimeTestModule(module.Spec{ID: "rbac"}, shutdownRecorderModule{name: "rbac", shutdownLog: &log}),
+		mustDescribeRuntimeTestModule(module.Spec{ID: "audit"}, shutdownRecorderModule{name: "audit", shutdownLog: &log}),
 	}
 
-	if err := shutdownPlugins(&module.Context{}, modules); err != nil {
-		t.Fatalf("shutdown plugins: %v", err)
+	if err := shutdownModules(&module.Context{}, modules); err != nil {
+		t.Fatalf("shutdown modules: %v", err)
 	}
 
 	expected := []string{"audit", "rbac", "user"}
@@ -94,20 +94,20 @@ func TestShutdownPluginsUsesReverseOrder(t *testing.T) {
 	}
 }
 
-// TestShutdownPluginsAggregatesErrors 验证多个插件关闭失败时会聚合错误，
+// TestShutdownModulesAggregatesErrors 验证多个模块关闭失败时会聚合错误，
 // 避免后续失败被前一个失败覆盖。
 //
-// 这里直接构造返回固定错误的测试插件，目的是只锁定关闭聚合语义，
+// 这里直接构造返回固定错误的测试模块，目的是只锁定关闭聚合语义，
 // 不把断言耦合到 Register 或 Boot 的其它生命周期分支。
-func TestShutdownPluginsAggregatesErrors(t *testing.T) {
+func TestShutdownModulesAggregatesErrors(t *testing.T) {
 	userErr := errors.New("user failed")
 	rbacErr := errors.New("rbac failed")
 	modules := []module.RuntimeModule{
-		mustDescribeRuntimeTestPlugin(module.Spec{ID: "user"}, shutdownRecorderPlugin{name: "user", shutdownLog: &[]string{}, err: userErr}),
-		mustDescribeRuntimeTestPlugin(module.Spec{ID: "rbac"}, shutdownRecorderPlugin{name: "rbac", shutdownLog: &[]string{}, err: rbacErr}),
+		mustDescribeRuntimeTestModule(module.Spec{ID: "user"}, shutdownRecorderModule{name: "user", shutdownLog: &[]string{}, err: userErr}),
+		mustDescribeRuntimeTestModule(module.Spec{ID: "rbac"}, shutdownRecorderModule{name: "rbac", shutdownLog: &[]string{}, err: rbacErr}),
 	}
 
-	err := shutdownPlugins(&module.Context{}, modules)
+	err := shutdownModules(&module.Context{}, modules)
 	if err == nil {
 		t.Fatal("expected shutdown error")
 	}
@@ -119,41 +119,41 @@ func TestShutdownPluginsAggregatesErrors(t *testing.T) {
 	}
 }
 
-type eventBusRecorderPlugin struct {
+type eventBusRecorderModule struct {
 	registerEventBus eventbus.Bus
 	bootEventBus     eventbus.Bus
 }
 
-func (p *eventBusRecorderPlugin) Register(ctx *module.Context) error {
+func (p *eventBusRecorderModule) Register(ctx *module.Context) error {
 	p.registerEventBus = ctx.EventBus
 	return nil
 }
 
-func (p *eventBusRecorderPlugin) Boot(ctx *module.Context) error {
+func (p *eventBusRecorderModule) Boot(ctx *module.Context) error {
 	p.bootEventBus = ctx.EventBus
 	return nil
 }
 
-func (p *eventBusRecorderPlugin) Shutdown(_ *module.Context) error { return nil }
+func (p *eventBusRecorderModule) Shutdown(_ *module.Context) error { return nil }
 
-type lifecycleContextRecorderPlugin struct {
+type lifecycleContextRecorderModule struct {
 	registerLifecycleContext context.Context
 	bootLifecycleContext     context.Context
 	shutdownLifecycleContext context.Context
 	shutdownLifecycleErr     error
 }
 
-func (p *lifecycleContextRecorderPlugin) Register(ctx *module.Context) error {
+func (p *lifecycleContextRecorderModule) Register(ctx *module.Context) error {
 	p.registerLifecycleContext = ctx.LifecycleContext
 	return nil
 }
 
-func (p *lifecycleContextRecorderPlugin) Boot(ctx *module.Context) error {
+func (p *lifecycleContextRecorderModule) Boot(ctx *module.Context) error {
 	p.bootLifecycleContext = ctx.LifecycleContext
 	return nil
 }
 
-func (p *lifecycleContextRecorderPlugin) Shutdown(ctx *module.Context) error {
+func (p *lifecycleContextRecorderModule) Shutdown(ctx *module.Context) error {
 	p.shutdownLifecycleContext = ctx.LifecycleContext
 	if ctx.LifecycleContext != nil {
 		p.shutdownLifecycleErr = ctx.LifecycleContext.Err()
@@ -161,13 +161,13 @@ func (p *lifecycleContextRecorderPlugin) Shutdown(ctx *module.Context) error {
 	return nil
 }
 
-type i18nFreezeRecorderPlugin struct {
+type i18nFreezeRecorderModule struct {
 	registerFrozen  bool
 	bootFrozen      bool
 	bootRegisterErr error
 }
 
-func (p *i18nFreezeRecorderPlugin) Register(ctx *module.Context) error {
+func (p *i18nFreezeRecorderModule) Register(ctx *module.Context) error {
 	p.registerFrozen = ctx.I18n.IsFrozen()
 	return ctx.I18n.RegisterMessages(i18n.Registration{
 		Namespace: "test-plugin",
@@ -178,7 +178,7 @@ func (p *i18nFreezeRecorderPlugin) Register(ctx *module.Context) error {
 	})
 }
 
-func (p *i18nFreezeRecorderPlugin) Boot(ctx *module.Context) error {
+func (p *i18nFreezeRecorderModule) Boot(ctx *module.Context) error {
 	p.bootFrozen = ctx.I18n.IsFrozen()
 	p.bootRegisterErr = ctx.I18n.RegisterMessages(i18n.Registration{
 		Namespace: "test-plugin",
@@ -190,9 +190,9 @@ func (p *i18nFreezeRecorderPlugin) Boot(ctx *module.Context) error {
 	return nil
 }
 
-func (p *i18nFreezeRecorderPlugin) Shutdown(_ *module.Context) error { return nil }
+func (p *i18nFreezeRecorderModule) Shutdown(_ *module.Context) error { return nil }
 
-func mustDescribeRuntimeTestPlugin(spec module.Spec, instance module.Module) module.RuntimeModule {
+func mustDescribeRuntimeTestModule(spec module.Spec, instance module.Module) module.RuntimeModule {
 	builtModule, err := module.Spec{
 		ID:           spec.ID,
 		Dependencies: append([]string(nil), spec.Dependencies...),
@@ -378,9 +378,9 @@ func assertServiceKeyNotRegistered(t *testing.T, resolver container.Resolver, ke
 func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	recorder := &eventBusRecorderPlugin{}
+	recorder := &eventBusRecorderModule{}
 	manager := module.NewManager()
-	if err := manager.RegisterModule(mustDescribeRuntimeTestPlugin(module.Spec{ID: "eventbus-recorder"}, recorder)); err != nil {
+	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "eventbus-recorder"}, recorder)); err != nil {
 		t.Fatalf("register module: %v", err)
 	}
 
@@ -419,9 +419,9 @@ func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
 func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	recorder := &lifecycleContextRecorderPlugin{}
+	recorder := &lifecycleContextRecorderModule{}
 	manager := module.NewManager()
-	if err := manager.RegisterModule(mustDescribeRuntimeTestPlugin(module.Spec{ID: "lifecycle-context-recorder"}, recorder)); err != nil {
+	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "lifecycle-context-recorder"}, recorder)); err != nil {
 		t.Fatalf("register module: %v", err)
 	}
 
@@ -466,9 +466,9 @@ func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
 func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	recorder := &i18nFreezeRecorderPlugin{}
+	recorder := &i18nFreezeRecorderModule{}
 	manager := module.NewManager()
-	if err := manager.RegisterModule(mustDescribeRuntimeTestPlugin(module.Spec{ID: "i18n-freeze-recorder"}, recorder)); err != nil {
+	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "i18n-freeze-recorder"}, recorder)); err != nil {
 		t.Fatalf("register module: %v", err)
 	}
 

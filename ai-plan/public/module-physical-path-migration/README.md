@@ -19,7 +19,7 @@
   - root `AGENTS.md` owns startup governance, authority-first escalation, anti-compatibility, and cross-boundary validation truth
   - `server/AGENTS.md` owns current backend execution truth for historical `plugin/plugins` naming under compile-time module semantics
   - `web/AGENTS.md` confirms frontend remains a downstream consumer of backend/shared authority and must not define alias-based compensation for backend path drift
-  - `ai-plan/design/项目设计.md` and `ai-plan/design/插件与依赖注入设计.md` own the architecture narrative that backend business capability units are canonical `module`s, while current `plugin/plugins` paths are historical naming
+  - `ai-plan/design/项目设计.md` and `ai-plan/design/模块与依赖注入设计.md` own the architecture narrative that backend business capability units are canonical `module`s, while current `plugin/plugins` paths are historical naming
   - `ai-plan/public/module-physical-path-migration/**` owns truthful recovery for this bounded physical rename topic
 
 ## Why This Is A New Topic
@@ -115,7 +115,7 @@ The following authority classes must move with the physical rename; none may be 
   - `server/internal/module/README.md`
   - `server/internal/moduleregistry/README.md`
   - `server/AGENTS.md`
-  - `ai-plan/design/插件与依赖注入设计.md`
+  - `ai-plan/design/模块与依赖注入设计.md`
   - `ai-plan/public/module-physical-path-migration/**`
   - `ai-plan/public/README.md` active-topic summary only
 - validation:

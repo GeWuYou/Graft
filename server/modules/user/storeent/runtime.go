@@ -48,12 +48,12 @@ func NewRuntime(sqlDB *sql.DB, runtimeLogger *zap.Logger) (*Runtime, error) {
 	}, nil
 }
 
-// NewUserRepository builds the plugin-owned user repository from the shared Ent client.
+// NewUserRepository builds the module-owned user repository from the shared Ent client.
 func (r *Runtime) NewUserRepository() (*userRepository, error) {
 	return newUserRepository(r.client)
 }
 
-// NewAuthRepository builds the plugin-owned auth/session repository from the shared Ent client.
+// NewAuthRepository builds the module-owned auth/session repository from the shared Ent client.
 func (r *Runtime) NewAuthRepository() (*authRepository, error) {
 	return newAuthRepository(r.client)
 }

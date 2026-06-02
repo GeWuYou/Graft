@@ -18,7 +18,7 @@
   - `server/internal/logger/**` remains the canonical `App Log` authority
   - `AppLogger` remains the runtime write entry
   - `server/internal/httpx/**` remains the `Access Log` authority and only a boundary reference for this topic
-  - `server/internal/audit/**` + `server/plugins/audit/**` remain the durable `Audit Log` / `Security Event` authority
+  - `server/internal/audit/**` + `server/modules/audit/**` remain the durable `Audit Log` / `Security Event` authority
 
 ## Goal
 

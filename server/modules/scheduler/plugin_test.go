@@ -40,7 +40,7 @@ func (r *stopContextRecorderRuntime) Stop(ctx context.Context) error {
 	return nil
 }
 
-func newPluginTestContext() *module.Context {
+func newModuleTestContext() *module.Context {
 	return &module.Context{
 		Logger:             zap.NewNop(),
 		Config:             &config.Config{},
@@ -55,7 +55,7 @@ func newPluginTestContext() *module.Context {
 
 // TestBootRejectsInvalidJobs 验证 scheduler 插件会在 Boot 阶段拒绝非法任务声明。
 func TestBootRejectsInvalidJobs(t *testing.T) {
-	ctx := newPluginTestContext()
+	ctx := newModuleTestContext()
 	ctx.CronRegistry.Register(cronx.Job{Name: "invalid", Schedule: "*/1 * * * * *"})
 
 	pluginInstance := NewModule()
@@ -72,7 +72,7 @@ func TestBootRejectsInvalidJobs(t *testing.T) {
 // TestBootRegistersJobsAddedAfterRegister 验证 scheduler 插件会在 Boot 阶段读取最终 registry，
 // 而不是在 Register 阶段提前快照。
 func TestBootRegistersJobsAddedAfterRegister(t *testing.T) {
-	ctx := newPluginTestContext()
+	ctx := newModuleTestContext()
 	ctx.CronRegistry.Register(cronx.Job{
 		Name:     "first",
 		Schedule: "*/1 * * * * *",
@@ -115,7 +115,7 @@ func TestBootRegistersJobsAddedAfterRegister(t *testing.T) {
 
 // TestBootRunsRegisteredJobs 验证 scheduler 插件会在 Boot 后驱动 registry 中的任务执行。
 func TestBootRunsRegisteredJobs(t *testing.T) {
-	ctx := newPluginTestContext()
+	ctx := newModuleTestContext()
 	triggered := make(chan struct{}, 1)
 	lifecycleCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -9,7 +9,7 @@ import (
 )
 
 // TestMigrationDirsUsesOwnerAlignedBaseline 验证默认迁移链不再包含历史共享目录，
-// 而是消费 live core-owned + plugin-owned 目录。
+// 而是消费 live core-owned + module-owned 目录。
 func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 	dirs, err := MigrationDirs()
 	if err != nil {

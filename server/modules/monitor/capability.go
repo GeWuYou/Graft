@@ -21,7 +21,7 @@ type incidentEvidenceCapability struct {
 
 func registerIncidentEvidenceCapability(ctx *module.Context, instance *Module) error {
 	if ctx == nil || ctx.Services == nil {
-		return errors.New("plugin context services are unavailable")
+		return errors.New("module context services are unavailable")
 	}
 	if instance == nil {
 		return errors.New("monitor plugin instance is unavailable")
