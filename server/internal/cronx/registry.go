@@ -1,4 +1,4 @@
-// Package cronx 存放插件声明的定时任务元数据，供后续调度器装配使用。
+// Package cronx 存放模块声明的定时任务元数据，供后续调度器装配使用。
 package cronx
 
 import (
@@ -13,11 +13,11 @@ type Job struct {
 	Name string
 	// Schedule 保存面向调度器的 cron 表达式语义，当前阶段仅做声明透传。
 	Schedule string
-	// Plugin 标记任务来源插件，方便在启动失败或停机清理时定位责任边界。
-	Plugin string
+	// Module 标记任务来源模块，方便在启动失败或停机清理时定位责任边界。
+	Module string
 	// Run 是调度器实际调用的执行入口。
 	//
-	// 插件应在 Register 阶段显式提供该函数，而不是在 Boot 阶段隐式拼装
+	// 模块应在 Register 阶段显式提供该函数，而不是在 Boot 阶段隐式拼装
 	// 或依赖全局单例回填执行体。
 	Run func(ctx context.Context) error
 }

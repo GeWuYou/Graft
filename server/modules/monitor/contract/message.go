@@ -1,6 +1,6 @@
 package contract
 
-// MenuMessageKey identifies a stable monitor-plugin menu title message key.
+// MenuMessageKey identifies a stable monitor module menu title message key.
 type MenuMessageKey string
 
 // String returns the canonical menu message key value.

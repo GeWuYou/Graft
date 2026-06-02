@@ -31,7 +31,7 @@ func registerAuditPermissions(registry *permission.Registry, pluginName string) 
 		Name:        "Read Audit Logs",
 		Description: "Allows reading audit-log records and filters.",
 		Category:    "api",
-		Plugin:      pluginName,
+		Module:      pluginName,
 	})
 }
 
@@ -48,7 +48,7 @@ func registerAuditMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "secured",
 		Order:      auditMenuOrderRoot,
 		Permission: "",
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 
 	registry.Register(menu.Item{
@@ -59,7 +59,7 @@ func registerAuditMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "dashboard",
 		Order:      auditMenuOrderOverview,
 		Permission: auditcontract.AuditReadPermission.String(),
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 
 	registry.Register(menu.Item{
@@ -70,7 +70,7 @@ func registerAuditMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "history",
 		Order:      auditMenuOrderLogs,
 		Permission: auditcontract.AuditReadPermission.String(),
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 }
 
@@ -100,7 +100,7 @@ func registerAuditMessages(localizer *i18n.Service) error {
 		},
 	} {
 		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register audit plugin messages: %w", err)
+			return fmt.Errorf("register audit module messages: %w", err)
 		}
 	}
 

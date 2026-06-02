@@ -82,7 +82,7 @@ authority-first overlay：
 
 - 开始写代码前，先判断改动归属：
   - 是 `core runtime`
-  - 还是某个 `plugin`
+  - 还是某个 `module`
   - 还是 `shared-stable-boundary`
 - 归属判断之前，先做 authority discovery，确认当前看到的是 authority 错误还是下游 consumer 偏差
 - 若 owner 无法明确，就先更新治理或设计文档，再写实现
@@ -460,7 +460,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
   - `internal/contract/**`
 - `generated-shared-hotspot`
   - `internal/moduleregistry/generated.go`
-- `plugin-owned`
+- `module-owned`
   - `modules/<name>/**`
 - `core-owned`
   - `internal/app/**`
@@ -508,7 +508,7 @@ overlay 解释：
 
 长期 worktree 的 owned scope 声明至少要回答：
 
-- 该 worktree 拥有哪些 `plugin-owned` 或 `core-owned` 目录
+- 该 worktree 拥有哪些 `module-owned` 或 `core-owned` 目录
 - 允许触碰哪些 `shared-stable-boundary`
 - 是否允许触碰 `generated-shared-hotspot`
 - 遇到 `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/module/**` 这类 core 共享面时，是回到 `main` 治理还是切出单独 core worktree
@@ -535,13 +535,13 @@ shared hotspot 处理规则如下：
 
 切换完成后应收紧职责：
 
-- dedicated worktree 默认只改自己的 `plugin-owned` 或明确声明的 `core-owned` 目录
+- dedicated worktree 默认只改自己的 `module-owned` 或明确声明的 `core-owned` 目录
 - `main` 共享基线只保留共享热点治理、跨 worktree 对齐、topic/worktree 映射与归档调整
 - 如果 dedicated worktree 需要新增共享边界或改变 ownership，先更新治理文档，再扩展代码面
 
 与 `user` / `rbac` 边界直接相关的多工作树规则再补充为：
 
-- `RBAC` worktree 可以修改 `user_roles` 相关的 schema、repository、migration、测试与 plugin-local contract
+- `RBAC` worktree 可以修改 `user_roles` 相关的 schema、repository、migration、测试与 module-local contract
 - `User` worktree 不直接修改 `user_roles`
 - `User` worktree 若需要配合角色分配语义，只能修改 `user` 自有稳定 capability / contract，并通过共享治理文档或共享稳定边界与 `RBAC` worktree 对齐
 
@@ -688,9 +688,9 @@ shared hotspot 处理规则如下：
 
 ### 15.2 选择最小正确验证
 
-- 只改 plugin 内业务逻辑时，优先测受影响 package，并补 `go build ./cmd/graft`
+- 只改 module 内业务逻辑时，优先测受影响 package，并补 `go build ./cmd/graft`
 - 改 `internal/httpx`、`internal/module`、`internal/container`、`internal/app` 等 core 边界时，默认扩大到覆盖相关 `internal/...` 测试
-- 改 schema、migration、store、plugin public contract 时，不要只跑单包 smoke 代替单元或集成验证
+- 改 schema、migration、store、module public contract 时，不要只跑单包 smoke 代替单元或集成验证
 - 只有当任务确实需要证明迁移与运行时启动链条时，才追加 `graft validate smoke`
 
 ### 15.3 不允许的完成态说法
@@ -711,7 +711,7 @@ shared hotspot 处理规则如下：
 - `Owned scope`
   - 本轮确认拥有的目录、文件或共享边界
 - `Boundary decision`
-  - 本轮改动属于 `core runtime`、`plugin-owned` 还是 `shared-stable-boundary`
+  - 本轮改动属于 `core runtime`、`module-owned` 还是 `shared-stable-boundary`
 - `Schema/migration touched`
   - `yes` / `no`
   - 若是 `yes`，补充受影响路径与 owner
@@ -729,14 +729,14 @@ shared hotspot 处理规则如下：
 ```text
 Task class: server
 Owned scope: server/modules/audit/**, server/AGENTS.md
-Boundary decision: plugin-owned audit slice with shared governance doc touch
+Boundary decision: module-owned audit slice with shared governance doc touch
 Schema/migration touched: no
 Validation commands:
 - cd server && go run ./cmd/graft validate backend --stage lint
-- cd server && go test ./plugins/audit/...
+- cd server && go test ./modules/audit/...
 Validation results:
 - lint passed
-- plugin tests passed
+- module tests passed
 Skipped validations and reasons:
 - graft validate smoke not run; this slice does not change runtime startup or migration behavior
 Shared/governance docs touched: yes
@@ -746,7 +746,7 @@ Shared/governance docs touched: yes
 
 后端评审默认优先看这些问题：
 
-- plugin boundary 是否被 core 或其它插件内部实现穿透
+- module boundary 是否被 core 或其它模块内部实现穿透
 - `Register / Boot / Shutdown` 是否混淆
 - `internal/pluginapi`、`internal/contract`、插件 contract 是否出现重复语义
 - 容器是否被当成普通 service locator 滥用

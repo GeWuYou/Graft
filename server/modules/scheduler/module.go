@@ -13,9 +13,9 @@ const (
 
 // Module 是当前 MVP 阶段的最小调度模块。
 //
-// 该插件只负责在所有插件完成 Register 后，把 `cron registry` 中已声明的
+// 该模块只负责在所有模块完成 Register 后，把 `cron registry` 中已声明的
 // 任务装配到运行时调度器，并在 Boot / Shutdown 阶段统一完成“运行启动、
-// 收敛关闭”。若 Boot 阶段任务装配或启动失败，插件不会进入可运行状态；
+// 收敛关闭”。若 Boot 阶段任务装配或启动失败，模块不会进入可运行状态；
 // Shutdown 会把运行时停止错误上抛给调用方，便于宿主决定是否继续整体退出流程。
 type Module struct {
 	runtime schedulercore.Runtime
@@ -26,12 +26,12 @@ func NewModule() *Module {
 	return &Module{}
 }
 
-// Register 保持为空，由 Boot 在所有插件完成声明后统一装配任务。
+// Register 保持为空，由 Boot 在所有模块完成声明后统一装配任务。
 func (p *Module) Register(_ *module.Context) error {
 	return nil
 }
 
-// Boot 在所有插件 Register 完成后装配并启动最小调度器。
+// Boot 在所有模块 Register 完成后装配并启动最小调度器。
 func (p *Module) Boot(ctx *module.Context) error {
 	if ctx == nil || ctx.CronRegistry == nil {
 		return fmt.Errorf("scheduler boot context is required")

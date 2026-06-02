@@ -46,7 +46,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "secured",
 		Order:      accessControlMenuOrderRoot,
 		Permission: "",
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 	registry.Register(menu.Item{
 		Code:       "access-control.overview",
@@ -56,7 +56,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "dashboard",
 		Order:      accessControlMenuOrderOverview,
 		Permission: "",
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 	registry.Register(menu.Item{
 		Code:       "role.list",
@@ -66,7 +66,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "secured",
 		Order:      accessControlMenuOrderRoles,
 		Permission: rbaccontract.RoleReadPermission.String(),
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 	registry.Register(menu.Item{
 		Code:       "permission.list",
@@ -76,7 +76,7 @@ func registerRBACMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "lock-on",
 		Order:      accessControlMenuOrderPermissions,
 		Permission: rbaccontract.PermissionReadPermission.String(),
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 }
 
@@ -87,63 +87,63 @@ func rbacPermissionItems(pluginName string) []permission.Item {
 			Name:        "Read Roles",
 			Description: "Allows reading role management data.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        rbaccontract.RoleCreatePermission.String(),
 			Name:        "Create Roles",
 			Description: "Allows creating role-management data.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        rbaccontract.RoleUpdatePermission.String(),
 			Name:        "Update Roles",
 			Description: "Allows updating role-management data.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        rbaccontract.RoleStatusUpdatePermission.String(),
 			Name:        "Update Role Status",
 			Description: "Allows changing role lifecycle status.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        rbaccontract.RoleDeletePermission.String(),
 			Name:        "Delete Roles",
 			Description: "Allows deleting disabled roles without bindings.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        rbaccontract.RolePermissionAssignPermission.String(),
 			Name:        "Assign Role Permissions",
 			Description: "Allows updating role-permission bindings.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        rbaccontract.PermissionReadPermission.String(),
 			Name:        "Read Permissions",
 			Description: "Allows reading permission management data.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        rbaccontract.UserRoleReadPermission.String(),
 			Name:        "Read User Roles",
 			Description: "Allows reading user-role binding snapshots.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        rbaccontract.UserRoleAssignPermission.String(),
 			Name:        "Assign User Roles",
 			Description: "Allows updating user-role bindings.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 	}
 }

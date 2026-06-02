@@ -61,7 +61,7 @@ HANDLER_BOUNDARY_CHECKS = {
         "rbacopenapi.PostUsersRolesAddJSONRequestBody",
         "rbacopenapi.PostUsersRolesRemoveJSONRequestBody",
     ),
-    "server/modules/monitor/plugin.go": (
+    "server/modules/monitor/module.go": (
         "monitoropenapi.GetMonitorServerStatusParams",
         "generated.ServerStatusResponse",
     ),
@@ -84,7 +84,7 @@ RESPONSE_MAPPER_CHECKS = {
         "generated.PermissionListResponse",
         "generated.UserRoleBindingResponse",
     ),
-    "server/modules/monitor/plugin.go": (
+    "server/modules/monitor/module.go": (
         "generated.ServerStatusResponse",
         "generated.ServerStatusServer",
         "generated.ServerStatusDependencies",
@@ -257,7 +257,7 @@ def audit_httpx_runtime(repo_root: Path, result: AuditResult) -> None:
         "server/modules/user/route_admin_session_handlers.go": ("httpx.WriteSuccess",),
         "server/modules/rbac/route_read_handlers.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError"),
         "server/modules/rbac/route_write_handlers.go": ("httpx.WriteSuccess",),
-        "server/modules/monitor/plugin.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError", "ctx.Router.Group"),
+        "server/modules/monitor/module.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError", "ctx.Router.Group"),
     }
 
     for rel_path, patterns in runtime_checks.items():

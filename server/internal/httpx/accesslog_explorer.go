@@ -25,7 +25,7 @@ const (
 	accessLogMenuListPath   = "/logs/access"
 	accessLogMenuCodeRoot   = "log-center.root"
 	accessLogMenuCodeList   = "access-log.list"
-	accessLogPluginOwner    = "core.httpx"
+	accessLogModuleOwner    = "core.httpx"
 	accessLogRouteGroup     = "/access-log"
 	accessLogRouteItemParam = "id"
 	accessLogMenuRootOrder  = 210
@@ -86,7 +86,7 @@ func registerAccessLogExplorerPermissions(registry *permission.Registry) {
 		Name:        "Read Access Logs",
 		Description: "Allows reading canonical access-log explorer data.",
 		Category:    "api",
-		Plugin:      accessLogPluginOwner,
+		Module:      accessLogModuleOwner,
 	})
 }
 
@@ -103,7 +103,7 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 		Icon:       "bulletpoint",
 		Order:      accessLogMenuRootOrder,
 		Permission: "",
-		Plugin:     accessLogPluginOwner,
+		Module:     accessLogModuleOwner,
 	})
 	registry.Register(menu.Item{
 		Code:       accessLogMenuCodeList,
@@ -113,7 +113,7 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 		Icon:       "search",
 		Order:      accessLogMenuListOrder,
 		Permission: AccessLogReadPermission,
-		Plugin:     accessLogPluginOwner,
+		Module:     accessLogModuleOwner,
 	})
 }
 
@@ -129,7 +129,7 @@ func registerAccessLogExplorerRoutes(
 		return
 	}
 
-	publisher := NewSecurityAuditPublisher(bus, nil, accessLogPluginOwner)
+	publisher := NewSecurityAuditPublisher(bus, nil, accessLogModuleOwner)
 
 	guard := accessLogReadGuard{
 		read: RequirePermission(localizer, authService, authorizer, AccessLogReadPermission, publisher),

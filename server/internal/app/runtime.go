@@ -42,13 +42,13 @@ var defaultRuntimeCoreDeps = runtimeCoreDeps{
 	openRedisClient:        redisx.Open,
 }
 
-// Runtime 持有 MVP 运行时的核心资源与插件生命周期执行入口。
+// Runtime 持有 MVP 运行时的核心资源与模块生命周期执行入口。
 //
-// Runtime 把配置、数据库、Redis、HTTP 服务、注册中心和插件管理器集中
+// Runtime 把配置、数据库、Redis、HTTP 服务、注册中心和模块管理器集中
 // 到一个显式对象中，方便在失败路径和正常关闭路径统一回收资源。
 //
-// Runtime 本身不承载业务能力；它只负责 core 资源装配、插件生命周期编排
-// 和进程级关闭顺序，避免插件把运行时控制逻辑反向塞回 core。
+// Runtime 本身不承载业务能力；它只负责 core 资源装配、模块生命周期编排
+// 和进程级关闭顺序，避免模块把运行时控制逻辑反向塞回 core。
 type Runtime struct {
 	config             *config.Config
 	logger             *zap.Logger
@@ -66,10 +66,10 @@ type Runtime struct {
 	runtimeMetadata    module.RuntimeMetadata
 }
 
-// NewRuntime 使用给定插件构造显式的 MVP 运行时外壳。
+// NewRuntime 使用给定模块构造显式的 MVP 运行时外壳。
 //
 // 参数：
-//   - plugins: 需要接入当前进程的插件集合；这里只注册插件元数据，不执行插件生命周期。
+//   - modules: 需要接入当前进程的模块集合；这里只注册模块元数据，不执行模块生命周期。
 //
 // 返回：
 //   - *Runtime: 已完成 core 资源装配和插件登记的运行时对象。
@@ -105,7 +105,7 @@ func NewRuntime() (*Runtime, error) {
 	orderedDescriptors, err := moduleregistry.OrderedModuleSpecs()
 	if err != nil {
 		_ = runtime.closeCoreResources()
-		return nil, fmt.Errorf("order runtime plugin descriptors: %w", err)
+		return nil, fmt.Errorf("order runtime module descriptors: %w", err)
 	}
 	runtime.runtimeMetadata = module.NewRuntimeMetadata(orderedDescriptors)
 

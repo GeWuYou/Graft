@@ -237,12 +237,12 @@ func newModuleTestContextWithLogger(t *testing.T, repo store.AuditRepository, lo
 		t.Fatalf("register authorizer: %v", err)
 	}
 
-	pluginInstance, err := NewModule(repo)
+	moduleInstance, err := NewModule(repo)
 	if err != nil {
-		t.Fatalf("build audit plugin: %v", err)
+		t.Fatalf("build audit module: %v", err)
 	}
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register audit plugin: %v", err)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register audit module: %v", err)
 	}
 
 	return ctx, engine, bus
@@ -316,12 +316,12 @@ func newModuleTestContextWithDrilldown(
 		t.Fatalf("build drilldown service: %v", err)
 	}
 
-	pluginInstance, err := NewModuleWithDrilldown(repo, drilldownService)
+	moduleInstance, err := NewModuleWithDrilldown(repo, drilldownService)
 	if err != nil {
-		t.Fatalf("build audit plugin with drilldown: %v", err)
+		t.Fatalf("build audit module with drilldown: %v", err)
 	}
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register audit plugin: %v", err)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register audit module: %v", err)
 	}
 
 	return ctx, engine, bus

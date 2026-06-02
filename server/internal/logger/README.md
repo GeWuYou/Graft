@@ -21,7 +21,7 @@
 * App Log Explorer 或查询接口
 * 新增 durable storage、归档或 retention runtime
 * 把日志写入第三方平台
-* 替插件隐藏调用时机
+* 替模块隐藏调用时机
 
 ## 主要入口
 
@@ -34,18 +34,18 @@
 * 由 `server/internal/app` 在 runtime 装配阶段调用
 * 依赖 `server/internal/config` 提供日志级别和环境信息
 * 通过 `server/internal/httpx` 的请求上下文读取相关关联字段
-* 供 core 与插件通过容器或 `plugin.Context` 共享使用
+* 供 core 与模块通过容器或 `module.Context` 共享使用
 
 ## 维护提示
 
 如果后续需要增加日志采样、输出目的地或 trace 关联字段，应继续收敛在
-这个模块中，而不是让插件直接持有不同配置的 Zap 实例。
+这个模块中，而不是让模块直接持有不同配置的 Zap 实例。
 
 ## AppLogger 采用规则
 
 优先使用 `AppLogger` 的场景：
 
-* runtime / plugin 的普通应用运行日志
+* runtime / module 的普通应用运行日志
 * handler / service / job 的失败摘要，但该事件不属于 access / audit / security authority
 * 需要自动继承请求 `request_id` / `trace_id` / `route` / `method` 等关联字段的日志
 * 需要使用统一字段脱敏与消息清洗规则的日志
@@ -67,7 +67,7 @@
 
 示例：
 
-* 推荐：`logger.NewAppLogger(base).Named("plugins.user.route").Error(ctx, "map user response failed", logger.StringField("plugin", "user"), logger.ErrorField(err))`
+* 推荐：`logger.NewAppLogger(base).Named("modules.user.route").Error(ctx, "map user response failed", logger.StringField("plugin", "user"), logger.ErrorField(err))`
 * 例外：`internal/httpx/accesslog.go` 继续直接使用 raw zap 维护 access-log authority
 * 例外：`modules/audit/**` 继续直接使用 raw zap 维护 audit-owned runtime diagnostics
 

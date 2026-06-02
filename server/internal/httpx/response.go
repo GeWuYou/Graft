@@ -21,7 +21,7 @@ const traceIDContextKey = "httpx.trace_id"
 type requestAuditContextKey struct{}
 
 // RequestAuditContext describes the canonical request correlation snapshot that
-// should follow one request through context.Context-based plugin/service calls.
+// should follow one request through context.Context-based module/service calls.
 type RequestAuditContext struct {
 	RequestID string
 	TraceID   string

@@ -1,6 +1,6 @@
 package contract
 
-// PermissionCode identifies a stable monitor-plugin permission contract.
+// PermissionCode identifies a stable monitor module permission contract.
 type PermissionCode string
 
 // String returns the wire-format permission code.
@@ -12,6 +12,6 @@ const (
 	// ServerStatusReadPermission identifies read access to server status data.
 	ServerStatusReadPermission PermissionCode = "monitor.server-status.read"
 
-	// ServerStatusRead is the canonical permission used by monitor-plugin consumers.
+	// ServerStatusRead is the canonical permission used by monitor module consumers.
 	ServerStatusRead PermissionCode = ServerStatusReadPermission
 )

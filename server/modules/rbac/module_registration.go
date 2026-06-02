@@ -29,7 +29,7 @@ func NewModule(repository rbacstore.Repository) *Module {
 	return &Module{repository: repository}
 }
 
-// Register 注册跨插件可复用的授权服务。
+// Register 注册跨模块可复用的授权服务。
 //
 // Register 阶段只做稳定能力暴露与管理只读路由装配，不执行任何后台行为或耗时初始化。
 func (p *Module) Register(ctx *module.Context) error {
@@ -141,7 +141,7 @@ func registerMessages(localizer *i18n.Service) error {
 		},
 	} {
 		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register rbac plugin messages: %w", err)
+			return fmt.Errorf("register rbac module messages: %w", err)
 		}
 	}
 

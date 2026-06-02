@@ -1,7 +1,7 @@
-// Package permission 存放插件声明的后端权限元数据，供后续鉴权装配使用。
+// Package permission 存放模块声明的后端权限元数据，供后续鉴权装配使用。
 package permission
 
-// Item 表示一个由插件声明的权限点。
+// Item 表示一个由模块声明的权限点。
 type Item struct {
 	// Code 是权限点的稳定编码，路由、菜单与鉴权策略都应围绕它对齐。
 	Code        string
@@ -9,8 +9,8 @@ type Item struct {
 	Description string
 	// Category 是权限点的稳定分类元数据，由权限声明侧提供 canonical 真值。
 	Category string
-	// Plugin 标记权限声明来源，便于定位冲突与后续按插件聚合能力。
-	Plugin string
+	// Module 标记权限声明来源，便于定位冲突与后续按模块聚合能力。
+	Module string
 }
 
 // Registry 按注册顺序保存权限声明，供后续鉴权与菜单装配复用。

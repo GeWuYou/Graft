@@ -35,7 +35,7 @@ func registerUserMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "usergroup",
 		Order:      userMenuOrderList,
 		Permission: usercontract.UserReadPermission.String(),
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 }
 
@@ -46,42 +46,42 @@ func userPermissionItems(pluginName string) []permission.Item {
 			Name:        "Read Users",
 			Description: "Allows reading user management data.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        usercontract.UserCreatePermission.String(),
 			Name:        "Create Users",
 			Description: "Allows creating user management data.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        usercontract.UserUpdatePermission.String(),
 			Name:        "Update Users",
 			Description: "Allows updating user management data.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        usercontract.UserDisablePermission.String(),
 			Name:        "Disable Users",
 			Description: "Allows disabling or deleting managed users.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        usercontract.UserSessionRevokePermission.String(),
 			Name:        "Revoke User Sessions",
 			Description: "Allows revoking refresh sessions for a specified user.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 		{
 			Code:        usercontract.UserSessionReadPermission.String(),
 			Name:        "Read User Sessions",
 			Description: "Allows reading active refresh sessions for a specified user.",
 			Category:    "api",
-			Plugin:      pluginName,
+			Module:      pluginName,
 		},
 	}
 }
@@ -108,7 +108,7 @@ func registerMessages(localizer *i18n.Service) error {
 		},
 	} {
 		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register user plugin messages: %w", err)
+			return fmt.Errorf("register user module messages: %w", err)
 		}
 	}
 

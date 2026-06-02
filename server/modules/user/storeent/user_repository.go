@@ -14,7 +14,7 @@ type userRepository struct {
 	client *ent.Client
 }
 
-// NewUserRepository builds the user plugin's Ent-backed user repository.
+// NewUserRepository builds the user module's Ent-backed user repository.
 func NewUserRepository(client *ent.Client) (userstore.UserRepository, error) {
 	return newUserRepository(client)
 }

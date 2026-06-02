@@ -203,7 +203,7 @@ func TestLookupUsesPluginNamespaceAndFallbackMessage(t *testing.T) {
 		FallbackMessage: "用户管理",
 	})
 	if message != "User Management" {
-		t.Fatalf("expected plugin namespace message, got %q", message)
+		t.Fatalf("expected module namespace message, got %q", message)
 	}
 
 	message = service.Lookup(LookupRequest{

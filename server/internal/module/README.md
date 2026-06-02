@@ -7,7 +7,7 @@
 当前 canonical 语义是：
 
 * backend business capability = module
-* `plugin` 只在少量导出接口命名和文件名中保留为历史称呼
+* `plugin` 只在少量导出接口命名中保留为历史称呼
 
 ## 职责边界
 
@@ -27,7 +27,7 @@
 ## 主要入口
 
 * `doc.go`：包职责与边界说明
-* `plugin.go`：历史文件名下的模块生命周期接口、`Spec`、`Builder`、上下文与管理器实现
+* `module.go`：模块生命周期接口、`Spec`、`Builder`、上下文与管理器实现
 
 ## 关键依赖
 

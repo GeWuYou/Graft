@@ -23,7 +23,7 @@
 
 * `registry.go`：描述符快照、运行时模块构造与默认迁移目录汇总
 * `generated.go`：由 `go generate ./internal/moduleregistry` 生成的唯一集中接线产物
-* `cmd/pluginregistrygen/main.go`：生成器实现
+* `cmd/moduleregistrygen/main.go`：生成器实现
 
 ## 迁移目录语义
 

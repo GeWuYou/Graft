@@ -53,23 +53,23 @@ func newModuleTestContext() *module.Context {
 	}
 }
 
-// TestBootRejectsInvalidJobs 验证 scheduler 插件会在 Boot 阶段拒绝非法任务声明。
+// TestBootRejectsInvalidJobs 验证 scheduler 模块会在 Boot 阶段拒绝非法任务声明。
 func TestBootRejectsInvalidJobs(t *testing.T) {
 	ctx := newModuleTestContext()
 	ctx.CronRegistry.Register(cronx.Job{Name: "invalid", Schedule: "*/1 * * * * *"})
 
-	pluginInstance := NewModule()
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register plugin: %v", err)
+	moduleInstance := NewModule()
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
 	}
 
-	err := pluginInstance.Boot(&module.Context{LifecycleContext: context.Background(), CronRegistry: ctx.CronRegistry, Logger: ctx.Logger})
+	err := moduleInstance.Boot(&module.Context{LifecycleContext: context.Background(), CronRegistry: ctx.CronRegistry, Logger: ctx.Logger})
 	if err == nil {
 		t.Fatal("expected invalid job boot to fail")
 	}
 }
 
-// TestBootRegistersJobsAddedAfterRegister 验证 scheduler 插件会在 Boot 阶段读取最终 registry，
+// TestBootRegistersJobsAddedAfterRegister 验证 scheduler 模块会在 Boot 阶段读取最终 registry，
 // 而不是在 Register 阶段提前快照。
 func TestBootRegistersJobsAddedAfterRegister(t *testing.T) {
 	ctx := newModuleTestContext()
@@ -81,11 +81,11 @@ func TestBootRegistersJobsAddedAfterRegister(t *testing.T) {
 
 	lifecycleCtx := context.Background()
 	runtimeRecorder := &stopContextRecorderRuntime{}
-	pluginInstance := NewModule()
-	pluginInstance.runtime = runtimeRecorder
+	moduleInstance := NewModule()
+	moduleInstance.runtime = runtimeRecorder
 
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register plugin: %v", err)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
 	}
 
 	ctx.CronRegistry.Register(cronx.Job{
@@ -94,12 +94,12 @@ func TestBootRegistersJobsAddedAfterRegister(t *testing.T) {
 		Run:      func(context.Context) error { return nil },
 	})
 
-	if err := pluginInstance.Boot(&module.Context{
+	if err := moduleInstance.Boot(&module.Context{
 		LifecycleContext: lifecycleCtx,
 		Logger:           ctx.Logger,
 		CronRegistry:     ctx.CronRegistry,
 	}); err != nil {
-		t.Fatalf("boot plugin: %v", err)
+		t.Fatalf("boot module: %v", err)
 	}
 
 	if len(runtimeRecorder.registeredJobs) != 2 {
@@ -113,7 +113,7 @@ func TestBootRegistersJobsAddedAfterRegister(t *testing.T) {
 	}
 }
 
-// TestBootRunsRegisteredJobs 验证 scheduler 插件会在 Boot 后驱动 registry 中的任务执行。
+// TestBootRunsRegisteredJobs 验证 scheduler 模块会在 Boot 后驱动 registry 中的任务执行。
 func TestBootRunsRegisteredJobs(t *testing.T) {
 	ctx := newModuleTestContext()
 	triggered := make(chan struct{}, 1)
@@ -122,7 +122,7 @@ func TestBootRunsRegisteredJobs(t *testing.T) {
 	ctx.CronRegistry.Register(cronx.Job{
 		Name:     "heartbeat",
 		Schedule: "*/1 * * * * *",
-		Plugin:   "test",
+		Module:   "test",
 		Run: func(context.Context) error {
 			select {
 			case triggered <- struct{}{}:
@@ -132,16 +132,16 @@ func TestBootRunsRegisteredJobs(t *testing.T) {
 		},
 	})
 
-	pluginInstance := NewModule()
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register plugin: %v", err)
+	moduleInstance := NewModule()
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
 	}
 	ctx.LifecycleContext = lifecycleCtx
-	if err := pluginInstance.Boot(ctx); err != nil {
-		t.Fatalf("boot plugin: %v", err)
+	if err := moduleInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot module: %v", err)
 	}
 	defer func() {
-		_ = pluginInstance.Shutdown(ctx)
+		_ = moduleInstance.Shutdown(ctx)
 	}()
 
 	select {
@@ -151,18 +151,18 @@ func TestBootRunsRegisteredJobs(t *testing.T) {
 	}
 }
 
-// TestShutdownUsesLifecycleContext 验证 scheduler 插件会把生命周期关闭上下文
+// TestShutdownUsesLifecycleContext 验证 scheduler 模块会把生命周期关闭上下文
 // 传递给底层 runtime，而不是回退到脱离宿主约束的全新 Background。
 func TestShutdownUsesLifecycleContext(t *testing.T) {
 	lifecycleCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	runtimeRecorder := &stopContextRecorderRuntime{}
-	pluginInstance := NewModule()
-	pluginInstance.runtime = runtimeRecorder
+	moduleInstance := NewModule()
+	moduleInstance.runtime = runtimeRecorder
 
-	if err := pluginInstance.Shutdown(&module.Context{LifecycleContext: lifecycleCtx}); err != nil {
-		t.Fatalf("shutdown plugin: %v", err)
+	if err := moduleInstance.Shutdown(&module.Context{LifecycleContext: lifecycleCtx}); err != nil {
+		t.Fatalf("shutdown module: %v", err)
 	}
 	if runtimeRecorder.stopCtx != lifecycleCtx {
 		t.Fatal("expected scheduler shutdown to forward lifecycle context")

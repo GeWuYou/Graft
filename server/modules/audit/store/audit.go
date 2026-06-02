@@ -21,7 +21,7 @@ const (
 	AuditSourceRequest AuditSource = "REQUEST"
 	// AuditSourceSecurityEvent marks auth/authz security-event candidates.
 	AuditSourceSecurityEvent AuditSource = "SECURITY_EVENT"
-	// AuditSourceDomainEvent marks plugin-published business events.
+	// AuditSourceDomainEvent marks module-published business events.
 	AuditSourceDomainEvent AuditSource = "DOMAIN_EVENT"
 )
 
@@ -93,7 +93,7 @@ const (
 	AuditBusinessCategoryCriticalSecurity AuditBusinessCategory = "critical_security"
 )
 
-// AuditLog is the audit plugin's stable DTO for a persisted audit record.
+// AuditLog is the audit module's stable DTO for a persisted audit record.
 type AuditLog struct {
 	ID               uint64
 	Source           AuditSource
@@ -203,7 +203,7 @@ type AuditPolicyDecision struct {
 	Rule    *AuditPolicyRule
 }
 
-// ListAuditLogsQuery describes the audit plugin's stable repository-side query contract.
+// ListAuditLogsQuery describes the audit module's stable repository-side query contract.
 type ListAuditLogsQuery struct {
 	ActorUserID         *uint64
 	Keyword             string
@@ -431,7 +431,7 @@ type EvidenceLink struct {
 	IncidentSeed *IncidentSeedLink
 }
 
-// AuditIncident is the canonical incident drilldown payload owned by the audit plugin.
+// AuditIncident is the canonical incident drilldown payload owned by the audit module.
 type AuditIncident struct {
 	SeedEvent        AuditLog
 	Incident         AuditIncidentSummary
@@ -442,7 +442,7 @@ type AuditIncident struct {
 	MonitorContext   AuditIncidentMonitorContext
 }
 
-// AuditRepository exposes the audit plugin's persistence contract.
+// AuditRepository exposes the audit module's persistence contract.
 type AuditRepository interface {
 	CreateAuditLog(ctx context.Context, input CreateAuditLogInput) (AuditLog, error)
 	ListAuditLogs(ctx context.Context, query ListAuditLogsQuery) (ListAuditLogsResult, error)

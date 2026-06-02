@@ -11,15 +11,15 @@ import (
 	ent "graft/server/modules/user/ent"
 )
 
-// Runtime owns the user plugin's shared Ent client wiring for one process.
+// Runtime owns the user module's shared Ent client wiring for one process.
 //
 // The client reuses the core-owned *sql.DB pool. Core keeps ownership of closing
-// that pool, so this runtime only builds the plugin-local Ent surface.
+// that pool, so this runtime only builds the module-local Ent surface.
 type Runtime struct {
 	client *ent.Client
 }
 
-// NewRuntime builds the user plugin's Ent runtime on top of the shared SQL pool.
+// NewRuntime builds the user module's Ent runtime on top of the shared SQL pool.
 func NewRuntime(sqlDB *sql.DB, runtimeLogger *zap.Logger) (*Runtime, error) {
 	if sqlDB == nil {
 		return nil, fmt.Errorf("user storeent runtime requires a non-nil sql db")

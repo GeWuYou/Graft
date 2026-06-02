@@ -1,2 +1,2 @@
-// Package contract defines stable user-plugin contract values for routes and permissions.
+// Package contract defines stable user module contract values for routes and permissions.
 package contract

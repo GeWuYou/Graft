@@ -13,11 +13,11 @@ type Item struct {
 	Order int
 	// Permission 记录访问该菜单所需的后端权限编码；留空表示暂不做权限门控。
 	Permission string
-	// Plugin 标记菜单归属的插件，便于启动诊断与后续按插件裁剪导航。
-	Plugin string
+	// Module 标记菜单归属的模块，便于启动诊断与后续按模块裁剪导航。
+	Module string
 }
 
-// Registry 按注册顺序保存菜单声明，保证插件装配结果稳定可预期。
+// Registry 按注册顺序保存菜单声明，保证模块装配结果稳定可预期。
 type Registry struct {
 	items []Item
 }
@@ -37,7 +37,7 @@ func (r *Registry) Register(item Item) {
 
 // Items 返回当前已注册菜单集合的副本。
 //
-// 返回顺序与插件注册顺序一致，便于上层在生成导航时保持稳定输出。
+// 返回顺序与模块注册顺序一致，便于上层在生成导航时保持稳定输出。
 func (r *Registry) Items() []Item {
 	items := make([]Item, len(r.items))
 	copy(items, r.items)

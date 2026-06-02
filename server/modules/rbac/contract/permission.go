@@ -1,6 +1,6 @@
 package contract
 
-// PermissionCode identifies a stable rbac-plugin permission contract.
+// PermissionCode identifies a stable rbac module permission contract.
 type PermissionCode string
 
 // String returns the wire-format permission code.
@@ -28,22 +28,22 @@ const (
 	// UserRoleAssignPermission identifies write access to user-role bindings.
 	UserRoleAssignPermission PermissionCode = "user.role.assign"
 
-	// RoleRead is the canonical permission used by rbac-plugin consumers.
+	// RoleRead is the canonical permission used by rbac module consumers.
 	RoleRead PermissionCode = RoleReadPermission
-	// RoleCreate is the canonical permission used by rbac-plugin consumers.
+	// RoleCreate is the canonical permission used by rbac module consumers.
 	RoleCreate PermissionCode = RoleCreatePermission
-	// RoleUpdate is the canonical permission used by rbac-plugin consumers.
+	// RoleUpdate is the canonical permission used by rbac module consumers.
 	RoleUpdate PermissionCode = RoleUpdatePermission
-	// RoleStatusUpdate is the canonical permission used by rbac-plugin consumers.
+	// RoleStatusUpdate is the canonical permission used by rbac module consumers.
 	RoleStatusUpdate PermissionCode = RoleStatusUpdatePermission
-	// RoleDelete is the canonical permission used by rbac-plugin consumers.
+	// RoleDelete is the canonical permission used by rbac module consumers.
 	RoleDelete PermissionCode = RoleDeletePermission
-	// RolePermissionAssign is the canonical permission used by rbac-plugin consumers.
+	// RolePermissionAssign is the canonical permission used by rbac module consumers.
 	RolePermissionAssign PermissionCode = RolePermissionAssignPermission
-	// PermissionRead is the canonical permission used by rbac-plugin consumers.
+	// PermissionRead is the canonical permission used by rbac module consumers.
 	PermissionRead PermissionCode = PermissionReadPermission
-	// UserRoleRead is the canonical permission used by rbac-plugin consumers.
+	// UserRoleRead is the canonical permission used by rbac module consumers.
 	UserRoleRead PermissionCode = UserRoleReadPermission
-	// UserRoleAssign is the canonical permission used by rbac-plugin consumers.
+	// UserRoleAssign is the canonical permission used by rbac module consumers.
 	UserRoleAssign PermissionCode = UserRoleAssignPermission
 )

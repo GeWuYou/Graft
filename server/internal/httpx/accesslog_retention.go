@@ -14,7 +14,7 @@ import (
 
 const (
 	accessLogRetentionCleanupJobName     = "httpx.access-log-retention-cleanup"
-	accessLogRetentionCleanupJobPlugin   = "core.httpx"
+	accessLogRetentionCleanupJobModule   = "core.httpx"
 	accessLogRetentionCleanupJobSchedule = "0 0 17 * * *"
 )
 
@@ -142,7 +142,7 @@ func RegisterAccessLogRetentionCleanupJob(
 	registry.Register(cronx.Job{
 		Name:     accessLogRetentionCleanupJobName,
 		Schedule: accessLogRetentionCleanupJobSchedule,
-		Plugin:   accessLogRetentionCleanupJobPlugin,
+		Module:   accessLogRetentionCleanupJobModule,
 		Run: func(ctx context.Context) error {
 			_, runErr := cleaner.cleanup(ctx)
 			return runErr

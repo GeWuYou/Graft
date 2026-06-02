@@ -19,7 +19,7 @@ type authRepository struct {
 	client *ent.Client
 }
 
-// NewAuthRepository builds the auth plugin's Ent-backed auth/session repository.
+// NewAuthRepository builds the auth module's Ent-backed auth/session repository.
 func NewAuthRepository(client *ent.Client) (authstore.AuthRepository, error) {
 	return newAuthRepository(client)
 }

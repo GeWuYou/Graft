@@ -6,24 +6,23 @@ import (
 	"testing"
 )
 
-type testPlugin struct {
-}
+type testModule struct{}
 
-func (p testPlugin) Register(_ *Context) error { return nil }
+func (m testModule) Register(_ *Context) error { return nil }
 
-func (p testPlugin) Boot(_ *Context) error { return nil }
+func (m testModule) Boot(_ *Context) error { return nil }
 
-func (p testPlugin) Shutdown(_ *Context) error { return nil }
+func (m testModule) Shutdown(_ *Context) error { return nil }
 
-// TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak 验证同一批插件在
+// TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak 验证同一批模块在
 // 不同注册顺序下仍会按依赖和字母序得到稳定的运行时顺序。
 func TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak(t *testing.T) {
 	manager := NewManager()
 	input := []RuntimeModule{
-		NewModule(Spec{ID: "user"}, testPlugin{}),
-		NewModule(Spec{ID: "scheduler"}, testPlugin{}),
-		NewModule(Spec{ID: "rbac", Dependencies: []string{"user"}}, testPlugin{}),
-		NewModule(Spec{ID: "audit"}, testPlugin{}),
+		NewModule(Spec{ID: "user"}, testModule{}),
+		NewModule(Spec{ID: "scheduler"}, testModule{}),
+		NewModule(Spec{ID: "rbac", Dependencies: []string{"user"}}, testModule{}),
+		NewModule(Spec{ID: "audit"}, testModule{}),
 	}
 
 	for _, current := range input {
@@ -34,7 +33,7 @@ func TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak(t *testing.T) 
 
 	ordered, err := manager.Ordered()
 	if err != nil {
-		t.Fatalf("order plugins: %v", err)
+		t.Fatalf("order modules: %v", err)
 	}
 
 	got := make([]string, 0, len(ordered))
@@ -51,7 +50,7 @@ func TestManagerOrderedUsesDependencyOrderAndAlphabeticalTieBreak(t *testing.T) 
 // TestManagerOrderedRejectsMissingDependency 验证缺失依赖会在排序阶段直接阻断。
 func TestManagerOrderedRejectsMissingDependency(t *testing.T) {
 	manager := NewManager()
-	if err := manager.RegisterModule(NewModule(Spec{ID: "rbac", Dependencies: []string{"user"}}, testPlugin{})); err != nil {
+	if err := manager.RegisterModule(NewModule(Spec{ID: "rbac", Dependencies: []string{"user"}}, testModule{})); err != nil {
 		t.Fatalf("register module: %v", err)
 	}
 
@@ -68,8 +67,8 @@ func TestManagerOrderedRejectsMissingDependency(t *testing.T) {
 func TestManagerOrderedRejectsDependencyCycle(t *testing.T) {
 	manager := NewManager()
 	for _, current := range []RuntimeModule{
-		NewModule(Spec{ID: "user", Dependencies: []string{"rbac"}}, testPlugin{}),
-		NewModule(Spec{ID: "rbac", Dependencies: []string{"user"}}, testPlugin{}),
+		NewModule(Spec{ID: "user", Dependencies: []string{"rbac"}}, testModule{}),
+		NewModule(Spec{ID: "rbac", Dependencies: []string{"user"}}, testModule{}),
 	} {
 		if err := manager.RegisterModule(current); err != nil {
 			t.Fatalf("register module %s: %v", current.Name(), err)
@@ -89,16 +88,16 @@ func TestManagerOrderedRejectsDependencyCycle(t *testing.T) {
 func TestOrderSpecsIsIndependentFromInputOrder(t *testing.T) {
 	input := []Spec{
 		{ID: "scheduler", Builder: BuilderFunc(func(BuildContext) (Module, error) {
-			return testPlugin{}, nil
+			return testModule{}, nil
 		})},
 		{ID: "rbac", Dependencies: []string{"user"}, Builder: BuilderFunc(func(BuildContext) (Module, error) {
-			return testPlugin{}, nil
+			return testModule{}, nil
 		})},
 		{ID: "audit", Builder: BuilderFunc(func(BuildContext) (Module, error) {
-			return testPlugin{}, nil
+			return testModule{}, nil
 		})},
 		{ID: "user", Builder: BuilderFunc(func(BuildContext) (Module, error) {
-			return testPlugin{}, nil
+			return testModule{}, nil
 		})},
 	}
 
@@ -125,7 +124,7 @@ func TestSpecBuildWrapsCanonicalMetadata(t *testing.T) {
 		ID:           "rbac",
 		Dependencies: []string{"user"},
 		Builder: BuilderFunc(func(BuildContext) (Module, error) {
-			return testPlugin{}, nil
+			return testModule{}, nil
 		}),
 	}
 

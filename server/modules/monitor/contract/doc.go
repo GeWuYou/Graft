@@ -1,2 +1,2 @@
-// Package contract defines stable monitor-plugin contract values.
+// Package contract defines stable monitor module contract values.
 package contract

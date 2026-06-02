@@ -1,2 +1,2 @@
-// Package monitor implements the minimal monitor plugin.
+// Package monitor implements the minimal monitor module.
 package monitor

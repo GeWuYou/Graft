@@ -1,2 +1,2 @@
-// Package contract defines stable audit-plugin contract values.
+// Package contract defines stable audit module contract values.
 package contract

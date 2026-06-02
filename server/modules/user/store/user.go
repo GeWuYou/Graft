@@ -17,7 +17,7 @@ var (
 	ErrUsernameConflict = errors.New("username already exists")
 )
 
-// User is the stable user DTO visible inside the user plugin.
+// User is the stable user DTO visible inside the user module.
 type User struct {
 	ID        uint64
 	Username  string
@@ -59,7 +59,7 @@ type DeleteUserInput struct {
 	ActorID   uint64
 }
 
-// UserRepository exposes the user plugin's private user read contract.
+// UserRepository exposes the user module's private user read contract.
 type UserRepository interface {
 	GetByID(ctx context.Context, id uint64) (User, error)
 	List(ctx context.Context) ([]User, error)

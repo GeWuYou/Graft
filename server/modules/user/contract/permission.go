@@ -1,7 +1,7 @@
-// Package contract defines stable user-plugin contract values.
+// Package contract defines stable user module contract values.
 package contract
 
-// PermissionCode identifies a stable user-plugin permission contract.
+// PermissionCode identifies a stable user module permission contract.
 type PermissionCode string
 
 // String returns the wire-format permission code.
@@ -28,21 +28,21 @@ const (
 	// UserSessionRevokePermission identifies revoke access to refresh-session state.
 	UserSessionRevokePermission PermissionCode = "user.session.revoke"
 
-	// UserRead is the canonical permission used by user-plugin consumers.
+	// UserRead is the canonical permission used by user module consumers.
 	UserRead PermissionCode = UserReadPermission
 
-	// UserCreate is the canonical permission used by user-plugin consumers.
+	// UserCreate is the canonical permission used by user module consumers.
 	UserCreate PermissionCode = UserCreatePermission
 
-	// UserUpdate is the canonical permission used by user-plugin consumers.
+	// UserUpdate is the canonical permission used by user module consumers.
 	UserUpdate PermissionCode = UserUpdatePermission
 
-	// UserDisable is the canonical permission used by user-plugin consumers.
+	// UserDisable is the canonical permission used by user module consumers.
 	UserDisable PermissionCode = UserDisablePermission
 
-	// UserSessionRead is the canonical permission used by user-plugin consumers.
+	// UserSessionRead is the canonical permission used by user module consumers.
 	UserSessionRead PermissionCode = UserSessionReadPermission
 
-	// UserSessionRevoke is the canonical permission used by user-plugin consumers.
+	// UserSessionRevoke is the canonical permission used by user module consumers.
 	UserSessionRevoke PermissionCode = UserSessionRevokePermission
 )

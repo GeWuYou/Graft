@@ -17,4 +17,4 @@
 ## 维护提示
 
 如需扩展跨插件可见的数据访问能力，先确认 `ai-plan/design/插件与依赖注入设计.md` 与
-`server/AGENTS.md` 中关于 plugin-local persistence 的约束，再决定是否允许新增 shared 契约。
+`server/AGENTS.md` 中关于 module-local persistence 的约束，再决定是否允许新增 shared 契约。

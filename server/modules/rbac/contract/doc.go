@@ -1,2 +1,2 @@
-// Package contract defines stable rbac-plugin contract values.
+// Package contract defines stable rbac module contract values.
 package contract

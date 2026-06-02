@@ -189,7 +189,7 @@ func registerMessages(localizer *i18n.Service) error {
 		},
 	} {
 		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register monitor plugin messages: %w", err)
+			return fmt.Errorf("register monitor module messages: %w", err)
 		}
 	}
 
@@ -261,7 +261,7 @@ func registerMonitorPermissions(registry *permission.Registry, pluginName string
 		Name:        "Read Server Status",
 		Description: "Allows reading the server status overview.",
 		Category:    "api",
-		Plugin:      pluginName,
+		Module:      pluginName,
 	})
 }
 
@@ -285,7 +285,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "server",
 		Order:      monitorMenuOrderRoot,
 		Permission: "",
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 
 	registry.Register(menu.Item{
@@ -296,7 +296,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "dashboard",
 		Order:      monitorMenuOrderOverview,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 
 	registry.Register(menu.Item{
@@ -307,7 +307,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "time",
 		Order:      monitorMenuOrderRuntime,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 
 	registry.Register(menu.Item{
@@ -318,7 +318,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "data-base",
 		Order:      monitorMenuOrderDependencies,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
-		Plugin:     pluginName,
+		Module:     pluginName,
 	})
 }
 

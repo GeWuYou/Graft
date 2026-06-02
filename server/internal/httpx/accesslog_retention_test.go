@@ -164,8 +164,8 @@ func TestRegisterAccessLogRetentionCleanupJob(t *testing.T) {
 	if items[0].Name != accessLogRetentionCleanupJobName {
 		t.Fatalf("expected job name %q, got %q", accessLogRetentionCleanupJobName, items[0].Name)
 	}
-	if items[0].Plugin != accessLogRetentionCleanupJobPlugin {
-		t.Fatalf("expected job plugin %q, got %q", accessLogRetentionCleanupJobPlugin, items[0].Plugin)
+	if items[0].Module != accessLogRetentionCleanupJobModule {
+		t.Fatalf("expected job module %q, got %q", accessLogRetentionCleanupJobModule, items[0].Module)
 	}
 	if items[0].Schedule != accessLogRetentionCleanupJobSchedule {
 		t.Fatalf("expected job schedule %q, got %q", accessLogRetentionCleanupJobSchedule, items[0].Schedule)

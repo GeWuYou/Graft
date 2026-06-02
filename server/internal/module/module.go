@@ -100,11 +100,10 @@ func ResolveService[T any](resolver container.Resolver, key any) (T, error) {
 	return resolved, nil
 }
 
-// Spec 定义历史命名下的 compile-time 模块元数据与运行时构造入口。
+// Spec 定义 compile-time 模块元数据与运行时构造入口。
 //
 // Spec 是生成式 module registry 的稳定输入。它收敛模块名、版本、
-// 依赖与迁移目录等
-// 最小元数据，并把真正的运行时实例化动作交给 Builder。
+// 依赖与迁移目录等最小元数据，并把真正的运行时实例化动作交给 Builder。
 type Spec struct {
 	ID            string
 	Dependencies  []string
@@ -238,163 +237,189 @@ func (m *Manager) RegisterModule(current RuntimeModule) error {
 // 排序失败时会返回缺失依赖或依赖环错误，调用方不应在错误场景下继续
 // 执行模块生命周期。
 func (m *Manager) Ordered() ([]RuntimeModule, error) {
-	return orderByDependencies(m.modules)
+	ordered, err := orderRuntimeModules(m.modules)
+	if err != nil {
+		return nil, err
+	}
+
+	cloned := make([]RuntimeModule, len(ordered))
+	copy(cloned, ordered)
+	return cloned, nil
 }
 
-// OrderSpecs 按依赖关系返回稳定的模块定义顺序。
+// OrderSpecs 按模块依赖关系返回稳定排序后的模块定义集合。
 //
-// 它复用与运行时模块相同的拓扑排序规则，使 compile-time registry 和
-// runtime lifecycle 使用同一套依赖真相，而不是各自维护第二份排序逻辑。
-func OrderSpecs(descriptors []Spec) ([]Spec, error) {
-	return orderByDependencies(descriptors)
-}
-
-type describedModule struct {
-	moduleSpec Spec
-	delegate   Module
-}
-
-func (p describedModule) Name() string {
-	return p.moduleSpec.Name()
-}
-
-func (p describedModule) DependsOn() []string {
-	return p.moduleSpec.DependsOn()
-}
-
-func (p describedModule) Register(ctx *Context) error {
-	return p.delegate.Register(ctx)
-}
-
-func (p describedModule) Boot(ctx *Context) error {
-	return p.delegate.Boot(ctx)
-}
-
-func (p describedModule) Shutdown(ctx *Context) error {
-	return p.delegate.Shutdown(ctx)
-}
-
-type dependencyTarget interface {
-	Name() string
-	DependsOn() []string
-}
-
-func orderByDependencies[T dependencyTarget](items []T) ([]T, error) {
-	total := len(items)
-	if total == 0 {
-		return nil, nil
-	}
-
-	index, inDegree, err := buildDependencyIndex(items)
-	if err != nil {
-		return nil, err
-	}
-	edges, err := buildDependencyEdges(items, index, inDegree)
-	if err != nil {
-		return nil, err
-	}
-
-	return resolveDependencyOrder(index, inDegree, edges, total)
-}
-
-func buildDependencyIndex[T dependencyTarget](items []T) (map[string]T, map[string]int, error) {
-	index := make(map[string]T, len(items))
-	inDegree := make(map[string]int, len(items))
-	for _, item := range items {
-		name := strings.TrimSpace(item.Name())
-		if name == "" {
-			return nil, nil, errors.New("module name is required")
-		}
-		if _, exists := index[name]; exists {
-			return nil, nil, fmt.Errorf("module already registered: %s", name)
-		}
-
-		index[name] = item
-		inDegree[name] = 0
-	}
-
-	return index, inDegree, nil
-}
-
-func buildDependencyEdges[T dependencyTarget](items []T, index map[string]T, inDegree map[string]int) (map[string][]string, error) {
-	edges := make(map[string][]string, len(items))
-	for _, item := range items {
-		name := strings.TrimSpace(item.Name())
-		dependencies, err := normalizeDependencies(name, item.DependsOn())
-		if err != nil {
+// 这条排序规则既服务于 compile-time generated registry，也服务于后续
+// migration 目录展开，避免不同调用方各自维护第二份模块顺序语义。
+func OrderSpecs(specs []Spec) ([]Spec, error) {
+	normalized := make([]Spec, 0, len(specs))
+	for _, spec := range specs {
+		cloned := spec
+		cloned.Dependencies = append([]string(nil), spec.Dependencies...)
+		cloned.MigrationPath = append([]string(nil), spec.MigrationPath...)
+		if err := cloned.Validate(); err != nil {
 			return nil, err
 		}
 
-		for _, dependency := range dependencies {
-			if _, ok := index[dependency]; !ok {
-				return nil, fmt.Errorf("module %s depends on missing module %s", name, dependency)
-			}
-
-			edges[dependency] = append(edges[dependency], name)
-			inDegree[name]++
-		}
+		normalized = append(normalized, cloned)
 	}
 
-	return edges, nil
+	orderedNames, err := orderByDependencies(specNames(normalized), func(name string) ([]string, error) {
+		for _, spec := range normalized {
+			if spec.Name() == name {
+				return normalizeDependencies(spec.Name(), spec.DependsOn())
+			}
+		}
+
+		return nil, fmt.Errorf("module %s not found", name)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	index := make(map[string]Spec, len(normalized))
+	for _, spec := range normalized {
+		index[spec.Name()] = spec
+	}
+
+	ordered := make([]Spec, 0, len(orderedNames))
+	for _, name := range orderedNames {
+		ordered = append(ordered, index[name])
+	}
+
+	return ordered, nil
 }
 
-func resolveDependencyOrder[T dependencyTarget](index map[string]T, inDegree map[string]int, edges map[string][]string, total int) ([]T, error) {
-	queue := make([]string, 0, total)
-	for name, degree := range inDegree {
-		if degree == 0 {
-			queue = append(queue, name)
+func orderRuntimeModules(modules []RuntimeModule) ([]RuntimeModule, error) {
+	index := make(map[string]RuntimeModule, len(modules))
+	names := make([]string, 0, len(modules))
+	for _, current := range modules {
+		if current == nil {
+			return nil, errors.New("module is required")
 		}
+
+		name := strings.TrimSpace(current.Name())
+		if name == "" {
+			return nil, errors.New("module name is required")
+		}
+		if _, exists := index[name]; exists {
+			return nil, fmt.Errorf("module already registered: %s", name)
+		}
+
+		index[name] = current
+		names = append(names, name)
 	}
 
-	sort.Strings(queue)
-	ordered := make([]T, 0, total)
-	for len(queue) > 0 {
-		name := queue[0]
-		queue = queue[1:]
-		ordered = append(ordered, index[name])
+	orderedNames, err := orderByDependencies(names, func(name string) ([]string, error) {
+		current := index[name]
+		return normalizeDependencies(name, current.DependsOn())
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		for _, next := range edges[name] {
-			inDegree[next]--
-			if inDegree[next] == 0 {
-				queue = append(queue, next)
-				sort.Strings(queue)
+	ordered := make([]RuntimeModule, 0, len(orderedNames))
+	for _, name := range orderedNames {
+		ordered = append(ordered, index[name])
+	}
+
+	return ordered, nil
+}
+
+func orderByDependencies(names []string, resolveDeps func(name string) ([]string, error)) ([]string, error) {
+	sortedNames := append([]string(nil), names...)
+	sort.Strings(sortedNames)
+
+	inDegree, reverseEdges, err := buildDependencyGraph(sortedNames, resolveDeps)
+	if err != nil {
+		return nil, err
+	}
+
+	ready := zeroInDegreeNames(sortedNames, inDegree)
+
+	ordered := make([]string, 0, len(sortedNames))
+	for len(ready) > 0 {
+		current := ready[0]
+		ready = ready[1:]
+		ordered = append(ordered, current)
+
+		dependents := reverseEdges[current]
+		sort.Strings(dependents)
+		for _, dependent := range dependents {
+			inDegree[dependent]--
+			if inDegree[dependent] == 0 {
+				ready = append(ready, dependent)
 			}
 		}
+		sort.Strings(ready)
 	}
 
-	if len(ordered) != total {
+	if len(ordered) != len(sortedNames) {
 		return nil, errors.New("module dependency cycle detected")
 	}
 
 	return ordered, nil
 }
 
-func normalizeDependencies(moduleName string, dependencies []string) ([]string, error) {
-	normalized := trimStringsPreserveDuplicates(dependencies)
-	seen := make(map[string]struct{}, len(normalized))
-	for _, dependency := range normalized {
-		if dependency == "" {
-			return nil, fmt.Errorf("module %s has an empty dependency name", moduleName)
+func buildDependencyGraph(
+	sortedNames []string,
+	resolveDeps func(name string) ([]string, error),
+) (map[string]int, map[string][]string, error) {
+	inDegree := make(map[string]int, len(sortedNames))
+	reverseEdges := make(map[string][]string, len(sortedNames))
+	for _, name := range sortedNames {
+		inDegree[name] = 0
+		reverseEdges[name] = make([]string, 0)
+	}
+
+	for _, name := range sortedNames {
+		deps, err := resolveDeps(name)
+		if err != nil {
+			return nil, nil, err
 		}
-		if dependency == moduleName {
-			return nil, fmt.Errorf("module %s cannot depend on itself", moduleName)
+
+		for _, dependency := range deps {
+			if _, exists := inDegree[dependency]; !exists {
+				return nil, nil, fmt.Errorf("module %s depends on missing module %s", name, dependency)
+			}
+
+			inDegree[name]++
+			reverseEdges[dependency] = append(reverseEdges[dependency], name)
 		}
-		if _, exists := seen[dependency]; exists {
-			return nil, fmt.Errorf("module %s depends on duplicate module %s", moduleName, dependency)
+	}
+
+	return inDegree, reverseEdges, nil
+}
+
+func zeroInDegreeNames(sortedNames []string, inDegree map[string]int) []string {
+	ready := make([]string, 0, len(sortedNames))
+	for _, name := range sortedNames {
+		if inDegree[name] == 0 {
+			ready = append(ready, name)
 		}
-		seen[dependency] = struct{}{}
+	}
+	sort.Strings(ready)
+	return ready
+}
+
+func normalizeDependencies(name string, deps []string) ([]string, error) {
+	normalized := trimNonEmptyStrings(deps)
+	for _, dep := range normalized {
+		if dep == name {
+			return nil, fmt.Errorf("module %s depends on itself", name)
+		}
 	}
 
 	return normalized, nil
 }
 
-func trimStringsPreserveDuplicates(values []string) []string {
-	trimmed := make([]string, 0, len(values))
-	for _, value := range values {
-		trimmed = append(trimmed, strings.TrimSpace(value))
+func specNames(specs []Spec) []string {
+	names := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		names = append(names, spec.Name())
 	}
 
-	return trimmed
+	return names
 }
 
 func trimNonEmptyStrings(values []string) []string {
@@ -409,4 +434,38 @@ func trimNonEmptyStrings(values []string) []string {
 	}
 
 	return trimmed
+}
+
+func trimStringsPreserveDuplicates(values []string) []string {
+	trimmed := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed = append(trimmed, strings.TrimSpace(value))
+	}
+
+	return trimmed
+}
+
+type describedModule struct {
+	moduleSpec Spec
+	delegate   Module
+}
+
+func (d describedModule) Name() string {
+	return d.moduleSpec.Name()
+}
+
+func (d describedModule) DependsOn() []string {
+	return d.moduleSpec.DependsOn()
+}
+
+func (d describedModule) Register(ctx *Context) error {
+	return d.delegate.Register(ctx)
+}
+
+func (d describedModule) Boot(ctx *Context) error {
+	return d.delegate.Boot(ctx)
+}
+
+func (d describedModule) Shutdown(ctx *Context) error {
+	return d.delegate.Shutdown(ctx)
 }

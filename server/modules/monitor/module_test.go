@@ -366,7 +366,7 @@ func TestBuildServerStatusResponseLoadsRedisTrendPoints(t *testing.T) {
 func TestIncidentEvidenceCapabilityReturnsExpiredWhenWindowExceedsRetention(t *testing.T) {
 	t.Parallel()
 
-	capability := incidentEvidenceCapability{plugin: &Module{}, ctx: &module.Context{}}
+	capability := incidentEvidenceCapability{module: &Module{}, ctx: &module.Context{}}
 	now := time.Now().UTC()
 	resolved, err := capability.ResolveAuditIncidentMonitorEvidence(context.Background(), moduleapi.ResolveAuditIncidentMonitorEvidenceInput{
 		IncidentStartedAt: now.Add(-2 * time.Hour),
@@ -588,7 +588,7 @@ func assertPluginSummaries(t *testing.T, actual []generated.ServerStatusPlugin, 
 	t.Helper()
 
 	if len(actual) != len(expected) {
-		t.Fatalf("expected %d plugin summaries, got %d", len(expected), len(actual))
+		t.Fatalf("expected %d module summaries, got %d", len(expected), len(actual))
 	}
 
 	for index, want := range expected {
@@ -599,7 +599,7 @@ func assertPluginSummaries(t *testing.T, actual []generated.ServerStatusPlugin, 
 			!sameStrings(got.DependsOn, want.DependsOn) ||
 			!sameOptionalStrings(got.MissingDependencies, want.MissingDependencies) {
 			t.Fatalf(
-				"expected plugin summary %s at index %d to be %s, got %s",
+				"expected module summary %s at index %d to be %s, got %s",
 				want.Name,
 				index,
 				formatPluginSummary(want),

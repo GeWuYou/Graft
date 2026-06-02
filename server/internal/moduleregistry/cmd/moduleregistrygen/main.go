@@ -72,7 +72,7 @@ func collectModulePackages(modulesRoot string) ([]modulePackage, error) {
 		}
 
 		packages = append(packages, modulePackage{
-			importAlias: sanitizeImportAlias(name) + "plugin",
+			importAlias: sanitizeImportAlias(name) + "module",
 			importPath:  modulePath + "/" + filepath.ToSlash(filepath.Join(modulesDirName, name)),
 		})
 	}
@@ -125,10 +125,10 @@ func sanitizeImportAlias(name string) string {
 
 	alias := strings.Trim(builder.String(), "_")
 	if alias == "" {
-		return "pluginpkg"
+		return "modulepkg"
 	}
 	if alias[0] >= '0' && alias[0] <= '9' {
-		return "pluginpkg_" + alias
+		return "modulepkg_" + alias
 	}
 
 	return alias

@@ -6,7 +6,7 @@ import (
 	userstore "graft/server/modules/user/store"
 )
 
-// toEntID converts the stable uint64 identifier used by the user plugin into
+// toEntID converts the stable uint64 identifier used by the user module into
 // the current Ent int primary key.
 func toEntID(id uint64) (int, error) {
 	if id == 0 || id > math.MaxInt {

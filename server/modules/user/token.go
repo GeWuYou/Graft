@@ -23,7 +23,7 @@ var (
 
 type accessTokenSubject = authruntime.AccessTokenSubject
 
-// accessTokenManager keeps the legacy user-plugin call surface stable during
+// accessTokenManager keeps the legacy user-module call surface stable during
 // Phase 2 while canonical ownership moves to server/modules/auth.
 type accessTokenManager struct {
 	secret []byte

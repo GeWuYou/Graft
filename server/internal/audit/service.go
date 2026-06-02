@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	// ErrNilAuditRepository indicates the service was built without the plugin-owned repository.
+	// ErrNilAuditRepository indicates the service was built without the module-owned repository.
 	ErrNilAuditRepository = errors.New("audit repository is required")
 	// ErrAuditServiceUnavailable indicates the service or its repository dependency is unavailable at runtime.
 	ErrAuditServiceUnavailable = errors.New("audit service is unavailable")
@@ -95,7 +95,7 @@ type OverviewResult = auditstore.AuditOverview
 // IncidentResult contains the audit-owned incident drilldown read model.
 type IncidentResult = auditstore.AuditIncident
 
-// Service writes and queries audit records through the plugin-owned repository boundary.
+// Service writes and queries audit records through the module-owned repository boundary.
 type Service struct {
 	repo      auditstore.AuditRepository
 	drilldown *drilldown.Service[ListQuery, ListQuery]

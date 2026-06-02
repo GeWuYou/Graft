@@ -674,13 +674,13 @@ func newModuleTestContextWithLoggerAndPermissions(
 		CronRegistry:       cronx.NewRegistry(),
 	}
 
-	pluginInstance := NewModule(userRepo, authRepo)
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register plugin: %v", err)
+	moduleInstance := NewModule(userRepo, authRepo)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
 	}
 	authPlugin := authplugin.NewModule()
 	if err := authPlugin.Register(ctx); err != nil {
-		t.Fatalf("register auth plugin: %v", err)
+		t.Fatalf("register auth module: %v", err)
 	}
 	if err := rbac.NewModule(pluginTestRBACRepository{
 		roles: map[uint64][]rbacstore.Role{
@@ -690,13 +690,13 @@ func newModuleTestContextWithLoggerAndPermissions(
 		},
 		permissions: permissions,
 	}).Register(ctx); err != nil {
-		t.Fatalf("register rbac plugin: %v", err)
+		t.Fatalf("register rbac module: %v", err)
 	}
-	if err := pluginInstance.Boot(ctx); err != nil {
-		t.Fatalf("boot plugin: %v", err)
+	if err := moduleInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot module: %v", err)
 	}
 	if err := authPlugin.Boot(ctx); err != nil {
-		t.Fatalf("boot auth plugin: %v", err)
+		t.Fatalf("boot auth module: %v", err)
 	}
 
 	return ctx, engine
@@ -1584,22 +1584,22 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 
 	ctx := newDefaultAdminBootPluginContext(authRepo, rbacRepo)
 
-	pluginInstance := NewModule(
+	moduleInstance := NewModule(
 		pluginTestUserRepository{},
 		authRepo,
 	)
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register plugin: %v", err)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
 	}
 	if ensuredDefaultAdmin {
 		t.Fatal("expected register to stay side-effect free for default admin bootstrap")
 	}
 	if err := rbac.NewModule(rbacRepo).Register(ctx); err != nil {
-		t.Fatalf("register rbac plugin: %v", err)
+		t.Fatalf("register rbac module: %v", err)
 	}
 
-	if err := pluginInstance.Boot(ctx); err != nil {
-		t.Fatalf("boot plugin: %v", err)
+	if err := moduleInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot module: %v", err)
 	}
 
 	assertDefaultAdminBootEffects(t, ensuredDefaultAdmin, assignedRole)
@@ -1629,18 +1629,18 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
 
 	ctx := newDefaultAdminBootPluginContext(authRepo, rbacRepo)
-	pluginInstance := NewModule(
+	moduleInstance := NewModule(
 		pluginTestUserRepository{},
 		authRepo,
 	)
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register plugin: %v", err)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
 	}
 	if err := rbac.NewModule(rbacRepo).Register(ctx); err != nil {
-		t.Fatalf("register rbac plugin: %v", err)
+		t.Fatalf("register rbac module: %v", err)
 	}
-	if err := pluginInstance.Boot(ctx); err != nil {
-		t.Fatalf("boot plugin: %v", err)
+	if err := moduleInstance.Boot(ctx); err != nil {
+		t.Fatalf("boot module: %v", err)
 	}
 
 	if ensuredDefaultAdmin {
@@ -1658,15 +1658,15 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 // fail closed，而不是继续让用户路由带着未绑定的授权器启动。
 func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
 	ctx := newDefaultAdminBootPluginContext(&pluginTestAuthRepository{}, pluginTestRBACRepository{})
-	pluginInstance := NewModule(
+	moduleInstance := NewModule(
 		pluginTestUserRepository{},
 		&pluginTestAuthRepository{},
 	)
-	if err := pluginInstance.Register(ctx); err != nil {
-		t.Fatalf("register plugin: %v", err)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
 	}
 
-	err := pluginInstance.Boot(ctx)
+	err := moduleInstance.Boot(ctx)
 	if err == nil {
 		t.Fatal("expected boot to fail without shared authorizer")
 	}
@@ -1857,9 +1857,9 @@ func TestUpdateUserStatusMapperBuildsBusinessCommand(t *testing.T) {
 }
 
 func TestUserServiceCreateUserDoesNotImportOpenAPIContract(t *testing.T) {
-	content, err := os.ReadFile("plugin.go")
+	content, err := os.ReadFile("module.go")
 	if err != nil {
-		t.Fatalf("read plugin.go: %v", err)
+		t.Fatalf("read module.go: %v", err)
 	}
 
 	if strings.Contains(string(content), "internal/contract/openapi") {

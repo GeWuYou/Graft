@@ -23,7 +23,7 @@ import (
 
 // Module 是当前 MVP 阶段的最小审计模块。
 //
-// 该插件在 Register 阶段挂载请求级自动审计中间件、受权只读查询路由、
+// 该模块在 Register 阶段挂载请求级自动审计中间件、受权只读查询路由、
 // 菜单/权限声明，并订阅主动审计事件；当前不承载归档和分析逻辑。
 type Module struct {
 	recorder      *auditcore.Service
@@ -39,12 +39,12 @@ func NewModule(repo auditstore.AuditRepository) (*Module, error) {
 		return nil, err
 	}
 
-	pluginInstance := &Module{recorder: recorder}
+	moduleInstance := &Module{recorder: recorder}
 	if binder, ok := repo.(incidentMonitorEvidenceBinder); ok {
-		pluginInstance.monitorBinder = binder
+		moduleInstance.monitorBinder = binder
 	}
 
-	return pluginInstance, nil
+	return moduleInstance, nil
 }
 
 // NewModuleWithDrilldown creates the audit module with a drilldown-enabled read service.
@@ -57,12 +57,12 @@ func NewModuleWithDrilldown(
 		return nil, err
 	}
 
-	pluginInstance := &Module{recorder: recorder}
+	moduleInstance := &Module{recorder: recorder}
 	if binder, ok := repo.(incidentMonitorEvidenceBinder); ok {
-		pluginInstance.monitorBinder = binder
+		moduleInstance.monitorBinder = binder
 	}
 
-	return pluginInstance, nil
+	return moduleInstance, nil
 }
 
 // Register 挂载 HTTP 自动审计、受权查询路由与 event bus 主动审计接线。
@@ -119,7 +119,7 @@ func (p *Module) Register(ctx *module.Context) error {
 	})
 }
 
-// Boot resolves optional cross-plugin capabilities after all plugins have completed Register.
+// Boot resolves optional cross-module capabilities after all modules have completed Register.
 func (p *Module) Boot(ctx *module.Context) error {
 	if p == nil || p.monitorBinder == nil || ctx == nil || ctx.Services == nil {
 		return nil

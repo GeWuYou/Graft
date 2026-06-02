@@ -7,12 +7,12 @@ import (
 	auditstore "graft/server/modules/audit/store"
 )
 
-// PolicyEvaluator applies plugin-owned audit policy rules to normalized candidates.
+// PolicyEvaluator applies module-owned audit policy rules to normalized candidates.
 type PolicyEvaluator struct {
 	repo auditstore.AuditRepository
 }
 
-// NewPolicyEvaluator creates an evaluator backed by the audit plugin repository.
+// NewPolicyEvaluator creates an evaluator backed by the audit module repository.
 func NewPolicyEvaluator(repo auditstore.AuditRepository) (*PolicyEvaluator, error) {
 	if repo == nil {
 		return nil, ErrNilAuditRepository

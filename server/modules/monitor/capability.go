@@ -15,7 +15,7 @@ import (
 )
 
 type incidentEvidenceCapability struct {
-	plugin *Module
+	module *Module
 	ctx    *module.Context
 }
 
@@ -24,11 +24,11 @@ func registerIncidentEvidenceCapability(ctx *module.Context, instance *Module) e
 		return errors.New("module context services are unavailable")
 	}
 	if instance == nil {
-		return errors.New("monitor plugin instance is unavailable")
+		return errors.New("monitor module instance is unavailable")
 	}
 
 	return ctx.Services.RegisterSingleton((*moduleapi.MonitorIncidentEvidenceService)(nil), func(_ container.Resolver) (any, error) {
-		return incidentEvidenceCapability{plugin: instance, ctx: ctx}, nil
+		return incidentEvidenceCapability{module: instance, ctx: ctx}, nil
 	})
 }
 
@@ -36,7 +36,7 @@ func (c incidentEvidenceCapability) ResolveAuditIncidentMonitorEvidence(
 	ctx context.Context,
 	input moduleapi.ResolveAuditIncidentMonitorEvidenceInput,
 ) (moduleapi.ResolvedAuditIncidentMonitorEvidence, error) {
-	if c.plugin == nil || c.ctx == nil {
+	if c.module == nil || c.ctx == nil {
 		return moduleapi.ResolvedAuditIncidentMonitorEvidence{
 			Availability: moduleapi.MonitorEvidenceCapabilityUnavailable,
 			Summary:      "Monitor capability is unavailable for this incident.",
@@ -63,7 +63,7 @@ func (c incidentEvidenceCapability) ResolveAuditIncidentMonitorEvidence(
 		}, nil
 	}
 
-	response, err := buildServerStatusResponse(ctx, c.ctx, c.plugin, monitorcontract.TrendRange1Hour)
+	response, err := buildServerStatusResponse(ctx, c.ctx, c.module, monitorcontract.TrendRange1Hour)
 	if err != nil {
 		return moduleapi.ResolvedAuditIncidentMonitorEvidence{
 			Availability: moduleapi.MonitorEvidenceCapabilityUnavailable,

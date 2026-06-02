@@ -7,7 +7,7 @@ func JoinRoute(group, fragment string) string {
 
 //nolint:gosec // Canonical route fragments are API contracts, not credentials.
 const (
-	// AuthGroup identifies the auth-plugin auth route group.
+	// AuthGroup identifies the auth module route group.
 	AuthGroup = "/auth"
 
 	// AuthLogin identifies the login endpoint route fragment.

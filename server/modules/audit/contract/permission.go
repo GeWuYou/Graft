@@ -1,6 +1,6 @@
 package contract
 
-// PermissionCode identifies a stable audit-plugin permission contract.
+// PermissionCode identifies a stable audit module permission contract.
 type PermissionCode string
 
 // String returns the wire-format permission code.
@@ -12,6 +12,6 @@ const (
 	// AuditReadPermission identifies read access to audit-log data.
 	AuditReadPermission PermissionCode = "audit.read"
 
-	// AuditRead is the canonical permission used by audit-plugin consumers.
+	// AuditRead is the canonical permission used by audit module consumers.
 	AuditRead PermissionCode = AuditReadPermission
 )
