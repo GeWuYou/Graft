@@ -1,9 +1,11 @@
 import Mock from 'mockjs';
 import type { MockMethod } from 'vite-plugin-mock';
 
+import { MOCK_API_PATH } from './contract';
+
 const mocks: MockMethod[] = [
   {
-    url: '/api/get-purchase-list',
+    url: MOCK_API_PATH.PURCHASE_LIST,
     method: 'get',
     response: () => ({
       code: 0,
@@ -33,7 +35,7 @@ const mocks: MockMethod[] = [
     }),
   },
   {
-    url: '/api/get-list',
+    url: MOCK_API_PATH.LIST,
     method: 'get',
     response: () => ({
       code: 0,
@@ -57,7 +59,7 @@ const mocks: MockMethod[] = [
     }),
   },
   {
-    url: '/api/detail-basic',
+    url: MOCK_API_PATH.DETAIL_BASIC,
     method: 'get',
     response: () => ({
       code: 0,
@@ -75,7 +77,7 @@ const mocks: MockMethod[] = [
     }),
   },
   {
-    url: '/api/get-card-list',
+    url: MOCK_API_PATH.CARD_LIST,
     method: 'get',
     response: () => ({
       code: 0,
@@ -108,7 +110,7 @@ const mocks: MockMethod[] = [
     }),
   },
   {
-    url: '/api/get-project-list',
+    url: MOCK_API_PATH.PROJECT_LIST,
     method: 'get',
     response: () => ({
       code: 0,
@@ -134,7 +136,7 @@ const mocks: MockMethod[] = [
     }),
   },
   {
-    url: '/api/post',
+    url: MOCK_API_PATH.POST,
     method: 'post',
     timeout: 2000,
     response: {
@@ -145,7 +147,7 @@ const mocks: MockMethod[] = [
     },
   },
   {
-    url: '/api/get-menu-list-i18n',
+    url: MOCK_API_PATH.MENU_LIST_I18N,
     method: 'get',
     timeout: 2000,
     response: {

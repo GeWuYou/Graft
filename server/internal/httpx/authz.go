@@ -329,7 +329,7 @@ func (p eventBusSecurityAuditPublisher) Publish(
 	}
 
 	if err := p.bus.Publish(ctx.Request.Context(), eventbus.Event{
-		Name:    moduleapi.AuditRecordEventName,
+		Name:    string(moduleapi.AuditRecordEventName),
 		Source:  firstNonEmptyTrimmed(p.source, "httpx"),
 		Payload: event,
 	}); err != nil {

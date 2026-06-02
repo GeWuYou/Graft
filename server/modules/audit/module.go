@@ -94,12 +94,12 @@ func (p *Module) Register(ctx *module.Context) error {
 		return errors.New("event bus is unavailable")
 	}
 
-	return ctx.EventBus.Subscribe(moduleapi.AuditRecordEventName, func(eventCtx context.Context, event eventbus.Event) error {
+	return ctx.EventBus.Subscribe(string(moduleapi.AuditRecordEventName), func(eventCtx context.Context, event eventbus.Event) error {
 		payload, err := resolveAuditEventPayload(event.Payload)
 		if err != nil {
 			logger.Error("drop malformed audit event payload",
 				zap.String("module", moduleID),
-				zap.String("event", moduleapi.AuditRecordEventName),
+				zap.String("event", string(moduleapi.AuditRecordEventName)),
 				zap.Error(fmt.Errorf("unexpected audit event payload type %T", event.Payload)),
 			)
 			return nil
@@ -108,7 +108,7 @@ func (p *Module) Register(ctx *module.Context) error {
 		if err := recordEvent(eventCtx, logger, p.recorder, payload); err != nil {
 			logger.Error("write active audit log failed",
 				zap.String("module", moduleID),
-				zap.String("event", moduleapi.AuditRecordEventName),
+				zap.String("event", string(moduleapi.AuditRecordEventName)),
 				zap.String("action", strings.TrimSpace(payload.Action)),
 				zap.Error(err),
 			)

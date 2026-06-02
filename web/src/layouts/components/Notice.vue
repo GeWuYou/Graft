@@ -50,6 +50,7 @@
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
+import { SHELL_ROUTE_PATH } from '@/contracts/routes';
 import { t } from '@/locales';
 import { useNotificationStore } from '@/store';
 import type { NotificationItem } from '@/utils/types';
@@ -75,7 +76,7 @@ const setRead = (type: string, item?: NotificationItem) => {
 };
 
 const goDetail = () => {
-  router.push('/detail/secondary');
+  router.push(SHELL_ROUTE_PATH.NOTICE_DETAIL);
 };
 </script>
 <style lang="less" scoped>

@@ -508,7 +508,7 @@ func (s userService) publishAudit(ctx context.Context, event moduleapi.AuditEven
 
 	event.Operator = currentAuditOperator(ctx)
 	if err := s.auditBus.Publish(ctx, eventbus.Event{
-		Name:    moduleapi.AuditRecordEventName,
+		Name:    string(moduleapi.AuditRecordEventName),
 		Source:  moduleID,
 		Payload: event,
 	}); err != nil && s.logger != nil {

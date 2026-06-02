@@ -34,6 +34,7 @@ import { useRouter } from 'vue-router';
 import AssetLogoFull from '@/assets/assets-logo-full.svg?component';
 import AssetLogo from '@/assets/assets-t-logo.svg?component';
 import { prefix } from '@/config/global';
+import { SHELL_ROUTE_PATH } from '@/contracts/routes';
 import { t } from '@/locales';
 import { getActive } from '@/router';
 import { useSettingStore } from '@/store';
@@ -166,7 +167,7 @@ onUnmounted(() => {
 });
 
 const goHome = () => {
-  router.push('/');
+  router.push(SHELL_ROUTE_PATH.ROOT_ENTRY);
 };
 
 const getLogo = () => {

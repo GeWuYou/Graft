@@ -2,8 +2,11 @@ package moduleapi
 
 import "time"
 
+// EventName 标识跨模块稳定事件名契约。
+type EventName string
+
 // AuditRecordEventName 是业务模块主动发布审计事件时使用的稳定事件名。
-const AuditRecordEventName = "audit.record"
+const AuditRecordEventName EventName = "audit.record"
 
 // AuditEventKind identifies the audit candidate source class published on the bus.
 type AuditEventKind string

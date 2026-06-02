@@ -667,7 +667,7 @@ func TestRegisterSubscribesActiveAuditEvents(t *testing.T) {
 	)
 
 	err := bus.Publish(requestCtx, eventbus.Event{
-		Name: moduleapi.AuditRecordEventName,
+		Name: string(moduleapi.AuditRecordEventName),
 		Payload: moduleapi.AuditEvent{
 			Operator:     &moduleapi.CurrentUser{ID: 9, Username: "bob"},
 			Action:       "user.password.reset",
@@ -726,7 +726,7 @@ func TestRegisterSubscribesActiveAuditEventsFallsBackToRequestAuthActor(t *testi
 	)
 
 	err := bus.Publish(requestCtx, eventbus.Event{
-		Name: moduleapi.AuditRecordEventName,
+		Name: string(moduleapi.AuditRecordEventName),
 		Payload: moduleapi.AuditEvent{
 			Action:       "user.profile.update",
 			ResourceType: "user",
@@ -751,7 +751,7 @@ func TestRegisterSubscribesActiveAuditEventPointers(t *testing.T) {
 	_, _, bus := newModuleTestContext(t, repo)
 
 	err := bus.Publish(context.Background(), eventbus.Event{
-		Name: moduleapi.AuditRecordEventName,
+		Name: string(moduleapi.AuditRecordEventName),
 		Payload: &moduleapi.AuditEvent{
 			Operator:     &moduleapi.CurrentUser{ID: 10, Username: "carol"},
 			Action:       "user.profile.update",
@@ -779,7 +779,7 @@ func TestRegisterSwallowsActiveAuditWriteErrors(t *testing.T) {
 	}
 
 	err := bus.Publish(context.Background(), eventbus.Event{
-		Name: moduleapi.AuditRecordEventName,
+		Name: string(moduleapi.AuditRecordEventName),
 		Payload: moduleapi.AuditEvent{
 			Operator:     &moduleapi.CurrentUser{ID: 10, Username: "carol"},
 			Action:       "user.profile.update",
@@ -812,7 +812,7 @@ func TestRegisterWarnsWhenSecurityAuditEventIsSkippedByPolicy(t *testing.T) {
 	_, _, bus := newModuleTestContextWithLogger(t, repo, logger)
 
 	err := bus.Publish(context.Background(), eventbus.Event{
-		Name: moduleapi.AuditRecordEventName,
+		Name: string(moduleapi.AuditRecordEventName),
 		Payload: moduleapi.AuditEvent{
 			Kind:         moduleapi.AuditEventKindSecurity,
 			Action:       "auth.permission.denied",
@@ -844,7 +844,7 @@ func TestRegisterSubscribesActiveAuditEventsWithoutHTTPContextDoesNotPanic(t *te
 	_, _, bus := newModuleTestContext(t, repo)
 
 	err := bus.Publish(context.Background(), eventbus.Event{
-		Name: moduleapi.AuditRecordEventName,
+		Name: string(moduleapi.AuditRecordEventName),
 		Payload: moduleapi.AuditEvent{
 			Action:       "user.profile.update",
 			ResourceType: "user",
@@ -898,7 +898,7 @@ func TestRegisterRecordsRBACDomainEventWhenPolicyAllows(t *testing.T) {
 	_, _, bus := newModuleTestContext(t, repo)
 
 	err := bus.Publish(context.Background(), eventbus.Event{
-		Name: moduleapi.AuditRecordEventName,
+		Name: string(moduleapi.AuditRecordEventName),
 		Payload: moduleapi.AuditEvent{
 			Kind:         moduleapi.AuditEventKindDomain,
 			Operator:     &moduleapi.CurrentUser{ID: 9, Username: "bob"},

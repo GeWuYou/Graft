@@ -526,7 +526,7 @@ func (w managementWriter) publishAudit(ctx context.Context, event moduleapi.Audi
 
 	event.Operator = currentRBACAuditOperator(ctx)
 	if err := w.auditBus.Publish(ctx, eventbus.Event{
-		Name:    moduleapi.AuditRecordEventName,
+		Name:    string(moduleapi.AuditRecordEventName),
 		Source:  moduleID,
 		Payload: event,
 	}); err != nil && w.logger != nil {
