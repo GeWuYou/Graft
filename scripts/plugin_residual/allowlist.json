@@ -1,0 +1,292 @@
+{
+  "patterns": [
+    {
+      "path_prefix": ".agents/skills/",
+      "regex": "plugin|Plugin",
+      "category": "history_or_tool_name",
+      "reason": "Repository skills retain historical tool names, examples, and older bounded-scope wording."
+    },
+    {
+      "path": ".gitignore",
+      "regex": "plugins",
+      "category": "third_party",
+      "reason": "Generic gitignore wording for tool/plugin binaries is not repository runtime authority."
+    },
+    {
+      "path": "AGENTS.md",
+      "regex": "third-party plugin marketplace|early dynamic plugin hot-loading|historical backend naming term",
+      "category": "historical_governance",
+      "reason": "Anti-goal wording and explicit historical terminology remain canonical governance explanations."
+    },
+    {
+      "path": "AGENTS.md",
+      "regex": "graft-plugin-scaffold|backend plugin semantics|historical plugin naming|plugin\\.|under historical plugin naming|current runtime truth",
+      "category": "history_or_tool_name",
+      "reason": "Skill names and historical semantic references are retained identifiers, not live runtime authority."
+    },
+    {
+      "path": "server/AGENTS.md",
+      "regex": "runtime plugin loading|runtime plugin scan|reflection plugin system|historical `plugin` 路径|历史 `plugin` 路径下的 module 切片",
+      "category": "historical_governance",
+      "reason": "Server governance keeps anti-goal wording and explicit historical-path notes."
+    },
+    {
+      "path": "web/AGENTS.md",
+      "regex": "backend plugin semantics|eslint-plugin-unused-imports|`plugin`、权限码",
+      "category": "historical_governance",
+      "reason": "Frontend governance still references historical backend naming and literal token examples."
+    },
+    {
+      "path": "ai-plan/design/项目设计.md",
+      "regex": "runtime plugin platform|server/plugins/\\*|internal/plugin\\*|历史 plugin 命名|plugin 命名",
+      "category": "historical_governance",
+      "reason": "Design truth explicitly records historical rename context and anti-goal plugin-platform wording."
+    },
+    {
+      "path": "ai-plan/design/项目设计.md",
+      "regex": "历史 `plugin` 命名仅作迁移证据",
+      "category": "historical_governance",
+      "reason": "Design truth explicitly documents the retained historical naming note."
+    },
+    {
+      "path": "ai-plan/design/模块与依赖注入设计.md",
+      "regex": "runtime plugin platform|runtime plugin loading|runtime plugin discovery|external plugin marketplace|distributed plugin protocol|plugin system|历史插件命名目录",
+      "category": "historical_governance",
+      "reason": "Architecture design retains anti-goal plugin-platform wording and historical explanations."
+    },
+    {
+      "path": "ai-plan/design/契约治理与魔法值治理规范.md",
+      "regex": "同历史插件命名目录",
+      "category": "historical_governance",
+      "reason": "Contract governance still documents historical lookup order wording."
+    },
+    {
+      "path": "ai-plan/design/Access-Log-Retention-Authority.md",
+      "regex": "historical plugin-registry metadata|historical plugin registry",
+      "category": "historical_governance",
+      "reason": "This design doc explicitly distinguishes historical plugin-registry ownership from current authority."
+    },
+    {
+      "path": "ai-plan/lessons/README.md",
+      "regex": "backend architecture, contract, plugin, migration, and validation lessons",
+      "category": "historical_governance",
+      "reason": "Lessons index preserves historical category wording."
+    },
+    {
+      "path": "ai-plan/public/README.md",
+      "regex": "full-historical-plugin-surface-migration|module-historical-plugin-naming-migration|plugin-audit-correlation-governance|audit-plugin-mvp|retained repository-owned `plugin` authority|remaining `plugin` hits|historical `plugin` naming|backend `plugin` naming|module/plugin topics|plugin-startup|plugin capability governance|plugin-local constants|internal/pluginapi|generated OpenAPI values|shared/public plugin authority|plugin-first|plugin-owned|plugin-domain audit correlation|plugin refactors|audit plugin|plugin HTTP routes|plugin locale loading|feat/wt-audit-plugin-mvp|server/internal/plugin|server/plugins/",
+      "category": "history_or_topic_name",
+      "reason": "Active recovery index must reference historical topic names, accepted residual classes, and preserved worktree names."
+    },
+    {
+      "path_prefix": "ai-plan/public/module-oriented-modular-monolith/",
+      "regex": "plugin|Plugin",
+      "category": "history_or_topic_name",
+      "reason": "Archive-ready topic remains explicit evidence for historical plugin wording migration."
+    },
+    {
+      "path": "ai-plan/public/full-historical-plugin-surface-migration/README.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Archive-ready active-topic evidence intentionally retains plugin rename history in its own topic record."
+    },
+    {
+      "path": "ai-plan/public/full-historical-plugin-surface-migration/todos/full-historical-plugin-surface-migration-tracking.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Tracking file is itself rename-history evidence and remains intentionally literal."
+    },
+    {
+      "path": "ai-plan/public/full-historical-plugin-surface-migration/traces/full-historical-plugin-surface-migration-trace.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Trace file records rename-history evidence verbatim."
+    },
+    {
+      "path": "ai-plan/public/module-historical-plugin-naming-migration/README.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Archive-ready topic record intentionally preserves historical plugin naming evidence."
+    },
+    {
+      "path": "ai-plan/public/module-historical-plugin-naming-migration/todos/module-historical-plugin-naming-migration-tracking.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Tracking file preserves closed topic naming and accepted residual wording."
+    },
+    {
+      "path": "ai-plan/public/module-historical-plugin-naming-migration/traces/module-historical-plugin-naming-migration-trace.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Trace file preserves historical rename evidence."
+    },
+    {
+      "path": "ai-plan/public/module-symbol-and-path-authority-migration/README.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Closed authority-inventory topic intentionally keeps plugin/path rename examples."
+    },
+    {
+      "path": "ai-plan/public/module-symbol-and-path-authority-migration/todos/module-symbol-and-path-authority-migration-tracking.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Tracking file preserves closed authority-inventory naming."
+    },
+    {
+      "path": "ai-plan/public/module-symbol-and-path-authority-migration/traces/module-symbol-and-path-authority-migration-trace.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Trace file preserves historical rename analysis."
+    },
+    {
+      "path": "ai-plan/public/module-physical-path-migration/README.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Closed physical-path migration topic intentionally keeps old path literals."
+    },
+    {
+      "path": "ai-plan/public/module-physical-path-migration/traces/module-physical-path-migration-trace.md",
+      "regex": ".+",
+      "category": "history_or_topic_name",
+      "reason": "Trace file preserves physical rename history."
+    },
+    {
+      "path": "ai-plan/public/server-module-semantics-and-live-migration-reset/README.md",
+      "regex": "module-historical-plugin-naming-migration|internal historical `plugin` semantics|current canonical architecture term|remaining `plugin` hits|intentional/history/shared-contract `plugin` residues|plugin-first conclusions|module/plugin topics|shared/public `plugin` authority|stable contract vocabulary|cleaned-up non-wire `plugin` naming",
+      "category": "history_or_topic_name",
+      "reason": "Recovery doc explicitly references accepted historical topic names and residual classes."
+    },
+    {
+      "path": "ai-plan/public/server-module-semantics-and-live-migration-reset/todos/server-module-semantics-and-live-migration-reset-tracking.md",
+      "regex": "module-historical-plugin-naming-migration|shared/public `plugin` authority",
+      "category": "history_or_topic_name",
+      "reason": "Tracking file explicitly references historical topic names and retained residual scope."
+    },
+    {
+      "path": "ai-plan/public/server-module-semantics-and-live-migration-reset/traces/server-module-semantics-and-live-migration-reset-trace.md",
+      "regex": "plugin",
+      "category": "history_or_topic_name",
+      "reason": "Trace file preserves the migration-reset history and residual classification."
+    },
+    {
+      "path": "ai-plan/public/phase-d-app-log-durable-storage-decision/README.md",
+      "regex": "plugins|plugin-specific|plugin-supplied",
+      "category": "intentional_domain_or_wire",
+      "reason": "The log-storage governance doc intentionally describes module-supplied runtime fields with historical plugin literal wording."
+    },
+    {
+      "path": "ai-plan/public/phase-d-app-log-operator-workflow-definition/traces/phase-d-app-log-operator-workflow-definition-trace.md",
+      "regex": "plugin startup/config failure",
+      "category": "intentional_domain_or_wire",
+      "reason": "Trace text records a preserved operator workflow phrase tied to startup-failure semantics."
+    },
+    {
+      "path": "ai-plan/public/phase-d-access-log-runtime-storage/README.md",
+      "regex": "plugin-owned migration directories|plugin-owned migrations|server/internal/pluginregistry/registry_test.go",
+      "category": "historical_governance",
+      "reason": "This runtime-storage topic still documents historical migration aggregation wording and retained file names."
+    },
+    {
+      "path": "ai-plan/public/monitor-server-status/design/系统监控-服务器状态模块设计.md",
+      "regex": "\"plugins\"|`plugins`",
+      "category": "intentional_domain_or_wire",
+      "reason": "This design file records the intentionally retained monitor payload field shape."
+    },
+    {
+      "path_prefix": "ai-plan/public/monitor-server-status/",
+      "regex": "plugin|plugins|server/plugins|server/internal/plugin",
+      "category": "history_or_topic_name",
+      "reason": "This topic preserves earlier monitor payload and implementation history wording."
+    },
+    {
+      "path": "ai-plan/public/monitor-server-status/todos/monitor-server-status-tracking.md",
+      "regex": "plugin/module|pluginregistry|monitor plugin|ordered plugin descriptors|server/internal/plugin|plugin context",
+      "category": "history_or_topic_name",
+      "reason": "Tracking file preserves historical implementation wording from the original topic."
+    },
+    {
+      "path": "ai-plan/public/rbac-feature-and-nplusone-hardening/traces/rbac-feature-and-nplusone-hardening-trace.md",
+      "regex": "cross-plugin|active RBAC plugin|plugin registration",
+      "category": "history_or_topic_name",
+      "reason": "Trace file preserves older wording from the hardening topic."
+    },
+    {
+      "path": "ai-plan/public/rbac-further-development/traces/rbac-further-development-trace.md",
+      "regex": "plugin-specific|server/plugins/rbac/\\*\\*|plugin registry wiring",
+      "category": "history_or_topic_name",
+      "reason": "Trace file preserves historical path and scope wording."
+    },
+    {
+      "path": "ai-plan/public/phase-d-access-log-retention-governance/README.md",
+      "regex": "plugin-registry authority",
+      "category": "historical_governance",
+      "reason": "This authority doc explicitly rejects historical plugin-registry ownership."
+    },
+    {
+      "path_prefix": "ai-plan/public/phase-d-log-retention-and-storage-authority/",
+      "regex": "audit plugin|server/plugins/",
+      "category": "history_or_topic_name",
+      "reason": "Archive-ready evidence preserves older audit-path wording."
+    },
+    {
+      "path_prefix": "ai-plan/public/phase-d-access-log-runtime-storage/",
+      "regex": "plugin",
+      "category": "historical_governance",
+      "reason": "This topic preserves historical migration aggregation wording and retained registry references."
+    },
+    {
+      "path": "web/src/store/index.ts",
+      "regex": "pinia-plugin-persistedstate",
+      "category": "third_party",
+      "reason": "Dependency package name."
+    },
+    {
+      "path": "web/.gitignore",
+      "regex": "\\.yarn/plugins",
+      "category": "third_party",
+      "reason": "Yarn plugin directory pattern."
+    },
+    {
+      "path": "web/vite.config.test.ts",
+      "regex": "\\.plugins|plugin\\)",
+      "category": "third_party",
+      "reason": "Vite plugin array API in tests."
+    },
+    {
+      "path": "web/src/modules/access-log/components/AccessLogFilters.test.ts",
+      "regex": "plugins:\\s*\\[i18n\\]",
+      "category": "third_party",
+      "reason": "Vue Test Utils mount option."
+    },
+    {
+      "path": "web/src/modules/audit/components/AuditFilters.test.ts",
+      "regex": "plugins:\\s*\\[i18n\\]",
+      "category": "third_party",
+      "reason": "Vue Test Utils mount option."
+    },
+    {
+      "path": "web/src/modules/audit/components/AuditDetailDrawer.test.ts",
+      "regex": "plugins:\\s*\\[i18n\\]",
+      "category": "third_party",
+      "reason": "Vue Test Utils mount option."
+    },
+    {
+      "path": "web/src/modules/audit/pages/incident/index.test.ts",
+      "regex": "plugins:\\s*\\[i18n\\]",
+      "category": "third_party",
+      "reason": "Vue Test Utils mount option."
+    },
+    {
+      "path": "web/src/modules/audit/pages/logs/index.test.ts",
+      "regex": "plugins:\\s*\\[i18n, router\\]",
+      "category": "third_party",
+      "reason": "Vue Test Utils mount option."
+    },
+    {
+      "path": "web/src/modules/audit/pages/overview/index.test.ts",
+      "regex": "plugins:\\s*\\[i18n\\]",
+      "category": "third_party",
+      "reason": "Vue Test Utils mount option."
+    }
+  ]
+}

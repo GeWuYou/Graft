@@ -59,7 +59,7 @@
 * `database`
 * `http`
 * `container`
-* `plugin manager`
+* `module manager`
 * Ent baseline and repository / store factory boundary
 * `menu registry`
 * `permission registry`
@@ -81,7 +81,7 @@
 验收：
 
 * `Runtime` 统一注入 `event bus`
-* 插件可以通过依赖注入获取 `event bus`
+* 模块可以通过依赖注入获取 `event bus`
 * `audit` 同时支持 HTTP middleware 自动审计与 event bus 主动审计
 * `scheduler` 通过仓库内封装接口运行，而不是让业务直接依赖 `robfig/cron`
 
@@ -119,22 +119,22 @@
   * 同步或简单异步派发
   * handler panic recover
   * 错误日志记录
-* 目标是插件解耦，不是分布式消息系统
+* 目标是模块解耦，不是分布式消息系统
 * 不引入 Kafka、RabbitMQ、NATS 等 MQ
 * 设计必须避免与未来 MQ 替换路径形成强耦合
 * `Runtime` 启动时统一注入 event bus
-* 插件通过依赖注入获取 event bus
+* 模块通过依赖注入获取 event bus
 
 推荐边界：
 
 * 公开接口只表达事件发布与订阅
 * 不提前暴露 ack、retry、dead-letter、partition、consumer-group 等分布式语义
-* handler 注册属于插件 `Register` 阶段
-* bus 生命周期由 `Runtime` 持有，插件只消费其稳定接口
+* handler 注册属于模块 `Register` 阶段
+* bus 生命周期由 `Runtime` 持有，模块只消费其稳定接口
 
 ---
 
-## 5. Audit 插件方向
+## 5. Audit 模块方向
 
 当前阶段采用：
 
@@ -143,7 +143,7 @@
 约束：
 
 * 新增 `server/internal/audit`
-* 新增 `server/plugins/audit`
+* 新增 `server/modules/audit`
 * 仅记录：
   * `operator_id`
   * `operator_name`
@@ -177,7 +177,7 @@
 
 ---
 
-## 6. Scheduler 插件方向
+## 6. Scheduler 模块方向
 
 当前阶段采用：
 
@@ -186,7 +186,7 @@
 约束：
 
 * 新增 `server/internal/scheduler`
-* 新增 `server/plugins/scheduler`
+* 新增 `server/modules/scheduler`
 * 业务代码禁止直接依赖 `github.com/robfig/cron/v3`
 * 必须通过自定义 `Scheduler` 接口隔离底层实现
 * 需要支持：
@@ -201,9 +201,9 @@
 
 职责边界：
 
-* `cron registry` 负责插件注册任务声明
+* `cron registry` 负责模块注册任务声明
 * `scheduler` 负责把任务声明装配成实际运行中的调度器
-* `Runtime` 通过插件生命周期统一启动和关闭调度器
+* `Runtime` 通过模块生命周期统一启动和关闭调度器
 
 明确不做：
 

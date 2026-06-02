@@ -53,7 +53,7 @@ Subdomain governance documents:
   - `web` execution truth for frontend structure, module boundaries, contracts, routing, i18n, TDesign usage, and
     frontend validation
 - [server/AGENTS.md](server/AGENTS.md)
-  - `server` execution truth for plugin boundaries, DI constraints, Go code organization, Ent/migration flow, and
+  - `server` execution truth for module boundaries, DI constraints, Go code organization, Ent/migration flow, and
     backend validation
 
 Reading order:
@@ -65,7 +65,7 @@ Reading order:
 
 If code and docs diverge, update the docs first or in the same change.
 
-When a task changes architecture, plugin boundaries, lifecycle semantics, frontend module conventions, or execution
+When a task changes architecture, module boundaries, lifecycle semantics, frontend module conventions, or execution
 governance, the related `ai-plan/design/`, `ai-plan/roadmap/`, or subdomain `AGENTS.md` document must be updated
 before the task is considered complete.
 
@@ -598,7 +598,7 @@ Commit messages must use Conventional Commits:
 
 Commit type rules:
 
-- use `feat` for user-facing or plugin/platform capability additions
+- use `feat` for user-facing or module/platform capability additions
 - use `fix` for behavior corrections
 - use `refactor` for non-feature restructuring
 - use `perf` for observable performance improvements
@@ -888,18 +888,18 @@ If a task reveals that the current docs are wrong:
 
 Review for:
 
-- boundary violations between core and plugins
-- hidden coupling between plugins
+- boundary violations between core and modules
+- hidden coupling between modules
 - unnecessary framework complexity
 - divergence from locked `server` and `web` stacks
 - duplicate canonical contract definitions, undocumented contract ownership, or missing lifecycle / compatibility notes
   for high-risk contract changes
-- missing tests around plugin lifecycle, dependency ordering, authorization, and dynamic menu/route behavior
+- missing tests around module lifecycle, dependency ordering, authorization, and dynamic menu/route behavior
 - undocumented public interfaces or lifecycle-sensitive code
 - divergence between `ai-plan/design/`, `ai-plan/roadmap/`, active topic recovery documents, and the relevant
   subdomain `AGENTS.md`
 
-A change is not acceptable if it makes adding the next plugin or frontend module harder.
+A change is not acceptable if it makes adding the next module or frontend module harder.
 
 ## 19. Definition of Done
 

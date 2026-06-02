@@ -552,11 +552,11 @@ shared hotspot 处理规则如下：
 - 在 `Register` 阶段启动 goroutine、定时任务、长时间 I/O、阻塞初始化或其它运行时行为
 - 在 `Boot` 阶段做 schema 修改、隐式迁移、运行时补注册路由/权限/菜单/message/service
 - 让 `graft serve` 隐式执行 migration、schema sync 或其它数据库结构修改
-- 让 plugin 直接引用其它 plugin 的内部 repository、service、handler、storeent、Ent entity、schema 或 migration
+- 让一个模块直接引用另一个模块的内部 repository、service、handler、storeent、Ent entity、schema 或 migration
 - 在 `server/internal/ent/**` 重新引入新的业务真相、业务 schema、业务生成产物
 - 实现 runtime plugin scan、dynamic discovery、hot plug、reflection-heavy plugin system
 - 把 container 当成通用 service locator，在业务路径里随手 `Resolve`
-- 通过 `init()`、package global、隐式扫描把运行时行为偷偷塞进 core 或 plugin
+- 通过 `init()`、package global、隐式扫描把运行时行为偷偷塞进 core 或 module
 
 ## 14. Go 编码规则
 
