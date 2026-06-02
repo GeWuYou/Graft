@@ -3,264 +3,149 @@ package cli
 import (
 	"errors"
 	"os"
-	"reflect"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/spf13/cobra"
 )
 
-// TestRunDevRunsMigrateBeforeServe 验证开发编排命令会先执行迁移，再启动服务。
-func TestRunDevRunsMigrateBeforeServe(t *testing.T) {
-	originalMigrateRunner := devMigrateRunner
-	originalServeRunner := devServeRunner
+func TestRunDevNotifySignalsSupervisorPID(t *testing.T) {
+	root := t.TempDir()
+	serverRoot := filepath.Join(root, "server")
+	tmpDir := filepath.Join(serverRoot, "tmp")
+	if err := os.MkdirAll(tmpDir, 0o750); err != nil {
+		t.Fatalf("mkdir tmp: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, devSupervisorPIDName), []byte("42\n"), 0o600); err != nil {
+		t.Fatalf("write supervisor pid: %v", err)
+	}
+
+	originalResolver := devAirModuleRootResolver
+	originalSignaler := devPIDSignaler
 	defer func() {
-		devMigrateRunner = originalMigrateRunner
-		devServeRunner = originalServeRunner
+		devAirModuleRootResolver = originalResolver
+		devPIDSignaler = originalSignaler
 	}()
 
-	var steps []string
-	devMigrateRunner = func(_ *cobra.Command, migrationDir string) error {
-		steps = append(steps, "migrate:"+migrationDir)
-		return nil
+	devAirModuleRootResolver = func() (string, error) {
+		return serverRoot, nil
 	}
-	devServeRunner = func(_ *cobra.Command, _ []string) error {
-		steps = append(steps, "serve")
+
+	signaled := false
+	devPIDSignaler = func(pid int, _ syscall.Signal) error {
+		if pid != 42 {
+			t.Fatalf("expected pid 42, got %d", pid)
+		}
+		signaled = true
 		return nil
 	}
 
-	err := runDev(&cobra.Command{}, nil, devOptions{migrationDir: defaultMigrationDir})
+	err := runDevNotify(&cobra.Command{}, devNotifyOptions{})
 	if err != nil {
-		t.Fatalf("run dev: %v", err)
+		t.Fatalf("run dev notify: %v", err)
 	}
-
-	expected := []string{"migrate:" + defaultMigrationDir, "serve"}
-	if !reflect.DeepEqual(steps, expected) {
-		t.Fatalf("expected %v, got %v", expected, steps)
+	if !signaled {
+		t.Fatal("expected notify to signal the supervisor pid")
 	}
 }
 
-// TestRunDevStopsAfterMigrationFailure 验证迁移失败时不会继续启动服务。
-func TestRunDevStopsAfterMigrationFailure(t *testing.T) {
-	originalMigrateRunner := devMigrateRunner
-	originalServeRunner := devServeRunner
+func TestEnsureNoLiveDevSupervisorRejectsAlivePID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "dev-supervisor.pid")
+	if err := os.WriteFile(path, []byte("77\n"), 0o600); err != nil {
+		t.Fatalf("write pid file: %v", err)
+	}
+
+	originalAliveChecker := devPIDAliveChecker
 	defer func() {
-		devMigrateRunner = originalMigrateRunner
-		devServeRunner = originalServeRunner
+		devPIDAliveChecker = originalAliveChecker
 	}()
 
-	devMigrateRunner = func(_ *cobra.Command, _ string) error {
-		return errors.New("migrate failed")
-	}
-	devServeRunner = func(_ *cobra.Command, _ []string) error {
-		t.Fatal("serve runner should not be called")
-		return nil
+	devPIDAliveChecker = func(pid int) (bool, error) {
+		if pid != 77 {
+			t.Fatalf("expected pid 77, got %d", pid)
+		}
+		return true, nil
 	}
 
-	err := runDev(&cobra.Command{}, nil, devOptions{migrationDir: defaultMigrationDir})
+	err := ensureNoLiveDevSupervisor(path)
 	if err == nil {
-		t.Fatal("expected dev command error")
-	}
-	if !strings.Contains(err.Error(), "run development migrations") {
-		t.Fatalf("expected migration context, got %v", err)
-	}
-}
-
-// TestRunDevAirInvokesAirRunner 验证 `graft dev air` 会调用 Air 热重载执行边界。
-func TestRunDevAirInvokesAirRunner(t *testing.T) {
-	originalAirRunner := devAirRunner
-	originalModuleRootResolver := devAirModuleRootResolver
-	originalTargetFinder := devAirTargetFinder
-	defer func() {
-		devAirRunner = originalAirRunner
-		devAirModuleRootResolver = originalModuleRootResolver
-		devAirTargetFinder = originalTargetFinder
-	}()
-
-	var gotConfig string
-	devAirRunner = func(_ *cobra.Command, configPath string) error {
-		gotConfig = configPath
-		return nil
-	}
-	devAirModuleRootResolver = func() (string, error) {
-		return "/repo/server", nil
-	}
-	devAirTargetFinder = func(_ string, _ string) ([]int, []int, error) {
-		return nil, nil, nil
-	}
-
-	err := runDevAir(&cobra.Command{}, devAirOptions{configPath: ".air.toml"})
-	if err != nil {
-		t.Fatalf("run dev air: %v", err)
-	}
-	if gotConfig != "/repo/server/.air.toml" {
-		t.Fatalf("expected resolved config path /repo/server/.air.toml, got %q", gotConfig)
-	}
-}
-
-// TestRunDevAirWrapsRunnerError 验证 Air 执行失败时会返回带上下文的错误。
-func TestRunDevAirWrapsRunnerError(t *testing.T) {
-	originalAirRunner := devAirRunner
-	originalModuleRootResolver := devAirModuleRootResolver
-	originalTargetFinder := devAirTargetFinder
-	defer func() {
-		devAirRunner = originalAirRunner
-		devAirModuleRootResolver = originalModuleRootResolver
-		devAirTargetFinder = originalTargetFinder
-	}()
-
-	devAirRunner = func(_ *cobra.Command, _ string) error {
-		return errors.New("air failed")
-	}
-	devAirModuleRootResolver = func() (string, error) {
-		return "/repo/server", nil
-	}
-	devAirTargetFinder = func(_ string, _ string) ([]int, []int, error) {
-		return nil, nil, nil
-	}
-
-	err := runDevAir(&cobra.Command{}, devAirOptions{configPath: ".air.toml"})
-	if err == nil {
-		t.Fatal("expected dev air error")
-	}
-	if !strings.Contains(err.Error(), "start Air live reload") {
-		t.Fatalf("expected air context, got %v", err)
-	}
-}
-
-// TestRunDevAirRejectsConcurrentSession 验证已有同仓库 Air 实例时会拒绝再次启动。
-func TestRunDevAirRejectsConcurrentSession(t *testing.T) {
-	originalAirRunner := devAirRunner
-	originalModuleRootResolver := devAirModuleRootResolver
-	originalTargetFinder := devAirTargetFinder
-	defer func() {
-		devAirRunner = originalAirRunner
-		devAirModuleRootResolver = originalModuleRootResolver
-		devAirTargetFinder = originalTargetFinder
-	}()
-
-	airRunnerCalled := false
-	devAirRunner = func(_ *cobra.Command, _ string) error {
-		airRunnerCalled = true
-		return nil
-	}
-	devAirModuleRootResolver = func() (string, error) {
-		return "/repo/server", nil
-	}
-	devAirTargetFinder = func(moduleRoot string, configPath string) ([]int, []int, error) {
-		if moduleRoot != "/repo/server" {
-			t.Fatalf("expected module root /repo/server, got %q", moduleRoot)
-		}
-		if configPath != "/repo/server/.air.toml" {
-			t.Fatalf("expected resolved config path /repo/server/.air.toml, got %q", configPath)
-		}
-		return []int{101}, []int{102}, nil
-	}
-
-	err := runDevAir(&cobra.Command{}, devAirOptions{configPath: ".air.toml"})
-	if runtimeGOOS() != "linux" {
-		if err != nil {
-			t.Fatalf("expected non-linux to skip single-instance guard, got %v", err)
-		}
-		if !airRunnerCalled {
-			t.Fatal("expected non-linux to continue to the air runner")
-		}
-		return
-	}
-	if err == nil {
-		t.Fatal("expected concurrent Air session error")
-	}
-	if airRunnerCalled {
-		t.Fatal("air runner should not be called when another session is active")
+		t.Fatal("expected live supervisor error")
 	}
 	if !strings.Contains(err.Error(), "graft dev stop-air") {
 		t.Fatalf("expected stop-air guidance, got %v", err)
 	}
 }
 
-// TestServerAirConfigUsesEntrypointForServe 验证仓库内置的 Air 配置使用 entrypoint 数组
-// 来表达 `graft serve`，避免把可执行文件与参数拼成一个错误路径。
-func TestServerAirConfigUsesEntrypointForServe(t *testing.T) {
+func TestEnsureNoLiveDevSupervisorRemovesStalePID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "dev-supervisor.pid")
+	if err := os.WriteFile(path, []byte("78\n"), 0o600); err != nil {
+		t.Fatalf("write pid file: %v", err)
+	}
+
+	originalAliveChecker := devPIDAliveChecker
+	defer func() {
+		devPIDAliveChecker = originalAliveChecker
+	}()
+
+	devPIDAliveChecker = func(pid int) (bool, error) {
+		if pid != 78 {
+			t.Fatalf("expected pid 78, got %d", pid)
+		}
+		return false, nil
+	}
+
+	err := ensureNoLiveDevSupervisor(path)
+	if err != nil {
+		t.Fatalf("ensure no live supervisor: %v", err)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected stale pid file removed, got err=%v", err)
+	}
+}
+
+func TestServerAirConfigUsesNotifyEntrypoint(t *testing.T) {
 	content, err := os.ReadFile("../../.air.toml")
 	if err != nil {
 		t.Fatalf("read ../../.air.toml: %v", err)
 	}
 
 	config := string(content)
-	if !strings.Contains(config, `entrypoint = ["./tmp/graft", "serve"]`) {
-		t.Fatalf("expected Air config to use entrypoint array for graft serve, got:\n%s", config)
+	if !strings.Contains(config, `entrypoint = ["./tmp/graft", "dev", "notify"]`) {
+		t.Fatalf("expected Air config to notify the dev supervisor, got:\n%s", config)
 	}
-	if !strings.Contains(
-		config,
-		`cmd = "sh -c 'go build -o ./tmp/graft ./cmd/graft >./tmp/air.log 2>&1 || { status=$?; cat ./tmp/air.log >&2; exit $status; }'"`,
-	) {
-		t.Fatalf("expected Unix Air config to print build errors to stderr, got:\n%s", config)
+	if strings.Contains(config, `entrypoint = ["./tmp/graft", "serve"]`) {
+		t.Fatalf("Air config must not launch serve directly anymore:\n%s", config)
 	}
-	if strings.Contains(config, `bin = "./tmp/graft serve"`) {
-		t.Fatalf("legacy build.bin form must not be used because Air treats it as a single binary path:\n%s", config)
-	}
-	if !strings.Contains(config, `entrypoint = ['tmp\graft.exe', "serve"]`) {
-		t.Fatalf("expected Windows Air config to use entrypoint array for graft serve, got:\n%s", config)
-	}
-	if !strings.Contains(
-		config,
-		`cmd = "powershell -NoProfile -Command \"$log = './tmp/air.log'; go build -o ./tmp/graft.exe ./cmd/graft *> $log; if ($LASTEXITCODE -ne 0) { Get-Content $log | Write-Error; exit $LASTEXITCODE }\""`,
-	) {
-		t.Fatalf("expected Windows Air config to print build errors to stderr, got:\n%s", config)
-	}
-	if strings.Contains(config, `bin = 'tmp\graft.exe serve'`) {
-		t.Fatalf("legacy Windows build.bin form must not be used because Air treats it as a single binary path:\n%s", config)
+	if !strings.Contains(config, `entrypoint = ['tmp\graft.exe', "dev", "notify"]`) {
+		t.Fatalf("expected Windows Air config to notify the dev supervisor, got:\n%s", config)
 	}
 }
 
-// TestNewRootCommandRegistersDevCommand 验证根命令始终注册 `dev` 子命令。
-func TestNewRootCommandRegistersDevCommand(t *testing.T) {
-	command := NewRootCommand()
+func TestSignalDevPIDIgnoresMissingProcess(t *testing.T) {
+	originalFinder := devProcessFinder
+	defer func() {
+		devProcessFinder = originalFinder
+	}()
 
-	found, _, err := command.Find([]string{"dev"})
-	if err != nil {
-		t.Fatalf("find dev command: %v", err)
+	devProcessFinder = func(_ int) (*os.Process, error) {
+		return nil, errors.New("lookup failed")
 	}
-	if found == nil || found.Name() != "dev" {
-		t.Fatalf("expected dev command, got %#v", found)
-	}
-}
 
-// TestNewRootCommandRegistersDevResetAdminCommand 验证 `graft dev reset-admin` 子命令可发现。
-func TestNewRootCommandRegistersDevResetAdminCommand(t *testing.T) {
-	command := NewRootCommand()
-
-	found, _, err := command.Find([]string{"dev", "reset-admin"})
-	if err != nil {
-		t.Fatalf("find dev reset-admin command: %v", err)
-	}
-	if found == nil || found.Name() != "reset-admin" {
-		t.Fatalf("expected reset-admin command, got %#v", found)
+	if err := signalDevPID(1, syscall.SIGTERM); err == nil {
+		t.Fatal("expected lookup error")
 	}
 }
 
-// TestNewRootCommandRegistersDevAirCommand 验证 `graft dev air` 子命令可发现。
-func TestNewRootCommandRegistersDevAirCommand(t *testing.T) {
+func TestNewRootCommandRegistersDevNotifyCommand(t *testing.T) {
 	command := NewRootCommand()
 
-	found, _, err := command.Find([]string{"dev", "air"})
+	found, _, err := command.Find([]string{"dev", "notify"})
 	if err != nil {
-		t.Fatalf("find dev air command: %v", err)
+		t.Fatalf("find dev notify command: %v", err)
 	}
-	if found == nil || found.Name() != "air" {
-		t.Fatalf("expected air command, got %#v", found)
-	}
-}
-
-// TestNewRootCommandRegistersDevStopAirCommand 验证 `graft dev stop-air` 子命令可发现。
-func TestNewRootCommandRegistersDevStopAirCommand(t *testing.T) {
-	command := NewRootCommand()
-
-	found, _, err := command.Find([]string{"dev", "stop-air"})
-	if err != nil {
-		t.Fatalf("find dev stop-air command: %v", err)
-	}
-	if found == nil || found.Name() != "stop-air" {
-		t.Fatalf("expected stop-air command, got %#v", found)
+	if found == nil || found.Name() != "notify" {
+		t.Fatalf("expected notify command, got %#v", found)
 	}
 }

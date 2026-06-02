@@ -13,7 +13,7 @@
             ]
         },
         {
-            "name": "server: 迁移+启动",
+            "name": "server: 开发监督器",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -60,6 +60,18 @@
             ]
         },
         {
+            "name": "server: 通知开发监督器",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/server/cmd/graft",
+            "cwd": "${workspaceFolder}/server",
+            "args": [
+                "dev",
+                "notify"
+            ]
+        },
+        {
             "name": "server: 停止 Air",
             "type": "go",
             "request": "launch",
@@ -103,7 +115,7 @@
         {
             "name": "fullstack: dev",
             "configurations": [
-                "server: 迁移+启动",
+                "server: 开发监督器",
                 "web: dev"
             ]
         }
