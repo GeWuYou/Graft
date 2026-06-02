@@ -59,8 +59,8 @@ type devResetState struct {
 	setPasswordInput       userstore.SetPasswordHashInput
 	assignRoleInput        rbacstore.AssignRoleToUserInput
 	assignPermissionsInput rbacstore.AssignPermissionsToRoleInput
-	authRepo               *pluginTestAuthRepository
-	rbacRepo               pluginTestRBACRepository
+	authRepo               *moduleTestAuthRepository
+	rbacRepo               moduleTestRBACRepository
 }
 
 type devResetRBACBootstrapStub struct {
@@ -117,7 +117,7 @@ func newDevResetState(t *testing.T, currentHash string) *devResetState {
 	t.Helper()
 
 	state := &devResetState{}
-	state.authRepo = &pluginTestAuthRepository{
+	state.authRepo = &moduleTestAuthRepository{
 		ensureUserCredential: func(_ context.Context, input userstore.EnsureUserCredentialInput) (userstore.UserCredential, error) {
 			state.ensured = true
 			return userstore.UserCredential{
@@ -139,7 +139,7 @@ func newDevResetState(t *testing.T, currentHash string) *devResetState {
 			ExpiresAt: time.Now().UTC().Add(time.Hour),
 		},
 	}
-	state.rbacRepo = pluginTestRBACRepository{
+	state.rbacRepo = moduleTestRBACRepository{
 		ensureRole: func(_ context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
 			if !input.Builtin {
 				t.Fatal("expected development reset to keep the default admin role builtin")

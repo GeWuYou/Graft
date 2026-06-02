@@ -21,19 +21,19 @@ import (
 type routeRuntime struct {
 	localizer  *i18n.Service
 	logger     *zap.Logger
-	pluginName string
+	moduleName string
 }
 
 func (r userRouteRegistrar) runtime() routeRuntime {
 	return routeRuntime{
 		localizer:  r.ctx.I18n,
 		logger:     r.ctx.Logger,
-		pluginName: r.pluginName,
+		moduleName: r.moduleName,
 	}
 }
 
 func (r routeRuntime) appLogger() applog.AppLogger {
-	return applog.NewAppLogger(r.logger).Named("plugins.user.route")
+	return applog.NewAppLogger(r.logger).Named("modules.user.route")
 }
 
 func readUserIDParam(ginCtx *gin.Context, localizer *i18n.Service) (uint64, bool) {
@@ -76,7 +76,7 @@ func clearRefreshCookieWhen(
 func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	status, messageKey := mapAuthError(err)
 	if status == http.StatusInternalServerError {
-		logFields := append([]zap.Field{zap.String("plugin", r.pluginName), zap.Error(err)}, fields...)
+		logFields := append([]zap.Field{zap.String("module", r.moduleName), zap.Error(err)}, fields...)
 		r.logger.Error(message, logFields...)
 	}
 
@@ -91,7 +91,7 @@ func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, m
 		messageKey = messagecontract.UserNotFound
 	} else {
 		r.logger.Error(message,
-			zap.String("plugin", r.pluginName),
+			zap.String("module", r.moduleName),
 			zap.Uint64("userID", userID),
 			zap.Error(err),
 		)
@@ -105,7 +105,7 @@ func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint6
 	if shouldLogUserManagementError(status, err) {
 		responseCode := errorCodeFromMessageKey(messageKey)
 		logFields := []zap.Field{
-			zap.String("plugin", r.pluginName),
+			zap.String("module", r.moduleName),
 			zap.String("operation", userManagementOperationFromMessage(message)),
 			zap.String("method", ginCtx.Request.Method),
 			zap.String("route", ginCtx.FullPath()),
@@ -133,7 +133,7 @@ func (r routeRuntime) writeCreateUserError(ginCtx *gin.Context, message string, 
 	if shouldLogUserManagementError(status, err) {
 		responseCode := errorCodeFromMessageKey(messageKey)
 		logFields := []zap.Field{
-			zap.String("plugin", r.pluginName),
+			zap.String("module", r.moduleName),
 			zap.String("operation", userManagementOperationFromMessage(message)),
 			zap.String("method", ginCtx.Request.Method),
 			zap.String("route", ginCtx.FullPath()),
@@ -152,7 +152,7 @@ func (r routeRuntime) writeCreateUserError(ginCtx *gin.Context, message string, 
 
 func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	appFields := []applog.Field{
-		applog.StringField("plugin", r.pluginName),
+		applog.StringField("module", r.moduleName),
 		applog.ErrorField(err),
 	}
 	for _, field := range fields {

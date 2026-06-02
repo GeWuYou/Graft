@@ -32,7 +32,7 @@ It does not approve:
 
 `web` is a downstream consumer only.
 
-`server/plugins/audit/**` and `server/plugins/monitor/**` may consume access-log correlation but do not own access-log explorer truth.
+`server/modules/audit/**` and `server/modules/monitor/**` may consume access-log correlation but do not own access-log explorer truth.
 
 ## 3. Consumer Analysis
 

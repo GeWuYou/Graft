@@ -28,7 +28,7 @@ It does not approve:
 
 `web` is a downstream consumer only.
 
-`server/plugins/audit/**` is not the canonical owner of `Access Log`.
+`server/modules/audit/**` is not the canonical owner of `Access Log`.
 
 ## 3. Access Log Definition
 
@@ -57,7 +57,7 @@ It does not record:
 | Surface | Canonical owner | Responsible for | Must not own |
 | --- | --- | --- | --- |
 | Access Log | `server/internal/httpx/**` | request lifecycle, transport facts, latency, status, canonical request correlation | audit action truth, business event truth, security finding truth, frontend query semantics |
-| Audit Log / Audit Event | `server/internal/audit/**` + `server/plugins/audit/**` | user action, business event, permission decision, compliance evidence, audit policy outcome | raw request traffic truth, generic request observability, access-log storage authority |
+| Audit Log / Audit Event | `server/internal/audit/**` + `server/modules/audit/**` | user action, business event, permission decision, compliance evidence, audit policy outcome | raw request traffic truth, generic request observability, access-log storage authority |
 | Security Event | publish in `server/internal/httpx/**`, persist via audit path | threat signal, abuse indicator, auth/authz failure, security finding candidate | generic request traffic truth, access-log contract ownership, standalone log-explorer authority |
 
 ## 5. Canonical Schema

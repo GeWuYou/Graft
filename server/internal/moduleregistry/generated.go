@@ -3,19 +3,19 @@ package moduleregistry
 
 import (
 	"graft/server/internal/module"
-	auditplugin "graft/server/modules/audit"
-	authplugin "graft/server/modules/auth"
-	monitorplugin "graft/server/modules/monitor"
-	rbacplugin "graft/server/modules/rbac"
-	schedulerplugin "graft/server/modules/scheduler"
-	userplugin "graft/server/modules/user"
+	auditmodule "graft/server/modules/audit"
+	authmodule "graft/server/modules/auth"
+	monitormodule "graft/server/modules/monitor"
+	rbacmodule "graft/server/modules/rbac"
+	schedulermodule "graft/server/modules/scheduler"
+	usermodule "graft/server/modules/user"
 )
 
 var generatedModuleSpecs = []module.Spec{
-	auditplugin.NewModuleSpec(),
-	authplugin.NewModuleSpec(),
-	monitorplugin.NewModuleSpec(),
-	rbacplugin.NewModuleSpec(),
-	schedulerplugin.NewModuleSpec(),
-	userplugin.NewModuleSpec(),
+	auditmodule.NewModuleSpec(),
+	authmodule.NewModuleSpec(),
+	monitormodule.NewModuleSpec(),
+	rbacmodule.NewModuleSpec(),
+	schedulermodule.NewModuleSpec(),
+	usermodule.NewModuleSpec(),
 }

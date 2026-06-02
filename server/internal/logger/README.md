@@ -67,7 +67,7 @@
 
 示例：
 
-* 推荐：`logger.NewAppLogger(base).Named("modules.user.route").Error(ctx, "map user response failed", logger.StringField("plugin", "user"), logger.ErrorField(err))`
+* 推荐：`logger.NewAppLogger(base).Named("modules.user.route").Error(ctx, "map user response failed", logger.StringField("module", "user"), logger.ErrorField(err))`
 * 例外：`internal/httpx/accesslog.go` 继续直接使用 raw zap 维护 access-log authority
 * 例外：`modules/audit/**` 继续直接使用 raw zap 维护 audit-owned runtime diagnostics
 

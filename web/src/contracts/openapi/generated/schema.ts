@@ -942,7 +942,7 @@ export interface components {
     AuditIncidentMonitorEvidence: components['schemas']['audit-incident-monitor-evidence'];
     EnvelopedAuditIncidentResponse: components['schemas']['enveloped-audit-incident-response'];
     ServerStatusDependency: components['schemas']['server-status-dependency'];
-    ServerStatusPlugin: components['schemas']['server-status-plugin'];
+    ServerStatusModule: components['schemas']['server-status-module'];
     ServerStatusServer: components['schemas']['server-status-server'];
     ServerStatusLoadAverage: components['schemas']['server-status-load-average'];
     ServerStatusDiskUsage: components['schemas']['server-status-disk-usage'];
@@ -1521,7 +1521,7 @@ export interface components {
       anomaly_key?:
         | 'dependency_status_degraded'
         | 'dependency_status_unknown'
-        | 'plugin_dependency_missing'
+        | 'module_dependency_missing'
         | 'resource_cpu_pressure'
         | 'resource_memory_pressure'
         | 'resource_disk_pressure'
@@ -1532,7 +1532,7 @@ export interface components {
        * @description Scope category that owns the anomaly target.
        * @enum {string}
        */
-      scope_kind?: 'dependency' | 'plugin' | 'runtime' | 'resource';
+      scope_kind?: 'dependency' | 'module' | 'runtime' | 'resource';
       /** @description Stable scope identifier used to reopen the owning monitor view. */
       scope_ref?: string;
       /**
@@ -1726,8 +1726,8 @@ export interface components {
      *       "degraded_dependencies": 0,
      *       "unknown_dependencies": 0,
      *       "disabled_dependencies": 1,
-     *       "total_plugins": 4,
-     *       "healthy_plugins": 4
+     *       "total_modules": 4,
+     *       "healthy_modules": 4
      *     }
      */
     'server-status-summary': {
@@ -1736,8 +1736,8 @@ export interface components {
       degraded_dependencies: number;
       unknown_dependencies: number;
       disabled_dependencies: number;
-      total_plugins: number;
-      healthy_plugins: number;
+      total_modules: number;
+      healthy_modules: number;
     };
     /**
      * @example {
@@ -1811,7 +1811,7 @@ export interface components {
      *       "missing_dependencies": []
      *     }
      */
-    'server-status-plugin': {
+    'server-status-module': {
       name: string;
       status: string;
       status_detail: string;
@@ -1823,7 +1823,7 @@ export interface components {
       anomaly_key:
         | 'dependency_status_degraded'
         | 'dependency_status_unknown'
-        | 'plugin_dependency_missing'
+        | 'module_dependency_missing'
         | 'resource_cpu_pressure'
         | 'resource_memory_pressure'
         | 'resource_disk_pressure'
@@ -1831,7 +1831,7 @@ export interface components {
         | 'runtime_heap_pressure'
         | 'system_load_pressure';
       /** @enum {string} */
-      scope_kind: 'dependency' | 'plugin' | 'runtime' | 'resource';
+      scope_kind: 'dependency' | 'module' | 'runtime' | 'resource';
       scope_ref: string;
       /** @enum {string} */
       severity: 'warning' | 'critical';
@@ -1851,7 +1851,7 @@ export interface components {
       dependencies: components['schemas']['server-status-dependencies'];
       summary: components['schemas']['server-status-summary'];
       trend: components['schemas']['server-status-trend'];
-      plugins: components['schemas']['server-status-plugin'][];
+      modules: components['schemas']['server-status-module'][];
       anomalies: components['schemas']['server-status-anomaly'][];
     };
     'enveloped-server-status-response': components['schemas']['api-envelope'] & {

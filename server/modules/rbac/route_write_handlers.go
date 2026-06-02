@@ -18,29 +18,29 @@ import (
 func registerRoleWriteRoutes(
 	group *gin.RouterGroup,
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	writer writeManagementService,
 	guards managementGuards,
 ) {
 	group.POST(rbaccontract.RoleCollection, guards.roleCreate, func(ginCtx *gin.Context) {
-		handleCreateRoleRoute(ginCtx, ctx, pluginName, writer)
+		handleCreateRoleRoute(ginCtx, ctx, moduleName, writer)
 	})
 
 	group.POST(rbaccontract.RoleUpdateRoute, guards.roleUpdate, func(ginCtx *gin.Context) {
-		handleUpdateRoleRoute(ginCtx, ctx, pluginName, writer)
+		handleUpdateRoleRoute(ginCtx, ctx, moduleName, writer)
 	})
 
-	group.POST(rbaccontract.RoleStatusRoute, guards.roleStatus, func(ginCtx *gin.Context) { handleUpdateRoleStatusRoute(ginCtx, ctx, pluginName, writer) })
-	group.POST(rbaccontract.RoleDeleteRoute, guards.roleDelete, func(ginCtx *gin.Context) { handleDeleteRoleRoute(ginCtx, ctx, pluginName, writer) })
-	group.POST(rbaccontract.RolePermissionReplaceRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleReplaceRolePermissionsRoute(ginCtx, ctx, pluginName, writer) })
-	group.POST(rbaccontract.RolePermissionAddRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleAddRolePermissionsRoute(ginCtx, ctx, pluginName, writer) })
-	group.POST(rbaccontract.RolePermissionRemoveRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleRemoveRolePermissionsRoute(ginCtx, ctx, pluginName, writer) })
+	group.POST(rbaccontract.RoleStatusRoute, guards.roleStatus, func(ginCtx *gin.Context) { handleUpdateRoleStatusRoute(ginCtx, ctx, moduleName, writer) })
+	group.POST(rbaccontract.RoleDeleteRoute, guards.roleDelete, func(ginCtx *gin.Context) { handleDeleteRoleRoute(ginCtx, ctx, moduleName, writer) })
+	group.POST(rbaccontract.RolePermissionReplaceRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleReplaceRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
+	group.POST(rbaccontract.RolePermissionAddRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleAddRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
+	group.POST(rbaccontract.RolePermissionRemoveRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleRemoveRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
 }
 
 func handleCreateRoleRoute(
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	writer writeManagementService,
 ) {
 	requestCtx := ginCtx.Request.Context()
@@ -70,13 +70,13 @@ func handleCreateRoleRoute(
 
 	role, err := writer.CreateRole(requestCtx, roleInput)
 	if err != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "id")
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "id")
 		return
 	}
 
 	payload, mapErr := toRoleListItem(role)
 	if mapErr != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, mapErr, "id")
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, mapErr, "id")
 		return
 	}
 
@@ -86,7 +86,7 @@ func handleCreateRoleRoute(
 func handleUpdateRoleRoute(
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	writer writeManagementService,
 ) {
 	requestCtx := ginCtx.Request.Context()
@@ -124,13 +124,13 @@ func handleUpdateRoleRoute(
 
 	role, err := writer.UpdateRole(requestCtx, roleInput)
 	if err != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "id")
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "id")
 		return
 	}
 
 	payload, mapErr := toRoleListItem(role)
 	if mapErr != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, mapErr, "id")
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, mapErr, "id")
 		return
 	}
 
@@ -347,7 +347,7 @@ func bindGeneratedUsersRoleRemoveParams(ginCtx *gin.Context) rbacopenapi.PostUse
 	return rbacopenapi.PostUsersRolesRemoveParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
+func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	requestCtx := ginCtx.Request.Context()
 	roleID, err := parseManagementID(ginCtx.Param("id"))
 	if err != nil {
@@ -370,18 +370,18 @@ func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *module.Context, plugi
 
 	role, err := writer.SetRoleStatus(requestCtx, rbacstore.SetRoleStatusInput{ID: roleID, Status: status})
 	if err != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "status")
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "status")
 		return
 	}
 	payload, mapErr := toRoleListItem(role)
 	if mapErr != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, mapErr, "status")
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, mapErr, "status")
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 }
 
-func handleDeleteRoleRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
+func handleDeleteRoleRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	requestCtx := ginCtx.Request.Context()
 	roleID, err := parseManagementID(ginCtx.Param("id"))
 	if err != nil {
@@ -390,7 +390,7 @@ func handleDeleteRoleRoute(ginCtx *gin.Context, ctx *module.Context, pluginName 
 	}
 	rbacWriteGeneratedHandler{}.PostRoleDelete(roleID, bindGeneratedRoleDeleteParams(ginCtx))
 	if err := writer.SoftDeleteRole(requestCtx, rbacstore.SoftDeleteRoleInput{ID: roleID}); err != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, "id")
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "id")
 		return
 	}
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
@@ -399,12 +399,12 @@ func handleDeleteRoleRoute(ginCtx *gin.Context, ctx *module.Context, pluginName 
 func handleUserScopedStableIDsRoute(
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	invalidField string,
 	readAndBindGenerated func(ginCtx *gin.Context, targetID uint64) ([]uint64, error),
 	write func(ctx context.Context, targetID uint64, ids []uint64) error,
 ) {
-	handleReplaceStableIDsRoute(ginCtx, ctx, pluginName, replaceStableIDsHandlerConfig{
+	handleReplaceStableIDsRoute(ginCtx, ctx, moduleName, replaceStableIDsHandlerConfig{
 		invalidField:         invalidField,
 		readAndBindGenerated: readAndBindGenerated,
 		write:                write,
@@ -414,11 +414,11 @@ func handleUserScopedStableIDsRoute(
 func handleBatchUserRoleRoute(
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	readAndBindGenerated func(ginCtx *gin.Context) (batchStableIDSet, error),
 	write func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error,
 ) {
-	handleBatchStableIDsRoute(ginCtx, ctx, pluginName, batchStableIDsHandlerConfig{
+	handleBatchStableIDsRoute(ginCtx, ctx, moduleName, batchStableIDsHandlerConfig{
 		invalidField:         "role_ids",
 		readAndBindGenerated: readAndBindGenerated,
 		write:                write,
@@ -426,8 +426,8 @@ func handleBatchUserRoleRoute(
 }
 
 //nolint:dupl // The generated request binders and write-service calls must stay explicit per operation.
-func handleReplaceRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleUserScopedStableIDsRoute(ginCtx, ctx, pluginName, "permission_ids",
+func handleReplaceRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleUserScopedStableIDsRoute(ginCtx, ctx, moduleName, "permission_ids",
 		func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
 			body, ids, err := readGeneratedRolePermissionReplaceRequest(ginCtx)
 			if err != nil {
@@ -443,8 +443,8 @@ func handleReplaceRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context,
 }
 
 //nolint:dupl // The generated request binders and write-service calls must stay explicit per operation.
-func handleAddRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleUserScopedStableIDsRoute(ginCtx, ctx, pluginName, "permission_ids",
+func handleAddRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleUserScopedStableIDsRoute(ginCtx, ctx, moduleName, "permission_ids",
 		func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
 			body, ids, err := readGeneratedRolePermissionAddRequest(ginCtx)
 			if err != nil {
@@ -460,8 +460,8 @@ func handleAddRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, plu
 }
 
 //nolint:dupl // The generated request binders and write-service calls must stay explicit per operation.
-func handleRemoveRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleUserScopedStableIDsRoute(ginCtx, ctx, pluginName, "permission_ids",
+func handleRemoveRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleUserScopedStableIDsRoute(ginCtx, ctx, moduleName, "permission_ids",
 		func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
 			body, ids, err := readGeneratedRolePermissionRemoveRequest(ginCtx)
 			if err != nil {
@@ -477,8 +477,8 @@ func handleRemoveRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, 
 }
 
 //nolint:dupl // The generated request binders and write-service calls must stay explicit per operation.
-func handleReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleUserScopedStableIDsRoute(ginCtx, ctx, pluginName, "role_ids",
+func handleReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleUserScopedStableIDsRoute(ginCtx, ctx, moduleName, "role_ids",
 		func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
 			body, ids, err := readGeneratedUserRoleReplaceRequest(ginCtx)
 			if err != nil {
@@ -494,8 +494,8 @@ func handleReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, plugi
 }
 
 //nolint:dupl // The generated request binders and write-service calls must stay explicit per operation.
-func handleAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleUserScopedStableIDsRoute(ginCtx, ctx, pluginName, "role_ids",
+func handleAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleUserScopedStableIDsRoute(ginCtx, ctx, moduleName, "role_ids",
 		func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
 			body, ids, err := readGeneratedUserRoleAddRequest(ginCtx)
 			if err != nil {
@@ -511,8 +511,8 @@ func handleAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, pluginNam
 }
 
 //nolint:dupl // The generated request binders and write-service calls must stay explicit per operation.
-func handleRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleUserScopedStableIDsRoute(ginCtx, ctx, pluginName, "role_ids",
+func handleRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleUserScopedStableIDsRoute(ginCtx, ctx, moduleName, "role_ids",
 		func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
 			body, ids, err := readGeneratedUserRoleRemoveRequest(ginCtx)
 			if err != nil {
@@ -528,8 +528,8 @@ func handleRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, plugin
 }
 
 //nolint:dupl // Batch generated request binders intentionally stay parallel to preserve operation ownership.
-func handleBatchReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleBatchUserRoleRoute(ginCtx, ctx, pluginName,
+func handleBatchReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleBatchUserRoleRoute(ginCtx, ctx, moduleName,
 		func(ginCtx *gin.Context) (batchStableIDSet, error) {
 			body, request, err := readGeneratedBatchUserRoleReplaceRequest(ginCtx)
 			if err != nil {
@@ -545,8 +545,8 @@ func handleBatchReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, 
 }
 
 //nolint:dupl // Batch generated request binders intentionally stay parallel to preserve operation ownership.
-func handleBatchAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleBatchUserRoleRoute(ginCtx, ctx, pluginName,
+func handleBatchAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleBatchUserRoleRoute(ginCtx, ctx, moduleName,
 		func(ginCtx *gin.Context) (batchStableIDSet, error) {
 			body, request, err := readGeneratedBatchUserRoleAddRequest(ginCtx)
 			if err != nil {
@@ -562,8 +562,8 @@ func handleBatchAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, plug
 }
 
 //nolint:dupl // Batch generated request binders intentionally stay parallel to preserve operation ownership.
-func handleBatchRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, pluginName string, writer writeManagementService) {
-	handleBatchUserRoleRoute(ginCtx, ctx, pluginName,
+func handleBatchRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	handleBatchUserRoleRoute(ginCtx, ctx, moduleName,
 		func(ginCtx *gin.Context) (batchStableIDSet, error) {
 			body, request, err := readGeneratedBatchUserRoleRemoveRequest(ginCtx)
 			if err != nil {
@@ -581,7 +581,7 @@ func handleBatchRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, p
 func handleReplaceStableIDsRoute(
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	config replaceStableIDsHandlerConfig,
 ) {
 	targetID, err := parseManagementID(ginCtx.Param("id"))
@@ -608,7 +608,7 @@ func handleReplaceStableIDsRoute(
 
 	requestCtx := ginCtx.Request.Context()
 	if err := config.write(requestCtx, targetID, ids); err != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, config.invalidField)
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, config.invalidField)
 		return
 	}
 
@@ -618,7 +618,7 @@ func handleReplaceStableIDsRoute(
 func handleBatchStableIDsRoute(
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	config batchStableIDsHandlerConfig,
 ) {
 	request, err := config.readAndBindGenerated(ginCtx)
@@ -632,7 +632,7 @@ func handleBatchStableIDsRoute(
 	}
 	requestCtx := ginCtx.Request.Context()
 	if err := config.write(requestCtx, request.userIDs, request.roleIDs); err != nil {
-		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, pluginName, err, config.invalidField)
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, config.invalidField)
 		return
 	}
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)

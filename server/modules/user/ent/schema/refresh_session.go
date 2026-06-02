@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// RefreshSession defines the user plugin's refresh-session persistence model.
+// RefreshSession defines the user module's refresh-session persistence model.
 type RefreshSession struct {
 	ent.Schema
 }
@@ -66,7 +66,7 @@ func (RefreshSession) Edges() []ent.Edge {
 	}
 }
 
-// Indexes returns the secondary indexes required by the user plugin's auth flows.
+// Indexes returns the secondary indexes required by the user module's auth flows.
 func (RefreshSession) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("user_id"),

@@ -12,6 +12,18 @@ Overlay note:
 
 ## Active Topics
 
+- `full-historical-plugin-surface-migration`
+  - Status: `archive-ready`
+  - Recovery status: completed Batch 1 through Batch 8 of the bounded cross-boundary topic that removes the previous exception for retained repository-owned `plugin` authority across backend shared boundaries, shared contracts, generated consumers, frontend visible copy, and active governance docs.
+  - Scope outcome:
+    - froze the canonical rename map for `internal/pluginapi -> internal/moduleapi`, backend/runtime `Plugin* -> Module*`, monitor payload/domain `plugins -> modules`, summary fields `total_plugins/healthy_plugins -> total_modules/healthy_modules`, anomaly value `plugin_dependency_missing -> module_dependency_missing`, scope kind `plugin -> module`, and visible copy `插件/Plugins -> 模块/Modules`
+    - completed backend authority rename, runtime/domain/log semantic repair, OpenAPI plus generated artifact regeneration, frontend downstream consumer plus visible-copy migration, active governance/doc reconciliation, and residual live drift cleanup
+    - recorded that archive materials remain untouched and third-party/framework vocabulary is still excluded
+    - final archive-readiness validation confirmed remaining `plugin` hits are limited to historical evidence, anti-goal wording, or third-party/framework vocabulary rather than live current-authority module semantics drift
+  - Topic directory:
+    - `ai-plan/public/full-historical-plugin-surface-migration`
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Governance source: root AGENTS.md. Task class: cross-boundary. Recovery source: parent topic server-module-semantics-and-live-migration-reset. Owned scope: treat ai-plan/public/full-historical-plugin-surface-migration/** as archive-ready evidence only and open a new bounded topic only if the repository explicitly decides to rename currently allowed historical/plugin-literal surfaces outside this loop's accepted residual classes.`
+
 - `phase-d-app-log-operator-workflow-definition`
   - Status: `archive-ready`
   - Recovery status: completed the bounded governance-only topic that defines minimum operator workflows before approving durable `App Log` storage or explorer work.

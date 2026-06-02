@@ -8,8 +8,8 @@
 术语补充：
 
 - 当前 backend 的 canonical 业务能力单元是 `module`
-- `Plugin`、`pluginapi` 等少量导出符号仍保留历史命名
 - 当前 backend 的 canonical 物理路径已经迁到 `server/modules/*`、`server/internal/module/**`、`server/internal/moduleregistry/**`
+- 当前 backend 的跨模块稳定边界已经迁到 `server/internal/moduleapi/**`
 - 除非明确讨论历史符号名，否则实现和治理语义都应按 compile-time modules 理解
 
 authority-first overlay：
@@ -127,7 +127,7 @@ authority-first overlay：
 - `cmd/graft`
   - `graft` CLI 入口；显式承载 `serve`、`migrate`、`dev`、`validate`
 - `internal/app`
-  - runtime 装配、core 资源生命周期、插件调度
+  - runtime 装配、core 资源生命周期、模块调度
 - `internal/cli`
   - 后端显式 CLI 命令树；不要把 runtime 魔法塞进 shell 脚本
 - `internal/config`、`internal/logger`、`internal/database`、`internal/redisx`
@@ -207,15 +207,15 @@ Observability authority overlay：
   - `monitor` 不得推断 audit incident / policy truth
   - capability DTO 若在 moduleapi、module store、OpenAPI 三层同时存在，必须能说明 canonical owner 与 derived mapping path
 
-## 7. 插件生命周期与边界
+## 7. 模块生命周期与边界
 
-当前 backend module 在历史 `plugin` 命名下遵循两层契约：
+当前 backend module 遵循两层契约：
 
 - compile-time module authority
   - `module.Spec` 持有稳定的模块标识、依赖、builder 与 migration path
 - runtime lifecycle contract
-  - 运行时插件实例只实现 `Register / Boot / Shutdown`
-  - core runtime 通过 compile-time `ModuleSpec` 包装得到 `plugin.Module` 视图，再消费稳定的 `Name()` /
+  - 运行时模块实例只实现 `Register / Boot / Shutdown`
+  - core runtime 通过 compile-time `ModuleSpec` 包装得到 `module.Module` 视图，再消费稳定的 `Name()` /
     `DependsOn()` 结果
 
 `server` 的长期并行开发方向保持为 compile-time modular monolith：
@@ -228,7 +228,7 @@ Observability authority overlay：
 - 不做 generalized service locator
 
 当前治理已采用 `module.Spec`、`module.Builder` 与 compile-time generated module registry 作为显式 module
-装配抽象；保留的 `Plugin` 接口只代表历史导出命名。这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
+装配抽象。这些抽象的目的仅是降低多工作树并行开发冲突，不是把当前仓库扩展成运行时插件平台。
 
 ### 7.1 生命周期规则
 
@@ -251,7 +251,7 @@ Observability authority overlay：
 - 服务依赖通过稳定接口解析
 - 缺失依赖、循环依赖、重复注册都属于阻断错误
 - 模块只能依赖：
-  - `internal/pluginapi/**`
+  - `internal/moduleapi/**`
   - `internal/contract/**`
   - 其它模块公开的 capability contract 或 stable DTO contract
 - 模块不能直接 import：
@@ -374,15 +374,15 @@ Observability authority overlay：
 规则：
 
 - `internal/app` 只负责 runtime 资源装配、模块编排、关闭顺序，不承载业务用例
-- `internal/httpx` 负责 HTTP 运行时共性，不承载某个插件专有业务规则
-- `internal/store` 与 `internal/store/entstore` 只允许承载 core-owned 或尚未迁移完成的历史集中边界，不应继续接纳新的业务插件真相
+- `internal/httpx` 负责 HTTP 运行时共性，不承载某个模块专有业务规则
+- `internal/store` 与 `internal/store/entstore` 只允许承载 core-owned 或尚未迁移完成的历史集中边界，不应继续接纳新的业务模块真相
 - 长期方向下，业务模块应收敛到：
   - `modules/<name>/store/**`
   - `modules/<name>/storeent/**`
   - `modules/<name>/service/**`
   - `modules/<name>/routes/**`
-- 插件的 handler / route 文件只编排 HTTP 输入输出与授权边界，不直接堆业务事务脚本
-- 一旦某个业务边界迁移到插件目录，禁止把 repository、service、handler 重新回流到 `internal/store/**`、`internal/app/**` 或其它 core runtime 包
+- 模块的 handler / route 文件只编排 HTTP 输入输出与授权边界，不直接堆业务事务脚本
+- 一旦某个业务边界迁移到模块目录，禁止把 repository、service、handler 重新回流到 `internal/store/**`、`internal/app/**` 或其它 core runtime 包
 
 ## 12. Ent 与 migration 规则
 
@@ -392,7 +392,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 - 这里说的“zero-shared”指功能开发工作树的零共享，不是要求所有 tracked file 都绝对零共享
 - 长生命周期的 `server` feature worktree 正常情况下只拥有 `server/modules/<name>/**`
-- `internal/pluginapi/**`、`internal/contract/**`、`internal/moduleregistry/generated.go`、`cmd/graft/**`、
+- `internal/moduleapi/**`、`internal/contract/**`、`internal/moduleregistry/generated.go`、`cmd/graft/**`、
   `AGENTS.md`、`ai-plan/**` 与 migration 入口变更都属于短生命周期 integration / core slice，不属于长期 feature
   worktree 的 standing ownership
 - `internal/moduleregistry/generated.go` 当前仍保持 tracked；但长生命周期 feature worktree 不得直接修改它，相关改动必须回到显式集成切片统一协调
@@ -403,7 +403,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 规则：
 
 - `internal/ent/migrate/migrations/**` 只允许承载历史共享 Atlas migration 真相；不得新增新的默认 migration、业务 schema 真相或新的 owner-aligned 基线
-- 每个业务插件应长期收敛到自己的：
+- 每个业务模块应长期收敛到自己的：
   - `modules/<name>/ent/**`
   - `modules/<name>/migrations/**`
 - live Ent 生成产物只允许存在于 `modules/<name>/ent/**`；不得把生成代码重新集中回 `internal/ent/**`
@@ -427,12 +427,12 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
   - `rbac` migration 修改 `user` 表
   - `audit` migration 修改 `rbac` 表
   - 任一模块 migration 修改其它模块 schema
-- 跨插件关联只允许：
+- 跨模块关联只允许：
   - 稳定外键，由表 owner 明确声明
   - application-level contract 协作
 - 每个模块独立进行 Ent generate，生成代码只能写入 `modules/<name>/ent/**`
-- `user_roles` 的协作边界保持为 `user_id / role_id` 标识符级别；不要通过跨插件 Ent edge、跨插件 Ent entity 或跨插件 repository 暴露角色分配耦合
-- 禁止聚合式全局业务 Ent generate、禁止一个插件修改其它插件的 ent 产物、禁止插件修改 core ent runtime
+- `user_roles` 的协作边界保持为 `user_id / role_id` 标识符级别；不要通过跨模块 Ent edge、跨模块 Ent entity 或跨模块 repository 暴露角色分配耦合
+- 禁止聚合式全局业务 Ent generate、禁止一个模块修改其它模块的 ent 产物、禁止模块修改 core ent runtime
 
 当任务修改以下任一内容时：
 
@@ -456,7 +456,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 `server` 的长期多工作树 owned scope 以模块优先：
 
 - `shared-stable-boundary`
-  - `internal/pluginapi/**`
+  - `internal/moduleapi/**`
   - `internal/contract/**`
 - `generated-shared-hotspot`
   - `internal/moduleregistry/generated.go`
@@ -480,7 +480,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 允许长期共享修改的白名单仅包括：
 
-- `internal/pluginapi/**`
+- `internal/moduleapi/**`
 - `internal/contract/**`
 - `internal/moduleregistry/generated.go`
 - `cmd/graft/**`
@@ -500,7 +500,7 @@ overlay 解释：
 
 - `main` 共享基线 worktree
   - 只负责共享治理、共享热点收口、active topic/worktree 映射准备、以及尚未稳定下沉前的短期过渡修整
-  - 不应长期承担某个业务插件的日常 feature 开发
+  - 不应长期承担某个业务模块的日常 feature 开发
 - dedicated long-lived worktree
   - 一条长期 worktree 只对应一个清晰 owned scope
   - owned scope 必须在 tracking 或治理文档中写明，不允许靠“当前是谁在改”临时推断
@@ -520,11 +520,11 @@ shared hotspot 处理规则如下：
   - 进入该边界的改动必须同时说明 canonical owner 与 consumer；不要把临时业务实验塞成长期共享接口
 - `generated-shared-hotspot`
   - `internal/moduleregistry/generated.go` 是唯一允许的集中接线产物
-  - 该文件只能承载 compile-time registry 的机械生成结果，不允许手写业务规则、兼容分支或第二套插件真相
+  - 该文件只能承载 compile-time registry 的机械生成结果，不允许手写业务规则、兼容分支或第二套模块真相
   - 若多个长期 worktree 同时需要修改它，应把该变更视为可预期冲突面，并通过短生命周期集成或共享基线串行收口，而不是扩大共享编辑范围
 - `core-owned` 高冲突面
   - `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/module/**`、`internal/migration/**` 默认不是长期共享编辑面
-  - 某个插件 worktree 一旦需要持续修改这些目录，必须先明确它是在进行 core-owned 治理还是插件 feature 开发；两者不要混在同一长期 worktree 里无限扩张
+  - 某个模块 worktree 一旦需要持续修改这些目录，必须先明确它是在进行 core-owned 治理还是模块 feature 开发；两者不要混在同一长期 worktree 里无限扩张
 
 从 `main` 共享基线切换到 dedicated long-lived worktree 前，至少满足：
 
@@ -616,7 +616,7 @@ shared hotspot 处理规则如下：
 - 不允许隐藏全局单例
 - 不允许通过 `init()` 偷偷注册运行时依赖
 - service 依赖通过构造函数注入
-- 插件不能绕过 runtime 直接控制其它插件内部状态
+- 模块不能绕过 runtime 直接控制其它模块内部状态
 - wiring 依赖保持单向；core 不反向依赖业务实现
 
 ### 14.7 鉴权与安全
@@ -748,7 +748,7 @@ Shared/governance docs touched: yes
 
 - module boundary 是否被 core 或其它模块内部实现穿透
 - `Register / Boot / Shutdown` 是否混淆
-- `internal/pluginapi`、`internal/contract`、插件 contract 是否出现重复语义
+- `internal/moduleapi`、`internal/contract`、模块 contract 是否出现重复语义
 - 容器是否被当成普通 service locator 滥用
 - handler 是否泄漏 Ent entity、事务细节或底层错误
 - schema / migration / generated output 是否失配

@@ -39,7 +39,7 @@ func NewRuntime(sqlDB *sql.DB, runtimeLogger *zap.Logger) (*Runtime, error) {
 				}
 
 				runtimeLogger.Debug("ent debug",
-					zap.String("plugin", "user"),
+					zap.String("module", "user"),
 					zap.String("component", "ent"),
 					zap.String("message", message),
 				)

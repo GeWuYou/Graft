@@ -4853,8 +4853,8 @@
                           "degraded_dependencies": 0,
                           "unknown_dependencies": 0,
                           "disabled_dependencies": 1,
-                          "total_plugins": 4,
-                          "healthy_plugins": 4
+                          "total_modules": 4,
+                          "healthy_modules": 4
                         },
                         "trend": {
                           "range": "10m",
@@ -4875,7 +4875,7 @@
                             }
                           ]
                         },
-                        "plugins": [
+                        "modules": [
                           {
                             "name": "audit",
                             "status": "healthy",
@@ -5446,8 +5446,8 @@
       "ServerStatusDependency": {
         "$ref": "#/components/schemas/server-status-dependency"
       },
-      "ServerStatusPlugin": {
-        "$ref": "#/components/schemas/server-status-plugin"
+      "ServerStatusModule": {
+        "$ref": "#/components/schemas/server-status-module"
       },
       "ServerStatusServer": {
         "$ref": "#/components/schemas/server-status-server"
@@ -7361,7 +7361,7 @@
             "enum": [
               "dependency_status_degraded",
               "dependency_status_unknown",
-              "plugin_dependency_missing",
+              "module_dependency_missing",
               "resource_cpu_pressure",
               "resource_memory_pressure",
               "resource_disk_pressure",
@@ -7374,7 +7374,7 @@
             "type": "string",
             "enum": [
               "dependency",
-              "plugin",
+              "module",
               "runtime",
               "resource"
             ],
@@ -7831,8 +7831,8 @@
           "degraded_dependencies",
           "unknown_dependencies",
           "disabled_dependencies",
-          "total_plugins",
-          "healthy_plugins"
+          "total_modules",
+          "healthy_modules"
         ],
         "properties": {
           "total_dependencies": {
@@ -7850,10 +7850,10 @@
           "disabled_dependencies": {
             "type": "integer"
           },
-          "total_plugins": {
+          "total_modules": {
             "type": "integer"
           },
-          "healthy_plugins": {
+          "healthy_modules": {
             "type": "integer"
           }
         },
@@ -7863,8 +7863,8 @@
           "degraded_dependencies": 0,
           "unknown_dependencies": 0,
           "disabled_dependencies": 1,
-          "total_plugins": 4,
-          "healthy_plugins": 4
+          "total_modules": 4,
+          "healthy_modules": 4
         }
       },
       "server-status-trend-point": {
@@ -7982,7 +7982,7 @@
           ]
         }
       },
-      "server-status-plugin": {
+      "server-status-module": {
         "type": "object",
         "required": [
           "name",
@@ -8042,7 +8042,7 @@
             "enum": [
               "dependency_status_degraded",
               "dependency_status_unknown",
-              "plugin_dependency_missing",
+              "module_dependency_missing",
               "resource_cpu_pressure",
               "resource_memory_pressure",
               "resource_disk_pressure",
@@ -8055,7 +8055,7 @@
             "type": "string",
             "enum": [
               "dependency",
-              "plugin",
+              "module",
               "runtime",
               "resource"
             ]
@@ -8101,7 +8101,7 @@
           "dependencies",
           "summary",
           "trend",
-          "plugins",
+          "modules",
           "anomalies"
         ],
         "properties": {
@@ -8127,10 +8127,10 @@
           "trend": {
             "$ref": "#/components/schemas/server-status-trend"
           },
-          "plugins": {
+          "modules": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/server-status-plugin"
+              "$ref": "#/components/schemas/server-status-module"
             }
           },
           "anomalies": {

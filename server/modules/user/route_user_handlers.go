@@ -22,11 +22,11 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 		users, err := r.userSvc.ListUsers(ginCtx.Request.Context())
 		if err != nil {
 			logger.NewAppLogger(r.ctx.Logger).
-				Named("plugins.user.route.read").
+				Named("modules.user.route.read").
 				Error(
 					ginCtx.Request.Context(),
 					"list users failed",
-					logger.StringField("plugin", r.pluginName),
+					logger.StringField("module", r.moduleName),
 					logger.ErrorField(err),
 				)
 			writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
@@ -41,11 +41,11 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 		roleSummariesByUserID, err := r.userSvc.ListUserRoleSummaries(ginCtx.Request.Context(), userIDs)
 		if err != nil {
 			logger.NewAppLogger(r.ctx.Logger).
-				Named("plugins.user.route.read").
+				Named("modules.user.route.read").
 				Error(
 					ginCtx.Request.Context(),
 					"list user role summaries failed",
-					logger.StringField("plugin", r.pluginName),
+					logger.StringField("module", r.moduleName),
 					logger.ErrorField(err),
 				)
 			writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)

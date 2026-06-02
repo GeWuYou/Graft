@@ -253,14 +253,14 @@
       },
       "scopeKind": {
         "dependency": "依赖",
-        "plugin": "插件",
+        "module": "模块",
         "runtime": "运行时",
         "resource": "资源"
       },
       "anomalyKey": {
         "dependency_status_degraded": "依赖降级",
         "dependency_status_unknown": "依赖状态未知",
-        "plugin_dependency_missing": "插件依赖缺失",
+        "module_dependency_missing": "模块依赖缺失",
         "resource_cpu_pressure": "CPU 压力",
         "resource_memory_pressure": "内存压力",
         "resource_disk_pressure": "磁盘压力",

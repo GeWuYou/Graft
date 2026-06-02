@@ -37,7 +37,7 @@ func TestAppLogRecordNormalizeRejectsForbiddenField(t *testing.T) {
 	record := AppLogRecord{
 		OccurredAt: time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC),
 		Severity:   AppLogSeverityError,
-		Component:  "plugins.user.route",
+		Component:  "modules.user.route",
 		Message:    " map user response failed ",
 		Fields: map[string]string{
 			"status_code": "500",
@@ -53,7 +53,7 @@ func TestAppLogRecordNormalizeSanitizesCanonicalFields(t *testing.T) {
 	record := AppLogRecord{
 		OccurredAt: time.Date(2026, 5, 30, 10, 0, 0, 0, time.FixedZone("CST", 8*3600)),
 		Severity:   AppLogSeverityWarn,
-		Component:  " plugins.user.route ",
+		Component:  " modules.user.route ",
 		Message:    " map\tuser response \nfailed ",
 		Operation:  " map user ",
 		RequestID:  " req-1 ",
@@ -62,7 +62,7 @@ func TestAppLogRecordNormalizeSanitizesCanonicalFields(t *testing.T) {
 		Method:     " patch ",
 		Error:      " bad \n request ",
 		Fields: map[string]string{
-			"plugin name": " user ",
+			"module name":  " user ",
 			"access_token": "secret",
 		},
 	}
@@ -71,7 +71,7 @@ func TestAppLogRecordNormalizeSanitizesCanonicalFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalize app log record: %v", err)
 	}
-	if normalized.Component != "plugins.user.route" {
+	if normalized.Component != "modules.user.route" {
 		t.Fatalf("expected sanitized component, got %q", normalized.Component)
 	}
 	if normalized.Message != "map user response failed" {
@@ -83,8 +83,8 @@ func TestAppLogRecordNormalizeSanitizesCanonicalFields(t *testing.T) {
 	if normalized.Method != "patch" {
 		t.Fatalf("expected sanitized method, got %q", normalized.Method)
 	}
-	if got := normalized.Fields["plugin_name"]; got != "user" {
-		t.Fatalf("expected sanitized plugin_name, got %q", got)
+	if got := normalized.Fields["module_name"]; got != "user" {
+		t.Fatalf("expected sanitized module_name, got %q", got)
 	}
 	if got := normalized.Fields["access_token"]; got != redactedValue {
 		t.Fatalf("expected redacted access_token, got %q", got)

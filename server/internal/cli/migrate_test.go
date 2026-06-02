@@ -214,13 +214,13 @@ func TestResolveMigrationDirsUsesCompileTimeRegistry(t *testing.T) {
 	root := t.TempDir()
 	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "modules", "audit", "migrations")
-	pluginDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	for _, dir := range []string{coreDir, auditDir, pluginDir} {
+	moduleDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	for _, dir := range []string{coreDir, auditDir, moduleDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
-	for _, dir := range []string{coreDir, auditDir, pluginDir} {
+	for _, dir := range []string{coreDir, auditDir, moduleDir} {
 		if err := os.WriteFile(filepath.Join(dir, "atlas.sum"), []byte(filepath.Base(dir)), 0o600); err != nil {
 			t.Fatalf("write atlas.sum in %s: %v", dir, err)
 		}
@@ -236,7 +236,7 @@ func TestResolveMigrationDirsUsesCompileTimeRegistry(t *testing.T) {
 		t.Fatalf("resolve migration dirs: %v", err)
 	}
 
-	expected := []string{coreDir, auditDir, pluginDir}
+	expected := []string{coreDir, auditDir, moduleDir}
 	if !reflect.DeepEqual(resolved, expected) {
 		t.Fatalf("expected %v, got %v", expected, resolved)
 	}
@@ -255,8 +255,8 @@ func TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState(t *testing.T) {
 	root := t.TempDir()
 	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "modules", "audit", "migrations")
-	pluginDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	for _, dir := range []string{coreDir, auditDir, pluginDir} {
+	moduleDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	for _, dir := range []string{coreDir, auditDir, moduleDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
@@ -338,8 +338,8 @@ func TestResolveMigrationDirsRejectsRegistryWithoutAtlasState(t *testing.T) {
 	root := t.TempDir()
 	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "modules", "audit", "migrations")
-	pluginDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	for _, dir := range []string{coreDir, auditDir, pluginDir} {
+	moduleDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	for _, dir := range []string{coreDir, auditDir, moduleDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
@@ -393,9 +393,9 @@ func TestResolveMigrationDirsKeepsExplicitHistoricalSharedDir(t *testing.T) {
 // 仍按用户要求参与执行，而不是被默认链路的 Atlas 状态过滤逻辑跳过。
 func TestResolveMigrationDirsKeepsExplicitDirWithoutAtlasState(t *testing.T) {
 	root := t.TempDir()
-	pluginDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	if err := os.MkdirAll(pluginDir, 0o750); err != nil {
-		t.Fatalf("mkdir %s: %v", pluginDir, err)
+	moduleDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	if err := os.MkdirAll(moduleDir, 0o750); err != nil {
+		t.Fatalf("mkdir %s: %v", moduleDir, err)
 	}
 
 	resolved, err := resolveMigrationDirs(root, "modules/user/migrations")
@@ -403,7 +403,7 @@ func TestResolveMigrationDirsKeepsExplicitDirWithoutAtlasState(t *testing.T) {
 		t.Fatalf("resolve migration dirs: %v", err)
 	}
 
-	expected := []string{pluginDir}
+	expected := []string{moduleDir}
 	if !reflect.DeepEqual(resolved, expected) {
 		t.Fatalf("expected %v, got %v", expected, resolved)
 	}

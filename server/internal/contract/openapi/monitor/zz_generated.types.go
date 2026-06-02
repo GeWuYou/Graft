@@ -32,7 +32,7 @@ func (e GetMonitorServerStatusParamsTrendRange) Valid() bool {
 const (
 	DependencyStatusDegraded GetMonitorServerStatus200JSONResponseBodyDataAnomaliesAnomalyKey = "dependency_status_degraded"
 	DependencyStatusUnknown  GetMonitorServerStatus200JSONResponseBodyDataAnomaliesAnomalyKey = "dependency_status_unknown"
-	PluginDependencyMissing  GetMonitorServerStatus200JSONResponseBodyDataAnomaliesAnomalyKey = "plugin_dependency_missing"
+	ModuleDependencyMissing  GetMonitorServerStatus200JSONResponseBodyDataAnomaliesAnomalyKey = "module_dependency_missing"
 	ResourceCpuPressure      GetMonitorServerStatus200JSONResponseBodyDataAnomaliesAnomalyKey = "resource_cpu_pressure"
 	ResourceDiskPressure     GetMonitorServerStatus200JSONResponseBodyDataAnomaliesAnomalyKey = "resource_disk_pressure"
 	ResourceMemoryPressure   GetMonitorServerStatus200JSONResponseBodyDataAnomaliesAnomalyKey = "resource_memory_pressure"
@@ -48,7 +48,7 @@ func (e GetMonitorServerStatus200JSONResponseBodyDataAnomaliesAnomalyKey) Valid(
 		return true
 	case DependencyStatusUnknown:
 		return true
-	case PluginDependencyMissing:
+	case ModuleDependencyMissing:
 		return true
 	case ResourceCpuPressure:
 		return true
@@ -181,7 +181,7 @@ func (e GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksTarge
 // Defines values for GetMonitorServerStatus200JSONResponseBodyDataAnomaliesScopeKind.
 const (
 	Dependency GetMonitorServerStatus200JSONResponseBodyDataAnomaliesScopeKind = "dependency"
-	Plugin     GetMonitorServerStatus200JSONResponseBodyDataAnomaliesScopeKind = "plugin"
+	Module     GetMonitorServerStatus200JSONResponseBodyDataAnomaliesScopeKind = "module"
 	Resource   GetMonitorServerStatus200JSONResponseBodyDataAnomaliesScopeKind = "resource"
 	Runtime    GetMonitorServerStatus200JSONResponseBodyDataAnomaliesScopeKind = "runtime"
 )
@@ -191,7 +191,7 @@ func (e GetMonitorServerStatus200JSONResponseBodyDataAnomaliesScopeKind) Valid()
 	switch e {
 	case Dependency:
 		return true
-	case Plugin:
+	case Module:
 		return true
 	case Resource:
 		return true

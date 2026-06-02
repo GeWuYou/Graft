@@ -21,7 +21,7 @@ const maxSessionListLimit = 100
 type routeRuntime struct {
 	localizer  *i18n.Service
 	logger     *zap.Logger
-	pluginName string
+	moduleName string
 	authFlow   moduleapi.AuthFlowService
 }
 
@@ -29,19 +29,19 @@ func (r authRouteRegistrar) runtime() routeRuntime {
 	return routeRuntime{
 		localizer:  r.ctx.I18n,
 		logger:     r.ctx.Logger,
-		pluginName: r.pluginName,
+		moduleName: r.moduleName,
 		authFlow:   r.authFlow,
 	}
 }
 
 func (r routeRuntime) appLogger() applog.AppLogger {
-	return applog.NewAppLogger(r.logger).Named("plugins.auth.route")
+	return applog.NewAppLogger(r.logger).Named("modules.auth.route")
 }
 
 func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	mapped := r.authFlow.RouteError(err)
 	if mapped.Status == http.StatusInternalServerError {
-		logFields := append([]zap.Field{zap.String("plugin", r.pluginName), zap.Error(err)}, fields...)
+		logFields := append([]zap.Field{zap.String("module", r.moduleName), zap.Error(err)}, fields...)
 		r.logger.Error(message, logFields...)
 	}
 
@@ -50,7 +50,7 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 
 func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	appFields := []applog.Field{
-		applog.StringField("plugin", r.pluginName),
+		applog.StringField("module", r.moduleName),
 		applog.ErrorField(err),
 	}
 	for _, field := range fields {

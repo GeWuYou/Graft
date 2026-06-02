@@ -7,7 +7,7 @@
 当前 canonical 语义是：
 
 * backend business capability = module
-* `plugin` 只在少量导出接口命名中保留为历史称呼
+* 当前 live 运行时、目录与稳定边界都应使用 `module`
 
 ## 职责边界
 

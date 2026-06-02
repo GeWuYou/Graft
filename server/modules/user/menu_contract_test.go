@@ -8,7 +8,7 @@ import (
 )
 
 func TestRegisterUserMenuIncludesTitleKey(t *testing.T) {
-	ctx, _ := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	ctx, _ := newModuleTestContext(t, moduleTestUserRepository{}, &moduleTestAuthRepository{})
 
 	menus := ctx.MenuRegistry.Items()
 	if len(menus) == 0 {

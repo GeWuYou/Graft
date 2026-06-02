@@ -183,7 +183,7 @@ func TestLookupFallsBackToExplicitFallbackMessage(t *testing.T) {
 	}
 }
 
-func TestLookupUsesPluginNamespaceAndFallbackMessage(t *testing.T) {
+func TestLookupUsesModuleNamespaceAndFallbackMessage(t *testing.T) {
 	service := newTestService()
 
 	if err := service.RegisterMessages(Registration{

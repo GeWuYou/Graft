@@ -253,14 +253,14 @@
       },
       "scopeKind": {
         "dependency": "Dependency",
-        "plugin": "Module",
+        "module": "Module",
         "runtime": "Runtime",
         "resource": "Resource"
       },
       "anomalyKey": {
         "dependency_status_degraded": "Dependency degraded",
         "dependency_status_unknown": "Dependency unknown",
-        "plugin_dependency_missing": "Module dependency missing",
+        "module_dependency_missing": "Module dependency missing",
         "resource_cpu_pressure": "CPU pressure",
         "resource_memory_pressure": "Memory pressure",
         "resource_disk_pressure": "Disk pressure",

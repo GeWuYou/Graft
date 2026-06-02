@@ -77,7 +77,7 @@ Use these names consistently in code discussions, plans, reviews, and task break
 - `web` means the frontend project and its Vue 3 admin shell and feature modules
 - `core` means true infrastructure owned by the platform runtime
 - `module` means the canonical business capability unit in this repository
-- `plugin` is a historical backend naming term for compile-time modules, including directories such as `server/plugins/*`
+- `plugin` is a historical backend naming term for compile-time modules; current live paths and stable boundaries are `server/modules/*` and `server/internal/moduleapi/**`
 
 Do not use vague wording that blurs repository boundaries when a task is really about `server`, `web`, `core`, or a
 plugin.
@@ -291,7 +291,7 @@ Prefer the repository skills below when their trigger matches the task:
   - only stale findings, noise, false positives, or no-longer-applicable findings may be left unfixed, and those cases
     must be listed explicitly in the task closeout with the concrete reason
 - `graft-plugin-scaffold`
-  - use when adding a new `server` module under historical `server/plugins/*` naming or shaping that module before implementation
+  - use when adding a new `server` module under `server/modules/*` or shaping that module before implementation
 - `graft-worktree-init`
   - use when creating or rebuilding a local `Graft` git worktree and the setup should follow the repository-standard
     shared local resource rules without hard-coded machine paths
@@ -381,15 +381,14 @@ service
 container, and repository CLI entrypoints may own platform-level startup behavior. Do not hide new runtime surfaces in
 unrelated packages, starter code, or ad-hoc background initialization.
 
-Business logic must live in business modules. Under the current historical naming, those modules still live in
-`server/plugins/*`.
+Business logic must live in business modules under `server/modules/*`.
 
-### 7.2 Plugin and Module Boundaries
+### 7.2 Module Boundaries
 
 - `server` business behavior belongs in modules, not in platform core
-- backend modules currently live under historical `plugins/*` naming; do not reinterpret that naming as runtime plugin platform scope
+- backend modules currently live under `server/modules/*`; do not reinterpret historical `plugin` wording as current runtime truth
 - modules must depend on public interfaces, not on another module's internal implementation
-- cross-module stable contracts belong in `server/internal/pluginapi` or another documented stable boundary
+- cross-module stable contracts belong in `server/internal/moduleapi` or another documented stable boundary
 - `web` is a platform shell plus feature modules
 - new frontend capability should default to `web/src/modules/<name>` unless it is truly shell-owned
 - keep `menu + route + page + api + permission` ownership explicit
@@ -412,7 +411,7 @@ For v1, prioritize:
 - audit
 - scheduler
 
-Do not start Docker, SSH, monitor, or workflow plugins before the core extension path is stable.
+Do not start Docker, SSH, monitor, or workflow modules before the core extension path is stable.
 
 ## 9. Execution Rules
 
@@ -420,7 +419,7 @@ Do not start Docker, SSH, monitor, or workflow plugins before the core extension
 
 When asked to add a new capability:
 
-- first identify whether it belongs in `server/core`, a `server` module under historical `plugins/*` naming, or a `web` feature module
+- first identify whether it belongs in `server/core`, a `server/modules/*` module, or a `web` feature module
 - default to a backend module unless the capability is true infrastructure
 - default to a `web/src/modules/<name>` entry path unless the page is a shell-level concern
 - define the capability's runtime surface and lifecycle owner before implementation; entrypoints, menus, routes,
@@ -445,7 +444,7 @@ When asked to introduce a new dependency:
 - justify why the existing stack is insufficient
 - prefer smaller, explicit libraries
 - avoid adding abstractions that hide control flow
-- reject dependencies that materially weaken plugin boundaries or increase hidden runtime magic without clear benefit
+- reject dependencies that materially weaken module boundaries or increase hidden runtime magic without clear benefit
 
 ## 10. Validation Rules
 

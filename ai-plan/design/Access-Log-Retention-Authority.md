@@ -32,7 +32,7 @@ It does not approve:
 
 `web` is a downstream consumer only.
 
-`server/plugins/audit/**`, `server/plugins/monitor/**`, and plugin registry metadata may consume access-log retention outcomes but do not own retention policy.
+`server/modules/audit/**`, `server/modules/monitor/**`, and historical plugin-registry metadata may consume access-log retention outcomes but do not own retention policy.
 
 ## 3. Ownership Decision
 
@@ -45,7 +45,7 @@ Rationale:
 - retention is inseparable from access-log dataset lifecycle
 - current durable table, repository contract, and delete primitive already live in `httpx`
 - retention semantics must track request-fact storage shape, query guarantees, and future cleanup implementation
-- plugin registry owns plugin lifecycle metadata, not core HTTP request-fact storage policy
+- historical plugin registry owns module lifecycle metadata, not core HTTP request-fact storage policy
 - operations configuration may provide values later, but configuration input is not the same thing as semantic authority
 - future observability governance may classify policy families, but `Access Log` retention remains dataset-local authority under `httpx`
 
@@ -53,10 +53,10 @@ Rejected as canonical owner:
 
 | Candidate | Verdict | Reason |
 | --- | --- | --- |
-| plugin registry | reject | registry does not own `access_logs` schema, query contract, or deletion semantics |
+| historical plugin registry | reject | registry does not own `access_logs` schema, query contract, or deletion semantics |
 | `server/internal/app/**` / operations config | reject as semantic owner | runtime assembly may inject configured values later, but it should not define dataset lifecycle semantics |
-| `server/plugins/audit/**` | reject | audit owns audit/security evidence retention, not request-fact storage |
-| `server/plugins/monitor/**` | reject | monitor owns anomaly/trend semantics, not request-fact history |
+| `server/modules/audit/**` | reject | audit owns audit/security evidence retention, not request-fact storage |
+| `server/modules/monitor/**` | reject | monitor owns anomaly/trend semantics, not request-fact history |
 | `web` | reject | explorer only consumes retained data; it cannot promise history duration |
 
 ## 4. Retention Policy Strategy

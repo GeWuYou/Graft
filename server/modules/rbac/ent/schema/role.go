@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// Role defines the RBAC plugin's persistence model for roles.
+// Role defines the RBAC module's persistence model for roles.
 type Role struct {
 	ent.Schema
 }
@@ -65,7 +65,7 @@ func (Role) Fields() []ent.Field {
 	}
 }
 
-// Edges returns the role relation definitions owned by the RBAC plugin.
+// Edges returns the role relation definitions owned by the RBAC module.
 func (Role) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("user_roles", UserRole.Type),

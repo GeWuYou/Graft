@@ -37,7 +37,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
-	authplugin "graft/server/modules/auth"
+	authmodule "graft/server/modules/auth"
 	"graft/server/modules/rbac"
 	rbacstore "graft/server/modules/rbac/store"
 	usercontract "graft/server/modules/user/contract"
@@ -91,8 +91,8 @@ type userstoreAuthPair struct {
 	passwordChanges store.PasswordChangeRepository
 }
 
-// pluginTestAuthRepository 以内存状态模拟认证仓储的最小行为。
-type pluginTestAuthRepository struct {
+// moduleTestAuthRepository 以内存状态模拟认证仓储的最小行为。
+type moduleTestAuthRepository struct {
 	getUserCredentialByUsername func(ctx context.Context, username string) (store.UserCredential, error)
 	ensureUserCredential        func(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error)
 	setPasswordHash             func(ctx context.Context, input store.SetPasswordHashInput) error
@@ -104,7 +104,7 @@ type pluginTestAuthRepository struct {
 // revokeByUserRaceAuthRepository 在测试中模拟“列出后、定向吊销前”目标 session
 // 已被并发撤销的窗口，验证 revoke-others 的幂等语义。
 type revokeByUserRaceAuthRepository struct {
-	*pluginTestAuthRepository
+	*moduleTestAuthRepository
 	beforeFirstRevoke func(input store.RevokeRefreshSessionByUserIDInput)
 	once              sync.Once
 }
@@ -116,10 +116,10 @@ func (r *revokeByUserRaceAuthRepository) RevokeRefreshSessionByUserID(ctx contex
 		})
 	}
 
-	return r.pluginTestAuthRepository.RevokeRefreshSessionByUserID(ctx, input)
+	return r.moduleTestAuthRepository.RevokeRefreshSessionByUserID(ctx, input)
 }
 
-func (r *pluginTestAuthRepository) GetUserCredentialByUsername(ctx context.Context, username string) (store.UserCredential, error) {
+func (r *moduleTestAuthRepository) GetUserCredentialByUsername(ctx context.Context, username string) (store.UserCredential, error) {
 	if r.getUserCredentialByUsername == nil {
 		return store.UserCredential{}, store.ErrUserNotFound
 	}
@@ -127,7 +127,7 @@ func (r *pluginTestAuthRepository) GetUserCredentialByUsername(ctx context.Conte
 	return r.getUserCredentialByUsername(ctx, username)
 }
 
-func (r *pluginTestAuthRepository) SetPasswordHash(ctx context.Context, input store.SetPasswordHashInput) error {
+func (r *moduleTestAuthRepository) SetPasswordHash(ctx context.Context, input store.SetPasswordHashInput) error {
 	if r.setPasswordHash != nil {
 		return r.setPasswordHash(ctx, input)
 	}
@@ -135,7 +135,7 @@ func (r *pluginTestAuthRepository) SetPasswordHash(ctx context.Context, input st
 	return nil
 }
 
-func (r *pluginTestAuthRepository) ResetPasswordAndRevokeRefreshSessions(
+func (r *moduleTestAuthRepository) ResetPasswordAndRevokeRefreshSessions(
 	ctx context.Context,
 	input store.ResetPasswordAndRevokeSessionsInput,
 ) error {
@@ -158,7 +158,7 @@ func (r *pluginTestAuthRepository) ResetPasswordAndRevokeRefreshSessions(
 	})
 }
 
-func (r *pluginTestAuthRepository) ChangePasswordAndRevokeOtherRefreshSessions(
+func (r *moduleTestAuthRepository) ChangePasswordAndRevokeOtherRefreshSessions(
 	_ context.Context,
 	input store.ChangePasswordAndRevokeOtherRefreshSessionsInput,
 ) error {
@@ -173,7 +173,7 @@ func (r *pluginTestAuthRepository) ChangePasswordAndRevokeOtherRefreshSessions(
 	})
 }
 
-func (r *pluginTestAuthRepository) EnsureUserCredential(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
+func (r *moduleTestAuthRepository) EnsureUserCredential(ctx context.Context, input store.EnsureUserCredentialInput) (store.UserCredential, error) {
 	if r.ensureUserCredential != nil {
 		return r.ensureUserCredential(ctx, input)
 	}
@@ -197,7 +197,7 @@ func (r *pluginTestAuthRepository) EnsureUserCredential(ctx context.Context, inp
 	}, nil
 }
 
-func (r *pluginTestAuthRepository) CreateRefreshSession(_ context.Context, input store.CreateRefreshSessionInput) (store.RefreshSession, error) {
+func (r *moduleTestAuthRepository) CreateRefreshSession(_ context.Context, input store.CreateRefreshSessionInput) (store.RefreshSession, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -217,7 +217,7 @@ func (r *pluginTestAuthRepository) CreateRefreshSession(_ context.Context, input
 	return session, nil
 }
 
-func (r *pluginTestAuthRepository) GetRefreshSessionByTokenID(_ context.Context, tokenID string) (store.RefreshSession, error) {
+func (r *moduleTestAuthRepository) GetRefreshSessionByTokenID(_ context.Context, tokenID string) (store.RefreshSession, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -228,7 +228,7 @@ func (r *pluginTestAuthRepository) GetRefreshSessionByTokenID(_ context.Context,
 	return session, nil
 }
 
-func (r *pluginTestAuthRepository) RevokeRefreshSession(_ context.Context, input store.RevokeRefreshSessionInput) error {
+func (r *moduleTestAuthRepository) RevokeRefreshSession(_ context.Context, input store.RevokeRefreshSessionInput) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -243,7 +243,7 @@ func (r *pluginTestAuthRepository) RevokeRefreshSession(_ context.Context, input
 	return nil
 }
 
-func (r *pluginTestAuthRepository) RevokeRefreshSessionsByUserID(_ context.Context, input store.RevokeRefreshSessionsByUserIDInput) error {
+func (r *moduleTestAuthRepository) RevokeRefreshSessionsByUserID(_ context.Context, input store.RevokeRefreshSessionsByUserIDInput) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -260,7 +260,7 @@ func (r *pluginTestAuthRepository) RevokeRefreshSessionsByUserID(_ context.Conte
 	return nil
 }
 
-func (r *pluginTestAuthRepository) RevokeOtherRefreshSessionsByUserID(_ context.Context, input store.RevokeOtherRefreshSessionsInput) error {
+func (r *moduleTestAuthRepository) RevokeOtherRefreshSessionsByUserID(_ context.Context, input store.RevokeOtherRefreshSessionsInput) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -277,7 +277,7 @@ func (r *pluginTestAuthRepository) RevokeOtherRefreshSessionsByUserID(_ context.
 	return nil
 }
 
-func (r *pluginTestAuthRepository) RevokeRefreshSessionByUserID(_ context.Context, input store.RevokeRefreshSessionByUserIDInput) error {
+func (r *moduleTestAuthRepository) RevokeRefreshSessionByUserID(_ context.Context, input store.RevokeRefreshSessionByUserIDInput) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -296,7 +296,7 @@ func (r *pluginTestAuthRepository) RevokeRefreshSessionByUserID(_ context.Contex
 	return nil
 }
 
-func (r *pluginTestAuthRepository) ListActiveRefreshSessionsByUserID(_ context.Context, input store.ListActiveRefreshSessionsByUserIDInput) ([]store.RefreshSession, error) {
+func (r *moduleTestAuthRepository) ListActiveRefreshSessionsByUserID(_ context.Context, input store.ListActiveRefreshSessionsByUserIDInput) ([]store.RefreshSession, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -323,7 +323,7 @@ func (r *pluginTestAuthRepository) ListActiveRefreshSessionsByUserID(_ context.C
 	return sessions, nil
 }
 
-func (r *pluginTestAuthRepository) RotateRefreshSession(_ context.Context, input store.RotateRefreshSessionInput) (store.RefreshSession, error) {
+func (r *moduleTestAuthRepository) RotateRefreshSession(_ context.Context, input store.RotateRefreshSessionInput) (store.RefreshSession, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -352,8 +352,8 @@ func (r *pluginTestAuthRepository) RotateRefreshSession(_ context.Context, input
 	return next, nil
 }
 
-// pluginTestUserRepository 为插件路由测试收敛最小用户读取能力。
-type pluginTestUserRepository struct {
+// moduleTestUserRepository 为模块路由测试收敛最小用户读取能力。
+type moduleTestUserRepository struct {
 	getByID func(ctx context.Context, id uint64) (store.User, error)
 	list    func(ctx context.Context) ([]store.User, error)
 	create  func(ctx context.Context, input store.CreateUserInput) (store.User, error)
@@ -362,7 +362,7 @@ type pluginTestUserRepository struct {
 	delete  func(ctx context.Context, input store.DeleteUserInput) error
 }
 
-func (r pluginTestUserRepository) GetByID(ctx context.Context, id uint64) (store.User, error) {
+func (r moduleTestUserRepository) GetByID(ctx context.Context, id uint64) (store.User, error) {
 	if r.getByID == nil {
 		return store.User{}, store.ErrUserNotFound
 	}
@@ -370,7 +370,7 @@ func (r pluginTestUserRepository) GetByID(ctx context.Context, id uint64) (store
 	return r.getByID(ctx, id)
 }
 
-func (r pluginTestUserRepository) List(ctx context.Context) ([]store.User, error) {
+func (r moduleTestUserRepository) List(ctx context.Context) ([]store.User, error) {
 	if r.list == nil {
 		return []store.User{}, nil
 	}
@@ -378,7 +378,7 @@ func (r pluginTestUserRepository) List(ctx context.Context) ([]store.User, error
 	return r.list(ctx)
 }
 
-func (r pluginTestUserRepository) Create(ctx context.Context, input store.CreateUserInput) (store.User, error) {
+func (r moduleTestUserRepository) Create(ctx context.Context, input store.CreateUserInput) (store.User, error) {
 	if r.create == nil {
 		return store.User{
 			ID:        99,
@@ -393,7 +393,7 @@ func (r pluginTestUserRepository) Create(ctx context.Context, input store.Create
 	return r.create(ctx, input)
 }
 
-func (r pluginTestUserRepository) Update(ctx context.Context, input store.UpdateUserInput) (store.User, error) {
+func (r moduleTestUserRepository) Update(ctx context.Context, input store.UpdateUserInput) (store.User, error) {
 	if r.update == nil {
 		return store.User{
 			ID:        input.ID,
@@ -408,7 +408,7 @@ func (r pluginTestUserRepository) Update(ctx context.Context, input store.Update
 	return r.update(ctx, input)
 }
 
-func (r pluginTestUserRepository) SetStatus(ctx context.Context, input store.SetUserStatusInput) (store.User, error) {
+func (r moduleTestUserRepository) SetStatus(ctx context.Context, input store.SetUserStatusInput) (store.User, error) {
 	if r.status == nil {
 		return store.User{
 			ID:        input.ID,
@@ -423,7 +423,7 @@ func (r pluginTestUserRepository) SetStatus(ctx context.Context, input store.Set
 	return r.status(ctx, input)
 }
 
-func (r pluginTestUserRepository) Delete(ctx context.Context, input store.DeleteUserInput) error {
+func (r moduleTestUserRepository) Delete(ctx context.Context, input store.DeleteUserInput) error {
 	if r.delete == nil {
 		return nil
 	}
@@ -431,7 +431,7 @@ func (r pluginTestUserRepository) Delete(ctx context.Context, input store.Delete
 	return r.delete(ctx, input)
 }
 
-type pluginTestRBACRepository struct {
+type moduleTestRBACRepository struct {
 	permissions             map[uint64][]rbacstore.Permission
 	roles                   map[uint64][]rbacstore.Role
 	ensureRole              func(ctx context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error)
@@ -450,7 +450,7 @@ type pluginTestRBACRepository struct {
 	removeRolesFromUser     func(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error
 }
 
-func (r pluginTestRBACRepository) EnsureRole(ctx context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
+func (r moduleTestRBACRepository) EnsureRole(ctx context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
 	if r.ensureRole != nil {
 		return r.ensureRole(ctx, input)
 	}
@@ -458,7 +458,7 @@ func (r pluginTestRBACRepository) EnsureRole(ctx context.Context, input rbacstor
 	return rbacstore.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 }
 
-func (r pluginTestRBACRepository) EnsurePermission(ctx context.Context, input rbacstore.EnsurePermissionInput) (rbacstore.Permission, error) {
+func (r moduleTestRBACRepository) EnsurePermission(ctx context.Context, input rbacstore.EnsurePermissionInput) (rbacstore.Permission, error) {
 	if r.ensurePermission != nil {
 		return r.ensurePermission(ctx, input)
 	}
@@ -466,7 +466,7 @@ func (r pluginTestRBACRepository) EnsurePermission(ctx context.Context, input rb
 	return rbacstore.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 }
 
-func (r pluginTestRBACRepository) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
+func (r moduleTestRBACRepository) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
 	if r.createRole != nil {
 		return r.createRole(ctx, input)
 	}
@@ -474,7 +474,7 @@ func (r pluginTestRBACRepository) CreateRole(ctx context.Context, input rbacstor
 	return rbacstore.Role{ID: 1, Name: input.Name, Display: input.Display, Description: input.Description, Builtin: input.Builtin}, nil
 }
 
-func (r pluginTestRBACRepository) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
+func (r moduleTestRBACRepository) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
 	if r.updateRole != nil {
 		return r.updateRole(ctx, input)
 	}
@@ -482,7 +482,7 @@ func (r pluginTestRBACRepository) UpdateRole(ctx context.Context, input rbacstor
 	return rbacstore.Role{ID: input.ID, Name: input.Name, Display: input.Display, Description: input.Description}, nil
 }
 
-func (r pluginTestRBACRepository) SetRoleStatus(ctx context.Context, input rbacstore.SetRoleStatusInput) (rbacstore.Role, error) {
+func (r moduleTestRBACRepository) SetRoleStatus(ctx context.Context, input rbacstore.SetRoleStatusInput) (rbacstore.Role, error) {
 	if r.setRoleStatus != nil {
 		return r.setRoleStatus(ctx, input)
 	}
@@ -490,7 +490,7 @@ func (r pluginTestRBACRepository) SetRoleStatus(ctx context.Context, input rbacs
 	return rbacstore.Role{ID: input.ID, Status: input.Status}, nil
 }
 
-func (r pluginTestRBACRepository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDeleteRoleInput) error {
+func (r moduleTestRBACRepository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDeleteRoleInput) error {
 	if r.softDeleteRole != nil {
 		return r.softDeleteRole(ctx, input)
 	}
@@ -498,7 +498,7 @@ func (r pluginTestRBACRepository) SoftDeleteRole(ctx context.Context, input rbac
 	return nil
 }
 
-func (r pluginTestRBACRepository) AssignPermissionsToRole(ctx context.Context, input rbacstore.AssignPermissionsToRoleInput) error {
+func (r moduleTestRBACRepository) AssignPermissionsToRole(ctx context.Context, input rbacstore.AssignPermissionsToRoleInput) error {
 	if r.assignPermissionsToRole != nil {
 		return r.assignPermissionsToRole(ctx, input)
 	}
@@ -506,7 +506,7 @@ func (r pluginTestRBACRepository) AssignPermissionsToRole(ctx context.Context, i
 	return nil
 }
 
-func (r pluginTestRBACRepository) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
+func (r moduleTestRBACRepository) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
 	if r.replacePermissions != nil {
 		return r.replacePermissions(ctx, input)
 	}
@@ -514,7 +514,7 @@ func (r pluginTestRBACRepository) ReplacePermissionsForRole(ctx context.Context,
 	return nil
 }
 
-func (r pluginTestRBACRepository) AddPermissionsToRole(ctx context.Context, input rbacstore.AddPermissionsToRoleInput) error {
+func (r moduleTestRBACRepository) AddPermissionsToRole(ctx context.Context, input rbacstore.AddPermissionsToRoleInput) error {
 	if r.addPermissionsToRole != nil {
 		return r.addPermissionsToRole(ctx, input)
 	}
@@ -522,7 +522,7 @@ func (r pluginTestRBACRepository) AddPermissionsToRole(ctx context.Context, inpu
 	return nil
 }
 
-func (r pluginTestRBACRepository) RemovePermissionsFromRole(ctx context.Context, input rbacstore.RemovePermissionsFromRoleInput) error {
+func (r moduleTestRBACRepository) RemovePermissionsFromRole(ctx context.Context, input rbacstore.RemovePermissionsFromRoleInput) error {
 	if r.removePermissions != nil {
 		return r.removePermissions(ctx, input)
 	}
@@ -530,7 +530,7 @@ func (r pluginTestRBACRepository) RemovePermissionsFromRole(ctx context.Context,
 	return nil
 }
 
-func (r pluginTestRBACRepository) AssignRoleToUser(ctx context.Context, input rbacstore.AssignRoleToUserInput) error {
+func (r moduleTestRBACRepository) AssignRoleToUser(ctx context.Context, input rbacstore.AssignRoleToUserInput) error {
 	if r.assignRoleToUser != nil {
 		return r.assignRoleToUser(ctx, input)
 	}
@@ -538,7 +538,7 @@ func (r pluginTestRBACRepository) AssignRoleToUser(ctx context.Context, input rb
 	return nil
 }
 
-func (r pluginTestRBACRepository) ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {
+func (r moduleTestRBACRepository) ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {
 	if r.replaceRolesForUser != nil {
 		return r.replaceRolesForUser(ctx, input)
 	}
@@ -546,7 +546,7 @@ func (r pluginTestRBACRepository) ReplaceRolesForUser(ctx context.Context, input
 	return nil
 }
 
-func (r pluginTestRBACRepository) AddRolesToUser(ctx context.Context, input rbacstore.AddRolesToUserInput) error {
+func (r moduleTestRBACRepository) AddRolesToUser(ctx context.Context, input rbacstore.AddRolesToUserInput) error {
 	if r.addRolesToUser != nil {
 		return r.addRolesToUser(ctx, input)
 	}
@@ -554,7 +554,7 @@ func (r pluginTestRBACRepository) AddRolesToUser(ctx context.Context, input rbac
 	return nil
 }
 
-func (r pluginTestRBACRepository) RemoveRolesFromUser(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error {
+func (r moduleTestRBACRepository) RemoveRolesFromUser(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error {
 	if r.removeRolesFromUser != nil {
 		return r.removeRolesFromUser(ctx, input)
 	}
@@ -562,15 +562,15 @@ func (r pluginTestRBACRepository) RemoveRolesFromUser(ctx context.Context, input
 	return nil
 }
 
-func (r pluginTestRBACRepository) GetRoleByID(_ context.Context, roleID uint64) (rbacstore.Role, error) {
+func (r moduleTestRBACRepository) GetRoleByID(_ context.Context, roleID uint64) (rbacstore.Role, error) {
 	return rbacstore.Role{ID: roleID}, nil
 }
 
-func (r pluginTestRBACRepository) GetPermissionByID(_ context.Context, permissionID uint64) (rbacstore.Permission, error) {
+func (r moduleTestRBACRepository) GetPermissionByID(_ context.Context, permissionID uint64) (rbacstore.Permission, error) {
 	return rbacstore.Permission{ID: permissionID}, nil
 }
 
-func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, userID uint64) ([]rbacstore.Role, error) {
+func (r moduleTestRBACRepository) ListRolesByUserID(_ context.Context, userID uint64) ([]rbacstore.Role, error) {
 	if r.roles == nil {
 		return []rbacstore.Role{}, nil
 	}
@@ -578,7 +578,7 @@ func (r pluginTestRBACRepository) ListRolesByUserID(_ context.Context, userID ui
 	return r.roles[userID], nil
 }
 
-func (r pluginTestRBACRepository) ListRolesByUserIDs(_ context.Context, userIDs []uint64) (map[uint64][]rbacstore.Role, error) {
+func (r moduleTestRBACRepository) ListRolesByUserIDs(_ context.Context, userIDs []uint64) (map[uint64][]rbacstore.Role, error) {
 	result := make(map[uint64][]rbacstore.Role, len(userIDs))
 	for _, userID := range userIDs {
 		if r.roles == nil {
@@ -590,11 +590,11 @@ func (r pluginTestRBACRepository) ListRolesByUserIDs(_ context.Context, userIDs 
 	return result, nil
 }
 
-func (r pluginTestRBACRepository) ListRoles(_ context.Context, _ rbacstore.RoleFilter) ([]rbacstore.Role, error) {
+func (r moduleTestRBACRepository) ListRoles(_ context.Context, _ rbacstore.RoleFilter) ([]rbacstore.Role, error) {
 	return []rbacstore.Role{}, nil
 }
 
-func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, userID uint64) ([]rbacstore.Permission, error) {
+func (r moduleTestRBACRepository) ListPermissionsByUserID(_ context.Context, userID uint64) ([]rbacstore.Permission, error) {
 	if r.permissions == nil {
 		return []rbacstore.Permission{}, nil
 	}
@@ -602,11 +602,11 @@ func (r pluginTestRBACRepository) ListPermissionsByUserID(_ context.Context, use
 	return r.permissions[userID], nil
 }
 
-func (r pluginTestRBACRepository) ListPermissions(_ context.Context, _ rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
+func (r moduleTestRBACRepository) ListPermissions(_ context.Context, _ rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return []rbacstore.Permission{}, nil
 }
 
-func (r pluginTestRBACRepository) ListRolePermissionBindings(_ context.Context, _ uint64) ([]rbacstore.RolePermissionBinding, error) {
+func (r moduleTestRBACRepository) ListRolePermissionBindings(_ context.Context, _ uint64) ([]rbacstore.RolePermissionBinding, error) {
 	return []rbacstore.RolePermissionBinding{}, nil
 }
 
@@ -630,9 +630,9 @@ func newModuleTestContextWithLoggerAndPermissions(
 	t.Helper()
 
 	if authRepo == nil {
-		authRepo = &pluginTestAuthRepository{}
+		authRepo = &moduleTestAuthRepository{}
 	}
-	if repo, ok := authRepo.(*pluginTestAuthRepository); ok && repo.getUserCredentialByUsername == nil {
+	if repo, ok := authRepo.(*moduleTestAuthRepository); ok && repo.getUserCredentialByUsername == nil {
 		repo.getUserCredentialByUsername = func(_ context.Context, username string) (store.UserCredential, error) {
 			userID := uint64(7)
 			switch username {
@@ -678,11 +678,11 @@ func newModuleTestContextWithLoggerAndPermissions(
 	if err := moduleInstance.Register(ctx); err != nil {
 		t.Fatalf("register module: %v", err)
 	}
-	authPlugin := authplugin.NewModule()
+	authPlugin := authmodule.NewModule()
 	if err := authPlugin.Register(ctx); err != nil {
 		t.Fatalf("register auth module: %v", err)
 	}
-	if err := rbac.NewModule(pluginTestRBACRepository{
+	if err := rbac.NewModule(moduleTestRBACRepository{
 		roles: map[uint64][]rbacstore.Role{
 			7: {{ID: 1, Name: "admin", Display: "管理员"}},
 			8: {{ID: 2, Name: "viewer", Display: "只读用户"}},
@@ -837,13 +837,13 @@ func testUser(id uint64, username string, display string) store.User {
 	}
 }
 
-func fixedUserRepository(users ...store.User) pluginTestUserRepository {
+func fixedUserRepository(users ...store.User) moduleTestUserRepository {
 	byID := make(map[uint64]store.User, len(users))
 	for _, user := range users {
 		byID[user.ID] = user
 	}
 
-	return pluginTestUserRepository{
+	return moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			user, ok := byID[id]
 			if !ok {
@@ -854,7 +854,7 @@ func fixedUserRepository(users ...store.User) pluginTestUserRepository {
 	}
 }
 
-func newSessionAdminEngine(t *testing.T, authRepo *pluginTestAuthRepository, users ...store.User) *gin.Engine {
+func newSessionAdminEngine(t *testing.T, authRepo *moduleTestAuthRepository, users ...store.User) *gin.Engine {
 	t.Helper()
 
 	_, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(users...), authRepo, map[uint64][]rbacstore.Permission{
@@ -864,8 +864,8 @@ func newSessionAdminEngine(t *testing.T, authRepo *pluginTestAuthRepository, use
 	return engine
 }
 
-func newCredentialRepository(username string, userID uint64, passwordHash string) *pluginTestAuthRepository {
-	return &pluginTestAuthRepository{
+func newCredentialRepository(username string, userID uint64, passwordHash string) *moduleTestAuthRepository {
+	return &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
 			if candidate != username {
 				return store.UserCredential{}, store.ErrUserNotFound
@@ -1077,14 +1077,14 @@ func assertLoginPayload(t *testing.T, payload loginResponse, userID uint64, user
 	}
 }
 
-func assertUserPluginRegistry(t *testing.T, ctx *module.Context) {
+func assertUserModuleRegistry(t *testing.T, ctx *module.Context) {
 	t.Helper()
 
 	items := ctx.PermissionRegistry.Items()
 	if len(items) < 6 {
 		t.Fatalf("expected at least six registered permissions, got %#v", items)
 	}
-	// 权限断言依赖 Registry.Items() 保持注册顺序，避免插件对外声明面静默漂移。
+	// 权限断言依赖 Registry.Items() 保持注册顺序，避免模块对外声明面静默漂移。
 	if items[0].Code != usercontract.UserReadPermission.String() ||
 		items[1].Code != usercontract.UserCreatePermission.String() ||
 		items[2].Code != usercontract.UserUpdatePermission.String() ||
@@ -1127,10 +1127,10 @@ func newExistingDefaultAdminAuthRepository(
 	passwordChangedAt time.Time,
 	ensuredDefaultAdmin *bool,
 	updatedCredential *bool,
-) *pluginTestAuthRepository {
+) *moduleTestAuthRepository {
 	t.Helper()
 
-	return &pluginTestAuthRepository{
+	return &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
 			if username != defaultAdminUsername {
 				t.Fatalf("expected default admin username, got %q", username)
@@ -1167,10 +1167,10 @@ func newExistingDefaultAdminAuthRepository(
 	}
 }
 
-func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) pluginTestRBACRepository {
+func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) moduleTestRBACRepository {
 	t.Helper()
 
-	return pluginTestRBACRepository{
+	return moduleTestRBACRepository{
 		ensureRole: func(_ context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
 			if !input.Builtin {
 				t.Fatal("expected default admin role to be marked builtin")
@@ -1196,10 +1196,10 @@ func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) pluginT
 	}
 }
 
-func newDefaultAdminBootAuthRepository(t *testing.T, ensuredDefaultAdmin *bool) *pluginTestAuthRepository {
+func newDefaultAdminBootAuthRepository(t *testing.T, ensuredDefaultAdmin *bool) *moduleTestAuthRepository {
 	t.Helper()
 
-	return &pluginTestAuthRepository{
+	return &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
 			if username == defaultAdminUsername {
 				return store.UserCredential{}, store.ErrUserNotFound
@@ -1232,7 +1232,7 @@ func newDefaultAdminBootAuthRepository(t *testing.T, ensuredDefaultAdmin *bool) 
 	}
 }
 
-func newDefaultAdminBootPluginContext(_ store.AuthRepository, _ rbacstore.Repository) *module.Context {
+func newDefaultAdminBootModuleContext(_ store.AuthRepository, _ rbacstore.Repository) *module.Context {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 
@@ -1418,7 +1418,7 @@ func assertGeneratedSessionsFiltered(t *testing.T, payload []generated.SessionSu
 	assertGeneratedSessionsAbsent(t, payload, sessionIDs...)
 }
 
-func loginAliceEngine(t *testing.T, passwordHash string) (*pluginTestAuthRepository, *gin.Engine) {
+func loginAliceEngine(t *testing.T, passwordHash string) (*moduleTestAuthRepository, *gin.Engine) {
 	t.Helper()
 
 	authRepo := newCredentialRepository("alice", 7, passwordHash)
@@ -1426,7 +1426,7 @@ func loginAliceEngine(t *testing.T, passwordHash string) (*pluginTestAuthReposit
 	return authRepo, engine
 }
 
-func loginAdminEngine(t *testing.T, passwordHash string) (*pluginTestAuthRepository, *gin.Engine) {
+func loginAdminEngine(t *testing.T, passwordHash string) (*moduleTestAuthRepository, *gin.Engine) {
 	t.Helper()
 
 	authRepo := newCredentialRepository("admin", 9, passwordHash)
@@ -1454,7 +1454,7 @@ func loginAliceAndParseSession(t *testing.T, engine *gin.Engine) (loginResponse,
 func TestRegisterPublishesContracts(t *testing.T) {
 	ctx, _ := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), nil)
 
-	assertUserPluginRegistry(t, ctx)
+	assertUserModuleRegistry(t, ctx)
 
 	svcAny, err := ctx.Services.Resolve((*moduleapi.UserService)(nil))
 	if err != nil {
@@ -1471,8 +1471,8 @@ func TestRegisterPublishesContracts(t *testing.T) {
 // TestUserRouteRejectsInvalidID 验证用户查询路由会把非法 ID 收敛为 400
 // JSON 响应，而不是继续访问仓储。
 func TestUserRouteRejectsInvalidID(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id == 7 {
 				return store.User{
@@ -1506,8 +1506,8 @@ func TestUserRouteRejectsInvalidID(t *testing.T) {
 // TestUserRouteReturnsNotFoundContract 验证仓储未命中时，路由会返回 404
 // 与稳定错误消息，便于前端后续接入统一空态分支。
 func TestUserRouteReturnsNotFoundContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id == 7 {
 				return store.User{
@@ -1544,8 +1544,8 @@ func TestUserRouteReturnsNotFoundContract(t *testing.T) {
 // TestUserRouteReturnsSummary 验证用户查询成功时会返回跨插件稳定 DTO，而不
 // 直接把生成后的 HTTP 契约模型作为边界输出，而不是复用跨插件摘要 DTO。
 func TestUserRouteReturnsGeneratedUserListItem(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(context.Context, uint64) (store.User, error) {
 			return store.User{
 				ID:        7,
@@ -1582,10 +1582,10 @@ func TestBootEnsuresDefaultAdmin(t *testing.T) {
 	authRepo := newDefaultAdminBootAuthRepository(t, &ensuredDefaultAdmin)
 	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
 
-	ctx := newDefaultAdminBootPluginContext(authRepo, rbacRepo)
+	ctx := newDefaultAdminBootModuleContext(authRepo, rbacRepo)
 
 	moduleInstance := NewModule(
-		pluginTestUserRepository{},
+		moduleTestUserRepository{},
 		authRepo,
 	)
 	if err := moduleInstance.Register(ctx); err != nil {
@@ -1628,9 +1628,9 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 	var assignedRole bool
 	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
 
-	ctx := newDefaultAdminBootPluginContext(authRepo, rbacRepo)
+	ctx := newDefaultAdminBootModuleContext(authRepo, rbacRepo)
 	moduleInstance := NewModule(
-		pluginTestUserRepository{},
+		moduleTestUserRepository{},
 		authRepo,
 	)
 	if err := moduleInstance.Register(ctx); err != nil {
@@ -1657,10 +1657,10 @@ func TestBootMarksExistingDefaultAdminForPasswordChange(t *testing.T) {
 // TestBootFailsWithoutSharedRouteAuthorizer 验证 Boot 会在共享 Authorizer 未注册时
 // fail closed，而不是继续让用户路由带着未绑定的授权器启动。
 func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
-	ctx := newDefaultAdminBootPluginContext(&pluginTestAuthRepository{}, pluginTestRBACRepository{})
+	ctx := newDefaultAdminBootModuleContext(&moduleTestAuthRepository{}, moduleTestRBACRepository{})
 	moduleInstance := NewModule(
-		pluginTestUserRepository{},
-		&pluginTestAuthRepository{},
+		moduleTestUserRepository{},
+		&moduleTestAuthRepository{},
 	)
 	if err := moduleInstance.Register(ctx); err != nil {
 		t.Fatalf("register module: %v", err)
@@ -1678,10 +1678,10 @@ func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
 // TestUserListRouteReturnsStableItems 验证用户列表路由会返回真实后端最小列表
 // DTO，供 web `/users` 页面摆脱 demo 数据源。
 func TestUserListRouteReturnsStableItems(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	createdAt := time.Date(2026, time.May, 15, 8, 0, 0, 0, time.UTC)
 	updatedAt := createdAt.Add(2 * time.Hour)
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(context.Context, uint64) (store.User, error) {
 			return store.User{
 				ID:        7,
@@ -1732,8 +1732,8 @@ func TestUserListRouteReturnsStableItems(t *testing.T) {
 
 // TestUserListRouteReturnsInternalErrorContract 验证用户列表仓储失败时仍返回统一本地化错误契约。
 func TestUserListRouteReturnsInternalErrorContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(context.Context, uint64) (store.User, error) {
 			return store.User{
 				ID:        7,
@@ -1767,10 +1767,10 @@ func TestUserListRouteReturnsInternalErrorContract(t *testing.T) {
 }
 
 func TestCreateUserRouteReturnsStableItem(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	createdAt := time.Date(2026, time.May, 22, 9, 0, 0, 0, time.UTC)
 	updatedAt := createdAt.Add(5 * time.Minute)
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -1868,8 +1868,8 @@ func TestUserServiceCreateUserDoesNotImportOpenAPIContract(t *testing.T) {
 }
 
 func TestCreateUserRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -1902,8 +1902,8 @@ func TestCreateUserRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
 }
 
 func TestCreateUserRouteReturnsFieldLevelInvalidArgumentContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -1964,10 +1964,10 @@ func TestCreateUserRouteReturnsFieldLevelInvalidArgumentContract(t *testing.T) {
 }
 
 func TestCreateUserRouteLogsPasswordPolicyViolationWithoutPasswordLeak(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	core, logs := observer.New(zap.ErrorLevel)
 	logger := zap.New(core)
-	_, engine := newModuleTestContextWithLoggerAndPermissions(t, logger, pluginTestUserRepository{
+	_, engine := newModuleTestContextWithLoggerAndPermissions(t, logger, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -2016,8 +2016,8 @@ func TestCreateUserRouteLogsPasswordPolicyViolationWithoutPasswordLeak(t *testin
 }
 
 func TestUpdateUserRouteReturnsStableItem(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -2060,8 +2060,8 @@ func TestUpdateUserRouteReturnsStableItem(t *testing.T) {
 }
 
 func TestSetUserStatusRouteRevokesTargetSessions(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 8:
@@ -2112,8 +2112,8 @@ func TestSetUserStatusRouteRevokesTargetSessions(t *testing.T) {
 }
 
 func TestSetUserStatusRouteRejectsUnknownGeneratedEnumValue(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 8:
@@ -2152,7 +2152,7 @@ func TestSetUserStatusRouteRejectsUnknownGeneratedEnumValue(t *testing.T) {
 }
 
 func TestResetUserPasswordRouteUsesAtomicResetContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{
+	authRepo := &moduleTestAuthRepository{
 		resetPasswordAndRevoke: func(_ context.Context, input store.ResetPasswordAndRevokeSessionsInput) error {
 			if input.UserID != 8 || !input.MustChangePassword {
 				t.Fatalf("unexpected reset input: %#v", input)
@@ -2187,7 +2187,7 @@ func TestResetUserPasswordRouteUsesAtomicResetContract(t *testing.T) {
 }
 
 func TestResetUserPasswordRouteReturnsPasswordPolicyViolationContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{
+	authRepo := &moduleTestAuthRepository{
 		resetPasswordAndRevoke: func(context.Context, store.ResetPasswordAndRevokeSessionsInput) error {
 			t.Fatal("expected reset password repository operation not to be called")
 			return nil
@@ -2222,7 +2222,7 @@ func TestResetUserPasswordRouteReturnsPasswordPolicyViolationContract(t *testing
 }
 
 func TestResetUserPasswordRouteReturnsPasswordReuseForbiddenContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{
+	authRepo := &moduleTestAuthRepository{
 		resetPasswordAndRevoke: func(context.Context, store.ResetPasswordAndRevokeSessionsInput) error {
 			t.Fatal("expected reset password repository operation not to be called")
 			return nil
@@ -2257,8 +2257,8 @@ func TestResetUserPasswordRouteReturnsPasswordReuseForbiddenContract(t *testing.
 }
 
 func TestDeleteUserRouteRevokesSessionsAndReturnsNilPayload(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 8:
@@ -2303,7 +2303,7 @@ func TestDeleteUserRouteRevokesSessionsAndReturnsNilPayload(t *testing.T) {
 // TestUserRouteRequiresPermissionMiddleware 验证插件路由仍复用统一的后端
 // 权限守卫契约，而不是在插件内部发散独立鉴权格式。
 func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, nil)
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{}, nil)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, usersRoutePath(usercontract.UserByID, ":id", "7"), nil)
@@ -2314,7 +2314,7 @@ func TestUserRouteRequiresPermissionMiddleware(t *testing.T) {
 // TestBootstrapRouteRequiresAuthenticatedActor 验证 bootstrap 契约仍复用统一
 // 的请求鉴权中间件，而不是在插件内分叉另一套登录态判断。
 func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, nil)
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{}, nil)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, authRoutePath(usercontract.AuthBootstrap), nil)
@@ -2325,7 +2325,7 @@ func TestBootstrapRouteRequiresAuthenticatedActor(t *testing.T) {
 // TestBootstrapRouteReturnsFilteredContract 验证 bootstrap 路由会返回当前用户、
 // 去重排序后的权限列表、按权限过滤的菜单以及 locale 配置快照。
 func TestBootstrapRouteReturnsFilteredContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	ctx, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo, map[uint64][]rbacstore.Permission{
 		7: {
 			{Code: " " + usercontract.UserReadPermission.String() + " "},
@@ -2415,7 +2415,7 @@ func TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales(t *testing.T) {
 // TestAuthServiceCurrentUserRequiresClaims 验证当前主体解析要求调用链先建立稳定 claims。
 func TestAuthServiceCurrentUserRequiresClaims(t *testing.T) {
 	service := authService{
-		users: pluginTestUserRepository{
+		users: moduleTestUserRepository{
 			getByID: func(context.Context, uint64) (store.User, error) {
 				t.Fatal("user repository should not be called when claims are missing")
 				return store.User{}, nil
@@ -2434,18 +2434,18 @@ func TestAuthServiceCurrentUserRequiresClaims(t *testing.T) {
 func TestAuthServiceParseAccessTokenRequiresActiveSession(t *testing.T) {
 	tests := []struct {
 		name    string
-		arrange func(t *testing.T, repo *pluginTestAuthRepository) string
+		arrange func(t *testing.T, repo *moduleTestAuthRepository) string
 	}{
 		{
 			name: "missing session",
-			arrange: func(t *testing.T, _ *pluginTestAuthRepository) string {
+			arrange: func(t *testing.T, _ *moduleTestAuthRepository) string {
 				t.Helper()
 				return "missing-session"
 			},
 		},
 		{
 			name: "revoked session",
-			arrange: func(t *testing.T, repo *pluginTestAuthRepository) string {
+			arrange: func(t *testing.T, repo *moduleTestAuthRepository) string {
 				t.Helper()
 
 				sessionID := seedRefreshSession(t, repo, 7, time.Now().UTC().Add(time.Hour))
@@ -2461,7 +2461,7 @@ func TestAuthServiceParseAccessTokenRequiresActiveSession(t *testing.T) {
 		},
 		{
 			name: "expired session",
-			arrange: func(t *testing.T, repo *pluginTestAuthRepository) string {
+			arrange: func(t *testing.T, repo *moduleTestAuthRepository) string {
 				t.Helper()
 				return seedRefreshSession(t, repo, 7, time.Now().UTC().Add(-time.Minute))
 			},
@@ -2470,8 +2470,8 @@ func TestAuthServiceParseAccessTokenRequiresActiveSession(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			authRepo := &pluginTestAuthRepository{}
-			ctx, _ := newModuleTestContext(t, pluginTestUserRepository{
+			authRepo := &moduleTestAuthRepository{}
+			ctx, _ := newModuleTestContext(t, moduleTestUserRepository{
 				getByID: func(_ context.Context, id uint64) (store.User, error) {
 					if id != 7 {
 						return store.User{}, store.ErrUserNotFound
@@ -2509,18 +2509,18 @@ func TestAuthServiceParseAccessTokenRequiresActiveSession(t *testing.T) {
 func TestUserRouteRejectsInactiveSession(t *testing.T) {
 	tests := []struct {
 		name    string
-		arrange func(t *testing.T, repo *pluginTestAuthRepository) *http.Request
+		arrange func(t *testing.T, repo *moduleTestAuthRepository) *http.Request
 	}{
 		{
 			name: "missing session",
-			arrange: func(t *testing.T, _ *pluginTestAuthRepository) *http.Request {
+			arrange: func(t *testing.T, _ *moduleTestAuthRepository) *http.Request {
 				t.Helper()
 				return newAuthorizedRequestForSession(t, usersRoutePath(usercontract.UserByID, ":id", "7"), 7, "missing-session")
 			},
 		},
 		{
 			name: "revoked session",
-			arrange: func(t *testing.T, repo *pluginTestAuthRepository) *http.Request {
+			arrange: func(t *testing.T, repo *moduleTestAuthRepository) *http.Request {
 				t.Helper()
 
 				sessionID := seedRefreshSession(t, repo, 7, time.Now().UTC().Add(time.Hour))
@@ -2536,7 +2536,7 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 		},
 		{
 			name: "expired session",
-			arrange: func(t *testing.T, repo *pluginTestAuthRepository) *http.Request {
+			arrange: func(t *testing.T, repo *moduleTestAuthRepository) *http.Request {
 				t.Helper()
 				sessionID := seedRefreshSession(t, repo, 7, time.Now().UTC().Add(-time.Minute))
 				return newAuthorizedRequestForSession(t, usersRoutePath(usercontract.UserByID, ":id", "7"), 7, sessionID)
@@ -2546,8 +2546,8 @@ func TestUserRouteRejectsInactiveSession(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			authRepo := &pluginTestAuthRepository{}
-			_, engine := newModuleTestContext(t, pluginTestUserRepository{
+			authRepo := &moduleTestAuthRepository{}
+			_, engine := newModuleTestContext(t, moduleTestUserRepository{
 				getByID: func(context.Context, uint64) (store.User, error) {
 					return store.User{
 						ID:        7,
@@ -2634,7 +2634,7 @@ func TestRefreshRouteRejectsRestrictedSession(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
+	authRepo := &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
 			if candidate != defaultAdminUsername {
 				return store.UserCredential{}, store.ErrUserNotFound
@@ -2696,7 +2696,7 @@ func TestRefreshRouteRejectsReusedRefreshCookie(t *testing.T) {
 // TestRefreshRouteRejectsMissingCookie 验证缺少 refresh cookie 时仍返回统一的
 // 本地化认证失败契约。
 func TestRefreshRouteRejectsMissingCookie(t *testing.T) {
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{}, &moduleTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthRefresh), nil)
@@ -2721,7 +2721,7 @@ func TestLoginDoesNotIssueOrphanedAccessToken(t *testing.T) {
 		RefreshCookieName:     "graft_refresh_token",
 		RefreshCookiePath:     "/",
 		RefreshCookieSameSite: "lax",
-	}, &pluginTestAuthRepository{
+	}, &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
 			if username != "alice" {
 				return store.UserCredential{}, store.ErrUserNotFound
@@ -2732,7 +2732,7 @@ func TestLoginDoesNotIssueOrphanedAccessToken(t *testing.T) {
 				PasswordHash: &passwordHash,
 			}, nil
 		},
-	}, pluginTestUserRepository{
+	}, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -2786,7 +2786,7 @@ func TestLogoutRouteRevokesCurrentRefreshSession(t *testing.T) {
 // TestLogoutRouteRejectsMissingCookie 验证缺少 refresh cookie 时，logout 继续复用
 // 统一的本地化 refresh-session 错误契约。
 func TestLogoutRouteRejectsMissingCookie(t *testing.T) {
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{}, &moduleTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthLogout), nil)
@@ -2844,7 +2844,7 @@ func TestRevokeAllSessionsRouteRevokesCurrentUserSessions(t *testing.T) {
 // TestRevokeAllSessionsRouteRequiresAuthenticatedActor 验证当前用户自助撤销入口继续
 // 复用统一 request-auth 守卫，而不是在插件内发散新的未登录响应格式。
 func TestRevokeAllSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{}, &moduleTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeAll), nil)
@@ -2857,7 +2857,7 @@ func TestRevokeAllSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 // TestRevokeOtherSessionsRouteRevokesNonCurrentSessions 验证当前用户保留当前会话时，
 // 只会清退自己名下的其它有效 session，不会误伤当前会话或其他用户会话。
 func TestRevokeOtherSessionsRouteRevokesNonCurrentSessions(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
@@ -2883,7 +2883,7 @@ func TestRevokeOtherSessionsRouteRevokesNonCurrentSessions(t *testing.T) {
 // TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces 验证 revoke-others 在列出
 // 后、定向吊销前遇到已被并发撤销的 session 时，仍继续清退剩余会话并返回成功。
 func TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces(t *testing.T) {
-	baseRepo := &pluginTestAuthRepository{}
+	baseRepo := &moduleTestAuthRepository{}
 	baseRepo.getUserCredentialByUsername = func(_ context.Context, username string) (store.UserCredential, error) {
 		switch username {
 		case "alice":
@@ -2910,7 +2910,7 @@ func TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces(t *testing.T) {
 	otherUserSessionID := seedRefreshSession(t, baseRepo, 8, time.Now().UTC().Add(time.Hour))
 
 	authRepo := &revokeByUserRaceAuthRepository{
-		pluginTestAuthRepository: baseRepo,
+		moduleTestAuthRepository: baseRepo,
 		beforeFirstRevoke: func(input store.RevokeRefreshSessionByUserIDInput) {
 			if input.TokenID != raceSessionID {
 				t.Fatalf("expected first revoke target %q, got %q", raceSessionID, input.TokenID)
@@ -2941,7 +2941,7 @@ func TestRevokeOtherSessionsRouteIgnoresAlreadyRevokedRaces(t *testing.T) {
 // TestRevokeOtherSessionsRouteRequiresAuthenticatedActor 验证保留当前会话的批量清退
 // 入口继续复用统一 request-auth 守卫，而不是发散新的未登录响应契约。
 func TestRevokeOtherSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{}, &moduleTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, authRoutePath(usercontract.AuthSessionsRevokeOthers), nil)
@@ -2954,7 +2954,7 @@ func TestRevokeOtherSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 // TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession 验证当前用户只剩当前会话时，
 // revoke-others 仍幂等返回成功，且不会额外清理 refresh cookie。
 func TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(2*time.Hour))
@@ -2972,7 +2972,7 @@ func TestRevokeOtherSessionsRouteAllowsOnlyCurrentSession(t *testing.T) {
 // TestListCurrentUserSessionsRouteReturnsActiveSessions 验证当前用户自助会话列表只返回
 // 其自身当前有效的 refresh sessions，并准确标记当前请求会话。
 func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice"), testUser(8, "bob", "Bob")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
@@ -3005,7 +3005,7 @@ func TestListCurrentUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 // TestListCurrentUserSessionsRouteAppliesLimit 验证当前用户会话列表会在插件边界内
 // 应用显式 limit，而不要求仓储提前暴露分页协议。
 func TestListCurrentUserSessionsRouteAppliesLimit(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	_, engine := newModuleTestContext(t, fixedUserRepository(testUser(7, "alice", "Alice")), authRepo)
 
 	currentSessionID := seedRefreshSession(t, authRepo, 7, time.Now().UTC().Add(time.Hour))
@@ -3032,8 +3032,8 @@ func TestListCurrentUserSessionsRouteAppliesLimit(t *testing.T) {
 // TestListCurrentUserSessionsRouteRejectsInvalidLimit 验证当前用户会话列表会拒绝非法
 // limit，保持稳定的 invalid_argument 契约。
 func TestListCurrentUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -3053,7 +3053,7 @@ func TestListCurrentUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
 // TestListCurrentUserSessionsRouteRequiresAuthenticatedActor 验证当前用户会话列表继续
 // 复用统一 request-auth 守卫，而不是在插件内发散新的未登录契约。
 func TestListCurrentUserSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{}, &moduleTestAuthRepository{})
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, authRoutePath(usercontract.AuthSessions), nil)
@@ -3066,7 +3066,7 @@ func TestListCurrentUserSessionsRouteRequiresAuthenticatedActor(t *testing.T) {
 // TestAdminListUserSessionsRouteReturnsActiveSessions 验证管理员读取入口只返回目标用户
 // 的当前有效 session，并继续标记请求主体自己的当前会话。
 func TestAdminListUserSessionsRouteReturnsActiveSessions(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	engine := newSessionAdminEngine(t, authRepo,
 		testUser(7, "alice", "Alice"),
 		testUser(8, "bob", "Bob"),
@@ -3103,7 +3103,7 @@ func TestAdminListUserSessionsRouteReturnsActiveSessions(t *testing.T) {
 // TestAdminListUserSessionsRouteAppliesLimit 验证管理员读取入口同样支持最小显式
 // limit，避免首次会话治理就扩散分页契约到仓储层。
 func TestAdminListUserSessionsRouteAppliesLimit(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	engine := newSessionAdminEngine(t, authRepo,
 		testUser(7, "alice", "Alice"),
 		testUser(9, "admin", "Admin"),
@@ -3132,7 +3132,7 @@ func TestAdminListUserSessionsRouteAppliesLimit(t *testing.T) {
 // TestAdminListUserSessionsRouteRejectsInvalidLimit 验证管理员会话读取入口会拒绝非法
 // limit，并保持统一的参数错误契约。
 func TestAdminListUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	engine := newSessionAdminEngine(t, authRepo,
 		testUser(7, "alice", "Alice"),
 		testUser(9, "admin", "Admin"),
@@ -3149,8 +3149,8 @@ func TestAdminListUserSessionsRouteRejectsInvalidLimit(t *testing.T) {
 // TestAdminListUserSessionsRouteRequiresDedicatedPermission 验证管理员读取入口不会误复用
 // user.read，而是要求显式的 session 读取权限。
 func TestAdminListUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 7:
@@ -3178,8 +3178,8 @@ func TestAdminListUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 // TestAdminListUserSessionsRouteReturnsNotFoundContract 验证目标用户不存在时，会话读取入口
 // 仍返回稳定的 user.not_found 契约，而不是把空结果伪装成成功。
 func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 9:
@@ -3213,8 +3213,8 @@ func TestAdminListUserSessionsRouteReturnsNotFoundContract(t *testing.T) {
 // TestRevokeCurrentUserSessionRouteRevokesOnlyTargetSession 验证当前用户定向吊销只会
 // 影响指定 session，不会误伤同用户名下其他有效 session。
 func TestRevokeCurrentUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 7:
@@ -3285,8 +3285,8 @@ func TestRevokeCurrentUserSessionRouteClearsCookieWhenRevokingCurrentSession(t *
 // TestRevokeCurrentUserSessionRouteReturnsNotFoundContract 验证当前用户定向吊销未命中时
 // 返回稳定的 session-not-found 契约。
 func TestRevokeCurrentUserSessionRouteReturnsNotFoundContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -3306,7 +3306,7 @@ func TestRevokeCurrentUserSessionRouteReturnsNotFoundContract(t *testing.T) {
 // TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession 验证管理员定向吊销只会影响
 // 目标用户的指定 session，不会误伤其他用户或同用户其他会话。
 func TestAdminRevokeUserSessionRouteRevokesOnlyTargetSession(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 	_, engine := newModuleTestContextWithPermissions(t, fixedUserRepository(
 		testUser(7, "alice", "Alice"),
 		testUser(8, "bob", "Bob"),
@@ -3360,8 +3360,8 @@ func TestAdminRevokeUserSessionRouteClearsCurrentCookieWhenRevokingSelfCurrentSe
 // TestAdminRevokeUserSessionRouteReturnsNotFoundContract 验证管理员定向吊销未命中时
 // 返回稳定的 session-not-found 契约。
 func TestAdminRevokeUserSessionRouteReturnsNotFoundContract(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			switch id {
 			case 7:
@@ -3440,8 +3440,8 @@ func TestAdminRevokeUserSessionsRouteClearsCurrentCookieWhenRevokingSelf(t *test
 // TestAdminRevokeUserSessionsRouteRequiresDedicatedPermission 验证管理员撤销入口不会
 // 误复用 user.read，而是要求显式的 session 管理权限。
 func TestAdminRevokeUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -3465,8 +3465,8 @@ func TestAdminRevokeUserSessionsRouteRequiresDedicatedPermission(t *testing.T) {
 // TestAdminRevokeUserSessionsRouteRejectsInvalidID 验证管理员撤销入口会把非法用户 ID
 // 收敛为稳定的参数错误响应。
 func TestAdminRevokeUserSessionsRouteRejectsInvalidID(t *testing.T) {
-	authRepo := &pluginTestAuthRepository{}
-	_, engine := newModuleTestContextWithPermissions(t, pluginTestUserRepository{
+	authRepo := &moduleTestAuthRepository{}
+	_, engine := newModuleTestContextWithPermissions(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 9 {
 				return store.User{}, store.ErrUserNotFound
@@ -3492,7 +3492,7 @@ func TestLoginRouteRejectsInvalidCredentials(t *testing.T) {
 		t.Fatalf("hash password: %v", err)
 	}
 
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{
 		getByID: func(_ context.Context, id uint64) (store.User, error) {
 			if id != 7 {
 				return store.User{}, store.ErrUserNotFound
@@ -3506,7 +3506,7 @@ func TestLoginRouteRejectsInvalidCredentials(t *testing.T) {
 				UpdatedAt: time.Now(),
 			}, nil
 		},
-	}, &pluginTestAuthRepository{
+	}, &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, username string) (store.UserCredential, error) {
 			if username != "alice" {
 				return store.UserCredential{}, store.ErrUserNotFound
@@ -3540,7 +3540,7 @@ func TestLoginRouteRejectsInvalidCredentials(t *testing.T) {
 // TestLoginRouteRejectsMissingCredentials 验证缺失用户名或密码时，登录接口会
 // 返回统一的参数校验错误而不是继续触发认证流程。
 func TestLoginRouteRejectsMissingCredentials(t *testing.T) {
-	_, engine := newModuleTestContext(t, pluginTestUserRepository{}, &pluginTestAuthRepository{})
+	_, engine := newModuleTestContext(t, moduleTestUserRepository{}, &moduleTestAuthRepository{})
 
 	tests := []struct {
 		name       string
@@ -3596,7 +3596,7 @@ func TestCompleteRequiredPasswordChangeRouteAllowsRestrictedSession(t *testing.T
 	var called bool
 	var received store.ChangePasswordAndRevokeOtherRefreshSessionsInput
 	authRepo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
 				if candidate != defaultAdminUsername {
 					return store.UserCredential{}, store.ErrUserNotFound
@@ -3647,7 +3647,7 @@ func TestChangePasswordRouteRejectsMissingCurrentPassword(t *testing.T) {
 	}
 
 	authRepo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
 				if candidate != "alice" {
 					return store.UserCredential{}, store.ErrUserNotFound
@@ -3688,7 +3688,7 @@ func TestCompleteRequiredPasswordChangeRouteRejectsNonRestrictedSession(t *testi
 	}
 
 	authRepo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
 				if candidate != "alice" {
 					return store.UserCredential{}, store.ErrUserNotFound
@@ -3727,7 +3727,7 @@ func TestRestrictedSessionCannotAccessBusinessRoutes(t *testing.T) {
 		t.Fatalf("hash default admin password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
+	authRepo := &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
 			if candidate != defaultAdminUsername {
 				return store.UserCredential{}, store.ErrUserNotFound
@@ -3766,7 +3766,7 @@ func TestRestrictedSessionCanReadBootstrap(t *testing.T) {
 		t.Fatalf("hash default admin password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
+	authRepo := &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
 			if candidate != defaultAdminUsername {
 				return store.UserCredential{}, store.ErrUserNotFound
@@ -3818,7 +3818,7 @@ func TestRestrictedSessionCannotUseNormalChangePasswordRoute(t *testing.T) {
 		t.Fatalf("hash default admin password: %v", err)
 	}
 
-	authRepo := &pluginTestAuthRepository{
+	authRepo := &moduleTestAuthRepository{
 		getUserCredentialByUsername: func(_ context.Context, candidate string) (store.UserCredential, error) {
 			if candidate != defaultAdminUsername {
 				return store.UserCredential{}, store.ErrUserNotFound

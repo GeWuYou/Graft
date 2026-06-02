@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/mixin"
 )
 
-// RolePermission defines the RBAC plugin's role-to-permission join model.
+// RolePermission defines the RBAC module's role-to-permission join model.
 type RolePermission struct {
 	ent.Schema
 }

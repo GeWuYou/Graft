@@ -8,8 +8,8 @@ const (
 	DependencyStatusDegraded AnomalyKey = "dependency_status_degraded"
 	// DependencyStatusUnknown marks a dependency whose health cannot be determined.
 	DependencyStatusUnknown AnomalyKey = "dependency_status_unknown"
-	// PluginDependencyMissing marks a plugin with unresolved required dependencies.
-	PluginDependencyMissing AnomalyKey = "plugin_dependency_missing"
+	// ModuleDependencyMissing marks a module with unresolved required dependencies.
+	ModuleDependencyMissing AnomalyKey = "module_dependency_missing"
 	// ResourceCPUPressure marks elevated CPU usage in the bounded monitor window.
 	ResourceCPUPressure AnomalyKey = "resource_cpu_pressure"
 	// ResourceMemoryPressure marks elevated host memory usage.

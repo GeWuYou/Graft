@@ -18,7 +18,7 @@ properties:
     enum:
       - dependency_status_degraded
       - dependency_status_unknown
-      - plugin_dependency_missing
+      - module_dependency_missing
       - resource_cpu_pressure
       - resource_memory_pressure
       - resource_disk_pressure
@@ -27,7 +27,7 @@ properties:
       - system_load_pressure
   scope_kind:
     type: string
-    enum: [dependency, plugin, runtime, resource]
+    enum: [dependency, module, runtime, resource]
     description: Scope category that owns the anomaly target.
   scope_ref:
     type: string

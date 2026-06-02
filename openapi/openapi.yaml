@@ -221,8 +221,8 @@ components:
       $ref: ./components/schemas/enveloped-audit-incident-response.yaml
     ServerStatusDependency:
       $ref: ./components/schemas/server-status-dependency.yaml
-    ServerStatusPlugin:
-      $ref: ./components/schemas/server-status-plugin.yaml
+    ServerStatusModule:
+      $ref: ./components/schemas/server-status-module.yaml
     ServerStatusServer:
       $ref: ./components/schemas/server-status-server.yaml
     ServerStatusLoadAverage:

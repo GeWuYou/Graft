@@ -39,7 +39,7 @@ func (e GetAuditIncident200JSONResponseBodyDataIncidentRiskLevel) Valid() bool {
 const (
 	DependencyStatusDegraded GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "dependency_status_degraded"
 	DependencyStatusUnknown  GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "dependency_status_unknown"
-	PluginDependencyMissing  GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "plugin_dependency_missing"
+	ModuleDependencyMissing  GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "module_dependency_missing"
 	ResourceCpuPressure      GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "resource_cpu_pressure"
 	ResourceDiskPressure     GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "resource_disk_pressure"
 	ResourceMemoryPressure   GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey = "resource_memory_pressure"
@@ -55,7 +55,7 @@ func (e GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey) Valid()
 		return true
 	case DependencyStatusUnknown:
 		return true
-	case PluginDependencyMissing:
+	case ModuleDependencyMissing:
 		return true
 	case ResourceCpuPressure:
 		return true
@@ -188,7 +188,7 @@ func (e GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTarget
 // Defines values for GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind.
 const (
 	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindDependency GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "dependency"
-	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindPlugin     GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "plugin"
+	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindModule     GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "module"
 	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindResource   GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "resource"
 	GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindRuntime    GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind = "runtime"
 )
@@ -198,7 +198,7 @@ func (e GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind) Valid() 
 	switch e {
 	case GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindDependency:
 		return true
-	case GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindPlugin:
+	case GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindModule:
 		return true
 	case GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKindResource:
 		return true

@@ -21,14 +21,14 @@ import (
 
 func handleListRoles(
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
 	handler := rbacReadGeneratedHandler{}
 
 	return newManagementListHandler(
 		ctx,
-		pluginName,
+		moduleName,
 		"list roles failed",
 		func(ginCtx *gin.Context) (generated.RoleListResponse, error) {
 			params, invalidField := bindGeneratedRoleParams(ginCtx)
@@ -64,14 +64,14 @@ func handleListRoles(
 //nolint:dupl // Generated-operation wrappers intentionally stay parallel while read behavior is shared below.
 func handleListRolePermissionBindings(
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
 	handler := rbacReadGeneratedHandler{}
 
 	return handleStableIDResponse(stableIDResponseHandlerConfig[generated.RolePermissionBindingResponse]{
 		ctx:        ctx,
-		pluginName: pluginName,
+		moduleName: moduleName,
 		logMessage: "list role permission bindings failed",
 		bindGenerated: func(ginCtx *gin.Context, targetID uint64) {
 			handler.GetRolePermissions(targetID, bindGeneratedRolePermissionParams(ginCtx))
@@ -90,7 +90,7 @@ func handleListRolePermissionBindings(
 
 func handleListPermissions(
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
 	handler := rbacReadGeneratedHandler{}
@@ -110,7 +110,7 @@ func handleListPermissions(
 		permissions, err := reader.ListPermissions(ginCtx.Request.Context(), filter)
 		if err != nil {
 			ctx.Logger.Error("list permissions failed",
-				zap.String("plugin", pluginName),
+				zap.String("module", moduleName),
 				zap.Error(err),
 			)
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
@@ -120,7 +120,7 @@ func handleListPermissions(
 		payload, mapErr := toPermissionListResponse(permissions)
 		if mapErr != nil {
 			ctx.Logger.Error("map permissions response failed",
-				zap.String("plugin", pluginName),
+				zap.String("module", moduleName),
 				zap.Error(mapErr),
 			)
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
@@ -246,14 +246,14 @@ func bindGeneratedReadHeaders(ginCtx *gin.Context) (locale *string, requestID *s
 //nolint:dupl // Generated-operation wrappers intentionally stay parallel while read behavior is shared below.
 func handleListUserRoleBindings(
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
 	handler := rbacUserRoleGeneratedHandler{}
 
 	return handleStableIDResponse(stableIDResponseHandlerConfig[generated.UserRoleBindingResponse]{
 		ctx:        ctx,
-		pluginName: pluginName,
+		moduleName: moduleName,
 		logMessage: "list user-role bindings failed",
 		bindGenerated: func(ginCtx *gin.Context, targetID uint64) {
 			handler.GetUserRoles(targetID, bindGeneratedUserRoleReadParams(ginCtx))
@@ -289,7 +289,7 @@ func bindGeneratedUserRoleReadParams(ginCtx *gin.Context) rbacopenapi.GetUserRol
 
 type stableIDResponseHandlerConfig[T any] struct {
 	ctx           *module.Context
-	pluginName    string
+	moduleName    string
 	logMessage    string
 	bindGenerated func(ginCtx *gin.Context, targetID uint64)
 	read          func(requestCtx context.Context, targetID uint64) (T, error)
@@ -299,7 +299,7 @@ type stableIDResponseHandlerConfig[T any] struct {
 
 type stableIDReadHandlerConfig[T any, R any] struct {
 	ctx           *module.Context
-	pluginName    string
+	moduleName    string
 	logMessage    string
 	bindGenerated func(handler rbacReadGeneratedHandler, ginCtx *gin.Context, targetID uint64)
 	read          func(requestCtx context.Context, targetID uint64) (R, error)
@@ -313,7 +313,7 @@ func newStableIDReadHandler[T any, R any](config stableIDReadHandlerConfig[T, R]
 
 	return handleStableIDResponse(stableIDResponseHandlerConfig[T]{
 		ctx:        config.ctx,
-		pluginName: config.pluginName,
+		moduleName: config.moduleName,
 		logMessage: config.logMessage,
 		bindGenerated: func(ginCtx *gin.Context, targetID uint64) {
 			config.bindGenerated(handler, ginCtx, targetID)
@@ -334,12 +334,12 @@ func newStableIDReadHandler[T any, R any](config stableIDReadHandlerConfig[T, R]
 //nolint:dupl // Detail handlers stay parallel so each generated operation remains explicit at the boundary.
 func handleGetRole(
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
 	return newStableIDReadHandler(stableIDReadHandlerConfig[generated.RoleDetailResponse, rbacstore.Role]{
 		ctx:        ctx,
-		pluginName: pluginName,
+		moduleName: moduleName,
 		logMessage: "get role failed",
 		bindGenerated: func(handler rbacReadGeneratedHandler, ginCtx *gin.Context, targetID uint64) {
 			handler.GetRole(targetID, bindGeneratedRoleDetailParams(ginCtx))
@@ -354,12 +354,12 @@ func handleGetRole(
 //nolint:dupl // Detail handlers stay parallel so each generated operation remains explicit at the boundary.
 func handleGetPermission(
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
 	return newStableIDReadHandler(stableIDReadHandlerConfig[generated.PermissionDetailResponse, rbacstore.Permission]{
 		ctx:        ctx,
-		pluginName: pluginName,
+		moduleName: moduleName,
 		logMessage: "get permission failed",
 		bindGenerated: func(handler rbacReadGeneratedHandler, ginCtx *gin.Context, targetID uint64) {
 			handler.GetPermission(targetID, bindGeneratedPermissionDetailParams(ginCtx))
@@ -388,7 +388,7 @@ func handleStableIDResponse[T any](config stableIDResponseHandlerConfig[T]) gin.
 			}
 
 			config.ctx.Logger.Error(config.logMessage,
-				zap.String("plugin", config.pluginName),
+				zap.String("module", config.moduleName),
 				zap.Uint64("targetId", targetID),
 				zap.Error(err),
 			)
@@ -402,7 +402,7 @@ func handleStableIDResponse[T any](config stableIDResponseHandlerConfig[T]) gin.
 
 func newManagementListHandler[T any](
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	logMessage string,
 	read func(ginCtx *gin.Context) (T, error),
 ) gin.HandlerFunc {
@@ -413,7 +413,7 @@ func newManagementListHandler[T any](
 		}
 		if err != nil {
 			ctx.Logger.Error(logMessage,
-				zap.String("plugin", pluginName),
+				zap.String("module", moduleName),
 				zap.Error(err),
 			)
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)

@@ -56,7 +56,7 @@ const (
 	statusUnknown                  = "unknown"
 	anomalyStatusActive            = "active"
 	scopeKindDependency            = "dependency"
-	scopeKindPlugin                = "plugin"
+	scopeKindModule                = "module"
 	scopeKindRuntime               = "runtime"
 	scopeKindResource              = "resource"
 	evidenceTargetAudit            = "audit_context"
@@ -101,13 +101,13 @@ var _ monitoropenapi.ServerInterface = (*monitorServerHandler)(nil)
 type monitorServerHandler struct {
 	ctx        *module.Context
 	instance   *Module
-	pluginName string
+	moduleName string
 }
 
 type serverStatusAnomalyInputs struct {
 	runtimeSnapshot generated.ServerStatusRuntime
 	dependencies    generated.ServerStatusDependencies
-	plugins         []generated.ServerStatusPlugin
+	modules         []generated.ServerStatusModule
 	trend           generated.ServerStatusTrend
 }
 
@@ -251,7 +251,7 @@ func resolveDatabaseDependency(ctx *module.Context) (*sql.DB, error) {
 	return db, nil
 }
 
-func registerMonitorPermissions(registry *permission.Registry, pluginName string) {
+func registerMonitorPermissions(registry *permission.Registry, moduleName string) {
 	if registry == nil {
 		return
 	}
@@ -261,7 +261,7 @@ func registerMonitorPermissions(registry *permission.Registry, pluginName string
 		Name:        "Read Server Status",
 		Description: "Allows reading the server status overview.",
 		Category:    "api",
-		Module:      pluginName,
+		Module:      moduleName,
 	})
 }
 
@@ -272,7 +272,7 @@ const (
 	monitorMenuOrderDependencies = 103
 )
 
-func registerMonitorMenu(registry *menu.Registry, pluginName string) {
+func registerMonitorMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
 	}
@@ -285,7 +285,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "server",
 		Order:      monitorMenuOrderRoot,
 		Permission: "",
-		Module:     pluginName,
+		Module:     moduleName,
 	})
 
 	registry.Register(menu.Item{
@@ -296,7 +296,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "dashboard",
 		Order:      monitorMenuOrderOverview,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
-		Module:     pluginName,
+		Module:     moduleName,
 	})
 
 	registry.Register(menu.Item{
@@ -307,7 +307,7 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "time",
 		Order:      monitorMenuOrderRuntime,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
-		Module:     pluginName,
+		Module:     moduleName,
 	})
 
 	registry.Register(menu.Item{
@@ -318,14 +318,14 @@ func registerMonitorMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "data-base",
 		Order:      monitorMenuOrderDependencies,
 		Permission: monitorcontract.ServerStatusReadPermission.String(),
-		Module:     pluginName,
+		Module:     moduleName,
 	})
 }
 
 func registerMonitorRoutes(
 	ctx *module.Context,
 	instance *Module,
-	pluginName string,
+	moduleName string,
 	authService moduleapi.AuthService,
 	authorizer moduleapi.Authorizer,
 ) {
@@ -337,7 +337,7 @@ func registerMonitorRoutes(
 		newServerStatusHandler(&monitorServerHandler{
 			ctx:        ctx,
 			instance:   instance,
-			pluginName: pluginName,
+			moduleName: moduleName,
 		}),
 	)
 }
@@ -351,7 +351,7 @@ func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 				localizer = handler.ctx.I18n
 				if handler.ctx.Logger != nil {
 					handler.ctx.Logger.Error("validate monitor server status params failed",
-						zap.String("plugin", handler.pluginName),
+						zap.String("module", handler.moduleName),
 						zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
 						zap.Error(err),
 					)
@@ -368,7 +368,7 @@ func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 				localizer = handler.ctx.I18n
 				if handler.ctx.Logger != nil {
 					handler.ctx.Logger.Error("build monitor server status failed",
-						zap.String("plugin", handler.pluginName),
+						zap.String("module", handler.moduleName),
 						zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
 						zap.Error(buildErr),
 					)
@@ -411,7 +411,7 @@ func bindGeneratedMonitorParams(ginCtx *gin.Context) monitoropenapi.GetMonitorSe
 
 func buildServerStatusResponse(
 	ctx context.Context,
-	pluginCtx *module.Context,
+	moduleCtx *module.Context,
 	instance *Module,
 	trendRange monitorcontract.TrendRange,
 ) (generated.ServerStatusResponse, error) {
@@ -419,14 +419,14 @@ func buildServerStatusResponse(
 	if err != nil {
 		return generated.ServerStatusResponse{}, err
 	}
-	return buildServerStatusResponseWithRuntimeSnapshot(ctx, pluginCtx, instance, trendRange, runtimeSnapshot)
+	return buildServerStatusResponseWithRuntimeSnapshot(ctx, moduleCtx, instance, trendRange, runtimeSnapshot)
 }
 
 // buildServerStatusResponseWithRuntimeSnapshot keeps the production response assembly
 // logic reusable for tests that need deterministic runtime inputs instead of host-dependent metrics.
 func buildServerStatusResponseWithRuntimeSnapshot(
 	ctx context.Context,
-	pluginCtx *module.Context,
+	moduleCtx *module.Context,
 	instance *Module,
 	trendRange monitorcontract.TrendRange,
 	runtimeSnapshot generated.ServerStatusRuntime,
@@ -443,20 +443,20 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 	if err != nil {
 		return generated.ServerStatusResponse{}, err
 	}
-	redisStatus, err := redisHealth(ctx, pluginCtx)
+	redisStatus, err := redisHealth(ctx, moduleCtx)
 	if err != nil {
 		return generated.ServerStatusResponse{}, err
 	}
-	plugins := runtimePluginSummaries(pluginCtx, databaseStatus, redisStatus)
-	summary := buildServerStatusSummary(databaseStatus, redisStatus, plugins)
-	trend := buildServerStatusTrend(ctx, pluginCtx, instance, observedAt, trendRange)
+	modules := runtimeModuleSummaries(moduleCtx, databaseStatus, redisStatus)
+	summary := buildServerStatusSummary(databaseStatus, redisStatus, modules)
+	trend := buildServerStatusTrend(ctx, moduleCtx, instance, observedAt, trendRange)
 	anomalies := buildServerStatusAnomalies(observedAt, trendRange, serverStatusAnomalyInputs{
 		runtimeSnapshot: runtimeSnapshot,
 		dependencies: generated.ServerStatusDependencies{
 			Database: databaseStatus,
 			Redis:    redisStatus,
 		},
-		plugins: plugins,
+		modules: modules,
 		trend:   trend,
 	})
 
@@ -468,8 +468,8 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 			StartedAt:     startedAt,
 			UptimeSeconds: int64(observedAt.Sub(startedAt).Seconds()),
 			GoVersion:     runtime.Version(),
-			AppName:       resolveAppName(pluginCtx),
-			AppEnv:        resolveAppEnv(pluginCtx),
+			AppName:       resolveAppName(moduleCtx),
+			AppEnv:        resolveAppEnv(moduleCtx),
 		},
 		Runtime: runtimeSnapshot,
 		Dependencies: generated.ServerStatusDependencies{
@@ -478,7 +478,7 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 		},
 		Summary:   summary,
 		Trend:     trend,
-		Plugins:   plugins,
+		Modules:   modules,
 		Anomalies: anomalies,
 	}, nil
 }
@@ -492,7 +492,7 @@ func buildServerStatusAnomalies(
 	anomalies := make([]generated.ServerStatusAnomaly, 0)
 
 	anomalies = append(anomalies, buildDependencyAnomalies(observedAt, windowStart, inputs.dependencies)...)
-	anomalies = append(anomalies, buildPluginDependencyAnomalies(observedAt, windowStart, inputs.plugins)...)
+	anomalies = append(anomalies, buildModuleDependencyAnomalies(observedAt, windowStart, inputs.modules)...)
 	anomalies = append(anomalies, buildRuntimeMetricAnomalies(observedAt, windowStart, inputs.runtimeSnapshot, inputs.trend)...)
 	return anomalies
 }
@@ -540,26 +540,26 @@ func buildDependencyAnomalies(
 	return anomalies
 }
 
-func buildPluginDependencyAnomalies(
+func buildModuleDependencyAnomalies(
 	observedAt time.Time,
 	windowStart time.Time,
-	plugins []generated.ServerStatusPlugin,
+	modules []generated.ServerStatusModule,
 ) []generated.ServerStatusAnomaly {
 	anomalies := make([]generated.ServerStatusAnomaly, 0)
-	for _, item := range plugins {
+	for _, item := range modules {
 		if item.MissingDependencies == nil || len(*item.MissingDependencies) == 0 {
 			continue
 		}
 		anomalies = append(anomalies, generated.ServerStatusAnomaly{
-			AnomalyKey: generated.ServerStatusAnomalyAnomalyKey(monitorcontract.PluginDependencyMissing),
-			ScopeKind:  generated.ServerStatusAnomalyScopeKind(scopeKindPlugin),
+			AnomalyKey: generated.ServerStatusAnomalyAnomalyKey(monitorcontract.ModuleDependencyMissing),
+			ScopeKind:  generated.ServerStatusAnomalyScopeKind(scopeKindModule),
 			ScopeRef:   item.Name,
 			Severity:   generated.ServerStatusAnomalySeverity(monitorcontract.SeverityCritical),
 			Status:     generated.ServerStatusAnomalyStatus(anomalyStatusActive),
 			ObservedAt: observedAt,
 			Summary:    item.StatusDetail,
 			EvidenceLinks: []generated.EvidenceLink{
-				unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for this plugin dependency issue."),
+				unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for this module dependency issue."),
 			},
 		})
 	}
@@ -859,8 +859,8 @@ func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStat
 	}, nil
 }
 
-func redisHealth(ctx context.Context, pluginCtx *module.Context) (generated.ServerStatusDependency, error) {
-	if pluginCtx == nil || pluginCtx.Redis == nil {
+func redisHealth(ctx context.Context, moduleCtx *module.Context) (generated.ServerStatusDependency, error) {
+	if moduleCtx == nil || moduleCtx.Redis == nil {
 		return generated.ServerStatusDependency{
 			Status: statusDisabled,
 			Detail: "Redis client is not configured",
@@ -871,8 +871,8 @@ func redisHealth(ctx context.Context, pluginCtx *module.Context) (generated.Serv
 	defer cancel()
 
 	startedAt := time.Now()
-	if err := pluginCtx.Redis.Ping(pingCtx).Err(); err != nil {
-		logTrendWarning(nil, pluginCtx, "redis ping failed", err)
+	if err := moduleCtx.Redis.Ping(pingCtx).Err(); err != nil {
+		logTrendWarning(nil, moduleCtx, "redis ping failed", err)
 		return generated.ServerStatusDependency{
 			Status: statusDegraded,
 			Detail: "Redis ping failed",
@@ -890,16 +890,16 @@ func redisHealth(ctx context.Context, pluginCtx *module.Context) (generated.Serv
 	}, nil
 }
 
-func runtimePluginSummaries(
-	pluginCtx *module.Context,
+func runtimeModuleSummaries(
+	moduleCtx *module.Context,
 	database generated.ServerStatusDependency,
 	redis generated.ServerStatusDependency,
-) []generated.ServerStatusPlugin {
-	if pluginCtx == nil {
+) []generated.ServerStatusModule {
+	if moduleCtx == nil {
 		return nil
 	}
 
-	descriptors := pluginCtx.RuntimeMetadata.OrderedModuleDescriptors()
+	descriptors := moduleCtx.RuntimeMetadata.OrderedModuleDescriptors()
 	available := make(map[string]struct{}, len(descriptors))
 	for _, descriptor := range descriptors {
 		name := strings.TrimSpace(descriptor.Name)
@@ -910,11 +910,11 @@ func runtimePluginSummaries(
 	}
 
 	platformStatus := deriveOverallStatus(database.Status, redis.Status, nil)
-	items := make([]generated.ServerStatusPlugin, 0, len(descriptors))
+	items := make([]generated.ServerStatusModule, 0, len(descriptors))
 	for _, descriptor := range descriptors {
 		dependsOn := append([]string(nil), descriptor.DependsOn...)
-		status, statusDetail, missingDependencies := deriveRuntimePluginObservation(descriptor, available, platformStatus)
-		item := generated.ServerStatusPlugin{
+		status, statusDetail, missingDependencies := deriveRuntimeModuleObservation(descriptor, available, platformStatus)
+		item := generated.ServerStatusModule{
 			Name:         descriptor.Name,
 			Status:       status,
 			StatusDetail: statusDetail,
@@ -930,12 +930,12 @@ func runtimePluginSummaries(
 	return items
 }
 
-// deriveRuntimePluginObservation keeps plugin runtime semantics explicit and narrow:
-// a plugin is healthy only when its runtime metadata is complete, its declared
-// plugin dependencies are present, and the current shared runtime signals are not
+// deriveRuntimeModuleObservation keeps module runtime semantics explicit and narrow:
+// a module is healthy only when its runtime metadata is complete, its declared
+// module dependencies are present, and the current shared runtime signals are not
 // degraded. When that cannot be confirmed, the returned detail explains the most
 // useful operator-facing reason instead of collapsing everything into a coarse summary.
-func deriveRuntimePluginObservation(
+func deriveRuntimeModuleObservation(
 	descriptor module.DescriptorSnapshot,
 	available map[string]struct{},
 	platformStatus string,
@@ -973,11 +973,11 @@ func deriveRuntimePluginObservation(
 func buildServerStatusSummary(
 	database generated.ServerStatusDependency,
 	redis generated.ServerStatusDependency,
-	plugins []generated.ServerStatusPlugin,
+	modules []generated.ServerStatusModule,
 ) generated.ServerStatusSummary {
 	summary := generated.ServerStatusSummary{
 		TotalDependencies: len([]generated.ServerStatusDependency{database, redis}),
-		TotalPlugins:      len(plugins),
+		TotalModules:      len(modules),
 	}
 
 	for _, dependency := range []generated.ServerStatusDependency{database, redis} {
@@ -993,9 +993,9 @@ func buildServerStatusSummary(
 		}
 	}
 
-	for _, plugin := range plugins {
-		if plugin.Status == statusHealthy {
-			summary.HealthyPlugins++
+	for _, moduleSummary := range modules {
+		if moduleSummary.Status == statusHealthy {
+			summary.HealthyModules++
 		}
 	}
 
@@ -1004,7 +1004,7 @@ func buildServerStatusSummary(
 
 func buildServerStatusTrend(
 	ctx context.Context,
-	pluginCtx *module.Context,
+	moduleCtx *module.Context,
 	instance *Module,
 	observedAt time.Time,
 	trendRange monitorcontract.TrendRange,
@@ -1017,14 +1017,14 @@ func buildServerStatusTrend(
 		Points:                nil,
 	}
 
-	redisClient := resolveRedisClient(pluginCtx, instance)
+	redisClient := resolveRedisClient(moduleCtx, instance)
 	if redisClient == nil {
 		return trend
 	}
 
-	points, err := loadTrendPoints(ctx, redisClient, trendStorageKey(resolveAppName(pluginCtx), resolveHostName()), observedAt, retention)
+	points, err := loadTrendPoints(ctx, redisClient, trendStorageKey(resolveAppName(moduleCtx), resolveHostName()), observedAt, retention)
 	if err != nil {
-		logTrendWarning(instance, pluginCtx, "load redis trend points failed", err)
+		logTrendWarning(instance, moduleCtx, "load redis trend points failed", err)
 		return trend
 	}
 
@@ -1032,12 +1032,12 @@ func buildServerStatusTrend(
 	return trend
 }
 
-func resolveRedisClient(pluginCtx *module.Context, instance *Module) *redis.Client {
+func resolveRedisClient(moduleCtx *module.Context, instance *Module) *redis.Client {
 	if instance != nil && instance.redis != nil {
 		return instance.redis
 	}
-	if pluginCtx != nil {
-		return pluginCtx.Redis
+	if moduleCtx != nil {
+		return moduleCtx.Redis
 	}
 	return nil
 }
@@ -1455,18 +1455,18 @@ func mustConvertGeneratedInt64(value uint64, label string) (int64, error) {
 	return int64(value), nil
 }
 
-func resolveAppName(pluginCtx *module.Context) string {
-	if pluginCtx == nil || pluginCtx.Config == nil {
+func resolveAppName(moduleCtx *module.Context) string {
+	if moduleCtx == nil || moduleCtx.Config == nil {
 		return ""
 	}
-	return strings.TrimSpace(pluginCtx.Config.App.Name)
+	return strings.TrimSpace(moduleCtx.Config.App.Name)
 }
 
-func resolveAppEnv(pluginCtx *module.Context) string {
-	if pluginCtx == nil || pluginCtx.Config == nil {
+func resolveAppEnv(moduleCtx *module.Context) string {
+	if moduleCtx == nil || moduleCtx.Config == nil {
 		return ""
 	}
-	return strings.TrimSpace(pluginCtx.Config.App.Env)
+	return strings.TrimSpace(moduleCtx.Config.App.Env)
 }
 
 func deriveOverallStatus(databaseStatus string, redisStatus string, anomalies []generated.ServerStatusAnomaly) string {
@@ -1506,12 +1506,12 @@ func parseGeneratedTrendRange(raw *monitoropenapi.GetMonitorServerStatusParamsTr
 	return parseTrendRange(string(*raw))
 }
 
-func logTrendWarning(instance *Module, pluginCtx *module.Context, message string, err error) {
+func logTrendWarning(instance *Module, moduleCtx *module.Context, message string, err error) {
 	switch {
 	case instance != nil && instance.logger != nil:
 		instance.logger.Warn(message, zap.Error(err))
-	case pluginCtx != nil && pluginCtx.Logger != nil:
-		pluginCtx.Logger.Warn(message, zap.Error(err))
+	case moduleCtx != nil && moduleCtx.Logger != nil:
+		moduleCtx.Logger.Warn(message, zap.Error(err))
 	}
 }
 

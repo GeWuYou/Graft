@@ -15,7 +15,7 @@ import (
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
-	db, err := sql.Open("sqlite3", "file:rbac-plugin-storeent?mode=memory&cache=shared&_fk=1")
+	db, err := sql.Open("sqlite3", "file:rbac-module-storeent?mode=memory&cache=shared&_fk=1")
 	if err != nil {
 		t.Fatalf("open sqlite db: %v", err)
 	}

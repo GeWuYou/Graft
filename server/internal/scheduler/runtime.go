@@ -67,7 +67,7 @@ func (r *CronRuntime) RegisterJob(job cronx.Job) error {
 		if runCtx == nil {
 			r.logger.Error("scheduler job skipped because lifecycle context is unavailable",
 				zap.String("job", job.Name),
-				zap.String("plugin", job.Module),
+				zap.String("module", job.Module),
 			)
 			return
 		}
@@ -75,7 +75,7 @@ func (r *CronRuntime) RegisterJob(job cronx.Job) error {
 		if runErr := job.Run(runCtx); runErr != nil {
 			r.logger.Error("scheduler job failed",
 				zap.String("job", job.Name),
-				zap.String("plugin", job.Module),
+				zap.String("module", job.Module),
 				zap.Error(runErr),
 			)
 		}

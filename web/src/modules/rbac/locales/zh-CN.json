@@ -151,7 +151,7 @@
       "detailLoadFailedTitle": "权限详情暂时不可用",
       "errorTitle": "权限数据暂时不可用",
       "readonlyNotice": "当前权限列表为只读视图。",
-      "readonlyDescription": "权限点由系统和插件注册，当前页面用于查看权限点与模块归属。",
+      "readonlyDescription": "权限点由系统和模块注册，当前页面用于查看权限点与模块归属。",
       "factSourceHint": "可直接搜索 `user.create` 等权限编码，核对系统是否真实注册了该权限以及当前被多少角色使用。",
       "emptyDescription": "暂无描述",
       "columns": {

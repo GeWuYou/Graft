@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// Permission defines the RBAC plugin's persistence model for permissions.
+// Permission defines the RBAC module's persistence model for permissions.
 type Permission struct {
 	ent.Schema
 }
@@ -68,7 +68,7 @@ func (Permission) Fields() []ent.Field {
 	}
 }
 
-// Edges returns the permission relation definitions owned by the RBAC plugin.
+// Edges returns the permission relation definitions owned by the RBAC module.
 func (Permission) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("role_permissions", RolePermission.Type),

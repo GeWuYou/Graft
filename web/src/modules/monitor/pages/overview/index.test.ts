@@ -220,13 +220,13 @@ const translations = vi.hoisted(
     'monitor.serverStatus.runtimeGroupRuntime': 'Runtime Status',
     'monitor.serverStatus.runtimeGroupProcess': 'Go Process',
     'monitor.serverStatus.runtimeGroupEnvironment': 'Environment and Capacity',
-    'monitor.serverStatus.runtimeGroupPlugins': 'Module Summary',
+    'monitor.serverStatus.runtimeGroupModules': 'Module Summary',
     'monitor.serverStatus.databaseLabel': 'Database',
     'monitor.serverStatus.redisLabel': 'Redis',
-    'monitor.serverStatus.pluginRegistered': 'Registered',
-    'monitor.serverStatus.pluginHealthy': 'Healthy',
-    'monitor.serverStatus.pluginAbnormal': 'Abnormal',
-    'monitor.serverStatus.pluginName': 'Plugins',
+    'monitor.serverStatus.moduleRegistered': 'Registered',
+    'monitor.serverStatus.moduleHealthy': 'Healthy',
+    'monitor.serverStatus.moduleAbnormal': 'Abnormal',
+    'monitor.serverStatus.moduleName': 'Modules',
     'monitor.serverStatus.noLatency': 'No latency sample',
     'monitor.serverStatus.latencyValue': '{value} ms',
     'monitor.serverStatus.chartCpu': 'CPU usage',
@@ -530,8 +530,8 @@ function createServerStatusResponse() {
       degraded_dependencies: 0,
       unknown_dependencies: 0,
       disabled_dependencies: 1,
-      total_plugins: 2,
-      healthy_plugins: 1,
+      total_modules: 2,
+      healthy_modules: 1,
     },
     trend: {
       range: '10m',
@@ -564,7 +564,7 @@ function createServerStatusResponse() {
         },
       ],
     },
-    plugins: [
+    modules: [
       {
         name: 'monitor',
         status: 'healthy',

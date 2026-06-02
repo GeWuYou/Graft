@@ -11,8 +11,8 @@ type MonitorEvidenceAvailability string
 const (
 	// MonitorEvidenceAvailable means monitor evidence was resolved for the incident window.
 	MonitorEvidenceAvailable MonitorEvidenceAvailability = "available"
-	// MonitorEvidencePluginDisabled means the monitor plugin is disabled.
-	MonitorEvidencePluginDisabled MonitorEvidenceAvailability = "plugin_disabled"
+	// MonitorEvidenceModuleDisabled means the monitor module is disabled.
+	MonitorEvidenceModuleDisabled MonitorEvidenceAvailability = "module_disabled"
 	// MonitorEvidenceNoMatch means no monitor anomaly matched the bounded incident context.
 	MonitorEvidenceNoMatch MonitorEvidenceAvailability = "no_match"
 	// MonitorEvidenceExpired means the incident window is older than monitor evidence retention.

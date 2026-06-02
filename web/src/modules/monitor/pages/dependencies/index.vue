@@ -31,14 +31,14 @@
         :description="t('monitor.dependenciesPage.futureEntryHint')"
         :min-height="380"
       >
-        <div class="server-status-plugin-entry">
+        <div class="server-status-module-entry">
           <status-tag
             :label="t('monitor.dependenciesPage.statusNotConfigured')"
             status="disabled"
-            class="server-status-plugin-entry__tag"
+            class="server-status-module-entry__tag"
           />
-          <p class="server-status-plugin-entry__title">{{ t('monitor.dependenciesPage.futureEntrySubtitle') }}</p>
-          <p class="server-status-plugin-entry__description">
+          <p class="server-status-module-entry__title">{{ t('monitor.dependenciesPage.futureEntrySubtitle') }}</p>
+          <p class="server-status-module-entry__description">
             {{ t('monitor.dependenciesPage.futureEntryDescription') }}
           </p>
         </div>
@@ -319,7 +319,7 @@ function handleRefreshIntervalChange(value: number | string) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.server-status-plugin-entry {
+.server-status-module-entry {
   align-items: flex-start;
   background: var(--server-status-card-background-subtle, var(--td-bg-color-container-hover));
   border: 1px dashed var(--server-status-card-border, var(--td-component-stroke));
@@ -331,7 +331,7 @@ function handleRefreshIntervalChange(value: number | string) {
   padding: 16px;
 }
 
-.server-status-plugin-entry__title {
+.server-status-module-entry__title {
   color: var(--td-text-color-primary);
   font-size: 15px;
   font-weight: 600;
@@ -339,7 +339,7 @@ function handleRefreshIntervalChange(value: number | string) {
   margin: 0;
 }
 
-.server-status-plugin-entry__description {
+.server-status-module-entry__description {
   color: var(--td-text-color-secondary);
   font-size: 13px;
   line-height: 22px;

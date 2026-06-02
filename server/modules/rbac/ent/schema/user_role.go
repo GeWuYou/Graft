@@ -7,7 +7,7 @@ import (
 // UserRole defines the RBAC-owned user-to-role join model.
 //
 // The boundary intentionally stays at user_id / role_id identifiers so RBAC
-// does not own or import the user plugin's Ent schema internals.
+// does not own or import the user module's Ent schema internals.
 type UserRole struct {
 	ent.Schema
 }

@@ -18,7 +18,7 @@ type routeGuards struct {
 
 type authRouteRegistrar struct {
 	ctx        *module.Context
-	pluginName string
+	moduleName string
 	authFlow   moduleapi.AuthFlowService
 	cookies    CookieManager
 	guards     routeGuards
@@ -26,7 +26,7 @@ type authRouteRegistrar struct {
 
 func registerAuthRoutes(
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	authService moduleapi.AuthService,
 	authFlow moduleapi.AuthFlowService,
 ) error {
@@ -35,7 +35,7 @@ func registerAuthRoutes(
 
 	registrar := authRouteRegistrar{
 		ctx:        ctx,
-		pluginName: pluginName,
+		moduleName: moduleName,
 		authFlow:   authFlow,
 		cookies:    NewCookieManager(ctx.Config.Auth),
 		guards:     guards,

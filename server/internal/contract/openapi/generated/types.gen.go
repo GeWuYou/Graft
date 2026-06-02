@@ -151,7 +151,7 @@ func (e AuditEvidenceContextSource) Valid() bool {
 const (
 	AuditIncidentMonitorEvidenceAnomalyKeyDependencyStatusDegraded AuditIncidentMonitorEvidenceAnomalyKey = "dependency_status_degraded"
 	AuditIncidentMonitorEvidenceAnomalyKeyDependencyStatusUnknown  AuditIncidentMonitorEvidenceAnomalyKey = "dependency_status_unknown"
-	AuditIncidentMonitorEvidenceAnomalyKeyPluginDependencyMissing  AuditIncidentMonitorEvidenceAnomalyKey = "plugin_dependency_missing"
+	AuditIncidentMonitorEvidenceAnomalyKeyModuleDependencyMissing  AuditIncidentMonitorEvidenceAnomalyKey = "module_dependency_missing"
 	AuditIncidentMonitorEvidenceAnomalyKeyResourceCpuPressure      AuditIncidentMonitorEvidenceAnomalyKey = "resource_cpu_pressure"
 	AuditIncidentMonitorEvidenceAnomalyKeyResourceDiskPressure     AuditIncidentMonitorEvidenceAnomalyKey = "resource_disk_pressure"
 	AuditIncidentMonitorEvidenceAnomalyKeyResourceMemoryPressure   AuditIncidentMonitorEvidenceAnomalyKey = "resource_memory_pressure"
@@ -167,7 +167,7 @@ func (e AuditIncidentMonitorEvidenceAnomalyKey) Valid() bool {
 		return true
 	case AuditIncidentMonitorEvidenceAnomalyKeyDependencyStatusUnknown:
 		return true
-	case AuditIncidentMonitorEvidenceAnomalyKeyPluginDependencyMissing:
+	case AuditIncidentMonitorEvidenceAnomalyKeyModuleDependencyMissing:
 		return true
 	case AuditIncidentMonitorEvidenceAnomalyKeyResourceCpuPressure:
 		return true
@@ -189,7 +189,7 @@ func (e AuditIncidentMonitorEvidenceAnomalyKey) Valid() bool {
 // Defines values for AuditIncidentMonitorEvidenceScopeKind.
 const (
 	AuditIncidentMonitorEvidenceScopeKindDependency AuditIncidentMonitorEvidenceScopeKind = "dependency"
-	AuditIncidentMonitorEvidenceScopeKindPlugin     AuditIncidentMonitorEvidenceScopeKind = "plugin"
+	AuditIncidentMonitorEvidenceScopeKindModule     AuditIncidentMonitorEvidenceScopeKind = "module"
 	AuditIncidentMonitorEvidenceScopeKindResource   AuditIncidentMonitorEvidenceScopeKind = "resource"
 	AuditIncidentMonitorEvidenceScopeKindRuntime    AuditIncidentMonitorEvidenceScopeKind = "runtime"
 )
@@ -199,7 +199,7 @@ func (e AuditIncidentMonitorEvidenceScopeKind) Valid() bool {
 	switch e {
 	case AuditIncidentMonitorEvidenceScopeKindDependency:
 		return true
-	case AuditIncidentMonitorEvidenceScopeKindPlugin:
+	case AuditIncidentMonitorEvidenceScopeKindModule:
 		return true
 	case AuditIncidentMonitorEvidenceScopeKindResource:
 		return true
@@ -721,7 +721,7 @@ func (e RoleListItemStatus) Valid() bool {
 const (
 	ServerStatusAnomalyAnomalyKeyDependencyStatusDegraded ServerStatusAnomalyAnomalyKey = "dependency_status_degraded"
 	ServerStatusAnomalyAnomalyKeyDependencyStatusUnknown  ServerStatusAnomalyAnomalyKey = "dependency_status_unknown"
-	ServerStatusAnomalyAnomalyKeyPluginDependencyMissing  ServerStatusAnomalyAnomalyKey = "plugin_dependency_missing"
+	ServerStatusAnomalyAnomalyKeyModuleDependencyMissing  ServerStatusAnomalyAnomalyKey = "module_dependency_missing"
 	ServerStatusAnomalyAnomalyKeyResourceCpuPressure      ServerStatusAnomalyAnomalyKey = "resource_cpu_pressure"
 	ServerStatusAnomalyAnomalyKeyResourceDiskPressure     ServerStatusAnomalyAnomalyKey = "resource_disk_pressure"
 	ServerStatusAnomalyAnomalyKeyResourceMemoryPressure   ServerStatusAnomalyAnomalyKey = "resource_memory_pressure"
@@ -737,7 +737,7 @@ func (e ServerStatusAnomalyAnomalyKey) Valid() bool {
 		return true
 	case ServerStatusAnomalyAnomalyKeyDependencyStatusUnknown:
 		return true
-	case ServerStatusAnomalyAnomalyKeyPluginDependencyMissing:
+	case ServerStatusAnomalyAnomalyKeyModuleDependencyMissing:
 		return true
 	case ServerStatusAnomalyAnomalyKeyResourceCpuPressure:
 		return true
@@ -759,7 +759,7 @@ func (e ServerStatusAnomalyAnomalyKey) Valid() bool {
 // Defines values for ServerStatusAnomalyScopeKind.
 const (
 	Dependency ServerStatusAnomalyScopeKind = "dependency"
-	Plugin     ServerStatusAnomalyScopeKind = "plugin"
+	Module     ServerStatusAnomalyScopeKind = "module"
 	Resource   ServerStatusAnomalyScopeKind = "resource"
 	Runtime    ServerStatusAnomalyScopeKind = "runtime"
 )
@@ -769,7 +769,7 @@ func (e ServerStatusAnomalyScopeKind) Valid() bool {
 	switch e {
 	case Dependency:
 		return true
-	case Plugin:
+	case Module:
 		return true
 	case Resource:
 		return true
@@ -2165,8 +2165,8 @@ type ServerStatusLoadAverage struct {
 	OneMinute      float32 `json:"one_minute"`
 }
 
-// ServerStatusPlugin defines model for server-status-plugin.
-type ServerStatusPlugin struct {
+// ServerStatusModule defines model for server-status-module.
+type ServerStatusModule struct {
 	DependsOn           []string  `json:"depends_on"`
 	MissingDependencies *[]string `json:"missing_dependencies,omitempty"`
 	Name                string    `json:"name"`
@@ -2178,8 +2178,8 @@ type ServerStatusPlugin struct {
 type ServerStatusResponse struct {
 	Anomalies    []ServerStatusAnomaly    `json:"anomalies"`
 	Dependencies ServerStatusDependencies `json:"dependencies"`
+	Modules      []ServerStatusModule     `json:"modules"`
 	ObservedAt   time.Time                `json:"observed_at"`
-	Plugins      []ServerStatusPlugin     `json:"plugins"`
 	Runtime      ServerStatusRuntime      `json:"runtime"`
 	Server       ServerStatusServer       `json:"server"`
 	Status       string                   `json:"status"`
@@ -2222,9 +2222,9 @@ type ServerStatusSummary struct {
 	DegradedDependencies int `json:"degraded_dependencies"`
 	DisabledDependencies int `json:"disabled_dependencies"`
 	HealthyDependencies  int `json:"healthy_dependencies"`
-	HealthyPlugins       int `json:"healthy_plugins"`
+	HealthyModules       int `json:"healthy_modules"`
 	TotalDependencies    int `json:"total_dependencies"`
-	TotalPlugins         int `json:"total_plugins"`
+	TotalModules         int `json:"total_modules"`
 	UnknownDependencies  int `json:"unknown_dependencies"`
 }
 

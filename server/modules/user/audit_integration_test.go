@@ -29,7 +29,7 @@ func (b *recordingBus) Publish(_ context.Context, event eventbus.Event) error {
 func TestUserServiceCreateUserPublishesAuditEvent(t *testing.T) {
 	bus := &recordingBus{}
 	svc := userService{
-		users: pluginTestUserRepository{
+		users: moduleTestUserRepository{
 			create: func(_ context.Context, input userstore.CreateUserInput) (userstore.User, error) {
 				return userstore.User{ID: 42, Username: input.Username, Display: input.Display, Status: input.Status}, nil
 			},
@@ -75,7 +75,7 @@ func TestUserServiceResetUserPasswordAuditFailureDoesNotBlock(t *testing.T) {
 		auditBus: bus,
 		logger:   zap.NewNop(),
 	}
-	authRepo := &pluginTestAuthRepository{}
+	authRepo := &moduleTestAuthRepository{}
 
 	err := svc.ResetUserPassword(context.Background(), authRepo, passwordHasher{cost: 4}, passwordPolicy{}, 9, "Password1234")
 	if err != nil {

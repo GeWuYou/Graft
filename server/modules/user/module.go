@@ -513,7 +513,7 @@ func (s userService) publishAudit(ctx context.Context, event moduleapi.AuditEven
 		Payload: event,
 	}); err != nil && s.logger != nil {
 		s.logger.Warn("publish user audit event failed",
-			zap.String("plugin", moduleID),
+			zap.String("module", moduleID),
 			zap.String("action", strings.TrimSpace(event.Action)),
 			zap.Error(err),
 		)

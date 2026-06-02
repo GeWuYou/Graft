@@ -18,7 +18,7 @@ func writeRBACManagementError(
 	ginCtx *gin.Context,
 	localizer *i18n.Service,
 	logger *zap.Logger,
-	pluginName string,
+	moduleName string,
 	err error,
 	invalidField string,
 ) {
@@ -58,7 +58,7 @@ func writeRBACManagementError(
 		details = map[string]any{"field": invalidField}
 	default:
 		logger.Error("rbac management write failed",
-			zap.String("plugin", pluginName),
+			zap.String("module", moduleName),
 			zap.Error(err),
 		)
 	}

@@ -13,7 +13,7 @@ import (
 )
 
 type passwordChangeAtomicAuthRepository struct {
-	*pluginTestAuthRepository
+	*moduleTestAuthRepository
 	changePasswordAndRevokeOtherRefreshSessions func(
 		ctx context.Context,
 		input userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput,
@@ -41,7 +41,7 @@ func TestChangeCurrentUserPasswordUsesAtomicRepositoryOperation(t *testing.T) {
 	var called bool
 	var received userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput
 	repo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
 				return userstore.UserCredential{
 					UserID:       7,
@@ -113,7 +113,7 @@ func TestChangeCurrentUserPasswordRejectsMissingCurrentPassword(t *testing.T) {
 	currentHash := string(currentHashBytes)
 
 	repo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
 				return userstore.UserCredential{
 					UserID:             7,
@@ -165,7 +165,7 @@ func TestCompleteRequiredPasswordChangeAllowsRestrictedSessionWithoutCurrentPass
 	var called bool
 	var received userstore.ChangePasswordAndRevokeOtherRefreshSessionsInput
 	repo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
 				return userstore.UserCredential{
 					UserID:             9,
@@ -225,7 +225,7 @@ func TestCompleteRequiredPasswordChangeRejectsNonRestrictedSession(t *testing.T)
 	}
 
 	repo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
 				return userstore.UserCredential{
 					UserID:       7,
@@ -275,7 +275,7 @@ func TestCompleteRequiredPasswordChangeRejectsPasswordReuse(t *testing.T) {
 	}
 
 	repo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
 				return userstore.UserCredential{
 					UserID:             7,
@@ -326,7 +326,7 @@ func TestChangeCurrentUserPasswordRequiresAtomicRepositoryOperation(t *testing.T
 	currentHash := string(currentHashBytes)
 
 	service := authService{
-		auth: &pluginTestAuthRepository{
+		auth: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
 				return userstore.UserCredential{
 					UserID:       7,
@@ -366,7 +366,7 @@ func TestChangeCurrentUserPasswordRejectsMismatchedRequestPrincipal(t *testing.T
 	currentHash := string(currentHashBytes)
 
 	repo := &passwordChangeAtomicAuthRepository{
-		pluginTestAuthRepository: &pluginTestAuthRepository{
+		moduleTestAuthRepository: &moduleTestAuthRepository{
 			getUserCredentialByUsername: func(context.Context, string) (userstore.UserCredential, error) {
 				return userstore.UserCredential{
 					UserID:       7,

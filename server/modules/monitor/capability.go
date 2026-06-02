@@ -121,8 +121,8 @@ func scopeMatchesResource(scopeKind string, scopeRef string, resourceType string
 	switch scopeKind {
 	case scopeKindDependency:
 		return resourceMatchesExactKind(resourceType, "dependency", scopeRef, resourceID, resourceName)
-	case scopeKindPlugin:
-		return resourceMatchesExactKind(resourceType, "plugin", scopeRef, resourceID, resourceName)
+	case scopeKindModule:
+		return resourceMatchesExactKind(resourceType, "module", scopeRef, resourceID, resourceName)
 	case scopeKindRuntime:
 		return strings.EqualFold(resourceType, "runtime")
 	case scopeKindResource:

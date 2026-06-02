@@ -385,7 +385,7 @@ func canonicalizeSecurityEventMetadata(metadata map[string]any, eventCtx securit
 	cloned["method"] = eventCtx.method
 	cloned["path"] = eventCtx.route
 	cloned["status"] = eventCtx.status
-	cloned["plugin"] = firstNonEmptyTrimmed(eventCtx.source, "httpx")
+	cloned["module"] = firstNonEmptyTrimmed(eventCtx.source, "httpx")
 	cloned["component"] = "httpx.authz"
 	cloned["eventType"] = string(eventCtx.eventType)
 	cloned["riskLevel"] = "CRITICAL"

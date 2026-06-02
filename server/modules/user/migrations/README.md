@@ -6,4 +6,4 @@ for explicit/manual runs.
 
 `202605190001_user_module_schema.sql` is the canonical user-module baseline on the default
 migration path. It already contains the current table structure, indexes, defaults, and comments,
-so no plugin-boundary checkpoint or follow-up comment/status migrations remain in this directory.
+so no module-boundary checkpoint or follow-up comment/status migrations remain in this directory.

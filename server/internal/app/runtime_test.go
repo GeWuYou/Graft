@@ -170,7 +170,7 @@ type i18nFreezeRecorderModule struct {
 func (p *i18nFreezeRecorderModule) Register(ctx *module.Context) error {
 	p.registerFrozen = ctx.I18n.IsFrozen()
 	return ctx.I18n.RegisterMessages(i18n.Registration{
-		Namespace: "test-plugin",
+		Namespace: "test-module",
 		Locale:    i18n.LocaleZHCN,
 		Messages: []i18n.MessageResource{
 			{Key: "boot.message", Text: "注册阶段文案"},
@@ -181,7 +181,7 @@ func (p *i18nFreezeRecorderModule) Register(ctx *module.Context) error {
 func (p *i18nFreezeRecorderModule) Boot(ctx *module.Context) error {
 	p.bootFrozen = ctx.I18n.IsFrozen()
 	p.bootRegisterErr = ctx.I18n.RegisterMessages(i18n.Registration{
-		Namespace: "test-plugin",
+		Namespace: "test-module",
 		Locale:    i18n.LocaleZHCN,
 		Messages: []i18n.MessageResource{
 			{Key: "late.message", Text: "启动阶段文案"},
@@ -373,9 +373,9 @@ func assertServiceKeyNotRegistered(t *testing.T, resolver container.Resolver, ke
 	}
 }
 
-// TestRunPassesEventBusIntoPluginContext 验证 Runtime 在 Register 与 Boot
-// 阶段向插件注入同一个事件总线实例，避免插件各自持有漂移的协作边界。
-func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
+// TestRunPassesEventBusIntoModuleContext 验证 Runtime 在 Register 与 Boot
+// 阶段向模块注入同一个事件总线实例，避免模块各自持有漂移的协作边界。
+func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	recorder := &eventBusRecorderModule{}
@@ -414,9 +414,9 @@ func TestRunPassesEventBusIntoPluginContext(t *testing.T) {
 	}
 }
 
-// TestRunPassesLifecycleContextIntoPluginPhases 验证 Runtime 会在插件生命周期内
+// TestRunPassesLifecycleContextIntoModulePhases 验证 Runtime 会在模块生命周期内
 // 注入显式上下文，并在 Shutdown 阶段切换到独立的有界关闭上下文。
-func TestRunPassesLifecycleContextIntoPluginPhases(t *testing.T) {
+func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	recorder := &lifecycleContextRecorderModule{}
@@ -509,7 +509,7 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 	}
 
 	message := localizer.Lookup(i18n.LookupRequest{
-		Namespace: "test-plugin",
+		Namespace: "test-module",
 		Locale:    i18n.LocaleZHCN,
 		Key:       "boot.message",
 	})

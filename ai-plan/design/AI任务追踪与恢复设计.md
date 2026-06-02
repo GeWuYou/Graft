@@ -67,7 +67,7 @@ authority-first overlay 补充：
 - `web/AGENTS.md`
   - `web` 执行真值，例如模块边界、route 注册、contract/import 规则、frontend validation
 - `server/AGENTS.md`
-  - `server` 执行真值，例如 plugin 边界、DI 约束、Go 组织规范、Ent/migration、backend validation
+  - `server` 执行真值，例如 module 边界、DI 约束、Go 组织规范、Ent/migration、backend validation
 
 `ai-plan/` 只提供恢复材料与恢复入口，不负责定义第二套 boot 链、关闭流程或启动闸门，也不应再承担
 `server` / `web` 的日常执行级规则清单。

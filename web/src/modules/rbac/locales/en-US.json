@@ -140,7 +140,7 @@
       "detailLoadFailedTitle": "Permission details are temporarily unavailable",
       "errorTitle": "Permission data is temporarily unavailable",
       "readonlyNotice": "This permission list is currently read only.",
-      "readonlyDescription": "Permissions are registered by the system and plugins. This page shows permission points and module ownership.",
+      "readonlyDescription": "Permissions are registered by the system and modules. This page shows permission points and module ownership.",
       "factSourceHint": "Search for codes like `user.create` here to verify whether the permission is actually registered and how many roles currently use it.",
       "emptyDescription": "No description",
       "columns": {

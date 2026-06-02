@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// User defines the user plugin's persistence model for users.
+// User defines the user module's persistence model for users.
 type User struct {
 	ent.Schema
 }

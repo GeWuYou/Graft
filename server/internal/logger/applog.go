@@ -40,7 +40,7 @@ const (
 
 const redactedValue = "[REDACTED]"
 
-// AppLogger defines the canonical application-log contract for runtime and plugins.
+// AppLogger defines the canonical application-log contract for runtime and modules.
 type AppLogger interface {
 	Debug(context.Context, string, ...Field)
 	Info(context.Context, string, ...Field)

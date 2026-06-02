@@ -9,7 +9,7 @@ import (
 
 type userRouteRegistrar struct {
 	ctx        *module.Context
-	pluginName string
+	moduleName string
 	userSvc    userService
 	authSvc    *authService
 	guards     routeGuards
@@ -17,14 +17,14 @@ type userRouteRegistrar struct {
 
 func registerUserRoutes(
 	ctx *module.Context,
-	pluginName string,
+	moduleName string,
 	userSvc userService,
 	authSvc *authService,
 	guards routeGuards,
 ) error {
 	registrar := userRouteRegistrar{
 		ctx:        ctx,
-		pluginName: pluginName,
+		moduleName: moduleName,
 		userSvc:    userSvc,
 		authSvc:    authSvc,
 		guards:     guards,

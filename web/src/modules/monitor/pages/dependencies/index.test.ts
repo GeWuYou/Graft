@@ -205,8 +205,8 @@ function createResponse() {
       degraded_dependencies: 0,
       unknown_dependencies: 0,
       disabled_dependencies: 1,
-      total_plugins: 5,
-      healthy_plugins: 4,
+      total_modules: 5,
+      healthy_modules: 4,
     },
     trend: {
       range: '10m',
@@ -214,7 +214,7 @@ function createResponse() {
       sample_interval_seconds: 5,
       points: [],
     },
-    plugins: [],
+    modules: [],
   };
 }
 

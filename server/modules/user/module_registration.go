@@ -20,13 +20,13 @@ import (
 
 const userMenuOrderList = 2
 
-func registerUserPermissions(registry *permission.Registry, pluginName string) {
-	for _, item := range userPermissionItems(pluginName) {
+func registerUserPermissions(registry *permission.Registry, moduleName string) {
+	for _, item := range userPermissionItems(moduleName) {
 		registry.Register(item)
 	}
 }
 
-func registerUserMenu(registry *menu.Registry, pluginName string) {
+func registerUserMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
 		Code:       "user.list",
 		Title:      "用户管理",
@@ -35,53 +35,53 @@ func registerUserMenu(registry *menu.Registry, pluginName string) {
 		Icon:       "usergroup",
 		Order:      userMenuOrderList,
 		Permission: usercontract.UserReadPermission.String(),
-		Module:     pluginName,
+		Module:     moduleName,
 	})
 }
 
-func userPermissionItems(pluginName string) []permission.Item {
+func userPermissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
 		{
 			Code:        usercontract.UserReadPermission.String(),
 			Name:        "Read Users",
 			Description: "Allows reading user management data.",
 			Category:    "api",
-			Module:      pluginName,
+			Module:      moduleName,
 		},
 		{
 			Code:        usercontract.UserCreatePermission.String(),
 			Name:        "Create Users",
 			Description: "Allows creating user management data.",
 			Category:    "api",
-			Module:      pluginName,
+			Module:      moduleName,
 		},
 		{
 			Code:        usercontract.UserUpdatePermission.String(),
 			Name:        "Update Users",
 			Description: "Allows updating user management data.",
 			Category:    "api",
-			Module:      pluginName,
+			Module:      moduleName,
 		},
 		{
 			Code:        usercontract.UserDisablePermission.String(),
 			Name:        "Disable Users",
 			Description: "Allows disabling or deleting managed users.",
 			Category:    "api",
-			Module:      pluginName,
+			Module:      moduleName,
 		},
 		{
 			Code:        usercontract.UserSessionRevokePermission.String(),
 			Name:        "Revoke User Sessions",
 			Description: "Allows revoking refresh sessions for a specified user.",
 			Category:    "api",
-			Module:      pluginName,
+			Module:      moduleName,
 		},
 		{
 			Code:        usercontract.UserSessionReadPermission.String(),
 			Name:        "Read User Sessions",
 			Description: "Allows reading active refresh sessions for a specified user.",
 			Category:    "api",
-			Module:      pluginName,
+			Module:      moduleName,
 		},
 	}
 }

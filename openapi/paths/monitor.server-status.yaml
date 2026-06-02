@@ -77,8 +77,8 @@ get:
                     degraded_dependencies: 0
                     unknown_dependencies: 0
                     disabled_dependencies: 1
-                    total_plugins: 4
-                    healthy_plugins: 4
+                    total_modules: 4
+                    healthy_modules: 4
                   trend:
                     range: 10m
                     retention_seconds: 600
@@ -94,7 +94,7 @@ get:
                         runtime_alloc_bytes: 62914560
                         runtime_heap_in_use_bytes: 35651584
                         runtime_sys_bytes: 100663296
-                  plugins:
+                  modules:
                     - name: audit
                       status: healthy
                       status_detail: Runtime metadata is present and platform signals are healthy
