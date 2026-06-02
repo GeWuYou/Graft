@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-access-log-contract-definition`
-- Status: `archive-ready`
+- Status: `archived`
 - Task class: `cross-boundary`
 - Recovery source: `parent topic`
   - `phase-d-log-retention-and-storage-authority`

@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `observability-governance-closeout`
-- Status: `archive-ready`
+- Status: `archived`
 - Loop mode: `topic-completion-loop`
 - Task class: `cross-boundary`
 - Recovery source: `none`

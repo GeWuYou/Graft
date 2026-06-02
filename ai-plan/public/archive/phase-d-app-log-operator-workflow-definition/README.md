@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-app-log-operator-workflow-definition`
-- Status: `archive-ready`
+- Status: `archived`
 - Task class: `server`
 - Recovery source: `parent topic`
   - `phase-d-app-log-durable-storage-decision`

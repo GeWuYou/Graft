@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-log-explorer-authority-definition`
-- Status: `archive-ready`
+- Status: `archived`
 - Task class: `cross-boundary`
 - Recovery source: `none`
 

@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-app-log-durable-storage-decision`
-- Status: `archive-ready`
+- Status: `archived`
 - Task class: `server`
 - Recovery source: `parent topic`
   - `phase-d-log-retention-and-storage-authority`

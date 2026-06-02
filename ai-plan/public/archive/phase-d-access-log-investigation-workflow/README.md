@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-access-log-investigation-workflow`
-- Status: `archive-ready`
+- Status: `archived`
 - Task class: `cross-boundary`
 - Recovery source: `parent topic`
   - `phase-d-access-log-runtime-storage`

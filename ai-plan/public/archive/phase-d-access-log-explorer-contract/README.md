@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-access-log-explorer-contract`
-- Status: `archive-ready`
+- Status: `archived`
 - Task class: `cross-boundary`
 - Recovery source: `subtopic`
   - `ai-plan/public/phase-d-access-log-runtime-storage/README.md`

@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-log-retention-and-storage-authority`
-- Status: `archive-ready`
+- Status: `archived`
 - Task class: `server`
 - Recovery source: `parent topic`
   - `phase-d-log-explorer-authority-definition`
