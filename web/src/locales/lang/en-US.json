@@ -147,7 +147,11 @@
         },
         "appearance": {
           "description": "Choose theme mode, theme color, and preset themes.",
-          "colorDescription": "Pick a theme color and preview it immediately."
+          "colorDescription": "Pick a theme color and preview it immediately.",
+          "navigationAppearance": "Navigation Appearance",
+          "navigationDescription": "Choose the admin navigation layout.",
+          "contentAppearance": "Content Appearance",
+          "contentDescription": "Review font, radius, and density settings."
         },
         "typography": {
           "fontFamily": "Font Family",
@@ -176,7 +180,7 @@
         },
         "advanced": {
           "title": "Advanced Mode",
-          "description": "Advanced mode is for Design Token debugging and stays hidden by default.",
+          "description": "Advanced mode is for viewing and adjusting Design Tokens. Most users can keep the defaults.",
           "colorSystem": "Color System",
           "componentStyle": "Component Style",
           "colorVariableCount": "{count} color variables",

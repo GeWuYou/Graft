@@ -57,8 +57,10 @@
 
           <template v-else-if="activeGroup === 'appearance'">
             <div class="section">
-              <div class="section-title">{{ t('layout.setting.theme.mode') }}</div>
-              <div class="section-desc">{{ t('layout.setting.workbench.appearance.description') }}</div>
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.theme.mode') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.appearance.description') }}</div>
+              </div>
               <div class="choice-grid choice-grid--mode">
                 <button
                   v-for="item in modeOptions"
@@ -80,8 +82,10 @@
             </div>
 
             <div class="section">
-              <div class="section-title">{{ t('layout.setting.theme.color') }}</div>
-              <div class="section-desc">{{ t('layout.setting.workbench.appearance.colorDescription') }}</div>
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.theme.color') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.appearance.colorDescription') }}</div>
+              </div>
               <div class="brand-palette">
                 <button
                   v-for="color in brandOptions"
@@ -102,9 +106,65 @@
                   @input="settingStore.setCustomBrandTheme(($event.target as HTMLInputElement).value)"
                 />
                 <t-input
+                  class="brand-input__value"
                   :model-value="effectiveTheme.brandTheme"
                   @update:model-value="(value) => settingStore.setCustomBrandTheme(String(value ?? ''))"
                 />
+                <span class="brand-input__preview" aria-hidden="true">
+                  <span class="brand-input__preview-main" :style="{ background: effectiveTheme.brandTheme }" />
+                  <span class="brand-input__preview-line" />
+                  <span class="brand-input__preview-line brand-input__preview-line--short" />
+                </span>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.workbench.appearance.navigationAppearance') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.appearance.navigationDescription') }}</div>
+              </div>
+              <div class="choice-grid">
+                <button
+                  v-for="item in layoutOptions"
+                  :key="item.value"
+                  type="button"
+                  class="choice-card"
+                  :class="{ 'choice-card--active': settingStore.layout === item.value }"
+                  @click="settingStore.updateConfig({ layout: item.value })"
+                >
+                  <span class="choice-card__check">
+                    <t-icon v-if="settingStore.layout === item.value" name="check" />
+                  </span>
+                  <span class="layout-thumbnail" :class="`layout-thumbnail--${item.value}`">
+                    <span class="layout-thumbnail__header" />
+                    <span class="layout-thumbnail__sidebar" />
+                    <span class="layout-thumbnail__content" />
+                  </span>
+                  <span class="choice-card__title">{{ item.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.workbench.appearance.contentAppearance') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.appearance.contentDescription') }}</div>
+              </div>
+              <div class="appearance-summary-grid">
+                <button type="button" class="appearance-summary-card" @click="openGroup('typography')">
+                  <span class="appearance-summary-card__label">{{
+                    t('layout.setting.workbench.typography.fontFamily')
+                  }}</span>
+                  <span class="appearance-summary-card__value">{{ activeFontLabel }}</span>
+                </button>
+                <button type="button" class="appearance-summary-card" @click="openGroup('style')">
+                  <span class="appearance-summary-card__label">{{ t('layout.setting.workbench.style.radius') }}</span>
+                  <span class="appearance-summary-card__value">{{ activeRadiusLabel }}</span>
+                </button>
+                <button type="button" class="appearance-summary-card" @click="openGroup('style')">
+                  <span class="appearance-summary-card__label">{{ t('layout.setting.workbench.style.density') }}</span>
+                  <span class="appearance-summary-card__value">{{ activeDensityLabel }}</span>
+                </button>
               </div>
             </div>
           </template>
@@ -263,8 +323,10 @@
 
           <template v-else-if="activeGroup === 'style'">
             <div class="section">
-              <div class="section-title">{{ t('layout.setting.workbench.style.radius') }}</div>
-              <div class="section-desc">{{ t('layout.setting.workbench.style.description') }}</div>
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.workbench.style.radius') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.style.description') }}</div>
+              </div>
               <div class="style-preview-grid">
                 <button
                   v-for="item in radiusOptions"
@@ -288,8 +350,10 @@
             </div>
 
             <div class="section">
-              <div class="section-title">{{ t('layout.setting.workbench.style.shadow') }}</div>
-              <div class="style-preview-grid style-preview-grid--triple">
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.workbench.style.shadow') }}</div>
+              </div>
+              <div class="style-preview-grid">
                 <button
                   v-for="item in shadowOptions"
                   :key="item.value"
@@ -312,8 +376,10 @@
             </div>
 
             <div class="section">
-              <div class="section-title">{{ t('layout.setting.workbench.style.density') }}</div>
-              <div class="style-preview-grid style-preview-grid--triple">
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.workbench.style.density') }}</div>
+              </div>
+              <div class="style-preview-grid">
                 <button
                   v-for="item in densityOptions"
                   :key="item.value"
@@ -359,40 +425,38 @@
             <div v-if="advancedVisible" class="advanced-sections">
               <section v-for="section in tokenSections" :key="section.key" class="advanced-section">
                 <div class="advanced-section__title">{{ section.label }}</div>
-                <div class="advanced-groups">
-                  <section
+                <t-collapse
+                  v-model:value="expandedAdvancedGroups"
+                  borderless
+                  class="advanced-collapse"
+                  expand-icon-placement="right"
+                >
+                  <t-collapse-panel
                     v-for="group in section.groups"
                     :key="group.value"
-                    class="advanced-group"
-                    :class="{ 'advanced-group--expanded': expandedAdvancedGroups.includes(group.value) }"
+                    :value="group.value"
+                    class="advanced-collapse-panel"
                   >
-                    <button type="button" class="advanced-group__header" @click="toggleAdvancedGroup(group.value)">
-                      <span class="advanced-group__icon">
-                        <t-icon :name="group.icon" />
-                      </span>
-                      <span class="advanced-group__title-block">
+                    <template #header>
+                      <span class="advanced-group__header">
+                        <span class="advanced-group__icon">
+                          <t-icon :name="group.icon" />
+                        </span>
                         <span class="advanced-group__title">{{ group.label }}</span>
-                        <span class="advanced-group__description">
-                          {{
-                            t(group.countLabelKey, {
-                              count: tokenDefinitionsByGroup[group.value].length,
-                            })
-                          }}
+                        <span class="advanced-group__count">
+                          {{ t(group.countLabelKey, { count: tokenDefinitionsByGroup[group.value].length }) }}
                         </span>
                       </span>
-                      <span class="advanced-group__header-actions">
-                        <t-icon name="chevron-down" class="advanced-group__chevron" />
-                      </span>
-                    </button>
-                    <div v-if="expandedAdvancedGroups.includes(group.value)" class="advanced-group__body">
+                    </template>
+                    <template #default>
                       <theme-token-editor
                         :group-key="group.value"
                         :mode="activeTokenEditorMode"
                         :token-definitions="tokenDefinitionsByGroup[group.value]"
                       />
-                    </div>
-                  </section>
-                </div>
+                    </template>
+                  </t-collapse-panel>
+                </t-collapse>
               </section>
             </div>
           </template>
@@ -454,7 +518,7 @@ const groupIconMap: Record<ThemeWorkbenchGroupKey, string> = {
   layout: 'view-list',
   typography: 'text',
   style: 'chart-bubble',
-  advanced: 'sliders',
+  advanced: 'tools',
 };
 
 const groups = computed(() => settingStore.themeWorkbenchGroups);
@@ -615,6 +679,16 @@ const activeFontLabel = computed(() => {
   return matched?.label ?? fontFamilyOptions[0].label;
 });
 
+const activeRadiusLabel = computed(() => {
+  const matched = radiusOptions.find((item) => item.value === effectiveTheme.value.radiusPreset);
+  return matched?.label ?? radiusOptions[0].label;
+});
+
+const activeDensityLabel = computed(() => {
+  const matched = densityOptions.find((item) => item.value === effectiveTheme.value.densityPreset);
+  return matched?.label ?? densityOptions[1].label;
+});
+
 const overviewSummaryItems = computed(() => [
   {
     key: 'mode',
@@ -690,15 +764,6 @@ const closeWorkbench = () => {
 const toggleAdvancedVisible = (value: boolean) => {
   advancedVisible.value = value;
 };
-
-const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
-  if (expandedAdvancedGroups.value.includes(group)) {
-    expandedAdvancedGroups.value = expandedAdvancedGroups.value.filter((item) => item !== group);
-    return;
-  }
-
-  expandedAdvancedGroups.value = [...expandedAdvancedGroups.value, group];
-};
 </script>
 <style lang="less" scoped>
 @import '../../../shared/components/management/card-surface.less';
@@ -724,6 +789,8 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .theme-workbench-panel__header {
@@ -753,6 +820,7 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   gap: 16px;
   grid-template-columns: 82px minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -805,16 +873,28 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   flex-direction: column;
   gap: 16px;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden auto;
   padding-bottom: 104px;
   padding-right: 4px;
   scrollbar-color: color-mix(in srgb, var(--td-brand-color) 18%, var(--td-scrollbar-color)) transparent;
+}
+
+.theme-workbench-panel__content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.theme-workbench-panel__content::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--td-brand-color) 18%, var(--td-scrollbar-color));
+  border-radius: 999px;
 }
 
 .section {
   .theme-workbench-surface();
 
   gap: 14px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -830,9 +910,16 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   font-weight: 700;
 }
 
+.section-heading {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
 .section-desc {
   color: var(--td-text-color-secondary);
   font-size: 13px;
+  line-height: 1.5;
 }
 
 .section--compact .section-desc {
@@ -863,6 +950,7 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 .brand-palette {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .config-summary-card {
@@ -921,7 +1009,7 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 }
 
 .choice-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
 }
 
 .choice-card {
@@ -930,6 +1018,8 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 
   display: grid;
   gap: 10px;
+  min-width: 0;
+  overflow: hidden;
   padding: 12px;
   position: relative;
   text-align: left;
@@ -943,11 +1033,8 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 .style-preview-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.style-preview-grid--triple {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  min-width: 0;
 }
 
 .style-preview-card {
@@ -959,6 +1046,10 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   color: var(--td-text-color-primary);
   display: grid;
   gap: 12px;
+  grid-template-rows: auto 1fr;
+  min-height: 144px;
+  min-width: 0;
+  overflow: hidden;
   padding: 12px;
   text-align: left;
   transition:
@@ -984,6 +1075,10 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 .style-preview-card__label {
   font-size: 13px;
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .radius-preview,
@@ -994,7 +1089,11 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
     color-mix(in srgb, var(--td-bg-color-container) 65%, var(--td-bg-color-page));
   border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
   border-radius: 12px;
-  min-height: 88px;
+  box-sizing: border-box;
+  height: 88px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 14px;
 }
 
@@ -1008,6 +1107,7 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   background: color-mix(in srgb, var(--td-brand-color) 12%, var(--td-bg-color-container));
   border: 1px solid color-mix(in srgb, var(--td-brand-color) 18%, var(--td-component-stroke));
   display: block;
+  min-width: 0;
 }
 
 .radius-preview__surface--main {
@@ -1104,8 +1204,10 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 
 .density-preview {
   color: var(--td-text-color-primary);
-  display: block;
+  display: grid;
   font-size: 13px;
+  grid-auto-rows: min-content;
+  width: 100%;
 }
 
 .density-preview--compact {
@@ -1115,16 +1217,20 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 
 .density-preview--standard {
   line-height: 1.42;
-  padding: 14px;
+  padding: 12px 14px;
 }
 
 .density-preview--comfortable {
-  line-height: 1.72;
-  padding: 18px;
+  line-height: 1.5;
+  padding: 14px;
 }
 
 .density-preview__line {
+  -webkit-box-orient: vertical;
   display: block;
+  -webkit-line-clamp: 1;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1147,6 +1253,10 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 
 .choice-card__title {
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mode-thumbnail,
@@ -1292,8 +1402,11 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 
 .brand-input {
   align-items: center;
-  display: flex;
+  display: grid;
   gap: 12px;
+  grid-template-columns: auto minmax(140px, 180px) minmax(92px, 1fr);
+  max-width: 100%;
+  min-width: 0;
 }
 
 .brand-input input[type='color'] {
@@ -1307,7 +1420,89 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
 }
 
 .brand-input :deep(.t-input) {
-  flex: 1;
+  max-width: 180px;
+  min-width: 0;
+}
+
+.brand-input__preview {
+  align-items: center;
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  min-height: 40px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 10px;
+}
+
+.brand-input__preview-main {
+  border-radius: 8px;
+  display: block;
+  grid-row: 1 / span 2;
+  height: 24px;
+}
+
+.brand-input__preview-line {
+  background: color-mix(in srgb, var(--td-brand-color) 14%, var(--td-text-color-placeholder));
+  border-radius: 999px;
+  display: block;
+  height: 6px;
+  min-width: 0;
+}
+
+.brand-input__preview-line--short {
+  width: 68%;
+}
+
+.appearance-summary-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  min-width: 0;
+}
+
+.appearance-summary-card {
+  appearance: none;
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 14px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px;
+  text-align: left;
+}
+
+.appearance-summary-card:hover {
+  background: color-mix(in srgb, var(--td-brand-color) 4%, var(--td-bg-color-page));
+  border-color: color-mix(in srgb, var(--td-brand-color) 24%, var(--td-component-stroke));
+}
+
+.appearance-summary-card__label,
+.appearance-summary-card__value {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appearance-summary-card__label {
+  color: var(--td-text-color-secondary);
+  font-size: 12px;
+}
+
+.appearance-summary-card__value {
+  color: var(--td-text-color-primary);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .font-option-list {
@@ -1428,33 +1623,55 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   letter-spacing: 0.02em;
 }
 
-.advanced-groups {
+.advanced-collapse {
+  background: transparent;
+  border: 0;
   display: grid;
   gap: 12px;
 }
 
-.advanced-group {
+.advanced-collapse :deep(.t-collapse-panel) {
   background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
+  border: 1px solid var(--td-component-border);
   border-radius: 16px;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
 }
 
-.advanced-group--expanded {
-  border-color: color-mix(in srgb, var(--td-brand-color) 20%, var(--td-component-stroke));
-  box-shadow: var(--td-shadow-1);
+.advanced-collapse :deep(.t-collapse-panel__wrapper) {
+  border: 0;
+}
+
+.advanced-collapse :deep(.t-collapse-panel__header) {
+  background: transparent;
+  border: 0;
+  min-height: 64px;
+  padding: 12px 14px;
+}
+
+.advanced-collapse :deep(.t-collapse-panel__header:hover) {
+  background: color-mix(in srgb, var(--td-brand-color) 4%, var(--td-bg-color-container));
+}
+
+.advanced-collapse :deep(.t-collapse-panel__icon--active) {
+  color: var(--td-brand-color);
+}
+
+.advanced-collapse :deep(.t-collapse-panel__body) {
+  border-top: 1px solid var(--td-component-border);
+}
+
+.advanced-collapse :deep(.t-collapse-panel__content) {
+  padding: 14px;
 }
 
 .advanced-group__header {
   align-items: center;
-  appearance: none;
-  background: transparent;
-  color: inherit;
   display: grid;
   gap: 12px;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  padding: 16px;
-  text-align: left;
+  min-width: 0;
   width: 100%;
 }
 
@@ -1481,31 +1698,16 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   color: var(--td-text-color-primary);
   font-size: 14px;
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.advanced-group__description {
+.advanced-group__count {
   color: var(--td-text-color-secondary);
   font-size: 12px;
-}
-
-.advanced-group__header-actions {
-  align-items: center;
-  display: inline-flex;
-  gap: 10px;
-}
-
-.advanced-group__chevron {
-  color: var(--td-text-color-secondary);
-  transition: transform 0.18s ease;
-}
-
-.advanced-group--expanded .advanced-group__chevron {
-  transform: rotate(180deg);
-}
-
-.advanced-group__body {
-  border-top: 1px solid color-mix(in srgb, var(--td-component-stroke) 80%, transparent);
-  padding: 16px;
+  white-space: nowrap;
 }
 
 .theme-workbench-panel__footer {
@@ -1537,8 +1739,7 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
   }
 
   .choice-grid,
-  .style-preview-grid,
-  .style-preview-grid--triple {
+  .style-preview-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1556,6 +1757,14 @@ const toggleAdvancedGroup = (group: ThemeTokenGroupKey) => {
     align-items: flex-start;
     flex-direction: column;
     grid-template-columns: 1fr;
+  }
+
+  .brand-input {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .brand-input__preview {
+    grid-column: 1 / -1;
   }
 }
 </style>

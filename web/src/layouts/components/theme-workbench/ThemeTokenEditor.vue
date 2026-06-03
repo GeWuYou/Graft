@@ -166,7 +166,10 @@ const toHex = (value: string) => {
 .theme-token-editor {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .editor-toolbar {
@@ -183,15 +186,19 @@ const toHex = (value: string) => {
 .token-grid {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .token-item {
   .theme-workbench-surface();
 
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  grid-template-columns: minmax(0, 1.3fr) 112px minmax(220px, 0.9fr);
-  padding: 14px 16px;
+  grid-template-columns: minmax(120px, 1.1fr) minmax(96px, 0.72fr) minmax(180px, 0.9fr);
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px 14px;
 }
 
 .token-meta {
@@ -204,11 +211,23 @@ const toHex = (value: string) => {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-medium);
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .token-key {
+  -webkit-box-orient: vertical;
   color: var(--td-text-color-placeholder);
+  display: -webkit-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   font-size: 12px;
+  -webkit-line-clamp: 2;
+  line-height: 1.35;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   word-break: break-all;
 }
 
@@ -220,7 +239,10 @@ const toHex = (value: string) => {
   display: grid;
   gap: 10px;
   grid-template-columns: 32px minmax(0, 1fr);
+  max-width: 100%;
   min-height: 48px;
+  min-width: 0;
+  overflow: hidden;
   padding: 8px 10px;
 }
 
@@ -228,18 +250,25 @@ const toHex = (value: string) => {
   align-items: center;
   display: grid;
   gap: 10px;
-  grid-template-columns: auto minmax(160px, 188px) auto;
+  grid-template-columns: auto minmax(96px, 160px) auto;
   justify-content: end;
+  max-width: 100%;
   min-width: 0;
 }
 
 .token-input {
+  max-width: 160px;
   min-width: 0;
+}
+
+.token-input :deep(.t-input) {
+  max-width: 160px;
 }
 
 .color-input {
   align-items: center;
   display: inline-flex;
+  min-width: 0;
 }
 
 .color-input input {
@@ -258,7 +287,9 @@ const toHex = (value: string) => {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 14%),
     0 4px 14px rgb(15 23 42 / 10%);
+  flex: 0 0 auto;
   height: 32px;
+  min-width: 0;
   width: 32px;
 }
 
@@ -275,6 +306,8 @@ const toHex = (value: string) => {
 .token-preview-sample {
   display: grid;
   gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .token-preview-sample__line {
@@ -282,15 +315,18 @@ const toHex = (value: string) => {
   border-radius: 999px;
   display: block;
   height: 7px;
+  min-width: 0;
   width: 100%;
 }
 
 .token-preview-sample__line--short {
+  max-width: 72%;
   width: 72%;
 }
 
 .reset-button {
   opacity: 0.76;
+  white-space: nowrap;
 }
 
 @media (width <= 768px) {
@@ -299,11 +335,13 @@ const toHex = (value: string) => {
   }
 
   .token-item {
+    align-items: stretch;
     grid-template-columns: 1fr;
   }
 
   .token-inputs {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 160px) auto;
+    justify-content: start;
   }
 }
 </style>

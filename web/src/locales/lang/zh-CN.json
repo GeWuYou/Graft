@@ -147,7 +147,11 @@
         },
         "appearance": {
           "description": "选择主题模式、主题色和预设主题。",
-          "colorDescription": "选择主题色并立即预览。"
+          "colorDescription": "选择主题色并立即预览。",
+          "navigationAppearance": "导航外观",
+          "navigationDescription": "选择后台导航布局。",
+          "contentAppearance": "内容外观",
+          "contentDescription": "查看字体、圆角和密度设置。"
         },
         "typography": {
           "fontFamily": "字体选择",
@@ -176,7 +180,7 @@
         },
         "advanced": {
           "title": "高级模式",
-          "description": "高级模式用于查看和调整 Design Token，普通用户默认隐藏。",
+          "description": "高级模式用于查看和调整 Design Token，普通用户可保持默认。",
           "colorSystem": "颜色系统",
           "componentStyle": "组件样式",
           "colorVariableCount": "{count} 个颜色变量",
