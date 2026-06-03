@@ -68,10 +68,10 @@ withDefaults(
 
 .governance-summary-card__value {
   color: var(--td-text-color-primary);
-  font-size: 26px;
+  font: var(--td-font-headline-small);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   line-height: 1.1;
 }
 

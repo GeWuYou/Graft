@@ -424,7 +424,7 @@ function formatHostMemoryPercent(
 .server-status-runtime-memory-hero__value {
   color: var(--td-text-color-primary);
   display: block;
-  font-size: 22px;
+  font: var(--td-font-title-large);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 28px;

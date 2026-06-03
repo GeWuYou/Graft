@@ -933,7 +933,7 @@ onUnmounted(() => {
 
 .audit-overview__trend-metric strong {
   color: var(--td-text-color-primary);
-  font-size: 18px;
+  font: var(--td-font-title-medium);
   font-variant-numeric: tabular-nums;
 }
 

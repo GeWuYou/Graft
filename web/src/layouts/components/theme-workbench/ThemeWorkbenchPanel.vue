@@ -351,28 +351,39 @@
                 <div class="section-title">{{ t('layout.setting.workbench.typography.fontSize') }}</div>
                 <div class="section-desc">{{ t('layout.setting.workbench.typography.fontSizeDescription') }}</div>
               </div>
-              <div class="font-size-control">
-                <span class="font-size-control__icon font-size-control__icon--small" aria-hidden="true">Aa</span>
-                <t-slider
-                  class="font-size-control__slider"
-                  :label="false"
-                  :marks="fontSizeMarks"
-                  :max="fontSizeOptions.length - 1"
-                  :min="0"
-                  :model-value="activeFontSizeIndex"
-                  :step="1"
-                  @change="handleFontSizeSliderChange"
-                />
-                <span class="font-size-control__icon font-size-control__icon--large" aria-hidden="true">Aa</span>
-                <t-select
-                  class="font-size-control__select"
-                  :model-value="effectiveTheme.fontSizePreset"
-                  :options="fontSizeSelectOptions"
-                  size="small"
-                  @change="handleFontSizeSelectChange"
-                />
+              <div class="font-size-control-stack">
+                <div class="font-size-control">
+                  <span class="font-size-control__icon font-size-control__icon--small" aria-hidden="true">Aa</span>
+                  <t-slider
+                    class="font-size-control__slider"
+                    :label="false"
+                    :max="fontSizeOptions.length - 1"
+                    :min="0"
+                    :model-value="activeFontSizeIndex"
+                    :step="1"
+                    @change="handleFontSizeSliderChange"
+                  />
+                  <span class="font-size-control__icon font-size-control__icon--large" aria-hidden="true">Aa</span>
+                  <t-select
+                    class="font-size-control__select"
+                    :model-value="effectiveTheme.fontSizePreset"
+                    :options="fontSizeSelectOptions"
+                    size="small"
+                    @change="handleFontSizeSelectChange"
+                  />
+                </div>
+                <div class="font-size-control__marks" aria-hidden="true">
+                  <span
+                    v-for="item in fontSizeOptions"
+                    :key="item.value"
+                    class="font-size-control__mark"
+                    :class="{ 'font-size-control__mark--active': item.value === effectiveTheme.fontSizePreset }"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
               </div>
-              <div class="font-size-preview" :style="{ fontSize: activeFontSizeScale }">
+              <div class="font-size-preview" :style="fontSizePreviewStyle">
                 <span class="font-size-preview__label">{{ activeFontSizeLabel }}</span>
                 <span class="font-size-preview__sample">{{
                   t('layout.setting.workbench.typography.previewLine')
@@ -749,15 +760,9 @@ const activeFontSizeLabel = computed(() => fontSizeOptions[activeFontSizeIndex.v
 
 const activeFontSizeScale = computed(() => fontSizeOptions[activeFontSizeIndex.value].scale);
 
-const fontSizeMarks = computed(() =>
-  fontSizeOptions.reduce(
-    (marks, item, index) => {
-      marks[index] = item.label;
-      return marks;
-    },
-    {} as Record<number, string>,
-  ),
-);
+const fontSizePreviewStyle = computed(() => ({
+  '--font-size-preview-scale': activeFontSizeScale.value,
+}));
 
 const activeRadiusLabel = computed(() => {
   const matched = radiusOptions.find((item) => item.value === effectiveTheme.value.radiusPreset);
@@ -911,13 +916,13 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .panel-title {
   color: var(--td-text-color-primary);
-  font-size: 20px;
+  font: var(--td-font-title-medium);
   font-weight: 700;
 }
 
 .panel-subtitle {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
+  font: var(--td-font-body-small);
   margin-top: 4px;
 }
 
@@ -976,7 +981,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 }
 
 .nav-item__text {
-  font-size: 12px;
+  font: var(--td-font-body-small);
   line-height: 1.3;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -1003,7 +1008,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .section-title {
   color: var(--td-text-color-primary);
-  font-size: 16px;
+  font: var(--td-font-title-small);
   font-weight: 700;
   min-width: 0;
   overflow: hidden;
@@ -1021,7 +1026,7 @@ const toggleAdvancedVisible = (value: boolean) => {
   -webkit-box-orient: vertical;
   color: var(--td-text-color-secondary);
   display: -webkit-box;
-  font-size: 12px;
+  font: var(--td-font-body-small);
   -webkit-line-clamp: 2;
   line-height: 1.45;
   max-width: 100%;
@@ -1073,12 +1078,12 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .config-summary-row__label {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
+  font: var(--td-font-body-small);
 }
 
 .config-summary-row__value {
   color: var(--td-text-color-primary);
-  font-size: 14px;
+  font: var(--td-font-body-medium);
   font-weight: 600;
   min-width: 0;
   overflow: hidden;
@@ -1107,8 +1112,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .config-summary-color__value {
   color: var(--td-text-color-primary);
-  font-family: var(--td-font-family);
-  font-size: 13px;
+  font: var(--td-font-body-small);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1162,7 +1166,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 }
 
 .choice-card__title {
-  font-size: 13px;
+  font: var(--td-font-body-small);
   font-weight: 600;
   min-width: 0;
   overflow: hidden;
@@ -1303,7 +1307,7 @@ const toggleAdvancedVisible = (value: boolean) => {
   -webkit-box-orient: vertical;
   color: var(--td-text-color-secondary);
   display: -webkit-box;
-  font-size: 12px;
+  font: var(--td-font-body-small);
   -webkit-line-clamp: 2;
   line-height: 1.35;
   overflow: hidden;
@@ -1425,12 +1429,12 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .appearance-summary-card__label {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
 }
 
 .appearance-summary-card__value {
   color: var(--td-text-color-primary);
-  font-size: 14px;
+  font: var(--td-font-body-medium);
   font-weight: 600;
 }
 
@@ -1479,14 +1483,14 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .font-option__title {
   color: var(--td-text-color-primary);
-  font-size: 14px;
+  font: var(--td-font-body-medium);
   font-weight: 600;
 }
 
 .font-option__preview {
   color: var(--td-text-color-secondary);
   display: block;
-  font-size: 13px;
+  font: var(--td-font-body-small);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1497,6 +1501,12 @@ const toggleAdvancedVisible = (value: boolean) => {
   color: var(--td-brand-color);
 }
 
+.font-size-control-stack {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
 .font-size-control {
   align-items: center;
   background: var(--td-bg-color-page);
@@ -1504,7 +1514,7 @@ const toggleAdvancedVisible = (value: boolean) => {
   border-radius: 14px;
   display: grid;
   gap: 10px;
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(112px, 136px);
+  grid-template-columns: auto minmax(132px, 1fr) auto minmax(136px, 160px);
   max-width: 100%;
   min-height: 56px;
   min-width: 0;
@@ -1515,15 +1525,16 @@ const toggleAdvancedVisible = (value: boolean) => {
   color: var(--td-text-color-primary);
   font-weight: 700;
   line-height: 1;
+  min-width: max-content;
   white-space: nowrap;
 }
 
 .font-size-control__icon--small {
-  font-size: 12px;
+  font: var(--td-font-body-small);
 }
 
 .font-size-control__icon--large {
-  font-size: 20px;
+  font: var(--td-font-title-large);
 }
 
 .font-size-control__slider {
@@ -1534,17 +1545,42 @@ const toggleAdvancedVisible = (value: boolean) => {
   min-width: 0;
 }
 
-.font-size-control__slider :deep(.t-slider__mark) {
+.font-size-control__marks {
   color: var(--td-text-color-secondary);
-  font-size: 11px;
+  display: grid;
+  font: var(--td-font-body-small);
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.font-size-control__mark {
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-size-control__mark--active {
+  color: var(--td-brand-color);
+  font-weight: 700;
 }
 
 .font-size-control__select {
+  min-width: 136px;
+}
+
+.font-size-control__select :deep(.t-input__inner) {
   min-width: 0;
+  text-overflow: ellipsis;
 }
 
 .font-size-preview {
-  align-items: center;
+  --font-size-preview-scale: 100%;
+
+  align-items: start;
   background: color-mix(in srgb, var(--td-bg-color-container) 72%, var(--td-bg-color-page));
   border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
   border-radius: 14px;
@@ -1552,13 +1588,13 @@ const toggleAdvancedVisible = (value: boolean) => {
   gap: 6px;
   grid-template-columns: auto minmax(0, 1fr);
   min-width: 0;
-  overflow: hidden;
+  overflow-wrap: anywhere;
   padding: 12px 14px;
 }
 
 .font-size-preview__label {
   color: var(--td-brand-color);
-  font-size: 0.86em;
+  font: var(--td-font-body-small);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1566,11 +1602,13 @@ const toggleAdvancedVisible = (value: boolean) => {
 .font-size-preview__sample {
   color: var(--td-text-color-primary);
   display: block;
+  font: var(--td-font-body-medium);
+  font-size: var(--font-size-preview-scale);
   font-weight: 600;
+  line-height: 1.45;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .style-preview-grid {
@@ -1616,7 +1654,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 }
 
 .style-preview-card__label {
-  font-size: 13px;
+  font: var(--td-font-body-small);
   font-weight: 600;
   min-width: 0;
   overflow: hidden;
@@ -1746,9 +1784,9 @@ const toggleAdvancedVisible = (value: boolean) => {
 }
 
 .density-preview {
-  color: var(--td-text-color-primary);
+  color: var(--td-text-color-secondary);
   display: grid;
-  font-size: 13px;
+  font: var(--td-font-body-small);
   grid-auto-rows: min-content;
   width: 100%;
 }
@@ -1819,7 +1857,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .advanced-layout .advanced-mode-toolbar__label {
   color: var(--td-text-color-primary);
-  font-size: 14px;
+  font: var(--td-font-body-medium);
   font-weight: 600;
 }
 
@@ -1835,7 +1873,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .advanced-layout .advanced-section__title {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
+  font: var(--td-font-body-small);
   font-weight: 700;
 }
 
@@ -1906,7 +1944,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .advanced-layout .advanced-group__title {
   color: var(--td-text-color-primary);
-  font-size: 14px;
+  font: var(--td-font-body-medium);
   font-weight: 700;
   min-width: 0;
   overflow: hidden;
@@ -1916,7 +1954,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .advanced-layout .advanced-group__count {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
   white-space: nowrap;
 }
 
@@ -2029,6 +2067,15 @@ const toggleAdvancedVisible = (value: boolean) => {
 
   .font-size-control__select {
     grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .font-size-control__marks {
+    padding-inline: 0;
+  }
+
+  .font-size-preview {
+    grid-template-columns: 1fr;
   }
 }
 </style>

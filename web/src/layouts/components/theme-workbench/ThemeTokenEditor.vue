@@ -222,6 +222,8 @@ const toHex = (value: string) => {
   color: var(--td-text-color-placeholder);
   display: -webkit-box;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+  /* Monospace token-key preview keeps a fixed code scale so variable names remain compact in editor rows. */
   font-size: 12px;
   -webkit-line-clamp: 2;
   line-height: 1.35;
@@ -298,7 +300,7 @@ const toHex = (value: string) => {
   background: var(--td-bg-color-container);
   color: var(--td-text-color-primary);
   display: inline-flex;
-  font-size: 14px;
+  font: var(--td-font-body-medium);
   font-weight: 700;
   justify-content: center;
 }

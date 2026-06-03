@@ -230,13 +230,13 @@ const thumbnailStyle = (preset: ThemePresetDefinition): CSSProperties => {
 
 .preset-card__title {
   color: var(--td-text-color-primary);
-  font-size: 14px;
+  font: var(--td-font-title-small);
   font-weight: 700;
 }
 
 .preset-card__desc {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
   line-height: 1.6;
 }
 </style>
