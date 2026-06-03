@@ -93,17 +93,110 @@ const SHADOW_PRESET_MAP: Record<ThemeAuthorityState['shadowPreset'], ThemeTokenM
   },
 };
 
-const FONT_SCALE_MAP: Record<ThemeAuthorityState['fontFamilyPreset'], string> = {
-  system: '100%',
-  harmonyos: '100%',
-  inter: '100%',
-  'source-han-sans': '100%',
+const FONT_SIZE_SCALE_MAP: Record<ThemeAuthorityState['fontSizePreset'], number> = {
+  'extra-small': 0.88,
+  small: 0.94,
+  standard: 1,
+  large: 1.06,
+  'extra-large': 1.12,
 };
+
+const BASE_FONT_SIZE_TOKENS = {
+  '--td-font-size-link-small': 12,
+  '--td-font-size-link-medium': 14,
+  '--td-font-size-link-large': 16,
+  '--td-font-size-mark-small': 12,
+  '--td-font-size-mark-medium': 14,
+  '--td-font-size-body-small': 12,
+  '--td-font-size-body-medium': 14,
+  '--td-font-size-body-large': 16,
+  '--td-font-size-title-small': 14,
+  '--td-font-size-title-medium': 16,
+  '--td-font-size-title-large': 18,
+  '--td-font-size-title-extraLarge': 20,
+  '--td-font-size-headline-small': 24,
+  '--td-font-size-headline-medium': 28,
+  '--td-font-size-headline-large': 36,
+  '--td-font-size-display-medium': 48,
+  '--td-font-size-display-large': 64,
+} as const satisfies Record<string, number>;
+
+const BASE_LINE_HEIGHT_TOKENS = {
+  '--td-line-height-link-small': '20px',
+  '--td-line-height-link-medium': '22px',
+  '--td-line-height-link-large': '24px',
+  '--td-line-height-mark-small': '20px',
+  '--td-line-height-mark-medium': '22px',
+  '--td-line-height-body-small': '20px',
+  '--td-line-height-body-medium': '22px',
+  '--td-line-height-body-large': '24px',
+  '--td-line-height-title-small': '22px',
+  '--td-line-height-title-medium': '24px',
+  '--td-line-height-title-large': '26px',
+  '--td-line-height-title-extraLarge': '28px',
+  '--td-line-height-headline-small': '32px',
+  '--td-line-height-headline-medium': '36px',
+  '--td-line-height-headline-large': '44px',
+  '--td-line-height-display-medium': '56px',
+  '--td-line-height-display-large': '72px',
+} as const satisfies ThemeTokenMap;
+
+const FONT_TOKEN_ALIAS_MAP = {
+  '--td-font-link-small': '--td-font-size-link-small / --td-line-height-link-small',
+  '--td-font-link-medium': '--td-font-size-link-medium / --td-line-height-link-medium',
+  '--td-font-link-large': '--td-font-size-link-large / --td-line-height-link-large',
+  '--td-font-mark-small': '600 --td-font-size-mark-small / --td-line-height-mark-small',
+  '--td-font-mark-medium': '600 --td-font-size-mark-medium / --td-line-height-mark-medium',
+  '--td-font-body-small': '--td-font-size-body-small / --td-line-height-body-small',
+  '--td-font-body-medium': '--td-font-size-body-medium / --td-line-height-body-medium',
+  '--td-font-body-large': '--td-font-size-body-large / --td-line-height-body-large',
+  '--td-font-title-small': '600 --td-font-size-title-small / --td-line-height-title-small',
+  '--td-font-title-medium': '600 --td-font-size-title-medium / --td-line-height-title-medium',
+  '--td-font-title-large': '600 --td-font-size-title-large / --td-line-height-title-large',
+  '--td-font-title-extraLarge': '600 --td-font-size-title-extraLarge / --td-line-height-title-extraLarge',
+  '--td-font-headline-small': '600 --td-font-size-headline-small / --td-line-height-headline-small',
+  '--td-font-headline-medium': '600 --td-font-size-headline-medium / --td-line-height-headline-medium',
+  '--td-font-headline-large': '600 --td-font-size-headline-large / --td-line-height-headline-large',
+  '--td-font-display-medium': '600 --td-font-size-display-medium / --td-line-height-display-medium',
+  '--td-font-display-large': '600 --td-font-size-display-large / --td-line-height-display-large',
+} as const satisfies Record<string, string>;
+
+const FONT_SCALE_PERCENT_MAP: Record<ThemeAuthorityState['fontSizePreset'], string> = {
+  'extra-small': '88%',
+  small: '94%',
+  standard: '100%',
+  large: '106%',
+  'extra-large': '112%',
+};
+
+function px(value: number) {
+  return `${Number(value.toFixed(2))}px`;
+}
+
+function buildFontSizeTokens(fontSizePreset: ThemeAuthorityState['fontSizePreset']): ThemeTokenMap {
+  const scale = FONT_SIZE_SCALE_MAP[fontSizePreset];
+  const scaledSizeTokens = Object.fromEntries(
+    Object.entries(BASE_FONT_SIZE_TOKENS).map(([key, value]) => [key, px(value * scale)]),
+  ) as ThemeTokenMap;
+  const aliasTokens = Object.fromEntries(
+    Object.entries(FONT_TOKEN_ALIAS_MAP).map(([key, template]) => [
+      key,
+      template.replaceAll(/--td-[a-zA-Z-]+/g, (tokenKey) => `var(${tokenKey})`) + ' var(--td-font-family)',
+    ]),
+  ) as ThemeTokenMap;
+
+  return {
+    '--graft-theme-font-scale': FONT_SCALE_PERCENT_MAP[fontSizePreset],
+    ...scaledSizeTokens,
+    ...BASE_LINE_HEIGHT_TOKENS,
+    ...aliasTokens,
+  };
+}
 
 function buildUserThemeTokens(authorityState: ThemeAuthorityState): ThemeModeTokenState {
   const sharedTokens: ThemeTokenMap = {
     '--td-font-family': FONT_FAMILY_MAP[authorityState.fontFamilyPreset],
-    '--graft-theme-font-scale': FONT_SCALE_MAP[authorityState.fontFamilyPreset],
+    ...buildFontSizeTokens(authorityState.fontSizePreset),
     ...RADIUS_PRESET_MAP[authorityState.radiusPreset],
     ...SHADOW_PRESET_MAP[authorityState.shadowPreset],
   };
@@ -117,6 +210,7 @@ function buildUserThemeTokens(authorityState: ThemeAuthorityState): ThemeModeTok
 const THEME_AUTHORITY_DIFF_KEYS: Array<ThemeAuthorityDiffItem['key']> = [
   'brandTheme',
   'fontFamilyPreset',
+  'fontSizePreset',
   'radiusPreset',
   'shadowPreset',
   'densityPreset',
@@ -126,7 +220,13 @@ function createThemeAuthoritySourceSnapshot(
   preset: ThemePresetDefinition | null,
   currentState: Pick<
     ThemeAuthorityState,
-    'selectedThemePresetId' | 'themeSource' | 'fontFamilyPreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset'
+    | 'selectedThemePresetId'
+    | 'themeSource'
+    | 'fontFamilyPreset'
+    | 'fontSizePreset'
+    | 'radiusPreset'
+    | 'shadowPreset'
+    | 'densityPreset'
   >,
 ): ThemeAuthorityState {
   return {
@@ -135,6 +235,7 @@ function createThemeAuthoritySourceSnapshot(
     selectedThemePresetId: currentState.selectedThemePresetId,
     themeSource: currentState.themeSource,
     fontFamilyPreset: 'system',
+    fontSizePreset: 'standard',
     radiusPreset: 'standard',
     shadowPreset: 'standard',
     densityPreset: 'standard',
@@ -149,6 +250,7 @@ function createPersistedThemeAuthoritySnapshot(state: SettingState): ThemeAuthor
     selectedThemePresetId: state.selectedThemePresetId,
     themeSource: state.themeSource,
     fontFamilyPreset: state.fontFamilyPreset,
+    fontSizePreset: state.fontSizePreset,
     radiusPreset: state.radiusPreset,
     shadowPreset: state.shadowPreset,
     densityPreset: state.densityPreset,
@@ -168,6 +270,7 @@ export type SettingState = typeof STYLE_CONFIG & {
   selectedThemePresetId: string | null;
   themeSource: ThemeSourceType;
   fontFamilyPreset: ThemeAuthorityState['fontFamilyPreset'];
+  fontSizePreset: ThemeAuthorityState['fontSizePreset'];
   radiusPreset: ThemeAuthorityState['radiusPreset'];
   shadowPreset: ThemeAuthorityState['shadowPreset'];
   densityPreset: ThemeAuthorityState['densityPreset'];
@@ -191,6 +294,7 @@ const state: SettingState = {
   selectedThemePresetId: DEFAULT_THEME_PRESET_ID,
   themeSource: 'preset',
   fontFamilyPreset: 'system',
+  fontSizePreset: 'standard',
   radiusPreset: 'standard',
   shadowPreset: 'standard',
   densityPreset: 'standard',
@@ -294,6 +398,7 @@ export const useSettingStore = defineStore('setting', {
         selectedThemePresetId: this.selectedThemePresetId,
         themeSource: this.themeSource,
         fontFamilyPreset: this.fontFamilyPreset,
+        fontSizePreset: this.fontSizePreset,
         radiusPreset: this.radiusPreset,
         shadowPreset: this.shadowPreset,
         densityPreset: this.densityPreset,
@@ -306,6 +411,7 @@ export const useSettingStore = defineStore('setting', {
       this.selectedThemePresetId = nextState.selectedThemePresetId;
       this.themeSource = nextState.themeSource;
       this.fontFamilyPreset = nextState.fontFamilyPreset;
+      this.fontSizePreset = nextState.fontSizePreset;
       this.radiusPreset = nextState.radiusPreset;
       this.shadowPreset = nextState.shadowPreset;
       this.densityPreset = nextState.densityPreset;
@@ -479,6 +585,7 @@ export const useSettingStore = defineStore('setting', {
         selectedThemePresetId: DEFAULT_THEME_PRESET_ID,
         themeSource: 'preset',
         fontFamilyPreset: 'system',
+        fontSizePreset: 'standard',
         radiusPreset: 'standard',
         shadowPreset: 'standard',
         densityPreset: 'standard',
@@ -501,6 +608,7 @@ export const useSettingStore = defineStore('setting', {
         selectedThemePresetId: preset.id,
         themeSource: 'preset',
         fontFamilyPreset: this.themeDraft?.fontFamilyPreset ?? this.fontFamilyPreset,
+        fontSizePreset: this.themeDraft?.fontSizePreset ?? this.fontSizePreset,
         radiusPreset: this.themeDraft?.radiusPreset ?? this.radiusPreset,
         shadowPreset: this.themeDraft?.shadowPreset ?? this.shadowPreset,
         densityPreset: this.themeDraft?.densityPreset ?? this.densityPreset,
@@ -516,7 +624,10 @@ export const useSettingStore = defineStore('setting', {
     },
     updateThemeDraftAppearance(
       patch: Partial<
-        Pick<ThemeAuthorityState, 'mode' | 'fontFamilyPreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset'>
+        Pick<
+          ThemeAuthorityState,
+          'mode' | 'fontFamilyPreset' | 'fontSizePreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset'
+        >
       >,
     ) {
       const nextPatch: Partial<ThemeAuthorityState> = {
@@ -623,6 +734,7 @@ export const useSettingStore = defineStore('setting', {
       'selectedThemePresetId',
       'themeSource',
       'fontFamilyPreset',
+      'fontSizePreset',
       'radiusPreset',
       'shadowPreset',
       'densityPreset',

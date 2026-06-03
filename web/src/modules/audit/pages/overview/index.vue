@@ -894,7 +894,7 @@ onUnmounted(() => {
 
 .audit-overview__window-label {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
   font-variant-numeric: tabular-nums;
 }
 
@@ -928,7 +928,7 @@ onUnmounted(() => {
 
 .audit-overview__trend-metric span {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
 }
 
 .audit-overview__trend-metric strong {

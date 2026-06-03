@@ -139,8 +139,7 @@ function resolveOptionValue(value: ToolbarOptionValue, options: ToolbarOption[])
 
 .monitor-toolbar__label {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
-  line-height: 20px;
+  font: var(--td-font-body-small);
   white-space: nowrap;
 }
 

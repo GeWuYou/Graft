@@ -55,9 +55,8 @@ withDefaults(
 
 .governance-summary-card__title {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
+  font: var(--td-font-body-small);
   font-weight: 500;
-  line-height: 20px;
 }
 
 .governance-summary-card__value-row {
@@ -78,14 +77,12 @@ withDefaults(
 
 .governance-summary-card__aside {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 20px;
+  font: var(--td-font-body-small);
 }
 
 .governance-summary-card__description {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 18px;
+  font: var(--td-font-body-small);
   margin: 0;
 }
 </style>

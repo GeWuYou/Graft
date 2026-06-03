@@ -395,8 +395,7 @@ function formatHostMemoryPercent(
   border: 1px solid var(--server-status-card-border, var(--td-component-stroke));
   border-radius: var(--td-radius-medium);
   color: var(--td-text-color-secondary);
-  font-size: 12px;
-  line-height: 18px;
+  font: var(--td-font-body-small);
   padding: 6px 10px;
 }
 
@@ -418,8 +417,7 @@ function formatHostMemoryPercent(
 .server-status-runtime-memory-hero__label {
   color: var(--td-text-color-secondary);
   display: block;
-  font-size: 13px;
-  line-height: 20px;
+  font: var(--td-font-body-small);
   margin-bottom: 8px;
 }
 

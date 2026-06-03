@@ -165,6 +165,12 @@
                   }}</span>
                   <span class="appearance-summary-card__value">{{ activeFontLabel }}</span>
                 </button>
+                <button type="button" class="appearance-summary-card" @click="openGroup('typography')">
+                  <span class="appearance-summary-card__label">{{
+                    t('layout.setting.workbench.typography.fontSize')
+                  }}</span>
+                  <span class="appearance-summary-card__value">{{ activeFontSizeLabel }}</span>
+                </button>
                 <button type="button" class="appearance-summary-card" @click="openGroup('style')">
                   <span class="appearance-summary-card__label">{{ t('layout.setting.workbench.style.radius') }}</span>
                   <span class="appearance-summary-card__value">{{ activeRadiusLabel }}</span>
@@ -337,6 +343,40 @@
                     <t-icon v-if="effectiveTheme.fontFamilyPreset === item.value" name="check" />
                   </span>
                 </label>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.workbench.typography.fontSize') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.typography.fontSizeDescription') }}</div>
+              </div>
+              <div class="font-size-control">
+                <span class="font-size-control__icon font-size-control__icon--small" aria-hidden="true">Aa</span>
+                <t-slider
+                  class="font-size-control__slider"
+                  :label="false"
+                  :marks="fontSizeMarks"
+                  :max="fontSizeOptions.length - 1"
+                  :min="0"
+                  :model-value="activeFontSizeIndex"
+                  :step="1"
+                  @change="handleFontSizeSliderChange"
+                />
+                <span class="font-size-control__icon font-size-control__icon--large" aria-hidden="true">Aa</span>
+                <t-select
+                  class="font-size-control__select"
+                  :model-value="effectiveTheme.fontSizePreset"
+                  :options="fontSizeSelectOptions"
+                  size="small"
+                  @change="handleFontSizeSelectChange"
+                />
+              </div>
+              <div class="font-size-preview" :style="{ fontSize: activeFontSizeScale }">
+                <span class="font-size-preview__label">{{ activeFontSizeLabel }}</span>
+                <span class="font-size-preview__sample">{{
+                  t('layout.setting.workbench.typography.previewLine')
+                }}</span>
               </div>
             </div>
           </div>
@@ -513,7 +553,7 @@ import SettingLightIcon from '@/assets/assets-setting-light.svg';
 import { DEFAULT_COLOR_OPTIONS } from '@/config/color';
 import { t } from '@/locales';
 import { useSettingStore } from '@/store';
-import type { ThemeTokenGroupKey, ThemeWorkbenchGroupKey } from '@/types/theme';
+import type { ThemeAuthorityState, ThemeTokenGroupKey, ThemeWorkbenchGroupKey } from '@/types/theme';
 import type { ModeType } from '@/utils/types';
 
 import ThemeTokenEditor from './ThemeTokenEditor.vue';
@@ -570,6 +610,20 @@ const fontFamilyOptions = [
     previewFamily: '"Source Han Sans SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
   },
 ] as const;
+
+const fontSizeOptions: Array<{
+  value: ThemeAuthorityState['fontSizePreset'];
+  label: string;
+  scale: string;
+}> = [
+  { value: 'extra-small', label: t('layout.setting.workbench.typography.extraSmall'), scale: '88%' },
+  { value: 'small', label: t('layout.setting.workbench.typography.small'), scale: '94%' },
+  { value: 'standard', label: t('layout.setting.workbench.typography.standard'), scale: '100%' },
+  { value: 'large', label: t('layout.setting.workbench.typography.large'), scale: '106%' },
+  { value: 'extra-large', label: t('layout.setting.workbench.typography.extraLarge'), scale: '112%' },
+];
+
+const fontSizeSelectOptions = fontSizeOptions.map(({ label, value }) => ({ label, value }));
 
 const radiusOptions = [
   { value: 'business', label: t('layout.setting.workbench.style.business') },
@@ -686,6 +740,25 @@ const activeFontLabel = computed(() => {
   return matched?.label ?? fontFamilyOptions[0].label;
 });
 
+const activeFontSizeIndex = computed(() => {
+  const matchedIndex = fontSizeOptions.findIndex((item) => item.value === effectiveTheme.value.fontSizePreset);
+  return Math.max(matchedIndex, 0);
+});
+
+const activeFontSizeLabel = computed(() => fontSizeOptions[activeFontSizeIndex.value].label);
+
+const activeFontSizeScale = computed(() => fontSizeOptions[activeFontSizeIndex.value].scale);
+
+const fontSizeMarks = computed(() =>
+  fontSizeOptions.reduce(
+    (marks, item, index) => {
+      marks[index] = item.label;
+      return marks;
+    },
+    {} as Record<number, string>,
+  ),
+);
+
 const activeRadiusLabel = computed(() => {
   const matched = radiusOptions.find((item) => item.value === effectiveTheme.value.radiusPreset);
   return matched?.label ?? radiusOptions[0].label;
@@ -721,6 +794,11 @@ const overviewSummaryItems = computed(() => [
     key: 'font',
     label: t('layout.setting.workbench.typography.fontFamily'),
     value: activeFontLabel.value,
+  },
+  {
+    key: 'fontSize',
+    label: t('layout.setting.workbench.typography.fontSize'),
+    value: activeFontSizeLabel.value,
   },
 ]);
 
@@ -761,6 +839,29 @@ const drawerVisible = computed({
 
 const openGroup = (group: ThemeWorkbenchGroupKey) => {
   settingStore.setActiveThemeWorkbenchGroup(group);
+};
+
+const updateFontSizePreset = (value: unknown) => {
+  const matched = fontSizeOptions.find((item) => item.value === value);
+  if (!matched) {
+    return;
+  }
+
+  settingStore.updateThemeDraftAppearance({
+    fontSizePreset: matched.value,
+  });
+};
+
+const handleFontSizeSelectChange = (value: unknown) => {
+  updateFontSizePreset(value);
+};
+
+const handleFontSizeSliderChange = (value: unknown) => {
+  if (typeof value !== 'number') {
+    return;
+  }
+
+  updateFontSizePreset(fontSizeOptions[value]?.value);
 };
 
 const closeWorkbench = () => {
@@ -1396,6 +1497,82 @@ const toggleAdvancedVisible = (value: boolean) => {
   color: var(--td-brand-color);
 }
 
+.font-size-control {
+  align-items: center;
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(112px, 136px);
+  max-width: 100%;
+  min-height: 56px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.font-size-control__icon {
+  color: var(--td-text-color-primary);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.font-size-control__icon--small {
+  font-size: 12px;
+}
+
+.font-size-control__icon--large {
+  font-size: 20px;
+}
+
+.font-size-control__slider {
+  min-width: 0;
+}
+
+.font-size-control__slider :deep(.t-slider__container) {
+  min-width: 0;
+}
+
+.font-size-control__slider :deep(.t-slider__mark) {
+  color: var(--td-text-color-secondary);
+  font-size: 11px;
+}
+
+.font-size-control__select {
+  min-width: 0;
+}
+
+.font-size-preview {
+  align-items: center;
+  background: color-mix(in srgb, var(--td-bg-color-container) 72%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 86%, transparent);
+  border-radius: 14px;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px 14px;
+}
+
+.font-size-preview__label {
+  color: var(--td-brand-color);
+  font-size: 0.86em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.font-size-preview__sample {
+  color: var(--td-text-color-primary);
+  display: block;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .style-preview-grid {
   display: grid;
   gap: 12px;
@@ -1843,6 +2020,14 @@ const toggleAdvancedVisible = (value: boolean) => {
   }
 
   .brand-input__preview {
+    grid-column: 1 / -1;
+  }
+
+  .font-size-control {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .font-size-control__select {
     grid-column: 1 / -1;
   }
 }

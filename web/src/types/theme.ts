@@ -23,7 +23,7 @@ export interface ThemeWorkbenchGroupDefinition {
 }
 
 export interface ThemeAuthorityDiffItem {
-  key: 'brandTheme' | 'fontFamilyPreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset';
+  key: 'brandTheme' | 'fontFamilyPreset' | 'fontSizePreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset';
   labelKey: string;
   fromValue: string;
   toValue: string;
@@ -59,6 +59,7 @@ export interface ThemeAuthorityState {
   selectedThemePresetId: string | null;
   themeSource: ThemeSourceType;
   fontFamilyPreset: 'system' | 'harmonyos' | 'inter' | 'source-han-sans';
+  fontSizePreset: 'extra-small' | 'small' | 'standard' | 'large' | 'extra-large';
   radiusPreset: 'business' | 'standard' | 'rounded' | 'capsule';
   shadowPreset: 'flat' | 'standard' | 'floating';
   densityPreset: 'compact' | 'standard' | 'comfortable';

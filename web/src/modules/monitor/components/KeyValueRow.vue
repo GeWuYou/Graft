@@ -43,22 +43,19 @@ defineProps<{
 
 .server-status-kv-row__label {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 20px;
+  font: var(--td-font-body-small);
 }
 
 .server-status-kv-row__description {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 20px;
+  font: var(--td-font-body-small);
 }
 
 .server-status-kv-row__value {
   color: var(--td-text-color-primary);
-  font-size: 13px;
+  font: var(--td-font-body-small);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  line-height: 20px;
   max-width: 56%;
   overflow-wrap: anywhere;
   text-align: right;

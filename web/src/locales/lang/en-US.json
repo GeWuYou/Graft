@@ -159,9 +159,16 @@
         },
         "typography": {
           "fontFamily": "Font Family",
+          "fontSize": "Font Size",
           "system": "System Default",
           "description": "Adjust admin font settings.",
-          "previewLine": "Aa Admin Dashboard 123"
+          "fontSizeDescription": "Adjust admin font size.",
+          "previewLine": "Aa Admin Dashboard 123",
+          "extraSmall": "Extra Small",
+          "small": "Small",
+          "standard": "Default",
+          "large": "Large",
+          "extraLarge": "Extra Large"
         },
         "style": {
           "radius": "Radius Style",
@@ -191,6 +198,7 @@
         "diff": {
           "brandTheme": "Theme Color",
           "fontFamilyPreset": "Font",
+          "fontSizePreset": "Font Size",
           "radiusPreset": "Radius",
           "shadowPreset": "Shadow",
           "densityPreset": "Density"

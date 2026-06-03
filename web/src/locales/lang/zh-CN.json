@@ -159,9 +159,16 @@
         },
         "typography": {
           "fontFamily": "字体选择",
+          "fontSize": "字体大小",
           "system": "系统默认",
           "description": "调整后台字体。",
-          "previewLine": "Aa 后台管理 Dashboard 123"
+          "fontSizeDescription": "调整后台字号。",
+          "previewLine": "Aa 后台管理 Dashboard 123",
+          "extraSmall": "超小号",
+          "small": "小号",
+          "standard": "默认",
+          "large": "大号",
+          "extraLarge": "特大号"
         },
         "style": {
           "radius": "圆角风格",
@@ -191,6 +198,7 @@
         "diff": {
           "brandTheme": "主题色",
           "fontFamilyPreset": "字体",
+          "fontSizePreset": "字号",
           "radiusPreset": "圆角",
           "shadowPreset": "阴影",
           "densityPreset": "密度"
