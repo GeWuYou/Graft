@@ -18,6 +18,27 @@ bash scripts/collect-dev-environment.sh --write
 python3 scripts/generate-ai-environment.py
 ```
 
+## Project-Local Browser Agent
+
+`graft-web-browser-agent` uses a project-local Python environment for AI-assisted frontend screenshots and simple
+browser interactions:
+
+```bash
+.agents/skills/graft-web-browser-agent/scripts/bootstrap.sh
+```
+
+Generated runtime files are intentionally ignored:
+
+- `.ai/venv/`
+- `.ai/ms-playwright/`
+- `.ai/artifacts/browser/`
+
+Use the skill cleanup script at task closeout when the user chooses to remove browser artifacts:
+
+```bash
+.agents/skills/graft-web-browser-agent/scripts/cleanup.sh --session <session>
+```
+
 ## Rules
 
 - Do not hand-maintain `tools.raw.yaml` or `tools.ai.yaml`.

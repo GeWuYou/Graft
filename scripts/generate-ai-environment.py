@@ -84,6 +84,15 @@ def available_tool(raw: dict[str, Any], section: str, name: str) -> bool:
     return bool_value(raw, section, name, "installed")
 
 
+def optional_bool_value(data: dict[str, Any], default: bool, *keys: str) -> bool:
+    current: Any = data
+    for key in keys:
+        if not isinstance(current, dict) or key not in current:
+            return default
+        current = current[key]
+    return bool(current)
+
+
 def select_tool(use_for: str, preferred: str | None, fallback: str | None) -> dict[str, str]:
     return {
         "preferred": choose(preferred, fallback),
@@ -102,6 +111,14 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     has_jq = available_tool(raw, "required_tools", "jq")
     has_bash = available_tool(raw, "required_tools", "bash")
     has_docker = available_tool(raw, "project_tools", "docker")
+    has_gh = optional_bool_value(raw, False, "project_tools", "gh", "installed")
+    has_python_venv = optional_bool_value(raw, False, "python_environment", "venv", "available")
+    has_project_venv = optional_bool_value(raw, False, "python_environment", "project_venv", "present")
+    has_playwright = optional_bool_value(raw, False, "python_packages", "playwright", "installed")
+    has_playwright_browsers = optional_bool_value(raw, False, "python_environment", "playwright_browsers", "present")
+    has_playwright_system_deps = optional_bool_value(
+        raw, False, "python_environment", "playwright_system_deps", "available"
+    )
 
     server_scaffolded = bool_value(raw, "repository", "server_go_mod", "present")
     web_scaffolded = bool_value(raw, "repository", "web_package_json", "present")
@@ -139,6 +156,16 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
         preferred="go" if has_go and server_scaffolded else None,
         fallback=None,
     )
+    github_cli = select_tool(
+        use_for="GitHub API authentication and PR-related local automation.",
+        preferred="gh" if has_gh else None,
+        fallback="environment token",
+    )
+    ai_browser = select_tool(
+        use_for="AI-assisted local web UI screenshots and simple browser interactions.",
+        preferred="graft-web-browser-agent" if has_python and has_python_venv else None,
+        fallback=None,
+    )
 
     if bool_value(raw, "platform", "wsl"):
         platform_family = "wsl-linux"
@@ -168,8 +195,13 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "npm": has_npm,
             "bun": has_bun,
             "docker": has_docker,
+            "gh": has_gh,
             "fast_search": has_rg,
             "json_cli": has_jq,
+            "ai_browser": has_python and has_python_venv,
+            "playwright_python": has_playwright,
+            "playwright_browsers": has_playwright_browsers,
+            "playwright_system_deps": has_playwright_system_deps,
             "server_scaffolded": server_scaffolded,
             "web_scaffolded": web_scaffolded,
         },
@@ -177,12 +209,18 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "search": search,
             "json": json,
             "shell": shell,
+            "github_cli": github_cli,
             "scripting": scripting,
+            "ai_browser": ai_browser,
             "web_package_manager": web_package_manager,
             "server_build_and_test": server_build_and_test,
         },
         "python": {
             "available": has_python,
+            "venv_available": has_python_venv,
+            "project_venv_present": has_project_venv,
+            "playwright_browsers_present": has_playwright_browsers,
+            "playwright_system_deps_available": has_playwright_system_deps,
             "helper_packages": {
                 "requests": bool_value(raw, "python_packages", "requests", "installed"),
                 "rich": bool_value(raw, "python_packages", "rich", "installed"),
@@ -191,6 +229,7 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
                 "pydantic": bool_value(raw, "python_packages", "pydantic", "installed"),
                 "pytest": bool_value(raw, "python_packages", "pytest", "installed"),
                 "pyyaml": bool_value(raw, "python_packages", "pyyaml", "installed"),
+                "playwright": has_playwright,
             },
         },
         "preferences": {
@@ -202,8 +241,10 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
         "rules": [
             "Use rg instead of grep for repository search when rg is available.",
             "Use jq for JSON inspection; fall back to python3 if jq is unavailable.",
+            "Prefer gh-authenticated access for GitHub PR automation when gh is installed and logged in.",
             "Prefer python3 over complex bash for non-trivial scripting when python3 is available.",
             "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm.",
+            "Use graft-web-browser-agent for AI-assisted frontend screenshots and interactions; do not treat it as the web validation entrypoint.",
             "Do not assume server build or test commands are available when server/go.mod is missing.",
             "Do not assume unrelated system tools are part of the supported project environment.",
         ],

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Web Browser Agent"
+  short_description: "Use Playwright to inspect Graft web UI"
+  default_prompt: "Use $graft-web-browser-agent to inspect the local Graft web UI with Playwright screenshots and interactions."

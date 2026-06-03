@@ -124,6 +124,66 @@ python_package_installed() {
     fi
 }
 
+python_module_command_available() {
+    local module_name="$1"
+
+    if python3 -m "${module_name}" --help >/dev/null 2>&1; then
+        printf 'true'
+    else
+        printf 'false'
+    fi
+}
+
+project_python_package_version() {
+    local package_name="$1"
+    local project_python="${ROOT_DIR}/.ai/venv/bin/python"
+
+    if [[ ! -x "${project_python}" ]]; then
+        printf '%s' "not-installed"
+        return
+    fi
+
+    "${project_python}" - "${package_name}" <<'PY'
+from importlib import metadata
+import sys
+
+package_name = sys.argv[1]
+
+try:
+    print(metadata.version(package_name))
+except metadata.PackageNotFoundError:
+    print("not-installed")
+PY
+}
+
+project_python_package_installed() {
+    local package_name="$1"
+    local version
+
+    version="$(project_python_package_version "${package_name}")"
+
+    if [[ "${version}" == "not-installed" ]]; then
+        printf 'false'
+    else
+        printf 'true'
+    fi
+}
+
+playwright_system_deps_available() {
+    local project_python="${ROOT_DIR}/.ai/venv/bin/python"
+
+    if [[ ! -x "${project_python}" ]]; then
+        printf 'false'
+        return
+    fi
+
+    if PLAYWRIGHT_BROWSERS_PATH="${ROOT_DIR}/.ai/ms-playwright" "${project_python}" -m playwright install-deps --dry-run chromium >/dev/null 2>&1; then
+        printf 'true'
+    else
+        printf 'false'
+    fi
+}
+
 read_os_release() {
     local key="$1"
 
@@ -258,6 +318,11 @@ project_tools:
     version: "$(command_version docker)"
     path: "$(command_path docker)"
     purpose: "Optional container runtime for local services or future automation."
+  gh:
+    installed: $(command_installed gh)
+    version: "$(command_version gh)"
+    path: "$(command_path gh)"
+    purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
 
 python_packages:
   requests:
@@ -288,6 +353,29 @@ python_packages:
     installed: $(python_package_installed pyyaml)
     version: "$(python_package_version pyyaml)"
     purpose: "Optional YAML validation for local verification commands."
+  playwright:
+    installed: $(project_python_package_installed playwright)
+    version: "$(project_python_package_version playwright)"
+    purpose: "Project-local browser automation for AI-assisted web UI inspection."
+
+python_environment:
+  system_pip:
+    available: $(python_module_command_available pip)
+    purpose: "System Python pip availability; project automation should prefer .ai/venv when available."
+  venv:
+    available: $(python_module_command_available venv)
+    purpose: "Creates the project-local .ai/venv Python environment."
+  project_venv:
+    present: $(if [[ -x "${ROOT_DIR}/.ai/venv/bin/python" ]]; then printf 'true'; else printf 'false'; fi)
+    path: ".ai/venv"
+    purpose: "Project-local Python helper environment for AI tooling."
+  playwright_browsers:
+    present: $(if [[ -d "${ROOT_DIR}/.ai/ms-playwright" ]]; then printf 'true'; else printf 'false'; fi)
+    path: ".ai/ms-playwright"
+    purpose: "Project-local Playwright browser cache used by graft-web-browser-agent."
+  playwright_system_deps:
+    available: $(playwright_system_deps_available)
+    purpose: "Whether Chromium system libraries appear available according to Playwright dry-run checks."
 EOF
 }
 

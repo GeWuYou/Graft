@@ -40,6 +40,9 @@ go.work.sum
 # ai
 .codex/
 .ai/private/
+.ai/venv/
+.ai/ms-playwright/
+.ai/artifacts/browser/
 web/ai-libs/
 web/ai-libs
 temp/
