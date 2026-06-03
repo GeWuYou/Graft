@@ -261,6 +261,7 @@ function createPersistedThemeAuthoritySnapshot(state: SettingState): ThemeAuthor
 export type SettingState = typeof STYLE_CONFIG & {
   showSettingPanel: boolean;
   showThemeWorkbench: boolean;
+  themeWorkbenchDockPosition: { xRatio: number; yRatio: number } | null;
   themeWorkbenchRuntimeReady: boolean;
   activeThemeWorkbenchGroup: ThemeWorkbenchGroupKey;
   activeThemeTokenGroup: ThemeTokenGroupKey;
@@ -285,6 +286,7 @@ const state: SettingState = {
   ...STYLE_CONFIG,
   showSettingPanel: false,
   showThemeWorkbench: false,
+  themeWorkbenchDockPosition: null,
   themeWorkbenchRuntimeReady: false,
   activeThemeWorkbenchGroup: 'overview',
   activeThemeTokenGroup: 'brand',
@@ -504,6 +506,14 @@ export const useSettingStore = defineStore('setting', {
     },
     setThemeWorkbenchVisible(visible: boolean) {
       this.syncThemeWorkbenchVisibility(visible);
+    },
+    setThemeWorkbenchDockPosition(position: { xRatio: number; yRatio: number }) {
+      const xRatio = Math.min(1, Math.max(0, position.xRatio));
+      const yRatio = Math.min(1, Math.max(0, position.yRatio));
+      this.themeWorkbenchDockPosition = { xRatio, yRatio };
+    },
+    resetThemeWorkbenchDockPosition() {
+      this.themeWorkbenchDockPosition = null;
     },
     openThemeWorkbench(group?: ThemeWorkbenchGroupKey) {
       this.syncThemeWorkbenchVisibility(true);
@@ -742,6 +752,7 @@ export const useSettingStore = defineStore('setting', {
       'themeResolvedTokens',
       'activeThemeWorkbenchGroup',
       'activeThemeTokenGroup',
+      'themeWorkbenchDockPosition',
     ],
   },
 });

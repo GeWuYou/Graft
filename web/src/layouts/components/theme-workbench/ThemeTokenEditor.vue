@@ -27,13 +27,15 @@
           </div>
         </div>
         <div class="token-inputs">
-          <label v-if="showColorInput(token.key)" class="color-input">
-            <input
-              type="color"
-              :value="toHex(getInputValue(token.key))"
-              @input="updateToken(token.key, ($event.target as HTMLInputElement).value)"
-            />
-          </label>
+          <t-color-picker
+            v-if="showColorInput(token.key)"
+            class="color-input"
+            :color-modes="colorPickerModes"
+            format="HEX"
+            :model-value="toHex(getInputValue(token.key))"
+            :show-primary-color-preview="false"
+            @change="(value) => updateToken(token.key, value)"
+          />
           <t-input
             class="token-input"
             :model-value="getInputValue(token.key)"
@@ -73,6 +75,7 @@ const props = defineProps<{
 
 const settingStore = useSettingStore();
 const draftValues = ref<Record<string, string>>({});
+const colorPickerModes: Array<'monochrome'> = ['monochrome'];
 
 watch(
   () => [props.groupKey, props.mode],
@@ -269,19 +272,8 @@ const toHex = (value: string) => {
 }
 
 .color-input {
-  align-items: center;
-  display: inline-flex;
   min-width: 0;
-}
-
-.color-input input {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  height: 32px;
-  padding: 0;
-  width: 32px;
+  width: 116px;
 }
 
 .token-preview {

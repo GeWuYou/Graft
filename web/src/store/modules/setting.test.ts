@@ -69,4 +69,18 @@ describe('setting store theme authority', () => {
     expect(store.themeResolvedTokens.light['--graft-theme-font-scale']).toBe('100%');
     expect(store.themeResolvedTokens.light['--td-font-size-body-medium']).toBe('14px');
   });
+
+  it('persists and resets the theme workbench dock position', () => {
+    const store = useSettingStore();
+
+    expect(store.themeWorkbenchDockPosition).toBeNull();
+
+    store.setThemeWorkbenchDockPosition({ xRatio: 1.2, yRatio: -0.2 });
+
+    expect(store.themeWorkbenchDockPosition).toEqual({ xRatio: 1, yRatio: 0 });
+
+    store.resetThemeWorkbenchDockPosition();
+
+    expect(store.themeWorkbenchDockPosition).toBeNull();
+  });
 });

@@ -108,10 +108,14 @@
                 </button>
               </div>
               <div class="brand-input">
-                <input
-                  type="color"
-                  :value="effectiveTheme.brandTheme"
-                  @input="settingStore.setCustomBrandTheme(($event.target as HTMLInputElement).value)"
+                <t-color-picker
+                  class="brand-input__picker"
+                  :color-modes="colorPickerModes"
+                  format="HEX"
+                  :model-value="effectiveTheme.brandTheme"
+                  :show-primary-color-preview="false"
+                  :swatch-colors="brandOptions"
+                  @change="(value) => settingStore.setCustomBrandTheme(value)"
                 />
                 <t-input
                   class="brand-input__value"
@@ -595,6 +599,7 @@ const activeGroup = computed(() => settingStore.activeThemeWorkbenchGroup);
 const themeIdentity = computed(() => settingStore.themeIdentitySummary);
 const themeDiffItems = computed(() => settingStore.themeAuthorityDiff);
 const brandOptions = DEFAULT_COLOR_OPTIONS;
+const colorPickerModes: Array<'monochrome'> = ['monochrome'];
 
 const modeOptions = computed(() => [
   { type: 'light' as const, text: t('layout.setting.theme.options.light'), icon: SettingLightIcon },
@@ -1404,14 +1409,9 @@ const toggleAdvancedVisible = (value: boolean) => {
   min-width: 0;
 }
 
-.brand-input input[type='color'] {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  height: 40px;
-  padding: 0;
-  width: 48px;
+.brand-input__picker {
+  min-width: 0;
+  width: 136px;
 }
 
 .brand-input :deep(.t-input) {

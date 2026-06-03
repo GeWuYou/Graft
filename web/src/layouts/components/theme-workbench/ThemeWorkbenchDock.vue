@@ -1,11 +1,25 @@
 <template>
-  <div class="theme-workbench-dock">
+  <div
+    ref="dockRef"
+    class="theme-workbench-dock"
+    data-testid="theme-workbench-dock"
+    :class="{
+      'theme-workbench-dock--placed': Boolean(dockStyle),
+      'theme-workbench-dock--dragging': dragState.isDragging,
+      'theme-workbench-dock--armed': dragState.isPressing,
+    }"
+    :style="dockStyle"
+  >
     <t-button
       class="theme-workbench-dock__main"
       :class="{ 'theme-workbench-dock__main--active': settingStore.showThemeWorkbench }"
       :title="dockMainTitle"
       variant="outline"
-      @click="toggleOverview"
+      @click="handleClick"
+      @pointercancel="handlePointerCancel"
+      @pointerdown="handlePointerDown"
+      @pointermove="handlePointerMove"
+      @pointerup="handlePointerUp"
     >
       <template #icon>
         <t-icon name="palette" size="20px" />
@@ -17,20 +31,132 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 import { t } from '@/locales';
 import { useSettingStore } from '@/store';
 
+const LONG_PRESS_DELAY = 450;
+const DRAG_DISTANCE_THRESHOLD = 8;
+const VIEWPORT_MARGIN = 12;
+
 const settingStore = useSettingStore();
+const dockRef = ref<HTMLElement>();
+const suppressNextClick = ref(false);
+const dragState = reactive({
+  isPressing: false,
+  isDragging: false,
+  pointerId: -1,
+  startClientX: 0,
+  startClientY: 0,
+  currentClientX: 0,
+  currentClientY: 0,
+  offsetX: 0,
+  offsetY: 0,
+});
+
+let longPressTimer: number | undefined;
 
 const dockMainTitle = computed(() => {
+  if (dragState.isDragging) {
+    return undefined;
+  }
+
   if (settingStore.showThemeWorkbench && settingStore.activeThemeWorkbenchGroup === 'overview') {
     return undefined;
   }
 
   return t('layout.setting.workbench.dock.title');
 });
+
+const dockStyle = computed(() => {
+  const position = settingStore.themeWorkbenchDockPosition;
+  if (!position) {
+    return undefined;
+  }
+
+  return {
+    left: `${position.xRatio * 100}%`,
+    top: `${position.yRatio * 100}%`,
+    bottom: 'auto',
+    transform: 'translate(-50%, -50%)',
+  };
+});
+
+const clearLongPressTimer = () => {
+  if (longPressTimer === undefined) {
+    return;
+  }
+
+  window.clearTimeout(longPressTimer);
+  longPressTimer = undefined;
+};
+
+const getDockCenter = () => {
+  const element = dockRef.value;
+  if (!element) {
+    return {
+      x: window.innerWidth / 2,
+      y: window.innerHeight - 56,
+    };
+  }
+
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+};
+
+const clampDockCenter = (clientX: number, clientY: number) => {
+  const rect = dockRef.value?.getBoundingClientRect();
+  const halfWidth = (rect?.width ?? 48) / 2;
+  const halfHeight = (rect?.height ?? 48) / 2;
+  const minX = VIEWPORT_MARGIN + halfWidth;
+  const maxX = window.innerWidth - VIEWPORT_MARGIN - halfWidth;
+  const minY = VIEWPORT_MARGIN + halfHeight;
+  const maxY = window.innerHeight - VIEWPORT_MARGIN - halfHeight;
+
+  return {
+    x: Math.min(Math.max(clientX, minX), Math.max(minX, maxX)),
+    y: Math.min(Math.max(clientY, minY), Math.max(minY, maxY)),
+  };
+};
+
+const updateDockPosition = (clientX: number, clientY: number) => {
+  const nextCenter = clampDockCenter(clientX, clientY);
+  settingStore.setThemeWorkbenchDockPosition({
+    xRatio: nextCenter.x / window.innerWidth,
+    yRatio: nextCenter.y / window.innerHeight,
+  });
+};
+
+const startDrag = () => {
+  if (!dragState.isPressing || !dockRef.value) {
+    return;
+  }
+
+  const center = getDockCenter();
+  dragState.offsetX = dragState.currentClientX - center.x;
+  dragState.offsetY = dragState.currentClientY - center.y;
+  dragState.isDragging = true;
+  suppressNextClick.value = true;
+  updateDockPosition(dragState.currentClientX - dragState.offsetX, dragState.currentClientY - dragState.offsetY);
+};
+
+const resetPointerState = () => {
+  clearLongPressTimer();
+  dragState.isPressing = false;
+  dragState.isDragging = false;
+  dragState.pointerId = -1;
+};
+
+const releasePointerCapture = (event: PointerEvent) => {
+  const target = event.currentTarget as HTMLElement;
+  if (target.hasPointerCapture(event.pointerId)) {
+    target.releasePointerCapture(event.pointerId);
+  }
+};
 
 const toggleOverview = () => {
   if (settingStore.showThemeWorkbench) {
@@ -40,6 +166,99 @@ const toggleOverview = () => {
 
   settingStore.openThemeWorkbench('overview');
 };
+
+const handleClick = () => {
+  if (suppressNextClick.value) {
+    suppressNextClick.value = false;
+    return;
+  }
+
+  toggleOverview();
+};
+
+const handlePointerDown = (event: PointerEvent) => {
+  if (event.button !== 0) {
+    return;
+  }
+
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  dragState.isPressing = true;
+  dragState.isDragging = false;
+  dragState.pointerId = event.pointerId;
+  dragState.startClientX = event.clientX;
+  dragState.startClientY = event.clientY;
+  dragState.currentClientX = event.clientX;
+  dragState.currentClientY = event.clientY;
+
+  longPressTimer = window.setTimeout(startDrag, LONG_PRESS_DELAY);
+};
+
+const handlePointerMove = (event: PointerEvent) => {
+  if (!dragState.isPressing || event.pointerId !== dragState.pointerId) {
+    return;
+  }
+
+  dragState.currentClientX = event.clientX;
+  dragState.currentClientY = event.clientY;
+
+  const moveDistance = Math.hypot(event.clientX - dragState.startClientX, event.clientY - dragState.startClientY);
+  if (!dragState.isDragging && moveDistance > DRAG_DISTANCE_THRESHOLD) {
+    clearLongPressTimer();
+    dragState.isPressing = false;
+    return;
+  }
+
+  if (!dragState.isDragging) {
+    return;
+  }
+
+  event.preventDefault();
+  updateDockPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY);
+};
+
+const handlePointerUp = (event: PointerEvent) => {
+  if (event.pointerId !== dragState.pointerId) {
+    return;
+  }
+
+  releasePointerCapture(event);
+
+  if (dragState.isDragging) {
+    event.preventDefault();
+    updateDockPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY);
+  }
+
+  resetPointerState();
+};
+
+const handlePointerCancel = (event: PointerEvent) => {
+  if (event.pointerId !== dragState.pointerId) {
+    return;
+  }
+
+  releasePointerCapture(event);
+
+  resetPointerState();
+};
+
+const clampPersistedPosition = () => {
+  if (!settingStore.themeWorkbenchDockPosition) {
+    return;
+  }
+
+  const center = getDockCenter();
+  updateDockPosition(center.x, center.y);
+};
+
+onMounted(() => {
+  window.addEventListener('resize', clampPersistedPosition);
+  nextTick(clampPersistedPosition);
+});
+
+onBeforeUnmount(() => {
+  clearLongPressTimer();
+  window.removeEventListener('resize', clampPersistedPosition);
+});
 </script>
 <style lang="less" scoped>
 .theme-workbench-dock {
@@ -62,9 +281,24 @@ const toggleOverview = () => {
   max-width: calc(100vw - 24px);
   padding: 6px;
   position: fixed;
+  touch-action: none;
   transform: translateX(-50%);
   width: max-content;
   z-index: 1090;
+}
+
+.theme-workbench-dock--placed {
+  right: auto;
+}
+
+.theme-workbench-dock--armed,
+.theme-workbench-dock--dragging {
+  cursor: grabbing;
+}
+
+.theme-workbench-dock--dragging {
+  transition: none;
+  user-select: none;
 }
 
 .theme-workbench-dock__main {
