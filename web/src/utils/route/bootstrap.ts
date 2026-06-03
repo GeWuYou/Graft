@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { getBootstrapRouteRegistration } from '@/modules';
 import type { BootstrapMenu } from '@/modules/auth/contract/types';
 import { BLANK_LAYOUT, LAYOUT } from '@/utils/route/constant';
@@ -98,7 +99,11 @@ function buildRootRoute(node: BootstrapMenuNode) {
   });
 }
 
-function buildNestedRoute(node: BootstrapMenuNode, parentFullPath: string): BootstrapLeaf | null {
+function buildNestedRoute(
+  node: BootstrapMenuNode,
+  parentFullPath: string,
+  parentMenu: BootstrapMenu,
+): BootstrapLeaf | null {
   const registration = getBootstrapRouteRegistration(node.menu.path);
   const relativePath = childSegment(parentFullPath, node.menu.path);
   if (!relativePath) {
@@ -113,7 +118,7 @@ function buildNestedRoute(node: BootstrapMenuNode, parentFullPath: string): Boot
         path: relativePath,
         name: `${registration.routeName}Index`,
         component: registration.loadPage,
-        meta: buildRouteMeta(node.menu, false, registration.meta),
+        meta: buildRouteMeta(node.menu, false, registration.meta, parentMenu),
       }),
     };
   }
@@ -140,7 +145,7 @@ function buildNestedRoute(node: BootstrapMenuNode, parentFullPath: string): Boot
 
 function buildNestedChildren(node: BootstrapMenuNode, parentFullPath: string): BootstrapLeaf[] {
   return node.children
-    .map((childNode) => buildNestedRoute(childNode, parentFullPath))
+    .map((childNode) => buildNestedRoute(childNode, parentFullPath, node.menu))
     .filter((child): child is BootstrapLeaf => Boolean(child));
 }
 
@@ -173,15 +178,47 @@ function buildTopLevelLeafRoute(menu: BootstrapMenu, routeName: string, loadPage
   });
 }
 
-function buildRouteMeta(menu: BootstrapMenu, single: boolean, metaPatch?: Partial<AppRouteMeta>): AppRouteMeta {
+function buildRouteMeta(
+  menu: BootstrapMenu,
+  single: boolean,
+  metaPatch?: Partial<AppRouteMeta>,
+  parentMenu?: BootstrapMenu,
+): AppRouteMeta {
+  const title = localizeRouteTitle(menu.title, menu.title_key);
+  const parentTitle = parentMenu ? localizeRouteTitle(parentMenu.title, parentMenu.title_key) : undefined;
+  const derivedTitlePatch = buildDerivedTitleMeta(title, parentTitle);
+
   return {
-    title: localizeRouteTitle(menu.title, menu.title_key),
+    title,
     titleKey: menu.title_key,
     icon: menu.icon,
     orderNo: menu.order ?? 0,
     single,
+    ...derivedTitlePatch,
     ...metaPatch,
   };
+}
+
+function buildDerivedTitleMeta(title: LocalizedTitle, parentTitle?: LocalizedTitle): Partial<AppRouteMeta> {
+  if (!parentTitle) {
+    return {};
+  }
+
+  return {
+    semanticTitle: combineLocalizedTitles(parentTitle, title),
+    breadcrumbTitle: title,
+    tabTitle: combineLocalizedTitles(parentTitle, title),
+  };
+}
+
+function combineLocalizedTitles(parentTitle: LocalizedTitle, title: LocalizedTitle): LocalizedTitle {
+  return Object.entries(title).reduce<LocalizedTitle>((combined, [locale, localeTitle]) => {
+    const parentLocaleTitle = parentTitle[locale as keyof LocalizedTitle];
+    combined[locale as keyof LocalizedTitle] = parentLocaleTitle
+      ? `${parentLocaleTitle} - ${localeTitle}`
+      : localeTitle;
+    return combined;
+  }, {} as LocalizedTitle);
 }
 
 function normalizePath(path: string) {

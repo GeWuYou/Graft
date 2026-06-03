@@ -51,6 +51,7 @@
   "layout": {
     "header": {
       "code": "代码仓库",
+      "apiDocs": "API 文档",
       "help": "帮助文档",
       "user": "个人中心",
       "signOut": "退出登录",
@@ -88,56 +89,205 @@
       "navigationLayout": "导航布局",
       "sideMode": "侧边栏模式",
       "splitMenu": "分割菜单（混合模式下有效）",
+      "splitMenuShort": "分割菜单",
       "fixedSidebar": "固定侧边栏",
       "element": {
         "title": "元素开关",
         "showHeader": "显示 Header",
         "showBreadcrumb": "显示 Breadcrumbs",
         "showFooter": "显示 Footer",
-        "useTagTabs": "使用 多标签Tab页",
+        "useTagTabs": "显示多标签 Tab 页",
         "menuAutoCollapsed": "菜单自动折叠"
       },
       "workbench": {
-        "title": "自定义主题",
-        "subtitle": "Custom Theme",
+        "title": "个性化",
+        "subtitle": "自定义后台外观与界面体验",
         "dock": {
-          "title": "自定义主题"
+          "title": "个性化"
         },
         "groups": {
           "overview": "概览",
-          "brand": "色彩",
-          "semantic": "语义",
-          "neutral": "中性",
-          "font": "字体",
-          "radius": "圆角",
-          "shadow": "阴影",
-          "size": "尺寸"
+          "appearance": "外观",
+          "layout": "布局",
+          "typography": "字体",
+          "style": "风格",
+          "advanced": "高级",
+          "brand": "品牌颜色",
+          "text": "文本颜色",
+          "background": "背景颜色",
+          "border": "边框颜色",
+          "component": "组件变量"
         },
         "layout": {
           "side": "侧边布局",
           "top": "顶部布局",
           "mix": "混合布局",
           "tip": "选择侧边、顶部或混合导航布局，配置会立即生效。",
-          "descriptions": {
-            "side": "左侧菜单与顶部导航同时保留，适合后台主工作区。",
-            "top": "导航收敛到顶栏，内容区更宽，适合轻量信息浏览。",
-            "mix": "顶部一级导航与侧边子菜单组合，可按需开启分割菜单。"
-          }
+          "navigationBehavior": "导航行为",
+          "behaviorDescription": "调整导航结构与页面元素显示。",
+          "elementsDescription": "切换 Header、Breadcrumbs、Footer 和多标签页显示。",
+          "splitMenuHint": "切换后立即更新当前混合布局导航。",
+          "fixedSidebarHint": "切换侧边栏固定与随内容滚动。",
+          "menuAutoCollapsedHint": "同级菜单展开时自动收起其他分组。",
+          "showHeaderHint": "显示顶部导航与账号操作区。",
+          "showBreadcrumbHint": "显示当前位置路径。",
+          "showFooterHint": "显示页面底部信息。",
+          "useTagTabsHint": "开启多页面标签切换。",
+          "onlyMix": "仅混合布局可用",
+          "notIntegrated": "暂未接入"
         },
         "presets": {
-          "title": "官方推荐"
+          "title": "官方主题",
+          "customized": {
+            "label": "自定义主题"
+          },
+          "tdesignDefault": {
+            "label": "TDesign 原始主题",
+            "description": "保留 TDesign 默认主题基线。"
+          },
+          "tencentCloud": {
+            "label": "腾讯云",
+            "description": "使用更贴近腾讯云控制台的亮色主色，并保持页面中性色。"
+          },
+          "mountainGreen": {
+            "label": "山野绿",
+            "description": "用温和绿色主色驱动按钮、选中态与状态强调。"
+          },
+          "midnightBlue": {
+            "label": "午夜蓝",
+            "description": "默认以暗色模式启动，保持 TDesign 中性深色工作区。"
+          }
+        },
+        "overview": {
+          "currentConfig": "当前配置",
+          "currentTheme": "当前主题",
+          "description": "查看当前正在生效的外观配置。",
+          "modifiedCount": "修改数量",
+          "currentLayout": "当前布局"
+        },
+        "identity": {
+          "customized": "{name}（已自定义）",
+          "basedOn": "基于 {name}"
+        },
+        "appearance": {
+          "description": "选择主题模式、主题色和预设主题。",
+          "colorDescription": "选择主题色并立即预览。",
+          "customBrandColor": "自定义主题颜色",
+          "navigationAppearance": "导航外观",
+          "navigationDescription": "选择后台导航布局。",
+          "contentAppearance": "内容外观",
+          "contentDescription": "查看字体、圆角和密度设置。"
+        },
+        "typography": {
+          "fontFamily": "字体选择",
+          "fontSize": "字体大小",
+          "system": "系统默认",
+          "fontFamilies": {
+            "system": "系统默认",
+            "harmonyos": "HarmonyOS Sans",
+            "inter": "Inter",
+            "sourceHanSans": "Source Han Sans"
+          },
+          "description": "调整后台字体。",
+          "fontSizeDescription": "调整后台字号。",
+          "previewLine": "Aa 后台管理 Dashboard 123",
+          "extraSmall": "超小号",
+          "small": "小号",
+          "standard": "默认",
+          "large": "大号",
+          "extraLarge": "特大号"
+        },
+        "style": {
+          "radius": "圆角风格",
+          "shadow": "阴影风格",
+          "density": "信息密度",
+          "description": "调整圆角、阴影和内容密度。",
+          "business": "商务",
+          "standard": "标准",
+          "rounded": "圆润",
+          "capsule": "胶囊",
+          "flat": "扁平",
+          "floating": "浮层",
+          "compact": "紧凑",
+          "comfortable": "宽松",
+          "densityPreviewLinePrimary": "Aa 后台界面预览",
+          "densityPreviewLineSecondary": "Spacing 123",
+          "densityPreviewLineMeta": "Text sample"
+        },
+        "advanced": {
+          "title": "高级模式",
+          "description": "高级模式用于查看和调整 Design Token，普通用户可保持默认。",
+          "colorSystem": "颜色系统",
+          "componentStyle": "组件样式",
+          "colorVariableCount": "{count} 个颜色变量",
+          "styleVariableCount": "{count} 个样式变量"
+        },
+        "diff": {
+          "brandTheme": "主题色",
+          "fontFamilyPreset": "字体",
+          "fontSizePreset": "字号",
+          "radiusPreset": "圆角",
+          "shadowPreset": "阴影",
+          "densityPreset": "密度",
+          "themeTokenOverrides": "设计变量"
         },
         "token": {
           "targetMode": "目标模式",
           "light": "亮色",
           "dark": "暗色",
           "reset": "恢复继承",
-          "description": "当前分组编辑结果会实时注入 CSS 变量，用于本地预览主题效果。",
+          "description": "按分组调整 Design Token。",
           "empty": "当前分组暂无可编辑变量"
+        },
+        "tokenDefinitions": {
+          "primaryBrand": "主品牌色",
+          "brandScale1": "品牌色阶 1",
+          "brandScale2": "品牌色阶 2",
+          "brandScale3": "品牌色阶 3",
+          "brandScale4": "品牌色阶 4",
+          "brandScale5": "品牌色阶 5",
+          "brandScale6": "品牌色阶 6",
+          "brandScale7": "品牌色阶 7",
+          "brandScale8": "品牌色阶 8",
+          "brandScale9": "品牌色阶 9",
+          "brandScale10": "品牌色阶 10",
+          "primaryText": "主文本",
+          "secondaryText": "次级文本",
+          "placeholderText": "占位文本",
+          "pageBackground": "页面背景",
+          "containerBackground": "容器背景",
+          "containerHoverBackground": "容器悬停背景",
+          "componentBorder": "组件边框",
+          "componentStroke": "组件描边",
+          "level1Border": "一级边框",
+          "scrollbar": "滚动条",
+          "successFeedback": "成功反馈",
+          "errorFeedback": "错误反馈",
+          "warningFeedback": "警告反馈",
+          "fontFamily": "字体家族",
+          "bodyMedium": "正文中号",
+          "titleMedium": "标题中号",
+          "titleLarge": "标题大号",
+          "smallRadius": "小圆角",
+          "defaultRadius": "默认圆角",
+          "mediumRadius": "中圆角",
+          "largeRadius": "大圆角",
+          "extraLargeRadius": "特大圆角",
+          "circleRadius": "圆形圆角",
+          "shadowLevel1": "一级阴影",
+          "shadowLevel2": "二级阴影",
+          "shadowLevel3": "三级阴影",
+          "componentSizeXs": "组件尺寸 XS",
+          "componentSizeS": "组件尺寸 S",
+          "componentSizeM": "组件尺寸 M",
+          "componentSizeL": "组件尺寸 L",
+          "componentSizeXl": "组件尺寸 XL"
         },
         "actions": {
           "reset": "恢复默认主题",
-          "clearGroup": "清空当前分组"
+          "clearGroup": "清空当前分组",
+          "cancel": "取消",
+          "apply": "应用"
         }
       }
     }
@@ -325,14 +475,17 @@
     },
     "result": {
       "403": {
+        "title": "403 Forbidden",
         "tips": "抱歉，您无权限访问此页面，企业微信联系创建者",
         "back": "返回首页"
       },
       "404": {
+        "title": "404 Not Found",
         "subtitle": "抱歉，您访问的页面不存在",
         "back": "返回首页"
       },
       "500": {
+        "title": "500 Internal Server Error",
         "subtitle": "抱歉，服务器出错啦",
         "back": "返回首页"
       },

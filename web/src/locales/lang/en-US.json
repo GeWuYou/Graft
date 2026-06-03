@@ -51,6 +51,7 @@
   "layout": {
     "header": {
       "code": "Code Repository",
+      "apiDocs": "API Docs",
       "help": "Document",
       "user": "Profile",
       "signOut": "Sign Out",
@@ -88,56 +89,205 @@
       "navigationLayout": "Navigation Layout",
       "sideMode": "Side Menu Mode",
       "splitMenu": "Split Menu (Only Mix mode)",
+      "splitMenuShort": "Split Menu",
       "fixedSidebar": "Fixed Sidebar",
       "element": {
         "title": "Element Switch",
         "showHeader": "Show Header",
         "showBreadcrumb": "Show Breadcrumbs",
         "showFooter": "Show Footer",
-        "useTagTabs": "Use Multi-Tag Tabs",
+        "useTagTabs": "Show multi-tab pages",
         "menuAutoCollapsed": "Menu Auto Collapsed"
       },
       "workbench": {
-        "title": "Custom Theme",
-        "subtitle": "Custom Theme",
+        "title": "Personalization",
+        "subtitle": "Customize the admin appearance and interface experience",
         "dock": {
-          "title": "Custom Theme"
+          "title": "Personalization"
         },
         "groups": {
           "overview": "Overview",
-          "brand": "Brand",
-          "semantic": "Semantic",
-          "neutral": "Neutral",
-          "font": "Font",
-          "radius": "Radius",
-          "shadow": "Shadow",
-          "size": "Size"
+          "appearance": "Appearance",
+          "layout": "Layout",
+          "typography": "Typography",
+          "style": "Style",
+          "advanced": "Advanced",
+          "brand": "Brand Colors",
+          "text": "Text Colors",
+          "background": "Background Colors",
+          "border": "Border Colors",
+          "component": "Component Variables"
         },
         "layout": {
           "side": "Side Layout",
           "top": "Top Layout",
           "mix": "Mix Layout",
           "tip": "Choose side, top, or mixed navigation. Changes apply to the current shell immediately.",
-          "descriptions": {
-            "side": "Keeps side navigation and header together for the main admin workspace.",
-            "top": "Moves navigation into the header and frees more horizontal content space.",
-            "mix": "Combines top-level header navigation with side submenus, with optional split menu behavior."
-          }
+          "navigationBehavior": "Navigation Behavior",
+          "behaviorDescription": "Adjust navigation structure and page element visibility.",
+          "elementsDescription": "Toggle Header, Breadcrumbs, Footer, and multi-tab pages.",
+          "splitMenuHint": "Updates mixed-layout navigation immediately.",
+          "fixedSidebarHint": "Switch between fixed and scrolling sidebar behavior.",
+          "menuAutoCollapsedHint": "Collapse other menu groups when one group expands.",
+          "showHeaderHint": "Show top navigation and account actions.",
+          "showBreadcrumbHint": "Show the current location path.",
+          "showFooterHint": "Show page footer information.",
+          "useTagTabsHint": "Enable multi-page tab switching.",
+          "onlyMix": "Only available in mixed layout",
+          "notIntegrated": "Not integrated yet"
         },
         "presets": {
-          "title": "Recommended"
+          "title": "Official Themes",
+          "customized": {
+            "label": "Customized Theme"
+          },
+          "tdesignDefault": {
+            "label": "TDesign Original",
+            "description": "Keep the default TDesign theme baseline."
+          },
+          "tencentCloud": {
+            "label": "Tencent Cloud",
+            "description": "Use a Tencent Cloud-style brand color while keeping neutral page colors."
+          },
+          "mountainGreen": {
+            "label": "Mountain Green",
+            "description": "Use a softer green brand color for buttons, selected states, and emphasis."
+          },
+          "midnightBlue": {
+            "label": "Midnight Blue",
+            "description": "Start in dark mode and keep the neutral TDesign dark workspace."
+          }
+        },
+        "overview": {
+          "currentConfig": "Current Configuration",
+          "currentTheme": "Current Theme",
+          "description": "Review the appearance settings currently in effect.",
+          "currentLayout": "Current Layout",
+          "modifiedCount": "Modified Items"
+        },
+        "identity": {
+          "customized": "{name} (Customized)",
+          "basedOn": "Based on {name}"
+        },
+        "appearance": {
+          "description": "Choose theme mode, theme color, and preset themes.",
+          "colorDescription": "Pick a theme color and preview it immediately.",
+          "customBrandColor": "Custom brand color",
+          "navigationAppearance": "Navigation Appearance",
+          "navigationDescription": "Choose the admin navigation layout.",
+          "contentAppearance": "Content Appearance",
+          "contentDescription": "Review font, radius, and density settings."
+        },
+        "typography": {
+          "fontFamily": "Font Family",
+          "fontSize": "Font Size",
+          "system": "System Default",
+          "fontFamilies": {
+            "system": "System Default",
+            "harmonyos": "HarmonyOS Sans",
+            "inter": "Inter",
+            "sourceHanSans": "Source Han Sans"
+          },
+          "description": "Adjust admin font settings.",
+          "fontSizeDescription": "Adjust admin font size.",
+          "previewLine": "Aa Admin Dashboard 123",
+          "extraSmall": "Extra Small",
+          "small": "Small",
+          "standard": "Default",
+          "large": "Large",
+          "extraLarge": "Extra Large"
+        },
+        "style": {
+          "radius": "Radius Style",
+          "shadow": "Shadow Style",
+          "density": "Density",
+          "description": "Adjust radius, shadow, and content density.",
+          "business": "Business",
+          "standard": "Standard",
+          "rounded": "Rounded",
+          "capsule": "Capsule",
+          "flat": "Flat",
+          "floating": "Floating",
+          "compact": "Compact",
+          "comfortable": "Comfortable",
+          "densityPreviewLinePrimary": "Aa Admin preview",
+          "densityPreviewLineSecondary": "Spacing 123",
+          "densityPreviewLineMeta": "Text sample"
+        },
+        "advanced": {
+          "title": "Advanced Mode",
+          "description": "Advanced mode is for viewing and adjusting Design Tokens. Most users can keep the defaults.",
+          "colorSystem": "Color System",
+          "componentStyle": "Component Style",
+          "colorVariableCount": "{count} color variables",
+          "styleVariableCount": "{count} style variables"
+        },
+        "diff": {
+          "brandTheme": "Theme Color",
+          "fontFamilyPreset": "Font",
+          "fontSizePreset": "Font Size",
+          "radiusPreset": "Radius",
+          "shadowPreset": "Shadow",
+          "densityPreset": "Density",
+          "themeTokenOverrides": "Design Tokens"
         },
         "token": {
           "targetMode": "Target Mode",
           "light": "Light",
           "dark": "Dark",
           "reset": "Reset Inheritance",
-          "description": "Token updates are injected into CSS variables in real time for local theme preview.",
+          "description": "Adjust Design Tokens by group.",
           "empty": "No editable tokens in this group"
+        },
+        "tokenDefinitions": {
+          "primaryBrand": "Primary Brand",
+          "brandScale1": "Brand Scale 1",
+          "brandScale2": "Brand Scale 2",
+          "brandScale3": "Brand Scale 3",
+          "brandScale4": "Brand Scale 4",
+          "brandScale5": "Brand Scale 5",
+          "brandScale6": "Brand Scale 6",
+          "brandScale7": "Brand Scale 7",
+          "brandScale8": "Brand Scale 8",
+          "brandScale9": "Brand Scale 9",
+          "brandScale10": "Brand Scale 10",
+          "primaryText": "Primary Text",
+          "secondaryText": "Secondary Text",
+          "placeholderText": "Placeholder Text",
+          "pageBackground": "Page Background",
+          "containerBackground": "Container Background",
+          "containerHoverBackground": "Container Hover Background",
+          "componentBorder": "Component Border",
+          "componentStroke": "Component Stroke",
+          "level1Border": "Level 1 Border",
+          "scrollbar": "Scrollbar",
+          "successFeedback": "Success Feedback",
+          "errorFeedback": "Error Feedback",
+          "warningFeedback": "Warning Feedback",
+          "fontFamily": "Font Family",
+          "bodyMedium": "Body Medium",
+          "titleMedium": "Title Medium",
+          "titleLarge": "Title Large",
+          "smallRadius": "Small Radius",
+          "defaultRadius": "Default Radius",
+          "mediumRadius": "Medium Radius",
+          "largeRadius": "Large Radius",
+          "extraLargeRadius": "Extra Large Radius",
+          "circleRadius": "Circle Radius",
+          "shadowLevel1": "Shadow Level 1",
+          "shadowLevel2": "Shadow Level 2",
+          "shadowLevel3": "Shadow Level 3",
+          "componentSizeXs": "Component Size XS",
+          "componentSizeS": "Component Size S",
+          "componentSizeM": "Component Size M",
+          "componentSizeL": "Component Size L",
+          "componentSizeXl": "Component Size XL"
         },
         "actions": {
           "reset": "Reset Theme",
-          "clearGroup": "Clear Group"
+          "clearGroup": "Clear Group",
+          "cancel": "Cancel",
+          "apply": "Apply"
         }
       }
     }
@@ -325,14 +475,17 @@
     },
     "result": {
       "403": {
+        "title": "403 Forbidden",
         "tips": "Sorry, you do not have permission to access this page. Please contact the creator through WeCom.",
         "back": "Back to home"
       },
       "404": {
+        "title": "404 Not Found",
         "subtitle": "Sorry, the page is not found",
         "back": "Back to homepage"
       },
       "500": {
+        "title": "500 Internal Server Error",
         "subtitle": "Sorry, the server encountered an error",
         "back": "Back to home"
       },

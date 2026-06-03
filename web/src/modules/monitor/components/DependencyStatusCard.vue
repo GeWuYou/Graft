@@ -62,16 +62,13 @@ defineProps<{
 
 .server-status-dependency-card__title {
   color: var(--td-text-color-primary);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
+  font: var(--td-font-title-medium);
   margin: 0;
 }
 
 .server-status-dependency-card__description {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
-  line-height: 20px;
+  font: var(--td-font-body-small);
   margin: 4px 0 0;
 }
 </style>

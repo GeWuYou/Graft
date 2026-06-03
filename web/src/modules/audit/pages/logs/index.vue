@@ -930,8 +930,7 @@ function resolveNonRedundantScopeValue(localizedValue: string, key: string) {
 
 .audit-scope-banner__condition {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
-  line-height: 20px;
+  font: var(--td-font-body-small);
 }
 
 .audit-scope-banner__actions {

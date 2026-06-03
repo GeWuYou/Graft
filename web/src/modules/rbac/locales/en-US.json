@@ -2,7 +2,7 @@
   "rbac": {
     "roleList": {
       "listTitle": "Role Management",
-      "hint": "Maintain role definitions, permission scope, and user assignments.",
+      "hint": "Manage roles, permission scope, and user assignments.",
       "summary": "{count} roles shown",
       "tableHint": "Filter roles by name, code, and type.",
       "refresh": "Refresh",
@@ -92,18 +92,22 @@
       },
       "permissionDialog": {
         "title": "Manage Role Permissions",
+        "headerEyebrow": "Role permissions",
+        "headerDescription": "Choose the permissions this role should grant.",
         "saveStrategyLabel": "Save Strategy",
         "operationHelp": "Overwrite Current Permissions replaces the role's current permissions with the current selection. Append Selected Permissions Only adds only the permissions selected this time. Remove Selected Permissions removes only the already assigned permissions selected this time.",
-        "loadingSelection": "Loading the current role permission snapshot",
+        "loadingSelection": "Loading the current role permissions",
         "searchPlaceholder": "Search permission code, name, or description",
         "onlySelected": "Show selected only",
+        "assignedBadge": "Assigned",
+        "categoryBadge": "{category}",
         "retry": "Retry",
         "groupHint": "{count} permissions in this group",
         "category": "{category}",
         "selectGroup": "Select Group",
         "clearGroup": "Clear Group",
         "selectionLoadFailed": "Failed to load the current role permissions. Retry before saving.",
-        "selectionUnavailable": "The current role permission snapshot is invalid, so overwrite save is blocked.",
+        "selectionUnavailable": "The current role permissions are unavailable, so overwrite save is blocked.",
         "selectionCount": "{selected} / {total} permissions selected",
         "modeSummary": "Mode: {mode}",
         "modeValue": {
@@ -114,6 +118,13 @@
         "addSelectionCount": "{count} permissions will be appended",
         "removeSelectionCount": "{count} permissions will be removed",
         "unsavedChangesConfirm": "Permission changes have not been saved. Discard them?",
+        "summary": {
+          "assigned": "Currently assigned"
+        },
+        "stats": {
+          "permissionCount": "Permissions",
+          "userCount": "Linked users"
+        },
         "emptyDescription": "No description",
         "empty": "No matching permissions",
         "confirm": "Submit Permission Changes"

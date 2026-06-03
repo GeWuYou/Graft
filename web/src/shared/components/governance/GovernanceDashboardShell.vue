@@ -89,25 +89,20 @@ withDefaults(
 
 .governance-dashboard-shell__eyebrow {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
+  font: var(--td-font-title-small);
   margin: 0;
 }
 
 .governance-dashboard-shell__title {
   color: var(--td-text-color-primary);
-  font-size: 30px;
-  font-weight: 700;
+  font: var(--td-font-headline-medium);
   letter-spacing: -0.02em;
-  line-height: 38px;
   margin: 0;
 }
 
 .governance-dashboard-shell__description {
   color: var(--td-text-color-secondary);
-  font-size: 14px;
-  line-height: 22px;
+  font: var(--td-font-body-medium);
   margin: 0;
   max-width: 760px;
 }
@@ -143,8 +138,7 @@ withDefaults(
 }
 
 .governance-dashboard-shell--compact .governance-dashboard-shell__title {
-  font-size: 28px;
-  line-height: 34px;
+  font: var(--td-font-headline-medium);
 }
 
 .governance-dashboard-shell[data-governance-domain='audit'] {
@@ -190,8 +184,7 @@ withDefaults(
 
 @media (width <= 767px) {
   .governance-dashboard-shell__title {
-    font-size: 24px;
-    line-height: 32px;
+    font: var(--td-font-headline-small);
   }
 
   .governance-dashboard-shell__summary {

@@ -1,5 +1,5 @@
 <template>
-  <result title="500 Internal Server Error" type="500" :tip="t('app.result.500.subtitle')">
+  <result :title="t('app.result.500.title')" type="500" :tip="t('app.result.500.subtitle')">
     <t-button @click="() => router.push(ROOT_ENTRY_PATH)">{{ t('app.result.500.back') }}</t-button>
   </result>
 </template>

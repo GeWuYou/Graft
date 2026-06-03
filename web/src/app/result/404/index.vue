@@ -1,5 +1,5 @@
 <template>
-  <result title="404 Not Found" :tip="t('app.result.404.subtitle')" type="404">
+  <result :title="t('app.result.404.title')" :tip="t('app.result.404.subtitle')" type="404">
     <t-button @click="() => router.push(ROOT_ENTRY_PATH)">{{ t('app.result.404.back') }}</t-button>
   </result>
 </template>

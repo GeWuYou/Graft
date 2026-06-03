@@ -28,7 +28,7 @@
               <t-icon name="logo-github" />
             </t-button>
           </t-tooltip>
-          <t-tooltip placement="bottom" content="API Docs">
+          <t-tooltip placement="bottom" :content="t('layout.header.apiDocs')">
             <t-button theme="default" shape="square" variant="text" @click="navToDocs">
               <t-icon name="book-open" />
             </t-button>

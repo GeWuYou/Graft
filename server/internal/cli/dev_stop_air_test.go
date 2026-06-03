@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"reflect"
-	"runtime"
+	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -13,78 +13,44 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestFindDevAirTargetsMatchesOnlyCurrentModule(t *testing.T) {
-	originalListProcesses := devStopAirListProcesses
-	defer func() {
-		devStopAirListProcesses = originalListProcesses
-	}()
-
-	devStopAirListProcesses = func() ([]devProcessSnapshot, error) {
-		return []devProcessSnapshot{
-			{
-				pid:  101,
-				argv: []string{"/repo/server/tmp/graft", "serve"},
-				cwd:  "/repo/server",
-			},
-			{
-				pid:  102,
-				argv: []string{"go", "tool", "air", "-c", ".air.toml"},
-				cwd:  "/repo/server",
-			},
-			{
-				pid:  201,
-				argv: []string{"/other/server/tmp/graft", "serve"},
-				cwd:  "/other/server",
-			},
-			{
-				pid:  202,
-				argv: []string{"go", "tool", "air", "-c", ".air.toml"},
-				cwd:  "/other/server",
-			},
-		}, nil
+func TestRunDevStopAirStopsTrackedPIDFiles(t *testing.T) {
+	root := t.TempDir()
+	serverRoot := filepath.Join(root, "server")
+	tmpDir := filepath.Join(serverRoot, "tmp")
+	if err := os.MkdirAll(tmpDir, 0o750); err != nil {
+		t.Fatalf("mkdir tmp: %v", err)
 	}
 
-	servePIDs, airPIDs, err := findDevAirTargets("/repo/server", ".air.toml")
-	if runtimeGOOS() != "linux" {
-		if err == nil {
-			t.Fatal("expected non-linux error")
-		}
-		return
-	}
-	if err != nil {
-		t.Fatalf("find dev air targets: %v", err)
-	}
-	if !reflect.DeepEqual(servePIDs, []int{101}) {
-		t.Fatalf("expected serve pid [101], got %v", servePIDs)
-	}
-	if !reflect.DeepEqual(airPIDs, []int{102}) {
-		t.Fatalf("expected air pid [102], got %v", airPIDs)
-	}
-}
-
-func TestRunDevStopAirSignalsServeBeforeAir(t *testing.T) {
-	originalResolver := devStopAirModuleRootResolver
-	originalListProcesses := devStopAirListProcesses
+	originalResolver := devAirModuleRootResolver
 	originalSignal := devStopAirSignal
 	defer func() {
-		devStopAirModuleRootResolver = originalResolver
-		devStopAirListProcesses = originalListProcesses
+		devAirModuleRootResolver = originalResolver
 		devStopAirSignal = originalSignal
 	}()
 
-	devStopAirModuleRootResolver = func() (string, error) {
-		return "/repo/server", nil
-	}
-	devStopAirListProcesses = func() ([]devProcessSnapshot, error) {
-		return []devProcessSnapshot{
-			{pid: 21, argv: []string{"/repo/server/tmp/graft", "serve"}, cwd: "/repo/server"},
-			{pid: 22, argv: []string{"go", "tool", "air", "-c", ".air.toml"}, cwd: "/repo/server"},
-		}, nil
+	devAirModuleRootResolver = func() (string, error) {
+		return serverRoot, nil
 	}
 
-	var gotSignals []string
+	for _, item := range []struct {
+		name string
+		pid  int
+	}{
+		{name: devSupervisorPIDName, pid: 11},
+		{name: devAirPIDName, pid: 12},
+		{name: devServePIDName, pid: 13},
+	} {
+		if err := os.WriteFile(filepath.Join(tmpDir, item.name), []byte(fmt.Sprintf("%d\n", item.pid)), 0o600); err != nil {
+			t.Fatalf("write %s: %v", item.name, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, devNotifyPIDName), []byte("11\n"), 0o600); err != nil {
+		t.Fatalf("write notify marker: %v", err)
+	}
+
+	var got []string
 	devStopAirSignal = func(pid int, signal syscall.Signal) error {
-		gotSignals = append(gotSignals, strconvItoa(pid)+":"+strconvItoa(int(signal)))
+		got = append(got, fmt.Sprintf("%d:%d", pid, signal))
 		return nil
 	}
 
@@ -92,119 +58,81 @@ func TestRunDevStopAirSignalsServeBeforeAir(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(&stdout)
 
-	err := runDevStopAir(cmd, devStopAirOptions{configPath: ".air.toml"})
-	if runtimeGOOS() != "linux" {
-		if err == nil {
-			t.Fatal("expected non-linux error")
-		}
-		return
-	}
-	if err != nil {
+	if err := runDevStopAir(cmd, devStopAirOptions{}); err != nil {
 		t.Fatalf("run dev stop-air: %v", err)
 	}
 
-	expectedSignals := []string{"21:15", "22:15"}
-	if !reflect.DeepEqual(gotSignals, expectedSignals) {
-		t.Fatalf("expected signals %v, got %v", expectedSignals, gotSignals)
+	expected := []string{"11:15", "12:15", "13:15"}
+	if strings.Join(got, ",") != strings.Join(expected, ",") {
+		t.Fatalf("expected %v, got %v", expected, got)
 	}
-	if !strings.Contains(stdout.String(), "serve=1 air=1") {
-		t.Fatalf("expected stop-air output, got %q", stdout.String())
+	if !strings.Contains(stdout.String(), "supervisor=1 air=1 serve=1") {
+		t.Fatalf("expected stop output, got %q", stdout.String())
+	}
+	for _, name := range []string{devSupervisorPIDName, devAirPIDName, devServePIDName, devNotifyPIDName} {
+		if _, err := os.Stat(filepath.Join(tmpDir, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected %s removed, got err=%v", name, err)
+		}
 	}
 }
 
-func TestRunDevStopAirWritesNoopWhenNothingFound(t *testing.T) {
-	originalResolver := devStopAirModuleRootResolver
-	originalListProcesses := devStopAirListProcesses
-	defer func() {
-		devStopAirModuleRootResolver = originalResolver
-		devStopAirListProcesses = originalListProcesses
-	}()
-
-	devStopAirModuleRootResolver = func() (string, error) {
-		return "/repo/server", nil
+func TestRunDevStopAirWritesNoopWhenNoPIDFiles(t *testing.T) {
+	root := t.TempDir()
+	serverRoot := filepath.Join(root, "server")
+	if err := os.MkdirAll(filepath.Join(serverRoot, "tmp"), 0o750); err != nil {
+		t.Fatalf("mkdir tmp: %v", err)
 	}
-	devStopAirListProcesses = func() ([]devProcessSnapshot, error) {
-		return nil, nil
+
+	originalResolver := devAirModuleRootResolver
+	defer func() {
+		devAirModuleRootResolver = originalResolver
+	}()
+	devAirModuleRootResolver = func() (string, error) {
+		return serverRoot, nil
 	}
 
 	var stdout bytes.Buffer
 	cmd := &cobra.Command{}
 	cmd.SetOut(&stdout)
 
-	err := runDevStopAir(cmd, devStopAirOptions{configPath: ".air.toml"})
-	if runtimeGOOS() != "linux" {
-		if err == nil {
-			t.Fatal("expected non-linux error")
-		}
-		return
-	}
-	if err != nil {
+	if err := runDevStopAir(cmd, devStopAirOptions{}); err != nil {
 		t.Fatalf("run dev stop-air: %v", err)
 	}
-	if !strings.Contains(stdout.String(), "no Air development process found") {
+	if !strings.Contains(stdout.String(), "no development process found") {
 		t.Fatalf("expected noop output, got %q", stdout.String())
 	}
 }
 
 func TestRunDevStopAirWrapsSignalError(t *testing.T) {
-	originalResolver := devStopAirModuleRootResolver
-	originalListProcesses := devStopAirListProcesses
+	root := t.TempDir()
+	serverRoot := filepath.Join(root, "server")
+	tmpDir := filepath.Join(serverRoot, "tmp")
+	if err := os.MkdirAll(tmpDir, 0o750); err != nil {
+		t.Fatalf("mkdir tmp: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, devServePIDName), []byte("31\n"), 0o600); err != nil {
+		t.Fatalf("write serve pid: %v", err)
+	}
+
+	originalResolver := devAirModuleRootResolver
 	originalSignal := devStopAirSignal
 	defer func() {
-		devStopAirModuleRootResolver = originalResolver
-		devStopAirListProcesses = originalListProcesses
+		devAirModuleRootResolver = originalResolver
 		devStopAirSignal = originalSignal
 	}()
 
-	devStopAirModuleRootResolver = func() (string, error) {
-		return "/repo/server", nil
-	}
-	devStopAirListProcesses = func() ([]devProcessSnapshot, error) {
-		return []devProcessSnapshot{
-			{pid: 31, argv: []string{"/repo/server/tmp/graft", "serve"}, cwd: "/repo/server"},
-		}, nil
+	devAirModuleRootResolver = func() (string, error) {
+		return serverRoot, nil
 	}
 	devStopAirSignal = func(_ int, _ syscall.Signal) error {
 		return errors.New("permission denied")
 	}
 
-	err := runDevStopAir(&cobra.Command{}, devStopAirOptions{configPath: ".air.toml"})
-	if runtimeGOOS() != "linux" {
-		if err == nil {
-			t.Fatal("expected non-linux error")
-		}
-		return
-	}
+	err := runDevStopAir(&cobra.Command{}, devStopAirOptions{})
 	if err == nil {
 		t.Fatal("expected stop-air error")
 	}
 	if !strings.Contains(err.Error(), "stop serve process 31") {
-		t.Fatalf("expected wrapped signal error, got %v", err)
+		t.Fatalf("expected wrapped error, got %v", err)
 	}
-}
-
-func TestReadDevProcessPPIDParsesStatus(t *testing.T) {
-	ppid, err := readDevProcessPPID(strings.NewReader("Name:\tgo\nPPid:\t42\n"))
-	if err != nil {
-		t.Fatalf("read ppid: %v", err)
-	}
-	if ppid != 42 {
-		t.Fatalf("expected ppid 42, got %d", ppid)
-	}
-}
-
-func TestSplitProcCmdlineDropsTrailingSeparator(t *testing.T) {
-	argv := splitProcCmdline([]byte("go\x00tool\x00air\x00-c\x00.air.toml\x00"))
-	expected := []string{"go", "tool", "air", "-c", ".air.toml"}
-	if !reflect.DeepEqual(argv, expected) {
-		t.Fatalf("expected argv %v, got %v", expected, argv)
-	}
-}
-
-func runtimeGOOS() string {
-	return runtime.GOOS
-}
-
-func strconvItoa(value int) string {
-	return fmt.Sprintf("%d", value)
 }

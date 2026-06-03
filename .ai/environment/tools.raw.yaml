@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-05-21T11:02:15Z"
+generated_at_utc: "2026-06-03T15:18:02Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -48,7 +48,7 @@ required_runtimes:
     purpose: "Fallback package manager for the web toolchain."
   bun:
     installed: true
-    version: "1.3.10"
+    version: "1.3.14"
     path: "/root/.bun/bin/bun"
     purpose: "Preferred package manager when web/bun.lock is present."
 
@@ -66,7 +66,7 @@ required_tools:
   rg:
     installed: true
     version: "ripgrep 15.1.0 (rev af60c2de9d)"
-    path: "/root/.bun/install/global/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/path/rg"
+    path: "/root/.bun/install/global/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path/rg"
     purpose: "Fast text search across the repository."
   jq:
     installed: true
@@ -82,6 +82,7 @@ project_tools:
     purpose: "Optional container runtime for local services or future automation."
   gh:
     installed: true
+    authenticated: true
     version: "gh version 2.92.0 (2026-04-28)"
     path: "/usr/bin/gh"
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
@@ -115,3 +116,26 @@ python_packages:
     installed: true
     version: "6.0.1"
     purpose: "Optional YAML validation for local verification commands."
+  playwright:
+    installed: true
+    version: "1.60.0"
+    purpose: "Project-local browser automation for AI-assisted web UI inspection."
+
+python_environment:
+  system_pip:
+    available: false
+    purpose: "System Python pip availability; project automation should prefer .ai/venv when available."
+  venv:
+    available: true
+    purpose: "Creates the project-local .ai/venv Python environment."
+  project_venv:
+    present: true
+    path: ".ai/venv"
+    purpose: "Project-local Python helper environment for AI tooling."
+  playwright_browsers:
+    present: true
+    path: ".ai/ms-playwright"
+    purpose: "Project-local Playwright browser cache used by graft-web-browser-agent."
+  playwright_system_deps:
+    available: true
+    purpose: "Whether Chromium system libraries appear available according to Playwright dry-run checks."

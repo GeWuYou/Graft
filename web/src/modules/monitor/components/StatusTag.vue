@@ -19,7 +19,7 @@ const theme = computed(() => props.themeOverride ?? serverStatusTagTheme(props.s
 <style scoped lang="less">
 .monitor-status-tag {
   border-radius: 999px;
-  font-size: 12px;
+  font: var(--td-font-body-small);
   font-weight: 600;
   line-height: 20px;
   padding-inline: 10px;

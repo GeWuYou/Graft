@@ -98,12 +98,17 @@ const tabsRouterStore = useTabsRouterStore();
 const tabRouters = computed(() => tabsRouterStore.tabRouters.filter((route) => route.isAlive || route.isHome));
 const activeTabPath = ref<string | null>('');
 const footerMeta = computed(() => route.meta.footer);
-const showFooter = computed(() => false);
+const showFooter = computed(() => {
+  if (footerMeta.value === false) {
+    return false;
+  }
+
+  return settingStore.showFooter;
+});
 const pageSurfaceType = computed(() => resolvePageSurfaceType(route.meta));
 const layoutSurfaceCls = computed(() => [`${prefix}-layout`, `${prefix}-layout--${pageSurfaceType.value}`]);
 const footerText = computed(() => {
   const footer = footerMeta.value;
-
   if (footer === false) {
     return t(MESSAGE_KEY.COMMON_COPYRIGHT);
   }

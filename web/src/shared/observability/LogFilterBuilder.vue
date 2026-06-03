@@ -377,8 +377,7 @@ function normalizeRange(value: string[] | undefined) {
 
 .log-filter-builder__group-title {
   color: var(--td-text-color-primary);
-  font-size: 13px;
-  font-weight: 600;
+  font: var(--td-font-title-small);
 }
 
 .log-filter-builder__popup {
@@ -397,13 +396,12 @@ function normalizeRange(value: string[] | undefined) {
 
 .log-filter-builder__title {
   color: var(--td-text-color-primary);
-  font-size: 14px;
-  font-weight: 600;
+  font: var(--td-font-title-small);
 }
 
 .log-filter-builder__hint {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
 }
 
 .log-filter-builder__field-list {
@@ -444,8 +442,7 @@ function normalizeRange(value: string[] | undefined) {
 
 .log-filter-builder__editor-title {
   color: var(--td-text-color-primary);
-  font-size: 13px;
-  font-weight: 600;
+  font: var(--td-font-title-small);
 }
 
 .log-filter-builder__time-list,
@@ -463,7 +460,7 @@ function normalizeRange(value: string[] | undefined) {
 
 .log-filter-builder__time-label {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
 }
 
 .log-filter-builder__sort-row {
@@ -481,7 +478,7 @@ function normalizeRange(value: string[] | undefined) {
 
 .log-filter-builder__preset-label {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
   white-space: nowrap;
 }
 

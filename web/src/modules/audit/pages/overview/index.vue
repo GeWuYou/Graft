@@ -163,8 +163,8 @@
               :dot-color="timelineDotColor(item.risk_level)"
             >
               <div class="audit-overview__timeline-item">
-                <strong>{{ item.action }}</strong>
-                <p>{{ item.resource_name || item.resource_type || t('audit.common.unknownResource') }}</p>
+                <strong>{{ actionTitle(item, t) }}</strong>
+                <p>{{ resourceLabel(item, t) }}</p>
                 <div class="audit-overview__timeline-meta">
                   <t-tag :theme="riskTheme(item.risk_level)" variant="light-outline" size="small">
                     {{ t(`audit.common.risk.${item.risk_level}`) }}
@@ -222,6 +222,7 @@ import { useSettingStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 
 import { getAuditOverview } from '../../api/audit';
+import { actionTitle, resourceLabel } from '../../shared/presentation';
 import type { AuditOverviewItem, AuditOverviewResponse } from '../../types/audit';
 
 defineOptions({
@@ -894,7 +895,7 @@ onUnmounted(() => {
 
 .audit-overview__window-label {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
   font-variant-numeric: tabular-nums;
 }
 
@@ -928,12 +929,12 @@ onUnmounted(() => {
 
 .audit-overview__trend-metric span {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font: var(--td-font-body-small);
 }
 
 .audit-overview__trend-metric strong {
   color: var(--td-text-color-primary);
-  font-size: 18px;
+  font: var(--td-font-title-medium);
   font-variant-numeric: tabular-nums;
 }
 

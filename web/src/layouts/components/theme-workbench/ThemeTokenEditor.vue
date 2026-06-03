@@ -1,48 +1,57 @@
 <template>
   <div class="theme-token-editor">
     <div class="editor-toolbar">
-      <div class="mode-switch">
-        <span class="toolbar-label">{{ t('layout.setting.workbench.token.targetMode') }}</span>
-        <t-radio-group v-model="activeMode" variant="default-filled">
-          <t-radio-button value="light">{{ t('layout.setting.workbench.token.light') }}</t-radio-button>
-          <t-radio-button value="dark">{{ t('layout.setting.workbench.token.dark') }}</t-radio-button>
-        </t-radio-group>
-      </div>
-      <t-button size="small" variant="outline" @click="clearCurrentGroup">
+      <t-button size="small" variant="text" theme="danger" class="clear-button" @click="clearCurrentGroup">
         {{ t('layout.setting.workbench.actions.clearGroup') }}
       </t-button>
     </div>
 
     <div v-if="tokenDefinitions.length" class="token-grid">
       <div v-for="token in tokenDefinitions" :key="token.key" class="token-item">
-        <div class="token-header">
-          <div class="token-meta">
-            <div class="token-label">{{ token.label }}</div>
-            <div class="token-key">{{ token.key }}</div>
-          </div>
-          <t-button size="small" variant="text" :disabled="!hasTokenOverride(token.key)" @click="resetToken(token.key)">
-            {{ t('layout.setting.workbench.token.reset') }}
-          </t-button>
+        <div class="token-meta">
+          <div class="token-label">{{ t(token.labelKey) }}</div>
+          <div class="token-key">{{ token.key }}</div>
         </div>
-        <div class="token-inputs">
-          <label v-if="showColorInput(token.key)" class="color-input">
-            <input
-              type="color"
-              :value="toHex(getInputValue(token.key))"
-              @input="updateToken(token.key, ($event.target as HTMLInputElement).value)"
-            />
-          </label>
+        <div class="token-preview-rail">
           <div
             v-if="showPreviewSwatch(token.key)"
             class="token-preview"
             :style="{ background: getResolvedTokenValue(token.key) }"
           />
+          <div v-else class="token-preview token-preview--text">
+            <span aria-hidden="true">Aa</span>
+          </div>
+          <div class="token-preview-sample">
+            <span class="token-preview-sample__line" />
+            <span class="token-preview-sample__line token-preview-sample__line--short" />
+          </div>
+        </div>
+        <div class="token-inputs">
+          <t-color-picker
+            v-if="showColorInput(token.key)"
+            class="color-input"
+            :color-modes="colorPickerModes"
+            format="HEX"
+            :model-value="toHex(getInputValue(token.key))"
+            :show-primary-color-preview="false"
+            @change="(value) => updateToken(token.key, value)"
+          />
           <t-input
+            class="token-input"
             :model-value="getInputValue(token.key)"
             @update:model-value="(value) => updateDraftValue(token.key, String(value ?? ''))"
             @change="(value) => commitToken(token.key, String(value ?? ''))"
             @blur="() => commitToken(token.key)"
           />
+          <t-button
+            size="small"
+            variant="text"
+            class="reset-button"
+            :disabled="!hasTokenOverride(token.key)"
+            @click="resetToken(token.key)"
+          >
+            {{ t('layout.setting.workbench.token.reset') }}
+          </t-button>
         </div>
       </div>
     </div>
@@ -61,36 +70,22 @@ import type { ModeType } from '@/utils/types';
 const props = defineProps<{
   tokenDefinitions: ThemeTokenDefinition[];
   groupKey: ThemeTokenGroupKey;
+  mode: ModeType;
 }>();
 
 const settingStore = useSettingStore();
-const activeMode = ref<ModeType>(settingStore.displayMode);
 const draftValues = ref<Record<string, string>>({});
-
-// 分组切换或全局主题切换时，编辑目标默认跟随当前预览模式，避免编辑亮色却在看暗色页面。
-watch(
-  () => settingStore.displayMode,
-  (mode) => {
-    activeMode.value = mode;
-    draftValues.value = {};
-  },
-  { immediate: true },
-);
+const colorPickerModes: Array<'monochrome'> = ['monochrome'];
 
 watch(
-  () => props.groupKey,
+  () => [props.groupKey, props.mode],
   () => {
-    activeMode.value = settingStore.displayMode;
     draftValues.value = {};
   },
 );
-
-watch(activeMode, () => {
-  draftValues.value = {};
-});
 
 const getResolvedTokenValue = (tokenKey: string) => {
-  const modeTokens = settingStore.themeResolvedTokens[activeMode.value];
+  const modeTokens = settingStore.themeResolvedTokens[props.mode];
   return modeTokens[tokenKey] ?? '';
 };
 
@@ -106,14 +101,14 @@ const updateDraftValue = (tokenKey: string, tokenValue: string) => {
 };
 
 const hasTokenOverride = (tokenKey: string) => {
-  return Object.prototype.hasOwnProperty.call(settingStore.themeTokenOverrides[activeMode.value], tokenKey);
+  return Object.prototype.hasOwnProperty.call(settingStore.themeTokenOverrides[props.mode], tokenKey);
 };
 
 const resetToken = (tokenKey: string) => {
   const nextDraftValues = { ...draftValues.value };
   delete nextDraftValues[tokenKey];
   draftValues.value = nextDraftValues;
-  settingStore.clearThemeTokenGroup(activeMode.value, [tokenKey]);
+  settingStore.clearThemeTokenGroup(props.mode, [tokenKey]);
 };
 
 const commitToken = (tokenKey: string, tokenValue?: string) => {
@@ -124,7 +119,7 @@ const commitToken = (tokenKey: string, tokenValue?: string) => {
     return;
   }
 
-  settingStore.updateThemeToken(activeMode.value, tokenKey, resolvedValue);
+  settingStore.updateThemeToken(props.mode, tokenKey, resolvedValue);
   const nextDraftValues = { ...draftValues.value };
   delete nextDraftValues[tokenKey];
   draftValues.value = nextDraftValues;
@@ -137,7 +132,7 @@ const updateToken = (tokenKey: string, tokenValue: string) => {
 
 const clearCurrentGroup = () => {
   settingStore.clearThemeTokenGroup(
-    activeMode.value,
+    props.mode,
     props.tokenDefinitions.map((token) => token.key),
   );
   draftValues.value = {};
@@ -169,50 +164,44 @@ const toHex = (value: string) => {
 };
 </script>
 <style lang="less" scoped>
+@import './theme-surface.less';
+
 .theme-token-editor {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .editor-toolbar {
   align-items: center;
   display: flex;
   gap: 12px;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 
-.mode-switch {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.toolbar-label {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-medium);
+.clear-button {
+  opacity: 0.72;
 }
 
 .token-grid {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .token-item {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-large);
-  display: grid;
-  gap: 12px;
-  padding: 14px 16px;
-}
+  .theme-workbench-surface();
 
-.token-header {
-  align-items: flex-start;
-  display: flex;
+  align-items: center;
   gap: 12px;
-  justify-content: space-between;
+  grid-template-columns: minmax(120px, 1.1fr) minmax(96px, 0.72fr) minmax(180px, 0.9fr);
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px 14px;
 }
 
 .token-meta {
@@ -225,41 +214,129 @@ const toHex = (value: string) => {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-medium);
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .token-key {
+  -webkit-box-orient: vertical;
   color: var(--td-text-color-placeholder);
+  display: -webkit-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+  /* Monospace token-key preview keeps a fixed code scale so variable names remain compact in editor rows. */
   font-size: 12px;
-  word-break: break-all;
+  -webkit-line-clamp: 2;
+  line-height: 1.35;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.token-preview-rail {
+  align-items: center;
+  background: color-mix(in srgb, var(--td-bg-color-page) 84%, var(--td-bg-color-container));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 88%, transparent);
+  border-radius: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  max-width: 100%;
+  min-height: 48px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 10px;
 }
 
 .token-inputs {
   align-items: center;
   display: grid;
   gap: 10px;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto minmax(96px, 160px) auto;
+  justify-content: end;
+  max-width: 100%;
   min-width: 0;
 }
 
-.color-input {
-  align-items: center;
-  display: inline-flex;
+.token-input {
+  max-width: 160px;
+  min-width: 0;
 }
 
-.color-input input {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  height: 32px;
-  padding: 0;
-  width: 32px;
+.token-input :deep(.t-input) {
+  max-width: 160px;
+}
+
+.color-input {
+  min-width: 0;
+  width: 116px;
 }
 
 .token-preview {
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-default);
-  height: 28px;
-  width: 28px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 4px 14px rgb(15 23 42 / 10%);
+  flex: 0 0 auto;
+  height: 32px;
+  min-width: 0;
+  width: 32px;
+}
+
+.token-preview--text {
+  align-items: center;
+  background: var(--td-bg-color-container);
+  color: var(--td-text-color-primary);
+  display: inline-flex;
+  font: var(--td-font-body-medium);
+  font-weight: 700;
+  justify-content: center;
+}
+
+.token-preview-sample {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.token-preview-sample__line {
+  background: color-mix(in srgb, var(--td-brand-color) 12%, var(--td-text-color-placeholder));
+  border-radius: 999px;
+  display: block;
+  height: 7px;
+  min-width: 0;
+  width: 100%;
+}
+
+.token-preview-sample__line--short {
+  max-width: 72%;
+  width: 72%;
+}
+
+.reset-button {
+  opacity: 0.76;
+  white-space: nowrap;
+}
+
+@media (width <= 768px) {
+  .editor-toolbar {
+    justify-content: flex-start;
+  }
+
+  .token-item {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .token-inputs {
+    grid-template-columns: auto minmax(0, 160px) auto;
+    justify-content: start;
+  }
 }
 </style>

@@ -68,16 +68,13 @@ const sectionStyle = computed(() => {
 
 .governance-section__title {
   color: var(--td-text-color-primary);
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 28px;
+  font: var(--td-font-title-large);
   margin: 0;
 }
 
 .governance-section__description {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 20px;
+  font: var(--td-font-body-small);
   margin: 4px 0 0;
 }
 

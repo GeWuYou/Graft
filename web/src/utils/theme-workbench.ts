@@ -35,13 +35,14 @@ function mergeThemeTokenMaps(...sources: Array<ThemeTokenMap | undefined>): Them
 export function buildThemeModeSnapshot(options: {
   brandTokens: ThemeModeTokenState;
   preset?: ThemePresetDefinition | null;
+  userTokens?: Partial<ThemeModeTokenState>;
   customTokens: ThemeModeTokenState;
 }): ThemeModeTokenState {
-  const { brandTokens, preset, customTokens } = options;
+  const { brandTokens, preset, userTokens, customTokens } = options;
 
   return {
-    light: mergeThemeTokenMaps(brandTokens.light, preset?.tokenOverrides?.light, customTokens.light),
-    dark: mergeThemeTokenMaps(brandTokens.dark, preset?.tokenOverrides?.dark, customTokens.dark),
+    light: mergeThemeTokenMaps(brandTokens.light, preset?.tokenOverrides?.light, userTokens?.light, customTokens.light),
+    dark: mergeThemeTokenMaps(brandTokens.dark, preset?.tokenOverrides?.dark, userTokens?.dark, customTokens.dark),
   };
 }
 

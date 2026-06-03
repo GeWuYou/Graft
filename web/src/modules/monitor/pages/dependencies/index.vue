@@ -333,16 +333,13 @@ function handleRefreshIntervalChange(value: number | string) {
 
 .server-status-module-entry__title {
   color: var(--td-text-color-primary);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 24px;
+  font: var(--td-font-title-small);
   margin: 0;
 }
 
 .server-status-module-entry__description {
   color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 22px;
+  font: var(--td-font-body-small);
   margin: 0;
 }
 
