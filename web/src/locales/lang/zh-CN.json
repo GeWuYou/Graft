@@ -172,7 +172,6 @@
           "description": "选择主题模式、主题色和预设主题。",
           "colorDescription": "选择主题色并立即预览。",
           "customBrandColor": "自定义主题颜色",
-          "hexLabel": "HEX",
           "navigationAppearance": "导航外观",
           "navigationDescription": "选择后台导航布局。",
           "contentAppearance": "内容外观",

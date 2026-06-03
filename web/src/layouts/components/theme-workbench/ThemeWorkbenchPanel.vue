@@ -117,6 +117,7 @@
                     <span class="brand-input__title">{{
                       t('layout.setting.workbench.appearance.customBrandColor')
                     }}</span>
+                    <span class="brand-input__value">{{ effectiveTheme.brandTheme }}</span>
                     <t-color-picker
                       class="brand-input__picker"
                       :color-modes="colorPickerModes"
@@ -127,10 +128,6 @@
                       :swatch-colors="brandOptions"
                       @change="(value) => settingStore.setCustomBrandTheme(value)"
                     />
-                  </div>
-                  <div class="brand-input__hex-row">
-                    <span class="brand-input__hex-label">{{ t('layout.setting.workbench.appearance.hexLabel') }}:</span>
-                    <span class="brand-input__hex-value">{{ effectiveTheme.brandTheme }}</span>
                   </div>
                 </div>
               </div>
@@ -1483,22 +1480,9 @@ const toggleAdvancedVisible = (value: boolean) => {
   width: 24px;
 }
 
-.brand-input__hex-row {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-  min-width: 0;
-}
-
-.brand-input__hex-label {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.brand-input__hex-value {
+.brand-input__value {
   color: var(--td-text-color-primary);
+  flex: 0 1 auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   font-size: 12px;
   min-width: 0;

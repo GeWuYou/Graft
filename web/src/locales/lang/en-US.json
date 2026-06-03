@@ -172,7 +172,6 @@
           "description": "Choose theme mode, theme color, and preset themes.",
           "colorDescription": "Pick a theme color and preview it immediately.",
           "customBrandColor": "Custom brand color",
-          "hexLabel": "HEX",
           "navigationAppearance": "Navigation Appearance",
           "navigationDescription": "Choose the admin navigation layout.",
           "contentAppearance": "Content Appearance",
