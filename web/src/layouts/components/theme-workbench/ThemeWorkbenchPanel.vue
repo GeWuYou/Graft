@@ -108,27 +108,31 @@
                 </button>
               </div>
               <div class="brand-input">
-                <div class="brand-input__preview" aria-hidden="true" :style="{ background: effectiveTheme.brandTheme }">
-                  <span class="brand-input__preview-line" />
-                  <span class="brand-input__preview-line brand-input__preview-line--short" />
-                </div>
+                <div
+                  class="brand-input__preview"
+                  aria-hidden="true"
+                  :style="{ background: effectiveTheme.brandTheme }"
+                />
                 <div class="brand-input__content">
-                  <div class="brand-input__title-row">
-                    <span class="brand-input__title">{{
-                      t('layout.setting.workbench.appearance.customBrandColor')
-                    }}</span>
-                    <span class="brand-input__value">{{ effectiveTheme.brandTheme }}</span>
-                    <t-color-picker
-                      class="brand-input__picker"
-                      :color-modes="colorPickerModes"
-                      format="HEX"
-                      :model-value="effectiveTheme.brandTheme"
-                      :popup-props="{ placement: 'bottom-right' }"
-                      :show-primary-color-preview="false"
-                      :swatch-colors="brandOptions"
-                      @change="(value) => settingStore.setCustomBrandTheme(value)"
-                    />
-                  </div>
+                  <span class="brand-input__title">{{
+                    t('layout.setting.workbench.appearance.customBrandColor')
+                  }}</span>
+                  <span class="brand-input__value">{{ effectiveTheme.brandTheme }}</span>
+                </div>
+                <div class="brand-input__picker">
+                  <t-color-picker
+                    class="brand-input__picker-control"
+                    :color-modes="colorPickerModes"
+                    format="HEX"
+                    :model-value="effectiveTheme.brandTheme"
+                    :popup-props="{ placement: 'bottom-right' }"
+                    :show-primary-color-preview="false"
+                    :swatch-colors="brandOptions"
+                    @change="(value) => settingStore.setCustomBrandTheme(value)"
+                  />
+                  <span class="brand-input__picker-icon" aria-hidden="true">
+                    <t-icon name="palette" />
+                  </span>
                 </div>
               </div>
             </div>
@@ -1435,6 +1439,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .brand-palette {
   grid-template-columns: repeat(8, minmax(0, 1fr));
+  margin-bottom: 6px;
 }
 
 .brand-palette__item {
@@ -1455,38 +1460,40 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .brand-input {
   align-items: center;
-  background: color-mix(in srgb, var(--td-brand-color) 5%, var(--td-bg-color-container));
-  border: 1px solid color-mix(in srgb, var(--td-brand-color) 44%, var(--td-component-stroke));
-  border-radius: 12px;
+  background: color-mix(in srgb, var(--td-brand-color) 4%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-brand-color) 16%, var(--td-component-stroke));
+  border-radius: 10px;
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--td-brand-color) 10%, transparent),
-    0 12px 24px color-mix(in srgb, var(--td-brand-color) 8%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--td-brand-color) 6%, transparent),
+    0 8px 18px color-mix(in srgb, var(--td-brand-color) 5%, transparent);
+  box-sizing: border-box;
   display: grid;
-  gap: 14px;
-  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  grid-template-columns: 42px minmax(0, 1fr) 34px;
+  height: 68px;
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
-  padding: 10px 12px;
+  padding: 12px 14px;
   position: relative;
   transition:
-    border-color 220ms ease,
-    box-shadow 220ms ease,
-    transform 220ms ease;
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
 }
 
 .brand-input::before {
   background: radial-gradient(
-    circle at 54% 36%,
-    color-mix(in srgb, var(--td-brand-color) 22%, transparent),
-    transparent 64%
+    circle at 28% 34%,
+    color-mix(in srgb, var(--td-brand-color) 12%, transparent),
+    transparent 68%
   );
   content: '';
   inset: 0;
   opacity: 0;
   pointer-events: none;
   position: absolute;
-  transition: opacity 220ms ease;
+  transition: opacity 200ms ease;
 }
 
 .brand-input > * {
@@ -1496,12 +1503,11 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .brand-input:hover,
 .brand-input:focus-within {
-  border-color: color-mix(in srgb, var(--td-brand-color) 72%, var(--td-component-stroke));
+  border-color: color-mix(in srgb, var(--td-brand-color) 24%, var(--td-component-stroke));
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--td-brand-color) 20%, transparent),
-    0 16px 34px color-mix(in srgb, var(--td-brand-color) 18%, transparent),
-    var(--td-shadow-1);
-  transform: translateY(-2px);
+    0 0 0 3px color-mix(in srgb, var(--td-brand-color) 12%, transparent),
+    0 12px 24px color-mix(in srgb, var(--td-brand-color) 8%, transparent);
+  transform: translateY(-1px);
 }
 
 .brand-input:hover::before,
@@ -1511,15 +1517,7 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .brand-input__content {
   display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.brand-input__title-row {
-  align-items: center;
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -1535,43 +1533,90 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .brand-input__picker {
   flex: 0 0 auto;
+  height: 34px;
+  overflow: hidden;
+  position: relative;
   width: 34px;
 }
 
+.brand-input__picker-control {
+  display: block;
+}
+
 .brand-input__picker :deep(.t-color-picker__trigger) {
+  max-width: 34px;
+  overflow: hidden;
+  width: 34px;
+}
+
+.brand-input__picker :deep(.t-color-picker__trigger--default) {
+  max-width: 34px;
+  overflow: hidden;
   width: 34px;
 }
 
 .brand-input__picker :deep(.t-input__wrap) {
+  max-width: 34px;
+  overflow: hidden;
   width: 34px;
 }
 
 .brand-input__picker :deep(.t-input) {
-  background: transparent;
-  border-color: transparent;
+  background: color-mix(in srgb, var(--td-bg-color-container) 82%, var(--td-brand-color) 18%);
+  border-color: color-mix(in srgb, var(--td-brand-color) 24%, var(--td-component-stroke));
+  border-radius: 9px;
   box-shadow: none;
+  color: var(--td-brand-color);
+  max-width: 34px;
+  overflow: hidden;
   padding: 0;
+  width: 34px;
+}
+
+.brand-input__picker:hover :deep(.t-input),
+.brand-input__picker:focus-within :deep(.t-input) {
+  border-color: color-mix(in srgb, var(--td-brand-color) 42%, var(--td-component-stroke));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--td-brand-color) 14%, transparent);
 }
 
 .brand-input__picker :deep(.t-input__inner),
 .brand-input__picker :deep(.t-input__input-pre) {
-  display: none;
+  flex: 0 0 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  max-width: 0 !important;
+  min-width: 0 !important;
+  opacity: 0;
+  padding: 0 !important;
+  pointer-events: none;
+  visibility: hidden;
+  width: 0 !important;
 }
 
 .brand-input__picker :deep(.t-input__prefix) {
+  display: inline-flex;
   margin-right: 0;
 }
 
 .brand-input__picker :deep(.t-color-picker__trigger--default__color) {
-  border: 1px solid color-mix(in srgb, var(--td-text-color-primary) 28%, transparent);
-  border-radius: 8px;
-  height: 24px;
-  width: 24px;
+  height: 0;
+  opacity: 0;
+  width: 0;
+}
+
+.brand-input__picker-icon {
+  align-items: center;
+  color: var(--td-brand-color);
+  display: inline-flex;
+  inset: 0;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
 }
 
 .brand-input__value {
-  color: var(--td-text-color-primary);
-  flex: 0 1 auto;
+  color: var(--td-text-color-secondary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   font-size: 12px;
   min-width: 0;
@@ -1582,25 +1627,17 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 .brand-input__preview {
   align-items: center;
-  border-radius: 8px;
-  display: grid;
-  gap: 5px;
-  height: 34px;
+  border: 1px solid color-mix(in srgb, white 42%, transparent);
+  border-radius: 10px;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--td-text-color-primary) 12%, transparent),
+    0 8px 16px color-mix(in srgb, var(--td-brand-color) 16%, transparent);
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
   min-width: 0;
   overflow: hidden;
-  padding: 8px;
-}
-
-.brand-input__preview-line {
-  background: color-mix(in srgb, white 72%, transparent);
-  border-radius: 999px;
-  display: block;
-  height: 5px;
-  min-width: 0;
-}
-
-.brand-input__preview-line--short {
-  width: 68%;
+  width: 40px;
 }
 
 .appearance-summary-grid {
@@ -2290,7 +2327,7 @@ const toggleAdvancedVisible = (value: boolean) => {
   }
 
   .brand-input {
-    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-columns: 42px minmax(0, 1fr) 34px;
   }
 
   .font-size-control {
