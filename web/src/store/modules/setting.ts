@@ -93,6 +93,33 @@ const SHADOW_PRESET_MAP: Record<ThemeAuthorityState['shadowPreset'], ThemeTokenM
   },
 };
 
+const BASE_DENSITY_TOKENS = {
+  '--td-comp-size-xs': 24,
+  '--td-comp-size-s': 28,
+  '--td-comp-size-m': 32,
+  '--td-comp-size-l': 36,
+  '--td-comp-size-xl': 40,
+  '--td-comp-paddingTB-s': 4,
+  '--td-comp-paddingTB-m': 6,
+  '--td-comp-paddingTB-l': 8,
+  '--td-comp-paddingTB-xl': 12,
+  '--td-comp-paddingLR-s': 8,
+  '--td-comp-paddingLR-m': 12,
+  '--td-comp-paddingLR-l': 16,
+  '--td-comp-paddingLR-xl': 20,
+  '--td-comp-margin-xs': 4,
+  '--td-comp-margin-s': 8,
+  '--td-comp-margin-m': 12,
+  '--td-comp-margin-l': 16,
+  '--td-comp-margin-xl': 24,
+} as const satisfies Record<string, number>;
+
+const DENSITY_SCALE_MAP: Record<ThemeAuthorityState['densityPreset'], number> = {
+  compact: 0.88,
+  standard: 1,
+  comfortable: 1.12,
+};
+
 const FONT_SIZE_SCALE_MAP: Record<ThemeAuthorityState['fontSizePreset'], number> = {
   'extra-small': 0.88,
   small: 0.94,
@@ -193,12 +220,22 @@ function buildFontSizeTokens(fontSizePreset: ThemeAuthorityState['fontSizePreset
   };
 }
 
+function buildDensityTokens(densityPreset: ThemeAuthorityState['densityPreset']): ThemeTokenMap {
+  const scale = DENSITY_SCALE_MAP[densityPreset];
+
+  return {
+    '--graft-theme-density-scale': String(scale),
+    ...Object.fromEntries(Object.entries(BASE_DENSITY_TOKENS).map(([key, value]) => [key, px(value * scale)])),
+  } as ThemeTokenMap;
+}
+
 function buildUserThemeTokens(authorityState: ThemeAuthorityState): ThemeModeTokenState {
   const sharedTokens: ThemeTokenMap = {
     '--td-font-family': FONT_FAMILY_MAP[authorityState.fontFamilyPreset],
     ...buildFontSizeTokens(authorityState.fontSizePreset),
     ...RADIUS_PRESET_MAP[authorityState.radiusPreset],
     ...SHADOW_PRESET_MAP[authorityState.shadowPreset],
+    ...buildDensityTokens(authorityState.densityPreset),
   };
 
   return {
@@ -207,14 +244,29 @@ function buildUserThemeTokens(authorityState: ThemeAuthorityState): ThemeModeTok
   };
 }
 
-const THEME_AUTHORITY_DIFF_KEYS: Array<ThemeAuthorityDiffItem['key']> = [
+type ThemeAuthorityPresetDiffKey = Exclude<ThemeAuthorityDiffItem['key'], 'themeTokenOverrides'>;
+
+const THEME_AUTHORITY_DIFF_KEYS = [
   'brandTheme',
   'fontFamilyPreset',
   'fontSizePreset',
   'radiusPreset',
   'shadowPreset',
   'densityPreset',
-];
+] as const satisfies ReadonlyArray<ThemeAuthorityPresetDiffKey>;
+
+function countThemeTokenOverrides(tokens: ThemeModeTokenState) {
+  return Object.keys(tokens.light).length + Object.keys(tokens.dark).length;
+}
+
+function hasThemeTokenOverrideDiff(fromTokens: ThemeModeTokenState, toTokens: ThemeModeTokenState) {
+  const modes: Array<keyof ThemeModeTokenState> = ['light', 'dark'];
+
+  return modes.some((mode) => {
+    const keys = new Set([...Object.keys(fromTokens[mode]), ...Object.keys(toTokens[mode])]);
+    return [...keys].some((key) => fromTokens[mode][key] !== toTokens[mode][key]);
+  });
+}
 
 function createThemeAuthoritySourceSnapshot(
   preset: ThemePresetDefinition | null,
@@ -361,7 +413,7 @@ export const useSettingStore = defineStore('setting', {
         THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvePresetId(current.selectedThemePresetId)) ?? null;
       const baseline = createThemeAuthoritySourceSnapshot(sourcePreset, current);
 
-      return THEME_AUTHORITY_DIFF_KEYS.flatMap((key) => {
+      const presetDiffItems = THEME_AUTHORITY_DIFF_KEYS.flatMap((key) => {
         const fromValue = baseline[key];
         const toValue = current[key];
 
@@ -378,6 +430,20 @@ export const useSettingStore = defineStore('setting', {
           },
         ];
       });
+
+      if (!hasThemeTokenOverrideDiff(baseline.themeTokenOverrides, current.themeTokenOverrides)) {
+        return presetDiffItems;
+      }
+
+      return [
+        ...presetDiffItems,
+        {
+          key: 'themeTokenOverrides',
+          labelKey: 'layout.setting.workbench.diff.themeTokenOverrides',
+          fromValue: String(countThemeTokenOverrides(baseline.themeTokenOverrides)),
+          toValue: String(countThemeTokenOverrides(current.themeTokenOverrides)),
+        },
+      ];
     },
     themeIdentitySummary(): ThemeIdentitySummary {
       return {
@@ -388,8 +454,8 @@ export const useSettingStore = defineStore('setting', {
         lastModifiedAt: this.themeAuthorityLastModifiedAt,
       };
     },
-    resolvedThemeTokensForDisplayMode(state): ThemeTokenMap {
-      return resolveModeTokens(state.themeResolvedTokens, state.mode === 'dark' ? 'dark' : 'light');
+    resolvedThemeTokensForDisplayMode(): ThemeTokenMap {
+      return resolveModeTokens(this.themeResolvedTokens, this.displayMode);
     },
   },
   actions: {
@@ -420,11 +486,6 @@ export const useSettingStore = defineStore('setting', {
       this.themeTokenOverrides = cloneThemeModeTokenState(nextState.themeTokenOverrides);
     },
     markThemeCustomized() {
-      if (this.selectedThemePresetId) {
-        this.themeSource = 'customized';
-        return;
-      }
-
       this.themeSource = 'customized';
     },
     getDisplayModeByInput(mode: ModeType | 'auto') {
@@ -530,7 +591,6 @@ export const useSettingStore = defineStore('setting', {
     closeThemeWorkbench() {
       if (this.themeDraftBaseline && this.themeDraftApplied) {
         this.assignThemeAuthorityState(this.themeDraftBaseline);
-        this.refreshThemeWorkbenchRuntime();
         this.changeMode(this.mode as ModeType | 'auto');
       }
       this.syncThemeWorkbenchVisibility(false);
@@ -553,7 +613,6 @@ export const useSettingStore = defineStore('setting', {
       }
 
       this.assignThemeAuthorityState(this.themeDraft);
-      this.refreshThemeWorkbenchRuntime();
       this.changeMode(this.mode as ModeType | 'auto');
       this.themeDraftApplied = true;
     },
@@ -578,7 +637,6 @@ export const useSettingStore = defineStore('setting', {
       if (modifiedCount > 0) {
         this.themeAuthorityLastModifiedAt = new Date().toISOString();
       }
-      this.refreshThemeWorkbenchRuntime();
       this.changeMode(this.mode as ModeType | 'auto');
       this.themeDraftBaseline = null;
       this.themeDraft = null;

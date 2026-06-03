@@ -23,7 +23,14 @@ export interface ThemeWorkbenchGroupDefinition {
 }
 
 export interface ThemeAuthorityDiffItem {
-  key: 'brandTheme' | 'fontFamilyPreset' | 'fontSizePreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset';
+  key:
+    | 'brandTheme'
+    | 'fontFamilyPreset'
+    | 'fontSizePreset'
+    | 'radiusPreset'
+    | 'shadowPreset'
+    | 'densityPreset'
+    | 'themeTokenOverrides';
   labelKey: string;
   fromValue: string;
   toValue: string;

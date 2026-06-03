@@ -51,6 +51,7 @@
   "layout": {
     "header": {
       "code": "代码仓库",
+      "apiDocs": "API 文档",
       "help": "帮助文档",
       "user": "个人中心",
       "signOut": "退出登录",
@@ -227,7 +228,8 @@
           "fontSizePreset": "字号",
           "radiusPreset": "圆角",
           "shadowPreset": "阴影",
-          "densityPreset": "密度"
+          "densityPreset": "密度",
+          "themeTokenOverrides": "设计变量"
         },
         "token": {
           "targetMode": "目标模式",
@@ -473,14 +475,17 @@
     },
     "result": {
       "403": {
+        "title": "403 Forbidden",
         "tips": "抱歉，您无权限访问此页面，企业微信联系创建者",
         "back": "返回首页"
       },
       "404": {
+        "title": "404 Not Found",
         "subtitle": "抱歉，您访问的页面不存在",
         "back": "返回首页"
       },
       "500": {
+        "title": "500 Internal Server Error",
         "subtitle": "抱歉，服务器出错啦",
         "back": "返回首页"
       },

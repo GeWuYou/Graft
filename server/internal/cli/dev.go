@@ -21,15 +21,14 @@ import (
 )
 
 const (
-	devRuntimeSignal     = syscall.SIGUSR1
 	devPIDFilePerm       = 0o600
 	devPIDDirPerm        = 0o755
 	devStopTimeout       = 5 * time.Second
 	devStatePollTimeout  = 200 * time.Millisecond
-	devSignalBufferSize  = 2
 	devSupervisorPIDName = "dev-supervisor.pid"
 	devAirPIDName        = "dev-air.pid"
 	devServePIDName      = "dev-serve.pid"
+	devNotifyPIDName     = "dev-notify.pid"
 )
 
 type devOptions struct {
@@ -52,6 +51,7 @@ type devSupervisor struct {
 	supervisorPID   string
 	airPID          string
 	servePID        string
+	notifyPID       string
 	appliedSnapshot string
 	serveCmd        *exec.Cmd
 	serveExit       chan error
@@ -63,6 +63,7 @@ type devPIDPaths struct {
 	supervisor string
 	air        string
 	serve      string
+	notify     string
 }
 
 var devMigrateRunner = func(cmd *cobra.Command, migrationDir string) error {
@@ -170,8 +171,16 @@ func runDevNotify(_ *cobra.Command, _ devNotifyOptions) error {
 		return fmt.Errorf("read supervisor pid: %w", err)
 	}
 
-	if err := devPIDSignaler(pid, devRuntimeSignal); err != nil {
-		return fmt.Errorf("notify supervisor pid %d: %w", pid, err)
+	alive, err := devPIDAliveChecker(pid)
+	if err != nil {
+		return fmt.Errorf("check supervisor pid %d: %w", pid, err)
+	}
+	if !alive {
+		return fmt.Errorf("supervisor pid %d is not running", pid)
+	}
+
+	if err := writeDevPIDFile(pidPaths.notify, pid); err != nil {
+		return fmt.Errorf("write dev notify marker: %w", err)
 	}
 
 	return nil
@@ -206,15 +215,18 @@ func runDevSupervisorWithAirConfig(cmd *cobra.Command, opts devOptions, withAir 
 		supervisorPID: pidPaths.supervisor,
 		airPID:        pidPaths.air,
 		servePID:      pidPaths.serve,
+		notifyPID:     pidPaths.notify,
 	}
 
 	if err := devMkdirAll(filepath.Dir(pidPaths.supervisor), devPIDDirPerm); err != nil {
 		return fmt.Errorf("mkdir dev pid dir: %w", err)
 	}
+	removeDevPIDFile(pidPaths.notify)
 	if err := writeDevPIDFile(pidPaths.supervisor, os.Getpid()); err != nil {
 		return fmt.Errorf("write supervisor pid: %w", err)
 	}
 	defer removeDevPIDFile(pidPaths.supervisor)
+	defer removeDevPIDFile(pidPaths.notify)
 
 	runCtx, stop := devSignalNotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -225,6 +237,9 @@ func runDevSupervisorWithAirConfig(cmd *cobra.Command, opts devOptions, withAir 
 
 	if withAir {
 		if err := supervisor.startAir(runCtx, cmd, configPath); err != nil {
+			if shutdownErr := supervisor.shutdown(cmd); shutdownErr != nil {
+				return fmt.Errorf("%w; cleanup failed: %v", err, shutdownErr)
+			}
 			return err
 		}
 	}
@@ -233,16 +248,16 @@ func runDevSupervisorWithAirConfig(cmd *cobra.Command, opts devOptions, withAir 
 }
 
 func (s *devSupervisor) loop(ctx context.Context, cmd *cobra.Command) error {
-	sigCh := make(chan os.Signal, devSignalBufferSize)
-	signal.Notify(sigCh, devRuntimeSignal)
-	defer signal.Stop(sigCh)
-
 	for {
 		select {
 		case <-ctx.Done():
 			return s.shutdown(cmd)
-		case sig := <-sigCh:
-			if sig != devRuntimeSignal {
+		case <-devAfter(devStatePollTimeout):
+			ready, err := s.consumeBuildNotification()
+			if err != nil {
+				return err
+			}
+			if !ready {
 				continue
 			}
 			s.log(cmd, "build complete")
@@ -426,6 +441,20 @@ func (s *devSupervisor) shutdown(cmd *cobra.Command) error {
 	return nil
 }
 
+func (s *devSupervisor) consumeBuildNotification() (bool, error) {
+	pid, err := readDevPIDFile(s.notifyPID)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		removeDevPIDFile(s.notifyPID)
+		return false, fmt.Errorf("read dev notify marker: %w", err)
+	}
+
+	removeDevPIDFile(s.notifyPID)
+	return pid == os.Getpid(), nil
+}
+
 func (s *devSupervisor) liveMigrationSnapshot() (string, error) {
 	dirs, err := devMigrationDirResolver(s.moduleRoot, s.migrationDir)
 	if err != nil {
@@ -542,6 +571,7 @@ func resolveDevPIDPaths() (devPIDPaths, error) {
 		supervisor: filepath.Join(tmpDir, devSupervisorPIDName),
 		air:        filepath.Join(tmpDir, devAirPIDName),
 		serve:      filepath.Join(tmpDir, devServePIDName),
+		notify:     filepath.Join(tmpDir, devNotifyPIDName),
 	}, nil
 }
 

@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -11,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestRunDevNotifySignalsSupervisorPID(t *testing.T) {
+func TestRunDevNotifyWritesSupervisorMarker(t *testing.T) {
 	root := t.TempDir()
 	serverRoot := filepath.Join(root, "server")
 	tmpDir := filepath.Join(serverRoot, "tmp")
@@ -23,31 +26,148 @@ func TestRunDevNotifySignalsSupervisorPID(t *testing.T) {
 	}
 
 	originalResolver := devAirModuleRootResolver
-	originalSignaler := devPIDSignaler
+	originalAliveChecker := devPIDAliveChecker
 	defer func() {
 		devAirModuleRootResolver = originalResolver
-		devPIDSignaler = originalSignaler
+		devPIDAliveChecker = originalAliveChecker
 	}()
 
 	devAirModuleRootResolver = func() (string, error) {
 		return serverRoot, nil
 	}
 
-	signaled := false
-	devPIDSignaler = func(pid int, _ syscall.Signal) error {
+	devPIDAliveChecker = func(pid int) (bool, error) {
 		if pid != 42 {
 			t.Fatalf("expected pid 42, got %d", pid)
 		}
-		signaled = true
-		return nil
+		return true, nil
 	}
 
 	err := runDevNotify(&cobra.Command{}, devNotifyOptions{})
 	if err != nil {
 		t.Fatalf("run dev notify: %v", err)
 	}
-	if !signaled {
-		t.Fatal("expected notify to signal the supervisor pid")
+	pid, err := readDevPIDFile(filepath.Join(tmpDir, devNotifyPIDName))
+	if err != nil {
+		t.Fatalf("read notify marker pid: %v", err)
+	}
+	if pid != 42 {
+		t.Fatalf("expected notify marker for pid 42, got %d", pid)
+	}
+}
+
+func TestConsumeBuildNotificationConsumesOwnMarker(t *testing.T) {
+	notifyPath := filepath.Join(t.TempDir(), devNotifyPIDName)
+	foreignPID := os.Getpid() + 100000
+	if err := os.WriteFile(notifyPath, []byte(fmt.Sprintf("%d\n", foreignPID)), 0o600); err != nil {
+		t.Fatalf("write foreign marker: %v", err)
+	}
+
+	supervisor := &devSupervisor{notifyPID: notifyPath}
+	ready, err := supervisor.consumeBuildNotification()
+	if err != nil {
+		t.Fatalf("consume foreign marker: %v", err)
+	}
+	if ready {
+		t.Fatal("expected foreign marker to be ignored")
+	}
+	if _, err := os.Stat(notifyPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected foreign marker removed, got err=%v", err)
+	}
+
+	if err := os.WriteFile(notifyPath, []byte("bad-pid\n"), 0o600); err != nil {
+		t.Fatalf("write malformed marker: %v", err)
+	}
+	ready, err = supervisor.consumeBuildNotification()
+	if err == nil {
+		t.Fatal("expected malformed marker error")
+	}
+	if ready {
+		t.Fatal("malformed marker must not be ready")
+	}
+	if _, err := os.Stat(notifyPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected malformed marker removed, got err=%v", err)
+	}
+
+	if err := writeDevPIDFile(notifyPath, os.Getpid()); err != nil {
+		t.Fatalf("write own marker: %v", err)
+	}
+	ready, err = supervisor.consumeBuildNotification()
+	if err != nil {
+		t.Fatalf("consume own marker: %v", err)
+	}
+	if !ready {
+		t.Fatal("expected own marker to be ready")
+	}
+	if _, err := os.Stat(notifyPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected own marker removed, got err=%v", err)
+	}
+}
+
+func TestRunDevSupervisorWithAirStartFailureStopsServe(t *testing.T) {
+	root := t.TempDir()
+	serverRoot := filepath.Join(root, "server")
+	if err := os.MkdirAll(filepath.Join(serverRoot, "tmp"), 0o750); err != nil {
+		t.Fatalf("mkdir tmp: %v", err)
+	}
+
+	originalResolver := devAirModuleRootResolver
+	originalAliveChecker := devPIDAliveChecker
+	originalMigrationResolver := devMigrationDirResolver
+	originalMigrateRunner := devMigrateRunner
+	originalCommandContext := devCommandContext
+	originalCommandEnv := devCommandEnv
+	originalAirLookPath := devAirLookPath
+	originalSignalNotifyContext := devSignalNotifyContext
+	defer func() {
+		devAirModuleRootResolver = originalResolver
+		devPIDAliveChecker = originalAliveChecker
+		devMigrationDirResolver = originalMigrationResolver
+		devMigrateRunner = originalMigrateRunner
+		devCommandContext = originalCommandContext
+		devCommandEnv = originalCommandEnv
+		devAirLookPath = originalAirLookPath
+		devSignalNotifyContext = originalSignalNotifyContext
+	}()
+
+	devAirModuleRootResolver = func() (string, error) {
+		return serverRoot, nil
+	}
+	devPIDAliveChecker = func(_ int) (bool, error) {
+		return false, nil
+	}
+	devMigrationDirResolver = func(_ string, _ string) ([]string, error) {
+		return nil, nil
+	}
+	devMigrateRunner = func(_ *cobra.Command, _ string) error {
+		return nil
+	}
+	devCommandContext = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sleep", "30")
+	}
+	devCommandEnv = func() ([]string, error) {
+		return os.Environ(), nil
+	}
+	devAirLookPath = func(_ string) (string, error) {
+		return "", errors.New("go unavailable")
+	}
+	devSignalNotifyContext = func(parent context.Context, _ ...os.Signal) (context.Context, context.CancelFunc) {
+		return context.WithCancel(parent)
+	}
+
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	err := runDevSupervisorWithAirConfig(cmd, devOptions{}, true, ".air.toml")
+	if err == nil {
+		t.Fatal("expected Air startup error")
+	}
+	if !strings.Contains(err.Error(), "find go for Air") {
+		t.Fatalf("expected Air lookup error, got %v", err)
+	}
+	for _, name := range []string{devSupervisorPIDName, devServePIDName, devNotifyPIDName} {
+		if _, err := os.Stat(filepath.Join(serverRoot, "tmp", name)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected %s cleaned up, got err=%v", name, err)
+		}
 	}
 }
 

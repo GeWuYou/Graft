@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ModeType } from '@/utils/types';
+
 vi.mock('@/utils/color', () => ({
   composeThemeTokenMap: (tokens: Record<string, string>) => tokens,
   generateBrandColorMap: (brandTheme: string) => ({
@@ -42,6 +44,17 @@ describe('setting store theme authority', () => {
     expect(store.themeResolvedTokens.dark['--td-font-size-title-large']).toBe('19.08px');
   });
 
+  it('resolves density preset into TDesign spacing and size tokens', () => {
+    const store = useSettingStore();
+
+    store.updateThemeDraftAppearance({ densityPreset: 'compact' });
+
+    expect(store.densityPreset).toBe('compact');
+    expect(store.themeResolvedTokens.light['--graft-theme-density-scale']).toBe('0.88');
+    expect(store.themeResolvedTokens.light['--td-comp-size-m']).toBe('28.16px');
+    expect(store.themeResolvedTokens.dark['--td-comp-paddingLR-l']).toBe('14.08px');
+  });
+
   it('includes font size preset in draft diff tracking', () => {
     const store = useSettingStore();
 
@@ -57,6 +70,58 @@ describe('setting store theme authority', () => {
         }),
       ]),
     );
+  });
+
+  it('includes advanced token overrides in draft diff tracking', () => {
+    const store = useSettingStore();
+
+    store.beginThemeDraft();
+    store.updateThemeToken('light', '--td-brand-color', '#0062ff');
+
+    expect(store.themeAuthorityDiff).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'themeTokenOverrides',
+          fromValue: '0',
+          toValue: '1',
+        }),
+      ]),
+    );
+    expect(store.themeIdentitySummary.modifiedCount).toBeGreaterThan(0);
+  });
+
+  it('resolves display tokens using the actual display mode when mode is auto', () => {
+    const store = useSettingStore();
+
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true })),
+    );
+    store.themeResolvedTokens = {
+      light: { '--td-brand-color': '#ffffff' },
+      dark: { '--td-brand-color': '#000000' },
+    };
+    store.mode = 'auto';
+
+    expect(store.resolvedThemeTokensForDisplayMode['--td-brand-color']).toBe('#000000');
+  });
+
+  it('refreshes theme runtime only once when applying draft preview and final draft', () => {
+    const store = useSettingStore();
+    const refreshSpy = vi.spyOn(store, 'refreshThemeWorkbenchRuntime');
+    const changeMode = store.changeMode.bind(store);
+    vi.spyOn(store, 'changeMode').mockImplementation(async (mode: ModeType | 'auto') => {
+      await changeMode(mode);
+    });
+
+    store.beginThemeDraft();
+    store.updateThemeDraftAppearance({ radiusPreset: 'rounded' });
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+
+    refreshSpy.mockClear();
+    store.applyThemeDraft();
+
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
 
   it('resets font size preset to the default theme authority', () => {

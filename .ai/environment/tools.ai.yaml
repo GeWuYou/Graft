@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-03T02:09:54Z"
+generated_at_utc: "2026-06-03T15:18:14Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -19,6 +19,7 @@ capabilities:
   bun: true
   docker: true
   gh: true
+  gh_authenticated: true
   fast_search: true
   json_cli: true
   ai_browser: true

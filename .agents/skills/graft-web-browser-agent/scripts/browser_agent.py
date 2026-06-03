@@ -52,12 +52,20 @@ def collect_action(values: list[str] | None, kind: str) -> list[dict[str, str]]:
         return actions
     for value in values:
         if kind == "fill":
-            selector, separator, text = value.partition("=")
+            selector, separator, text = value.rpartition("=")
+            selector = selector.strip()
             if not separator:
                 raise ValueError("--fill expects SELECTOR=TEXT")
+            if not selector:
+                raise ValueError("--fill expects a nonempty selector")
+            if not text.strip():
+                raise ValueError("--fill expects nonempty text")
             actions.append({"kind": "fill", "selector": selector, "text": text})
         else:
-            actions.append({"kind": kind, "selector": value})
+            selector = value.strip()
+            if not selector:
+                raise ValueError(f"--{kind} expects a nonempty selector")
+            actions.append({"kind": kind, "selector": selector})
     return actions
 
 

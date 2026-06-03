@@ -95,6 +95,19 @@ command_version() {
     esac
 }
 
+gh_authenticated() {
+    if ! command -v gh >/dev/null 2>&1; then
+        printf 'false'
+        return
+    fi
+
+    if gh auth status >/dev/null 2>&1; then
+        printf 'true'
+    else
+        printf 'false'
+    fi
+}
+
 python_package_version() {
     local package_name="$1"
 
@@ -178,6 +191,21 @@ playwright_system_deps_available() {
     fi
 
     if PLAYWRIGHT_BROWSERS_PATH="${ROOT_DIR}/.ai/ms-playwright" "${project_python}" -m playwright install-deps --dry-run chromium >/dev/null 2>&1; then
+        printf 'true'
+    else
+        printf 'false'
+    fi
+}
+
+playwright_browsers_present() {
+    local browsers_dir="${ROOT_DIR}/.ai/ms-playwright"
+
+    if [[ ! -d "${browsers_dir}" ]]; then
+        printf 'false'
+        return
+    fi
+
+    if find "${browsers_dir}" -mindepth 1 -maxdepth 1 -type d -print -quit 2>/dev/null | grep -q .; then
         printf 'true'
     else
         printf 'false'
@@ -320,6 +348,7 @@ project_tools:
     purpose: "Optional container runtime for local services or future automation."
   gh:
     installed: $(command_installed gh)
+    authenticated: $(gh_authenticated)
     version: "$(command_version gh)"
     path: "$(command_path gh)"
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
@@ -370,7 +399,7 @@ python_environment:
     path: ".ai/venv"
     purpose: "Project-local Python helper environment for AI tooling."
   playwright_browsers:
-    present: $(if [[ -d "${ROOT_DIR}/.ai/ms-playwright" ]]; then printf 'true'; else printf 'false'; fi)
+    present: $(playwright_browsers_present)
     path: ".ai/ms-playwright"
     purpose: "Project-local Playwright browser cache used by graft-web-browser-agent."
   playwright_system_deps:

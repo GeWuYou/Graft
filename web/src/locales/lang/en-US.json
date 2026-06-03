@@ -51,6 +51,7 @@
   "layout": {
     "header": {
       "code": "Code Repository",
+      "apiDocs": "API Docs",
       "help": "Document",
       "user": "Profile",
       "signOut": "Sign Out",
@@ -227,7 +228,8 @@
           "fontSizePreset": "Font Size",
           "radiusPreset": "Radius",
           "shadowPreset": "Shadow",
-          "densityPreset": "Density"
+          "densityPreset": "Density",
+          "themeTokenOverrides": "Design Tokens"
         },
         "token": {
           "targetMode": "Target Mode",
@@ -473,14 +475,17 @@
     },
     "result": {
       "403": {
+        "title": "403 Forbidden",
         "tips": "Sorry, you do not have permission to access this page. Please contact the creator through WeCom.",
         "back": "Back to home"
       },
       "404": {
+        "title": "404 Not Found",
         "subtitle": "Sorry, the page is not found",
         "back": "Back to homepage"
       },
       "500": {
+        "title": "500 Internal Server Error",
         "subtitle": "Sorry, the server encountered an error",
         "back": "Back to home"
       },

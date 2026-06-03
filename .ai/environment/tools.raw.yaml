@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-03T02:09:52Z"
+generated_at_utc: "2026-06-03T15:18:02Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -82,6 +82,7 @@ project_tools:
     purpose: "Optional container runtime for local services or future automation."
   gh:
     installed: true
+    authenticated: true
     version: "gh version 2.92.0 (2026-04-28)"
     path: "/usr/bin/gh"
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."

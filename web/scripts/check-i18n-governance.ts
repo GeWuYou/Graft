@@ -431,6 +431,113 @@ function collectTemplateTextFindings(source: string, file: string, lineIndex: nu
   return findings;
 }
 
+function normalizeTemplateAttributeName(name: string): string {
+  return name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+}
+
+function isBoundTemplateAttribute(name: string): boolean {
+  return (
+    name.startsWith(':') || name.startsWith('@') || name.startsWith('#') || name.startsWith('v-') || name.includes(':')
+  );
+}
+
+function collectTemplateAttributeFindings(source: string, file: string, lineIndex: number[]): Finding[] {
+  const findings: Finding[] = [];
+
+  for (const block of findTemplateBlocks(source)) {
+    let index = block.start;
+    while (index < block.end) {
+      const tagStart = source.indexOf('<', index);
+      if (tagStart === -1 || tagStart >= block.end) {
+        break;
+      }
+
+      if (source.startsWith('<!--', tagStart)) {
+        const commentEnd = source.indexOf('-->', tagStart + 4);
+        index = commentEnd === -1 ? block.end : commentEnd + 3;
+        continue;
+      }
+
+      const tagEnd = findTagEnd(source, tagStart);
+      if (tagEnd === -1) {
+        break;
+      }
+
+      if (source[tagStart + 1] === '/') {
+        index = tagEnd + 1;
+        continue;
+      }
+
+      let cursor = tagStart + 1;
+      while (cursor < tagEnd && !/[\s/>]/.test(source[cursor])) {
+        cursor += 1;
+      }
+
+      while (cursor < tagEnd) {
+        while (cursor < tagEnd && /\s/.test(source[cursor])) {
+          cursor += 1;
+        }
+
+        if (cursor >= tagEnd || source[cursor] === '/') {
+          cursor += 1;
+          continue;
+        }
+
+        const attrNameStart = cursor;
+        while (cursor < tagEnd && !/[\s=>]/.test(source[cursor])) {
+          cursor += 1;
+        }
+        const attrName = source.slice(attrNameStart, cursor);
+
+        while (cursor < tagEnd && /\s/.test(source[cursor])) {
+          cursor += 1;
+        }
+
+        if (source[cursor] !== '=') {
+          continue;
+        }
+        cursor += 1;
+
+        while (cursor < tagEnd && /\s/.test(source[cursor])) {
+          cursor += 1;
+        }
+
+        const quote = source[cursor];
+        if (quote !== '"' && quote !== "'") {
+          while (cursor < tagEnd && !/\s/.test(source[cursor])) {
+            cursor += 1;
+          }
+          continue;
+        }
+
+        const valueStart = cursor + 1;
+        cursor = valueStart;
+        while (cursor < tagEnd && source[cursor] !== quote) {
+          cursor += source[cursor] === '\\' ? 2 : 1;
+        }
+        const value = source.slice(valueStart, cursor);
+        cursor += 1;
+
+        const fieldName = normalizeTemplateAttributeName(attrName);
+        if (
+          isBoundTemplateAttribute(attrName) ||
+          !UI_COPY_FIELDS.has(fieldName) ||
+          value.includes('{{') ||
+          value.includes('${')
+        ) {
+          continue;
+        }
+
+        addFinding(findings, file, lineForIndex(lineIndex, valueStart), value, fieldName);
+      }
+
+      index = tagEnd + 1;
+    }
+  }
+
+  return findings;
+}
+
 function collectUiFieldFindings(source: string, file: string, lineIndex: number[]): Finding[] {
   const findings: Finding[] = [];
   const strippedSource = preserveLineStructure(source);
@@ -483,6 +590,7 @@ function collectFindings(): Finding[] {
 
     if (file.endsWith('.vue')) {
       findings.push(...collectTemplateTextFindings(source, file, lineIndex));
+      findings.push(...collectTemplateAttributeFindings(source, file, lineIndex));
     }
 
     findings.push(...collectUiFieldFindings(source, file, lineIndex));

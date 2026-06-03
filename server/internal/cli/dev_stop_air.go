@@ -51,6 +51,7 @@ func runDevStopAir(cmd *cobra.Command, _ devStopAirOptions) error {
 	if err != nil {
 		return err
 	}
+	removeDevPIDFile(pidPaths.notify)
 
 	if supervisorCount == 0 && airCount == 0 && serveCount == 0 {
 		return writeDevStopAirResult(cmd.OutOrStdout(), "no development process found under %s\n", filepath.Dir(pidPaths.supervisor))

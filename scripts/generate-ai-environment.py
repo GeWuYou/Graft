@@ -112,12 +112,21 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     has_bash = available_tool(raw, "required_tools", "bash")
     has_docker = available_tool(raw, "project_tools", "docker")
     has_gh = optional_bool_value(raw, False, "project_tools", "gh", "installed")
+    has_gh_authenticated = optional_bool_value(raw, False, "project_tools", "gh", "authenticated")
     has_python_venv = optional_bool_value(raw, False, "python_environment", "venv", "available")
     has_project_venv = optional_bool_value(raw, False, "python_environment", "project_venv", "present")
     has_playwright = optional_bool_value(raw, False, "python_packages", "playwright", "installed")
     has_playwright_browsers = optional_bool_value(raw, False, "python_environment", "playwright_browsers", "present")
     has_playwright_system_deps = optional_bool_value(
         raw, False, "python_environment", "playwright_system_deps", "available"
+    )
+    has_ai_browser = (
+        has_python
+        and has_python_venv
+        and has_project_venv
+        and has_playwright
+        and has_playwright_browsers
+        and has_playwright_system_deps
     )
 
     server_scaffolded = bool_value(raw, "repository", "server_go_mod", "present")
@@ -158,12 +167,12 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     )
     github_cli = select_tool(
         use_for="GitHub API authentication and PR-related local automation.",
-        preferred="gh" if has_gh else None,
+        preferred="gh" if has_gh and has_gh_authenticated else None,
         fallback="environment token",
     )
     ai_browser = select_tool(
         use_for="AI-assisted local web UI screenshots and simple browser interactions.",
-        preferred="graft-web-browser-agent" if has_python and has_python_venv else None,
+        preferred="graft-web-browser-agent" if has_ai_browser else None,
         fallback=None,
     )
 
@@ -196,9 +205,10 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "bun": has_bun,
             "docker": has_docker,
             "gh": has_gh,
+            "gh_authenticated": has_gh_authenticated,
             "fast_search": has_rg,
             "json_cli": has_jq,
-            "ai_browser": has_python and has_python_venv,
+            "ai_browser": has_ai_browser,
             "playwright_python": has_playwright,
             "playwright_browsers": has_playwright_browsers,
             "playwright_system_deps": has_playwright_system_deps,

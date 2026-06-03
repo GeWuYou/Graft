@@ -6,9 +6,10 @@
       type="button"
       class="preset-card"
       :class="{ 'preset-card--active': activePresetId === preset.id }"
+      :style="thumbnailStyle(preset)"
       @click="$emit('select', preset.id)"
     >
-      <span class="preset-card__thumbnail" :style="thumbnailStyle(preset)">
+      <span class="preset-card__thumbnail">
         <span class="preset-card__thumb-shell">
           <span class="preset-card__thumb-sidebar">
             <span class="preset-card__thumb-brand" />

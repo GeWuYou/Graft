@@ -71,7 +71,7 @@ export function resourceLabel(row: AuditPresentationRecord, t: Translate) {
 
 function resourceSecondaryLabel(row: AuditPresentationRecord, t: Translate) {
   const secondary = [targetTypeLabel(row.target_type ?? row.resource_type, t), row.resource_id].filter(Boolean);
-  return secondary.join(' / ') || '-';
+  return secondary.join(' / ');
 }
 
 export function resourceDetailLabel(row: AuditLogListItem, t: Translate) {

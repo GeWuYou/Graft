@@ -44,6 +44,9 @@ func TestRunDevStopAirStopsTrackedPIDFiles(t *testing.T) {
 			t.Fatalf("write %s: %v", item.name, err)
 		}
 	}
+	if err := os.WriteFile(filepath.Join(tmpDir, devNotifyPIDName), []byte("11\n"), 0o600); err != nil {
+		t.Fatalf("write notify marker: %v", err)
+	}
 
 	var got []string
 	devStopAirSignal = func(pid int, signal syscall.Signal) error {
@@ -66,7 +69,7 @@ func TestRunDevStopAirStopsTrackedPIDFiles(t *testing.T) {
 	if !strings.Contains(stdout.String(), "supervisor=1 air=1 serve=1") {
 		t.Fatalf("expected stop output, got %q", stdout.String())
 	}
-	for _, name := range []string{devSupervisorPIDName, devAirPIDName, devServePIDName} {
+	for _, name := range []string{devSupervisorPIDName, devAirPIDName, devServePIDName, devNotifyPIDName} {
 		if _, err := os.Stat(filepath.Join(tmpDir, name)); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("expected %s removed, got err=%v", name, err)
 		}
