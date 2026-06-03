@@ -146,12 +146,15 @@
       "roleDialog": {
         "title": "Manage User Roles",
         "batchTitle": "Manage Selected User Roles",
-        "currentRolesTitle": "Current Roles",
-        "availableRolesTitle": "Assignable Roles",
-        "operationLabel": "Operation",
+        "headerEyebrow": "Resource Relationship Editor",
+        "saveStrategyLabel": "Save Strategy",
+        "searchPlaceholder": "Search role name, role code, or role description",
+        "assignedBadge": "Assigned",
+        "batchBadge": "Batch Edit",
         "batchSummary": "{count} selected users",
-        "roleSummary": "{count} roles loaded",
-        "noAssignedRoles": "No roles assigned",
+        "batchDescription": "Maintaining role bindings for the selected users together.",
+        "singleDescription": "System administrator account with admin-console access.",
+        "inlineHint": "{assigned} roles are currently assigned. Adjust them in the candidate list below; {total} roles are available.",
         "selectionCount": "{selected} / {total} roles selected",
         "modeSummary": "Mode: {mode}",
         "modeValue": {
@@ -174,6 +177,16 @@
           "replaceEmpty": "No roles selected. Saving replace will clear all roles for the selected users.",
           "add": "Add only appends the checked roles. Existing roles on selected users stay unchanged.",
           "remove": "Remove only detaches the checked roles. Other roles on selected users stay unchanged."
+        },
+        "summary": {
+          "selectedUsers": "Selected users",
+          "currentSelection": "Current selection",
+          "createdAt": "Created at",
+          "updatedAt": "Updated at"
+        },
+        "stats": {
+          "availableRoles": "Assignable roles",
+          "assignedRoles": "Currently assigned"
         },
         "submitBlocked": "Role changes are temporarily unavailable. Retry after refreshing the latest role data.",
         "retry": "Retry",

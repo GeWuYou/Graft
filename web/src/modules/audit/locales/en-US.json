@@ -34,6 +34,20 @@
         "MEDIUM": "Medium",
         "HIGH": "High",
         "CRITICAL": "Critical"
+      },
+      "targetType": {
+        "USER": "User",
+        "ROLE": "Role",
+        "PERMISSION": "Permission",
+        "AUDIT": "Audit",
+        "SERVER_STATUS": "Server Status",
+        "AUTH": "Authentication",
+        "user": "User",
+        "role": "Role",
+        "permission": "Permission",
+        "audit": "Audit",
+        "server_status": "Server Status",
+        "auth": "Authentication"
       }
     },
     "overview": {
@@ -502,6 +516,7 @@
     "actionLabel": {
       "auth": {
         "failed": "Authentication Failed",
+        "token_expired": "Token Expired",
         "token": {
           "expired": "Token Expired"
         }

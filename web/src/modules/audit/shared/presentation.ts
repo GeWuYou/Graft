@@ -6,6 +6,19 @@ import type { AuditResult as AuditResultEnum, AuditRiskLevel as AuditRiskLevelEn
 import type { AuditSorter } from '../types/audit';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
+type AuditPresentationRecord = {
+  action?: string;
+  result?: AuditResultEnum;
+  source?: AuditSourceValue;
+  resource_id?: string;
+  resource_name?: string;
+  resource_type?: string;
+  target_label?: string | null;
+  target_type?: string | null;
+  request_path?: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+};
 
 export type AuditRiskValue = 'all' | AuditRiskLevelEnum;
 export type AuditResultValue = 'all' | AuditResultEnum;
@@ -45,26 +58,26 @@ export function actorSecondaryLabel(row: AuditLogListItem) {
   return row.actor_username || row.actor_user_id?.toString() || '-';
 }
 
-export function resourceLabel(row: AuditLogListItem, t: Translate) {
+export function resourceLabel(row: AuditPresentationRecord, t: Translate) {
   return (
     row.target_label ||
     row.resource_name ||
-    resourceSecondaryLabel(row) ||
+    resourceSecondaryLabel(row, t) ||
     row.request_path ||
     metadataLookup(row, 'request_path') ||
     t('audit.common.unknownResource')
   );
 }
 
-function resourceSecondaryLabel(row: AuditLogListItem) {
-  const secondary = [targetTypeLabel(row.target_type), row.resource_id].filter(Boolean);
+function resourceSecondaryLabel(row: AuditPresentationRecord, t: Translate) {
+  const secondary = [targetTypeLabel(row.target_type ?? row.resource_type, t), row.resource_id].filter(Boolean);
   return secondary.join(' / ') || '-';
 }
 
 export function resourceDetailLabel(row: AuditLogListItem, t: Translate) {
-  const label = row.target_label || row.resource_name || resourceSecondaryLabel(row) || row.request_path;
+  const label = row.target_label || row.resource_name || resourceSecondaryLabel(row, t) || row.request_path;
   return (
-    [label, targetTypeLabel(row.target_type), row.resource_id].filter(Boolean).join(' / ') ||
+    [label, targetTypeLabel(row.target_type ?? row.resource_type, t), row.resource_id].filter(Boolean).join(' / ') ||
     t('audit.common.unknownResource')
   );
 }
@@ -87,7 +100,7 @@ export function reasonForRecord(row: AuditLogListItem, t: Translate) {
   );
 }
 
-function sourceForRecord(row: AuditLogListItem): AuditSourceValue {
+function sourceForRecord(row: AuditPresentationRecord): AuditSourceValue {
   const source = (
     metadataLookup(row, 'auditSource') ||
     metadataLookup(row, 'audit_source') ||
@@ -107,7 +120,7 @@ function sourceForRecord(row: AuditLogListItem): AuditSourceValue {
   return 'UNKNOWN';
 }
 
-export function sourceLabel(row: AuditLogListItem, t: Translate) {
+export function sourceLabel(row: AuditPresentationRecord, t: Translate) {
   return t(`audit.common.source.${row.source || sourceForRecord(row)}`);
 }
 
@@ -116,11 +129,11 @@ function translateIfPresent(t: Translate, key: string, fallback: string) {
   return translated === key ? fallback : translated;
 }
 
-export function actionCategoryLabel(row: AuditLogListItem, t: Translate) {
+export function actionCategoryLabel(row: AuditPresentationRecord, t: Translate) {
   return sourceLabel(row, t);
 }
 
-export function actionTitle(row: AuditLogListItem, t: Translate) {
+export function actionTitle(row: AuditPresentationRecord, t: Translate) {
   const actionKey = row.action?.trim();
   if (!actionKey) {
     return t('audit.common.unknownResource');
@@ -129,7 +142,7 @@ export function actionTitle(row: AuditLogListItem, t: Translate) {
   return translateIfPresent(t, `audit.actionLabel.${actionKey}`, actionCategoryLabel(row, t));
 }
 
-export function metadataLookup(row: AuditLogListItem, key: string) {
+export function metadataLookup(row: AuditPresentationRecord, key: string) {
   const metadata = row.metadata;
   if (!metadata || typeof metadata !== 'object' || !(key in metadata)) {
     return '';
@@ -184,23 +197,12 @@ export function resultLabel(row: AuditLogListItem, t: Translate) {
   return t(`audit.common.result.${row.result || 'FAILED'}`);
 }
 
-function targetTypeLabel(value?: string | null) {
-  switch (value) {
-    case 'USER':
-      return '用户';
-    case 'ROLE':
-      return '角色';
-    case 'PERMISSION':
-      return '权限';
-    case 'AUDIT':
-      return '审计';
-    case 'SERVER_STATUS':
-      return '服务器状态';
-    case 'AUTH':
-      return '认证';
-    default:
-      return value || '';
+function targetTypeLabel(value: string | null | undefined, t: Translate) {
+  if (!value) {
+    return '';
   }
+
+  return translateIfPresent(t, `audit.common.targetType.${value}`, value);
 }
 
 export function formatAuditTimestamp(value?: string | null, locale?: string) {

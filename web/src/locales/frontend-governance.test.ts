@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -113,6 +113,22 @@ describe('frontend visible-copy governance', () => {
       expect(resolvePath(rootEn, key)).toEqual(expect.any(String));
     });
   });
+
+  it('keeps zh-CN and en-US locale key sets aligned', () => {
+    collectLocalePairs(resolve(process.cwd(), 'src')).forEach(({ label, zhFile, enFile }) => {
+      const zhKeys = collectStringKeys(loadJson(zhFile));
+      const enKeys = collectStringKeys(loadJson(enFile));
+
+      expect(
+        [...zhKeys].filter((key) => !enKeys.has(key)),
+        `${label} missing en-US keys`,
+      ).toEqual([]);
+      expect(
+        [...enKeys].filter((key) => !zhKeys.has(key)),
+        `${label} missing zh-CN keys`,
+      ).toEqual([]);
+    });
+  });
 });
 
 function loadJson(filePath: string): JsonRecord {
@@ -143,4 +159,55 @@ function collectStrings(value: unknown): string[] {
   }
 
   return [];
+}
+
+function collectLocalePairs(rootDir: string): Array<{ label: string; zhFile: string; enFile: string }> {
+  const groups = new Map<string, Partial<Record<'zh-CN' | 'en-US', string>>>();
+
+  walkFiles(rootDir).forEach((filePath) => {
+    const match = filePath.match(/(?:^|\/)(zh-CN|en-US)\.json$/);
+    if (!match) {
+      return;
+    }
+
+    const key = relative(rootDir, filePath).replace(/(?:zh-CN|en-US)\.json$/, '{locale}.json');
+    const group = groups.get(key) ?? {};
+    group[match[1] as 'zh-CN' | 'en-US'] = filePath;
+    groups.set(key, group);
+  });
+
+  return [...groups.entries()].map(([label, group]) => {
+    expect(group['zh-CN'], `${label} zh-CN file`).toEqual(expect.any(String));
+    expect(group['en-US'], `${label} en-US file`).toEqual(expect.any(String));
+
+    return {
+      label,
+      zhFile: group['zh-CN'] as string,
+      enFile: group['en-US'] as string,
+    };
+  });
+}
+
+function walkFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = join(dir, entry.name);
+    return entry.isDirectory() ? walkFiles(fullPath) : [fullPath];
+  });
+}
+
+function collectStringKeys(value: unknown, prefix = '', output = new Set<string>()): Set<string> {
+  if (typeof value === 'string') {
+    output.add(prefix);
+    return output;
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return output;
+  }
+
+  Object.entries(value as JsonRecord).forEach(([key, child]) => {
+    collectStringKeys(child, prefix ? `${prefix}.${key}` : key, output);
+  });
+
+  return output;
 }

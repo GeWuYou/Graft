@@ -34,6 +34,20 @@
         "MEDIUM": "中风险",
         "HIGH": "高风险",
         "CRITICAL": "严重"
+      },
+      "targetType": {
+        "USER": "用户",
+        "ROLE": "角色",
+        "PERMISSION": "权限",
+        "AUDIT": "审计",
+        "SERVER_STATUS": "服务器状态",
+        "AUTH": "认证",
+        "user": "用户",
+        "role": "角色",
+        "permission": "权限",
+        "audit": "审计",
+        "server_status": "服务器状态",
+        "auth": "认证"
       }
     },
     "overview": {
@@ -502,6 +516,7 @@
     "actionLabel": {
       "auth": {
         "failed": "认证失败",
+        "token_expired": "令牌失效",
         "token": {
           "expired": "令牌失效"
         }

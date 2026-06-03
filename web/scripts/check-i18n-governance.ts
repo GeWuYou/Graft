@@ -50,6 +50,11 @@ type Finding = {
   text: string;
 };
 
+type LocaleFinding = {
+  file: string;
+  message: string;
+};
+
 type ParsedString = {
   value: string;
   endIndex: number;
@@ -511,14 +516,138 @@ function dedupeFindings(findings: Finding[]): Finding[] {
   return deduped;
 }
 
+function isLocaleFile(file: string): boolean {
+  return /(?:^|\/)(?:zh-CN|en-US)\.json$/.test(file);
+}
+
+function localePairKey(file: string): string {
+  return file.replace(/(?:zh-CN|en-US)\.json$/, '{locale}.json');
+}
+
+function localeFromFile(file: string): 'zh-CN' | 'en-US' | null {
+  const match = file.match(/(?:^|\/)(zh-CN|en-US)\.json$/);
+  return match ? (match[1] as 'zh-CN' | 'en-US') : null;
+}
+
+function collectLocaleFiles(dir: string): string[] {
+  const files: string[] = [];
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (EXCLUDED_DIRS.has(entry.name)) {
+      continue;
+    }
+
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectLocaleFiles(fullPath));
+      continue;
+    }
+
+    const file = relative(ROOT_DIR, fullPath).replaceAll('\\', '/');
+    if (isLocaleFile(file)) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+function flattenLocaleStrings(value: unknown, prefix = '', output = new Map<string, string>()): Map<string, string> {
+  if (typeof value === 'string') {
+    output.set(prefix, value);
+    return output;
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return output;
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    flattenLocaleStrings(child, prefix ? `${prefix}.${key}` : key, output);
+  }
+
+  return output;
+}
+
+function collectLocaleFindings(): LocaleFinding[] {
+  const groupedFiles = new Map<string, Partial<Record<'zh-CN' | 'en-US', string>>>();
+  const findings: LocaleFinding[] = [];
+
+  for (const filePath of collectLocaleFiles(SRC_DIR)) {
+    const file = relative(ROOT_DIR, filePath).replaceAll('\\', '/');
+    const locale = localeFromFile(file);
+    if (!locale) {
+      continue;
+    }
+
+    const pairKey = localePairKey(file);
+    const group = groupedFiles.get(pairKey) ?? {};
+    group[locale] = filePath;
+    groupedFiles.set(pairKey, group);
+  }
+
+  for (const [pairKey, group] of groupedFiles) {
+    if (!group['zh-CN'] || !group['en-US']) {
+      findings.push({
+        file: pairKey,
+        message: 'missing paired zh-CN/en-US locale file',
+      });
+      continue;
+    }
+
+    const zhFile = relative(ROOT_DIR, group['zh-CN']).replaceAll('\\', '/');
+    const enFile = relative(ROOT_DIR, group['en-US']).replaceAll('\\', '/');
+    const zhMessages = flattenLocaleStrings(JSON.parse(readFileSync(group['zh-CN'], 'utf8')));
+    const enMessages = flattenLocaleStrings(JSON.parse(readFileSync(group['en-US'], 'utf8')));
+    const zhKeys = new Set(zhMessages.keys());
+    const enKeys = new Set(enMessages.keys());
+
+    for (const key of [...zhKeys].sort()) {
+      if (!enKeys.has(key)) {
+        findings.push({ file: enFile, message: `missing locale key ${key}` });
+      }
+    }
+
+    for (const key of [...enKeys].sort()) {
+      if (!zhKeys.has(key)) {
+        findings.push({ file: zhFile, message: `missing locale key ${key}` });
+      }
+    }
+
+    for (const [key, value] of [...zhMessages.entries(), ...enMessages.entries()]) {
+      if (normalizeText(value) === key) {
+        findings.push({ file: pairKey, message: `locale key ${key} resolves to itself` });
+      }
+    }
+  }
+
+  return findings.sort((left, right) => {
+    if (left.file !== right.file) {
+      return left.file.localeCompare(right.file);
+    }
+    return left.message.localeCompare(right.message);
+  });
+}
+
 const findings = collectFindings();
+const localeFindings = collectLocaleFindings();
 
 if (findings.length > 0) {
   process.stdout.write('Found hard-coded UI text:\n');
   for (const finding of findings) {
     process.stdout.write(`- ${finding.file}:${finding.line} ${finding.text}\n`);
   }
+}
+
+if (localeFindings.length > 0) {
+  process.stdout.write('Found locale governance issues:\n');
+  for (const finding of localeFindings) {
+    process.stdout.write(`- ${finding.file} ${finding.message}\n`);
+  }
+}
+
+if (findings.length > 0 || localeFindings.length > 0) {
   process.exitCode = 1;
 } else {
-  process.stdout.write('No hard-coded UI text found.\n');
+  process.stdout.write('No hard-coded UI text or locale governance issues found.\n');
 }
