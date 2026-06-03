@@ -85,19 +85,51 @@ const thumbnailStyle = (preset: ThemePresetDefinition): CSSProperties => {
   border-radius: var(--td-radius-large);
   display: grid;
   gap: 10px;
+  isolation: isolate;
   min-width: 0;
+  overflow: hidden;
   padding: 12px;
+  position: relative;
   text-align: left;
   transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
 }
 
-.preset-card:hover {
-  border-color: color-mix(in srgb, var(--preset-brand-color, var(--td-brand-color)) 44%, var(--td-component-stroke));
-  box-shadow: var(--td-shadow-1);
-  transform: translateY(-1px);
+.preset-card::before {
+  background: radial-gradient(
+    circle at 50% 34%,
+    color-mix(in srgb, var(--preset-brand-color, var(--td-brand-color)) 18%, transparent),
+    transparent 64%
+  );
+  content: '';
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 220ms ease;
+  z-index: 0;
+}
+
+.preset-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.preset-card:hover,
+.preset-card:focus-visible {
+  border-color: color-mix(in srgb, var(--preset-brand-color, var(--td-brand-color)) 68%, var(--td-component-stroke));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--preset-brand-color, var(--td-brand-color)) 18%, transparent),
+    0 14px 30px color-mix(in srgb, var(--preset-brand-color, var(--td-brand-color)) 16%, transparent),
+    var(--td-shadow-1);
+  transform: translateY(-2px);
+}
+
+.preset-card:hover::before,
+.preset-card:focus-visible::before {
+  opacity: 1;
 }
 
 .preset-card--active {

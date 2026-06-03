@@ -1212,6 +1212,56 @@ const toggleAdvancedVisible = (value: boolean) => {
   box-shadow: var(--td-shadow-1);
 }
 
+.settings-layout__section--nav .choice-card,
+.settings-layout__section--layout-choices .choice-card {
+  isolation: isolate;
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+
+.settings-layout__section--nav .choice-card::before,
+.settings-layout__section--layout-choices .choice-card::before {
+  background: radial-gradient(
+    circle at 50% 42%,
+    color-mix(in srgb, var(--td-brand-color) 18%, transparent),
+    transparent 62%
+  );
+  content: '';
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 220ms ease;
+  z-index: 0;
+}
+
+.settings-layout__section--nav .choice-card > *,
+.settings-layout__section--layout-choices .choice-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.settings-layout__section--nav .choice-card:hover,
+.settings-layout__section--layout-choices .choice-card:hover,
+.settings-layout__section--nav .choice-card:focus-visible,
+.settings-layout__section--layout-choices .choice-card:focus-visible {
+  border-color: color-mix(in srgb, var(--td-brand-color) 68%, var(--td-component-stroke));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--td-brand-color) 18%, transparent),
+    0 14px 30px color-mix(in srgb, var(--td-brand-color) 16%, transparent),
+    var(--td-shadow-1);
+  transform: translateY(-2px);
+}
+
+.settings-layout__section--nav .choice-card:hover::before,
+.settings-layout__section--layout-choices .choice-card:hover::before,
+.settings-layout__section--nav .choice-card:focus-visible::before,
+.settings-layout__section--layout-choices .choice-card:focus-visible::before {
+  opacity: 1;
+}
+
 .settings-layout__section--mode .choice-grid,
 .settings-layout__section--nav .choice-grid,
 .settings-layout--layout .choice-grid {
@@ -1418,6 +1468,45 @@ const toggleAdvancedVisible = (value: boolean) => {
   min-width: 0;
   overflow: hidden;
   padding: 10px 12px;
+  position: relative;
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+
+.brand-input::before {
+  background: radial-gradient(
+    circle at 54% 36%,
+    color-mix(in srgb, var(--td-brand-color) 22%, transparent),
+    transparent 64%
+  );
+  content: '';
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 220ms ease;
+}
+
+.brand-input > * {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-input:hover,
+.brand-input:focus-within {
+  border-color: color-mix(in srgb, var(--td-brand-color) 72%, var(--td-component-stroke));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--td-brand-color) 20%, transparent),
+    0 16px 34px color-mix(in srgb, var(--td-brand-color) 18%, transparent),
+    var(--td-shadow-1);
+  transform: translateY(-2px);
+}
+
+.brand-input:hover::before,
+.brand-input:focus-within::before {
+  opacity: 1;
 }
 
 .brand-input__content {
