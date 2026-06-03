@@ -121,6 +121,22 @@ Overlay note:
     - future retention changes must open a new bounded topic instead of reopening this governance slice
   - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat phase-d-access-log-retention-governance as archived retention evidence and open a new bounded topic instead of resuming it in place.`
 
+- `phase-d-access-log-runtime-storage`
+  - Status: `archived`
+  - Recovery status: completed the bounded server runtime-storage topic for durable access-log persistence and runtime wiring.
+  - Archive reason: the SQL-backed write path, owner-aligned migration chain, runtime wiring, and fresh PostgreSQL smoke proof are complete.
+  - Final result:
+    - `server/internal/httpx/**` owns access-log persistence, middleware write semantics, explorer read handlers, retention cleanup, and live migrations
+    - `server/internal/app/**` wires the shared SQL-backed repository into the runtime and registers the explorer/retention surfaces
+    - fresh PostgreSQL smoke proof persisted `GET /healthz 200` into `access_logs`
+  - Follow-up status: `new-topic-only`
+  - Archived topic directory:
+    - `ai-plan/public/archive/phase-d-access-log-runtime-storage`
+  - Archive notes:
+    - future partitioning, production retention tuning, or explorer expansion must open a new bounded topic
+    - access-log storage remains request-fact authority only and must not absorb audit/security/app-log semantics
+  - Next-session prompt: `Re-run startup preflight from root AGENTS.md. Treat phase-d-access-log-runtime-storage as archived runtime evidence and open a new bounded topic only if access-log lifecycle, explorer expansion, or production retention behavior is being changed.`
+
 - `phase-d-app-log-durable-storage-decision`
   - Status: `archived`
   - Recovery status: completed the bounded server-side app-log durable-storage decision topic.

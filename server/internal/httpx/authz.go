@@ -140,6 +140,7 @@ func authorizeRequest(
 	code string,
 	auditPublisher SecurityAuditPublisher,
 ) bool {
+	ctx.Request = ctx.Request.WithContext(request.ctx)
 	if strings.TrimSpace(code) == "" {
 		return false
 	}

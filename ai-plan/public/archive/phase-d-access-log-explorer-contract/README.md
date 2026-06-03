@@ -6,7 +6,7 @@
 - Status: `archived`
 - Task class: `cross-boundary`
 - Recovery source: `subtopic`
-  - `ai-plan/public/phase-d-access-log-runtime-storage/README.md`
+  - `ai-plan/public/archive/phase-d-access-log-runtime-storage/README.md`
   - `ai-plan/design/Access-Log-Authority-Contract.md`
   - `server/internal/httpx/**`
   - current observability governance docs

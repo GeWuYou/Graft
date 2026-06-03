@@ -6,25 +6,25 @@ This document defines the canonical authority contract for future `Access Log` r
 
 This document is governance-only.
 
-It does not approve:
+Historical scope note:
 
-- new log pages
-- `Access Log Explorer` UI work
-- durable access-log storage
-- access-log query APIs
-- metrics, tracing, OpenTelemetry, or monitor-scope expansion
+- this document originally defined the authority contract before implementation approval
+- later bounded topics approved and implemented durable access-log storage, read APIs, and the `web` access-log explorer
+- metrics, tracing, OpenTelemetry, monitor-scope expansion, app-log storage, and audit/security ownership changes remain outside this contract
 
 ## 2. Authority Summary
 
 - runtime semantics owner
   - `server/internal/httpx/**`
-- shared wire-contract owner for future approved APIs
+- durable storage and retention runtime owner
+  - `server/internal/httpx/**`
+- shared wire-contract owner for approved APIs
   - `openapi/**`
 - generated artifact consumers
   - `server/internal/contract/openapi/**`
   - `web/src/contracts/openapi/generated/**`
-- future frontend consumer
-  - future `web/src/modules/<access-log-explorer>/**`
+- frontend consumer
+  - `web/src/modules/access-log/**`
 
 `web` is a downstream consumer only.
 
@@ -105,26 +105,23 @@ Forbidden fields in canonical `Access Log` authority:
 
 Current runtime already emits these canonical fields from `server/internal/httpx/accesslog.go`:
 
-- `requestId`
-- `traceId` as `requestId` alias only
+- `request_id`
+- `trace_id` as `request_id` alias only in the current MVP
 - `method`
 - `path`
 - `route`
-- `status`
-- `latency`
-- `clientIp`
-- `userAgent`
-
-Current runtime does not yet emit canonical access-log authority for:
-
+- `status_code`
+- `duration_ms`
+- `client_ip`
+- `user_agent`
 - `user_id`
 - `username`
 - `request_size`
 - `response_size`
-- `occurred_at` as an explicit field
-- `duration_ms` as normalized millisecond field
+- `started_at`
+- `occurred_at`
 
-Those are contract-defined now, but runtime implementation remains future work.
+The canonical write path is the `server/internal/httpx/**` access-log middleware and SQL repository.
 
 ## 6. Query Contract
 
@@ -263,33 +260,29 @@ Forbidden workflow assumptions:
 | Layer | Owner | Responsibility |
 | --- | --- | --- |
 | runtime logging semantics | `server/internal/httpx/**` | define request-fact field semantics, request lifecycle capture, normalization rules |
-| future durable access-log store | future runtime topic only | not approved in this contract topic |
-| future shared API contract | `openapi/**` | own canonical HTTP wire schema after runtime topic approval |
+| durable access-log store | `server/internal/httpx/**` | persist canonical request-fact records only |
+| shared API contract | `openapi/**` | own canonical HTTP wire schema |
 | generated server artifacts | `server/internal/contract/openapi/**` | consume OpenAPI source as derived artifact |
 | generated web artifacts | `web/src/contracts/openapi/generated/**` | consume OpenAPI source as derived artifact |
-| future web explorer module | future `web/src/modules/<access-log-explorer>/**` | consume canonical contract only; no authority ownership |
+| web explorer module | `web/src/modules/access-log/**` | consume canonical contract only; no authority ownership |
 
 ## 11. Governance Gaps
 
-- no durable storage authority exists for access logs
-- no approved access-log query API exists
-- no explicit runtime field capture exists yet for `user_id`, `username`, `request_size`, `response_size`, `occurred_at`, `duration_ms`
-- current runtime emits `status` and `latency`, not yet normalized `status_code` and `duration_ms`
 - current runtime emits `traceId` only as `requestId` alias; no independent tracing authority exists
-- no explicit access-log authz/query permission contract exists
-- no OpenAPI source exists yet for access-log explorer consumption
+- partitioning and production-scale retention tuning remain future operational topics
+- access-log explorer expansion must keep `Access Log` as request-fact authority only
 
 ## 12. Recommended Next Runtime Topic
 
-Recommended runtime topic:
+Historical recommended runtime topic:
 
 - `phase-d-access-log-runtime-storage`
 
-This future topic may start only after it keeps the current contract truthful:
+This topic is now archived as implemented runtime evidence. Future access-log topics must keep the current contract truthful:
 
-- no access-log UI work before runtime storage/query authority exists
 - no reuse of `audit_logs` as access-log store
 - no new contract fields from frontend semantics
+- no audit/security/app-log semantics in the `access_logs` table
 
 ## 13. Final Verdict
 

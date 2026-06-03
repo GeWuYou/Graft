@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"graft/server/internal/config"
+	"graft/server/internal/eventbus"
 	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
 )
@@ -321,6 +322,180 @@ func TestRequirePermissionInjectsCanonicalRequestAuditContext(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+}
+
+func TestSecurityAuditPublisherPublishesPermissionDeniedAuditEvent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	bus := eventbus.New(nil)
+	events := make([]moduleapi.AuditEvent, 0, 1)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("expected audit event payload, got %#v", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit event: %v", err)
+	}
+
+	authService := newAuthenticatedAuthService()
+	authorizer := testAuthorizer{
+		authorize: func(context.Context, moduleapi.RequestAuthContext, string) error {
+			return moduleapi.ErrPermissionDenied
+		},
+	}
+	publisher := NewSecurityAuditPublisher(bus, nil, "test-authz")
+
+	recorder := httptest.NewRecorder()
+	ctx, engine := gin.CreateTestContext(recorder)
+	engine.Use(RequirePermission(newTestLocalizer(), authService, authorizer, "user.read", publisher))
+	engine.GET("/api/users/:id", func(inner *gin.Context) {
+		inner.Status(http.StatusOK)
+	})
+
+	request := newBearerRequest("/api/users/1", "token-1")
+	request.Header.Set("User-Agent", "security-test")
+	ctx.Request = request
+	engine.HandleContext(ctx)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected one security audit event, got %d", len(events))
+	}
+
+	event := events[0]
+	if event.Kind != moduleapi.AuditEventKindSecurity {
+		t.Fatalf("expected security event kind, got %q", event.Kind)
+	}
+	if event.Action != string(securityAuditEventAuthorizationDeny) {
+		t.Fatalf("expected permission-denied action, got %q", event.Action)
+	}
+	if event.Operator == nil || event.Operator.ID != 7 {
+		t.Fatalf("expected authenticated operator, got %#v", event.Operator)
+	}
+	if event.RequestPath != "/api/users/:id" || event.RequestMethod != http.MethodGet {
+		t.Fatalf("expected canonical route/method, got %#v", event)
+	}
+	if event.StatusCode != http.StatusForbidden || event.Success {
+		t.Fatalf("expected failed 403 event, got %#v", event)
+	}
+
+	assertSecurityAuditMetadata(t, event.Metadata, map[string]any{
+		"component":  "httpx.authz",
+		"eventType":  string(securityAuditEventAuthorizationDeny),
+		"method":     http.MethodGet,
+		"module":     "test-authz",
+		"path":       "/api/users/:id",
+		"permission": "user.read",
+		"riskLevel":  "CRITICAL",
+		"route":      "/api/users/:id",
+		"status":     http.StatusForbidden,
+		"targetId":   "user.read",
+		"targetType": "permission",
+	})
+}
+
+func TestSecurityAuditPublisherPublishesMissingTokenAuditEvent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	bus := eventbus.New(nil)
+	events := make([]moduleapi.AuditEvent, 0, 1)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("expected audit event payload, got %#v", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit event: %v", err)
+	}
+
+	authService := testAuthService{
+		parseAccessToken: func(context.Context, string) (*moduleapi.AccessTokenClaims, error) {
+			t.Fatal("parse access token should not be called without bearer token")
+			return nil, nil
+		},
+		currentUser: func(context.Context) (*moduleapi.CurrentUser, error) {
+			t.Fatal("current user should not be called without bearer token")
+			return nil, nil
+		},
+	}
+	authorizer := testAuthorizer{
+		authorize: func(context.Context, moduleapi.RequestAuthContext, string) error {
+			t.Fatal("authorize should not be called without bearer token")
+			return nil
+		},
+	}
+	publisher := NewSecurityAuditPublisher(bus, nil, "test-authz")
+
+	recorder := httptest.NewRecorder()
+	ctx, engine := gin.CreateTestContext(recorder)
+	engine.Use(RequirePermission(newTestLocalizer(), authService, authorizer, "user.read", publisher))
+	engine.GET("/api/users/:id", func(inner *gin.Context) {
+		inner.Status(http.StatusOK)
+	})
+
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/users/1", nil)
+	engine.HandleContext(ctx)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected one security audit event, got %d", len(events))
+	}
+
+	event := events[0]
+	if event.Kind != moduleapi.AuditEventKindSecurity {
+		t.Fatalf("expected security event kind, got %q", event.Kind)
+	}
+	if event.Action != string(securityAuditEventAuthTokenMissing) {
+		t.Fatalf("expected token-missing action, got %q", event.Action)
+	}
+	if event.Operator != nil {
+		t.Fatalf("missing-token event should not have an operator, got %#v", event.Operator)
+	}
+	if event.RequestPath != "/api/users/:id" || event.RequestMethod != http.MethodGet {
+		t.Fatalf("expected canonical route/method, got %#v", event)
+	}
+	if event.StatusCode != http.StatusUnauthorized || event.Success {
+		t.Fatalf("expected failed 401 event, got %#v", event)
+	}
+
+	assertSecurityAuditMetadata(t, event.Metadata, map[string]any{
+		"component": "httpx.authz",
+		"eventType": string(securityAuditEventAuthTokenMissing),
+		"method":    http.MethodGet,
+		"module":    "test-authz",
+		"path":      "/api/users/:id",
+		"riskLevel": "CRITICAL",
+		"route":     "/api/users/:id",
+		"status":    http.StatusUnauthorized,
+	})
+}
+
+func assertSecurityAuditMetadata(t *testing.T, metadata map[string]any, want map[string]any) {
+	t.Helper()
+
+	for key, wantValue := range want {
+		if got := metadata[key]; got != wantValue {
+			t.Fatalf("metadata[%q]: expected %#v, got %#v in %#v", key, wantValue, got, metadata)
+		}
+	}
+	for _, key := range []string{"requestId", "traceId"} {
+		value, ok := metadata[key].(string)
+		if !ok || value == "" {
+			t.Fatalf("expected non-empty %s in metadata, got %#v", key, metadata)
+		}
+	}
+	if metadata["requestId"] != metadata["traceId"] {
+		t.Fatalf("expected MVP traceId to match requestId, got %#v", metadata)
 	}
 }
 
