@@ -7,7 +7,6 @@
 - Status: `archived`
 - Original branch: `feat/wt-monitor-server-status`
 - Final closeout branch: `fix/module-runtime-ui-closeout`
-- Original worktree: `/mnt/f/gewuyou/Project/Go/Graft-WorkTree/Graft-wt-monitor-server-status`
 - Scope: first minimal implementation slice under `server/modules/monitor/**` and `web/src/modules/monitor/**`
 
 ## Goal

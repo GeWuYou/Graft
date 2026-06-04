@@ -5,7 +5,12 @@ import { defineComponent, h } from 'vue';
 import ModulesPage from './index.vue';
 
 const moduleRuntimeApiMocks = vi.hoisted(() => ({
+  getModuleRuntimeDetail: vi.fn(),
   getModuleRuntimeSnapshot: vi.fn(),
+}));
+
+const loggerMocks = vi.hoisted(() => ({
+  error: vi.fn(),
 }));
 
 const translations = vi.hoisted(
@@ -99,6 +104,7 @@ const translations = vi.hoisted(
 );
 
 vi.mock('../../api/module-runtime', () => ({
+  getModuleRuntimeDetail: moduleRuntimeApiMocks.getModuleRuntimeDetail,
   getModuleRuntimeSnapshot: moduleRuntimeApiMocks.getModuleRuntimeSnapshot,
 }));
 
@@ -112,6 +118,10 @@ vi.mock('vue-i18n', () => ({
       );
     },
   }),
+}));
+
+vi.mock('@/utils/logger', () => ({
+  createLogger: () => loggerMocks,
 }));
 
 const shellStub = defineComponent({
@@ -254,7 +264,9 @@ function mountModulesPage() {
 }
 
 afterEach(() => {
-  vi.clearAllMocks();
+  moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockReset();
+  moduleRuntimeApiMocks.getModuleRuntimeDetail.mockReset();
+  loggerMocks.error.mockReset();
 });
 
 function createSnapshot() {
@@ -300,7 +312,9 @@ function createSnapshot() {
 
 describe('monitor module runtime page', () => {
   it('loads module runtime snapshot and renders summary, table state, and detail drawer', async () => {
-    moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValue(createSnapshot());
+    const snapshot = createSnapshot();
+    moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValue(snapshot);
+    moduleRuntimeApiMocks.getModuleRuntimeDetail.mockResolvedValue(snapshot.items[0]);
 
     const wrapper = mountModulesPage();
     await flushPromises();
@@ -344,6 +358,7 @@ describe('monitor module runtime page', () => {
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('Module-owned');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('boot');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('ok');
+    expect(moduleRuntimeApiMocks.getModuleRuntimeDetail).toHaveBeenCalledWith('audit');
   });
 
   it('refreshes the snapshot on demand', async () => {
@@ -384,6 +399,31 @@ describe('monitor module runtime page', () => {
     await flushPromises();
 
     expect(errorWrapper.text()).toContain('Module snapshot request failed');
-    expect(errorWrapper.text()).toContain('network down');
+    expect(errorWrapper.text()).toContain('Failed to load module runtime snapshot');
+    expect(errorWrapper.text()).not.toContain('network down');
+    expect(loggerMocks.error).toHaveBeenCalledWith(expect.any(Error), {
+      operation: 'module_runtime_snapshot',
+    });
+  });
+
+  it('shows the localized load failure message when detail loading fails', async () => {
+    moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValue(createSnapshot());
+    moduleRuntimeApiMocks.getModuleRuntimeDetail.mockRejectedValue(new Error('detail unavailable'));
+
+    const wrapper = mountModulesPage();
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Detail'))
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Failed to load module runtime snapshot');
+    expect(wrapper.text()).not.toContain('detail unavailable');
+    expect(wrapper.find('[data-drawer="true"]').exists()).toBe(false);
+    expect(loggerMocks.error).toHaveBeenCalledWith(expect.any(Error), {
+      moduleKey: 'audit',
+      operation: 'module_runtime_detail',
+    });
   });
 });

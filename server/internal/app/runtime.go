@@ -422,6 +422,10 @@ func (r *Runtime) registerModuleRuntimeWithAuth(
 func (r *Runtime) moduleRuntimeSpecs() []module.Spec {
 	ordered, err := moduleregistry.OrderedModuleSpecs()
 	if err != nil {
+		r.appLogger().Warn(context.Background(), "module runtime spec ordering failed",
+			logger.StringField(logger.FieldOperation, "module_runtime_specs"),
+			logger.ErrorField(err),
+		)
 		return moduleregistry.ModuleSpecs()
 	}
 

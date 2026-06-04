@@ -112,12 +112,6 @@
           </t-button>
         </template>
       </t-table>
-
-      <t-empty
-        v-if="initialized && !loading && !items.length && !errorMessage"
-        class="module-runtime-empty"
-        :description="t('monitor.moduleRuntime.empty')"
-      />
     </section-card>
 
     <t-drawer
@@ -276,7 +270,9 @@ import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { getModuleRuntimeSnapshot } from '../../api/module-runtime';
+import { createLogger } from '@/utils/logger';
+
+import { getModuleRuntimeDetail, getModuleRuntimeSnapshot } from '../../api/module-runtime';
 import SectionCard from '../../components/SectionCard.vue';
 import type { ServerStatusTone } from '../../components/server-status-ui';
 import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
@@ -291,6 +287,7 @@ import type {
 } from '../../types/module-runtime';
 
 const { t } = useI18n();
+const moduleRuntimeLogger = createLogger('monitor.module-runtime.page');
 
 const snapshot = ref<ModuleRuntimeSnapshot | null>(null);
 const loading = ref(false);
@@ -357,7 +354,11 @@ const headerStatusLabel = computed(() => {
   }
 });
 
-const emptyTableContent = computed(() => (initialized.value && !loading.value ? t('monitor.moduleRuntime.empty') : ''));
+const emptyTableContent = computed(() =>
+  initialized.value && !loading.value && !items.value.length && !errorMessage.value
+    ? t('monitor.moduleRuntime.empty')
+    : '',
+);
 
 const detailHeader = computed(() =>
   selectedModule.value
@@ -428,16 +429,29 @@ async function refreshSnapshot() {
   try {
     snapshot.value = await getModuleRuntimeSnapshot();
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : t('monitor.moduleRuntime.errorFallback');
+    moduleRuntimeLogger.error(error instanceof Error ? error : 'load module runtime snapshot failed', {
+      operation: 'module_runtime_snapshot',
+    });
+    errorMessage.value = t('monitor.moduleRuntime.errorFallback');
   } finally {
     loading.value = false;
     initialized.value = true;
   }
 }
 
-function openDetail(row: ModuleRuntimeItem) {
-  selectedModule.value = row;
-  detailVisible.value = true;
+async function openDetail(row: ModuleRuntimeItem) {
+  errorMessage.value = '';
+
+  try {
+    selectedModule.value = await getModuleRuntimeDetail(row.module_key);
+    detailVisible.value = true;
+  } catch (error) {
+    moduleRuntimeLogger.error(error instanceof Error ? error : 'load module runtime detail failed', {
+      moduleKey: row.module_key,
+      operation: 'module_runtime_detail',
+    });
+    errorMessage.value = t('monitor.moduleRuntime.errorFallback');
+  }
 }
 
 function booleanLabel(value: boolean) {

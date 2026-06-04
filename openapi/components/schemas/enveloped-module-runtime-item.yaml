@@ -1,6 +1,8 @@
 allOf:
   - $ref: ./api-envelope.yaml
   - type: object
+    required:
+      - data
     properties:
       data:
         $ref: ./module-runtime-item.yaml

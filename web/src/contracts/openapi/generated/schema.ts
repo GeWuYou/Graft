@@ -2002,7 +2002,7 @@ export interface components {
       data?: components['schemas']['module-runtime-snapshot'];
     };
     'enveloped-module-runtime-item': components['schemas']['api-envelope'] & {
-      data?: components['schemas']['module-runtime-item'];
+      data: components['schemas']['module-runtime-item'];
     };
     'access-log-detail-response': {
       /** Format: int64 */
@@ -4438,6 +4438,16 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description Module runtime item was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };

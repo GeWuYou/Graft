@@ -5135,6 +5135,21 @@
           "403": {
             "$ref": "#/components/responses/forbidden"
           },
+          "404": {
+            "description": "Module runtime item was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -8668,22 +8683,28 @@
         ],
         "properties": {
           "total_modules": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           },
           "enabled_modules": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           },
           "registered_modules": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           },
           "healthy_modules": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           },
           "degraded_modules": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           },
           "unknown_modules": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -8884,6 +8905,9 @@
           },
           {
             "type": "object",
+            "required": [
+              "data"
+            ],
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/module-runtime-item"

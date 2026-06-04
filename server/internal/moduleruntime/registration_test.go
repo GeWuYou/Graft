@@ -154,6 +154,55 @@ func TestRegisterDetailRouteReturnsNotFoundForUnknownModule(t *testing.T) {
 	}
 }
 
+func TestRegisterRejectsMissingRouteDependencies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name        string
+		router      gin.IRouter
+		authService moduleapi.AuthService
+		authorizer  moduleapi.Authorizer
+		want        string
+	}{
+		{
+			name:        "router",
+			authService: allowAuthService{},
+			authorizer:  &recordingAuthorizer{},
+			want:        "module runtime router is unavailable",
+		},
+		{
+			name:       "auth service",
+			router:     gin.New().Group("/api"),
+			authorizer: &recordingAuthorizer{},
+			want:       "module runtime auth service is unavailable",
+		},
+		{
+			name:        "authorizer",
+			router:      gin.New().Group("/api"),
+			authService: allowAuthService{},
+			want:        "module runtime authorizer is unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registration := Registration{
+				I18n: i18n.MustNew(config.I18nConfig{
+					DefaultLocale:    "zh-CN",
+					FallbackLocale:   "en-US",
+					SupportedLocales: []string{"zh-CN", "en-US"},
+				}),
+				MenuRegistry:       menu.NewRegistry(),
+				PermissionRegistry: permission.NewRegistry(),
+			}
+			err := Register(registration, tt.router, tt.authService, tt.authorizer)
+			if err == nil || err.Error() != tt.want {
+				t.Fatalf("expected %q, got %v", tt.want, err)
+			}
+		})
+	}
+}
+
 func assertRegisteredMetadata(t *testing.T, menus []menu.Item, permissions []permission.Item) {
 	t.Helper()
 

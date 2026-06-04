@@ -364,15 +364,30 @@ func (e GetModulesRuntimeModule403JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetModulesRuntimeModule404JSONResponseBodySuccess.
+const (
+	GetModulesRuntimeModule404JSONResponseBodySuccessFalse GetModulesRuntimeModule404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetModulesRuntimeModule404JSONResponseBodySuccess enum.
+func (e GetModulesRuntimeModule404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetModulesRuntimeModule404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetModulesRuntimeModule500JSONResponseBodySuccess.
 const (
-	GetModulesRuntimeModule500JSONResponseBodySuccessFalse GetModulesRuntimeModule500JSONResponseBodySuccess = false
+	False GetModulesRuntimeModule500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the GetModulesRuntimeModule500JSONResponseBodySuccess enum.
 func (e GetModulesRuntimeModule500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case GetModulesRuntimeModule500JSONResponseBodySuccessFalse:
+	case False:
 		return true
 	default:
 		return false
@@ -461,6 +476,9 @@ type GetModulesRuntimeModule401JSONResponseBodySuccess bool
 
 // GetModulesRuntimeModule403JSONResponseBodySuccess defines parameters for GetModulesRuntimeModule.
 type GetModulesRuntimeModule403JSONResponseBodySuccess bool
+
+// GetModulesRuntimeModule404JSONResponseBodySuccess defines parameters for GetModulesRuntimeModule.
+type GetModulesRuntimeModule404JSONResponseBodySuccess bool
 
 // GetModulesRuntimeModule500JSONResponseBodySuccess defines parameters for GetModulesRuntimeModule.
 type GetModulesRuntimeModule500JSONResponseBodySuccess bool

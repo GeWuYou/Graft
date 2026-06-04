@@ -56,7 +56,9 @@ func Register(
 	}
 	registerPermissions(registration.PermissionRegistry)
 	registerMenu(registration.MenuRegistry)
-	registerRoutes(registration, router, authService, authorizer)
+	if err := registerRoutes(registration, router, authService, authorizer); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -148,9 +150,15 @@ func registerRoutes(
 	router gin.IRouter,
 	authService moduleapi.AuthService,
 	authorizer moduleapi.Authorizer,
-) {
-	if router == nil || authService == nil {
-		return
+) error {
+	if router == nil {
+		return errors.New("module runtime router is unavailable")
+	}
+	if authService == nil {
+		return errors.New("module runtime auth service is unavailable")
+	}
+	if authorizer == nil {
+		return errors.New("module runtime authorizer is unavailable")
 	}
 
 	group := router.Group(routeGroup)
@@ -172,4 +180,6 @@ func registerRoutes(
 			"field": routeModuleKeyParam,
 		})
 	})
+
+	return nil
 }
