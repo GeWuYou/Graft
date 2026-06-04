@@ -210,6 +210,27 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 	return auditstore.ListAuditLogsResult{Items: items, Total: total}, nil
 }
 
+// DeleteAuditLogsBefore deletes audit records older than the caller-owned retention cutoff.
+func (r *repository) DeleteAuditLogsBefore(ctx context.Context, createdBefore time.Time) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("audit repository is unavailable")
+	}
+	if createdBefore.IsZero() {
+		return 0, errors.New("audit log cleanup cutoff is required")
+	}
+
+	result, err := r.db.ExecContext(ctx, `DELETE FROM audit_logs WHERE created_at < $1`, createdBefore.UTC())
+	if err != nil {
+		return 0, fmt.Errorf("delete audit logs before cutoff: %w", err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("read deleted audit log count: %w", err)
+	}
+
+	return deleted, nil
+}
+
 func buildAuditLogOrderBy(query auditstore.ListAuditLogsQuery) string {
 	for _, raw := range query.Sorts {
 		switch strings.TrimSpace(raw) {

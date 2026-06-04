@@ -467,20 +467,31 @@ func TestValidateRejectsNonPositiveAccessLogRetention(t *testing.T) {
 	assertValidateError(t, cfg, "GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
 }
 
-func TestDefaultAccessLogRetentionForEnv(t *testing.T) {
+func TestValidateRejectsNonPositiveAuditLogRetention(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.Audit.LogRetention = 0
+
+	assertValidateError(t, cfg, "GRAFT_AUDIT_LOG_RETENTION must be greater than zero")
+}
+
+func TestDefaultLogRetentionForEnv(t *testing.T) {
 	testCases := []struct {
-		env  string
-		want time.Duration
+		env        string
+		wantAccess time.Duration
+		wantAudit  time.Duration
 	}{
-		{env: "development", want: 3 * 24 * time.Hour},
-		{env: "staging", want: 7 * 24 * time.Hour},
-		{env: "production", want: 30 * 24 * time.Hour},
-		{env: "local", want: 3 * 24 * time.Hour},
+		{env: "development", wantAccess: 3 * 24 * time.Hour, wantAudit: 30 * 24 * time.Hour},
+		{env: "staging", wantAccess: 7 * 24 * time.Hour, wantAudit: 90 * 24 * time.Hour},
+		{env: "production", wantAccess: 30 * 24 * time.Hour, wantAudit: 180 * 24 * time.Hour},
+		{env: "local", wantAccess: 3 * 24 * time.Hour, wantAudit: 30 * 24 * time.Hour},
 	}
 
 	for _, testCase := range testCases {
-		if got := defaultAccessLogRetentionForEnv(testCase.env); got != testCase.want {
-			t.Fatalf("env %q: expected %s, got %s", testCase.env, testCase.want, got)
+		if got := defaultAccessLogRetentionForEnv(testCase.env); got != testCase.wantAccess {
+			t.Fatalf("env %q: expected access retention %s, got %s", testCase.env, testCase.wantAccess, got)
+		}
+		if got := defaultAuditLogRetentionForEnv(testCase.env); got != testCase.wantAudit {
+			t.Fatalf("env %q: expected audit retention %s, got %s", testCase.env, testCase.wantAudit, got)
 		}
 	}
 }
@@ -539,6 +550,9 @@ func validConfigForValidateTests() *Config {
 		},
 		HTTPX: HTTPXConfig{
 			AccessLogRetention: 3 * 24 * time.Hour,
+		},
+		Audit: AuditConfig{
+			LogRetention: 30 * 24 * time.Hour,
 		},
 		Database: DatabaseConfig{
 			Driver: "postgres",

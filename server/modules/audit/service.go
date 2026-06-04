@@ -502,6 +502,18 @@ func (s *Service) Incident(ctx context.Context, eventID uint64) (IncidentResult,
 	return s.repo.ReadIncident(ctx, eventID)
 }
 
+// DeleteBefore deletes audit records older than an explicit audit-owned retention cutoff.
+func (s *Service) DeleteBefore(ctx context.Context, createdBefore time.Time) (int64, error) {
+	if s == nil || s.repo == nil {
+		return 0, ErrAuditServiceUnavailable
+	}
+	if createdBefore.IsZero() {
+		return 0, errors.New("audit log cleanup cutoff is required")
+	}
+
+	return s.repo.DeleteAuditLogsBefore(ctx, createdBefore.UTC())
+}
+
 // RecordCandidate writes one normalized candidate after policy evaluation approves it.
 func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.AuditCandidate) (auditstore.AuditLog, bool, error) {
 	if s == nil || s.repo == nil {

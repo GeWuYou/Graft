@@ -12,20 +12,23 @@ import (
 )
 
 type stubAuditRepository struct {
-	createdInput auditstore.CreateAuditLogInput
-	listQuery    auditstore.ListAuditLogsQuery
-	overviewWnd  auditstore.AuditTimePreset
-	incidentID   uint64
-	policyRules  []auditstore.AuditPolicyRule
-	createResult auditstore.AuditLog
-	listResult   auditstore.ListAuditLogsResult
-	overview     auditstore.AuditOverview
-	incident     auditstore.AuditIncident
-	createErr    error
-	listErr      error
-	overviewErr  error
-	incidentErr  error
-	policyErr    error
+	createdInput  auditstore.CreateAuditLogInput
+	listQuery     auditstore.ListAuditLogsQuery
+	overviewWnd   auditstore.AuditTimePreset
+	incidentID    uint64
+	deletedBefore time.Time
+	deletedRows   int64
+	policyRules   []auditstore.AuditPolicyRule
+	createResult  auditstore.AuditLog
+	listResult    auditstore.ListAuditLogsResult
+	overview      auditstore.AuditOverview
+	incident      auditstore.AuditIncident
+	createErr     error
+	listErr       error
+	overviewErr   error
+	incidentErr   error
+	policyErr     error
+	deleteErr     error
 }
 
 func (r *stubAuditRepository) CreateAuditLog(_ context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
@@ -68,6 +71,14 @@ func (r *stubAuditRepository) ListAuditPolicyRules(_ context.Context) ([]auditst
 		return nil, r.policyErr
 	}
 	return append([]auditstore.AuditPolicyRule(nil), r.policyRules...), nil
+}
+
+func (r *stubAuditRepository) DeleteAuditLogsBefore(_ context.Context, createdBefore time.Time) (int64, error) {
+	r.deletedBefore = createdBefore
+	if r.deleteErr != nil {
+		return 0, r.deleteErr
+	}
+	return r.deletedRows, nil
 }
 
 func TestServiceRecordSanitizesSensitiveFields(t *testing.T) {
@@ -158,6 +169,38 @@ func TestServiceRecordRejectsMissingAction(t *testing.T) {
 	_, err = service.Record(context.Background(), RecordInput{})
 	if err == nil || err.Error() != "audit action is required" {
 		t.Fatalf("expected missing action error, got %v", err)
+	}
+}
+
+func TestServiceDeleteBeforeDelegatesUTCToRepository(t *testing.T) {
+	repo := &stubAuditRepository{deletedRows: 3}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	localCutoff := time.Date(2026, 5, 27, 8, 0, 0, 0, time.FixedZone("UTC+8", 8*60*60))
+	deleted, err := service.DeleteBefore(context.Background(), localCutoff)
+	if err != nil {
+		t.Fatalf("delete before: %v", err)
+	}
+
+	if deleted != 3 {
+		t.Fatalf("expected deleted row count 3, got %d", deleted)
+	}
+	if !repo.deletedBefore.Equal(localCutoff.UTC()) || repo.deletedBefore.Location() != time.UTC {
+		t.Fatalf("expected UTC cutoff %s, got %s", localCutoff.UTC(), repo.deletedBefore)
+	}
+}
+
+func TestServiceDeleteBeforeRejectsZeroCutoff(t *testing.T) {
+	service, err := NewService(&stubAuditRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	if _, err := service.DeleteBefore(context.Background(), time.Time{}); err == nil {
+		t.Fatal("expected zero cutoff error")
 	}
 }
 
