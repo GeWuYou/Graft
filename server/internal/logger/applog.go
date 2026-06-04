@@ -369,6 +369,11 @@ func IntField(key string, value int) Field {
 	return Field{Key: key, Value: value}
 }
 
+// Int64Field adds one canonical int64 application-log field.
+func Int64Field(key string, value int64) Field {
+	return Field{Key: key, Value: value}
+}
+
 // Uint64Field adds one canonical uint64 application-log field.
 func Uint64Field(key string, value uint64) Field {
 	return Field{Key: key, Value: value}
@@ -382,6 +387,11 @@ func BoolField(key string, value bool) Field {
 // DurationField adds one canonical duration field via zap-compatible value handling.
 func DurationField(key string, value any) Field {
 	return Field{Key: key, Value: value}
+}
+
+// TimeField adds one canonical timestamp application-log field.
+func TimeField(key string, value time.Time) Field {
+	return Field{Key: key, Value: value.UTC().Format(time.RFC3339)}
 }
 
 // ErrorField stores the error text under the canonical app-log error field key.

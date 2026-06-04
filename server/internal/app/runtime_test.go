@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,16 +59,21 @@ func (r *runtimeAccessLogRecorderRepo) GetAccessLogByID(context.Context, uint64)
 }
 
 type runtimeAppLogRecorderRepo struct {
+	mu      sync.Mutex
 	created []logger.CreateAppLogInput
 	deleted []time.Time
 }
 
 func (r *runtimeAppLogRecorderRepo) CreateAppLog(_ context.Context, input logger.CreateAppLogInput) (logger.AppLogRecord, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.created = append(r.created, input)
 	return logger.AppLogRecord{}, nil
 }
 
 func (r *runtimeAppLogRecorderRepo) DeleteAppLogsBefore(_ context.Context, cutoff time.Time) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.deleted = append(r.deleted, cutoff)
 	return 0, nil
 }
@@ -94,6 +100,16 @@ func (p shutdownRecorderModule) Shutdown(_ *module.Context) error {
 	*p.shutdownLog = append(*p.shutdownLog, p.name)
 	return p.err
 }
+
+type bootRecorderModule struct {
+	err error
+}
+
+func (p bootRecorderModule) Register(_ *module.Context) error { return nil }
+
+func (p bootRecorderModule) Boot(_ *module.Context) error { return p.err }
+
+func (p bootRecorderModule) Shutdown(_ *module.Context) error { return nil }
 
 // TestShutdownModulesUsesReverseOrder 验证模块关闭顺序与启动顺序相反，
 // 以便后启动的依赖先完成资源释放。
@@ -140,6 +156,81 @@ func TestShutdownModulesAggregatesErrors(t *testing.T) {
 	if !errors.Is(err, rbacErr) {
 		t.Fatal("expected joined error to include rbac failure")
 	}
+}
+
+func TestBootModulesWritesHighSignalAppLogs(t *testing.T) {
+	repo := &runtimeAppLogRecorderRepo{}
+	runtime := &Runtime{
+		logger:           zap.NewNop(),
+		services:         container.New(),
+		appLogRepository: repo,
+	}
+	if err := runtime.registerCoreServices(); err != nil {
+		t.Fatalf("register core services: %v", err)
+	}
+
+	moduleCtx := &module.Context{
+		LifecycleContext: context.Background(),
+		Services:         runtime.services,
+	}
+	ordered := []module.RuntimeModule{
+		mustDescribeRuntimeTestModule(module.Spec{ID: "user"}, bootRecorderModule{}),
+	}
+
+	booted, err := runtime.bootModules(moduleCtx, ordered, nil)
+	if err != nil {
+		t.Fatalf("boot modules: %v", err)
+	}
+	if len(booted) != 1 {
+		t.Fatalf("expected one booted module, got %d", len(booted))
+	}
+	assertEventuallyAppLogRecord(t, repo, "module boot completed", "user")
+}
+
+func TestBootModulesWritesFailureAppLog(t *testing.T) {
+	repo := &runtimeAppLogRecorderRepo{}
+	runtime := &Runtime{
+		logger:           zap.NewNop(),
+		services:         container.New(),
+		appLogRepository: repo,
+	}
+	if err := runtime.registerCoreServices(); err != nil {
+		t.Fatalf("register core services: %v", err)
+	}
+
+	bootErr := errors.New("boot exploded")
+	moduleCtx := &module.Context{
+		LifecycleContext: context.Background(),
+		Services:         runtime.services,
+	}
+	ordered := []module.RuntimeModule{
+		mustDescribeRuntimeTestModule(module.Spec{ID: "user"}, bootRecorderModule{err: bootErr}),
+	}
+
+	if _, err := runtime.bootModules(moduleCtx, ordered, nil); err == nil {
+		t.Fatal("expected boot failure")
+	}
+	assertEventuallyAppLogRecord(t, repo, "module boot failed", "user")
+}
+
+func assertEventuallyAppLogRecord(t *testing.T, repo *runtimeAppLogRecorderRepo, message string, moduleName string) {
+	t.Helper()
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		repo.mu.Lock()
+		for _, record := range repo.created {
+			if record.Message == message && record.Fields["module"] == moduleName {
+				repo.mu.Unlock()
+				return
+			}
+		}
+		repo.mu.Unlock()
+		time.Sleep(time.Millisecond)
+	}
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	t.Fatalf("expected app log message %q for module %q, got %#v", message, moduleName, repo.created)
 }
 
 type eventBusRecorderModule struct {

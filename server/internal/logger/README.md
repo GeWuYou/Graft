@@ -51,6 +51,20 @@
 * 需要自动继承请求 `request_id` / `trace_id` / `route` / `method` 等关联字段的日志
 * 需要使用统一字段脱敏与消息清洗规则的日志
 
+生产路径约束：
+
+* 所有需要持久化的 App Log 必须从 runtime / module `Context` 注入的 `logger.AppLogger` 获取
+* 模块禁止把 `NewAppLogger(base)` 作为默认生产写法；它只允许用于测试或上下文/服务不可用时的降级 fallback
+* runtime 只能补充高信号生命周期事件，不应把每个普通 `Info` 都写入 `app_logs`
+
+当前高信号事件包括：
+
+* `app runtime boot completed`
+* `app runtime shutdown failed`
+* `module boot failed` / `module boot completed`
+* `scheduler job failed` / `scheduler job completed` with deletion count
+* datasource / connector registration failed
+
 允许继续使用 raw `*zap.Logger` 的场景：
 
 * `server/internal/logger/**` 自身的 logger 构造、全局替换、关闭与底层字段拼装
@@ -68,7 +82,7 @@
 
 示例：
 
-* 推荐：`logger.NewAppLogger(base).Named("modules.user.route").Error(ctx, "map user response failed", logger.StringField("module", "user"), logger.ErrorField(err))`
+* 推荐：从 `module.Context.Services` 解析注入的 `logger.AppLogger`，再 `.Named("modules.user.route").Error(ctx, "map user response failed", logger.StringField("module", "user"), logger.ErrorField(err))`
 * 例外：`internal/httpx/accesslog.go` 继续直接使用 raw zap 维护 access-log authority
 * 例外：`modules/audit/**` 继续直接使用 raw zap 维护 audit-owned runtime diagnostics
 

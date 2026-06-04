@@ -3,6 +3,6 @@ ON "app_logs"
 USING GIN (
   to_tsvector(
     'simple',
-    concat_ws(' ', "component", COALESCE("operation", ''), "message", COALESCE("error", ''))
+    "component" || ' ' || COALESCE("operation", '') || ' ' || "message" || ' ' || COALESCE("error", '')
   )
 );

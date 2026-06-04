@@ -190,6 +190,9 @@ func TestAppLogKeywordFilterUsesPostgresFullTextSearch(t *testing.T) {
 	if !strings.Contains(whereSQL, "to_tsvector('simple'") || !strings.Contains(whereSQL, "@@ plainto_tsquery('simple', $1)") {
 		t.Fatalf("expected postgres full-text keyword condition, got %s", whereSQL)
 	}
+	if strings.Contains(whereSQL, "concat_ws") {
+		t.Fatalf("expected keyword search to use immutable index expression, got %s", whereSQL)
+	}
 	if strings.Contains(whereSQL, "LIKE") {
 		t.Fatalf("expected keyword search to avoid leading-wildcard LIKE, got %s", whereSQL)
 	}
