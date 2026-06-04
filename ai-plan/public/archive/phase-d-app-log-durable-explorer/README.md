@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-app-log-durable-explorer`
-- Status: `archive-ready`
+- Status: `archived`
 - Task class: `cross-boundary`
 - Recovery source: `parent topic`
   - `phase-d-app-log-retention-authz-and-storage-readiness`
@@ -88,7 +88,7 @@ Implement a bounded repository-owned App Log durable troubleshooting surface aft
 ## Batch 3 Final Validation and Archive Readiness
 
 - Status: `completed`
-- Archive verdict: `archive-ready`
+- Archive verdict: `archived`
 - Acceptance criteria:
   - durable App Log storage remains under `server/internal/logger/**`
   - read permission is `app_log.read` and remains distinct from access/audit permissions
@@ -104,7 +104,7 @@ Implement a bounded repository-owned App Log durable troubleshooting surface aft
 ## Post-Archive Logging Closeout
 
 - Status: `completed`
-- Follow-up commits after the initial archive-ready slice:
+- Follow-up commits after the initial archived slice:
   - persisted high-signal runtime events through the logger-owned App Log sink
   - improved development log output and environment-derived defaults
   - documented logging environment options in `server/.env.example`

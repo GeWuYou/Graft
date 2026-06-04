@@ -49,8 +49,9 @@ func TestUserRouteRuntimeUsesResolvedAppLoggerForResponseMappingErrors(t *testin
 	gin.SetMode(gin.TestMode)
 	sink := &userRouteAppLogRecorder{seen: make(chan struct{}, 1)}
 	services := container.New()
+	appLogger := applog.NewAppLogger(zap.NewNop(), applog.WithAppLogRepository(sink))
 	if err := services.RegisterSingleton((*applog.AppLogger)(nil), func(container.Resolver) (any, error) {
-		return applog.NewAppLogger(zap.NewNop(), applog.WithAppLogRepository(sink)), nil
+		return appLogger, nil
 	}); err != nil {
 		t.Fatalf("register app logger: %v", err)
 	}
@@ -61,6 +62,7 @@ func TestUserRouteRuntimeUsesResolvedAppLoggerForResponseMappingErrors(t *testin
 			Services: services,
 		},
 		moduleName: moduleID,
+		appLog:     appLogger,
 	}.runtime()
 
 	ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -83,5 +85,37 @@ func TestUserRouteRuntimeUsesResolvedAppLoggerForResponseMappingErrors(t *testin
 	}
 	if record.Fields["module"] != moduleID || record.Error != "bad payload" {
 		t.Fatalf("expected module and error fields, got %#v", record)
+	}
+}
+
+func TestUserRouteRuntimeReusesResolvedAppLogger(t *testing.T) {
+	sink := &userRouteAppLogRecorder{seen: make(chan struct{}, 1)}
+	resolveCalls := 0
+	services := container.New()
+	if err := services.RegisterSingleton((*applog.AppLogger)(nil), func(container.Resolver) (any, error) {
+		resolveCalls++
+		return applog.NewAppLogger(zap.NewNop(), applog.WithAppLogRepository(sink)), nil
+	}); err != nil {
+		t.Fatalf("register app logger: %v", err)
+	}
+
+	appLogger := resolveUserRouteAppLogger(&module.Context{Services: services})
+	registrar := userRouteRegistrar{
+		ctx: &module.Context{
+			Logger:   zap.NewNop(),
+			Services: services,
+		},
+		moduleName: moduleID,
+		appLog:     appLogger,
+	}
+	if resolveCalls != 1 {
+		t.Fatalf("expected one route-registration resolve call, got %d", resolveCalls)
+	}
+
+	_ = registrar.runtime().appLogger()
+	_ = registrar.runtime().appLogger()
+
+	if resolveCalls != 1 {
+		t.Fatalf("expected runtime appLogger to reuse cached logger, got %d resolve calls", resolveCalls)
 	}
 }

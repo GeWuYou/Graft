@@ -152,6 +152,31 @@ func TestAccessLogMiddlewareSuppressesConsoleForSuccessButPersists(t *testing.T)
 	}
 }
 
+func TestAccessLogMiddlewareAutoUsesResolvedConsolePolicy(t *testing.T) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	repo := &stubAccessLogRepository{}
+	server := NewServerWithOptions(zap.New(core), ServerOptions{
+		AccessLog: AccessLogOptions{
+			ConsolePolicy: config.AccessLogConsoleAuto,
+			SlowThreshold: time.Second,
+		},
+	}, repo)
+
+	server.Engine().GET("/healthz", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	server.Engine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	if entries := recorded.All(); len(entries) != 0 {
+		t.Fatalf("expected auto policy to suppress local success console access logs, got %d", len(entries))
+	}
+	if len(repo.created) != 1 {
+		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
+	}
+}
+
 func TestAccessLogMiddlewareErrorOnlyLogsClientAndServerErrors(t *testing.T) {
 	testCases := []struct {
 		name      string
@@ -227,7 +252,7 @@ func TestAccessLogMiddlewareErrorOnlyLogsSlowSuccess(t *testing.T) {
 	}
 }
 
-func TestAccessLogMiddlewareNeverSuppressesConsoleButPersists(t *testing.T) {
+func TestAccessLogMiddlewareNeverLogsToConsoleButPersists(t *testing.T) {
 	core, recorded := observer.New(zapcore.InfoLevel)
 	repo := &stubAccessLogRepository{}
 	server := NewServerWithOptions(zap.New(core), ServerOptions{

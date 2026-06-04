@@ -656,8 +656,11 @@ func (r *Runtime) appLogger() logger.AppLogger {
 }
 
 func (r *Runtime) injectedAppLogger() logger.AppLogger {
-	if r == nil || r.services == nil {
+	if r == nil {
 		return logger.NewAppLogger(nil)
+	}
+	if r.services == nil {
+		return r.newAppLogger()
 	}
 
 	resolved, err := r.services.Resolve((*logger.AppLogger)(nil))

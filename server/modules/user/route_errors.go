@@ -31,7 +31,7 @@ func (r userRouteRegistrar) runtime() routeRuntime {
 	return routeRuntime{
 		localizer:  r.ctx.I18n,
 		logger:     r.ctx.Logger,
-		appLog:     resolveUserRouteAppLogger(r.ctx),
+		appLog:     r.appLog,
 		moduleName: r.moduleName,
 	}
 }
@@ -55,7 +55,7 @@ func resolveUserRouteAppLogger(ctx *module.Context) applog.AppLogger {
 	}
 
 	appLogger, ok := resolved.(applog.AppLogger)
-	if !ok {
+	if !ok || appLogger == nil {
 		return nil
 	}
 

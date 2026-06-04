@@ -213,6 +213,18 @@ func TestBootModulesWritesFailureAppLog(t *testing.T) {
 	assertEventuallyAppLogRecord(t, repo, "module boot failed", "user")
 }
 
+func TestInjectedAppLoggerFallsBackToRuntimeLoggerWhenServicesMissing(t *testing.T) {
+	repo := &runtimeAppLogRecorderRepo{}
+	runtime := &Runtime{
+		logger:           zap.NewNop(),
+		appLogRepository: repo,
+	}
+
+	runtime.injectedAppLogger().Info(context.Background(), "runtime fallback log")
+
+	assertEventuallyAppLogRecord(t, repo, "runtime fallback log", "")
+}
+
 func assertEventuallyAppLogRecord(t *testing.T, repo *runtimeAppLogRecorderRepo, message string, moduleName string) {
 	t.Helper()
 
@@ -220,7 +232,8 @@ func assertEventuallyAppLogRecord(t *testing.T, repo *runtimeAppLogRecorderRepo,
 	for time.Now().Before(deadline) {
 		repo.mu.Lock()
 		for _, record := range repo.created {
-			if record.Message == message && record.Fields["module"] == moduleName {
+			moduleField, hasModule := record.Fields["module"]
+			if record.Message == message && (moduleName == "" || hasModule && moduleField == moduleName) {
 				repo.mu.Unlock()
 				return
 			}

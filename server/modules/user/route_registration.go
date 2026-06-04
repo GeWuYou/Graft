@@ -3,6 +3,7 @@ package user
 import (
 	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/httpx"
+	applog "graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	authruntime "graft/server/modules/auth"
@@ -20,6 +21,7 @@ type userRouteRegistrar struct {
 	passwords    passwordHasher
 	policy       passwordPolicy
 	guards       routeGuards
+	appLog       applog.AppLogger
 }
 
 func registerUserRoutes(
@@ -39,6 +41,7 @@ func registerUserRoutes(
 		passwords:    guards.passwords,
 		policy:       guards.policy,
 		guards:       guards,
+		appLog:       resolveUserRouteAppLogger(ctx),
 	}
 
 	group := registrar.ctx.Router.Group(usercontract.UsersGroup)

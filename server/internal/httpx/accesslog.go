@@ -68,6 +68,8 @@ func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, option
 func normalizeAccessLogOptions(options AccessLogOptions) AccessLogOptions {
 	switch options.ConsolePolicy {
 	case config.AccessLogConsoleAlways, config.AccessLogConsoleNever, config.AccessLogConsoleErrorOnly:
+	case config.AccessLogConsoleAuto:
+		options.ConsolePolicy = config.ResolveAccessLogConsolePolicy("", config.AccessLogConsoleAuto)
 	default:
 		options.ConsolePolicy = config.AccessLogConsoleAlways
 	}
