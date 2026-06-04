@@ -395,7 +395,6 @@
                 </div>
               </div>
               <div class="font-size-preview" :style="fontSizePreviewStyle">
-                <span class="font-size-preview__label">{{ activeFontSizeLabel }}</span>
                 <span class="font-size-preview__sample">{{
                   t('layout.setting.workbench.typography.previewLine')
                 }}</span>
@@ -1835,18 +1834,11 @@ const toggleAdvancedVisible = (value: boolean) => {
   border-radius: 14px;
   display: grid;
   gap: 6px;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   overflow-wrap: normal;
   padding: 12px 14px;
   word-break: keep-all;
-}
-
-.font-size-preview__label {
-  color: var(--td-brand-color);
-  font: var(--td-font-body-small);
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .font-size-preview__sample {

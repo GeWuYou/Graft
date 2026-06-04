@@ -370,7 +370,7 @@ bun run check
 - 功能完成、任务完成、准备合并时，必须跑完整 `bun run check`
 - 中间迭代可先跑最小直接验证，但不能把局部验证当作完成态
 - 默认完成态要求 `typecheck`、`lint`、`stylelint`、`test:run`、`build` 全部零 warning
-- `hygiene:check` 进入完成态后，`deadcode` 与约定范围内的 `dupcode` 必须同时为 0
+- `hygiene:check` 进入完成态后，`deadcode`、约定范围内的 `dupcode`、以及非白名单固定字号必须同时为 0
 - 前端治理测试应至少覆盖：
   - 用户可见文案禁词范围
   - 关键 `title_key` 解析
@@ -416,6 +416,10 @@ dead-code / duplicate-code 治理规则：
   - 注释必须明确“若未来删除/改造该代码，必须同步移除对应排除”
 - 重复代码治理优先做“语义一致、抽象后更清晰”的合并
 - 禁止为了压低重复率制造过度抽象、万能组件或失去边界的共享层
+- `bun run font-size:check`
+  - 扫描 `web/src` 中非白名单固定 `font-size` 与 font shorthand 字号
+  - 页面和组件字号优先使用 TDesign / Graft 字体 token，不得新增裸 `px` / `rem` / `em` 字号
+  - 必要固定图标字号、代码字号或受限控件字号必须在脚本白名单中写清 selector、值与原因
 - 清理顺序固定为：
   1. 先接入工具与脚本
   2. 再清理 `deadcode` 基线
