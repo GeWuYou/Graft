@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- Status: `archive-ready`
-- Branch: `feat/app-log-durable-explorer`
+- Status: `archived`
+- Branch: `feat/logging-runtime-closeout`
 - Loop mode: `topic-completion-loop`
 
 ## Batches
@@ -43,6 +43,19 @@
   - all 12 columns have Chinese comments
 - Archive verdict:
   - `archive-ready`
+
+## Post-Archive Closeout Evidence
+
+- Follow-up commits after the initial archive-ready marker:
+  - `54a6344 fix(app-log): persist high-signal runtime events`
+  - `056d34a feat(server): improve development log output`
+  - `fdc2c23 docs(server): add logging env defaults`
+  - `dabb439 docs(server): explain logging env options`
+- Final validation:
+  - `cd server && go test ./internal/logger ./internal/app ./internal/config ./internal/httpx ./modules/user`
+  - `cd server && go run ./cmd/graft validate backend`
+- Archive verdict:
+  - `archived`
 
 ## Batch 1 Evidence
 

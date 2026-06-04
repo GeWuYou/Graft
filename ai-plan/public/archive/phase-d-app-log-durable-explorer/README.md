@@ -100,3 +100,16 @@ Implement a bounded repository-owned App Log durable troubleshooting surface aft
   - `cd server && go run ./cmd/graft validate backend`
   - `cd web && bun run check`
   - `cd web && bun run openapi:types:check`
+
+## Post-Archive Logging Closeout
+
+- Status: `completed`
+- Follow-up commits after the initial archive-ready slice:
+  - persisted high-signal runtime events through the logger-owned App Log sink
+  - improved development log output and environment-derived defaults
+  - documented logging environment options in `server/.env.example`
+- Final closeout validation:
+  - `cd server && go test ./internal/logger ./internal/app ./internal/config ./internal/httpx ./modules/user`
+  - `cd server && go run ./cmd/graft validate backend`
+- Archive location:
+  - `ai-plan/public/archive/phase-d-app-log-durable-explorer/**`
