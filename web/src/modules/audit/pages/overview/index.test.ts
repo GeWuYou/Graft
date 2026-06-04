@@ -340,6 +340,29 @@ const i18n = createI18n({
           timeline: {
             openEvent: 'Open Event',
           },
+          empty: {
+            failedAuth: {
+              title: 'No authentication failures',
+              description: 'No failed sign-ins or authentication audit events were found in the selected window.',
+            },
+            permissionDenied: {
+              title: 'No permission denials',
+              description: 'No authorization denials were found in the selected window.',
+            },
+            sensitiveOps: {
+              title: 'No sensitive audit events',
+              description:
+                'No export, delete, reset, grant, or other privileged write events were found in the selected window.',
+            },
+            riskGroups: {
+              title: 'No active risk groups',
+              description: 'No grouped audit risks need attention in the selected window.',
+            },
+            securityTimeline: {
+              title: 'No security timeline events',
+              description: 'No security events were found in the selected window.',
+            },
+          },
           riskGroups: {
             criticalSecurity: 'Critical Security Failures',
             meta: '{count} events in the current window',
@@ -554,6 +577,37 @@ describe('AuditOverviewPage', () => {
     });
   });
 
+  it('renders explicit empty states for empty overview activity sections', async () => {
+    getAuditOverviewMock.mockResolvedValueOnce({
+      time_preset: 'last_24h',
+      summary: {
+        total_logs: 0,
+        failed_operations: 0,
+        high_risk_events: 0,
+        sensitive_operations: 0,
+      },
+      failed_auth: [],
+      permission_denied: [],
+      security_timeline: [],
+      risk_groups: [],
+      trend: { bucket_unit: 'hour', bucket_size: 1, points: [] },
+      sensitive_operations: [],
+    });
+
+    const wrapper = mountOverview();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('No authentication failures');
+    expect(wrapper.text()).toContain('No permission denials');
+    expect(wrapper.text()).toContain('No sensitive audit events');
+    expect(wrapper.text()).toContain('No active risk groups');
+    expect(wrapper.text()).toContain('No security timeline events');
+    expect(wrapper.text()).toContain(
+      'No export, delete, reset, grant, or other privileged write events were found in the selected window.',
+    );
+  });
+
   it('uses the updated overview stat labels', async () => {
     const wrapper = mountOverview();
 
@@ -669,7 +723,40 @@ describe('AuditOverviewPage', () => {
     expect(resizeObserverMocks.observe).toHaveBeenCalled();
   });
 
-  it('keeps the chart hidden when not enough non-empty buckets are present', async () => {
+  it('renders the chart for sparse seven-day trend activity', async () => {
+    getAuditOverviewMock.mockResolvedValueOnce({
+      ...createAuditOverviewResponse(),
+      time_preset: 'last_7d',
+      trend: {
+        bucket_unit: 'day',
+        bucket_size: 1,
+        points: [
+          createTrendPoint('2026-05-21T08:00:00Z', '2026-05-22T08:00:00Z', 0, 0, 0, 0),
+          createTrendPoint('2026-05-22T08:00:00Z', '2026-05-23T08:00:00Z', 4, 1, 4, 1),
+          createTrendPoint('2026-05-23T08:00:00Z', '2026-05-24T08:00:00Z', 0, 0, 0, 0),
+          createTrendPoint('2026-05-24T08:00:00Z', '2026-05-25T08:00:00Z', 0, 0, 0, 0),
+          createTrendPoint('2026-05-25T08:00:00Z', '2026-05-26T08:00:00Z', 0, 0, 0, 0),
+          createTrendPoint('2026-05-26T08:00:00Z', '2026-05-27T08:00:00Z', 0, 0, 0, 0),
+          createTrendPoint('2026-05-27T08:00:00Z', '2026-05-28T08:00:00Z', 0, 0, 0, 0),
+        ],
+      },
+    });
+
+    const wrapper = mountOverview();
+
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('Not enough risk events yet');
+    expect(wrapper.find('[data-audit-trend-chart="true"]').exists()).toBe(true);
+    expect(chartMocks.init).toHaveBeenCalledTimes(1);
+    expect(chartMocks.setOption).toHaveBeenCalled();
+
+    const option = chartMocks.setOption.mock.calls.at(-1)?.[0];
+    expect(option?.series?.[0]?.data).toEqual([0, 4, 0, 0, 0, 0, 0]);
+    expect(option?.xAxis?.axisLabel?.formatter('2026-05-22T08:00:00Z-2026-05-23T08:00:00Z')).not.toBe('');
+  });
+
+  it('keeps the chart hidden when every bucket is empty', async () => {
     getAuditOverviewMock.mockResolvedValueOnce({
       ...createAuditOverviewResponse(),
       trend: {
@@ -677,7 +764,7 @@ describe('AuditOverviewPage', () => {
         bucket_size: 1,
         points: [
           createTrendPoint('2026-05-27T08:00:00Z', '2026-05-27T09:00:00Z', 0, 0, 0, 0),
-          createTrendPoint('2026-05-27T09:00:00Z', '2026-05-27T10:00:00Z', 4, 1, 4, 1),
+          createTrendPoint('2026-05-27T09:00:00Z', '2026-05-27T10:00:00Z', 0, 0, 0, 0),
           createTrendPoint('2026-05-27T10:00:00Z', '2026-05-27T11:00:00Z', 0, 0, 0, 0),
         ],
       },

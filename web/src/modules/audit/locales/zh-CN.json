@@ -97,6 +97,28 @@
       "timeline": {
         "openEvent": "查看事件"
       },
+      "empty": {
+        "failedAuth": {
+          "title": "暂无认证失败事件",
+          "description": "所选时间范围内没有失败登录或认证审计事件。"
+        },
+        "permissionDenied": {
+          "title": "暂无权限拒绝事件",
+          "description": "所选时间范围内没有授权拒绝事件。"
+        },
+        "sensitiveOps": {
+          "title": "暂无敏感操作事件",
+          "description": "所选时间范围内没有导出、删除、重置、授权等高权限写操作事件。"
+        },
+        "riskGroups": {
+          "title": "暂无活跃风险分组",
+          "description": "所选时间范围内没有需要关注的聚合审计风险。"
+        },
+        "securityTimeline": {
+          "title": "暂无安全时间线事件",
+          "description": "所选时间范围内没有安全事件。"
+        }
+      },
       "stats": {
         "totalLogs": {
           "title": "审计日志数",

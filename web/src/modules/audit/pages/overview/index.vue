@@ -46,7 +46,13 @@
 
       <section class="audit-overview__grid">
         <governance-section :title="t('audit.overview.sections.failedAuth')">
-          <div class="audit-overview__list">
+          <management-empty-state
+            v-if="failedAuthItems.length === 0"
+            class="audit-overview__section-empty"
+            :title="t('audit.overview.empty.failedAuth.title')"
+            :description="t('audit.overview.empty.failedAuth.description')"
+          />
+          <div v-else class="audit-overview__list">
             <article v-for="item in failedAuthItems" :key="item.key" class="audit-overview__list-item">
               <div>
                 <strong>{{ item.actor }}</strong>
@@ -61,7 +67,13 @@
         </governance-section>
 
         <governance-section :title="t('audit.overview.sections.permissionDenied')">
-          <div class="audit-overview__list">
+          <management-empty-state
+            v-if="permissionDeniedItems.length === 0"
+            class="audit-overview__section-empty"
+            :title="t('audit.overview.empty.permissionDenied.title')"
+            :description="t('audit.overview.empty.permissionDenied.description')"
+          />
+          <div v-else class="audit-overview__list">
             <article v-for="item in permissionDeniedItems" :key="item.key" class="audit-overview__list-item">
               <div>
                 <strong>{{ item.actor }}</strong>
@@ -78,7 +90,13 @@
 
       <section class="audit-overview__grid audit-overview__grid--bottom">
         <governance-section :title="t('audit.overview.sections.sensitiveOps')">
-          <div class="audit-overview__list">
+          <management-empty-state
+            v-if="sensitiveItems.length === 0"
+            class="audit-overview__section-empty"
+            :title="t('audit.overview.empty.sensitiveOps.title')"
+            :description="t('audit.overview.empty.sensitiveOps.description')"
+          />
+          <div v-else class="audit-overview__list">
             <article v-for="item in sensitiveItems" :key="item.key" class="audit-overview__list-item">
               <div>
                 <strong>{{ item.actor }}</strong>
@@ -94,7 +112,13 @@
 
         <div class="audit-overview__stack">
           <governance-section :title="t('audit.overview.sections.riskWatch')">
-            <div class="audit-overview__watch-list">
+            <management-empty-state
+              v-if="riskGroups.length === 0"
+              class="audit-overview__section-empty"
+              :title="t('audit.overview.empty.riskGroups.title')"
+              :description="t('audit.overview.empty.riskGroups.description')"
+            />
+            <div v-else class="audit-overview__watch-list">
               <article v-for="group in riskGroups" :key="group.key" class="audit-overview__watch-item">
                 <div class="audit-overview__watch-content">
                   <strong>{{ t(group.label_key) }}</strong>
@@ -155,7 +179,13 @@
         </governance-section>
 
         <governance-section :title="t('audit.overview.sections.securityTimeline')">
-          <t-timeline class="audit-overview__timeline" mode="same">
+          <management-empty-state
+            v-if="securityTimeline.length === 0"
+            class="audit-overview__section-empty"
+            :title="t('audit.overview.empty.securityTimeline.title')"
+            :description="t('audit.overview.empty.securityTimeline.description')"
+          />
+          <t-timeline v-else class="audit-overview__timeline" mode="same">
             <t-timeline-item
               v-for="item in securityTimeline"
               :key="item.id"
@@ -294,6 +324,7 @@ const sensitiveItems = computed(() =>
 
 const riskGroups = computed(() => overview.value?.risk_groups ?? []);
 const securityTimeline = computed(() => overview.value?.security_timeline ?? []);
+const trendPreset = computed(() => overview.value?.time_preset ?? activeWindow.value);
 const securityEventCount = computed(() =>
   (overview.value?.trend?.points ?? []).reduce((total, point) => total + (point.security_events ?? 0), 0),
 );
@@ -317,10 +348,10 @@ const trendSummaryItems = computed(() => [
 const trendView = computed(() => {
   const points = overview.value?.trend?.points ?? [];
   const activePoints = points.filter((point) => point.total > 0);
-  const hasEnoughPoints = points.length >= 3;
-  const hasEnoughActivity = activePoints.length >= 3;
+  const hasPoints = points.length > 0;
+  const hasActivity = activePoints.length > 0;
 
-  if (!hasEnoughPoints || !hasEnoughActivity) {
+  if (!hasPoints || !hasActivity) {
     return {
       isRenderable: false,
       points: [],
@@ -333,7 +364,7 @@ const trendView = computed(() => {
       start: point.bucket_start,
       end: point.bucket_end,
     })),
-    activeWindow.value,
+    trendPreset.value,
     locale.value,
   );
   const normalizedPoints = points.map((point, index) => ({
@@ -923,7 +954,8 @@ onUnmounted(() => {
 }
 
 .audit-overview__trend-panel,
-.audit-overview__trend-empty {
+.audit-overview__trend-empty,
+.audit-overview__section-empty {
   min-height: 280px;
 }
 

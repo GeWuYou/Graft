@@ -97,6 +97,28 @@
       "timeline": {
         "openEvent": "Open Event"
       },
+      "empty": {
+        "failedAuth": {
+          "title": "No authentication failures",
+          "description": "No failed sign-ins or authentication audit events were found in the selected window."
+        },
+        "permissionDenied": {
+          "title": "No permission denials",
+          "description": "No authorization denials were found in the selected window."
+        },
+        "sensitiveOps": {
+          "title": "No sensitive audit events",
+          "description": "No export, delete, reset, grant, or other privileged write events were found in the selected window."
+        },
+        "riskGroups": {
+          "title": "No active risk groups",
+          "description": "No grouped audit risks need attention in the selected window."
+        },
+        "securityTimeline": {
+          "title": "No security timeline events",
+          "description": "No security events were found in the selected window."
+        }
+      },
       "stats": {
         "totalLogs": {
           "title": "Audit Log Count",
