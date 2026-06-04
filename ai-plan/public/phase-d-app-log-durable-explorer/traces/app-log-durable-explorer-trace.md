@@ -68,3 +68,29 @@
 - Added OpenAPI source contracts and regenerated server/frontend OpenAPI artifacts.
 - Added `web/src/modules/app-log/**` with module-owned contract, API, bootstrap route, locales, filters, table, detail drawer, page, and focused tests.
 - TDesign MCP preflight used for `vue-next` Table, Form, Drawer, Tag, DatePicker, Select, Input, and Button docs.
+
+## 2026-06-04 Batch 3 Final Validation and Archive Readiness
+
+- Re-ran startup preflight from root `AGENTS.md`.
+- Confirmed task class remains `cross-boundary`.
+- Confirmed working tree started clean at committed Batch 2 state:
+  - `1d06b7e feat(app-log): add durable explorer read surface`
+- Ran full backend validation:
+  - `cd server && go run ./cmd/graft validate backend`
+  - Result: passed.
+- Ran full web validation:
+  - `cd web && bun run check`
+  - Result: passed.
+- Ran focused frontend OpenAPI generated-schema sync check:
+  - `cd web && bun run openapi:types:check`
+  - Result: passed.
+- Confirmed backend OpenAPI generated artifacts are fresh through the backend validation output, including App Log generated bindings.
+- Manually inspected `server/internal/logger/migrations/202606040001_app_log_foundation.sql`:
+  - `app_logs` table comment is present.
+  - all 12 `app_logs` columns have Chinese comments.
+- Confirmed acceptance criteria:
+  - App Log durable storage and retention remain under `server/internal/logger/**`.
+  - App Log read permission is `app_log.read`, distinct from access/audit permissions.
+  - App Log Explorer supports bounded canonical filters for time, severity, component, operation, request ID, trace ID, keyword, message, and error.
+  - App Log detail remains limited to canonical runtime troubleshooting fields.
+- Topic verdict: `archive-ready`.

@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Status: `active`
+- Status: `archive-ready`
 - Branch: `feat/app-log-durable-explorer`
 - Loop mode: `topic-completion-loop`
 
@@ -15,7 +15,7 @@
 - [x] Batch 2: OpenAPI and web Explorer
   - Add canonical read contracts and generated types.
   - Add `web/src/modules/app-log/**` list/detail troubleshooting UI with route/menu/permission/i18n boundaries.
-- [ ] Batch 3: final validation and archive readiness
+- [x] Batch 3: final validation and archive readiness
   - Run required cross-boundary validation.
   - Update governance evidence and closeout this topic as archive-ready when acceptance passes.
 
@@ -26,6 +26,23 @@
 - App Log Explorer supports bounded time, severity, component, operation, request ID, trace ID, and message keyword filtering.
 - App Log detail shows only canonical App Log runtime troubleshooting fields.
 - Cross-boundary validation is run and reported truthfully.
+
+## Batch 3 Evidence
+
+- Start state:
+  - clean working tree at committed Batch 2 state `1d06b7e`
+- Full cross-boundary validation:
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- Generated artifact sync:
+  - backend OpenAPI freshness checks reported App Log generated bindings fresh through `graft validate backend`
+  - `cd web && bun run openapi:types:check`
+- Manual migration comment check:
+  - `server/internal/logger/migrations/202606040001_app_log_foundation.sql`
+  - `app_logs` table comment present
+  - all 12 columns have Chinese comments
+- Archive verdict:
+  - `archive-ready`
 
 ## Batch 1 Evidence
 

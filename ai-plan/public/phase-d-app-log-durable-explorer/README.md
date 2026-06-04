@@ -3,7 +3,7 @@
 ## Status
 
 - Topic: `phase-d-app-log-durable-explorer`
-- Status: `active`
+- Status: `archive-ready`
 - Task class: `cross-boundary`
 - Recovery source: `parent topic`
   - `phase-d-app-log-retention-authz-and-storage-readiness`
@@ -46,9 +46,10 @@ Implement a bounded repository-owned App Log durable troubleshooting surface aft
 - validation failure policy: stop on failure unless the next bounded batch is a direct fix
 - completed batches:
   - Batch 1 backend approval and runtime foundation
+  - Batch 2 OpenAPI and web Explorer
+  - Batch 3 final validation and archive readiness
 - pending batches:
-  1. Add OpenAPI contract and web App Log Explorer consumer.
-  2. Final validation, governance alignment, and archive-readiness closeout.
+  - none
 
 ## Batch 1 Backend Foundation
 
@@ -69,3 +70,33 @@ Implement a bounded repository-owned App Log durable troubleshooting surface aft
   - read permission/menu/API route contract
   - OpenAPI source and generated consumers
   - `web/src/modules/app-log/**` Explorer
+
+## Batch 2 OpenAPI and Web Explorer
+
+- Status: `completed`
+- Owner:
+  - `server/internal/logger/**` for logger-owned read registration, permission, menu, and API runtime
+  - `openapi/**` for shared wire contracts
+  - `web/src/modules/app-log/**` for downstream Explorer consumption
+- Implemented:
+  - App Log read permission `app_log.read`
+  - App Log menu path `/logs/app`
+  - read-only API paths `GET /api/app-log` and `GET /api/app-log/{id}`
+  - OpenAPI App Log list/detail schemas and generated server/frontend consumers
+  - App Log Explorer list/detail UI with bounded filters and canonical troubleshooting fields
+
+## Batch 3 Final Validation and Archive Readiness
+
+- Status: `completed`
+- Archive verdict: `archive-ready`
+- Acceptance criteria:
+  - durable App Log storage remains under `server/internal/logger/**`
+  - read permission is `app_log.read` and remains distinct from access/audit permissions
+  - Explorer filters remain bounded to time, severity, component, operation, request ID, trace ID, keyword, message, and error
+  - App Log detail exposes only canonical runtime troubleshooting fields
+  - OpenAPI generated artifacts are in sync
+  - `app_logs` migration has Chinese comments for the table and all 12 columns
+- Validation:
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+  - `cd web && bun run openapi:types:check`
