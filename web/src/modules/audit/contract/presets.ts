@@ -2,6 +2,7 @@ import type { AuditBusinessCategory } from '../types/audit';
 
 export type AuditQuickPresetKey =
   | 'all'
+  | 'security-events'
   | 'failed-operations'
   | 'rbac-changes'
   | 'permission-denied'
@@ -16,6 +17,7 @@ export type AuditQuickPresetDefinition = {
 
 const AUDIT_PRESET_DEFINITIONS: readonly AuditQuickPresetDefinition[] = [
   { key: 'all', titleKey: 'audit.logList.presets.all' },
+  { key: 'security-events', titleKey: 'audit.logList.presets.securityEvents' },
   { key: 'failed-operations', titleKey: 'audit.logList.presets.failedOperations' },
   { key: 'rbac-changes', titleKey: 'audit.logList.presets.rbacChanges' },
   { key: 'permission-denied', titleKey: 'audit.logList.presets.permissionDenied' },

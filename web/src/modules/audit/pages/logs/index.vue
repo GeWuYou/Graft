@@ -750,6 +750,9 @@ function joinRouteList(values: string[]) {
 }
 
 function inferPresetFromState(value: AuditClientFilterState, scope: string): AuditQuickPresetKey {
+  if (!scope && value.source === 'SECURITY_EVENT' && !value.businessCategory) {
+    return 'security-events';
+  }
   if (scope === AUDIT_DRILLDOWN_SCOPE.FAILED_OPERATIONS) {
     return 'failed-operations';
   }
@@ -797,6 +800,10 @@ function applyQuickPresetFilters(preset: AuditQuickPresetKey) {
   filters.value.createdRange = createdRange;
 
   switch (preset) {
+    case 'security-events':
+      filters.value.source = 'SECURITY_EVENT';
+      filters.value.results = ['DENIED', 'FAILED', 'ERROR'];
+      return;
     case 'failed-operations':
       filters.value.result = 'FAILED';
       filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.FAILED_OPERATIONS;

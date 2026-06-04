@@ -337,6 +337,9 @@ const i18n = createI18n({
             highRiskValue: 'High risk: {value}',
             securityValue: 'Security events: {value}',
           },
+          timeline: {
+            openEvent: 'Open Event',
+          },
           riskGroups: {
             criticalSecurity: 'Critical Security Failures',
             meta: '{count} events in the current window',
@@ -711,12 +714,19 @@ describe('AuditOverviewPage', () => {
     expect(JSON.stringify(option)).not.toContain('%');
   });
 
-  it('navigates security timeline items with the current request CTA-only interaction', async () => {
+  it('navigates security timeline items to audit incident and access-log request facts', async () => {
     const wrapper = mountOverview();
 
     await flushPromises();
 
-    expect(wrapper.text()).not.toContain('Open Incident');
+    const eventButton = wrapper.findAll('button').find((item) => item.text().includes('Open Event'));
+    expect(eventButton).toBeTruthy();
+    await eventButton!.trigger('click');
+
+    expect(routerMocks.push).toHaveBeenLastCalledWith({
+      path: AUDIT_ROUTE_PATH.INCIDENT_DETAIL.replace(':event_id', '42'),
+    });
+
     const timelineButton = wrapper.findAll('button').find((item) => item.text().includes('View Related Request'));
 
     expect(timelineButton).toBeTruthy();

@@ -312,6 +312,9 @@ func (p eventBusSecurityAuditPublisher) Publish(
 	event := moduleapi.AuditEvent{
 		Kind:          moduleapi.AuditEventKindSecurity,
 		Action:        string(eventType),
+		ResourceType:  securityEventResourceType(metadata),
+		ResourceID:    securityEventResourceID(metadata),
+		ResourceName:  securityEventResourceName(metadata),
 		RequestMethod: strings.TrimSpace(ctx.Request.Method),
 		RequestPath:   requestPath,
 		StatusCode:    status,
@@ -394,9 +397,46 @@ func canonicalizeSecurityEventMetadata(metadata map[string]any, eventCtx securit
 	if permission, ok := cloned["permission"].(string); ok && strings.TrimSpace(permission) != "" {
 		cloned["targetType"] = "permission"
 		cloned["targetId"] = strings.TrimSpace(permission)
+		cloned["targetName"] = strings.TrimSpace(permission)
+	} else {
+		cloned["targetType"] = "auth"
+		cloned["targetId"] = string(eventCtx.eventType)
+		cloned["targetName"] = string(eventCtx.eventType)
 	}
 
 	return cloned
+}
+
+func securityEventResourceType(metadata map[string]any) string {
+	if value := stringMetadata(metadata, "targetType"); value != "" {
+		return value
+	}
+	return "auth"
+}
+
+func securityEventResourceID(metadata map[string]any) string {
+	if value := stringMetadata(metadata, "targetId"); value != "" {
+		return value
+	}
+	return stringMetadata(metadata, "eventType")
+}
+
+func securityEventResourceName(metadata map[string]any) string {
+	if value := stringMetadata(metadata, "targetName"); value != "" {
+		return value
+	}
+	return securityEventResourceID(metadata)
+}
+
+func stringMetadata(metadata map[string]any, key string) string {
+	if len(metadata) == 0 {
+		return ""
+	}
+	value, ok := metadata[key].(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(value)
 }
 
 func firstNonEmptyTrimmed(values ...string) string {

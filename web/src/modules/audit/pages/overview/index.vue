@@ -174,6 +174,9 @@
                   </t-tag>
                 </div>
                 <div class="audit-overview__timeline-actions">
+                  <t-button size="small" theme="primary" variant="text" @click="openSecurityTimelineEvent(item)">
+                    {{ securityEventActionLabel }}
+                  </t-button>
                   <t-button
                     v-if="item.request_id"
                     size="small"
@@ -205,6 +208,7 @@ import { useRouter } from 'vue-router';
 
 import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
 import { buildAuditLogsLocation } from '@/modules/audit/contract/deep-link';
+import { AUDIT_ROUTE_PATH } from '@/modules/audit/contract/paths';
 import { AUDIT_DRILLDOWN_SCOPE } from '@/modules/audit/contract/presets';
 import { AUDIT_TIME_PRESET, type AuditTimePreset } from '@/modules/audit/contract/time-presets';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
@@ -375,6 +379,7 @@ const shortcuts = computed(() => [
 ]);
 
 const riskGroupActionLabel = computed(() => t('audit.overview.riskGroups.action'));
+const securityEventActionLabel = computed(() => t('audit.overview.timeline.openEvent'));
 const relatedRequestActionLabel = computed(() => t('audit.logList.drawer.actions.viewRelatedRequest'));
 
 function buildOverviewAuditQuery(query: Record<string, string>) {
@@ -431,6 +436,24 @@ function openSecurityTimelineRequest(requestId?: string) {
   }
 
   void router.push(buildAccessLogRequestLocation(requestId));
+}
+
+function openSecurityTimelineEvent(item: AuditOverviewResponse['security_timeline'][number]) {
+  if (item.incident_seed?.event_id) {
+    void router.push({
+      path: AUDIT_ROUTE_PATH.INCIDENT_DETAIL.replace(':event_id', String(item.incident_seed.event_id)),
+    });
+    return;
+  }
+
+  void router.push(
+    buildAuditLogsLocation(
+      buildOverviewAuditQuery({
+        source: 'SECURITY_EVENT',
+        request_id: item.request_id,
+      }),
+    ),
+  );
 }
 
 async function fetchOverview() {

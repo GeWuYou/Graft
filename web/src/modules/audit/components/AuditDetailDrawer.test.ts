@@ -46,6 +46,7 @@ const i18n = createI18n({
             sections: {
               basic: 'Basic',
               request: 'Request',
+              security: 'Security',
               correlation: 'Correlation',
               risk: 'Risk',
               metadata: 'Metadata',
@@ -62,6 +63,10 @@ const i18n = createI18n({
               method: 'Method',
               path: 'Path',
               status: 'Status',
+              eventType: 'Event Type',
+              permission: 'Permission',
+              securityTarget: 'Security Target',
+              traceId: 'Trace ID',
             },
             actions: {
               copyRequestId: 'Copy',
@@ -74,6 +79,7 @@ const i18n = createI18n({
               copyMetadataFail: 'Metadata copy failed',
               backToMonitor: 'Back to monitor',
               viewRelatedRequest: 'View Related Request',
+              viewAccessLogRequest: 'View Access Log',
               openRelatedEvents: 'Open related events',
             },
             related: {
@@ -86,6 +92,7 @@ const i18n = createI18n({
               failedOperation: 'Failed operation',
               sensitiveOperation: 'Sensitive write',
               requestTrace: 'Request trace',
+              securityEvent: 'Security Event',
             },
             metadataEmpty: 'No metadata',
           },
@@ -108,18 +115,19 @@ describe('AuditDetailDrawer', () => {
         rows: [],
         record: {
           id: 1,
-          action: 'auth.failed',
+          action: 'auth.permission.denied',
           actor_display_name: 'Admin',
           actor_username: 'admin',
           actor_user_id: 1,
-          resource_type: 'auth',
-          resource_id: 'req',
-          resource_name: 'Console',
+          resource_type: 'permission',
+          resource_id: 'rbac.role.read',
+          resource_name: 'rbac.role.read',
           target: { kind: 'incident', type: 'incident', id: '42', label: 'Incident #42' },
           request_id: 'req-1',
+          trace_id: 'trace-1',
           session_id: 'sess-1',
           source: 'SECURITY_EVENT',
-          result: 'FAILED',
+          result: 'DENIED',
           success: false,
           risk_level: 'HIGH',
           ip: '127.0.0.1',
@@ -128,7 +136,12 @@ describe('AuditDetailDrawer', () => {
           request_path: '/api/auth/login',
           status_code: 401,
           message: 'Denied',
-          metadata: {},
+          metadata: {
+            eventType: 'auth.permission.denied',
+            permission: 'rbac.role.read',
+            targetName: 'rbac.role.read',
+            traceId: 'trace-1',
+          },
           created_at: '2026-05-31T04:00:00Z',
         },
       },
@@ -137,8 +150,12 @@ describe('AuditDetailDrawer', () => {
       },
     });
 
-    expect(wrapper.text()).toContain('View Related Request');
+    expect(wrapper.text()).toContain('View Access Log');
     expect(wrapper.text()).toContain('Open related events');
+    expect(wrapper.text()).toContain('Security');
+    expect(wrapper.text()).toContain('auth.permission.denied');
+    expect(wrapper.text()).toContain('rbac.role.read');
+    expect(wrapper.text()).toContain('trace-1');
     expect(wrapper.text()).not.toContain('openIncident');
   });
 });

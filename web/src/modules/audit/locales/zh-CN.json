@@ -94,6 +94,9 @@
         "highRiskValue": "高风险：{value}",
         "securityValue": "安全事件：{value}"
       },
+      "timeline": {
+        "openEvent": "查看事件"
+      },
       "stats": {
         "totalLogs": {
           "title": "审计日志数",
@@ -307,6 +310,7 @@
       "presets": {
         "label": "快捷筛选",
         "all": "全部",
+        "securityEvents": "安全事件",
         "failedOperations": "失败操作",
         "todayAnomalies": "今日安全异常",
         "rbacChanges": "权限配置变更",
@@ -457,6 +461,7 @@
         "sections": {
           "basic": "事件摘要",
           "request": "请求上下文",
+          "security": "安全事件上下文",
           "correlation": "关联上下文",
           "risk": "风险分析",
           "metadata": "元数据"
@@ -472,7 +477,11 @@
           "userAgent": "用户代理",
           "method": "请求方法",
           "path": "请求路径",
-          "status": "状态码"
+          "status": "状态码",
+          "eventType": "事件类型",
+          "permission": "权限",
+          "securityTarget": "安全目标",
+          "traceId": "Trace ID"
         },
         "actions": {
           "copyRequestId": "复制",
@@ -485,6 +494,7 @@
           "copyMetadataFail": "复制元数据 JSON 失败",
           "backToMonitor": "返回监控",
           "viewRelatedRequest": "查看关联请求",
+          "viewAccessLogRequest": "查看访问日志",
           "openRelatedEvents": "查看关联事件"
         },
         "related": {
@@ -496,7 +506,8 @@
         "risk": {
           "failedOperation": "失败操作",
           "sensitiveOperation": "敏感写操作",
-          "requestTrace": "可关联请求"
+          "requestTrace": "可关联请求",
+          "securityEvent": "安全事件"
         },
         "metadataEmpty": "当前事件没有可展示的元数据。"
       }
@@ -519,7 +530,12 @@
         "token_expired": "令牌失效",
         "token": {
           "expired": "令牌失效"
-        }
+        },
+        "missing": "令牌缺失",
+        "invalid": "令牌无效"
+      },
+      "permission": {
+        "denied": "权限拒绝"
       },
       "rbac": {
         "role": {

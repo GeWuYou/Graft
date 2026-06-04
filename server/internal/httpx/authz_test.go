@@ -368,7 +368,12 @@ func TestSecurityAuditPublisherPublishesPermissionDeniedAuditEvent(t *testing.T)
 		t.Fatalf("expected one security audit event, got %d", len(events))
 	}
 
-	event := events[0]
+	assertPermissionDeniedSecurityAuditEvent(t, events[0])
+}
+
+func assertPermissionDeniedSecurityAuditEvent(t *testing.T, event moduleapi.AuditEvent) {
+	t.Helper()
+
 	if event.Kind != moduleapi.AuditEventKindSecurity {
 		t.Fatalf("expected security event kind, got %q", event.Kind)
 	}
@@ -380,6 +385,9 @@ func TestSecurityAuditPublisherPublishesPermissionDeniedAuditEvent(t *testing.T)
 	}
 	if event.RequestPath != "/api/users/:id" || event.RequestMethod != http.MethodGet {
 		t.Fatalf("expected canonical route/method, got %#v", event)
+	}
+	if event.ResourceType != "permission" || event.ResourceID != "user.read" || event.ResourceName != "user.read" {
+		t.Fatalf("expected permission target resource context, got %#v", event)
 	}
 	if event.StatusCode != http.StatusForbidden || event.Success {
 		t.Fatalf("expected failed 403 event, got %#v", event)
@@ -396,6 +404,7 @@ func TestSecurityAuditPublisherPublishesPermissionDeniedAuditEvent(t *testing.T)
 		"route":      "/api/users/:id",
 		"status":     http.StatusForbidden,
 		"targetId":   "user.read",
+		"targetName": "user.read",
 		"targetType": "permission",
 	})
 }
@@ -464,19 +473,25 @@ func TestSecurityAuditPublisherPublishesMissingTokenAuditEvent(t *testing.T) {
 	if event.RequestPath != "/api/users/:id" || event.RequestMethod != http.MethodGet {
 		t.Fatalf("expected canonical route/method, got %#v", event)
 	}
+	if event.ResourceType != "auth" || event.ResourceID != string(securityAuditEventAuthTokenMissing) {
+		t.Fatalf("expected auth target resource context, got %#v", event)
+	}
 	if event.StatusCode != http.StatusUnauthorized || event.Success {
 		t.Fatalf("expected failed 401 event, got %#v", event)
 	}
 
 	assertSecurityAuditMetadata(t, event.Metadata, map[string]any{
-		"component": "httpx.authz",
-		"eventType": string(securityAuditEventAuthTokenMissing),
-		"method":    http.MethodGet,
-		"module":    "test-authz",
-		"path":      "/api/users/:id",
-		"riskLevel": "CRITICAL",
-		"route":     "/api/users/:id",
-		"status":    http.StatusUnauthorized,
+		"component":  "httpx.authz",
+		"eventType":  string(securityAuditEventAuthTokenMissing),
+		"method":     http.MethodGet,
+		"module":     "test-authz",
+		"path":       "/api/users/:id",
+		"riskLevel":  "CRITICAL",
+		"route":      "/api/users/:id",
+		"status":     http.StatusUnauthorized,
+		"targetId":   string(securityAuditEventAuthTokenMissing),
+		"targetName": string(securityAuditEventAuthTokenMissing),
+		"targetType": "auth",
 	})
 }
 
