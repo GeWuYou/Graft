@@ -34,6 +34,10 @@ func (r *appLoggerSinkRecorder) ListAppLogs(context.Context, AppLogListQuery) (A
 	return AppLogListResult{}, nil
 }
 
+func (r *appLoggerSinkRecorder) GetAppLogByID(context.Context, uint64) (AppLogRecord, error) {
+	return AppLogRecord{}, ErrAppLogNotFound
+}
+
 func TestAppLoggerIncludesRequestCorrelationFields(t *testing.T) {
 	core, observed := observer.New(zapcore.InfoLevel)
 	logger := NewAppLogger(zap.New(core)).Named("user.service")

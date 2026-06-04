@@ -26,6 +26,8 @@ const (
 var (
 	errAppLogStorageModeRequired    = errors.New("app log storage mode is required")
 	errAppLogRetentionOwnerRequired = errors.New("app log retention owner is required")
+	// ErrAppLogNotFound reports that a requested app-log record is outside the retained dataset.
+	ErrAppLogNotFound = errors.New("app log not found")
 )
 
 var forbiddenAppLogPersistedFields = []string{
@@ -166,6 +168,7 @@ type AppLogListQuery struct {
 	Route        string
 	Method       string
 	Error        string
+	Message      string
 	Keyword      string
 	OccurredFrom *time.Time
 	OccurredTo   *time.Time
@@ -215,6 +218,7 @@ func normalizeAppLogListQuery(query AppLogListQuery) AppLogListQuery {
 	query.Route = sanitizeString(query.Route)
 	query.Method = sanitizeString(query.Method)
 	query.Error = sanitizeString(query.Error)
+	query.Message = sanitizeString(query.Message)
 	query.Keyword = sanitizeString(query.Keyword)
 	if err := query.Severity.Validate(); err != nil {
 		query.Severity = ""
@@ -336,4 +340,5 @@ type AppLogRepository interface {
 	CreateAppLog(context.Context, CreateAppLogInput) (AppLogRecord, error)
 	DeleteAppLogsBefore(context.Context, time.Time) (int64, error)
 	ListAppLogs(context.Context, AppLogListQuery) (AppLogListResult, error)
+	GetAppLogByID(context.Context, uint64) (AppLogRecord, error)
 }

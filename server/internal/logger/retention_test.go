@@ -36,6 +36,10 @@ func (r *appLogRetentionRepoRecorder) ListAppLogs(context.Context, AppLogListQue
 	return AppLogListResult{}, nil
 }
 
+func (r *appLogRetentionRepoRecorder) GetAppLogByID(context.Context, uint64) (AppLogRecord, error) {
+	return AppLogRecord{}, ErrAppLogNotFound
+}
+
 func TestNewAppLogRetentionPolicyRejectsNonPositiveRetention(t *testing.T) {
 	_, err := newAppLogRetentionPolicy(config.LogConfig{})
 	if err == nil {

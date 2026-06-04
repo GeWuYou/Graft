@@ -18,6 +18,7 @@ tags:
   - name: audit
   - name: monitor
   - name: access-log
+  - name: app-log
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
@@ -107,6 +108,10 @@ paths:
     $ref: ./paths/access-log.logs.yaml
   /api/access-log/{id}:
     $ref: ./paths/access-log.detail.yaml
+  /api/app-log:
+    $ref: ./paths/app-log.logs.yaml
+  /api/app-log/{id}:
+    $ref: ./paths/app-log.detail.yaml
 components:
   schemas:
     ApiEnvelope:
@@ -253,6 +258,14 @@ components:
       $ref: ./components/schemas/enveloped-access-log-list-response.yaml
     EnvelopedAccessLogDetailResponse:
       $ref: ./components/schemas/enveloped-access-log-detail-response.yaml
+    AppLogDetailResponse:
+      $ref: ./components/schemas/app-log-detail-response.yaml
+    AppLogListResponse:
+      $ref: ./components/schemas/app-log-list-response.yaml
+    EnvelopedAppLogListResponse:
+      $ref: ./components/schemas/enveloped-app-log-list-response.yaml
+    EnvelopedAppLogDetailResponse:
+      $ref: ./components/schemas/enveloped-app-log-detail-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

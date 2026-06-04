@@ -121,6 +121,26 @@ func (r *appLogRepository) ListAppLogs(ctx context.Context, query AppLogListQuer
 	}, nil
 }
 
+func (r *appLogRepository) GetAppLogByID(ctx context.Context, id uint64) (AppLogRecord, error) {
+	if r == nil || r.db == nil {
+		return AppLogRecord{}, errors.New("app log repository is unavailable")
+	}
+	if id == 0 {
+		return AppLogRecord{}, ErrAppLogNotFound
+	}
+
+	query := r.buildAppLogDetailSelectQuery()
+	record, err := scanAppLog(r.db.QueryRowContext(ctx, query, id))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AppLogRecord{}, ErrAppLogNotFound
+		}
+		return AppLogRecord{}, fmt.Errorf("get app log by id: %w", err)
+	}
+
+	return record, nil
+}
+
 func (r *appLogRepository) createAppLog(
 	ctx context.Context,
 	queryer appLogQueryer,
@@ -207,6 +227,23 @@ func (r *appLogRepository) buildAppLogListSelectQuery(whereSQL string, filterArg
 	return builder.String()
 }
 
+func (r *appLogRepository) buildAppLogDetailSelectQuery() string {
+	return `SELECT
+		id,
+		occurred_at,
+		severity,
+		component,
+		operation,
+		request_id,
+		trace_id,
+		route,
+		method,
+		error,
+		message,
+		fields
+	FROM app_logs WHERE id = ` + r.placeholder(1)
+}
+
 func (r *appLogRepository) buildAppLogWhereClause(query AppLogListQuery) (string, []any) {
 	conditions := make([]string, 0, appLogListClauseCapacity)
 	args := make([]any, 0, appLogListClauseCapacity)
@@ -219,6 +256,7 @@ func (r *appLogRepository) buildAppLogWhereClause(query AppLogListQuery) (string
 	appendAppLogEqualityFilter(&conditions, &args, r, "route =", query.Route)
 	appendAppLogEqualityFilter(&conditions, &args, r, "method =", query.Method)
 	appendAppLogErrorFilter(&conditions, &args, r, query.Error)
+	appendAppLogMessageFilter(&conditions, &args, r, query.Message)
 	appendAppLogKeywordFilter(&conditions, &args, r, query.Keyword)
 	appendAppLogOptionalTimeFilter(&conditions, &args, r, "occurred_at >=", query.OccurredFrom)
 	appendAppLogOptionalTimeFilter(&conditions, &args, r, "occurred_at <=", query.OccurredTo)
@@ -255,6 +293,19 @@ func appendAppLogErrorFilter(
 	}
 	*args = append(*args, "%"+escapeAppLogLikePattern(strings.ToLower(value))+"%")
 	*conditions = append(*conditions, "LOWER(COALESCE(error, '')) LIKE "+repo.placeholder(len(*args))+" ESCAPE '\\'")
+}
+
+func appendAppLogMessageFilter(
+	conditions *[]string,
+	args *[]any,
+	repo *appLogRepository,
+	value string,
+) {
+	if value == "" {
+		return
+	}
+	*args = append(*args, "%"+escapeAppLogLikePattern(strings.ToLower(value))+"%")
+	*conditions = append(*conditions, "LOWER(message) LIKE "+repo.placeholder(len(*args))+" ESCAPE '\\'")
 }
 
 func appendAppLogKeywordFilter(

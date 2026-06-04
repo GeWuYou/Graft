@@ -76,6 +76,10 @@ func (r *runtimeAppLogRecorderRepo) ListAppLogs(context.Context, logger.AppLogLi
 	return logger.AppLogListResult{}, nil
 }
 
+func (r *runtimeAppLogRecorderRepo) GetAppLogByID(context.Context, uint64) (logger.AppLogRecord, error) {
+	return logger.AppLogRecord{}, logger.ErrAppLogNotFound
+}
+
 type shutdownRecorderModule struct {
 	name        string
 	shutdownLog *[]string

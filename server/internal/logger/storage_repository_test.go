@@ -107,6 +107,14 @@ func TestAppLogRepositoryCreateAndList(t *testing.T) {
 	if got := result.Items[0].Fields["module_name"]; got != "user" {
 		t.Fatalf("expected decoded fields, got %#v", result.Items[0].Fields)
 	}
+
+	detail, err := repo.GetAppLogByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get app log by id: %v", err)
+	}
+	if detail.ID != created.ID || detail.Message != created.Message {
+		t.Fatalf("expected matching app log detail, got %#v", detail)
+	}
 }
 
 func TestAppLogRepositoryDeleteBefore(t *testing.T) {

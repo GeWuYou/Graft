@@ -69,6 +69,18 @@ type appLogger struct {
 	fields []Field
 }
 
+type appLogRecordSetter func(*CreateAppLogInput, string)
+
+var appLogTopLevelRecordSetters = map[string]appLogRecordSetter{
+	FieldComponent: func(record *CreateAppLogInput, value string) { record.Component = value },
+	FieldOperation: func(record *CreateAppLogInput, value string) { record.Operation = value },
+	FieldRequestID: func(record *CreateAppLogInput, value string) { record.RequestID = value },
+	FieldTraceID:   func(record *CreateAppLogInput, value string) { record.TraceID = value },
+	FieldRoute:     func(record *CreateAppLogInput, value string) { record.Route = value },
+	FieldMethod:    func(record *CreateAppLogInput, value string) { record.Method = value },
+	FieldError:     func(record *CreateAppLogInput, value string) { record.Error = value },
+}
+
 // NewAppLogger wraps the runtime zap logger with the canonical AppLogger contract.
 func NewAppLogger(base *zap.Logger, options ...AppLoggerOption) AppLogger {
 	if base == nil {
@@ -192,27 +204,7 @@ func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, me
 			continue
 		}
 		value := stringifyAppLogFieldValue(key, sanitizeFieldValue(key, field.Value))
-		switch key {
-		case FieldComponent:
-			record.Component = value
-		case FieldOperation:
-			record.Operation = value
-		case FieldRequestID:
-			record.RequestID = value
-		case FieldTraceID:
-			record.TraceID = value
-		case FieldRoute:
-			record.Route = value
-		case FieldMethod:
-			record.Method = value
-		case FieldError:
-			record.Error = value
-		default:
-			if isAppLogTopLevelField(key) || IsForbiddenAppLogPersistedField(key) {
-				continue
-			}
-			record.Fields[key] = value
-		}
+		applyAppLogRecordField(&record, key, value)
 	}
 
 	if record.Component == "" {
@@ -220,6 +212,21 @@ func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, me
 	}
 
 	return record, nil
+}
+
+func applyAppLogRecordField(record *CreateAppLogInput, key string, value string) {
+	if record == nil {
+		return
+	}
+
+	if setter, ok := appLogTopLevelRecordSetters[key]; ok {
+		setter(record, value)
+		return
+	}
+	if isAppLogTopLevelField(key) || IsForbiddenAppLogPersistedField(key) {
+		return
+	}
+	record.Fields[key] = value
 }
 
 func appendAppLoggerFields(existing []Field, fields ...Field) []Field {
@@ -268,7 +275,7 @@ func appendStringField(fields []zap.Field, key string, value string) []zap.Field
 	return fields
 }
 
-func stringifyAppLogFieldValue(key string, value any) string {
+func stringifyAppLogFieldValue(_ string, value any) string {
 	if value == nil {
 		return ""
 	}

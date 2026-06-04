@@ -13,9 +13,9 @@
 
 - completed batches:
   - Batch 1 backend approval and runtime foundation
+  - Batch 2 OpenAPI and web Explorer
 - current batch: Batch 2 OpenAPI and web Explorer
 - pending batches:
-  - Batch 2 OpenAPI and web Explorer
   - Batch 3 final validation and archive readiness
 
 ## 2026-06-04 Batch 1 Backend Foundation
@@ -45,3 +45,26 @@
   - `cd server && go test ./internal/logger ./internal/app ./internal/cli ./internal/config ./internal/moduleregistry`
   - `cd server && atlas migrate hash --dir file://internal/logger/migrations`
   - manual migration comment inspection confirmed `app_logs` table and all columns have Chinese comments.
+
+## 2026-06-04 Batch 2 OpenAPI and Web Explorer
+
+- Added logger-owned App Log Explorer read registration under `server/internal/logger/**`.
+- Added distinct permission and menu semantics:
+  - permission: `app_log.read`
+  - menu: `/logs/app`
+  - API group: `/api/app-log`
+- Added read-only list/detail handlers with unknown query-key rejection.
+- Kept query filters bounded to canonical App Log fields:
+  - `occurred_from`
+  - `occurred_to`
+  - `severity`
+  - `component`
+  - `operation`
+  - `request_id`
+  - `trace_id`
+  - `keyword`
+  - `message`
+  - `error`
+- Added OpenAPI source contracts and regenerated server/frontend OpenAPI artifacts.
+- Added `web/src/modules/app-log/**` with module-owned contract, API, bootstrap route, locales, filters, table, detail drawer, page, and focused tests.
+- TDesign MCP preflight used for `vue-next` Table, Form, Drawer, Tag, DatePicker, Select, Input, and Button docs.

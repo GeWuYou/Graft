@@ -1,0 +1,94 @@
+get:
+  tags: [app-log]
+  summary: List app logs
+  operationId: getAppLogs
+  description: Returns the canonical paged App Log Explorer surface owned by the logger runtime.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: occurred_from
+      in: query
+      description: Inclusive canonical occurrence-time lower bound on `occurred_at`.
+      schema:
+        type: string
+        format: date-time
+    - name: occurred_to
+      in: query
+      description: Inclusive canonical occurrence-time upper bound on `occurred_at`.
+      schema:
+        type: string
+        format: date-time
+    - name: severity
+      in: query
+      schema:
+        type: string
+        enum: [debug, info, warn, error]
+    - name: component
+      in: query
+      schema:
+        type: string
+    - name: operation
+      in: query
+      schema:
+        type: string
+    - name: request_id
+      in: query
+      schema:
+        type: string
+    - name: trace_id
+      in: query
+      schema:
+        type: string
+    - name: keyword
+      in: query
+      description: Canonical fuzzy match applied to component, operation, message, and error.
+      schema:
+        type: string
+    - name: message
+      in: query
+      description: Bounded fuzzy match applied to the app-log message only.
+      schema:
+        type: string
+    - name: error
+      in: query
+      description: Bounded fuzzy match applied to the app-log error text only.
+      schema:
+        type: string
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: App log page.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-app-log-list-response.yaml
+    '400':
+      description: Invalid app log query.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
