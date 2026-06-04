@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,16 +15,69 @@ import (
 )
 
 type appLoggerSinkRecorder struct {
+	mu      sync.Mutex
 	records []CreateAppLogInput
 	err     error
+	block   chan struct{}
+	seen    chan struct{}
 }
 
-func (r *appLoggerSinkRecorder) CreateAppLog(_ context.Context, input CreateAppLogInput) (AppLogRecord, error) {
+func newAppLoggerSinkRecorder() *appLoggerSinkRecorder {
+	return &appLoggerSinkRecorder{seen: make(chan struct{}, 1)}
+}
+
+func (r *appLoggerSinkRecorder) CreateAppLog(ctx context.Context, input CreateAppLogInput) (AppLogRecord, error) {
+	if r.block != nil {
+		select {
+		case <-r.block:
+		case <-ctx.Done():
+			return AppLogRecord{}, ctx.Err()
+		}
+	}
+
+	r.mu.Lock()
 	r.records = append(r.records, input)
+	r.mu.Unlock()
+	r.notifySeen()
 	if r.err != nil {
 		return AppLogRecord{}, r.err
 	}
 	return AppLogRecord{}, nil
+}
+
+func (r *appLoggerSinkRecorder) notifySeen() {
+	if r.seen == nil {
+		return
+	}
+	select {
+	case r.seen <- struct{}{}:
+	default:
+	}
+}
+
+func (r *appLoggerSinkRecorder) waitRecord(t *testing.T) CreateAppLogInput {
+	t.Helper()
+
+	if r.seen != nil {
+		select {
+		case <-r.seen:
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for app log persistence")
+		}
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.records) == 0 {
+		t.Fatal("expected persisted app log record")
+	}
+	return r.records[0]
+}
+
+func (r *appLoggerSinkRecorder) recordCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.records)
 }
 
 func (r *appLoggerSinkRecorder) DeleteAppLogsBefore(context.Context, time.Time) (int64, error) {
@@ -107,7 +161,7 @@ func TestAppLoggerWithSanitizesFieldKeys(t *testing.T) {
 
 func TestAppLoggerPersistsCanonicalRecordWhenRepositoryConfigured(t *testing.T) {
 	core, observed := observer.New(zapcore.InfoLevel)
-	sink := &appLoggerSinkRecorder{}
+	sink := newAppLoggerSinkRecorder()
 	logger := NewAppLogger(zap.New(core), WithAppLogRepository(sink)).
 		Named("modules.user.route").
 		With(StringField("release", " 2026.06 "))
@@ -129,11 +183,8 @@ func TestAppLoggerPersistsCanonicalRecordWhenRepositoryConfigured(t *testing.T) 
 	if len(observed.All()) != 1 {
 		t.Fatalf("expected zap output to remain enabled, got %d entries", len(observed.All()))
 	}
-	if len(sink.records) != 1 {
-		t.Fatalf("expected one persisted app log, got %d", len(sink.records))
-	}
 
-	record := sink.records[0]
+	record := sink.waitRecord(t)
 	if record.Severity != AppLogSeverityError {
 		t.Fatalf("expected error severity, got %q", record.Severity)
 	}
@@ -162,10 +213,21 @@ func TestAppLoggerPersistsCanonicalRecordWhenRepositoryConfigured(t *testing.T) 
 
 func TestAppLoggerPreservesZapOutputWhenPersistenceFails(t *testing.T) {
 	core, observed := observer.New(zapcore.WarnLevel)
-	sink := &appLoggerSinkRecorder{err: errors.New("db down")}
+	sink := newAppLoggerSinkRecorder()
+	sink.err = errors.New("db down")
 	logger := NewAppLogger(zap.New(core), WithAppLogRepository(sink)).Named("core.app")
 
 	logger.Warn(context.Background(), "startup degraded", StringField(FieldOperation, "boot"))
+	_ = sink.waitRecord(t)
+	deadline := time.After(time.Second)
+	for len(observed.All()) < 2 {
+		select {
+		case <-deadline:
+			t.Fatalf("timed out waiting for persistence failure log, got %d entries", len(observed.All()))
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
 
 	entries := observed.All()
 	if len(entries) != 2 {
@@ -177,4 +239,27 @@ func TestAppLoggerPreservesZapOutputWhenPersistenceFails(t *testing.T) {
 	if entries[1].Message != "app log persistence failed" {
 		t.Fatalf("expected persistence failure log, got %q", entries[1].Message)
 	}
+}
+
+func TestAppLoggerPersistenceDoesNotBlockCaller(t *testing.T) {
+	core, observed := observer.New(zapcore.InfoLevel)
+	sink := newAppLoggerSinkRecorder()
+	sink.block = make(chan struct{})
+	logger := NewAppLogger(zap.New(core), WithAppLogRepository(sink)).Named("core.app")
+
+	started := time.Now()
+	logger.Info(context.Background(), "request complete", StringField(FieldOperation, "request"))
+
+	if elapsed := time.Since(started); elapsed > 100*time.Millisecond {
+		t.Fatalf("expected async persistence to return quickly, took %s", elapsed)
+	}
+	if len(observed.All()) != 1 {
+		t.Fatalf("expected zap output before durable persistence completes, got %d entries", len(observed.All()))
+	}
+	if got := sink.recordCount(); got != 0 {
+		t.Fatalf("expected durable sink to still be blocked, got %d records", got)
+	}
+
+	close(sink.block)
+	_ = sink.waitRecord(t)
 }

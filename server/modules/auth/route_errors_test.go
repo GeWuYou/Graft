@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,11 +17,19 @@ import (
 )
 
 type routeAppLogRecorder struct {
+	mu      sync.Mutex
 	records []applog.CreateAppLogInput
+	seen    chan struct{}
 }
 
 func (r *routeAppLogRecorder) CreateAppLog(_ context.Context, input applog.CreateAppLogInput) (applog.AppLogRecord, error) {
+	r.mu.Lock()
 	r.records = append(r.records, input)
+	r.mu.Unlock()
+	select {
+	case r.seen <- struct{}{}:
+	default:
+	}
 	return applog.AppLogRecord{}, nil
 }
 
@@ -38,7 +47,7 @@ func (r *routeAppLogRecorder) GetAppLogByID(context.Context, uint64) (applog.App
 
 func TestRouteRuntimeUsesResolvedAppLoggerForResponseMappingErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	sink := &routeAppLogRecorder{}
+	sink := &routeAppLogRecorder{seen: make(chan struct{}, 1)}
 	services := container.New()
 	if err := services.RegisterSingleton((*applog.AppLogger)(nil), func(container.Resolver) (any, error) {
 		return applog.NewAppLogger(zap.NewNop(), applog.WithAppLogRepository(sink)), nil
@@ -58,6 +67,13 @@ func TestRouteRuntimeUsesResolvedAppLoggerForResponseMappingErrors(t *testing.T)
 	ginCtx.Request = httptest.NewRequest("GET", "/api/auth/bootstrap", nil)
 	runtime.writeResponseMappingError(ginCtx, "map bootstrap response", errors.New("bad payload"))
 
+	select {
+	case <-sink.seen:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for persisted app log record")
+	}
+	sink.mu.Lock()
+	defer sink.mu.Unlock()
 	if len(sink.records) != 1 {
 		t.Fatalf("expected one persisted app log record, got %#v", sink.records)
 	}

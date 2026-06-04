@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,5 +176,21 @@ func TestAppLogRepositorySortsByRequestedFields(t *testing.T) {
 		if got[index] != expected[index] {
 			t.Fatalf("expected component order %#v, got %#v", expected, got)
 		}
+	}
+}
+
+func TestAppLogKeywordFilterUsesPostgresFullTextSearch(t *testing.T) {
+	repo := &appLogRepository{dialect: appLogSQLDialectPostgres}
+
+	whereSQL, args := repo.buildAppLogWhereClause(AppLogListQuery{Keyword: " response "})
+
+	if len(args) != 1 || args[0] != "response" {
+		t.Fatalf("expected normalized keyword arg, got %#v", args)
+	}
+	if !strings.Contains(whereSQL, "to_tsvector('simple'") || !strings.Contains(whereSQL, "@@ plainto_tsquery('simple', $1)") {
+		t.Fatalf("expected postgres full-text keyword condition, got %s", whereSQL)
+	}
+	if strings.Contains(whereSQL, "LIKE") {
+		t.Fatalf("expected keyword search to avoid leading-wildcard LIKE, got %s", whereSQL)
 	}
 }

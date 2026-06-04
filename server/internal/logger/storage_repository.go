@@ -360,6 +360,16 @@ func appendAppLogKeywordFilter(
 		return
 	}
 
+	if repo == nil || repo.dialect == appLogSQLDialectPostgres {
+		*args = append(*args, trimmed)
+		placeholder := "$" + strconv.Itoa(len(*args))
+		if repo != nil {
+			placeholder = repo.placeholder(len(*args))
+		}
+		*conditions = append(*conditions, "to_tsvector('simple', concat_ws(' ', component, COALESCE(operation, ''), message, COALESCE(error, ''))) @@ plainto_tsquery('simple', "+placeholder+")")
+		return
+	}
+
 	pattern := "%" + escapeAppLogLikePattern(trimmed) + "%"
 	orClauses := make([]string, 0, appLogKeywordClauseCount)
 	for _, expression := range []string{

@@ -78,8 +78,8 @@
 * severity：`debug` / `info` / `warn` / `error`
 * component naming：使用 `module.component` 风格，按调用链显式 `Named`
 * request correlation：从请求上下文读取 `request_id` / `trace_id`
-* persistence strategy：始终保留当前 Zap runtime sink；当 runtime 配置了 logger-owned repository 时，同步 best-effort 写入 `app_logs`
-* async behavior：不引入额外异步队列；repository sink 失败只写出底层 zap 诊断，不阻断原调用路径
+* persistence strategy：始终保留当前 Zap runtime sink；当 runtime 配置了 logger-owned repository 时，通过 bounded async queue best-effort 写入 `app_logs`
+* async behavior：调用方只负责完成 zap 输出和入队；repository sink 超时或失败只写出底层 zap 诊断，不阻断原调用路径
 * sanitization：按字段名脱敏 `password` / `secret` / `token` / `authorization` / `cookie`
 * retention boundary：App Log durable storage runtime approval 已完成；logger boundary owns repository cleanup lifecycle，archive/export 仍未批准
 

@@ -41,7 +41,10 @@ const (
 )
 
 const redactedValue = "[REDACTED]"
-const appLogPersistTimeout = 2 * time.Second
+const (
+	appLogPersistQueueSize = 1024
+	appLogPersistTimeout   = 2 * time.Second
+)
 
 // AppLogger defines the canonical application-log contract for runtime and modules.
 type AppLogger interface {
@@ -65,9 +68,24 @@ type Field struct {
 
 type appLogger struct {
 	base   *zap.Logger
-	sink   AppLogRepository
+	sink   appLogPersistSink
 	now    func() time.Time
 	fields []Field
+}
+
+type appLogPersistSink interface {
+	CreateAppLog(context.Context, CreateAppLogInput) (AppLogRecord, error)
+}
+
+type asyncAppLogPersistSink struct {
+	repo  AppLogRepository
+	base  *zap.Logger
+	queue chan appLogPersistRequest
+}
+
+type appLogPersistRequest struct {
+	ctx    context.Context
+	record CreateAppLogInput
 }
 
 type appLogRecordSetter func(*CreateAppLogInput, string)
@@ -106,8 +124,25 @@ func NewAppLogger(base *zap.Logger, options ...AppLoggerOption) AppLogger {
 // WithAppLogRepository configures a best-effort durable App Log sink.
 func WithAppLogRepository(repo AppLogRepository) AppLoggerOption {
 	return func(l *appLogger) {
-		l.sink = repo
+		l.sink = newAsyncAppLogPersistSink(l.base, repo)
 	}
+}
+
+func newAsyncAppLogPersistSink(base *zap.Logger, repo AppLogRepository) appLogPersistSink {
+	if repo == nil {
+		return nil
+	}
+	if base == nil {
+		base = zap.NewNop()
+	}
+
+	sink := &asyncAppLogPersistSink{
+		repo:  repo,
+		base:  base,
+		queue: make(chan appLogPersistRequest, appLogPersistQueueSize),
+	}
+	go sink.run()
+	return sink
 }
 
 func (l appLogger) Debug(ctx context.Context, message string, fields ...Field) {
@@ -180,10 +215,39 @@ func (l appLogger) persist(ctx context.Context, severity AppLogSeverity, message
 		l.base.Warn("app log persistence skipped", zap.Error(err))
 		return
 	}
-	persistCtx, cancel := context.WithTimeout(ctx, appLogPersistTimeout)
-	defer cancel()
+
+	persistCtx := context.Background()
+	if ctx != nil {
+		persistCtx = context.WithoutCancel(ctx)
+	}
 	if _, err := l.sink.CreateAppLog(persistCtx, record); err != nil {
 		l.base.Warn("app log persistence failed", zap.Error(err))
+	}
+}
+
+func (s *asyncAppLogPersistSink) CreateAppLog(ctx context.Context, record CreateAppLogInput) (AppLogRecord, error) {
+	if s == nil || s.repo == nil {
+		return AppLogRecord{}, nil
+	}
+
+	select {
+	case s.queue <- appLogPersistRequest{ctx: ctx, record: record}:
+	default:
+	}
+	return AppLogRecord{}, nil
+}
+
+func (s *asyncAppLogPersistSink) run() {
+	for request := range s.queue {
+		ctx := request.ctx
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		persistCtx, cancel := context.WithTimeout(ctx, appLogPersistTimeout)
+		if _, err := s.repo.CreateAppLog(persistCtx, request.record); err != nil {
+			s.base.Warn("app log persistence failed", zap.Error(err))
+		}
+		cancel()
 	}
 }
 
