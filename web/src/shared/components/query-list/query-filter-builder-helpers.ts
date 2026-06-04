@@ -1,7 +1,5 @@
 import { computed, type Ref } from 'vue';
 
-import type { LogFilterFieldDefinition, LogFilterPreset, LogFilterTag, LogTimeRangeField } from './log-filter-builder';
-import type { LogFilterBuilderFrameState } from './LogFilterBuilderFrame.vue';
 import {
   appendSorterToState,
   buildSorterUiState,
@@ -13,7 +11,15 @@ import {
   type SortOption,
   withSorterDirectionFromInput,
   withSorterFieldFromInput,
-} from './sorters';
+} from '@/shared/observability/sorters';
+
+import type { AdvancedQueryFilterBuilderFrameState } from './AdvancedQueryFilterBuilderFrame.vue';
+import type {
+  AdvancedQueryFilterFieldDefinition,
+  AdvancedQueryFilterPreset,
+  AdvancedQueryFilterTag,
+  AdvancedQueryTimeRangeField,
+} from './query-filter-builder';
 
 type SorterInputValue = string | number | Array<string | number> | undefined;
 
@@ -34,7 +40,7 @@ type BuilderListenerConfig<TPreset extends string, TFieldKey extends string, TTi
   updateTimeField: (payload: TTimeValue) => void;
 };
 
-export function useLogSorterUiState<Field extends string>(
+export function useAdvancedQuerySorterUiState<Field extends string>(
   sorters: () => QuerySorter<Field>[],
   sortOptions: () => Array<SortOption<Field>>,
 ) {
@@ -49,7 +55,7 @@ export function useLogSorterUiState<Field extends string>(
   };
 }
 
-function useLogSorterControls<Field extends string, State extends { sorters: QuerySorter<Field>[] }>(config: {
+function useAdvancedQuerySorterControls<Field extends string, State extends { sorters: QuerySorter<Field>[] }>(config: {
   emit: (state: State) => void;
   normalizeField: (value: string) => Field | '';
   sortOptions: () => Array<SortOption<Field>>;
@@ -57,20 +63,23 @@ function useLogSorterControls<Field extends string, State extends { sorters: Que
 }) {
   return {
     mutators: createSorterStateMutators(config),
-    ui: useLogSorterUiState(
+    ui: useAdvancedQuerySorterUiState(
       () => config.state().sorters,
       () => config.sortOptions(),
     ),
   };
 }
 
-export function useLogSorterControlsForModel<Field extends string, State extends { sorters: QuerySorter<Field>[] }>(
+export function useAdvancedQuerySorterControlsForModel<
+  Field extends string,
+  State extends { sorters: QuerySorter<Field>[] },
+>(
   model: () => State,
   emit: (state: State) => void,
   normalizeField: (value: string) => Field | '',
   sortOptions: () => Array<SortOption<Field>>,
 ) {
-  return useLogSorterControls({
+  return useAdvancedQuerySorterControls({
     emit,
     normalizeField,
     sortOptions,
@@ -78,7 +87,7 @@ export function useLogSorterControlsForModel<Field extends string, State extends
   });
 }
 
-export function createLogBuilderListeners<TPreset extends string, TFieldKey extends string, TTimeValue>(
+export function createAdvancedQueryBuilderListeners<TPreset extends string, TFieldKey extends string, TTimeValue>(
   config: BuilderListenerConfig<TPreset, TFieldKey, TTimeValue>,
 ) {
   return {
@@ -117,7 +126,7 @@ export function createSortDirection(value: string): SortDirection {
   return value === 'asc' ? 'asc' : 'desc';
 }
 
-export function buildLogTimeTag(label: string, range: string[], separator = ':') {
+export function buildAdvancedQueryTimeTag(label: string, range: string[], separator = ':') {
   if (!range.length) {
     return '';
   }
@@ -162,9 +171,11 @@ function createSorterStateMutators<Field extends string, State extends { sorters
   };
 }
 
-type LogFilterBuilderFrameInput = Omit<LogFilterBuilderFrameState, 'sortFieldKey' | 'timeFieldKey'>;
+type AdvancedQueryFilterBuilderFrameInput = Omit<AdvancedQueryFilterBuilderFrameState, 'sortFieldKey' | 'timeFieldKey'>;
 
-function buildLogFilterBuilderFrame(config: LogFilterBuilderFrameInput): LogFilterBuilderFrameState {
+function buildAdvancedQueryFilterBuilderFrame(
+  config: AdvancedQueryFilterBuilderFrameInput,
+): AdvancedQueryFilterBuilderFrameState {
   return {
     ...config,
     sortFieldKey: 'sorterBuilder',
@@ -172,22 +183,22 @@ function buildLogFilterBuilderFrame(config: LogFilterBuilderFrameInput): LogFilt
   };
 }
 
-function createLogFilterBuilderFrameState(config: {
+function createAdvancedQueryFilterBuilderFrameState(config: {
   activePreset: () => string;
   fieldValues: () => Record<string, string | string[]>;
-  fields: () => LogFilterFieldDefinition[];
+  fields: () => AdvancedQueryFilterFieldDefinition[];
   keyword: () => string;
   listeners: Record<string, (...args: never[]) => void>;
   loading: () => boolean | undefined;
-  presets: () => LogFilterPreset[];
+  presets: () => AdvancedQueryFilterPreset[];
   selectedFieldKey: Ref<string>;
-  sorterUi: ReturnType<typeof useLogSorterUiState<string>>;
+  sorterUi: ReturnType<typeof useAdvancedQuerySorterUiState<string>>;
   sortDirectionOptions: () => Array<{ label: string; value: string }>;
-  tags: () => LogFilterTag[];
-  timeFields: () => LogTimeRangeField[];
+  tags: () => AdvancedQueryFilterTag[];
+  timeFields: () => AdvancedQueryTimeRangeField[];
 }) {
-  return computed<LogFilterBuilderFrameState>(() =>
-    buildLogFilterBuilderFrame({
+  return computed<AdvancedQueryFilterBuilderFrameState>(() =>
+    buildAdvancedQueryFilterBuilderFrame({
       activePreset: config.activePreset(),
       fieldValues: config.fieldValues(),
       fields: config.fields(),
@@ -208,23 +219,23 @@ function createLogFilterBuilderFrameState(config: {
   );
 }
 
-export function createLogFilterBuilderFrameStateFromSource(config: {
+export function createAdvancedQueryFilterBuilderFrameStateFromSource(config: {
   fieldValues: () => Record<string, string | string[]>;
-  fields: () => LogFilterFieldDefinition[];
+  fields: () => AdvancedQueryFilterFieldDefinition[];
   listeners: Record<string, (...args: never[]) => void>;
   selectedFieldKey: Ref<string>;
-  sorterUi: ReturnType<typeof useLogSorterUiState<string>>;
+  sorterUi: ReturnType<typeof useAdvancedQuerySorterUiState<string>>;
   sortDirectionOptions: () => Array<{ label: string; value: string }>;
   source: () => {
     activePreset: string;
     loading?: boolean;
-    presets: LogFilterPreset[];
+    presets: AdvancedQueryFilterPreset[];
   };
   keyword: () => string;
-  tags: () => LogFilterTag[];
-  timeFields: () => LogTimeRangeField[];
+  tags: () => AdvancedQueryFilterTag[];
+  timeFields: () => AdvancedQueryTimeRangeField[];
 }) {
-  return createLogFilterBuilderFrameState({
+  return createAdvancedQueryFilterBuilderFrameState({
     activePreset: () => config.source().activePreset,
     fieldValues: config.fieldValues,
     fields: config.fields,
@@ -241,11 +252,11 @@ export function createLogFilterBuilderFrameStateFromSource(config: {
 }
 
 function buildFieldFilterTags<State extends Record<string, unknown>, Key extends string>(
-  fields: LogFilterFieldDefinition[],
+  fields: AdvancedQueryFilterFieldDefinition[],
   state: State,
   separator = ':',
 ) {
-  return fields.reduce<Array<LogFilterTag & { key: Key }>>((tags, definition) => {
+  return fields.reduce<Array<AdvancedQueryFilterTag & { key: Key }>>((tags, definition) => {
     if (definition.kind === 'special') {
       return tags;
     }
@@ -266,18 +277,18 @@ function buildFieldFilterTags<State extends Record<string, unknown>, Key extends
   }, []);
 }
 
-export function buildLogActiveTags<
+export function buildAdvancedQueryActiveTags<
   State extends Record<string, unknown>,
   Key extends string,
   Field extends string,
 >(config: {
-  fields: LogFilterFieldDefinition[];
+  fields: AdvancedQueryFilterFieldDefinition[];
   filterState: State;
   fieldSeparator?: string;
   sortOptions: Array<SortOption<Field>>;
   sorterPrefix: string;
   sorters: QuerySorter<Field>[];
-  timeTags?: LogFilterTag[];
+  timeTags?: AdvancedQueryFilterTag[];
 }) {
   const filterTags = buildFieldFilterTags<State, Key>(config.fields, config.filterState, config.fieldSeparator ?? ':');
 
@@ -289,7 +300,7 @@ export function buildLogActiveTags<
   );
 }
 
-export function updateLogFilterStateField<State extends Record<string, unknown>, Key extends keyof State>(
+export function updateAdvancedQueryFilterStateField<State extends Record<string, unknown>, Key extends keyof State>(
   state: State,
   key: Key,
   value: State[Key],

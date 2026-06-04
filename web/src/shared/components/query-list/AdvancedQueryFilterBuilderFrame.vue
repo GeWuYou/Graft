@@ -1,5 +1,5 @@
 <template>
-  <log-filter-builder
+  <advanced-query-filter-builder
     :active-preset="frame.activePreset"
     :add-filter-label="`+ ${t(`${messagePrefix}.actions.addFilter`)}`"
     :add-sorter-label="t(`${messagePrefix}.actions.addSorter`)"
@@ -37,18 +37,24 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 
-import type { LogFilterFieldDefinition, LogFilterPreset, LogFilterTag, LogTimeRangeField } from './log-filter-builder';
-import LogFilterBuilder from './LogFilterBuilder.vue';
-import type { QuerySorter, SortOption } from './sorters';
+import type { QuerySorter, SortOption } from '@/shared/observability/sorters';
 
-export type LogFilterBuilderFrameState = {
+import AdvancedQueryFilterBuilder from './AdvancedQueryFilterBuilder.vue';
+import type {
+  AdvancedQueryFilterFieldDefinition,
+  AdvancedQueryFilterPreset,
+  AdvancedQueryFilterTag,
+  AdvancedQueryTimeRangeField,
+} from './query-filter-builder';
+
+export type AdvancedQueryFilterBuilderFrameState = {
   activePreset: string;
   fieldValues: Record<string, string | string[]>;
-  fields: LogFilterFieldDefinition[];
+  fields: AdvancedQueryFilterFieldDefinition[];
   keyword: string;
   listeners: Record<string, (...args: never[]) => void>;
   loading?: boolean;
-  presets: LogFilterPreset[];
+  presets: AdvancedQueryFilterPreset[];
   selectedFieldKey: string;
   sortAddDisabled: boolean;
   sortDirectionOptions: Array<{ label: string; value: string }>;
@@ -57,13 +63,13 @@ export type LogFilterBuilderFrameState = {
   sortMoveDownDisabled: boolean[];
   sortMoveUpDisabled: boolean[];
   sorters: QuerySorter<string>[];
-  tags: LogFilterTag[];
+  tags: AdvancedQueryFilterTag[];
   timeFieldKey: string;
-  timeFields: LogTimeRangeField[];
+  timeFields: AdvancedQueryTimeRangeField[];
 };
 
 defineProps<{
-  frame: LogFilterBuilderFrameState;
+  frame: AdvancedQueryFilterBuilderFrameState;
   messagePrefix: string;
 }>();
 

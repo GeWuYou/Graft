@@ -1,21 +1,25 @@
 <template>
-  <div class="audit-page" data-page-type="query-builder-list-detail">
-    <management-page-content>
-      <management-page-header :title="t('audit.logList.title')" :description="t('audit.logList.description')">
-        <template #eyebrow>{{ t('menu.audit.title') }}</template>
-        <template #actions>
-          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-            {{ t('audit.logList.columnSettings') }}
-          </t-button>
-          <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
-            {{ t('audit.logList.actions.backToMonitor') }}
-          </t-button>
-          <t-button theme="default" variant="outline" :loading="loading" @click="fetchAuditLogs">
-            {{ t('audit.logList.refresh') }}
-          </t-button>
-        </template>
-      </management-page-header>
-
+  <advanced-query-list-page
+    root-class="audit-page"
+    :title="t('audit.logList.title')"
+    :description="t('audit.logList.description')"
+    :error-message="listError"
+    :error-title="t('audit.logList.errorTitle')"
+    :loading="loading"
+    :reload-label="t('audit.logList.refresh')"
+    :retry-label="t('audit.logList.retry')"
+    @reload="fetchAuditLogs"
+  >
+    <template #eyebrow>{{ t('menu.audit.title') }}</template>
+    <template #actions>
+      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
+        {{ t('audit.logList.columnSettings') }}
+      </t-button>
+      <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
+        {{ t('audit.logList.actions.backToMonitor') }}
+      </t-button>
+    </template>
+    <template #feedback-extra>
       <section v-if="scopeState" class="audit-scope-banner">
         <div class="audit-scope-banner__main">
           <div class="audit-scope-banner__summary">
@@ -36,7 +40,8 @@
           </t-button>
         </div>
       </section>
-
+    </template>
+    <template #filters>
       <audit-filters
         v-model="filters"
         :active-preset="activePreset"
@@ -47,22 +52,9 @@
         @reset="resetFilters"
         @search="handleSearch"
       />
-
-      <management-empty-state
-        v-if="listError && !loading"
-        tone="error"
-        :title="t('audit.logList.errorTitle')"
-        :description="listError"
-      >
-        <template #actions>
-          <t-button theme="primary" variant="outline" @click="fetchAuditLogs">
-            {{ t('audit.logList.retry') }}
-          </t-button>
-        </template>
-      </management-empty-state>
-
+    </template>
+    <template #table>
       <audit-table
-        v-else
         v-model:current="pagination.current"
         v-model:page-size="pagination.pageSize"
         :footer-summary="footerSummary"
@@ -74,31 +66,22 @@
         @detail="openDetailDrawer"
         @page-change="fetchAuditLogs"
       />
-    </management-page-content>
-
-    <t-drawer
-      v-model:visible="columnDrawerVisible"
-      :header="t('audit.logList.columnSettings')"
-      :footer="false"
-      placement="right"
-      size="320px"
-    >
-      <t-checkbox-group v-model="visibleColumnKeys">
-        <div class="column-grid">
-          <t-checkbox v-for="column in columnSettingOptions" :key="column.value" :value="column.value">
-            {{ column.label }}
-          </t-checkbox>
-        </div>
-      </t-checkbox-group>
-    </t-drawer>
-
-    <audit-detail-drawer
-      v-model:visible="detailDrawerVisible"
-      :record="detailRecord"
-      :rows="rows"
-      :monitor-origin="navigationContext.monitorOrigin"
-    />
-  </div>
+    </template>
+    <template #detail>
+      <advanced-query-column-drawer
+        v-model:visible="columnDrawerVisible"
+        v-model:selected-keys="visibleColumnKeys"
+        :columns="columnSettingOptions"
+        :title="t('audit.logList.columnSettings')"
+      />
+      <audit-detail-drawer
+        v-model:visible="detailDrawerVisible"
+        :record="detailRecord"
+        :rows="rows"
+        :monitor-origin="navigationContext.monitorOrigin"
+      />
+    </template>
+  </advanced-query-list-page>
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next';
@@ -107,7 +90,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
-import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { describeCorrelationId, formatMessageWithCorrelation } from '@/shared/correlation';
 import {
   buildRecentHoursLocalRange,
@@ -953,11 +936,5 @@ function resolveNonRedundantScopeValue(localizedValue: string, key: string) {
   .audit-scope-banner__actions {
     width: 100%;
   }
-}
-
-.column-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 </style>

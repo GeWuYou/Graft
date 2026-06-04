@@ -1,9 +1,9 @@
 <template>
   <management-table-card>
     <template #head>
-      <section class="log-paged-table__head" :aria-label="headLabel">
-        <p class="log-paged-table__description">{{ description }}</p>
-        <p class="log-paged-table__summary">{{ summary }}</p>
+      <section class="advanced-query-paged-table__head" :aria-label="headLabel">
+        <p class="advanced-query-paged-table__description">{{ description }}</p>
+        <p class="advanced-query-paged-table__summary">{{ summary }}</p>
       </section>
     </template>
 
@@ -22,7 +22,7 @@
           <slot :name="slotName" v-bind="slotProps" />
         </template>
         <template #empty>
-          <div class="log-paged-table__empty">
+          <div class="advanced-query-paged-table__empty">
             <t-empty :title="emptyTitle" :description="emptyDescription" />
           </div>
         </template>
@@ -76,13 +76,13 @@ const pageSize = defineModel<number>('pageSize', { required: true });
 const tableContentWidth = computed(() => calculateTableContentWidth(props.columns));
 </script>
 <style scoped lang="less">
-.log-paged-table__summary,
-.log-paged-table__description {
+.advanced-query-paged-table__summary,
+.advanced-query-paged-table__description {
   color: var(--td-text-color-secondary);
   margin: 0;
 }
 
-.log-paged-table__empty {
+.advanced-query-paged-table__empty {
   padding: 24px 0 8px;
 }
 </style>

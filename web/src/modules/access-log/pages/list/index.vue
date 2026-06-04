@@ -1,18 +1,21 @@
 <template>
-  <div data-page-type="query-builder-list-detail">
-    <management-page-content>
-      <management-page-header :title="t('accessLog.page.title')" :description="t('accessLog.page.description')">
-        <template #eyebrow>{{ t('menu.logCenter.title') }}</template>
-        <template #actions>
-          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-            {{ t('accessLog.page.columnSettings') }}
-          </t-button>
-          <t-button theme="default" variant="outline" :loading="loading" @click="fetchAccessLogs">
-            {{ t('accessLog.page.refresh') }}
-          </t-button>
-        </template>
-      </management-page-header>
-
+  <advanced-query-list-page
+    :title="t('accessLog.page.title')"
+    :description="t('accessLog.page.description')"
+    :error-message="listError"
+    :error-title="t('accessLog.page.errorTitle')"
+    :loading="loading"
+    :reload-label="t('accessLog.page.refresh')"
+    :retry-label="t('accessLog.page.retry')"
+    @reload="fetchAccessLogs"
+  >
+    <template #eyebrow>{{ t('menu.logCenter.title') }}</template>
+    <template #actions>
+      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
+        {{ t('accessLog.page.columnSettings') }}
+      </t-button>
+    </template>
+    <template #filters>
       <access-log-filters
         v-model="filters"
         :active-preset="activePreset"
@@ -22,22 +25,9 @@
         @reset="resetFilters"
         @search="handleSearch"
       />
-
-      <management-empty-state
-        v-if="listError && !loading"
-        tone="error"
-        :title="t('accessLog.page.errorTitle')"
-        :description="listError"
-      >
-        <template #actions>
-          <t-button theme="primary" variant="outline" @click="fetchAccessLogs">
-            {{ t('accessLog.page.retry') }}
-          </t-button>
-        </template>
-      </management-empty-state>
-
+    </template>
+    <template #table>
       <access-log-table
-        v-else
         v-model:current="pagination.current"
         v-model:page-size="pagination.pageSize"
         :description="t('accessLog.page.tableHint')"
@@ -51,26 +41,17 @@
         @detail="openDetail"
         @page-change="fetchAccessLogs"
       />
-    </management-page-content>
-
-    <t-drawer
-      v-model:visible="columnDrawerVisible"
-      :header="t('accessLog.page.columnSettings')"
-      :footer="false"
-      placement="right"
-      size="320px"
-    >
-      <t-checkbox-group v-model="visibleColumnKeys">
-        <div class="column-grid">
-          <t-checkbox v-for="column in columnSettingOptions" :key="column.value" :value="column.value">
-            {{ column.label }}
-          </t-checkbox>
-        </div>
-      </t-checkbox-group>
-    </t-drawer>
-
-    <access-log-detail-drawer v-model:visible="detailVisible" :record="detailRecord" />
-  </div>
+    </template>
+    <template #detail>
+      <advanced-query-column-drawer
+        v-model:visible="columnDrawerVisible"
+        v-model:selected-keys="visibleColumnKeys"
+        :columns="columnSettingOptions"
+        :title="t('accessLog.page.columnSettings')"
+      />
+      <access-log-detail-drawer v-model:visible="detailVisible" :record="detailRecord" />
+    </template>
+  </advanced-query-list-page>
 </template>
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
@@ -79,7 +60,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useAuthSessionStore } from '@/modules/auth/store';
 import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/modules/shared/localized-api-error';
-import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import {
   assignEncodedSorters,
   buildRecentHoursLocalRange,
@@ -518,10 +499,3 @@ function normalizeSortOrder(value: string) {
   return value === 'asc' ? 'asc' : 'desc';
 }
 </script>
-<style scoped lang="less">
-.column-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-</style>

@@ -6,7 +6,7 @@ import { createI18n } from 'vue-i18n';
 import type { AppLogFilterState } from '../types/app-log';
 
 const logFilterBuilderStub = defineComponent({
-  name: 'LogFilterBuilderStub',
+  name: 'AdvancedQueryFilterBuilderStub',
   props: [
     'keywordPlaceholder',
     'tags',
@@ -32,7 +32,7 @@ const logFilterBuilderStub = defineComponent({
   },
 });
 
-vi.mock('@/shared/observability/LogFilterBuilder.vue', () => ({
+vi.mock('@/shared/components/query-list/AdvancedQueryFilterBuilder.vue', () => ({
   default: logFilterBuilderStub,
 }));
 

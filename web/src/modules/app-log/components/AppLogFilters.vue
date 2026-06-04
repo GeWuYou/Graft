@@ -1,17 +1,17 @@
 <template>
-  <log-filter-builder-frame :frame="builderFrame" message-prefix="appLog" />
+  <advanced-query-filter-builder-frame :frame="builderFrame" message-prefix="appLog" />
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type {
-  LogFilterFieldDefinition,
-  LogFilterTag,
-  LogTimeRangeField,
-} from '@/shared/observability/log-filter-builder';
-import * as BuilderHelpers from '@/shared/observability/log-filter-builder-helpers';
-import LogFilterBuilderFrame from '@/shared/observability/LogFilterBuilderFrame.vue';
+  AdvancedQueryFilterFieldDefinition,
+  AdvancedQueryFilterTag,
+  AdvancedQueryTimeRangeField,
+} from '@/shared/components/query-list';
+import { AdvancedQueryFilterBuilderFrame } from '@/shared/components/query-list';
+import * as BuilderHelpers from '@/shared/components/query-list';
 
 import type { AppLogFilterState, AppLogSeverity, AppLogSortBy } from '../types/app-log';
 
@@ -54,7 +54,7 @@ const sortByOptions = computed(() =>
 const sortOrderOptions = computed(() =>
   ['desc', 'asc'].map((value) => ({ label: t(`appLog.filters.sort${value === 'desc' ? 'Desc' : 'Asc'}`), value })),
 );
-const sorterControls = BuilderHelpers.useLogSorterControlsForModel<AppLogSortBy, AppLogFilterState>(
+const sorterControls = BuilderHelpers.useAdvancedQuerySorterControlsForModel<AppLogSortBy, AppLogFilterState>(
   currentFilters,
   emitFilterState,
   normalizeSortBy,
@@ -62,7 +62,7 @@ const sorterControls = BuilderHelpers.useLogSorterControlsForModel<AppLogSortBy,
 );
 const { mutators: sorterMutators, ui: sorterUi } = sorterControls;
 
-const definitions = computed<LogFilterFieldDefinition[]>(() => [
+const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
   { key: 'timeRange', kind: 'special', label: t('appLog.builder.fields.timeRange') },
   { key: 'sorterBuilder', kind: 'special', label: t('appLog.builder.fields.sorterBuilder') },
   {
@@ -120,7 +120,7 @@ const fieldValues = computed<Record<string, string | string[]>>(() => ({
   error: props.modelValue.error,
 }));
 
-const timeFields = computed<LogTimeRangeField[]>(() => [
+const timeFields = computed<AdvancedQueryTimeRangeField[]>(() => [
   {
     key: 'occurredRange',
     label: t('appLog.filters.occurredRange'),
@@ -146,7 +146,7 @@ function createFrameSource() {
 }
 
 function createAppLogBuilderFrame() {
-  return BuilderHelpers.createLogFilterBuilderFrameStateFromSource({
+  return BuilderHelpers.createAdvancedQueryFilterBuilderFrameStateFromSource({
     fieldValues: () => fieldValues.value,
     fields: () => definitions.value,
     keyword: () => props.modelValue.keyword,
@@ -160,10 +160,10 @@ function createAppLogBuilderFrame() {
   });
 }
 
-const activeFilterTags = computed<LogFilterTag[]>(() => {
+const activeFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
   const label = buildTimeTag('occurredRange', t('appLog.filters.occurredRange'));
 
-  return BuilderHelpers.buildLogActiveTags<AppLogFilterState, FilterKey, AppLogSortBy>({
+  return BuilderHelpers.buildAdvancedQueryActiveTags<AppLogFilterState, FilterKey, AppLogSortBy>({
     fields: definitions.value,
     filterState: props.modelValue,
     sorterPrefix: t('appLog.sort.tagPrefix'),
@@ -174,7 +174,7 @@ const activeFilterTags = computed<LogFilterTag[]>(() => {
 });
 
 function updateField<Key extends keyof AppLogFilterState>(key: Key, value: AppLogFilterState[Key]) {
-  emit('update:modelValue', BuilderHelpers.updateLogFilterStateField(props.modelValue, key, value));
+  emit('update:modelValue', BuilderHelpers.updateAdvancedQueryFilterStateField(props.modelValue, key, value));
 }
 
 function handleFieldUpdate(payload: { key: string; value: string | string[] }) {
@@ -182,7 +182,11 @@ function handleFieldUpdate(payload: { key: string; value: string | string[] }) {
 }
 
 function createAppLogBuilderListeners() {
-  return BuilderHelpers.createLogBuilderListeners<AppLogPresetKey, BuilderFieldKey, { key: string; value: string[] }>({
+  return BuilderHelpers.createAdvancedQueryBuilderListeners<
+    AppLogPresetKey,
+    BuilderFieldKey,
+    { key: string; value: string[] }
+  >({
     addSorter: sorterMutators.addSorter,
     clearTag: (key) => clearTag(key as TagKey),
     emitApplyPreset: (preset) => emit('apply-preset', preset),
@@ -229,6 +233,6 @@ function buildTimeTag(key: AppTimeRangeKey, label: string) {
     return '';
   }
 
-  return BuilderHelpers.buildLogTimeTag(label, range);
+  return BuilderHelpers.buildAdvancedQueryTimeTag(label, range);
 }
 </script>

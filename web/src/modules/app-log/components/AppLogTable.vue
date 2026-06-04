@@ -1,5 +1,5 @@
 <template>
-  <log-paged-table
+  <advanced-query-paged-table
     v-model:current="current"
     v-model:page-size="pageSize"
     :cell-slot-names="cellSlotNames"
@@ -48,7 +48,7 @@
         @action="() => $emit('detail', appLogRow(row))"
       />
     </template>
-  </log-paged-table>
+  </advanced-query-paged-table>
 </template>
 <script setup lang="ts">
 import type { TdBaseTableProps } from 'tdesign-vue-next';
@@ -62,8 +62,8 @@ import {
   resolveManagedColumns,
   TableActionMenu,
 } from '@/shared/components/management';
+import { AdvancedQueryPagedTable } from '@/shared/components/query-list';
 import { LogIdText } from '@/shared/observability';
-import LogPagedTable from '@/shared/observability/LogPagedTable.vue';
 
 import {
   appLogCorrelationText,

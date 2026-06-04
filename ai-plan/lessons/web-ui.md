@@ -37,40 +37,43 @@
 - Updated at:
   2026-05-22
 
-## LESSON-WEB-UI-LOG-AUDIT-001：日志审计页必须按页面类型复用标准结构
+## LESSON-WEB-UI-LOG-AUDIT-001：高级查询列表页必须优先抽通用查询结构
 
 - Status: active
 - Level: L2
 - Applies to:
+  - `query-builder-list-detail` page type
   - `web` log and audit pages
   - `log-audit` page type
-  - access-log, app-log, and future observability list pages
+  - access-log, app-log, audit logs, and future field-heavy query pages
 - Source:
   - app-log page remediation after user feedback that the page did not follow the access-log page pattern
   - duplicate local implementations discovered while aligning app-log with access-log
+  - query-list refactor after user feedback that the abstraction should serve future field-heavy query pages, not only logs
 - Problem:
-  日志类页面若按单页临时实现，很容易出现筛选器、表格排序、详情抽屉、深链参数、空态、错误提示和交互文案不一致。
-  这种分叉会让相同类型页面看起来像不同产品，也会在严格重复代码检查下产生维护成本。
+  字段多、筛选复杂、需要分页表格和详情抽屉的页面若按单页临时实现，很容易出现筛选器、表格排序、详情抽屉、深链参数、
+  空态、错误提示和交互文案不一致。这种分叉会让相同类型页面看起来像不同产品，也会在严格重复代码检查下产生维护成本。
 - Correct pattern:
-  新增或重做日志审计页时，先声明页面类型为 `log-audit`，再以访问日志这类已验证页面为主模板。筛选构建器、分页表格、
-  URL 深链、列表错误提示和交互处理应优先沉淀到 `web/src/shared/observability` 或同类型共享层，由页面只提供领域字段、
-  API 查询和展示文案。
+  新增或重做字段密集查询页时，先声明页面类型为 `query-builder-list-detail`；日志审计只是 `log-audit` 变体。页面壳、
+  筛选构建器、分页表格、列设置抽屉、列表错误提示和通用交互应优先沉淀到 `web/src/shared/components/query-list`，
+  由页面只提供领域字段、API 查询、深链语义、详情组件和展示文案。
 - Anti-pattern:
-  - 在每个日志页手写一套筛选器、表格、详情抽屉和 URL 参数解析
-  - 只复制访问日志页面的视觉结果，却保留不同的数据流和交互语义
+  - 在每个字段密集查询页手写一套筛选器、表格、列设置、详情抽屉和错误反馈
+  - 只复制访问日志页面的视觉结果，却保留不同的数据流、外壳结构和交互语义
   - 用本地兼容映射掩盖后端契约缺少排序、筛选或分页字段的问题
   - 为通过重复代码检查而做无语义的改名或拆行
 - Enforcement:
-  修改日志类页面时，检查根节点或页面元信息是否标识 `log-audit`，并对照访问日志页面确认筛选、表格、详情、深链、
-  i18n 和错误态结构一致。若 app-log 或 future log 页面需要新增行为，优先评估能否扩展共享 observability helper，
-  同时用 `bun run dupcode:check` 和相关 Vitest 用例验证没有重新分叉。
+  修改字段密集查询页时，检查页面类型是否为 `query-builder-list-detail` 或其变体，并确认页面壳、筛选器、分页表格、
+  列设置和错误态是否复用 `shared/components/query-list`。业务字段、API 查询、URL deep-link 和详情内容仍留在模块内。
+  用 `bun run dupcode:check`、相关 Vitest 用例和 `bun run check` 验证没有重新分叉。
 - Promotion:
   - AGENTS.md: no
   - Design doc: no
 - Related:
+  - `web/src/shared/components/query-list`
   - `web/src/modules/access-log/pages/list/index.vue`
   - `web/src/modules/app-log/pages/list/index.vue`
-  - `web/src/shared/observability`
+  - `web/src/modules/audit/pages/logs/index.vue`
 - Updated at:
   2026-06-04
 

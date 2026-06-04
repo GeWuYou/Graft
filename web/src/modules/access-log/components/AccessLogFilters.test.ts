@@ -6,7 +6,7 @@ import { createI18n } from 'vue-i18n';
 import AccessLogFilters from './AccessLogFilters.vue';
 
 const logFilterBuilderStub = defineComponent({
-  name: 'LogFilterBuilderStub',
+  name: 'AdvancedQueryFilterBuilderStub',
   props: [
     'keyword',
     'keywordPlaceholder',
@@ -130,7 +130,7 @@ describe('AccessLogFilters', () => {
       global: {
         plugins: [i18n],
         stubs: {
-          LogFilterBuilder: logFilterBuilderStub,
+          AdvancedQueryFilterBuilder: logFilterBuilderStub,
         },
       },
     });
@@ -184,7 +184,7 @@ describe('AccessLogFilters', () => {
       global: {
         plugins: [i18n],
         stubs: {
-          LogFilterBuilder: logFilterBuilderStub,
+          AdvancedQueryFilterBuilder: logFilterBuilderStub,
         },
       },
     });
@@ -233,7 +233,7 @@ describe('AccessLogFilters', () => {
       global: {
         plugins: [i18n],
         stubs: {
-          LogFilterBuilder: logFilterBuilderStub,
+          AdvancedQueryFilterBuilder: logFilterBuilderStub,
         },
       },
     });

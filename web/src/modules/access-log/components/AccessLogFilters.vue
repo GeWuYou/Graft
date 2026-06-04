@@ -1,24 +1,22 @@
 <template>
-  <log-filter-builder-frame :frame="builderFrame" message-prefix="accessLog" />
+  <advanced-query-filter-builder-frame :frame="builderFrame" message-prefix="accessLog" />
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import type {
-  LogFilterFieldDefinition,
-  LogFilterTag,
-  LogTimeRangeField,
-} from '@/shared/observability/log-filter-builder';
 import {
-  buildLogActiveTags,
-  buildLogTimeTag,
-  createLogBuilderListeners,
-  createLogFilterBuilderFrameStateFromSource,
-  updateLogFilterStateField,
-  useLogSorterControlsForModel,
-} from '@/shared/observability/log-filter-builder-helpers';
-import LogFilterBuilderFrame from '@/shared/observability/LogFilterBuilderFrame.vue';
+  AdvancedQueryFilterBuilderFrame,
+  type AdvancedQueryFilterFieldDefinition,
+  type AdvancedQueryFilterTag,
+  type AdvancedQueryTimeRangeField,
+  buildAdvancedQueryActiveTags,
+  buildAdvancedQueryTimeTag,
+  createAdvancedQueryBuilderListeners,
+  createAdvancedQueryFilterBuilderFrameStateFromSource,
+  updateAdvancedQueryFilterStateField,
+  useAdvancedQuerySorterControlsForModel,
+} from '@/shared/components/query-list';
 
 import { buildAccessLogSortOptions } from '../shared/presentation';
 import type { AccessLogFilterState, AccessLogPathMatch, AccessLogSortBy } from '../types/access-log';
@@ -70,7 +68,7 @@ const sorterControlInput = {
   model: () => props.modelValue,
   options: () => sortByOptions.value,
 };
-const sorterControls = useLogSorterControlsForModel<AccessLogSortBy, AccessLogFilterState>(
+const sorterControls = useAdvancedQuerySorterControlsForModel<AccessLogSortBy, AccessLogFilterState>(
   sorterControlInput.model,
   sorterControlInput.emitValue,
   normalizeSortBy,
@@ -78,7 +76,7 @@ const sorterControls = useLogSorterControlsForModel<AccessLogSortBy, AccessLogFi
 );
 const { mutators: sorterMutators, ui: sorterUi } = sorterControls;
 
-const definitions = computed<LogFilterFieldDefinition[]>(() => [
+const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
   { key: 'timeRange', kind: 'special', label: t('accessLog.builder.fields.timeRange') },
   { key: 'sorterBuilder', kind: 'special', label: t('accessLog.builder.fields.sorterBuilder') },
   {
@@ -143,7 +141,7 @@ const fieldValues = computed<Record<string, string | string[]>>(() => ({
   durationMaxMs: props.modelValue.durationMaxMs,
 }));
 
-const timeFields = computed<LogTimeRangeField[]>(() => [
+const timeFields = computed<AdvancedQueryTimeRangeField[]>(() => [
   {
     key: 'startedRange',
     label: t('accessLog.filters.startedRange'),
@@ -168,7 +166,7 @@ const frameAccessors = {
 const builderFrame = createAccessLogBuilderFrame();
 
 function createAccessLogBuilderFrame() {
-  return createLogFilterBuilderFrameStateFromSource({
+  return createAdvancedQueryFilterBuilderFrameStateFromSource({
     fieldValues: () => frameAccessors.fieldValues.value,
     fields: () => frameAccessors.filterDefinitions.value,
     keyword: () => props.modelValue.keyword,
@@ -182,8 +180,8 @@ function createAccessLogBuilderFrame() {
   });
 }
 
-const activeFilterTags = computed<LogFilterTag[]>(() => {
-  const timeTags: LogFilterTag[] = [];
+const activeFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
+  const timeTags: AdvancedQueryFilterTag[] = [];
   const startedTimeTag = buildTimeTag('startedRange', t('accessLog.filters.startedRange'));
   if (startedTimeTag) {
     timeTags.push({ key: 'startedRange', label: startedTimeTag });
@@ -193,7 +191,7 @@ const activeFilterTags = computed<LogFilterTag[]>(() => {
     timeTags.push({ key: 'occurredRange', label: occurredTimeTag });
   }
 
-  return buildLogActiveTags<AccessLogFilterState, FilterKey, AccessLogSortBy>({
+  return buildAdvancedQueryActiveTags<AccessLogFilterState, FilterKey, AccessLogSortBy>({
     fieldSeparator: '：',
     fields: definitions.value,
     filterState: props.modelValue,
@@ -205,7 +203,7 @@ const activeFilterTags = computed<LogFilterTag[]>(() => {
 });
 
 function updateField<Key extends keyof AccessLogFilterState>(key: Key, value: AccessLogFilterState[Key]) {
-  emit('update:modelValue', updateLogFilterStateField(props.modelValue, key, value));
+  emit('update:modelValue', updateAdvancedQueryFilterStateField(props.modelValue, key, value));
 }
 
 function handleFieldUpdate(payload: { key: string; value: string | string[] }) {
@@ -213,7 +211,7 @@ function handleFieldUpdate(payload: { key: string; value: string | string[] }) {
 }
 
 function createAccessLogBuilderListeners() {
-  return createLogBuilderListeners<AccessLogPresetKey, BuilderFieldKey, { key: string; value: string[] }>({
+  return createAdvancedQueryBuilderListeners<AccessLogPresetKey, BuilderFieldKey, { key: string; value: string[] }>({
     handleFieldUpdate,
     selectedFieldKey,
     updateKeyword: (value) => updateField('keyword', value),
@@ -270,7 +268,7 @@ function buildTimeTag(key: AccessTimeRangeKey, label: string) {
     return '';
   }
 
-  return buildLogTimeTag(label, range, '：');
+  return buildAdvancedQueryTimeTag(label, range, '：');
 }
 
 void (null as unknown as AccessLogPathMatch);
