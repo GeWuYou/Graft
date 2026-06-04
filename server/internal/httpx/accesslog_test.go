@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
+	"graft/server/internal/config"
 	"graft/server/internal/moduleapi"
 )
 
@@ -117,6 +118,192 @@ func TestNewServerAppliesGlobalRequestIDAndAccessLog(t *testing.T) {
 	}
 	if repo.created[0].ResponseSize != nil && *repo.created[0].ResponseSize < 0 {
 		t.Fatalf("expected bounded response size when present, got %#v", repo.created[0].ResponseSize)
+	}
+}
+
+func TestAccessLogMiddlewareSuppressesConsoleForSuccessButPersists(t *testing.T) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	repo := &stubAccessLogRepository{}
+	server := NewServerWithOptions(zap.New(core), ServerOptions{
+		AccessLog: AccessLogOptions{
+			ConsolePolicy: config.AccessLogConsoleErrorOnly,
+			SlowThreshold: time.Second,
+		},
+	}, repo)
+
+	server.Engine().GET("/healthz", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	server.Engine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+	if entries := recorded.All(); len(entries) != 0 {
+		t.Fatalf("expected no console access log entries, got %d", len(entries))
+	}
+	if len(repo.created) != 1 {
+		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
+	}
+	if repo.created[0].StatusCode != http.StatusNoContent {
+		t.Fatalf("expected persisted success status, got %#v", repo.created[0])
+	}
+}
+
+func TestAccessLogMiddlewareAutoUsesResolvedConsolePolicy(t *testing.T) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	repo := &stubAccessLogRepository{}
+	server := NewServerWithOptions(zap.New(core), ServerOptions{
+		AccessLog: AccessLogOptions{
+			ConsolePolicy: config.AccessLogConsoleAuto,
+			SlowThreshold: time.Second,
+		},
+	}, repo)
+
+	server.Engine().GET("/healthz", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	server.Engine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	if entries := recorded.All(); len(entries) != 0 {
+		t.Fatalf("expected auto policy to suppress local success console access logs, got %d", len(entries))
+	}
+	if len(repo.created) != 1 {
+		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
+	}
+}
+
+func TestAccessLogMiddlewareErrorOnlyLogsClientAndServerErrors(t *testing.T) {
+	testCases := []struct {
+		name      string
+		status    int
+		wantLevel zapcore.Level
+	}{
+		{name: "client error", status: http.StatusBadRequest, wantLevel: zapcore.WarnLevel},
+		{name: "server error", status: http.StatusInternalServerError, wantLevel: zapcore.ErrorLevel},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			core, recorded := observer.New(zapcore.DebugLevel)
+			repo := &stubAccessLogRepository{}
+			server := NewServerWithOptions(zap.New(core), ServerOptions{
+				AccessLog: AccessLogOptions{
+					ConsolePolicy: config.AccessLogConsoleErrorOnly,
+					SlowThreshold: time.Second,
+				},
+			}, repo)
+
+			server.Engine().GET("/status", func(ctx *gin.Context) {
+				ctx.Status(testCase.status)
+			})
+
+			recorder := httptest.NewRecorder()
+			server.Engine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/status", nil))
+
+			if len(repo.created) != 1 {
+				t.Fatalf("expected one persisted access log, got %d", len(repo.created))
+			}
+			entries := recorded.All()
+			if len(entries) != 1 {
+				t.Fatalf("expected one console access log entry, got %d", len(entries))
+			}
+			if entries[0].Level != testCase.wantLevel {
+				t.Fatalf("expected console level %s, got %s", testCase.wantLevel, entries[0].Level)
+			}
+		})
+	}
+}
+
+func TestAccessLogMiddlewareErrorOnlyLogsSlowSuccess(t *testing.T) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	repo := &stubAccessLogRepository{}
+	server := NewServerWithOptions(zap.New(core), ServerOptions{
+		AccessLog: AccessLogOptions{
+			ConsolePolicy: config.AccessLogConsoleErrorOnly,
+			SlowThreshold: time.Millisecond,
+		},
+	}, repo)
+
+	server.Engine().GET("/slow", func(ctx *gin.Context) {
+		time.Sleep(10 * time.Millisecond)
+		ctx.Status(http.StatusOK)
+	})
+
+	recorder := httptest.NewRecorder()
+	server.Engine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/slow", nil))
+
+	if len(repo.created) != 1 {
+		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
+	}
+	entries := recorded.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one console access log entry, got %d", len(entries))
+	}
+	if entries[0].Level != zapcore.InfoLevel {
+		t.Fatalf("expected slow success to log at info level, got %s", entries[0].Level)
+	}
+	if repo.created[0].DurationMS < 1 {
+		t.Fatalf("expected persisted duration above threshold, got %#v", repo.created[0])
+	}
+}
+
+func TestAccessLogMiddlewareNeverLogsToConsoleButPersists(t *testing.T) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	repo := &stubAccessLogRepository{}
+	server := NewServerWithOptions(zap.New(core), ServerOptions{
+		AccessLog: AccessLogOptions{
+			ConsolePolicy: config.AccessLogConsoleNever,
+			SlowThreshold: time.Millisecond,
+		},
+	}, repo)
+
+	server.Engine().GET("/slow", func(ctx *gin.Context) {
+		time.Sleep(10 * time.Millisecond)
+		ctx.Status(http.StatusOK)
+	})
+
+	recorder := httptest.NewRecorder()
+	server.Engine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/slow", nil))
+
+	if entries := recorded.All(); len(entries) != 0 {
+		t.Fatalf("expected no console access log entries, got %d", len(entries))
+	}
+	if len(repo.created) != 1 {
+		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
+	}
+}
+
+func TestAccessLogMiddlewareAlwaysLogsSuccess(t *testing.T) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	repo := &stubAccessLogRepository{}
+	server := NewServerWithOptions(zap.New(core), ServerOptions{
+		AccessLog: AccessLogOptions{
+			ConsolePolicy: config.AccessLogConsoleAlways,
+			SlowThreshold: time.Second,
+		},
+	}, repo)
+
+	server.Engine().GET("/healthz", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	server.Engine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	entries := recorded.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one console access log entry, got %d", len(entries))
+	}
+	if entries[0].Level != zapcore.InfoLevel {
+		t.Fatalf("expected success access log level %s, got %s", zapcore.InfoLevel, entries[0].Level)
+	}
+	if len(repo.created) != 1 {
+		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
 	}
 }
 

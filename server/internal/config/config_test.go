@@ -25,6 +25,11 @@ func TestLoadReadsDotenv(t *testing.T) {
 		"GRAFT_REDIS_ADDR=redis:6379",
 		"GRAFT_REDIS_DB=2",
 		"GRAFT_LOG_LEVEL=debug",
+		"GRAFT_LOG_FORMAT=json",
+		"GRAFT_LOG_COLOR=never",
+		"GRAFT_GIN_MODE=release",
+		"GRAFT_ACCESS_LOG_CONSOLE=error_only",
+		"GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS=2500",
 		"GRAFT_AUTH_JWT_SECRET=dotenv-jwt-secret",
 		"GRAFT_AUTH_SIGNING_KEY=dotenv-signing-key",
 	}, "\n")
@@ -41,6 +46,11 @@ func TestLoadReadsDotenv(t *testing.T) {
 	assertEqual(t, "HTTP address from .env", cfg.HTTP.Addr, ":18080")
 	assertEqual(t, "Redis address from .env", cfg.Redis.Addr, "redis:6379")
 	assertEqual(t, "Redis DB from .env", cfg.Redis.DB, 2)
+	assertEqual(t, "log format from .env", cfg.Log.Format, LogFormatJSON)
+	assertEqual(t, "log color from .env", cfg.Log.Color, LogColorNever)
+	assertEqual(t, "gin mode from .env", cfg.Runtime.GinMode, GinModeRelease)
+	assertEqual(t, "access log console policy from .env", cfg.HTTPX.AccessLogConsole, AccessLogConsoleErrorOnly)
+	assertEqual(t, "access log slow threshold from .env", cfg.HTTPX.AccessLogSlowThresholdMS, int64(2500))
 	assertEqual(t, "default locale", cfg.I18n.DefaultLocale, defaultLocale)
 	assertEqual(t, "fallback locale", cfg.I18n.FallbackLocale, defaultLocale)
 	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale, defaultSecondaryLocale})
@@ -215,6 +225,11 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	assertEqual(t, "default database URL", cfg.Database.URL, defaultDatabaseURL)
 	assertEqual(t, "default Redis address", cfg.Redis.Addr, defaultRedisAddr)
 	assertEqual(t, "default log level", cfg.Log.Level, defaultLogLevel)
+	assertEqual(t, "default log format", cfg.Log.Format, LogFormatAuto)
+	assertEqual(t, "default log color", cfg.Log.Color, LogColorAuto)
+	assertEqual(t, "default gin mode", cfg.Runtime.GinMode, GinModeAuto)
+	assertEqual(t, "default access log console", cfg.HTTPX.AccessLogConsole, AccessLogConsoleAuto)
+	assertEqual(t, "default access log slow threshold", cfg.HTTPX.AccessLogSlowThresholdMS, int64(1000))
 	assertEqual(t, "default locale", cfg.I18n.DefaultLocale, defaultLocale)
 	assertEqual(t, "fallback locale", cfg.I18n.FallbackLocale, defaultLocale)
 	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale, defaultSecondaryLocale})
@@ -467,6 +482,38 @@ func TestValidateRejectsNonPositiveAccessLogRetention(t *testing.T) {
 	assertValidateError(t, cfg, "GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
 }
 
+func TestValidateRejectsInvalidAccessLogConsolePolicyAndThreshold(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{
+			name: "console policy",
+			mutate: func(cfg *Config) {
+				cfg.HTTPX.AccessLogConsole = "sometimes"
+			},
+			wantErr: `unsupported GRAFT_ACCESS_LOG_CONSOLE value "sometimes"`,
+		},
+		{
+			name: "slow threshold",
+			mutate: func(cfg *Config) {
+				cfg.HTTPX.AccessLogSlowThresholdMS = 0
+			},
+			wantErr: "GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS must be greater than zero",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := validConfigForValidateTests()
+			testCase.mutate(cfg)
+
+			assertValidateError(t, cfg, testCase.wantErr)
+		})
+	}
+}
+
 func TestValidateRejectsNonPositiveAuditLogRetention(t *testing.T) {
 	cfg := validConfigForValidateTests()
 	cfg.Audit.LogRetention = 0
@@ -482,6 +529,45 @@ func TestValidateRejectsNonPositiveAppLogRetention(t *testing.T) {
 	assertValidateError(t, cfg, "GRAFT_LOG_APP_LOG_RETENTION must be greater than zero")
 }
 
+func TestValidateRejectsInvalidLogAndGinEnums(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{
+			name: "log format",
+			mutate: func(cfg *Config) {
+				cfg.Log.Format = "pretty"
+			},
+			wantErr: `unsupported GRAFT_LOG_FORMAT value "pretty"`,
+		},
+		{
+			name: "log color",
+			mutate: func(cfg *Config) {
+				cfg.Log.Color = "sometimes"
+			},
+			wantErr: `unsupported GRAFT_LOG_COLOR value "sometimes"`,
+		},
+		{
+			name: "gin mode",
+			mutate: func(cfg *Config) {
+				cfg.Runtime.GinMode = "trace"
+			},
+			wantErr: `unsupported GRAFT_GIN_MODE value "trace"`,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := validConfigForValidateTests()
+			testCase.mutate(cfg)
+
+			assertValidateError(t, cfg, testCase.wantErr)
+		})
+	}
+}
+
 func TestValidateAllowsNonPositiveAppLogRetentionWhenPersistenceDisabled(t *testing.T) {
 	cfg := validConfigForValidateTests()
 	cfg.Log.AppLogPersist = false
@@ -489,6 +575,100 @@ func TestValidateAllowsNonPositiveAppLogRetentionWhenPersistenceDisabled(t *test
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate config with disabled app log persistence: %v", err)
+	}
+}
+
+func TestResolveLogFormatColorAndGinMode(t *testing.T) {
+	logFormatCases := []struct {
+		name   string
+		env    string
+		format LogFormat
+		want   LogFormat
+	}{
+		{name: "auto local", env: "local", format: LogFormatAuto, want: LogFormatConsole},
+		{name: "auto test", env: "test", format: LogFormatAuto, want: LogFormatConsole},
+		{name: "auto production", env: "production", format: LogFormatAuto, want: LogFormatJSON},
+		{name: "auto staging", env: "stage", format: LogFormatAuto, want: LogFormatJSON},
+		{name: "auto unknown", env: "preview", format: LogFormatAuto, want: LogFormatJSON},
+		{name: "explicit console", env: "production", format: LogFormatConsole, want: LogFormatConsole},
+		{name: "explicit json", env: "local", format: LogFormatJSON, want: LogFormatJSON},
+	}
+	for _, testCase := range logFormatCases {
+		t.Run("format/"+testCase.name, func(t *testing.T) {
+			if got := ResolveLogFormat(testCase.env, testCase.format); got != testCase.want {
+				t.Fatalf("expected log format %q, got %q", testCase.want, got)
+			}
+		})
+	}
+
+	logColorCases := []struct {
+		name   string
+		env    string
+		format LogFormat
+		color  LogColor
+		want   bool
+	}{
+		{name: "auto local console", env: "local", format: LogFormatConsole, color: LogColorAuto, want: true},
+		{name: "auto test console", env: "test", format: LogFormatConsole, color: LogColorAuto, want: true},
+		{name: "auto production console", env: "production", format: LogFormatConsole, color: LogColorAuto, want: false},
+		{name: "always console", env: "production", format: LogFormatConsole, color: LogColorAlways, want: true},
+		{name: "always json", env: "local", format: LogFormatJSON, color: LogColorAlways, want: false},
+		{name: "never console", env: "local", format: LogFormatConsole, color: LogColorNever, want: false},
+	}
+	for _, testCase := range logColorCases {
+		t.Run("color/"+testCase.name, func(t *testing.T) {
+			if got := ResolveLogColor(testCase.env, testCase.format, testCase.color); got != testCase.want {
+				t.Fatalf("expected log color %v, got %v", testCase.want, got)
+			}
+		})
+	}
+
+	assertResolvedGinMode(t, "auto local", "local", GinModeAuto, GinModeDebug)
+	assertResolvedGinMode(t, "auto dev", "dev", GinModeAuto, GinModeDebug)
+	assertResolvedGinMode(t, "auto test", "test", GinModeAuto, GinModeTest)
+	assertResolvedGinMode(t, "auto production", "prod", GinModeAuto, GinModeRelease)
+	assertResolvedGinMode(t, "auto staging", "staging", GinModeAuto, GinModeRelease)
+	assertResolvedGinMode(t, "auto unknown", "preview", GinModeAuto, GinModeRelease)
+	assertResolvedGinMode(t, "explicit debug", "production", GinModeDebug, GinModeDebug)
+}
+
+func assertResolvedGinMode(t *testing.T, name string, env string, mode GinMode, want GinMode) {
+	t.Helper()
+
+	t.Run("gin/"+name, func(t *testing.T) {
+		if got := ResolveGinMode(env, mode); got != want {
+			t.Fatalf("expected gin mode %q, got %q", want, got)
+		}
+	})
+}
+
+func TestResolveAccessLogConsolePolicy(t *testing.T) {
+	testCases := []struct {
+		name   string
+		env    string
+		policy AccessLogConsolePolicy
+		want   AccessLogConsolePolicy
+	}{
+		{name: "auto local", env: "local", policy: AccessLogConsoleAuto, want: AccessLogConsoleErrorOnly},
+		{name: "auto dev", env: "dev", policy: AccessLogConsoleAuto, want: AccessLogConsoleErrorOnly},
+		{name: "auto development", env: "development", policy: AccessLogConsoleAuto, want: AccessLogConsoleErrorOnly},
+		{name: "auto production", env: "production", policy: AccessLogConsoleAuto, want: AccessLogConsoleNever},
+		{name: "auto prod", env: "prod", policy: AccessLogConsoleAuto, want: AccessLogConsoleNever},
+		{name: "auto staging", env: "staging", policy: AccessLogConsoleAuto, want: AccessLogConsoleNever},
+		{name: "auto stage", env: "stage", policy: AccessLogConsoleAuto, want: AccessLogConsoleNever},
+		{name: "auto test", env: "test", policy: AccessLogConsoleAuto, want: AccessLogConsoleNever},
+		{name: "auto unknown", env: "preview", policy: AccessLogConsoleAuto, want: AccessLogConsoleNever},
+		{name: "explicit always", env: "production", policy: AccessLogConsoleAlways, want: AccessLogConsoleAlways},
+		{name: "explicit never", env: "local", policy: AccessLogConsoleNever, want: AccessLogConsoleNever},
+		{name: "explicit error only", env: "production", policy: AccessLogConsoleErrorOnly, want: AccessLogConsoleErrorOnly},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := ResolveAccessLogConsolePolicy(testCase.env, testCase.policy); got != testCase.want {
+				t.Fatalf("expected access log console policy %q, got %q", testCase.want, got)
+			}
+		})
 	}
 }
 
@@ -571,15 +751,22 @@ func validConfigForValidateTests() *Config {
 			Addr: ":8080",
 		},
 		HTTPX: HTTPXConfig{
-			AccessLogRetention: 3 * 24 * time.Hour,
+			AccessLogRetention:       3 * 24 * time.Hour,
+			AccessLogConsole:         AccessLogConsoleAuto,
+			AccessLogSlowThresholdMS: 1000,
 		},
 		Audit: AuditConfig{
 			LogRetention: 30 * 24 * time.Hour,
 		},
 		Log: LogConfig{
 			Level:           "info",
+			Format:          LogFormatAuto,
+			Color:           LogColorAuto,
 			AppLogPersist:   true,
 			AppLogRetention: 3 * 24 * time.Hour,
+		},
+		Runtime: RuntimeConfig{
+			GinMode: GinModeAuto,
 		},
 		Database: DatabaseConfig{
 			Driver: "postgres",

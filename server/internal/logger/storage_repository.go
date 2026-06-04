@@ -366,7 +366,7 @@ func appendAppLogKeywordFilter(
 		if repo != nil {
 			placeholder = repo.placeholder(len(*args))
 		}
-		*conditions = append(*conditions, "to_tsvector('simple', concat_ws(' ', component, COALESCE(operation, ''), message, COALESCE(error, ''))) @@ plainto_tsquery('simple', "+placeholder+")")
+		*conditions = append(*conditions, "to_tsvector('simple', component || ' ' || COALESCE(operation, '') || ' ' || message || ' ' || COALESCE(error, '')) @@ plainto_tsquery('simple', "+placeholder+")")
 		return
 	}
 

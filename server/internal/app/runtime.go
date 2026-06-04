@@ -31,6 +31,7 @@ import (
 )
 
 const moduleShutdownTimeout = 5 * time.Second
+const appRuntimeLogComponent = "internal.app.runtime"
 
 type runtimeCoreDeps struct {
 	newAccessLogRepository func(*sql.DB) (httpx.AccessLogRepository, error)
@@ -153,6 +154,7 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 
 func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
 	deps = normalizeRuntimeCoreDeps(deps)
+	applyGinMode(cfg)
 
 	runtimeLogger, err := logger.New(cfg)
 	if err != nil {
@@ -197,12 +199,17 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 	}
 
 	return &Runtime{
-		config:             cfg,
-		logger:             runtimeLogger,
-		i18n:               localizer,
-		database:           databaseResources,
-		redis:              redisClient,
-		server:             httpx.NewServer(runtimeLogger, accessLogRepo),
+		config:   cfg,
+		logger:   runtimeLogger,
+		i18n:     localizer,
+		database: databaseResources,
+		redis:    redisClient,
+		server: httpx.NewServerWithOptions(runtimeLogger, httpx.ServerOptions{
+			AccessLog: httpx.AccessLogOptions{
+				ConsolePolicy: config.ResolveAccessLogConsolePolicy(cfg.App.Env, cfg.HTTPX.AccessLogConsole),
+				SlowThreshold: time.Duration(cfg.HTTPX.AccessLogSlowThresholdMS) * time.Millisecond,
+			},
+		}, accessLogRepo),
 		eventBus:           eventbus.New(runtimeLogger),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
@@ -224,6 +231,16 @@ func normalizeRuntimeCoreDeps(deps runtimeCoreDeps) runtimeCoreDeps {
 		deps.openRedisClient = redisx.Open
 	}
 	return deps
+}
+
+func applyGinMode(cfg *config.Config) {
+	appEnv := ""
+	mode := config.GinModeAuto
+	if cfg != nil {
+		appEnv = cfg.App.Env
+		mode = cfg.Runtime.GinMode
+	}
+	gin.SetMode(string(config.ResolveGinMode(appEnv, mode)))
 }
 
 func newOptionalAppLogRepository(
@@ -277,12 +294,20 @@ func (r *Runtime) Run(runCtx context.Context) error {
 	if err != nil {
 		return err
 	}
+	r.appLogger().Info(runCtx, "app runtime boot completed",
+		logger.StringField(logger.FieldOperation, "runtime_boot"),
+		logger.IntField("modules", len(booted)),
+	)
 
 	if err := r.server.Run(runCtx, r.config.HTTP.Addr); err != nil {
 		return r.cleanupAfterFailure(moduleCtx, booted, err)
 	}
 
 	if err := shutdownModules(moduleCtx, booted); err != nil {
+		r.appLogger().Error(moduleCtx.LifecycleContext, "app runtime shutdown failed",
+			logger.StringField(logger.FieldOperation, "runtime_shutdown"),
+			logger.ErrorField(err),
+		)
 		return r.cleanupAfterFailure(moduleCtx, nil, err)
 	}
 
@@ -314,9 +339,18 @@ func (r *Runtime) bootModules(
 		// 只有完成 Register 的模块才会进入 Boot。booted 只记录真正成功启动
 		// 的模块，确保失败清理不会误关未启动模块。
 		if err := p.Boot(moduleCtx); err != nil {
+			r.appLogger().Error(moduleCtx.LifecycleContext, "module boot failed",
+				logger.StringField(logger.FieldOperation, "module_boot"),
+				logger.StringField("module", p.Name()),
+				logger.ErrorField(err),
+			)
 			return nil, r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("boot module %s: %w", p.Name(), err))
 		}
 		booted = append(booted, p)
+		r.appLogger().Info(moduleCtx.LifecycleContext, "module boot completed",
+			logger.StringField(logger.FieldOperation, "module_boot"),
+			logger.StringField("module", p.Name()),
+		)
 	}
 
 	return booted, nil
@@ -489,8 +523,7 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 		html, err := renderScalarDocsHTML(openapiJSONPath)
 		if err != nil {
 			if r.logger != nil {
-				logger.NewAppLogger(r.logger).
-					Named("internal.app.runtime").
+				r.appLogger().
 					Error(ctx.Request.Context(), "render docs page", logger.ErrorField(err))
 			}
 			ctx.String(http.StatusInternalServerError, "failed to render docs page")
@@ -602,6 +635,7 @@ func (r *Runtime) registerAppLogRetentionJob() error {
 	return logger.RegisterAppLogRetentionCleanupJob(
 		r.cronRegistry,
 		r.logger,
+		r.injectedAppLogger(),
 		r.appLogRepository,
 		r.config.Log,
 	)
@@ -615,6 +649,31 @@ func (r *Runtime) newAppLogger() logger.AppLogger {
 		return logger.NewAppLogger(r.logger)
 	}
 	return logger.NewAppLogger(r.logger, logger.WithAppLogRepository(r.appLogRepository))
+}
+
+func (r *Runtime) appLogger() logger.AppLogger {
+	return r.injectedAppLogger().Named(appRuntimeLogComponent)
+}
+
+func (r *Runtime) injectedAppLogger() logger.AppLogger {
+	if r == nil {
+		return logger.NewAppLogger(nil)
+	}
+	if r.services == nil {
+		return r.newAppLogger()
+	}
+
+	resolved, err := r.services.Resolve((*logger.AppLogger)(nil))
+	if err != nil {
+		return r.newAppLogger()
+	}
+
+	appLogger, ok := resolved.(logger.AppLogger)
+	if !ok || appLogger == nil {
+		return r.newAppLogger()
+	}
+
+	return appLogger
 }
 
 func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error {

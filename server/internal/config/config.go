@@ -32,6 +32,76 @@ const (
 	defaultRefreshCookieSameSite = "lax"
 )
 
+const (
+	// EnvAppEnv names the process environment variable that selects the runtime environment.
+	EnvAppEnv = "GRAFT_APP_ENV"
+	// EnvLogLevel names the process environment variable that selects the zap severity threshold.
+	EnvLogLevel = "GRAFT_LOG_LEVEL"
+	// EnvLogFormat names the process environment variable that selects console or JSON output.
+	EnvLogFormat = "GRAFT_LOG_FORMAT"
+	// EnvLogColor names the process environment variable that controls ANSI level colors.
+	EnvLogColor = "GRAFT_LOG_COLOR"
+	// EnvGinMode names the process environment variable that selects the Gin framework mode.
+	EnvGinMode = "GRAFT_GIN_MODE"
+	// EnvAccessLogConsole names the process environment variable that controls access-log console emission.
+	EnvAccessLogConsole = "GRAFT_ACCESS_LOG_CONSOLE"
+	// EnvAccessLogSlowThresholdMS names the process environment variable that controls slow access-log visibility.
+	EnvAccessLogSlowThresholdMS   = "GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS"
+	defaultAccessLogSlowThreshold = 1000 * time.Millisecond
+)
+
+// LogFormat describes the runtime encoder format selected for zap output.
+type LogFormat string
+
+const (
+	// LogFormatAuto lets the runtime choose console for local-like environments and JSON otherwise.
+	LogFormatAuto LogFormat = "auto"
+	// LogFormatConsole selects zap console encoding.
+	LogFormatConsole LogFormat = "console"
+	// LogFormatJSON selects zap JSON encoding.
+	LogFormatJSON LogFormat = "json"
+)
+
+// LogColor describes whether console log levels should include ANSI color.
+type LogColor string
+
+const (
+	// LogColorAuto enables colors only for local-like console output.
+	LogColorAuto LogColor = "auto"
+	// LogColorAlways enables ANSI colors for console output.
+	LogColorAlways LogColor = "always"
+	// LogColorNever disables ANSI colors.
+	LogColorNever LogColor = "never"
+)
+
+// GinMode describes the Gin framework mode selected before engine creation.
+type GinMode string
+
+const (
+	// GinModeAuto lets the runtime choose debug, test, or release from the app environment.
+	GinModeAuto GinMode = "auto"
+	// GinModeDebug selects Gin debug mode.
+	GinModeDebug GinMode = "debug"
+	// GinModeRelease selects Gin release mode.
+	GinModeRelease GinMode = "release"
+	// GinModeTest selects Gin test mode.
+	GinModeTest GinMode = "test"
+)
+
+// AccessLogConsolePolicy controls whether request facts are emitted to the process logger.
+type AccessLogConsolePolicy string
+
+const (
+	// AccessLogConsoleAuto lets the runtime choose a quiet console policy from the app environment.
+	AccessLogConsoleAuto AccessLogConsolePolicy = "auto"
+	// AccessLogConsoleAlways emits every access log to the process logger.
+	AccessLogConsoleAlways AccessLogConsolePolicy = "always"
+	// AccessLogConsoleNever suppresses process-log emission while keeping persistence.
+	AccessLogConsoleNever AccessLogConsolePolicy = "never"
+	// AccessLogConsoleErrorOnly emits only error or slow access logs to the process logger.
+	AccessLogConsoleErrorOnly AccessLogConsolePolicy = "error_only"
+)
+
 // Config 包含服务启动前一次性解析并校验的运行时配置快照。
 //
 // core 会把该快照作为只读依赖注入给运行时与模块，避免后续流程再隐式读取环境变量。
@@ -45,6 +115,7 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	Log      LogConfig
+	Runtime  RuntimeConfig
 	I18n     I18nConfig
 	Auth     AuthConfig
 }
@@ -62,7 +133,9 @@ type HTTPConfig struct {
 
 // HTTPXConfig 描述 core-owned httpx 运行时配置。
 type HTTPXConfig struct {
-	AccessLogRetention time.Duration
+	AccessLogRetention       time.Duration
+	AccessLogConsole         AccessLogConsolePolicy
+	AccessLogSlowThresholdMS int64
 }
 
 // AuditConfig describes audit-module-owned runtime policy configuration.
@@ -98,8 +171,15 @@ type RedisConfig struct {
 // LogConfig 描述日志核心服务接入后的日志行为配置。
 type LogConfig struct {
 	Level           string
+	Format          LogFormat
+	Color           LogColor
 	AppLogPersist   bool
 	AppLogRetention time.Duration
+}
+
+// RuntimeConfig 描述 core runtime 启动前必须冻结的进程级框架行为。
+type RuntimeConfig struct {
+	GinMode GinMode
 }
 
 // I18nConfig 描述平台级语言解析与消息回退配置。
@@ -149,7 +229,9 @@ func Load() (*Config, error) {
 			Addr: reader.GetString("http.addr"),
 		},
 		HTTPX: HTTPXConfig{
-			AccessLogRetention: reader.GetDuration("httpx.access_log_retention"),
+			AccessLogRetention:       reader.GetDuration("httpx.access_log_retention"),
+			AccessLogConsole:         AccessLogConsolePolicy(reader.GetString("access_log.console")),
+			AccessLogSlowThresholdMS: reader.GetInt64("access_log.slow_threshold_ms"),
 		},
 		Audit: AuditConfig{
 			LogRetention: reader.GetDuration("audit.log_retention"),
@@ -171,8 +253,13 @@ func Load() (*Config, error) {
 		},
 		Log: LogConfig{
 			Level:           reader.GetString("log.level"),
+			Format:          LogFormat(reader.GetString("log.format")),
+			Color:           LogColor(reader.GetString("log.color")),
 			AppLogPersist:   reader.GetBool("log.app_log_persist"),
 			AppLogRetention: reader.GetDuration("log.app_log_retention"),
+		},
+		Runtime: RuntimeConfig{
+			GinMode: GinMode(reader.GetString("gin.mode")),
 		},
 		I18n: I18nConfig{
 			DefaultLocale:    reader.GetString("i18n.default_locale"),
@@ -239,6 +326,7 @@ func (c *Config) Validate() error {
 		validateHTTPXConfig,
 		validateAuditConfig,
 		validateLogConfig,
+		validateRuntimeConfig,
 		validateModulesConfig,
 		validateDatabaseConfig,
 		validateRedisConfig,
@@ -273,6 +361,18 @@ func validateHTTPXConfig(c *Config) error {
 	if c.HTTPX.AccessLogRetention <= 0 {
 		return errors.New("GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
 	}
+	c.HTTPX.AccessLogConsole = AccessLogConsolePolicy(strings.ToLower(strings.TrimSpace(string(c.HTTPX.AccessLogConsole))))
+	if c.HTTPX.AccessLogConsole == "" {
+		c.HTTPX.AccessLogConsole = AccessLogConsoleAuto
+	}
+	switch c.HTTPX.AccessLogConsole {
+	case AccessLogConsoleAuto, AccessLogConsoleAlways, AccessLogConsoleNever, AccessLogConsoleErrorOnly:
+	default:
+		return fmt.Errorf("unsupported GRAFT_ACCESS_LOG_CONSOLE value %q", c.HTTPX.AccessLogConsole)
+	}
+	if c.HTTPX.AccessLogSlowThresholdMS <= 0 {
+		return errors.New("GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS must be greater than zero")
+	}
 
 	return nil
 }
@@ -286,6 +386,26 @@ func validateAuditConfig(c *Config) error {
 }
 
 func validateLogConfig(c *Config) error {
+	c.Log.Format = LogFormat(strings.ToLower(strings.TrimSpace(string(c.Log.Format))))
+	if c.Log.Format == "" {
+		c.Log.Format = LogFormatAuto
+	}
+	switch c.Log.Format {
+	case LogFormatAuto, LogFormatConsole, LogFormatJSON:
+	default:
+		return fmt.Errorf("unsupported GRAFT_LOG_FORMAT value %q", c.Log.Format)
+	}
+
+	c.Log.Color = LogColor(strings.ToLower(strings.TrimSpace(string(c.Log.Color))))
+	if c.Log.Color == "" {
+		c.Log.Color = LogColorAuto
+	}
+	switch c.Log.Color {
+	case LogColorAuto, LogColorAlways, LogColorNever:
+	default:
+		return fmt.Errorf("unsupported GRAFT_LOG_COLOR value %q", c.Log.Color)
+	}
+
 	if !c.Log.AppLogPersist {
 		return nil
 	}
@@ -294,6 +414,19 @@ func validateLogConfig(c *Config) error {
 	}
 
 	return nil
+}
+
+func validateRuntimeConfig(c *Config) error {
+	c.Runtime.GinMode = GinMode(strings.ToLower(strings.TrimSpace(string(c.Runtime.GinMode))))
+	if c.Runtime.GinMode == "" {
+		c.Runtime.GinMode = GinModeAuto
+	}
+	switch c.Runtime.GinMode {
+	case GinModeAuto, GinModeDebug, GinModeRelease, GinModeTest:
+		return nil
+	default:
+		return fmt.Errorf("unsupported GRAFT_GIN_MODE value %q", c.Runtime.GinMode)
+	}
 }
 
 func validateModulesConfig(c *Config) error {
@@ -528,6 +661,8 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.env", defaultAppEnv)
 	reader.SetDefault("http.addr", defaultHTTPAddr)
 	reader.SetDefault("httpx.access_log_retention", defaultAccessLogRetentionForEnv(reader.GetString("app.env")))
+	reader.SetDefault("access_log.console", string(AccessLogConsoleAuto))
+	reader.SetDefault("access_log.slow_threshold_ms", defaultAccessLogSlowThreshold/time.Millisecond)
 	reader.SetDefault("audit.log_retention", defaultAuditLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("modules.enabled", "")
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
@@ -536,8 +671,11 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("redis.password", "")
 	reader.SetDefault("redis.db", 0)
 	reader.SetDefault("log.level", defaultLogLevel)
+	reader.SetDefault("log.format", string(LogFormatAuto))
+	reader.SetDefault("log.color", string(LogColorAuto))
 	reader.SetDefault("log.app_log_persist", defaultAppLogPersistence)
 	reader.SetDefault("log.app_log_retention", defaultAppLogRetentionForEnv(reader.GetString("app.env")))
+	reader.SetDefault("gin.mode", string(GinModeAuto))
 	reader.SetDefault("i18n.default_locale", defaultLocale)
 	reader.SetDefault("i18n.fallback_locale", defaultLocale)
 	reader.SetDefault("i18n.supported_locales", defaultSupported)
@@ -572,8 +710,7 @@ func resolveDocsEnabled(reader *viper.Viper) bool {
 }
 
 func defaultDocsEnabledForEnv(env string) bool {
-	normalizedEnv := strings.ToLower(strings.TrimSpace(env))
-	switch normalizedEnv {
+	switch normalizeAppEnv(env) {
 	case "", "local", "development", "dev", "test":
 		return true
 	case "prod", "production":
@@ -584,7 +721,7 @@ func defaultDocsEnabledForEnv(env string) bool {
 }
 
 func defaultAccessLogRetentionForEnv(env string) time.Duration {
-	switch strings.ToLower(strings.TrimSpace(env)) {
+	switch normalizeAppEnv(env) {
 	case "prod", "production":
 		return 30 * 24 * time.Hour
 	case "staging", "stage":
@@ -597,7 +734,7 @@ func defaultAccessLogRetentionForEnv(env string) time.Duration {
 }
 
 func defaultAuditLogRetentionForEnv(env string) time.Duration {
-	switch strings.ToLower(strings.TrimSpace(env)) {
+	switch normalizeAppEnv(env) {
 	case "prod", "production":
 		return 180 * 24 * time.Hour
 	case "staging", "stage":
@@ -610,7 +747,7 @@ func defaultAuditLogRetentionForEnv(env string) time.Duration {
 }
 
 func defaultAppLogRetentionForEnv(env string) time.Duration {
-	switch strings.ToLower(strings.TrimSpace(env)) {
+	switch normalizeAppEnv(env) {
 	case "prod", "production":
 		return 14 * 24 * time.Hour
 	case "staging", "stage":
@@ -619,5 +756,137 @@ func defaultAppLogRetentionForEnv(env string) time.Duration {
 		return 3 * 24 * time.Hour
 	default:
 		return 7 * 24 * time.Hour
+	}
+}
+
+// ResolveLogFormat returns the concrete zap encoder format for the app environment and requested policy.
+func ResolveLogFormat(appEnv string, format LogFormat) LogFormat {
+	switch normalizeLogFormat(format) {
+	case LogFormatConsole:
+		return LogFormatConsole
+	case LogFormatJSON:
+		return LogFormatJSON
+	default:
+		if isLocalLikeEnv(appEnv) {
+			return LogFormatConsole
+		}
+		return LogFormatJSON
+	}
+}
+
+// ResolveLogColor reports whether the effective console encoder should colorize log levels.
+func ResolveLogColor(appEnv string, format LogFormat, color LogColor) bool {
+	if ResolveLogFormat(appEnv, format) != LogFormatConsole {
+		return false
+	}
+
+	switch normalizeLogColor(color) {
+	case LogColorAlways:
+		return true
+	case LogColorNever:
+		return false
+	default:
+		return isLocalLikeEnv(appEnv)
+	}
+}
+
+// ResolveGinMode returns the concrete Gin mode for the app environment and requested policy.
+func ResolveGinMode(appEnv string, mode GinMode) GinMode {
+	switch normalizeGinMode(mode) {
+	case GinModeDebug:
+		return GinModeDebug
+	case GinModeRelease:
+		return GinModeRelease
+	case GinModeTest:
+		return GinModeTest
+	default:
+		switch normalizeAppEnv(appEnv) {
+		case "local", "development", "dev":
+			return GinModeDebug
+		case "test":
+			return GinModeTest
+		default:
+			return GinModeRelease
+		}
+	}
+}
+
+// ResolveAccessLogConsolePolicy returns the concrete request-log console policy for the app environment.
+func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy) AccessLogConsolePolicy {
+	switch normalizeAccessLogConsolePolicy(policy) {
+	case AccessLogConsoleAlways:
+		return AccessLogConsoleAlways
+	case AccessLogConsoleNever:
+		return AccessLogConsoleNever
+	case AccessLogConsoleErrorOnly:
+		return AccessLogConsoleErrorOnly
+	default:
+		switch normalizeAppEnv(appEnv) {
+		case "local", "development", "dev":
+			return AccessLogConsoleErrorOnly
+		default:
+			return AccessLogConsoleNever
+		}
+	}
+}
+
+func normalizeAppEnv(env string) string {
+	return strings.ToLower(strings.TrimSpace(env))
+}
+
+func normalizeLogFormat(format LogFormat) LogFormat {
+	switch LogFormat(strings.ToLower(strings.TrimSpace(string(format)))) {
+	case LogFormatConsole:
+		return LogFormatConsole
+	case LogFormatJSON:
+		return LogFormatJSON
+	default:
+		return LogFormatAuto
+	}
+}
+
+func normalizeLogColor(color LogColor) LogColor {
+	switch LogColor(strings.ToLower(strings.TrimSpace(string(color)))) {
+	case LogColorAlways:
+		return LogColorAlways
+	case LogColorNever:
+		return LogColorNever
+	default:
+		return LogColorAuto
+	}
+}
+
+func normalizeGinMode(mode GinMode) GinMode {
+	switch GinMode(strings.ToLower(strings.TrimSpace(string(mode)))) {
+	case GinModeDebug:
+		return GinModeDebug
+	case GinModeRelease:
+		return GinModeRelease
+	case GinModeTest:
+		return GinModeTest
+	default:
+		return GinModeAuto
+	}
+}
+
+func normalizeAccessLogConsolePolicy(policy AccessLogConsolePolicy) AccessLogConsolePolicy {
+	switch AccessLogConsolePolicy(strings.ToLower(strings.TrimSpace(string(policy)))) {
+	case AccessLogConsoleAlways:
+		return AccessLogConsoleAlways
+	case AccessLogConsoleNever:
+		return AccessLogConsoleNever
+	case AccessLogConsoleErrorOnly:
+		return AccessLogConsoleErrorOnly
+	default:
+		return AccessLogConsoleAuto
+	}
+}
+
+func isLocalLikeEnv(env string) bool {
+	switch normalizeAppEnv(env) {
+	case "", "local", "development", "dev", "test":
+		return true
+	default:
+		return false
 	}
 }

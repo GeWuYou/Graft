@@ -14,6 +14,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	applog "graft/server/internal/logger"
+	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	authruntime "graft/server/modules/auth"
 	userstore "graft/server/modules/user/store"
@@ -22,6 +23,7 @@ import (
 type routeRuntime struct {
 	localizer  *i18n.Service
 	logger     *zap.Logger
+	appLog     applog.AppLogger
 	moduleName string
 }
 
@@ -29,12 +31,35 @@ func (r userRouteRegistrar) runtime() routeRuntime {
 	return routeRuntime{
 		localizer:  r.ctx.I18n,
 		logger:     r.ctx.Logger,
+		appLog:     r.appLog,
 		moduleName: r.moduleName,
 	}
 }
 
 func (r routeRuntime) appLogger() applog.AppLogger {
+	if r.appLog != nil {
+		return r.appLog.Named("modules.user.route")
+	}
+
 	return applog.NewAppLogger(r.logger).Named("modules.user.route")
+}
+
+func resolveUserRouteAppLogger(ctx *module.Context) applog.AppLogger {
+	if ctx == nil || ctx.Services == nil {
+		return nil
+	}
+
+	resolved, err := ctx.Services.Resolve((*applog.AppLogger)(nil))
+	if err != nil {
+		return nil
+	}
+
+	appLogger, ok := resolved.(applog.AppLogger)
+	if !ok || appLogger == nil {
+		return nil
+	}
+
+	return appLogger
 }
 
 func readUserIDParam(ginCtx *gin.Context, localizer *i18n.Service) (uint64, bool) {

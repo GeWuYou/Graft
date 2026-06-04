@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 )
 
 type appLogRetentionRepoRecorder struct {
+	mu      sync.Mutex
 	created []CreateAppLogInput
 	cutoffs []time.Time
 	deleted int64
@@ -20,11 +22,15 @@ type appLogRetentionRepoRecorder struct {
 }
 
 func (r *appLogRetentionRepoRecorder) CreateAppLog(_ context.Context, input CreateAppLogInput) (AppLogRecord, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.created = append(r.created, input)
 	return AppLogRecord{}, nil
 }
 
 func (r *appLogRetentionRepoRecorder) DeleteAppLogsBefore(_ context.Context, cutoff time.Time) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.cutoffs = append(r.cutoffs, cutoff)
 	if r.err != nil {
 		return 0, r.err
@@ -51,6 +57,7 @@ func TestAppLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 	repo := &appLogRetentionRepoRecorder{deleted: 3}
 	cleaner, err := newAppLogRetentionCleaner(
 		zap.NewNop(),
+		nil,
 		repo,
 		config.LogConfig{AppLogRetention: 72 * time.Hour},
 	)
@@ -68,6 +75,8 @@ func TestAppLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 	if deleted != 3 {
 		t.Fatalf("expected deleted rows 3, got %d", deleted)
 	}
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
 	if len(repo.cutoffs) != 1 {
 		t.Fatalf("expected one cutoff, got %d", len(repo.cutoffs))
 	}
@@ -77,10 +86,42 @@ func TestAppLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 	}
 }
 
-func TestAppLogRetentionCleanerReturnsDeleteError(t *testing.T) {
+func TestAppLogRetentionCleanerWritesCompletedAppLog(t *testing.T) {
+	repo := &appLogRetentionRepoRecorder{deleted: 7}
+	appLog := NewAppLogger(zap.NewNop(), WithAppLogRepository(repo))
 	cleaner, err := newAppLogRetentionCleaner(
 		zap.NewNop(),
-		&appLogRetentionRepoRecorder{err: errors.New("boom")},
+		appLog,
+		repo,
+		config.LogConfig{AppLogRetention: 72 * time.Hour},
+	)
+	if err != nil {
+		t.Fatalf("new cleaner: %v", err)
+	}
+	cleaner.now = func() time.Time {
+		return time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
+	}
+
+	if _, err := cleaner.cleanup(context.Background()); err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+
+	record := waitRetentionAppLogRecord(t, repo, "scheduler job completed")
+	if record.Component != "internal.logger.retention" {
+		t.Fatalf("expected retention component, got %#v", record)
+	}
+	if record.Operation != "app_log_retention_cleanup" || record.Fields["deleted_rows"] != "7" {
+		t.Fatalf("expected deletion count app log fields, got %#v", record)
+	}
+}
+
+func TestAppLogRetentionCleanerReturnsDeleteError(t *testing.T) {
+	repo := &appLogRetentionRepoRecorder{err: errors.New("boom")}
+	appLog := NewAppLogger(zap.NewNop(), WithAppLogRepository(repo))
+	cleaner, err := newAppLogRetentionCleaner(
+		zap.NewNop(),
+		appLog,
+		repo,
 		config.LogConfig{AppLogRetention: 24 * time.Hour},
 	)
 	if err != nil {
@@ -93,6 +134,11 @@ func TestAppLogRetentionCleanerReturnsDeleteError(t *testing.T) {
 	if _, err := cleaner.cleanup(context.Background()); err == nil {
 		t.Fatal("expected cleanup error")
 	}
+
+	record := waitRetentionAppLogRecord(t, repo, "scheduler job failed")
+	if record.Severity != AppLogSeverityError || record.Error == "" {
+		t.Fatalf("expected failed scheduler app log, got %#v", record)
+	}
 }
 
 func TestRegisterAppLogRetentionCleanupJob(t *testing.T) {
@@ -101,6 +147,7 @@ func TestRegisterAppLogRetentionCleanupJob(t *testing.T) {
 	if err := RegisterAppLogRetentionCleanupJob(
 		registry,
 		zap.NewNop(),
+		nil,
 		&appLogRetentionRepoRecorder{},
 		config.LogConfig{AppLogRetention: 7 * 24 * time.Hour},
 	); err != nil {
@@ -120,4 +167,25 @@ func TestRegisterAppLogRetentionCleanupJob(t *testing.T) {
 	if items[0].Schedule != appLogRetentionCleanupJobSchedule {
 		t.Fatalf("expected job schedule %q, got %q", appLogRetentionCleanupJobSchedule, items[0].Schedule)
 	}
+}
+
+func waitRetentionAppLogRecord(t *testing.T, repo *appLogRetentionRepoRecorder, message string) CreateAppLogInput {
+	t.Helper()
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		repo.mu.Lock()
+		for _, record := range repo.created {
+			if record.Message == message {
+				repo.mu.Unlock()
+				return record
+			}
+		}
+		repo.mu.Unlock()
+		time.Sleep(time.Millisecond)
+	}
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	t.Fatalf("expected retention app log %q, got %#v", message, repo.created)
+	return CreateAppLogInput{}
 }

@@ -94,3 +94,16 @@
   - App Log Explorer supports bounded canonical filters for time, severity, component, operation, request ID, trace ID, keyword, message, and error.
   - App Log detail remains limited to canonical runtime troubleshooting fields.
 - Topic verdict: `archive-ready`.
+
+## 2026-06-04 Post-Archive Logging Runtime Closeout
+
+- Confirmed the active recovery index has no active topics and moved this topic under `ai-plan/public/archive/`.
+- Preserved the post-archive logging runtime commits as part of the final topic evidence:
+  - `54a6344 fix(app-log): persist high-signal runtime events`
+  - `056d34a feat(server): improve development log output`
+  - `fdc2c23 docs(server): add logging env defaults`
+  - `dabb439 docs(server): explain logging env options`
+- Revalidated the affected backend logging/runtime surface:
+  - `cd server && go test ./internal/logger ./internal/app ./internal/config ./internal/httpx ./modules/user`
+  - `cd server && go run ./cmd/graft validate backend`
+- Final topic verdict: `archived`.

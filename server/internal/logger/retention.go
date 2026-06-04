@@ -49,6 +49,7 @@ func (p appLogRetentionPolicy) cutoff(now time.Time) (time.Time, error) {
 
 type appLogRetentionCleaner struct {
 	logger func() *zap.Logger
+	appLog func() AppLogger
 	repo   AppLogRepository
 	policy appLogRetentionPolicy
 	now    func() time.Time
@@ -56,6 +57,7 @@ type appLogRetentionCleaner struct {
 
 func newAppLogRetentionCleaner(
 	logger *zap.Logger,
+	appLogger AppLogger,
 	repo AppLogRepository,
 	cfg config.LogConfig,
 ) (*appLogRetentionCleaner, error) {
@@ -73,6 +75,12 @@ func newAppLogRetentionCleaner(
 				return zap.NewNop()
 			}
 			return logger
+		},
+		appLog: func() AppLogger {
+			if appLogger != nil {
+				return appLogger.Named("internal.logger.retention")
+			}
+			return NewAppLogger(logger).Named("internal.logger.retention")
 		},
 		repo:   repo,
 		policy: policy,
@@ -110,6 +118,13 @@ func (c *appLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) {
 			zap.Time("cutoff", cutoff),
 			zap.Error(err),
 		)
+		c.appLog().Error(ctx, "scheduler job failed",
+			StringField(FieldOperation, "app_log_retention_cleanup"),
+			StringField("job", appLogRetentionCleanupJobName),
+			DurationField("retention", c.policy.retention),
+			TimeField("cutoff", cutoff),
+			ErrorField(err),
+		)
 		return 0, fmt.Errorf("delete app logs before cutoff: %w", err)
 	}
 
@@ -119,6 +134,13 @@ func (c *appLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) {
 		zap.Time("cutoff", cutoff),
 		zap.Int64("deletedRows", deleted),
 	)
+	c.appLog().Info(ctx, "scheduler job completed",
+		StringField(FieldOperation, "app_log_retention_cleanup"),
+		StringField("job", appLogRetentionCleanupJobName),
+		DurationField("retention", c.policy.retention),
+		TimeField("cutoff", cutoff),
+		Int64Field("deleted_rows", deleted),
+	)
 
 	return deleted, nil
 }
@@ -127,6 +149,7 @@ func (c *appLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) {
 func RegisterAppLogRetentionCleanupJob(
 	registry *cronx.Registry,
 	logger *zap.Logger,
+	appLogger AppLogger,
 	repo AppLogRepository,
 	cfg config.LogConfig,
 ) error {
@@ -134,7 +157,7 @@ func RegisterAppLogRetentionCleanupJob(
 		return errors.New("cron registry is required")
 	}
 
-	cleaner, err := newAppLogRetentionCleaner(logger, repo, cfg)
+	cleaner, err := newAppLogRetentionCleaner(logger, appLogger, repo, cfg)
 	if err != nil {
 		return err
 	}
