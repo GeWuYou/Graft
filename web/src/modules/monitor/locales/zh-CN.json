@@ -185,7 +185,7 @@
       "diskPercentLabel": "已用比例"
     },
     "moduleRuntime": {
-      "title": "模块概览",
+      "title": "模块运行时",
       "subtitle": "查看编译期模块的注册、启用、依赖、迁移、Schema 与配置状态。",
       "errorTitle": "模块快照请求失败",
       "errorFallback": "模块运行时快照加载失败",
@@ -212,7 +212,7 @@
       "table": {
         "title": "运行时模块列表",
         "description": "当前进程模块注册表的只读视图。",
-        "note": "此处仅展示已声明的运行状态，不提供模块写操作。"
+        "note": "只读视图，不提供模块写操作。"
       },
       "columns": {
         "moduleKey": "模块键",
@@ -226,23 +226,43 @@
         "action": "操作"
       },
       "detail": {
-        "title": "模块详情",
-        "titleWithKey": "{key} 详情",
+        "title": "模块运行时详情",
+        "titleWithKey": "{key} 运行时详情",
+        "basicInfo": "基础信息",
         "moduleKey": "模块键",
+        "enabled": "启用状态",
+        "registered": "注册状态",
+        "health": "健康状态",
         "runtimeStatus": "运行状态",
         "enablementSource": "启用来源",
-        "dependencies": "依赖",
-        "migrationDirs": "迁移目录",
-        "schemaStatus": "Schema 状态",
-        "configStatus": "配置状态",
-        "diagnostics": "诊断"
+        "dependencies": "依赖关系",
+        "declaredDependencies": "声明依赖",
+        "dependencySatisfaction": "满足情况",
+        "migration": "迁移信息",
+        "migrationDir": "Migration Dir",
+        "migrationStatus": "状态",
+        "schema": "Schema",
+        "schemaOwner": "Owner",
+        "schemaStatus": "状态",
+        "config": "配置",
+        "configStatus": "状态",
+        "configDescription": "说明",
+        "diagnostics": "诊断说明"
       },
       "values": {
         "yes": "是",
         "no": "否",
         "none": "无",
+        "emptyDependencies": "无依赖",
+        "emptyMigrationDir": "无迁移目录",
+        "emptySchema": "未声明 Schema",
+        "unknownConfig": "未知配置状态",
+        "noDiagnostics": "暂无诊断说明",
+        "notReported": "未上报",
         "dependencySummary": "{satisfied} / {total} 已满足",
-        "migrationDirCount": "{count} 个目录"
+        "migrationDirCount": "{count} 个目录",
+        "moduleOwnedSchema": "模块自有",
+        "notRequiredConfig": "当前无需配置"
       },
       "health": {
         "healthy": "健康",

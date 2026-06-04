@@ -11,7 +11,7 @@ const moduleRuntimeApiMocks = vi.hoisted(() => ({
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'monitor.sectionTitle': 'Service Management',
-    'monitor.moduleRuntime.title': 'Module Overview',
+    'monitor.moduleRuntime.title': 'Module Runtime',
     'monitor.moduleRuntime.subtitle': 'Review compile-time module status.',
     'monitor.moduleRuntime.errorTitle': 'Module snapshot request failed',
     'monitor.moduleRuntime.errorFallback': 'Failed to load module runtime snapshot',
@@ -31,7 +31,7 @@ const translations = vi.hoisted(
     'monitor.moduleRuntime.summary.degradedUnknownDescription': 'Modules needing operator attention',
     'monitor.moduleRuntime.table.title': 'Runtime Module List',
     'monitor.moduleRuntime.table.description': 'Read-only view of the current process module registry.',
-    'monitor.moduleRuntime.table.note': 'Only declared runtime state is shown here.',
+    'monitor.moduleRuntime.table.note': 'Read-only view. Module write operations are unavailable.',
     'monitor.moduleRuntime.columns.moduleKey': 'Module key',
     'monitor.moduleRuntime.columns.enabled': 'Enabled',
     'monitor.moduleRuntime.columns.registered': 'Registered',
@@ -41,21 +41,41 @@ const translations = vi.hoisted(
     'monitor.moduleRuntime.columns.schema': 'Schema',
     'monitor.moduleRuntime.columns.config': 'Config',
     'monitor.moduleRuntime.columns.action': 'Action',
-    'monitor.moduleRuntime.detail.title': 'Module detail',
-    'monitor.moduleRuntime.detail.titleWithKey': '{key} detail',
+    'monitor.moduleRuntime.detail.title': 'Module runtime detail',
+    'monitor.moduleRuntime.detail.titleWithKey': '{key} runtime detail',
+    'monitor.moduleRuntime.detail.basicInfo': 'Basic information',
     'monitor.moduleRuntime.detail.moduleKey': 'Module key',
+    'monitor.moduleRuntime.detail.enabled': 'Enabled',
+    'monitor.moduleRuntime.detail.registered': 'Registered',
+    'monitor.moduleRuntime.detail.health': 'Health',
     'monitor.moduleRuntime.detail.runtimeStatus': 'Runtime status',
     'monitor.moduleRuntime.detail.enablementSource': 'Enablement source',
     'monitor.moduleRuntime.detail.dependencies': 'Dependencies',
-    'monitor.moduleRuntime.detail.migrationDirs': 'Migration directories',
-    'monitor.moduleRuntime.detail.schemaStatus': 'Schema status',
-    'monitor.moduleRuntime.detail.configStatus': 'Config status',
+    'monitor.moduleRuntime.detail.declaredDependencies': 'Declared dependencies',
+    'monitor.moduleRuntime.detail.dependencySatisfaction': 'Satisfaction',
+    'monitor.moduleRuntime.detail.migration': 'Migration',
+    'monitor.moduleRuntime.detail.migrationDir': 'Migration Dir',
+    'monitor.moduleRuntime.detail.migrationStatus': 'Status',
+    'monitor.moduleRuntime.detail.schema': 'Schema',
+    'monitor.moduleRuntime.detail.schemaOwner': 'Owner',
+    'monitor.moduleRuntime.detail.schemaStatus': 'Status',
+    'monitor.moduleRuntime.detail.config': 'Config',
+    'monitor.moduleRuntime.detail.configStatus': 'Status',
+    'monitor.moduleRuntime.detail.configDescription': 'Description',
     'monitor.moduleRuntime.detail.diagnostics': 'Diagnostics',
     'monitor.moduleRuntime.values.yes': 'Yes',
     'monitor.moduleRuntime.values.no': 'No',
     'monitor.moduleRuntime.values.none': 'None',
+    'monitor.moduleRuntime.values.emptyDependencies': 'No dependencies',
+    'monitor.moduleRuntime.values.emptyMigrationDir': 'No migration directory',
+    'monitor.moduleRuntime.values.emptySchema': 'Schema not declared',
+    'monitor.moduleRuntime.values.unknownConfig': 'Unknown config status',
+    'monitor.moduleRuntime.values.noDiagnostics': 'No diagnostics',
+    'monitor.moduleRuntime.values.notReported': 'Not reported',
     'monitor.moduleRuntime.values.dependencySummary': '{satisfied} / {total} satisfied',
     'monitor.moduleRuntime.values.migrationDirCount': '{count} dirs',
+    'monitor.moduleRuntime.values.moduleOwnedSchema': 'Module-owned',
+    'monitor.moduleRuntime.values.notRequiredConfig': 'No config required',
     'monitor.moduleRuntime.health.healthy': 'Healthy',
     'monitor.moduleRuntime.health.degraded': 'Degraded',
     'monitor.moduleRuntime.health.unknown': 'Unknown',
@@ -286,7 +306,7 @@ describe('monitor module runtime page', () => {
     await flushPromises();
 
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
-    expect(wrapper.text()).toContain('Module Overview');
+    expect(wrapper.text()).toContain('Module Runtime');
     expect(wrapper.text()).toContain('Needs attention');
     expect(wrapper.text()).toContain('Runtime Module List');
     expect(wrapper.text()).toContain('audit');
@@ -313,8 +333,15 @@ describe('monitor module runtime page', () => {
       .find((button) => button.text().includes('Detail'))
       ?.trigger('click');
 
-    expect(wrapper.find('[data-drawer="true"]').text()).toContain('audit detail');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('audit runtime detail');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('Basic information');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('Dependencies');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('Migration');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('Schema');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('Config');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('All modules');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('server/modules/audit/migrations');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('Module-owned');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('boot');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('ok');
   });

@@ -185,7 +185,7 @@
       "diskPercentLabel": "Used percent"
     },
     "moduleRuntime": {
-      "title": "Module Overview",
+      "title": "Module Runtime",
       "subtitle": "Review compile-time module registration, enablement, dependency, migration, schema, and config status.",
       "errorTitle": "Module snapshot request failed",
       "errorFallback": "Failed to load module runtime snapshot",
@@ -212,7 +212,7 @@
       "table": {
         "title": "Runtime Module List",
         "description": "Read-only view of the current process module registry.",
-        "note": "Only declared runtime state is shown here. Writable module operations are intentionally unavailable."
+        "note": "Read-only view. Module write operations are unavailable."
       },
       "columns": {
         "moduleKey": "Module key",
@@ -226,23 +226,43 @@
         "action": "Action"
       },
       "detail": {
-        "title": "Module detail",
-        "titleWithKey": "{key} detail",
+        "title": "Module runtime detail",
+        "titleWithKey": "{key} runtime detail",
+        "basicInfo": "Basic information",
         "moduleKey": "Module key",
+        "enabled": "Enabled",
+        "registered": "Registered",
+        "health": "Health",
         "runtimeStatus": "Runtime status",
         "enablementSource": "Enablement source",
         "dependencies": "Dependencies",
-        "migrationDirs": "Migration directories",
-        "schemaStatus": "Schema status",
-        "configStatus": "Config status",
+        "declaredDependencies": "Declared dependencies",
+        "dependencySatisfaction": "Satisfaction",
+        "migration": "Migration",
+        "migrationDir": "Migration Dir",
+        "migrationStatus": "Status",
+        "schema": "Schema",
+        "schemaOwner": "Owner",
+        "schemaStatus": "Status",
+        "config": "Config",
+        "configStatus": "Status",
+        "configDescription": "Description",
         "diagnostics": "Diagnostics"
       },
       "values": {
         "yes": "Yes",
         "no": "No",
         "none": "None",
+        "emptyDependencies": "No dependencies",
+        "emptyMigrationDir": "No migration directory",
+        "emptySchema": "Schema not declared",
+        "unknownConfig": "Unknown config status",
+        "noDiagnostics": "No diagnostics",
+        "notReported": "Not reported",
         "dependencySummary": "{satisfied} / {total} satisfied",
-        "migrationDirCount": "{count} dirs"
+        "migrationDirCount": "{count} dirs",
+        "moduleOwnedSchema": "Module-owned",
+        "notRequiredConfig": "No config required"
       },
       "health": {
         "healthy": "Healthy",

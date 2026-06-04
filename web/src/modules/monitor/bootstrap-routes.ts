@@ -82,16 +82,16 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
       dashboard: true,
       pageKind: 'overview',
       semanticTitle: {
-        'zh-CN': '服务管理 - 模块概览',
-        'en-US': 'Service Management - Modules',
+        'zh-CN': '服务管理 - 模块运行时',
+        'en-US': 'Service Management - Module Runtime',
       },
       breadcrumbTitle: {
-        'zh-CN': '模块概览',
-        'en-US': 'Modules',
+        'zh-CN': '模块运行时',
+        'en-US': 'Module Runtime',
       },
       tabTitle: {
-        'zh-CN': '服务管理 - 模块概览',
-        'en-US': 'Service Management - Modules',
+        'zh-CN': '服务管理 - 模块运行时',
+        'en-US': 'Service Management - Module Runtime',
       },
     },
   },

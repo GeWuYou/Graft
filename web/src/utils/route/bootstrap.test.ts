@@ -227,8 +227,8 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[2]?.meta?.orderNo).toBe(3);
     expect(routes[0]?.children?.[3]?.name).toBe('MonitorModuleRuntimeOverviewIndex');
     expect(routes[0]?.children?.[3]?.meta?.titleKey).toBe('menu.server.modules.title');
-    expect(routes[0]?.children?.[3]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('模块概览');
-    expect(routes[0]?.children?.[3]?.meta?.tabTitle?.['en-US']).toBe('Service Management - Modules');
+    expect(routes[0]?.children?.[3]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('模块运行时');
+    expect(routes[0]?.children?.[3]?.meta?.tabTitle?.['en-US']).toBe('Service Management - Module Runtime');
     expect(routes[0]?.children?.[3]?.meta?.orderNo).toBe(4);
   });
 

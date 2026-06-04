@@ -45,7 +45,7 @@
       :min-height="420"
     >
       <template #actions>
-        <t-alert class="module-runtime-table__note" theme="info" :message="t('monitor.moduleRuntime.table.note')" />
+        <p class="module-runtime-table__note">{{ t('monitor.moduleRuntime.table.note') }}</p>
       </template>
 
       <t-table
@@ -56,7 +56,7 @@
         :loading="loading"
         :empty="emptyTableContent"
         table-layout="fixed"
-        table-content-width="1180px"
+        table-content-width="1260px"
       >
         <template #module_key="{ row }">
           <strong class="module-runtime-table__key">{{ row.module_key }}</strong>
@@ -129,69 +129,143 @@
       destroy-on-close
     >
       <div v-if="selectedModule" class="module-runtime-detail">
-        <t-descriptions :column="1" item-layout="vertical" size="small">
-          <t-descriptions-item :label="t('monitor.moduleRuntime.detail.moduleKey')">
-            {{ selectedModule.module_key }}
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('monitor.moduleRuntime.detail.runtimeStatus')">
-            <status-tag
-              :label="runtimeStatusLabel(selectedModule.runtime_status)"
-              :status="runtimeTone(selectedModule.runtime_status)"
-            />
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('monitor.moduleRuntime.detail.enablementSource')">
-            {{ enablementSourceLabel(selectedModule.enablement_source) }}
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('monitor.moduleRuntime.detail.dependencies')">
-            <div v-if="selectedModule.dependencies.length" class="module-runtime-detail__list">
-              <div
-                v-for="dependency in selectedModule.dependencies"
-                :key="dependency.module_key"
-                class="module-runtime-detail__line"
-              >
-                <span>{{ dependency.module_key }}</span>
-                <status-tag
-                  :label="dependencyStatusLabel(dependency.status)"
-                  :status="dependencyTone(dependency.status)"
-                />
-              </div>
+        <section class="module-runtime-detail__section">
+          <h3>{{ t('monitor.moduleRuntime.detail.basicInfo') }}</h3>
+          <div class="module-runtime-detail__grid">
+            <div class="module-runtime-detail__field module-runtime-detail__field--wide">
+              <span>{{ t('monitor.moduleRuntime.detail.moduleKey') }}</span>
+              <strong>{{ selectedModule.module_key }}</strong>
             </div>
-            <span v-else>{{ t('monitor.moduleRuntime.values.none') }}</span>
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('monitor.moduleRuntime.detail.migrationDirs')">
-            <div v-if="selectedModule.migration_status.declared_dirs.length" class="module-runtime-detail__chips">
-              <t-tag
-                v-for="directory in selectedModule.migration_status.declared_dirs"
-                :key="directory"
-                variant="light"
-              >
-                {{ directory }}
-              </t-tag>
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.enabled') }}</span>
+              <status-tag
+                :label="booleanLabel(selectedModule.enabled)"
+                :status="selectedModule.enabled ? 'healthy' : 'disabled'"
+              />
             </div>
-            <span v-else>{{ t('monitor.moduleRuntime.values.none') }}</span>
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('monitor.moduleRuntime.detail.schemaStatus')">
-            <status-tag
-              :label="schemaStatusLabel(selectedModule.schema_status.status)"
-              :status="declaredTone(selectedModule.schema_status.status)"
-            />
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('monitor.moduleRuntime.detail.configStatus')">
-            <status-tag
-              :label="configStatusLabel(selectedModule.config_status.status)"
-              :status="configTone(selectedModule.config_status.status)"
-            />
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('monitor.moduleRuntime.detail.diagnostics')">
-            <div v-if="diagnosticEntries.length" class="module-runtime-detail__diagnostics">
-              <div v-for="[key, value] in diagnosticEntries" :key="key" class="module-runtime-detail__diagnostic">
-                <span>{{ key }}</span>
-                <strong>{{ value }}</strong>
-              </div>
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.registered') }}</span>
+              <status-tag
+                :label="booleanLabel(selectedModule.registered)"
+                :status="selectedModule.registered ? 'healthy' : 'unknown'"
+              />
             </div>
-            <span v-else>{{ t('monitor.moduleRuntime.values.none') }}</span>
-          </t-descriptions-item>
-        </t-descriptions>
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.health') }}</span>
+              <status-tag :label="healthLabel(selectedModule.health)" :status="healthTone(selectedModule.health)" />
+            </div>
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.runtimeStatus') }}</span>
+              <status-tag
+                :label="runtimeStatusLabel(selectedModule.runtime_status)"
+                :status="runtimeTone(selectedModule.runtime_status)"
+              />
+            </div>
+            <div class="module-runtime-detail__field module-runtime-detail__field--wide">
+              <span>{{ t('monitor.moduleRuntime.detail.enablementSource') }}</span>
+              <strong>{{ enablementSourceLabel(selectedModule.enablement_source) }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="module-runtime-detail__section">
+          <h3>{{ t('monitor.moduleRuntime.detail.dependencies') }}</h3>
+          <div class="module-runtime-detail__field module-runtime-detail__field--wide">
+            <span>{{ t('monitor.moduleRuntime.detail.dependencySatisfaction') }}</span>
+            <strong>{{ dependencySummary(selectedModule.dependencies) }}</strong>
+          </div>
+          <div class="module-runtime-detail__subhead">{{ t('monitor.moduleRuntime.detail.declaredDependencies') }}</div>
+          <div v-if="selectedModule.dependencies.length" class="module-runtime-detail__list">
+            <div
+              v-for="dependency in selectedModule.dependencies"
+              :key="dependency.module_key"
+              class="module-runtime-detail__line"
+            >
+              <strong>{{ dependency.module_key }}</strong>
+              <status-tag
+                :label="dependencyStatusLabel(dependency.status)"
+                :status="dependencyTone(dependency.status)"
+              />
+            </div>
+          </div>
+          <div v-else class="module-runtime-detail__empty">
+            {{ t('monitor.moduleRuntime.values.emptyDependencies') }}
+          </div>
+        </section>
+
+        <section class="module-runtime-detail__section">
+          <h3>{{ t('monitor.moduleRuntime.detail.migration') }}</h3>
+          <div class="module-runtime-detail__grid">
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.migrationStatus') }}</span>
+              <status-tag
+                :label="migrationStatusLabel(selectedModule.migration_status.status)"
+                :status="declaredTone(selectedModule.migration_status.status)"
+              />
+            </div>
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.migrationDir') }}</span>
+              <strong>{{
+                t('monitor.moduleRuntime.values.migrationDirCount', {
+                  count: selectedModule.migration_status.declared_dirs.length,
+                })
+              }}</strong>
+            </div>
+          </div>
+          <div v-if="selectedModule.migration_status.declared_dirs.length" class="module-runtime-detail__paths">
+            <code v-for="directory in selectedModule.migration_status.declared_dirs" :key="directory">
+              {{ directory }}
+            </code>
+          </div>
+          <div v-else class="module-runtime-detail__empty">
+            {{ t('monitor.moduleRuntime.values.emptyMigrationDir') }}
+          </div>
+        </section>
+
+        <section class="module-runtime-detail__section">
+          <h3>{{ t('monitor.moduleRuntime.detail.schema') }}</h3>
+          <div class="module-runtime-detail__grid">
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.schemaOwner') }}</span>
+              <strong>{{ schemaOwnerLabel(selectedModule.schema_status.status) }}</strong>
+            </div>
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.schemaStatus') }}</span>
+              <status-tag
+                :label="schemaStatusLabel(selectedModule.schema_status.status)"
+                :status="declaredTone(selectedModule.schema_status.status)"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section class="module-runtime-detail__section">
+          <h3>{{ t('monitor.moduleRuntime.detail.config') }}</h3>
+          <div class="module-runtime-detail__grid">
+            <div class="module-runtime-detail__field">
+              <span>{{ t('monitor.moduleRuntime.detail.configStatus') }}</span>
+              <status-tag
+                :label="configStatusLabel(selectedModule.config_status.status)"
+                :status="configTone(selectedModule.config_status.status)"
+              />
+            </div>
+            <div class="module-runtime-detail__field module-runtime-detail__field--wide">
+              <span>{{ t('monitor.moduleRuntime.detail.configDescription') }}</span>
+              <strong>{{ configDescriptionLabel(selectedModule.config_status.status) }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="module-runtime-detail__section">
+          <h3>{{ t('monitor.moduleRuntime.detail.diagnostics') }}</h3>
+          <div v-if="diagnosticEntries.length" class="module-runtime-detail__diagnostics">
+            <div v-for="[key, value] in diagnosticEntries" :key="key" class="module-runtime-detail__diagnostic">
+              <span>{{ key }}</span>
+              <strong>{{ value }}</strong>
+            </div>
+          </div>
+          <div v-else class="module-runtime-detail__empty">{{ t('monitor.moduleRuntime.values.noDiagnostics') }}</div>
+        </section>
       </div>
     </t-drawer>
   </server-status-page-shell>
@@ -297,7 +371,7 @@ const columns = computed<TdBaseTableProps['columns']>(() => [
   {
     colKey: 'module_key',
     title: t('monitor.moduleRuntime.columns.moduleKey'),
-    width: 180,
+    width: 200,
     fixed: 'left',
   },
   {
@@ -313,27 +387,27 @@ const columns = computed<TdBaseTableProps['columns']>(() => [
   {
     colKey: 'health',
     title: t('monitor.moduleRuntime.columns.health'),
-    width: 130,
+    width: 140,
   },
   {
     colKey: 'dependencies',
     title: t('monitor.moduleRuntime.columns.dependencies'),
-    width: 150,
+    width: 170,
   },
   {
     colKey: 'migration',
     title: t('monitor.moduleRuntime.columns.migration'),
-    width: 180,
+    width: 210,
   },
   {
     colKey: 'schema',
     title: t('monitor.moduleRuntime.columns.schema'),
-    width: 140,
+    width: 150,
   },
   {
     colKey: 'config',
     title: t('monitor.moduleRuntime.columns.config'),
-    width: 150,
+    width: 160,
   },
   {
     colKey: 'operation',
@@ -456,6 +530,18 @@ function dependencySummary(dependencies: ModuleRuntimeDependency[]) {
 function enablementSourceLabel(source: ModuleRuntimeItem['enablement_source']) {
   return t(`monitor.moduleRuntime.enablementSource.${source}`);
 }
+
+function schemaOwnerLabel(status: ModuleRuntimeSchemaStatus['status']) {
+  return status === 'declared'
+    ? t('monitor.moduleRuntime.values.moduleOwnedSchema')
+    : t('monitor.moduleRuntime.values.emptySchema');
+}
+
+function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
+  return status === 'not_required'
+    ? t('monitor.moduleRuntime.values.notRequiredConfig')
+    : t('monitor.moduleRuntime.values.unknownConfig');
+}
 </script>
 <style scoped lang="less">
 .module-runtime-toolbar {
@@ -485,7 +571,11 @@ function enablementSourceLabel(source: ModuleRuntimeItem['enablement_source']) {
 }
 
 .module-runtime-table__note {
-  max-width: 520px;
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
+  max-width: 360px;
+  text-align: right;
 }
 
 .module-runtime-table__key {
@@ -518,8 +608,68 @@ function enablementSourceLabel(source: ModuleRuntimeItem['enablement_source']) {
   padding-bottom: 12px;
 }
 
+.module-runtime-detail__section {
+  border-bottom: 1px solid var(--td-border-level-1-color);
+  padding: 16px 0;
+}
+
+.module-runtime-detail__section:first-child {
+  padding-top: 0;
+}
+
+.module-runtime-detail__section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.module-runtime-detail__section h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.module-runtime-detail__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.module-runtime-detail__field {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-default);
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.module-runtime-detail__field--wide {
+  grid-column: 1 / -1;
+}
+
+.module-runtime-detail__field span,
+.module-runtime-detail__subhead {
+  color: var(--td-text-color-secondary);
+  display: block;
+  font: var(--td-font-body-small);
+}
+
+.module-runtime-detail__field strong {
+  color: var(--td-text-color-primary);
+  display: block;
+  font-weight: 500;
+  margin-top: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.module-runtime-detail__subhead {
+  margin: 12px 0 8px;
+}
+
 .module-runtime-detail__list,
-.module-runtime-detail__diagnostics {
+.module-runtime-detail__diagnostics,
+.module-runtime-detail__paths {
   display: grid;
   gap: 10px;
 }
@@ -538,10 +688,16 @@ function enablementSourceLabel(source: ModuleRuntimeItem['enablement_source']) {
 }
 
 .module-runtime-detail__line span,
+.module-runtime-detail__line strong,
 .module-runtime-detail__diagnostic span,
 .module-runtime-detail__diagnostic strong {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.module-runtime-detail__line strong {
+  color: var(--td-text-color-primary);
+  font-weight: 500;
 }
 
 .module-runtime-detail__diagnostic span {
@@ -554,10 +710,27 @@ function enablementSourceLabel(source: ModuleRuntimeItem['enablement_source']) {
   text-align: right;
 }
 
-.module-runtime-detail__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.module-runtime-detail__paths code {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-primary);
+  display: block;
+  font-family: var(--td-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  padding: 8px 10px;
+  white-space: normal;
+}
+
+.module-runtime-detail__empty {
+  background: var(--td-bg-color-container-hover);
+  border: 1px dashed var(--td-border-level-2-color);
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+  padding: 10px 12px;
 }
 
 @media (width <= 767px) {
@@ -565,8 +738,17 @@ function enablementSourceLabel(source: ModuleRuntimeItem['enablement_source']) {
     justify-content: flex-start;
   }
 
+  .module-runtime-table__note {
+    max-width: none;
+    text-align: left;
+  }
+
   .module-runtime-summary-card {
     min-height: 96px;
+  }
+
+  .module-runtime-detail__grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
