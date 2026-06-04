@@ -153,7 +153,8 @@ func filterBootstrapMenus(registry *menu.Registry, granted map[string]struct{}) 
 	}
 
 	items := registry.Items()
-	menus := make([]bootstrapMenuResponse, 0, len(items))
+	menusByKey := make(map[string]bootstrapMenuResponse, len(items))
+	menuKeys := make([]string, 0, len(items))
 	for _, item := range items {
 		required := strings.TrimSpace(item.Permission)
 		if required != "" {
@@ -162,7 +163,7 @@ func filterBootstrapMenus(registry *menu.Registry, granted map[string]struct{}) 
 			}
 		}
 
-		menus = append(menus, bootstrapMenuResponse{
+		response := bootstrapMenuResponse{
 			Code:       item.Code,
 			Title:      item.Title,
 			TitleKey:   item.TitleKey,
@@ -170,12 +171,58 @@ func filterBootstrapMenus(registry *menu.Registry, granted map[string]struct{}) 
 			Icon:       item.Icon,
 			Order:      item.Order,
 			Permission: item.Permission,
-		})
+		}
+		key := bootstrapMenuIdentity(response)
+		if existing, ok := menusByKey[key]; ok {
+			menusByKey[key] = mergeBootstrapMenu(existing, response)
+			continue
+		}
+
+		menusByKey[key] = response
+		menuKeys = append(menuKeys, key)
+	}
+
+	menus := make([]bootstrapMenuResponse, 0, len(menuKeys))
+	for _, key := range menuKeys {
+		menus = append(menus, menusByKey[key])
 	}
 
 	slices.SortStableFunc(menus, compareBootstrapMenus)
 
 	return menus
+}
+
+func bootstrapMenuIdentity(item bootstrapMenuResponse) string {
+	code := strings.TrimSpace(item.Code)
+	if code != "" {
+		return "code:" + code
+	}
+
+	return "path:" + strings.TrimSpace(item.Path)
+}
+
+func mergeBootstrapMenu(existing, next bootstrapMenuResponse) bootstrapMenuResponse {
+	merged := existing
+	if merged.Title == "" {
+		merged.Title = next.Title
+	}
+	if merged.TitleKey == "" {
+		merged.TitleKey = next.TitleKey
+	}
+	if merged.Path == "" {
+		merged.Path = next.Path
+	}
+	if merged.Icon == "" {
+		merged.Icon = next.Icon
+	}
+	if merged.Permission == "" {
+		merged.Permission = next.Permission
+	}
+	if next.Order < merged.Order {
+		merged.Order = next.Order
+	}
+
+	return merged
 }
 
 func compareBootstrapMenus(left, right bootstrapMenuResponse) int {

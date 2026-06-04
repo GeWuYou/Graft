@@ -46,7 +46,13 @@
 
       <section class="audit-overview__grid">
         <governance-section :title="t('audit.overview.sections.failedAuth')">
-          <div class="audit-overview__list">
+          <management-empty-state
+            v-if="failedAuthItems.length === 0"
+            class="audit-overview__section-empty"
+            :title="t('audit.overview.empty.failedAuth.title')"
+            :description="t('audit.overview.empty.failedAuth.description')"
+          />
+          <div v-else class="audit-overview__list">
             <article v-for="item in failedAuthItems" :key="item.key" class="audit-overview__list-item">
               <div>
                 <strong>{{ item.actor }}</strong>
@@ -61,7 +67,13 @@
         </governance-section>
 
         <governance-section :title="t('audit.overview.sections.permissionDenied')">
-          <div class="audit-overview__list">
+          <management-empty-state
+            v-if="permissionDeniedItems.length === 0"
+            class="audit-overview__section-empty"
+            :title="t('audit.overview.empty.permissionDenied.title')"
+            :description="t('audit.overview.empty.permissionDenied.description')"
+          />
+          <div v-else class="audit-overview__list">
             <article v-for="item in permissionDeniedItems" :key="item.key" class="audit-overview__list-item">
               <div>
                 <strong>{{ item.actor }}</strong>
@@ -78,7 +90,13 @@
 
       <section class="audit-overview__grid audit-overview__grid--bottom">
         <governance-section :title="t('audit.overview.sections.sensitiveOps')">
-          <div class="audit-overview__list">
+          <management-empty-state
+            v-if="sensitiveItems.length === 0"
+            class="audit-overview__section-empty"
+            :title="t('audit.overview.empty.sensitiveOps.title')"
+            :description="t('audit.overview.empty.sensitiveOps.description')"
+          />
+          <div v-else class="audit-overview__list">
             <article v-for="item in sensitiveItems" :key="item.key" class="audit-overview__list-item">
               <div>
                 <strong>{{ item.actor }}</strong>
@@ -94,7 +112,13 @@
 
         <div class="audit-overview__stack">
           <governance-section :title="t('audit.overview.sections.riskWatch')">
-            <div class="audit-overview__watch-list">
+            <management-empty-state
+              v-if="riskGroups.length === 0"
+              class="audit-overview__section-empty"
+              :title="t('audit.overview.empty.riskGroups.title')"
+              :description="t('audit.overview.empty.riskGroups.description')"
+            />
+            <div v-else class="audit-overview__watch-list">
               <article v-for="group in riskGroups" :key="group.key" class="audit-overview__watch-item">
                 <div class="audit-overview__watch-content">
                   <strong>{{ t(group.label_key) }}</strong>
@@ -155,7 +179,13 @@
         </governance-section>
 
         <governance-section :title="t('audit.overview.sections.securityTimeline')">
-          <t-timeline class="audit-overview__timeline" mode="same">
+          <management-empty-state
+            v-if="securityTimeline.length === 0"
+            class="audit-overview__section-empty"
+            :title="t('audit.overview.empty.securityTimeline.title')"
+            :description="t('audit.overview.empty.securityTimeline.description')"
+          />
+          <t-timeline v-else class="audit-overview__timeline" mode="same">
             <t-timeline-item
               v-for="item in securityTimeline"
               :key="item.id"
@@ -174,6 +204,9 @@
                   </t-tag>
                 </div>
                 <div class="audit-overview__timeline-actions">
+                  <t-button size="small" theme="primary" variant="text" @click="openSecurityTimelineEvent(item)">
+                    {{ securityEventActionLabel }}
+                  </t-button>
                   <t-button
                     v-if="item.request_id"
                     size="small"
@@ -205,6 +238,7 @@ import { useRouter } from 'vue-router';
 
 import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
 import { buildAuditLogsLocation } from '@/modules/audit/contract/deep-link';
+import { AUDIT_ROUTE_PATH } from '@/modules/audit/contract/paths';
 import { AUDIT_DRILLDOWN_SCOPE } from '@/modules/audit/contract/presets';
 import { AUDIT_TIME_PRESET, type AuditTimePreset } from '@/modules/audit/contract/time-presets';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
@@ -290,6 +324,7 @@ const sensitiveItems = computed(() =>
 
 const riskGroups = computed(() => overview.value?.risk_groups ?? []);
 const securityTimeline = computed(() => overview.value?.security_timeline ?? []);
+const trendPreset = computed(() => overview.value?.time_preset ?? activeWindow.value);
 const securityEventCount = computed(() =>
   (overview.value?.trend?.points ?? []).reduce((total, point) => total + (point.security_events ?? 0), 0),
 );
@@ -313,10 +348,10 @@ const trendSummaryItems = computed(() => [
 const trendView = computed(() => {
   const points = overview.value?.trend?.points ?? [];
   const activePoints = points.filter((point) => point.total > 0);
-  const hasEnoughPoints = points.length >= 3;
-  const hasEnoughActivity = activePoints.length >= 3;
+  const hasPoints = points.length > 0;
+  const hasActivity = activePoints.length > 0;
 
-  if (!hasEnoughPoints || !hasEnoughActivity) {
+  if (!hasPoints || !hasActivity) {
     return {
       isRenderable: false,
       points: [],
@@ -329,7 +364,7 @@ const trendView = computed(() => {
       start: point.bucket_start,
       end: point.bucket_end,
     })),
-    activeWindow.value,
+    trendPreset.value,
     locale.value,
   );
   const normalizedPoints = points.map((point, index) => ({
@@ -375,6 +410,7 @@ const shortcuts = computed(() => [
 ]);
 
 const riskGroupActionLabel = computed(() => t('audit.overview.riskGroups.action'));
+const securityEventActionLabel = computed(() => t('audit.overview.timeline.openEvent'));
 const relatedRequestActionLabel = computed(() => t('audit.logList.drawer.actions.viewRelatedRequest'));
 
 function buildOverviewAuditQuery(query: Record<string, string>) {
@@ -431,6 +467,24 @@ function openSecurityTimelineRequest(requestId?: string) {
   }
 
   void router.push(buildAccessLogRequestLocation(requestId));
+}
+
+function openSecurityTimelineEvent(item: AuditOverviewResponse['security_timeline'][number]) {
+  if (item.incident_seed?.event_id) {
+    void router.push({
+      path: AUDIT_ROUTE_PATH.INCIDENT_DETAIL.replace(':event_id', String(item.incident_seed.event_id)),
+    });
+    return;
+  }
+
+  void router.push(
+    buildAuditLogsLocation(
+      buildOverviewAuditQuery({
+        source: 'SECURITY_EVENT',
+        request_id: item.request_id,
+      }),
+    ),
+  );
 }
 
 async function fetchOverview() {
@@ -900,7 +954,8 @@ onUnmounted(() => {
 }
 
 .audit-overview__trend-panel,
-.audit-overview__trend-empty {
+.audit-overview__trend-empty,
+.audit-overview__section-empty {
   min-height: 280px;
 }
 

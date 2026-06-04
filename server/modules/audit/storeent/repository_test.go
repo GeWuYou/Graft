@@ -195,6 +195,48 @@ func TestRepositoryListAuditLogsDoesNotApplyImplicitTimePreset(t *testing.T) {
 	}
 }
 
+func TestRepositoryDeleteAuditLogsBeforeDeletesOnlyOlderRecords(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	cutoff := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	for _, item := range []auditstore.CreateAuditLogInput{
+		{Action: "audit.old", RequestID: "req-old", CreatedAt: cutoff.Add(-time.Second)},
+		{Action: "audit.equal", RequestID: "req-equal", CreatedAt: cutoff},
+		{Action: "audit.recent", RequestID: "req-recent", CreatedAt: cutoff.Add(time.Second)},
+	} {
+		if _, err := repo.CreateAuditLog(ctx, item); err != nil {
+			t.Fatalf("seed audit log: %v", err)
+		}
+	}
+
+	deleted, err := repo.DeleteAuditLogsBefore(ctx, cutoff)
+	if err != nil {
+		t.Fatalf("delete audit logs before cutoff: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("expected one deleted row, got %d", deleted)
+	}
+
+	result, err := repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
+		Limit: 10,
+		Sorts: []string{"created_at:asc"},
+	})
+	if err != nil {
+		t.Fatalf("list audit logs: %v", err)
+	}
+	if result.Total != 2 || len(result.Items) != 2 {
+		t.Fatalf("expected two remaining audit logs, got %#v", result)
+	}
+	if result.Items[0].RequestID != "req-equal" || result.Items[1].RequestID != "req-recent" {
+		t.Fatalf("expected cutoff and recent records to remain, got %#v", result.Items)
+	}
+}
+
 func TestRepositoryListAuditLogsSupportsExplicitAscendingSort(t *testing.T) {
 	db := openTestDB(t)
 	repo, err := NewRepository(db, nil)

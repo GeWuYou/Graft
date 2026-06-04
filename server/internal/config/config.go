@@ -21,6 +21,7 @@ const (
 	defaultDatabaseURL           = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
 	defaultRedisAddr             = "localhost:6379"
 	defaultLogLevel              = "info"
+	defaultAppLogPersistence     = true
 	defaultLocale                = "zh-CN"
 	defaultSecondaryLocale       = "en-US"
 	defaultSupported             = "zh-CN,en-US"
@@ -38,6 +39,7 @@ type Config struct {
 	App      AppConfig
 	HTTP     HTTPConfig
 	HTTPX    HTTPXConfig
+	Audit    AuditConfig
 	Docs     DocsConfig
 	Modules  ModulesConfig
 	Database DatabaseConfig
@@ -61,6 +63,11 @@ type HTTPConfig struct {
 // HTTPXConfig 描述 core-owned httpx 运行时配置。
 type HTTPXConfig struct {
 	AccessLogRetention time.Duration
+}
+
+// AuditConfig describes audit-module-owned runtime policy configuration.
+type AuditConfig struct {
+	LogRetention time.Duration
 }
 
 // DocsConfig 控制 OpenAPI 文档与文档页面的公开策略。
@@ -90,7 +97,9 @@ type RedisConfig struct {
 
 // LogConfig 描述日志核心服务接入后的日志行为配置。
 type LogConfig struct {
-	Level string
+	Level           string
+	AppLogPersist   bool
+	AppLogRetention time.Duration
 }
 
 // I18nConfig 描述平台级语言解析与消息回退配置。
@@ -142,6 +151,9 @@ func Load() (*Config, error) {
 		HTTPX: HTTPXConfig{
 			AccessLogRetention: reader.GetDuration("httpx.access_log_retention"),
 		},
+		Audit: AuditConfig{
+			LogRetention: reader.GetDuration("audit.log_retention"),
+		},
 		Docs: DocsConfig{
 			Enabled: resolveDocsEnabled(reader),
 		},
@@ -158,7 +170,9 @@ func Load() (*Config, error) {
 			DB:       reader.GetInt("redis.db"),
 		},
 		Log: LogConfig{
-			Level: reader.GetString("log.level"),
+			Level:           reader.GetString("log.level"),
+			AppLogPersist:   reader.GetBool("log.app_log_persist"),
+			AppLogRetention: reader.GetDuration("log.app_log_retention"),
 		},
 		I18n: I18nConfig{
 			DefaultLocale:    reader.GetString("i18n.default_locale"),
@@ -223,6 +237,8 @@ func (c *Config) Validate() error {
 		validateAppConfig,
 		validateHTTPConfig,
 		validateHTTPXConfig,
+		validateAuditConfig,
+		validateLogConfig,
 		validateModulesConfig,
 		validateDatabaseConfig,
 		validateRedisConfig,
@@ -256,6 +272,25 @@ func validateHTTPConfig(c *Config) error {
 func validateHTTPXConfig(c *Config) error {
 	if c.HTTPX.AccessLogRetention <= 0 {
 		return errors.New("GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
+	}
+
+	return nil
+}
+
+func validateAuditConfig(c *Config) error {
+	if c.Audit.LogRetention <= 0 {
+		return errors.New("GRAFT_AUDIT_LOG_RETENTION must be greater than zero")
+	}
+
+	return nil
+}
+
+func validateLogConfig(c *Config) error {
+	if !c.Log.AppLogPersist {
+		return nil
+	}
+	if c.Log.AppLogRetention <= 0 {
+		return errors.New("GRAFT_LOG_APP_LOG_RETENTION must be greater than zero")
 	}
 
 	return nil
@@ -493,6 +528,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.env", defaultAppEnv)
 	reader.SetDefault("http.addr", defaultHTTPAddr)
 	reader.SetDefault("httpx.access_log_retention", defaultAccessLogRetentionForEnv(reader.GetString("app.env")))
+	reader.SetDefault("audit.log_retention", defaultAuditLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("modules.enabled", "")
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
 	reader.SetDefault("database.url", defaultDatabaseURL)
@@ -500,6 +536,8 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("redis.password", "")
 	reader.SetDefault("redis.db", 0)
 	reader.SetDefault("log.level", defaultLogLevel)
+	reader.SetDefault("log.app_log_persist", defaultAppLogPersistence)
+	reader.SetDefault("log.app_log_retention", defaultAppLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("i18n.default_locale", defaultLocale)
 	reader.SetDefault("i18n.fallback_locale", defaultLocale)
 	reader.SetDefault("i18n.supported_locales", defaultSupported)
@@ -549,6 +587,32 @@ func defaultAccessLogRetentionForEnv(env string) time.Duration {
 	switch strings.ToLower(strings.TrimSpace(env)) {
 	case "prod", "production":
 		return 30 * 24 * time.Hour
+	case "staging", "stage":
+		return 7 * 24 * time.Hour
+	case "", "local", "development", "dev", "test":
+		return 3 * 24 * time.Hour
+	default:
+		return 7 * 24 * time.Hour
+	}
+}
+
+func defaultAuditLogRetentionForEnv(env string) time.Duration {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "prod", "production":
+		return 180 * 24 * time.Hour
+	case "staging", "stage":
+		return 90 * 24 * time.Hour
+	case "", "local", "development", "dev", "test":
+		return 30 * 24 * time.Hour
+	default:
+		return 90 * 24 * time.Hour
+	}
+}
+
+func defaultAppLogRetentionForEnv(env string) time.Duration {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "prod", "production":
+		return 14 * 24 * time.Hour
 	case "staging", "stage":
 		return 7 * 24 * time.Hour
 	case "", "local", "development", "dev", "test":

@@ -449,4 +449,5 @@ type AuditRepository interface {
 	ReadAuditOverview(ctx context.Context, preset AuditTimePreset) (AuditOverview, error)
 	ReadIncident(ctx context.Context, eventID uint64) (AuditIncident, error)
 	ListAuditPolicyRules(ctx context.Context) ([]AuditPolicyRule, error)
+	DeleteAuditLogsBefore(ctx context.Context, createdBefore time.Time) (int64, error)
 }

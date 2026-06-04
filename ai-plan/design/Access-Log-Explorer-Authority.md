@@ -4,17 +4,14 @@
 
 This document defines the canonical authority for future `Access Log Explorer` work in `Graft`.
 
-This document is contract-definition only.
+This document began as contract-definition evidence.
 
-It does not approve:
+Current implementation status:
 
-- OpenAPI design or generation
-- HTTP handlers
-- repository query methods
-- `web` page implementation
-- retention jobs
-- app-log explorer
-- metrics, tracing, or OpenTelemetry expansion
+- access-log OpenAPI list/detail contracts are implemented under `openapi/**`
+- HTTP handlers, repository query methods, retention jobs, and runtime registration are implemented under `server/internal/httpx/**`
+- the frontend explorer is implemented under `web/src/modules/access-log/**`
+- app-log explorer, metrics, tracing, OpenTelemetry expansion, and audit/security authority changes remain outside this surface
 
 ## 2. Authority Summary
 
@@ -22,13 +19,13 @@ It does not approve:
   - `server/internal/httpx/**`
 - current durable access-log storage shape
   - `server/internal/httpx/**`
-- future shared explorer wire contract after implementation-topic approval
+- shared explorer wire contract
   - `openapi/**`
-- future generated consumers
+- generated consumers
   - `server/internal/contract/openapi/**`
   - `web/src/contracts/openapi/generated/**`
-- future frontend explorer consumer
-  - future `web/src/modules/<access-log-explorer>/**`
+- frontend explorer consumer
+  - `web/src/modules/access-log/**`
 
 `web` is a downstream consumer only.
 
@@ -311,11 +308,11 @@ UX rationale from current repo patterns:
 | Layer | Owner | Responsibility |
 | --- | --- | --- |
 | runtime logging semantics | `server/internal/httpx/**` | request-fact capture and normalization |
-| explorer query/sort/pagination contract | this authority document, later implemented by backend contract owner | canonical exploration semantics |
-| future shared HTTP wire contract | `openapi/**` | approved API contract only after implementation topic starts |
+| explorer query/sort/pagination contract | `server/internal/httpx/**` + `openapi/**` | canonical exploration semantics and wire shape |
+| shared HTTP wire contract | `openapi/**` | approved API contract |
 | generated server artifacts | `server/internal/contract/openapi/**` | derived consumer |
 | generated web artifacts | `web/src/contracts/openapi/generated/**` | derived consumer |
-| future web explorer module | future `web/src/modules/<access-log-explorer>/**` | downstream consumer and UI-only navigation context |
+| web explorer module | `web/src/modules/access-log/**` | downstream consumer and UI-only navigation context |
 
 ## 13. Unresolved Decisions
 

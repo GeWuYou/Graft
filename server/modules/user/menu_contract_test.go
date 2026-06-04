@@ -44,6 +44,59 @@ func TestFilterBootstrapMenusIncludesTitleKeyAndFallback(t *testing.T) {
 	}
 }
 
+func TestFilterBootstrapMenusDeduplicatesSharedRootMenu(t *testing.T) {
+	registry := menu.NewRegistry()
+	registry.Register(menu.Item{
+		Code:     "log-center.root",
+		Title:    "日志中心",
+		TitleKey: "menu.logCenter.title",
+		Path:     "/logs",
+		Icon:     "bulletpoint",
+		Order:    210,
+		Module:   "core.httpx",
+	})
+	registry.Register(menu.Item{
+		Code:     "log-center.root",
+		Title:    "日志中心",
+		TitleKey: "menu.logCenter.title",
+		Path:     "/logs",
+		Icon:     "bulletpoint",
+		Order:    210,
+		Module:   "core.logger",
+	})
+	registry.Register(menu.Item{
+		Code:       "access-log.list",
+		Title:      "访问日志",
+		TitleKey:   "menu.accessLog.title",
+		Path:       "/logs/access",
+		Order:      211,
+		Permission: "access_log.read",
+	})
+	registry.Register(menu.Item{
+		Code:       "app-log.list",
+		Title:      "应用日志",
+		TitleKey:   "menu.appLog.title",
+		Path:       "/logs/app",
+		Order:      212,
+		Permission: "app_log.read",
+	})
+
+	menus := filterBootstrapMenus(registry, map[string]struct{}{
+		"access_log.read": {},
+		"app_log.read":    {},
+	})
+
+	if len(menus) != 3 {
+		t.Fatalf("expected one root and two leaf log menus, got %#v", menus)
+	}
+	if menus[0].Code != "log-center.root" || menus[0].Path != "/logs" {
+		t.Fatalf("expected deduplicated log center root first, got %#v", menus[0])
+	}
+	if menus[1].Code != "access-log.list" || menus[2].Code != "app-log.list" {
+		t.Fatalf("expected access-log then app-log leaves, got %#v", menus)
+	}
+}
+
 func testMenuRegistry() *menu.Registry {
 	registry := menu.NewRegistry()
 	registerUserMenu(registry, "user")

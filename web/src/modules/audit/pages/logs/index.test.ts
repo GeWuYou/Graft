@@ -96,6 +96,11 @@ vi.mock('../../components/AuditFilters.vue', () => ({
           ),
           h(
             'button',
+            { 'data-testid': 'audit-security-preset', onClick: () => emit('apply-preset', 'security-events') },
+            'security-preset',
+          ),
+          h(
+            'button',
             {
               'data-testid': 'audit-route-sync',
               onClick: () =>
@@ -237,6 +242,7 @@ const i18n = createI18n({
           detailTitle: 'Audit Detail',
           presets: {
             all: 'All',
+            securityEvents: 'Security Events',
             failedOperations: 'Failed Operations',
             todayAnomalies: "Today's Security Anomalies",
             rbacChanges: 'Permission Configuration Changes',
@@ -349,6 +355,7 @@ const i18n = createI18n({
             sections: {
               basic: 'Event Summary',
               request: 'Request Context',
+              security: 'Security Event Context',
               correlation: 'Related Context',
               risk: 'Risk',
               metadata: 'Metadata',
@@ -363,6 +370,10 @@ const i18n = createI18n({
               method: 'Method',
               path: 'Path',
               status: 'Status',
+              eventType: 'Event Type',
+              permission: 'Permission',
+              securityTarget: 'Security Target',
+              traceId: 'Trace ID',
             },
             related: {
               sameRequest: 'Same Request ID',
@@ -374,9 +385,11 @@ const i18n = createI18n({
               failedOperation: 'Failed operation',
               sensitiveOperation: 'Sensitive write',
               requestTrace: 'Request available',
+              securityEvent: 'Security Event',
             },
             actions: {
               viewRelatedRequest: 'View Related Request',
+              viewAccessLogRequest: 'View Access Log',
               copyMetadata: 'Copy JSON',
               copyMetadataSuccess: 'Metadata JSON copied',
               copyMetadataFail: 'Failed to copy metadata JSON',
@@ -737,6 +750,28 @@ describe('AuditLogsPage', () => {
     });
     expect(router.currentRoute.value.query).not.toHaveProperty('scope');
     expect(router.currentRoute.value.query).not.toHaveProperty('action_keywords');
+  });
+
+  it('maps the security-event quick preset to source and result filters', async () => {
+    const { router, wrapper } = await mountPage();
+    getAuditLogsMock.mockClear();
+
+    await wrapper.get('[data-testid="audit-security-preset"]').trigger('click');
+    await flushPromises();
+
+    expect(router.currentRoute.value.query).toMatchObject({
+      preset: 'last_24h',
+      source: 'SECURITY_EVENT',
+      results: 'DENIED,FAILED,ERROR',
+    });
+    expect(router.currentRoute.value.query).not.toHaveProperty('scope');
+    expect(getAuditLogsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        preset: 'last_24h',
+        source: 'SECURITY_EVENT',
+        results: ['DENIED', 'FAILED', 'ERROR'],
+      }),
+    );
   });
 
   it('keeps single-condition drilldown compact without collapse scaffolding', async () => {

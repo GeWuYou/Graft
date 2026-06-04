@@ -1,16 +1,16 @@
 <template>
   <management-toolbar>
     <template #filters>
-      <div class="log-filter-builder">
-        <div class="log-filter-builder__top-row">
+      <div class="query-filter-builder">
+        <div class="query-filter-builder__top-row">
           <t-input
             :model-value="keyword"
-            class="log-filter-builder__keyword"
+            class="query-filter-builder__keyword"
             clearable
             :placeholder="keywordPlaceholder"
             @update:model-value="$emit('update:keyword', normalizeTextValue($event))"
           />
-          <div class="log-filter-builder__actions">
+          <div class="query-filter-builder__actions">
             <t-button theme="primary" :loading="loading" @click="$emit('search')">
               {{ searchLabel }}
             </t-button>
@@ -20,11 +20,11 @@
           </div>
         </div>
 
-        <section class="log-filter-builder__group">
-          <div class="log-filter-builder__group-header">
-            <span class="log-filter-builder__group-title">{{ filtersGroupLabel }}</span>
+        <section class="query-filter-builder__group">
+          <div class="query-filter-builder__group-header">
+            <span class="query-filter-builder__group-title">{{ filtersGroupLabel }}</span>
           </div>
-          <div class="log-filter-builder__group-body">
+          <div class="query-filter-builder__group-body">
             <t-popup
               v-model:visible="builderVisible"
               attach="body"
@@ -33,21 +33,21 @@
               trigger="click"
             >
               <template #content>
-                <div class="log-filter-builder__popup">
-                  <div class="log-filter-builder__header">
-                    <span class="log-filter-builder__title">{{ builderTitle }}</span>
-                    <span class="log-filter-builder__hint">{{ builderHint }}</span>
+                <div class="query-filter-builder__popup">
+                  <div class="query-filter-builder__header">
+                    <span class="query-filter-builder__title">{{ builderTitle }}</span>
+                    <span class="query-filter-builder__hint">{{ builderHint }}</span>
                   </div>
 
-                  <div class="log-filter-builder__field-list">
+                  <div class="query-filter-builder__field-list">
                     <button
                       v-for="definition in fields"
                       :key="definition.key"
                       :class="[
-                        'log-filter-builder__field-button',
+                        'query-filter-builder__field-button',
                         {
-                          'log-filter-builder__field-button--active': selectedFieldKey === definition.key,
-                          'log-filter-builder__field-button--disabled': definition.disabled,
+                          'query-filter-builder__field-button--active': selectedFieldKey === definition.key,
+                          'query-filter-builder__field-button--disabled': definition.disabled,
                         },
                       ]"
                       :disabled="definition.disabled"
@@ -58,15 +58,15 @@
                     </button>
                   </div>
 
-                  <div v-if="selectedField" class="log-filter-builder__editor">
-                    <div class="log-filter-builder__editor-title">
+                  <div v-if="selectedField" class="query-filter-builder__editor">
+                    <div class="query-filter-builder__editor-title">
                       {{ selectedField.label }}
                     </div>
 
                     <template v-if="selectedField.key === timeFieldKey">
-                      <div class="log-filter-builder__time-list">
-                        <div v-for="field in timeFields" :key="field.key" class="log-filter-builder__time-item">
-                          <span class="log-filter-builder__time-label">{{ field.label }}</span>
+                      <div class="query-filter-builder__time-list">
+                        <div v-for="field in timeFields" :key="field.key" class="query-filter-builder__time-item">
+                          <span class="query-filter-builder__time-label">{{ field.label }}</span>
                           <t-date-range-picker
                             :model-value="field.value"
                             allow-input
@@ -83,11 +83,11 @@
                     </template>
 
                     <template v-else-if="selectedField.key === sortFieldKey">
-                      <div class="log-filter-builder__sort-list">
+                      <div class="query-filter-builder__sort-list">
                         <div
                           v-for="(sorter, index) in sorters"
                           :key="`sort-row-${index}`"
-                          class="log-filter-builder__sort-row"
+                          class="query-filter-builder__sort-row"
                         >
                           <t-select
                             :model-value="sorter.field"
@@ -102,7 +102,7 @@
                             :placeholder="sortDirectionPlaceholder"
                             @update:model-value="$emit('update:sort-direction', { index, value: $event })"
                           />
-                          <div class="log-filter-builder__sort-actions">
+                          <div class="query-filter-builder__sort-actions">
                             <t-button
                               :disabled="sortMoveUpDisabled?.[index] ?? false"
                               variant="text"
@@ -200,8 +200,8 @@
           </div>
         </section>
 
-        <div v-if="presets.length" class="log-filter-builder__preset-row">
-          <span class="log-filter-builder__preset-label">{{ presetLabel }}</span>
+        <div v-if="presets.length" class="query-filter-builder__preset-row">
+          <span class="query-filter-builder__preset-label">{{ presetLabel }}</span>
           <t-button
             v-for="preset in presets"
             :key="preset.key"
@@ -214,7 +214,7 @@
           </t-button>
         </div>
 
-        <div v-if="tags.length" class="log-filter-builder__tag-row">
+        <div v-if="tags.length" class="query-filter-builder__tag-row">
           <t-tag
             v-for="tag in tags"
             :key="tag.key"
@@ -238,13 +238,13 @@ import { computed, ref } from 'vue';
 import { ManagementToolbar } from '@/shared/components/management';
 
 import type {
-  LogFilterFieldDefinition,
-  LogFilterPreset,
-  LogFilterTag,
-  LogSortItem,
-  LogSortOption,
-  LogTimeRangeField,
-} from './log-filter-builder';
+  AdvancedQueryFilterFieldDefinition,
+  AdvancedQueryFilterPreset,
+  AdvancedQueryFilterTag,
+  AdvancedQuerySortItem,
+  AdvancedQuerySortOption,
+  AdvancedQueryTimeRangeField,
+} from './query-filter-builder';
 
 const props = defineProps<{
   activePreset: string;
@@ -253,7 +253,7 @@ const props = defineProps<{
   builderHint: string;
   builderTitle: string;
   fieldValues: Record<string, string | string[]>;
-  fields: LogFilterFieldDefinition[];
+  fields: AdvancedQueryFilterFieldDefinition[];
   filtersGroupLabel: string;
   keyword: string;
   keywordPlaceholder: string;
@@ -261,23 +261,23 @@ const props = defineProps<{
   moveDownLabel: string;
   moveUpLabel: string;
   presetLabel: string;
-  presets: LogFilterPreset[];
+  presets: AdvancedQueryFilterPreset[];
   removeSorterLabel: string;
   resetLabel: string;
   searchLabel: string;
   selectedFieldKey: string;
   sortAddDisabled?: boolean;
-  sortDirectionOptions: LogSortOption[];
+  sortDirectionOptions: AdvancedQuerySortOption[];
   sortDirectionPlaceholder: string;
-  sortFieldOptionsByIndex: LogSortOption[][];
+  sortFieldOptionsByIndex: AdvancedQuerySortOption[][];
   sortFieldKey: string;
   sortFieldPlaceholder: string;
   sortMoveDownDisabled?: boolean[];
   sortMoveUpDisabled?: boolean[];
-  sorters: LogSortItem[];
-  tags: LogFilterTag[];
+  sorters: AdvancedQuerySortItem[];
+  tags: AdvancedQueryFilterTag[];
   timeFieldKey: string;
-  timeFields: LogTimeRangeField[];
+  timeFields: AdvancedQueryTimeRangeField[];
 }>();
 
 defineEmits<{
@@ -336,7 +336,7 @@ function normalizeRange(value: string[] | undefined) {
 }
 </script>
 <style scoped lang="less">
-.log-filter-builder {
+.query-filter-builder {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -344,73 +344,73 @@ function normalizeRange(value: string[] | undefined) {
   min-width: 0;
 }
 
-.log-filter-builder__top-row,
-.log-filter-builder__group-body,
-.log-filter-builder__preset-row {
+.query-filter-builder__top-row,
+.query-filter-builder__group-body,
+.query-filter-builder__preset-row {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
 
-.log-filter-builder__keyword {
+.query-filter-builder__keyword {
   flex: 1 1 340px;
   min-width: 240px;
 }
 
-.log-filter-builder__actions {
+.query-filter-builder__actions {
   display: flex;
   gap: 12px;
   margin-left: auto;
 }
 
-.log-filter-builder__group {
+.query-filter-builder__group {
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-border);
   border-radius: var(--td-radius-large);
   padding: 12px 14px;
 }
 
-.log-filter-builder__group-header {
+.query-filter-builder__group-header {
   margin-bottom: 10px;
 }
 
-.log-filter-builder__group-title {
+.query-filter-builder__group-title {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
 }
 
-.log-filter-builder__popup {
+.query-filter-builder__popup {
   display: grid;
   gap: 16px;
   grid-template-columns: minmax(180px, 220px) minmax(320px, 420px);
   padding: 8px;
 }
 
-.log-filter-builder__header {
+.query-filter-builder__header {
   display: flex;
   flex-direction: column;
   gap: 4px;
   grid-column: 1 / -1;
 }
 
-.log-filter-builder__title {
+.query-filter-builder__title {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
 }
 
-.log-filter-builder__hint {
+.query-filter-builder__hint {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
 }
 
-.log-filter-builder__field-list {
+.query-filter-builder__field-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.log-filter-builder__field-button {
+.query-filter-builder__field-button {
   background: var(--td-bg-color-container-hover);
   border: 1px solid transparent;
   border-radius: var(--td-radius-medium);
@@ -423,73 +423,73 @@ function normalizeRange(value: string[] | undefined) {
     background-color 0.2s ease;
 }
 
-.log-filter-builder__field-button--active {
+.query-filter-builder__field-button--active {
   background: color-mix(in srgb, var(--td-brand-color-light) 40%, var(--td-bg-color-container) 60%);
   border-color: var(--td-brand-color);
 }
 
-.log-filter-builder__field-button--disabled {
+.query-filter-builder__field-button--disabled {
   color: var(--td-text-color-disabled);
   cursor: not-allowed;
 }
 
-.log-filter-builder__editor {
+.query-filter-builder__editor {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
 }
 
-.log-filter-builder__editor-title {
+.query-filter-builder__editor-title {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
 }
 
-.log-filter-builder__time-list,
-.log-filter-builder__sort-list {
+.query-filter-builder__time-list,
+.query-filter-builder__sort-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.log-filter-builder__time-item {
+.query-filter-builder__time-item {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.log-filter-builder__time-label {
+.query-filter-builder__time-label {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
 }
 
-.log-filter-builder__sort-row {
+.query-filter-builder__sort-row {
   display: grid;
   gap: 8px;
   grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr);
 }
 
-.log-filter-builder__sort-actions {
+.query-filter-builder__sort-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   grid-column: 1 / -1;
 }
 
-.log-filter-builder__preset-label {
+.query-filter-builder__preset-label {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   white-space: nowrap;
 }
 
-.log-filter-builder__tag-row {
+.query-filter-builder__tag-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
 @media (width <= 900px) {
-  .log-filter-builder__popup {
+  .query-filter-builder__popup {
     grid-template-columns: 1fr;
   }
 }

@@ -882,6 +882,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/app-log': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List app logs
+     * @description Returns the canonical paged App Log Explorer surface owned by the logger runtime.
+     */
+    get: operations['getAppLogs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/app-log/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get app log detail */
+    get: operations['getAppLogDetail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -958,6 +995,10 @@ export interface components {
     AccessLogListResponse: components['schemas']['access-log-list-response'];
     EnvelopedAccessLogListResponse: components['schemas']['enveloped-access-log-list-response'];
     EnvelopedAccessLogDetailResponse: components['schemas']['enveloped-access-log-detail-response'];
+    AppLogDetailResponse: components['schemas']['app-log-detail-response'];
+    AppLogListResponse: components['schemas']['app-log-list-response'];
+    EnvelopedAppLogListResponse: components['schemas']['enveloped-app-log-list-response'];
+    EnvelopedAppLogDetailResponse: components['schemas']['enveloped-app-log-detail-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -1893,6 +1934,37 @@ export interface components {
     };
     'enveloped-access-log-detail-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['access-log-detail-response'];
+    };
+    'app-log-detail-response': {
+      /** Format: int64 */
+      id: number;
+      /** Format: date-time */
+      occurred_at: string;
+      /** @enum {string} */
+      severity: 'debug' | 'info' | 'warn' | 'error';
+      component: string;
+      message: string;
+      operation: string;
+      request_id: string;
+      trace_id: string;
+      route: string;
+      method: string;
+      error: string;
+      fields: {
+        [key: string]: string;
+      };
+    };
+    'app-log-list-response': {
+      items: components['schemas']['app-log-detail-response'][];
+      total: number;
+      page: number;
+      page_size: number;
+    };
+    'enveloped-app-log-list-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['app-log-list-response'];
+    };
+    'enveloped-app-log-detail-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['app-log-detail-response'];
     };
   };
   responses: {
@@ -4308,6 +4380,129 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Access log not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAppLogs: {
+    parameters: {
+      query?: {
+        page?: number;
+        page_size?: number;
+        /** @description Inclusive canonical occurrence-time lower bound on `occurred_at`. */
+        occurred_from?: string;
+        /** @description Inclusive canonical occurrence-time upper bound on `occurred_at`. */
+        occurred_to?: string;
+        severity?: 'debug' | 'info' | 'warn' | 'error';
+        component?: string;
+        operation?: string;
+        request_id?: string;
+        trace_id?: string;
+        /** @description Canonical fuzzy match applied to component, operation, message, and error. */
+        keyword?: string;
+        /** @description Bounded fuzzy match applied to the app-log message only. */
+        message?: string;
+        /** @description Bounded fuzzy match applied to the app-log error text only. */
+        error?: string;
+        /** @description Repeated sort fields encoded as `field:direction`. */
+        sort?: (
+          | 'occurred_at:desc'
+          | 'occurred_at:asc'
+          | 'severity:desc'
+          | 'severity:asc'
+          | 'component:desc'
+          | 'component:asc'
+        )[];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description App log page. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-app-log-list-response'];
+        };
+      };
+      /** @description Invalid app log query. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAppLogDetail: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description App log detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-app-log-detail-response'];
+        };
+      };
+      /** @description Invalid app log id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description App log not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

@@ -40,6 +40,9 @@ Authoritative repository documents:
   code comments, package docs, module README rules, or AI documentation behavior
 - [ai-plan/design/TDesign-MCP-辅助开发规范.md](ai-plan/design/TDesign-MCP-辅助开发规范.md) when the task changes
   TDesign Vue Next pages, components, styles, or frontend AI-assisted development workflow
+- [ai-plan/design/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/CodeGraph-MCP-辅助开发规范.md) when the task changes
+  CodeGraph MCP setup, repository code-navigation assistance, local code index handling, or AI-assisted discovery
+  workflow
 - [ai-plan/roadmap/MVP实施计划.md](ai-plan/roadmap/MVP实施计划.md)
 - [ai-plan/design/AI任务追踪与恢复设计.md](ai-plan/design/AI任务追踪与恢复设计.md) when the task changes
   tracking, recovery, or documentation-governance rules
@@ -90,6 +93,9 @@ Before choosing runtimes, package managers, or CLI tools:
 - use `.ai/environment/tools.raw.yaml` only when the AI-facing inventory is missing or insufficient
 - prefer repository-relevant installed tools over assumptions about what is available on the system
 - follow .ai/environment/ for repository toolchain preferences instead of guessing from the current shell alone
+- when using CodeGraph MCP as an AI navigation aid, follow
+  [ai-plan/design/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/CodeGraph-MCP-辅助开发规范.md); CodeGraph is a
+  developer-local knowledge source, not a repository runtime, CI, hook, or package dependency
 - if a change affects repository toolchain expectations or environment guidance, refresh the `.ai/environment/`
   inventory in the same change instead of leaving generated environment truth stale
 
@@ -295,6 +301,9 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-worktree-init`
   - use when creating or rebuilding a local `Graft` git worktree and the setup should follow the repository-standard
     shared local resource rules without hard-coded machine paths
+- `graft-codegraph-mcp`
+  - use when installing, registering, initializing, validating, or troubleshooting CodeGraph MCP as a developer-local
+    AI navigation aid for this repository
 - `graft-commit`
   - use as the canonical scoped commit workflow when the current task slice is ready to commit, whether the trigger is
   an explicit user request or a `graft-task-closeout` decision that the validated owned scope should be committed

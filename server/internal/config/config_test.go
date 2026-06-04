@@ -467,20 +467,53 @@ func TestValidateRejectsNonPositiveAccessLogRetention(t *testing.T) {
 	assertValidateError(t, cfg, "GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
 }
 
-func TestDefaultAccessLogRetentionForEnv(t *testing.T) {
+func TestValidateRejectsNonPositiveAuditLogRetention(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.Audit.LogRetention = 0
+
+	assertValidateError(t, cfg, "GRAFT_AUDIT_LOG_RETENTION must be greater than zero")
+}
+
+func TestValidateRejectsNonPositiveAppLogRetention(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.Log.AppLogPersist = true
+	cfg.Log.AppLogRetention = 0
+
+	assertValidateError(t, cfg, "GRAFT_LOG_APP_LOG_RETENTION must be greater than zero")
+}
+
+func TestValidateAllowsNonPositiveAppLogRetentionWhenPersistenceDisabled(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.Log.AppLogPersist = false
+	cfg.Log.AppLogRetention = 0
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config with disabled app log persistence: %v", err)
+	}
+}
+
+func TestDefaultLogRetentionForEnv(t *testing.T) {
 	testCases := []struct {
-		env  string
-		want time.Duration
+		env        string
+		wantAccess time.Duration
+		wantAudit  time.Duration
+		wantApp    time.Duration
 	}{
-		{env: "development", want: 3 * 24 * time.Hour},
-		{env: "staging", want: 7 * 24 * time.Hour},
-		{env: "production", want: 30 * 24 * time.Hour},
-		{env: "local", want: 3 * 24 * time.Hour},
+		{env: "development", wantAccess: 3 * 24 * time.Hour, wantAudit: 30 * 24 * time.Hour, wantApp: 3 * 24 * time.Hour},
+		{env: "staging", wantAccess: 7 * 24 * time.Hour, wantAudit: 90 * 24 * time.Hour, wantApp: 7 * 24 * time.Hour},
+		{env: "production", wantAccess: 30 * 24 * time.Hour, wantAudit: 180 * 24 * time.Hour, wantApp: 14 * 24 * time.Hour},
+		{env: "local", wantAccess: 3 * 24 * time.Hour, wantAudit: 30 * 24 * time.Hour, wantApp: 3 * 24 * time.Hour},
 	}
 
 	for _, testCase := range testCases {
-		if got := defaultAccessLogRetentionForEnv(testCase.env); got != testCase.want {
-			t.Fatalf("env %q: expected %s, got %s", testCase.env, testCase.want, got)
+		if got := defaultAccessLogRetentionForEnv(testCase.env); got != testCase.wantAccess {
+			t.Fatalf("env %q: expected access retention %s, got %s", testCase.env, testCase.wantAccess, got)
+		}
+		if got := defaultAuditLogRetentionForEnv(testCase.env); got != testCase.wantAudit {
+			t.Fatalf("env %q: expected audit retention %s, got %s", testCase.env, testCase.wantAudit, got)
+		}
+		if got := defaultAppLogRetentionForEnv(testCase.env); got != testCase.wantApp {
+			t.Fatalf("env %q: expected app retention %s, got %s", testCase.env, testCase.wantApp, got)
 		}
 	}
 }
@@ -539,6 +572,14 @@ func validConfigForValidateTests() *Config {
 		},
 		HTTPX: HTTPXConfig{
 			AccessLogRetention: 3 * 24 * time.Hour,
+		},
+		Audit: AuditConfig{
+			LogRetention: 30 * 24 * time.Hour,
+		},
+		Log: LogConfig{
+			Level:           "info",
+			AppLogPersist:   true,
+			AppLogRetention: 3 * 24 * time.Hour,
 		},
 		Database: DatabaseConfig{
 			Driver: "postgres",

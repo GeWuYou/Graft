@@ -6,15 +6,15 @@ import (
 )
 
 func TestDefaultAppLogStoragePolicyMatchesCurrentAuthority(t *testing.T) {
-	policy := DefaultAppLogStoragePolicy()
-	if policy.Mode != AppLogStorageModeProcessOutput {
-		t.Fatalf("expected process-output mode, got %q", policy.Mode)
+	policy := DefaultAppLogStoragePolicy(3 * 24 * time.Hour)
+	if policy.Mode != AppLogStorageModeRepositoryDurableStore {
+		t.Fatalf("expected durable store mode, got %q", policy.Mode)
 	}
-	if policy.RetentionOwner != AppLogRetentionOwnerNone {
-		t.Fatalf("expected no retention owner, got %q", policy.RetentionOwner)
+	if policy.RetentionOwner != AppLogRetentionOwnerLogger {
+		t.Fatalf("expected logger retention owner, got %q", policy.RetentionOwner)
 	}
-	if policy.DefaultWindow != 0 {
-		t.Fatalf("expected zero retention window, got %s", policy.DefaultWindow)
+	if policy.DefaultWindow != 3*24*time.Hour {
+		t.Fatalf("expected configured retention window, got %s", policy.DefaultWindow)
 	}
 	if err := policy.Validate(); err != nil {
 		t.Fatalf("validate default policy: %v", err)

@@ -1,5 +1,5 @@
 <template>
-  <log-filter-builder
+  <advanced-query-filter-builder
     :active-preset="activePreset"
     :add-filter-label="`+ ${t('audit.logList.actions.addFilter')}`"
     :add-sorter-label="t('audit.logList.actions.addSorter')"
@@ -39,6 +39,16 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  AdvancedQueryFilterBuilder,
+  type AdvancedQueryFilterFieldDefinition,
+  type AdvancedQueryFilterOption,
+  type AdvancedQueryFilterTag,
+  type AdvancedQueryTimeRangeField,
+  createAdvancedQueryBuilderListeners,
+  createSortDirection,
+  useAdvancedQuerySorterUiState,
+} from '@/shared/components/query-list';
+import {
   appendSorterToState,
   buildRecentHoursLocalRange,
   moveSorterInState,
@@ -47,18 +57,6 @@ import {
   withSorterDirectionFromInput,
   withSorterFieldFromInput,
 } from '@/shared/observability';
-import type {
-  LogFilterFieldDefinition,
-  LogFilterOption,
-  LogFilterTag,
-  LogTimeRangeField,
-} from '@/shared/observability/log-filter-builder';
-import {
-  createLogBuilderListeners,
-  createSortDirection,
-  useLogSorterUiState,
-} from '@/shared/observability/log-filter-builder-helpers';
-import LogFilterBuilder from '@/shared/observability/LogFilterBuilder.vue';
 
 import type { AuditQuickPresetKey } from '../contract/presets';
 import { AUDIT_TIME_PRESET } from '../contract/time-presets';
@@ -143,20 +141,20 @@ const riskOptions = computed<ModuleAuditFilterOption[]>(() => [
   { label: t('audit.logList.filterOptions.HIGH'), value: 'HIGH' },
   { label: t('audit.logList.filterOptions.CRITICAL'), value: 'CRITICAL' },
 ]);
-const sortFieldOptions = computed<LogFilterOption[]>(() => [
+const sortFieldOptions = computed<AdvancedQueryFilterOption[]>(() => [
   { label: t('audit.logList.sort.createdAt'), value: 'created_at' },
 ]);
-const sortDirectionOptions = computed<LogFilterOption[]>(() => [
+const sortDirectionOptions = computed<AdvancedQueryFilterOption[]>(() => [
   { label: t('audit.logList.sort.desc'), value: 'desc' },
   { label: t('audit.logList.sort.asc'), value: 'asc' },
 ]);
 const { normalizedSorters, sortFieldOptionsByIndex, sortAddDisabled, sortMoveUpDisabled, sortMoveDownDisabled } =
-  useLogSorterUiState(
+  useAdvancedQuerySorterUiState(
     () => props.modelValue.sorters,
     () => sortFieldOptions.value,
   );
 
-const definitions = computed<LogFilterFieldDefinition[]>(() => [
+const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
   { key: 'timeRange', kind: 'special', label: t('audit.logList.builder.fields.timeRange') },
   { key: 'sorterBuilder', kind: 'special', label: t('audit.logList.builder.fields.sorterBuilder') },
   {
@@ -301,7 +299,7 @@ const fieldValues = computed<Record<string, string | string[]>>(() => ({
   resourceId: props.modelValue.resourceId,
 }));
 
-const timeFields = computed<LogTimeRangeField[]>(() => [
+const timeFields = computed<AdvancedQueryTimeRangeField[]>(() => [
   {
     key: 'createdRange',
     label: t('audit.logList.sort.createdAt'),
@@ -312,8 +310,8 @@ const timeFields = computed<LogTimeRangeField[]>(() => [
 
 const builderListeners = createAuditBuilderListeners();
 
-const activeFilterTags = computed<LogFilterTag[]>(() => {
-  const filterTags: LogFilterTag[] = [];
+const activeFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
+  const filterTags: AdvancedQueryFilterTag[] = [];
 
   definitions.value
     .filter((definition) => definition.kind !== 'special')
@@ -341,7 +339,7 @@ const activeFilterTags = computed<LogFilterTag[]>(() => {
     sortFieldOptions.value,
     t('audit.logList.sort.tagPrefix'),
   ).map(
-    (tag): LogFilterTag => ({
+    (tag): AdvancedQueryFilterTag => ({
       ...tag,
       closable:
         tag.key === 'createdRange' || tag.key.startsWith('sorter:') ? true : !isLocked(tag.key as AuditFilterKey),
@@ -369,7 +367,7 @@ function handleFieldUpdate(payload: { key: string; value: string | string[] }) {
 }
 
 function createAuditBuilderListeners() {
-  return createLogBuilderListeners<AuditQuickPresetKey, BuilderFieldKey, { key: string; value: string[] }>({
+  return createAdvancedQueryBuilderListeners<AuditQuickPresetKey, BuilderFieldKey, { key: string; value: string[] }>({
     selectedFieldKey,
     updateSortDirection,
     handleFieldUpdate,
@@ -391,7 +389,7 @@ function isLocked(key: AuditFilterKey) {
   return props.lockedFields?.includes(key) ?? false;
 }
 
-function buildTagLabel(definition: LogFilterFieldDefinition) {
+function buildTagLabel(definition: AdvancedQueryFilterFieldDefinition) {
   const value = fieldValues.value[definition.key];
   if (Array.isArray(value)) {
     if (!value.length) {
@@ -407,7 +405,7 @@ function buildTagLabel(definition: LogFilterFieldDefinition) {
   return `${definition.label}：${optionLabel(definition.options, String(value))}`;
 }
 
-function optionLabel(options: LogFilterOption[] | undefined, value: string) {
+function optionLabel(options: AdvancedQueryFilterOption[] | undefined, value: string) {
   return options?.find((option) => option.value === value)?.label || value;
 }
 

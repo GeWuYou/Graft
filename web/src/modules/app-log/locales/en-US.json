@@ -1,0 +1,120 @@
+{
+  "menu": {
+    "logCenter": {
+      "title": "Log Center"
+    },
+    "appLog": {
+      "title": "App Logs"
+    }
+  },
+  "appLog": {
+    "page": {
+      "title": "App Logs",
+      "description": "Inspect retained runtime troubleshooting logs across component, operation, severity, and correlation fields.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "errorTitle": "App logs are temporarily unavailable",
+      "loadFailed": "Failed to load app logs",
+      "summary": "{count} app logs on this page",
+      "footerTotal": "{count} total records",
+      "emptyTitle": "No app logs",
+      "emptyDescription": "Adjust filters and try again.",
+      "detailTitle": "App Log Detail",
+      "searchPlaceholder": "Search component, operation, message, or error",
+      "tableHint": "The table is ordered by latest retained occurrence time.",
+      "columnSettings": "Column Settings"
+    },
+    "actions": {
+      "search": "Search",
+      "reset": "Reset",
+      "detail": "Detail",
+      "copy": "Copy",
+      "copySuccess": "Copied",
+      "copyFail": "Copy failed",
+      "addFilter": "Add Filter",
+      "addSorter": "Add Sorter",
+      "removeSorter": "Remove Sorter",
+      "moveSorterUp": "Move Up",
+      "moveSorterDown": "Move Down"
+    },
+    "presets": {
+      "label": "Quick Filters",
+      "all": "All",
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "lastHour": "Last Hour"
+    },
+    "filters": {
+      "occurredRange": "Occurrence Time",
+      "severity": "Severity",
+      "component": "Component",
+      "operation": "Operation",
+      "requestId": "Request ID",
+      "traceId": "Trace ID",
+      "route": "Route Template",
+      "method": "Method",
+      "message": "Message",
+      "error": "Error",
+      "keyword": "Keyword",
+      "allSeverity": "All Severities",
+      "sortOccurredAt": "Occurrence Time",
+      "sortSeverity": "Severity",
+      "sortComponent": "Component",
+      "sortAsc": "Ascending",
+      "sortDesc": "Descending"
+    },
+    "sort": {
+      "tagPrefix": "Sort",
+      "fieldPlaceholder": "Sort Field",
+      "directionPlaceholder": "Sort Direction"
+    },
+    "builder": {
+      "title": "Filters",
+      "hint": "Select a field to edit conditions; active conditions appear as tags below.",
+      "groups": {
+        "filters": "Filters"
+      },
+      "fields": {
+        "timeRange": "Time Range",
+        "sorterBuilder": "Sort Order",
+        "severity": "Severity",
+        "component": "Component",
+        "operation": "Operation",
+        "requestId": "Request ID",
+        "traceId": "Trace ID",
+        "message": "Message",
+        "error": "Error"
+      }
+    },
+    "columns": {
+      "occurredAt": "Occurred At",
+      "severity": "Severity",
+      "component": "Component",
+      "operation": "Operation",
+      "message": "Message",
+      "correlation": "Correlation",
+      "fields": "Fields",
+      "actions": "Actions"
+    },
+    "detail": {
+      "basic": "Basic Facts",
+      "correlation": "Correlation",
+      "message": "Message",
+      "error": "Error",
+      "fields": "Structured Fields",
+      "fullContext": "Full App Log Context",
+      "expandContext": "Expand full app log JSON",
+      "collapseContext": "Collapse full app log JSON",
+      "copyContext": "Copy JSON",
+      "copyContextSuccess": "App log JSON copied",
+      "copyContextFail": "Failed to copy app log JSON",
+      "contextEmpty": "No app log context is available."
+    },
+    "values": {
+      "noOperation": "No operation",
+      "noCorrelation": "No correlation",
+      "noError": "No error",
+      "emptyField": "-"
+    }
+  }
+}

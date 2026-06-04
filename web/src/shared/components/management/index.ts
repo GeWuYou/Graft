@@ -8,6 +8,7 @@ export {
   buildVisibleColumns,
   calculateTableContentWidth,
   createActionColumn,
+  createConfiguredColumns,
   createCountColumn,
   createStatusColumn,
   createTextColumn,

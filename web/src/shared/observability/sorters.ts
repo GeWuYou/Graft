@@ -262,6 +262,19 @@ export function prependSorterTags<Key extends string, Field extends string>(
   ];
 }
 
+export function assignEncodedSorters<Field extends string>(
+  query: { sort?: string[] },
+  sorters: QuerySorter<Field>[],
+  options: Array<SortOption<Field>>,
+) {
+  const encodedSorters = encodeSorters(normalizeSorters(sorters, options), options);
+  if (encodedSorters.length) {
+    query.sort = encodedSorters;
+    return;
+  }
+  delete query.sort;
+}
+
 export function encodeSorters<Field extends string>(sorters: QuerySorter<Field>[], options?: Array<SortOption<Field>>) {
   const normalized = options ? normalizeSorters(sorters, options) : sorters;
 

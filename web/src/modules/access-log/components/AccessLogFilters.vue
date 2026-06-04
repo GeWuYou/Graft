@@ -1,69 +1,25 @@
 <template>
-  <log-filter-builder
-    :active-preset="activePreset"
-    :add-filter-label="`+ ${t('accessLog.actions.addFilter')}`"
-    :add-sorter-label="t('accessLog.actions.addSorter')"
-    :builder-hint="t('accessLog.builder.hint')"
-    :builder-title="t('accessLog.builder.title')"
-    :field-values="fieldValues"
-    :fields="definitions"
-    :filters-group-label="t('accessLog.builder.groups.filters')"
-    :keyword="modelValue.keyword"
-    :keyword-placeholder="t('accessLog.page.searchPlaceholder')"
-    :loading="loading"
-    :move-down-label="t('accessLog.actions.moveSorterDown')"
-    :move-up-label="t('accessLog.actions.moveSorterUp')"
-    :preset-label="t('accessLog.presets.label')"
-    :presets="presets"
-    :remove-sorter-label="t('accessLog.actions.removeSorter')"
-    :reset-label="t('accessLog.actions.reset')"
-    :search-label="t('accessLog.actions.search')"
-    :selected-field-key="selectedFieldKey"
-    :sort-add-disabled="sortAddDisabled"
-    :sort-direction-options="sortOrderOptions"
-    :sort-direction-placeholder="t('accessLog.sort.directionPlaceholder')"
-    :sort-field-key="'sorterBuilder'"
-    :sort-field-options-by-index="sortFieldOptionsByIndex"
-    :sort-field-placeholder="t('accessLog.sort.fieldPlaceholder')"
-    :sort-move-down-disabled="sortMoveDownDisabled"
-    :sort-move-up-disabled="sortMoveUpDisabled"
-    :sorters="normalizedSorters"
-    :tags="activeFilterTags"
-    :time-field-key="'timeRange'"
-    :time-fields="timeFields"
-    v-on="builderListeners"
-  />
+  <advanced-query-filter-builder-frame :frame="builderFrame" message-prefix="accessLog" />
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
-  appendSorterToState,
-  moveSorterInState,
-  prependSorterTags,
-  removeSorterFromState,
-  withSorterDirectionFromInput,
-  withSorterFieldFromInput,
-} from '@/shared/observability';
-import type {
-  LogFilterFieldDefinition,
-  LogFilterTag,
-  LogTimeRangeField,
-} from '@/shared/observability/log-filter-builder';
-import {
-  createLogBuilderListeners,
-  createSortDirection,
-  useLogSorterUiState,
-} from '@/shared/observability/log-filter-builder-helpers';
-import LogFilterBuilder from '@/shared/observability/LogFilterBuilder.vue';
+  AdvancedQueryFilterBuilderFrame,
+  type AdvancedQueryFilterFieldDefinition,
+  type AdvancedQueryFilterTag,
+  type AdvancedQueryTimeRangeField,
+  buildAdvancedQueryActiveTags,
+  buildAdvancedQueryTimeTag,
+  createAdvancedQueryBuilderListeners,
+  createAdvancedQueryFilterBuilderFrameStateFromSource,
+  updateAdvancedQueryFilterStateField,
+  useAdvancedQuerySorterControlsForModel,
+} from '@/shared/components/query-list';
 
-import type {
-  AccessLogFilterState,
-  AccessLogPathMatch,
-  AccessLogSortBy,
-  AccessLogSortOrder,
-} from '../types/access-log';
+import { buildAccessLogSortOptions } from '../shared/presentation';
+import type { AccessLogFilterState, AccessLogPathMatch, AccessLogSortBy } from '../types/access-log';
 
 type AccessLogPresetKey =
   | 'all'
@@ -102,23 +58,25 @@ const selectedFieldKey = ref<BuilderFieldKey>('timeRange');
 const methodOptions = computed(() =>
   ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((value) => ({ label: value, value })),
 );
-const sortByOptions = computed(() => [
-  { label: t('accessLog.filters.sortStartedAt'), value: 'started_at' },
-  { label: t('accessLog.filters.sortOccurredAt'), value: 'occurred_at' },
-  { label: t('accessLog.filters.sortDuration'), value: 'duration_ms' },
-  { label: t('accessLog.filters.sortStatusCode'), value: 'status_code' },
-]);
+const sortByOptions = computed(() => buildAccessLogSortOptions(t));
 const sortOrderOptions = computed(() => [
   { label: t('accessLog.filters.sortDesc'), value: 'desc' },
   { label: t('accessLog.filters.sortAsc'), value: 'asc' },
 ]);
-const { normalizedSorters, sortFieldOptionsByIndex, sortAddDisabled, sortMoveUpDisabled, sortMoveDownDisabled } =
-  useLogSorterUiState(
-    () => props.modelValue.sorters,
-    () => sortByOptions.value,
-  );
+const sorterControlInput = {
+  emitValue: (value: AccessLogFilterState) => emit('update:modelValue', value),
+  model: () => props.modelValue,
+  options: () => sortByOptions.value,
+};
+const sorterControls = useAdvancedQuerySorterControlsForModel<AccessLogSortBy, AccessLogFilterState>(
+  sorterControlInput.model,
+  sorterControlInput.emitValue,
+  normalizeSortBy,
+  sorterControlInput.options,
+);
+const { mutators: sorterMutators, ui: sorterUi } = sorterControls;
 
-const definitions = computed<LogFilterFieldDefinition[]>(() => [
+const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
   { key: 'timeRange', kind: 'special', label: t('accessLog.builder.fields.timeRange') },
   { key: 'sorterBuilder', kind: 'special', label: t('accessLog.builder.fields.sorterBuilder') },
   {
@@ -183,7 +141,7 @@ const fieldValues = computed<Record<string, string | string[]>>(() => ({
   durationMaxMs: props.modelValue.durationMaxMs,
 }));
 
-const timeFields = computed<LogTimeRangeField[]>(() => [
+const timeFields = computed<AdvancedQueryTimeRangeField[]>(() => [
   {
     key: 'startedRange',
     label: t('accessLog.filters.startedRange'),
@@ -199,25 +157,31 @@ const timeFields = computed<LogTimeRangeField[]>(() => [
 ]);
 
 const builderListeners = createAccessLogBuilderListeners();
+const frameAccessors = {
+  fieldValues,
+  filterDefinitions: definitions,
+  timeRangeFields: timeFields,
+};
 
-const activeFilterTags = computed<LogFilterTag[]>(() => {
-  const filterTags = definitions.value
-    .filter((definition) => definition.kind !== 'special')
-    .map((definition) => {
-      const rawValue = props.modelValue[definition.key as FilterKey];
-      const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
-      if (!value) {
-        return null;
-      }
-      const label =
-        definition.kind === 'select'
-          ? definition.options?.find((option) => option.value === value)?.label || String(value)
-          : String(value);
-      return { key: definition.key, label: `${definition.label}：${label}` };
-    })
-    .filter((item): item is LogFilterTag => Boolean(item));
+const builderFrame = createAccessLogBuilderFrame();
 
-  const timeTags: LogFilterTag[] = [];
+function createAccessLogBuilderFrame() {
+  return createAdvancedQueryFilterBuilderFrameStateFromSource({
+    fieldValues: () => frameAccessors.fieldValues.value,
+    fields: () => frameAccessors.filterDefinitions.value,
+    keyword: () => props.modelValue.keyword,
+    listeners: builderListeners,
+    selectedFieldKey,
+    sorterUi,
+    sortDirectionOptions: () => sortOrderOptions.value,
+    source: () => props,
+    tags: () => activeFilterTags.value,
+    timeFields: () => frameAccessors.timeRangeFields.value,
+  });
+}
+
+const activeFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
+  const timeTags: AdvancedQueryFilterTag[] = [];
   const startedTimeTag = buildTimeTag('startedRange', t('accessLog.filters.startedRange'));
   if (startedTimeTag) {
     timeTags.push({ key: 'startedRange', label: startedTimeTag });
@@ -227,19 +191,19 @@ const activeFilterTags = computed<LogFilterTag[]>(() => {
     timeTags.push({ key: 'occurredRange', label: occurredTimeTag });
   }
 
-  return prependSorterTags(
-    [...timeTags, ...filterTags],
-    normalizedSorters.value,
-    sortByOptions.value,
-    t('accessLog.sort.tagPrefix'),
-  );
+  return buildAdvancedQueryActiveTags<AccessLogFilterState, FilterKey, AccessLogSortBy>({
+    fieldSeparator: '：',
+    fields: definitions.value,
+    filterState: props.modelValue,
+    sorterPrefix: t('accessLog.sort.tagPrefix'),
+    sorters: sorterUi.normalizedSorters.value,
+    sortOptions: sortByOptions.value,
+    timeTags,
+  });
 });
 
 function updateField<Key extends keyof AccessLogFilterState>(key: Key, value: AccessLogFilterState[Key]) {
-  emit('update:modelValue', {
-    ...props.modelValue,
-    [key]: typeof value === 'string' ? value.trim() : value,
-  });
+  emit('update:modelValue', updateAdvancedQueryFilterStateField(props.modelValue, key, value));
 }
 
 function handleFieldUpdate(payload: { key: string; value: string | string[] }) {
@@ -247,20 +211,20 @@ function handleFieldUpdate(payload: { key: string; value: string | string[] }) {
 }
 
 function createAccessLogBuilderListeners() {
-  return createLogBuilderListeners<AccessLogPresetKey, BuilderFieldKey, { key: string; value: string[] }>({
+  return createAdvancedQueryBuilderListeners<AccessLogPresetKey, BuilderFieldKey, { key: string; value: string[] }>({
     handleFieldUpdate,
     selectedFieldKey,
     updateKeyword: (value) => updateField('keyword', value),
     emitSearch: () => emit('search'),
-    addSorter,
-    updateSortField,
+    addSorter: sorterMutators.addSorter,
+    updateSortField: sorterMutators.updateSortField,
     clearTag: (key) => clearTag(key as TagKey),
-    moveSorterUp,
+    moveSorterUp: sorterMutators.moveSorterUp,
     emitReset: () => emit('reset'),
     updateTimeField: ({ key, value }) => updateTimeField(key as AccessTimeRangeKey, value),
-    removeSorter,
-    updateSortDirection,
-    moveSorterDown,
+    removeSorter: sorterMutators.removeSorter,
+    updateSortDirection: sorterMutators.updateSortDirection,
+    moveSorterDown: sorterMutators.moveSorterDown,
     emitApplyPreset: (preset) => emit('apply-preset', preset),
   });
 }
@@ -280,7 +244,7 @@ function clearTag(key: TagKey) {
   }
 
   if (key.startsWith('sorter:')) {
-    removeSorter(Number(key.split(':')[1] || 0));
+    sorterMutators.removeSorter(Number(key.split(':')[1] || 0));
     return;
   }
 
@@ -289,40 +253,6 @@ function clearTag(key: TagKey) {
 
 function normalizeSortBy(value: string): AccessLogSortBy {
   return value === 'occurred_at' || value === 'duration_ms' || value === 'status_code' ? value : 'started_at';
-}
-
-function normalizeSortOrder(value: string): AccessLogSortOrder {
-  return createSortDirection(value);
-}
-
-function addSorter() {
-  emit('update:modelValue', appendSorterToState(props.modelValue, sortByOptions.value));
-}
-
-function removeSorter(index: number) {
-  emit('update:modelValue', removeSorterFromState(props.modelValue, index, sortByOptions.value));
-}
-
-function moveSorterUp(index: number) {
-  emit('update:modelValue', moveSorterInState(props.modelValue, index, -1, sortByOptions.value));
-}
-
-function moveSorterDown(index: number) {
-  emit('update:modelValue', moveSorterInState(props.modelValue, index, 1, sortByOptions.value));
-}
-
-function updateSortField(index: number, value: string | number | Array<string | number> | undefined) {
-  emit(
-    'update:modelValue',
-    withSorterFieldFromInput(props.modelValue, index, value, normalizeSortBy, sortByOptions.value, 'desc'),
-  );
-}
-
-function updateSortDirection(index: number, value: string | number | Array<string | number> | undefined) {
-  emit(
-    'update:modelValue',
-    withSorterDirectionFromInput(props.modelValue, index, value, normalizeSortOrder, sortByOptions.value),
-  );
 }
 
 function updateTimeField(key: AccessTimeRangeKey, value: string[]) {
@@ -338,7 +268,7 @@ function buildTimeTag(key: AccessTimeRangeKey, label: string) {
     return '';
   }
 
-  return `${label}：${range.filter(Boolean).join(' ~ ')}`;
+  return buildAdvancedQueryTimeTag(label, range, '：');
 }
 
 void (null as unknown as AccessLogPathMatch);

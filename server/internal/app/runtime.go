@@ -34,11 +34,13 @@ const moduleShutdownTimeout = 5 * time.Second
 
 type runtimeCoreDeps struct {
 	newAccessLogRepository func(*sql.DB) (httpx.AccessLogRepository, error)
+	newAppLogRepository    func(*sql.DB) (logger.AppLogRepository, error)
 	openRedisClient        func(context.Context, config.RedisConfig) (*redis.Client, error)
 }
 
 var defaultRuntimeCoreDeps = runtimeCoreDeps{
 	newAccessLogRepository: httpx.NewAccessLogRepository,
+	newAppLogRepository:    logger.NewAppLogRepository,
 	openRedisClient:        redisx.Open,
 }
 
@@ -64,6 +66,7 @@ type Runtime struct {
 	cronRegistry       *cronx.Registry
 	moduleManager      *module.Manager
 	runtimeMetadata    module.RuntimeMetadata
+	appLogRepository   logger.AppLogRepository
 }
 
 // NewRuntime 使用给定模块构造显式的 MVP 运行时外壳。
@@ -95,36 +98,53 @@ func NewRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
-	if err := runtime.registerAccessLogRetentionJob(); err != nil {
-		_ = runtime.closeCoreResources()
-		return nil, fmt.Errorf("register access-log retention job: %w", err)
+	if err := runtime.registerRetentionJobs(); err != nil {
+		return nil, err
 	}
 
 	runtime.registerCoreRoutes(runtime.server.Engine())
 
-	orderedDescriptors, err := moduleregistry.FilteredOrderedModuleSpecs(cfg.Modules.Enabled)
-	if err != nil {
-		_ = runtime.closeCoreResources()
-		return nil, fmt.Errorf("order runtime module descriptors: %w", err)
-	}
-	runtime.runtimeMetadata = module.NewRuntimeMetadata(orderedDescriptors)
-
-	modules, err := moduleregistry.BuildModules(module.BuildContext{
-		Services: runtime.services,
-	}, cfg.Modules.Enabled)
-	if err != nil {
-		_ = runtime.closeCoreResources()
-		return nil, fmt.Errorf("build runtime modules: %w", err)
-	}
-
-	for _, current := range modules {
-		if err := runtime.moduleManager.RegisterModule(current); err != nil {
-			_ = runtime.closeCoreResources()
-			return nil, err
-		}
+	if err := runtime.registerRuntimeModules(cfg.Modules.Enabled); err != nil {
+		return nil, err
 	}
 
 	return runtime, nil
+}
+
+func (r *Runtime) registerRetentionJobs() error {
+	if err := r.registerAccessLogRetentionJob(); err != nil {
+		_ = r.closeCoreResources()
+		return fmt.Errorf("register access-log retention job: %w", err)
+	}
+	if err := r.registerAppLogRetentionJob(); err != nil {
+		_ = r.closeCoreResources()
+		return fmt.Errorf("register app-log retention job: %w", err)
+	}
+	return nil
+}
+
+func (r *Runtime) registerRuntimeModules(enabledModules []string) error {
+	orderedDescriptors, err := moduleregistry.FilteredOrderedModuleSpecs(enabledModules)
+	if err != nil {
+		_ = r.closeCoreResources()
+		return fmt.Errorf("order runtime module descriptors: %w", err)
+	}
+	r.runtimeMetadata = module.NewRuntimeMetadata(orderedDescriptors)
+
+	modules, err := moduleregistry.BuildModules(module.BuildContext{Services: r.services}, enabledModules)
+	if err != nil {
+		_ = r.closeCoreResources()
+		return fmt.Errorf("build runtime modules: %w", err)
+	}
+
+	for _, current := range modules {
+		if err := r.moduleManager.RegisterModule(current); err != nil {
+			_ = r.closeCoreResources()
+			return err
+		}
+	}
+
+	return nil
 }
 
 func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
@@ -132,12 +152,7 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 }
 
 func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
-	if deps.newAccessLogRepository == nil {
-		deps.newAccessLogRepository = httpx.NewAccessLogRepository
-	}
-	if deps.openRedisClient == nil {
-		deps.openRedisClient = redisx.Open
-	}
+	deps = normalizeRuntimeCoreDeps(deps)
 
 	runtimeLogger, err := logger.New(cfg)
 	if err != nil {
@@ -173,6 +188,14 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		return nil, fmt.Errorf("create access log repository: %w", err)
 	}
 
+	appLogRepo, err := newOptionalAppLogRepository(cfg, deps, databaseResources.SQL)
+	if err != nil {
+		_ = redisClient.Close()
+		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
+		return nil, err
+	}
+
 	return &Runtime{
 		config:             cfg,
 		logger:             runtimeLogger,
@@ -186,7 +209,37 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),
 		moduleManager:      module.NewManager(),
+		appLogRepository:   appLogRepo,
 	}, nil
+}
+
+func normalizeRuntimeCoreDeps(deps runtimeCoreDeps) runtimeCoreDeps {
+	if deps.newAccessLogRepository == nil {
+		deps.newAccessLogRepository = httpx.NewAccessLogRepository
+	}
+	if deps.newAppLogRepository == nil {
+		deps.newAppLogRepository = logger.NewAppLogRepository
+	}
+	if deps.openRedisClient == nil {
+		deps.openRedisClient = redisx.Open
+	}
+	return deps
+}
+
+func newOptionalAppLogRepository(
+	cfg *config.Config,
+	deps runtimeCoreDeps,
+	db *sql.DB,
+) (logger.AppLogRepository, error) {
+	if cfg == nil || !cfg.Log.AppLogPersist {
+		return nil, nil
+	}
+
+	appLogRepo, err := deps.newAppLogRepository(db)
+	if err != nil {
+		return nil, fmt.Errorf("create app log repository: %w", err)
+	}
+	return appLogRepo, nil
 }
 
 // Run 先执行模块注册与启动，再启动 HTTP 服务。
@@ -212,8 +265,8 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		return err
 	}
 
-	if err := r.registerAccessLogExplorer(moduleCtx, booted); err != nil {
-		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("resolve access-log auth service: %w", err))
+	if err := r.registerLogExplorers(); err != nil {
+		return r.cleanupAfterFailure(moduleCtx, booted, err)
 	}
 
 	if err := r.i18n.Freeze(); err != nil {
@@ -286,20 +339,29 @@ func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 	}
 }
 
-func (r *Runtime) registerAccessLogExplorer(moduleCtx *module.Context, booted []module.RuntimeModule) error {
-	authService, err := r.resolveAccessLogAuthService()
+func (r *Runtime) registerLogExplorers() error {
+	authService, authorizer, err := r.resolveLogExplorerAuth()
 	if errors.Is(err, container.ErrServiceNotRegistered) {
 		return nil
 	}
 	if err != nil {
+		return fmt.Errorf("resolve log explorer auth service: %w", err)
+	}
+
+	if err := r.registerAccessLogExplorerWithAuth(authService, authorizer); err != nil {
+		return err
+	}
+	if err := r.registerAppLogExplorerWithAuth(authService, authorizer); err != nil {
 		return err
 	}
 
-	authorizer, err := r.resolveAccessLogAuthorizer()
-	if err != nil {
-		return err
-	}
+	return nil
+}
 
+func (r *Runtime) registerAccessLogExplorerWithAuth(
+	authService moduleapi.AuthService,
+	authorizer moduleapi.Authorizer,
+) error {
 	if err := httpx.RegisterAccessLogExplorer(
 		httpx.AccessLogExplorerRegistration{
 			I18n:               r.i18n,
@@ -315,12 +377,50 @@ func (r *Runtime) registerAccessLogExplorer(moduleCtx *module.Context, booted []
 		return fmt.Errorf("register access-log explorer: %w", err)
 	}
 
-	_ = moduleCtx
-	_ = booted
 	return nil
 }
 
-func (r *Runtime) resolveAccessLogAuthService() (moduleapi.AuthService, error) {
+func (r *Runtime) registerAppLogExplorerWithAuth(
+	authService moduleapi.AuthService,
+	authorizer moduleapi.Authorizer,
+) error {
+	if r.appLogRepository == nil {
+		return nil
+	}
+
+	if err := logger.RegisterAppLogExplorer(
+		logger.AppLogExplorerRegistration{
+			I18n:               r.i18n,
+			MenuRegistry:       r.menuRegistry,
+			PermissionRegistry: r.permissionRegistry,
+			EventBus:           r.eventBus,
+		},
+		r.server.Engine().Group("/api"),
+		r.appLogRepository,
+		authService,
+		authorizer,
+	); err != nil {
+		return fmt.Errorf("register app-log explorer: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Runtime) resolveLogExplorerAuth() (moduleapi.AuthService, moduleapi.Authorizer, error) {
+	authService, err := r.resolveLogExplorerAuthService()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	authorizer, err := r.resolveLogExplorerAuthorizer()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return authService, authorizer, nil
+}
+
+func (r *Runtime) resolveLogExplorerAuthService() (moduleapi.AuthService, error) {
 	authResolved, err := r.services.Resolve((*moduleapi.AuthService)(nil))
 	if err != nil {
 		return nil, err
@@ -334,7 +434,7 @@ func (r *Runtime) resolveAccessLogAuthService() (moduleapi.AuthService, error) {
 	return authService, nil
 }
 
-func (r *Runtime) resolveAccessLogAuthorizer() (moduleapi.Authorizer, error) {
+func (r *Runtime) resolveLogExplorerAuthorizer() (moduleapi.Authorizer, error) {
 	authorizerResolved, err := r.services.Resolve((*moduleapi.Authorizer)(nil))
 	if err != nil {
 		return nil, fmt.Errorf("resolve access-log authorizer: %w", err)
@@ -428,7 +528,16 @@ func (r *Runtime) registerCoreServices() error {
 		{
 			key: (*logger.AppLogger)(nil),
 			provider: func() (any, error) {
-				return logger.NewAppLogger(r.logger), nil
+				return r.newAppLogger(), nil
+			},
+		},
+		{
+			key: (*logger.AppLogRepository)(nil),
+			provider: func() (any, error) {
+				if r.appLogRepository == nil {
+					return nil, errors.New("app log repository is unavailable")
+				}
+				return r.appLogRepository, nil
 			},
 		},
 		{
@@ -480,6 +589,32 @@ func (r *Runtime) registerAccessLogRetentionJob() error {
 		r.server.AccessLogRepository(),
 		r.config.HTTPX,
 	)
+}
+
+func (r *Runtime) registerAppLogRetentionJob() error {
+	if r == nil {
+		return errors.New("runtime is unavailable")
+	}
+	if r.appLogRepository == nil {
+		return nil
+	}
+
+	return logger.RegisterAppLogRetentionCleanupJob(
+		r.cronRegistry,
+		r.logger,
+		r.appLogRepository,
+		r.config.Log,
+	)
+}
+
+func (r *Runtime) newAppLogger() logger.AppLogger {
+	if r == nil {
+		return logger.NewAppLogger(nil)
+	}
+	if r.appLogRepository == nil {
+		return logger.NewAppLogger(r.logger)
+	}
+	return logger.NewAppLogger(r.logger, logger.WithAppLogRepository(r.appLogRepository))
 }
 
 func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error {

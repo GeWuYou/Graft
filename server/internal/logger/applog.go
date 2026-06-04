@@ -2,7 +2,9 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 	"unicode"
 
 	"go.uber.org/zap"
@@ -39,6 +41,10 @@ const (
 )
 
 const redactedValue = "[REDACTED]"
+const (
+	appLogPersistQueueSize = 1024
+	appLogPersistTimeout   = 2 * time.Second
+)
 
 // AppLogger defines the canonical application-log contract for runtime and modules.
 type AppLogger interface {
@@ -51,6 +57,9 @@ type AppLogger interface {
 	Zap() *zap.Logger
 }
 
+// AppLoggerOption customizes AppLogger runtime behavior.
+type AppLoggerOption func(*appLogger)
+
 // Field is the logger-owned structured field contract for application logs.
 type Field struct {
 	Key   string
@@ -58,32 +67,98 @@ type Field struct {
 }
 
 type appLogger struct {
-	base *zap.Logger
+	base   *zap.Logger
+	sink   appLogPersistSink
+	now    func() time.Time
+	fields []Field
+}
+
+type appLogPersistSink interface {
+	CreateAppLog(context.Context, CreateAppLogInput) (AppLogRecord, error)
+}
+
+type asyncAppLogPersistSink struct {
+	repo  AppLogRepository
+	base  *zap.Logger
+	queue chan appLogPersistRequest
+}
+
+type appLogPersistRequest struct {
+	ctx    context.Context
+	record CreateAppLogInput
+}
+
+type appLogRecordSetter func(*CreateAppLogInput, string)
+
+var appLogTopLevelRecordSetters = map[string]appLogRecordSetter{
+	FieldComponent: func(record *CreateAppLogInput, value string) { record.Component = value },
+	FieldOperation: func(record *CreateAppLogInput, value string) { record.Operation = value },
+	FieldRequestID: func(record *CreateAppLogInput, value string) { record.RequestID = value },
+	FieldTraceID:   func(record *CreateAppLogInput, value string) { record.TraceID = value },
+	FieldRoute:     func(record *CreateAppLogInput, value string) { record.Route = value },
+	FieldMethod:    func(record *CreateAppLogInput, value string) { record.Method = value },
+	FieldError:     func(record *CreateAppLogInput, value string) { record.Error = value },
 }
 
 // NewAppLogger wraps the runtime zap logger with the canonical AppLogger contract.
-func NewAppLogger(base *zap.Logger) AppLogger {
+func NewAppLogger(base *zap.Logger, options ...AppLoggerOption) AppLogger {
 	if base == nil {
 		base = zap.NewNop()
 	}
 
-	return appLogger{base: base}
+	logger := appLogger{
+		base: base,
+		now: func() time.Time {
+			return time.Now().UTC()
+		},
+	}
+	for _, option := range options {
+		if option != nil {
+			option(&logger)
+		}
+	}
+
+	return logger
+}
+
+// WithAppLogRepository configures a best-effort durable App Log sink.
+func WithAppLogRepository(repo AppLogRepository) AppLoggerOption {
+	return func(l *appLogger) {
+		l.sink = newAsyncAppLogPersistSink(l.base, repo)
+	}
+}
+
+func newAsyncAppLogPersistSink(base *zap.Logger, repo AppLogRepository) appLogPersistSink {
+	if repo == nil {
+		return nil
+	}
+	if base == nil {
+		base = zap.NewNop()
+	}
+
+	sink := &asyncAppLogPersistSink{
+		repo:  repo,
+		base:  base,
+		queue: make(chan appLogPersistRequest, appLogPersistQueueSize),
+	}
+	go sink.run()
+	return sink
 }
 
 func (l appLogger) Debug(ctx context.Context, message string, fields ...Field) {
-	l.base.Debug(sanitizeMessage(message), l.zapFields(ctx, fields...)...)
+	l.write(ctx, AppLogSeverityDebug, message, fields...)
 }
 
 func (l appLogger) Info(ctx context.Context, message string, fields ...Field) {
-	l.base.Info(sanitizeMessage(message), l.zapFields(ctx, fields...)...)
+	l.write(ctx, AppLogSeverityInfo, message, fields...)
 }
 
 func (l appLogger) Warn(ctx context.Context, message string, fields ...Field) {
-	l.base.Warn(sanitizeMessage(message), l.zapFields(ctx, fields...)...)
+	l.write(ctx, AppLogSeverityWarn, message, fields...)
 }
 
 func (l appLogger) Error(ctx context.Context, message string, fields ...Field) {
-	l.base.Error(sanitizeMessage(message), l.zapFields(ctx, fields...)...)
+	l.write(ctx, AppLogSeverityError, message, fields...)
 }
 
 func (l appLogger) Named(component string) AppLogger {
@@ -93,16 +168,146 @@ func (l appLogger) Named(component string) AppLogger {
 	}
 
 	return appLogger{
-		base: l.base.Named(component).With(zap.String(FieldComponent, component)),
+		base:   l.base.Named(component).With(zap.String(FieldComponent, component)),
+		sink:   l.sink,
+		now:    l.now,
+		fields: appendAppLoggerField(l.fields, StringField(FieldComponent, component)),
 	}
 }
 
 func (l appLogger) With(fields ...Field) AppLogger {
-	return appLogger{base: l.base.With(l.zapFields(context.Background(), fields...)...)}
+	return appLogger{
+		base:   l.base.With(l.zapFields(context.Background(), fields...)...),
+		sink:   l.sink,
+		now:    l.now,
+		fields: appendAppLoggerFields(l.fields, fields...),
+	}
 }
 
 func (l appLogger) Zap() *zap.Logger {
 	return l.base
+}
+
+func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message string, fields ...Field) {
+	sanitizedMessage := sanitizeMessage(message)
+	zapFields := l.zapFields(ctx, fields...)
+	switch severity {
+	case AppLogSeverityDebug:
+		l.base.Debug(sanitizedMessage, zapFields...)
+	case AppLogSeverityInfo:
+		l.base.Info(sanitizedMessage, zapFields...)
+	case AppLogSeverityWarn:
+		l.base.Warn(sanitizedMessage, zapFields...)
+	case AppLogSeverityError:
+		l.base.Error(sanitizedMessage, zapFields...)
+	}
+
+	l.persist(ctx, severity, sanitizedMessage, fields...)
+}
+
+func (l appLogger) persist(ctx context.Context, severity AppLogSeverity, message string, fields ...Field) {
+	if l.sink == nil || message == "" {
+		return
+	}
+
+	record, err := l.appLogRecord(ctx, severity, message, fields...)
+	if err != nil {
+		l.base.Warn("app log persistence skipped", zap.Error(err))
+		return
+	}
+
+	persistCtx := context.Background()
+	if ctx != nil {
+		persistCtx = context.WithoutCancel(ctx)
+	}
+	if _, err := l.sink.CreateAppLog(persistCtx, record); err != nil {
+		l.base.Warn("app log persistence failed", zap.Error(err))
+	}
+}
+
+func (s *asyncAppLogPersistSink) CreateAppLog(ctx context.Context, record CreateAppLogInput) (AppLogRecord, error) {
+	if s == nil || s.repo == nil {
+		return AppLogRecord{}, nil
+	}
+
+	select {
+	case s.queue <- appLogPersistRequest{ctx: ctx, record: record}:
+	default:
+	}
+	return AppLogRecord{}, nil
+}
+
+func (s *asyncAppLogPersistSink) run() {
+	for request := range s.queue {
+		ctx := request.ctx
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		persistCtx, cancel := context.WithTimeout(ctx, appLogPersistTimeout)
+		if _, err := s.repo.CreateAppLog(persistCtx, request.record); err != nil {
+			s.base.Warn("app log persistence failed", zap.Error(err))
+		}
+		cancel()
+	}
+}
+
+func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, message string, fields ...Field) (CreateAppLogInput, error) {
+	record := CreateAppLogInput{
+		OccurredAt: l.now().UTC(),
+		Severity:   severity,
+		Message:    message,
+		Fields:     make(map[string]string),
+	}
+	if correlation, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+		record.RequestID = correlation.RequestID
+		record.TraceID = correlation.TraceID
+		record.Route = correlation.Route
+		record.Method = correlation.Method
+	}
+
+	for _, field := range appendAppLoggerFields(l.fields, fields...) {
+		key := sanitizeFieldKey(field.Key)
+		if key == "" {
+			continue
+		}
+		value := stringifyAppLogFieldValue(key, sanitizeFieldValue(key, field.Value))
+		applyAppLogRecordField(&record, key, value)
+	}
+
+	if record.Component == "" {
+		record.Component = componentFromZapName(l.base.Name())
+	}
+
+	return record, nil
+}
+
+func applyAppLogRecordField(record *CreateAppLogInput, key string, value string) {
+	if record == nil {
+		return
+	}
+
+	if setter, ok := appLogTopLevelRecordSetters[key]; ok {
+		setter(record, value)
+		return
+	}
+	if isAppLogTopLevelField(key) || IsForbiddenAppLogPersistedField(key) {
+		return
+	}
+	record.Fields[key] = value
+}
+
+func appendAppLoggerFields(existing []Field, fields ...Field) []Field {
+	if len(existing) == 0 && len(fields) == 0 {
+		return nil
+	}
+	combined := make([]Field, 0, len(existing)+len(fields))
+	combined = append(combined, existing...)
+	combined = append(combined, fields...)
+	return combined
+}
+
+func appendAppLoggerField(existing []Field, field Field) []Field {
+	return appendAppLoggerFields(existing, field)
 }
 
 func (l appLogger) zapFields(ctx context.Context, fields ...Field) []zap.Field {
@@ -135,6 +340,23 @@ func appendStringField(fields []zap.Field, key string, value string) []zap.Field
 		fields = append(fields, zap.String(key, value))
 	}
 	return fields
+}
+
+func stringifyAppLogFieldValue(_ string, value any) string {
+	if value == nil {
+		return ""
+	}
+	if text, ok := value.(string); ok {
+		return sanitizeString(text)
+	}
+	if err, ok := value.(error); ok {
+		return sanitizeString(err.Error())
+	}
+	return sanitizeString(fmt.Sprint(value))
+}
+
+func componentFromZapName(name string) string {
+	return sanitizeComponent(strings.TrimSpace(name))
 }
 
 // StringField adds one canonical string application-log field.

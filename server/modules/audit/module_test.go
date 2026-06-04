@@ -141,6 +141,20 @@ func (r *memoryAuditRepository) ListAuditPolicyRules(_ context.Context) ([]store
 	return append([]store.AuditPolicyRule(nil), r.rules...), nil
 }
 
+func (r *memoryAuditRepository) DeleteAuditLogsBefore(_ context.Context, createdBefore time.Time) (int64, error) {
+	kept := r.items[:0]
+	deleted := int64(0)
+	for _, item := range r.items {
+		if item.CreatedAt.Before(createdBefore) {
+			deleted++
+			continue
+		}
+		kept = append(kept, item)
+	}
+	r.items = kept
+	return deleted, nil
+}
+
 type failingAuditRepository struct{}
 
 func (failingAuditRepository) CreateAuditLog(context.Context, store.CreateAuditLogInput) (store.AuditLog, error) {
@@ -161,6 +175,10 @@ func (failingAuditRepository) ReadIncident(context.Context, uint64) (store.Audit
 
 func (failingAuditRepository) ListAuditPolicyRules(context.Context) ([]store.AuditPolicyRule, error) {
 	return defaultModuleTestPolicyRules(), nil
+}
+
+func (failingAuditRepository) DeleteAuditLogsBefore(context.Context, time.Time) (int64, error) {
+	return 0, errors.New("delete failed")
 }
 
 type stubAuthService struct {
@@ -215,7 +233,7 @@ func newModuleTestContextWithLogger(t *testing.T, repo store.AuditRepository, lo
 	bus := eventbus.New(zap.NewNop())
 	ctx := &module.Context{
 		Logger:             logger,
-		Config:             &config.Config{},
+		Config:             &config.Config{Audit: config.AuditConfig{LogRetention: 30 * 24 * time.Hour}},
 		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		EventBus:           bus,
 		Router:             engine.Group("/api"),
@@ -270,7 +288,7 @@ func newModuleTestContextWithDrilldown(
 	bus := eventbus.New(zap.NewNop())
 	ctx := &module.Context{
 		Logger:             zap.NewNop(),
-		Config:             &config.Config{},
+		Config:             &config.Config{Audit: config.AuditConfig{LogRetention: 30 * 24 * time.Hour}},
 		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		EventBus:           bus,
 		Router:             engine.Group("/api"),

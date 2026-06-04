@@ -77,45 +77,76 @@ func (p *Module) Register(ctx *module.Context) error {
 	if err := registerAuditService(ctx, p.recorder); err != nil {
 		return err
 	}
-
 	logger := ctx.Logger
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	if ctx.Router != nil {
-		ctx.Router.Use(requestAuditMiddleware(logger, p.recorder))
-		guard, err := p.resolveRouteGuard(ctx)
-		if err != nil {
-			return err
-		}
-		registerAuditRoutes(ctx, moduleID, p.recorder, guard)
+	if err := p.registerRetention(ctx, logger); err != nil {
+		return err
+	}
+	if err := p.registerHTTP(ctx, logger); err != nil {
+		return err
 	}
 	if ctx.EventBus == nil {
 		return errors.New("event bus is unavailable")
 	}
 
-	return ctx.EventBus.Subscribe(string(moduleapi.AuditRecordEventName), func(eventCtx context.Context, event eventbus.Event) error {
-		payload, err := resolveAuditEventPayload(event.Payload)
-		if err != nil {
-			logger.Error("drop malformed audit event payload",
-				zap.String("module", moduleID),
-				zap.String("event", string(moduleapi.AuditRecordEventName)),
-				zap.Error(fmt.Errorf("unexpected audit event payload type %T", event.Payload)),
-			)
-			return nil
-		}
+	return subscribeAuditRecordEvents(ctx.EventBus, logger, p.recorder)
+}
 
-		if err := recordEvent(eventCtx, logger, p.recorder, payload); err != nil {
-			logger.Error("write active audit log failed",
-				zap.String("module", moduleID),
-				zap.String("event", string(moduleapi.AuditRecordEventName)),
-				zap.String("action", strings.TrimSpace(payload.Action)),
-				zap.Error(err),
-			)
-		}
+func (p *Module) registerRetention(ctx *module.Context, logger *zap.Logger) error {
+	if ctx.Config == nil {
+		return errors.New("audit module config is unavailable")
+	}
+	if err := registerAuditLogRetentionCleanupJob(ctx.CronRegistry, logger, p.recorder, ctx.Config.Audit); err != nil {
+		return fmt.Errorf("register audit log retention cleanup job: %w", err)
+	}
 
+	return nil
+}
+
+func (p *Module) registerHTTP(ctx *module.Context, logger *zap.Logger) error {
+	if ctx.Router == nil {
 		return nil
+	}
+
+	ctx.Router.Use(requestAuditMiddleware(logger, p.recorder))
+	guard, err := p.resolveRouteGuard(ctx)
+	if err != nil {
+		return err
+	}
+	registerAuditRoutes(ctx, moduleID, p.recorder, guard)
+
+	return nil
+}
+
+func subscribeAuditRecordEvents(bus eventbus.Bus, logger *zap.Logger, recorder *Service) error {
+	return bus.Subscribe(string(moduleapi.AuditRecordEventName), func(eventCtx context.Context, event eventbus.Event) error {
+		return handleAuditRecordEvent(eventCtx, logger, recorder, event)
 	})
+}
+
+func handleAuditRecordEvent(eventCtx context.Context, logger *zap.Logger, recorder *Service, event eventbus.Event) error {
+	payload, err := resolveAuditEventPayload(event.Payload)
+	if err != nil {
+		logger.Error("drop malformed audit event payload",
+			zap.String("module", moduleID),
+			zap.String("event", string(moduleapi.AuditRecordEventName)),
+			zap.Error(err),
+		)
+		return nil
+	}
+
+	if err := recordEvent(eventCtx, logger, recorder, payload); err != nil {
+		logger.Error("write active audit log failed",
+			zap.String("module", moduleID),
+			zap.String("event", string(moduleapi.AuditRecordEventName)),
+			zap.String("action", strings.TrimSpace(payload.Action)),
+			zap.Error(err),
+		)
+	}
+
+	return nil
 }
 
 // Boot resolves optional cross-module capabilities after all modules have completed Register.

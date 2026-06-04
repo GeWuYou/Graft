@@ -19,6 +19,7 @@ const DefaultMigrationDir = "default"
 const HistoricalSharedMigrationDir = "internal/ent/migrate/migrations"
 
 const accessLogMigrationDir = "internal/httpx/migrations"
+const appLogMigrationDir = "internal/logger/migrations"
 const drilldownMigrationDir = "internal/drilldown/migrations"
 
 // ModuleSpecs 返回 compile-time 生成的模块定义快照。
@@ -129,7 +130,7 @@ func BuildModules(buildCtx module.BuildContext, enabled []string) ([]module.Runt
 
 // CoreMigrationDirs 返回当前默认链路中的 core-owned live 迁移目录集合。
 func CoreMigrationDirs() []string {
-	return []string{accessLogMigrationDir, drilldownMigrationDir}
+	return []string{accessLogMigrationDir, appLogMigrationDir, drilldownMigrationDir}
 }
 
 // MigrationDirs 返回当前 compile-time registry 声明的默认迁移目录集合。

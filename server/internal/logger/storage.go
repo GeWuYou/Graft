@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -17,11 +18,32 @@ const (
 	FieldMessage = "message"
 	// FieldFields stores bounded structured app-log attributes.
 	FieldFields = "fields"
+
+	appLogDefaultPageSize = 20
+	appLogMaxPageSize     = 100
+)
+
+const (
+	// AppLogSortFieldOccurredAt orders App Log records by canonical occurrence time.
+	AppLogSortFieldOccurredAt AppLogSortField = "occurred_at"
+	// AppLogSortFieldSeverity orders App Log records by severity.
+	AppLogSortFieldSeverity AppLogSortField = "severity"
+	// AppLogSortFieldComponent orders App Log records by component.
+	AppLogSortFieldComponent AppLogSortField = "component"
+)
+
+const (
+	// AppLogSortOrderAsc orders App Log records from low to high.
+	AppLogSortOrderAsc AppLogSortOrder = "asc"
+	// AppLogSortOrderDesc orders App Log records from high to low.
+	AppLogSortOrderDesc AppLogSortOrder = "desc"
 )
 
 var (
 	errAppLogStorageModeRequired    = errors.New("app log storage mode is required")
 	errAppLogRetentionOwnerRequired = errors.New("app log retention owner is required")
+	// ErrAppLogNotFound reports that a requested app-log record is outside the retained dataset.
+	ErrAppLogNotFound = errors.New("app log not found")
 )
 
 var forbiddenAppLogPersistedFields = []string{
@@ -53,13 +75,25 @@ var forbiddenAppLogPersistedFields = []string{
 // AppLogSeverity describes the canonical persisted app-log severity surface.
 type AppLogSeverity string
 
+// AppLogSortField constrains App Log Explorer supported sort fields.
+type AppLogSortField string
+
+// AppLogSortOrder constrains App Log Explorer supported sort directions.
+type AppLogSortOrder string
+
+// AppLogSorter describes one validated App Log sort instruction.
+type AppLogSorter struct {
+	Field AppLogSortField
+	Order AppLogSortOrder
+}
+
 const (
 	// AppLogSeverityDebug persists debug-level runtime diagnostics.
 	AppLogSeverityDebug AppLogSeverity = "debug"
 	// AppLogSeverityInfo persists normal runtime progress events.
-	AppLogSeverityInfo  AppLogSeverity = "info"
+	AppLogSeverityInfo AppLogSeverity = "info"
 	// AppLogSeverityWarn persists degraded but recoverable runtime states.
-	AppLogSeverityWarn  AppLogSeverity = "warn"
+	AppLogSeverityWarn AppLogSeverity = "warn"
 	// AppLogSeverityError persists runtime failures that require investigation.
 	AppLogSeverityError AppLogSeverity = "error"
 )
@@ -70,7 +104,7 @@ type AppLogStorageMode string
 const (
 	// AppLogStorageModeProcessOutput keeps App Log truth on the current process logger output only.
 	AppLogStorageModeProcessOutput AppLogStorageMode = "process_output_only"
-	// AppLogStorageModeRepositoryDurableStore is reserved for a future approved repository-owned durable sink.
+	// AppLogStorageModeRepositoryDurableStore persists App Log truth into logger-owned repository storage.
 	AppLogStorageModeRepositoryDurableStore AppLogStorageMode = "repository_durable_store"
 )
 
@@ -80,7 +114,7 @@ type AppLogRetentionOwner string
 const (
 	// AppLogRetentionOwnerNone means the repository runtime owns no retention policy while App Log stays on process output.
 	AppLogRetentionOwnerNone AppLogRetentionOwner = "none"
-	// AppLogRetentionOwnerLogger is reserved for a future logger-owned durable store topic.
+	// AppLogRetentionOwnerLogger means logger owns the durable App Log retention cleanup lifecycle.
 	AppLogRetentionOwnerLogger AppLogRetentionOwner = "server_internal_logger"
 )
 
@@ -91,16 +125,16 @@ type AppLogStoragePolicy struct {
 	DefaultWindow  time.Duration
 }
 
-// DefaultAppLogStoragePolicy returns the MVP-truth policy for App Log storage authority.
-func DefaultAppLogStoragePolicy() AppLogStoragePolicy {
+// DefaultAppLogStoragePolicy returns the approved repository-owned durable App Log policy.
+func DefaultAppLogStoragePolicy(defaultWindow time.Duration) AppLogStoragePolicy {
 	return AppLogStoragePolicy{
-		Mode:           AppLogStorageModeProcessOutput,
-		RetentionOwner: AppLogRetentionOwnerNone,
-		DefaultWindow:  0,
+		Mode:           AppLogStorageModeRepositoryDurableStore,
+		RetentionOwner: AppLogRetentionOwnerLogger,
+		DefaultWindow:  defaultWindow,
 	}
 }
 
-// Validate ensures the policy does not invent retention ownership before a durable sink exists.
+// Validate ensures the storage policy keeps retention ownership aligned with persistence authority.
 func (p AppLogStoragePolicy) Validate() error {
 	if strings.TrimSpace(string(p.Mode)) == "" {
 		return errAppLogStorageModeRequired
@@ -131,11 +165,9 @@ func (p AppLogStoragePolicy) Validate() error {
 	return nil
 }
 
-// AppLogRecord defines the canonical persisted App Log field set for future durable storage.
-//
-// This topic only defines the storage authority foundation. It does not approve or wire a
-// repository-owned durable sink yet.
+// AppLogRecord defines the canonical persisted App Log field set.
 type AppLogRecord struct {
+	ID         uint64
 	OccurredAt time.Time
 	Severity   AppLogSeverity
 	Component  string
@@ -147,6 +179,36 @@ type AppLogRecord struct {
 	Method     string
 	Error      string
 	Fields     map[string]string
+}
+
+// CreateAppLogInput describes one canonical App Log record before repository normalization.
+type CreateAppLogInput = AppLogRecord
+
+// AppLogListQuery describes the logger-owned App Log read model.
+type AppLogListQuery struct {
+	Page         int
+	PageSize     int
+	Severity     AppLogSeverity
+	Component    string
+	Operation    string
+	RequestID    string
+	TraceID      string
+	Route        string
+	Method       string
+	Error        string
+	Message      string
+	Keyword      string
+	OccurredFrom *time.Time
+	OccurredTo   *time.Time
+	Sorters      []AppLogSorter
+}
+
+// AppLogListResult carries a paginated logger-owned App Log query result.
+type AppLogListResult struct {
+	Items    []AppLogRecord
+	Total    int64
+	Page     int
+	PageSize int
 }
 
 // Normalize sanitizes one canonical App Log persisted record shape without widening authority.
@@ -175,6 +237,42 @@ func (s AppLogSeverity) Validate() error {
 	}
 }
 
+func normalizeAppLogListQuery(query AppLogListQuery) AppLogListQuery {
+	query.Page = normalizePositivePage(query.Page)
+	query.PageSize = normalizeAppLogPageSize(query.PageSize)
+	query.Component = sanitizeComponent(query.Component)
+	query.Operation = sanitizeString(query.Operation)
+	query.RequestID = sanitizeString(query.RequestID)
+	query.TraceID = sanitizeString(query.TraceID)
+	query.Route = sanitizeString(query.Route)
+	query.Method = sanitizeString(query.Method)
+	query.Error = sanitizeString(query.Error)
+	query.Message = sanitizeString(query.Message)
+	query.Keyword = sanitizeString(query.Keyword)
+	if err := query.Severity.Validate(); err != nil {
+		query.Severity = ""
+	}
+	return query
+}
+
+func normalizePositivePage(page int) int {
+	if page < 1 {
+		return 1
+	}
+	return page
+}
+
+func normalizeAppLogPageSize(pageSize int) int {
+	switch {
+	case pageSize < 1:
+		return appLogDefaultPageSize
+	case pageSize > appLogMaxPageSize:
+		return appLogMaxPageSize
+	default:
+		return pageSize
+	}
+}
+
 // IsForbiddenAppLogPersistedField reports whether one field belongs to another authority boundary.
 func IsForbiddenAppLogPersistedField(key string) bool {
 	normalized := sanitizeFieldKey(key)
@@ -187,6 +285,7 @@ func IsForbiddenAppLogPersistedField(key string) bool {
 
 func newNormalizedAppLogRecord(r AppLogRecord) AppLogRecord {
 	return AppLogRecord{
+		ID:         r.ID,
 		OccurredAt: r.OccurredAt.UTC(),
 		Severity:   r.Severity,
 		Component:  sanitizeComponent(r.Component),
@@ -248,16 +347,27 @@ func validateAppLogRecordFieldKey(key string) error {
 
 func isAppLogTopLevelField(key string) bool {
 	switch key {
-	case FieldOccurredAt, FieldSeverity, FieldComponent, FieldMessage, FieldFields:
+	case FieldOccurredAt,
+		FieldSeverity,
+		FieldComponent,
+		FieldMessage,
+		FieldOperation,
+		FieldRequestID,
+		FieldTraceID,
+		FieldRoute,
+		FieldMethod,
+		FieldError,
+		FieldFields:
 		return true
 	default:
 		return false
 	}
 }
 
-// AppLogRepository is the future durable-store boundary for canonical App Log truth.
-//
-// This topic intentionally does not wire an implementation into runtime registration.
+// AppLogRepository owns durable persistence for canonical App Log truth.
 type AppLogRepository interface {
-	CreateAppLog(AppLogRecord) (AppLogRecord, error)
+	CreateAppLog(context.Context, CreateAppLogInput) (AppLogRecord, error)
+	DeleteAppLogsBefore(context.Context, time.Time) (int64, error)
+	ListAppLogs(context.Context, AppLogListQuery) (AppLogListResult, error)
+	GetAppLogByID(context.Context, uint64) (AppLogRecord, error)
 }

@@ -90,6 +90,29 @@ export function sessionIdForRecord(row: AuditLogListItem) {
   return row.session_id || metadataLookup(row, 'session_id') || '-';
 }
 
+export function traceIdForRecord(row: AuditLogListItem) {
+  return row.trace_id || metadataLookup(row, 'traceId') || metadataLookup(row, 'trace_id') || '-';
+}
+
+export function eventTypeForRecord(row: AuditLogListItem) {
+  return metadataLookup(row, 'eventType') || metadataLookup(row, 'event_type') || row.action || '-';
+}
+
+export function permissionForRecord(row: AuditLogListItem) {
+  return metadataLookup(row, 'permission') || (row.resource_type === 'permission' ? row.resource_id : '') || '-';
+}
+
+export function securityTargetForRecord(row: AuditLogListItem, t: Translate) {
+  const permission = permissionForRecord(row);
+
+  return (
+    metadataLookup(row, 'targetName') ||
+    metadataLookup(row, 'target_name') ||
+    (permission === '-' ? '' : permission) ||
+    resourceDetailLabel(row, t)
+  );
+}
+
 export function reasonForRecord(row: AuditLogListItem, t: Translate) {
   return (
     metadataLookup(row, 'reason') ||

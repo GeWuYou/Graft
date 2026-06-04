@@ -57,6 +57,29 @@ func (r *runtimeAccessLogRecorderRepo) GetAccessLogByID(context.Context, uint64)
 	return httpx.AccessLog{}, httpx.ErrAccessLogNotFound
 }
 
+type runtimeAppLogRecorderRepo struct {
+	created []logger.CreateAppLogInput
+	deleted []time.Time
+}
+
+func (r *runtimeAppLogRecorderRepo) CreateAppLog(_ context.Context, input logger.CreateAppLogInput) (logger.AppLogRecord, error) {
+	r.created = append(r.created, input)
+	return logger.AppLogRecord{}, nil
+}
+
+func (r *runtimeAppLogRecorderRepo) DeleteAppLogsBefore(_ context.Context, cutoff time.Time) (int64, error) {
+	r.deleted = append(r.deleted, cutoff)
+	return 0, nil
+}
+
+func (r *runtimeAppLogRecorderRepo) ListAppLogs(context.Context, logger.AppLogListQuery) (logger.AppLogListResult, error) {
+	return logger.AppLogListResult{}, nil
+}
+
+func (r *runtimeAppLogRecorderRepo) GetAppLogByID(context.Context, uint64) (logger.AppLogRecord, error) {
+	return logger.AppLogRecord{}, logger.ErrAppLogNotFound
+}
+
 type shutdownRecorderModule struct {
 	name        string
 	shutdownLog *[]string
@@ -230,7 +253,8 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 			Addr: "localhost:6379",
 		},
 		Log: config.LogConfig{
-			Level: "info",
+			Level:           "info",
+			AppLogRetention: 3 * 24 * time.Hour,
 		},
 		I18n: config.I18nConfig{
 			DefaultLocale:    "zh-CN",
@@ -240,13 +264,14 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	}
 	localizer := i18n.MustNew(cfg.I18n)
 	runtime := &Runtime{
-		config:   cfg,
-		logger:   runtimeLogger,
-		i18n:     localizer,
-		database: &database.Resources{SQL: sqlDB},
-		redis:    redisClient,
-		eventBus: runtimeEventBus,
-		services: container.New(),
+		config:           cfg,
+		logger:           runtimeLogger,
+		i18n:             localizer,
+		database:         &database.Resources{SQL: sqlDB},
+		redis:            redisClient,
+		eventBus:         runtimeEventBus,
+		services:         container.New(),
+		appLogRepository: &runtimeAppLogRecorderRepo{},
 	}
 
 	if err := runtime.registerCoreServices(); err != nil {
@@ -260,6 +285,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*sql.DB)(nil), sqlDB, "sql db")
 	assertResolvedService(t, runtime.services, (*redis.Client)(nil), redisClient, "redis client")
 	assertAppLoggerRegistered(t, runtime.services)
+	assertResolvedService(t, runtime.services, (*logger.AppLogRepository)(nil), runtime.appLogRepository, "app log repository")
 	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
 }
 
@@ -267,12 +293,19 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	recorderRepo := &runtimeAccessLogRecorderRepo{}
+	appLogRepo := &runtimeAppLogRecorderRepo{}
 	deps := runtimeCoreDeps{
 		newAccessLogRepository: func(db *sql.DB) (httpx.AccessLogRepository, error) {
 			if db == nil {
 				t.Fatal("expected runtime assembly to pass shared sql db into access log repository factory")
 			}
 			return recorderRepo, nil
+		},
+		newAppLogRepository: func(db *sql.DB) (logger.AppLogRepository, error) {
+			if db == nil {
+				t.Fatal("expected runtime assembly to pass shared sql db into app log repository factory")
+			}
+			return appLogRepo, nil
 		},
 		openRedisClient: func(context.Context, config.RedisConfig) (*redis.Client, error) {
 			return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"}), nil
@@ -292,7 +325,9 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 			Addr: "127.0.0.1:6379",
 		},
 		Log: config.LogConfig{
-			Level: "info",
+			Level:           "info",
+			AppLogPersist:   true,
+			AppLogRetention: 3 * 24 * time.Hour,
 		},
 		I18n: config.I18nConfig{
 			DefaultLocale:    "zh-CN",
@@ -324,6 +359,9 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 	}
 	if recorderRepo.created[0].Path != "/access-log-check" || recorderRepo.created[0].Route != "/access-log-check" {
 		t.Fatalf("expected canonical access-log route fields, got %#v", recorderRepo.created[0])
+	}
+	if runtime.appLogRepository != appLogRepo {
+		t.Fatal("expected runtime to retain logger-owned app log repository")
 	}
 }
 
@@ -628,9 +666,13 @@ func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {
 
 func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *testing.T) {
 	recorderRepo := &runtimeAccessLogRecorderRepo{}
+	appLogRepo := &runtimeAppLogRecorderRepo{}
 	deps := runtimeCoreDeps{
 		newAccessLogRepository: func(_ *sql.DB) (httpx.AccessLogRepository, error) {
 			return recorderRepo, nil
+		},
+		newAppLogRepository: func(_ *sql.DB) (logger.AppLogRepository, error) {
+			return appLogRepo, nil
 		},
 		openRedisClient: func(context.Context, config.RedisConfig) (*redis.Client, error) {
 			return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"}), nil
@@ -646,7 +688,7 @@ func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *te
 			URL:    "postgres://graft@localhost:5432/graft?sslmode=disable",
 		},
 		Redis: config.RedisConfig{Addr: "localhost:6379"},
-		Log:   config.LogConfig{Level: "info"},
+		Log:   config.LogConfig{Level: "info", AppLogPersist: true, AppLogRetention: 3 * 24 * time.Hour},
 		I18n:  config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}},
 		Auth: config.AuthConfig{
 			AccessTokenTTL:        time.Minute,
@@ -667,16 +709,25 @@ func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *te
 	if err := runtime.registerAccessLogRetentionJob(); err != nil {
 		t.Fatalf("register retention job: %v", err)
 	}
+	if err := runtime.registerAppLogRetentionJob(); err != nil {
+		t.Fatalf("register app-log retention job: %v", err)
+	}
 
 	items := runtime.cronRegistry.Items()
-	if len(items) != 1 {
-		t.Fatalf("expected one registered retention job, got %d", len(items))
+	if len(items) != 2 {
+		t.Fatalf("expected two registered retention jobs, got %d", len(items))
 	}
 	if items[0].Name != "httpx.access-log-retention-cleanup" {
 		t.Fatalf("expected retention job name, got %q", items[0].Name)
 	}
+	if items[1].Name != "logger.app-log-retention-cleanup" {
+		t.Fatalf("expected app-log retention job name, got %q", items[1].Name)
+	}
 	if len(recorderRepo.deleted) != 0 {
 		t.Fatalf("expected startup registration to avoid cleanup execution, got %d deletions", len(recorderRepo.deleted))
+	}
+	if len(appLogRepo.deleted) != 0 {
+		t.Fatalf("expected startup registration to avoid app-log cleanup execution, got %d deletions", len(appLogRepo.deleted))
 	}
 }
 

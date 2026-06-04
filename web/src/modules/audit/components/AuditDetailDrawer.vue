@@ -90,6 +90,28 @@
         </div>
       </section>
 
+      <section v-if="isSecurityEvent" class="audit-detail__section">
+        <h4>{{ t('audit.logList.drawer.sections.security') }}</h4>
+        <div class="audit-detail__security-panel">
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.eventType') }}</span>
+            <strong class="audit-detail__mono">{{ eventTypeForRecord(record) }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.permission') }}</span>
+            <strong class="audit-detail__mono">{{ permissionForRecord(record) }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.securityTarget') }}</span>
+            <strong>{{ securityTargetForRecord(record, t) }}</strong>
+          </div>
+          <div class="audit-detail__item">
+            <span>{{ t('audit.logList.drawer.fields.traceId') }}</span>
+            <strong class="audit-detail__mono">{{ traceIdForRecord(record) }}</strong>
+          </div>
+        </div>
+      </section>
+
       <section class="audit-detail__section">
         <h4>{{ t('audit.logList.drawer.sections.correlation') }}</h4>
         <div class="audit-detail__actions">
@@ -109,7 +131,7 @@
             variant="outline"
             @click="openRelatedRequest"
           >
-            {{ t('audit.logList.drawer.actions.viewRelatedRequest') }}
+            {{ relatedRequestActionLabel }}
           </t-button>
           <t-button v-if="record" size="small" theme="default" variant="outline" @click="openRelatedRecord">
             {{ t('audit.logList.drawer.actions.openRelatedEvents') }}
@@ -165,6 +187,9 @@
           <t-tag v-if="record.request_id" theme="default" variant="light-outline">
             {{ t('audit.logList.drawer.risk.requestTrace') }}
           </t-tag>
+          <t-tag v-if="isSecurityEvent" theme="danger" variant="light-outline">
+            {{ t('audit.logList.drawer.risk.securityEvent') }}
+          </t-tag>
         </div>
       </section>
 
@@ -200,9 +225,11 @@ import {
 import {
   actionTitle,
   actorLabel,
+  eventTypeForRecord,
   formatAuditTimestamp,
   isSensitiveAction,
   metadataLookup,
+  permissionForRecord,
   reasonForRecord,
   requestIdForRecord,
   resourceDetailLabel,
@@ -210,8 +237,10 @@ import {
   resultLabel,
   riskLabel,
   riskTone,
+  securityTargetForRecord,
   sessionIdForRecord,
   sourceLabel,
+  traceIdForRecord,
 } from '../shared/presentation';
 import type { AuditLogListItem } from '../types/audit';
 
@@ -263,6 +292,12 @@ async function copyRequestId(record: AuditLogListItem) {
 
 const monitorReturnLocation = computed(() =>
   props.monitorOrigin ? buildMonitorLocationFromOrigin(props.monitorOrigin) : null,
+);
+const isSecurityEvent = computed(() => props.record?.source === 'SECURITY_EVENT');
+const relatedRequestActionLabel = computed(() =>
+  isSecurityEvent.value
+    ? t('audit.logList.drawer.actions.viewAccessLogRequest')
+    : t('audit.logList.drawer.actions.viewRelatedRequest'),
 );
 
 function openMonitorContext() {
@@ -380,6 +415,7 @@ const sameResourceRows = computed(() => {
 .audit-detail__hero,
 .audit-detail__related-grid,
 .audit-detail__grid,
+.audit-detail__security-panel,
 .audit-detail__tags {
   display: grid;
   gap: 12px;
@@ -409,6 +445,14 @@ const sameResourceRows = computed(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.audit-detail__security-panel {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-default);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 12px;
+}
+
 .audit-detail__item {
   display: flex;
   flex-direction: column;
@@ -420,7 +464,8 @@ const sameResourceRows = computed(() => {
 }
 
 .audit-detail__mono {
-  font-family: var(--td-font-family-medium);
+  font-family: var(--td-font-family-mono, ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace);
+  overflow-wrap: anywhere;
 }
 
 .audit-detail__copy-line {
@@ -456,6 +501,7 @@ const sameResourceRows = computed(() => {
 @media (width <= 768px) {
   .audit-detail__hero,
   .audit-detail__grid,
+  .audit-detail__security-panel,
   .audit-detail__related-grid {
     grid-template-columns: 1fr;
   }
