@@ -91,7 +91,7 @@ func (r *appLogRepository) ListAppLogs(ctx context.Context, query AppLogListQuer
 
 	listArgs := append([]any(nil), args...)
 	listArgs = append(listArgs, normalized.PageSize, (normalized.Page-1)*normalized.PageSize)
-	selectQuery := r.buildAppLogListSelectQuery(whereSQL, len(args))
+	selectQuery := r.buildAppLogListSelectQuery(whereSQL, normalized.Sorters, len(args))
 
 	rows, err := r.db.QueryContext(ctx, selectQuery, listArgs...)
 	if err != nil {
@@ -203,7 +203,11 @@ func normalizeCreateAppLogInput(input CreateAppLogInput) (AppLogRecord, error) {
 	return input.Normalize()
 }
 
-func (r *appLogRepository) buildAppLogListSelectQuery(whereSQL string, filterArgCount int) string {
+func (r *appLogRepository) buildAppLogListSelectQuery(
+	whereSQL string,
+	sorters []AppLogSorter,
+	filterArgCount int,
+) string {
 	var builder strings.Builder
 	builder.WriteString(`SELECT
 		id,
@@ -220,11 +224,48 @@ func (r *appLogRepository) buildAppLogListSelectQuery(whereSQL string, filterArg
 		fields
 	FROM app_logs`)
 	builder.WriteString(whereSQL)
-	builder.WriteString(" ORDER BY occurred_at DESC, id DESC LIMIT ")
+	builder.WriteString(" ORDER BY ")
+	builder.WriteString(buildAppLogOrderByClause(sorters))
+	builder.WriteString(" LIMIT ")
 	builder.WriteString(r.placeholder(filterArgCount + 1))
 	builder.WriteString(" OFFSET ")
 	builder.WriteString(r.placeholder(filterArgCount + appLogListOffsetArgCount))
 	return builder.String()
+}
+
+func buildAppLogOrderByClause(sorters []AppLogSorter) string {
+	if len(sorters) == 0 {
+		return "occurred_at DESC, id DESC"
+	}
+
+	parts := make([]string, 0, len(sorters)+1)
+	for _, sorter := range sorters {
+		column := appLogSortColumn(sorter.Field)
+		if column == "" {
+			continue
+		}
+		order := "DESC"
+		if sorter.Order == AppLogSortOrderAsc {
+			order = "ASC"
+		}
+		parts = append(parts, column+" "+order)
+	}
+
+	parts = append(parts, "id DESC")
+	return strings.Join(parts, ", ")
+}
+
+func appLogSortColumn(field AppLogSortField) string {
+	switch field {
+	case AppLogSortFieldOccurredAt:
+		return "occurred_at"
+	case AppLogSortFieldSeverity:
+		return "severity"
+	case AppLogSortFieldComponent:
+		return "component"
+	default:
+		return ""
+	}
 }
 
 func (r *appLogRepository) buildAppLogDetailSelectQuery() string {

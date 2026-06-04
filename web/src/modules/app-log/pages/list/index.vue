@@ -1,16 +1,27 @@
 <template>
-  <div data-page-type="list-form-detail">
+  <div data-page-type="log-audit">
     <management-page-content>
       <management-page-header :title="t('appLog.page.title')" :description="t('appLog.page.description')">
         <template #eyebrow>{{ t('menu.logCenter.title') }}</template>
         <template #actions>
+          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
+            {{ t('appLog.page.columnSettings') }}
+          </t-button>
           <t-button theme="default" variant="outline" :loading="loading" @click="fetchAppLogs">
             {{ t('appLog.page.refresh') }}
           </t-button>
         </template>
       </management-page-header>
 
-      <app-log-filters v-model="filters" :loading="loading" @reset="resetFilters" @search="handleSearch" />
+      <app-log-filters
+        v-model="filters"
+        :active-preset="activePreset"
+        :loading="loading"
+        :presets="presetViews"
+        @apply-preset="applyPreset"
+        @reset="resetFilters"
+        @search="handleSearch"
+      />
 
       <management-empty-state
         v-if="listError && !loading"
@@ -36,16 +47,32 @@
         :rows="rows"
         :summary="tableSummary"
         :total="total"
+        :visible-column-keys="visibleColumnKeys"
         @detail="openDetail"
         @page-change="fetchAppLogs"
       />
     </management-page-content>
 
+    <t-drawer
+      v-model:visible="columnDrawerVisible"
+      :header="t('appLog.page.columnSettings')"
+      :footer="false"
+      placement="right"
+      size="320px"
+    >
+      <t-checkbox-group v-model="visibleColumnKeys">
+        <div class="column-grid">
+          <t-checkbox v-for="column in columnSettingOptions" :key="column.value" :value="column.value">
+            {{ column.label }}
+          </t-checkbox>
+        </div>
+      </t-checkbox-group>
+    </t-drawer>
+
     <app-log-detail-drawer v-model:visible="detailVisible" :record="detailRecord" />
   </div>
 </template>
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -53,9 +80,19 @@ import { useRoute, useRouter } from 'vue-router';
 import { resolveLocalizedErrorMessage as resolveAppLogErrorMessage } from '@/modules/shared/localized-api-error';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import {
+  assignEncodedSorters,
+  buildRecentHoursLocalRange,
+  createLogDetailErrorReporter,
+  createLogListErrorReporter,
+  createSingleSorter,
+  decodeSorters,
+  encodeSorters,
   localDateTimeToUtcIso,
   normalizePageStateRangeForRoute,
   normalizeRouteRangeForPageState,
+  normalizeSorters,
+  openLogDetailRow,
+  restartLogListQuery,
 } from '@/shared/observability';
 import { createLogger as createModuleLogger } from '@/utils/logger';
 
@@ -64,7 +101,7 @@ import AppLogDetailDrawer from '../../components/AppLogDetailDrawer.vue';
 import AppLogFilters from '../../components/AppLogFilters.vue';
 import AppLogTable from '../../components/AppLogTable.vue';
 import { buildAppLogLocation, parseAppLogRouteQuery } from '../../contract/deep-link';
-import type { AppLogFilterState, AppLogItem, AppLogQuery } from '../../types/app-log';
+import type { AppLogFilterState, AppLogItem, AppLogQuery, AppLogSortBy, AppLogSortOrder } from '../../types/app-log';
 
 defineOptions({
   name: 'AppLogListIndex',
@@ -75,6 +112,8 @@ const logger = createModuleLogger('app-log.list');
 const route = useRoute();
 const router = useRouter();
 
+type AppLogPresetKey = 'all' | 'errors' | 'warnings' | 'lastHour';
+
 const loading = ref(false);
 const listError = ref('');
 const rows = ref<AppLogItem[]>([]);
@@ -82,15 +121,50 @@ const total = ref(0);
 const detailVisible = ref(false);
 const detailRecord = ref<AppLogItem | null>(null);
 const applyingRoute = ref(false);
-const routeHydrated = ref(false);
+const activePreset = ref<AppLogPresetKey>('all');
+const columnDrawerVisible = ref(false);
+const visibleColumnKeys = ref(['occurred_at', 'severity', 'component', 'operation', 'message', 'correlation']);
 const pagination = ref({
   current: 1,
   pageSize: 20,
 });
 const filters = ref<AppLogFilterState>(createDefaultFilters());
 
+const presetViews = computed(() => [
+  { key: 'all' as const, title: t('appLog.presets.all') },
+  { key: 'errors' as const, title: t('appLog.presets.errors') },
+  { key: 'warnings' as const, title: t('appLog.presets.warnings') },
+  { key: 'lastHour' as const, title: t('appLog.presets.lastHour') },
+]);
+const sortOptions = computed(() => [
+  { label: t('appLog.filters.sortOccurredAt'), value: 'occurred_at' as const },
+  { label: t('appLog.filters.sortSeverity'), value: 'severity' as const },
+  { label: t('appLog.filters.sortComponent'), value: 'component' as const },
+]);
+const columnSettingOptions = computed(() => [
+  { label: t('appLog.columns.occurredAt'), value: 'occurred_at' },
+  { label: t('appLog.columns.severity'), value: 'severity' },
+  { label: t('appLog.columns.component'), value: 'component' },
+  { label: t('appLog.columns.operation'), value: 'operation' },
+  { label: t('appLog.columns.message'), value: 'message' },
+  { label: t('appLog.columns.correlation'), value: 'correlation' },
+  { label: t('appLog.columns.fields'), value: 'fields' },
+]);
 const tableSummary = computed(() => t('appLog.page.summary', { count: rows.value.length }));
 const footerSummary = computed(() => t('appLog.page.footerTotal', { count: total.value }));
+const reportListLoadError = createLogListErrorReporter<AppLogItem>({
+  fallbackMessage: () => t('appLog.page.loadFailed'),
+  listError,
+  logger,
+  logMessage: 'failed to fetch app logs',
+  resolveMessage: (cause, fallback) => resolveAppLogErrorMessage(t, cause, fallback),
+  rows,
+  total,
+});
+const reportDetailLoadError = createLogDetailErrorReporter({
+  fallbackMessage: () => t('appLog.page.loadFailed'),
+  resolveMessage: (cause, fallback) => resolveAppLogErrorMessage(t, cause, fallback),
+});
 
 function createDefaultFilters(): AppLogFilterState {
   return {
@@ -103,6 +177,7 @@ function createDefaultFilters(): AppLogFilterState {
     traceId: '',
     message: '',
     error: '',
+    sorters: createSingleSorter('occurred_at', 'desc'),
   };
 }
 
@@ -111,6 +186,7 @@ function buildQuery(): AppLogQuery {
     page: pagination.value.current,
     page_size: pagination.value.pageSize,
   };
+  assignEncodedSorters(query, filters.value.sorters, sortOptions.value);
 
   if (filters.value.keyword) query.keyword = filters.value.keyword;
   if (filters.value.severity) query.severity = filters.value.severity;
@@ -148,31 +224,47 @@ function applyListResponse(response: Awaited<ReturnType<typeof getAppLogs>>) {
 }
 
 function handleListLoadError(error: unknown) {
-  rows.value = [];
-  total.value = 0;
-  logger.error('failed to fetch app logs', error);
-  listError.value = resolveAppLogErrorMessage(t, error, t('appLog.page.loadFailed'));
-  MessagePlugin.error(listError.value);
+  reportListLoadError(error);
 }
 
 async function openDetail(row: AppLogItem) {
-  try {
-    detailRecord.value = await getAppLogDetail(Number(row.id));
-    detailVisible.value = true;
-  } catch (error) {
-    MessagePlugin.error(resolveAppLogErrorMessage(t, error, t('appLog.page.loadFailed')));
-  }
+  await openLogDetailRow(row, getAppLogDetail, detailRecord, detailVisible, reportDetailLoadError);
 }
 
 function resetFilters() {
   filters.value = createDefaultFilters();
-  pagination.value.current = 1;
-  void updateRouteQuery();
+  restartQuery();
 }
 
 function handleSearch() {
-  pagination.value.current = 1;
-  void updateRouteQuery();
+  restartQuery();
+}
+
+function applyPreset(preset: AppLogPresetKey) {
+  filters.value = {
+    ...createDefaultFilters(),
+    ...buildPresetFilters(preset),
+    sorters: filters.value.sorters,
+  };
+  restartQuery(preset);
+}
+
+function restartQuery(preset?: AppLogPresetKey) {
+  restartLogListQuery({ activePreset, pagination, preset, updateRouteQuery });
+}
+
+function buildPresetFilters(preset: AppLogPresetKey): Partial<AppLogFilterState> {
+  const now = new Date();
+  switch (preset) {
+    case 'errors':
+      return { severity: 'error' };
+    case 'warnings':
+      return { severity: 'warn' };
+    case 'lastHour':
+      return { occurredRange: buildRecentHoursLocalRange(now, 1) };
+    default:
+      return {};
+  }
 }
 
 function applyRouteFilters() {
@@ -187,7 +279,9 @@ function applyRouteFilters() {
     trace_id: traceId = '',
     message = '',
     error = '',
+    sort = [],
   } = parseAppLogRouteQuery(route.query);
+  const parsedSorters = decodeSorters(sort, normalizeSortBy, normalizeSortOrder);
 
   filters.value = {
     keyword,
@@ -200,7 +294,30 @@ function applyRouteFilters() {
     traceId,
     message,
     error,
+    sorters: (() => {
+      const normalized = normalizeSorters(parsedSorters, sortOptions.value);
+      return normalized.length ? normalized : createSingleSorter('occurred_at', 'desc');
+    })(),
   };
+}
+
+function buildRouteQuery() {
+  const normalizedSorters = normalizeSorters(filters.value.sorters, sortOptions.value);
+  const occurredRange = normalizePageStateRangeForRoute(filters.value.occurredRange);
+
+  return buildAppLogLocation({
+    keyword: filters.value.keyword,
+    occurred_from: occurredRange[0],
+    occurred_to: occurredRange[1],
+    severity: filters.value.severity,
+    component: filters.value.component,
+    operation: filters.value.operation,
+    request_id: filters.value.requestId,
+    trace_id: filters.value.traceId,
+    message: filters.value.message,
+    error: filters.value.error,
+    sort: encodeSorters(normalizedSorters, sortOptions.value),
+  });
 }
 
 async function updateRouteQuery() {
@@ -208,35 +325,55 @@ async function updateRouteQuery() {
     return;
   }
 
-  const occurredRange = normalizePageStateRangeForRoute(filters.value.occurredRange);
-  await router.replace(
-    buildAppLogLocation({
-      keyword: filters.value.keyword,
-      occurred_from: occurredRange[0],
-      occurred_to: occurredRange[1],
-      severity: filters.value.severity,
-      component: filters.value.component,
-      operation: filters.value.operation,
-      request_id: filters.value.requestId,
-      trace_id: filters.value.traceId,
-      message: filters.value.message,
-      error: filters.value.error,
-    }),
-  );
-  await fetchAppLogs();
+  const targetLocation = buildRouteQuery();
+  const currentLocation = buildAppLogLocation(route.query);
+  if (JSON.stringify(targetLocation.query) === JSON.stringify(currentLocation.query)) {
+    await fetchAppLogs();
+    return;
+  }
+
+  await router.replace(targetLocation);
 }
 
 watch(
-  () => route.query,
+  () => [
+    route.query.keyword,
+    route.query.occurred_from,
+    route.query.occurred_to,
+    route.query.severity,
+    route.query.component,
+    route.query.operation,
+    route.query.request_id,
+    route.query.trace_id,
+    route.query.message,
+    route.query.error,
+    route.query.sort,
+  ],
   () => {
     applyingRoute.value = true;
-    applyRouteFilters();
-    applyingRoute.value = false;
-    if (!routeHydrated.value) {
-      routeHydrated.value = true;
-      void fetchAppLogs();
+    try {
+      applyRouteFilters();
+    } finally {
+      applyingRoute.value = false;
     }
+    pagination.value.current = 1;
+    void fetchAppLogs();
   },
   { immediate: true },
 );
+
+function normalizeSortBy(value: string): AppLogSortBy | '' {
+  return value === 'severity' || value === 'component' ? value : value === 'occurred_at' ? 'occurred_at' : '';
+}
+
+function normalizeSortOrder(value: string): AppLogSortOrder {
+  return value === 'asc' ? 'asc' : 'desc';
+}
 </script>
+<style scoped lang="less">
+.column-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+</style>

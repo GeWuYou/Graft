@@ -139,3 +139,39 @@ func TestAppLogRepositoryDeleteBefore(t *testing.T) {
 		t.Fatalf("expected one deleted row, got %d", deleted)
 	}
 }
+
+func TestAppLogRepositorySortsByRequestedFields(t *testing.T) {
+	repo := newSQLiteAppLogRepository(t)
+	ctx := context.Background()
+	base := time.Date(2026, 6, 4, 8, 0, 0, 0, time.UTC)
+
+	for _, input := range []CreateAppLogInput{
+		{OccurredAt: base, Severity: AppLogSeverityWarn, Component: "modules.user", Message: "third"},
+		{OccurredAt: base.Add(time.Minute), Severity: AppLogSeverityError, Component: "core.app", Message: "first"},
+		{OccurredAt: base.Add(2 * time.Minute), Severity: AppLogSeverityInfo, Component: "modules.auth", Message: "second"},
+	} {
+		if _, err := repo.CreateAppLog(ctx, input); err != nil {
+			t.Fatalf("seed app log: %v", err)
+		}
+	}
+
+	result, err := repo.ListAppLogs(ctx, AppLogListQuery{
+		Sorters: []AppLogSorter{
+			{Field: AppLogSortFieldComponent, Order: AppLogSortOrderAsc},
+		},
+	})
+	if err != nil {
+		t.Fatalf("list app logs: %v", err)
+	}
+
+	got := make([]string, 0, len(result.Items))
+	for _, item := range result.Items {
+		got = append(got, item.Component)
+	}
+	expected := []string{"core.app", "modules.auth", "modules.user"}
+	for index := range expected {
+		if got[index] != expected[index] {
+			t.Fatalf("expected component order %#v, got %#v", expected, got)
+		}
+	}
+}

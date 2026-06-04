@@ -21,7 +21,8 @@
       "emptyDescription": "Adjust filters and try again.",
       "detailTitle": "App Log Detail",
       "searchPlaceholder": "Search component, operation, message, or error",
-      "tableHint": "The table is ordered by latest retained occurrence time."
+      "tableHint": "The table is ordered by latest retained occurrence time.",
+      "columnSettings": "Column Settings"
     },
     "actions": {
       "search": "Search",
@@ -29,7 +30,19 @@
       "detail": "Detail",
       "copy": "Copy",
       "copySuccess": "Copied",
-      "copyFail": "Copy failed"
+      "copyFail": "Copy failed",
+      "addFilter": "Add Filter",
+      "addSorter": "Add Sorter",
+      "removeSorter": "Remove Sorter",
+      "moveSorterUp": "Move Up",
+      "moveSorterDown": "Move Down"
+    },
+    "presets": {
+      "label": "Quick Filters",
+      "all": "All",
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "lastHour": "Last Hour"
     },
     "filters": {
       "occurredRange": "Occurrence Time",
@@ -43,7 +56,35 @@
       "message": "Message",
       "error": "Error",
       "keyword": "Keyword",
-      "allSeverity": "All Severities"
+      "allSeverity": "All Severities",
+      "sortOccurredAt": "Occurrence Time",
+      "sortSeverity": "Severity",
+      "sortComponent": "Component",
+      "sortAsc": "Ascending",
+      "sortDesc": "Descending"
+    },
+    "sort": {
+      "tagPrefix": "Sort",
+      "fieldPlaceholder": "Sort Field",
+      "directionPlaceholder": "Sort Direction"
+    },
+    "builder": {
+      "title": "Filters",
+      "hint": "Select a field to edit conditions; active conditions appear as tags below.",
+      "groups": {
+        "filters": "Filters"
+      },
+      "fields": {
+        "timeRange": "Time Range",
+        "sorterBuilder": "Sort Order",
+        "severity": "Severity",
+        "component": "Component",
+        "operation": "Operation",
+        "requestId": "Request ID",
+        "traceId": "Trace ID",
+        "message": "Message",
+        "error": "Error"
+      }
     },
     "columns": {
       "occurredAt": "Occurred At",

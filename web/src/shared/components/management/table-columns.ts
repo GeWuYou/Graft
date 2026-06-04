@@ -140,3 +140,29 @@ export function calculateTableContentWidth(columns: TdBaseTableProps['columns'])
 
   return `max(100%, ${totalWidth}px)`;
 }
+
+export type TextColumnSpec = {
+  config?: ColumnConfig;
+  key: string;
+  kind?: 'text';
+  title: string;
+};
+
+export type TimeColumnSpec = {
+  key: string;
+  kind: 'time';
+  title: string;
+  width?: number;
+};
+
+export type ConfiguredColumnSpec = TextColumnSpec | TimeColumnSpec;
+
+export function createConfiguredColumns(specs: ConfiguredColumnSpec[]) {
+  return specs.map((spec) => {
+    if (spec.kind === 'time') {
+      return createTimeColumn(spec.title, spec.key, spec.width);
+    }
+
+    return createTextColumn(spec.title, spec.key, spec.config);
+  });
+}

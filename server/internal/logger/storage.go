@@ -23,6 +23,22 @@ const (
 	appLogMaxPageSize     = 100
 )
 
+const (
+	// AppLogSortFieldOccurredAt orders App Log records by canonical occurrence time.
+	AppLogSortFieldOccurredAt AppLogSortField = "occurred_at"
+	// AppLogSortFieldSeverity orders App Log records by severity.
+	AppLogSortFieldSeverity AppLogSortField = "severity"
+	// AppLogSortFieldComponent orders App Log records by component.
+	AppLogSortFieldComponent AppLogSortField = "component"
+)
+
+const (
+	// AppLogSortOrderAsc orders App Log records from low to high.
+	AppLogSortOrderAsc AppLogSortOrder = "asc"
+	// AppLogSortOrderDesc orders App Log records from high to low.
+	AppLogSortOrderDesc AppLogSortOrder = "desc"
+)
+
 var (
 	errAppLogStorageModeRequired    = errors.New("app log storage mode is required")
 	errAppLogRetentionOwnerRequired = errors.New("app log retention owner is required")
@@ -58,6 +74,18 @@ var forbiddenAppLogPersistedFields = []string{
 
 // AppLogSeverity describes the canonical persisted app-log severity surface.
 type AppLogSeverity string
+
+// AppLogSortField constrains App Log Explorer supported sort fields.
+type AppLogSortField string
+
+// AppLogSortOrder constrains App Log Explorer supported sort directions.
+type AppLogSortOrder string
+
+// AppLogSorter describes one validated App Log sort instruction.
+type AppLogSorter struct {
+	Field AppLogSortField
+	Order AppLogSortOrder
+}
 
 const (
 	// AppLogSeverityDebug persists debug-level runtime diagnostics.
@@ -172,6 +200,7 @@ type AppLogListQuery struct {
 	Keyword      string
 	OccurredFrom *time.Time
 	OccurredTo   *time.Time
+	Sorters      []AppLogSorter
 }
 
 // AppLogListResult carries a paginated logger-owned App Log query result.

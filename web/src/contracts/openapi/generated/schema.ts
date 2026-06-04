@@ -4412,6 +4412,15 @@ export interface operations {
         message?: string;
         /** @description Bounded fuzzy match applied to the app-log error text only. */
         error?: string;
+        /** @description Repeated sort fields encoded as `field:direction`. */
+        sort?: (
+          | 'occurred_at:desc'
+          | 'occurred_at:asc'
+          | 'severity:desc'
+          | 'severity:asc'
+          | 'component:desc'
+          | 'component:asc'
+        )[];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

@@ -1,82 +1,69 @@
 <template>
-  <management-table-card>
-    <template #head>
-      <section class="table-head" aria-label="app-log-table-head">
-        <p class="table-head__description">{{ description }}</p>
-        <p class="table-head__summary">{{ summary }}</p>
-      </section>
+  <log-paged-table
+    v-model:current="current"
+    v-model:page-size="pageSize"
+    :cell-slot-names="cellSlotNames"
+    :columns="columns"
+    :description="description"
+    :empty-description="emptyDescription"
+    :empty-title="t('appLog.page.emptyTitle')"
+    :footer-summary="footerSummary"
+    head-label="app-log-table-head"
+    :loading="loading"
+    :rows="rows"
+    :summary="summary"
+    :total="total"
+    @page-change="$emit('page-change')"
+  >
+    <template #occurred_at="{ row }">
+      <span>{{ formatCompactDateTime(appLogRow(row).occurred_at, locale) }}</span>
     </template>
-    <t-table
-      row-key="id"
-      :columns="columns"
-      :data="rows"
-      :loading="loading"
-      table-layout="fixed"
-      :table-content-width="tableContentWidth"
-      cell-empty-content="-"
-      hover
-    >
-      <template #occurred_at="{ row }">
-        <span>{{ formatCompactDateTime(row.occurred_at, locale) }}</span>
-      </template>
-      <template #severity="{ row }">
-        <t-tag :theme="appLogSeverityTheme(row.severity)" variant="light-outline" size="small">
-          {{ row.severity.toUpperCase() }}
-        </t-tag>
-      </template>
-      <template #message="{ row }">
-        <div class="stack-cell">
-          <strong>{{ row.message }}</strong>
-          <span v-if="row.error" class="stack-cell__secondary">{{ row.error }}</span>
-        </div>
-      </template>
-      <template #operation="{ row }">
-        <span>{{ appLogOperationText(row, t) }}</span>
-      </template>
-      <template #correlation="{ row }">
-        <log-id-text :display-value="appLogCorrelationText(row, t)" :tooltip="appLogCorrelationText(row, t)" />
-      </template>
-      <template #fields="{ row }">
-        <span>{{ appLogFieldsCount(row) }}</span>
-      </template>
-      <template #actions="{ row }">
-        <table-action-menu
-          :actions="[{ label: t('appLog.actions.detail'), testId: 'app-log-detail', value: 'detail' }]"
-          :more-label="t('appLog.actions.detail')"
-          @action="() => $emit('detail', row)"
-        />
-      </template>
-      <template #empty>
-        <div class="table-empty-state">
-          <t-empty :title="t('appLog.page.emptyTitle')" :description="emptyDescription" />
-        </div>
-      </template>
-    </t-table>
-    <template #footer>
-      <div class="app-log-pagination">
-        <span>{{ footerSummary }}</span>
-        <t-pagination
-          v-model:current="current"
-          v-model:page-size="pageSize"
-          :total="total"
-          :page-size-options="paginationSizes"
-          @change="$emit('page-change')"
-        />
+    <template #severity="{ row }">
+      <t-tag :theme="appLogSeverityTheme(appLogRow(row).severity)" variant="light-outline" size="small">
+        {{ appLogRow(row).severity.toUpperCase() }}
+      </t-tag>
+    </template>
+    <template #message="{ row }">
+      <div class="stack-cell">
+        <strong>{{ appLogRow(row).message }}</strong>
+        <span v-if="appLogRow(row).error" class="stack-cell__secondary">{{ appLogRow(row).error }}</span>
       </div>
     </template>
-  </management-table-card>
+    <template #operation="{ row }">
+      <span>{{ appLogOperationText(appLogRow(row), t) }}</span>
+    </template>
+    <template #correlation="{ row }">
+      <log-id-text
+        :display-value="appLogCorrelationText(appLogRow(row), t)"
+        :tooltip="appLogCorrelationText(appLogRow(row), t)"
+      />
+    </template>
+    <template #fields="{ row }">
+      <span>{{ appLogFieldsCount(appLogRow(row)) }}</span>
+    </template>
+    <template #actions="{ row }">
+      <table-action-menu
+        :actions="[{ label: t('appLog.actions.detail'), testId: 'app-log-detail', value: 'detail' }]"
+        :more-label="t('appLog.actions.detail')"
+        @action="() => $emit('detail', appLogRow(row))"
+      />
+    </template>
+  </log-paged-table>
 </template>
 <script setup lang="ts">
 import type { TdBaseTableProps } from 'tdesign-vue-next';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
-  calculateTableContentWidth,
+  createActionColumn,
+  createConfiguredColumns,
   formatCompactDateTime,
-  ManagementTableCard,
+  resolveManagedColumns,
   TableActionMenu,
 } from '@/shared/components/management';
 import { LogIdText } from '@/shared/observability';
+import LogPagedTable from '@/shared/observability/LogPagedTable.vue';
 
 import {
   appLogCorrelationText,
@@ -86,12 +73,7 @@ import {
 } from '../shared/presentation';
 import type { AppLogItem } from '../types/app-log';
 
-type AppLogTableEmits = {
-  detail: [row: AppLogItem];
-  'page-change': [];
-};
-
-defineProps<{
+const props = defineProps<{
   description: string;
   emptyDescription: string;
   footerSummary: string;
@@ -99,46 +81,44 @@ defineProps<{
   rows: AppLogItem[];
   summary: string;
   total: number;
+  visibleColumnKeys?: string[];
 }>();
 
-defineEmits<AppLogTableEmits>();
-
-const { t, locale } = useI18n();
-const paginationSizes = [10, 20, 50, 100];
-
-const columns = buildAppLogColumns();
-const tableContentWidth = calculateTableContentWidth(columns);
 const current = defineModel<number>('current', { required: true });
+const { t, locale } = useI18n();
+const emit = defineEmits<{
+  (e: 'page-change'): void;
+  (e: 'detail', row: AppLogItem): void;
+}>();
 const pageSize = defineModel<number>('pageSize', { required: true });
+const cellSlotNames = ['occurred_at', 'severity', 'message', 'operation', 'correlation', 'fields', 'actions'];
 
-function buildAppLogColumns(): TdBaseTableProps['columns'] {
-  const baseColumn = { ellipsis: { theme: 'default' as const, placement: 'top-left' as const } };
-  const specs = [
-    ['occurred_at', 'appLog.columns.occurredAt', { width: 176, align: 'center' as const }],
-    ['severity', 'appLog.columns.severity', { width: 110 }],
-    ['component', 'appLog.columns.component', { minWidth: 210 }],
-    ['operation', 'appLog.columns.operation', { minWidth: 160 }],
-    ['message', 'appLog.columns.message', { minWidth: 360 }],
-    ['correlation', 'appLog.columns.correlation', { width: 240 }],
-    ['fields', 'appLog.columns.fields', { width: 90, align: 'center' as const }],
-    ['actions', 'appLog.columns.actions', { width: 104, align: 'center' as const, fixed: 'right' as const }],
-  ] as const;
-
+const columns = computed<TdBaseTableProps['columns']>(() => {
   void locale.value;
-  return specs.map(([colKey, titleKey, options]) => ({
-    ...baseColumn,
-    title: t(titleKey),
-    colKey,
-    ...options,
-    ...(colKey === 'actions' ? { ellipsis: false } : {}),
-  }));
+  const allColumns: TdBaseTableProps['columns'] = [
+    ...createConfiguredColumns([
+      { kind: 'time', key: 'occurred_at', title: t('appLog.columns.occurredAt'), width: 176 },
+      { key: 'severity', title: t('appLog.columns.severity'), config: { width: 110 } },
+      { key: 'component', title: t('appLog.columns.component'), config: { minWidth: 210 } },
+      { key: 'operation', title: t('appLog.columns.operation'), config: { minWidth: 160 } },
+      { key: 'message', title: t('appLog.columns.message'), config: { minWidth: 360 } },
+      { key: 'correlation', title: t('appLog.columns.correlation'), config: { width: 240 } },
+      { key: 'fields', title: t('appLog.columns.fields'), config: { width: 90, align: 'center' } },
+    ]),
+    createActionColumn(t('appLog.columns.actions'), 104),
+  ];
+
+  return resolveManagedColumns(allColumns, props.visibleColumnKeys, ['actions']);
+});
+
+function appLogRow(row: unknown) {
+  return row as AppLogItem;
 }
 
 void LogIdText;
+void emit;
 </script>
 <style scoped lang="less">
-.table-head__summary,
-.table-head__description,
 .stack-cell__secondary {
   color: var(--td-text-color-secondary);
   margin: 0;
@@ -148,27 +128,5 @@ void LogIdText;
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.table-empty-state {
-  padding: 24px 0 8px;
-}
-
-.app-log-pagination {
-  align-items: center;
-  color: var(--td-text-color-secondary);
-  display: flex;
-  font: var(--td-font-body-small);
-  gap: 16px;
-  justify-content: space-between;
-  min-height: 60px;
-  width: 100%;
-}
-
-@media (width <= 768px) {
-  .app-log-pagination {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 </style>

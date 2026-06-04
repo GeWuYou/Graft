@@ -73,7 +73,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -82,8 +81,11 @@ import { useAuthSessionStore } from '@/modules/auth/store';
 import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/modules/shared/localized-api-error';
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import {
+  assignEncodedSorters,
   buildRecentHoursLocalRange,
   buildTodayLocalRange,
+  createLogDetailErrorReporter,
+  createLogListErrorReporter,
   createSingleSorter,
   decodeSorters,
   encodeSorters,
@@ -91,6 +93,8 @@ import {
   normalizePageStateRangeForRoute,
   normalizeRouteRangeForPageState,
   normalizeSorters,
+  openLogDetailRow,
+  restartLogListQuery,
 } from '@/shared/observability';
 import { createLogger as createModuleLogger } from '@/utils/logger';
 
@@ -99,6 +103,7 @@ import AccessLogDetailDrawer from '../../components/AccessLogDetailDrawer.vue';
 import AccessLogFilters from '../../components/AccessLogFilters.vue';
 import AccessLogTable from '../../components/AccessLogTable.vue';
 import { buildAccessLogLocation, parseAccessLogRouteQuery } from '../../contract/deep-link';
+import { buildAccessLogSortOptions } from '../../shared/presentation';
 import type { AccessLogFilterState, AccessLogItem, AccessLogQuery } from '../../types/access-log';
 
 defineOptions({
@@ -147,12 +152,7 @@ const presetViews = computed(() => [
   { key: 'currentUser' as const, title: t('accessLog.presets.currentUser') },
   { key: 'lastHour' as const, title: t('accessLog.presets.lastHour') },
 ]);
-const sortOptions = computed(() => [
-  { label: t('accessLog.filters.sortStartedAt'), value: 'started_at' as const },
-  { label: t('accessLog.filters.sortOccurredAt'), value: 'occurred_at' as const },
-  { label: t('accessLog.filters.sortDuration'), value: 'duration_ms' as const },
-  { label: t('accessLog.filters.sortStatusCode'), value: 'status_code' as const },
-]);
+const sortOptions = computed(() => buildAccessLogSortOptions(t));
 const columnSettingOptions = computed(() => [
   { label: t('accessLog.columns.occurredAt'), value: 'occurred_at' },
   { label: t('accessLog.columns.method'), value: 'method' },
@@ -176,6 +176,19 @@ const emptyDescription = computed(() => {
   }
   return t('accessLog.page.emptyDescription');
 });
+const reportListLoadError = createLogListErrorReporter<AccessLogItem>({
+  fallbackMessage: () => t('accessLog.page.loadFailed'),
+  listError,
+  logger,
+  logMessage: 'failed to fetch access logs',
+  resolveMessage: (cause, fallback) => resolveAccessLogErrorMessage(t, cause, fallback),
+  rows,
+  total,
+});
+const reportDetailLoadError = createLogDetailErrorReporter({
+  fallbackMessage: () => t('accessLog.page.loadFailed'),
+  resolveMessage: (cause, fallback) => resolveAccessLogErrorMessage(t, cause, fallback),
+});
 
 function createDefaultFilters(): AccessLogFilterState {
   return {
@@ -197,17 +210,12 @@ function createDefaultFilters(): AccessLogFilterState {
 }
 
 function buildQuery(): AccessLogQuery {
-  const normalizedSorters = normalizeSorters(filters.value.sorters, sortOptions.value);
   const query: AccessLogQuery = {
     page: pagination.value.current,
     page_size: pagination.value.pageSize,
     path_match: filters.value.pathMatch,
   };
-
-  const encodedSorters = encodeSorters(normalizedSorters, sortOptions.value);
-  if (encodedSorters.length) {
-    query.sort = encodedSorters;
-  }
+  assignEncodedSorters(query, filters.value.sorters, sortOptions.value);
 
   if (filters.value.keyword) query.keyword = filters.value.keyword;
   if (filters.value.requestId) query.request_id = filters.value.requestId;
@@ -239,48 +247,37 @@ async function fetchAccessLogs() {
     rows.value = response.items;
     total.value = response.total;
   } catch (error) {
-    rows.value = [];
-    total.value = 0;
-    logger.error('failed to fetch access logs', error);
-    listError.value = resolveAccessLogErrorMessage(t, error, t('accessLog.page.loadFailed'));
-    MessagePlugin.error(listError.value);
+    reportListLoadError(error);
   } finally {
     loading.value = false;
   }
 }
 
 async function openDetail(row: AccessLogItem) {
-  try {
-    detailRecord.value = await getAccessLogDetail(Number(row.id));
-    detailVisible.value = true;
-  } catch (error) {
-    MessagePlugin.error(resolveAccessLogErrorMessage(t, error, t('accessLog.page.loadFailed')));
-  }
+  await openLogDetailRow(row, getAccessLogDetail, detailRecord, detailVisible, reportDetailLoadError);
 }
 
 function resetFilters() {
-  activePreset.value = 'all';
   filters.value = createDefaultFilters();
-  pagination.value.current = 1;
-  void updateRouteQuery();
+  restartQuery();
 }
 
 function handleSearch() {
-  activePreset.value = 'all';
-  pagination.value.current = 1;
-  void updateRouteQuery();
+  restartQuery();
 }
 
 function applyPreset(preset: AccessLogPresetKey) {
-  activePreset.value = preset;
   filters.value = {
     ...createDefaultFilters(),
     ...buildPresetFilters(preset),
     requestId: filters.value.requestId,
     sorters: filters.value.sorters,
   };
-  pagination.value.current = 1;
-  void updateRouteQuery();
+  restartQuery(preset);
+}
+
+function restartQuery(preset?: AccessLogPresetKey) {
+  restartLogListQuery({ activePreset, pagination, preset, updateRouteQuery });
 }
 
 function buildPresetFilters(preset: AccessLogPresetKey): Partial<AccessLogFilterState> {

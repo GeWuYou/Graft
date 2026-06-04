@@ -47,6 +47,7 @@ const (
 	appLogRouteItemParam = "id"
 	appLogMenuRootOrder  = 210
 	appLogMenuListOrder  = 212
+	appLogSortPartCount  = 2
 )
 
 // AppLogExplorerRegistration carries the core registries required by the logger-owned read surface.
@@ -289,6 +290,7 @@ var appLogAllowedListQueryKeys = map[string]struct{}{
 	"keyword":       {},
 	"message":       {},
 	"error":         {},
+	"sort":          {},
 }
 
 func bindAppLogListQuery(ctx *gin.Context) (AppLogListQuery, string) {
@@ -314,8 +316,66 @@ func bindAppLogListQuery(ctx *gin.Context) (AppLogListQuery, string) {
 	query.Keyword = strings.TrimSpace(ctx.Query("keyword"))
 	query.Message = strings.TrimSpace(ctx.Query("message"))
 	query.Error = strings.TrimSpace(ctx.Query("error"))
+	if invalidField := bindAppLogSort(ctx, &query); invalidField != "" {
+		return query, invalidField
+	}
 
 	return query, ""
+}
+
+func bindAppLogSort(ctx *gin.Context, query *AppLogListQuery) string {
+	values := ctx.QueryArray("sort")
+	if len(values) == 0 {
+		return ""
+	}
+
+	sorters := make([]AppLogSorter, 0, len(values))
+	seen := make(map[AppLogSortField]struct{}, len(values))
+	for _, rawValue := range values {
+		sorter, ok := parseAppLogSorter(rawValue)
+		if !ok {
+			return "sort"
+		}
+		if _, exists := seen[sorter.Field]; exists {
+			continue
+		}
+		seen[sorter.Field] = struct{}{}
+		sorters = append(sorters, sorter)
+	}
+
+	query.Sorters = sorters
+	return ""
+}
+
+func parseAppLogSorter(rawValue string) (AppLogSorter, bool) {
+	parts := strings.Split(strings.TrimSpace(rawValue), ":")
+	if len(parts) == 0 || len(parts) > appLogSortPartCount {
+		return AppLogSorter{}, false
+	}
+
+	field := AppLogSortField(strings.TrimSpace(parts[0]))
+	if !isAllowedAppLogSortField(field) {
+		return AppLogSorter{}, false
+	}
+
+	order := AppLogSortOrderDesc
+	if len(parts) == appLogSortPartCount {
+		order = AppLogSortOrder(strings.TrimSpace(parts[1]))
+	}
+	if order != AppLogSortOrderAsc && order != AppLogSortOrderDesc {
+		return AppLogSorter{}, false
+	}
+
+	return AppLogSorter{Field: field, Order: order}, true
+}
+
+func isAllowedAppLogSortField(field AppLogSortField) bool {
+	switch field {
+	case AppLogSortFieldOccurredAt, AppLogSortFieldSeverity, AppLogSortFieldComponent:
+		return true
+	default:
+		return false
+	}
 }
 
 func bindAppLogPagination(ctx *gin.Context, query *AppLogListQuery) string {

@@ -37,6 +37,43 @@
 - Updated at:
   2026-05-22
 
+## LESSON-WEB-UI-LOG-AUDIT-001：日志审计页必须按页面类型复用标准结构
+
+- Status: active
+- Level: L2
+- Applies to:
+  - `web` log and audit pages
+  - `log-audit` page type
+  - access-log, app-log, and future observability list pages
+- Source:
+  - app-log page remediation after user feedback that the page did not follow the access-log page pattern
+  - duplicate local implementations discovered while aligning app-log with access-log
+- Problem:
+  日志类页面若按单页临时实现，很容易出现筛选器、表格排序、详情抽屉、深链参数、空态、错误提示和交互文案不一致。
+  这种分叉会让相同类型页面看起来像不同产品，也会在严格重复代码检查下产生维护成本。
+- Correct pattern:
+  新增或重做日志审计页时，先声明页面类型为 `log-audit`，再以访问日志这类已验证页面为主模板。筛选构建器、分页表格、
+  URL 深链、列表错误提示和交互处理应优先沉淀到 `web/src/shared/observability` 或同类型共享层，由页面只提供领域字段、
+  API 查询和展示文案。
+- Anti-pattern:
+  - 在每个日志页手写一套筛选器、表格、详情抽屉和 URL 参数解析
+  - 只复制访问日志页面的视觉结果，却保留不同的数据流和交互语义
+  - 用本地兼容映射掩盖后端契约缺少排序、筛选或分页字段的问题
+  - 为通过重复代码检查而做无语义的改名或拆行
+- Enforcement:
+  修改日志类页面时，检查根节点或页面元信息是否标识 `log-audit`，并对照访问日志页面确认筛选、表格、详情、深链、
+  i18n 和错误态结构一致。若 app-log 或 future log 页面需要新增行为，优先评估能否扩展共享 observability helper，
+  同时用 `bun run dupcode:check` 和相关 Vitest 用例验证没有重新分叉。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `web/src/modules/access-log/pages/list/index.vue`
+  - `web/src/modules/app-log/pages/list/index.vue`
+  - `web/src/shared/observability`
+- Updated at:
+  2026-06-04
+
 ## LESSON-WEB-UI-PAGE-CONTAINER-001：后台页面容器应统一复用共享容器与宽度变量策略
 
 - Status: active

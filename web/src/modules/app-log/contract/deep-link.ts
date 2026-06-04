@@ -1,4 +1,6 @@
-import type { LocationQuery, LocationQueryValue } from 'vue-router';
+import type { LocationQuery } from 'vue-router';
+
+import { buildLogListLocation, parseLogRouteQuery } from '@/shared/observability';
 
 import { APP_LOG_ROUTE_PATH } from './paths';
 
@@ -13,6 +15,7 @@ export type AppLogRouteQuery = Partial<{
   trace_id: string;
   message: string;
   error: string;
+  sort: string | string[];
 }>;
 
 const APP_LOG_QUERY_KEYS = [
@@ -30,30 +33,12 @@ const APP_LOG_QUERY_KEYS = [
 
 type AppLogQueryKey = (typeof APP_LOG_QUERY_KEYS)[number];
 
-function readQueryString(source: LocationQuery | AppLogRouteQuery, key: AppLogQueryKey) {
-  const values = ([] as LocationQueryValue[]).concat(source[key] ?? []);
-  const candidate = values.find((item) => typeof item === 'string');
-
-  return typeof candidate === 'string' ? candidate.trim() : '';
-}
-
 export function parseAppLogRouteQuery(query: LocationQuery | AppLogRouteQuery): AppLogRouteQuery {
-  return Object.fromEntries(APP_LOG_QUERY_KEYS.map((key) => [key, readQueryString(query, key)])) as AppLogRouteQuery;
+  return parseLogRouteQuery<AppLogRouteQuery>(query, APP_LOG_QUERY_KEYS);
 }
 
 export function buildAppLogLocation(query: AppLogRouteQuery) {
-  const normalizedQuery: Record<string, string> = {};
-  const parsedQuery = parseAppLogRouteQuery(query);
-
-  APP_LOG_QUERY_KEYS.forEach((key) => {
-    const value = parsedQuery[key];
-    if (value) {
-      normalizedQuery[key] = value;
-    }
-  });
-
-  return {
-    path: APP_LOG_ROUTE_PATH.LIST,
-    query: normalizedQuery,
-  };
+  return buildLogListLocation(APP_LOG_ROUTE_PATH.LIST, APP_LOG_QUERY_KEYS, query);
 }
+
+void (null as unknown as AppLogQueryKey);

@@ -1,6 +1,15 @@
 import type { ComposerTranslation } from 'vue-i18n';
 
-import type { AccessLogItem } from '../types/access-log';
+import type { AccessLogItem, AccessLogSortBy } from '../types/access-log';
+
+export function buildAccessLogSortOptions(t: ComposerTranslation) {
+  return [
+    { label: t('accessLog.filters.sortStartedAt'), value: 'started_at' },
+    { label: t('accessLog.filters.sortOccurredAt'), value: 'occurred_at' },
+    { label: t('accessLog.filters.sortDuration'), value: 'duration_ms' },
+    { label: t('accessLog.filters.sortStatusCode'), value: 'status_code' },
+  ] satisfies Array<{ label: string; value: AccessLogSortBy }>;
+}
 
 export function accessLogPathSecondary(record: Pick<AccessLogItem, 'path' | 'route'>) {
   const route = record.route?.trim();

@@ -1,4 +1,6 @@
-import type { LocationQuery, LocationQueryValue } from 'vue-router';
+import type { LocationQuery } from 'vue-router';
+
+import { buildLogListLocation, parseLogRouteQuery } from '@/shared/observability';
 
 import { ACCESS_LOG_ROUTE_PATH } from './paths';
 
@@ -42,59 +44,16 @@ const ACCESS_LOG_QUERY_KEYS = [
 ] as const;
 type AccessLogQueryKey = (typeof ACCESS_LOG_QUERY_KEYS)[number];
 
-function readQueryString(source: LocationQuery | AccessLogRouteQuery, key: AccessLogQueryKey) {
-  const rawValue = source[key] as LocationQueryValue | LocationQueryValue[] | undefined;
-  const candidate = Array.isArray(rawValue) ? rawValue.find((item) => typeof item === 'string') : rawValue;
-
-  return typeof candidate === 'string' ? candidate.trim() : '';
-}
-
 export function parseAccessLogRouteQuery(query: LocationQuery | AccessLogRouteQuery): AccessLogRouteQuery {
-  const parsedQuery: AccessLogRouteQuery = {};
-
-  for (const key of ACCESS_LOG_QUERY_KEYS) {
-    parsedQuery[key] = readQueryString(query, key);
-  }
-
-  const rawSort = query.sort as LocationQueryValue | LocationQueryValue[] | undefined;
-  if (Array.isArray(rawSort)) {
-    parsedQuery.sort = rawSort
-      .filter((item): item is string => typeof item === 'string')
-      .map((item) => item.trim())
-      .filter(Boolean);
-  } else if (typeof rawSort === 'string' && rawSort.trim()) {
-    parsedQuery.sort = rawSort.trim();
-  }
-
-  return parsedQuery;
+  return parseLogRouteQuery<AccessLogRouteQuery>(query, ACCESS_LOG_QUERY_KEYS);
 }
 
 export function buildAccessLogLocation(query: AccessLogRouteQuery) {
-  const normalizedQuery: Record<string, string | string[]> = {};
-  const parsedQuery = parseAccessLogRouteQuery(query);
-
-  ACCESS_LOG_QUERY_KEYS.forEach((key) => {
-    const value = parsedQuery[key];
-    if (value) {
-      normalizedQuery[key] = value;
-    }
-  });
-
-  if (Array.isArray(parsedQuery.sort)) {
-    const sortValues = parsedQuery.sort.filter((item): item is string => Boolean(item));
-    if (sortValues.length) {
-      normalizedQuery.sort = sortValues;
-    }
-  } else if (typeof parsedQuery.sort === 'string' && parsedQuery.sort) {
-    normalizedQuery.sort = [parsedQuery.sort];
-  }
-
-  return {
-    path: ACCESS_LOG_ROUTE_PATH.LIST,
-    query: normalizedQuery,
-  };
+  return buildLogListLocation(ACCESS_LOG_ROUTE_PATH.LIST, ACCESS_LOG_QUERY_KEYS, query);
 }
 
 export function buildAccessLogRequestLocation(requestId: string) {
   return buildAccessLogLocation({ request_id: requestId });
 }
+
+void (null as unknown as AccessLogQueryKey);

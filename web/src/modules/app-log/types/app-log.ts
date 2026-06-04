@@ -1,9 +1,13 @@
 import type { components } from '@/contracts/openapi/generated/schema';
+import type { QuerySorter } from '@/shared/observability';
 
 export type AppLogSeverity = components['schemas']['app-log-detail-response']['severity'];
 export type AppLogItem = components['schemas']['app-log-detail-response'];
 export type AppLogListResponse = components['schemas']['app-log-list-response'];
 export type AppLogDetailResponse = components['schemas']['AppLogDetailResponse'];
+export type AppLogSortBy = 'occurred_at' | 'severity' | 'component';
+export type AppLogSortOrder = 'asc' | 'desc';
+export type AppLogSorter = QuerySorter<AppLogSortBy>;
 
 export type AppLogQuery = {
   page?: number;
@@ -18,6 +22,7 @@ export type AppLogQuery = {
   keyword?: string;
   message?: string;
   error?: string;
+  sort?: string[];
 };
 
 export type AppLogFilterState = {
@@ -30,4 +35,5 @@ export type AppLogFilterState = {
   traceId: string;
   message: string;
   error: string;
+  sorters: AppLogSorter[];
 };

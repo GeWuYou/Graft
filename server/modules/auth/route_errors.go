@@ -13,6 +13,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	applog "graft/server/internal/logger"
+	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 )
 
@@ -21,6 +22,7 @@ const maxSessionListLimit = 100
 type routeRuntime struct {
 	localizer  *i18n.Service
 	logger     *zap.Logger
+	appLog     applog.AppLogger
 	moduleName string
 	authFlow   moduleapi.AuthFlowService
 }
@@ -29,13 +31,36 @@ func (r authRouteRegistrar) runtime() routeRuntime {
 	return routeRuntime{
 		localizer:  r.ctx.I18n,
 		logger:     r.ctx.Logger,
+		appLog:     resolveAuthRouteAppLogger(r.ctx),
 		moduleName: r.moduleName,
 		authFlow:   r.authFlow,
 	}
 }
 
 func (r routeRuntime) appLogger() applog.AppLogger {
+	if r.appLog != nil {
+		return r.appLog.Named("modules.auth.route")
+	}
+
 	return applog.NewAppLogger(r.logger).Named("modules.auth.route")
+}
+
+func resolveAuthRouteAppLogger(ctx *module.Context) applog.AppLogger {
+	if ctx == nil || ctx.Services == nil {
+		return nil
+	}
+
+	resolved, err := ctx.Services.Resolve((*applog.AppLogger)(nil))
+	if err != nil {
+		return nil
+	}
+
+	appLogger, ok := resolved.(applog.AppLogger)
+	if !ok {
+		return nil
+	}
+
+	return appLogger
 }
 
 func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {

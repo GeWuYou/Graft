@@ -1,9 +1,13 @@
 export { copyText } from './copy';
+export { buildLogListLocation, parseLogRouteQuery } from './deep-link';
+export { createLogDetailErrorReporter, createLogListErrorReporter } from './list-errors';
+export { openLogDetailRow, restartLogListQuery } from './list-interactions';
 export { default as LogIdText } from './LogIdText.vue';
 export { default as LogJsonPanel } from './LogJsonPanel.vue';
 export type { QuerySorter, SortDirection, SorterState } from './sorters';
 export {
   appendSorterToState,
+  assignEncodedSorters,
   createSingleSorter,
   decodeSorters,
   encodeSorters,

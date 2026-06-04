@@ -21,7 +21,8 @@
       "emptyDescription": "调整筛选条件后重试。",
       "detailTitle": "应用日志详情",
       "searchPlaceholder": "搜索组件、操作、消息或错误",
-      "tableHint": "列表默认按当前保留范围内的最新发生时间排序。"
+      "tableHint": "列表默认按当前保留范围内的最新发生时间排序。",
+      "columnSettings": "列设置"
     },
     "actions": {
       "search": "查询",
@@ -29,7 +30,19 @@
       "detail": "详情",
       "copy": "复制",
       "copySuccess": "已复制",
-      "copyFail": "复制失败"
+      "copyFail": "复制失败",
+      "addFilter": "添加筛选条件",
+      "addSorter": "添加排序项",
+      "removeSorter": "移除排序项",
+      "moveSorterUp": "上移",
+      "moveSorterDown": "下移"
+    },
+    "presets": {
+      "label": "快捷筛选",
+      "all": "全部",
+      "errors": "错误",
+      "warnings": "警告",
+      "lastHour": "最近一小时"
     },
     "filters": {
       "occurredRange": "发生时间",
@@ -43,7 +56,35 @@
       "message": "消息",
       "error": "错误",
       "keyword": "关键词",
-      "allSeverity": "全部级别"
+      "allSeverity": "全部级别",
+      "sortOccurredAt": "发生时间",
+      "sortSeverity": "级别",
+      "sortComponent": "组件",
+      "sortAsc": "升序",
+      "sortDesc": "降序"
+    },
+    "sort": {
+      "tagPrefix": "排序",
+      "fieldPlaceholder": "排序字段",
+      "directionPlaceholder": "排序方向"
+    },
+    "builder": {
+      "title": "筛选条件",
+      "hint": "选择字段后编辑条件，已生效条件会在下方标签中展示。",
+      "groups": {
+        "filters": "筛选条件"
+      },
+      "fields": {
+        "timeRange": "时间范围",
+        "sorterBuilder": "排序方式",
+        "severity": "级别",
+        "component": "组件",
+        "operation": "操作",
+        "requestId": "请求 ID",
+        "traceId": "Trace ID",
+        "message": "消息",
+        "error": "错误"
+      }
     },
     "columns": {
       "occurredAt": "发生时间",

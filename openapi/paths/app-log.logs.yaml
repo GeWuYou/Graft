@@ -65,6 +65,22 @@ get:
       description: Bounded fuzzy match applied to the app-log error text only.
       schema:
         type: string
+    - name: sort
+      in: query
+      description: Repeated sort fields encoded as `field:direction`.
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - occurred_at:desc
+            - occurred_at:asc
+            - severity:desc
+            - severity:asc
+            - component:desc
+            - component:asc
+      style: form
+      explode: true
   security:
     - bearerAuth: []
   responses:

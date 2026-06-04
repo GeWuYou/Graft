@@ -1,6 +1,21 @@
 import { computed, type Ref } from 'vue';
 
-import { buildSorterUiState, type QuerySorter, type SortDirection, type SortOption } from './sorters';
+import type { LogFilterFieldDefinition, LogFilterPreset, LogFilterTag, LogTimeRangeField } from './log-filter-builder';
+import type { LogFilterBuilderFrameState } from './LogFilterBuilderFrame.vue';
+import {
+  appendSorterToState,
+  buildSorterUiState,
+  moveSorterInState,
+  prependSorterTags,
+  type QuerySorter,
+  removeSorterFromState,
+  type SortDirection,
+  type SortOption,
+  withSorterDirectionFromInput,
+  withSorterFieldFromInput,
+} from './sorters';
+
+type SorterInputValue = string | number | Array<string | number> | undefined;
 
 type BuilderListenerConfig<TPreset extends string, TFieldKey extends string, TTimeValue> = {
   addSorter: () => void;
@@ -32,6 +47,35 @@ export function useLogSorterUiState<Field extends string>(
     sortMoveDownDisabled: computed(() => sorterUiState.value.sortMoveDownDisabled),
     sortMoveUpDisabled: computed(() => sorterUiState.value.sortMoveUpDisabled),
   };
+}
+
+function useLogSorterControls<Field extends string, State extends { sorters: QuerySorter<Field>[] }>(config: {
+  emit: (state: State) => void;
+  normalizeField: (value: string) => Field | '';
+  sortOptions: () => Array<SortOption<Field>>;
+  state: () => State;
+}) {
+  return {
+    mutators: createSorterStateMutators(config),
+    ui: useLogSorterUiState(
+      () => config.state().sorters,
+      () => config.sortOptions(),
+    ),
+  };
+}
+
+export function useLogSorterControlsForModel<Field extends string, State extends { sorters: QuerySorter<Field>[] }>(
+  model: () => State,
+  emit: (state: State) => void,
+  normalizeField: (value: string) => Field | '',
+  sortOptions: () => Array<SortOption<Field>>,
+) {
+  return useLogSorterControls({
+    emit,
+    normalizeField,
+    sortOptions,
+    state: model,
+  });
 }
 
 export function createLogBuilderListeners<TPreset extends string, TFieldKey extends string, TTimeValue>(
@@ -71,4 +115,187 @@ export function createLogBuilderListeners<TPreset extends string, TFieldKey exte
 
 export function createSortDirection(value: string): SortDirection {
   return value === 'asc' ? 'asc' : 'desc';
+}
+
+export function buildLogTimeTag(label: string, range: string[], separator = ':') {
+  if (!range.length) {
+    return '';
+  }
+
+  return `${label}${separator}${separator === '：' ? '' : ' '}${range.filter(Boolean).join(' ~ ')}`;
+}
+
+function createSorterStateMutators<Field extends string, State extends { sorters: QuerySorter<Field>[] }>(config: {
+  emit: (state: State) => void;
+  fallbackDirection?: SortDirection;
+  normalizeField: (value: string) => Field | '';
+  sortOptions: () => Array<SortOption<Field>>;
+  state: () => State;
+}) {
+  const fallbackDirection = config.fallbackDirection ?? 'desc';
+  const normalizeDirection = (value: string) => createSortDirection(value);
+  const emitUpdatedState = (state: State) => config.emit(state);
+
+  return {
+    addSorter: () => emitUpdatedState(appendSorterToState(config.state(), config.sortOptions())),
+    moveSorterDown: (index: number) =>
+      emitUpdatedState(moveSorterInState(config.state(), index, 1, config.sortOptions())),
+    moveSorterUp: (index: number) =>
+      emitUpdatedState(moveSorterInState(config.state(), index, -1, config.sortOptions())),
+    removeSorter: (index: number) =>
+      emitUpdatedState(removeSorterFromState(config.state(), index, config.sortOptions())),
+    updateSortDirection: (index: number, value: SorterInputValue) =>
+      emitUpdatedState(
+        withSorterDirectionFromInput(config.state(), index, value, normalizeDirection, config.sortOptions()),
+      ),
+    updateSortField: (index: number, value: SorterInputValue) =>
+      emitUpdatedState(
+        withSorterFieldFromInput(
+          config.state(),
+          index,
+          value,
+          config.normalizeField,
+          config.sortOptions(),
+          fallbackDirection,
+        ),
+      ),
+  };
+}
+
+type LogFilterBuilderFrameInput = Omit<LogFilterBuilderFrameState, 'sortFieldKey' | 'timeFieldKey'>;
+
+function buildLogFilterBuilderFrame(config: LogFilterBuilderFrameInput): LogFilterBuilderFrameState {
+  return {
+    ...config,
+    sortFieldKey: 'sorterBuilder',
+    timeFieldKey: 'timeRange',
+  };
+}
+
+function createLogFilterBuilderFrameState(config: {
+  activePreset: () => string;
+  fieldValues: () => Record<string, string | string[]>;
+  fields: () => LogFilterFieldDefinition[];
+  keyword: () => string;
+  listeners: Record<string, (...args: never[]) => void>;
+  loading: () => boolean | undefined;
+  presets: () => LogFilterPreset[];
+  selectedFieldKey: Ref<string>;
+  sorterUi: ReturnType<typeof useLogSorterUiState<string>>;
+  sortDirectionOptions: () => Array<{ label: string; value: string }>;
+  tags: () => LogFilterTag[];
+  timeFields: () => LogTimeRangeField[];
+}) {
+  return computed<LogFilterBuilderFrameState>(() =>
+    buildLogFilterBuilderFrame({
+      activePreset: config.activePreset(),
+      fieldValues: config.fieldValues(),
+      fields: config.fields(),
+      keyword: config.keyword(),
+      listeners: config.listeners,
+      loading: config.loading(),
+      presets: config.presets(),
+      selectedFieldKey: config.selectedFieldKey.value,
+      sortAddDisabled: config.sorterUi.sortAddDisabled.value,
+      sortDirectionOptions: config.sortDirectionOptions(),
+      sortFieldOptionsByIndex: config.sorterUi.sortFieldOptionsByIndex.value,
+      sortMoveDownDisabled: config.sorterUi.sortMoveDownDisabled.value,
+      sortMoveUpDisabled: config.sorterUi.sortMoveUpDisabled.value,
+      sorters: config.sorterUi.normalizedSorters.value,
+      tags: config.tags(),
+      timeFields: config.timeFields(),
+    }),
+  );
+}
+
+export function createLogFilterBuilderFrameStateFromSource(config: {
+  fieldValues: () => Record<string, string | string[]>;
+  fields: () => LogFilterFieldDefinition[];
+  listeners: Record<string, (...args: never[]) => void>;
+  selectedFieldKey: Ref<string>;
+  sorterUi: ReturnType<typeof useLogSorterUiState<string>>;
+  sortDirectionOptions: () => Array<{ label: string; value: string }>;
+  source: () => {
+    activePreset: string;
+    loading?: boolean;
+    presets: LogFilterPreset[];
+  };
+  keyword: () => string;
+  tags: () => LogFilterTag[];
+  timeFields: () => LogTimeRangeField[];
+}) {
+  return createLogFilterBuilderFrameState({
+    activePreset: () => config.source().activePreset,
+    fieldValues: config.fieldValues,
+    fields: config.fields,
+    keyword: config.keyword,
+    listeners: config.listeners,
+    loading: () => config.source().loading,
+    presets: () => config.source().presets,
+    selectedFieldKey: config.selectedFieldKey,
+    sorterUi: config.sorterUi,
+    sortDirectionOptions: config.sortDirectionOptions,
+    tags: config.tags,
+    timeFields: config.timeFields,
+  });
+}
+
+function buildFieldFilterTags<State extends Record<string, unknown>, Key extends string>(
+  fields: LogFilterFieldDefinition[],
+  state: State,
+  separator = ':',
+) {
+  return fields.reduce<Array<LogFilterTag & { key: Key }>>((tags, definition) => {
+    if (definition.kind === 'special') {
+      return tags;
+    }
+
+    const rawValue = state[definition.key];
+    const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+    if (!value) {
+      return tags;
+    }
+
+    const label =
+      definition.kind === 'select'
+        ? definition.options?.find((option) => option.value === value)?.label || String(value)
+        : String(value);
+    const separatorGap = separator === '：' ? '' : ' ';
+    tags.push({ key: definition.key as Key, label: `${definition.label}${separator}${separatorGap}${label}` });
+    return tags;
+  }, []);
+}
+
+export function buildLogActiveTags<
+  State extends Record<string, unknown>,
+  Key extends string,
+  Field extends string,
+>(config: {
+  fields: LogFilterFieldDefinition[];
+  filterState: State;
+  fieldSeparator?: string;
+  sortOptions: Array<SortOption<Field>>;
+  sorterPrefix: string;
+  sorters: QuerySorter<Field>[];
+  timeTags?: LogFilterTag[];
+}) {
+  const filterTags = buildFieldFilterTags<State, Key>(config.fields, config.filterState, config.fieldSeparator ?? ':');
+
+  return prependSorterTags(
+    [...(config.timeTags ?? []), ...filterTags],
+    config.sorters,
+    config.sortOptions,
+    config.sorterPrefix,
+  );
+}
+
+export function updateLogFilterStateField<State extends Record<string, unknown>, Key extends keyof State>(
+  state: State,
+  key: Key,
+  value: State[Key],
+): State {
+  return {
+    ...state,
+    [key]: typeof value === 'string' ? value.trim() : value,
+  };
 }

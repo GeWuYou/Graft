@@ -1,113 +1,42 @@
 <template>
-  <section class="app-log-filters">
-    <t-form :data="modelValue" layout="inline" label-align="top" @submit.prevent="$emit('search')">
-      <t-form-item :label="t('appLog.filters.keyword')">
-        <t-input
-          :value="modelValue.keyword"
-          clearable
-          :placeholder="t('appLog.page.searchPlaceholder')"
-          @change="updateField('keyword', String($event || ''))"
-          @enter="$emit('search')"
-        />
-      </t-form-item>
-      <t-form-item :label="t('appLog.filters.occurredRange')">
-        <t-date-range-picker
-          :value="modelValue.occurredRange"
-          clearable
-          enable-time-picker
-          :placeholder="[t('appLog.filters.occurredRange'), t('appLog.filters.occurredRange')]"
-          @change="updateField('occurredRange', normalizeRange($event))"
-        />
-      </t-form-item>
-      <t-form-item :label="t('appLog.filters.severity')">
-        <t-select
-          :value="modelValue.severity"
-          clearable
-          :placeholder="t('appLog.filters.allSeverity')"
-          :options="severityOptions"
-          @change="updateField('severity', normalizeSeverity($event))"
-        />
-      </t-form-item>
-      <t-form-item :label="t('appLog.filters.component')">
-        <t-input
-          :value="modelValue.component"
-          clearable
-          :placeholder="t('appLog.filters.component')"
-          @change="updateField('component', String($event || ''))"
-          @enter="$emit('search')"
-        />
-      </t-form-item>
-      <t-form-item :label="t('appLog.filters.operation')">
-        <t-input
-          :value="modelValue.operation"
-          clearable
-          :placeholder="t('appLog.filters.operation')"
-          @change="updateField('operation', String($event || ''))"
-          @enter="$emit('search')"
-        />
-      </t-form-item>
-      <t-form-item :label="t('appLog.filters.requestId')">
-        <t-input
-          :value="modelValue.requestId"
-          clearable
-          :placeholder="t('appLog.filters.requestId')"
-          @change="updateField('requestId', String($event || ''))"
-          @enter="$emit('search')"
-        />
-      </t-form-item>
-      <t-form-item :label="t('appLog.filters.traceId')">
-        <t-input
-          :value="modelValue.traceId"
-          clearable
-          :placeholder="t('appLog.filters.traceId')"
-          @change="updateField('traceId', String($event || ''))"
-          @enter="$emit('search')"
-        />
-      </t-form-item>
-      <t-form-item :label="t('appLog.filters.message')">
-        <t-input
-          :value="modelValue.message"
-          clearable
-          :placeholder="t('appLog.filters.message')"
-          @change="updateField('message', String($event || ''))"
-          @enter="$emit('search')"
-        />
-      </t-form-item>
-      <t-form-item :label="t('appLog.filters.error')">
-        <t-input
-          :value="modelValue.error"
-          clearable
-          :placeholder="t('appLog.filters.error')"
-          @change="updateField('error', String($event || ''))"
-          @enter="$emit('search')"
-        />
-      </t-form-item>
-      <t-form-item class="app-log-filters__actions">
-        <t-button theme="primary" type="submit" :loading="loading">{{ t('appLog.actions.search') }}</t-button>
-        <t-button theme="default" variant="outline" @click="$emit('reset')">{{ t('appLog.actions.reset') }}</t-button>
-      </t-form-item>
-    </t-form>
-  </section>
+  <log-filter-builder-frame :frame="builderFrame" message-prefix="appLog" />
 </template>
 <script setup lang="ts">
-import type { SelectValue } from 'tdesign-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import type { AppLogFilterState, AppLogSeverity } from '../types/app-log';
+import type {
+  LogFilterFieldDefinition,
+  LogFilterTag,
+  LogTimeRangeField,
+} from '@/shared/observability/log-filter-builder';
+import * as BuilderHelpers from '@/shared/observability/log-filter-builder-helpers';
+import LogFilterBuilderFrame from '@/shared/observability/LogFilterBuilderFrame.vue';
+
+import type { AppLogFilterState, AppLogSeverity, AppLogSortBy } from '../types/app-log';
+
+type AppLogPresetKey = 'all' | 'errors' | 'warnings' | 'lastHour';
+type AppTimeRangeKey = 'occurredRange';
+type FilterKey = Exclude<keyof AppLogFilterState, 'keyword' | 'sorters' | 'occurredRange'>;
+type BuilderFieldKey = 'timeRange' | 'sorterBuilder' | FilterKey;
+type TagKey = FilterKey | AppTimeRangeKey | `sorter:${number}`;
 
 const props = defineProps<{
+  activePreset: AppLogPresetKey;
   loading?: boolean;
   modelValue: AppLogFilterState;
+  presets: { key: AppLogPresetKey; title: string }[];
 }>();
 
 const emit = defineEmits<{
+  (e: 'apply-preset', preset: AppLogPresetKey): void;
   (e: 'reset'): void;
   (e: 'search'): void;
   (e: 'update:modelValue', value: AppLogFilterState): void;
 }>();
 
 const { t } = useI18n();
+const selectedFieldKey = ref<BuilderFieldKey>('timeRange');
 
 const severityOptions = computed(() =>
   (['debug', 'info', 'warn', 'error'] satisfies AppLogSeverity[]).map((value) => ({
@@ -115,46 +44,191 @@ const severityOptions = computed(() =>
     value,
   })),
 );
+const sortByOptions = computed(() =>
+  [
+    ['appLog.filters.sortOccurredAt', 'occurred_at'],
+    ['appLog.filters.sortSeverity', 'severity'],
+    ['appLog.filters.sortComponent', 'component'],
+  ].map(([labelKey, value]) => ({ label: t(labelKey), value: value as AppLogSortBy })),
+);
+const sortOrderOptions = computed(() =>
+  ['desc', 'asc'].map((value) => ({ label: t(`appLog.filters.sort${value === 'desc' ? 'Desc' : 'Asc'}`), value })),
+);
+const sorterControls = BuilderHelpers.useLogSorterControlsForModel<AppLogSortBy, AppLogFilterState>(
+  currentFilters,
+  emitFilterState,
+  normalizeSortBy,
+  () => sortByOptions.value,
+);
+const { mutators: sorterMutators, ui: sorterUi } = sorterControls;
+
+const definitions = computed<LogFilterFieldDefinition[]>(() => [
+  { key: 'timeRange', kind: 'special', label: t('appLog.builder.fields.timeRange') },
+  { key: 'sorterBuilder', kind: 'special', label: t('appLog.builder.fields.sorterBuilder') },
+  {
+    key: 'severity',
+    kind: 'select',
+    label: t('appLog.builder.fields.severity'),
+    placeholder: t('appLog.filters.allSeverity'),
+    options: severityOptions.value,
+  },
+  {
+    key: 'component',
+    kind: 'text',
+    label: t('appLog.builder.fields.component'),
+    placeholder: t('appLog.filters.component'),
+  },
+  {
+    key: 'operation',
+    kind: 'text',
+    label: t('appLog.builder.fields.operation'),
+    placeholder: t('appLog.filters.operation'),
+  },
+  {
+    key: 'requestId',
+    kind: 'text',
+    label: t('appLog.builder.fields.requestId'),
+    placeholder: t('appLog.filters.requestId'),
+  },
+  {
+    key: 'traceId',
+    kind: 'text',
+    label: t('appLog.builder.fields.traceId'),
+    placeholder: t('appLog.filters.traceId'),
+  },
+  {
+    key: 'message',
+    kind: 'text',
+    label: t('appLog.builder.fields.message'),
+    placeholder: t('appLog.filters.message'),
+  },
+  {
+    key: 'error',
+    kind: 'text',
+    label: t('appLog.builder.fields.error'),
+    placeholder: t('appLog.filters.error'),
+  },
+]);
+
+const fieldValues = computed<Record<string, string | string[]>>(() => ({
+  severity: props.modelValue.severity,
+  component: props.modelValue.component,
+  operation: props.modelValue.operation,
+  requestId: props.modelValue.requestId,
+  traceId: props.modelValue.traceId,
+  message: props.modelValue.message,
+  error: props.modelValue.error,
+}));
+
+const timeFields = computed<LogTimeRangeField[]>(() => [
+  {
+    key: 'occurredRange',
+    label: t('appLog.filters.occurredRange'),
+    value: props.modelValue.occurredRange,
+    placeholder: [t('appLog.filters.occurredRange'), t('appLog.filters.occurredRange')],
+  },
+]);
+
+const builderListeners = createAppLogBuilderListeners();
+
+const builderFrame = createAppLogBuilderFrame();
+
+function currentFilters() {
+  return props.modelValue;
+}
+
+function emitFilterState(value: AppLogFilterState) {
+  emit('update:modelValue', value);
+}
+
+function createFrameSource() {
+  return props;
+}
+
+function createAppLogBuilderFrame() {
+  return BuilderHelpers.createLogFilterBuilderFrameStateFromSource({
+    fieldValues: () => fieldValues.value,
+    fields: () => definitions.value,
+    keyword: () => props.modelValue.keyword,
+    listeners: builderListeners,
+    selectedFieldKey,
+    sorterUi,
+    sortDirectionOptions: () => sortOrderOptions.value,
+    source: createFrameSource,
+    tags: () => activeFilterTags.value,
+    timeFields: () => timeFields.value,
+  });
+}
+
+const activeFilterTags = computed<LogFilterTag[]>(() => {
+  const label = buildTimeTag('occurredRange', t('appLog.filters.occurredRange'));
+
+  return BuilderHelpers.buildLogActiveTags<AppLogFilterState, FilterKey, AppLogSortBy>({
+    fields: definitions.value,
+    filterState: props.modelValue,
+    sorterPrefix: t('appLog.sort.tagPrefix'),
+    sorters: sorterUi.normalizedSorters.value,
+    sortOptions: sortByOptions.value,
+    timeTags: label ? [{ key: 'occurredRange', label }] : [],
+  });
+});
 
 function updateField<Key extends keyof AppLogFilterState>(key: Key, value: AppLogFilterState[Key]) {
+  emit('update:modelValue', BuilderHelpers.updateLogFilterStateField(props.modelValue, key, value));
+}
+
+function handleFieldUpdate(payload: { key: string; value: string | string[] }) {
+  updateField(payload.key as keyof AppLogFilterState, payload.value as never);
+}
+
+function createAppLogBuilderListeners() {
+  return BuilderHelpers.createLogBuilderListeners<AppLogPresetKey, BuilderFieldKey, { key: string; value: string[] }>({
+    addSorter: sorterMutators.addSorter,
+    clearTag: (key) => clearTag(key as TagKey),
+    emitApplyPreset: (preset) => emit('apply-preset', preset),
+    emitReset: () => emit('reset'),
+    emitSearch: () => emit('search'),
+    handleFieldUpdate,
+    moveSorterDown: sorterMutators.moveSorterDown,
+    moveSorterUp: sorterMutators.moveSorterUp,
+    removeSorter: sorterMutators.removeSorter,
+    selectedFieldKey,
+    updateKeyword: (value) => updateField('keyword', value),
+    updateSortDirection: sorterMutators.updateSortDirection,
+    updateSortField: sorterMutators.updateSortField,
+    updateTimeField: ({ key, value }) => updateTimeField(key as AppTimeRangeKey, value),
+  });
+}
+
+function clearTag(key: TagKey) {
+  if (key === 'occurredRange') {
+    updateTimeField(key, []);
+    return;
+  }
+  if (key.startsWith('sorter:')) {
+    sorterMutators.removeSorter(Number(key.split(':')[1] || 0));
+    return;
+  }
+  updateField(key as FilterKey, '');
+}
+
+function normalizeSortBy(value: string): AppLogSortBy {
+  return value === 'severity' || value === 'component' ? value : 'occurred_at';
+}
+
+function updateTimeField(key: AppTimeRangeKey, value: string[]) {
   emit('update:modelValue', {
     ...props.modelValue,
     [key]: value,
   });
 }
 
-function normalizeRange(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
+function buildTimeTag(key: AppTimeRangeKey, label: string) {
+  const range = props.modelValue[key];
+  if (!range.length) {
+    return '';
+  }
 
-function normalizeSeverity(value: SelectValue): AppLogFilterState['severity'] {
-  return value === 'debug' || value === 'info' || value === 'warn' || value === 'error' ? value : '';
+  return BuilderHelpers.buildLogTimeTag(label, range);
 }
 </script>
-<style scoped lang="less">
-.app-log-filters {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-large);
-  padding: 16px;
-}
-
-.app-log-filters :deep(.t-form__item) {
-  min-width: 210px;
-}
-
-.app-log-filters :deep(.t-date-range-picker) {
-  min-width: 320px;
-}
-
-.app-log-filters__actions {
-  align-items: end;
-}
-
-@media (width <= 768px) {
-  .app-log-filters :deep(.t-form__item),
-  .app-log-filters :deep(.t-date-range-picker) {
-    min-width: 100%;
-  }
-}
-</style>
