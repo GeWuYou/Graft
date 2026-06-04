@@ -17,6 +17,7 @@ tags:
   - name: rbac
   - name: audit
   - name: monitor
+  - name: modules
   - name: access-log
   - name: app-log
 paths:
@@ -104,6 +105,10 @@ paths:
     $ref: ./paths/audit.incident.yaml
   /api/monitor/server-status:
     $ref: ./paths/monitor.server-status.yaml
+  /api/modules/runtime:
+    $ref: ./paths/modules.runtime.yaml
+  /api/modules/runtime/{module_key}:
+    $ref: ./paths/modules.runtime.detail.yaml
   /api/access-log:
     $ref: ./paths/access-log.logs.yaml
   /api/access-log/{id}:
@@ -250,6 +255,24 @@ components:
       $ref: ./components/schemas/server-status-response.yaml
     EnvelopedServerStatusResponse:
       $ref: ./components/schemas/enveloped-server-status-response.yaml
+    ModuleRuntimeDependency:
+      $ref: ./components/schemas/module-runtime-dependency.yaml
+    ModuleRuntimeMigrationStatus:
+      $ref: ./components/schemas/module-runtime-migration-status.yaml
+    ModuleRuntimeSchemaStatus:
+      $ref: ./components/schemas/module-runtime-schema-status.yaml
+    ModuleRuntimeConfigStatus:
+      $ref: ./components/schemas/module-runtime-config-status.yaml
+    ModuleRuntimeItem:
+      $ref: ./components/schemas/module-runtime-item.yaml
+    ModuleRuntimeSummary:
+      $ref: ./components/schemas/module-runtime-summary.yaml
+    ModuleRuntimeSnapshot:
+      $ref: ./components/schemas/module-runtime-snapshot.yaml
+    EnvelopedModuleRuntimeSnapshot:
+      $ref: ./components/schemas/enveloped-module-runtime-snapshot.yaml
+    EnvelopedModuleRuntimeItem:
+      $ref: ./components/schemas/enveloped-module-runtime-item.yaml
     AccessLogDetailResponse:
       $ref: ./components/schemas/access-log-detail-response.yaml
     AccessLogListResponse:

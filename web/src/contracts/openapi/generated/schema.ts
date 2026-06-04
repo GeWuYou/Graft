@@ -845,6 +845,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/modules/runtime': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read module runtime snapshot
+     * @description Returns the read-only compile-time module runtime snapshot for the current process.
+     */
+    get: operations['getModulesRuntime'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/modules/runtime/{module_key}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read module runtime detail
+     * @description Returns one module item from the read-only compile-time module runtime snapshot.
+     */
+    get: operations['getModulesRuntimeModule'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/access-log': {
     parameters: {
       query?: never;
@@ -991,6 +1031,15 @@ export interface components {
     ServerStatusAnomaly: components['schemas']['server-status-anomaly'];
     ServerStatusResponse: components['schemas']['server-status-response'];
     EnvelopedServerStatusResponse: components['schemas']['enveloped-server-status-response'];
+    ModuleRuntimeDependency: components['schemas']['module-runtime-dependency'];
+    ModuleRuntimeMigrationStatus: components['schemas']['module-runtime-migration-status'];
+    ModuleRuntimeSchemaStatus: components['schemas']['module-runtime-schema-status'];
+    ModuleRuntimeConfigStatus: components['schemas']['module-runtime-config-status'];
+    ModuleRuntimeItem: components['schemas']['module-runtime-item'];
+    ModuleRuntimeSummary: components['schemas']['module-runtime-summary'];
+    ModuleRuntimeSnapshot: components['schemas']['module-runtime-snapshot'];
+    EnvelopedModuleRuntimeSnapshot: components['schemas']['enveloped-module-runtime-snapshot'];
+    EnvelopedModuleRuntimeItem: components['schemas']['enveloped-module-runtime-item'];
     AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
     AccessLogListResponse: components['schemas']['access-log-list-response'];
     EnvelopedAccessLogListResponse: components['schemas']['enveloped-access-log-list-response'];
@@ -1897,6 +1946,63 @@ export interface components {
     };
     'enveloped-server-status-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['server-status-response'];
+    };
+    'module-runtime-summary': {
+      total_modules: number;
+      enabled_modules: number;
+      registered_modules: number;
+      healthy_modules: number;
+      degraded_modules: number;
+      unknown_modules: number;
+    };
+    'module-runtime-dependency': {
+      module_key: string;
+      required: boolean;
+      present: boolean;
+      enabled: boolean;
+      /** @enum {string} */
+      status: 'satisfied' | 'missing' | 'disabled';
+    };
+    'module-runtime-migration-status': {
+      declared_dirs: string[];
+      /** @enum {string} */
+      status: 'declared' | 'not_declared';
+    };
+    'module-runtime-schema-status': {
+      /** @enum {string} */
+      status: 'declared' | 'unknown';
+    };
+    'module-runtime-config-status': {
+      /** @enum {string} */
+      status: 'not_required' | 'unknown';
+    };
+    'module-runtime-item': {
+      module_key: string;
+      registered: boolean;
+      enabled: boolean;
+      /** @enum {string} */
+      enablement_source: 'all' | 'allowlist';
+      /** @enum {string} */
+      runtime_status: 'registered' | 'disabled' | 'degraded' | 'unknown';
+      /** @enum {string} */
+      health: 'healthy' | 'degraded' | 'unknown' | 'disabled';
+      dependencies: components['schemas']['module-runtime-dependency'][];
+      migration_status: components['schemas']['module-runtime-migration-status'];
+      schema_status: components['schemas']['module-runtime-schema-status'];
+      config_status: components['schemas']['module-runtime-config-status'];
+      diagnostics: {
+        [key: string]: string;
+      };
+    };
+    'module-runtime-snapshot': {
+      summary: components['schemas']['module-runtime-summary'];
+      items: components['schemas']['module-runtime-item'][];
+    };
+    'enveloped-module-runtime-snapshot': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['module-runtime-snapshot'];
+    };
+    'enveloped-module-runtime-item': components['schemas']['api-envelope'] & {
+      data: components['schemas']['module-runtime-item'];
     };
     'access-log-detail-response': {
       /** Format: int64 */
@@ -4266,6 +4372,82 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getModulesRuntime: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Module runtime snapshot. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-module-runtime-snapshot'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getModulesRuntimeModule: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        module_key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Module runtime detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-module-runtime-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Module runtime item was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };

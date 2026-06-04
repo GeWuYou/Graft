@@ -1,0 +1,43 @@
+type: object
+required:
+  - module_key
+  - registered
+  - enabled
+  - enablement_source
+  - runtime_status
+  - health
+  - dependencies
+  - migration_status
+  - schema_status
+  - config_status
+  - diagnostics
+properties:
+  module_key:
+    type: string
+  registered:
+    type: boolean
+  enabled:
+    type: boolean
+  enablement_source:
+    type: string
+    enum: [all, allowlist]
+  runtime_status:
+    type: string
+    enum: [registered, disabled, degraded, unknown]
+  health:
+    type: string
+    enum: [healthy, degraded, unknown, disabled]
+  dependencies:
+    type: array
+    items:
+      $ref: ./module-runtime-dependency.yaml
+  migration_status:
+    $ref: ./module-runtime-migration-status.yaml
+  schema_status:
+    $ref: ./module-runtime-schema-status.yaml
+  config_status:
+    $ref: ./module-runtime-config-status.yaml
+  diagnostics:
+    type: object
+    additionalProperties:
+      type: string

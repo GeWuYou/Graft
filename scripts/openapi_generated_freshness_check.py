@@ -17,6 +17,7 @@ HEALTH_TARGET = Path("server/internal/contract/openapi/health/zz_generated.healt
 RBAC_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.management.go")
 USER_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/user/zz_generated.management.go")
 AUTH_TARGET = Path("server/internal/contract/openapi/auth/zz_generated.auth.go")
+MODULES_TARGET = Path("server/internal/contract/openapi/modules/zz_generated.modules.go")
 MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
 MONITOR_ARGS = [
@@ -59,6 +60,14 @@ AUTH_ARGS = [
     "--package",
     "authopenapi",
 ]
+MODULES_ARGS = [
+    "--include-operation-ids",
+    "getModulesRuntime,getModulesRuntimeModule",
+    "--generate",
+    "types",
+    "--package",
+    "modulesopenapi",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,7 +76,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["backend-monitor", "backend-health", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session"],
+        choices=["backend-monitor", "backend-health", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session", "backend-modules-runtime"],
         default="backend-monitor",
         help="Generated artifact target to validate.",
     )
@@ -169,6 +178,17 @@ def run_backend_auth_session(repo_root: Path, mode: str) -> int:
     )
 
 
+def run_backend_modules_runtime(repo_root: Path, mode: str) -> int:
+    return run_generated_target(
+        repo_root=repo_root,
+        target=MODULES_TARGET,
+        spec=repo_root / MONITOR_SPEC,
+        generator_args=MODULES_ARGS,
+        mode=mode,
+        temp_prefix="graft-openapi-modules-runtime-",
+    )
+
+
 def run_generated_target(
     repo_root: Path,
     target: Path,
@@ -228,6 +248,8 @@ def main() -> int:
         return run_backend_user_write(repo_root, args.mode)
     if args.target == "backend-auth-session":
         return run_backend_auth_session(repo_root, args.mode)
+    if args.target == "backend-modules-runtime":
+        return run_backend_modules_runtime(repo_root, args.mode)
 
     raise SystemExit(f"unsupported target: {args.target}")
 

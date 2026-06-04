@@ -35,6 +35,9 @@
       "name": "monitor"
     },
     {
+      "name": "modules"
+    },
+    {
       "name": "access-log"
     },
     {
@@ -4956,6 +4959,203 @@
         }
       }
     },
+    "/api/modules/runtime": {
+      "get": {
+        "tags": [
+          "modules"
+        ],
+        "summary": "Read module runtime snapshot",
+        "operationId": "getModulesRuntime",
+        "description": "Returns the read-only compile-time module runtime snapshot for the current process.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Module runtime snapshot.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-module-runtime-snapshot"
+                },
+                "examples": {
+                  "default": {
+                    "summary": "Current module runtime snapshot",
+                    "value": {
+                      "success": true,
+                      "code": "OK",
+                      "message": "success",
+                      "traceId": "cce7c2c1-c177-4655-ac75-dbc294fcd5ff",
+                      "data": {
+                        "summary": {
+                          "total_modules": 2,
+                          "enabled_modules": 2,
+                          "registered_modules": 2,
+                          "healthy_modules": 2,
+                          "degraded_modules": 0,
+                          "unknown_modules": 0
+                        },
+                        "items": [
+                          {
+                            "module_key": "user",
+                            "registered": true,
+                            "enabled": true,
+                            "enablement_source": "all",
+                            "runtime_status": "registered",
+                            "health": "healthy",
+                            "dependencies": [],
+                            "migration_status": {
+                              "declared_dirs": [
+                                "modules/user/migrations"
+                              ],
+                              "status": "declared"
+                            },
+                            "schema_status": {
+                              "status": "declared"
+                            },
+                            "config_status": {
+                              "status": "unknown"
+                            },
+                            "diagnostics": {}
+                          },
+                          {
+                            "module_key": "rbac",
+                            "registered": true,
+                            "enabled": true,
+                            "enablement_source": "all",
+                            "runtime_status": "registered",
+                            "health": "healthy",
+                            "dependencies": [
+                              {
+                                "module_key": "user",
+                                "required": true,
+                                "present": true,
+                                "enabled": true,
+                                "status": "satisfied"
+                              }
+                            ],
+                            "migration_status": {
+                              "declared_dirs": [
+                                "modules/rbac/migrations"
+                              ],
+                              "status": "declared"
+                            },
+                            "schema_status": {
+                              "status": "declared"
+                            },
+                            "config_status": {
+                              "status": "unknown"
+                            },
+                            "diagnostics": {}
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/modules/runtime/{module_key}": {
+      "get": {
+        "tags": [
+          "modules"
+        ],
+        "summary": "Read module runtime detail",
+        "operationId": "getModulesRuntimeModule",
+        "description": "Returns one module item from the read-only compile-time module runtime snapshot.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "module_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Module runtime detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-module-runtime-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Module runtime item was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/access-log": {
       "get": {
         "tags": [
@@ -5392,6 +5592,27 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Repeated sort fields encoded as `field:direction`.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "occurred_at:desc",
+                  "occurred_at:asc",
+                  "severity:desc",
+                  "severity:asc",
+                  "component:desc",
+                  "component:asc"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": true
           }
         ],
         "security": [
@@ -5736,6 +5957,33 @@
       },
       "EnvelopedServerStatusResponse": {
         "$ref": "#/components/schemas/enveloped-server-status-response"
+      },
+      "ModuleRuntimeDependency": {
+        "$ref": "#/components/schemas/module-runtime-dependency"
+      },
+      "ModuleRuntimeMigrationStatus": {
+        "$ref": "#/components/schemas/module-runtime-migration-status"
+      },
+      "ModuleRuntimeSchemaStatus": {
+        "$ref": "#/components/schemas/module-runtime-schema-status"
+      },
+      "ModuleRuntimeConfigStatus": {
+        "$ref": "#/components/schemas/module-runtime-config-status"
+      },
+      "ModuleRuntimeItem": {
+        "$ref": "#/components/schemas/module-runtime-item"
+      },
+      "ModuleRuntimeSummary": {
+        "$ref": "#/components/schemas/module-runtime-summary"
+      },
+      "ModuleRuntimeSnapshot": {
+        "$ref": "#/components/schemas/module-runtime-snapshot"
+      },
+      "EnvelopedModuleRuntimeSnapshot": {
+        "$ref": "#/components/schemas/enveloped-module-runtime-snapshot"
+      },
+      "EnvelopedModuleRuntimeItem": {
+        "$ref": "#/components/schemas/enveloped-module-runtime-item"
       },
       "AccessLogDetailResponse": {
         "$ref": "#/components/schemas/access-log-detail-response"
@@ -8418,6 +8666,251 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/server-status-response"
+              }
+            }
+          }
+        ]
+      },
+      "module-runtime-summary": {
+        "type": "object",
+        "required": [
+          "total_modules",
+          "enabled_modules",
+          "registered_modules",
+          "healthy_modules",
+          "degraded_modules",
+          "unknown_modules"
+        ],
+        "properties": {
+          "total_modules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "enabled_modules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "registered_modules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "healthy_modules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "degraded_modules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown_modules": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "module-runtime-dependency": {
+        "type": "object",
+        "required": [
+          "module_key",
+          "required",
+          "present",
+          "enabled",
+          "status"
+        ],
+        "properties": {
+          "module_key": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "present": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "satisfied",
+              "missing",
+              "disabled"
+            ]
+          }
+        }
+      },
+      "module-runtime-migration-status": {
+        "type": "object",
+        "required": [
+          "declared_dirs",
+          "status"
+        ],
+        "properties": {
+          "declared_dirs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "declared",
+              "not_declared"
+            ]
+          }
+        }
+      },
+      "module-runtime-schema-status": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "declared",
+              "unknown"
+            ]
+          }
+        }
+      },
+      "module-runtime-config-status": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "unknown"
+            ]
+          }
+        }
+      },
+      "module-runtime-item": {
+        "type": "object",
+        "required": [
+          "module_key",
+          "registered",
+          "enabled",
+          "enablement_source",
+          "runtime_status",
+          "health",
+          "dependencies",
+          "migration_status",
+          "schema_status",
+          "config_status",
+          "diagnostics"
+        ],
+        "properties": {
+          "module_key": {
+            "type": "string"
+          },
+          "registered": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "enablement_source": {
+            "type": "string",
+            "enum": [
+              "all",
+              "allowlist"
+            ]
+          },
+          "runtime_status": {
+            "type": "string",
+            "enum": [
+              "registered",
+              "disabled",
+              "degraded",
+              "unknown"
+            ]
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "unknown",
+              "disabled"
+            ]
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/module-runtime-dependency"
+            }
+          },
+          "migration_status": {
+            "$ref": "#/components/schemas/module-runtime-migration-status"
+          },
+          "schema_status": {
+            "$ref": "#/components/schemas/module-runtime-schema-status"
+          },
+          "config_status": {
+            "$ref": "#/components/schemas/module-runtime-config-status"
+          },
+          "diagnostics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "module-runtime-snapshot": {
+        "type": "object",
+        "required": [
+          "summary",
+          "items"
+        ],
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/module-runtime-summary"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/module-runtime-item"
+            }
+          }
+        }
+      },
+      "enveloped-module-runtime-snapshot": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/module-runtime-snapshot"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-module-runtime-item": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/module-runtime-item"
               }
             }
           }

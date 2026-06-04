@@ -183,6 +183,120 @@
       "diskUsedLabel": "已用",
       "diskFreeLabel": "空闲",
       "diskPercentLabel": "已用比例"
+    },
+    "moduleRuntime": {
+      "title": "模块运行时",
+      "subtitle": "查看编译期模块的注册、启用、依赖、迁移、Schema 与配置状态。",
+      "errorTitle": "模块快照请求失败",
+      "errorFallback": "模块运行时快照加载失败",
+      "empty": "暂无模块运行时数据",
+      "status": {
+        "ready": "就绪",
+        "attention": "需要关注",
+        "unknown": "未知"
+      },
+      "actions": {
+        "refresh": "刷新",
+        "detail": "详情"
+      },
+      "summary": {
+        "total": "总数",
+        "totalDescription": "运行时注册表已知模块",
+        "enabled": "已启用",
+        "enabledDescription": "当前进程启用的模块",
+        "healthy": "健康",
+        "healthyDescription": "运行状态健康的模块",
+        "degradedUnknown": "降级 / 未知",
+        "degradedUnknownDescription": "需要运维关注的模块"
+      },
+      "table": {
+        "title": "运行时模块列表",
+        "description": "当前进程模块注册表的只读视图。",
+        "note": "只读视图，不提供模块写操作。"
+      },
+      "columns": {
+        "moduleKey": "模块键",
+        "enabled": "已启用",
+        "registered": "已注册",
+        "health": "健康状态",
+        "dependencies": "依赖",
+        "migration": "迁移",
+        "schema": "Schema",
+        "config": "配置",
+        "action": "操作"
+      },
+      "detail": {
+        "title": "模块运行时详情",
+        "titleWithKey": "{key} 运行时详情",
+        "basicInfo": "基础信息",
+        "moduleKey": "模块键",
+        "enabled": "启用状态",
+        "registered": "注册状态",
+        "health": "健康状态",
+        "runtimeStatus": "运行状态",
+        "enablementSource": "启用来源",
+        "dependencies": "依赖关系",
+        "declaredDependencies": "声明依赖",
+        "dependencySatisfaction": "满足情况",
+        "migration": "迁移信息",
+        "migrationDir": "迁移目录",
+        "migrationStatus": "状态",
+        "schema": "Schema",
+        "schemaOwner": "归属方",
+        "schemaStatus": "状态",
+        "config": "配置",
+        "configStatus": "状态",
+        "configDescription": "说明",
+        "diagnostics": "诊断说明"
+      },
+      "values": {
+        "yes": "是",
+        "no": "否",
+        "none": "无",
+        "emptyDependencies": "无依赖",
+        "emptyMigrationDir": "无迁移目录",
+        "emptySchema": "未声明 Schema",
+        "unknownConfig": "未知配置状态",
+        "noDiagnostics": "暂无诊断说明",
+        "notReported": "未上报",
+        "dependencySummary": "{satisfied} / {total} 已满足",
+        "migrationDirCount": "{count} 个目录",
+        "moduleOwnedSchema": "模块自有",
+        "notRequiredConfig": "当前无需配置"
+      },
+      "health": {
+        "healthy": "健康",
+        "degraded": "降级",
+        "unknown": "未知",
+        "disabled": "未启用"
+      },
+      "runtimeStatus": {
+        "registered": "已注册",
+        "disabled": "未启用",
+        "degraded": "降级",
+        "unknown": "未知"
+      },
+      "migrationStatus": {
+        "declared": "已声明",
+        "not_declared": "未声明"
+      },
+      "schemaStatus": {
+        "declared": "已声明",
+        "unknown": "未知"
+      },
+      "configStatus": {
+        "not_required": "无需配置",
+        "unknown": "未知"
+      },
+      "dependencyStatus": {
+        "satisfied": "已满足",
+        "missing": "缺失",
+        "disabled": "未启用"
+      },
+      "enablementSource": {
+        "all": "全部模块",
+        "allowlist": "允许列表"
+      }
     }
   }
 }

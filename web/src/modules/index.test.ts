@@ -16,6 +16,7 @@ describe('module registration aggregation', () => {
     expect(getBootstrapRouteRegistration('/server/overview')?.routeName).toBe('MonitorServerStatusOverview');
     expect(getBootstrapRouteRegistration('/server/runtime')?.routeName).toBe('MonitorServerStatusRuntime');
     expect(getBootstrapRouteRegistration('/server/dependencies')?.routeName).toBe('MonitorServerStatusDependencies');
+    expect(getBootstrapRouteRegistration('/server/modules')?.routeName).toBe('MonitorModuleRuntimeOverview');
     expect(getBootstrapRouteRegistration('/audit/overview')?.routeName).toBe('AuditOverview');
     expect(getBootstrapRouteRegistration('/audit/logs')?.routeName).toBe('AuditLogList');
   });

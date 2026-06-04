@@ -303,6 +303,9 @@ func runValidateOpenAPIFreshness() error {
 	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-auth-session", "--mode", "check"); err != nil {
 		return fmt.Errorf("run backend generated freshness check: %w", err)
 	}
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-modules-runtime", "--mode", "check"); err != nil {
+		return fmt.Errorf("run backend generated freshness check: %w", err)
+	}
 	boundaryAuditPath := filepath.Join(repoRoot, "scripts", "openapi_generated_backend_boundary_audit.py")
 	if err := backendCommandRunner(cmd, "python3", boundaryAuditPath); err != nil {
 		return fmt.Errorf("run backend generated DTO boundary audit: %w", err)

@@ -197,6 +197,15 @@ describe('transformBootstrapMenusToRoutes', () => {
         icon: 'data-base',
         permission: 'monitor.server-status.read',
       },
+      {
+        code: 'server.modules',
+        order: 4,
+        title_key: 'menu.server.modules.title',
+        title: '模块概览',
+        path: '/server/modules',
+        icon: 'app',
+        permission: 'monitor.server-status.read',
+      },
     ]);
 
     expect(routes).toHaveLength(1);
@@ -205,7 +214,7 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.name).toBe('BootstrapGroupServer');
     expect(routes[0]?.meta?.titleKey).toBe('menu.server.title');
     expect(routes[0]?.meta?.orderNo).toBe(20);
-    expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'runtime', 'dependencies']);
+    expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'runtime', 'dependencies', 'modules']);
     expect(routes[0]?.children?.[0]?.name).toBe('MonitorServerStatusOverviewIndex');
     expect(routes[0]?.children?.[0]?.meta?.orderNo).toBe(1);
     expect(routes[0]?.children?.[0]?.meta?.domain).toBe('monitor');
@@ -216,6 +225,11 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[2]?.name).toBe('MonitorServerStatusDependenciesIndex');
     expect(routes[0]?.children?.[2]?.meta?.titleKey).toBe('menu.server.dependencies.title');
     expect(routes[0]?.children?.[2]?.meta?.orderNo).toBe(3);
+    expect(routes[0]?.children?.[3]?.name).toBe('MonitorModuleRuntimeOverviewIndex');
+    expect(routes[0]?.children?.[3]?.meta?.titleKey).toBe('menu.server.modules.title');
+    expect(routes[0]?.children?.[3]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('模块运行时');
+    expect(routes[0]?.children?.[3]?.meta?.tabTitle?.['en-US']).toBe('Service Management - Module Runtime');
+    expect(routes[0]?.children?.[3]?.meta?.orderNo).toBe(4);
   });
 
   it('为日志中心访问日志页保留父级 breadcrumb 标题并使用组合 tab 标题', () => {
@@ -291,10 +305,19 @@ describe('transformBootstrapMenusToRoutes', () => {
         icon: 'data-base',
         permission: 'monitor.server-status.read',
       },
+      {
+        code: 'server.modules',
+        order: 4,
+        title_key: 'menu.server.modules.title',
+        title: '模块概览',
+        path: '/server/modules/',
+        icon: 'app',
+        permission: 'monitor.server-status.read',
+      },
     ]);
 
     expect(routes).toHaveLength(1);
     expect(routes[0]?.path).toBe('/server');
-    expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'runtime', 'dependencies']);
+    expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'runtime', 'dependencies', 'modules']);
   });
 });

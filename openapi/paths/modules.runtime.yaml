@@ -1,0 +1,78 @@
+get:
+  tags: [modules]
+  summary: Read module runtime snapshot
+  operationId: getModulesRuntime
+  description: Returns the read-only compile-time module runtime snapshot for the current process.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Module runtime snapshot.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-module-runtime-snapshot.yaml
+          examples:
+            default:
+              summary: Current module runtime snapshot
+              value:
+                success: true
+                code: OK
+                message: success
+                traceId: cce7c2c1-c177-4655-ac75-dbc294fcd5ff
+                data:
+                  summary:
+                    total_modules: 2
+                    enabled_modules: 2
+                    registered_modules: 2
+                    healthy_modules: 2
+                    degraded_modules: 0
+                    unknown_modules: 0
+                  items:
+                    - module_key: user
+                      registered: true
+                      enabled: true
+                      enablement_source: all
+                      runtime_status: registered
+                      health: healthy
+                      dependencies: []
+                      migration_status:
+                        declared_dirs: [modules/user/migrations]
+                        status: declared
+                      schema_status:
+                        status: declared
+                      config_status:
+                        status: unknown
+                      diagnostics: {}
+                    - module_key: rbac
+                      registered: true
+                      enabled: true
+                      enablement_source: all
+                      runtime_status: registered
+                      health: healthy
+                      dependencies:
+                        - module_key: user
+                          required: true
+                          present: true
+                          enabled: true
+                          status: satisfied
+                      migration_status:
+                        declared_dirs: [modules/rbac/migrations]
+                        status: declared
+                      schema_status:
+                        status: declared
+                      config_status:
+                        status: unknown
+                      diagnostics: {}
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

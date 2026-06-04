@@ -72,4 +72,27 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
       },
     },
   },
+  {
+    menuPath: MONITOR_ROUTE_PATH.SERVER_MODULES,
+    routeName: 'MonitorModuleRuntimeOverview',
+    loadPage: () => import('./pages/modules/index.vue'),
+    meta: {
+      domain: 'monitor',
+      tabGroup: 'monitor',
+      dashboard: true,
+      pageKind: 'overview',
+      semanticTitle: {
+        'zh-CN': '服务管理 - 模块运行时',
+        'en-US': 'Service Management - Module Runtime',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '模块运行时',
+        'en-US': 'Module Runtime',
+      },
+      tabTitle: {
+        'zh-CN': '服务管理 - 模块运行时',
+        'en-US': 'Service Management - Module Runtime',
+      },
+    },
+  },
 ];

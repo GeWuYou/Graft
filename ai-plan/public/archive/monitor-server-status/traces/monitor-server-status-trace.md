@@ -15,3 +15,24 @@
   - aligned locale catalogs and tests so breadcrumb/menu semantics render `服务器管理 / 服务器状态` without exposing an `index` crumb
   - updated monitor topic design/tracking docs to record future IA placeholders as design-only, not runtime contracts
 - Full command- and file-level history for this stage stays in the session log; keep this trace as the concise recovery entrypoint.
+
+## 2026-06-04
+
+- Archived the topic from `ai-plan/public/monitor-server-status/**` to
+  `ai-plan/public/archive/monitor-server-status/**`.
+- Completed the Module Runtime UI closeout in the final branch `fix/module-runtime-ui-closeout`:
+  - unified the visible web name from `模块概览` to `模块运行时`
+  - aligned route semantic title, breadcrumb title, tab title, page title, locale copy, empty states, and drawer title
+  - downgraded the table note from a prominent info alert to auxiliary read-only copy
+  - kept the table fields unchanged while improving width allocation for module key, dependencies, migration, Schema, and config
+  - restructured the drawer into basic information, dependencies, migration, Schema, config, and diagnostics sections
+  - kept long migration directory paths readable with wrapping code blocks
+- Confirmed the closeout did not add new menus, APIs, config keys, write actions, or dynamic plugin-platform behavior.
+- Validation:
+  - `cd web && bun run test:run src/modules/monitor/pages/modules/index.test.ts`
+  - `cd web && bun run test:run src/utils/route/bootstrap.test.ts src/modules/monitor/pages/modules/index.test.ts`
+  - `cd web && bun run format:check`
+  - `cd web && bun run typecheck`
+  - `cd web && bun run stylelint "src/modules/monitor/pages/modules/index.vue"`
+  - `cd web && bun run check`
+- Archive verdict: `archived`.

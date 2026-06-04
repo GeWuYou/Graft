@@ -1,0 +1,9 @@
+type: object
+required: [summary, items]
+properties:
+  summary:
+    $ref: ./module-runtime-summary.yaml
+  items:
+    type: array
+    items:
+      $ref: ./module-runtime-item.yaml

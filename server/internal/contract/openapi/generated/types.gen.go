@@ -12,6 +12,30 @@ const (
 	RefreshCookieScopes refreshCookieContextKey = "refreshCookie.Scopes"
 )
 
+// Defines values for AppLogDetailResponseSeverity.
+const (
+	AppLogDetailResponseSeverityDebug AppLogDetailResponseSeverity = "debug"
+	AppLogDetailResponseSeverityError AppLogDetailResponseSeverity = "error"
+	AppLogDetailResponseSeverityInfo  AppLogDetailResponseSeverity = "info"
+	AppLogDetailResponseSeverityWarn  AppLogDetailResponseSeverity = "warn"
+)
+
+// Valid indicates whether the value is a known member of the AppLogDetailResponseSeverity enum.
+func (e AppLogDetailResponseSeverity) Valid() bool {
+	switch e {
+	case AppLogDetailResponseSeverityDebug:
+		return true
+	case AppLogDetailResponseSeverityError:
+		return true
+	case AppLogDetailResponseSeverityInfo:
+		return true
+	case AppLogDetailResponseSeverityWarn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditBusinessCategory.
 const (
 	AuditBusinessCategoryAuthFailures        AuditBusinessCategory = "auth_failures"
@@ -681,6 +705,147 @@ func (e HealthResponseStatus) Valid() bool {
 	}
 }
 
+// Defines values for ModuleRuntimeConfigStatusStatus.
+const (
+	ModuleRuntimeConfigStatusStatusNotRequired ModuleRuntimeConfigStatusStatus = "not_required"
+	ModuleRuntimeConfigStatusStatusUnknown     ModuleRuntimeConfigStatusStatus = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ModuleRuntimeConfigStatusStatus enum.
+func (e ModuleRuntimeConfigStatusStatus) Valid() bool {
+	switch e {
+	case ModuleRuntimeConfigStatusStatusNotRequired:
+		return true
+	case ModuleRuntimeConfigStatusStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModuleRuntimeDependencyStatus.
+const (
+	ModuleRuntimeDependencyStatusDisabled  ModuleRuntimeDependencyStatus = "disabled"
+	ModuleRuntimeDependencyStatusMissing   ModuleRuntimeDependencyStatus = "missing"
+	ModuleRuntimeDependencyStatusSatisfied ModuleRuntimeDependencyStatus = "satisfied"
+)
+
+// Valid indicates whether the value is a known member of the ModuleRuntimeDependencyStatus enum.
+func (e ModuleRuntimeDependencyStatus) Valid() bool {
+	switch e {
+	case ModuleRuntimeDependencyStatusDisabled:
+		return true
+	case ModuleRuntimeDependencyStatusMissing:
+		return true
+	case ModuleRuntimeDependencyStatusSatisfied:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModuleRuntimeItemEnablementSource.
+const (
+	All       ModuleRuntimeItemEnablementSource = "all"
+	Allowlist ModuleRuntimeItemEnablementSource = "allowlist"
+)
+
+// Valid indicates whether the value is a known member of the ModuleRuntimeItemEnablementSource enum.
+func (e ModuleRuntimeItemEnablementSource) Valid() bool {
+	switch e {
+	case All:
+		return true
+	case Allowlist:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModuleRuntimeItemHealth.
+const (
+	ModuleRuntimeItemHealthDegraded ModuleRuntimeItemHealth = "degraded"
+	ModuleRuntimeItemHealthDisabled ModuleRuntimeItemHealth = "disabled"
+	ModuleRuntimeItemHealthHealthy  ModuleRuntimeItemHealth = "healthy"
+	ModuleRuntimeItemHealthUnknown  ModuleRuntimeItemHealth = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ModuleRuntimeItemHealth enum.
+func (e ModuleRuntimeItemHealth) Valid() bool {
+	switch e {
+	case ModuleRuntimeItemHealthDegraded:
+		return true
+	case ModuleRuntimeItemHealthDisabled:
+		return true
+	case ModuleRuntimeItemHealthHealthy:
+		return true
+	case ModuleRuntimeItemHealthUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModuleRuntimeItemRuntimeStatus.
+const (
+	ModuleRuntimeItemRuntimeStatusDegraded   ModuleRuntimeItemRuntimeStatus = "degraded"
+	ModuleRuntimeItemRuntimeStatusDisabled   ModuleRuntimeItemRuntimeStatus = "disabled"
+	ModuleRuntimeItemRuntimeStatusRegistered ModuleRuntimeItemRuntimeStatus = "registered"
+	ModuleRuntimeItemRuntimeStatusUnknown    ModuleRuntimeItemRuntimeStatus = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ModuleRuntimeItemRuntimeStatus enum.
+func (e ModuleRuntimeItemRuntimeStatus) Valid() bool {
+	switch e {
+	case ModuleRuntimeItemRuntimeStatusDegraded:
+		return true
+	case ModuleRuntimeItemRuntimeStatusDisabled:
+		return true
+	case ModuleRuntimeItemRuntimeStatusRegistered:
+		return true
+	case ModuleRuntimeItemRuntimeStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModuleRuntimeMigrationStatusStatus.
+const (
+	ModuleRuntimeMigrationStatusStatusDeclared    ModuleRuntimeMigrationStatusStatus = "declared"
+	ModuleRuntimeMigrationStatusStatusNotDeclared ModuleRuntimeMigrationStatusStatus = "not_declared"
+)
+
+// Valid indicates whether the value is a known member of the ModuleRuntimeMigrationStatusStatus enum.
+func (e ModuleRuntimeMigrationStatusStatus) Valid() bool {
+	switch e {
+	case ModuleRuntimeMigrationStatusStatusDeclared:
+		return true
+	case ModuleRuntimeMigrationStatusStatusNotDeclared:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModuleRuntimeSchemaStatusStatus.
+const (
+	ModuleRuntimeSchemaStatusStatusDeclared ModuleRuntimeSchemaStatusStatus = "declared"
+	ModuleRuntimeSchemaStatusStatusUnknown  ModuleRuntimeSchemaStatusStatus = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ModuleRuntimeSchemaStatusStatus enum.
+func (e ModuleRuntimeSchemaStatusStatus) Valid() bool {
+	switch e {
+	case ModuleRuntimeSchemaStatusStatusDeclared:
+		return true
+	case ModuleRuntimeSchemaStatusStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RoleDetailResponseStatus.
 const (
 	RoleDetailResponseStatusDisabled RoleDetailResponseStatus = "disabled"
@@ -921,6 +1086,60 @@ func (e GetAccessLogsParamsStatusGroup) Valid() bool {
 	case N4xx:
 		return true
 	case N5xx:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAppLogsParamsSeverity.
+const (
+	GetAppLogsParamsSeverityDebug GetAppLogsParamsSeverity = "debug"
+	GetAppLogsParamsSeverityError GetAppLogsParamsSeverity = "error"
+	GetAppLogsParamsSeverityInfo  GetAppLogsParamsSeverity = "info"
+	GetAppLogsParamsSeverityWarn  GetAppLogsParamsSeverity = "warn"
+)
+
+// Valid indicates whether the value is a known member of the GetAppLogsParamsSeverity enum.
+func (e GetAppLogsParamsSeverity) Valid() bool {
+	switch e {
+	case GetAppLogsParamsSeverityDebug:
+		return true
+	case GetAppLogsParamsSeverityError:
+		return true
+	case GetAppLogsParamsSeverityInfo:
+		return true
+	case GetAppLogsParamsSeverityWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAppLogsParamsSort.
+const (
+	ComponentAsc   GetAppLogsParamsSort = "component:asc"
+	ComponentDesc  GetAppLogsParamsSort = "component:desc"
+	OccurredAtAsc  GetAppLogsParamsSort = "occurred_at:asc"
+	OccurredAtDesc GetAppLogsParamsSort = "occurred_at:desc"
+	SeverityAsc    GetAppLogsParamsSort = "severity:asc"
+	SeverityDesc   GetAppLogsParamsSort = "severity:desc"
+)
+
+// Valid indicates whether the value is a known member of the GetAppLogsParamsSort enum.
+func (e GetAppLogsParamsSort) Valid() bool {
+	switch e {
+	case ComponentAsc:
+		return true
+	case ComponentDesc:
+		return true
+	case OccurredAtAsc:
+		return true
+	case OccurredAtDesc:
+		return true
+	case SeverityAsc:
+		return true
+	case SeverityDesc:
 		return true
 	default:
 		return false
@@ -1171,6 +1390,33 @@ type ApiEnvelope struct {
 
 	// TraceId Mirrors the request id contract used by the current runtime.
 	TraceId string `json:"traceId"`
+}
+
+// AppLogDetailResponse defines model for app-log-detail-response.
+type AppLogDetailResponse struct {
+	Component  string                       `json:"component"`
+	Error      string                       `json:"error"`
+	Fields     map[string]string            `json:"fields"`
+	Id         int64                        `json:"id"`
+	Message    string                       `json:"message"`
+	Method     string                       `json:"method"`
+	OccurredAt time.Time                    `json:"occurred_at"`
+	Operation  string                       `json:"operation"`
+	RequestId  string                       `json:"request_id"`
+	Route      string                       `json:"route"`
+	Severity   AppLogDetailResponseSeverity `json:"severity"`
+	TraceId    string                       `json:"trace_id"`
+}
+
+// AppLogDetailResponseSeverity defines model for AppLogDetailResponse.Severity.
+type AppLogDetailResponseSeverity string
+
+// AppLogListResponse defines model for app-log-list-response.
+type AppLogListResponse struct {
+	Items    []AppLogDetailResponse `json:"items"`
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"page_size"`
+	Total    int                    `json:"total"`
 }
 
 // AppliedDrilldownScope defines model for applied-drilldown-scope.
@@ -1615,6 +1861,46 @@ type EnvelopedAccessLogListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedAppLogDetailResponse defines model for enveloped-app-log-detail-response.
+type EnvelopedAppLogDetailResponse struct {
+	// Code Existing canonical response code.
+	Code string               `json:"code"`
+	Data AppLogDetailResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAppLogListResponse defines model for enveloped-app-log-list-response.
+type EnvelopedAppLogListResponse struct {
+	// Code Existing canonical response code.
+	Code string             `json:"code"`
+	Data AppLogListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedAuditIncidentResponse defines model for enveloped-audit-incident-response.
 type EnvelopedAuditIncidentResponse struct {
 	// Code Existing canonical response code.
@@ -1709,6 +1995,46 @@ type EnvelopedLoginResponse struct {
 	// Code Existing canonical response code.
 	Code string        `json:"code"`
 	Data LoginResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedModuleRuntimeItem defines model for enveloped-module-runtime-item.
+type EnvelopedModuleRuntimeItem struct {
+	// Code Existing canonical response code.
+	Code string            `json:"code"`
+	Data ModuleRuntimeItem `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedModuleRuntimeSnapshot defines model for enveloped-module-runtime-snapshot.
+type EnvelopedModuleRuntimeSnapshot struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data ModuleRuntimeSnapshot `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -2025,6 +2351,83 @@ type LoginUser struct {
 	DisplayName string `json:"display_name"`
 	Id          int64  `json:"id"`
 	Username    string `json:"username"`
+}
+
+// ModuleRuntimeConfigStatus defines model for module-runtime-config-status.
+type ModuleRuntimeConfigStatus struct {
+	Status ModuleRuntimeConfigStatusStatus `json:"status"`
+}
+
+// ModuleRuntimeConfigStatusStatus defines model for ModuleRuntimeConfigStatus.Status.
+type ModuleRuntimeConfigStatusStatus string
+
+// ModuleRuntimeDependency defines model for module-runtime-dependency.
+type ModuleRuntimeDependency struct {
+	Enabled   bool                          `json:"enabled"`
+	ModuleKey string                        `json:"module_key"`
+	Present   bool                          `json:"present"`
+	Required  bool                          `json:"required"`
+	Status    ModuleRuntimeDependencyStatus `json:"status"`
+}
+
+// ModuleRuntimeDependencyStatus defines model for ModuleRuntimeDependency.Status.
+type ModuleRuntimeDependencyStatus string
+
+// ModuleRuntimeItem defines model for module-runtime-item.
+type ModuleRuntimeItem struct {
+	ConfigStatus     ModuleRuntimeConfigStatus         `json:"config_status"`
+	Dependencies     []ModuleRuntimeDependency         `json:"dependencies"`
+	Diagnostics      map[string]string                 `json:"diagnostics"`
+	Enabled          bool                              `json:"enabled"`
+	EnablementSource ModuleRuntimeItemEnablementSource `json:"enablement_source"`
+	Health           ModuleRuntimeItemHealth           `json:"health"`
+	MigrationStatus  ModuleRuntimeMigrationStatus      `json:"migration_status"`
+	ModuleKey        string                            `json:"module_key"`
+	Registered       bool                              `json:"registered"`
+	RuntimeStatus    ModuleRuntimeItemRuntimeStatus    `json:"runtime_status"`
+	SchemaStatus     ModuleRuntimeSchemaStatus         `json:"schema_status"`
+}
+
+// ModuleRuntimeItemEnablementSource defines model for ModuleRuntimeItem.EnablementSource.
+type ModuleRuntimeItemEnablementSource string
+
+// ModuleRuntimeItemHealth defines model for ModuleRuntimeItem.Health.
+type ModuleRuntimeItemHealth string
+
+// ModuleRuntimeItemRuntimeStatus defines model for ModuleRuntimeItem.RuntimeStatus.
+type ModuleRuntimeItemRuntimeStatus string
+
+// ModuleRuntimeMigrationStatus defines model for module-runtime-migration-status.
+type ModuleRuntimeMigrationStatus struct {
+	DeclaredDirs []string                           `json:"declared_dirs"`
+	Status       ModuleRuntimeMigrationStatusStatus `json:"status"`
+}
+
+// ModuleRuntimeMigrationStatusStatus defines model for ModuleRuntimeMigrationStatus.Status.
+type ModuleRuntimeMigrationStatusStatus string
+
+// ModuleRuntimeSchemaStatus defines model for module-runtime-schema-status.
+type ModuleRuntimeSchemaStatus struct {
+	Status ModuleRuntimeSchemaStatusStatus `json:"status"`
+}
+
+// ModuleRuntimeSchemaStatusStatus defines model for ModuleRuntimeSchemaStatus.Status.
+type ModuleRuntimeSchemaStatusStatus string
+
+// ModuleRuntimeSnapshot defines model for module-runtime-snapshot.
+type ModuleRuntimeSnapshot struct {
+	Items   []ModuleRuntimeItem  `json:"items"`
+	Summary ModuleRuntimeSummary `json:"summary"`
+}
+
+// ModuleRuntimeSummary defines model for module-runtime-summary.
+type ModuleRuntimeSummary struct {
+	DegradedModules   int `json:"degraded_modules"`
+	EnabledModules    int `json:"enabled_modules"`
+	HealthyModules    int `json:"healthy_modules"`
+	RegisteredModules int `json:"registered_modules"`
+	TotalModules      int `json:"total_modules"`
+	UnknownModules    int `json:"unknown_modules"`
 }
 
 // PermissionDetailResponse defines model for permission-detail-response.
@@ -2412,6 +2815,58 @@ type GetAccessLogDetailParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetAppLogsParams defines parameters for GetAppLogs.
+type GetAppLogsParams struct {
+	Page     *int `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int `form:"page_size,omitempty" json:"page_size,omitempty"`
+
+	// OccurredFrom Inclusive canonical occurrence-time lower bound on `occurred_at`.
+	OccurredFrom *time.Time `form:"occurred_from,omitempty" json:"occurred_from,omitempty"`
+
+	// OccurredTo Inclusive canonical occurrence-time upper bound on `occurred_at`.
+	OccurredTo *time.Time                `form:"occurred_to,omitempty" json:"occurred_to,omitempty"`
+	Severity   *GetAppLogsParamsSeverity `form:"severity,omitempty" json:"severity,omitempty"`
+	Component  *string                   `form:"component,omitempty" json:"component,omitempty"`
+	Operation  *string                   `form:"operation,omitempty" json:"operation,omitempty"`
+	RequestId  *string                   `form:"request_id,omitempty" json:"request_id,omitempty"`
+	TraceId    *string                   `form:"trace_id,omitempty" json:"trace_id,omitempty"`
+
+	// Keyword Canonical fuzzy match applied to component, operation, message, and error.
+	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// Message Bounded fuzzy match applied to the app-log message only.
+	Message *string `form:"message,omitempty" json:"message,omitempty"`
+
+	// Error Bounded fuzzy match applied to the app-log error text only.
+	Error *string `form:"error,omitempty" json:"error,omitempty"`
+
+	// Sort Repeated sort fields encoded as `field:direction`.
+	Sort *[]GetAppLogsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetAppLogsParamsSeverity defines parameters for GetAppLogs.
+type GetAppLogsParamsSeverity string
+
+// GetAppLogsParamsSort defines parameters for GetAppLogs.
+type GetAppLogsParamsSort string
+
+// GetAppLogDetailParams defines parameters for GetAppLogDetail.
+type GetAppLogDetailParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetAuditIncidentParams defines parameters for GetAuditIncident.
 type GetAuditIncidentParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -2595,6 +3050,26 @@ type PostAuthSessionsRevokeOthersParams struct {
 
 // PostAuthSessionRevokeParams defines parameters for PostAuthSessionRevoke.
 type PostAuthSessionRevokeParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetModulesRuntimeParams defines parameters for GetModulesRuntime.
+type GetModulesRuntimeParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetModulesRuntimeModuleParams defines parameters for GetModulesRuntimeModule.
+type GetModulesRuntimeModuleParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

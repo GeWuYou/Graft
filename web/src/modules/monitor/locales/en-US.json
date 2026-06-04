@@ -183,6 +183,120 @@
       "diskUsedLabel": "Used",
       "diskFreeLabel": "Free",
       "diskPercentLabel": "Used percent"
+    },
+    "moduleRuntime": {
+      "title": "Module Runtime",
+      "subtitle": "Review compile-time module registration, enablement, dependency, migration, schema, and config status.",
+      "errorTitle": "Module snapshot request failed",
+      "errorFallback": "Failed to load module runtime snapshot",
+      "empty": "No module runtime data",
+      "status": {
+        "ready": "Ready",
+        "attention": "Needs attention",
+        "unknown": "Unknown"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "detail": "Detail"
+      },
+      "summary": {
+        "total": "Total",
+        "totalDescription": "Modules known to the runtime registry",
+        "enabled": "Enabled",
+        "enabledDescription": "Modules enabled for this process",
+        "healthy": "Healthy",
+        "healthyDescription": "Modules reporting healthy runtime status",
+        "degradedUnknown": "Degraded / unknown",
+        "degradedUnknownDescription": "Modules needing operator attention"
+      },
+      "table": {
+        "title": "Runtime Module List",
+        "description": "Read-only view of the current process module registry.",
+        "note": "Read-only view. Module write operations are unavailable."
+      },
+      "columns": {
+        "moduleKey": "Module key",
+        "enabled": "Enabled",
+        "registered": "Registered",
+        "health": "Health",
+        "dependencies": "Dependencies",
+        "migration": "Migrations",
+        "schema": "Schema",
+        "config": "Config",
+        "action": "Action"
+      },
+      "detail": {
+        "title": "Module runtime detail",
+        "titleWithKey": "{key} runtime detail",
+        "basicInfo": "Basic information",
+        "moduleKey": "Module key",
+        "enabled": "Enabled",
+        "registered": "Registered",
+        "health": "Health",
+        "runtimeStatus": "Runtime status",
+        "enablementSource": "Enablement source",
+        "dependencies": "Dependencies",
+        "declaredDependencies": "Declared dependencies",
+        "dependencySatisfaction": "Satisfaction",
+        "migration": "Migration",
+        "migrationDir": "Migration Dir",
+        "migrationStatus": "Status",
+        "schema": "Schema",
+        "schemaOwner": "Owner",
+        "schemaStatus": "Status",
+        "config": "Config",
+        "configStatus": "Status",
+        "configDescription": "Description",
+        "diagnostics": "Diagnostics"
+      },
+      "values": {
+        "yes": "Yes",
+        "no": "No",
+        "none": "None",
+        "emptyDependencies": "No dependencies",
+        "emptyMigrationDir": "No migration directory",
+        "emptySchema": "Schema not declared",
+        "unknownConfig": "Unknown config status",
+        "noDiagnostics": "No diagnostics",
+        "notReported": "Not reported",
+        "dependencySummary": "{satisfied} / {total} satisfied",
+        "migrationDirCount": "{count} dirs",
+        "moduleOwnedSchema": "Module-owned",
+        "notRequiredConfig": "No config required"
+      },
+      "health": {
+        "healthy": "Healthy",
+        "degraded": "Degraded",
+        "unknown": "Unknown",
+        "disabled": "Disabled"
+      },
+      "runtimeStatus": {
+        "registered": "Registered",
+        "disabled": "Disabled",
+        "degraded": "Degraded",
+        "unknown": "Unknown"
+      },
+      "migrationStatus": {
+        "declared": "Declared",
+        "not_declared": "Not declared"
+      },
+      "schemaStatus": {
+        "declared": "Declared",
+        "unknown": "Unknown"
+      },
+      "configStatus": {
+        "not_required": "Not required",
+        "unknown": "Unknown"
+      },
+      "dependencyStatus": {
+        "satisfied": "Satisfied",
+        "missing": "Missing",
+        "disabled": "Disabled"
+      },
+      "enablementSource": {
+        "all": "All modules",
+        "allowlist": "Allowlist"
+      }
     }
   }
 }

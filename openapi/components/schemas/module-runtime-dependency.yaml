@@ -1,0 +1,14 @@
+type: object
+required: [module_key, required, present, enabled, status]
+properties:
+  module_key:
+    type: string
+  required:
+    type: boolean
+  present:
+    type: boolean
+  enabled:
+    type: boolean
+  status:
+    type: string
+    enum: [satisfied, missing, disabled]

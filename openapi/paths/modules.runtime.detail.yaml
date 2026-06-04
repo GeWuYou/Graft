@@ -1,0 +1,41 @@
+get:
+  tags: [modules]
+  summary: Read module runtime detail
+  operationId: getModulesRuntimeModule
+  description: Returns one module item from the read-only compile-time module runtime snapshot.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: module_key
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Module runtime detail.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-module-runtime-item.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Module runtime item was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

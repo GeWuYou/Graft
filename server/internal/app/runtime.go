@@ -26,6 +26,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/moduleregistry"
+	"graft/server/internal/moduleruntime"
 	"graft/server/internal/permission"
 	"graft/server/internal/redisx"
 )
@@ -282,7 +283,7 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		return err
 	}
 
-	if err := r.registerLogExplorers(); err != nil {
+	if err := r.registerCoreAuthenticatedRoutes(); err != nil {
 		return r.cleanupAfterFailure(moduleCtx, booted, err)
 	}
 
@@ -373,7 +374,7 @@ func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 	}
 }
 
-func (r *Runtime) registerLogExplorers() error {
+func (r *Runtime) registerCoreAuthenticatedRoutes() error {
 	authService, authorizer, err := r.resolveLogExplorerAuth()
 	if errors.Is(err, container.ErrServiceNotRegistered) {
 		return nil
@@ -388,8 +389,47 @@ func (r *Runtime) registerLogExplorers() error {
 	if err := r.registerAppLogExplorerWithAuth(authService, authorizer); err != nil {
 		return err
 	}
+	if err := r.registerModuleRuntimeWithAuth(authService, authorizer); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func (r *Runtime) registerModuleRuntimeWithAuth(
+	authService moduleapi.AuthService,
+	authorizer moduleapi.Authorizer,
+) error {
+	if err := moduleruntime.Register(
+		moduleruntime.Registration{
+			I18n:               r.i18n,
+			MenuRegistry:       r.menuRegistry,
+			PermissionRegistry: r.permissionRegistry,
+			EventBus:           r.eventBus,
+			Config:             r.config,
+			Specs:              r.moduleRuntimeSpecs(),
+		},
+		r.server.Engine().Group("/api"),
+		authService,
+		authorizer,
+	); err != nil {
+		return fmt.Errorf("register module runtime routes: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Runtime) moduleRuntimeSpecs() []module.Spec {
+	ordered, err := moduleregistry.OrderedModuleSpecs()
+	if err != nil {
+		r.appLogger().Warn(context.Background(), "module runtime spec ordering failed",
+			logger.StringField(logger.FieldOperation, "module_runtime_specs"),
+			logger.ErrorField(err),
+		)
+		return moduleregistry.ModuleSpecs()
+	}
+
+	return ordered
 }
 
 func (r *Runtime) registerAccessLogExplorerWithAuth(

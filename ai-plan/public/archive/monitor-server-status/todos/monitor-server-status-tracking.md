@@ -4,8 +4,9 @@
 
 - Topic: `monitor-server-status`
 - Parent topic: `multi-worktree-governance` (archived)
-- Branch: `feat/wt-monitor-server-status`
-- Worktree: `/mnt/f/gewuyou/Project/Go/Graft-WorkTree/Graft-wt-monitor-server-status`
+- Status: `archived`
+- Original branch: `feat/wt-monitor-server-status`
+- Final closeout branch: `fix/module-runtime-ui-closeout`
 - Scope: first minimal implementation slice under `server/modules/monitor/**` and `web/src/modules/monitor/**`
 
 ## Goal
@@ -27,6 +28,7 @@
 
 ## Current Recovery Point
 
+- This topic has been archived under `ai-plan/public/archive/monitor-server-status/**`.
 - This topic was split out of `multi-worktree-governance` as a standalone active topic.
 - The first implementation slice now exists in `server/modules/monitor/**` and `web/src/modules/monitor/**`.
 - Backend module registration required one explicit shared-hotspot update in `server/internal/moduleregistry/generated.go`.
@@ -49,6 +51,13 @@
   - retry backoff after failed refreshes
   - friendly trend empty state when fewer than 2 samples exist
   - icon-assisted overview cards and grouped runtime sections
+- The final Module Runtime UI closeout completed under `fix/module-runtime-ui-closeout`:
+  - canonical UI name is `模块运行时` / `Module Runtime`
+  - web route meta, breadcrumb, tab title, page title, empty copy, and drawer title now align with the canonical name
+  - the table kept existing read-only fields and only adjusted column width allocation
+  - the high-visibility table note was downgraded to auxiliary copy
+  - the drawer now groups basic information, dependencies, migration, Schema, config, and diagnostics
+  - no new menu, API, config, module write action, or dynamic plugin-platform behavior was added
 
 ## Shared Hotspots
 
@@ -69,18 +78,22 @@
 - The follow-up round additionally used explicit shared-hotspot exceptions for `server/internal/app/runtime.go` and `server/internal/module/**` only to expose runtime metadata snapshots to modules.
 - No web scope or other module scope expansion was required.
 
-## Active Risks
+## Archived Risks
 
 - Server version currently uses the explicit fallback value `dev`; there is still no stronger canonical runtime version source in the current repository surface.
 - The dependency snapshot is intentionally shallow and based on existing runtime resources only; deeper health semantics would require a new scoped slice.
 - The trend window is process-local and intentionally ephemeral; it does not survive restart and should not be presented as historical observability.
-- Backend validation in this WSL worktree still depends on the explicit `GIT_DIR` and `GIT_WORK_TREE` override because plain `git` resolution remains misconfigured here.
-- Frontend completion still depends on the repository bun run check entrypoint; if that command cannot run, the round must report the exact command gap rather than claiming full completion.
+- Future monitor or module-runtime depth work should open a new bounded topic instead of reopening this archived line.
+
+## Final Validation
+
+- `cd web && bun run test:run src/modules/monitor/pages/modules/index.test.ts`
+- `cd web && bun run test:run src/utils/route/bootstrap.test.ts src/modules/monitor/pages/modules/index.test.ts`
+- `cd web && bun run format:check`
+- `cd web && bun run typecheck`
+- `cd web && bun run stylelint "src/modules/monitor/pages/modules/index.vue"`
+- `cd web && bun run check`
 
 ## Immediate Next Step
 
-- No immediate implementation gap remains for the current IA-alignment slice after validation.
-- If a later round is requested, keep it inside `server-status` depth improvements such as:
-  - richer module runtime-status semantics
-  - splitting `概览` / `性能趋势` into separate real pages only when data density justifies it
-  - adding `健康检查日志` or `配置诊断` as new explicit monitor capabilities rather than placeholder contracts
+- None. The topic is archived.

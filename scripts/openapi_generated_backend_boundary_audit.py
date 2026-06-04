@@ -89,6 +89,11 @@ RESPONSE_MAPPER_CHECKS = {
         "generated.ServerStatusServer",
         "generated.ServerStatusDependencies",
     ),
+    "server/internal/moduleruntime/snapshot.go": (
+        "generated.ModuleRuntimeSnapshot",
+        "generated.ModuleRuntimeItem",
+        "generated.ModuleRuntimeDependency",
+    ),
 }
 
 ALLOWED_EXACT_TYPES: dict[str, tuple[str, str]] = {
@@ -258,6 +263,7 @@ def audit_httpx_runtime(repo_root: Path, result: AuditResult) -> None:
         "server/modules/rbac/route_read_handlers.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError"),
         "server/modules/rbac/route_write_handlers.go": ("httpx.WriteSuccess",),
         "server/modules/monitor/module.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError", "ctx.Router.Group"),
+        "server/internal/moduleruntime/registration.go": ("httpx.WriteSuccess", "httpx.AbortLocalizedError", "router.Group"),
     }
 
     for rel_path, patterns in runtime_checks.items():
