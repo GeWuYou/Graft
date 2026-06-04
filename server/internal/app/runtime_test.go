@@ -382,6 +382,9 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 
 func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Cleanup(func() {
+		gin.SetMode(gin.TestMode)
+	})
 
 	recorderRepo := &runtimeAccessLogRecorderRepo{}
 	appLogRepo := &runtimeAppLogRecorderRepo{}
@@ -417,8 +420,13 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 		},
 		Log: config.LogConfig{
 			Level:           "info",
+			Format:          config.LogFormatAuto,
+			Color:           config.LogColorAuto,
 			AppLogPersist:   true,
 			AppLogRetention: 3 * 24 * time.Hour,
+		},
+		Runtime: config.RuntimeConfig{
+			GinMode: config.GinModeAuto,
 		},
 		I18n: config.I18nConfig{
 			DefaultLocale:    "zh-CN",
@@ -453,6 +461,43 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 	}
 	if runtime.appLogRepository != appLogRepo {
 		t.Fatal("expected runtime to retain logger-owned app log repository")
+	}
+}
+
+func TestApplyGinModeUsesResolvedRuntimeConfig(t *testing.T) {
+	originalMode := gin.Mode()
+	t.Cleanup(func() {
+		gin.SetMode(originalMode)
+	})
+
+	applyGinMode(&config.Config{
+		App: config.AppConfig{Env: "local"},
+		Runtime: config.RuntimeConfig{
+			GinMode: config.GinModeAuto,
+		},
+	})
+	if got := gin.Mode(); got != gin.DebugMode {
+		t.Fatalf("expected local auto gin mode %q, got %q", gin.DebugMode, got)
+	}
+
+	applyGinMode(&config.Config{
+		App: config.AppConfig{Env: "production"},
+		Runtime: config.RuntimeConfig{
+			GinMode: config.GinModeAuto,
+		},
+	})
+	if got := gin.Mode(); got != gin.ReleaseMode {
+		t.Fatalf("expected production auto gin mode %q, got %q", gin.ReleaseMode, got)
+	}
+
+	applyGinMode(&config.Config{
+		App: config.AppConfig{Env: "production"},
+		Runtime: config.RuntimeConfig{
+			GinMode: config.GinModeTest,
+		},
+	})
+	if got := gin.Mode(); got != gin.TestMode {
+		t.Fatalf("expected explicit test gin mode %q, got %q", gin.TestMode, got)
 	}
 }
 

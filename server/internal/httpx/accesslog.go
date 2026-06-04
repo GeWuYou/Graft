@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"graft/server/internal/config"
 	"graft/server/internal/moduleapi"
 )
 
@@ -17,10 +18,11 @@ const (
 	accessLogPersistTimeout       = 500 * time.Millisecond
 )
 
-func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository) gin.HandlerFunc {
+func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, options AccessLogOptions) gin.HandlerFunc {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
+	options = normalizeAccessLogOptions(options)
 
 	return func(ctx *gin.Context) {
 		startedAt := time.Now()
@@ -57,7 +59,34 @@ func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository) gin.Ha
 		fields = append(fields, zap.Time("occurredAt", record.OccurredAt))
 
 		persistAccessLog(ctx, logger, repo, record)
-		logAccess(logger, ctx.Writer.Status(), fields...)
+		if shouldLogAccessToConsole(record, options) {
+			logAccess(logger, ctx.Writer.Status(), fields...)
+		}
+	}
+}
+
+func normalizeAccessLogOptions(options AccessLogOptions) AccessLogOptions {
+	switch options.ConsolePolicy {
+	case config.AccessLogConsoleAlways, config.AccessLogConsoleNever, config.AccessLogConsoleErrorOnly:
+	default:
+		options.ConsolePolicy = config.AccessLogConsoleAlways
+	}
+	if options.SlowThreshold <= 0 {
+		options.SlowThreshold = time.Second
+	}
+	return options
+}
+
+func shouldLogAccessToConsole(record CreateAccessLogInput, options AccessLogOptions) bool {
+	switch options.ConsolePolicy {
+	case config.AccessLogConsoleAlways:
+		return true
+	case config.AccessLogConsoleNever:
+		return false
+	case config.AccessLogConsoleErrorOnly:
+		return record.StatusCode >= httpStatusBadRequest || time.Duration(record.DurationMS)*time.Millisecond >= options.SlowThreshold
+	default:
+		return true
 	}
 }
 

@@ -27,7 +27,13 @@ func New(cfg *config.Config) (*zap.Logger, error) {
 		return nil, errors.New("config is required")
 	}
 
-	logger, err := buildLogger(strings.TrimSpace(cfg.App.Name), strings.TrimSpace(cfg.App.Env), strings.TrimSpace(cfg.Log.Level))
+	logger, err := buildLogger(
+		strings.TrimSpace(cfg.App.Name),
+		strings.TrimSpace(cfg.App.Env),
+		strings.TrimSpace(cfg.Log.Level),
+		cfg.Log.Format,
+		cfg.Log.Color,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -40,16 +46,18 @@ func New(cfg *config.Config) (*zap.Logger, error) {
 
 // NewBootstrap 创建不依赖完整 runtime config 的早期 CLI logger。
 func NewBootstrap() *zap.Logger {
-	appEnv := strings.TrimSpace(os.Getenv("GRAFT_APP_ENV"))
+	appEnv := strings.TrimSpace(os.Getenv(config.EnvAppEnv))
 	if appEnv == "" {
 		appEnv = bootstrapAppEnv
 	}
-	logLevel := strings.TrimSpace(os.Getenv("GRAFT_LOG_LEVEL"))
+	logLevel := strings.TrimSpace(os.Getenv(config.EnvLogLevel))
 	if logLevel == "" {
 		logLevel = bootstrapLogLevel
 	}
+	logFormat := config.LogFormat(strings.TrimSpace(os.Getenv(config.EnvLogFormat)))
+	logColor := config.LogColor(strings.TrimSpace(os.Getenv(config.EnvLogColor)))
 
-	logger, err := buildLogger(bootstrapAppName, appEnv, logLevel)
+	logger, err := buildLogger(bootstrapAppName, appEnv, logLevel, logFormat, logColor)
 	if err != nil {
 		fallback := zap.NewNop()
 		zap.ReplaceGlobals(fallback)
@@ -60,18 +68,19 @@ func NewBootstrap() *zap.Logger {
 	return logger
 }
 
-func buildLogger(appName string, appEnv string, logLevel string) (*zap.Logger, error) {
-	zapConfig := zap.NewProductionConfig()
-	if appEnv == "local" || appEnv == "test" {
-		zapConfig = zap.NewDevelopmentConfig()
-		zapConfig.Encoding = "console"
-		zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	}
-
+func buildLogger(
+	appName string,
+	appEnv string,
+	logLevel string,
+	logFormat config.LogFormat,
+	logColor config.LogColor,
+) (*zap.Logger, error) {
 	level, err := zap.ParseAtomicLevel(logLevel)
 	if err != nil {
 		return nil, fmt.Errorf("parse log level %q: %w", logLevel, err)
 	}
+
+	zapConfig := buildZapConfig(appEnv, logFormat, logColor)
 	zapConfig.Level = level
 
 	logger, err := zapConfig.Build(
@@ -86,6 +95,23 @@ func buildLogger(appName string, appEnv string, logLevel string) (*zap.Logger, e
 	}
 
 	return logger, nil
+}
+
+func buildZapConfig(appEnv string, logFormat config.LogFormat, logColor config.LogColor) zap.Config {
+	effectiveFormat := config.ResolveLogFormat(appEnv, logFormat)
+	if effectiveFormat == config.LogFormatConsole {
+		zapConfig := zap.NewDevelopmentConfig()
+		zapConfig.Encoding = string(config.LogFormatConsole)
+		zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		if config.ResolveLogColor(appEnv, logFormat, logColor) {
+			zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		}
+		return zapConfig
+	}
+
+	zapConfig := zap.NewProductionConfig()
+	zapConfig.Encoding = string(config.LogFormatJSON)
+	return zapConfig
 }
 
 // Close 刷新日志缓冲并忽略标准输出场景下的已知 Sync 噪声。

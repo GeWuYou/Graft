@@ -154,6 +154,7 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 
 func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
 	deps = normalizeRuntimeCoreDeps(deps)
+	applyGinMode(cfg)
 
 	runtimeLogger, err := logger.New(cfg)
 	if err != nil {
@@ -198,12 +199,17 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 	}
 
 	return &Runtime{
-		config:             cfg,
-		logger:             runtimeLogger,
-		i18n:               localizer,
-		database:           databaseResources,
-		redis:              redisClient,
-		server:             httpx.NewServer(runtimeLogger, accessLogRepo),
+		config:   cfg,
+		logger:   runtimeLogger,
+		i18n:     localizer,
+		database: databaseResources,
+		redis:    redisClient,
+		server: httpx.NewServerWithOptions(runtimeLogger, httpx.ServerOptions{
+			AccessLog: httpx.AccessLogOptions{
+				ConsolePolicy: config.ResolveAccessLogConsolePolicy(cfg.App.Env, cfg.HTTPX.AccessLogConsole),
+				SlowThreshold: time.Duration(cfg.HTTPX.AccessLogSlowThresholdMS) * time.Millisecond,
+			},
+		}, accessLogRepo),
 		eventBus:           eventbus.New(runtimeLogger),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
@@ -225,6 +231,16 @@ func normalizeRuntimeCoreDeps(deps runtimeCoreDeps) runtimeCoreDeps {
 		deps.openRedisClient = redisx.Open
 	}
 	return deps
+}
+
+func applyGinMode(cfg *config.Config) {
+	appEnv := ""
+	mode := config.GinModeAuto
+	if cfg != nil {
+		appEnv = cfg.App.Env
+		mode = cfg.Runtime.GinMode
+	}
+	gin.SetMode(string(config.ResolveGinMode(appEnv, mode)))
 }
 
 func newOptionalAppLogRepository(

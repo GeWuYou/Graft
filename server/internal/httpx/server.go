@@ -11,6 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	"graft/server/internal/config"
 )
 
 const (
@@ -34,11 +36,32 @@ type Server struct {
 	server *http.Server
 }
 
+// AccessLogOptions configures HTTP access-log persistence and process-log emission.
+type AccessLogOptions struct {
+	ConsolePolicy config.AccessLogConsolePolicy
+	SlowThreshold time.Duration
+}
+
+// ServerOptions carries optional HTTP runtime behavior for NewServerWithOptions.
+type ServerOptions struct {
+	AccessLog AccessLogOptions
+}
+
 // NewServer 创建 MVP 运行时使用的最小 Gin 服务外壳。
 //
 // 返回的服务默认挂载全局 request-id、中台统一 access log 与恢复中间件，
 // 便于 core 和模块在统一入口上继续注册路由。
 func NewServer(logger *zap.Logger, repo ...AccessLogRepository) *Server {
+	return NewServerWithOptions(logger, ServerOptions{
+		AccessLog: AccessLogOptions{
+			ConsolePolicy: config.AccessLogConsoleAlways,
+			SlowThreshold: time.Second,
+		},
+	}, repo...)
+}
+
+// NewServerWithOptions creates the Gin server shell with explicit runtime options.
+func NewServerWithOptions(logger *zap.Logger, options ServerOptions, repo ...AccessLogRepository) *Server {
 	engine := gin.New()
 
 	var accessLogRepo AccessLogRepository
@@ -49,7 +72,7 @@ func NewServer(logger *zap.Logger, repo ...AccessLogRepository) *Server {
 		}
 	}
 
-	engine.Use(RequestIDMiddleware(), newAccessLogMiddleware(logger, accessLogRepo), gin.Recovery())
+	engine.Use(RequestIDMiddleware(), newAccessLogMiddleware(logger, accessLogRepo, options.AccessLog), gin.Recovery())
 	return &Server{engine: engine, repo: accessLogRepo}
 }
 
