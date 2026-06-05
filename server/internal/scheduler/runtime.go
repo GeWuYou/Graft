@@ -29,17 +29,22 @@ type Runtime interface {
 type RunStatus string
 
 const (
+	// RunStatusRunning indicates a scheduler task run has started but not finished.
 	RunStatusRunning RunStatus = "running"
+	// RunStatusSuccess indicates a scheduler task run completed successfully.
 	RunStatusSuccess RunStatus = "success"
-	RunStatusFailed  RunStatus = "failed"
+	// RunStatusFailed indicates a scheduler task run completed with an error.
+	RunStatusFailed RunStatus = "failed"
 )
 
 // TriggerType records why a runtime job execution started.
 type TriggerType string
 
 const (
+	// TriggerTypeSchedule indicates a scheduler task run was started by its configured cron schedule.
 	TriggerTypeSchedule TriggerType = "schedule"
-	TriggerTypeManual   TriggerType = "manual"
+	// TriggerTypeManual indicates a scheduler task run was started by an explicit API/runtime request.
+	TriggerTypeManual TriggerType = "manual"
 )
 
 // ErrTaskNotFound indicates the requested runtime job key is unknown.

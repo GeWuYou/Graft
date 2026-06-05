@@ -1,0 +1,38 @@
+get:
+  tags: [scheduled-tasks]
+  summary: List scheduled task runs
+  operationId: getScheduledTaskRuns
+  description: Returns persisted run history for one Task Scheduling Runtime job.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/scheduled-task-key.yaml
+    - $ref: ../components/parameters/scheduled-task-run-list-limit.yaml
+    - $ref: ../components/parameters/scheduled-task-run-list-offset.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Scheduled task run history.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-scheduled-task-run-list-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Scheduled task was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

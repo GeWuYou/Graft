@@ -6,6 +6,7 @@ import (
 
 	"graft/server/internal/container"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	schedulercore "graft/server/internal/scheduler"
 )
 
@@ -34,6 +35,18 @@ func (p *Module) Register(ctx *module.Context) error {
 		return fmt.Errorf("scheduler register context is required")
 	}
 
+	if err := registerMessages(ctx.I18n); err != nil {
+		return err
+	}
+	registerSchedulerPermissions(ctx.PermissionRegistry, moduleID)
+	registerSchedulerMenu(ctx.MenuRegistry, moduleID)
+	if err := registerSchedulerRuntimeService(ctx, p); err != nil {
+		return err
+	}
+	return registerSchedulerRoutes(ctx, moduleID)
+}
+
+func registerSchedulerRuntimeService(ctx *module.Context, p *Module) error {
 	return ctx.Services.RegisterSingleton((*schedulercore.Runtime)(nil), func(resolver container.Resolver) (any, error) {
 		db, err := module.ResolveService[*sql.DB](resolver, (*sql.DB)(nil))
 		if err != nil {
@@ -50,6 +63,30 @@ func (p *Module) Register(ctx *module.Context) error {
 		}
 		return schedulercore.New(ctx.Logger, repo), nil
 	})
+}
+
+func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {
+	resolved, err := ctx.Services.Resolve((*moduleapi.AuthService)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve auth service: %w", err)
+	}
+	authService, ok := resolved.(moduleapi.AuthService)
+	if !ok || authService == nil {
+		return nil, fmt.Errorf("resolve auth service: unexpected type %T", resolved)
+	}
+	return authService, nil
+}
+
+func resolveAuthorizer(ctx *module.Context) (moduleapi.Authorizer, error) {
+	resolved, err := ctx.Services.Resolve((*moduleapi.Authorizer)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve route authorizer: %w", err)
+	}
+	authorizer, ok := resolved.(moduleapi.Authorizer)
+	if !ok || authorizer == nil {
+		return nil, fmt.Errorf("resolve route authorizer: unexpected type %T", resolved)
+	}
+	return authorizer, nil
 }
 
 func (p *Module) resolveRuntime(ctx *module.Context) (schedulercore.Runtime, error) {

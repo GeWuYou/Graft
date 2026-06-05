@@ -3,9 +3,13 @@ package scheduler
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
 
@@ -16,6 +20,7 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	schedulercore "graft/server/internal/scheduler"
 )
@@ -59,7 +64,45 @@ func (r *stopContextRecorderRuntime) RunOnce(context.Context, string) (scheduler
 	return schedulercore.TaskRun{}, nil
 }
 
+type schedulerAPIRuntime struct {
+	stopContextRecorderRuntime
+	tasks []schedulercore.TaskSnapshot
+}
+
+func (r *schedulerAPIRuntime) ListTasks(context.Context) ([]schedulercore.TaskSnapshot, error) {
+	return r.tasks, nil
+}
+
+type testAuthService struct{}
+
+func (testAuthService) CurrentUser(context.Context) (*moduleapi.CurrentUser, error) {
+	return &moduleapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}, nil
+}
+
+func (testAuthService) ParseAccessToken(context.Context, string) (*moduleapi.AccessTokenClaims, error) {
+	return &moduleapi.AccessTokenClaims{
+		UserID:       7,
+		SessionID:    "session-1",
+		TokenVersion: 1,
+		IssuedAt:     time.Now().UTC(),
+		ExpiresAt:    time.Now().UTC().Add(time.Minute),
+	}, nil
+}
+
+type allowAllAuthorizer struct{}
+
+func (allowAllAuthorizer) Authorize(context.Context, moduleapi.RequestAuthContext, string) error {
+	return nil
+}
+
 func newModuleTestContext() *module.Context {
+	ctx, _ := newModuleTestContextWithEngine()
+	return ctx
+}
+
+func newModuleTestContextWithEngine() (*module.Context, *gin.Engine) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		panic(err)
@@ -88,17 +131,28 @@ func newModuleTestContext() *module.Context {
 	}); err != nil {
 		panic(err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) {
+		return testAuthService{}, nil
+	}); err != nil {
+		panic(err)
+	}
+	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(container.Resolver) (any, error) {
+		return allowAllAuthorizer{}, nil
+	}); err != nil {
+		panic(err)
+	}
 
 	return &module.Context{
 		Logger:             zap.NewNop(),
 		Config:             &config.Config{},
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
+		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		EventBus:           eventbus.New(zap.NewNop()),
+		Router:             engine.Group("/api"),
 		Services:           services,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
-	}
+	}, engine
 }
 
 // TestRegisterExposesRuntimeService 验证 scheduler 模块会把运行时能力注册到服务容器。
@@ -116,6 +170,73 @@ func TestRegisterExposesRuntimeService(t *testing.T) {
 	}
 	if _, ok := resolved.(schedulercore.Runtime); !ok {
 		t.Fatalf("expected scheduler runtime service, got %T", resolved)
+	}
+}
+
+func TestScheduledTaskListRouteReturnsRuntimeTasks(t *testing.T) {
+	ctx, engine := newModuleTestContextWithEngine()
+	moduleInstance := NewModule()
+	moduleInstance.runtime = &schedulerAPIRuntime{
+		tasks: []schedulercore.TaskSnapshot{
+			{
+				Key:                   "audit.retention.cleanup",
+				Name:                  "audit-retention-cleanup",
+				Owner:                 "audit",
+				Module:                "audit",
+				Type:                  cronx.TaskTypeCron,
+				DisplayMessageKey:     "audit.retention.title",
+				DescriptionMessageKey: "audit.retention.description",
+				Schedule:              "0 0 * * * *",
+				DefaultEnabled:        true,
+			},
+		},
+	}
+
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/scheduled-tasks", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	var payload struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Total int `json:"total"`
+			Items []struct {
+				Key            string `json:"key"`
+				TaskType       string `json:"task_type"`
+				ScheduleType   string `json:"schedule_type"`
+				DisplayNameKey string `json:"display_name_key"`
+				Module         string `json:"module"`
+				Enabled        bool   `json:"enabled"`
+				Status         string `json:"status"`
+				Running        bool   `json:"running"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !payload.Success || payload.Data.Total != 1 || len(payload.Data.Items) != 1 {
+		t.Fatalf("unexpected scheduled task list payload: %#v", payload)
+	}
+	item := payload.Data.Items[0]
+	if item.Key != "audit.retention.cleanup" ||
+		item.TaskType != "cron" ||
+		item.ScheduleType != "cron" ||
+		item.DisplayNameKey != "audit.retention.title" ||
+		item.Module != "audit" ||
+		!item.Enabled ||
+		item.Status != "idle" ||
+		item.Running {
+		t.Fatalf("unexpected scheduled task item: %#v", item)
 	}
 }
 

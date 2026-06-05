@@ -885,6 +885,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/scheduled-tasks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List scheduled tasks
+     * @description Returns registered Task Scheduling Runtime jobs for view and diagnosis workflows.
+     */
+    get: operations['getScheduledTasks'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/scheduled-tasks/{key}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read scheduled task detail
+     * @description Returns one Task Scheduling Runtime job snapshot.
+     */
+    get: operations['getScheduledTask'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/scheduled-tasks/{key}/runs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List scheduled task runs
+     * @description Returns persisted run history for one Task Scheduling Runtime job.
+     */
+    get: operations['getScheduledTaskRuns'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/scheduled-tasks/{key}:run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Run scheduled task once
+     * @description Triggers one Task Scheduling Runtime job immediately and returns the persisted manual run result.
+     */
+    post: operations['postScheduledTaskRun'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/access-log': {
     parameters: {
       query?: never;
@@ -1040,6 +1120,15 @@ export interface components {
     ModuleRuntimeSnapshot: components['schemas']['module-runtime-snapshot'];
     EnvelopedModuleRuntimeSnapshot: components['schemas']['enveloped-module-runtime-snapshot'];
     EnvelopedModuleRuntimeItem: components['schemas']['enveloped-module-runtime-item'];
+    ScheduledTaskLastRun: components['schemas']['scheduled-task-last-run'];
+    ScheduledTaskItem: components['schemas']['scheduled-task-item'];
+    ScheduledTaskListResponse: components['schemas']['scheduled-task-list-response'];
+    ScheduledTaskRunItem: components['schemas']['scheduled-task-run-item'];
+    ScheduledTaskRunListResponse: components['schemas']['scheduled-task-run-list-response'];
+    EnvelopedScheduledTaskItem: components['schemas']['enveloped-scheduled-task-item'];
+    EnvelopedScheduledTaskListResponse: components['schemas']['enveloped-scheduled-task-list-response'];
+    EnvelopedScheduledTaskRunItem: components['schemas']['enveloped-scheduled-task-run-item'];
+    EnvelopedScheduledTaskRunListResponse: components['schemas']['enveloped-scheduled-task-run-list-response'];
     AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
     AccessLogListResponse: components['schemas']['access-log-list-response'];
     EnvelopedAccessLogListResponse: components['schemas']['enveloped-access-log-list-response'];
@@ -2004,6 +2093,89 @@ export interface components {
     'enveloped-module-runtime-item': components['schemas']['api-envelope'] & {
       data: components['schemas']['module-runtime-item'];
     };
+    'scheduled-task-last-run': {
+      /** Format: uint64 */
+      id: number;
+      /** @enum {string} */
+      trigger_type: 'schedule' | 'manual';
+      /** @enum {string} */
+      status: 'running' | 'success' | 'failed';
+      /** Format: date-time */
+      started_at: string;
+      /** Format: date-time */
+      finished_at?: string | null;
+      /** Format: int64 */
+      duration_ms?: number | null;
+      error_summary: string;
+    };
+    'scheduled-task-item': {
+      key: string;
+      /** @enum {string} */
+      task_type: 'cron';
+      /** @enum {string} */
+      schedule_type: 'cron';
+      display_name_key: string;
+      description_key: string;
+      owner: string;
+      module: string;
+      /** @description Static runtime declaration state. The MVP does not support dynamic enable or disable actions. */
+      enabled: boolean;
+      schedule: string;
+      last_run?: components['schemas']['scheduled-task-last-run'];
+      /**
+       * Format: date-time
+       * @description Reserved for future runtime prediction. Null when the current runtime cannot expose a stable next-run value.
+       */
+      next_run_at?: string | null;
+      /** @enum {string} */
+      status: 'idle' | 'running' | 'success' | 'failed' | 'unknown';
+      running: boolean;
+    };
+    'scheduled-task-list-response': {
+      items: components['schemas']['scheduled-task-item'][];
+      total: number;
+    };
+    'enveloped-scheduled-task-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['scheduled-task-list-response'];
+    };
+    'enveloped-scheduled-task-item': components['schemas']['api-envelope'] & {
+      data: components['schemas']['scheduled-task-item'];
+    };
+    'scheduled-task-run-item': {
+      /** Format: uint64 */
+      id: number;
+      task_key: string;
+      task_name: string;
+      owner: string;
+      module: string;
+      /** @enum {string} */
+      task_type: 'cron';
+      /** @enum {string} */
+      trigger_type: 'schedule' | 'manual';
+      /** @enum {string} */
+      status: 'running' | 'success' | 'failed';
+      error_summary: string;
+      /** Format: date-time */
+      started_at: string;
+      /** Format: date-time */
+      finished_at?: string | null;
+      /** Format: int64 */
+      duration_ms?: number | null;
+      /** Format: date-time */
+      created_at: string;
+    };
+    'scheduled-task-run-list-response': {
+      items: components['schemas']['scheduled-task-run-item'][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-scheduled-task-run-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['scheduled-task-run-list-response'];
+    };
+    'enveloped-scheduled-task-run-item': components['schemas']['api-envelope'] & {
+      data: components['schemas']['scheduled-task-run-item'];
+    };
     'access-log-detail-response': {
       /** Format: int64 */
       id: number;
@@ -2117,6 +2289,12 @@ export interface components {
     'session-list-limit': number;
     /** @description Optional trend window. Invalid values currently fall back to the backend default `10m`. */
     'trend-range-query': '10m' | '30m' | '1h';
+    /** @description Stable scheduled task runtime key. */
+    'scheduled-task-key': string;
+    /** @description Optional maximum number of scheduled task runs to return. The runtime accepts values from 1 to 100. */
+    'scheduled-task-run-list-limit': number;
+    /** @description Optional zero-based offset for scheduled task run history. */
+    'scheduled-task-run-list-offset': number;
   };
   requestBodies: never;
   headers: {
@@ -4440,6 +4618,188 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Module runtime item was not found. */
       404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getScheduledTasks: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Scheduled task list. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-scheduled-task-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getScheduledTask: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable scheduled task runtime key. */
+        key: components['parameters']['scheduled-task-key'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Scheduled task detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-scheduled-task-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Scheduled task was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getScheduledTaskRuns: {
+    parameters: {
+      query?: {
+        /** @description Optional maximum number of scheduled task runs to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['scheduled-task-run-list-limit'];
+        /** @description Optional zero-based offset for scheduled task run history. */
+        offset?: components['parameters']['scheduled-task-run-list-offset'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable scheduled task runtime key. */
+        key: components['parameters']['scheduled-task-key'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Scheduled task run history. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-scheduled-task-run-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Scheduled task was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postScheduledTaskRun: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable scheduled task runtime key. */
+        key: components['parameters']['scheduled-task-key'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Manual scheduled task run result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-scheduled-task-run-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Scheduled task was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Scheduled task is already running. */
+      409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;

@@ -1,0 +1,52 @@
+type: object
+required:
+  - id
+  - task_key
+  - task_name
+  - owner
+  - module
+  - task_type
+  - trigger_type
+  - status
+  - error_summary
+  - started_at
+  - created_at
+properties:
+  id:
+    type: integer
+    format: uint64
+    minimum: 1
+  task_key:
+    type: string
+  task_name:
+    type: string
+  owner:
+    type: string
+  module:
+    type: string
+  task_type:
+    type: string
+    enum: [cron]
+  trigger_type:
+    type: string
+    enum: [schedule, manual]
+  status:
+    type: string
+    enum: [running, success, failed]
+  error_summary:
+    type: string
+  started_at:
+    type: string
+    format: date-time
+  finished_at:
+    type: string
+    format: date-time
+    nullable: true
+  duration_ms:
+    type: integer
+    format: int64
+    minimum: 0
+    nullable: true
+  created_at:
+    type: string
+    format: date-time

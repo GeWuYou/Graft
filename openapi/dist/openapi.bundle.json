@@ -38,6 +38,9 @@
       "name": "modules"
     },
     {
+      "name": "scheduled-tasks"
+    },
+    {
       "name": "access-log"
     },
     {
@@ -5156,6 +5159,277 @@
         }
       }
     },
+    "/api/scheduled-tasks": {
+      "get": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "List scheduled tasks",
+        "operationId": "getScheduledTasks",
+        "description": "Returns registered Task Scheduling Runtime jobs for view and diagnosis workflows.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scheduled task list.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/{key}": {
+      "get": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Read scheduled task detail",
+        "operationId": "getScheduledTask",
+        "description": "Returns one Task Scheduling Runtime job snapshot.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-key"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scheduled task detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Scheduled task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/{key}/runs": {
+      "get": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "List scheduled task runs",
+        "operationId": "getScheduledTaskRuns",
+        "description": "Returns persisted run history for one Task Scheduling Runtime job.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-key"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-run-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-run-list-offset"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scheduled task run history.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-run-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Scheduled task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/{key}:run": {
+      "post": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Run scheduled task once",
+        "operationId": "postScheduledTaskRun",
+        "description": "Triggers one Task Scheduling Runtime job immediately and returns the persisted manual run result.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-key"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Manual scheduled task run result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-run-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Scheduled task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Scheduled task is already running.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/access-log": {
       "get": {
         "tags": [
@@ -5984,6 +6258,33 @@
       },
       "EnvelopedModuleRuntimeItem": {
         "$ref": "#/components/schemas/enveloped-module-runtime-item"
+      },
+      "ScheduledTaskLastRun": {
+        "$ref": "#/components/schemas/scheduled-task-last-run"
+      },
+      "ScheduledTaskItem": {
+        "$ref": "#/components/schemas/scheduled-task-item"
+      },
+      "ScheduledTaskListResponse": {
+        "$ref": "#/components/schemas/scheduled-task-list-response"
+      },
+      "ScheduledTaskRunItem": {
+        "$ref": "#/components/schemas/scheduled-task-run-item"
+      },
+      "ScheduledTaskRunListResponse": {
+        "$ref": "#/components/schemas/scheduled-task-run-list-response"
+      },
+      "EnvelopedScheduledTaskItem": {
+        "$ref": "#/components/schemas/enveloped-scheduled-task-item"
+      },
+      "EnvelopedScheduledTaskListResponse": {
+        "$ref": "#/components/schemas/enveloped-scheduled-task-list-response"
+      },
+      "EnvelopedScheduledTaskRunItem": {
+        "$ref": "#/components/schemas/enveloped-scheduled-task-run-item"
+      },
+      "EnvelopedScheduledTaskRunListResponse": {
+        "$ref": "#/components/schemas/enveloped-scheduled-task-run-list-response"
       },
       "AccessLogDetailResponse": {
         "$ref": "#/components/schemas/access-log-detail-response"
@@ -8916,6 +9217,329 @@
           }
         ]
       },
+      "scheduled-task-last-run": {
+        "type": "object",
+        "required": [
+          "id",
+          "trigger_type",
+          "status",
+          "started_at",
+          "error_summary"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 1
+          },
+          "trigger_type": {
+            "type": "string",
+            "enum": [
+              "schedule",
+              "manual"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "success",
+              "failed"
+            ]
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true
+          },
+          "error_summary": {
+            "type": "string"
+          }
+        }
+      },
+      "scheduled-task-item": {
+        "type": "object",
+        "required": [
+          "key",
+          "task_type",
+          "schedule_type",
+          "display_name_key",
+          "description_key",
+          "owner",
+          "module",
+          "enabled",
+          "schedule",
+          "status",
+          "running"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "cron"
+            ]
+          },
+          "schedule_type": {
+            "type": "string",
+            "enum": [
+              "cron"
+            ]
+          },
+          "display_name_key": {
+            "type": "string"
+          },
+          "description_key": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Static runtime declaration state. The MVP does not support dynamic enable or disable actions."
+          },
+          "schedule": {
+            "type": "string"
+          },
+          "last_run": {
+            "$ref": "#/components/schemas/scheduled-task-last-run",
+            "nullable": true
+          },
+          "next_run_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Reserved for future runtime prediction. Null when the current runtime cannot expose a stable next-run value."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "running",
+              "success",
+              "failed",
+              "unknown"
+            ]
+          },
+          "running": {
+            "type": "boolean"
+          }
+        }
+      },
+      "scheduled-task-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/scheduled-task-item"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-scheduled-task-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/scheduled-task-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-scheduled-task-item": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/scheduled-task-item"
+              }
+            }
+          }
+        ]
+      },
+      "scheduled-task-run-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "task_key",
+          "task_name",
+          "owner",
+          "module",
+          "task_type",
+          "trigger_type",
+          "status",
+          "error_summary",
+          "started_at",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 1
+          },
+          "task_key": {
+            "type": "string"
+          },
+          "task_name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "cron"
+            ]
+          },
+          "trigger_type": {
+            "type": "string",
+            "enum": [
+              "schedule",
+              "manual"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "success",
+              "failed"
+            ]
+          },
+          "error_summary": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "scheduled-task-run-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/scheduled-task-run-item"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-scheduled-task-run-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/scheduled-task-run-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-scheduled-task-run-item": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/scheduled-task-run-item"
+              }
+            }
+          }
+        ]
+      },
       "access-log-detail-response": {
         "type": "object",
         "required": [
@@ -9253,6 +9877,59 @@
           "oneHour": {
             "summary": "One-hour trend",
             "value": "1h"
+          }
+        }
+      },
+      "scheduled-task-key": {
+        "name": "key",
+        "in": "path",
+        "required": true,
+        "description": "Stable scheduled task runtime key.",
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "examples": {
+          "cleanup": {
+            "summary": "Module-owned runtime task",
+            "value": "audit.retention.cleanup"
+          }
+        }
+      },
+      "scheduled-task-run-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of scheduled task runs to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "examples": {
+          "recentTwenty": {
+            "summary": "Fetch the default recent run window",
+            "value": 20
+          },
+          "fullWindow": {
+            "summary": "Fetch up to the maximum supported window",
+            "value": 100
+          }
+        }
+      },
+      "scheduled-task-run-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for scheduled task run history.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "examples": {
+          "firstPage": {
+            "summary": "Start from the newest run",
+            "value": 0
           }
         }
       }

@@ -1,0 +1,36 @@
+get:
+  tags: [scheduled-tasks]
+  summary: Read scheduled task detail
+  operationId: getScheduledTask
+  description: Returns one Task Scheduling Runtime job snapshot.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/scheduled-task-key.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Scheduled task detail.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-scheduled-task-item.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Scheduled task was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

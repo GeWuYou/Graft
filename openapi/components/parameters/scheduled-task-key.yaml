@@ -1,0 +1,11 @@
+name: key
+in: path
+required: true
+description: Stable scheduled task runtime key.
+schema:
+  type: string
+  minLength: 1
+examples:
+  cleanup:
+    summary: Module-owned runtime task
+    value: audit.retention.cleanup

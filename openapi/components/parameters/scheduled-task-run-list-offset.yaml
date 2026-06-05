@@ -1,0 +1,11 @@
+name: offset
+in: query
+required: false
+description: Optional zero-based offset for scheduled task run history.
+schema:
+  type: integer
+  minimum: 0
+examples:
+  firstPage:
+    summary: Start from the newest run
+    value: 0

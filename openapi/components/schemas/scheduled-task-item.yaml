@@ -1,0 +1,48 @@
+type: object
+required:
+  - key
+  - task_type
+  - schedule_type
+  - display_name_key
+  - description_key
+  - owner
+  - module
+  - enabled
+  - schedule
+  - status
+  - running
+properties:
+  key:
+    type: string
+  task_type:
+    type: string
+    enum: [cron]
+  schedule_type:
+    type: string
+    enum: [cron]
+  display_name_key:
+    type: string
+  description_key:
+    type: string
+  owner:
+    type: string
+  module:
+    type: string
+  enabled:
+    type: boolean
+    description: Static runtime declaration state. The MVP does not support dynamic enable or disable actions.
+  schedule:
+    type: string
+  last_run:
+    $ref: ./scheduled-task-last-run.yaml
+    nullable: true
+  next_run_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: Reserved for future runtime prediction. Null when the current runtime cannot expose a stable next-run value.
+  status:
+    type: string
+    enum: [idle, running, success, failed, unknown]
+  running:
+    type: boolean

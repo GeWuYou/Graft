@@ -5,13 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
+	"strconv"
 	"time"
 
 	"graft/server/internal/cronx"
 )
 
-const defaultRunListLimit = 20
+const (
+	defaultRunListLimit = 20
+	maxSQLRunID         = 1<<63 - 1
+)
 
 // SQLRunRepository persists scheduler runtime history in scheduler_task_runs.
 type SQLRunRepository struct {
@@ -29,7 +32,7 @@ func NewSQLRunRepository(db *sql.DB) (*SQLRunRepository, error) {
 
 // CreateRun inserts a running scheduler_task_runs row.
 func (r *SQLRunRepository) CreateRun(ctx context.Context, run TaskRun) (TaskRun, error) {
-	if r == nil || r.db == nil {
+	if err := r.ensureAvailable(); err != nil {
 		return TaskRun{}, errors.New("scheduler run repository is unavailable")
 	}
 	if run.TaskKey == "" {
@@ -76,7 +79,12 @@ func (r *SQLRunRepository) CreateRun(ctx context.Context, run TaskRun) (TaskRun,
 	if err := row.Scan(&id); err != nil {
 		return TaskRun{}, fmt.Errorf("create scheduler task run: %w", err)
 	}
-	run.ID = uint64(id)
+	runID, err := taskRunIDFromSQL(id)
+	if err != nil {
+		return TaskRun{}, fmt.Errorf("create scheduler task run: %w", err)
+	}
+	run.ID = runID
+
 	return run, nil
 }
 
@@ -88,33 +96,40 @@ func (r *SQLRunRepository) FinishRun(
 	finishedAt time.Time,
 	errorMessage string,
 ) (TaskRun, error) {
-	if r == nil || r.db == nil {
-		return TaskRun{}, errors.New("scheduler run repository is unavailable")
+	sqlID, err := r.sqlRunID(id)
+	if err != nil {
+		return TaskRun{}, err
 	}
-	if id == 0 {
-		return TaskRun{}, errors.New("scheduler run id is required")
-	}
-	if id > uint64(math.MaxInt64) {
-		return TaskRun{}, errors.New("scheduler run id is too large")
-	}
-	if status == "" {
-		return TaskRun{}, errors.New("scheduler run status is required")
-	}
-	if finishedAt.IsZero() {
-		return TaskRun{}, errors.New("scheduler run finished_at is required")
+	if err := validateRunFinish(status, finishedAt); err != nil {
+		return TaskRun{}, err
 	}
 
-	var startedAt time.Time
-	sqlID := int64(id)
-	if err := r.db.QueryRowContext(ctx, `SELECT started_at FROM scheduler_task_runs WHERE id = $1`, sqlID).Scan(&startedAt); err != nil {
-		return TaskRun{}, fmt.Errorf("read scheduler task run start: %w", err)
-	}
-	durationMS := finishedAt.UTC().Sub(startedAt.UTC()).Milliseconds()
-	if durationMS < 0 {
-		durationMS = 0
+	durationMS, err := r.runDurationMS(ctx, sqlID, finishedAt)
+	if err != nil {
+		return TaskRun{}, err
 	}
 
-	result, err := r.db.ExecContext(ctx, `UPDATE scheduler_task_runs
+	if err := r.updateFinishedRun(ctx, sqlID, status, finishedAt, durationMS, errorMessage); err != nil {
+		return TaskRun{}, err
+	}
+
+	run, err := r.findRunBySQLID(ctx, sqlID)
+	if err != nil {
+		return TaskRun{}, fmt.Errorf("finish scheduler task run: %w", err)
+	}
+
+	return run, nil
+}
+
+func (r *SQLRunRepository) updateFinishedRun(
+	ctx context.Context,
+	sqlID int64,
+	status RunStatus,
+	finishedAt time.Time,
+	durationMS int64,
+	errorMessage string,
+) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE scheduler_task_runs
 	SET status = $1,
 		error = $2,
 		finished_at = $3,
@@ -127,48 +142,44 @@ func (r *SQLRunRepository) FinishRun(
 		sqlID,
 	)
 	if err != nil {
-		return TaskRun{}, fmt.Errorf("update scheduler task run: %w", err)
-	}
-	_ = result
-
-	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, task_name, owner, module, task_type, trigger_type, status, error, started_at, finished_at, duration_ms, created_at
-	FROM scheduler_task_runs
-	WHERE id = $1`, sqlID)
-	run, err := scanTaskRun(row)
-	if err != nil {
-		return TaskRun{}, fmt.Errorf("finish scheduler task run: %w", err)
+		return fmt.Errorf("update scheduler task run: %w", err)
 	}
 
-	return run, nil
+	return nil
 }
 
 // ListRuns returns one stable page of task run history.
 func (r *SQLRunRepository) ListRuns(ctx context.Context, query RunListQuery) (RunListResult, error) {
-	if r == nil || r.db == nil {
-		return RunListResult{}, errors.New("scheduler run repository is unavailable")
-	}
-	if query.TaskKey == "" {
-		return RunListResult{}, errors.New("scheduler run task key is required")
-	}
-	if query.Limit <= 0 {
-		query.Limit = defaultRunListLimit
-	}
-	if query.Offset < 0 {
-		query.Offset = 0
+	if err := r.ensureAvailable(); err != nil {
+		return RunListResult{}, err
 	}
 
-	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM scheduler_task_runs WHERE task_key = $1`, query.TaskKey).Scan(&total); err != nil {
-		return RunListResult{}, fmt.Errorf("count scheduler task runs: %w", err)
+	normalized, err := normalizeRunListQuery(query)
+	if err != nil {
+		return RunListResult{}, err
 	}
 
+	total, err := r.countRuns(ctx, normalized.TaskKey)
+	if err != nil {
+		return RunListResult{}, err
+	}
+
+	items, err := r.listRunItems(ctx, normalized)
+	if err != nil {
+		return RunListResult{}, err
+	}
+
+	return RunListResult{Items: items, Total: total}, nil
+}
+
+func (r *SQLRunRepository) listRunItems(ctx context.Context, query RunListQuery) ([]TaskRun, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id, task_key, task_name, owner, module, task_type, trigger_type, status, error, started_at, finished_at, duration_ms, created_at
 	FROM scheduler_task_runs
 	WHERE task_key = $1
 	ORDER BY started_at DESC, id DESC
 	LIMIT $2 OFFSET $3`, query.TaskKey, query.Limit, query.Offset)
 	if err != nil {
-		return RunListResult{}, fmt.Errorf("list scheduler task runs: %w", err)
+		return nil, fmt.Errorf("list scheduler task runs: %w", err)
 	}
 	defer func() {
 		_ = rows.Close()
@@ -178,21 +189,21 @@ func (r *SQLRunRepository) ListRuns(ctx context.Context, query RunListQuery) (Ru
 	for rows.Next() {
 		run, scanErr := scanTaskRun(rows)
 		if scanErr != nil {
-			return RunListResult{}, scanErr
+			return nil, scanErr
 		}
 		items = append(items, run)
 	}
 	if err := rows.Err(); err != nil {
-		return RunListResult{}, fmt.Errorf("iterate scheduler task runs: %w", err)
+		return nil, fmt.Errorf("iterate scheduler task runs: %w", err)
 	}
 
-	return RunListResult{Items: items, Total: total}, nil
+	return items, nil
 }
 
 // LatestRunByTask returns the latest persisted run for one task key.
 func (r *SQLRunRepository) LatestRunByTask(ctx context.Context, taskKey string) (TaskRun, bool, error) {
-	if r == nil || r.db == nil {
-		return TaskRun{}, false, errors.New("scheduler run repository is unavailable")
+	if err := r.ensureAvailable(); err != nil {
+		return TaskRun{}, false, err
 	}
 	if taskKey == "" {
 		return TaskRun{}, false, errors.New("scheduler run task key is required")
@@ -213,6 +224,89 @@ func (r *SQLRunRepository) LatestRunByTask(ctx context.Context, taskKey string) 
 	}
 
 	return run, true, nil
+}
+
+func (r *SQLRunRepository) ensureAvailable() error {
+	if r == nil || r.db == nil {
+		return errors.New("scheduler run repository is unavailable")
+	}
+
+	return nil
+}
+
+func (r *SQLRunRepository) sqlRunID(id uint64) (int64, error) {
+	if err := r.ensureAvailable(); err != nil {
+		return 0, err
+	}
+	if id == 0 {
+		return 0, errors.New("scheduler run id is required")
+	}
+	if id > maxSQLRunID {
+		return 0, errors.New("scheduler run id is too large")
+	}
+
+	sqlID, err := strconv.ParseInt(strconv.FormatUint(id, 10), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("convert scheduler run id: %w", err)
+	}
+
+	return sqlID, nil
+}
+
+func validateRunFinish(status RunStatus, finishedAt time.Time) error {
+	if status == "" {
+		return errors.New("scheduler run status is required")
+	}
+	if finishedAt.IsZero() {
+		return errors.New("scheduler run finished_at is required")
+	}
+
+	return nil
+}
+
+func normalizeRunListQuery(query RunListQuery) (RunListQuery, error) {
+	if query.TaskKey == "" {
+		return RunListQuery{}, errors.New("scheduler run task key is required")
+	}
+	if query.Limit <= 0 {
+		query.Limit = defaultRunListLimit
+	}
+	if query.Offset < 0 {
+		query.Offset = 0
+	}
+
+	return query, nil
+}
+
+func (r *SQLRunRepository) countRuns(ctx context.Context, taskKey string) (int, error) {
+	var total int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM scheduler_task_runs WHERE task_key = $1`, taskKey).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count scheduler task runs: %w", err)
+	}
+
+	return total, nil
+}
+
+func (r *SQLRunRepository) runDurationMS(ctx context.Context, sqlID int64, finishedAt time.Time) (int64, error) {
+	var startedAt time.Time
+	if err := r.db.QueryRowContext(ctx, `SELECT started_at FROM scheduler_task_runs WHERE id = $1`, sqlID).Scan(&startedAt); err != nil {
+		return 0, fmt.Errorf("read scheduler task run start: %w", err)
+	}
+
+	durationMS := finishedAt.UTC().Sub(startedAt.UTC()).Milliseconds()
+	if durationMS < 0 {
+		return 0, nil
+	}
+
+	return durationMS, nil
+}
+
+func (r *SQLRunRepository) findRunBySQLID(ctx context.Context, sqlID int64) (TaskRun, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, task_name, owner, module, task_type, trigger_type, status, error, started_at, finished_at, duration_ms, created_at
+	FROM scheduler_task_runs
+	WHERE id = $1`, sqlID)
+
+	return scanTaskRun(row)
 }
 
 type taskRunScanner interface {
@@ -246,7 +340,11 @@ func scanTaskRun(scanner taskRunScanner) (TaskRun, error) {
 		return TaskRun{}, err
 	}
 
-	run.ID = uint64(id)
+	runID, err := taskRunIDFromSQL(id)
+	if err != nil {
+		return TaskRun{}, err
+	}
+	run.ID = runID
 	run.TaskType = cronTaskType(taskType)
 	run.TriggerType = TriggerType(triggerType)
 	run.Status = RunStatus(status)
@@ -260,6 +358,19 @@ func scanTaskRun(scanner taskRunScanner) (TaskRun, error) {
 	}
 
 	return run, nil
+}
+
+func taskRunIDFromSQL(id int64) (uint64, error) {
+	if id <= 0 {
+		return 0, errors.New("scheduler run id from database is invalid")
+	}
+
+	runID, err := strconv.ParseUint(strconv.FormatInt(id, 10), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("convert scheduler run id from database: %w", err)
+	}
+
+	return runID, nil
 }
 
 func cronTaskType(value string) cronx.TaskType {
