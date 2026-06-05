@@ -7,12 +7,16 @@ import (
 	"strings"
 )
 
-// TaskType marks the runtime kind of a scheduled task declaration.
+// TaskType 标记任务定义归属类型。
 type TaskType string
 
 const (
-	// TaskTypeCron is the MVP runtime job kind backed by a cron schedule.
-	TaskTypeCron TaskType = "cron"
+	// TaskTypeSystem 表示由系统模块声明的内置定时任务。
+	TaskTypeSystem TaskType = "system"
+	// TaskTypeHTTP 表示由用户配置的 HTTP 定时任务。
+	TaskTypeHTTP TaskType = "http"
+	// TaskTypeCron 是旧系统任务声明的源码兼容别名，运行时语义等同于 system。
+	TaskTypeCron TaskType = TaskTypeSystem
 )
 
 // Job 描述一个待注册的定时任务。
@@ -23,7 +27,7 @@ type Job struct {
 	Key string
 	// Owner 标记任务所有者，优先使用 module 名称；为空时沿用 Module。
 	Owner string
-	// Type 标记任务运行时类型；为空时默认视为 cron。
+	// Type 标记任务定义类型；为空时默认视为系统任务。
 	Type TaskType
 	// DisplayMessageKey 是任务名称的稳定 i18n key。
 	DisplayMessageKey string
@@ -58,10 +62,10 @@ func (j Job) RuntimeOwner() string {
 	return strings.TrimSpace(j.Module)
 }
 
-// RuntimeType returns the normalized runtime job type.
+// RuntimeType 返回归一化后的任务定义类型。
 func (j Job) RuntimeType() TaskType {
 	if j.Type == "" {
-		return TaskTypeCron
+		return TaskTypeSystem
 	}
 	return j.Type
 }
@@ -95,7 +99,7 @@ func (j Job) Validate() error {
 	if strings.TrimSpace(j.Name) == "" && strings.TrimSpace(j.Key) == "" {
 		return errors.New("job name is required")
 	}
-	if jobType := j.RuntimeType(); jobType != TaskTypeCron {
+	if jobType := j.RuntimeType(); jobType != TaskTypeSystem {
 		return errors.New("job type is unsupported")
 	}
 	if strings.TrimSpace(j.Schedule) == "" {

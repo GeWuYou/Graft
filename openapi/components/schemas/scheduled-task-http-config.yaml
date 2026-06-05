@@ -1,0 +1,22 @@
+type: object
+required:
+  - method
+  - url
+properties:
+  method:
+    type: string
+    enum: [GET, POST]
+  url:
+    type: string
+    minLength: 1
+  headers:
+    type: object
+    additionalProperties:
+      type: string
+  body:
+    type: string
+  timeout_seconds:
+    type: integer
+    minimum: 1
+    maximum: 120
+    default: 30

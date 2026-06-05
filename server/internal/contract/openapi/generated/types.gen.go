@@ -618,6 +618,21 @@ func (e AuditTargetKind) Valid() bool {
 	}
 }
 
+// Defines values for CreateScheduledTaskRequestTaskType.
+const (
+	CreateScheduledTaskRequestTaskTypeHttp CreateScheduledTaskRequestTaskType = "http"
+)
+
+// Valid indicates whether the value is a known member of the CreateScheduledTaskRequestTaskType enum.
+func (e CreateScheduledTaskRequestTaskType) Valid() bool {
+	switch e {
+	case CreateScheduledTaskRequestTaskTypeHttp:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EnvelopedAuditOverviewResponseSuccess.
 const (
 	True EnvelopedAuditOverviewResponseSuccess = true
@@ -882,6 +897,24 @@ func (e RoleListItemStatus) Valid() bool {
 	}
 }
 
+// Defines values for ScheduledTaskHttpConfigMethod.
+const (
+	GET  ScheduledTaskHttpConfigMethod = "GET"
+	POST ScheduledTaskHttpConfigMethod = "POST"
+)
+
+// Valid indicates whether the value is a known member of the ScheduledTaskHttpConfigMethod enum.
+func (e ScheduledTaskHttpConfigMethod) Valid() bool {
+	switch e {
+	case GET:
+		return true
+	case POST:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ScheduledTaskItemScheduleType.
 const (
 	ScheduledTaskItemScheduleTypeCron ScheduledTaskItemScheduleType = "cron"
@@ -926,13 +959,16 @@ func (e ScheduledTaskItemStatus) Valid() bool {
 
 // Defines values for ScheduledTaskItemTaskType.
 const (
-	ScheduledTaskItemTaskTypeCron ScheduledTaskItemTaskType = "cron"
+	ScheduledTaskItemTaskTypeHttp   ScheduledTaskItemTaskType = "http"
+	ScheduledTaskItemTaskTypeSystem ScheduledTaskItemTaskType = "system"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskItemTaskType enum.
 func (e ScheduledTaskItemTaskType) Valid() bool {
 	switch e {
-	case ScheduledTaskItemTaskTypeCron:
+	case ScheduledTaskItemTaskTypeHttp:
+		return true
+	case ScheduledTaskItemTaskTypeSystem:
 		return true
 	default:
 		return false
@@ -962,16 +998,19 @@ func (e ScheduledTaskLastRunStatus) Valid() bool {
 
 // Defines values for ScheduledTaskLastRunTriggerType.
 const (
-	ScheduledTaskLastRunTriggerTypeManual   ScheduledTaskLastRunTriggerType = "manual"
-	ScheduledTaskLastRunTriggerTypeSchedule ScheduledTaskLastRunTriggerType = "schedule"
+	ScheduledTaskLastRunTriggerTypeCron    ScheduledTaskLastRunTriggerType = "cron"
+	ScheduledTaskLastRunTriggerTypeManual  ScheduledTaskLastRunTriggerType = "manual"
+	ScheduledTaskLastRunTriggerTypeStartup ScheduledTaskLastRunTriggerType = "startup"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskLastRunTriggerType enum.
 func (e ScheduledTaskLastRunTriggerType) Valid() bool {
 	switch e {
+	case ScheduledTaskLastRunTriggerTypeCron:
+		return true
 	case ScheduledTaskLastRunTriggerTypeManual:
 		return true
-	case ScheduledTaskLastRunTriggerTypeSchedule:
+	case ScheduledTaskLastRunTriggerTypeStartup:
 		return true
 	default:
 		return false
@@ -1001,13 +1040,16 @@ func (e ScheduledTaskRunItemStatus) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemTaskType.
 const (
-	Cron ScheduledTaskRunItemTaskType = "cron"
+	Http   ScheduledTaskRunItemTaskType = "http"
+	System ScheduledTaskRunItemTaskType = "system"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemTaskType enum.
 func (e ScheduledTaskRunItemTaskType) Valid() bool {
 	switch e {
-	case Cron:
+	case Http:
+		return true
+	case System:
 		return true
 	default:
 		return false
@@ -1016,16 +1058,19 @@ func (e ScheduledTaskRunItemTaskType) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemTriggerType.
 const (
-	ScheduledTaskRunItemTriggerTypeManual   ScheduledTaskRunItemTriggerType = "manual"
-	ScheduledTaskRunItemTriggerTypeSchedule ScheduledTaskRunItemTriggerType = "schedule"
+	Cron    ScheduledTaskRunItemTriggerType = "cron"
+	Manual  ScheduledTaskRunItemTriggerType = "manual"
+	Startup ScheduledTaskRunItemTriggerType = "startup"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemTriggerType enum.
 func (e ScheduledTaskRunItemTriggerType) Valid() bool {
 	switch e {
-	case ScheduledTaskRunItemTriggerTypeManual:
+	case Cron:
 		return true
-	case ScheduledTaskRunItemTriggerTypeSchedule:
+	case Manual:
+		return true
+	case Startup:
 		return true
 	default:
 		return false
@@ -1946,6 +1991,20 @@ type CreateRoleRequest struct {
 	Name string `json:"name"`
 }
 
+// CreateScheduledTaskRequest defines model for create-scheduled-task-request.
+type CreateScheduledTaskRequest struct {
+	Config         *ScheduledTaskHttpConfig           `json:"config,omitempty"`
+	CronExpression string                             `json:"cron_expression"`
+	Description    *string                            `json:"description,omitempty"`
+	Enabled        bool                               `json:"enabled"`
+	TaskKey        string                             `json:"task_key"`
+	TaskType       CreateScheduledTaskRequestTaskType `json:"task_type"`
+	Title          string                             `json:"title"`
+}
+
+// CreateScheduledTaskRequestTaskType defines model for CreateScheduledTaskRequest.TaskType.
+type CreateScheduledTaskRequestTaskType string
+
 // CreateUserRequest defines model for create-user-request.
 type CreateUserRequest struct {
 	Display string `json:"display"`
@@ -2745,25 +2804,46 @@ type RolePermissionBindingResponse struct {
 	PermissionIds []int64 `json:"permission_ids"`
 }
 
+// ScheduledTaskHttpConfig defines model for scheduled-task-http-config.
+type ScheduledTaskHttpConfig struct {
+	Body           *string                       `json:"body,omitempty"`
+	Headers        *map[string]string            `json:"headers,omitempty"`
+	Method         ScheduledTaskHttpConfigMethod `json:"method"`
+	TimeoutSeconds *int                          `json:"timeout_seconds,omitempty"`
+	Url            string                        `json:"url"`
+}
+
+// ScheduledTaskHttpConfigMethod defines model for ScheduledTaskHttpConfig.Method.
+type ScheduledTaskHttpConfigMethod string
+
 // ScheduledTaskItem defines model for scheduled-task-item.
 type ScheduledTaskItem struct {
-	DescriptionKey string `json:"description_key"`
-	DisplayNameKey string `json:"display_name_key"`
+	// Builtin System tasks are builtin and cannot be deleted or change task_key/task_type.
+	Builtin *bool `json:"builtin,omitempty"`
 
-	// Enabled Static runtime declaration state. The MVP does not support dynamic enable or disable actions.
+	// ConfigJson Task-type private JSON config. HTTP task responses contain persisted config only for management views.
+	ConfigJson     *string `json:"config_json,omitempty"`
+	Description    *string `json:"description,omitempty"`
+	DescriptionKey string  `json:"description_key"`
+	DisplayNameKey string  `json:"display_name_key"`
+
+	// Enabled Whether the scheduled task is enabled in the DB-backed task definition.
 	Enabled bool                  `json:"enabled"`
 	Key     string                `json:"key"`
 	LastRun *ScheduledTaskLastRun `json:"last_run,omitempty"`
 	Module  string                `json:"module"`
 
 	// NextRunAt Reserved for future runtime prediction. Null when the current runtime cannot expose a stable next-run value.
-	NextRunAt    *time.Time                    `json:"next_run_at,omitempty"`
-	Owner        string                        `json:"owner"`
-	Running      bool                          `json:"running"`
+	NextRunAt *time.Time `json:"next_run_at,omitempty"`
+	Owner     string     `json:"owner"`
+	Running   bool       `json:"running"`
+
+	// Schedule Cron expression.
 	Schedule     string                        `json:"schedule"`
 	ScheduleType ScheduledTaskItemScheduleType `json:"schedule_type"`
 	Status       ScheduledTaskItemStatus       `json:"status"`
 	TaskType     ScheduledTaskItemTaskType     `json:"task_type"`
+	Title        *string                       `json:"title,omitempty"`
 }
 
 // ScheduledTaskItemScheduleType defines model for ScheduledTaskItem.ScheduleType.
@@ -2777,13 +2857,14 @@ type ScheduledTaskItemTaskType string
 
 // ScheduledTaskLastRun defines model for scheduled-task-last-run.
 type ScheduledTaskLastRun struct {
-	DurationMs   *int64                          `json:"duration_ms,omitempty"`
-	ErrorSummary string                          `json:"error_summary"`
-	FinishedAt   *time.Time                      `json:"finished_at,omitempty"`
-	Id           uint64                          `json:"id"`
-	StartedAt    time.Time                       `json:"started_at"`
-	Status       ScheduledTaskLastRunStatus      `json:"status"`
-	TriggerType  ScheduledTaskLastRunTriggerType `json:"trigger_type"`
+	DurationMs    *int64                          `json:"duration_ms,omitempty"`
+	ErrorSummary  string                          `json:"error_summary"`
+	FinishedAt    *time.Time                      `json:"finished_at,omitempty"`
+	Id            uint64                          `json:"id"`
+	ResultSummary *string                         `json:"result_summary,omitempty"`
+	StartedAt     time.Time                       `json:"started_at"`
+	Status        ScheduledTaskLastRunStatus      `json:"status"`
+	TriggerType   ScheduledTaskLastRunTriggerType `json:"trigger_type"`
 }
 
 // ScheduledTaskLastRunStatus defines model for ScheduledTaskLastRun.Status.
@@ -2800,19 +2881,20 @@ type ScheduledTaskListResponse struct {
 
 // ScheduledTaskRunItem defines model for scheduled-task-run-item.
 type ScheduledTaskRunItem struct {
-	CreatedAt    time.Time                       `json:"created_at"`
-	DurationMs   *int64                          `json:"duration_ms,omitempty"`
-	ErrorSummary string                          `json:"error_summary"`
-	FinishedAt   *time.Time                      `json:"finished_at,omitempty"`
-	Id           uint64                          `json:"id"`
-	Module       string                          `json:"module"`
-	Owner        string                          `json:"owner"`
-	StartedAt    time.Time                       `json:"started_at"`
-	Status       ScheduledTaskRunItemStatus      `json:"status"`
-	TaskKey      string                          `json:"task_key"`
-	TaskName     string                          `json:"task_name"`
-	TaskType     ScheduledTaskRunItemTaskType    `json:"task_type"`
-	TriggerType  ScheduledTaskRunItemTriggerType `json:"trigger_type"`
+	CreatedAt     time.Time                       `json:"created_at"`
+	DurationMs    *int64                          `json:"duration_ms,omitempty"`
+	ErrorSummary  string                          `json:"error_summary"`
+	FinishedAt    *time.Time                      `json:"finished_at,omitempty"`
+	Id            uint64                          `json:"id"`
+	Module        string                          `json:"module"`
+	Owner         string                          `json:"owner"`
+	ResultSummary *string                         `json:"result_summary,omitempty"`
+	StartedAt     time.Time                       `json:"started_at"`
+	Status        ScheduledTaskRunItemStatus      `json:"status"`
+	TaskKey       string                          `json:"task_key"`
+	TaskName      string                          `json:"task_name"`
+	TaskType      ScheduledTaskRunItemTaskType    `json:"task_type"`
+	TriggerType   ScheduledTaskRunItemTriggerType `json:"trigger_type"`
 }
 
 // ScheduledTaskRunItemStatus defines model for ScheduledTaskRunItem.Status.
@@ -3001,6 +3083,15 @@ type UpdateRoleStatusRequest struct {
 // UpdateRoleStatusRequestStatus defines model for UpdateRoleStatusRequest.Status.
 type UpdateRoleStatusRequestStatus string
 
+// UpdateScheduledTaskRequest defines model for update-scheduled-task-request.
+type UpdateScheduledTaskRequest struct {
+	Config         *ScheduledTaskHttpConfig `json:"config,omitempty"`
+	CronExpression *string                  `json:"cron_expression,omitempty"`
+	Description    *string                  `json:"description,omitempty"`
+	Enabled        *bool                    `json:"enabled,omitempty"`
+	Title          *string                  `json:"title,omitempty"`
+}
+
 // UpdateUserRequest defines model for update-user-request.
 type UpdateUserRequest struct {
 	Display  string `json:"display"`
@@ -3053,6 +3144,9 @@ type RequestIdHeader = string
 
 // ScheduledTaskKey defines model for scheduled-task-key.
 type ScheduledTaskKey = string
+
+// ScheduledTaskRunId defines model for scheduled-task-run-id.
+type ScheduledTaskRunId = uint64
 
 // ScheduledTaskRunListLimit defines model for scheduled-task-run-list-limit.
 type ScheduledTaskRunListLimit = int
@@ -3560,8 +3654,58 @@ type GetScheduledTasksParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostScheduledTaskParams defines parameters for PostScheduledTask.
+type PostScheduledTaskParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetScheduledTaskParams defines parameters for GetScheduledTask.
 type GetScheduledTaskParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostScheduledTaskDeleteParams defines parameters for PostScheduledTaskDelete.
+type PostScheduledTaskDeleteParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostScheduledTaskDisableParams defines parameters for PostScheduledTaskDisable.
+type PostScheduledTaskDisableParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostScheduledTaskEnableParams defines parameters for PostScheduledTaskEnable.
+type PostScheduledTaskEnableParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostScheduledTaskRunParams defines parameters for PostScheduledTaskRun.
+type PostScheduledTaskRunParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -3586,8 +3730,18 @@ type GetScheduledTaskRunsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostScheduledTaskRunParams defines parameters for PostScheduledTaskRun.
-type PostScheduledTaskRunParams struct {
+// GetScheduledTaskRunParams defines parameters for GetScheduledTaskRun.
+type GetScheduledTaskRunParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostScheduledTaskUpdateParams defines parameters for PostScheduledTaskUpdate.
+type PostScheduledTaskUpdateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -3795,6 +3949,12 @@ type PostRoleStatusJSONRequestBody = UpdateRoleStatusRequest
 
 // PostRoleUpdateJSONRequestBody defines body for PostRoleUpdate for application/json ContentType.
 type PostRoleUpdateJSONRequestBody = UpdateRoleRequest
+
+// PostScheduledTaskJSONRequestBody defines body for PostScheduledTask for application/json ContentType.
+type PostScheduledTaskJSONRequestBody = CreateScheduledTaskRequest
+
+// PostScheduledTaskUpdateJSONRequestBody defines body for PostScheduledTaskUpdate for application/json ContentType.
+type PostScheduledTaskUpdateJSONRequestBody = UpdateScheduledTaskRequest
 
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
 type PostUsersJSONRequestBody = CreateUserRequest

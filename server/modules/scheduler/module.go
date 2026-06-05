@@ -61,11 +61,17 @@ func registerSchedulerRuntimeService(ctx *module.Context, p *Module) error {
 		if err != nil {
 			return nil, err
 		}
+		taskRepo, err := schedulercore.NewSQLTaskRepository(db)
+		if err != nil {
+			return nil, err
+		}
 
 		if p.runtime != nil {
 			return p.runtime, nil
 		}
-		return schedulercore.New(ctx.Logger, repo), nil
+		runtime := schedulercore.New(ctx.Logger, repo)
+		runtime.SetTaskRepository(taskRepo)
+		return runtime, nil
 	})
 }
 
@@ -147,10 +153,8 @@ func (p *Module) Boot(ctx *module.Context) error {
 		return fmt.Errorf("resolve scheduler runtime: %w", err)
 	}
 
-	for _, job := range ctx.CronRegistry.Items() {
-		if err := runtime.RegisterJob(job); err != nil {
-			return fmt.Errorf("register scheduler job %s: %w", job.Name, err)
-		}
+	if err := runtime.SeedBuiltinJobs(ctx.LifecycleContext, ctx.CronRegistry.Items()); err != nil {
+		return fmt.Errorf("seed scheduler builtin jobs: %w", err)
 	}
 
 	if err := runtime.Start(ctx.LifecycleContext); err != nil {

@@ -5206,9 +5206,66 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Create HTTP scheduled task",
+        "operationId": "postScheduledTask",
+        "description": "Creates one user-managed HTTP scheduled task. System tasks are seeded by the backend scheduler module and cannot be created through this endpoint.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create-scheduled-task-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created scheduled task.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
-    "/api/scheduled-tasks/{key}": {
+    "/api/scheduled-tasks/{taskKey}": {
       "get": {
         "tags": [
           "scheduled-tasks"
@@ -5275,7 +5332,285 @@
         }
       }
     },
-    "/api/scheduled-tasks/{key}/runs": {
+    "/api/scheduled-tasks/{taskKey}/update": {
+      "post": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Update scheduled task",
+        "operationId": "postScheduledTaskUpdate",
+        "description": "Updates cron/enabled fields for system tasks and mutable management fields for user HTTP tasks.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-key"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/update-scheduled-task-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated scheduled task.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Scheduled task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/{taskKey}/delete": {
+      "post": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Delete HTTP scheduled task",
+        "operationId": "postScheduledTaskDelete",
+        "description": "Soft-deletes one user HTTP scheduled task. System tasks cannot be deleted.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-key"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted scheduled task.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Scheduled task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/{taskKey}/enable": {
+      "post": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Enable scheduled task",
+        "operationId": "postScheduledTaskEnable",
+        "description": "Enables one scheduled task and dynamically registers its cron schedule.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-key"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Enabled scheduled task.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Scheduled task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/{taskKey}/disable": {
+      "post": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Disable scheduled task",
+        "operationId": "postScheduledTaskDisable",
+        "description": "Disables one scheduled task and dynamically removes its cron schedule.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-key"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disabled scheduled task.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Scheduled task was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/{taskKey}/runs": {
       "get": {
         "tags": [
           "scheduled-tasks"
@@ -5348,7 +5683,77 @@
         }
       }
     },
-    "/api/scheduled-tasks/{key}:run": {
+    "/api/scheduled-tasks/{taskKey}/runs/{runID}": {
+      "get": {
+        "tags": [
+          "scheduled-tasks"
+        ],
+        "summary": "Read scheduled task run detail",
+        "operationId": "getScheduledTaskRun",
+        "description": "Returns one persisted run history record for a scheduled task.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-key"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-run-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scheduled task run detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-scheduled-task-run-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Scheduled task or run was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/scheduled-tasks/{taskKey}/run": {
       "post": {
         "tags": [
           "scheduled-tasks"
@@ -6034,6 +6439,9 @@
       "ErrorResponse": {
         "$ref": "#/components/schemas/error-response"
       },
+      "EnvelopedEmptyResponse": {
+        "$ref": "#/components/schemas/enveloped-empty-response"
+      },
       "HealthResponse": {
         "$ref": "#/components/schemas/health-response"
       },
@@ -6264,6 +6672,15 @@
       },
       "ScheduledTaskItem": {
         "$ref": "#/components/schemas/scheduled-task-item"
+      },
+      "ScheduledTaskHTTPConfig": {
+        "$ref": "#/components/schemas/scheduled-task-http-config"
+      },
+      "CreateScheduledTaskRequest": {
+        "$ref": "#/components/schemas/create-scheduled-task-request"
+      },
+      "UpdateScheduledTaskRequest": {
+        "$ref": "#/components/schemas/update-scheduled-task-request"
       },
       "ScheduledTaskListResponse": {
         "$ref": "#/components/schemas/scheduled-task-list-response"
@@ -9235,8 +9652,9 @@
           "trigger_type": {
             "type": "string",
             "enum": [
-              "schedule",
-              "manual"
+              "cron",
+              "manual",
+              "startup"
             ]
           },
           "status": {
@@ -9264,6 +9682,9 @@
           },
           "error_summary": {
             "type": "string"
+          },
+          "result_summary": {
+            "type": "string"
           }
         }
       },
@@ -9289,7 +9710,8 @@
           "task_type": {
             "type": "string",
             "enum": [
-              "cron"
+              "system",
+              "http"
             ]
           },
           "schedule_type": {
@@ -9312,10 +9734,25 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Static runtime declaration state. The MVP does not support dynamic enable or disable actions."
+            "description": "Whether the scheduled task is enabled in the DB-backed task definition."
+          },
+          "builtin": {
+            "type": "boolean",
+            "description": "System tasks are builtin and cannot be deleted or change task_key/task_type."
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
           },
           "schedule": {
-            "type": "string"
+            "type": "string",
+            "description": "Cron expression."
+          },
+          "config_json": {
+            "type": "string",
+            "description": "Task-type private JSON config. HTTP task responses contain persisted config only for management views."
           },
           "last_run": {
             "$ref": "#/components/schemas/scheduled-task-last-run",
@@ -9379,6 +9816,80 @@
           }
         ]
       },
+      "scheduled-task-http-config": {
+        "type": "object",
+        "required": [
+          "method",
+          "url"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "body": {
+            "type": "string"
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120,
+            "default": 30
+          }
+        }
+      },
+      "create-scheduled-task-request": {
+        "type": "object",
+        "required": [
+          "task_key",
+          "task_type",
+          "title",
+          "cron_expression",
+          "enabled"
+        ],
+        "properties": {
+          "task_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "http"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "cron_expression": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "config": {
+            "$ref": "#/components/schemas/scheduled-task-http-config"
+          }
+        }
+      },
       "enveloped-scheduled-task-item": {
         "allOf": [
           {
@@ -9396,6 +9907,28 @@
             }
           }
         ]
+      },
+      "update-scheduled-task-request": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "cron_expression": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "config": {
+            "$ref": "#/components/schemas/scheduled-task-http-config"
+          }
+        }
       },
       "scheduled-task-run-item": {
         "type": "object",
@@ -9433,14 +9966,16 @@
           "task_type": {
             "type": "string",
             "enum": [
-              "cron"
+              "system",
+              "http"
             ]
           },
           "trigger_type": {
             "type": "string",
             "enum": [
-              "schedule",
-              "manual"
+              "cron",
+              "manual",
+              "startup"
             ]
           },
           "status": {
@@ -9452,6 +9987,9 @@
             ]
           },
           "error_summary": {
+            "type": "string"
+          },
+          "result_summary": {
             "type": "string"
           },
           "started_at": {
@@ -9881,17 +10419,17 @@
         }
       },
       "scheduled-task-key": {
-        "name": "key",
+        "name": "taskKey",
         "in": "path",
         "required": true,
-        "description": "Stable scheduled task runtime key.",
+        "description": "Stable scheduled task key.",
         "schema": {
           "type": "string",
           "minLength": 1
         },
         "examples": {
           "cleanup": {
-            "summary": "Module-owned runtime task",
+            "summary": "Module-owned scheduled task",
             "value": "audit.retention.cleanup"
           }
         }
@@ -9931,6 +10469,17 @@
             "summary": "Start from the newest run",
             "value": 0
           }
+        }
+      },
+      "scheduled-task-run-id": {
+        "name": "runID",
+        "in": "path",
+        "required": true,
+        "description": "Scheduled task run id.",
+        "schema": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 1
         }
       }
     },

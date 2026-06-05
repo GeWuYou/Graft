@@ -26,14 +26,16 @@ properties:
     type: string
   task_type:
     type: string
-    enum: [cron]
+    enum: [system, http]
   trigger_type:
     type: string
-    enum: [schedule, manual]
+    enum: [cron, manual, startup]
   status:
     type: string
     enum: [running, success, failed]
   error_summary:
+    type: string
+  result_summary:
     type: string
   started_at:
     type: string

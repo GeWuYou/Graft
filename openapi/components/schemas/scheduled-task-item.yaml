@@ -16,7 +16,7 @@ properties:
     type: string
   task_type:
     type: string
-    enum: [cron]
+    enum: [system, http]
   schedule_type:
     type: string
     enum: [cron]
@@ -30,9 +30,20 @@ properties:
     type: string
   enabled:
     type: boolean
-    description: Static runtime declaration state. The MVP does not support dynamic enable or disable actions.
+    description: Whether the scheduled task is enabled in the DB-backed task definition.
+  builtin:
+    type: boolean
+    description: System tasks are builtin and cannot be deleted or change task_key/task_type.
+  title:
+    type: string
+  description:
+    type: string
   schedule:
     type: string
+    description: Cron expression.
+  config_json:
+    type: string
+    description: Task-type private JSON config. HTTP task responses contain persisted config only for management views.
   last_run:
     $ref: ./scheduled-task-last-run.yaml
     nullable: true

@@ -37,12 +37,16 @@ func toScheduledTaskItem(task schedulercore.TaskSnapshot) generated.ScheduledTas
 	return generated.ScheduledTaskItem{
 		Key:            strings.TrimSpace(task.Key),
 		TaskType:       generated.ScheduledTaskItemTaskType(task.Type),
-		ScheduleType:   generated.ScheduledTaskItemScheduleType(task.Type),
+		ScheduleType:   generated.ScheduledTaskItemScheduleTypeCron,
 		DisplayNameKey: strings.TrimSpace(task.DisplayMessageKey),
 		DescriptionKey: strings.TrimSpace(task.DescriptionMessageKey),
 		Owner:          strings.TrimSpace(task.Owner),
 		Module:         strings.TrimSpace(task.Module),
-		Enabled:        task.DefaultEnabled,
+		Enabled:        task.Enabled,
+		Builtin:        boolPointer(task.Builtin),
+		Title:          stringPointer(task.Title),
+		Description:    stringPointer(task.Description),
+		ConfigJson:     stringPointer(task.ConfigJSON),
 		Schedule:       strings.TrimSpace(task.Schedule),
 		LastRun:        lastRun,
 		Status:         status,
@@ -52,13 +56,14 @@ func toScheduledTaskItem(task schedulercore.TaskSnapshot) generated.ScheduledTas
 
 func toScheduledTaskLastRun(run schedulercore.TaskRun) generated.ScheduledTaskLastRun {
 	return generated.ScheduledTaskLastRun{
-		Id:           run.ID,
-		TriggerType:  generated.ScheduledTaskLastRunTriggerType(run.TriggerType),
-		Status:       generated.ScheduledTaskLastRunStatus(run.Status),
-		StartedAt:    run.StartedAt,
-		FinishedAt:   run.FinishedAt,
-		DurationMs:   run.DurationMS,
-		ErrorSummary: strings.TrimSpace(run.Error),
+		Id:            run.ID,
+		TriggerType:   generated.ScheduledTaskLastRunTriggerType(run.TriggerType),
+		Status:        generated.ScheduledTaskLastRunStatus(run.Status),
+		StartedAt:     run.StartedAt,
+		FinishedAt:    run.FinishedAt,
+		DurationMs:    run.DurationMS,
+		ErrorSummary:  strings.TrimSpace(run.Error),
+		ResultSummary: stringPointer(run.Result),
 	}
 }
 
@@ -82,18 +87,31 @@ func toScheduledTaskRunListResponse(
 
 func toScheduledTaskRunItem(run schedulercore.TaskRun) generated.ScheduledTaskRunItem {
 	return generated.ScheduledTaskRunItem{
-		Id:           run.ID,
-		TaskKey:      strings.TrimSpace(run.TaskKey),
-		TaskName:     strings.TrimSpace(run.TaskName),
-		Owner:        strings.TrimSpace(run.Owner),
-		Module:       strings.TrimSpace(run.Module),
-		TaskType:     generated.ScheduledTaskRunItemTaskType(run.TaskType),
-		TriggerType:  generated.ScheduledTaskRunItemTriggerType(run.TriggerType),
-		Status:       generated.ScheduledTaskRunItemStatus(run.Status),
-		ErrorSummary: strings.TrimSpace(run.Error),
-		StartedAt:    run.StartedAt,
-		FinishedAt:   run.FinishedAt,
-		DurationMs:   run.DurationMS,
-		CreatedAt:    run.CreatedAt,
+		Id:            run.ID,
+		TaskKey:       strings.TrimSpace(run.TaskKey),
+		TaskName:      strings.TrimSpace(run.TaskName),
+		Owner:         strings.TrimSpace(run.Owner),
+		Module:        strings.TrimSpace(run.Module),
+		TaskType:      generated.ScheduledTaskRunItemTaskType(run.TaskType),
+		TriggerType:   generated.ScheduledTaskRunItemTriggerType(run.TriggerType),
+		Status:        generated.ScheduledTaskRunItemStatus(run.Status),
+		ErrorSummary:  strings.TrimSpace(run.Error),
+		ResultSummary: stringPointer(run.Result),
+		StartedAt:     run.StartedAt,
+		FinishedAt:    run.FinishedAt,
+		DurationMs:    run.DurationMS,
+		CreatedAt:     run.CreatedAt,
 	}
+}
+
+func boolPointer(value bool) *bool {
+	return &value
+}
+
+func stringPointer(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }

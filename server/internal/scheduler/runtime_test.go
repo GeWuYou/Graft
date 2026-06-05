@@ -30,7 +30,7 @@ func (r *runRepositoryRecorder) CreateRun(_ context.Context, run TaskRun) (TaskR
 	return run, nil
 }
 
-func (r *runRepositoryRecorder) FinishRun(_ context.Context, id uint64, status RunStatus, finishedAt time.Time, errorMessage string) (TaskRun, error) {
+func (r *runRepositoryRecorder) FinishRun(_ context.Context, id uint64, status RunStatus, finishedAt time.Time, resultSummary string, errorMessage string) (TaskRun, error) {
 	for _, run := range r.created {
 		if run.ID != id {
 			continue
@@ -38,6 +38,7 @@ func (r *runRepositoryRecorder) FinishRun(_ context.Context, id uint64, status R
 
 		run.Status = status
 		run.Error = errorMessage
+		run.Result = resultSummary
 		run.FinishedAt = &finishedAt
 		duration := int64(0)
 		run.DurationMS = &duration
@@ -62,6 +63,15 @@ func (r *runRepositoryRecorder) ListRuns(_ context.Context, query RunListQuery) 
 func (r *runRepositoryRecorder) LatestRunByTask(_ context.Context, taskKey string) (TaskRun, bool, error) {
 	run, ok := r.latest[taskKey]
 	return run, ok, nil
+}
+
+func (r *runRepositoryRecorder) GetRun(_ context.Context, id uint64) (TaskRun, error) {
+	for _, run := range r.updated {
+		if run.ID == id {
+			return run, nil
+		}
+	}
+	return TaskRun{}, ErrTaskNotFound
 }
 
 // TestRegisterJobRejectsInvalidDeclarations 验证调度器会拒绝缺失执行入口或非法表达式的任务声明。
@@ -105,7 +115,7 @@ func TestListTasksReturnsRuntimeJobSnapshots(t *testing.T) {
 		Name:                  "audit.audit-log-retention-cleanup",
 		Key:                   "audit.audit-log-retention-cleanup",
 		Owner:                 "audit",
-		Type:                  cronx.TaskTypeCron,
+		Type:                  cronx.TaskTypeSystem,
 		DisplayMessageKey:     "scheduledTask.auditLogRetention.title",
 		DescriptionMessageKey: "scheduledTask.auditLogRetention.description",
 		Schedule:              "*/1 * * * * *",
@@ -124,13 +134,13 @@ func TestListTasksReturnsRuntimeJobSnapshots(t *testing.T) {
 		t.Fatalf("expected one task, got %d", len(items))
 	}
 	item := items[0]
-	if item.Key != "audit.audit-log-retention-cleanup" || item.Owner != "audit" || item.Type != cronx.TaskTypeCron {
+	if item.Key != "audit.audit-log-retention-cleanup" || item.Owner != "audit" || item.Type != cronx.TaskTypeSystem {
 		t.Fatalf("unexpected task snapshot: %#v", item)
 	}
 	if item.DisplayMessageKey != "scheduledTask.auditLogRetention.title" || item.DescriptionMessageKey == "" {
 		t.Fatalf("expected display metadata, got %#v", item)
 	}
-	if !item.DefaultEnabled {
+	if !item.Enabled {
 		t.Fatal("expected runtime job to be default-enabled")
 	}
 }

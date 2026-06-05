@@ -56,8 +56,37 @@ func (r *stopContextRecorderRuntime) GetTask(context.Context, string) (scheduler
 	return schedulercore.TaskSnapshot{}, nil
 }
 
+func (r *stopContextRecorderRuntime) SeedBuiltinJobs(_ context.Context, jobs []cronx.Job) error {
+	for _, job := range jobs {
+		if err := r.RegisterJob(job); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *stopContextRecorderRuntime) CreateTask(context.Context, schedulercore.TaskMutation) (schedulercore.TaskSnapshot, error) {
+	return schedulercore.TaskSnapshot{}, nil
+}
+
+func (r *stopContextRecorderRuntime) UpdateTask(context.Context, string, schedulercore.TaskMutation) (schedulercore.TaskSnapshot, error) {
+	return schedulercore.TaskSnapshot{}, nil
+}
+
+func (r *stopContextRecorderRuntime) DeleteTask(context.Context, string) error {
+	return nil
+}
+
+func (r *stopContextRecorderRuntime) SetTaskEnabled(context.Context, string, bool) (schedulercore.TaskSnapshot, error) {
+	return schedulercore.TaskSnapshot{}, nil
+}
+
 func (r *stopContextRecorderRuntime) ListRuns(context.Context, schedulercore.RunListQuery) (schedulercore.RunListResult, error) {
 	return schedulercore.RunListResult{}, nil
+}
+
+func (r *stopContextRecorderRuntime) GetRun(context.Context, uint64) (schedulercore.TaskRun, error) {
+	return schedulercore.TaskRun{}, nil
 }
 
 func (r *stopContextRecorderRuntime) RunOnce(context.Context, string) (schedulercore.TaskRun, error) {
@@ -108,7 +137,21 @@ func newModuleTestContextWithEngine() (*module.Context, *gin.Engine) {
 		panic(err)
 	}
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(`CREATE TABLE scheduler_task_runs (
+	if _, err := db.Exec(`CREATE TABLE scheduled_tasks (
+		id integer PRIMARY KEY AUTOINCREMENT,
+		task_key text NOT NULL UNIQUE,
+		task_type text NOT NULL,
+		title text NOT NULL DEFAULT '',
+		description text NOT NULL DEFAULT '',
+		cron_expression text NOT NULL,
+		enabled boolean NOT NULL DEFAULT true,
+		builtin boolean NOT NULL DEFAULT false,
+		config_json text NOT NULL DEFAULT '{}',
+		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		deleted_at datetime NULL
+	);
+	CREATE TABLE scheduler_task_runs (
 		id integer PRIMARY KEY AUTOINCREMENT,
 		task_key text NOT NULL,
 		task_name text NOT NULL DEFAULT '',
@@ -118,6 +161,8 @@ func newModuleTestContextWithEngine() (*module.Context, *gin.Engine) {
 		trigger_type text NOT NULL,
 		status text NOT NULL,
 		error text NOT NULL DEFAULT '',
+		result_summary text NOT NULL DEFAULT '',
+		error_message text NOT NULL DEFAULT '',
 		started_at datetime NOT NULL,
 		finished_at datetime NULL,
 		duration_ms integer NULL,
@@ -183,11 +228,11 @@ func TestScheduledTaskListRouteReturnsRuntimeTasks(t *testing.T) {
 				Name:                  "audit-retention-cleanup",
 				Owner:                 "audit",
 				Module:                "audit",
-				Type:                  cronx.TaskTypeCron,
+				Type:                  cronx.TaskTypeSystem,
 				DisplayMessageKey:     "audit.retention.title",
 				DescriptionMessageKey: "audit.retention.description",
 				Schedule:              "0 0 * * * *",
-				DefaultEnabled:        true,
+				Enabled:               true,
 			},
 		},
 	}
@@ -215,7 +260,7 @@ func TestScheduledTaskListRouteReturnsRuntimeTasks(t *testing.T) {
 	}
 	item := payload.Data.Items[0]
 	if item.Key != "audit.retention.cleanup" ||
-		item.TaskType != "cron" ||
+		item.TaskType != "system" ||
 		item.ScheduleType != "cron" ||
 		item.DisplayNameKey != "audit.retention.title" ||
 		item.Module != "audit" ||
@@ -327,9 +372,10 @@ func TestBootRunsRegisteredJobs(t *testing.T) {
 	lifecycleCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ctx.CronRegistry.Register(cronx.Job{
-		Name:     "heartbeat",
-		Schedule: "*/1 * * * * *",
-		Module:   "test",
+		Name:           "heartbeat",
+		Schedule:       "*/1 * * * * *",
+		DefaultEnabled: true,
+		Module:         "test",
 		Run: func(context.Context) error {
 			select {
 			case triggered <- struct{}{}:

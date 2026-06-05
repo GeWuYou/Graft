@@ -1,0 +1,26 @@
+type: object
+required:
+  - task_key
+  - task_type
+  - title
+  - cron_expression
+  - enabled
+properties:
+  task_key:
+    type: string
+    minLength: 1
+  task_type:
+    type: string
+    enum: [http]
+  title:
+    type: string
+    minLength: 1
+  description:
+    type: string
+  cron_expression:
+    type: string
+    minLength: 1
+  enabled:
+    type: boolean
+  config:
+    $ref: ./scheduled-task-http-config.yaml

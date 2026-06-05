@@ -24,3 +24,35 @@ get:
       $ref: ../components/responses/forbidden.yaml
     '500':
       $ref: ../components/responses/internal-server-error.yaml
+post:
+  tags: [scheduled-tasks]
+  summary: Create HTTP scheduled task
+  operationId: postScheduledTask
+  description: Creates one user-managed HTTP scheduled task. System tasks are seeded by the backend scheduler module and cannot be created through this endpoint.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/create-scheduled-task-request.yaml
+  responses:
+    '200':
+      description: Created scheduled task.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-scheduled-task-item.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

@@ -22,7 +22,6 @@ import (
 const (
 	defaultScheduledTaskRunListLimit = 20
 	maxScheduledTaskRunListLimit     = 100
-	scheduledTaskRunActionSuffix     = ":run"
 )
 
 type schedulerRouteRuntime struct {
@@ -183,10 +182,10 @@ func (r schedulerRouteRuntime) writeRouteError(ginCtx *gin.Context, message stri
 }
 
 func readScheduledTaskKey(ginCtx *gin.Context, ctx *module.Context) (string, bool) {
-	key := strings.TrimSpace(ginCtx.Param("key"))
+	key := strings.TrimSpace(ginCtx.Param("taskKey"))
 	if key == "" {
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
-			"field": "key",
+			"field": "taskKey",
 		})
 		return "", false
 	}
@@ -194,15 +193,10 @@ func readScheduledTaskKey(ginCtx *gin.Context, ctx *module.Context) (string, boo
 }
 
 func readScheduledTaskRunKey(ginCtx *gin.Context, ctx *module.Context) (string, bool) {
-	raw := strings.TrimSpace(ginCtx.Param("keyAction"))
-	if !strings.HasSuffix(raw, scheduledTaskRunActionSuffix) {
-		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusNotFound, schedulercontract.ScheduledTaskNotFound.String(), nil)
-		return "", false
-	}
-	key := strings.TrimSpace(strings.TrimSuffix(raw, scheduledTaskRunActionSuffix))
+	key := strings.TrimSpace(ginCtx.Param("taskKey"))
 	if key == "" {
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
-			"field": "key",
+			"field": "taskKey",
 		})
 		return "", false
 	}
