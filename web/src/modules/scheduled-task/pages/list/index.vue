@@ -6,10 +6,16 @@
         <h1>{{ t('scheduledTask.list.title') }}</h1>
         <p>{{ t('scheduledTask.list.description') }}</p>
       </div>
-      <t-button theme="default" variant="outline" :loading="loading" @click="refreshTasks">
-        <template #icon><refresh-icon /></template>
-        {{ t('scheduledTask.list.refresh') }}
-      </t-button>
+      <t-space>
+        <t-button theme="default" variant="outline" :loading="loading" @click="refreshTasks">
+          <template #icon><refresh-icon /></template>
+          {{ t('scheduledTask.list.refresh') }}
+        </t-button>
+        <t-button v-permission="permissionCodes.CREATE" theme="primary" @click="openCreateDrawer">
+          <template #icon><add-icon /></template>
+          {{ t('scheduledTask.list.create') }}
+        </t-button>
+      </t-space>
     </section>
 
     <section class="scheduled-task-metrics" aria-label="scheduled task metrics">
@@ -20,8 +26,9 @@
         size="small"
         :bordered="true"
       >
-        <t-statistic :title="metric.label" :value="metric.value" />
-        <p>{{ metric.description }}</p>
+        <p>{{ metric.label }}</p>
+        <strong>{{ metric.value }}</strong>
+        <span>{{ metric.description }}</span>
       </t-card>
     </section>
 
@@ -30,10 +37,43 @@
         <div class="scheduled-task-table-head">
           <div>
             <h2>{{ t('scheduledTask.list.tableTitle') }}</h2>
-            <p>{{ t('scheduledTask.list.tableHint', { count: tasks.length }) }}</p>
+            <p>{{ t('scheduledTask.list.tableHint', { count: filteredTasks.length }) }}</p>
           </div>
         </div>
       </template>
+
+      <div class="scheduled-task-toolbar">
+        <t-input
+          v-model="filters.keyword"
+          class="scheduled-task-toolbar__search"
+          clearable
+          :placeholder="t('scheduledTask.list.filters.searchPlaceholder')"
+        >
+          <template #prefix-icon><search-icon /></template>
+        </t-input>
+        <t-select
+          v-model="filters.taskType"
+          class="scheduled-task-toolbar__select"
+          :placeholder="t('scheduledTask.list.filters.type')"
+        >
+          <t-option value="all" :label="t('scheduledTask.list.filters.allTypes')" />
+          <t-option value="system" :label="taskTypeLabel('system')" />
+          <t-option value="http" :label="taskTypeLabel('http')" />
+        </t-select>
+        <t-select
+          v-model="filters.status"
+          class="scheduled-task-toolbar__select"
+          :placeholder="t('scheduledTask.list.filters.status')"
+        >
+          <t-option value="all" :label="t('scheduledTask.list.filters.allStatuses')" />
+          <t-option
+            v-for="statusOption in statusOptions"
+            :key="statusOption"
+            :value="statusOption"
+            :label="statusLabel(statusOption)"
+          />
+        </t-select>
+      </div>
 
       <div v-if="errorMessage && !loading" class="scheduled-task-feedback scheduled-task-feedback--error">
         <span>{{ errorMessage }}</span>
@@ -44,11 +84,11 @@
 
       <t-table
         row-key="key"
-        :data="tasks"
+        :data="filteredTasks"
         :columns="columns"
         :loading="loading"
         table-layout="fixed"
-        table-content-width="1060"
+        table-content-width="1320"
         cell-empty-content="-"
         hover
       >
@@ -59,59 +99,86 @@
           </div>
         </template>
 
+        <template #task_type="{ row }">
+          <t-tag variant="light-outline" :theme="row.task_type === 'system' ? 'primary' : 'success'">
+            {{ taskTypeLabel(row.task_type) }}
+          </t-tag>
+        </template>
+
         <template #status="{ row }">
           <task-status-tag :status="row.status" />
         </template>
 
-        <template #owner="{ row }">
-          <div class="scheduled-task-owner">
-            <span>{{ row.owner }}</span>
-            <span>{{ row.module }}</span>
-          </div>
-        </template>
-
         <template #schedule="{ row }">
-          <div class="scheduled-task-schedule">
-            <t-tag variant="light-outline" theme="primary">{{ scheduleTypeLabel(row.schedule_type) }}</t-tag>
-            <span>{{ row.schedule }}</span>
-          </div>
+          <span class="scheduled-task-mono">{{ row.schedule }}</span>
         </template>
 
-        <template #last_run="{ row }">
+        <template #recent_result="{ row }">
           <div v-if="row.last_run" class="scheduled-task-last-run">
             <task-status-tag :status="row.last_run.status" />
-            <span>{{ formatTimestamp(row.last_run.started_at) }}</span>
+            <span>{{ runResultText(row.last_run) }}</span>
           </div>
           <span v-else class="scheduled-task-muted">{{ t('scheduledTask.list.detail.none') }}</span>
         </template>
 
-        <template #next_run_at="{ row }">
-          <span>{{ formatTimestamp(row.next_run_at) }}</span>
+        <template #recent_run="{ row }">
+          {{ formatTimestamp(row.last_run?.started_at) }}
+        </template>
+
+        <template #success_rate="{ row }">
+          {{ successRateLabel(row.key) }}
         </template>
 
         <template #operation="{ row }">
           <t-space class="scheduled-task-actions" size="small" align="center">
             <t-button theme="primary" variant="text" size="small" @click="openDetail(row)">
+              <template #icon><browse-icon /></template>
               {{ t('scheduledTask.list.viewDetail') }}
             </t-button>
-            <t-popconfirm
-              :content="t('scheduledTask.list.runConfirm')"
-              :confirm-btn="t('scheduledTask.list.runConfirmButton')"
-              :cancel-btn="t('scheduledTask.list.runCancelButton')"
-              @confirm="() => runTask(row)"
+            <t-button
+              v-permission="permissionCodes.UPDATE"
+              theme="primary"
+              variant="text"
+              size="small"
+              @click="openEditDrawer(row)"
             >
-              <t-button
-                v-permission="permissionCodes.RUN"
-                theme="primary"
-                variant="outline"
-                size="small"
-                :disabled="!canRunTask(row)"
-                :loading="runningTaskKey === row.key"
-              >
-                <template #icon><play-icon /></template>
-                {{ t('scheduledTask.list.run') }}
-              </t-button>
-            </t-popconfirm>
+              <template #icon><edit-icon /></template>
+              {{ t('scheduledTask.list.edit') }}
+            </t-button>
+            <t-button
+              v-permission="permissionCodes.ENABLE"
+              theme="primary"
+              variant="text"
+              size="small"
+              :loading="lifecycleTaskKey === row.key"
+              @click="toggleTaskEnabled(row)"
+            >
+              {{ row.enabled ? t('scheduledTask.list.disable') : t('scheduledTask.list.enable') }}
+            </t-button>
+            <t-button
+              v-permission="permissionCodes.RUN"
+              theme="primary"
+              variant="outline"
+              size="small"
+              :disabled="!canRunTask(row)"
+              :loading="runningTaskKey === row.key"
+              @click="openRunDialog(row)"
+            >
+              <template #icon><play-icon /></template>
+              {{ t('scheduledTask.list.run') }}
+            </t-button>
+            <t-button
+              v-permission="permissionCodes.DELETE"
+              theme="danger"
+              variant="text"
+              size="small"
+              :disabled="isSystemTask(row)"
+              :loading="deletingTaskKey === row.key"
+              @click="openDeleteDialog(row)"
+            >
+              <template #icon><delete-icon /></template>
+              {{ t('scheduledTask.list.delete') }}
+            </t-button>
           </t-space>
         </template>
 
@@ -132,10 +199,108 @@
       </t-table>
     </t-card>
 
+    <t-drawer v-model:visible="formVisible" :header="formTitle" size="720px" placement="right" destroy-on-close>
+      <t-form :data="taskForm" label-align="top">
+        <t-form-item :label="t('scheduledTask.list.form.taskKey')" name="taskKey">
+          <t-input
+            v-model="taskForm.taskKey"
+            :disabled="formMode === 'edit'"
+            :placeholder="t('scheduledTask.list.form.taskKeyPlaceholder')"
+          />
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.title')" name="title">
+          <t-input
+            v-model="taskForm.title"
+            :disabled="isSystemEdit"
+            :placeholder="t('scheduledTask.list.form.titlePlaceholder')"
+          />
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.description')" name="description">
+          <t-textarea
+            v-model="taskForm.description"
+            :disabled="isSystemEdit"
+            :autosize="{ minRows: 3, maxRows: 5 }"
+            :placeholder="t('scheduledTask.list.form.descriptionPlaceholder')"
+          />
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.cronBuilder')" name="cronMode">
+          <div class="scheduled-task-cron-builder">
+            <t-radio-group v-model="taskForm.cronMode" variant="default-filled" @change="handleCronModeChange">
+              <t-radio-button v-for="mode in cronModes" :key="mode.value" :value="mode.value">
+                {{ mode.label }}
+              </t-radio-button>
+            </t-radio-group>
+            <p class="scheduled-task-form-hint">{{ cronHint }}</p>
+          </div>
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.cronExpression')" name="cronExpression">
+          <t-input
+            v-model="taskForm.cronExpression"
+            :placeholder="t('scheduledTask.list.form.cronExpressionPlaceholder')"
+            @input="handleCronInput"
+          />
+          <p class="scheduled-task-form-hint">{{ cronDescription }}</p>
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.enabled')" name="enabled">
+          <t-switch v-model="taskForm.enabled" />
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.method')" name="method">
+          <t-select v-model="taskForm.method" :disabled="isSystemEdit">
+            <t-option value="GET" label="GET" />
+            <t-option value="POST" label="POST" />
+          </t-select>
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.url')" name="url">
+          <t-input
+            v-model="taskForm.url"
+            :disabled="isSystemEdit"
+            :placeholder="t('scheduledTask.list.form.urlPlaceholder')"
+          />
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.headers')" name="headers">
+          <t-textarea
+            v-model="taskForm.headers"
+            :disabled="isSystemEdit"
+            :autosize="{ minRows: 4, maxRows: 8 }"
+            :placeholder="t('scheduledTask.list.form.headersPlaceholder')"
+          />
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.body')" name="body">
+          <t-textarea
+            v-model="taskForm.body"
+            :disabled="isSystemEdit"
+            :autosize="{ minRows: 4, maxRows: 8 }"
+            :placeholder="t('scheduledTask.list.form.bodyPlaceholder')"
+          />
+        </t-form-item>
+        <t-form-item :label="t('scheduledTask.list.form.timeout')" name="timeoutSeconds">
+          <t-input-number
+            v-model="taskForm.timeoutSeconds"
+            :disabled="isSystemEdit"
+            :min="1"
+            :max="300"
+            :step="1"
+            suffix="s"
+          />
+        </t-form-item>
+      </t-form>
+
+      <template #footer>
+        <t-space class="scheduled-task-drawer-footer">
+          <t-button theme="default" variant="outline" @click="formVisible = false">
+            {{ t('scheduledTask.list.cancel') }}
+          </t-button>
+          <t-button theme="primary" :loading="submittingTask" @click="submitTaskForm">
+            {{ formMode === 'create' ? t('scheduledTask.list.create') : t('scheduledTask.list.save') }}
+          </t-button>
+        </t-space>
+      </template>
+    </t-drawer>
+
     <t-drawer
       v-model:visible="detailVisible"
       :header="detailTitle"
-      size="760px"
+      size="840px"
       placement="right"
       destroy-on-close
       :footer="false"
@@ -150,11 +315,11 @@
             <t-descriptions-item :label="t('scheduledTask.list.detail.key')">
               {{ selectedTask.key }}
             </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.displayNameKey')">
-              {{ selectedTask.display_name_key }}
+            <t-descriptions-item :label="t('scheduledTask.list.detail.title')">
+              {{ taskDisplayName(selectedTask) }}
             </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.descriptionKey')">
-              {{ selectedTask.description_key }}
+            <t-descriptions-item :label="t('scheduledTask.list.detail.description')">
+              {{ taskDescription(selectedTask) }}
             </t-descriptions-item>
             <t-descriptions-item :label="t('scheduledTask.list.detail.owner')">
               {{ selectedTask.owner }}
@@ -162,12 +327,8 @@
             <t-descriptions-item :label="t('scheduledTask.list.detail.module')">
               {{ selectedTask.module }}
             </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.enabled')">
-              {{
-                selectedTask.enabled
-                  ? t('scheduledTask.list.detail.enabledYes')
-                  : t('scheduledTask.list.detail.enabledNo')
-              }}
+            <t-descriptions-item :label="t('scheduledTask.list.detail.taskType')">
+              {{ taskTypeLabel(selectedTask.task_type) }}
             </t-descriptions-item>
           </t-descriptions>
         </section>
@@ -175,24 +336,32 @@
         <section class="scheduled-task-detail__section">
           <h3>{{ t('scheduledTask.list.detail.schedule') }}</h3>
           <t-descriptions :column="1" bordered size="small">
-            <t-descriptions-item :label="t('scheduledTask.list.detail.taskType')">
-              {{ taskTypeLabel(selectedTask.task_type) }}
-            </t-descriptions-item>
             <t-descriptions-item :label="t('scheduledTask.list.detail.scheduleType')">
               {{ scheduleTypeLabel(selectedTask.schedule_type) }}
             </t-descriptions-item>
             <t-descriptions-item :label="t('scheduledTask.list.detail.scheduleRule')">
-              {{ selectedTask.schedule }}
+              <span class="scheduled-task-mono">{{ selectedTask.schedule }}</span>
             </t-descriptions-item>
             <t-descriptions-item :label="t('scheduledTask.list.detail.nextRun')">
               {{ formatTimestamp(selectedTask.next_run_at) }}
             </t-descriptions-item>
+            <t-descriptions-item :label="t('scheduledTask.list.detail.enabled')">
+              {{ booleanLabel(selectedTask.enabled) }}
+            </t-descriptions-item>
+          </t-descriptions>
+        </section>
+
+        <section class="scheduled-task-detail__section">
+          <h3>{{ t('scheduledTask.list.detail.runtime') }}</h3>
+          <t-descriptions :column="1" bordered size="small">
             <t-descriptions-item :label="t('scheduledTask.list.detail.running')">
-              {{
-                selectedTask.running
-                  ? t('scheduledTask.list.detail.runningYes')
-                  : t('scheduledTask.list.detail.runningNo')
-              }}
+              {{ booleanLabel(selectedTask.running) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('scheduledTask.list.detail.status')">
+              <task-status-tag :status="selectedTask.status" />
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('scheduledTask.list.detail.successRate')">
+              {{ successRateLabel(selectedTask.key) }}
             </t-descriptions-item>
           </t-descriptions>
         </section>
@@ -218,8 +387,8 @@
             <t-descriptions-item :label="t('scheduledTask.list.detail.duration')">
               {{ formatDuration(selectedTask.last_run.duration_ms) }}
             </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.errorSummary')">
-              {{ selectedTask.last_run.error_summary || t('scheduledTask.list.detail.none') }}
+            <t-descriptions-item :label="t('scheduledTask.list.detail.result')">
+              {{ runResultText(selectedTask.last_run) }}
             </t-descriptions-item>
           </t-descriptions>
           <p v-else class="scheduled-task-muted">{{ t('scheduledTask.list.detail.none') }}</p>
@@ -229,7 +398,7 @@
           <div class="scheduled-task-detail__section-head">
             <h3>{{ t('scheduledTask.list.detail.recentRuns') }}</h3>
             <t-button size="small" theme="default" variant="outline" :loading="runsLoading" @click="refreshRuns">
-              {{ t('scheduledTask.list.diagnose') }}
+              {{ t('scheduledTask.list.refresh') }}
             </t-button>
           </div>
           <t-table
@@ -239,19 +408,28 @@
             :columns="runColumns"
             :loading="runsLoading"
             table-layout="fixed"
+            table-content-width="860"
             cell-empty-content="-"
           >
-            <template #status="{ row }">
-              <task-status-tag :status="row.status" />
+            <template #started_at="{ row }">
+              {{ formatTimestamp(row.started_at) }}
             </template>
             <template #trigger_type="{ row }">
               {{ triggerLabel(row.trigger_type) }}
             </template>
-            <template #started_at="{ row }">
-              {{ formatTimestamp(row.started_at) }}
+            <template #status="{ row }">
+              <task-status-tag :status="row.status" />
             </template>
             <template #duration_ms="{ row }">
               {{ formatDuration(row.duration_ms) }}
+            </template>
+            <template #result="{ row }">
+              {{ runResultText(row) }}
+            </template>
+            <template #operation="{ row }">
+              <t-button theme="primary" variant="text" size="small" @click="openRunDetail(row)">
+                {{ t('scheduledTask.list.detail.viewRun') }}
+              </t-button>
             </template>
             <template #empty>
               <div class="scheduled-task-runs-empty">
@@ -262,29 +440,145 @@
         </section>
       </div>
     </t-drawer>
+
+    <t-dialog
+      v-model:visible="runDialogVisible"
+      :header="t('scheduledTask.list.runDialog.title')"
+      :confirm-btn="t('scheduledTask.list.runDialog.confirm')"
+      :cancel-btn="t('scheduledTask.list.runDialog.cancel')"
+      :confirm-loading="runningTaskKey === runDialogTask?.key"
+      @confirm="confirmRunTask"
+    >
+      <div v-if="runDialogTask" class="scheduled-task-dialog-copy">
+        <p>{{ t('scheduledTask.list.runDialog.taskLine', { taskName: taskDisplayName(runDialogTask) }) }}</p>
+        <p>{{ t('scheduledTask.list.runDialog.description') }}</p>
+      </div>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="deleteDialogVisible"
+      :header="t('scheduledTask.list.deleteDialog.title')"
+      :confirm-btn="t('scheduledTask.list.deleteDialog.confirm')"
+      :cancel-btn="t('scheduledTask.list.cancel')"
+      :confirm-loading="deletingTaskKey === deleteDialogTask?.key"
+      @confirm="confirmDeleteTask"
+    >
+      <p v-if="deleteDialogTask">
+        {{ t('scheduledTask.list.deleteDialog.description', { taskName: taskDisplayName(deleteDialogTask) }) }}
+      </p>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="runDetailVisible"
+      :header="t('scheduledTask.list.detail.runDetailTitle')"
+      :footer="false"
+      width="640px"
+    >
+      <t-descriptions v-if="selectedRun" :column="1" bordered size="small">
+        <t-descriptions-item :label="t('scheduledTask.list.detail.runId')">
+          {{ selectedRun.id }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('scheduledTask.list.columns.task')">
+          {{ selectedRun.task_name || selectedRun.task_key }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('scheduledTask.list.detail.triggerType')">
+          {{ triggerLabel(selectedRun.trigger_type) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('scheduledTask.list.detail.status')">
+          <task-status-tag :status="selectedRun.status" />
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('scheduledTask.list.detail.startedAt')">
+          {{ formatTimestamp(selectedRun.started_at) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('scheduledTask.list.detail.finishedAt')">
+          {{ formatTimestamp(selectedRun.finished_at) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('scheduledTask.list.detail.duration')">
+          {{ formatDuration(selectedRun.duration_ms) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('scheduledTask.list.detail.result')">
+          {{ runResultText(selectedRun) }}
+        </t-descriptions-item>
+      </t-descriptions>
+    </t-dialog>
   </div>
 </template>
 <script setup lang="ts">
-import { PlayIcon, RefreshIcon } from 'tdesign-icons-vue-next';
+import { AddIcon, BrowseIcon, DeleteIcon, EditIcon, PlayIcon, RefreshIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin, Tag, type TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, defineComponent, h, onMounted, ref } from 'vue';
+import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { createLogger } from '@/utils/logger';
 
-import { getScheduledTask, getScheduledTaskRuns, getScheduledTasks, runScheduledTask } from '../../api/scheduled-task';
+import {
+  createScheduledTask,
+  deleteScheduledTask,
+  disableScheduledTask,
+  enableScheduledTask,
+  getScheduledTask,
+  getScheduledTaskRun,
+  getScheduledTaskRuns,
+  getScheduledTasks,
+  runScheduledTask,
+  updateScheduledTask,
+} from '../../api/scheduled-task';
 import { SCHEDULED_TASK_PERMISSION_CODE } from '../../contract/permissions';
 import type {
+  CreateScheduledTaskRequest,
+  ScheduledTaskHTTPConfig,
   ScheduledTaskItem,
   ScheduledTaskRunItem,
   ScheduledTaskRunStatus,
   ScheduledTaskRunTriggerType,
   ScheduledTaskStatus,
+  ScheduledTaskType,
+  UpdateScheduledTaskRequest,
 } from '../../types/scheduled-task';
 
 defineOptions({
   name: 'ScheduledTaskListPage',
 });
+
+type CronMode = 'everyMinute' | 'every5Minutes' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'custom';
+
+type TaskFormModel = {
+  taskKey: string;
+  title: string;
+  description: string;
+  cronMode: CronMode;
+  cronExpression: string;
+  enabled: boolean;
+  method: ScheduledTaskHTTPConfig['method'];
+  url: string;
+  headers: string;
+  body: string;
+  timeoutSeconds: number;
+};
+
+type FilterModel = {
+  keyword: string;
+  taskType: ScheduledTaskType | 'all';
+  status: ScheduledTaskStatus | 'all';
+};
+
+type FormMode = 'create' | 'edit';
+
+type RunSummary = {
+  runs24h: number;
+  failures24h: number;
+};
+
+const CRON_PRESETS: Record<Exclude<CronMode, 'custom'>, string> = {
+  everyMinute: '* * * * *',
+  every5Minutes: '*/5 * * * *',
+  hourly: '0 * * * *',
+  daily: '0 0 * * *',
+  weekly: '0 0 * * 0',
+  monthly: '0 0 1 * *',
+};
+
+const statusOptions: ScheduledTaskStatus[] = ['idle', 'running', 'success', 'failed', 'unknown'];
 
 const TaskStatusTag = defineComponent({
   name: 'ScheduledTaskStatusTag',
@@ -305,23 +599,79 @@ const TaskStatusTag = defineComponent({
           variant: 'light',
           class: 'scheduled-task-status-tag',
         },
-        () => t(`scheduledTask.list.status.${props.status}`),
+        () => statusLabel(props.status as ScheduledTaskStatus | ScheduledTaskRunStatus, t),
       );
   },
 });
 
-const { t, locale } = useI18n();
+const { t, te, locale } = useI18n();
 const logger = createLogger('scheduled-task.list.page');
 const permissionCodes = SCHEDULED_TASK_PERMISSION_CODE;
 
 const tasks = ref<ScheduledTaskItem[]>([]);
 const selectedTask = ref<ScheduledTaskItem | null>(null);
 const recentRuns = ref<ScheduledTaskRunItem[]>([]);
+const runHistoryByTaskKey = ref<Record<string, ScheduledTaskRunItem[]>>({});
+const selectedRun = ref<ScheduledTaskRunItem | null>(null);
 const loading = ref(false);
 const runsLoading = ref(false);
 const detailVisible = ref(false);
+const formVisible = ref(false);
+const runDialogVisible = ref(false);
+const deleteDialogVisible = ref(false);
+const runDetailVisible = ref(false);
 const errorMessage = ref('');
 const runningTaskKey = ref('');
+const lifecycleTaskKey = ref('');
+const deletingTaskKey = ref('');
+const submittingTask = ref(false);
+const formMode = ref<FormMode>('create');
+const editingTask = ref<ScheduledTaskItem | null>(null);
+const runDialogTask = ref<ScheduledTaskItem | null>(null);
+const deleteDialogTask = ref<ScheduledTaskItem | null>(null);
+
+const filters = reactive<FilterModel>({
+  keyword: '',
+  taskType: 'all',
+  status: 'all',
+});
+
+const taskForm = reactive<TaskFormModel>(createEmptyTaskForm());
+
+const cronModes = computed(() => [
+  { value: 'everyMinute' as const, label: t('scheduledTask.list.cronMode.everyMinute') },
+  { value: 'every5Minutes' as const, label: t('scheduledTask.list.cronMode.every5Minutes') },
+  { value: 'hourly' as const, label: t('scheduledTask.list.cronMode.hourly') },
+  { value: 'daily' as const, label: t('scheduledTask.list.cronMode.daily') },
+  { value: 'weekly' as const, label: t('scheduledTask.list.cronMode.weekly') },
+  { value: 'monthly' as const, label: t('scheduledTask.list.cronMode.monthly') },
+  { value: 'custom' as const, label: t('scheduledTask.list.cronMode.custom') },
+]);
+
+const filteredTasks = computed(() => {
+  const keyword = filters.keyword.trim().toLowerCase();
+  return tasks.value.filter((task) => {
+    const matchesKeyword =
+      !keyword ||
+      [task.key, taskDisplayName(task), taskDescription(task), task.owner, task.module]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(keyword));
+    const matchesType = filters.taskType === 'all' || task.task_type === filters.taskType;
+    const matchesStatus = filters.status === 'all' || task.status === filters.status;
+    return matchesKeyword && matchesType && matchesStatus;
+  });
+});
+
+const recentRunSummary = computed<RunSummary>(() => {
+  const since = Date.now() - 24 * 60 * 60 * 1000;
+  const allRuns = Object.values(runHistoryByTaskKey.value).flat();
+  const recent = allRuns.filter((run) => new Date(run.started_at).getTime() >= since);
+
+  return {
+    runs24h: recent.length,
+    failures24h: recent.filter((run) => run.status === 'failed').length,
+  };
+});
 
 const overviewMetrics = computed(() => [
   {
@@ -337,16 +687,16 @@ const overviewMetrics = computed(() => [
     description: t('scheduledTask.list.metric.enabledDescription'),
   },
   {
-    key: 'recentFailed',
-    label: t('scheduledTask.list.metric.recentFailed'),
-    value: tasks.value.filter((task) => task.last_run?.status === 'failed').length,
-    description: t('scheduledTask.list.metric.recentFailedDescription'),
+    key: 'runs24h',
+    label: t('scheduledTask.list.metric.runs24h'),
+    value: recentRunSummary.value.runs24h,
+    description: t('scheduledTask.list.metric.runs24hDescription'),
   },
   {
-    key: 'running',
-    label: t('scheduledTask.list.metric.running'),
-    value: tasks.value.filter((task) => task.running).length,
-    description: t('scheduledTask.list.metric.runningDescription'),
+    key: 'failures24h',
+    label: t('scheduledTask.list.metric.failures24h'),
+    value: recentRunSummary.value.failures24h,
+    description: t('scheduledTask.list.metric.failures24hDescription'),
   },
 ]);
 
@@ -356,56 +706,86 @@ const detailTitle = computed(() =>
     : t('scheduledTask.list.detail.title'),
 );
 
+const formTitle = computed(() =>
+  formMode.value === 'create' ? t('scheduledTask.list.form.createTitle') : t('scheduledTask.list.form.editTitle'),
+);
+
+const isSystemEdit = computed(
+  () => formMode.value === 'edit' && editingTask.value !== null && isSystemTask(editingTask.value),
+);
+
+const cronHint = computed(() => {
+  const key = `scheduledTask.list.cronHint.${taskForm.cronMode}`;
+  return t(key);
+});
+
+const cronDescription = computed(() => {
+  const expression = taskForm.cronExpression.trim();
+  const matchingMode = presetModeFromExpression(expression);
+  if (matchingMode) {
+    return t(`scheduledTask.list.cronDescription.${matchingMode}`);
+  }
+
+  return expression
+    ? t('scheduledTask.list.cronDescription.custom', { expression })
+    : t('scheduledTask.list.form.cronRequiredHint');
+});
+
 const columns = computed<TdBaseTableProps['columns']>(() => [
   {
     colKey: 'task',
-    title: t('scheduledTask.list.columns.task'),
-    width: 240,
+    title: t('scheduledTask.list.columns.taskName'),
+    width: 260,
     fixed: 'left',
+  },
+  {
+    colKey: 'task_type',
+    title: t('scheduledTask.list.columns.type'),
+    width: 100,
   },
   {
     colKey: 'status',
     title: t('scheduledTask.list.columns.status'),
-    width: 120,
-  },
-  {
-    colKey: 'owner',
-    title: t('scheduledTask.list.columns.owner'),
-    width: 160,
+    width: 110,
   },
   {
     colKey: 'schedule',
-    title: t('scheduledTask.list.columns.schedule'),
+    title: t('scheduledTask.list.columns.cron'),
+    width: 170,
+  },
+  {
+    colKey: 'recent_result',
+    title: t('scheduledTask.list.columns.recentResult'),
+    width: 220,
+  },
+  {
+    colKey: 'recent_run',
+    title: t('scheduledTask.list.columns.recentRun'),
     width: 180,
   },
   {
-    colKey: 'last_run',
-    title: t('scheduledTask.list.columns.lastRun'),
-    width: 190,
-  },
-  {
-    colKey: 'next_run_at',
-    title: t('scheduledTask.list.columns.nextRun'),
-    width: 170,
+    colKey: 'success_rate',
+    title: t('scheduledTask.list.columns.successRate'),
+    width: 120,
   },
   {
     colKey: 'operation',
     title: t('scheduledTask.list.columns.operation'),
-    width: 190,
+    width: 330,
     fixed: 'right',
   },
 ]);
 
 const runColumns = computed<TdBaseTableProps['columns']>(() => [
   {
-    colKey: 'id',
-    title: t('scheduledTask.list.detail.runId'),
-    width: 90,
+    colKey: 'started_at',
+    title: t('scheduledTask.list.detail.time'),
+    width: 170,
   },
   {
     colKey: 'trigger_type',
     title: t('scheduledTask.list.detail.triggerType'),
-    width: 110,
+    width: 120,
   },
   {
     colKey: 'status',
@@ -413,19 +793,19 @@ const runColumns = computed<TdBaseTableProps['columns']>(() => [
     width: 110,
   },
   {
-    colKey: 'started_at',
-    title: t('scheduledTask.list.detail.startedAt'),
-    width: 180,
-  },
-  {
     colKey: 'duration_ms',
     title: t('scheduledTask.list.detail.duration'),
     width: 110,
   },
   {
-    colKey: 'error_summary',
-    title: t('scheduledTask.list.detail.errorSummary'),
+    colKey: 'result',
+    title: t('scheduledTask.list.detail.result'),
     ellipsis: true,
+  },
+  {
+    colKey: 'operation',
+    title: t('scheduledTask.list.columns.operation'),
+    width: 110,
   },
 ]);
 
@@ -440,6 +820,7 @@ async function refreshTasks() {
   try {
     const response = await getScheduledTasks();
     tasks.value = response.items;
+    await refreshRunSummaries(response.items);
   } catch (error) {
     logger.error(error instanceof Error ? error : 'load scheduled tasks failed', {
       operation: 'scheduled_task_list',
@@ -450,9 +831,30 @@ async function refreshTasks() {
   }
 }
 
+async function refreshRunSummaries(items: ScheduledTaskItem[]) {
+  const entries = await Promise.all(
+    items.map(async (task) => {
+      try {
+        const response = await getScheduledTaskRuns(task.key, { limit: 20, offset: 0 });
+        return [task.key, response.items] as const;
+      } catch (error) {
+        logger.warn('load scheduled task summary runs failed', {
+          error,
+          taskKey: task.key,
+          operation: 'scheduled_task_runs_summary',
+        });
+        return [task.key, []] as const;
+      }
+    }),
+  );
+
+  runHistoryByTaskKey.value = Object.fromEntries(entries);
+}
+
 async function openDetail(row: ScheduledTaskItem) {
   errorMessage.value = '';
   selectedTask.value = row;
+  recentRuns.value = runHistoryByTaskKey.value[row.key] ?? [];
   detailVisible.value = true;
 
   try {
@@ -487,12 +889,149 @@ async function refreshRuns() {
 async function loadRuns(taskKey: string) {
   runsLoading.value = true;
   try {
-    const response = await getScheduledTaskRuns(taskKey, { limit: 10, offset: 0 });
+    const response = await getScheduledTaskRuns(taskKey, { limit: 20, offset: 0 });
     recentRuns.value = response.items;
+    runHistoryByTaskKey.value = {
+      ...runHistoryByTaskKey.value,
+      [taskKey]: response.items,
+    };
     return response;
   } finally {
     runsLoading.value = false;
   }
+}
+
+function openCreateDrawer() {
+  Object.assign(taskForm, createEmptyTaskForm());
+  formMode.value = 'create';
+  editingTask.value = null;
+  formVisible.value = true;
+}
+
+async function openEditDrawer(row: ScheduledTaskItem) {
+  editingTask.value = row;
+  formMode.value = 'edit';
+  formVisible.value = true;
+  try {
+    const detail = await getScheduledTask(row.key);
+    editingTask.value = detail;
+    syncTask(detail);
+    Object.assign(taskForm, taskToForm(detail));
+  } catch (error) {
+    logger.error(error instanceof Error ? error : 'load scheduled task edit detail failed', {
+      taskKey: row.key,
+      operation: 'scheduled_task_edit_detail',
+    });
+    Object.assign(taskForm, taskToForm(row));
+    void MessagePlugin.error(t('scheduledTask.list.detailLoadError'));
+  }
+}
+
+async function submitTaskForm() {
+  const payload = buildTaskPayload();
+  if (!payload) {
+    return;
+  }
+
+  submittingTask.value = true;
+  try {
+    const saved =
+      formMode.value === 'create'
+        ? await createScheduledTask(payload as CreateScheduledTaskRequest)
+        : await updateScheduledTask(editingTask.value?.key ?? taskForm.taskKey, payload as UpdateScheduledTaskRequest);
+
+    syncTask(saved);
+    formVisible.value = false;
+    void MessagePlugin.success(
+      formMode.value === 'create' ? t('scheduledTask.list.createSuccess') : t('scheduledTask.list.updateSuccess'),
+    );
+    await loadRuns(saved.key);
+  } catch (error) {
+    logger.error(error instanceof Error ? error : 'save scheduled task failed', {
+      taskKey: taskForm.taskKey,
+      operation: 'scheduled_task_save',
+    });
+    void MessagePlugin.error(t('scheduledTask.list.saveError'));
+  } finally {
+    submittingTask.value = false;
+  }
+}
+
+function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskRequest | null {
+  const cronExpression = taskForm.cronExpression.trim();
+  if (!cronExpression) {
+    void MessagePlugin.warning(t('scheduledTask.list.form.cronRequiredHint'));
+    return null;
+  }
+
+  if (formMode.value === 'edit' && isSystemEdit.value) {
+    return {
+      cron_expression: cronExpression,
+      enabled: taskForm.enabled,
+    };
+  }
+
+  if (!taskForm.title.trim()) {
+    void MessagePlugin.warning(t('scheduledTask.list.form.titleRequiredHint'));
+    return null;
+  }
+
+  if (!taskForm.url.trim()) {
+    void MessagePlugin.warning(t('scheduledTask.list.form.urlRequiredHint'));
+    return null;
+  }
+
+  const headers = tryParseHeaders(taskForm.headers);
+  if (headers === null) {
+    void MessagePlugin.warning(t('scheduledTask.list.form.headersInvalidHint'));
+    return null;
+  }
+
+  const config: ScheduledTaskHTTPConfig = {
+    method: taskForm.method,
+    url: taskForm.url.trim(),
+    headers,
+    body: taskForm.body || undefined,
+    timeout_seconds: taskForm.timeoutSeconds,
+  };
+
+  if (formMode.value === 'create') {
+    if (!taskForm.taskKey.trim()) {
+      void MessagePlugin.warning(t('scheduledTask.list.form.taskKeyRequiredHint'));
+      return null;
+    }
+
+    return {
+      task_key: taskForm.taskKey.trim(),
+      task_type: 'http',
+      title: taskForm.title.trim(),
+      description: taskForm.description.trim() || undefined,
+      cron_expression: cronExpression,
+      enabled: taskForm.enabled,
+      config,
+    };
+  }
+
+  return {
+    title: taskForm.title.trim(),
+    description: taskForm.description.trim() || undefined,
+    cron_expression: cronExpression,
+    enabled: taskForm.enabled,
+    config,
+  };
+}
+
+function openRunDialog(task: ScheduledTaskItem) {
+  runDialogTask.value = task;
+  runDialogVisible.value = true;
+}
+
+async function confirmRunTask() {
+  if (!runDialogTask.value) {
+    return;
+  }
+  await runTask(runDialogTask.value);
+  runDialogVisible.value = false;
 }
 
 async function runTask(task: ScheduledTaskItem) {
@@ -504,7 +1043,11 @@ async function runTask(task: ScheduledTaskItem) {
 
   try {
     const run = await runScheduledTask(task.key);
-    recentRuns.value = [run, ...recentRuns.value.filter((item) => item.id !== run.id)].slice(0, 10);
+    recentRuns.value = [run, ...recentRuns.value.filter((item) => item.id !== run.id)].slice(0, 20);
+    runHistoryByTaskKey.value = {
+      ...runHistoryByTaskKey.value,
+      [task.key]: recentRuns.value,
+    };
     const detail = await getScheduledTask(task.key);
     syncTask(detail);
     if (selectedTask.value?.key === detail.key) {
@@ -522,6 +1065,73 @@ async function runTask(task: ScheduledTaskItem) {
   }
 }
 
+async function toggleTaskEnabled(task: ScheduledTaskItem) {
+  lifecycleTaskKey.value = task.key;
+  try {
+    const updated = task.enabled ? await disableScheduledTask(task.key) : await enableScheduledTask(task.key);
+    syncTask(updated);
+    if (selectedTask.value?.key === updated.key) {
+      selectedTask.value = updated;
+    }
+    void MessagePlugin.success(
+      task.enabled ? t('scheduledTask.list.disableSuccess') : t('scheduledTask.list.enableSuccess'),
+    );
+  } catch (error) {
+    logger.error(error instanceof Error ? error : 'toggle scheduled task enabled failed', {
+      taskKey: task.key,
+      operation: 'scheduled_task_lifecycle',
+    });
+    void MessagePlugin.error(t('scheduledTask.list.lifecycleError'));
+  } finally {
+    lifecycleTaskKey.value = '';
+  }
+}
+
+function openDeleteDialog(task: ScheduledTaskItem) {
+  deleteDialogTask.value = task;
+  deleteDialogVisible.value = true;
+}
+
+async function confirmDeleteTask() {
+  if (!deleteDialogTask.value) {
+    return;
+  }
+
+  const task = deleteDialogTask.value;
+  deletingTaskKey.value = task.key;
+  try {
+    await deleteScheduledTask(task.key);
+    tasks.value = tasks.value.filter((item) => item.key !== task.key);
+    const { [task.key]: _removed, ...remainingRuns } = runHistoryByTaskKey.value;
+    runHistoryByTaskKey.value = remainingRuns;
+    deleteDialogVisible.value = false;
+    void MessagePlugin.success(t('scheduledTask.list.deleteSuccess'));
+  } catch (error) {
+    logger.error(error instanceof Error ? error : 'delete scheduled task failed', {
+      taskKey: task.key,
+      operation: 'scheduled_task_delete',
+    });
+    void MessagePlugin.error(t('scheduledTask.list.deleteError'));
+  } finally {
+    deletingTaskKey.value = '';
+  }
+}
+
+async function openRunDetail(row: ScheduledTaskRunItem) {
+  selectedRun.value = row;
+  runDetailVisible.value = true;
+
+  try {
+    selectedRun.value = await getScheduledTaskRun(row.id);
+  } catch (error) {
+    logger.error(error instanceof Error ? error : 'load scheduled task run detail failed', {
+      runId: row.id,
+      operation: 'scheduled_task_run_detail',
+    });
+    void MessagePlugin.error(t('scheduledTask.list.detailLoadError'));
+  }
+}
+
 function syncTask(detail: ScheduledTaskItem) {
   const index = tasks.value.findIndex((task) => task.key === detail.key);
   if (index === -1) {
@@ -536,11 +1146,145 @@ function canRunTask(task: ScheduledTaskItem) {
   return task.enabled && !task.running && runningTaskKey.value !== task.key;
 }
 
-function taskDisplayName(task: ScheduledTaskItem) {
-  return task.display_name_key || task.key;
+function isSystemTask(task: ScheduledTaskItem) {
+  return task.task_type === 'system' || task.builtin === true;
 }
 
-function taskTypeLabel(type: ScheduledTaskItem['task_type']) {
+function createEmptyTaskForm(): TaskFormModel {
+  return {
+    taskKey: '',
+    title: '',
+    description: '',
+    cronMode: 'every5Minutes',
+    cronExpression: CRON_PRESETS.every5Minutes,
+    enabled: true,
+    method: 'GET',
+    url: '',
+    headers: '',
+    body: '',
+    timeoutSeconds: 30,
+  };
+}
+
+function taskToForm(task: ScheduledTaskItem): TaskFormModel {
+  const config = parseConfigJson(task.config_json);
+  const expression = task.schedule || CRON_PRESETS.every5Minutes;
+  return {
+    taskKey: task.key,
+    title: task.title || taskDisplayName(task),
+    description: task.description || '',
+    cronMode: presetModeFromExpression(expression) ?? 'custom',
+    cronExpression: expression,
+    enabled: task.enabled,
+    method: config.method,
+    url: config.url,
+    headers: formatHeaders(config.headers),
+    body: config.body ?? '',
+    timeoutSeconds: config.timeout_seconds,
+  };
+}
+
+function parseConfigJson(value?: string): ScheduledTaskHTTPConfig {
+  const fallback: ScheduledTaskHTTPConfig = {
+    method: 'GET',
+    url: '',
+    headers: {},
+    timeout_seconds: 30,
+  };
+
+  if (!value) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<ScheduledTaskHTTPConfig>;
+    return {
+      method: parsed.method === 'POST' ? 'POST' : 'GET',
+      url: typeof parsed.url === 'string' ? parsed.url : '',
+      headers: isRecordOfStrings(parsed.headers) ? parsed.headers : {},
+      body: typeof parsed.body === 'string' ? parsed.body : undefined,
+      timeout_seconds: typeof parsed.timeout_seconds === 'number' ? parsed.timeout_seconds : 30,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function tryParseHeaders(value: string): Record<string, string> | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return isRecordOfStrings(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatHeaders(headers?: Record<string, string>) {
+  if (!headers || Object.keys(headers).length === 0) {
+    return '';
+  }
+  return JSON.stringify(headers, null, 2);
+}
+
+function isRecordOfStrings(value: unknown): value is Record<string, string> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every((item) => typeof item === 'string')
+  );
+}
+
+function handleCronModeChange(value: string | number | boolean) {
+  if (typeof value !== 'string') {
+    return;
+  }
+
+  const mode = value as CronMode;
+  if (mode !== 'custom') {
+    taskForm.cronExpression = CRON_PRESETS[mode];
+  }
+}
+
+function handleCronInput(value: string) {
+  taskForm.cronMode = presetModeFromExpression(value.trim()) ?? 'custom';
+}
+
+function presetModeFromExpression(expression: string): CronMode | null {
+  const entry = Object.entries(CRON_PRESETS).find(([, value]) => value === expression);
+  return entry ? (entry[0] as CronMode) : null;
+}
+
+function taskDisplayName(task: ScheduledTaskItem) {
+  if (task.title) {
+    return task.title;
+  }
+  return localizeMessageKey(task.display_name_key) || task.key;
+}
+
+function taskDescription(task: ScheduledTaskItem) {
+  if (task.description) {
+    return task.description;
+  }
+  return localizeMessageKey(task.description_key) || t('scheduledTask.list.detail.none');
+}
+
+function localizeMessageKey(key?: string) {
+  if (!key) {
+    return '';
+  }
+  if (key === 'scheduledTask.accessLogRetention.title') {
+    return t('scheduledTask.accessLogRetention.title');
+  }
+  return te(key) ? t(key) : key;
+}
+
+function taskTypeLabel(type: ScheduledTaskType) {
   return t(`scheduledTask.list.taskType.${type}`);
 }
 
@@ -550,6 +1294,14 @@ function scheduleTypeLabel(type: ScheduledTaskItem['schedule_type']) {
 
 function triggerLabel(type: ScheduledTaskRunTriggerType) {
   return t(`scheduledTask.list.trigger.${type}`);
+}
+
+function statusLabel(status: ScheduledTaskStatus | ScheduledTaskRunStatus, translate = t) {
+  return translate(`scheduledTask.list.status.${status}`);
+}
+
+function booleanLabel(value: boolean) {
+  return value ? t('scheduledTask.list.detail.enabledYes') : t('scheduledTask.list.detail.enabledNo');
 }
 
 function statusTheme(status: ScheduledTaskStatus | ScheduledTaskRunStatus) {
@@ -565,6 +1317,21 @@ function statusTheme(status: ScheduledTaskStatus | ScheduledTaskRunStatus) {
     default:
       return 'default';
   }
+}
+
+function successRateLabel(taskKey: string) {
+  const runs = runHistoryByTaskKey.value[taskKey] ?? [];
+  const finishedRuns = runs.filter((run) => run.status === 'success' || run.status === 'failed');
+  if (finishedRuns.length === 0) {
+    return t('scheduledTask.list.detail.notAvailable');
+  }
+
+  const success = finishedRuns.filter((run) => run.status === 'success').length;
+  return `${Math.round((success / finishedRuns.length) * 100)}%`;
+}
+
+function runResultText(run: ScheduledTaskRunItem | NonNullable<ScheduledTaskItem['last_run']>) {
+  return run.result_summary || run.error_summary || t('scheduledTask.list.detail.none');
 }
 
 function formatTimestamp(value?: string | null) {
@@ -650,16 +1417,18 @@ function formatDuration(value?: number | null) {
 .scheduled-task-page__title-block p,
 .scheduled-task-table-head p,
 .scheduled-task-metric-card p,
+.scheduled-task-metric-card span,
 .scheduled-task-muted,
 .scheduled-task-identity__key,
-.scheduled-task-owner span + span,
-.scheduled-task-last-run span {
+.scheduled-task-last-run span,
+.scheduled-task-form-hint {
   color: var(--td-text-color-secondary);
 }
 
 .scheduled-task-page__title-block p,
 .scheduled-task-table-head p,
-.scheduled-task-metric-card p {
+.scheduled-task-metric-card p,
+.scheduled-task-form-hint {
   margin: var(--graft-density-gap-4) 0 0;
 }
 
@@ -673,8 +1442,35 @@ function formatDuration(value?: number | null) {
   min-width: 0;
 }
 
+.scheduled-task-metric-card :deep(.t-card__body) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+}
+
+.scheduled-task-metric-card strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-headline-small);
+}
+
 .scheduled-task-table-card :deep(.t-card__body) {
   padding-top: 0;
+}
+
+.scheduled-task-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-12);
+  margin-bottom: var(--graft-density-gap-12);
+}
+
+.scheduled-task-toolbar__search {
+  max-width: 360px;
+  min-width: 240px;
+}
+
+.scheduled-task-toolbar__select {
+  width: 180px;
 }
 
 .scheduled-task-feedback {
@@ -690,19 +1486,15 @@ function formatDuration(value?: number | null) {
 }
 
 .scheduled-task-identity,
-.scheduled-task-owner,
-.scheduled-task-schedule,
 .scheduled-task-last-run {
   display: flex;
   min-width: 0;
 }
 
-.scheduled-task-identity,
-.scheduled-task-owner {
+.scheduled-task-identity {
   flex-direction: column;
 }
 
-.scheduled-task-schedule,
 .scheduled-task-last-run {
   align-items: center;
   gap: var(--graft-density-gap-8);
@@ -714,12 +1506,18 @@ function formatDuration(value?: number | null) {
 }
 
 .scheduled-task-identity__key,
-.scheduled-task-owner span,
-.scheduled-task-schedule span,
-.scheduled-task-last-run span {
+.scheduled-task-last-run span,
+.scheduled-task-mono {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.scheduled-task-mono {
+  color: var(--td-text-color-primary);
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  max-width: 100%;
 }
 
 .scheduled-task-actions {
@@ -753,34 +1551,56 @@ function formatDuration(value?: number | null) {
   gap: var(--graft-density-gap-12);
 }
 
+.scheduled-task-cron-builder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.scheduled-task-cron-builder :deep(.t-radio-group) {
+  flex-wrap: wrap;
+}
+
+.scheduled-task-drawer-footer {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.scheduled-task-dialog-copy {
+  color: var(--td-text-color-primary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.scheduled-task-dialog-copy p {
+  margin: 0;
+}
+
 :deep(.scheduled-task-status-tag) {
   border-radius: 999px;
   font-weight: 600;
 }
 
-:deep(.t-table th),
-:deep(.t-table td) {
-  white-space: nowrap;
-}
-
-:deep(.t-descriptions__label) {
-  width: 160px;
-}
-
-@media (width <= 1200px) {
-  .scheduled-task-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (width <= 768px) {
+@media (width <= 900px) {
   .scheduled-task-page__header,
-  .scheduled-task-table-head,
-  .scheduled-task-feedback {
-    align-items: stretch;
+  .scheduled-task-table-head {
+    align-items: flex-start;
     flex-direction: column;
   }
 
+  .scheduled-task-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scheduled-task-toolbar__search,
+  .scheduled-task-toolbar__select {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+@media (width <= 520px) {
   .scheduled-task-metrics {
     grid-template-columns: 1fr;
   }

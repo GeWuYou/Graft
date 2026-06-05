@@ -1,23 +1,43 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { request } from '@/utils/request';
 
 import {
   buildScheduledTaskDetailApiPath,
+  buildScheduledTaskDisableApiPath,
+  buildScheduledTaskEnableApiPath,
   buildScheduledTaskRunApiPath,
+  buildScheduledTaskRunDetailApiPath,
   buildScheduledTaskRunsApiPath,
   SCHEDULED_TASK_API_PATH,
 } from '../contract/paths';
-import { getScheduledTask, getScheduledTaskRuns, getScheduledTasks, runScheduledTask } from './scheduled-task';
+import {
+  createScheduledTask,
+  deleteScheduledTask,
+  disableScheduledTask,
+  enableScheduledTask,
+  getScheduledTask,
+  getScheduledTaskRun,
+  getScheduledTaskRuns,
+  getScheduledTasks,
+  runScheduledTask,
+  updateScheduledTask,
+} from './scheduled-task';
 
 vi.mock('@/utils/request', () => ({
   request: {
+    delete: vi.fn(),
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }));
 
 describe('scheduled task api', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('calls the canonical scheduled task list path through request.ts', async () => {
     const requestGet = vi.mocked(request.get);
     requestGet.mockResolvedValueOnce({ items: [], total: 0 } as never);
@@ -39,6 +59,69 @@ describe('scheduled task api', () => {
       url: buildScheduledTaskDetailApiPath('audit/job'),
     });
     expect(buildScheduledTaskDetailApiPath('audit/job')).toBe('/api/scheduled-tasks/audit%2Fjob');
+  });
+
+  it('posts create payloads to the canonical collection path', async () => {
+    const requestPost = vi.mocked(request.post);
+    const payload = {
+      task_key: 'webhook.health',
+      task_type: 'http',
+      title: 'Webhook health',
+      cron_expression: '*/5 * * * *',
+      enabled: true,
+      config: {
+        method: 'GET',
+        url: 'https://example.test/health',
+        timeout_seconds: 30,
+      },
+    } as const;
+    requestPost.mockResolvedValueOnce({ key: 'webhook.health' } as never);
+
+    await createScheduledTask(payload);
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: SCHEDULED_TASK_API_PATH.LIST,
+      data: payload,
+    });
+  });
+
+  it('puts update payloads to the canonical detail path', async () => {
+    const requestPut = vi.mocked(request.put);
+    const payload = { cron_expression: '0 * * * *', enabled: false };
+    requestPut.mockResolvedValueOnce({ key: 'audit/job' } as never);
+
+    await updateScheduledTask('audit/job', payload);
+
+    expect(requestPut).toHaveBeenCalledWith({
+      url: buildScheduledTaskDetailApiPath('audit/job'),
+      data: payload,
+    });
+  });
+
+  it('deletes tasks through the canonical detail path', async () => {
+    const requestDelete = vi.mocked(request.delete);
+    requestDelete.mockResolvedValueOnce({} as never);
+
+    await deleteScheduledTask('audit/job');
+
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: buildScheduledTaskDetailApiPath('audit/job'),
+    });
+  });
+
+  it('posts enable and disable actions through canonical lifecycle paths', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValue({ key: 'audit/job' } as never);
+
+    await enableScheduledTask('audit/job');
+    await disableScheduledTask('audit/job');
+
+    expect(requestPost).toHaveBeenNthCalledWith(1, {
+      url: buildScheduledTaskEnableApiPath('audit/job'),
+    });
+    expect(requestPost).toHaveBeenNthCalledWith(2, {
+      url: buildScheduledTaskDisableApiPath('audit/job'),
+    });
   });
 
   it('passes run history pagination to the canonical runs path', async () => {
@@ -63,6 +146,17 @@ describe('scheduled task api', () => {
     expect(requestPost).toHaveBeenCalledWith({
       url: buildScheduledTaskRunApiPath('audit/job'),
     });
-    expect(buildScheduledTaskRunApiPath('audit/job')).toBe('/api/scheduled-tasks/audit%2Fjob:run');
+    expect(buildScheduledTaskRunApiPath('audit/job')).toBe('/api/scheduled-tasks/audit%2Fjob/run');
+  });
+
+  it('reads run details through the canonical run detail path', async () => {
+    const requestGet = vi.mocked(request.get);
+    requestGet.mockResolvedValueOnce({ id: 42, status: 'success' } as never);
+
+    await getScheduledTaskRun(42);
+
+    expect(requestGet).toHaveBeenCalledWith({
+      url: buildScheduledTaskRunDetailApiPath(42),
+    });
   });
 });
