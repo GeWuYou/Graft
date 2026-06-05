@@ -33,6 +33,7 @@
       "disable": "Disable",
       "run": "Run Now",
       "viewDetail": "View",
+      "columnSettings": "Columns",
       "tableTitle": "Task List",
       "tableHint": "{count} tasks match the current filters.",
       "emptyTitle": "No Scheduled Tasks",

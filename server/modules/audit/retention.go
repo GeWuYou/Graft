@@ -143,6 +143,8 @@ func registerAuditLogRetentionCleanupJob(
 		Name:                  auditLogRetentionCleanupJobName,
 		Key:                   auditLogRetentionCleanupJobName,
 		Owner:                 moduleID,
+		Title:                 "Audit log retention cleanup",
+		Description:           "Deletes audit logs beyond the configured retention window.",
 		DisplayMessageKey:     auditLogRetentionCleanupJobDisplayKey,
 		DescriptionMessageKey: auditLogRetentionCleanupJobDescriptionKey,
 		Schedule:              auditLogRetentionCleanupJobSchedule,

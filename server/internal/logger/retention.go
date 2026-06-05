@@ -168,6 +168,8 @@ func RegisterAppLogRetentionCleanupJob(
 		Name:                  appLogRetentionCleanupJobName,
 		Key:                   appLogRetentionCleanupJobName,
 		Owner:                 appLogRetentionCleanupJobModule,
+		Title:                 "App log retention cleanup",
+		Description:           "Deletes app logs beyond the configured retention window.",
 		DisplayMessageKey:     appLogRetentionCleanupJobDisplayKey,
 		DescriptionMessageKey: appLogRetentionCleanupJobDescriptionKey,
 		Schedule:              appLogRetentionCleanupJobSchedule,

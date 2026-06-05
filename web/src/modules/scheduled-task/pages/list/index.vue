@@ -1,47 +1,42 @@
 <template>
-  <div class="scheduled-task-page" data-page-type="list-form-detail">
-    <section class="scheduled-task-page__header">
-      <div class="scheduled-task-page__title-block">
-        <span class="scheduled-task-page__eyebrow">{{ t('scheduledTask.list.eyebrow') }}</span>
-        <h1>{{ t('scheduledTask.list.title') }}</h1>
-        <p>{{ t('scheduledTask.list.description') }}</p>
-      </div>
-      <t-space>
-        <t-button theme="default" variant="outline" :loading="loading" @click="refreshTasks">
-          <template #icon><refresh-icon /></template>
-          {{ t('scheduledTask.list.refresh') }}
-        </t-button>
-        <t-button v-permission="permissionCodes.CREATE" theme="primary" @click="openCreateDrawer">
-          <template #icon><add-icon /></template>
-          {{ t('scheduledTask.list.create') }}
-        </t-button>
-      </t-space>
-    </section>
-
-    <section class="scheduled-task-metrics" aria-label="scheduled task metrics">
-      <t-card
-        v-for="metric in overviewMetrics"
-        :key="metric.key"
-        class="scheduled-task-metric-card"
-        size="small"
-        :bordered="true"
-      >
-        <p>{{ metric.label }}</p>
-        <strong>{{ metric.value }}</strong>
-        <span>{{ metric.description }}</span>
-      </t-card>
-    </section>
-
-    <t-card class="scheduled-task-table-card" :bordered="true">
-      <template #header>
-        <div class="scheduled-task-table-head">
-          <div>
-            <h2>{{ t('scheduledTask.list.tableTitle') }}</h2>
-            <p>{{ t('scheduledTask.list.tableHint', { count: filteredTasks.length }) }}</p>
-          </div>
-        </div>
-      </template>
-
+  <advanced-query-list-page
+    root-class="scheduled-task-page"
+    page-type="list-form-detail"
+    :title="t('scheduledTask.list.title')"
+    :description="t('scheduledTask.list.description')"
+    :error-message="errorMessage"
+    :error-title="t('scheduledTask.list.loadError')"
+    :loading="loading"
+    :reload-label="t('scheduledTask.list.refresh')"
+    :retry-label="t('scheduledTask.list.refresh')"
+    @reload="refreshTasks"
+  >
+    <template #eyebrow>{{ t('scheduledTask.list.eyebrow') }}</template>
+    <template #actions>
+      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
+        {{ t('scheduledTask.list.columnSettings') }}
+      </t-button>
+      <t-button v-permission="permissionCodes.CREATE" theme="primary" @click="openCreateDrawer">
+        <template #icon><add-icon /></template>
+        {{ t('scheduledTask.list.create') }}
+      </t-button>
+    </template>
+    <template #feedback-extra>
+      <section class="scheduled-task-metrics" aria-label="scheduled task metrics">
+        <t-card
+          v-for="metric in overviewMetrics"
+          :key="metric.key"
+          class="scheduled-task-metric-card"
+          size="small"
+          :bordered="true"
+        >
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <span>{{ metric.description }}</span>
+        </t-card>
+      </section>
+    </template>
+    <template #filters>
       <div class="scheduled-task-toolbar">
         <t-input
           v-model="filters.keyword"
@@ -79,455 +74,472 @@
           />
         </t-select>
       </div>
-
-      <div v-if="errorMessage && !loading" class="scheduled-task-feedback scheduled-task-feedback--error">
-        <span>{{ errorMessage }}</span>
-        <t-button theme="primary" variant="outline" size="small" @click="refreshTasks">
-          {{ t('scheduledTask.list.refresh') }}
-        </t-button>
-      </div>
-
-      <t-table
-        row-key="key"
-        :data="filteredTasks"
-        :columns="columns"
-        :loading="loading"
-        table-layout="fixed"
-        table-content-width="1320"
-        cell-empty-content="-"
-        hover
-      >
-        <template #task="{ row }">
-          <div class="scheduled-task-identity">
-            <span class="scheduled-task-identity__name">{{ taskDisplayName(row) }}</span>
-            <span class="scheduled-task-identity__key">{{ row.key }}</span>
+    </template>
+    <template #table>
+      <t-card class="scheduled-task-table-card" :bordered="true">
+        <template #header>
+          <div class="scheduled-task-table-head">
+            <div>
+              <h2>{{ t('scheduledTask.list.tableTitle') }}</h2>
+              <p>{{ t('scheduledTask.list.tableHint', { count: filteredTasks.length }) }}</p>
+            </div>
           </div>
         </template>
 
-        <template #job_key="{ row }">
-          <t-tag variant="light-outline" theme="primary">
-            {{ jobTypeLabel(row.job_key) }}
-          </t-tag>
-        </template>
+        <t-table
+          row-key="key"
+          :data="filteredTasks"
+          :columns="columns"
+          :loading="loading"
+          table-layout="fixed"
+          :table-content-width="tableContentWidth"
+          cell-empty-content="-"
+          hover
+        >
+          <template #task="{ row }">
+            <div class="scheduled-task-identity">
+              <span class="scheduled-task-identity__name">{{ taskDisplayName(row) }}</span>
+              <span class="scheduled-task-identity__key">{{ row.key }}</span>
+            </div>
+          </template>
 
-        <template #status="{ row }">
-          <task-status-tag :status="row.status" />
-        </template>
+          <template #job_key="{ row }">
+            <t-tag variant="light-outline" theme="primary">
+              {{ jobTypeLabel(row.job_key) }}
+            </t-tag>
+          </template>
 
-        <template #schedule="{ row }">
-          <span class="scheduled-task-mono">{{ row.schedule }}</span>
-        </template>
+          <template #status="{ row }">
+            <task-status-tag :status="row.status" />
+          </template>
 
-        <template #recent_result="{ row }">
-          <div v-if="row.last_run" class="scheduled-task-last-run">
-            <task-status-tag :status="row.last_run.status" />
-            <span>{{ runResultText(row.last_run) }}</span>
+          <template #schedule="{ row }">
+            <span class="scheduled-task-mono">{{ row.schedule }}</span>
+          </template>
+
+          <template #recent_result="{ row }">
+            <div v-if="row.last_run" class="scheduled-task-last-run">
+              <task-status-tag :status="row.last_run.status" />
+              <span>{{ runResultText(row.last_run) }}</span>
+            </div>
+            <span v-else class="scheduled-task-muted">{{ t('scheduledTask.list.detail.none') }}</span>
+          </template>
+
+          <template #recent_run="{ row }">
+            {{ formatTimestamp(row.last_run?.started_at) }}
+          </template>
+
+          <template #success_rate="{ row }">
+            {{ successRateLabel(row.key) }}
+          </template>
+
+          <template #operation="{ row }">
+            <t-space class="scheduled-task-actions" size="small" align="center">
+              <t-button theme="primary" variant="text" size="small" @click="openDetail(row)">
+                <template #icon><browse-icon /></template>
+                {{ t('scheduledTask.list.viewDetail') }}
+              </t-button>
+              <t-button
+                v-permission="permissionCodes.UPDATE"
+                theme="primary"
+                variant="text"
+                size="small"
+                @click="openEditDrawer(row)"
+              >
+                <template #icon><edit-icon /></template>
+                {{ t('scheduledTask.list.edit') }}
+              </t-button>
+              <t-button
+                v-permission="permissionCodes.ENABLE"
+                theme="primary"
+                variant="text"
+                size="small"
+                :loading="lifecycleTaskKey === row.key"
+                @click="toggleTaskEnabled(row)"
+              >
+                {{ row.enabled ? t('scheduledTask.list.disable') : t('scheduledTask.list.enable') }}
+              </t-button>
+              <t-button
+                v-permission="permissionCodes.RUN"
+                theme="primary"
+                variant="outline"
+                size="small"
+                :disabled="!canRunTask(row)"
+                :loading="runningTaskKey === row.key"
+                @click="openRunDialog(row)"
+              >
+                <template #icon><play-icon /></template>
+                {{ t('scheduledTask.list.run') }}
+              </t-button>
+              <t-button
+                v-permission="permissionCodes.DELETE"
+                theme="danger"
+                variant="text"
+                size="small"
+                :disabled="isSystemTask(row)"
+                :loading="deletingTaskKey === row.key"
+                @click="openDeleteDialog(row)"
+              >
+                <template #icon><delete-icon /></template>
+                {{ t('scheduledTask.list.delete') }}
+              </t-button>
+            </t-space>
+          </template>
+
+          <template #empty>
+            <div class="scheduled-task-empty">
+              <t-empty
+                :title="t('scheduledTask.list.emptyTitle')"
+                :description="t('scheduledTask.list.emptyDescription')"
+              >
+                <template #action>
+                  <t-button theme="primary" variant="outline" @click="refreshTasks">
+                    {{ t('scheduledTask.list.refresh') }}
+                  </t-button>
+                </template>
+              </t-empty>
+            </div>
+          </template>
+        </t-table>
+      </t-card>
+    </template>
+
+    <template #detail>
+      <advanced-query-column-drawer
+        v-model:visible="columnDrawerVisible"
+        v-model:selected-keys="visibleColumnKeys"
+        :columns="columnSettingOptions"
+        :title="t('scheduledTask.list.columnSettings')"
+      />
+      <t-drawer v-model:visible="formVisible" :header="formTitle" size="720px" placement="right" destroy-on-close>
+        <t-form :data="taskForm" label-align="top">
+          <t-form-item v-if="formMode === 'create'" :label="t('scheduledTask.list.form.jobType')" name="jobKey">
+            <t-select
+              v-model="taskForm.jobKey"
+              :loading="jobDefinitionsLoading"
+              :placeholder="t('scheduledTask.list.form.jobTypePlaceholder')"
+              filterable
+              @change="handleJobDefinitionChange"
+            >
+              <t-option-group
+                v-for="group in groupedJobDefinitions"
+                :key="group.module"
+                :label="moduleDisplayName(group.module)"
+              >
+                <t-option v-for="job in group.items" :key="job.key" :value="job.key" :label="jobDefinitionTitle(job)" />
+              </t-option-group>
+            </t-select>
+          </t-form-item>
+          <div v-if="selectedJobDefinition" class="scheduled-task-job-summary">
+            <div>
+              <strong>{{ jobDefinitionTitle(selectedJobDefinition) }}</strong>
+              <span>{{ selectedJobDefinition.key }}</span>
+            </div>
+            <p>{{ jobDefinitionDescription(selectedJobDefinition) }}</p>
+            <p class="scheduled-task-form-hint">
+              {{
+                t('scheduledTask.list.form.jobDefaults', {
+                  module: selectedJobDefinition.module,
+                  owner: selectedJobDefinition.owner,
+                  cron: selectedJobDefinition.default_cron_expression,
+                })
+              }}
+            </p>
+            <t-collapse v-if="selectedJobDefinition.params_schema_json" expand-icon-placement="right">
+              <t-collapse-panel value="paramsSchema" :header="t('scheduledTask.list.form.paramsSchema')">
+                <pre class="scheduled-task-json-preview">{{
+                  formatJsonPreview(selectedJobDefinition.params_schema_json)
+                }}</pre>
+              </t-collapse-panel>
+            </t-collapse>
           </div>
-          <span v-else class="scheduled-task-muted">{{ t('scheduledTask.list.detail.none') }}</span>
-        </template>
+          <t-form-item :label="t('scheduledTask.list.form.taskKey')" name="taskKey">
+            <t-input
+              v-model="taskForm.taskKey"
+              :disabled="formMode === 'edit'"
+              :placeholder="t('scheduledTask.list.form.taskKeyPlaceholder')"
+            />
+          </t-form-item>
+          <t-form-item :label="t('scheduledTask.list.form.title')" name="title">
+            <t-input
+              v-model="taskForm.title"
+              :disabled="isSystemEdit"
+              :placeholder="t('scheduledTask.list.form.titlePlaceholder')"
+            />
+          </t-form-item>
+          <t-form-item :label="t('scheduledTask.list.form.description')" name="description">
+            <t-textarea
+              v-model="taskForm.description"
+              :disabled="isSystemEdit"
+              :autosize="{ minRows: 3, maxRows: 5 }"
+              :placeholder="t('scheduledTask.list.form.descriptionPlaceholder')"
+            />
+          </t-form-item>
+          <t-form-item :label="t('scheduledTask.list.form.cronBuilder')" name="cronMode">
+            <div class="scheduled-task-cron-builder">
+              <t-radio-group v-model="taskForm.cronMode" variant="default-filled" @change="handleCronModeChange">
+                <t-radio-button v-for="mode in cronModes" :key="mode.value" :value="mode.value">
+                  {{ mode.label }}
+                </t-radio-button>
+              </t-radio-group>
+              <p class="scheduled-task-form-hint">{{ cronHint }}</p>
+            </div>
+          </t-form-item>
+          <t-form-item :label="t('scheduledTask.list.form.cronExpression')" name="cronExpression">
+            <div class="scheduled-task-cron-expression">
+              <t-input
+                v-model="taskForm.cronExpression"
+                :placeholder="t('scheduledTask.list.form.cronExpressionPlaceholder')"
+                @input="handleCronInput"
+              />
+              <p class="scheduled-task-form-hint">{{ cronDescription }}</p>
+            </div>
+          </t-form-item>
+          <t-form-item :label="t('scheduledTask.list.form.enabled')" name="enabled">
+            <t-switch v-model="taskForm.enabled" />
+          </t-form-item>
+          <t-form-item v-if="!isSystemEdit" :label="t('scheduledTask.list.form.paramsJson')" name="paramsJson">
+            <t-textarea
+              v-model="taskForm.paramsJson"
+              :autosize="{ minRows: 4, maxRows: 8 }"
+              :placeholder="t('scheduledTask.list.form.paramsJsonPlaceholder')"
+            />
+          </t-form-item>
+        </t-form>
 
-        <template #recent_run="{ row }">
-          {{ formatTimestamp(row.last_run?.started_at) }}
-        </template>
-
-        <template #success_rate="{ row }">
-          {{ successRateLabel(row.key) }}
-        </template>
-
-        <template #operation="{ row }">
-          <t-space class="scheduled-task-actions" size="small" align="center">
-            <t-button theme="primary" variant="text" size="small" @click="openDetail(row)">
-              <template #icon><browse-icon /></template>
-              {{ t('scheduledTask.list.viewDetail') }}
+        <template #footer>
+          <t-space class="scheduled-task-drawer-footer">
+            <t-button theme="default" variant="outline" @click="formVisible = false">
+              {{ t('scheduledTask.list.cancel') }}
             </t-button>
-            <t-button
-              v-permission="permissionCodes.UPDATE"
-              theme="primary"
-              variant="text"
-              size="small"
-              @click="openEditDrawer(row)"
-            >
-              <template #icon><edit-icon /></template>
-              {{ t('scheduledTask.list.edit') }}
-            </t-button>
-            <t-button
-              v-permission="permissionCodes.ENABLE"
-              theme="primary"
-              variant="text"
-              size="small"
-              :loading="lifecycleTaskKey === row.key"
-              @click="toggleTaskEnabled(row)"
-            >
-              {{ row.enabled ? t('scheduledTask.list.disable') : t('scheduledTask.list.enable') }}
-            </t-button>
-            <t-button
-              v-permission="permissionCodes.RUN"
-              theme="primary"
-              variant="outline"
-              size="small"
-              :disabled="!canRunTask(row)"
-              :loading="runningTaskKey === row.key"
-              @click="openRunDialog(row)"
-            >
-              <template #icon><play-icon /></template>
-              {{ t('scheduledTask.list.run') }}
-            </t-button>
-            <t-button
-              v-permission="permissionCodes.DELETE"
-              theme="danger"
-              variant="text"
-              size="small"
-              :disabled="isSystemTask(row)"
-              :loading="deletingTaskKey === row.key"
-              @click="openDeleteDialog(row)"
-            >
-              <template #icon><delete-icon /></template>
-              {{ t('scheduledTask.list.delete') }}
+            <t-button theme="primary" :loading="submittingTask" @click="submitTaskForm">
+              {{ formMode === 'create' ? t('scheduledTask.list.create') : t('scheduledTask.list.save') }}
             </t-button>
           </t-space>
         </template>
+      </t-drawer>
 
-        <template #empty>
-          <div class="scheduled-task-empty">
-            <t-empty
-              :title="t('scheduledTask.list.emptyTitle')"
-              :description="t('scheduledTask.list.emptyDescription')"
+      <t-drawer
+        v-model:visible="detailVisible"
+        :header="detailTitle"
+        size="840px"
+        placement="right"
+        destroy-on-close
+        :footer="false"
+      >
+        <div v-if="selectedTask" class="scheduled-task-detail">
+          <section class="scheduled-task-detail__section">
+            <div class="scheduled-task-detail__section-head">
+              <h3>{{ t('scheduledTask.list.detail.basics') }}</h3>
+              <task-status-tag :status="selectedTask.status" />
+            </div>
+            <t-descriptions :column="1" bordered size="small">
+              <t-descriptions-item :label="t('scheduledTask.list.detail.key')">
+                {{ selectedTask.key }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.title')">
+                {{ taskDisplayName(selectedTask) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.description')">
+                {{ taskDescription(selectedTask) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.owner')">
+                {{ selectedTask.owner }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.module')">
+                {{ selectedTask.module }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.jobType')">
+                {{ jobTypeLabel(selectedTask.job_key) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.jobKey')">
+                {{ selectedTask.job_key }}
+              </t-descriptions-item>
+              <t-descriptions-item v-if="selectedTask.params_json" :label="t('scheduledTask.list.detail.paramsJson')">
+                <pre class="scheduled-task-json-preview">{{ formatJsonPreview(selectedTask.params_json) }}</pre>
+              </t-descriptions-item>
+            </t-descriptions>
+          </section>
+
+          <section class="scheduled-task-detail__section">
+            <h3>{{ t('scheduledTask.list.detail.schedule') }}</h3>
+            <t-descriptions :column="1" bordered size="small">
+              <t-descriptions-item :label="t('scheduledTask.list.detail.scheduleType')">
+                {{ scheduleTypeLabel(selectedTask.schedule_type) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.scheduleRule')">
+                <span class="scheduled-task-mono">{{ selectedTask.schedule }}</span>
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.nextRun')">
+                {{ formatTimestamp(selectedTask.next_run_at) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.enabled')">
+                {{ booleanLabel(selectedTask.enabled) }}
+              </t-descriptions-item>
+            </t-descriptions>
+          </section>
+
+          <section class="scheduled-task-detail__section">
+            <h3>{{ t('scheduledTask.list.detail.runtime') }}</h3>
+            <t-descriptions :column="1" bordered size="small">
+              <t-descriptions-item :label="t('scheduledTask.list.detail.running')">
+                {{ booleanLabel(selectedTask.running) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.status')">
+                <task-status-tag :status="selectedTask.status" />
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.successRate')">
+                {{ successRateLabel(selectedTask.key) }}
+              </t-descriptions-item>
+            </t-descriptions>
+          </section>
+
+          <section class="scheduled-task-detail__section">
+            <h3>{{ t('scheduledTask.list.detail.latestResult') }}</h3>
+            <t-descriptions v-if="selectedTask.last_run" :column="1" bordered size="small">
+              <t-descriptions-item :label="t('scheduledTask.list.detail.runId')">
+                {{ selectedTask.last_run.id }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.triggerType')">
+                {{ triggerLabel(selectedTask.last_run.trigger_type) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.status')">
+                <task-status-tag :status="selectedTask.last_run.status" />
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.startedAt')">
+                {{ formatTimestamp(selectedTask.last_run.started_at) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.finishedAt')">
+                {{ formatTimestamp(selectedTask.last_run.finished_at) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.duration')">
+                {{ formatDuration(selectedTask.last_run.duration_ms) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.result')">
+                {{ runResultText(selectedTask.last_run) }}
+              </t-descriptions-item>
+            </t-descriptions>
+            <p v-else class="scheduled-task-muted">{{ t('scheduledTask.list.detail.none') }}</p>
+          </section>
+
+          <section class="scheduled-task-detail__section">
+            <div class="scheduled-task-detail__section-head">
+              <h3>{{ t('scheduledTask.list.detail.recentRuns') }}</h3>
+              <t-button size="small" theme="default" variant="outline" :loading="runsLoading" @click="refreshRuns">
+                {{ t('scheduledTask.list.refresh') }}
+              </t-button>
+            </div>
+            <t-table
+              row-key="id"
+              size="small"
+              :data="recentRuns"
+              :columns="runColumns"
+              :loading="runsLoading"
+              table-layout="fixed"
+              table-content-width="860"
+              cell-empty-content="-"
             >
-              <template #action>
-                <t-button theme="primary" variant="outline" @click="refreshTasks">
-                  {{ t('scheduledTask.list.refresh') }}
+              <template #started_at="{ row }">
+                {{ formatTimestamp(row.started_at) }}
+              </template>
+              <template #trigger_type="{ row }">
+                {{ triggerLabel(row.trigger_type) }}
+              </template>
+              <template #status="{ row }">
+                <task-status-tag :status="row.status" />
+              </template>
+              <template #duration_ms="{ row }">
+                {{ formatDuration(row.duration_ms) }}
+              </template>
+              <template #result="{ row }">
+                {{ runResultText(row) }}
+              </template>
+              <template #operation="{ row }">
+                <t-button theme="primary" variant="text" size="small" @click="openRunDetail(row)">
+                  {{ t('scheduledTask.list.detail.viewRun') }}
                 </t-button>
               </template>
-            </t-empty>
-          </div>
-        </template>
-      </t-table>
-    </t-card>
-
-    <t-drawer v-model:visible="formVisible" :header="formTitle" size="720px" placement="right" destroy-on-close>
-      <t-form :data="taskForm" label-align="top">
-        <t-form-item v-if="formMode === 'create'" :label="t('scheduledTask.list.form.jobType')" name="jobKey">
-          <t-select
-            v-model="taskForm.jobKey"
-            :loading="jobDefinitionsLoading"
-            :placeholder="t('scheduledTask.list.form.jobTypePlaceholder')"
-            filterable
-            @change="handleJobDefinitionChange"
-          >
-            <t-option-group
-              v-for="group in groupedJobDefinitions"
-              :key="group.module"
-              :label="moduleDisplayName(group.module)"
-            >
-              <t-option v-for="job in group.items" :key="job.key" :value="job.key" :label="jobDefinitionTitle(job)" />
-            </t-option-group>
-          </t-select>
-        </t-form-item>
-        <div v-if="selectedJobDefinition" class="scheduled-task-job-summary">
-          <div>
-            <strong>{{ jobDefinitionTitle(selectedJobDefinition) }}</strong>
-            <span>{{ selectedJobDefinition.key }}</span>
-          </div>
-          <p>{{ jobDefinitionDescription(selectedJobDefinition) }}</p>
-          <p class="scheduled-task-form-hint">
-            {{
-              t('scheduledTask.list.form.jobDefaults', {
-                module: selectedJobDefinition.module,
-                owner: selectedJobDefinition.owner,
-                cron: selectedJobDefinition.default_cron_expression,
-              })
-            }}
-          </p>
-          <t-collapse v-if="selectedJobDefinition.params_schema_json" expand-icon-placement="right">
-            <t-collapse-panel value="paramsSchema" :header="t('scheduledTask.list.form.paramsSchema')">
-              <pre class="scheduled-task-json-preview">{{
-                formatJsonPreview(selectedJobDefinition.params_schema_json)
-              }}</pre>
-            </t-collapse-panel>
-          </t-collapse>
+              <template #empty>
+                <div class="scheduled-task-runs-empty">
+                  {{ t('scheduledTask.list.detail.runsEmpty') }}
+                </div>
+              </template>
+            </t-table>
+          </section>
         </div>
-        <t-form-item :label="t('scheduledTask.list.form.taskKey')" name="taskKey">
-          <t-input
-            v-model="taskForm.taskKey"
-            :disabled="formMode === 'edit'"
-            :placeholder="t('scheduledTask.list.form.taskKeyPlaceholder')"
-          />
-        </t-form-item>
-        <t-form-item :label="t('scheduledTask.list.form.title')" name="title">
-          <t-input
-            v-model="taskForm.title"
-            :disabled="isSystemEdit"
-            :placeholder="t('scheduledTask.list.form.titlePlaceholder')"
-          />
-        </t-form-item>
-        <t-form-item :label="t('scheduledTask.list.form.description')" name="description">
-          <t-textarea
-            v-model="taskForm.description"
-            :disabled="isSystemEdit"
-            :autosize="{ minRows: 3, maxRows: 5 }"
-            :placeholder="t('scheduledTask.list.form.descriptionPlaceholder')"
-          />
-        </t-form-item>
-        <t-form-item :label="t('scheduledTask.list.form.cronBuilder')" name="cronMode">
-          <div class="scheduled-task-cron-builder">
-            <t-radio-group v-model="taskForm.cronMode" variant="default-filled" @change="handleCronModeChange">
-              <t-radio-button v-for="mode in cronModes" :key="mode.value" :value="mode.value">
-                {{ mode.label }}
-              </t-radio-button>
-            </t-radio-group>
-            <p class="scheduled-task-form-hint">{{ cronHint }}</p>
-          </div>
-        </t-form-item>
-        <t-form-item :label="t('scheduledTask.list.form.cronExpression')" name="cronExpression">
-          <t-input
-            v-model="taskForm.cronExpression"
-            :placeholder="t('scheduledTask.list.form.cronExpressionPlaceholder')"
-            @input="handleCronInput"
-          />
-          <p class="scheduled-task-form-hint">{{ cronDescription }}</p>
-        </t-form-item>
-        <t-form-item :label="t('scheduledTask.list.form.enabled')" name="enabled">
-          <t-switch v-model="taskForm.enabled" />
-        </t-form-item>
-        <t-form-item v-if="!isSystemEdit" :label="t('scheduledTask.list.form.paramsJson')" name="paramsJson">
-          <t-textarea
-            v-model="taskForm.paramsJson"
-            :autosize="{ minRows: 4, maxRows: 8 }"
-            :placeholder="t('scheduledTask.list.form.paramsJsonPlaceholder')"
-          />
-        </t-form-item>
-      </t-form>
+      </t-drawer>
 
-      <template #footer>
-        <t-space class="scheduled-task-drawer-footer">
-          <t-button theme="default" variant="outline" @click="formVisible = false">
-            {{ t('scheduledTask.list.cancel') }}
-          </t-button>
-          <t-button theme="primary" :loading="submittingTask" @click="submitTaskForm">
-            {{ formMode === 'create' ? t('scheduledTask.list.create') : t('scheduledTask.list.save') }}
-          </t-button>
-        </t-space>
-      </template>
-    </t-drawer>
+      <t-dialog
+        v-model:visible="runDialogVisible"
+        :header="t('scheduledTask.list.runDialog.title')"
+        :confirm-btn="t('scheduledTask.list.runDialog.confirm')"
+        :cancel-btn="t('scheduledTask.list.runDialog.cancel')"
+        :confirm-loading="runningTaskKey === runDialogTask?.key"
+        @confirm="confirmRunTask"
+      >
+        <div v-if="runDialogTask" class="scheduled-task-dialog-copy">
+          <p>{{ t('scheduledTask.list.runDialog.taskLine', { taskName: taskDisplayName(runDialogTask) }) }}</p>
+          <p>{{ t('scheduledTask.list.runDialog.description') }}</p>
+        </div>
+      </t-dialog>
 
-    <t-drawer
-      v-model:visible="detailVisible"
-      :header="detailTitle"
-      size="840px"
-      placement="right"
-      destroy-on-close
-      :footer="false"
-    >
-      <div v-if="selectedTask" class="scheduled-task-detail">
-        <section class="scheduled-task-detail__section">
-          <div class="scheduled-task-detail__section-head">
-            <h3>{{ t('scheduledTask.list.detail.basics') }}</h3>
-            <task-status-tag :status="selectedTask.status" />
-          </div>
-          <t-descriptions :column="1" bordered size="small">
-            <t-descriptions-item :label="t('scheduledTask.list.detail.key')">
-              {{ selectedTask.key }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.title')">
-              {{ taskDisplayName(selectedTask) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.description')">
-              {{ taskDescription(selectedTask) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.owner')">
-              {{ selectedTask.owner }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.module')">
-              {{ selectedTask.module }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.jobType')">
-              {{ jobTypeLabel(selectedTask.job_key) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.jobKey')">
-              {{ selectedTask.job_key }}
-            </t-descriptions-item>
-            <t-descriptions-item v-if="selectedTask.params_json" :label="t('scheduledTask.list.detail.paramsJson')">
-              <pre class="scheduled-task-json-preview">{{ formatJsonPreview(selectedTask.params_json) }}</pre>
-            </t-descriptions-item>
-          </t-descriptions>
-        </section>
+      <t-dialog
+        v-model:visible="deleteDialogVisible"
+        :header="t('scheduledTask.list.deleteDialog.title')"
+        :confirm-btn="t('scheduledTask.list.deleteDialog.confirm')"
+        :cancel-btn="t('scheduledTask.list.cancel')"
+        :confirm-loading="deletingTaskKey === deleteDialogTask?.key"
+        @confirm="confirmDeleteTask"
+      >
+        <p v-if="deleteDialogTask">
+          {{ t('scheduledTask.list.deleteDialog.description', { taskName: taskDisplayName(deleteDialogTask) }) }}
+        </p>
+      </t-dialog>
 
-        <section class="scheduled-task-detail__section">
-          <h3>{{ t('scheduledTask.list.detail.schedule') }}</h3>
-          <t-descriptions :column="1" bordered size="small">
-            <t-descriptions-item :label="t('scheduledTask.list.detail.scheduleType')">
-              {{ scheduleTypeLabel(selectedTask.schedule_type) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.scheduleRule')">
-              <span class="scheduled-task-mono">{{ selectedTask.schedule }}</span>
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.nextRun')">
-              {{ formatTimestamp(selectedTask.next_run_at) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.enabled')">
-              {{ booleanLabel(selectedTask.enabled) }}
-            </t-descriptions-item>
-          </t-descriptions>
-        </section>
-
-        <section class="scheduled-task-detail__section">
-          <h3>{{ t('scheduledTask.list.detail.runtime') }}</h3>
-          <t-descriptions :column="1" bordered size="small">
-            <t-descriptions-item :label="t('scheduledTask.list.detail.running')">
-              {{ booleanLabel(selectedTask.running) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.status')">
-              <task-status-tag :status="selectedTask.status" />
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.successRate')">
-              {{ successRateLabel(selectedTask.key) }}
-            </t-descriptions-item>
-          </t-descriptions>
-        </section>
-
-        <section class="scheduled-task-detail__section">
-          <h3>{{ t('scheduledTask.list.detail.latestResult') }}</h3>
-          <t-descriptions v-if="selectedTask.last_run" :column="1" bordered size="small">
-            <t-descriptions-item :label="t('scheduledTask.list.detail.runId')">
-              {{ selectedTask.last_run.id }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.triggerType')">
-              {{ triggerLabel(selectedTask.last_run.trigger_type) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.status')">
-              <task-status-tag :status="selectedTask.last_run.status" />
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.startedAt')">
-              {{ formatTimestamp(selectedTask.last_run.started_at) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.finishedAt')">
-              {{ formatTimestamp(selectedTask.last_run.finished_at) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.duration')">
-              {{ formatDuration(selectedTask.last_run.duration_ms) }}
-            </t-descriptions-item>
-            <t-descriptions-item :label="t('scheduledTask.list.detail.result')">
-              {{ runResultText(selectedTask.last_run) }}
-            </t-descriptions-item>
-          </t-descriptions>
-          <p v-else class="scheduled-task-muted">{{ t('scheduledTask.list.detail.none') }}</p>
-        </section>
-
-        <section class="scheduled-task-detail__section">
-          <div class="scheduled-task-detail__section-head">
-            <h3>{{ t('scheduledTask.list.detail.recentRuns') }}</h3>
-            <t-button size="small" theme="default" variant="outline" :loading="runsLoading" @click="refreshRuns">
-              {{ t('scheduledTask.list.refresh') }}
-            </t-button>
-          </div>
-          <t-table
-            row-key="id"
-            size="small"
-            :data="recentRuns"
-            :columns="runColumns"
-            :loading="runsLoading"
-            table-layout="fixed"
-            table-content-width="860"
-            cell-empty-content="-"
-          >
-            <template #started_at="{ row }">
-              {{ formatTimestamp(row.started_at) }}
-            </template>
-            <template #trigger_type="{ row }">
-              {{ triggerLabel(row.trigger_type) }}
-            </template>
-            <template #status="{ row }">
-              <task-status-tag :status="row.status" />
-            </template>
-            <template #duration_ms="{ row }">
-              {{ formatDuration(row.duration_ms) }}
-            </template>
-            <template #result="{ row }">
-              {{ runResultText(row) }}
-            </template>
-            <template #operation="{ row }">
-              <t-button theme="primary" variant="text" size="small" @click="openRunDetail(row)">
-                {{ t('scheduledTask.list.detail.viewRun') }}
-              </t-button>
-            </template>
-            <template #empty>
-              <div class="scheduled-task-runs-empty">
-                {{ t('scheduledTask.list.detail.runsEmpty') }}
-              </div>
-            </template>
-          </t-table>
-        </section>
-      </div>
-    </t-drawer>
-
-    <t-dialog
-      v-model:visible="runDialogVisible"
-      :header="t('scheduledTask.list.runDialog.title')"
-      :confirm-btn="t('scheduledTask.list.runDialog.confirm')"
-      :cancel-btn="t('scheduledTask.list.runDialog.cancel')"
-      :confirm-loading="runningTaskKey === runDialogTask?.key"
-      @confirm="confirmRunTask"
-    >
-      <div v-if="runDialogTask" class="scheduled-task-dialog-copy">
-        <p>{{ t('scheduledTask.list.runDialog.taskLine', { taskName: taskDisplayName(runDialogTask) }) }}</p>
-        <p>{{ t('scheduledTask.list.runDialog.description') }}</p>
-      </div>
-    </t-dialog>
-
-    <t-dialog
-      v-model:visible="deleteDialogVisible"
-      :header="t('scheduledTask.list.deleteDialog.title')"
-      :confirm-btn="t('scheduledTask.list.deleteDialog.confirm')"
-      :cancel-btn="t('scheduledTask.list.cancel')"
-      :confirm-loading="deletingTaskKey === deleteDialogTask?.key"
-      @confirm="confirmDeleteTask"
-    >
-      <p v-if="deleteDialogTask">
-        {{ t('scheduledTask.list.deleteDialog.description', { taskName: taskDisplayName(deleteDialogTask) }) }}
-      </p>
-    </t-dialog>
-
-    <t-dialog
-      v-model:visible="runDetailVisible"
-      :header="t('scheduledTask.list.detail.runDetailTitle')"
-      :footer="false"
-      width="640px"
-    >
-      <t-descriptions v-if="selectedRun" :column="1" bordered size="small">
-        <t-descriptions-item :label="t('scheduledTask.list.detail.runId')">
-          {{ selectedRun.id }}
-        </t-descriptions-item>
-        <t-descriptions-item :label="t('scheduledTask.list.columns.task')">
-          {{ selectedRun.task_name || selectedRun.task_key }}
-        </t-descriptions-item>
-        <t-descriptions-item :label="t('scheduledTask.list.detail.triggerType')">
-          {{ triggerLabel(selectedRun.trigger_type) }}
-        </t-descriptions-item>
-        <t-descriptions-item :label="t('scheduledTask.list.detail.status')">
-          <task-status-tag :status="selectedRun.status" />
-        </t-descriptions-item>
-        <t-descriptions-item :label="t('scheduledTask.list.detail.startedAt')">
-          {{ formatTimestamp(selectedRun.started_at) }}
-        </t-descriptions-item>
-        <t-descriptions-item :label="t('scheduledTask.list.detail.finishedAt')">
-          {{ formatTimestamp(selectedRun.finished_at) }}
-        </t-descriptions-item>
-        <t-descriptions-item :label="t('scheduledTask.list.detail.duration')">
-          {{ formatDuration(selectedRun.duration_ms) }}
-        </t-descriptions-item>
-        <t-descriptions-item :label="t('scheduledTask.list.detail.result')">
-          {{ runResultText(selectedRun) }}
-        </t-descriptions-item>
-      </t-descriptions>
-    </t-dialog>
-  </div>
+      <t-dialog
+        v-model:visible="runDetailVisible"
+        :header="t('scheduledTask.list.detail.runDetailTitle')"
+        :footer="false"
+        width="640px"
+      >
+        <t-descriptions v-if="selectedRun" :column="1" bordered size="small">
+          <t-descriptions-item :label="t('scheduledTask.list.detail.runId')">
+            {{ selectedRun.id }}
+          </t-descriptions-item>
+          <t-descriptions-item :label="t('scheduledTask.list.columns.task')">
+            {{ selectedRun.task_name || selectedRun.task_key }}
+          </t-descriptions-item>
+          <t-descriptions-item :label="t('scheduledTask.list.detail.triggerType')">
+            {{ triggerLabel(selectedRun.trigger_type) }}
+          </t-descriptions-item>
+          <t-descriptions-item :label="t('scheduledTask.list.detail.status')">
+            <task-status-tag :status="selectedRun.status" />
+          </t-descriptions-item>
+          <t-descriptions-item :label="t('scheduledTask.list.detail.startedAt')">
+            {{ formatTimestamp(selectedRun.started_at) }}
+          </t-descriptions-item>
+          <t-descriptions-item :label="t('scheduledTask.list.detail.finishedAt')">
+            {{ formatTimestamp(selectedRun.finished_at) }}
+          </t-descriptions-item>
+          <t-descriptions-item :label="t('scheduledTask.list.detail.duration')">
+            {{ formatDuration(selectedRun.duration_ms) }}
+          </t-descriptions-item>
+          <t-descriptions-item :label="t('scheduledTask.list.detail.result')">
+            {{ runResultText(selectedRun) }}
+          </t-descriptions-item>
+        </t-descriptions>
+      </t-dialog>
+    </template>
+  </advanced-query-list-page>
 </template>
 <script setup lang="ts">
-import { AddIcon, BrowseIcon, DeleteIcon, EditIcon, PlayIcon, RefreshIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import { AddIcon, BrowseIcon, DeleteIcon, EditIcon, PlayIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin, Tag, type TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { buildVisibleColumns, calculateTableContentWidth } from '@/shared/components/management';
+import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { createLogger } from '@/utils/logger';
 
 import {
@@ -601,6 +613,16 @@ const CRON_PRESETS: Record<Exclude<CronMode, 'custom'>, string> = {
 };
 
 const statusOptions: ScheduledTaskStatus[] = ['idle', 'running', 'success', 'failed', 'unknown'];
+const builtinTaskMessageKeys = [
+  'scheduledTask.accessLogRetention.title',
+  'scheduledTask.accessLogRetention.description',
+  'scheduledTask.auditLogRetention.title',
+  'scheduledTask.auditLogRetention.description',
+  'scheduledTask.appLogRetention.title',
+  'scheduledTask.appLogRetention.description',
+] as const;
+
+type BuiltinTaskMessageKey = (typeof builtinTaskMessageKeys)[number];
 
 const TaskStatusTag = defineComponent({
   name: 'ScheduledTaskStatusTag',
@@ -644,6 +666,7 @@ const formVisible = ref(false);
 const runDialogVisible = ref(false);
 const deleteDialogVisible = ref(false);
 const runDetailVisible = ref(false);
+const columnDrawerVisible = ref(false);
 const errorMessage = ref('');
 const runningTaskKey = ref('');
 const lifecycleTaskKey = ref('');
@@ -661,6 +684,7 @@ const filters = reactive<FilterModel>({
 });
 
 const taskForm = reactive<TaskFormModel>(createEmptyTaskForm());
+const visibleColumnKeys = ref(['task', 'job_key', 'status', 'schedule', 'recent_result', 'recent_run']);
 
 const cronModes = computed(() => [
   { value: 'everyMinute' as const, label: t('scheduledTask.list.cronMode.everyMinute') },
@@ -779,7 +803,17 @@ const cronDescription = computed(() => {
     : t('scheduledTask.list.form.cronRequiredHint');
 });
 
-const columns = computed<TdBaseTableProps['columns']>(() => [
+const columnSettingOptions = computed(() => [
+  { label: t('scheduledTask.list.columns.taskName'), value: 'task' },
+  { label: t('scheduledTask.list.columns.jobType'), value: 'job_key' },
+  { label: t('scheduledTask.list.columns.status'), value: 'status' },
+  { label: t('scheduledTask.list.columns.cron'), value: 'schedule' },
+  { label: t('scheduledTask.list.columns.recentResult'), value: 'recent_result' },
+  { label: t('scheduledTask.list.columns.recentRun'), value: 'recent_run' },
+  { label: t('scheduledTask.list.columns.successRate'), value: 'success_rate' },
+]);
+
+const allColumns = computed<TdBaseTableProps['columns']>(() => [
   {
     colKey: 'task',
     title: t('scheduledTask.list.columns.taskName'),
@@ -823,6 +857,11 @@ const columns = computed<TdBaseTableProps['columns']>(() => [
     fixed: 'right',
   },
 ]);
+
+const columns = computed<TdBaseTableProps['columns']>(() =>
+  buildVisibleColumns(allColumns.value, visibleColumnKeys.value, ['operation']),
+);
+const tableContentWidth = computed(() => calculateTableContentWidth(columns.value));
 
 const runColumns = computed<TdBaseTableProps['columns']>(() => [
   {
@@ -1289,40 +1328,52 @@ function presetModeFromExpression(expression: string): CronMode | null {
 }
 
 function taskDisplayName(task: ScheduledTaskItem) {
-  if (task.title) {
-    return task.title;
-  }
+  const title = localizeDisplayValue(task.title);
+  if (title) return title;
   return localizeMessageKey(task.display_name_key) || task.key;
 }
 
 function taskDescription(task: ScheduledTaskItem) {
-  if (task.description) {
-    return task.description;
-  }
+  const description = localizeDisplayValue(task.description);
+  if (description) return description;
   return localizeMessageKey(task.description_key) || t('scheduledTask.list.detail.none');
 }
 
 function localizeMessageKey(key?: string) {
-  if (!key) {
+  const trimmed = key?.trim();
+  if (!trimmed) {
     return '';
   }
 
-  switch (key) {
-    case 'scheduledTask.accessLogRetention.title':
-      return t('scheduledTask.accessLogRetention.title');
-    case 'scheduledTask.accessLogRetention.description':
-      return t('scheduledTask.accessLogRetention.description');
-    case 'scheduledTask.auditLogRetention.title':
-      return t('scheduledTask.auditLogRetention.title');
-    case 'scheduledTask.auditLogRetention.description':
-      return t('scheduledTask.auditLogRetention.description');
-    case 'scheduledTask.appLogRetention.title':
-      return t('scheduledTask.appLogRetention.title');
-    case 'scheduledTask.appLogRetention.description':
-      return t('scheduledTask.appLogRetention.description');
-    default:
-      return te(key) ? t(key) : key;
+  if (isBuiltinTaskMessageKey(trimmed)) {
+    return builtinTaskMessageText(trimmed);
   }
+
+  return te(trimmed) ? t(trimmed) : '';
+}
+
+function isBuiltinTaskMessageKey(key: string): key is BuiltinTaskMessageKey {
+  return (builtinTaskMessageKeys as readonly string[]).includes(key);
+}
+
+function builtinTaskMessageText(key: BuiltinTaskMessageKey) {
+  const messages: Record<BuiltinTaskMessageKey, string> = {
+    'scheduledTask.accessLogRetention.title': t('scheduledTask.accessLogRetention.title'),
+    'scheduledTask.accessLogRetention.description': t('scheduledTask.accessLogRetention.description'),
+    'scheduledTask.auditLogRetention.title': t('scheduledTask.auditLogRetention.title'),
+    'scheduledTask.auditLogRetention.description': t('scheduledTask.auditLogRetention.description'),
+    'scheduledTask.appLogRetention.title': t('scheduledTask.appLogRetention.title'),
+    'scheduledTask.appLogRetention.description': t('scheduledTask.appLogRetention.description'),
+  };
+  return messages[key];
+}
+
+function localizeDisplayValue(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return '';
+  }
+  return localizeMessageKey(trimmed) || trimmed;
 }
 
 function jobTypeLabel(jobKey: ScheduledTaskJobKey) {
@@ -1331,16 +1382,14 @@ function jobTypeLabel(jobKey: ScheduledTaskJobKey) {
 }
 
 function jobDefinitionTitle(job: ScheduledTaskJobDefinitionItem) {
-  if (job.title) {
-    return job.title;
-  }
+  const title = localizeDisplayValue(job.title);
+  if (title) return title;
   return localizeMessageKey(job.display_name_key) || job.key;
 }
 
 function jobDefinitionDescription(job: ScheduledTaskJobDefinitionItem) {
-  if (job.description) {
-    return job.description;
-  }
+  const description = localizeDisplayValue(job.description);
+  if (description) return description;
   return localizeMessageKey(job.description_key) || t('scheduledTask.list.detail.none');
 }
 

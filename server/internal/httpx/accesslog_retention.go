@@ -145,6 +145,8 @@ func RegisterAccessLogRetentionCleanupJob(
 		Name:                  accessLogRetentionCleanupJobName,
 		Key:                   accessLogRetentionCleanupJobName,
 		Owner:                 accessLogRetentionCleanupJobModule,
+		Title:                 "Access log retention cleanup",
+		Description:           "Deletes access logs beyond the configured retention window.",
 		DisplayMessageKey:     accessLogRetentionCleanupJobDisplayKey,
 		DescriptionMessageKey: accessLogRetentionCleanupJobDescriptionKey,
 		Schedule:              accessLogRetentionCleanupJobSchedule,

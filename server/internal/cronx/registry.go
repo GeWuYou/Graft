@@ -63,9 +63,6 @@ func (j Job) RuntimeTitle() string {
 	if title := strings.TrimSpace(j.Title); title != "" {
 		return title
 	}
-	if key := strings.TrimSpace(j.DisplayMessageKey); key != "" {
-		return key
-	}
 	return j.RuntimeKey()
 }
 
@@ -73,9 +70,6 @@ func (j Job) RuntimeTitle() string {
 func (j Job) RuntimeDescription() string {
 	if description := strings.TrimSpace(j.Description); description != "" {
 		return description
-	}
-	if key := strings.TrimSpace(j.DescriptionMessageKey); key != "" {
-		return key
 	}
 	return j.RuntimeTitle()
 }

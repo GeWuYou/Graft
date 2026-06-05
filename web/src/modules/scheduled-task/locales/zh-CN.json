@@ -33,6 +33,7 @@
       "disable": "停用",
       "run": "立即执行",
       "viewDetail": "查看",
+      "columnSettings": "列设置",
       "tableTitle": "任务列表",
       "tableHint": "当前筛选显示 {count} 个任务。",
       "emptyTitle": "暂无定时任务",
