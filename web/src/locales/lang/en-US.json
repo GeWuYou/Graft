@@ -8,7 +8,7 @@
   "components": {
     "commonTable": {
       "operation": "Operation",
-      "detail": "detail"
+      "detail": "Detail"
     }
   },
   "layout": {
@@ -28,10 +28,10 @@
       "viewAll": "View All"
     },
     "tagTabs": {
-      "closeOther": "close other",
-      "closeLeft": "close left",
-      "closeRight": "close right",
-      "refresh": "refresh"
+      "closeOther": "Close Other",
+      "closeLeft": "Close Left",
+      "closeRight": "Close Right",
+      "refresh": "Refresh"
     },
     "search": {
       "placeholder": "Enter search content"
@@ -290,7 +290,7 @@
         "remember": "Remember me",
         "forget": "Forgot account?",
         "signIn": "Sign in",
-        "refresh": "refresh",
+        "refresh": "Refresh",
         "wechatLogin": "Login with WeChat",
         "accountLogin": "Login with Account",
         "phoneLogin": "Login with Mobile Phone",
@@ -299,16 +299,16 @@
         "loginSuccess": "Login successful",
         "countdown": "Resend after {count} seconds",
         "input": {
-          "account": "please enter account",
-          "password": "please enter password",
-          "phone": "please enter phone",
-          "verification": "please enter verification code"
+          "account": "Please enter account",
+          "password": "Please enter password",
+          "phone": "Please enter phone",
+          "verification": "Please enter verification code"
         },
         "required": {
-          "account": "account is required",
-          "phone": "phone is required",
-          "password": "password is required",
-          "verification": "verification code is required"
+          "account": "Account is required",
+          "phone": "Phone is required",
+          "password": "Password is required",
+          "verification": "Verification code is required"
         },
         "forcePasswordChange": {
           "title": "Change password before continuing",

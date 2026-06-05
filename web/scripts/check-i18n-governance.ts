@@ -986,6 +986,38 @@ function collectMissingReferenceFindings(catalogs: LocaleCatalog[]): LocaleFindi
   return findings;
 }
 
+function isEnglishInitialCaseExempt(key: string): boolean {
+  const conjunctionKey = ['common', 'conjunction'].join('.');
+  return key === conjunctionKey || key.endsWith('.unit');
+}
+
+function startsWithLowercaseLetter(value: string): boolean {
+  return /^[a-z]/.test(normalizeText(value));
+}
+
+function collectEnglishInitialCaseFindings(catalogs: LocaleCatalog[]): LocaleFinding[] {
+  const findings: LocaleFinding[] = [];
+
+  for (const catalog of catalogs) {
+    if (catalog.locale !== 'en-US') {
+      continue;
+    }
+
+    for (const [key, value] of catalog.messages) {
+      if (isEnglishInitialCaseExempt(key) || !startsWithLowercaseLetter(value)) {
+        continue;
+      }
+
+      findings.push({
+        file: catalog.file,
+        message: `English locale value for ${key} should start with an uppercase letter`,
+      });
+    }
+  }
+
+  return findings;
+}
+
 function collectLocaleFindings(): LocaleFinding[] {
   const catalogs = collectLocaleCatalogs();
   const groupedFiles = new Map<string, Partial<Record<LocaleCode, LocaleCatalog>>>();
@@ -1002,6 +1034,7 @@ function collectLocaleFindings(): LocaleFinding[] {
   findings.push(...collectSplitOwnerFindings(catalogs));
   findings.push(...collectMissingReferenceFindings(catalogs));
   findings.push(...collectUnusedKeyFindings(catalogs));
+  findings.push(...collectEnglishInitialCaseFindings(catalogs));
 
   for (const [pairKey, group] of groupedFiles) {
     if (!group['zh-CN'] || !group['en-US']) {
