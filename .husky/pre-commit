@@ -8,7 +8,8 @@ migration_version_checker="$repo_root/scripts/check_migration_versions.py"
 run_lint_staged=0
 run_i18n_lint=0
 
-for path in $(git diff --cached --name-only --diff-filter=ACMR); do
+changed_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+while IFS= read -r path; do
   case "$path" in
     web/*.js|web/*.mjs|web/*.cjs|web/*.jsx|web/*.ts|web/*.mts|web/*.cts|web/*.tsx|web/*.vue|web/*.html|web/*.css|web/*.sass|web/*.less|web/*.md|web/*.json|web/*.yml|web/*.yaml)
       run_lint_staged=1
@@ -20,7 +21,9 @@ for path in $(git diff --cached --name-only --diff-filter=ACMR); do
       run_i18n_lint=1
       ;;
   esac
-done
+done <<EOF
+$changed_files
+EOF
 
 if [ "$run_lint_staged" -eq 1 ]; then
   cd "$repo_root/web"

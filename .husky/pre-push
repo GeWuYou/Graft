@@ -92,13 +92,15 @@ sh "$python_runner" "$migration_version_checker" --mode all
 
 changed_files="$(git diff --name-only "$base_ref...HEAD")"
 run_i18n_lint=0
-for path in $changed_files; do
+while IFS= read -r path; do
   case "$path" in
     web/src/*|web/scripts/check-i18n-governance.ts|web/package.json)
       run_i18n_lint=1
       ;;
   esac
-done
+done <<EOF
+$changed_files
+EOF
 
 if printf '%s\n' "$changed_files" | grep -q '^web/'; then
   (

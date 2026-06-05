@@ -968,8 +968,9 @@ function walkServerTitleKeyFiles(dir: string): string[] {
 
 function collectServerMenuTitleKeys(): Set<string> {
   const keys = new Set<string>();
-  const stringConstantPattern = /\b([A-Za-z_]\w*)\s*=\s*"([^"$]+)"/g;
-  const titleKeyPattern = /\b(?:TitleKey|title_key)\s*:\s*(?:"([^"$]+)"|([A-Za-z_]\w*))/g;
+  const stringConstantPattern = /\b([A-Za-z_]\w*)(?:\s+[A-Za-z_]\w*)?\s*=\s*"([^"$]+)"/g;
+  const titleKeyPattern =
+    /\b(?:TitleKey|title_key)\s*:\s*(?:"([^"$]+)"|(?:(?:[A-Za-z_]\w*)\.)?([A-Za-z_]\w*)(?:\.String\(\))?)/g;
 
   for (const dir of SERVER_TITLE_KEY_DIRS) {
     for (const filePath of walkServerTitleKeyFiles(dir)) {

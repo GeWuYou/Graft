@@ -161,20 +161,61 @@ function normalizeValue(value: string): string {
 
 function isDensityAwareValue(value: string): boolean {
   const normalized = normalizeValue(value);
+  const components = splitCssValueComponents(normalized);
 
-  if (/^0(?:\s+0)*$/.test(normalized)) {
-    return true;
+  return components.length > 0 && components.every(isDensityAwareValueComponent);
+}
+
+function splitCssValueComponents(value: string): string[] {
+  const components: string[] = [];
+  let current = '';
+  let depth = 0;
+
+  for (const character of value) {
+    if (/\s/.test(character) && depth === 0) {
+      if (current) {
+        components.push(current);
+        current = '';
+      }
+      continue;
+    }
+
+    if (character === '(') {
+      depth += 1;
+    } else if (character === ')' && depth > 0) {
+      depth -= 1;
+    }
+
+    current += character;
   }
 
-  if (/var\(\s*--(?:td-comp|graft-density)-[\w-]+(?:\s*,[^)]*)?\)/.test(normalized)) {
-    return true;
+  if (current) {
+    components.push(current);
   }
 
-  if (/calc\([^)]*var\(\s*--graft-theme-density-scale\s*\)[^)]*\)/.test(normalized)) {
-    return true;
+  return components;
+}
+
+function isDensityAwareValueComponent(value: string): boolean {
+  return (
+    value === '0' ||
+    /^var\(\s*--(?:td-comp|graft-density)-[\w-]+(?:\s*,[^)]*)?\)$/.test(value) ||
+    /^calc\([^)]*var\(\s*--graft-theme-density-scale\s*\)[^)]*\)$/.test(value) ||
+    isDensityAwareCalcValue(value)
+  );
+}
+
+function isDensityAwareCalcValue(value: string): boolean {
+  const calcMatch = value.match(/^calc\((?<expression>.+)\)$/);
+  if (!calcMatch?.groups?.expression) {
+    return false;
   }
 
-  return false;
+  const withoutAcceptedFunctions = calcMatch.groups.expression
+    .replace(/var\(\s*--(?:td-comp|graft-density)-[\w-]+(?:\s*,[^)]*)?\)/g, '')
+    .replace(/env\(\s*safe-area-inset-(?:top|right|bottom|left)\s*,\s*0px\s*\)/g, '');
+
+  return /^[\s+\-*/().0px]*$/.test(withoutAcceptedFunctions);
 }
 
 function fixedSpacingToken(value: string): string {
@@ -252,9 +293,6 @@ function collectInlineStyleFindings(source: string, rel: string, findings: Findi
 
   for (const styleMatch of styleMatches) {
     const styleValue = styleMatch.groups?.value ?? '';
-    if (isDensityAwareValue(styleValue)) {
-      continue;
-    }
 
     for (const declarationMatch of styleValue.matchAll(DENSITY_PROPERTY_PATTERN)) {
       const property = declarationMatch.groups?.property;
