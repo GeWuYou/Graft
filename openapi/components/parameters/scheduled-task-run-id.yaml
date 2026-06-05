@@ -1,4 +1,4 @@
-name: runID
+name: runId
 in: path
 required: true
 description: Scheduled task run id.

@@ -921,49 +921,17 @@ export interface paths {
      * @description Returns one Task Scheduling Runtime job snapshot.
      */
     get: operations['getScheduledTask'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/scheduled-tasks/{taskKey}/update': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
     /**
      * Update scheduled task
      * @description Updates cron/enabled fields for system tasks and mutable management fields for user HTTP tasks.
      */
-    post: operations['postScheduledTaskUpdate'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/scheduled-tasks/{taskKey}/delete': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
+    put: operations['putScheduledTask'];
+    post?: never;
     /**
      * Delete HTTP scheduled task
      * @description Soft-deletes one user HTTP scheduled task. System tasks cannot be deleted.
      */
-    post: operations['postScheduledTaskDelete'];
-    delete?: never;
+    delete: operations['deleteScheduledTask'];
     options?: never;
     head?: never;
     patch?: never;
@@ -1029,7 +997,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/scheduled-tasks/{taskKey}/runs/{runID}': {
+  '/api/scheduled-tasks/runs/{runId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -4889,7 +4857,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postScheduledTaskUpdate: {
+  putScheduledTask: {
     parameters: {
       query?: never;
       header?: {
@@ -4923,6 +4891,16 @@ export interface operations {
           'application/json': components['schemas']['enveloped-scheduled-task-item'];
         };
       };
+      /** @description Invalid scheduled task update request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Scheduled task was not found. */
@@ -4938,7 +4916,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postScheduledTaskDelete: {
+  deleteScheduledTask: {
     parameters: {
       query?: never;
       header?: {
@@ -4966,6 +4944,16 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Builtin or system scheduled task cannot be deleted. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -5136,10 +5124,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        /** @description Stable scheduled task key. */
-        taskKey: components['parameters']['scheduled-task-key'];
         /** @description Scheduled task run id. */
-        runID: components['parameters']['scheduled-task-run-id'];
+        runId: components['parameters']['scheduled-task-run-id'];
       };
       cookie?: never;
     };

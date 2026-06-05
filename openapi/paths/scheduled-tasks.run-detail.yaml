@@ -6,7 +6,6 @@ get:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
-    - $ref: ../components/parameters/scheduled-task-key.yaml
     - $ref: ../components/parameters/scheduled-task-run-id.yaml
   security:
     - bearerAuth: []

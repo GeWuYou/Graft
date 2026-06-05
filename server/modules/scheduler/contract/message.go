@@ -15,4 +15,6 @@ const (
 	ScheduledTaskNotFound MessageKey = "scheduled_task.not_found"
 	// ScheduledTaskAlreadyRunning identifies duplicate manual run failures.
 	ScheduledTaskAlreadyRunning MessageKey = "scheduled_task.already_running"
+	// ScheduledTaskInvalidRequest identifies invalid scheduler management input.
+	ScheduledTaskInvalidRequest MessageKey = "scheduled_task.invalid_request"
 )

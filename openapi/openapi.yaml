@@ -114,17 +114,13 @@ paths:
     $ref: ./paths/scheduled-tasks.list.yaml
   /api/scheduled-tasks/{taskKey}:
     $ref: ./paths/scheduled-tasks.detail.yaml
-  /api/scheduled-tasks/{taskKey}/update:
-    $ref: ./paths/scheduled-tasks.update.yaml
-  /api/scheduled-tasks/{taskKey}/delete:
-    $ref: ./paths/scheduled-tasks.delete.yaml
   /api/scheduled-tasks/{taskKey}/enable:
     $ref: ./paths/scheduled-tasks.enable.yaml
   /api/scheduled-tasks/{taskKey}/disable:
     $ref: ./paths/scheduled-tasks.disable.yaml
   /api/scheduled-tasks/{taskKey}/runs:
     $ref: ./paths/scheduled-tasks.runs.yaml
-  /api/scheduled-tasks/{taskKey}/runs/{runID}:
+  /api/scheduled-tasks/runs/{runId}:
     $ref: ./paths/scheduled-tasks.run-detail.yaml
   /api/scheduled-tasks/{taskKey}/run:
     $ref: ./paths/scheduled-tasks.run.yaml

@@ -25,6 +25,7 @@ func registerMessages(localizer *i18n.Service) error {
 				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskMenuTitle.String()), Text: "定时任务"},
 				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskNotFound.String()), Text: "定时任务不存在"},
 				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskAlreadyRunning.String()), Text: "定时任务正在运行"},
+				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskInvalidRequest.String()), Text: "定时任务请求无效"},
 			},
 		},
 		{
@@ -34,6 +35,7 @@ func registerMessages(localizer *i18n.Service) error {
 				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskMenuTitle.String()), Text: "Scheduled Tasks"},
 				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskNotFound.String()), Text: "Scheduled task not found"},
 				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskAlreadyRunning.String()), Text: "Scheduled task is already running"},
+				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskInvalidRequest.String()), Text: "Invalid scheduled task request"},
 			},
 		},
 	} {
@@ -58,9 +60,37 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		Module:      moduleName,
 	})
 	registry.Register(permission.Item{
+		Code:        schedulercontract.ScheduledTaskCreatePermission.String(),
+		Name:        "Create Scheduled Tasks",
+		Description: "Allows creating user-managed HTTP scheduled tasks.",
+		Category:    "api",
+		Module:      moduleName,
+	})
+	registry.Register(permission.Item{
+		Code:        schedulercontract.ScheduledTaskUpdatePermission.String(),
+		Name:        "Update Scheduled Tasks",
+		Description: "Allows updating scheduled task definitions.",
+		Category:    "api",
+		Module:      moduleName,
+	})
+	registry.Register(permission.Item{
+		Code:        schedulercontract.ScheduledTaskDeletePermission.String(),
+		Name:        "Delete Scheduled Tasks",
+		Description: "Allows deleting user-managed HTTP scheduled tasks.",
+		Category:    "api",
+		Module:      moduleName,
+	})
+	registry.Register(permission.Item{
 		Code:        schedulercontract.ScheduledTaskRunPermission.String(),
 		Name:        "Run Scheduled Tasks",
 		Description: "Allows manually running scheduled task runtime jobs.",
+		Category:    "api",
+		Module:      moduleName,
+	})
+	registry.Register(permission.Item{
+		Code:        schedulercontract.ScheduledTaskEnablePermission.String(),
+		Name:        "Enable Scheduled Tasks",
+		Description: "Allows enabling and disabling scheduled tasks.",
 		Category:    "api",
 		Module:      moduleName,
 	})

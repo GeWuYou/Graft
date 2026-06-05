@@ -865,8 +865,19 @@ func validateDefinition(definition TaskDefinition) error {
 	if definition.TaskType != cronx.TaskTypeSystem && definition.TaskType != cronx.TaskTypeHTTP {
 		return ErrTaskValidation
 	}
+	if err := validateCronExpression(definition.CronExpression); err != nil {
+		return err
+	}
 	if definition.TaskType == cronx.TaskTypeHTTP {
 		return validateHTTPDefinition(definition)
+	}
+	return nil
+}
+
+func validateCronExpression(expression string) error {
+	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+	if _, err := parser.Parse(expression); err != nil {
+		return fmt.Errorf("%w: invalid cron expression", ErrTaskValidation)
 	}
 	return nil
 }

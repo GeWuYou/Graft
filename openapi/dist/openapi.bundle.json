@@ -5330,15 +5330,13 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
-      }
-    },
-    "/api/scheduled-tasks/{taskKey}/update": {
-      "post": {
+      },
+      "put": {
         "tags": [
           "scheduled-tasks"
         ],
         "summary": "Update scheduled task",
-        "operationId": "postScheduledTaskUpdate",
+        "operationId": "putScheduledTask",
         "description": "Updates cron/enabled fields for system tasks and mutable management fields for user HTTP tasks.",
         "parameters": [
           {
@@ -5382,6 +5380,21 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid scheduled task update request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
           "401": {
             "$ref": "#/components/responses/unauthorized"
           },
@@ -5407,15 +5420,13 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
-      }
-    },
-    "/api/scheduled-tasks/{taskKey}/delete": {
-      "post": {
+      },
+      "delete": {
         "tags": [
           "scheduled-tasks"
         ],
         "summary": "Delete HTTP scheduled task",
-        "operationId": "postScheduledTaskDelete",
+        "operationId": "deleteScheduledTask",
         "description": "Soft-deletes one user HTTP scheduled task. System tasks cannot be deleted.",
         "parameters": [
           {
@@ -5445,6 +5456,21 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Builtin or system scheduled task cannot be deleted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
                 }
               }
             }
@@ -5683,7 +5709,7 @@
         }
       }
     },
-    "/api/scheduled-tasks/{taskKey}/runs/{runID}": {
+    "/api/scheduled-tasks/runs/{runId}": {
       "get": {
         "tags": [
           "scheduled-tasks"
@@ -5697,9 +5723,6 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "$ref": "#/components/parameters/scheduled-task-key"
           },
           {
             "$ref": "#/components/parameters/scheduled-task-run-id"
@@ -10472,7 +10495,7 @@
         }
       },
       "scheduled-task-run-id": {
-        "name": "runID",
+        "name": "runId",
         "in": "path",
         "required": true,
         "description": "Scheduled task run id.",

@@ -3664,6 +3664,26 @@ type PostScheduledTaskParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetScheduledTaskRunParams defines parameters for GetScheduledTaskRun.
+type GetScheduledTaskRunParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteScheduledTaskParams defines parameters for DeleteScheduledTask.
+type DeleteScheduledTaskParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetScheduledTaskParams defines parameters for GetScheduledTask.
 type GetScheduledTaskParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -3674,8 +3694,8 @@ type GetScheduledTaskParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostScheduledTaskDeleteParams defines parameters for PostScheduledTaskDelete.
-type PostScheduledTaskDeleteParams struct {
+// PutScheduledTaskParams defines parameters for PutScheduledTask.
+type PutScheduledTaskParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -3722,26 +3742,6 @@ type GetScheduledTaskRunsParams struct {
 	// Offset Optional zero-based offset for scheduled task run history.
 	Offset *ScheduledTaskRunListOffset `form:"offset,omitempty" json:"offset,omitempty"`
 
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetScheduledTaskRunParams defines parameters for GetScheduledTaskRun.
-type GetScheduledTaskRunParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostScheduledTaskUpdateParams defines parameters for PostScheduledTaskUpdate.
-type PostScheduledTaskUpdateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -3953,8 +3953,8 @@ type PostRoleUpdateJSONRequestBody = UpdateRoleRequest
 // PostScheduledTaskJSONRequestBody defines body for PostScheduledTask for application/json ContentType.
 type PostScheduledTaskJSONRequestBody = CreateScheduledTaskRequest
 
-// PostScheduledTaskUpdateJSONRequestBody defines body for PostScheduledTaskUpdate for application/json ContentType.
-type PostScheduledTaskUpdateJSONRequestBody = UpdateScheduledTaskRequest
+// PutScheduledTaskJSONRequestBody defines body for PutScheduledTask for application/json ContentType.
+type PutScheduledTaskJSONRequestBody = UpdateScheduledTaskRequest
 
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
 type PostUsersJSONRequestBody = CreateUserRequest
