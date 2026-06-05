@@ -1,0 +1,100 @@
+{
+  "menu": {
+    "server": {
+      "scheduled_tasks": {
+        "title": "定时任务"
+      }
+    }
+  },
+  "scheduledTask": {
+    "list": {
+      "eyebrow": "服务管理",
+      "title": "定时任务",
+      "description": "观察系统后台任务，查看最近运行记录，并按需发起安全的手动执行。",
+      "refresh": "刷新",
+      "run": "立即执行",
+      "viewDetail": "查看详情",
+      "diagnose": "诊断",
+      "tableTitle": "任务运行态",
+      "tableHint": "系统服务已注册 {count} 个任务。",
+      "emptyTitle": "暂无定时任务",
+      "emptyDescription": "系统服务注册后台任务后会显示在这里。",
+      "loadError": "定时任务数据加载失败。",
+      "detailLoadError": "定时任务详情加载失败。",
+      "runSuccess": "已发起手动执行。",
+      "runError": "手动执行发起失败。",
+      "runConfirm": "现在手动执行一次该任务？",
+      "runConfirmButton": "执行",
+      "runCancelButton": "取消",
+      "metric": {
+        "total": "任务总数",
+        "totalDescription": "已注册的运行态任务",
+        "enabled": "已启用",
+        "enabledDescription": "可参与运行调度",
+        "recentFailed": "最近失败",
+        "recentFailedDescription": "最近一次运行失败的任务",
+        "running": "运行中",
+        "runningDescription": "当前正在执行的任务"
+      },
+      "columns": {
+        "task": "任务",
+        "status": "状态",
+        "owner": "归属",
+        "schedule": "调度",
+        "lastRun": "最近结果",
+        "nextRun": "下次运行",
+        "operation": "操作"
+      },
+      "status": {
+        "idle": "空闲",
+        "running": "运行中",
+        "success": "成功",
+        "failed": "失败",
+        "unknown": "未知"
+      },
+      "trigger": {
+        "schedule": "计划触发",
+        "manual": "手动触发"
+      },
+      "taskType": {
+        "cron": "Cron"
+      },
+      "scheduleType": {
+        "cron": "Cron"
+      },
+      "detail": {
+        "title": "任务详情",
+        "titleWithName": "{name}",
+        "basics": "基础信息",
+        "schedule": "调度信息",
+        "latestResult": "最近结果",
+        "recentRuns": "最近运行",
+        "key": "任务键",
+        "displayNameKey": "标题键",
+        "descriptionKey": "描述键",
+        "owner": "归属",
+        "module": "模块",
+        "enabled": "启用状态",
+        "taskType": "任务类型",
+        "scheduleType": "调度类型",
+        "scheduleRule": "调度规则",
+        "nextRun": "下次运行",
+        "running": "是否运行中",
+        "status": "状态",
+        "runId": "运行 ID",
+        "triggerType": "触发方式",
+        "startedAt": "开始时间",
+        "finishedAt": "结束时间",
+        "duration": "耗时",
+        "errorSummary": "错误",
+        "none": "无",
+        "notAvailable": "不可用",
+        "enabledYes": "是",
+        "enabledNo": "否",
+        "runningYes": "是",
+        "runningNo": "否",
+        "runsEmpty": "暂无运行记录"
+      }
+    }
+  }
+}

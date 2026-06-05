@@ -1,0 +1,100 @@
+{
+  "menu": {
+    "server": {
+      "scheduled_tasks": {
+        "title": "Scheduled Tasks"
+      }
+    }
+  },
+  "scheduledTask": {
+    "list": {
+      "eyebrow": "Service Management",
+      "title": "Scheduled Tasks",
+      "description": "Observe system background tasks, inspect recent runs, and start safe manual runs.",
+      "refresh": "Refresh",
+      "run": "Run now",
+      "viewDetail": "View details",
+      "diagnose": "Diagnose",
+      "tableTitle": "Task runtime",
+      "tableHint": "{count} tasks registered by system services.",
+      "emptyTitle": "No scheduled tasks",
+      "emptyDescription": "Scheduled tasks will appear here after system services register background work.",
+      "loadError": "Scheduled task data could not be loaded.",
+      "detailLoadError": "Scheduled task detail could not be loaded.",
+      "runSuccess": "Manual run started.",
+      "runError": "Manual run could not be started.",
+      "runConfirm": "Start this task once now?",
+      "runConfirmButton": "Start",
+      "runCancelButton": "Cancel",
+      "metric": {
+        "total": "Total",
+        "totalDescription": "Registered runtime tasks",
+        "enabled": "Enabled",
+        "enabledDescription": "Available for runtime execution",
+        "recentFailed": "Recent failed",
+        "recentFailedDescription": "Tasks whose latest run failed",
+        "running": "Running",
+        "runningDescription": "Tasks currently in progress"
+      },
+      "columns": {
+        "task": "Task",
+        "status": "Status",
+        "owner": "Owner",
+        "schedule": "Schedule",
+        "lastRun": "Latest result",
+        "nextRun": "Next run",
+        "operation": "Actions"
+      },
+      "status": {
+        "idle": "Idle",
+        "running": "Running",
+        "success": "Succeeded",
+        "failed": "Failed",
+        "unknown": "Unknown"
+      },
+      "trigger": {
+        "schedule": "Scheduled",
+        "manual": "Manual"
+      },
+      "taskType": {
+        "cron": "Cron"
+      },
+      "scheduleType": {
+        "cron": "Cron"
+      },
+      "detail": {
+        "title": "Task details",
+        "titleWithName": "{name}",
+        "basics": "Basics",
+        "schedule": "Schedule",
+        "latestResult": "Latest result",
+        "recentRuns": "Recent runs",
+        "key": "Key",
+        "displayNameKey": "Display key",
+        "descriptionKey": "Description key",
+        "owner": "Owner",
+        "module": "Module",
+        "enabled": "Enabled",
+        "taskType": "Task type",
+        "scheduleType": "Schedule type",
+        "scheduleRule": "Schedule",
+        "nextRun": "Next run",
+        "running": "Running",
+        "status": "Status",
+        "runId": "Run ID",
+        "triggerType": "Trigger",
+        "startedAt": "Started at",
+        "finishedAt": "Finished at",
+        "duration": "Duration",
+        "errorSummary": "Error",
+        "none": "None",
+        "notAvailable": "N/A",
+        "enabledYes": "Yes",
+        "enabledNo": "No",
+        "runningYes": "Yes",
+        "runningNo": "No",
+        "runsEmpty": "No run history yet"
+      }
+    }
+  }
+}
