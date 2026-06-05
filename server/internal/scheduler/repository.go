@@ -146,38 +146,10 @@ func (r *SQLTaskRepository) UpdateTask(ctx context.Context, key string, patch Ta
 	if err != nil {
 		return TaskDefinition{}, err
 	}
-	if existing.Builtin && patch.TaskType != "" && patch.TaskType != cronx.TaskTypeSystem {
-		return TaskDefinition{}, ErrTaskImmutable
+	if err := validateTaskPatch(key, existing, patch); err != nil {
+		return TaskDefinition{}, err
 	}
-	if !existing.Builtin && patch.TaskType != "" && patch.TaskType != cronx.TaskTypeHTTP {
-		return TaskDefinition{}, ErrTaskImmutable
-	}
-	if patch.TaskKey != "" && patch.TaskKey != key {
-		return TaskDefinition{}, ErrTaskImmutable
-	}
-	if existing.Builtin && (patch.Title != "" || patch.Description != "" || patch.ConfigJSON != "") {
-		return TaskDefinition{}, ErrTaskImmutable
-	}
-
-	next := existing
-	if patch.Title != "" {
-		next.Title = patch.Title
-	}
-	if patch.Description != "" {
-		next.Description = patch.Description
-	}
-	if patch.CronExpression != "" {
-		next.CronExpression = patch.CronExpression
-	}
-	if patch.EnabledSet {
-		next.Enabled = patch.Enabled
-	}
-	if patch.ConfigJSON != "" {
-		if existing.Builtin {
-			return TaskDefinition{}, ErrTaskImmutable
-		}
-		next.ConfigJSON = patch.ConfigJSON
-	}
+	next := applyTaskPatch(existing, patch)
 	next.UpdatedAt = time.Now().UTC()
 	if err := validateDefinition(next); err != nil {
 		return TaskDefinition{}, err
@@ -202,6 +174,62 @@ func (r *SQLTaskRepository) UpdateTask(ctx context.Context, key string, patch Ta
 	)
 
 	return scanTaskDefinition(row)
+}
+
+func validateTaskPatch(key string, existing TaskDefinition, patch TaskMutation) error {
+	if patch.TaskKey != "" && patch.TaskKey != key {
+		return ErrTaskImmutable
+	}
+	if err := validateTaskTypePatch(existing, patch); err != nil {
+		return err
+	}
+	if err := validateBuiltinTaskPatch(existing, patch); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateTaskTypePatch(existing TaskDefinition, patch TaskMutation) error {
+	if patch.TaskType == "" {
+		return nil
+	}
+	if existing.Builtin && patch.TaskType != cronx.TaskTypeSystem {
+		return ErrTaskImmutable
+	}
+	if !existing.Builtin && patch.TaskType != cronx.TaskTypeHTTP {
+		return ErrTaskImmutable
+	}
+	return nil
+}
+
+func validateBuiltinTaskPatch(existing TaskDefinition, patch TaskMutation) error {
+	if !existing.Builtin {
+		return nil
+	}
+	if patch.Title != "" || patch.Description != "" || patch.ConfigJSON != "" {
+		return ErrTaskImmutable
+	}
+	return nil
+}
+
+func applyTaskPatch(existing TaskDefinition, patch TaskMutation) TaskDefinition {
+	next := existing
+	if patch.Title != "" {
+		next.Title = patch.Title
+	}
+	if patch.Description != "" {
+		next.Description = patch.Description
+	}
+	if patch.CronExpression != "" {
+		next.CronExpression = patch.CronExpression
+	}
+	if patch.EnabledSet {
+		next.Enabled = patch.Enabled
+	}
+	if patch.ConfigJSON != "" {
+		next.ConfigJSON = patch.ConfigJSON
+	}
+	return next
 }
 
 // DeleteTask soft-deletes a user HTTP task definition.
@@ -392,7 +420,14 @@ func (r *SQLRunRepository) FinishRun(
 		return TaskRun{}, err
 	}
 
-	if err := r.updateFinishedRun(ctx, sqlID, status, finishedAt, durationMS, resultSummary, errorMessage); err != nil {
+	if err := r.updateFinishedRun(ctx, finishedRunUpdate{
+		sqlID:         sqlID,
+		status:        status,
+		finishedAt:    finishedAt,
+		durationMS:    durationMS,
+		resultSummary: resultSummary,
+		errorMessage:  errorMessage,
+	}); err != nil {
 		return TaskRun{}, err
 	}
 
@@ -404,15 +439,16 @@ func (r *SQLRunRepository) FinishRun(
 	return run, nil
 }
 
-func (r *SQLRunRepository) updateFinishedRun(
-	ctx context.Context,
-	sqlID int64,
-	status RunStatus,
-	finishedAt time.Time,
-	durationMS int64,
-	resultSummary string,
-	errorMessage string,
-) error {
+type finishedRunUpdate struct {
+	sqlID         int64
+	status        RunStatus
+	finishedAt    time.Time
+	durationMS    int64
+	resultSummary string
+	errorMessage  string
+}
+
+func (r *SQLRunRepository) updateFinishedRun(ctx context.Context, update finishedRunUpdate) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE scheduler_task_runs
 	SET status = $1,
 		error = $2,
@@ -421,13 +457,13 @@ func (r *SQLRunRepository) updateFinishedRun(
 		finished_at = $5,
 		duration_ms = $6
 	WHERE id = $7`,
-		string(status),
-		errorMessage,
-		resultSummary,
-		errorMessage,
-		finishedAt.UTC(),
-		durationMS,
-		sqlID,
+		string(update.status),
+		update.errorMessage,
+		update.resultSummary,
+		update.errorMessage,
+		update.finishedAt.UTC(),
+		update.durationMS,
+		update.sqlID,
 	)
 	if err != nil {
 		return fmt.Errorf("update scheduler task run: %w", err)

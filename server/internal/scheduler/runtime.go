@@ -150,6 +150,13 @@ type HTTPTaskConfig struct {
 	TimeoutSeconds int               `json:"timeout_seconds,omitempty"`
 }
 
+const (
+	defaultHTTPTaskTimeoutSeconds = 30
+	minHTTPTaskTimeoutSeconds     = 1
+	maxHTTPTaskTimeoutSeconds     = 120
+	maxHTTPTaskResponseBytes      = 64 * 1024
+)
+
 // RunListQuery scopes run-history lookup for one task.
 type RunListQuery struct {
 	TaskKey string
@@ -892,31 +899,57 @@ func validateHTTPDefinition(definition TaskDefinition) error {
 }
 
 func normalizeHTTPTaskConfig(config HTTPTaskConfig) (HTTPTaskConfig, error) {
-	method := strings.ToUpper(strings.TrimSpace(config.Method))
-	if method == "" {
-		method = http.MethodGet
-	}
-	if method != http.MethodGet && method != http.MethodPost {
+	method, err := normalizeHTTPTaskMethod(config.Method)
+	if err != nil {
 		return HTTPTaskConfig{}, fmt.Errorf("%w: unsupported http method", ErrTaskValidation)
 	}
-	parsed, err := url.Parse(strings.TrimSpace(config.URL))
-	if err != nil || parsed == nil || parsed.Host == "" {
-		return HTTPTaskConfig{}, fmt.Errorf("%w: invalid http url", ErrTaskValidation)
+
+	normalizedURL, err := normalizeHTTPTaskURL(config.URL)
+	if err != nil {
+		return HTTPTaskConfig{}, err
 	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return HTTPTaskConfig{}, fmt.Errorf("%w: unsupported http scheme", ErrTaskValidation)
+
+	timeout, err := normalizeHTTPTaskTimeout(config.TimeoutSeconds)
+	if err != nil {
+		return HTTPTaskConfig{}, err
 	}
-	timeout := config.TimeoutSeconds
-	if timeout == 0 {
-		timeout = 30
-	}
-	if timeout < 1 || timeout > 120 {
-		return HTTPTaskConfig{}, fmt.Errorf("%w: invalid http timeout", ErrTaskValidation)
-	}
+
 	config.Method = method
-	config.URL = parsed.String()
+	config.URL = normalizedURL
 	config.TimeoutSeconds = timeout
 	return config, nil
+}
+
+func normalizeHTTPTaskMethod(method string) (string, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(method))
+	if normalized == "" {
+		return http.MethodGet, nil
+	}
+	if normalized != http.MethodGet && normalized != http.MethodPost {
+		return "", ErrTaskValidation
+	}
+	return normalized, nil
+}
+
+func normalizeHTTPTaskURL(rawURL string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed == nil || parsed.Host == "" {
+		return "", fmt.Errorf("%w: invalid http url", ErrTaskValidation)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("%w: unsupported http scheme", ErrTaskValidation)
+	}
+	return parsed.String(), nil
+}
+
+func normalizeHTTPTaskTimeout(timeout int) (int, error) {
+	if timeout == 0 {
+		return defaultHTTPTaskTimeoutSeconds, nil
+	}
+	if timeout < minHTTPTaskTimeoutSeconds || timeout > maxHTTPTaskTimeoutSeconds {
+		return 0, fmt.Errorf("%w: invalid http timeout", ErrTaskValidation)
+	}
+	return timeout, nil
 }
 
 func executeHTTPTask(ctx context.Context, rawConfig string) (string, string) {
@@ -949,7 +982,7 @@ func executeHTTPTask(ctx context.Context, rawConfig string) (string, string) {
 	defer func() {
 		_ = response.Body.Close()
 	}()
-	limited, err := io.ReadAll(io.LimitReader(response.Body, 64*1024))
+	limited, err := io.ReadAll(io.LimitReader(response.Body, maxHTTPTaskResponseBytes))
 	if err != nil {
 		return "", err.Error()
 	}
