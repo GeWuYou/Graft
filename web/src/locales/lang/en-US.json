@@ -376,6 +376,36 @@
         "title": "500 Internal Server Error",
         "subtitle": "Sorry, the server encountered an error",
         "back": "Back to home"
+      },
+      "success": {
+        "title": "Operation completed",
+        "subtitle": "The operation was submitted successfully. You can continue with the next task.",
+        "back": "Back to home"
+      },
+      "fail": {
+        "title": "Operation not completed",
+        "subtitle": "The operation could not be submitted. Check the information and try again.",
+        "back": "Back to home",
+        "retry": "Retry"
+      },
+      "networkError": {
+        "title": "Network connection error",
+        "subtitle": "The network is unavailable or the request timed out. Check the connection and try again.",
+        "back": "Back to home",
+        "reload": "Reload"
+      },
+      "maintenance": {
+        "title": "System under maintenance",
+        "subtitle": "The platform is under maintenance. Some features are temporarily unavailable.",
+        "back": "Back to home"
+      },
+      "browserIncompatible": {
+        "title": "Browser incompatible",
+        "subtitle": "The current browser cannot fully support the console. Use a recommended browser instead.",
+        "back": "Back to home",
+        "recommend": "Recommended browsers",
+        "chrome": "Chrome",
+        "qqBrowser": "QQ Browser"
       }
     },
     "notification": {

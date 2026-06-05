@@ -43,10 +43,12 @@ Extension page types may be registered when a page does not naturally fit the fi
 - `editor`
 - `query-builder-list-detail`
 - `log-audit`
+- `operation-result`
 - `error-result`
 - `docs-help`
 
 For `query-builder-list-detail` and `log-audit` pages, quick presets must compile into visible, editable filter fields.
+Use `operation-result` for success/fail operation outcome pages; keep `error-result` for exception, maintenance, network, and browser result pages.
 
 Rules:
 

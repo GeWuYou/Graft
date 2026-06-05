@@ -1,6 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { APP_RESULT_ROUTE_NAME, APP_RESULT_ROUTE_PATH } from '@/contracts/app/routes';
 import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { BLANK_LAYOUT, PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
@@ -12,25 +13,65 @@ const RESTRICTED_SESSION_PATH = AUTH_ROUTE_PATH.RESTRICTED_SESSION;
 
 const exceptionRouterList: Array<RouteRecordRaw> = [
   {
-    path: '/result/403',
-    name: 'Result403',
+    path: APP_RESULT_ROUTE_PATH.FORBIDDEN,
+    name: APP_RESULT_ROUTE_NAME.FORBIDDEN,
     component: () => import('@/app/result/403/index.vue'),
     meta: {
       hidden: true,
     },
   },
   {
-    path: '/result/404',
-    name: 'Result404',
+    path: APP_RESULT_ROUTE_PATH.NOT_FOUND,
+    name: APP_RESULT_ROUTE_NAME.NOT_FOUND,
     component: () => import('@/app/result/404/index.vue'),
     meta: {
       hidden: true,
     },
   },
   {
-    path: '/result/500',
-    name: 'Result500',
+    path: APP_RESULT_ROUTE_PATH.SERVER_ERROR,
+    name: APP_RESULT_ROUTE_NAME.SERVER_ERROR,
     component: () => import('@/app/result/500/index.vue'),
+    meta: {
+      hidden: true,
+    },
+  },
+  {
+    path: APP_RESULT_ROUTE_PATH.SUCCESS,
+    name: APP_RESULT_ROUTE_NAME.SUCCESS,
+    component: () => import('@/app/result/success/index.vue'),
+    meta: {
+      hidden: true,
+    },
+  },
+  {
+    path: APP_RESULT_ROUTE_PATH.FAIL,
+    name: APP_RESULT_ROUTE_NAME.FAIL,
+    component: () => import('@/app/result/fail/index.vue'),
+    meta: {
+      hidden: true,
+    },
+  },
+  {
+    path: APP_RESULT_ROUTE_PATH.NETWORK_ERROR,
+    name: APP_RESULT_ROUTE_NAME.NETWORK_ERROR,
+    component: () => import('@/app/result/network-error/index.vue'),
+    meta: {
+      hidden: true,
+    },
+  },
+  {
+    path: APP_RESULT_ROUTE_PATH.MAINTENANCE,
+    name: APP_RESULT_ROUTE_NAME.MAINTENANCE,
+    component: () => import('@/app/result/maintenance/index.vue'),
+    meta: {
+      hidden: true,
+    },
+  },
+  {
+    path: APP_RESULT_ROUTE_PATH.BROWSER_INCOMPATIBLE,
+    name: APP_RESULT_ROUTE_NAME.BROWSER_INCOMPATIBLE,
+    component: () => import('@/app/result/browser-incompatible/index.vue'),
     meta: {
       hidden: true,
     },

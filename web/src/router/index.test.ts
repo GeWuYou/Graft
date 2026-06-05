@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { APP_RESULT_ROUTE_PATH } from '@/contracts/app/routes';
 import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 
 import router from './index';
@@ -10,7 +11,12 @@ describe('router static runtime surface', () => {
 
     expect(registeredPaths).not.toContain('/dashboard');
     expect(registeredPaths).not.toContain('/result');
-    expect(registeredPaths).toContain('/result/404');
+    expect(registeredPaths).toContain(APP_RESULT_ROUTE_PATH.NOT_FOUND);
+    expect(registeredPaths).toContain(APP_RESULT_ROUTE_PATH.SUCCESS);
+    expect(registeredPaths).toContain(APP_RESULT_ROUTE_PATH.FAIL);
+    expect(registeredPaths).toContain(APP_RESULT_ROUTE_PATH.NETWORK_ERROR);
+    expect(registeredPaths).toContain(APP_RESULT_ROUTE_PATH.MAINTENANCE);
+    expect(registeredPaths).toContain(APP_RESULT_ROUTE_PATH.BROWSER_INCOMPATIBLE);
     expect(registeredPaths).toContain('/');
     expect(registeredPaths).toContain(AUTH_ROUTE_PATH.LOGIN);
     expect(

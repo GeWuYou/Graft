@@ -1,11 +1,14 @@
 <template>
-  <div class="result-page" data-page-type="error-result">
+  <div class="result-page" :data-page-type="pageType">
     <div class="result-container">
-      <div class="result-bg-img">
+      <div v-if="props.status" class="result-status-icon" :class="`result-status-icon--${props.statusTheme}`">
+        <t-icon :name="statusIconName" />
+      </div>
+      <div v-else class="result-bg-img">
         <component :is="dynamicComponent"></component>
       </div>
-      <div class="result-title">{{ title }}</div>
-      <div class="result-tip">{{ tip }}</div>
+      <div class="result-title">{{ props.title }}</div>
+      <div class="result-tip">{{ props.tip }}</div>
       <div class="result-actions">
         <slot />
       </div>
@@ -22,27 +25,29 @@ import ResultIeIcon from '@/assets/assets-result-ie.svg?component';
 import ResultMaintenanceIcon from '@/assets/assets-result-maintenance.svg?component';
 import ResultWifiIcon from '@/assets/assets-result-wifi.svg?component';
 
-const { type } = defineProps({
-  bgUrl: {
-    type: String,
-    default: '',
+type ResultIllustrationType = '' | '403' | '404' | '500' | 'ie' | 'wifi' | 'maintenance';
+type ResultStatus = '' | 'success' | 'fail';
+type ResultStatusTheme = 'default' | 'success' | 'danger';
+
+const props = withDefaults(
+  defineProps<{
+    title?: string;
+    tip?: string;
+    type?: ResultIllustrationType;
+    status?: ResultStatus;
+    statusTheme?: ResultStatusTheme;
+  }>(),
+  {
+    title: '',
+    tip: '',
+    type: '',
+    status: '',
+    statusTheme: 'default',
   },
-  title: {
-    type: String,
-    default: '',
-  },
-  tip: {
-    type: String,
-    default: '',
-  },
-  type: {
-    type: String,
-    default: '',
-  },
-});
+);
 
 const dynamicComponent = computed(() => {
-  switch (type) {
+  switch (props.type) {
     case '403':
       return Result403Icon;
     case '404':
@@ -58,6 +63,16 @@ const dynamicComponent = computed(() => {
     default:
       return Result403Icon;
   }
+});
+
+const pageType = computed(() => (props.status ? 'operation-result' : 'error-result'));
+
+const statusIconName = computed(() => {
+  if (props.status === 'success') {
+    return 'check-circle';
+  }
+
+  return 'error-circle';
 });
 </script>
 <style lang="less" scoped>
@@ -105,6 +120,23 @@ const dynamicComponent = computed(() => {
   &-bg-img {
     color: var(--td-brand-color);
     width: 200px;
+  }
+
+  &-status-icon {
+    align-items: center;
+    color: var(--td-text-color-secondary);
+    display: flex;
+    font-size: var(--td-comp-size-xxxxl);
+    justify-content: center;
+    line-height: 1;
+
+    &--success {
+      color: var(--td-success-color);
+    }
+
+    &--danger {
+      color: var(--td-error-color);
+    }
   }
 
   &-title {

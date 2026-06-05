@@ -376,6 +376,36 @@
         "title": "500 Internal Server Error",
         "subtitle": "抱歉，服务器出错啦",
         "back": "返回首页"
+      },
+      "success": {
+        "title": "操作已完成",
+        "subtitle": "当前操作已成功提交，可以继续处理后续工作。",
+        "back": "返回首页"
+      },
+      "fail": {
+        "title": "操作未完成",
+        "subtitle": "当前操作未能提交，请检查信息后重试。",
+        "back": "返回首页",
+        "retry": "重新处理"
+      },
+      "networkError": {
+        "title": "网络连接异常",
+        "subtitle": "当前网络不可用或请求超时，请检查连接后重试。",
+        "back": "返回首页",
+        "reload": "重新加载"
+      },
+      "maintenance": {
+        "title": "系统维护中",
+        "subtitle": "平台正在维护，部分功能暂时不可用。",
+        "back": "返回首页"
+      },
+      "browserIncompatible": {
+        "title": "浏览器不兼容",
+        "subtitle": "当前浏览器无法完整支持控制台功能，请使用推荐浏览器访问。",
+        "back": "返回首页",
+        "recommend": "推荐浏览器",
+        "chrome": "Chrome",
+        "qqBrowser": "QQ Browser"
       }
     },
     "notification": {
