@@ -137,12 +137,18 @@ func (r *taskRepositoryRecorder) SetTaskEnabled(_ context.Context, key string, e
 	return task, nil
 }
 
-func (r *taskRepositoryRecorder) ListTasks(context.Context) ([]TaskDefinition, error) {
+func (r *taskRepositoryRecorder) ListTasks(_ context.Context, query TaskListQuery) ([]TaskDefinition, int, error) {
 	items := make([]TaskDefinition, 0, len(r.tasks))
 	for _, task := range r.tasks {
 		items = append(items, task)
 	}
-	return items, nil
+	total := len(items)
+	if query.Limit > 0 {
+		start := min(max(query.Offset, 0), total)
+		end := min(start+query.Limit, total)
+		items = items[start:end]
+	}
+	return items, total, nil
 }
 
 func (r *taskRepositoryRecorder) GetTask(_ context.Context, key string) (TaskDefinition, error) {
@@ -231,14 +237,14 @@ func TestListTasksReturnsRuntimeJobSnapshots(t *testing.T) {
 		Run:                   func(context.Context) error { return nil },
 	})
 
-	items, err := runtime.ListTasks(context.Background())
+	result, err := runtime.ListTasks(context.Background(), TaskListQuery{})
 	if err != nil {
 		t.Fatalf("list tasks: %v", err)
 	}
-	if len(items) != 1 {
-		t.Fatalf("expected one task, got %d", len(items))
+	if result.Total != 1 || len(result.Items) != 1 {
+		t.Fatalf("expected one task, got %#v", result)
 	}
-	item := items[0]
+	item := result.Items[0]
 	if item.Key != "audit.audit-log-retention-cleanup" ||
 		item.JobKey != "audit.audit-log-retention-cleanup" ||
 		item.ModuleKey != "audit" {

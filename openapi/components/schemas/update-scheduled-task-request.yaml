@@ -12,4 +12,5 @@ properties:
     type: boolean
   params_json:
     type: string
+    pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
     description: JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.

@@ -972,7 +972,7 @@ async function refreshTasks() {
   errorMessage.value = '';
 
   try {
-    const response = await getScheduledTasks();
+    const response = await getScheduledTasks({ limit: 100, offset: 0 });
     tasks.value = response.items;
     await refreshRunSummaries(response.items);
   } catch (error) {

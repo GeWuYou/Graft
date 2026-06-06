@@ -16,6 +16,11 @@ export type ScheduledTaskJobKey = ScheduledTaskItem['job_key'];
 export type ScheduledTaskRunStatus = ScheduledTaskRunItem['status'];
 export type ScheduledTaskRunTriggerType = ScheduledTaskRunItem['trigger_type'];
 
+export type ScheduledTaskListQuery = {
+  limit?: number;
+  offset?: number;
+};
+
 export type ScheduledTaskRunListQuery = {
   limit?: number;
   offset?: number;

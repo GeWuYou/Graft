@@ -20,6 +20,8 @@ import (
 )
 
 const (
+	defaultScheduledTaskListLimit    = 20
+	maxScheduledTaskListLimit        = 100
 	defaultScheduledTaskRunListLimit = 20
 	maxScheduledTaskRunListLimit     = 100
 )
@@ -119,19 +121,27 @@ func registerSchedulerRoutesWithRuntime(
 }
 
 func (r schedulerRouteRuntime) handleListTasks(ginCtx *gin.Context) {
-	schedulerGeneratedHandler{}.GetScheduledTasks(bindGeneratedTaskHeaders(ginCtx))
+	params, ok := bindGeneratedTaskListParams(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	schedulerGeneratedHandler{}.GetScheduledTasks(params)
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
 		return
 	}
-	tasks, err := runtime.ListTasks(ginCtx.Request.Context())
+	limit, offset := normalizedTaskListWindow(params)
+	tasks, err := runtime.ListTasks(ginCtx.Request.Context(), schedulercore.TaskListQuery{
+		Limit:  limit,
+		Offset: offset,
+	})
 	if err != nil {
 		r.writeRouteError(ginCtx, "list scheduled tasks failed", err)
 		return
 	}
 
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toScheduledTaskListResponse(tasks))
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toScheduledTaskListResponse(tasks, limit, offset))
 }
 
 func (r schedulerRouteRuntime) handleListJobDefinitions(ginCtx *gin.Context) {
@@ -418,9 +428,18 @@ func readScheduledTaskRunID(ginCtx *gin.Context, ctx *module.Context) (uint64, b
 	return runID, true
 }
 
-func bindGeneratedTaskHeaders(ginCtx *gin.Context) scheduleropenapi.GetScheduledTasksParams {
+func bindGeneratedTaskListParams(ginCtx *gin.Context, ctx *module.Context) (scheduleropenapi.GetScheduledTasksParams, bool) {
 	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.GetScheduledTasksParams{XGraftLocale: locale, XRequestId: requestID}
+	params := scheduleropenapi.GetScheduledTasksParams{XGraftLocale: locale, XRequestId: requestID}
+
+	limit, offset, ok := bindScheduledTaskWindowParams(ginCtx, ctx, maxScheduledTaskListLimit)
+	if !ok {
+		return scheduleropenapi.GetScheduledTasksParams{}, false
+	}
+	params.Limit = limit
+	params.Offset = offset
+
+	return params, true
 }
 
 func bindGeneratedTaskCreateHeaders(ginCtx *gin.Context) scheduleropenapi.PostScheduledTaskParams {
@@ -472,24 +491,37 @@ func bindGeneratedRunListParams(ginCtx *gin.Context, ctx *module.Context) (sched
 	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
 	params := scheduleropenapi.GetScheduledTaskRunsParams{XGraftLocale: locale, XRequestId: requestID}
 
+	limit, offset, ok := bindScheduledTaskWindowParams(ginCtx, ctx, maxScheduledTaskRunListLimit)
+	if !ok {
+		return scheduleropenapi.GetScheduledTaskRunsParams{}, false
+	}
+	params.Limit = limit
+	params.Offset = offset
+
+	return params, true
+}
+
+func bindScheduledTaskWindowParams(ginCtx *gin.Context, ctx *module.Context, maxLimit int) (*int, *int, bool) {
+	var parsedLimit *int
 	if raw := strings.TrimSpace(ginCtx.Query("limit")); raw != "" {
 		limit, err := strconv.Atoi(raw)
-		if err != nil || limit < 1 || limit > maxScheduledTaskRunListLimit {
+		if err != nil || limit < 1 || limit > maxLimit {
 			writeInvalidSchedulerQuery(ginCtx, ctx, "limit")
-			return scheduleropenapi.GetScheduledTaskRunsParams{}, false
+			return nil, nil, false
 		}
-		params.Limit = &limit
+		parsedLimit = &limit
 	}
+
+	var parsedOffset *int
 	if raw := strings.TrimSpace(ginCtx.Query("offset")); raw != "" {
 		offset, err := strconv.Atoi(raw)
 		if err != nil || offset < 0 {
 			writeInvalidSchedulerQuery(ginCtx, ctx, "offset")
-			return scheduleropenapi.GetScheduledTaskRunsParams{}, false
+			return nil, nil, false
 		}
-		params.Offset = &offset
+		parsedOffset = &offset
 	}
-
-	return params, true
+	return parsedLimit, parsedOffset, true
 }
 
 func bindGeneratedSchedulerHeaders(ginCtx *gin.Context) (*string, *string) {
@@ -508,6 +540,18 @@ func bindGeneratedSchedulerHeaders(ginCtx *gin.Context) (*string, *string) {
 
 func normalizedRunListWindow(params scheduleropenapi.GetScheduledTaskRunsParams) (int, int) {
 	limit := defaultScheduledTaskRunListLimit
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	offset := 0
+	if params.Offset != nil {
+		offset = *params.Offset
+	}
+	return limit, offset
+}
+
+func normalizedTaskListWindow(params scheduleropenapi.GetScheduledTasksParams) (int, int) {
+	limit := defaultScheduledTaskListLimit
 	if params.Limit != nil {
 		limit = *params.Limit
 	}

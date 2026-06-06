@@ -39,14 +39,16 @@ describe('scheduled task api', () => {
     vi.clearAllMocks();
   });
 
-  it('calls the canonical scheduled task list path through request.ts', async () => {
+  it('passes list pagination to the canonical scheduled task list path', async () => {
     const requestGet = vi.mocked(request.get);
-    requestGet.mockResolvedValueOnce({ items: [], total: 0 } as never);
+    const query = { limit: 10, offset: 20 };
+    requestGet.mockResolvedValueOnce({ items: [], total: 0, limit: 10, offset: 20 } as never);
 
-    await getScheduledTasks();
+    await getScheduledTasks(query);
 
     expect(requestGet).toHaveBeenCalledWith({
       url: SCHEDULED_TASK_API_PATH.LIST,
+      params: query,
     });
   });
 

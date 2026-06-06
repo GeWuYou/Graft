@@ -2778,7 +2778,7 @@ type ScheduledTaskItem struct {
 	LastRun *ScheduledTaskLastRun `json:"last_run,omitempty"`
 	Module  string                `json:"module"`
 
-	// NextRunAt Reserved for future runtime prediction. Null when the current runtime cannot expose a stable next-run value.
+	// NextRunAt Reserved for future runtime prediction. Omitted when the current runtime cannot expose a stable next-run value.
 	NextRunAt *time.Time `json:"next_run_at,omitempty"`
 	Owner     string     `json:"owner"`
 
@@ -2853,8 +2853,10 @@ type ScheduledTaskLastRunTriggerType string
 
 // ScheduledTaskListResponse defines model for scheduled-task-list-response.
 type ScheduledTaskListResponse struct {
-	Items []ScheduledTaskItem `json:"items"`
-	Total int                 `json:"total"`
+	Items  []ScheduledTaskItem `json:"items"`
+	Limit  int                 `json:"limit"`
+	Offset int                 `json:"offset"`
+	Total  int                 `json:"total"`
 }
 
 // ScheduledTaskRunItem defines model for scheduled-task-run-item.
@@ -3121,6 +3123,12 @@ type RequestIdHeader = string
 
 // ScheduledTaskKey defines model for scheduled-task-key.
 type ScheduledTaskKey = string
+
+// ScheduledTaskListLimit defines model for scheduled-task-list-limit.
+type ScheduledTaskListLimit = int
+
+// ScheduledTaskListOffset defines model for scheduled-task-list-offset.
+type ScheduledTaskListOffset = int
 
 // ScheduledTaskRunId defines model for scheduled-task-run-id.
 type ScheduledTaskRunId = int64
@@ -3623,6 +3631,12 @@ type PostRoleUpdateParams struct {
 
 // GetScheduledTasksParams defines parameters for GetScheduledTasks.
 type GetScheduledTasksParams struct {
+	// Limit Optional maximum number of scheduled tasks to return. The runtime accepts values from 1 to 100.
+	Limit *ScheduledTaskListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for scheduled tasks.
+	Offset *ScheduledTaskListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

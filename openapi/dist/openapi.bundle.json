@@ -5173,6 +5173,12 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/scheduled-task-list-offset"
           }
         ],
         "security": [
@@ -9902,17 +9908,16 @@
           },
           "params_json": {
             "type": "string",
+            "pattern": "^\\\\s*\\\\{[\\\\s\\\\S]*\\\\}\\\\s*$",
             "description": "JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler."
           },
           "last_run": {
-            "$ref": "#/components/schemas/scheduled-task-last-run",
-            "nullable": true
+            "$ref": "#/components/schemas/scheduled-task-last-run"
           },
           "next_run_at": {
             "type": "string",
             "format": "date-time",
-            "nullable": true,
-            "description": "Reserved for future runtime prediction. Null when the current runtime cannot expose a stable next-run value."
+            "description": "Reserved for future runtime prediction. Omitted when the current runtime cannot expose a stable next-run value."
           },
           "status": {
             "type": "string",
@@ -9933,7 +9938,9 @@
         "type": "object",
         "required": [
           "items",
-          "total"
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -9943,6 +9950,14 @@
             }
           },
           "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
             "type": "integer",
             "minimum": 0
           }
@@ -10003,6 +10018,7 @@
           },
           "params_json": {
             "type": "string",
+            "pattern": "^\\\\s*\\\\{[\\\\s\\\\S]*\\\\}\\\\s*$",
             "description": "JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler."
           }
         }
@@ -10137,6 +10153,7 @@
           },
           "params_json": {
             "type": "string",
+            "pattern": "^\\\\s*\\\\{[\\\\s\\\\S]*\\\\}\\\\s*$",
             "description": "JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler."
           }
         }
@@ -10621,6 +10638,43 @@
           "oneHour": {
             "summary": "One-hour trend",
             "value": "1h"
+          }
+        }
+      },
+      "scheduled-task-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of scheduled tasks to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "examples": {
+          "firstTwenty": {
+            "summary": "Fetch the default scheduled task window",
+            "value": 20
+          },
+          "fullWindow": {
+            "summary": "Fetch up to the maximum supported window",
+            "value": 100
+          }
+        }
+      },
+      "scheduled-task-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for scheduled tasks.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "examples": {
+          "firstPage": {
+            "summary": "Start from the first scheduled task",
+            "value": 0
           }
         }
       },

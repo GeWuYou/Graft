@@ -54,8 +54,8 @@ func (r *stopContextRecorderRuntime) ListJobDefinitions(context.Context) ([]sche
 	return nil, nil
 }
 
-func (r *stopContextRecorderRuntime) ListTasks(context.Context) ([]schedulercore.TaskSnapshot, error) {
-	return nil, nil
+func (r *stopContextRecorderRuntime) ListTasks(context.Context, schedulercore.TaskListQuery) (schedulercore.TaskListResult, error) {
+	return schedulercore.TaskListResult{}, nil
 }
 
 func (r *stopContextRecorderRuntime) GetTask(context.Context, string) (schedulercore.TaskSnapshot, error) {
@@ -128,8 +128,15 @@ func (r *schedulerAPIRuntime) ListJobDefinitions(context.Context) ([]schedulerco
 	return r.jobDefinitions, nil
 }
 
-func (r *schedulerAPIRuntime) ListTasks(context.Context) ([]schedulercore.TaskSnapshot, error) {
-	return r.tasks, nil
+func (r *schedulerAPIRuntime) ListTasks(_ context.Context, query schedulercore.TaskListQuery) (schedulercore.TaskListResult, error) {
+	items := r.tasks
+	total := len(items)
+	if query.Limit > 0 {
+		start := min(max(query.Offset, 0), total)
+		end := min(start+query.Limit, total)
+		items = items[start:end]
+	}
+	return schedulercore.TaskListResult{Items: items, Total: total}, nil
 }
 
 func (r *schedulerAPIRuntime) CreateTask(_ context.Context, command schedulercore.TaskMutation) (schedulercore.TaskSnapshot, error) {
@@ -426,7 +433,7 @@ func TestScheduledTaskListRouteReturnsRuntimeTasks(t *testing.T) {
 		_ = moduleInstance.Shutdown(ctx)
 	})
 
-	request := httptest.NewRequest(http.MethodGet, "/api/scheduled-tasks", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/scheduled-tasks?limit=1&offset=0", nil)
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, request)
@@ -436,20 +443,10 @@ func TestScheduledTaskListRouteReturnsRuntimeTasks(t *testing.T) {
 	}
 
 	payload := decodeScheduledTaskListPayload(t, recorder.Body.Bytes())
-	if !payload.Success || payload.Data.Total != 1 || len(payload.Data.Items) != 1 {
+	if !payload.Success || payload.Data.Total != 1 || payload.Data.Limit != 1 || payload.Data.Offset != 0 || len(payload.Data.Items) != 1 {
 		t.Fatalf("unexpected scheduled task list payload: %#v", payload)
 	}
-	item := payload.Data.Items[0]
-	if item.Key != "audit.retention.cleanup" ||
-		item.JobKey != "audit.audit-log-retention-cleanup" ||
-		item.ScheduleType != "cron" ||
-		item.DisplayNameKey != "scheduledTask.auditLogRetention.title" ||
-		item.Module != "audit" ||
-		!item.Enabled ||
-		item.Status != "idle" ||
-		item.Running {
-		t.Fatalf("unexpected scheduled task item: %#v", item)
-	}
+	assertScheduledTaskListItem(t, payload.Data.Items[0])
 }
 
 func TestScheduledTaskJobsRouteReturnsRuntimeJobDefinitions(t *testing.T) {
@@ -676,18 +673,37 @@ func TestScheduledTaskRunDetailReturnsResultAndErrorFields(t *testing.T) {
 type scheduledTaskListPayload struct {
 	Success bool `json:"success"`
 	Data    struct {
-		Total int `json:"total"`
-		Items []struct {
-			Key            string `json:"key"`
-			JobKey         string `json:"job_key"`
-			ScheduleType   string `json:"schedule_type"`
-			DisplayNameKey string `json:"display_name_key"`
-			Module         string `json:"module"`
-			Enabled        bool   `json:"enabled"`
-			Status         string `json:"status"`
-			Running        bool   `json:"running"`
-		} `json:"items"`
+		Total  int                            `json:"total"`
+		Limit  int                            `json:"limit"`
+		Offset int                            `json:"offset"`
+		Items  []scheduledTaskListItemPayload `json:"items"`
 	} `json:"data"`
+}
+
+type scheduledTaskListItemPayload struct {
+	Key            string `json:"key"`
+	JobKey         string `json:"job_key"`
+	ScheduleType   string `json:"schedule_type"`
+	DisplayNameKey string `json:"display_name_key"`
+	Module         string `json:"module"`
+	Enabled        bool   `json:"enabled"`
+	Status         string `json:"status"`
+	Running        bool   `json:"running"`
+}
+
+func assertScheduledTaskListItem(t *testing.T, item scheduledTaskListItemPayload) {
+	t.Helper()
+
+	if item.Key != "audit.retention.cleanup" ||
+		item.JobKey != "audit.audit-log-retention-cleanup" ||
+		item.ScheduleType != "cron" ||
+		item.DisplayNameKey != "scheduledTask.auditLogRetention.title" ||
+		item.Module != "audit" ||
+		!item.Enabled ||
+		item.Status != "idle" ||
+		item.Running {
+		t.Fatalf("unexpected scheduled task item: %#v", item)
+	}
 }
 
 func decodeScheduledTaskListPayload(t *testing.T, body []byte) scheduledTaskListPayload {

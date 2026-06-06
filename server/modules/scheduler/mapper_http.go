@@ -8,15 +8,21 @@ import (
 	schedulercore "graft/server/internal/scheduler"
 )
 
-func toScheduledTaskListResponse(tasks []schedulercore.TaskSnapshot) generated.ScheduledTaskListResponse {
-	items := make([]generated.ScheduledTaskItem, 0, len(tasks))
-	for _, task := range tasks {
+func toScheduledTaskListResponse(
+	result schedulercore.TaskListResult,
+	limit int,
+	offset int,
+) generated.ScheduledTaskListResponse {
+	items := make([]generated.ScheduledTaskItem, 0, len(result.Items))
+	for _, task := range result.Items {
 		items = append(items, toScheduledTaskItem(task))
 	}
 
 	return generated.ScheduledTaskListResponse{
-		Items: items,
-		Total: len(items),
+		Items:  items,
+		Total:  result.Total,
+		Limit:  limit,
+		Offset: offset,
 	}
 }
 

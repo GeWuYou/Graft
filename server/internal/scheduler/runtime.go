@@ -23,7 +23,7 @@ type Runtime interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
 	ListJobDefinitions(ctx context.Context) ([]JobDefinitionSnapshot, error)
-	ListTasks(ctx context.Context) ([]TaskSnapshot, error)
+	ListTasks(ctx context.Context, query TaskListQuery) (TaskListResult, error)
 	GetTask(ctx context.Context, key string) (TaskSnapshot, error)
 	CreateTask(ctx context.Context, command TaskMutation) (TaskSnapshot, error)
 	UpdateTask(ctx context.Context, key string, command TaskMutation) (TaskSnapshot, error)
@@ -181,6 +181,18 @@ type TaskMutation struct {
 	ParamsJSON     string
 }
 
+// TaskListQuery scopes scheduled task lookup.
+type TaskListQuery struct {
+	Limit  int
+	Offset int
+}
+
+// TaskListResult contains one page of scheduled tasks plus a total count.
+type TaskListResult struct {
+	Items []TaskSnapshot
+	Total int
+}
+
 // RunListQuery scopes run-history lookup for one task.
 type RunListQuery struct {
 	TaskKey string
@@ -210,7 +222,7 @@ type TaskRepository interface {
 	UpdateTask(ctx context.Context, key string, patch TaskMutation) (TaskDefinition, error)
 	DeleteTask(ctx context.Context, key string) error
 	SetTaskEnabled(ctx context.Context, key string, enabled bool) (TaskDefinition, error)
-	ListTasks(ctx context.Context) ([]TaskDefinition, error)
+	ListTasks(ctx context.Context, query TaskListQuery) ([]TaskDefinition, int, error)
 	GetTask(ctx context.Context, key string) (TaskDefinition, error)
 }
 
@@ -372,24 +384,24 @@ func (r *CronRuntime) ListJobDefinitions(ctx context.Context) ([]JobDefinitionSn
 	return items, nil
 }
 
-// ListTasks returns all active scheduled task instances.
-func (r *CronRuntime) ListTasks(ctx context.Context) ([]TaskSnapshot, error) {
+// ListTasks returns active scheduled task instances.
+func (r *CronRuntime) ListTasks(ctx context.Context, query TaskListQuery) (TaskListResult, error) {
 	if r.tasks == nil {
-		return nil, errors.New("scheduler task repository is unavailable")
+		return TaskListResult{}, errors.New("scheduler task repository is unavailable")
 	}
-	definitions, err := r.tasks.ListTasks(ctx)
+	definitions, total, err := r.tasks.ListTasks(ctx, query)
 	if err != nil {
-		return nil, err
+		return TaskListResult{}, err
 	}
 	items := make([]TaskSnapshot, 0, len(definitions))
 	for _, definition := range definitions {
 		snapshot, err := r.snapshotDefinition(ctx, definition)
 		if err != nil {
-			return nil, err
+			return TaskListResult{}, err
 		}
 		items = append(items, snapshot)
 	}
-	return items, nil
+	return TaskListResult{Items: items, Total: total}, nil
 }
 
 // GetTask returns one active scheduled task instance by key.
@@ -518,7 +530,7 @@ func (r *CronRuntime) Start(ctx context.Context) error {
 	}
 	r.lifecycleCtx, r.lifecycleCancel = context.WithCancel(ctx)
 	if r.tasks != nil {
-		definitions, err := r.tasks.ListTasks(ctx)
+		definitions, _, err := r.tasks.ListTasks(ctx, TaskListQuery{})
 		if err != nil {
 			return err
 		}

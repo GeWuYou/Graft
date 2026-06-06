@@ -1380,6 +1380,12 @@ type refreshCookieContextKey string
 
 // GetScheduledTasksParams defines parameters for GetScheduledTasks.
 type GetScheduledTasksParams struct {
+	// Limit Optional maximum number of scheduled tasks to return. The runtime accepts values from 1 to 100.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for scheduled tasks.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 

@@ -1,0 +1,15 @@
+name: limit
+in: query
+required: false
+description: Optional maximum number of scheduled tasks to return. The runtime accepts values from 1 to 100.
+schema:
+  type: integer
+  minimum: 1
+  maximum: 100
+examples:
+  firstTwenty:
+    summary: Fetch the default scheduled task window
+    value: 20
+  fullWindow:
+    summary: Fetch up to the maximum supported window
+    value: 100

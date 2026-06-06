@@ -1,0 +1,11 @@
+name: offset
+in: query
+required: false
+description: Optional zero-based offset for scheduled tasks.
+schema:
+  type: integer
+  minimum: 0
+examples:
+  firstPage:
+    summary: Start from the first scheduled task
+    value: 0

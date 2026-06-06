@@ -2231,9 +2231,9 @@ export interface components {
       last_run?: components['schemas']['scheduled-task-last-run'];
       /**
        * Format: date-time
-       * @description Reserved for future runtime prediction. Null when the current runtime cannot expose a stable next-run value.
+       * @description Reserved for future runtime prediction. Omitted when the current runtime cannot expose a stable next-run value.
        */
-      next_run_at?: string | null;
+      next_run_at?: string;
       /** @enum {string} */
       status: 'idle' | 'running' | 'success' | 'failed' | 'unknown';
       running: boolean;
@@ -2241,6 +2241,8 @@ export interface components {
     'scheduled-task-list-response': {
       items: components['schemas']['scheduled-task-item'][];
       total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-scheduled-task-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['scheduled-task-list-response'];
@@ -2444,6 +2446,10 @@ export interface components {
     'session-list-limit': number;
     /** @description Optional trend window. Invalid values currently fall back to the backend default `10m`. */
     'trend-range-query': '10m' | '30m' | '1h';
+    /** @description Optional maximum number of scheduled tasks to return. The runtime accepts values from 1 to 100. */
+    'scheduled-task-list-limit': number;
+    /** @description Optional zero-based offset for scheduled tasks. */
+    'scheduled-task-list-offset': number;
     /** @description Stable scheduled task key. */
     'scheduled-task-key': string;
     /** @description Optional maximum number of scheduled task runs to return. The runtime accepts values from 1 to 100. */
@@ -4788,7 +4794,12 @@ export interface operations {
   };
   getScheduledTasks: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Optional maximum number of scheduled tasks to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['scheduled-task-list-limit'];
+        /** @description Optional zero-based offset for scheduled tasks. */
+        offset?: components['parameters']['scheduled-task-list-offset'];
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];

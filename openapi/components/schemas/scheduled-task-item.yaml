@@ -44,15 +44,14 @@ properties:
     description: Cron expression validated by the scheduler runtime.
   params_json:
     type: string
+    pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
     description: JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
   last_run:
     $ref: ./scheduled-task-last-run.yaml
-    nullable: true
   next_run_at:
     type: string
     format: date-time
-    nullable: true
-    description: Reserved for future runtime prediction. Null when the current runtime cannot expose a stable next-run value.
+    description: Reserved for future runtime prediction. Omitted when the current runtime cannot expose a stable next-run value.
   status:
     type: string
     enum: [idle, running, success, failed, unknown]

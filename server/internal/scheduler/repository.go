@@ -374,18 +374,43 @@ func (r *SQLTaskRepository) SetTaskEnabled(ctx context.Context, key string, enab
 }
 
 // ListTasks returns active persisted scheduled task instances.
-func (r *SQLTaskRepository) ListTasks(ctx context.Context) ([]TaskDefinition, error) {
+func (r *SQLTaskRepository) ListTasks(ctx context.Context, query TaskListQuery) ([]TaskDefinition, int, error) {
 	if err := r.ensureTaskAvailable(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, params_json, created_at, updated_at, deleted_at
+	total, err := r.countTasks(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	statement := `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, params_json, created_at, updated_at, deleted_at
 	FROM scheduled_tasks
 	WHERE deleted_at IS NULL
-	ORDER BY builtin DESC, created_at ASC, id ASC`)
-	if err != nil {
-		return nil, fmt.Errorf("list scheduled tasks: %w", err)
+	ORDER BY builtin DESC, created_at ASC, id ASC`
+	var rows *sql.Rows
+	if query.Limit > 0 {
+		rows, err = r.db.QueryContext(ctx, statement+` LIMIT $1 OFFSET $2`, query.Limit, max(query.Offset, 0))
+	} else {
+		rows, err = r.db.QueryContext(ctx, statement)
 	}
-	return collectRows(rows, scanTaskDefinition, "iterate scheduled tasks")
+	if err != nil {
+		return nil, 0, fmt.Errorf("list scheduled tasks: %w", err)
+	}
+	items, err := collectRows(rows, scanTaskDefinition, "iterate scheduled tasks")
+	if err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
+}
+
+func (r *SQLTaskRepository) countTasks(ctx context.Context) (int, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT COUNT(*)
+	FROM scheduled_tasks
+	WHERE deleted_at IS NULL`)
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return 0, fmt.Errorf("count scheduled tasks: %w", err)
+	}
+	return total, nil
 }
 
 // GetTask returns one active persisted scheduled task by key.
