@@ -1924,6 +1924,9 @@ type CreateRoleRequest struct {
 
 // CreateScheduledTaskRequest defines model for create-scheduled-task-request.
 type CreateScheduledTaskRequest struct {
+	// ConfigJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
+	ConfigJson *string `json:"config_json,omitempty"`
+
 	// CronExpression Cron expression validated by the scheduler runtime.
 	CronExpression string  `json:"cron_expression"`
 	Description    *string `json:"description,omitempty"`
@@ -1931,9 +1934,6 @@ type CreateScheduledTaskRequest struct {
 
 	// JobKey Stable Job Definition key this Scheduled Task executes.
 	JobKey string `json:"job_key"`
-
-	// ParamsJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
-	ParamsJson *string `json:"params_json,omitempty"`
 
 	// TaskKey Stable scheduled task instance key.
 	TaskKey string `json:"task_key"`
@@ -2319,6 +2319,26 @@ type EnvelopedScheduledTaskItem struct {
 	// Code Existing canonical response code.
 	Code string            `json:"code"`
 	Data ScheduledTaskItem `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedScheduledTaskJobDefinitionItem defines model for enveloped-scheduled-task-job-definition-item.
+type EnvelopedScheduledTaskJobDefinitionItem struct {
+	// Code Existing canonical response code.
+	Code string                         `json:"code"`
+	Data ScheduledTaskJobDefinitionItem `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -2762,10 +2782,16 @@ type RolePermissionBindingResponse struct {
 // ScheduledTaskItem defines model for scheduled-task-item.
 type ScheduledTaskItem struct {
 	// Builtin Builtin Scheduled Tasks cannot be deleted or change task_key/job_key.
-	Builtin        *bool   `json:"builtin,omitempty"`
+	Builtin *bool `json:"builtin,omitempty"`
+
+	// ConfigJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
+	ConfigJson     *string `json:"config_json,omitempty"`
 	Description    *string `json:"description,omitempty"`
 	DescriptionKey string  `json:"description_key"`
 	DisplayNameKey string  `json:"display_name_key"`
+
+	// EffectiveConfig Effective config JSON object string computed by merging Job Definition default_config with task config_json.
+	EffectiveConfig *string `json:"effective_config,omitempty"`
 
 	// Enabled Whether the Scheduled Task is enabled in the DB-backed schedule definition.
 	Enabled bool `json:"enabled"`
@@ -2781,10 +2807,7 @@ type ScheduledTaskItem struct {
 	// NextRunAt Reserved for future runtime prediction. Omitted when the current runtime cannot expose a stable next-run value.
 	NextRunAt *time.Time `json:"next_run_at,omitempty"`
 	Owner     string     `json:"owner"`
-
-	// ParamsJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
-	ParamsJson *string `json:"params_json,omitempty"`
-	Running    bool    `json:"running"`
+	Running   bool       `json:"running"`
 
 	// Schedule Cron expression validated by the scheduler runtime.
 	Schedule     string                        `json:"schedule"`
@@ -2801,14 +2824,17 @@ type ScheduledTaskItemStatus string
 
 // ScheduledTaskJobDefinitionItem defines model for scheduled-task-job-definition-item.
 type ScheduledTaskJobDefinitionItem struct {
+	// ConfigSchemaJson JSON Schema string for Scheduled Task config accepted by this Job Definition.
+	ConfigSchemaJson string `json:"config_schema_json"`
+
+	// DefaultConfigJson Default config JSON object string for a new Scheduled Task bound to this Job Definition.
+	DefaultConfigJson string `json:"default_config_json"`
+
 	// DefaultCronExpression Default cron expression declared by the Job Definition.
 	DefaultCronExpression string `json:"default_cron_expression"`
 
 	// DefaultEnabled Whether new Scheduled Tasks for this Job Definition should be enabled by default.
 	DefaultEnabled bool `json:"default_enabled"`
-
-	// DefaultParamsJson Default JSON object string for a new Scheduled Task bound to this Job Definition.
-	DefaultParamsJson string `json:"default_params_json"`
 
 	// Description Direct display fallback when the client has no translation for description_key.
 	Description    *string `json:"description,omitempty"`
@@ -2819,9 +2845,6 @@ type ScheduledTaskJobDefinitionItem struct {
 	Key    string `json:"key"`
 	Module string `json:"module"`
 	Owner  string `json:"owner"`
-
-	// ParamsSchemaJson JSON Schema string for Scheduled Task parameters accepted by this Job Definition.
-	ParamsSchemaJson string `json:"params_schema_json"`
 
 	// Title Direct display fallback when the client has no translation for display_name_key.
 	Title *string `json:"title,omitempty"`
@@ -2835,10 +2858,13 @@ type ScheduledTaskJobDefinitionListResponse struct {
 
 // ScheduledTaskLastRun defines model for scheduled-task-last-run.
 type ScheduledTaskLastRun struct {
-	DurationMs    *int64                          `json:"duration_ms,omitempty"`
-	ErrorSummary  *string                         `json:"error_summary,omitempty"`
-	FinishedAt    *time.Time                      `json:"finished_at,omitempty"`
-	Id            int64                           `json:"id"`
+	DurationMs   *int64     `json:"duration_ms,omitempty"`
+	ErrorSummary *string    `json:"error_summary,omitempty"`
+	FinishedAt   *time.Time `json:"finished_at,omitempty"`
+	Id           int64      `json:"id"`
+
+	// ResultJson Structured JobRunResult JSON object string.
+	ResultJson    *string                         `json:"result_json,omitempty"`
 	ResultSummary *string                         `json:"result_summary,omitempty"`
 	StartedAt     time.Time                       `json:"started_at"`
 	Status        ScheduledTaskLastRunStatus      `json:"status"`
@@ -2861,14 +2887,20 @@ type ScheduledTaskListResponse struct {
 
 // ScheduledTaskRunItem defines model for scheduled-task-run-item.
 type ScheduledTaskRunItem struct {
-	CreatedAt     time.Time                       `json:"created_at"`
-	DurationMs    *int64                          `json:"duration_ms,omitempty"`
-	ErrorSummary  *string                         `json:"error_summary,omitempty"`
-	FinishedAt    *time.Time                      `json:"finished_at,omitempty"`
-	Id            int64                           `json:"id"`
-	JobKey        string                          `json:"job_key"`
-	Module        string                          `json:"module"`
-	Owner         string                          `json:"owner"`
+	CreatedAt  time.Time `json:"created_at"`
+	DurationMs *int64    `json:"duration_ms,omitempty"`
+
+	// EffectiveConfig Effective config JSON object string used by an immediate manual run response when available.
+	EffectiveConfig *string    `json:"effective_config,omitempty"`
+	ErrorSummary    *string    `json:"error_summary,omitempty"`
+	FinishedAt      *time.Time `json:"finished_at,omitempty"`
+	Id              int64      `json:"id"`
+	JobKey          string     `json:"job_key"`
+	Module          string     `json:"module"`
+	Owner           string     `json:"owner"`
+
+	// ResultJson Structured JobRunResult JSON object string.
+	ResultJson    *string                         `json:"result_json,omitempty"`
 	ResultSummary *string                         `json:"result_summary,omitempty"`
 	StartedAt     time.Time                       `json:"started_at"`
 	Status        ScheduledTaskRunItemStatus      `json:"status"`
@@ -3062,13 +3094,12 @@ type UpdateRoleStatusRequestStatus string
 
 // UpdateScheduledTaskRequest defines model for update-scheduled-task-request.
 type UpdateScheduledTaskRequest struct {
+	// ConfigJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
+	ConfigJson     *string `json:"config_json,omitempty"`
 	CronExpression *string `json:"cron_expression,omitempty"`
 	Description    *string `json:"description,omitempty"`
 	Enabled        *bool   `json:"enabled,omitempty"`
-
-	// ParamsJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
-	ParamsJson *string `json:"params_json,omitempty"`
-	Title      *string `json:"title,omitempty"`
+	Title          *string `json:"title,omitempty"`
 }
 
 // UpdateUserRequest defines model for update-user-request.
@@ -3120,6 +3151,9 @@ type LocaleHeader = string
 
 // RequestIdHeader defines model for request-id-header.
 type RequestIdHeader = string
+
+// ScheduledTaskJobKey defines model for scheduled-task-job-key.
+type ScheduledTaskJobKey = string
 
 // ScheduledTaskKey defines model for scheduled-task-key.
 type ScheduledTaskKey = string
@@ -3655,8 +3689,18 @@ type PostScheduledTaskParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// GetScheduledTaskJobsParams defines parameters for GetScheduledTaskJobs.
-type GetScheduledTaskJobsParams struct {
+// GetScheduledTaskJobDefinitionsParams defines parameters for GetScheduledTaskJobDefinitions.
+type GetScheduledTaskJobDefinitionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetScheduledTaskJobDefinitionParams defines parameters for GetScheduledTaskJobDefinition.
+type GetScheduledTaskJobDefinitionParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

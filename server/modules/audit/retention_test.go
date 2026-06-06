@@ -56,14 +56,14 @@ func TestAuditLogRetentionCleanerInvokesServiceWithCutoff(t *testing.T) {
 		return time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
 	}
 
-	deleted, err := cleaner.cleanup(context.Background())
+	result, err := cleaner.cleanup(context.Background(), retentionJobConfig{BatchSize: 1000})
 	if err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
 
 	wantCutoff := time.Date(2026, 5, 28, 12, 0, 0, 0, time.UTC)
-	if deleted != 5 {
-		t.Fatalf("expected deleted row count 5, got %d", deleted)
+	if result.Metrics["deletedCount"] != int64(5) {
+		t.Fatalf("expected deleted row count 5, got %#v", result)
 	}
 	if !repo.deletedBefore.Equal(wantCutoff) {
 		t.Fatalf("expected cutoff %s, got %s", wantCutoff, repo.deletedBefore)
@@ -89,8 +89,10 @@ func TestAuditLogRetentionCleanerLogsFailure(t *testing.T) {
 		return time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)
 	}
 
-	if _, err := cleaner.cleanup(context.Background()); err == nil {
+	if result, err := cleaner.cleanup(context.Background(), retentionJobConfig{BatchSize: 1000}); err == nil {
 		t.Fatal("expected cleanup failure")
+	} else if result.Stage != "failed" || len(result.Warnings) == 0 {
+		t.Fatalf("expected failed structured result, got %#v", result)
 	}
 
 	if logs.FilterMessage("audit log retention cleanup started").Len() != 1 {
@@ -138,8 +140,12 @@ func TestRegisterAuditLogRetentionCleanupJob(t *testing.T) {
 		t.Fatal("expected startup registration to avoid cleanup execution")
 	}
 
-	if err := items[0].Run(context.Background()); err != nil {
+	result, err := items[0].Handler(context.Background(), items[0].RuntimeDefaultConfig())
+	if err != nil {
 		t.Fatalf("run registered job: %v", err)
+	}
+	if result.AffectedResource != "audit_log" || result.Metrics["deletedCount"] != int64(2) {
+		t.Fatalf("expected structured audit cleanup result, got %#v", result)
 	}
 	if repo.deletedBefore.IsZero() {
 		t.Fatal("expected job run to invoke cleanup")

@@ -68,12 +68,12 @@ func TestAppLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
 	cleaner.now = func() time.Time { return now }
 
-	deleted, err := cleaner.cleanup(context.Background())
+	result, err := cleaner.cleanup(context.Background(), appLogRetentionJobConfig{BatchSize: 1000})
 	if err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
-	if deleted != 3 {
-		t.Fatalf("expected deleted rows 3, got %d", deleted)
+	if result.Metrics["deletedCount"] != int64(3) {
+		t.Fatalf("expected deleted rows 3, got %#v", result)
 	}
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
@@ -102,7 +102,7 @@ func TestAppLogRetentionCleanerWritesCompletedAppLog(t *testing.T) {
 		return time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
 	}
 
-	if _, err := cleaner.cleanup(context.Background()); err != nil {
+	if _, err := cleaner.cleanup(context.Background(), appLogRetentionJobConfig{BatchSize: 1000}); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
 
@@ -131,8 +131,10 @@ func TestAppLogRetentionCleanerReturnsDeleteError(t *testing.T) {
 		return time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
 	}
 
-	if _, err := cleaner.cleanup(context.Background()); err == nil {
+	if result, err := cleaner.cleanup(context.Background(), appLogRetentionJobConfig{BatchSize: 1000}); err == nil {
 		t.Fatal("expected cleanup error")
+	} else if result.Stage != "failed" || len(result.Warnings) == 0 {
+		t.Fatalf("expected failed structured result, got %#v", result)
 	}
 
 	record := waitRetentionAppLogRecord(t, repo, "scheduler job failed")
@@ -166,6 +168,9 @@ func TestRegisterAppLogRetentionCleanupJob(t *testing.T) {
 	}
 	if items[0].Schedule != appLogRetentionCleanupJobSchedule {
 		t.Fatalf("expected job schedule %q, got %q", appLogRetentionCleanupJobSchedule, items[0].Schedule)
+	}
+	if items[0].ConfigSchema == "" || items[0].DefaultConfig == "" {
+		t.Fatalf("expected registered job config schema/default config, got %#v", items[0])
 	}
 }
 

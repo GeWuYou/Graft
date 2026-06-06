@@ -112,8 +112,10 @@ paths:
     $ref: ./paths/modules.runtime.detail.yaml
   /api/scheduled-tasks:
     $ref: ./paths/scheduled-tasks.list.yaml
-  /api/scheduled-tasks/jobs:
-    $ref: ./paths/scheduled-tasks.jobs.yaml
+  /api/scheduled-tasks/job-definitions:
+    $ref: ./paths/scheduled-tasks.job-definitions.yaml
+  /api/scheduled-tasks/job-definitions/{jobKey}:
+    $ref: ./paths/scheduled-tasks.job-definition-detail.yaml
   /api/scheduled-tasks/{taskKey}:
     $ref: ./paths/scheduled-tasks.detail.yaml
   /api/scheduled-tasks/{taskKey}/enable:
@@ -316,6 +318,8 @@ components:
       $ref: ./components/schemas/enveloped-scheduled-task-list-response.yaml
     EnvelopedScheduledTaskJobDefinitionListResponse:
       $ref: ./components/schemas/enveloped-scheduled-task-job-definition-list-response.yaml
+    EnvelopedScheduledTaskJobDefinitionItem:
+      $ref: ./components/schemas/enveloped-scheduled-task-job-definition-item.yaml
     EnvelopedScheduledTaskRunItem:
       $ref: ./components/schemas/enveloped-scheduled-task-run-item.yaml
     EnvelopedScheduledTaskRunListResponse:

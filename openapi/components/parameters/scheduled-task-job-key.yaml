@@ -1,0 +1,11 @@
+name: jobKey
+in: path
+required: true
+description: Stable scheduler Job Definition key.
+schema:
+  type: string
+  minLength: 1
+examples:
+  auditRetention:
+    summary: Audit retention cleanup Job Definition
+    value: audit.audit-log-retention-cleanup

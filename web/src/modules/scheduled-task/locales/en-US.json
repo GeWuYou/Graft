@@ -9,15 +9,45 @@
   "scheduledTask": {
     "accessLogRetention": {
       "title": "Access Log Retention Cleanup",
-      "description": "Deletes retained access logs beyond the configured retention window."
+      "description": "Deletes retained access logs beyond the configured retention window.",
+      "config": {
+        "dryRun": {
+          "title": "Dry Run",
+          "description": "Preview cleanup without deleting access logs."
+        },
+        "batchSize": {
+          "title": "Batch Size",
+          "description": "Maximum access log rows to delete in one cleanup batch."
+        }
+      }
     },
     "auditLogRetention": {
       "title": "Audit Log Retention Cleanup",
-      "description": "Deletes retained audit logs beyond the configured retention window."
+      "description": "Deletes retained audit logs beyond the configured retention window.",
+      "config": {
+        "dryRun": {
+          "title": "Dry Run",
+          "description": "Preview cleanup without deleting audit logs."
+        },
+        "batchSize": {
+          "title": "Batch Size",
+          "description": "Maximum audit log rows to delete in one cleanup batch."
+        }
+      }
     },
     "appLogRetention": {
       "title": "App Log Retention Cleanup",
-      "description": "Deletes retained app logs beyond the configured retention window."
+      "description": "Deletes retained app logs beyond the configured retention window.",
+      "config": {
+        "dryRun": {
+          "title": "Dry Run",
+          "description": "Preview cleanup without deleting app logs."
+        },
+        "batchSize": {
+          "title": "Batch Size",
+          "description": "Maximum app log rows to delete in one cleanup batch."
+        }
+      }
     },
     "cronDescription": {
       "everyMinute": "Runs once every minute.",
@@ -191,15 +221,15 @@
         "sectionBasic": "Task Description",
         "sectionExecutionPlan": "Execution Plan",
         "sectionEnabled": "Enabled Status",
-        "sectionAdvancedParams": "Advanced Parameters",
+        "sectionAdvancedConfig": "Advanced Config",
         "jobType": "Job Type",
         "jobTypePlaceholder": "Select a Job Definition",
         "jobKey": "Job Key",
         "module": "Module",
         "owner": "Owner",
         "defaultCron": "Default Cron",
-        "defaultParams": "Default Parameters",
-        "paramsSchema": "Parameter Schema",
+        "defaultConfig": "Default Config",
+        "configSchema": "Config Schema",
         "taskKey": "Task Key",
         "taskKeyPlaceholder": "For example audit.retention.daily",
         "title": "Title",
@@ -208,22 +238,35 @@
         "descriptionPlaceholder": "Enter task description",
         "cronExpression": "Cron Expression",
         "enabled": "Enabled",
-        "paramsJson": "Parameters JSON",
-        "paramsJsonPlaceholder": "{\n  \"window_days\": 30\n}",
+        "configJson": "Config JSON",
+        "configJsonPlaceholder": "{\n  \"window_days\": 30\n}",
         "formatJson": "Format JSON",
         "taskKeyRequiredHint": "Task Key is required.",
         "jobTypeRequiredHint": "Job Type is required.",
         "titleRequiredHint": "Title is required.",
-        "paramsJsonInvalidHint": "Parameters must be valid JSON.",
+        "configJsonInvalidHint": "Config must be valid JSON.",
         "cronRequiredHint": "Cron Expression is required.",
-        "cronInvalidHint": "Cron Expression is invalid."
+        "cronInvalidHint": "Cron Expression is invalid.",
+        "sectionConfig": "Task Config",
+        "configHint": "Fill config from the Job Definition JSON Schema.",
+        "configSelectPlaceholder": "Select an option",
+        "configNumberPlaceholder": "Enter a number",
+        "configStringPlaceholder": "Enter a value",
+        "noConfigFields": "This Job Definition has no configurable fields."
       },
       "runDialog": {
         "title": "Run Task Now?",
         "taskLine": "Task: {taskName}",
         "description": "This action will immediately trigger one background run.",
         "cancel": "Cancel",
-        "confirm": "Run Now"
+        "confirm": "Run Now",
+        "cleanupDescription": "{behavior} Confirm the cleanup scope before running.",
+        "affectedResource": "Affected Resource",
+        "retentionDays": "Retention Days",
+        "cutoffPolicy": "Cutoff Policy/Time",
+        "batchSize": "Batch Size",
+        "dryRun": "Dry Run",
+        "expectedBehavior": "Expected Behavior"
       },
       "deleteDialog": {
         "title": "Delete Task",
@@ -245,7 +288,7 @@
         "enabled": "Enabled",
         "jobType": "Job Type",
         "jobKey": "Job Key",
-        "paramsJson": "Parameters JSON",
+        "configJson": "Config JSON",
         "scheduleType": "Schedule Type",
         "scheduleRule": "Schedule Rule",
         "nextRun": "Next Run",
@@ -266,7 +309,23 @@
         "enabledNo": "No",
         "runsEmpty": "No run history yet",
         "viewRun": "Details",
-        "runDetailTitle": "Run Details"
+        "runDetailTitle": "Run Details",
+        "behavior": "Task Behavior",
+        "jobBehavior": "Job Behavior",
+        "configItems": "Configurable Items",
+        "effectiveConfig": "Effective Config",
+        "advancedConfig": "Advanced Config",
+        "stage": "Stage",
+        "affectedResource": "Affected Resource",
+        "metrics": "Metrics",
+        "details": "Details",
+        "warnings": "Warnings",
+        "rawResultJson": "Raw Result JSON"
+      },
+      "resource": {
+        "accessLog": "Access Logs",
+        "auditLog": "Audit Logs",
+        "appLog": "App Logs"
       }
     }
   }

@@ -5,6 +5,7 @@ export type ScheduledTaskItem = components['schemas']['scheduled-task-item'];
 export type ScheduledTaskJobDefinitionItem = components['schemas']['scheduled-task-job-definition-item'];
 export type ScheduledTaskJobDefinitionListResponse =
   components['schemas']['scheduled-task-job-definition-list-response'];
+export type ScheduledTaskJobDefinitionResponse = ScheduledTaskJobDefinitionItem;
 export type CreateScheduledTaskRequest = components['schemas']['create-scheduled-task-request'];
 export type UpdateScheduledTaskRequest = components['schemas']['update-scheduled-task-request'];
 export type ScheduledTaskListResponse = components['schemas']['scheduled-task-list-response'];

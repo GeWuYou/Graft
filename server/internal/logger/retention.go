@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -18,7 +19,17 @@ const (
 	appLogRetentionCleanupJobSchedule       = "0 15 17 * * *"
 	appLogRetentionCleanupJobDisplayKey     = "scheduledTask.appLogRetention.title"
 	appLogRetentionCleanupJobDescriptionKey = "scheduledTask.appLogRetention.description"
+	appLogRetentionDefaultBatchSize         = 1000
+	hoursPerDay                             = 24
 )
+
+const appLogRetentionCleanupConfigSchema = `{"type":"object","properties":{"dryRun":{"type":"boolean","title":"Dry run","description":"Preview cleanup without deleting app logs.","x-title-key":"scheduledTask.appLogRetention.config.dryRun.title","x-description-key":"scheduledTask.appLogRetention.config.dryRun.description"},"batchSize":{"type":"integer","minimum":1,"maximum":10000,"title":"Batch size","description":"Maximum app log rows to delete in one cleanup batch.","x-title-key":"scheduledTask.appLogRetention.config.batchSize.title","x-description-key":"scheduledTask.appLogRetention.config.batchSize.description"}},"additionalProperties":false}`
+const appLogRetentionCleanupDefaultConfig = `{"dryRun":false,"batchSize":1000}`
+
+type appLogRetentionJobConfig struct {
+	DryRun    bool `json:"dryRun"`
+	BatchSize int  `json:"batchSize"`
+}
 
 type appLogRetentionPolicy struct {
 	retention time.Duration
@@ -92,17 +103,20 @@ func newAppLogRetentionCleaner(
 	}, nil
 }
 
-func (c *appLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) {
+func (c *appLogRetentionCleaner) cleanup(ctx context.Context, config appLogRetentionJobConfig) (cronx.JobRunResult, error) {
 	if c == nil {
-		return 0, errors.New("app log retention cleaner is required")
+		err := errors.New("app log retention cleaner is required")
+		return appLogRetentionFailureResult(err, time.Time{}, config), err
 	}
+	started := time.Now()
 
 	cutoff, err := c.policy.cutoff(c.now())
 	if err != nil {
-		return 0, err
+		return appLogRetentionFailureResult(err, time.Time{}, config), err
 	}
 	if cutoff.IsZero() {
-		return 0, errors.New("app log retention cutoff must be non-zero")
+		err := errors.New("app log retention cutoff must be non-zero")
+		return appLogRetentionFailureResult(err, cutoff, config), err
 	}
 
 	logger := c.logger()
@@ -112,7 +126,10 @@ func (c *appLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) {
 		zap.Time("cutoff", cutoff),
 	)
 
-	deleted, err := c.repo.DeleteAppLogsBefore(ctx, cutoff)
+	var deleted int64
+	if !config.DryRun {
+		deleted, err = c.repo.DeleteAppLogsBefore(ctx, cutoff)
+	}
 	if err != nil {
 		logger.Error("app log retention cleanup failed",
 			zap.String("job", appLogRetentionCleanupJobName),
@@ -127,7 +144,8 @@ func (c *appLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) {
 			TimeField("cutoff", cutoff),
 			ErrorField(err),
 		)
-		return 0, fmt.Errorf("delete app logs before cutoff: %w", err)
+		wrapped := fmt.Errorf("delete app logs before cutoff: %w", err)
+		return appLogRetentionFailureResult(wrapped, cutoff, config), wrapped
 	}
 
 	logger.Info("app log retention cleanup completed",
@@ -144,7 +162,49 @@ func (c *appLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) {
 		Int64Field("deleted_rows", deleted),
 	)
 
-	return deleted, nil
+	return appLogRetentionSuccessResult(deleted, c.policy.retention, cutoff, config, started), nil
+}
+
+func appLogRetentionSuccessResult(deleted int64, retention time.Duration, cutoff time.Time, config appLogRetentionJobConfig, started time.Time) cronx.JobRunResult {
+	durationMS := time.Since(started).Milliseconds()
+	retentionDays := int(retention.Hours() / hoursPerDay)
+	return cronx.JobRunResult{
+		Summary:          fmt.Sprintf("deleted %d rows", deleted),
+		Stage:            "completed",
+		AffectedResource: "app_log",
+		Metrics: map[string]any{
+			"deletedCount":  deleted,
+			"retentionDays": retentionDays,
+			"batchSize":     config.BatchSize,
+			"dryRun":        config.DryRun,
+			"durationMs":    durationMS,
+		},
+		Details: map[string]any{
+			"operation":     "app_log_retention_cleanup",
+			"retentionDays": retentionDays,
+			"cutoffTime":    cutoff.UTC().Format(time.RFC3339Nano),
+			"batchSize":     config.BatchSize,
+			"dryRun":        config.DryRun,
+			"durationMs":    durationMS,
+		},
+	}
+}
+
+func appLogRetentionFailureResult(err error, cutoff time.Time, config appLogRetentionJobConfig) cronx.JobRunResult {
+	details := map[string]any{"operation": "app_log_retention_cleanup", "batchSize": config.BatchSize, "dryRun": config.DryRun}
+	if !cutoff.IsZero() {
+		details["cutoffTime"] = cutoff.UTC().Format(time.RFC3339Nano)
+	}
+	return cronx.JobRunResult{Summary: err.Error(), Stage: "failed", AffectedResource: "app_log", Details: details, Warnings: []string{err.Error()}}
+}
+
+func decodeAppLogRetentionJobConfig(configJSON string) appLogRetentionJobConfig {
+	config := appLogRetentionJobConfig{BatchSize: appLogRetentionDefaultBatchSize}
+	_ = json.Unmarshal([]byte(configJSON), &config)
+	if config.BatchSize <= 0 {
+		config.BatchSize = appLogRetentionDefaultBatchSize
+	}
+	return config
 }
 
 // RegisterAppLogRetentionCleanupJob registers the logger-owned app-log cleanup job.
@@ -172,12 +232,13 @@ func RegisterAppLogRetentionCleanupJob(
 		Description:           "Deletes app logs beyond the configured retention window.",
 		DisplayMessageKey:     appLogRetentionCleanupJobDisplayKey,
 		DescriptionMessageKey: appLogRetentionCleanupJobDescriptionKey,
+		ConfigSchema:          appLogRetentionCleanupConfigSchema,
+		DefaultConfig:         appLogRetentionCleanupDefaultConfig,
 		Schedule:              appLogRetentionCleanupJobSchedule,
 		DefaultEnabled:        true,
 		Module:                appLogRetentionCleanupJobModule,
-		Run: func(ctx context.Context) error {
-			_, runErr := cleaner.cleanup(ctx)
-			return runErr
+		Handler: func(ctx context.Context, configJSON string) (cronx.JobRunResult, error) {
+			return cleaner.cleanup(ctx, decodeAppLogRetentionJobConfig(configJSON))
 		},
 	})
 

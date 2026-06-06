@@ -7,7 +7,8 @@ import ScheduledTaskListPage from './index.vue';
 const apiMocks = vi.hoisted(() => ({
   createScheduledTask: vi.fn(),
   getScheduledTask: vi.fn(),
-  getScheduledTaskJobs: vi.fn(),
+  getScheduledTaskJobDefinition: vi.fn(),
+  getScheduledTaskJobDefinitions: vi.fn(),
   getScheduledTaskRuns: vi.fn(),
   getScheduledTasks: vi.fn(),
   updateScheduledTask: vi.fn(),
@@ -17,8 +18,20 @@ const translations = vi.hoisted(
   (): Record<string, string> => ({
     'scheduledTask.accessLogRetention.description': '删除超过配置保留窗口的访问日志。',
     'scheduledTask.accessLogRetention.title': '访问日志保留清理',
+    'scheduledTask.accessLogRetention.config.batchSize.description': '单次清理最多删除的访问日志行数。',
+    'scheduledTask.accessLogRetention.config.batchSize.title': '批量大小',
+    'scheduledTask.accessLogRetention.config.dryRun.description': '只预览清理结果，不删除访问日志。',
+    'scheduledTask.accessLogRetention.config.dryRun.title': '试运行',
+    'scheduledTask.appLogRetention.config.batchSize.description': '单次清理最多删除的应用日志行数。',
+    'scheduledTask.appLogRetention.config.batchSize.title': '批量大小',
+    'scheduledTask.appLogRetention.config.dryRun.description': '只预览清理结果，不删除应用日志。',
+    'scheduledTask.appLogRetention.config.dryRun.title': '试运行',
     'scheduledTask.appLogRetention.description': '删除超过配置保留窗口的应用日志。',
     'scheduledTask.appLogRetention.title': '应用日志保留清理',
+    'scheduledTask.auditLogRetention.config.batchSize.description': '单次清理最多删除的审计日志行数。',
+    'scheduledTask.auditLogRetention.config.batchSize.title': '批量大小',
+    'scheduledTask.auditLogRetention.config.dryRun.description': '只预览清理结果，不删除审计日志。',
+    'scheduledTask.auditLogRetention.config.dryRun.title': '试运行',
     'scheduledTask.auditLogRetention.description': '删除超过配置保留窗口的审计日志。',
     'scheduledTask.auditLogRetention.title': '审计日志保留清理',
     'scheduledTask.cronDescription.daily': '每天 {hour}:00 执行一次。',
@@ -44,6 +57,12 @@ const translations = vi.hoisted(
     'scheduledTask.list.description': '管理绑定到 Job Definition 的定时任务。',
     'scheduledTask.list.detail.none': '无',
     'scheduledTask.list.detail.noError': '未记录错误',
+    'scheduledTask.list.detail.behavior': '任务行为',
+    'scheduledTask.list.detail.effectiveConfig': '最终配置',
+    'scheduledTask.list.detail.stage': '阶段',
+    'scheduledTask.list.detail.affectedResource': '影响资源',
+    'scheduledTask.list.detail.metrics': '指标',
+    'scheduledTask.list.detail.rawResultJson': '原始结果 JSON',
     'scheduledTask.list.disable': '停用',
     'scheduledTask.list.edit': '编辑',
     'scheduledTask.list.enable': '启用',
@@ -60,8 +79,16 @@ const translations = vi.hoisted(
     'scheduledTask.cron.advancedExpression': '高级 Cron 表达式',
     'scheduledTask.cron.timezone': '时区',
     'scheduledTask.list.form.cronExpression': 'Cron 表达式',
+    'scheduledTask.list.form.configHint': '根据 Job Definition 的 JSON Schema 填写配置。',
+    'scheduledTask.list.form.configJsonInvalidHint': '配置必须是合法 JSON。',
+    'scheduledTask.list.form.configJsonPlaceholder': '{\n  "batchSize": 1000\n}',
+    'scheduledTask.list.form.configNumberPlaceholder': '请输入数值',
+    'scheduledTask.list.form.configSelectPlaceholder': '请选择',
+    'scheduledTask.list.form.configStringPlaceholder': '请输入内容',
     'scheduledTask.list.form.formatJson': '格式化 JSON',
+    'scheduledTask.list.form.noConfigFields': '此 Job Definition 暂无可配置项。',
     'scheduledTask.list.form.cronRequiredHint': '请填写 Cron 表达式。',
+    'scheduledTask.list.form.sectionConfig': '任务配置',
     'scheduledTask.list.loadError': '定时任务数据加载失败。',
     'scheduledTask.list.metric.enabled': '已启用',
     'scheduledTask.list.metric.enabledDescription': '参与调度',
@@ -74,6 +101,14 @@ const translations = vi.hoisted(
     'scheduledTask.list.more': '更多',
     'scheduledTask.list.refresh': '刷新',
     'scheduledTask.list.run': '立即执行',
+    'scheduledTask.list.runDialog.affectedResource': '影响资源',
+    'scheduledTask.list.runDialog.batchSize': '批量大小',
+    'scheduledTask.list.runDialog.cleanupDescription': '{behavior} 请确认清理范围后执行。',
+    'scheduledTask.list.runDialog.cutoffPolicy': '截止策略/时间',
+    'scheduledTask.list.runDialog.dryRun': '试运行',
+    'scheduledTask.list.runDialog.expectedBehavior': '预期行为',
+    'scheduledTask.list.runDialog.retentionDays': '保留天数',
+    'scheduledTask.list.resource.accessLog': '访问日志',
     'scheduledTask.list.save': '保存',
     'scheduledTask.list.status.failed': '失败',
     'scheduledTask.list.status.idle': '空闲',
@@ -91,7 +126,8 @@ vi.mock('../../api/scheduled-task', () => ({
   disableScheduledTask: vi.fn(),
   enableScheduledTask: vi.fn(),
   getScheduledTask: apiMocks.getScheduledTask,
-  getScheduledTaskJobs: apiMocks.getScheduledTaskJobs,
+  getScheduledTaskJobDefinition: apiMocks.getScheduledTaskJobDefinition,
+  getScheduledTaskJobDefinitions: apiMocks.getScheduledTaskJobDefinitions,
   getScheduledTaskRun: vi.fn(),
   getScheduledTaskRuns: apiMocks.getScheduledTaskRuns,
   getScheduledTasks: apiMocks.getScheduledTasks,
@@ -160,7 +196,8 @@ function scheduledTasksResponse() {
         schedule: '*/5 * * * *',
         status: 'idle',
         running: false,
-        params_json: '{}',
+        config_json: '{"batchSize":500}',
+        effective_config: '{"dryRun":false,"batchSize":500}',
         last_run: {
           id: 101,
           trigger_type: 'cron',
@@ -169,6 +206,8 @@ function scheduledTasksResponse() {
           finished_at: '2026-06-05T00:00:05Z',
           duration_ms: 5000,
           error_summary: '',
+          result_json:
+            '{"summary":"Deleted 3 access log rows.","stage":"completed","affected_resource":"access_log","metrics":{"deletedRows":3}}',
         },
       },
       {
@@ -186,7 +225,7 @@ function scheduledTasksResponse() {
         schedule: '*/5 * * * *',
         status: 'idle',
         running: false,
-        params_json: '{}',
+        config_json: '{}',
         last_run: {
           id: 102,
           trigger_type: 'cron',
@@ -195,6 +234,7 @@ function scheduledTasksResponse() {
           finished_at: '2026-06-05T00:10:01Z',
           duration_ms: 1000,
           error_summary: 'retention window is invalid',
+          result_json: '{"stage":"failed","affected_resource":"app_log","warnings":["retention window is invalid"]}',
         },
       },
       {
@@ -212,7 +252,7 @@ function scheduledTasksResponse() {
         schedule: '*/5 * * * *',
         status: 'idle',
         running: false,
-        params_json: '{}',
+        config_json: '{}',
       },
       {
         key: 'custom.task',
@@ -229,7 +269,7 @@ function scheduledTasksResponse() {
         schedule: '0 17 * * *',
         status: 'idle',
         running: false,
-        params_json: '{}',
+        config_json: '{}',
       },
     ],
     total: 4,
@@ -237,6 +277,32 @@ function scheduledTasksResponse() {
 }
 
 function jobDefinitionsResponse() {
+  const configSchemaJson = (prefix: string, resource: string) =>
+    JSON.stringify({
+      type: 'object',
+      properties: {
+        dryRun: {
+          type: 'boolean',
+          'x-title-key': `scheduledTask.${prefix}.config.dryRun.title`,
+          'x-description-key': `scheduledTask.${prefix}.config.dryRun.description`,
+          title: 'Dry run',
+          description: `Preview cleanup without deleting ${resource}.`,
+          default: false,
+        },
+        batchSize: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 10000,
+          'x-title-key': `scheduledTask.${prefix}.config.batchSize.title`,
+          'x-description-key': `scheduledTask.${prefix}.config.batchSize.description`,
+          title: 'Batch size',
+          description: `Maximum ${resource} rows to delete in one cleanup batch.`,
+          default: 1000,
+        },
+      },
+      additionalProperties: false,
+    });
+
   return {
     items: [
       {
@@ -247,8 +313,8 @@ function jobDefinitionsResponse() {
         description_key: 'scheduledTask.accessLogRetention.description',
         title: 'Access log retention cleanup',
         description: 'Deletes access logs beyond the configured retention window.',
-        params_schema_json: '{}',
-        default_params_json: '{}',
+        config_schema_json: configSchemaJson('accessLogRetention', 'access logs'),
+        default_config_json: '{"dryRun":false,"batchSize":1000}',
         default_cron_expression: '*/5 * * * *',
         default_enabled: true,
       },
@@ -260,8 +326,8 @@ function jobDefinitionsResponse() {
         description_key: 'scheduledTask.appLogRetention.description',
         title: 'App log retention cleanup',
         description: 'Deletes app logs beyond the configured retention window.',
-        params_schema_json: '{}',
-        default_params_json: '{}',
+        config_schema_json: configSchemaJson('appLogRetention', 'app logs'),
+        default_config_json: '{"dryRun":false,"batchSize":1000}',
         default_cron_expression: '*/5 * * * *',
         default_enabled: true,
       },
@@ -273,8 +339,8 @@ function jobDefinitionsResponse() {
         description_key: 'scheduledTask.auditLogRetention.description',
         title: 'Audit log retention cleanup',
         description: 'Deletes audit logs beyond the configured retention window.',
-        params_schema_json: '{}',
-        default_params_json: '{}',
+        config_schema_json: configSchemaJson('auditLogRetention', 'audit logs'),
+        default_config_json: '{"dryRun":false,"batchSize":1000}',
         default_cron_expression: '*/5 * * * *',
         default_enabled: true,
       },
@@ -403,12 +469,14 @@ const CronExpressionFieldStub = defineComponent({
 
 const PassthroughStub = defineComponent({
   name: 'PassthroughStub',
-  props: ['header', 'label'],
+  props: ['header', 'help', 'label', 'tips'],
   setup(props, { attrs, slots }) {
     return () =>
       h('div', attrs, [
         props.header,
         props.label,
+        props.help,
+        props.tips,
         slots.content?.(),
         slots.default?.(),
         slots.footer?.(),
@@ -450,6 +518,7 @@ function mountPage() {
         TForm: PassthroughStub,
         TFormItem: PassthroughStub,
         TInput: InputStub,
+        TInputNumber: InputStub,
         TOption: PassthroughStub,
         TOptionGroup: PassthroughStub,
         TRadioButton: PassthroughStub,
@@ -477,7 +546,14 @@ describe('ScheduledTaskListPage', () => {
       }
       return task;
     });
-    apiMocks.getScheduledTaskJobs.mockResolvedValue(jobDefinitionsResponse());
+    apiMocks.getScheduledTaskJobDefinitions.mockResolvedValue(jobDefinitionsResponse());
+    apiMocks.getScheduledTaskJobDefinition.mockImplementation(async (jobKey: string) => {
+      const job = jobDefinitionsResponse().items.find((item) => item.key === jobKey);
+      if (!job) {
+        throw new Error('not found');
+      }
+      return job;
+    });
     apiMocks.getScheduledTaskRuns.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
     apiMocks.updateScheduledTask.mockImplementation(async (taskKey: string, payload: Record<string, unknown>) => ({
       ...scheduledTasksResponse().items[0],
@@ -547,7 +623,7 @@ describe('ScheduledTaskListPage', () => {
 
     const firstResultCell = wrapper.find('tbody tr:first-child td[data-col="recent_result"]');
     expect(firstResultCell.text()).toContain('成功');
-    expect(firstResultCell.text()).toContain('未记录错误');
+    expect(firstResultCell.text()).toContain('Deleted 3 access log rows.');
     expect(firstResultCell.text()).not.toContain('成功无');
 
     const secondResultCell = wrapper.find('tbody tr:nth-child(2) td[data-col="recent_result"]');
@@ -575,7 +651,38 @@ describe('ScheduledTaskListPage', () => {
       'httpx.access-log-retention-cleanup',
       expect.objectContaining({
         cron_expression: '0 */10 * * * *',
+        config_json: expect.stringContaining('"batchSize": 500'),
       }),
     );
+  });
+
+  it('renders schema config fields when editing builtin cleanup tasks', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const editTrigger = wrapper.findAll('*').find((node) => node.text() === '编辑');
+    expect(editTrigger).toBeTruthy();
+    await editTrigger!.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('任务配置');
+    expect(wrapper.text()).toContain('试运行');
+    expect(wrapper.text()).toContain('批量大小');
+    expect(wrapper.text()).toContain('单次清理最多删除的访问日志行数。');
+    expect(wrapper.text()).not.toContain('此 Job Definition 暂无可配置项。');
+  });
+
+  it('renders schema config labels from x-title-key in the form surface', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const viewTrigger = wrapper.findAll('*').find((node) => node.text() === '查看');
+    expect(viewTrigger).toBeTruthy();
+    await viewTrigger!.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('试运行');
+    expect(wrapper.text()).toContain('批量大小');
+    expect(wrapper.text()).toContain('单次清理最多删除的访问日志行数。');
   });
 });

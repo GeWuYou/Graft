@@ -31,3 +31,7 @@ properties:
     type: string
   result_summary:
     type: string
+  result_json:
+    type: string
+    pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
+    description: Structured JobRunResult JSON object string.

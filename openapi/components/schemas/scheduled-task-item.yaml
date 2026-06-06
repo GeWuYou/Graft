@@ -42,10 +42,14 @@ properties:
   schedule:
     type: string
     description: Cron expression validated by the scheduler runtime.
-  params_json:
+  config_json:
     type: string
     pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
     description: JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
+  effective_config:
+    type: string
+    pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
+    description: Effective config JSON object string computed by merging Job Definition default_config with task config_json.
   last_run:
     $ref: ./scheduled-task-last-run.yaml
   next_run_at:

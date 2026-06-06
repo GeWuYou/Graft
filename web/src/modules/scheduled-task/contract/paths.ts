@@ -4,7 +4,8 @@ export const SCHEDULED_TASK_ROUTE_PATH = {
 
 export const SCHEDULED_TASK_API_PATH = {
   LIST: '/api/scheduled-tasks',
-  JOBS: '/api/scheduled-tasks/jobs',
+  JOB_DEFINITIONS: '/api/scheduled-tasks/job-definitions',
+  JOB_DEFINITION_DETAIL: '/api/scheduled-tasks/job-definitions/{jobKey}',
   DETAIL: '/api/scheduled-tasks/{taskKey}',
   ENABLE: '/api/scheduled-tasks/{taskKey}/enable',
   DISABLE: '/api/scheduled-tasks/{taskKey}/disable',
@@ -15,6 +16,10 @@ export const SCHEDULED_TASK_API_PATH = {
 
 export function buildScheduledTaskDetailApiPath(taskKey: string) {
   return SCHEDULED_TASK_API_PATH.DETAIL.replace('{taskKey}', encodeURIComponent(taskKey));
+}
+
+export function buildScheduledTaskJobDefinitionDetailApiPath(jobKey: string) {
+  return SCHEDULED_TASK_API_PATH.JOB_DEFINITION_DETAIL.replace('{jobKey}', encodeURIComponent(jobKey));
 }
 
 export function buildScheduledTaskEnableApiPath(taskKey: string) {

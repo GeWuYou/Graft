@@ -5,8 +5,8 @@ required:
   - module
   - display_name_key
   - description_key
-  - params_schema_json
-  - default_params_json
+  - config_schema_json
+  - default_config_json
   - default_cron_expression
   - default_enabled
 properties:
@@ -27,12 +27,12 @@ properties:
   description:
     type: string
     description: Direct display fallback when the client has no translation for description_key.
-  params_schema_json:
+  config_schema_json:
     type: string
-    description: JSON Schema string for Scheduled Task parameters accepted by this Job Definition.
-  default_params_json:
+    description: JSON Schema string for Scheduled Task config accepted by this Job Definition.
+  default_config_json:
     type: string
-    description: Default JSON object string for a new Scheduled Task bound to this Job Definition.
+    description: Default config JSON object string for a new Scheduled Task bound to this Job Definition.
   default_cron_expression:
     type: string
     description: Default cron expression declared by the Job Definition.

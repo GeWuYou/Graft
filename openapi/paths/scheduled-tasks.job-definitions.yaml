@@ -1,7 +1,7 @@
 get:
   tags: [scheduled-tasks]
   summary: List scheduler job definitions
-  operationId: getScheduledTaskJobs
+  operationId: getScheduledTaskJobDefinitions
   description: Returns registered Job Definitions that can be bound to Scheduled Tasks.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

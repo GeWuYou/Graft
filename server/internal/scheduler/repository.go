@@ -36,11 +36,11 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 		return err
 	}
 	for _, definition := range definitions {
-		if definition.ParamsSchema == "" {
-			definition.ParamsSchema = "{}"
+		if definition.ConfigSchema == "" {
+			definition.ConfigSchema = "{}"
 		}
-		if definition.DefaultParams == "" {
-			definition.DefaultParams = "{}"
+		if definition.DefaultConfig == "" {
+			definition.DefaultConfig = "{}"
 		}
 		if definition.CreatedAt.IsZero() {
 			definition.CreatedAt = time.Now().UTC()
@@ -58,8 +58,8 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			title,
 			description_key,
 			description,
-			params_schema,
-			default_params,
+			config_schema,
+			default_config,
 			default_cron,
 			enabled,
 			created_at,
@@ -71,8 +71,8 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			title = EXCLUDED.title,
 			description_key = EXCLUDED.description_key,
 			description = EXCLUDED.description,
-			params_schema = EXCLUDED.params_schema,
-			default_params = EXCLUDED.default_params,
+			config_schema = EXCLUDED.config_schema,
+			default_config = EXCLUDED.default_config,
 			default_cron = EXCLUDED.default_cron,
 			updated_at = EXCLUDED.updated_at
 		WHERE scheduler_job_definitions.deleted_at IS NULL`,
@@ -82,8 +82,8 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			definition.Title,
 			definition.DescriptionKey,
 			definition.Description,
-			definition.ParamsSchema,
-			definition.DefaultParams,
+			definition.ConfigSchema,
+			definition.DefaultConfig,
 			definition.DefaultCron,
 			definition.CreatedAt.UTC(),
 			definition.UpdatedAt.UTC(),
@@ -100,7 +100,7 @@ func (r *SQLJobDefinitionRepository) ListJobDefinitions(ctx context.Context) ([]
 	if err := r.ensureAvailable(); err != nil {
 		return nil, err
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, job_key, module_key, title_key, title, description_key, description, params_schema, default_params, default_cron, enabled, created_at, updated_at, deleted_at
+	rows, err := r.db.QueryContext(ctx, `SELECT id, job_key, module_key, title_key, title, description_key, description, config_schema, default_config, default_cron, enabled, created_at, updated_at, deleted_at
 	FROM scheduler_job_definitions
 	WHERE deleted_at IS NULL
 	ORDER BY module_key ASC, title ASC, id ASC`)
@@ -118,7 +118,7 @@ func (r *SQLJobDefinitionRepository) GetJobDefinition(ctx context.Context, key s
 	if key == "" {
 		return JobDefinition{}, errors.New("scheduler job key is required")
 	}
-	row := r.db.QueryRowContext(ctx, `SELECT id, job_key, module_key, title_key, title, description_key, description, params_schema, default_params, default_cron, enabled, created_at, updated_at, deleted_at
+	row := r.db.QueryRowContext(ctx, `SELECT id, job_key, module_key, title_key, title, description_key, description, config_schema, default_config, default_cron, enabled, created_at, updated_at, deleted_at
 	FROM scheduler_job_definitions
 	WHERE job_key = $1 AND deleted_at IS NULL
 	LIMIT 1`, key)
@@ -156,8 +156,8 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 	}
 	for _, task := range tasks {
 		task.Builtin = true
-		if task.ParamsJSON == "" {
-			task.ParamsJSON = "{}"
+		if task.ConfigJSON == "" {
+			task.ConfigJSON = "{}"
 		}
 		if task.CreatedAt.IsZero() {
 			task.CreatedAt = time.Now().UTC()
@@ -177,19 +177,17 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 			cron_expression,
 			enabled,
 			builtin,
-			params_json,
 			task_type,
 			config_json,
 			created_at,
 			updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, 'job', $8, $9, $10)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, true, 'job', $8, $9, $10)
 		ON CONFLICT (task_key) DO UPDATE
 		SET job_key = EXCLUDED.job_key,
 			module_key = EXCLUDED.module_key,
 			title = EXCLUDED.title,
 			description = EXCLUDED.description,
 			builtin = true,
-			params_json = EXCLUDED.params_json,
 			config_json = EXCLUDED.config_json,
 			updated_at = EXCLUDED.updated_at
 		WHERE scheduled_tasks.builtin = true`,
@@ -200,7 +198,7 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 			task.Description,
 			task.CronExpression,
 			task.Enabled,
-			task.ParamsJSON,
+			task.ConfigJSON,
 			task.CreatedAt.UTC(),
 			task.UpdatedAt.UTC(),
 		)
@@ -217,8 +215,8 @@ func (r *SQLTaskRepository) CreateTask(ctx context.Context, task TaskDefinition)
 		return TaskDefinition{}, err
 	}
 	task.Builtin = false
-	if task.ParamsJSON == "" {
-		task.ParamsJSON = "{}"
+	if task.ConfigJSON == "" {
+		task.ConfigJSON = "{}"
 	}
 	if task.CreatedAt.IsZero() {
 		task.CreatedAt = time.Now().UTC()
@@ -239,13 +237,12 @@ func (r *SQLTaskRepository) CreateTask(ctx context.Context, task TaskDefinition)
 		cron_expression,
 		enabled,
 		builtin,
-		params_json,
-		task_type,
-		config_json,
+			task_type,
+			config_json,
 		created_at,
 		updated_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, 'job', $8, $9, $10)
-	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, params_json, created_at, updated_at, deleted_at`,
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, false, 'job', $8, $9, $10)
+	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at`,
 		task.TaskKey,
 		task.JobKey,
 		task.ModuleKey,
@@ -253,7 +250,7 @@ func (r *SQLTaskRepository) CreateTask(ctx context.Context, task TaskDefinition)
 		task.Description,
 		task.CronExpression,
 		task.Enabled,
-		task.ParamsJSON,
+		task.ConfigJSON,
 		task.CreatedAt.UTC(),
 		task.UpdatedAt.UTC(),
 	)
@@ -283,16 +280,15 @@ func (r *SQLTaskRepository) UpdateTask(ctx context.Context, key string, patch Ta
 		description = $2,
 		cron_expression = $3,
 		enabled = $4,
-		params_json = $5,
 		config_json = $5,
 		updated_at = $6
 	WHERE task_key = $7 AND deleted_at IS NULL
-	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, params_json, created_at, updated_at, deleted_at`,
+	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at`,
 		next.Title,
 		next.Description,
 		next.CronExpression,
 		next.Enabled,
-		next.ParamsJSON,
+		next.ConfigJSON,
 		next.UpdatedAt,
 		key,
 	)
@@ -306,7 +302,7 @@ func validateTaskPatch(key string, existing TaskDefinition, patch TaskMutation) 
 	if patch.JobKey != "" && patch.JobKey != existing.JobKey {
 		return ErrTaskImmutable
 	}
-	if existing.Builtin && (patch.Title != "" || patch.Description != "" || patch.ParamsJSON != "") {
+	if existing.Builtin && (patch.Title != "" || patch.Description != "" || patch.ConfigJSON != "") {
 		return ErrTaskImmutable
 	}
 	return nil
@@ -326,8 +322,8 @@ func applyTaskPatch(existing TaskDefinition, patch TaskMutation) TaskDefinition 
 	if patch.EnabledSet {
 		next.Enabled = patch.Enabled
 	}
-	if patch.ParamsJSON != "" {
-		next.ParamsJSON = patch.ParamsJSON
+	if patch.ConfigJSON != "" {
+		next.ConfigJSON = patch.ConfigJSON
 	}
 	return next
 }
@@ -363,7 +359,7 @@ func (r *SQLTaskRepository) SetTaskEnabled(ctx context.Context, key string, enab
 	SET enabled = $1,
 		updated_at = $2
 	WHERE task_key = $3 AND deleted_at IS NULL
-	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, params_json, created_at, updated_at, deleted_at`,
+	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at`,
 		enabled,
 		time.Now().UTC(),
 		key,
@@ -384,7 +380,7 @@ func (r *SQLTaskRepository) ListTasks(ctx context.Context, query TaskListQuery) 
 	if err != nil {
 		return nil, 0, err
 	}
-	statement := `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, params_json, created_at, updated_at, deleted_at
+	statement := `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at
 	FROM scheduled_tasks
 	WHERE deleted_at IS NULL
 	ORDER BY builtin DESC, created_at ASC, id ASC`
@@ -431,7 +427,7 @@ func (r *SQLTaskRepository) GetTask(ctx context.Context, key string) (TaskDefini
 	if key == "" {
 		return TaskDefinition{}, errors.New("scheduler task key is required")
 	}
-	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, params_json, created_at, updated_at, deleted_at
+	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at
 	FROM scheduled_tasks
 	WHERE task_key = $1 AND deleted_at IS NULL
 	LIMIT 1`, key)
@@ -491,12 +487,13 @@ func (r *SQLRunRepository) CreateRun(ctx context.Context, run TaskRun) (TaskRun,
 		status,
 		error,
 		result_summary,
+		result_json,
 		error_message,
 		started_at,
 		finished_at,
 		duration_ms,
 		created_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '', '', $10, NULL, NULL, $11)
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '', '{}', '', $10, NULL, NULL, $11)
 	RETURNING id`,
 		run.TaskKey,
 		run.JobKey,
@@ -524,32 +521,26 @@ func (r *SQLRunRepository) CreateRun(ctx context.Context, run TaskRun) (TaskRun,
 }
 
 // FinishRun marks a running execution record as finished and returns the updated row.
-func (r *SQLRunRepository) FinishRun(
-	ctx context.Context,
-	id uint64,
-	status RunStatus,
-	finishedAt time.Time,
-	resultSummary string,
-	errorMessage string,
-) (TaskRun, error) {
-	sqlID, err := r.sqlRunID(id)
+func (r *SQLRunRepository) FinishRun(ctx context.Context, command RunFinishCommand) (TaskRun, error) {
+	sqlID, err := r.sqlRunID(command.ID)
 	if err != nil {
 		return TaskRun{}, err
 	}
-	if err := validateRunFinish(status, finishedAt); err != nil {
+	if err := validateRunFinish(command.Status, command.FinishedAt); err != nil {
 		return TaskRun{}, err
 	}
-	durationMS, err := r.runDurationMS(ctx, sqlID, finishedAt)
+	durationMS, err := r.runDurationMS(ctx, sqlID, command.FinishedAt)
 	if err != nil {
 		return TaskRun{}, err
 	}
 	if err := r.updateFinishedRun(ctx, finishedRunUpdate{
 		sqlID:         sqlID,
-		status:        status,
-		finishedAt:    finishedAt,
+		status:        command.Status,
+		finishedAt:    command.FinishedAt,
 		durationMS:    durationMS,
-		resultSummary: resultSummary,
-		errorMessage:  errorMessage,
+		resultJSON:    command.ResultJSON,
+		resultSummary: command.ResultSummary,
+		errorMessage:  command.ErrorMessage,
 	}); err != nil {
 		return TaskRun{}, err
 	}
@@ -565,6 +556,7 @@ type finishedRunUpdate struct {
 	status        RunStatus
 	finishedAt    time.Time
 	durationMS    int64
+	resultJSON    string
 	resultSummary string
 	errorMessage  string
 }
@@ -574,13 +566,15 @@ func (r *SQLRunRepository) updateFinishedRun(ctx context.Context, update finishe
 	SET status = $1,
 		error = $2,
 		result_summary = $3,
-		error_message = $4,
-		finished_at = $5,
-		duration_ms = $6
-	WHERE id = $7`,
+		result_json = $4,
+		error_message = $5,
+		finished_at = $6,
+		duration_ms = $7
+	WHERE id = $8`,
 		string(update.status),
 		update.errorMessage,
 		update.resultSummary,
+		defaultJSONObject(update.resultJSON),
 		update.errorMessage,
 		update.finishedAt.UTC(),
 		update.durationMS,
@@ -613,7 +607,7 @@ func (r *SQLRunRepository) ListRuns(ctx context.Context, query RunListQuery) (Ru
 }
 
 func (r *SQLRunRepository) listRunItems(ctx context.Context, query RunListQuery) ([]TaskRun, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, task_key, job_key, task_name, owner, module, trigger_type, status, error, result_summary, error_message, started_at, finished_at, duration_ms, created_at
+	rows, err := r.db.QueryContext(ctx, `SELECT id, task_key, job_key, task_name, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
 	FROM scheduler_task_runs
 	WHERE task_key = $1
 	ORDER BY started_at DESC, id DESC
@@ -647,7 +641,7 @@ func (r *SQLRunRepository) LatestRunByTask(ctx context.Context, taskKey string) 
 	if taskKey == "" {
 		return TaskRun{}, false, errors.New("scheduler run task key is required")
 	}
-	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, task_name, owner, module, trigger_type, status, error, result_summary, error_message, started_at, finished_at, duration_ms, created_at
+	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, task_name, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
 	FROM scheduler_task_runs
 	WHERE task_key = $1
 	ORDER BY started_at DESC, id DESC
@@ -743,7 +737,7 @@ func (r *SQLRunRepository) runDurationMS(ctx context.Context, sqlID int64, finis
 }
 
 func (r *SQLRunRepository) findRunBySQLID(ctx context.Context, sqlID int64) (TaskRun, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, task_name, owner, module, trigger_type, status, error, result_summary, error_message, started_at, finished_at, duration_ms, created_at
+	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, task_name, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
 	FROM scheduler_task_runs
 	WHERE id = $1`, sqlID)
 	return scanTaskRun(row)
@@ -786,6 +780,7 @@ func scanTaskRun(scanner rowScanner) (TaskRun, error) {
 	var status string
 	var legacyError string
 	var resultSummary string
+	var resultJSON string
 	var errorMessage string
 	var finishedAt sql.NullTime
 	var durationMS sql.NullInt64
@@ -800,6 +795,7 @@ func scanTaskRun(scanner rowScanner) (TaskRun, error) {
 		&status,
 		&legacyError,
 		&resultSummary,
+		&resultJSON,
 		&errorMessage,
 		&run.StartedAt,
 		&finishedAt,
@@ -816,6 +812,7 @@ func scanTaskRun(scanner rowScanner) (TaskRun, error) {
 	run.TriggerType = TriggerType(triggerType)
 	run.Status = RunStatus(status)
 	run.Result = resultSummary
+	run.ResultJSON = defaultJSONObject(resultJSON)
 	if errorMessage != "" {
 		run.Error = errorMessage
 	} else {
@@ -857,7 +854,7 @@ func scanTaskDefinition(scanner rowScanner) (TaskDefinition, error) {
 		&task.CronExpression,
 		&task.Enabled,
 		&task.Builtin,
-		&task.ParamsJSON,
+		&task.ConfigJSON,
 		&task.CreatedAt,
 		&task.UpdatedAt,
 		&deletedAt,
@@ -888,8 +885,8 @@ func scanJobDefinition(scanner rowScanner) (JobDefinition, error) {
 		&definition.Title,
 		&definition.DescriptionKey,
 		&definition.Description,
-		&definition.ParamsSchema,
-		&definition.DefaultParams,
+		&definition.ConfigSchema,
+		&definition.DefaultConfig,
 		&definition.DefaultCron,
 		&definition.Enabled,
 		&definition.CreatedAt,

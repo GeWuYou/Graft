@@ -295,45 +295,105 @@ func (e PostScheduledTask500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for GetScheduledTaskJobs401JSONResponseBodySuccess.
+// Defines values for GetScheduledTaskJobDefinitions401JSONResponseBodySuccess.
 const (
-	GetScheduledTaskJobs401JSONResponseBodySuccessFalse GetScheduledTaskJobs401JSONResponseBodySuccess = false
+	GetScheduledTaskJobDefinitions401JSONResponseBodySuccessFalse GetScheduledTaskJobDefinitions401JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the GetScheduledTaskJobs401JSONResponseBodySuccess enum.
-func (e GetScheduledTaskJobs401JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinitions401JSONResponseBodySuccess enum.
+func (e GetScheduledTaskJobDefinitions401JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case GetScheduledTaskJobs401JSONResponseBodySuccessFalse:
+	case GetScheduledTaskJobDefinitions401JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for GetScheduledTaskJobs403JSONResponseBodySuccess.
+// Defines values for GetScheduledTaskJobDefinitions403JSONResponseBodySuccess.
 const (
-	GetScheduledTaskJobs403JSONResponseBodySuccessFalse GetScheduledTaskJobs403JSONResponseBodySuccess = false
+	GetScheduledTaskJobDefinitions403JSONResponseBodySuccessFalse GetScheduledTaskJobDefinitions403JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the GetScheduledTaskJobs403JSONResponseBodySuccess enum.
-func (e GetScheduledTaskJobs403JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinitions403JSONResponseBodySuccess enum.
+func (e GetScheduledTaskJobDefinitions403JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case GetScheduledTaskJobs403JSONResponseBodySuccessFalse:
+	case GetScheduledTaskJobDefinitions403JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for GetScheduledTaskJobs500JSONResponseBodySuccess.
+// Defines values for GetScheduledTaskJobDefinitions500JSONResponseBodySuccess.
 const (
-	GetScheduledTaskJobs500JSONResponseBodySuccessFalse GetScheduledTaskJobs500JSONResponseBodySuccess = false
+	GetScheduledTaskJobDefinitions500JSONResponseBodySuccessFalse GetScheduledTaskJobDefinitions500JSONResponseBodySuccess = false
 )
 
-// Valid indicates whether the value is a known member of the GetScheduledTaskJobs500JSONResponseBodySuccess enum.
-func (e GetScheduledTaskJobs500JSONResponseBodySuccess) Valid() bool {
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinitions500JSONResponseBodySuccess enum.
+func (e GetScheduledTaskJobDefinitions500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case GetScheduledTaskJobs500JSONResponseBodySuccessFalse:
+	case GetScheduledTaskJobDefinitions500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetScheduledTaskJobDefinition401JSONResponseBodySuccess.
+const (
+	GetScheduledTaskJobDefinition401JSONResponseBodySuccessFalse GetScheduledTaskJobDefinition401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinition401JSONResponseBodySuccess enum.
+func (e GetScheduledTaskJobDefinition401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetScheduledTaskJobDefinition401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetScheduledTaskJobDefinition403JSONResponseBodySuccess.
+const (
+	GetScheduledTaskJobDefinition403JSONResponseBodySuccessFalse GetScheduledTaskJobDefinition403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinition403JSONResponseBodySuccess enum.
+func (e GetScheduledTaskJobDefinition403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetScheduledTaskJobDefinition403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetScheduledTaskJobDefinition404JSONResponseBodySuccess.
+const (
+	GetScheduledTaskJobDefinition404JSONResponseBodySuccessFalse GetScheduledTaskJobDefinition404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinition404JSONResponseBodySuccess enum.
+func (e GetScheduledTaskJobDefinition404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetScheduledTaskJobDefinition404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetScheduledTaskJobDefinition500JSONResponseBodySuccess.
+const (
+	GetScheduledTaskJobDefinition500JSONResponseBodySuccessFalse GetScheduledTaskJobDefinition500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinition500JSONResponseBodySuccess enum.
+func (e GetScheduledTaskJobDefinition500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetScheduledTaskJobDefinition500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -1417,6 +1477,9 @@ type GetScheduledTasks500JSONResponseBodySuccess bool
 
 // PostScheduledTaskJSONBody defines parameters for PostScheduledTask.
 type PostScheduledTaskJSONBody struct {
+	// ConfigJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
+	ConfigJson *string `json:"config_json,omitempty"`
+
 	// CronExpression Cron expression validated by the scheduler runtime.
 	CronExpression string  `json:"cron_expression"`
 	Description    *string `json:"description,omitempty"`
@@ -1424,9 +1487,6 @@ type PostScheduledTaskJSONBody struct {
 
 	// JobKey Stable Job Definition key this Scheduled Task executes.
 	JobKey string `json:"job_key"`
-
-	// ParamsJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
-	ParamsJson *string `json:"params_json,omitempty"`
 
 	// TaskKey Stable scheduled task instance key.
 	TaskKey string `json:"task_key"`
@@ -1470,8 +1530,8 @@ type PostScheduledTask409JSONResponseBodySuccess bool
 // PostScheduledTask500JSONResponseBodySuccess defines parameters for PostScheduledTask.
 type PostScheduledTask500JSONResponseBodySuccess bool
 
-// GetScheduledTaskJobsParams defines parameters for GetScheduledTaskJobs.
-type GetScheduledTaskJobsParams struct {
+// GetScheduledTaskJobDefinitionsParams defines parameters for GetScheduledTaskJobDefinitions.
+type GetScheduledTaskJobDefinitionsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
@@ -1480,14 +1540,36 @@ type GetScheduledTaskJobsParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
-// GetScheduledTaskJobs401JSONResponseBodySuccess defines parameters for GetScheduledTaskJobs.
-type GetScheduledTaskJobs401JSONResponseBodySuccess bool
+// GetScheduledTaskJobDefinitions401JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinitions.
+type GetScheduledTaskJobDefinitions401JSONResponseBodySuccess bool
 
-// GetScheduledTaskJobs403JSONResponseBodySuccess defines parameters for GetScheduledTaskJobs.
-type GetScheduledTaskJobs403JSONResponseBodySuccess bool
+// GetScheduledTaskJobDefinitions403JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinitions.
+type GetScheduledTaskJobDefinitions403JSONResponseBodySuccess bool
 
-// GetScheduledTaskJobs500JSONResponseBodySuccess defines parameters for GetScheduledTaskJobs.
-type GetScheduledTaskJobs500JSONResponseBodySuccess bool
+// GetScheduledTaskJobDefinitions500JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinitions.
+type GetScheduledTaskJobDefinitions500JSONResponseBodySuccess bool
+
+// GetScheduledTaskJobDefinitionParams defines parameters for GetScheduledTaskJobDefinition.
+type GetScheduledTaskJobDefinitionParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetScheduledTaskJobDefinition401JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinition.
+type GetScheduledTaskJobDefinition401JSONResponseBodySuccess bool
+
+// GetScheduledTaskJobDefinition403JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinition.
+type GetScheduledTaskJobDefinition403JSONResponseBodySuccess bool
+
+// GetScheduledTaskJobDefinition404JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinition.
+type GetScheduledTaskJobDefinition404JSONResponseBodySuccess bool
+
+// GetScheduledTaskJobDefinition500JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinition.
+type GetScheduledTaskJobDefinition500JSONResponseBodySuccess bool
 
 // GetScheduledTaskRunParams defines parameters for GetScheduledTaskRun.
 type GetScheduledTaskRunParams struct {
@@ -1578,13 +1660,12 @@ type GetScheduledTask500JSONResponseBodySuccess bool
 
 // PutScheduledTaskJSONBody defines parameters for PutScheduledTask.
 type PutScheduledTaskJSONBody struct {
+	// ConfigJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
+	ConfigJson     *string `json:"config_json,omitempty"`
 	CronExpression *string `json:"cron_expression,omitempty"`
 	Description    *string `json:"description,omitempty"`
 	Enabled        *bool   `json:"enabled,omitempty"`
-
-	// ParamsJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
-	ParamsJson *string `json:"params_json,omitempty"`
-	Title      *string `json:"title,omitempty"`
+	Title          *string `json:"title,omitempty"`
 }
 
 // PutScheduledTaskParams defines parameters for PutScheduledTask.

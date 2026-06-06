@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -18,7 +19,17 @@ const (
 	accessLogRetentionCleanupJobSchedule       = "0 0 17 * * *"
 	accessLogRetentionCleanupJobDisplayKey     = "scheduledTask.accessLogRetention.title"
 	accessLogRetentionCleanupJobDescriptionKey = "scheduledTask.accessLogRetention.description"
+	accessLogRetentionDefaultBatchSize         = 1000
+	hoursPerDay                                = 24
 )
+
+const accessLogRetentionCleanupConfigSchema = `{"type":"object","properties":{"dryRun":{"type":"boolean","title":"Dry run","description":"Preview cleanup without deleting access logs.","x-title-key":"scheduledTask.accessLogRetention.config.dryRun.title","x-description-key":"scheduledTask.accessLogRetention.config.dryRun.description"},"batchSize":{"type":"integer","minimum":1,"maximum":10000,"title":"Batch size","description":"Maximum access log rows to delete in one cleanup batch.","x-title-key":"scheduledTask.accessLogRetention.config.batchSize.title","x-description-key":"scheduledTask.accessLogRetention.config.batchSize.description"}},"additionalProperties":false}`
+const accessLogRetentionCleanupDefaultConfig = `{"dryRun":false,"batchSize":1000}`
+
+type accessLogRetentionJobConfig struct {
+	DryRun    bool `json:"dryRun"`
+	BatchSize int  `json:"batchSize"`
+}
 
 type accessLogRetentionPolicy struct {
 	retention time.Duration
@@ -84,17 +95,20 @@ func newAccessLogRetentionCleaner(
 	}, nil
 }
 
-func (c *accessLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) {
+func (c *accessLogRetentionCleaner) cleanup(ctx context.Context, config accessLogRetentionJobConfig) (cronx.JobRunResult, error) {
 	if c == nil {
-		return 0, errors.New("access log retention cleaner is required")
+		err := errors.New("access log retention cleaner is required")
+		return accessLogRetentionFailureResult(err, time.Time{}, config), err
 	}
+	started := time.Now()
 
 	cutoff, err := c.policy.cutoff(c.now())
 	if err != nil {
-		return 0, err
+		return accessLogRetentionFailureResult(err, time.Time{}, config), err
 	}
 	if cutoff.IsZero() {
-		return 0, errors.New("access log retention cutoff must be non-zero")
+		err := errors.New("access log retention cutoff must be non-zero")
+		return accessLogRetentionFailureResult(err, cutoff, config), err
 	}
 
 	logger := c.logger()
@@ -104,7 +118,10 @@ func (c *accessLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) 
 		zap.Time("cutoff", cutoff),
 	)
 
-	deleted, err := c.repo.DeleteAccessLogsBefore(ctx, cutoff)
+	var deleted int64
+	if !config.DryRun {
+		deleted, err = c.repo.DeleteAccessLogsBefore(ctx, cutoff)
+	}
 	if err != nil {
 		logger.Error("access log retention cleanup failed",
 			zap.String("job", accessLogRetentionCleanupJobName),
@@ -112,7 +129,8 @@ func (c *accessLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) 
 			zap.Time("cutoff", cutoff),
 			zap.Error(err),
 		)
-		return 0, fmt.Errorf("delete access logs before cutoff: %w", err)
+		wrapped := fmt.Errorf("delete access logs before cutoff: %w", err)
+		return accessLogRetentionFailureResult(wrapped, cutoff, config), wrapped
 	}
 
 	logger.Info("access log retention cleanup completed",
@@ -122,7 +140,49 @@ func (c *accessLogRetentionCleaner) cleanup(ctx context.Context) (int64, error) 
 		zap.Int64("deletedRows", deleted),
 	)
 
-	return deleted, nil
+	return accessLogRetentionSuccessResult(deleted, c.policy.retention, cutoff, config, started), nil
+}
+
+func accessLogRetentionSuccessResult(deleted int64, retention time.Duration, cutoff time.Time, config accessLogRetentionJobConfig, started time.Time) cronx.JobRunResult {
+	durationMS := time.Since(started).Milliseconds()
+	retentionDays := int(retention.Hours() / hoursPerDay)
+	return cronx.JobRunResult{
+		Summary:          fmt.Sprintf("deleted %d rows", deleted),
+		Stage:            "completed",
+		AffectedResource: "access_log",
+		Metrics: map[string]any{
+			"deletedCount":  deleted,
+			"retentionDays": retentionDays,
+			"batchSize":     config.BatchSize,
+			"dryRun":        config.DryRun,
+			"durationMs":    durationMS,
+		},
+		Details: map[string]any{
+			"operation":     "access_log_retention_cleanup",
+			"retentionDays": retentionDays,
+			"cutoffTime":    cutoff.UTC().Format(time.RFC3339Nano),
+			"batchSize":     config.BatchSize,
+			"dryRun":        config.DryRun,
+			"durationMs":    durationMS,
+		},
+	}
+}
+
+func accessLogRetentionFailureResult(err error, cutoff time.Time, config accessLogRetentionJobConfig) cronx.JobRunResult {
+	details := map[string]any{"operation": "access_log_retention_cleanup", "batchSize": config.BatchSize, "dryRun": config.DryRun}
+	if !cutoff.IsZero() {
+		details["cutoffTime"] = cutoff.UTC().Format(time.RFC3339Nano)
+	}
+	return cronx.JobRunResult{Summary: err.Error(), Stage: "failed", AffectedResource: "access_log", Details: details, Warnings: []string{err.Error()}}
+}
+
+func decodeAccessLogRetentionJobConfig(configJSON string) accessLogRetentionJobConfig {
+	config := accessLogRetentionJobConfig{BatchSize: accessLogRetentionDefaultBatchSize}
+	_ = json.Unmarshal([]byte(configJSON), &config)
+	if config.BatchSize <= 0 {
+		config.BatchSize = accessLogRetentionDefaultBatchSize
+	}
+	return config
 }
 
 // RegisterAccessLogRetentionCleanupJob registers the bounded httpx-owned access-log cleanup job.
@@ -149,12 +209,13 @@ func RegisterAccessLogRetentionCleanupJob(
 		Description:           "Deletes access logs beyond the configured retention window.",
 		DisplayMessageKey:     accessLogRetentionCleanupJobDisplayKey,
 		DescriptionMessageKey: accessLogRetentionCleanupJobDescriptionKey,
+		ConfigSchema:          accessLogRetentionCleanupConfigSchema,
+		DefaultConfig:         accessLogRetentionCleanupDefaultConfig,
 		Schedule:              accessLogRetentionCleanupJobSchedule,
 		DefaultEnabled:        true,
 		Module:                accessLogRetentionCleanupJobModule,
-		Run: func(ctx context.Context) error {
-			_, runErr := cleaner.cleanup(ctx)
-			return runErr
+		Handler: func(ctx context.Context, configJSON string) (cronx.JobRunResult, error) {
+			return cleaner.cleanup(ctx, decodeAccessLogRetentionJobConfig(configJSON))
 		},
 	})
 

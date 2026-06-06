@@ -6,6 +6,7 @@ import {
   buildScheduledTaskDetailApiPath,
   buildScheduledTaskDisableApiPath,
   buildScheduledTaskEnableApiPath,
+  buildScheduledTaskJobDefinitionDetailApiPath,
   buildScheduledTaskRunApiPath,
   buildScheduledTaskRunDetailApiPath,
   buildScheduledTaskRunsApiPath,
@@ -17,7 +18,8 @@ import {
   disableScheduledTask,
   enableScheduledTask,
   getScheduledTask,
-  getScheduledTaskJobs,
+  getScheduledTaskJobDefinition,
+  getScheduledTaskJobDefinitions,
   getScheduledTaskRun,
   getScheduledTaskRuns,
   getScheduledTasks,
@@ -56,11 +58,25 @@ describe('scheduled task api', () => {
     const requestGet = vi.mocked(request.get);
     requestGet.mockResolvedValueOnce({ items: [], total: 0 } as never);
 
-    await getScheduledTaskJobs();
+    await getScheduledTaskJobDefinitions();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: SCHEDULED_TASK_API_PATH.JOBS,
+      url: SCHEDULED_TASK_API_PATH.JOB_DEFINITIONS,
     });
+  });
+
+  it('reads job definition details through the canonical job definition detail path', async () => {
+    const requestGet = vi.mocked(request.get);
+    requestGet.mockResolvedValueOnce({ key: 'audit/job' } as never);
+
+    await getScheduledTaskJobDefinition('audit/job');
+
+    expect(requestGet).toHaveBeenCalledWith({
+      url: buildScheduledTaskJobDefinitionDetailApiPath('audit/job'),
+    });
+    expect(buildScheduledTaskJobDefinitionDetailApiPath('audit/job')).toBe(
+      '/api/scheduled-tasks/job-definitions/audit%2Fjob',
+    );
   });
 
   it('encodes scheduled task keys for detail reads', async () => {
@@ -83,7 +99,7 @@ describe('scheduled task api', () => {
       title: 'Audit retention',
       cron_expression: '*/5 * * * *',
       enabled: true,
-      params_json: '{"window_days":30}',
+      config_json: '{"window_days":30}',
     } as const;
     requestPost.mockResolvedValueOnce({ key: 'audit.retention.daily' } as never);
 

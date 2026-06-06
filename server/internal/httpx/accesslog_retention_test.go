@@ -84,12 +84,12 @@ func TestAccessLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 	now := time.Date(2026, 5, 30, 8, 30, 0, 0, time.UTC)
 	cleaner.now = func() time.Time { return now }
 
-	deleted, err := cleaner.cleanup(context.Background())
+	result, err := cleaner.cleanup(context.Background(), accessLogRetentionJobConfig{BatchSize: 1000})
 	if err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
-	if deleted != 5 {
-		t.Fatalf("expected deleted rows 5, got %d", deleted)
+	if result.Metrics["deletedCount"] != int64(5) {
+		t.Fatalf("expected deleted rows 5, got %#v", result)
 	}
 	if len(repo.cutoffs) != 1 {
 		t.Fatalf("expected one cleanup invocation, got %d", len(repo.cutoffs))
@@ -122,8 +122,10 @@ func TestAccessLogRetentionCleanerLogsFailure(t *testing.T) {
 		return time.Date(2026, 5, 30, 9, 0, 0, 0, time.UTC)
 	}
 
-	if _, err := cleaner.cleanup(context.Background()); err == nil {
+	if result, err := cleaner.cleanup(context.Background(), accessLogRetentionJobConfig{BatchSize: 1000}); err == nil {
 		t.Fatal("expected cleanup failure")
+	} else if result.Stage != "failed" || len(result.Warnings) == 0 {
+		t.Fatalf("expected failed structured result, got %#v", result)
 	}
 
 	output := buffer.String()
@@ -169,5 +171,12 @@ func TestRegisterAccessLogRetentionCleanupJob(t *testing.T) {
 	}
 	if items[0].Schedule != accessLogRetentionCleanupJobSchedule {
 		t.Fatalf("expected job schedule %q, got %q", accessLogRetentionCleanupJobSchedule, items[0].Schedule)
+	}
+	result, err := items[0].Handler(context.Background(), items[0].RuntimeDefaultConfig())
+	if err != nil {
+		t.Fatalf("run registered job: %v", err)
+	}
+	if result.AffectedResource != "access_log" || result.Metrics["deletedCount"] != int64(2) {
+		t.Fatalf("expected structured access log cleanup result, got %#v", result)
 	}
 }

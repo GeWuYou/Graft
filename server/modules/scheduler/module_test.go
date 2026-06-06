@@ -54,6 +54,10 @@ func (r *stopContextRecorderRuntime) ListJobDefinitions(context.Context) ([]sche
 	return nil, nil
 }
 
+func (r *stopContextRecorderRuntime) GetJobDefinition(context.Context, string) (schedulercore.JobDefinitionSnapshot, error) {
+	return schedulercore.JobDefinitionSnapshot{}, nil
+}
+
 func (r *stopContextRecorderRuntime) ListTasks(context.Context, schedulercore.TaskListQuery) (schedulercore.TaskListResult, error) {
 	return schedulercore.TaskListResult{}, nil
 }
@@ -128,6 +132,15 @@ func (r *schedulerAPIRuntime) ListJobDefinitions(context.Context) ([]schedulerco
 	return r.jobDefinitions, nil
 }
 
+func (r *schedulerAPIRuntime) GetJobDefinition(_ context.Context, key string) (schedulercore.JobDefinitionSnapshot, error) {
+	for _, definition := range r.jobDefinitions {
+		if definition.JobKey == key {
+			return definition, nil
+		}
+	}
+	return schedulercore.JobDefinitionSnapshot{}, schedulercore.ErrJobDefinitionNotFound
+}
+
 func (r *schedulerAPIRuntime) ListTasks(_ context.Context, query schedulercore.TaskListQuery) (schedulercore.TaskListResult, error) {
 	items := r.tasks
 	total := len(items)
@@ -177,7 +190,7 @@ func (r *schedulerAPIRuntime) SetTaskEnabled(_ context.Context, key string, enab
 			Title:      key,
 			Schedule:   "*/5 * * * * *",
 			Enabled:    enabled,
-			ParamsJSON: "{}",
+			ConfigJSON: "{}",
 		}
 	}
 	r.setResult.Enabled = enabled
@@ -220,7 +233,7 @@ func taskSnapshotFromMutation(command schedulercore.TaskMutation) schedulercore.
 		Description: command.Description,
 		Schedule:    command.CronExpression,
 		Enabled:     command.Enabled,
-		ParamsJSON:  command.ParamsJSON,
+		ConfigJSON:  command.ConfigJSON,
 	}
 }
 
@@ -283,7 +296,6 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		cron_expression text NOT NULL,
 		enabled boolean NOT NULL DEFAULT true,
 		builtin boolean NOT NULL DEFAULT false,
-		params_json text NOT NULL DEFAULT '{}',
 		config_json text NOT NULL DEFAULT '{}',
 		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -297,8 +309,8 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		title text NOT NULL DEFAULT '',
 		description_key text NOT NULL DEFAULT '',
 		description text NOT NULL DEFAULT '',
-		params_schema text NOT NULL DEFAULT '{}',
-		default_params text NOT NULL DEFAULT '{}',
+		config_schema text NOT NULL DEFAULT '{}',
+		default_config text NOT NULL DEFAULT '{}',
 		default_cron text NOT NULL DEFAULT '',
 		enabled boolean NOT NULL DEFAULT true,
 		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -317,6 +329,7 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		status text NOT NULL,
 		error text NOT NULL DEFAULT '',
 		result_summary text NOT NULL DEFAULT '',
+		result_json text NOT NULL DEFAULT '{}',
 		error_message text NOT NULL DEFAULT '',
 		started_at datetime NOT NULL,
 		finished_at datetime NULL,
@@ -417,7 +430,7 @@ func TestScheduledTaskListRouteReturnsRuntimeTasks(t *testing.T) {
 				DescriptionMessageKey: "scheduledTask.auditLogRetention.description",
 				Schedule:              "0 0 * * * *",
 				Enabled:               true,
-				ParamsJSON:            "{}",
+				ConfigJSON:            "{}",
 			},
 		},
 	}
@@ -449,7 +462,7 @@ func TestScheduledTaskListRouteReturnsRuntimeTasks(t *testing.T) {
 	assertScheduledTaskListItem(t, payload.Data.Items[0])
 }
 
-func TestScheduledTaskJobsRouteReturnsRuntimeJobDefinitions(t *testing.T) {
+func TestScheduledTaskJobDefinitionsRouteReturnsRuntimeJobDefinitions(t *testing.T) {
 	ctx, engine := newModuleTestContextWithEngine()
 	moduleInstance := NewModule()
 	moduleInstance.runtime = &schedulerAPIRuntime{
@@ -461,8 +474,8 @@ func TestScheduledTaskJobsRouteReturnsRuntimeJobDefinitions(t *testing.T) {
 				Title:          "Retention Cleanup",
 				DescriptionKey: "scheduledTask.auditLogRetention.description",
 				Description:    "Clean audit logs",
-				ParamsSchema:   `{"type":"object"}`,
-				DefaultParams:  `{"retention_days":30}`,
+				ConfigSchema:   `{"type":"object"}`,
+				DefaultConfig:  `{"retention_days":30}`,
 				DefaultCron:    "0 0 * * * *",
 				Enabled:        true,
 			},
@@ -470,7 +483,7 @@ func TestScheduledTaskJobsRouteReturnsRuntimeJobDefinitions(t *testing.T) {
 	}
 	registerAndBootSchedulerModule(t, ctx, moduleInstance)
 
-	recorder := performSchedulerRequest(engine, http.MethodGet, "/api/scheduled-tasks/jobs", "")
+	recorder := performSchedulerRequest(engine, http.MethodGet, "/api/scheduled-tasks/job-definitions", "")
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
 	}
@@ -484,8 +497,43 @@ func TestScheduledTaskJobsRouteReturnsRuntimeJobDefinitions(t *testing.T) {
 		item.Module != "audit" ||
 		item.DisplayNameKey != "scheduledTask.auditLogRetention.title" ||
 		item.DefaultCronExpression != "0 0 * * * *" ||
-		item.DefaultParamsJSON != `{"retention_days":30}` {
+		item.DefaultConfigJSON != `{"retention_days":30}` {
 		t.Fatalf("unexpected job definition item: %#v", item)
+	}
+}
+
+func TestScheduledTaskJobDefinitionDetailRouteReturnsRuntimeJobDefinition(t *testing.T) {
+	ctx, engine := newModuleTestContextWithEngine()
+	moduleInstance := NewModule()
+	moduleInstance.runtime = &schedulerAPIRuntime{
+		jobDefinitions: []schedulercore.JobDefinitionSnapshot{
+			{
+				JobKey:         "audit.audit-log-retention-cleanup",
+				ModuleKey:      "audit",
+				TitleKey:       "scheduledTask.auditLogRetention.title",
+				Title:          "Retention Cleanup",
+				DescriptionKey: "scheduledTask.auditLogRetention.description",
+				Description:    "Clean audit logs",
+				ConfigSchema:   `{"type":"object","properties":{"batchSize":{"type":"integer","x-title-key":"scheduledTask.auditLogRetention.config.batchSize.title"}},"additionalProperties":false}`,
+				DefaultConfig:  `{"batchSize":1000}`,
+				DefaultCron:    "0 0 * * * *",
+				Enabled:        true,
+			},
+		},
+	}
+	registerAndBootSchedulerModule(t, ctx, moduleInstance)
+
+	recorder := performSchedulerRequest(engine, http.MethodGet, "/api/scheduled-tasks/job-definitions/audit.audit-log-retention-cleanup", "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+
+	payload := decodeScheduledTaskJobDefinitionDetailPayload(t, recorder.Body.Bytes())
+	if !payload.Success ||
+		payload.Data.Key != "audit.audit-log-retention-cleanup" ||
+		payload.Data.ConfigSchemaJSON == "" ||
+		payload.Data.DefaultConfigJSON != `{"batchSize":1000}` {
+		t.Fatalf("unexpected job definition detail payload: %#v", payload)
 	}
 }
 
@@ -503,7 +551,7 @@ func TestScheduledTaskCreateRouteCreatesJobTask(t *testing.T) {
 		"description": "Cleans audit logs",
 		"cron_expression": "*/5 * * * * *",
 		"enabled": true,
-		"params_json": "{\"retention_days\":30}"
+		"config_json": "{\"retention_days\":30}"
 	}`)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d with body %s", recorder.Code, recorder.Body.String())
@@ -514,7 +562,7 @@ func TestScheduledTaskCreateRouteCreatesJobTask(t *testing.T) {
 	input := runtimeRecorder.createInputs[0]
 	if input.TaskKey != "audit.retention.nightly" ||
 		input.JobKey != "audit.audit-log-retention-cleanup" ||
-		input.ParamsJSON != `{"retention_days":30}` ||
+		input.ConfigJSON != `{"retention_days":30}` ||
 		!input.EnabledSet ||
 		!input.Enabled {
 		t.Fatalf("unexpected create input: %#v", input)
@@ -726,7 +774,7 @@ type scheduledTaskJobDefinitionListPayload struct {
 			Module                string `json:"module"`
 			DisplayNameKey        string `json:"display_name_key"`
 			DefaultCronExpression string `json:"default_cron_expression"`
-			DefaultParamsJSON     string `json:"default_params_json"`
+			DefaultConfigJSON     string `json:"default_config_json"`
 		} `json:"items"`
 	} `json:"data"`
 }
@@ -735,6 +783,26 @@ func decodeScheduledTaskJobDefinitionListPayload(t *testing.T, body []byte) sche
 	t.Helper()
 
 	var payload scheduledTaskJobDefinitionListPayload
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	return payload
+}
+
+type scheduledTaskJobDefinitionDetailPayload struct {
+	Success bool `json:"success"`
+	Data    struct {
+		Key               string `json:"key"`
+		ConfigSchemaJSON  string `json:"config_schema_json"`
+		DefaultConfigJSON string `json:"default_config_json"`
+	} `json:"data"`
+}
+
+func decodeScheduledTaskJobDefinitionDetailPayload(t *testing.T, body []byte) scheduledTaskJobDefinitionDetailPayload {
+	t.Helper()
+
+	var payload scheduledTaskJobDefinitionDetailPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}

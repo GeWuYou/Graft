@@ -288,16 +288,16 @@
                 <t-descriptions-item :label="t('scheduledTask.list.form.owner')">
                   {{ selectedJobDefinition.owner }}
                 </t-descriptions-item>
-                <t-descriptions-item :label="t('scheduledTask.list.form.defaultParams')" :span="2">
+                <t-descriptions-item :label="t('scheduledTask.list.form.defaultConfig')" :span="2">
                   <pre class="scheduled-task-json-preview">{{
-                    formatJsonPreview(selectedJobDefinition.default_params_json) || t('scheduledTask.list.detail.none')
+                    formatJsonPreview(selectedJobDefinition.default_config_json) || t('scheduledTask.list.detail.none')
                   }}</pre>
                 </t-descriptions-item>
               </t-descriptions>
-              <t-collapse v-if="selectedJobDefinition.params_schema_json" expand-icon-placement="right">
-                <t-collapse-panel value="paramsSchema" :header="t('scheduledTask.list.form.paramsSchema')">
+              <t-collapse v-if="selectedJobDefinition.config_schema_json" expand-icon-placement="right">
+                <t-collapse-panel value="configSchema" :header="t('scheduledTask.list.form.configSchema')">
                   <pre class="scheduled-task-json-preview">{{
-                    formatJsonPreview(selectedJobDefinition.params_schema_json)
+                    formatJsonPreview(selectedJobDefinition.config_schema_json)
                   }}</pre>
                 </t-collapse-panel>
               </t-collapse>
@@ -361,24 +361,77 @@
             </t-form-item>
           </section>
 
-          <section v-if="!isSystemEdit" class="scheduled-task-form-section">
-            <t-collapse expand-icon-placement="right">
-              <t-collapse-panel value="advancedParams" :header="t('scheduledTask.list.form.sectionAdvancedParams')">
-                <t-form-item
-                  :label="t('scheduledTask.list.form.paramsJson')"
-                  name="paramsJson"
-                  :status="formFieldErrors.paramsJson ? 'error' : undefined"
-                  :tips="formFieldErrors.paramsJson"
+          <section class="scheduled-task-form-section">
+            <div class="scheduled-task-form-section__head">
+              <h3>{{ t('scheduledTask.list.form.sectionConfig') }}</h3>
+              <p>{{ t('scheduledTask.list.form.configHint') }}</p>
+            </div>
+            <template v-if="configSchemaFields.length > 0">
+              <t-form-item
+                v-for="field in configSchemaFields"
+                :key="field.key"
+                :label="configSchemaFieldTitle(field)"
+                :name="`config.${field.key}`"
+                :help="configSchemaFieldDescription(field)"
+                :required-mark="field.required"
+              >
+                <t-select
+                  v-if="field.schema.enum"
+                  :model-value="configSelectValue(field.key)"
+                  :placeholder="t('scheduledTask.list.form.configSelectPlaceholder')"
+                  clearable
+                  @change="(value) => updateConfigField(field.key, value)"
                 >
-                  <div class="scheduled-task-params-field">
-                    <t-button size="small" variant="outline" @click="formatParamsJson">
+                  <t-option
+                    v-for="option in field.schema.enum"
+                    :key="String(option)"
+                    :value="option"
+                    :label="String(option)"
+                  />
+                </t-select>
+                <t-input-number
+                  v-else-if="field.schema.type === 'integer' || field.schema.type === 'number'"
+                  :model-value="configNumberValue(field.key)"
+                  :min="field.schema.minimum"
+                  :max="field.schema.maximum"
+                  :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
+                  :placeholder="t('scheduledTask.list.form.configNumberPlaceholder')"
+                  @change="(value) => updateConfigField(field.key, value)"
+                />
+                <t-switch
+                  v-else-if="field.schema.type === 'boolean'"
+                  :model-value="Boolean(taskForm.config[field.key])"
+                  @change="(value) => updateConfigField(field.key, value)"
+                />
+                <t-input
+                  v-else
+                  :model-value="configStringValue(field.key)"
+                  :minlength="field.schema.minLength"
+                  :maxlength="field.schema.maxLength"
+                  :placeholder="t('scheduledTask.list.form.configStringPlaceholder')"
+                  clearable
+                  @change="(value) => updateConfigField(field.key, value)"
+                />
+              </t-form-item>
+            </template>
+            <p v-else class="scheduled-task-muted">{{ t('scheduledTask.list.form.noConfigFields') }}</p>
+            <t-collapse expand-icon-placement="right">
+              <t-collapse-panel value="advancedConfig" :header="t('scheduledTask.list.form.sectionAdvancedConfig')">
+                <t-form-item
+                  :label="t('scheduledTask.list.form.configJson')"
+                  name="configJson"
+                  :status="formFieldErrors.configJson ? 'error' : undefined"
+                  :tips="formFieldErrors.configJson"
+                >
+                  <div class="scheduled-task-config-field">
+                    <t-button size="small" variant="outline" @click="formatConfigJson">
                       {{ t('scheduledTask.list.form.formatJson') }}
                     </t-button>
                     <t-textarea
-                      v-model="taskForm.paramsJson"
+                      v-model="taskForm.configJson"
                       :autosize="{ minRows: 4, maxRows: 8 }"
-                      :placeholder="t('scheduledTask.list.form.paramsJsonPlaceholder')"
-                      @change="clearFormFieldError('paramsJson')"
+                      :placeholder="t('scheduledTask.list.form.configJsonPlaceholder')"
+                      @change="handleConfigJsonChange"
                     />
                   </div>
                 </t-form-item>
@@ -435,10 +488,45 @@
               <t-descriptions-item :label="t('scheduledTask.list.detail.jobKey')">
                 {{ selectedTask.job_key }}
               </t-descriptions-item>
-              <t-descriptions-item v-if="selectedTask.params_json" :label="t('scheduledTask.list.detail.paramsJson')">
-                <pre class="scheduled-task-json-preview">{{ formatJsonPreview(selectedTask.params_json) }}</pre>
+            </t-descriptions>
+          </section>
+
+          <section class="scheduled-task-detail__section">
+            <h3>{{ t('scheduledTask.list.detail.behavior') }}</h3>
+            <t-descriptions :column="1" bordered size="small">
+              <t-descriptions-item :label="t('scheduledTask.list.detail.jobBehavior')">
+                {{ selectedTaskJobDescription }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.configItems')">
+                <div v-if="selectedTaskConfigFields.length > 0" class="scheduled-task-config-list">
+                  <div
+                    v-for="field in selectedTaskConfigFields"
+                    :key="field.key"
+                    class="scheduled-task-config-list__item"
+                  >
+                    <strong>{{ configSchemaFieldTitle(field) }}</strong>
+                    <span>{{ configValuePreview(selectedTaskEffectiveConfig[field.key]) }}</span>
+                    <small v-if="configSchemaFieldDescription(field)">{{ configSchemaFieldDescription(field) }}</small>
+                  </div>
+                </div>
+                <span v-else>{{ t('scheduledTask.list.detail.none') }}</span>
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('scheduledTask.list.detail.effectiveConfig')">
+                <pre class="scheduled-task-json-preview">{{ selectedTaskEffectiveConfigPreview }}</pre>
               </t-descriptions-item>
             </t-descriptions>
+            <t-collapse expand-icon-placement="right">
+              <t-collapse-panel value="rawConfig" :header="t('scheduledTask.list.detail.advancedConfig')">
+                <div class="scheduled-task-raw-config">
+                  <strong>{{ t('scheduledTask.list.detail.configJson') }}</strong>
+                  <pre class="scheduled-task-json-preview">{{
+                    formatJsonPreview(selectedTask.config_json) || t('scheduledTask.list.detail.none')
+                  }}</pre>
+                  <strong>{{ t('scheduledTask.list.detail.effectiveConfig') }}</strong>
+                  <pre class="scheduled-task-json-preview">{{ selectedTaskEffectiveConfigPreview }}</pre>
+                </div>
+              </t-collapse-panel>
+            </t-collapse>
           </section>
 
           <section class="scheduled-task-detail__section">
@@ -497,6 +585,26 @@
               </t-descriptions-item>
               <t-descriptions-item :label="t('scheduledTask.list.detail.result')">
                 {{ runResultText(selectedTask.last_run) }}
+              </t-descriptions-item>
+              <t-descriptions-item
+                v-if="runResultStructured(selectedTask.last_run).stage"
+                :label="t('scheduledTask.list.detail.stage')"
+              >
+                {{ runResultStructured(selectedTask.last_run).stage }}
+              </t-descriptions-item>
+              <t-descriptions-item
+                v-if="runResultStructured(selectedTask.last_run).affected_resource"
+                :label="t('scheduledTask.list.detail.affectedResource')"
+              >
+                {{ runResultStructured(selectedTask.last_run).affected_resource }}
+              </t-descriptions-item>
+              <t-descriptions-item
+                v-if="Object.keys(runResultStructured(selectedTask.last_run).metrics ?? {}).length > 0"
+                :label="t('scheduledTask.list.detail.metrics')"
+              >
+                <pre class="scheduled-task-json-preview">{{
+                  JSON.stringify(runResultStructured(selectedTask.last_run).metrics, null, 2)
+                }}</pre>
               </t-descriptions-item>
             </t-descriptions>
             <p v-else class="scheduled-task-muted">{{ t('scheduledTask.list.detail.none') }}</p>
@@ -559,7 +667,16 @@
       >
         <div v-if="runDialogTask" class="scheduled-task-dialog-copy">
           <p>{{ t('scheduledTask.list.runDialog.taskLine', { taskName: taskDisplayName(runDialogTask) }) }}</p>
-          <p>{{ t('scheduledTask.list.runDialog.description') }}</p>
+          <p>{{ immediateRunSummary(runDialogTask).description }}</p>
+          <t-descriptions :column="1" bordered size="small">
+            <t-descriptions-item
+              v-for="item in immediateRunSummary(runDialogTask).items"
+              :key="item.key"
+              :label="item.label"
+            >
+              {{ item.value }}
+            </t-descriptions-item>
+          </t-descriptions>
         </div>
       </t-dialog>
 
@@ -607,6 +724,51 @@
           <t-descriptions-item :label="t('scheduledTask.list.detail.result')">
             {{ runResultText(selectedRun) }}
           </t-descriptions-item>
+          <t-descriptions-item
+            v-if="runResultStructured(selectedRun).stage"
+            :label="t('scheduledTask.list.detail.stage')"
+          >
+            {{ runResultStructured(selectedRun).stage }}
+          </t-descriptions-item>
+          <t-descriptions-item
+            v-if="runResultStructured(selectedRun).affected_resource"
+            :label="t('scheduledTask.list.detail.affectedResource')"
+          >
+            {{ runResultStructured(selectedRun).affected_resource }}
+          </t-descriptions-item>
+          <t-descriptions-item
+            v-if="Object.keys(runResultStructured(selectedRun).metrics ?? {}).length > 0"
+            :label="t('scheduledTask.list.detail.metrics')"
+          >
+            <pre class="scheduled-task-json-preview">{{
+              JSON.stringify(runResultStructured(selectedRun).metrics, null, 2)
+            }}</pre>
+          </t-descriptions-item>
+          <t-descriptions-item
+            v-if="Object.keys(runResultStructured(selectedRun).details ?? {}).length > 0"
+            :label="t('scheduledTask.list.detail.details')"
+          >
+            <pre class="scheduled-task-json-preview">{{
+              JSON.stringify(runResultStructured(selectedRun).details, null, 2)
+            }}</pre>
+          </t-descriptions-item>
+          <t-descriptions-item
+            v-if="(runResultStructured(selectedRun).warnings?.length ?? 0) > 0"
+            :label="t('scheduledTask.list.detail.warnings')"
+          >
+            <ul class="scheduled-task-warning-list">
+              <li v-for="warning in runResultStructured(selectedRun).warnings" :key="warning">{{ warning }}</li>
+            </ul>
+          </t-descriptions-item>
+          <t-descriptions-item :label="t('scheduledTask.list.detail.rawResultJson')">
+            <t-collapse expand-icon-placement="right">
+              <t-collapse-panel value="rawResultJson" :header="t('scheduledTask.list.detail.rawResultJson')">
+                <pre class="scheduled-task-json-preview">{{
+                  formatJsonPreview(selectedRun.result_json) || t('scheduledTask.list.detail.none')
+                }}</pre>
+              </t-collapse-panel>
+            </t-collapse>
+          </t-descriptions-item>
         </t-descriptions>
       </t-dialog>
     </template>
@@ -639,7 +801,8 @@ import {
   disableScheduledTask,
   enableScheduledTask,
   getScheduledTask,
-  getScheduledTaskJobs,
+  getScheduledTaskJobDefinition,
+  getScheduledTaskJobDefinitions,
   getScheduledTaskRun,
   getScheduledTaskRuns,
   getScheduledTasks,
@@ -659,6 +822,13 @@ import type {
   ScheduledTaskStatus,
   UpdateScheduledTaskRequest,
 } from '../../types/scheduled-task';
+import type { ConfigSchema, ConfigSchemaField } from '../../utils/config-schema';
+import {
+  buildDefaultConfigFromSchema,
+  getConfigSchemaFields,
+  mergeConfigRecords,
+  parseConfigSchema,
+} from '../../utils/config-schema';
 import {
   type CronValidationResult,
   formatCronExpression,
@@ -668,6 +838,8 @@ import {
   validateCronExpression,
 } from '../../utils/cron';
 import { translateCronValidation } from '../../utils/cron-i18n';
+import { formatJsonPreview, type JsonRecord, parseJsonRecord } from '../../utils/json';
+import { parseRunResult } from '../../utils/run-result';
 
 defineOptions({
   name: 'ScheduledTaskListPage',
@@ -680,12 +852,13 @@ type TaskFormModel = {
   cronExpression: string;
   enabled: boolean;
   jobKey: ScheduledTaskJobKey | '';
-  paramsJson: string;
+  config: JsonRecord;
+  configJson: string;
 };
 
 type FormFieldErrors = {
   cronExpression: string;
-  paramsJson: string;
+  configJson: string;
 };
 
 type FilterModel = {
@@ -706,6 +879,15 @@ type JobDefinitionGroup = {
   items: ScheduledTaskJobDefinitionItem[];
 };
 
+type ImmediateRunSummary = {
+  description: string;
+  items: Array<{
+    key: string;
+    label: string;
+    value: string;
+  }>;
+};
+
 const DEFAULT_CRON_EXPRESSION = '0 */5 * * * *';
 const cronTooltipOverlayInnerStyle = {
   maxWidth: '280px',
@@ -720,6 +902,18 @@ const builtinTaskMessageKeys = [
   'scheduledTask.auditLogRetention.description',
   'scheduledTask.appLogRetention.title',
   'scheduledTask.appLogRetention.description',
+  'scheduledTask.accessLogRetention.config.dryRun.title',
+  'scheduledTask.accessLogRetention.config.dryRun.description',
+  'scheduledTask.accessLogRetention.config.batchSize.title',
+  'scheduledTask.accessLogRetention.config.batchSize.description',
+  'scheduledTask.auditLogRetention.config.dryRun.title',
+  'scheduledTask.auditLogRetention.config.dryRun.description',
+  'scheduledTask.auditLogRetention.config.batchSize.title',
+  'scheduledTask.auditLogRetention.config.batchSize.description',
+  'scheduledTask.appLogRetention.config.dryRun.title',
+  'scheduledTask.appLogRetention.config.dryRun.description',
+  'scheduledTask.appLogRetention.config.batchSize.title',
+  'scheduledTask.appLogRetention.config.batchSize.description',
 ] as const;
 
 type BuiltinTaskMessageKey = (typeof builtinTaskMessageKeys)[number];
@@ -786,7 +980,7 @@ const filters = reactive<FilterModel>({
 const taskForm = reactive<TaskFormModel>(createEmptyTaskForm());
 const formFieldErrors = reactive<FormFieldErrors>({
   cronExpression: '',
-  paramsJson: '',
+  configJson: '',
 });
 const visibleColumnKeys = ref(['task', 'job_key', 'status', 'schedule', 'recent_result', 'recent_run']);
 
@@ -862,6 +1056,44 @@ const selectedJobDefinition = computed(() => {
   }
   return jobDefinitions.value.find((job) => job.key === taskForm.jobKey) ?? null;
 });
+
+const selectedConfigSchema = computed(() => parseConfigSchema(selectedJobDefinition.value?.config_schema_json));
+
+const configSchemaFields = computed(() => getConfigSchemaFields(selectedConfigSchema.value));
+
+const selectedTaskJobDefinition = computed(() =>
+  selectedTask.value ? jobDefinitions.value.find((job) => job.key === selectedTask.value?.job_key) : null,
+);
+
+const selectedTaskConfigSchema = computed<ConfigSchema>(() =>
+  parseConfigSchema(selectedTaskJobDefinition.value?.config_schema_json),
+);
+
+const selectedTaskConfigFields = computed(() => getConfigSchemaFields(selectedTaskConfigSchema.value));
+
+const selectedTaskEffectiveConfig = computed<JsonRecord>(() => {
+  if (!selectedTask.value) {
+    return {};
+  }
+  if (selectedTask.value.effective_config?.trim()) {
+    return parseJsonRecord(selectedTask.value.effective_config);
+  }
+
+  return mergeConfigRecords(
+    parseJsonRecord(selectedTaskJobDefinition.value?.default_config_json),
+    parseJsonRecord(selectedTask.value.config_json),
+  );
+});
+
+const selectedTaskEffectiveConfigPreview = computed(() => JSON.stringify(selectedTaskEffectiveConfig.value, null, 2));
+
+const selectedTaskJobDescription = computed(() =>
+  selectedTaskJobDefinition.value
+    ? jobDefinitionDescription(selectedTaskJobDefinition.value)
+    : selectedTask.value
+      ? taskDescription(selectedTask.value)
+      : t('scheduledTask.list.detail.none'),
+);
 
 const groupedJobDefinitions = computed<JobDefinitionGroup[]>(() => {
   const groups = new Map<string, ScheduledTaskJobDefinitionItem[]>();
@@ -982,7 +1214,7 @@ onMounted(() => {
 async function refreshJobDefinitions() {
   jobDefinitionsLoading.value = true;
   try {
-    const response = await getScheduledTaskJobs();
+    const response = await getScheduledTaskJobDefinitions();
     jobDefinitions.value = response.items;
   } catch (error) {
     logger.error(error instanceof Error ? error : 'load scheduled task job definitions failed', {
@@ -1043,6 +1275,7 @@ async function openDetail(row: ScheduledTaskItem) {
     const [detail] = await Promise.all([getScheduledTask(row.key), loadRuns(row.key)]);
     selectedTask.value = detail;
     syncTask(detail);
+    await ensureJobDefinitionLoaded(detail.job_key);
   } catch (error) {
     logger.error(error instanceof Error ? error : 'load scheduled task detail failed', {
       taskKey: row.key,
@@ -1103,6 +1336,7 @@ async function openEditDrawer(row: ScheduledTaskItem) {
     const detail = await getScheduledTask(row.key);
     editingTask.value = detail;
     syncTask(detail);
+    await ensureJobDefinitionLoaded(detail.job_key);
     Object.assign(taskForm, taskToForm(detail));
   } catch (error) {
     logger.error(error instanceof Error ? error : 'load scheduled task edit detail failed', {
@@ -1163,11 +1397,20 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
   taskForm.cronExpression = cronExpression;
   formFieldErrors.cronExpression = '';
 
+  const configJson = normalizeJsonString(taskForm.configJson);
+  if (configJson === null) {
+    formFieldErrors.configJson = t('scheduledTask.list.form.configJsonInvalidHint');
+    return null;
+  }
+  formFieldErrors.configJson = '';
+  taskForm.config = parseJsonRecord(configJson);
+
   if (formMode.value === 'edit' && isSystemEdit.value) {
-    // Builtin tasks keep their module-owned identity; users may only tune schedule and enabled state.
+    // Builtin tasks keep their module-owned identity; users may tune schedule, enabled state, and schema-backed config.
     return {
       cron_expression: cronExpression,
       enabled: taskForm.enabled,
+      config_json: configJson || undefined,
     };
   }
 
@@ -1180,13 +1423,6 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
     void MessagePlugin.warning(t('scheduledTask.list.form.jobTypeRequiredHint'));
     return null;
   }
-
-  const paramsJson = normalizeJsonString(taskForm.paramsJson);
-  if (paramsJson === null) {
-    formFieldErrors.paramsJson = t('scheduledTask.list.form.paramsJsonInvalidHint');
-    return null;
-  }
-  formFieldErrors.paramsJson = '';
 
   if (formMode.value === 'create') {
     if (!taskForm.taskKey.trim()) {
@@ -1201,7 +1437,7 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
       description: taskForm.description.trim() || undefined,
       cron_expression: cronExpression,
       enabled: taskForm.enabled,
-      params_json: paramsJson || undefined,
+      config_json: configJson || undefined,
     };
   }
 
@@ -1210,7 +1446,7 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
     description: taskForm.description.trim() || undefined,
     cron_expression: cronExpression,
     enabled: taskForm.enabled,
-    params_json: paramsJson || undefined,
+    config_json: configJson || undefined,
   };
 }
 
@@ -1351,7 +1587,8 @@ function createEmptyTaskForm(): TaskFormModel {
     cronExpression: DEFAULT_CRON_EXPRESSION,
     enabled: true,
     jobKey: '',
-    paramsJson: '',
+    config: {},
+    configJson: '',
   };
 }
 
@@ -1364,7 +1601,8 @@ function taskToForm(task: ScheduledTaskItem): TaskFormModel {
     cronExpression: expression,
     enabled: task.enabled,
     jobKey: task.job_key,
-    paramsJson: formatJsonPreview(task.params_json || ''),
+    config: parseJsonRecord(task.config_json),
+    configJson: formatJsonPreview(task.config_json || ''),
   };
 }
 
@@ -1424,15 +1662,53 @@ function handleCronEditorValidate(result: CronValidationResult & { normalizedExp
   }
 }
 
-function formatParamsJson() {
-  const normalized = normalizeJsonString(taskForm.paramsJson);
+function formatConfigJson() {
+  const normalized = normalizeJsonString(taskForm.configJson);
   if (normalized === null) {
-    formFieldErrors.paramsJson = t('scheduledTask.list.form.paramsJsonInvalidHint');
+    formFieldErrors.configJson = t('scheduledTask.list.form.configJsonInvalidHint');
     return;
   }
 
-  taskForm.paramsJson = formatJsonPreview(normalized);
-  clearFormFieldError('paramsJson');
+  taskForm.config = parseJsonRecord(normalized);
+  syncConfigJsonFromModel();
+  clearFormFieldError('configJson');
+}
+
+function handleConfigJsonChange() {
+  const normalized = normalizeJsonString(taskForm.configJson);
+  if (normalized === null) {
+    return;
+  }
+  taskForm.config = parseJsonRecord(normalized);
+  clearFormFieldError('configJson');
+}
+
+function updateConfigField(key: string, value: unknown) {
+  taskForm.config = {
+    ...taskForm.config,
+    [key]: value,
+  };
+  syncConfigJsonFromModel();
+  clearFormFieldError('configJson');
+}
+
+function syncConfigJsonFromModel() {
+  taskForm.configJson = JSON.stringify(taskForm.config, null, 2);
+}
+
+function configNumberValue(key: string) {
+  const value = taskForm.config[key];
+  return typeof value === 'number' ? value : undefined;
+}
+
+function configStringValue(key: string) {
+  const value = taskForm.config[key];
+  return typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value);
+}
+
+function configSelectValue(key: string) {
+  const value = taskForm.config[key];
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : undefined;
 }
 
 function clearFormFieldError(field: keyof FormFieldErrors) {
@@ -1441,7 +1717,7 @@ function clearFormFieldError(field: keyof FormFieldErrors) {
 
 function resetFormFieldErrors() {
   formFieldErrors.cronExpression = '';
-  formFieldErrors.paramsJson = '';
+  formFieldErrors.configJson = '';
 }
 
 function applyBackendFieldError(error: unknown) {
@@ -1452,7 +1728,7 @@ function applyBackendFieldError(error: unknown) {
   const field = readErrorField(error.responseData);
   const fieldMap: Record<string, keyof FormFieldErrors> = {
     cron_expression: 'cronExpression',
-    params_json: 'paramsJson',
+    config_json: 'configJson',
   };
   const formField = field ? fieldMap[field] : null;
   if (!formField) {
@@ -1467,12 +1743,12 @@ function isApiRequestErrorShape(error: unknown): error is ApiRequestError {
   return Boolean(error && typeof error === 'object' && (error as Partial<ApiRequestError>).isApiRequestError);
 }
 
-function handleJobDefinitionChange(value: unknown) {
+async function handleJobDefinitionChange(value: unknown) {
   if (typeof value !== 'string') {
     return;
   }
 
-  const job = jobDefinitions.value.find((item) => item.key === value);
+  const job = await ensureJobDefinitionLoaded(value);
   if (!job) {
     return;
   }
@@ -1481,8 +1757,32 @@ function handleJobDefinitionChange(value: unknown) {
   taskForm.description = jobDefinitionDescription(job);
   taskForm.cronExpression = normalizeCronForForm(job.default_cron_expression || DEFAULT_CRON_EXPRESSION);
   taskForm.enabled = job.default_enabled;
-  taskForm.paramsJson = formatJsonPreview(job.default_params_json);
+  taskForm.config = mergeConfigRecords(
+    buildDefaultConfigFromSchema(parseConfigSchema(job.config_schema_json)),
+    parseJsonRecord(job.default_config_json),
+  );
+  syncConfigJsonFromModel();
   resetFormFieldErrors();
+}
+
+async function ensureJobDefinitionLoaded(jobKey: string) {
+  const cached = jobDefinitions.value.find((item) => item.key === jobKey);
+  if (cached?.config_schema_json) {
+    return cached;
+  }
+
+  try {
+    const detail = await getScheduledTaskJobDefinition(jobKey);
+    jobDefinitions.value = [detail, ...jobDefinitions.value.filter((item) => item.key !== jobKey)];
+    return detail;
+  } catch (error) {
+    logger.warn('load scheduled task job definition detail failed', {
+      error,
+      jobKey,
+      operation: 'scheduled_task_job_definition_detail',
+    });
+    return cached ?? null;
+  }
 }
 
 function taskDisplayName(task: ScheduledTaskItem) {
@@ -1521,6 +1821,34 @@ function builtinTaskMessageText(key: BuiltinTaskMessageKey) {
     'scheduledTask.auditLogRetention.description': t('scheduledTask.auditLogRetention.description'),
     'scheduledTask.appLogRetention.title': t('scheduledTask.appLogRetention.title'),
     'scheduledTask.appLogRetention.description': t('scheduledTask.appLogRetention.description'),
+    'scheduledTask.accessLogRetention.config.dryRun.title': t('scheduledTask.accessLogRetention.config.dryRun.title'),
+    'scheduledTask.accessLogRetention.config.dryRun.description': t(
+      'scheduledTask.accessLogRetention.config.dryRun.description',
+    ),
+    'scheduledTask.accessLogRetention.config.batchSize.title': t(
+      'scheduledTask.accessLogRetention.config.batchSize.title',
+    ),
+    'scheduledTask.accessLogRetention.config.batchSize.description': t(
+      'scheduledTask.accessLogRetention.config.batchSize.description',
+    ),
+    'scheduledTask.auditLogRetention.config.dryRun.title': t('scheduledTask.auditLogRetention.config.dryRun.title'),
+    'scheduledTask.auditLogRetention.config.dryRun.description': t(
+      'scheduledTask.auditLogRetention.config.dryRun.description',
+    ),
+    'scheduledTask.auditLogRetention.config.batchSize.title': t(
+      'scheduledTask.auditLogRetention.config.batchSize.title',
+    ),
+    'scheduledTask.auditLogRetention.config.batchSize.description': t(
+      'scheduledTask.auditLogRetention.config.batchSize.description',
+    ),
+    'scheduledTask.appLogRetention.config.dryRun.title': t('scheduledTask.appLogRetention.config.dryRun.title'),
+    'scheduledTask.appLogRetention.config.dryRun.description': t(
+      'scheduledTask.appLogRetention.config.dryRun.description',
+    ),
+    'scheduledTask.appLogRetention.config.batchSize.title': t('scheduledTask.appLogRetention.config.batchSize.title'),
+    'scheduledTask.appLogRetention.config.batchSize.description': t(
+      'scheduledTask.appLogRetention.config.batchSize.description',
+    ),
   };
   return messages[key];
 }
@@ -1559,19 +1887,6 @@ function jobDefinitionDescription(job: ScheduledTaskJobDefinitionItem) {
 function moduleDisplayName(moduleKey: string) {
   const messageKey = `module.${moduleKey}.title`;
   return te(messageKey) ? t(messageKey) : moduleKey;
-}
-
-function formatJsonPreview(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  try {
-    return JSON.stringify(JSON.parse(trimmed), null, 2);
-  } catch {
-    return trimmed;
-  }
 }
 
 function scheduleTypeLabel(type: ScheduledTaskItem['schedule_type']) {
@@ -1617,15 +1932,116 @@ function successRateLabel(taskKey: string) {
 }
 
 function runResultText(run: ScheduledTaskRunItem | NonNullable<ScheduledTaskItem['last_run']>) {
+  const structured = runResultStructured(run);
+  if (structured.summary) {
+    return structured.summary;
+  }
+
   if (run.status === 'success') {
-    return run.result_summary || t('scheduledTask.list.detail.noError');
+    return run.result_summary || t('scheduledTask.list.detail.none');
   }
 
   if (run.status === 'failed') {
-    return run.error_summary || run.result_summary || t('scheduledTask.list.detail.none');
+    return run.error_summary || run.result_summary || t('scheduledTask.list.detail.noError');
   }
 
-  return run.result_summary || run.error_summary || t('scheduledTask.list.detail.none');
+  return run.result_summary || run.error_summary || t('scheduledTask.list.detail.noError');
+}
+
+function runResultStructured(run: ScheduledTaskRunItem | NonNullable<ScheduledTaskItem['last_run']>) {
+  return parseRunResult(run.result_json);
+}
+
+function configSchemaFieldTitle(field: ConfigSchemaField) {
+  return localizeMessageKey(field.schema['x-title-key']) || field.schema.title || field.key;
+}
+
+function configSchemaFieldDescription(field: ConfigSchemaField) {
+  return localizeMessageKey(field.schema['x-description-key']) || field.schema.description || '';
+}
+
+function configValuePreview(value: unknown) {
+  if (typeof value === 'boolean') {
+    return booleanLabel(value);
+  }
+  if (value === undefined || value === null || value === '') {
+    return t('scheduledTask.list.detail.none');
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function immediateRunSummary(task: ScheduledTaskItem): ImmediateRunSummary {
+  const job = jobDefinitions.value.find((item) => item.key === task.job_key);
+  const effectiveConfig = task.effective_config?.trim()
+    ? parseJsonRecord(task.effective_config)
+    : mergeConfigRecords(parseJsonRecord(job?.default_config_json), parseJsonRecord(task.config_json));
+  const items = [
+    {
+      key: 'resource',
+      label: t('scheduledTask.list.runDialog.affectedResource'),
+      value: cleanupResourceLabel(task, job),
+    },
+    {
+      key: 'retentionDays',
+      label: t('scheduledTask.list.runDialog.retentionDays'),
+      value: configValuePreview(effectiveConfig.retentionDays ?? effectiveConfig.retention_days),
+    },
+    {
+      key: 'cutoff',
+      label: t('scheduledTask.list.runDialog.cutoffPolicy'),
+      value: configValuePreview(effectiveConfig.cutoffTime ?? effectiveConfig.cutoff_policy),
+    },
+    {
+      key: 'batchSize',
+      label: t('scheduledTask.list.runDialog.batchSize'),
+      value: configValuePreview(effectiveConfig.batchSize),
+    },
+    {
+      key: 'dryRun',
+      label: t('scheduledTask.list.runDialog.dryRun'),
+      value: configValuePreview(effectiveConfig.dryRun),
+    },
+  ].filter((item) => item.value !== t('scheduledTask.list.detail.none'));
+
+  return {
+    description:
+      job && isCleanupJob(task.job_key)
+        ? t('scheduledTask.list.runDialog.cleanupDescription', {
+            behavior: jobDefinitionDescription(job),
+          })
+        : t('scheduledTask.list.runDialog.description'),
+    items:
+      items.length > 0
+        ? items
+        : [
+            {
+              key: 'behavior',
+              label: t('scheduledTask.list.runDialog.expectedBehavior'),
+              value: job ? jobDefinitionDescription(job) : taskDescription(task),
+            },
+          ],
+  };
+}
+
+function isCleanupJob(jobKey: string) {
+  return jobKey.includes('retention-cleanup');
+}
+
+function cleanupResourceLabel(task: ScheduledTaskItem, job?: ScheduledTaskJobDefinitionItem) {
+  const key = job?.key ?? task.job_key;
+  if (key.includes('access-log')) {
+    return t('scheduledTask.list.resource.accessLog');
+  }
+  if (key.includes('audit-log')) {
+    return t('scheduledTask.list.resource.auditLog');
+  }
+  if (key.includes('app-log')) {
+    return t('scheduledTask.list.resource.appLog');
+  }
+  return moduleDisplayName(job?.module ?? task.module);
 }
 
 function formatTimestamp(value?: string | null) {
@@ -1980,13 +2396,49 @@ function formatDuration(value?: number | null) {
   white-space: pre-wrap;
 }
 
-.scheduled-task-params-field {
+.scheduled-task-config-list,
+.scheduled-task-raw-config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+}
+
+.scheduled-task-config-list__item {
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-small);
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  padding: var(--graft-density-gap-8);
+}
+
+.scheduled-task-config-list__item strong,
+.scheduled-task-raw-config strong {
+  color: var(--td-text-color-primary);
+}
+
+.scheduled-task-config-list__item span {
+  color: var(--td-text-color-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  overflow-wrap: anywhere;
+}
+
+.scheduled-task-config-list__item small {
+  color: var(--td-text-color-secondary);
+}
+
+.scheduled-task-warning-list {
+  margin: 0;
+  padding-left: var(--graft-density-gap-20);
+}
+
+.scheduled-task-config-field {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-8);
 }
 
-.scheduled-task-params-field > .t-button {
+.scheduled-task-config-field > .t-button {
   align-self: flex-start;
 }
 

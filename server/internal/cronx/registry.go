@@ -23,23 +23,33 @@ type Job struct {
 	DisplayMessageKey string
 	// DescriptionMessageKey 是任务说明的稳定 i18n key。
 	DescriptionMessageKey string
-	// ParamsSchema 是 Job Definition 的参数 schema JSON。
-	ParamsSchema string
-	// DefaultParams 是 Job Definition 的默认参数 JSON。
-	DefaultParams string
+	// ConfigSchema is the Job Definition JSON Schema subset accepted by the scheduler.
+	ConfigSchema string
+	// DefaultConfig is the default JSON object merged with each task's config_json.
+	DefaultConfig string
 	// Schedule 保存默认 cron 表达式语义，当前阶段仅做声明透传。
 	Schedule string
 	// DefaultEnabled 表示任务默认是否随运行时启用。MVP 不提供动态启停能力。
 	DefaultEnabled bool
 	// Module 标记任务来源模块，方便在启动失败或停机清理时定位责任边界。
 	Module string
-	// Handler 是调度器实际调用的执行入口，paramsJSON 来自 Scheduled Task。
-	Handler func(ctx context.Context, paramsJSON string) error
-	// Run 是历史无参数执行入口；新 Job 应优先使用 Handler。
+	// Handler is the scheduler execution entrypoint. configJSON is effective_config.
+	Handler func(ctx context.Context, configJSON string) (JobRunResult, error)
+	// Run is the no-config execution fallback for simple internal jobs.
 	//
 	// 模块应在 Register 阶段显式提供该函数，而不是在 Boot 阶段隐式拼装
 	// 或依赖全局单例回填执行体。
 	Run func(ctx context.Context) error
+}
+
+// JobRunResult is the structured outcome a scheduler job should persist.
+type JobRunResult struct {
+	Summary          string         `json:"summary,omitempty"`
+	Stage            string         `json:"stage,omitempty"`
+	AffectedResource string         `json:"affected_resource,omitempty"`
+	Metrics          map[string]any `json:"metrics,omitempty"`
+	Details          map[string]any `json:"details,omitempty"`
+	Warnings         []string       `json:"warnings,omitempty"`
 }
 
 // RuntimeKey returns the visible stable task key.
@@ -74,31 +84,41 @@ func (j Job) RuntimeDescription() string {
 	return j.RuntimeTitle()
 }
 
-// RuntimeDefaultParams returns stable JSON for default job parameters.
-func (j Job) RuntimeDefaultParams() string {
-	if params := strings.TrimSpace(j.DefaultParams); params != "" {
-		return params
+// RuntimeDefaultConfig returns stable JSON for default job config.
+func (j Job) RuntimeDefaultConfig() string {
+	if config := strings.TrimSpace(j.DefaultConfig); config != "" {
+		return config
 	}
 	return "{}"
 }
 
-// RuntimeParamsSchema returns stable JSON for the job parameter schema.
-func (j Job) RuntimeParamsSchema() string {
-	if schema := strings.TrimSpace(j.ParamsSchema); schema != "" {
+// RuntimeConfigSchema returns stable JSON for the job config schema.
+func (j Job) RuntimeConfigSchema() string {
+	if schema := strings.TrimSpace(j.ConfigSchema); schema != "" {
 		return schema
 	}
 	return "{}"
 }
 
-// Invoke executes the registered handler with the given Scheduled Task parameters.
-func (j Job) Invoke(ctx context.Context, paramsJSON string) error {
+// Invoke executes the registered handler with the given effective Scheduled Task config.
+func (j Job) Invoke(ctx context.Context, configJSON string) (JobRunResult, error) {
 	if j.Handler != nil {
-		return j.Handler(ctx, paramsJSON)
+		return j.Handler(ctx, configJSON)
 	}
 	if j.Run != nil {
-		return j.Run(ctx)
+		err := j.Run(ctx)
+		if err != nil {
+			return JobRunResult{
+				Summary: err.Error(),
+				Stage:   "failed",
+			}, err
+		}
+		return JobRunResult{
+			Summary: "completed",
+			Stage:   "completed",
+		}, nil
 	}
-	return errors.New("job handler is required")
+	return JobRunResult{}, errors.New("job handler is required")
 }
 
 // Registry 按注册顺序保存任务声明，供后续调度器接线阶段消费。

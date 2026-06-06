@@ -1,0 +1,36 @@
+get:
+  tags: [scheduled-tasks]
+  summary: Read scheduler job definition detail
+  operationId: getScheduledTaskJobDefinition
+  description: Returns one registered Job Definition that can be bound to Scheduled Tasks.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/scheduled-task-job-key.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Scheduler Job Definition detail.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-scheduled-task-job-definition-item.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Scheduler Job Definition was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
