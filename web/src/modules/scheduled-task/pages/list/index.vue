@@ -114,13 +114,30 @@
           </template>
 
           <template #schedule="{ row }">
-            <t-tooltip :content="cronScheduleDescriptionLine(row.schedule)" placement="top-left">
+            <t-tooltip
+              placement="top-left"
+              overlay-class-name="scheduled-task-cron-tooltip"
+              :overlay-inner-style="cronTooltipOverlayInnerStyle"
+            >
+              <template #content>
+                <div class="scheduled-task-cron-tooltip__content">
+                  <div class="scheduled-task-cron-tooltip__item">
+                    <span>{{ t('scheduledTask.cron.expression') }}</span>
+                    <code>{{ scheduleExpressionText(row) }}</code>
+                  </div>
+                  <div class="scheduled-task-cron-tooltip__item">
+                    <span>{{ t('scheduledTask.cron.description') }}</span>
+                    <strong>{{ cronScheduleDescription(row.schedule) }}</strong>
+                  </div>
+                  <div class="scheduled-task-cron-tooltip__item">
+                    <span>{{ t('scheduledTask.cron.timezone') }}</span>
+                    <strong>{{ cronTimezone() }}</strong>
+                  </div>
+                </div>
+              </template>
               <div class="scheduled-task-schedule">
                 <code class="scheduled-task-mono">{{ scheduleExpressionText(row) }}</code>
                 <span class="scheduled-task-schedule__next-run">{{ cronNextRunLine(row.schedule) }}</span>
-                <span class="scheduled-task-schedule__description">{{
-                  cronScheduleDescriptionLine(row.schedule)
-                }}</span>
               </div>
             </t-tooltip>
           </template>
@@ -690,6 +707,10 @@ type JobDefinitionGroup = {
 };
 
 const DEFAULT_CRON_EXPRESSION = '0 */5 * * * *';
+const cronTooltipOverlayInnerStyle = {
+  maxWidth: '280px',
+  padding: 'var(--graft-density-gap-12)',
+};
 
 const statusOptions: ScheduledTaskStatus[] = ['idle', 'running', 'success', 'failed', 'unknown'];
 const builtinTaskMessageKeys = [
@@ -889,7 +910,7 @@ const allColumns = computed<TdBaseTableProps['columns']>(() => [
   {
     colKey: 'schedule',
     title: t('scheduledTask.list.columns.cron'),
-    width: 280,
+    width: 230,
   },
   {
     colKey: 'recent_result',
@@ -1370,16 +1391,20 @@ function scheduleExpressionText(task: ScheduledTaskItem) {
 }
 
 function cronNextRunLine(expression: string) {
-  const nextRun = getNextRunText(expression || DEFAULT_CRON_EXPRESSION, undefined, { locale: locale.value });
-  return t('scheduledTask.list.cron.nextRun', {
-    time: nextRun || t('scheduledTask.list.cron.nextRunUnavailable'),
+  const nextRun = getNextRunText(expression || DEFAULT_CRON_EXPRESSION, cronTimezone(), { locale: locale.value });
+  return t('scheduledTask.cron.nextRun', {
+    time: nextRun || t('scheduledTask.cron.nextRunUnavailable'),
   });
 }
 
-function cronScheduleDescriptionLine(expression: string) {
-  return t('scheduledTask.list.cron.ruleDescription', {
-    description: getCronDescription(expression || DEFAULT_CRON_EXPRESSION, locale.value),
+function cronScheduleDescription(expression: string) {
+  return getCronDescription(expression || DEFAULT_CRON_EXPRESSION, locale.value, {
+    advancedExpressionText: t('scheduledTask.cron.advancedExpression'),
   });
+}
+
+function cronTimezone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 }
 
 function cronValidationMessageText(result: CronValidationResult) {
@@ -1689,7 +1714,6 @@ function formatDuration(value?: number | null) {
 .scheduled-task-metric-card span,
 .scheduled-task-muted,
 .scheduled-task-schedule__next-run,
-.scheduled-task-schedule__description,
 .scheduled-task-identity__key,
 .scheduled-task-last-run span,
 .scheduled-task-form-hint {
@@ -1792,20 +1816,55 @@ function formatDuration(value?: number | null) {
   display: inline-block;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   max-width: 100%;
+  user-select: text;
 }
 
 .scheduled-task-schedule {
+  border-radius: var(--td-radius-small);
+  cursor: default;
+  gap: var(--graft-density-gap-4);
   max-width: 100%;
+  padding: var(--graft-density-gap-2) 0;
+}
+
+.scheduled-task-schedule:hover .scheduled-task-mono {
+  color: var(--td-brand-color);
 }
 
 .scheduled-task-schedule__next-run {
-  margin-top: var(--graft-density-gap-4);
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+  line-height: var(--td-line-height-body-small);
 }
 
-.scheduled-task-schedule__description {
-  color: var(--td-text-color-placeholder);
+.scheduled-task-cron-tooltip__content {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  min-width: 220px;
+}
+
+.scheduled-task-cron-tooltip__item {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+}
+
+.scheduled-task-cron-tooltip__item span {
+  color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
-  margin-top: var(--graft-density-gap-2);
+}
+
+.scheduled-task-cron-tooltip__item code,
+.scheduled-task-cron-tooltip__item strong {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-body-medium);
+  font-weight: 500;
+  line-height: var(--td-line-height-body-medium);
+  overflow-wrap: anywhere;
+}
+
+.scheduled-task-cron-tooltip__item code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-weight: 600;
 }
 
 .scheduled-task-actions {

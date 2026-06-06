@@ -141,7 +141,9 @@ describe('scheduled-task cron utility', () => {
     const now = new Date('2026-06-06T08:00:00+08:00');
 
     expect(getNextRunText('0 17 * * *', 'Asia/Shanghai', { locale: 'zh-CN', now })).toBe('2026-06-06 17:00');
+    expect(getNextRunText('0 0 17 * * *', 'Asia/Shanghai', { locale: 'zh-CN', now })).toBe('2026-06-06 17:00');
     expect(getNextRunText('0 15 17 * * *', 'Asia/Shanghai', { locale: 'zh-CN', now })).toBe('2026-06-06 17:15');
+    expect(getNextRunText('0 30 17 * * *', 'Asia/Shanghai', { locale: 'zh-CN', now })).toBe('2026-06-06 17:30');
   });
 
   it('returns empty next run text and advanced descriptions for invalid cron expressions', () => {
@@ -151,7 +153,9 @@ describe('scheduled-task cron utility', () => {
   });
 
   it('describes cron expressions with zh-CN and en-US locale support', () => {
-    expect(getCronDescription('0 0 17 * * *', 'zh-CN')).toContain('每天');
+    expect(getCronDescription('0 0 17 * * *', 'zh-CN')).toBe('每天 17:00 执行');
+    expect(getCronDescription('0 15 17 * * *', 'zh-CN')).toBe('每天 17:15 执行');
+    expect(getCronDescription('0 30 17 * * *', 'zh-CN')).toBe('每天 17:30 执行');
     expect(getCronDescription('0 0 17 * * *', 'en-US')).toContain('every day');
   });
 });

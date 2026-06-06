@@ -53,9 +53,12 @@ const translations = vi.hoisted(
     'scheduledTask.list.filters.jobType': 'Job 类型',
     'scheduledTask.list.filters.searchPlaceholder': '搜索任务',
     'scheduledTask.list.filters.status': '状态',
-    'scheduledTask.list.cron.nextRun': '下次执行：{time}',
-    'scheduledTask.list.cron.nextRunUnavailable': '无法计算',
-    'scheduledTask.list.cron.ruleDescription': '规则说明：{description}',
+    'scheduledTask.cron.nextRun': '下次执行：{time}',
+    'scheduledTask.cron.nextRunUnavailable': '无法计算',
+    'scheduledTask.cron.expression': 'Cron 表达式',
+    'scheduledTask.cron.description': '规则说明',
+    'scheduledTask.cron.advancedExpression': '高级 Cron 表达式',
+    'scheduledTask.cron.timezone': '时区',
     'scheduledTask.list.form.cronExpression': 'Cron 表达式',
     'scheduledTask.list.form.formatJson': '格式化 JSON',
     'scheduledTask.list.form.cronRequiredHint': '请填写 Cron 表达式。',
@@ -395,7 +398,15 @@ const PassthroughStub = defineComponent({
   name: 'PassthroughStub',
   props: ['header', 'label'],
   setup(props, { attrs, slots }) {
-    return () => h('div', attrs, [props.header, props.label, slots.default?.(), slots.footer?.(), slots.action?.()]);
+    return () =>
+      h('div', attrs, [
+        props.header,
+        props.label,
+        slots.content?.(),
+        slots.default?.(),
+        slots.footer?.(),
+        slots.action?.(),
+      ]);
   },
 });
 
@@ -515,12 +526,17 @@ describe('ScheduledTaskListPage', () => {
     const firstScheduleCell = wrapper.find('tbody tr:first-child td[data-col="schedule"]');
     expect(firstScheduleCell.text()).toContain('*/5 * * * *');
     expect(firstScheduleCell.text()).toContain('下次执行：2026-06-06 08:05');
-    expect(firstScheduleCell.text()).toContain('规则说明：每隔 5 分钟');
+    expect(firstScheduleCell.find('.scheduled-task-schedule').text()).not.toContain('规则说明');
+    expect(firstScheduleCell.text()).toContain('规则说明');
+    expect(firstScheduleCell.text()).toContain('每隔 5 分钟');
+    expect(firstScheduleCell.text()).toContain('时区');
 
     const customScheduleCell = wrapper.find('tbody tr:nth-child(4) td[data-col="schedule"]');
     expect(customScheduleCell.text()).toContain('0 17 * * *');
     expect(customScheduleCell.text()).toContain('下次执行：2026-06-06 17:00');
-    expect(customScheduleCell.text()).toContain('规则说明：在17:00, 每天');
+    expect(customScheduleCell.find('.scheduled-task-schedule').text()).not.toContain('规则说明');
+    expect(customScheduleCell.text()).toContain('每天 17:00 执行');
+    expect(customScheduleCell.text()).not.toContain('在17:00, 每天');
 
     const firstResultCell = wrapper.find('tbody tr:first-child td[data-col="recent_result"]');
     expect(firstResultCell.text()).toContain('成功');

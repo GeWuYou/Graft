@@ -40,6 +40,14 @@
       "placeholder": "For example 0 17 * * *",
       "validStatus": "Valid"
     },
+    "cron": {
+      "nextRun": "Next run: {time}",
+      "nextRunUnavailable": "Unavailable",
+      "expression": "Cron expression",
+      "description": "Description",
+      "advancedExpression": "Advanced Cron expression",
+      "timezone": "Timezone"
+    },
     "cronScheduleDialog": {
       "title": "Configure Schedule",
       "cancel": "Cancel",
@@ -149,11 +157,6 @@
         "status": "Status",
         "allJobTypes": "All Job Types",
         "allStatuses": "All Statuses"
-      },
-      "cron": {
-        "nextRun": "Next run: {time}",
-        "nextRunUnavailable": "Unavailable",
-        "ruleDescription": "Rule: {description}"
       },
       "columns": {
         "task": "Task",

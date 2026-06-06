@@ -40,6 +40,14 @@
       "placeholder": "例如 0 17 * * *",
       "validStatus": "有效"
     },
+    "cron": {
+      "nextRun": "下次执行：{time}",
+      "nextRunUnavailable": "无法计算",
+      "expression": "Cron 表达式",
+      "description": "规则说明",
+      "advancedExpression": "高级 Cron 表达式",
+      "timezone": "时区"
+    },
     "cronScheduleDialog": {
       "title": "配置执行计划",
       "cancel": "取消",
@@ -149,11 +157,6 @@
         "status": "状态",
         "allJobTypes": "全部 Job 类型",
         "allStatuses": "全部状态"
-      },
-      "cron": {
-        "nextRun": "下次执行：{time}",
-        "nextRunUnavailable": "无法计算",
-        "ruleDescription": "规则说明：{description}"
       },
       "columns": {
         "task": "任务",

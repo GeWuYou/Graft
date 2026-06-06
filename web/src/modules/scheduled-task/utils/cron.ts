@@ -69,6 +69,15 @@ export type CronNextRunFormatOptions = {
   now?: Date;
 };
 
+export type CronDescriptionFormatOptions = {
+  advancedExpressionText?: string;
+};
+
+type SimpleDailyCronTime = {
+  hour: number;
+  minute: number;
+};
+
 type CronFieldRule = {
   name: string;
   min: number;
@@ -118,22 +127,27 @@ export function getNextRunText(expression: string, timezone?: string, options: C
   }
 }
 
-export function getCronDescription(expression: string, locale?: string): string {
+export function getCronDescription(
+  expression: string,
+  locale?: string,
+  options: CronDescriptionFormatOptions = {},
+): string {
   const normalizedExpression = formatCronExpression(expression);
   const cronstrueLocale = toCronstrueLocale(locale);
   if (!isSupportedCronFieldCount(normalizedExpression)) {
-    return advancedCronDescription(cronstrueLocale);
+    return options.advancedExpressionText || advancedCronDescription(cronstrueLocale);
   }
 
   try {
-    return cronstrue.toString(normalizedExpression, {
+    const description = cronstrue.toString(normalizedExpression, {
       locale: cronstrueLocale,
       throwExceptionOnParseError: true,
       use24HourTimeFormat: true,
       verbose: true,
     });
+    return polishCronDescription(description, normalizedExpression, cronstrueLocale);
   } catch {
-    return advancedCronDescription(cronstrueLocale);
+    return options.advancedExpressionText || advancedCronDescription(cronstrueLocale);
   }
 }
 
@@ -508,6 +522,48 @@ function toCronstrueLocale(locale?: string): string {
 
 function advancedCronDescription(locale: string): string {
   return ADVANCED_CRON_DESCRIPTION[locale] ?? ADVANCED_CRON_DESCRIPTION.en;
+}
+
+function polishCronDescription(description: string, expression: string, locale: string): string {
+  if (locale !== 'zh_CN') {
+    return description;
+  }
+
+  const dailyTime = parseSimpleDailyCronTime(expression);
+  if (dailyTime && /每天/.test(description) && /在\s*\d{1,2}:\d{2}/.test(description)) {
+    return `每天 ${formatCronClockTime(dailyTime.hour, dailyTime.minute)} 执行`;
+  }
+
+  return description.replace(/,\s*/g, '，');
+}
+
+function parseSimpleDailyCronTime(expression: string): SimpleDailyCronTime | null {
+  const fields = splitCronFields(expression);
+  const normalizedFields = fields.length === FIELD_COUNT_UNIX ? ['0', ...fields] : fields;
+  if (normalizedFields.length !== FIELD_COUNT_SECONDS) {
+    return null;
+  }
+
+  const [second, minute, hour, dayOfMonth, month, dayOfWeek] = normalizedFields;
+  if (
+    second !== '0' ||
+    !isCronNumberInRange(minute, 0, 59) ||
+    !isCronNumberInRange(hour, 0, 23) ||
+    dayOfMonth !== '*' ||
+    month !== '*' ||
+    dayOfWeek !== '*'
+  ) {
+    return null;
+  }
+
+  return {
+    hour: Number(hour),
+    minute: Number(minute),
+  };
+}
+
+function formatCronClockTime(hour: number, minute: number): string {
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 }
 
 function validateCronField(field: string, rule: CronFieldRule): CronValidationResult {
