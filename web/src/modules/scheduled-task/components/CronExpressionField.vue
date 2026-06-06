@@ -148,14 +148,10 @@ function cronValidationMessageText(result: CronValidationResult) {
 }
 </script>
 <style scoped lang="less">
-.cron-expression-field {
+.cron-expression-field,
+.scheduled-task-cron-field {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  width: 100%;
-}
-
-.scheduled-task-cron-field {
   min-width: 0;
   width: 100%;
 }
@@ -179,7 +175,7 @@ function cronValidationMessageText(result: CronValidationResult) {
 
 .scheduled-task-cron-message {
   font: var(--td-font-body-small);
-  line-height: 20px;
+  line-height: var(--td-line-height-body-small);
   margin-top: var(--td-comp-margin-xs);
   min-width: 0;
   overflow-wrap: anywhere;

@@ -133,6 +133,13 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
+vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+  calendar: 'gregory',
+  locale: 'zh-CN',
+  numberingSystem: 'latn',
+  timeZone: 'Asia/Shanghai',
+} as Intl.ResolvedDateTimeFormatOptions);
+
 vi.setSystemTime(new Date('2026-06-06T08:00:00+08:00'));
 
 function scheduledTasksResponse() {
