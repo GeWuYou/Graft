@@ -46,10 +46,12 @@ type Job struct {
 
 // JobAction describes one backend-defined operation available for a Job Definition.
 type JobAction struct {
-	Key             string
-	Title           string
-	Description     string
-	ConfigOverrides string
+	Key            string
+	TitleKey       string
+	Title          string
+	DescriptionKey string
+	Description    string
+	Handler        func(ctx context.Context, configJSON string) (JobRunResult, error)
 }
 
 // JobRunResult is the structured outcome a scheduler job should persist.

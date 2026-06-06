@@ -237,17 +237,9 @@ func registerAuditLogRetentionCleanupJob(
 		DescriptionMessageKey: auditLogRetentionCleanupJobDescriptionKey,
 		ConfigSchema:          auditLogRetentionCleanupConfigSchema,
 		DefaultConfig:         auditLogRetentionCleanupDefaultConfig,
-		Actions: []cronx.JobAction{
-			{
-				Key:             "dry-run",
-				Title:           "Dry run",
-				Description:     "Preview audit log retention cleanup without deleting audit logs.",
-				ConfigOverrides: `{"dryRun":true}`,
-			},
-		},
-		Schedule:       auditLogRetentionCleanupJobSchedule,
-		DefaultEnabled: true,
-		Module:         moduleID,
+		Schedule:              auditLogRetentionCleanupJobSchedule,
+		DefaultEnabled:        true,
+		Module:                moduleID,
 		Handler: func(ctx context.Context, configJSON string) (cronx.JobRunResult, error) {
 			return cleaner.cleanup(ctx, decodeRetentionJobConfig(configJSON))
 		},

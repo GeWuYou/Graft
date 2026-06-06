@@ -21,8 +21,10 @@ const translations = vi.hoisted(
     'scheduledTask.accessLogRetention.title': '访问日志保留清理',
     'scheduledTask.accessLogRetention.config.batchSize.description': '单次清理最多删除的访问日志行数。',
     'scheduledTask.accessLogRetention.config.batchSize.title': '批量大小',
-    'scheduledTask.accessLogRetention.config.dryRun.description': '只预览清理结果，不删除访问日志。',
-    'scheduledTask.accessLogRetention.config.dryRun.title': '试运行',
+    'scheduledTask.accessLogRetention.config.retentionDays.description': '删除早于该保留天数的访问日志。',
+    'scheduledTask.accessLogRetention.config.retentionDays.title': '日志保留时间',
+    'scheduledTask.action.dryRun.description': '预览本次执行结果',
+    'scheduledTask.action.dryRun.title': '试运行',
     'scheduledTask.appLogRetention.config.batchSize.description': '单次清理最多删除的应用日志行数。',
     'scheduledTask.appLogRetention.config.batchSize.title': '批量大小',
     'scheduledTask.appLogRetention.config.dryRun.description': '只预览清理结果，不删除应用日志。',
@@ -91,16 +93,21 @@ const translations = vi.hoisted(
     'scheduledTask.list.form.formatJson': '格式化 JSON',
     'scheduledTask.list.form.noConfigFields': '此 Job Definition 暂无可配置项。',
     'scheduledTask.list.form.cronRequiredHint': '请填写 Cron 表达式。',
+    'scheduledTask.list.form.sectionBasicConfig': '基础配置',
     'scheduledTask.list.form.sectionConfig': '任务配置',
     'scheduledTask.list.configDialog.confirm': '保存配置',
+    'scheduledTask.list.configDialog.customRetentionDays': '自定义',
+    'scheduledTask.list.configDialog.jsonPreview': 'JSON 预览',
     'scheduledTask.list.configDialog.open': '配置',
+    'scheduledTask.list.configDialog.retentionDaysOption': '{days} 天',
+    'scheduledTask.list.configDialog.schemaDebug': 'Schema 调试信息',
     'scheduledTask.list.configDialog.title': '配置任务',
     'scheduledTask.list.action.affectedResource': '影响资源',
     'scheduledTask.list.action.behavior': '行为',
     'scheduledTask.list.action.confirm': '执行操作',
     'scheduledTask.list.action.confirmTitle': '确认操作',
     'scheduledTask.list.action.currentConfig': '当前配置',
-    'scheduledTask.list.action.previewWarning': '试运行和预览操作不会修改数据。',
+    'scheduledTask.list.action.previewWarning': '本次操作不会修改任务配置。',
     'scheduledTask.list.action.sectionHint': '预览或检查 Job Definition 操作，不改变任务持久配置。',
     'scheduledTask.list.action.sectionTitle': 'Job 操作',
     'scheduledTask.list.action.taskName': '任务名称',
@@ -122,7 +129,6 @@ const translations = vi.hoisted(
     'scheduledTask.list.runDialog.batchSize': '批量大小',
     'scheduledTask.list.runDialog.cleanupDescription': '{behavior} 请确认清理范围后执行。',
     'scheduledTask.list.runDialog.cutoffPolicy': '截止策略/时间',
-    'scheduledTask.list.runDialog.dryRun': '试运行',
     'scheduledTask.list.runDialog.expectedBehavior': '预期行为',
     'scheduledTask.list.runDialog.retentionDays': '保留天数',
     'scheduledTask.list.resource.accessLog': '访问日志',
@@ -214,8 +220,8 @@ function scheduledTasksResponse() {
         schedule: '*/5 * * * *',
         status: 'idle',
         running: false,
-        config_json: '{"batchSize":500}',
-        effective_config: '{"dryRun":false,"batchSize":500}',
+        config_json: '{"retentionDays":30,"batchSize":500}',
+        effective_config: '{"retentionDays":30,"batchSize":500}',
         last_run: {
           id: 101,
           trigger_type: 'cron',
@@ -299,14 +305,29 @@ function jobDefinitionsResponse() {
     JSON.stringify({
       type: 'object',
       properties: {
-        dryRun: {
-          type: 'boolean',
-          'x-title-key': `scheduledTask.${prefix}.config.dryRun.title`,
-          'x-description-key': `scheduledTask.${prefix}.config.dryRun.description`,
-          title: 'Dry run',
-          description: `Preview cleanup without deleting ${resource}.`,
-          default: false,
-        },
+        ...(prefix === 'accessLogRetention'
+          ? {
+              retentionDays: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 3650,
+                'x-title-key': 'scheduledTask.accessLogRetention.config.retentionDays.title',
+                'x-description-key': 'scheduledTask.accessLogRetention.config.retentionDays.description',
+                title: 'Retention days',
+                description: 'Delete access logs older than this number of days.',
+                default: 30,
+              },
+            }
+          : {
+              dryRun: {
+                type: 'boolean',
+                'x-title-key': `scheduledTask.${prefix}.config.dryRun.title`,
+                'x-description-key': `scheduledTask.${prefix}.config.dryRun.description`,
+                title: 'Dry run',
+                description: `Preview cleanup without deleting ${resource}.`,
+                default: false,
+              },
+            }),
         batchSize: {
           type: 'integer',
           minimum: 1,
@@ -332,20 +353,19 @@ function jobDefinitionsResponse() {
         title: 'Access log retention cleanup',
         description: 'Deletes access logs beyond the configured retention window.',
         config_schema_json: configSchemaJson('accessLogRetention', 'access logs'),
-        default_config_json: '{"dryRun":false,"batchSize":1000}',
+        default_config_json: '{"retentionDays":30,"batchSize":1000}',
         default_cron_expression: '*/5 * * * *',
         default_enabled: true,
         actions: [
           {
             key: 'dryRun',
-            title: 'Dry run',
-            display_name_key: 'scheduledTask.accessLogRetention.config.dryRun.title',
-            description: 'Preview cleanup without deleting access logs.',
-            behavior: '本次将预演清理访问日志，不会真正删除数据。',
+            title_key: 'scheduledTask.action.dryRun.title',
+            title: '试运行',
+            description_key: 'scheduledTask.action.dryRun.description',
+            description: '预览本次执行结果',
             affected_resource: 'access_logs',
             confirm_required: true,
             theme: 'primary',
-            config_overrides: '{"dryRun":true}',
           },
         ],
       },
@@ -364,14 +384,14 @@ function jobDefinitionsResponse() {
         actions: [
           {
             key: 'dryRun',
-            title: 'Dry run',
-            display_name_key: 'scheduledTask.appLogRetention.config.dryRun.title',
+            title_key: 'scheduledTask.action.dryRun.title',
+            title: '试运行',
+            description_key: 'scheduledTask.action.dryRun.description',
             description: 'Preview cleanup without deleting app logs.',
             behavior: '本次将预演清理应用日志，不会真正删除数据。',
             affected_resource: 'app_logs',
             confirm_required: true,
             theme: 'primary',
-            config_overrides: '{"dryRun":true}',
           },
         ],
       },
@@ -390,14 +410,14 @@ function jobDefinitionsResponse() {
         actions: [
           {
             key: 'dryRun',
-            title: 'Dry run',
-            display_name_key: 'scheduledTask.auditLogRetention.config.dryRun.title',
+            title_key: 'scheduledTask.action.dryRun.title',
+            title: '试运行',
+            description_key: 'scheduledTask.action.dryRun.description',
             description: 'Preview cleanup without deleting audit logs.',
             behavior: '本次将预演清理审计日志，不会真正删除数据。',
             affected_resource: 'audit_logs',
             confirm_required: true,
             theme: 'primary',
-            config_overrides: '{"dryRun":true}',
           },
         ],
       },
@@ -646,7 +666,7 @@ describe('ScheduledTaskListPage', () => {
     apiMocks.executeScheduledTaskAction.mockResolvedValue({
       action_key: 'dryRun',
       result_json:
-        '{"summary":"预计可清理 128 条访问日志","stage":"match_expired_records","affected_resource":"access_logs","metrics":{"matchedCount":128,"deletedCount":0},"details":{"dryRun":true,"batchSize":500},"warnings":[]}',
+        '{"summary":"预计可清理 128 条访问日志","stage":"estimated","affected_resource":"access_logs","metrics":{"estimatedScanCount":128,"estimatedDeleteCount":128,"estimatedRetainCount":32},"details":{"retentionDays":30,"batchSize":500},"warnings":[]}',
     });
   });
 
@@ -738,12 +758,12 @@ describe('ScheduledTaskListPage', () => {
       'httpx.access-log-retention-cleanup',
       expect.objectContaining({
         cron_expression: '0 */10 * * * *',
-        config_json: '{"batchSize":500}',
+        config_json: '{"retentionDays":30,"batchSize":500}',
       }),
     );
   });
 
-  it('keeps action-controlled config out of the edit drawer and renders action buttons', async () => {
+  it('keeps persistent config fields in the edit drawer and renders backend action buttons', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
@@ -761,6 +781,7 @@ describe('ScheduledTaskListPage', () => {
 
     const configSectionText = wrapper.findAll('.scheduled-task-form-section')[3]?.text() ?? '';
     expect(configSectionText).toContain('任务配置');
+    expect(configSectionText).toContain('日志保留时间');
     expect(configSectionText).toContain('批量大小');
     expect(configSectionText).not.toContain('试运行');
   });
@@ -774,7 +795,7 @@ describe('ScheduledTaskListPage', () => {
     await viewTrigger!.trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('试运行');
+    expect(wrapper.text()).toContain('日志保留时间');
     expect(wrapper.text()).toContain('批量大小');
     expect(wrapper.text()).toContain('单次清理最多删除的访问日志行数。');
   });
@@ -794,7 +815,7 @@ describe('ScheduledTaskListPage', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('确认操作');
-    expect(wrapper.text()).toContain('本次将预演清理访问日志，不会真正删除数据。');
+    expect(wrapper.text()).toContain('预览本次执行结果');
     expect(wrapper.text()).toContain('access_logs');
 
     await wrapper
@@ -804,11 +825,11 @@ describe('ScheduledTaskListPage', () => {
     await flushPromises();
 
     expect(apiMocks.executeScheduledTaskAction).toHaveBeenCalledWith('httpx.access-log-retention-cleanup', 'dryRun', {
-      config_json: '{"batchSize":500}',
+      config_json: '{"retentionDays":30,"batchSize":500}',
     });
     expect(apiMocks.updateScheduledTask).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain('操作结果');
     expect(wrapper.text()).toContain('预计可清理 128 条访问日志');
-    expect(wrapper.text()).toContain('match_expired_records');
+    expect(wrapper.text()).toContain('estimated');
   });
 });

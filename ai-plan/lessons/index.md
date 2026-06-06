@@ -6,6 +6,7 @@
 | -------------------------------- | -------------------------------------------- | ------ | ----: | ------ | --------------------------- | ------------------------------------------------------------------------- |
 | LESSON-BACKEND-HTTPX-CONTEXT-001 | 守卫发布安全审计前必须先写回增强后的请求上下文 | backend |    L1 | active | `ai-plan/lessons/backend.md` | -                                                                         |
 | LESSON-BACKEND-MIGRATION-VERSION-001 | 已执行 Atlas migration 版本不能追加新 DDL | backend |    L1 | active | `ai-plan/lessons/backend.md` | -                                                                         |
+| LESSON-GOVERNANCE-BROWSER-BACKEND-001 | 浏览器验收需要真实后端时不要停在 mock 登录页 | governance |    L1 | active | `ai-plan/lessons/governance.md` | -                                                                         |
 | LESSON-WEB-UI-DENSITY-TOKEN-001  | 信息密度切换必须治理 token 消费面            | web-ui |    L2 | active | `ai-plan/lessons/web-ui.md` | -                                                                         |
 | LESSON-WEB-UI-EMPTY-STATE-001    | 表格空状态不应做成小灰色卡片                 | web-ui |    L3 | active | `ai-plan/lessons/web-ui.md` | `web/AGENTS.md`, `ai-plan/design/graft-design-system/list-form-detail.md` |
 | LESSON-WEB-UI-LOG-AUDIT-001      | 高级查询列表页必须优先抽通用查询结构         | web-ui |    L2 | active | `ai-plan/lessons/web-ui.md` | -                                                                         |

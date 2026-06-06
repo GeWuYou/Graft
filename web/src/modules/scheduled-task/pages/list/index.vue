@@ -413,86 +413,129 @@
 
       <t-dialog
         v-model:visible="configDialogVisible"
-        :header="t('scheduledTask.list.configDialog.title')"
+        :header="configDialogTitle"
         :confirm-btn="t('scheduledTask.list.configDialog.confirm')"
         :cancel-btn="t('scheduledTask.list.cancel')"
         :confirm-loading="configDialogSaving"
-        width="720px"
+        width="760px"
         destroy-on-close
         @confirm="confirmConfigDialog"
       >
         <div class="scheduled-task-dialog-copy">
-          <p>{{ configDialogBehaviorSummary }}</p>
           <t-form :data="taskForm" label-align="top">
-            <template v-if="persistentConfigSchemaFields.length > 0">
-              <t-form-item
-                v-for="field in persistentConfigSchemaFields"
-                :key="field.key"
-                :label="configSchemaFieldTitle(field)"
-                :name="`config.${field.key}`"
-                :help="configSchemaFieldDescription(field)"
-                :required-mark="field.required"
-              >
-                <t-select
-                  v-if="field.schema.enum"
-                  :model-value="configSelectValue(field.key)"
-                  :placeholder="t('scheduledTask.list.form.configSelectPlaceholder')"
-                  clearable
-                  @change="(value) => updateConfigField(field.key, value)"
-                >
-                  <t-option
-                    v-for="option in field.schema.enum"
-                    :key="String(option)"
-                    :value="option"
-                    :label="String(option)"
-                  />
-                </t-select>
-                <t-input-number
-                  v-else-if="field.schema.type === 'integer' || field.schema.type === 'number'"
-                  :model-value="configNumberValue(field.key)"
-                  :min="field.schema.minimum"
-                  :max="field.schema.maximum"
-                  :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
-                  :placeholder="t('scheduledTask.list.form.configNumberPlaceholder')"
-                  @change="(value) => updateConfigField(field.key, value)"
-                />
-                <t-switch
-                  v-else-if="field.schema.type === 'boolean'"
-                  :model-value="Boolean(taskForm.config[field.key])"
-                  @change="(value) => updateConfigField(field.key, value)"
-                />
-                <t-input
-                  v-else
-                  :model-value="configStringValue(field.key)"
-                  :minlength="field.schema.minLength"
-                  :maxlength="field.schema.maxLength"
-                  :placeholder="t('scheduledTask.list.form.configStringPlaceholder')"
-                  clearable
-                  @change="(value) => updateConfigField(field.key, value)"
-                />
-              </t-form-item>
-            </template>
-            <p v-else class="scheduled-task-muted">{{ t('scheduledTask.list.form.noConfigFields') }}</p>
-            <t-collapse expand-icon-placement="right">
-              <t-collapse-panel value="advancedConfig" :header="t('scheduledTask.list.form.sectionAdvancedConfig')">
+            <section class="scheduled-task-config-section">
+              <div class="scheduled-task-config-section__head">
+                <h3>{{ t('scheduledTask.list.form.sectionBasicConfig') }}</h3>
+                <p>{{ configDialogBehaviorSummary }}</p>
+              </div>
+              <template v-if="persistentConfigSchemaFields.length > 0">
                 <t-form-item
-                  :label="t('scheduledTask.list.form.configJson')"
-                  name="configJson"
-                  :status="formFieldErrors.configJson ? 'error' : undefined"
-                  :tips="formFieldErrors.configJson"
+                  v-for="field in persistentConfigSchemaFields"
+                  :key="field.key"
+                  :label="configSchemaFieldTitle(field)"
+                  :name="`config.${field.key}`"
+                  :help="configSchemaFieldDescription(field)"
+                  :required-mark="field.required"
                 >
-                  <div class="scheduled-task-config-field">
-                    <t-button size="small" variant="outline" @click="formatConfigJson">
-                      {{ t('scheduledTask.list.form.formatJson') }}
-                    </t-button>
-                    <t-textarea
-                      v-model="taskForm.configJson"
-                      :autosize="{ minRows: 4, maxRows: 8 }"
-                      :placeholder="t('scheduledTask.list.form.configJsonPlaceholder')"
-                      @change="handleConfigJsonChange"
+                  <div v-if="isRetentionDaysField(field)" class="scheduled-task-retention-field">
+                    <t-radio-group
+                      :model-value="retentionDaysOptionValue()"
+                      variant="default-filled"
+                      @change="handleRetentionDaysOptionChange"
+                    >
+                      <t-radio-button v-for="days in RETENTION_DAY_PRESETS" :key="days" :value="days">
+                        {{ t('scheduledTask.list.configDialog.retentionDaysOption', { days }) }}
+                      </t-radio-button>
+                      <t-radio-button :value="CUSTOM_RETENTION_DAY_VALUE">
+                        {{ t('scheduledTask.list.configDialog.customRetentionDays') }}
+                      </t-radio-button>
+                    </t-radio-group>
+                    <t-input-number
+                      v-if="retentionDaysOptionValue() === CUSTOM_RETENTION_DAY_VALUE"
+                      :model-value="configNumberValue(field.key)"
+                      :min="field.schema.minimum"
+                      :max="field.schema.maximum"
+                      :decimal-places="0"
+                      :placeholder="t('scheduledTask.list.form.configNumberPlaceholder')"
+                      @change="(value) => updateConfigField(field.key, value)"
                     />
                   </div>
+                  <t-select
+                    v-else-if="field.schema.enum"
+                    :model-value="configSelectValue(field.key)"
+                    :placeholder="t('scheduledTask.list.form.configSelectPlaceholder')"
+                    clearable
+                    @change="(value) => updateConfigField(field.key, value)"
+                  >
+                    <t-option
+                      v-for="option in field.schema.enum"
+                      :key="String(option)"
+                      :value="option"
+                      :label="String(option)"
+                    />
+                  </t-select>
+                  <t-input-number
+                    v-else-if="field.schema.type === 'integer' || field.schema.type === 'number'"
+                    :model-value="configNumberValue(field.key)"
+                    :min="field.schema.minimum"
+                    :max="field.schema.maximum"
+                    :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
+                    :placeholder="t('scheduledTask.list.form.configNumberPlaceholder')"
+                    @change="(value) => updateConfigField(field.key, value)"
+                  />
+                  <t-switch
+                    v-else-if="field.schema.type === 'boolean'"
+                    :model-value="Boolean(taskForm.config[field.key])"
+                    @change="(value) => updateConfigField(field.key, value)"
+                  />
+                  <t-input
+                    v-else
+                    :model-value="configStringValue(field.key)"
+                    :minlength="field.schema.minLength"
+                    :maxlength="field.schema.maxLength"
+                    :placeholder="t('scheduledTask.list.form.configStringPlaceholder')"
+                    clearable
+                    @change="(value) => updateConfigField(field.key, value)"
+                  />
                 </t-form-item>
+              </template>
+              <p v-else class="scheduled-task-muted">{{ t('scheduledTask.list.form.noConfigFields') }}</p>
+            </section>
+            <t-collapse expand-icon-placement="right">
+              <t-collapse-panel value="advancedConfig" :header="t('scheduledTask.list.form.sectionAdvancedConfig')">
+                <div class="scheduled-task-advanced-config">
+                  <section>
+                    <strong>{{ t('scheduledTask.list.configDialog.jsonPreview') }}</strong>
+                    <pre class="scheduled-task-json-preview">{{
+                      formatJsonPreview(taskForm.configJson) || t('scheduledTask.list.detail.none')
+                    }}</pre>
+                  </section>
+                  <t-form-item
+                    :label="t('scheduledTask.list.form.configJson')"
+                    name="configJson"
+                    :status="formFieldErrors.configJson ? 'error' : undefined"
+                    :tips="formFieldErrors.configJson"
+                  >
+                    <div class="scheduled-task-config-field">
+                      <t-button size="small" variant="outline" @click="formatConfigJson">
+                        {{ t('scheduledTask.list.form.formatJson') }}
+                      </t-button>
+                      <t-textarea
+                        v-model="taskForm.configJson"
+                        :autosize="{ minRows: 4, maxRows: 8 }"
+                        :placeholder="t('scheduledTask.list.form.configJsonPlaceholder')"
+                        @change="handleConfigJsonChange"
+                      />
+                    </div>
+                  </t-form-item>
+                  <section>
+                    <strong>{{ t('scheduledTask.list.configDialog.schemaDebug') }}</strong>
+                    <pre class="scheduled-task-json-preview">{{
+                      formatJsonPreview(selectedJobDefinition?.config_schema_json) ||
+                      t('scheduledTask.list.detail.none')
+                    }}</pre>
+                  </section>
+                </div>
               </t-collapse-panel>
             </t-collapse>
           </t-form>
@@ -516,7 +559,7 @@
               {{ taskDisplayName(editingTask) }}
             </t-descriptions-item>
             <t-descriptions-item :label="t('scheduledTask.list.action.behavior')">
-              {{ jobDefinitionActionBehavior(selectedAction) }}
+              {{ jobDefinitionActionDescription(selectedAction) }}
             </t-descriptions-item>
             <t-descriptions-item :label="t('scheduledTask.list.action.affectedResource')">
               {{ jobDefinitionActionAffectedResource(selectedAction, editingTask) }}
@@ -1029,7 +1072,8 @@ type ImmediateRunSummary = {
 };
 
 const DEFAULT_CRON_EXPRESSION = '0 */5 * * * *';
-const ACTION_CONTROLLED_CONFIG_FALLBACK_KEYS = ['dryRun', 'dry_run'] as const;
+const RETENTION_DAY_PRESETS = [1, 7, 30, 90] as const;
+const CUSTOM_RETENTION_DAY_VALUE = 'custom';
 const cronTooltipOverlayInnerStyle = {
   maxWidth: '280px',
   padding: 'var(--graft-density-gap-12)',
@@ -1043,8 +1087,10 @@ const builtinTaskMessageKeys = [
   'scheduledTask.auditLogRetention.description',
   'scheduledTask.appLogRetention.title',
   'scheduledTask.appLogRetention.description',
-  'scheduledTask.accessLogRetention.config.dryRun.title',
-  'scheduledTask.accessLogRetention.config.dryRun.description',
+  'scheduledTask.action.dryRun.title',
+  'scheduledTask.action.dryRun.description',
+  'scheduledTask.accessLogRetention.config.retentionDays.title',
+  'scheduledTask.accessLogRetention.config.retentionDays.description',
   'scheduledTask.accessLogRetention.config.batchSize.title',
   'scheduledTask.accessLogRetention.config.batchSize.description',
   'scheduledTask.auditLogRetention.config.dryRun.title',
@@ -1118,6 +1164,7 @@ const runDialogTask = ref<ScheduledTaskItem | null>(null);
 const deleteDialogTask = ref<ScheduledTaskItem | null>(null);
 const selectedAction = ref<ScheduledTaskJobDefinitionAction | null>(null);
 const actionResult = ref<ScheduledTaskActionResult | null>(null);
+const customRetentionDaysSelected = ref(false);
 
 const filters = reactive<FilterModel>({
   keyword: '',
@@ -1215,19 +1262,7 @@ const selectedJobDefinitionWithActions = computed(() =>
 
 const jobDefinitionActions = computed(() => selectedJobDefinitionWithActions.value?.actions ?? []);
 
-const actionControlledConfigKeys = computed(() => {
-  const keys = new Set<string>(ACTION_CONTROLLED_CONFIG_FALLBACK_KEYS);
-  for (const action of jobDefinitionActions.value) {
-    for (const key of actionOverrideKeys(action)) {
-      keys.add(key);
-    }
-  }
-  return keys;
-});
-
-const persistentConfigSchemaFields = computed(() =>
-  configSchemaFields.value.filter((field) => !actionControlledConfigKeys.value.has(field.key)),
-);
+const persistentConfigSchemaFields = computed(() => configSchemaFields.value);
 
 const drawerConfigSummaryItems = computed(() =>
   persistentConfigSchemaFields.value
@@ -1244,6 +1279,14 @@ const configDialogBehaviorSummary = computed(() =>
   selectedJobDefinition.value
     ? jobDefinitionDescription(selectedJobDefinition.value)
     : t('scheduledTask.list.configDialog.noJobDefinition'),
+);
+
+const configDialogTitle = computed(
+  () =>
+    taskForm.title.trim() ||
+    (selectedJobDefinition.value
+      ? jobDefinitionTitle(selectedJobDefinition.value)
+      : t('scheduledTask.list.configDialog.title')),
 );
 
 const selectedTaskJobDefinition = computed(() =>
@@ -1665,6 +1708,9 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
 
 function openConfigDialog() {
   configDialogVisible.value = true;
+  customRetentionDaysSelected.value = !RETENTION_DAY_PRESETS.includes(
+    configNumberValue('retentionDays') as (typeof RETENTION_DAY_PRESETS)[number],
+  );
   if (jobDefinitions.value.length === 0) {
     void refreshJobDefinitions();
   }
@@ -1718,10 +1764,7 @@ async function confirmConfigDialog() {
 
 function buildPersistentConfigJson(configJson: string) {
   const config = parseJsonRecord(configJson);
-  const persistentConfig = Object.fromEntries(
-    Object.entries(config).filter(([key]) => !actionControlledConfigKeys.value.has(key)),
-  );
-  return Object.keys(persistentConfig).length > 0 ? JSON.stringify(persistentConfig) : '';
+  return Object.keys(config).length > 0 ? JSON.stringify(config) : '';
 }
 
 function openRunDialog(task: ScheduledTaskItem) {
@@ -2150,9 +2193,13 @@ function builtinTaskMessageText(key: BuiltinTaskMessageKey) {
     'scheduledTask.auditLogRetention.description': t('scheduledTask.auditLogRetention.description'),
     'scheduledTask.appLogRetention.title': t('scheduledTask.appLogRetention.title'),
     'scheduledTask.appLogRetention.description': t('scheduledTask.appLogRetention.description'),
-    'scheduledTask.accessLogRetention.config.dryRun.title': t('scheduledTask.accessLogRetention.config.dryRun.title'),
-    'scheduledTask.accessLogRetention.config.dryRun.description': t(
-      'scheduledTask.accessLogRetention.config.dryRun.description',
+    'scheduledTask.action.dryRun.title': t('scheduledTask.action.dryRun.title'),
+    'scheduledTask.action.dryRun.description': t('scheduledTask.action.dryRun.description'),
+    'scheduledTask.accessLogRetention.config.retentionDays.title': t(
+      'scheduledTask.accessLogRetention.config.retentionDays.title',
+    ),
+    'scheduledTask.accessLogRetention.config.retentionDays.description': t(
+      'scheduledTask.accessLogRetention.config.retentionDays.description',
     ),
     'scheduledTask.accessLogRetention.config.batchSize.title': t(
       'scheduledTask.accessLogRetention.config.batchSize.title',
@@ -2214,19 +2261,29 @@ function jobDefinitionDescription(job: ScheduledTaskJobDefinitionItem) {
 }
 
 function jobDefinitionActionTitle(action: ScheduledTaskJobDefinitionAction) {
-  return localizedDisplayText(action.display_name_key, action.title, true) || action.key;
+  return localizedDisplayText(actionTranslationKey(action, 'title'), action.title, true) || action.key;
 }
 
-function jobDefinitionActionBehavior(action: ScheduledTaskJobDefinitionAction) {
+function jobDefinitionActionDescription(action: ScheduledTaskJobDefinitionAction) {
   return (
+    localizedDisplayText(actionTranslationKey(action, 'description'), action.description, true) ||
     localizedDisplayText(
       action.behavior_key ?? action.behavior_summary_key,
       action.behavior ?? action.behavior_summary,
       true,
     ) ||
-    localizeDisplayValue(action.description) ||
     jobDefinitionActionTitle(action)
   );
+}
+
+function actionTranslationKey(action: ScheduledTaskJobDefinitionAction, field: 'title' | 'description') {
+  const compatibilityAction = action as ScheduledTaskJobDefinitionAction & {
+    titleKey?: string;
+    descriptionKey?: string;
+  };
+  return field === 'title'
+    ? action.title_key || compatibilityAction.titleKey
+    : action.description_key || compatibilityAction.descriptionKey;
 }
 
 function jobDefinitionActionAffectedResource(action: ScheduledTaskJobDefinitionAction, task: ScheduledTaskItem) {
@@ -2248,22 +2305,6 @@ function actionButtonTheme(action: ScheduledTaskJobDefinitionAction) {
     case 'default':
     default:
       return 'default';
-  }
-}
-
-function actionOverrideKeys(action: ScheduledTaskJobDefinitionAction) {
-  const keys = new Set<string>();
-  for (const key of Object.keys(parseJsonRecord(action.config_overrides))) {
-    addStringKey(keys, key);
-  }
-
-  return keys;
-}
-
-function addStringKey(keys: Set<string>, value?: string) {
-  const trimmed = value?.trim();
-  if (trimmed) {
-    keys.add(trimmed);
   }
 }
 
@@ -2356,6 +2397,45 @@ function configValuePreview(value: unknown) {
   return String(value);
 }
 
+function isRetentionDaysField(field: ConfigSchemaField) {
+  return field.key === 'retentionDays' && (field.schema.type === 'integer' || field.schema.type === 'number');
+}
+
+function retentionDaysOptionValue() {
+  const value = configNumberValue('retentionDays');
+  if (
+    !customRetentionDaysSelected.value &&
+    value &&
+    RETENTION_DAY_PRESETS.includes(value as (typeof RETENTION_DAY_PRESETS)[number])
+  ) {
+    return value;
+  }
+  return CUSTOM_RETENTION_DAY_VALUE;
+}
+
+function handleRetentionDaysOptionChange(value: unknown) {
+  if (value === CUSTOM_RETENTION_DAY_VALUE) {
+    customRetentionDaysSelected.value = true;
+    const currentValue = configNumberValue('retentionDays');
+    if (!currentValue) {
+      updateConfigField('retentionDays', 30);
+    }
+    return;
+  }
+
+  if (typeof value === 'number') {
+    customRetentionDaysSelected.value = false;
+    updateConfigField('retentionDays', value);
+    return;
+  }
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue)) {
+    customRetentionDaysSelected.value = false;
+    updateConfigField('retentionDays', numericValue);
+  }
+}
+
 function immediateRunSummary(task: ScheduledTaskItem): ImmediateRunSummary {
   const job = jobDefinitions.value.find((item) => item.key === task.job_key);
   const effectiveConfig = task.effective_config?.trim()
@@ -2381,11 +2461,6 @@ function immediateRunSummary(task: ScheduledTaskItem): ImmediateRunSummary {
       key: 'batchSize',
       label: t('scheduledTask.list.runDialog.batchSize'),
       value: configValuePreview(effectiveConfig.batchSize),
-    },
-    {
-      key: 'dryRun',
-      label: t('scheduledTask.list.runDialog.dryRun'),
-      value: configValuePreview(effectiveConfig.dryRun),
     },
   ].filter((item) => item.value !== t('scheduledTask.list.detail.none'));
 
@@ -2780,10 +2855,48 @@ function formatDuration(value?: number | null) {
 }
 
 .scheduled-task-config-list,
+.scheduled-task-config-section,
+.scheduled-task-advanced-config,
 .scheduled-task-raw-config {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-10);
+}
+
+.scheduled-task-config-section__head {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+}
+
+.scheduled-task-config-section__head h3 {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-title-small);
+  margin: 0;
+}
+
+.scheduled-task-config-section__head p {
+  color: var(--td-text-color-secondary);
+}
+
+.scheduled-task-retention-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+}
+
+.scheduled-task-retention-field :deep(.t-radio-group) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+}
+
+.scheduled-task-advanced-config section {
+  display: grid;
+  gap: var(--graft-density-gap-6);
+}
+
+.scheduled-task-advanced-config strong {
+  color: var(--td-text-color-primary);
 }
 
 .scheduled-task-config-list__item {

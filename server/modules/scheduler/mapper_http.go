@@ -61,14 +61,13 @@ func toScheduledTaskJobDefinitionItem(definition schedulercore.JobDefinitionSnap
 			BehaviorKey         *string                                               `json:"behavior_key,omitempty"`
 			BehaviorSummary     *string                                               `json:"behavior_summary,omitempty"`
 			BehaviorSummaryKey  *string                                               `json:"behavior_summary_key,omitempty"`
-			ConfigOverrides     *string                                               `json:"config_overrides,omitempty"`
 			ConfirmRequired     *bool                                                 `json:"confirm_required,omitempty"`
 			Description         *string                                               `json:"description,omitempty"`
 			DescriptionKey      *string                                               `json:"description_key,omitempty"`
-			DisplayNameKey      *string                                               `json:"display_name_key,omitempty"`
 			Key                 string                                                `json:"key"`
 			Theme               *generated.ScheduledTaskJobDefinitionItemActionsTheme `json:"theme,omitempty"`
 			Title               *string                                               `json:"title,omitempty"`
+			TitleKey            *string                                               `json:"title_key,omitempty"`
 		}, 0, len(definition.Actions)),
 	}
 	for _, action := range definition.Actions {
@@ -79,19 +78,19 @@ func toScheduledTaskJobDefinitionItem(definition schedulercore.JobDefinitionSnap
 			BehaviorKey         *string                                               `json:"behavior_key,omitempty"`
 			BehaviorSummary     *string                                               `json:"behavior_summary,omitempty"`
 			BehaviorSummaryKey  *string                                               `json:"behavior_summary_key,omitempty"`
-			ConfigOverrides     *string                                               `json:"config_overrides,omitempty"`
 			ConfirmRequired     *bool                                                 `json:"confirm_required,omitempty"`
 			Description         *string                                               `json:"description,omitempty"`
 			DescriptionKey      *string                                               `json:"description_key,omitempty"`
-			DisplayNameKey      *string                                               `json:"display_name_key,omitempty"`
 			Key                 string                                                `json:"key"`
 			Theme               *generated.ScheduledTaskJobDefinitionItemActionsTheme `json:"theme,omitempty"`
 			Title               *string                                               `json:"title,omitempty"`
+			TitleKey            *string                                               `json:"title_key,omitempty"`
 		}{
-			Key:             strings.TrimSpace(action.Key),
-			Title:           stringPointer(action.Title),
-			Description:     stringPointer(action.Description),
-			ConfigOverrides: stringPointer(defaultJSONObject(action.ConfigOverrides)),
+			Key:            strings.TrimSpace(action.Key),
+			TitleKey:       stringPointer(action.TitleKey),
+			Title:          stringPointer(action.Title),
+			DescriptionKey: stringPointer(action.DescriptionKey),
+			Description:    stringPointer(action.Description),
 		})
 	}
 	return item

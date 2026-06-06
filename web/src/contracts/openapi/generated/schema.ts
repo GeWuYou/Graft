@@ -2336,7 +2336,7 @@ export interface components {
         key: string;
         title?: string;
         description?: string;
-        display_name_key?: string;
+        title_key?: string;
         description_key?: string;
         behavior?: string;
         behavior_key?: string;
@@ -2347,8 +2347,6 @@ export interface components {
         confirm_required?: boolean;
         /** @enum {string} */
         theme?: 'default' | 'primary' | 'warning' | 'danger' | 'success';
-        /** @description JSON object string merged after request config for this action. */
-        config_overrides?: string;
       }[];
     };
     'scheduled-task-job-definition-list-response': {

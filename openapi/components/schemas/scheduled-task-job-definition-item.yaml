@@ -54,7 +54,7 @@ properties:
           type: string
         description:
           type: string
-        display_name_key:
+        title_key:
           type: string
         description_key:
           type: string
@@ -75,7 +75,3 @@ properties:
         theme:
           type: string
           enum: [default, primary, warning, danger, success]
-        config_overrides:
-          type: string
-          pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
-          description: JSON object string merged after request config for this action.

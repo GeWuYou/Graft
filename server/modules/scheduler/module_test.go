@@ -240,11 +240,11 @@ func (r *schedulerAPIRuntime) RunAction(_ context.Context, taskKey string, actio
 			ActionKey:       actionKey,
 			TaskKey:         taskKey,
 			JobKey:          "scheduler.test-job",
-			EffectiveConfig: `{"dryRun":true}`,
+			EffectiveConfig: `{"batchSize":25}`,
 		}
 		r.actionResult.Result.Summary = "previewed"
 		r.actionResult.Result.Stage = "completed"
-		r.actionResult.Result.Metrics = map[string]any{"dryRun": true}
+		r.actionResult.Result.Metrics = map[string]any{"estimatedDeleteCount": int64(128)}
 	}
 	return r.actionResult, nil
 }
@@ -509,7 +509,13 @@ func TestScheduledTaskJobDefinitionsRouteReturnsRuntimeJobDefinitions(t *testing
 				DefaultCron:    "0 0 * * * *",
 				Enabled:        true,
 				Actions: []schedulercore.JobActionSnapshot{
-					{Key: "dry-run", Title: "Dry run", ConfigOverrides: `{"dryRun":true}`},
+					{
+						Key:            "dryRun",
+						TitleKey:       "scheduledTask.action.dryRun.title",
+						Title:          "试运行",
+						DescriptionKey: "scheduledTask.action.dryRun.description",
+						Description:    "预览本次执行结果",
+					},
 				},
 			},
 		},
@@ -532,7 +538,9 @@ func TestScheduledTaskJobDefinitionsRouteReturnsRuntimeJobDefinitions(t *testing
 		item.DefaultCronExpression != "0 0 * * * *" ||
 		item.DefaultConfigJSON != `{"retention_days":30}` ||
 		len(item.Actions) != 1 ||
-		item.Actions[0].Key != "dry-run" {
+		item.Actions[0].Key != "dryRun" ||
+		item.Actions[0].TitleKey != "scheduledTask.action.dryRun.title" ||
+		item.Actions[0].DescriptionKey != "scheduledTask.action.dryRun.description" {
 		t.Fatalf("unexpected job definition item: %#v", item)
 	}
 }
@@ -723,7 +731,7 @@ func TestScheduledTaskActionRouteRunsDryRunAction(t *testing.T) {
 	moduleInstance.runtime = runtimeRecorder
 	registerAndBootSchedulerModule(t, ctx, moduleInstance)
 
-	recorder := performSchedulerRequest(engine, http.MethodPost, "/api/scheduled-tasks/webhook.health/actions/dry-run", `{
+	recorder := performSchedulerRequest(engine, http.MethodPost, "/api/scheduled-tasks/webhook.health/actions/dryRun", `{
 		"config_json": {"batchSize": 25}
 	}`)
 	if recorder.Code != http.StatusOK {
@@ -731,12 +739,12 @@ func TestScheduledTaskActionRouteRunsDryRunAction(t *testing.T) {
 	}
 	if len(runtimeRecorder.actionTaskKeys) != 1 ||
 		runtimeRecorder.actionTaskKeys[0] != "webhook.health" ||
-		runtimeRecorder.actionKeys[0] != "dry-run" ||
+		runtimeRecorder.actionKeys[0] != "dryRun" ||
 		runtimeRecorder.actionConfigs[0] != `{"batchSize":25}` {
 		t.Fatalf("unexpected action runtime calls: task=%#v action=%#v config=%#v", runtimeRecorder.actionTaskKeys, runtimeRecorder.actionKeys, runtimeRecorder.actionConfigs)
 	}
 	payload := decodeScheduledTaskActionPayload(t, recorder.Body.Bytes())
-	if payload.Data.ActionKey != "dry-run" ||
+	if payload.Data.ActionKey != "dryRun" ||
 		payload.Data.Result.Summary != "previewed" ||
 		payload.Data.ResultJSON == "" {
 		t.Fatalf("unexpected action payload: %#v", payload.Data)
@@ -852,9 +860,11 @@ type scheduledTaskJobDefinitionListPayload struct {
 			DefaultCronExpression string `json:"default_cron_expression"`
 			DefaultConfigJSON     string `json:"default_config_json"`
 			Actions               []struct {
-				Key             string `json:"key"`
-				Title           string `json:"title"`
-				ConfigOverrides string `json:"config_overrides"`
+				Key            string `json:"key"`
+				TitleKey       string `json:"title_key"`
+				Title          string `json:"title"`
+				DescriptionKey string `json:"description_key"`
+				Description    string `json:"description"`
 			} `json:"actions"`
 		} `json:"items"`
 	} `json:"data"`

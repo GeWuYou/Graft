@@ -11,9 +11,9 @@
       "title": "访问日志保留清理",
       "description": "删除超过配置保留窗口的访问日志。",
       "config": {
-        "dryRun": {
-          "title": "试运行",
-          "description": "只预览清理结果，不删除访问日志。"
+        "retentionDays": {
+          "title": "日志保留时间",
+          "description": "删除早于该保留天数的访问日志。"
         },
         "batchSize": {
           "title": "批量大小",
@@ -47,6 +47,12 @@
           "title": "批量大小",
           "description": "单次清理最多删除的应用日志行数。"
         }
+      }
+    },
+    "action": {
+      "dryRun": {
+        "title": "试运行",
+        "description": "预览本次执行结果"
       }
     },
     "cronDescription": {
@@ -248,6 +254,7 @@
         "cronRequiredHint": "请填写 Cron 表达式。",
         "cronInvalidHint": "Cron 表达式不合法。",
         "sectionConfig": "任务配置",
+        "sectionBasicConfig": "基础配置",
         "configHint": "根据 Job Definition 的 JSON Schema 填写配置。",
         "configSelectPlaceholder": "请选择",
         "configNumberPlaceholder": "请输入数值",
@@ -257,6 +264,10 @@
       "configDialog": {
         "open": "配置",
         "title": "配置任务",
+        "retentionDaysOption": "{days} 天",
+        "customRetentionDays": "自定义",
+        "jsonPreview": "JSON 预览",
+        "schemaDebug": "Schema 调试信息",
         "confirm": "保存配置",
         "noJobDefinition": "请先选择 Job Definition 再配置任务行为。",
         "saveSuccess": "任务配置已保存。",
@@ -271,7 +282,7 @@
         "behavior": "行为",
         "affectedResource": "影响资源",
         "currentConfig": "当前配置",
-        "previewWarning": "试运行和预览操作不会修改数据。",
+        "previewWarning": "本次操作不会修改任务配置。",
         "executeError": "操作执行失败。"
       },
       "actionResult": {
@@ -289,7 +300,6 @@
         "retentionDays": "保留天数",
         "cutoffPolicy": "截止策略/时间",
         "batchSize": "批量大小",
-        "dryRun": "试运行",
         "expectedBehavior": "预期行为"
       },
       "deleteDialog": {

@@ -16,9 +16,13 @@ import (
 )
 
 type retentionRepoRecorder struct {
-	cutoffs []time.Time
-	deleted int64
-	err     error
+	cutoffs     []time.Time
+	listQueries []AccessLogListQuery
+	deleted     int64
+	matched     int64
+	total       int64
+	err         error
+	listErr     error
 }
 
 func (r *retentionRepoRecorder) CreateAccessLog(context.Context, CreateAccessLogInput) (AccessLog, error) {
@@ -37,8 +41,16 @@ func (r *retentionRepoRecorder) DeleteAccessLogsBefore(_ context.Context, occurr
 	return r.deleted, nil
 }
 
-func (r *retentionRepoRecorder) ListAccessLogs(context.Context, AccessLogListQuery) (AccessLogListResult, error) {
-	return AccessLogListResult{}, nil
+func (r *retentionRepoRecorder) ListAccessLogs(_ context.Context, query AccessLogListQuery) (AccessLogListResult, error) {
+	r.listQueries = append(r.listQueries, query)
+	if r.listErr != nil {
+		return AccessLogListResult{}, r.listErr
+	}
+	total := r.total
+	if query.OccurredTo != nil {
+		total = r.matched
+	}
+	return AccessLogListResult{Total: total, Page: query.Page, PageSize: query.PageSize}, nil
 }
 
 func (r *retentionRepoRecorder) GetAccessLogByID(context.Context, uint64) (AccessLog, error) {
@@ -59,7 +71,7 @@ func TestAccessLogRetentionPolicyCutoff(t *testing.T) {
 	}
 
 	now := time.Date(2026, 5, 30, 12, 0, 0, 0, time.UTC)
-	cutoff, err := policy.cutoff(now)
+	cutoff, err := accessLogRetentionCutoff(now, policy.retention)
 	if err != nil {
 		t.Fatalf("cutoff: %v", err)
 	}
@@ -84,7 +96,7 @@ func TestAccessLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 	now := time.Date(2026, 5, 30, 8, 30, 0, 0, time.UTC)
 	cleaner.now = func() time.Time { return now }
 
-	result, err := cleaner.cleanup(context.Background(), accessLogRetentionJobConfig{BatchSize: 1000})
+	result, err := cleaner.cleanup(context.Background(), accessLogRetentionJobConfig{RetentionDays: 9, BatchSize: 1000})
 	if err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
@@ -95,9 +107,59 @@ func TestAccessLogRetentionCleanerInvokesRepositoryWithCutoff(t *testing.T) {
 		t.Fatalf("expected one cleanup invocation, got %d", len(repo.cutoffs))
 	}
 
-	wantCutoff := now.Add(-3 * 24 * time.Hour)
+	wantCutoff := now.Add(-9 * 24 * time.Hour)
 	if !repo.cutoffs[0].Equal(wantCutoff) {
 		t.Fatalf("expected cutoff %s, got %s", wantCutoff, repo.cutoffs[0])
+	}
+	if result.Details["retentionDays"] != 9 {
+		t.Fatalf("expected configured retention days in result, got %#v", result.Details)
+	}
+	if _, ok := result.Details["dryRun"]; ok {
+		t.Fatalf("did not expect dryRun in cleanup details: %#v", result.Details)
+	}
+}
+
+func TestAccessLogRetentionCleanerEstimateDoesNotDelete(t *testing.T) {
+	repo := &retentionRepoRecorder{matched: 12, total: 40}
+	cleaner, err := newAccessLogRetentionCleaner(
+		zap.NewNop(),
+		repo,
+		config.HTTPXConfig{AccessLogRetention: 30 * 24 * time.Hour},
+	)
+	if err != nil {
+		t.Fatalf("new cleaner: %v", err)
+	}
+
+	now := time.Date(2026, 5, 30, 8, 30, 0, 0, time.UTC)
+	cleaner.now = func() time.Time { return now }
+
+	result, err := cleaner.estimate(context.Background(), accessLogRetentionJobConfig{RetentionDays: 7, BatchSize: 500})
+	if err != nil {
+		t.Fatalf("estimate: %v", err)
+	}
+	if len(repo.cutoffs) != 0 {
+		t.Fatalf("expected estimate not to delete access logs, got %d delete calls", len(repo.cutoffs))
+	}
+	if len(repo.listQueries) != 2 {
+		t.Fatalf("expected two estimate queries, got %d", len(repo.listQueries))
+	}
+	if repo.listQueries[0].OccurredTo == nil {
+		t.Fatalf("expected first estimate query to filter by cutoff: %#v", repo.listQueries[0])
+	}
+	wantCutoff := now.Add(-7 * 24 * time.Hour)
+	if !repo.listQueries[0].OccurredTo.Equal(wantCutoff) {
+		t.Fatalf("expected cutoff %s, got %s", wantCutoff, *repo.listQueries[0].OccurredTo)
+	}
+	if repo.listQueries[1].OccurredTo != nil {
+		t.Fatalf("expected total estimate query without cutoff: %#v", repo.listQueries[1])
+	}
+	if result.Stage != "estimated" || result.Metrics["estimatedScanCount"] != int64(12) ||
+		result.Metrics["estimatedDeleteCount"] != int64(12) ||
+		result.Metrics["estimatedRetainCount"] != int64(28) {
+		t.Fatalf("unexpected estimate result: %#v", result)
+	}
+	if _, ok := result.Details["dryRun"]; ok {
+		t.Fatalf("did not expect dryRun in estimate details: %#v", result.Details)
 	}
 }
 
@@ -146,7 +208,62 @@ func TestAccessLogRetentionCleanerLogsFailure(t *testing.T) {
 	}
 }
 
-func TestRegisterAccessLogRetentionCleanupJob(t *testing.T) {
+func TestRegisterAccessLogRetentionCleanupJobMetadata(t *testing.T) {
+	items, _ := registeredAccessLogRetentionCleanupJobForTest(t)
+
+	if len(items) != 1 {
+		t.Fatalf("expected one registered job, got %d", len(items))
+	}
+	item := items[0]
+	if item.Name != accessLogRetentionCleanupJobName {
+		t.Fatalf("expected job name %q, got %q", accessLogRetentionCleanupJobName, item.Name)
+	}
+	if item.Module != accessLogRetentionCleanupJobModule {
+		t.Fatalf("expected job module %q, got %q", accessLogRetentionCleanupJobModule, item.Module)
+	}
+	if item.Schedule != accessLogRetentionCleanupJobSchedule {
+		t.Fatalf("expected job schedule %q, got %q", accessLogRetentionCleanupJobSchedule, item.Schedule)
+	}
+	if item.DefaultConfig != accessLogRetentionCleanupDefaultConfig {
+		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, item.DefaultConfig)
+	}
+	if strings.Contains(item.DefaultConfig, "dryRun") || strings.Contains(item.ConfigSchema, "dryRun") {
+		t.Fatalf("did not expect dryRun in persistent access log job config: default=%s schema=%s", item.DefaultConfig, item.ConfigSchema)
+	}
+	if len(item.Actions) != 1 {
+		t.Fatalf("expected one access log retention action, got %#v", item.Actions)
+	}
+	action := item.Actions[0]
+	if action.Key != accessLogRetentionDryRunActionKey ||
+		action.TitleKey != accessLogRetentionDryRunActionTitleKey ||
+		action.DescriptionKey != accessLogRetentionDryRunActionDescKey ||
+		action.Handler == nil {
+		t.Fatalf("unexpected access log retention action: %#v", action)
+	}
+}
+
+func TestRegisterAccessLogRetentionCleanupJobHandlers(t *testing.T) {
+	items, repo := registeredAccessLogRetentionCleanupJobForTest(t)
+	item := items[0]
+
+	result, err := item.Handler(context.Background(), item.RuntimeDefaultConfig())
+	if err != nil {
+		t.Fatalf("run registered job: %v", err)
+	}
+	if result.AffectedResource != "access_log" || result.Metrics["deletedCount"] != int64(2) {
+		t.Fatalf("expected structured access log cleanup result, got %#v", result)
+	}
+	actionResult, err := item.Actions[0].Handler(context.Background(), `{"retentionDays":7,"batchSize":500}`)
+	if err != nil {
+		t.Fatalf("run registered action: %v", err)
+	}
+	if actionResult.Stage != "estimated" || len(repo.cutoffs) != 1 {
+		t.Fatalf("expected action to estimate without deleting, got result=%#v deleteCalls=%d", actionResult, len(repo.cutoffs))
+	}
+}
+
+func registeredAccessLogRetentionCleanupJobForTest(t *testing.T) ([]cronx.Job, *retentionRepoRecorder) {
+	t.Helper()
 	registry := cronx.NewRegistry()
 	repo := &retentionRepoRecorder{deleted: 2}
 
@@ -158,25 +275,5 @@ func TestRegisterAccessLogRetentionCleanupJob(t *testing.T) {
 	); err != nil {
 		t.Fatalf("register retention job: %v", err)
 	}
-
-	items := registry.Items()
-	if len(items) != 1 {
-		t.Fatalf("expected one registered job, got %d", len(items))
-	}
-	if items[0].Name != accessLogRetentionCleanupJobName {
-		t.Fatalf("expected job name %q, got %q", accessLogRetentionCleanupJobName, items[0].Name)
-	}
-	if items[0].Module != accessLogRetentionCleanupJobModule {
-		t.Fatalf("expected job module %q, got %q", accessLogRetentionCleanupJobModule, items[0].Module)
-	}
-	if items[0].Schedule != accessLogRetentionCleanupJobSchedule {
-		t.Fatalf("expected job schedule %q, got %q", accessLogRetentionCleanupJobSchedule, items[0].Schedule)
-	}
-	result, err := items[0].Handler(context.Background(), items[0].RuntimeDefaultConfig())
-	if err != nil {
-		t.Fatalf("run registered job: %v", err)
-	}
-	if result.AffectedResource != "access_log" || result.Metrics["deletedCount"] != int64(2) {
-		t.Fatalf("expected structured access log cleanup result, got %#v", result)
-	}
+	return registry.Items(), repo
 }

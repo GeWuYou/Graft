@@ -302,8 +302,8 @@ func TestCreateTaskReturnsEffectiveConfig(t *testing.T) {
 	seedRuntimeJob(t, runtime, cronx.Job{
 		Name:          "schema-job",
 		Schedule:      "*/1 * * * * *",
-		DefaultConfig: `{"batchSize":100,"dryRun":true}`,
-		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1},"dryRun":{"type":"boolean"}},"additionalProperties":false}`,
+		DefaultConfig: `{"batchSize":100,"retentionDays":30}`,
+		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1},"retentionDays":{"type":"integer","minimum":1}},"additionalProperties":false}`,
 		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
 			return cronx.JobRunResult{Summary: "ok"}, nil
 		},
@@ -322,7 +322,7 @@ func TestCreateTaskReturnsEffectiveConfig(t *testing.T) {
 		t.Fatalf("create task: %v", err)
 	}
 	effective := decodeRuntimeJSONObject(t, task.EffectiveConfig)
-	if effective["batchSize"] != float64(25) || effective["dryRun"] != true {
+	if effective["batchSize"] != float64(25) || effective["retentionDays"] != float64(30) {
 		t.Fatalf("unexpected effective config: %s", task.EffectiveConfig)
 	}
 }
@@ -416,50 +416,57 @@ func TestRunOncePersistsManualRunHistory(t *testing.T) {
 	}
 }
 
-func TestRunActionDryRunMergesConfigAndSkipsHistory(t *testing.T) {
+func TestRunActionUsesActionHandlerAndSkipsHistory(t *testing.T) {
 	repo := newRunRepositoryRecorder()
 	taskRepo := newTaskRepositoryRecorder()
 	runtime := New(zap.NewNop(), repo)
 	runtime.SetTaskRepository(taskRepo)
-	var handlerConfig string
+	var actionConfig string
+	jobHandlerCalled := false
 
 	seedRuntimeJob(t, runtime, cronx.Job{
 		Name:          "retention",
 		Schedule:      "*/1 * * * * *",
-		DefaultConfig: `{"batchSize":100,"dryRun":false}`,
-		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1},"dryRun":{"type":"boolean"}},"additionalProperties":false}`,
+		DefaultConfig: `{"batchSize":100}`,
+		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1}},"additionalProperties":false}`,
 		Actions: []cronx.JobAction{
 			{
-				Key:             "dry-run",
-				ConfigOverrides: `{"batchSize":5,"dryRun":true}`,
+				Key: "dryRun",
+				Handler: func(_ context.Context, configJSON string) (cronx.JobRunResult, error) {
+					actionConfig = configJSON
+					return cronx.JobRunResult{Summary: "estimated"}, nil
+				},
 			},
 		},
-		Handler: func(_ context.Context, configJSON string) (cronx.JobRunResult, error) {
-			handlerConfig = configJSON
-			return cronx.JobRunResult{Summary: "previewed"}, nil
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			jobHandlerCalled = true
+			return cronx.JobRunResult{Summary: "deleted"}, nil
 		},
 	})
 	taskBefore := taskRepo.tasks["retention"]
 	taskBefore.ConfigJSON = `{"batchSize":50}`
 	taskRepo.tasks["retention"] = taskBefore
 
-	result, err := runtime.RunAction(context.Background(), "retention", "dry-run", `{"batchSize":25,"dryRun":false}`)
+	result, err := runtime.RunAction(context.Background(), "retention", "dryRun", `{"batchSize":25}`)
 	if err != nil {
 		t.Fatalf("run action: %v", err)
 	}
 	effective := decodeRuntimeJSONObject(t, result.EffectiveConfig)
-	if effective["batchSize"] != float64(5) || effective["dryRun"] != true {
+	if effective["batchSize"] != float64(25) {
 		t.Fatalf("unexpected effective action config: %s", result.EffectiveConfig)
 	}
-	handlerEffective := decodeRuntimeJSONObject(t, handlerConfig)
-	if handlerEffective["batchSize"] != float64(5) || handlerEffective["dryRun"] != true {
-		t.Fatalf("unexpected handler config: %s", handlerConfig)
+	actionEffective := decodeRuntimeJSONObject(t, actionConfig)
+	if actionEffective["batchSize"] != float64(25) {
+		t.Fatalf("unexpected action handler config: %s", actionConfig)
 	}
-	if result.ActionKey != "dry-run" || result.TaskKey != "retention" || result.JobKey != "retention" || result.Result.Summary != "previewed" {
+	if jobHandlerCalled {
+		t.Fatal("expected action handler to run without invoking the normal job handler")
+	}
+	if result.ActionKey != "dryRun" || result.TaskKey != "retention" || result.JobKey != "retention" || result.Result.Summary != "estimated" {
 		t.Fatalf("unexpected action result: %#v", result)
 	}
 	if len(repo.created) != 0 || len(repo.updated) != 0 {
-		t.Fatalf("expected dry-run action not to write run history, got created=%d updated=%d", len(repo.created), len(repo.updated))
+		t.Fatalf("expected action not to write run history, got created=%d updated=%d", len(repo.created), len(repo.updated))
 	}
 	taskAfter := taskRepo.tasks["retention"]
 	if taskAfter.ConfigJSON != `{"batchSize":50}` || !taskAfter.Enabled {
@@ -467,7 +474,7 @@ func TestRunActionDryRunMergesConfigAndSkipsHistory(t *testing.T) {
 	}
 }
 
-func TestRunActionDoesNotForceDryRunForGenericActions(t *testing.T) {
+func TestRunActionWithoutHandlerUsesJobHandlerAndRequestSnapshot(t *testing.T) {
 	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
 	taskRepo := newTaskRepositoryRecorder()
 	runtime.SetTaskRepository(taskRepo)
@@ -476,12 +483,11 @@ func TestRunActionDoesNotForceDryRunForGenericActions(t *testing.T) {
 	seedRuntimeJob(t, runtime, cronx.Job{
 		Name:          "retention",
 		Schedule:      "*/1 * * * * *",
-		DefaultConfig: `{"batchSize":100,"dryRun":false}`,
-		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1},"dryRun":{"type":"boolean"}},"additionalProperties":false}`,
+		DefaultConfig: `{"batchSize":100}`,
+		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1}},"additionalProperties":false}`,
 		Actions: []cronx.JobAction{
 			{
-				Key:             "validate-config",
-				ConfigOverrides: `{"batchSize":20}`,
+				Key: "validate-config",
 			},
 		},
 		Handler: func(_ context.Context, configJSON string) (cronx.JobRunResult, error) {
@@ -495,11 +501,11 @@ func TestRunActionDoesNotForceDryRunForGenericActions(t *testing.T) {
 		t.Fatalf("run action: %v", err)
 	}
 	effective := decodeRuntimeJSONObject(t, result.EffectiveConfig)
-	if effective["batchSize"] != float64(20) || effective["dryRun"] != false {
+	if effective["batchSize"] != float64(25) {
 		t.Fatalf("unexpected effective action config: %s", result.EffectiveConfig)
 	}
 	handlerEffective := decodeRuntimeJSONObject(t, handlerConfig)
-	if handlerEffective["batchSize"] != float64(20) || handlerEffective["dryRun"] != false {
+	if handlerEffective["batchSize"] != float64(25) {
 		t.Fatalf("unexpected handler config: %s", handlerConfig)
 	}
 }
@@ -511,7 +517,7 @@ func TestRunActionRejectsUnknownAction(t *testing.T) {
 		Name:     "retention",
 		Schedule: "*/1 * * * * *",
 		Actions: []cronx.JobAction{
-			{Key: "dry-run", ConfigOverrides: `{"dryRun":true}`},
+			{Key: "dryRun"},
 		},
 		Run: func(context.Context) error { return nil },
 	})
@@ -529,10 +535,10 @@ func TestRunActionValidatesMergedConfigBeforeExecution(t *testing.T) {
 	seedRuntimeJob(t, runtime, cronx.Job{
 		Name:          "retention",
 		Schedule:      "*/1 * * * * *",
-		DefaultConfig: `{"batchSize":10,"dryRun":false}`,
-		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1},"dryRun":{"type":"boolean"}},"additionalProperties":false}`,
+		DefaultConfig: `{"batchSize":10}`,
+		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1}},"additionalProperties":false}`,
 		Actions: []cronx.JobAction{
-			{Key: "dry-run", ConfigOverrides: `{"batchSize":0}`},
+			{Key: "dryRun"},
 		},
 		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
 			called = true
@@ -540,7 +546,7 @@ func TestRunActionValidatesMergedConfigBeforeExecution(t *testing.T) {
 		},
 	})
 
-	_, err := runtime.RunAction(context.Background(), "retention", "dry-run", `{}`)
+	_, err := runtime.RunAction(context.Background(), "retention", "dryRun", `{"batchSize":0}`)
 	var configErr ConfigValidationError
 	if !errors.As(err, &configErr) || configErr.Field != "config_json.batchSize" {
 		t.Fatalf("expected config validation error, got %v", err)

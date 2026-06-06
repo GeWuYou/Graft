@@ -101,10 +101,11 @@ type JobDefinitionSnapshot struct {
 
 // JobActionSnapshot describes one backend-defined Job Definition action.
 type JobActionSnapshot struct {
-	Key             string
-	Title           string
-	Description     string
-	ConfigOverrides string
+	Key            string
+	TitleKey       string
+	Title          string
+	DescriptionKey string
+	Description    string
 }
 
 // TaskSnapshot is the internal service model for scheduled task instances.
@@ -590,14 +591,14 @@ func (r *CronRuntime) RunAction(ctx context.Context, taskKey string, actionKey s
 	}
 	defer r.markFinished(execution.definition.TaskKey)
 
-	effectiveConfig, err := actionEffectiveConfigJSON(execution.jobDefinition, execution.definition.ConfigJSON, configJSON, execution.action.ConfigOverrides)
+	effectiveConfig, err := actionEffectiveConfigJSON(execution.jobDefinition, execution.definition.ConfigJSON, configJSON)
 	if err != nil {
 		return JobActionResult{}, err
 	}
 	if validationErr := ValidateConfigJSON(execution.jobDefinition.ConfigSchema, effectiveConfig); validationErr != nil {
 		return JobActionResult{}, validationErr
 	}
-	result, runErr := execution.job.Invoke(ctx, effectiveConfig)
+	result, runErr := invokeJobAction(ctx, execution.job, execution.action.Key, effectiveConfig)
 	_, _ = completeJobRunResult(&result, runErr)
 	if runErr != nil {
 		return jobActionResult(execution, result, effectiveConfig), runErr
@@ -992,8 +993,8 @@ func validateEffectiveConfig(job JobDefinition, configJSON string) error {
 	return ValidateConfigJSON(job.ConfigSchema, effectiveConfig)
 }
 
-func actionEffectiveConfigJSON(job JobDefinition, taskConfig string, requestConfig string, actionOverrides string) (string, error) {
-	return mergeConfigJSONObjects(job.DefaultConfig, taskConfig, requestConfig, actionOverrides)
+func actionEffectiveConfigJSON(job JobDefinition, taskConfig string, requestConfig string) (string, error) {
+	return mergeConfigJSONObjects(job.DefaultConfig, taskConfig, requestConfig)
 }
 
 func (r *CronRuntime) resolveActionExecution(ctx context.Context, taskKey string, actionKey string) (actionExecution, error) {
@@ -1053,9 +1054,6 @@ func validateJob(job cronx.Job) error {
 	for _, action := range job.Actions {
 		if strings.TrimSpace(action.Key) == "" {
 			return fmt.Errorf("%w: invalid job action key", ErrTaskValidation)
-		}
-		if !isJSONObject(actionConfigOverrides(action.ConfigOverrides)) {
-			return fmt.Errorf("%w: invalid job action config overrides", ErrTaskValidation)
 		}
 	}
 	return nil
@@ -1168,21 +1166,14 @@ func jobActionsFromJob(job cronx.Job) []JobActionSnapshot {
 	actions := make([]JobActionSnapshot, 0, len(job.Actions))
 	for _, action := range job.Actions {
 		actions = append(actions, JobActionSnapshot{
-			Key:             strings.TrimSpace(action.Key),
-			Title:           strings.TrimSpace(action.Title),
-			Description:     strings.TrimSpace(action.Description),
-			ConfigOverrides: actionConfigOverrides(action.ConfigOverrides),
+			Key:            strings.TrimSpace(action.Key),
+			TitleKey:       strings.TrimSpace(action.TitleKey),
+			Title:          strings.TrimSpace(action.Title),
+			DescriptionKey: strings.TrimSpace(action.DescriptionKey),
+			Description:    strings.TrimSpace(action.Description),
 		})
 	}
 	return actions
-}
-
-func actionConfigOverrides(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "{}"
-	}
-	return trimmed
 }
 
 func findJobAction(actions []JobActionSnapshot, key string) (JobActionSnapshot, bool) {
@@ -1196,6 +1187,16 @@ func findJobAction(actions []JobActionSnapshot, key string) (JobActionSnapshot, 
 		}
 	}
 	return JobActionSnapshot{}, false
+}
+
+func invokeJobAction(ctx context.Context, job cronx.Job, actionKey string, configJSON string) (cronx.JobRunResult, error) {
+	actionKey = strings.TrimSpace(actionKey)
+	for _, action := range job.Actions {
+		if strings.TrimSpace(action.Key) == actionKey && action.Handler != nil {
+			return action.Handler(ctx, configJSON)
+		}
+	}
+	return job.Invoke(ctx, configJSON)
 }
 
 func (r *CronRuntime) markRunning(key string) error {

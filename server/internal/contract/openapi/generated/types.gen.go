@@ -2917,22 +2917,19 @@ type ScheduledTaskItemStatus string
 type ScheduledTaskJobDefinitionItem struct {
 	// Actions Backend-defined one-shot actions available for this Job Definition.
 	Actions []struct {
-		AffectedResource    *string `json:"affected_resource,omitempty"`
-		AffectedResourceKey *string `json:"affected_resource_key,omitempty"`
-		Behavior            *string `json:"behavior,omitempty"`
-		BehaviorKey         *string `json:"behavior_key,omitempty"`
-		BehaviorSummary     *string `json:"behavior_summary,omitempty"`
-		BehaviorSummaryKey  *string `json:"behavior_summary_key,omitempty"`
-
-		// ConfigOverrides JSON object string merged after request config for this action.
-		ConfigOverrides *string                                     `json:"config_overrides,omitempty"`
-		ConfirmRequired *bool                                       `json:"confirm_required,omitempty"`
-		Description     *string                                     `json:"description,omitempty"`
-		DescriptionKey  *string                                     `json:"description_key,omitempty"`
-		DisplayNameKey  *string                                     `json:"display_name_key,omitempty"`
-		Key             string                                      `json:"key"`
-		Theme           *ScheduledTaskJobDefinitionItemActionsTheme `json:"theme,omitempty"`
-		Title           *string                                     `json:"title,omitempty"`
+		AffectedResource    *string                                     `json:"affected_resource,omitempty"`
+		AffectedResourceKey *string                                     `json:"affected_resource_key,omitempty"`
+		Behavior            *string                                     `json:"behavior,omitempty"`
+		BehaviorKey         *string                                     `json:"behavior_key,omitempty"`
+		BehaviorSummary     *string                                     `json:"behavior_summary,omitempty"`
+		BehaviorSummaryKey  *string                                     `json:"behavior_summary_key,omitempty"`
+		ConfirmRequired     *bool                                       `json:"confirm_required,omitempty"`
+		Description         *string                                     `json:"description,omitempty"`
+		DescriptionKey      *string                                     `json:"description_key,omitempty"`
+		Key                 string                                      `json:"key"`
+		Theme               *ScheduledTaskJobDefinitionItemActionsTheme `json:"theme,omitempty"`
+		Title               *string                                     `json:"title,omitempty"`
+		TitleKey            *string                                     `json:"title_key,omitempty"`
 	} `json:"actions"`
 
 	// ConfigSchemaJson JSON Schema string for Scheduled Task config accepted by this Job Definition.
