@@ -17,6 +17,8 @@ const (
 	ScheduledTaskDisableRoute = "/:taskKey/disable"
 	// ScheduledTaskRunRoute identifies the manual run route fragment.
 	ScheduledTaskRunRoute = "/:taskKey/run"
+	// ScheduledTaskActionRoute identifies one backend-defined task action route fragment.
+	ScheduledTaskActionRoute = "/:taskKey/actions/:actionKey"
 	// ScheduledTaskRunsRoute identifies the scheduled task run history route fragment.
 	ScheduledTaskRunsRoute = "/:taskKey/runs"
 	// ScheduledTaskRunDetailRoute identifies one run-history detail route fragment.

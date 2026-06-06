@@ -27,6 +27,8 @@ type Job struct {
 	ConfigSchema string
 	// DefaultConfig is the default JSON object merged with each task's config_json.
 	DefaultConfig string
+	// Actions are backend-defined one-shot operations available for this Job Definition.
+	Actions []JobAction
 	// Schedule 保存默认 cron 表达式语义，当前阶段仅做声明透传。
 	Schedule string
 	// DefaultEnabled 表示任务默认是否随运行时启用。MVP 不提供动态启停能力。
@@ -40,6 +42,14 @@ type Job struct {
 	// 模块应在 Register 阶段显式提供该函数，而不是在 Boot 阶段隐式拼装
 	// 或依赖全局单例回填执行体。
 	Run func(ctx context.Context) error
+}
+
+// JobAction describes one backend-defined operation available for a Job Definition.
+type JobAction struct {
+	Key             string
+	Title           string
+	Description     string
+	ConfigOverrides string
 }
 
 // JobRunResult is the structured outcome a scheduler job should persist.

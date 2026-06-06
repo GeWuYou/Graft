@@ -211,9 +211,17 @@ func RegisterAccessLogRetentionCleanupJob(
 		DescriptionMessageKey: accessLogRetentionCleanupJobDescriptionKey,
 		ConfigSchema:          accessLogRetentionCleanupConfigSchema,
 		DefaultConfig:         accessLogRetentionCleanupDefaultConfig,
-		Schedule:              accessLogRetentionCleanupJobSchedule,
-		DefaultEnabled:        true,
-		Module:                accessLogRetentionCleanupJobModule,
+		Actions: []cronx.JobAction{
+			{
+				Key:             "dry-run",
+				Title:           "Dry run",
+				Description:     "Preview access log retention cleanup without deleting access logs.",
+				ConfigOverrides: `{"dryRun":true}`,
+			},
+		},
+		Schedule:       accessLogRetentionCleanupJobSchedule,
+		DefaultEnabled: true,
+		Module:         accessLogRetentionCleanupJobModule,
 		Handler: func(ctx context.Context, configJSON string) (cronx.JobRunResult, error) {
 			return cleaner.cleanup(ctx, decodeAccessLogRetentionJobConfig(configJSON))
 		},

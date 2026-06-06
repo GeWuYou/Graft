@@ -128,6 +128,8 @@ paths:
     $ref: ./paths/scheduled-tasks.run-detail.yaml
   /api/scheduled-tasks/{taskKey}/run:
     $ref: ./paths/scheduled-tasks.run.yaml
+  /api/scheduled-tasks/{taskKey}/actions/{actionKey}:
+    $ref: ./paths/scheduled-tasks.action.yaml
   /api/access-log:
     $ref: ./paths/access-log.logs.yaml
   /api/access-log/{id}:
@@ -310,6 +312,12 @@ components:
       $ref: ./components/schemas/scheduled-task-list-response.yaml
     ScheduledTaskRunItem:
       $ref: ./components/schemas/scheduled-task-run-item.yaml
+    JobRunResult:
+      $ref: ./components/schemas/job-run-result.yaml
+    ScheduledTaskActionRequest:
+      $ref: ./components/schemas/scheduled-task-action-request.yaml
+    ScheduledTaskActionResult:
+      $ref: ./components/schemas/scheduled-task-action-result.yaml
     ScheduledTaskRunListResponse:
       $ref: ./components/schemas/scheduled-task-run-list-response.yaml
     EnvelopedScheduledTaskItem:
@@ -322,6 +330,8 @@ components:
       $ref: ./components/schemas/enveloped-scheduled-task-job-definition-item.yaml
     EnvelopedScheduledTaskRunItem:
       $ref: ./components/schemas/enveloped-scheduled-task-run-item.yaml
+    EnvelopedScheduledTaskActionResult:
+      $ref: ./components/schemas/enveloped-scheduled-task-action-result.yaml
     EnvelopedScheduledTaskRunListResponse:
       $ref: ./components/schemas/enveloped-scheduled-task-run-list-response.yaml
     AccessLogDetailResponse:

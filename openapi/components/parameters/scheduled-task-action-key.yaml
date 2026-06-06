@@ -1,0 +1,11 @@
+name: actionKey
+in: path
+required: true
+description: Backend-defined Job Definition action key.
+schema:
+  type: string
+  minLength: 1
+examples:
+  dryRun:
+    summary: Dry-run action
+    value: dry-run

@@ -254,6 +254,30 @@
         "configStringPlaceholder": "请输入内容",
         "noConfigFields": "此 Job Definition 暂无可配置项。"
       },
+      "configDialog": {
+        "open": "配置",
+        "title": "配置任务",
+        "confirm": "保存配置",
+        "noJobDefinition": "请先选择 Job Definition 再配置任务行为。",
+        "saveSuccess": "任务配置已保存。",
+        "saveError": "任务配置保存失败。"
+      },
+      "action": {
+        "sectionTitle": "Job 操作",
+        "sectionHint": "预览或检查 Job Definition 操作，不改变任务持久配置。",
+        "confirmTitle": "确认操作",
+        "confirm": "执行操作",
+        "taskName": "任务名称",
+        "behavior": "行为",
+        "affectedResource": "影响资源",
+        "currentConfig": "当前配置",
+        "previewWarning": "试运行和预览操作不会修改数据。",
+        "executeError": "操作执行失败。"
+      },
+      "actionResult": {
+        "title": "操作结果",
+        "confirm": "关闭"
+      },
       "runDialog": {
         "title": "确认执行任务？",
         "taskLine": "任务：{taskName}",

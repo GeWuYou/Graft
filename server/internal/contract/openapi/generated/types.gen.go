@@ -4,7 +4,10 @@
 package generated
 
 import (
+	"encoding/json"
 	"time"
+
+	"github.com/oapi-codegen/runtime"
 )
 
 const (
@@ -924,6 +927,33 @@ func (e ScheduledTaskItemStatus) Valid() bool {
 	}
 }
 
+// Defines values for ScheduledTaskJobDefinitionItemActionsTheme.
+const (
+	ScheduledTaskJobDefinitionItemActionsThemeDanger  ScheduledTaskJobDefinitionItemActionsTheme = "danger"
+	ScheduledTaskJobDefinitionItemActionsThemeDefault ScheduledTaskJobDefinitionItemActionsTheme = "default"
+	ScheduledTaskJobDefinitionItemActionsThemePrimary ScheduledTaskJobDefinitionItemActionsTheme = "primary"
+	ScheduledTaskJobDefinitionItemActionsThemeSuccess ScheduledTaskJobDefinitionItemActionsTheme = "success"
+	ScheduledTaskJobDefinitionItemActionsThemeWarning ScheduledTaskJobDefinitionItemActionsTheme = "warning"
+)
+
+// Valid indicates whether the value is a known member of the ScheduledTaskJobDefinitionItemActionsTheme enum.
+func (e ScheduledTaskJobDefinitionItemActionsTheme) Valid() bool {
+	switch e {
+	case ScheduledTaskJobDefinitionItemActionsThemeDanger:
+		return true
+	case ScheduledTaskJobDefinitionItemActionsThemeDefault:
+		return true
+	case ScheduledTaskJobDefinitionItemActionsThemePrimary:
+		return true
+	case ScheduledTaskJobDefinitionItemActionsThemeSuccess:
+		return true
+	case ScheduledTaskJobDefinitionItemActionsThemeWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ScheduledTaskLastRunStatus.
 const (
 	ScheduledTaskLastRunStatusFailed  ScheduledTaskLastRunStatus = "failed"
@@ -968,19 +998,19 @@ func (e ScheduledTaskLastRunTriggerType) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemStatus.
 const (
-	Failed  ScheduledTaskRunItemStatus = "failed"
-	Running ScheduledTaskRunItemStatus = "running"
-	Success ScheduledTaskRunItemStatus = "success"
+	ScheduledTaskRunItemStatusFailed  ScheduledTaskRunItemStatus = "failed"
+	ScheduledTaskRunItemStatusRunning ScheduledTaskRunItemStatus = "running"
+	ScheduledTaskRunItemStatusSuccess ScheduledTaskRunItemStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemStatus enum.
 func (e ScheduledTaskRunItemStatus) Valid() bool {
 	switch e {
-	case Failed:
+	case ScheduledTaskRunItemStatusFailed:
 		return true
-	case Running:
+	case ScheduledTaskRunItemStatusRunning:
 		return true
-	case Success:
+	case ScheduledTaskRunItemStatusSuccess:
 		return true
 	default:
 		return false
@@ -2314,6 +2344,26 @@ type EnvelopedRolePermissionBindingResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedScheduledTaskActionResult defines model for enveloped-scheduled-task-action-result.
+type EnvelopedScheduledTaskActionResult struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data ScheduledTaskActionResult `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedScheduledTaskItem defines model for enveloped-scheduled-task-item.
 type EnvelopedScheduledTaskItem struct {
 	// Code Existing canonical response code.
@@ -2596,6 +2646,16 @@ type HealthResponse struct {
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
 
+// JobRunResult defines model for job-run-result.
+type JobRunResult struct {
+	AffectedResource *string                 `json:"affected_resource,omitempty"`
+	Details          *map[string]interface{} `json:"details,omitempty"`
+	Metrics          *map[string]interface{} `json:"metrics,omitempty"`
+	Stage            *string                 `json:"stage,omitempty"`
+	Summary          *string                 `json:"summary,omitempty"`
+	Warnings         *[]string               `json:"warnings,omitempty"`
+}
+
 // LoginRequest defines model for login-request.
 type LoginRequest struct {
 	Password string `json:"password"`
@@ -2779,6 +2839,37 @@ type RolePermissionBindingResponse struct {
 	PermissionIds []int64 `json:"permission_ids"`
 }
 
+// ScheduledTaskActionRequest defines model for scheduled-task-action-request.
+type ScheduledTaskActionRequest struct {
+	// ConfigJson JSON object string or object merged into the action effective config.
+	ConfigJson *ScheduledTaskActionRequest_ConfigJson `json:"config_json,omitempty"`
+}
+
+// ScheduledTaskActionRequestConfigJson0 defines model for .
+type ScheduledTaskActionRequestConfigJson0 = string
+
+// ScheduledTaskActionRequestConfigJson1 defines model for .
+type ScheduledTaskActionRequestConfigJson1 map[string]interface{}
+
+// ScheduledTaskActionRequest_ConfigJson JSON object string or object merged into the action effective config.
+type ScheduledTaskActionRequest_ConfigJson struct {
+	union json.RawMessage
+}
+
+// ScheduledTaskActionResult defines model for scheduled-task-action-result.
+type ScheduledTaskActionResult struct {
+	ActionKey string `json:"action_key"`
+
+	// EffectiveConfig Effective config JSON object string used by the action execution.
+	EffectiveConfig *string      `json:"effective_config,omitempty"`
+	JobKey          string       `json:"job_key"`
+	Result          JobRunResult `json:"result"`
+
+	// ResultJson Structured JobRunResult JSON object string.
+	ResultJson string `json:"result_json"`
+	TaskKey    string `json:"task_key"`
+}
+
 // ScheduledTaskItem defines model for scheduled-task-item.
 type ScheduledTaskItem struct {
 	// Builtin Builtin Scheduled Tasks cannot be deleted or change task_key/job_key.
@@ -2824,6 +2915,26 @@ type ScheduledTaskItemStatus string
 
 // ScheduledTaskJobDefinitionItem defines model for scheduled-task-job-definition-item.
 type ScheduledTaskJobDefinitionItem struct {
+	// Actions Backend-defined one-shot actions available for this Job Definition.
+	Actions []struct {
+		AffectedResource    *string `json:"affected_resource,omitempty"`
+		AffectedResourceKey *string `json:"affected_resource_key,omitempty"`
+		Behavior            *string `json:"behavior,omitempty"`
+		BehaviorKey         *string `json:"behavior_key,omitempty"`
+		BehaviorSummary     *string `json:"behavior_summary,omitempty"`
+		BehaviorSummaryKey  *string `json:"behavior_summary_key,omitempty"`
+
+		// ConfigOverrides JSON object string merged after request config for this action.
+		ConfigOverrides *string                                     `json:"config_overrides,omitempty"`
+		ConfirmRequired *bool                                       `json:"confirm_required,omitempty"`
+		Description     *string                                     `json:"description,omitempty"`
+		DescriptionKey  *string                                     `json:"description_key,omitempty"`
+		DisplayNameKey  *string                                     `json:"display_name_key,omitempty"`
+		Key             string                                      `json:"key"`
+		Theme           *ScheduledTaskJobDefinitionItemActionsTheme `json:"theme,omitempty"`
+		Title           *string                                     `json:"title,omitempty"`
+	} `json:"actions"`
+
 	// ConfigSchemaJson JSON Schema string for Scheduled Task config accepted by this Job Definition.
 	ConfigSchemaJson string `json:"config_schema_json"`
 
@@ -2849,6 +2960,9 @@ type ScheduledTaskJobDefinitionItem struct {
 	// Title Direct display fallback when the client has no translation for display_name_key.
 	Title *string `json:"title,omitempty"`
 }
+
+// ScheduledTaskJobDefinitionItemActionsTheme defines model for ScheduledTaskJobDefinitionItem.Actions.Theme.
+type ScheduledTaskJobDefinitionItemActionsTheme string
 
 // ScheduledTaskJobDefinitionListResponse defines model for scheduled-task-job-definition-list-response.
 type ScheduledTaskJobDefinitionListResponse struct {
@@ -3151,6 +3265,9 @@ type LocaleHeader = string
 
 // RequestIdHeader defines model for request-id-header.
 type RequestIdHeader = string
+
+// ScheduledTaskActionKey defines model for scheduled-task-action-key.
+type ScheduledTaskActionKey = string
 
 // ScheduledTaskJobKey defines model for scheduled-task-job-key.
 type ScheduledTaskJobKey = string
@@ -3749,6 +3866,16 @@ type PutScheduledTaskParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostScheduledTaskActionParams defines parameters for PostScheduledTaskAction.
+type PostScheduledTaskActionParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostScheduledTaskDisableParams defines parameters for PostScheduledTaskDisable.
 type PostScheduledTaskDisableParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -4001,6 +4128,9 @@ type PostScheduledTaskJSONRequestBody = CreateScheduledTaskRequest
 // PutScheduledTaskJSONRequestBody defines body for PutScheduledTask for application/json ContentType.
 type PutScheduledTaskJSONRequestBody = UpdateScheduledTaskRequest
 
+// PostScheduledTaskActionJSONRequestBody defines body for PostScheduledTaskAction for application/json ContentType.
+type PostScheduledTaskActionJSONRequestBody = ScheduledTaskActionRequest
+
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
 type PostUsersJSONRequestBody = CreateUserRequest
 
@@ -4030,3 +4160,65 @@ type PostUserStatusJSONRequestBody = UpdateUserStatusRequest
 
 // PostUserUpdateJSONRequestBody defines body for PostUserUpdate for application/json ContentType.
 type PostUserUpdateJSONRequestBody = UpdateUserRequest
+
+// AsScheduledTaskActionRequestConfigJson0 returns the union data inside the ScheduledTaskActionRequest_ConfigJson as a ScheduledTaskActionRequestConfigJson0
+func (t ScheduledTaskActionRequest_ConfigJson) AsScheduledTaskActionRequestConfigJson0() (ScheduledTaskActionRequestConfigJson0, error) {
+	var body ScheduledTaskActionRequestConfigJson0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromScheduledTaskActionRequestConfigJson0 overwrites any union data inside the ScheduledTaskActionRequest_ConfigJson as the provided ScheduledTaskActionRequestConfigJson0
+func (t *ScheduledTaskActionRequest_ConfigJson) FromScheduledTaskActionRequestConfigJson0(v ScheduledTaskActionRequestConfigJson0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeScheduledTaskActionRequestConfigJson0 performs a merge with any union data inside the ScheduledTaskActionRequest_ConfigJson, using the provided ScheduledTaskActionRequestConfigJson0
+func (t *ScheduledTaskActionRequest_ConfigJson) MergeScheduledTaskActionRequestConfigJson0(v ScheduledTaskActionRequestConfigJson0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsScheduledTaskActionRequestConfigJson1 returns the union data inside the ScheduledTaskActionRequest_ConfigJson as a ScheduledTaskActionRequestConfigJson1
+func (t ScheduledTaskActionRequest_ConfigJson) AsScheduledTaskActionRequestConfigJson1() (ScheduledTaskActionRequestConfigJson1, error) {
+	var body ScheduledTaskActionRequestConfigJson1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromScheduledTaskActionRequestConfigJson1 overwrites any union data inside the ScheduledTaskActionRequest_ConfigJson as the provided ScheduledTaskActionRequestConfigJson1
+func (t *ScheduledTaskActionRequest_ConfigJson) FromScheduledTaskActionRequestConfigJson1(v ScheduledTaskActionRequestConfigJson1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeScheduledTaskActionRequestConfigJson1 performs a merge with any union data inside the ScheduledTaskActionRequest_ConfigJson, using the provided ScheduledTaskActionRequestConfigJson1
+func (t *ScheduledTaskActionRequest_ConfigJson) MergeScheduledTaskActionRequestConfigJson1(v ScheduledTaskActionRequestConfigJson1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ScheduledTaskActionRequest_ConfigJson) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ScheduledTaskActionRequest_ConfigJson) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}

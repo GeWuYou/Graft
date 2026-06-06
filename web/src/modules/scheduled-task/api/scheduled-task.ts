@@ -2,6 +2,7 @@ import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import {
+  buildScheduledTaskActionApiPath,
   buildScheduledTaskDetailApiPath,
   buildScheduledTaskDisableApiPath,
   buildScheduledTaskEnableApiPath,
@@ -13,6 +14,8 @@ import {
 } from '../contract/paths';
 import type {
   CreateScheduledTaskRequest,
+  ScheduledTaskActionRequest,
+  ScheduledTaskActionResult,
   ScheduledTaskItem,
   ScheduledTaskJobDefinitionListResponse,
   ScheduledTaskJobDefinitionResponse,
@@ -96,6 +99,16 @@ type PostScheduledTaskRunEnvelope = PostScheduledTaskRunOperation['responses'][2
 type PostScheduledTaskRunData = NonNullable<PostScheduledTaskRunEnvelope['data']>;
 type PostScheduledTaskRunPathParams = PostScheduledTaskRunOperation['parameters']['path'];
 
+type ScheduledTaskActionPath = (typeof SCHEDULED_TASK_API_PATH)['ACTION'];
+type PostScheduledTaskActionOperation = paths[ScheduledTaskActionPath]['post'];
+type PostScheduledTaskActionEnvelope =
+  PostScheduledTaskActionOperation['responses'][200]['content']['application/json'];
+type PostScheduledTaskActionData = NonNullable<PostScheduledTaskActionEnvelope['data']>;
+type PostScheduledTaskActionPathParams = PostScheduledTaskActionOperation['parameters']['path'];
+type PostScheduledTaskActionBody = NonNullable<
+  PostScheduledTaskActionOperation['requestBody']
+>['content']['application/json'];
+
 export function getScheduledTasks(query?: ScheduledTaskListQuery) {
   return request.get<GetScheduledTasksData>({
     url: SCHEDULED_TASK_API_PATH.LIST,
@@ -176,4 +189,15 @@ export function runScheduledTask(taskKey: PostScheduledTaskRunPathParams['taskKe
   return request.post<PostScheduledTaskRunData>({
     url: buildScheduledTaskRunApiPath(taskKey),
   }) as Promise<ScheduledTaskRunItem>;
+}
+
+export function executeScheduledTaskAction(
+  taskKey: PostScheduledTaskActionPathParams['taskKey'],
+  actionKey: PostScheduledTaskActionPathParams['actionKey'],
+  payload?: ScheduledTaskActionRequest,
+) {
+  return request.post<PostScheduledTaskActionData>({
+    url: buildScheduledTaskActionApiPath(taskKey, actionKey),
+    data: payload as PostScheduledTaskActionBody | undefined,
+  }) as Promise<ScheduledTaskActionResult>;
 }

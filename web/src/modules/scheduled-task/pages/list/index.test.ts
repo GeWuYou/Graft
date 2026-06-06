@@ -6,6 +6,7 @@ import ScheduledTaskListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
   createScheduledTask: vi.fn(),
+  executeScheduledTaskAction: vi.fn(),
   getScheduledTask: vi.fn(),
   getScheduledTaskJobDefinition: vi.fn(),
   getScheduledTaskJobDefinitions: vi.fn(),
@@ -59,10 +60,12 @@ const translations = vi.hoisted(
     'scheduledTask.list.detail.noError': '未记录错误',
     'scheduledTask.list.detail.behavior': '任务行为',
     'scheduledTask.list.detail.effectiveConfig': '最终配置',
+    'scheduledTask.list.detail.details': '详情',
     'scheduledTask.list.detail.stage': '阶段',
     'scheduledTask.list.detail.affectedResource': '影响资源',
     'scheduledTask.list.detail.metrics': '指标',
     'scheduledTask.list.detail.rawResultJson': '原始结果 JSON',
+    'scheduledTask.list.detail.warnings': '警告',
     'scheduledTask.list.disable': '停用',
     'scheduledTask.list.edit': '编辑',
     'scheduledTask.list.enable': '启用',
@@ -89,6 +92,20 @@ const translations = vi.hoisted(
     'scheduledTask.list.form.noConfigFields': '此 Job Definition 暂无可配置项。',
     'scheduledTask.list.form.cronRequiredHint': '请填写 Cron 表达式。',
     'scheduledTask.list.form.sectionConfig': '任务配置',
+    'scheduledTask.list.configDialog.confirm': '保存配置',
+    'scheduledTask.list.configDialog.open': '配置',
+    'scheduledTask.list.configDialog.title': '配置任务',
+    'scheduledTask.list.action.affectedResource': '影响资源',
+    'scheduledTask.list.action.behavior': '行为',
+    'scheduledTask.list.action.confirm': '执行操作',
+    'scheduledTask.list.action.confirmTitle': '确认操作',
+    'scheduledTask.list.action.currentConfig': '当前配置',
+    'scheduledTask.list.action.previewWarning': '试运行和预览操作不会修改数据。',
+    'scheduledTask.list.action.sectionHint': '预览或检查 Job Definition 操作，不改变任务持久配置。',
+    'scheduledTask.list.action.sectionTitle': 'Job 操作',
+    'scheduledTask.list.action.taskName': '任务名称',
+    'scheduledTask.list.actionResult.confirm': '关闭',
+    'scheduledTask.list.actionResult.title': '操作结果',
     'scheduledTask.list.loadError': '定时任务数据加载失败。',
     'scheduledTask.list.metric.enabled': '已启用',
     'scheduledTask.list.metric.enabledDescription': '参与调度',
@@ -125,6 +142,7 @@ vi.mock('../../api/scheduled-task', () => ({
   deleteScheduledTask: vi.fn(),
   disableScheduledTask: vi.fn(),
   enableScheduledTask: vi.fn(),
+  executeScheduledTaskAction: apiMocks.executeScheduledTaskAction,
   getScheduledTask: apiMocks.getScheduledTask,
   getScheduledTaskJobDefinition: apiMocks.getScheduledTaskJobDefinition,
   getScheduledTaskJobDefinitions: apiMocks.getScheduledTaskJobDefinitions,
@@ -317,6 +335,19 @@ function jobDefinitionsResponse() {
         default_config_json: '{"dryRun":false,"batchSize":1000}',
         default_cron_expression: '*/5 * * * *',
         default_enabled: true,
+        actions: [
+          {
+            key: 'dryRun',
+            title: 'Dry run',
+            display_name_key: 'scheduledTask.accessLogRetention.config.dryRun.title',
+            description: 'Preview cleanup without deleting access logs.',
+            behavior: '本次将预演清理访问日志，不会真正删除数据。',
+            affected_resource: 'access_logs',
+            confirm_required: true,
+            theme: 'primary',
+            config_overrides: '{"dryRun":true}',
+          },
+        ],
       },
       {
         key: 'logger.app-log-retention-cleanup',
@@ -330,6 +361,19 @@ function jobDefinitionsResponse() {
         default_config_json: '{"dryRun":false,"batchSize":1000}',
         default_cron_expression: '*/5 * * * *',
         default_enabled: true,
+        actions: [
+          {
+            key: 'dryRun',
+            title: 'Dry run',
+            display_name_key: 'scheduledTask.appLogRetention.config.dryRun.title',
+            description: 'Preview cleanup without deleting app logs.',
+            behavior: '本次将预演清理应用日志，不会真正删除数据。',
+            affected_resource: 'app_logs',
+            confirm_required: true,
+            theme: 'primary',
+            config_overrides: '{"dryRun":true}',
+          },
+        ],
       },
       {
         key: 'audit.audit-log-retention-cleanup',
@@ -343,6 +387,19 @@ function jobDefinitionsResponse() {
         default_config_json: '{"dryRun":false,"batchSize":1000}',
         default_cron_expression: '*/5 * * * *',
         default_enabled: true,
+        actions: [
+          {
+            key: 'dryRun',
+            title: 'Dry run',
+            display_name_key: 'scheduledTask.auditLogRetention.config.dryRun.title',
+            description: 'Preview cleanup without deleting audit logs.',
+            behavior: '本次将预演清理审计日志，不会真正删除数据。',
+            affected_resource: 'audit_logs',
+            confirm_required: true,
+            theme: 'primary',
+            config_overrides: '{"dryRun":true}',
+          },
+        ],
       },
     ],
     total: 3,
@@ -429,7 +486,7 @@ const ButtonStub = defineComponent({
 const InputStub = defineComponent({
   name: 'TInput',
   props: ['modelValue', 'placeholder'],
-  emits: ['update:modelValue', 'input'],
+  emits: ['change', 'update:modelValue', 'input'],
   setup(props, { emit }) {
     return () =>
       h('input', {
@@ -439,8 +496,31 @@ const InputStub = defineComponent({
           const value = (event.target as HTMLInputElement).value;
           emit('update:modelValue', value);
           emit('input', value);
+          emit('change', value);
         },
       });
+  },
+});
+
+const DialogStub = defineComponent({
+  name: 'TDialog',
+  props: ['cancelBtn', 'confirmBtn', 'header'],
+  emits: ['confirm'],
+  setup(props, { attrs, emit, slots }) {
+    return () =>
+      h('div', attrs, [
+        props.header,
+        slots.default?.(),
+        props.confirmBtn === null
+          ? null
+          : h(
+              'button',
+              {
+                onClick: () => emit('confirm'),
+              },
+              props.confirmBtn,
+            ),
+      ]);
   },
 });
 
@@ -509,7 +589,7 @@ function mountPage() {
         TCollapsePanel: PassthroughStub,
         TDescriptions: PassthroughStub,
         TDescriptionsItem: PassthroughStub,
-        TDialog: PassthroughStub,
+        TDialog: DialogStub,
         TDropdown: PassthroughStub,
         TDropdownItem: PassthroughStub,
         TDropdownMenu: PassthroughStub,
@@ -526,6 +606,7 @@ function mountPage() {
         TSelect: PassthroughStub,
         TSpace: PassthroughStub,
         TSwitch: PassthroughStub,
+        TAlert: PassthroughStub,
         TTable: TableStub,
         TTag: PassthroughStub,
         TTextarea: InputStub,
@@ -560,7 +641,13 @@ describe('ScheduledTaskListPage', () => {
       key: taskKey,
       schedule: payload.cron_expression,
       enabled: payload.enabled,
+      config_json: String(payload.config_json ?? '{}'),
     }));
+    apiMocks.executeScheduledTaskAction.mockResolvedValue({
+      action_key: 'dryRun',
+      result_json:
+        '{"summary":"预计可清理 128 条访问日志","stage":"match_expired_records","affected_resource":"access_logs","metrics":{"matchedCount":128,"deletedCount":0},"details":{"dryRun":true,"batchSize":500},"warnings":[]}',
+    });
   });
 
   it('localizes builtin task and job definition title keys before rendering', async () => {
@@ -651,12 +738,12 @@ describe('ScheduledTaskListPage', () => {
       'httpx.access-log-retention-cleanup',
       expect.objectContaining({
         cron_expression: '0 */10 * * * *',
-        config_json: expect.stringContaining('"batchSize": 500'),
+        config_json: '{"batchSize":500}',
       }),
     );
   });
 
-  it('renders schema config fields when editing builtin cleanup tasks', async () => {
+  it('keeps action-controlled config out of the edit drawer and renders action buttons', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
@@ -666,10 +753,16 @@ describe('ScheduledTaskListPage', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('任务配置');
-    expect(wrapper.text()).toContain('试运行');
     expect(wrapper.text()).toContain('批量大小');
     expect(wrapper.text()).toContain('单次清理最多删除的访问日志行数。');
     expect(wrapper.text()).not.toContain('此 Job Definition 暂无可配置项。');
+    expect(wrapper.text()).toContain('Job 操作');
+    expect(wrapper.text()).toContain('试运行');
+
+    const configSectionText = wrapper.findAll('.scheduled-task-form-section')[3]?.text() ?? '';
+    expect(configSectionText).toContain('任务配置');
+    expect(configSectionText).toContain('批量大小');
+    expect(configSectionText).not.toContain('试运行');
   });
 
   it('renders schema config labels from x-title-key in the form surface', async () => {
@@ -684,5 +777,38 @@ describe('ScheduledTaskListPage', () => {
     expect(wrapper.text()).toContain('试运行');
     expect(wrapper.text()).toContain('批量大小');
     expect(wrapper.text()).toContain('单次清理最多删除的访问日志行数。');
+  });
+
+  it('executes dry-run actions through the action endpoint without persisting dryRun', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const editTrigger = wrapper.findAll('*').find((node) => node.text() === '编辑');
+    expect(editTrigger).toBeTruthy();
+    await editTrigger!.trigger('click');
+    await flushPromises();
+
+    const actionTrigger = wrapper.findAll('button').find((button) => button.text() === '试运行');
+    expect(actionTrigger).toBeTruthy();
+    await actionTrigger!.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('确认操作');
+    expect(wrapper.text()).toContain('本次将预演清理访问日志，不会真正删除数据。');
+    expect(wrapper.text()).toContain('access_logs');
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '执行操作')!
+      .trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.executeScheduledTaskAction).toHaveBeenCalledWith('httpx.access-log-retention-cleanup', 'dryRun', {
+      config_json: '{"batchSize":500}',
+    });
+    expect(apiMocks.updateScheduledTask).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('操作结果');
+    expect(wrapper.text()).toContain('预计可清理 128 条访问日志');
+    expect(wrapper.text()).toContain('match_expired_records');
   });
 });

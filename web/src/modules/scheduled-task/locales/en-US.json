@@ -254,6 +254,30 @@
         "configStringPlaceholder": "Enter a value",
         "noConfigFields": "This Job Definition has no configurable fields."
       },
+      "configDialog": {
+        "open": "Configure",
+        "title": "Configure Task",
+        "confirm": "Save Config",
+        "noJobDefinition": "Select a Job Definition before configuring task behavior.",
+        "saveSuccess": "Task config saved.",
+        "saveError": "Task config could not be saved."
+      },
+      "action": {
+        "sectionTitle": "Job Actions",
+        "sectionHint": "Preview or inspect Job Definition actions without changing the persistent task config.",
+        "confirmTitle": "Confirm Action",
+        "confirm": "Run Action",
+        "taskName": "Task Name",
+        "behavior": "Behavior",
+        "affectedResource": "Affected Resource",
+        "currentConfig": "Current Config",
+        "previewWarning": "Dry-run and preview actions do not modify data.",
+        "executeError": "Action could not be completed."
+      },
+      "actionResult": {
+        "title": "Action Result",
+        "confirm": "Close"
+      },
       "runDialog": {
         "title": "Run Task Now?",
         "taskLine": "Task: {taskName}",

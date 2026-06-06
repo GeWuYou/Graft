@@ -11,11 +11,16 @@ export type UpdateScheduledTaskRequest = components['schemas']['update-scheduled
 export type ScheduledTaskListResponse = components['schemas']['scheduled-task-list-response'];
 export type ScheduledTaskRunItem = components['schemas']['scheduled-task-run-item'];
 export type ScheduledTaskRunListResponse = components['schemas']['scheduled-task-run-list-response'];
+export type ScheduledTaskActionRequest = components['schemas']['scheduled-task-action-request'];
+export type ScheduledTaskActionResult = components['schemas']['scheduled-task-action-result'];
+export type ScheduledTaskJobRunResult = components['schemas']['job-run-result'];
 
 export type ScheduledTaskStatus = ScheduledTaskItem['status'];
 export type ScheduledTaskJobKey = ScheduledTaskItem['job_key'];
 export type ScheduledTaskRunStatus = ScheduledTaskRunItem['status'];
 export type ScheduledTaskRunTriggerType = ScheduledTaskRunItem['trigger_type'];
+export type ScheduledTaskJobDefinitionAction = ScheduledTaskJobDefinitionItem['actions'][number];
+export type ScheduledTaskJobDefinitionItemWithActions = ScheduledTaskJobDefinitionItem;
 
 export type ScheduledTaskListQuery = {
   limit?: number;

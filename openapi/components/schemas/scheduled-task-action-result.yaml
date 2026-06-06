@@ -1,0 +1,24 @@
+type: object
+required:
+  - action_key
+  - task_key
+  - job_key
+  - result_json
+  - result
+properties:
+  action_key:
+    type: string
+  task_key:
+    type: string
+  job_key:
+    type: string
+  result_json:
+    type: string
+    pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
+    description: Structured JobRunResult JSON object string.
+  result:
+    $ref: ./job-run-result.yaml
+  effective_config:
+    type: string
+    pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
+    description: Effective config JSON object string used by the action execution.

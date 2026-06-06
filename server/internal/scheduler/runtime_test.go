@@ -416,6 +416,140 @@ func TestRunOncePersistsManualRunHistory(t *testing.T) {
 	}
 }
 
+func TestRunActionDryRunMergesConfigAndSkipsHistory(t *testing.T) {
+	repo := newRunRepositoryRecorder()
+	taskRepo := newTaskRepositoryRecorder()
+	runtime := New(zap.NewNop(), repo)
+	runtime.SetTaskRepository(taskRepo)
+	var handlerConfig string
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:          "retention",
+		Schedule:      "*/1 * * * * *",
+		DefaultConfig: `{"batchSize":100,"dryRun":false}`,
+		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1},"dryRun":{"type":"boolean"}},"additionalProperties":false}`,
+		Actions: []cronx.JobAction{
+			{
+				Key:             "dry-run",
+				ConfigOverrides: `{"batchSize":5,"dryRun":true}`,
+			},
+		},
+		Handler: func(_ context.Context, configJSON string) (cronx.JobRunResult, error) {
+			handlerConfig = configJSON
+			return cronx.JobRunResult{Summary: "previewed"}, nil
+		},
+	})
+	taskBefore := taskRepo.tasks["retention"]
+	taskBefore.ConfigJSON = `{"batchSize":50}`
+	taskRepo.tasks["retention"] = taskBefore
+
+	result, err := runtime.RunAction(context.Background(), "retention", "dry-run", `{"batchSize":25,"dryRun":false}`)
+	if err != nil {
+		t.Fatalf("run action: %v", err)
+	}
+	effective := decodeRuntimeJSONObject(t, result.EffectiveConfig)
+	if effective["batchSize"] != float64(5) || effective["dryRun"] != true {
+		t.Fatalf("unexpected effective action config: %s", result.EffectiveConfig)
+	}
+	handlerEffective := decodeRuntimeJSONObject(t, handlerConfig)
+	if handlerEffective["batchSize"] != float64(5) || handlerEffective["dryRun"] != true {
+		t.Fatalf("unexpected handler config: %s", handlerConfig)
+	}
+	if result.ActionKey != "dry-run" || result.TaskKey != "retention" || result.JobKey != "retention" || result.Result.Summary != "previewed" {
+		t.Fatalf("unexpected action result: %#v", result)
+	}
+	if len(repo.created) != 0 || len(repo.updated) != 0 {
+		t.Fatalf("expected dry-run action not to write run history, got created=%d updated=%d", len(repo.created), len(repo.updated))
+	}
+	taskAfter := taskRepo.tasks["retention"]
+	if taskAfter.ConfigJSON != `{"batchSize":50}` || !taskAfter.Enabled {
+		t.Fatalf("expected task unchanged after action, got %#v", taskAfter)
+	}
+}
+
+func TestRunActionDoesNotForceDryRunForGenericActions(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+	var handlerConfig string
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:          "retention",
+		Schedule:      "*/1 * * * * *",
+		DefaultConfig: `{"batchSize":100,"dryRun":false}`,
+		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1},"dryRun":{"type":"boolean"}},"additionalProperties":false}`,
+		Actions: []cronx.JobAction{
+			{
+				Key:             "validate-config",
+				ConfigOverrides: `{"batchSize":20}`,
+			},
+		},
+		Handler: func(_ context.Context, configJSON string) (cronx.JobRunResult, error) {
+			handlerConfig = configJSON
+			return cronx.JobRunResult{Summary: "validated"}, nil
+		},
+	})
+
+	result, err := runtime.RunAction(context.Background(), "retention", "validate-config", `{"batchSize":25}`)
+	if err != nil {
+		t.Fatalf("run action: %v", err)
+	}
+	effective := decodeRuntimeJSONObject(t, result.EffectiveConfig)
+	if effective["batchSize"] != float64(20) || effective["dryRun"] != false {
+		t.Fatalf("unexpected effective action config: %s", result.EffectiveConfig)
+	}
+	handlerEffective := decodeRuntimeJSONObject(t, handlerConfig)
+	if handlerEffective["batchSize"] != float64(20) || handlerEffective["dryRun"] != false {
+		t.Fatalf("unexpected handler config: %s", handlerConfig)
+	}
+}
+
+func TestRunActionRejectsUnknownAction(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	runtime.SetTaskRepository(newTaskRepositoryRecorder())
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "retention",
+		Schedule: "*/1 * * * * *",
+		Actions: []cronx.JobAction{
+			{Key: "dry-run", ConfigOverrides: `{"dryRun":true}`},
+		},
+		Run: func(context.Context) error { return nil },
+	})
+
+	_, err := runtime.RunAction(context.Background(), "retention", "missing", `{}`)
+	if !errors.Is(err, ErrJobActionNotFound) {
+		t.Fatalf("expected unknown action error, got %v", err)
+	}
+}
+
+func TestRunActionValidatesMergedConfigBeforeExecution(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	runtime.SetTaskRepository(newTaskRepositoryRecorder())
+	called := false
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:          "retention",
+		Schedule:      "*/1 * * * * *",
+		DefaultConfig: `{"batchSize":10,"dryRun":false}`,
+		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1},"dryRun":{"type":"boolean"}},"additionalProperties":false}`,
+		Actions: []cronx.JobAction{
+			{Key: "dry-run", ConfigOverrides: `{"batchSize":0}`},
+		},
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			called = true
+			return cronx.JobRunResult{Summary: "ok"}, nil
+		},
+	})
+
+	_, err := runtime.RunAction(context.Background(), "retention", "dry-run", `{}`)
+	var configErr ConfigValidationError
+	if !errors.As(err, &configErr) || configErr.Field != "config_json.batchSize" {
+		t.Fatalf("expected config validation error, got %v", err)
+	}
+	if called {
+		t.Fatal("expected invalid merged config to skip handler execution")
+	}
+}
+
 // TestRunOnceRejectsConcurrentSameTask 验证同一任务运行中再次手动触发会返回冲突式错误。
 func TestRunOnceRejectsConcurrentSameTask(t *testing.T) {
 	repo := newRunRepositoryRecorder()

@@ -1077,6 +1077,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/scheduled-tasks/{taskKey}/actions/{actionKey}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Run scheduled task action
+     * @description Executes one backend-defined Scheduled Task action and returns a non-persisted JobRunResult.
+     */
+    post: operations['postScheduledTaskAction'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/access-log': {
     parameters: {
       query?: never;
@@ -1241,12 +1261,16 @@ export interface components {
     UpdateScheduledTaskRequest: components['schemas']['update-scheduled-task-request'];
     ScheduledTaskListResponse: components['schemas']['scheduled-task-list-response'];
     ScheduledTaskRunItem: components['schemas']['scheduled-task-run-item'];
+    JobRunResult: components['schemas']['job-run-result'];
+    ScheduledTaskActionRequest: components['schemas']['scheduled-task-action-request'];
+    ScheduledTaskActionResult: components['schemas']['scheduled-task-action-result'];
     ScheduledTaskRunListResponse: components['schemas']['scheduled-task-run-list-response'];
     EnvelopedScheduledTaskItem: components['schemas']['enveloped-scheduled-task-item'];
     EnvelopedScheduledTaskListResponse: components['schemas']['enveloped-scheduled-task-list-response'];
     EnvelopedScheduledTaskJobDefinitionListResponse: components['schemas']['enveloped-scheduled-task-job-definition-list-response'];
     EnvelopedScheduledTaskJobDefinitionItem: components['schemas']['enveloped-scheduled-task-job-definition-item'];
     EnvelopedScheduledTaskRunItem: components['schemas']['enveloped-scheduled-task-run-item'];
+    EnvelopedScheduledTaskActionResult: components['schemas']['enveloped-scheduled-task-action-result'];
     EnvelopedScheduledTaskRunListResponse: components['schemas']['enveloped-scheduled-task-run-list-response'];
     AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
     AccessLogListResponse: components['schemas']['access-log-list-response'];
@@ -2307,6 +2331,25 @@ export interface components {
       default_cron_expression: string;
       /** @description Whether new Scheduled Tasks for this Job Definition should be enabled by default. */
       default_enabled: boolean;
+      /** @description Backend-defined one-shot actions available for this Job Definition. */
+      actions: {
+        key: string;
+        title?: string;
+        description?: string;
+        display_name_key?: string;
+        description_key?: string;
+        behavior?: string;
+        behavior_key?: string;
+        behavior_summary?: string;
+        behavior_summary_key?: string;
+        affected_resource?: string;
+        affected_resource_key?: string;
+        confirm_required?: boolean;
+        /** @enum {string} */
+        theme?: 'default' | 'primary' | 'warning' | 'danger' | 'success';
+        /** @description JSON object string merged after request config for this action. */
+        config_overrides?: string;
+      }[];
     };
     'scheduled-task-job-definition-list-response': {
       items: components['schemas']['scheduled-task-job-definition-item'][];
@@ -2364,6 +2407,39 @@ export interface components {
     };
     'enveloped-scheduled-task-run-item': components['schemas']['api-envelope'] & {
       data: components['schemas']['scheduled-task-run-item'];
+    };
+    'scheduled-task-action-request': {
+      /** @description JSON object string or object merged into the action effective config. */
+      config_json?:
+        | string
+        | {
+            [key: string]: unknown;
+          };
+    };
+    'job-run-result': {
+      summary?: string;
+      stage?: string;
+      affected_resource?: string;
+      metrics?: {
+        [key: string]: unknown;
+      };
+      details?: {
+        [key: string]: unknown;
+      };
+      warnings?: string[];
+    };
+    'scheduled-task-action-result': {
+      action_key: string;
+      task_key: string;
+      job_key: string;
+      /** @description Structured JobRunResult JSON object string. */
+      result_json: string;
+      result: components['schemas']['job-run-result'];
+      /** @description Effective config JSON object string used by the action execution. */
+      effective_config?: string;
+    };
+    'enveloped-scheduled-task-action-result': components['schemas']['api-envelope'] & {
+      data: components['schemas']['scheduled-task-action-result'];
     };
     'access-log-detail-response': {
       /** Format: int64 */
@@ -2492,6 +2568,8 @@ export interface components {
     'scheduled-task-run-list-offset': number;
     /** @description Scheduled task run id. */
     'scheduled-task-run-id': number;
+    /** @description Backend-defined Job Definition action key. */
+    'scheduled-task-action-key': string;
   };
   requestBodies: never;
   headers: {
@@ -5403,6 +5481,77 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Scheduled task was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Scheduled task is already running. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postScheduledTaskAction: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Stable scheduled task key. */
+        taskKey: components['parameters']['scheduled-task-key'];
+        /** @description Backend-defined Job Definition action key. */
+        actionKey: components['parameters']['scheduled-task-action-key'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['scheduled-task-action-request'];
+      };
+    };
+    responses: {
+      /** @description Scheduled Task action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-scheduled-task-action-result'];
+        };
+      };
+      /** @description Scheduled task action cannot run because config validation failed. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Scheduled task or action was not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

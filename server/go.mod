@@ -44,6 +44,7 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/air-verse/air v1.65.2 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/bep/godartsass/v2 v2.5.0 // indirect
 	github.com/bep/golibsass v1.2.0 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
@@ -61,6 +62,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/oapi-codegen/oapi-codegen/v2 v2.7.0 // indirect
+	github.com/oapi-codegen/runtime v1.4.1 // indirect
 	github.com/oasdiff/yaml v0.0.9 // indirect
 	github.com/oasdiff/yaml3 v0.0.9 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect

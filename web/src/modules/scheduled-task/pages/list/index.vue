@@ -366,9 +366,67 @@
               <h3>{{ t('scheduledTask.list.form.sectionConfig') }}</h3>
               <p>{{ t('scheduledTask.list.form.configHint') }}</p>
             </div>
-            <template v-if="configSchemaFields.length > 0">
+            <div v-if="drawerConfigSummaryItems.length > 0" class="scheduled-task-config-list">
+              <div v-for="item in drawerConfigSummaryItems" :key="item.key" class="scheduled-task-config-list__item">
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.value }}</span>
+                <small v-if="item.description">{{ item.description }}</small>
+              </div>
+            </div>
+            <p v-else class="scheduled-task-muted">{{ t('scheduledTask.list.form.noConfigFields') }}</p>
+            <t-button theme="default" variant="outline" @click="openConfigDialog">
+              {{ t('scheduledTask.list.configDialog.open') }}
+            </t-button>
+          </section>
+
+          <section v-if="formMode === 'edit' && jobDefinitionActions.length > 0" class="scheduled-task-form-section">
+            <div class="scheduled-task-form-section__head">
+              <h3>{{ t('scheduledTask.list.action.sectionTitle') }}</h3>
+              <p>{{ t('scheduledTask.list.action.sectionHint') }}</p>
+            </div>
+            <t-space class="scheduled-task-action-buttons" size="small">
+              <t-button
+                v-for="action in jobDefinitionActions"
+                :key="action.key"
+                :theme="actionButtonTheme(action)"
+                variant="outline"
+                :loading="actionExecutingKey === action.key"
+                @click="handleActionClick(action)"
+              >
+                {{ jobDefinitionActionTitle(action) }}
+              </t-button>
+            </t-space>
+          </section>
+        </t-form>
+
+        <template #footer>
+          <t-space class="scheduled-task-drawer-footer">
+            <t-button theme="default" variant="outline" @click="formVisible = false">
+              {{ t('scheduledTask.list.cancel') }}
+            </t-button>
+            <t-button theme="primary" :loading="submittingTask" @click="submitTaskForm">
+              {{ formMode === 'create' ? t('scheduledTask.list.create') : t('scheduledTask.list.save') }}
+            </t-button>
+          </t-space>
+        </template>
+      </t-drawer>
+
+      <t-dialog
+        v-model:visible="configDialogVisible"
+        :header="t('scheduledTask.list.configDialog.title')"
+        :confirm-btn="t('scheduledTask.list.configDialog.confirm')"
+        :cancel-btn="t('scheduledTask.list.cancel')"
+        :confirm-loading="configDialogSaving"
+        width="720px"
+        destroy-on-close
+        @confirm="confirmConfigDialog"
+      >
+        <div class="scheduled-task-dialog-copy">
+          <p>{{ configDialogBehaviorSummary }}</p>
+          <t-form :data="taskForm" label-align="top">
+            <template v-if="persistentConfigSchemaFields.length > 0">
               <t-form-item
-                v-for="field in configSchemaFields"
+                v-for="field in persistentConfigSchemaFields"
                 :key="field.key"
                 :label="configSchemaFieldTitle(field)"
                 :name="`config.${field.key}`"
@@ -437,20 +495,97 @@
                 </t-form-item>
               </t-collapse-panel>
             </t-collapse>
-          </section>
-        </t-form>
+          </t-form>
+        </div>
+      </t-dialog>
 
-        <template #footer>
-          <t-space class="scheduled-task-drawer-footer">
-            <t-button theme="default" variant="outline" @click="formVisible = false">
-              {{ t('scheduledTask.list.cancel') }}
-            </t-button>
-            <t-button theme="primary" :loading="submittingTask" @click="submitTaskForm">
-              {{ formMode === 'create' ? t('scheduledTask.list.create') : t('scheduledTask.list.save') }}
-            </t-button>
-          </t-space>
-        </template>
-      </t-drawer>
+      <t-dialog
+        v-model:visible="actionConfirmDialogVisible"
+        :header="t('scheduledTask.list.action.confirmTitle')"
+        :confirm-btn="t('scheduledTask.list.action.confirm')"
+        :cancel-btn="t('scheduledTask.list.cancel')"
+        :confirm-loading="Boolean(selectedAction && actionExecutingKey === selectedAction.key)"
+        width="640px"
+        destroy-on-close
+        @confirm="confirmSelectedAction"
+      >
+        <div v-if="selectedAction && editingTask" class="scheduled-task-dialog-copy">
+          <t-alert theme="info" :message="t('scheduledTask.list.action.previewWarning')" />
+          <t-descriptions :column="1" bordered size="small">
+            <t-descriptions-item :label="t('scheduledTask.list.action.taskName')">
+              {{ taskDisplayName(editingTask) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('scheduledTask.list.action.behavior')">
+              {{ jobDefinitionActionBehavior(selectedAction) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('scheduledTask.list.action.affectedResource')">
+              {{ jobDefinitionActionAffectedResource(selectedAction, editingTask) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('scheduledTask.list.action.currentConfig')">
+              <div v-if="drawerConfigSummaryItems.length > 0" class="scheduled-task-config-list">
+                <div v-for="item in drawerConfigSummaryItems" :key="item.key" class="scheduled-task-config-list__item">
+                  <strong>{{ item.label }}</strong>
+                  <span>{{ item.value }}</span>
+                </div>
+              </div>
+              <span v-else>{{ t('scheduledTask.list.detail.none') }}</span>
+            </t-descriptions-item>
+          </t-descriptions>
+        </div>
+      </t-dialog>
+
+      <t-dialog
+        v-model:visible="actionResultDialogVisible"
+        :header="t('scheduledTask.list.actionResult.title')"
+        :confirm-btn="t('scheduledTask.list.actionResult.confirm')"
+        :cancel-btn="null"
+        width="720px"
+        destroy-on-close
+      >
+        <div v-if="actionResult" class="scheduled-task-dialog-copy">
+          <t-alert v-if="actionResultStructured.summary" theme="success" :message="actionResultStructured.summary" />
+          <t-descriptions :column="1" bordered size="small">
+            <t-descriptions-item v-if="actionResultStructured.stage" :label="t('scheduledTask.list.detail.stage')">
+              <t-tag theme="primary" variant="light">{{ actionResultStructured.stage }}</t-tag>
+            </t-descriptions-item>
+            <t-descriptions-item
+              v-if="actionResultStructured.affected_resource"
+              :label="t('scheduledTask.list.detail.affectedResource')"
+            >
+              {{ actionResultStructured.affected_resource }}
+            </t-descriptions-item>
+            <t-descriptions-item
+              v-if="Object.keys(actionResultStructured.metrics ?? {}).length > 0"
+              :label="t('scheduledTask.list.detail.metrics')"
+            >
+              <pre class="scheduled-task-json-preview">{{
+                JSON.stringify(actionResultStructured.metrics, null, 2)
+              }}</pre>
+            </t-descriptions-item>
+            <t-descriptions-item
+              v-if="Object.keys(actionResultStructured.details ?? {}).length > 0"
+              :label="t('scheduledTask.list.detail.details')"
+            >
+              <pre class="scheduled-task-json-preview">{{
+                JSON.stringify(actionResultStructured.details, null, 2)
+              }}</pre>
+            </t-descriptions-item>
+            <t-descriptions-item
+              v-if="(actionResultStructured.warnings?.length ?? 0) > 0"
+              :label="t('scheduledTask.list.detail.warnings')"
+            >
+              <ul class="scheduled-task-warning-list">
+                <li v-for="warning in actionResultStructured.warnings" :key="warning">{{ warning }}</li>
+              </ul>
+            </t-descriptions-item>
+          </t-descriptions>
+          <t-collapse expand-icon-placement="right">
+            <t-collapse-panel value="rawResultJson" :header="t('scheduledTask.list.detail.rawResultJson')">
+              <pre class="scheduled-task-json-preview">{{ actionResultRawJsonPreview }}</pre>
+            </t-collapse-panel>
+          </t-collapse>
+        </div>
+      </t-dialog>
 
       <t-drawer
         v-model:visible="detailVisible"
@@ -800,6 +935,7 @@ import {
   deleteScheduledTask,
   disableScheduledTask,
   enableScheduledTask,
+  executeScheduledTaskAction,
   getScheduledTask,
   getScheduledTaskJobDefinition,
   getScheduledTaskJobDefinitions,
@@ -813,8 +949,12 @@ import CronExpressionField from '../../components/CronExpressionField.vue';
 import { SCHEDULED_TASK_PERMISSION_CODE } from '../../contract/permissions';
 import type {
   CreateScheduledTaskRequest,
+  ScheduledTaskActionRequest,
+  ScheduledTaskActionResult,
   ScheduledTaskItem,
+  ScheduledTaskJobDefinitionAction,
   ScheduledTaskJobDefinitionItem,
+  ScheduledTaskJobDefinitionItemWithActions,
   ScheduledTaskJobKey,
   ScheduledTaskRunItem,
   ScheduledTaskRunStatus,
@@ -839,7 +979,7 @@ import {
 } from '../../utils/cron';
 import { translateCronValidation } from '../../utils/cron-i18n';
 import { formatJsonPreview, type JsonRecord, parseJsonRecord } from '../../utils/json';
-import { parseRunResult } from '../../utils/run-result';
+import { parseRunResult, type ScheduledTaskRunResult } from '../../utils/run-result';
 
 defineOptions({
   name: 'ScheduledTaskListPage',
@@ -889,6 +1029,7 @@ type ImmediateRunSummary = {
 };
 
 const DEFAULT_CRON_EXPRESSION = '0 */5 * * * *';
+const ACTION_CONTROLLED_CONFIG_FALLBACK_KEYS = ['dryRun', 'dry_run'] as const;
 const cronTooltipOverlayInnerStyle = {
   maxWidth: '280px',
   padding: 'var(--graft-density-gap-12)',
@@ -957,19 +1098,26 @@ const jobDefinitionsLoading = ref(false);
 const runsLoading = ref(false);
 const detailVisible = ref(false);
 const formVisible = ref(false);
+const configDialogVisible = ref(false);
 const runDialogVisible = ref(false);
 const deleteDialogVisible = ref(false);
 const runDetailVisible = ref(false);
+const actionConfirmDialogVisible = ref(false);
+const actionResultDialogVisible = ref(false);
 const columnDrawerVisible = ref(false);
 const errorMessage = ref('');
 const runningTaskKey = ref('');
+const actionExecutingKey = ref('');
 const lifecycleTaskKey = ref('');
 const deletingTaskKey = ref('');
 const submittingTask = ref(false);
+const configDialogSaving = ref(false);
 const formMode = ref<FormMode>('create');
 const editingTask = ref<ScheduledTaskItem | null>(null);
 const runDialogTask = ref<ScheduledTaskItem | null>(null);
 const deleteDialogTask = ref<ScheduledTaskItem | null>(null);
+const selectedAction = ref<ScheduledTaskJobDefinitionAction | null>(null);
+const actionResult = ref<ScheduledTaskActionResult | null>(null);
 
 const filters = reactive<FilterModel>({
   keyword: '',
@@ -1061,6 +1209,43 @@ const selectedConfigSchema = computed(() => parseConfigSchema(selectedJobDefinit
 
 const configSchemaFields = computed(() => getConfigSchemaFields(selectedConfigSchema.value));
 
+const selectedJobDefinitionWithActions = computed(() =>
+  selectedJobDefinition.value ? (selectedJobDefinition.value as ScheduledTaskJobDefinitionItemWithActions) : null,
+);
+
+const jobDefinitionActions = computed(() => selectedJobDefinitionWithActions.value?.actions ?? []);
+
+const actionControlledConfigKeys = computed(() => {
+  const keys = new Set<string>(ACTION_CONTROLLED_CONFIG_FALLBACK_KEYS);
+  for (const action of jobDefinitionActions.value) {
+    for (const key of actionOverrideKeys(action)) {
+      keys.add(key);
+    }
+  }
+  return keys;
+});
+
+const persistentConfigSchemaFields = computed(() =>
+  configSchemaFields.value.filter((field) => !actionControlledConfigKeys.value.has(field.key)),
+);
+
+const drawerConfigSummaryItems = computed(() =>
+  persistentConfigSchemaFields.value
+    .map((field) => ({
+      key: field.key,
+      label: configSchemaFieldTitle(field),
+      value: configValuePreview(taskForm.config[field.key]),
+      description: configSchemaFieldDescription(field),
+    }))
+    .filter((item) => item.value !== t('scheduledTask.list.detail.none')),
+);
+
+const configDialogBehaviorSummary = computed(() =>
+  selectedJobDefinition.value
+    ? jobDefinitionDescription(selectedJobDefinition.value)
+    : t('scheduledTask.list.configDialog.noJobDefinition'),
+);
+
 const selectedTaskJobDefinition = computed(() =>
   selectedTask.value ? jobDefinitions.value.find((job) => job.key === selectedTask.value?.job_key) : null,
 );
@@ -1094,6 +1279,34 @@ const selectedTaskJobDescription = computed(() =>
       ? taskDescription(selectedTask.value)
       : t('scheduledTask.list.detail.none'),
 );
+
+const actionResultStructured = computed<ScheduledTaskRunResult>(() => {
+  if (!actionResult.value) {
+    return {};
+  }
+
+  const parsed = actionResult.value.result_json ? parseRunResult(actionResult.value.result_json) : {};
+  const result = actionResult.value.result ?? {};
+  return {
+    ...parsed,
+    summary: result.summary ?? parsed.summary,
+    stage: result.stage ?? parsed.stage,
+    affected_resource: result.affected_resource ?? parsed.affected_resource,
+    metrics: result.metrics ?? parsed.metrics,
+    details: result.details ?? parsed.details,
+    warnings: result.warnings ?? parsed.warnings,
+  };
+});
+
+const actionResultRawJsonPreview = computed(() => {
+  if (!actionResult.value) {
+    return t('scheduledTask.list.detail.none');
+  }
+
+  return actionResult.value.result_json
+    ? formatJsonPreview(actionResult.value.result_json) || actionResult.value.result_json
+    : JSON.stringify(actionResult.value, null, 2);
+});
 
 const groupedJobDefinitions = computed<JobDefinitionGroup[]>(() => {
   const groups = new Map<string, ScheduledTaskJobDefinitionItem[]>();
@@ -1410,7 +1623,7 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
     return {
       cron_expression: cronExpression,
       enabled: taskForm.enabled,
-      config_json: configJson || undefined,
+      config_json: buildPersistentConfigJson(configJson) || undefined,
     };
   }
 
@@ -1437,7 +1650,7 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
       description: taskForm.description.trim() || undefined,
       cron_expression: cronExpression,
       enabled: taskForm.enabled,
-      config_json: configJson || undefined,
+      config_json: buildPersistentConfigJson(configJson) || undefined,
     };
   }
 
@@ -1446,8 +1659,69 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
     description: taskForm.description.trim() || undefined,
     cron_expression: cronExpression,
     enabled: taskForm.enabled,
-    config_json: configJson || undefined,
+    config_json: buildPersistentConfigJson(configJson) || undefined,
   };
+}
+
+function openConfigDialog() {
+  configDialogVisible.value = true;
+  if (jobDefinitions.value.length === 0) {
+    void refreshJobDefinitions();
+  }
+}
+
+async function confirmConfigDialog() {
+  const configJson = normalizeJsonString(taskForm.configJson);
+  if (configJson === null) {
+    formFieldErrors.configJson = t('scheduledTask.list.form.configJsonInvalidHint');
+    return;
+  }
+
+  const persistentConfigJson = buildPersistentConfigJson(configJson);
+  taskForm.config = parseJsonRecord(persistentConfigJson);
+  taskForm.configJson = persistentConfigJson ? JSON.stringify(taskForm.config, null, 2) : '';
+  clearFormFieldError('configJson');
+
+  if (formMode.value === 'create') {
+    configDialogVisible.value = false;
+    return;
+  }
+
+  const taskKey = editingTask.value?.key ?? taskForm.taskKey;
+  if (!taskKey) {
+    return;
+  }
+
+  configDialogSaving.value = true;
+  try {
+    const saved = await updateScheduledTask(taskKey, {
+      config_json: persistentConfigJson || undefined,
+    } as UpdateScheduledTaskRequest);
+    syncTask(saved);
+    editingTask.value = saved;
+    Object.assign(taskForm, taskToForm(saved));
+    configDialogVisible.value = false;
+    void MessagePlugin.success(t('scheduledTask.list.configDialog.saveSuccess'));
+  } catch (error) {
+    logger.error(error instanceof Error ? error : 'save scheduled task config failed', {
+      taskKey,
+      operation: 'scheduled_task_config_save',
+    });
+    if (applyBackendFieldError(error)) {
+      return;
+    }
+    void MessagePlugin.error(t('scheduledTask.list.configDialog.saveError'));
+  } finally {
+    configDialogSaving.value = false;
+  }
+}
+
+function buildPersistentConfigJson(configJson: string) {
+  const config = parseJsonRecord(configJson);
+  const persistentConfig = Object.fromEntries(
+    Object.entries(config).filter(([key]) => !actionControlledConfigKeys.value.has(key)),
+  );
+  return Object.keys(persistentConfig).length > 0 ? JSON.stringify(persistentConfig) : '';
 }
 
 function openRunDialog(task: ScheduledTaskItem) {
@@ -1492,6 +1766,61 @@ async function runTask(task: ScheduledTaskItem) {
   } finally {
     runningTaskKey.value = '';
   }
+}
+
+function handleActionClick(action: ScheduledTaskJobDefinitionAction) {
+  selectedAction.value = action;
+  if (action.confirm_required === false) {
+    void executeSelectedAction(action);
+    return;
+  }
+  actionConfirmDialogVisible.value = true;
+}
+
+async function confirmSelectedAction() {
+  if (!selectedAction.value) {
+    return;
+  }
+  await executeSelectedAction(selectedAction.value);
+}
+
+async function executeSelectedAction(action: ScheduledTaskJobDefinitionAction) {
+  const taskKey = editingTask.value?.key ?? taskForm.taskKey;
+  if (!taskKey) {
+    return;
+  }
+  const payload = buildActionRequestPayload();
+  if (payload === null) {
+    return;
+  }
+
+  actionExecutingKey.value = action.key;
+  try {
+    actionResult.value = await executeScheduledTaskAction(taskKey, action.key, payload);
+    actionConfirmDialogVisible.value = false;
+    actionResultDialogVisible.value = true;
+  } catch (error) {
+    logger.error(error instanceof Error ? error : 'execute scheduled task action failed', {
+      taskKey,
+      actionKey: action.key,
+      operation: 'scheduled_task_action_execute',
+    });
+    void MessagePlugin.error(t('scheduledTask.list.action.executeError'));
+  } finally {
+    actionExecutingKey.value = '';
+  }
+}
+
+function buildActionRequestPayload(): ScheduledTaskActionRequest | undefined | null {
+  const configJson = normalizeJsonString(taskForm.configJson);
+  if (configJson === null) {
+    formFieldErrors.configJson = t('scheduledTask.list.form.configJsonInvalidHint');
+    configDialogVisible.value = true;
+    return null;
+  }
+
+  const persistentConfigJson = buildPersistentConfigJson(configJson);
+  return persistentConfigJson ? { config_json: persistentConfigJson } : undefined;
 }
 
 async function toggleTaskEnabled(task: ScheduledTaskItem) {
@@ -1882,6 +2211,60 @@ function jobDefinitionTitle(job: ScheduledTaskJobDefinitionItem) {
 
 function jobDefinitionDescription(job: ScheduledTaskJobDefinitionItem) {
   return localizedDisplayText(job.description_key, job.description, true) || t('scheduledTask.list.detail.none');
+}
+
+function jobDefinitionActionTitle(action: ScheduledTaskJobDefinitionAction) {
+  return localizedDisplayText(action.display_name_key, action.title, true) || action.key;
+}
+
+function jobDefinitionActionBehavior(action: ScheduledTaskJobDefinitionAction) {
+  return (
+    localizedDisplayText(
+      action.behavior_key ?? action.behavior_summary_key,
+      action.behavior ?? action.behavior_summary,
+      true,
+    ) ||
+    localizeDisplayValue(action.description) ||
+    jobDefinitionActionTitle(action)
+  );
+}
+
+function jobDefinitionActionAffectedResource(action: ScheduledTaskJobDefinitionAction, task: ScheduledTaskItem) {
+  return (
+    localizedDisplayText(action.affected_resource_key, action.affected_resource, true) || cleanupResourceLabel(task)
+  );
+}
+
+function actionButtonTheme(action: ScheduledTaskJobDefinitionAction) {
+  switch (action.theme) {
+    case 'danger':
+      return 'danger';
+    case 'success':
+      return 'success';
+    case 'warning':
+      return 'warning';
+    case 'primary':
+      return 'primary';
+    case 'default':
+    default:
+      return 'default';
+  }
+}
+
+function actionOverrideKeys(action: ScheduledTaskJobDefinitionAction) {
+  const keys = new Set<string>();
+  for (const key of Object.keys(parseJsonRecord(action.config_overrides))) {
+    addStringKey(keys, key);
+  }
+
+  return keys;
+}
+
+function addStringKey(keys: Set<string>, value?: string) {
+  const trimmed = value?.trim();
+  if (trimmed) {
+    keys.add(trimmed);
+  }
 }
 
 function moduleDisplayName(moduleKey: string) {

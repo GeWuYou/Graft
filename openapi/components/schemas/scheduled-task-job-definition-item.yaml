@@ -9,6 +9,7 @@ required:
   - default_config_json
   - default_cron_expression
   - default_enabled
+  - actions
 properties:
   key:
     type: string
@@ -39,3 +40,42 @@ properties:
   default_enabled:
     type: boolean
     description: Whether new Scheduled Tasks for this Job Definition should be enabled by default.
+  actions:
+    type: array
+    description: Backend-defined one-shot actions available for this Job Definition.
+    items:
+      type: object
+      required:
+        - key
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        display_name_key:
+          type: string
+        description_key:
+          type: string
+        behavior:
+          type: string
+        behavior_key:
+          type: string
+        behavior_summary:
+          type: string
+        behavior_summary_key:
+          type: string
+        affected_resource:
+          type: string
+        affected_resource_key:
+          type: string
+        confirm_required:
+          type: boolean
+        theme:
+          type: string
+          enum: [default, primary, warning, danger, success]
+        config_overrides:
+          type: string
+          pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
+          description: JSON object string merged after request config for this action.

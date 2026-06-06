@@ -1,0 +1,18 @@
+type: object
+properties:
+  summary:
+    type: string
+  stage:
+    type: string
+  affected_resource:
+    type: string
+  metrics:
+    type: object
+    additionalProperties: true
+  details:
+    type: object
+    additionalProperties: true
+  warnings:
+    type: array
+    items:
+      type: string

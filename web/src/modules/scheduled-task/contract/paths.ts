@@ -12,6 +12,7 @@ export const SCHEDULED_TASK_API_PATH = {
   RUNS: '/api/scheduled-tasks/{taskKey}/runs',
   RUN_DETAIL: '/api/scheduled-tasks/runs/{runId}',
   RUN: '/api/scheduled-tasks/{taskKey}/run',
+  ACTION: '/api/scheduled-tasks/{taskKey}/actions/{actionKey}',
 } as const;
 
 export function buildScheduledTaskDetailApiPath(taskKey: string) {
@@ -40,4 +41,11 @@ export function buildScheduledTaskRunDetailApiPath(runId: number) {
 
 export function buildScheduledTaskRunApiPath(taskKey: string) {
   return SCHEDULED_TASK_API_PATH.RUN.replace('{taskKey}', encodeURIComponent(taskKey));
+}
+
+export function buildScheduledTaskActionApiPath(taskKey: string, actionKey: string) {
+  return SCHEDULED_TASK_API_PATH.ACTION.replace('{taskKey}', encodeURIComponent(taskKey)).replace(
+    '{actionKey}',
+    encodeURIComponent(actionKey),
+  );
 }

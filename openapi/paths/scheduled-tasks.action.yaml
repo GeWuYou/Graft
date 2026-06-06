@@ -1,0 +1,61 @@
+post:
+  tags: [scheduled-tasks]
+  summary: Run scheduled task action
+  operationId: postScheduledTaskAction
+  description: Executes one backend-defined Scheduled Task action and returns a non-persisted JobRunResult.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/scheduled-task-key.yaml
+    - $ref: ../components/parameters/scheduled-task-action-key.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/scheduled-task-action-request.yaml
+  responses:
+    '200':
+      description: Scheduled Task action result.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-scheduled-task-action-result.yaml
+    '400':
+      description: Scheduled task action cannot run because config validation failed.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Scheduled task or action was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '409':
+      description: Scheduled task is already running.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

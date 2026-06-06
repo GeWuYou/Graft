@@ -103,6 +103,10 @@ func (r *stopContextRecorderRuntime) RunOnce(context.Context, string) (scheduler
 	return schedulercore.TaskRun{}, nil
 }
 
+func (r *stopContextRecorderRuntime) RunAction(context.Context, string, string, string) (schedulercore.JobActionResult, error) {
+	return schedulercore.JobActionResult{}, nil
+}
+
 type schedulerAPIRuntime struct {
 	stopContextRecorderRuntime
 	jobDefinitions []schedulercore.JobDefinitionSnapshot
@@ -123,6 +127,11 @@ type schedulerAPIRuntime struct {
 	runOnceKeys    []string
 	runOnceResult  schedulercore.TaskRun
 	runOnceErr     error
+	actionTaskKeys []string
+	actionKeys     []string
+	actionConfigs  []string
+	actionResult   schedulercore.JobActionResult
+	actionErr      error
 	getRunID       uint64
 	getRunResult   schedulercore.TaskRun
 	getRunErr      error
@@ -217,6 +226,27 @@ func (r *schedulerAPIRuntime) RunOnce(_ context.Context, key string) (schedulerc
 		}
 	}
 	return r.runOnceResult, nil
+}
+
+func (r *schedulerAPIRuntime) RunAction(_ context.Context, taskKey string, actionKey string, configJSON string) (schedulercore.JobActionResult, error) {
+	r.actionTaskKeys = append(r.actionTaskKeys, taskKey)
+	r.actionKeys = append(r.actionKeys, actionKey)
+	r.actionConfigs = append(r.actionConfigs, configJSON)
+	if r.actionErr != nil {
+		return schedulercore.JobActionResult{}, r.actionErr
+	}
+	if r.actionResult.ActionKey == "" {
+		r.actionResult = schedulercore.JobActionResult{
+			ActionKey:       actionKey,
+			TaskKey:         taskKey,
+			JobKey:          "scheduler.test-job",
+			EffectiveConfig: `{"dryRun":true}`,
+		}
+		r.actionResult.Result.Summary = "previewed"
+		r.actionResult.Result.Stage = "completed"
+		r.actionResult.Result.Metrics = map[string]any{"dryRun": true}
+	}
+	return r.actionResult, nil
 }
 
 func (r *schedulerAPIRuntime) GetRun(_ context.Context, id uint64) (schedulercore.TaskRun, error) {
@@ -478,6 +508,9 @@ func TestScheduledTaskJobDefinitionsRouteReturnsRuntimeJobDefinitions(t *testing
 				DefaultConfig:  `{"retention_days":30}`,
 				DefaultCron:    "0 0 * * * *",
 				Enabled:        true,
+				Actions: []schedulercore.JobActionSnapshot{
+					{Key: "dry-run", Title: "Dry run", ConfigOverrides: `{"dryRun":true}`},
+				},
 			},
 		},
 	}
@@ -497,7 +530,9 @@ func TestScheduledTaskJobDefinitionsRouteReturnsRuntimeJobDefinitions(t *testing
 		item.Module != "audit" ||
 		item.DisplayNameKey != "scheduledTask.auditLogRetention.title" ||
 		item.DefaultCronExpression != "0 0 * * * *" ||
-		item.DefaultConfigJSON != `{"retention_days":30}` {
+		item.DefaultConfigJSON != `{"retention_days":30}` ||
+		len(item.Actions) != 1 ||
+		item.Actions[0].Key != "dry-run" {
 		t.Fatalf("unexpected job definition item: %#v", item)
 	}
 }
@@ -681,6 +716,47 @@ func TestScheduledTaskManualRunUsesSlashRunRoute(t *testing.T) {
 	}
 }
 
+func TestScheduledTaskActionRouteRunsDryRunAction(t *testing.T) {
+	ctx, engine := newModuleTestContextWithEngine()
+	runtimeRecorder := &schedulerAPIRuntime{}
+	moduleInstance := NewModule()
+	moduleInstance.runtime = runtimeRecorder
+	registerAndBootSchedulerModule(t, ctx, moduleInstance)
+
+	recorder := performSchedulerRequest(engine, http.MethodPost, "/api/scheduled-tasks/webhook.health/actions/dry-run", `{
+		"config_json": {"batchSize": 25}
+	}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected action route status 200, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	if len(runtimeRecorder.actionTaskKeys) != 1 ||
+		runtimeRecorder.actionTaskKeys[0] != "webhook.health" ||
+		runtimeRecorder.actionKeys[0] != "dry-run" ||
+		runtimeRecorder.actionConfigs[0] != `{"batchSize":25}` {
+		t.Fatalf("unexpected action runtime calls: task=%#v action=%#v config=%#v", runtimeRecorder.actionTaskKeys, runtimeRecorder.actionKeys, runtimeRecorder.actionConfigs)
+	}
+	payload := decodeScheduledTaskActionPayload(t, recorder.Body.Bytes())
+	if payload.Data.ActionKey != "dry-run" ||
+		payload.Data.Result.Summary != "previewed" ||
+		payload.Data.ResultJSON == "" {
+		t.Fatalf("unexpected action payload: %#v", payload.Data)
+	}
+}
+
+func TestScheduledTaskActionRouteReturnsNotFoundForUnknownAction(t *testing.T) {
+	ctx, engine := newModuleTestContextWithEngine()
+	moduleInstance := NewModule()
+	moduleInstance.runtime = &schedulerAPIRuntime{actionErr: schedulercore.ErrJobActionNotFound}
+	registerAndBootSchedulerModule(t, ctx, moduleInstance)
+
+	recorder := performSchedulerRequest(engine, http.MethodPost, "/api/scheduled-tasks/webhook.health/actions/missing", `{
+		"config_json": "{}"
+	}`)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestScheduledTaskRunDetailReturnsResultAndErrorFields(t *testing.T) {
 	startedAt := time.Now().UTC().Add(-time.Second)
 	finishedAt := time.Now().UTC()
@@ -775,6 +851,11 @@ type scheduledTaskJobDefinitionListPayload struct {
 			DisplayNameKey        string `json:"display_name_key"`
 			DefaultCronExpression string `json:"default_cron_expression"`
 			DefaultConfigJSON     string `json:"default_config_json"`
+			Actions               []struct {
+				Key             string `json:"key"`
+				Title           string `json:"title"`
+				ConfigOverrides string `json:"config_overrides"`
+			} `json:"actions"`
 		} `json:"items"`
 	} `json:"data"`
 }
@@ -817,6 +898,29 @@ type scheduledTaskRunPayload struct {
 		ErrorSummary  string  `json:"error_summary"`
 		ResultSummary *string `json:"result_summary"`
 	} `json:"data"`
+}
+
+type scheduledTaskActionPayload struct {
+	Success bool `json:"success"`
+	Data    struct {
+		ActionKey  string `json:"action_key"`
+		ResultJSON string `json:"result_json"`
+		Result     struct {
+			Summary string `json:"summary"`
+			Stage   string `json:"stage"`
+		} `json:"result"`
+	} `json:"data"`
+}
+
+func decodeScheduledTaskActionPayload(t *testing.T, body []byte) scheduledTaskActionPayload {
+	t.Helper()
+
+	var payload scheduledTaskActionPayload
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	return payload
 }
 
 func decodeScheduledTaskRunPayload(t *testing.T, body []byte) scheduledTaskRunPayload {

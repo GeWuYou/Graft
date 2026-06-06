@@ -1,0 +1,9 @@
+type: object
+properties:
+  config_json:
+    oneOf:
+      - type: string
+        pattern: '^\\s*\\{[\\s\\S]*\\}\\s*$'
+      - type: object
+        additionalProperties: true
+    description: JSON object string or object merged into the action effective config.
