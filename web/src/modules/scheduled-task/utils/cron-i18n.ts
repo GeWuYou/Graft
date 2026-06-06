@@ -30,6 +30,8 @@ export function translateCronDescription(result: CronDescriptionResult | string,
 
 export function translateCronValidation(result: CronValidationResult, t: CronTranslate): string {
   switch (result.messageKey) {
+    case 'scheduledTask.cronValidation.required':
+      return t('scheduledTask.cronValidation.required', result.messageParams ?? {});
     case 'scheduledTask.cronValidation.fieldCount':
       return t('scheduledTask.cronValidation.fieldCount', result.messageParams ?? {});
     case 'scheduledTask.cronValidation.stepRange':

@@ -30,14 +30,14 @@
       "invalid": "Cron expression is invalid."
     },
     "cronValidation": {
+      "required": "Cron Expression is required.",
       "fieldCount": "Cron expression must contain either {unixFields} Unix fields or {secondsFields} seconds-based fields.",
       "stepRange": "Cron {field} step must be between {min} and {max}.",
       "fieldRange": "Cron {field} field must be * or a number between {min} and {max}."
     },
     "cronExpressionField": {
-      "clear": "Clear Cron Expression",
       "configure": "Configure",
-      "placeholder": "For example */5 * * * *",
+      "placeholder": "For example 0 17 * * *",
       "validStatus": "Valid"
     },
     "cronScheduleDialog": {

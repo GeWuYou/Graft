@@ -22,7 +22,7 @@ const CronScheduleDialogStub = defineComponent({
 const tDesignStubs = {
   TButton: defineComponent({
     name: 'TButton',
-    props: ['disabled'],
+    props: ['disabled', 'theme', 'variant'],
     emits: ['click'],
     setup(props, { emit, slots }) {
       return () =>
@@ -30,6 +30,8 @@ const tDesignStubs = {
           'button',
           {
             'data-testid': 'cron-config-button',
+            'data-theme': props.theme,
+            'data-variant': props.variant,
             disabled: props.disabled,
             onClick: (event: MouseEvent) => emit('click', event),
           },
@@ -40,7 +42,7 @@ const tDesignStubs = {
   TInput: defineComponent({
     name: 'TInput',
     inheritAttrs: false,
-    props: ['modelValue', 'status', 'value'],
+    props: ['clearable', 'modelValue', 'status', 'value'],
     emits: ['update:modelValue', 'update:value', 'change', 'blur', 'focus'],
     setup(props, { attrs, emit, slots }) {
       return () =>
@@ -49,6 +51,7 @@ const tDesignStubs = {
             h('input', {
               ...attrs,
               'data-testid': 'cron-expression-input',
+              'data-clearable': String(props.clearable),
               'data-status': props.status,
               value: props.modelValue ?? props.value,
               onInput: (event: Event) => {
@@ -98,10 +101,11 @@ const i18n = createI18n({
         cronExpressionField: {
           clear: '清空 Cron 表达式',
           configure: '配置',
-          placeholder: '例如 */5 * * * *',
+          placeholder: '例如 0 17 * * *',
           validStatus: '有效',
         },
         cronValidation: {
+          required: '请填写 Cron 表达式。',
           fieldCount: 'Cron 表达式必须是 {unixFields} 字段 Unix Cron 或 {secondsFields} 字段秒级 Cron。',
           fieldRange: 'Cron {field} 字段必须是 * 或 {min} 到 {max} 之间的数字。',
           stepRange: 'Cron {field} 步长必须介于 {min} 到 {max} 之间。',
@@ -152,28 +156,24 @@ describe('CronExpressionField', () => {
     expect(wrapper.get('[data-testid="cron-schedule-dialog"]').attributes('data-visible')).toBe('true');
   });
 
-  it('keeps the clear suffix reservation inside the input flex item', () => {
+  it('keeps the cron input and configure button in one stable row', () => {
     const wrapper = mountField();
-    const control = wrapper.get('.cron-expression-field__control');
-    const inputArea = wrapper.get('.cron-expression-field__input');
+    const row = wrapper.get('[data-testid="cron-expression-row"]');
+    const inputArea = wrapper.get('.scheduled-task-cron-input');
     const configureButton = wrapper.get('[data-testid="cron-config-button"]');
 
-    expect(inputArea.find('.cron-expression-field__clear-space').exists()).toBe(true);
-    expect(control.element.children[0]).toBe(inputArea.element);
-    expect(control.element.children[1]).toBe(configureButton.element);
+    expect(row.element.children[0]).toBe(inputArea.element);
+    expect(row.element.children[1]).toBe(configureButton.element);
+    expect(configureButton.attributes('data-theme')).toBe('primary');
+    expect(configureButton.attributes('data-variant')).toBe('outline');
   });
 
-  it('clears the expression without removing the reserved suffix space', async () => {
+  it('uses a legal cron placeholder and TDesign clearable input behavior', () => {
     const wrapper = mountField();
+    const input = wrapper.get('[data-testid="cron-expression-input"]');
 
-    await wrapper.get('[data-testid="cron-expression-input"]').trigger('focus');
-    await wrapper.get('.cron-expression-field__clear-button').trigger('click');
-
-    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['']);
-    expect(wrapper.find('.cron-expression-field__clear-space').exists()).toBe(true);
-    expect(wrapper.get('.cron-expression-field__control').element.children[1]).toBe(
-      wrapper.get('[data-testid="cron-config-button"]').element,
-    );
+    expect(input.attributes('placeholder')).toBe('例如 0 17 * * *');
+    expect(input.attributes('data-clearable')).toBeDefined();
   });
 
   it('applies confirmed dialog expressions', async () => {
@@ -188,9 +188,26 @@ describe('CronExpressionField', () => {
     const wrapper = mountField({ modelValue: '0 0 24 * * *' });
 
     expect(wrapper.get('[data-testid="cron-expression-input"]').attributes('data-status')).toBe('error');
-    expect(wrapper.get('[data-testid="cron-expression-meta"]').text()).toContain(
+    expect(wrapper.get('[data-testid="cron-expression-error"]').text()).toContain(
       'Cron hours 字段必须是 * 或 0 到 23 之间的数字。',
     );
+    expect(wrapper.find('[data-testid="cron-expression-meta"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="cron-preview"]').exists()).toBe(false);
+  });
+
+  it('shows field count errors below the whole cron row', async () => {
+    const wrapper = mountField({ modelValue: '*/5 * * *' });
+
+    expect(wrapper.get('[data-testid="cron-expression-error"]').text()).toContain(
+      'Cron 表达式必须是 5 字段 Unix Cron 或 6 字段秒级 Cron。',
+    );
+    expect(wrapper.find('[data-testid="cron-expression-meta"]').exists()).toBe(false);
+  });
+
+  it('shows required errors for empty input', async () => {
+    const wrapper = mountField({ modelValue: '' });
+
+    expect(wrapper.get('[data-testid="cron-expression-error"]').text()).toContain('请填写 Cron 表达式。');
+    expect(wrapper.find('[data-testid="cron-valid-tag"]').exists()).toBe(false);
   });
 });

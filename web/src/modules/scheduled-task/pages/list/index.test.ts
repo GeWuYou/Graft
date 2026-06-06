@@ -21,7 +21,13 @@ const translations = vi.hoisted(
     'scheduledTask.appLogRetention.title': '应用日志保留清理',
     'scheduledTask.auditLogRetention.description': '删除超过配置保留窗口的审计日志。',
     'scheduledTask.auditLogRetention.title': '审计日志保留清理',
+    'scheduledTask.cronDescription.daily': '每天 {hour}:00 执行一次。',
     'scheduledTask.cronDescription.everyNMinutes': '每 {interval} 分钟执行一次。',
+    'scheduledTask.cronValidation.fieldCount':
+      'Cron 表达式必须是 {unixFields} 字段 Unix Cron 或 {secondsFields} 字段秒级 Cron。',
+    'scheduledTask.cronValidation.fieldRange': 'Cron {field} 字段必须是 * 或 {min} 到 {max} 之间的数字。',
+    'scheduledTask.cronValidation.required': '请填写 Cron 表达式。',
+    'scheduledTask.cronValidation.stepRange': 'Cron {field} 步长必须介于 {min} 到 {max} 之间。',
     'scheduledTask.list.columnSettings': '列设置',
     'scheduledTask.list.columns.cron': 'Cron',
     'scheduledTask.list.columns.jobType': 'Job 类型',
@@ -205,7 +211,7 @@ function scheduledTasksResponse() {
         builtin: false,
         title: 'Custom cleanup',
         description: 'Custom description',
-        schedule: '0 * * * *',
+        schedule: '0 17 * * *',
         status: 'idle',
         running: false,
         params_json: '{}',
@@ -503,6 +509,10 @@ describe('ScheduledTaskListPage', () => {
     const firstScheduleCell = wrapper.find('tbody tr:first-child td[data-col="schedule"]');
     expect(firstScheduleCell.text()).toContain('0 */5 * * * *');
     expect(firstScheduleCell.text()).toContain('每 5 分钟执行一次。');
+
+    const customScheduleCell = wrapper.find('tbody tr:nth-child(4) td[data-col="schedule"]');
+    expect(customScheduleCell.text()).toContain('0 0 17 * * *');
+    expect(customScheduleCell.text()).toContain('每天 17:00 执行一次。');
 
     const firstResultCell = wrapper.find('tbody tr:first-child td[data-col="recent_result"]');
     expect(firstResultCell.text()).toContain('成功');

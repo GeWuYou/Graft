@@ -317,10 +317,11 @@
               <h3>{{ t('scheduledTask.list.form.sectionExecutionPlan') }}</h3>
             </div>
             <t-form-item
+              class="scheduled-task-cron-form-item"
               :label="t('scheduledTask.list.form.cronExpression')"
               name="cronExpression"
               :status="formFieldErrors.cronExpression ? 'error' : undefined"
-              :tips="formFieldErrors.cronExpression"
+              :show-error-message="false"
             >
               <cron-expression-field
                 v-model="taskForm.cronExpression"
@@ -645,6 +646,7 @@ import {
   normalizeCronExpression,
   validateCronExpression,
 } from '../../utils/cron';
+import { translateCronDescription, translateCronValidation } from '../../utils/cron-i18n';
 
 defineOptions({
   name: 'ScheduledTaskListPage',
@@ -1369,20 +1371,11 @@ function cronScheduleDescriptionText(expression: string) {
     return '';
   }
 
-  return t(description.key, description.params ?? {});
+  return translateCronDescription(description, t);
 }
 
 function cronValidationMessageText(result: CronValidationResult) {
-  switch (result.messageKey) {
-    case 'scheduledTask.cronValidation.fieldCount':
-      return t('scheduledTask.cronValidation.fieldCount', result.messageParams ?? {});
-    case 'scheduledTask.cronValidation.stepRange':
-      return t('scheduledTask.cronValidation.stepRange', result.messageParams ?? {});
-    case 'scheduledTask.cronValidation.fieldRange':
-      return t('scheduledTask.cronValidation.fieldRange', result.messageParams ?? {});
-    default:
-      return '';
-  }
+  return translateCronValidation(result, t);
 }
 
 function handleCronEditorUpdate(value: string) {
@@ -1843,6 +1836,12 @@ function formatDuration(value?: number | null) {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
   margin: 0;
+}
+
+.scheduled-task-cron-form-item :deep(.t-form__controls),
+.scheduled-task-cron-form-item :deep(.t-form__controls-content) {
+  min-width: 0;
+  width: 100%;
 }
 
 .scheduled-task-job-option {

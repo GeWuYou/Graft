@@ -28,6 +28,17 @@ describe('scheduled-task cron utility', () => {
   it('rejects unsupported field counts', () => {
     expect(validateCronExpression('* * * *').valid).toBe(false);
     expect(validateCronExpression('0 * * * * * *').valid).toBe(false);
+    expect(validateCronExpression('*/5 * * *')).toMatchObject({
+      valid: false,
+      messageKey: 'scheduledTask.cronValidation.fieldCount',
+    });
+  });
+
+  it('rejects empty cron expressions as required input', () => {
+    expect(validateCronExpression('')).toEqual({
+      valid: false,
+      messageKey: 'scheduledTask.cronValidation.required',
+    });
   });
 
   it('rejects out-of-range simple fields', () => {
@@ -60,6 +71,18 @@ describe('scheduled-task cron utility', () => {
     expect(describeCronExpression('0 0 * * *')).toMatchObject({
       key: 'scheduledTask.cronDescription.daily',
       params: { hour: 0 },
+    });
+    expect(describeCronExpression('0 17 * * *')).toMatchObject({
+      key: 'scheduledTask.cronDescription.daily',
+      normalizedExpression: '0 0 17 * * *',
+      params: { hour: 17 },
+      valid: true,
+    });
+    expect(describeCronExpression('0 0 17 * * *')).toMatchObject({
+      key: 'scheduledTask.cronDescription.daily',
+      normalizedExpression: '0 0 17 * * *',
+      params: { hour: 17 },
+      valid: true,
     });
   });
 

@@ -5,6 +5,7 @@ export type CronValidationResult = {
 };
 
 export type CronValidationMessageKey =
+  | 'scheduledTask.cronValidation.required'
   | 'scheduledTask.cronValidation.fieldCount'
   | 'scheduledTask.cronValidation.stepRange'
   | 'scheduledTask.cronValidation.fieldRange';
@@ -200,6 +201,13 @@ export function parseCronExpression(expression: string): ParsedCronExpression {
 
 export function validateCronExpression(expression: string): CronValidationResult {
   const fields = splitCronFields(expression);
+
+  if (fields.length === 0) {
+    return {
+      valid: false,
+      messageKey: 'scheduledTask.cronValidation.required',
+    };
+  }
 
   if (fields.length !== FIELD_COUNT_UNIX && fields.length !== FIELD_COUNT_SECONDS) {
     return {

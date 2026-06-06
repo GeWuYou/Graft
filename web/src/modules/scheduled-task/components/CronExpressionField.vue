@@ -1,39 +1,23 @@
 <template>
-  <div class="cron-expression-field" :class="{ 'cron-expression-field--disabled': disabled }">
-    <div class="cron-expression-field__control">
-      <div class="cron-expression-field__input">
+  <div class="cron-expression-field scheduled-task-cron-field" :class="{ 'cron-expression-field--disabled': disabled }">
+    <div class="scheduled-task-cron-row" data-testid="cron-expression-row">
+      <div class="scheduled-task-cron-input">
         <t-input
           v-model="rawExpression"
           data-testid="cron-expression-input"
+          clearable
           :disabled="disabled"
           :placeholder="t('scheduledTask.cronExpressionField.placeholder')"
           :status="inputStatus"
           @change="handleRawInput"
           @blur="handleInputBlur"
-          @focus="inputFocused = true"
-        >
-          <template #suffix>
-            <span class="cron-expression-field__clear-space">
-              <button
-                v-show="showClearControl"
-                class="cron-expression-field__clear-button"
-                type="button"
-                tabindex="-1"
-                :aria-label="t('scheduledTask.cronExpressionField.clear')"
-                @click.stop="handleClearExpression"
-                @mousedown.prevent
-              >
-                <close-circle-filled-icon class="cron-expression-field__clear-icon" aria-hidden="true" />
-              </button>
-            </span>
-          </template>
-        </t-input>
+        />
       </div>
       <t-button
-        class="cron-expression-field__configure"
+        class="scheduled-task-cron-configure"
         data-testid="cron-config-button"
-        theme="default"
-        variant="text"
+        theme="primary"
+        variant="outline"
         :disabled="disabled"
         @click="dialogVisible = true"
       >
@@ -41,13 +25,23 @@
       </t-button>
     </div>
 
-    <div class="cron-expression-field__meta" data-testid="cron-expression-meta">
-      <t-tag v-if="displayValid" size="small" theme="success" variant="light">
+    <div
+      v-if="invalidMessage"
+      class="scheduled-task-cron-message scheduled-task-cron-message--error"
+      data-testid="cron-expression-error"
+    >
+      {{ invalidMessage }}
+    </div>
+
+    <div
+      v-else-if="displayValid"
+      class="scheduled-task-cron-message scheduled-task-cron-message--success"
+      data-testid="cron-expression-meta"
+    >
+      <t-tag size="small" theme="success" variant="light">
         {{ t('scheduledTask.cronExpressionField.validStatus') }}
       </t-tag>
-      <span :class="{ 'cron-expression-field__message--error': Boolean(invalidMessage) }">
-        {{ invalidMessage || descriptionText }}
-      </span>
+      <span>{{ descriptionText }}</span>
     </div>
 
     <cron-schedule-dialog
@@ -59,7 +53,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { CloseCircleFilledIcon } from 'tdesign-icons-vue-next';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -92,7 +85,6 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const rawExpression = ref(props.modelValue);
 const dialogVisible = ref(false);
-const inputFocused = ref(false);
 
 const normalizedExpression = computed(() => normalizeCronExpression(rawExpression.value));
 const validation = computed(() => validateCronExpression(rawExpression.value));
@@ -101,7 +93,6 @@ const invalidMessage = computed(() => props.error || cronValidationMessageText(v
 const displayValid = computed(() => validation.value.valid && !props.error);
 const inputStatus = computed(() => (invalidMessage.value ? 'error' : 'default'));
 const descriptionText = computed(() => translateCronDescription(description.value, t));
-const showClearControl = computed(() => Boolean(rawExpression.value && !props.disabled && inputFocused.value));
 
 watch(
   () => props.modelValue,
@@ -131,12 +122,7 @@ function handleRawInput(value: string | number) {
 }
 
 function handleInputBlur(value: string | number) {
-  inputFocused.value = false;
   handleRawInput(value);
-}
-
-function handleClearExpression() {
-  applyExpression('');
 }
 
 function handleDialogConfirm(expression: string) {
@@ -165,75 +151,49 @@ function cronValidationMessageText(result: CronValidationResult) {
 .cron-expression-field {
   display: flex;
   flex-direction: column;
-  gap: var(--graft-density-gap-8);
-  min-width: 0;
-}
-
-.cron-expression-field__control {
-  align-items: stretch;
-  display: flex;
-  gap: var(--graft-density-gap-8);
   min-width: 0;
   width: 100%;
 }
 
-.cron-expression-field__input {
+.scheduled-task-cron-field {
+  min-width: 0;
+  width: 100%;
+}
+
+.scheduled-task-cron-row {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--td-comp-margin-s);
+  min-width: 0;
+  width: 100%;
+}
+
+.scheduled-task-cron-input {
   flex: 1 1 0;
   min-width: 0;
 }
 
-.cron-expression-field__clear-space {
-  align-items: center;
-  block-size: 1em;
-  display: inline-flex;
-  inline-size: var(--td-font-size-body-large);
-  justify-content: center;
-  position: relative;
-}
-
-.cron-expression-field__clear-button {
-  align-items: center;
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  display: inline-flex;
-  inset: 0;
-  justify-content: center;
-  padding: 0;
-  position: absolute;
-  transition: color 0.2s linear;
-}
-
-.cron-expression-field__clear-button:hover {
-  color: var(--td-text-color-secondary);
-}
-
-.cron-expression-field__clear-icon {
-  font-size: var(--td-font-size-body-large);
-}
-
-.cron-expression-field__configure {
+.scheduled-task-cron-configure {
   flex: 0 0 auto;
 }
 
-.cron-expression-field__meta {
-  align-items: center;
-  color: var(--td-text-color-secondary);
-  display: flex;
-  gap: var(--graft-density-gap-8);
-  min-height: var(--td-comp-size-xs);
-  min-width: 0;
-}
-
-.cron-expression-field__meta span {
+.scheduled-task-cron-message {
+  font: var(--td-font-body-small);
+  line-height: 20px;
+  margin-top: var(--td-comp-margin-xs);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.cron-expression-field__message--error {
+.scheduled-task-cron-message--error {
   color: var(--td-error-color);
+}
+
+.scheduled-task-cron-message--success {
+  align-items: center;
+  color: var(--td-text-color-secondary);
+  display: flex;
+  gap: var(--td-comp-margin-xs);
 }
 
 .cron-expression-field--disabled {
