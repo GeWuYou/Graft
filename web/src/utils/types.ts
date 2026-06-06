@@ -74,11 +74,14 @@ export interface TRouterInfo {
   meta?: AppRouteMeta;
 }
 
+export type TabPageSnapshot = Record<string, unknown>;
+
 export interface TTabRouterType {
   tabRouterList: TRouterInfo[];
   closedTabStack: TRouterInfo[];
   activeTabKey: string;
   isRefreshing: boolean;
+  pageSnapshots: Record<string, TabPageSnapshot>;
 }
 
 export interface TTabRemoveOptions {

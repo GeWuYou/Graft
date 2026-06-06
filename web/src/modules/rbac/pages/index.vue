@@ -9,7 +9,7 @@
             variant="outline"
             :loading="loading"
             data-testid="role-refresh"
-            @click="fetchRolePageData"
+            @click="() => fetchRolePageData()"
           >
             {{ t('rbac.roleList.refresh') }}
           </t-button>
@@ -74,7 +74,7 @@
           :description="listError"
         >
           <template #actions>
-            <t-button theme="primary" variant="outline" @click="fetchRolePageData">
+            <t-button theme="primary" variant="outline" @click="() => fetchRolePageData()">
               {{ t('rbac.roleList.retry') }}
             </t-button>
           </template>
@@ -388,7 +388,7 @@ import {
   ManagementToolbar,
   TableActionMenu,
 } from '@/shared/components/management';
-import { useAssignmentSelection } from '@/shared/composables';
+import { useAssignmentSelection, useTabPageSnapshot } from '@/shared/composables';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
@@ -462,6 +462,21 @@ type RoleStatusCompat = RoleListItem & {
   deleted_at?: string | null;
 };
 
+type RolePageSnapshot = {
+  columnDrawerVisible: boolean;
+  filters: RoleFilters;
+  pagination: {
+    current: number;
+    pageSize: number;
+  };
+  roleDrawer: {
+    form: RoleFormState;
+    mode: RoleDrawerMode;
+    visible: boolean;
+  };
+  visibleColumnKeys: string[];
+};
+
 const DEFAULT_VISIBLE_COLUMNS = ['role', 'builtin', 'permission_count', 'user_count', 'updated_at', 'operation'];
 
 const INITIAL_ROLE_FORM: RoleFormState = {
@@ -506,6 +521,34 @@ const columnDrawerVisible = ref(false);
 const pagination = ref({
   current: 1,
   pageSize: 10,
+});
+
+useTabPageSnapshot<RolePageSnapshot>({
+  apply(snapshot) {
+    filters.value = { ...snapshot.filters };
+    visibleColumnKeys.value = [...snapshot.visibleColumnKeys];
+    pagination.value = { ...snapshot.pagination };
+    columnDrawerVisible.value = snapshot.columnDrawerVisible;
+    if (snapshot.roleDrawer.visible && snapshot.roleDrawer.mode === 'create') {
+      roleDrawerVisible.value = true;
+      roleDrawerMode.value = 'create';
+      roleDrawerRole.value = null;
+      roleForm.value = { ...snapshot.roleDrawer.form };
+    }
+  },
+  read() {
+    return {
+      columnDrawerVisible: columnDrawerVisible.value,
+      filters: { ...filters.value },
+      pagination: { ...pagination.value },
+      roleDrawer: {
+        form: { ...roleForm.value },
+        mode: roleDrawerMode.value,
+        visible: roleDrawerVisible.value && roleDrawerMode.value === 'create',
+      },
+      visibleColumnKeys: [...visibleColumnKeys.value],
+    };
+  },
 });
 
 const permissionCodes = RBAC_PERMISSION_CODE;
@@ -844,7 +887,7 @@ const visibleColumns = computed(() => {
 
 const tableContentWidth = computed(() => calculateTableContentWidth(visibleColumns.value));
 
-async function fetchRolePageData() {
+async function fetchRolePageData(preservePagination = false) {
   loading.value = true;
   listError.value = '';
 
@@ -859,7 +902,9 @@ async function fetchRolePageData() {
     }
 
     roles.value = roleResult.value.items;
-    pagination.value.current = 1;
+    if (!preservePagination) {
+      pagination.value.current = 1;
+    }
 
     if (permissionResult.status === 'fulfilled') {
       permissions.value = permissionResult.value.items;
@@ -1463,7 +1508,7 @@ async function removeRole(role: RoleStatusCompat) {
 }
 
 onMounted(() => {
-  fetchRolePageData();
+  fetchRolePageData(true);
 });
 
 watch(

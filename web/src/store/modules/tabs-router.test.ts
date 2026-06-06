@@ -31,12 +31,28 @@ describe('useTabsRouterStore', () => {
     });
 
     tabsRouterStore.startTabRefresh(1);
+    tabsRouterStore.setPageSnapshot('/users', { filters: { keyword: 'alice' } });
     expect(tabsRouterStore.refreshing).toBe(true);
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(false);
 
     tabsRouterStore.finishTabRefresh(1);
     expect(tabsRouterStore.refreshing).toBe(false);
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(true);
+  });
+
+  it('clears a tab page snapshot when refreshing a tab', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/users',
+      path: '/users',
+      name: 'UserList',
+    });
+    tabsRouterStore.setPageSnapshot('/users', { filters: { keyword: 'alice' } });
+
+    tabsRouterStore.startTabRefresh(1);
+
+    expect(tabsRouterStore.getPageSnapshot('/users')).toBeUndefined();
   });
 
   it('heals persisted refresh residue on startup', () => {
@@ -222,6 +238,71 @@ describe('useTabsRouterStore', () => {
     expect(duplicated?.query).toEqual({ scope: 'failed-auth' });
     expect(duplicated?.title?.[LOCALE.ZH_CN]).toBe('审计日志(2)');
     expect(tabsRouterStore.tabRouters).toHaveLength(3);
+  });
+
+  it('duplicates a tab with a deep-copied page snapshot', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/audit/logs',
+      path: '/audit/logs',
+      name: 'AuditLogs',
+    });
+    tabsRouterStore.setPageSnapshot('/audit/logs', {
+      filters: {
+        keyword: 'failed-auth',
+      },
+      pagination: {
+        current: 2,
+        pageSize: 20,
+      },
+    });
+
+    const duplicated = tabsRouterStore.duplicateTab('/audit/logs');
+    const duplicatedSnapshot = tabsRouterStore.getPageSnapshot<{
+      filters: { keyword: string };
+      pagination: { current: number; pageSize: number };
+    }>(duplicated?.tabKey);
+
+    expect(duplicatedSnapshot).toEqual({
+      filters: {
+        keyword: 'failed-auth',
+      },
+      pagination: {
+        current: 2,
+        pageSize: 20,
+      },
+    });
+
+    tabsRouterStore.setPageSnapshot('/audit/logs', {
+      filters: {
+        keyword: 'source-only',
+      },
+    });
+
+    expect(tabsRouterStore.getPageSnapshot(duplicated?.tabKey)).toEqual(duplicatedSnapshot);
+  });
+
+  it('clears page snapshots when closing tabs', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/audit/logs',
+      path: '/audit/logs',
+      name: 'AuditLogs',
+    });
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/access/logs',
+      path: '/access/logs',
+      name: 'AccessLogs',
+    });
+    tabsRouterStore.setPageSnapshot('/audit/logs', { filters: { keyword: 'audit' } });
+    tabsRouterStore.setPageSnapshot('/access/logs', { filters: { keyword: 'access' } });
+
+    tabsRouterStore.subtractCurrentTabRouter({ tabKey: '/audit/logs', path: '/audit/logs', routeIdx: 1 });
+
+    expect(tabsRouterStore.getPageSnapshot('/audit/logs')).toBeUndefined();
+    expect(tabsRouterStore.getPageSnapshot('/access/logs')).toEqual({ filters: { keyword: 'access' } });
   });
 
   it('keeps duplicate tabs separately addressable even when they share one route path', () => {

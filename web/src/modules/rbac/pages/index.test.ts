@@ -31,6 +31,11 @@ const permissionState = vi.hoisted(() => ({
   grantedCodes: [] as string[],
 }));
 
+const tabSnapshotState = vi.hoisted(() => ({
+  activeTabKey: '/access-control/roles',
+  snapshots: {} as Record<string, Record<string, unknown>>,
+}));
+
 vi.mock('../api/rbac', () => ({
   addRolePermissions: rbacApiMocks.addRolePermissions,
   createRole: rbacApiMocks.createRole,
@@ -49,6 +54,15 @@ vi.mock('@/store', () => ({
   usePermissionStore: () => ({
     hasAnyPermission: (codes: string[]) => codes.some((code) => permissionState.grantedCodes.includes(code)),
     hasPermission: (code: string) => permissionState.grantedCodes.includes(code),
+  }),
+  useTabsRouterStore: () => ({
+    activeTabKey: tabSnapshotState.activeTabKey,
+    getPageSnapshot: (tabKey?: string) => (tabKey ? tabSnapshotState.snapshots[tabKey] : undefined),
+    setPageSnapshot: (tabKey?: string, snapshot?: Record<string, unknown>) => {
+      if (tabKey && snapshot) {
+        tabSnapshotState.snapshots[tabKey] = JSON.parse(JSON.stringify(snapshot));
+      }
+    },
   }),
 }));
 
@@ -543,6 +557,7 @@ function setPermissionMutationMode(wrapper: ReturnType<typeof mountRolePage>, mo
 describe('RolePage', () => {
   beforeEach(() => {
     permissionState.grantedCodes = [];
+    tabSnapshotState.snapshots = {};
     confirmMock.mockReset();
     confirmMock.mockReturnValue(true);
     rbacApiMocks.addRolePermissions.mockReset();

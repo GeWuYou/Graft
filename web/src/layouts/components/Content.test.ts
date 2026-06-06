@@ -14,6 +14,7 @@ const tabStoreState = vi.hoisted(() => ({
   refreshing: false,
   tabRouters: [
     {
+      tabKey: '/access-control/roles',
       isAlive: true,
       meta: {},
       name: 'RoleListIndex',
@@ -44,6 +45,14 @@ describe('Content', () => {
     routeState.meta = {};
     tabStoreState.activeTabKey = '/access-control/roles';
     tabStoreState.refreshing = false;
+    tabStoreState.tabRouters = [
+      {
+        tabKey: '/access-control/roles',
+        isAlive: true,
+        meta: {},
+        name: 'RoleListIndex',
+      },
+    ];
   });
 
   it('keys rendered route content by the active tab key', async () => {
@@ -66,7 +75,7 @@ describe('Content', () => {
           },
           KeepAlive: {
             props: ['include'],
-            template: '<slot />',
+            template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
           TLoading: true,
@@ -77,8 +86,49 @@ describe('Content', () => {
     expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles');
 
     tabStoreProxy.value!.activeTabKey = '/access-control/roles#copy-1';
+    tabStoreProxy.value!.tabRouters = [
+      ...tabStoreProxy.value!.tabRouters,
+      {
+        tabKey: '/access-control/roles#copy-1',
+        isAlive: true,
+        meta: {},
+        name: 'RoleListIndex',
+      },
+    ];
     await wrapper.vm.$nextTick();
 
     expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles#copy-1');
+  });
+
+  it('does not restrict keep-alive by route name', () => {
+    const wrapper = mount(Content, {
+      global: {
+        stubs: {
+          RouterView: {
+            template: '<slot :Component="Component" />',
+            data() {
+              return {
+                Component: markRaw({
+                  name: 'RolesIndex',
+                  template: '<div data-testid="route-content">content</div>',
+                }),
+              };
+            },
+          },
+          Transition: {
+            template: '<slot />',
+          },
+          KeepAlive: {
+            props: ['include'],
+            template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
+          },
+          FramePage: true,
+          TLoading: true,
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="keep-alive"]').attributes('data-include')).toBeUndefined();
+    expect(wrapper.findComponent({ name: 'RolesIndex' }).exists()).toBe(true);
   });
 });

@@ -8,7 +8,7 @@ import {
 
 import { LOCALE } from '@/contracts/i18n/locales';
 import { AUTH_ROUTE_NAME } from '@/modules/auth/contract/routes';
-import type { TRouterInfo, TTabRouterType } from '@/utils/types';
+import type { TabPageSnapshot, TRouterInfo, TTabRouterType } from '@/utils/types';
 
 const PINNED_TABS_STORAGE_KEY = 'tabs:pinned';
 const MAX_CLOSED_TABS = 20;
@@ -36,6 +36,7 @@ function createInitialState(): TTabRouterType {
     closedTabStack: [],
     activeTabKey: '/',
     isRefreshing: false,
+    pageSnapshots: {},
   };
 }
 
@@ -84,6 +85,14 @@ function cloneTab(route: TRouterInfo): TRouterInfo {
     meta: route.meta ? { ...route.meta } : undefined,
     title: route.title ? { ...route.title } : undefined,
   };
+}
+
+function clonePageSnapshot(snapshot: TabPageSnapshot | undefined): TabPageSnapshot | undefined {
+  if (!snapshot) {
+    return undefined;
+  }
+
+  return JSON.parse(JSON.stringify(snapshot)) as TabPageSnapshot;
 }
 
 function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys()): TRouterInfo {
@@ -168,6 +177,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
 
       this.isRefreshing = true;
       route.isAlive = false;
+      this.clearPageSnapshot(getTabKey(route));
     },
     finishTabRefresh(routeIdx: number) {
       const route = this.tabRouters[routeIdx];
@@ -180,6 +190,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     healPersistedState() {
       this.isRefreshing = false;
       this.tabRouterList = sortTabs(this.tabRouters.map((route) => normalizeRouteState(route)));
+      this.clearSnapshotsForMissingTabs();
       this.syncPinnedTabsStorage();
     },
     healPersistedRoutes(router: Router) {
@@ -189,6 +200,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
 
       this.tabRouterList = sortTabs(nextTabs.length > 0 ? nextTabs : homeRoute.map((route) => ({ ...route })));
       this.closedTabStack = this.closedTabStack.filter(canKeepRoute).slice(-MAX_CLOSED_TABS).map(cloneTab);
+      this.clearSnapshotsForMissingTabs();
       this.syncPinnedTabsStorage();
     },
     // 处理新增
@@ -228,6 +240,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.tabRouterList = this.tabRouterList.filter(
         (route, index) => index !== routeIdx && getTabKey(route) !== targetKey,
       );
+      this.clearPageSnapshot(targetKey);
       this.syncPinnedTabsStorage();
     },
     // 处理关闭右侧
@@ -289,6 +302,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       const nextList = [...this.tabRouterList];
       nextList.splice(targetIndex + 1, 0, duplicatedRoute);
       this.tabRouterList = sortTabs(nextList);
+      this.copyPageSnapshot(getTabKey(target), getTabKey(duplicatedRoute));
 
       return duplicatedRoute;
     },
@@ -308,6 +322,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     removeTabRouterList() {
       this.tabRouterList = [];
       this.closedTabStack = [];
+      this.pageSnapshots = {};
       this.syncPinnedTabsStorage();
     },
     initTabRouterList(newRoutes: TRouterInfo[]) {
@@ -354,6 +369,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       });
 
       closedRoutes.forEach((route) => this.pushClosedTab(route));
+      closedRoutes.forEach((route) => this.clearPageSnapshot(getTabKey(route)));
       this.syncPinnedTabsStorage();
     },
     pushClosedTab(route: TRouterInfo) {
@@ -379,6 +395,60 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         [LOCALE.ZH_CN]: `${title[LOCALE.ZH_CN] || ''}(${count})`,
         [LOCALE.EN_US]: `${title[LOCALE.EN_US] || title[LOCALE.ZH_CN] || ''} (${count})`,
       };
+    },
+    getPageSnapshot<TSnapshot extends TabPageSnapshot>(tabKey?: string) {
+      if (!tabKey) {
+        return undefined;
+      }
+
+      return clonePageSnapshot(this.pageSnapshots[tabKey]) as TSnapshot | undefined;
+    },
+    setPageSnapshot(tabKey: string | undefined, snapshot: TabPageSnapshot) {
+      if (!tabKey) {
+        return;
+      }
+
+      const clonedSnapshot = clonePageSnapshot(snapshot);
+      if (!clonedSnapshot) {
+        return;
+      }
+
+      this.pageSnapshots = {
+        ...this.pageSnapshots,
+        [tabKey]: clonedSnapshot,
+      };
+    },
+    clearPageSnapshot(tabKey?: string) {
+      if (!tabKey || !this.pageSnapshots[tabKey]) {
+        return;
+      }
+
+      const nextSnapshots = { ...this.pageSnapshots };
+      delete nextSnapshots[tabKey];
+      this.pageSnapshots = nextSnapshots;
+    },
+    copyPageSnapshot(sourceTabKey: string, targetTabKey: string) {
+      const clonedSnapshot = clonePageSnapshot(this.pageSnapshots[sourceTabKey]);
+      if (!clonedSnapshot) {
+        return;
+      }
+
+      this.pageSnapshots = {
+        ...this.pageSnapshots,
+        [targetTabKey]: clonedSnapshot,
+      };
+    },
+    clearSnapshotsForMissingTabs() {
+      const aliveKeys = new Set(this.tabRouterList.map(getTabKey));
+      const nextSnapshots: Record<string, TabPageSnapshot> = {};
+
+      Object.entries(this.pageSnapshots).forEach(([tabKey, snapshot]) => {
+        if (aliveKeys.has(tabKey)) {
+          nextSnapshots[tabKey] = snapshot;
+        }
+      });
+
+      this.pageSnapshots = nextSnapshots;
     },
   },
   persist: {

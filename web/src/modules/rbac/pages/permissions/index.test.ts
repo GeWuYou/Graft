@@ -30,9 +30,26 @@ const messageMocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
+const tabSnapshotState = vi.hoisted(() => ({
+  activeTabKey: '/access-control/permissions',
+  snapshots: {} as Record<string, Record<string, unknown>>,
+}));
+
 vi.mock('../../api/rbac', () => ({
   getPermissionDetail: rbacApiMocks.getPermissionDetail,
   getPermissions: rbacApiMocks.getPermissions,
+}));
+
+vi.mock('@/store', () => ({
+  useTabsRouterStore: () => ({
+    activeTabKey: tabSnapshotState.activeTabKey,
+    getPageSnapshot: (tabKey?: string) => (tabKey ? tabSnapshotState.snapshots[tabKey] : undefined),
+    setPageSnapshot: (tabKey?: string, snapshot?: Record<string, unknown>) => {
+      if (tabKey && snapshot) {
+        tabSnapshotState.snapshots[tabKey] = JSON.parse(JSON.stringify(snapshot));
+      }
+    },
+  }),
 }));
 
 vi.mock('vue-i18n', () => ({
@@ -234,6 +251,7 @@ function mountPermissionPage() {
 
 describe('PermissionPage', () => {
   beforeEach(() => {
+    tabSnapshotState.snapshots = {};
     rbacApiMocks.getPermissionDetail.mockReset();
     rbacApiMocks.getPermissions.mockReset();
     messageMocks.error.mockReset();

@@ -7,7 +7,7 @@
           <t-tag theme="default" variant="light">{{ t('rbac.permissionList.readonlyNotice') }}</t-tag>
         </template>
         <template #actions>
-          <t-button theme="default" variant="outline" :loading="loading" @click="fetchPermissions">
+          <t-button theme="default" variant="outline" :loading="loading" @click="() => fetchPermissions()">
             {{ t('rbac.permissionList.refresh') }}
           </t-button>
         </template>
@@ -63,7 +63,7 @@
           :description="listError"
         >
           <template #actions>
-            <t-button theme="primary" variant="outline" @click="fetchPermissions">
+            <t-button theme="primary" variant="outline" @click="() => fetchPermissions()">
               {{ t('rbac.permissionList.retry') }}
             </t-button>
           </template>
@@ -259,6 +259,7 @@ import {
   ManagementToolbar,
   TableActionMenu,
 } from '@/shared/components/management';
+import { useTabPageSnapshot } from '@/shared/composables';
 import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { createLogger } from '@/utils/logger';
 
@@ -281,6 +282,16 @@ type PermissionFilterState = {
   category: string;
 };
 
+type PermissionPageSnapshot = {
+  columnDrawerVisible: boolean;
+  filters: PermissionFilterState;
+  pagination: {
+    current: number;
+    pageSize: number;
+  };
+  visibleColumnKeys: string[];
+};
+
 const { t, locale } = useI18n();
 const loading = ref(false);
 const listError = ref('');
@@ -299,6 +310,23 @@ const detailError = ref('');
 const pagination = ref({
   current: 1,
   pageSize: 10,
+});
+
+useTabPageSnapshot<PermissionPageSnapshot>({
+  apply(snapshot) {
+    filters.value = { ...snapshot.filters };
+    visibleColumnKeys.value = [...snapshot.visibleColumnKeys];
+    pagination.value = { ...snapshot.pagination };
+    columnDrawerVisible.value = snapshot.columnDrawerVisible;
+  },
+  read() {
+    return {
+      columnDrawerVisible: columnDrawerVisible.value,
+      filters: { ...filters.value },
+      pagination: { ...pagination.value },
+      visibleColumnKeys: [...visibleColumnKeys.value],
+    };
+  },
 });
 
 const categoryOptions = computed(() => {
@@ -352,7 +380,7 @@ const visibleColumns = computed<TdBaseTableProps['columns']>(() => {
 
 const tableContentWidth = computed(() => calculateTableContentWidth(visibleColumns.value));
 
-async function fetchPermissions() {
+async function fetchPermissions(preservePagination = false) {
   loading.value = true;
   listError.value = '';
 
@@ -368,7 +396,9 @@ async function fetchPermissions() {
 
     const permissionResult = await getPermissions(requestFilters);
     permissions.value = permissionResult.items;
-    pagination.value.current = 1;
+    if (!preservePagination) {
+      pagination.value.current = 1;
+    }
   } catch (error) {
     permissions.value = [];
     logger.error('failed to fetch permissions', error);
@@ -450,7 +480,7 @@ function formatTimestamp(value?: string | null) {
 }
 
 onMounted(() => {
-  fetchPermissions();
+  fetchPermissions(true);
 });
 
 watch(
