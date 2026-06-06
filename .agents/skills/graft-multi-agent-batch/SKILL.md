@@ -55,13 +55,18 @@ Use this skill only when all of the following are true:
 10. Treat `timeout != stalled` for active worker slices:
    - exceeding one wait window is not enough to declare a worker stalled
    - absence of visible repo-tracked changes is not, by itself, evidence of no progress
-   - before judging stall, distinguish `no visible diff yet`, `no new visible output evidence`, and `closeout not started`
+   - before judging stall, distinguish `no final closeout yet`, `no visible diff yet`, `no new visible output evidence`,
+     and `closeout not started`
+   - if observable changes in the worker's owned scope are gradually increasing, treat the worker as progressing and
+     continue waiting instead of interrupting
    - if the current tool surface does not expose direct activity, do not rewrite that into `no activity`
 11. Use bounded checkpoint requests instead of ad-hoc remote control:
    - default `checkpoint_budget=1` per active worker unless the batch budget explicitly raises it
    - use checkpoint only as a health check for possible `blocked`, architecture decision required, unsafe worktree,
-     validation failure, or prolonged quiet after soft timeout
+     validation failure, or a long quiet window after soft timeout with no observable owned-scope changes
    - checkpoint requests must not change the task goal, broaden scope, or append implementation requirements
+   - do not checkpoint, stop, or retry only because a final closeout is missing while owned-scope changes are still
+     increasing
    - enforce cooldown before another interrupt against the same worker
    - a checkpoint response is not a closeout and must not be interpreted as permission for the main agent to finish the slice
 12. After a usable checkpoint with `can_continue=true`, continue the same worker slice:
