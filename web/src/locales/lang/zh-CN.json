@@ -34,7 +34,18 @@
       "closeOther": "关闭其他",
       "closeLeft": "关闭左侧",
       "closeRight": "关闭右侧",
-      "refresh": "刷新"
+      "closeAll": "关闭全部",
+      "closeAllConfirm": "确定关闭所有非固定标签页？",
+      "copyLink": "复制页面链接",
+      "copyLinkFail": "复制失败",
+      "copyLinkSuccess": "已复制页面链接",
+      "duplicate": "复制标签页",
+      "openInNewWindow": "新窗口打开",
+      "pin": "固定标签页",
+      "refresh": "刷新",
+      "reopenClosed": "重新打开已关闭标签",
+      "unpin": "取消固定标签页",
+      "cancel": "取消"
     },
     "setting": {
       "theme": {

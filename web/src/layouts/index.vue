@@ -27,7 +27,7 @@ import '@/style/layout.less';
 
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
@@ -42,6 +42,7 @@ import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
 
 const route = useRoute();
+const router = useRouter();
 const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
 const setting = storeToRefs(settingStore);
@@ -62,7 +63,9 @@ const mainLayoutCls = computed(() => [
 const appendNewRoute = () => {
   const {
     path,
+    fullPath,
     query,
+    params,
     meta: { hidden },
     name,
   } = route;
@@ -82,21 +85,26 @@ const appendNewRoute = () => {
     queryKeys: Object.keys(query),
   });
   tabsRouterStore.appendTabRouterList({
+    tabKey: path,
     path,
+    fullPath,
     query,
+    params,
     title: titleObj,
     name,
     isAlive: true,
     meta: route.meta as AppRouteMeta,
   });
+  tabsRouterStore.setActiveRoute(route);
 };
 
 onMounted(() => {
+  tabsRouterStore.healPersistedRoutes(router);
   appendNewRoute();
 });
 
 watch(
-  () => route.path,
+  () => route.fullPath,
   () => {
     appendNewRoute();
     document.querySelector(`.${prefix}-layout`)?.scrollTo({ top: 0, behavior: 'smooth' });

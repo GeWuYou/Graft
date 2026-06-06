@@ -31,7 +31,18 @@
       "closeOther": "Close Other",
       "closeLeft": "Close Left",
       "closeRight": "Close Right",
-      "refresh": "Refresh"
+      "closeAll": "Close All",
+      "closeAllConfirm": "Close all unpinned tabs?",
+      "copyLink": "Copy Page Link",
+      "copyLinkFail": "Copy Failed",
+      "copyLinkSuccess": "Page Link Copied",
+      "duplicate": "Duplicate Tab",
+      "openInNewWindow": "Open in New Window",
+      "pin": "Pin Tab",
+      "refresh": "Refresh",
+      "reopenClosed": "Reopen Closed Tab",
+      "unpin": "Unpin Tab",
+      "cancel": "Cancel"
     },
     "search": {
       "placeholder": "Enter search content"

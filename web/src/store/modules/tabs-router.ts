@@ -1,16 +1,28 @@
 import { defineStore } from 'pinia';
+import {
+  type RouteLocationNormalizedLoaded,
+  type RouteLocationRaw,
+  type Router,
+  type RouteRecordName,
+} from 'vue-router';
 
 import { LOCALE } from '@/contracts/i18n/locales';
 import { AUTH_ROUTE_NAME } from '@/modules/auth/contract/routes';
 import type { TRouterInfo, TTabRouterType } from '@/utils/types';
 
+const PINNED_TABS_STORAGE_KEY = 'tabs:pinned';
+const MAX_CLOSED_TABS = 20;
+
 const homeRoute: Array<TRouterInfo> = [
   {
+    tabKey: '/',
     path: '/',
+    fullPath: '/',
     routeIdx: 0,
     title: { [LOCALE.ZH_CN]: '首页', [LOCALE.EN_US]: 'Home' },
     name: 'RootEntry',
     isHome: true,
+    isAlive: true,
   },
 ];
 
@@ -21,6 +33,8 @@ const ignoreCacheRoutes: string[] = [AUTH_ROUTE_NAME.LOGIN];
 function createInitialState(): TTabRouterType {
   return {
     tabRouterList: homeRoute.map((route) => ({ ...route })),
+    closedTabStack: [],
+    activeTabKey: '/',
     isRefreshing: false,
   };
 }
@@ -29,10 +43,119 @@ function shouldKeepTabAlive(route: TRouterInfo) {
   return !route.isHome && !ignoreCacheRoutes.includes(route.name as string) && route.meta?.keepAlive !== false;
 }
 
+function isBrowserStorageAvailable() {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+}
+
+function readPinnedTabKeys() {
+  if (!isBrowserStorageAvailable()) {
+    return new Set<string>();
+  }
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PINNED_TABS_STORAGE_KEY) || '[]') as unknown;
+    if (!Array.isArray(parsed)) {
+      return new Set<string>();
+    }
+
+    return new Set(parsed.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())));
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function writePinnedTabKeys(keys: string[]) {
+  if (!isBrowserStorageAvailable()) {
+    return;
+  }
+
+  window.localStorage.setItem(PINNED_TABS_STORAGE_KEY, JSON.stringify([...new Set(keys)]));
+}
+
+function getTabKey(route: Pick<TRouterInfo, 'path' | 'tabKey'>) {
+  return route.tabKey || route.path;
+}
+
+function cloneTab(route: TRouterInfo): TRouterInfo {
+  return {
+    ...route,
+    query: route.query ? { ...route.query } : undefined,
+    params: route.params ? { ...route.params } : undefined,
+    meta: route.meta ? { ...route.meta } : undefined,
+    title: route.title ? { ...route.title } : undefined,
+  };
+}
+
+function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys()): TRouterInfo {
+  const tabKey = getTabKey(route);
+
+  return {
+    ...route,
+    tabKey,
+    fullPath: route.fullPath || route.path,
+    isPinned: route.isHome ? false : Boolean(route.isPinned || pinnedKeys.has(tabKey)),
+    isAlive: route.isHome ? true : shouldKeepTabAlive(route),
+  };
+}
+
+function sortTabs(routes: TRouterInfo[]) {
+  const homeRoutes = routes.filter((route) => route.isHome);
+  const pinnedRoutes = routes.filter((route) => !route.isHome && route.isPinned);
+  const normalRoutes = routes.filter((route) => !route.isHome && !route.isPinned);
+
+  return [...homeRoutes, ...pinnedRoutes, ...normalRoutes];
+}
+
+function createRouteRecordMatcher(router: Router) {
+  const availableNames = new Set<RouteRecordName>();
+  const availablePaths = new Set<string>();
+
+  router.getRoutes().forEach((route) => {
+    if (route.name) {
+      availableNames.add(route.name);
+    }
+
+    availablePaths.add(route.path);
+  });
+
+  return (route: TRouterInfo) => {
+    if (route.isHome) {
+      return true;
+    }
+
+    if (route.name && availableNames.has(route.name)) {
+      return true;
+    }
+
+    return availablePaths.has(route.path);
+  };
+}
+
+function toRouteLocation(route?: TRouterInfo): RouteLocationRaw | null {
+  if (!route) {
+    return null;
+  }
+
+  if (route.params && route.name) {
+    return {
+      name: route.name,
+      params: route.params,
+      query: route.query,
+    };
+  }
+
+  return {
+    path: route.path,
+    query: route.query,
+  };
+}
+
 export const useTabsRouterStore = defineStore('tabsRouter', {
   state: createInitialState,
   getters: {
     tabRouters: (state: TTabRouterType) => state.tabRouterList,
+    closedTabs: (state: TTabRouterType) => state.closedTabStack,
+    canReopenClosedTab: (state: TTabRouterType) => state.closedTabStack.length > 0,
     refreshing: (state: TTabRouterType) => state.isRefreshing,
   },
   actions: {
@@ -56,62 +179,209 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     },
     healPersistedState() {
       this.isRefreshing = false;
-      this.tabRouterList = this.tabRouters.map((route) => ({
-        ...route,
-        isAlive: route.isHome ? true : shouldKeepTabAlive(route),
-      }));
+      this.tabRouterList = sortTabs(this.tabRouters.map((route) => normalizeRouteState(route)));
+      this.syncPinnedTabsStorage();
+    },
+    healPersistedRoutes(router: Router) {
+      const canKeepRoute = createRouteRecordMatcher(router);
+      const pinnedKeys = readPinnedTabKeys();
+      const nextTabs = this.tabRouters.filter(canKeepRoute).map((route) => normalizeRouteState(route, pinnedKeys));
+
+      this.tabRouterList = sortTabs(nextTabs.length > 0 ? nextTabs : homeRoute.map((route) => ({ ...route })));
+      this.closedTabStack = this.closedTabStack.filter(canKeepRoute).slice(-MAX_CLOSED_TABS).map(cloneTab);
+      this.syncPinnedTabsStorage();
     },
     // 处理新增
     appendTabRouterList(newRoute: TRouterInfo) {
       // 不要将判断条件newRoute.meta.keepAlive !== false修改为newRoute.meta.keepAlive，starter默认开启保活，所以meta.keepAlive未定义时也需要进行保活，只有显式说明false才禁用保活。
-      const needAlive = shouldKeepTabAlive(newRoute);
-      if (!this.tabRouters.find((route: TRouterInfo) => route.path === newRoute.path)) {
-        this.tabRouterList = this.tabRouterList.concat({ ...newRoute, isAlive: needAlive });
+      const normalized = normalizeRouteState(newRoute);
+      if (!this.tabRouters.find((route: TRouterInfo) => getTabKey(route) === getTabKey(normalized))) {
+        this.tabRouterList = sortTabs(this.tabRouterList.concat(normalized));
+      } else {
+        this.tabRouterList = sortTabs(
+          this.tabRouterList.map((route) =>
+            getTabKey(route) === getTabKey(normalized)
+              ? {
+                  ...route,
+                  fullPath: normalized.fullPath,
+                  query: normalized.query,
+                  params: normalized.params,
+                  title: normalized.title,
+                  name: normalized.name,
+                  meta: normalized.meta,
+                  isAlive: normalized.isAlive,
+                }
+              : route,
+          ),
+        );
       }
     },
     // 处理关闭当前
     subtractCurrentTabRouter(newRoute: TRouterInfo) {
-      const { routeIdx } = newRoute;
+      const { routeIdx, path, tabKey } = newRoute;
       if (routeIdx === undefined) return;
-      this.tabRouterList = this.tabRouterList.slice(0, routeIdx).concat(this.tabRouterList.slice(routeIdx + 1));
+      const target = this.tabRouterList[routeIdx] ?? this.tabRouterList.find((route) => route.path === path);
+      if (!target?.isHome) {
+        this.pushClosedTab(target);
+      }
+      const targetKey = tabKey || (target ? getTabKey(target) : path);
+      this.tabRouterList = this.tabRouterList.filter(
+        (route, index) => index !== routeIdx && getTabKey(route) !== targetKey,
+      );
+      this.syncPinnedTabsStorage();
     },
     // 处理关闭右侧
     subtractTabRouterBehind(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;
-      const homeIdx: number = this.tabRouters.findIndex((route: TRouterInfo) => route.isHome);
-      let tabRouterList: Array<TRouterInfo> = this.tabRouterList.slice(0, routeIdx + 1);
-      if (routeIdx < homeIdx) {
-        tabRouterList = tabRouterList.concat(homeRoute);
-      }
-      this.tabRouterList = tabRouterList;
+      this.closeTabsByPredicate((route, index) => index > routeIdx && !route.isHome && !route.isPinned);
     },
     // 处理关闭左侧
     subtractTabRouterAhead(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;
-      const homeIdx: number = this.tabRouters.findIndex((route: TRouterInfo) => route.isHome);
-      let tabRouterList: Array<TRouterInfo> = this.tabRouterList.slice(routeIdx);
-      if (routeIdx > homeIdx) {
-        tabRouterList = homeRoute.concat(tabRouterList);
-      }
-      this.tabRouterList = tabRouterList;
+      this.closeTabsByPredicate((route, index) => index < routeIdx && !route.isHome && !route.isPinned);
     },
     // 处理关闭其他
     subtractTabRouterOther(newRoute: TRouterInfo) {
-      const { routeIdx } = newRoute;
+      const { routeIdx, path } = newRoute;
       if (routeIdx === undefined) return;
-      const homeIdx: number = this.tabRouters.findIndex((route: TRouterInfo) => route.isHome);
-      this.tabRouterList = routeIdx === homeIdx ? homeRoute : homeRoute.concat([this.tabRouterList[routeIdx]]);
+      const target = this.tabRouterList[routeIdx] ?? this.tabRouterList.find((route) => route.path === path);
+      const targetKey = target ? getTabKey(target) : getTabKey(newRoute);
+      this.closeTabsByPredicate((route) => !route.isHome && !route.isPinned && getTabKey(route) !== targetKey);
+    },
+    closeAllClosableTabs() {
+      this.closeTabsByPredicate((route) => !route.isHome && !route.isPinned);
+    },
+    togglePinnedTab(routeKey: string) {
+      this.tabRouterList = sortTabs(
+        this.tabRouterList.map((route) => {
+          if (getTabKey(route) !== routeKey || route.isHome) {
+            return route;
+          }
+
+          return {
+            ...route,
+            isPinned: !route.isPinned,
+          };
+        }),
+      );
+      this.syncPinnedTabsStorage();
+    },
+    duplicateTab(routeKey: string) {
+      const targetIndex = this.tabRouterList.findIndex((route) => getTabKey(route) === routeKey);
+      const target = this.tabRouterList[targetIndex];
+      if (!target) {
+        return null;
+      }
+
+      const basePath = target.path;
+      const duplicateCount =
+        this.tabRouterList.filter((route) => route.path === basePath || route.duplicatedFrom === basePath).length + 1;
+      const duplicatedRoute: TRouterInfo = normalizeRouteState({
+        ...cloneTab(target),
+        tabKey: `${basePath}#copy-${Date.now()}-${duplicateCount}`,
+        title: this.createDuplicatedTitle(target.title, duplicateCount),
+        isPinned: false,
+        isDuplicate: true,
+        duplicatedFrom: basePath,
+      });
+      const nextList = [...this.tabRouterList];
+      nextList.splice(targetIndex + 1, 0, duplicatedRoute);
+      this.tabRouterList = sortTabs(nextList);
+
+      return duplicatedRoute;
+    },
+    reopenClosedTab() {
+      const route = this.closedTabStack.pop();
+      if (!route) {
+        return null;
+      }
+
+      const restored = normalizeRouteState({
+        ...cloneTab(route),
+        isPinned: false,
+      });
+      this.tabRouterList = sortTabs(this.tabRouterList.concat(restored));
+      return restored;
     },
     removeTabRouterList() {
       this.tabRouterList = [];
+      this.closedTabStack = [];
+      this.syncPinnedTabsStorage();
     },
     initTabRouterList(newRoutes: TRouterInfo[]) {
       newRoutes?.forEach((route: TRouterInfo) => this.appendTabRouterList(route));
     },
+    getNextRouteAfterClose(routeKey: string) {
+      const index = this.tabRouterList.findIndex((route) => getTabKey(route) === routeKey || route.path === routeKey);
+      if (index === -1) {
+        return this.tabRouterList[0] ?? null;
+      }
+
+      return this.tabRouterList[index + 1] || this.tabRouterList[index - 1] || this.tabRouterList[0] || null;
+    },
+    resolveNavigationTarget(route?: TRouterInfo) {
+      return toRouteLocation(route);
+    },
+    setActiveRoute(route: RouteLocationNormalizedLoaded) {
+      const currentActiveTab = this.tabRouterList.find((tab) => getTabKey(tab) === this.activeTabKey);
+      if (currentActiveTab && (currentActiveTab.fullPath === route.fullPath || currentActiveTab.path === route.path)) {
+        return;
+      }
+
+      const activeTab =
+        this.tabRouterList.find(
+          (tab) => !tab.isDuplicate && (tab.fullPath === route.fullPath || tab.path === route.path),
+        ) ?? this.tabRouterList.find((tab) => tab.fullPath === route.fullPath || tab.path === route.path);
+      this.activeTabKey = activeTab ? getTabKey(activeTab) : route.path;
+    },
+    setActiveTabKey(tabKey: string) {
+      this.activeTabKey = tabKey;
+    },
+    syncPinnedTabsStorage() {
+      writePinnedTabKeys(this.tabRouterList.filter((route) => route.isPinned && !route.isHome).map(getTabKey));
+    },
+    closeTabsByPredicate(predicate: (route: TRouterInfo, index: number) => boolean) {
+      const closedRoutes: TRouterInfo[] = [];
+      this.tabRouterList = this.tabRouterList.filter((route, index) => {
+        const shouldClose = predicate(route, index);
+        if (shouldClose) {
+          closedRoutes.push(route);
+        }
+
+        return !shouldClose;
+      });
+
+      closedRoutes.forEach((route) => this.pushClosedTab(route));
+      this.syncPinnedTabsStorage();
+    },
+    pushClosedTab(route: TRouterInfo) {
+      if (route.isHome) {
+        return;
+      }
+
+      const closedRoute = {
+        ...cloneTab(route),
+        isPinned: false,
+        isAlive: shouldKeepTabAlive(route),
+      };
+      const dedupedStack = this.closedTabStack.filter((item) => getTabKey(item) !== getTabKey(route));
+      this.closedTabStack = dedupedStack.concat(closedRoute).slice(-MAX_CLOSED_TABS);
+    },
+    createDuplicatedTitle(title: TRouterInfo['title'], count: number) {
+      if (!title) {
+        return title;
+      }
+
+      return {
+        ...title,
+        [LOCALE.ZH_CN]: `${title[LOCALE.ZH_CN] || ''}(${count})`,
+        [LOCALE.EN_US]: `${title[LOCALE.EN_US] || title[LOCALE.ZH_CN] || ''} (${count})`,
+      };
+    },
   },
   persist: {
-    pick: ['tabRouterList'],
+    pick: ['tabRouterList', 'closedTabStack', 'activeTabKey'],
   },
 });

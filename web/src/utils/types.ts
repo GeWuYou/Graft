@@ -1,5 +1,5 @@
 import type { Component, FunctionalComponent, VNodeChild } from 'vue';
-import type { LocationQueryRaw, RouteRecordName, RouteRecordRaw } from 'vue-router';
+import type { LocationQueryRaw, RouteParamsRaw, RouteRecordName, RouteRecordRaw } from 'vue-router';
 
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
 
@@ -58,18 +58,26 @@ export interface MenuRoute extends Omit<RouteRecordRaw, 'children' | 'meta'> {
 }
 
 export interface TRouterInfo {
+  tabKey?: string;
   path: string;
+  fullPath?: string;
   routeIdx?: number;
   title?: LocalizedTitle;
   name?: RouteRecordName | null;
   isHome?: boolean;
   isAlive?: boolean;
+  isPinned?: boolean;
+  isDuplicate?: boolean;
+  duplicatedFrom?: string;
   query?: LocationQueryRaw;
+  params?: RouteParamsRaw;
   meta?: AppRouteMeta;
 }
 
 export interface TTabRouterType {
   tabRouterList: TRouterInfo[];
+  closedTabStack: TRouterInfo[];
+  activeTabKey: string;
   isRefreshing: boolean;
 }
 
