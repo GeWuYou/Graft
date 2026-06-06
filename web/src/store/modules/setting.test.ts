@@ -92,6 +92,18 @@ describe('setting store theme authority', () => {
     );
   });
 
+  it('tracks pending draft changes against the saved theme baseline', () => {
+    const store = useSettingStore();
+
+    store.beginThemeDraft();
+
+    expect(store.hasThemeDraftPendingChanges).toBe(false);
+
+    store.updateThemeDraftAppearance({ fontSizePreset: 'extra-large' });
+
+    expect(store.hasThemeDraftPendingChanges).toBe(true);
+  });
+
   it('includes advanced token overrides in draft diff tracking', () => {
     const store = useSettingStore();
 
@@ -150,6 +162,59 @@ describe('setting store theme authority', () => {
     expect(store.fontSizePreset).toBe('standard');
     expect(store.themeResolvedTokens.light['--graft-theme-font-scale']).toBe('100%');
     expect(store.themeResolvedTokens.light['--td-font-size-body-medium']).toBe('14px');
+  });
+
+  it('keeps reset-to-default applicable when the saved theme differs from the default authority', () => {
+    const store = useSettingStore();
+
+    store.assignThemeAuthorityState({
+      ...store.createThemeAuthoritySnapshot(),
+      fontSizePreset: 'large',
+      themeSource: 'customized',
+    });
+    store.beginThemeDraft();
+
+    store.resetThemeDraftToDefault();
+
+    expect(store.themeAuthorityDiff).toHaveLength(0);
+    expect(store.hasThemeDraftPendingChanges).toBe(true);
+  });
+
+  it('does not mark reset-to-default as pending when the saved theme is already default', () => {
+    const store = useSettingStore();
+
+    store.beginThemeDraft();
+    store.resetThemeDraftToDefault();
+
+    expect(store.themeAuthorityDiff).toHaveLength(0);
+    expect(store.hasThemeDraftPendingChanges).toBe(false);
+  });
+
+  it('persists reset-to-default drafts and closes the workbench after apply', () => {
+    const store = useSettingStore();
+
+    store.assignThemeAuthorityState({
+      ...store.createThemeAuthoritySnapshot(),
+      mode: 'dark',
+      selectedThemePresetId: 'midnight-blue',
+      brandTheme: '#3B82F6',
+      fontSizePreset: 'large',
+      themeSource: 'customized',
+    });
+    store.openThemeWorkbench('overview');
+    store.resetThemeDraftToDefault();
+    const modifiedBeforeApply = store.themeAuthorityLastModifiedAt;
+
+    store.applyThemeDraft();
+
+    expect(store.mode).toBe('light');
+    expect(store.brandTheme).toBe('#0052D9');
+    expect(store.selectedThemePresetId).toBe('tdesign-default');
+    expect(store.fontSizePreset).toBe('standard');
+    expect(store.themeSource).toBe('preset');
+    expect(store.showThemeWorkbench).toBe(false);
+    expect(store.themeDraft).toBeNull();
+    expect(store.themeAuthorityLastModifiedAt).not.toBe(modifiedBeforeApply);
   });
 
   it('persists and resets the theme workbench dock position', () => {

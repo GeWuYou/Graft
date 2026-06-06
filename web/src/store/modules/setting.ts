@@ -332,6 +332,21 @@ function createPersistedThemeAuthoritySnapshot(state: SettingState): ThemeAuthor
   };
 }
 
+function hasThemeAuthorityStateDiff(fromState: ThemeAuthorityState, toState: ThemeAuthorityState) {
+  return (
+    fromState.mode !== toState.mode ||
+    fromState.brandTheme !== toState.brandTheme ||
+    fromState.selectedThemePresetId !== toState.selectedThemePresetId ||
+    fromState.themeSource !== toState.themeSource ||
+    fromState.fontFamilyPreset !== toState.fontFamilyPreset ||
+    fromState.fontSizePreset !== toState.fontSizePreset ||
+    fromState.radiusPreset !== toState.radiusPreset ||
+    fromState.shadowPreset !== toState.shadowPreset ||
+    fromState.densityPreset !== toState.densityPreset ||
+    hasThemeTokenOverrideDiff(fromState.themeTokenOverrides, toState.themeTokenOverrides)
+  );
+}
+
 export type SettingState = typeof STYLE_CONFIG & {
   showSettingPanel: boolean;
   showThemeWorkbench: boolean;
@@ -356,36 +371,38 @@ export type SettingState = typeof STYLE_CONFIG & {
   chartColors: typeof LIGHT_CHART_COLORS;
 };
 
-const state: SettingState = {
-  ...STYLE_CONFIG,
-  showSettingPanel: false,
-  showThemeWorkbench: false,
-  themeWorkbenchDockPosition: null,
-  themeWorkbenchRuntimeReady: false,
-  activeThemeWorkbenchGroup: 'overview',
-  activeThemeTokenGroup: 'brand',
-  themeDraftBaseline: null,
-  themeDraft: null,
-  themeDraftApplied: false,
-  selectedThemePresetId: DEFAULT_THEME_PRESET_ID,
-  themeSource: 'preset',
-  fontFamilyPreset: 'system',
-  fontSizePreset: 'standard',
-  radiusPreset: 'standard',
-  shadowPreset: 'standard',
-  densityPreset: 'standard',
-  themeTokenOverrides: createEmptyThemeModeTokenState(),
-  themeResolvedTokens: createEmptyThemeModeTokenState(),
-  themeAuthorityLastModifiedAt: null,
-  colorList: {},
-  chartColors: LIGHT_CHART_COLORS,
-};
+function createInitialSettingState(): SettingState {
+  return {
+    ...STYLE_CONFIG,
+    showSettingPanel: false,
+    showThemeWorkbench: false,
+    themeWorkbenchDockPosition: null,
+    themeWorkbenchRuntimeReady: false,
+    activeThemeWorkbenchGroup: 'overview',
+    activeThemeTokenGroup: 'brand',
+    themeDraftBaseline: null,
+    themeDraft: null,
+    themeDraftApplied: false,
+    selectedThemePresetId: DEFAULT_THEME_PRESET_ID,
+    themeSource: 'preset',
+    fontFamilyPreset: 'system',
+    fontSizePreset: 'standard',
+    radiusPreset: 'standard',
+    shadowPreset: 'standard',
+    densityPreset: 'standard',
+    themeTokenOverrides: createEmptyThemeModeTokenState(),
+    themeResolvedTokens: createEmptyThemeModeTokenState(),
+    themeAuthorityLastModifiedAt: null,
+    colorList: {},
+    chartColors: LIGHT_CHART_COLORS,
+  };
+}
 
 export type TState = SettingState;
 export type TStateKey = keyof SettingState;
 
 export const useSettingStore = defineStore('setting', {
-  state: () => state,
+  state: createInitialSettingState,
   getters: {
     showSidebar: (state) => state.layout !== 'top',
     showSidebarLogo: (state) => state.layout === 'side',
@@ -478,6 +495,14 @@ export const useSettingStore = defineStore('setting', {
     },
     resolvedThemeTokensForDisplayMode(): ThemeTokenMap {
       return resolveModeTokens(this.themeResolvedTokens, this.displayMode);
+    },
+    hasThemeDraftPendingChanges(state): boolean {
+      if (!state.themeDraft) {
+        return false;
+      }
+
+      const baseline = state.themeDraftBaseline ?? createPersistedThemeAuthoritySnapshot(state);
+      return hasThemeAuthorityStateDiff(baseline, state.themeDraft);
     },
   },
   actions: {
@@ -654,9 +679,9 @@ export const useSettingStore = defineStore('setting', {
         return;
       }
 
-      const modifiedCount = this.themeAuthorityDiff.length;
+      const hasPendingChanges = this.hasThemeDraftPendingChanges;
       this.assignThemeAuthorityState(this.themeDraft);
-      if (modifiedCount > 0) {
+      if (hasPendingChanges) {
         this.themeAuthorityLastModifiedAt = new Date().toISOString();
       }
       this.changeMode(this.mode as ModeType | 'auto');
@@ -669,6 +694,10 @@ export const useSettingStore = defineStore('setting', {
       this.closeThemeWorkbench();
     },
     resetThemeDraftToDefault() {
+      if (!this.themeDraftBaseline) {
+        this.themeDraftBaseline = this.createThemeAuthoritySnapshot();
+      }
+
       const defaultSnapshot: ThemeAuthorityState = {
         mode: STYLE_CONFIG.mode as ModeType | 'auto',
         brandTheme: STYLE_CONFIG.brandTheme,

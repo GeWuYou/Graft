@@ -603,7 +603,6 @@ const effectiveTheme = computed(() => settingStore.effectiveThemeState);
 const effectivePresetId = computed(() => settingStore.effectiveThemeState.selectedThemePresetId);
 const activeGroup = computed(() => settingStore.activeThemeWorkbenchGroup);
 const themeIdentity = computed(() => settingStore.themeIdentitySummary);
-const themeDiffItems = computed(() => settingStore.themeAuthorityDiff);
 const brandOptions = DEFAULT_COLOR_OPTIONS;
 const colorPickerModes: Array<'monochrome'> = ['monochrome'];
 
@@ -834,7 +833,7 @@ const overviewSummaryItems = computed(() => [
   },
 ]);
 
-const hasPendingChanges = computed(() => themeDiffItems.value.length > 0);
+const hasPendingChanges = computed(() => settingStore.hasThemeDraftPendingChanges);
 const splitMenuAvailable = computed(() => settingStore.layout === 'mix');
 const splitMenuHint = computed(() =>
   splitMenuAvailable.value
