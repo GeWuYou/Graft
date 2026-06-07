@@ -30,7 +30,7 @@ func TestServiceMasksSensitiveValues(t *testing.T) {
 	}
 }
 
-func TestServiceStoresOverridesOnly(t *testing.T) {
+func TestServiceListsDefaultsAndStoresOverridesOnly(t *testing.T) {
 	repo := newMemoryRepo()
 	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
 		Key:          "scheduler.timeout",
@@ -41,15 +41,38 @@ func TestServiceStoresOverridesOnly(t *testing.T) {
 		DefaultValue: json.RawMessage(`"30s"`),
 	})
 
+	assertDefaultVisibleWithoutOverride(t, service, repo)
+	assertUpdateStoresOneOverride(t, service, repo)
+	assertResetDeletesOverride(t, service, repo)
+}
+
+func assertDefaultVisibleWithoutOverride(t *testing.T, service *Service, repo *memoryRepo) {
+	t.Helper()
+
+	items, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("list default config: %v", err)
+	}
+	if len(items) != 1 || items[0].HasOverride || string(items[0].EffectiveValue) != `"30s"` {
+		t.Fatalf("expected listed module default without override, got %#v", items)
+	}
+	if len(repo.values) != 0 {
+		t.Fatalf("expected list to avoid copying defaults into overrides, got %d rows", len(repo.values))
+	}
+
 	item, err := service.Get(context.Background(), "scheduler.timeout")
 	if err != nil {
 		t.Fatalf("get default config: %v", err)
 	}
-	if item.HasOverride {
-		t.Fatal("default-only config must not imply persisted override")
+	if item.HasOverride || string(item.EffectiveValue) != `"30s"` {
+		t.Fatalf("expected get to return module default without override, got %#v", item)
 	}
+}
 
-	item, err = service.Update(context.Background(), "scheduler.timeout", json.RawMessage(`"60s"`))
+func assertUpdateStoresOneOverride(t *testing.T, service *Service, repo *memoryRepo) {
+	t.Helper()
+
+	item, err := service.Update(context.Background(), "scheduler.timeout", json.RawMessage(`"60s"`))
 	if err != nil {
 		t.Fatalf("update override: %v", err)
 	}
@@ -58,6 +81,21 @@ func TestServiceStoresOverridesOnly(t *testing.T) {
 	}
 	if len(repo.values) != 1 {
 		t.Fatalf("expected only one override row, got %d", len(repo.values))
+	}
+}
+
+func assertResetDeletesOverride(t *testing.T, service *Service, repo *memoryRepo) {
+	t.Helper()
+
+	item, err := service.Reset(context.Background(), "scheduler.timeout")
+	if err != nil {
+		t.Fatalf("reset override: %v", err)
+	}
+	if item.HasOverride || string(item.EffectiveValue) != `"30s"` {
+		t.Fatalf("expected reset to return module default without override, got %#v", item)
+	}
+	if len(repo.values) != 0 {
+		t.Fatalf("expected reset to delete override row, got %d rows", len(repo.values))
 	}
 }
 

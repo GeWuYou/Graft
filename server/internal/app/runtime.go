@@ -665,6 +665,9 @@ func (r *Runtime) registerAccessLogRetentionJob() error {
 	if r == nil || r.server == nil {
 		return errors.New("runtime server is unavailable")
 	}
+	if err := httpx.RegisterAccessLogRetentionConfigDefinition(r.configRegistry); err != nil {
+		return err
+	}
 
 	return httpx.RegisterAccessLogRetentionCleanupJob(
 		r.cronRegistry,
@@ -680,6 +683,9 @@ func (r *Runtime) registerAppLogRetentionJob() error {
 	}
 	if r.appLogRepository == nil {
 		return nil
+	}
+	if err := logger.RegisterAppLogRetentionConfigDefinition(r.configRegistry); err != nil {
+		return err
 	}
 
 	return logger.RegisterAppLogRetentionCleanupJob(

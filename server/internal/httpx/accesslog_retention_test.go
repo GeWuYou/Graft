@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"graft/server/internal/config"
+	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
 
@@ -252,6 +253,28 @@ func TestRegisterAccessLogRetentionCleanupJobMetadata(t *testing.T) {
 		action.DescriptionKey != accessLogRetentionDryRunActionDescKey ||
 		action.Handler == nil {
 		t.Fatalf("unexpected access log retention action: %#v", action)
+	}
+}
+
+func TestRegisterAccessLogRetentionConfigDefinition(t *testing.T) {
+	registry := configregistry.NewRegistry()
+
+	if err := RegisterAccessLogRetentionConfigDefinition(registry); err != nil {
+		t.Fatalf("register config definition: %v", err)
+	}
+
+	items := registry.Items()
+	if len(items) != 1 {
+		t.Fatalf("expected one config definition, got %d", len(items))
+	}
+	definition := items[0]
+	if definition.Key != accessLogRetentionCleanupJobName ||
+		definition.Module != accessLogRetentionCleanupJobModule ||
+		definition.Type != configregistry.ValueTypeObject {
+		t.Fatalf("unexpected access log config definition: %#v", definition)
+	}
+	if string(definition.DefaultValue) != accessLogRetentionCleanupDefaultConfig {
+		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, definition.DefaultValue)
 	}
 }
 

@@ -1,9 +1,14 @@
 package contract
 
 const (
-	SystemConfigGroup           = "/system-configs"
+	// SystemConfigGroup is the API route group for system configuration management.
+	SystemConfigGroup = "/system-configs"
+	// SystemConfigCollectionRoute is the collection route fragment.
 	SystemConfigCollectionRoute = ""
-	SystemConfigDetailRoute     = "/:key"
-	SystemConfigResetRoute      = "/:key/reset"
-	SystemConfigMenuPath        = "/server/system-config"
+	// SystemConfigDetailRoute is the detail route fragment.
+	SystemConfigDetailRoute = "/:key"
+	// SystemConfigResetRoute is the reset route fragment.
+	SystemConfigResetRoute = "/:key/reset"
+	// SystemConfigMenuPath is the web menu path for the system configuration page.
+	SystemConfigMenuPath = "/server/system-config"
 )

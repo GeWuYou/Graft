@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
+	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
 
@@ -24,6 +25,7 @@ const (
 	appLogRetentionDryRunActionDescKey      = "scheduledTask.action.dryRun.description"
 	appLogRetentionDefaultDays              = 30
 	appLogRetentionDefaultBatchSize         = 1000
+	appLogRetentionConfigDefinitionOrder    = 220
 	appLogRetentionFailureSummary           = "app log retention cleanup failed"
 	hoursPerDay                             = 24
 )
@@ -300,6 +302,25 @@ func decodeAppLogRetentionJobConfig(configJSON string) appLogRetentionJobConfig 
 		config.BatchSize = appLogRetentionDefaultBatchSize
 	}
 	return config
+}
+
+// RegisterAppLogRetentionConfigDefinition exposes the built-in cleanup defaults as registry authority.
+func RegisterAppLogRetentionConfigDefinition(registry *configregistry.Registry) error {
+	if registry == nil {
+		return errors.New("config registry is required")
+	}
+
+	return registry.Register(configregistry.Definition{
+		Key:          appLogRetentionCleanupJobName,
+		Module:       appLogRetentionCleanupJobModule,
+		Group:        "log.retention",
+		Title:        "App log retention cleanup",
+		Description:  "Default cleanup configuration for app-log retention jobs.",
+		Type:         configregistry.ValueTypeObject,
+		Schema:       json.RawMessage(appLogRetentionCleanupConfigSchema),
+		DefaultValue: json.RawMessage(appLogRetentionCleanupDefaultConfig),
+		Order:        appLogRetentionConfigDefinitionOrder,
+	})
 }
 
 // RegisterAppLogRetentionCleanupJob registers the logger-owned app-log cleanup job.

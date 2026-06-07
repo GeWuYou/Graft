@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
+	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
 
@@ -23,6 +24,7 @@ const (
 	auditLogRetentionDryRunActionDescKey      = "scheduledTask.action.dryRun.description"
 	auditLogRetentionDefaultDays              = 30
 	auditLogRetentionDefaultBatchSize         = 1000
+	auditLogRetentionConfigDefinitionOrder    = 230
 	hoursPerDay                               = 24
 )
 
@@ -228,6 +230,24 @@ func decodeRetentionJobConfig(configJSON string) retentionJobConfig {
 		config.BatchSize = auditLogRetentionDefaultBatchSize
 	}
 	return config
+}
+
+func registerAuditLogRetentionConfigDefinition(registry *configregistry.Registry) error {
+	if registry == nil {
+		return errors.New("config registry is required")
+	}
+
+	return registry.Register(configregistry.Definition{
+		Key:          auditLogRetentionCleanupJobName,
+		Module:       moduleID,
+		Group:        "log.retention",
+		Title:        "Audit log retention cleanup",
+		Description:  "Default cleanup configuration for audit-log retention jobs.",
+		Type:         configregistry.ValueTypeObject,
+		Schema:       json.RawMessage(auditLogRetentionCleanupConfigSchema),
+		DefaultValue: json.RawMessage(auditLogRetentionCleanupDefaultConfig),
+		Order:        auditLogRetentionConfigDefinitionOrder,
+	})
 }
 
 func registerAuditLogRetentionCleanupJob(

@@ -98,6 +98,9 @@ func (p *Module) registerRetention(ctx *module.Context, logger *zap.Logger) erro
 	if ctx.Config == nil {
 		return errors.New("audit module config is unavailable")
 	}
+	if err := registerAuditLogRetentionConfigDefinition(ctx.ConfigRegistry); err != nil {
+		return fmt.Errorf("register audit log retention config definition: %w", err)
+	}
 	if err := registerAuditLogRetentionCleanupJob(ctx.CronRegistry, logger, p.recorder, ctx.Config.Audit); err != nil {
 		return fmt.Errorf("register audit log retention cleanup job: %w", err)
 	}

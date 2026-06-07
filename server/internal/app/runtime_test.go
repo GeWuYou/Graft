@@ -878,11 +878,18 @@ func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *te
 	if len(items) != 2 {
 		t.Fatalf("expected two registered retention jobs, got %d", len(items))
 	}
+	definitions := runtime.configRegistry.Items()
+	if len(definitions) != 2 {
+		t.Fatalf("expected two registered config definitions, got %d", len(definitions))
+	}
 	if items[0].Name != "httpx.access-log-retention-cleanup" {
 		t.Fatalf("expected retention job name, got %q", items[0].Name)
 	}
 	if items[1].Name != "logger.app-log-retention-cleanup" {
 		t.Fatalf("expected app-log retention job name, got %q", items[1].Name)
+	}
+	if definitions[0].Key != "httpx.access-log-retention-cleanup" || definitions[1].Key != "logger.app-log-retention-cleanup" {
+		t.Fatalf("unexpected retention config definitions: %#v", definitions)
 	}
 	if len(recorderRepo.deleted) != 0 {
 		t.Fatalf("expected startup registration to avoid cleanup execution, got %d deletions", len(recorderRepo.deleted))

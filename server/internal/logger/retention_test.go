@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
+	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
 
@@ -201,6 +202,28 @@ func TestRegisterAppLogRetentionCleanupJob(t *testing.T) {
 	}
 	assertAppLogRetentionJobMetadata(t, items[0])
 	assertAppLogRetentionDryRunAction(t, repo, items[0])
+}
+
+func TestRegisterAppLogRetentionConfigDefinition(t *testing.T) {
+	registry := configregistry.NewRegistry()
+
+	if err := RegisterAppLogRetentionConfigDefinition(registry); err != nil {
+		t.Fatalf("register config definition: %v", err)
+	}
+
+	items := registry.Items()
+	if len(items) != 1 {
+		t.Fatalf("expected one config definition, got %d", len(items))
+	}
+	definition := items[0]
+	if definition.Key != appLogRetentionCleanupJobName ||
+		definition.Module != appLogRetentionCleanupJobModule ||
+		definition.Type != configregistry.ValueTypeObject {
+		t.Fatalf("unexpected app log config definition: %#v", definition)
+	}
+	if string(definition.DefaultValue) != appLogRetentionCleanupDefaultConfig {
+		t.Fatalf("expected default config %s, got %s", appLogRetentionCleanupDefaultConfig, definition.DefaultValue)
+	}
 }
 
 func assertAppLogRetentionJobMetadata(t *testing.T, job cronx.Job) {

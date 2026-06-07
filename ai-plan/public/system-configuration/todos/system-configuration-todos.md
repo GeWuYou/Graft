@@ -5,10 +5,10 @@
 - completed_batches:
   - Batch 1: backend authority baseline and OpenAPI source
   - Batch 2: web module and shared schema form reuse
-- pending_batches:
   - Batch 3: initial config definitions and final cross-boundary validation
-- current_batch: Batch 3
-- next_batch: Batch 3
+- pending_batches: []
+- current_batch: complete
+- next_batch: none
 
 ## Batch 1 - Backend Authority Baseline
 
@@ -32,7 +32,7 @@ Status: accepted by the loop owner; focused validation recorded in the trace.
 
 ## Batch 3 - Initial Definitions And Closeout
 
-- Register first low-risk definitions from scheduler/logging/audit defaults.
-- Ensure definitions do not copy canonical defaults into the database.
-- Run focused and completion validations for server and web.
-- Update recovery trace and archive-readiness status.
+- [x] Register first low-risk definitions from logging/access-log/audit retention defaults.
+- [x] Ensure definitions do not copy canonical defaults into the database.
+- [x] Run focused and completion validations for server and web.
+- [x] Update recovery trace and archive-readiness status.

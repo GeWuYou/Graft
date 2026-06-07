@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/config"
+	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
 
@@ -150,6 +151,28 @@ func TestRegisterAuditLogRetentionCleanupJob(t *testing.T) {
 		t.Fatal("expected job run to invoke cleanup")
 	}
 	assertAuditLogRetentionDryRunAction(t, repo, items[0])
+}
+
+func TestRegisterAuditLogRetentionConfigDefinition(t *testing.T) {
+	registry := configregistry.NewRegistry()
+
+	if err := registerAuditLogRetentionConfigDefinition(registry); err != nil {
+		t.Fatalf("register config definition: %v", err)
+	}
+
+	items := registry.Items()
+	if len(items) != 1 {
+		t.Fatalf("expected one config definition, got %d", len(items))
+	}
+	definition := items[0]
+	if definition.Key != auditLogRetentionCleanupJobName ||
+		definition.Module != moduleID ||
+		definition.Type != configregistry.ValueTypeObject {
+		t.Fatalf("unexpected audit log config definition: %#v", definition)
+	}
+	if string(definition.DefaultValue) != auditLogRetentionCleanupDefaultConfig {
+		t.Fatalf("expected default config %s, got %s", auditLogRetentionCleanupDefaultConfig, definition.DefaultValue)
+	}
 }
 
 func assertAuditLogRetentionJobMetadata(t *testing.T, job cronx.Job) {

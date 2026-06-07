@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/config"
+	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/drilldown"
@@ -241,6 +242,7 @@ func newModuleTestContextWithLogger(t *testing.T, repo store.AuditRepository, lo
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
+		ConfigRegistry:     configregistry.NewRegistry(),
 	}
 
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) {
@@ -296,6 +298,7 @@ func newModuleTestContextWithDrilldown(
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
+		ConfigRegistry:     configregistry.NewRegistry(),
 	}
 
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) {

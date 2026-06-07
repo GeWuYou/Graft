@@ -9,6 +9,8 @@ func (c PermissionCode) String() string {
 }
 
 const (
-	SystemConfigReadPermission  PermissionCode = "system-config.read"
+	// SystemConfigReadPermission identifies read access to system configuration definitions and values.
+	SystemConfigReadPermission PermissionCode = "system-config.read"
+	// SystemConfigWritePermission identifies write access to administrator overrides.
 	SystemConfigWritePermission PermissionCode = "system-config.write"
 )

@@ -73,3 +73,31 @@
   - covered format, typecheck, OpenAPI frontend governance, i18n governance, lint, stylelint, hygiene, full vitest, and release build
   - full vitest passed with 64 test files and 361 tests
   - `git diff --check`
+
+## 2026-06-07 Batch 3 worker
+
+- Registered the first low-risk `ConfigDefinition` values:
+  - `httpx.access-log-retention-cleanup` in `server/internal/httpx`
+  - `logger.app-log-retention-cleanup` in `server/internal/logger`
+  - `audit.audit-log-retention-cleanup` in `server/modules/audit`
+- Kept authority and runtime behavior separate:
+  - registered definitions expose existing cleanup job default JSON and schema as module/core-owned metadata
+  - cleanup handlers and Scheduled Task instance `DefaultConfig` behavior remain unchanged
+  - `system_config_values` still stores administrator overrides only; defaults are not seeded or copied into rows
+- Strengthened override-only proof:
+  - `List` and `Get` return module defaults without persisted overrides
+  - `Update` writes one administrator override
+  - `Reset` deletes the override and returns the module default again
+- Validation run:
+  - `cd server && go test ./internal/configregistry ./modules/system-config ./internal/httpx ./internal/logger ./modules/audit ./internal/app`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+  - `git diff --check`
+- Validation result:
+  - backend completion entrypoint passed after fixing lint findings in the touched system-configuration/configregistry slice
+  - web completion entrypoint passed; Vitest reported 64 test files and 361 tests passed
+  - `git diff --check` passed
+- Archive-readiness judgment:
+  - all three planned batches are complete
+  - acceptance conditions are met for registry placement, override-only persistence, sensitive/masked OpenAPI response shape, menu placement, and server/web validation
+  - no additional in-scope implementation batch remains; outer loop can perform terminal archive-ready handling

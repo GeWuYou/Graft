@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
+	"graft/server/internal/configregistry"
 	"graft/server/internal/cronx"
 )
 
@@ -24,6 +25,7 @@ const (
 	accessLogRetentionDryRunActionDescKey      = "scheduledTask.action.dryRun.description"
 	accessLogRetentionDefaultDays              = 30
 	accessLogRetentionDefaultBatchSize         = 1000
+	accessLogRetentionConfigDefinitionOrder    = 210
 	hoursPerDay                                = 24
 )
 
@@ -271,6 +273,25 @@ func decodeAccessLogRetentionJobConfig(configJSON string) accessLogRetentionJobC
 		config.BatchSize = accessLogRetentionDefaultBatchSize
 	}
 	return config
+}
+
+// RegisterAccessLogRetentionConfigDefinition exposes the built-in cleanup defaults as registry authority.
+func RegisterAccessLogRetentionConfigDefinition(registry *configregistry.Registry) error {
+	if registry == nil {
+		return errors.New("config registry is required")
+	}
+
+	return registry.Register(configregistry.Definition{
+		Key:          accessLogRetentionCleanupJobName,
+		Module:       accessLogRetentionCleanupJobModule,
+		Group:        "log.retention",
+		Title:        "Access log retention cleanup",
+		Description:  "Default cleanup configuration for access-log retention jobs.",
+		Type:         configregistry.ValueTypeObject,
+		Schema:       json.RawMessage(accessLogRetentionCleanupConfigSchema),
+		DefaultValue: json.RawMessage(accessLogRetentionCleanupDefaultConfig),
+		Order:        accessLogRetentionConfigDefinitionOrder,
+	})
 }
 
 // RegisterAccessLogRetentionCleanupJob registers the bounded httpx-owned access-log cleanup job.

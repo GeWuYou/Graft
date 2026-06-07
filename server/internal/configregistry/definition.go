@@ -18,12 +18,18 @@ var keyPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$`)
 type ValueType string
 
 const (
-	ValueTypeString  ValueType = "string"
-	ValueTypeNumber  ValueType = "number"
+	// ValueTypeString accepts JSON string values.
+	ValueTypeString ValueType = "string"
+	// ValueTypeNumber accepts JSON number values.
+	ValueTypeNumber ValueType = "number"
+	// ValueTypeInteger accepts JSON integer values.
 	ValueTypeInteger ValueType = "integer"
+	// ValueTypeBoolean accepts JSON boolean values.
 	ValueTypeBoolean ValueType = "boolean"
-	ValueTypeObject  ValueType = "object"
-	ValueTypeArray   ValueType = "array"
+	// ValueTypeObject accepts JSON object values.
+	ValueTypeObject ValueType = "object"
+	// ValueTypeArray accepts JSON array values.
+	ValueTypeArray ValueType = "array"
 )
 
 // Definition declares one module-owned system configuration key.
@@ -124,34 +130,67 @@ func validateDefaultValue(raw json.RawMessage, valueType ValueType, key string) 
 		return fmt.Errorf("config definition %s default value is invalid JSON: %w", key, err)
 	}
 
-	switch valueType {
-	case ValueTypeString:
-		if _, ok := decoded.(string); !ok {
-			return fmt.Errorf("config definition %s default value must be string", key)
-		}
-	case ValueTypeNumber:
-		if _, ok := decoded.(float64); !ok {
-			return fmt.Errorf("config definition %s default value must be number", key)
-		}
-	case ValueTypeInteger:
-		number, ok := decoded.(float64)
-		if !ok || number != float64(int64(number)) {
-			return fmt.Errorf("config definition %s default value must be integer", key)
-		}
-	case ValueTypeBoolean:
-		if _, ok := decoded.(bool); !ok {
-			return fmt.Errorf("config definition %s default value must be boolean", key)
-		}
-	case ValueTypeObject:
-		if _, ok := decoded.(map[string]any); !ok {
-			return fmt.Errorf("config definition %s default value must be object", key)
-		}
-	case ValueTypeArray:
-		if _, ok := decoded.([]any); !ok {
-			return fmt.Errorf("config definition %s default value must be array", key)
-		}
+	if expected := InvalidJSONShape(decoded, valueType); expected != "" {
+		return fmt.Errorf("config definition %s default value must be %s", key, expected)
 	}
 	return nil
+}
+
+// InvalidJSONShape returns the expected shape name when value does not match the definition type.
+func InvalidJSONShape(value any, valueType ValueType) string {
+	switch valueType {
+	case ValueTypeString:
+		return invalidShapeUnless(isJSONString(value), "string")
+	case ValueTypeNumber:
+		return invalidShapeUnless(isJSONNumber(value), "number")
+	case ValueTypeInteger:
+		return invalidShapeUnless(isJSONInteger(value), "integer")
+	case ValueTypeBoolean:
+		return invalidShapeUnless(isJSONBoolean(value), "boolean")
+	case ValueTypeObject:
+		return invalidShapeUnless(isJSONObject(value), "object")
+	case ValueTypeArray:
+		return invalidShapeUnless(isJSONArray(value), "array")
+	default:
+		return "supported JSON value"
+	}
+}
+
+func invalidShapeUnless(valid bool, expected string) string {
+	if valid {
+		return ""
+	}
+	return expected
+}
+
+func isJSONString(value any) bool {
+	_, ok := value.(string)
+	return ok
+}
+
+func isJSONNumber(value any) bool {
+	_, ok := value.(float64)
+	return ok
+}
+
+func isJSONInteger(value any) bool {
+	number, ok := value.(float64)
+	return ok && number == float64(int64(number))
+}
+
+func isJSONBoolean(value any) bool {
+	_, ok := value.(bool)
+	return ok
+}
+
+func isJSONObject(value any) bool {
+	_, ok := value.(map[string]any)
+	return ok
+}
+
+func isJSONArray(value any) bool {
+	_, ok := value.([]any)
+	return ok
 }
 
 func cloneRawMessage(raw json.RawMessage) json.RawMessage {
