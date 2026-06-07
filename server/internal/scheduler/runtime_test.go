@@ -439,6 +439,45 @@ func TestSeedBuiltinJobsKeepsSystemConfigSourceForDefaultSnapshots(t *testing.T)
 	}
 }
 
+func TestSeedBuiltinJobsReclassifiesHistoricalBuiltinOverride(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+
+	job := cronx.Job{
+		Name:          "builtin-schema-job",
+		Schedule:      "*/1 * * * * *",
+		DefaultConfig: `{"retentionDays":30,"batchSize":1000}`,
+		ConfigSchema:  `{"type":"object","properties":{"retentionDays":{"type":"integer","minimum":1,"maximum":3650},"batchSize":{"type":"integer","minimum":1,"maximum":10000}},"additionalProperties":false}`,
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "ok"}, nil
+		},
+	}
+	taskRepo.tasks["builtin-schema-job"] = TaskDefinition{
+		TaskKey:        "builtin-schema-job",
+		JobKey:         "builtin-schema-job",
+		ModuleKey:      "test",
+		Title:          "builtin-schema-job",
+		CronExpression: "*/1 * * * * *",
+		Enabled:        true,
+		Builtin:        true,
+		ConfigJSON:     `{"retentionDays":90,"batchSize":500}`,
+		ConfigSource:   taskConfigSourceSystem,
+	}
+
+	if err := runtime.SeedBuiltinJobs(context.Background(), []cronx.Job{job}); err != nil {
+		t.Fatalf("reseed builtin job: %v", err)
+	}
+	task := taskRepo.tasks["builtin-schema-job"]
+	config := decodeRuntimeJSONObject(t, task.ConfigJSON)
+	if config["retentionDays"] != float64(90) || config["batchSize"] != float64(500) {
+		t.Fatalf("expected historical override to survive reseed, got %s", task.ConfigJSON)
+	}
+	if task.ConfigSource != taskConfigSourceUser {
+		t.Fatalf("expected historical override to be reclassified as user source, got %#v", task)
+	}
+}
+
 func TestBuiltinExplicitTaskConfigTakesPrecedenceOverEffectiveDefault(t *testing.T) {
 	repo := newRunRepositoryRecorder()
 	runtime := New(zap.NewNop(), repo)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -426,6 +427,13 @@ func (r *CronRuntime) builtinTaskDefinition(ctx context.Context, job cronx.Job) 
 		return task, nil
 	}
 	if existing.ConfigSource != taskConfigSourceUser {
+		if historicalUserOverride, err := sanitizeHistoricalUserOverride(job, task.ConfigJSON, existing.ConfigJSON); err != nil {
+			return TaskDefinition{}, err
+		} else if historicalUserOverride != "" {
+			task.ConfigJSON = historicalUserOverride
+			task.ConfigSource = taskConfigSourceUser
+			return task, nil
+		}
 		return task, nil
 	}
 	configJSON, err := sanitizeConfigJSON(job.RuntimeConfigSchema(), existing.ConfigJSON)
@@ -435,6 +443,24 @@ func (r *CronRuntime) builtinTaskDefinition(ctx context.Context, job cronx.Job) 
 	task.ConfigJSON = configJSON
 	task.ConfigSource = taskConfigSourceUser
 	return task, nil
+}
+
+func sanitizeHistoricalUserOverride(job cronx.Job, seededDefault string, existingConfig string) (string, error) {
+	existingConfig = strings.TrimSpace(existingConfig)
+	if existingConfig == "" {
+		return "", nil
+	}
+	if sameJSONObject(existingConfig, "{}") || sameJSONObject(existingConfig, seededDefault) {
+		return "", nil
+	}
+	configJSON, err := sanitizeConfigJSON(job.RuntimeConfigSchema(), existingConfig)
+	if err != nil {
+		return "", err
+	}
+	if sameJSONObject(configJSON, "{}") || sameJSONObject(configJSON, seededDefault) {
+		return "", nil
+	}
+	return configJSON, nil
 }
 
 // RemoveJob removes a registered in-memory job and any active cron schedule for it.
@@ -1205,6 +1231,18 @@ func validateCronExpression(expression string) error {
 func isJSONObject(value string) bool {
 	var decoded map[string]any
 	return json.Unmarshal([]byte(strings.TrimSpace(value)), &decoded) == nil
+}
+
+func sameJSONObject(left string, right string) bool {
+	var leftDecoded map[string]any
+	var rightDecoded map[string]any
+	if json.Unmarshal([]byte(strings.TrimSpace(left)), &leftDecoded) != nil {
+		return false
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(right)), &rightDecoded) != nil {
+		return false
+	}
+	return reflect.DeepEqual(leftDecoded, rightDecoded)
 }
 
 func (r *CronRuntime) resolveJobDefaultConfig(ctx context.Context, job cronx.Job) (string, error) {
