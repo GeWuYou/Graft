@@ -55,3 +55,36 @@
   - `server/go.mod` and `server/go.sum` now include `github.com/santhosh-tekuri/jsonschema/v6 v6.0.2` because the existing `go tool oapi-codegen` chain for `github.com/getkin/kin-openapi v0.140.0` required that module metadata before repository OpenAPI generation could run.
   - The existing backend OpenAPI freshness stage does not yet include the new dashboard narrow generated package; the package is still generated through `go generate ./internal/contract/openapi/dashboard` and covered by focused tests.
 - Commit: Phase 1 scope committed through `$graft-commit`; see loop closeout for short SHA.
+
+## 2026-06-07 - Phase 2 Web Renderer And Home Route Integration
+
+- Implemented `web/src/modules/dashboard` as the frontend dashboard module:
+  - OpenAPI-derived API client for `GET /api/dashboard/summary` and focused widget refresh through `GET /api/dashboard/widgets/{widget_id}`
+  - dashboard contract paths and generated-schema type aliases
+  - `DashboardHomePage` fixed system summary and generic widget grid
+  - `DashboardRenderer` with type-only dispatch for `stat-group`, `alert-list`, `link-list`, `timeline`, and `health`
+  - per-widget error, disabled, empty, and focused retry states.
+- Replaced the starter `app/home` card with a thin shell wrapper that renders the dashboard module page.
+- Added dashboard-owned `zh-CN` and `en-US` locale catalogs and removed unused starter home description/eyebrow keys from root locale catalogs.
+- Added focused frontend tests for:
+  - dashboard API path usage and widget id encoding
+  - renderer ordering, type-based rendering, empty state, and error retry event
+  - page summary loading, fixed summary rendering, widget refresh, and page-level error state.
+- TDesign MCP preflight:
+  - ui_component_change: yes
+  - mcp_queried: yes
+  - framework: vue-next
+  - components: Card, Loading, Empty, Statistic, List, Timeline, Tag, Alert, Button
+  - queries: get_component_docs
+  - adoption: adopted
+  - reason: used queried component props and slot behavior for dashboard cards, loading, empty, list, timeline, tag, alert, and buttons; TDesign `Result` component was unavailable, so dashboard uses `Empty`/`Alert` instead.
+- Validation passed:
+  - `cd web && bun run test:run -- src/modules/dashboard src/modules/index.test.ts src/router/index.test.ts`
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run typecheck`
+  - `cd web && bun run lint:i18n`
+  - `cd web && bun run check`
+- Notes:
+  - The dashboard page does not import audit, scheduler, rbac, user, monitor, or system-config business components.
+  - The renderer branches only on `DashboardWidget.type`; widget id and module key remain display/data metadata.
+  - No dashboard persistence, preferences, layouts, presets, favorites, recent visits, drag-and-drop, or markdown support was introduced.

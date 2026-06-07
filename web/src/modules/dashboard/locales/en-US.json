@@ -1,0 +1,68 @@
+{
+  "dashboard": {
+    "actions": {
+      "open": "Open",
+      "refresh": "Refresh",
+      "retry": "Retry"
+    },
+    "alert": {
+      "level": {
+        "error": "Error",
+        "info": "Info",
+        "warning": "Warning"
+      }
+    },
+    "empty": "No Dashboard data",
+    "error": {
+      "fallback": "Dashboard data failed to load",
+      "title": "Dashboard Load Failed"
+    },
+    "health": {
+      "degraded": "Degraded",
+      "disabled": "Disabled",
+      "healthy": "Healthy",
+      "unknown": "Unknown"
+    },
+    "loading": "Loading Dashboard",
+    "page": {
+      "description": "Review the system summary and authorized module-contributed workspace widgets.",
+      "eyebrow": "Workspace",
+      "title": "Home"
+    },
+    "systemSummary": {
+      "currentUser": {
+        "label": "Current User"
+      },
+      "environment": {
+        "description": "Current runtime environment",
+        "label": "Environment"
+      },
+      "locale": {
+        "description": "Fallback locale {fallback}",
+        "label": "Locale"
+      },
+      "modules": {
+        "description": "{total} total modules, {degraded} need attention",
+        "label": "Enabled Modules"
+      },
+      "title": "System Summary",
+      "widgets": {
+        "description": "Widgets visible to current permissions",
+        "label": "Visible Widgets"
+      }
+    },
+    "widget": {
+      "disabledDescription": "This widget is currently unavailable.",
+      "empty": "No Widget Data",
+      "errorFallback": "Widget data failed to load",
+      "errorTitle": "Widget Load Failed",
+      "invalidPayload": "Widget data is unavailable",
+      "status": {
+        "disabled": "Unavailable",
+        "error": "Error",
+        "normal": "Normal",
+        "warning": "Warning"
+      }
+    }
+  }
+}

@@ -429,8 +429,6 @@
       "msg4": "First Quarter Raw Material Procurement Project invoicing successful!"
     },
     "home": {
-      "description": "Use the side navigation to open modules, or keep this page as the stable landing point after closing tabs.",
-      "eyebrow": "Graft Admin",
       "title": "Home"
     }
   }
