@@ -47,6 +47,7 @@
         "statusLabel": "当前状态",
         "statusEnabled": "启用中",
         "statusDisabled": "已停用",
+        "deleteRequirement": "删除条件",
         "deleteReady": "这个自定义角色已经满足删除生命周期要求。",
         "deleteNeedsDisable": "删除前需要先停用这个自定义角色。",
         "deleteNeedsBindingsCleared": "删除前需要先移除这个角色的用户绑定和权限绑定。"
@@ -74,7 +75,28 @@
         "createTitle": "创建角色",
         "editTitle": "编辑角色",
         "detailTitle": "角色详情",
-        "builtinNotice": "内置角色不可删除，角色编码保持只读，其它字段按权限维护。",
+        "systemRulesTitle": "系统角色说明",
+        "systemRules": {
+          "delete": "系统角色不可删除",
+          "code": "角色编码不可修改",
+          "permissions": "权限由系统维护"
+        },
+        "editableContentTitle": "可编辑内容",
+        "readonlyContentTitle": "角色内容",
+        "meta": {
+          "roleCode": "角色编码",
+          "roleType": "角色类型",
+          "status": "状态",
+          "deleteAllowed": "允许删除"
+        },
+        "type": {
+          "system": "系统角色",
+          "custom": "自定义角色"
+        },
+        "deleteAllowed": {
+          "yes": "允许",
+          "no": "不允许"
+        },
         "name": "角色名",
         "namePlaceholder": "请输入稳定角色编码",
         "display": "显示名",

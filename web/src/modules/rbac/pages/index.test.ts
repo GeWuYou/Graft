@@ -126,6 +126,52 @@ const passthroughStub = defineComponent({
   },
 });
 
+const cardStub = defineComponent({
+  name: 'TCardStub',
+  props: {
+    title: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props, { slots, attrs }) {
+    return () => h('section', attrs, [props.title, slots.default?.()]);
+  },
+});
+
+const alertStub = defineComponent({
+  name: 'TAlertStub',
+  props: {
+    title: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props, { slots, attrs }) {
+    return () => h('aside', attrs, [props.title, slots.message?.(), slots.default?.()]);
+  },
+});
+
+const descriptionsStub = defineComponent({
+  name: 'TDescriptionsStub',
+  setup(_, { slots }) {
+    return () => h('dl', slots.default?.());
+  },
+});
+
+const descriptionsItemStub = defineComponent({
+  name: 'TDescriptionsItemStub',
+  props: {
+    label: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props, { slots }) {
+    return () => h('div', [h('dt', props.label), h('dd', slots.default?.())]);
+  },
+});
+
 const dropdownStub = defineComponent({
   name: 'TDropdownStub',
   props: {
@@ -540,9 +586,13 @@ function mountRolePage() {
         },
       },
       stubs: {
+        't-alert': alertStub,
         't-button': buttonStub,
+        't-card': cardStub,
         't-checkbox': checkboxStub,
         't-checkbox-group': checkboxGroupStub,
+        't-descriptions': descriptionsStub,
+        't-descriptions-item': descriptionsItemStub,
         't-dropdown': dropdownStub,
         't-drawer': drawerStub,
         't-empty': passthroughStub,
@@ -974,7 +1024,7 @@ describe('RolePage', () => {
     expect(wrapper.text()).toContain('Update Roles Localized');
   });
 
-  it('shows lifecycle guidance in the detail drawer for role delete semantics', async () => {
+  it('shows overview and lifecycle guidance in the detail drawer for role delete semantics', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
@@ -997,15 +1047,57 @@ describe('RolePage', () => {
     await wrapper.get('[data-testid="role-detail"]').trigger('click');
     await flushPromises();
 
-    expect(wrapper.get('[data-testid="role-lifecycle-summary"]').text()).toContain(
-      'rbac.roleList.lifecycle.statusLabel',
-    );
-    expect(wrapper.get('[data-testid="role-lifecycle-summary"]').text()).toContain(
-      'rbac.roleList.lifecycle.statusEnabled',
-    );
+    expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('Editor');
+    expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('editor');
+    expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('rbac.roleList.form.type.custom');
+    expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('rbac.roleList.lifecycle.statusEnabled');
+    expect(wrapper.find('[data-testid="role-form"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="role-lifecycle-summary"]').text()).toContain(
       'rbac.roleList.lifecycle.deleteNeedsDisable',
     );
+  });
+
+  it('renders built-in admin details as overview, one rule alert, and readonly content', async () => {
+    permissionState.grantedCodes = [
+      RBAC_PERMISSION_CODE.PERMISSION_READ,
+      RBAC_PERMISSION_CODE.ROLE_DELETE,
+      RBAC_PERMISSION_CODE.ROLE_STATUS_UPDATE,
+    ];
+    rbacApiMocks.getRoles.mockResolvedValue(createBuiltinAdminRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRoleDetail.mockResolvedValue({
+      id: 1,
+      name: 'admin',
+      display: 'Administrator',
+      description: 'Builtin administrator',
+      builtin: true,
+      status: 'enabled',
+      updated_at: '2026-05-18T00:00:00Z',
+      created_at: '2026-05-17T00:00:00Z',
+      permission_count: 3,
+      user_count: 1,
+    });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-detail"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('Administrator');
+    expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('admin');
+    expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('rbac.roleList.form.type.system');
+    expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('rbac.roleList.lifecycle.statusEnabled');
+    expect(wrapper.findAll('[data-testid="role-system-rules"]')).toHaveLength(1);
+    expect(wrapper.get('[data-testid="role-system-rules"]').text()).toContain('rbac.roleList.form.systemRules.delete');
+    expect(wrapper.get('[data-testid="role-system-rules"]').text()).toContain('rbac.roleList.form.systemRules.code');
+    expect(wrapper.get('[data-testid="role-system-rules"]').text()).toContain(
+      'rbac.roleList.form.systemRules.permissions',
+    );
+    expect(wrapper.find('[data-testid="role-form"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('rbac.roleList.form.builtinNotice');
+    expect(wrapper.text()).not.toContain('rbac.roleList.moreActions.delete');
+    expect(wrapper.find('[data-testid="role-drawer-delete"]').exists()).toBe(false);
   });
 
   it('blocks delete when the role is still enabled', async () => {

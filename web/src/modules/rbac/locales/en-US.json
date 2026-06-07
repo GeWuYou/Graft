@@ -47,6 +47,7 @@
         "statusLabel": "Current status",
         "statusEnabled": "Enabled",
         "statusDisabled": "Disabled",
+        "deleteRequirement": "Delete Requirement",
         "deleteReady": "This custom role now satisfies the delete lifecycle rules.",
         "deleteNeedsDisable": "Disable this custom role before deleting it.",
         "deleteNeedsBindingsCleared": "Remove all user and permission bindings before deleting this role."
@@ -74,7 +75,28 @@
         "createTitle": "Create Role",
         "editTitle": "Edit Role",
         "detailTitle": "Role Details",
-        "builtinNotice": "Builtin roles cannot be deleted. The role code stays read-only while other fields follow permissions.",
+        "systemRulesTitle": "System Role Notes",
+        "systemRules": {
+          "delete": "System roles cannot be deleted",
+          "code": "The role code cannot be changed",
+          "permissions": "Permissions are maintained by the system"
+        },
+        "editableContentTitle": "Editable Content",
+        "readonlyContentTitle": "Role Content",
+        "meta": {
+          "roleCode": "Role Code",
+          "roleType": "Role Type",
+          "status": "Status",
+          "deleteAllowed": "Delete Allowed"
+        },
+        "type": {
+          "system": "System Role",
+          "custom": "Custom Role"
+        },
+        "deleteAllowed": {
+          "yes": "Allowed",
+          "no": "Not Allowed"
+        },
         "name": "Role Code",
         "namePlaceholder": "Enter a stable role code",
         "display": "Display Name",

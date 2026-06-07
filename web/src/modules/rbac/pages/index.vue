@@ -174,61 +174,130 @@
     <t-drawer
       v-model:visible="roleDrawerVisible"
       :header="roleDrawerTitle"
+      :footer="false"
       size="520px"
       placement="right"
       destroy-on-close
     >
       <div class="drawer-panel">
-        <div v-if="roleDrawerRole?.builtin" class="inline-warning">
-          <span>{{ t('rbac.roleList.form.builtinNotice') }}</span>
-        </div>
-        <div
-          v-if="roleDrawerMode === 'detail' && roleDrawerRole"
-          class="inline-warning"
-          data-testid="role-lifecycle-summary"
+        <t-card v-if="roleDrawerRole" class="role-drawer-overview" size="small" :bordered="true">
+          <div class="role-drawer-overview__head" data-testid="role-overview">
+            <div class="role-drawer-overview__identity">
+              <strong class="role-drawer-overview__name">{{ roleDrawerRole.display }}</strong>
+              <span class="role-drawer-overview__code">{{ roleDrawerRole.name }}</span>
+            </div>
+            <div class="role-drawer-overview__tags">
+              <t-tag :theme="roleDrawerRole.builtin ? 'warning' : 'default'" variant="light">
+                {{ roleTypeLabel(roleDrawerRole) }}
+              </t-tag>
+              <t-tag :theme="roleStatusTagTheme(roleDrawerRole)" variant="light">
+                {{ roleStatusLabel(roleDrawerRole) }}
+              </t-tag>
+            </div>
+          </div>
+          <t-descriptions size="small" :column="1" table-layout="auto">
+            <t-descriptions-item :label="t('rbac.roleList.form.meta.roleCode')">
+              {{ roleDrawerRole.name }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('rbac.roleList.form.meta.roleType')">
+              {{ roleTypeLabel(roleDrawerRole) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('rbac.roleList.form.meta.status')">
+              {{ roleStatusLabel(roleDrawerRole) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('rbac.roleList.form.meta.deleteAllowed')">
+              {{ roleDeleteAllowedLabel(roleDrawerRole) }}
+            </t-descriptions-item>
+          </t-descriptions>
+        </t-card>
+
+        <t-alert
+          v-if="roleDrawerRole?.builtin"
+          theme="warning"
+          :title="t('rbac.roleList.form.systemRulesTitle')"
+          data-testid="role-system-rules"
         >
-          <span>{{ t('rbac.roleList.lifecycle.statusLabel') }}: {{ roleStatusLabel(roleDrawerRole) }}</span>
-          <span>{{ roleDeleteLifecycleHint(roleDrawerRole) }}</span>
+          <template #message>
+            <ul class="role-drawer-rule-list">
+              <li>{{ t('rbac.roleList.form.systemRules.delete') }}</li>
+              <li>{{ t('rbac.roleList.form.systemRules.code') }}</li>
+              <li>{{ t('rbac.roleList.form.systemRules.permissions') }}</li>
+            </ul>
+          </template>
+        </t-alert>
+
+        <t-card
+          v-if="roleDrawerMode === 'detail' && roleDrawerRole"
+          class="role-drawer-section"
+          size="small"
+          :bordered="true"
+          :title="t('rbac.roleList.form.readonlyContentTitle')"
+          data-testid="role-readonly-content"
+        >
+          <t-descriptions size="small" :column="1" table-layout="auto">
+            <t-descriptions-item :label="t('rbac.roleList.form.display')">
+              {{ roleDrawerRole.display }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('rbac.roleList.form.description')">
+              {{ roleRemark(roleDrawerRole) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('rbac.roleList.lifecycle.deleteRequirement')">
+              <span data-testid="role-lifecycle-summary">{{ roleDeleteLifecycleHint(roleDrawerRole) }}</span>
+            </t-descriptions-item>
+          </t-descriptions>
+        </t-card>
+        <div v-if="roleDrawerMode === 'detail'" class="drawer-actions">
+          <t-button variant="outline" data-testid="role-drawer-cancel" @click="closeRoleDrawer">
+            {{ t('rbac.roleList.form.cancel') }}
+          </t-button>
         </div>
 
-        <t-form ref="roleFormRef" :data="roleForm" :rules="roleFormRules" label-align="top" @submit="handleRoleSubmit">
-          <t-form-item :label="t('rbac.roleList.form.name')" name="name">
-            <t-input
-              v-model="roleForm.name"
-              :disabled="roleDrawerMode === 'detail' || Boolean(roleDrawerRole?.builtin)"
-              :placeholder="t('rbac.roleList.form.namePlaceholder')"
-            />
-          </t-form-item>
-          <t-form-item :label="t('rbac.roleList.form.display')" name="display">
-            <t-input
-              v-model="roleForm.display"
-              :disabled="roleDrawerMode === 'detail'"
-              :placeholder="t('rbac.roleList.form.displayPlaceholder')"
-            />
-          </t-form-item>
-          <t-form-item :label="t('rbac.roleList.form.description')" name="description">
-            <t-textarea
-              v-model="roleForm.description"
-              :disabled="roleDrawerMode === 'detail'"
-              :maxlength="200"
-              :placeholder="t('rbac.roleList.form.descriptionPlaceholder')"
-            />
-          </t-form-item>
-          <div class="drawer-actions">
-            <t-button variant="outline" data-testid="role-drawer-cancel" @click="closeRoleDrawer">
-              {{ t('rbac.roleList.form.cancel') }}
-            </t-button>
-            <t-button
-              v-if="roleDrawerMode !== 'detail'"
-              theme="primary"
-              type="submit"
-              data-testid="role-drawer-save"
-              :loading="submittingRole"
-            >
-              {{ t('rbac.roleList.form.confirm') }}
-            </t-button>
-          </div>
-        </t-form>
+        <t-card
+          v-else
+          class="role-drawer-section"
+          size="small"
+          :bordered="true"
+          :title="t('rbac.roleList.form.editableContentTitle')"
+        >
+          <t-form
+            ref="roleFormRef"
+            :data="roleForm"
+            :rules="roleFormRules"
+            label-align="top"
+            @submit="handleRoleSubmit"
+          >
+            <t-form-item v-if="canEditRoleCode" :label="t('rbac.roleList.form.name')" name="name">
+              <t-input v-model="roleForm.name" :placeholder="t('rbac.roleList.form.namePlaceholder')" />
+            </t-form-item>
+            <t-form-item :label="t('rbac.roleList.form.display')" name="display">
+              <t-input v-model="roleForm.display" :placeholder="t('rbac.roleList.form.displayPlaceholder')" />
+            </t-form-item>
+            <t-form-item :label="t('rbac.roleList.form.description')" name="description">
+              <t-textarea
+                v-model="roleForm.description"
+                :maxlength="200"
+                :placeholder="t('rbac.roleList.form.descriptionPlaceholder')"
+              />
+            </t-form-item>
+            <div class="drawer-actions">
+              <t-button variant="outline" data-testid="role-drawer-cancel" @click="closeRoleDrawer">
+                {{ t('rbac.roleList.form.cancel') }}
+              </t-button>
+              <t-button
+                v-if="canDeleteRoleFromDrawer"
+                theme="danger"
+                variant="outline"
+                data-testid="role-drawer-delete"
+                @click="() => removeRoleFromDrawer()"
+              >
+                {{ t('rbac.roleList.moreActions.delete') }}
+              </t-button>
+              <t-button theme="primary" type="submit" data-testid="role-drawer-save" :loading="submittingRole">
+                {{ t('rbac.roleList.form.confirm') }}
+              </t-button>
+            </div>
+          </t-form>
+        </t-card>
       </div>
     </t-drawer>
 
@@ -616,6 +685,14 @@ const permissionRemovedCount = computed(() => {
   const selected = new Set(selectedPermissionIds.value);
   return originalPermissionIds.value.filter((id) => !selected.has(id)).length;
 });
+const canEditRoleCode = computed(() => roleDrawerMode.value === 'create' || !roleDrawerRole.value?.builtin);
+const canDeleteRoleFromDrawer = computed(
+  () =>
+    roleDrawerMode.value === 'update' &&
+    roleDrawerRole.value !== null &&
+    canDeleteRoles.value &&
+    !roleDrawerRole.value.builtin,
+);
 const permissionFooterSummary = computed(() =>
   t('rbac.roleList.permissionDialog.selectionCount', {
     selected: selectedPermissionIds.value.length,
@@ -722,19 +799,17 @@ const roleRowMoreOptions = (role: RoleStatusCompat) => {
     });
   }
 
-  if (canToggleRoleStatus.value) {
+  if (canToggleRoleStatus.value && !role.builtin) {
     options.push({
       content: isRoleEnabled(role) ? t('rbac.roleList.moreActions.disable') : t('rbac.roleList.moreActions.enable'),
-      disabled: role.builtin,
       fallbackLabel: isRoleEnabled(role) ? '停用角色' : '启用角色',
       value: 'toggle-status',
     });
   }
 
-  if (canDeleteRoles.value) {
+  if (canDeleteRoles.value && !role.builtin) {
     options.push({
       content: t('rbac.roleList.moreActions.delete'),
-      disabled: role.builtin,
       fallbackLabel: '删除角色',
       value: 'delete',
     });
@@ -977,8 +1052,24 @@ function roleStatusLabel(role: RoleStatusCompat) {
   return isRoleEnabled(role) ? t('rbac.roleList.lifecycle.statusEnabled') : t('rbac.roleList.lifecycle.statusDisabled');
 }
 
+function roleStatusTagTheme(role: RoleStatusCompat) {
+  return isRoleEnabled(role) ? ('success' as const) : ('default' as const);
+}
+
+function roleTypeLabel(role: Pick<RoleListItem, 'builtin'>) {
+  return role.builtin ? t('rbac.roleList.form.type.system') : t('rbac.roleList.form.type.custom');
+}
+
 function roleHasDeleteBlockingBindings(role: RoleStatusCompat) {
   return Number(role.permission_count ?? 0) > 0 || Number(role.user_count ?? 0) > 0;
+}
+
+function roleCanBeDeleted(role: RoleStatusCompat) {
+  return !role.builtin && !isRoleEnabled(role) && !roleHasDeleteBlockingBindings(role);
+}
+
+function roleDeleteAllowedLabel(role: RoleStatusCompat) {
+  return roleCanBeDeleted(role) ? t('rbac.roleList.form.deleteAllowed.yes') : t('rbac.roleList.form.deleteAllowed.no');
 }
 
 function roleDeleteLifecycleHint(role: RoleStatusCompat) {
@@ -1526,6 +1617,18 @@ async function removeRole(role: RoleStatusCompat) {
     }
 
     MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.deleteFailed')));
+  }
+}
+
+async function removeRoleFromDrawer() {
+  if (!roleDrawerRole.value) {
+    return;
+  }
+
+  const roleId = roleDrawerRole.value.id;
+  await removeRole(roleDrawerRole.value);
+  if (!roles.value.some((item) => item.id === roleId)) {
+    closeRoleDrawer();
   }
 }
 
