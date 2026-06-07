@@ -12,7 +12,10 @@ Overlay note:
 
 ## Active Topics
 
-- No active topics are currently indexed here.
+- [Dashboard Contribution](dashboard-contribution/README.md)
+  - Status: `in-progress`
+  - Branch: `feat/dashboard-contribution`
+  - Recovery: `ai-plan/public/dashboard-contribution/todos/dashboard-contribution-todos.md`
 
 ## Archive Location
 
