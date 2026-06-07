@@ -1590,8 +1590,8 @@ async function openEditDrawer(row: ScheduledTaskItem) {
     const detail = await getScheduledTask(row.key);
     editingTask.value = detail;
     syncTask(detail);
-    await ensureJobDefinitionLoaded(detail.job_key);
-    Object.assign(taskForm, taskToForm(detail));
+    const job = await ensureJobDefinitionLoaded(detail.job_key);
+    Object.assign(taskForm, taskToForm(detail, job ?? undefined));
   } catch (error) {
     logger.error(error instanceof Error ? error : 'load scheduled task edit detail failed', {
       taskKey: row.key,
@@ -1745,7 +1745,9 @@ async function confirmConfigDialog() {
     } as UpdateScheduledTaskRequest);
     syncTask(saved);
     editingTask.value = saved;
-    Object.assign(taskForm, taskToForm(saved));
+    const savedForm = taskToForm(saved, selectedJobDefinition.value ?? undefined);
+    taskForm.config = savedForm.config;
+    taskForm.configJson = savedForm.configJson;
     configDialogVisible.value = false;
     void MessagePlugin.success(t('scheduledTask.list.configDialog.saveSuccess'));
   } catch (error) {
@@ -1986,8 +1988,9 @@ function createEmptyTaskForm(): TaskFormModel {
   };
 }
 
-function taskToForm(task: ScheduledTaskItem): TaskFormModel {
+function taskToForm(task: ScheduledTaskItem, job?: ScheduledTaskJobDefinitionItem): TaskFormModel {
   const expression = normalizeCronForForm(task.schedule || DEFAULT_CRON_EXPRESSION);
+  const config = mergeConfigRecords(parseJsonRecord(job?.default_config_json), parseJsonRecord(task.config_json));
   return {
     taskKey: task.key,
     title: taskDisplayName(task),
@@ -1995,8 +1998,8 @@ function taskToForm(task: ScheduledTaskItem): TaskFormModel {
     cronExpression: expression,
     enabled: task.enabled,
     jobKey: task.job_key,
-    config: parseJsonRecord(task.config_json),
-    configJson: formatJsonPreview(task.config_json || ''),
+    config,
+    configJson: Object.keys(config).length > 0 ? JSON.stringify(config, null, 2) : '',
   };
 }
 

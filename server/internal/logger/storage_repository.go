@@ -329,6 +329,7 @@ func (r *appLogRepository) buildAppLogWhereClause(query AppLogListQuery) (string
 	appendAppLogKeywordFilter(&conditions, &args, r, query.Keyword)
 	appendAppLogOptionalTimeFilter(&conditions, &args, r, "occurred_at >=", query.OccurredFrom)
 	appendAppLogOptionalTimeFilter(&conditions, &args, r, "occurred_at <=", query.OccurredTo)
+	appendAppLogOptionalTimeFilter(&conditions, &args, r, "occurred_at <", query.OccurredBefore)
 
 	if len(conditions) == 0 {
 		return "", args

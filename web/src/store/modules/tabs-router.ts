@@ -119,6 +119,15 @@ function sortTabs(routes: TRouterInfo[]) {
   return [...homeRoutes, ...pinnedRoutes, ...normalRoutes];
 }
 
+function fallbackHomeTabs(pinnedKeys = readPinnedTabKeys()) {
+  return homeRoute.map((route) => normalizeRouteState(cloneTab(route), pinnedKeys));
+}
+
+function ensureNonEmptyTabs(routes: TRouterInfo[], pinnedKeys = readPinnedTabKeys()) {
+  const normalized = routes.map((route) => normalizeRouteState(route, pinnedKeys));
+  return sortTabs(normalized.length > 0 ? normalized : fallbackHomeTabs(pinnedKeys));
+}
+
 function createRouteRecordMatcher(router: Router) {
   const availableNames = new Set<RouteRecordName>();
   const availablePaths = new Set<string>();
@@ -193,16 +202,22 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     },
     healPersistedState() {
       this.isRefreshing = false;
-      this.tabRouterList = sortTabs(this.tabRouters.map((route) => normalizeRouteState(route)));
+      this.tabRouterList = ensureNonEmptyTabs(this.tabRouters);
+      if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
+        this.activeTabKey = getTabKey(this.tabRouterList[0]);
+      }
       this.clearSnapshotsForMissingTabs();
       this.syncPinnedTabsStorage();
     },
     healPersistedRoutes(router: Router) {
       const canKeepRoute = createRouteRecordMatcher(router);
       const pinnedKeys = readPinnedTabKeys();
-      const nextTabs = this.tabRouters.filter(canKeepRoute).map((route) => normalizeRouteState(route, pinnedKeys));
+      const nextTabs = this.tabRouters.filter(canKeepRoute);
 
-      this.tabRouterList = sortTabs(nextTabs.length > 0 ? nextTabs : homeRoute.map((route) => ({ ...route })));
+      this.tabRouterList = ensureNonEmptyTabs(nextTabs, pinnedKeys);
+      if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
+        this.activeTabKey = getTabKey(this.tabRouterList[0]);
+      }
       this.closedTabStack = this.closedTabStack.filter(canKeepRoute).slice(-MAX_CLOSED_TABS).map(cloneTab);
       this.clearSnapshotsForMissingTabs();
       this.syncPinnedTabsStorage();

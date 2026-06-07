@@ -401,6 +401,12 @@ func (r schedulerRouteRuntime) handleRunAction(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
+	schedulerGeneratedHandler{}.PostScheduledTaskAction(
+		key,
+		actionKey,
+		bindGeneratedTaskActionHeaders(ginCtx),
+		scheduleropenapi.PostScheduledTaskActionJSONRequestBody{},
+	)
 	requestConfig, ok := bindScheduledTaskActionConfig(ginCtx, r.ctx)
 	if !ok {
 		return
@@ -634,6 +640,11 @@ func bindGeneratedTaskRunHeaders(ginCtx *gin.Context) scheduleropenapi.PostSched
 	return scheduleropenapi.PostScheduledTaskRunParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+func bindGeneratedTaskActionHeaders(ginCtx *gin.Context) scheduleropenapi.PostScheduledTaskActionParams {
+	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
+	return scheduleropenapi.PostScheduledTaskActionParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
 func bindGeneratedTaskRunDetailHeaders(ginCtx *gin.Context) scheduleropenapi.GetScheduledTaskRunParams {
 	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
 	return scheduleropenapi.GetScheduledTaskRunParams{XGraftLocale: locale, XRequestId: requestID}
@@ -844,4 +855,16 @@ func (schedulerGeneratedHandler) GetScheduledTaskRun(runID uint64, params schedu
 func (schedulerGeneratedHandler) PostScheduledTaskRun(key string, params scheduleropenapi.PostScheduledTaskRunParams) {
 	_ = key
 	_ = params
+}
+
+func (schedulerGeneratedHandler) PostScheduledTaskAction(
+	taskKey string,
+	actionKey string,
+	params scheduleropenapi.PostScheduledTaskActionParams,
+	body scheduleropenapi.PostScheduledTaskActionJSONRequestBody,
+) {
+	_ = taskKey
+	_ = actionKey
+	_ = params
+	_ = body
 }

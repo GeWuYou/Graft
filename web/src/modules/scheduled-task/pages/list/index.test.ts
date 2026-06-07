@@ -678,6 +678,14 @@ async function openFirstTaskEditDrawer(wrapper: ReturnType<typeof mountPage>) {
   await flushPromises();
 }
 
+async function openTaskEditDrawerByRow(wrapper: ReturnType<typeof mountPage>, rowIndex: number) {
+  const operationCell = wrapper.find(`tbody tr:nth-child(${rowIndex}) td[data-col="operation"]`);
+  const editTrigger = operationCell.findAll('*').find((node) => node.text() === '编辑');
+  expect(editTrigger).toBeTruthy();
+  await editTrigger!.trigger('click');
+  await flushPromises();
+}
+
 async function openConfigDialog(wrapper: ReturnType<typeof mountPage>) {
   const configTrigger = findButtonByText(wrapper, '配置');
   expect(configTrigger).toBeTruthy();
@@ -829,6 +837,17 @@ describe('ScheduledTaskListPage', () => {
     expect(configSectionText).not.toContain('试运行');
   });
 
+  it('uses Job Definition default config when editing a task without task config', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await openTaskEditDrawerByRow(wrapper, 2);
+    await openConfigDialog(wrapper);
+
+    expect(wrapper.text()).toContain('"retentionDays": 30');
+    expect(wrapper.text()).toContain('"batchSize": 1000');
+  });
+
   it('renders schema config labels from x-title-key in the form surface', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -936,6 +955,31 @@ describe('ScheduledTaskListPage', () => {
     expect(apiMocks.updateScheduledTask).toHaveBeenLastCalledWith('httpx.access-log-retention-cleanup', {
       config_json: '{"retentionDays":45,"batchSize":250}',
     });
+  });
+
+  it('preserves in-drawer cron edits after saving config only', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await openFirstTaskEditDrawer(wrapper);
+    await wrapper.get('[data-testid="cron-editor-input"]').setValue('*/10 * * * *');
+    await openConfigDialog(wrapper);
+    await findButtonByText(wrapper, '编辑 JSON')!.trigger('click');
+    await nextTick();
+    await wrapper.get('[data-testid="config-json-textarea"]').setValue('{"retentionDays":45,"batchSize":250}');
+
+    await findButtonByText(wrapper, '保存配置')!.trigger('click');
+    await flushPromises();
+    await findButtonByText(wrapper, '保存')!.trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.updateScheduledTask).toHaveBeenLastCalledWith(
+      'httpx.access-log-retention-cleanup',
+      expect.objectContaining({
+        cron_expression: '0 */10 * * * *',
+        config_json: '{"retentionDays":45,"batchSize":250}',
+      }),
+    );
   });
 
   it('closes the action result dialog from the visible confirm button and clears the result state', async () => {

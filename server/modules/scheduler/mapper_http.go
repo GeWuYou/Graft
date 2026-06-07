@@ -129,6 +129,7 @@ func toScheduledTaskLastRun(run schedulercore.TaskRun) generated.ScheduledTaskLa
 		FinishedAt:    run.FinishedAt,
 		DurationMs:    run.DurationMS,
 		ErrorSummary:  stringPointer(run.Error),
+		ResultJson:    stringPointer(run.ResultJSON),
 		ResultSummary: stringPointer(run.Result),
 	}
 }
@@ -173,16 +174,22 @@ func toScheduledTaskRunItem(run schedulercore.TaskRun) generated.ScheduledTaskRu
 }
 
 func toScheduledTaskActionResult(result schedulercore.JobActionResult) generated.ScheduledTaskActionResult {
-	resultJSON, err := json.Marshal(result.Result)
+	safeResult := result.Result
+	resultJSON, err := json.Marshal(safeResult)
 	if err != nil {
-		resultJSON = []byte(`{"summary":"serialization failed","stage":"failed","warnings":["job action result serialization failed"]}`)
+		safeResult = cronx.JobRunResult{
+			Summary:  "job action result serialization failed",
+			Stage:    "failed",
+			Warnings: []string{"job action result serialization failed"},
+		}
+		resultJSON, _ = json.Marshal(safeResult)
 	}
 	return generated.ScheduledTaskActionResult{
 		ActionKey:       strings.TrimSpace(result.ActionKey),
 		TaskKey:         strings.TrimSpace(result.TaskKey),
 		JobKey:          strings.TrimSpace(result.JobKey),
 		ResultJson:      string(resultJSON),
-		Result:          toJobRunResult(result.Result),
+		Result:          toJobRunResult(safeResult),
 		EffectiveConfig: stringPointer(result.EffectiveConfig),
 	}
 }

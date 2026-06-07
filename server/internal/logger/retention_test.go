@@ -15,15 +15,16 @@ import (
 )
 
 type appLogRetentionRepoRecorder struct {
-	mu      sync.Mutex
-	created []CreateAppLogInput
-	cutoffs []time.Time
-	limits  []int
-	deleted int64
-	matched int64
-	total   int64
-	err     error
-	listErr error
+	mu          sync.Mutex
+	created     []CreateAppLogInput
+	cutoffs     []time.Time
+	limits      []int
+	deleted     int64
+	matched     int64
+	total       int64
+	err         error
+	listErr     error
+	listQueries []AppLogListQuery
 }
 
 func (r *appLogRetentionRepoRecorder) CreateAppLog(_ context.Context, input CreateAppLogInput) (AppLogRecord, error) {
@@ -55,11 +56,14 @@ func (r *appLogRetentionRepoRecorder) DeleteAppLogsBeforeLimit(_ context.Context
 }
 
 func (r *appLogRetentionRepoRecorder) ListAppLogs(_ context.Context, query AppLogListQuery) (AppLogListResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.listQueries = append(r.listQueries, query)
 	if r.listErr != nil {
 		return AppLogListResult{}, r.listErr
 	}
 	total := r.total
-	if query.OccurredTo != nil {
+	if query.OccurredBefore != nil {
 		total = r.matched
 	}
 	return AppLogListResult{Total: total, Page: query.Page, PageSize: query.PageSize}, nil
@@ -165,8 +169,10 @@ func TestAppLogRetentionCleanerReturnsDeleteError(t *testing.T) {
 
 	if result, err := cleaner.cleanup(context.Background(), appLogRetentionJobConfig{BatchSize: 1000}); err == nil {
 		t.Fatal("expected cleanup error")
-	} else if result.Stage != "failed" || len(result.Warnings) == 0 {
+	} else if result.Stage != "failed" || result.Summary != appLogRetentionFailureSummary || len(result.Warnings) == 0 {
 		t.Fatalf("expected failed structured result, got %#v", result)
+	} else if strings.Contains(result.Summary, "boom") || strings.Contains(result.Warnings[0], "boom") {
+		t.Fatalf("expected failure result to hide raw error, got %#v", result)
 	}
 
 	record := waitRetentionAppLogRecord(t, repo, "scheduler job failed")
@@ -256,6 +262,33 @@ func assertAppLogRetentionDryRunAction(t *testing.T, repo *appLogRetentionRepoRe
 	defer repo.mu.Unlock()
 	if len(repo.cutoffs) != 0 {
 		t.Fatalf("expected dryRun action to skip deletion, got cutoffs %#v", repo.cutoffs)
+	}
+	if len(repo.listQueries) != 2 || repo.listQueries[0].OccurredBefore == nil || repo.listQueries[0].OccurredTo != nil {
+		t.Fatalf("expected dryRun estimate to use exclusive cutoff query, got %#v", repo.listQueries)
+	}
+}
+
+func TestAppLogRetentionDryRunClampsEstimatedDeleteCountToBatchSize(t *testing.T) {
+	repo := &appLogRetentionRepoRecorder{matched: 12, total: 20}
+	cleaner, err := newAppLogRetentionCleaner(
+		zap.NewNop(),
+		nil,
+		repo,
+		config.LogConfig{AppLogRetention: 7 * 24 * time.Hour},
+	)
+	if err != nil {
+		t.Fatalf("new cleaner: %v", err)
+	}
+	cleaner.now = func() time.Time {
+		return time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
+	}
+
+	result, err := cleaner.estimate(context.Background(), appLogRetentionJobConfig{RetentionDays: 7, BatchSize: 5})
+	if err != nil {
+		t.Fatalf("estimate: %v", err)
+	}
+	if result.Metrics["estimatedScanCount"] != int64(12) || result.Metrics["estimatedDeleteCount"] != int64(5) {
+		t.Fatalf("expected clamped delete estimate with full scan count, got %#v", result.Metrics)
 	}
 }
 

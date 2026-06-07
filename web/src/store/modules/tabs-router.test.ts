@@ -76,6 +76,35 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(true);
   });
 
+  it('heals an empty persisted tab list back to home', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.setActiveTabKey('/missing');
+    tabsRouterStore.removeTabRouterList();
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/']);
+    expect(tabsRouterStore.activeTabKey).toBe('/');
+  });
+
+  it('resets the active tab after route healing removes stale tabs', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    const router = {
+      getRoutes: () => [{ name: 'RootEntry', path: '/' }],
+    };
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/removed',
+      path: '/removed',
+      name: 'RemovedRoute',
+    });
+    tabsRouterStore.setActiveTabKey('/removed');
+    tabsRouterStore.healPersistedRoutes(router as never);
+
+    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/']);
+    expect(tabsRouterStore.activeTabKey).toBe('/');
+  });
+
   it('pins tabs, keeps pinned tabs before normal tabs, and persists pinned keys', () => {
     const tabsRouterStore = useTabsRouterStore();
 

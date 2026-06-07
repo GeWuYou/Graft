@@ -200,7 +200,9 @@ type AppLogListQuery struct {
 	Keyword      string
 	OccurredFrom *time.Time
 	OccurredTo   *time.Time
-	Sorters      []AppLogSorter
+	// OccurredBefore is an internal exclusive upper bound used by retention cleanup estimates.
+	OccurredBefore *time.Time
+	Sorters        []AppLogSorter
 }
 
 // AppLogListResult carries a paginated logger-owned App Log query result.
