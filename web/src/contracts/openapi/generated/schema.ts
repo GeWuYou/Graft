@@ -1235,6 +1235,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/dashboard/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read dashboard summary
+     * @description Returns the fixed dashboard system summary and module-contributed widgets visible to the current user.
+     */
+    get: operations['getDashboardSummary'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/dashboard/widgets/{widget_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read dashboard widget
+     * @description Returns one visible dashboard widget by id for focused refresh and retry flows.
+     */
+    get: operations['getDashboardWidget'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1349,6 +1389,24 @@ export interface components {
     AppLogListResponse: components['schemas']['app-log-list-response'];
     EnvelopedAppLogListResponse: components['schemas']['enveloped-app-log-list-response'];
     EnvelopedAppLogDetailResponse: components['schemas']['enveloped-app-log-detail-response'];
+    DashboardCurrentUserSummary: components['schemas']['dashboard-current-user-summary'];
+    DashboardLocaleSummary: components['schemas']['dashboard-locale-summary'];
+    DashboardModuleSummary: components['schemas']['dashboard-module-summary'];
+    DashboardSystemSummary: components['schemas']['dashboard-system-summary'];
+    DashboardWidgetType: components['schemas']['dashboard-widget-type'];
+    DashboardWidgetSize: components['schemas']['dashboard-widget-size'];
+    DashboardWidgetStatus: components['schemas']['dashboard-widget-status'];
+    DashboardWidgetError: components['schemas']['dashboard-widget-error'];
+    DashboardWidget: components['schemas']['dashboard-widget'];
+    DashboardSummaryResponse: components['schemas']['dashboard-summary-response'];
+    DashboardStatGroupPayload: components['schemas']['dashboard-stat-group-payload'];
+    DashboardAlertListPayload: components['schemas']['dashboard-alert-list-payload'];
+    DashboardLinkListPayload: components['schemas']['dashboard-link-list-payload'];
+    DashboardTimelinePayload: components['schemas']['dashboard-timeline-payload'];
+    DashboardHealthStatus: components['schemas']['dashboard-health-status'];
+    DashboardHealthPayload: components['schemas']['dashboard-health-payload'];
+    EnvelopedDashboardSummaryResponse: components['schemas']['enveloped-dashboard-summary-response'];
+    EnvelopedDashboardWidget: components['schemas']['enveloped-dashboard-widget'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -2551,8 +2609,11 @@ export interface components {
       masked: boolean;
       /** @description Stable display placeholder for masked sensitive values. */
       masked_placeholder?: string | null;
+      /** @description Whether changing this config requires a service restart before it takes effect. */
       restart_required: boolean;
+      /** @description Permission code required to update this config item when the definition declares one. */
       permission?: string;
+      /** @description Module-declared display order within the config group. */
       order?: number;
     };
     'system-config-list-response': {
@@ -2636,6 +2697,145 @@ export interface components {
     };
     'enveloped-app-log-detail-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['app-log-detail-response'];
+    };
+    'dashboard-current-user-summary': {
+      username: string;
+      display_name: string;
+    };
+    'dashboard-locale-summary': {
+      default_locale: string;
+      fallback_locale: string;
+    };
+    'dashboard-module-summary': {
+      total_modules: number;
+      enabled_modules: number;
+      degraded_modules: number;
+    };
+    'dashboard-system-summary': {
+      current_user: components['schemas']['dashboard-current-user-summary'];
+      app_env: string;
+      locale: components['schemas']['dashboard-locale-summary'];
+      modules: components['schemas']['dashboard-module-summary'];
+      visible_widgets: number;
+    };
+    /** @enum {string} */
+    'dashboard-widget-type': 'stat-group' | 'alert-list' | 'link-list' | 'timeline' | 'health';
+    /** @enum {string} */
+    'dashboard-widget-size': 'small' | 'medium' | 'large' | 'full';
+    /** @enum {string} */
+    'dashboard-widget-status': 'normal' | 'warning' | 'error' | 'disabled';
+    'dashboard-widget-error': {
+      code: string;
+      message_key?: string;
+      message?: string;
+    };
+    'dashboard-widget': {
+      id: string;
+      module_key: string;
+      title_key?: string;
+      title?: string;
+      description_key?: string;
+      description?: string;
+      type: components['schemas']['dashboard-widget-type'];
+      size: components['schemas']['dashboard-widget-size'];
+      order: number;
+      refresh_interval_seconds?: number;
+      route_location?: string;
+      required_permissions?: string[];
+      status?: components['schemas']['dashboard-widget-status'];
+      error?: components['schemas']['dashboard-widget-error'];
+      payload: {
+        [key: string]: unknown;
+      };
+    };
+    'dashboard-summary-response': {
+      system_summary: components['schemas']['dashboard-system-summary'];
+      widgets: components['schemas']['dashboard-widget'][];
+    };
+    'enveloped-dashboard-summary-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['dashboard-summary-response'];
+    };
+    'enveloped-dashboard-widget': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['dashboard-widget'];
+    };
+    'dashboard-stat-group-payload': {
+      items: {
+        key: string;
+        label_key: string;
+        label: string;
+        value: string;
+        unit_key?: string;
+        unit?: string;
+        description_key?: string;
+        description?: string;
+        /** @enum {string} */
+        tone?: 'normal' | 'success' | 'warning' | 'error' | 'info';
+        route_location?: string;
+      }[];
+    };
+    'dashboard-alert-list-payload': {
+      items: {
+        id: string;
+        /** @enum {string} */
+        level: 'info' | 'warning' | 'error';
+        title_key: string;
+        title: string;
+        description_key?: string;
+        description?: string;
+        /** Format: date-time */
+        occurred_at?: string;
+        route_location?: string;
+      }[];
+      empty_key?: string;
+      empty?: string;
+    };
+    'dashboard-link-list-payload': {
+      items: {
+        key: string;
+        label_key: string;
+        label: string;
+        description_key?: string;
+        description?: string;
+        route_location: string;
+        icon?: string;
+        badge_key?: string;
+        badge?: string;
+        disabled?: boolean;
+      }[];
+    };
+    'dashboard-timeline-payload': {
+      items: {
+        id: string;
+        title_key: string;
+        title: string;
+        description_key?: string;
+        description?: string;
+        /** Format: date-time */
+        occurred_at: string;
+        /** @enum {string} */
+        status?: 'normal' | 'success' | 'warning' | 'error';
+        route_location?: string;
+      }[];
+      empty_key?: string;
+      empty?: string;
+    };
+    /** @enum {string} */
+    'dashboard-health-status': 'healthy' | 'degraded' | 'disabled' | 'unknown';
+    'dashboard-health-payload': {
+      summary: {
+        status: components['schemas']['dashboard-health-status'];
+        label_key?: string;
+        label?: string;
+      };
+      items: {
+        key: string;
+        label_key: string;
+        label: string;
+        status: components['schemas']['dashboard-health-status'];
+        description_key?: string;
+        description?: string;
+        route_location?: string;
+      }[];
     };
   };
   responses: {
@@ -6074,6 +6274,80 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description App log not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDashboardSummary: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Dashboard summary. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-dashboard-summary-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getDashboardWidget: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        widget_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Dashboard widget. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-dashboard-widget'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      /** @description Dashboard widget was not found or is not visible to the current user. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

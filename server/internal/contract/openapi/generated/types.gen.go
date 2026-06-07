@@ -618,6 +618,81 @@ func (e AuditTargetKind) Valid() bool {
 	}
 }
 
+// Defines values for DashboardWidgetSize.
+const (
+	Full   DashboardWidgetSize = "full"
+	Large  DashboardWidgetSize = "large"
+	Medium DashboardWidgetSize = "medium"
+	Small  DashboardWidgetSize = "small"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetSize enum.
+func (e DashboardWidgetSize) Valid() bool {
+	switch e {
+	case Full:
+		return true
+	case Large:
+		return true
+	case Medium:
+		return true
+	case Small:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetStatus.
+const (
+	DashboardWidgetStatusDisabled DashboardWidgetStatus = "disabled"
+	DashboardWidgetStatusError    DashboardWidgetStatus = "error"
+	DashboardWidgetStatusNormal   DashboardWidgetStatus = "normal"
+	DashboardWidgetStatusWarning  DashboardWidgetStatus = "warning"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetStatus enum.
+func (e DashboardWidgetStatus) Valid() bool {
+	switch e {
+	case DashboardWidgetStatusDisabled:
+		return true
+	case DashboardWidgetStatusError:
+		return true
+	case DashboardWidgetStatusNormal:
+		return true
+	case DashboardWidgetStatusWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetType.
+const (
+	AlertList DashboardWidgetType = "alert-list"
+	Health    DashboardWidgetType = "health"
+	LinkList  DashboardWidgetType = "link-list"
+	StatGroup DashboardWidgetType = "stat-group"
+	Timeline  DashboardWidgetType = "timeline"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetType enum.
+func (e DashboardWidgetType) Valid() bool {
+	switch e {
+	case AlertList:
+		return true
+	case Health:
+		return true
+	case LinkList:
+		return true
+	case StatGroup:
+		return true
+	case Timeline:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EnvelopedAuditOverviewResponseSuccess.
 const (
 	True EnvelopedAuditOverviewResponseSuccess = true
@@ -1277,22 +1352,22 @@ func (e GetAccessLogsParamsStatusGroup) Valid() bool {
 
 // Defines values for GetAppLogsParamsSeverity.
 const (
-	GetAppLogsParamsSeverityDebug GetAppLogsParamsSeverity = "debug"
-	GetAppLogsParamsSeverityError GetAppLogsParamsSeverity = "error"
-	GetAppLogsParamsSeverityInfo  GetAppLogsParamsSeverity = "info"
-	GetAppLogsParamsSeverityWarn  GetAppLogsParamsSeverity = "warn"
+	Debug GetAppLogsParamsSeverity = "debug"
+	Error GetAppLogsParamsSeverity = "error"
+	Info  GetAppLogsParamsSeverity = "info"
+	Warn  GetAppLogsParamsSeverity = "warn"
 )
 
 // Valid indicates whether the value is a known member of the GetAppLogsParamsSeverity enum.
 func (e GetAppLogsParamsSeverity) Valid() bool {
 	switch e {
-	case GetAppLogsParamsSeverityDebug:
+	case Debug:
 		return true
-	case GetAppLogsParamsSeverityError:
+	case Error:
 		return true
-	case GetAppLogsParamsSeverityInfo:
+	case Info:
 		return true
-	case GetAppLogsParamsSeverityWarn:
+	case Warn:
 		return true
 	default:
 		return false
@@ -2006,6 +2081,75 @@ type CreateUserRequest struct {
 	Username string `json:"username"`
 }
 
+// DashboardCurrentUserSummary defines model for dashboard-current-user-summary.
+type DashboardCurrentUserSummary struct {
+	DisplayName string `json:"display_name"`
+	Username    string `json:"username"`
+}
+
+// DashboardLocaleSummary defines model for dashboard-locale-summary.
+type DashboardLocaleSummary struct {
+	DefaultLocale  string `json:"default_locale"`
+	FallbackLocale string `json:"fallback_locale"`
+}
+
+// DashboardModuleSummary defines model for dashboard-module-summary.
+type DashboardModuleSummary struct {
+	DegradedModules int `json:"degraded_modules"`
+	EnabledModules  int `json:"enabled_modules"`
+	TotalModules    int `json:"total_modules"`
+}
+
+// DashboardSummaryResponse defines model for dashboard-summary-response.
+type DashboardSummaryResponse struct {
+	SystemSummary DashboardSystemSummary `json:"system_summary"`
+	Widgets       []DashboardWidget      `json:"widgets"`
+}
+
+// DashboardSystemSummary defines model for dashboard-system-summary.
+type DashboardSystemSummary struct {
+	AppEnv         string                      `json:"app_env"`
+	CurrentUser    DashboardCurrentUserSummary `json:"current_user"`
+	Locale         DashboardLocaleSummary      `json:"locale"`
+	Modules        DashboardModuleSummary      `json:"modules"`
+	VisibleWidgets int                         `json:"visible_widgets"`
+}
+
+// DashboardWidget defines model for dashboard-widget.
+type DashboardWidget struct {
+	Description            *string                `json:"description,omitempty"`
+	DescriptionKey         *string                `json:"description_key,omitempty"`
+	Error                  *DashboardWidgetError  `json:"error,omitempty"`
+	Id                     string                 `json:"id"`
+	ModuleKey              string                 `json:"module_key"`
+	Order                  int                    `json:"order"`
+	Payload                map[string]interface{} `json:"payload"`
+	RefreshIntervalSeconds *int                   `json:"refresh_interval_seconds,omitempty"`
+	RequiredPermissions    *[]string              `json:"required_permissions,omitempty"`
+	RouteLocation          *string                `json:"route_location,omitempty"`
+	Size                   DashboardWidgetSize    `json:"size"`
+	Status                 *DashboardWidgetStatus `json:"status,omitempty"`
+	Title                  *string                `json:"title,omitempty"`
+	TitleKey               *string                `json:"title_key,omitempty"`
+	Type                   DashboardWidgetType    `json:"type"`
+}
+
+// DashboardWidgetError defines model for dashboard-widget-error.
+type DashboardWidgetError struct {
+	Code       string  `json:"code"`
+	Message    *string `json:"message,omitempty"`
+	MessageKey *string `json:"message_key,omitempty"`
+}
+
+// DashboardWidgetSize defines model for dashboard-widget-size.
+type DashboardWidgetSize string
+
+// DashboardWidgetStatus defines model for dashboard-widget-status.
+type DashboardWidgetStatus string
+
+// DashboardWidgetType defines model for dashboard-widget-type.
+type DashboardWidgetType string
+
 // DrilldownScopeProjection defines model for drilldown-scope-projection.
 type DrilldownScopeProjection struct {
 	Description *string                         `json:"description,omitempty"`
@@ -2156,6 +2300,46 @@ type EnvelopedBootstrapResponse struct {
 	// Code Existing canonical response code.
 	Code string            `json:"code"`
 	Data BootstrapResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDashboardSummaryResponse defines model for enveloped-dashboard-summary-response.
+type EnvelopedDashboardSummaryResponse struct {
+	// Code Existing canonical response code.
+	Code string                   `json:"code"`
+	Data DashboardSummaryResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDashboardWidget defines model for enveloped-dashboard-widget.
+type EnvelopedDashboardWidget struct {
+	// Code Existing canonical response code.
+	Code string          `json:"code"`
+	Data DashboardWidget `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -3747,6 +3931,26 @@ type PostAuthSessionsRevokeOthersParams struct {
 
 // PostAuthSessionRevokeParams defines parameters for PostAuthSessionRevoke.
 type PostAuthSessionRevokeParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetDashboardSummaryParams defines parameters for GetDashboardSummary.
+type GetDashboardSummaryParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetDashboardWidgetParams defines parameters for GetDashboardWidget.
+type GetDashboardWidgetParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

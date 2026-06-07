@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -198,6 +199,7 @@ type Context struct {
 	PermissionRegistry *permission.Registry
 	CronRegistry       *cronx.Registry
 	ConfigRegistry     *configregistry.Registry
+	DashboardRegistry  *dashboard.Registry
 }
 
 // Manager 负责维护模块集合并按依赖关系排序。

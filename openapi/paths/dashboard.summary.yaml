@@ -1,0 +1,24 @@
+get:
+  tags: [dashboard]
+  summary: Read dashboard summary
+  operationId: getDashboardSummary
+  description: Returns the fixed dashboard system summary and module-contributed widgets visible to the current user.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Dashboard summary.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-dashboard-summary-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

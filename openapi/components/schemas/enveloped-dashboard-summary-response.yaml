@@ -1,0 +1,6 @@
+allOf:
+  - $ref: ./api-envelope.yaml
+  - type: object
+    properties:
+      data:
+        $ref: ./dashboard-summary-response.yaml

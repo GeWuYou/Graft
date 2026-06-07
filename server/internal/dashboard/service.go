@@ -1,0 +1,372 @@
+package dashboard
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"runtime/debug"
+	"strings"
+	"time"
+
+	"go.uber.org/zap"
+
+	"graft/server/internal/config"
+	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/logger"
+	"graft/server/internal/moduleapi"
+)
+
+const (
+	operationWidgetLoad = "dashboard_widget_load"
+	errorCodeLoadFailed = "DASHBOARD_WIDGET_LOAD_FAILED"
+	errorCodePanic      = "DASHBOARD_WIDGET_PANIC"
+	errorCodeTimeout    = "DASHBOARD_WIDGET_TIMEOUT"
+)
+
+// ModuleRuntimeSummaryProvider returns the current module runtime summary.
+type ModuleRuntimeSummaryProvider func() generated.ModuleRuntimeSummary
+
+// Service aggregates fixed system summary and visible widget payloads.
+type Service struct {
+	config               *config.Config
+	registry             *Registry
+	authorizer           moduleapi.Authorizer
+	logger               logger.AppLogger
+	moduleRuntimeSummary ModuleRuntimeSummaryProvider
+}
+
+// ServiceOptions contains dependencies for dashboard aggregation.
+type ServiceOptions struct {
+	Config               *config.Config
+	Registry             *Registry
+	Authorizer           moduleapi.Authorizer
+	Logger               logger.AppLogger
+	ModuleRuntimeSummary ModuleRuntimeSummaryProvider
+}
+
+// NewService creates a dashboard aggregation service.
+func NewService(options ServiceOptions) *Service {
+	appLogger := options.Logger
+	if appLogger == nil {
+		appLogger = logger.NewAppLogger(zap.NewNop())
+	}
+
+	return &Service{
+		config:               options.Config,
+		registry:             options.Registry,
+		authorizer:           options.Authorizer,
+		logger:               appLogger.Named("internal.dashboard"),
+		moduleRuntimeSummary: options.ModuleRuntimeSummary,
+	}
+}
+
+// Summary returns the dashboard system summary and all visible widgets.
+func (s *Service) Summary(ctx context.Context, requestAuth moduleapi.RequestAuthContext) generated.DashboardSummaryResponse {
+	widgets := s.visibleWidgets(ctx, requestAuth, s.registry.Items())
+	return generated.DashboardSummaryResponse{
+		SystemSummary: s.systemSummary(requestAuth, len(widgets)),
+		Widgets:       widgets,
+	}
+}
+
+// Widget returns one visible widget by id.
+func (s *Service) Widget(ctx context.Context, requestAuth moduleapi.RequestAuthContext, id string) (generated.DashboardWidget, bool) {
+	definition, ok := s.registry.Get(id)
+	if !ok || !s.canReadWidget(ctx, requestAuth, definition) {
+		return generated.DashboardWidget{}, false
+	}
+	return s.loadWidget(ctx, requestAuth, definition), true
+}
+
+func (s *Service) visibleWidgets(
+	ctx context.Context,
+	requestAuth moduleapi.RequestAuthContext,
+	definitions []WidgetDefinition,
+) []generated.DashboardWidget {
+	widgets := make([]generated.DashboardWidget, 0, len(definitions))
+	for _, definition := range definitions {
+		if !s.canReadWidget(ctx, requestAuth, definition) {
+			continue
+		}
+		widgets = append(widgets, s.loadWidget(ctx, requestAuth, definition))
+	}
+	return widgets
+}
+
+func (s *Service) canReadWidget(
+	ctx context.Context,
+	requestAuth moduleapi.RequestAuthContext,
+	definition WidgetDefinition,
+) bool {
+	if len(definition.RequiredPermissions) == 0 {
+		return true
+	}
+	if s.authorizer == nil {
+		return false
+	}
+	for _, permission := range definition.RequiredPermissions {
+		if err := s.authorizer.Authorize(ctx, requestAuth, permission); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *Service) loadWidget(
+	ctx context.Context,
+	requestAuth moduleapi.RequestAuthContext,
+	definition WidgetDefinition,
+) generated.DashboardWidget {
+	started := time.Now()
+	timeout := definition.LoaderTimeout
+	if timeout == 0 {
+		timeout = defaultLoaderTimeout
+	}
+
+	loadCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	payload, loadError := s.safeLoad(loadCtx, requestAuth, definition)
+	duration := time.Since(started)
+	if loadError != nil {
+		s.logLoadError(ctx, definition, duration, loadError)
+		return widgetFromDefinition(definition, nil, WidgetStatusError, widgetErrorFromError(loadError))
+	}
+
+	s.logLoadSuccess(ctx, definition, duration)
+	return widgetFromDefinition(definition, payload, WidgetStatusNormal, nil)
+}
+
+func (s *Service) safeLoad(
+	ctx context.Context,
+	requestAuth moduleapi.RequestAuthContext,
+	definition WidgetDefinition,
+) (WidgetPayload, error) {
+	resultCh := make(chan loadResult, 1)
+	go func() {
+		payload, err := invokeLoader(ctx, requestAuth, definition)
+		resultCh <- loadResult{payload: payload, err: err}
+	}()
+
+	select {
+	case result := <-resultCh:
+		return result.payload, result.err
+	case <-ctx.Done():
+		return nil, widgetLoadError{code: errorCodeTimeout, message: context.DeadlineExceeded.Error(), timeout: true}
+	}
+}
+
+func invokeLoader(
+	ctx context.Context,
+	requestAuth moduleapi.RequestAuthContext,
+	definition WidgetDefinition,
+) (payload WidgetPayload, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = widgetLoadError{
+				code:    errorCodePanic,
+				message: fmt.Sprintf("dashboard widget loader panic: %v", recovered),
+				panic:   true,
+			}
+		}
+	}()
+
+	payload, err = definition.Loader.Load(ctx, WidgetRequest{
+		WidgetID:    definition.ID,
+		ModuleKey:   definition.ModuleKey,
+		Type:        definition.Type,
+		RequestAuth: requestAuth,
+	})
+	if err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return nil, widgetLoadError{code: errorCodeTimeout, message: err.Error(), timeout: true}
+		}
+		return nil, widgetLoadError{code: errorCodeLoadFailed, message: err.Error()}
+	}
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil, widgetLoadError{code: errorCodeTimeout, message: context.DeadlineExceeded.Error(), timeout: true}
+	}
+	if payload == nil {
+		payload = WidgetPayload{}
+	}
+	return payload, nil
+}
+
+type loadResult struct {
+	payload WidgetPayload
+	err     error
+}
+
+func (s *Service) systemSummary(
+	requestAuth moduleapi.RequestAuthContext,
+	visibleWidgets int,
+) generated.DashboardSystemSummary {
+	var user generated.DashboardCurrentUserSummary
+	if requestAuth.User != nil {
+		user = generated.DashboardCurrentUserSummary{
+			DisplayName: requestAuth.User.DisplayName,
+			Username:    requestAuth.User.Username,
+		}
+	}
+
+	appEnv := ""
+	defaultLocale := ""
+	fallbackLocale := ""
+	if s.config != nil {
+		appEnv = strings.TrimSpace(s.config.App.Env)
+		defaultLocale = strings.TrimSpace(s.config.I18n.DefaultLocale)
+		fallbackLocale = strings.TrimSpace(s.config.I18n.FallbackLocale)
+	}
+
+	moduleSummary := generated.DashboardModuleSummary{}
+	if s.moduleRuntimeSummary != nil {
+		summary := s.moduleRuntimeSummary()
+		moduleSummary = generated.DashboardModuleSummary{
+			DegradedModules: summary.DegradedModules,
+			EnabledModules:  summary.EnabledModules,
+			TotalModules:    summary.TotalModules,
+		}
+	}
+
+	return generated.DashboardSystemSummary{
+		AppEnv:      appEnv,
+		CurrentUser: user,
+		Locale: generated.DashboardLocaleSummary{
+			DefaultLocale:  defaultLocale,
+			FallbackLocale: fallbackLocale,
+		},
+		Modules:        moduleSummary,
+		VisibleWidgets: visibleWidgets,
+	}
+}
+
+func widgetFromDefinition(
+	definition WidgetDefinition,
+	payload WidgetPayload,
+	status WidgetStatus,
+	widgetError *generated.DashboardWidgetError,
+) generated.DashboardWidget {
+	widget := generated.DashboardWidget{
+		Id:        definition.ID,
+		ModuleKey: definition.ModuleKey,
+		Order:     definition.Order,
+		Payload:   payloadMap(payload),
+		Size:      generated.DashboardWidgetSize(definition.Size),
+		Status:    ptr(generated.DashboardWidgetStatus(status)),
+		Type:      generated.DashboardWidgetType(definition.Type),
+	}
+	if len(definition.RequiredPermissions) > 0 {
+		widget.RequiredPermissions = ptr(append([]string(nil), definition.RequiredPermissions...))
+	}
+	if definition.TitleKey != "" {
+		widget.TitleKey = &definition.TitleKey
+	}
+	if definition.Title != "" {
+		widget.Title = &definition.Title
+	}
+	if definition.DescriptionKey != "" {
+		widget.DescriptionKey = &definition.DescriptionKey
+	}
+	if definition.Description != "" {
+		widget.Description = &definition.Description
+	}
+	if definition.RefreshInterval > 0 {
+		seconds := int(definition.RefreshInterval / time.Second)
+		widget.RefreshIntervalSeconds = &seconds
+	}
+	if definition.RouteLocation != "" {
+		widget.RouteLocation = &definition.RouteLocation
+	}
+	if widgetError != nil {
+		widget.Error = widgetError
+	}
+	return widget
+}
+
+func payloadMap(payload WidgetPayload) map[string]interface{} {
+	if payload == nil {
+		return map[string]interface{}{}
+	}
+	result := make(map[string]interface{}, len(payload))
+	for key, value := range payload {
+		result[key] = value
+	}
+	return result
+}
+
+func widgetErrorFromError(err error) *generated.DashboardWidgetError {
+	loadErr := widgetLoadError{}
+	if errors.As(err, &loadErr) {
+		return &generated.DashboardWidgetError{
+			Code:    loadErr.code,
+			Message: ptr(loadErr.message),
+		}
+	}
+	return &generated.DashboardWidgetError{
+		Code:    errorCodeLoadFailed,
+		Message: ptr(err.Error()),
+	}
+}
+
+func (s *Service) logLoadSuccess(ctx context.Context, definition WidgetDefinition, duration time.Duration) {
+	s.logger.Debug(ctx, "dashboard widget loaded",
+		logger.StringField(logger.FieldOperation, operationWidgetLoad),
+		logger.StringField("widget_id", definition.ID),
+		logger.StringField("module_key", definition.ModuleKey),
+		logger.StringField("widget_type", string(definition.Type)),
+		logger.Int64Field("duration_ms", duration.Milliseconds()),
+	)
+}
+
+func (s *Service) logLoadError(
+	ctx context.Context,
+	definition WidgetDefinition,
+	duration time.Duration,
+	err error,
+) {
+	loadErr := widgetLoadError{}
+	_ = errors.As(err, &loadErr)
+
+	fields := []logger.Field{
+		logger.StringField(logger.FieldOperation, operationWidgetLoad),
+		logger.StringField("widget_id", definition.ID),
+		logger.StringField("module_key", definition.ModuleKey),
+		logger.StringField("widget_type", string(definition.Type)),
+		logger.Int64Field("duration_ms", duration.Milliseconds()),
+		logger.BoolField("timeout", loadErr.timeout),
+		logger.BoolField("panic", loadErr.panic),
+		logger.ErrorField(err),
+	}
+	if requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx); ok && requestAuth.User != nil {
+		fields = append(fields, logger.Uint64Field("user_id", requestAuth.User.ID))
+	}
+	if loadErr.panic {
+		fields = append(fields, logger.StringField("stack", string(debug.Stack())))
+	}
+
+	s.logger.Error(ctx, "dashboard widget load failed", fields...)
+}
+
+type widgetLoadError struct {
+	code    string
+	message string
+	timeout bool
+	panic   bool
+}
+
+func (e widgetLoadError) Error() string {
+	if e.message != "" {
+		return e.message
+	}
+	return e.code
+}
+
+func ptr[T any](value T) *T {
+	return &value
+}
+
+// RequestAuthFromContext returns the current request auth context or an empty value.
+func RequestAuthFromContext(ctx context.Context) moduleapi.RequestAuthContext {
+	requestAuth, _ := moduleapi.RequestAuthContextFromContext(ctx)
+	return requestAuth
+}

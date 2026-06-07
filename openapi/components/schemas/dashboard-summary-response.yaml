@@ -1,0 +1,9 @@
+type: object
+required: [system_summary, widgets]
+properties:
+  system_summary:
+    $ref: ./dashboard-system-summary.yaml
+  widgets:
+    type: array
+    items:
+      $ref: ./dashboard-widget.yaml

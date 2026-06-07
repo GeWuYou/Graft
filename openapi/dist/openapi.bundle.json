@@ -48,6 +48,9 @@
     },
     {
       "name": "app-log"
+    },
+    {
+      "name": "dashboard"
     }
   ],
   "paths": {
@@ -6990,6 +6993,122 @@
           }
         }
       }
+    },
+    "/api/dashboard/summary": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Read dashboard summary",
+        "operationId": "getDashboardSummary",
+        "description": "Returns the fixed dashboard system summary and module-contributed widgets visible to the current user.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard summary.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-dashboard-summary-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/dashboard/widgets/{widget_id}": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Read dashboard widget",
+        "operationId": "getDashboardWidget",
+        "description": "Returns one visible dashboard widget by id for focused refresh and retry flows.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "widget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard widget.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-dashboard-widget"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "404": {
+            "description": "Dashboard widget was not found or is not visible to the current user.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7323,6 +7442,60 @@
       },
       "EnvelopedAppLogDetailResponse": {
         "$ref": "#/components/schemas/enveloped-app-log-detail-response"
+      },
+      "DashboardCurrentUserSummary": {
+        "$ref": "#/components/schemas/dashboard-current-user-summary"
+      },
+      "DashboardLocaleSummary": {
+        "$ref": "#/components/schemas/dashboard-locale-summary"
+      },
+      "DashboardModuleSummary": {
+        "$ref": "#/components/schemas/dashboard-module-summary"
+      },
+      "DashboardSystemSummary": {
+        "$ref": "#/components/schemas/dashboard-system-summary"
+      },
+      "DashboardWidgetType": {
+        "$ref": "#/components/schemas/dashboard-widget-type"
+      },
+      "DashboardWidgetSize": {
+        "$ref": "#/components/schemas/dashboard-widget-size"
+      },
+      "DashboardWidgetStatus": {
+        "$ref": "#/components/schemas/dashboard-widget-status"
+      },
+      "DashboardWidgetError": {
+        "$ref": "#/components/schemas/dashboard-widget-error"
+      },
+      "DashboardWidget": {
+        "$ref": "#/components/schemas/dashboard-widget"
+      },
+      "DashboardSummaryResponse": {
+        "$ref": "#/components/schemas/dashboard-summary-response"
+      },
+      "DashboardStatGroupPayload": {
+        "$ref": "#/components/schemas/dashboard-stat-group-payload"
+      },
+      "DashboardAlertListPayload": {
+        "$ref": "#/components/schemas/dashboard-alert-list-payload"
+      },
+      "DashboardLinkListPayload": {
+        "$ref": "#/components/schemas/dashboard-link-list-payload"
+      },
+      "DashboardTimelinePayload": {
+        "$ref": "#/components/schemas/dashboard-timeline-payload"
+      },
+      "DashboardHealthStatus": {
+        "$ref": "#/components/schemas/dashboard-health-status"
+      },
+      "DashboardHealthPayload": {
+        "$ref": "#/components/schemas/dashboard-health-payload"
+      },
+      "EnvelopedDashboardSummaryResponse": {
+        "$ref": "#/components/schemas/enveloped-dashboard-summary-response"
+      },
+      "EnvelopedDashboardWidget": {
+        "$ref": "#/components/schemas/enveloped-dashboard-widget"
       },
       "health-response": {
         "type": "object",
@@ -11373,6 +11546,540 @@
             }
           }
         ]
+      },
+      "dashboard-current-user-summary": {
+        "type": "object",
+        "required": [
+          "username",
+          "display_name"
+        ],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        }
+      },
+      "dashboard-locale-summary": {
+        "type": "object",
+        "required": [
+          "default_locale",
+          "fallback_locale"
+        ],
+        "properties": {
+          "default_locale": {
+            "type": "string"
+          },
+          "fallback_locale": {
+            "type": "string"
+          }
+        }
+      },
+      "dashboard-module-summary": {
+        "type": "object",
+        "required": [
+          "total_modules",
+          "enabled_modules",
+          "degraded_modules"
+        ],
+        "properties": {
+          "total_modules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "enabled_modules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "degraded_modules": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "dashboard-system-summary": {
+        "type": "object",
+        "required": [
+          "current_user",
+          "app_env",
+          "locale",
+          "modules",
+          "visible_widgets"
+        ],
+        "properties": {
+          "current_user": {
+            "$ref": "#/components/schemas/dashboard-current-user-summary"
+          },
+          "app_env": {
+            "type": "string"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/dashboard-locale-summary"
+          },
+          "modules": {
+            "$ref": "#/components/schemas/dashboard-module-summary"
+          },
+          "visible_widgets": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "dashboard-widget-type": {
+        "type": "string",
+        "enum": [
+          "stat-group",
+          "alert-list",
+          "link-list",
+          "timeline",
+          "health"
+        ]
+      },
+      "dashboard-widget-size": {
+        "type": "string",
+        "enum": [
+          "small",
+          "medium",
+          "large",
+          "full"
+        ]
+      },
+      "dashboard-widget-status": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "warning",
+          "error",
+          "disabled"
+        ]
+      },
+      "dashboard-widget-error": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "dashboard-widget": {
+        "type": "object",
+        "required": [
+          "id",
+          "module_key",
+          "type",
+          "size",
+          "order",
+          "payload"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "module_key": {
+            "type": "string"
+          },
+          "title_key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description_key": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/dashboard-widget-type"
+          },
+          "size": {
+            "$ref": "#/components/schemas/dashboard-widget-size"
+          },
+          "order": {
+            "type": "integer"
+          },
+          "refresh_interval_seconds": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "route_location": {
+            "type": "string"
+          },
+          "required_permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/dashboard-widget-status"
+          },
+          "error": {
+            "$ref": "#/components/schemas/dashboard-widget-error"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "dashboard-summary-response": {
+        "type": "object",
+        "required": [
+          "system_summary",
+          "widgets"
+        ],
+        "properties": {
+          "system_summary": {
+            "$ref": "#/components/schemas/dashboard-system-summary"
+          },
+          "widgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/dashboard-widget"
+            }
+          }
+        }
+      },
+      "enveloped-dashboard-summary-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/dashboard-summary-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-dashboard-widget": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/dashboard-widget"
+              }
+            }
+          }
+        ]
+      },
+      "dashboard-stat-group-payload": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "label_key",
+                "label",
+                "value"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label_key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "unit_key": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "description_key": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "tone": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "success",
+                    "warning",
+                    "error",
+                    "info"
+                  ]
+                },
+                "route_location": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "dashboard-alert-list-payload": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "level",
+                "title_key",
+                "title"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "info",
+                    "warning",
+                    "error"
+                  ]
+                },
+                "title_key": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description_key": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "occurred_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "route_location": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "empty_key": {
+            "type": "string"
+          },
+          "empty": {
+            "type": "string"
+          }
+        }
+      },
+      "dashboard-link-list-payload": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "label_key",
+                "label",
+                "route_location"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label_key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "description_key": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "route_location": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "badge_key": {
+                  "type": "string"
+                },
+                "badge": {
+                  "type": "string"
+                },
+                "disabled": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "dashboard-timeline-payload": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "title_key",
+                "title",
+                "occurred_at"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title_key": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description_key": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "occurred_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "success",
+                    "warning",
+                    "error"
+                  ]
+                },
+                "route_location": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "empty_key": {
+            "type": "string"
+          },
+          "empty": {
+            "type": "string"
+          }
+        }
+      },
+      "dashboard-health-status": {
+        "type": "string",
+        "enum": [
+          "healthy",
+          "degraded",
+          "disabled",
+          "unknown"
+        ]
+      },
+      "dashboard-health-payload": {
+        "type": "object",
+        "required": [
+          "summary",
+          "items"
+        ],
+        "properties": {
+          "summary": {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "$ref": "#/components/schemas/dashboard-health-status"
+              },
+              "label_key": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "label_key",
+                "label",
+                "status"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label_key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "status": {
+                  "$ref": "#/components/schemas/dashboard-health-status"
+                },
+                "description_key": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "route_location": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "securitySchemes": {
