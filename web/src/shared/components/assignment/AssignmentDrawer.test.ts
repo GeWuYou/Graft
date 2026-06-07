@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import AssignmentDrawer from './AssignmentDrawer.vue';
 
 describe('AssignmentDrawer', () => {
-  it('syncs v-model visibility when the drawer requests a visibility change', async () => {
+  it('emits close requests instead of directly hiding the drawer', async () => {
     const wrapper = mount(AssignmentDrawer, {
       props: {
         title: 'Assignments',
@@ -14,7 +14,10 @@ describe('AssignmentDrawer', () => {
         stubs: {
           TDrawer: {
             name: 'TDrawer',
-            template: '<div><slot /></div>',
+            props: ['closeOnEscKeydown', 'closeOnOverlayClick'],
+            emits: ['close', 'close-btn-click', 'esc-keydown', 'overlay-click', 'update:visible'],
+            template:
+              '<div :data-close-on-esc="String(closeOnEscKeydown)" :data-close-on-overlay="String(closeOnOverlayClick)"><slot /></div>',
           },
         },
       },
@@ -22,7 +25,9 @@ describe('AssignmentDrawer', () => {
 
     await wrapper.getComponent({ name: 'TDrawer' }).vm.$emit('update:visible', false);
 
-    expect(wrapper.emitted('update:visible')).toEqual([[false]]);
-    expect(wrapper.emitted('close')).toBeUndefined();
+    expect(wrapper.emitted('update:visible')).toBeUndefined();
+    expect(wrapper.emitted('close')).toEqual([[]]);
+    expect(wrapper.getComponent({ name: 'TDrawer' }).attributes('data-close-on-esc')).toBe('false');
+    expect(wrapper.getComponent({ name: 'TDrawer' }).attributes('data-close-on-overlay')).toBe('false');
   });
 });

@@ -144,9 +144,10 @@
         },
         "addSelectionCount": "本次将追加 {count} 项权限",
         "removeSelectionCount": "本次将移除 {count} 项权限",
+        "continueEditing": "继续编辑",
         "discardChanges": "放弃变更",
-        "unsavedChangesConfirm": "当前权限变更尚未保存，确认取消吗？",
-        "unsavedChangesTitle": "放弃权限变更",
+        "unsavedChangesConfirm": "当前权限变更尚未保存，放弃后本次勾选调整将不会生效。",
+        "unsavedChangesTitle": "放弃权限变更？",
         "summary": {
           "assigned": "当前已拥有"
         },

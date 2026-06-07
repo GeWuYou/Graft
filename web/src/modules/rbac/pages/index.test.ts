@@ -25,8 +25,6 @@ const messageMocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
-const dialogConfirmMock = vi.hoisted(() => vi.fn());
-
 const permissionState = vi.hoisted(() => ({
   grantedCodes: [] as string[],
 }));
@@ -99,9 +97,6 @@ vi.mock('vue-router', () => ({
 }));
 
 vi.mock('tdesign-vue-next', () => ({
-  DialogPlugin: {
-    confirm: dialogConfirmMock,
-  },
   MessagePlugin: {
     error: messageMocks.error,
     success: messageMocks.success,
@@ -321,6 +316,14 @@ const tableStub = defineComponent({
 const drawerStub = defineComponent({
   name: 'TDrawerStub',
   props: {
+    closeOnEscKeydown: {
+      type: Boolean,
+      default: true,
+    },
+    closeOnOverlayClick: {
+      type: Boolean,
+      default: true,
+    },
     footer: {
       type: [Boolean, Object, String, null],
       default: undefined,
@@ -334,17 +337,113 @@ const drawerStub = defineComponent({
       default: false,
     },
   },
-  setup(props, { slots }) {
+  emits: ['close', 'close-btn-click', 'esc-keydown', 'overlay-click', 'update:visible'],
+  setup(props, { emit, slots }) {
     return () =>
       props.visible
         ? h(
             'section',
             {
               'data-testid': 'drawer',
+              'data-close-on-esc': String(props.closeOnEscKeydown),
+              'data-close-on-overlay': String(props.closeOnOverlayClick),
               'data-footer': String(props.footer),
               'data-header': props.header,
             },
-            slots.default?.(),
+            [
+              h('button', {
+                'data-testid': 'drawer-close-btn',
+                onClick: () => emit('close-btn-click', { e: new MouseEvent('click') }),
+              }),
+              h('button', {
+                'data-testid': 'drawer-overlay',
+                onClick: () => emit('overlay-click', { e: new MouseEvent('click') }),
+              }),
+              h('button', {
+                'data-testid': 'drawer-esc',
+                onClick: () => emit('esc-keydown', { e: new KeyboardEvent('keydown') }),
+              }),
+              slots.default?.(),
+            ],
+          )
+        : null;
+  },
+});
+
+const dialogStub = defineComponent({
+  name: 'TDialogStub',
+  props: {
+    body: {
+      type: String,
+      default: '',
+    },
+    cancelBtn: {
+      type: [String, Object, Boolean],
+      default: '',
+    },
+    confirmBtn: {
+      type: [String, Object, Boolean],
+      default: '',
+    },
+    header: {
+      type: String,
+      default: '',
+    },
+    visible: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['cancel', 'close', 'confirm', 'update:visible'],
+  setup(props, { emit, slots }) {
+    const buttonContent = (value: unknown) => {
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (value && typeof value === 'object' && 'content' in value) {
+        return String((value as { content?: unknown }).content ?? '');
+      }
+      return '';
+    };
+
+    return () =>
+      props.visible
+        ? h(
+            'section',
+            {
+              'data-testid': 'discard-permission-confirm',
+              'data-header': props.header,
+              'data-body': props.body,
+            },
+            [
+              h('h2', props.header),
+              h('p', props.body),
+              slots.default?.(),
+              h(
+                'button',
+                {
+                  'data-testid': 'discard-confirm-cancel',
+                  onClick: () => emit('cancel', { e: new MouseEvent('click') }),
+                },
+                buttonContent(props.cancelBtn),
+              ),
+              h(
+                'button',
+                {
+                  'data-testid': 'discard-confirm-confirm',
+                  onClick: () => emit('confirm', { e: new MouseEvent('click') }),
+                },
+                buttonContent(props.confirmBtn),
+              ),
+              h(
+                'button',
+                {
+                  'data-testid': 'discard-confirm-close',
+                  onClick: () => emit('close', { e: new MouseEvent('click') }),
+                },
+                'close',
+              ),
+            ],
           )
         : null;
   },
@@ -593,6 +692,7 @@ function mountRolePage() {
         't-checkbox-group': checkboxGroupStub,
         't-descriptions': descriptionsStub,
         't-descriptions-item': descriptionsItemStub,
+        't-dialog': dialogStub,
         't-dropdown': dropdownStub,
         't-drawer': drawerStub,
         't-empty': passthroughStub,
@@ -615,6 +715,12 @@ function updatePermissionSelection(wrapper: ReturnType<typeof mountRolePage>, id
   checkboxGroup.vm.$emit('update:modelValue', ids);
 }
 
+function selectedPermissionIds(wrapper: ReturnType<typeof mountRolePage>) {
+  return JSON.parse(
+    wrapper.get('[data-testid="permission-checkbox-group"]').attributes('data-selected-permission-ids') ?? '[]',
+  );
+}
+
 function setPermissionMutationMode(wrapper: ReturnType<typeof mountRolePage>, mode: 'replace' | 'add' | 'remove') {
   const selects = wrapper.findAll('select');
   const mutationSelect = selects.at(-1);
@@ -629,7 +735,6 @@ describe('RolePage', () => {
   beforeEach(() => {
     permissionState.grantedCodes = [];
     tabSnapshotState.snapshots = {};
-    dialogConfirmMock.mockReset();
     rbacApiMocks.addRolePermissions.mockReset();
     rbacApiMocks.createRole.mockReset();
     rbacApiMocks.deleteRole.mockReset();
@@ -839,8 +944,6 @@ describe('RolePage', () => {
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
     rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1] });
-    const dialogInstance = { destroy: vi.fn() };
-    dialogConfirmMock.mockReturnValueOnce(dialogInstance);
 
     const wrapper = mountRolePage();
     await flushPromises();
@@ -853,14 +956,103 @@ describe('RolePage', () => {
     await wrapper.get('[data-testid="permission-drawer-cancel"]').trigger('click');
     await flushPromises();
 
-    expect(dialogConfirmMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: 'rbac.roleList.permissionDialog.unsavedChangesConfirm',
-        header: 'rbac.roleList.permissionDialog.unsavedChangesTitle',
-        theme: 'warning',
-      }),
+    expect(wrapper.get('[data-testid="discard-permission-confirm"]').attributes('data-header')).toBe(
+      'rbac.roleList.permissionDialog.unsavedChangesTitle',
+    );
+    expect(wrapper.get('[data-testid="discard-permission-confirm"]').attributes('data-body')).toBe(
+      'rbac.roleList.permissionDialog.unsavedChangesConfirm',
     );
     expect(wrapper.find('[data-testid="permission-drawer"]').exists()).toBe(true);
+  });
+
+  it('keeps the permission drawer state when continuing after the discard prompt', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    updatePermissionSelection(wrapper, [1, 2]);
+    await flushPromises();
+    await wrapper.get('input[placeholder="rbac.roleList.permissionDialog.searchPlaceholder"]').setValue('Localized');
+    await setPermissionMutationMode(wrapper, 'replace');
+    await wrapper.get('[data-testid="permission-drawer-cancel"]').trigger('click');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="discard-confirm-cancel"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="discard-permission-confirm"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="permission-drawer"]').exists()).toBe(true);
+    expect(selectedPermissionIds(wrapper)).toEqual([1, 2]);
+    expect(
+      (wrapper.get('input[placeholder="rbac.roleList.permissionDialog.searchPlaceholder"]').element as HTMLInputElement)
+        .value,
+    ).toBe('Localized');
+    expect(rbacApiMocks.getRolePermissionBindings).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the permission drawer open when overlay close is canceled from the discard prompt', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [1] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    updatePermissionSelection(wrapper, [1, 2]);
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="drawer"]').attributes('data-close-on-overlay')).toBe('false');
+    expect(wrapper.get('[data-testid="drawer"]').attributes('data-close-on-esc')).toBe('false');
+    await wrapper.get('[data-testid="drawer-overlay"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="permission-drawer"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="discard-permission-confirm"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="discard-confirm-cancel"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="permission-drawer"]').exists()).toBe(true);
+    expect(selectedPermissionIds(wrapper)).toEqual([1, 2]);
+    expect(rbacApiMocks.getRolePermissionBindings).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards unsaved permission changes only after confirming discard', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings
+      .mockResolvedValueOnce({ permission_ids: [1] })
+      .mockResolvedValueOnce({ permission_ids: [1] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+    updatePermissionSelection(wrapper, [1, 2]);
+    await flushPromises();
+    await wrapper.get('[data-testid="permission-drawer-cancel"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="discard-confirm-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="permission-drawer"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+
+    expect(rbacApiMocks.getRolePermissionBindings).toHaveBeenCalledTimes(2);
+    expect(selectedPermissionIds(wrapper)).toEqual([1]);
   });
 
   it('submits only newly selected permissions in add mode', async () => {
@@ -1013,6 +1205,12 @@ describe('RolePage', () => {
     updatePermissionSelection(wrapper, [1, 2, 3]);
     await flushPromises();
     expect(rbacApiMocks.replaceRolePermissions).not.toHaveBeenCalled();
+
+    await wrapper.get('[data-testid="drawer-overlay"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="permission-drawer"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="discard-permission-confirm"]').exists()).toBe(false);
   });
 
   it('matches permission search against localized copy', async () => {

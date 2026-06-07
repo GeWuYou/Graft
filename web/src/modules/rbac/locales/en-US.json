@@ -144,9 +144,10 @@
         },
         "addSelectionCount": "{count} permissions will be appended",
         "removeSelectionCount": "{count} permissions will be removed",
+        "continueEditing": "Continue Editing",
         "discardChanges": "Discard Changes",
-        "unsavedChangesConfirm": "Permission changes have not been saved. Discard them?",
-        "unsavedChangesTitle": "Discard Permission Changes",
+        "unsavedChangesConfirm": "Current permission changes have not been saved. If discarded, this selection adjustment will not take effect.",
+        "unsavedChangesTitle": "Discard Permission Changes?",
         "summary": {
           "assigned": "Currently assigned"
         },

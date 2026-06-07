@@ -448,6 +448,18 @@
       </template>
     </assignment-drawer>
 
+    <t-dialog
+      v-model:visible="showDiscardConfirm"
+      :header="t('rbac.roleList.permissionDialog.unsavedChangesTitle')"
+      :body="t('rbac.roleList.permissionDialog.unsavedChangesConfirm')"
+      theme="warning"
+      :cancel-btn="t('rbac.roleList.permissionDialog.continueEditing')"
+      :confirm-btn="{ content: t('rbac.roleList.permissionDialog.discardChanges'), theme: 'danger' }"
+      @cancel="continueEditingPermissionDrawer"
+      @close="continueEditingPermissionDrawer"
+      @confirm="discardPermissionDrawerChanges"
+    />
+
     <t-drawer
       v-model:visible="columnDrawerVisible"
       :header="t('rbac.roleList.columnSettings')"
@@ -469,7 +481,6 @@
 </template>
 <script setup lang="ts">
 import {
-  DialogPlugin,
   type FormRule,
   type FormValidateMessage,
   MessagePlugin,
@@ -641,6 +652,7 @@ const permissionLoadWarning = ref('');
 const permissionLoadRetryable = ref(false);
 const permissionKeyword = ref('');
 const permissionOnlySelected = ref(false);
+const showDiscardConfirm = ref(false);
 const columnDrawerVisible = ref(false);
 const pagination = ref({
   current: 1,
@@ -698,21 +710,27 @@ const canShowOperationColumn = computed(() =>
   ]),
 );
 const permissionDrawerReadonly = computed(() => selectedRole.value?.builtin === true);
-const hasPermissionSelectionChanges = computed(() => {
+const currentPermissionIds = computed(() => {
+  switch (permissionMutationMode.value) {
+    case 'add':
+      return sortStableIDs([...new Set([...originalPermissionIds.value, ...selectedPermissionIds.value])]);
+    case 'remove': {
+      const removed = new Set(selectedPermissionIds.value);
+      return sortStableIDs(originalPermissionIds.value.filter((id) => !removed.has(id)));
+    }
+    default:
+      return sortStableIDs(selectedPermissionIds.value);
+  }
+});
+const isPermissionDirty = computed(() => {
   if (!permissionSelectionReady.value || selectedRole.value === null) {
     return false;
   }
 
-  switch (permissionMutationMode.value) {
-    case 'add':
-    case 'remove':
-      return permissionMutationPayload.value.permission_ids.length > 0;
-    default:
-      return !arePermissionIDsEqual(originalPermissionIds.value, selectedPermissionIds.value);
-  }
+  return !arePermissionIDsEqual(originalPermissionIds.value, currentPermissionIds.value);
 });
 const canSubmitPermissionAssignment = computed(() => {
-  return !permissionDrawerReadonly.value && canAssignPermissions.value && hasPermissionSelectionChanges.value;
+  return !permissionDrawerReadonly.value && canAssignPermissions.value && isPermissionDirty.value;
 });
 const hasActiveFilters = computed(() => Boolean(filters.value.keyword.trim()) || Boolean(filters.value.type));
 const permissionDialogStatusMessage = computed(() =>
@@ -1216,11 +1234,14 @@ function sortStableIDs(ids: number[]) {
 }
 
 function arePermissionIDsEqual(left: number[], right: number[]) {
-  if (left.length !== right.length) {
+  const normalizedLeft = sortStableIDs(left);
+  const normalizedRight = sortStableIDs(right);
+
+  if (normalizedLeft.length !== normalizedRight.length) {
     return false;
   }
 
-  return left.every((value, index) => value === right[index]);
+  return normalizedLeft.every((value, index) => value === normalizedRight[index]);
 }
 
 function toReplaceRolePermissionsPayload(permissionIds: number[]): ReplaceRolePermissionsPayload {
@@ -1547,13 +1568,18 @@ function closePermissionDrawer() {
   permissionDrawerSession.value += 1;
   permissionDrawerVisible.value = false;
   selectedRole.value = null;
-  originalPermissionIds.value = [];
-  selectedPermissionIds.value = [];
   permissionSelectionReady.value = false;
   loadingRolePermissions.value = false;
   permissionLoadWarning.value = '';
   permissionLoadRetryable.value = false;
   submittingPermissions.value = false;
+  showDiscardConfirm.value = false;
+  resetPermissionDraft();
+}
+
+function resetPermissionDraft() {
+  originalPermissionIds.value = [];
+  selectedPermissionIds.value = [];
   permissionMutationMode.value = 'replace';
   permissionKeyword.value = '';
   permissionOnlySelected.value = false;
@@ -1564,22 +1590,22 @@ function requestClosePermissionDrawer() {
     return;
   }
 
-  if (permissionDrawerReadonly.value || !hasPermissionSelectionChanges.value) {
+  if (permissionDrawerReadonly.value || !isPermissionDirty.value) {
     closePermissionDrawer();
     return;
   }
 
-  const dialog = DialogPlugin.confirm({
-    header: t('rbac.roleList.permissionDialog.unsavedChangesTitle'),
-    body: t('rbac.roleList.permissionDialog.unsavedChangesConfirm'),
-    theme: 'warning',
-    confirmBtn: t('rbac.roleList.permissionDialog.discardChanges'),
-    cancelBtn: t('rbac.roleList.form.cancel'),
-    onConfirm: () => {
-      dialog.destroy();
-      closePermissionDrawer();
-    },
-  });
+  showDiscardConfirm.value = true;
+}
+
+function continueEditingPermissionDrawer() {
+  showDiscardConfirm.value = false;
+}
+
+function discardPermissionDrawerChanges() {
+  showDiscardConfirm.value = false;
+  resetPermissionDraft();
+  closePermissionDrawer();
 }
 
 async function retryPermissionDrawerLoad() {

@@ -6,8 +6,13 @@
     :size="size"
     placement="right"
     destroy-on-close
+    :close-on-esc-keydown="false"
+    :close-on-overlay-click="false"
     @update:visible="handleVisibleChange"
-    @close="emit('close')"
+    @close="requestClose"
+    @close-btn-click="requestClose"
+    @esc-keydown="requestClose"
+    @overlay-click="requestClose"
   >
     <div class="assignment-drawer permission-drawer">
       <div v-if="$slots.header" class="assignment-drawer__header permission-drawer__header">
@@ -42,9 +47,27 @@ const emit = defineEmits<{
 }>();
 
 const bodyRef = ref<HTMLDivElement | null>(null);
+const closeRequestPending = ref(false);
+
+function requestClose() {
+  if (closeRequestPending.value) {
+    return;
+  }
+
+  closeRequestPending.value = true;
+  emit('close');
+  void nextTick(() => {
+    closeRequestPending.value = false;
+  });
+}
 
 function handleVisibleChange(value: boolean) {
-  emit('update:visible', value);
+  if (value) {
+    emit('update:visible', value);
+    return;
+  }
+
+  requestClose();
 }
 
 watch(
