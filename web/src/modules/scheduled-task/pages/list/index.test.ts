@@ -901,7 +901,7 @@ describe('ScheduledTaskListPage', () => {
 
     expect(wrapper.text()).toContain('JSON 预览');
     expect(wrapper.text()).toContain('编辑 JSON');
-    expect(wrapper.text()).toContain('格式化 JSON');
+    expect(wrapper.text()).not.toContain('格式化 JSON');
     expect(wrapper.find('[data-testid="config-json-textarea"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('"retentionDays": 30');
     expect(wrapper.text()).toContain('"batchSize": 500');

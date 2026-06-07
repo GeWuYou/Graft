@@ -9,7 +9,7 @@
         <t-button v-else size="small" variant="outline" @click="switchMode('preview')">
           {{ doneLabel }}
         </t-button>
-        <t-button size="small" variant="outline" @click="$emit('format')">
+        <t-button v-if="mode === 'edit'" size="small" variant="outline" @click="$emit('format')">
           {{ formatLabel }}
         </t-button>
       </t-space>

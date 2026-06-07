@@ -21,9 +21,8 @@
     "jsxImportSource": "vue",
     "noEmit": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
     "types": ["vite/client"]
   },
