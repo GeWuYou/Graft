@@ -32,7 +32,9 @@
           >
             <span>{{ group.label }}</span>
             <small>{{ group.technicalKey }}</small>
-            <small>{{ t('systemConfig.list.groupCount', { count: group.items.length }) }}</small>
+            <small v-if="group.items.length > 1">
+              {{ t('systemConfig.list.groupConfigCount', { count: group.items.length }) }}
+            </small>
           </button>
         </aside>
 
@@ -42,19 +44,22 @@
               <h2>{{ activeGroup.label }}</h2>
               <p>{{ activeGroup.technicalKey }}</p>
             </div>
-            <t-tag variant="light" theme="primary">
+            <t-tag v-if="activeGroupOverrideCount > 0" variant="light" theme="primary">
               {{ t('systemConfig.list.overrideCount', { count: activeGroupOverrideCount }) }}
             </t-tag>
           </div>
 
           <div v-if="activeGroup?.items.length" class="system-config-list">
-            <article v-for="item in activeGroup.items" :key="item.key" class="system-config-item">
+            <t-card v-for="item in activeGroup.items" :key="item.key" class="system-config-item" bordered>
               <div class="system-config-item__main">
                 <div class="system-config-item__title-row">
-                  <h3>{{ configTitle(item) }}</h3>
+                  <div>
+                    <h3>{{ configTitle(item) }}</h3>
+                    <p>{{ configDescription(item) }}</p>
+                  </div>
                   <t-space size="small" break-line>
-                    <t-tag v-if="item.has_override" theme="warning" variant="light">
-                      {{ t('systemConfig.list.tags.override') }}
+                    <t-tag :theme="configStatus(item).theme" variant="light">
+                      {{ configStatus(item).label }}
                     </t-tag>
                     <t-tag v-if="item.sensitive" theme="danger" variant="light">
                       {{ t('systemConfig.list.tags.sensitive') }}
@@ -64,60 +69,90 @@
                     </t-tag>
                   </t-space>
                 </div>
-                <p>{{ configDescription(item) }}</p>
-                <div class="system-config-item__meta">
-                  <code>{{ item.key }}</code>
-                  <span>{{ item.module }}</span>
-                  <span>{{ item.group }}</span>
-                  <t-tag v-for="tag in item.tags ?? []" :key="tag" variant="light">
-                    {{ tag }}
-                  </t-tag>
+
+                <div class="system-config-summary">
+                  <section class="system-config-summary__cell">
+                    <span>{{ t('systemConfig.list.status.title') }}</span>
+                    <div>
+                      <t-tag :theme="configStatus(item).theme" variant="light">
+                        {{ configStatus(item).label }}
+                      </t-tag>
+                      <strong>{{ configStatus(item).description }}</strong>
+                    </div>
+                  </section>
+                  <section class="system-config-summary__cell">
+                    <span>{{ t('systemConfig.list.source.title') }}</span>
+                    <strong>{{ configSourceLabel(item) }}</strong>
+                  </section>
                 </div>
+
                 <div class="system-config-values">
-                  <div class="system-config-value">
-                    <span>{{ t('systemConfig.list.values.effective') }}</span>
-                    <strong>{{ valueText(item, 'effective_value') }}</strong>
-                  </div>
-                  <div class="system-config-value">
-                    <span>{{ t('systemConfig.list.values.default') }}</span>
-                    <strong>{{ valueText(item, 'default_value') }}</strong>
-                  </div>
-                  <div class="system-config-value">
-                    <span>{{ t('systemConfig.list.values.override') }}</span>
-                    <strong>{{ valueText(item, 'override_value') }}</strong>
-                  </div>
+                  <section
+                    v-for="valueSection in valueSections(item)"
+                    :key="valueSection.field"
+                    class="system-config-value"
+                  >
+                    <header>
+                      <h4>{{ valueSection.title }}</h4>
+                    </header>
+                    <dl class="system-config-value__rows">
+                      <template v-for="row in valueSection.rows" :key="row.key">
+                        <dt>{{ row.label }}</dt>
+                        <dd>
+                          <strong>{{ row.value }}</strong>
+                          <small v-if="row.description">{{ row.description }}</small>
+                        </dd>
+                      </template>
+                    </dl>
+                    <t-collapse
+                      v-if="valueSection.json"
+                      borderless
+                      expand-icon-placement="right"
+                      class="system-config-json"
+                    >
+                      <t-collapse-panel :value="valueSection.field" :header="t('systemConfig.list.viewJson')">
+                        <pre>{{ valueSection.json }}</pre>
+                      </t-collapse-panel>
+                    </t-collapse>
+                  </section>
                 </div>
-              </div>
-              <div class="system-config-item__actions">
-                <t-button
-                  v-permission="permissionCodes.WRITE"
-                  theme="primary"
-                  variant="outline"
-                  @click="openEditor(item)"
-                >
-                  <template #icon><edit-icon /></template>
-                  {{ t('systemConfig.list.edit') }}
-                </t-button>
-                <t-popconfirm
-                  v-if="item.has_override"
-                  theme="warning"
-                  :content="t('systemConfig.list.resetConfirm')"
-                  :confirm-btn="t('systemConfig.list.reset')"
-                  :cancel-btn="t('systemConfig.list.cancel')"
-                  @confirm="resetConfigOverride(item)"
-                >
+
+                <section class="system-config-technical">
+                  <span>{{ t('systemConfig.list.technicalId') }}</span>
+                  <code>{{ item.key }}</code>
+                </section>
+
+                <div class="system-config-item__actions">
                   <t-button
                     v-permission="permissionCodes.WRITE"
-                    theme="default"
+                    theme="primary"
                     variant="outline"
-                    :loading="resettingKey === item.key"
+                    @click="openEditor(item)"
                   >
-                    <template #icon><rollback-icon /></template>
-                    {{ t('systemConfig.list.reset') }}
+                    <template #icon><edit-icon /></template>
+                    {{ t('systemConfig.list.edit') }}
                   </t-button>
-                </t-popconfirm>
+                  <t-popconfirm
+                    v-if="item.has_override"
+                    theme="warning"
+                    :content="t('systemConfig.list.resetConfirm')"
+                    :confirm-btn="t('systemConfig.list.reset')"
+                    :cancel-btn="t('systemConfig.list.cancel')"
+                    @confirm="resetConfigOverride(item)"
+                  >
+                    <t-button
+                      v-permission="permissionCodes.WRITE"
+                      theme="default"
+                      variant="outline"
+                      :loading="resettingKey === item.key"
+                    >
+                      <template #icon><rollback-icon /></template>
+                      {{ t('systemConfig.list.reset') }}
+                    </t-button>
+                  </t-popconfirm>
+                </div>
               </div>
-            </article>
+            </t-card>
           </div>
 
           <t-empty
@@ -173,8 +208,13 @@ import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { type ConfigSchemaField, JsonSchemaValueFields, parseConfigSchema } from '@/shared/schema-form';
-import { formatJsonValue, parseJsonValue, valuePreview } from '@/shared/schema-form/json';
+import {
+  type ConfigSchemaField,
+  getConfigSchemaFields,
+  JsonSchemaValueFields,
+  parseConfigSchema,
+} from '@/shared/schema-form';
+import { formatJsonValue, isJsonRecord, parseJsonValue, valuePreview } from '@/shared/schema-form/json';
 import type { ApiRequestError } from '@/types/axios';
 
 import { getSystemConfigs, resetSystemConfig, updateSystemConfig } from '../../api/system-config';
@@ -190,6 +230,22 @@ type ConfigGroup = {
   label: string;
   technicalKey: string;
   items: SystemConfigItem[];
+};
+
+type ConfigValueField = 'effective_value' | 'default_value';
+
+type ConfigValueRow = {
+  key: string;
+  label: string;
+  description: string;
+  value: string;
+};
+
+type ConfigValueSection = {
+  field: ConfigValueField;
+  title: string;
+  rows: ConfigValueRow[];
+  json: string;
 };
 
 const { t, te } = useI18n();
@@ -334,14 +390,81 @@ function technicalGroupKey(item: SystemConfigItem) {
   return t('systemConfig.list.groupLabel', { module: item.module, group: item.group || 'default' });
 }
 
-function valueText(item: SystemConfigItem, field: 'default_value' | 'effective_value' | 'override_value') {
-  if (item.masked && (field === 'default_value' || field === 'effective_value' || field === 'override_value')) {
-    return item.masked_placeholder || t('systemConfig.list.masked');
+function configStatus(item: SystemConfigItem) {
+  if (item.has_override) {
+    return {
+      label: t('systemConfig.list.status.overridden'),
+      description: t('systemConfig.list.status.overriddenDescription'),
+      theme: 'primary' as const,
+    };
   }
 
-  const value = parseJsonValue(item[field]);
-  const noneText = field === 'override_value' ? t('systemConfig.list.noOverride') : t('systemConfig.list.emptyValue');
-  return valuePreview(value, noneText, booleanLabel);
+  return {
+    label: t('systemConfig.list.status.default'),
+    description: t('systemConfig.list.status.defaultDescription'),
+    theme: 'default' as const,
+  };
+}
+
+function configSourceLabel(item: SystemConfigItem) {
+  return item.has_override
+    ? t('systemConfig.list.source.values.administrator_override')
+    : t('systemConfig.list.source.values.default');
+}
+
+function valueSections(item: SystemConfigItem): ConfigValueSection[] {
+  return [
+    buildValueSection(item, 'effective_value', t('systemConfig.list.values.effective')),
+    buildValueSection(item, 'default_value', t('systemConfig.list.values.default')),
+  ];
+}
+
+function buildValueSection(item: SystemConfigItem, field: ConfigValueField, title: string): ConfigValueSection {
+  if (item.masked) {
+    const maskedValue = item.masked_placeholder || t('systemConfig.list.masked');
+    return {
+      field,
+      title,
+      rows: [{ key: field, label: title, description: '', value: maskedValue }],
+      json: '',
+    };
+  }
+
+  const parsed = parseJsonValue(item[field]);
+  const schema = parseConfigSchema(item.config_schema);
+  const fields = getConfigSchemaFields(schema);
+  const rows = isJsonRecord(parsed) && fields.length > 0 ? structuredValueRows(parsed, fields) : [];
+  const fallbackRows =
+    rows.length > 0
+      ? rows
+      : [
+          {
+            key: field,
+            label: schema.title ? resolveI18nText(schema.xI18n?.titleKey, schema.title, title) : title,
+            description: resolveI18nText(schema.xI18n?.descriptionKey, schema.description, ''),
+            value: valuePreview(parsed, t('systemConfig.list.emptyValue'), booleanLabel),
+          },
+        ];
+
+  return {
+    field,
+    title,
+    rows: fallbackRows,
+    json: formatJsonValue(parsed),
+  };
+}
+
+function structuredValueRows(value: Record<string, unknown>, fields: ConfigSchemaField[]): ConfigValueRow[] {
+  return fields.map((field) => {
+    const unit = schemaFieldUnit(field);
+    const displayValue = valuePreview(value[field.key], t('systemConfig.list.emptyValue'), booleanLabel);
+    return {
+      key: field.key,
+      label: schemaFieldTitle(field),
+      description: schemaFieldDescription(field),
+      value: unit ? `${displayValue} ${unit}` : displayValue,
+    };
+  });
 }
 
 function booleanLabel(value: boolean) {
@@ -467,8 +590,7 @@ function readableError(error: unknown, fallback: string) {
 }
 
 .system-config-content__head,
-.system-config-item__title-row,
-.system-config-item__actions {
+.system-config-item__title-row {
   align-items: flex-start;
   display: flex;
   gap: var(--graft-density-gap-12);
@@ -485,9 +607,9 @@ function readableError(error: unknown, fallback: string) {
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-border-level-1-color);
   border-radius: var(--td-radius-medium);
-  display: grid;
-  gap: var(--graft-density-gap-16);
-  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.system-config-item :deep(.t-card__body) {
   padding: var(--graft-density-gap-16);
 }
 
@@ -500,45 +622,102 @@ function readableError(error: unknown, fallback: string) {
 }
 
 .system-config-item__actions {
-  flex-direction: column;
+  display: flex;
+  flex-flow: row wrap;
+  gap: var(--graft-density-gap-8);
+  justify-content: flex-end;
 }
 
-.system-config-item__meta,
+.system-config-summary,
 .system-config-values {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+}
+
+.system-config-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.system-config-summary__cell,
+.system-config-value,
+.system-config-technical {
+  background: var(--td-bg-color-page);
+  border-radius: var(--td-radius-small);
+  padding: var(--graft-density-gap-12);
+}
+
+.system-config-summary__cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.system-config-summary__cell > span,
+.system-config-value h4,
+.system-config-technical span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
+}
+
+.system-config-summary__cell > div {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
 }
 
-.system-config-item__meta code,
-.system-config-item__meta span {
-  background: var(--td-bg-color-page);
-  border-radius: var(--td-radius-small);
-  color: var(--td-text-color-secondary);
-  padding: var(--graft-density-gap-4) var(--graft-density-gap-8);
+.system-config-values {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .system-config-value {
-  background: var(--td-bg-color-page);
-  border-radius: var(--td-radius-small);
   display: flex;
-  flex: 1 1 180px;
   flex-direction: column;
-  gap: var(--graft-density-gap-4);
+  gap: var(--graft-density-gap-12);
   min-width: 0;
-  padding: var(--graft-density-gap-8);
 }
 
-.system-config-value span {
+.system-config-value__rows {
+  display: grid;
+  gap: var(--graft-density-gap-8) var(--graft-density-gap-16);
+  grid-template-columns: minmax(120px, max-content) minmax(0, 1fr);
+  margin: 0;
+}
+
+.system-config-value__rows dt {
   color: var(--td-text-color-secondary);
 }
 
-.system-config-value strong {
+.system-config-value__rows dd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  margin: 0;
+  min-width: 0;
+}
+
+.system-config-value__rows strong,
+.system-config-technical code {
   overflow-wrap: anywhere;
 }
 
+.system-config-value__rows small {
+  color: var(--td-text-color-placeholder);
+}
+
+.system-config-json :deep(.t-collapse-panel__content) {
+  padding: 0;
+}
+
+.system-config-technical {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.system-config-json pre,
 .system-config-editor__preview pre {
-  background: var(--td-bg-color-page);
   border-radius: var(--td-radius-small);
   box-sizing: border-box;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
@@ -549,10 +728,20 @@ function readableError(error: unknown, fallback: string) {
   white-space: pre-wrap;
 }
 
+.system-config-json pre {
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-border-level-1-color);
+}
+
+.system-config-editor__preview pre {
+  background: var(--td-bg-color-page);
+}
+
 @media (width <= 900px) {
   .system-config-page__header,
   .system-config-layout,
-  .system-config-item {
+  .system-config-summary,
+  .system-config-values {
     display: flex;
     flex-direction: column;
   }

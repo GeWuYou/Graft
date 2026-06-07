@@ -17,7 +17,7 @@
       "cancel": "取消",
       "reset": "重置",
       "resetConfirm": "确认删除该管理员覆盖值并回到模块默认值？",
-      "groupCount": "{count} 项",
+      "groupConfigCount": "{count} 个配置项",
       "groupDescription": "当前分组包含 {count} 个配置项。",
       "groupLabel": "{module} / {group}",
       "overrideCount": "{count} 个覆盖值",
@@ -31,13 +31,28 @@
       "noDescription": "暂无描述。",
       "masked": "已隐藏",
       "emptyValue": "无数据",
-      "noOverride": "无覆盖值",
       "editorTitle": "编辑：{title}",
       "sensitiveEditHint": "该配置为敏感项，当前值不会回显；保存后仍会以隐藏状态展示。",
       "previewTitle": "配置预览",
+      "viewJson": "查看 JSON",
+      "technicalId": "技术标识",
       "boolean": {
         "true": "是",
         "false": "否"
+      },
+      "status": {
+        "title": "配置状态",
+        "default": "默认",
+        "defaultDescription": "使用默认配置",
+        "overridden": "已覆盖",
+        "overriddenDescription": "管理员修改"
+      },
+      "source": {
+        "title": "配置来源",
+        "values": {
+          "default": "默认值",
+          "administrator_override": "管理员覆盖"
+        }
       },
       "tags": {
         "override": "已覆盖",
@@ -46,8 +61,7 @@
       },
       "values": {
         "effective": "生效值",
-        "default": "默认值",
-        "override": "覆盖值"
+        "default": "默认值"
       },
       "schema": {
         "value": "配置值",

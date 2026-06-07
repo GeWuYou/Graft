@@ -29,12 +29,11 @@ const translations = vi.hoisted(
     'systemConfig.list.emptyTitle': '暂无系统配置',
     'systemConfig.list.emptyValue': '无数据',
     'systemConfig.list.eyebrow': '服务管理',
-    'systemConfig.list.groupCount': '{count} 项',
+    'systemConfig.list.groupConfigCount': '{count} 个配置项',
     'systemConfig.list.groupLabel': '{module} / {group}',
     'systemConfig.list.loadError': '系统配置加载失败。',
     'systemConfig.list.masked': '已隐藏',
     'systemConfig.list.noDescription': '暂无描述。',
-    'systemConfig.list.noOverride': '无覆盖值',
     'systemConfig.list.overrideCount': '{count} 个覆盖值',
     'systemConfig.list.previewTitle': '配置预览',
     'systemConfig.list.refresh': '刷新',
@@ -49,13 +48,22 @@ const translations = vi.hoisted(
     'systemConfig.list.schema.selectPlaceholder': '请选择',
     'systemConfig.list.schema.stringPlaceholder': '请输入配置值',
     'systemConfig.list.schema.value': '配置值',
+    'systemConfig.list.source.title': '配置来源',
+    'systemConfig.list.source.values.administrator_override': '管理员覆盖',
+    'systemConfig.list.source.values.default': '默认值',
+    'systemConfig.list.status.default': '默认',
+    'systemConfig.list.status.defaultDescription': '使用默认配置',
+    'systemConfig.list.status.overridden': '已覆盖',
+    'systemConfig.list.status.overriddenDescription': '管理员修改',
+    'systemConfig.list.status.title': '配置状态',
     'systemConfig.list.tags.override': '已覆盖',
     'systemConfig.list.tags.restartRequired': '需重启',
     'systemConfig.list.tags.sensitive': '敏感',
+    'systemConfig.list.technicalId': '技术标识',
     'systemConfig.list.title': '系统配置',
     'systemConfig.list.values.default': '默认值',
     'systemConfig.list.values.effective': '生效值',
-    'systemConfig.list.values.override': '覆盖值',
+    'systemConfig.list.viewJson': '查看 JSON',
     'systemConfig.units.days': '天',
     'systemConfig.units.rows': '行',
   }),
@@ -105,7 +113,21 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('core.httpx / log.retention');
     expect(wrapper.text()).toContain('访问日志保留清理');
     expect(wrapper.text()).toContain('访问日志保留清理任务的默认配置。');
-    expect(wrapper.text()).toContain('无覆盖值');
+    expect(wrapper.text()).toContain('配置状态');
+    expect(wrapper.text()).toContain('默认');
+    expect(wrapper.text()).toContain('使用默认配置');
+    expect(wrapper.text()).toContain('配置来源');
+    expect(wrapper.text()).toContain('默认值');
+    expect(wrapper.text()).toContain('日志保留时间');
+    expect(wrapper.text()).toContain('30 天');
+    expect(wrapper.text()).toContain('批量大小');
+    expect(wrapper.text()).toContain('1000 行');
+    expect(wrapper.text()).toContain('查看 JSON');
+    expect(wrapper.text()).toContain('技术标识');
+    expect(wrapper.text()).toContain('httpx.access-log-retention-cleanup');
+    expect(wrapper.text()).not.toContain('1 项');
+    expect(wrapper.text()).not.toContain('无覆盖值');
+    expect(wrapper.text()).not.toContain('httpxlog.retention');
     expect(wrapper.text()).not.toContain('Access log retention cleanup');
     expect(wrapper.text()).not.toContain('Default cleanup configuration for access-log retention jobs.');
 
@@ -129,6 +151,7 @@ function mountPage() {
       },
       stubs: {
         TAlert: textStub('div'),
+        TCard: textStub('article'),
         TButton: defineComponent({
           name: 'TButton',
           props: ['loading'],
@@ -150,6 +173,14 @@ function mountPage() {
           props: ['visible', 'header'],
           setup(props, { slots }) {
             return () => (props.visible ? h('section', [h('h2', props.header as string), slots.default?.()]) : null);
+          },
+        }),
+        TCollapse: textStub('section'),
+        TCollapsePanel: defineComponent({
+          name: 'TCollapsePanel',
+          props: ['header'],
+          setup(props, { slots }) {
+            return () => h('section', [h('button', props.header as string), slots.default?.()]);
           },
         }),
         TEmpty: textStub('section'),

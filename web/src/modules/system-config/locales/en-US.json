@@ -17,7 +17,7 @@
       "cancel": "Cancel",
       "reset": "Reset",
       "resetConfirm": "Delete this administrator override and return to the module default?",
-      "groupCount": "{count} Items",
+      "groupConfigCount": "{count} Configuration Items",
       "groupDescription": "This group contains {count} configuration items.",
       "groupLabel": "{module} / {group}",
       "overrideCount": "{count} Overrides",
@@ -31,13 +31,28 @@
       "noDescription": "No description.",
       "masked": "Masked",
       "emptyValue": "No Data",
-      "noOverride": "No Override",
       "editorTitle": "Edit: {title}",
       "sensitiveEditHint": "This configuration is sensitive. The current value is not echoed and remains masked after saving.",
       "previewTitle": "Configuration Preview",
+      "viewJson": "View JSON",
+      "technicalId": "Technical ID",
       "boolean": {
         "true": "Yes",
         "false": "No"
+      },
+      "status": {
+        "title": "Configuration Status",
+        "default": "Default",
+        "defaultDescription": "Using default configuration",
+        "overridden": "Overridden",
+        "overriddenDescription": "Administrator modified"
+      },
+      "source": {
+        "title": "Configuration Source",
+        "values": {
+          "default": "Default Value",
+          "administrator_override": "Administrator Override"
+        }
       },
       "tags": {
         "override": "Overridden",
@@ -46,8 +61,7 @@
       },
       "values": {
         "effective": "Effective Value",
-        "default": "Default Value",
-        "override": "Override Value"
+        "default": "Default Value"
       },
       "schema": {
         "value": "Configuration Value",
