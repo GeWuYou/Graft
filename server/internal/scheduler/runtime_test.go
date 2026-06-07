@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 
 	"graft/server/internal/cronx"
@@ -110,6 +111,9 @@ func (r *taskRepositoryRecorder) SeedBuiltinTasks(_ context.Context, tasks []Tas
 			task.CronExpression = existing.CronExpression
 			task.Enabled = existing.Enabled
 		}
+		if task.ConfigSource == "" {
+			task.ConfigSource = taskConfigSourceSystem
+		}
 		task.ID = uint64(len(r.tasks) + 1)
 		r.tasks[task.TaskKey] = task
 	}
@@ -135,6 +139,7 @@ func (r *taskRepositoryRecorder) UpdateTask(_ context.Context, key string, patch
 	}
 	if patch.ConfigJSON != "" {
 		task.ConfigJSON = patch.ConfigJSON
+		task.ConfigSource = taskConfigSourceUser
 	}
 	r.tasks[key] = task
 	return task, nil
@@ -381,8 +386,8 @@ func TestSeedBuiltinJobsUsesEffectiveDefaultConfig(t *testing.T) {
 	if len(definitions) != 1 || definitions[0].DefaultConfig != `{"retentionDays":45,"batchSize":2000}` {
 		t.Fatalf("expected effective job default config, got %#v", definitions)
 	}
-	if taskRepo.tasks["logger.app-log-retention-cleanup"].ConfigJSON != `{"retentionDays":45,"batchSize":2000}` {
-		t.Fatalf("expected builtin task to seed effective default, got %s", taskRepo.tasks["logger.app-log-retention-cleanup"].ConfigJSON)
+	if taskRepo.tasks["logger.app-log-retention-cleanup"].ConfigSource != taskConfigSourceSystem {
+		t.Fatalf("expected builtin task to keep system config source, got %#v", taskRepo.tasks["logger.app-log-retention-cleanup"])
 	}
 	task, err := runtime.GetTask(context.Background(), "logger.app-log-retention-cleanup")
 	if err != nil {
@@ -394,7 +399,7 @@ func TestSeedBuiltinJobsUsesEffectiveDefaultConfig(t *testing.T) {
 	}
 }
 
-func TestSeedBuiltinJobsReplacesStaticDefaultSnapshotWithEffectiveDefault(t *testing.T) {
+func TestSeedBuiltinJobsKeepsSystemConfigSourceForDefaultSnapshots(t *testing.T) {
 	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
 	taskRepo := newTaskRepositoryRecorder()
 	runtime.SetTaskRepository(taskRepo)
@@ -423,13 +428,14 @@ func TestSeedBuiltinJobsReplacesStaticDefaultSnapshotWithEffectiveDefault(t *tes
 		Enabled:        true,
 		Builtin:        true,
 		ConfigJSON:     `{"retentionDays":30,"batchSize":1000}`,
+		ConfigSource:   taskConfigSourceSystem,
 	}
 
 	if err := runtime.SeedBuiltinJobs(context.Background(), []cronx.Job{job}); err != nil {
 		t.Fatalf("seed builtin job: %v", err)
 	}
-	if taskRepo.tasks["audit.audit-log-retention-cleanup"].ConfigJSON != `{"retentionDays":60,"batchSize":3000}` {
-		t.Fatalf("expected static default snapshot to be replaced, got %s", taskRepo.tasks["audit.audit-log-retention-cleanup"].ConfigJSON)
+	if taskRepo.tasks["audit.audit-log-retention-cleanup"].ConfigSource != taskConfigSourceSystem {
+		t.Fatalf("expected system config source to survive reseed, got %#v", taskRepo.tasks["audit.audit-log-retention-cleanup"])
 	}
 }
 
@@ -541,6 +547,9 @@ func TestUpdateBuiltinTaskAllowsSchemaBackedConfig(t *testing.T) {
 	if taskRepo.tasks["builtin-schema-job"].ConfigJSON != `{"retentionDays":90,"batchSize":500}` {
 		t.Fatalf("expected builtin config to persist, got %s", taskRepo.tasks["builtin-schema-job"].ConfigJSON)
 	}
+	if taskRepo.tasks["builtin-schema-job"].ConfigSource != taskConfigSourceUser {
+		t.Fatalf("expected explicit builtin config to mark user source, got %#v", taskRepo.tasks["builtin-schema-job"])
+	}
 }
 
 func TestUpdateBuiltinTaskRejectsInvalidConfigBeforePersistence(t *testing.T) {
@@ -565,7 +574,7 @@ func TestUpdateBuiltinTaskRejectsInvalidConfigBeforePersistence(t *testing.T) {
 	if !errors.As(err, &configErr) || configErr.Field != "config_json.retentionDays" {
 		t.Fatalf("expected retentionDays config error, got %v", err)
 	}
-	if taskRepo.tasks["builtin-schema-job"].ConfigJSON != `{"retentionDays":30,"batchSize":1000}` {
+	if taskRepo.tasks["builtin-schema-job"].ConfigSource != taskConfigSourceSystem {
 		t.Fatalf("expected invalid builtin config update not to persist, got %s", taskRepo.tasks["builtin-schema-job"].ConfigJSON)
 	}
 }
@@ -594,6 +603,7 @@ func TestSeedBuiltinJobsPreservesSchemaBackedConfigAndDropsStaleFields(t *testin
 		Enabled:        true,
 		Builtin:        true,
 		ConfigJSON:     `{"retentionDays":90,"batchSize":500,"dryRun":true}`,
+		ConfigSource:   taskConfigSourceUser,
 	}
 
 	if err := runtime.SeedBuiltinJobs(context.Background(), []cronx.Job{job}); err != nil {
@@ -1029,9 +1039,21 @@ func TestStopWithNilContextWaitsForInFlightJob(t *testing.T) {
 	runCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	runtime.cron.Schedule(runSoonSchedule{}, cron.FuncJob(func() {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		<-release
+		select {
+		case finished <- struct{}{}:
+		default:
+		}
+	}))
+
 	seedRuntimeJob(t, runtime, cronx.Job{
 		Name:     "blocking",
-		Schedule: "*/1 * * * * *",
+		Schedule: "0 0 0 1 1 *",
 		Run: func(_ context.Context) error {
 			select {
 			case started <- struct{}{}:
@@ -1064,6 +1086,12 @@ func TestStopWithNilContextWaitsForInFlightJob(t *testing.T) {
 
 	waitForSignal(t, finished, time.Second, "expected blocked job to finish after release")
 	waitForStopResult(t, stopDone, time.Second)
+}
+
+type runSoonSchedule struct{}
+
+func (runSoonSchedule) Next(time.Time) time.Time {
+	return time.Now().Add(10 * time.Millisecond)
 }
 
 func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, failureMessage string) {

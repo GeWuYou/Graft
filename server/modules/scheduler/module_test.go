@@ -324,12 +324,13 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		title text NOT NULL DEFAULT '',
 		description text NOT NULL DEFAULT '',
 		cron_expression text NOT NULL,
-		enabled boolean NOT NULL DEFAULT true,
-		builtin boolean NOT NULL DEFAULT false,
-		config_json text NOT NULL DEFAULT '{}',
-		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		deleted_at datetime NULL
+			enabled boolean NOT NULL DEFAULT true,
+			builtin boolean NOT NULL DEFAULT false,
+			config_json text NOT NULL DEFAULT '{}',
+			config_source text NOT NULL DEFAULT 'system',
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			deleted_at datetime NULL
 	);
 	CREATE TABLE scheduler_job_definitions (
 		id integer PRIMARY KEY AUTOINCREMENT,

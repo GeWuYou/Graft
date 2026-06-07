@@ -23,11 +23,11 @@ type Job struct {
 	DisplayMessageKey string
 	// DescriptionMessageKey 是任务说明的稳定 i18n key。
 	DescriptionMessageKey string
-	// ConfigSchema is the Job Definition JSON Schema subset accepted by the scheduler.
+	// ConfigSchema 是 scheduler 接受的 Job Definition JSON Schema 子集。
 	ConfigSchema string
-	// DefaultConfig is the default JSON object merged with each task's config_json.
+	// DefaultConfig 是与每个任务 config_json 合并的默认 JSON object。
 	DefaultConfig string
-	// DefaultConfigKey optionally points to the system-config definition whose effective value owns DefaultConfig.
+	// DefaultConfigKey 指向拥有 DefaultConfig 真相的非敏感 object 型 system-config definition。
 	DefaultConfigKey string
 	// Actions are backend-defined one-shot operations available for this Job Definition.
 	Actions []JobAction

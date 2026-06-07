@@ -48,13 +48,13 @@ func registerMessages(localizer *i18n.Service) error {
 			Messages: systemConfigMessages(
 				systemConfigBaseMessages(
 					"System Configuration",
-					"System configuration not found",
-					"Invalid system configuration request",
+					"System Configuration Not Found",
+					"Invalid System Configuration Request",
 				),
 				systemConfigFieldMessages{
-					retentionDaysTitle:       "Log retention days",
+					retentionDaysTitle:       "Log Retention Days",
 					retentionDaysDescription: "Delete logs older than this many days.",
-					batchSizeTitle:           "Batch size",
+					batchSizeTitle:           "Batch Size",
 					batchSizeDescription:     "Maximum rows deleted per cleanup batch.",
 					daysUnit:                 "days",
 					rowsUnit:                 "rows",

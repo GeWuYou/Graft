@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"graft/server/internal/contract/httpheader"
+	messagecontract "graft/server/internal/contract/message"
 	systemconfigopenapi "graft/server/internal/contract/openapi/systemconfig"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
@@ -129,7 +130,7 @@ func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
 	case errors.Is(err, errInvalidConfigValue):
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, systemconfigcontract.SystemConfigInvalidRequest.String(), nil)
 	default:
-		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, systemconfigcontract.SystemConfigInvalidRequest.String(), nil)
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 	}
 }
 

@@ -324,6 +324,17 @@ func TestAppLogRetentionDryRunClampsEstimatedDeleteCountToBatchSize(t *testing.T
 	}
 }
 
+func TestDecodeAppLogRetentionJobConfigClampsRetentionDays(t *testing.T) {
+	config := decodeAppLogRetentionJobConfig(`{"retentionDays":366,"batchSize":500}`)
+
+	if config.RetentionDays != appLogRetentionMaxDays {
+		t.Fatalf("expected retention days clamped to %d, got %d", appLogRetentionMaxDays, config.RetentionDays)
+	}
+	if config.BatchSize != 500 {
+		t.Fatalf("expected configured batch size, got %d", config.BatchSize)
+	}
+}
+
 func waitRetentionAppLogRecord(t *testing.T, repo *appLogRetentionRepoRecorder, message string) CreateAppLogInput {
 	t.Helper()
 

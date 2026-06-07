@@ -35,6 +35,7 @@
       "assignSuccess": "角色权限更新成功",
       "assignFailed": "角色权限更新失败",
       "copySuccess": "角色已复制为自定义角色",
+      "copyPermissionsPartialSuccess": "角色已创建，但复制权限失败。请在角色列表中重新分配权限。",
       "copyUnavailable": "当前无法复制角色，请确认已加载权限目录且具备创建与分配权限。",
       "copyLoadFailed": "复制前加载源角色权限失败",
       "copyDisplayTemplate": "{display} 副本",

@@ -18,6 +18,9 @@ LIVE_CORE_MIGRATION_DIRS = (
     "server/internal/logger/migrations",
     "server/internal/drilldown/migrations",
 )
+GENERATED_REGISTRY_RE = re.compile(r'"graft/server/modules/(?P<module>[^"]+)"')
+MIGRATION_PATH_RE = re.compile(r'MigrationPath:\s*\[\]string\{(?P<paths>[^}]*)\}')
+QUOTED_VALUE_RE = re.compile(r'"([^"]+)"')
 
 
 def repo_root() -> Path:
@@ -38,11 +41,35 @@ def staged_paths(root: Path) -> list[Path]:
     return [root / line for line in output.splitlines() if line]
 
 
+def registry_module_ids(root: Path) -> list[str]:
+    registry = root / "server" / "internal" / "moduleregistry" / "generated.go"
+    if not registry.is_file():
+        return []
+    content = registry.read_text(encoding="utf-8")
+    return GENERATED_REGISTRY_RE.findall(content)
+
+
+def module_migration_dirs(root: Path, module_id: str) -> list[Path]:
+    descriptor = root / "server" / "modules" / module_id / "descriptor.go"
+    if not descriptor.is_file():
+        return []
+    content = descriptor.read_text(encoding="utf-8")
+    dirs: list[Path] = []
+    for match in MIGRATION_PATH_RE.finditer(content):
+        for value in QUOTED_VALUE_RE.findall(match.group("paths")):
+            dirs.append(root / "server" / value)
+    return dirs
+
+
+def has_atlas_state(path: Path) -> bool:
+    return (path / "atlas.sum").is_file()
+
+
 def default_migration_dirs(root: Path) -> set[Path]:
     dirs = {root / path for path in LIVE_CORE_MIGRATION_DIRS}
-    base = root / "server" / "modules"
-    dirs.update(path for path in base.glob("*/migrations") if path.is_dir())
-    return {path for path in dirs if path.is_dir()}
+    for module_id in registry_module_ids(root):
+        dirs.update(module_migration_dirs(root, module_id))
+    return {path for path in dirs if path.is_dir() and has_atlas_state(path)}
 
 
 def candidate_dirs(root: Path, mode: str) -> list[Path]:
@@ -50,8 +77,8 @@ def candidate_dirs(root: Path, mode: str) -> list[Path]:
     if mode == "all":
         return sorted(all_dirs)
 
-    staged = staged_paths(root)
     dirs: set[Path] = set(all_dirs)
+    staged = staged_paths(root)
     for path in staged:
         try:
             relative = path.relative_to(root)
@@ -59,7 +86,9 @@ def candidate_dirs(root: Path, mode: str) -> list[Path]:
             continue
         parts = relative.parts
         if len(parts) >= 4 and parts[:2] == MODULE_MIGRATION_PARTS and parts[3] == "migrations":
-            dirs.add(root / "server" / "modules" / parts[2] / "migrations")
+            candidate = root / "server" / "modules" / parts[2] / "migrations"
+            if candidate in all_dirs:
+                dirs.add(candidate)
 
     return sorted(path for path in dirs if path.is_dir())
 

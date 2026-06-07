@@ -314,7 +314,7 @@ function jobDefinitionsResponse() {
         retentionDays: {
           type: 'integer',
           minimum: 1,
-          maximum: 3650,
+          maximum: 365,
           'x-title-key': `scheduledTask.${prefix}.config.retentionDays.title`,
           'x-description-key': `scheduledTask.${prefix}.config.retentionDays.description`,
           title: 'Retention days',
@@ -812,7 +812,12 @@ describe('ScheduledTaskListPage', () => {
       'httpx.access-log-retention-cleanup',
       expect.objectContaining({
         cron_expression: '0 */10 * * * *',
-        config_json: '{"retentionDays":30,"batchSize":500}',
+      }),
+    );
+    expect(apiMocks.updateScheduledTask).toHaveBeenCalledWith(
+      'httpx.access-log-retention-cleanup',
+      expect.not.objectContaining({
+        config_json: expect.any(String),
       }),
     );
   });
@@ -995,11 +1000,19 @@ describe('ScheduledTaskListPage', () => {
     await findButtonByText(wrapper, '保存')!.trigger('click');
     await flushPromises();
 
+    expect(apiMocks.updateScheduledTask).toHaveBeenNthCalledWith(1, 'httpx.access-log-retention-cleanup', {
+      config_json: '{"retentionDays":45,"batchSize":250}',
+    });
     expect(apiMocks.updateScheduledTask).toHaveBeenLastCalledWith(
       'httpx.access-log-retention-cleanup',
       expect.objectContaining({
         cron_expression: '0 */10 * * * *',
-        config_json: '{"retentionDays":45,"batchSize":250}',
+      }),
+    );
+    expect(apiMocks.updateScheduledTask).toHaveBeenLastCalledWith(
+      'httpx.access-log-retention-cleanup',
+      expect.not.objectContaining({
+        config_json: expect.any(String),
       }),
     );
   });

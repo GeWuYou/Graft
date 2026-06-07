@@ -1363,6 +1363,50 @@ describe('RolePage', () => {
     expect(messageMocks.success).toHaveBeenCalledWith('rbac.roleList.copySuccess');
   });
 
+  it('keeps a copied role visible when permission copy fails after creation', async () => {
+    permissionState.grantedCodes = [
+      RBAC_PERMISSION_CODE.PERMISSION_READ,
+      RBAC_PERMISSION_CODE.ROLE_CREATE,
+      RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN,
+    ];
+    rbacApiMocks.getRoles.mockResolvedValue(createBuiltinAdminRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [3, 1] });
+    rbacApiMocks.createRole.mockResolvedValue({
+      id: 9,
+      name: 'custom-admin',
+      display: 'Custom Admin',
+      description: 'Builtin administrator',
+      builtin: false,
+      status: 'enabled',
+      updated_at: '2026-05-19T00:00:00Z',
+      permission_count: 0,
+      user_count: 0,
+    });
+    rbacApiMocks.replaceRolePermissions.mockRejectedValue(new Error('permission copy failed'));
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    wrapper.getComponent(dropdownStub).vm.$emit('click', { value: 'copy-role' });
+    await flushPromises();
+    await wrapper.get('input[placeholder="rbac.roleList.form.namePlaceholder"]').setValue(' custom-admin ');
+    await wrapper.get('[data-testid="role-form"]').trigger('submit');
+    await flushPromises();
+
+    expect(rbacApiMocks.createRole).toHaveBeenCalledWith({
+      name: 'custom-admin',
+      display: 'rbac.roleList.copyDisplayTemplate',
+      description: 'Builtin administrator',
+    });
+    expect(rbacApiMocks.replaceRolePermissions).toHaveBeenCalledWith(9, {
+      permission_ids: [1, 3],
+    });
+    expect(wrapper.text()).toContain('Custom Admin');
+    expect(messageMocks.warning).toHaveBeenCalledWith('rbac.roleList.copyPermissionsPartialSuccess');
+    expect(messageMocks.success).not.toHaveBeenCalledWith('rbac.roleList.copySuccess');
+  });
+
   it('blocks delete when the role is still enabled', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.ROLE_DELETE];
     rbacApiMocks.getRoles.mockResolvedValue({

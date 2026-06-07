@@ -25,6 +25,7 @@ const (
 	accessLogRetentionDryRunActionTitleKey     = "scheduledTask.action.dryRun.title"
 	accessLogRetentionDryRunActionDescKey      = "scheduledTask.action.dryRun.description"
 	accessLogRetentionDefaultDays              = 30
+	accessLogRetentionMaxDays                  = 365
 	accessLogRetentionDefaultBatchSize         = 1000
 	accessLogRetentionConfigDefinitionOrder    = 210
 	hoursPerDay                                = 24
@@ -275,6 +276,9 @@ func decodeAccessLogRetentionJobConfig(configJSON string) accessLogRetentionJobC
 	_ = json.Unmarshal([]byte(configJSON), &config)
 	if config.RetentionDays <= 0 {
 		config.RetentionDays = accessLogRetentionDefaultDays
+	}
+	if config.RetentionDays > accessLogRetentionMaxDays {
+		config.RetentionDays = accessLogRetentionMaxDays
 	}
 	if config.BatchSize <= 0 {
 		config.BatchSize = accessLogRetentionDefaultBatchSize

@@ -11040,13 +11040,16 @@
             "description": "Stable display placeholder for masked sensitive values."
           },
           "restart_required": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether changing this config requires a service restart before it takes effect."
           },
           "permission": {
-            "type": "string"
+            "type": "string",
+            "description": "Permission code required to update this config item when the definition declares one."
           },
           "order": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Module-declared display order within the config group."
           }
         }
       },

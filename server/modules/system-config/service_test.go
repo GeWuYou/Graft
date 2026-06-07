@@ -73,6 +73,22 @@ func TestServiceResolveDefaultConfigReturnsEffectiveOverride(t *testing.T) {
 	}
 }
 
+func TestServiceResolveDefaultConfigRejectsSensitiveDefinitions(t *testing.T) {
+	service := newTestService(t, configregistry.Definition{
+		Key:          "auth.jwt_secret",
+		Module:       "auth",
+		Group:        "security",
+		Title:        "JWT Secret",
+		Type:         configregistry.ValueTypeString,
+		DefaultValue: json.RawMessage(`"secret"`),
+		Sensitive:    true,
+	})
+
+	if _, err := service.ResolveDefaultConfig(context.Background(), "auth.jwt_secret"); !errors.Is(err, errSensitiveConfig) {
+		t.Fatalf("expected sensitive default config error, got %v", err)
+	}
+}
+
 func assertDefaultVisibleWithoutOverride(t *testing.T, service *Service, repo *memoryRepo) {
 	t.Helper()
 
@@ -138,6 +154,25 @@ func TestServiceRejectsMismatchedValueType(t *testing.T) {
 
 	if _, err := service.Update(context.Background(), "audit.retention_days", json.RawMessage(`"30"`)); err == nil {
 		t.Fatal("expected value type error")
+	}
+}
+
+func TestServiceRejectsObjectValueOutsideSchemaConstraints(t *testing.T) {
+	service := newTestService(t, configregistry.Definition{
+		Key:          "httpx.access-log-retention-cleanup",
+		Module:       "core.httpx",
+		Group:        "log.retention",
+		Title:        "Access Log Retention Cleanup",
+		Type:         configregistry.ValueTypeObject,
+		Schema:       json.RawMessage(`{"type":"object","properties":{"retentionDays":{"type":"integer","minimum":1,"maximum":365},"batchSize":{"type":"integer","minimum":1,"maximum":10000}},"additionalProperties":false}`),
+		DefaultValue: json.RawMessage(`{"retentionDays":30,"batchSize":1000}`),
+	})
+
+	if _, err := service.Update(context.Background(), "httpx.access-log-retention-cleanup", json.RawMessage(`{"retentionDays":366,"batchSize":1000}`)); err == nil {
+		t.Fatal("expected schema validation error")
+	}
+	if _, err := service.Update(context.Background(), "httpx.access-log-retention-cleanup", json.RawMessage(`{"retentionDays":30,"batchSize":1000,"extra":true}`)); err == nil {
+		t.Fatal("expected additional property validation error")
 	}
 }
 

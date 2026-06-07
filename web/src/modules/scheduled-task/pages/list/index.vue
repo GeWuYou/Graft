@@ -1653,25 +1653,24 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
   taskForm.cronExpression = cronExpression;
   formFieldErrors.cronExpression = '';
 
+  const shouldPersistConfigJson = taskForm.configDirty;
   const persistentConfigJson = normalizeTaskLevelConfigJson();
   if (persistentConfigJson === null) {
     formFieldErrors.configJson = t('scheduledTask.list.form.configJsonInvalidHint');
     return null;
   }
   formFieldErrors.configJson = '';
-  if (taskForm.configDirty) {
+  if (shouldPersistConfigJson) {
     syncTaskLevelConfigAfterSave(persistentConfigJson);
   }
 
   if (formMode.value === 'edit' && isSystemEdit.value) {
     // Builtin tasks keep their module-owned identity; users may tune schedule, enabled state, and schema-backed config.
-    return withOptionalConfigJson(
-      {
-        cron_expression: cronExpression,
-        enabled: taskForm.enabled,
-      },
-      persistentConfigJson,
-    );
+    const payload = {
+      cron_expression: cronExpression,
+      enabled: taskForm.enabled,
+    };
+    return shouldPersistConfigJson ? withOptionalConfigJson(payload, persistentConfigJson) : payload;
   }
 
   if (!taskForm.title.trim()) {

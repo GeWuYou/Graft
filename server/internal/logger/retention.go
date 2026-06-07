@@ -25,6 +25,7 @@ const (
 	appLogRetentionDryRunActionTitleKey     = "scheduledTask.action.dryRun.title"
 	appLogRetentionDryRunActionDescKey      = "scheduledTask.action.dryRun.description"
 	appLogRetentionDefaultDays              = 30
+	appLogRetentionMaxDays                  = 365
 	appLogRetentionDefaultBatchSize         = 1000
 	appLogRetentionConfigDefinitionOrder    = 220
 	appLogRetentionFailureSummary           = "app log retention cleanup failed"
@@ -304,6 +305,9 @@ func decodeAppLogRetentionJobConfig(configJSON string) appLogRetentionJobConfig 
 	_ = json.Unmarshal([]byte(configJSON), &config)
 	if config.RetentionDays <= 0 {
 		config.RetentionDays = appLogRetentionDefaultDays
+	}
+	if config.RetentionDays > appLogRetentionMaxDays {
+		config.RetentionDays = appLogRetentionMaxDays
 	}
 	if config.BatchSize <= 0 {
 		config.BatchSize = appLogRetentionDefaultBatchSize

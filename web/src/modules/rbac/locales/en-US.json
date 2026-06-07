@@ -35,6 +35,7 @@
       "assignSuccess": "Role permissions updated",
       "assignFailed": "Failed to update role permissions",
       "copySuccess": "Role copied as a custom role",
+      "copyPermissionsPartialSuccess": "Role created, but permission copy failed. Assign permissions from the role list.",
       "copyUnavailable": "This role cannot be copied right now. Confirm the permission catalog is loaded and you can create roles and assign permissions.",
       "copyLoadFailed": "Failed to load the source role permissions before copying",
       "copyDisplayTemplate": "{display} Copy",

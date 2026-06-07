@@ -1430,10 +1430,19 @@ async function handleRoleSubmit(ctx: SubmitContext) {
   try {
     if (roleDrawerMode.value === 'create') {
       const created = await createRole(toCreateRolePayload(roleForm.value));
-      if (copiedRolePermissionIds.value?.length) {
-        await replaceRolePermissions(created.id, toReplaceRolePermissionsPayload(copiedRolePermissionIds.value));
-      }
       roles.value = [...roles.value, created].sort((left, right) => left.id - right.id);
+      if (copiedRolePermissionIds.value?.length) {
+        try {
+          await replaceRolePermissions(created.id, toReplaceRolePermissionsPayload(copiedRolePermissionIds.value));
+        } catch (error) {
+          logger.error('failed to copy role permissions after role creation', error);
+          MessagePlugin.warning(
+            resolveErrorMessageWithCorrelation(t, error, t('rbac.roleList.copyPermissionsPartialSuccess')),
+          );
+          closeRoleDrawer();
+          return;
+        }
+      }
       MessagePlugin.success(
         formatHintedMessage(
           copiedRolePermissionIds.value ? t('rbac.roleList.copySuccess') : t('rbac.roleList.createSuccess'),

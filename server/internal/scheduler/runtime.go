@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +84,11 @@ var reservedTaskKeys = map[string]struct{}{
 	"jobs": {},
 	"runs": {},
 }
+
+const (
+	taskConfigSourceSystem = "system"
+	taskConfigSourceUser   = "user"
+)
 
 // JobDefinitionSnapshot describes one persisted, creatable scheduler job type.
 type JobDefinitionSnapshot struct {
@@ -204,6 +208,7 @@ type TaskDefinition struct {
 	Enabled        bool
 	Builtin        bool
 	ConfigJSON     string
+	ConfigSource   string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	DeletedAt      *time.Time
@@ -388,7 +393,7 @@ func (r *CronRuntime) SeedBuiltinJobs(ctx context.Context, jobs []cronx.Job) err
 			return err
 		}
 		definitions = append(definitions, definition)
-		task, err := r.builtinTaskDefinition(ctx, job, definition.DefaultConfig)
+		task, err := r.builtinTaskDefinition(ctx, job)
 		if err != nil {
 			return err
 		}
@@ -405,9 +410,8 @@ func (r *CronRuntime) SeedBuiltinJobs(ctx context.Context, jobs []cronx.Job) err
 	return nil
 }
 
-func (r *CronRuntime) builtinTaskDefinition(ctx context.Context, job cronx.Job, defaultConfig string) (TaskDefinition, error) {
+func (r *CronRuntime) builtinTaskDefinition(ctx context.Context, job cronx.Job) (TaskDefinition, error) {
 	task := builtinTaskDefinition(job, r.now())
-	task.ConfigJSON = defaultConfig
 	if r.tasks == nil {
 		return task, nil
 	}
@@ -421,18 +425,15 @@ func (r *CronRuntime) builtinTaskDefinition(ctx context.Context, job cronx.Job, 
 	if !existing.Builtin {
 		return task, nil
 	}
+	if existing.ConfigSource != taskConfigSourceUser {
+		return task, nil
+	}
 	configJSON, err := sanitizeConfigJSON(job.RuntimeConfigSchema(), existing.ConfigJSON)
 	if err != nil {
 		return TaskDefinition{}, err
 	}
-	defaultSnapshot, err := matchesAnyConfigJSON(configJSON, job.RuntimeDefaultConfig(), defaultConfig)
-	if err != nil {
-		return TaskDefinition{}, err
-	}
-	if defaultSnapshot {
-		return task, nil
-	}
 	task.ConfigJSON = configJSON
+	task.ConfigSource = taskConfigSourceUser
 	return task, nil
 }
 
@@ -652,7 +653,7 @@ func (r *CronRuntime) RunAction(ctx context.Context, taskKey string, actionKey s
 	}
 	defer r.markFinished(execution.definition.TaskKey)
 
-	taskConfig, err := r.taskConfigForEffective(execution.definition, execution.jobDefinition)
+	taskConfig, err := r.taskConfigForEffective(execution.definition)
 	if err != nil {
 		return JobActionResult{}, err
 	}
@@ -782,7 +783,7 @@ func (r *CronRuntime) snapshotDefinition(ctx context.Context, definition TaskDef
 		DeletedAt:   definition.DeletedAt,
 	}
 	if jobDefinition, err := r.requireKnownJob(ctx, definition.JobKey); err == nil {
-		taskConfig, taskConfigErr := r.taskConfigForEffective(definition, jobDefinition)
+		taskConfig, taskConfigErr := r.taskConfigForEffective(definition)
 		if taskConfigErr != nil {
 			return TaskSnapshot{}, taskConfigErr
 		}
@@ -873,7 +874,7 @@ func (r *CronRuntime) effectiveConfigForRun(ctx context.Context, definition Task
 	if err != nil {
 		return "", err
 	}
-	taskConfig, err := r.taskConfigForEffective(definition, jobDefinition)
+	taskConfig, err := r.taskConfigForEffective(definition)
 	if err != nil {
 		return "", err
 	}
@@ -1028,6 +1029,7 @@ func builtinTaskDefinition(job cronx.Job, now time.Time) TaskDefinition {
 		Enabled:        job.DefaultEnabled,
 		Builtin:        true,
 		ConfigJSON:     job.RuntimeDefaultConfig(),
+		ConfigSource:   taskConfigSourceSystem,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
@@ -1048,6 +1050,7 @@ func mutationToDefinition(command TaskMutation, job JobDefinition, now time.Time
 		Enabled:        command.Enabled,
 		Builtin:        false,
 		ConfigJSON:     configJSON,
+		ConfigSource:   taskConfigSourceUser,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
@@ -1065,7 +1068,7 @@ func (r *CronRuntime) validateTaskConfig(ctx context.Context, definition TaskDef
 	if err != nil {
 		return err
 	}
-	taskConfig, err := r.taskConfigForEffective(definition, job)
+	taskConfig, err := r.taskConfigForEffective(definition)
 	if err != nil {
 		return err
 	}
@@ -1233,7 +1236,7 @@ func (r *CronRuntime) defaultConfigResolver() DefaultConfigResolver {
 	return r.defaultConfigs
 }
 
-func (r *CronRuntime) taskConfigForEffective(definition TaskDefinition, jobDefinition JobDefinition) (string, error) {
+func (r *CronRuntime) taskConfigForEffective(definition TaskDefinition) (string, error) {
 	configJSON := strings.TrimSpace(definition.ConfigJSON)
 	if configJSON == "" {
 		configJSON = "{}"
@@ -1241,50 +1244,10 @@ func (r *CronRuntime) taskConfigForEffective(definition TaskDefinition, jobDefin
 	if !definition.Builtin {
 		return configJSON, nil
 	}
-	job, ok := r.findJob(definition.JobKey)
-	if !ok {
-		return configJSON, nil
-	}
-	defaultSnapshot, err := matchesAnyConfigJSON(configJSON, job.RuntimeDefaultConfig(), jobDefinition.DefaultConfig)
-	if err != nil {
-		return "", err
-	}
-	if defaultSnapshot {
+	if definition.ConfigSource != taskConfigSourceUser {
 		return "{}", nil
 	}
 	return configJSON, nil
-}
-
-func matchesAnyConfigJSON(value string, candidates ...string) (bool, error) {
-	base, err := decodeConfigJSONForComparison(value)
-	if err != nil {
-		return false, err
-	}
-	for _, candidate := range candidates {
-		current, err := decodeConfigJSONForComparison(candidate)
-		if err != nil {
-			return false, err
-		}
-		if reflect.DeepEqual(base, current) {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func decodeConfigJSONForComparison(value string) (map[string]any, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		trimmed = "{}"
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal([]byte(trimmed), &decoded); err != nil {
-		return nil, fmt.Errorf("%w: invalid config json", ErrTaskValidation)
-	}
-	if decoded == nil {
-		decoded = make(map[string]any)
-	}
-	return decoded, nil
 }
 
 func effectiveConfigJSON(defaultConfig string, taskConfig string) (string, error) {

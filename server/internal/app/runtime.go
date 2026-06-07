@@ -666,18 +666,21 @@ func (r *Runtime) registerAccessLogRetentionJob() error {
 		return errors.New("runtime server is unavailable")
 	}
 	if err := httpx.RegisterAccessLogRetentionConfigMessages(r.i18n); err != nil {
-		return err
+		return fmt.Errorf("register access-log retention config messages: %w", err)
 	}
 	if err := httpx.RegisterAccessLogRetentionConfigDefinition(r.configRegistry); err != nil {
-		return err
+		return fmt.Errorf("register access-log retention config definition: %w", err)
 	}
 
-	return httpx.RegisterAccessLogRetentionCleanupJob(
+	if err := httpx.RegisterAccessLogRetentionCleanupJob(
 		r.cronRegistry,
 		r.logger,
 		r.server.AccessLogRepository(),
 		r.config.HTTPX,
-	)
+	); err != nil {
+		return fmt.Errorf("register access-log retention cleanup job: %w", err)
+	}
+	return nil
 }
 
 func (r *Runtime) registerAppLogRetentionJob() error {
@@ -688,19 +691,22 @@ func (r *Runtime) registerAppLogRetentionJob() error {
 		return nil
 	}
 	if err := logger.RegisterAppLogRetentionConfigMessages(r.i18n); err != nil {
-		return err
+		return fmt.Errorf("register app-log retention config messages: %w", err)
 	}
 	if err := logger.RegisterAppLogRetentionConfigDefinition(r.configRegistry); err != nil {
-		return err
+		return fmt.Errorf("register app-log retention config definition: %w", err)
 	}
 
-	return logger.RegisterAppLogRetentionCleanupJob(
+	if err := logger.RegisterAppLogRetentionCleanupJob(
 		r.cronRegistry,
 		r.logger,
 		r.injectedAppLogger(),
 		r.appLogRepository,
 		r.config.Log,
-	)
+	); err != nil {
+		return fmt.Errorf("register app-log retention cleanup job: %w", err)
+	}
+	return nil
 }
 
 func (r *Runtime) newAppLogger() logger.AppLogger {

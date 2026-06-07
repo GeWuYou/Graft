@@ -141,6 +141,46 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('单次清理最多删除的日志行数。');
     expect(wrapper.text()).toContain('配置预览');
   });
+
+  it.each([
+    ['boolean', false],
+    ['string', ''],
+    ['object', {}],
+    ['array', []],
+    ['number', null],
+    ['integer', null],
+  ] as const)('uses a blank %s value when editing sensitive config', async (type, expectedValue) => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          key: `sensitive.${type}`,
+          title_key: '',
+          title: `Sensitive ${type}`,
+          type,
+          config_schema: { type },
+          sensitive: true,
+          masked: true,
+          default_value: '***',
+          effective_value: '***',
+        },
+      ],
+      total: 1,
+    });
+    apiMocks.updateSystemConfig.mockResolvedValue(systemConfigItem());
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+    await wrapper.find('button[data-test-id="dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.updateSystemConfig).toHaveBeenCalledWith(`sensitive.${type}`, {
+      value: expectedValue,
+    });
+  });
 });
 
 function mountPage() {
@@ -155,11 +195,12 @@ function mountPage() {
         TButton: defineComponent({
           name: 'TButton',
           props: ['loading'],
-          setup(_props, { slots }) {
+          setup(_props, { attrs, slots }) {
             return () =>
               h(
                 'button',
                 {
+                  ...attrs,
                   'data-test-id': slots.default?.()?.some((node) => String(node.children).includes('编辑'))
                     ? 'edit-button'
                     : undefined,
@@ -171,8 +212,23 @@ function mountPage() {
         TDialog: defineComponent({
           name: 'TDialog',
           props: ['visible', 'header'],
-          setup(props, { slots }) {
-            return () => (props.visible ? h('section', [h('h2', props.header as string), slots.default?.()]) : null);
+          emits: ['confirm'],
+          setup(props, { emit, slots }) {
+            return () =>
+              props.visible
+                ? h('section', [
+                    h('h2', props.header as string),
+                    slots.default?.(),
+                    h(
+                      'button',
+                      {
+                        'data-test-id': 'dialog-confirm',
+                        onClick: () => emit('confirm'),
+                      },
+                      'confirm',
+                    ),
+                  ])
+                : null;
           },
         }),
         TCollapse: textStub('section'),

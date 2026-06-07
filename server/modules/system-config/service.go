@@ -8,12 +8,14 @@ import (
 	"strings"
 
 	"graft/server/internal/configregistry"
+	"graft/server/internal/scheduler"
 	systemconfigstore "graft/server/modules/system-config/store"
 )
 
 var (
 	errDefinitionNotFound = errors.New("system config definition not found")
 	errInvalidConfigValue = errors.New("invalid system config value")
+	errSensitiveConfig    = errors.New("sensitive system config cannot be resolved as default config")
 )
 
 // ValueSnapshot is the service read model for one effective config value.
@@ -71,6 +73,9 @@ func (s *Service) ResolveDefaultConfig(ctx context.Context, key string) (string,
 	item, err := s.Get(ctx, key)
 	if err != nil {
 		return "", err
+	}
+	if item.Definition.Sensitive {
+		return "", fmt.Errorf("%w: %s", errSensitiveConfig, item.Definition.Key)
 	}
 	return string(item.EffectiveValue), nil
 }
@@ -146,6 +151,11 @@ func validateValueForDefinition(definition configregistry.Definition, value json
 	expected := configregistry.InvalidJSONShape(decoded, definition.Type)
 	if expected != "" {
 		return fmt.Errorf("%w: %s must be %s", errInvalidConfigValue, definition.Key, expected)
+	}
+	if definition.Type == configregistry.ValueTypeObject && len(definition.Schema) > 0 {
+		if err := scheduler.ValidateConfigJSON(string(definition.Schema), string(value)); err != nil {
+			return fmt.Errorf("%w: %s %v", errInvalidConfigValue, definition.Key, err)
+		}
 	}
 	return nil
 }

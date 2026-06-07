@@ -159,6 +159,9 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 		if task.ConfigJSON == "" {
 			task.ConfigJSON = "{}"
 		}
+		if task.ConfigSource == "" {
+			task.ConfigSource = taskConfigSourceSystem
+		}
 		if task.CreatedAt.IsZero() {
 			task.CreatedAt = time.Now().UTC()
 		}
@@ -173,17 +176,18 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 			FROM scheduled_tasks
 			WHERE task_key = $1 AND builtin = true AND deleted_at IS NULL
 		)
-		INSERT INTO scheduled_tasks (
+			INSERT INTO scheduled_tasks (
 				task_key,
 				job_key,
 				module_key,
-			title,
-			description,
-			cron_expression,
-			enabled,
-			builtin,
-			task_type,
+				title,
+				description,
+				cron_expression,
+				enabled,
+				builtin,
+				task_type,
 				config_json,
+				config_source,
 				created_at,
 				updated_at
 			) VALUES (
@@ -198,7 +202,8 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 				'job',
 				$8,
 				$9,
-				$10
+				$10,
+				$11
 			)
 			ON CONFLICT (task_key) DO UPDATE
 			SET job_key = EXCLUDED.job_key,
@@ -207,6 +212,7 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 				description = EXCLUDED.description,
 				builtin = true,
 				config_json = EXCLUDED.config_json,
+				config_source = EXCLUDED.config_source,
 				updated_at = EXCLUDED.updated_at
 			WHERE scheduled_tasks.builtin = true AND scheduled_tasks.deleted_at IS NULL`,
 			task.TaskKey,
@@ -217,6 +223,7 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 			task.CronExpression,
 			task.Enabled,
 			task.ConfigJSON,
+			task.ConfigSource,
 			task.CreatedAt.UTC(),
 			task.UpdatedAt.UTC(),
 		)
@@ -236,6 +243,9 @@ func (r *SQLTaskRepository) CreateTask(ctx context.Context, task TaskDefinition)
 	if task.ConfigJSON == "" {
 		task.ConfigJSON = "{}"
 	}
+	if task.ConfigSource == "" {
+		task.ConfigSource = taskConfigSourceUser
+	}
 	if task.CreatedAt.IsZero() {
 		task.CreatedAt = time.Now().UTC()
 	}
@@ -253,14 +263,15 @@ func (r *SQLTaskRepository) CreateTask(ctx context.Context, task TaskDefinition)
 		title,
 		description,
 		cron_expression,
-		enabled,
-		builtin,
+			enabled,
+			builtin,
 			task_type,
 			config_json,
-		created_at,
-		updated_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, false, 'job', $8, $9, $10)
-	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at`,
+			config_source,
+			created_at,
+			updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, false, 'job', $8, $9, $10, $11)
+		RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at`,
 		task.TaskKey,
 		task.JobKey,
 		task.ModuleKey,
@@ -269,6 +280,7 @@ func (r *SQLTaskRepository) CreateTask(ctx context.Context, task TaskDefinition)
 		task.CronExpression,
 		task.Enabled,
 		task.ConfigJSON,
+		task.ConfigSource,
 		task.CreatedAt.UTC(),
 		task.UpdatedAt.UTC(),
 	)
@@ -294,19 +306,21 @@ func (r *SQLTaskRepository) UpdateTask(ctx context.Context, key string, patch Ta
 	}
 
 	row := r.db.QueryRowContext(ctx, `UPDATE scheduled_tasks
-	SET title = $1,
-		description = $2,
-		cron_expression = $3,
-		enabled = $4,
-		config_json = $5,
-		updated_at = $6
-	WHERE task_key = $7 AND deleted_at IS NULL
-	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at`,
+		SET title = $1,
+			description = $2,
+			cron_expression = $3,
+			enabled = $4,
+			config_json = $5,
+			config_source = $6,
+			updated_at = $7
+		WHERE task_key = $8 AND deleted_at IS NULL
+		RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at`,
 		next.Title,
 		next.Description,
 		next.CronExpression,
 		next.Enabled,
 		next.ConfigJSON,
+		next.ConfigSource,
 		next.UpdatedAt,
 		key,
 	)
@@ -342,6 +356,7 @@ func applyTaskPatch(existing TaskDefinition, patch TaskMutation) TaskDefinition 
 	}
 	if patch.ConfigJSON != "" {
 		next.ConfigJSON = patch.ConfigJSON
+		next.ConfigSource = taskConfigSourceUser
 	}
 	return next
 }
@@ -377,7 +392,7 @@ func (r *SQLTaskRepository) SetTaskEnabled(ctx context.Context, key string, enab
 	SET enabled = $1,
 		updated_at = $2
 	WHERE task_key = $3 AND deleted_at IS NULL
-	RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at`,
+		RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at`,
 		enabled,
 		time.Now().UTC(),
 		key,
@@ -398,7 +413,7 @@ func (r *SQLTaskRepository) ListTasks(ctx context.Context, query TaskListQuery) 
 	if err != nil {
 		return nil, 0, err
 	}
-	statement := `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at
+	statement := `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at
 	FROM scheduled_tasks
 	WHERE deleted_at IS NULL
 	ORDER BY builtin DESC, created_at ASC, id ASC`
@@ -445,7 +460,7 @@ func (r *SQLTaskRepository) GetTask(ctx context.Context, key string) (TaskDefini
 	if key == "" {
 		return TaskDefinition{}, errors.New("scheduler task key is required")
 	}
-	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, created_at, updated_at, deleted_at
+	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at
 	FROM scheduled_tasks
 	WHERE task_key = $1 AND deleted_at IS NULL
 	LIMIT 1`, key)
@@ -873,6 +888,7 @@ func scanTaskDefinition(scanner rowScanner) (TaskDefinition, error) {
 		&task.Enabled,
 		&task.Builtin,
 		&task.ConfigJSON,
+		&task.ConfigSource,
 		&task.CreatedAt,
 		&task.UpdatedAt,
 		&deletedAt,
@@ -884,6 +900,13 @@ func scanTaskDefinition(scanner rowScanner) (TaskDefinition, error) {
 		return TaskDefinition{}, err
 	}
 	task.ID = taskID
+	if task.ConfigSource == "" {
+		if task.Builtin {
+			task.ConfigSource = taskConfigSourceSystem
+		} else {
+			task.ConfigSource = taskConfigSourceUser
+		}
+	}
 	if deletedAt.Valid {
 		deleted := deletedAt.Time
 		task.DeletedAt = &deleted

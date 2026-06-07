@@ -366,12 +366,28 @@ function upsertConfig(item: SystemConfigItem) {
 
 function initialEditorValue(item: SystemConfigItem) {
   if (item.sensitive) {
-    return item.type === 'boolean' ? false : '';
+    return emptySensitiveEditorValue(item.type);
   }
 
   return (
     parseJsonValue(item.override_value) ?? parseJsonValue(item.effective_value) ?? parseJsonValue(item.default_value)
   );
+}
+
+function emptySensitiveEditorValue(type: SystemConfigItem['type']) {
+  switch (type) {
+    case 'boolean':
+      return false;
+    case 'object':
+      return {};
+    case 'array':
+      return [];
+    case 'number':
+    case 'integer':
+      return null;
+    default:
+      return '';
+  }
 }
 
 function configTitle(item: SystemConfigItem) {

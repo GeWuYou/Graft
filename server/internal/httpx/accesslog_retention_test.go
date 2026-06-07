@@ -307,6 +307,17 @@ func TestRegisterAccessLogRetentionCleanupJobHandlers(t *testing.T) {
 	}
 }
 
+func TestDecodeAccessLogRetentionJobConfigClampsRetentionDays(t *testing.T) {
+	config := decodeAccessLogRetentionJobConfig(`{"retentionDays":366,"batchSize":500}`)
+
+	if config.RetentionDays != accessLogRetentionMaxDays {
+		t.Fatalf("expected retention days clamped to %d, got %d", accessLogRetentionMaxDays, config.RetentionDays)
+	}
+	if config.BatchSize != 500 {
+		t.Fatalf("expected configured batch size, got %d", config.BatchSize)
+	}
+}
+
 func registeredAccessLogRetentionCleanupJobForTest(t *testing.T) ([]cronx.Job, *retentionRepoRecorder) {
 	t.Helper()
 	registry := cronx.NewRegistry()

@@ -3285,12 +3285,18 @@ type SystemConfigItem struct {
 
 	// Module Module that owns the ConfigDefinition authority.
 	Module string `json:"module"`
-	Order  *int   `json:"order,omitempty"`
+
+	// Order Module-declared display order within the config group.
+	Order *int `json:"order,omitempty"`
 
 	// OverrideValue Administrator override JSON string; null when no override or sensitive=true.
-	OverrideValue   *string `json:"override_value,omitempty"`
-	Permission      *string `json:"permission,omitempty"`
-	RestartRequired bool    `json:"restart_required"`
+	OverrideValue *string `json:"override_value,omitempty"`
+
+	// Permission Permission code required to update this config item when the definition declares one.
+	Permission *string `json:"permission,omitempty"`
+
+	// RestartRequired Whether changing this config requires a service restart before it takes effect.
+	RestartRequired bool `json:"restart_required"`
 
 	// Sensitive Whether plaintext values must not be returned to clients.
 	Sensitive bool `json:"sensitive"`
