@@ -19,6 +19,7 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/cronx"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -27,6 +28,7 @@ import (
 	"graft/server/internal/permission"
 	rbaccontract "graft/server/modules/rbac/contract"
 	store "graft/server/modules/rbac/store"
+	usercontract "graft/server/modules/user/contract"
 )
 
 type testRBACRepository struct {
@@ -68,6 +70,10 @@ func (s testUserService) GetUserByID(_ context.Context, id uint64) (moduleapi.Us
 	}
 
 	return user, nil
+}
+
+func (s testUserService) CountUsers(context.Context) (int, error) {
+	return len(s.users), nil
 }
 
 func (r testRBACRepository) EnsureRole(_ context.Context, _ store.EnsureRoleInput) (store.Role, error) {
@@ -305,6 +311,7 @@ func newModuleTestContext(t *testing.T, repo store.Repository) (*module.Context,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
+		DashboardRegistry:  dashboard.NewRegistry(),
 	}
 
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) {
@@ -443,6 +450,73 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	}
 	if _, ok := resolved.(moduleapi.Authorizer); !ok {
 		t.Fatalf("expected moduleapi.Authorizer, got %T", resolved)
+	}
+}
+
+func TestRegisterRegistersAccessSummaryDashboardWidget(t *testing.T) {
+	ctx, _ := newModuleTestContext(t, testRBACRepository{
+		roles: []store.Role{
+			{ID: 1, Name: "admin", Display: "管理员"},
+			{ID: 2, Name: "operator", Display: "运维"},
+		},
+		permissions: []store.Permission{
+			{ID: 1, Code: "user.read", Display: "Read Users"},
+			{ID: 2, Code: "role.read", Display: "Read Roles"},
+			{ID: 3, Code: "permission.read", Display: "Read Permissions"},
+		},
+	})
+
+	definition, ok := ctx.DashboardRegistry.Get(accessSummaryWidgetID)
+	if !ok {
+		t.Fatalf("expected %s dashboard widget to be registered", accessSummaryWidgetID)
+	}
+	if definition.ModuleKey != moduleID || definition.Type != dashboard.WidgetTypeStatGroup {
+		t.Fatalf("unexpected dashboard widget definition: %#v", definition)
+	}
+	expectedPermissions := []string{
+		usercontract.UserReadPermission.String(),
+		rbaccontract.RoleReadPermission.String(),
+		rbaccontract.PermissionReadPermission.String(),
+	}
+	if !reflect.DeepEqual(definition.RequiredPermissions, expectedPermissions) {
+		t.Fatalf("unexpected widget permissions: %#v", definition.RequiredPermissions)
+	}
+
+	payload, err := definition.Loader.Load(context.Background(), dashboard.WidgetRequest{
+		WidgetID:  definition.ID,
+		ModuleKey: definition.ModuleKey,
+		Type:      definition.Type,
+	})
+	if err != nil {
+		t.Fatalf("load dashboard widget: %v", err)
+	}
+
+	items, ok := payload["items"].([]map[string]any)
+	if !ok {
+		t.Fatalf("expected stat-group items payload, got %#v", payload["items"])
+	}
+	if len(items) != 3 {
+		t.Fatalf("expected users, roles, and permissions stats, got %#v", items)
+	}
+	assertDashboardStatItem(t, items[0], "users", rbaccontract.AccessSummaryUsersStat.String(), "2", "/access-control/users")
+	assertDashboardStatItem(t, items[1], "roles", rbaccontract.AccessSummaryRolesStat.String(), "2", "/access-control/roles")
+	assertDashboardStatItem(t, items[2], "permissions", rbaccontract.AccessSummaryPermissionsStat.String(), "3", "/access-control/permissions")
+}
+
+func assertDashboardStatItem(
+	t *testing.T,
+	item map[string]any,
+	key string,
+	labelKey string,
+	value string,
+	routeLocation string,
+) {
+	t.Helper()
+	if item["key"] != key ||
+		item["label_key"] != labelKey ||
+		item["value"] != value ||
+		item["route_location"] != routeLocation {
+		t.Fatalf("unexpected dashboard stat item: %#v", item)
 	}
 }
 

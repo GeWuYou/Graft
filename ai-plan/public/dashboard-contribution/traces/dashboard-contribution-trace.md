@@ -88,3 +88,33 @@
   - The dashboard page does not import audit, scheduler, rbac, user, monitor, or system-config business components.
   - The renderer branches only on `DashboardWidget.type`; widget id and module key remain display/data metadata.
   - No dashboard persistence, preferences, layouts, presets, favorites, recent visits, drag-and-drop, or markdown support was introduced.
+
+## 2026-06-07 - Phase 3 RBAC Access Summary Widget
+
+- Implemented the first business module dashboard contribution:
+  - id: `rbac.access-summary`
+  - module_key: `rbac`
+  - type: `stat-group`
+  - required_permissions: `user.read`, `role.read`, `permission.read`
+  - payload: users, roles, and permissions stat items with stable key-first labels and fallback strings.
+- Kept module boundaries explicit:
+  - the widget loader lives in `server/modules/rbac`
+  - `server/internal/dashboard` remains generic and does not import RBAC or user internals
+  - RBAC reads role and permission counts through its module-owned management reader
+  - RBAC reads user count through the stable `moduleapi.UserService.CountUsers` boundary implemented by the user module.
+- Added backend tests for:
+  - RBAC widget registration when `DashboardRegistry` is present
+  - real required permission codes
+  - stat-group payload item shape and route locations.
+- Validation completed during Phase 3:
+  - `cd server && go test ./internal/moduleapi ./modules/user ./modules/rbac`
+  - `cd server && go run ./cmd/graft validate backend --stage openapi`
+  - `cd server && go run ./cmd/graft validate backend --stage lint`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run openapi:types:check`
+  - `cd web && bun run test:run -- src/modules/dashboard src/modules/index.test.ts src/router/index.test.ts`
+  - `cd web && bun run check`
+- Notes:
+  - The first backend lint run failed because the RBAC registration edit pushed `Register` over the configured cyclomatic complexity threshold and duplicated zh/en message literal blocks.
+  - The lint failure was fixed by extracting RBAC service registration and shared message resource construction without changing widget behavior.
+- Commit: Phase 3 scope committed through `$graft-commit`; see loop closeout for short SHA.

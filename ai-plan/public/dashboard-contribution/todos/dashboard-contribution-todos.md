@@ -6,10 +6,9 @@
   - Phase 1: backend dashboard registry, aggregate route, OpenAPI source, and core module-runtime widget
   - Phase 2: web dashboard renderer and home route integration
 - pending_batches:
-  - Phase 3: RBAC access summary widget and final cross-boundary validation
   - Phase 4: archive-readiness closeout
-- current_batch: Phase 2 completed
-- next_batch: Phase 3
+- current_batch: Phase 3 completed
+- next_batch: Phase 4
 - terminal_status: in-progress
 
 ## Phase 1 - Backend Registry And Core Widget
@@ -35,11 +34,11 @@
 
 ## Phase 3 - RBAC Access Summary And Final Validation
 
-- [ ] Add `rbac.access-summary` stat-group widget with real permissions: `user.read`, `role.read`, `permission.read`.
-- [ ] Use module-owned service/repository boundaries; do not let dashboard core import RBAC/user internals.
-- [ ] Validate server, OpenAPI generated freshness, web type usage, i18n governance, and dashboard renderer behavior.
-- [ ] Update recovery trace and todos.
-- [ ] Commit the validated Phase 3 slice through `$graft-commit`.
+- [x] Add `rbac.access-summary` stat-group widget with real permissions: `user.read`, `role.read`, `permission.read`.
+- [x] Use module-owned service/repository boundaries; do not let dashboard core import RBAC/user internals.
+- [x] Validate server, OpenAPI generated freshness, web type usage, i18n governance, and dashboard renderer behavior.
+- [x] Update recovery trace and todos.
+- [x] Commit the validated Phase 3 slice through `$graft-commit`.
 
 ## Phase 4 - Archive Readiness
 
