@@ -12,6 +12,7 @@ type GetDashboardWidgetEnvelope = GetDashboardWidgetOperation['responses'][200][
 export type GetDashboardWidgetPathParams = GetDashboardWidgetOperation['parameters']['path'];
 
 export type DashboardSummaryResponse = NonNullable<GetDashboardSummaryEnvelope['data']>;
+export type DashboardQuickLink = components['schemas']['dashboard-quick-link'];
 export type DashboardWidget = components['schemas']['dashboard-widget'];
 export type DashboardWidgetType = components['schemas']['dashboard-widget-type'];
 export type DashboardWidgetSize = components['schemas']['dashboard-widget-size'];

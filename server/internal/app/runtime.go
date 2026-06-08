@@ -486,6 +486,27 @@ func (r *Runtime) registerCoreDashboardWidgets() error {
 		return fmt.Errorf("register core dashboard widget: %w", err)
 	}
 
+	if repo := r.server.AccessLogRepository(); repo != nil {
+		if err := r.dashboardRegistry.Register(dashboard.WidgetDefinition{
+			ID:                  httpx.AccessLogDashboardWidgetID,
+			ModuleKey:           httpx.AccessLogDashboardModuleKey(),
+			TitleKey:            "dashboard.widget.accessLogRequestAttention.title",
+			Title:               "Request Attention",
+			DescriptionKey:      "dashboard.widget.accessLogRequestAttention.description",
+			Description:         "Recent error and slow HTTP requests.",
+			Type:                dashboard.WidgetTypeAlertList,
+			Size:                dashboard.WidgetSizeMedium,
+			Order:               httpx.AccessLogDashboardWidgetOrder,
+			RouteLocation:       httpx.AccessLogDashboardRouteLocation(),
+			RequiredPermissions: []string{httpx.AccessLogReadPermission},
+			Loader: dashboard.WidgetLoaderFunc(func(ctx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
+				return httpx.LoadAccessLogRequestAttentionPayload(ctx, repo)
+			}),
+		}); err != nil {
+			return fmt.Errorf("register access-log dashboard widget: %w", err)
+		}
+	}
+
 	return nil
 }
 

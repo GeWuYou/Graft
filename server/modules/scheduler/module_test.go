@@ -17,6 +17,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -396,6 +397,7 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
+		DashboardRegistry:  dashboard.NewRegistry(),
 	}, engine
 }
 
@@ -444,6 +446,65 @@ func TestRegisterExposesRuntimeService(t *testing.T) {
 	}
 	if _, ok := resolved.(schedulercore.Runtime); !ok {
 		t.Fatalf("expected scheduler runtime service, got %T", resolved)
+	}
+}
+
+func TestRegisterRegistersSchedulerTaskAttentionDashboardWidget(t *testing.T) {
+	ctx := newModuleTestContext()
+	moduleInstance := NewModule()
+
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+
+	widget, ok := ctx.DashboardRegistry.Get(schedulerTaskAttentionWidgetID)
+	if !ok {
+		t.Fatalf("expected scheduler task attention dashboard widget to be registered")
+	}
+	if widget.Type != dashboard.WidgetTypeStatGroup {
+		t.Fatalf("expected stat-group widget, got %q", widget.Type)
+	}
+	if widget.RouteLocation != schedulercontract.ScheduledTaskMenuPath {
+		t.Fatalf("expected scheduler route %q, got %q", schedulercontract.ScheduledTaskMenuPath, widget.RouteLocation)
+	}
+	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != schedulercontract.ScheduledTaskReadPermission.String() {
+		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
+	}
+}
+
+func TestSchedulerTaskAttentionDashboardWidgetLoadsAttentionPayload(t *testing.T) {
+	finishedAt := time.Now().UTC()
+	payload, err := loadSchedulerTaskAttentionWidget(context.Background(), &schedulerAPIRuntime{
+		tasks: []schedulercore.TaskSnapshot{
+			{
+				Key:     "failed",
+				Enabled: true,
+				LastRun: &schedulercore.TaskRun{
+					Status:     schedulercore.RunStatusFailed,
+					FinishedAt: &finishedAt,
+				},
+			},
+			{Key: "running", Enabled: true, Running: true},
+			{Key: "disabled", Enabled: false},
+		},
+	})
+	if err != nil {
+		t.Fatalf("load scheduler task attention widget: %v", err)
+	}
+	items, ok := payload["items"].([]map[string]any)
+	if !ok {
+		t.Fatalf("expected stat-group items payload, got %#v", payload["items"])
+	}
+	if len(items) != 3 {
+		t.Fatalf("expected three scheduler attention stats, got %d", len(items))
+	}
+	for _, item := range items {
+		if item["value"] != "1" {
+			t.Fatalf("expected each attention stat to count one task, got %#v", items)
+		}
+		if item["route_location"] != schedulercontract.ScheduledTaskMenuPath {
+			t.Fatalf("expected scheduler route on stat item, got %#v", item)
+		}
 	}
 }
 

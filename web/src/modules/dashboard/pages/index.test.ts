@@ -14,6 +14,10 @@ const loggerMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+}));
+
 vi.mock('../api/dashboard', () => ({
   getDashboardSummary: dashboardApiMocks.getDashboardSummary,
   getDashboardWidget: dashboardApiMocks.getDashboardWidget,
@@ -31,6 +35,9 @@ vi.mock('@/locales', () => ({
       'dashboard.page.description': 'Dashboard description',
       'dashboard.page.eyebrow': 'Workspace',
       'dashboard.page.title': 'Home',
+      'dashboard.quickActions.description': 'Permission entries',
+      'dashboard.quickActions.empty': 'No quick actions',
+      'dashboard.quickActions.title': 'Quick Actions',
       'dashboard.systemSummary.currentUser.label': 'Current user',
       'dashboard.systemSummary.environment.description': 'Runtime environment',
       'dashboard.systemSummary.environment.label': 'Environment',
@@ -49,6 +56,10 @@ vi.mock('@/locales', () => ({
 
 vi.mock('@/utils/logger', () => ({
   createLogger: () => loggerMocks,
+}));
+
+vi.mock('vue-router', () => ({
+  useRouter: () => routerMocks,
 }));
 
 const rendererStub = defineComponent({
@@ -91,15 +102,23 @@ const passthroughStub = defineComponent({
   },
   setup(props, { slots }) {
     return () =>
-      h('div', [props.title, props.message, props.description, props.text, slots.default?.(), slots.operation?.()]);
+      h('div', [
+        props.title,
+        props.message,
+        props.description,
+        props.text,
+        slots.title?.(),
+        slots.default?.(),
+        slots.operation?.(),
+      ]);
   },
 });
 
 const buttonStub = defineComponent({
   name: 'TButtonStub',
   emits: ['click'],
-  setup(_props, { emit, slots }) {
-    return () => h('button', { onClick: (event: MouseEvent) => emit('click', event) }, slots.default?.());
+  setup(_props, { attrs, emit, slots }) {
+    return () => h('button', { ...attrs, onClick: (event: MouseEvent) => emit('click', event) }, slots.default?.());
   },
 });
 
@@ -122,6 +141,23 @@ function summaryResponse(): DashboardSummaryResponse {
       },
       visible_widgets: 1,
     },
+    quick_links: [
+      {
+        id: 'rbac.roles',
+        module_key: 'rbac',
+        order: 20,
+        route_location: '/rbac/roles',
+        title: 'Roles',
+      },
+      {
+        description: 'Review events',
+        id: 'audit.logs',
+        module_key: 'audit',
+        order: 10,
+        route_location: '/audit/events?level=warning',
+        title: 'Audit Logs',
+      },
+    ],
     widgets: [
       {
         id: 'core.module-runtime-health',
@@ -137,6 +173,20 @@ function summaryResponse(): DashboardSummaryResponse {
         title: 'Module Health',
         type: 'health',
       },
+      {
+        id: 'monitor.system-health',
+        module_key: 'monitor',
+        order: 2,
+        payload: {
+          summary: {
+            status: 'healthy',
+          },
+          items: [],
+        },
+        size: 'medium',
+        title: 'System Health',
+        type: 'health',
+      },
     ],
   };
 }
@@ -148,8 +198,15 @@ function mountPage() {
         DashboardRenderer: rendererStub,
         TAlert: passthroughStub,
         TButton: buttonStub,
+        TCard: passthroughStub,
         TEmpty: passthroughStub,
+        TIcon: passthroughStub,
         TLoading: passthroughStub,
+        't-button': buttonStub,
+        't-card': passthroughStub,
+        't-empty': passthroughStub,
+        't-icon': passthroughStub,
+        't-loading': passthroughStub,
       },
     },
   });
@@ -160,7 +217,7 @@ describe('DashboardHomePage', () => {
     vi.clearAllMocks();
   });
 
-  it('loads and renders the fixed system summary plus widgets', async () => {
+  it('loads and renders the fixed system summary plus API-provided quick links and widgets', async () => {
     dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
 
     const wrapper = mountPage();
@@ -171,7 +228,25 @@ describe('DashboardHomePage', () => {
     expect(wrapper.text()).toContain('development');
     expect(wrapper.text()).toContain('zh-CN');
     expect(wrapper.text()).toContain('4');
+    expect(wrapper.text()).toContain('Audit Logs');
+    expect(wrapper.text()).toContain('Review events');
+    expect(wrapper.text()).toContain('Roles');
     expect(wrapper.text()).toContain('core.module-runtime-health');
+    expect(wrapper.text()).toContain('monitor.system-health');
+  });
+
+  it('opens the API-provided route when a quick action is clicked', async () => {
+    dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const quickActionButtons = wrapper.findAll('.dashboard-quick-actions__item');
+    expect(quickActionButtons).toHaveLength(2);
+
+    await quickActionButtons[0].trigger('click');
+
+    expect(routerMocks.push).toHaveBeenCalledWith('/audit/events?level=warning');
   });
 
   it('refreshes one widget through the focused widget endpoint', async () => {

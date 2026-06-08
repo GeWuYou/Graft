@@ -453,70 +453,70 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	}
 }
 
-func TestRegisterRegistersAccessSummaryDashboardWidget(t *testing.T) {
-	ctx, _ := newModuleTestContext(t, testRBACRepository{
-		roles: []store.Role{
-			{ID: 1, Name: "admin", Display: "管理员"},
-			{ID: 2, Name: "operator", Display: "运维"},
-		},
-		permissions: []store.Permission{
-			{ID: 1, Code: "user.read", Display: "Read Users"},
-			{ID: 2, Code: "role.read", Display: "Read Roles"},
-			{ID: 3, Code: "permission.read", Display: "Read Permissions"},
-		},
+func TestRegisterRegistersAccessControlDashboardQuickLinks(t *testing.T) {
+	ctx, _ := newModuleTestContext(t, testRBACRepository{})
+
+	if _, ok := ctx.DashboardRegistry.Get("rbac.access-summary"); ok {
+		t.Fatalf("expected rbac access summary insight widget to be removed")
+	}
+
+	quickLinks := ctx.DashboardRegistry.QuickLinks()
+	if len(quickLinks) != 4 {
+		t.Fatalf("expected 4 access-control quick links, got %#v", quickLinks)
+	}
+
+	assertDashboardQuickLink(t, quickLinks[0], expectedDashboardQuickLink{
+		id:            accessControlOverviewQuickLinkID,
+		titleKey:      rbaccontract.AccessControlOverviewMenuTitle.String(),
+		routeLocation: "/access-control/overview",
+		icon:          "dashboard",
+		order:         accessControlOverviewQuickLinkOrder,
 	})
-
-	definition, ok := ctx.DashboardRegistry.Get(accessSummaryWidgetID)
-	if !ok {
-		t.Fatalf("expected %s dashboard widget to be registered", accessSummaryWidgetID)
-	}
-	if definition.ModuleKey != moduleID || definition.Type != dashboard.WidgetTypeStatGroup {
-		t.Fatalf("unexpected dashboard widget definition: %#v", definition)
-	}
-	expectedPermissions := []string{
-		usercontract.UserReadPermission.String(),
-		rbaccontract.RoleReadPermission.String(),
-		rbaccontract.PermissionReadPermission.String(),
-	}
-	if !reflect.DeepEqual(definition.RequiredPermissions, expectedPermissions) {
-		t.Fatalf("unexpected widget permissions: %#v", definition.RequiredPermissions)
-	}
-
-	payload, err := definition.Loader.Load(context.Background(), dashboard.WidgetRequest{
-		WidgetID:  definition.ID,
-		ModuleKey: definition.ModuleKey,
-		Type:      definition.Type,
+	assertDashboardQuickLink(t, quickLinks[1], expectedDashboardQuickLink{
+		id:                  accessControlUsersQuickLinkID,
+		titleKey:            usercontract.UserListMenuTitle.String(),
+		routeLocation:       "/access-control/users",
+		icon:                "user",
+		requiredPermissions: []string{usercontract.UserReadPermission.String()},
+		order:               accessControlUsersQuickLinkOrder,
 	})
-	if err != nil {
-		t.Fatalf("load dashboard widget: %v", err)
-	}
-
-	items, ok := payload["items"].([]map[string]any)
-	if !ok {
-		t.Fatalf("expected stat-group items payload, got %#v", payload["items"])
-	}
-	if len(items) != 3 {
-		t.Fatalf("expected users, roles, and permissions stats, got %#v", items)
-	}
-	assertDashboardStatItem(t, items[0], "users", rbaccontract.AccessSummaryUsersStat.String(), "2", "/access-control/users")
-	assertDashboardStatItem(t, items[1], "roles", rbaccontract.AccessSummaryRolesStat.String(), "2", "/access-control/roles")
-	assertDashboardStatItem(t, items[2], "permissions", rbaccontract.AccessSummaryPermissionsStat.String(), "3", "/access-control/permissions")
+	assertDashboardQuickLink(t, quickLinks[2], expectedDashboardQuickLink{
+		id:                  accessControlRolesQuickLinkID,
+		titleKey:            rbaccontract.RoleListMenuTitle.String(),
+		routeLocation:       "/access-control/roles",
+		icon:                "secured",
+		requiredPermissions: []string{rbaccontract.RoleReadPermission.String()},
+		order:               accessControlRolesQuickLinkOrder,
+	})
+	assertDashboardQuickLink(t, quickLinks[3], expectedDashboardQuickLink{
+		id:                  accessControlPermissionsQuickLinkID,
+		titleKey:            rbaccontract.PermissionListMenuTitle.String(),
+		routeLocation:       "/access-control/permissions",
+		icon:                "lock-on",
+		requiredPermissions: []string{rbaccontract.PermissionReadPermission.String()},
+		order:               accessControlPermissionsQuickLinkOrder,
+	})
 }
 
-func assertDashboardStatItem(
-	t *testing.T,
-	item map[string]any,
-	key string,
-	labelKey string,
-	value string,
-	routeLocation string,
-) {
+type expectedDashboardQuickLink struct {
+	id                  string
+	titleKey            string
+	routeLocation       string
+	icon                string
+	requiredPermissions []string
+	order               int
+}
+
+func assertDashboardQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, expected expectedDashboardQuickLink) {
 	t.Helper()
-	if item["key"] != key ||
-		item["label_key"] != labelKey ||
-		item["value"] != value ||
-		item["route_location"] != routeLocation {
-		t.Fatalf("unexpected dashboard stat item: %#v", item)
+	if link.ID != expected.id ||
+		link.ModuleKey != moduleID ||
+		link.TitleKey != expected.titleKey ||
+		link.RouteLocation != expected.routeLocation ||
+		link.Icon != expected.icon ||
+		link.Order != expected.order ||
+		!reflect.DeepEqual(link.RequiredPermissions, expected.requiredPermissions) {
+		t.Fatalf("unexpected dashboard quick link: %#v", link)
 	}
 }
 

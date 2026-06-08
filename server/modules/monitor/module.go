@@ -138,6 +138,9 @@ func (p *Module) Register(ctx *module.Context) error {
 	if err := registerIncidentEvidenceCapability(ctx, p); err != nil {
 		return fmt.Errorf("register monitor incident evidence capability: %w", err)
 	}
+	if err := registerMonitorDashboardWidget(ctx, p); err != nil {
+		return err
+	}
 	registerMonitorRoutes(ctx, p, moduleID, p.authService, p.routeAuthorizer)
 	return nil
 }

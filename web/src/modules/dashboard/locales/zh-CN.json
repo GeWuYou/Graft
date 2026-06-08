@@ -29,6 +29,11 @@
       "eyebrow": "工作台",
       "title": "首页"
     },
+    "quickActions": {
+      "description": "当前权限可用入口",
+      "empty": "暂无可用快捷入口",
+      "title": "快捷操作"
+    },
     "systemSummary": {
       "currentUser": {
         "label": "当前用户"
@@ -52,11 +57,47 @@
       }
     },
     "widget": {
+      "accessLogRequestAttention": {
+        "description": "最近错误请求和慢请求。",
+        "empty": "暂无近期错误请求或慢请求",
+        "error": "HTTP 错误请求",
+        "slow": "慢 HTTP 请求",
+        "title": "访问请求关注"
+      },
+      "auditRiskEvents": {
+        "description": "最近高风险审计和安全事件。",
+        "empty": "过去 24 小时暂无审计风险事件",
+        "failedOperations": {
+          "title": "失败操作"
+        },
+        "highRisk": {
+          "title": "高风险审计事件"
+        },
+        "recent": {
+          "title": "近期风险事件"
+        },
+        "title": "审计风险事件"
+      },
       "disabledDescription": "该组件当前不可用。",
       "empty": "暂无组件数据",
       "errorFallback": "组件数据加载失败",
       "errorTitle": "组件加载失败",
       "invalidPayload": "组件数据格式不可用",
+      "monitorSystemHealth": {
+        "anomalies": "异常",
+        "database": "数据库",
+        "description": "数据库、缓存和系统异常健康状态。",
+        "redis": "Redis",
+        "summary": "系统健康摘要",
+        "title": "系统健康"
+      },
+      "schedulerTaskAttention": {
+        "description": "需要运维关注的失败、运行中和停用任务。",
+        "disabled": "停用任务",
+        "failed": "失败任务",
+        "running": "运行中任务",
+        "title": "定时任务关注"
+      },
       "status": {
         "disabled": "不可用",
         "error": "错误",

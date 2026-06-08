@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,6 +19,9 @@ import (
 
 type stubAccessLogRepository struct {
 	created []CreateAccessLogInput
+	queries []AccessLogListQuery
+	results []AccessLogListResult
+	listErr error
 }
 
 func (r *stubAccessLogRepository) CreateAccessLog(_ context.Context, input CreateAccessLogInput) (AccessLog, error) {
@@ -42,12 +46,85 @@ func (r *stubAccessLogRepository) DeleteAccessLogsBeforeLimit(context.Context, t
 	return 0, nil
 }
 
-func (r *stubAccessLogRepository) ListAccessLogs(context.Context, AccessLogListQuery) (AccessLogListResult, error) {
+func (r *stubAccessLogRepository) ListAccessLogs(_ context.Context, query AccessLogListQuery) (AccessLogListResult, error) {
+	r.queries = append(r.queries, query)
+	if r.listErr != nil {
+		return AccessLogListResult{}, r.listErr
+	}
+	if len(r.results) > 0 {
+		result := r.results[0]
+		r.results = r.results[1:]
+		return result, nil
+	}
 	return AccessLogListResult{}, nil
 }
 
 func (r *stubAccessLogRepository) GetAccessLogByID(context.Context, uint64) (AccessLog, error) {
 	return AccessLog{}, ErrAccessLogNotFound
+}
+
+func TestLoadAccessLogRequestAttentionPayloadQueriesErrorsAndSlowRequests(t *testing.T) {
+	occurredAt := time.Now().UTC()
+	repo := &stubAccessLogRepository{
+		results: []AccessLogListResult{
+			{
+				Items: []AccessLog{
+					{
+						ID:         1,
+						Method:     http.MethodGet,
+						Path:       "/api/users",
+						StatusCode: http.StatusInternalServerError,
+						DurationMS: 120,
+						OccurredAt: occurredAt,
+					},
+				},
+			},
+			{
+				Items: []AccessLog{
+					{
+						ID:         2,
+						Method:     http.MethodPost,
+						Path:       "/api/audit/logs",
+						StatusCode: http.StatusOK,
+						DurationMS: accessLogSlowRequestThresholdMS + 1,
+						OccurredAt: occurredAt,
+					},
+				},
+			},
+		},
+	}
+
+	payload, err := LoadAccessLogRequestAttentionPayload(context.Background(), repo)
+	if err != nil {
+		t.Fatalf("load access-log request attention payload: %v", err)
+	}
+	if len(repo.queries) != 2 {
+		t.Fatalf("expected error and slow request queries, got %#v", repo.queries)
+	}
+	if len(repo.queries[0].StatusGroups) != 2 {
+		t.Fatalf("expected first query to request error status groups, got %#v", repo.queries[0])
+	}
+	if repo.queries[1].DurationMinMS == nil || *repo.queries[1].DurationMinMS != accessLogSlowRequestThresholdMS {
+		t.Fatalf("expected second query to request slow requests, got %#v", repo.queries[1])
+	}
+	items, ok := payload["items"].([]map[string]any)
+	if !ok {
+		t.Fatalf("expected alert-list items payload, got %#v", payload["items"])
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected two access-log attention items, got %d", len(items))
+	}
+	if items[0]["route_location"] != accessLogMenuListPath || items[1]["route_location"] != accessLogMenuListPath {
+		t.Fatalf("expected access-log route on attention items, got %#v", items)
+	}
+}
+
+func TestLoadAccessLogRequestAttentionPayloadReturnsRepositoryError(t *testing.T) {
+	expectedErr := errors.New("list access logs failed")
+	_, err := LoadAccessLogRequestAttentionPayload(context.Background(), &stubAccessLogRepository{listErr: expectedErr})
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected repository error, got %v", err)
+	}
 }
 
 func TestLogAccessSeverityByStatus(t *testing.T) {

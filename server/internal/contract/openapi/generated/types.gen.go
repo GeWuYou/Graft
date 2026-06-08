@@ -2100,8 +2100,23 @@ type DashboardModuleSummary struct {
 	TotalModules    int `json:"total_modules"`
 }
 
+// DashboardQuickLink defines model for dashboard-quick-link.
+type DashboardQuickLink struct {
+	Description         *string   `json:"description,omitempty"`
+	DescriptionKey      *string   `json:"description_key,omitempty"`
+	Icon                *string   `json:"icon,omitempty"`
+	Id                  string    `json:"id"`
+	ModuleKey           string    `json:"module_key"`
+	Order               int       `json:"order"`
+	RequiredPermissions *[]string `json:"required_permissions,omitempty"`
+	RouteLocation       string    `json:"route_location"`
+	Title               *string   `json:"title,omitempty"`
+	TitleKey            *string   `json:"title_key,omitempty"`
+}
+
 // DashboardSummaryResponse defines model for dashboard-summary-response.
 type DashboardSummaryResponse struct {
+	QuickLinks    []DashboardQuickLink   `json:"quick_links"`
 	SystemSummary DashboardSystemSummary `json:"system_summary"`
 	Widgets       []DashboardWidget      `json:"widgets"`
 }

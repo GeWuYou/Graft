@@ -1,0 +1,25 @@
+type: object
+required: [id, module_key, route_location, order]
+properties:
+  id:
+    type: string
+  module_key:
+    type: string
+  title_key:
+    type: string
+  title:
+    type: string
+  description_key:
+    type: string
+  description:
+    type: string
+  icon:
+    type: string
+  route_location:
+    type: string
+  required_permissions:
+    type: array
+    items:
+      type: string
+  order:
+    type: integer

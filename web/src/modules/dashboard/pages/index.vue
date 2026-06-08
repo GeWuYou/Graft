@@ -29,6 +29,8 @@
           </div>
         </section>
 
+        <dashboard-quick-actions :links="quickLinks" />
+
         <dashboard-renderer
           :widgets="widgets"
           :refreshing-widget-id="refreshingWidgetId"
@@ -49,8 +51,9 @@ import type { ApiRequestError } from '@/types/axios';
 import { createLogger } from '@/utils/logger';
 
 import { getDashboardSummary, getDashboardWidget } from '../api/dashboard';
+import DashboardQuickActions from '../components/DashboardQuickActions.vue';
 import DashboardRenderer from '../components/DashboardRenderer.vue';
-import type { DashboardSummaryResponse, DashboardWidget } from '../types/dashboard';
+import type { DashboardQuickLink, DashboardSummaryResponse, DashboardWidget } from '../types/dashboard';
 
 defineOptions({
   name: 'DashboardHomePage',
@@ -61,6 +64,7 @@ const loading = ref(false);
 const refreshingWidgetId = ref('');
 const errorMessage = ref('');
 const summary = ref<DashboardSummaryResponse | null>(null);
+const quickLinks = ref<DashboardQuickLink[]>([]);
 const widgets = ref<DashboardWidget[]>([]);
 
 const systemSummaryItems = computed(() => {
@@ -119,6 +123,7 @@ async function loadSummary() {
   try {
     const response = await getDashboardSummary();
     summary.value = response;
+    quickLinks.value = response.quick_links;
     widgets.value = response.widgets;
   } catch (error) {
     logger.error('dashboard summary request failed', error);

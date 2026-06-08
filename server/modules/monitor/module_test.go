@@ -17,6 +17,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	monitorcontract "graft/server/modules/monitor/contract"
@@ -57,6 +58,51 @@ func TestBuildServerStatusResponseIncludesCurrentSliceFields(t *testing.T) {
 	assertCurrentSliceTrendSnapshot(t, response)
 	assertCurrentSliceSummary(t, response)
 	assertCurrentSliceModuleSummaries(t, response.Modules)
+}
+
+func TestRegisterMonitorDashboardWidgetRegistersSystemHealthInsight(t *testing.T) {
+	registry := dashboard.NewRegistry()
+	moduleCtx := &module.Context{DashboardRegistry: registry, Services: container.New()}
+
+	if err := registerMonitorDashboardWidget(moduleCtx, nil); err != nil {
+		t.Fatalf("register monitor dashboard widget: %v", err)
+	}
+
+	widget, ok := registry.Get(monitorSystemHealthWidgetID)
+	if !ok {
+		t.Fatalf("expected monitor system health dashboard widget to be registered")
+	}
+	if widget.Type != dashboard.WidgetTypeHealth {
+		t.Fatalf("expected health widget, got %q", widget.Type)
+	}
+	if widget.RouteLocation != monitorcontract.ServerStatusOverviewMenuPath {
+		t.Fatalf("expected monitor overview route, got %q", widget.RouteLocation)
+	}
+	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != monitorcontract.ServerStatusReadPermission.String() {
+		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
+	}
+}
+
+func TestMonitorSystemHealthDashboardWidgetLoadsHealthPayload(t *testing.T) {
+	payload, err := loadMonitorSystemHealthWidget(context.Background(), &module.Context{Services: container.New()}, nil)
+	if err != nil {
+		t.Fatalf("load monitor system health widget: %v", err)
+	}
+
+	summary, ok := payload["summary"].(dashboard.HealthSummaryItem)
+	if !ok {
+		t.Fatalf("expected health summary payload, got %#v", payload["summary"])
+	}
+	if summary.Status == "" {
+		t.Fatalf("expected summary status to be populated")
+	}
+	items, ok := payload["items"].([]dashboard.HealthItem)
+	if !ok {
+		t.Fatalf("expected health items payload, got %#v", payload["items"])
+	}
+	if len(items) != 3 {
+		t.Fatalf("expected database, redis, and anomalies health items, got %d", len(items))
+	}
 }
 
 func TestBuildServerStatusResponseUsesUnknownWhenDatabaseServiceIsAbsent(t *testing.T) {

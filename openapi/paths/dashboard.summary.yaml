@@ -2,7 +2,7 @@ get:
   tags: [dashboard]
   summary: Read dashboard summary
   operationId: getDashboardSummary
-  description: Returns the fixed dashboard system summary and module-contributed widgets visible to the current user.
+  description: Returns the fixed dashboard system summary plus quick links and insight widgets visible to the current user.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

@@ -136,11 +136,6 @@ func registerMessages(localizer *i18n.Service) error {
 				"角色管理",
 				"权限管理",
 				"访问控制概览",
-				"访问控制摘要",
-				"查看用户、角色与权限配置总览。",
-				"用户",
-				"角色",
-				"权限",
 			}),
 		},
 		{
@@ -151,11 +146,6 @@ func registerMessages(localizer *i18n.Service) error {
 				"Role Management",
 				"Permission Management",
 				"Access Control Overview",
-				"Access Control Summary",
-				"Review managed users, roles, and permissions.",
-				"Users",
-				"Roles",
-				"Permissions",
 			}),
 		},
 	} {
@@ -173,11 +163,6 @@ func rbacMessageResources(texts []string) []i18n.MessageResource {
 		rbaccontract.RoleListMenuTitle,
 		rbaccontract.PermissionListMenuTitle,
 		rbaccontract.AccessControlOverviewMenuTitle,
-		rbaccontract.AccessSummaryDashboardTitle,
-		rbaccontract.AccessSummaryDashboardDescription,
-		rbaccontract.AccessSummaryUsersStat,
-		rbaccontract.AccessSummaryRolesStat,
-		rbaccontract.AccessSummaryPermissionsStat,
 	}
 
 	messages := make([]i18n.MessageResource, 0, len(keys))

@@ -390,6 +390,8 @@ components:
       $ref: ./components/schemas/dashboard-widget-error.yaml
     DashboardWidget:
       $ref: ./components/schemas/dashboard-widget.yaml
+    DashboardQuickLink:
+      $ref: ./components/schemas/dashboard-quick-link.yaml
     DashboardSummaryResponse:
       $ref: ./components/schemas/dashboard-summary-response.yaml
     DashboardStatGroupPayload:

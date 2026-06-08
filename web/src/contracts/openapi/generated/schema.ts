@@ -1244,7 +1244,7 @@ export interface paths {
     };
     /**
      * Read dashboard summary
-     * @description Returns the fixed dashboard system summary and module-contributed widgets visible to the current user.
+     * @description Returns the fixed dashboard system summary plus quick links and insight widgets visible to the current user.
      */
     get: operations['getDashboardSummary'];
     put?: never;
@@ -1398,6 +1398,7 @@ export interface components {
     DashboardWidgetStatus: components['schemas']['dashboard-widget-status'];
     DashboardWidgetError: components['schemas']['dashboard-widget-error'];
     DashboardWidget: components['schemas']['dashboard-widget'];
+    DashboardQuickLink: components['schemas']['dashboard-quick-link'];
     DashboardSummaryResponse: components['schemas']['dashboard-summary-response'];
     DashboardStatGroupPayload: components['schemas']['dashboard-stat-group-payload'];
     DashboardAlertListPayload: components['schemas']['dashboard-alert-list-payload'];
@@ -2718,6 +2719,18 @@ export interface components {
       modules: components['schemas']['dashboard-module-summary'];
       visible_widgets: number;
     };
+    'dashboard-quick-link': {
+      id: string;
+      module_key: string;
+      title_key?: string;
+      title?: string;
+      description_key?: string;
+      description?: string;
+      icon?: string;
+      route_location: string;
+      required_permissions?: string[];
+      order: number;
+    };
     /** @enum {string} */
     'dashboard-widget-type': 'stat-group' | 'alert-list' | 'link-list' | 'timeline' | 'health';
     /** @enum {string} */
@@ -2750,6 +2763,7 @@ export interface components {
     };
     'dashboard-summary-response': {
       system_summary: components['schemas']['dashboard-system-summary'];
+      quick_links: components['schemas']['dashboard-quick-link'][];
       widgets: components['schemas']['dashboard-widget'][];
     };
     'enveloped-dashboard-summary-response': components['schemas']['api-envelope'] & {

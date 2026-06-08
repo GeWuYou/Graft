@@ -8,18 +8,22 @@ import (
 	"sync"
 )
 
-// Registry stores dashboard widget contributions in registration order.
+// Registry stores dashboard contributions in registration order.
 type Registry struct {
-	mu          sync.RWMutex
-	definitions map[string]WidgetDefinition
-	order       []string
+	mu                sync.RWMutex
+	widgetDefinitions map[string]WidgetDefinition
+	widgetOrder       []string
+	quickLinks        map[string]QuickLinkDefinition
+	quickLinkOrder    []string
 }
 
-// NewRegistry creates an empty dashboard widget registry.
+// NewRegistry creates an empty dashboard contribution registry.
 func NewRegistry() *Registry {
 	return &Registry{
-		definitions: make(map[string]WidgetDefinition),
-		order:       make([]string, 0),
+		widgetDefinitions: make(map[string]WidgetDefinition),
+		widgetOrder:       make([]string, 0),
+		quickLinks:        make(map[string]QuickLinkDefinition),
+		quickLinkOrder:    make([]string, 0),
 	}
 }
 
@@ -37,12 +41,29 @@ func (r *Registry) Register(definition WidgetDefinition) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if existing, exists := r.definitions[normalized.ID]; exists {
-		return fmt.Errorf("dashboard widget %s already registered by module %s", normalized.ID, existing.ModuleKey)
+	if err := r.storeWidgetDefinition(normalized); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RegisterQuickLink validates and stores one dashboard quick-entry contribution.
+func (r *Registry) RegisterQuickLink(definition QuickLinkDefinition) error {
+	if r == nil {
+		return errors.New("dashboard registry is unavailable")
 	}
 
-	r.definitions[normalized.ID] = normalized
-	r.order = append(r.order, normalized.ID)
+	normalized, err := normalizeQuickLink(definition)
+	if err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if err := r.storeQuickLink(normalized); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -55,11 +76,27 @@ func (r *Registry) Get(id string) (WidgetDefinition, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	definition, ok := r.definitions[strings.TrimSpace(id)]
+	definition, ok := r.widgetDefinitions[strings.TrimSpace(id)]
 	if !ok {
 		return WidgetDefinition{}, false
 	}
 	return cloneDefinition(definition), true
+}
+
+// GetQuickLink returns one registered quick link definition snapshot.
+func (r *Registry) GetQuickLink(id string) (QuickLinkDefinition, bool) {
+	if r == nil {
+		return QuickLinkDefinition{}, false
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	definition, ok := r.quickLinks[strings.TrimSpace(id)]
+	if !ok {
+		return QuickLinkDefinition{}, false
+	}
+	return cloneQuickLink(definition), true
 }
 
 // Items returns registered widget definitions ordered by order then id.
@@ -71,17 +108,95 @@ func (r *Registry) Items() []WidgetDefinition {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	items := make([]WidgetDefinition, 0, len(r.order))
-	for _, id := range r.order {
-		items = append(items, cloneDefinition(r.definitions[id]))
+	items := make([]WidgetDefinition, 0, len(r.widgetOrder))
+	for _, id := range r.widgetOrder {
+		items = append(items, cloneDefinition(r.widgetDefinitions[id]))
 	}
+	sortWidgetDefinitions(items)
+	return items
+}
+
+// QuickLinks returns registered quick links ordered by order then id.
+func (r *Registry) QuickLinks() []QuickLinkDefinition {
+	if r == nil {
+		return nil
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	items := make([]QuickLinkDefinition, 0, len(r.quickLinkOrder))
+	for _, id := range r.quickLinkOrder {
+		items = append(items, cloneQuickLink(r.quickLinks[id]))
+	}
+	sortQuickLinks(items)
+	return items
+}
+
+func (r *Registry) storeWidgetDefinition(definition WidgetDefinition) error {
+	if existing, exists := r.widgetDefinitions[definition.ID]; exists {
+		return fmt.Errorf("dashboard widget %s already registered by module %s", definition.ID, existing.ModuleKey)
+	}
+
+	r.widgetDefinitions[definition.ID] = definition
+	r.widgetOrder = append(r.widgetOrder, definition.ID)
+	return nil
+}
+
+func (r *Registry) storeQuickLink(definition QuickLinkDefinition) error {
+	if existing, exists := r.quickLinks[definition.ID]; exists {
+		return fmt.Errorf("dashboard quick link %s already registered by module %s", definition.ID, existing.ModuleKey)
+	}
+
+	r.quickLinks[definition.ID] = definition
+	r.quickLinkOrder = append(r.quickLinkOrder, definition.ID)
+	return nil
+}
+
+func sortWidgetDefinitions(items []WidgetDefinition) {
 	slices.SortStableFunc(items, func(left, right WidgetDefinition) int {
 		if left.Order != right.Order {
 			return left.Order - right.Order
 		}
 		return strings.Compare(left.ID, right.ID)
 	})
-	return items
+}
+
+func sortQuickLinks(items []QuickLinkDefinition) {
+	slices.SortStableFunc(items, func(left, right QuickLinkDefinition) int {
+		if left.Order != right.Order {
+			return left.Order - right.Order
+		}
+		return strings.Compare(left.ID, right.ID)
+	})
+}
+
+func normalizeQuickLink(definition QuickLinkDefinition) (QuickLinkDefinition, error) {
+	normalized := cloneQuickLink(definition)
+	normalized.ID = strings.TrimSpace(normalized.ID)
+	normalized.ModuleKey = strings.TrimSpace(normalized.ModuleKey)
+	normalized.TitleKey = strings.TrimSpace(normalized.TitleKey)
+	normalized.Title = strings.TrimSpace(normalized.Title)
+	normalized.DescriptionKey = strings.TrimSpace(normalized.DescriptionKey)
+	normalized.Description = strings.TrimSpace(normalized.Description)
+	normalized.Icon = strings.TrimSpace(normalized.Icon)
+	normalized.RouteLocation = strings.TrimSpace(normalized.RouteLocation)
+	normalized.RequiredPermissions = trimNonEmptyStrings(normalized.RequiredPermissions)
+
+	if normalized.ID == "" {
+		return QuickLinkDefinition{}, errors.New("dashboard quick link id is required")
+	}
+	if normalized.ModuleKey == "" {
+		return QuickLinkDefinition{}, fmt.Errorf("dashboard quick link %s module key is required", normalized.ID)
+	}
+	if normalized.TitleKey == "" && normalized.Title == "" {
+		return QuickLinkDefinition{}, fmt.Errorf("dashboard quick link %s title key or title is required", normalized.ID)
+	}
+	if normalized.RouteLocation == "" {
+		return QuickLinkDefinition{}, fmt.Errorf("dashboard quick link %s route location is required", normalized.ID)
+	}
+
+	return normalized, nil
 }
 
 func normalizeDefinition(definition WidgetDefinition) (WidgetDefinition, error) {
@@ -124,6 +239,12 @@ func normalizeDefinition(definition WidgetDefinition) (WidgetDefinition, error) 
 }
 
 func cloneDefinition(definition WidgetDefinition) WidgetDefinition {
+	cloned := definition
+	cloned.RequiredPermissions = append([]string(nil), definition.RequiredPermissions...)
+	return cloned
+}
+
+func cloneQuickLink(definition QuickLinkDefinition) QuickLinkDefinition {
 	cloned := definition
 	cloned.RequiredPermissions = append([]string(nil), definition.RequiredPermissions...)
 	return cloned

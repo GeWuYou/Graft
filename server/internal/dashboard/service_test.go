@@ -49,6 +49,80 @@ func TestServiceFiltersWidgetsByRequiredPermissions(t *testing.T) {
 	}
 }
 
+func TestServiceFiltersQuickLinksByRequiredPermissions(t *testing.T) {
+	t.Parallel()
+
+	registry := NewRegistry()
+	mustRegisterQuickLink(t, registry, QuickLinkDefinition{
+		ID:                  "core.visible-link",
+		ModuleKey:           "core",
+		Title:               "Runtime",
+		RouteLocation:       "/modules/runtime",
+		RequiredPermissions: []string{"modules.runtime.read"},
+		Order:               20,
+	})
+	mustRegisterQuickLink(t, registry, QuickLinkDefinition{
+		ID:                  "core.hidden-link",
+		ModuleKey:           "core",
+		Title:               "Audit",
+		RouteLocation:       "/audit/logs",
+		RequiredPermissions: []string{"audit.read"},
+		Order:               10,
+	})
+	mustRegisterWidget(t, registry, WidgetDefinition{
+		ID:        "core.visible-widget",
+		ModuleKey: "core",
+		Type:      WidgetTypeHealth,
+		Size:      WidgetSizeSmall,
+		Loader:    noopLoader(),
+	})
+
+	service := NewService(ServiceOptions{
+		Registry: registry,
+		Authorizer: testAuthorizer{allow: map[string]bool{
+			"modules.runtime.read": true,
+		}},
+	})
+
+	summary := service.Summary(context.Background(), testRequestAuth())
+	if len(summary.QuickLinks) != 1 || summary.QuickLinks[0].Id != "core.visible-link" {
+		t.Fatalf("expected only authorized quick link, got %#v", summary.QuickLinks)
+	}
+	if len(summary.Widgets) != 1 || summary.Widgets[0].Id != "core.visible-widget" {
+		t.Fatalf("expected widget visibility to remain independent, got %#v", summary.Widgets)
+	}
+}
+
+func TestServiceReturnsOrderedQuickLinksAndWidgets(t *testing.T) {
+	t.Parallel()
+
+	registry := NewRegistry()
+	mustRegisterQuickLink(t, registry, QuickLinkDefinition{
+		ID:            "b.link",
+		ModuleKey:     "core",
+		Title:         "B",
+		RouteLocation: "/b",
+		Order:         20,
+	})
+	mustRegisterQuickLink(t, registry, QuickLinkDefinition{
+		ID:            "a.link",
+		ModuleKey:     "core",
+		Title:         "A",
+		RouteLocation: "/a",
+		Order:         10,
+	})
+	mustRegisterWidget(t, registry, testWidgetDefinitionWithOrder("b.widget", 20))
+	mustRegisterWidget(t, registry, testWidgetDefinitionWithOrder("a.widget", 10))
+
+	summary := NewService(ServiceOptions{Registry: registry}).Summary(context.Background(), testRequestAuth())
+	if got := []string{summary.QuickLinks[0].Id, summary.QuickLinks[1].Id}; got[0] != "a.link" || got[1] != "b.link" {
+		t.Fatalf("unexpected quick link order: %#v", got)
+	}
+	if got := []string{summary.Widgets[0].Id, summary.Widgets[1].Id}; got[0] != "a.widget" || got[1] != "b.widget" {
+		t.Fatalf("unexpected widget order: %#v", got)
+	}
+}
+
 func TestServiceReturnsErrorWidgetWhenLoaderFails(t *testing.T) {
 	t.Parallel()
 
@@ -118,6 +192,13 @@ func mustRegisterWidget(t *testing.T, registry *Registry, definition WidgetDefin
 	t.Helper()
 	if err := registry.Register(definition); err != nil {
 		t.Fatalf("register widget: %v", err)
+	}
+}
+
+func mustRegisterQuickLink(t *testing.T, registry *Registry, definition QuickLinkDefinition) {
+	t.Helper()
+	if err := registry.RegisterQuickLink(definition); err != nil {
+		t.Fatalf("register quick link: %v", err)
 	}
 }
 

@@ -80,6 +80,9 @@ func (p *Module) Register(ctx *module.Context) error {
 	if err := registerAuditService(ctx, p.recorder); err != nil {
 		return err
 	}
+	if err := registerAuditDashboardWidget(ctx, p.recorder); err != nil {
+		return err
+	}
 	logger := ctx.Logger
 	if logger == nil {
 		logger = zap.NewNop()
