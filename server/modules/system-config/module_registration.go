@@ -115,7 +115,7 @@ func registerSystemConfigPermissions(registry *permission.Registry, moduleName s
 		Code:           systemconfigcontract.SystemConfigWritePermission.String(),
 		Name:           "Update System Configuration",
 		DisplayKey:     "rbac.permissionCatalog.systemConfigWrite.display",
-		Description:    "Allows writing and resetting administrator configuration overrides.",
+		Description:    "Allows writing and resetting user configuration overrides.",
 		DescriptionKey: "rbac.permissionCatalog.systemConfigWrite.description",
 		Category:       "api",
 		Module:         moduleName,

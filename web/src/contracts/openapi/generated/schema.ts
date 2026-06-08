@@ -1106,7 +1106,7 @@ export interface paths {
     };
     /**
      * List registered system configuration values
-     * @description Returns module-registered ConfigDefinitions merged with administrator overrides. Sensitive values are masked and never returned as plaintext.
+     * @description Returns module-registered ConfigDefinitions merged with user overrides. Sensitive values are masked and never returned as plaintext.
      */
     get: operations['getSystemConfigs'];
     put?: never;
@@ -1126,12 +1126,12 @@ export interface paths {
     };
     /**
      * Read one system configuration value
-     * @description Returns one registered ConfigDefinition merged with its administrator override. Sensitive values are masked and never returned as plaintext.
+     * @description Returns one registered ConfigDefinition merged with its user override. Sensitive values are masked and never returned as plaintext.
      */
     get: operations['getSystemConfig'];
     /**
      * Update one system configuration override
-     * @description Stores administrator override JSON only. Sensitive responses remain masked and do not echo plaintext values.
+     * @description Stores user override JSON only. Sensitive responses remain masked and do not echo plaintext values.
      */
     put: operations['putSystemConfig'];
     post?: never;
@@ -1152,7 +1152,7 @@ export interface paths {
     put?: never;
     /**
      * Reset one system configuration override
-     * @description Deletes the administrator override and returns the module default as the effective value. Sensitive responses remain masked.
+     * @description Deletes the user override and returns the module default as the effective value. Sensitive responses remain masked.
      */
     post: operations['postSystemConfigReset'];
     delete?: never;
@@ -2596,14 +2596,31 @@ export interface components {
       config_schema: {
         [key: string]: unknown;
       };
+      /**
+       * @description Whether the effective value is using the module default or a stored user override.
+       * @enum {string}
+       */
+      status: 'default' | 'modified';
       /** @description JSON string for the module default; null when sensitive=true. */
       default_value?: string | null;
-      /** @description JSON string after applying administrator override; null when sensitive=true. */
+      /** @description JSON string after applying a user override; null when sensitive=true. */
       effective_value?: string | null;
-      /** @description Administrator override JSON string; null when no override or sensitive=true. */
+      /** @description User override JSON string; null when no override or sensitive=true. */
       override_value?: string | null;
-      /** @description Whether system_config_values currently stores an administrator override for this key. */
+      /** @description Whether system_config_values currently stores a user override for this key. */
       has_override: boolean;
+      /**
+       * Format: date-time
+       * @description Last write time for the current user override; null when status=default.
+       */
+      updated_at?: string | null;
+      /**
+       * Format: int64
+       * @description User ID that last wrote the current override; null when unavailable or status=default.
+       */
+      updated_by_user_id?: number | null;
+      /** @description Username for updated_by_user_id when it can be resolved. */
+      updated_by_username?: string | null;
       /** @description Whether plaintext values must not be returned to clients. */
       sensitive: boolean;
       /** @description True when value fields are intentionally withheld from the response. */
@@ -2628,7 +2645,7 @@ export interface components {
       data: components['schemas']['system-config-item'];
     };
     'update-system-config-request': {
-      /** @description JSON value to store as the administrator override for the registered definition. */
+      /** @description JSON value to store as the user override for the registered definition. */
       value: unknown;
     };
     'access-log-detail-response': {

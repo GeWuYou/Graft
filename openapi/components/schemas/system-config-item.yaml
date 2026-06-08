@@ -6,6 +6,7 @@ required:
   - type
   - config_schema
   - has_override
+  - status
   - sensitive
   - masked
   - restart_required
@@ -49,6 +50,10 @@ properties:
     type: object
     additionalProperties: true
     description: JSON Schema compatible object declared by the module, including Graft x-i18n extensions.
+  status:
+    type: string
+    enum: [default, modified]
+    description: Whether the effective value is using the module default or a stored user override.
   default_value:
     type: string
     nullable: true
@@ -56,14 +61,28 @@ properties:
   effective_value:
     type: string
     nullable: true
-    description: JSON string after applying administrator override; null when sensitive=true.
+    description: JSON string after applying a user override; null when sensitive=true.
   override_value:
     type: string
     nullable: true
-    description: Administrator override JSON string; null when no override or sensitive=true.
+    description: User override JSON string; null when no override or sensitive=true.
   has_override:
     type: boolean
-    description: Whether system_config_values currently stores an administrator override for this key.
+    description: Whether system_config_values currently stores a user override for this key.
+  updated_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: Last write time for the current user override; null when status=default.
+  updated_by_user_id:
+    type: integer
+    format: int64
+    nullable: true
+    description: User ID that last wrote the current override; null when unavailable or status=default.
+  updated_by_username:
+    type: string
+    nullable: true
+    description: Username for updated_by_user_id when it can be resolved.
   sensitive:
     type: boolean
     description: Whether plaintext values must not be returned to clients.

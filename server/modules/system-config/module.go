@@ -11,7 +11,7 @@ import (
 
 const moduleID = "system-config"
 
-// Module owns system configuration administrator overrides and HTTP management.
+// Module owns system configuration user overrides and HTTP management.
 type Module struct {
 	service *Service
 }
@@ -29,6 +29,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return errors.New("system config module service is unavailable")
 	}
+	userService, err := optionalUserService(ctx.Services)
+	if err != nil {
+		return fmt.Errorf("resolve user service: %w", err)
+	}
+	m.service.setUserService(userService)
 	if err := registerMessages(ctx.I18n); err != nil {
 		return err
 	}

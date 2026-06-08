@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+import { formatCompactDateTime } from '@/shared/components/management';
+
 import SystemConfigListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
@@ -23,7 +25,7 @@ const translations = vi.hoisted(
     'systemConfig.list.boolean.false': '否',
     'systemConfig.list.boolean.true': '是',
     'systemConfig.list.cancel': '取消',
-    'systemConfig.list.description': '管理模块注册的系统级默认配置与管理员覆盖值。',
+    'systemConfig.list.description': '管理模块注册的系统级默认配置与用户覆盖值。',
     'systemConfig.list.edit': '编辑',
     'systemConfig.list.editorTitle': '编辑：{title}',
     'systemConfig.list.emptyDescription': '模块注册的 ConfigDefinition 会显示在这里。',
@@ -39,7 +41,7 @@ const translations = vi.hoisted(
     'systemConfig.list.previewTitle': '配置预览',
     'systemConfig.list.refresh': '刷新',
     'systemConfig.list.reset': '重置',
-    'systemConfig.list.resetConfirm': '确认删除该管理员覆盖值并回到模块默认值？',
+    'systemConfig.list.resetConfirm': '确认删除该用户覆盖值并回到模块默认值？',
     'systemConfig.list.save': '保存',
     'systemConfig.list.saveError': '系统配置保存失败。',
     'systemConfig.list.saveSuccess': '系统配置已保存。',
@@ -49,15 +51,17 @@ const translations = vi.hoisted(
     'systemConfig.list.schema.selectPlaceholder': '请选择',
     'systemConfig.list.schema.stringPlaceholder': '请输入配置值',
     'systemConfig.list.schema.value': '配置值',
-    'systemConfig.list.source.title': '配置来源',
-    'systemConfig.list.source.values.administrator_override': '管理员覆盖',
-    'systemConfig.list.source.values.default': '默认值',
     'systemConfig.list.status.default': '默认',
     'systemConfig.list.status.defaultDescription': '使用默认配置',
-    'systemConfig.list.status.overridden': '已覆盖',
-    'systemConfig.list.status.overriddenDescription': '管理员修改',
+    'systemConfig.list.status.modified': '已修改',
+    'systemConfig.list.status.modifiedDescription': '存在用户覆盖',
     'systemConfig.list.status.title': '配置状态',
-    'systemConfig.list.tags.override': '已覆盖',
+    'systemConfig.list.lastModified.none': '暂无修改记录',
+    'systemConfig.list.lastModified.title': '最后修改',
+    'systemConfig.list.lastModified.unknownUser': '未知用户',
+    'systemConfig.list.lastModified.userId': '用户 {id}',
+    'systemConfig.list.lastModified.value': '{user} / {time}',
+    'systemConfig.list.tags.override': '已修改',
     'systemConfig.list.tags.restartRequired': '需重启',
     'systemConfig.list.tags.sensitive': '敏感',
     'systemConfig.list.technicalId': '技术标识',
@@ -120,7 +124,8 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('配置状态');
     expect(wrapper.text()).toContain('默认');
     expect(wrapper.text()).toContain('使用默认配置');
-    expect(wrapper.text()).toContain('配置来源');
+    expect(wrapper.text()).toContain('最后修改');
+    expect(wrapper.text()).toContain('暂无修改记录');
     expect(wrapper.text()).toContain('默认值');
     expect(wrapper.text()).toContain('日志保留时间');
     expect(wrapper.text()).toContain('30 天');
@@ -144,6 +149,71 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('批量大小');
     expect(wrapper.text()).toContain('单次清理最多删除的日志行数。');
     expect(wrapper.text()).toContain('配置预览');
+  });
+
+  it('renders modified config as a user override with username and timestamp', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          status: 'modified',
+          has_override: true,
+          updated_at: '2026-05-24T10:00:00Z',
+          updated_by_user_id: 7,
+          updated_by_username: 'alice',
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('已修改');
+    expect(wrapper.text()).toContain('存在用户覆盖');
+    expect(wrapper.text()).toContain(`alice / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
+  });
+
+  it('falls back to user id when modified config has no username', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          status: 'modified',
+          has_override: true,
+          updated_at: '2026-05-24T10:00:00Z',
+          updated_by_user_id: 7,
+          updated_by_username: '',
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(`用户 7 / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
+  });
+
+  it('falls back to unknown user when modified config only has updated time', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          status: 'modified',
+          has_override: true,
+          updated_at: '2026-05-24T10:00:00Z',
+          updated_by_user_id: null,
+          updated_by_username: '',
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(`未知用户 / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
   });
 
   it.each([

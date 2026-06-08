@@ -7,6 +7,24 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetSystemConfigs200JSONResponseBodyDataItemsStatus.
+const (
+	GetSystemConfigs200JSONResponseBodyDataItemsStatusDefault  GetSystemConfigs200JSONResponseBodyDataItemsStatus = "default"
+	GetSystemConfigs200JSONResponseBodyDataItemsStatusModified GetSystemConfigs200JSONResponseBodyDataItemsStatus = "modified"
+)
+
+// Valid indicates whether the value is a known member of the GetSystemConfigs200JSONResponseBodyDataItemsStatus enum.
+func (e GetSystemConfigs200JSONResponseBodyDataItemsStatus) Valid() bool {
+	switch e {
+	case GetSystemConfigs200JSONResponseBodyDataItemsStatusDefault:
+		return true
+	case GetSystemConfigs200JSONResponseBodyDataItemsStatusModified:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetSystemConfigs200JSONResponseBodyDataItemsType.
 const (
 	GetSystemConfigs200JSONResponseBodyDataItemsTypeArray   GetSystemConfigs200JSONResponseBodyDataItemsType = "array"
@@ -76,6 +94,24 @@ const (
 func (e GetSystemConfigs500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetSystemConfigs500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetSystemConfig200JSONResponseBodyDataStatus.
+const (
+	GetSystemConfig200JSONResponseBodyDataStatusDefault  GetSystemConfig200JSONResponseBodyDataStatus = "default"
+	GetSystemConfig200JSONResponseBodyDataStatusModified GetSystemConfig200JSONResponseBodyDataStatus = "modified"
+)
+
+// Valid indicates whether the value is a known member of the GetSystemConfig200JSONResponseBodyDataStatus enum.
+func (e GetSystemConfig200JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case GetSystemConfig200JSONResponseBodyDataStatusDefault:
+		return true
+	case GetSystemConfig200JSONResponseBodyDataStatusModified:
 		return true
 	default:
 		return false
@@ -157,6 +193,24 @@ func (e GetSystemConfig500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PutSystemConfig200JSONResponseBodyDataStatus.
+const (
+	PutSystemConfig200JSONResponseBodyDataStatusDefault  PutSystemConfig200JSONResponseBodyDataStatus = "default"
+	PutSystemConfig200JSONResponseBodyDataStatusModified PutSystemConfig200JSONResponseBodyDataStatus = "modified"
+)
+
+// Valid indicates whether the value is a known member of the PutSystemConfig200JSONResponseBodyDataStatus enum.
+func (e PutSystemConfig200JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case PutSystemConfig200JSONResponseBodyDataStatusDefault:
+		return true
+	case PutSystemConfig200JSONResponseBodyDataStatusModified:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PutSystemConfig200JSONResponseBodyDataType.
 const (
 	PutSystemConfig200JSONResponseBodyDataTypeArray   PutSystemConfig200JSONResponseBodyDataType = "array"
@@ -226,6 +280,24 @@ const (
 func (e PutSystemConfig500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PutSystemConfig500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSystemConfigReset200JSONResponseBodyDataStatus.
+const (
+	PostSystemConfigReset200JSONResponseBodyDataStatusDefault  PostSystemConfigReset200JSONResponseBodyDataStatus = "default"
+	PostSystemConfigReset200JSONResponseBodyDataStatusModified PostSystemConfigReset200JSONResponseBodyDataStatus = "modified"
+)
+
+// Valid indicates whether the value is a known member of the PostSystemConfigReset200JSONResponseBodyDataStatus enum.
+func (e PostSystemConfigReset200JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case PostSystemConfigReset200JSONResponseBodyDataStatusDefault:
+		return true
+	case PostSystemConfigReset200JSONResponseBodyDataStatusModified:
 		return true
 	default:
 		return false
@@ -323,6 +395,9 @@ type GetSystemConfigsParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetSystemConfigs200JSONResponseBodyDataItemsStatus defines parameters for GetSystemConfigs.
+type GetSystemConfigs200JSONResponseBodyDataItemsStatus string
+
 // GetSystemConfigs200JSONResponseBodyDataItemsType defines parameters for GetSystemConfigs.
 type GetSystemConfigs200JSONResponseBodyDataItemsType string
 
@@ -345,6 +420,9 @@ type GetSystemConfigParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetSystemConfig200JSONResponseBodyDataStatus defines parameters for GetSystemConfig.
+type GetSystemConfig200JSONResponseBodyDataStatus string
+
 // GetSystemConfig200JSONResponseBodyDataType defines parameters for GetSystemConfig.
 type GetSystemConfig200JSONResponseBodyDataType string
 
@@ -359,7 +437,7 @@ type GetSystemConfig500JSONResponseBodySuccess bool
 
 // PutSystemConfigJSONBody defines parameters for PutSystemConfig.
 type PutSystemConfigJSONBody struct {
-	// Value JSON value to store as the administrator override for the registered definition.
+	// Value JSON value to store as the user override for the registered definition.
 	Value interface{} `json:"value"`
 }
 
@@ -372,6 +450,9 @@ type PutSystemConfigParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PutSystemConfig200JSONResponseBodyDataStatus defines parameters for PutSystemConfig.
+type PutSystemConfig200JSONResponseBodyDataStatus string
 
 // PutSystemConfig200JSONResponseBodyDataType defines parameters for PutSystemConfig.
 type PutSystemConfig200JSONResponseBodyDataType string
@@ -394,6 +475,9 @@ type PostSystemConfigResetParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PostSystemConfigReset200JSONResponseBodyDataStatus defines parameters for PostSystemConfigReset.
+type PostSystemConfigReset200JSONResponseBodyDataStatus string
 
 // PostSystemConfigReset200JSONResponseBodyDataType defines parameters for PostSystemConfigReset.
 type PostSystemConfigReset200JSONResponseBodyDataType string

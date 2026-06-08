@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"graft/server/internal/configregistry"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/scheduler"
 	systemconfigstore "graft/server/modules/system-config/store"
 )
@@ -25,27 +27,51 @@ type ValueSnapshot struct {
 	DefaultValue   json.RawMessage
 	OverrideValue  json.RawMessage
 	HasOverride    bool
+	Status         ValueStatus
+	CreatedAt      *time.Time
+	CreatedBy      *uint64
+	UpdatedAt      *time.Time
+	UpdatedBy      *uint64
+	UpdatedByName  string
 	Masked         bool
 }
 
-// Service merges module-registered definitions with administrator overrides.
+// ValueStatus describes whether a config item uses its module default or a user override.
+type ValueStatus string
+
+const (
+	// ValueStatusDefault means no user override exists and the module default is effective.
+	ValueStatusDefault ValueStatus = "default"
+	// ValueStatusModified means a stored user override is effective.
+	ValueStatusModified ValueStatus = "modified"
+)
+
+// Service merges module-registered definitions with user overrides.
 type Service struct {
 	registry *configregistry.Registry
 	store    systemconfigstore.Repository
+	users    moduleapi.UserService
 }
 
 // NewService creates the system configuration service boundary.
-func NewService(registry *configregistry.Registry, store systemconfigstore.Repository) (*Service, error) {
+func NewService(registry *configregistry.Registry, store systemconfigstore.Repository, users moduleapi.UserService) (*Service, error) {
 	if registry == nil {
 		return nil, errors.New("config registry is unavailable")
 	}
 	if store == nil {
 		return nil, errors.New("system config store is unavailable")
 	}
-	return &Service{registry: registry, store: store}, nil
+	return &Service{registry: registry, store: store, users: users}, nil
 }
 
-// List returns all registered definitions merged with administrator overrides.
+func (s *Service) setUserService(users moduleapi.UserService) {
+	if s == nil || users == nil {
+		return
+	}
+	s.users = users
+}
+
+// List returns all registered definitions merged with user overrides.
 func (s *Service) List(ctx context.Context) ([]ValueSnapshot, error) {
 	definitions := s.registry.Items()
 	items := make([]ValueSnapshot, 0, len(definitions))
@@ -80,8 +106,8 @@ func (s *Service) ResolveDefaultConfig(ctx context.Context, key string) (string,
 	return string(item.EffectiveValue), nil
 }
 
-// Update stores an administrator override for one registered definition key.
-func (s *Service) Update(ctx context.Context, key string, value json.RawMessage) (ValueSnapshot, error) {
+// Update stores a user override for one registered definition key.
+func (s *Service) Update(ctx context.Context, key string, value json.RawMessage, userID *uint64) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {
 		return ValueSnapshot{}, errDefinitionNotFound
@@ -89,13 +115,13 @@ func (s *Service) Update(ctx context.Context, key string, value json.RawMessage)
 	if err := validateValueForDefinition(definition, value); err != nil {
 		return ValueSnapshot{}, err
 	}
-	if _, err := s.store.SetOverride(ctx, definition.Key, value); err != nil {
+	if _, err := s.store.SetOverride(ctx, definition.Key, value, userID); err != nil {
 		return ValueSnapshot{}, err
 	}
 	return s.snapshot(ctx, definition)
 }
 
-// Reset deletes the administrator override for one registered definition key.
+// Reset deletes the user override for one registered definition key.
 func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {
@@ -129,7 +155,18 @@ func (s *Service) snapshot(ctx context.Context, definition configregistry.Defini
 		DefaultValue:   cloneRawMessage(definition.DefaultValue),
 		OverrideValue:  cloneRawMessage(overrideValue),
 		HasOverride:    hasOverride,
+		Status:         ValueStatusDefault,
 		Masked:         definition.Sensitive,
+	}
+	if hasOverride {
+		createdAt := override.CreatedAt
+		updatedAt := override.UpdatedAt
+		item.Status = ValueStatusModified
+		item.CreatedAt = &createdAt
+		item.CreatedBy = cloneUint64Pointer(override.CreatedBy)
+		item.UpdatedAt = &updatedAt
+		item.UpdatedBy = cloneUint64Pointer(override.UpdatedBy)
+		item.UpdatedByName = s.usernameForOverride(ctx, override.UpdatedBy)
 	}
 	if definition.Sensitive {
 		item.EffectiveValue = nil
@@ -137,6 +174,17 @@ func (s *Service) snapshot(ctx context.Context, definition configregistry.Defini
 		item.OverrideValue = nil
 	}
 	return item, nil
+}
+
+func (s *Service) usernameForOverride(ctx context.Context, userID *uint64) string {
+	if s == nil || s.users == nil || userID == nil {
+		return ""
+	}
+	user, err := s.users.GetUserByID(ctx, *userID)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(user.Username)
 }
 
 func validateValueForDefinition(definition configregistry.Definition, value json.RawMessage) error {
@@ -171,4 +219,12 @@ func cloneRawMessage(raw json.RawMessage) json.RawMessage {
 	cloned := make(json.RawMessage, len(raw))
 	copy(cloned, raw)
 	return cloned
+}
+
+func cloneUint64Pointer(value *uint64) *uint64 {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
 }

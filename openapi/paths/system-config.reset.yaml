@@ -2,7 +2,7 @@ post:
   tags: [system-config]
   summary: Reset one system configuration override
   operationId: postSystemConfigReset
-  description: Deletes the administrator override and returns the module default as the effective value. Sensitive responses remain masked.
+  description: Deletes the user override and returns the module default as the effective value. Sensitive responses remain masked.
   parameters:
     - name: key
       in: path

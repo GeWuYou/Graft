@@ -92,8 +92,8 @@
                     </div>
                   </section>
                   <section class="system-config-summary__cell">
-                    <span>{{ t('systemConfig.list.source.title') }}</span>
-                    <strong>{{ configSourceLabel(item) }}</strong>
+                    <span>{{ t('systemConfig.list.lastModified.title') }}</span>
+                    <strong>{{ configLastModifiedLabel(item) }}</strong>
                   </section>
                 </div>
 
@@ -219,6 +219,7 @@ import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { formatCompactDateTime } from '@/shared/components/management';
 import { PageHeader } from '@/shared/components/page';
 import {
   type ConfigSchemaField,
@@ -260,7 +261,7 @@ type ConfigValueSection = {
   json: string;
 };
 
-const { t, te } = useI18n();
+const { locale, t, te } = useI18n();
 const permissionCodes = SYSTEM_CONFIG_PERMISSION_CODE;
 const items = ref<SystemConfigItem[]>([]);
 const loading = ref(false);
@@ -419,10 +420,10 @@ function technicalGroupKey(item: SystemConfigItem) {
 }
 
 function configStatus(item: SystemConfigItem) {
-  if (item.has_override) {
+  if (isModifiedConfig(item)) {
     return {
-      label: t('systemConfig.list.status.overridden'),
-      description: t('systemConfig.list.status.overriddenDescription'),
+      label: t('systemConfig.list.status.modified'),
+      description: t('systemConfig.list.status.modifiedDescription'),
       theme: 'primary' as const,
     };
   }
@@ -434,10 +435,31 @@ function configStatus(item: SystemConfigItem) {
   };
 }
 
-function configSourceLabel(item: SystemConfigItem) {
-  return item.has_override
-    ? t('systemConfig.list.source.values.administrator_override')
-    : t('systemConfig.list.source.values.default');
+function isModifiedConfig(item: SystemConfigItem) {
+  return item.status === 'modified';
+}
+
+function configLastModifiedLabel(item: SystemConfigItem) {
+  if (!isModifiedConfig(item)) {
+    return t('systemConfig.list.lastModified.none');
+  }
+
+  const updatedAt = formatCompactDateTime(item.updated_at, locale);
+  const userLabel = configUpdatedByLabel(item);
+  return t('systemConfig.list.lastModified.value', { user: userLabel, time: updatedAt });
+}
+
+function configUpdatedByLabel(item: SystemConfigItem) {
+  const username = item.updated_by_username?.trim();
+  if (username) {
+    return username;
+  }
+
+  if (item.updated_by_user_id !== undefined && item.updated_by_user_id !== null) {
+    return t('systemConfig.list.lastModified.userId', { id: item.updated_by_user_id });
+  }
+
+  return t('systemConfig.list.lastModified.unknownUser');
 }
 
 function valueSections(item: SystemConfigItem): ConfigValueSection[] {

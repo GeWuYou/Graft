@@ -1227,6 +1227,24 @@ func (e ServerStatusTrendRange) Valid() bool {
 	}
 }
 
+// Defines values for SystemConfigItemStatus.
+const (
+	Default  SystemConfigItemStatus = "default"
+	Modified SystemConfigItemStatus = "modified"
+)
+
+// Valid indicates whether the value is a known member of the SystemConfigItemStatus enum.
+func (e SystemConfigItemStatus) Valid() bool {
+	switch e {
+	case Default:
+		return true
+	case Modified:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SystemConfigItemType.
 const (
 	Array   SystemConfigItemType = "array"
@@ -3458,7 +3476,7 @@ type SystemConfigItem struct {
 	// DescriptionKey Stable localization key for the config item description.
 	DescriptionKey *string `json:"description_key,omitempty"`
 
-	// EffectiveValue JSON string after applying administrator override; null when sensitive=true.
+	// EffectiveValue JSON string after applying a user override; null when sensitive=true.
 	EffectiveValue *string `json:"effective_value,omitempty"`
 
 	// Group Module-declared grouping key for the settings UI.
@@ -3470,7 +3488,7 @@ type SystemConfigItem struct {
 	// GroupLabel Direct group-label fallback when the client has no translation for group_key.
 	GroupLabel *string `json:"group_label,omitempty"`
 
-	// HasOverride Whether system_config_values currently stores an administrator override for this key.
+	// HasOverride Whether system_config_values currently stores a user override for this key.
 	HasOverride bool `json:"has_override"`
 
 	// Key Stable ConfigDefinition key registered by a module.
@@ -3488,7 +3506,7 @@ type SystemConfigItem struct {
 	// Order Module-declared display order within the config group.
 	Order *int `json:"order,omitempty"`
 
-	// OverrideValue Administrator override JSON string; null when no override or sensitive=true.
+	// OverrideValue User override JSON string; null when no override or sensitive=true.
 	OverrideValue *string `json:"override_value,omitempty"`
 
 	// Permission Permission code required to update this config item when the definition declares one.
@@ -3500,6 +3518,9 @@ type SystemConfigItem struct {
 	// Sensitive Whether plaintext values must not be returned to clients.
 	Sensitive bool `json:"sensitive"`
 
+	// Status Whether the effective value is using the module default or a stored user override.
+	Status SystemConfigItemStatus `json:"status"`
+
 	// Tags Module-declared technical tags for filtering and display.
 	Tags *[]string `json:"tags,omitempty"`
 
@@ -3509,7 +3530,19 @@ type SystemConfigItem struct {
 	// TitleKey Stable localization key for the config item title.
 	TitleKey *string              `json:"title_key,omitempty"`
 	Type     SystemConfigItemType `json:"type"`
+
+	// UpdatedAt Last write time for the current user override; null when status=default.
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+
+	// UpdatedByUserId User ID that last wrote the current override; null when unavailable or status=default.
+	UpdatedByUserId *int64 `json:"updated_by_user_id,omitempty"`
+
+	// UpdatedByUsername Username for updated_by_user_id when it can be resolved.
+	UpdatedByUsername *string `json:"updated_by_username,omitempty"`
 }
+
+// SystemConfigItemStatus Whether the effective value is using the module default or a stored user override.
+type SystemConfigItemStatus string
 
 // SystemConfigItemType defines model for SystemConfigItem.Type.
 type SystemConfigItemType string
@@ -3552,7 +3585,7 @@ type UpdateScheduledTaskRequest struct {
 
 // UpdateSystemConfigRequest defines model for update-system-config-request.
 type UpdateSystemConfigRequest struct {
-	// Value JSON value to store as the administrator override for the registered definition.
+	// Value JSON value to store as the user override for the registered definition.
 	Value interface{} `json:"value"`
 }
 

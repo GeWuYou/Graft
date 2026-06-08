@@ -2,10 +2,13 @@ package systemconfig
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"graft/server/internal/configregistry"
+	"graft/server/internal/container"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/modules/system-config/storeent"
 )
 
@@ -24,15 +27,27 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("resolve config registry: %w", err)
 			}
+			userService, err := optionalUserService(ctx.Services)
+			if err != nil {
+				return nil, fmt.Errorf("resolve user service: %w", err)
+			}
 			repo, err := storeent.NewRepository(sqlDB)
 			if err != nil {
 				return nil, fmt.Errorf("build system config repository: %w", err)
 			}
-			service, err := NewService(registry, repo)
+			service, err := NewService(registry, repo, userService)
 			if err != nil {
 				return nil, fmt.Errorf("build system config service: %w", err)
 			}
 			return NewModule(service)
 		}),
 	}
+}
+
+func optionalUserService(resolver container.Resolver) (moduleapi.UserService, error) {
+	userService, err := module.ResolveService[moduleapi.UserService](resolver, (*moduleapi.UserService)(nil))
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return nil, nil
+	}
+	return userService, err
 }
