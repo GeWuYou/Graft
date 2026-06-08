@@ -71,7 +71,7 @@ withDefaults(
 }
 
 .governance-summary-card__value {
-  color: var(--td-text-color-primary);
+  color: var(--graft-metric-value-color);
   font: var(--td-font-headline-small);
   font-variant-numeric: tabular-nums;
   font-weight: 700;

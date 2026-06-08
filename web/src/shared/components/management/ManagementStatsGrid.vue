@@ -75,7 +75,7 @@ withDefaults(
 }
 
 .management-stats-grid__value {
-  color: var(--td-text-color-primary);
+  color: var(--graft-metric-value-color);
   font: var(--td-font-title-large);
   line-height: 1.1;
 }

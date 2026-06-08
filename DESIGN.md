@@ -18,6 +18,10 @@ Graft is a control console, not a marketing site.
 
 - Use TDesign tokens first: `--td-*`, brand theme, and semantic status colors.
 - Keep page, container, border, and text layers token-driven.
+- Treat light and dark as two explicit token maps, not as automatic color inversion.
+- Light mode uses a cool gray page surface, white cards, and border/spacing hierarchy.
+- Dark mode uses layered blue-gray shell surfaces, elevated card backgrounds, border-led separation, and brand-colored
+  numeric emphasis.
 - Use raw hex colors only as examples or final fallback.
 - Avoid purple-biased defaults, neon gradients, and hard-coded single-mode palettes.
 

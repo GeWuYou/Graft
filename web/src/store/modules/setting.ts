@@ -1,11 +1,12 @@
 import keys from 'lodash/keys';
 import { defineStore } from 'pinia';
 
-import type { TColorSeries } from '@/config/color';
-import { DARK_CHART_COLORS, LIGHT_CHART_COLORS } from '@/config/color';
+import type { TChartColor, TColorSeries } from '@/config/color';
+import { DEFAULT_CHART_COLORS } from '@/config/color';
 import STYLE_CONFIG from '@/config/style';
 import {
   DEFAULT_THEME_PRESET_ID,
+  GRAFT_BASE_THEME_TOKENS,
   THEME_PRESET_DEFINITIONS,
   THEME_TOKEN_DEFINITIONS,
   THEME_WORKBENCH_GROUPS,
@@ -368,8 +369,17 @@ export type SettingState = typeof STYLE_CONFIG & {
   themeResolvedTokens: ThemeModeTokenState;
   themeAuthorityLastModifiedAt: string | null;
   colorList: TColorSeries;
-  chartColors: typeof LIGHT_CHART_COLORS;
+  chartColors: TChartColor;
 };
+
+function buildChartColorsFromTokens(tokens: ThemeTokenMap): TChartColor {
+  return {
+    textColor: tokens['--graft-chart-text-color'] ?? DEFAULT_CHART_COLORS.textColor,
+    placeholderColor: tokens['--graft-chart-placeholder-color'] ?? DEFAULT_CHART_COLORS.placeholderColor,
+    borderColor: tokens['--graft-chart-border-color'] ?? DEFAULT_CHART_COLORS.borderColor,
+    containerColor: tokens['--graft-chart-container-color'] ?? DEFAULT_CHART_COLORS.containerColor,
+  };
+}
 
 function createInitialSettingState(): SettingState {
   return {
@@ -394,7 +404,7 @@ function createInitialSettingState(): SettingState {
     themeResolvedTokens: createEmptyThemeModeTokenState(),
     themeAuthorityLastModifiedAt: null,
     colorList: {},
-    chartColors: LIGHT_CHART_COLORS,
+    chartColors: DEFAULT_CHART_COLORS,
   };
 }
 
@@ -560,6 +570,7 @@ export const useSettingStore = defineStore('setting', {
       const userTokens = buildUserThemeTokens(this.createThemeAuthoritySnapshot());
 
       this.themeResolvedTokens = buildThemeModeSnapshot({
+        baseTokens: GRAFT_BASE_THEME_TOKENS,
         brandTokens,
         preset,
         userTokens,
@@ -584,8 +595,8 @@ export const useSettingStore = defineStore('setting', {
 
       document.documentElement.setAttribute('theme-mode', isDarkMode ? 'dark' : '');
 
-      this.chartColors = isDarkMode ? DARK_CHART_COLORS : LIGHT_CHART_COLORS;
       this.refreshThemeWorkbenchRuntime(theme);
+      this.chartColors = buildChartColorsFromTokens(resolveModeTokens(this.themeResolvedTokens, theme));
     },
     async changeSideMode(mode: ModeType) {
       const isDarkMode = mode === 'dark';

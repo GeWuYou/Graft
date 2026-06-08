@@ -605,7 +605,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: '%',
       group: 'resourceUsage',
       groupLabel: t('monitor.serverStatus.trendGroupResourceUsage'),
-      color: () => readMetricThemeColor('--graft-monitor-cpu-color', '#2F6BFF'),
+      color: () => readMetricThemeColor('--graft-monitor-cpu-color'),
       axis: 'percent',
       description: t('monitor.serverStatus.chartCpuDescription'),
       formatter: formatPercentPrecise,
@@ -624,7 +624,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: '%',
       group: 'resourceUsage',
       groupLabel: t('monitor.serverStatus.trendGroupResourceUsage'),
-      color: () => readMetricThemeColor('--graft-monitor-memory-color', '#16A085'),
+      color: () => readMetricThemeColor('--graft-monitor-memory-color'),
       axis: 'percent',
       description: t('monitor.serverStatus.chartHostMemoryDescription'),
       formatter: formatPercentPrecise,
@@ -643,7 +643,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'load',
       group: 'systemLoad',
       groupLabel: t('monitor.serverStatus.trendGroupSystemLoad'),
-      color: () => readMetricThemeColor('--graft-monitor-load-color', '#D97706'),
+      color: () => readMetricThemeColor('--graft-monitor-load-color'),
       axis: 'load',
       description: t('monitor.serverStatus.chartLoadDescription'),
       formatter: formatLoadAverage,
@@ -664,7 +664,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'MB',
       group: 'goRuntime',
       groupLabel: t('monitor.serverStatus.trendGroupGoRuntime'),
-      color: () => readMetricThemeColor('--graft-monitor-runtime-alloc-color', '#7B61FF'),
+      color: () => readMetricThemeColor('--graft-monitor-runtime-alloc-color'),
       axis: 'bytes',
       description: t('monitor.serverStatus.chartRuntimeAllocDescription'),
       formatter: formatBytes,
@@ -682,7 +682,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'MB',
       group: 'goRuntime',
       groupLabel: t('monitor.serverStatus.trendGroupGoRuntime'),
-      color: () => readMetricThemeColor('--graft-monitor-runtime-heap-color', '#1F8EF1'),
+      color: () => readMetricThemeColor('--graft-monitor-runtime-heap-color'),
       axis: 'bytes',
       description: t('monitor.serverStatus.chartRuntimeHeapDescription'),
       formatter: formatBytes,
@@ -700,7 +700,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'MB',
       group: 'goRuntime',
       groupLabel: t('monitor.serverStatus.trendGroupGoRuntime'),
-      color: () => readMetricThemeColor('--graft-monitor-runtime-sys-color', '#C47A2C'),
+      color: () => readMetricThemeColor('--graft-monitor-runtime-sys-color'),
       axis: 'bytes',
       description: t('monitor.serverStatus.chartRuntimeSysDescription'),
       formatter: formatBytes,
@@ -718,7 +718,7 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       unit: 'count',
       group: 'goRuntime',
       groupLabel: t('monitor.serverStatus.trendGroupGoRuntime'),
-      color: () => readMetricThemeColor('--graft-monitor-goroutines-color', '#D9488B'),
+      color: () => readMetricThemeColor('--graft-monitor-goroutines-color'),
       axis: 'count',
       description: t('monitor.serverStatus.chartGoroutinesDescription'),
       formatter: formatCountValue,
@@ -1823,14 +1823,14 @@ function formatAxisValue(value: number, axisType: 'percent' | 'load' | 'bytes' |
   }
 }
 
-function readMetricThemeColor(token: string, fallback: string) {
+function readMetricThemeColor(token: string) {
   void settingStore.resolvedThemeTokensForDisplayMode;
-  return readThemeToken(token, fallback);
+  return readThemeToken(token);
 }
 
-function readThemeToken(token: string, fallback: string) {
+function readThemeToken(token: string) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-  return value || fallback;
+  return value || `var(${token})`;
 }
 
 function overallStatusLabel(status?: string) {

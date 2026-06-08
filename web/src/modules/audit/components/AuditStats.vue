@@ -56,7 +56,7 @@ defineProps<{
 }
 
 .audit-stats__value {
-  color: var(--td-text-color-primary);
+  color: var(--graft-metric-value-color);
   font: var(--td-font-title-large);
 }
 

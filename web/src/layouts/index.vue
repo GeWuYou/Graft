@@ -113,7 +113,7 @@ watch(
 </script>
 <style lang="less" scoped>
 .app-shell {
-  background: var(--td-bg-color-page);
+  background: var(--graft-shell-bg);
   color: var(--td-text-color-primary);
   display: flex;
   flex-direction: column;
@@ -130,10 +130,16 @@ watch(
 }
 
 .app-shell__content {
+  background: var(--graft-shell-content-bg);
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
+}
+
+.app-shell__header {
+  background: var(--graft-shell-header-bg);
+  border-bottom: 1px solid var(--graft-shell-border-color);
 }
 
 .app-shell :deep(.t-layout),
