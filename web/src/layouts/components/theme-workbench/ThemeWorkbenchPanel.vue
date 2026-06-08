@@ -76,7 +76,7 @@
                   type="button"
                   class="choice-card choice-card--mode"
                   :class="{ 'choice-card--active': effectiveTheme.mode === item.type }"
-                  @click="settingStore.updateThemeDraftAppearance({ mode: item.type })"
+                  @click="handleModeSelect(item.type, $event)"
                 >
                   <span class="choice-card__check">
                     <t-icon v-if="effectiveTheme.mode === item.type" name="check" />
@@ -922,6 +922,10 @@ const closeWorkbench = () => {
 
 const toggleAdvancedVisible = (value: boolean) => {
   advancedVisible.value = value;
+};
+
+const handleModeSelect = (mode: ModeType | 'auto', event: MouseEvent) => {
+  void settingStore.updateThemeDraftModeWithTransition(mode, event);
 };
 </script>
 <style lang="less" scoped>
