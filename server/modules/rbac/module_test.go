@@ -19,6 +19,7 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/cronx"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -27,6 +28,7 @@ import (
 	"graft/server/internal/permission"
 	rbaccontract "graft/server/modules/rbac/contract"
 	store "graft/server/modules/rbac/store"
+	usercontract "graft/server/modules/user/contract"
 )
 
 type testRBACRepository struct {
@@ -61,6 +63,12 @@ type testUserService struct {
 	users map[uint64]moduleapi.UserSummary
 }
 
+func TestRBACMessageResourcesRejectsMismatchedTexts(t *testing.T) {
+	if _, err := rbacMessageResources([]string{"Access Control"}); err == nil {
+		t.Fatalf("expected mismatched rbac message resources to return an error")
+	}
+}
+
 func (s testUserService) GetUserByID(_ context.Context, id uint64) (moduleapi.UserSummary, error) {
 	user, ok := s.users[id]
 	if !ok {
@@ -68,6 +76,10 @@ func (s testUserService) GetUserByID(_ context.Context, id uint64) (moduleapi.Us
 	}
 
 	return user, nil
+}
+
+func (s testUserService) CountUsers(context.Context) (int, error) {
+	return len(s.users), nil
 }
 
 func (r testRBACRepository) EnsureRole(_ context.Context, _ store.EnsureRoleInput) (store.Role, error) {
@@ -305,6 +317,7 @@ func newModuleTestContext(t *testing.T, repo store.Repository) (*module.Context,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
+		DashboardRegistry:  dashboard.NewRegistry(),
 	}
 
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) {
@@ -443,6 +456,73 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	}
 	if _, ok := resolved.(moduleapi.Authorizer); !ok {
 		t.Fatalf("expected moduleapi.Authorizer, got %T", resolved)
+	}
+}
+
+func TestRegisterRegistersAccessControlDashboardQuickLinks(t *testing.T) {
+	ctx, _ := newModuleTestContext(t, testRBACRepository{})
+
+	if _, ok := ctx.DashboardRegistry.Get("rbac.access-summary"); ok {
+		t.Fatalf("expected rbac access summary insight widget to be removed")
+	}
+
+	quickLinks := ctx.DashboardRegistry.QuickLinks()
+	if len(quickLinks) != 4 {
+		t.Fatalf("expected 4 access-control quick links, got %#v", quickLinks)
+	}
+
+	assertDashboardQuickLink(t, quickLinks[0], expectedDashboardQuickLink{
+		id:            accessControlOverviewQuickLinkID,
+		titleKey:      rbaccontract.AccessControlOverviewMenuTitle.String(),
+		routeLocation: "/access-control/overview",
+		icon:          "dashboard",
+		order:         accessControlOverviewQuickLinkOrder,
+	})
+	assertDashboardQuickLink(t, quickLinks[1], expectedDashboardQuickLink{
+		id:                  accessControlUsersQuickLinkID,
+		titleKey:            usercontract.UserListMenuTitle.String(),
+		routeLocation:       "/access-control/users",
+		icon:                "user",
+		requiredPermissions: []string{usercontract.UserReadPermission.String()},
+		order:               accessControlUsersQuickLinkOrder,
+	})
+	assertDashboardQuickLink(t, quickLinks[2], expectedDashboardQuickLink{
+		id:                  accessControlRolesQuickLinkID,
+		titleKey:            rbaccontract.RoleListMenuTitle.String(),
+		routeLocation:       "/access-control/roles",
+		icon:                "secured",
+		requiredPermissions: []string{rbaccontract.RoleReadPermission.String()},
+		order:               accessControlRolesQuickLinkOrder,
+	})
+	assertDashboardQuickLink(t, quickLinks[3], expectedDashboardQuickLink{
+		id:                  accessControlPermissionsQuickLinkID,
+		titleKey:            rbaccontract.PermissionListMenuTitle.String(),
+		routeLocation:       "/access-control/permissions",
+		icon:                "lock-on",
+		requiredPermissions: []string{rbaccontract.PermissionReadPermission.String()},
+		order:               accessControlPermissionsQuickLinkOrder,
+	})
+}
+
+type expectedDashboardQuickLink struct {
+	id                  string
+	titleKey            string
+	routeLocation       string
+	icon                string
+	requiredPermissions []string
+	order               int
+}
+
+func assertDashboardQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, expected expectedDashboardQuickLink) {
+	t.Helper()
+	if link.ID != expected.id ||
+		link.ModuleKey != moduleID ||
+		link.TitleKey != expected.titleKey ||
+		link.RouteLocation != expected.routeLocation ||
+		link.Icon != expected.icon ||
+		link.Order != expected.order ||
+		!reflect.DeepEqual(link.RequiredPermissions, expected.requiredPermissions) {
+		t.Fatalf("unexpected dashboard quick link: %#v", link)
 	}
 }
 

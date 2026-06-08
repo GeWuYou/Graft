@@ -18,6 +18,7 @@ import (
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/drilldown"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
@@ -243,6 +244,7 @@ func newModuleTestContextWithLogger(t *testing.T, repo store.AuditRepository, lo
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
 		ConfigRegistry:     configregistry.NewRegistry(),
+		DashboardRegistry:  dashboard.NewRegistry(),
 	}
 
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) {
@@ -299,6 +301,7 @@ func newModuleTestContextWithDrilldown(
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
 		ConfigRegistry:     configregistry.NewRegistry(),
+		DashboardRegistry:  dashboard.NewRegistry(),
 	}
 
 	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthService)(nil), func(container.Resolver) (any, error) {
@@ -345,6 +348,50 @@ func newModuleTestContextWithDrilldown(
 	}
 
 	return ctx, engine, bus
+}
+
+func TestRegisterRegistersAuditRiskEventsDashboardWidget(t *testing.T) {
+	ctx, _, _ := newModuleTestContext(t, &memoryAuditRepository{})
+
+	widget, ok := ctx.DashboardRegistry.Get(auditRiskEventsWidgetID)
+	if !ok {
+		t.Fatalf("expected audit risk events dashboard widget to be registered")
+	}
+	if widget.ModuleKey != moduleID {
+		t.Fatalf("expected module key %q, got %q", moduleID, widget.ModuleKey)
+	}
+	if widget.Type != dashboard.WidgetTypeAlertList {
+		t.Fatalf("expected alert-list widget, got %q", widget.Type)
+	}
+	if widget.RouteLocation != "/audit/overview" {
+		t.Fatalf("expected audit overview route, got %q", widget.RouteLocation)
+	}
+	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != "audit.read" {
+		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
+	}
+}
+
+func TestAuditRiskEventsDashboardWidgetLoadsRiskPayload(t *testing.T) {
+	ctx, _, _ := newModuleTestContext(t, &memoryAuditRepository{})
+	widget, ok := ctx.DashboardRegistry.Get(auditRiskEventsWidgetID)
+	if !ok {
+		t.Fatalf("expected audit risk events dashboard widget to be registered")
+	}
+
+	payload, err := widget.Loader.Load(context.Background(), dashboard.WidgetRequest{})
+	if err != nil {
+		t.Fatalf("load audit risk events widget: %v", err)
+	}
+	items, ok := payload["items"].([]map[string]any)
+	if !ok {
+		t.Fatalf("expected alert-list items payload, got %#v", payload["items"])
+	}
+	if len(items) == 0 {
+		t.Fatalf("expected risk events payload to include attention items")
+	}
+	if items[0]["route_location"] != "/audit/overview" {
+		t.Fatalf("expected attention item to route to audit overview, got %#v", items[0])
+	}
 }
 
 // TestRequestAuditMiddlewareSkipsUnmatchedRequest 验证未命中策略的普通请求不会落库。

@@ -1,0 +1,9 @@
+type: object
+required: [code]
+properties:
+  code:
+    type: string
+  message_key:
+    type: string
+  message:
+    type: string

@@ -1,0 +1,37 @@
+type: object
+required: [id, module_key, type, size, order, payload]
+properties:
+  id:
+    type: string
+  module_key:
+    type: string
+  title_key:
+    type: string
+  title:
+    type: string
+  description_key:
+    type: string
+  description:
+    type: string
+  type:
+    $ref: ./dashboard-widget-type.yaml
+  size:
+    $ref: ./dashboard-widget-size.yaml
+  order:
+    type: integer
+  refresh_interval_seconds:
+    type: integer
+    minimum: 1
+  route_location:
+    type: string
+  required_permissions:
+    type: array
+    items:
+      type: string
+  status:
+    $ref: ./dashboard-widget-status.yaml
+  error:
+    $ref: ./dashboard-widget-error.yaml
+  payload:
+    type: object
+    additionalProperties: true

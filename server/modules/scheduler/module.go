@@ -50,6 +50,9 @@ func (p *Module) Register(ctx *module.Context) error {
 	if err := registerSchedulerRuntimeService(ctx); err != nil {
 		return err
 	}
+	if err := registerSchedulerDashboardWidget(ctx, p); err != nil {
+		return err
+	}
 	p.routeAuth = newDeferredAuthService()
 	p.routeAuthorizer = newDeferredAuthorizer()
 	return registerSchedulerRoutesWithRuntime(ctx, moduleID, p.routeAuth, p.routeAuthorizer, func() (schedulercore.Runtime, error) {

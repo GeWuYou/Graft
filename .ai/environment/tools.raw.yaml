@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-03T15:18:02Z"
+generated_at_utc: "2026-06-07T16:03:46Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -86,6 +86,23 @@ project_tools:
     version: "gh version 2.92.0 (2026-04-28)"
     path: "/usr/bin/gh"
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
+
+mcp_servers:
+  codegraph:
+    configured: true
+    purpose: "Local code graph navigation for AI-assisted source discovery."
+  tdesign:
+    configured: true
+    purpose: "TDesign Vue Next component documentation and DOM knowledge source."
+  context7:
+    configured: true
+    purpose: "Current third-party library documentation lookup for AI-assisted implementation."
+  github:
+    configured: true
+    purpose: "GitHub PR, Actions, and repository context lookup for AI-assisted review workflows."
+  playwright:
+    configured: true
+    purpose: "Exploratory browser interaction aid for graft-web-browser-agent workflows."
 
 python_packages:
   requests:

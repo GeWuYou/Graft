@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-03T15:18:14Z"
+generated_at_utc: "2026-06-08T01:19:21Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -20,6 +20,11 @@ capabilities:
   docker: true
   gh: true
   gh_authenticated: true
+  mcp_codegraph: true
+  mcp_tdesign: true
+  mcp_context7: true
+  mcp_github: true
+  mcp_playwright: true
   fast_search: true
   json_cli: true
   ai_browser: true
@@ -61,6 +66,28 @@ tool_selection:
     preferred: "go"
     fallback: "unavailable"
     use_for: "Server build and test workflows once server/go.mod exists."
+mcp_servers:
+  codegraph:
+    configured: true
+    risk_level: "L0"
+    use_for: "Local source navigation and impact discovery."
+  tdesign:
+    configured: true
+    risk_level: "L0"
+    use_for: "TDesign Vue Next component API, DOM, and changelog lookup."
+  context7:
+    configured: true
+    risk_level: "L1"
+    use_for: "Current third-party library documentation lookup."
+  github:
+    configured: true
+    risk_level: "L1"
+    access_policy: "read-only default; write actions require repository skill ownership."
+    use_for: "GitHub PR, Actions, and repository context lookup for review workflows."
+  playwright:
+    configured: true
+    risk_level: "L1"
+    use_for: "Exploratory browser interaction before graft-web-browser-agent evidence capture."
 python:
   available: true
   venv_available: true
@@ -88,5 +115,8 @@ rules:
   - "Prefer python3 over complex bash for non-trivial scripting when python3 is available."
   - "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm."
   - "Use graft-web-browser-agent for AI-assisted frontend screenshots and interactions; do not treat it as the web validation entrypoint."
+  - "Use Playwright MCP only as a browser exploration aid; keep graft-web-browser-agent artifacts as auditable evidence."
+  - "Use Context7 MCP for current third-party library documentation when repository truth is insufficient."
+  - "Use GitHub MCP as a read-only PR and Actions context source unless a repository skill explicitly owns a write path."
   - "Do not assume server build or test commands are available when server/go.mod is missing."
   - "Do not assume unrelated system tools are part of the supported project environment."

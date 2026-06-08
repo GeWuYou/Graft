@@ -28,4 +28,6 @@ type UserService interface {
 	//
 	// 未命中时实现应返回 ErrUserNotFound，方便调用方做统一分支处理。
 	GetUserByID(ctx context.Context, id uint64) (UserSummary, error)
+	// CountUsers 返回当前可管理用户总数，供跨模块摘要类只读能力使用。
+	CountUsers(ctx context.Context) (int, error)
 }

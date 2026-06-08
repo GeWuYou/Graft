@@ -19,6 +19,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
@@ -26,6 +27,8 @@ import (
 	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleregistry"
+	"graft/server/internal/moduleruntime"
 	"graft/server/internal/permission"
 	testent "graft/server/internal/testent"
 )
@@ -486,6 +489,49 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 	}
 	if runtime.appLogRepository != appLogRepo {
 		t.Fatal("expected runtime to retain logger-owned app log repository")
+	}
+}
+
+func TestRegisterCoreDashboardWidgetsIncludesAccessLogSystemCapability(t *testing.T) {
+	repo := &runtimeAccessLogRecorderRepo{}
+	runtime := &Runtime{
+		config:            &config.Config{},
+		server:            httpx.NewServer(zap.NewNop(), repo),
+		dashboardRegistry: dashboard.NewRegistry(),
+	}
+
+	if err := runtime.registerCoreDashboardWidgets(); err != nil {
+		t.Fatalf("register core dashboard widgets: %v", err)
+	}
+
+	moduleRuntimeWidget, ok := runtime.dashboardRegistry.Get("core.module-runtime-health")
+	if !ok {
+		t.Fatalf("expected module runtime health widget to be registered")
+	}
+	if len(moduleRuntimeWidget.RequiredPermissions) != 1 || moduleRuntimeWidget.RequiredPermissions[0] != moduleruntime.PermissionRead {
+		t.Fatalf("unexpected module runtime permissions: %#v", moduleRuntimeWidget.RequiredPermissions)
+	}
+
+	accessLogWidget, ok := runtime.dashboardRegistry.Get(httpx.AccessLogDashboardWidgetID)
+	if !ok {
+		t.Fatalf("expected access-log dashboard widget to be registered")
+	}
+	if accessLogWidget.ModuleKey != httpx.AccessLogDashboardModuleKey() {
+		t.Fatalf("expected access-log system owner, got %q", accessLogWidget.ModuleKey)
+	}
+	if accessLogWidget.Type != dashboard.WidgetTypeAlertList {
+		t.Fatalf("expected access-log alert-list widget, got %q", accessLogWidget.Type)
+	}
+	if len(accessLogWidget.RequiredPermissions) != 1 || accessLogWidget.RequiredPermissions[0] != httpx.AccessLogReadPermission {
+		t.Fatalf("unexpected access-log permissions: %#v", accessLogWidget.RequiredPermissions)
+	}
+}
+
+func TestAccessLogIsNotRegisteredAsModule(t *testing.T) {
+	for _, spec := range moduleregistry.ModuleSpecs() {
+		if spec.Name() == "access-log" || spec.Name() == httpx.AccessLogDashboardModuleKey() {
+			t.Fatalf("access-log must remain a core/httpx system capability, got module spec %q", spec.Name())
+		}
 	}
 }
 

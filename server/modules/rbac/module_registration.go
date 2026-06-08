@@ -42,14 +42,7 @@ func (p *Module) Register(ctx *module.Context) error {
 	if repository == nil {
 		return errors.New("rbac repository is unavailable")
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
-		return accessService{rbac: repository}, nil
-	}); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACBootstrapService)(nil), func(_ container.Resolver) (any, error) {
-		return bootstrapService{rbac: repository}, nil
-	}); err != nil {
+	if err := registerModuleServices(ctx, repository); err != nil {
 		return err
 	}
 
@@ -67,17 +60,14 @@ func (p *Module) Register(ctx *module.Context) error {
 		users: userService,
 		rbac:  repository,
 	}
+	if err := registerDashboardWidgets(ctx, readService); err != nil {
+		return err
+	}
 	writeService := managementWriter{
 		users:    userService,
 		rbac:     repository,
 		auditBus: ctx.EventBus,
 		logger:   ctx.Logger,
-	}
-
-	if err := ctx.Services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
-		return authorizer{rbac: repository}, nil
-	}); err != nil {
-		return err
 	}
 
 	resolved, err := ctx.Services.Resolve((*moduleapi.AuthService)(nil))
@@ -113,39 +103,88 @@ func (p *Module) Register(ctx *module.Context) error {
 	return nil
 }
 
+func registerModuleServices(ctx *module.Context, repository rbacstore.Repository) error {
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
+		return accessService{rbac: repository}, nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACBootstrapService)(nil), func(_ container.Resolver) (any, error) {
+		return bootstrapService{rbac: repository}, nil
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(_ container.Resolver) (any, error) {
+		return authorizer{rbac: repository}, nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
 	}
 
-	for _, registration := range []i18n.Registration{
+	for _, registration := range []struct {
+		locale i18n.LocaleTag
+		texts  []string
+	}{
 		{
-			Namespace: "rbac",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(rbaccontract.AccessControlMenuTitle.String()), Text: "访问控制"},
-				{Key: i18n.MessageKey(rbaccontract.RoleListMenuTitle.String()), Text: "角色管理"},
-				{Key: i18n.MessageKey(rbaccontract.PermissionListMenuTitle.String()), Text: "权限管理"},
-				{Key: i18n.MessageKey(rbaccontract.AccessControlOverviewMenuTitle.String()), Text: "访问控制概览"},
+			locale: i18n.LocaleZHCN,
+			texts: []string{
+				"访问控制",
+				"角色管理",
+				"权限管理",
+				"访问控制概览",
 			},
 		},
 		{
-			Namespace: "rbac",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(rbaccontract.AccessControlMenuTitle.String()), Text: "Access Control"},
-				{Key: i18n.MessageKey(rbaccontract.RoleListMenuTitle.String()), Text: "Role Management"},
-				{Key: i18n.MessageKey(rbaccontract.PermissionListMenuTitle.String()), Text: "Permission Management"},
-				{Key: i18n.MessageKey(rbaccontract.AccessControlOverviewMenuTitle.String()), Text: "Access Control Overview"},
+			locale: i18n.LocaleENUS,
+			texts: []string{
+				"Access Control",
+				"Role Management",
+				"Permission Management",
+				"Access Control Overview",
 			},
 		},
 	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
+		messages, err := rbacMessageResources(registration.texts)
+		if err != nil {
+			return fmt.Errorf("build rbac module messages for %s: %w", registration.locale, err)
+		}
+		if err := localizer.RegisterMessages(i18n.Registration{
+			Namespace: "rbac",
+			Locale:    registration.locale,
+			Messages:  messages,
+		}); err != nil {
 			return fmt.Errorf("register rbac module messages: %w", err)
 		}
 	}
 
 	return nil
+}
+
+func rbacMessageResources(texts []string) ([]i18n.MessageResource, error) {
+	keys := []rbaccontract.MenuMessageKey{
+		rbaccontract.AccessControlMenuTitle,
+		rbaccontract.RoleListMenuTitle,
+		rbaccontract.PermissionListMenuTitle,
+		rbaccontract.AccessControlOverviewMenuTitle,
+	}
+	if len(texts) != len(keys) {
+		return nil, fmt.Errorf("expected %d texts for %d rbac message keys, got %d", len(keys), len(keys), len(texts))
+	}
+
+	messages := make([]i18n.MessageResource, 0, len(keys))
+	for index, key := range keys {
+		messages = append(messages, i18n.MessageResource{
+			Key:  i18n.MessageKey(key.String()),
+			Text: texts[index],
+		})
+	}
+	return messages, nil
 }
 
 // Boot 当前没有额外运行时行为需要启动。

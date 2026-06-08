@@ -16,8 +16,10 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
+	generated "graft/server/internal/contract/openapi/generated"
 	healthopenapi "graft/server/internal/contract/openapi/health"
 	"graft/server/internal/cronx"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
@@ -34,6 +36,7 @@ import (
 
 const moduleShutdownTimeout = 5 * time.Second
 const appRuntimeLogComponent = "internal.app.runtime"
+const coreModuleRuntimeHealthWidgetOrder = 10
 
 type runtimeCoreDeps struct {
 	newAccessLogRepository func(*sql.DB) (httpx.AccessLogRepository, error)
@@ -68,6 +71,7 @@ type Runtime struct {
 	permissionRegistry *permission.Registry
 	cronRegistry       *cronx.Registry
 	configRegistry     *configregistry.Registry
+	dashboardRegistry  *dashboard.Registry
 	moduleManager      *module.Manager
 	runtimeMetadata    module.RuntimeMetadata
 	appLogRepository   logger.AppLogRepository
@@ -219,6 +223,7 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),
 		configRegistry:     configregistry.NewRegistry(),
+		dashboardRegistry:  dashboard.NewRegistry(),
 		moduleManager:      module.NewManager(),
 		appLogRepository:   appLogRepo,
 	}, nil
@@ -375,6 +380,7 @@ func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 		PermissionRegistry: r.permissionRegistry,
 		CronRegistry:       r.cronRegistry,
 		ConfigRegistry:     r.configRegistry,
+		DashboardRegistry:  r.dashboardRegistry,
 	}
 }
 
@@ -394,6 +400,12 @@ func (r *Runtime) registerCoreAuthenticatedRoutes() error {
 		return err
 	}
 	if err := r.registerModuleRuntimeWithAuth(authService, authorizer); err != nil {
+		return err
+	}
+	if err := r.registerCoreDashboardWidgets(); err != nil {
+		return err
+	}
+	if err := r.registerDashboardWithAuth(authService, authorizer); err != nil {
 		return err
 	}
 
@@ -418,6 +430,105 @@ func (r *Runtime) registerModuleRuntimeWithAuth(
 		authorizer,
 	); err != nil {
 		return fmt.Errorf("register module runtime routes: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Runtime) registerCoreDashboardWidgets() error {
+	if r.dashboardRegistry == nil {
+		return errors.New("dashboard registry is unavailable")
+	}
+
+	if err := r.dashboardRegistry.Register(dashboard.WidgetDefinition{
+		ID:                  "core.module-runtime-health",
+		ModuleKey:           "core",
+		TitleKey:            "monitor.moduleRuntime.title",
+		Title:               "Module Runtime",
+		DescriptionKey:      "monitor.moduleRuntime.subtitle",
+		Description:         "Current module runtime health.",
+		Type:                dashboard.WidgetTypeHealth,
+		Size:                dashboard.WidgetSizeMedium,
+		Order:               coreModuleRuntimeHealthWidgetOrder,
+		RequiredPermissions: []string{moduleruntime.PermissionRead},
+		Loader: dashboard.WidgetLoaderFunc(func(context.Context, dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
+			snapshot := moduleruntime.BuildSnapshot(r.config, r.moduleRuntimeSpecs())
+			items := make([]dashboard.HealthItem, 0, len(snapshot.Items))
+			for _, item := range snapshot.Items {
+				items = append(items, dashboard.HealthItem{
+					Key:           item.ModuleKey,
+					LabelKey:      "dashboard.widget.moduleRuntimeHealth.item." + item.ModuleKey,
+					Label:         item.ModuleKey,
+					Status:        dashboard.HealthStatus(string(item.Health)),
+					Description:   string(item.RuntimeStatus),
+					RouteLocation: "/server/modules",
+				})
+			}
+
+			summaryStatus := dashboard.HealthStatusHealthy
+			if snapshot.Summary.DegradedModules > 0 || snapshot.Summary.UnknownModules > 0 {
+				summaryStatus = dashboard.HealthStatusDegraded
+			}
+			if snapshot.Summary.EnabledModules == 0 && snapshot.Summary.TotalModules > 0 {
+				summaryStatus = dashboard.HealthStatusDisabled
+			}
+
+			return dashboard.WidgetPayload{
+				"summary": dashboard.HealthSummaryItem{
+					Status:   summaryStatus,
+					LabelKey: "dashboard.widget.moduleRuntimeHealth.summary",
+					Label:    "Module health",
+				},
+				"items": items,
+			}, nil
+		}),
+	}); err != nil {
+		return fmt.Errorf("register core dashboard widget: %w", err)
+	}
+
+	if repo := r.server.AccessLogRepository(); repo != nil {
+		if err := r.dashboardRegistry.Register(dashboard.WidgetDefinition{
+			ID:                  httpx.AccessLogDashboardWidgetID,
+			ModuleKey:           httpx.AccessLogDashboardModuleKey(),
+			TitleKey:            "dashboard.widget.accessLogRequestAttention.title",
+			Title:               "Request Attention",
+			DescriptionKey:      "dashboard.widget.accessLogRequestAttention.description",
+			Description:         "Recent error and slow HTTP requests.",
+			Type:                dashboard.WidgetTypeAlertList,
+			Size:                dashboard.WidgetSizeMedium,
+			Order:               httpx.AccessLogDashboardWidgetOrder,
+			RouteLocation:       httpx.AccessLogDashboardRouteLocation(),
+			RequiredPermissions: []string{httpx.AccessLogReadPermission},
+			Loader: dashboard.WidgetLoaderFunc(func(ctx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
+				return httpx.LoadAccessLogRequestAttentionPayload(ctx, repo)
+			}),
+		}); err != nil {
+			return fmt.Errorf("register access-log dashboard widget: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *Runtime) registerDashboardWithAuth(
+	authService moduleapi.AuthService,
+	authorizer moduleapi.Authorizer,
+) error {
+	if err := dashboard.Register(
+		dashboard.Registration{
+			I18n:     r.i18n,
+			Config:   r.config,
+			Registry: r.dashboardRegistry,
+			Logger:   r.injectedAppLogger(),
+			ModuleRuntimeSummary: func() generated.ModuleRuntimeSummary {
+				return moduleruntime.BuildSnapshot(r.config, r.moduleRuntimeSpecs()).Summary
+			},
+		},
+		r.server.Engine().Group("/api"),
+		authService,
+		authorizer,
+	); err != nil {
+		return fmt.Errorf("register dashboard routes: %w", err)
 	}
 
 	return nil

@@ -61,6 +61,8 @@ func TestRequiredLiveRoutesStayCoveredByRootSpec(t *testing.T) {
 		"/api/monitor/server-status",
 		"/api/modules/runtime",
 		"/api/modules/runtime/{module_key}",
+		"/api/dashboard/summary",
+		"/api/dashboard/widgets/{widget_id}",
 		"/api/scheduled-tasks",
 		"/api/scheduled-tasks/{taskKey}",
 		"/api/scheduled-tasks/{taskKey}/enable",

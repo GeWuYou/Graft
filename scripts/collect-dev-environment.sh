@@ -108,6 +108,21 @@ gh_authenticated() {
     fi
 }
 
+codex_mcp_configured() {
+    local server_name="$1"
+
+    if ! command -v codex >/dev/null 2>&1; then
+        printf 'false'
+        return
+    fi
+
+    if codex mcp get "${server_name}" >/dev/null 2>&1; then
+        printf 'true'
+    else
+        printf 'false'
+    fi
+}
+
 python_package_version() {
     local package_name="$1"
 
@@ -352,6 +367,23 @@ project_tools:
     version: "$(command_version gh)"
     path: "$(command_path gh)"
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
+
+mcp_servers:
+  codegraph:
+    configured: $(codex_mcp_configured codegraph)
+    purpose: "Local code graph navigation for AI-assisted source discovery."
+  tdesign:
+    configured: $(codex_mcp_configured tdesign)
+    purpose: "TDesign Vue Next component documentation and DOM knowledge source."
+  context7:
+    configured: $(codex_mcp_configured context7)
+    purpose: "Current third-party library documentation lookup for AI-assisted implementation."
+  github:
+    configured: $(codex_mcp_configured github)
+    purpose: "GitHub PR, Actions, and repository context lookup for AI-assisted review workflows."
+  playwright:
+    configured: $(codex_mcp_configured playwright)
+    purpose: "Exploratory browser interaction aid for graft-web-browser-agent workflows."
 
 python_packages:
   requests:

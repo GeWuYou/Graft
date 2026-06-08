@@ -63,6 +63,7 @@ type DeleteUserInput struct {
 type UserRepository interface {
 	GetByID(ctx context.Context, id uint64) (User, error)
 	List(ctx context.Context) ([]User, error)
+	Count(ctx context.Context) (int, error)
 	Create(ctx context.Context, input CreateUserInput) (User, error)
 	Update(ctx context.Context, input UpdateUserInput) (User, error)
 	SetStatus(ctx context.Context, input SetUserStatusInput) (User, error)

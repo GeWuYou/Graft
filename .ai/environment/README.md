@@ -33,6 +33,22 @@ Generated runtime files are intentionally ignored:
 - `.ai/ms-playwright/`
 - `.ai/artifacts/browser/`
 
+Playwright MCP may be configured in the user-level Codex MCP list as an exploration aid, but the project-local browser
+agent remains the auditable artifact path for screenshots, text snapshots, login summaries, and cleanup.
+
+## MCP Inventory
+
+The environment inventory records whether these user-level Codex MCP servers are configured:
+
+- `codegraph`
+- `tdesign`
+- `context7`
+- `github`
+- `playwright`
+
+These entries are generated local capability facts. They do not make MCP a repository runtime dependency, CI gate, hook,
+or required contributor setup.
+
 Use the skill cleanup script at task closeout when the user chooses to remove browser artifacts:
 
 ```bash

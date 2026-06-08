@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft AI Governance Audit"
+  short_description: "Audit Graft AI tooling and MCP governance"
+  default_prompt: "Use $graft-ai-governance-audit to inspect Context7, GitHub, Playwright, CodeGraph, TDesign, skills, ai-plan governance, Python helpers, and environment inventory drift."

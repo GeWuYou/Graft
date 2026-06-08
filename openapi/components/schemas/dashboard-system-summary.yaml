@@ -1,0 +1,19 @@
+type: object
+required:
+  - current_user
+  - app_env
+  - locale
+  - modules
+  - visible_widgets
+properties:
+  current_user:
+    $ref: ./dashboard-current-user-summary.yaml
+  app_env:
+    type: string
+  locale:
+    $ref: ./dashboard-locale-summary.yaml
+  modules:
+    $ref: ./dashboard-module-summary.yaml
+  visible_widgets:
+    type: integer
+    minimum: 0

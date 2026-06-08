@@ -22,6 +22,7 @@ tags:
   - name: system-config
   - name: access-log
   - name: app-log
+  - name: dashboard
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
@@ -145,6 +146,10 @@ paths:
     $ref: ./paths/app-log.logs.yaml
   /api/app-log/{id}:
     $ref: ./paths/app-log.detail.yaml
+  /api/dashboard/summary:
+    $ref: ./paths/dashboard.summary.yaml
+  /api/dashboard/widgets/{widget_id}:
+    $ref: ./paths/dashboard.widget.yaml
 components:
   schemas:
     ApiEnvelope:
@@ -367,6 +372,44 @@ components:
       $ref: ./components/schemas/enveloped-app-log-list-response.yaml
     EnvelopedAppLogDetailResponse:
       $ref: ./components/schemas/enveloped-app-log-detail-response.yaml
+    DashboardCurrentUserSummary:
+      $ref: ./components/schemas/dashboard-current-user-summary.yaml
+    DashboardLocaleSummary:
+      $ref: ./components/schemas/dashboard-locale-summary.yaml
+    DashboardModuleSummary:
+      $ref: ./components/schemas/dashboard-module-summary.yaml
+    DashboardSystemSummary:
+      $ref: ./components/schemas/dashboard-system-summary.yaml
+    DashboardWidgetType:
+      $ref: ./components/schemas/dashboard-widget-type.yaml
+    DashboardWidgetSize:
+      $ref: ./components/schemas/dashboard-widget-size.yaml
+    DashboardWidgetStatus:
+      $ref: ./components/schemas/dashboard-widget-status.yaml
+    DashboardWidgetError:
+      $ref: ./components/schemas/dashboard-widget-error.yaml
+    DashboardWidget:
+      $ref: ./components/schemas/dashboard-widget.yaml
+    DashboardQuickLink:
+      $ref: ./components/schemas/dashboard-quick-link.yaml
+    DashboardSummaryResponse:
+      $ref: ./components/schemas/dashboard-summary-response.yaml
+    DashboardStatGroupPayload:
+      $ref: ./components/schemas/dashboard-stat-group-payload.yaml
+    DashboardAlertListPayload:
+      $ref: ./components/schemas/dashboard-alert-list-payload.yaml
+    DashboardLinkListPayload:
+      $ref: ./components/schemas/dashboard-link-list-payload.yaml
+    DashboardTimelinePayload:
+      $ref: ./components/schemas/dashboard-timeline-payload.yaml
+    DashboardHealthStatus:
+      $ref: ./components/schemas/dashboard-health-status.yaml
+    DashboardHealthPayload:
+      $ref: ./components/schemas/dashboard-health-payload.yaml
+    EnvelopedDashboardSummaryResponse:
+      $ref: ./components/schemas/enveloped-dashboard-summary-response.yaml
+    EnvelopedDashboardWidget:
+      $ref: ./components/schemas/enveloped-dashboard-widget.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

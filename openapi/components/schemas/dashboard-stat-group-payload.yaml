@@ -1,0 +1,30 @@
+type: object
+required: [items]
+properties:
+  items:
+    type: array
+    items:
+      type: object
+      required: [key, label_key, label, value]
+      properties:
+        key:
+          type: string
+        label_key:
+          type: string
+        label:
+          type: string
+        value:
+          type: string
+        unit_key:
+          type: string
+        unit:
+          type: string
+        description_key:
+          type: string
+        description:
+          type: string
+        tone:
+          type: string
+          enum: [normal, success, warning, error, info]
+        route_location:
+          type: string

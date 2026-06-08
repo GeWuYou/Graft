@@ -1,4 +1,4 @@
 interface:
   display_name: "Graft PR Create"
   short_description: "Create or reconcile the current branch PR"
-  default_prompt: "Use $graft-pr-create to create or reuse the current branch pull request against the repository default branch, preserve user-authored PR body content outside the managed block, and only enable auto-merge when the guarded confirmation path and branch-protection preflight both pass."
+  default_prompt: "Use $graft-pr-create to inspect PR state with GitHub MCP when available, then create or reuse the current branch PR through the guarded helper workflow."

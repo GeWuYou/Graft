@@ -356,6 +356,7 @@ func (r *moduleTestAuthRepository) RotateRefreshSession(_ context.Context, input
 type moduleTestUserRepository struct {
 	getByID func(ctx context.Context, id uint64) (store.User, error)
 	list    func(ctx context.Context) ([]store.User, error)
+	count   func(ctx context.Context) (int, error)
 	create  func(ctx context.Context, input store.CreateUserInput) (store.User, error)
 	update  func(ctx context.Context, input store.UpdateUserInput) (store.User, error)
 	status  func(ctx context.Context, input store.SetUserStatusInput) (store.User, error)
@@ -376,6 +377,14 @@ func (r moduleTestUserRepository) List(ctx context.Context) ([]store.User, error
 	}
 
 	return r.list(ctx)
+}
+
+func (r moduleTestUserRepository) Count(ctx context.Context) (int, error) {
+	if r.count == nil {
+		return 0, nil
+	}
+
+	return r.count(ctx)
 }
 
 func (r moduleTestUserRepository) Create(ctx context.Context, input store.CreateUserInput) (store.User, error) {
@@ -1466,6 +1475,28 @@ func TestRegisterPublishesContracts(t *testing.T) {
 		t.Fatalf("get user by id: %v", err)
 	}
 	assertUserSummary(t, summary, 7, "alice", "Alice")
+}
+
+func TestUserServiceCountUsersUsesRepositoryCount(t *testing.T) {
+	svc := userService{
+		users: moduleTestUserRepository{
+			list: func(context.Context) ([]store.User, error) {
+				t.Fatalf("CountUsers should use repository Count instead of List")
+				return nil, nil
+			},
+			count: func(context.Context) (int, error) {
+				return 42, nil
+			},
+		},
+	}
+
+	total, err := svc.CountUsers(context.Background())
+	if err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if total != 42 {
+		t.Fatalf("expected repository count 42, got %d", total)
+	}
 }
 
 // TestUserRouteRejectsInvalidID 验证用户查询路由会把非法 ID 收敛为 400

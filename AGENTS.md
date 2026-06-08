@@ -43,6 +43,8 @@ Authoritative repository documents:
 - [ai-plan/design/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/CodeGraph-MCP-辅助开发规范.md) when the task changes
   CodeGraph MCP setup, repository code-navigation assistance, local code index handling, or AI-assisted discovery
   workflow
+- [ai-plan/design/AI工具与MCP接入治理规范.md](ai-plan/design/AI工具与MCP接入治理规范.md) when the task changes
+  AI tooling, MCP adoption, repository skills, Python helper scripts, or AI governance drift checks
 - [ai-plan/roadmap/MVP实施计划.md](ai-plan/roadmap/MVP实施计划.md)
 - [ai-plan/design/AI任务追踪与恢复设计.md](ai-plan/design/AI任务追踪与恢复设计.md) when the task changes
   tracking, recovery, or documentation-governance rules
@@ -329,6 +331,9 @@ Prefer the repository skills below when their trigger matches the task:
     and enforce token/theme/i18n/visible-copy constraints before implementation
 - `graft-validation-runner`
   - use when choosing the smallest correct validation for `server`, `web`, or cross-boundary work
+- `graft-ai-governance-audit`
+  - use when evaluating or changing AI tooling, MCP adoption, repository skills, `ai-plan` governance, Python helper
+    scripts, environment inventory, or drift between AGENTS and AI workflow documents
 
 If a repository skill and this document diverge, follow `AGENTS.md` first and update the skill in the same change.
 

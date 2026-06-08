@@ -1,0 +1,109 @@
+{
+  "dashboard": {
+    "actions": {
+      "open": "打开",
+      "refresh": "刷新",
+      "retry": "重试"
+    },
+    "alert": {
+      "level": {
+        "error": "错误",
+        "info": "提示",
+        "warning": "警告"
+      }
+    },
+    "empty": "暂无 Dashboard 数据",
+    "error": {
+      "fallback": "Dashboard 数据加载失败",
+      "title": "Dashboard 加载失败"
+    },
+    "health": {
+      "degraded": "异常",
+      "disabled": "停用",
+      "healthy": "健康",
+      "unknown": "未知"
+    },
+    "loading": "正在加载 Dashboard",
+    "page": {
+      "description": "查看系统摘要和已授权模块贡献的工作台组件。",
+      "eyebrow": "工作台",
+      "title": "首页"
+    },
+    "quickActions": {
+      "description": "当前权限可用入口",
+      "empty": "暂无可用快捷入口",
+      "title": "快捷操作"
+    },
+    "systemSummary": {
+      "currentUser": {
+        "label": "当前用户"
+      },
+      "environment": {
+        "description": "当前运行环境",
+        "label": "环境"
+      },
+      "locale": {
+        "description": "回退语言 {fallback}",
+        "label": "语言"
+      },
+      "modules": {
+        "description": "共 {total} 个模块，{degraded} 个需关注",
+        "label": "启用模块"
+      },
+      "title": "系统摘要",
+      "widgets": {
+        "description": "当前权限可见的组件",
+        "label": "可见组件"
+      }
+    },
+    "widget": {
+      "accessLogRequestAttention": {
+        "description": "最近错误请求和慢请求。",
+        "empty": "暂无近期错误请求或慢请求",
+        "error": "HTTP 错误请求",
+        "slow": "慢 HTTP 请求",
+        "title": "访问请求关注"
+      },
+      "auditRiskEvents": {
+        "description": "最近高风险审计和安全事件。",
+        "empty": "过去 24 小时暂无审计风险事件",
+        "failedOperations": {
+          "title": "失败操作"
+        },
+        "highRisk": {
+          "title": "高风险审计事件"
+        },
+        "recent": {
+          "title": "近期风险事件"
+        },
+        "title": "审计风险事件"
+      },
+      "disabledDescription": "该组件当前不可用。",
+      "empty": "暂无组件数据",
+      "errorFallback": "组件数据加载失败",
+      "errorTitle": "组件加载失败",
+      "invalidPayload": "组件数据格式不可用",
+      "monitorSystemHealth": {
+        "anomalies": "异常",
+        "database": "数据库",
+        "description": "数据库、缓存和系统异常健康状态。",
+        "redis": "Redis",
+        "summary": "系统健康摘要",
+        "title": "系统健康"
+      },
+      "schedulerTaskAttention": {
+        "description": "需要运维关注的失败、运行中和停用任务。",
+        "disabled": "停用任务",
+        "failed": "失败任务",
+        "running": "运行中任务",
+        "title": "定时任务关注"
+      },
+      "status": {
+        "disabled": "不可用",
+        "error": "错误",
+        "normal": "正常",
+        "warning": "警告"
+      }
+    }
+  }
+}

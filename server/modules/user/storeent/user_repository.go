@@ -83,6 +83,17 @@ func (r *userRepository) List(ctx context.Context) ([]userstore.User, error) {
 	return users, nil
 }
 
+func (r *userRepository) Count(ctx context.Context) (int, error) {
+	total, err := r.client.User.Query().
+		Where(userent.DeletedAtEQ(0)).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count users: %w", err)
+	}
+
+	return total, nil
+}
+
 func (r *userRepository) Create(ctx context.Context, input userstore.CreateUserInput) (userstore.User, error) {
 	builder := r.client.User.Create().
 		SetUsername(input.Username).

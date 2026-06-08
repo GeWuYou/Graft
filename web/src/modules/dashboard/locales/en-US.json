@@ -1,0 +1,109 @@
+{
+  "dashboard": {
+    "actions": {
+      "open": "Open",
+      "refresh": "Refresh",
+      "retry": "Retry"
+    },
+    "alert": {
+      "level": {
+        "error": "Error",
+        "info": "Info",
+        "warning": "Warning"
+      }
+    },
+    "empty": "No Dashboard data",
+    "error": {
+      "fallback": "Dashboard data failed to load",
+      "title": "Dashboard Load Failed"
+    },
+    "health": {
+      "degraded": "Degraded",
+      "disabled": "Disabled",
+      "healthy": "Healthy",
+      "unknown": "Unknown"
+    },
+    "loading": "Loading Dashboard",
+    "page": {
+      "description": "Review the system summary and authorized module-contributed workspace widgets.",
+      "eyebrow": "Workspace",
+      "title": "Home"
+    },
+    "quickActions": {
+      "description": "Entries available to current permissions",
+      "empty": "No Quick Actions Available",
+      "title": "Quick Actions"
+    },
+    "systemSummary": {
+      "currentUser": {
+        "label": "Current User"
+      },
+      "environment": {
+        "description": "Current runtime environment",
+        "label": "Environment"
+      },
+      "locale": {
+        "description": "Fallback locale {fallback}",
+        "label": "Locale"
+      },
+      "modules": {
+        "description": "{total} total modules, {degraded} need attention",
+        "label": "Enabled Modules"
+      },
+      "title": "System Summary",
+      "widgets": {
+        "description": "Widgets visible to current permissions",
+        "label": "Visible Widgets"
+      }
+    },
+    "widget": {
+      "accessLogRequestAttention": {
+        "description": "Recent error and slow HTTP requests.",
+        "empty": "No recent error or slow requests",
+        "error": "HTTP error request",
+        "slow": "Slow HTTP request",
+        "title": "Access Request Attention"
+      },
+      "auditRiskEvents": {
+        "description": "Recent high-risk audit and security events.",
+        "empty": "No audit risk events in the last 24 hours",
+        "failedOperations": {
+          "title": "Failed Operations"
+        },
+        "highRisk": {
+          "title": "High-risk Audit Events"
+        },
+        "recent": {
+          "title": "Recent Risk Event"
+        },
+        "title": "Audit Risk Events"
+      },
+      "disabledDescription": "This widget is currently unavailable.",
+      "empty": "No Widget Data",
+      "errorFallback": "Widget data failed to load",
+      "errorTitle": "Widget Load Failed",
+      "invalidPayload": "Widget data is unavailable",
+      "monitorSystemHealth": {
+        "anomalies": "Anomalies",
+        "database": "Database",
+        "description": "Database, cache, and system anomaly health.",
+        "redis": "Redis",
+        "summary": "System Health Summary",
+        "title": "System Health"
+      },
+      "schedulerTaskAttention": {
+        "description": "Failed, running, and disabled tasks that need operator attention.",
+        "disabled": "Disabled Tasks",
+        "failed": "Failed Tasks",
+        "running": "Running Tasks",
+        "title": "Scheduled Task Attention"
+      },
+      "status": {
+        "disabled": "Unavailable",
+        "error": "Error",
+        "normal": "Normal",
+        "warning": "Warning"
+      }
+    }
+  }
+}

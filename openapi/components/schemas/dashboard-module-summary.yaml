@@ -1,0 +1,12 @@
+type: object
+required: [total_modules, enabled_modules, degraded_modules]
+properties:
+  total_modules:
+    type: integer
+    minimum: 0
+  enabled_modules:
+    type: integer
+    minimum: 0
+  degraded_modules:
+    type: integer
+    minimum: 0

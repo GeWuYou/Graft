@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -109,32 +111,33 @@ func (r *stopContextRecorderRuntime) RunAction(context.Context, string, string, 
 
 type schedulerAPIRuntime struct {
 	stopContextRecorderRuntime
-	jobDefinitions []schedulercore.JobDefinitionSnapshot
-	tasks          []schedulercore.TaskSnapshot
-	createInputs   []schedulercore.TaskMutation
-	createResult   schedulercore.TaskSnapshot
-	createErr      error
-	updateInputs   []schedulercore.TaskMutation
-	updateKeys     []string
-	updateResult   schedulercore.TaskSnapshot
-	updateErr      error
-	deleteKeys     []string
-	deleteErr      error
-	setEnabledKeys []string
-	setEnabledVals []bool
-	setResult      schedulercore.TaskSnapshot
-	setErr         error
-	runOnceKeys    []string
-	runOnceResult  schedulercore.TaskRun
-	runOnceErr     error
-	actionTaskKeys []string
-	actionKeys     []string
-	actionConfigs  []string
-	actionResult   schedulercore.JobActionResult
-	actionErr      error
-	getRunID       uint64
-	getRunResult   schedulercore.TaskRun
-	getRunErr      error
+	jobDefinitions  []schedulercore.JobDefinitionSnapshot
+	tasks           []schedulercore.TaskSnapshot
+	listTaskQueries []schedulercore.TaskListQuery
+	createInputs    []schedulercore.TaskMutation
+	createResult    schedulercore.TaskSnapshot
+	createErr       error
+	updateInputs    []schedulercore.TaskMutation
+	updateKeys      []string
+	updateResult    schedulercore.TaskSnapshot
+	updateErr       error
+	deleteKeys      []string
+	deleteErr       error
+	setEnabledKeys  []string
+	setEnabledVals  []bool
+	setResult       schedulercore.TaskSnapshot
+	setErr          error
+	runOnceKeys     []string
+	runOnceResult   schedulercore.TaskRun
+	runOnceErr      error
+	actionTaskKeys  []string
+	actionKeys      []string
+	actionConfigs   []string
+	actionResult    schedulercore.JobActionResult
+	actionErr       error
+	getRunID        uint64
+	getRunResult    schedulercore.TaskRun
+	getRunErr       error
 }
 
 func (r *schedulerAPIRuntime) ListJobDefinitions(context.Context) ([]schedulercore.JobDefinitionSnapshot, error) {
@@ -151,6 +154,7 @@ func (r *schedulerAPIRuntime) GetJobDefinition(_ context.Context, key string) (s
 }
 
 func (r *schedulerAPIRuntime) ListTasks(_ context.Context, query schedulercore.TaskListQuery) (schedulercore.TaskListResult, error) {
+	r.listTaskQueries = append(r.listTaskQueries, query)
 	items := r.tasks
 	total := len(items)
 	if query.Limit > 0 {
@@ -396,6 +400,7 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		CronRegistry:       cronx.NewRegistry(),
+		DashboardRegistry:  dashboard.NewRegistry(),
 	}, engine
 }
 
@@ -444,6 +449,101 @@ func TestRegisterExposesRuntimeService(t *testing.T) {
 	}
 	if _, ok := resolved.(schedulercore.Runtime); !ok {
 		t.Fatalf("expected scheduler runtime service, got %T", resolved)
+	}
+}
+
+func TestRegisterRegistersSchedulerTaskAttentionDashboardWidget(t *testing.T) {
+	ctx := newModuleTestContext()
+	moduleInstance := NewModule()
+
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+
+	widget, ok := ctx.DashboardRegistry.Get(schedulerTaskAttentionWidgetID)
+	if !ok {
+		t.Fatalf("expected scheduler task attention dashboard widget to be registered")
+	}
+	if widget.Type != dashboard.WidgetTypeStatGroup {
+		t.Fatalf("expected stat-group widget, got %q", widget.Type)
+	}
+	if widget.RouteLocation != schedulercontract.ScheduledTaskMenuPath {
+		t.Fatalf("expected scheduler route %q, got %q", schedulercontract.ScheduledTaskMenuPath, widget.RouteLocation)
+	}
+	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != schedulercontract.ScheduledTaskReadPermission.String() {
+		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
+	}
+}
+
+func TestSchedulerTaskAttentionDashboardWidgetLoadsAttentionPayload(t *testing.T) {
+	finishedAt := time.Now().UTC()
+	payload, err := loadSchedulerTaskAttentionWidget(context.Background(), &schedulerAPIRuntime{
+		tasks: []schedulercore.TaskSnapshot{
+			{
+				Key:     "failed",
+				Enabled: true,
+				LastRun: &schedulercore.TaskRun{
+					Status:     schedulercore.RunStatusFailed,
+					FinishedAt: &finishedAt,
+				},
+			},
+			{Key: "running", Enabled: true, Running: true},
+			{Key: "disabled", Enabled: false},
+		},
+	})
+	if err != nil {
+		t.Fatalf("load scheduler task attention widget: %v", err)
+	}
+	items, ok := payload["items"].([]map[string]any)
+	if !ok {
+		t.Fatalf("expected stat-group items payload, got %#v", payload["items"])
+	}
+	if len(items) != 3 {
+		t.Fatalf("expected three scheduler attention stats, got %d", len(items))
+	}
+	for _, item := range items {
+		if item["value"] != "1" {
+			t.Fatalf("expected each attention stat to count one task, got %#v", items)
+		}
+		if item["route_location"] != schedulercontract.ScheduledTaskMenuPath {
+			t.Fatalf("expected scheduler route on stat item, got %#v", item)
+		}
+	}
+}
+
+func TestSchedulerTaskAttentionDashboardWidgetPaginatesAllTasks(t *testing.T) {
+	finishedAt := time.Now().UTC()
+	tasks := make([]schedulercore.TaskSnapshot, schedulerTaskAttentionListLimit+1)
+	for index := range tasks {
+		tasks[index] = schedulercore.TaskSnapshot{Key: "task-" + strconv.Itoa(index), Enabled: true}
+	}
+	tasks[schedulerTaskAttentionListLimit] = schedulercore.TaskSnapshot{
+		Key:     "failed-after-first-page",
+		Enabled: true,
+		LastRun: &schedulercore.TaskRun{
+			Status:     schedulercore.RunStatusFailed,
+			FinishedAt: &finishedAt,
+		},
+	}
+	runtime := &schedulerAPIRuntime{tasks: tasks}
+
+	payload, err := loadSchedulerTaskAttentionWidget(context.Background(), runtime)
+	if err != nil {
+		t.Fatalf("load scheduler task attention widget: %v", err)
+	}
+
+	if len(runtime.listTaskQueries) != 2 {
+		t.Fatalf("expected two paginated task list queries, got %#v", runtime.listTaskQueries)
+	}
+	if runtime.listTaskQueries[0].Offset != 0 || runtime.listTaskQueries[1].Offset != schedulerTaskAttentionListLimit {
+		t.Fatalf("unexpected task list pagination offsets: %#v", runtime.listTaskQueries)
+	}
+	items, ok := payload["items"].([]map[string]any)
+	if !ok {
+		t.Fatalf("expected stat-group items payload, got %#v", payload["items"])
+	}
+	if items[0]["value"] != "1" {
+		t.Fatalf("expected failed count from second page, got %#v", items)
 	}
 }
 

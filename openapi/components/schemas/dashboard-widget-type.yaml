@@ -1,0 +1,2 @@
+type: string
+enum: [stat-group, alert-list, link-list, timeline, health]

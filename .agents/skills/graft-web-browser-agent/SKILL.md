@@ -11,6 +11,11 @@ Use this skill to give Codex an eyes-on-browser loop for Graft `web` work. It is
 
 Follow root `AGENTS.md` startup governance before using this skill. For frontend implementation tasks, also follow `web/AGENTS.md` and `graft-web-vibe-coding`; this skill only adds browser inspection capability after the normal frontend authority and design rules are in force.
 
+Playwright MCP can be used as an optional exploration layer for this skill when it is available in `codex mcp list`.
+Use MCP to discover page structure, accessible names, role selectors, and complex TDesign interactions quickly. Then
+turn the stable path into a `browser_agent.py` command so the final evidence is reproducible and written under
+`.ai/artifacts/browser/<session>`.
+
 ## Workflow
 
 1. Confirm the local web app is running, usually with `cd web && bun run dev`.
@@ -64,6 +69,29 @@ storage dumps.
 
 6. Use the browser evidence to guide fixes, then run the normal repository validation required by the changed scope.
 
+## Playwright MCP Fast Path
+
+Use Playwright MCP before `browser_agent.py` when any of these are true:
+
+- the page structure, accessible names, or reliable selectors are unknown
+- the target flow includes TDesign dialogs, drawers, dropdowns, tabs, pagination, or table filters
+- the first task is exploratory triage rather than repeatable evidence capture
+- a screenshot failed and the agent needs to inspect visible state before choosing the next stable action
+
+Do not stop at MCP exploration. Once the selector path is known, rerun the same flow through `browser_agent.py` with
+`--click`, `--fill`, `--wait-for`, `--screenshot`, and `--snapshot-text` as appropriate.
+
+Recommended closeout evidence:
+
+```text
+Browser evidence:
+- playwright_mcp_used: yes | no | unavailable
+- browser_agent_used: yes | no
+- session: <session-name>
+- artifact_dir: .ai/artifacts/browser/<session-name>
+- selectors_adopted: <stable selectors or not-applicable>
+```
+
 ## Auth Failure Triage
 
 When login fails:
@@ -95,6 +123,8 @@ If the user chooses to keep artifacts for the current conversation, report the r
 ## Boundaries
 
 - Do not add Playwright to `web/package.json` or create a second frontend test baseline for this skill.
+- Do not treat Playwright MCP as the final browser artifact path; use it to discover stable actions and then capture
+  evidence with `browser_agent.py`.
 - Do not treat screenshots as acceptance by themselves; they are inspection evidence.
 - Do not commit `.ai/venv`, `.ai/ms-playwright`, or `.ai/artifacts/browser`.
 - Prefer `data-testid`, stable text, role selectors, or TDesign-visible labels for actions. Avoid brittle generated class selectors when a stable selector exists.

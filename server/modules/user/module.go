@@ -205,6 +205,14 @@ func (s userService) GetUserByID(ctx context.Context, id uint64) (moduleapi.User
 	}, nil
 }
 
+func (s userService) CountUsers(ctx context.Context) (int, error) {
+	if s.users == nil {
+		return 0, errors.New("user repository is unavailable")
+	}
+
+	return s.users.Count(ctx)
+}
+
 // GetUser keeps route handlers on the public service boundary while preserving
 // the full managed-user record needed for HTTP response mapping.
 func (s userService) GetUser(ctx context.Context, id uint64) (userstore.User, error) {

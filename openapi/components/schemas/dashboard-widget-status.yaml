@@ -1,0 +1,2 @@
+type: string
+enum: [normal, warning, error, disabled]

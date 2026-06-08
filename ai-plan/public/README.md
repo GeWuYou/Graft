@@ -12,7 +12,7 @@ Overlay note:
 
 ## Active Topics
 
-- No active topics are currently indexed here.
+- None.
 
 ## Archive Location
 

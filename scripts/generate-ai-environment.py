@@ -113,6 +113,11 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     has_docker = available_tool(raw, "project_tools", "docker")
     has_gh = optional_bool_value(raw, False, "project_tools", "gh", "installed")
     has_gh_authenticated = optional_bool_value(raw, False, "project_tools", "gh", "authenticated")
+    has_mcp_codegraph = optional_bool_value(raw, False, "mcp_servers", "codegraph", "configured")
+    has_mcp_tdesign = optional_bool_value(raw, False, "mcp_servers", "tdesign", "configured")
+    has_mcp_context7 = optional_bool_value(raw, False, "mcp_servers", "context7", "configured")
+    has_mcp_github = optional_bool_value(raw, False, "mcp_servers", "github", "configured")
+    has_mcp_playwright = optional_bool_value(raw, False, "mcp_servers", "playwright", "configured")
     has_python_venv = optional_bool_value(raw, False, "python_environment", "venv", "available")
     has_project_venv = optional_bool_value(raw, False, "python_environment", "project_venv", "present")
     has_playwright = optional_bool_value(raw, False, "python_packages", "playwright", "installed")
@@ -206,6 +211,11 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "docker": has_docker,
             "gh": has_gh,
             "gh_authenticated": has_gh_authenticated,
+            "mcp_codegraph": has_mcp_codegraph,
+            "mcp_tdesign": has_mcp_tdesign,
+            "mcp_context7": has_mcp_context7,
+            "mcp_github": has_mcp_github,
+            "mcp_playwright": has_mcp_playwright,
             "fast_search": has_rg,
             "json_cli": has_jq,
             "ai_browser": has_ai_browser,
@@ -224,6 +234,34 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "ai_browser": ai_browser,
             "web_package_manager": web_package_manager,
             "server_build_and_test": server_build_and_test,
+        },
+        "mcp_servers": {
+            "codegraph": {
+                "configured": has_mcp_codegraph,
+                "risk_level": "L0",
+                "use_for": "Local source navigation and impact discovery.",
+            },
+            "tdesign": {
+                "configured": has_mcp_tdesign,
+                "risk_level": "L0",
+                "use_for": "TDesign Vue Next component API, DOM, and changelog lookup.",
+            },
+            "context7": {
+                "configured": has_mcp_context7,
+                "risk_level": "L1",
+                "use_for": "Current third-party library documentation lookup.",
+            },
+            "github": {
+                "configured": has_mcp_github,
+                "risk_level": "L1",
+                "access_policy": "read-only default; write actions require repository skill ownership.",
+                "use_for": "GitHub PR, Actions, and repository context lookup for review workflows.",
+            },
+            "playwright": {
+                "configured": has_mcp_playwright,
+                "risk_level": "L1",
+                "use_for": "Exploratory browser interaction before graft-web-browser-agent evidence capture.",
+            },
         },
         "python": {
             "available": has_python,
@@ -255,6 +293,9 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "Prefer python3 over complex bash for non-trivial scripting when python3 is available.",
             "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm.",
             "Use graft-web-browser-agent for AI-assisted frontend screenshots and interactions; do not treat it as the web validation entrypoint.",
+            "Use Playwright MCP only as a browser exploration aid; keep graft-web-browser-agent artifacts as auditable evidence.",
+            "Use Context7 MCP for current third-party library documentation when repository truth is insufficient.",
+            "Use GitHub MCP as a read-only PR and Actions context source unless a repository skill explicitly owns a write path.",
             "Do not assume server build or test commands are available when server/go.mod is missing.",
             "Do not assume unrelated system tools are part of the supported project environment.",
         ],

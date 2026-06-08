@@ -13,6 +13,10 @@ Shortcut: `$graft-pr-create`
 Treat root `AGENTS.md` as the PR-governance source of truth. This skill does not bypass commit, push, ownership, or
 validation rules.
 
+GitHub MCP may be used for read-only repository and PR discovery when it is available in `codex mcp list`. The Python
+helper remains the deterministic fallback and the only scripted path for idempotent PR creation/update and guarded
+auto-merge handling.
+
 ## Preconditions
 
 1. Ensure the current turn already has the startup receipt required by `AGENTS.md`.
@@ -34,6 +38,7 @@ validation rules.
    - merge-method capabilities
    - whether GitHub auto-merge is allowed
    - branch-protection or required-check signals on the target base branch
+   - prefer GitHub MCP for quick read-only discovery when available; fall back to `ensure_pr.py` / GitHub API helper
 3. Resolve the current branch PR state:
    - no matching open PR: create one against the default branch unless `--base` overrides it
    - one matching open PR: reuse it

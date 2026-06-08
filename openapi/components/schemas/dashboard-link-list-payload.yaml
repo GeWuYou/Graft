@@ -1,0 +1,29 @@
+type: object
+required: [items]
+properties:
+  items:
+    type: array
+    items:
+      type: object
+      required: [key, label_key, label, route_location]
+      properties:
+        key:
+          type: string
+        label_key:
+          type: string
+        label:
+          type: string
+        description_key:
+          type: string
+        description:
+          type: string
+        route_location:
+          type: string
+        icon:
+          type: string
+        badge_key:
+          type: string
+        badge:
+          type: string
+        disabled:
+          type: boolean

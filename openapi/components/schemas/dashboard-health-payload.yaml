@@ -1,0 +1,33 @@
+type: object
+required: [summary, items]
+properties:
+  summary:
+    type: object
+    required: [status]
+    properties:
+      status:
+        $ref: ./dashboard-health-status.yaml
+      label_key:
+        type: string
+      label:
+        type: string
+  items:
+    type: array
+    items:
+      type: object
+      required: [key, label_key, label, status]
+      properties:
+        key:
+          type: string
+        label_key:
+          type: string
+        label:
+          type: string
+        status:
+          $ref: ./dashboard-health-status.yaml
+        description_key:
+          type: string
+        description:
+          type: string
+        route_location:
+          type: string
