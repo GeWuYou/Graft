@@ -100,7 +100,6 @@
     </t-tabs>
     <t-content :class="`${prefix}-content-layout`">
       <div :class="`${prefix}-content-layout__body`">
-        <l-breadcrumb v-if="settingStore.showBreadcrumb" />
         <page-container :show-footer="showFooter" :footer-text="footerText" :surface="pageSurfaceType">
           <l-content />
         </page-container>
@@ -136,7 +135,6 @@ import { useSettingStore, useTabsRouterStore } from '@/store';
 import { renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
 import type { TRouterInfo, TTabRemoveOptions } from '@/utils/types';
 
-import LBreadcrumb from './Breadcrumb.vue';
 import LContent from './Content.vue';
 import PageContainer from './PageContainer.vue';
 

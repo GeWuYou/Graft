@@ -246,6 +246,7 @@
         },
         "actions": {
           "reset": "恢复默认主题",
+          "resetSuccess": "已恢复默认主题",
           "clearGroup": "清空当前分组",
           "cancel": "取消",
           "apply": "应用"
@@ -429,7 +430,7 @@
       "msg4": "一季度生产原材料采购项目 开票成功！"
     },
     "home": {
-      "title": "首页"
+      "title": "工作台"
     }
   }
 }

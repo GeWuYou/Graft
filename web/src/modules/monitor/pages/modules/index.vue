@@ -1,8 +1,8 @@
 <template>
   <server-status-page-shell
     :eyebrow="t('monitor.sectionTitle')"
-    :title="t('monitor.moduleRuntime.title')"
-    :description="t('monitor.moduleRuntime.subtitle')"
+    title-key="monitor.moduleRuntime.title"
+    description-key="monitor.moduleRuntime.subtitle"
     compact-header
   >
     <template #toolbar>

@@ -1,7 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import type { ModeType } from '@/utils/types';
+import { nextTick } from 'vue';
 
 vi.mock('@/utils/color', () => ({
   composeThemeTokenMap: (tokens: Record<string, string>) => tokens,
@@ -11,17 +10,41 @@ vi.mock('@/utils/color', () => ({
   insertThemeStylesheet: vi.fn(),
 }));
 
+import { insertThemeStylesheet } from '@/utils/color';
+
 import { useSettingStore } from './setting';
 
-const stubMatchMedia = (matches: boolean) => {
+const insertThemeStylesheetMock = insertThemeStylesheet as unknown as ReturnType<typeof vi.fn>;
+
+type StubMatchMediaOptions = {
+  reducedMotion?: boolean;
+};
+
+const stubMatchMedia = (matches: boolean, options: StubMatchMediaOptions = {}) => {
   const matchMedia = vi.fn(() => ({ matches }));
+  const classList = {
+    add: vi.fn(),
+    remove: vi.fn(),
+  };
   const documentElement = {
+    animate: vi.fn(),
+    classList,
     setAttribute: vi.fn(),
   };
 
   Object.defineProperty(globalThis, 'window', {
     configurable: true,
-    value: { matchMedia },
+    value: {
+      innerHeight: 600,
+      innerWidth: 800,
+      matchMedia: vi.fn((query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)' ? Boolean(options.reducedMotion) : matches,
+      })),
+      setTimeout: (callback: () => void) => {
+        callback();
+        return 0;
+      },
+    },
   });
   Object.defineProperty(globalThis, 'document', {
     configurable: true,
@@ -135,22 +158,48 @@ describe('setting store theme authority', () => {
     expect(store.resolvedThemeTokensForDisplayMode['--td-brand-color']).toBe('#000000');
   });
 
+  it('refreshes chart colors when the brand theme changes directly', () => {
+    const store = useSettingStore();
+
+    store.themeTokenOverrides = {
+      light: {
+        '--graft-chart-text-color': '#123456',
+      },
+      dark: {},
+    };
+    store.chartColors = {
+      textColor: '#stale',
+      placeholderColor: '#stale',
+      borderColor: '#stale',
+      containerColor: '#stale',
+    };
+
+    store.changeBrandTheme('#2BA471');
+
+    expect(store.brandTheme).toBe('#2BA471');
+    expect(store.chartColors.textColor).toBe('#123456');
+    expect(store.chartColors.placeholderColor).toBe('#8a94a6');
+    expect(insertThemeStylesheet).toHaveBeenCalledWith(
+      '#2BA471',
+      expect.objectContaining({
+        '--graft-chart-text-color': '#123456',
+      }),
+      'light',
+    );
+  });
+
   it('refreshes theme runtime only once when applying draft preview and final draft', () => {
     const store = useSettingStore();
-    const refreshSpy = vi.spyOn(store, 'refreshThemeWorkbenchRuntime');
-    const changeMode = store.changeMode.bind(store);
-    vi.spyOn(store, 'changeMode').mockImplementation(async (mode: ModeType | 'auto') => {
-      await changeMode(mode);
-    });
+    insertThemeStylesheetMock.mockClear();
 
     store.beginThemeDraft();
     store.updateThemeDraftAppearance({ radiusPreset: 'rounded' });
-    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(insertThemeStylesheet).toHaveBeenCalledTimes(1);
 
-    refreshSpy.mockClear();
+    insertThemeStylesheetMock.mockClear();
     store.applyThemeDraft();
 
-    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(insertThemeStylesheet).toHaveBeenCalledTimes(1);
   });
 
   it('resets font size preset to the default theme authority', () => {
@@ -188,6 +237,74 @@ describe('setting store theme authority', () => {
 
     expect(store.themeAuthorityDiff).toHaveLength(0);
     expect(store.hasThemeDraftPendingChanges).toBe(false);
+  });
+
+  it('clears stale reset feedback state when reset-to-default is called directly', () => {
+    const store = useSettingStore();
+
+    store.themeResetting = true;
+    store.beginThemeDraft();
+
+    store.resetThemeDraftToDefault();
+
+    expect(store.themeResetting).toBe(false);
+    expect(store.fontSizePreset).toBe('standard');
+  });
+
+  it('tracks reset-to-default feedback while keeping the draft semantics', async () => {
+    const store = useSettingStore();
+    let finishResetFeedback: (() => void) | undefined;
+
+    Object.defineProperty(window, 'setTimeout', {
+      configurable: true,
+      value: vi.fn((callback: () => void) => {
+        finishResetFeedback = callback;
+        return 0;
+      }),
+    });
+
+    store.assignThemeAuthorityState({
+      ...store.createThemeAuthoritySnapshot(),
+      fontSizePreset: 'large',
+      themeSource: 'customized',
+    });
+    store.beginThemeDraft();
+
+    const resetPromise = store.resetDefaultThemeWithFeedback();
+
+    expect(store.themeResetting).toBe(true);
+    expect(store.themeResetFeedbackKey).toBe(1);
+    expect(store.fontSizePreset).toBe('standard');
+    expect(store.hasThemeDraftPendingChanges).toBe(true);
+
+    await nextTick();
+    expect(store.themeResetting).toBe(true);
+
+    finishResetFeedback?.();
+    await resetPromise;
+
+    expect(store.themeResetting).toBe(false);
+    expect(store.themeResetFeedbackKey).toBe(1);
+  });
+
+  it('does not use full-page theme transitions for reset-to-default feedback', async () => {
+    const store = useSettingStore();
+    const startViewTransition = vi.fn((callback: () => void) => {
+      callback();
+      return { finished: Promise.resolve(), ready: Promise.resolve() };
+    });
+
+    Object.defineProperty(document, 'startViewTransition', {
+      configurable: true,
+      value: startViewTransition,
+    });
+
+    await store.resetDefaultThemeWithFeedback();
+
+    expect(startViewTransition).not.toHaveBeenCalled();
+    expect(document.documentElement.animate).not.toHaveBeenCalled();
+    expect(document.documentElement.classList.add).not.toHaveBeenCalledWith('graft-theme-view-transition');
+    expect(document.documentElement.classList.add).not.toHaveBeenCalledWith('graft-theme-css-transition');
   });
 
   it('persists reset-to-default drafts and closes the workbench after apply', () => {
@@ -229,5 +346,72 @@ describe('setting store theme authority', () => {
     store.resetThemeWorkbenchDockPosition();
 
     expect(store.themeWorkbenchDockPosition).toBeNull();
+  });
+
+  it('animates theme mode changes from the click position when View Transitions are available', async () => {
+    const store = useSettingStore();
+    const finished = Promise.resolve();
+    const ready = Promise.resolve();
+    const startViewTransition = vi.fn((callback: () => void) => {
+      callback();
+      return { finished, ready };
+    });
+
+    Object.defineProperty(document, 'startViewTransition', {
+      configurable: true,
+      value: startViewTransition,
+    });
+
+    await store.updateThemeDraftModeWithTransition('dark', { clientX: 120, clientY: 160 } as MouseEvent);
+
+    expect(store.mode).toBe('dark');
+    expect(startViewTransition).toHaveBeenCalledTimes(1);
+    const [keyframes, options] = (document.documentElement.animate as ReturnType<typeof vi.fn>).mock.calls[0];
+
+    expect(keyframes.clipPath[0]).toBe('circle(0px at 120px 160px)');
+    expect(keyframes.clipPath[1]).toMatch(/^circle\([\d.]+px at 120px 160px\)$/);
+    expect(Number(keyframes.clipPath[1].match(/^circle\(([\d.]+)px/)?.[1])).toBeCloseTo(809.9382692526635);
+    expect(options).toEqual({
+      duration: 420,
+      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      pseudoElement: '::view-transition-new(root)',
+    });
+    expect(document.documentElement.classList.add).toHaveBeenCalledWith('graft-theme-view-transition');
+    expect(document.documentElement.classList.remove).toHaveBeenCalledWith('graft-theme-view-transition');
+  });
+
+  it('falls back to CSS theme transitions when View Transitions are unavailable', async () => {
+    const store = useSettingStore();
+
+    Object.defineProperty(document, 'startViewTransition', {
+      configurable: true,
+      value: undefined,
+    });
+
+    await store.updateThemeDraftModeWithTransition('dark');
+
+    expect(store.mode).toBe('dark');
+    expect(document.documentElement.classList.add).toHaveBeenCalledWith('graft-theme-css-transition');
+    expect(document.documentElement.classList.remove).toHaveBeenCalledWith('graft-theme-css-transition');
+    expect(document.documentElement.animate).not.toHaveBeenCalled();
+  });
+
+  it('skips theme transition animation when reduced motion is preferred', async () => {
+    stubMatchMedia(false, { reducedMotion: true });
+    const store = useSettingStore();
+    const startViewTransition = vi.fn();
+
+    Object.defineProperty(document, 'startViewTransition', {
+      configurable: true,
+      value: startViewTransition,
+    });
+
+    await store.updateThemeDraftModeWithTransition('dark');
+
+    expect(store.mode).toBe('dark');
+    expect(startViewTransition).not.toHaveBeenCalled();
+    expect(document.documentElement.animate).not.toHaveBeenCalled();
+    expect(document.documentElement.classList.add).not.toHaveBeenCalledWith('graft-theme-css-transition');
+    expect(document.documentElement.classList.add).not.toHaveBeenCalledWith('graft-theme-view-transition');
   });
 });

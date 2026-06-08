@@ -1,8 +1,13 @@
 <template>
   <div class="permission-page" data-page-type="list-form-detail">
     <management-page-content>
-      <management-page-header :title="t('rbac.permissionList.listTitle')" :description="t('rbac.permissionList.hint')">
-        <template #eyebrow>{{ t('menu.access_control.title') }}</template>
+      <management-page-header
+        title-key="rbac.permissionList.listTitle"
+        :title="t('rbac.permissionList.listTitle')"
+        description-key="rbac.permissionList.hint"
+        :description="t('rbac.permissionList.hint')"
+        :source="{ labelKey: 'menu.access_control.title', fallback: t('menu.access_control.title') }"
+      >
         <template #meta>
           <t-tag theme="default" variant="light">{{ t('rbac.permissionList.readonlyNotice') }}</t-tag>
         </template>

@@ -1,8 +1,11 @@
 <template>
   <div class="role-page" data-page-type="list-form-detail">
     <management-page-content>
-      <management-page-header :title="t('rbac.roleList.listTitle')" :description="t('rbac.roleList.hint')">
-        <template #eyebrow>{{ t('menu.access_control.title') }}</template>
+      <management-page-header
+        title-key="rbac.roleList.listTitle"
+        description-key="rbac.roleList.hint"
+        :source="{ labelKey: 'menu.access_control.title', fallback: t('menu.access_control.title') }"
+      >
         <template #actions>
           <t-button
             theme="default"

@@ -3,4 +3,4 @@ required:
   - value
 properties:
   value:
-    description: JSON value to store as the administrator override for the registered definition.
+    description: JSON value to store as the user override for the registered definition.

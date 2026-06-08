@@ -269,6 +269,22 @@
         "configStringPlaceholder": "Enter a value",
         "noConfigFields": "This Job Definition has no configurable fields."
       },
+      "validation": {
+        "required": "{field} is required.",
+        "additionalProperty": "{field} is not an allowed config field.",
+        "typeMismatch": "{field} must be {expected}.",
+        "enum": "{field} must be one of: {values}.",
+        "belowMinimum": "{field} cannot be less than {minimum}.",
+        "aboveMaximum": "{field} cannot exceed {maximum}.",
+        "tooShort": "{field} length cannot be less than {minimum}.",
+        "tooLong": "{field} length cannot exceed {maximum}.",
+        "types": {
+          "string": "Text",
+          "integer": "An integer",
+          "number": "A number",
+          "boolean": "A boolean"
+        }
+      },
       "configDialog": {
         "open": "Configure",
         "title": "Configure Task",

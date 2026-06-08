@@ -1,0 +1,24 @@
+.graft-theme-view-transition::view-transition-old(root),
+.graft-theme-view-transition::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+.graft-theme-css-transition,
+.graft-theme-css-transition * {
+  transition-duration: 420ms;
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graft-theme-view-transition::view-transition-old(root),
+  .graft-theme-view-transition::view-transition-new(root) {
+    animation: none;
+  }
+
+  .graft-theme-css-transition,
+  .graft-theme-css-transition * {
+    transition: none !important;
+  }
+}

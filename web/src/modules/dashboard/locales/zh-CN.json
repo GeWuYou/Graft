@@ -27,7 +27,7 @@
     "page": {
       "description": "查看系统摘要和已授权模块贡献的工作台组件。",
       "eyebrow": "工作台",
-      "title": "首页"
+      "title": "工作台"
     },
     "quickActions": {
       "description": "当前权限可用入口",

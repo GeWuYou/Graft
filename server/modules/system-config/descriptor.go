@@ -28,7 +28,7 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("build system config repository: %w", err)
 			}
-			service, err := NewService(registry, repo)
+			service, err := NewService(registry, repo, nil)
 			if err != nil {
 				return nil, fmt.Errorf("build system config service: %w", err)
 			}

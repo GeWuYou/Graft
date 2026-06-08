@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import { APP_RESULT_ROUTE_PATH } from '@/contracts/app/routes';
 
 export const RUNTIME_ENTRY_FALLBACK_PATH = APP_RESULT_ROUTE_PATH.NOT_FOUND;
+export const RUNTIME_HOME_PATH = '/';
 
 export function isRootEntryPath(path: string) {
   return path === '/' || path === '';
@@ -12,7 +13,7 @@ export function resolveRuntimeHomePath(routes: RouteRecordRaw[], fallback = RUNT
   for (const route of routes) {
     const resolvedPath = resolveVisibleRoutePath(route);
     if (resolvedPath) {
-      return resolvedPath;
+      return RUNTIME_HOME_PATH;
     }
   }
 

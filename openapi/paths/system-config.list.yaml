@@ -2,7 +2,7 @@ get:
   tags: [system-config]
   summary: List registered system configuration values
   operationId: getSystemConfigs
-  description: Returns module-registered ConfigDefinitions merged with administrator overrides. Sensitive values are masked and never returned as plaintext.
+  description: Returns module-registered ConfigDefinitions merged with user overrides. Sensitive values are masked and never returned as plaintext.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

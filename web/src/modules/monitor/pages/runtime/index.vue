@@ -152,7 +152,9 @@ const frameProps = computed(() =>
     t,
     page: {
       eyebrow: t('monitor.sectionTitle'),
+      titleKey: 'monitor.runtimePage.title',
       title: t('monitor.runtimePage.title'),
+      descriptionKey: 'monitor.runtimePage.subtitle',
       description: t('monitor.runtimePage.subtitle'),
       compactHeader: true,
       status: headerStatus.value,

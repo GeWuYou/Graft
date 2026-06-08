@@ -190,6 +190,9 @@ const translations = vi.hoisted(
     'monitor.serverStatus.metricDiskDescriptionHealthy': 'Disk capacity is sufficient',
     'monitor.serverStatus.metricDiskDescriptionWarning': 'Disk usage is normal',
     'monitor.serverStatus.metricDiskDescriptionCritical': 'Disk capacity is low',
+    'monitor.serverStatus.metricUsageNoData': 'No data',
+    'monitor.serverStatus.metricPercentUsageTooltip': '{label} current usage {percent}',
+    'monitor.serverStatus.metricLoadUsageTooltip': 'Load pressure {percent} · 1m load {load} / {cores} cores',
     'monitor.serverStatus.diskRootLabel': 'Root partition',
     'monitor.serverStatus.diskRootPath': '/',
     'monitor.serverStatus.postgresqlLabel': 'PostgreSQL',
@@ -663,6 +666,10 @@ function metricCardText(wrapper: VueWrapper, key: string) {
   return wrapper.find(`[data-card-key="${key}"]`).text();
 }
 
+function metricUsageBar(wrapper: VueWrapper, key: string) {
+  return wrapper.find(`[data-card-key="${key}"] [data-usage-status]`);
+}
+
 function sidebarGroupText(wrapper: VueWrapper, key: string) {
   return wrapper.find(`[data-status-sidebar-group="${key}"]`).text();
 }
@@ -757,6 +764,27 @@ describe('MonitorPage', () => {
     const cpuCardText = metricCardText(wrapper, 'cpu');
     const memoryCardText = metricCardText(wrapper, 'memory');
     const diskCardText = metricCardText(wrapper, 'disk');
+    const loadUsageBar = metricUsageBar(wrapper, 'load');
+    const cpuUsageBar = metricUsageBar(wrapper, 'cpu');
+    const memoryUsageBar = metricUsageBar(wrapper, 'memory');
+    const diskUsageBar = metricUsageBar(wrapper, 'disk');
+
+    expect(loadUsageBar.exists()).toBe(true);
+    expect(loadUsageBar.attributes('data-usage-status')).toBe('healthy');
+    expect(loadUsageBar.attributes('data-usage-percent')).toBe('5.25');
+    expect(loadUsageBar.attributes('title')).toContain('Load pressure 5.25% · 1m load 0.42 / 8 cores');
+
+    expect(cpuUsageBar.exists()).toBe(true);
+    expect(cpuUsageBar.attributes('data-usage-status')).toBe('warning');
+    expect(cpuUsageBar.attributes('data-usage-percent')).toBe('21.20');
+
+    expect(memoryUsageBar.exists()).toBe(true);
+    expect(memoryUsageBar.attributes('data-usage-status')).toBe('healthy');
+    expect(memoryUsageBar.attributes('data-usage-percent')).toBe('47.25');
+
+    expect(diskUsageBar.exists()).toBe(true);
+    expect(diskUsageBar.attributes('data-usage-status')).toBe('healthy');
+    expect(diskUsageBar.attributes('data-usage-percent')).toBe('18.99');
 
     expect(loadCardText).toContain('Healthy');
     expect(loadCardText).toContain('1 min avg');
@@ -937,6 +965,53 @@ describe('MonitorPage', () => {
 
     expect(wrapper.text()).toContain('At least 2 samples are required before the trend chart is shown');
     expect(chartMocks.init).not.toHaveBeenCalled();
+  });
+
+  it('converts load average to pressure by CPU cores instead of treating load as a percent', async () => {
+    const response = createServerStatusResponse();
+    response.runtime.cpu_cores = 28;
+    response.runtime.load_average.one_minute = 0.86;
+    response.runtime.load_average.five_minutes = 0.96;
+    response.runtime.load_average.fifteen_minutes = 0.86;
+    response.trend.points = response.trend.points.map((point) => ({
+      ...point,
+      load_average_one_minute: 0.86,
+      load_average_five_minutes: 0.96,
+      load_average_fifteen_minutes: 0.86,
+    }));
+    response.anomalies = [];
+    monitorApiMocks.getServerStatus.mockResolvedValue(response);
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+    await nextTick();
+
+    const loadUsageBar = metricUsageBar(wrapper, 'load');
+    expect(loadUsageBar.attributes('data-usage-status')).toBe('healthy');
+    expect(loadUsageBar.attributes('data-usage-percent')).toBe('3.07');
+    expect(loadUsageBar.attributes('title')).toContain('Load pressure 3.07% · 1m load 0.86 / 28 cores');
+    expect(loadUsageBar.attributes('data-usage-percent')).not.toBe('86.00');
+  });
+
+  it('keeps zero CPU usage visually healthy and empty-width instead of abnormal', async () => {
+    const response = createServerStatusResponse();
+    response.anomalies = [];
+    response.trend.points = response.trend.points.map((point) => ({
+      ...point,
+      cpu_percent: 0,
+    }));
+    monitorApiMocks.getServerStatus.mockResolvedValue(response);
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+    await nextTick();
+
+    const cpuUsageBar = metricUsageBar(wrapper, 'cpu');
+    expect(metricCardText(wrapper, 'cpu')).toContain('Idle');
+    expect(metricCardText(wrapper, 'cpu')).toContain('0%');
+    expect(cpuUsageBar.attributes('data-usage-status')).toBe('healthy');
+    expect(cpuUsageBar.attributes('data-usage-percent')).toBe('0.00');
+    expect(cpuUsageBar.find('.metric-usage-bar__fill').attributes('style')).toContain('width: 0%');
   });
 
   it('supports focus and multi trend modes with grouped metrics and dedicated legends', async () => {

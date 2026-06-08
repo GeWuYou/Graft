@@ -6,12 +6,13 @@ import (
 
 	"graft/server/internal/container"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	schedulercore "graft/server/internal/scheduler"
 )
 
 const moduleID = "system-config"
 
-// Module owns system configuration administrator overrides and HTTP management.
+// Module owns system configuration user overrides and HTTP management.
 type Module struct {
 	service *Service
 }
@@ -29,6 +30,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return errors.New("system config module service is unavailable")
 	}
+	userService, err := requiredUserService(ctx.Services)
+	if err != nil {
+		return fmt.Errorf("resolve user service: %w", err)
+	}
+	m.service.setUserService(userService)
 	if err := registerMessages(ctx.I18n); err != nil {
 		return err
 	}
@@ -44,6 +50,10 @@ func (m *Module) Register(ctx *module.Context) error {
 		return fmt.Errorf("register system-config default resolver: %w", err)
 	}
 	return registerSystemConfigRoutes(ctx, moduleID, m.service)
+}
+
+func requiredUserService(resolver container.Resolver) (moduleapi.UserService, error) {
+	return module.ResolveService[moduleapi.UserService](resolver, (*moduleapi.UserService)(nil))
 }
 
 // Boot currently has no runtime work; definitions are registered by owner modules.

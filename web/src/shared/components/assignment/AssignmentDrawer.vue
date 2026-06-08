@@ -113,7 +113,7 @@ watch(
   min-height: 0;
   overflow: hidden auto;
   padding: 0 var(--td-comp-paddingLR-l) var(--td-comp-paddingTB-l);
-  scrollbar-color: var(--td-scrollbar-color, rgb(255 255 255 / 24%)) transparent;
+  scrollbar-color: var(--td-scrollbar-color) transparent;
   scrollbar-width: thin;
   width: 100%;
 }
@@ -137,7 +137,7 @@ watch(
 }
 
 .assignment-drawer__body::-webkit-scrollbar-thumb {
-  background: rgb(255 255 255 / 24%);
+  background: var(--td-scrollbar-color);
   border-radius: 999px;
 }
 

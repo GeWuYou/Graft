@@ -1,16 +1,16 @@
 <template>
   <advanced-query-list-page
     root-class="audit-page"
-    :title="t('audit.logList.title')"
-    :description="t('audit.logList.description')"
+    title-key="audit.logList.title"
+    description-key="audit.logList.description"
     :error-message="listError"
     :error-title="t('audit.logList.errorTitle')"
     :loading="loading"
     :reload-label="t('audit.logList.refresh')"
     :retry-label="t('audit.logList.retry')"
+    :source="{ labelKey: 'menu.audit.title', fallback: t('menu.audit.title'), color: 'var(--td-warning-color-5)' }"
     @reload="fetchAuditLogs"
   >
-    <template #eyebrow>{{ t('menu.audit.title') }}</template>
     <template #actions>
       <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
         {{ t('audit.logList.columnSettings') }}

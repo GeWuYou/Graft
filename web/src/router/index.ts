@@ -10,7 +10,7 @@ const env = import.meta.env.MODE || 'development';
 
 const ROOT_ENTRY_ROUTE_NAME = 'RootEntry';
 const ROOT_ENTRY_TITLE_KEY = 'app.home.title';
-const ROOT_ENTRY_TITLE = localizeRouteTitle('Home', ROOT_ENTRY_TITLE_KEY);
+const ROOT_ENTRY_TITLE = localizeRouteTitle('Workspace', ROOT_ENTRY_TITLE_KEY);
 const RESTRICTED_SESSION_ROUTE_NAME = AUTH_ROUTE_NAME.RESTRICTED_SESSION;
 const RESTRICTED_SESSION_PATH = AUTH_ROUTE_PATH.RESTRICTED_SESSION;
 
@@ -102,7 +102,6 @@ const defaultRouterList: Array<RouteRecordRaw> = [
     name: ROOT_ENTRY_ROUTE_NAME,
     component: () => import('@/layouts/index.vue'),
     meta: {
-      hiddenBreadcrumb: true,
       keepAlive: false,
       pageKind: 'overview',
       semanticTitle: ROOT_ENTRY_TITLE,

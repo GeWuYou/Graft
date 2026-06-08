@@ -10,13 +10,13 @@
     "list": {
       "eyebrow": "Service Management",
       "title": "System Configuration",
-      "description": "Manage module-registered system defaults and administrator overrides.",
+      "description": "Manage module-registered system defaults and user overrides.",
       "refresh": "Refresh",
       "edit": "Edit",
       "save": "Save",
       "cancel": "Cancel",
       "reset": "Reset",
-      "resetConfirm": "Delete this administrator override and return to the module default?",
+      "resetConfirm": "Delete this user override and return to the module default?",
       "groupConfigCount": "{count} Configuration Items",
       "groupDescription": "This group contains {count} configuration items.",
       "groupLabel": "{module} / {group}",
@@ -44,18 +44,18 @@
         "title": "Configuration Status",
         "default": "Default",
         "defaultDescription": "Using default configuration",
-        "overridden": "Overridden",
-        "overriddenDescription": "Administrator modified"
+        "modified": "Modified",
+        "modifiedDescription": "User override exists"
       },
-      "source": {
-        "title": "Configuration Source",
-        "values": {
-          "default": "Default Value",
-          "administrator_override": "Administrator Override"
-        }
+      "lastModified": {
+        "title": "Last Modified",
+        "none": "No modification record",
+        "unknownUser": "Unknown user",
+        "userId": "User {id}",
+        "value": "{user} / {time}"
       },
       "tags": {
-        "override": "Overridden",
+        "override": "Modified",
         "sensitive": "Sensitive",
         "restartRequired": "Restart Required"
       },

@@ -3,8 +3,8 @@
     <governance-dashboard-shell
       domain="audit"
       :eyebrow="t('menu.audit.title')"
-      :title="t('audit.overview.title')"
-      :description="t('audit.overview.description')"
+      title-key="audit.overview.title"
+      description-key="audit.overview.description"
     >
       <template #actions>
         <t-space size="small" wrap>
@@ -561,13 +561,13 @@ function formatTrendValue(value: number) {
   return String(value);
 }
 
-function resolveTrendColor(variableName: string, fallback: string) {
+function resolveTrendColor(variableName: string) {
   if (typeof window === 'undefined') {
-    return fallback;
+    return `var(${variableName})`;
   }
 
   const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
-  return value || fallback;
+  return value || `var(${variableName})`;
 }
 
 function ensureTrendChart() {
@@ -594,9 +594,9 @@ function buildTrendChartOption(): EChartsCoreOption {
   const highRiskLabel = t('audit.overview.trend.highRiskMetric');
   const securityLabel = t('audit.overview.trend.securityMetric');
   const seriesColors = [
-    resolveTrendColor('--td-brand-color', '#0052D9'),
-    resolveTrendColor('--td-warning-color', '#ED7B2F'),
-    resolveTrendColor('--td-error-color', '#E34D59'),
+    resolveTrendColor('--td-brand-color'),
+    resolveTrendColor('--td-warning-color'),
+    resolveTrendColor('--td-error-color'),
   ];
 
   return {

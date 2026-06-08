@@ -1,8 +1,11 @@
 <template>
   <server-status-page-shell
     :eyebrow="eyebrow"
+    :title-key="titleKey"
     :title="title"
+    :description-key="descriptionKey"
     :description="description"
+    :source="source"
     :compact-header="compactHeader"
   >
     <template #toolbar>

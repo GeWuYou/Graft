@@ -1,11 +1,12 @@
 import keys from 'lodash/keys';
 import { defineStore } from 'pinia';
 
-import type { TColorSeries } from '@/config/color';
-import { DARK_CHART_COLORS, LIGHT_CHART_COLORS } from '@/config/color';
+import type { TChartColor, TColorSeries } from '@/config/color';
+import { DEFAULT_CHART_COLORS } from '@/config/color';
 import STYLE_CONFIG from '@/config/style';
 import {
   DEFAULT_THEME_PRESET_ID,
+  GRAFT_BASE_THEME_TOKENS,
   THEME_PRESET_DEFINITIONS,
   THEME_TOKEN_DEFINITIONS,
   THEME_WORKBENCH_GROUPS,
@@ -32,6 +33,96 @@ import {
 import type { ModeType } from '@/utils/types';
 
 const STYLE_CONFIG_KEYS = keys(STYLE_CONFIG) as Array<keyof typeof STYLE_CONFIG>;
+const THEME_TRANSITION_DURATION_MS = 420;
+const THEME_TRANSITION_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
+const THEME_VIEW_TRANSITION_CLASS = 'graft-theme-view-transition';
+const THEME_CSS_TRANSITION_CLASS = 'graft-theme-css-transition';
+const THEME_RESET_FEEDBACK_DURATION_MS = 640;
+
+type ThemeViewTransition = {
+  ready: Promise<void>;
+  finished: Promise<void>;
+};
+
+type ThemeViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => ThemeViewTransition;
+};
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function resolveThemeTransitionOrigin(event?: MouseEvent) {
+  const x = event?.clientX ?? window.innerWidth;
+  const y = event?.clientY ?? 0;
+
+  return { x, y };
+}
+
+async function runThemeCssFallbackTransition(applyThemeChange: () => void) {
+  const root = document.documentElement;
+
+  root.classList.add(THEME_CSS_TRANSITION_CLASS);
+  applyThemeChange();
+
+  await new Promise((resolve) => {
+    window.setTimeout(resolve, THEME_TRANSITION_DURATION_MS);
+  });
+
+  root.classList.remove(THEME_CSS_TRANSITION_CLASS);
+}
+
+async function runThemeViewTransition(applyThemeChange: () => void, event?: MouseEvent) {
+  const transitionDocument = document as ThemeViewTransitionDocument;
+
+  if (!transitionDocument.startViewTransition || prefersReducedMotion()) {
+    applyThemeChange();
+    return;
+  }
+
+  const { x, y } = resolveThemeTransitionOrigin(event);
+  const endRadius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+  const root = document.documentElement;
+
+  root.classList.add(THEME_VIEW_TRANSITION_CLASS);
+
+  const transition = transitionDocument.startViewTransition(() => {
+    applyThemeChange();
+  });
+
+  try {
+    await transition.ready;
+    root.animate(
+      {
+        clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`],
+      },
+      {
+        duration: THEME_TRANSITION_DURATION_MS,
+        easing: THEME_TRANSITION_EASING,
+        pseudoElement: '::view-transition-new(root)',
+      },
+    );
+    await transition.finished;
+  } finally {
+    root.classList.remove(THEME_VIEW_TRANSITION_CLASS);
+  }
+}
+
+async function runThemeTransition(applyThemeChange: () => void, event?: MouseEvent) {
+  const transitionDocument = document as ThemeViewTransitionDocument;
+
+  if (prefersReducedMotion()) {
+    applyThemeChange();
+    return;
+  }
+
+  if (!transitionDocument.startViewTransition) {
+    await runThemeCssFallbackTransition(applyThemeChange);
+    return;
+  }
+
+  await runThemeViewTransition(applyThemeChange, event);
+}
 
 const FONT_FAMILY_MAP: Record<ThemeAuthorityState['fontFamilyPreset'], string> = {
   system: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
@@ -357,6 +448,8 @@ export type SettingState = typeof STYLE_CONFIG & {
   themeDraftBaseline: ThemeAuthorityState | null;
   themeDraft: ThemeAuthorityState | null;
   themeDraftApplied: boolean;
+  themeResetting: boolean;
+  themeResetFeedbackKey: number;
   selectedThemePresetId: string | null;
   themeSource: ThemeSourceType;
   fontFamilyPreset: ThemeAuthorityState['fontFamilyPreset'];
@@ -368,8 +461,17 @@ export type SettingState = typeof STYLE_CONFIG & {
   themeResolvedTokens: ThemeModeTokenState;
   themeAuthorityLastModifiedAt: string | null;
   colorList: TColorSeries;
-  chartColors: typeof LIGHT_CHART_COLORS;
+  chartColors: TChartColor;
 };
+
+function buildChartColorsFromTokens(tokens: ThemeTokenMap): TChartColor {
+  return {
+    textColor: tokens['--graft-chart-text-color'] ?? DEFAULT_CHART_COLORS.textColor,
+    placeholderColor: tokens['--graft-chart-placeholder-color'] ?? DEFAULT_CHART_COLORS.placeholderColor,
+    borderColor: tokens['--graft-chart-border-color'] ?? DEFAULT_CHART_COLORS.borderColor,
+    containerColor: tokens['--graft-chart-container-color'] ?? DEFAULT_CHART_COLORS.containerColor,
+  };
+}
 
 function createInitialSettingState(): SettingState {
   return {
@@ -383,6 +485,8 @@ function createInitialSettingState(): SettingState {
     themeDraftBaseline: null,
     themeDraft: null,
     themeDraftApplied: false,
+    themeResetting: false,
+    themeResetFeedbackKey: 0,
     selectedThemePresetId: DEFAULT_THEME_PRESET_ID,
     themeSource: 'preset',
     fontFamilyPreset: 'system',
@@ -394,7 +498,7 @@ function createInitialSettingState(): SettingState {
     themeResolvedTokens: createEmptyThemeModeTokenState(),
     themeAuthorityLastModifiedAt: null,
     colorList: {},
-    chartColors: LIGHT_CHART_COLORS,
+    chartColors: DEFAULT_CHART_COLORS,
   };
 }
 
@@ -560,6 +664,7 @@ export const useSettingStore = defineStore('setting', {
       const userTokens = buildUserThemeTokens(this.createThemeAuthoritySnapshot());
 
       this.themeResolvedTokens = buildThemeModeSnapshot({
+        baseTokens: GRAFT_BASE_THEME_TOKENS,
         brandTokens,
         preset,
         userTokens,
@@ -577,6 +682,7 @@ export const useSettingStore = defineStore('setting', {
       const displayMode = this.getDisplayModeByInput(nextMode);
       this.buildResolvedThemeTokens();
       this.applyResolvedThemeTokens(displayMode);
+      this.chartColors = buildChartColorsFromTokens(resolveModeTokens(this.themeResolvedTokens, displayMode));
     },
     async changeMode(mode: ModeType | 'auto') {
       const theme = this.getDisplayModeByInput(mode);
@@ -584,8 +690,12 @@ export const useSettingStore = defineStore('setting', {
 
       document.documentElement.setAttribute('theme-mode', isDarkMode ? 'dark' : '');
 
-      this.chartColors = isDarkMode ? DARK_CHART_COLORS : LIGHT_CHART_COLORS;
       this.refreshThemeWorkbenchRuntime(theme);
+    },
+    async changeModeWithTransition(mode: ModeType | 'auto', event?: MouseEvent) {
+      await runThemeTransition(() => {
+        this.changeMode(mode);
+      }, event);
     },
     async changeSideMode(mode: ModeType) {
       const isDarkMode = mode === 'dark';
@@ -601,6 +711,7 @@ export const useSettingStore = defineStore('setting', {
       return 'light';
     },
     changeBrandTheme(brandTheme: string) {
+      this.brandTheme = brandTheme;
       const mode = this.displayMode;
       this.getCachedBrandTokens(brandTheme, 'light');
       this.getCachedBrandTokens(brandTheme, 'dark');
@@ -644,6 +755,7 @@ export const useSettingStore = defineStore('setting', {
       this.themeDraftBaseline = null;
       this.themeDraft = null;
       this.themeDraftApplied = false;
+      this.themeResetting = false;
     },
     setActiveThemeWorkbenchGroup(group: ThemeWorkbenchGroupKey) {
       this.activeThemeWorkbenchGroup = group;
@@ -693,7 +805,7 @@ export const useSettingStore = defineStore('setting', {
     cancelThemeDraft() {
       this.closeThemeWorkbench();
     },
-    resetThemeDraftToDefault() {
+    resetThemeDraftToDefault(options: { preserveResettingFeedback?: boolean } = {}) {
       if (!this.themeDraftBaseline) {
         this.themeDraftBaseline = this.createThemeAuthoritySnapshot();
       }
@@ -712,6 +824,24 @@ export const useSettingStore = defineStore('setting', {
       };
       this.themeDraft = defaultSnapshot;
       this.applyThemeDraftPreview();
+      if (!options.preserveResettingFeedback) {
+        this.themeResetting = false;
+      }
+    },
+    async resetDefaultThemeWithFeedback() {
+      const feedbackKey = this.themeResetFeedbackKey + 1;
+
+      this.themeResetting = true;
+      this.themeResetFeedbackKey = feedbackKey;
+      this.resetThemeDraftToDefault({ preserveResettingFeedback: true });
+
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, THEME_RESET_FEEDBACK_DURATION_MS);
+      });
+
+      if (this.themeResetFeedbackKey === feedbackKey) {
+        this.themeResetting = false;
+      }
     },
     selectThemePreset(presetId: string | null) {
       const resolvedPresetId = resolvePresetId(presetId);
@@ -754,6 +884,24 @@ export const useSettingStore = defineStore('setting', {
         themeSource: 'customized',
       };
       this.updateThemeDraft(nextPatch);
+    },
+    async updateThemeDraftModeWithTransition(mode: ModeType | 'auto', event?: MouseEvent) {
+      const base = this.themeDraft ?? this.createThemeAuthoritySnapshot();
+      this.themeDraft = {
+        ...base,
+        mode,
+        themeSource: 'customized',
+        themeTokenOverrides: cloneThemeModeTokenState(base.themeTokenOverrides),
+      };
+      await runThemeTransition(() => {
+        if (!this.themeDraft) {
+          return;
+        }
+
+        this.assignThemeAuthorityState(this.themeDraft);
+        this.changeMode(this.mode as ModeType | 'auto');
+      }, event);
+      this.themeDraftApplied = true;
     },
     updateThemeToken(mode: ModeType, tokenKey: string, tokenValue: string) {
       const baseState = this.themeDraft ?? this.createThemeAuthoritySnapshot();

@@ -2,6 +2,8 @@ package systemconfig
 
 import (
 	"encoding/json"
+	"math"
+	"time"
 
 	"graft/server/internal/configregistry"
 	generated "graft/server/internal/contract/openapi/generated"
@@ -33,10 +35,14 @@ func toItem(snapshot ValueSnapshot) generated.SystemConfigItem {
 		Tags:              optionalStrings(definition.Tags),
 		Type:              generated.SystemConfigItemType(definition.Type),
 		ConfigSchema:      rawJSONMap(definition.Schema),
+		Status:            generated.SystemConfigItemStatus(snapshot.Status),
 		DefaultValue:      visibleValue(snapshot.DefaultValue, definition.Sensitive),
 		EffectiveValue:    visibleValue(snapshot.EffectiveValue, definition.Sensitive),
 		OverrideValue:     visibleValue(snapshot.OverrideValue, definition.Sensitive),
 		HasOverride:       snapshot.HasOverride,
+		UpdatedAt:         optionalTime(snapshot.UpdatedAt),
+		UpdatedByUserId:   optionalInt64FromUint64(snapshot.UpdatedBy),
+		UpdatedByUsername: optionalString(snapshot.UpdatedByName),
 		Sensitive:         definition.Sensitive,
 		Masked:            snapshot.Masked,
 		RestartRequired:   definition.RestartRequired,
@@ -44,6 +50,14 @@ func toItem(snapshot ValueSnapshot) generated.SystemConfigItem {
 		Order:             optionalInt(definition.Order),
 		MaskedPlaceholder: maskedPointer(definition),
 	}
+}
+
+func optionalTime(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	utc := value.UTC()
+	return &utc
 }
 
 func rawJSONMap(raw json.RawMessage) map[string]interface{} {
@@ -77,6 +91,14 @@ func optionalInt(value int) *int {
 		return nil
 	}
 	return &value
+}
+
+func optionalInt64FromUint64(value *uint64) *int64 {
+	if value == nil || *value > uint64(math.MaxInt64) {
+		return nil
+	}
+	converted := int64(*value)
+	return &converted
 }
 
 func optionalStrings(values []string) *[]string {

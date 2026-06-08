@@ -19,7 +19,7 @@ const homeRoute: Array<TRouterInfo> = [
     path: '/',
     fullPath: '/',
     routeIdx: 0,
-    title: { [LOCALE.ZH_CN]: '首页', [LOCALE.EN_US]: 'Home' },
+    title: { [LOCALE.ZH_CN]: '工作台', [LOCALE.EN_US]: 'Workspace' },
     name: 'RootEntry',
     isHome: true,
     isAlive: true,

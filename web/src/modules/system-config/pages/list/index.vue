@@ -1,16 +1,27 @@
 <template>
   <section class="system-config-page" data-page-type="settings">
-    <header class="system-config-page__header">
-      <div>
-        <span class="system-config-page__eyebrow">{{ t('systemConfig.list.eyebrow') }}</span>
-        <h1>{{ t('systemConfig.list.title') }}</h1>
-        <p>{{ t('systemConfig.list.description') }}</p>
-      </div>
-      <t-button theme="primary" :loading="loading" @click="refreshConfigs">
-        <template #icon><refresh-icon /></template>
-        {{ t('systemConfig.list.refresh') }}
-      </t-button>
-    </header>
+    <page-header
+      :breadcrumb="[
+        { labelKey: 'menu.server.title', fallback: t('systemConfig.list.eyebrow') },
+        { labelKey: 'systemConfig.list.title', fallback: t('systemConfig.list.title') },
+      ]"
+      :source="{
+        labelKey: 'menu.server.title',
+        fallback: t('systemConfig.list.eyebrow'),
+        color: 'var(--td-brand-color-6)',
+      }"
+      title-key="systemConfig.list.title"
+      :title-fallback="t('systemConfig.list.title')"
+      description-key="systemConfig.list.description"
+      :description-fallback="t('systemConfig.list.description')"
+    >
+      <template #actions>
+        <t-button theme="primary" :loading="loading" @click="refreshConfigs">
+          <template #icon><refresh-icon /></template>
+          {{ t('systemConfig.list.refresh') }}
+        </t-button>
+      </template>
+    </page-header>
 
     <t-alert
       v-if="errorMessage"
@@ -81,8 +92,8 @@
                     </div>
                   </section>
                   <section class="system-config-summary__cell">
-                    <span>{{ t('systemConfig.list.source.title') }}</span>
-                    <strong>{{ configSourceLabel(item) }}</strong>
+                    <span>{{ t('systemConfig.list.lastModified.title') }}</span>
+                    <strong>{{ configLastModifiedLabel(item) }}</strong>
                   </section>
                 </div>
 
@@ -208,6 +219,8 @@ import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { formatCompactDateTime } from '@/shared/components/management';
+import { PageHeader } from '@/shared/components/page';
 import {
   type ConfigSchemaField,
   getConfigSchemaFields,
@@ -248,7 +261,7 @@ type ConfigValueSection = {
   json: string;
 };
 
-const { t, te } = useI18n();
+const { locale, t, te } = useI18n();
 const permissionCodes = SYSTEM_CONFIG_PERMISSION_CODE;
 const items = ref<SystemConfigItem[]>([]);
 const loading = ref(false);
@@ -407,10 +420,10 @@ function technicalGroupKey(item: SystemConfigItem) {
 }
 
 function configStatus(item: SystemConfigItem) {
-  if (item.has_override) {
+  if (isModifiedConfig(item)) {
     return {
-      label: t('systemConfig.list.status.overridden'),
-      description: t('systemConfig.list.status.overriddenDescription'),
+      label: t('systemConfig.list.status.modified'),
+      description: t('systemConfig.list.status.modifiedDescription'),
       theme: 'primary' as const,
     };
   }
@@ -422,10 +435,31 @@ function configStatus(item: SystemConfigItem) {
   };
 }
 
-function configSourceLabel(item: SystemConfigItem) {
-  return item.has_override
-    ? t('systemConfig.list.source.values.administrator_override')
-    : t('systemConfig.list.source.values.default');
+function isModifiedConfig(item: SystemConfigItem) {
+  return item.status === 'modified';
+}
+
+function configLastModifiedLabel(item: SystemConfigItem) {
+  if (!isModifiedConfig(item)) {
+    return t('systemConfig.list.lastModified.none');
+  }
+
+  const updatedAt = formatCompactDateTime(item.updated_at, locale);
+  const userLabel = configUpdatedByLabel(item);
+  return t('systemConfig.list.lastModified.value', { user: userLabel, time: updatedAt });
+}
+
+function configUpdatedByLabel(item: SystemConfigItem) {
+  const username = item.updated_by_username?.trim();
+  if (username) {
+    return username;
+  }
+
+  if (item.updated_by_user_id !== undefined && item.updated_by_user_id !== null) {
+    return t('systemConfig.list.lastModified.userId', { id: item.updated_by_user_id });
+  }
+
+  return t('systemConfig.list.lastModified.unknownUser');
 }
 
 function valueSections(item: SystemConfigItem): ConfigValueSection[] {
@@ -526,29 +560,11 @@ function readableError(error: unknown, fallback: string) {
   min-width: 0;
 }
 
-.system-config-page__header {
-  align-items: flex-start;
-  display: flex;
-  gap: var(--graft-density-gap-16);
-  justify-content: space-between;
-}
-
-.system-config-page__eyebrow {
-  color: var(--td-brand-color);
-  font: var(--td-font-body-small);
-}
-
-.system-config-page__header h1,
 .system-config-content__head h2,
 .system-config-item h3 {
   margin: 0;
 }
 
-.system-config-page__header h1 {
-  font: var(--td-font-headline-medium);
-}
-
-.system-config-page__header p,
 .system-config-content__head p,
 .system-config-item p {
   color: var(--td-text-color-secondary);
@@ -754,7 +770,6 @@ function readableError(error: unknown, fallback: string) {
 }
 
 @media (width <= 900px) {
-  .system-config-page__header,
   .system-config-layout,
   .system-config-summary,
   .system-config-values {

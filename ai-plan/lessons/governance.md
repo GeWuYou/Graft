@@ -1,5 +1,45 @@
 # Governance Lessons
 
+## LESSON-GOVERNANCE-SCHEMA-AUTHORITY-001：动态配置表单必须消费 schema authority
+
+- Status: active
+- Level: L2
+- Applies to:
+  - 后端声明 JSON Schema、配置 schema 或表单 schema 的跨边界功能
+  - `web` 动态表单、配置弹窗和 schema-form 共享组件
+  - 需要同时提供字段本地化、约束校验和后端错误详情的管理页
+- Source:
+  - Scheduled Task 日志保留配置校验修复
+  - 用户指出 `batchSize` 超过上限时后端应返回详细错误，前端也应读取后端真值做动态校验和本地化
+- Problem:
+  后端 schema 已经声明字段、上限和 `x-i18n` 元数据，但前端动态表单若只读取部分字段，或另写一套本地校验/本地文案，
+  会导致约束语义漂移。典型表现是 `InputNumber` 传了 `max` 仍允许提交超限值，后端只返回笼统 400，用户无法知道哪个
+  字段、哪个约束、实际值和允许值是什么。
+- Correct pattern:
+  后端 schema 是字段、约束和字段级本地化元数据的 authority。后端必须在持久化或 handler 执行前按同一 schema 校验，
+  并返回结构化错误详情，例如 `field`、`reason_code`、`constraint`、`minimum`、`maximum`、`expected`、`actual`。
+  前端动态表单应消费同一份 schema 渲染输入限制、字段标题和提交前校验；错误文案用通用 reason code 模板加 schema
+  字段 `x-i18n` 标题生成，只有字段确实需要特殊文案时才扩展 schema 元数据。
+- Anti-pattern:
+  - 后端 schema 声明约束，但前端只把它当展示 JSON
+  - 为某个字段在前端硬编码最大值、本地字段名或专用错误文案
+  - 依赖数据库、repository 或任务 handler 兜底拒绝明显违反 schema 的值
+  - 后端返回只有 `invalid_request` 的笼统 400，而没有字段级结构化详情
+  - 同时维护 `x-i18n` 和旧式字段本地化 key 作为长期平行真相
+- Enforcement:
+  修改 schema 驱动配置表单时，检查后端校验、前端提交前校验、字段 i18n 和错误详情是否都来自同一 schema authority。
+  测试至少覆盖一个越界值不会持久化/不会触发 handler、一个前端提交被拦截、以及一个字段标题从 `x-i18n` 解析。
+  若前端保留 legacy key 兼容分支，测试 fixture 和正常生产路径必须使用 canonical schema 元数据。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `ai-plan/design/契约治理与魔法值治理规范.md`
+  - `server/internal/scheduler/config_schema.go`
+  - `web/src/shared/schema-form/config-schema.ts`
+- Updated at:
+  2026-06-08
+
 ## LESSON-GOVERNANCE-BROWSER-BACKEND-001：浏览器验收需要真实后端时不要停在 mock 登录页
 
 - Status: active

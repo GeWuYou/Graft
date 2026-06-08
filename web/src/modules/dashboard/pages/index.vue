@@ -1,15 +1,23 @@
 <template>
   <section class="dashboard-page" data-page-type="overview-dashboard">
-    <header class="dashboard-page__header">
-      <div class="dashboard-page__title">
-        <span>{{ t('dashboard.page.eyebrow') }}</span>
-        <h1>{{ t('dashboard.page.title') }}</h1>
-        <p>{{ t('dashboard.page.description') }}</p>
-      </div>
-      <t-button theme="primary" :loading="loading" @click="loadSummary">
-        {{ t('dashboard.actions.refresh') }}
-      </t-button>
-    </header>
+    <page-header
+      :breadcrumb="[{ labelKey: 'dashboard.page.title', fallback: t('dashboard.page.title') }]"
+      title-key="dashboard.page.title"
+      :title-fallback="t('dashboard.page.title')"
+      description-key="dashboard.page.description"
+      :description-fallback="t('dashboard.page.description')"
+      :source="{
+        labelKey: 'dashboard.page.eyebrow',
+        fallback: t('dashboard.page.eyebrow'),
+        color: 'var(--td-brand-color-6)',
+      }"
+    >
+      <template #actions>
+        <t-button theme="primary" :loading="loading" @click="loadSummary">
+          {{ t('dashboard.actions.refresh') }}
+        </t-button>
+      </template>
+    </page-header>
 
     <t-loading :loading="loading" size="large" :text="t('dashboard.loading')">
       <t-alert v-if="errorMessage" theme="error" :title="t('dashboard.error.title')" :message="errorMessage">
@@ -47,6 +55,7 @@ import { computed, onMounted, ref } from 'vue';
 
 import { API_CODE } from '@/contracts/api/codes';
 import { t } from '@/locales';
+import { PageHeader } from '@/shared/components/page';
 import type { ApiRequestError } from '@/types/axios';
 import { createLogger } from '@/utils/logger';
 
@@ -197,38 +206,6 @@ function requestErrorCode(error: unknown) {
   min-width: 0;
 }
 
-.dashboard-page__header {
-  align-items: flex-start;
-  display: flex;
-  gap: var(--td-comp-margin-l);
-  justify-content: space-between;
-}
-
-.dashboard-page__title {
-  display: flex;
-  flex-direction: column;
-  gap: var(--td-comp-margin-xs);
-  min-width: 0;
-}
-
-.dashboard-page__title span {
-  color: var(--td-brand-color);
-  font: var(--td-font-body-small);
-}
-
-.dashboard-page__title h1 {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-headline-medium);
-  margin: 0;
-}
-
-.dashboard-page__title p {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-medium);
-  margin: 0;
-  max-width: 720px;
-}
-
 .dashboard-page__summary {
   display: grid;
   gap: var(--td-comp-margin-m);
@@ -273,10 +250,6 @@ function requestErrorCode(error: unknown) {
 }
 
 @media (width <= 768px) {
-  .dashboard-page__header {
-    flex-direction: column;
-  }
-
   .dashboard-page__summary {
     grid-template-columns: minmax(0, 1fr);
   }

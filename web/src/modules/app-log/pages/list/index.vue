@@ -1,16 +1,18 @@
 <template>
   <advanced-query-list-page
     page-type="log-audit"
+    title-key="appLog.page.title"
     :title="t('appLog.page.title')"
+    description-key="appLog.page.description"
     :description="t('appLog.page.description')"
     :error-message="listError"
     :error-title="t('appLog.page.errorTitle')"
     :loading="loading"
     :reload-label="t('appLog.page.refresh')"
     :retry-label="t('appLog.page.retry')"
+    :source="{ labelKey: 'menu.logCenter.title', fallback: t('menu.logCenter.title') }"
     @reload="fetchAppLogs"
   >
-    <template #eyebrow>{{ t('menu.logCenter.title') }}</template>
     <template #actions>
       <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
         {{ t('appLog.page.columnSettings') }}

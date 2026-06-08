@@ -205,13 +205,22 @@ const passthroughStub = defineComponent({
 
 const shellStub = defineComponent({
   name: 'GovernanceDashboardShellStub',
-  props: ['eyebrow', 'title', 'description'],
+  props: ['eyebrow', 'title', 'description', 'titleKey', 'descriptionKey'],
   setup(props, { slots }) {
+    const resolveText = (key?: unknown, fallback?: unknown) => {
+      if (typeof key !== 'string' || key.length === 0) {
+        return typeof fallback === 'string' ? fallback : '';
+      }
+
+      const translated = i18n.global.t(key);
+      return translated && translated !== key ? translated : typeof fallback === 'string' ? fallback : '';
+    };
+
     return () =>
       h('div', { 'data-page-type': 'overview-dashboard' }, [
         props.eyebrow,
-        props.title,
-        props.description,
+        resolveText(props.titleKey, props.title),
+        resolveText(props.descriptionKey, props.description),
         slots.actions?.(),
         slots.summary?.(),
         slots.default?.(),

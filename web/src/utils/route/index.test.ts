@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { RouteRecordRaw } from 'vue-router';
 
-import { resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH } from './index';
+import { resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH, RUNTIME_HOME_PATH } from './index';
 
 describe('resolveRuntimeHomePath', () => {
-  it('prefers the first visible registered runtime route', () => {
+  it('uses the shell workbench as the runtime home when bootstrap routes exist', () => {
     const routes: RouteRecordRaw[] = [
       {
         path: '/access-control',
@@ -19,7 +19,7 @@ describe('resolveRuntimeHomePath', () => {
       },
     ];
 
-    expect(resolveRuntimeHomePath(routes)).toBe('/access-control');
+    expect(resolveRuntimeHomePath(routes)).toBe(RUNTIME_HOME_PATH);
   });
 
   it('falls back to the runtime exception page when no visible page is registered', () => {

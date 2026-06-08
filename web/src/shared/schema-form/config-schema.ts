@@ -26,6 +26,33 @@ export type ConfigSchemaI18n = {
   unitKey?: string;
 };
 
+export type ConfigValidationReasonCode =
+  | 'required'
+  | 'additional_property'
+  | 'type_mismatch'
+  | 'enum'
+  | 'below_minimum'
+  | 'above_maximum'
+  | 'too_short'
+  | 'too_long';
+
+export type ConfigValidationIssue = {
+  field: string;
+  key?: string;
+  reasonCode: ConfigValidationReasonCode;
+  constraint: string;
+  minimum?: number;
+  maximum?: number;
+  expected?: unknown;
+  actual?: unknown;
+  schema?: ConfigSchemaProperty;
+};
+
+export type ConfigValidationResult = {
+  valid: boolean;
+  issues: ConfigValidationIssue[];
+};
+
 export type ConfigSchemaOptionLabel = {
   label?: string;
   labelKey?: string;
@@ -87,6 +114,192 @@ export function buildDefaultConfigFromSchema(schema: ConfigSchema): JsonRecord {
     }
   }
   return output;
+}
+
+export function validateConfigRecord(schema: ConfigSchema, config: JsonRecord): ConfigValidationResult {
+  const issues: ConfigValidationIssue[] = [];
+  const properties = schema.properties ?? {};
+  const required = new Set(schema.required ?? []);
+
+  for (const key of required) {
+    if (!(key in config)) {
+      issues.push({
+        field: `config_json.${key}`,
+        key,
+        reasonCode: 'required',
+        constraint: 'required',
+        schema: properties[key],
+      });
+    }
+  }
+
+  if (schema.additionalProperties === false) {
+    for (const key of Object.keys(config)) {
+      if (!(key in properties)) {
+        issues.push({
+          field: `config_json.${key}`,
+          key,
+          reasonCode: 'additional_property',
+          constraint: 'additionalProperties',
+          actual: key,
+        });
+      }
+    }
+  }
+
+  for (const [key, property] of Object.entries(properties)) {
+    if (!(key in config)) {
+      continue;
+    }
+    const issue = validateConfigValue(`config_json.${key}`, key, property, config[key]);
+    if (issue) {
+      issues.push(issue);
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+  };
+}
+
+function validateConfigValue(
+  field: string,
+  key: string,
+  property: ConfigSchemaProperty,
+  value: unknown,
+): ConfigValidationIssue | undefined {
+  switch (property.type) {
+    case 'string':
+      if (typeof value !== 'string') {
+        return typeIssue(field, key, property, 'string', value);
+      }
+      if (typeof property.minLength === 'number' && value.length < property.minLength) {
+        return {
+          field,
+          key,
+          reasonCode: 'too_short',
+          constraint: 'minLength',
+          minimum: property.minLength,
+          actual: value.length,
+          schema: property,
+        };
+      }
+      if (typeof property.maxLength === 'number' && value.length > property.maxLength) {
+        return {
+          field,
+          key,
+          reasonCode: 'too_long',
+          constraint: 'maxLength',
+          maximum: property.maxLength,
+          actual: value.length,
+          schema: property,
+        };
+      }
+      break;
+    case 'integer':
+      if (typeof value !== 'number' || !Number.isInteger(value)) {
+        return typeIssue(field, key, property, 'integer', value);
+      }
+      {
+        const rangeIssue = validateNumberRange(field, key, property, value);
+        if (rangeIssue) {
+          return rangeIssue;
+        }
+      }
+      break;
+    case 'number':
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return typeIssue(field, key, property, 'number', value);
+      }
+      {
+        const rangeIssue = validateNumberRange(field, key, property, value);
+        if (rangeIssue) {
+          return rangeIssue;
+        }
+      }
+      break;
+    case 'boolean':
+      if (typeof value !== 'boolean') {
+        return typeIssue(field, key, property, 'boolean', value);
+      }
+      break;
+    case 'object':
+      if (!isJsonRecord(value)) {
+        return typeIssue(field, key, property, 'object', value);
+      }
+      break;
+    case 'array':
+      if (!Array.isArray(value)) {
+        return typeIssue(field, key, property, 'array', value);
+      }
+      break;
+    default:
+      break;
+  }
+
+  if (property.enum?.length && !property.enum.some((item) => item === value)) {
+    return {
+      field,
+      key,
+      reasonCode: 'enum',
+      constraint: 'enum',
+      expected: property.enum,
+      actual: value,
+      schema: property,
+    };
+  }
+
+  return undefined;
+}
+
+function validateNumberRange(
+  field: string,
+  key: string,
+  property: ConfigSchemaProperty,
+  value: number,
+): ConfigValidationIssue | undefined {
+  if (typeof property.minimum === 'number' && value < property.minimum) {
+    return {
+      field,
+      key,
+      reasonCode: 'below_minimum',
+      constraint: 'minimum',
+      minimum: property.minimum,
+      actual: value,
+      schema: property,
+    };
+  }
+  if (typeof property.maximum === 'number' && value > property.maximum) {
+    return {
+      field,
+      key,
+      reasonCode: 'above_maximum',
+      constraint: 'maximum',
+      maximum: property.maximum,
+      actual: value,
+      schema: property,
+    };
+  }
+  return undefined;
+}
+
+function typeIssue(
+  field: string,
+  key: string,
+  property: ConfigSchemaProperty,
+  expected: ConfigFieldType,
+  actual: unknown,
+): ConfigValidationIssue {
+  return {
+    field,
+    key,
+    reasonCode: 'type_mismatch',
+    constraint: 'type',
+    expected,
+    actual,
+    schema: property,
+  };
 }
 
 function parseProperties(value: unknown): Record<string, ConfigSchemaProperty> {

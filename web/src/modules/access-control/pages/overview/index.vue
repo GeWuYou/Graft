@@ -3,7 +3,9 @@
     <governance-dashboard-shell
       domain="access-control"
       :eyebrow="t('accessControl.overview.navHint')"
+      title-key="accessControl.overview.title"
       :title="t('accessControl.overview.title')"
+      description-key="accessControl.overview.description"
       :description="t('accessControl.overview.description')"
     >
       <template #actions>

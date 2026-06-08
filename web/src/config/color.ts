@@ -1,22 +1,14 @@
 export type TColorToken = Record<string, string>;
 export type TColorSeries = Record<string, TColorToken>;
 
-// TODO: 中性色暂时固定 待tvision-color生成带色彩倾向的中性色
-export const LIGHT_CHART_COLORS = {
-  textColor: 'rgba(0, 0, 0, 0.9)',
-  placeholderColor: 'rgba(0, 0, 0, 0.35)',
-  borderColor: '#dcdcdc',
-  containerColor: '#fff',
+export const DEFAULT_CHART_COLORS = {
+  textColor: 'var(--td-text-color-primary)',
+  placeholderColor: 'var(--td-text-color-placeholder)',
+  borderColor: 'var(--td-component-border)',
+  containerColor: 'var(--td-bg-color-container)',
 };
 
-export const DARK_CHART_COLORS = {
-  textColor: 'rgba(255, 255, 255, 0.9)',
-  placeholderColor: 'rgba(255, 255, 255, 0.35)',
-  borderColor: '#5e5e5e',
-  containerColor: '#242424',
-};
-
-export type TChartColor = typeof LIGHT_CHART_COLORS;
+export type TChartColor = typeof DEFAULT_CHART_COLORS;
 
 export const DEFAULT_COLOR_OPTIONS = [
   '#0052D9',

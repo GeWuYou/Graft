@@ -1,10 +1,14 @@
 <template>
   <div :class="rootClass" :data-page-type="pageType">
     <management-page-content>
-      <management-page-header :title="title" :description="description">
-        <template v-if="$slots.eyebrow" #eyebrow>
-          <slot name="eyebrow" />
-        </template>
+      <management-page-header
+        :title="title"
+        :description="description"
+        :title-key="titleKey"
+        :description-key="descriptionKey"
+        :breadcrumb="breadcrumb"
+        :source="source"
+      >
         <template #actions>
           <slot name="actions" />
           <t-button theme="default" variant="outline" :loading="loading" @click="$emit('reload')">
@@ -38,10 +42,13 @@
 </template>
 <script setup lang="ts">
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import type { PageHeaderBreadcrumbItem, PageHeaderSource } from '@/shared/components/page';
 
 withDefaults(
   defineProps<{
-    description: string;
+    description?: string;
+    descriptionKey?: string;
+    breadcrumb?: PageHeaderBreadcrumbItem[];
     errorMessage?: string;
     errorTitle: string;
     loading?: boolean;
@@ -49,13 +56,21 @@ withDefaults(
     reloadLabel: string;
     retryLabel: string;
     rootClass?: string;
-    title: string;
+    source?: PageHeaderSource;
+    title?: string;
+    titleKey?: string;
   }>(),
   {
+    breadcrumb: undefined,
+    description: '',
+    descriptionKey: '',
     errorMessage: '',
     loading: false,
     pageType: 'query-builder-list-detail',
     rootClass: '',
+    source: undefined,
+    title: '',
+    titleKey: '',
   },
 );
 

@@ -246,6 +246,7 @@
         },
         "actions": {
           "reset": "Reset Theme",
+          "resetSuccess": "Theme restored to default",
           "clearGroup": "Clear Group",
           "cancel": "Cancel",
           "apply": "Apply"
@@ -429,7 +430,7 @@
       "msg4": "First Quarter Raw Material Procurement Project invoicing successful!"
     },
     "home": {
-      "title": "Home"
+      "title": "Workspace"
     }
   }
 }

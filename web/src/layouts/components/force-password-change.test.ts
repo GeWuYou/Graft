@@ -66,7 +66,7 @@ describe('completeRestrictedPasswordChange', () => {
       'completeRequiredPasswordChange',
       'bootstrap:true',
       'buildAsyncRoutes',
-      'consume:/users',
+      'consume:/',
       'replace:/users?tab=active',
     ]);
     expect(authApiMocks.completeRequiredPasswordChange).toHaveBeenCalledWith({
@@ -94,6 +94,6 @@ describe('completeRestrictedPasswordChange', () => {
       replace,
     });
 
-    expect(replace).toHaveBeenCalledWith('/users');
+    expect(replace).toHaveBeenCalledWith('/');
   });
 });

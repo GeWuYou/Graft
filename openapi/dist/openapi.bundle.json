@@ -6178,7 +6178,7 @@
         ],
         "summary": "List registered system configuration values",
         "operationId": "getSystemConfigs",
-        "description": "Returns module-registered ConfigDefinitions merged with administrator overrides. Sensitive values are masked and never returned as plaintext.",
+        "description": "Returns module-registered ConfigDefinitions merged with user overrides. Sensitive values are masked and never returned as plaintext.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6227,7 +6227,7 @@
         ],
         "summary": "Read one system configuration value",
         "operationId": "getSystemConfig",
-        "description": "Returns one registered ConfigDefinition merged with its administrator override. Sensitive values are masked and never returned as plaintext.",
+        "description": "Returns one registered ConfigDefinition merged with its user override. Sensitive values are masked and never returned as plaintext.",
         "parameters": [
           {
             "name": "key",
@@ -6282,7 +6282,7 @@
         ],
         "summary": "Update one system configuration override",
         "operationId": "putSystemConfig",
-        "description": "Stores administrator override JSON only. Sensitive responses remain masked and do not echo plaintext values.",
+        "description": "Stores user override JSON only. Sensitive responses remain masked and do not echo plaintext values.",
         "parameters": [
           {
             "name": "key",
@@ -6349,7 +6349,7 @@
         ],
         "summary": "Reset one system configuration override",
         "operationId": "postSystemConfigReset",
-        "description": "Deletes the administrator override and returns the module default as the effective value. Sensitive responses remain masked.",
+        "description": "Deletes the user override and returns the module default as the effective value. Sensitive responses remain masked.",
         "parameters": [
           {
             "name": "key",
@@ -11119,6 +11119,7 @@
           "type",
           "config_schema",
           "has_override",
+          "status",
           "sensitive",
           "masked",
           "restart_required"
@@ -11183,6 +11184,14 @@
             "additionalProperties": true,
             "description": "JSON Schema compatible object declared by the module, including Graft x-i18n extensions."
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "default",
+              "modified"
+            ],
+            "description": "Whether the effective value is using the module default or a stored user override."
+          },
           "default_value": {
             "type": "string",
             "nullable": true,
@@ -11191,16 +11200,33 @@
           "effective_value": {
             "type": "string",
             "nullable": true,
-            "description": "JSON string after applying administrator override; null when sensitive=true."
+            "description": "JSON string after applying a user override; null when sensitive=true."
           },
           "override_value": {
             "type": "string",
             "nullable": true,
-            "description": "Administrator override JSON string; null when no override or sensitive=true."
+            "description": "User override JSON string; null when no override or sensitive=true."
           },
           "has_override": {
             "type": "boolean",
-            "description": "Whether system_config_values currently stores an administrator override for this key."
+            "description": "Whether system_config_values currently stores a user override for this key."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Last write time for the current user override; null when status=default."
+          },
+          "updated_by_user_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "User ID that last wrote the current override; null when unavailable or status=default."
+          },
+          "updated_by_username": {
+            "type": "string",
+            "nullable": true,
+            "description": "Username for updated_by_user_id when it can be resolved."
           },
           "sensitive": {
             "type": "boolean",
@@ -11290,7 +11316,7 @@
         ],
         "properties": {
           "value": {
-            "description": "JSON value to store as the administrator override for the registered definition."
+            "description": "JSON value to store as the user override for the registered definition."
           }
         }
       },
@@ -11670,7 +11696,8 @@
             }
           },
           "order": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           }
         }
       },

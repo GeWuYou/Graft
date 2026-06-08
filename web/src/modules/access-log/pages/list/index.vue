@@ -1,15 +1,17 @@
 <template>
   <advanced-query-list-page
+    title-key="accessLog.page.title"
     :title="t('accessLog.page.title')"
+    description-key="accessLog.page.description"
     :description="t('accessLog.page.description')"
     :error-message="listError"
     :error-title="t('accessLog.page.errorTitle')"
     :loading="loading"
     :reload-label="t('accessLog.page.refresh')"
     :retry-label="t('accessLog.page.retry')"
+    :source="{ labelKey: 'menu.logCenter.title', fallback: t('menu.logCenter.title') }"
     @reload="fetchAccessLogs"
   >
-    <template #eyebrow>{{ t('menu.logCenter.title') }}</template>
     <template #actions>
       <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
         {{ t('accessLog.page.columnSettings') }}

@@ -152,7 +152,9 @@ const frameProps = computed(() =>
     t,
     page: {
       eyebrow: t('monitor.sectionTitle'),
+      titleKey: 'monitor.dependenciesPage.title',
       title: t('monitor.dependenciesPage.title'),
+      descriptionKey: 'monitor.dependenciesPage.subtitle',
       description: t('monitor.dependenciesPage.subtitle'),
       status: headerStatus.value,
       statusLabel: headerStatusLabel.value,

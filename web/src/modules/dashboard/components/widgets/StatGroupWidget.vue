@@ -47,8 +47,8 @@ function go(location: string) {
 }
 
 .dashboard-stat-group__item {
-  background: var(--td-bg-color-container-hover);
-  border: 1px solid var(--td-border-level-1-color);
+  background: var(--graft-card-bg-hover);
+  border: 1px solid var(--graft-card-border-color);
   border-radius: var(--td-radius-medium);
   display: flex;
   flex-direction: column;
@@ -63,7 +63,7 @@ function go(location: string) {
 }
 
 .dashboard-stat-group__value {
-  color: var(--td-text-color-primary);
+  color: var(--graft-metric-value-color);
   display: flex;
   font: var(--td-font-headline-small);
   gap: var(--td-comp-margin-xxs);

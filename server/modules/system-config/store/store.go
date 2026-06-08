@@ -8,19 +8,22 @@ import (
 	"time"
 )
 
-// ErrOverrideNotFound indicates that no administrator override exists for the key.
+// ErrOverrideNotFound indicates that no user override exists for the key.
 var ErrOverrideNotFound = errors.New("system config override not found")
 
-// Override stores administrator-provided JSON for one config key.
+// Override stores user-provided JSON for one config key.
 type Override struct {
 	Key       string
 	Value     json.RawMessage
+	CreatedAt time.Time
+	CreatedBy *uint64
 	UpdatedAt time.Time
+	UpdatedBy *uint64
 }
 
-// Repository persists administrator overrides only.
+// Repository persists user overrides only.
 type Repository interface {
 	GetOverride(ctx context.Context, key string) (Override, error)
-	SetOverride(ctx context.Context, key string, value json.RawMessage) (Override, error)
+	SetOverride(ctx context.Context, key string, value json.RawMessage, userID *uint64) (Override, error)
 	DeleteOverride(ctx context.Context, key string) error
 }

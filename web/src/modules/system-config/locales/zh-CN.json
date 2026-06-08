@@ -10,13 +10,13 @@
     "list": {
       "eyebrow": "服务管理",
       "title": "系统配置",
-      "description": "管理模块注册的系统级默认配置与管理员覆盖值。",
+      "description": "管理模块注册的系统级默认配置与用户覆盖值。",
       "refresh": "刷新",
       "edit": "编辑",
       "save": "保存",
       "cancel": "取消",
       "reset": "重置",
-      "resetConfirm": "确认删除该管理员覆盖值并回到模块默认值？",
+      "resetConfirm": "确认删除该用户覆盖值并回到模块默认值？",
       "groupConfigCount": "{count} 个配置项",
       "groupDescription": "当前分组包含 {count} 个配置项。",
       "groupLabel": "{module} / {group}",
@@ -44,18 +44,18 @@
         "title": "配置状态",
         "default": "默认",
         "defaultDescription": "使用默认配置",
-        "overridden": "已覆盖",
-        "overriddenDescription": "管理员修改"
+        "modified": "已修改",
+        "modifiedDescription": "存在用户覆盖"
       },
-      "source": {
-        "title": "配置来源",
-        "values": {
-          "default": "默认值",
-          "administrator_override": "管理员覆盖"
-        }
+      "lastModified": {
+        "title": "最后修改",
+        "none": "暂无修改记录",
+        "unknownUser": "未知用户",
+        "userId": "用户 {id}",
+        "value": "{user} / {time}"
       },
       "tags": {
-        "override": "已覆盖",
+        "override": "已修改",
         "sensitive": "敏感",
         "restartRequired": "需重启"
       },

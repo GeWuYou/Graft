@@ -2,7 +2,7 @@ get:
   tags: [system-config]
   summary: Read one system configuration value
   operationId: getSystemConfig
-  description: Returns one registered ConfigDefinition merged with its administrator override. Sensitive values are masked and never returned as plaintext.
+  description: Returns one registered ConfigDefinition merged with its user override. Sensitive values are masked and never returned as plaintext.
   parameters:
     - name: key
       in: path
@@ -33,7 +33,7 @@ put:
   tags: [system-config]
   summary: Update one system configuration override
   operationId: putSystemConfig
-  description: Stores administrator override JSON only. Sensitive responses remain masked and do not echo plaintext values.
+  description: Stores user override JSON only. Sensitive responses remain masked and do not echo plaintext values.
   parameters:
     - name: key
       in: path

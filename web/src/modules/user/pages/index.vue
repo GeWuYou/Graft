@@ -1,8 +1,13 @@
 <template>
   <div class="user-page" data-page-type="list-form-detail">
     <management-page-content>
-      <management-page-header :title="t('user.userList.listTitle')" :description="t('user.userList.hint')">
-        <template #eyebrow>{{ t('menu.access_control.title') }}</template>
+      <management-page-header
+        title-key="user.userList.listTitle"
+        :title="t('user.userList.listTitle')"
+        description-key="user.userList.hint"
+        :description="t('user.userList.hint')"
+        :source="{ labelKey: 'menu.access_control.title', fallback: t('menu.access_control.title') }"
+      >
         <template #actions>
           <t-button theme="default" variant="outline" :loading="loading" data-testid="user-refresh" @click="fetchUsers">
             {{ t('user.userList.refresh') }}

@@ -27,7 +27,7 @@
     "page": {
       "description": "Review the system summary and authorized module-contributed workspace widgets.",
       "eyebrow": "Workspace",
-      "title": "Home"
+      "title": "Workspace"
     },
     "quickActions": {
       "description": "Entries available to current permissions",

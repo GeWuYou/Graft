@@ -104,12 +104,24 @@ func (r routeRuntime) handleUpdate(ginCtx *gin.Context) {
 		})
 		return
 	}
-	item, err := r.service.Update(ginCtx.Request.Context(), key, value)
+	item, err := r.service.Update(ginCtx.Request.Context(), key, value, currentUserID(ginCtx))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toItem(item))
+}
+
+func currentUserID(ginCtx *gin.Context) *uint64 {
+	if ginCtx == nil || ginCtx.Request == nil {
+		return nil
+	}
+	auth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context())
+	if !ok || auth.User == nil {
+		return nil
+	}
+	userID := auth.User.ID
+	return &userID
 }
 
 func (r routeRuntime) handleReset(ginCtx *gin.Context) {

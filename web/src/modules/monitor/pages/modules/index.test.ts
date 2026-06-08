@@ -139,11 +139,30 @@ const shellStub = defineComponent({
       type: String,
       default: '',
     },
+    titleKey: {
+      type: String,
+      default: '',
+    },
+    descriptionKey: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { slots }) {
+    const resolveText = (key: string, fallback: string) => {
+      const translated = translations[key] ?? key;
+      return translated && translated !== key ? translated : fallback;
+    };
+
     return () =>
       h('section', { 'data-page-type': 'overview-dashboard' }, [
-        h('header', [props.eyebrow, props.title, props.description, slots.toolbar?.(), slots.summary?.()]),
+        h('header', [
+          props.eyebrow,
+          resolveText(props.titleKey, props.title),
+          resolveText(props.descriptionKey, props.description),
+          slots.toolbar?.(),
+          slots.summary?.(),
+        ]),
         slots.feedback?.(),
         slots.default?.(),
       ]);

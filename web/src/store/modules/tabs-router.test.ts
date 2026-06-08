@@ -17,6 +17,10 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters).toHaveLength(1);
     expect(tabsRouterStore.tabRouters[0]?.path).toBe('/');
     expect(tabsRouterStore.tabRouters[0]?.name).toBe('RootEntry');
+    expect(tabsRouterStore.tabRouters[0]?.title).toEqual({
+      [LOCALE.ZH_CN]: '工作台',
+      [LOCALE.EN_US]: 'Workspace',
+    });
   });
 
   it('keeps refresh state ephemeral and restores the tab after refresh completes', () => {

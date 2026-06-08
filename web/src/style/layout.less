@@ -47,6 +47,14 @@
   --graft-page-management-max-width: 1440px;
 }
 
+.app-shell[data-theme-mode='dark'] {
+  --graft-shell-bg: var(--graft-dark-page-bg);
+  --graft-shell-content-bg: var(--graft-dark-page-bg);
+  --graft-shell-sidebar-bg: var(--graft-dark-sidebar-bg);
+  --graft-shell-header-bg: var(--graft-dark-header-bg);
+  --graft-shell-border-color: var(--graft-dark-border-color);
+}
+
 .t-layout__sider {
   width: fit-content;
 }
@@ -86,7 +94,7 @@
 }
 
 .t-menu--dark .t-menu__operations .t-icon {
-  color: rgb(255 255 255 / 55%);
+  color: var(--td-text-color-secondary);
 
   &:hover {
     cursor: pointer;
@@ -94,7 +102,17 @@
 }
 
 .t-default-menu.t-menu--dark {
-  background: var(--td-gray-color-13);
+  background: var(--graft-shell-sidebar-bg);
+  border-right: 1px solid var(--graft-shell-border-color);
+}
+
+.app-shell[data-theme-mode='dark'] .t-layout__sider,
+.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark,
+.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark .t-default-menu__inner,
+.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark .t-menu__logo,
+.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark .t-menu,
+.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark .t-menu__operations {
+  background: var(--graft-shell-sidebar-bg);
 }
 
 .@{starter-prefix} {
@@ -117,6 +135,7 @@
   }
 
   &-content-layout {
+    background: var(--graft-shell-content-bg);
     padding: var(--td-comp-paddingTB-xl) var(--graft-page-side-padding);
 
     &__body {
@@ -214,6 +233,8 @@
   }
 
   &-side-nav {
+    background: var(--graft-shell-sidebar-bg);
+    border-right: 1px solid var(--graft-shell-border-color);
     bottom: 0;
     min-height: 100%;
     position: fixed;

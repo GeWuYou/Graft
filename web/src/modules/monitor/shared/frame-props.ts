@@ -1,3 +1,5 @@
+import type { PageHeaderSource } from '@/shared/components/page';
+
 import type { ServerStatusTone } from '../components/server-status-ui';
 import type { RefreshIntervalOption } from '../composables/use-monitor-refresh-preferences';
 
@@ -12,6 +14,9 @@ export type MonitorStatusPageFrameProps = {
   eyebrow: string;
   title: string;
   description: string;
+  titleKey?: string;
+  descriptionKey?: string;
+  source?: PageHeaderSource;
   compactHeader?: boolean;
   autoRefreshEnabled: boolean;
   loading: boolean;
@@ -34,7 +39,17 @@ export type MonitorStatusPageFrameProps = {
 
 type MonitorStatusFramePageCopy = Pick<
   MonitorStatusPageFrameProps,
-  'eyebrow' | 'title' | 'description' | 'compactHeader' | 'status' | 'statusLabel' | 'summaryItems' | 'emptyDescription'
+  | 'eyebrow'
+  | 'title'
+  | 'description'
+  | 'titleKey'
+  | 'descriptionKey'
+  | 'source'
+  | 'compactHeader'
+  | 'status'
+  | 'statusLabel'
+  | 'summaryItems'
+  | 'emptyDescription'
 >;
 
 type MonitorStatusFrameSharedState = Pick<

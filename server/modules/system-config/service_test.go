@@ -4,9 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
+
+	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
+	"graft/server/internal/container"
+	"graft/server/internal/i18n"
+	"graft/server/internal/menu"
+	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
+	"graft/server/internal/permission"
 	systemconfigstore "graft/server/modules/system-config/store"
 )
 
@@ -60,6 +71,7 @@ func TestServiceResolveDefaultConfigReturnsEffectiveOverride(t *testing.T) {
 		context.Background(),
 		"httpx.access-log-retention-cleanup",
 		json.RawMessage(`{"retentionDays":45,"batchSize":2000}`),
+		nil,
 	); err != nil {
 		t.Fatalf("update override: %v", err)
 	}
@@ -89,6 +101,101 @@ func TestServiceResolveDefaultConfigRejectsSensitiveDefinitions(t *testing.T) {
 	}
 }
 
+func TestCurrentUserIDReadsRequestAuthContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userID := uint64(42)
+	request := httptest.NewRequest("PUT", "/system-config/scheduler.timeout", nil)
+	request = request.WithContext(moduleapi.WithRequestAuthContext(request.Context(), moduleapi.RequestAuthContext{
+		User: &moduleapi.CurrentUser{ID: userID},
+	}))
+	ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ginCtx.Request = request
+
+	got := currentUserID(ginCtx)
+	if got == nil || *got != userID {
+		t.Fatalf("expected current user id %d, got %#v", userID, got)
+	}
+}
+
+func TestModuleRegisterRequiresUserService(t *testing.T) {
+	service := newTestService(t, configregistry.Definition{
+		Key:          "scheduler.timeout",
+		Module:       "scheduler",
+		Group:        "runtime",
+		Title:        "Timeout",
+		Type:         configregistry.ValueTypeString,
+		DefaultValue: json.RawMessage(`"30s"`),
+	})
+	moduleInstance, err := NewModule(service)
+	if err != nil {
+		t.Fatalf("create module: %v", err)
+	}
+
+	err = moduleInstance.Register(&module.Context{
+		Services: container.New(),
+	})
+	if err == nil {
+		t.Fatalf("expected missing user service error")
+	}
+	if !errors.Is(err, container.ErrServiceNotRegistered) {
+		t.Fatalf("expected service not registered error, got %v", err)
+	}
+}
+
+func TestModuleRegisterBindsUserServiceForUpdatedByUsername(t *testing.T) {
+	repo := newMemoryRepo()
+	service := newTestServiceWithRepoAndUsers(t, repo, nil, configregistry.Definition{
+		Key:          "scheduler.timeout",
+		Module:       "scheduler",
+		Group:        "runtime",
+		Title:        "Timeout",
+		Type:         configregistry.ValueTypeString,
+		DefaultValue: json.RawMessage(`"30s"`),
+	})
+	moduleInstance, err := NewModule(service)
+	if err != nil {
+		t.Fatalf("create module: %v", err)
+	}
+
+	services := container.New()
+	if err := services.RegisterSingleton((*moduleapi.UserService)(nil), func(container.Resolver) (any, error) {
+		return testUserService{
+			users: map[uint64]moduleapi.UserSummary{
+				42: {ID: 42, Username: "alice", Display: "Alice"},
+			},
+		}, nil
+	}); err != nil {
+		t.Fatalf("register user service: %v", err)
+	}
+	localizer, err := i18n.New(config.I18nConfig{
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	if err != nil {
+		t.Fatalf("create i18n service: %v", err)
+	}
+	if err := moduleInstance.Register(&module.Context{
+		Services:           services,
+		I18n:               localizer,
+		MenuRegistry:       menu.NewRegistry(),
+		PermissionRegistry: permission.NewRegistry(),
+	}); err != nil {
+		t.Fatalf("register system config module: %v", err)
+	}
+
+	userID := uint64(42)
+	item, err := service.Update(context.Background(), "scheduler.timeout", json.RawMessage(`"60s"`), &userID)
+	if err != nil {
+		t.Fatalf("update override: %v", err)
+	}
+	if item.UpdatedByName != "alice" {
+		t.Fatalf("expected updated_by username alice, got %#v", item.UpdatedByName)
+	}
+	mapped := toItem(item)
+	if mapped.UpdatedByUsername == nil || *mapped.UpdatedByUsername != "alice" {
+		t.Fatalf("expected response username alice, got %#v", mapped.UpdatedByUsername)
+	}
+}
+
 func assertDefaultVisibleWithoutOverride(t *testing.T, service *Service, repo *memoryRepo) {
 	t.Helper()
 
@@ -110,20 +217,60 @@ func assertDefaultVisibleWithoutOverride(t *testing.T, service *Service, repo *m
 	if item.HasOverride || string(item.EffectiveValue) != `"30s"` {
 		t.Fatalf("expected get to return module default without override, got %#v", item)
 	}
+	if item.Status != ValueStatusDefault || item.CreatedAt != nil || item.UpdatedAt != nil {
+		t.Fatalf("expected default status without audit fields, got %#v", item)
+	}
 }
 
 func assertUpdateStoresOneOverride(t *testing.T, service *Service, repo *memoryRepo) {
 	t.Helper()
 
-	item, err := service.Update(context.Background(), "scheduler.timeout", json.RawMessage(`"60s"`))
+	userID := uint64(42)
+	item, err := service.Update(context.Background(), "scheduler.timeout", json.RawMessage(`"60s"`), &userID)
 	if err != nil {
 		t.Fatalf("update override: %v", err)
 	}
 	if !item.HasOverride || string(item.EffectiveValue) != `"60s"` {
 		t.Fatalf("expected effective override, got %#v", item)
 	}
+	if item.Status != ValueStatusModified {
+		t.Fatalf("expected modified status, got %#v", item.Status)
+	}
+	assertNewOverrideAudit(t, item, userID)
 	if len(repo.values) != 1 {
 		t.Fatalf("expected only one override row, got %d", len(repo.values))
+	}
+
+	updatingUserID := uint64(7)
+	updated, err := service.Update(context.Background(), "scheduler.timeout", json.RawMessage(`"90s"`), &updatingUserID)
+	if err != nil {
+		t.Fatalf("update existing override: %v", err)
+	}
+	assertUpdatedOverrideAudit(t, updated, userID, updatingUserID)
+}
+
+func assertNewOverrideAudit(t *testing.T, item ValueSnapshot, userID uint64) {
+	t.Helper()
+
+	if item.CreatedBy == nil || *item.CreatedBy != userID {
+		t.Fatalf("expected created_by user %d on override, got %#v", userID, item)
+	}
+	if item.UpdatedBy == nil || *item.UpdatedBy != userID {
+		t.Fatalf("expected updated_by user %d on override, got %#v", userID, item)
+	}
+	if item.CreatedAt == nil || item.UpdatedAt == nil {
+		t.Fatalf("expected audit timestamps on override, got %#v", item)
+	}
+}
+
+func assertUpdatedOverrideAudit(t *testing.T, item ValueSnapshot, createdBy uint64, updatedBy uint64) {
+	t.Helper()
+
+	if item.CreatedBy == nil || *item.CreatedBy != createdBy {
+		t.Fatalf("expected created_by to stay %d, got %#v", createdBy, item)
+	}
+	if item.UpdatedBy == nil || *item.UpdatedBy != updatedBy {
+		t.Fatalf("expected updated_by to change to %d, got %#v", updatedBy, item)
 	}
 }
 
@@ -136,6 +283,9 @@ func assertResetDeletesOverride(t *testing.T, service *Service, repo *memoryRepo
 	}
 	if item.HasOverride || string(item.EffectiveValue) != `"30s"` {
 		t.Fatalf("expected reset to return module default without override, got %#v", item)
+	}
+	if item.Status != ValueStatusDefault || item.CreatedBy != nil || item.UpdatedBy != nil {
+		t.Fatalf("expected reset snapshot without audit fields, got %#v", item)
 	}
 	if len(repo.values) != 0 {
 		t.Fatalf("expected reset to delete override row, got %d rows", len(repo.values))
@@ -152,7 +302,7 @@ func TestServiceRejectsMismatchedValueType(t *testing.T) {
 		DefaultValue: json.RawMessage(`30`),
 	})
 
-	if _, err := service.Update(context.Background(), "audit.retention_days", json.RawMessage(`"30"`)); err == nil {
+	if _, err := service.Update(context.Background(), "audit.retention_days", json.RawMessage(`"30"`), nil); err == nil {
 		t.Fatal("expected value type error")
 	}
 }
@@ -168,10 +318,10 @@ func TestServiceRejectsObjectValueOutsideSchemaConstraints(t *testing.T) {
 		DefaultValue: json.RawMessage(`{"retentionDays":30,"batchSize":1000}`),
 	})
 
-	if _, err := service.Update(context.Background(), "httpx.access-log-retention-cleanup", json.RawMessage(`{"retentionDays":366,"batchSize":1000}`)); err == nil {
+	if _, err := service.Update(context.Background(), "httpx.access-log-retention-cleanup", json.RawMessage(`{"retentionDays":366,"batchSize":1000}`), nil); err == nil {
 		t.Fatal("expected schema validation error")
 	}
-	if _, err := service.Update(context.Background(), "httpx.access-log-retention-cleanup", json.RawMessage(`{"retentionDays":30,"batchSize":1000,"extra":true}`)); err == nil {
+	if _, err := service.Update(context.Background(), "httpx.access-log-retention-cleanup", json.RawMessage(`{"retentionDays":30,"batchSize":1000,"extra":true}`), nil); err == nil {
 		t.Fatal("expected additional property validation error")
 	}
 }
@@ -229,11 +379,26 @@ func newTestService(t *testing.T, definition configregistry.Definition) *Service
 
 func newTestServiceWithRepo(t *testing.T, repo *memoryRepo, definition configregistry.Definition) *Service {
 	t.Helper()
+	return newTestServiceWithRepoAndUsers(t, repo, testUserService{
+		users: map[uint64]moduleapi.UserSummary{
+			7:  {ID: 7, Username: "bob", Display: "Bob"},
+			42: {ID: 42, Username: "alice", Display: "Alice"},
+		},
+	}, definition)
+}
+
+func newTestServiceWithRepoAndUsers(
+	t *testing.T,
+	repo *memoryRepo,
+	users moduleapi.UserService,
+	definition configregistry.Definition,
+) *Service {
+	t.Helper()
 	registry := configregistry.NewRegistry()
 	if err := registry.Register(definition); err != nil {
 		t.Fatalf("register definition: %v", err)
 	}
-	service, err := NewService(registry, repo)
+	service, err := NewService(registry, repo, users)
 	if err != nil {
 		t.Fatalf("create service: %v", err)
 	}
@@ -242,10 +407,14 @@ func newTestServiceWithRepo(t *testing.T, repo *memoryRepo, definition configreg
 
 type memoryRepo struct {
 	values map[string]json.RawMessage
+	audit  map[string]systemconfigstore.Override
 }
 
 func newMemoryRepo() *memoryRepo {
-	return &memoryRepo{values: make(map[string]json.RawMessage)}
+	return &memoryRepo{
+		values: make(map[string]json.RawMessage),
+		audit:  make(map[string]systemconfigstore.Override),
+	}
 }
 
 func (r *memoryRepo) GetOverride(_ context.Context, key string) (systemconfigstore.Override, error) {
@@ -253,18 +422,49 @@ func (r *memoryRepo) GetOverride(_ context.Context, key string) (systemconfigsto
 	if !ok {
 		return systemconfigstore.Override{}, systemconfigstore.ErrOverrideNotFound
 	}
-	return systemconfigstore.Override{Key: key, Value: cloneRawMessage(value)}, nil
+	override := r.audit[key]
+	override.Key = key
+	override.Value = cloneRawMessage(value)
+	return override, nil
 }
 
-func (r *memoryRepo) SetOverride(_ context.Context, key string, value json.RawMessage) (systemconfigstore.Override, error) {
+func (r *memoryRepo) SetOverride(_ context.Context, key string, value json.RawMessage, userID *uint64) (systemconfigstore.Override, error) {
 	if len(value) == 0 {
 		return systemconfigstore.Override{}, errors.New("value is required")
 	}
 	r.values[key] = cloneRawMessage(value)
-	return systemconfigstore.Override{Key: key, Value: cloneRawMessage(value)}, nil
+	override := r.audit[key]
+	now := time.Now().UTC()
+	override.Key = key
+	override.Value = cloneRawMessage(value)
+	if override.CreatedAt.IsZero() {
+		override.CreatedAt = now
+		override.CreatedBy = cloneUint64Pointer(userID)
+	}
+	override.UpdatedAt = now
+	override.UpdatedBy = cloneUint64Pointer(userID)
+	r.audit[key] = override
+	return override, nil
 }
 
 func (r *memoryRepo) DeleteOverride(_ context.Context, key string) error {
 	delete(r.values, key)
+	delete(r.audit, key)
 	return nil
+}
+
+type testUserService struct {
+	users map[uint64]moduleapi.UserSummary
+}
+
+func (s testUserService) GetUserByID(_ context.Context, id uint64) (moduleapi.UserSummary, error) {
+	user, ok := s.users[id]
+	if !ok {
+		return moduleapi.UserSummary{}, moduleapi.ErrUserNotFound
+	}
+	return user, nil
+}
+
+func (s testUserService) CountUsers(context.Context) (int, error) {
+	return len(s.users), nil
 }

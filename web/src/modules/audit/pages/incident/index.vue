@@ -1,8 +1,11 @@
 <template>
   <div class="audit-incident-page" data-page-type="list-form-detail">
     <management-page-content>
-      <management-page-header :title="incidentTitle" :description="incidentDescription">
-        <template #eyebrow>{{ t('menu.audit.title') }}</template>
+      <management-page-header
+        :title="incidentTitle"
+        :description="incidentDescription"
+        :source="{ labelKey: 'menu.audit.title', fallback: t('menu.audit.title'), color: 'var(--td-warning-color-5)' }"
+      >
         <template #actions>
           <t-space size="small" wrap>
             <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
