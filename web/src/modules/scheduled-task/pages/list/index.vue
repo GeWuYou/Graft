@@ -458,7 +458,6 @@
                       :min="field.schema.minimum"
                       :max="field.schema.maximum"
                       :decimal-places="0"
-                      :allow-input-over-limit="false"
                       :placeholder="t('scheduledTask.list.form.configNumberPlaceholder')"
                       @change="(value) => updateConfigField(field.key, value)"
                     />
@@ -483,7 +482,6 @@
                     :min="field.schema.minimum"
                     :max="field.schema.maximum"
                     :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
-                    :allow-input-over-limit="false"
                     :placeholder="t('scheduledTask.list.form.configNumberPlaceholder')"
                     @change="(value) => updateConfigField(field.key, value)"
                   />

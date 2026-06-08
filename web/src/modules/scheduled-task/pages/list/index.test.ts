@@ -531,6 +531,32 @@ const InputStub = defineComponent({
   },
 });
 
+const InputNumberStub = defineComponent({
+  name: 'TInputNumber',
+  props: ['max', 'min', 'modelValue', 'placeholder'],
+  emits: ['change', 'update:modelValue', 'input'],
+  setup(props, { emit }) {
+    return () =>
+      h('input', {
+        'data-max': props.max,
+        'data-min': props.min,
+        'data-testid':
+          props.placeholder === translations['scheduledTask.list.form.configNumberPlaceholder']
+            ? 'config-number-input'
+            : undefined,
+        placeholder: props.placeholder,
+        type: 'number',
+        value: props.modelValue,
+        onInput: (event: Event) => {
+          const value = Number((event.target as HTMLInputElement).value);
+          emit('update:modelValue', value);
+          emit('input', value);
+          emit('change', value, { type: 'input' });
+        },
+      });
+  },
+});
+
 const TextareaStub = defineComponent({
   name: 'TTextarea',
   props: ['modelValue', 'placeholder'],
@@ -665,7 +691,7 @@ function mountPage() {
         TForm: PassthroughStub,
         TFormItem: PassthroughStub,
         TInput: InputStub,
-        TInputNumber: InputStub,
+        TInputNumber: InputNumberStub,
         TOption: PassthroughStub,
         TOptionGroup: PassthroughStub,
         TRadioButton: PassthroughStub,
@@ -1034,6 +1060,25 @@ describe('ScheduledTaskListPage', () => {
     await nextTick();
 
     await wrapper.get('[data-testid="config-json-textarea"]').setValue('{"retentionDays":45,"batchSize":100000}');
+    await findButtonByText(wrapper, '保存配置')!.trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.updateScheduledTask).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('批量大小不能超过 10000');
+  });
+
+  it('blocks config save when a basic numeric config input exceeds the schema maximum', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await openFirstTaskEditDrawer(wrapper);
+    await openConfigDialog(wrapper);
+
+    const numberInputs = wrapper.findAll('[data-testid="config-number-input"]');
+    const batchSizeInput = numberInputs.find((input) => input.attributes('data-max') === '10000');
+    expect(batchSizeInput).toBeTruthy();
+
+    await batchSizeInput!.setValue('2000000');
     await findButtonByText(wrapper, '保存配置')!.trigger('click');
     await flushPromises();
 
