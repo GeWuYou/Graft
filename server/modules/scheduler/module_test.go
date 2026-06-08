@@ -658,7 +658,7 @@ func TestScheduledTaskJobDefinitionDetailRouteReturnsRuntimeJobDefinition(t *tes
 				Title:          "Retention Cleanup",
 				DescriptionKey: "scheduledTask.auditLogRetention.description",
 				Description:    "Clean audit logs",
-				ConfigSchema:   `{"type":"object","properties":{"batchSize":{"type":"integer","x-title-key":"scheduledTask.auditLogRetention.config.batchSize.title"}},"additionalProperties":false}`,
+				ConfigSchema:   `{"type":"object","properties":{"batchSize":{"type":"integer","x-i18n":{"titleKey":"scheduledTask.auditLogRetention.config.batchSize.title"}}},"additionalProperties":false}`,
 				DefaultConfig:  `{"batchSize":1000}`,
 				DefaultCron:    "0 0 * * * *",
 				Enabled:        true,

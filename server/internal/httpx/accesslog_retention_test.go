@@ -282,7 +282,8 @@ func TestRegisterAccessLogRetentionConfigDefinition(t *testing.T) {
 		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, definition.DefaultValue)
 	}
 	if !strings.Contains(string(definition.Schema), `"x-i18n"`) ||
-		!strings.Contains(string(definition.Schema), `"unitKey":"systemConfig.units.days"`) {
+		!strings.Contains(string(definition.Schema), `"unitKey":"systemConfig.units.days"`) ||
+		!strings.Contains(string(definition.Schema), `"batchSize":{"type":"integer","minimum":1,"maximum":10000`) {
 		t.Fatalf("expected x-i18n schema metadata, got %s", string(definition.Schema))
 	}
 }

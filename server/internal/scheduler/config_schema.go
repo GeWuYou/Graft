@@ -15,23 +15,27 @@ type configSchema struct {
 }
 
 type configPropertySchema struct {
-	Type           string   `json:"type"`
-	Title          string   `json:"title"`
-	Description    string   `json:"description"`
-	TitleKey       string   `json:"x-title-key"`
-	DescriptionKey string   `json:"x-description-key"`
-	Enum           []any    `json:"enum"`
-	Minimum        *float64 `json:"minimum"`
-	Maximum        *float64 `json:"maximum"`
-	MinLength      *int     `json:"minLength"`
-	MaxLength      *int     `json:"maxLength"`
+	Type        string   `json:"type"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Enum        []any    `json:"enum"`
+	Minimum     *float64 `json:"minimum"`
+	Maximum     *float64 `json:"maximum"`
+	MinLength   *int     `json:"minLength"`
+	MaxLength   *int     `json:"maxLength"`
 }
 
 // ConfigValidationError carries the field path that should be returned in the
 // existing error envelope data.field slot.
 type ConfigValidationError struct {
-	Field  string
-	Reason string
+	Field      string
+	Reason     string
+	ReasonCode string
+	Constraint string
+	Minimum    any
+	Maximum    any
+	Expected   any
+	Actual     any
 }
 
 func (e ConfigValidationError) Error() string {
@@ -41,6 +45,33 @@ func (e ConfigValidationError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Field, e.Reason)
 }
 
+// Details returns the stable structured error payload for HTTP response data.
+func (e ConfigValidationError) Details() map[string]any {
+	details := map[string]any{
+		"field":  e.Field,
+		"reason": e.Reason,
+	}
+	if e.ReasonCode != "" {
+		details["reason_code"] = e.ReasonCode
+	}
+	if e.Constraint != "" {
+		details["constraint"] = e.Constraint
+	}
+	if e.Minimum != nil {
+		details["minimum"] = e.Minimum
+	}
+	if e.Maximum != nil {
+		details["maximum"] = e.Maximum
+	}
+	if e.Expected != nil {
+		details["expected"] = e.Expected
+	}
+	if e.Actual != nil {
+		details["actual"] = e.Actual
+	}
+	return details
+}
+
 // ValidateConfigSchema validates the scheduler-owned JSON Schema subset.
 func ValidateConfigSchema(schemaJSON string) error {
 	schema, err := decodeConfigSchema(schemaJSON)
@@ -48,7 +79,7 @@ func ValidateConfigSchema(schemaJSON string) error {
 		return err
 	}
 	if schema.Type != "" && schema.Type != "object" {
-		return ConfigValidationError{Field: "config_schema.type", Reason: "must be object"}
+		return configTypeError("config_schema.type", "object", schema.Type)
 	}
 	for name, property := range schema.Properties {
 		field := "config_schema.properties." + name
@@ -61,7 +92,13 @@ func ValidateConfigSchema(schemaJSON string) error {
 
 func validateConfigPropertySchema(field string, property configPropertySchema) error {
 	if !validConfigPropertyType(property.Type) {
-		return ConfigValidationError{Field: field + ".type", Reason: "unsupported type"}
+		return ConfigValidationError{
+			Field:      field + ".type",
+			Reason:     "unsupported type",
+			ReasonCode: "unsupported_type",
+			Constraint: "type",
+			Actual:     property.Type,
+		}
 	}
 	if err := validateConfigPropertyLengthSchema(field, property); err != nil {
 		return err
@@ -71,20 +108,20 @@ func validateConfigPropertySchema(field string, property configPropertySchema) e
 
 func validateConfigPropertyLengthSchema(field string, property configPropertySchema) error {
 	if property.MinLength != nil && *property.MinLength < 0 {
-		return ConfigValidationError{Field: field + ".minLength", Reason: "must be non-negative"}
+		return ConfigValidationError{Field: field + ".minLength", Reason: "must be non-negative", ReasonCode: "below_minimum", Constraint: "minimum", Minimum: 0, Actual: *property.MinLength}
 	}
 	if property.MaxLength != nil && *property.MaxLength < 0 {
-		return ConfigValidationError{Field: field + ".maxLength", Reason: "must be non-negative"}
+		return ConfigValidationError{Field: field + ".maxLength", Reason: "must be non-negative", ReasonCode: "below_minimum", Constraint: "minimum", Minimum: 0, Actual: *property.MaxLength}
 	}
 	if property.MinLength != nil && property.MaxLength != nil && *property.MinLength > *property.MaxLength {
-		return ConfigValidationError{Field: field + ".minLength", Reason: "must be less than or equal to maxLength"}
+		return ConfigValidationError{Field: field + ".minLength", Reason: "must be less than or equal to maxLength", ReasonCode: "above_maximum", Constraint: "maxLength", Maximum: *property.MaxLength, Actual: *property.MinLength}
 	}
 	return nil
 }
 
 func validateConfigPropertyRangeSchema(field string, property configPropertySchema) error {
 	if property.Minimum != nil && property.Maximum != nil && *property.Minimum > *property.Maximum {
-		return ConfigValidationError{Field: field + ".minimum", Reason: "must be less than or equal to maximum"}
+		return ConfigValidationError{Field: field + ".minimum", Reason: "must be less than or equal to maximum", ReasonCode: "above_maximum", Constraint: "maximum", Maximum: *property.Maximum, Actual: *property.Minimum}
 	}
 	return nil
 }
@@ -128,7 +165,7 @@ func sanitizeConfigJSON(schemaJSON string, configJSON string) (string, error) {
 	}
 	encoded, err := json.Marshal(sanitized)
 	if err != nil {
-		return "", ConfigValidationError{Field: "config_json", Reason: "must be a JSON object"}
+		return "", ConfigValidationError{Field: "config_json", Reason: "must be a JSON object", ReasonCode: "invalid_json", Constraint: "type", Expected: "object"}
 	}
 	return string(encoded), nil
 }
@@ -136,7 +173,7 @@ func sanitizeConfigJSON(schemaJSON string, configJSON string) (string, error) {
 func decodeConfigSchema(schemaJSON string) (configSchema, error) {
 	var schema configSchema
 	if err := json.Unmarshal([]byte(defaultJSONObject(schemaJSON)), &schema); err != nil {
-		return configSchema{}, ConfigValidationError{Field: "config_schema", Reason: "must be a JSON object"}
+		return configSchema{}, ConfigValidationError{Field: "config_schema", Reason: "must be a JSON object", ReasonCode: "invalid_json", Constraint: "type", Expected: "object"}
 	}
 	if schema.Properties == nil {
 		schema.Properties = map[string]configPropertySchema{}
@@ -147,7 +184,7 @@ func decodeConfigSchema(schemaJSON string) (configSchema, error) {
 func decodeConfigObject(configJSON string) (map[string]any, error) {
 	var config map[string]any
 	if err := json.Unmarshal([]byte(defaultJSONObject(configJSON)), &config); err != nil {
-		return nil, ConfigValidationError{Field: "config_json", Reason: "must be a JSON object"}
+		return nil, ConfigValidationError{Field: "config_json", Reason: "must be a JSON object", ReasonCode: "invalid_json", Constraint: "type", Expected: "object"}
 	}
 	return config, nil
 }
@@ -165,7 +202,7 @@ func validateConfigObject(schema configSchema, config map[string]any) error {
 func validateRequiredConfigFields(schema configSchema, config map[string]any) error {
 	for _, name := range schema.Required {
 		if _, ok := config[name]; !ok {
-			return ConfigValidationError{Field: "config_json." + name, Reason: "is required"}
+			return ConfigValidationError{Field: "config_json." + name, Reason: "is required", ReasonCode: "required", Constraint: "required"}
 		}
 	}
 	return nil
@@ -177,7 +214,7 @@ func validateAdditionalConfigFields(schema configSchema, config map[string]any) 
 	}
 	for name := range config {
 		if _, ok := schema.Properties[name]; !ok {
-			return ConfigValidationError{Field: "config_json." + name, Reason: "is not allowed"}
+			return ConfigValidationError{Field: "config_json." + name, Reason: "is not allowed", ReasonCode: "additional_property", Constraint: "additionalProperties", Actual: name}
 		}
 	}
 	return nil
@@ -210,13 +247,13 @@ func validateConfigValue(field string, property configPropertySchema, value any)
 	case "":
 		return nil
 	default:
-		return ConfigValidationError{Field: field, Reason: "uses unsupported schema type"}
+		return ConfigValidationError{Field: field, Reason: "uses unsupported schema type", ReasonCode: "unsupported_type", Constraint: "type", Actual: property.Type}
 	}
 	if err != nil {
 		return err
 	}
 	if len(property.Enum) > 0 && !enumContains(property.Type, property.Enum, value) {
-		return ConfigValidationError{Field: field, Reason: "must match enum"}
+		return ConfigValidationError{Field: field, Reason: "must match enum", ReasonCode: "enum", Constraint: "enum", Expected: property.Enum, Actual: value}
 	}
 	return nil
 }
@@ -224,13 +261,13 @@ func validateConfigValue(field string, property configPropertySchema, value any)
 func validateStringConfigValue(field string, property configPropertySchema, value any) error {
 	text, ok := value.(string)
 	if !ok {
-		return ConfigValidationError{Field: field, Reason: "must be string"}
+		return configTypeError(field, "string", value)
 	}
 	if property.MinLength != nil && len(text) < *property.MinLength {
-		return ConfigValidationError{Field: field, Reason: "is too short"}
+		return ConfigValidationError{Field: field, Reason: "is too short", ReasonCode: "too_short", Constraint: "minLength", Minimum: *property.MinLength, Actual: len(text)}
 	}
 	if property.MaxLength != nil && len(text) > *property.MaxLength {
-		return ConfigValidationError{Field: field, Reason: "is too long"}
+		return ConfigValidationError{Field: field, Reason: "is too long", ReasonCode: "too_long", Constraint: "maxLength", Maximum: *property.MaxLength, Actual: len(text)}
 	}
 	return nil
 }
@@ -238,7 +275,7 @@ func validateStringConfigValue(field string, property configPropertySchema, valu
 func validateIntegerConfigValue(field string, property configPropertySchema, value any) error {
 	number, ok := value.(float64)
 	if !ok || math.Trunc(number) != number {
-		return ConfigValidationError{Field: field, Reason: "must be integer"}
+		return configTypeError(field, "integer", value)
 	}
 	return validateNumberRange(field, property, number)
 }
@@ -246,26 +283,44 @@ func validateIntegerConfigValue(field string, property configPropertySchema, val
 func validateNumberConfigValue(field string, property configPropertySchema, value any) error {
 	number, ok := value.(float64)
 	if !ok {
-		return ConfigValidationError{Field: field, Reason: "must be number"}
+		return configTypeError(field, "number", value)
 	}
 	return validateNumberRange(field, property, number)
 }
 
 func validateBooleanConfigValue(field string, value any) error {
 	if _, ok := value.(bool); !ok {
-		return ConfigValidationError{Field: field, Reason: "must be boolean"}
+		return configTypeError(field, "boolean", value)
 	}
 	return nil
 }
 
 func validateNumberRange(field string, property configPropertySchema, value float64) error {
 	if property.Minimum != nil && value < *property.Minimum {
-		return ConfigValidationError{Field: field, Reason: "is below minimum"}
+		return ConfigValidationError{Field: field, Reason: "is below minimum", ReasonCode: "below_minimum", Constraint: "minimum", Minimum: numberDetailValue(*property.Minimum), Actual: numberDetailValue(value)}
 	}
 	if property.Maximum != nil && value > *property.Maximum {
-		return ConfigValidationError{Field: field, Reason: "is above maximum"}
+		return ConfigValidationError{Field: field, Reason: "is above maximum", ReasonCode: "above_maximum", Constraint: "maximum", Maximum: numberDetailValue(*property.Maximum), Actual: numberDetailValue(value)}
 	}
 	return nil
+}
+
+func configTypeError(field string, expected string, actual any) ConfigValidationError {
+	return ConfigValidationError{
+		Field:      field,
+		Reason:     "must be " + expected,
+		ReasonCode: "type_mismatch",
+		Constraint: "type",
+		Expected:   expected,
+		Actual:     actual,
+	}
+}
+
+func numberDetailValue(value float64) any {
+	if math.Trunc(value) == value {
+		return int64(value)
+	}
+	return value
 }
 
 func enumContains(propertyType string, values []any, candidate any) bool {

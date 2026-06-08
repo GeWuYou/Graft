@@ -1,6 +1,9 @@
 package scheduler
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestValidateConfigSchemaRejectsInvertedBounds(t *testing.T) {
 	testCases := []struct {
@@ -36,5 +39,79 @@ func TestValidateConfigJSONEnumKeepsValueTypesStrict(t *testing.T) {
 	}
 	if err := ValidateConfigJSON(schema, `{"mode":"42","count":"42"}`); err == nil {
 		t.Fatal("expected string value to fail integer enum/type validation")
+	}
+}
+
+func TestValidateConfigJSONReturnsStructuredRangeDetails(t *testing.T) {
+	schema := `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1,"maximum":10000}},"additionalProperties":false}`
+
+	err := ValidateConfigJSON(schema, `{"batchSize":100000}`)
+
+	var configErr ConfigValidationError
+	if !errors.As(err, &configErr) {
+		t.Fatalf("expected ConfigValidationError, got %T %v", err, err)
+	}
+	if configErr.Field != "config_json.batchSize" ||
+		configErr.ReasonCode != "above_maximum" ||
+		configErr.Constraint != "maximum" ||
+		configErr.Maximum != int64(10000) ||
+		configErr.Actual != int64(100000) {
+		t.Fatalf("unexpected validation details: %#v", configErr)
+	}
+	details := configErr.Details()
+	if details["field"] != "config_json.batchSize" ||
+		details["reason_code"] != "above_maximum" ||
+		details["maximum"] != int64(10000) ||
+		details["actual"] != int64(100000) {
+		t.Fatalf("unexpected response details: %#v", details)
+	}
+}
+
+func TestValidateConfigJSONReturnsStructuredTypeEnumAndAdditionalPropertyDetails(t *testing.T) {
+	testCases := []struct {
+		name       string
+		schema     string
+		config     string
+		field      string
+		reasonCode string
+		constraint string
+	}{
+		{
+			name:       "type mismatch",
+			schema:     `{"type":"object","properties":{"batchSize":{"type":"integer"}},"additionalProperties":false}`,
+			config:     `{"batchSize":"100"}`,
+			field:      "config_json.batchSize",
+			reasonCode: "type_mismatch",
+			constraint: "type",
+		},
+		{
+			name:       "enum mismatch",
+			schema:     `{"type":"object","properties":{"mode":{"type":"string","enum":["safe"]}},"additionalProperties":false}`,
+			config:     `{"mode":"force"}`,
+			field:      "config_json.mode",
+			reasonCode: "enum",
+			constraint: "enum",
+		},
+		{
+			name:       "additional property",
+			schema:     `{"type":"object","properties":{"batchSize":{"type":"integer"}},"additionalProperties":false}`,
+			config:     `{"batchSize":100,"dryRun":true}`,
+			field:      "config_json.dryRun",
+			reasonCode: "additional_property",
+			constraint: "additionalProperties",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateConfigJSON(tc.schema, tc.config)
+			var configErr ConfigValidationError
+			if !errors.As(err, &configErr) {
+				t.Fatalf("expected ConfigValidationError, got %T %v", err, err)
+			}
+			if configErr.Field != tc.field || configErr.ReasonCode != tc.reasonCode || configErr.Constraint != tc.constraint {
+				t.Fatalf("unexpected validation details: %#v", configErr)
+			}
+		})
 	}
 }

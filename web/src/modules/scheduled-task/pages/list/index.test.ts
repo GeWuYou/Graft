@@ -99,6 +99,18 @@ const translations = vi.hoisted(
     'scheduledTask.list.form.cronRequiredHint': '请填写 Cron 表达式。',
     'scheduledTask.list.form.sectionBasicConfig': '基础配置',
     'scheduledTask.list.form.sectionConfig': '任务配置',
+    'scheduledTask.list.validation.additionalProperty': '{field}不是允许的配置项。',
+    'scheduledTask.list.validation.aboveMaximum': '{field}不能超过 {maximum}。',
+    'scheduledTask.list.validation.belowMinimum': '{field}不能小于 {minimum}。',
+    'scheduledTask.list.validation.enum': '{field}必须是以下值之一：{values}。',
+    'scheduledTask.list.validation.required': '{field}为必填项。',
+    'scheduledTask.list.validation.tooLong': '{field}长度不能超过 {maximum}。',
+    'scheduledTask.list.validation.tooShort': '{field}长度不能少于 {minimum}。',
+    'scheduledTask.list.validation.typeMismatch': '{field}必须是{expected}。',
+    'scheduledTask.list.validation.types.boolean': '布尔值',
+    'scheduledTask.list.validation.types.integer': '整数',
+    'scheduledTask.list.validation.types.number': '数字',
+    'scheduledTask.list.validation.types.string': '文本',
     'scheduledTask.list.configDialog.confirm': '保存配置',
     'scheduledTask.list.configDialog.customRetentionDays': '自定义',
     'scheduledTask.list.configDialog.doneJson': '完成',
@@ -315,8 +327,10 @@ function jobDefinitionsResponse() {
           type: 'integer',
           minimum: 1,
           maximum: 365,
-          'x-title-key': `scheduledTask.${prefix}.config.retentionDays.title`,
-          'x-description-key': `scheduledTask.${prefix}.config.retentionDays.description`,
+          'x-i18n': {
+            titleKey: `scheduledTask.${prefix}.config.retentionDays.title`,
+            descriptionKey: `scheduledTask.${prefix}.config.retentionDays.description`,
+          },
           title: 'Retention days',
           description: `Delete ${resource} older than this number of days.`,
           default: 30,
@@ -325,8 +339,10 @@ function jobDefinitionsResponse() {
           type: 'integer',
           minimum: 1,
           maximum: 10000,
-          'x-title-key': `scheduledTask.${prefix}.config.batchSize.title`,
-          'x-description-key': `scheduledTask.${prefix}.config.batchSize.description`,
+          'x-i18n': {
+            titleKey: `scheduledTask.${prefix}.config.batchSize.title`,
+            descriptionKey: `scheduledTask.${prefix}.config.batchSize.description`,
+          },
           title: 'Batch size',
           description: `Maximum ${resource} rows to delete in one cleanup batch.`,
           default: 1000,
@@ -875,7 +891,7 @@ describe('ScheduledTaskListPage', () => {
     );
   });
 
-  it('renders schema config labels from x-title-key in the form surface', async () => {
+  it('renders schema config labels from x-i18n in the form surface', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
@@ -917,6 +933,30 @@ describe('ScheduledTaskListPage', () => {
     expect(wrapper.text()).toContain('操作结果');
     expect(wrapper.text()).toContain('预计可清理 128 条访问日志');
     expect(wrapper.text()).toContain('estimated');
+  });
+
+  it('blocks dry-run action execution when schema maximum is exceeded', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await openFirstTaskEditDrawer(wrapper);
+    await openConfigDialog(wrapper);
+    await findButtonByText(wrapper, '编辑 JSON')!.trigger('click');
+    await nextTick();
+    await wrapper.get('[data-testid="config-json-textarea"]').setValue('{"retentionDays":30,"batchSize":100000}');
+
+    const actionTrigger = wrapper.findAll('button').find((button) => button.text() === '试运行');
+    expect(actionTrigger).toBeTruthy();
+    await actionTrigger!.trigger('click');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '执行操作')!
+      .trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.executeScheduledTaskAction).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('批量大小不能超过 10000');
   });
 
   it('opens the config dialog in JSON preview mode without showing the editor textarea', async () => {
@@ -982,6 +1022,50 @@ describe('ScheduledTaskListPage', () => {
     expect(apiMocks.updateScheduledTask).toHaveBeenLastCalledWith('httpx.access-log-retention-cleanup', {
       config_json: '{"retentionDays":45,"batchSize":250}',
     });
+  });
+
+  it('blocks config save when schema maximum is exceeded', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await openFirstTaskEditDrawer(wrapper);
+    await openConfigDialog(wrapper);
+    await findButtonByText(wrapper, '编辑 JSON')!.trigger('click');
+    await nextTick();
+
+    await wrapper.get('[data-testid="config-json-textarea"]').setValue('{"retentionDays":45,"batchSize":100000}');
+    await findButtonByText(wrapper, '保存配置')!.trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.updateScheduledTask).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('批量大小不能超过 10000');
+  });
+
+  it('blocks config save when a range-valid numeric enum value is not allowed', async () => {
+    const definitions = jobDefinitionsResponse();
+    const firstDefinition = definitions.items[0];
+    const schema = JSON.parse(firstDefinition.config_schema_json) as {
+      properties: Record<string, { enum?: number[] }>;
+    };
+    schema.properties.batchSize.enum = [1000, 2000];
+    firstDefinition.config_schema_json = JSON.stringify(schema);
+    apiMocks.getScheduledTaskJobDefinitions.mockResolvedValueOnce(definitions);
+    apiMocks.getScheduledTaskJobDefinition.mockResolvedValueOnce(firstDefinition);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await openFirstTaskEditDrawer(wrapper);
+    await openConfigDialog(wrapper);
+    await findButtonByText(wrapper, '编辑 JSON')!.trigger('click');
+    await nextTick();
+
+    await wrapper.get('[data-testid="config-json-textarea"]').setValue('{"retentionDays":45,"batchSize":500}');
+    await findButtonByText(wrapper, '保存配置')!.trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.updateScheduledTask).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('批量大小必须是以下值之一：1000, 2000');
   });
 
   it('preserves in-drawer cron edits after saving config only', async () => {

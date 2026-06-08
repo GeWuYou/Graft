@@ -458,6 +458,7 @@
                       :min="field.schema.minimum"
                       :max="field.schema.maximum"
                       :decimal-places="0"
+                      :allow-input-over-limit="false"
                       :placeholder="t('scheduledTask.list.form.configNumberPlaceholder')"
                       @change="(value) => updateConfigField(field.key, value)"
                     />
@@ -482,6 +483,7 @@
                     :min="field.schema.minimum"
                     :max="field.schema.maximum"
                     :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
+                    :allow-input-over-limit="false"
                     :placeholder="t('scheduledTask.list.form.configNumberPlaceholder')"
                     @change="(value) => updateConfigField(field.key, value)"
                   />
@@ -1000,12 +1002,13 @@ import type {
   ScheduledTaskStatus,
   UpdateScheduledTaskRequest,
 } from '../../types/scheduled-task';
-import type { ConfigSchema, ConfigSchemaField } from '../../utils/config-schema';
+import type { ConfigSchema, ConfigSchemaField, ConfigValidationIssue } from '../../utils/config-schema';
 import {
   buildDefaultConfigFromSchema,
   getConfigSchemaFields,
   mergeConfigRecords,
   parseConfigSchema,
+  validateConfigRecord,
 } from '../../utils/config-schema';
 import {
   type CronValidationResult,
@@ -1661,6 +1664,9 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
     formFieldErrors.configJson = t('scheduledTask.list.form.configJsonInvalidHint');
     return null;
   }
+  if (!validatePersistentConfigJson(persistentConfigJson)) {
+    return null;
+  }
   formFieldErrors.configJson = '';
   if (shouldPersistConfigJson) {
     syncTaskLevelConfigAfterSave(persistentConfigJson);
@@ -1730,6 +1736,10 @@ async function confirmConfigDialog() {
   const persistentConfigJson = normalizePersistentConfigJson();
   if (persistentConfigJson === null) {
     formFieldErrors.configJson = t('scheduledTask.list.form.configJsonInvalidHint');
+    configDialogJsonMode.value = 'edit';
+    return;
+  }
+  if (!validatePersistentConfigJson(persistentConfigJson)) {
     configDialogJsonMode.value = 'edit';
     return;
   }
@@ -1823,6 +1833,75 @@ function withOptionalConfigJson<T extends Record<string, unknown>>(
 function buildPersistentConfigJson(configJson: string) {
   const config = sanitizeConfigBySelectedSchema(parseJsonRecord(configJson));
   return Object.keys(config).length > 0 ? JSON.stringify(config) : '';
+}
+
+function validatePersistentConfigJson(persistentConfigJson: string) {
+  const job = selectedJobDefinition.value;
+  if (!job || !persistentConfigJson) {
+    clearFormFieldError('configJson');
+    return true;
+  }
+
+  const schema = parseConfigSchema(job.config_schema_json);
+  const result = validateConfigRecord(schema, parseJsonRecord(persistentConfigJson));
+  if (result.valid) {
+    clearFormFieldError('configJson');
+    return true;
+  }
+
+  const message = configValidationIssueMessage(result.issues[0]);
+  formFieldErrors.configJson = message;
+  void MessagePlugin.warning(message);
+  return false;
+}
+
+function configValidationIssueMessage(issue?: ConfigValidationIssue) {
+  if (!issue) {
+    return t('scheduledTask.list.form.configJsonInvalidHint');
+  }
+
+  const fieldLabel = configValidationIssueLabel(issue);
+  switch (issue.reasonCode) {
+    case 'required':
+      return t('scheduledTask.list.validation.required', { field: fieldLabel });
+    case 'additional_property':
+      return t('scheduledTask.list.validation.additionalProperty', { field: fieldLabel });
+    case 'type_mismatch':
+      return t('scheduledTask.list.validation.typeMismatch', {
+        field: fieldLabel,
+        expected: configValidationExpectedLabel(issue.expected),
+      });
+    case 'enum':
+      return t('scheduledTask.list.validation.enum', {
+        field: fieldLabel,
+        values: Array.isArray(issue.expected) ? issue.expected.join(', ') : '',
+      });
+    case 'below_minimum':
+      return t('scheduledTask.list.validation.belowMinimum', { field: fieldLabel, minimum: issue.minimum });
+    case 'above_maximum':
+      return t('scheduledTask.list.validation.aboveMaximum', { field: fieldLabel, maximum: issue.maximum });
+    case 'too_short':
+      return t('scheduledTask.list.validation.tooShort', { field: fieldLabel, minimum: issue.minimum });
+    case 'too_long':
+      return t('scheduledTask.list.validation.tooLong', { field: fieldLabel, maximum: issue.maximum });
+    default:
+      return t('scheduledTask.list.form.configJsonInvalidHint');
+  }
+}
+
+function configValidationIssueLabel(issue: ConfigValidationIssue) {
+  if (issue.schema) {
+    const field = { key: issue.key ?? issue.field, schema: issue.schema, required: false };
+    return configSchemaFieldTitle(field);
+  }
+  return issue.key ?? issue.field;
+}
+
+function configValidationExpectedLabel(expected: unknown) {
+  if (typeof expected === 'string') {
+    return t(`scheduledTask.list.validation.types.${expected}`);
+  }
+  return String(expected ?? '');
 }
 
 function sanitizeConfigBySelectedSchema(config: JsonRecord): JsonRecord {
@@ -1938,6 +2017,11 @@ function buildActionRequestPayload(): ScheduledTaskActionRequest | undefined | n
   const persistentConfigJson = normalizePersistentConfigJson();
   if (persistentConfigJson === null) {
     formFieldErrors.configJson = t('scheduledTask.list.form.configJsonInvalidHint');
+    configDialogVisible.value = true;
+    configDialogJsonMode.value = 'edit';
+    return null;
+  }
+  if (!validatePersistentConfigJson(persistentConfigJson)) {
     configDialogVisible.value = true;
     configDialogJsonMode.value = 'edit';
     return null;
@@ -2503,11 +2587,11 @@ function runResultStructured(run: ScheduledTaskRunItem | NonNullable<ScheduledTa
 }
 
 function configSchemaFieldTitle(field: ConfigSchemaField) {
-  return localizeMessageKey(field.schema['x-title-key']) || field.schema.title || field.key;
+  return localizeMessageKey(field.schema.xI18n?.titleKey) || field.schema.title || field.key;
 }
 
 function configSchemaFieldDescription(field: ConfigSchemaField) {
-  return localizeMessageKey(field.schema['x-description-key']) || field.schema.description || '';
+  return localizeMessageKey(field.schema.xI18n?.descriptionKey) || field.schema.description || '';
 }
 
 function configValuePreview(value: unknown) {
