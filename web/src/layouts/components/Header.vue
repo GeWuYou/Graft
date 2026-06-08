@@ -231,6 +231,7 @@ const navToHelper = () => {
 
 .header-operate-left {
   align-items: normal;
+  background: transparent;
   display: flex;
   line-height: 0;
 }
@@ -273,8 +274,44 @@ const navToHelper = () => {
 }
 
 .t-menu--dark {
+  background: var(--graft-shell-header-bg);
+
   .t-head-menu__inner {
     border-bottom: 1px solid var(--graft-shell-border-color);
+  }
+
+  :deep(.t-head-menu__inner),
+  :deep(.t-menu__logo),
+  :deep(.t-menu),
+  :deep(.t-menu__operations),
+  .header-operate-left,
+  .operations-container,
+  .header-menu,
+  .header-logo-container {
+    background: var(--graft-shell-header-bg);
+  }
+
+  :deep(.t-menu__item) {
+    background: transparent;
+  }
+
+  :deep(.t-button.t-button--variant-text) {
+    background: transparent;
+    border-color: transparent;
+    color: var(--td-text-color-secondary);
+  }
+
+  :deep(.t-button.t-button--variant-text:hover) {
+    background: var(--graft-dark-header-button-hover-bg);
+    border-color: transparent;
+    color: var(--td-text-color-primary);
+  }
+
+  :deep(.t-button.t-button--variant-text:active),
+  :deep(.t-button.t-button--variant-text.t-is-active) {
+    background: var(--graft-dark-header-button-active-bg);
+    border-color: transparent;
+    color: var(--td-brand-color);
   }
 
   .header-user-account {
