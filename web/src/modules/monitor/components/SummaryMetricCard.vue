@@ -10,6 +10,7 @@
     <template v-if="statusLabel" #badge>
       <status-tag :label="statusLabel" :status="status" />
     </template>
+    <slot />
   </governance-summary-card>
 </template>
 <script setup lang="ts">

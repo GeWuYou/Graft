@@ -13,6 +13,10 @@
     </div>
 
     <p v-if="description" class="governance-summary-card__description">{{ description }}</p>
+
+    <div v-if="$slots.default" class="governance-summary-card__extra">
+      <slot />
+    </div>
   </article>
 </template>
 <script setup lang="ts">
@@ -84,5 +88,9 @@ withDefaults(
   color: var(--td-text-color-placeholder);
   font: var(--td-font-body-small);
   margin: 0;
+}
+
+.governance-summary-card__extra {
+  min-width: 0;
 }
 </style>

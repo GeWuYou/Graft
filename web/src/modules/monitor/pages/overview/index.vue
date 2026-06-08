@@ -41,7 +41,16 @@
         :description="`${card.meta} · ${card.description}`"
         :status="metricToneToServerStatusTone(card.tone)"
         :status-label="card.statusLabel"
-      />
+      >
+        <metric-usage-bar
+          :value="card.usage.value"
+          :label="card.usage.label"
+          :status="card.usage.status"
+          :tooltip="card.usage.tooltip"
+          :loading="card.usage.loading"
+          :empty-text="t('monitor.serverStatus.metricUsageNoData')"
+        />
+      </summary-metric-card>
     </template>
 
     <div class="server-status-overview-layout">
@@ -420,6 +429,7 @@ import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-err
 import { useSettingStore } from '@/store';
 
 import { getServerStatus } from '../../api/server-status';
+import MetricUsageBar from '../../components/MetricUsageBar.vue';
 import MonitorToolbar from '../../components/MonitorToolbar.vue';
 import SectionCard from '../../components/SectionCard.vue';
 import type { ServerStatusTone } from '../../components/server-status-ui';
@@ -447,6 +457,8 @@ const router = useRouter();
 
 type MonitorStatus = 'healthy' | 'degraded' | 'disabled' | 'unknown';
 type MetricCardTone = 'healthy' | 'warning' | 'critical' | 'unknown';
+type MetricUsageStatus = 'healthy' | 'warning' | 'danger' | 'unknown';
+type MetricUsageKind = 'percent' | 'loadPressure';
 type TrendRange = MonitorTrendRange;
 type TrendMode = 'overview' | 'multi' | 'focus';
 type FocusMetric = 'cpu' | 'hostMemory' | 'load' | 'runtimeAlloc' | 'runtimeHeap' | 'runtimeSys' | 'goroutines';
@@ -474,6 +486,16 @@ interface MetricCard {
   statusLabel: string;
   tagTheme: 'success' | 'warning' | 'danger' | 'default';
   tone: MetricCardTone;
+  usage: MetricCardUsage;
+}
+
+interface MetricCardUsage {
+  value: number | null;
+  label: string;
+  status: MetricUsageStatus;
+  tooltip: string;
+  loading: boolean;
+  kind: MetricUsageKind;
 }
 
 interface TrendMetricDefinition {
@@ -798,10 +820,10 @@ const metricCards = computed<MetricCard[]>(() => {
   const response = serverStatus.value;
   if (!response) {
     return [
-      emptyMetricCard('load', t('monitor.serverStatus.metricLoadLabel')),
-      emptyMetricCard('cpu', t('monitor.serverStatus.metricCpuLabel')),
-      emptyMetricCard('memory', t('monitor.serverStatus.metricMemoryLabel')),
-      emptyMetricCard('disk', t('monitor.serverStatus.metricDiskLabel')),
+      emptyMetricCard('load', t('monitor.serverStatus.metricLoadLabel'), 'loadPressure'),
+      emptyMetricCard('cpu', t('monitor.serverStatus.metricCpuLabel'), 'percent'),
+      emptyMetricCard('memory', t('monitor.serverStatus.metricMemoryLabel'), 'percent'),
+      emptyMetricCard('disk', t('monitor.serverStatus.metricDiskLabel'), 'percent'),
     ];
   }
 
@@ -812,6 +834,46 @@ const metricCards = computed<MetricCard[]>(() => {
   const hostMemoryPercent = response.runtime.host_memory_used_percent;
   const diskPercent = response.runtime.disk_usage.total_bytes > 0 ? response.runtime.disk_usage.used_percent : null;
   const diskPath = normalizedDiskPath(response.runtime.disk_usage.path);
+  const loadStatus = buildMetricCardStatus(resolveAnomalyByKey('system_load_pressure'), {
+    hasValue: loadPercent !== null,
+    usagePercent: loadPercent,
+    healthyDescription: t('monitor.serverStatus.metricLoadDescriptionHealthy'),
+    healthyLabel: t('monitor.serverStatus.metricLoadStatusHealthy'),
+    warningDescription: t('monitor.serverStatus.metricLoadDescriptionWarning'),
+    warningLabel: t('monitor.serverStatus.metricLoadStatusWarning'),
+    criticalDescription: t('monitor.serverStatus.metricLoadDescriptionCritical'),
+    criticalLabel: t('monitor.serverStatus.metricLoadStatusCritical'),
+  });
+  const cpuStatus = buildMetricCardStatus(resolveAnomalyByKey('resource_cpu_pressure'), {
+    hasValue: cpuPercent !== null,
+    usagePercent: cpuPercent,
+    healthyDescription: t('monitor.serverStatus.metricCpuDescriptionHealthy'),
+    healthyLabel: t('monitor.serverStatus.metricCpuStatusHealthy'),
+    warningDescription: t('monitor.serverStatus.metricCpuDescriptionWarning'),
+    warningLabel: t('monitor.serverStatus.metricCpuStatusWarning'),
+    criticalDescription: t('monitor.serverStatus.metricCpuDescriptionCritical'),
+    criticalLabel: t('monitor.serverStatus.metricCpuStatusCritical'),
+  });
+  const memoryStatus = buildMetricCardStatus(resolveAnomalyByKey('resource_memory_pressure'), {
+    hasValue: hostMemoryPercent !== null,
+    usagePercent: hostMemoryPercent,
+    healthyDescription: t('monitor.serverStatus.metricMemoryDescriptionHealthy'),
+    healthyLabel: t('monitor.serverStatus.metricMemoryStatusHealthy'),
+    warningDescription: t('monitor.serverStatus.metricMemoryDescriptionWarning'),
+    warningLabel: t('monitor.serverStatus.metricMemoryStatusWarning'),
+    criticalDescription: t('monitor.serverStatus.metricMemoryDescriptionCritical'),
+    criticalLabel: t('monitor.serverStatus.metricMemoryStatusCritical'),
+  });
+  const diskStatus = buildMetricCardStatus(resolveAnomalyByKey('resource_disk_pressure'), {
+    hasValue: diskPercent !== null,
+    usagePercent: diskPercent,
+    healthyDescription: t('monitor.serverStatus.metricDiskDescriptionHealthy'),
+    healthyLabel: t('monitor.serverStatus.metricDiskStatusHealthy'),
+    warningDescription: t('monitor.serverStatus.metricDiskDescriptionWarning'),
+    warningLabel: t('monitor.serverStatus.metricDiskStatusWarning'),
+    criticalDescription: t('monitor.serverStatus.metricDiskDescriptionCritical'),
+    criticalLabel: t('monitor.serverStatus.metricDiskStatusCritical'),
+  });
 
   return [
     {
@@ -823,14 +885,14 @@ const metricCards = computed<MetricCard[]>(() => {
         five: formatLoadAverage(loadAverage.five_minutes),
         fifteen: formatLoadAverage(loadAverage.fifteen_minutes),
       }),
-      ...buildMetricCardStatus(resolveAnomalyByKey('system_load_pressure'), {
-        hasValue: loadPercent !== null,
-        healthyDescription: t('monitor.serverStatus.metricLoadDescriptionHealthy'),
-        healthyLabel: t('monitor.serverStatus.metricLoadStatusHealthy'),
-        warningDescription: t('monitor.serverStatus.metricLoadDescriptionWarning'),
-        warningLabel: t('monitor.serverStatus.metricLoadStatusWarning'),
-        criticalDescription: t('monitor.serverStatus.metricLoadDescriptionCritical'),
-        criticalLabel: t('monitor.serverStatus.metricLoadStatusCritical'),
+      ...loadStatus,
+      usage: buildMetricUsage({
+        kind: 'loadPressure',
+        label: t('monitor.serverStatus.metricLoadLabel'),
+        value: loadPercent,
+        tone: loadStatus.tone,
+        loadAverage: loadAverage.one_minute,
+        cpuCores: response.runtime.cpu_cores,
       }),
     },
     {
@@ -843,14 +905,12 @@ const metricCards = computed<MetricCard[]>(() => {
       meta: t('monitor.serverStatus.metricCpuMeta', {
         count: String(response.runtime.cpu_cores),
       }),
-      ...buildMetricCardStatus(resolveAnomalyByKey('resource_cpu_pressure'), {
-        hasValue: cpuPercent !== null,
-        healthyDescription: t('monitor.serverStatus.metricCpuDescriptionHealthy'),
-        healthyLabel: t('monitor.serverStatus.metricCpuStatusHealthy'),
-        warningDescription: t('monitor.serverStatus.metricCpuDescriptionWarning'),
-        warningLabel: t('monitor.serverStatus.metricCpuStatusWarning'),
-        criticalDescription: t('monitor.serverStatus.metricCpuDescriptionCritical'),
-        criticalLabel: t('monitor.serverStatus.metricCpuStatusCritical'),
+      ...cpuStatus,
+      usage: buildMetricUsage({
+        kind: 'percent',
+        label: t('monitor.serverStatus.metricCpuLabel'),
+        value: cpuPercent,
+        tone: cpuStatus.tone,
       }),
     },
     {
@@ -864,14 +924,12 @@ const metricCards = computed<MetricCard[]>(() => {
       meta: t('monitor.serverStatus.metricMemoryMeta', {
         available: formatBytes(response.runtime.host_memory_free_bytes),
       }),
-      ...buildMetricCardStatus(resolveAnomalyByKey('resource_memory_pressure'), {
-        hasValue: hostMemoryPercent !== null,
-        healthyDescription: t('monitor.serverStatus.metricMemoryDescriptionHealthy'),
-        healthyLabel: t('monitor.serverStatus.metricMemoryStatusHealthy'),
-        warningDescription: t('monitor.serverStatus.metricMemoryDescriptionWarning'),
-        warningLabel: t('monitor.serverStatus.metricMemoryStatusWarning'),
-        criticalDescription: t('monitor.serverStatus.metricMemoryDescriptionCritical'),
-        criticalLabel: t('monitor.serverStatus.metricMemoryStatusCritical'),
+      ...memoryStatus,
+      usage: buildMetricUsage({
+        kind: 'percent',
+        label: t('monitor.serverStatus.metricMemoryLabel'),
+        value: hostMemoryPercent,
+        tone: memoryStatus.tone,
       }),
     },
     {
@@ -886,14 +944,12 @@ const metricCards = computed<MetricCard[]>(() => {
         path: diskPath,
         free: formatBytes(response.runtime.disk_usage.free_bytes),
       }),
-      ...buildMetricCardStatus(resolveAnomalyByKey('resource_disk_pressure'), {
-        hasValue: diskPercent !== null,
-        healthyDescription: t('monitor.serverStatus.metricDiskDescriptionHealthy'),
-        healthyLabel: t('monitor.serverStatus.metricDiskStatusHealthy'),
-        warningDescription: t('monitor.serverStatus.metricDiskDescriptionWarning'),
-        warningLabel: t('monitor.serverStatus.metricDiskStatusWarning'),
-        criticalDescription: t('monitor.serverStatus.metricDiskDescriptionCritical'),
-        criticalLabel: t('monitor.serverStatus.metricDiskStatusCritical'),
+      ...diskStatus,
+      usage: buildMetricUsage({
+        kind: 'percent',
+        label: t('monitor.serverStatus.metricDiskLabel'),
+        value: diskPercent,
+        tone: diskStatus.tone,
       }),
     },
   ];
@@ -1123,7 +1179,7 @@ function normalizeStatus(status?: string): MonitorStatus {
   }
 }
 
-function emptyMetricCard(key: string, label: string): MetricCard {
+function emptyMetricCard(key: string, label: string, kind: MetricUsageKind): MetricCard {
   return {
     key,
     label,
@@ -1134,6 +1190,12 @@ function emptyMetricCard(key: string, label: string): MetricCard {
     statusLabel: t('monitor.serverStatus.statusUnknown'),
     tagTheme: 'default',
     tone: 'unknown',
+    usage: buildMetricUsage({
+      kind,
+      label,
+      value: null,
+      loading: loading.value,
+    }),
   };
 }
 
@@ -1189,6 +1251,7 @@ function buildMetricCardStatus(
   anomaly: ServerStatusAnomaly | undefined,
   copy: {
     hasValue: boolean;
+    usagePercent: number | null;
     healthyDescription: string;
     healthyLabel: string;
     warningDescription: string;
@@ -1221,11 +1284,97 @@ function buildMetricCardStatus(
       tagTheme: metricCardTagTheme('unknown'),
     };
   }
+  const thresholdTone = metricUsageTone(copy.usagePercent);
+  if (thresholdTone === 'critical') {
+    return {
+      tone: 'critical',
+      statusLabel: copy.criticalLabel,
+      description: copy.criticalDescription,
+      tagTheme: metricCardTagTheme('critical'),
+    };
+  }
+  if (thresholdTone === 'warning') {
+    return {
+      tone: 'warning',
+      statusLabel: copy.warningLabel,
+      description: copy.warningDescription,
+      tagTheme: metricCardTagTheme('warning'),
+    };
+  }
+
   return {
     tone: 'healthy',
     statusLabel: copy.healthyLabel,
     description: copy.healthyDescription,
     tagTheme: metricCardTagTheme('healthy'),
+  };
+}
+
+function metricUsageTone(percent: number | null): MetricCardTone {
+  if (percent === null || Number.isNaN(percent)) {
+    return 'unknown';
+  }
+  if (percent >= 85) {
+    return 'critical';
+  }
+  if (percent >= 70) {
+    return 'warning';
+  }
+
+  return 'healthy';
+}
+
+function metricUsageStatus(percent: number | null): MetricUsageStatus {
+  const tone = metricUsageTone(percent);
+  return metricToneToUsageStatus(tone);
+}
+
+function metricToneToUsageStatus(tone: MetricCardTone): MetricUsageStatus {
+  switch (tone) {
+    case 'healthy':
+      return 'healthy';
+    case 'warning':
+      return 'warning';
+    case 'critical':
+      return 'danger';
+    default:
+      return 'unknown';
+  }
+}
+
+function buildMetricUsage(options: {
+  kind: MetricUsageKind;
+  label: string;
+  value: number | null;
+  tone?: MetricCardTone;
+  loading?: boolean;
+  loadAverage?: number;
+  cpuCores?: number;
+}): MetricCardUsage {
+  const hasValue = options.value !== null && Number.isFinite(options.value);
+  const status = options.tone ? metricToneToUsageStatus(options.tone) : metricUsageStatus(options.value);
+  let tooltip = t('monitor.serverStatus.metricUsageNoData');
+
+  if (hasValue && options.kind === 'loadPressure') {
+    tooltip = t('monitor.serverStatus.metricLoadUsageTooltip', {
+      load: formatLoadAverage(options.loadAverage ?? null),
+      cores: String(options.cpuCores ?? 0),
+      percent: formatPercentPrecise(options.value),
+    });
+  } else if (hasValue) {
+    tooltip = t('monitor.serverStatus.metricPercentUsageTooltip', {
+      label: options.label,
+      percent: formatPercentPrecise(options.value),
+    });
+  }
+
+  return {
+    kind: options.kind,
+    label: options.label,
+    value: hasValue ? options.value : null,
+    status,
+    tooltip,
+    loading: options.loading ?? false,
   };
 }
 

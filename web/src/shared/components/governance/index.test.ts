@@ -47,6 +47,22 @@ describe('governance dashboard primitives', () => {
     expect(wrapper.find('[data-testid="badge"]').exists()).toBe(true);
   });
 
+  it('renders summary card extra content after the description', () => {
+    const wrapper = mount(GovernanceSummaryCard, {
+      props: {
+        title: 'CPU',
+        value: '0%',
+        description: 'Latest sample',
+      },
+      slots: {
+        default: '<div data-testid="usage">Usage bar</div>',
+      },
+    });
+
+    expect(wrapper.text()).toContain('Latest sample');
+    expect(wrapper.find('[data-testid="usage"]').exists()).toBe(true);
+  });
+
   it('keeps section and action panel as structural wrappers', () => {
     const section = mount(GovernanceSection, {
       props: {
