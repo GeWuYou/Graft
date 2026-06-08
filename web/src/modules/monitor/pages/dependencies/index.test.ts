@@ -153,16 +153,35 @@ const selectStub = defineComponent({
   },
 });
 
-const collapsePanelStub = defineComponent({
-  name: 'TCollapsePanelStub',
+const drawerStub = defineComponent({
+  name: 'TDrawerStub',
   props: {
     header: {
       type: String,
       default: '',
     },
+    visible: {
+      type: Boolean,
+      default: false,
+    },
+    footer: {
+      type: [Boolean, String],
+      default: true,
+    },
   },
   setup(props, { slots }) {
-    return () => h('section', [h('h4', props.header), slots.default?.()]);
+    return () =>
+      props.visible
+        ? h(
+            'aside',
+            {
+              'data-testid': 'diagnostic-drawer',
+              'data-header': props.header,
+              'data-footer': String(props.footer),
+            },
+            [props.header, slots.default?.()],
+          )
+        : null;
   },
 });
 
@@ -173,8 +192,7 @@ function mountDependenciesPage() {
         't-card': passthroughStub,
         't-tag': passthroughStub,
         't-button': buttonStub,
-        't-collapse': passthroughStub,
-        't-collapse-panel': collapsePanelStub,
+        't-drawer': drawerStub,
         't-select': selectStub,
         't-empty': passthroughStub,
       },
@@ -282,7 +300,7 @@ function createResponse() {
 }
 
 describe('monitor dependencies page', () => {
-  it('renders dependency states, last check details, and future extension entry', async () => {
+  it('renders aligned dependency cards and opens selected diagnostics in a drawer', async () => {
     monitorApiMocks.getServerStatus.mockResolvedValue(createResponse());
 
     const wrapper = mountDependenciesPage();
@@ -320,18 +338,32 @@ describe('monitor dependencies page', () => {
     expect(wrapper.text()).toContain('Total connections');
     expect(wrapper.text()).toContain('Max connections');
     expect(wrapper.text()).toContain('Advanced diagnostics');
-    expect(wrapper.text()).toContain('2 · 4.25 ms');
-    expect(wrapper.text()).toContain('Wait timeouts');
-    expect(wrapper.text()).toContain('Connections recycled');
+    expect(wrapper.find('[data-testid="diagnostic-drawer"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('2 · 4.25 ms');
+    expect(wrapper.text()).not.toContain('Wait timeouts');
+    expect(wrapper.text()).not.toContain('Connections recycled');
     expect(wrapper.text()).toContain('Refresh cadence');
     expect(wrapper.text()).toContain('Every 5 sec');
     expect(wrapper.text()).toContain('Pause auto refresh');
     expect(wrapper.text()).toContain('Module dependency extension');
-    expect(wrapper.text()).toContain('Redis ping succeeded');
+    expect(wrapper.text()).not.toContain('Redis ping succeeded');
     expect(wrapper.text()).toContain(expectedTime);
     expect(wrapper.text()).toContain(expectedDate);
     expect(wrapper.find('[data-dependency-key="redis"] [data-usage-status="danger"]').exists()).toBe(true);
     expect(wrapper.find('[data-dependency-key="postgresql"] [data-usage-status="healthy"]').exists()).toBe(true);
     expect(wrapper.find('[data-monitor-refresh-extra-select="true"]').exists()).toBe(false);
+
+    await wrapper.get('[data-dependency-key="redis"] .dependency-health-card__diagnostic-action').trigger('click');
+
+    const drawer = wrapper.get('[data-testid="diagnostic-drawer"]');
+    expect(drawer.attributes('data-header')).toBe('Redis Advanced diagnostics');
+    expect(drawer.attributes('data-footer')).toBe('false');
+    expect(drawer.text()).toContain('Pool waits');
+    expect(drawer.text()).toContain('0 · 0.00 ms');
+    expect(drawer.text()).toContain('Wait timeouts');
+    expect(drawer.text()).toContain('3');
+    expect(drawer.text()).toContain('Connections recycled');
+    expect(drawer.text()).toContain('2');
+    expect(drawer.text()).toContain('Redis ping succeeded');
   });
 });

@@ -23,7 +23,8 @@
             :status-label="service.statusLabel"
             :primary-metric="service.primaryMetric"
             :pool="service.pool"
-            :diagnostics="service.diagnostics"
+            :diagnostics-title="service.diagnostics.title"
+            @show-diagnostics="showDiagnostics(service)"
           />
         </div>
       </section-card>
@@ -47,12 +48,19 @@
         </div>
       </section-card>
     </div>
+
+    <dependency-diagnostic-drawer
+      v-model:visible="diagnosticDrawerVisible"
+      :title="diagnosticDrawerTitle"
+      :diagnostics="selectedDependency?.diagnostics ?? null"
+    />
   </monitor-status-page-frame>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import DependencyDiagnosticDrawer from '../../components/DependencyDiagnosticDrawer.vue';
 import DependencyHealthCard, {
   type DependencyHealthDiagnostics,
   type DependencyHealthMetric,
@@ -88,6 +96,8 @@ type DependencyCard = {
 };
 
 const { t } = useI18n();
+const diagnosticDrawerVisible = ref(false);
+const selectedDependencyKey = ref<string | null>(null);
 /* jscpd:ignore-start */
 // 这里保留页面本地 snapshot 解构，避免为压低重复率再抽一层“万能页面上下文”。
 // 若未来删除或改造该代码，必须同步移除对应 jscpd ignore，重新评估是否仍需保留本地解构。
@@ -209,6 +219,18 @@ const serviceCards = computed<DependencyCard[]>(() => {
     }),
   ];
 });
+
+const diagnosticDrawerTitle = computed(() => {
+  if (!selectedDependency.value) {
+    return t('monitor.dependenciesPage.diagnostics.title');
+  }
+
+  return `${selectedDependency.value.name} ${selectedDependency.value.diagnostics.title}`;
+});
+
+const selectedDependency = computed(
+  () => serviceCards.value.find((service) => service.key === selectedDependencyKey.value) ?? null,
+);
 
 const overallDependencyStatus = computed<ServerStatusTone>(() => {
   const statuses = serviceCards.value.map((service) => service.status);
@@ -436,6 +458,11 @@ function toServerStatusTone(status: ReturnType<typeof normalizeDependencyStatus>
 function handleRefreshIntervalChange(value: number | string) {
   selectedRefreshInterval.value = value as MonitorRefreshInterval;
 }
+
+function showDiagnostics(service: DependencyCard) {
+  selectedDependencyKey.value = service.key;
+  diagnosticDrawerVisible.value = true;
+}
 </script>
 <style scoped lang="less">
 .server-status-dependencies-layout {
@@ -453,6 +480,7 @@ function handleRefreshIntervalChange(value: number | string) {
 }
 
 .server-status-dependency-grid {
+  align-items: stretch;
   display: grid;
   gap: var(--graft-density-gap-16);
   grid-template-columns: repeat(2, minmax(0, 1fr));

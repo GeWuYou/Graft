@@ -40,26 +40,17 @@
       </dl>
     </section>
 
-    <t-collapse
-      class="dependency-health-card__diagnostics"
-      borderless
-      expand-icon-placement="right"
-      :expand-on-row-click="true"
-    >
-      <t-collapse-panel :value="`${serviceKey}-diagnostics`" :header="diagnostics.title">
-        <dl class="dependency-health-card__diagnostic-list">
-          <div
-            v-for="item in diagnostics.items"
-            :key="item.key"
-            class="dependency-health-card__diagnostic-item"
-            :data-diagnostic-key="item.key"
-          >
-            <dt>{{ item.label }}</dt>
-            <dd>{{ item.value }}</dd>
-          </div>
-        </dl>
-      </t-collapse-panel>
-    </t-collapse>
+    <footer class="dependency-health-card__actions">
+      <t-button
+        class="dependency-health-card__diagnostic-action"
+        variant="text"
+        block
+        type="button"
+        @click="emit('show-diagnostics')"
+      >
+        {{ diagnosticsTitle }}
+      </t-button>
+    </footer>
   </article>
 </template>
 <script setup lang="ts">
@@ -106,7 +97,11 @@ defineProps<{
   statusLabel: string;
   primaryMetric: DependencyHealthMetric;
   pool: DependencyHealthPool;
-  diagnostics: DependencyHealthDiagnostics;
+  diagnosticsTitle: string;
+}>();
+
+const emit = defineEmits<{
+  (event: 'show-diagnostics'): void;
 }>();
 </script>
 <style scoped lang="less">
@@ -202,8 +197,7 @@ defineProps<{
 
 .dependency-health-card__pool-value,
 .dependency-health-card__pool-percent,
-.dependency-health-card__pool-item dd,
-.dependency-health-card__diagnostic-item dd {
+.dependency-health-card__pool-item dd {
   color: var(--td-text-color-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -244,60 +238,36 @@ defineProps<{
   padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
 }
 
-.dependency-health-card__pool-item dt,
-.dependency-health-card__diagnostic-item dt {
+.dependency-health-card__pool-item dt {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
 }
 
-.dependency-health-card__pool-item dd,
-.dependency-health-card__diagnostic-item dd {
+.dependency-health-card__pool-item dd {
   font: var(--td-font-title-small);
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.dependency-health-card__diagnostics {
+.dependency-health-card__actions {
   border-top: 1px solid var(--td-component-stroke);
   margin-top: auto;
-  padding-top: var(--graft-density-gap-4);
+  padding-top: var(--graft-density-gap-8);
 }
 
-.dependency-health-card__diagnostic-list {
-  display: grid;
-  gap: var(--graft-density-gap-8);
-  margin: 0;
-}
-
-.dependency-health-card__diagnostic-item {
-  display: grid;
-  gap: var(--graft-density-gap-8);
-  grid-template-columns: minmax(110px, 0.42fr) minmax(0, 1fr);
-}
-
-:deep(.dependency-health-card__diagnostics .t-collapse-panel__wrapper) {
-  background: transparent;
-}
-
-:deep(.dependency-health-card__diagnostics .t-collapse-panel__header) {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  font-weight: 600;
+.dependency-health-card__diagnostic-action {
+  justify-content: space-between;
   min-height: 32px;
-  padding: var(--graft-density-gap-6) 0;
+  padding: 0;
 }
 
-:deep(.dependency-health-card__diagnostics .t-collapse-panel__content) {
-  padding: var(--graft-density-gap-8) 0 0;
+.dependency-health-card__diagnostic-action::after {
+  content: '>';
 }
 
 @media (width <= 767px) {
   .dependency-health-card__pool-header {
-    grid-template-columns: 1fr;
-  }
-
-  .dependency-health-card__diagnostic-item {
     grid-template-columns: 1fr;
   }
 }
