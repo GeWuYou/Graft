@@ -245,28 +245,12 @@ export function formatLatency(latencyMs?: number | null) {
   return `${latencyMs.toFixed(2)} ms`;
 }
 
-export function formatPoolUsage(pool?: ServerStatusConnectionPool | null) {
-  if (!pool) {
-    return '--';
-  }
-
-  return `${pool.in_use_connections} / ${pool.capacity} (${formatPoolPercent(pool.usage_percent)})`;
-}
-
 export function formatPoolWait(pool?: ServerStatusConnectionPool | null) {
   if (!pool) {
     return '--';
   }
 
   return `${pool.wait_count} · ${pool.wait_duration_ms.toFixed(2)} ms`;
-}
-
-function formatPoolPercent(percent?: number | null) {
-  if (!Number.isFinite(percent) || percent === null || percent === undefined) {
-    return '--';
-  }
-
-  return `${percent.toFixed(2)}%`;
 }
 
 export function displayText(value?: string | null) {
