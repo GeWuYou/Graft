@@ -113,7 +113,9 @@ type WidgetRequest struct {
 	RequestAuth moduleapi.RequestAuthContext
 }
 
-// WidgetLoader loads one widget payload for the current request.
+// WidgetLoader loads one widget payload for the current request. Implementations
+// must observe the context and return promptly when it is canceled or reaches
+// its deadline so dashboard requests cannot retain loader goroutines.
 type WidgetLoader interface {
 	Load(context.Context, WidgetRequest) (WidgetPayload, error)
 }
