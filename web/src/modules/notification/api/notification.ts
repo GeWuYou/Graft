@@ -48,7 +48,7 @@ type DeleteNotificationPathParams = DeleteNotificationOperation['parameters']['p
 export function getNotifications(query?: NotificationListQuery) {
   return request.get<GetNotificationsData>({
     url: NOTIFICATION_API_PATH.LIST,
-    params: query as GetNotificationsQuery | undefined,
+    params: normalizeNotificationListQuery(query),
   }) as Promise<NotificationListResponse>;
 }
 
@@ -75,4 +75,16 @@ export function deleteNotification(deliveryId: DeleteNotificationPathParams['del
   return request.delete<Record<string, never>>({
     url: buildNotificationDeleteApiPath(deliveryId),
   });
+}
+
+function normalizeNotificationListQuery(query?: NotificationListQuery): GetNotificationsQuery | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  const { status, ...params } = query;
+  return {
+    ...params,
+    ...(status && status !== 'all' ? { status } : {}),
+  } satisfies GetNotificationsQuery;
 }

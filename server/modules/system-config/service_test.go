@@ -457,6 +457,7 @@ func newTestServiceWithRepoAndUsers(
 	definition configregistry.Definition,
 ) *Service {
 	t.Helper()
+	definition = normalizeTestDefinition(definition)
 	registry := configregistry.NewRegistry()
 	if err := registry.Register(definition); err != nil {
 		t.Fatalf("register definition: %v", err)
@@ -466,6 +467,13 @@ func newTestServiceWithRepoAndUsers(
 		t.Fatalf("create service: %v", err)
 	}
 	return service
+}
+
+func normalizeTestDefinition(definition configregistry.Definition) configregistry.Definition {
+	if definition.Domain == "" {
+		definition.Domain = definition.Module
+	}
+	return definition
 }
 
 type memoryRepo struct {

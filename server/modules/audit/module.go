@@ -144,11 +144,11 @@ func subscribeAuditRecordEvents(
 	notifier func() moduleapi.NotificationPublisher,
 ) error {
 	return bus.Subscribe(string(moduleapi.AuditRecordEventName), func(eventCtx context.Context, event eventbus.Event) error {
-		return handleAuditRecordEvent(eventCtx, logger, recorder, notifier, event)
+		return consumeAuditRecordEvent(eventCtx, logger, recorder, notifier, event)
 	})
 }
 
-func handleAuditRecordEvent(
+func consumeAuditRecordEvent(
 	eventCtx context.Context,
 	logger *zap.Logger,
 	recorder *Service,

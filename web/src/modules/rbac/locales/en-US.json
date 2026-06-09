@@ -327,7 +327,7 @@
       },
       "notificationManage": {
         "display": "Manage Notifications",
-        "description": "Reserved for future global notification delivery management."
+        "description": "Allows managing global notification delivery and settings."
       }
     }
   }

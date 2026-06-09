@@ -27,11 +27,21 @@ func (n schedulerRunFailureNotifier) NotifyRunFailed(ctx context.Context, run sc
 	if n.publisher == nil || run.ID == 0 {
 		return
 	}
-	payload, _ := json.Marshal(map[string]any{
+	payload, err := json.Marshal(map[string]any{
 		"run_id":   run.ID,
 		"task_key": run.TaskKey,
 		"job_key":  run.JobKey,
 	})
+	if err != nil {
+		if n.logger != nil {
+			n.logger.Warn("marshal scheduler notification navigation payload failed",
+				zap.String("module", moduleID),
+				zap.Uint64("runID", run.ID),
+				zap.Error(err),
+			)
+		}
+		payload = json.RawMessage(`{"serialization_error":true}`)
+	}
 	input := moduleapi.PublishNotificationInput{
 		Title:        "Scheduled task failed",
 		Message:      "Scheduled task " + firstNonEmptyTrimmed(run.TaskName, run.TaskKey) + " failed.",
@@ -46,7 +56,7 @@ func (n schedulerRunFailureNotifier) NotifyRunFailed(ctx context.Context, run sc
 			Kind:    moduleapi.NotificationNavigationKind(notificationcontract.NavigationSchedulerRun),
 			Payload: payload,
 		},
-		Metadata:   schedulerRunFailureMetadata(run),
+		Metadata:   schedulerRunFailureMetadata(run, n.logger),
 		DedupeKey:  "scheduler:run_failed:" + strconv.FormatUint(run.ID, 10),
 		OccurredAt: firstNonZeroTime(run.FinishedAt, run.CreatedAt),
 		Target: moduleapi.NotificationTarget{
@@ -64,8 +74,8 @@ func (n schedulerRunFailureNotifier) NotifyRunFailed(ctx context.Context, run sc
 	}
 }
 
-func schedulerRunFailureMetadata(run schedulercore.TaskRun) json.RawMessage {
-	payload, _ := json.Marshal(map[string]any{
+func schedulerRunFailureMetadata(run schedulercore.TaskRun, logger *zap.Logger) json.RawMessage {
+	payload, err := json.Marshal(map[string]any{
 		"task_key":     run.TaskKey,
 		"job_key":      run.JobKey,
 		"trigger_type": string(run.TriggerType),
@@ -76,6 +86,17 @@ func schedulerRunFailureMetadata(run schedulercore.TaskRun) json.RawMessage {
 		"started_at":   run.StartedAt,
 		"finished_at":  run.FinishedAt,
 	})
+	if err != nil {
+		if logger != nil {
+			logger.Warn("marshal scheduler notification metadata failed",
+				zap.String("module", moduleID),
+				zap.String("taskKey", run.TaskKey),
+				zap.Uint64("runID", run.ID),
+				zap.Error(err),
+			)
+		}
+		return json.RawMessage(`{"serialization_error":true}`)
+	}
 	return payload
 }
 

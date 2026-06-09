@@ -84,9 +84,6 @@ func (p *Publisher) Publish(ctx context.Context, input moduleapi.PublishNotifica
 	if err != nil {
 		return moduleapi.PublishNotificationResult{}, mapStoreError(err)
 	}
-	if deduplicated {
-		return moduleapi.PublishNotificationResult{EventID: event.ID, Deduplicated: true}, nil
-	}
 
 	deliveryInputs := make([]notificationstore.CreateDeliveryInput, 0, len(recipients))
 	for _, userID := range recipients {
@@ -110,7 +107,7 @@ func (p *Publisher) Publish(ctx context.Context, input moduleapi.PublishNotifica
 		EventID:        event.ID,
 		DeliveryIDs:    deliveryIDs,
 		RecipientCount: len(deliveryIDs),
-		Deduplicated:   false,
+		Deduplicated:   deduplicated,
 	}, nil
 }
 

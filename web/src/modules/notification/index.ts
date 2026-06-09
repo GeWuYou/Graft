@@ -13,6 +13,6 @@ export const notificationModuleRegistration: WebModuleRegistration = {
 };
 
 export const notificationModulePermissionCodes = NOTIFICATION_PERMISSION_CODE;
-export { NotificationBellPanel };
+export const notificationHeaderWidget = NotificationBellPanel;
 
 export default notificationModuleRegistration;

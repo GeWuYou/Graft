@@ -56,6 +56,8 @@ CREATE INDEX IF NOT EXISTS "notification_deliveries_unread"
   WHERE "read_at" IS NULL AND "deleted_at" IS NULL;
 CREATE INDEX IF NOT EXISTS "notification_deliveries_event_id"
   ON "notification_deliveries" ("event_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "notification_deliveries_event_recipient"
+  ON "notification_deliveries" ("event_id", "recipient_user_id");
 CREATE INDEX IF NOT EXISTS "notification_deliveries_target"
   ON "notification_deliveries" ("target_type", "target_ref");
 

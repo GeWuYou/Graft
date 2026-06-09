@@ -276,6 +276,49 @@ describe('system config list page', () => {
     expect(wrapper.find('.system-config-content__head').text()).toContain('工作台快捷入口');
   });
 
+  it('keeps search text from every item in the same group', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        dashboardQuickActionItem({
+          key: 'dashboard.quick_actions.alpha_entry',
+          titleKey: '',
+          title: 'Alpha Entry',
+          descriptionKey: '',
+          description: 'Only the first grouped item mentions alpha.',
+          type: 'string',
+          configSchema: { type: 'string' },
+          defaultValue: '"alpha"',
+          effectiveValue: '"alpha"',
+          order: 120,
+        }),
+        dashboardQuickActionItem({
+          key: 'dashboard.quick_actions.beta_entry',
+          titleKey: '',
+          title: 'Beta Entry',
+          descriptionKey: '',
+          description: 'The final grouped item mentions beta.',
+          type: 'string',
+          configSchema: { type: 'string' },
+          defaultValue: '"beta"',
+          effectiveValue: '"beta"',
+          order: 121,
+        }),
+      ],
+      total: 2,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('[data-test-id="group-search"]').setValue('alpha');
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-tree-node="group"]').map((node) => node.text())).toEqual([
+      '工作台快捷入口2 个配置项',
+    ]);
+    expect(wrapper.find('.system-config-content__head').text()).toContain('工作台快捷入口');
+  });
+
   it('keeps settings navigation and content as independent scroll panes', async () => {
     const wrapper = mountPage();
     await flushPromises();

@@ -8,19 +8,20 @@
     "actions": {
       "delete": "Delete",
       "detail": "Details",
-      "markAllRead": "Mark all read",
-      "markRead": "Mark read",
-      "openTarget": "Open context",
+      "markAllRead": "Mark All Read",
+      "markRead": "Mark Read",
+      "openTarget": "Open Context",
       "refresh": "Refresh",
       "reset": "Reset",
       "search": "Search",
-      "viewAll": "View all"
+      "viewAll": "View All"
     },
     "bell": {
-      "loading": "Loading notifications",
-      "loadingDescription": "Reading the latest notifications.",
+      "loading": "Loading Notifications",
+      "loadingDescription": "Reading the Latest Notifications.",
+      "open": "Open Notifications",
       "title": "Notifications",
-      "unreadSummary": "{count} unread"
+      "unreadSummary": "{count} Unread"
     },
     "category": {
       "CONFIG": "Config",
@@ -33,48 +34,57 @@
       "actions": "Actions",
       "category": "Category",
       "notification": "Notification",
-      "occurredAt": "Occurred at",
+      "occurredAt": "Occurred At",
       "severity": "Severity",
       "sourceModule": "Source",
       "status": "Status"
     },
     "detail": {
-      "basic": "Basic information",
-      "eventType": "Event type",
-      "navigation": "Business context",
-      "readAt": "Read at",
-      "resource": "Related resource",
+      "basic": "Basic Information",
+      "eventType": "Event Type",
+      "navigation": "Business Context",
+      "readAt": "Read At",
+      "resource": "Related Resource",
       "resourceId": "Resource ID",
-      "resourceName": "Resource name",
-      "resourceType": "Resource type",
-      "targetRef": "Target reference",
-      "targetType": "Target type",
-      "title": "Notification details",
-      "unsupportedNavigation": "This notification target will be available in a later phase."
+      "resourceName": "Resource Name",
+      "resourceType": "Resource Type",
+      "targetRef": "Target Reference",
+      "targetType": "Target Type",
+      "title": "Notification Details",
+      "unsupportedNavigation": "This Notification Target Is Not Available."
     },
     "empty": {
       "description": "No notifications match the current filters.",
-      "title": "No notifications"
+      "title": "No Notifications"
     },
     "filters": {
       "category": "Category",
-      "occurredFrom": "Start time",
-      "occurredTo": "End time",
+      "occurredFrom": "Start Time",
+      "occurredTo": "End Time",
       "severity": "Severity",
-      "sourceModule": "Source module"
+      "sourceModule": "Source Module"
     },
     "messages": {
-      "deleteFailed": "Failed to delete notification",
-      "deleteSuccess": "Notification deleted",
-      "loadFailed": "Failed to load notifications",
-      "markAllReadSuccess": "Notifications marked as read",
-      "markReadFailed": "Failed to mark notification",
-      "markReadSuccess": "Notification marked as read",
-      "navigationUnavailable": "This notification does not support navigation yet"
+      "deleteFailed": "Failed to Delete Notification",
+      "deleteSuccess": "Notification Deleted",
+      "loadFailed": "Failed to Load Notifications",
+      "markAllReadFailed": "Failed to Mark Notifications",
+      "markAllReadSuccess": "Notifications Marked as Read",
+      "markReadFailed": "Failed to Mark Notification",
+      "markReadSuccess": "Notification Marked as Read",
+      "navigationUnavailable": "This Notification Does Not Support Navigation Yet"
+    },
+    "navigation": {
+      "auditIncident": "Audit Incident",
+      "auditLog": "Audit Log",
+      "moduleRuntimeItem": "Module Runtime",
+      "schedulerRun": "Scheduled Task Run",
+      "systemConfigItem": "System Configuration",
+      "unknown": "Unknown Context"
     },
     "page": {
       "description": "Review security, task, and platform notifications delivered to the current user.",
-      "errorTitle": "Failed to load notifications",
+      "errorTitle": "Failed to Load Notifications",
       "eyebrow": "Workspace",
       "title": "Notification Center"
     },
@@ -93,8 +103,8 @@
       "unread": "Unread"
     },
     "table": {
-      "summary": "{count} notifications",
-      "title": "Notification list"
+      "summary": "{count} Notifications",
+      "title": "Notification List"
     },
     "tabs": {
       "all": "All",
@@ -104,7 +114,7 @@
     "values": {
       "emptyField": "None",
       "notRead": "Unread",
-      "unknownSource": "Unknown source"
+      "unknownSource": "Unknown Source"
     }
   }
 }

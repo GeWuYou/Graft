@@ -12,18 +12,6 @@ export const notificationBootstrapRouteRegistrations: BootstrapRouteRegistration
     meta: {
       tabGroup: 'notification',
       pageKind: 'list',
-      semanticTitle: {
-        'zh-CN': '通知中心',
-        'en-US': 'Notification Center',
-      },
-      breadcrumbTitle: {
-        'zh-CN': '通知中心',
-        'en-US': 'Notification Center',
-      },
-      tabTitle: {
-        'zh-CN': '通知中心',
-        'en-US': 'Notification Center',
-      },
     },
   },
 ];

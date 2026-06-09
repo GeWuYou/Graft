@@ -4,8 +4,8 @@
 -->
 
 <template>
-  <notification-bell-panel />
+  <component :is="notificationHeaderWidget" />
 </template>
 <script setup lang="ts">
-import { NotificationBellPanel } from '@/modules/notification';
+import { notificationHeaderWidget } from '@/modules/notification';
 </script>

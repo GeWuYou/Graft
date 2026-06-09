@@ -97,6 +97,7 @@ var reservedTaskKeys = map[string]struct{}{
 const (
 	taskConfigSourceSystem = "system"
 	taskConfigSourceUser   = "user"
+	runFailureNotifyTTL    = 3 * time.Second
 )
 
 // JobDefinitionSnapshot describes one persisted, creatable scheduler job type.
@@ -983,8 +984,20 @@ func (r *CronRuntime) notifyRunFailed(ctx context.Context, run TaskRun) {
 	if notifier == nil {
 		return
 	}
-	notifyCtx := finishRunContext(ctx)
-	notifier.NotifyRunFailed(notifyCtx, run)
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				r.logger.Error("scheduler run failure notifier panicked",
+					zap.String("task", run.TaskKey),
+					zap.Uint64("runID", run.ID),
+					zap.Any("panic", recovered),
+				)
+			}
+		}()
+		notifyCtx, cancel := context.WithTimeout(finishRunContext(ctx), runFailureNotifyTTL)
+		defer cancel()
+		notifier.NotifyRunFailed(notifyCtx, run)
+	}()
 }
 
 func (r *CronRuntime) refreshDefinitionSchedule(definition TaskDefinition) error {

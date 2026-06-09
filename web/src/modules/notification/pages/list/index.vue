@@ -8,9 +8,7 @@
     root-class="notification-page"
     page-type="list-form-detail"
     title-key="notification.page.title"
-    :title="t('notification.page.title')"
     description-key="notification.page.description"
-    :description="t('notification.page.description')"
     :error-message="listError"
     :error-title="t('notification.page.errorTitle')"
     :loading="loading"
@@ -173,9 +171,9 @@ function buildQuery(): NotificationListQuery {
   const query: NotificationListQuery = {
     page: pagination.value.current,
     page_size: pagination.value.pageSize,
-    status: filters.value.status,
   };
 
+  if (filters.value.status !== 'all') query.status = filters.value.status;
   if (filters.value.severity) query.severity = filters.value.severity;
   if (filters.value.category) query.category = filters.value.category;
   if (filters.value.sourceModule) query.source_module = filters.value.sourceModule;
@@ -285,7 +283,7 @@ async function markAllRead() {
     MessagePlugin.success(t('notification.messages.markAllReadSuccess'));
     await fetchNotifications();
   } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('notification.messages.markReadFailed')));
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('notification.messages.markAllReadFailed')));
   } finally {
     markingAll.value = false;
   }

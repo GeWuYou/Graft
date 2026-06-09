@@ -73,6 +73,15 @@ func TestRegistryValidatesDefaultValueShape(t *testing.T) {
 	}
 }
 
+func TestRegistryRequiresDomain(t *testing.T) {
+	definition := testDefinition("auth.password_policy")
+	definition.Domain = ""
+
+	if err := NewRegistry().Register(definition); err == nil {
+		t.Fatal("expected missing domain error")
+	}
+}
+
 func TestMaskedPlaceholder(t *testing.T) {
 	if MaskedPlaceholder() == "" {
 		t.Fatal("masked placeholder must be stable and non-empty")

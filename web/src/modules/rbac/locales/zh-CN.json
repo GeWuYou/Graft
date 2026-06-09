@@ -327,7 +327,7 @@
       },
       "notificationManage": {
         "display": "管理通知",
-        "description": "预留用于未来全局通知投递管理。"
+        "description": "允许管理全局通知投递与配置。"
       }
     }
   }

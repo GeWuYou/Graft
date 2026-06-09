@@ -10,36 +10,36 @@
     "list": {
       "eyebrow": "Service Management",
       "title": "System Configuration",
-      "description": "Manage module-registered system defaults and user overrides.",
+      "description": "Manage Module-Registered System Defaults and User Overrides.",
       "refresh": "Refresh",
       "edit": "Edit",
-      "searchPlaceholder": "Search groups, items, or technical keys",
-      "searchEmpty": "No matching configuration groups",
+      "searchPlaceholder": "Search Groups, Items, or Technical Keys",
+      "searchEmpty": "No Matching Configuration Groups",
       "save": "Save",
       "cancel": "Cancel",
       "reset": "Reset",
-      "resetConfirm": "Delete this user override and return to the module default?",
+      "resetConfirm": "Delete This User Override and Return to the Module Default?",
       "groupConfigCount": "{count} Configuration Items",
-      "groupDescription": "This group contains {count} configuration items.",
+      "groupDescription": "This Group Contains {count} Configuration Items.",
       "defaultGroup": "Default Group",
       "groupLabel": "{module} / {group}",
       "overrideCount": "{count} Overrides",
-      "loadError": "System configuration could not be loaded.",
-      "saveError": "System configuration could not be saved.",
-      "saveSuccess": "System configuration saved.",
-      "resetError": "System configuration could not be reset.",
-      "resetSuccess": "System configuration reset.",
+      "loadError": "System Configuration Could Not Be Loaded.",
+      "saveError": "System Configuration Could Not Be Saved.",
+      "saveSuccess": "System Configuration Saved.",
+      "resetError": "System Configuration Could Not Be Reset.",
+      "resetSuccess": "System Configuration Reset.",
       "emptyTitle": "No System Configuration",
-      "emptyDescription": "Module-registered ConfigDefinitions will appear here.",
-      "noDescription": "No description.",
+      "emptyDescription": "Module-Registered ConfigDefinitions Will Appear Here.",
+      "noDescription": "No Description.",
       "masked": "Masked",
       "emptyValue": "No Data",
       "editorTitle": "Edit: {title}",
-      "sensitiveEditHint": "This configuration is sensitive. The current value is not echoed and remains masked after saving.",
+      "sensitiveEditHint": "This Configuration Is Sensitive. The Current Value Is Not Echoed and Remains Masked After Saving.",
       "previewTitle": "Configuration Preview",
       "viewJson": "View JSON",
       "technicalId": "Technical ID",
-      "valueDescription": "Configuration value description",
+      "valueDescription": "Configuration Value Description",
       "boolean": {
         "enabled": "Enabled",
         "disabled": "Disabled",
@@ -49,14 +49,14 @@
       "status": {
         "title": "Configuration Status",
         "default": "Default",
-        "defaultDescription": "Using default configuration",
+        "defaultDescription": "Using Default Configuration",
         "modified": "Modified",
-        "modifiedDescription": "User override exists"
+        "modifiedDescription": "User Override Exists"
       },
       "lastModified": {
         "title": "Last Modified",
-        "none": "No modification record",
-        "unknownUser": "Unknown user",
+        "none": "No Modification Record",
+        "unknownUser": "Unknown User",
         "userId": "User {id}",
         "value": "{user} / {time}"
       },
@@ -72,11 +72,11 @@
       },
       "schema": {
         "value": "Configuration Value",
-        "stringPlaceholder": "Enter configuration value",
-        "numberPlaceholder": "Enter number",
+        "stringPlaceholder": "Enter Configuration Value",
+        "numberPlaceholder": "Enter Number",
         "selectPlaceholder": "Select",
         "jsonPlaceholder": "Enter JSON",
-        "invalidJson": "JSON is invalid"
+        "invalidJson": "JSON Is Invalid"
       }
     },
     "domains": {
@@ -92,45 +92,45 @@
       "auditLogRetention": "Audit Log Retention"
     },
     "groupDescriptions": {
-      "dashboardQuickActions": "Manage dashboard home quick-action visibility and ranking.",
-      "coreHttpxLogRetention": "Manage access log cleanup retention and batch policy.",
-      "coreLoggerLogRetention": "Manage application log cleanup retention and batch policy.",
-      "auditLogRetention": "Manage audit log cleanup retention and batch policy."
+      "dashboardQuickActions": "Manage Dashboard Home Quick-Action Visibility and Ranking.",
+      "coreHttpxLogRetention": "Manage Access Log Cleanup Retention and Batch Policy.",
+      "coreLoggerLogRetention": "Manage Application Log Cleanup Retention and Batch Policy.",
+      "auditLogRetention": "Manage Audit Log Cleanup Retention and Batch Policy."
     },
     "items": {
       "dashboardQuickActionsEnabled": {
         "title": "Enabled",
-        "description": "Controls whether personalized dashboard quick actions are shown."
+        "description": "Controls Whether Personalized Dashboard Quick Actions Are Shown."
       },
       "dashboardQuickActionsMaxItems": {
         "title": "Maximum Items",
-        "description": "Maximum personalized entries shown on the dashboard home page."
+        "description": "Maximum Personalized Entries Shown on the Dashboard Home Page."
       },
       "dashboardQuickActionsStrategy": {
         "title": "Ranking Strategy",
-        "description": "Personalized quick action ranking strategy."
+        "description": "Personalized Quick Action Ranking Strategy."
       },
       "accessLogRetentionCleanup": {
         "title": "Access Log Retention Cleanup",
-        "description": "Default cleanup configuration for access-log retention jobs."
+        "description": "Default Cleanup Configuration for Access-Log Retention Jobs."
       },
       "appLogRetentionCleanup": {
         "title": "App Log Retention Cleanup",
-        "description": "Default cleanup configuration for app-log retention jobs."
+        "description": "Default Cleanup Configuration for App-Log Retention Jobs."
       },
       "auditLogRetentionCleanup": {
         "title": "Audit Log Retention Cleanup",
-        "description": "Default cleanup configuration for audit-log retention jobs."
+        "description": "Default Cleanup Configuration for Audit-Log Retention Jobs."
       }
     },
     "fields": {
       "retentionDays": {
         "title": "Log Retention Days",
-        "description": "Delete logs older than this many days."
+        "description": "Delete Logs Older Than This Many Days."
       },
       "batchSize": {
         "title": "Batch Size",
-        "description": "Maximum rows deleted per cleanup batch."
+        "description": "Maximum Rows Deleted per Cleanup Batch."
       }
     },
     "units": {
@@ -144,9 +144,9 @@
         "hybrid": "Hybrid"
       },
       "dashboardQuickActionStrategyDescriptions": {
-        "mostUsed": "Prioritize the quick actions used most often.",
-        "recent": "Prioritize quick actions visited most recently.",
-        "hybrid": "Rank by recent visits, usage frequency, and system recommendations."
+        "mostUsed": "Prioritize the Quick Actions Used Most Often.",
+        "recent": "Prioritize Quick Actions Visited Most Recently.",
+        "hybrid": "Rank by Recent Visits, Usage Frequency, and System Recommendations."
       }
     }
   }

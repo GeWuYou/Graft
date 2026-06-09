@@ -19,6 +19,7 @@
     "bell": {
       "loading": "正在加载通知",
       "loadingDescription": "请稍候，正在读取最新通知。",
+      "open": "打开通知",
       "title": "通知",
       "unreadSummary": "{count} 条未读"
     },
@@ -67,10 +68,19 @@
       "deleteFailed": "删除通知失败",
       "deleteSuccess": "通知已删除",
       "loadFailed": "通知加载失败",
+      "markAllReadFailed": "批量标记通知失败",
       "markAllReadSuccess": "通知已全部标记为已读",
       "markReadFailed": "标记通知失败",
       "markReadSuccess": "通知已标记为已读",
       "navigationUnavailable": "该通知暂不支持跳转"
+    },
+    "navigation": {
+      "auditIncident": "审计事件",
+      "auditLog": "审计日志",
+      "moduleRuntimeItem": "模块运行项",
+      "schedulerRun": "定时任务运行",
+      "systemConfigItem": "系统配置",
+      "unknown": "未知上下文"
     },
     "page": {
       "description": "查看当前用户收到的安全、任务和平台通知。",

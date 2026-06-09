@@ -355,7 +355,7 @@ const domains = computed<ConfigDomain[]>(() => {
       domain.groups.push(group);
     }
     group.items.push(item);
-    group.searchText = buildGroupSearchText(group, item);
+    group.searchText = buildGroupSearchText(group, item, group.searchText);
     domainMap.set(domainKey, domain);
   }
 
@@ -435,9 +435,10 @@ function handleTreeActive(value: TreeNodeValue[]) {
   }
 }
 
-function buildGroupSearchText(group: ConfigGroup, item: SystemConfigItem) {
+function buildGroupSearchText(group: ConfigGroup, item: SystemConfigItem, previousSearchText = '') {
   return normalizeSearchText(
     [
+      previousSearchText,
       group.label,
       group.description,
       group.key,

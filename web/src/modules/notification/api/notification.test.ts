@@ -40,6 +40,18 @@ describe('notification api', () => {
     });
   });
 
+  it('omits the UI-only all status from backend list params', async () => {
+    const requestGet = vi.mocked(request.get);
+    requestGet.mockResolvedValueOnce({ items: [], total: 0, page: 1, page_size: 20 } as never);
+
+    await getNotifications({ page: 1, page_size: 20, status: 'all' });
+
+    expect(requestGet).toHaveBeenCalledWith({
+      url: NOTIFICATION_API_PATH.LIST,
+      params: { page: 1, page_size: 20 },
+    });
+  });
+
   it('reads unread count through the canonical count path', async () => {
     const requestGet = vi.mocked(request.get);
     requestGet.mockResolvedValueOnce({ count: 3 } as never);

@@ -87,14 +87,8 @@ func validateDefinition(definition Definition) error {
 	if !keyPattern.MatchString(key) {
 		return fmt.Errorf("config definition key %q is invalid", definition.Key)
 	}
-	if strings.TrimSpace(definition.Module) == "" {
-		return fmt.Errorf("config definition %s module is required", key)
-	}
-	if strings.TrimSpace(definition.Group) == "" {
-		return fmt.Errorf("config definition %s group is required", key)
-	}
-	if strings.TrimSpace(definition.Title) == "" && strings.TrimSpace(definition.TitleKey) == "" {
-		return fmt.Errorf("config definition %s title or title key is required", key)
+	if err := validateRequiredDefinitionMetadata(definition, key); err != nil {
+		return err
 	}
 	if !slices.Contains(validValueTypes(), definition.Type) {
 		return fmt.Errorf("config definition %s type %q is invalid", key, definition.Type)
@@ -104,6 +98,22 @@ func validateDefinition(definition Definition) error {
 	}
 	if err := validateDefaultValue(definition.DefaultValue, definition.Type, key); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateRequiredDefinitionMetadata(definition Definition, key string) error {
+	if strings.TrimSpace(definition.Module) == "" {
+		return fmt.Errorf("config definition %s module is required", key)
+	}
+	if strings.TrimSpace(definition.Domain) == "" {
+		return fmt.Errorf("config definition %s domain is required", key)
+	}
+	if strings.TrimSpace(definition.Group) == "" {
+		return fmt.Errorf("config definition %s group is required", key)
+	}
+	if strings.TrimSpace(definition.Title) == "" && strings.TrimSpace(definition.TitleKey) == "" {
+		return fmt.Errorf("config definition %s title or title key is required", key)
 	}
 	return nil
 }

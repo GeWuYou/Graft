@@ -5,6 +5,7 @@ package notification
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -46,7 +47,10 @@ func (r notificationRouteRuntime) handleList(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	params := bindNotificationListParams(ginCtx)
+	params, ok := bindNotificationListParams(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
 	result, err := r.service.List(ginCtx.Request.Context(), ListQuery{
 		RecipientUserID: userID,
 		Status:          stringFromPointer(params.Status),
@@ -106,11 +110,9 @@ func (r notificationRouteRuntime) handleReadAll(ginCtx *gin.Context) {
 		return
 	}
 	var body notificationopenapi.PostNotificationsReadAllJSONRequestBody
-	if ginCtx.Request.ContentLength > 0 {
-		if err := ginCtx.ShouldBindJSON(&body); err != nil {
-			httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-			return
-		}
+	if err := ginCtx.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
 	}
 	query := readAllQueryFromBody(body)
 	query.RecipientUserID = userID
@@ -138,19 +140,32 @@ func (r notificationRouteRuntime) handleDelete(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, map[string]any{})
 }
 
-func bindNotificationListParams(ginCtx *gin.Context) notificationopenapi.GetNotificationsParams {
+func bindNotificationListParams(ginCtx *gin.Context, ctx *module.Context) (notificationopenapi.GetNotificationsParams, bool) {
 	query := ginCtx.Request.URL.Query()
 	params := notificationopenapi.GetNotificationsParams{
 		Status:       optionalTypedQuery[notificationopenapi.GetNotificationsParamsStatus](query.Get("status")),
 		Severity:     optionalTypedQuery[notificationopenapi.GetNotificationsParamsSeverity](query.Get("severity")),
 		Category:     optionalTypedQuery[notificationopenapi.GetNotificationsParamsCategory](query.Get("category")),
 		SourceModule: optionalQuery(query.Get("source_module")),
-		Page:         optionalIntQuery(query.Get("page")),
-		PageSize:     optionalIntQuery(query.Get("page_size")),
 	}
-	params.OccurredFrom = optionalTimeQuery(query.Get("occurred_from"))
-	params.OccurredTo = optionalTimeQuery(query.Get("occurred_to"))
-	return params
+	var err error
+	if params.Page, err = optionalIntQuery(query.Get("page")); err != nil {
+		abortInvalidQuery(ginCtx, ctx, "page", err)
+		return notificationopenapi.GetNotificationsParams{}, false
+	}
+	if params.PageSize, err = optionalIntQuery(query.Get("page_size")); err != nil {
+		abortInvalidQuery(ginCtx, ctx, "page_size", err)
+		return notificationopenapi.GetNotificationsParams{}, false
+	}
+	if params.OccurredFrom, err = optionalTimeQuery(query.Get("occurred_from")); err != nil {
+		abortInvalidQuery(ginCtx, ctx, "occurred_from", err)
+		return notificationopenapi.GetNotificationsParams{}, false
+	}
+	if params.OccurredTo, err = optionalTimeQuery(query.Get("occurred_to")); err != nil {
+		abortInvalidQuery(ginCtx, ctx, "occurred_to", err)
+		return notificationopenapi.GetNotificationsParams{}, false
+	}
+	return params, true
 }
 
 func currentUserID(ginCtx *gin.Context, ctx *module.Context) (uint64, bool) {
@@ -203,25 +218,39 @@ func optionalTypedQuery[T ~string](raw string) *T {
 	return &typed
 }
 
-func optionalIntQuery(raw string) *int {
-	value, err := strconv.Atoi(strings.TrimSpace(raw))
-	if err != nil {
-		return nil
+func optionalIntQuery(raw string) (*int, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, nil
 	}
-	return &value
+	value, err := strconv.Atoi(trimmed)
+	if err != nil {
+		return nil, err
+	}
+	return &value, nil
 }
 
-func optionalTimeQuery(raw string) *time.Time {
+func optionalTimeQuery(raw string) (*time.Time, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
-		return nil
+		return nil, nil
 	}
 	parsed, err := time.Parse(time.RFC3339, value)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	parsed = parsed.UTC()
-	return &parsed
+	return &parsed, nil
+}
+
+func abortInvalidQuery(ginCtx *gin.Context, ctx *module.Context, name string, err error) {
+	if ctx.Logger != nil {
+		ctx.Logger.Warn("invalid notification query parameter",
+			zap.String("param", name),
+			zap.Error(err),
+		)
+	}
+	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 }
 
 func intFromPointer(value *int) int {

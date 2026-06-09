@@ -6,6 +6,7 @@ package rbac
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -50,7 +51,7 @@ func (s accessService) ListUserIDsByPermissionCode(ctx context.Context, permissi
 
 	userIDs, err := s.rbac.ListUserIDsByPermissionCode(ctx, permissionCode)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list user ids by permission %q: %w", permissionCode, err)
 	}
 
 	return stableUint64s(userIDs), nil

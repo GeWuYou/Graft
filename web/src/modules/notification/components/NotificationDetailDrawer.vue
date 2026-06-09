@@ -67,7 +67,7 @@
       <section class="notification-detail__section">
         <h4>{{ t('notification.detail.navigation') }}</h4>
         <div class="notification-detail__navigation">
-          <t-tag variant="light">{{ item.navigation.kind }}</t-tag>
+          <t-tag variant="light">{{ navigationKindLabel }}</t-tag>
           <t-button v-if="canNavigate" theme="primary" @click="$emit('navigate', item)">
             {{ t('notification.actions.openTarget') }}
           </t-button>
@@ -83,7 +83,7 @@ import { useI18n } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
 
-import { resolveNotificationNavigationLocation } from '../contract/navigation';
+import { NOTIFICATION_NAVIGATION_KIND, resolveNotificationNavigationLocation } from '../contract/navigation';
 import {
   notificationMessage,
   notificationSeverityTheme,
@@ -105,6 +105,23 @@ defineEmits<{
 
 const { t, locale } = useI18n();
 const canNavigate = computed(() => Boolean(props.item && resolveNotificationNavigationLocation(props.item.navigation)));
+const navigationKindLabel = computed(() => {
+  const kind = props.item?.navigation.kind;
+  if (!kind) {
+    return t('notification.navigation.unknown');
+  }
+
+  const key = NOTIFICATION_NAVIGATION_LABEL_KEYS[kind];
+  return key ? t(key) : t('notification.navigation.unknown');
+});
+
+const NOTIFICATION_NAVIGATION_LABEL_KEYS = {
+  [NOTIFICATION_NAVIGATION_KIND.AUDIT_INCIDENT]: 'notification.navigation.auditIncident',
+  [NOTIFICATION_NAVIGATION_KIND.AUDIT_LOG]: 'notification.navigation.auditLog',
+  [NOTIFICATION_NAVIGATION_KIND.SCHEDULER_RUN]: 'notification.navigation.schedulerRun',
+  [NOTIFICATION_NAVIGATION_KIND.SYSTEM_CONFIG_ITEM]: 'notification.navigation.systemConfigItem',
+  [NOTIFICATION_NAVIGATION_KIND.MODULE_RUNTIME_ITEM]: 'notification.navigation.moduleRuntimeItem',
+} as const;
 </script>
 <style scoped lang="less">
 .notification-detail {

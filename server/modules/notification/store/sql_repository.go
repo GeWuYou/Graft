@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -107,18 +109,18 @@ func (r *SQLRepository) resolveDedupeInsertConflict(ctx context.Context, dedupeK
 func (r *SQLRepository) insertEvent(ctx context.Context, input CreateEventInput, createdAt time.Time) (Event, error) {
 	return scanEvent(r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO notification_events (
+		r.placeholder.rebind(`INSERT INTO notification_events (
 			title_key, title, message_key, message, severity, category, source_module, event_type,
 			resource_type, resource_id, resource_name, navigation_kind, navigation_payload, metadata,
 			dedupe_key, occurred_at, expires_at, created_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8,
-			$9, $10, $11, $12, $13, $14,
-			$15, $16, $17, $18
+			?, ?, ?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?
 		)
 		RETURNING id, title_key, title, message_key, message, severity, category, source_module, event_type,
 			resource_type, resource_id, resource_name, navigation_kind, navigation_payload, metadata,
-			dedupe_key, occurred_at, expires_at, created_at`,
+			dedupe_key, occurred_at, expires_at, created_at`),
 		input.TitleKey,
 		input.Title,
 		input.MessageKey,
@@ -143,11 +145,11 @@ func (r *SQLRepository) insertEvent(ctx context.Context, input CreateEventInput,
 func (r *SQLRepository) findEventByDedupeKey(ctx context.Context, dedupeKey string) (Event, error) {
 	return scanEvent(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, title_key, title, message_key, message, severity, category, source_module, event_type,
+		r.placeholder.rebind(`SELECT id, title_key, title, message_key, message, severity, category, source_module, event_type,
 			resource_type, resource_id, resource_name, navigation_kind, navigation_payload, metadata,
 			dedupe_key, occurred_at, expires_at, created_at
 		FROM notification_events
-		WHERE dedupe_key = $1`,
+		WHERE dedupe_key = ?`),
 		strings.TrimSpace(dedupeKey),
 	))
 }
@@ -161,30 +163,57 @@ func (r *SQLRepository) CreateDeliveries(ctx context.Context, inputs []CreateDel
 		return nil, ErrInvalidInput
 	}
 
-	deliveries := make([]Delivery, 0, len(inputs))
+	deliveryInputs := make([]deliveryInsertInput, 0, len(inputs))
 	for _, input := range inputs {
 		deliveryInput, err := validateDeliveryInput(input)
 		if err != nil {
 			return nil, err
 		}
-		delivery, err := scanDelivery(r.db.QueryRowContext(
-			ctx,
-			`INSERT INTO notification_deliveries (
-				event_id, recipient_user_id, target_type, target_ref, created_at
-				) VALUES ($1, $2, $3, $4, $5)
-				RETURNING id, event_id, recipient_user_id, target_type, target_ref, read_at, deleted_at, created_at`,
-			deliveryInput.eventID,
-			deliveryInput.recipientUserID,
-			deliveryInput.targetType,
-			deliveryInput.targetRef,
-			time.Now().UTC(),
-		))
+		deliveryInputs = append(deliveryInputs, deliveryInput)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin notification delivery transaction: %w", err)
+	}
+	defer rollbackTx(tx)
+
+	now := time.Now().UTC()
+	deliveries := make([]Delivery, 0, len(deliveryInputs))
+	for _, deliveryInput := range deliveryInputs {
+		delivery, err := r.createDelivery(ctx, tx, deliveryInput, now)
 		if err != nil {
 			return nil, fmt.Errorf("create notification delivery: %w", err)
 		}
 		deliveries = append(deliveries, delivery)
 	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit notification deliveries: %w", err)
+	}
 	return deliveries, nil
+}
+
+func (r *SQLRepository) createDelivery(
+	ctx context.Context,
+	tx *sql.Tx,
+	input deliveryInsertInput,
+	createdAt time.Time,
+) (Delivery, error) {
+	return scanDelivery(tx.QueryRowContext(
+		ctx,
+		r.placeholder.rebind(`INSERT INTO notification_deliveries (
+			event_id, recipient_user_id, target_type, target_ref, created_at
+		) VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT (event_id, recipient_user_id) DO UPDATE SET
+			target_type = excluded.target_type,
+			target_ref = excluded.target_ref
+		RETURNING id, event_id, recipient_user_id, target_type, target_ref, read_at, deleted_at, created_at`),
+		input.eventID,
+		input.recipientUserID,
+		input.targetType,
+		input.targetRef,
+		createdAt,
+	))
 }
 
 type deliveryInsertInput struct {
@@ -237,10 +266,10 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 	args[0] = recipientUserID
 
 	//nolint:gosec // Query predicates come from buildListWhere's fixed fragments; values stay parameterized.
-	countSQL := fmt.Sprintf(`SELECT COUNT(*)
+	countSQL := r.placeholder.rebind(fmt.Sprintf(`SELECT COUNT(*)
 		FROM notification_deliveries d
 		INNER JOIN notification_events e ON e.id = d.event_id
-		WHERE %s`, strings.Join(where, " AND "))
+		WHERE %s`, strings.Join(where, " AND ")))
 	var total int
 	if err := r.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
 		return ListResult{}, fmt.Errorf("count notifications: %w", err)
@@ -248,7 +277,7 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 
 	args = append(args, query.Limit, query.Offset)
 	//nolint:gosec // Query predicates come from buildListWhere's fixed fragments; values stay parameterized.
-	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(fmt.Sprintf(`SELECT
 			e.id, e.title_key, e.title, e.message_key, e.message, e.severity, e.category,
 			e.source_module, e.event_type, e.resource_type, e.resource_id, e.resource_name,
 			e.navigation_kind, e.navigation_payload, e.metadata, e.dedupe_key, e.occurred_at, e.expires_at, e.created_at,
@@ -257,7 +286,7 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 		INNER JOIN notification_events e ON e.id = d.event_id
 		WHERE %s
 		ORDER BY e.occurred_at DESC, d.id DESC
-		LIMIT $%d OFFSET $%d`, strings.Join(where, " AND "), len(args)-1, len(args)), args...)
+		LIMIT ? OFFSET ?`, strings.Join(where, " AND "))), args...)
 	if err != nil {
 		return ListResult{}, fmt.Errorf("list notifications: %w", err)
 	}
@@ -324,9 +353,9 @@ func (r *SQLRepository) UnreadCount(ctx context.Context, recipientUserID uint64)
 	}
 
 	var count int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*)
+	if err := r.db.QueryRowContext(ctx, r.placeholder.rebind(`SELECT COUNT(*)
 		FROM notification_deliveries
-		WHERE recipient_user_id = $1 AND read_at IS NULL AND deleted_at IS NULL`, id).Scan(&count); err != nil {
+		WHERE recipient_user_id = ? AND read_at IS NULL AND deleted_at IS NULL`), id).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count unread notifications: %w", err)
 	}
 	return count, nil
@@ -353,16 +382,24 @@ func (r *SQLRepository) MarkRead(ctx context.Context, recipientUserID uint64, de
 		markAt = delivery.ReadAt.UTC()
 	}
 
-	_, err = r.db.ExecContext(
+	result, err := r.db.ExecContext(
 		ctx,
 		r.placeholder.rebind(`UPDATE notification_deliveries
 		SET read_at = ?
-		WHERE id = ? AND deleted_at IS NULL`),
+		WHERE id = ? AND recipient_user_id = ? AND deleted_at IS NULL`),
 		markAt,
 		targetID,
+		recipientID,
 	)
 	if err != nil {
 		return Delivery{}, fmt.Errorf("mark notification delivery read: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return Delivery{}, fmt.Errorf("read mark notification rows affected: %w", err)
+	}
+	if affected == 0 {
+		return Delivery{}, ErrDeliveryNotFound
 	}
 	return r.getDelivery(ctx, targetID, recipientID)
 }
@@ -391,17 +428,17 @@ func (r *SQLRepository) MarkAllReadMatching(ctx context.Context, query ListQuery
 		return 0, err
 	}
 	args[0] = id
-	args = append(args, readAt.UTC())
+	args = append([]any{readAt.UTC()}, args...)
 
 	//nolint:gosec // Query predicates come from buildListWhere's fixed fragments; values stay parameterized.
-	result, err := r.db.ExecContext(ctx, fmt.Sprintf(`UPDATE notification_deliveries
-		SET read_at = COALESCE(read_at, $%d)
+	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(fmt.Sprintf(`UPDATE notification_deliveries
+		SET read_at = COALESCE(read_at, ?)
 		WHERE id IN (
 			SELECT d.id
 			FROM notification_deliveries d
 			INNER JOIN notification_events e ON e.id = d.event_id
 			WHERE %s
-		)`, len(args), strings.Join(where, " AND ")), args...)
+		)`, strings.Join(where, " AND "))), args...)
 	if err != nil {
 		return 0, fmt.Errorf("mark all notification deliveries read: %w", err)
 	}
@@ -427,7 +464,7 @@ func (r *SQLRepository) DeleteDelivery(ctx context.Context, recipientUserID uint
 
 	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE notification_deliveries
 		SET deleted_at = COALESCE(deleted_at, ?)
-		WHERE id = ? AND deleted_at IS NULL`), deletedAt.UTC(), targetID)
+		WHERE id = ? AND recipient_user_id = ? AND deleted_at IS NULL`), deletedAt.UTC(), targetID, recipientID)
 	if err != nil {
 		return fmt.Errorf("delete notification delivery: %w", err)
 	}
@@ -496,7 +533,7 @@ func normalizeListQuery(query ListQuery) ListQuery {
 }
 
 func buildListWhere(query ListQuery) ([]string, []any, error) {
-	where := []string{"d.recipient_user_id = $1", "d.deleted_at IS NULL"}
+	where := []string{"d.recipient_user_id = ?", "d.deleted_at IS NULL"}
 	args := []any{query.RecipientUserID}
 	switch query.Status {
 	case "", "all":
@@ -509,23 +546,23 @@ func buildListWhere(query ListQuery) ([]string, []any, error) {
 	}
 	if query.Severity != "" {
 		args = append(args, query.Severity)
-		where = append(where, fmt.Sprintf("e.severity = $%d", len(args)))
+		where = append(where, "e.severity = ?")
 	}
 	if query.Category != "" {
 		args = append(args, query.Category)
-		where = append(where, fmt.Sprintf("e.category = $%d", len(args)))
+		where = append(where, "e.category = ?")
 	}
 	if query.SourceModule != "" {
 		args = append(args, query.SourceModule)
-		where = append(where, fmt.Sprintf("e.source_module = $%d", len(args)))
+		where = append(where, "e.source_module = ?")
 	}
 	if query.OccurredFrom != nil {
 		args = append(args, query.OccurredFrom.UTC())
-		where = append(where, fmt.Sprintf("e.occurred_at >= $%d", len(args)))
+		where = append(where, "e.occurred_at >= ?")
 	}
 	if query.OccurredTo != nil {
 		args = append(args, query.OccurredTo.UTC())
-		where = append(where, fmt.Sprintf("e.occurred_at <= $%d", len(args)))
+		where = append(where, "e.occurred_at <= ?")
 	}
 	return where, args, nil
 }
@@ -594,10 +631,11 @@ func scanDelivery(scanner interface{ Scan(dest ...any) error }) (Delivery, error
 func (r *SQLRepository) getDelivery(ctx context.Context, deliveryID int64, recipientUserID int64) (Delivery, error) {
 	delivery, err := scanDelivery(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, event_id, recipient_user_id, target_type, target_ref, read_at, deleted_at, created_at
+		r.placeholder.rebind(`SELECT id, event_id, recipient_user_id, target_type, target_ref, read_at, deleted_at, created_at
 		FROM notification_deliveries
-		WHERE id = $1`,
+		WHERE id = ? AND recipient_user_id = ? AND deleted_at IS NULL`),
 		deliveryID,
+		recipientUserID,
 	))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -605,10 +643,13 @@ func (r *SQLRepository) getDelivery(ctx context.Context, deliveryID int64, recip
 		}
 		return Delivery{}, fmt.Errorf("get notification delivery: %w", err)
 	}
-	if delivery.RecipientUserID != uint64(recipientUserID) { //nolint:gosec // recipientUserID is produced by toDBID from uint64 input.
-		return Delivery{}, ErrDeliveryNotFound
-	}
 	return delivery, nil
+}
+
+func rollbackTx(tx *sql.Tx) {
+	if tx != nil {
+		_ = tx.Rollback()
+	}
 }
 
 func closeRows(rows *sql.Rows) {
@@ -739,8 +780,21 @@ func isUniqueViolation(err error) bool {
 	if err == nil {
 		return false
 	}
+	type sqlStateCarrier interface {
+		SQLState() string
+	}
+	var stateErr sqlStateCarrier
+	if errors.As(err, &stateErr) && stateErr.SQLState() == "23505" {
+		return true
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return true
+	}
+
 	message := strings.ToLower(err.Error())
-	return strings.Contains(message, "unique") || strings.Contains(message, "duplicate")
+	return strings.Contains(message, "sqlstate 23505") ||
+		strings.Contains(message, "unique constraint failed")
 }
 
 var _ Repository = (*SQLRepository)(nil)

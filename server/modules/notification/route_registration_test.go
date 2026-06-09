@@ -65,6 +65,48 @@ func TestNotificationRoutesScopeToCurrentUser(t *testing.T) {
 	}
 }
 
+func TestNotificationRoutesRejectInvalidListQuery(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &routeTestNotificationRepository{}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	fixture := newNotificationRouteTestContext()
+	registerNotificationRoutes(fixture.ctx, service, notificationGuards{view: routeTestAuth(42), read: routeTestAuth(42)})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/notifications?page=bad", nil)
+	recorder := httptest.NewRecorder()
+	fixture.engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid query, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestNotificationReadRoutePersistsReadState(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	now := time.Date(2026, 6, 9, 8, 0, 0, 0, time.UTC)
+	repo := &routeTestNotificationRepository{
+		items: []notificationstore.Notification{routeTestNotification(100, 42, "Unread item", now, nil)},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	fixture := newNotificationRouteTestContext()
+	registerNotificationRoutes(fixture.ctx, service, notificationGuards{view: routeTestAuth(42), read: routeTestAuth(42)})
+
+	request := httptest.NewRequest(http.MethodPost, "/api/notifications/100/read", nil)
+	recorder := httptest.NewRecorder()
+	fixture.engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if repo.items[0].Delivery.ReadAt == nil {
+		t.Fatal("expected route test repository to persist read state")
+	}
+}
+
 func TestNotificationRoutesRejectWrongUserDeliveryMutation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	now := time.Date(2026, 6, 9, 8, 0, 0, 0, time.UTC)
@@ -171,13 +213,14 @@ func (r *routeTestNotificationRepository) UnreadCount(_ context.Context, recipie
 	return count, nil
 }
 
-func (r *routeTestNotificationRepository) MarkRead(ctx context.Context, recipientUserID uint64, deliveryID uint64, readAt time.Time) (notificationstore.Delivery, error) {
-	item, err := r.Get(ctx, recipientUserID, deliveryID)
-	if err != nil {
-		return notificationstore.Delivery{}, err
+func (r *routeTestNotificationRepository) MarkRead(_ context.Context, recipientUserID uint64, deliveryID uint64, readAt time.Time) (notificationstore.Delivery, error) {
+	for index := range r.items {
+		if r.items[index].Delivery.ID == deliveryID && r.items[index].Delivery.RecipientUserID == recipientUserID {
+			r.items[index].Delivery.ReadAt = &readAt
+			return r.items[index].Delivery, nil
+		}
 	}
-	item.Delivery.ReadAt = &readAt
-	return item.Delivery, nil
+	return notificationstore.Delivery{}, notificationstore.ErrDeliveryNotFound
 }
 
 func (r *routeTestNotificationRepository) MarkAllRead(context.Context, uint64, time.Time) (int, error) {

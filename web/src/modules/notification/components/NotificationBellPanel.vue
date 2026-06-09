@@ -66,7 +66,14 @@
     </template>
 
     <t-badge :count="unreadCount" :max-count="99" :offset="[4, 4]">
-      <t-button theme="default" shape="square" variant="text" :loading="loading">
+      <t-button
+        theme="default"
+        shape="square"
+        variant="text"
+        :loading="loading"
+        :aria-label="t('notification.bell.open')"
+        :title="t('notification.bell.open')"
+      >
         <t-icon name="mail" />
       </t-button>
     </t-badge>
@@ -158,7 +165,7 @@ async function markAllRead() {
     await refreshPreview();
     MessagePlugin.success(t('notification.messages.markAllReadSuccess'));
   } catch {
-    MessagePlugin.error(t('notification.messages.markReadFailed'));
+    MessagePlugin.error(t('notification.messages.markAllReadFailed'));
   }
 }
 

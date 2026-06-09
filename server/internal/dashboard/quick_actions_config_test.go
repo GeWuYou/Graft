@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 package dashboard
 
 import (
@@ -48,7 +51,7 @@ func assertQuickActionsSchemaI18nMetadata(t *testing.T, item configregistry.Defi
 
 	var schema struct {
 		Default json.RawMessage `json:"default"`
-		XI18n struct {
+		XI18n   struct {
 			TitleKey       string `json:"titleKey"`
 			DescriptionKey string `json:"descriptionKey"`
 			EnumLabels     map[string]struct {

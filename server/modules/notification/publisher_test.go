@@ -31,7 +31,7 @@ func TestPublisherPersistsUserDeliveryAndDedupe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("publish duplicate notification: %v", err)
 	}
-	requireDuplicatePublishResult(t, duplicate, result.EventID)
+	requireDuplicatePublishResult(t, duplicate, result.EventID, result.DeliveryIDs[0])
 
 	count, err := stack.service.UnreadCount(context.Background(), 42)
 	if err != nil {
@@ -47,6 +47,34 @@ func TestPublisherPersistsUserDeliveryAndDedupe(t *testing.T) {
 	}
 	if page.Total != 1 || len(page.Items) != 1 || page.Items[0].Event.NavigationKind != notificationcontract.NavigationAuditLog.String() {
 		t.Fatalf("unexpected notification page: %#v", page)
+	}
+}
+
+func TestPublisherCompensatesMissingDeliveryOnDedupeRetry(t *testing.T) {
+	stack := newNotificationTestStack(t)
+	input := validPublishInput()
+
+	event, deduplicated, err := stack.repository.CreateEvent(context.Background(), eventStoreInput(input))
+	if err != nil {
+		t.Fatalf("create event without deliveries: %v", err)
+	}
+	if event.ID == 0 || deduplicated {
+		t.Fatalf("unexpected seeded event result: event=%#v deduplicated=%v", event, deduplicated)
+	}
+
+	result, err := stack.publisher.Publish(context.Background(), input)
+	if err != nil {
+		t.Fatalf("publish dedupe retry: %v", err)
+	}
+	if !result.Deduplicated || result.EventID != event.ID || result.RecipientCount != 1 || len(result.DeliveryIDs) != 1 {
+		t.Fatalf("expected dedupe retry to compensate delivery fan-out, got %#v", result)
+	}
+	count, err := stack.service.UnreadCount(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("unread count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one compensated delivery, got %d", count)
 	}
 }
 
@@ -83,6 +111,40 @@ func TestPublisherFansOutPermissionTarget(t *testing.T) {
 	}
 	if page.Total != 1 || page.Items[0].Delivery.TargetType != notificationcontract.TargetPermission.String() {
 		t.Fatalf("unexpected permission delivery: %#v", page)
+	}
+}
+
+func TestRepositoryCreateDeliveriesRejectsInvalidBatchWithoutPartialInsert(t *testing.T) {
+	stack := newNotificationTestStack(t)
+	event, _, err := stack.repository.CreateEvent(context.Background(), eventStoreInput(validPublishInput()))
+	if err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	_, err = stack.repository.CreateDeliveries(context.Background(), []notificationstore.CreateDeliveryInput{
+		{
+			EventID:         event.ID,
+			RecipientUserID: 42,
+			TargetType:      notificationcontract.TargetUser.String(),
+			TargetRef:       "42",
+		},
+		{
+			EventID:         event.ID,
+			RecipientUserID: 7,
+			TargetType:      "",
+			TargetRef:       "7",
+		},
+	})
+	if !errors.Is(err, notificationstore.ErrInvalidInput) {
+		t.Fatalf("expected invalid delivery batch error, got %v", err)
+	}
+
+	var deliveryCount int
+	if err := stack.db.QueryRow(`SELECT COUNT(*) FROM notification_deliveries WHERE event_id = ?`, event.ID).Scan(&deliveryCount); err != nil {
+		t.Fatalf("count deliveries: %v", err)
+	}
+	if deliveryCount != 0 {
+		t.Fatalf("expected invalid batch to insert no deliveries, got %d", deliveryCount)
 	}
 }
 
@@ -132,6 +194,28 @@ func TestServiceKeepsDeliveryMutationsUserScoped(t *testing.T) {
 	}
 }
 
+func TestServiceMarkReadReturnsNotFoundWhenUpdateAffectsNoRows(t *testing.T) {
+	stack := newNotificationTestStack(t)
+
+	result, err := stack.publisher.Publish(context.Background(), validPublishInput())
+	if err != nil {
+		t.Fatalf("publish notification: %v", err)
+	}
+	deliveryID := result.DeliveryIDs[0]
+	if _, err := stack.db.Exec(`CREATE TRIGGER notification_mark_read_noop
+		BEFORE UPDATE OF read_at ON notification_deliveries
+		BEGIN
+			SELECT RAISE(IGNORE);
+		END;`); err != nil {
+		t.Fatalf("create no-op update trigger: %v", err)
+	}
+
+	if _, err := stack.service.MarkRead(context.Background(), 42, deliveryID, time.Now().UTC()); !errors.Is(err, moduleapi.ErrNotificationDeliveryNotFound) {
+		t.Fatalf("expected no-row read update to return not found, got %v", err)
+	}
+	requireUnreadDeliveryForUser(t, stack.db, deliveryID, 42)
+}
+
 type notificationTestStack struct {
 	db         *sql.DB
 	repository notificationstore.Repository
@@ -169,9 +253,10 @@ func requireFirstPublishResult(t *testing.T, result moduleapi.PublishNotificatio
 	}
 }
 
-func requireDuplicatePublishResult(t *testing.T, result moduleapi.PublishNotificationResult, eventID uint64) {
+func requireDuplicatePublishResult(t *testing.T, result moduleapi.PublishNotificationResult, eventID uint64, deliveryID uint64) {
 	t.Helper()
-	if !result.Deduplicated || result.EventID != eventID || result.RecipientCount != 0 || len(result.DeliveryIDs) != 0 {
+	if !result.Deduplicated || result.EventID != eventID || result.RecipientCount != 1 ||
+		len(result.DeliveryIDs) != 1 || result.DeliveryIDs[0] != deliveryID {
 		t.Fatalf("unexpected duplicate result: %#v", result)
 	}
 }
@@ -214,6 +299,28 @@ func validPublishInputWithDedupe(dedupeKey string) moduleapi.PublishNotification
 			Type: moduleapi.NotificationTargetType(notificationcontract.TargetUser),
 			Ref:  "42",
 		},
+	}
+}
+
+func eventStoreInput(input moduleapi.PublishNotificationInput) notificationstore.CreateEventInput {
+	return notificationstore.CreateEventInput{
+		TitleKey:          input.TitleKey,
+		Title:             input.Title,
+		MessageKey:        input.MessageKey,
+		Message:           input.Message,
+		Severity:          string(input.Severity),
+		Category:          string(input.Category),
+		SourceModule:      input.SourceModule,
+		EventType:         input.EventType,
+		ResourceType:      input.ResourceType,
+		ResourceID:        input.ResourceID,
+		ResourceName:      input.ResourceName,
+		NavigationKind:    string(input.Navigation.Kind),
+		NavigationPayload: input.Navigation.Payload,
+		Metadata:          input.Metadata,
+		DedupeKey:         input.DedupeKey,
+		OccurredAt:        input.OccurredAt,
+		ExpiresAt:         input.ExpiresAt,
 	}
 }
 
@@ -281,6 +388,7 @@ func newNotificationTestDB(t *testing.T) *sql.DB {
 		read_at TIMESTAMP NULL,
 		deleted_at TIMESTAMP NULL,
 		created_at TIMESTAMP NOT NULL,
+		UNIQUE (event_id, recipient_user_id),
 		FOREIGN KEY (event_id) REFERENCES notification_events(id)
 	);`
 	if _, err := db.Exec(schema); err != nil {
