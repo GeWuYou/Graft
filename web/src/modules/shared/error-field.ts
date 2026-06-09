@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 export function readErrorField(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object' || !('data' in payload)) {
     return null;

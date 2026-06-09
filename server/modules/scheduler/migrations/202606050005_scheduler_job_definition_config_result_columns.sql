@@ -1,3 +1,6 @@
+-- Copyright (c) 2025-2026 GeWuYou
+-- SPDX-License-Identifier: Apache-2.0
+
 ALTER TABLE "scheduler_job_definitions"
   ADD COLUMN IF NOT EXISTS "config_schema" jsonb NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS "default_config" jsonb NOT NULL DEFAULT '{}'::jsonb;

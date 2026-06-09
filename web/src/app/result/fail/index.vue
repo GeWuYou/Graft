@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <result :title="t('app.result.fail.title')" :tip="t('app.result.fail.subtitle')" status="fail" status-theme="danger">
     <t-button theme="default" @click="() => router.push(ROOT_ENTRY_PATH)">{{ t('app.result.fail.back') }}</t-button>

@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <section class="management-table-card">
     <div v-if="$slots.head" class="management-table-card__head">

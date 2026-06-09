@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <div class="monitor-refresh-control" data-monitor-refresh-toolbar="true">
     <div v-if="statusTag" class="monitor-refresh-control__status">

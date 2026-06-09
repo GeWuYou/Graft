@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package module 定义模块生命周期契约与运行时管理逻辑。
 //
 // 当前仓库的 canonical 架构语义是 compile-time modules。这个包保持

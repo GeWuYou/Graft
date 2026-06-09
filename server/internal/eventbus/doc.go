@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package eventbus 提供运行时内最小事件总线能力。
 //
 // 当前 MVP 阶段的 event bus 只负责模块间的进程内解耦通信：显式订阅、

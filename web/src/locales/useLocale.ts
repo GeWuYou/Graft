@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import { useLocalStorage } from '@vueuse/core';
 import type { GlobalConfigProvider } from 'tdesign-vue-next';
 import { computed } from 'vue';

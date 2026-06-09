@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <header class="page-header" :class="{ 'page-header--compact': compact }">
     <t-breadcrumb v-if="resolvedBreadcrumb.length > 0" class="page-header__breadcrumb" max-item-width="180">

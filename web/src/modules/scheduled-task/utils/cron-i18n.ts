@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import type { CronDescriptionResult, CronValidationResult } from './cron';
 
 type CronTranslate = (key: string, params?: Record<string, string | number>) => string;

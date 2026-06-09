@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * USER_ROUTE_PATH 定义用户管理模块的 canonical 前端路由入口。
  *

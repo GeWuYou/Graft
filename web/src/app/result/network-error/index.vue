@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <result :title="t('app.result.networkError.title')" :tip="t('app.result.networkError.subtitle')" type="wifi">
     <t-button theme="default" @click="() => router.push(ROOT_ENTRY_PATH)">

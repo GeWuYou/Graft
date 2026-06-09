@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package scheduler 提供当前 MVP 阶段的最小进程内调度器封装。
 //
 // 该包隔离底层 cron 实现，只暴露显式 RegisterJob / Start / Stop / RemoveJob

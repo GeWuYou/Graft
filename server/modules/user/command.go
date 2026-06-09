@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 package user
 
 // CreateUserCommand is the business-level input for creating a managed user.

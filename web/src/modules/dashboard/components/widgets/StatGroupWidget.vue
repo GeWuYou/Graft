@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <div v-if="payload && payload.items.length" class="dashboard-stat-group">
     <div v-for="item in payload.items" :key="item.key" class="dashboard-stat-group__item">

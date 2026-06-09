@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import type { DropdownOption } from 'tdesign-vue-next';
 import { computed } from 'vue';
 import type { I18nOptions } from 'vue-i18n';

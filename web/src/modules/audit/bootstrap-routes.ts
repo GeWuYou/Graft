@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import type { BootstrapRouteRegistration } from '@/modules/types';
 
 import { AUDIT_BOOTSTRAP_ROUTE } from './contract/bootstrap';
