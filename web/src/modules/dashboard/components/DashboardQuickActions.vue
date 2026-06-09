@@ -97,9 +97,13 @@
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { type RouteRecordRaw, useRouter } from 'vue-router';
 
 import { t } from '@/locales';
+import { useLocale } from '@/locales/useLocale';
+import { getBootstrapRouteRegistration } from '@/modules';
+import { renderLocalizedTitle, resolveRouteLocalizedTitle } from '@/utils/route/meta';
+import type { AppRouteMeta } from '@/utils/types';
 
 import { useDashboardQuickActions } from '../composables/use-dashboard-quick-actions';
 import { type DashboardQuickActionConfig, DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG } from '../contract/quick-actions';
@@ -113,6 +117,7 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const { locale } = useLocale();
 const drawerVisible = ref(false);
 
 const config = computed(() => props.config ?? DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG);
@@ -131,7 +136,72 @@ const MODULE_COLOR_PREFIXES = [
 ] as const;
 
 function linkTitle(link: DashboardQuickLink) {
+  const routeTitle = resolveQuickLinkRouteTitle(link);
+  if (routeTitle) {
+    return routeTitle;
+  }
+
   return resolveDashboardText(link.title_key, link.title || link.id);
+}
+
+function resolveQuickLinkRouteTitle(link: DashboardQuickLink) {
+  const routeMeta =
+    resolveRuntimeRouteMeta(link.route_location) ?? getBootstrapRouteRegistration(link.route_location)?.meta;
+  const title = renderLocalizedTitle(
+    resolveRouteLocalizedTitle(routeMeta, 'tab') ?? resolveRouteLocalizedTitle(routeMeta, 'page'),
+    locale.value,
+    '',
+  );
+
+  return title.trim();
+}
+
+function resolveRuntimeRouteMeta(routeLocation: string) {
+  const targetPath = normalizeRoutePath(routeLocation);
+  if (!targetPath) {
+    return undefined;
+  }
+
+  return findRouteMetaByPath(router.getRoutes(), targetPath);
+}
+
+function findRouteMetaByPath(routes: RouteRecordRaw[], targetPath: string, parentPath = ''): AppRouteMeta | undefined {
+  for (const route of routes) {
+    const routePath = normalizeJoinedRoutePath(parentPath, String(route.path));
+    if (routePath === targetPath) {
+      return route.meta as AppRouteMeta | undefined;
+    }
+
+    const childMeta = findRouteMetaByPath(route.children ?? [], targetPath, routePath);
+    if (childMeta) {
+      return childMeta;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeJoinedRoutePath(parentPath: string, routePath: string) {
+  if (routePath.startsWith('/')) {
+    return normalizeRoutePath(routePath);
+  }
+
+  if (!routePath) {
+    return normalizeRoutePath(parentPath);
+  }
+
+  return normalizeRoutePath(`${parentPath}/${routePath}`);
+}
+
+function normalizeRoutePath(path: string) {
+  const trimmed = path.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const pathOnly = trimmed.split(/[?#]/, 1)[0] ?? '';
+  const withLeadingSlash = pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`;
+  return withLeadingSlash === '/' ? withLeadingSlash : withLeadingSlash.replace(/\/+$/, '');
 }
 
 function linkDescription(link: DashboardQuickLink) {
