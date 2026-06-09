@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
@@ -55,56 +57,56 @@ class LicenseHeaderTests(unittest.TestCase):
 
     def test_inserts_after_shebang(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "tool.py"
-            path.write_text("#!/usr/bin/env python3\nprint('ok')\n", encoding="utf-8")
+            path = Path(temp_dir) / "tool.sh"
+            path.write_text("#!/usr/bin/env bash\necho ok\n", encoding="utf-8")
 
             license_header.add_license_header(path)
 
             self.assertEqual(
-                "#!/usr/bin/env python3\n"
+                "#!/usr/bin/env bash\n"
                 "# Copyright (c) 2025-2026 GeWuYou\n"
                 "# SPDX-License-Identifier: Apache-2.0\n"
                 "\n"
-                "print('ok')\n",
+                "echo ok\n",
                 path.read_text(encoding="utf-8"),
             )
 
-    def test_uses_html_comment_for_vue(self) -> None:
+    def test_inserts_ts_vue_and_sql_headers(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "Widget.vue"
-            path.write_text("<template></template>\n", encoding="utf-8")
+            cases = {
+                "app.ts": (
+                    "export const ok = true;\n",
+                    "// Copyright (c) 2025-2026 GeWuYou\n"
+                    "// SPDX-License-Identifier: Apache-2.0\n"
+                    "\n"
+                    "export const ok = true;\n",
+                ),
+                "Widget.vue": (
+                    "<template></template>\n",
+                    "<!--\n"
+                    "  Copyright (c) 2025-2026 GeWuYou\n"
+                    "  SPDX-License-Identifier: Apache-2.0\n"
+                    "-->\n"
+                    "\n"
+                    "<template></template>\n",
+                ),
+                "schema.sql": (
+                    "create table demo (id bigint);\n",
+                    "-- Copyright (c) 2025-2026 GeWuYou\n"
+                    "-- SPDX-License-Identifier: Apache-2.0\n"
+                    "\n"
+                    "create table demo (id bigint);\n",
+                ),
+            }
 
-            license_header.add_license_header(path)
+            for file_name, (initial, expected) in cases.items():
+                with self.subTest(file_name=file_name):
+                    path = Path(temp_dir) / file_name
+                    path.write_text(initial, encoding="utf-8")
 
-            self.assertEqual(
-                "<!--\n"
-                "  Copyright (c) 2025-2026 GeWuYou\n"
-                "  SPDX-License-Identifier: Apache-2.0\n"
-                "-->\n"
-                "\n"
-                "<template></template>\n",
-                path.read_text(encoding="utf-8"),
-            )
+                    license_header.add_license_header(path)
 
-    def test_inserts_markdown_header_after_frontmatter(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "note.md"
-            path.write_text("---\ntitle: Demo\n---\n# Demo\n", encoding="utf-8")
-
-            license_header.add_license_header(path)
-
-            self.assertEqual(
-                "---\n"
-                "title: Demo\n"
-                "---\n"
-                "<!--\n"
-                "  Copyright (c) 2025-2026 GeWuYou\n"
-                "  SPDX-License-Identifier: Apache-2.0\n"
-                "-->\n"
-                "\n"
-                "# Demo\n",
-                path.read_text(encoding="utf-8"),
-            )
+                    self.assertEqual(expected, path.read_text(encoding="utf-8"))
 
     def test_uses_block_comment_for_css(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -123,63 +125,63 @@ class LicenseHeaderTests(unittest.TestCase):
                 path.read_text(encoding="utf-8"),
             )
 
-    def test_inserts_xml_header_after_declaration(self) -> None:
+    def test_skips_markdown_yaml_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "schema.xml"
-            path.write_text("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<root />\n", encoding="utf-8")
+            root = Path(temp_dir)
+            paths = ["note.md", "config.yaml", "package.json"]
+            for relative_path in paths:
+                (root / relative_path).write_text("content\n", encoding="utf-8")
 
-            license_header.add_license_header(path)
+            self.assertEqual([], list(license_header.scan_files(root, paths)))
+            for relative_path in paths:
+                self.assertFalse(license_header.is_supported_path(relative_path))
 
-            self.assertEqual(
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-                "<!--\n"
-                "  Copyright (c) 2025-2026 GeWuYou\n"
-                "  SPDX-License-Identifier: Apache-2.0\n"
-                "-->\n"
-                "\n"
-                "<root />\n",
-                path.read_text(encoding="utf-8"),
-            )
-
-    def test_repairs_xml_header_before_declaration(self) -> None:
+    def test_skips_agents_paths(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "schema.xml"
-            path.write_text(
-                "<!--\n"
-                "  Copyright (c) 2025-2026 GeWuYou\n"
-                "  SPDX-License-Identifier: Apache-2.0\n"
-                "-->\n"
-                "\n"
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-                "<root />\n",
-                encoding="utf-8",
-            )
+            root = Path(temp_dir)
+            relative_path = ".agents/skills/demo/tool.go"
+            path = root / relative_path
+            path.parent.mkdir(parents=True)
+            path.write_text("package demo\n", encoding="utf-8")
 
-            self.assertTrue(license_header.needs_header_repair(path, path.read_text(encoding="utf-8")))
-            license_header.repair_license_header(path)
-
-            self.assertEqual(
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-                "<!--\n"
-                "  Copyright (c) 2025-2026 GeWuYou\n"
-                "  SPDX-License-Identifier: Apache-2.0\n"
-                "-->\n"
-                "\n"
-                "<root />\n",
-                path.read_text(encoding="utf-8"),
-            )
+            self.assertEqual([], list(license_header.scan_files(root, [relative_path])))
+            self.assertFalse(license_header.is_supported_path(relative_path))
 
     def test_excludes_generated_lock_and_environment_paths(self) -> None:
         self.assertFalse(license_header.is_supported_path(".ai/environment/tools.ai.yaml"))
+        self.assertFalse(license_header.is_supported_path("ai-plan/design/example.go"))
+        self.assertFalse(license_header.is_supported_path("docs/example.ts"))
+        self.assertFalse(license_header.is_supported_path("openapi/generated/schema.ts"))
         self.assertFalse(license_header.is_supported_path("web/bun.lock"))
+        self.assertFalse(license_header.is_supported_path("go.mod"))
+        self.assertFalse(license_header.is_supported_path("go.sum"))
+        self.assertFalse(license_header.is_supported_path("bun.lock"))
+        self.assertFalse(license_header.is_supported_path("package-lock.json"))
+        self.assertFalse(license_header.is_supported_path("pnpm-lock.yaml"))
+        self.assertFalse(license_header.is_supported_path(".env.local"))
         self.assertFalse(license_header.is_supported_path("openapi/dist/openapi.bundle.json"))
         self.assertFalse(license_header.is_supported_path("server/internal/contract/openapi/generated/types.gen.go"))
         self.assertFalse(license_header.is_supported_path("server/internal/contract/openapi/user/zz_generated.management.go"))
         self.assertFalse(license_header.is_supported_path("server/modules/rbac/ent/zz_generated.audit.go"))
         self.assertFalse(license_header.is_supported_path("server/modules/rbac/ent/client.go"))
         self.assertTrue(license_header.is_supported_path("server/modules/rbac/ent/schema/role.go"))
-        self.assertFalse(license_header.is_supported_path("web/src/contracts/openapi/generated/schema.ts"))
+        self.assertFalse(license_header.is_supported_path("web/src/api/generated/schema.ts"))
         self.assertTrue(license_header.is_supported_path("server/internal/app/runtime.go"))
+
+    def test_existing_header_repeated_fix_is_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            path = root / "main.go"
+            path.write_text("package main\n", encoding="utf-8")
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                first_exit = license_header.main(["--fix", "--root", str(root), "--paths", "main.go"])
+                first_text = path.read_text(encoding="utf-8")
+                second_exit = license_header.main(["--fix", "--root", str(root), "--paths", "main.go"])
+
+            self.assertEqual(0, first_exit)
+            self.assertEqual(0, second_exit)
+            self.assertEqual(first_text, path.read_text(encoding="utf-8"))
 
     def test_added_scope_uses_added_diff_filter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

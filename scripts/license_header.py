@@ -22,54 +22,50 @@ LINE_COMMENT_EXTENSIONS = {
     ".cjs": "//",
     ".go": "//",
     ".js": "//",
-    ".jsx": "//",
     ".mjs": "//",
-    ".py": "#",
+    ".ps1": "#",
     ".sh": "#",
     ".sql": "--",
-    ".toml": "#",
     ".ts": "//",
     ".tsx": "//",
-    ".yaml": "#",
-    ".yml": "#",
 }
 
 BLOCK_COMMENT_EXTENSIONS = {
     ".css": ("/*", " *", " */"),
-    ".less": ("/*", " *", " */"),
     ".scss": ("/*", " *", " */"),
 }
 
 HTML_COMMENT_EXTENSIONS = {
-    ".html",
-    ".md",
     ".vue",
-}
-
-XML_COMMENT_EXTENSIONS = {
-    ".xml",
 }
 
 SUPPORTED_EXTENSIONS = (
     set(LINE_COMMENT_EXTENSIONS)
     | set(BLOCK_COMMENT_EXTENSIONS)
     | HTML_COMMENT_EXTENSIONS
-    | XML_COMMENT_EXTENSIONS
 )
 
 EXCLUDED_PREFIXES = (
-    ".ai/environment/",
+    ".ai/",
+    ".agents/",
     ".git/",
     ".output/",
     ".tmp/",
+    "ai-plan/",
+    "build/",
     "coverage/",
     "dist/",
+    "docs/",
     "node_modules/",
+    "openapi/generated/",
     "server/tmp/",
     "temp/",
+    "vendor/",
     "web/coverage/",
+    "web/build/",
     "web/dist/",
     "web/node_modules/",
+    "web/src/api/generated/",
     "server/internal/contract/openapi/",
 )
 
@@ -80,19 +76,30 @@ EXCLUDED_PATH_PARTS = {
 }
 
 EXCLUDED_EXACT_PATHS = {
+    "bun.lock",
+    "go.mod",
+    "go.sum",
     "LICENSE",
     "LICENSE.md",
+    "package-lock.json",
+    "pnpm-lock.yaml",
     "web/bun.lock",
+    "web/package-lock.json",
+    "web/pnpm-lock.yaml",
 }
 
 EXCLUDED_SUFFIXES = (
     ".bundle.json",
     ".gen.go",
+    ".json",
     ".lock",
     ".lockb",
+    ".md",
     ".min.css",
     ".min.js",
     ".pyc",
+    ".yaml",
+    ".yml",
 )
 
 HEADER_MARKERS = (SPDX_LINE,)
@@ -223,13 +230,16 @@ def is_supported_path(relative_path: str) -> bool:
     if relative_path in EXCLUDED_EXACT_PATHS:
         return False
 
+    path = Path(relative_path)
+    if path.name.startswith(".env"):
+        return False
+
     if relative_path.endswith(EXCLUDED_SUFFIXES):
         return False
 
     if any(relative_path.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
         return False
 
-    path = Path(relative_path)
     if any(
         part in EXCLUDED_PATH_PARTS or part.startswith("zz_generated") or part.endswith(".generated")
         for part in path.parts
@@ -260,12 +270,7 @@ def has_license_header(text: str) -> bool:
 
 
 def needs_header_repair(path: Path, text: str) -> bool:
-    if path.suffix not in XML_COMMENT_EXTENSIONS:
-        return False
-
-    newline = detect_newline(text)
-    header = build_header(path.suffix, newline)
-    return text.startswith(header) and text[len(header) :].startswith("<?xml")
+    return False
 
 
 def add_license_header(path: Path) -> None:
@@ -276,22 +281,12 @@ def add_license_header(path: Path) -> None:
 
 def repair_license_header(path: Path) -> None:
     text, had_bom = read_text_preserving_bom(path)
-    updated = repair_xml_header_position(path, text)
-    write_text_preserving_bom(path, updated, had_bom)
+    write_text_preserving_bom(path, text, had_bom)
 
 
 def insert_header(path: Path, text: str) -> str:
     newline = detect_newline(text)
     header = build_header(path.suffix, newline)
-
-    if path.suffix in XML_COMMENT_EXTENSIONS and text.startswith("<?xml"):
-        line_end = find_first_line_end(text)
-        return f"{text[:line_end]}{header}{text[line_end:]}"
-
-    if path.suffix == ".md" and text.startswith("---"):
-        insertion_index = markdown_frontmatter_end(text)
-        if insertion_index is not None:
-            return f"{text[:insertion_index]}{header}{text[insertion_index:]}"
 
     if text.startswith("#!"):
         line_end = find_first_line_end(text)
@@ -302,33 +297,6 @@ def insert_header(path: Path, text: str) -> str:
     return f"{header}{text}"
 
 
-def repair_xml_header_position(path: Path, text: str) -> str:
-    newline = detect_newline(text)
-    header = build_header(path.suffix, newline)
-    if not text.startswith(header):
-        return text
-
-    remainder = text[len(header) :]
-    if not remainder.startswith("<?xml"):
-        return text
-
-    line_end = find_first_line_end(remainder)
-    return f"{remainder[:line_end]}{header}{remainder[line_end:]}"
-
-
-def markdown_frontmatter_end(text: str) -> int | None:
-    lines = text.splitlines(keepends=True)
-    if not lines or lines[0].strip() != "---":
-        return None
-
-    offset = len(lines[0])
-    for line in lines[1:]:
-        offset += len(line)
-        if line.strip() == "---":
-            return offset
-    return None
-
-
 def find_first_line_end(text: str) -> int:
     first_newline = text.find("\n")
     if first_newline == -1:
@@ -337,15 +305,6 @@ def find_first_line_end(text: str) -> int:
 
 
 def build_header(suffix: str, newline: str) -> str:
-    if suffix in XML_COMMENT_EXTENSIONS:
-        return (
-            f"<!--{newline}"
-            f"  {COPYRIGHT_LINE}{newline}"
-            f"  {SPDX_LINE}{newline}"
-            f"-->{newline}"
-            f"{newline}"
-        )
-
     if suffix in HTML_COMMENT_EXTENSIONS:
         return (
             f"<!--{newline}"
