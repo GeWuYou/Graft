@@ -57,7 +57,7 @@ jobs:
           bun-version: 1.3.13
 
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@63c23d5020da8f97005b6de340504130bdbe42c7
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee
         with:
           version: v2.12.2
           working-directory: server

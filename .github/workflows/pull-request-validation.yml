@@ -64,7 +64,7 @@ jobs:
           echo "head_ref=${head_ref}" >> "$GITHUB_OUTPUT"
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab
+        uses: trufflesecurity/trufflehog@d411fff7b8879a62509f3fa98c07f247ac089a51
         with:
           path: .
           base: ${{ steps.secret_scan_range.outputs.base_ref }}
@@ -233,7 +233,7 @@ jobs:
 
       - name: Publish web test report
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: dorny/test-reporter@1cc81a5edf733718d4850df304aaa21c05cd7280
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2
         with:
           name: Web Vitest Results
           path: .tmp/test-results/web-vitest-junit.xml
@@ -259,7 +259,7 @@ jobs:
             server/go.sum
 
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@63c23d5020da8f97005b6de340504130bdbe42c7
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: server
@@ -329,7 +329,7 @@ jobs:
             server/go.sum
 
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@63c23d5020da8f97005b6de340504130bdbe42c7
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: server
@@ -408,7 +408,7 @@ jobs:
 
       - name: Publish server test report
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: dorny/test-reporter@1cc81a5edf733718d4850df304aaa21c05cd7280
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2
         with:
           name: Server Go Test Results
           path: .tmp/test-results/server-go-test.json
