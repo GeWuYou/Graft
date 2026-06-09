@@ -1,7 +1,11 @@
 type: object
-required: [label, route]
+required: [label_key, label, route]
 properties:
+  label_key:
+    type: string
+    description: Stable i18n key for the action label. Consumers should prefer this key before label fallback.
   label:
     type: string
+    description: Direct label fallback when the client has no translation for label_key.
   route:
     type: string

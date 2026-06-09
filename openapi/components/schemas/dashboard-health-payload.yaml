@@ -31,3 +31,11 @@ properties:
           type: string
         route_location:
           type: string
+  healthy_modules:
+    type: integer
+    description: Optional count of healthy modules for module-runtime health summaries.
+    example: 7
+  abnormal_services:
+    type: integer
+    description: Optional count of module or service entries that need attention.
+    example: 0

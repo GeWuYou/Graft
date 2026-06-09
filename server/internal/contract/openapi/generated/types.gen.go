@@ -2246,8 +2246,12 @@ type DashboardWidget struct {
 
 // DashboardWidgetAction defines model for dashboard-widget-action.
 type DashboardWidgetAction struct {
+	// Label Direct label fallback when the client has no translation for label_key.
 	Label string `json:"label"`
-	Route string `json:"route"`
+
+	// LabelKey Stable i18n key for the action label. Consumers should prefer this key before label fallback.
+	LabelKey string `json:"label_key"`
+	Route    string `json:"route"`
 }
 
 // DashboardWidgetCategory defines model for dashboard-widget-category.

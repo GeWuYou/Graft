@@ -15,11 +15,17 @@ const (
 	schedulerTaskAttentionWidgetID    = "scheduler.task-attention"
 	schedulerTaskAttentionWidgetOrder = 120
 	schedulerTaskAttentionListLimit   = 100
+	schedulerTaskQuickLinkID          = "scheduler.scheduled-tasks"
+	schedulerTaskQuickLinkOrder       = 110
 )
 
 func registerSchedulerDashboardWidget(ctx *module.Context, instance *Module) error {
 	if ctx == nil || ctx.DashboardRegistry == nil {
 		return nil
+	}
+
+	if err := ctx.DashboardRegistry.RegisterQuickLink(schedulerTaskQuickLink()); err != nil {
+		return fmt.Errorf("register scheduler dashboard quick link: %w", err)
 	}
 
 	if err := ctx.DashboardRegistry.Register(dashboard.WidgetDefinition{
@@ -36,8 +42,9 @@ func registerSchedulerDashboardWidget(ctx *module.Context, instance *Module) err
 		Order:          schedulerTaskAttentionWidgetOrder,
 		RouteLocation:  schedulercontract.ScheduledTaskMenuPath,
 		Action: dashboard.WidgetAction{
-			Label: "View details",
-			Route: schedulercontract.ScheduledTaskMenuPath,
+			LabelKey: "dashboard.actions.details",
+			Label:    "View details",
+			Route:    schedulercontract.ScheduledTaskMenuPath,
 		},
 		RequiredPermissions: []string{schedulercontract.ScheduledTaskReadPermission.String()},
 		Loader: dashboard.WidgetLoaderFunc(func(loadCtx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
@@ -52,6 +59,19 @@ func registerSchedulerDashboardWidget(ctx *module.Context, instance *Module) err
 	}
 
 	return nil
+}
+
+func schedulerTaskQuickLink() dashboard.QuickLinkDefinition {
+	return dashboard.QuickLinkDefinition{
+		ID:                  schedulerTaskQuickLinkID,
+		ModuleKey:           moduleID,
+		TitleKey:            schedulercontract.ScheduledTaskMenuTitle.String(),
+		Title:               "Scheduled Tasks",
+		Icon:                "time",
+		RouteLocation:       schedulercontract.ScheduledTaskMenuPath,
+		RequiredPermissions: []string{schedulercontract.ScheduledTaskReadPermission.String()},
+		Order:               schedulerTaskQuickLinkOrder,
+	}
 }
 
 func loadSchedulerTaskAttentionWidget(ctx context.Context, runtime schedulercore.Runtime) (dashboard.WidgetPayload, error) {
@@ -136,12 +156,13 @@ func schedulerAttentionState(counts schedulerAttentionCounters) (dashboard.Widge
 
 func schedulerAttentionStat(key string, label string, value int, tone string, description string) map[string]any {
 	return map[string]any{
-		"key":            key,
-		"label_key":      "dashboard.widget.schedulerTaskAttention." + key,
-		"label":          label,
-		"value":          strconv.Itoa(value),
-		"tone":           tone,
-		"description":    description,
-		"route_location": schedulercontract.ScheduledTaskMenuPath,
+		"key":             key,
+		"label_key":       "dashboard.widget.schedulerTaskAttention." + key,
+		"label":           label,
+		"value":           strconv.Itoa(value),
+		"tone":            tone,
+		"description_key": "dashboard.widget.schedulerTaskAttention." + key + "Description",
+		"description":     description,
+		"route_location":  schedulercontract.ScheduledTaskMenuPath,
 	}
 }

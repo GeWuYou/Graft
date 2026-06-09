@@ -8,12 +8,20 @@ import DashboardRenderer from './DashboardRenderer.vue';
 vi.mock('@/locales', () => ({
   t: (key: string, params?: Record<string, unknown>) => {
     const translations: Record<string, string> = {
-      'dashboard.actions.details': 'View details',
+      'dashboard.actions.details': '查看详情',
       'dashboard.actions.retry': 'Retry',
       'dashboard.category.count': `${params?.count ?? 0} widgets`,
+      'dashboard.category.business': 'Business',
       'dashboard.category.operation': 'Operations',
       'dashboard.category.security': 'Security',
       'dashboard.category.system': 'System',
+      'dashboard.health.summaryHealthy': 'Health checks passed',
+      'dashboard.health.summaryHealthyWithCounts': `${params?.healthy ?? 0} modules running, ${
+        params?.attention ?? 0
+      } modules need attention`,
+      'dashboard.health.healthy': 'Healthy',
+      'dashboard.module.core': 'Core',
+      'dashboard.module.audit': 'Audit',
       'dashboard.widget.disabledDescription': 'Disabled widget',
       'dashboard.widget.empty': 'No widgets',
       'dashboard.widget.errorFallback': 'Failed',
@@ -203,6 +211,7 @@ describe('DashboardRenderer', () => {
       baseWidget({
         action: {
           label: 'View details',
+          label_key: 'dashboard.actions.details',
           route: '/server/modules',
         },
       }),
@@ -211,5 +220,26 @@ describe('DashboardRenderer', () => {
     await wrapper.find('button').trigger('click');
 
     expect(routerMocks.push).toHaveBeenCalledWith('/server/modules');
+    expect(wrapper.text()).toContain('查看详情');
+    expect(wrapper.text()).not.toContain('View details');
+  });
+
+  it('renders healthy summary text instead of an empty state when health payload has no items', () => {
+    const wrapper = mountRenderer([
+      baseWidget({
+        payload: {
+          summary: {
+            status: 'healthy',
+          },
+          abnormal_services: 0,
+          healthy_modules: 7,
+          items: [],
+        },
+        title_key: 'dashboard.missingTitle',
+      }),
+    ]);
+
+    expect(wrapper.text()).toContain('7 modules running, 0 modules need attention');
+    expect(wrapper.text()).not.toContain('No widgets');
   });
 });

@@ -83,6 +83,28 @@ func TestRegisterMonitorDashboardWidgetRegistersSystemHealthInsight(t *testing.T
 	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != monitorcontract.ServerStatusReadPermission.String() {
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
 	}
+
+	quickLinks := registry.QuickLinks()
+	if len(quickLinks) != 3 {
+		t.Fatalf("expected monitor quick links, got %#v", quickLinks)
+	}
+	assertMonitorQuickLink(t, quickLinks[0], monitorOverviewQuickLinkID, monitorcontract.ServerStatusOverviewMenuTitle.String(), monitorcontract.ServerStatusOverviewMenuPath, monitorOverviewQuickLinkOrder)
+	assertMonitorQuickLink(t, quickLinks[1], monitorRuntimeQuickLinkID, monitorcontract.ServerStatusRuntimeMenuTitle.String(), monitorcontract.ServerStatusRuntimeMenuPath, monitorRuntimeQuickLinkOrder)
+	assertMonitorQuickLink(t, quickLinks[2], monitorDependenciesQuickLinkID, monitorcontract.ServerStatusDependenciesMenuTitle.String(), monitorcontract.ServerStatusDependenciesMenuPath, monitorDependenciesQuickLinkOrder)
+}
+
+func assertMonitorQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, id string, titleKey string, routeLocation string, order int) {
+	t.Helper()
+	if link.ID != id ||
+		link.ModuleKey != moduleID ||
+		link.TitleKey != titleKey ||
+		link.RouteLocation != routeLocation ||
+		link.Order != order {
+		t.Fatalf("unexpected monitor quick link: %#v", link)
+	}
+	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != monitorcontract.ServerStatusReadPermission.String() {
+		t.Fatalf("unexpected monitor quick link permissions: %#v", link.RequiredPermissions)
+	}
 }
 
 func TestMonitorSystemHealthDashboardWidgetLoadsHealthPayload(t *testing.T) {

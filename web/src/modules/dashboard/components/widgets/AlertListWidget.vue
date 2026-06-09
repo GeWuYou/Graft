@@ -6,7 +6,7 @@
         <div class="dashboard-alert-list__content">
           <strong>{{ resolveDashboardText(item.title_key, item.title) }}</strong>
           <p v-if="item.description_key || item.description">
-            {{ resolveDashboardText(item.description_key, item.description) }}
+            {{ itemDescription(item) }}
           </p>
           <time v-if="item.occurred_at">{{ formatDashboardDateTime(item.occurred_at) }}</time>
         </div>
@@ -34,7 +34,7 @@ import { t } from '@/locales';
 import type { DashboardAlertListPayload, DashboardWidget } from '../../types/dashboard';
 import { asAlertListPayload } from './payload';
 import { formatDashboardDateTime, openDashboardRoute } from './widget-actions';
-import { resolveDashboardText } from './widget-i18n';
+import { resolveDashboardRelatedText, resolveDashboardText } from './widget-i18n';
 
 const props = defineProps<{
   widget: DashboardWidget;
@@ -53,6 +53,12 @@ function levelTheme(level: AlertLevel) {
 
 function levelLabel(level: AlertLevel) {
   return t(`dashboard.alert.level.${level}`);
+}
+
+function itemDescription(item: DashboardAlertListPayload['items'][number]) {
+  return item.description_key
+    ? resolveDashboardText(item.description_key, item.description)
+    : resolveDashboardRelatedText(item.title_key, 'description', item.description);
 }
 
 function go(location: string) {

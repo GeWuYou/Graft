@@ -7,7 +7,7 @@
         }}<span v-if="item.unit_key || item.unit">{{ resolveDashboardText(item.unit_key, item.unit) }}</span>
       </strong>
       <p v-if="item.description_key || item.description" class="dashboard-stat-group__description">
-        {{ resolveDashboardText(item.description_key, item.description) }}
+        {{ itemDescription(item) }}
       </p>
       <t-button v-if="item.route_location" variant="text" theme="primary" size="small" @click="go(item.route_location)">
         {{ t('dashboard.actions.open') }}
@@ -26,7 +26,7 @@ import { t } from '@/locales';
 import type { DashboardWidget } from '../../types/dashboard';
 import { asStatGroupPayload } from './payload';
 import { openDashboardRoute } from './widget-actions';
-import { resolveDashboardText } from './widget-i18n';
+import { resolveDashboardRelatedText, resolveDashboardText } from './widget-i18n';
 
 const props = defineProps<{
   widget: DashboardWidget;
@@ -34,6 +34,14 @@ const props = defineProps<{
 
 const router = useRouter();
 const payload = computed(() => asStatGroupPayload(props.widget.payload));
+
+type StatGroupItem = NonNullable<ReturnType<typeof asStatGroupPayload>>['items'][number];
+
+function itemDescription(item: StatGroupItem) {
+  return item.description_key
+    ? resolveDashboardText(item.description_key, item.description)
+    : resolveDashboardRelatedText(item.label_key, 'description', item.description);
+}
 
 function go(location: string) {
   openDashboardRoute(router, location);

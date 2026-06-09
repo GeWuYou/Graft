@@ -473,6 +473,22 @@ func TestRegisterRegistersSchedulerTaskAttentionDashboardWidget(t *testing.T) {
 	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != schedulercontract.ScheduledTaskReadPermission.String() {
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
 	}
+
+	quickLinks := ctx.DashboardRegistry.QuickLinks()
+	if len(quickLinks) != 1 {
+		t.Fatalf("expected scheduler quick link, got %#v", quickLinks)
+	}
+	link := quickLinks[0]
+	if link.ID != schedulerTaskQuickLinkID ||
+		link.ModuleKey != moduleID ||
+		link.TitleKey != schedulercontract.ScheduledTaskMenuTitle.String() ||
+		link.RouteLocation != schedulercontract.ScheduledTaskMenuPath ||
+		link.Order != schedulerTaskQuickLinkOrder {
+		t.Fatalf("unexpected scheduler quick link: %#v", link)
+	}
+	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != schedulercontract.ScheduledTaskReadPermission.String() {
+		t.Fatalf("unexpected scheduler quick link permissions: %#v", link.RequiredPermissions)
+	}
 }
 
 func TestSchedulerTaskAttentionDashboardWidgetLoadsAttentionPayload(t *testing.T) {

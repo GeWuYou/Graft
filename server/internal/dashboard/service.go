@@ -18,10 +18,12 @@ import (
 )
 
 const (
-	operationWidgetLoad = "dashboard_widget_load"
-	errorCodeLoadFailed = "DASHBOARD_WIDGET_LOAD_FAILED"
-	errorCodePanic      = "DASHBOARD_WIDGET_PANIC"
-	errorCodeTimeout    = "DASHBOARD_WIDGET_TIMEOUT"
+	operationWidgetLoad      = "dashboard_widget_load"
+	errorCodeLoadFailed      = "DASHBOARD_WIDGET_LOAD_FAILED"
+	errorCodePanic           = "DASHBOARD_WIDGET_PANIC"
+	errorCodeTimeout         = "DASHBOARD_WIDGET_TIMEOUT"
+	defaultWidgetActionKey   = "dashboard.actions.details"
+	defaultWidgetActionLabel = "View details"
 )
 
 // ModuleRuntimeSummaryProvider returns the current module runtime summary.
@@ -372,13 +374,18 @@ func applyWidgetRuntimeFields(widget *generated.DashboardWidget, definition Widg
 		widget.RouteLocation = &definition.RouteLocation
 	}
 	if definition.Action.Route != "" {
+		labelKey := definition.Action.LabelKey
+		if labelKey == "" {
+			labelKey = defaultWidgetActionKey
+		}
 		label := definition.Action.Label
 		if label == "" {
-			label = "View details"
+			label = defaultWidgetActionLabel
 		}
 		widget.Action = &generated.DashboardWidgetAction{
-			Label: label,
-			Route: definition.Action.Route,
+			LabelKey: labelKey,
+			Label:    label,
+			Route:    definition.Action.Route,
 		}
 	}
 }

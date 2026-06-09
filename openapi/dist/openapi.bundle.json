@@ -11875,12 +11875,18 @@
       "dashboard-widget-action": {
         "type": "object",
         "required": [
+          "label_key",
           "label",
           "route"
         ],
         "properties": {
+          "label_key": {
+            "type": "string",
+            "description": "Stable i18n key for the action label. Consumers should prefer this key before label fallback."
+          },
           "label": {
-            "type": "string"
+            "type": "string",
+            "description": "Direct label fallback when the client has no translation for label_key."
           },
           "route": {
             "type": "string"
@@ -12345,6 +12351,16 @@
                 }
               }
             }
+          },
+          "healthy_modules": {
+            "type": "integer",
+            "description": "Optional count of healthy modules for module-runtime health summaries.",
+            "example": 7
+          },
+          "abnormal_services": {
+            "type": "integer",
+            "description": "Optional count of module or service entries that need attention.",
+            "example": 0
           }
         }
       }

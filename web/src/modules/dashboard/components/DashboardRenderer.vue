@@ -36,6 +36,9 @@
             <template #title>
               <div class="dashboard-renderer__heading">
                 <span>{{ widgetTitle(widget) }}</span>
+                <t-tag v-if="widget.module_key" variant="light">
+                  {{ moduleLabel(widget.module_key) }}
+                </t-tag>
                 <t-tag v-if="shouldShowStateTag(widget)" :theme="stateTheme(widget.state)" variant="light">
                   {{ stateLabel(widget.state) }}
                 </t-tag>
@@ -189,7 +192,7 @@ function widgetActions(widget: DashboardWidget) {
   if (widget.action) {
     actions.push({
       key: 'details',
-      label: widget.action.label || t('dashboard.actions.details'),
+      label: resolveDashboardText(widget.action.label_key, widget.action.label, t('dashboard.actions.details')),
       run: () => openDashboardRoute(router, widget.action?.route ?? ''),
     });
   }
@@ -219,6 +222,11 @@ function stateLabel(state: DashboardWidgetState) {
 
 function categoryLabel(category: DashboardWidgetCategory) {
   return t(`dashboard.category.${category}`);
+}
+
+function moduleLabel(moduleKey: string) {
+  const key = `dashboard.module.${moduleKey.replaceAll('.', '_')}`;
+  return resolveDashboardText(key, moduleKey, moduleKey);
 }
 
 function priorityWeight(priority: DashboardWidget['priority']) {
@@ -298,11 +306,11 @@ function categoryWeight(category: DashboardWidgetCategory) {
 }
 
 .dashboard-renderer__widget-state--critical {
-  border-color: var(--td-error-color-5);
+  border-color: color-mix(in srgb, var(--td-error-color-5) 36%, transparent);
 }
 
 .dashboard-renderer__widget-state--warning {
-  border-color: var(--td-warning-color-5);
+  border-color: color-mix(in srgb, var(--td-warning-color-5) 42%, transparent);
 }
 
 .dashboard-renderer__widget--disabled {

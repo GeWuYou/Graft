@@ -20,7 +20,9 @@
         </template>
       </t-list-item>
     </t-list>
-    <t-empty v-else size="small" :description="t('dashboard.widget.empty')" />
+    <p v-else class="dashboard-health__summary-description">
+      {{ summaryDescription }}
+    </p>
   </div>
   <t-empty v-else size="small" :description="t('dashboard.widget.invalidPayload')" />
 </template>
@@ -38,6 +40,21 @@ const props = defineProps<{
 }>();
 
 const payload = computed(() => asHealthPayload(props.widget.payload));
+const summaryDescription = computed(() => {
+  const currentPayload = payload.value;
+  if (!currentPayload) {
+    return t('dashboard.health.summaryHealthy');
+  }
+
+  if (typeof currentPayload.healthy_modules === 'number' && typeof currentPayload.abnormal_services === 'number') {
+    return t('dashboard.health.summaryHealthyWithCounts', {
+      healthy: currentPayload.healthy_modules,
+      attention: currentPayload.abnormal_services,
+    });
+  }
+
+  return t('dashboard.health.summaryHealthy');
+});
 
 function healthTheme(status: DashboardHealthStatus) {
   if (status === 'healthy') return 'success';
@@ -77,5 +94,12 @@ function healthLabel(status: DashboardHealthStatus) {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: 0;
+}
+
+.dashboard-health__summary-description {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 </style>

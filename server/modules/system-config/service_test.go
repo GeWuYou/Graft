@@ -13,11 +13,13 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
+	"graft/server/internal/dashboard"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
+	systemconfigcontract "graft/server/modules/system-config/contract"
 	systemconfigstore "graft/server/modules/system-config/store"
 )
 
@@ -152,6 +154,26 @@ func TestModuleRegisterBindsUserServiceForUpdatedByUsername(t *testing.T) {
 		Type:         configregistry.ValueTypeString,
 		DefaultValue: json.RawMessage(`"30s"`),
 	})
+	dashboardRegistry := registerSystemConfigModuleWithUserService(t, service)
+	assertSystemConfigQuickLink(t, dashboardRegistry)
+
+	userID := uint64(42)
+	item, err := service.Update(context.Background(), "scheduler.timeout", json.RawMessage(`"60s"`), &userID)
+	if err != nil {
+		t.Fatalf("update override: %v", err)
+	}
+	if item.UpdatedByName != "alice" {
+		t.Fatalf("expected updated_by username alice, got %#v", item.UpdatedByName)
+	}
+	mapped := toItem(item)
+	if mapped.UpdatedByUsername == nil || *mapped.UpdatedByUsername != "alice" {
+		t.Fatalf("expected response username alice, got %#v", mapped.UpdatedByUsername)
+	}
+}
+
+func registerSystemConfigModuleWithUserService(t *testing.T, service *Service) *dashboard.Registry {
+	t.Helper()
+
 	moduleInstance, err := NewModule(service)
 	if err != nil {
 		t.Fatalf("create module: %v", err)
@@ -167,32 +189,46 @@ func TestModuleRegisterBindsUserServiceForUpdatedByUsername(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("register user service: %v", err)
 	}
+
 	localizer, err := i18n.New(config.I18nConfig{
 		SupportedLocales: []string{"zh-CN", "en-US"},
 	})
 	if err != nil {
 		t.Fatalf("create i18n service: %v", err)
 	}
+
+	dashboardRegistry := dashboard.NewRegistry()
 	if err := moduleInstance.Register(&module.Context{
 		Services:           services,
 		I18n:               localizer,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
+		DashboardRegistry:  dashboardRegistry,
 	}); err != nil {
 		t.Fatalf("register system config module: %v", err)
 	}
 
-	userID := uint64(42)
-	item, err := service.Update(context.Background(), "scheduler.timeout", json.RawMessage(`"60s"`), &userID)
-	if err != nil {
-		t.Fatalf("update override: %v", err)
+	return dashboardRegistry
+}
+
+func assertSystemConfigQuickLink(t *testing.T, registry *dashboard.Registry) {
+	t.Helper()
+
+	quickLinks := registry.QuickLinks()
+	if len(quickLinks) != 1 {
+		t.Fatalf("expected system-config quick link, got %#v", quickLinks)
 	}
-	if item.UpdatedByName != "alice" {
-		t.Fatalf("expected updated_by username alice, got %#v", item.UpdatedByName)
+
+	link := quickLinks[0]
+	if link.ID != systemConfigQuickLinkID ||
+		link.ModuleKey != moduleID ||
+		link.TitleKey != systemconfigcontract.SystemConfigMenuTitle.String() ||
+		link.RouteLocation != systemconfigcontract.SystemConfigMenuPath ||
+		link.Order != systemConfigQuickLinkOrder {
+		t.Fatalf("unexpected system-config quick link: %#v", link)
 	}
-	mapped := toItem(item)
-	if mapped.UpdatedByUsername == nil || *mapped.UpdatedByUsername != "alice" {
-		t.Fatalf("expected response username alice, got %#v", mapped.UpdatedByUsername)
+	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != systemconfigcontract.SystemConfigReadPermission.String() {
+		t.Fatalf("unexpected system-config quick link permissions: %#v", link.RequiredPermissions)
 	}
 }
 

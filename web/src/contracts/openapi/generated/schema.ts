@@ -2841,6 +2841,9 @@ export interface components {
     /** @enum {string} */
     'dashboard-widget-state': 'hidden' | 'normal' | 'warning' | 'critical';
     'dashboard-widget-action': {
+      /** @description Stable i18n key for the action label. Consumers should prefer this key before label fallback. */
+      label_key: string;
+      /** @description Direct label fallback when the client has no translation for label_key. */
       label: string;
       route: string;
     };
@@ -2964,6 +2967,16 @@ export interface components {
         description?: string;
         route_location?: string;
       }[];
+      /**
+       * @description Optional count of healthy modules for module-runtime health summaries.
+       * @example 7
+       */
+      healthy_modules?: number;
+      /**
+       * @description Optional count of module or service entries that need attention.
+       * @example 0
+       */
+      abnormal_services?: number;
     };
   };
   responses: {

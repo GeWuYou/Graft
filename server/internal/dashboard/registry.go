@@ -217,6 +217,7 @@ func normalizeDefinitionStrings(definition WidgetDefinition) WidgetDefinition {
 	normalized.DescriptionKey = strings.TrimSpace(normalized.DescriptionKey)
 	normalized.Description = strings.TrimSpace(normalized.Description)
 	normalized.RouteLocation = strings.TrimSpace(normalized.RouteLocation)
+	normalized.Action.LabelKey = strings.TrimSpace(normalized.Action.LabelKey)
 	normalized.Action.Label = strings.TrimSpace(normalized.Action.Label)
 	normalized.Action.Route = strings.TrimSpace(normalized.Action.Route)
 	normalized.RequiredPermissions = trimNonEmptyStrings(normalized.RequiredPermissions)

@@ -29,6 +29,8 @@
       "degraded": "Degraded",
       "disabled": "Disabled",
       "healthy": "Healthy",
+      "summaryHealthy": "Health checks passed with no details requiring attention.",
+      "summaryHealthyWithCounts": "{healthy} modules running, {attention} modules need attention.",
       "unknown": "Unknown"
     },
     "loading": "Loading Dashboard",
@@ -40,7 +42,9 @@
     "quickActions": {
       "description": "Entries available to current permissions",
       "empty": "No Quick Actions Available",
-      "title": "Quick Actions"
+      "title": "Quick Actions",
+      "viewAll": "View All {count}",
+      "viewLess": "View Less"
     },
     "systemSummary": {
       "abnormalServices": {
@@ -93,9 +97,11 @@
         "description": "Recent high-risk audit and security events.",
         "empty": "No audit risk events in the last 24 hours",
         "failedOperations": {
+          "description": "Failed operations need review",
           "title": "Failed Operations"
         },
         "highRisk": {
+          "description": "High-risk events in the last 24 hours",
           "title": "High-risk Audit Events"
         },
         "recent": {
@@ -110,17 +116,44 @@
       "invalidPayload": "Widget data is unavailable",
       "monitorSystemHealth": {
         "anomalies": "Anomalies",
+        "anomaliesDescription": "No active anomalies in the monitor window",
         "database": "Database",
+        "databaseDegradedDescription": "Database checks need attention",
+        "databaseDisabledDescription": "Database checks are disabled",
+        "databaseHealthyDescription": "Database ping succeeded",
+        "databaseUnknownDescription": "Database status is unknown",
+        "databasePingSucceeded": "Database ping succeeded",
         "description": "Database, cache, and system anomaly health.",
+        "moduleHealth": "Module Health",
+        "noData": "No Data",
         "redis": "Redis",
+        "redisDegradedDescription": "Redis checks need attention",
+        "redisDisabledDescription": "Redis checks are disabled",
+        "redisHealthyDescription": "Redis ping succeeded",
+        "redisUnknownDescription": "Redis status is unknown",
+        "redisPingSucceeded": "Redis ping succeeded",
         "summary": "System Health Summary",
         "title": "System Health"
+      },
+      "moduleRuntimeHealth": {
+        "description": "Current module runtime health.",
+        "runtimeStatus": {
+          "degraded": "Module needs attention",
+          "disabled": "Module is disabled",
+          "registered": "Module is running",
+          "unknown": "Module status is unknown"
+        },
+        "summary": "Module Health",
+        "title": "Module Runtime"
       },
       "schedulerTaskAttention": {
         "description": "Failed, running, and disabled tasks that need operator attention.",
         "disabled": "Disabled Tasks",
+        "disabledDescription": "Tasks disabled from execution",
         "failed": "Failed Tasks",
+        "failedDescription": "Last run failed",
         "running": "Running Tasks",
+        "runningDescription": "Currently executing tasks",
         "title": "Scheduled Task Attention"
       },
       "status": {
@@ -135,6 +168,20 @@
         "normal": "Normal",
         "warning": "Attention"
       }
+    },
+    "module": {
+      "access-log": "Access Log",
+      "app-log": "App Log",
+      "audit": "Audit",
+      "core": "Core",
+      "core_httpx": "Access Log",
+      "core_logger": "App Log",
+      "dashboard": "Dashboard",
+      "monitor": "Monitor",
+      "rbac": "RBAC",
+      "scheduled-task": "Scheduled Task",
+      "system-config": "System Config",
+      "user": "User"
     }
   }
 }

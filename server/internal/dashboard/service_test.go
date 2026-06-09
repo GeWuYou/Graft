@@ -301,8 +301,9 @@ func TestServiceBuildsFrameworkFieldsAndSummaryMetrics(t *testing.T) {
 		Priority:  WidgetPriorityWarning,
 		Order:     20,
 		Action: WidgetAction{
-			Label: "View details",
-			Route: "/scheduler/tasks",
+			LabelKey: "dashboard.actions.details",
+			Label:    "View details",
+			Route:    "/scheduler/tasks",
 		},
 		Loader: WidgetLoaderFunc(func(context.Context, WidgetRequest) (WidgetPayload, error) {
 			return WidgetPayload{
@@ -322,7 +323,10 @@ func TestServiceBuildsFrameworkFieldsAndSummaryMetrics(t *testing.T) {
 	if !widget.Visible || string(widget.State) != string(WidgetStateNormal) {
 		t.Fatalf("unexpected visibility state: visible=%v state=%q", widget.Visible, widget.State)
 	}
-	if widget.Action == nil || widget.Action.Label != "View details" || widget.Action.Route != "/scheduler/tasks" {
+	if widget.Action == nil ||
+		widget.Action.LabelKey != "dashboard.actions.details" ||
+		widget.Action.Label != "View details" ||
+		widget.Action.Route != "/scheduler/tasks" {
 		t.Fatalf("unexpected action: %#v", widget.Action)
 	}
 	if summary.SystemSummary.FailedTasks != 2 ||

@@ -115,7 +115,8 @@ func TestRegistryNormalizesWidgetFrameworkFields(t *testing.T) {
 		Priority:      WidgetPriorityWarning,
 		RouteLocation: "/runtime",
 		Action: WidgetAction{
-			Label: " View details ",
+			LabelKey: " dashboard.actions.details ",
+			Label:    " View details ",
 		},
 		Loader: noopLoader(),
 	}); err != nil {
@@ -129,7 +130,9 @@ func TestRegistryNormalizesWidgetFrameworkFields(t *testing.T) {
 	if widget.Category != WidgetCategoryOperation || widget.Priority != WidgetPriorityWarning {
 		t.Fatalf("unexpected framework fields: %#v", widget)
 	}
-	if widget.Action.Label != "View details" || widget.Action.Route != "/runtime" {
+	if widget.Action.LabelKey != "dashboard.actions.details" ||
+		widget.Action.Label != "View details" ||
+		widget.Action.Route != "/runtime" {
 		t.Fatalf("expected action to default to route location, got %#v", widget.Action)
 	}
 }

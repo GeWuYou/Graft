@@ -153,8 +153,9 @@ type WidgetDefinition struct {
 
 // WidgetAction is the framework-rendered card action contract.
 type WidgetAction struct {
-	Label string
-	Route string
+	LabelKey string
+	Label    string
+	Route    string
 }
 
 // WidgetPayloadMetadata lets a loader describe framework state without custom card markup.
@@ -341,8 +342,10 @@ type WidgetError struct {
 
 // HealthPayload is the MVP health widget payload shape.
 type HealthPayload struct {
-	Summary HealthSummaryItem `json:"summary"`
-	Items   []HealthItem      `json:"items"`
+	Summary          HealthSummaryItem `json:"summary"`
+	Items            []HealthItem      `json:"items"`
+	HealthyModules   int               `json:"healthy_modules,omitempty"`
+	AbnormalServices int               `json:"abnormal_services,omitempty"`
 }
 
 // HealthSummaryItem summarizes one health widget.
