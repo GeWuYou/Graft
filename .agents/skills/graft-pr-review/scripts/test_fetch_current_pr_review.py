@@ -327,6 +327,15 @@ class ReviewThreadStatusTests(unittest.TestCase):
 
         self.assertEqual(MODULE.classify_review_thread_status(latest_comment), "open")
 
+    def test_classify_review_thread_status_marks_github_advanced_security_comments_as_open(self) -> None:
+        """GitHub Advanced Security suggestions should stay in the review inventory."""
+        latest_comment = {
+            "user": MODULE.GITHUB_ADVANCED_SECURITY_LOGIN,
+            "body": "This code scanning alert needs review.",
+        }
+
+        self.assertEqual(MODULE.classify_review_thread_status(latest_comment), "open")
+
     def test_classify_review_thread_status_keeps_unknown_for_untracked_human_comments(self) -> None:
         """Untracked reviewer comments still default to unknown without a resolution signal."""
         latest_comment = {
@@ -564,6 +573,59 @@ class WorkflowChecksTests(unittest.TestCase):
         self.assertIn("Actions logs could not be fetched", result["warnings"][0])
 
 
+class GithubAdvancedSecurityReportTests(unittest.TestCase):
+    """Cover focused GitHub Advanced Security signal extraction."""
+
+    def test_build_github_advanced_security_report_collects_checks_and_threads(self) -> None:
+        """Advanced Security checks and review threads should be grouped for inventory closure."""
+        workflow_checks = {
+            "all": [
+                {
+                    "name": "CodeQL / Analyze (javascript-typescript)",
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "app": "github-advanced-security",
+                    "details_url": "https://github.com/GeWuYou/Graft/security/code-scanning",
+                },
+                {
+                    "name": "Web Check",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "app": "github-actions",
+                    "details_url": "https://example.com/web",
+                },
+            ],
+            "failed": [
+                {
+                    "name": "CodeQL / Analyze (javascript-typescript)",
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "app": "github-advanced-security",
+                    "details_url": "https://github.com/GeWuYou/Graft/security/code-scanning",
+                }
+            ],
+        }
+        security_thread = {
+            "thread_id": 42,
+            "path": "web/src/api/client.ts",
+            "line": 12,
+            "root_comment": {"user": MODULE.GITHUB_ADVANCED_SECURITY_LOGIN, "body": "Sanitize this value."},
+            "latest_comment": {"id": 42, "user": MODULE.GITHUB_ADVANCED_SECURITY_LOGIN, "body": "Sanitize this value."},
+            "reply_state": "unreplied",
+        }
+        latest_commit_review = {
+            "open_threads": [security_thread],
+            "all_open_threads": [security_thread],
+        }
+
+        report = MODULE.build_github_advanced_security_report(workflow_checks, latest_commit_review)
+
+        self.assertTrue(report["has_findings"])
+        self.assertEqual(len(report["failed_checks"]), 1)
+        self.assertEqual(len(report["all_open_threads"]), 1)
+        self.assertEqual(report["reviewer_login"], MODULE.GITHUB_ADVANCED_SECURITY_LOGIN)
+
+
 class SelectLatestCoderabbitGroupedReviewTests(unittest.TestCase):
     """Prefer the latest CodeRabbit review that preserves grouped comment sections."""
 
@@ -610,8 +672,10 @@ Use a fixed tag.
                 }
             },
             "open_thread_counts_by_user": {},
+            "all_open_thread_counts_by_user": {},
             "threads": [],
             "open_threads": [],
+            "all_open_threads": [],
             "latest_coderabbit_review_with_body": {
                 "id": 1,
                 "user": MODULE.CODERABBIT_LOGIN,
@@ -679,6 +743,69 @@ Use a fixed tag.
 
         self.assertEqual(result["workflow_checks"]["failed"][0]["name"], "Web Check")
 
+    def test_build_result_includes_github_advanced_security_report(self) -> None:
+        """The full payload should include a focused Advanced Security inventory section."""
+        security_thread = {
+            "thread_id": 99,
+            "path": "server/main.go",
+            "line": 7,
+            "root_comment": {"user": MODULE.GITHUB_ADVANCED_SECURITY_LOGIN, "body": "Security suggestion."},
+            "latest_comment": {"id": 99, "user": MODULE.GITHUB_ADVANCED_SECURITY_LOGIN, "body": "Security suggestion."},
+            "reply_state": "unreplied",
+        }
+        with mock.patch.object(
+            MODULE,
+            "fetch_pull_request_metadata",
+            return_value={
+                "number": 35,
+                "title": "PR",
+                "state": "OPEN",
+                "head_branch": "feat/test",
+                "head_sha": "abc123",
+                "base_branch": "main",
+                "url": "https://example.com/pr/35",
+            },
+        ), mock.patch.object(MODULE, "fetch_issue_comments", return_value=[]), mock.patch.object(
+            MODULE,
+            "fetch_workflow_checks",
+            return_value={
+                "head_sha": "abc123",
+                "all": [
+                    {
+                        "name": "Code scanning results / CodeQL",
+                        "status": "completed",
+                        "conclusion": "failure",
+                        "app": "github-advanced-security",
+                    }
+                ],
+                "failed": [
+                    {
+                        "name": "Code scanning results / CodeQL",
+                        "status": "completed",
+                        "conclusion": "failure",
+                        "app": "github-advanced-security",
+                    }
+                ],
+                "warnings": [],
+            },
+        ), mock.patch.object(
+            MODULE,
+            "fetch_latest_commit_review",
+            return_value={
+                "threads": [security_thread],
+                "open_threads": [security_thread],
+                "all_open_threads": [security_thread],
+                "latest_reviews_by_user": {},
+                "open_thread_counts_by_user": {},
+                "all_open_thread_counts_by_user": {MODULE.GITHUB_ADVANCED_SECURITY_LOGIN: 1},
+            },
+        ):
+            result = MODULE.build_result(35, "feat/test")
+
+        self.assertTrue(result["github_advanced_security"]["has_findings"])
+        self.assertEqual(len(result["github_advanced_security"]["failed_checks"]), 1)
+        self.assertEqual(len(result["github_advanced_security"]["all_open_threads"]), 1)
+
 
 class MainOutputTests(unittest.TestCase):
     """Cover CLI output semantics for JSON and file-output combinations."""
@@ -696,6 +823,8 @@ class MainOutputTests(unittest.TestCase):
             reply_comment_id=None,
             reply_body=None,
             reply_body_file=None,
+            reply_fixed_commit=None,
+            reply_fixed_path=None,
             reply_dry_run=False,
         )
         result = {"pull_request": {"number": 1}, "parse_warnings": []}
@@ -722,7 +851,7 @@ class ReviewReplyTests(unittest.TestCase):
         """Replying without a configured GitHub token should fail closed."""
         with mock.patch.object(MODULE, "resolve_github_token", return_value=""):
             with self.assertRaisesRegex(RuntimeError, "GitHub token"):
-                MODULE.perform_review_reply(123, "noise")
+                MODULE.perform_review_reply(1, 123, "noise")
 
     def test_perform_review_reply_supports_dry_run(self) -> None:
         """Dry-run reply mode should return the payload without calling GitHub."""
@@ -730,7 +859,7 @@ class ReviewReplyTests(unittest.TestCase):
             MODULE,
             "post_json",
         ) as post_json:
-            result = MODULE.perform_review_reply(123, "noise", dry_run=True)
+            result = MODULE.perform_review_reply(1, 123, "noise", dry_run=True)
 
         post_json.assert_not_called()
         self.assertTrue(result["dry_run"])

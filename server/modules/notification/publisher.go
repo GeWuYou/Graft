@@ -61,6 +61,9 @@ func (p *Publisher) Publish(ctx context.Context, input moduleapi.PublishNotifica
 	if err != nil {
 		return moduleapi.PublishNotificationResult{}, err
 	}
+	if len(recipients) == 0 {
+		return moduleapi.PublishNotificationResult{}, fmt.Errorf("%w: recipients", moduleapi.ErrNotificationInvalidInput)
+	}
 
 	event, deduplicated, err := p.repository.CreateEvent(ctx, notificationstore.CreateEventInput{
 		TitleKey:          normalized.TitleKey,

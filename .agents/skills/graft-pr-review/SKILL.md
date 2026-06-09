@@ -1,6 +1,6 @@
 ---
 name: graft-pr-review
-description: Repository-specific GitHub PR review workflow for the Graft repo. Use when Codex needs to inspect the GitHub pull request for the current branch, extract AI review findings from CodeRabbit, greptile-apps, or gemini-code-assist, read failed checks, MegaLinter warnings, or failed test signals from the PR, and then verify which findings should be fixed in the local codebase.
+description: Repository-specific GitHub PR review workflow for the Graft repo. Use when Codex needs to inspect the GitHub pull request for the current branch, extract AI review findings from CodeRabbit, greptile-apps, gemini-code-assist, or github-advanced-security, read failed checks, MegaLinter warnings, or failed test signals from the PR, and then verify which findings should be fixed in the local codebase.
 ---
 
 # Graft PR Review
@@ -49,13 +49,16 @@ Fail-closed rule for this skill:
    - extract CodeRabbit summary blocks and actionable-comment rollups when present
    - parse the latest CodeRabbit review body itself, including folded sections such as `Duplicate comments (N)`,
      `Major comments (N)`, `Minor comments (N)`, `Outside diff range comments (N)`, and `Nitpick comments (N)`
-   - capture unresolved latest-head review threads for supported AI reviewers
+   - capture unresolved latest-head review threads for supported AI reviewers and `github-advanced-security[bot]`
+   - surface GitHub Advanced Security review suggestions, code-scanning check-runs, and CodeQL failure annotations when present
    - surface failed checks, MegaLinter findings, and failed-test signals when present
    - prefer writing the full JSON payload to a file and then narrowing with `jq`
 5. Build one exhaustive finding inventory before making any fix decision:
    - include unresolved latest-head review threads
    - include folded CodeRabbit sections from the latest review body, especially `Duplicate comments`, `Major comments`,
      `Minor comments`, `Outside diff range comments`, and `Nitpick comments`
+   - include GitHub Advanced Security suggestions from review threads and the helper's `github_advanced_security`
+     section
    - include actionable warning comments from GitHub Actions or MegaLinter when present
    - do not stop after “high priority”, “open threads”, or one section looks sufficient; the run is incomplete until all
      surfaced findings from the latest PR state are classified
@@ -156,6 +159,8 @@ Fail-closed rule for this skill:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads`
 - Inspect grouped CodeRabbit severity comments from the latest review body:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section duplicate --section major --section minor`
+- Inspect GitHub Advanced Security suggestions and code-scanning signals:
+  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section advanced-security`
 - Narrow text output to one path fragment:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads --path AGENTS.md`
 
@@ -166,13 +171,16 @@ The script should produce:
 - PR metadata: number, title, state, branch, URL
 - Live workflow checks for the PR head commit, especially failed GitHub Actions jobs
 - For each failed live check: failed step, annotations when available, linked details URL, and a local repro command
-- Supported AI reviewer summary, including latest reviews and open-thread counts for `coderabbitai[bot]`, `greptile-apps[bot]`, and `gemini-code-assist[bot]`
+- Supported automated reviewer summary, including latest reviews and open-thread counts for `coderabbitai[bot]`,
+  `greptile-apps[bot]`, `gemini-code-assist[bot]`, and `github-advanced-security[bot]`
 - CodeRabbit summary block from issue comments when available
 - Folded latest-review sections such as `Duplicate comments (N)`, `Major comments (N)`, `Minor comments (N)`,
   `Outside diff range comments (N)`, and `Nitpick comments (N)` when CodeRabbit puts them in the review body instead
   of issue comments
 - Parsed latest head-review threads, with unresolved threads clearly separated
 - Latest head commit review metadata and review threads
+- GitHub Advanced Security status, including `github-advanced-security[bot]` review threads, code-scanning or CodeQL
+  check-runs, failed annotations, and a focused `github_advanced_security` JSON section
 - Pre-merge failed checks, if present
 - Latest MegaLinter status and any detailed issues posted by `github-actions[bot]`
 - Test summary, including failed-test signals when present
@@ -197,6 +205,8 @@ The script should produce:
 - If the latest review body contains folded sections, those sections are still in scope even when `open_threads` looks short;
   do not treat missing urgency labels as permission to skip them.
 - Do not assume every AI reviewer behaves like CodeRabbit. `greptile-apps[bot]` and `gemini-code-assist[bot]` findings may exist only as latest-head review threads.
+- Do not assume GitHub Advanced Security behaves like CodeRabbit. `github-advanced-security[bot]` findings may exist as
+  review threads, while related code-scanning or CodeQL problems may exist only as check-runs or annotations.
 - Treat GitHub Actions comments with `Success with warnings` as actionable when they include concrete linter diagnostics such as MegaLinter detailed issues.
 - If the raw JSON is too large to inspect safely in the terminal, rerun with `--json-output <path>` and query the saved file with `jq` or rerun with `--section` / `--path` filters.
 - If a verified finding still matters but needs a larger repair slice, do not downgrade it to optional; route it through

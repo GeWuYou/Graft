@@ -33,7 +33,8 @@ func publishAuditNotification(
 		}
 		logger.Warn("publish audit notification failed",
 			zap.String("module", moduleID),
-			zap.String("action", record.Action),
+			zap.String("notificationEventType", input.EventType),
+			zap.String("notificationSeverity", string(input.Severity)),
 			zap.Uint64("auditLogID", record.ID),
 			zap.Error(err),
 		)

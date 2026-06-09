@@ -114,6 +114,27 @@ func TestPublisherFansOutPermissionTarget(t *testing.T) {
 	}
 }
 
+func TestPublisherRejectsEmptyPermissionFanoutBeforePersistingEvent(t *testing.T) {
+	repository := &publisherSpyRepository{}
+	publisher, err := NewPublisher(repository, permissionFanoutRBAC{userIDs: []uint64{0, 0}})
+	if err != nil {
+		t.Fatalf("new publisher: %v", err)
+	}
+
+	input := validPublishInput()
+	input.Target = moduleapi.NotificationTarget{
+		Type: moduleapi.NotificationTargetType(notificationcontract.TargetPermission),
+		Ref:  "audit.read",
+	}
+	_, err = publisher.Publish(context.Background(), input)
+	if !errors.Is(err, moduleapi.ErrNotificationInvalidInput) {
+		t.Fatalf("expected invalid input for empty permission fan-out, got %v", err)
+	}
+	if repository.createEventCalls != 0 || repository.createDeliveriesCalls != 0 {
+		t.Fatalf("expected no persistence calls, got events=%d deliveries=%d", repository.createEventCalls, repository.createDeliveriesCalls)
+	}
+}
+
 func TestRepositoryCreateDeliveriesRejectsInvalidBatchWithoutPartialInsert(t *testing.T) {
 	stack := newNotificationTestStack(t)
 	event, _, err := stack.repository.CreateEvent(context.Background(), eventStoreInput(validPublishInput()))
@@ -271,6 +292,49 @@ func requireUnreadDeliveryForUser(t *testing.T, db *sql.DB, deliveryID uint64, u
 	if storedUserID != userID || storedReadAt.Valid {
 		t.Fatalf("wrong-user read changed delivery state: user=%d read_valid=%v", storedUserID, storedReadAt.Valid)
 	}
+}
+
+type publisherSpyRepository struct {
+	createEventCalls      int
+	createDeliveriesCalls int
+}
+
+func (r *publisherSpyRepository) CreateEvent(context.Context, notificationstore.CreateEventInput) (notificationstore.Event, bool, error) {
+	r.createEventCalls++
+	return notificationstore.Event{ID: 1001}, false, nil
+}
+
+func (r *publisherSpyRepository) CreateDeliveries(context.Context, []notificationstore.CreateDeliveryInput) ([]notificationstore.Delivery, error) {
+	r.createDeliveriesCalls++
+	return []notificationstore.Delivery{{ID: 2001}}, nil
+}
+
+func (r *publisherSpyRepository) List(context.Context, notificationstore.ListQuery) (notificationstore.ListResult, error) {
+	return notificationstore.ListResult{}, nil
+}
+
+func (r *publisherSpyRepository) Get(context.Context, uint64, uint64) (notificationstore.Notification, error) {
+	return notificationstore.Notification{}, nil
+}
+
+func (r *publisherSpyRepository) UnreadCount(context.Context, uint64) (int, error) {
+	return 0, nil
+}
+
+func (r *publisherSpyRepository) MarkRead(context.Context, uint64, uint64, time.Time) (notificationstore.Delivery, error) {
+	return notificationstore.Delivery{}, nil
+}
+
+func (r *publisherSpyRepository) MarkAllRead(context.Context, uint64, time.Time) (int, error) {
+	return 0, nil
+}
+
+func (r *publisherSpyRepository) MarkAllReadMatching(context.Context, notificationstore.ListQuery, time.Time) (int, error) {
+	return 0, nil
+}
+
+func (r *publisherSpyRepository) DeleteDelivery(context.Context, uint64, uint64, time.Time) error {
+	return nil
 }
 
 func validPublishInput() moduleapi.PublishNotificationInput {
