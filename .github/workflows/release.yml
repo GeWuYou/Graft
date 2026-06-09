@@ -1,17 +1,103 @@
-name: Release Placeholder
+# Copyright (c) 2025-2026 GeWuYou
+# SPDX-License-Identifier: Apache-2.0
+
+name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview the semantic-release result without creating a tag.
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  placeholder:
-    name: Release Not Enabled
+  semantic-release-preview:
+    name: Semantic Release Preview
     runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+
+    permissions:
+      contents: read
+      pull-requests: read
+
     steps:
-      - name: Report current release status
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release PAT
+        uses: ./.github/actions/validate-pat
+        with:
+          pat-token: ${{ secrets.PAT_TOKEN }}
+          repo-api-url: ${{ github.api_url }}/repos/${{ github.repository }}
+          repository: ${{ github.repository }}
+          missing-token-message: PAT_TOKEN is required because semantic-release dry-run performs a remote push permission probe.
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Preview next release
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          echo "Release pipeline not enabled yet."
-          echo "Graft does not yet have a stable server artifact, web build contract, or deployment target."
+          npx --yes \
+            -p semantic-release \
+            -p @semantic-release/commit-analyzer \
+            -p @semantic-release/release-notes-generator \
+            -p conventional-changelog-conventionalcommits \
+            semantic-release --dry-run --no-ci
+
+  publish-version-tag:
+    name: Publish Version Tag
+    runs-on: ubuntu-latest
+    needs: semantic-release-preview
+    if: ${{ github.ref == 'refs/heads/main' && inputs.dry_run == false }}
+    environment: release-approval
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release PAT
+        uses: ./.github/actions/validate-pat
+        with:
+          pat-token: ${{ secrets.PAT_TOKEN }}
+          repo-api-url: ${{ github.api_url }}/repos/${{ github.repository }}
+          repository: ${{ github.repository }}
+          missing-token-message: PAT_TOKEN is required to publish the semantic-release version tag.
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Publish semantic-release tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          npx --yes \
+            -p semantic-release \
+            -p @semantic-release/commit-analyzer \
+            -p @semantic-release/release-notes-generator \
+            -p conventional-changelog-conventionalcommits \
+            semantic-release

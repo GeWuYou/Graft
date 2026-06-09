@@ -1,0 +1,53 @@
+# Copyright (c) 2025-2026 GeWuYou
+# SPDX-License-Identifier: Apache-2.0
+
+name: License Header Fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch to fix and target with the generated pull request.
+        required: true
+        default: main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fix-license-headers:
+    name: Create License Header Fix PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.base_branch }}
+
+      - name: Add missing license headers
+        run: python3 scripts/license-header.py --fix
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: ${{ inputs.base_branch }}
+          branch: chore/license-headers-${{ github.run_id }}
+          delete-branch: true
+          commit-message: |
+            chore(license): add Apache license headers
+
+            - 补充缺失的 Apache-2.0 文件头
+            - 保持生成文件、锁文件和第三方内容排除规则
+          title: "chore(license): add Apache license headers"
+          body: |
+            ## Summary
+
+            - Adds missing Apache-2.0 headers to supported repository files.
+            - Uses `python3 scripts/license-header.py --fix`.
+
+            ## Validation
+
+            - `python3 scripts/license-header.py --check`

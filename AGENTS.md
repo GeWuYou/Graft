@@ -638,8 +638,6 @@ Repository automation should follow the same boundary rules as local development
 
 ### 12.1 Pull Request Validation
 
-When the repository adds CI workflows:
-
 - keep pull request validation and release automation in separate workflows
 - validate `server` and `web` as separate jobs when both sides exist
 - when backend lint governance is active, keep `server` lint and `server` build/test as separate jobs instead of one
@@ -654,24 +652,34 @@ When the repository adds CI workflows:
 - backend CI must reuse the same `graft validate backend` entrypoint and pinned `golangci-lint` version as local
   development instead of rebuilding a second lint parameter set inside workflow YAML
 - when local and CI environments differ, document that difference explicitly without redefining the web validation entrypoint or creating a second acceptance contract
+- PR test reporting may run as separate report jobs, but those report jobs do not replace `web-check` or
+  `server-build-test`
+- forked pull requests must still upload raw test artifacts without requiring write permissions for PR comments or
+  Checks
 
 ### 12.2 Release Automation
-
-When the repository later adds release workflows:
 
 - build artifacts once and reuse them across publish steps
 - keep release gating stricter than pull request validation
 - use explicit concurrency control for release or docs publish workflows
 - do not introduce package publishing complexity that the repository does not actually need yet
+- version tags are owned by the manual semantic-release workflow and must use the configured Conventional Commit
+  release rules and `v${version}` tag format
+- semantic-release tag creation must use a validated `PAT_TOKEN`; do not rely on `GITHUB_TOKEN` when a downstream
+  tag-triggered publish workflow must run
+- tag-triggered publish workflows must run the repository server and web validation entrypoints before producing or
+  attaching release artifacts
+- release notes are generated from the repository `git-cliff` configuration; do not hand-maintain release bodies in
+  workflow YAML
 
 ### 12.3 Security and Maintenance Automation
-
-When adding repository maintenance workflows:
 
 - prefer CodeQL or equivalent scanning for the actual languages in this repository
 - prefer secret scanning on pull requests
 - prefer Dependabot or equivalent automation for Go modules, frontend dependencies, and GitHub Actions
 - keep optional workflows such as docs publish or benchmarks separate from the main CI path
+- release SBOM and license-compliance assets are maintenance artifacts attached to GitHub Releases; they must not
+  redefine the product release body or publish extra package/deploy targets
 
 ## 13. License Governance
 
@@ -688,14 +696,17 @@ Contributors must preserve that licensing posture when changing code, docs, auto
 
 ### 13.2 Source File Headers
 
-The repository does not currently enforce a header script or SPDX baseline, so contributors must not invent a fake
-mandatory workflow.
-
-If the project later adopts source header enforcement:
-
-- prefer SPDX-style Apache-2.0 identifiers that are easy to validate automatically
-- apply the policy consistently across supported source and configuration file types
-- document exclusions for generated files, third-party code, lockfiles, and build output
+- all new repository-maintained source, docs, scripts, workflow, and configuration files that support comments must
+  include an Apache-2.0 header near the top of the file
+- the canonical header marker is `SPDX-License-Identifier: Apache-2.0`
+- supported comment formats and exclusions are owned by `scripts/license-header.py`; do not reimplement that policy in
+  workflow YAML, hooks, or ad-hoc shell snippets
+- pull request validation gates newly added supported files only, so the repository stops new header drift without
+  forcing broad historical churn into unrelated feature branches
+- existing tracked files that predate this policy must be backfilled through the manual `license-header-fix.yml`
+  workflow or a dedicated license-header branch, not opportunistically mixed into unrelated work
+- generated files, third-party or vendored content, lockfiles, generated environment inventories, binary files, and
+  build output must stay excluded from header automation
 
 ### 13.3 Dependency and Distribution Compliance
 

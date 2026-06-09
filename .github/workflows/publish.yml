@@ -1,0 +1,174 @@
+# Copyright (c) 2025-2026 GeWuYou
+# SPDX-License-Identifier: Apache-2.0
+
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  build-artifacts:
+    name: Build Artifacts
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    outputs:
+      version: ${{ steps.tag_version.outputs.version }}
+
+    steps:
+      - name: Checkout repository at tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Determine tag version
+        id: tag_version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+          version="${tag#v}"
+          version="${version#V}"
+          echo "tag=${tag}"
+          echo "version=${version}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: server
+          install-only: true
+
+      - name: Resolve backend release validation base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --prune origin main
+          echo "GRAFT_LINT_BASE_REF=refs/remotes/origin/main" >> "${GITHUB_ENV}"
+
+      - name: Run backend release validation
+        working-directory: server
+        run: go run ./cmd/graft validate backend
+
+      - name: Build server binary
+        working-directory: server
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p ../dist/server
+          go build \
+            -trimpath \
+            -ldflags="-s -w" \
+            -o ../dist/server/graft-server-linux-amd64 \
+            ./cmd/graft
+
+      - name: Install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Run web release validation
+        working-directory: web
+        run: bun run check
+
+      - name: Build web distribution
+        working-directory: web
+        run: bun run build
+
+      - name: Package release artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          tar -C dist/server -czf "release-assets/graft-server-linux-amd64-${{ github.ref_name }}.tar.gz" graft-server-linux-amd64
+          tar -C web -czf "release-assets/graft-web-dist-${{ github.ref_name }}.tar.gz" dist
+          sha256sum release-assets/* > release-assets/SHA256SUMS
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: release-assets/*
+          if-no-files-found: error
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-artifacts
+
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository at tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Generate release notes
+        id: cliff_release
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: .github/cliff.toml
+          args: >-
+            -vv --latest --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v3
+        with:
+          name: Release ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Write publish summary
+        env:
+          CLIFF_RELEASE_NOTES: ${{ steps.cliff_release.outputs.content }}
+        run: |
+          {
+            echo "## GitHub Release"
+            echo
+            echo "- Tag: \`${{ github.ref_name }}\`"
+            echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
+            echo
+            printf '%s\n' "${CLIFF_RELEASE_NOTES}"
+          } >> "${GITHUB_STEP_SUMMARY}"
