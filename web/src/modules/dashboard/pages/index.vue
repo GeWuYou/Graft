@@ -13,9 +13,14 @@
       }"
     >
       <template #actions>
-        <t-button theme="primary" :loading="loading" @click="loadSummary">
-          {{ t('dashboard.actions.refresh') }}
-        </t-button>
+        <div class="dashboard-page__header-actions">
+          <span v-if="lastUpdatedAt" class="dashboard-page__updated-at">
+            {{ t('dashboard.page.lastUpdated', { time: lastUpdatedLabel }) }}
+          </span>
+          <t-button theme="primary" :loading="loading" @click="loadSummary">
+            {{ t('dashboard.actions.refresh') }}
+          </t-button>
+        </div>
       </template>
     </page-header>
 
@@ -48,7 +53,7 @@
           </div>
         </section>
 
-        <dashboard-quick-actions v-if="summary" :links="quickLinks" />
+        <dashboard-quick-actions v-if="summary" :links="quickLinks" :config="quickActionConfig" />
 
         <dashboard-renderer
           :widgets="widgets"
@@ -72,8 +77,14 @@ import type { ApiRequestError } from '@/types/axios';
 import { createLogger } from '@/utils/logger';
 
 import { getDashboardSummary, getDashboardWidget } from '../api/dashboard';
+import { getDashboardSystemConfigs } from '../api/quick-actions-config';
 import DashboardQuickActions from '../components/DashboardQuickActions.vue';
 import DashboardRenderer from '../components/DashboardRenderer.vue';
+import {
+  type DashboardQuickActionConfig,
+  DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG,
+  resolveDashboardQuickActionConfig,
+} from '../contract/quick-actions';
 import type { DashboardQuickLink, DashboardSummaryResponse, DashboardWidget } from '../types/dashboard';
 
 defineOptions({
@@ -87,6 +98,8 @@ const errorMessage = ref('');
 const summary = ref<DashboardSummaryResponse | null>(null);
 const quickLinks = ref<DashboardQuickLink[]>([]);
 const widgets = ref<DashboardWidget[]>([]);
+const lastUpdatedAt = ref('');
+const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
 const summarySkeletonRowCol = [
   { width: '52%', height: '14px' },
   { width: '36%', height: '28px' },
@@ -143,6 +156,8 @@ const systemSummaryItems = computed(() => {
   ];
 });
 
+const lastUpdatedLabel = computed(() => formatDashboardUpdatedAt(lastUpdatedAt.value));
+
 onMounted(() => {
   void loadSummary();
 });
@@ -152,15 +167,26 @@ async function loadSummary() {
   errorMessage.value = '';
 
   try {
-    const response = await getDashboardSummary();
+    const [response] = await Promise.all([getDashboardSummary(), loadQuickActionConfig()]);
     summary.value = response;
     quickLinks.value = response.quick_links;
     widgets.value = response.widgets;
+    lastUpdatedAt.value = new Date().toISOString();
   } catch (error) {
     logger.error('dashboard summary request failed', error);
     errorMessage.value = requestErrorMessage(error, t('dashboard.error.fallback'));
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadQuickActionConfig() {
+  try {
+    const response = await getDashboardSystemConfigs();
+    quickActionConfig.value = resolveDashboardQuickActionConfig(response.items ?? []);
+  } catch (error) {
+    logger.error('dashboard quick-action config request failed', error);
+    quickActionConfig.value = { ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG };
   }
 }
 
@@ -219,6 +245,18 @@ function requestErrorMessageKey(error: unknown) {
 function requestErrorCode(error: unknown) {
   return isApiRequestError(error) ? error.code : API_CODE.COMMON_INTERNAL_ERROR;
 }
+
+function formatDashboardUpdatedAt(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+  }).format(date);
+}
 </script>
 <style lang="less" scoped>
 .dashboard-page {
@@ -226,6 +264,18 @@ function requestErrorCode(error: unknown) {
   flex-direction: column;
   gap: var(--td-comp-margin-xl);
   min-width: 0;
+}
+
+.dashboard-page__header-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--td-comp-margin-s);
+}
+
+.dashboard-page__updated-at {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  white-space: nowrap;
 }
 
 .dashboard-page__summary {
@@ -299,6 +349,12 @@ function requestErrorCode(error: unknown) {
 }
 
 @media (width <= 768px) {
+  .dashboard-page__header-actions {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: var(--td-comp-margin-xs);
+  }
+
   .dashboard-page__summary-grid {
     grid-template-columns: minmax(0, 1fr);
   }

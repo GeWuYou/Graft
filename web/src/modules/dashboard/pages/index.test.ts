@@ -10,6 +10,10 @@ const dashboardApiMocks = vi.hoisted(() => ({
   getDashboardWidget: vi.fn(),
 }));
 
+const quickActionConfigApiMocks = vi.hoisted(() => ({
+  getDashboardSystemConfigs: vi.fn(),
+}));
+
 const loggerMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
@@ -23,6 +27,10 @@ vi.mock('../api/dashboard', () => ({
   getDashboardWidget: dashboardApiMocks.getDashboardWidget,
 }));
 
+vi.mock('../api/quick-actions-config', () => ({
+  getDashboardSystemConfigs: quickActionConfigApiMocks.getDashboardSystemConfigs,
+}));
+
 vi.mock('@/locales', () => ({
   t: (key: string, params?: Record<string, unknown>) => {
     const translations: Record<string, string> = {
@@ -34,6 +42,7 @@ vi.mock('@/locales', () => ({
       'dashboard.loading': 'Loading dashboard',
       'dashboard.page.description': 'Dashboard description',
       'dashboard.page.eyebrow': 'Workspace',
+      'dashboard.page.lastUpdated': `Last updated: ${params?.time ?? ''}`,
       'dashboard.page.title': 'Home',
       'dashboard.quickActions.description': 'Permission entries',
       'dashboard.quickActions.empty': 'No quick actions',
@@ -133,6 +142,23 @@ const buttonStub = defineComponent({
   },
 });
 
+const drawerStub = defineComponent({
+  name: 'TDrawerStub',
+  props: {
+    header: {
+      type: String,
+      default: '',
+    },
+    visible: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props, { slots }) {
+    return () => (props.visible ? h('div', [props.header, slots.default?.()]) : null);
+  },
+});
+
 function summaryResponse(): DashboardSummaryResponse {
   return {
     system_summary: {
@@ -219,14 +245,18 @@ function mountPage() {
       stubs: {
         DashboardRenderer: rendererStub,
         TAlert: passthroughStub,
+        TBadge: passthroughStub,
         TButton: buttonStub,
         TCard: passthroughStub,
+        TDrawer: drawerStub,
         TEmpty: passthroughStub,
         TIcon: passthroughStub,
         TLoading: passthroughStub,
         TSkeleton: passthroughStub,
         't-button': buttonStub,
         't-card': passthroughStub,
+        't-badge': passthroughStub,
+        't-drawer': drawerStub,
         't-empty': passthroughStub,
         't-icon': passthroughStub,
         't-loading': passthroughStub,
@@ -239,6 +269,7 @@ function mountPage() {
 describe('DashboardHomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
   });
 
   it('loads and renders the fixed system summary plus API-provided quick links and widgets', async () => {
@@ -266,7 +297,7 @@ describe('DashboardHomePage', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const quickActionButtons = wrapper.findAll('.dashboard-quick-actions__item');
+    const quickActionButtons = wrapper.findAll('button.dashboard-quick-actions__item');
     expect(quickActionButtons).toHaveLength(2);
 
     await quickActionButtons[0].trigger('click');

@@ -73,11 +73,24 @@
       }
     },
     "groups": {
+      "dashboardQuickActions": "Dashboard 快捷入口",
       "coreHttpxLogRetention": "访问日志保留配置",
       "coreLoggerLogRetention": "应用日志保留配置",
       "auditLogRetention": "审计日志保留配置"
     },
     "items": {
+      "dashboardQuickActionsEnabled": {
+        "title": "Dashboard 快捷入口",
+        "description": "控制工作台首页是否展示个性化快捷入口。"
+      },
+      "dashboardQuickActionsMaxItems": {
+        "title": "快捷入口最大数量",
+        "description": "工作台首页默认展示的个性化入口数量。"
+      },
+      "dashboardQuickActionsStrategy": {
+        "title": "快捷入口排序策略",
+        "description": "个性化快捷入口的推荐排序策略。"
+      },
       "accessLogRetentionCleanup": {
         "title": "访问日志保留清理",
         "description": "访问日志保留清理任务的默认配置。"
@@ -104,6 +117,13 @@
     "units": {
       "days": "天",
       "rows": "行"
+    },
+    "options": {
+      "dashboardQuickActionStrategy": {
+        "mostUsed": "最常使用",
+        "recent": "最近访问",
+        "hybrid": "综合推荐"
+      }
     }
   }
 }

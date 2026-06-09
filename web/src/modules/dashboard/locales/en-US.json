@@ -7,6 +7,11 @@
       "retry": "Retry"
     },
     "alert": {
+      "count": "{count} Times",
+      "known": {
+        "tokenExpired": "Token Expired"
+      },
+      "latestAt": "Latest: {time}",
       "level": {
         "error": "Error",
         "info": "Info",
@@ -37,14 +42,15 @@
     "page": {
       "description": "Review the system summary and authorized module-contributed workspace widgets.",
       "eyebrow": "Workspace",
+      "lastUpdated": "Last Updated: {time}",
       "title": "Workspace"
     },
     "quickActions": {
       "description": "Entries available to current permissions",
+      "drawerTitle": "All Quick Actions",
       "empty": "No Quick Actions Available",
       "title": "Quick Actions",
-      "viewAll": "View All {count}",
-      "viewLess": "View Less"
+      "viewAll": "View All {count}"
     },
     "systemSummary": {
       "abnormalServices": {
@@ -159,6 +165,12 @@
       "status": {
         "disabled": "Unavailable",
         "error": "Error",
+        "normal": "Normal",
+        "warning": "Warning"
+      },
+      "priority": {
+        "critical": "Critical",
+        "info": "Info",
         "normal": "Normal",
         "warning": "Warning"
       },

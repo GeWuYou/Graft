@@ -14,6 +14,14 @@
           <p v-if="item.description_key || item.description">
             {{ resolveDashboardText(item.description_key, item.description) }}
           </p>
+          <div v-if="usagePercent(item) !== null" class="dashboard-health__usage">
+            <t-progress
+              theme="line"
+              size="small"
+              :percentage="usagePercent(item) ?? 0"
+              :status="usageStatus(item.status)"
+            />
+          </div>
         </div>
         <template #action>
           <t-tag :theme="healthTheme(item.status)" variant="light">{{ healthLabel(item.status) }}</t-tag>
@@ -66,6 +74,34 @@ function healthTheme(status: DashboardHealthStatus) {
 function healthLabel(status: DashboardHealthStatus) {
   return t(`dashboard.health.${status}`);
 }
+
+function usagePercent(item: unknown) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  if (typeof record.usage_percent === 'number' && Number.isFinite(record.usage_percent)) {
+    return clampPercent(record.usage_percent);
+  }
+  if (typeof record.used === 'number' && typeof record.total === 'number' && record.total > 0) {
+    return clampPercent((record.used / record.total) * 100);
+  }
+  if (typeof record.active === 'number' && typeof record.capacity === 'number' && record.capacity > 0) {
+    return clampPercent((record.active / record.capacity) * 100);
+  }
+  return null;
+}
+
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function usageStatus(status: DashboardHealthStatus) {
+  if (status === 'degraded') return 'warning';
+  if (status === 'disabled') return 'error';
+  return undefined;
+}
 </script>
 <style lang="less" scoped>
 .dashboard-health {
@@ -94,6 +130,11 @@ function healthLabel(status: DashboardHealthStatus) {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: 0;
+}
+
+.dashboard-health__usage {
+  margin-top: var(--td-comp-margin-xxs);
+  max-width: 260px;
 }
 
 .dashboard-health__summary-description {

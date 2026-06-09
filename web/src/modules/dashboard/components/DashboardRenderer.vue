@@ -35,13 +35,15 @@
           >
             <template #title>
               <div class="dashboard-renderer__heading">
-                <span>{{ widgetTitle(widget) }}</span>
-                <t-tag v-if="widget.module_key" variant="light">
-                  {{ moduleLabel(widget.module_key) }}
-                </t-tag>
-                <t-tag v-if="shouldShowStateTag(widget)" :theme="stateTheme(widget.state)" variant="light">
-                  {{ stateLabel(widget.state) }}
-                </t-tag>
+                <span class="dashboard-renderer__title">{{ widgetTitle(widget) }}</span>
+                <span class="dashboard-renderer__badges">
+                  <t-tag v-if="widget.module_key" variant="light-outline" size="small">
+                    {{ moduleLabel(widget.module_key) }}
+                  </t-tag>
+                  <t-tag :theme="priorityTheme(widget.priority)" variant="light-outline" size="small">
+                    {{ priorityLabel(widget.priority) }}
+                  </t-tag>
+                </span>
               </div>
             </template>
             <template v-if="widgetActions(widget).length" #actions>
@@ -85,12 +87,7 @@ import { useRouter } from 'vue-router';
 
 import { t } from '@/locales';
 
-import type {
-  DashboardWidget,
-  DashboardWidgetCategory,
-  DashboardWidgetState,
-  DashboardWidgetType,
-} from '../types/dashboard';
+import type { DashboardWidget, DashboardWidgetCategory, DashboardWidgetType } from '../types/dashboard';
 import AlertListWidget from './widgets/AlertListWidget.vue';
 import HealthWidget from './widgets/HealthWidget.vue';
 import LinkListWidget from './widgets/LinkListWidget.vue';
@@ -206,18 +203,15 @@ function widgetActions(widget: DashboardWidget) {
   return actions;
 }
 
-function shouldShowStateTag(widget: DashboardWidget) {
-  return widget.state !== 'normal';
-}
-
-function stateTheme(state: DashboardWidgetState) {
-  if (state === 'critical') return 'danger';
-  if (state === 'warning') return 'warning';
+function priorityTheme(priority: DashboardWidget['priority']) {
+  if (priority === 'critical') return 'danger';
+  if (priority === 'warning') return 'warning';
+  if (priority === 'normal') return 'primary';
   return 'default';
 }
 
-function stateLabel(state: DashboardWidgetState) {
-  return t(`dashboard.widget.state.${state}`);
+function priorityLabel(priority: DashboardWidget['priority']) {
+  return t(`dashboard.widget.priority.${priority}`);
 }
 
 function categoryLabel(category: DashboardWidgetCategory) {
@@ -329,11 +323,18 @@ function categoryWeight(category: DashboardWidgetCategory) {
   justify-content: space-between;
 }
 
-.dashboard-renderer__heading span {
+.dashboard-renderer__title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dashboard-renderer__badges {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--td-comp-margin-xs);
 }
 
 .dashboard-renderer__description {

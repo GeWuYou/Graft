@@ -110,6 +110,10 @@ func NewRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
+	if err := runtime.registerCoreConfigDefinitions(); err != nil {
+		return nil, err
+	}
+
 	if err := runtime.registerRetentionJobs(); err != nil {
 		return nil, err
 	}
@@ -131,6 +135,21 @@ func (r *Runtime) registerRetentionJobs() error {
 	if err := r.registerAppLogRetentionJob(); err != nil {
 		_ = r.closeCoreResources()
 		return fmt.Errorf("register app-log retention job: %w", err)
+	}
+	return nil
+}
+
+func (r *Runtime) registerCoreConfigDefinitions() error {
+	if r == nil {
+		return errors.New("runtime is unavailable")
+	}
+	if err := dashboard.RegisterQuickActionsConfigMessages(r.i18n); err != nil {
+		_ = r.closeCoreResources()
+		return fmt.Errorf("register dashboard quick-actions config messages: %w", err)
+	}
+	if err := dashboard.RegisterQuickActionsConfigDefinitions(r.configRegistry); err != nil {
+		_ = r.closeCoreResources()
+		return fmt.Errorf("register dashboard quick-actions config definitions: %w", err)
 	}
 	return nil
 }

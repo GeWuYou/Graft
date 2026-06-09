@@ -22,6 +22,10 @@ vi.mock('@/locales', () => ({
       'dashboard.health.healthy': 'Healthy',
       'dashboard.module.core': 'Core',
       'dashboard.module.audit': 'Audit',
+      'dashboard.widget.priority.critical': 'Critical',
+      'dashboard.widget.priority.info': 'Info',
+      'dashboard.widget.priority.normal': 'Normal',
+      'dashboard.widget.priority.warning': 'Warning',
       'dashboard.widget.disabledDescription': 'Disabled widget',
       'dashboard.widget.empty': 'No widgets',
       'dashboard.widget.errorFallback': 'Failed',
@@ -110,6 +114,7 @@ function mountRenderer(widgets: DashboardWidget[]) {
         TEmpty: passthroughStub,
         TList: passthroughStub,
         TListItem: passthroughStub,
+        TProgress: passthroughStub,
         TSkeleton: passthroughStub,
         TTag: passthroughStub,
         TTimeline: passthroughStub,
@@ -139,7 +144,7 @@ describe('DashboardRenderer', () => {
       }),
     ]);
 
-    const titles = wrapper.findAll('.dashboard-renderer__heading span').map((element) => element.text());
+    const titles = wrapper.findAll('.dashboard-renderer__title').map((element) => element.text());
     expect(titles).toEqual(['Module Health', 'Recent Events']);
     expect(titles).not.toContain('');
     const text = wrapper.text();
