@@ -7,7 +7,7 @@
   <div :class="layoutCls">
     <t-head-menu :class="menuCls" :theme="menuTheme" expand-type="popup" :value="active">
       <template #logo>
-        <span v-if="showLogo" class="header-logo-container" @click="handleNav('/')">
+        <span v-if="showLogo" class="header-logo-container" @click="goHome">
           <logo-full class="t-logo" />
         </span>
         <div v-else class="header-operate-left">
@@ -79,6 +79,7 @@ import { useRouter } from 'vue-router';
 
 import LogoFull from '@/assets/assets-logo-full.svg?component';
 import { prefix } from '@/config/global';
+import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
@@ -126,6 +127,7 @@ const { theme, layout, showLogo, menu, isFixed, isCompact } = defineProps({
 const router = useRouter();
 const settingStore = useSettingStore();
 const user = useAuthSessionStore();
+const { goHome } = useShellNavigation();
 
 const toggleSettingPanel = () => {
   settingStore.openThemeWorkbench('overview');
