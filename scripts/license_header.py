@@ -112,7 +112,6 @@ class HeaderResult:
     path: Path
     relative_path: str
     has_header: bool
-    needs_repair: bool = False
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -146,18 +145,13 @@ def main(argv: list[str] | None = None) -> int:
     relative_paths = resolve_input_paths(args, root)
     results = list(scan_files(root, relative_paths))
     missing = [result for result in results if not result.has_header]
-    repairs = [result for result in results if result.needs_repair]
-    updates = missing + repairs
 
-    if not updates:
+    if not missing:
         print("All supported files include an Apache-2.0 license header.")
         return 0
 
     if args.check or args.dry_run:
-        if missing:
-            print_results(missing, "Missing Apache-2.0 license header:")
-        if repairs:
-            print_results(repairs, "License header needs repair:")
+        print_results(missing, "Missing Apache-2.0 license header:")
 
     if args.check:
         return 1
@@ -168,13 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     for result in missing:
         add_license_header(result.path)
 
-    for result in repairs:
-        repair_license_header(result.path)
-
-    if missing:
-        print_results(missing, "Added Apache-2.0 license header:")
-    if repairs:
-        print_results(repairs, "Repaired Apache-2.0 license header:")
+    print_results(missing, "Added Apache-2.0 license header:")
     return 0
 
 
@@ -222,7 +210,6 @@ def scan_files(root: Path, relative_paths: Iterable[str]) -> Iterable[HeaderResu
             path=path,
             relative_path=normalized,
             has_header=has_license_header(text),
-            needs_repair=needs_header_repair(path, text),
         )
 
 
@@ -269,19 +256,10 @@ def has_license_header(text: str) -> bool:
     return any(marker in search_window for marker in HEADER_MARKERS)
 
 
-def needs_header_repair(path: Path, text: str) -> bool:
-    return False
-
-
 def add_license_header(path: Path) -> None:
     text, had_bom = read_text_preserving_bom(path)
     updated = insert_header(path, text)
     write_text_preserving_bom(path, updated, had_bom)
-
-
-def repair_license_header(path: Path) -> None:
-    text, had_bom = read_text_preserving_bom(path)
-    write_text_preserving_bom(path, text, had_bom)
 
 
 def insert_header(path: Path, text: str) -> str:

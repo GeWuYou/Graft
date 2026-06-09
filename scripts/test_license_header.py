@@ -20,7 +20,7 @@ import license_header
 
 
 class LicenseHeaderTests(unittest.TestCase):
-    """Cover file format, repair, and added-file selection behavior."""
+    """Cover file formats, idempotence, and added-file selection behavior."""
 
     def test_inserts_go_header(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

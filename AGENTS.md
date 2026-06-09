@@ -699,8 +699,10 @@ Contributors must preserve that licensing posture when changing code, docs, auto
 - all new repository-maintained source, script, style, and migration files supported by `scripts/license-header.py` must
   include an Apache-2.0 header near the top of the file
 - the canonical header marker is `SPDX-License-Identifier: Apache-2.0`
-- supported comment formats and exclusions are owned by `scripts/license-header.py`; do not reimplement that policy in
-  workflow YAML, hooks, or ad-hoc shell snippets
+- `scripts/license-header.py` is the canonical CLI wrapper for checks and workflow calls; `scripts/license_header.py`
+  owns the importable implementation policy
+- supported comment formats and exclusions are owned by the license header implementation; do not reimplement that
+  policy in workflow YAML, hooks, or ad-hoc shell snippets
 - pull request validation gates newly added supported files only, so the repository stops new header drift without
   forcing broad historical churn into unrelated feature branches
 - existing tracked supported files that predate this policy must be backfilled through the manual

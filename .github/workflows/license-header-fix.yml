@@ -31,7 +31,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: ${{ inputs.base_branch }}
-          branch: chore/license-headers
+          branch: chore/license-headers-${{ inputs.base_branch }}-${{ github.run_id }}
           delete-branch: true
           commit-message: |
             chore(license): add Apache license headers
