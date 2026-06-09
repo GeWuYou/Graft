@@ -5,8 +5,11 @@ package notification
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 
 	"graft/server/internal/container"
 	"graft/server/internal/module"
@@ -28,6 +31,11 @@ func TestModuleRegistersPermissionsAndPublisher(t *testing.T) {
 	}
 
 	services := container.New()
+	if err := services.RegisterSingleton((*moduleapi.RBACAccessService)(nil), func(container.Resolver) (any, error) {
+		return permissionFanoutRBAC{userIDs: []uint64{42}}, nil
+	}); err != nil {
+		t.Fatalf("register rbac access service: %v", err)
+	}
 	ctx := &module.Context{
 		Services:           services,
 		PermissionRegistry: permission.NewRegistry(),
@@ -56,6 +64,32 @@ func TestModuleRegistersPermissionsAndPublisher(t *testing.T) {
 	}
 	if _, ok := resolved.(moduleapi.NotificationPublisher); !ok {
 		t.Fatalf("unexpected publisher service type %T", resolved)
+	}
+}
+
+func TestDescriptorBuildDoesNotResolveRBACAccessService(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("close sqlite db: %v", err)
+		}
+	}()
+
+	services := container.New()
+	if err := services.RegisterSingleton((*sql.DB)(nil), func(container.Resolver) (any, error) {
+		return db, nil
+	}); err != nil {
+		t.Fatalf("register sql db: %v", err)
+	}
+
+	descriptor := NewModuleSpec()
+	if _, err := descriptor.Build(module.BuildContext{Services: services}); err != nil {
+		t.Fatalf("build notification without rbac access service: %v", err)
 	}
 }
 

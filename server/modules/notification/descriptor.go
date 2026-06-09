@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"graft/server/internal/module"
-	"graft/server/internal/moduleapi"
 	notificationstore "graft/server/modules/notification/store"
 )
 
@@ -33,11 +32,7 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("build notification service: %w", err)
 			}
-			rbac, err := module.ResolveService[moduleapi.RBACAccessService](ctx.Services, (*moduleapi.RBACAccessService)(nil))
-			if err != nil {
-				return nil, fmt.Errorf("resolve rbac access service: %w", err)
-			}
-			publisher, err := NewPublisher(repository, rbac)
+			publisher, err := NewPublisher(repository)
 			if err != nil {
 				return nil, fmt.Errorf("build notification publisher: %w", err)
 			}

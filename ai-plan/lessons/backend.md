@@ -1,5 +1,35 @@
 # Backend Lessons
 
+## LESSON-BACKEND-MODULE-LIFECYCLE-001：Builder 不应解析 Register 才暴露的跨模块服务
+
+- Status: active
+- Level: L2
+- Applies to:
+  - `server/modules/*/descriptor.go`
+  - `server/modules/*/module.go`
+  - `server/internal/moduleapi/**`
+  - 跨模块 capability 的 provider / consumer wiring
+- Source:
+  - 2026-06-09 notification 启动失败 `resolve rbac access service: service not registered: *moduleapi.RBACAccessService`
+- Problem:
+  `notification` 在 descriptor builder 阶段解析 `moduleapi.RBACAccessService`，但该 capability 由 `rbac.Register` 注册。runtime 会先构造所有模块实例，再执行各模块 `Register`；即使 `notification` 声明了 `DependsOn: ["rbac"]`，builder 仍看不到 `rbac.Register` 才注册的服务，导致模块构建期失败。
+- Correct pattern:
+  Builder 只解析 core/runtime 已经预注册的基础设施服务，或构造模块自有 repository/service。消费其它模块在 `Register` 阶段暴露的 capability 时，模块必须声明对应 `Dependencies`，并在自身 `Register` 或 `Boot` 的窄 wiring 边界解析同一个 `moduleapi` key 后注入本模块对象。
+- Anti-pattern:
+  认为 `ModuleSpec.Dependencies` 会让被依赖模块的 `Register` 在当前模块 builder 前执行，进而在 descriptor builder 中硬解析其它模块 `RegisterSingleton` 暴露的服务。
+- Enforcement:
+  对新增跨模块服务消费增加 descriptor build 测试，至少覆盖“只注册 core 基础设施、不注册被依赖模块 capability 时 builder 仍能成功”；再用 module lifecycle 测试覆盖 `Register` 或 `Boot` 阶段使用完全一致的 `(*moduleapi.Interface)(nil)` key 完成解析与注入。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `server/modules/notification/descriptor.go`
+  - `server/modules/notification/module.go`
+  - `server/modules/rbac/module_registration.go`
+  - `server/internal/moduleregistry/registry.go`
+- Updated at:
+  2026-06-09
+
 ## LESSON-BACKEND-MIGRATION-VERSION-001：已执行 Atlas migration 版本不能追加新 DDL
 
 - Status: active

@@ -35,6 +35,18 @@ func NewPublisher(repository notificationstore.Repository, rbac ...moduleapi.RBA
 	return publisher, nil
 }
 
+func (p *Publisher) setRBACAccessService(rbac moduleapi.RBACAccessService) error {
+	if p == nil {
+		return errors.New("notification publisher is unavailable")
+	}
+	if rbac == nil {
+		return errors.New("rbac access service is required")
+	}
+
+	p.rbac = rbac
+	return nil
+}
+
 // Publish validates, persists, and fans out one notification event.
 func (p *Publisher) Publish(ctx context.Context, input moduleapi.PublishNotificationInput) (moduleapi.PublishNotificationResult, error) {
 	if p == nil || p.repository == nil {

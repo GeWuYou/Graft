@@ -5,6 +5,7 @@ package notification
 
 import (
 	"errors"
+	"fmt"
 
 	"graft/server/internal/container"
 	"graft/server/internal/httpx"
@@ -16,11 +17,11 @@ import (
 // Module is the Notification Center backend module.
 type Module struct {
 	service   *Service
-	publisher moduleapi.NotificationPublisher
+	publisher *Publisher
 }
 
 // NewModule creates a Notification Center module instance.
-func NewModule(service *Service, publisher moduleapi.NotificationPublisher) *Module {
+func NewModule(service *Service, publisher *Publisher) *Module {
 	return &Module{service: service, publisher: publisher}
 }
 
@@ -36,36 +37,58 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerNotificationPermissions(ctx.PermissionRegistry, moduleID); err != nil {
 		return err
 	}
+	if err := m.bindRBACAccessService(ctx); err != nil {
+		return err
+	}
 	if ctx.Router != nil {
-		authService, err := resolveAuthService(ctx)
-		if err != nil {
+		if err := m.registerRoutes(ctx); err != nil {
 			return err
 		}
-		authorizer, err := resolveAuthorizer(ctx)
-		if err != nil {
-			return err
-		}
-		publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
-		registerNotificationRoutes(ctx, m.service, notificationGuards{
-			view: httpx.RequirePermission(
-				ctx.I18n,
-				authService,
-				authorizer,
-				notificationcontract.NotificationViewPermission.String(),
-				publisher,
-			),
-			read: httpx.RequirePermission(
-				ctx.I18n,
-				authService,
-				authorizer,
-				notificationcontract.NotificationReadPermission.String(),
-				publisher,
-			),
-		})
 	}
 	return ctx.Services.RegisterSingleton((*moduleapi.NotificationPublisher)(nil), func(_ container.Resolver) (any, error) {
 		return m.publisher, nil
 	})
+}
+
+func (m *Module) bindRBACAccessService(ctx *module.Context) error {
+	rbacAccess, err := resolveRBACAccessService(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve rbac access service: %w", err)
+	}
+	if err := m.publisher.setRBACAccessService(rbacAccess); err != nil {
+		return fmt.Errorf("bind rbac access service: %w", err)
+	}
+	return nil
+}
+
+func (m *Module) registerRoutes(ctx *module.Context) error {
+	authService, err := resolveAuthService(ctx)
+	if err != nil {
+		return err
+	}
+	authorizer, err := resolveAuthorizer(ctx)
+	if err != nil {
+		return err
+	}
+
+	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
+	registerNotificationRoutes(ctx, m.service, notificationGuards{
+		view: httpx.RequirePermission(
+			ctx.I18n,
+			authService,
+			authorizer,
+			notificationcontract.NotificationViewPermission.String(),
+			publisher,
+		),
+		read: httpx.RequirePermission(
+			ctx.I18n,
+			authService,
+			authorizer,
+			notificationcontract.NotificationReadPermission.String(),
+			publisher,
+		),
+	})
+	return nil
 }
 
 // Boot currently has no background behavior to start.
@@ -100,4 +123,16 @@ func resolveAuthorizer(ctx *module.Context) (moduleapi.Authorizer, error) {
 		return nil, errors.New("notification authorizer has unexpected type")
 	}
 	return authorizer, nil
+}
+
+func resolveRBACAccessService(ctx *module.Context) (moduleapi.RBACAccessService, error) {
+	resolved, err := ctx.Services.Resolve((*moduleapi.RBACAccessService)(nil))
+	if err != nil {
+		return nil, err
+	}
+	rbacAccess, ok := resolved.(moduleapi.RBACAccessService)
+	if !ok || rbacAccess == nil {
+		return nil, errors.New("notification rbac access service has unexpected type")
+	}
+	return rbacAccess, nil
 }
