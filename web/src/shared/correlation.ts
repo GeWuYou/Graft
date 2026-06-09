@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import { localizedApiErrorMessage } from '@/modules/shared/localized-api-error';
 import type { ApiRequestError } from '@/types/axios';
 import { readGlobalLoggerContext } from '@/utils/logger';

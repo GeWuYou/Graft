@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package logger 负责构造 server 运行时使用的结构化日志能力。
 //
 // 该包把 Zap 的初始化、AppLogger 契约、请求关联字段拼装、App Log storage

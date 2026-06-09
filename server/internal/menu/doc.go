@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package menu 维护供模块使用的后端菜单注册表。
 //
 // 将菜单注册集中在后端，可以让后续的 web 壳层基于后端声明的元数据生成导航，而不是依赖前端私有状态。

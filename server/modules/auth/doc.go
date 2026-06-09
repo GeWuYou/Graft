@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package auth 定义认证与会话生命周期模块的长期边界。
 //
 // 当前阶段由 auth 模块承接 `/auth/*` 路由所有权，并作为认证与会话能力边界入口。

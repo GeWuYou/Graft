@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 export const MONITOR_ROUTE_PATH = {
   SERVER: '/server',
   SERVER_OVERVIEW: '/server/overview',

@@ -1,3 +1,6 @@
+-- Copyright (c) 2025-2026 GeWuYou
+-- SPDX-License-Identifier: Apache-2.0
+
 ALTER TABLE "permissions"
   ADD COLUMN IF NOT EXISTS "display_key" character varying NULL,
   ADD COLUMN IF NOT EXISTS "description_key" character varying NULL;

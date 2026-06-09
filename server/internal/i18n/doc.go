@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package i18n 提供 server 运行时使用的项目级本地化 facade。
 //
 // 该包统一收口 locale 解析、消息查找、注册期 registry 与 freeze 语义。

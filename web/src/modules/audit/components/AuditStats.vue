@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <section class="audit-stats">
     <t-card v-for="item in items" :key="item.key" class="audit-stats__card" size="small">

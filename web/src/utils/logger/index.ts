@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import { createConsolaTransport } from '@/utils/logger/transports/consola';
 import { noopTransport } from '@/utils/logger/transports/noop';
 import type { LogEvent, Logger, LoggerContext, LoggerTransport, LogLevel } from '@/utils/logger/types';

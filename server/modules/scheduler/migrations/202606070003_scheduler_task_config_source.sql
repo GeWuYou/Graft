@@ -1,3 +1,6 @@
+-- Copyright (c) 2025-2026 GeWuYou
+-- SPDX-License-Identifier: Apache-2.0
+
 ALTER TABLE "scheduled_tasks"
   ADD COLUMN IF NOT EXISTS "config_source" TEXT NOT NULL DEFAULT 'system';
 

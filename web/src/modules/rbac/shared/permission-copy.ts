@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import type { ComposerTranslation } from 'vue-i18n';
 
 import { PERMISSION_COPY_BY_CODE } from '../contract/permission-copy';

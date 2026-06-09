@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import uniqBy from 'lodash/uniqBy';
 import { computed, toRaw, unref } from 'vue';
 import { useRouter } from 'vue-router';

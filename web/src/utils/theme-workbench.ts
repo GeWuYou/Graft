@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import { DEFAULT_THEME_PRESET_ID } from '@/config/theme-workbench';
 import type { ThemeModeTokenState, ThemePresetDefinition, ThemeTokenMap } from '@/types/theme';
 import type { ModeType } from '@/utils/types';

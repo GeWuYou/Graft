@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <template v-for="metric in items" :key="metric.key">
     <summary-metric-card :title="metric.label" :value="metric.value" :description="metric.description" />

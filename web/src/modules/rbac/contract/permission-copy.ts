@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { MONITOR_PERMISSION_CODE } from '@/modules/monitor/contract/permissions';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';

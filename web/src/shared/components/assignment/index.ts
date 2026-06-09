@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 export { default as AssignmentCard } from './AssignmentCard.vue';
 export { default as AssignmentDrawer } from './AssignmentDrawer.vue';
 export { default as AssignmentFooter } from './AssignmentFooter.vue';

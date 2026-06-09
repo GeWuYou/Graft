@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <t-list v-if="payload && groupedItems.length" size="small" split>
     <t-list-item v-for="item in groupedItems" :key="item.id">

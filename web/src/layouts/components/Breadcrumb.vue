@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <t-breadcrumb max-item-width="150" class="tdesign-breadcrumb">
     <t-breadcrumbItem v-for="item in crumbs" :key="item.to" :to="item.to">

@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package menu 存放后端声明的导航元数据，供后续壳层装配使用。
 package menu
 

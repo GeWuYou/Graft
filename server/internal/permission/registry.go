@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package permission 存放模块声明的后端权限元数据，供后续鉴权装配使用。
 package permission
 

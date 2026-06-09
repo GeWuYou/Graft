@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import Mock from 'mockjs';
 import type { MockMethod } from 'vite-plugin-mock';
 

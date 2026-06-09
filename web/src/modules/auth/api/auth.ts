@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { AUTH_API_PATH } from '@/modules/auth/contract/paths';
 import type {

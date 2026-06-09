@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 // Package rbac 提供 MVP 阶段最小可用的后端授权与管理模块。
 //
 // 当前实现把基于仓储的权限判断能力暴露为稳定的 `moduleapi.Authorizer`，

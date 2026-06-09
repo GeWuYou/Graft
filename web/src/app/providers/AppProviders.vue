@@ -1,3 +1,8 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <t-config-provider :global-config="getComponentsLocale">
     <div class="app-theme-surface" :class="mode" :data-theme-mode="mode">

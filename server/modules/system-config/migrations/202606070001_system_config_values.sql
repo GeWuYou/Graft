@@ -1,3 +1,6 @@
+-- Copyright (c) 2025-2026 GeWuYou
+-- SPDX-License-Identifier: Apache-2.0
+
 -- system_config_values stores administrator overrides only.
 -- ConfigDefinition metadata and defaults remain module-registered runtime authority.
 

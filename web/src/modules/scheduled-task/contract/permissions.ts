@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 export const SCHEDULED_TASK_PERMISSION_CODE = {
   READ: 'scheduled-task.read',
   CREATE: 'scheduled-task.create',

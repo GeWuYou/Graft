@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
 import type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
 import { supportedLocales } from '@/contracts/i18n/locales';
 import { i18n } from '@/locales';
