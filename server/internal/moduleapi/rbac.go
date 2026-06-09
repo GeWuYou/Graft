@@ -26,6 +26,7 @@ type RoleSummary struct {
 type RBACAccessService interface {
 	ListRoleNamesByUserID(ctx context.Context, userID uint64) ([]string, error)
 	ListPermissionCodesByUserID(ctx context.Context, userID uint64) ([]string, error)
+	ListUserIDsByPermissionCode(ctx context.Context, permissionCode string) ([]uint64, error)
 	ListRoleSummariesByUserIDs(ctx context.Context, userIDs []uint64) (map[uint64][]RoleSummary, error)
 }
 

@@ -1,0 +1,3 @@
+type: string
+description: Notification Center category typed contract.
+enum: [SECURITY, TASK, CONFIG, OPERATIONS, SYSTEM]

@@ -43,6 +43,19 @@ func (s accessService) ListPermissionCodesByUserID(ctx context.Context, userID u
 	return stableStrings(permissions, func(permission rbacstore.Permission) string { return permission.Code }), nil
 }
 
+func (s accessService) ListUserIDsByPermissionCode(ctx context.Context, permissionCode string) ([]uint64, error) {
+	if s.rbac == nil {
+		return nil, errors.New("rbac repository is unavailable")
+	}
+
+	userIDs, err := s.rbac.ListUserIDsByPermissionCode(ctx, permissionCode)
+	if err != nil {
+		return nil, err
+	}
+
+	return stableUint64s(userIDs), nil
+}
+
 func (s accessService) ListRoleSummariesByUserIDs(
 	ctx context.Context,
 	userIDs []uint64,
@@ -107,4 +120,21 @@ func stableStrings[T any](items []T, extract func(T) string) []string {
 
 	slices.Sort(values)
 	return values
+}
+
+func stableUint64s(values []uint64) []uint64 {
+	stable := make([]uint64, 0, len(values))
+	seen := make(map[uint64]struct{}, len(values))
+	for _, value := range values {
+		if value == 0 {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		stable = append(stable, value)
+	}
+	slices.Sort(stable)
+	return stable
 }

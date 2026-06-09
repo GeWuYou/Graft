@@ -712,6 +712,44 @@ func TestRunOncePersistsManualRunHistory(t *testing.T) {
 	}
 }
 
+func TestRunOnceNotifiesAfterPersistedFailure(t *testing.T) {
+	repo := newRunRepositoryRecorder()
+	runtime := New(zap.NewNop(), repo)
+	runtime.SetTaskRepository(newTaskRepositoryRecorder())
+	notifier := &runFailureNotifierRecorder{}
+	runtime.SetRunFailureNotifier(notifier)
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "manual-failure",
+		Schedule: "*/1 * * * * *",
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "failed"}, errors.New("boom")
+		},
+	})
+
+	run, err := runtime.RunOnce(context.Background(), "manual-failure")
+	if err == nil || err.Error() != "boom" {
+		t.Fatalf("expected handler error, got %v", err)
+	}
+	if run.Status != RunStatusFailed {
+		t.Fatalf("expected failed run, got %#v", run)
+	}
+	if len(repo.updated) != 1 || repo.updated[0].Status != RunStatusFailed {
+		t.Fatalf("expected persisted failed run before notify, got %#v", repo.updated)
+	}
+	if len(notifier.runs) != 1 || notifier.runs[0].ID != repo.updated[0].ID {
+		t.Fatalf("expected one failed-run notification after persistence, got %#v", notifier.runs)
+	}
+}
+
+type runFailureNotifierRecorder struct {
+	runs []TaskRun
+}
+
+func (r *runFailureNotifierRecorder) NotifyRunFailed(_ context.Context, run TaskRun) {
+	r.runs = append(r.runs, run)
+}
+
 func TestRunActionUsesActionHandlerAndSkipsHistory(t *testing.T) {
 	repo := newRunRepositoryRecorder()
 	taskRepo := newTaskRepositoryRecorder()

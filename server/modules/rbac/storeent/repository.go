@@ -788,6 +788,40 @@ func (r *repository) ListPermissionsByUserID(ctx context.Context, userID uint64)
 	)
 }
 
+func (r *repository) ListUserIDsByPermissionCode(ctx context.Context, permissionCode string) ([]uint64, error) {
+	code := strings.TrimSpace(permissionCode)
+	if code == "" {
+		return nil, rbacstore.ErrPermissionNotFound
+	}
+
+	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT ur.user_id
+		FROM user_roles ur
+		INNER JOIN roles r ON r.id = ur.role_id
+		INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
+		INNER JOIN permissions p ON p.id = rp.permission_id
+		WHERE p.code = $1 AND r.deleted_at = 0 AND p.deleted_at = 0
+		ORDER BY ur.user_id ASC`, code)
+	if err != nil {
+		return nil, fmt.Errorf("list user ids by permission code: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	userIDs := make([]uint64, 0)
+	for rows.Next() {
+		var raw int64
+		if err := rows.Scan(&raw); err != nil {
+			return nil, fmt.Errorf("scan permission user id: %w", err)
+		}
+		userIDs = append(userIDs, toStoreID(raw))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate permission user ids: %w", err)
+	}
+	return userIDs, nil
+}
+
 func (r *repository) ListPermissions(ctx context.Context, filter rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	where := []string{"deleted_at = 0"}
 	var args []any

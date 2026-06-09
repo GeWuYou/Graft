@@ -1,0 +1,7 @@
+type: object
+required:
+  - count
+properties:
+  count:
+    type: integer
+    minimum: 0

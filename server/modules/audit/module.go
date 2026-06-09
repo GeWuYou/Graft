@@ -30,6 +30,7 @@ import (
 type Module struct {
 	recorder      *Service
 	monitorBinder incidentMonitorEvidenceBinder
+	notifier      moduleapi.NotificationPublisher
 }
 
 const eventMetadataExtraFields = 3
@@ -100,7 +101,9 @@ func (p *Module) Register(ctx *module.Context) error {
 		return errors.New("event bus is unavailable")
 	}
 
-	return subscribeAuditRecordEvents(ctx.EventBus, logger, p.recorder)
+	return subscribeAuditRecordEvents(ctx.EventBus, logger, p.recorder, func() moduleapi.NotificationPublisher {
+		return p.notifier
+	})
 }
 
 func (p *Module) registerRetention(ctx *module.Context, logger *zap.Logger) error {
@@ -122,7 +125,9 @@ func (p *Module) registerHTTP(ctx *module.Context, logger *zap.Logger) error {
 		return nil
 	}
 
-	ctx.Router.Use(requestAuditMiddleware(logger, p.recorder))
+	ctx.Router.Use(requestAuditMiddleware(logger, p.recorder, func() moduleapi.NotificationPublisher {
+		return p.notifier
+	}))
 	guard, err := p.resolveRouteGuard(ctx)
 	if err != nil {
 		return err
@@ -132,13 +137,24 @@ func (p *Module) registerHTTP(ctx *module.Context, logger *zap.Logger) error {
 	return nil
 }
 
-func subscribeAuditRecordEvents(bus eventbus.Bus, logger *zap.Logger, recorder *Service) error {
+func subscribeAuditRecordEvents(
+	bus eventbus.Bus,
+	logger *zap.Logger,
+	recorder *Service,
+	notifier func() moduleapi.NotificationPublisher,
+) error {
 	return bus.Subscribe(string(moduleapi.AuditRecordEventName), func(eventCtx context.Context, event eventbus.Event) error {
-		return handleAuditRecordEvent(eventCtx, logger, recorder, event)
+		return handleAuditRecordEvent(eventCtx, logger, recorder, notifier, event)
 	})
 }
 
-func handleAuditRecordEvent(eventCtx context.Context, logger *zap.Logger, recorder *Service, event eventbus.Event) error {
+func handleAuditRecordEvent(
+	eventCtx context.Context,
+	logger *zap.Logger,
+	recorder *Service,
+	notifier func() moduleapi.NotificationPublisher,
+	event eventbus.Event,
+) error {
 	payload, err := resolveAuditEventPayload(event.Payload)
 	if err != nil {
 		logger.Error("drop malformed audit event payload",
@@ -149,7 +165,7 @@ func handleAuditRecordEvent(eventCtx context.Context, logger *zap.Logger, record
 		return nil
 	}
 
-	if err := recordEvent(eventCtx, logger, recorder, payload); err != nil {
+	if err := recordEvent(eventCtx, logger, recorder, notifier, payload); err != nil {
 		logger.Error("write active audit log failed",
 			zap.String("module", moduleID),
 			zap.String("event", string(moduleapi.AuditRecordEventName)),
@@ -163,25 +179,14 @@ func handleAuditRecordEvent(eventCtx context.Context, logger *zap.Logger, record
 
 // Boot resolves optional cross-module capabilities after all modules have completed Register.
 func (p *Module) Boot(ctx *module.Context) error {
-	if p == nil || p.monitorBinder == nil || ctx == nil || ctx.Services == nil {
+	if p == nil || ctx == nil || ctx.Services == nil {
 		return nil
 	}
 
-	resolved, err := ctx.Services.Resolve((*moduleapi.MonitorIncidentEvidenceService)(nil))
-	if err != nil {
-		if errors.Is(err, container.ErrServiceNotRegistered) {
-			return nil
-		}
-		return fmt.Errorf("resolve monitor incident evidence service: %w", err)
+	if err := p.bindMonitorEvidence(ctx); err != nil {
+		return err
 	}
-
-	service, ok := resolved.(moduleapi.MonitorIncidentEvidenceService)
-	if !ok {
-		return fmt.Errorf("resolve monitor incident evidence service: unexpected type %T", resolved)
-	}
-
-	p.monitorBinder.BindMonitorEvidence(service)
-	return nil
+	return p.bindNotificationPublisher(ctx)
 }
 
 // Shutdown 当前没有额外资源需要释放。
@@ -193,7 +198,46 @@ type incidentMonitorEvidenceBinder interface {
 	BindMonitorEvidence(moduleapi.MonitorIncidentEvidenceService)
 }
 
-func requestAuditMiddleware(logger *zap.Logger, recorder *Service) gin.HandlerFunc {
+func (p *Module) bindMonitorEvidence(ctx *module.Context) error {
+	if p.monitorBinder == nil {
+		return nil
+	}
+	resolved, err := ctx.Services.Resolve((*moduleapi.MonitorIncidentEvidenceService)(nil))
+	if err != nil {
+		if errors.Is(err, container.ErrServiceNotRegistered) {
+			return nil
+		}
+		return fmt.Errorf("resolve monitor incident evidence service: %w", err)
+	}
+	service, ok := resolved.(moduleapi.MonitorIncidentEvidenceService)
+	if !ok {
+		return fmt.Errorf("resolve monitor incident evidence service: unexpected type %T", resolved)
+	}
+	p.monitorBinder.BindMonitorEvidence(service)
+	return nil
+}
+
+func (p *Module) bindNotificationPublisher(ctx *module.Context) error {
+	resolvedNotifier, err := ctx.Services.Resolve((*moduleapi.NotificationPublisher)(nil))
+	if err != nil {
+		if errors.Is(err, container.ErrServiceNotRegistered) {
+			return nil
+		}
+		return fmt.Errorf("resolve notification publisher: %w", err)
+	}
+	notifier, ok := resolvedNotifier.(moduleapi.NotificationPublisher)
+	if !ok {
+		return fmt.Errorf("resolve notification publisher: unexpected type %T", resolvedNotifier)
+	}
+	p.notifier = notifier
+	return nil
+}
+
+func requestAuditMiddleware(
+	logger *zap.Logger,
+	recorder *Service,
+	notifier func() moduleapi.NotificationPublisher,
+) gin.HandlerFunc {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -202,7 +246,7 @@ func requestAuditMiddleware(logger *zap.Logger, recorder *Service) gin.HandlerFu
 		ctx.Next()
 
 		candidate := requestAuditCandidate(ctx)
-		if _, recorded, err := recorder.RecordCandidate(ctx.Request.Context(), candidate); err != nil {
+		if record, recorded, err := recorder.RecordCandidate(ctx.Request.Context(), candidate); err != nil {
 			logger.Error("write request audit log failed",
 				zap.String("module", moduleID),
 				zap.String("action", candidate.Action),
@@ -214,15 +258,26 @@ func requestAuditMiddleware(logger *zap.Logger, recorder *Service) gin.HandlerFu
 				zap.String("method", candidate.RequestMethod),
 				zap.String("path", candidate.RequestPath),
 			)
+		} else {
+			publishAuditNotification(ctx.Request.Context(), logger, resolveNotificationPublisher(notifier), record)
 		}
 	}
 }
 
-func recordEvent(ctx context.Context, logger *zap.Logger, recorder *Service, payload moduleapi.AuditEvent) error {
+func recordEvent(
+	ctx context.Context,
+	logger *zap.Logger,
+	recorder *Service,
+	notifier func() moduleapi.NotificationPublisher,
+	payload moduleapi.AuditEvent,
+) error {
 	candidate := eventAuditCandidate(ctx, payload)
-	_, recorded, err := recorder.RecordCandidate(ctx, candidate)
+	record, recorded, err := recorder.RecordCandidate(ctx, candidate)
 	if err != nil {
 		return err
+	}
+	if recorded {
+		publishAuditNotification(ctx, logger, resolveNotificationPublisher(notifier), record)
 	}
 	if recorded || candidate.Source != auditstore.AuditSourceSecurityEvent {
 		return nil
@@ -238,6 +293,13 @@ func recordEvent(ctx context.Context, logger *zap.Logger, recorder *Service, pay
 		zap.String("path", candidate.RequestPath),
 	)
 	return nil
+}
+
+func resolveNotificationPublisher(resolve func() moduleapi.NotificationPublisher) moduleapi.NotificationPublisher {
+	if resolve == nil {
+		return nil
+	}
+	return resolve()
 }
 
 func requestAuditCandidate(ctx *gin.Context) auditstore.AuditCandidate {

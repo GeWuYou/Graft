@@ -1,0 +1,3 @@
+type: string
+description: Current-user notification read-state filter and read model value.
+enum: [unread, read]

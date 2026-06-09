@@ -1,0 +1,76 @@
+type: object
+required:
+  - delivery_id
+  - event_id
+  - title
+  - message
+  - severity
+  - category
+  - source_module
+  - event_type
+  - navigation
+  - target_type
+  - target_ref
+  - status
+  - occurred_at
+  - delivery_created_at
+properties:
+  delivery_id:
+    type: integer
+    format: int64
+    minimum: 1
+  event_id:
+    type: integer
+    format: int64
+    minimum: 1
+  title_key:
+    type: string
+    description: Stable localization key for the notification title when supplied by the source module.
+  title:
+    type: string
+  message_key:
+    type: string
+    description: Stable localization key for the notification body when supplied by the source module.
+  message:
+    type: string
+  severity:
+    $ref: ./notification-severity.yaml
+  category:
+    $ref: ./notification-category.yaml
+  source_module:
+    type: string
+    minLength: 1
+  event_type:
+    type: string
+    minLength: 1
+  resource_type:
+    type: string
+  resource_id:
+    type: string
+  resource_name:
+    type: string
+  navigation:
+    $ref: ./notification-navigation.yaml
+  target_type:
+    $ref: ./notification-target-type.yaml
+  target_ref:
+    type: string
+  status:
+    $ref: ./notification-status.yaml
+  read_at:
+    type: string
+    format: date-time
+    nullable: true
+  occurred_at:
+    type: string
+    format: date-time
+  expires_at:
+    type: string
+    format: date-time
+    nullable: true
+  delivery_created_at:
+    type: string
+    format: date-time
+  event_created_at:
+    type: string
+    format: date-time

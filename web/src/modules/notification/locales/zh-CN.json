@@ -1,0 +1,110 @@
+{
+  "menu": {
+    "notification": {
+      "title": "通知中心"
+    }
+  },
+  "notification": {
+    "actions": {
+      "delete": "删除",
+      "detail": "详情",
+      "markAllRead": "全部已读",
+      "markRead": "标记已读",
+      "openTarget": "打开业务上下文",
+      "refresh": "刷新",
+      "reset": "重置",
+      "search": "查询",
+      "viewAll": "查看全部"
+    },
+    "bell": {
+      "loading": "正在加载通知",
+      "loadingDescription": "请稍候，正在读取最新通知。",
+      "title": "通知",
+      "unreadSummary": "{count} 条未读"
+    },
+    "category": {
+      "CONFIG": "配置",
+      "OPERATIONS": "运维",
+      "SECURITY": "安全",
+      "SYSTEM": "系统",
+      "TASK": "任务"
+    },
+    "columns": {
+      "actions": "操作",
+      "category": "分类",
+      "notification": "通知",
+      "occurredAt": "发生时间",
+      "severity": "级别",
+      "sourceModule": "来源",
+      "status": "状态"
+    },
+    "detail": {
+      "basic": "基础信息",
+      "eventType": "事件类型",
+      "navigation": "业务上下文",
+      "readAt": "已读时间",
+      "resource": "关联资源",
+      "resourceId": "资源 ID",
+      "resourceName": "资源名称",
+      "resourceType": "资源类型",
+      "targetRef": "投递目标",
+      "targetType": "投递类型",
+      "title": "通知详情",
+      "unsupportedNavigation": "该通知的跳转目标将在后续阶段开放。"
+    },
+    "empty": {
+      "description": "当前筛选条件下没有通知。",
+      "title": "暂无通知"
+    },
+    "filters": {
+      "category": "分类",
+      "occurredFrom": "开始时间",
+      "occurredTo": "结束时间",
+      "severity": "级别",
+      "sourceModule": "来源模块"
+    },
+    "messages": {
+      "deleteFailed": "删除通知失败",
+      "deleteSuccess": "通知已删除",
+      "loadFailed": "通知加载失败",
+      "markAllReadSuccess": "通知已全部标记为已读",
+      "markReadFailed": "标记通知失败",
+      "markReadSuccess": "通知已标记为已读",
+      "navigationUnavailable": "该通知暂不支持跳转"
+    },
+    "page": {
+      "description": "查看当前用户收到的安全、任务和平台通知。",
+      "errorTitle": "通知加载失败",
+      "eyebrow": "工作台",
+      "title": "通知中心"
+    },
+    "severity": {
+      "critical": "严重",
+      "error": "错误",
+      "info": "信息",
+      "warning": "警告"
+    },
+    "source": {
+      "audit": "安全审计",
+      "scheduler": "定时任务"
+    },
+    "status": {
+      "read": "已读",
+      "unread": "未读"
+    },
+    "table": {
+      "summary": "共 {count} 条通知",
+      "title": "通知列表"
+    },
+    "tabs": {
+      "all": "全部",
+      "read": "已读",
+      "unread": "未读"
+    },
+    "values": {
+      "emptyField": "无",
+      "notRead": "未读",
+      "unknownSource": "未知来源"
+    }
+  }
+}

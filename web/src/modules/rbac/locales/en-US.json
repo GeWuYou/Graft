@@ -316,6 +316,18 @@
       "auditRead": {
         "display": "Read Audit Logs",
         "description": "Allows viewing the audit overview and audit logs."
+      },
+      "notificationView": {
+        "display": "View Notifications",
+        "description": "Allows reading current-user notifications and unread counts."
+      },
+      "notificationRead": {
+        "display": "Read Notifications",
+        "description": "Allows marking current-user notifications as read or deleting current-user deliveries."
+      },
+      "notificationManage": {
+        "display": "Manage Notifications",
+        "description": "Reserved for future global notification delivery management."
       }
     }
   }

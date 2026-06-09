@@ -1,0 +1,110 @@
+{
+  "menu": {
+    "notification": {
+      "title": "Notification Center"
+    }
+  },
+  "notification": {
+    "actions": {
+      "delete": "Delete",
+      "detail": "Details",
+      "markAllRead": "Mark all read",
+      "markRead": "Mark read",
+      "openTarget": "Open context",
+      "refresh": "Refresh",
+      "reset": "Reset",
+      "search": "Search",
+      "viewAll": "View all"
+    },
+    "bell": {
+      "loading": "Loading notifications",
+      "loadingDescription": "Reading the latest notifications.",
+      "title": "Notifications",
+      "unreadSummary": "{count} unread"
+    },
+    "category": {
+      "CONFIG": "Config",
+      "OPERATIONS": "Operations",
+      "SECURITY": "Security",
+      "SYSTEM": "System",
+      "TASK": "Task"
+    },
+    "columns": {
+      "actions": "Actions",
+      "category": "Category",
+      "notification": "Notification",
+      "occurredAt": "Occurred at",
+      "severity": "Severity",
+      "sourceModule": "Source",
+      "status": "Status"
+    },
+    "detail": {
+      "basic": "Basic information",
+      "eventType": "Event type",
+      "navigation": "Business context",
+      "readAt": "Read at",
+      "resource": "Related resource",
+      "resourceId": "Resource ID",
+      "resourceName": "Resource name",
+      "resourceType": "Resource type",
+      "targetRef": "Target reference",
+      "targetType": "Target type",
+      "title": "Notification details",
+      "unsupportedNavigation": "This notification target will be available in a later phase."
+    },
+    "empty": {
+      "description": "No notifications match the current filters.",
+      "title": "No notifications"
+    },
+    "filters": {
+      "category": "Category",
+      "occurredFrom": "Start time",
+      "occurredTo": "End time",
+      "severity": "Severity",
+      "sourceModule": "Source module"
+    },
+    "messages": {
+      "deleteFailed": "Failed to delete notification",
+      "deleteSuccess": "Notification deleted",
+      "loadFailed": "Failed to load notifications",
+      "markAllReadSuccess": "Notifications marked as read",
+      "markReadFailed": "Failed to mark notification",
+      "markReadSuccess": "Notification marked as read",
+      "navigationUnavailable": "This notification does not support navigation yet"
+    },
+    "page": {
+      "description": "Review security, task, and platform notifications delivered to the current user.",
+      "errorTitle": "Failed to load notifications",
+      "eyebrow": "Workspace",
+      "title": "Notification Center"
+    },
+    "severity": {
+      "critical": "Critical",
+      "error": "Error",
+      "info": "Info",
+      "warning": "Warning"
+    },
+    "source": {
+      "audit": "Security Audit",
+      "scheduler": "Scheduled Tasks"
+    },
+    "status": {
+      "read": "Read",
+      "unread": "Unread"
+    },
+    "table": {
+      "summary": "{count} notifications",
+      "title": "Notification list"
+    },
+    "tabs": {
+      "all": "All",
+      "read": "Read",
+      "unread": "Unread"
+    },
+    "values": {
+      "emptyField": "None",
+      "notRead": "Unread",
+      "unknownSource": "Unknown source"
+    }
+  }
+}

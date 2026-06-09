@@ -1,0 +1,3 @@
+type: string
+description: Delivery target type retained for current-user read-model traceability.
+enum: [USER, ROLE, PERMISSION, SYSTEM]

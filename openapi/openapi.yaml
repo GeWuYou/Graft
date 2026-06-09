@@ -23,6 +23,7 @@ tags:
   - name: access-log
   - name: app-log
   - name: dashboard
+  - name: notifications
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
@@ -150,6 +151,16 @@ paths:
     $ref: ./paths/dashboard.summary.yaml
   /api/dashboard/widgets/{widget_id}:
     $ref: ./paths/dashboard.widget.yaml
+  /api/notifications:
+    $ref: ./paths/notifications.list.yaml
+  /api/notifications/unread-count:
+    $ref: ./paths/notifications.unread-count.yaml
+  /api/notifications/{delivery_id}/read:
+    $ref: ./paths/notifications.read.yaml
+  /api/notifications/read-all:
+    $ref: ./paths/notifications.read-all.yaml
+  /api/notifications/{delivery_id}:
+    $ref: ./paths/notifications.delete.yaml
 components:
   schemas:
     ApiEnvelope:
@@ -420,6 +431,36 @@ components:
       $ref: ./components/schemas/enveloped-dashboard-summary-response.yaml
     EnvelopedDashboardWidget:
       $ref: ./components/schemas/enveloped-dashboard-widget.yaml
+    NotificationSeverity:
+      $ref: ./components/schemas/notification-severity.yaml
+    NotificationCategory:
+      $ref: ./components/schemas/notification-category.yaml
+    NotificationTargetType:
+      $ref: ./components/schemas/notification-target-type.yaml
+    NotificationNavigationKind:
+      $ref: ./components/schemas/notification-navigation-kind.yaml
+    NotificationStatus:
+      $ref: ./components/schemas/notification-status.yaml
+    NotificationNavigation:
+      $ref: ./components/schemas/notification-navigation.yaml
+    NotificationItem:
+      $ref: ./components/schemas/notification-item.yaml
+    NotificationListResponse:
+      $ref: ./components/schemas/notification-list-response.yaml
+    NotificationUnreadCountResponse:
+      $ref: ./components/schemas/notification-unread-count-response.yaml
+    NotificationReadAllRequest:
+      $ref: ./components/schemas/notification-read-all-request.yaml
+    NotificationReadAllResponse:
+      $ref: ./components/schemas/notification-read-all-response.yaml
+    EnvelopedNotificationListResponse:
+      $ref: ./components/schemas/enveloped-notification-list-response.yaml
+    EnvelopedNotificationUnreadCountResponse:
+      $ref: ./components/schemas/enveloped-notification-unread-count-response.yaml
+    EnvelopedNotificationItem:
+      $ref: ./components/schemas/enveloped-notification-item.yaml
+    EnvelopedNotificationReadAllResponse:
+      $ref: ./components/schemas/enveloped-notification-read-all-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

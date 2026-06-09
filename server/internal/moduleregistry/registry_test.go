@@ -28,6 +28,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/auth/migrations",
 		"modules/rbac/migrations",
 		"modules/audit/migrations",
+		"modules/notification/migrations",
 		"modules/system-config/migrations",
 	}
 	if !reflect.DeepEqual(dirs, expected) {

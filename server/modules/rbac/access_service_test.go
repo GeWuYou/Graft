@@ -13,6 +13,7 @@ import (
 type accessServiceTestRepository struct {
 	roles       []rbacstore.Role
 	permissions []rbacstore.Permission
+	userIDs     []uint64
 }
 
 func (r accessServiceTestRepository) EnsureRole(context.Context, rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
@@ -97,6 +98,10 @@ func (r accessServiceTestRepository) ListPermissionsByUserID(context.Context, ui
 	return r.permissions, nil
 }
 
+func (r accessServiceTestRepository) ListUserIDsByPermissionCode(context.Context, string) ([]uint64, error) {
+	return r.userIDs, nil
+}
+
 func (r accessServiceTestRepository) ListPermissions(context.Context, rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return nil, nil
 }
@@ -125,6 +130,7 @@ func TestAccessServiceListsStableRoleNamesAndPermissionCodes(t *testing.T) {
 				{Code: "user.read"},
 				{Code: "  "},
 			},
+			userIDs: []uint64{42, 0, 7, 42, 11},
 		},
 	}
 
@@ -132,15 +138,41 @@ func TestAccessServiceListsStableRoleNamesAndPermissionCodes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list role names: %v", err)
 	}
-	if len(roles) != 3 || roles[0] != "admin" || roles[1] != "editor" || roles[2] != "viewer" {
-		t.Fatalf("unexpected role names: %#v", roles)
-	}
+	requireStrings(t, roles, []string{"admin", "editor", "viewer"}, "role names")
 
 	codes, err := service.ListPermissionCodesByUserID(context.Background(), 7)
 	if err != nil {
 		t.Fatalf("list permission codes: %v", err)
 	}
-	if len(codes) != 3 || codes[0] != "audit.read" || codes[1] != "audit.write" || codes[2] != "user.read" {
-		t.Fatalf("unexpected permission codes: %#v", codes)
+	requireStrings(t, codes, []string{"audit.read", "audit.write", "user.read"}, "permission codes")
+
+	userIDs, err := service.ListUserIDsByPermissionCode(context.Background(), "audit.read")
+	if err != nil {
+		t.Fatalf("list user ids by permission code: %v", err)
+	}
+	requireUserIDs(t, userIDs, []uint64{7, 11, 42})
+}
+
+func requireStrings(t *testing.T, actual []string, expected []string, label string) {
+	t.Helper()
+	if len(actual) != len(expected) {
+		t.Fatalf("unexpected %s: %#v", label, actual)
+	}
+	for index, value := range expected {
+		if actual[index] != value {
+			t.Fatalf("unexpected %s: %#v", label, actual)
+		}
+	}
+}
+
+func requireUserIDs(t *testing.T, actual []uint64, expected []uint64) {
+	t.Helper()
+	if len(actual) != len(expected) {
+		t.Fatalf("unexpected user ids: %#v", actual)
+	}
+	for index, value := range expected {
+		if actual[index] != value {
+			t.Fatalf("unexpected user ids: %#v", actual)
+		}
 	}
 }
