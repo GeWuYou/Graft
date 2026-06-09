@@ -1,6 +1,7 @@
 import type { components } from '@/contracts/openapi/generated/schema';
 
 export type ServerStatusDependency = components['schemas']['ServerStatusDependency'];
+export type ServerStatusConnectionPool = components['schemas']['ServerStatusConnectionPool'];
 export type ServerStatusModule = components['schemas']['ServerStatusModule'];
 export type ServerStatusServer = components['schemas']['ServerStatusServer'];
 export type ServerStatusRuntime = components['schemas']['ServerStatusRuntime'];

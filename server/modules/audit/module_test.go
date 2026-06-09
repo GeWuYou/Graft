@@ -27,6 +27,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
+	auditcontract "graft/server/modules/audit/contract"
 	"graft/server/modules/audit/store"
 )
 
@@ -368,6 +369,27 @@ func TestRegisterRegistersAuditRiskEventsDashboardWidget(t *testing.T) {
 	}
 	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != "audit.read" {
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
+	}
+
+	quickLinks := ctx.DashboardRegistry.QuickLinks()
+	if len(quickLinks) != 2 {
+		t.Fatalf("expected audit quick links, got %#v", quickLinks)
+	}
+	assertAuditQuickLink(t, quickLinks[0], auditOverviewQuickLinkID, auditcontract.AuditOverviewMenuTitle.String(), auditcontract.AuditOverviewMenuPath, auditOverviewQuickLinkOrder)
+	assertAuditQuickLink(t, quickLinks[1], auditLogsQuickLinkID, auditcontract.AuditLogMenuTitle.String(), auditcontract.AuditLogsMenuPath, auditLogsQuickLinkOrder)
+}
+
+func assertAuditQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, id string, titleKey string, routeLocation string, order int) {
+	t.Helper()
+	if link.ID != id ||
+		link.ModuleKey != moduleID ||
+		link.TitleKey != titleKey ||
+		link.RouteLocation != routeLocation ||
+		link.Order != order {
+		t.Fatalf("unexpected audit quick link: %#v", link)
+	}
+	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != auditcontract.AuditReadPermission.String() {
+		t.Fatalf("unexpected audit quick link permissions: %#v", link.RequiredPermissions)
 	}
 }
 

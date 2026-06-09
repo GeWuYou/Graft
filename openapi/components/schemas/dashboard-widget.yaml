@@ -1,5 +1,5 @@
 type: object
-required: [id, module_key, type, size, order, payload]
+required: [id, module_key, type, size, category, priority, visible, state, order, payload]
 properties:
   id:
     type: string
@@ -17,6 +17,14 @@ properties:
     $ref: ./dashboard-widget-type.yaml
   size:
     $ref: ./dashboard-widget-size.yaml
+  category:
+    $ref: ./dashboard-widget-category.yaml
+  priority:
+    $ref: ./dashboard-widget-priority.yaml
+  visible:
+    type: boolean
+  state:
+    $ref: ./dashboard-widget-state.yaml
   order:
     type: integer
   refresh_interval_seconds:
@@ -24,6 +32,8 @@ properties:
     minimum: 1
   route_location:
     type: string
+  action:
+    $ref: ./dashboard-widget-action.yaml
   required_permissions:
     type: array
     items:

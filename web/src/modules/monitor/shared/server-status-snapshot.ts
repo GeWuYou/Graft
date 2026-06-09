@@ -6,6 +6,7 @@ import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-err
 import { getServerStatus } from '../api/server-status';
 import { useMonitorRefreshPreferences } from '../composables/use-monitor-refresh-preferences';
 import { MONITOR_TREND_RANGE } from '../contract/trend';
+import type { ServerStatusConnectionPool } from '../types/server-status';
 import type { ServerStatusResponse } from '../types/server-status';
 
 export type DependencyDisplayStatus = 'healthy' | 'abnormal' | 'notConfigured' | 'unknown';
@@ -242,6 +243,14 @@ export function formatLatency(latencyMs?: number | null) {
   }
 
   return `${latencyMs.toFixed(2)} ms`;
+}
+
+export function formatPoolWait(pool?: ServerStatusConnectionPool | null) {
+  if (!pool) {
+    return '--';
+  }
+
+  return `${pool.wait_count} · ${pool.wait_duration_ms.toFixed(2)} ms`;
 }
 
 export function displayText(value?: string | null) {

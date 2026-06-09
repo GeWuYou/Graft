@@ -30,6 +30,10 @@ func Open(cfg config.DatabaseConfig) (*Resources, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open postgres database pool: %w", err)
 	}
+	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	sqlDB.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
 
 	return &Resources{SQL: sqlDB}, nil
 }

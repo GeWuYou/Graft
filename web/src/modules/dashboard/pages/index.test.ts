@@ -2,12 +2,17 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+import type { DashboardQuickActionConfig } from '../contract/quick-actions';
 import type { DashboardSummaryResponse, DashboardWidget } from '../types/dashboard';
 import DashboardHomePage from './index.vue';
 
 const dashboardApiMocks = vi.hoisted(() => ({
   getDashboardSummary: vi.fn(),
   getDashboardWidget: vi.fn(),
+}));
+
+const quickActionConfigApiMocks = vi.hoisted(() => ({
+  getDashboardSystemConfigs: vi.fn(),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -23,6 +28,10 @@ vi.mock('../api/dashboard', () => ({
   getDashboardWidget: dashboardApiMocks.getDashboardWidget,
 }));
 
+vi.mock('../api/quick-actions-config', () => ({
+  getDashboardSystemConfigs: quickActionConfigApiMocks.getDashboardSystemConfigs,
+}));
+
 vi.mock('@/locales', () => ({
   t: (key: string, params?: Record<string, unknown>) => {
     const translations: Record<string, string> = {
@@ -34,18 +43,30 @@ vi.mock('@/locales', () => ({
       'dashboard.loading': 'Loading dashboard',
       'dashboard.page.description': 'Dashboard description',
       'dashboard.page.eyebrow': 'Workspace',
+      'dashboard.page.lastUpdated': `Last updated: ${params?.time ?? ''}`,
       'dashboard.page.title': 'Home',
       'dashboard.quickActions.description': 'Permission entries',
       'dashboard.quickActions.empty': 'No quick actions',
       'dashboard.quickActions.title': 'Quick Actions',
+      'dashboard.systemSummary.abnormalServices.description': 'Services that need attention',
+      'dashboard.systemSummary.abnormalServices.label': 'Abnormal services',
+      'dashboard.systemSummary.abnormalServices.value': `${params?.count ?? 0}`,
       'dashboard.systemSummary.currentUser.label': 'Current user',
       'dashboard.systemSummary.environment.description': 'Runtime environment',
       'dashboard.systemSummary.environment.label': 'Environment',
+      'dashboard.systemSummary.eyebrow': 'Today overview',
+      'dashboard.systemSummary.failedTasks.description': 'Latest failed tasks',
+      'dashboard.systemSummary.failedTasks.label': 'Failed tasks',
+      'dashboard.systemSummary.failedTasks.value': `${params?.count ?? 0}`,
+      'dashboard.systemSummary.highRiskEvents.description': 'High-risk events',
+      'dashboard.systemSummary.highRiskEvents.label': 'High-risk events',
+      'dashboard.systemSummary.highRiskEvents.value': `${params?.count ?? 0}`,
       'dashboard.systemSummary.locale.description': `Fallback locale ${params?.fallback ?? ''}`,
       'dashboard.systemSummary.locale.label': 'Locale',
       'dashboard.systemSummary.modules.description': `${params?.total ?? 0} total, ${params?.degraded ?? 0} degraded`,
-      'dashboard.systemSummary.modules.label': 'Enabled modules',
-      'dashboard.systemSummary.title': 'System summary',
+      'dashboard.systemSummary.modules.label': 'Module runtime',
+      'dashboard.systemSummary.modules.value': `${params?.count ?? 0} running`,
+      'dashboard.systemSummary.title': 'Today overview',
       'dashboard.systemSummary.widgets.description': 'Visible widgets',
       'dashboard.systemSummary.widgets.label': 'Widgets',
       'dashboard.widget.errorFallback': 'Widget failed',
@@ -77,6 +98,47 @@ const rendererStub = defineComponent({
         (props.widgets as DashboardWidget[]).map((widget) => h('span', { class: 'widget-id' }, widget.id)),
         h('button', { class: 'refresh-widget', onClick: () => emit('refresh-widget', 'core.module-runtime-health') }),
       ]);
+  },
+});
+
+const quickActionsStub = defineComponent({
+  name: 'DashboardQuickActions',
+  props: {
+    config: {
+      type: Object,
+      default: () => ({ enabled: true, maxItems: 8, strategy: 'hybrid' }),
+    },
+    links: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  setup(props) {
+    return () => {
+      const config = props.config as DashboardQuickActionConfig;
+      const links = summaryQuickLinks(props.links);
+      return h(
+        'section',
+        {
+          class: 'quick-actions-stub',
+          'data-enabled': String(config.enabled),
+          'data-max-items': String(config.maxItems),
+          'data-strategy': config.strategy,
+        },
+        config.enabled
+          ? links.slice(0, config.maxItems).map((link) =>
+              h(
+                'button',
+                {
+                  class: 'dashboard-quick-actions__item',
+                  onClick: () => routerMocks.push(link.route_location),
+                },
+                [h('strong', link.title), link.description ? h('small', link.description) : null],
+              ),
+            )
+          : [],
+      );
+    };
   },
 });
 
@@ -122,14 +184,34 @@ const buttonStub = defineComponent({
   },
 });
 
+const drawerStub = defineComponent({
+  name: 'TDrawerStub',
+  props: {
+    header: {
+      type: String,
+      default: '',
+    },
+    visible: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props, { slots }) {
+    return () => (props.visible ? h('div', [props.header, slots.default?.()]) : null);
+  },
+});
+
 function summaryResponse(): DashboardSummaryResponse {
   return {
     system_summary: {
+      abnormal_services: 0,
       app_env: 'development',
       current_user: {
         display_name: 'Admin',
         username: 'admin',
       },
+      failed_tasks: 0,
+      high_risk_events: 0,
       locale: {
         default_locale: 'zh-CN',
         fallback_locale: 'zh-CN',
@@ -160,6 +242,7 @@ function summaryResponse(): DashboardSummaryResponse {
     ],
     widgets: [
       {
+        category: 'system',
         id: 'core.module-runtime-health',
         module_key: 'core',
         order: 1,
@@ -169,11 +252,15 @@ function summaryResponse(): DashboardSummaryResponse {
           },
           items: [],
         },
+        priority: 'info',
         size: 'medium',
+        state: 'normal',
         title: 'Module Health',
         type: 'health',
+        visible: true,
       },
       {
+        category: 'system',
         id: 'monitor.system-health',
         module_key: 'monitor',
         order: 2,
@@ -183,30 +270,70 @@ function summaryResponse(): DashboardSummaryResponse {
           },
           items: [],
         },
+        priority: 'normal',
         size: 'medium',
+        state: 'normal',
         title: 'System Health',
         type: 'health',
+        visible: true,
       },
     ],
   };
+}
+
+function summaryQuickLinks(value: unknown) {
+  return [...(value as DashboardSummaryResponse['quick_links'])].sort((left, right) => {
+    if (left.order !== right.order) {
+      return left.order - right.order;
+    }
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function systemConfigItem(key: string, effectiveValue: string) {
+  return {
+    config_schema: {},
+    default_value: null,
+    effective_value: effectiveValue,
+    group: 'dashboard.quick_actions',
+    has_override: false,
+    key,
+    masked: false,
+    module: 'core',
+    restart_required: false,
+    sensitive: false,
+    status: 'default',
+    type: 'string',
+  } as const;
 }
 
 function mountPage() {
   return mount(DashboardHomePage, {
     global: {
       stubs: {
+        DashboardQuickActions: quickActionsStub,
         DashboardRenderer: rendererStub,
         TAlert: passthroughStub,
+        TBadge: passthroughStub,
+        TBreadcrumb: passthroughStub,
+        TBreadcrumbItem: passthroughStub,
         TButton: buttonStub,
         TCard: passthroughStub,
+        TDrawer: drawerStub,
         TEmpty: passthroughStub,
         TIcon: passthroughStub,
         TLoading: passthroughStub,
+        TSkeleton: passthroughStub,
         't-button': buttonStub,
         't-card': passthroughStub,
+        't-badge': passthroughStub,
+        't-breadcrumb': passthroughStub,
+        't-breadcrumb-item': passthroughStub,
+        't-drawer': drawerStub,
         't-empty': passthroughStub,
         't-icon': passthroughStub,
         't-loading': passthroughStub,
+        't-skeleton': passthroughStub,
       },
     },
   });
@@ -215,6 +342,7 @@ function mountPage() {
 describe('DashboardHomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
   });
 
   it('loads and renders the fixed system summary plus API-provided quick links and widgets', async () => {
@@ -224,10 +352,11 @@ describe('DashboardHomePage', () => {
     await flushPromises();
 
     expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(1);
-    expect(wrapper.text()).toContain('Admin');
-    expect(wrapper.text()).toContain('development');
-    expect(wrapper.text()).toContain('zh-CN');
-    expect(wrapper.text()).toContain('4');
+    expect(wrapper.text()).toContain('Today overview');
+    expect(wrapper.text()).toContain('4 running');
+    expect(wrapper.text()).toContain('Abnormal services');
+    expect(wrapper.text()).toContain('Failed tasks');
+    expect(wrapper.text()).toContain('High-risk events');
     expect(wrapper.text()).toContain('Audit Logs');
     expect(wrapper.text()).toContain('Review events');
     expect(wrapper.text()).toContain('Roles');
@@ -241,12 +370,42 @@ describe('DashboardHomePage', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const quickActionButtons = wrapper.findAll('.dashboard-quick-actions__item');
+    const quickActionButtons = wrapper.findAll('button.dashboard-quick-actions__item');
     expect(quickActionButtons).toHaveLength(2);
 
     await quickActionButtons[0].trigger('click');
 
     expect(routerMocks.push).toHaveBeenCalledWith('/audit/events?level=warning');
+  });
+
+  it('passes disabled quick-action config from system config to the dashboard section', async () => {
+    dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
+    quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValueOnce({
+      items: [systemConfigItem('dashboard.quick_actions.enabled', 'false')],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const quickActions = wrapper.find('.quick-actions-stub');
+    expect(quickActions.attributes('data-enabled')).toBe('false');
+    expect(wrapper.findAll('button.dashboard-quick-actions__item')).toHaveLength(0);
+  });
+
+  it('passes max item quick-action config from system config to the dashboard section', async () => {
+    dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
+    quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValueOnce({
+      items: [systemConfigItem('dashboard.quick_actions.max_items', '1')],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const quickActions = wrapper.find('.quick-actions-stub');
+    expect(quickActions.attributes('data-max-items')).toBe('1');
+    expect(wrapper.findAll('button.dashboard-quick-actions__item')).toHaveLength(1);
+    expect(wrapper.text()).toContain('Audit Logs');
+    expect(wrapper.text()).not.toContain('Roles');
   });
 
   it('refreshes one widget through the focused widget endpoint', async () => {

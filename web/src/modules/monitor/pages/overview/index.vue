@@ -36,7 +36,7 @@
         :title="card.label"
         :value="card.value"
         :value-aside="card.valueSide"
-        :description="`${card.meta} · ${card.description}`"
+        :description="card.meta"
         :status="metricToneToServerStatusTone(card.tone)"
         :status-label="card.statusLabel"
       >
@@ -48,6 +48,7 @@
           :loading="card.usage.loading"
           :empty-text="t('monitor.serverStatus.metricUsageNoData')"
         />
+        <p class="metric-card__usage-description">{{ card.description }}</p>
       </summary-metric-card>
     </template>
 
@@ -364,7 +365,25 @@
                     <p class="dependency-item__detail">{{ dependency.detail }}</p>
                   </div>
                 </div>
-                <span class="dependency-item__latency">{{ dependency.latency }}</span>
+                <div class="dependency-item__metrics">
+                  <span class="dependency-item__latency">{{ dependency.latency }}</span>
+                  <div v-if="dependency.pool" class="dependency-item__pool" data-dependency-pool="true">
+                    <div class="dependency-item__pool-header">
+                      <span class="dependency-item__pool-label">{{
+                        t('monitor.serverStatus.dependencyPoolLabel')
+                      }}</span>
+                      <strong class="dependency-item__pool-value">{{ dependency.pool.value }}</strong>
+                    </div>
+                    <metric-usage-bar
+                      :value="dependency.pool.usage.value"
+                      :label="dependency.pool.usage.label"
+                      :status="dependency.pool.usage.status"
+                      :tooltip="dependency.pool.usage.tooltip"
+                      :empty-text="t('monitor.serverStatus.metricUsageNoData')"
+                    />
+                    <p class="dependency-item__pool-detail">{{ dependency.pool.detail }}</p>
+                  </div>
+                </div>
               </article>
             </div>
           </section>
@@ -438,6 +457,12 @@ import { normalizeMonitorOriginContext } from '../../contract/navigation';
 import type { MonitorRefreshInterval } from '../../contract/refresh';
 import type { MonitorTrendRange } from '../../contract/trend';
 import { MONITOR_TREND_RANGE } from '../../contract/trend';
+import {
+  formatDependencyPoolUsage,
+  formatPoolCount,
+  poolUsagePercent,
+  poolUsageStatus,
+} from '../../shared/pool-metrics';
 import type {
   EvidenceLink,
   ServerStatusAnomaly,
@@ -455,7 +480,7 @@ const router = useRouter();
 
 type MonitorStatus = 'healthy' | 'degraded' | 'disabled' | 'unknown';
 type MetricCardTone = 'healthy' | 'warning' | 'critical' | 'unknown';
-type MetricUsageStatus = 'healthy' | 'warning' | 'danger' | 'unknown';
+type MetricUsageStatus = ReturnType<typeof poolUsageStatus>;
 type MetricUsageKind = 'percent' | 'loadPressure';
 type TrendRange = MonitorTrendRange;
 type TrendMode = 'overview' | 'multi' | 'focus';
@@ -530,6 +555,12 @@ interface StatusSidebarSummaryItem {
   key: string;
   label: string;
   value: string;
+}
+
+interface DependencyPoolView {
+  value: string;
+  detail: string;
+  usage: MetricCardUsage;
 }
 
 const { t, locale } = useI18n();
@@ -827,7 +858,7 @@ const metricCards = computed<MetricCard[]>(() => {
 
   const loadAverage = response.runtime.load_average;
   const loadPercent =
-    response.runtime.cpu_cores > 0 ? (loadAverage.one_minute / response.runtime.cpu_cores) * 100 : null;
+    response.runtime.cpu_cores > 0 ? Math.min((loadAverage.one_minute / response.runtime.cpu_cores) * 100, 100) : null;
   const cpuPercent = latestTrendPoint.value?.cpu_percent ?? null;
   const hostMemoryPercent = response.runtime.host_memory_used_percent;
   const diskPercent = response.runtime.disk_usage.total_bytes > 0 ? response.runtime.disk_usage.used_percent : null;
@@ -880,8 +911,9 @@ const metricCards = computed<MetricCard[]>(() => {
       value: formatLoadAverage(loadAverage.one_minute),
       valueSide: t('monitor.serverStatus.metricLoadValueSide'),
       meta: t('monitor.serverStatus.metricLoadMeta', {
-        five: formatLoadAverage(loadAverage.five_minutes),
-        fifteen: formatLoadAverage(loadAverage.fifteen_minutes),
+        load: formatLoadAverage(loadAverage.one_minute),
+        cores: String(response.runtime.cpu_cores),
+        percent: formatPercentPrecise(loadPercent),
       }),
       ...loadStatus,
       usage: buildMetricUsage({
@@ -1204,8 +1236,39 @@ function buildDependencyItem(key: string, label: string, dependency: ServerStatu
     detail: dependency.detail,
     status: normalizeStatus(dependency.status),
     latency: formatLatency(dependency.latency_ms),
+    pool: dependency.pool ? buildDependencyPoolView(label, dependency.pool) : null,
     icon,
   };
+}
+
+function buildDependencyPoolView(label: string, pool: NonNullable<ServerStatusDependency['pool']>): DependencyPoolView {
+  const value = formatDependencyPoolUsage(pool, emptyRuntimeStatusText());
+  const percent = poolUsagePercent(pool);
+  return {
+    value,
+    detail: t('monitor.serverStatus.dependencyPoolDetail', {
+      inUse: formatPoolCount(pool.in_use_connections, emptyRuntimeStatusText()),
+      idle: formatPoolCount(pool.idle_connections, emptyRuntimeStatusText()),
+      open: formatPoolCount(pool.open_connections, emptyRuntimeStatusText()),
+      capacity: formatPoolCount(pool.capacity, emptyRuntimeStatusText()),
+    }),
+    usage: {
+      kind: 'percent',
+      label: t('monitor.serverStatus.dependencyPoolUsageLabel', { label }),
+      value: percent,
+      status: poolUsageStatus(percent),
+      tooltip: t('monitor.serverStatus.dependencyPoolUsageTooltip', {
+        label,
+        value,
+        percent: formatPercentPrecise(percent),
+      }),
+      loading: false,
+    },
+  };
+}
+
+function emptyRuntimeStatusText() {
+  return t('monitor.serverStatus.runtimeStatusNotAvailable');
 }
 
 function resolveAnomalyByKey(anomalyKey: string) {

@@ -1,14 +1,19 @@
 <template>
-  <t-list v-if="payload && payload.items.length" size="small" split>
-    <t-list-item v-for="item in payload.items" :key="item.id">
+  <t-list v-if="payload && groupedItems.length" size="small" split>
+    <t-list-item v-for="item in groupedItems" :key="item.id">
       <div class="dashboard-alert-list__item">
         <t-tag :theme="levelTheme(item.level)" variant="light">{{ levelLabel(item.level) }}</t-tag>
         <div class="dashboard-alert-list__content">
-          <strong>{{ resolveDashboardText(item.title_key, item.title) }}</strong>
-          <p v-if="item.description_key || item.description">
-            {{ resolveDashboardText(item.description_key, item.description) }}
-          </p>
-          <time v-if="item.occurred_at">{{ formatDashboardDateTime(item.occurred_at) }}</time>
+          <div class="dashboard-alert-list__title-row">
+            <strong>{{ item.title }}</strong>
+            <t-tag v-if="item.count > 1" size="small" variant="light-outline">
+              {{ t('dashboard.alert.count', { count: item.count }) }}
+            </t-tag>
+          </div>
+          <p v-if="item.description">{{ item.description }}</p>
+          <time v-if="item.latestAt">
+            {{ t('dashboard.alert.latestAt', { time: formatDashboardDateTime(item.latestAt) }) }}
+          </time>
         </div>
       </div>
       <template v-if="item.route_location" #action>
@@ -34,16 +39,70 @@ import { t } from '@/locales';
 import type { DashboardAlertListPayload, DashboardWidget } from '../../types/dashboard';
 import { asAlertListPayload } from './payload';
 import { formatDashboardDateTime, openDashboardRoute } from './widget-actions';
-import { resolveDashboardText } from './widget-i18n';
+import { resolveDashboardRelatedText, resolveDashboardText } from './widget-i18n';
 
 const props = defineProps<{
   widget: DashboardWidget;
 }>();
 
 type AlertLevel = DashboardAlertListPayload['items'][number]['level'];
+const KNOWN_ALERT_TITLE_KEYS = {
+  token_expired: 'dashboard.alert.known.tokenExpired',
+} as const;
 
 const router = useRouter();
 const payload = computed(() => asAlertListPayload(props.widget.payload));
+const groupedItems = computed(() => {
+  const currentPayload = payload.value;
+  if (!currentPayload) {
+    return [];
+  }
+
+  const groups = new Map<string, AlertGroup>();
+  for (const item of currentPayload.items) {
+    const title = normalizedTitle(resolveDashboardText(item.title_key, item.title));
+    const key = alertGroupKey(item, title);
+    const existing = groups.get(key);
+    const occurredAt = item.occurred_at || '';
+    if (!existing) {
+      groups.set(key, {
+        id: key,
+        count: 1,
+        description: itemDescription(item),
+        latestAt: occurredAt,
+        level: item.level,
+        route_location: item.route_location,
+        title,
+      });
+      continue;
+    }
+
+    existing.count += 1;
+    if (isAfter(occurredAt, existing.latestAt)) {
+      existing.latestAt = occurredAt;
+      existing.description = itemDescription(item);
+      existing.route_location = item.route_location || existing.route_location;
+    }
+  }
+
+  return [...groups.values()].sort((left, right) => {
+    const levelDelta = levelWeight(left.level) - levelWeight(right.level);
+    if (levelDelta !== 0) {
+      return levelDelta;
+    }
+    return timestamp(right.latestAt) - timestamp(left.latestAt);
+  });
+});
+
+interface AlertGroup {
+  id: string;
+  level: AlertLevel;
+  title: string;
+  description: string;
+  latestAt: string;
+  route_location?: string;
+  count: number;
+}
 
 function levelTheme(level: AlertLevel) {
   if (level === 'error') return 'danger';
@@ -53,6 +112,41 @@ function levelTheme(level: AlertLevel) {
 
 function levelLabel(level: AlertLevel) {
   return t(`dashboard.alert.level.${level}`);
+}
+
+function itemDescription(item: DashboardAlertListPayload['items'][number]) {
+  return item.description_key
+    ? resolveDashboardText(item.description_key, item.description)
+    : resolveDashboardRelatedText(item.title_key, 'description', item.description);
+}
+
+function alertGroupKey(item: DashboardAlertListPayload['items'][number], title: string) {
+  const statusCode = item.description?.match(/\b([1-5]\d{2})\b/)?.[1];
+  return [item.level, statusCode || title].join(':');
+}
+
+function normalizedTitle(value: string) {
+  const knownAlertTitleKey = KNOWN_ALERT_TITLE_KEYS[value as keyof typeof KNOWN_ALERT_TITLE_KEYS];
+  if (knownAlertTitleKey) {
+    return resolveDashboardText(knownAlertTitleKey, value);
+  }
+
+  return value.replaceAll('_', ' ').replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function timestamp(value: string) {
+  const date = new Date(value).getTime();
+  return Number.isFinite(date) ? date : 0;
+}
+
+function isAfter(left: string, right: string) {
+  return timestamp(left) > timestamp(right);
+}
+
+function levelWeight(level: AlertLevel) {
+  if (level === 'error') return 0;
+  if (level === 'warning') return 1;
+  return 2;
 }
 
 function go(location: string) {
@@ -72,6 +166,13 @@ function go(location: string) {
   flex: 1;
   flex-direction: column;
   gap: var(--td-comp-margin-xxs);
+  min-width: 0;
+}
+
+.dashboard-alert-list__title-row {
+  align-items: center;
+  display: flex;
+  gap: var(--td-comp-margin-xs);
   min-width: 0;
 }
 

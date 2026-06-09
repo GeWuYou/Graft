@@ -18,9 +18,16 @@ const redisPingTimeout = 3 * time.Second
 // 避免把半初始化的连接句柄泄漏给上层。
 func Open(ctx context.Context, cfg config.RedisConfig) (*redis.Client, error) {
 	client := redis.NewClient(&redis.Options{
-		Addr:     cfg.Addr,
-		Password: cfg.Password,
-		DB:       cfg.DB,
+		Addr:            cfg.Addr,
+		Password:        cfg.Password,
+		DB:              cfg.DB,
+		PoolSize:        cfg.PoolSize,
+		MinIdleConns:    cfg.MinIdleConns,
+		MaxIdleConns:    cfg.MaxIdleConns,
+		MaxActiveConns:  cfg.MaxActiveConns,
+		PoolTimeout:     cfg.PoolTimeout,
+		ConnMaxIdleTime: cfg.ConnMaxIdleTime,
+		ConnMaxLifetime: cfg.ConnMaxLifetime,
 	})
 
 	pingCtx, cancel := context.WithTimeout(ctx, redisPingTimeout)

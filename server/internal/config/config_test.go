@@ -22,8 +22,19 @@ func TestLoadReadsDotenv(t *testing.T) {
 		"GRAFT_HTTP_ADDR=:18080",
 		"GRAFT_DATABASE_DRIVER=postgres",
 		"GRAFT_DATABASE_URL=postgres://graft:graft@db:5432/graft?sslmode=disable",
+		"GRAFT_DATABASE_MAX_OPEN_CONNS=41",
+		"GRAFT_DATABASE_MAX_IDLE_CONNS=17",
+		"GRAFT_DATABASE_CONN_MAX_LIFETIME=2h",
+		"GRAFT_DATABASE_CONN_MAX_IDLE_TIME=20m",
 		"GRAFT_REDIS_ADDR=redis:6379",
 		"GRAFT_REDIS_DB=2",
+		"GRAFT_REDIS_POOL_SIZE=31",
+		"GRAFT_REDIS_MIN_IDLE_CONNS=4",
+		"GRAFT_REDIS_MAX_IDLE_CONNS=12",
+		"GRAFT_REDIS_MAX_ACTIVE_CONNS=45",
+		"GRAFT_REDIS_POOL_TIMEOUT=2s",
+		"GRAFT_REDIS_CONN_MAX_IDLE_TIME=15m",
+		"GRAFT_REDIS_CONN_MAX_LIFETIME=1h",
 		"GRAFT_LOG_LEVEL=debug",
 		"GRAFT_LOG_FORMAT=json",
 		"GRAFT_LOG_COLOR=never",
@@ -44,8 +55,19 @@ func TestLoadReadsDotenv(t *testing.T) {
 
 	assertEqual(t, "app name from .env", cfg.App.Name, "dotenv-graft")
 	assertEqual(t, "HTTP address from .env", cfg.HTTP.Addr, ":18080")
+	assertEqual(t, "database max open connections from .env", cfg.Database.MaxOpenConns, 41)
+	assertEqual(t, "database max idle connections from .env", cfg.Database.MaxIdleConns, 17)
+	assertEqual(t, "database connection max lifetime from .env", cfg.Database.ConnMaxLifetime, 2*time.Hour)
+	assertEqual(t, "database connection max idle time from .env", cfg.Database.ConnMaxIdleTime, 20*time.Minute)
 	assertEqual(t, "Redis address from .env", cfg.Redis.Addr, "redis:6379")
 	assertEqual(t, "Redis DB from .env", cfg.Redis.DB, 2)
+	assertEqual(t, "Redis pool size from .env", cfg.Redis.PoolSize, 31)
+	assertEqual(t, "Redis min idle connections from .env", cfg.Redis.MinIdleConns, 4)
+	assertEqual(t, "Redis max idle connections from .env", cfg.Redis.MaxIdleConns, 12)
+	assertEqual(t, "Redis max active connections from .env", cfg.Redis.MaxActiveConns, 45)
+	assertEqual(t, "Redis pool timeout from .env", cfg.Redis.PoolTimeout, 2*time.Second)
+	assertEqual(t, "Redis connection max idle time from .env", cfg.Redis.ConnMaxIdleTime, 15*time.Minute)
+	assertEqual(t, "Redis connection max lifetime from .env", cfg.Redis.ConnMaxLifetime, time.Hour)
 	assertEqual(t, "log format from .env", cfg.Log.Format, LogFormatJSON)
 	assertEqual(t, "log color from .env", cfg.Log.Color, LogColorNever)
 	assertEqual(t, "gin mode from .env", cfg.Runtime.GinMode, GinModeRelease)
@@ -223,7 +245,18 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	assertStringSliceEqual(t, "default enabled modules", cfg.Modules.Enabled, []string{})
 	assertEqual(t, "default database driver", cfg.Database.Driver, defaultDatabaseDriver)
 	assertEqual(t, "default database URL", cfg.Database.URL, defaultDatabaseURL)
+	assertEqual(t, "default database max open connections", cfg.Database.MaxOpenConns, defaultDatabaseMaxOpenConns)
+	assertEqual(t, "default database max idle connections", cfg.Database.MaxIdleConns, defaultDatabaseMaxIdleConns)
+	assertEqual(t, "default database connection max lifetime", cfg.Database.ConnMaxLifetime, defaultDatabaseConnMaxLifetime)
+	assertEqual(t, "default database connection max idle time", cfg.Database.ConnMaxIdleTime, defaultDatabaseConnMaxIdleTime)
 	assertEqual(t, "default Redis address", cfg.Redis.Addr, defaultRedisAddr)
+	assertEqual(t, "default Redis pool size", cfg.Redis.PoolSize, defaultRedisPoolSize)
+	assertEqual(t, "default Redis min idle connections", cfg.Redis.MinIdleConns, defaultRedisMinIdleConns)
+	assertEqual(t, "default Redis max idle connections", cfg.Redis.MaxIdleConns, defaultRedisMaxIdleConns)
+	assertEqual(t, "default Redis max active connections", cfg.Redis.MaxActiveConns, defaultRedisMaxActiveConns)
+	assertEqual(t, "default Redis pool timeout", cfg.Redis.PoolTimeout, defaultRedisPoolTimeout)
+	assertEqual(t, "default Redis connection max idle time", cfg.Redis.ConnMaxIdleTime, defaultRedisConnMaxIdleTime)
+	assertEqual(t, "default Redis connection max lifetime", cfg.Redis.ConnMaxLifetime, defaultRedisConnMaxLifetime)
 	assertEqual(t, "default log level", cfg.Log.Level, defaultLogLevel)
 	assertEqual(t, "default log format", cfg.Log.Format, LogFormatAuto)
 	assertEqual(t, "default log color", cfg.Log.Color, LogColorAuto)
@@ -402,6 +435,101 @@ func TestValidateRejectsMissingDatabaseURL(t *testing.T) {
 	cfg.Database.URL = ""
 
 	assertValidateError(t, cfg, "")
+}
+
+func TestValidateRejectsInvalidPoolConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{
+			name: "database max open connections",
+			mutate: func(cfg *Config) {
+				cfg.Database.MaxOpenConns = 0
+			},
+			wantErr: "GRAFT_DATABASE_MAX_OPEN_CONNS must be greater than zero",
+		},
+		{
+			name: "database max idle connections",
+			mutate: func(cfg *Config) {
+				cfg.Database.MaxIdleConns = -1
+			},
+			wantErr: "GRAFT_DATABASE_MAX_IDLE_CONNS must be greater than or equal to zero",
+		},
+		{
+			name: "database connection max lifetime",
+			mutate: func(cfg *Config) {
+				cfg.Database.ConnMaxLifetime = -time.Second
+			},
+			wantErr: "GRAFT_DATABASE_CONN_MAX_LIFETIME must be greater than or equal to zero",
+		},
+		{
+			name: "database connection max idle time",
+			mutate: func(cfg *Config) {
+				cfg.Database.ConnMaxIdleTime = -time.Second
+			},
+			wantErr: "GRAFT_DATABASE_CONN_MAX_IDLE_TIME must be greater than or equal to zero",
+		},
+		{
+			name: "redis pool size",
+			mutate: func(cfg *Config) {
+				cfg.Redis.PoolSize = -1
+			},
+			wantErr: "GRAFT_REDIS_POOL_SIZE must be greater than or equal to zero",
+		},
+		{
+			name: "redis min idle connections",
+			mutate: func(cfg *Config) {
+				cfg.Redis.MinIdleConns = -1
+			},
+			wantErr: "GRAFT_REDIS_MIN_IDLE_CONNS must be greater than or equal to zero",
+		},
+		{
+			name: "redis max idle connections",
+			mutate: func(cfg *Config) {
+				cfg.Redis.MaxIdleConns = -1
+			},
+			wantErr: "GRAFT_REDIS_MAX_IDLE_CONNS must be greater than or equal to zero",
+		},
+		{
+			name: "redis max active connections",
+			mutate: func(cfg *Config) {
+				cfg.Redis.MaxActiveConns = -1
+			},
+			wantErr: "GRAFT_REDIS_MAX_ACTIVE_CONNS must be greater than or equal to zero",
+		},
+		{
+			name: "redis pool timeout",
+			mutate: func(cfg *Config) {
+				cfg.Redis.PoolTimeout = -time.Second
+			},
+			wantErr: "GRAFT_REDIS_POOL_TIMEOUT must be greater than or equal to zero",
+		},
+		{
+			name: "redis connection max idle time",
+			mutate: func(cfg *Config) {
+				cfg.Redis.ConnMaxIdleTime = -time.Second
+			},
+			wantErr: "GRAFT_REDIS_CONN_MAX_IDLE_TIME must be greater than or equal to zero",
+		},
+		{
+			name: "redis connection max lifetime",
+			mutate: func(cfg *Config) {
+				cfg.Redis.ConnMaxLifetime = -time.Second
+			},
+			wantErr: "GRAFT_REDIS_CONN_MAX_LIFETIME must be greater than or equal to zero",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := validConfigForValidateTests()
+			testCase.mutate(cfg)
+
+			assertValidateError(t, cfg, testCase.wantErr)
+		})
+	}
 }
 
 // TestValidateRejectsMissingSupportedLocales 验证 Validate 会拒绝没有支持语言的配置。
@@ -769,11 +897,22 @@ func validConfigForValidateTests() *Config {
 			GinMode: GinModeAuto,
 		},
 		Database: DatabaseConfig{
-			Driver: "postgres",
-			URL:    testDatabaseURL(),
+			Driver:          "postgres",
+			URL:             testDatabaseURL(),
+			MaxOpenConns:    defaultDatabaseMaxOpenConns,
+			MaxIdleConns:    defaultDatabaseMaxIdleConns,
+			ConnMaxLifetime: defaultDatabaseConnMaxLifetime,
+			ConnMaxIdleTime: defaultDatabaseConnMaxIdleTime,
 		},
 		Redis: RedisConfig{
-			Addr: "localhost:6379",
+			Addr:            "localhost:6379",
+			PoolSize:        defaultRedisPoolSize,
+			MinIdleConns:    defaultRedisMinIdleConns,
+			MaxIdleConns:    defaultRedisMaxIdleConns,
+			MaxActiveConns:  defaultRedisMaxActiveConns,
+			PoolTimeout:     defaultRedisPoolTimeout,
+			ConnMaxIdleTime: defaultRedisConnMaxIdleTime,
+			ConnMaxLifetime: defaultRedisConnMaxLifetime,
 		},
 		I18n: I18nConfig{
 			DefaultLocale:    "zh-CN",

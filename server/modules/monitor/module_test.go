@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"runtime"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+	"github.com/shirou/gopsutil/v4/cpu"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -80,6 +82,28 @@ func TestRegisterMonitorDashboardWidgetRegistersSystemHealthInsight(t *testing.T
 	}
 	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != monitorcontract.ServerStatusReadPermission.String() {
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
+	}
+
+	quickLinks := registry.QuickLinks()
+	if len(quickLinks) != 3 {
+		t.Fatalf("expected monitor quick links, got %#v", quickLinks)
+	}
+	assertMonitorQuickLink(t, quickLinks[0], monitorOverviewQuickLinkID, monitorcontract.ServerStatusOverviewMenuTitle.String(), monitorcontract.ServerStatusOverviewMenuPath, monitorOverviewQuickLinkOrder)
+	assertMonitorQuickLink(t, quickLinks[1], monitorRuntimeQuickLinkID, monitorcontract.ServerStatusRuntimeMenuTitle.String(), monitorcontract.ServerStatusRuntimeMenuPath, monitorRuntimeQuickLinkOrder)
+	assertMonitorQuickLink(t, quickLinks[2], monitorDependenciesQuickLinkID, monitorcontract.ServerStatusDependenciesMenuTitle.String(), monitorcontract.ServerStatusDependenciesMenuPath, monitorDependenciesQuickLinkOrder)
+}
+
+func assertMonitorQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, id string, titleKey string, routeLocation string, order int) {
+	t.Helper()
+	if link.ID != id ||
+		link.ModuleKey != moduleID ||
+		link.TitleKey != titleKey ||
+		link.RouteLocation != routeLocation ||
+		link.Order != order {
+		t.Fatalf("unexpected monitor quick link: %#v", link)
+	}
+	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != monitorcontract.ServerStatusReadPermission.String() {
+		t.Fatalf("unexpected monitor quick link permissions: %#v", link.RequiredPermissions)
 	}
 }
 
@@ -250,6 +274,121 @@ func TestStopTrendSamplerRequiresLifecycleContext(t *testing.T) {
 	}
 }
 
+func TestCalculateHostCPUUsagePercentFromAggregatedTimes(t *testing.T) {
+	t.Parallel()
+
+	previous := cpu.TimesStat{
+		User:   100,
+		System: 50,
+		Idle:   800,
+		Iowait: 50,
+	}
+	current := cpu.TimesStat{
+		User:   130,
+		System: 70,
+		Idle:   850,
+		Iowait: 60,
+	}
+
+	got := calculateHostCPUUsagePercent(&previous, &current, nil)
+	if math.Abs(got-45.4545) > 0.0001 {
+		t.Fatalf("expected host cpu percent from busy/total delta, got %.4f", got)
+	}
+}
+
+func TestHostCPUTotalAndBusySubtractsLinuxGuestTimes(t *testing.T) {
+	t.Parallel()
+
+	total, busy := hostCPUTotalAndBusy(cpu.TimesStat{
+		User:      100,
+		Nice:      20,
+		System:    30,
+		Idle:      50,
+		Iowait:    10,
+		Guest:     40,
+		GuestNice: 5,
+	})
+
+	if total != 165 {
+		t.Fatalf("expected guest-adjusted total cpu time, got %.2f", total)
+	}
+	if busy != 105 {
+		t.Fatalf("expected guest-adjusted busy cpu time, got %.2f", busy)
+	}
+}
+
+func TestCalculateHostCPUUsagePercentHandlesInvalidDeltas(t *testing.T) {
+	t.Parallel()
+
+	sample := cpu.TimesStat{
+		User:   100,
+		System: 50,
+		Idle:   800,
+		Iowait: 50,
+	}
+
+	if got := calculateHostCPUUsagePercent(nil, &sample, nil); got != 0 {
+		t.Fatalf("expected first sample without previous times to be safe zero, got %.2f", got)
+	}
+	if got := calculateHostCPUUsagePercent(&sample, &sample, nil); got != 0 {
+		t.Fatalf("expected zero total delta to be safe zero, got %.2f", got)
+	}
+	if got := normalizeCPUPercent(math.NaN(), nil); got != 0 {
+		t.Fatalf("expected NaN cpu percent to normalize to zero, got %.2f", got)
+	}
+	if got := normalizeCPUPercent(math.Inf(1), nil); got != 0 {
+		t.Fatalf("expected Inf cpu percent to normalize to zero, got %.2f", got)
+	}
+}
+
+func TestCalculateHostCPUUsagePercentDoesNotSumPerCorePercent(t *testing.T) {
+	t.Parallel()
+
+	previous := cpu.TimesStat{}
+	current := cpu.TimesStat{
+		User:   700,
+		Nice:   0,
+		System: 700,
+		Idle:   1400,
+	}
+
+	got := calculateHostCPUUsagePercent(&previous, &current, nil)
+	if got != 50 {
+		t.Fatalf("expected aggregated host cpu percent, got %.2f", got)
+	}
+}
+
+func TestNormalizeCPUPercentClampsOutOfRangeAndReportsWarning(t *testing.T) {
+	t.Parallel()
+
+	warnings := 0
+	got := normalizeCPUPercent(104.6, func(raw float64) {
+		warnings++
+		if raw != 104.6 {
+			t.Fatalf("expected raw warning value 104.6, got %.2f", raw)
+		}
+	})
+	if got != 100 {
+		t.Fatalf("expected 104.6 to clamp to 100, got %.2f", got)
+	}
+	if warnings != 1 {
+		t.Fatalf("expected one warning callback, got %d", warnings)
+	}
+
+	got = normalizeCPUPercent(-4.2, func(raw float64) {
+		warnings++
+		if raw != -4.2 {
+			t.Fatalf("expected raw warning value -4.2, got %.2f", raw)
+		}
+	})
+	if got != 0 {
+		t.Fatalf("expected -4.2 to clamp to 0, got %.2f", got)
+	}
+	if warnings != 2 {
+		t.Fatalf("expected two warning callbacks, got %d", warnings)
+	}
+}
+
 func TestLoadTrendPointsHonorsRequestedRange(t *testing.T) {
 	t.Parallel()
 
@@ -395,6 +534,13 @@ func TestBuildServerStatusResponseLoadsRedisTrendPoints(t *testing.T) {
 	}
 
 	assertEqual(t, "redis trend range", string(response.Trend.Range), monitorcontract.TrendRange30Minutes.String())
+	if response.Dependencies.Redis.Pool == nil {
+		t.Fatalf("expected redis pool stats to be recorded")
+	}
+	assertEqual(t, "redis pool capacity", response.Dependencies.Redis.Pool.Capacity, int64(redisDefaultPoolSizePerCPU*runtime.GOMAXPROCS(0)))
+	if response.Dependencies.Redis.Pool.OpenConnections < 1 {
+		t.Fatalf("expected redis pool open connections to be positive, got %d", response.Dependencies.Redis.Pool.OpenConnections)
+	}
 	if len(response.Trend.Points) != 2 {
 		t.Fatalf("expected 2 redis-backed trend points, got %d", len(response.Trend.Points))
 	}
@@ -537,8 +683,17 @@ func assertCurrentSliceResponseStatus(t *testing.T, response generated.ServerSta
 	if response.Dependencies.Database.LatencyMs == nil {
 		t.Fatalf("expected database latency to be recorded")
 	}
+	if response.Dependencies.Database.Pool == nil {
+		t.Fatalf("expected database pool stats to be recorded")
+	}
+	if response.Dependencies.Database.Pool.Capacity < 0 {
+		t.Fatalf("expected database pool capacity to be non-negative, got %d", response.Dependencies.Database.Pool.Capacity)
+	}
 	assertEqual(t, "redis status", response.Dependencies.Redis.Status, "disabled")
 	assertEqual(t, "redis detail", response.Dependencies.Redis.Detail, "Redis client is not configured")
+	if response.Dependencies.Redis.Pool != nil {
+		t.Fatalf("expected disabled redis dependency to omit pool stats")
+	}
 	assertEqual(t, "server version", response.Server.Version, fallbackServerVersion)
 	assertEqual(t, "started_at", response.Server.StartedAt, startedAt)
 	assertEqual(t, "go version", response.Server.GoVersion, runtime.Version())

@@ -59,10 +59,26 @@ const translations = vi.hoisted(
     'monitor.dependenciesPage.summary.lastCheck': 'Last check',
     'monitor.dependenciesPage.summary.lastCheckDescription': 'Time of the latest aggregated snapshot',
     'monitor.dependenciesPage.fields.latency': 'Response latency',
+    'monitor.dependenciesPage.fields.poolWait': 'Pool waits',
+    'monitor.dependenciesPage.fields.timeoutCount': 'Wait timeouts',
+    'monitor.dependenciesPage.fields.staleCount': 'Connections recycled',
     'monitor.dependenciesPage.fields.checkedAt': 'Last checked',
     'monitor.dependenciesPage.fields.errorInfo': 'Error info',
     'monitor.dependenciesPage.fields.detail': 'Probe detail',
     'monitor.dependenciesPage.fields.extensionEntry': 'Extension entry',
+    'monitor.dependenciesPage.pool.title': 'Connection pool',
+    'monitor.dependenciesPage.pool.stateTitle': 'Pool state',
+    'monitor.dependenciesPage.pool.usageLabel': '{label} pool usage',
+    'monitor.dependenciesPage.pool.usageTooltip': '{label} pool {value} · usage {percent}',
+    'monitor.dependenciesPage.pool.inUse': 'In use',
+    'monitor.dependenciesPage.pool.idle': 'Idle',
+    'monitor.dependenciesPage.pool.open': 'Total connections',
+    'monitor.dependenciesPage.pool.capacity': 'Max connections',
+    'monitor.dependenciesPage.pool.riskHealthy': 'Pool pressure is normal',
+    'monitor.dependenciesPage.pool.riskWarning': 'Pool is approaching a high watermark',
+    'monitor.dependenciesPage.pool.riskCritical': 'Pool is close to exhaustion',
+    'monitor.dependenciesPage.pool.riskUnknown': 'Pool data is unavailable',
+    'monitor.dependenciesPage.diagnostics.title': 'Advanced diagnostics',
     'monitor.dependenciesPage.fieldDescriptions.latency': 'Most recent probe response duration.',
     'monitor.dependenciesPage.fieldDescriptions.checkedAt': 'Currently follows the latest server-status snapshot time.',
     'monitor.dependenciesPage.fieldDescriptions.errorInfo':
@@ -137,6 +153,38 @@ const selectStub = defineComponent({
   },
 });
 
+const drawerStub = defineComponent({
+  name: 'TDrawerStub',
+  props: {
+    header: {
+      type: String,
+      default: '',
+    },
+    visible: {
+      type: Boolean,
+      default: false,
+    },
+    footer: {
+      type: [Boolean, String],
+      default: true,
+    },
+  },
+  setup(props, { slots }) {
+    return () =>
+      props.visible
+        ? h(
+            'aside',
+            {
+              'data-testid': 'diagnostic-drawer',
+              'data-header': props.header,
+              'data-footer': String(props.footer),
+            },
+            [props.header, slots.default?.()],
+          )
+        : null;
+  },
+});
+
 function mountDependenciesPage() {
   return mount(DependenciesPage, {
     global: {
@@ -144,6 +192,7 @@ function mountDependenciesPage() {
         't-card': passthroughStub,
         't-tag': passthroughStub,
         't-button': buttonStub,
+        't-drawer': drawerStub,
         't-select': selectStub,
         't-empty': passthroughStub,
       },
@@ -196,15 +245,47 @@ function createResponse() {
       runtime_gc_cycles: 12,
     },
     dependencies: {
-      database: { status: 'healthy', detail: 'Database ping succeeded', latency_ms: 2.1 },
-      redis: { status: 'disabled', detail: 'Redis client is not configured', latency_ms: null },
+      database: {
+        status: 'healthy',
+        detail: 'Database ping succeeded',
+        latency_ms: 2.1,
+        pool: {
+          capacity: 25,
+          max_active_connections: 25,
+          open_connections: 8,
+          in_use_connections: 3,
+          idle_connections: 5,
+          usage_percent: 12,
+          wait_count: 2,
+          wait_duration_ms: 4.25,
+          timeout_count: 0,
+          stale_count: 1,
+        },
+      },
+      redis: {
+        status: 'healthy',
+        detail: 'Redis ping succeeded',
+        latency_ms: 0.23,
+        pool: {
+          capacity: 280,
+          max_active_connections: 0,
+          open_connections: 280,
+          in_use_connections: 252,
+          idle_connections: 28,
+          usage_percent: 90,
+          wait_count: 0,
+          wait_duration_ms: 0,
+          timeout_count: 3,
+          stale_count: 2,
+        },
+      },
     },
     summary: {
       total_dependencies: 2,
-      healthy_dependencies: 1,
+      healthy_dependencies: 2,
       degraded_dependencies: 0,
       unknown_dependencies: 0,
-      disabled_dependencies: 1,
+      disabled_dependencies: 0,
       total_modules: 5,
       healthy_modules: 4,
     },
@@ -219,7 +300,7 @@ function createResponse() {
 }
 
 describe('monitor dependencies page', () => {
-  it('renders dependency states, last check details, and future extension entry', async () => {
+  it('renders aligned dependency cards and opens selected diagnostics in a drawer', async () => {
     monitorApiMocks.getServerStatus.mockResolvedValue(createResponse());
 
     const wrapper = mountDependenciesPage();
@@ -242,14 +323,47 @@ describe('monitor dependencies page', () => {
     expect(wrapper.text()).toContain('PostgreSQL');
     expect(wrapper.text()).toContain('Redis');
     expect(wrapper.text()).toContain('Healthy');
-    expect(wrapper.text()).toContain('Not configured');
+    expect(wrapper.text()).toContain('Response latency');
+    expect(wrapper.text()).toContain('2.10 ms');
+    expect(wrapper.text()).toContain('Connection pool');
+    expect(wrapper.text()).toContain('3 / 25');
+    expect(wrapper.text()).toContain('12%');
+    expect(wrapper.text()).toContain('Pool pressure is normal');
+    expect(wrapper.text()).toContain('252 / 280');
+    expect(wrapper.text()).toContain('90%');
+    expect(wrapper.text()).toContain('Pool is close to exhaustion');
+    expect(wrapper.text()).toContain('Pool state');
+    expect(wrapper.text()).toContain('In use');
+    expect(wrapper.text()).toContain('Idle');
+    expect(wrapper.text()).toContain('Total connections');
+    expect(wrapper.text()).toContain('Max connections');
+    expect(wrapper.text()).toContain('Advanced diagnostics');
+    expect(wrapper.find('[data-testid="diagnostic-drawer"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('2 · 4.25 ms');
+    expect(wrapper.text()).not.toContain('Wait timeouts');
+    expect(wrapper.text()).not.toContain('Connections recycled');
     expect(wrapper.text()).toContain('Refresh cadence');
     expect(wrapper.text()).toContain('Every 5 sec');
     expect(wrapper.text()).toContain('Pause auto refresh');
     expect(wrapper.text()).toContain('Module dependency extension');
-    expect(wrapper.text()).toContain('Redis client is not configured');
+    expect(wrapper.text()).not.toContain('Redis ping succeeded');
     expect(wrapper.text()).toContain(expectedTime);
     expect(wrapper.text()).toContain(expectedDate);
+    expect(wrapper.find('[data-dependency-key="redis"] [data-usage-status="danger"]').exists()).toBe(true);
+    expect(wrapper.find('[data-dependency-key="postgresql"] [data-usage-status="healthy"]').exists()).toBe(true);
     expect(wrapper.find('[data-monitor-refresh-extra-select="true"]').exists()).toBe(false);
+
+    await wrapper.get('[data-dependency-key="redis"] .dependency-health-card__diagnostic-action').trigger('click');
+
+    const drawer = wrapper.get('[data-testid="diagnostic-drawer"]');
+    expect(drawer.attributes('data-header')).toBe('Redis Advanced diagnostics');
+    expect(drawer.attributes('data-footer')).toBe('false');
+    expect(drawer.text()).toContain('Pool waits');
+    expect(drawer.text()).toContain('0 · 0.00 ms');
+    expect(drawer.text()).toContain('Wait timeouts');
+    expect(drawer.text()).toContain('3');
+    expect(drawer.text()).toContain('Connections recycled');
+    expect(drawer.text()).toContain('2');
+    expect(drawer.text()).toContain('Redis ping succeeded');
   });
 });

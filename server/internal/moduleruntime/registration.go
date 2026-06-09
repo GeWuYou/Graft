@@ -34,6 +34,16 @@ const (
 	menuModulesRuntimeTitleKey = "menu.modulesRuntime.title"
 )
 
+// MenuRuntimePath identifies the canonical module runtime menu path.
+func MenuRuntimePath() string {
+	return menuRuntimePath
+}
+
+// MenuRuntimeTitleKey returns the stable module runtime menu title message key.
+func MenuRuntimeTitleKey() string {
+	return menuModulesRuntimeTitleKey
+}
+
 // Registration contains the core dependencies needed to expose module runtime routes and metadata.
 type Registration struct {
 	I18n               *i18n.Service

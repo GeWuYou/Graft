@@ -38,17 +38,36 @@ func (h appLogGeneratedHandler) GetAppLogDetail(id int64, params applogopenapi.G
 const (
 	// AppLogReadPermission constrains read-only App Log Explorer access.
 	AppLogReadPermission = "app_log.read"
-	appLogMenuRootPath   = "/logs"
-	appLogMenuListPath   = "/logs/app"
-	appLogMenuCodeRoot   = "log-center.root"
-	appLogMenuCodeList   = "app-log.list"
-	appLogModuleOwner    = "core.logger"
-	appLogRouteGroup     = "/app-log"
-	appLogRouteItemParam = "id"
-	appLogMenuRootOrder  = 210
-	appLogMenuListOrder  = 212
-	appLogSortPartCount  = 2
+	// AppLogDashboardQuickLinkID identifies the app-log dashboard quick entry.
+	AppLogDashboardQuickLinkID = "core.logger.app-log"
+	// AppLogDashboardQuickLinkOrder places the app-log entry with log-center quick links.
+	AppLogDashboardQuickLinkOrder = 220
+	appLogMenuRootPath            = "/logs"
+	appLogMenuListPath            = "/logs/app"
+	appLogMenuCodeRoot            = "log-center.root"
+	appLogMenuCodeList            = "app-log.list"
+	appLogModuleOwner             = "core.logger"
+	appLogRouteGroup              = "/app-log"
+	appLogRouteItemParam          = "id"
+	appLogMenuRootOrder           = 210
+	appLogMenuListOrder           = 212
+	appLogSortPartCount           = 2
 )
+
+// AppLogDashboardModuleKey returns the core logger owner for app-log dashboard data.
+func AppLogDashboardModuleKey() string {
+	return appLogModuleOwner
+}
+
+// AppLogDashboardRouteLocation returns the canonical app-log explorer route.
+func AppLogDashboardRouteLocation() string {
+	return appLogMenuListPath
+}
+
+// AppLogDashboardTitleKey returns the app-log explorer title message key.
+func AppLogDashboardTitleKey() string {
+	return "menu.appLog.title"
+}
 
 // AppLogExplorerRegistration carries the core registries required by the logger-owned read surface.
 type AppLogExplorerRegistration struct {

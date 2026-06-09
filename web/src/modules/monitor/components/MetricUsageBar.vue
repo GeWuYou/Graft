@@ -73,7 +73,16 @@ const effectiveStatus = computed<MetricUsageStatus>(() => {
   return 'healthy';
 });
 
-const fillWidth = computed(() => `${clampedPercent.value}%`);
+const fillWidth = computed(() => {
+  if (!hasValue.value) {
+    return '0%';
+  }
+  if (clampedPercent.value < 10) {
+    return 'max(6px, 10%)';
+  }
+
+  return `${clampedPercent.value}%`;
+});
 const dataPercent = computed(() => (hasValue.value ? clampedPercent.value.toFixed(2) : 'none'));
 const ariaValueNow = computed(() => (hasValue.value ? String(clampedPercent.value) : undefined));
 const titleText = computed(() => {

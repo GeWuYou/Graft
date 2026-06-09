@@ -1,0 +1,287 @@
+# Copyright (c) 2025-2026 GeWuYou
+# SPDX-License-Identifier: Apache-2.0
+
+name: Release SBOM and License Compliance
+
+"on":
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release tag to attach the bundle to. Defaults to the current ref."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-sbom-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    name: Generate SBOM and license bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Resolve release tag
+        id: release
+        env:
+          RELEASE_TAG_INPUT: ${{ github.event.inputs.release_tag || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${RELEASE_TAG_INPUT}"
+          if [ -z "$tag" ]; then
+            if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+              echo "Manual runs from a branch must provide release_tag." >&2
+              exit 1
+            fi
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          if [ -z "$tag" ]; then
+            echo "A release tag is required for manual runs." >&2
+            exit 1
+          fi
+
+          asset_tag="$(printf '%s' "$tag" | tr '/ ' '--' | tr -cd 'A-Za-z0-9._-')"
+          if [ -z "$asset_tag" ]; then
+            echo "The release tag does not contain any asset-safe characters." >&2
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "checkout_ref=refs/tags/$tag" >> "$GITHUB_OUTPUT"
+          echo "asset_prefix=graft-${asset_tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ steps.release.outputs.checkout_ref }}
+          fetch-depth: 0
+
+      - name: Install Syft
+        id: syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610
+
+      - name: Generate SBOMs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist/security
+
+          "${{ steps.syft.outputs.cmd }}" dir:. \
+            --exclude .git \
+            --exclude "**/node_modules" \
+            --exclude "**/dist" \
+            -o spdx-json=dist/security/${{ steps.release.outputs.asset_prefix }}-sbom.spdx.json
+
+          "${{ steps.syft.outputs.cmd }}" dir:. \
+            --exclude .git \
+            --exclude "**/node_modules" \
+            --exclude "**/dist" \
+            -o cyclonedx-json=dist/security/${{ steps.release.outputs.asset_prefix }}-sbom.cyclonedx.json
+
+          "${{ steps.syft.outputs.cmd }}" dir:. \
+            --exclude .git \
+            --exclude "**/node_modules" \
+            --exclude "**/dist" \
+            -o syft-json=dist/security/${{ steps.release.outputs.asset_prefix }}-sbom.syft.json
+
+      - name: Generate license compliance report
+        shell: python
+        run: |
+          import csv
+          import json
+          import re
+          import sys
+          from pathlib import Path
+
+          prefix = "${{ steps.release.outputs.asset_prefix }}"
+          bundle_dir = Path("dist/security")
+          syft_path = bundle_dir / f"{prefix}-sbom.syft.json"
+          report_path = bundle_dir / f"{prefix}-license-compliance.md"
+          csv_path = bundle_dir / f"{prefix}-licenses.csv"
+
+          allowed = {
+              "0BSD",
+              "Apache-2.0",
+              "Artistic-2.0",
+              "BSD-2-Clause",
+              "BSD-3-Clause",
+              "CC0-1.0",
+              "ISC",
+              "MIT",
+              "MPL-2.0",
+              "PostgreSQL",
+              "Python-2.0",
+              "Unicode-DFS-2016",
+              "Unicode-3.0",
+              "Unlicense",
+              "Zlib",
+          }
+          denied_patterns = [
+              re.compile(r"(^|[^A-Z])AGPL", re.IGNORECASE),
+              re.compile(r"(^|[^A-Z])GPL", re.IGNORECASE),
+              re.compile(r"(^|[^A-Z])LGPL", re.IGNORECASE),
+              re.compile(r"SSPL", re.IGNORECASE),
+              re.compile(r"BUSL", re.IGNORECASE),
+              re.compile(r"Commons[ -]Clause", re.IGNORECASE),
+          ]
+
+          data = json.loads(syft_path.read_text(encoding="utf-8"))
+          rows = []
+          blocked = []
+          review = []
+
+          def license_values(licenses):
+              values = []
+              for item in licenses or []:
+                  if isinstance(item, str):
+                      values.append(item)
+                      continue
+                  if not isinstance(item, dict):
+                      continue
+                  value = (
+                      item.get("spdxExpression")
+                      or item.get("value")
+                      or item.get("license")
+                      or item.get("name")
+                  )
+                  if value:
+                      values.append(str(value))
+              return sorted(set(values)) or ["NOASSERTION"]
+
+          def classify(values):
+              text = " OR ".join(values)
+              if any(pattern.search(text) for pattern in denied_patterns):
+                  return "blocked"
+              if all(value in allowed for value in values):
+                  return "allowed"
+              return "review"
+
+          for artifact in sorted(
+              data.get("artifacts", []),
+              key=lambda item: (item.get("name") or "", item.get("version") or ""),
+          ):
+              values = license_values(artifact.get("licenses"))
+              status = classify(values)
+              row = {
+                  "status": status,
+                  "name": artifact.get("name", ""),
+                  "version": artifact.get("version", ""),
+                  "type": artifact.get("type", ""),
+                  "licenses": " OR ".join(values),
+                  "purl": artifact.get("purl", ""),
+              }
+              rows.append(row)
+              if status == "blocked":
+                  blocked.append(row)
+              elif status == "review":
+                  review.append(row)
+
+          with csv_path.open("w", newline="", encoding="utf-8") as handle:
+              writer = csv.DictWriter(
+                  handle,
+                  fieldnames=["status", "name", "version", "type", "licenses", "purl"],
+              )
+              writer.writeheader()
+              writer.writerows(rows)
+
+          lines = [
+              "# Graft Release License Compliance",
+              "",
+              "- Release tag: `${{ steps.release.outputs.tag }}`",
+              "- Project license posture: Apache-2.0",
+              f"- Packages reviewed: {len(rows)}",
+              f"- Allowed packages: {sum(1 for row in rows if row['status'] == 'allowed')}",
+              f"- Review-required packages: {len(review)}",
+              f"- Blocked packages: {len(blocked)}",
+              "",
+          ]
+
+          if blocked:
+              lines.extend(["## Blocked Licenses", ""])
+              for row in blocked:
+                  lines.append(
+                      f"- `{row['name']}` `{row['version']}`: {row['licenses']}"
+                  )
+              lines.append("")
+
+          if review:
+              lines.extend(["## Review Required", ""])
+              for row in review[:100]:
+                  lines.append(
+                      f"- `{row['name']}` `{row['version']}`: {row['licenses']}"
+                  )
+              if len(review) > 100:
+                  lines.append(f"- Additional review rows omitted here: {len(review) - 100}")
+              lines.append("")
+
+          lines.extend(
+              [
+                  "## Policy",
+                  "",
+                  "- SPDX-compatible permissive and weak-copyleft licenses listed in the workflow are allowed.",
+                  "- GPL, AGPL, LGPL, SSPL, BUSL, and Commons Clause style findings block the bundle.",
+                  "- Missing or unrecognized license metadata is reported for human review without blocking release asset publication.",
+                  "",
+              ]
+          )
+
+          report_path.write_text("\n".join(lines), encoding="utf-8")
+
+          if blocked:
+              print(report_path.read_text(encoding="utf-8"), file=sys.stderr)
+              sys.exit(1)
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd dist/security
+          sha256sum "${{ steps.release.outputs.asset_prefix }}"-* > "${{ steps.release.outputs.asset_prefix }}-SHA256SUMS.txt"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.release.outputs.asset_prefix }}-security-bundle
+          path: dist/security/*
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Wait for GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..30}; do
+            if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+              echo "Found GitHub Release for ${RELEASE_TAG}."
+              exit 0
+            fi
+
+            echo "Release ${RELEASE_TAG} is not available yet; retry ${attempt}/30."
+            sleep 10
+          done
+
+          echo "::error title=GitHub Release missing::Publish Release must create ${RELEASE_TAG} before SBOM assets can be attached."
+          exit 1
+
+      - name: Attach bundle to GitHub Release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          files: dist/security/*
+          fail_on_unmatched_files: true

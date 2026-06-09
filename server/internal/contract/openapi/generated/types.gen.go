@@ -618,9 +618,56 @@ func (e AuditTargetKind) Valid() bool {
 	}
 }
 
+// Defines values for DashboardWidgetCategory.
+const (
+	Business  DashboardWidgetCategory = "business"
+	Operation DashboardWidgetCategory = "operation"
+	Security  DashboardWidgetCategory = "security"
+	System    DashboardWidgetCategory = "system"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetCategory enum.
+func (e DashboardWidgetCategory) Valid() bool {
+	switch e {
+	case Business:
+		return true
+	case Operation:
+		return true
+	case Security:
+		return true
+	case System:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetPriority.
+const (
+	DashboardWidgetPriorityCritical DashboardWidgetPriority = "critical"
+	DashboardWidgetPriorityInfo     DashboardWidgetPriority = "info"
+	DashboardWidgetPriorityNormal   DashboardWidgetPriority = "normal"
+	DashboardWidgetPriorityWarning  DashboardWidgetPriority = "warning"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetPriority enum.
+func (e DashboardWidgetPriority) Valid() bool {
+	switch e {
+	case DashboardWidgetPriorityCritical:
+		return true
+	case DashboardWidgetPriorityInfo:
+		return true
+	case DashboardWidgetPriorityNormal:
+		return true
+	case DashboardWidgetPriorityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DashboardWidgetSize.
 const (
-	Full   DashboardWidgetSize = "full"
 	Large  DashboardWidgetSize = "large"
 	Medium DashboardWidgetSize = "medium"
 	Small  DashboardWidgetSize = "small"
@@ -629,13 +676,35 @@ const (
 // Valid indicates whether the value is a known member of the DashboardWidgetSize enum.
 func (e DashboardWidgetSize) Valid() bool {
 	switch e {
-	case Full:
-		return true
 	case Large:
 		return true
 	case Medium:
 		return true
 	case Small:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetState.
+const (
+	DashboardWidgetStateCritical DashboardWidgetState = "critical"
+	DashboardWidgetStateHidden   DashboardWidgetState = "hidden"
+	DashboardWidgetStateNormal   DashboardWidgetState = "normal"
+	DashboardWidgetStateWarning  DashboardWidgetState = "warning"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetState enum.
+func (e DashboardWidgetState) Valid() bool {
+	switch e {
+	case DashboardWidgetStateCritical:
+		return true
+	case DashboardWidgetStateHidden:
+		return true
+	case DashboardWidgetStateNormal:
+		return true
+	case DashboardWidgetStateWarning:
 		return true
 	default:
 		return false
@@ -2141,31 +2210,52 @@ type DashboardSummaryResponse struct {
 
 // DashboardSystemSummary defines model for dashboard-system-summary.
 type DashboardSystemSummary struct {
-	AppEnv         string                      `json:"app_env"`
-	CurrentUser    DashboardCurrentUserSummary `json:"current_user"`
-	Locale         DashboardLocaleSummary      `json:"locale"`
-	Modules        DashboardModuleSummary      `json:"modules"`
-	VisibleWidgets int                         `json:"visible_widgets"`
+	AbnormalServices int                         `json:"abnormal_services"`
+	AppEnv           string                      `json:"app_env"`
+	CurrentUser      DashboardCurrentUserSummary `json:"current_user"`
+	FailedTasks      int                         `json:"failed_tasks"`
+	HighRiskEvents   int                         `json:"high_risk_events"`
+	Locale           DashboardLocaleSummary      `json:"locale"`
+	Modules          DashboardModuleSummary      `json:"modules"`
+	VisibleWidgets   int                         `json:"visible_widgets"`
 }
 
 // DashboardWidget defines model for dashboard-widget.
 type DashboardWidget struct {
-	Description            *string                `json:"description,omitempty"`
-	DescriptionKey         *string                `json:"description_key,omitempty"`
-	Error                  *DashboardWidgetError  `json:"error,omitempty"`
-	Id                     string                 `json:"id"`
-	ModuleKey              string                 `json:"module_key"`
-	Order                  int                    `json:"order"`
-	Payload                map[string]interface{} `json:"payload"`
-	RefreshIntervalSeconds *int                   `json:"refresh_interval_seconds,omitempty"`
-	RequiredPermissions    *[]string              `json:"required_permissions,omitempty"`
-	RouteLocation          *string                `json:"route_location,omitempty"`
-	Size                   DashboardWidgetSize    `json:"size"`
-	Status                 *DashboardWidgetStatus `json:"status,omitempty"`
-	Title                  *string                `json:"title,omitempty"`
-	TitleKey               *string                `json:"title_key,omitempty"`
-	Type                   DashboardWidgetType    `json:"type"`
+	Action                 *DashboardWidgetAction  `json:"action,omitempty"`
+	Category               DashboardWidgetCategory `json:"category"`
+	Description            *string                 `json:"description,omitempty"`
+	DescriptionKey         *string                 `json:"description_key,omitempty"`
+	Error                  *DashboardWidgetError   `json:"error,omitempty"`
+	Id                     string                  `json:"id"`
+	ModuleKey              string                  `json:"module_key"`
+	Order                  int                     `json:"order"`
+	Payload                map[string]interface{}  `json:"payload"`
+	Priority               DashboardWidgetPriority `json:"priority"`
+	RefreshIntervalSeconds *int                    `json:"refresh_interval_seconds,omitempty"`
+	RequiredPermissions    *[]string               `json:"required_permissions,omitempty"`
+	RouteLocation          *string                 `json:"route_location,omitempty"`
+	Size                   DashboardWidgetSize     `json:"size"`
+	State                  DashboardWidgetState    `json:"state"`
+	Status                 *DashboardWidgetStatus  `json:"status,omitempty"`
+	Title                  *string                 `json:"title,omitempty"`
+	TitleKey               *string                 `json:"title_key,omitempty"`
+	Type                   DashboardWidgetType     `json:"type"`
+	Visible                bool                    `json:"visible"`
 }
+
+// DashboardWidgetAction defines model for dashboard-widget-action.
+type DashboardWidgetAction struct {
+	// Label Direct label fallback when the client has no translation for label_key.
+	Label string `json:"label"`
+
+	// LabelKey Stable i18n key for the action label. Consumers should prefer this key before label fallback.
+	LabelKey string `json:"label_key"`
+	Route    string `json:"route"`
+}
+
+// DashboardWidgetCategory defines model for dashboard-widget-category.
+type DashboardWidgetCategory string
 
 // DashboardWidgetError defines model for dashboard-widget-error.
 type DashboardWidgetError struct {
@@ -2174,8 +2264,14 @@ type DashboardWidgetError struct {
 	MessageKey *string `json:"message_key,omitempty"`
 }
 
+// DashboardWidgetPriority defines model for dashboard-widget-priority.
+type DashboardWidgetPriority string
+
 // DashboardWidgetSize defines model for dashboard-widget-size.
 type DashboardWidgetSize string
+
+// DashboardWidgetState defines model for dashboard-widget-state.
+type DashboardWidgetState string
 
 // DashboardWidgetStatus defines model for dashboard-widget-status.
 type DashboardWidgetStatus string
@@ -3337,6 +3433,39 @@ type ServerStatusAnomalySeverity string
 // ServerStatusAnomalyStatus defines model for ServerStatusAnomaly.Status.
 type ServerStatusAnomalyStatus string
 
+// ServerStatusConnectionPool defines model for server-status-connection-pool.
+type ServerStatusConnectionPool struct {
+	// Capacity Configured pool capacity used for utilization display.
+	Capacity int64 `json:"capacity"`
+
+	// IdleConnections Current idle connections available for reuse.
+	IdleConnections int64 `json:"idle_connections"`
+
+	// InUseConnections Current connections checked out by requests.
+	InUseConnections int64 `json:"in_use_connections"`
+
+	// MaxActiveConnections Configured hard active-connection limit when the client exposes one.
+	MaxActiveConnections *int64 `json:"max_active_connections,omitempty"`
+
+	// OpenConnections Current established connections tracked by the pool.
+	OpenConnections int64 `json:"open_connections"`
+
+	// StaleCount Cumulative number of stale or lifetime-expired connections closed by the pool.
+	StaleCount int64 `json:"stale_count"`
+
+	// TimeoutCount Cumulative number of pool wait timeouts.
+	TimeoutCount int64 `json:"timeout_count"`
+
+	// UsagePercent Current pool utilization percentage based on in-use connections over display capacity.
+	UsagePercent float32 `json:"usage_percent"`
+
+	// WaitCount Cumulative number of waits for a pooled connection.
+	WaitCount int64 `json:"wait_count"`
+
+	// WaitDurationMs Cumulative wait duration in milliseconds.
+	WaitDurationMs float32 `json:"wait_duration_ms"`
+}
+
 // ServerStatusDependencies defines model for server-status-dependencies.
 type ServerStatusDependencies struct {
 	Database ServerStatusDependency `json:"database"`
@@ -3345,9 +3474,10 @@ type ServerStatusDependencies struct {
 
 // ServerStatusDependency defines model for server-status-dependency.
 type ServerStatusDependency struct {
-	Detail    string   `json:"detail"`
-	LatencyMs *float32 `json:"latency_ms"`
-	Status    string   `json:"status"`
+	Detail    string                      `json:"detail"`
+	LatencyMs *float32                    `json:"latency_ms"`
+	Pool      *ServerStatusConnectionPool `json:"pool,omitempty"`
+	Status    string                      `json:"status"`
 }
 
 // ServerStatusDiskUsage defines model for server-status-disk-usage.
@@ -3442,6 +3572,7 @@ type ServerStatusTrendRange string
 
 // ServerStatusTrendPoint defines model for server-status-trend-point.
 type ServerStatusTrendPoint struct {
+	// CpuPercent Host total CPU utilization percent.
 	CpuPercent                float32   `json:"cpu_percent"`
 	Goroutines                int       `json:"goroutines"`
 	HostMemoryUsedPercent     float32   `json:"host_memory_used_percent"`

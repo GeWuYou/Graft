@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,10 +18,12 @@ import (
 )
 
 const (
-	operationWidgetLoad = "dashboard_widget_load"
-	errorCodeLoadFailed = "DASHBOARD_WIDGET_LOAD_FAILED"
-	errorCodePanic      = "DASHBOARD_WIDGET_PANIC"
-	errorCodeTimeout    = "DASHBOARD_WIDGET_TIMEOUT"
+	operationWidgetLoad      = "dashboard_widget_load"
+	errorCodeLoadFailed      = "DASHBOARD_WIDGET_LOAD_FAILED"
+	errorCodePanic           = "DASHBOARD_WIDGET_PANIC"
+	errorCodeTimeout         = "DASHBOARD_WIDGET_TIMEOUT"
+	defaultWidgetActionKey   = "dashboard.actions.details"
+	defaultWidgetActionLabel = "View details"
 )
 
 // ModuleRuntimeSummaryProvider returns the current module runtime summary.
@@ -70,7 +73,7 @@ func (s *Service) Summary(ctx context.Context, requestAuth moduleapi.RequestAuth
 	widgets := s.visibleWidgets(ctx, requestAuth, s.registry.Items())
 	return generated.DashboardSummaryResponse{
 		QuickLinks:    quickLinks,
-		SystemSummary: s.systemSummary(requestAuth, len(widgets)),
+		SystemSummary: s.systemSummary(requestAuth, widgets),
 		Widgets:       widgets,
 	}
 }
@@ -81,7 +84,11 @@ func (s *Service) Widget(ctx context.Context, requestAuth moduleapi.RequestAuthC
 	if !ok || !s.canReadWidget(ctx, requestAuth, definition) {
 		return generated.DashboardWidget{}, false
 	}
-	return s.loadWidget(ctx, requestAuth, definition), true
+	widget := s.loadWidget(ctx, requestAuth, definition)
+	if !widget.Visible {
+		return generated.DashboardWidget{}, false
+	}
+	return widget, true
 }
 
 func (s *Service) visibleQuickLinks(
@@ -109,8 +116,13 @@ func (s *Service) visibleWidgets(
 		if !s.canReadWidget(ctx, requestAuth, definition) {
 			continue
 		}
-		widgets = append(widgets, s.loadWidget(ctx, requestAuth, definition))
+		widget := s.loadWidget(ctx, requestAuth, definition)
+		if !widget.Visible {
+			continue
+		}
+		widgets = append(widgets, widget)
 	}
+	sortLoadedWidgets(widgets)
 	return widgets
 }
 
@@ -229,9 +241,16 @@ type loadResult struct {
 	err     error
 }
 
+const (
+	priorityWeightCritical = 0
+	priorityWeightWarning  = 1
+	priorityWeightNormal   = 2
+	priorityWeightInfo     = 3
+)
+
 func (s *Service) systemSummary(
 	requestAuth moduleapi.RequestAuthContext,
-	visibleWidgets int,
+	widgets []generated.DashboardWidget,
 ) generated.DashboardSystemSummary {
 	var user generated.DashboardCurrentUserSummary
 	if requestAuth.User != nil {
@@ -261,14 +280,21 @@ func (s *Service) systemSummary(
 	}
 
 	return generated.DashboardSystemSummary{
-		AppEnv:      appEnv,
-		CurrentUser: user,
+		AbnormalServices: summaryAbnormalServices(widgets),
+		AppEnv:           appEnv,
+		CurrentUser:      user,
+		FailedTasks: summaryMetric(widgets, func(widget generated.DashboardWidget) int {
+			return intMetricValue(widget.Payload["failed_tasks"])
+		}),
+		HighRiskEvents: summaryMetric(widgets, func(widget generated.DashboardWidget) int {
+			return intMetricValue(widget.Payload["high_risk_events"])
+		}),
 		Locale: generated.DashboardLocaleSummary{
 			DefaultLocale:  defaultLocale,
 			FallbackLocale: fallbackLocale,
 		},
 		Modules:        moduleSummary,
-		VisibleWidgets: visibleWidgets,
+		VisibleWidgets: len(widgets),
 	}
 }
 
@@ -278,14 +304,46 @@ func widgetFromDefinition(
 	status WidgetStatus,
 	widgetError *generated.DashboardWidgetError,
 ) generated.DashboardWidget {
-	widget := generated.DashboardWidget{
+	metadata := payload.Metadata()
+	publicPayload := payload.PublicPayload()
+	visible := widgetVisible(status, metadata)
+	state := widgetState(status, metadata)
+	priority := widgetPriority(definition.Priority, state, metadata)
+	widget := baseGeneratedWidget(definition, publicPayload, status, visible, state, priority)
+	applyWidgetText(&widget, definition)
+	applyWidgetRuntimeFields(&widget, definition)
+	if widgetError != nil {
+		widget.Error = widgetError
+	}
+	return widget
+}
+
+func baseGeneratedWidget(
+	definition WidgetDefinition,
+	payload WidgetPayload,
+	status WidgetStatus,
+	visible bool,
+	state WidgetState,
+	priority WidgetPriority,
+) generated.DashboardWidget {
+	return generated.DashboardWidget{
+		Category:  generated.DashboardWidgetCategory(definition.Category),
 		Id:        definition.ID,
 		ModuleKey: definition.ModuleKey,
 		Order:     definition.Order,
 		Payload:   payloadMap(payload),
+		Priority:  generated.DashboardWidgetPriority(priority),
 		Size:      generated.DashboardWidgetSize(definition.Size),
+		State:     generated.DashboardWidgetState(state),
 		Status:    ptr(generated.DashboardWidgetStatus(status)),
 		Type:      generated.DashboardWidgetType(definition.Type),
+		Visible:   visible,
+	}
+}
+
+func applyWidgetText(widget *generated.DashboardWidget, definition WidgetDefinition) {
+	if widget == nil {
+		return
 	}
 	if len(definition.RequiredPermissions) > 0 {
 		widget.RequiredPermissions = ptr(append([]string(nil), definition.RequiredPermissions...))
@@ -302,6 +360,12 @@ func widgetFromDefinition(
 	if definition.Description != "" {
 		widget.Description = &definition.Description
 	}
+}
+
+func applyWidgetRuntimeFields(widget *generated.DashboardWidget, definition WidgetDefinition) {
+	if widget == nil {
+		return
+	}
 	if definition.RefreshInterval > 0 {
 		seconds := int(definition.RefreshInterval / time.Second)
 		widget.RefreshIntervalSeconds = &seconds
@@ -309,10 +373,103 @@ func widgetFromDefinition(
 	if definition.RouteLocation != "" {
 		widget.RouteLocation = &definition.RouteLocation
 	}
-	if widgetError != nil {
-		widget.Error = widgetError
+	if definition.Action.Route != "" {
+		labelKey := definition.Action.LabelKey
+		if labelKey == "" {
+			labelKey = defaultWidgetActionKey
+		}
+		label := definition.Action.Label
+		if label == "" {
+			label = defaultWidgetActionLabel
+		}
+		widget.Action = &generated.DashboardWidgetAction{
+			LabelKey: labelKey,
+			Label:    label,
+			Route:    definition.Action.Route,
+		}
 	}
-	return widget
+}
+
+func widgetVisible(status WidgetStatus, metadata WidgetPayloadMetadata) bool {
+	if metadata.State == WidgetStateHidden {
+		return false
+	}
+	if metadata.Visible != nil {
+		return *metadata.Visible
+	}
+	return status != WidgetStatusDisabled
+}
+
+func widgetState(status WidgetStatus, metadata WidgetPayloadMetadata) WidgetState {
+	if metadata.State != "" {
+		return metadata.State
+	}
+	switch status {
+	case WidgetStatusError:
+		return WidgetStateCritical
+	case WidgetStatusWarning:
+		return WidgetStateWarning
+	default:
+		return WidgetStateNormal
+	}
+}
+
+func widgetPriority(base WidgetPriority, state WidgetState, metadata WidgetPayloadMetadata) WidgetPriority {
+	if metadata.PriorityOverride != "" {
+		return metadata.PriorityOverride
+	}
+	switch state {
+	case WidgetStateCritical:
+		return WidgetPriorityCritical
+	case WidgetStateWarning:
+		if priorityWeight(base) > priorityWeight(WidgetPriorityWarning) {
+			return WidgetPriorityWarning
+		}
+	}
+	return base
+}
+
+func sortLoadedWidgets(widgets []generated.DashboardWidget) {
+	slices.SortStableFunc(widgets, func(left, right generated.DashboardWidget) int {
+		if left.Priority != right.Priority {
+			return priorityWeight(WidgetPriority(left.Priority)) - priorityWeight(WidgetPriority(right.Priority))
+		}
+		if left.Order != right.Order {
+			return left.Order - right.Order
+		}
+		return strings.Compare(left.Id, right.Id)
+	})
+}
+
+func priorityWeight(priority WidgetPriority) int {
+	switch priority {
+	case WidgetPriorityCritical:
+		return priorityWeightCritical
+	case WidgetPriorityWarning:
+		return priorityWeightWarning
+	case WidgetPriorityNormal:
+		return priorityWeightNormal
+	case WidgetPriorityInfo:
+		return priorityWeightInfo
+	default:
+		return priorityWeightNormal
+	}
+}
+
+func summaryMetric(widgets []generated.DashboardWidget, metric func(generated.DashboardWidget) int) int {
+	total := 0
+	for _, widget := range widgets {
+		total += metric(widget)
+	}
+	return total
+}
+
+func summaryAbnormalServices(widgets []generated.DashboardWidget) int {
+	total := 0
+	for _, widget := range widgets {
+		total += intMetricValue(widget.Payload["abnormal_services"])
+	}
+	return total
 }
 
 func quickLinkFromDefinition(definition QuickLinkDefinition) generated.DashboardQuickLink {

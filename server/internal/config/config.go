@@ -18,18 +18,29 @@ const (
 	defaultHTTPAddr       = ":8080"
 	defaultDatabaseDriver = "postgres"
 	// #nosec G101 -- 本地开发默认 DSN 只作为示例值，不代表可用分发凭据。
-	defaultDatabaseURL           = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
-	defaultRedisAddr             = "localhost:6379"
-	defaultLogLevel              = "info"
-	defaultAppLogPersistence     = true
-	defaultLocale                = "zh-CN"
-	defaultSecondaryLocale       = "en-US"
-	defaultSupported             = "zh-CN,en-US"
-	defaultAccessTokenTTL        = 15 * time.Minute
-	defaultRefreshTokenTTL       = 7 * 24 * time.Hour
-	defaultRefreshCookieName     = "graft_refresh_token"
-	defaultRefreshCookiePath     = "/"
-	defaultRefreshCookieSameSite = "lax"
+	defaultDatabaseURL             = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
+	defaultDatabaseMaxOpenConns    = 25
+	defaultDatabaseMaxIdleConns    = 10
+	defaultDatabaseConnMaxLifetime = time.Hour
+	defaultDatabaseConnMaxIdleTime = 30 * time.Minute
+	defaultRedisAddr               = "localhost:6379"
+	defaultRedisPoolSize           = 0
+	defaultRedisMinIdleConns       = 0
+	defaultRedisMaxIdleConns       = 0
+	defaultRedisMaxActiveConns     = 0
+	defaultRedisPoolTimeout        = 0
+	defaultRedisConnMaxIdleTime    = 0
+	defaultRedisConnMaxLifetime    = 0
+	defaultLogLevel                = "info"
+	defaultAppLogPersistence       = true
+	defaultLocale                  = "zh-CN"
+	defaultSecondaryLocale         = "en-US"
+	defaultSupported               = "zh-CN,en-US"
+	defaultAccessTokenTTL          = 15 * time.Minute
+	defaultRefreshTokenTTL         = 7 * 24 * time.Hour
+	defaultRefreshCookieName       = "graft_refresh_token"
+	defaultRefreshCookiePath       = "/"
+	defaultRefreshCookieSameSite   = "lax"
 )
 
 const (
@@ -157,15 +168,26 @@ type ModulesConfig struct {
 
 // DatabaseConfig 描述 Ent 与 Atlas 共用的 PostgreSQL 连接配置。
 type DatabaseConfig struct {
-	Driver string
-	URL    string
+	Driver          string
+	URL             string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	ConnMaxIdleTime time.Duration
 }
 
 // RedisConfig 描述 core 服务与模块共享的 Redis 连接配置。
 type RedisConfig struct {
-	Addr     string
-	Password string
-	DB       int
+	Addr            string
+	Password        string
+	DB              int
+	PoolSize        int
+	MinIdleConns    int
+	MaxIdleConns    int
+	MaxActiveConns  int
+	PoolTimeout     time.Duration
+	ConnMaxIdleTime time.Duration
+	ConnMaxLifetime time.Duration
 }
 
 // LogConfig 描述日志核心服务接入后的日志行为配置。
@@ -243,13 +265,24 @@ func Load() (*Config, error) {
 			Enabled: parseModuleList(reader.GetString("modules.enabled")),
 		},
 		Database: DatabaseConfig{
-			Driver: reader.GetString("database.driver"),
-			URL:    reader.GetString("database.url"),
+			Driver:          reader.GetString("database.driver"),
+			URL:             reader.GetString("database.url"),
+			MaxOpenConns:    reader.GetInt("database.max_open_conns"),
+			MaxIdleConns:    reader.GetInt("database.max_idle_conns"),
+			ConnMaxLifetime: reader.GetDuration("database.conn_max_lifetime"),
+			ConnMaxIdleTime: reader.GetDuration("database.conn_max_idle_time"),
 		},
 		Redis: RedisConfig{
-			Addr:     reader.GetString("redis.addr"),
-			Password: reader.GetString("redis.password"),
-			DB:       reader.GetInt("redis.db"),
+			Addr:            reader.GetString("redis.addr"),
+			Password:        reader.GetString("redis.password"),
+			DB:              reader.GetInt("redis.db"),
+			PoolSize:        reader.GetInt("redis.pool_size"),
+			MinIdleConns:    reader.GetInt("redis.min_idle_conns"),
+			MaxIdleConns:    reader.GetInt("redis.max_idle_conns"),
+			MaxActiveConns:  reader.GetInt("redis.max_active_conns"),
+			PoolTimeout:     reader.GetDuration("redis.pool_timeout"),
+			ConnMaxIdleTime: reader.GetDuration("redis.conn_max_idle_time"),
+			ConnMaxLifetime: reader.GetDuration("redis.conn_max_lifetime"),
 		},
 		Log: LogConfig{
 			Level:           reader.GetString("log.level"),
@@ -449,6 +482,18 @@ func validateDatabaseConfig(c *Config) error {
 	if strings.TrimSpace(c.Database.URL) == "" {
 		return errors.New("GRAFT_DATABASE_URL is required")
 	}
+	if c.Database.MaxOpenConns <= 0 {
+		return errors.New("GRAFT_DATABASE_MAX_OPEN_CONNS must be greater than zero")
+	}
+	if c.Database.MaxIdleConns < 0 {
+		return errors.New("GRAFT_DATABASE_MAX_IDLE_CONNS must be greater than or equal to zero")
+	}
+	if c.Database.ConnMaxLifetime < 0 {
+		return errors.New("GRAFT_DATABASE_CONN_MAX_LIFETIME must be greater than or equal to zero")
+	}
+	if c.Database.ConnMaxIdleTime < 0 {
+		return errors.New("GRAFT_DATABASE_CONN_MAX_IDLE_TIME must be greater than or equal to zero")
+	}
 
 	return nil
 }
@@ -459,6 +504,27 @@ func validateRedisConfig(c *Config) error {
 	}
 	if c.Redis.DB < 0 {
 		return errors.New("GRAFT_REDIS_DB must be greater than or equal to zero")
+	}
+	if c.Redis.PoolSize < 0 {
+		return errors.New("GRAFT_REDIS_POOL_SIZE must be greater than or equal to zero")
+	}
+	if c.Redis.MinIdleConns < 0 {
+		return errors.New("GRAFT_REDIS_MIN_IDLE_CONNS must be greater than or equal to zero")
+	}
+	if c.Redis.MaxIdleConns < 0 {
+		return errors.New("GRAFT_REDIS_MAX_IDLE_CONNS must be greater than or equal to zero")
+	}
+	if c.Redis.MaxActiveConns < 0 {
+		return errors.New("GRAFT_REDIS_MAX_ACTIVE_CONNS must be greater than or equal to zero")
+	}
+	if c.Redis.PoolTimeout < 0 {
+		return errors.New("GRAFT_REDIS_POOL_TIMEOUT must be greater than or equal to zero")
+	}
+	if c.Redis.ConnMaxIdleTime < 0 {
+		return errors.New("GRAFT_REDIS_CONN_MAX_IDLE_TIME must be greater than or equal to zero")
+	}
+	if c.Redis.ConnMaxLifetime < 0 {
+		return errors.New("GRAFT_REDIS_CONN_MAX_LIFETIME must be greater than or equal to zero")
 	}
 
 	return nil
@@ -667,9 +733,20 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("modules.enabled", "")
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
 	reader.SetDefault("database.url", defaultDatabaseURL)
+	reader.SetDefault("database.max_open_conns", defaultDatabaseMaxOpenConns)
+	reader.SetDefault("database.max_idle_conns", defaultDatabaseMaxIdleConns)
+	reader.SetDefault("database.conn_max_lifetime", defaultDatabaseConnMaxLifetime)
+	reader.SetDefault("database.conn_max_idle_time", defaultDatabaseConnMaxIdleTime)
 	reader.SetDefault("redis.addr", defaultRedisAddr)
 	reader.SetDefault("redis.password", "")
 	reader.SetDefault("redis.db", 0)
+	reader.SetDefault("redis.pool_size", defaultRedisPoolSize)
+	reader.SetDefault("redis.min_idle_conns", defaultRedisMinIdleConns)
+	reader.SetDefault("redis.max_idle_conns", defaultRedisMaxIdleConns)
+	reader.SetDefault("redis.max_active_conns", defaultRedisMaxActiveConns)
+	reader.SetDefault("redis.pool_timeout", defaultRedisPoolTimeout)
+	reader.SetDefault("redis.conn_max_idle_time", defaultRedisConnMaxIdleTime)
+	reader.SetDefault("redis.conn_max_lifetime", defaultRedisConnMaxLifetime)
 	reader.SetDefault("log.level", defaultLogLevel)
 	reader.SetDefault("log.format", string(LogFormatAuto))
 	reader.SetDefault("log.color", string(LogColorAuto))

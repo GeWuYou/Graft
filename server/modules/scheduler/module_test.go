@@ -473,6 +473,22 @@ func TestRegisterRegistersSchedulerTaskAttentionDashboardWidget(t *testing.T) {
 	if len(widget.RequiredPermissions) != 1 || widget.RequiredPermissions[0] != schedulercontract.ScheduledTaskReadPermission.String() {
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
 	}
+
+	quickLinks := ctx.DashboardRegistry.QuickLinks()
+	if len(quickLinks) != 1 {
+		t.Fatalf("expected scheduler quick link, got %#v", quickLinks)
+	}
+	link := quickLinks[0]
+	if link.ID != schedulerTaskQuickLinkID ||
+		link.ModuleKey != moduleID ||
+		link.TitleKey != schedulercontract.ScheduledTaskMenuTitle.String() ||
+		link.RouteLocation != schedulercontract.ScheduledTaskMenuPath ||
+		link.Order != schedulerTaskQuickLinkOrder {
+		t.Fatalf("unexpected scheduler quick link: %#v", link)
+	}
+	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != schedulercontract.ScheduledTaskReadPermission.String() {
+		t.Fatalf("unexpected scheduler quick link permissions: %#v", link.RequiredPermissions)
+	}
 }
 
 func TestSchedulerTaskAttentionDashboardWidgetLoadsAttentionPayload(t *testing.T) {
@@ -544,6 +560,17 @@ func TestSchedulerTaskAttentionDashboardWidgetPaginatesAllTasks(t *testing.T) {
 	}
 	if items[0]["value"] != "1" {
 		t.Fatalf("expected failed count from second page, got %#v", items)
+	}
+}
+
+func TestSchedulerTaskAttentionStateUsesNormalPriorityWhenHidden(t *testing.T) {
+	state, priority := schedulerAttentionState(schedulerAttentionCounters{})
+
+	if state != dashboard.WidgetStateHidden {
+		t.Fatalf("expected hidden state for empty attention counters, got %q", state)
+	}
+	if priority != dashboard.WidgetPriorityNormal {
+		t.Fatalf("expected hidden attention widget to use normal priority, got %q", priority)
 	}
 }
 

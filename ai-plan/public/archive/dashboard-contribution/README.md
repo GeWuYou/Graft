@@ -33,6 +33,15 @@ Widget wire shape uses `type + payload`.
   "id": "core.module-runtime-health",
   "module_key": "core",
   "type": "health",
+  "size": "small",
+  "category": "system",
+  "priority": "info",
+  "state": "normal",
+  "visible": true,
+  "action": {
+    "label": "View details",
+    "route": "/server/modules"
+  },
   "payload": {}
 }
 ```
@@ -43,6 +52,15 @@ MVP avoids OpenAPI `oneOf` and typed-slot payloads because the current generated
 - `server`: `oapi-codegen v2.7.0`
 
 The OpenAPI source should define concrete payload schemas for documentation and local mapping tests, but `DashboardWidget.payload` should remain a plain object in the top-level widget contract.
+
+Dashboard framework hardening keeps layout and interaction decisions in the platform renderer:
+
+- modules declare `size`, `category`, `priority`, `state`, `visible`, and optional `action`
+- `size` is limited to `small`, `medium`, and `large`; modules do not choose grid columns directly
+- `category` is limited to `system`, `security`, `operation`, and `business`; category headings are rendered by the dashboard framework
+- `priority` sorts visible widgets as `critical`, `warning`, `normal`, then `info`, ahead of registration order
+- `state=hidden` or `visible=false` removes empty non-actionable widgets from the home page
+- widget actions use a shared `label + route` contract and are rendered by the frontend dashboard renderer
 
 ## Widget Namespace Rules
 
@@ -65,6 +83,7 @@ Keep the fixed area intentionally small:
 - environment: `config.App.Env`
 - locale: default and fallback locale
 - modules: total/enabled/degraded summary from module runtime snapshot
+- failed tasks, high-risk events, and abnormal services: aggregate dashboard-only counters contributed by loaders
 - visible widgets: count after permission filtering
 
 Do not add uptime, version, DB/Redis health, system load, recent visits, favorites, or BI metrics in MVP.
@@ -72,8 +91,10 @@ Do not add uptime, version, DB/Redis health, system load, recent visits, favorit
 ## Acceptance Conditions
 
 - Home dashboard has a fixed system summary plus module-contributed widgets.
+- Dashboard summary is calculated by the aggregator and remains outside business module ownership.
 - Dashboard page does not import audit, scheduler, rbac, user, monitor, or system-config business components.
 - Frontend renderer branches only by stable `DashboardWidgetType`, not by `module_key` or concrete widget id.
+- Frontend layout, category grouping, priority ordering, skeleton loading, and action button rendering are owned by the dashboard framework.
 - Widget data is loaded through backend aggregation, not frontend N-interface composition.
 - Permission filtering happens server-side; loaders still validate sensitive data boundaries.
 - Phase 1 includes no more than two required widgets:

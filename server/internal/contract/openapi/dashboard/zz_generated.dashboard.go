@@ -7,9 +7,56 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetDashboardSummary200JSONResponseBodyDataWidgetsCategory.
+const (
+	GetDashboardSummary200JSONResponseBodyDataWidgetsCategoryBusiness  GetDashboardSummary200JSONResponseBodyDataWidgetsCategory = "business"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsCategoryOperation GetDashboardSummary200JSONResponseBodyDataWidgetsCategory = "operation"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsCategorySecurity  GetDashboardSummary200JSONResponseBodyDataWidgetsCategory = "security"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsCategorySystem    GetDashboardSummary200JSONResponseBodyDataWidgetsCategory = "system"
+)
+
+// Valid indicates whether the value is a known member of the GetDashboardSummary200JSONResponseBodyDataWidgetsCategory enum.
+func (e GetDashboardSummary200JSONResponseBodyDataWidgetsCategory) Valid() bool {
+	switch e {
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsCategoryBusiness:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsCategoryOperation:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsCategorySecurity:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsCategorySystem:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDashboardSummary200JSONResponseBodyDataWidgetsPriority.
+const (
+	GetDashboardSummary200JSONResponseBodyDataWidgetsPriorityCritical GetDashboardSummary200JSONResponseBodyDataWidgetsPriority = "critical"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsPriorityInfo     GetDashboardSummary200JSONResponseBodyDataWidgetsPriority = "info"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsPriorityNormal   GetDashboardSummary200JSONResponseBodyDataWidgetsPriority = "normal"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsPriorityWarning  GetDashboardSummary200JSONResponseBodyDataWidgetsPriority = "warning"
+)
+
+// Valid indicates whether the value is a known member of the GetDashboardSummary200JSONResponseBodyDataWidgetsPriority enum.
+func (e GetDashboardSummary200JSONResponseBodyDataWidgetsPriority) Valid() bool {
+	switch e {
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsPriorityCritical:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsPriorityInfo:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsPriorityNormal:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsPriorityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDashboardSummary200JSONResponseBodyDataWidgetsSize.
 const (
-	GetDashboardSummary200JSONResponseBodyDataWidgetsSizeFull   GetDashboardSummary200JSONResponseBodyDataWidgetsSize = "full"
 	GetDashboardSummary200JSONResponseBodyDataWidgetsSizeLarge  GetDashboardSummary200JSONResponseBodyDataWidgetsSize = "large"
 	GetDashboardSummary200JSONResponseBodyDataWidgetsSizeMedium GetDashboardSummary200JSONResponseBodyDataWidgetsSize = "medium"
 	GetDashboardSummary200JSONResponseBodyDataWidgetsSizeSmall  GetDashboardSummary200JSONResponseBodyDataWidgetsSize = "small"
@@ -18,13 +65,35 @@ const (
 // Valid indicates whether the value is a known member of the GetDashboardSummary200JSONResponseBodyDataWidgetsSize enum.
 func (e GetDashboardSummary200JSONResponseBodyDataWidgetsSize) Valid() bool {
 	switch e {
-	case GetDashboardSummary200JSONResponseBodyDataWidgetsSizeFull:
-		return true
 	case GetDashboardSummary200JSONResponseBodyDataWidgetsSizeLarge:
 		return true
 	case GetDashboardSummary200JSONResponseBodyDataWidgetsSizeMedium:
 		return true
 	case GetDashboardSummary200JSONResponseBodyDataWidgetsSizeSmall:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDashboardSummary200JSONResponseBodyDataWidgetsState.
+const (
+	GetDashboardSummary200JSONResponseBodyDataWidgetsStateCritical GetDashboardSummary200JSONResponseBodyDataWidgetsState = "critical"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsStateHidden   GetDashboardSummary200JSONResponseBodyDataWidgetsState = "hidden"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsStateNormal   GetDashboardSummary200JSONResponseBodyDataWidgetsState = "normal"
+	GetDashboardSummary200JSONResponseBodyDataWidgetsStateWarning  GetDashboardSummary200JSONResponseBodyDataWidgetsState = "warning"
+)
+
+// Valid indicates whether the value is a known member of the GetDashboardSummary200JSONResponseBodyDataWidgetsState enum.
+func (e GetDashboardSummary200JSONResponseBodyDataWidgetsState) Valid() bool {
+	switch e {
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsStateCritical:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsStateHidden:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsStateNormal:
+		return true
+	case GetDashboardSummary200JSONResponseBodyDataWidgetsStateWarning:
 		return true
 	default:
 		return false
@@ -112,9 +181,56 @@ func (e GetDashboardSummary500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetDashboardWidget200JSONResponseBodyDataCategory.
+const (
+	GetDashboardWidget200JSONResponseBodyDataCategoryBusiness  GetDashboardWidget200JSONResponseBodyDataCategory = "business"
+	GetDashboardWidget200JSONResponseBodyDataCategoryOperation GetDashboardWidget200JSONResponseBodyDataCategory = "operation"
+	GetDashboardWidget200JSONResponseBodyDataCategorySecurity  GetDashboardWidget200JSONResponseBodyDataCategory = "security"
+	GetDashboardWidget200JSONResponseBodyDataCategorySystem    GetDashboardWidget200JSONResponseBodyDataCategory = "system"
+)
+
+// Valid indicates whether the value is a known member of the GetDashboardWidget200JSONResponseBodyDataCategory enum.
+func (e GetDashboardWidget200JSONResponseBodyDataCategory) Valid() bool {
+	switch e {
+	case GetDashboardWidget200JSONResponseBodyDataCategoryBusiness:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataCategoryOperation:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataCategorySecurity:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataCategorySystem:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDashboardWidget200JSONResponseBodyDataPriority.
+const (
+	GetDashboardWidget200JSONResponseBodyDataPriorityCritical GetDashboardWidget200JSONResponseBodyDataPriority = "critical"
+	GetDashboardWidget200JSONResponseBodyDataPriorityInfo     GetDashboardWidget200JSONResponseBodyDataPriority = "info"
+	GetDashboardWidget200JSONResponseBodyDataPriorityNormal   GetDashboardWidget200JSONResponseBodyDataPriority = "normal"
+	GetDashboardWidget200JSONResponseBodyDataPriorityWarning  GetDashboardWidget200JSONResponseBodyDataPriority = "warning"
+)
+
+// Valid indicates whether the value is a known member of the GetDashboardWidget200JSONResponseBodyDataPriority enum.
+func (e GetDashboardWidget200JSONResponseBodyDataPriority) Valid() bool {
+	switch e {
+	case GetDashboardWidget200JSONResponseBodyDataPriorityCritical:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataPriorityInfo:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataPriorityNormal:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataPriorityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDashboardWidget200JSONResponseBodyDataSize.
 const (
-	GetDashboardWidget200JSONResponseBodyDataSizeFull   GetDashboardWidget200JSONResponseBodyDataSize = "full"
 	GetDashboardWidget200JSONResponseBodyDataSizeLarge  GetDashboardWidget200JSONResponseBodyDataSize = "large"
 	GetDashboardWidget200JSONResponseBodyDataSizeMedium GetDashboardWidget200JSONResponseBodyDataSize = "medium"
 	GetDashboardWidget200JSONResponseBodyDataSizeSmall  GetDashboardWidget200JSONResponseBodyDataSize = "small"
@@ -123,13 +239,35 @@ const (
 // Valid indicates whether the value is a known member of the GetDashboardWidget200JSONResponseBodyDataSize enum.
 func (e GetDashboardWidget200JSONResponseBodyDataSize) Valid() bool {
 	switch e {
-	case GetDashboardWidget200JSONResponseBodyDataSizeFull:
-		return true
 	case GetDashboardWidget200JSONResponseBodyDataSizeLarge:
 		return true
 	case GetDashboardWidget200JSONResponseBodyDataSizeMedium:
 		return true
 	case GetDashboardWidget200JSONResponseBodyDataSizeSmall:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDashboardWidget200JSONResponseBodyDataState.
+const (
+	GetDashboardWidget200JSONResponseBodyDataStateCritical GetDashboardWidget200JSONResponseBodyDataState = "critical"
+	GetDashboardWidget200JSONResponseBodyDataStateHidden   GetDashboardWidget200JSONResponseBodyDataState = "hidden"
+	GetDashboardWidget200JSONResponseBodyDataStateNormal   GetDashboardWidget200JSONResponseBodyDataState = "normal"
+	GetDashboardWidget200JSONResponseBodyDataStateWarning  GetDashboardWidget200JSONResponseBodyDataState = "warning"
+)
+
+// Valid indicates whether the value is a known member of the GetDashboardWidget200JSONResponseBodyDataState enum.
+func (e GetDashboardWidget200JSONResponseBodyDataState) Valid() bool {
+	switch e {
+	case GetDashboardWidget200JSONResponseBodyDataStateCritical:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataStateHidden:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataStateNormal:
+		return true
+	case GetDashboardWidget200JSONResponseBodyDataStateWarning:
 		return true
 	default:
 		return false
@@ -248,8 +386,17 @@ type GetDashboardSummaryParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetDashboardSummary200JSONResponseBodyDataWidgetsCategory defines parameters for GetDashboardSummary.
+type GetDashboardSummary200JSONResponseBodyDataWidgetsCategory string
+
+// GetDashboardSummary200JSONResponseBodyDataWidgetsPriority defines parameters for GetDashboardSummary.
+type GetDashboardSummary200JSONResponseBodyDataWidgetsPriority string
+
 // GetDashboardSummary200JSONResponseBodyDataWidgetsSize defines parameters for GetDashboardSummary.
 type GetDashboardSummary200JSONResponseBodyDataWidgetsSize string
+
+// GetDashboardSummary200JSONResponseBodyDataWidgetsState defines parameters for GetDashboardSummary.
+type GetDashboardSummary200JSONResponseBodyDataWidgetsState string
 
 // GetDashboardSummary200JSONResponseBodyDataWidgetsStatus defines parameters for GetDashboardSummary.
 type GetDashboardSummary200JSONResponseBodyDataWidgetsStatus string
@@ -273,8 +420,17 @@ type GetDashboardWidgetParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetDashboardWidget200JSONResponseBodyDataCategory defines parameters for GetDashboardWidget.
+type GetDashboardWidget200JSONResponseBodyDataCategory string
+
+// GetDashboardWidget200JSONResponseBodyDataPriority defines parameters for GetDashboardWidget.
+type GetDashboardWidget200JSONResponseBodyDataPriority string
+
 // GetDashboardWidget200JSONResponseBodyDataSize defines parameters for GetDashboardWidget.
 type GetDashboardWidget200JSONResponseBodyDataSize string
+
+// GetDashboardWidget200JSONResponseBodyDataState defines parameters for GetDashboardWidget.
+type GetDashboardWidget200JSONResponseBodyDataState string
 
 // GetDashboardWidget200JSONResponseBodyDataStatus defines parameters for GetDashboardWidget.
 type GetDashboardWidget200JSONResponseBodyDataStatus string

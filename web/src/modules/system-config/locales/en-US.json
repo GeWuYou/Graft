@@ -73,11 +73,24 @@
       }
     },
     "groups": {
+      "dashboardQuickActions": "Dashboard Quick Actions",
       "coreHttpxLogRetention": "Access Log Retention Configuration",
       "coreLoggerLogRetention": "App Log Retention Configuration",
       "auditLogRetention": "Audit Log Retention Configuration"
     },
     "items": {
+      "dashboardQuickActionsEnabled": {
+        "title": "Dashboard Quick Actions",
+        "description": "Controls whether personalized dashboard quick actions are shown."
+      },
+      "dashboardQuickActionsMaxItems": {
+        "title": "Quick Action Maximum Items",
+        "description": "Maximum personalized entries shown on the dashboard home page."
+      },
+      "dashboardQuickActionsStrategy": {
+        "title": "Quick Action Ranking Strategy",
+        "description": "Personalized quick action ranking strategy."
+      },
       "accessLogRetentionCleanup": {
         "title": "Access Log Retention Cleanup",
         "description": "Default cleanup configuration for access-log retention jobs."
@@ -104,6 +117,13 @@
     "units": {
       "days": "Days",
       "rows": "Rows"
+    },
+    "options": {
+      "dashboardQuickActionStrategy": {
+        "mostUsed": "Most Used",
+        "recent": "Recent",
+        "hybrid": "Hybrid"
+      }
     }
   }
 }

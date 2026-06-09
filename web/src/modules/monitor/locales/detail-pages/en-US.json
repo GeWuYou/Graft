@@ -60,7 +60,7 @@
       "title": "Dependencies",
       "subtitle": "Review health signals for PostgreSQL, Redis, and future module-owned dependency checks.",
       "serviceListTitle": "Dependency Services",
-      "noteDescription": "The current page reflects the latest aggregated snapshot. Additional services can show their own health checks here as they become available.",
+      "noteDescription": "Focus on health, latency, pool pressure, and wait signals. Additional services can show their own health checks here as they become available.",
       "statusHealthy": "Healthy",
       "statusAbnormal": "Abnormal",
       "statusNotConfigured": "Not configured",
@@ -84,12 +84,35 @@
       },
       "fields": {
         "latency": "Response latency",
+        "poolUsage": "Pool usage",
+        "poolWait": "Pool waits",
+        "timeoutCount": "Wait timeouts",
+        "staleCount": "Connections recycled",
         "checkedAt": "Last checked",
         "errorInfo": "Error info",
         "detail": "Probe detail"
       },
+      "pool": {
+        "title": "Connection pool",
+        "stateTitle": "Pool state",
+        "usageLabel": "{label} pool usage",
+        "usageTooltip": "{label} pool {value} · usage {percent}",
+        "inUse": "In use",
+        "idle": "Idle",
+        "open": "Total connections",
+        "capacity": "Max connections",
+        "riskHealthy": "Pool pressure is normal",
+        "riskWarning": "Pool is approaching a high watermark",
+        "riskCritical": "Pool is close to exhaustion",
+        "riskUnknown": "Pool data is unavailable"
+      },
+      "diagnostics": {
+        "title": "Advanced diagnostics"
+      },
       "fieldDescriptions": {
         "latency": "Most recent probe response duration.",
+        "poolUsage": "Connections currently checked out over the configured display capacity.",
+        "poolWait": "Cumulative wait count and wait duration for pooled connections.",
         "checkedAt": "Currently follows the latest server-status snapshot time.",
         "errorInfo": "Shows the latest error only when the dependency is abnormal or unknown.",
         "detail": "Raw probe detail returned by the current backend snapshot."

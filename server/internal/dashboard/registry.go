@@ -200,6 +200,15 @@ func normalizeQuickLink(definition QuickLinkDefinition) (QuickLinkDefinition, er
 }
 
 func normalizeDefinition(definition WidgetDefinition) (WidgetDefinition, error) {
+	normalized := normalizeDefinitionStrings(definition)
+	normalized = normalizeDefinitionDefaults(normalized)
+	if err := validateDefinition(normalized); err != nil {
+		return WidgetDefinition{}, err
+	}
+	return normalized, nil
+}
+
+func normalizeDefinitionStrings(definition WidgetDefinition) WidgetDefinition {
 	normalized := cloneDefinition(definition)
 	normalized.ID = strings.TrimSpace(normalized.ID)
 	normalized.ModuleKey = strings.TrimSpace(normalized.ModuleKey)
@@ -208,34 +217,73 @@ func normalizeDefinition(definition WidgetDefinition) (WidgetDefinition, error) 
 	normalized.DescriptionKey = strings.TrimSpace(normalized.DescriptionKey)
 	normalized.Description = strings.TrimSpace(normalized.Description)
 	normalized.RouteLocation = strings.TrimSpace(normalized.RouteLocation)
+	normalized.Action.LabelKey = strings.TrimSpace(normalized.Action.LabelKey)
+	normalized.Action.Label = strings.TrimSpace(normalized.Action.Label)
+	normalized.Action.Route = strings.TrimSpace(normalized.Action.Route)
 	normalized.RequiredPermissions = trimNonEmptyStrings(normalized.RequiredPermissions)
+	return normalized
+}
 
-	if normalized.ID == "" {
-		return WidgetDefinition{}, errors.New("dashboard widget id is required")
-	}
-	if normalized.ModuleKey == "" {
-		return WidgetDefinition{}, fmt.Errorf("dashboard widget %s module key is required", normalized.ID)
-	}
-	if normalized.Type == "" {
-		return WidgetDefinition{}, fmt.Errorf("dashboard widget %s type is required", normalized.ID)
-	}
-	if !validWidgetType(normalized.Type) {
-		return WidgetDefinition{}, fmt.Errorf("dashboard widget %s has unsupported type %q", normalized.ID, normalized.Type)
-	}
+func normalizeDefinitionDefaults(definition WidgetDefinition) WidgetDefinition {
+	normalized := definition
 	if normalized.Size == "" {
 		normalized.Size = WidgetSizeMedium
 	}
-	if !validWidgetSize(normalized.Size) {
-		return WidgetDefinition{}, fmt.Errorf("dashboard widget %s has unsupported size %q", normalized.ID, normalized.Size)
+	if normalized.Category == "" {
+		normalized.Category = WidgetCategorySystem
 	}
-	if normalized.Loader == nil {
-		return WidgetDefinition{}, fmt.Errorf("dashboard widget %s loader is required", normalized.ID)
+	if normalized.Priority == "" {
+		normalized.Priority = WidgetPriorityNormal
 	}
-	if normalized.LoaderTimeout < 0 {
-		return WidgetDefinition{}, fmt.Errorf("dashboard widget %s loader timeout must not be negative", normalized.ID)
+	if normalized.Action.Route == "" {
+		normalized.Action.Route = normalized.RouteLocation
 	}
+	return normalized
+}
 
-	return normalized, nil
+func validateDefinition(definition WidgetDefinition) error {
+	if err := validateDefinitionIdentity(definition); err != nil {
+		return err
+	}
+	if err := validateDefinitionFramework(definition); err != nil {
+		return err
+	}
+	if definition.Loader == nil {
+		return fmt.Errorf("dashboard widget %s loader is required", definition.ID)
+	}
+	if definition.LoaderTimeout < 0 {
+		return fmt.Errorf("dashboard widget %s loader timeout must not be negative", definition.ID)
+	}
+	return nil
+}
+
+func validateDefinitionIdentity(definition WidgetDefinition) error {
+	if definition.ID == "" {
+		return errors.New("dashboard widget id is required")
+	}
+	if definition.ModuleKey == "" {
+		return fmt.Errorf("dashboard widget %s module key is required", definition.ID)
+	}
+	if definition.Type == "" {
+		return fmt.Errorf("dashboard widget %s type is required", definition.ID)
+	}
+	if !validWidgetType(definition.Type) {
+		return fmt.Errorf("dashboard widget %s has unsupported type %q", definition.ID, definition.Type)
+	}
+	return nil
+}
+
+func validateDefinitionFramework(definition WidgetDefinition) error {
+	if !validWidgetSize(definition.Size) {
+		return fmt.Errorf("dashboard widget %s has unsupported size %q", definition.ID, definition.Size)
+	}
+	if !validWidgetCategory(definition.Category) {
+		return fmt.Errorf("dashboard widget %s has unsupported category %q", definition.ID, definition.Category)
+	}
+	if !validWidgetPriority(definition.Priority) {
+		return fmt.Errorf("dashboard widget %s has unsupported priority %q", definition.ID, definition.Priority)
+	}
+	return nil
 }
 
 func cloneDefinition(definition WidgetDefinition) WidgetDefinition {
@@ -261,7 +309,25 @@ func validWidgetType(widgetType WidgetType) bool {
 
 func validWidgetSize(size WidgetSize) bool {
 	switch size {
-	case WidgetSizeSmall, WidgetSizeMedium, WidgetSizeLarge, WidgetSizeFull:
+	case WidgetSizeSmall, WidgetSizeMedium, WidgetSizeLarge:
+		return true
+	default:
+		return false
+	}
+}
+
+func validWidgetCategory(category WidgetCategory) bool {
+	switch category {
+	case WidgetCategorySystem, WidgetCategorySecurity, WidgetCategoryOperation, WidgetCategoryBusiness:
+		return true
+	default:
+		return false
+	}
+}
+
+func validWidgetPriority(priority WidgetPriority) bool {
+	switch priority {
+	case WidgetPriorityCritical, WidgetPriorityWarning, WidgetPriorityNormal, WidgetPriorityInfo:
 		return true
 	default:
 		return false

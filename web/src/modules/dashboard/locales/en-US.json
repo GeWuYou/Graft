@@ -1,16 +1,29 @@
 {
   "dashboard": {
     "actions": {
+      "details": "View Details",
       "open": "Open",
       "refresh": "Refresh",
       "retry": "Retry"
     },
     "alert": {
+      "count": "{count} Times",
+      "known": {
+        "tokenExpired": "Token Expired"
+      },
+      "latestAt": "Latest: {time}",
       "level": {
         "error": "Error",
         "info": "Info",
         "warning": "Warning"
       }
+    },
+    "category": {
+      "business": "Business",
+      "count": "{count} Widgets",
+      "operation": "Operations",
+      "security": "Security",
+      "system": "System"
     },
     "empty": "No Dashboard data",
     "error": {
@@ -21,20 +34,30 @@
       "degraded": "Degraded",
       "disabled": "Disabled",
       "healthy": "Healthy",
+      "summaryHealthy": "Health checks passed with no details requiring attention.",
+      "summaryHealthyWithCounts": "{healthy} modules running, {attention} modules need attention.",
       "unknown": "Unknown"
     },
     "loading": "Loading Dashboard",
     "page": {
       "description": "Review the system summary and authorized module-contributed workspace widgets.",
       "eyebrow": "Workspace",
+      "lastUpdated": "Last Updated: {time}",
       "title": "Workspace"
     },
     "quickActions": {
       "description": "Entries available to current permissions",
+      "drawerTitle": "All Quick Actions",
       "empty": "No Quick Actions Available",
-      "title": "Quick Actions"
+      "title": "Quick Actions",
+      "viewAll": "View All {count}"
     },
     "systemSummary": {
+      "abnormalServices": {
+        "description": "Services that currently need attention",
+        "label": "Abnormal Services",
+        "value": "{count}"
+      },
       "currentUser": {
         "label": "Current User"
       },
@@ -42,15 +65,27 @@
         "description": "Current runtime environment",
         "label": "Environment"
       },
+      "eyebrow": "Today Overview",
+      "failedTasks": {
+        "description": "Tasks whose latest run failed",
+        "label": "Failed Tasks",
+        "value": "{count}"
+      },
+      "highRiskEvents": {
+        "description": "High-risk events in the last 24 hours",
+        "label": "High-risk Events",
+        "value": "{count}"
+      },
       "locale": {
         "description": "Fallback locale {fallback}",
         "label": "Locale"
       },
       "modules": {
         "description": "{total} total modules, {degraded} need attention",
-        "label": "Enabled Modules"
+        "label": "Module Runtime",
+        "value": "{count} Running"
       },
-      "title": "System Summary",
+      "title": "Today Overview",
       "widgets": {
         "description": "Widgets visible to current permissions",
         "label": "Visible Widgets"
@@ -68,9 +103,11 @@
         "description": "Recent high-risk audit and security events.",
         "empty": "No audit risk events in the last 24 hours",
         "failedOperations": {
+          "description": "Failed operations need review",
           "title": "Failed Operations"
         },
         "highRisk": {
+          "description": "High-risk events in the last 24 hours",
           "title": "High-risk Audit Events"
         },
         "recent": {
@@ -85,17 +122,44 @@
       "invalidPayload": "Widget data is unavailable",
       "monitorSystemHealth": {
         "anomalies": "Anomalies",
+        "anomaliesDescription": "No active anomalies in the monitor window",
         "database": "Database",
+        "databaseDegradedDescription": "Database checks need attention",
+        "databaseDisabledDescription": "Database checks are disabled",
+        "databaseHealthyDescription": "Database ping succeeded",
+        "databaseUnknownDescription": "Database status is unknown",
+        "databasePingSucceeded": "Database ping succeeded",
         "description": "Database, cache, and system anomaly health.",
+        "moduleHealth": "Module Health",
+        "noData": "No Data",
         "redis": "Redis",
+        "redisDegradedDescription": "Redis checks need attention",
+        "redisDisabledDescription": "Redis checks are disabled",
+        "redisHealthyDescription": "Redis ping succeeded",
+        "redisUnknownDescription": "Redis status is unknown",
+        "redisPingSucceeded": "Redis ping succeeded",
         "summary": "System Health Summary",
         "title": "System Health"
+      },
+      "moduleRuntimeHealth": {
+        "description": "Current module runtime health.",
+        "runtimeStatus": {
+          "degraded": "Module needs attention",
+          "disabled": "Module is disabled",
+          "registered": "Module is running",
+          "unknown": "Module status is unknown"
+        },
+        "summary": "Module Health",
+        "title": "Module Runtime"
       },
       "schedulerTaskAttention": {
         "description": "Failed, running, and disabled tasks that need operator attention.",
         "disabled": "Disabled Tasks",
+        "disabledDescription": "Tasks disabled from execution",
         "failed": "Failed Tasks",
+        "failedDescription": "Last run failed",
         "running": "Running Tasks",
+        "runningDescription": "Currently executing tasks",
         "title": "Scheduled Task Attention"
       },
       "status": {
@@ -103,7 +167,33 @@
         "error": "Error",
         "normal": "Normal",
         "warning": "Warning"
+      },
+      "priority": {
+        "critical": "Critical",
+        "info": "Info",
+        "normal": "Normal",
+        "warning": "Warning"
+      },
+      "state": {
+        "critical": "Critical",
+        "hidden": "Hidden",
+        "normal": "Normal",
+        "warning": "Attention"
       }
+    },
+    "module": {
+      "access-log": "Access Log",
+      "app-log": "App Log",
+      "audit": "Audit",
+      "core": "Core",
+      "core_httpx": "Access Log",
+      "core_logger": "App Log",
+      "dashboard": "Dashboard",
+      "monitor": "Monitor",
+      "rbac": "RBAC",
+      "scheduled-task": "Scheduled Task",
+      "system-config": "System Config",
+      "user": "User"
     }
   }
 }

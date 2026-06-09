@@ -1,2 +1,2 @@
 type: string
-enum: [small, medium, large, full]
+enum: [small, medium, large]

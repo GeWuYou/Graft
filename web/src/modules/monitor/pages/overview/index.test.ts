@@ -125,6 +125,10 @@ const translations = vi.hoisted(
     'monitor.serverStatus.openAuditEvidence': 'Open audit evidence',
     'monitor.serverStatus.auditEvidenceUnavailable': 'Audit evidence is unavailable for this anomaly.',
     'monitor.serverStatus.runtimeStatusDependenciesTitle': 'Dependencies',
+    'monitor.serverStatus.dependencyPoolLabel': 'Pool',
+    'monitor.serverStatus.dependencyPoolDetail': 'In use {inUse} · Idle {idle} · Open {open} · Max {capacity}',
+    'monitor.serverStatus.dependencyPoolUsageLabel': '{label} pool',
+    'monitor.serverStatus.dependencyPoolUsageTooltip': '{label} pool {value} · usage {percent}',
     'monitor.serverStatus.runtimeStatusProcessTitle': 'Process summary',
     'monitor.serverStatus.runtimeStatusSamplingTitle': 'Sampling status',
     'monitor.serverStatus.runtimeStatusUptimeLabel': 'Uptime',
@@ -155,8 +159,8 @@ const translations = vi.hoisted(
     'monitor.serverStatus.referenceCoreCountValue': 'Reference: {count} cores',
     'monitor.serverStatus.referenceCoreCountMark': 'Ref {count} cores',
     'monitor.serverStatus.metricLoadLabel': 'Load',
-    'monitor.serverStatus.metricLoadValueSide': '1 min avg',
-    'monitor.serverStatus.metricLoadMeta': '5m {five} · 15m {fifteen}',
+    'monitor.serverStatus.metricLoadValueSide': '1m Load',
+    'monitor.serverStatus.metricLoadMeta': '1m Load {load} / {cores} Core · Capacity usage {percent}',
     'monitor.serverStatus.metricLoadStatusHealthy': 'Healthy',
     'monitor.serverStatus.metricLoadStatusWarning': 'Elevated',
     'monitor.serverStatus.metricLoadStatusCritical': 'High',
@@ -173,7 +177,7 @@ const translations = vi.hoisted(
     'monitor.serverStatus.metricCpuDescriptionWarning': 'CPU usage is within the normal range',
     'monitor.serverStatus.metricCpuDescriptionCritical': 'CPU usage is high',
     'monitor.serverStatus.metricMemoryLabel': 'Memory',
-    'monitor.serverStatus.metricMemoryValue': '{used} / {total}',
+    'monitor.serverStatus.metricMemoryValue': 'Used {used} / Total {total}',
     'monitor.serverStatus.metricMemoryMeta': 'Available {available}',
     'monitor.serverStatus.metricMemoryStatusHealthy': 'Sufficient',
     'monitor.serverStatus.metricMemoryStatusWarning': 'Normal',
@@ -182,7 +186,7 @@ const translations = vi.hoisted(
     'monitor.serverStatus.metricMemoryDescriptionWarning': 'Memory usage is normal',
     'monitor.serverStatus.metricMemoryDescriptionCritical': 'Memory pressure is elevated',
     'monitor.serverStatus.metricDiskLabel': 'Disk',
-    'monitor.serverStatus.metricDiskValue': '{used} / {total}',
+    'monitor.serverStatus.metricDiskValue': 'Used {used} / Total {total}',
     'monitor.serverStatus.metricDiskMeta': 'Mount {path} · {free} free',
     'monitor.serverStatus.metricDiskStatusHealthy': 'Sufficient',
     'monitor.serverStatus.metricDiskStatusWarning': 'Normal',
@@ -520,11 +524,24 @@ function createServerStatusResponse() {
         status: 'healthy',
         detail: 'Database ping succeeded',
         latency_ms: 2.15,
+        pool: {
+          capacity: 25,
+          max_active_connections: 25,
+          open_connections: 8,
+          in_use_connections: 3,
+          idle_connections: 5,
+          usage_percent: 12,
+          wait_count: 0,
+          wait_duration_ms: 0,
+          timeout_count: 0,
+          stale_count: 1,
+        },
       },
       redis: {
         status: 'disabled',
         detail: 'Redis client is not configured',
         latency_ms: null,
+        pool: undefined,
       },
     },
     summary: {
@@ -670,6 +687,12 @@ function metricUsageBar(wrapper: VueWrapper, key: string) {
   return wrapper.find(`[data-card-key="${key}"] [data-usage-status]`);
 }
 
+function dependencyPoolUsageBar(wrapper: VueWrapper, key: string) {
+  return wrapper.find(
+    `[data-status-sidebar-group="dependencies"] [data-status="${key}"] [data-dependency-pool="true"] [data-usage-status]`,
+  );
+}
+
 function sidebarGroupText(wrapper: VueWrapper, key: string) {
   return wrapper.find(`[data-status-sidebar-group="${key}"]`).text();
 }
@@ -743,7 +766,7 @@ describe('MonitorPage', () => {
     expect(wrapper.text()).toContain('0.42');
     expect(wrapper.text()).toContain('21%');
     expect(wrapper.text()).toContain('47%');
-    expect(wrapper.text()).toContain('15.1 GB / 32.0 GB');
+    expect(wrapper.text()).toContain('Used 15.1 GB / Total 32.0 GB');
     expect(wrapper.text()).not.toContain('RAM');
     expect(wrapper.text()).toContain('Runtime Summary');
     expect(wrapper.text()).toContain('Runtime status');
@@ -787,8 +810,8 @@ describe('MonitorPage', () => {
     expect(diskUsageBar.attributes('data-usage-percent')).toBe('18.99');
 
     expect(loadCardText).toContain('Healthy');
-    expect(loadCardText).toContain('1 min avg');
-    expect(loadCardText).toContain('5m 0.35 · 15m 0.29');
+    expect(loadCardText).toContain('1m Load');
+    expect(loadCardText).toContain('1m Load 0.42 / 8 Core · Capacity usage 5.25%');
     expect(loadCardText).toContain('System load is low');
 
     expect(cpuCardText).toContain('Normal');
@@ -799,7 +822,7 @@ describe('MonitorPage', () => {
 
     expect(memoryCardText).toContain('Sufficient');
     expect(memoryCardText).toContain('47%');
-    expect(memoryCardText).toContain('15.1 GB / 32.0 GB');
+    expect(memoryCardText).toContain('Used 15.1 GB / Total 32.0 GB');
     expect(memoryCardText).toContain('Available 16.9 GB');
     expect(memoryCardText).toContain('Server memory is sufficient');
     expect(memoryCardText).not.toContain('Runtime sys');
@@ -807,7 +830,7 @@ describe('MonitorPage', () => {
 
     expect(diskCardText).toContain('Sufficient');
     expect(diskCardText).toContain('19%');
-    expect(diskCardText).toContain('11.8 GB / 59.9 GB');
+    expect(diskCardText).toContain('Used 11.8 GB / Total 59.9 GB');
     expect(diskCardText).toContain('Mount / · 48.1 GB free');
     expect(diskCardText).toContain('Disk capacity is sufficient');
     expect(diskCardText).not.toContain('Root partition ·');
@@ -821,6 +844,11 @@ describe('MonitorPage', () => {
     expect(sidebarGroupText(wrapper, 'dependencies')).toContain('PostgreSQL');
     expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Healthy');
     expect(sidebarGroupText(wrapper, 'dependencies')).toContain('2.15 ms');
+    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Pool');
+    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('3 / 25');
+    expect(sidebarGroupText(wrapper, 'dependencies')).toContain('In use 3 · Idle 5 · Open 8 · Max 25');
+    expect(dependencyPoolUsageBar(wrapper, 'healthy').attributes('data-usage-status')).toBe('healthy');
+    expect(dependencyPoolUsageBar(wrapper, 'healthy').attributes('data-usage-percent')).toBe('12.00');
     expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Redis');
     expect(sidebarGroupText(wrapper, 'dependencies')).toContain('Disabled');
     expect(sidebarGroupText(wrapper, 'dependencies')).toContain('No latency sample');
@@ -1011,7 +1039,54 @@ describe('MonitorPage', () => {
     expect(metricCardText(wrapper, 'cpu')).toContain('0%');
     expect(cpuUsageBar.attributes('data-usage-status')).toBe('healthy');
     expect(cpuUsageBar.attributes('data-usage-percent')).toBe('0.00');
-    expect(cpuUsageBar.find('.metric-usage-bar__fill').attributes('style')).toContain('width: 0%');
+    expect(cpuUsageBar.find('.metric-usage-bar__fill').attributes('style')).toContain('width: max(6px, 10%)');
+  });
+
+  it('renders adapter-normalized CPU percent without leaking out-of-range raw values into charts', async () => {
+    const response = createServerStatusResponse();
+    response.anomalies = [];
+    response.trend.points = response.trend.points.map((point, index) => ({
+      ...point,
+      cpu_percent: index === 0 ? 97.3 : 100,
+    }));
+    monitorApiMocks.getServerStatus.mockResolvedValue(response);
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+    await nextTick();
+
+    const cpuUsageBar = metricUsageBar(wrapper, 'cpu');
+    expect(cpuUsageBar.attributes('data-usage-percent')).toBe('100.00');
+    expect(cpuUsageBar.attributes('title')).toContain('CPU current usage 100.0%');
+    expect(cpuUsageBar.attributes('title')).not.toContain('104.6%');
+    expect(wrapper.text()).not.toContain('104.6%');
+
+    const overviewOptions = chartMocks.setOption.mock.calls.map((call) => call[0]) as Array<{
+      series?: Array<{ name: string; data: number[] }>;
+      yAxis?: Array<{ name?: string; max?: number }>;
+      tooltip?: {
+        formatter?: (
+          params: Array<{ axisValueLabel: string; seriesName: string; color: string; data: number }>,
+        ) => string;
+      };
+    }>;
+
+    const usageOption = overviewOptions.find((item) => item.series?.some((series) => series.name === 'CPU usage'));
+    expect(usageOption?.series?.find((series) => series.name === 'CPU usage')?.data).toEqual([97.3, 100]);
+    expect(usageOption?.yAxis?.[0]?.name).toBe('%');
+    expect(usageOption?.yAxis?.[0]?.max).toBe(100);
+
+    const usageTooltip = usageOption?.tooltip?.formatter?.([
+      { axisValueLabel: '09:00', seriesName: 'CPU usage', color: '#2F6BFF', data: 100 },
+    ]);
+    expect(usageTooltip).toContain('100.0%');
+    expect(usageTooltip).not.toContain('104.6%');
+
+    const loadOption = overviewOptions.find((item) => item.series?.some((series) => series.name === '1m load average'));
+    expect(loadOption?.series).toHaveLength(1);
+    expect(loadOption?.series?.[0]?.data).toEqual([0.39, 0.42]);
+    expect(loadOption?.yAxis?.[0]?.name).toBe('Load');
+    expect(loadOption?.series?.some((series) => series.name === 'CPU usage')).toBe(false);
   });
 
   it('supports focus and multi trend modes with grouped metrics and dedicated legends', async () => {

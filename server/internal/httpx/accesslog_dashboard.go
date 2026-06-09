@@ -10,10 +10,14 @@ const (
 	// AccessLogDashboardWidgetID identifies the core-owned access-log dashboard insight.
 	AccessLogDashboardWidgetID = "core.httpx.access-log.request-attention"
 	// AccessLogDashboardWidgetOrder keeps access-log attention after module health widgets.
-	AccessLogDashboardWidgetOrder   = 130
-	accessLogSlowRequestThresholdMS = int64(1000)
-	accessLogWidgetRecentLimit      = 2
-	accessLogWidgetSourceCount      = 2
+	AccessLogDashboardWidgetOrder = 130
+	// AccessLogDashboardQuickLinkID identifies the access-log dashboard quick entry.
+	AccessLogDashboardQuickLinkID = "core.httpx.access-log"
+	// AccessLogDashboardQuickLinkOrder places the access-log entry with log-center quick links.
+	AccessLogDashboardQuickLinkOrder = 210
+	accessLogSlowRequestThresholdMS  = int64(1000)
+	accessLogWidgetRecentLimit       = 2
+	accessLogWidgetSourceCount       = 2
 )
 
 // AccessLogDashboardModuleKey returns the core system-capability owner for access-log dashboard data.
@@ -24,6 +28,11 @@ func AccessLogDashboardModuleKey() string {
 // AccessLogDashboardRouteLocation returns the canonical access-log explorer route.
 func AccessLogDashboardRouteLocation() string {
 	return accessLogMenuListPath
+}
+
+// AccessLogDashboardTitleKey returns the access-log explorer title message key.
+func AccessLogDashboardTitleKey() string {
+	return "menu.accessLog.title"
 }
 
 // LoadAccessLogRequestAttentionPayload returns access-log attention data without depending on dashboard internals.
@@ -56,10 +65,27 @@ func LoadAccessLogRequestAttentionPayload(ctx context.Context, repo AccessLogRep
 		items = append(items, accessLogAlertItem("slow", record, "Slow HTTP request", "warning"))
 	}
 
+	visible := len(items) > 0
+	state := "hidden"
+	priority := "warning"
+	if visible {
+		state = "warning"
+	}
+	for _, item := range items {
+		if item["level"] == "error" {
+			state = "critical"
+			priority = "critical"
+			break
+		}
+	}
+
 	return map[string]any{
 		"items":     items,
 		"empty_key": "dashboard.widget.accessLogRequestAttention.empty",
 		"empty":     "No recent error or slow requests.",
+		"visible":   visible,
+		"state":     state,
+		"priority":  priority,
 	}, nil
 }
 

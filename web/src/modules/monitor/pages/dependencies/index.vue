@@ -13,14 +13,18 @@
         :min-height="380"
       >
         <div class="server-status-dependency-grid">
-          <dependency-status-card
+          <dependency-health-card
             v-for="service in serviceCards"
             :key="service.key"
-            :title="service.title"
-            :description="service.subtitle"
+            :service-key="service.key"
+            :title="service.name"
+            :description="service.description"
             :status="service.status"
             :status-label="service.statusLabel"
-            :items="service.fields"
+            :primary-metric="service.primaryMetric"
+            :pool="service.pool"
+            :diagnostics-title="service.diagnostics.title"
+            @show-diagnostics="showDiagnostics(service)"
           />
         </div>
       </section-card>
@@ -44,13 +48,24 @@
         </div>
       </section-card>
     </div>
+
+    <dependency-diagnostic-drawer
+      v-model:visible="diagnosticDrawerVisible"
+      :title="diagnosticDrawerTitle"
+      :diagnostics="selectedDependency?.diagnostics ?? null"
+    />
   </monitor-status-page-frame>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import DependencyStatusCard from '../../components/DependencyStatusCard.vue';
+import DependencyDiagnosticDrawer from '../../components/DependencyDiagnosticDrawer.vue';
+import DependencyHealthCard, {
+  type DependencyHealthDiagnostics,
+  type DependencyHealthMetric,
+  type DependencyHealthPool,
+} from '../../components/DependencyHealthCard.vue';
 import MonitorStatusPageFrame from '../../components/MonitorStatusPageFrame.vue';
 import SectionCard from '../../components/SectionCard.vue';
 import { type ServerStatusTone } from '../../components/server-status-ui';
@@ -58,29 +73,36 @@ import StatusTag from '../../components/StatusTag.vue';
 import type { MonitorRefreshInterval } from '../../contract/refresh';
 import { buildStandardMonitorStatusFrameProps } from '../../shared/frame-props';
 import {
+  formatDependencyPoolUsage,
+  formatPoolCount,
+  poolUsagePercent,
+  poolUsageStatus,
+} from '../../shared/pool-metrics';
+import {
   displayText,
   formatLatency,
+  formatPoolWait,
   formatTimestamp,
   normalizeDependencyStatus,
   useServerStatusSnapshot,
 } from '../../shared/server-status-snapshot';
 import { formatDateOnly, formatTimeOnly } from '../../shared/time-display';
+import type { ServerStatusConnectionPool, ServerStatusDependency } from '../../types/server-status';
 
 type DependencyCard = {
   key: string;
-  title: string;
-  subtitle: string;
+  name: string;
+  description: string;
   status: ServerStatusTone;
   statusLabel: string;
-  fields: Array<{
-    key: string;
-    label: string;
-    value: string;
-    description: string;
-  }>;
+  primaryMetric: DependencyHealthMetric;
+  pool: DependencyHealthPool;
+  diagnostics: DependencyHealthDiagnostics;
 };
 
 const { t } = useI18n();
+const diagnosticDrawerVisible = ref(false);
+const selectedDependencyKey = ref<string | null>(null);
 /* jscpd:ignore-start */
 // 这里保留页面本地 snapshot 解构，避免为压低重复率再抽一层“万能页面上下文”。
 // 若未来删除或改造该代码，必须同步移除对应 jscpd ignore，重新评估是否仍需保留本地解构。
@@ -182,24 +204,38 @@ const serviceCards = computed<DependencyCard[]>(() => {
   return [
     buildServiceCard({
       key: 'postgresql',
-      title: t('monitor.serverStatus.postgresqlLabel'),
-      subtitle: t('monitor.dependenciesPage.postgresqlSubtitle'),
+      name: t('monitor.serverStatus.postgresqlLabel'),
+      description: t('monitor.dependenciesPage.postgresqlSubtitle'),
       status: toServerStatusTone(normalizeDependencyStatus(database?.status)),
       latency: database?.latency_ms,
+      pool: database?.pool,
       checkedAt: observedLabel,
       detail: database?.detail,
     }),
     buildServiceCard({
       key: 'redis',
-      title: t('monitor.serverStatus.redisLabel'),
-      subtitle: t('monitor.dependenciesPage.redisSubtitle'),
+      name: t('monitor.serverStatus.redisLabel'),
+      description: t('monitor.dependenciesPage.redisSubtitle'),
       status: toServerStatusTone(normalizeDependencyStatus(redis?.status)),
       latency: redis?.latency_ms,
+      pool: redis?.pool,
       checkedAt: observedLabel,
       detail: redis?.detail,
     }),
   ];
 });
+
+const diagnosticDrawerTitle = computed(() => {
+  if (!selectedDependency.value) {
+    return t('monitor.dependenciesPage.diagnostics.title');
+  }
+
+  return `${selectedDependency.value.name} ${selectedDependency.value.diagnostics.title}`;
+});
+
+const selectedDependency = computed(
+  () => serviceCards.value.find((service) => service.key === selectedDependencyKey.value) ?? null,
+);
 
 const overallDependencyStatus = computed<ServerStatusTone>(() => {
   const statuses = serviceCards.value.map((service) => service.status);
@@ -225,49 +261,141 @@ const overallDependencyStatus = computed<ServerStatusTone>(() => {
 
 function buildServiceCard(options: {
   key: string;
-  title: string;
-  subtitle: string;
+  name: string;
+  description: string;
   status: ServerStatusTone;
   latency?: number | null;
+  pool?: ServerStatusDependency['pool'] | null;
   checkedAt: string;
   detail?: string;
 }): DependencyCard {
   return {
     key: options.key,
-    title: options.title,
-    subtitle: options.subtitle,
+    name: options.name,
+    description: options.description,
     status: options.status,
     statusLabel: dependencyStatusLabel(options.status),
-    fields: [
+    primaryMetric: {
+      label: t('monitor.dependenciesPage.fields.latency'),
+      value: formatLatency(options.latency),
+      description: t('monitor.dependenciesPage.fieldDescriptions.latency'),
+    },
+    pool: buildPoolView(options.name, options.pool),
+    diagnostics: buildDiagnosticsView(options.status, options.pool, options.checkedAt, options.detail),
+  };
+}
+
+function buildPoolView(label: string, pool?: ServerStatusConnectionPool | null): DependencyHealthPool {
+  const usagePercent = pool ? poolUsagePercent(pool) : null;
+  const usageText = pool ? formatDependencyPoolUsage(pool, emptyMetricText()) : emptyMetricText();
+  const usagePercentText = formatPoolPercent(usagePercent);
+
+  return {
+    title: t('monitor.dependenciesPage.pool.title'),
+    stateTitle: t('monitor.dependenciesPage.pool.stateTitle'),
+    usageText,
+    usagePercent,
+    usagePercentText,
+    usageStatus: poolUsageStatus(usagePercent),
+    usageLabel: t('monitor.dependenciesPage.pool.usageLabel', { label }),
+    usageTooltip: t('monitor.dependenciesPage.pool.usageTooltip', {
+      label,
+      value: usageText,
+      percent: usagePercentText,
+    }),
+    summary: poolUsageSummary(usagePercent),
+    emptyText: emptyMetricText(),
+    items: [
       {
-        key: 'latency',
-        label: t('monitor.dependenciesPage.fields.latency'),
-        value: formatLatency(options.latency),
-        description: t('monitor.dependenciesPage.fieldDescriptions.latency'),
+        key: 'inUse',
+        label: t('monitor.dependenciesPage.pool.inUse'),
+        value: formatPoolCount(pool?.in_use_connections, emptyMetricText()),
+      },
+      {
+        key: 'idle',
+        label: t('monitor.dependenciesPage.pool.idle'),
+        value: formatPoolCount(pool?.idle_connections, emptyMetricText()),
+      },
+      {
+        key: 'open',
+        label: t('monitor.dependenciesPage.pool.open'),
+        value: formatPoolCount(pool?.open_connections, emptyMetricText()),
+      },
+      {
+        key: 'capacity',
+        label: t('monitor.dependenciesPage.pool.capacity'),
+        value: formatPoolCount(pool?.capacity, emptyMetricText()),
+      },
+    ],
+  };
+}
+
+function buildDiagnosticsView(
+  status: ServerStatusTone,
+  pool: ServerStatusConnectionPool | null | undefined,
+  checkedAt: string,
+  detail?: string,
+): DependencyHealthDiagnostics {
+  return {
+    title: t('monitor.dependenciesPage.diagnostics.title'),
+    items: [
+      {
+        key: 'poolWait',
+        label: t('monitor.dependenciesPage.fields.poolWait'),
+        value: formatPoolWait(pool),
+      },
+      {
+        key: 'timeoutCount',
+        label: t('monitor.dependenciesPage.fields.timeoutCount'),
+        value: formatPoolCount(pool?.timeout_count, emptyMetricText()),
+      },
+      {
+        key: 'staleCount',
+        label: t('monitor.dependenciesPage.fields.staleCount'),
+        value: formatPoolCount(pool?.stale_count, emptyMetricText()),
       },
       {
         key: 'checkedAt',
         label: t('monitor.dependenciesPage.fields.checkedAt'),
-        value: options.checkedAt,
-        description: t('monitor.dependenciesPage.fieldDescriptions.checkedAt'),
+        value: checkedAt,
       },
       {
         key: 'errorInfo',
         label: t('monitor.dependenciesPage.fields.errorInfo'),
-        value:
-          options.status === 'error' || options.status === 'unknown'
-            ? displayText(options.detail)
-            : t('monitor.dependenciesPage.noError'),
-        description: t('monitor.dependenciesPage.fieldDescriptions.errorInfo'),
+        value: status === 'error' || status === 'unknown' ? displayText(detail) : t('monitor.dependenciesPage.noError'),
       },
       {
         key: 'detail',
         label: t('monitor.dependenciesPage.fields.detail'),
-        value: displayText(options.detail),
-        description: t('monitor.dependenciesPage.fieldDescriptions.detail'),
+        value: displayText(detail),
       },
     ],
   };
+}
+
+function poolUsageSummary(percent: number | null) {
+  switch (poolUsageStatus(percent)) {
+    case 'danger':
+      return t('monitor.dependenciesPage.pool.riskCritical');
+    case 'warning':
+      return t('monitor.dependenciesPage.pool.riskWarning');
+    case 'healthy':
+      return t('monitor.dependenciesPage.pool.riskHealthy');
+    default:
+      return t('monitor.dependenciesPage.pool.riskUnknown');
+  }
+}
+
+function formatPoolPercent(percent: number | null) {
+  if (percent === null || Number.isNaN(percent)) {
+    return emptyMetricText();
+  }
+
+  return `${percent.toFixed(0)}%`;
+}
+
+function emptyMetricText() {
+  return t('monitor.serverStatus.metricUsageNoData');
 }
 
 function dependencyStatusLabel(status: ServerStatusTone) {
@@ -299,6 +427,11 @@ function toServerStatusTone(status: ReturnType<typeof normalizeDependencyStatus>
 function handleRefreshIntervalChange(value: number | string) {
   selectedRefreshInterval.value = value as MonitorRefreshInterval;
 }
+
+function showDiagnostics(service: DependencyCard) {
+  selectedDependencyKey.value = service.key;
+  diagnosticDrawerVisible.value = true;
+}
 </script>
 <style scoped lang="less">
 .server-status-dependencies-layout {
@@ -316,6 +449,7 @@ function handleRefreshIntervalChange(value: number | string) {
 }
 
 .server-status-dependency-grid {
+  align-items: stretch;
   display: grid;
   gap: var(--graft-density-gap-16);
   grid-template-columns: repeat(2, minmax(0, 1fr));

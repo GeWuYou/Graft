@@ -224,6 +224,118 @@ func TestServiceReportsCanceledLoaderContextWithoutTimeout(t *testing.T) {
 	}
 }
 
+func TestServiceHidesWidgetsWithHiddenState(t *testing.T) {
+	t.Parallel()
+
+	registry := NewRegistry()
+	mustRegisterWidget(t, registry, WidgetDefinition{
+		ID:        "scheduler.empty",
+		ModuleKey: "scheduler",
+		Type:      WidgetTypeStatGroup,
+		Size:      WidgetSizeMedium,
+		Loader: WidgetLoaderFunc(func(context.Context, WidgetRequest) (WidgetPayload, error) {
+			return WidgetPayload{"items": []map[string]any{}, "visible": false, "state": string(WidgetStateHidden)}, nil
+		}),
+	})
+	mustRegisterWidget(t, registry, WidgetDefinition{
+		ID:        "monitor.health",
+		ModuleKey: "monitor",
+		Type:      WidgetTypeHealth,
+		Size:      WidgetSizeMedium,
+		Loader:    noopLoader(),
+	})
+
+	summary := NewService(ServiceOptions{Registry: registry}).Summary(context.Background(), testRequestAuth())
+	if len(summary.Widgets) != 1 || summary.Widgets[0].Id != "monitor.health" {
+		t.Fatalf("expected hidden widget to be omitted, got %#v", summary.Widgets)
+	}
+	if summary.SystemSummary.VisibleWidgets != 1 {
+		t.Fatalf("expected visible widget count 1, got %#v", summary.SystemSummary.VisibleWidgets)
+	}
+}
+
+func TestServiceSortsWidgetsByPriorityBeforeOrder(t *testing.T) {
+	t.Parallel()
+
+	registry := NewRegistry()
+	mustRegisterWidget(t, registry, WidgetDefinition{
+		ID:        "monitor.health",
+		ModuleKey: "monitor",
+		Type:      WidgetTypeHealth,
+		Size:      WidgetSizeMedium,
+		Priority:  WidgetPriorityInfo,
+		Order:     1,
+		Loader:    noopLoader(),
+	})
+	mustRegisterWidget(t, registry, WidgetDefinition{
+		ID:        "audit.risk",
+		ModuleKey: "audit",
+		Type:      WidgetTypeAlertList,
+		Size:      WidgetSizeMedium,
+		Priority:  WidgetPriorityNormal,
+		Order:     100,
+		Loader: WidgetLoaderFunc(func(context.Context, WidgetRequest) (WidgetPayload, error) {
+			return WidgetPayload{"items": []map[string]any{}, "state": string(WidgetStateCritical)}, nil
+		}),
+	})
+
+	widgets := NewService(ServiceOptions{Registry: registry}).Summary(context.Background(), testRequestAuth()).Widgets
+	if got := []string{widgets[0].Id, widgets[1].Id}; got[0] != "audit.risk" || got[1] != "monitor.health" {
+		t.Fatalf("unexpected priority order: %#v", got)
+	}
+	if string(widgets[0].Priority) != string(WidgetPriorityCritical) {
+		t.Fatalf("expected critical priority override, got %#v", widgets[0].Priority)
+	}
+}
+
+func TestServiceBuildsFrameworkFieldsAndSummaryMetrics(t *testing.T) {
+	t.Parallel()
+
+	registry := NewRegistry()
+	mustRegisterWidget(t, registry, WidgetDefinition{
+		ID:        "scheduler.attention",
+		ModuleKey: "scheduler",
+		Type:      WidgetTypeStatGroup,
+		Size:      WidgetSizeMedium,
+		Category:  WidgetCategoryOperation,
+		Priority:  WidgetPriorityWarning,
+		Order:     20,
+		Action: WidgetAction{
+			LabelKey: "dashboard.actions.details",
+			Label:    "View details",
+			Route:    "/scheduler/tasks",
+		},
+		Loader: WidgetLoaderFunc(func(context.Context, WidgetRequest) (WidgetPayload, error) {
+			return WidgetPayload{
+				"items":             []map[string]any{},
+				"failed_tasks":      2,
+				"high_risk_events":  3,
+				"abnormal_services": 1,
+			}, nil
+		}),
+	})
+
+	summary := NewService(ServiceOptions{Registry: registry}).Summary(context.Background(), testRequestAuth())
+	widget := summary.Widgets[0]
+	if string(widget.Category) != string(WidgetCategoryOperation) || string(widget.Priority) != string(WidgetPriorityWarning) {
+		t.Fatalf("unexpected framework fields: %#v", widget)
+	}
+	if !widget.Visible || string(widget.State) != string(WidgetStateNormal) {
+		t.Fatalf("unexpected visibility state: visible=%v state=%q", widget.Visible, widget.State)
+	}
+	if widget.Action == nil ||
+		widget.Action.LabelKey != "dashboard.actions.details" ||
+		widget.Action.Label != "View details" ||
+		widget.Action.Route != "/scheduler/tasks" {
+		t.Fatalf("unexpected action: %#v", widget.Action)
+	}
+	if summary.SystemSummary.FailedTasks != 2 ||
+		summary.SystemSummary.HighRiskEvents != 3 ||
+		summary.SystemSummary.AbnormalServices != 1 {
+		t.Fatalf("unexpected summary metrics: %#v", summary.SystemSummary)
+	}
+}
+
 func mustRegisterWidget(t *testing.T, registry *Registry, definition WidgetDefinition) {
 	t.Helper()
 	if err := registry.Register(definition); err != nil {

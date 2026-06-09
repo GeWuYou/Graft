@@ -1,0 +1,71 @@
+# Copyright (c) 2025-2026 GeWuYou
+# SPDX-License-Identifier: Apache-2.0
+
+name: CodeQL
+
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "32 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - go
+          - javascript-typescript
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Initialize CodeQL for Go
+        if: matrix.language == 'go'
+        uses: github/codeql-action/init@411bbbe57033eedfc1a82d68c01345aa96c737d7
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+          build-mode: manual
+
+      - name: Initialize CodeQL for JavaScript and TypeScript
+        if: matrix.language == 'javascript-typescript'
+        uses: github/codeql-action/init@411bbbe57033eedfc1a82d68c01345aa96c737d7
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Build Go module for CodeQL
+        if: matrix.language == 'go'
+        working-directory: server
+        run: go build ./...
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@411bbbe57033eedfc1a82d68c01345aa96c737d7
+        with:
+          category: "/language:${{ matrix.language }}"

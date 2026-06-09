@@ -1,16 +1,29 @@
 {
   "dashboard": {
     "actions": {
+      "details": "查看详情",
       "open": "打开",
       "refresh": "刷新",
       "retry": "重试"
     },
     "alert": {
+      "count": "{count} 次",
+      "known": {
+        "tokenExpired": "Token 过期"
+      },
+      "latestAt": "最近时间：{time}",
       "level": {
         "error": "错误",
         "info": "提示",
         "warning": "警告"
       }
+    },
+    "category": {
+      "business": "业务",
+      "count": "{count} 个组件",
+      "operation": "运维关注",
+      "security": "安全",
+      "system": "系统"
     },
     "empty": "暂无 Dashboard 数据",
     "error": {
@@ -21,20 +34,30 @@
       "degraded": "异常",
       "disabled": "停用",
       "healthy": "健康",
+      "summaryHealthy": "健康检查已通过，暂无需要展开的明细。",
+      "summaryHealthyWithCounts": "{healthy} 个模块正常运行，{attention} 个模块需要关注。",
       "unknown": "未知"
     },
     "loading": "正在加载 Dashboard",
     "page": {
       "description": "查看系统摘要和已授权模块贡献的工作台组件。",
       "eyebrow": "工作台",
+      "lastUpdated": "最后更新时间：{time}",
       "title": "工作台"
     },
     "quickActions": {
       "description": "当前权限可用入口",
+      "drawerTitle": "全部快捷入口",
       "empty": "暂无可用快捷入口",
-      "title": "快捷操作"
+      "title": "快捷操作",
+      "viewAll": "查看全部 {count} 个"
     },
     "systemSummary": {
+      "abnormalServices": {
+        "description": "当前需要处理的服务异常",
+        "label": "异常服务",
+        "value": "{count} 个"
+      },
       "currentUser": {
         "label": "当前用户"
       },
@@ -42,15 +65,27 @@
         "description": "当前运行环境",
         "label": "环境"
       },
+      "eyebrow": "今日概况",
+      "failedTasks": {
+        "description": "最近一次执行失败的任务",
+        "label": "失败任务",
+        "value": "{count} 个"
+      },
+      "highRiskEvents": {
+        "description": "过去 24 小时高风险事件",
+        "label": "高风险事件",
+        "value": "{count} 个"
+      },
       "locale": {
         "description": "回退语言 {fallback}",
         "label": "语言"
       },
       "modules": {
         "description": "共 {total} 个模块，{degraded} 个需关注",
-        "label": "启用模块"
+        "label": "模块运行",
+        "value": "{count} 个正常运行"
       },
-      "title": "系统摘要",
+      "title": "今日概况",
       "widgets": {
         "description": "当前权限可见的组件",
         "label": "可见组件"
@@ -68,9 +103,11 @@
         "description": "最近高风险审计和安全事件。",
         "empty": "过去 24 小时暂无审计风险事件",
         "failedOperations": {
+          "description": "失败操作需要复核",
           "title": "失败操作"
         },
         "highRisk": {
+          "description": "过去 24 小时存在高风险事件",
           "title": "高风险审计事件"
         },
         "recent": {
@@ -85,17 +122,44 @@
       "invalidPayload": "组件数据格式不可用",
       "monitorSystemHealth": {
         "anomalies": "异常",
+        "anomaliesDescription": "监控窗口内暂无活跃异常",
         "database": "数据库",
+        "databaseDegradedDescription": "数据库检查需要关注",
+        "databaseDisabledDescription": "数据库检查已停用",
+        "databaseHealthyDescription": "数据库连通性检查通过",
+        "databaseUnknownDescription": "数据库状态未知",
+        "databasePingSucceeded": "数据库连通性检查通过",
         "description": "数据库、缓存和系统异常健康状态。",
+        "moduleHealth": "模块健康",
+        "noData": "暂无数据",
         "redis": "Redis",
+        "redisDegradedDescription": "Redis 检查需要关注",
+        "redisDisabledDescription": "Redis 检查已停用",
+        "redisHealthyDescription": "Redis 连通性检查通过",
+        "redisUnknownDescription": "Redis 状态未知",
+        "redisPingSucceeded": "Redis 连通性检查通过",
         "summary": "系统健康摘要",
         "title": "系统健康"
+      },
+      "moduleRuntimeHealth": {
+        "description": "当前模块运行时健康状态。",
+        "runtimeStatus": {
+          "degraded": "模块需要关注",
+          "disabled": "模块已停用",
+          "registered": "模块正常运行",
+          "unknown": "模块状态未知"
+        },
+        "summary": "模块健康",
+        "title": "模块运行时"
       },
       "schedulerTaskAttention": {
         "description": "需要运维关注的失败、运行中和停用任务。",
         "disabled": "停用任务",
+        "disabledDescription": "存在已停用的任务",
         "failed": "失败任务",
+        "failedDescription": "最近一次运行失败",
         "running": "运行中任务",
+        "runningDescription": "当前有任务正在执行",
         "title": "定时任务关注"
       },
       "status": {
@@ -103,7 +167,33 @@
         "error": "错误",
         "normal": "正常",
         "warning": "警告"
+      },
+      "priority": {
+        "critical": "严重",
+        "info": "信息",
+        "normal": "普通",
+        "warning": "警告"
+      },
+      "state": {
+        "critical": "严重",
+        "hidden": "隐藏",
+        "normal": "正常",
+        "warning": "关注"
       }
+    },
+    "module": {
+      "access-log": "访问日志",
+      "app-log": "应用日志",
+      "audit": "审计",
+      "core": "核心",
+      "core_httpx": "访问日志",
+      "core_logger": "应用日志",
+      "dashboard": "工作台",
+      "monitor": "监控",
+      "rbac": "权限",
+      "scheduled-task": "定时任务",
+      "system-config": "系统配置",
+      "user": "用户"
     }
   }
 }

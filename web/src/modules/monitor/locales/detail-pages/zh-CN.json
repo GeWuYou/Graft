@@ -60,7 +60,7 @@
       "title": "依赖服务",
       "subtitle": "查看 PostgreSQL、Redis 以及未来模块自有依赖检查的健康状态。",
       "serviceListTitle": "依赖服务列表",
-      "noteDescription": "当前页面基于最近一次聚合快照展示依赖状态。后续接入的新服务健康检查也会在这里继续展示。",
+      "noteDescription": "聚焦健康状态、响应耗时、连接池压力与等待情况。后续接入的新服务健康检查也会在这里继续展示。",
       "statusHealthy": "健康",
       "statusAbnormal": "异常",
       "statusNotConfigured": "未配置",
@@ -84,12 +84,35 @@
       },
       "fields": {
         "latency": "响应耗时",
+        "poolUsage": "连接池占用",
+        "poolWait": "连接池等待",
+        "timeoutCount": "等待超时",
+        "staleCount": "连接回收",
         "checkedAt": "最近检测时间",
         "errorInfo": "错误信息",
         "detail": "探测详情"
       },
+      "pool": {
+        "title": "连接池",
+        "stateTitle": "连接池状态",
+        "usageLabel": "{label} 连接池使用率",
+        "usageTooltip": "{label} 连接池 {value} · 使用率 {percent}",
+        "inUse": "使用中",
+        "idle": "空闲",
+        "open": "总连接",
+        "capacity": "最大连接",
+        "riskHealthy": "连接池压力正常",
+        "riskWarning": "连接池接近高水位",
+        "riskCritical": "连接池接近耗尽",
+        "riskUnknown": "连接池数据暂不可用"
+      },
+      "diagnostics": {
+        "title": "高级诊断"
+      },
       "fieldDescriptions": {
         "latency": "最近一次探测的响应耗时。",
+        "poolUsage": "当前借出的连接数与展示容量对比。",
+        "poolWait": "连接池等待次数与累计等待耗时。",
         "checkedAt": "当前暂沿用最新 server-status 聚合快照时间。",
         "errorInfo": "仅在依赖异常或未知时展示最近错误。",
         "detail": "当前后端快照返回的原始探测说明。"

@@ -44,6 +44,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerSystemConfigMenu(ctx.MenuRegistry, moduleID); err != nil {
 		return err
 	}
+	if err := registerSystemConfigDashboardQuickLink(ctx, moduleID); err != nil {
+		return err
+	}
 	if err := ctx.Services.RegisterSingleton((*schedulercore.DefaultConfigResolver)(nil), func(_ container.Resolver) (any, error) {
 		return m.service, nil
 	}); err != nil {

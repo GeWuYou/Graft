@@ -36,7 +36,11 @@ import (
 
 const moduleShutdownTimeout = 5 * time.Second
 const appRuntimeLogComponent = "internal.app.runtime"
-const coreModuleRuntimeHealthWidgetOrder = 10
+const (
+	coreModuleRuntimeHealthWidgetOrder = 10
+	coreModuleRuntimeQuickLinkID       = "core.module-runtime"
+	coreModuleRuntimeQuickLinkOrder    = 105
+)
 
 type runtimeCoreDeps struct {
 	newAccessLogRepository func(*sql.DB) (httpx.AccessLogRepository, error)
@@ -106,6 +110,10 @@ func NewRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
+	if err := runtime.registerCoreConfigDefinitions(); err != nil {
+		return nil, err
+	}
+
 	if err := runtime.registerRetentionJobs(); err != nil {
 		return nil, err
 	}
@@ -127,6 +135,21 @@ func (r *Runtime) registerRetentionJobs() error {
 	if err := r.registerAppLogRetentionJob(); err != nil {
 		_ = r.closeCoreResources()
 		return fmt.Errorf("register app-log retention job: %w", err)
+	}
+	return nil
+}
+
+func (r *Runtime) registerCoreConfigDefinitions() error {
+	if r == nil {
+		return errors.New("runtime is unavailable")
+	}
+	if err := dashboard.RegisterQuickActionsConfigMessages(r.i18n); err != nil {
+		_ = r.closeCoreResources()
+		return fmt.Errorf("register dashboard quick-actions config messages: %w", err)
+	}
+	if err := dashboard.RegisterQuickActionsConfigDefinitions(r.configRegistry); err != nil {
+		_ = r.closeCoreResources()
+		return fmt.Errorf("register dashboard quick-actions config definitions: %w", err)
 	}
 	return nil
 }
@@ -440,37 +463,70 @@ func (r *Runtime) registerCoreDashboardWidgets() error {
 		return errors.New("dashboard registry is unavailable")
 	}
 
+	if err := r.registerCoreModuleRuntimeDashboard(); err != nil {
+		return err
+	}
+	if err := r.registerCoreAccessLogDashboard(); err != nil {
+		return err
+	}
+	if err := r.registerCoreAppLogDashboard(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Runtime) registerCoreModuleRuntimeDashboard() error {
 	if err := r.dashboardRegistry.Register(dashboard.WidgetDefinition{
-		ID:                  "core.module-runtime-health",
-		ModuleKey:           "core",
-		TitleKey:            "monitor.moduleRuntime.title",
-		Title:               "Module Runtime",
-		DescriptionKey:      "monitor.moduleRuntime.subtitle",
-		Description:         "Current module runtime health.",
-		Type:                dashboard.WidgetTypeHealth,
-		Size:                dashboard.WidgetSizeMedium,
-		Order:               coreModuleRuntimeHealthWidgetOrder,
+		ID:             "core.module-runtime-health",
+		ModuleKey:      "core",
+		TitleKey:       "dashboard.widget.moduleRuntimeHealth.title",
+		Title:          "Module Runtime",
+		DescriptionKey: "dashboard.widget.moduleRuntimeHealth.description",
+		Description:    "Current module runtime health.",
+		Type:           dashboard.WidgetTypeHealth,
+		Size:           dashboard.WidgetSizeMedium,
+		Category:       dashboard.WidgetCategorySystem,
+		Priority:       dashboard.WidgetPriorityInfo,
+		Order:          coreModuleRuntimeHealthWidgetOrder,
+		RouteLocation:  moduleruntime.MenuRuntimePath(),
+		Action: dashboard.WidgetAction{
+			LabelKey: "dashboard.actions.details",
+			Label:    "View details",
+			Route:    moduleruntime.MenuRuntimePath(),
+		},
 		RequiredPermissions: []string{moduleruntime.PermissionRead},
 		Loader: dashboard.WidgetLoaderFunc(func(context.Context, dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
 			snapshot := moduleruntime.BuildSnapshot(r.config, r.moduleRuntimeSpecs())
 			items := make([]dashboard.HealthItem, 0, len(snapshot.Items))
 			for _, item := range snapshot.Items {
+				if item.Health == generated.ModuleRuntimeItemHealthHealthy {
+					continue
+				}
 				items = append(items, dashboard.HealthItem{
-					Key:           item.ModuleKey,
-					LabelKey:      "dashboard.widget.moduleRuntimeHealth.item." + item.ModuleKey,
-					Label:         item.ModuleKey,
-					Status:        dashboard.HealthStatus(string(item.Health)),
-					Description:   string(item.RuntimeStatus),
-					RouteLocation: "/server/modules",
+					Key:            item.ModuleKey,
+					LabelKey:       "dashboard.widget.moduleRuntimeHealth.item." + item.ModuleKey,
+					Label:          item.ModuleKey,
+					Status:         dashboard.HealthStatus(string(item.Health)),
+					DescriptionKey: moduleRuntimeStatusDescriptionKey(item.RuntimeStatus),
+					Description:    string(item.RuntimeStatus),
+					RouteLocation:  moduleruntime.MenuRuntimePath(),
 				})
 			}
 
+			abnormalModules := snapshot.Summary.DegradedModules + snapshot.Summary.UnknownModules
 			summaryStatus := dashboard.HealthStatusHealthy
-			if snapshot.Summary.DegradedModules > 0 || snapshot.Summary.UnknownModules > 0 {
+			widgetState := dashboard.WidgetStateNormal
+			widgetPriority := dashboard.WidgetPriorityInfo
+			if abnormalModules > 0 {
 				summaryStatus = dashboard.HealthStatusDegraded
+				widgetState = dashboard.WidgetStateWarning
+				widgetPriority = dashboard.WidgetPriorityWarning
 			}
 			if snapshot.Summary.EnabledModules == 0 && snapshot.Summary.TotalModules > 0 {
 				summaryStatus = dashboard.HealthStatusDisabled
+				widgetState = dashboard.WidgetStateWarning
+				widgetPriority = dashboard.WidgetPriorityWarning
 			}
 
 			return dashboard.WidgetPayload{
@@ -479,25 +535,67 @@ func (r *Runtime) registerCoreDashboardWidgets() error {
 					LabelKey: "dashboard.widget.moduleRuntimeHealth.summary",
 					Label:    "Module health",
 				},
-				"items": items,
+				"items":             items,
+				"healthy_modules":   snapshot.Summary.HealthyModules,
+				"enabled_modules":   snapshot.Summary.EnabledModules,
+				"abnormal_services": abnormalModules,
+				"state":             string(widgetState),
+				"priority":          string(widgetPriority),
 			}, nil
 		}),
 	}); err != nil {
 		return fmt.Errorf("register core dashboard widget: %w", err)
 	}
 
+	if err := r.dashboardRegistry.RegisterQuickLink(dashboard.QuickLinkDefinition{
+		ID:                  coreModuleRuntimeQuickLinkID,
+		ModuleKey:           "core",
+		TitleKey:            moduleruntime.MenuRuntimeTitleKey(),
+		Title:               "Module Runtime",
+		Icon:                "module",
+		RouteLocation:       moduleruntime.MenuRuntimePath(),
+		RequiredPermissions: []string{moduleruntime.PermissionRead},
+		Order:               coreModuleRuntimeQuickLinkOrder,
+	}); err != nil {
+		return fmt.Errorf("register module-runtime dashboard quick link: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Runtime) registerCoreAccessLogDashboard() error {
 	if repo := r.server.AccessLogRepository(); repo != nil {
-		if err := r.dashboardRegistry.Register(dashboard.WidgetDefinition{
-			ID:                  httpx.AccessLogDashboardWidgetID,
+		if err := r.dashboardRegistry.RegisterQuickLink(dashboard.QuickLinkDefinition{
+			ID:                  httpx.AccessLogDashboardQuickLinkID,
 			ModuleKey:           httpx.AccessLogDashboardModuleKey(),
-			TitleKey:            "dashboard.widget.accessLogRequestAttention.title",
-			Title:               "Request Attention",
-			DescriptionKey:      "dashboard.widget.accessLogRequestAttention.description",
-			Description:         "Recent error and slow HTTP requests.",
-			Type:                dashboard.WidgetTypeAlertList,
-			Size:                dashboard.WidgetSizeMedium,
-			Order:               httpx.AccessLogDashboardWidgetOrder,
+			TitleKey:            httpx.AccessLogDashboardTitleKey(),
+			Title:               "Access Logs",
+			Icon:                "search",
 			RouteLocation:       httpx.AccessLogDashboardRouteLocation(),
+			RequiredPermissions: []string{httpx.AccessLogReadPermission},
+			Order:               httpx.AccessLogDashboardQuickLinkOrder,
+		}); err != nil {
+			return fmt.Errorf("register access-log dashboard quick link: %w", err)
+		}
+
+		if err := r.dashboardRegistry.Register(dashboard.WidgetDefinition{
+			ID:             httpx.AccessLogDashboardWidgetID,
+			ModuleKey:      httpx.AccessLogDashboardModuleKey(),
+			TitleKey:       "dashboard.widget.accessLogRequestAttention.title",
+			Title:          "Request Attention",
+			DescriptionKey: "dashboard.widget.accessLogRequestAttention.description",
+			Description:    "Recent error and slow HTTP requests.",
+			Type:           dashboard.WidgetTypeAlertList,
+			Size:           dashboard.WidgetSizeMedium,
+			Category:       dashboard.WidgetCategoryOperation,
+			Priority:       dashboard.WidgetPriorityWarning,
+			Order:          httpx.AccessLogDashboardWidgetOrder,
+			RouteLocation:  httpx.AccessLogDashboardRouteLocation(),
+			Action: dashboard.WidgetAction{
+				LabelKey: "dashboard.actions.details",
+				Label:    "View details",
+				Route:    httpx.AccessLogDashboardRouteLocation(),
+			},
 			RequiredPermissions: []string{httpx.AccessLogReadPermission},
 			Loader: dashboard.WidgetLoaderFunc(func(ctx context.Context, _ dashboard.WidgetRequest) (dashboard.WidgetPayload, error) {
 				return httpx.LoadAccessLogRequestAttentionPayload(ctx, repo)
@@ -506,8 +604,38 @@ func (r *Runtime) registerCoreDashboardWidgets() error {
 			return fmt.Errorf("register access-log dashboard widget: %w", err)
 		}
 	}
-
 	return nil
+}
+
+func (r *Runtime) registerCoreAppLogDashboard() error {
+	if r.appLogRepository != nil {
+		if err := r.dashboardRegistry.RegisterQuickLink(dashboard.QuickLinkDefinition{
+			ID:                  logger.AppLogDashboardQuickLinkID,
+			ModuleKey:           logger.AppLogDashboardModuleKey(),
+			TitleKey:            logger.AppLogDashboardTitleKey(),
+			Title:               "App Logs",
+			Icon:                "file-search",
+			RouteLocation:       logger.AppLogDashboardRouteLocation(),
+			RequiredPermissions: []string{logger.AppLogReadPermission},
+			Order:               logger.AppLogDashboardQuickLinkOrder,
+		}); err != nil {
+			return fmt.Errorf("register app-log dashboard quick link: %w", err)
+		}
+	}
+	return nil
+}
+
+func moduleRuntimeStatusDescriptionKey(status generated.ModuleRuntimeItemRuntimeStatus) string {
+	switch status {
+	case generated.ModuleRuntimeItemRuntimeStatusRegistered:
+		return "dashboard.widget.moduleRuntimeHealth.runtimeStatus.registered"
+	case generated.ModuleRuntimeItemRuntimeStatusDisabled:
+		return "dashboard.widget.moduleRuntimeHealth.runtimeStatus.disabled"
+	case generated.ModuleRuntimeItemRuntimeStatusDegraded:
+		return "dashboard.widget.moduleRuntimeHealth.runtimeStatus.degraded"
+	default:
+		return "dashboard.widget.moduleRuntimeHealth.runtimeStatus.unknown"
+	}
 }
 
 func (r *Runtime) registerDashboardWithAuth(
