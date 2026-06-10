@@ -317,6 +317,53 @@ describe('system config list page', () => {
     expect(wrapper.text()).not.toContain('Number of days notification records should be retained.');
   });
 
+  it('uses item type fallback to render notification boolean config without schema as a switch', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        notificationConfigItem({
+          key: 'notification.enabled',
+          titleKey: 'systemConfig.notification.notification.enabled.title',
+          title: 'Notification enabled',
+          descriptionKey: 'systemConfig.notification.notification.enabled.description',
+          description: 'Whether in-app notifications are enabled.',
+          type: 'boolean',
+          configSchema: {},
+          defaultValue: 'true',
+          effectiveValue: 'true',
+          order: 5100,
+        }),
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test-id="schema-switch"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test-id="schema-input"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('编辑：启用通知');
+    expect(wrapper.text()).toContain('是否启用站内通知功能。');
+    expect(wrapper.text()).not.toContain('Notification enabled');
+  });
+
+  it('localizes root scalar schema labels before falling back to backend schema copy', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findAll('button[data-test-id="edit-button"]')[1].trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test-id="schema-number"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('编辑：最大数量');
+    expect(wrapper.text()).toContain('最大数量');
+    expect(wrapper.text()).toContain('工作台首页默认展示的个性化入口数量。');
+    expect(wrapper.text()).not.toContain('Maximum quick actions');
+    expect(wrapper.text()).not.toContain('Maximum personalized entries shown on the dashboard home page.');
+  });
+
   it('filters the group tree by localized labels and technical keys', async () => {
     apiMocks.getSystemConfigs.mockResolvedValue({
       items: [systemConfigItem(), ...dashboardQuickActionItems()],
@@ -578,9 +625,10 @@ function mountPage() {
           name: 'TInput',
           props: ['modelValue', 'placeholder'],
           emits: ['update:modelValue'],
-          setup(props, { emit }) {
+          setup(props, { attrs, emit }) {
             return () =>
               h('input', {
+                ...attrs,
                 'data-test-id': 'group-search',
                 placeholder: props.placeholder as string,
                 value: props.modelValue as string,
@@ -590,19 +638,36 @@ function mountPage() {
         }),
         TInputNumber: defineComponent({
           name: 'TInputNumber',
-          props: ['suffix'],
+          props: ['suffix', 'modelValue'],
           setup(props) {
-            return () => h('span', props.suffix as string);
+            return () =>
+              h('span', { 'data-test-id': 'schema-number' }, [String(props.modelValue ?? ''), props.suffix as string]);
           },
         }),
         TLoading: textStub('div'),
         TOption: textStub('option'),
         TPopconfirm: textStub('div'),
-        TSelect: textStub('select'),
+        TSelect: defineComponent({
+          name: 'TSelect',
+          setup(_props, { slots }) {
+            return () => h('select', { 'data-test-id': 'schema-select' }, slots.default?.());
+          },
+        }),
         TSpace: textStub('span'),
-        TSwitch: textStub('span'),
+        TSwitch: defineComponent({
+          name: 'TSwitch',
+          props: ['modelValue'],
+          setup(props) {
+            return () => h('span', { 'data-test-id': 'schema-switch' }, String(props.modelValue));
+          },
+        }),
         TTag: textStub('span'),
-        TTextarea: textStub('textarea'),
+        TTextarea: defineComponent({
+          name: 'TTextarea',
+          setup() {
+            return () => h('textarea', { 'data-test-id': 'schema-textarea' });
+          },
+        }),
         TTooltip: defineComponent({
           name: 'TTooltip',
           props: ['content'],

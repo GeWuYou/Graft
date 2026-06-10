@@ -27,6 +27,11 @@ function createTempWebRoot(source: string) {
   return root;
 }
 
+function writeLocaleCatalogs(root: string, messages: string) {
+  writeFileSync(join(root, 'src/modules/demo/locales/en-US.json'), messages);
+  writeFileSync(join(root, 'src/modules/demo/locales/zh-CN.json'), messages);
+}
+
 function writeServerModule(root: string, file: string, source: string) {
   const filePath = join(root, '..', 'server/modules/demo', file);
   mkdirSync(join(root, '..', 'server/modules/demo'), { recursive: true });
@@ -49,6 +54,26 @@ async function runGovernanceScript(source: string) {
 
 async function runGovernanceScriptWithServerSource(source: string, serverSource: string) {
   const root = createTempWebRoot(source);
+  writeServerModule(root, 'config.go', serverSource);
+  const process = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+
+  return {
+    stdout: process.stdout,
+    stderr: process.stderr,
+    exitCode: process.status,
+  };
+}
+
+async function runGovernanceScriptWithServerSourceAndLocales(
+  source: string,
+  serverSource: string,
+  localeMessages: string,
+) {
+  const root = createTempWebRoot(source);
+  writeLocaleCatalogs(root, localeMessages);
   writeServerModule(root, 'config.go', serverSource);
   const process = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
     cwd: root,
@@ -143,6 +168,55 @@ func booleanDemoDefinition(key string, title string, description string) configr
     expect(result.stdout).toContain('referenced locale key systemConfig.demo.demo.enabled.description is missing');
     expect(result.stdout).toContain('referenced locale key systemConfig.domains.demo is missing');
     expect(result.stdout).toContain('referenced locale key systemConfig.groups.demo.general is missing');
+    expect(result.stderr).toBe('');
+  });
+
+  it('blocks server system config schema fallback copy without x-i18n keys', async () => {
+    const result = await runGovernanceScriptWithServerSource(
+      `
+<template><span /></template>
+`,
+      `
+package demo
+
+const demoConfigSchema = \`{"type":"object","properties":{"maxQuickActions":{"type":"integer","title":"Maximum quick actions","description":"Maximum personalized entries shown on the dashboard home page."}}}\`
+`,
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain(
+      'system config schema schema.properties.maxQuickActions.title has visible fallback "Maximum quick actions" without x-i18n.titleKey',
+    );
+    expect(result.stdout).toContain(
+      'system config schema schema.properties.maxQuickActions.description has visible fallback "Maximum personalized entries shown on the dashboard home page." without x-i18n.descriptionKey',
+    );
+    expect(result.stderr).toBe('');
+  });
+
+  it('allows server system config schema fallback copy when matching x-i18n keys exist', async () => {
+    const result = await runGovernanceScriptWithServerSourceAndLocales(
+      `
+<template><span /></template>
+`,
+      `
+package demo
+
+const demoConfigSchema = \`{"type":"object","properties":{"maxQuickActions":{"type":"integer","title":"Maximum quick actions","description":"Maximum personalized entries shown on the dashboard home page.","x-i18n":{"titleKey":"systemConfig.demo.maxQuickActions.title","descriptionKey":"systemConfig.demo.maxQuickActions.description"}}}}\`
+`,
+      `{
+  "systemConfig": {
+    "demo": {
+      "maxQuickActions": {
+        "title": "Maximum quick actions",
+        "description": "Maximum personalized entries shown on the dashboard home page."
+      }
+    }
+  }
+}`,
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
     expect(result.stderr).toBe('');
   });
 });

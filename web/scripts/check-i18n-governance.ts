@@ -1071,6 +1071,114 @@ function collectServerI18nKeys(): Set<string> {
   return keys;
 }
 
+function collectServerSystemConfigSchemaFallbackFindings(): LocaleFinding[] {
+  const findings: LocaleFinding[] = [];
+
+  for (const dir of SERVER_TITLE_KEY_DIRS) {
+    for (const filePath of walkServerI18nKeyFiles(dir)) {
+      const source = preserveLineStructure(readFileSync(filePath, 'utf8'));
+      const lineIndex = buildLineIndex(source);
+      let index = 0;
+
+      while (index < source.length) {
+        const quote = source[index];
+        if (quote !== '"' && quote !== "'" && quote !== '`') {
+          index += 1;
+          continue;
+        }
+
+        const parsed = parseStringLiteral(source, index);
+        if (!parsed) {
+          index += 1;
+          continue;
+        }
+
+        const schema = parsePotentialSystemConfigSchema(parsed.value);
+        if (schema) {
+          const file = relative(REPOSITORY_DIR, filePath).replaceAll('\\', '/');
+          const line = lineForIndex(lineIndex, index);
+          collectSchemaNodeFallbackFindings(schema, `${file}:${line}`, 'schema', findings);
+        }
+
+        index = parsed.endIndex;
+      }
+    }
+  }
+
+  return findings;
+}
+
+function parsePotentialSystemConfigSchema(value: string): Record<string, unknown> | null {
+  const trimmed = value.trim();
+
+  if (
+    !trimmed.startsWith('{') ||
+    !trimmed.endsWith('}') ||
+    !/"(?:type|properties)"\s*:/.test(trimmed) ||
+    !/"(?:title|description|placeholder)"\s*:/.test(trimmed)
+  ) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function collectSchemaNodeFallbackFindings(node: unknown, file: string, path: string, findings: LocaleFinding[]): void {
+  if (!node || typeof node !== 'object') {
+    return;
+  }
+
+  if (Array.isArray(node)) {
+    node.forEach((child, index) => collectSchemaNodeFallbackFindings(child, file, `${path}[${index}]`, findings));
+    return;
+  }
+
+  const objectNode = node as Record<string, unknown>;
+  const i18nExtension = objectNode['x-i18n'];
+  const i18nObject =
+    i18nExtension && typeof i18nExtension === 'object' && !Array.isArray(i18nExtension)
+      ? (i18nExtension as Record<string, unknown>)
+      : {};
+
+  for (const field of ['title', 'description', 'placeholder'] as const) {
+    const value = objectNode[field];
+    if (typeof value !== 'string') {
+      continue;
+    }
+
+    const normalized = normalizeText(value);
+    if (normalized.length === 0 || isTechnicalString(normalized)) {
+      continue;
+    }
+
+    const keyField = `${field}Key`;
+    const keyValue = i18nObject[keyField];
+    if (typeof keyValue === 'string' && isLikelyI18nKey(keyValue)) {
+      continue;
+    }
+
+    findings.push({
+      file,
+      message: `system config schema ${path}.${field} has visible fallback "${normalized}" without x-i18n.${keyField}`,
+    });
+  }
+
+  for (const [key, child] of Object.entries(objectNode)) {
+    if (key === 'x-i18n') {
+      continue;
+    }
+    collectSchemaNodeFallbackFindings(child, file, `${path}.${key}`, findings);
+  }
+}
+
 function isSystemConfigDynamicKeyFunction(functionName: string, prefix: string, suffix: string) {
   if (!prefix.startsWith('systemConfig.') || !suffix.startsWith('.')) {
     return false;
@@ -1204,6 +1312,7 @@ function collectLocaleFindings(): LocaleFinding[] {
   findings.push(...collectMissingReferenceFindings(catalogs));
   findings.push(...collectUnusedKeyFindings(catalogs));
   findings.push(...collectEnglishInitialCaseFindings(catalogs));
+  findings.push(...collectServerSystemConfigSchemaFallbackFindings());
 
   for (const [pairKey, group] of groupedFiles) {
     if (!group['zh-CN'] || !group['en-US']) {

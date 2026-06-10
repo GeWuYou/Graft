@@ -59,11 +59,18 @@
     </t-form-item>
   </template>
 
-  <t-form-item v-else :label="rootLabel" name="value" :status="jsonError ? 'error' : undefined" :tips="jsonError">
+  <t-form-item
+    v-else
+    :label="rootLabel"
+    name="value"
+    :help="rootHelp"
+    :status="jsonError ? 'error' : undefined"
+    :tips="jsonError"
+  >
     <template v-if="rootSchema.enum">
       <t-select
         :model-value="selectValue(modelValue)"
-        :placeholder="labels.selectPlaceholder"
+        :placeholder="rootPlaceholder(labels.selectPlaceholder)"
         :disabled="disabled"
         clearable
         @change="(value) => emit('update:modelValue', value)"
@@ -82,7 +89,8 @@
       :min="rootSchema.minimum"
       :max="rootSchema.maximum"
       :decimal-places="rootSchema.type === 'integer' ? 0 : undefined"
-      :placeholder="labels.numberPlaceholder"
+      :placeholder="rootPlaceholder(labels.numberPlaceholder)"
+      :suffix="rootUnit"
       :disabled="disabled"
       @change="(value) => emit('update:modelValue', value)"
     />
@@ -97,7 +105,7 @@
       :model-value="formatJsonValue(modelValue)"
       class="json-schema-value-fields__textarea"
       :autosize="{ minRows: 5, maxRows: 10 }"
-      :placeholder="labels.jsonPlaceholder"
+      :placeholder="rootPlaceholder(labels.jsonPlaceholder)"
       :disabled="disabled"
       @change="handleJsonChange"
     />
@@ -106,7 +114,7 @@
       :model-value="stringValue(modelValue)"
       :minlength="rootSchema.minLength"
       :maxlength="rootSchema.maxLength"
-      :placeholder="labels.stringPlaceholder"
+      :placeholder="rootPlaceholder(labels.stringPlaceholder)"
       :disabled="disabled"
       clearable
       @change="(value) => emit('update:modelValue', value)"
@@ -160,12 +168,16 @@ const objectFields = computed(() =>
   props.rootSchema.type === 'object' ? getConfigSchemaFields(props.rootSchema) : [],
 );
 const objectValue = computed<JsonRecord>(() => (isJsonRecord(props.modelValue) ? props.modelValue : {}));
-const rootLabel = computed(() => props.rootSchema.title || props.labels.value);
 const rootField = computed<ConfigSchemaField>(() => ({
   key: 'value',
   schema: props.rootSchema,
   required: false,
 }));
+const rootLabel = computed(
+  () => props.titleResolver?.(rootField.value) || props.rootSchema.title || props.labels.value,
+);
+const rootHelp = computed(() => fieldDescription(rootField.value));
+const rootUnit = computed(() => fieldUnit(rootField.value));
 
 function fieldName(key: string) {
   return `${props.fieldPrefix}.${key}`;
@@ -185,6 +197,10 @@ function fieldPlaceholder(field: ConfigSchemaField, fallback: string) {
 
 function fieldUnit(field: ConfigSchemaField) {
   return props.unitResolver?.(field) || undefined;
+}
+
+function rootPlaceholder(fallback: string) {
+  return fieldPlaceholder(rootField.value, fallback);
 }
 
 function optionLabel(field: ConfigSchemaField, option: string | number | boolean) {

@@ -393,7 +393,9 @@ const activeGroup = computed(() => groupedConfigs.value.find((group) => group.ke
 const activeGroupOverrideCount = computed(
   () => activeGroup.value?.items.filter((item) => item.has_override).length ?? 0,
 );
-const editingSchema = computed(() => parseConfigSchema(editingItem.value?.config_schema));
+const editingSchema = computed(() =>
+  editingItem.value ? editorSchemaForItem(editingItem.value) : parseConfigSchema(),
+);
 const editorTitle = computed(() =>
   editingItem.value ? t('systemConfig.list.editorTitle', { title: configTitle(editingItem.value) }) : '',
 );
@@ -531,6 +533,21 @@ function emptySensitiveEditorValue(type: SystemConfigItem['type']) {
     default:
       return '';
   }
+}
+
+function editorSchemaForItem(item: SystemConfigItem) {
+  const parsed = parseConfigSchema(item.config_schema);
+  return {
+    ...parsed,
+    type: parsed.type || item.type,
+    title: parsed.title || item.title || undefined,
+    description: parsed.description || item.description || undefined,
+    xI18n: {
+      ...(parsed.xI18n ?? {}),
+      titleKey: parsed.xI18n?.titleKey || item.title_key || undefined,
+      descriptionKey: parsed.xI18n?.descriptionKey || item.description_key || undefined,
+    },
+  };
 }
 
 function configTitle(item: SystemConfigItem) {
