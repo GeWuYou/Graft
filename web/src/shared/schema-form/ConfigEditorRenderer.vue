@@ -15,7 +15,7 @@
       :status="jsonFieldErrors[field.key] ? 'error' : undefined"
       :tips="jsonFieldErrors[field.key]"
     >
-      <template v-if="field.schema.enum">
+      <template v-if="rendererKind(field) === 'select'">
         <t-select
           :model-value="selectValue(objectValue[field.key])"
           :placeholder="fieldPlaceholder(field, labels.selectPlaceholder)"
@@ -31,12 +31,9 @@
           />
         </t-select>
       </template>
-      <div
-        v-else-if="field.schema.type === 'integer' || field.schema.type === 'number'"
-        class="json-schema-value-fields__number-row"
-      >
+      <div v-else-if="rendererKind(field) === 'input-number'" class="config-editor-renderer__number-row">
         <t-input-number
-          class="json-schema-value-fields__number-input"
+          class="config-editor-renderer__number-input"
           :model-value="numberValue(objectValue[field.key])"
           :min="field.schema.minimum"
           :max="field.schema.maximum"
@@ -47,20 +44,20 @@
           theme="row"
           @change="(value) => updateObjectField(field.key, value)"
         />
-        <span v-if="fieldUnit(field)" class="json-schema-value-fields__number-unit">
+        <span v-if="fieldUnit(field)" class="config-editor-renderer__number-unit">
           {{ fieldUnit(field) }}
         </span>
       </div>
       <t-switch
-        v-else-if="field.schema.type === 'boolean'"
+        v-else-if="rendererKind(field) === 'switch'"
         :model-value="Boolean(objectValue[field.key])"
         :disabled="disabled"
         @change="(value) => updateObjectField(field.key, value)"
       />
       <t-textarea
-        v-else-if="field.schema.type === 'object' || field.schema.type === 'array'"
+        v-else-if="rendererKind(field) === 'json-textarea'"
         :model-value="formatJsonValue(objectValue[field.key])"
-        class="json-schema-value-fields__textarea"
+        class="config-editor-renderer__textarea"
         :autosize="{ minRows: 5, maxRows: 10 }"
         :placeholder="fieldPlaceholder(field, labels.jsonPlaceholder)"
         :disabled="disabled"
@@ -87,7 +84,7 @@
     :status="jsonError ? 'error' : undefined"
     :tips="jsonError"
   >
-    <template v-if="rootSchema.enum">
+    <template v-if="rootRendererKind === 'select'">
       <t-select
         :model-value="selectValue(modelValue)"
         :placeholder="rootPlaceholder(labels.selectPlaceholder)"
@@ -103,12 +100,9 @@
         />
       </t-select>
     </template>
-    <div
-      v-else-if="rootSchema.type === 'integer' || rootSchema.type === 'number'"
-      class="json-schema-value-fields__number-row"
-    >
+    <div v-else-if="rootRendererKind === 'input-number'" class="config-editor-renderer__number-row">
       <t-input-number
-        class="json-schema-value-fields__number-input"
+        class="config-editor-renderer__number-input"
         :model-value="numberValue(modelValue)"
         :min="rootSchema.minimum"
         :max="rootSchema.maximum"
@@ -119,20 +113,20 @@
         theme="row"
         @change="(value) => emit('update:modelValue', value)"
       />
-      <span v-if="rootUnit" class="json-schema-value-fields__number-unit">
+      <span v-if="rootUnit" class="config-editor-renderer__number-unit">
         {{ rootUnit }}
       </span>
     </div>
     <t-switch
-      v-else-if="rootSchema.type === 'boolean'"
+      v-else-if="rootRendererKind === 'switch'"
       :model-value="Boolean(modelValue)"
       :disabled="disabled"
       @change="(value) => emit('update:modelValue', value)"
     />
     <t-textarea
-      v-else-if="rootSchema.type === 'object' || rootSchema.type === 'array'"
+      v-else-if="rootRendererKind === 'json-textarea'"
       :model-value="formatJsonValue(modelValue)"
-      class="json-schema-value-fields__textarea"
+      class="config-editor-renderer__textarea"
       :autosize="{ minRows: 5, maxRows: 10 }"
       :placeholder="rootPlaceholder(labels.jsonPlaceholder)"
       :disabled="disabled"
@@ -153,13 +147,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 
-import type { ConfigSchema, ConfigSchemaField } from './config-schema';
+import type { ConfigFieldType, ConfigSchema, ConfigSchemaField } from './config-schema';
 import { getConfigSchemaFields } from './config-schema';
+import { configFieldRenderer } from './field-renderer';
 import { formatJsonValue, isJsonRecord, type JsonRecord, parseJsonValue } from './json';
 
 const props = withDefaults(
   defineProps<{
     disabled?: boolean;
+    fallbackType?: ConfigFieldType | null;
     fieldPrefix?: string;
     labels: {
       invalidJson: string;
@@ -179,6 +175,7 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
+    fallbackType: undefined,
     fieldPrefix: 'value',
     titleResolver: undefined,
     descriptionResolver: undefined,
@@ -203,11 +200,16 @@ const rootField = computed<ConfigSchemaField>(() => ({
   schema: props.rootSchema,
   required: false,
 }));
+const rootRendererKind = computed(() => configFieldRenderer(props.rootSchema, props.fallbackType));
 const rootLabel = computed(
   () => props.titleResolver?.(rootField.value) || props.rootSchema.title || props.labels.value,
 );
 const rootHelp = computed(() => fieldDescription(rootField.value));
 const rootUnit = computed(() => fieldUnit(rootField.value));
+
+function rendererKind(field: ConfigSchemaField) {
+  return configFieldRenderer(field.schema);
+}
 
 function fieldName(key: string) {
   return `${props.fieldPrefix}.${key}`;
@@ -284,29 +286,29 @@ function handleObjectJsonChange(key: string, value: string | number) {
 }
 </script>
 <style scoped>
-.json-schema-value-fields__textarea {
+.config-editor-renderer__textarea {
   width: 100%;
 }
 
-.json-schema-value-fields__number-row {
+.config-editor-renderer__number-row {
   align-items: center;
   display: flex;
   gap: var(--td-comp-margin-xs);
   max-width: 240px;
 }
 
-.json-schema-value-fields__number-input {
+.config-editor-renderer__number-input {
   flex: 0 0 120px;
   min-width: 120px;
   width: 120px;
 }
 
-.json-schema-value-fields__number-input :deep(.t-input-number),
-:deep(.json-schema-value-fields__number-input.t-input-number) {
+.config-editor-renderer__number-input :deep(.t-input-number),
+:deep(.config-editor-renderer__number-input.t-input-number) {
   width: 100%;
 }
 
-.json-schema-value-fields__number-input :deep(.t-input__inner) {
+.config-editor-renderer__number-input :deep(.t-input__inner) {
   font-variant-numeric: tabular-nums;
   overflow: visible;
   text-align: center;
@@ -314,15 +316,15 @@ function handleObjectJsonChange(key: string, value: string | number) {
   white-space: nowrap;
 }
 
-.json-schema-value-fields__number-unit {
+.config-editor-renderer__number-unit {
   color: var(--td-text-color-secondary);
   flex: 0 0 auto;
   line-height: var(--td-line-height-body-medium);
   white-space: nowrap;
 }
 
-:deep(.json-schema-value-fields__textarea.t-textarea),
-.json-schema-value-fields__textarea :deep(.t-textarea__inner) {
+:deep(.config-editor-renderer__textarea.t-textarea),
+.config-editor-renderer__textarea :deep(.t-textarea__inner) {
   box-sizing: border-box;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   width: 100%;

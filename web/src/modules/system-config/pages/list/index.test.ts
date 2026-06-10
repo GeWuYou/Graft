@@ -86,6 +86,10 @@ const translations = vi.hoisted(
     'systemConfig.list.schema.selectPlaceholder': '请选择',
     'systemConfig.list.schema.stringPlaceholder': '请输入配置值',
     'systemConfig.list.schema.value': '配置值',
+    'systemConfig.list.schema.invalidValue': '配置值不符合字段规则',
+    'systemConfig.list.schema.invalidEnum': '请选择允许的配置值',
+    'systemConfig.list.schema.belowMinimum': '配置值不能小于 {minimum}',
+    'systemConfig.list.schema.aboveMaximum': '配置值不能大于 {maximum}',
     'systemConfig.list.status.default': '使用默认值',
     'systemConfig.list.status.defaultDescription': '使用默认配置',
     'systemConfig.list.status.modified': '已修改',
@@ -371,6 +375,38 @@ describe('system config list page', () => {
     expect(wrapper.text()).not.toContain('Notification enabled');
   });
 
+  it('uses schema enum before item type fallback when rendering scalar editors', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        notificationConfigItem({
+          key: 'notification.delivery.mode',
+          titleKey: '',
+          title: 'Delivery mode',
+          descriptionKey: '',
+          description: 'Delivery mode.',
+          type: 'boolean',
+          configSchema: {
+            type: 'string',
+            enum: ['in_app', 'disabled'],
+          },
+          defaultValue: '"in_app"',
+          effectiveValue: '"in_app"',
+          order: 5102,
+        }),
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test-id="schema-select"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test-id="schema-switch"]').exists()).toBe(false);
+  });
+
   it('localizes root scalar schema labels before falling back to backend schema copy', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -580,7 +616,7 @@ describe('system config list page', () => {
     expect(numberInputs.map((node) => node.attributes('data-theme'))).toEqual(['row', 'row']);
     expect(numberInputs.map((node) => node.attributes('data-min'))).toEqual(['1', '1']);
     expect(numberInputs.map((node) => node.attributes('data-max'))).toEqual(['365', '10000']);
-    expect(wrapper.findAll('.json-schema-value-fields__number-unit').map((node) => node.text())).toEqual(['天', '行']);
+    expect(wrapper.findAll('.config-editor-renderer__number-unit').map((node) => node.text())).toEqual(['天', '行']);
   });
 
   it('uses drawer and raw JSON textarea fields for nested object or array properties', async () => {

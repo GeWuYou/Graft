@@ -82,7 +82,11 @@
         "numberPlaceholder": "请输入数字",
         "selectPlaceholder": "请选择",
         "jsonPlaceholder": "请输入 JSON",
-        "invalidJson": "JSON 格式不正确"
+        "invalidJson": "JSON 格式不正确",
+        "invalidValue": "配置值不符合字段规则",
+        "invalidEnum": "请选择允许的配置值",
+        "belowMinimum": "配置值不能小于 {minimum}",
+        "aboveMaximum": "配置值不能大于 {maximum}"
       },
       "advanced": {
         "title": "高级信息",

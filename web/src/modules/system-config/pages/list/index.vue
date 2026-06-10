@@ -119,23 +119,33 @@
                       <template v-for="row in valueSection.rows" :key="row.key">
                         <dt>{{ row.label }}</dt>
                         <dd>
-                          <span class="system-config-value__display">
-                            <strong>{{ row.value }}</strong>
-                            <t-tooltip
-                              v-if="row.description && row.descriptionMode === 'tooltip'"
-                              :content="row.description"
-                              placement="top"
-                              show-arrow
-                            >
-                              <button
-                                class="system-config-value__info"
-                                type="button"
-                                :aria-label="t('systemConfig.list.valueDescription')"
+                          <config-value-renderer
+                            :value="row.rawValue"
+                            :schema="row.schema"
+                            :unit="row.unit"
+                            :empty-value-label="t('systemConfig.list.emptyValue')"
+                            :boolean-label-resolver="booleanStateLabel"
+                            :schema-description-resolver="schemaDescription"
+                            :option-label-resolver="schemaOptionDisplayLabel"
+                            :option-description-resolver="schemaOptionDescription"
+                          >
+                            <template #description="{ description, mode }">
+                              <t-tooltip
+                                v-if="description && mode === 'tooltip'"
+                                :content="description"
+                                placement="top"
+                                show-arrow
                               >
-                                <info-circle-icon />
-                              </button>
-                            </t-tooltip>
-                          </span>
+                                <button
+                                  class="system-config-value__info"
+                                  type="button"
+                                  :aria-label="t('systemConfig.list.valueDescription')"
+                                >
+                                  <info-circle-icon />
+                                </button>
+                              </t-tooltip>
+                            </template>
+                          </config-value-renderer>
                         </dd>
                       </template>
                     </dl>
@@ -153,23 +163,33 @@
                           <template v-for="row in valueSection.extraRows" :key="row.key">
                             <dt>{{ row.label }}</dt>
                             <dd>
-                              <span class="system-config-value__display">
-                                <strong>{{ row.value }}</strong>
-                                <t-tooltip
-                                  v-if="row.description && row.descriptionMode === 'tooltip'"
-                                  :content="row.description"
-                                  placement="top"
-                                  show-arrow
-                                >
-                                  <button
-                                    class="system-config-value__info"
-                                    type="button"
-                                    :aria-label="t('systemConfig.list.valueDescription')"
+                              <config-value-renderer
+                                :value="row.rawValue"
+                                :schema="row.schema"
+                                :unit="row.unit"
+                                :empty-value-label="t('systemConfig.list.emptyValue')"
+                                :boolean-label-resolver="booleanStateLabel"
+                                :schema-description-resolver="schemaDescription"
+                                :option-label-resolver="schemaOptionDisplayLabel"
+                                :option-description-resolver="schemaOptionDescription"
+                              >
+                                <template #description="{ description, mode }">
+                                  <t-tooltip
+                                    v-if="description && mode === 'tooltip'"
+                                    :content="description"
+                                    placement="top"
+                                    show-arrow
                                   >
-                                    <info-circle-icon />
-                                  </button>
-                                </t-tooltip>
-                              </span>
+                                    <button
+                                      class="system-config-value__info"
+                                      type="button"
+                                      :aria-label="t('systemConfig.list.valueDescription')"
+                                    >
+                                      <info-circle-icon />
+                                    </button>
+                                  </t-tooltip>
+                                </template>
+                              </config-value-renderer>
                             </dd>
                           </template>
                         </dl>
@@ -278,9 +298,10 @@
       <div v-if="editingItem" class="system-config-editor">
         <t-alert v-if="editingItem.sensitive" theme="warning" :message="t('systemConfig.list.sensitiveEditHint')" />
         <t-form :data="editorForm" label-align="top">
-          <json-schema-value-fields
+          <config-editor-renderer
             v-model="editorForm.value"
             :root-schema="editingSchema"
+            :fallback-type="editingItem.type"
             :labels="schemaLabels"
             :title-resolver="schemaFieldTitle"
             :description-resolver="schemaFieldDescription"
@@ -309,9 +330,10 @@
       <div v-if="editingItem" class="system-config-editor system-config-editor--drawer">
         <t-alert v-if="editingItem.sensitive" theme="warning" :message="t('systemConfig.list.sensitiveEditHint')" />
         <t-form :data="editorForm" label-align="top">
-          <json-schema-value-fields
+          <config-editor-renderer
             v-model="editorForm.value"
             :root-schema="editingSchema"
+            :fallback-type="editingItem.type"
             :labels="schemaLabels"
             :title-resolver="schemaFieldTitle"
             :description-resolver="schemaFieldDescription"
@@ -347,13 +369,17 @@ import { useI18n } from 'vue-i18n';
 import { formatCompactDateTime } from '@/shared/components/management';
 import { PageHeader } from '@/shared/components/page';
 import {
+  configEditorContainer,
+  ConfigEditorRenderer,
   type ConfigSchema,
   type ConfigSchemaField,
+  type ConfigSchemaProperty,
+  ConfigValueRenderer,
   getConfigSchemaFields,
-  JsonSchemaValueFields,
   parseConfigSchema,
+  validateConfigEditorValue,
 } from '@/shared/schema-form';
-import { formatJsonValue, isJsonRecord, parseJsonValue, valuePreview } from '@/shared/schema-form/json';
+import { formatJsonValue, isJsonRecord, parseJsonValue } from '@/shared/schema-form/json';
 import type { ApiRequestError } from '@/types/axios';
 
 import { getSystemConfigs, resetSystemConfig, updateSystemConfig } from '../../api/system-config';
@@ -384,9 +410,9 @@ type ConfigValueField = 'effective_value' | 'default_value';
 type ConfigValueRow = {
   key: string;
   label: string;
-  description: string;
-  descriptionMode?: 'inline' | 'tooltip';
-  value: string;
+  rawValue: unknown;
+  schema?: ConfigSchemaProperty;
+  unit?: string;
 };
 
 type ConfigValueSection = {
@@ -395,8 +421,6 @@ type ConfigValueSection = {
   rows: ConfigValueRow[];
   extraRows: ConfigValueRow[];
 };
-
-type ConfigValuePresentation = Pick<ConfigValueRow, 'description' | 'descriptionMode' | 'value'>;
 
 type ConfigCardVM = {
   item: SystemConfigItem;
@@ -440,6 +464,7 @@ const editorForm = reactive<{ value: unknown }>({ value: undefined });
 
 const schemaLabels = computed(() => ({
   invalidJson: t('systemConfig.list.schema.invalidJson'),
+  invalidValue: t('systemConfig.list.schema.invalidValue'),
   jsonPlaceholder: t('systemConfig.list.schema.jsonPlaceholder'),
   numberPlaceholder: t('systemConfig.list.schema.numberPlaceholder'),
   selectPlaceholder: t('systemConfig.list.schema.selectPlaceholder'),
@@ -614,6 +639,14 @@ function closeEditor() {
 async function saveEditor() {
   if (!editingItem.value) {
     return;
+  }
+
+  if (!editingItem.value.sensitive || editorForm.value !== null) {
+    const validation = validateConfigEditorValue(editingSchema.value, editorForm.value, editingItem.value.type);
+    if (!validation.valid) {
+      MessagePlugin.error(schemaValidationMessage(validation.issues[0]));
+      return;
+    }
   }
 
   saving.value = true;
@@ -806,14 +839,13 @@ function buildValueSection(
     return {
       key: field,
       title,
-      rows: [{ key: field, label: title, description: '', value: maskedValue }],
+      rows: [{ key: field, label: title, rawValue: maskedValue }],
       extraRows: [],
     };
   }
 
   const parsed = parseJsonValue(item[field]);
   const rows = isJsonRecord(parsed) && fields.length > 0 ? structuredValueRows(parsed, fields) : [];
-  const fallbackValue = configValuePresentation(parsed, schema);
   const fallbackRows =
     rows.length > 0
       ? rows
@@ -823,7 +855,8 @@ function buildValueSection(
             label: schema.title
               ? resolveI18nText(schema.xI18n?.titleKey, schema.title, configTitle(item))
               : configTitle(item),
-            ...fallbackValue,
+            rawValue: parsed,
+            schema,
           },
         ];
 
@@ -837,14 +870,12 @@ function buildValueSection(
 
 function structuredValueRows(value: Record<string, unknown>, fields: ConfigSchemaField[]): ConfigValueRow[] {
   return fields.map((field) => {
-    const unit = schemaFieldUnit(field);
-    const displayValue = configValuePresentation(value[field.key], field.schema);
     return {
       key: field.key,
       label: schemaFieldTitle(field),
-      description: displayValue.description || schemaFieldDescription(field),
-      descriptionMode: 'tooltip',
-      value: unit ? `${displayValue.value} ${unit}` : displayValue.value,
+      rawValue: value[field.key],
+      schema: field.schema,
+      unit: schemaFieldUnit(field),
     };
   });
 }
@@ -875,21 +906,7 @@ function schemaSummary(item: SystemConfigItem, schema: ConfigSchema, fields: Con
 
 function shouldUseDrawerEditor(item: SystemConfigItem) {
   const schema = editorSchemaForItem(item);
-  if (schema.type === 'array') {
-    return true;
-  }
-  if (schema.type === 'string' && typeof schema.maxLength === 'number' && schema.maxLength > 240) {
-    return true;
-  }
-  if (schema.type !== 'object') {
-    return false;
-  }
-
-  const fields = getConfigSchemaFields(schema);
-  if (fields.length === 0 || fields.length >= 4) {
-    return true;
-  }
-  return fields.some((field) => field.schema.type === 'object' || field.schema.type === 'array');
+  return configEditorContainer(schema, getConfigSchemaFields(schema)) === 'drawer';
 }
 
 async function copyConfigKey(key: string) {
@@ -904,20 +921,18 @@ async function copyConfigKey(key: string) {
   }
 }
 
-function configValuePresentation(value: unknown, schema = parseConfigSchema()): ConfigValuePresentation {
+function schemaDescription(schema: ConfigSchemaProperty) {
+  return resolveI18nText(schema.xI18n?.descriptionKey, schema.description, '');
+}
+
+function schemaOptionDisplayLabel(schema: ConfigSchemaProperty, value: unknown) {
   const optionText = schema.enumLabels?.[String(value)];
-  if (optionText) {
-    return {
-      description: resolveI18nText(optionText.descriptionKey, optionText.description, ''),
-      descriptionMode: 'tooltip',
-      value: resolveI18nText(optionText.labelKey, optionText.label, String(value)),
-    };
-  }
-  return {
-    description: resolveI18nText(schema.xI18n?.descriptionKey, schema.description, ''),
-    descriptionMode: 'tooltip',
-    value: valuePreview(value, t('systemConfig.list.emptyValue'), booleanStateLabel),
-  };
+  return resolveI18nText(optionText?.labelKey, optionText?.label, String(value));
+}
+
+function schemaOptionDescription(schema: ConfigSchemaProperty, value: unknown) {
+  const optionText = schema.enumLabels?.[String(value)];
+  return resolveI18nText(optionText?.descriptionKey, optionText?.description, '');
 }
 
 function schemaFieldTitle(field: ConfigSchemaField) {
@@ -937,8 +952,23 @@ function schemaFieldUnit(field: ConfigSchemaField) {
 }
 
 function schemaOptionLabel(field: ConfigSchemaField, option: string | number | boolean) {
-  const optionText = field.schema.enumLabels?.[String(option)];
-  return resolveI18nText(optionText?.labelKey, optionText?.label, String(option));
+  return schemaOptionDisplayLabel(field.schema, option);
+}
+
+function schemaValidationMessage(issue?: { constraint?: string; maximum?: number; minimum?: number }) {
+  if (!issue) {
+    return t('systemConfig.list.schema.invalidValue');
+  }
+  switch (issue.constraint) {
+    case 'enum':
+      return t('systemConfig.list.schema.invalidEnum');
+    case 'minimum':
+      return t('systemConfig.list.schema.belowMinimum', { minimum: issue.minimum });
+    case 'maximum':
+      return t('systemConfig.list.schema.aboveMaximum', { maximum: issue.maximum });
+    default:
+      return t('systemConfig.list.schema.invalidValue');
+  }
 }
 
 function resolveI18nText(key?: string, fallback?: string, rawFallback = '') {

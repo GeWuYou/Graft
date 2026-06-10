@@ -82,7 +82,11 @@
         "numberPlaceholder": "Enter Number",
         "selectPlaceholder": "Select",
         "jsonPlaceholder": "Enter JSON",
-        "invalidJson": "JSON Is Invalid"
+        "invalidJson": "JSON Is Invalid",
+        "invalidValue": "Configuration Value Does Not Match the Field Rules",
+        "invalidEnum": "Select an Allowed Configuration Value",
+        "belowMinimum": "Configuration Value Must Be at Least {minimum}",
+        "aboveMaximum": "Configuration Value Must Be at Most {maximum}"
       },
       "advanced": {
         "title": "Advanced Information",

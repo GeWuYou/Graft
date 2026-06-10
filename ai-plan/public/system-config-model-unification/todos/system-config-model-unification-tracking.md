@@ -10,7 +10,7 @@ Convert the System Config exploration and planning discussion into durable repos
 - [x] Register this active topic in `ai-plan/public/README.md`.
 - [x] Add topic recovery entrypoint, tracking file, and trace file.
 - [x] Phase 1 implementation slice: UI consistency without backend model changes.
-- [ ] Later implementation slice: Phase 2 front-end renderer extraction.
+- [x] Phase 2 implementation slice: front-end renderer extraction.
 - [ ] Later implementation slice: Phase 3 backend registry/OpenAPI enhancement.
 - [ ] Later implementation slice: Phase 4 typical config migration.
 - [ ] Later implementation slice: Phase 5 validation and screenshot acceptance.
@@ -32,12 +32,15 @@ Convert the System Config exploration and planning discussion into durable repos
 
 ## Latest Validation
 
-- Phase 1 UI implementation slice.
-- Ran `cd web && bun run check`.
+- Phase 2 renderer extraction slice.
+- Ran validation:
+  - `cd web && bun run test:run src/shared/schema-form/config-schema.test.ts src/modules/system-config/pages/list/index.test.ts`
+  - `cd web && bun run typecheck`
+  - `cd web && bun run check`
 - Backend runtime validation is not required for this slice because no `server/**`, OpenAPI source, generated artifacts,
   menu contract, permission contract, or persistence behavior changed.
 
 ## Next Step
 
-Start Phase 2 as a separate slice if the shared schema-form renderer needs further extraction or additional reusable
-view-model boundaries.
+Start Phase 3 backend registry/OpenAPI enhancement as the next separate slice after Phase 2 frontend validation and
+outer-orchestrator commit acceptance.
