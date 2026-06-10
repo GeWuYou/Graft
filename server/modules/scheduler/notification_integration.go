@@ -43,7 +43,9 @@ func (n schedulerRunFailureNotifier) NotifyRunFailed(ctx context.Context, run sc
 		payload = json.RawMessage(`{"serialization_error":true}`)
 	}
 	input := moduleapi.PublishNotificationInput{
+		TitleKey:     schedulercontract.ScheduledTaskRunFailedNotificationTitle.String(),
 		Title:        "Scheduled task failed",
+		MessageKey:   schedulercontract.ScheduledTaskRunFailedNotificationMessage.String(),
 		Message:      "Scheduled task " + firstNonEmptyTrimmed(run.TaskName, run.TaskKey) + " failed.",
 		Severity:     moduleapi.NotificationSeverity(notificationcontract.SeverityError),
 		Category:     moduleapi.NotificationCategory(notificationcontract.CategoryTask),

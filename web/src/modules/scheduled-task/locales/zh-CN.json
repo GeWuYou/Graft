@@ -395,6 +395,12 @@
         "auditLog": "审计日志",
         "appLog": "应用日志"
       }
+    },
+    "notification": {
+      "runFailed": {
+        "title": "定时任务失败",
+        "message": "定时任务执行失败。"
+      }
     }
   }
 }

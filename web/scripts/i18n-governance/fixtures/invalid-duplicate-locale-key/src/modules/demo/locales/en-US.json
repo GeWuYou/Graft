@@ -1,0 +1,8 @@
+{
+  "demo": {
+    "duplicate": {
+      "title": "First title",
+      "title": "Second title"
+    }
+  }
+}

@@ -340,6 +340,23 @@
         "display": "Manage Notifications",
         "description": "Allows managing global notification delivery and settings."
       }
+    },
+    "roles": {
+      "admin": {
+        "display": "Administrator"
+      }
+    },
+    "audit": {
+      "roleCreated": "Role created",
+      "roleUpdated": "Role updated",
+      "roleStatusUpdated": "Role status updated",
+      "roleDeleted": "Role deleted",
+      "rolePermissionsReplaced": "Role permissions replaced",
+      "rolePermissionsAdded": "Role permissions added",
+      "rolePermissionsRemoved": "Role permissions removed",
+      "userRolesReplaced": "User roles replaced",
+      "userRolesAdded": "User roles added",
+      "userRolesRemoved": "User roles removed"
     }
   }
 }

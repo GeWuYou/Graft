@@ -12,6 +12,7 @@ import (
 
 	"graft/server/internal/eventbus"
 	"graft/server/internal/moduleapi"
+	rbaccontract "graft/server/modules/rbac/contract"
 	rbacstore "graft/server/modules/rbac/store"
 )
 
@@ -64,6 +65,61 @@ func TestManagementWriterCreateRolePublishesAuditEvent(t *testing.T) {
 	}
 	if event.Operator == nil || event.Operator.ID != 7 {
 		t.Fatalf("expected operator id 7, got %#v", event.Operator)
+	}
+}
+
+func TestManagementWriterRolePermissionMutationsPublishAuditMessageKeys(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		mutate     func(managementWriter, context.Context) error
+		action     string
+		messageKey string
+	}{
+		{
+			name: "add",
+			mutate: func(writer managementWriter, ctx context.Context) error {
+				return writer.AddPermissionsToRole(ctx, rbacstore.AddPermissionsToRoleInput{RoleID: 3, PermissionIDs: []uint64{9}})
+			},
+			action:     "rbac.role.permissions.add",
+			messageKey: rbaccontract.AuditRolePermissionsAdded.String(),
+		},
+		{
+			name: "remove",
+			mutate: func(writer managementWriter, ctx context.Context) error {
+				return writer.RemovePermissionsFromRole(ctx, rbacstore.RemovePermissionsFromRoleInput{RoleID: 3, PermissionIDs: []uint64{9}})
+			},
+			action:     "rbac.role.permissions.remove",
+			messageKey: rbaccontract.AuditRolePermissionsRemoved.String(),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bus := &recordingBus{}
+			writer := managementWriter{
+				users: testUserService{},
+				rbac: testRBACRepository{
+					roleByID: map[uint64]rbacstore.Role{
+						3: {ID: 3, Name: "operator", Status: rbacstore.RoleStatusEnabled},
+					},
+					permissions: []rbacstore.Permission{{ID: 9, Code: "system.read"}},
+				},
+				auditBus: bus,
+				logger:   zap.NewNop(),
+			}
+
+			if err := tc.mutate(writer, context.Background()); err != nil {
+				t.Fatalf("mutate role permissions: %v", err)
+			}
+			if len(bus.published) != 1 {
+				t.Fatalf("expected 1 published event, got %d", len(bus.published))
+			}
+			event, ok := bus.published[0].Payload.(moduleapi.AuditEvent)
+			if !ok {
+				t.Fatalf("expected audit event payload, got %T", bus.published[0].Payload)
+			}
+			if event.Action != tc.action || event.MessageKey != tc.messageKey {
+				t.Fatalf("unexpected audit event: %#v", event)
+			}
+		})
 	}
 }
 

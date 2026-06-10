@@ -24,22 +24,26 @@ func registerMessages(localizer *i18n.Service) error {
 		{
 			Namespace: "scheduler",
 			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskMenuTitle.String()), Text: "定时任务"},
-				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskNotFound.String()), Text: "定时任务不存在"},
-				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskAlreadyRunning.String()), Text: "定时任务正在运行"},
-				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskInvalidRequest.String()), Text: "定时任务请求无效"},
-			},
+			Messages: schedulerMessageResources([]string{
+				"定时任务",
+				"定时任务不存在",
+				"定时任务正在运行",
+				"定时任务请求无效",
+				"定时任务失败",
+				"定时任务执行失败。",
+			}),
 		},
 		{
 			Namespace: "scheduler",
 			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskMenuTitle.String()), Text: "Scheduled Tasks"},
-				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskNotFound.String()), Text: "Scheduled task not found"},
-				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskAlreadyRunning.String()), Text: "Scheduled task is already running"},
-				{Key: i18n.MessageKey(schedulercontract.ScheduledTaskInvalidRequest.String()), Text: "Invalid scheduled task request"},
-			},
+			Messages: schedulerMessageResources([]string{
+				"Scheduled Tasks",
+				"Scheduled task not found",
+				"Scheduled task is already running",
+				"Invalid scheduled task request",
+				"Scheduled Task Failed",
+				"Scheduled task failed.",
+			}),
 		},
 	} {
 		if err := localizer.RegisterMessages(registration); err != nil {
@@ -48,6 +52,25 @@ func registerMessages(localizer *i18n.Service) error {
 	}
 
 	return nil
+}
+
+func schedulerMessageResources(texts []string) []i18n.MessageResource {
+	keys := []schedulercontract.MessageKey{
+		schedulercontract.ScheduledTaskMenuTitle,
+		schedulercontract.ScheduledTaskNotFound,
+		schedulercontract.ScheduledTaskAlreadyRunning,
+		schedulercontract.ScheduledTaskInvalidRequest,
+		schedulercontract.ScheduledTaskRunFailedNotificationTitle,
+		schedulercontract.ScheduledTaskRunFailedNotificationMessage,
+	}
+	resources := make([]i18n.MessageResource, 0, len(keys))
+	for index, key := range keys {
+		resources = append(resources, i18n.MessageResource{
+			Key:  i18n.MessageKey(key.String()),
+			Text: texts[index],
+		})
+	}
+	return resources
 }
 
 func registerSchedulerPermissions(registry *permission.Registry, moduleName string) error {

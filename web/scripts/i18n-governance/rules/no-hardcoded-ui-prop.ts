@@ -1,9 +1,12 @@
 // Copyright (c) 2025-2026 GeWuYou
 // SPDX-License-Identifier: Apache-2.0
 
+import * as ts from 'typescript';
+
 import { KEY_FIELDS, UI_COPY_FIELDS } from '../config';
 import {
   hasCjk,
+  hasVisibleLetters,
   isTechnicalString,
   normalizeText,
   parseStringLiteral,
@@ -14,9 +17,27 @@ import type { I18nGovernanceRule, RuleViolation, SourceFile } from '../types';
 
 const LOCALIZED_TITLE_FIELDS = new Set(['semanticTitle', 'breadcrumbTitle', 'tabTitle']);
 const LOCALE_LITERAL_FIELDS = new Set(['en', 'enUS', 'en-US', 'zhCN', 'zh_CN', 'zh-CN']);
+const UI_COPY_LOGICAL_OPERATORS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.AmpersandAmpersandToken,
+  ts.SyntaxKind.BarBarToken,
+  ts.SyntaxKind.QuestionQuestionToken,
+]);
+
+type ExpressionLiteral = {
+  index: number;
+  value: string;
+  hasInterpolation: boolean;
+};
 
 function normalizeAttributeName(name: string): string {
-  return name.replace(/^:/, '').replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+  return name
+    .replace(/^:/, '')
+    .replace(/^v-bind:/, '')
+    .replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+}
+
+function isBoundAttribute(name: string): boolean {
+  return name.startsWith(':') || name.startsWith('v-bind:');
 }
 
 function addViolation(violations: RuleViolation[], file: SourceFile, index: number, field: string, value: string) {
@@ -35,6 +56,70 @@ function addViolation(violations: RuleViolation[], file: SourceFile, index: numb
       ? 'Move route title copy to locale catalogs and reference it through the route/menu title key boundary.'
       : `Use t('...') or provide a ${field}Key plus localized fallback.`,
   });
+}
+
+function templateExpressionValue(node: ts.TemplateExpression): string {
+  return [
+    node.head.text,
+    ...node.templateSpans.map((span) => `\${${span.expression.getText()}}${span.literal.text}`),
+  ].join('');
+}
+
+function collectExpressionLiterals(expression: string): ExpressionLiteral[] {
+  const prefix = 'const __i18nExpression = (';
+  const source = `${prefix}${expression});`;
+  const sourceFile = ts.createSourceFile(
+    'i18n-governance-expression.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const literals: ExpressionLiteral[] = [];
+
+  function relativeIndex(node: ts.Node): number {
+    return Math.max(0, node.getStart(sourceFile) - prefix.length);
+  }
+
+  function inspectExpression(node: ts.Expression): void {
+    if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node)) {
+      inspectExpression(node.expression);
+      return;
+    }
+
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      literals.push({ index: relativeIndex(node), value: node.text, hasInterpolation: false });
+      return;
+    }
+
+    if (ts.isTemplateExpression(node)) {
+      const value = templateExpressionValue(node);
+      if (hasVisibleLetters(value)) {
+        literals.push({ index: relativeIndex(node), value, hasInterpolation: true });
+      }
+      return;
+    }
+
+    if (ts.isConditionalExpression(node)) {
+      inspectExpression(node.whenTrue);
+      inspectExpression(node.whenFalse);
+      return;
+    }
+
+    if (ts.isBinaryExpression(node) && UI_COPY_LOGICAL_OPERATORS.has(node.operatorToken.kind)) {
+      inspectExpression(node.left);
+      inspectExpression(node.right);
+    }
+  }
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (declaration.initializer) inspectExpression(declaration.initializer);
+    }
+  }
+
+  return literals;
 }
 
 function collectObjectFieldViolations(file: SourceFile): RuleViolation[] {
@@ -155,14 +240,14 @@ function collectTemplateAttributeViolations(file: SourceFile): RuleViolation[] {
       const field = normalizeAttributeName(rawName ?? '');
       if (!UI_COPY_FIELDS.has(field) || KEY_FIELDS.has(field)) continue;
       const valueIndex = tagIndex + (attrMatch.index ?? 0) + attrMatch[0].indexOf(value);
-      if ((rawName ?? '').startsWith(':')) {
+      if (isBoundAttribute(rawName ?? '')) {
         const trimmed = value.trim();
-        if (!/^(['"`])/.test(trimmed)) continue;
-        const quoteIndex = valueIndex + value.indexOf(trimmed);
-        const parsed = parseStringLiteral(file.source, quoteIndex);
-        if (!parsed) continue;
-        if (parsed.hasInterpolation && !hasCjk(parsed.value)) continue;
-        addViolation(violations, file, quoteIndex, rawName ?? field, parsed.value);
+        if (!trimmed) continue;
+        const expressionIndex = valueIndex + value.indexOf(trimmed);
+        for (const literal of collectExpressionLiterals(trimmed)) {
+          if (literal.hasInterpolation && !hasCjk(literal.value)) continue;
+          addViolation(violations, file, expressionIndex + literal.index, rawName ?? field, literal.value);
+        }
         continue;
       }
       if (value.includes('{{') || value.includes('${')) continue;

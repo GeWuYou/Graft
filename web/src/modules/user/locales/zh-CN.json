@@ -163,6 +163,13 @@
       "detailFields": {
         "email": "邮箱"
       }
+    },
+    "audit": {
+      "userCreated": "用户已创建",
+      "userUpdated": "用户已更新",
+      "userStatusUpdated": "用户状态已更新",
+      "userDeleted": "用户已删除",
+      "userPasswordReset": "用户密码已重置"
     }
   }
 }

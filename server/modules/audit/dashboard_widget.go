@@ -130,18 +130,18 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 		id:             "audit.failed-auth",
 		items:          overview.FailedAuth,
 		scope:          auditstore.AuditBusinessCategoryAuthFailures,
-		title:          "Authentication failures",
-		titleKey:       "audit.overview.riskGroups.authFailures",
-		descriptionKey: "dashboard.widget.auditRiskEvents.authFailures.description",
+		Title:          "Authentication failures",
+		TitleKey:       "audit.overview.riskGroups.authFailures",
+		DescriptionKey: "dashboard.widget.auditRiskEvents.authFailures.description",
 	})
 	items = appendAuditOverviewGroupItem(items, auditOverviewGroupItemDefinition{
 		count:          riskGroupCounts[auditstore.AuditBusinessCategoryPermissionDenials],
 		id:             "audit.permission-denied",
 		items:          overview.PermissionDenied,
 		scope:          auditstore.AuditBusinessCategoryPermissionDenials,
-		title:          "Permission denials",
-		titleKey:       "audit.overview.riskGroups.permissionDenials",
-		descriptionKey: "dashboard.widget.auditRiskEvents.permissionDenials.description",
+		Title:          "Permission denials",
+		TitleKey:       "audit.overview.riskGroups.permissionDenials",
+		DescriptionKey: "dashboard.widget.auditRiskEvents.permissionDenials.description",
 	})
 
 	highRiskEvents := overview.Summary.HighRiskEvents
@@ -171,9 +171,9 @@ type auditOverviewGroupItemDefinition struct {
 	id             string
 	items          []auditstore.OverviewItem
 	scope          auditstore.AuditBusinessCategory
-	title          string
-	titleKey       string
-	descriptionKey string
+	Title          string
+	TitleKey       string
+	DescriptionKey string
 }
 
 func appendAuditOverviewGroupItem(items []map[string]any, definition auditOverviewGroupItemDefinition) []map[string]any {
@@ -188,9 +188,9 @@ func appendAuditOverviewGroupItem(items []map[string]any, definition auditOvervi
 	item := map[string]any{
 		"id":              definition.id,
 		"level":           "warning",
-		"title_key":       definition.titleKey,
-		"title":           definition.title,
-		"description_key": definition.descriptionKey,
+		"title_key":       definition.TitleKey,
+		"title":           definition.Title,
+		"description_key": definition.DescriptionKey,
 		"description":     description,
 		"count":           definition.count,
 		"occurred_at":     latest.CreatedAt,

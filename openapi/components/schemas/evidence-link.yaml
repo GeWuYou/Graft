@@ -9,6 +9,10 @@ properties:
     enum: [available, empty, unsupported, unavailable]
   title:
     type: string
+    description: Direct evidence-link title fallback when the client has no translation for title_key.
+  title_key:
+    type: string
+    description: Stable localization key for the evidence-link title.
   reason:
     type: string
   time_window:

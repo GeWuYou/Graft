@@ -73,6 +73,26 @@ The scanner intentionally focuses on contract-sensitive surfaces first:
 
 Generated artifacts, third-party code, and build output are skipped by default.
 
+## Governance Domain Expansion
+
+The scanner is the shared repository governance platform for high-risk contract
+values. New domains should extend the same scanner / finding / fixture /
+metadata flow instead of adding isolated scripts with separate reporting or
+validation semantics.
+
+Current permission-code coverage includes:
+
+- known permission literals in runtime guard calls
+- permission-shaped literals in `permission.Item` and `moduleapi.PermissionSeed`
+  registration metadata
+- permission-shaped literals in menu, dashboard, and other required-permission
+  metadata fields
+
+Canonical permission definitions remain allowed in module contract files such as
+`server/modules/<name>/contract/**` and
+`web/src/modules/<name>/contract/permissions.ts`. Test fixtures may still inline
+permission values as sample inputs and assertions.
+
 ## Local Hook Usage
 
 - `.husky/pre-commit`

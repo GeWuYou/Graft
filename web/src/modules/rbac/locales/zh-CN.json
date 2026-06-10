@@ -340,6 +340,23 @@
         "display": "管理通知",
         "description": "允许管理全局通知投递与配置。"
       }
+    },
+    "roles": {
+      "admin": {
+        "display": "管理员"
+      }
+    },
+    "audit": {
+      "roleCreated": "角色已创建",
+      "roleUpdated": "角色已更新",
+      "roleStatusUpdated": "角色状态已更新",
+      "roleDeleted": "角色已删除",
+      "rolePermissionsReplaced": "角色权限已替换",
+      "rolePermissionsAdded": "角色权限已追加",
+      "rolePermissionsRemoved": "角色权限已移除",
+      "userRolesReplaced": "用户角色已替换",
+      "userRolesAdded": "用户角色已追加",
+      "userRolesRemoved": "用户角色已移除"
     }
   }
 }

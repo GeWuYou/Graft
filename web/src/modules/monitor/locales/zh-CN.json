@@ -275,6 +275,14 @@
         "all": "全部模块",
         "allowlist": "允许列表"
       }
+    },
+    "evidence": {
+      "unavailable": {
+        "title": "监控证据不可用"
+      },
+      "auditUnavailable": {
+        "title": "审计证据不可用"
+      }
     }
   }
 }

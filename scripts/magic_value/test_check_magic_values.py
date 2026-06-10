@@ -90,6 +90,16 @@ class DefinitionContextTests(unittest.TestCase):
             )
         )
 
+    def test_server_module_permission_contract_is_canonical_definition_context(self) -> None:
+        """Server module permission contracts may define canonical permission literals."""
+        self.assertTrue(
+            MODULE.is_definition_context(
+                "server/modules/user/contract/permission.go",
+                'UserReadPermission PermissionCode = "user.read"',
+                "user.read",
+            )
+        )
+
 
 class TestFixtureExemptionTests(unittest.TestCase):
     """Keep test-only fixtures quiet without weakening runtime checks."""
@@ -134,6 +144,67 @@ class TestFixtureExemptionTests(unittest.TestCase):
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0].rule, "permission-code-literal")
         self.assertEqual(findings[0].severity, "P0")
+
+    def test_scan_file_flags_permission_registration_literal(self) -> None:
+        text = "\n".join(
+            [
+                "return []permission.Item{",
+                "  {",
+                '    Code: "analytics.report.read",',
+                '    DisplayKey: "rbac.permissionCatalog.analyticsReportRead.display",',
+                "  },",
+                "}",
+            ]
+        )
+
+        findings = MODULE.scan_file("server/modules/analytics/module_registration.go", text)
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule, "permission-code-literal")
+        self.assertEqual(findings[0].value, "analytics.report.read")
+
+    def test_scan_file_allows_permission_contract_literal(self) -> None:
+        findings = MODULE.scan_file(
+            "server/modules/analytics/contract/permission.go",
+            'AnalyticsReportReadPermission PermissionCode = "analytics.report.read"',
+        )
+
+        self.assertEqual(findings, [])
+
+    def test_scan_file_flags_permission_metadata_literal(self) -> None:
+        findings = MODULE.scan_file(
+            "server/internal/dashboard/registry.go",
+            'RequiredPermissions: []string{"analytics.report.read"},',
+        )
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule, "permission-code-literal")
+        self.assertEqual(findings[0].value, "analytics.report.read")
+
+    def test_scan_file_flags_multiline_permission_metadata_literal(self) -> None:
+        text = "\n".join(
+            [
+                "RequiredPermissions: []string{",
+                '  "analytics.report.read",',
+                "},",
+            ]
+        )
+
+        findings = MODULE.scan_file("server/internal/dashboard/registry.go", text)
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule, "permission-code-literal")
+        self.assertEqual(findings[0].value, "analytics.report.read")
+
+    def test_scan_file_flags_permission_guard_literal(self) -> None:
+        findings = MODULE.scan_file(
+            "server/modules/analytics/routes.go",
+            'RequirePermission(ctx, "analytics.report.read")',
+        )
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule, "permission-code-literal")
+        self.assertEqual(findings[0].value, "analytics.report.read")
 
 
 if __name__ == "__main__":

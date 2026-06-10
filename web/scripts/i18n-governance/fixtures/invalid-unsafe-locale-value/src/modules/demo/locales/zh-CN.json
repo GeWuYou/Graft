@@ -1,0 +1,10 @@
+{
+  "demo": {
+    "lower": {
+      "title": "小写标题"
+    },
+    "self": {
+      "title": "demo.self.title"
+    }
+  }
+}

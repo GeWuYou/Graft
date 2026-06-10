@@ -2,25 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { I18nGovernanceRule } from '../types';
-import { runLegacyRule } from './legacy-rule';
+import { noDuplicateLocaleKeyRule } from './no-duplicate-locale-key';
 import { noFallbackOnlyKeyFirstRule } from './no-fallback-only-key-first';
 import { noHardcodedPluginMessageRule } from './no-hardcoded-plugin-message';
+import { noHardcodedTemplateTextRule } from './no-hardcoded-template-text';
 import { noHardcodedUiPropRule } from './no-hardcoded-ui-prop';
-
-const legacyRule: I18nGovernanceRule = {
-  id: 'legacy',
-  description:
-    'Compatibility wrapper for existing locale catalog, missing key, template text, and unsafe datetime checks.',
-  defaultSeverity: 'error',
-  appliesTo: ['vue', 'ts', 'tsx', 'locale', 'go', 'schema'],
-  check() {
-    return runLegacyRule();
-  },
-};
+import { noLocaleCatalogDriftRule } from './no-locale-catalog-drift';
+import { noMissingLocaleKeyRule } from './no-missing-locale-key';
+import { noSystemConfigSchemaFallbackRule } from './no-system-config-schema-fallback';
+import { noUnsafeDatetimeLocaleRule } from './no-unsafe-datetime-locale';
+import { noUnsafeLocaleValueRule } from './no-unsafe-locale-value';
+import { noUnusedLocaleKeyRule } from './no-unused-locale-key';
 
 export const rules: I18nGovernanceRule[] = [
-  legacyRule,
+  noMissingLocaleKeyRule,
+  noLocaleCatalogDriftRule,
+  noUnusedLocaleKeyRule,
+  noDuplicateLocaleKeyRule,
+  noUnsafeDatetimeLocaleRule,
+  noUnsafeLocaleValueRule,
   noHardcodedUiPropRule,
   noHardcodedPluginMessageRule,
+  noHardcodedTemplateTextRule,
   noFallbackOnlyKeyFirstRule,
+  noSystemConfigSchemaFallbackRule,
 ];

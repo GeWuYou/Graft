@@ -43,6 +43,7 @@ type AuditEvent struct {
 	IP            string
 	UserAgent     string
 	Success       bool
+	MessageKey    string
 	Message       string
 	Metadata      map[string]any
 	CreatedAt     time.Time

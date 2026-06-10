@@ -442,10 +442,11 @@ dead-code / duplicate-code 治理规则：
   - `.husky/pre-push` 命中 `web/**` 改动时必须执行 `cd web && bun run hygiene:check`
   - CI 保持 `web-check -> bun run check` 入口不变，由 `check` 内部阻断 dead-code / duplicate-code 问题
 - i18n governance hook 规则：
+  - `bun run lint:i18n` 是 strict key-first i18n governance 的唯一前端脚本入口，必须默认启用 `STRICT_I18N_KEY_FIRST=true`
   - `bun run check` 必须包含 `lint:i18n`，CI 继续复用 `bun run check`，不得为同一规则新增第二个 CI 真值
   - `.husky/pre-commit` 在 staged changes 命中 `web/src/**`、`web/scripts/check-i18n-governance.ts` 或 `web/package.json` 时必须执行 `cd web && bun run lint:i18n`
   - `.husky/pre-push` 在当前分支相对 base ref 命中上述 i18n 相关路径时必须执行 `cd web && bun run lint:i18n`
-  - `lint:i18n` 负责阻断 root catalog 与 module catalog 的重复 exact key、未使用 key、聚合漂移、第二套消息真值，以及可见时间格式化未显式绑定当前 locale 的问题；重复 value 只要语义边界不同，不作为违规
+  - `lint:i18n` 负责阻断 root catalog 与 module catalog 的重复 exact key、未使用 key、聚合漂移、第二套消息真值、fallback-only server key-first registry findings，以及可见时间格式化未显式绑定当前 locale 的问题；重复 value 只要语义边界不同，不作为违规
 - 可见时间格式化规则：
   - 页面、组件和模块共享展示层不得使用 `new Intl.DateTimeFormat(undefined, ...)` 或无参数 `toLocaleString()` / `toLocaleDateString()` / `toLocaleTimeString()` 渲染用户可见时间
   - 可见时间默认通过 `web/src/shared/observability` 的 locale-aware formatter，并从 `vue-i18n` 当前 `locale` 传入

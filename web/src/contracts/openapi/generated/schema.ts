@@ -2068,7 +2068,10 @@ export interface components {
       target_kind: 'audit_context' | 'audit_incident';
       /** @enum {string} */
       link_state: 'available' | 'empty' | 'unsupported' | 'unavailable';
+      /** @description Direct evidence-link title fallback when the client has no translation for title_key. */
       title: string;
+      /** @description Stable localization key for the evidence-link title. */
+      title_key?: string;
       reason?: string;
       time_window?: components['schemas']['evidence-link-time-window'];
       audit_context?: components['schemas']['audit-evidence-context'];

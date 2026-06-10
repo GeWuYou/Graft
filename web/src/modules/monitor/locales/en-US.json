@@ -275,6 +275,14 @@
         "all": "All modules",
         "allowlist": "Allowlist"
       }
+    },
+    "evidence": {
+      "unavailable": {
+        "title": "Monitor evidence is unavailable"
+      },
+      "auditUnavailable": {
+        "title": "Audit evidence is unavailable"
+      }
     }
   }
 }

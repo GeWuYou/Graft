@@ -140,6 +140,7 @@ describe('check-i18n-governance datetime formatting scan', () => {
 <script setup lang="ts">
 const label = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date());
 const fallback = new Date().toLocaleString();
+const voidLocale = Intl.DateTimeFormat(void 0, { timeStyle: 'short' }).format(new Date());
 </script>
 `);
 
@@ -155,7 +156,25 @@ const fallback = new Date().toLocaleString();
 <script setup lang="ts">
 import { formatLocaleDateTime } from '@/shared/observability';
 const label = formatLocaleDateTime('2026-06-10T02:38:00Z', 'en-US');
+const count = 1234;
+const numberLabel = count.toLocaleString();
 </script>
+`);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
+    expect(result.stderr).toBe('');
+  });
+
+  it('allows hidden text inside nested aria-hidden template ancestors', async () => {
+    const result = await runGovernanceScript(`
+<template>
+  <button>
+    <span aria-hidden="true">
+      <span>Create report</span>
+    </span>
+  </button>
+</template>
 `);
 
     expect(result.exitCode).toBe(0);
@@ -224,6 +243,7 @@ const demoConfigSchema = \`{"type":"object","properties":{"maxQuickActions":{"ty
     );
 
     expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('no-system-config-schema-fallback');
     expect(result.stdout).toContain(
       'system config schema schema.properties.maxQuickActions.title has visible fallback "Maximum quick actions" without x-i18n.titleKey',
     );
@@ -264,6 +284,11 @@ const demoConfigSchema = \`{"type":"object","properties":{"maxQuickActions":{"ty
 describe('check-i18n-governance fixture rules', () => {
   const invalidFixtures = [
     {
+      fixture: 'invalid-hardcoded-template-text',
+      expectation: 'blocks raw visible template text',
+      expectedSnippets: ['no-hardcoded-template-text', 'Create report'],
+    },
+    {
       fixture: 'invalid-fallback-label-cjk',
       expectation: 'blocks fallbackLabel with Chinese literal copy',
       expectedSnippets: ['fallbackLabel', '编辑'],
@@ -272,6 +297,11 @@ describe('check-i18n-governance fixture rules', () => {
       fixture: 'invalid-fallback-label-conditional-cjk',
       expectation: 'blocks conditional fallbackLabel with Chinese literal copy',
       expectedSnippets: ['fallbackLabel', '启用用户', '禁用用户'],
+    },
+    {
+      fixture: 'invalid-bound-ui-prop-expression',
+      expectation: 'blocks bound Vue UI props with conditional and template literal fallback copy',
+      expectedSnippets: ['fallback-label', '启用用户', '禁用用户', '还有 ${count} 条任务'],
     },
     {
       fixture: 'invalid-more-label-fallback-cjk',
@@ -337,6 +367,107 @@ describe('check-i18n-governance fixture rules', () => {
     expect(result.stdout).toContain('[error]');
     expect(result.stdout).toContain('no-fallback-only-key-first');
     expect(result.stdout).toContain('Dashboard title');
+    expect(result.stderr).toBe('');
+  });
+
+  it('allows lowerCamel Go key-first fields next to fallback copy in strict mode', async () => {
+    const result = await runGovernanceScriptWithServerSourceAndLocales(
+      '',
+      `
+package demo
+
+type auditLabels struct {
+  messageKey string
+  message string
+}
+
+var labels = auditLabels{
+  messageKey: "demo.audit.saved",
+  message: "record saved",
+}
+
+type configGroup struct {
+  descriptionKey string
+  description string
+}
+
+var group = configGroup{
+  descriptionKey: "systemConfig.demo.description",
+  description: "Controls demo behavior.",
+}
+`,
+      JSON.stringify({
+        demo: { audit: { saved: 'Record saved' } },
+        systemConfig: { demo: { description: 'Controls demo behavior.' } },
+      }),
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
+    expect(result.stderr).toBe('');
+  });
+});
+
+describe('check-i18n-governance split legacy rules', () => {
+  const splitRuleFixtures = [
+    {
+      invalid: 'invalid-missing-locale-key',
+      ruleId: 'no-missing-locale-key',
+      snippet: 'referenced locale key demo.missing.title is missing',
+      valid: 'valid-missing-locale-key',
+    },
+    {
+      invalid: 'invalid-locale-catalog-drift',
+      ruleId: 'no-locale-catalog-drift',
+      snippet: 'split locale ownership for demo.shared.title',
+      valid: 'valid-locale-catalog-drift',
+    },
+    {
+      invalid: 'invalid-unused-locale-key',
+      ruleId: 'no-unused-locale-key',
+      snippet: 'unused locale key demo.unused.title',
+      valid: 'valid-unused-locale-key',
+    },
+    {
+      invalid: 'invalid-duplicate-locale-key',
+      ruleId: 'no-duplicate-locale-key',
+      snippet: 'duplicate locale key demo.duplicate.title',
+      valid: 'valid-duplicate-locale-key',
+    },
+    {
+      invalid: 'invalid-unsafe-datetime-locale',
+      ruleId: 'no-unsafe-datetime-locale',
+      snippet: 'visible datetime formatting must pass the active locale instead of undefined',
+      valid: 'valid-unsafe-datetime-locale',
+    },
+    {
+      invalid: 'invalid-unsafe-locale-value',
+      ruleId: 'no-unsafe-locale-value',
+      snippet: 'locale key demo.self.title resolves to itself',
+      valid: 'valid-unsafe-locale-value',
+    },
+    {
+      invalid: 'invalid-hardcoded-template-text',
+      ruleId: 'no-hardcoded-template-text',
+      snippet: 'Create report',
+      valid: 'valid-hardcoded-template-text',
+    },
+  ];
+
+  it.each(splitRuleFixtures)('$invalid: reports $ruleId', async ({ invalid, ruleId, snippet }) => {
+    const result = await runGovernanceScriptWithFixture(invalid);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain(ruleId);
+    expect(result.stdout).toContain(snippet);
+    expect(result.stderr).toBe('');
+  });
+
+  it.each(splitRuleFixtures)('$valid: passes $ruleId valid fixture', async ({ valid }) => {
+    const result = await runGovernanceScriptWithFixture(valid);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
     expect(result.stderr).toBe('');
   });
 });

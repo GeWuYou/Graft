@@ -13,6 +13,7 @@ import (
 
 	"graft/server/internal/eventbus"
 	"graft/server/internal/moduleapi"
+	rbaccontract "graft/server/modules/rbac/contract"
 	rbacstore "graft/server/modules/rbac/store"
 )
 
@@ -55,6 +56,12 @@ type managementWriter struct {
 	logger   *zap.Logger
 }
 
+type rolePermissionAuditLabels struct {
+	action     string
+	messageKey string
+	message    string
+}
+
 func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
 	if w.rbac == nil {
 		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
@@ -71,6 +78,7 @@ func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.Create
 		ResourceID:   formatRBACAuditID(role.ID),
 		ResourceName: role.Name,
 		Success:      true,
+		MessageKey:   "rbac.audit.roleCreated",
 		Message:      "role created",
 		Metadata: map[string]any{
 			"display_name": role.Display,
@@ -106,6 +114,7 @@ func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.Update
 		ResourceID:   formatRBACAuditID(role.ID),
 		ResourceName: role.Name,
 		Success:      true,
+		MessageKey:   "rbac.audit.roleUpdated",
 		Message:      "role updated",
 		Metadata: map[string]any{
 			"display_name": role.Display,
@@ -133,6 +142,7 @@ func (w managementWriter) SetRoleStatus(ctx context.Context, input rbacstore.Set
 		ResourceID:   formatRBACAuditID(role.ID),
 		ResourceName: role.Name,
 		Success:      true,
+		MessageKey:   "rbac.audit.roleStatusUpdated",
 		Message:      "role status updated",
 		Metadata: map[string]any{
 			"status": role.Status,
@@ -161,6 +171,7 @@ func (w managementWriter) SoftDeleteRole(ctx context.Context, input rbacstore.So
 		ResourceID:   formatRBACAuditID(role.ID),
 		ResourceName: role.Name,
 		Success:      true,
+		MessageKey:   "rbac.audit.roleDeleted",
 		Message:      "role deleted",
 	})
 
@@ -201,6 +212,7 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input r
 		ResourceID:   formatRBACAuditID(input.RoleID),
 		ResourceName: role.Name,
 		Success:      true,
+		MessageKey:   "rbac.audit.rolePermissionsReplaced",
 		Message:      "role permissions replaced",
 		Metadata: map[string]any{
 			"permission_ids": append([]uint64(nil), input.PermissionIDs...),
@@ -215,8 +227,11 @@ func (w managementWriter) AddPermissionsToRole(ctx context.Context, input rbacst
 		ctx,
 		input.RoleID,
 		input.PermissionIDs,
-		"rbac.role.permissions.add",
-		"role permissions added",
+		rolePermissionAuditLabels{
+			action:     "rbac.role.permissions.add",
+			messageKey: rbaccontract.AuditRolePermissionsAdded.String(),
+			message:    "role permissions added",
+		},
 		func(ctx context.Context) error {
 			return w.rbac.AddPermissionsToRole(ctx, input)
 		},
@@ -228,8 +243,11 @@ func (w managementWriter) RemovePermissionsFromRole(ctx context.Context, input r
 		ctx,
 		input.RoleID,
 		input.PermissionIDs,
-		"rbac.role.permissions.remove",
-		"role permissions removed",
+		rolePermissionAuditLabels{
+			action:     "rbac.role.permissions.remove",
+			messageKey: rbaccontract.AuditRolePermissionsRemoved.String(),
+			message:    "role permissions removed",
+		},
 		func(ctx context.Context) error {
 			return w.rbac.RemovePermissionsFromRole(ctx, input)
 		},
@@ -240,8 +258,7 @@ func (w managementWriter) mutateRolePermissions(
 	ctx context.Context,
 	roleID uint64,
 	permissionIDs []uint64,
-	action string,
-	message string,
+	auditLabels rolePermissionAuditLabels,
 	run func(context.Context) error,
 ) error {
 	if w.rbac == nil {
@@ -262,12 +279,13 @@ func (w managementWriter) mutateRolePermissions(
 	}
 
 	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       action,
+		Action:       auditLabels.action,
 		ResourceType: "role",
 		ResourceID:   formatRBACAuditID(roleID),
 		ResourceName: role.Name,
 		Success:      true,
-		Message:      message,
+		MessageKey:   auditLabels.messageKey,
+		Message:      auditLabels.message,
 		Metadata: map[string]any{
 			"permission_ids": append([]uint64(nil), permissionIDs...),
 		},
@@ -313,6 +331,7 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacsto
 		ResourceID:   formatRBACAuditID(input.UserID),
 		ResourceName: user.Username,
 		Success:      true,
+		MessageKey:   "rbac.audit.userRolesReplaced",
 		Message:      "user roles replaced",
 		Metadata: map[string]any{
 			"role_ids": append([]uint64(nil), input.RoleIDs...),
@@ -340,6 +359,7 @@ func (w managementWriter) AddRolesToUser(ctx context.Context, input rbacstore.Ad
 		ResourceID:   formatRBACAuditID(input.UserID),
 		ResourceName: user.Username,
 		Success:      true,
+		MessageKey:   "rbac.audit.userRolesAdded",
 		Message:      "user roles added",
 		Metadata: map[string]any{
 			"role_ids": append([]uint64(nil), input.RoleIDs...),
@@ -370,6 +390,7 @@ func (w managementWriter) RemoveRolesFromUser(ctx context.Context, input rbacsto
 		ResourceID:   formatRBACAuditID(input.UserID),
 		ResourceName: user.Username,
 		Success:      true,
+		MessageKey:   "rbac.audit.userRolesRemoved",
 		Message:      "user roles removed",
 		Metadata: map[string]any{
 			"role_ids": append([]uint64(nil), input.RoleIDs...),

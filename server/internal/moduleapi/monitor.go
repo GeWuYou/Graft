@@ -54,6 +54,7 @@ type MonitorIncidentSeedLink struct {
 type MonitorEvidenceLink struct {
 	TargetKind   string
 	LinkState    string
+	TitleKey     string
 	Title        string
 	Reason       string
 	TimeWindow   *MonitorEvidenceLinkTimeWindow

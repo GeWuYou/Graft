@@ -20,8 +20,12 @@ type Job struct {
 	Owner string
 	// Title 是 Job Definition 的默认展示标题。
 	Title string
+	// TitleKey 是 Job Definition 标题的稳定 i18n key。
+	TitleKey string
 	// Description 是 Job Definition 的默认说明。
 	Description string
+	// DescriptionKey 是 Job Definition 说明的稳定 i18n key。
+	DescriptionKey string
 	// DisplayMessageKey 是任务名称的稳定 i18n key。
 	DisplayMessageKey string
 	// DescriptionMessageKey 是任务说明的稳定 i18n key。
@@ -99,6 +103,22 @@ func (j Job) RuntimeDescription() string {
 		return description
 	}
 	return j.RuntimeTitle()
+}
+
+// RuntimeTitleKey returns the stable i18n key for the job title.
+func (j Job) RuntimeTitleKey() string {
+	if key := strings.TrimSpace(j.TitleKey); key != "" {
+		return key
+	}
+	return strings.TrimSpace(j.DisplayMessageKey)
+}
+
+// RuntimeDescriptionKey returns the stable i18n key for the job description.
+func (j Job) RuntimeDescriptionKey() string {
+	if key := strings.TrimSpace(j.DescriptionKey); key != "" {
+		return key
+	}
+	return strings.TrimSpace(j.DescriptionMessageKey)
 }
 
 // RuntimeDefaultConfig returns stable JSON for default job config.

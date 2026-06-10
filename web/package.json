@@ -10,7 +10,7 @@
     "build:test": "vite build --mode test",
     "build:type": "bun run typecheck",
     "lint": "eslint --ext .vue,.js,.jsx,.ts,.tsx ./ --max-warnings 0",
-    "lint:i18n": "bun run scripts/check-i18n-governance.ts",
+    "lint:i18n": "STRICT_I18N_KEY_FIRST=true bun run scripts/check-i18n-governance.ts",
     "lint:fix": "eslint --ext .vue,.js,.jsx,.ts,.tsx ./ --max-warnings 0 --fix",
     "stylelint": "stylelint \"src/**/*.{html,vue,css,sass,less}\"",
     "stylelint:fix": "stylelint --fix \"src/**/*.{html,vue,css,sass,less}\"",
