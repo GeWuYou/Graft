@@ -1,0 +1,11 @@
+{
+  "demo": {
+    "safe": {
+      "description": "安全描述",
+      "title": "安全标题"
+    },
+    "server": {
+      "title": "服务端标题"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "demo": {
+    "lower": {
+      "title": "lowercase title"
+    },
+    "self": {
+      "title": "demo.self.title"
+    }
+  }
+}

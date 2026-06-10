@@ -1,0 +1,11 @@
+{
+  "demo": {
+    "safe": {
+      "description": "Safe description",
+      "title": "Safe title"
+    },
+    "server": {
+      "title": "Server title"
+    }
+  }
+}

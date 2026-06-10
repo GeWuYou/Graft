@@ -1,0 +1,10 @@
+{
+  "demo": {
+    "unused": {
+      "title": "Unused title"
+    },
+    "used": {
+      "title": "Used title"
+    }
+  }
+}
