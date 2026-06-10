@@ -107,6 +107,7 @@ function collectExpressionLiterals(expression: string): ExpressionLiteral[] {
     }
 
     if (ts.isBinaryExpression(node) && UI_COPY_LOGICAL_OPERATORS.has(node.operatorToken.kind)) {
+      inspectExpression(node.left);
       inspectExpression(node.right);
     }
   }

@@ -72,6 +72,31 @@ func TestRBACMessageResourcesRejectsMismatchedTexts(t *testing.T) {
 	}
 }
 
+func TestRegisterMessagesIncludesRolePermissionAuditKeys(t *testing.T) {
+	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+
+	if err := registerMessages(localizer); err != nil {
+		t.Fatalf("register rbac messages: %v", err)
+	}
+
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AuditRolePermissionsAdded.String(), "角色权限已追加")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleZHCN, rbaccontract.AuditRolePermissionsRemoved.String(), "角色权限已移除")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.AuditRolePermissionsAdded.String(), "Role permissions added")
+	assertRegisteredRBACMessage(t, localizer, i18n.LocaleENUS, rbaccontract.AuditRolePermissionsRemoved.String(), "Role permissions removed")
+}
+
+func assertRegisteredRBACMessage(t *testing.T, localizer *i18n.Service, locale i18n.LocaleTag, key string, expected string) {
+	t.Helper()
+
+	matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))
+	if len(matches) != 1 {
+		t.Fatalf("expected one rbac message for %s %q, got %#v", locale, key, matches)
+	}
+	if matches[0].Text != expected {
+		t.Fatalf("expected rbac message %q for %s %q, got %#v", expected, locale, key, matches[0])
+	}
+}
+
 func (s testUserService) GetUserByID(_ context.Context, id uint64) (moduleapi.UserSummary, error) {
 	user, ok := s.users[id]
 	if !ok {

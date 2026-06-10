@@ -155,6 +155,7 @@ PERMISSION_CODE_FIELD_RE = re.compile(r"""\bCode\s*:\s*["'][a-z][a-z0-9]*(?:\.[a
 PERMISSION_METADATA_FIELD_RE = re.compile(
     r"""\b(?:Permission|RequiredPermissions)\s*:\s*(?:\[\]string\s*)?\{?\s*["'][a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+["']"""
 )
+PERMISSION_METADATA_BLOCK_RE = re.compile(r"""\b(?:Permission|RequiredPermissions)\s*:\s*(?:\[\]string\s*)?\{""")
 PERMISSION_GUARD_LITERAL_CONTEXT_RE = re.compile(
     r"""\b(?:RequirePermission|hasPermission|hasAnyPermission|hasAllPermissions)\s*\("""
 )
@@ -497,8 +498,15 @@ def is_test_fixture_context(path: str, line_text: str, rule: str) -> bool:
     return False
 
 
-def is_permission_governance_context(line_text: str, in_permission_registration: bool) -> bool:
+def is_permission_governance_context(
+    line_text: str,
+    in_permission_registration: bool,
+    in_permission_metadata: bool = False,
+) -> bool:
+    """Return whether permission literals on this line are governance-owned contract values."""
     if in_permission_registration and PERMISSION_CODE_FIELD_RE.search(line_text):
+        return True
+    if in_permission_metadata:
         return True
     if PERMISSION_METADATA_FIELD_RE.search(line_text):
         return True
@@ -521,23 +529,32 @@ def scan_file(path: str, text: str) -> list[Finding]:
     findings: list[Finding] = []
     lines = text.splitlines()
     permission_registration_depth = 0
+    permission_metadata_depth = 0
     for line_no, line in enumerate(lines, start=1):
         starts_permission_registration = bool(PERMISSION_REGISTRATION_CONTEXT_RE.search(line))
         in_permission_registration = permission_registration_depth > 0 or starts_permission_registration
+        starts_permission_metadata = bool(PERMISSION_METADATA_BLOCK_RE.search(line))
+        in_permission_metadata = permission_metadata_depth > 0 or starts_permission_metadata
 
         if not line.strip():
             if permission_registration_depth > 0:
                 permission_registration_depth = max(0, permission_registration_depth + line.count("{") - line.count("}"))
+            if permission_metadata_depth > 0:
+                permission_metadata_depth = max(0, permission_metadata_depth + line.count("{") - line.count("}"))
             continue
 
         if path.endswith(".md"):
             if permission_registration_depth > 0:
                 permission_registration_depth = max(0, permission_registration_depth + line.count("{") - line.count("}"))
+            if permission_metadata_depth > 0:
+                permission_metadata_depth = max(0, permission_metadata_depth + line.count("{") - line.count("}"))
             continue
 
         if path.endswith(".json") and "web/src/locales/lang/" in path:
             if permission_registration_depth > 0:
                 permission_registration_depth = max(0, permission_registration_depth + line.count("{") - line.count("}"))
+            if permission_metadata_depth > 0:
+                permission_metadata_depth = max(0, permission_metadata_depth + line.count("{") - line.count("}"))
             continue
 
         for match in LOCAL_STORAGE_CALL_RE.finditer(line):
@@ -657,7 +674,11 @@ def scan_file(path: str, text: str) -> list[Finding]:
 
         for match in PERMISSION_LITERAL_RE.finditer(line):
             permission = match.group("permission")
-            permission_domain_context = is_permission_governance_context(line, in_permission_registration)
+            permission_domain_context = is_permission_governance_context(
+                line,
+                in_permission_registration,
+                in_permission_metadata,
+            )
             if permission not in KNOWN_PERMISSION_CODES and not permission_domain_context:
                 continue
             if is_definition_context(path, line, permission):
@@ -700,6 +721,11 @@ def scan_file(path: str, text: str) -> list[Finding]:
             permission_registration_depth = max(
                 0,
                 permission_registration_depth + line.count("{") - line.count("}"),
+            )
+        if in_permission_metadata:
+            permission_metadata_depth = max(
+                0,
+                permission_metadata_depth + line.count("{") - line.count("}"),
             )
 
     return findings

@@ -141,6 +141,8 @@ func registerMessages(localizer *i18n.Service) error {
 				"角色管理",
 				"权限管理",
 				"访问控制概览",
+				"角色权限已追加",
+				"角色权限已移除",
 			},
 		},
 		{
@@ -150,6 +152,8 @@ func registerMessages(localizer *i18n.Service) error {
 				"Role Management",
 				"Permission Management",
 				"Access Control Overview",
+				"Role permissions added",
+				"Role permissions removed",
 			},
 		},
 	} {
@@ -170,11 +174,13 @@ func registerMessages(localizer *i18n.Service) error {
 }
 
 func rbacMessageResources(texts []string) ([]i18n.MessageResource, error) {
-	keys := []rbaccontract.MenuMessageKey{
+	keys := []rbaccontract.MessageKey{
 		rbaccontract.AccessControlMenuTitle,
 		rbaccontract.RoleListMenuTitle,
 		rbaccontract.PermissionListMenuTitle,
 		rbaccontract.AccessControlOverviewMenuTitle,
+		rbaccontract.AuditRolePermissionsAdded,
+		rbaccontract.AuditRolePermissionsRemoved,
 	}
 	if len(texts) != len(keys) {
 		return nil, fmt.Errorf("expected %d texts for %d rbac message keys, got %d", len(keys), len(keys), len(texts))

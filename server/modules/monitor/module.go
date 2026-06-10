@@ -179,6 +179,7 @@ func registerMessages(localizer *i18n.Service) error {
 				{Key: i18n.MessageKey(monitorcontract.ServerStatusOverviewMenuTitle.String()), Text: "概览"},
 				{Key: i18n.MessageKey(monitorcontract.ServerStatusRuntimeMenuTitle.String()), Text: "运行时"},
 				{Key: i18n.MessageKey(monitorcontract.ServerStatusDependenciesMenuTitle.String()), Text: "依赖服务"},
+				{Key: i18n.MessageKey(monitorcontract.AuditEvidenceUnavailableTitle.String()), Text: "审计证据不可用"},
 			},
 		},
 		{
@@ -189,6 +190,7 @@ func registerMessages(localizer *i18n.Service) error {
 				{Key: i18n.MessageKey(monitorcontract.ServerStatusOverviewMenuTitle.String()), Text: "Overview"},
 				{Key: i18n.MessageKey(monitorcontract.ServerStatusRuntimeMenuTitle.String()), Text: "Runtime"},
 				{Key: i18n.MessageKey(monitorcontract.ServerStatusDependenciesMenuTitle.String()), Text: "Dependencies"},
+				{Key: i18n.MessageKey(monitorcontract.AuditEvidenceUnavailableTitle.String()), Text: "Audit evidence is unavailable"},
 			},
 		},
 	} {
@@ -818,7 +820,7 @@ func unavailableEvidenceLink(windowStart time.Time, windowEnd time.Time, reason 
 	return generated.EvidenceLink{
 		TargetKind: generated.EvidenceLinkTargetKind(evidenceTargetAudit),
 		LinkState:  generated.EvidenceLinkLinkState(evidenceStateUnavailable),
-		TitleKey:   stringPointer("monitor.evidence.auditUnavailable.title"),
+		TitleKey:   stringPointer(monitorcontract.AuditEvidenceUnavailableTitle.String()),
 		Title:      "Audit evidence is unavailable",
 		Reason:     stringPointer(reason),
 		TimeWindow: &generated.EvidenceLinkTimeWindow{

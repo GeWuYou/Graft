@@ -10,20 +10,20 @@ import type { RuleViolation, ScanContext, SourceFile } from './types';
 
 export type LocaleCode = 'zh-CN' | 'en-US';
 
-export type LocaleCatalog = {
+export interface LocaleCatalog {
   absolutePath: string;
   file: string;
   locale: LocaleCode;
   messages: Map<string, string>;
   source: string;
   lineStarts: number[];
-};
+}
 
-export type RuntimeReferenceSet = {
+export interface RuntimeReferenceSet {
   exactKeys: Set<string>;
   requiredKeys: Set<string>;
   dynamicPatterns: TemplateKeyMatcher[];
-};
+}
 
 export type TemplateKeyMatcher = (key: string) => boolean;
 

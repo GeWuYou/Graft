@@ -23,6 +23,7 @@ import (
 	"graft/server/internal/container"
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/dashboard"
+	"graft/server/internal/i18n"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	monitorcontract "graft/server/modules/monitor/contract"
@@ -96,6 +97,17 @@ func TestRegisterMonitorDashboardWidgetRegistersSystemHealthInsight(t *testing.T
 	assertMonitorQuickLink(t, quickLinks[2], monitorDependenciesQuickLinkID, monitorcontract.ServerStatusDependenciesMenuTitle.String(), monitorcontract.ServerStatusDependenciesMenuPath, monitorDependenciesQuickLinkOrder)
 }
 
+func TestRegisterMessagesIncludesAuditEvidenceUnavailableTitle(t *testing.T) {
+	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+
+	if err := registerMessages(localizer); err != nil {
+		t.Fatalf("register monitor messages: %v", err)
+	}
+
+	assertRegisteredMessage(t, localizer, i18n.LocaleZHCN, monitorcontract.AuditEvidenceUnavailableTitle.String(), "审计证据不可用")
+	assertRegisteredMessage(t, localizer, i18n.LocaleENUS, monitorcontract.AuditEvidenceUnavailableTitle.String(), "Audit evidence is unavailable")
+}
+
 func assertMonitorQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, id string, titleKey string, routeLocation string, order int) {
 	t.Helper()
 	if link.ID != id ||
@@ -107,6 +119,18 @@ func assertMonitorQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, id
 	}
 	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != monitorcontract.ServerStatusReadPermission.String() {
 		t.Fatalf("unexpected monitor quick link permissions: %#v", link.RequiredPermissions)
+	}
+}
+
+func assertRegisteredMessage(t *testing.T, localizer *i18n.Service, locale i18n.LocaleTag, key string, expected string) {
+	t.Helper()
+
+	matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))
+	if len(matches) != 1 {
+		t.Fatalf("expected one message for %s %q, got %#v", locale, key, matches)
+	}
+	if matches[0].Text != expected {
+		t.Fatalf("expected message %q for %s %q, got %#v", expected, locale, key, matches[0])
 	}
 }
 

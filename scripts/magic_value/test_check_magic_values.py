@@ -181,6 +181,31 @@ class TestFixtureExemptionTests(unittest.TestCase):
         self.assertEqual(findings[0].rule, "permission-code-literal")
         self.assertEqual(findings[0].value, "analytics.report.read")
 
+    def test_scan_file_flags_multiline_permission_metadata_literal(self) -> None:
+        text = "\n".join(
+            [
+                "RequiredPermissions: []string{",
+                '  "analytics.report.read",',
+                "},",
+            ]
+        )
+
+        findings = MODULE.scan_file("server/internal/dashboard/registry.go", text)
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule, "permission-code-literal")
+        self.assertEqual(findings[0].value, "analytics.report.read")
+
+    def test_scan_file_flags_permission_guard_literal(self) -> None:
+        findings = MODULE.scan_file(
+            "server/modules/analytics/routes.go",
+            'RequirePermission(ctx, "analytics.report.read")',
+        )
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule, "permission-code-literal")
+        self.assertEqual(findings[0].value, "analytics.report.read")
+
 
 if __name__ == "__main__":
     unittest.main()

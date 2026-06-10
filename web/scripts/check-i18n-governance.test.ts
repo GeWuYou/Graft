@@ -140,6 +140,7 @@ describe('check-i18n-governance datetime formatting scan', () => {
 <script setup lang="ts">
 const label = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date());
 const fallback = new Date().toLocaleString();
+const voidLocale = Intl.DateTimeFormat(void 0, { timeStyle: 'short' }).format(new Date());
 </script>
 `);
 
@@ -155,7 +156,25 @@ const fallback = new Date().toLocaleString();
 <script setup lang="ts">
 import { formatLocaleDateTime } from '@/shared/observability';
 const label = formatLocaleDateTime('2026-06-10T02:38:00Z', 'en-US');
+const count = 1234;
+const numberLabel = count.toLocaleString();
 </script>
+`);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
+    expect(result.stderr).toBe('');
+  });
+
+  it('allows hidden text inside nested aria-hidden template ancestors', async () => {
+    const result = await runGovernanceScript(`
+<template>
+  <button>
+    <span aria-hidden="true">
+      <span>Create report</span>
+    </span>
+  </button>
+</template>
 `);
 
     expect(result.exitCode).toBe(0);
@@ -350,6 +369,43 @@ describe('check-i18n-governance fixture rules', () => {
     expect(result.stdout).toContain('Dashboard title');
     expect(result.stderr).toBe('');
   });
+
+  it('allows lowerCamel Go key-first fields next to fallback copy in strict mode', async () => {
+    const result = await runGovernanceScriptWithServerSourceAndLocales(
+      '',
+      `
+package demo
+
+type auditLabels struct {
+  messageKey string
+  message string
+}
+
+var labels = auditLabels{
+  messageKey: "demo.audit.saved",
+  message: "record saved",
+}
+
+type configGroup struct {
+  descriptionKey string
+  description string
+}
+
+var group = configGroup{
+  descriptionKey: "systemConfig.demo.description",
+  description: "Controls demo behavior.",
+}
+`,
+      JSON.stringify({
+        demo: { audit: { saved: 'Record saved' } },
+        systemConfig: { demo: { description: 'Controls demo behavior.' } },
+      }),
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
+    expect(result.stderr).toBe('');
+  });
 });
 
 describe('check-i18n-governance split legacy rules', () => {
@@ -394,7 +450,7 @@ describe('check-i18n-governance split legacy rules', () => {
       invalid: 'invalid-hardcoded-template-text',
       ruleId: 'no-hardcoded-template-text',
       snippet: 'Create report',
-      valid: 'valid-i18n-keyed-copy',
+      valid: 'valid-hardcoded-template-text',
     },
   ];
 

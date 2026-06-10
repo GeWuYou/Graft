@@ -13,6 +13,7 @@ import (
 
 	"graft/server/internal/eventbus"
 	"graft/server/internal/moduleapi"
+	rbaccontract "graft/server/modules/rbac/contract"
 	rbacstore "graft/server/modules/rbac/store"
 )
 
@@ -53,6 +54,12 @@ type managementWriter struct {
 	rbac     rbacstore.Repository
 	auditBus eventbus.Bus
 	logger   *zap.Logger
+}
+
+type rolePermissionAuditLabels struct {
+	action     string
+	messageKey string
+	message    string
 }
 
 func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
@@ -220,8 +227,11 @@ func (w managementWriter) AddPermissionsToRole(ctx context.Context, input rbacst
 		ctx,
 		input.RoleID,
 		input.PermissionIDs,
-		"rbac.role.permissions.add",
-		"role permissions added",
+		rolePermissionAuditLabels{
+			action:     "rbac.role.permissions.add",
+			messageKey: rbaccontract.AuditRolePermissionsAdded.String(),
+			message:    "role permissions added",
+		},
 		func(ctx context.Context) error {
 			return w.rbac.AddPermissionsToRole(ctx, input)
 		},
@@ -233,8 +243,11 @@ func (w managementWriter) RemovePermissionsFromRole(ctx context.Context, input r
 		ctx,
 		input.RoleID,
 		input.PermissionIDs,
-		"rbac.role.permissions.remove",
-		"role permissions removed",
+		rolePermissionAuditLabels{
+			action:     "rbac.role.permissions.remove",
+			messageKey: rbaccontract.AuditRolePermissionsRemoved.String(),
+			message:    "role permissions removed",
+		},
 		func(ctx context.Context) error {
 			return w.rbac.RemovePermissionsFromRole(ctx, input)
 		},
@@ -245,8 +258,7 @@ func (w managementWriter) mutateRolePermissions(
 	ctx context.Context,
 	roleID uint64,
 	permissionIDs []uint64,
-	action string,
-	message string,
+	auditLabels rolePermissionAuditLabels,
 	run func(context.Context) error,
 ) error {
 	if w.rbac == nil {
@@ -267,12 +279,13 @@ func (w managementWriter) mutateRolePermissions(
 	}
 
 	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       action,
+		Action:       auditLabels.action,
 		ResourceType: "role",
 		ResourceID:   formatRBACAuditID(roleID),
 		ResourceName: role.Name,
 		Success:      true,
-		Message:      message,
+		MessageKey:   auditLabels.messageKey,
+		Message:      auditLabels.message,
 		Metadata: map[string]any{
 			"permission_ids": append([]uint64(nil), permissionIDs...),
 		},

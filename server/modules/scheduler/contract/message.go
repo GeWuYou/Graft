@@ -20,4 +20,8 @@ const (
 	ScheduledTaskAlreadyRunning MessageKey = "scheduled_task.already_running"
 	// ScheduledTaskInvalidRequest identifies invalid scheduler management input.
 	ScheduledTaskInvalidRequest MessageKey = "scheduled_task.invalid_request"
+	// ScheduledTaskRunFailedNotificationTitle identifies scheduler failure notification titles.
+	ScheduledTaskRunFailedNotificationTitle MessageKey = "scheduledTask.notification.runFailed.title"
+	// ScheduledTaskRunFailedNotificationMessage identifies scheduler failure notification messages.
+	ScheduledTaskRunFailedNotificationMessage MessageKey = "scheduledTask.notification.runFailed.message"
 )

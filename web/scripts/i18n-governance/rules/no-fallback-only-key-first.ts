@@ -12,16 +12,16 @@ import type { I18nGovernanceRule, RuleViolation, SourceFile } from '../types';
 
 type Pair = {
   fallback: string;
-  key: string;
+  keys: string[];
 };
 
 const GO_KEY_FIRST_PAIRS: Pair[] = [
-  { fallback: 'Title', key: 'TitleKey' },
-  { fallback: 'Description', key: 'DescriptionKey' },
-  { fallback: 'Display', key: 'DisplayKey' },
-  { fallback: 'Name', key: 'DisplayKey' },
-  { fallback: 'Message', key: 'MessageKey' },
-  { fallback: 'Label', key: 'LabelKey' },
+  { fallback: 'Title', keys: ['TitleKey'] },
+  { fallback: 'Description', keys: ['DescriptionKey'] },
+  { fallback: 'Display', keys: ['DisplayKey'] },
+  { fallback: 'Name', keys: ['DisplayKey'] },
+  { fallback: 'Message', keys: ['MessageKey'] },
+  { fallback: 'Label', keys: ['LabelKey'] },
 ];
 
 function shouldScanServerKeyFirstFile(filePath: string) {
@@ -33,22 +33,21 @@ function shouldScanServerKeyFirstFile(filePath: string) {
 
 function hasKeyNearby(source: string, start: number, pair: Pair) {
   const window = source.slice(Math.max(0, start - 500), Math.min(source.length, start + 500));
-  const keyPattern = new RegExp(`(?:"${pair.key}"|\\b${pair.key})\\s*:\\s*(?:"[^"]+"|[A-Za-z_][\\w.()]*)`);
-  return keyPattern.test(window);
+  return pair.keys.some((key) => {
+    const keyPattern = new RegExp(`(?:"${key}"|\\b${key})\\s*:\\s*(?:"[^"]+"|[A-Za-z_][\\w.()]*)`);
+    return keyPattern.test(window);
+  });
 }
 
 function pairForLowercaseFallback(field: string): Pair {
-  return {
-    fallback: field,
-    key:
-      field === 'title'
-        ? 'title_key'
-        : field === 'description'
-          ? 'description_key'
-          : field === 'message'
-            ? 'message_key'
-            : 'display_key',
+  const keyMap: Record<string, string[]> = {
+    description: ['descriptionKey', 'description_key'],
+    display: ['displayKey', 'display_key'],
+    message: ['messageKey', 'message_key'],
+    title: ['titleKey', 'title_key'],
   };
+
+  return { fallback: field, keys: keyMap[field] ?? ['displayKey', 'display_key'] };
 }
 
 function addFallbackOnlyViolation(
@@ -63,6 +62,7 @@ function addFallbackOnlyViolation(
   const text = normalizeText(value);
   if (!text || isTechnicalString(text)) return;
   const position = positionForIndex(file.lineStarts, index);
+  const preferredKeyField = keyField.split('|')[0] ?? keyField;
   violations.push({
     ruleId: 'no-fallback-only-key-first',
     severity: strict ? 'error' : 'warning',
@@ -71,7 +71,7 @@ function addFallbackOnlyViolation(
     column: position.column,
     message: `${field} fallback is present without ${keyField}`,
     excerpt: text,
-    suggestion: `Add ${keyField} and zh-CN/en-US locale catalog entries; keep fallback as compatibility only.`,
+    suggestion: `Add ${preferredKeyField} and zh-CN/en-US locale catalog entries; keep fallback as compatibility only.`,
   });
 }
 
@@ -85,7 +85,7 @@ function collectGoFallbackOnly(file: SourceFile, strict: boolean): RuleViolation
       const quoteIndex = (match.index ?? 0) + match[0].length - 1;
       const parsed = parseStringLiteral(source, quoteIndex);
       if (!parsed || hasKeyNearby(source, quoteIndex, pair)) continue;
-      addFallbackOnlyViolation(violations, file, quoteIndex, pair.fallback, pair.key, parsed.value, strict);
+      addFallbackOnlyViolation(violations, file, quoteIndex, pair.fallback, pair.keys.join('|'), parsed.value, strict);
     }
   }
 
@@ -96,7 +96,7 @@ function collectGoFallbackOnly(file: SourceFile, strict: boolean): RuleViolation
     const field = match[0].split(':')[0]?.trim() ?? 'fallback';
     const pair = pairForLowercaseFallback(field);
     if (hasKeyNearby(source, quoteIndex, pair)) continue;
-    addFallbackOnlyViolation(violations, file, quoteIndex, pair.fallback, pair.key, parsed.value, strict);
+    addFallbackOnlyViolation(violations, file, quoteIndex, pair.fallback, pair.keys.join('|'), parsed.value, strict);
   }
 
   return violations;

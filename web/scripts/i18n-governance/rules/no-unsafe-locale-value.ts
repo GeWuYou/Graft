@@ -7,10 +7,10 @@ import type { I18nGovernanceRule, RuleViolation } from '../types';
 
 const SELF_KEY_SUGGESTION = 'Replace placeholder locale values with real zh-CN/en-US display copy.';
 const ENGLISH_CASE_SUGGESTION = 'Capitalize visible English UI copy unless the value is an allowed grammar fragment.';
+const COMMON_CONJUNCTION_KEY = ['common', 'conjunction'].join('.');
 
 function isEnglishInitialCaseExempt(key: string): boolean {
-  const conjunctionKey = ['common', 'conjunction'].join('.');
-  return key === conjunctionKey || key.endsWith('.unit');
+  return key === COMMON_CONJUNCTION_KEY || key.endsWith('.unit');
 }
 
 function startsWithLowercaseLetter(value: string): boolean {

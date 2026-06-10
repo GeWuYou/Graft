@@ -352,6 +352,8 @@
       "roleStatusUpdated": "角色状态已更新",
       "roleDeleted": "角色已删除",
       "rolePermissionsReplaced": "角色权限已替换",
+      "rolePermissionsAdded": "角色权限已追加",
+      "rolePermissionsRemoved": "角色权限已移除",
       "userRolesReplaced": "用户角色已替换",
       "userRolesAdded": "用户角色已追加",
       "userRolesRemoved": "用户角色已移除"

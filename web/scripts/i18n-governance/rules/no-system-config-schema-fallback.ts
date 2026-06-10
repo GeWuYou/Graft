@@ -13,6 +13,7 @@ import type { I18nGovernanceRule, RuleViolation, SourceFile } from '../types';
 
 type SchemaFallbackFinding = {
   file: string;
+  line: number;
   message: string;
 };
 
@@ -37,7 +38,7 @@ function collectServerSystemConfigSchemaFallbackViolations(file: SourceFile): Ru
     const schema = parsePotentialSystemConfigSchema(parsed.value);
     if (schema) {
       const line = positionForIndex(file.lineStarts, index).line;
-      collectSchemaNodeFallbackFindings(schema, `${file.relativePath}:${line}`, 'schema', findings);
+      collectSchemaNodeFallbackFindings(schema, file.relativePath, line, 'schema', findings);
     }
 
     index = parsed.endIndex;
@@ -47,9 +48,10 @@ function collectServerSystemConfigSchemaFallbackViolations(file: SourceFile): Ru
     ruleId: 'no-system-config-schema-fallback',
     severity: 'error',
     filePath: finding.file,
-    line: 1,
+    line: finding.line,
     message: finding.message,
-    suggestion: 'Keep zh-CN/en-US catalogs, ownership, and referenced keys aligned.',
+    suggestion:
+      'Add matching x-i18n titleKey, descriptionKey, or placeholderKey fields and define those keys in web locale catalogs.',
   }));
 }
 
@@ -77,13 +79,14 @@ function parsePotentialSystemConfigSchema(value: string): Record<string, unknown
 function collectSchemaNodeFallbackFindings(
   node: unknown,
   file: string,
+  line: number,
   path: string,
   findings: SchemaFallbackFinding[],
 ): void {
   if (!node || typeof node !== 'object') return;
 
   if (Array.isArray(node)) {
-    node.forEach((child, index) => collectSchemaNodeFallbackFindings(child, file, `${path}[${index}]`, findings));
+    node.forEach((child, index) => collectSchemaNodeFallbackFindings(child, file, line, `${path}[${index}]`, findings));
     return;
   }
 
@@ -107,13 +110,14 @@ function collectSchemaNodeFallbackFindings(
 
     findings.push({
       file,
+      line,
       message: `system config schema ${path}.${field} has visible fallback "${normalized}" without x-i18n.${keyField}`,
     });
   }
 
   for (const [key, child] of Object.entries(objectNode)) {
     if (key === 'x-i18n') continue;
-    collectSchemaNodeFallbackFindings(child, file, `${path}.${key}`, findings);
+    collectSchemaNodeFallbackFindings(child, file, line, `${path}.${key}`, findings);
   }
 }
 

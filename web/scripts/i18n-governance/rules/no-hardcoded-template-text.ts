@@ -66,15 +66,52 @@ function findTagEnd(source: string, tagStart: number): number {
   return -1;
 }
 
-function isInsideAriaHiddenTag(file: SourceFile, textStart: number): boolean {
-  const previousTagStart = file.source.lastIndexOf('<', textStart);
-  const previousTagEnd = previousTagStart === -1 ? -1 : findTagEnd(file.source, previousTagStart);
-  const containingTag =
-    previousTagStart !== -1 && previousTagEnd !== -1 && previousTagEnd < textStart
-      ? file.source.slice(previousTagStart, previousTagEnd + 1)
-      : '';
+function isOpeningTag(tagText: string): boolean {
+  return !/^<\//.test(tagText) && !/\/>$/.test(tagText);
+}
 
-  return /aria-hidden\s*=\s*(?:"true"|'true'|true)/.test(containingTag);
+function tagName(tagText: string): string | null {
+  return tagText.match(/^<\/?\s*([A-Za-z][\w:-]*)/)?.[1]?.toLowerCase() ?? null;
+}
+
+function isAriaHiddenTrueTag(tagText: string): boolean {
+  return /aria-hidden\s*=\s*(?:"true"|'true'|true)/.test(tagText);
+}
+
+function isInsideAriaHiddenAncestor(source: string, rangeStart: number, textStart: number): boolean {
+  const stack: Array<{ name: string; ariaHidden: boolean }> = [];
+  let index = rangeStart;
+
+  while (index < textStart) {
+    const tagStart = source.indexOf('<', index);
+    if (tagStart === -1 || tagStart >= textStart) break;
+    if (source.startsWith('<!--', tagStart)) {
+      const commentEnd = source.indexOf('-->', tagStart + 4);
+      index = commentEnd === -1 ? textStart : commentEnd + 3;
+      continue;
+    }
+
+    const tagEnd = findTagEnd(source, tagStart);
+    if (tagEnd === -1 || tagEnd >= textStart) break;
+
+    const tagText = source.slice(tagStart, tagEnd + 1);
+    const name = tagName(tagText);
+    if (!name) {
+      index = tagEnd + 1;
+      continue;
+    }
+
+    if (/^<\//.test(tagText)) {
+      const lastIndex = stack.findLastIndex((tag) => tag.name === name);
+      if (lastIndex >= 0) stack.splice(lastIndex);
+    } else if (isOpeningTag(tagText)) {
+      stack.push({ name, ariaHidden: isAriaHiddenTrueTag(tagText) });
+    }
+
+    index = tagEnd + 1;
+  }
+
+  return stack.some((tag) => tag.ariaHidden);
 }
 
 function addTemplateTextViolation(violations: RuleViolation[], file: SourceFile, index: number, value: string) {
@@ -122,7 +159,7 @@ function collectTemplateTextViolations(file: SourceFile): RuleViolation[] {
       const textStart = index;
       while (index < block.end && file.source[index] !== '<' && !file.source.startsWith('{{', index)) index += 1;
 
-      if (isInsideAriaHiddenTag(file, textStart)) continue;
+      if (isInsideAriaHiddenAncestor(file.source, block.start, textStart)) continue;
       addTemplateTextViolation(violations, file, textStart, file.source.slice(textStart, index));
     }
   }

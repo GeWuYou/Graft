@@ -455,6 +455,19 @@ func TestRegisterExposesRuntimeService(t *testing.T) {
 	}
 }
 
+func TestRegisterMessagesIncludesRunFailureNotificationKeys(t *testing.T) {
+	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+
+	if err := registerMessages(localizer); err != nil {
+		t.Fatalf("register scheduler messages: %v", err)
+	}
+
+	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleZHCN, schedulercontract.ScheduledTaskRunFailedNotificationTitle.String(), "定时任务失败")
+	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleZHCN, schedulercontract.ScheduledTaskRunFailedNotificationMessage.String(), "定时任务执行失败。")
+	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleENUS, schedulercontract.ScheduledTaskRunFailedNotificationTitle.String(), "Scheduled Task Failed")
+	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleENUS, schedulercontract.ScheduledTaskRunFailedNotificationMessage.String(), "Scheduled task failed.")
+}
+
 func TestRegisterRegistersSchedulerTaskAttentionDashboardWidget(t *testing.T) {
 	ctx := newModuleTestContext()
 	moduleInstance := NewModule()
@@ -491,6 +504,18 @@ func TestRegisterRegistersSchedulerTaskAttentionDashboardWidget(t *testing.T) {
 	}
 	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != schedulercontract.ScheduledTaskReadPermission.String() {
 		t.Fatalf("unexpected scheduler quick link permissions: %#v", link.RequiredPermissions)
+	}
+}
+
+func assertRegisteredSchedulerMessage(t *testing.T, localizer *i18n.Service, locale i18n.LocaleTag, key string, expected string) {
+	t.Helper()
+
+	matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))
+	if len(matches) != 1 {
+		t.Fatalf("expected one scheduler message for %s %q, got %#v", locale, key, matches)
+	}
+	if matches[0].Text != expected {
+		t.Fatalf("expected scheduler message %q for %s %q, got %#v", expected, locale, key, matches[0])
 	}
 }
 
