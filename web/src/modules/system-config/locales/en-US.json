@@ -42,8 +42,7 @@
       "emptyValue": "No Data",
       "editorTitle": "Edit: {title}",
       "sensitiveEditHint": "This Configuration Is Sensitive. The Current Value Is Not Echoed and Remains Masked After Saving.",
-      "previewTitle": "Configuration Preview",
-      "viewJson": "View JSON",
+      "previewTitle": "Configuration Preview JSON",
       "technicalId": "Technical ID",
       "valueDescription": "Configuration Value Description",
       "boolean": {
@@ -54,14 +53,14 @@
       },
       "status": {
         "title": "Configuration Status",
-        "default": "Default",
+        "default": "Using Default",
         "defaultDescription": "Using Default Configuration",
         "modified": "Modified",
         "modifiedDescription": "User Override Exists"
       },
       "lastModified": {
         "title": "Last Modified",
-        "none": "No Modification Record",
+        "none": "No Override",
         "unknownUser": "Unknown User",
         "userId": "User {id}",
         "value": "{user} / {time}"
@@ -74,7 +73,8 @@
       "values": {
         "current": "Current Value",
         "effective": "Effective Value",
-        "default": "Default Value"
+        "default": "Default Value",
+        "moreFields": "Show {count} Secondary Fields"
       },
       "schema": {
         "value": "Configuration Value",
@@ -83,6 +83,19 @@
         "selectPlaceholder": "Select",
         "jsonPlaceholder": "Enter JSON",
         "invalidJson": "JSON Is Invalid"
+      },
+      "advanced": {
+        "title": "Advanced Information",
+        "copyKey": "Copy Key",
+        "copySuccess": "Configuration Key Copied.",
+        "copyError": "Configuration Key Could Not Be Copied.",
+        "currentJson": "Current JSON",
+        "defaultJson": "Default JSON",
+        "schemaSummary": "Schema Summary",
+        "schemaType": "Type: {type}",
+        "schemaFieldCount": "Fields: {count}",
+        "schemaRequiredCount": "Required Fields: {count}",
+        "schemaNoAdditionalProperties": "Additional Fields Are Not Allowed"
       }
     },
     "domains": {

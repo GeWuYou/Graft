@@ -12,7 +12,13 @@ Overlay note:
 
 ## Active Topics
 
-- None.
+- `system-config-model-unification`
+  - Status: `active`
+  - Scope: System Config information architecture, object/scalar boundary, field renderer governance, and phased
+    optimization route.
+  - Recovery entry: `ai-plan/public/system-config-model-unification/README.md`
+  - Tracking: `ai-plan/public/system-config-model-unification/todos/system-config-model-unification-tracking.md`
+  - Trace: `ai-plan/public/system-config-model-unification/traces/system-config-model-unification-trace.md`
 
 ## Archive Location
 

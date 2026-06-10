@@ -12,6 +12,8 @@
       :name="fieldName(field.key)"
       :help="fieldDescription(field)"
       :required-mark="field.required"
+      :status="jsonFieldErrors[field.key] ? 'error' : undefined"
+      :tips="jsonFieldErrors[field.key]"
     >
       <template v-if="field.schema.enum">
         <t-select
@@ -45,6 +47,15 @@
         :model-value="Boolean(objectValue[field.key])"
         :disabled="disabled"
         @change="(value) => updateObjectField(field.key, value)"
+      />
+      <t-textarea
+        v-else-if="field.schema.type === 'object' || field.schema.type === 'array'"
+        :model-value="formatJsonValue(objectValue[field.key])"
+        class="json-schema-value-fields__textarea"
+        :autosize="{ minRows: 5, maxRows: 10 }"
+        :placeholder="fieldPlaceholder(field, labels.jsonPlaceholder)"
+        :disabled="disabled"
+        @change="(value) => handleObjectJsonChange(field.key, value)"
       />
       <t-input
         v-else
@@ -122,7 +133,7 @@
   </t-form-item>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
 import type { ConfigSchema, ConfigSchemaField } from './config-schema';
 import { getConfigSchemaFields } from './config-schema';
@@ -164,6 +175,7 @@ const emit = defineEmits<{
 }>();
 
 const jsonError = ref('');
+const jsonFieldErrors = reactive<Record<string, string>>({});
 const objectFields = computed(() =>
   props.rootSchema.type === 'object' ? getConfigSchemaFields(props.rootSchema) : [],
 );
@@ -210,6 +222,7 @@ function optionLabel(field: ConfigSchemaField, option: string | number | boolean
 }
 
 function updateObjectField(key: string, value: unknown) {
+  jsonFieldErrors[key] = '';
   emit('update:modelValue', {
     ...objectValue.value,
     [key]: value,
@@ -238,6 +251,18 @@ function handleJsonChange(value: string | number) {
 
   jsonError.value = '';
   emit('update:modelValue', parsed);
+}
+
+function handleObjectJsonChange(key: string, value: string | number) {
+  const text = String(value ?? '');
+  const parsed = parseJsonValue(text);
+  if (parsed === undefined && text.trim()) {
+    jsonFieldErrors[key] = props.labels.invalidJson;
+    return;
+  }
+
+  jsonFieldErrors[key] = '';
+  updateObjectField(key, parsed);
 }
 </script>
 <style scoped>

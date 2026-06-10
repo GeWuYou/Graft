@@ -85,22 +85,22 @@
             </t-space>
           </div>
 
-          <div v-if="activeGroup?.items.length" class="system-config-list">
-            <t-card v-for="item in activeGroup.items" :key="item.key" class="system-config-item" bordered>
+          <div v-if="activeConfigCards.length" class="system-config-list">
+            <t-card v-for="card in activeConfigCards" :key="card.key" class="system-config-item" bordered>
               <div class="system-config-item__main">
                 <div class="system-config-item__title-row">
                   <div>
-                    <h3>{{ configTitle(item) }}</h3>
-                    <p>{{ configDescription(item) }}</p>
+                    <h3>{{ card.title }}</h3>
+                    <p>{{ card.description }}</p>
                   </div>
                   <t-space size="small" break-line>
-                    <t-tag :theme="configStatus(item).theme" variant="light">
-                      {{ configStatus(item).label }}
+                    <t-tag :theme="card.status.theme" variant="light">
+                      {{ card.status.label }}
                     </t-tag>
-                    <t-tag v-if="item.sensitive" theme="danger" variant="light">
+                    <t-tag v-if="card.sensitive" theme="danger" variant="light">
                       {{ t('systemConfig.list.tags.sensitive') }}
                     </t-tag>
-                    <t-tag v-if="item.restart_required" theme="primary" variant="light">
+                    <t-tag v-if="card.restartRequired" theme="primary" variant="light">
                       {{ t('systemConfig.list.tags.restartRequired') }}
                     </t-tag>
                   </t-space>
@@ -108,8 +108,8 @@
 
                 <div class="system-config-values">
                   <section
-                    v-for="valueSection in valueSections(item)"
-                    :key="valueSection.field"
+                    v-for="valueSection in card.valueSections"
+                    :key="valueSection.key"
                     class="system-config-value"
                   >
                     <header>
@@ -140,13 +140,39 @@
                       </template>
                     </dl>
                     <t-collapse
-                      v-if="valueSection.json"
+                      v-if="valueSection.extraRows.length"
                       borderless
                       expand-icon-placement="right"
-                      class="system-config-json"
+                      class="system-config-more-fields"
                     >
-                      <t-collapse-panel :value="valueSection.field" :header="t('systemConfig.list.viewJson')">
-                        <pre>{{ valueSection.json }}</pre>
+                      <t-collapse-panel
+                        :value="`${valueSection.key}-more`"
+                        :header="t('systemConfig.list.values.moreFields', { count: valueSection.extraRows.length })"
+                      >
+                        <dl class="system-config-value__rows">
+                          <template v-for="row in valueSection.extraRows" :key="row.key">
+                            <dt>{{ row.label }}</dt>
+                            <dd>
+                              <span class="system-config-value__display">
+                                <strong>{{ row.value }}</strong>
+                                <t-tooltip
+                                  v-if="row.description && row.descriptionMode === 'tooltip'"
+                                  :content="row.description"
+                                  placement="top"
+                                  show-arrow
+                                >
+                                  <button
+                                    class="system-config-value__info"
+                                    type="button"
+                                    :aria-label="t('systemConfig.list.valueDescription')"
+                                  >
+                                    <info-circle-icon />
+                                  </button>
+                                </t-tooltip>
+                              </span>
+                            </dd>
+                          </template>
+                        </dl>
                       </t-collapse-panel>
                     </t-collapse>
                   </section>
@@ -155,38 +181,64 @@
                 <div class="system-config-summary">
                   <section class="system-config-summary__cell">
                     <span>{{ t('systemConfig.list.lastModified.title') }}</span>
-                    <strong>{{ configLastModifiedLabel(item) }}</strong>
+                    <strong>{{ card.auditLabel }}</strong>
                   </section>
                 </div>
 
-                <section class="system-config-technical">
-                  <span>{{ t('systemConfig.list.technicalId') }}</span>
-                  <code>{{ item.key }}</code>
-                </section>
+                <t-collapse borderless expand-icon-placement="right" class="system-config-advanced">
+                  <t-collapse-panel :value="`${card.key}-advanced`" :header="t('systemConfig.list.advanced.title')">
+                    <div class="system-config-advanced__grid">
+                      <section class="system-config-advanced__section">
+                        <div class="system-config-advanced__section-head">
+                          <span>{{ t('systemConfig.list.technicalId') }}</span>
+                          <t-button theme="default" variant="text" size="small" @click="copyConfigKey(card.key)">
+                            <template #icon><copy-icon /></template>
+                            {{ t('systemConfig.list.advanced.copyKey') }}
+                          </t-button>
+                        </div>
+                        <code>{{ card.key }}</code>
+                      </section>
+                      <section v-if="card.advanced.schemaSummary.length" class="system-config-advanced__section">
+                        <span>{{ t('systemConfig.list.advanced.schemaSummary') }}</span>
+                        <ul>
+                          <li v-for="summary in card.advanced.schemaSummary" :key="summary">{{ summary }}</li>
+                        </ul>
+                      </section>
+                      <section v-if="card.advanced.currentJson" class="system-config-advanced__section">
+                        <span>{{ t('systemConfig.list.advanced.currentJson') }}</span>
+                        <pre>{{ card.advanced.currentJson }}</pre>
+                      </section>
+                      <section v-if="card.advanced.defaultJson" class="system-config-advanced__section">
+                        <span>{{ t('systemConfig.list.advanced.defaultJson') }}</span>
+                        <pre>{{ card.advanced.defaultJson }}</pre>
+                      </section>
+                    </div>
+                  </t-collapse-panel>
+                </t-collapse>
 
                 <div class="system-config-item__actions">
                   <t-button
                     v-permission="permissionCodes.WRITE"
                     theme="primary"
                     variant="outline"
-                    @click="openEditor(item)"
+                    @click="openEditor(card.item)"
                   >
                     <template #icon><edit-icon /></template>
                     {{ t('systemConfig.list.edit') }}
                   </t-button>
                   <t-popconfirm
-                    v-if="item.has_override"
+                    v-if="card.canReset"
                     theme="warning"
                     :content="t('systemConfig.list.resetConfirm')"
                     :confirm-btn="t('systemConfig.list.reset')"
                     :cancel-btn="t('systemConfig.list.cancel')"
-                    @confirm="resetConfigOverride(item)"
+                    @confirm="resetConfigOverride(card.item)"
                   >
                     <t-button
                       v-permission="permissionCodes.WRITE"
                       theme="default"
                       variant="outline"
-                      :loading="resettingKey === item.key"
+                      :loading="resettingKey === card.key"
                     >
                       <template #icon><rollback-icon /></template>
                       {{ t('systemConfig.list.reset') }}
@@ -213,13 +265,14 @@
     </t-loading>
 
     <t-dialog
-      v-model:visible="editorVisible"
+      v-model:visible="editorDialogVisible"
       :header="editorTitle"
       :confirm-btn="t('systemConfig.list.save')"
       :cancel-btn="t('systemConfig.list.cancel')"
       :confirm-loading="saving"
       width="680px"
       destroy-on-close
+      data-testid="config-editor-dialog"
       @confirm="saveEditor"
     >
       <div v-if="editingItem" class="system-config-editor">
@@ -236,16 +289,56 @@
             :option-label-resolver="schemaOptionLabel"
           />
         </t-form>
-        <section class="system-config-editor__preview">
-          <strong>{{ t('systemConfig.list.previewTitle') }}</strong>
-          <pre>{{ editorPreview }}</pre>
-        </section>
+        <t-collapse borderless expand-icon-placement="right" class="system-config-editor__preview">
+          <t-collapse-panel value="editor-preview" :header="t('systemConfig.list.previewTitle')">
+            <pre>{{ editorPreview }}</pre>
+          </t-collapse-panel>
+        </t-collapse>
       </div>
     </t-dialog>
+
+    <t-drawer
+      v-model:visible="editorDrawerVisible"
+      :header="editorTitle"
+      size="720px"
+      placement="right"
+      destroy-on-close
+      :footer="false"
+      data-testid="config-editor-drawer"
+    >
+      <div v-if="editingItem" class="system-config-editor system-config-editor--drawer">
+        <t-alert v-if="editingItem.sensitive" theme="warning" :message="t('systemConfig.list.sensitiveEditHint')" />
+        <t-form :data="editorForm" label-align="top">
+          <json-schema-value-fields
+            v-model="editorForm.value"
+            :root-schema="editingSchema"
+            :labels="schemaLabels"
+            :title-resolver="schemaFieldTitle"
+            :description-resolver="schemaFieldDescription"
+            :placeholder-resolver="schemaFieldPlaceholder"
+            :unit-resolver="schemaFieldUnit"
+            :option-label-resolver="schemaOptionLabel"
+          />
+        </t-form>
+        <t-collapse borderless expand-icon-placement="right" class="system-config-editor__preview">
+          <t-collapse-panel value="editor-preview" :header="t('systemConfig.list.previewTitle')">
+            <pre>{{ editorPreview }}</pre>
+          </t-collapse-panel>
+        </t-collapse>
+        <div class="system-config-editor__actions">
+          <t-button variant="outline" @click="closeEditor">
+            {{ t('systemConfig.list.cancel') }}
+          </t-button>
+          <t-button theme="primary" :loading="saving" data-testid="editor-drawer-save" @click="saveEditor">
+            {{ t('systemConfig.list.save') }}
+          </t-button>
+        </div>
+      </div>
+    </t-drawer>
   </section>
 </template>
 <script setup lang="ts">
-import { EditIcon, InfoCircleIcon, RefreshIcon, RollbackIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import { CopyIcon, EditIcon, InfoCircleIcon, RefreshIcon, RollbackIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TreeNodeValue, TreeProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -254,6 +347,7 @@ import { useI18n } from 'vue-i18n';
 import { formatCompactDateTime } from '@/shared/components/management';
 import { PageHeader } from '@/shared/components/page';
 import {
+  type ConfigSchema,
   type ConfigSchemaField,
   getConfigSchemaFields,
   JsonSchemaValueFields,
@@ -296,13 +390,39 @@ type ConfigValueRow = {
 };
 
 type ConfigValueSection = {
-  field: ConfigValueField;
+  key: ConfigValueField;
   title: string;
   rows: ConfigValueRow[];
-  json: string;
+  extraRows: ConfigValueRow[];
 };
 
 type ConfigValuePresentation = Pick<ConfigValueRow, 'description' | 'descriptionMode' | 'value'>;
+
+type ConfigCardVM = {
+  item: SystemConfigItem;
+  key: string;
+  title: string;
+  description: string;
+  status: {
+    label: string;
+    description: string;
+    theme: 'default' | 'primary';
+  };
+  sensitive: boolean;
+  restartRequired: boolean;
+  auditLabel: string;
+  valueSections: ConfigValueSection[];
+  advanced: {
+    currentJson: string;
+    defaultJson: string;
+    schemaSummary: string[];
+  };
+  canReset: boolean;
+};
+
+type EditorContainer = 'dialog' | 'drawer';
+
+const CORE_VALUE_ROW_LIMIT = 3;
 
 const { locale, t, te } = useI18n();
 const permissionCodes = SYSTEM_CONFIG_PERMISSION_CODE;
@@ -390,12 +510,32 @@ const domainTree = computed<TreeProps['data']>(() =>
 );
 const activeTreeValue = computed(() => (activeGroupKey.value ? [activeGroupKey.value] : []));
 const activeGroup = computed(() => groupedConfigs.value.find((group) => group.key === activeGroupKey.value) ?? null);
+const activeConfigCards = computed(() => activeGroup.value?.items.map(buildConfigCard) ?? []);
 const activeGroupOverrideCount = computed(
   () => activeGroup.value?.items.filter((item) => item.has_override).length ?? 0,
 );
 const editingSchema = computed(() =>
   editingItem.value ? editorSchemaForItem(editingItem.value) : parseConfigSchema(),
 );
+const editorContainer = computed<EditorContainer>(() =>
+  editingItem.value && shouldUseDrawerEditor(editingItem.value) ? 'drawer' : 'dialog',
+);
+const editorDialogVisible = computed({
+  get: () => editorVisible.value && editorContainer.value === 'dialog',
+  set: (visible: boolean) => {
+    if (!visible && editorContainer.value === 'dialog') {
+      closeEditor();
+    }
+  },
+});
+const editorDrawerVisible = computed({
+  get: () => editorVisible.value && editorContainer.value === 'drawer',
+  set: (visible: boolean) => {
+    if (!visible && editorContainer.value === 'drawer') {
+      closeEditor();
+    }
+  },
+});
 const editorTitle = computed(() =>
   editingItem.value ? t('systemConfig.list.editorTitle', { title: configTitle(editingItem.value) }) : '',
 );
@@ -466,6 +606,11 @@ function openEditor(item: SystemConfigItem) {
   editorVisible.value = true;
 }
 
+function closeEditor() {
+  editorVisible.value = false;
+  editingItem.value = null;
+}
+
 async function saveEditor() {
   if (!editingItem.value) {
     return;
@@ -475,8 +620,7 @@ async function saveEditor() {
   try {
     const updated = await updateSystemConfig(editingItem.value.key, { value: editorForm.value });
     upsertConfig(updated);
-    editingItem.value = updated;
-    editorVisible.value = false;
+    closeEditor();
     MessagePlugin.success(t('systemConfig.list.saveSuccess'));
   } catch (error) {
     MessagePlugin.error(readableError(error, t('systemConfig.list.saveError')));
@@ -625,28 +769,49 @@ function configUpdatedByLabel(item: SystemConfigItem) {
   return t('systemConfig.list.lastModified.unknownUser');
 }
 
-function valueSections(item: SystemConfigItem): ConfigValueSection[] {
-  const sections = [buildValueSection(item, 'effective_value', t('systemConfig.list.values.current'))];
-  if (item.has_override) {
-    sections.push(buildValueSection(item, 'default_value', t('systemConfig.list.values.default')));
-  }
-  return sections;
+function buildConfigCard(item: SystemConfigItem): ConfigCardVM {
+  const schema = editorSchemaForItem(item);
+  const fields = getConfigSchemaFields(schema);
+  return {
+    item,
+    key: item.key,
+    title: configTitle(item),
+    description: configDescription(item),
+    status: configStatus(item),
+    sensitive: item.sensitive,
+    restartRequired: item.restart_required,
+    auditLabel: configLastModifiedLabel(item),
+    valueSections: [
+      buildValueSection(item, 'effective_value', t('systemConfig.list.values.current'), schema, fields),
+      buildValueSection(item, 'default_value', t('systemConfig.list.values.default'), schema, fields),
+    ],
+    advanced: {
+      currentJson: jsonPreviewFromRaw(item.effective_value),
+      defaultJson: jsonPreviewFromRaw(item.default_value),
+      schemaSummary: schemaSummary(item, schema, fields),
+    },
+    canReset: item.has_override,
+  };
 }
 
-function buildValueSection(item: SystemConfigItem, field: ConfigValueField, title: string): ConfigValueSection {
+function buildValueSection(
+  item: SystemConfigItem,
+  field: ConfigValueField,
+  title: string,
+  schema: ConfigSchema,
+  fields: ConfigSchemaField[],
+): ConfigValueSection {
   if (item.masked) {
     const maskedValue = item.masked_placeholder || t('systemConfig.list.masked');
     return {
-      field,
+      key: field,
       title,
       rows: [{ key: field, label: title, description: '', value: maskedValue }],
-      json: '',
+      extraRows: [],
     };
   }
 
   const parsed = parseJsonValue(item[field]);
-  const schema = parseConfigSchema(item.config_schema);
-  const fields = getConfigSchemaFields(schema);
   const rows = isJsonRecord(parsed) && fields.length > 0 ? structuredValueRows(parsed, fields) : [];
   const fallbackValue = configValuePresentation(parsed, schema);
   const fallbackRows =
@@ -663,10 +828,10 @@ function buildValueSection(item: SystemConfigItem, field: ConfigValueField, titl
         ];
 
   return {
-    field,
+    key: field,
     title,
-    rows: fallbackRows,
-    json: shouldShowJsonValue(parsed) ? formatJsonValue(parsed) : '',
+    rows: fallbackRows.slice(0, CORE_VALUE_ROW_LIMIT),
+    extraRows: fallbackRows.slice(CORE_VALUE_ROW_LIMIT),
   };
 }
 
@@ -688,8 +853,55 @@ function booleanStateLabel(value: boolean) {
   return value ? t('systemConfig.list.boolean.enabled') : t('systemConfig.list.boolean.disabled');
 }
 
-function shouldShowJsonValue(value: unknown) {
-  return Array.isArray(value) || isJsonRecord(value);
+function jsonPreviewFromRaw(raw?: string | null) {
+  const parsed = parseJsonValue(raw);
+  return parsed === undefined ? '' : formatJsonValue(parsed);
+}
+
+function schemaSummary(item: SystemConfigItem, schema: ConfigSchema, fields: ConfigSchemaField[]) {
+  const summary = [t('systemConfig.list.advanced.schemaType', { type: schema.type || item.type })];
+  if (fields.length > 0) {
+    summary.push(t('systemConfig.list.advanced.schemaFieldCount', { count: fields.length }));
+  }
+  const requiredCount = fields.filter((field) => field.required).length;
+  if (requiredCount > 0) {
+    summary.push(t('systemConfig.list.advanced.schemaRequiredCount', { count: requiredCount }));
+  }
+  if (schema.additionalProperties === false) {
+    summary.push(t('systemConfig.list.advanced.schemaNoAdditionalProperties'));
+  }
+  return summary;
+}
+
+function shouldUseDrawerEditor(item: SystemConfigItem) {
+  const schema = editorSchemaForItem(item);
+  if (schema.type === 'array') {
+    return true;
+  }
+  if (schema.type === 'string' && typeof schema.maxLength === 'number' && schema.maxLength > 240) {
+    return true;
+  }
+  if (schema.type !== 'object') {
+    return false;
+  }
+
+  const fields = getConfigSchemaFields(schema);
+  if (fields.length === 0 || fields.length >= 4) {
+    return true;
+  }
+  return fields.some((field) => field.schema.type === 'object' || field.schema.type === 'array');
+}
+
+async function copyConfigKey(key: string) {
+  try {
+    if (!navigator.clipboard?.writeText) {
+      throw new Error('Clipboard API is unavailable');
+    }
+    await navigator.clipboard.writeText(key);
+    MessagePlugin.success(t('systemConfig.list.advanced.copySuccess'));
+  } catch {
+    MessagePlugin.error(t('systemConfig.list.advanced.copyError'));
+  }
 }
 
 function configValuePresentation(value: unknown, schema = parseConfigSchema()): ConfigValuePresentation {
@@ -931,7 +1143,7 @@ function readableError(error: unknown, fallback: string) {
 
 .system-config-summary__cell,
 .system-config-value,
-.system-config-technical {
+.system-config-advanced__section {
   background: var(--td-bg-color-page);
   border-radius: var(--td-radius-small);
   padding: var(--graft-density-gap-12);
@@ -945,7 +1157,8 @@ function readableError(error: unknown, fallback: string) {
 
 .system-config-summary__cell > span,
 .system-config-value h4,
-.system-config-technical span {
+.system-config-advanced__section > span,
+.system-config-advanced__section-head > span {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: 0;
@@ -1017,21 +1230,43 @@ function readableError(error: unknown, fallback: string) {
 }
 
 .system-config-value__rows strong,
-.system-config-technical code {
+.system-config-advanced code {
   overflow-wrap: anywhere;
 }
 
-.system-config-json :deep(.t-collapse-panel__content) {
+.system-config-more-fields :deep(.t-collapse-panel__content),
+.system-config-advanced :deep(.t-collapse-panel__content),
+.system-config-editor__preview :deep(.t-collapse-panel__content) {
   padding: 0;
 }
 
-.system-config-technical {
+.system-config-advanced__grid,
+.system-config-advanced__section,
+.system-config-editor--drawer {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-8);
 }
 
-.system-config-json pre,
+.system-config-advanced__section-head,
+.system-config-editor__actions {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+}
+
+.system-config-advanced__section ul {
+  margin: 0;
+  padding-left: var(--graft-density-gap-18);
+}
+
+.system-config-advanced__section li {
+  color: var(--td-text-color-secondary);
+  line-height: 1.6;
+}
+
+.system-config-advanced pre,
 .system-config-editor__preview pre {
   border-radius: var(--td-radius-small);
   box-sizing: border-box;
@@ -1043,13 +1278,19 @@ function readableError(error: unknown, fallback: string) {
   white-space: pre-wrap;
 }
 
-.system-config-json pre {
+.system-config-advanced pre {
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-border-level-1-color);
 }
 
 .system-config-editor__preview pre {
   background: var(--td-bg-color-page);
+}
+
+.system-config-editor__actions {
+  border-top: 1px solid var(--td-border-level-1-color);
+  justify-content: flex-end;
+  padding-top: var(--graft-density-gap-12);
 }
 
 @media (width <= 900px) {

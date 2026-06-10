@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, type VNode } from 'vue';
+import { defineComponent, h, ref, type VNode } from 'vue';
 
 import { formatCompactDateTime } from '@/shared/components/management';
 
@@ -71,7 +71,7 @@ const translations = vi.hoisted(
     'systemConfig.list.masked': '已隐藏',
     'systemConfig.list.noDescription': '暂无描述。',
     'systemConfig.list.overrideCount': '{count} 个覆盖值',
-    'systemConfig.list.previewTitle': '配置预览',
+    'systemConfig.list.previewTitle': '配置预览 JSON',
     'systemConfig.list.refresh': '刷新',
     'systemConfig.list.reset': '重置',
     'systemConfig.list.resetConfirm': '确认删除该用户覆盖值并回到模块默认值？',
@@ -86,12 +86,12 @@ const translations = vi.hoisted(
     'systemConfig.list.schema.selectPlaceholder': '请选择',
     'systemConfig.list.schema.stringPlaceholder': '请输入配置值',
     'systemConfig.list.schema.value': '配置值',
-    'systemConfig.list.status.default': '默认',
+    'systemConfig.list.status.default': '使用默认值',
     'systemConfig.list.status.defaultDescription': '使用默认配置',
     'systemConfig.list.status.modified': '已修改',
     'systemConfig.list.status.modifiedDescription': '存在用户覆盖',
     'systemConfig.list.status.title': '配置状态',
-    'systemConfig.list.lastModified.none': '暂无修改记录',
+    'systemConfig.list.lastModified.none': '无覆盖值',
     'systemConfig.list.lastModified.title': '最后修改',
     'systemConfig.list.lastModified.unknownUser': '未知用户',
     'systemConfig.list.lastModified.userId': '用户 {id}',
@@ -105,7 +105,18 @@ const translations = vi.hoisted(
     'systemConfig.list.values.current': '当前值',
     'systemConfig.list.values.default': '默认值',
     'systemConfig.list.values.effective': '生效值',
-    'systemConfig.list.viewJson': '查看 JSON',
+    'systemConfig.list.values.moreFields': '展开 {count} 个次要字段',
+    'systemConfig.list.advanced.title': '高级信息',
+    'systemConfig.list.advanced.copyKey': '复制 key',
+    'systemConfig.list.advanced.copySuccess': '配置 key 已复制。',
+    'systemConfig.list.advanced.copyError': '配置 key 复制失败。',
+    'systemConfig.list.advanced.currentJson': '当前 JSON',
+    'systemConfig.list.advanced.defaultJson': '默认 JSON',
+    'systemConfig.list.advanced.schemaSummary': 'Schema 摘要',
+    'systemConfig.list.advanced.schemaType': '类型：{type}',
+    'systemConfig.list.advanced.schemaFieldCount': '字段数：{count}',
+    'systemConfig.list.advanced.schemaRequiredCount': '必填字段：{count}',
+    'systemConfig.list.advanced.schemaNoAdditionalProperties': '不允许额外字段',
     'systemConfig.options.dashboardQuickActionStrategy.hybrid': '综合推荐',
     'systemConfig.options.dashboardQuickActionStrategy.mostUsed': '最常使用',
     'systemConfig.options.dashboardQuickActionStrategy.recent': '最近访问',
@@ -132,6 +143,7 @@ vi.mock('tdesign-vue-next', () => ({
 }));
 
 vi.mock('tdesign-icons-vue-next', () => ({
+  CopyIcon: defineComponent({ name: 'CopyIcon', setup: () => () => h('span') }),
   EditIcon: defineComponent({ name: 'EditIcon', setup: () => () => h('span') }),
   InfoCircleIcon: defineComponent({ name: 'InfoCircleIcon', setup: () => () => h('span', 'i') }),
   RefreshIcon: defineComponent({ name: 'RefreshIcon', setup: () => () => h('span') }),
@@ -182,22 +194,31 @@ describe('system config list page', () => {
         .findAll('.system-config-value__rows small')
         .some((node) => node.text() === '根据最近访问、使用频率和系统推荐结果综合排序。'),
     ).toBe(false);
-    expect(wrapper.text()).toContain('默认');
+    expect(wrapper.text()).toContain('使用默认值');
+    expect(wrapper.text()).toContain('默认值');
     expect(wrapper.text()).toContain('最后修改');
-    expect(wrapper.text()).toContain('暂无修改记录');
-    expect(wrapper.text()).toContain('技术标识');
-    expect(wrapper.text()).toContain('dashboard.quick_actions.enabled');
-    expect(wrapper.text()).not.toContain('默认值');
+    expect(wrapper.text()).toContain('无覆盖值');
+    expect(wrapper.text()).toContain('高级信息');
+    expect(wrapper.text()).not.toContain('技术标识');
+    expect(wrapper.text()).not.toContain('dashboard.quick_actions.enabled');
+    expect(wrapper.findAll('button').some((button) => button.text() === '重置')).toBe(false);
     expect(wrapper.text()).not.toContain('生效值');
     expect(wrapper.text()).not.toContain('Dashboard Quick Actions');
     expect(wrapper.text()).not.toContain('1 项');
     expect(wrapper.text()).not.toContain('core / dashboard.quick_actions');
 
+    await toggleFirstCollapsePanel(wrapper, '高级信息');
+    expect(wrapper.text()).toContain('技术标识');
+    expect(wrapper.text()).toContain('dashboard.quick_actions.enabled');
+    expect(wrapper.text()).toContain('当前 JSON');
+    expect(wrapper.text()).toContain('默认 JSON');
+    expect(wrapper.text()).toContain('Schema 摘要');
+
     await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.text()).toContain('编辑：是否启用');
-    expect(wrapper.text()).toContain('配置预览');
+    expect(wrapper.text()).toContain('配置预览 JSON');
   });
 
   it('renders modified config as a user override with username and timestamp', async () => {
@@ -222,6 +243,7 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('默认值');
     expect(wrapper.text()).toContain('当前值');
     expect(wrapper.text()).toContain(`alice / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
+    expect(wrapper.findAll('button').some((button) => button.text() === '重置')).toBe(true);
   });
 
   it('groups access-log and app-log retention under one logs domain', async () => {
@@ -356,6 +378,8 @@ describe('system config list page', () => {
     await wrapper.findAll('button[data-test-id="edit-button"]')[1].trigger('click');
     await flushPromises();
 
+    expect(wrapper.find('[data-testid="config-editor-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="config-editor-drawer"]').exists()).toBe(false);
     expect(wrapper.find('[data-test-id="schema-number"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('编辑：最大数量');
     expect(wrapper.text()).toContain('最大数量');
@@ -514,6 +538,63 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain(`未知用户 / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
   });
 
+  it('uses dialog for small flat object schemas', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [systemConfigItem()],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="config-editor-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="config-editor-drawer"]').exists()).toBe(false);
+    expect(wrapper.findAll('[data-test-id="schema-number"]')).toHaveLength(2);
+  });
+
+  it('uses drawer and raw JSON textarea fields for nested object or array properties', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          key: 'notification.delivery-policy',
+          title_key: '',
+          title: 'Delivery policy',
+          type: 'object',
+          config_schema: {
+            type: 'object',
+            properties: {
+              channels: {
+                type: 'array',
+                title: 'Channels',
+              },
+              metadata: {
+                type: 'object',
+                title: 'Metadata',
+              },
+            },
+          },
+          default_value: '{"channels":["inbox"],"metadata":{"priority":"normal"}}',
+          effective_value: '{"channels":["inbox"],"metadata":{"priority":"normal"}}',
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="config-editor-dialog"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="config-editor-drawer"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-test-id="schema-textarea"]')).toHaveLength(2);
+  });
+
   it.each([
     ['boolean', false],
     ['string', ''],
@@ -546,7 +627,10 @@ describe('system config list page', () => {
 
     await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
     await flushPromises();
-    await wrapper.find('button[data-test-id="dialog-confirm"]').trigger('click');
+    const saveButton = wrapper.find('button[data-test-id="dialog-confirm"]').exists()
+      ? wrapper.find('button[data-test-id="dialog-confirm"]')
+      : wrapper.find('[data-test-id="editor-drawer-save"]');
+    await saveButton.trigger('click');
     await flushPromises();
 
     expect(apiMocks.updateSystemConfig).toHaveBeenCalledWith(`sensitive.${type}`, {
@@ -568,14 +652,13 @@ function mountPage() {
           name: 'TButton',
           props: ['loading'],
           setup(_props, { attrs, slots }) {
+            const isEditButton = () => slots.default?.()?.some((node) => String(node.children).includes('编辑'));
             return () =>
               h(
                 'button',
                 {
                   ...attrs,
-                  'data-test-id': slots.default?.()?.some((node) => String(node.children).includes('编辑'))
-                    ? 'edit-button'
-                    : undefined,
+                  'data-test-id': isEditButton() ? 'edit-button' : attrs['data-testid'],
                 },
                 slots.default?.(),
               );
@@ -585,10 +668,10 @@ function mountPage() {
           name: 'TDialog',
           props: ['visible', 'header'],
           emits: ['confirm'],
-          setup(props, { emit, slots }) {
+          setup(props, { attrs, emit, slots }) {
             return () =>
               props.visible
-                ? h('section', [
+                ? h('section', attrs, [
                     h('h2', props.header as string),
                     slots.default?.(),
                     h(
@@ -603,12 +686,34 @@ function mountPage() {
                 : null;
           },
         }),
+        TDrawer: defineComponent({
+          name: 'TDrawer',
+          props: ['visible', 'header'],
+          setup(props, { attrs, slots }) {
+            return () =>
+              props.visible ? h('section', attrs, [h('h2', props.header as string), slots.default?.()]) : null;
+          },
+        }),
         TCollapse: textStub('section'),
         TCollapsePanel: defineComponent({
           name: 'TCollapsePanel',
           props: ['header'],
           setup(props, { slots }) {
-            return () => h('section', [h('button', props.header as string), slots.default?.()]);
+            const expanded = ref(false);
+            return () =>
+              h('section', [
+                h(
+                  'button',
+                  {
+                    'data-test-id': 'collapse-panel-toggle',
+                    onClick: () => {
+                      expanded.value = !expanded.value;
+                    },
+                  },
+                  props.header as string,
+                ),
+                expanded.value ? slots.default?.() : null,
+              ]);
           },
         }),
         TEmpty: textStub('section'),
@@ -699,6 +804,13 @@ function mountPage() {
       },
     },
   });
+}
+
+async function toggleFirstCollapsePanel(wrapper: ReturnType<typeof mountPage>, header: string) {
+  const toggle = wrapper.findAll('[data-test-id="collapse-panel-toggle"]').find((node) => node.text() === header);
+  expect(toggle).toBeDefined();
+  await toggle!.trigger('click');
+  await flushPromises();
 }
 
 function textStub(tag: string) {

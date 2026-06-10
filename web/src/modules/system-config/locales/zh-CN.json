@@ -42,8 +42,7 @@
       "emptyValue": "无数据",
       "editorTitle": "编辑：{title}",
       "sensitiveEditHint": "该配置为敏感项，当前值不会回显；保存后仍会以隐藏状态展示。",
-      "previewTitle": "配置预览",
-      "viewJson": "查看 JSON",
+      "previewTitle": "配置预览 JSON",
       "technicalId": "技术标识",
       "valueDescription": "配置值说明",
       "boolean": {
@@ -54,14 +53,14 @@
       },
       "status": {
         "title": "配置状态",
-        "default": "默认",
+        "default": "使用默认值",
         "defaultDescription": "使用默认配置",
         "modified": "已修改",
         "modifiedDescription": "存在用户覆盖"
       },
       "lastModified": {
         "title": "最后修改",
-        "none": "暂无修改记录",
+        "none": "无覆盖值",
         "unknownUser": "未知用户",
         "userId": "用户 {id}",
         "value": "{user} / {time}"
@@ -74,7 +73,8 @@
       "values": {
         "current": "当前值",
         "effective": "生效值",
-        "default": "默认值"
+        "default": "默认值",
+        "moreFields": "展开 {count} 个次要字段"
       },
       "schema": {
         "value": "配置值",
@@ -83,6 +83,19 @@
         "selectPlaceholder": "请选择",
         "jsonPlaceholder": "请输入 JSON",
         "invalidJson": "JSON 格式不正确"
+      },
+      "advanced": {
+        "title": "高级信息",
+        "copyKey": "复制 key",
+        "copySuccess": "配置 key 已复制。",
+        "copyError": "配置 key 复制失败。",
+        "currentJson": "当前 JSON",
+        "defaultJson": "默认 JSON",
+        "schemaSummary": "Schema 摘要",
+        "schemaType": "类型：{type}",
+        "schemaFieldCount": "字段数：{count}",
+        "schemaRequiredCount": "必填字段：{count}",
+        "schemaNoAdditionalProperties": "不允许额外字段"
       }
     },
     "domains": {
