@@ -3,18 +3,25 @@
 
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 const tempRoots: string[] = [];
 const FIXTURE_DIR = join(process.cwd(), 'scripts/i18n-governance/fixtures');
+const SCRATCH_PARENT = join(process.cwd(), '.tmp/i18n-governance-tests');
+
+function createScratchRepoRoot(prefix: string) {
+  mkdirSync(SCRATCH_PARENT, { recursive: true });
+  const repoRoot = mkdtempSync(join(SCRATCH_PARENT, prefix));
+  tempRoots.push(repoRoot);
+
+  return repoRoot;
+}
 
 function createTempWebRoot(source: string) {
-  const repoRoot = mkdtempSync(join(tmpdir(), 'graft-i18n-governance-'));
+  const repoRoot = createScratchRepoRoot('repo-');
   const root = join(repoRoot, 'web');
-  tempRoots.push(repoRoot);
 
   mkdirSync(join(root, 'scripts'), { recursive: true });
   mkdirSync(join(root, 'src/modules/demo/locales'), { recursive: true });
@@ -55,9 +62,8 @@ async function runGovernanceScript(source: string) {
 }
 
 async function runGovernanceScriptWithFixture(fixtureName: string, env: Record<string, string> = {}) {
-  const repoRoot = mkdtempSync(join(tmpdir(), 'graft-i18n-governance-fixture-'));
+  const repoRoot = createScratchRepoRoot('fixture-');
   const root = join(repoRoot, 'web');
-  tempRoots.push(repoRoot);
 
   mkdirSync(join(root, 'scripts'), { recursive: true });
   mkdirSync(join(repoRoot, 'server/internal'), { recursive: true });
@@ -124,6 +130,7 @@ afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { force: true, recursive: true });
   }
+  rmSync(SCRATCH_PARENT, { force: true, recursive: true });
 });
 
 describe('check-i18n-governance datetime formatting scan', () => {
