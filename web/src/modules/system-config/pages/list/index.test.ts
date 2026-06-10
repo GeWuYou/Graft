@@ -168,9 +168,10 @@ vi.mock('vue-i18n', () => ({
 describe('system config list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const items = dashboardQuickActionItems();
     apiMocks.getSystemConfigs.mockResolvedValue({
-      items: dashboardQuickActionItems(),
-      total: 3,
+      items,
+      total: items.length,
     });
   });
 
@@ -427,9 +428,10 @@ describe('system config list page', () => {
   });
 
   it('filters the group tree by localized labels and technical keys', async () => {
+    const items = [systemConfigItem(), ...dashboardQuickActionItems()];
     apiMocks.getSystemConfigs.mockResolvedValue({
-      items: [systemConfigItem(), ...dashboardQuickActionItems()],
-      total: 4,
+      items,
+      total: items.length,
     });
 
     const wrapper = mountPage();

@@ -23,8 +23,10 @@ export type ConfigValueRendererInput = {
 
 export function configValuePresentation(input: ConfigValueRendererInput): ConfigValuePresentation {
   const schema = input.schema;
+  const optionMatchesEnum = schema?.enum?.some((option) => option === input.value) ?? false;
+  const optionHasLabel = Object.hasOwn(schema?.enumLabels ?? {}, String(input.value));
   const optionText =
-    schema?.enum?.some((option) => option === input.value) || schema?.enumLabels?.[String(input.value)]
+    schema && (optionMatchesEnum || (!schema.enum?.length && optionHasLabel))
       ? input.optionLabelResolver?.(schema, input.value)
       : '';
   if (optionText && schema) {

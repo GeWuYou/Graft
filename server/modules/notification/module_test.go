@@ -29,6 +29,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
+	"graft/server/internal/testassert"
 	notificationcontract "graft/server/modules/notification/contract"
 	notificationstore "graft/server/modules/notification/store"
 )
@@ -236,8 +237,8 @@ func TestModuleRegistersNotificationConfigI18nMetadata(t *testing.T) {
 		t.Fatal("expected canonical notification.display config definition")
 	}
 	assertNotificationDisplayConfigDefinition(t, display)
-	assertSingleNotificationConfigMessage(t, ctx.I18n, i18n.LocaleZHCN, display.Key, "ShowReadDaysTitleKey", notificationDisplayShowReadDaysTitleKey)
-	assertSingleNotificationConfigMessage(t, ctx.I18n, i18n.LocaleENUS, display.Key, "PopupLimitDescriptionKey", notificationDisplayPopupLimitDescKey)
+	assertSingleNotificationConfigMessage(t, ctx.I18n, i18n.LocaleZHCN, display.Key, "ShowReadDaysTitleKey", notificationConfigTitleKey(notificationDisplayShowReadDaysKey))
+	assertSingleNotificationConfigMessage(t, ctx.I18n, i18n.LocaleENUS, display.Key, "PopupLimitDescriptionKey", notificationConfigDescriptionKey(notificationDisplayPopupLimitKey))
 }
 
 func assertNotificationDisplayConfigDefinition(t *testing.T, definition configregistry.Definition) {
@@ -270,37 +271,21 @@ func assertNotificationDisplayConfigDefinition(t *testing.T, definition configre
 	if schema.Type != "object" || schema.AdditionalProperties {
 		t.Fatalf("expected strict notification display object schema, got %#v", schema)
 	}
-	if !sameStringSet(schema.Required, []string{"showReadDays", "popupLimit"}) {
+	if !testassert.SameStringSet(schema.Required, []string{"showReadDays", "popupLimit"}) {
 		t.Fatalf("expected notification display required fields, got %#v", schema.Required)
 	}
 	showReadDays := schema.Properties["showReadDays"]
 	if string(showReadDays.Default) != "7" ||
-		showReadDays.XI18n.TitleKey != notificationDisplayShowReadDaysTitleKey ||
-		showReadDays.XI18n.DescriptionKey != notificationDisplayShowReadDaysDescKey {
+		showReadDays.XI18n.TitleKey != notificationConfigTitleKey(notificationDisplayShowReadDaysKey) ||
+		showReadDays.XI18n.DescriptionKey != notificationConfigDescriptionKey(notificationDisplayShowReadDaysKey) {
 		t.Fatalf("expected showReadDays schema metadata, got %#v", showReadDays)
 	}
 	popupLimit := schema.Properties["popupLimit"]
 	if string(popupLimit.Default) != "5" ||
-		popupLimit.XI18n.TitleKey != notificationDisplayPopupLimitTitleKey ||
-		popupLimit.XI18n.DescriptionKey != notificationDisplayPopupLimitDescKey {
+		popupLimit.XI18n.TitleKey != notificationConfigTitleKey(notificationDisplayPopupLimitKey) ||
+		popupLimit.XI18n.DescriptionKey != notificationConfigDescriptionKey(notificationDisplayPopupLimitKey) {
 		t.Fatalf("expected popupLimit schema metadata, got %#v", popupLimit)
 	}
-}
-
-func sameStringSet(actual []string, expected []string) bool {
-	if len(actual) != len(expected) {
-		return false
-	}
-	seen := make(map[string]bool, len(actual))
-	for _, value := range actual {
-		seen[value] = true
-	}
-	for _, value := range expected {
-		if !seen[value] {
-			return false
-		}
-	}
-	return true
 }
 
 func TestModuleBootBindsSystemConfigResolverOnce(t *testing.T) {

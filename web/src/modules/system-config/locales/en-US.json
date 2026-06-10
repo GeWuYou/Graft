@@ -86,7 +86,9 @@
         "invalidValue": "Configuration Value Does Not Match the Field Rules",
         "invalidEnum": "Select an Allowed Configuration Value",
         "belowMinimum": "Configuration Value Must Be at Least {minimum}",
-        "aboveMaximum": "Configuration Value Must Be at Most {maximum}"
+        "aboveMaximum": "Configuration Value Must Be at Most {maximum}",
+        "belowMinLength": "Configuration Value Must Be at Least {minLength} Characters",
+        "aboveMaxLength": "Configuration Value Must Be at Most {maxLength} Characters"
       },
       "advanced": {
         "title": "Advanced Information",

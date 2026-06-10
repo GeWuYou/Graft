@@ -955,7 +955,12 @@ function schemaOptionLabel(field: ConfigSchemaField, option: string | number | b
   return schemaOptionDisplayLabel(field.schema, option);
 }
 
-function schemaValidationMessage(issue?: { constraint?: string; maximum?: number; minimum?: number }) {
+function schemaValidationMessage(issue?: {
+  constraint?: string;
+  expected?: unknown;
+  maximum?: number;
+  minimum?: number;
+}) {
   if (!issue) {
     return t('systemConfig.list.schema.invalidValue');
   }
@@ -966,6 +971,10 @@ function schemaValidationMessage(issue?: { constraint?: string; maximum?: number
       return t('systemConfig.list.schema.belowMinimum', { minimum: issue.minimum });
     case 'maximum':
       return t('systemConfig.list.schema.aboveMaximum', { maximum: issue.maximum });
+    case 'minLength':
+      return t('systemConfig.list.schema.belowMinLength', { minLength: issue.expected });
+    case 'maxLength':
+      return t('systemConfig.list.schema.aboveMaxLength', { maxLength: issue.expected });
     default:
       return t('systemConfig.list.schema.invalidValue');
   }

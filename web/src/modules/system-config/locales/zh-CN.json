@@ -86,7 +86,9 @@
         "invalidValue": "配置值不符合字段规则",
         "invalidEnum": "请选择允许的配置值",
         "belowMinimum": "配置值不能小于 {minimum}",
-        "aboveMaximum": "配置值不能大于 {maximum}"
+        "aboveMaximum": "配置值不能大于 {maximum}",
+        "belowMinLength": "配置值长度不能少于 {minLength} 个字符",
+        "aboveMaxLength": "配置值长度不能超过 {maxLength} 个字符"
       },
       "advanced": {
         "title": "高级信息",

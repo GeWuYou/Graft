@@ -10,6 +10,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/i18n"
+	"graft/server/internal/testassert"
 )
 
 func TestRegisterQuickActionsConfigDefinitionsUsesDomainGroupItemMetadata(t *testing.T) {
@@ -69,7 +70,7 @@ func assertQuickActionsSchemaI18nMetadata(t *testing.T, item configregistry.Defi
 	if schema.Type != "object" || schema.AdditionalProperties {
 		t.Fatalf("expected strict object schema, got %#v", schema)
 	}
-	if !sameStringSet(schema.Required, []string{"enabled", "maxItems", "strategy"}) {
+	if !testassert.SameStringSet(schema.Required, []string{"enabled", "maxItems", "strategy"}) {
 		t.Fatalf("expected required quick-action fields, got %#v", schema.Required)
 	}
 	if schema.XI18n.TitleKey != quickActionsConfigTitleKey ||
@@ -152,22 +153,6 @@ func assertOldQuickActionsConfigKeysRemoved(t *testing.T, registry *configregist
 			t.Fatalf("old dashboard quick-action flat key %s must not be registered", key)
 		}
 	}
-}
-
-func sameStringSet(actual []string, expected []string) bool {
-	if len(actual) != len(expected) {
-		return false
-	}
-	seen := make(map[string]bool, len(actual))
-	for _, value := range actual {
-		seen[value] = true
-	}
-	for _, value := range expected {
-		if !seen[value] {
-			return false
-		}
-	}
-	return true
 }
 
 func TestRegisterQuickActionsConfigMessagesUsesProductFacingChineseCopy(t *testing.T) {

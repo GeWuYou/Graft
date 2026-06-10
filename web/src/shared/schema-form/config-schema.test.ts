@@ -7,6 +7,7 @@ import type { ConfigSchema } from './config-schema';
 import { parseConfigSchema, validateConfigRecord } from './config-schema';
 import { configEditorContainer, configFieldRenderer } from './field-renderer';
 import { validateConfigEditorValue } from './renderer-validation';
+import { configValuePresentation } from './value-renderer';
 
 describe('validateConfigRecord', () => {
   it('parses enum label and description metadata', () => {
@@ -156,5 +157,63 @@ describe('validateConfigEditorValue', () => {
         actual: 30,
       }),
     ]);
+  });
+});
+
+describe('configValuePresentation', () => {
+  it('uses enum labels only for values allowed by an existing enum', () => {
+    const schema = {
+      type: 'string',
+      enum: ['enabled'],
+      enumLabels: {
+        manual: { label: 'Manual mode' },
+      },
+    } satisfies ConfigSchema;
+
+    expect(
+      configValuePresentation({
+        emptyValueLabel: '-',
+        optionLabelResolver: (property, value) => property.enumLabels?.[String(value)]?.label ?? String(value),
+        schema,
+        value: 'manual',
+      }).value,
+    ).toBe('manual');
+  });
+
+  it('uses enum labels as option metadata when schema has no enum', () => {
+    const schema = {
+      type: 'string',
+      enumLabels: {
+        manual: { label: 'Manual mode' },
+      },
+    } satisfies ConfigSchema;
+
+    expect(
+      configValuePresentation({
+        emptyValueLabel: '-',
+        optionLabelResolver: (property, value) => property.enumLabels?.[String(value)]?.label ?? String(value),
+        schema,
+        value: 'manual',
+      }).value,
+    ).toBe('Manual mode');
+  });
+
+  it('uses enum labels as option metadata when schema enum is empty', () => {
+    const schema = {
+      type: 'string',
+      enum: [],
+      enumLabels: {
+        manual: { label: 'Manual mode' },
+      },
+    } satisfies ConfigSchema;
+
+    expect(
+      configValuePresentation({
+        emptyValueLabel: '-',
+        optionLabelResolver: (property, value) => property.enumLabels?.[String(value)]?.label ?? String(value),
+        schema,
+        value: 'manual',
+      }).value,
+    ).toBe('Manual mode');
   });
 });

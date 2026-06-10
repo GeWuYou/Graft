@@ -17,18 +17,7 @@ import { configValuePresentation } from './value-renderer';
 
 const props = defineProps<ConfigValueRendererInput>();
 
-const presentation = computed<ConfigValuePresentation>(() =>
-  configValuePresentation({
-    booleanLabelResolver: props.booleanLabelResolver,
-    emptyValueLabel: props.emptyValueLabel,
-    optionDescriptionResolver: props.optionDescriptionResolver,
-    optionLabelResolver: props.optionLabelResolver,
-    schema: props.schema,
-    schemaDescriptionResolver: props.schemaDescriptionResolver,
-    unit: props.unit,
-    value: props.value,
-  }),
-);
+const presentation = computed<ConfigValuePresentation>(() => configValuePresentation(props));
 </script>
 <style scoped>
 .config-value-renderer {
