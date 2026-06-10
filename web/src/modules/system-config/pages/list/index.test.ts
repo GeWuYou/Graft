@@ -555,6 +555,34 @@ describe('system config list page', () => {
     expect(wrapper.findAll('[data-test-id="schema-number"]')).toHaveLength(2);
   });
 
+  it('renders schema number units outside the compact stepper input', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          effective_value: '{"retentionDays":30,"batchSize":2000}',
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    const numberInputs = wrapper.findAll('[data-test-id="schema-number"]');
+    expect(numberInputs).toHaveLength(2);
+    expect(numberInputs.map((node) => node.text())).toEqual(['30', '2000']);
+    expect(numberInputs.map((node) => node.attributes('data-suffix'))).toEqual(['', '']);
+    expect(numberInputs.map((node) => node.attributes('data-align'))).toEqual(['center', 'center']);
+    expect(numberInputs.map((node) => node.attributes('data-theme'))).toEqual(['row', 'row']);
+    expect(numberInputs.map((node) => node.attributes('data-min'))).toEqual(['1', '1']);
+    expect(numberInputs.map((node) => node.attributes('data-max'))).toEqual(['365', '10000']);
+    expect(wrapper.findAll('.json-schema-value-fields__number-unit').map((node) => node.text())).toEqual(['天', '行']);
+  });
+
   it('uses drawer and raw JSON textarea fields for nested object or array properties', async () => {
     apiMocks.getSystemConfigs.mockResolvedValue({
       items: [
@@ -743,10 +771,21 @@ function mountPage() {
         }),
         TInputNumber: defineComponent({
           name: 'TInputNumber',
-          props: ['suffix', 'modelValue'],
+          props: ['align', 'max', 'min', 'modelValue', 'suffix', 'theme'],
           setup(props) {
             return () =>
-              h('span', { 'data-test-id': 'schema-number' }, [String(props.modelValue ?? ''), props.suffix as string]);
+              h(
+                'span',
+                {
+                  'data-align': props.align as string,
+                  'data-max': String(props.max ?? ''),
+                  'data-min': String(props.min ?? ''),
+                  'data-suffix': String(props.suffix ?? ''),
+                  'data-test-id': 'schema-number',
+                  'data-theme': props.theme as string,
+                },
+                String(props.modelValue ?? ''),
+              );
           },
         }),
         TLoading: textStub('div'),

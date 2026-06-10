@@ -31,17 +31,26 @@
           />
         </t-select>
       </template>
-      <t-input-number
+      <div
         v-else-if="field.schema.type === 'integer' || field.schema.type === 'number'"
-        :model-value="numberValue(objectValue[field.key])"
-        :min="field.schema.minimum"
-        :max="field.schema.maximum"
-        :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
-        :placeholder="fieldPlaceholder(field, labels.numberPlaceholder)"
-        :suffix="fieldUnit(field)"
-        :disabled="disabled"
-        @change="(value) => updateObjectField(field.key, value)"
-      />
+        class="json-schema-value-fields__number-row"
+      >
+        <t-input-number
+          class="json-schema-value-fields__number-input"
+          :model-value="numberValue(objectValue[field.key])"
+          :min="field.schema.minimum"
+          :max="field.schema.maximum"
+          :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
+          :placeholder="fieldPlaceholder(field, labels.numberPlaceholder)"
+          :disabled="disabled"
+          align="center"
+          theme="row"
+          @change="(value) => updateObjectField(field.key, value)"
+        />
+        <span v-if="fieldUnit(field)" class="json-schema-value-fields__number-unit">
+          {{ fieldUnit(field) }}
+        </span>
+      </div>
       <t-switch
         v-else-if="field.schema.type === 'boolean'"
         :model-value="Boolean(objectValue[field.key])"
@@ -94,17 +103,26 @@
         />
       </t-select>
     </template>
-    <t-input-number
+    <div
       v-else-if="rootSchema.type === 'integer' || rootSchema.type === 'number'"
-      :model-value="numberValue(modelValue)"
-      :min="rootSchema.minimum"
-      :max="rootSchema.maximum"
-      :decimal-places="rootSchema.type === 'integer' ? 0 : undefined"
-      :placeholder="rootPlaceholder(labels.numberPlaceholder)"
-      :suffix="rootUnit"
-      :disabled="disabled"
-      @change="(value) => emit('update:modelValue', value)"
-    />
+      class="json-schema-value-fields__number-row"
+    >
+      <t-input-number
+        class="json-schema-value-fields__number-input"
+        :model-value="numberValue(modelValue)"
+        :min="rootSchema.minimum"
+        :max="rootSchema.maximum"
+        :decimal-places="rootSchema.type === 'integer' ? 0 : undefined"
+        :placeholder="rootPlaceholder(labels.numberPlaceholder)"
+        :disabled="disabled"
+        align="center"
+        theme="row"
+        @change="(value) => emit('update:modelValue', value)"
+      />
+      <span v-if="rootUnit" class="json-schema-value-fields__number-unit">
+        {{ rootUnit }}
+      </span>
+    </div>
     <t-switch
       v-else-if="rootSchema.type === 'boolean'"
       :model-value="Boolean(modelValue)"
@@ -268,6 +286,39 @@ function handleObjectJsonChange(key: string, value: string | number) {
 <style scoped>
 .json-schema-value-fields__textarea {
   width: 100%;
+}
+
+.json-schema-value-fields__number-row {
+  align-items: center;
+  display: flex;
+  gap: var(--td-comp-margin-xs);
+  max-width: 240px;
+}
+
+.json-schema-value-fields__number-input {
+  flex: 0 0 120px;
+  min-width: 120px;
+  width: 120px;
+}
+
+.json-schema-value-fields__number-input :deep(.t-input-number),
+:deep(.json-schema-value-fields__number-input.t-input-number) {
+  width: 100%;
+}
+
+.json-schema-value-fields__number-input :deep(.t-input__inner) {
+  font-variant-numeric: tabular-nums;
+  overflow: visible;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.json-schema-value-fields__number-unit {
+  color: var(--td-text-color-secondary);
+  flex: 0 0 auto;
+  line-height: var(--td-line-height-body-medium);
+  white-space: nowrap;
 }
 
 :deep(.json-schema-value-fields__textarea.t-textarea),
