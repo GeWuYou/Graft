@@ -96,6 +96,7 @@ type RolePermissionBinding struct {
 type EnsureRoleInput struct {
 	Name        string
 	Display     string
+	DisplayKey  *string
 	Description *string
 	Builtin     bool
 }

@@ -292,6 +292,7 @@ func (s userService) CreateUser(
 		ResourceID:   formatUserAuditID(created.ID),
 		ResourceName: created.Username,
 		Success:      true,
+		MessageKey:   "user.audit.userCreated",
 		Message:      "user created",
 		Metadata: map[string]any{
 			"username":             created.Username,
@@ -330,6 +331,7 @@ func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) 
 		ResourceID:   formatUserAuditID(updated.ID),
 		ResourceName: updated.Username,
 		Success:      true,
+		MessageKey:   "user.audit.userUpdated",
 		Message:      "user updated",
 		Metadata: map[string]any{
 			"username":     updated.Username,
@@ -386,6 +388,7 @@ func (s userService) SetUserStatus(
 		ResourceID:   formatUserAuditID(updated.ID),
 		ResourceName: updated.Username,
 		Success:      true,
+		MessageKey:   "user.audit.userStatusUpdated",
 		Message:      "user status updated",
 		Metadata: map[string]any{
 			"username": updated.Username,
@@ -427,6 +430,7 @@ func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepo
 		ResourceType: "user",
 		ResourceID:   formatUserAuditID(userID),
 		Success:      true,
+		MessageKey:   "user.audit.userDeleted",
 		Message:      "user deleted",
 	})
 
@@ -467,6 +471,7 @@ func (s userService) ResetUserPassword(
 		ResourceType: "user",
 		ResourceID:   formatUserAuditID(userID),
 		Success:      true,
+		MessageKey:   "user.audit.userPasswordReset",
 		Message:      "user password reset",
 		Metadata: map[string]any{
 			"must_change_password": true,

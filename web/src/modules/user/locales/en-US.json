@@ -163,6 +163,13 @@
       "detailFields": {
         "email": "Email"
       }
+    },
+    "audit": {
+      "userCreated": "User created",
+      "userUpdated": "User updated",
+      "userStatusUpdated": "User status updated",
+      "userDeleted": "User deleted",
+      "userPasswordReset": "User password reset"
     }
   }
 }

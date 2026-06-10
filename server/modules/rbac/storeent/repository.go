@@ -94,7 +94,12 @@ func (r *repository) EnsurePermission(ctx context.Context, input rbacstore.Ensur
 }
 
 func (r *repository) CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error) {
-	record, err := r.createRoleRecord(ctx, rbacstore.EnsureRoleInput(input))
+	record, err := r.createRoleRecord(ctx, rbacstore.EnsureRoleInput{
+		Name:        input.Name,
+		Display:     input.Display,
+		Description: input.Description,
+		Builtin:     input.Builtin,
+	})
 	if err != nil {
 		if isUniqueViolation(err) {
 			return rbacstore.Role{}, rbacstore.ErrRoleNameConflict

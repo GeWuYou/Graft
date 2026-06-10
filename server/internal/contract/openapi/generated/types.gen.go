@@ -3219,7 +3219,12 @@ type EvidenceLink struct {
 	Reason     *string                 `json:"reason,omitempty"`
 	TargetKind EvidenceLinkTargetKind  `json:"target_kind"`
 	TimeWindow *EvidenceLinkTimeWindow `json:"time_window,omitempty"`
-	Title      string                  `json:"title"`
+
+	// Title Direct evidence-link title fallback when the client has no translation for title_key.
+	Title string `json:"title"`
+
+	// TitleKey Stable localization key for the evidence-link title.
+	TitleKey *string `json:"title_key,omitempty"`
 }
 
 // EvidenceLinkLinkState defines model for EvidenceLink.LinkState.

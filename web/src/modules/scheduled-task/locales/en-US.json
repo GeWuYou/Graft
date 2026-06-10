@@ -395,6 +395,12 @@
         "auditLog": "Audit Logs",
         "appLog": "App Logs"
       }
+    },
+    "notification": {
+      "runFailed": {
+        "title": "Scheduled Task Failed",
+        "message": "Scheduled task failed."
+      }
     }
   }
 }

@@ -818,6 +818,7 @@ func unavailableEvidenceLink(windowStart time.Time, windowEnd time.Time, reason 
 	return generated.EvidenceLink{
 		TargetKind: generated.EvidenceLinkTargetKind(evidenceTargetAudit),
 		LinkState:  generated.EvidenceLinkLinkState(evidenceStateUnavailable),
+		TitleKey:   stringPointer("monitor.evidence.auditUnavailable.title"),
 		Title:      "Audit evidence is unavailable",
 		Reason:     stringPointer(reason),
 		TimeWindow: &generated.EvidenceLinkTimeWindow{

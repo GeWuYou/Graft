@@ -128,8 +128,8 @@ func baseNotificationDefinition(
 		Group:               group,
 		GroupKey:            metadata.key,
 		GroupLabel:          metadata.label,
-		GroupDescription:    metadata.description,
-		GroupDescriptionKey: metadata.descriptionKey,
+		GroupDescription:    metadata.Description,
+		GroupDescriptionKey: metadata.DescriptionKey,
 		Title:               title,
 		TitleKey:            notificationConfigTitleKey(key),
 		Description:         description,
@@ -143,8 +143,8 @@ func baseNotificationDefinition(
 type notificationConfigGroupInfo struct {
 	key            string
 	label          string
-	descriptionKey string
-	description    string
+	DescriptionKey string
+	Description    string
 }
 
 func notificationConfigGroupMetadata(group string) notificationConfigGroupInfo {
@@ -153,29 +153,29 @@ func notificationConfigGroupMetadata(group string) notificationConfigGroupInfo {
 		return notificationConfigGroupInfo{
 			key:            notificationConfigSourcesGroupKey,
 			label:          "Notification sources",
-			descriptionKey: notificationConfigSourcesDescKey,
-			description:    "Control which platform events create notifications.",
+			DescriptionKey: notificationConfigSourcesDescKey,
+			Description:    "Control which platform events create notifications.",
 		}
 	case notificationConfigDeliveryGroup:
 		return notificationConfigGroupInfo{
 			key:            notificationConfigDeliveryGroupKey,
 			label:          "Notification delivery",
-			descriptionKey: notificationConfigDeliveryDescKey,
-			description:    "Control in-app delivery and fan-out limits.",
+			DescriptionKey: notificationConfigDeliveryDescKey,
+			Description:    "Control in-app delivery and fan-out limits.",
 		}
 	case notificationConfigDisplayGroup:
 		return notificationConfigGroupInfo{
 			key:            notificationConfigDisplayGroupKey,
 			label:          "Notification display",
-			descriptionKey: notificationConfigDisplayDescKey,
-			description:    "Control Notification Center display defaults.",
+			DescriptionKey: notificationConfigDisplayDescKey,
+			Description:    "Control Notification Center display defaults.",
 		}
 	default:
 		return notificationConfigGroupInfo{
 			key:            notificationConfigGeneralGroupKey,
 			label:          "Notification general",
-			descriptionKey: notificationConfigGeneralDescKey,
-			description:    "Control the Notification Center baseline behavior.",
+			DescriptionKey: notificationConfigGeneralDescKey,
+			Description:    "Control the Notification Center baseline behavior.",
 		}
 	}
 }

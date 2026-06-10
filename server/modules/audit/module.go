@@ -482,6 +482,9 @@ func eventMetadata(payload moduleapi.AuditEvent) map[string]any {
 	if payload.StatusCode > 0 {
 		metadata["status_code"] = payload.StatusCode
 	}
+	if messageKey := strings.TrimSpace(payload.MessageKey); messageKey != "" {
+		metadata["message_key"] = messageKey
+	}
 	return metadata
 }
 

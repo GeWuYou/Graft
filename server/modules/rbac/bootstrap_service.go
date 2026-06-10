@@ -36,9 +36,10 @@ func (s bootstrapService) EnsureDefaultAdminAccess(
 	}
 
 	role, err := s.rbac.EnsureRole(ctx, rbacstore.EnsureRoleInput{
-		Name:    builtinAdminRoleName,
-		Display: "管理员",
-		Builtin: true,
+		Name:       builtinAdminRoleName,
+		Display:    "管理员",
+		DisplayKey: stringPtrOrNil("rbac.roles.admin.display"),
+		Builtin:    true,
 	})
 	if err != nil {
 		return fmt.Errorf("ensure default admin role: %w", err)

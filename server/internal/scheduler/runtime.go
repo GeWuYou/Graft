@@ -838,8 +838,8 @@ func (r *CronRuntime) snapshotDefinition(ctx context.Context, definition TaskDef
 	}
 	if job, ok := r.findJob(definition.JobKey); ok {
 		snapshot.Name = job.RuntimeKey()
-		snapshot.DisplayMessageKey = job.DisplayMessageKey
-		snapshot.DescriptionMessageKey = job.DescriptionMessageKey
+		snapshot.DisplayMessageKey = job.RuntimeTitleKey()
+		snapshot.DescriptionMessageKey = job.RuntimeDescriptionKey()
 		if snapshot.ModuleKey == "" {
 			snapshot.ModuleKey = job.Module
 		}
@@ -1064,9 +1064,9 @@ func jobDefinitionFromJob(job cronx.Job, now time.Time) JobDefinition {
 	return JobDefinition{
 		JobKey:         job.RuntimeKey(),
 		ModuleKey:      job.RuntimeOwner(),
-		TitleKey:       strings.TrimSpace(job.DisplayMessageKey),
+		TitleKey:       job.RuntimeTitleKey(),
 		Title:          job.RuntimeTitle(),
-		DescriptionKey: strings.TrimSpace(job.DescriptionMessageKey),
+		DescriptionKey: job.RuntimeDescriptionKey(),
 		Description:    job.RuntimeDescription(),
 		ConfigSchema:   job.RuntimeConfigSchema(),
 		DefaultConfig:  job.RuntimeDefaultConfig(),
