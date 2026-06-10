@@ -45,6 +45,11 @@ type DefaultConfigResolver interface {
 	ResolveDefaultConfig(ctx context.Context, key string) (string, error)
 }
 
+// RunFailureNotifier observes persisted failed scheduler runs.
+type RunFailureNotifier interface {
+	NotifyRunFailed(ctx context.Context, run TaskRun)
+}
+
 // RunStatus records the result state of one runtime job execution.
 type RunStatus string
 
@@ -92,6 +97,7 @@ var reservedTaskKeys = map[string]struct{}{
 const (
 	taskConfigSourceSystem = "system"
 	taskConfigSourceUser   = "user"
+	runFailureNotifyTTL    = 3 * time.Second
 )
 
 // JobDefinitionSnapshot describes one persisted, creatable scheduler job type.
@@ -310,6 +316,7 @@ type CronRuntime struct {
 	tasks           TaskRepository
 	jobDefinitions  JobDefinitionRepository
 	defaultConfigs  DefaultConfigResolver
+	failureNotifier RunFailureNotifier
 	now             func() time.Time
 }
 
@@ -356,6 +363,13 @@ func (r *CronRuntime) SetDefaultConfigResolver(resolver DefaultConfigResolver) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.defaultConfigs = resolver
+}
+
+// SetRunFailureNotifier attaches a non-blocking observer for persisted failed runs.
+func (r *CronRuntime) SetRunFailureNotifier(notifier RunFailureNotifier) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.failureNotifier = notifier
 }
 
 // RegisterJob adds an in-memory job handler declaration to the runtime.
@@ -919,7 +933,11 @@ func (r *CronRuntime) effectiveConfigForRun(ctx context.Context, definition Task
 
 func (r *CronRuntime) finishRun(ctx context.Context, id uint64, result cronx.JobRunResult, runErr error) (TaskRun, error) {
 	command := r.runFinishCommand(id, result, runErr)
-	return r.runs.FinishRun(finishRunContext(ctx), command)
+	finished, err := r.runs.FinishRun(finishRunContext(ctx), command)
+	if err == nil && finished.Status == RunStatusFailed {
+		r.notifyRunFailed(ctx, finished)
+	}
+	return finished, err
 }
 
 func (r *CronRuntime) runFinishCommand(id uint64, result cronx.JobRunResult, runErr error) RunFinishCommand {
@@ -957,6 +975,29 @@ func finishRunContext(ctx context.Context) context.Context {
 		return context.Background()
 	}
 	return context.WithoutCancel(ctx)
+}
+
+func (r *CronRuntime) notifyRunFailed(ctx context.Context, run TaskRun) {
+	r.mu.RLock()
+	notifier := r.failureNotifier
+	r.mu.RUnlock()
+	if notifier == nil {
+		return
+	}
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				r.logger.Error("scheduler run failure notifier panicked",
+					zap.String("task", run.TaskKey),
+					zap.Uint64("runID", run.ID),
+					zap.Any("panic", recovered),
+				)
+			}
+		}()
+		notifyCtx, cancel := context.WithTimeout(finishRunContext(ctx), runFailureNotifyTTL)
+		defer cancel()
+		notifier.NotifyRunFailed(notifyCtx, run)
+	}()
 }
 
 func (r *CronRuntime) refreshDefinitionSchedule(definition TaskDefinition) error {

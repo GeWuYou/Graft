@@ -5,6 +5,7 @@ import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+import type { DashboardQuickActionConfig } from '../contract/quick-actions';
 import type { DashboardQuickLink } from '../types/dashboard';
 import DashboardQuickActions from './DashboardQuickActions.vue';
 
@@ -23,7 +24,72 @@ vi.mock('@/locales', () => ({
   },
 }));
 
+vi.mock('@/locales/useLocale', () => ({
+  useLocale: () => ({
+    locale: { value: 'zh-CN' },
+  }),
+}));
+
+vi.mock('@/modules', () => ({
+  getBootstrapRouteRegistration: (menuPath: string) => {
+    const registrations = new Map([
+      [
+        '/server/overview',
+        {
+          meta: {
+            tabTitle: {
+              'zh-CN': '服务管理 - 概览',
+              'en-US': 'Service Management - Overview',
+            },
+          },
+        },
+      ],
+    ]);
+
+    return registrations.get(menuPath);
+  },
+}));
+
 const routerMocks = vi.hoisted(() => ({
+  getRoutes: vi.fn(() => [
+    {
+      path: '/access-control',
+      children: [
+        {
+          path: 'users',
+          meta: {
+            tabTitle: {
+              'zh-CN': '访问控制 - 用户管理',
+              'en-US': 'Access Control - User Management',
+            },
+          },
+        },
+      ],
+    },
+    {
+      path: '/logs',
+      children: [
+        {
+          path: 'access',
+          meta: {
+            tabTitle: {
+              'zh-CN': '日志中心 - 访问日志',
+              'en-US': 'Log Center - Access Logs',
+            },
+          },
+        },
+        {
+          path: 'app',
+          meta: {
+            tabTitle: {
+              'zh-CN': '日志中心 - 应用日志',
+              'en-US': 'Log Center - App Logs',
+            },
+          },
+        },
+      ],
+    },
+  ]),
   push: vi.fn(),
 }));
 
@@ -59,7 +125,6 @@ const passthroughStub = defineComponent({
       ]);
   },
 });
-
 const buttonStub = defineComponent({
   name: 'TButtonStub',
   emits: ['click'],
@@ -96,9 +161,10 @@ function quickLink(index: number, partial: Partial<DashboardQuickLink> = {}): Da
   };
 }
 
-function mountQuickActions(links: DashboardQuickLink[]) {
+function mountQuickActions(links: DashboardQuickLink[], config?: DashboardQuickActionConfig) {
   return mount(DashboardQuickActions, {
     props: {
+      config,
       links,
     },
     global: {
@@ -124,15 +190,15 @@ describe('DashboardQuickActions', () => {
   it('shows configured links by default and exposes a drawer affordance without expanding the home grid', async () => {
     const wrapper = mountQuickActions(Array.from({ length: 10 }, (_, index) => quickLink(index + 1)));
 
-    expect(wrapper.findAll('.dashboard-quick-actions__item')).toHaveLength(8);
+    expect(wrapper.findAll('.dashboard-quick-actions__item')).toHaveLength(4);
     expect(wrapper.text()).toContain('查看全部 10 个');
     expect(wrapper.text()).toContain('审计');
     expect(wrapper.text()).toContain('核心');
-    expect(wrapper.text()).not.toContain('Link 10');
+    expect(wrapper.text()).not.toContain('Link 5');
 
     await wrapper.findAll('button').at(-1)?.trigger('click');
 
-    expect(wrapper.findAll('.dashboard-quick-actions__item')).toHaveLength(18);
+    expect(wrapper.findAll('.dashboard-quick-actions__item')).toHaveLength(14);
     expect(wrapper.text()).toContain('全部快捷入口');
     expect(wrapper.text()).toContain('Link 10');
   });
@@ -174,6 +240,35 @@ describe('DashboardQuickActions', () => {
     await wrapper.find('.dashboard-quick-actions__item').trigger('click');
 
     expect(routerMocks.push).toHaveBeenCalledWith('/audit/events');
+  });
+
+  it('uses route tab titles so overview quick links include their first-level menu context', async () => {
+    const wrapper = mountQuickActions(
+      [
+        quickLink(1, { route_location: '/server/overview', title: '概览' }),
+        quickLink(2, { route_location: '/access-control/users', title: '用户管理' }),
+        quickLink(3, { route_location: '/unknown/overview', title: '概览' }),
+      ],
+      { enabled: true, maxItems: 2, strategy: 'hybrid' },
+    );
+
+    const titles = wrapper.findAll('.dashboard-quick-actions__item strong').map((item) => item.text());
+    expect(titles).toEqual(['服务管理 - 概览', '访问控制 - 用户管理']);
+
+    await wrapper.findAll('button').at(-1)?.trigger('click');
+
+    const drawerTitles = wrapper.findAll('.dashboard-quick-actions__item--drawer strong').map((item) => item.text());
+    expect(drawerTitles).toEqual(['服务管理 - 概览', '访问控制 - 用户管理', '概览']);
+  });
+
+  it('uses runtime menu-derived titles for log quick links without local title mappings', () => {
+    const wrapper = mountQuickActions([
+      quickLink(1, { route_location: '/logs/access', title: '访问日志' }),
+      quickLink(2, { route_location: '/logs/app', title: '应用日志' }),
+    ]);
+
+    const titles = wrapper.findAll('.dashboard-quick-actions__item strong').map((item) => item.text());
+    expect(titles).toEqual(['日志中心 - 访问日志', '日志中心 - 应用日志']);
   });
 
   it('colors only canonical module keys and dotted descendants', () => {

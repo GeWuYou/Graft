@@ -16,6 +16,7 @@ import (
 const systemConfigMenuOrder = 105
 
 type systemConfigFieldMessages struct {
+	logsDomainTitle          string
 	retentionDaysTitle       string
 	retentionDaysDescription string
 	batchSizeTitle           string
@@ -36,6 +37,7 @@ func registerMessages(localizer *i18n.Service) error {
 			Messages: systemConfigMessages(
 				systemConfigBaseMessages("系统配置", "系统配置不存在", "系统配置请求无效"),
 				systemConfigFieldMessages{
+					logsDomainTitle:          "日志配置",
 					retentionDaysTitle:       "日志保留时间",
 					retentionDaysDescription: "删除早于指定天数的日志。",
 					batchSizeTitle:           "批量大小",
@@ -55,6 +57,7 @@ func registerMessages(localizer *i18n.Service) error {
 					"Invalid System Configuration Request",
 				),
 				systemConfigFieldMessages{
+					logsDomainTitle:          "Logs",
 					retentionDaysTitle:       "Log Retention Days",
 					retentionDaysDescription: "Delete logs older than this many days.",
 					batchSizeTitle:           "Batch Size",
@@ -85,6 +88,7 @@ func systemConfigMessages(
 	fieldMessages systemConfigFieldMessages,
 ) []i18n.MessageResource {
 	return append(base,
+		i18n.MessageResource{Key: i18n.MessageKey("systemConfig.domains.logs"), Text: fieldMessages.logsDomainTitle},
 		i18n.MessageResource{Key: i18n.MessageKey("systemConfig.fields.retentionDays.title"), Text: fieldMessages.retentionDaysTitle},
 		i18n.MessageResource{
 			Key:  i18n.MessageKey("systemConfig.fields.retentionDays.description"),

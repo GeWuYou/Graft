@@ -4,9 +4,29 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ConfigSchema } from './config-schema';
-import { validateConfigRecord } from './config-schema';
+import { parseConfigSchema, validateConfigRecord } from './config-schema';
 
 describe('validateConfigRecord', () => {
+  it('parses enum label and description metadata', () => {
+    expect(
+      parseConfigSchema({
+        type: 'string',
+        enum: ['hybrid'],
+        'x-i18n': {
+          enumLabels: {
+            hybrid: {
+              labelKey: 'systemConfig.options.dashboardQuickActionStrategy.hybrid',
+              descriptionKey: 'systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid',
+            },
+          },
+        },
+      }).enumLabels?.hybrid,
+    ).toEqual({
+      labelKey: 'systemConfig.options.dashboardQuickActionStrategy.hybrid',
+      descriptionKey: 'systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid',
+    });
+  });
+
   it('validates object and array property types', () => {
     const schema: ConfigSchema = {
       type: 'object',

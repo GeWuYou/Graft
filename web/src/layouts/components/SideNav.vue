@@ -34,12 +34,11 @@ import union from 'lodash/union';
 import type { MenuValue } from 'tdesign-vue-next';
 import type { PropType } from 'vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
 
 import AssetLogoFull from '@/assets/assets-logo-full.svg?component';
 import AssetLogo from '@/assets/assets-t-logo.svg?component';
 import { prefix } from '@/config/global';
-import { SHELL_ROUTE_PATH } from '@/contracts/routes';
+import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
 import { getActive } from '@/router';
 import { useSettingStore } from '@/store';
@@ -150,8 +149,8 @@ const menuCls = computed(() => {
   ];
 });
 
-const router = useRouter();
 const settingStore = useSettingStore();
+const shellNavigation = useShellNavigation();
 
 const autoCollapsed = () => {
   const isCompact = window.innerWidth <= MIN_POINT;
@@ -172,7 +171,7 @@ onUnmounted(() => {
 });
 
 const goHome = () => {
-  router.push(SHELL_ROUTE_PATH.ROOT_ENTRY);
+  void shellNavigation.goHome();
 };
 
 const getLogo = () => {

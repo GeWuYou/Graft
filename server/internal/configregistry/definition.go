@@ -40,24 +40,29 @@ const (
 // Definitions are registered by modules during Register. They are canonical
 // metadata and must not be copied into system_config_values as database truth.
 type Definition struct {
-	Key             string
-	Module          string
-	Group           string
-	GroupKey        string
-	GroupLabel      string
-	Title           string
-	TitleKey        string
-	Description     string
-	DescriptionKey  string
-	Tags            []string
-	Type            ValueType
-	Schema          json.RawMessage
-	DefaultValue    json.RawMessage
-	Sensitive       bool
-	Required        bool
-	RestartRequired bool
-	Permission      string
-	Order           int
+	Key                 string
+	Module              string
+	Domain              string
+	DomainKey           string
+	DomainLabel         string
+	Group               string
+	GroupKey            string
+	GroupLabel          string
+	GroupDescription    string
+	GroupDescriptionKey string
+	Title               string
+	TitleKey            string
+	Description         string
+	DescriptionKey      string
+	Tags                []string
+	Type                ValueType
+	Schema              json.RawMessage
+	DefaultValue        json.RawMessage
+	Sensitive           bool
+	Required            bool
+	RestartRequired     bool
+	Permission          string
+	Order               int
 }
 
 // Snapshot returns an immutable copy safe for callers to retain.
@@ -82,14 +87,8 @@ func validateDefinition(definition Definition) error {
 	if !keyPattern.MatchString(key) {
 		return fmt.Errorf("config definition key %q is invalid", definition.Key)
 	}
-	if strings.TrimSpace(definition.Module) == "" {
-		return fmt.Errorf("config definition %s module is required", key)
-	}
-	if strings.TrimSpace(definition.Group) == "" {
-		return fmt.Errorf("config definition %s group is required", key)
-	}
-	if strings.TrimSpace(definition.Title) == "" && strings.TrimSpace(definition.TitleKey) == "" {
-		return fmt.Errorf("config definition %s title or title key is required", key)
+	if err := validateRequiredDefinitionMetadata(definition, key); err != nil {
+		return err
 	}
 	if !slices.Contains(validValueTypes(), definition.Type) {
 		return fmt.Errorf("config definition %s type %q is invalid", key, definition.Type)
@@ -99,6 +98,22 @@ func validateDefinition(definition Definition) error {
 	}
 	if err := validateDefaultValue(definition.DefaultValue, definition.Type, key); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateRequiredDefinitionMetadata(definition Definition, key string) error {
+	if strings.TrimSpace(definition.Module) == "" {
+		return fmt.Errorf("config definition %s module is required", key)
+	}
+	if strings.TrimSpace(definition.Domain) == "" {
+		return fmt.Errorf("config definition %s domain is required", key)
+	}
+	if strings.TrimSpace(definition.Group) == "" {
+		return fmt.Errorf("config definition %s group is required", key)
+	}
+	if strings.TrimSpace(definition.Title) == "" && strings.TrimSpace(definition.TitleKey) == "" {
+		return fmt.Errorf("config definition %s title or title key is required", key)
 	}
 	return nil
 }

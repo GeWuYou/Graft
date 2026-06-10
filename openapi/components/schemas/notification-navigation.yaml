@@ -1,0 +1,11 @@
+type: object
+required:
+  - kind
+  - payload
+properties:
+  kind:
+    $ref: ./notification-navigation-kind.yaml
+  payload:
+    type: object
+    additionalProperties: true
+    description: Structured payload owned by the source module and resolved by the frontend notification module.

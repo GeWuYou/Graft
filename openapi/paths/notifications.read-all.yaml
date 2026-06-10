@@ -1,0 +1,32 @@
+post:
+  tags: [notifications]
+  summary: Mark current-user notifications as read
+  operationId: postNotificationsReadAll
+  description: Marks all current-user notifications, or a filtered current-user subset, as read.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/notification-read-all-request.yaml
+  responses:
+    '200':
+      description: Count of notification deliveries marked read.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-notification-read-all-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

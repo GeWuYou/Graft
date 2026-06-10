@@ -1275,6 +1275,106 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/notifications': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List current-user notifications
+     * @description Returns paged notification deliveries visible to the current user.
+     */
+    get: operations['getNotifications'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/notifications/unread-count': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read current-user unread notification count
+     * @description Returns the unread notification delivery count for the current user.
+     */
+    get: operations['getNotificationsUnreadCount'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/notifications/{delivery_id}/read': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mark one current-user notification as read
+     * @description Marks one notification delivery visible to the current user as read.
+     */
+    post: operations['postNotificationRead'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/notifications/read-all': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mark current-user notifications as read
+     * @description Marks all current-user notifications, or a filtered current-user subset, as read.
+     */
+    post: operations['postNotificationsReadAll'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/notifications/{delivery_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete one current-user notification delivery
+     * @description Deletes one notification delivery from the current-user view.
+     */
+    delete: operations['deleteNotification'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1413,6 +1513,21 @@ export interface components {
     DashboardHealthPayload: components['schemas']['dashboard-health-payload'];
     EnvelopedDashboardSummaryResponse: components['schemas']['enveloped-dashboard-summary-response'];
     EnvelopedDashboardWidget: components['schemas']['enveloped-dashboard-widget'];
+    NotificationSeverity: components['schemas']['notification-severity'];
+    NotificationCategory: components['schemas']['notification-category'];
+    NotificationTargetType: components['schemas']['notification-target-type'];
+    NotificationNavigationKind: components['schemas']['notification-navigation-kind'];
+    NotificationStatus: components['schemas']['notification-status'];
+    NotificationNavigation: components['schemas']['notification-navigation'];
+    NotificationItem: components['schemas']['notification-item'];
+    NotificationListResponse: components['schemas']['notification-list-response'];
+    NotificationUnreadCountResponse: components['schemas']['notification-unread-count-response'];
+    NotificationReadAllRequest: components['schemas']['notification-read-all-request'];
+    NotificationReadAllResponse: components['schemas']['notification-read-all-response'];
+    EnvelopedNotificationListResponse: components['schemas']['enveloped-notification-list-response'];
+    EnvelopedNotificationUnreadCountResponse: components['schemas']['enveloped-notification-unread-count-response'];
+    EnvelopedNotificationItem: components['schemas']['enveloped-notification-item'];
+    EnvelopedNotificationReadAllResponse: components['schemas']['enveloped-notification-read-all-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -2653,12 +2768,22 @@ export interface components {
       key: string;
       /** @description Module that owns the ConfigDefinition authority. */
       module: string;
+      /** @description Configuration domain key used for domain-first settings navigation. */
+      domain?: string;
+      /** @description Stable localization key for the domain display label. */
+      domain_key?: string;
+      /** @description Direct domain-label fallback when the client has no translation for domain_key. */
+      domain_label?: string;
       /** @description Module-declared grouping key for the settings UI. */
       group: string;
       /** @description Stable localization key for the group display label. */
       group_key?: string;
       /** @description Direct group-label fallback when the client has no translation for group_key. */
       group_label?: string;
+      /** @description Direct group-description fallback when the client has no translation for group_description_key. */
+      group_description?: string;
+      /** @description Stable localization key for the group description. */
+      group_description_key?: string;
       /** @description Direct title fallback when the client has no translation for title_key. */
       title?: string;
       /** @description Stable localization key for the config item title. */
@@ -2888,6 +3013,109 @@ export interface components {
     };
     'enveloped-dashboard-widget': components['schemas']['api-envelope'] & {
       data?: components['schemas']['dashboard-widget'];
+    };
+    /**
+     * @description Notification Center severity typed contract.
+     * @enum {string}
+     */
+    'notification-severity': 'info' | 'warning' | 'error' | 'critical';
+    /**
+     * @description Notification Center category typed contract.
+     * @enum {string}
+     */
+    'notification-category': 'SECURITY' | 'TASK' | 'CONFIG' | 'OPERATIONS' | 'SYSTEM';
+    /**
+     * @description Structured navigation target kind. Consumers resolve this with navigation_payload instead of storing URLs.
+     * @enum {string}
+     */
+    'notification-navigation-kind':
+      | 'AUDIT_INCIDENT'
+      | 'AUDIT_LOG'
+      | 'SCHEDULER_RUN'
+      | 'SYSTEM_CONFIG_ITEM'
+      | 'MODULE_RUNTIME_ITEM';
+    'notification-navigation': {
+      kind: components['schemas']['notification-navigation-kind'];
+      /** @description Structured payload owned by the source module and resolved by the frontend notification module. */
+      payload: {
+        [key: string]: unknown;
+      };
+    };
+    /**
+     * @description Delivery target type retained for current-user read-model traceability.
+     * @enum {string}
+     */
+    'notification-target-type': 'USER' | 'ROLE' | 'PERMISSION' | 'SYSTEM';
+    /**
+     * @description Current-user notification read-state filter and read model value.
+     * @enum {string}
+     */
+    'notification-status': 'unread' | 'read';
+    'notification-item': {
+      /** Format: int64 */
+      delivery_id: number;
+      /** Format: int64 */
+      event_id: number;
+      /** @description Stable localization key for the notification title when supplied by the source module. */
+      title_key?: string;
+      title: string;
+      /** @description Stable localization key for the notification body when supplied by the source module. */
+      message_key?: string;
+      message: string;
+      severity: components['schemas']['notification-severity'];
+      category: components['schemas']['notification-category'];
+      source_module: string;
+      event_type: string;
+      resource_type?: string;
+      resource_id?: string;
+      resource_name?: string;
+      navigation: components['schemas']['notification-navigation'];
+      target_type: components['schemas']['notification-target-type'];
+      target_ref: string;
+      status: components['schemas']['notification-status'];
+      /** Format: date-time */
+      read_at?: string | null;
+      /** Format: date-time */
+      occurred_at: string;
+      /** Format: date-time */
+      expires_at?: string | null;
+      /** Format: date-time */
+      delivery_created_at: string;
+      /** Format: date-time */
+      event_created_at?: string;
+    };
+    'notification-list-response': {
+      items: components['schemas']['notification-item'][];
+      total: number;
+      page: number;
+      page_size: number;
+    };
+    'enveloped-notification-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['notification-list-response'];
+    };
+    'notification-unread-count-response': {
+      count: number;
+    };
+    'enveloped-notification-unread-count-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['notification-unread-count-response'];
+    };
+    'enveloped-notification-item': components['schemas']['api-envelope'] & {
+      data: components['schemas']['notification-item'];
+    };
+    'notification-read-all-request': {
+      severity?: components['schemas']['notification-severity'];
+      category?: components['schemas']['notification-category'];
+      source_module?: string;
+      /** Format: date-time */
+      occurred_from?: string;
+      /** Format: date-time */
+      occurred_to?: string;
+    };
+    'notification-read-all-response': {
+      updated_count: number;
+    };
+    'enveloped-notification-read-all-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['notification-read-all-response'];
     };
     'dashboard-stat-group-payload': {
       items: {
@@ -6489,6 +6717,203 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       /** @description Dashboard widget was not found or is not visible to the current user. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getNotifications: {
+    parameters: {
+      query?: {
+        status?: 'all' | 'unread' | 'read';
+        severity?: components['schemas']['notification-severity'];
+        category?: components['schemas']['notification-category'];
+        source_module?: string;
+        occurred_from?: string;
+        occurred_to?: string;
+        page?: number;
+        page_size?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current-user notification page. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-notification-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getNotificationsUnreadCount: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current-user unread notification count. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-notification-unread-count-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postNotificationRead: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        delivery_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Updated current-user notification delivery. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-notification-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Notification delivery was not found in the current-user scope. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postNotificationsReadAll: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['notification-read-all-request'];
+      };
+    };
+    responses: {
+      /** @description Count of notification deliveries marked read. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-notification-read-all-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  deleteNotification: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        delivery_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Notification delivery deleted. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Notification delivery was not found in the current-user scope. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

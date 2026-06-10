@@ -23,6 +23,10 @@ function systemConfigItem(key: string, effectiveValue: string) {
 }
 
 describe('dashboard quick-action contract helpers', () => {
+  it('keeps the fallback maximum aligned with one desktop quick-action row', () => {
+    expect(DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG.maxItems).toBe(4);
+  });
+
   it('reports invalid system-config JSON with the config key context', () => {
     const onInvalidConfigValue = vi.fn();
 

@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
+	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -368,17 +369,22 @@ func TestServiceRejectsObjectValueOutsideSchemaConstraints(t *testing.T) {
 func TestToItemIncludesLocalizationMetadataAndStructuredSchema(t *testing.T) {
 	item := toItem(ValueSnapshot{
 		Definition: configregistry.Definition{
-			Key:            "httpx.access-log-retention-cleanup",
-			Module:         "core.httpx",
-			Group:          "log.retention",
-			GroupKey:       "systemConfig.groups.coreHttpxLogRetention",
-			GroupLabel:     "core.httpx / log.retention",
-			Title:          "Access log retention cleanup",
-			TitleKey:       "systemConfig.items.accessLogRetentionCleanup.title",
-			Description:    "Default cleanup configuration for access-log retention jobs.",
-			DescriptionKey: "systemConfig.items.accessLogRetentionCleanup.description",
-			Tags:           []string{"httpx", "log.retention"},
-			Type:           configregistry.ValueTypeObject,
+			Key:                 "httpx.access-log-retention-cleanup",
+			Module:              "core.httpx",
+			Domain:              "logs",
+			DomainKey:           "systemConfig.domains.logs",
+			DomainLabel:         "Logs",
+			Group:               "log.retention",
+			GroupKey:            "systemConfig.groups.coreHttpxLogRetention",
+			GroupLabel:          "Access log retention",
+			GroupDescription:    "Manage access log cleanup retention and batch policy.",
+			GroupDescriptionKey: "systemConfig.groupDescriptions.coreHttpxLogRetention",
+			Title:               "Access log retention cleanup",
+			TitleKey:            "systemConfig.items.accessLogRetentionCleanup.title",
+			Description:         "Default cleanup configuration for access-log retention jobs.",
+			DescriptionKey:      "systemConfig.items.accessLogRetentionCleanup.description",
+			Tags:                []string{"httpx", "log.retention"},
+			Type:                configregistry.ValueTypeObject,
 			Schema: json.RawMessage(
 				`{"type":"object","properties":{"retentionDays":{"type":"integer","title":"Log retention days","x-i18n":{"titleKey":"systemConfig.fields.retentionDays.title","unitKey":"systemConfig.units.days"}}}}`,
 			),
@@ -388,8 +394,21 @@ func TestToItemIncludesLocalizationMetadataAndStructuredSchema(t *testing.T) {
 		EffectiveValue: json.RawMessage(`{"retentionDays":30}`),
 	})
 
+	assertMappedLocalizationMetadata(t, item)
+	assertMappedStructuredSchema(t, item)
+}
+
+func assertMappedLocalizationMetadata(t *testing.T, item generated.SystemConfigItem) {
+	t.Helper()
+
 	if item.GroupKey == nil || *item.GroupKey != "systemConfig.groups.coreHttpxLogRetention" {
 		t.Fatalf("expected group key in response, got %#v", item.GroupKey)
+	}
+	if item.DomainKey == nil || *item.DomainKey != "systemConfig.domains.logs" {
+		t.Fatalf("expected domain key in response, got %#v", item.DomainKey)
+	}
+	if item.GroupDescriptionKey == nil || *item.GroupDescriptionKey != "systemConfig.groupDescriptions.coreHttpxLogRetention" {
+		t.Fatalf("expected group description key in response, got %#v", item.GroupDescriptionKey)
 	}
 	if item.TitleKey == nil || *item.TitleKey != "systemConfig.items.accessLogRetentionCleanup.title" {
 		t.Fatalf("expected title key in response, got %#v", item.TitleKey)
@@ -397,6 +416,11 @@ func TestToItemIncludesLocalizationMetadataAndStructuredSchema(t *testing.T) {
 	if item.Tags == nil || len(*item.Tags) != 2 || (*item.Tags)[0] != "httpx" {
 		t.Fatalf("expected tags in response, got %#v", item.Tags)
 	}
+}
+
+func assertMappedStructuredSchema(t *testing.T, item generated.SystemConfigItem) {
+	t.Helper()
+
 	properties, ok := item.ConfigSchema["properties"].(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected structured config schema properties, got %#v", item.ConfigSchema)
@@ -433,6 +457,7 @@ func newTestServiceWithRepoAndUsers(
 	definition configregistry.Definition,
 ) *Service {
 	t.Helper()
+	definition = normalizeTestDefinition(definition)
 	registry := configregistry.NewRegistry()
 	if err := registry.Register(definition); err != nil {
 		t.Fatalf("register definition: %v", err)
@@ -442,6 +467,13 @@ func newTestServiceWithRepoAndUsers(
 		t.Fatalf("create service: %v", err)
 	}
 	return service
+}
+
+func normalizeTestDefinition(definition configregistry.Definition) configregistry.Definition {
+	if definition.Domain == "" {
+		definition.Domain = definition.Module
+	}
+	return definition
 }
 
 type memoryRepo struct {

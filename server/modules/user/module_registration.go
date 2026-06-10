@@ -292,6 +292,18 @@ func (s *deferredRBACAccessService) ListPermissionCodesByUserID(ctx context.Cont
 	return target.ListPermissionCodesByUserID(ctx, userID)
 }
 
+func (s *deferredRBACAccessService) ListUserIDsByPermissionCode(ctx context.Context, permissionCode string) ([]uint64, error) {
+	s.mu.RLock()
+	target := s.target
+	s.mu.RUnlock()
+
+	if target == nil {
+		return nil, errors.New("rbac access service is unavailable")
+	}
+
+	return target.ListUserIDsByPermissionCode(ctx, permissionCode)
+}
+
 func (s *deferredRBACAccessService) ListRoleSummariesByUserIDs(
 	ctx context.Context,
 	userIDs []uint64,

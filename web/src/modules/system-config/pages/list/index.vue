@@ -36,33 +36,53 @@
       class="system-config-page__alert"
     />
 
-    <t-loading :loading="loading">
+    <t-loading :loading="loading" class="system-config-workspace">
       <div class="system-config-layout">
-        <aside class="system-config-groups">
-          <button
-            v-for="group in groupedConfigs"
-            :key="group.key"
-            type="button"
-            :class="['system-config-group', { 'system-config-group--active': group.key === activeGroupKey }]"
-            @click="activeGroupKey = group.key"
+        <aside class="system-config-groups system-config-scrollbar">
+          <t-input
+            v-model="groupSearchKeyword"
+            class="system-config-groups__search"
+            clearable
+            :placeholder="t('systemConfig.list.searchPlaceholder')"
+            type="search"
           >
-            <span>{{ group.label }}</span>
-            <small>{{ group.technicalKey }}</small>
-            <small v-if="group.items.length > 1">
-              {{ t('systemConfig.list.groupConfigCount', { count: group.items.length }) }}
-            </small>
-          </button>
+            <template #suffixIcon><search-icon /></template>
+          </t-input>
+          <t-tree
+            :data="domainTree"
+            :actived="activeTreeValue"
+            :expanded="expandedDomainKeys"
+            :empty="t('systemConfig.list.searchEmpty')"
+            activable
+            hover
+            expand-on-click-node
+            @active="handleTreeActive"
+          >
+            <template #label="{ node }">
+              <span class="system-config-tree-node">
+                <span>{{ node.data.label }}</span>
+                <small v-if="node.data.count">
+                  {{ t('systemConfig.list.groupConfigCount', { count: node.data.count }) }}
+                </small>
+              </span>
+            </template>
+          </t-tree>
         </aside>
 
-        <main class="system-config-content">
+        <main class="system-config-content system-config-scrollbar">
           <div v-if="activeGroup" class="system-config-content__head">
             <div>
               <h2>{{ activeGroup.label }}</h2>
-              <p>{{ activeGroup.technicalKey }}</p>
+              <p>{{ activeGroup.description }}</p>
             </div>
-            <t-tag v-if="activeGroupOverrideCount > 0" variant="light" theme="primary">
-              {{ t('systemConfig.list.overrideCount', { count: activeGroupOverrideCount }) }}
-            </t-tag>
+            <t-space size="small" break-line>
+              <t-tag variant="light">
+                {{ t('systemConfig.list.groupConfigCount', { count: activeGroup.items.length }) }}
+              </t-tag>
+              <t-tag :theme="activeGroupOverrideCount > 0 ? 'primary' : 'default'" variant="light">
+                {{ t('systemConfig.list.overrideCount', { count: activeGroupOverrideCount }) }}
+              </t-tag>
+            </t-space>
           </div>
 
           <div v-if="activeGroup?.items.length" class="system-config-list">
@@ -86,22 +106,6 @@
                   </t-space>
                 </div>
 
-                <div class="system-config-summary">
-                  <section class="system-config-summary__cell">
-                    <span>{{ t('systemConfig.list.status.title') }}</span>
-                    <div>
-                      <t-tag :theme="configStatus(item).theme" variant="light">
-                        {{ configStatus(item).label }}
-                      </t-tag>
-                      <strong>{{ configStatus(item).description }}</strong>
-                    </div>
-                  </section>
-                  <section class="system-config-summary__cell">
-                    <span>{{ t('systemConfig.list.lastModified.title') }}</span>
-                    <strong>{{ configLastModifiedLabel(item) }}</strong>
-                  </section>
-                </div>
-
                 <div class="system-config-values">
                   <section
                     v-for="valueSection in valueSections(item)"
@@ -115,8 +119,23 @@
                       <template v-for="row in valueSection.rows" :key="row.key">
                         <dt>{{ row.label }}</dt>
                         <dd>
-                          <strong>{{ row.value }}</strong>
-                          <small v-if="row.description">{{ row.description }}</small>
+                          <span class="system-config-value__display">
+                            <strong>{{ row.value }}</strong>
+                            <t-tooltip
+                              v-if="row.description && row.descriptionMode === 'tooltip'"
+                              :content="row.description"
+                              placement="top"
+                              show-arrow
+                            >
+                              <button
+                                class="system-config-value__info"
+                                type="button"
+                                :aria-label="t('systemConfig.list.valueDescription')"
+                              >
+                                <info-circle-icon />
+                              </button>
+                            </t-tooltip>
+                          </span>
                         </dd>
                       </template>
                     </dl>
@@ -130,6 +149,13 @@
                         <pre>{{ valueSection.json }}</pre>
                       </t-collapse-panel>
                     </t-collapse>
+                  </section>
+                </div>
+
+                <div class="system-config-summary">
+                  <section class="system-config-summary__cell">
+                    <span>{{ t('systemConfig.list.lastModified.title') }}</span>
+                    <strong>{{ configLastModifiedLabel(item) }}</strong>
                   </section>
                 </div>
 
@@ -219,9 +245,10 @@
   </section>
 </template>
 <script setup lang="ts">
-import { EditIcon, RefreshIcon, RollbackIcon } from 'tdesign-icons-vue-next';
+import { EditIcon, InfoCircleIcon, RefreshIcon, RollbackIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import type { TreeNodeValue, TreeProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
@@ -245,9 +272,17 @@ defineOptions({
 
 type ConfigGroup = {
   key: string;
+  domainKey: string;
   label: string;
-  technicalKey: string;
+  description: string;
   items: SystemConfigItem[];
+  searchText: string;
+};
+
+type ConfigDomain = {
+  key: string;
+  label: string;
+  groups: ConfigGroup[];
 };
 
 type ConfigValueField = 'effective_value' | 'default_value';
@@ -256,6 +291,7 @@ type ConfigValueRow = {
   key: string;
   label: string;
   description: string;
+  descriptionMode?: 'inline' | 'tooltip';
   value: string;
 };
 
@@ -266,6 +302,8 @@ type ConfigValueSection = {
   json: string;
 };
 
+type ConfigValuePresentation = Pick<ConfigValueRow, 'description' | 'descriptionMode' | 'value'>;
+
 const { locale, t, te } = useI18n();
 const permissionCodes = SYSTEM_CONFIG_PERMISSION_CODE;
 const items = ref<SystemConfigItem[]>([]);
@@ -274,6 +312,8 @@ const saving = ref(false);
 const resettingKey = ref('');
 const errorMessage = ref('');
 const activeGroupKey = ref('');
+const expandedDomainKeys = ref<TreeNodeValue[]>([]);
+const groupSearchKeyword = ref('');
 const editorVisible = ref(false);
 const editingItem = ref<SystemConfigItem | null>(null);
 const editorForm = reactive<{ value: unknown }>({ value: undefined });
@@ -287,24 +327,68 @@ const schemaLabels = computed(() => ({
   value: t('systemConfig.list.schema.value'),
 }));
 
-const groupedConfigs = computed<ConfigGroup[]>(() => {
-  const groupMap = new Map<string, ConfigGroup>();
+const domains = computed<ConfigDomain[]>(() => {
+  const domainMap = new Map<string, ConfigDomain>();
   const sortedItems = [...items.value].sort((left, right) => {
     const orderDelta = (left.order ?? 0) - (right.order ?? 0);
     return orderDelta || configTitle(left).localeCompare(configTitle(right));
   });
 
   for (const item of sortedItems) {
-    const key = `${item.module}:${item.group || 'default'}`;
-    const label = groupLabel(item);
-    const group = groupMap.get(key) ?? { key, label, technicalKey: technicalGroupKey(item), items: [] };
+    const domainKey = configDomainKey(item);
+    const domain = domainMap.get(domainKey) ?? {
+      key: domainKey,
+      label: domainLabel(item),
+      groups: [],
+    };
+    const groupKey = `${domainKey}:${item.module}:${item.group || 'default'}`;
+    let group = domain.groups.find((candidate) => candidate.key === groupKey);
+    if (!group) {
+      group = {
+        key: groupKey,
+        domainKey,
+        label: groupLabel(item),
+        description: groupDescription(item),
+        items: [],
+        searchText: '',
+      };
+      domain.groups.push(group);
+    }
     group.items.push(item);
-    groupMap.set(key, group);
+    group.searchText = buildGroupSearchText(group, item, group.searchText);
+    domainMap.set(domainKey, domain);
   }
 
-  return [...groupMap.values()];
+  return [...domainMap.values()];
 });
 
+const groupedConfigs = computed(() => domains.value.flatMap((domain) => domain.groups));
+const normalizedGroupSearchKeyword = computed(() => normalizeSearchText(groupSearchKeyword.value));
+const filteredDomains = computed<ConfigDomain[]>(() => {
+  const keyword = normalizedGroupSearchKeyword.value;
+  if (!keyword) {
+    return domains.value;
+  }
+
+  return domains.value
+    .map((domain) => ({
+      ...domain,
+      groups: domain.groups.filter((group) => group.searchText.includes(keyword)),
+    }))
+    .filter((domain) => domain.groups.length > 0);
+});
+const domainTree = computed<TreeProps['data']>(() =>
+  filteredDomains.value.map((domain) => ({
+    value: domain.key,
+    label: domain.label,
+    children: domain.groups.map((group) => ({
+      value: group.key,
+      label: group.label,
+      count: group.items.length,
+    })),
+  })),
+);
+const activeTreeValue = computed(() => (activeGroupKey.value ? [activeGroupKey.value] : []));
 const activeGroup = computed(() => groupedConfigs.value.find((group) => group.key === activeGroupKey.value) ?? null);
 const activeGroupOverrideCount = computed(
   () => activeGroup.value?.items.filter((item) => item.has_override).length ?? 0,
@@ -317,6 +401,16 @@ const editorPreview = computed(() => formatJsonValue(editorForm.value) || t('sys
 
 onMounted(refreshConfigs);
 
+watch(filteredDomains, (nextDomains) => {
+  const visibleGroups = nextDomains.flatMap((domain) => domain.groups);
+  if (!visibleGroups.some((group) => group.key === activeGroupKey.value)) {
+    activeGroupKey.value = visibleGroups[0]?.key ?? '';
+  }
+  if (normalizedGroupSearchKeyword.value) {
+    expandedDomainKeys.value = nextDomains.map((domain) => domain.key);
+  }
+});
+
 async function refreshConfigs() {
   loading.value = true;
   errorMessage.value = '';
@@ -326,11 +420,42 @@ async function refreshConfigs() {
     if (!activeGroupKey.value || !groupedConfigs.value.some((group) => group.key === activeGroupKey.value)) {
       activeGroupKey.value = groupedConfigs.value[0]?.key ?? '';
     }
+    expandedDomainKeys.value = domains.value.map((domain) => domain.key);
   } catch (error) {
     errorMessage.value = readableError(error, t('systemConfig.list.loadError'));
   } finally {
     loading.value = false;
   }
+}
+
+function handleTreeActive(value: TreeNodeValue[]) {
+  const selected = String(value[0] ?? '');
+  if (groupedConfigs.value.some((group) => group.key === selected)) {
+    activeGroupKey.value = selected;
+  }
+}
+
+function buildGroupSearchText(group: ConfigGroup, item: SystemConfigItem, previousSearchText = '') {
+  return normalizeSearchText(
+    [
+      previousSearchText,
+      group.label,
+      group.description,
+      group.key,
+      group.domainKey,
+      item.key,
+      item.module,
+      item.group,
+      item.domain,
+      configTitle(item),
+      configDescription(item),
+      item.tags?.join(' '),
+    ].join(' '),
+  );
+}
+
+function normalizeSearchText(value: string) {
+  return value.trim().toLocaleLowerCase();
 }
 
 function openEditor(item: SystemConfigItem) {
@@ -420,8 +545,24 @@ function groupLabel(item: SystemConfigItem) {
   return resolveI18nText(item.group_key, item.group_label, technicalGroupKey(item));
 }
 
+function groupDescription(item: SystemConfigItem) {
+  return resolveI18nText(item.group_description_key, item.group_description, t('systemConfig.list.noDescription'));
+}
+
+function domainLabel(item: SystemConfigItem) {
+  return resolveI18nText(item.domain_key, item.domain_label, technicalDomainKey(item));
+}
+
+function configDomainKey(item: SystemConfigItem) {
+  return item.domain?.trim() || item.module || 'uncategorized';
+}
+
+function technicalDomainKey(item: SystemConfigItem) {
+  return item.domain?.trim() || t('systemConfig.domains.uncategorized');
+}
+
 function technicalGroupKey(item: SystemConfigItem) {
-  return t('systemConfig.list.groupLabel', { module: item.module, group: item.group || 'default' });
+  return item.group || t('systemConfig.list.defaultGroup');
 }
 
 function configStatus(item: SystemConfigItem) {
@@ -468,10 +609,11 @@ function configUpdatedByLabel(item: SystemConfigItem) {
 }
 
 function valueSections(item: SystemConfigItem): ConfigValueSection[] {
-  return [
-    buildValueSection(item, 'effective_value', t('systemConfig.list.values.effective')),
-    buildValueSection(item, 'default_value', t('systemConfig.list.values.default')),
-  ];
+  const sections = [buildValueSection(item, 'effective_value', t('systemConfig.list.values.current'))];
+  if (item.has_override) {
+    sections.push(buildValueSection(item, 'default_value', t('systemConfig.list.values.default')));
+  }
+  return sections;
 }
 
 function buildValueSection(item: SystemConfigItem, field: ConfigValueField, title: string): ConfigValueSection {
@@ -489,15 +631,17 @@ function buildValueSection(item: SystemConfigItem, field: ConfigValueField, titl
   const schema = parseConfigSchema(item.config_schema);
   const fields = getConfigSchemaFields(schema);
   const rows = isJsonRecord(parsed) && fields.length > 0 ? structuredValueRows(parsed, fields) : [];
+  const fallbackValue = configValuePresentation(parsed, schema);
   const fallbackRows =
     rows.length > 0
       ? rows
       : [
           {
             key: field,
-            label: schema.title ? resolveI18nText(schema.xI18n?.titleKey, schema.title, title) : title,
-            description: resolveI18nText(schema.xI18n?.descriptionKey, schema.description, ''),
-            value: valuePreview(parsed, t('systemConfig.list.emptyValue'), booleanLabel),
+            label: schema.title
+              ? resolveI18nText(schema.xI18n?.titleKey, schema.title, configTitle(item))
+              : configTitle(item),
+            ...fallbackValue,
           },
         ];
 
@@ -505,25 +649,46 @@ function buildValueSection(item: SystemConfigItem, field: ConfigValueField, titl
     field,
     title,
     rows: fallbackRows,
-    json: formatJsonValue(parsed),
+    json: shouldShowJsonValue(parsed) ? formatJsonValue(parsed) : '',
   };
 }
 
 function structuredValueRows(value: Record<string, unknown>, fields: ConfigSchemaField[]): ConfigValueRow[] {
   return fields.map((field) => {
     const unit = schemaFieldUnit(field);
-    const displayValue = valuePreview(value[field.key], t('systemConfig.list.emptyValue'), booleanLabel);
+    const displayValue = configValuePresentation(value[field.key], field.schema);
     return {
       key: field.key,
       label: schemaFieldTitle(field),
-      description: schemaFieldDescription(field),
-      value: unit ? `${displayValue} ${unit}` : displayValue,
+      description: displayValue.description || schemaFieldDescription(field),
+      descriptionMode: 'tooltip',
+      value: unit ? `${displayValue.value} ${unit}` : displayValue.value,
     };
   });
 }
 
-function booleanLabel(value: boolean) {
-  return value ? t('systemConfig.list.boolean.true') : t('systemConfig.list.boolean.false');
+function booleanStateLabel(value: boolean) {
+  return value ? t('systemConfig.list.boolean.enabled') : t('systemConfig.list.boolean.disabled');
+}
+
+function shouldShowJsonValue(value: unknown) {
+  return Array.isArray(value) || isJsonRecord(value);
+}
+
+function configValuePresentation(value: unknown, schema = parseConfigSchema()): ConfigValuePresentation {
+  const optionText = schema.enumLabels?.[String(value)];
+  if (optionText) {
+    return {
+      description: resolveI18nText(optionText.descriptionKey, optionText.description, ''),
+      descriptionMode: 'tooltip',
+      value: resolveI18nText(optionText.labelKey, optionText.label, String(value)),
+    };
+  }
+  return {
+    description: resolveI18nText(schema.xI18n?.descriptionKey, schema.description, ''),
+    descriptionMode: 'tooltip',
+    value: valuePreview(value, t('systemConfig.list.emptyValue'), booleanStateLabel),
+  };
 }
 
 function schemaFieldTitle(field: ConfigSchemaField) {
@@ -562,7 +727,14 @@ function readableError(error: unknown, fallback: string) {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-16);
+  height: calc(100vh - 188px);
+  min-height: 560px;
   min-width: 0;
+  overflow: hidden;
+}
+
+.system-config-page__alert {
+  flex: 0 0 auto;
 }
 
 .system-config-content__head h2,
@@ -576,54 +748,111 @@ function readableError(error: unknown, fallback: string) {
   margin: var(--graft-density-gap-4) 0 0;
 }
 
+.system-config-workspace,
+.system-config-workspace :deep(.t-loading__parent) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .system-config-layout {
-  align-items: flex-start;
+  align-items: stretch;
   display: grid;
+  flex: 1 1 auto;
   gap: var(--graft-density-gap-16);
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .system-config-groups {
+  align-self: stretch;
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-border-level-1-color);
   border-radius: var(--td-radius-medium);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-8);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--graft-density-gap-12);
-  position: sticky;
-  top: var(--graft-density-gap-16);
+  scrollbar-gutter: stable;
 }
 
-.system-config-group {
+.system-config-groups__search {
+  flex: 0 0 auto;
+}
+
+.system-config-groups :deep(.t-tree) {
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--td-radius-small);
-  color: var(--td-text-color-primary);
-  cursor: pointer;
+  min-height: 0;
+}
+
+.system-config-scrollbar {
+  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-width: thin;
+}
+
+.system-config-scrollbar::-webkit-scrollbar {
+  background: transparent;
+  width: 8px;
+}
+
+.system-config-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.system-config-scrollbar::-webkit-scrollbar-thumb {
+  background-clip: content-box;
+  background-color: var(--td-scrollbar-color);
+  border: 2px solid transparent;
+  border-radius: 6px;
+}
+
+.system-config-tree-node {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-4);
-  min-height: 56px;
-  padding: var(--graft-density-gap-8);
-  text-align: left;
+  line-height: 1.4;
+  min-width: 0;
 }
 
-.system-config-group:hover,
-.system-config-group--active {
-  background: var(--td-brand-color-light);
-  border-color: var(--td-brand-color);
-}
-
-.system-config-group small {
+.system-config-tree-node small {
   color: var(--td-text-color-secondary);
 }
 
 .system-config-content {
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
   min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--graft-density-gap-4);
+  scrollbar-gutter: stable;
+}
+
+.system-config-content__head {
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-16);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .system-config-content__head,
@@ -638,6 +867,7 @@ function readableError(error: unknown, fallback: string) {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
+  padding-bottom: var(--graft-density-gap-24);
 }
 
 .system-config-item {
@@ -734,13 +964,37 @@ function readableError(error: unknown, fallback: string) {
   min-width: 0;
 }
 
+.system-config-value__display {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+}
+
+.system-config-value__info {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--td-text-color-placeholder);
+  cursor: help;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 18px;
+  justify-content: center;
+  padding: 0;
+  width: 18px;
+}
+
+.system-config-value__info:hover,
+.system-config-value__info:focus-visible {
+  color: var(--td-brand-color);
+  outline: none;
+}
+
 .system-config-value__rows strong,
 .system-config-technical code {
   overflow-wrap: anywhere;
-}
-
-.system-config-value__rows small {
-  color: var(--td-text-color-placeholder);
 }
 
 .system-config-json :deep(.t-collapse-panel__content) {
@@ -775,16 +1029,37 @@ function readableError(error: unknown, fallback: string) {
 }
 
 @media (width <= 900px) {
+  .system-config-page {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .system-config-workspace,
+  .system-config-workspace :deep(.t-loading__parent) {
+    height: auto;
+    overflow: visible;
+  }
+
   .system-config-layout,
   .system-config-summary,
   .system-config-values {
     display: flex;
     flex-direction: column;
+    overflow: visible;
   }
 
-  .system-config-groups {
-    position: static;
+  .system-config-groups,
+  .system-config-content {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
     width: 100%;
+  }
+
+  .system-config-content__head {
+    position: static;
   }
 
   .system-config-item__actions {

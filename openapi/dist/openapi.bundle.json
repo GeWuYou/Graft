@@ -51,6 +51,9 @@
     },
     {
       "name": "dashboard"
+    },
+    {
+      "name": "notifications"
     }
   ],
   "paths": {
@@ -7109,6 +7112,378 @@
           }
         }
       }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "List current-user notifications",
+        "operationId": "getNotifications",
+        "description": "Returns paged notification deliveries visible to the current user.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "unread",
+                "read"
+              ]
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/notification-severity"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/notification-category"
+            }
+          },
+          {
+            "name": "source_module",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "occurred_from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "occurred_to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current-user notification page.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-notification-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Read current-user unread notification count",
+        "operationId": "getNotificationsUnreadCount",
+        "description": "Returns the unread notification delivery count for the current user.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current-user unread notification count.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-notification-unread-count-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/notifications/{delivery_id}/read": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Mark one current-user notification as read",
+        "operationId": "postNotificationRead",
+        "description": "Marks one notification delivery visible to the current user as read.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated current-user notification delivery.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-notification-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Notification delivery was not found in the current-user scope.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Mark current-user notifications as read",
+        "operationId": "postNotificationsReadAll",
+        "description": "Marks all current-user notifications, or a filtered current-user subset, as read.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/notification-read-all-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of notification deliveries marked read.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-notification-read-all-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/notifications/{delivery_id}": {
+      "delete": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Delete one current-user notification delivery",
+        "operationId": "deleteNotification",
+        "description": "Deletes one notification delivery from the current-user view.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification delivery deleted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Notification delivery was not found in the current-user scope.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7514,6 +7889,51 @@
       },
       "EnvelopedDashboardWidget": {
         "$ref": "#/components/schemas/enveloped-dashboard-widget"
+      },
+      "NotificationSeverity": {
+        "$ref": "#/components/schemas/notification-severity"
+      },
+      "NotificationCategory": {
+        "$ref": "#/components/schemas/notification-category"
+      },
+      "NotificationTargetType": {
+        "$ref": "#/components/schemas/notification-target-type"
+      },
+      "NotificationNavigationKind": {
+        "$ref": "#/components/schemas/notification-navigation-kind"
+      },
+      "NotificationStatus": {
+        "$ref": "#/components/schemas/notification-status"
+      },
+      "NotificationNavigation": {
+        "$ref": "#/components/schemas/notification-navigation"
+      },
+      "NotificationItem": {
+        "$ref": "#/components/schemas/notification-item"
+      },
+      "NotificationListResponse": {
+        "$ref": "#/components/schemas/notification-list-response"
+      },
+      "NotificationUnreadCountResponse": {
+        "$ref": "#/components/schemas/notification-unread-count-response"
+      },
+      "NotificationReadAllRequest": {
+        "$ref": "#/components/schemas/notification-read-all-request"
+      },
+      "NotificationReadAllResponse": {
+        "$ref": "#/components/schemas/notification-read-all-response"
+      },
+      "EnvelopedNotificationListResponse": {
+        "$ref": "#/components/schemas/enveloped-notification-list-response"
+      },
+      "EnvelopedNotificationUnreadCountResponse": {
+        "$ref": "#/components/schemas/enveloped-notification-unread-count-response"
+      },
+      "EnvelopedNotificationItem": {
+        "$ref": "#/components/schemas/enveloped-notification-item"
+      },
+      "EnvelopedNotificationReadAllResponse": {
+        "$ref": "#/components/schemas/enveloped-notification-read-all-response"
       },
       "health-response": {
         "type": "object",
@@ -11243,6 +11663,18 @@
             "type": "string",
             "description": "Module that owns the ConfigDefinition authority."
           },
+          "domain": {
+            "type": "string",
+            "description": "Configuration domain key used for domain-first settings navigation."
+          },
+          "domain_key": {
+            "type": "string",
+            "description": "Stable localization key for the domain display label."
+          },
+          "domain_label": {
+            "type": "string",
+            "description": "Direct domain-label fallback when the client has no translation for domain_key."
+          },
           "group": {
             "type": "string",
             "description": "Module-declared grouping key for the settings UI."
@@ -11254,6 +11686,14 @@
           "group_label": {
             "type": "string",
             "description": "Direct group-label fallback when the client has no translation for group_key."
+          },
+          "group_description": {
+            "type": "string",
+            "description": "Direct group-description fallback when the client has no translation for group_description_key."
+          },
+          "group_description_key": {
+            "type": "string",
+            "description": "Stable localization key for the group description."
           },
           "title": {
             "type": "string",
@@ -12050,6 +12490,322 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/dashboard-widget"
+              }
+            }
+          }
+        ]
+      },
+      "notification-severity": {
+        "type": "string",
+        "description": "Notification Center severity typed contract.",
+        "enum": [
+          "info",
+          "warning",
+          "error",
+          "critical"
+        ]
+      },
+      "notification-category": {
+        "type": "string",
+        "description": "Notification Center category typed contract.",
+        "enum": [
+          "SECURITY",
+          "TASK",
+          "CONFIG",
+          "OPERATIONS",
+          "SYSTEM"
+        ]
+      },
+      "notification-navigation-kind": {
+        "type": "string",
+        "description": "Structured navigation target kind. Consumers resolve this with navigation_payload instead of storing URLs.",
+        "enum": [
+          "AUDIT_INCIDENT",
+          "AUDIT_LOG",
+          "SCHEDULER_RUN",
+          "SYSTEM_CONFIG_ITEM",
+          "MODULE_RUNTIME_ITEM"
+        ]
+      },
+      "notification-navigation": {
+        "type": "object",
+        "required": [
+          "kind",
+          "payload"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/notification-navigation-kind"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Structured payload owned by the source module and resolved by the frontend notification module."
+          }
+        }
+      },
+      "notification-target-type": {
+        "type": "string",
+        "description": "Delivery target type retained for current-user read-model traceability.",
+        "enum": [
+          "USER",
+          "ROLE",
+          "PERMISSION",
+          "SYSTEM"
+        ]
+      },
+      "notification-status": {
+        "type": "string",
+        "description": "Current-user notification read-state filter and read model value.",
+        "enum": [
+          "unread",
+          "read"
+        ]
+      },
+      "notification-item": {
+        "type": "object",
+        "required": [
+          "delivery_id",
+          "event_id",
+          "title",
+          "message",
+          "severity",
+          "category",
+          "source_module",
+          "event_type",
+          "navigation",
+          "target_type",
+          "target_ref",
+          "status",
+          "occurred_at",
+          "delivery_created_at"
+        ],
+        "properties": {
+          "delivery_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "event_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "title_key": {
+            "type": "string",
+            "description": "Stable localization key for the notification title when supplied by the source module."
+          },
+          "title": {
+            "type": "string"
+          },
+          "message_key": {
+            "type": "string",
+            "description": "Stable localization key for the notification body when supplied by the source module."
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/notification-severity"
+          },
+          "category": {
+            "$ref": "#/components/schemas/notification-category"
+          },
+          "source_module": {
+            "type": "string",
+            "minLength": 1
+          },
+          "event_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "resource_type": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "resource_name": {
+            "type": "string"
+          },
+          "navigation": {
+            "$ref": "#/components/schemas/notification-navigation"
+          },
+          "target_type": {
+            "$ref": "#/components/schemas/notification-target-type"
+          },
+          "target_ref": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/notification-status"
+          },
+          "read_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "delivery_created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "event_created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "notification-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/notification-item"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "enveloped-notification-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/notification-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "notification-unread-count-response": {
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-notification-unread-count-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/notification-unread-count-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-notification-item": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/notification-item"
+              }
+            }
+          }
+        ]
+      },
+      "notification-read-all-request": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "$ref": "#/components/schemas/notification-severity"
+          },
+          "category": {
+            "$ref": "#/components/schemas/notification-category"
+          },
+          "source_module": {
+            "type": "string"
+          },
+          "occurred_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "occurred_to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "notification-read-all-response": {
+        "type": "object",
+        "required": [
+          "updated_count"
+        ],
+        "properties": {
+          "updated_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-notification-read-all-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/notification-read-all-response"
               }
             }
           }

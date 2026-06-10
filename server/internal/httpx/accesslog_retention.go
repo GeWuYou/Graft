@@ -35,7 +35,10 @@ const (
 )
 
 const (
+	accessLogRetentionConfigDomain         = "logs"
+	accessLogRetentionConfigDomainKey      = "systemConfig.domains.logs"
 	accessLogRetentionConfigGroupKey       = "systemConfig.groups.coreHttpxLogRetention"
+	accessLogRetentionConfigGroupDescKey   = "systemConfig.groupDescriptions.coreHttpxLogRetention"
 	accessLogRetentionConfigTitleKey       = "systemConfig.items.accessLogRetentionCleanup.title"
 	accessLogRetentionConfigDescriptionKey = "systemConfig.items.accessLogRetentionCleanup.description"
 )
@@ -296,20 +299,25 @@ func RegisterAccessLogRetentionConfigDefinition(registry *configregistry.Registr
 	}
 
 	return registry.Register(configregistry.Definition{
-		Key:            accessLogRetentionCleanupJobName,
-		Module:         accessLogRetentionCleanupJobModule,
-		Group:          "log.retention",
-		GroupKey:       accessLogRetentionConfigGroupKey,
-		GroupLabel:     "core.httpx / log.retention",
-		Title:          "Access log retention cleanup",
-		TitleKey:       accessLogRetentionConfigTitleKey,
-		Description:    "Default cleanup configuration for access-log retention jobs.",
-		DescriptionKey: accessLogRetentionConfigDescriptionKey,
-		Tags:           []string{"httpx", "log.retention"},
-		Type:           configregistry.ValueTypeObject,
-		Schema:         json.RawMessage(accessLogRetentionCleanupConfigSchema),
-		DefaultValue:   json.RawMessage(accessLogRetentionCleanupDefaultConfig),
-		Order:          accessLogRetentionConfigDefinitionOrder,
+		Key:                 accessLogRetentionCleanupJobName,
+		Module:              accessLogRetentionCleanupJobModule,
+		Domain:              accessLogRetentionConfigDomain,
+		DomainKey:           accessLogRetentionConfigDomainKey,
+		DomainLabel:         "Logs",
+		Group:               "log.retention",
+		GroupKey:            accessLogRetentionConfigGroupKey,
+		GroupLabel:          "Access log retention",
+		GroupDescription:    "Manage access log cleanup retention and batch policy.",
+		GroupDescriptionKey: accessLogRetentionConfigGroupDescKey,
+		Title:               "Access log retention cleanup",
+		TitleKey:            accessLogRetentionConfigTitleKey,
+		Description:         "Default cleanup configuration for access-log retention jobs.",
+		DescriptionKey:      accessLogRetentionConfigDescriptionKey,
+		Tags:                []string{"httpx", "log.retention"},
+		Type:                configregistry.ValueTypeObject,
+		Schema:              json.RawMessage(accessLogRetentionCleanupConfigSchema),
+		DefaultValue:        json.RawMessage(accessLogRetentionCleanupDefaultConfig),
+		Order:               accessLogRetentionConfigDefinitionOrder,
 	})
 }
 
@@ -324,7 +332,8 @@ func RegisterAccessLogRetentionConfigMessages(localizer *i18n.Service) error {
 			Namespace: "system-config",
 			Locale:    i18n.LocaleZHCN,
 			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(accessLogRetentionConfigGroupKey), Text: "core.httpx / log.retention"},
+				{Key: i18n.MessageKey(accessLogRetentionConfigGroupKey), Text: "访问日志保留"},
+				{Key: i18n.MessageKey(accessLogRetentionConfigGroupDescKey), Text: "管理访问日志清理的保留周期与批量策略。"},
 				{Key: i18n.MessageKey(accessLogRetentionConfigTitleKey), Text: "访问日志保留清理"},
 				{Key: i18n.MessageKey(accessLogRetentionConfigDescriptionKey), Text: "访问日志保留清理任务的默认配置。"},
 			},
@@ -333,7 +342,8 @@ func RegisterAccessLogRetentionConfigMessages(localizer *i18n.Service) error {
 			Namespace: "system-config",
 			Locale:    i18n.LocaleENUS,
 			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(accessLogRetentionConfigGroupKey), Text: "core.httpx / log.retention"},
+				{Key: i18n.MessageKey(accessLogRetentionConfigGroupKey), Text: "Access Log Retention"},
+				{Key: i18n.MessageKey(accessLogRetentionConfigGroupDescKey), Text: "Manage access log cleanup retention and batch policy."},
 				{Key: i18n.MessageKey(accessLogRetentionConfigTitleKey), Text: "Access log retention cleanup"},
 				{Key: i18n.MessageKey(accessLogRetentionConfigDescriptionKey), Text: "Default cleanup configuration for access-log retention jobs."},
 			},

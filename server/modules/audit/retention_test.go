@@ -167,16 +167,26 @@ func TestRegisterAuditLogRetentionConfigDefinition(t *testing.T) {
 	if len(items) != 1 {
 		t.Fatalf("expected one config definition, got %d", len(items))
 	}
-	definition := items[0]
+	assertAuditLogRetentionConfigDefinition(t, items[0])
+}
+
+func assertAuditLogRetentionConfigDefinition(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
+
 	if definition.Key != auditLogRetentionCleanupJobName ||
 		definition.Module != moduleID ||
 		definition.Type != configregistry.ValueTypeObject {
 		t.Fatalf("unexpected audit log config definition: %#v", definition)
 	}
 	if definition.GroupKey != auditLogRetentionConfigGroupKey ||
+		definition.DomainKey != auditLogRetentionConfigDomainKey ||
+		definition.GroupDescriptionKey != auditLogRetentionConfigGroupDescKey ||
 		definition.TitleKey != auditLogRetentionConfigTitleKey ||
 		definition.DescriptionKey != auditLogRetentionConfigDescriptionKey {
 		t.Fatalf("expected localized audit log config metadata, got %#v", definition)
+	}
+	if definition.GroupLabel == "audit / log.retention" {
+		t.Fatalf("group label must be product-facing fallback, got %q", definition.GroupLabel)
 	}
 	if string(definition.DefaultValue) != auditLogRetentionCleanupDefaultConfig {
 		t.Fatalf("expected default config %s, got %s", auditLogRetentionCleanupDefaultConfig, definition.DefaultValue)

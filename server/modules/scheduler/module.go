@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"graft/server/internal/container"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -91,6 +93,11 @@ func registerSchedulerRuntimeService(ctx *module.Context) error {
 			return nil, err
 		}
 		runtime.SetDefaultConfigResolver(defaultConfigs)
+		if notifier, err := resolveRunFailureNotifier(resolver, ctx.Logger); err != nil {
+			return nil, err
+		} else if notifier != nil {
+			runtime.SetRunFailureNotifier(notifier)
+		}
 		return runtime, nil
 	})
 }
@@ -108,6 +115,21 @@ func resolveDefaultConfigResolver(resolver container.Resolver) (schedulercore.De
 		return nil, fmt.Errorf("scheduler default config resolver has unexpected type %T", resolved)
 	}
 	return defaultConfigs, nil
+}
+
+func resolveRunFailureNotifier(resolver container.Resolver, logger *zap.Logger) (schedulercore.RunFailureNotifier, error) {
+	resolved, err := resolver.Resolve((*moduleapi.NotificationPublisher)(nil))
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("resolve scheduler notification publisher: %w", err)
+	}
+	publisher, ok := resolved.(moduleapi.NotificationPublisher)
+	if !ok || publisher == nil {
+		return nil, fmt.Errorf("scheduler notification publisher has unexpected type %T", resolved)
+	}
+	return schedulerRunFailureNotifier{publisher: publisher, logger: logger}, nil
 }
 
 func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {

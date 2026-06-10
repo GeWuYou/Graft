@@ -890,16 +890,16 @@ func (e ModuleRuntimeDependencyStatus) Valid() bool {
 
 // Defines values for ModuleRuntimeItemEnablementSource.
 const (
-	All       ModuleRuntimeItemEnablementSource = "all"
-	Allowlist ModuleRuntimeItemEnablementSource = "allowlist"
+	ModuleRuntimeItemEnablementSourceAll       ModuleRuntimeItemEnablementSource = "all"
+	ModuleRuntimeItemEnablementSourceAllowlist ModuleRuntimeItemEnablementSource = "allowlist"
 )
 
 // Valid indicates whether the value is a known member of the ModuleRuntimeItemEnablementSource enum.
 func (e ModuleRuntimeItemEnablementSource) Valid() bool {
 	switch e {
-	case All:
+	case ModuleRuntimeItemEnablementSourceAll:
 		return true
-	case Allowlist:
+	case ModuleRuntimeItemEnablementSourceAllowlist:
 		return true
 	default:
 		return false
@@ -984,6 +984,126 @@ func (e ModuleRuntimeSchemaStatusStatus) Valid() bool {
 	case ModuleRuntimeSchemaStatusStatusDeclared:
 		return true
 	case ModuleRuntimeSchemaStatusStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationCategory.
+const (
+	NotificationCategoryCONFIG     NotificationCategory = "CONFIG"
+	NotificationCategoryOPERATIONS NotificationCategory = "OPERATIONS"
+	NotificationCategorySECURITY   NotificationCategory = "SECURITY"
+	NotificationCategorySYSTEM     NotificationCategory = "SYSTEM"
+	NotificationCategoryTASK       NotificationCategory = "TASK"
+)
+
+// Valid indicates whether the value is a known member of the NotificationCategory enum.
+func (e NotificationCategory) Valid() bool {
+	switch e {
+	case NotificationCategoryCONFIG:
+		return true
+	case NotificationCategoryOPERATIONS:
+		return true
+	case NotificationCategorySECURITY:
+		return true
+	case NotificationCategorySYSTEM:
+		return true
+	case NotificationCategoryTASK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationNavigationKind.
+const (
+	AUDITINCIDENT     NotificationNavigationKind = "AUDIT_INCIDENT"
+	AUDITLOG          NotificationNavigationKind = "AUDIT_LOG"
+	MODULERUNTIMEITEM NotificationNavigationKind = "MODULE_RUNTIME_ITEM"
+	SCHEDULERRUN      NotificationNavigationKind = "SCHEDULER_RUN"
+	SYSTEMCONFIGITEM  NotificationNavigationKind = "SYSTEM_CONFIG_ITEM"
+)
+
+// Valid indicates whether the value is a known member of the NotificationNavigationKind enum.
+func (e NotificationNavigationKind) Valid() bool {
+	switch e {
+	case AUDITINCIDENT:
+		return true
+	case AUDITLOG:
+		return true
+	case MODULERUNTIMEITEM:
+		return true
+	case SCHEDULERRUN:
+		return true
+	case SYSTEMCONFIGITEM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationSeverity.
+const (
+	NotificationSeverityCritical NotificationSeverity = "critical"
+	NotificationSeverityError    NotificationSeverity = "error"
+	NotificationSeverityInfo     NotificationSeverity = "info"
+	NotificationSeverityWarning  NotificationSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the NotificationSeverity enum.
+func (e NotificationSeverity) Valid() bool {
+	switch e {
+	case NotificationSeverityCritical:
+		return true
+	case NotificationSeverityError:
+		return true
+	case NotificationSeverityInfo:
+		return true
+	case NotificationSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationStatus.
+const (
+	Read   NotificationStatus = "read"
+	Unread NotificationStatus = "unread"
+)
+
+// Valid indicates whether the value is a known member of the NotificationStatus enum.
+func (e NotificationStatus) Valid() bool {
+	switch e {
+	case Read:
+		return true
+	case Unread:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationTargetType.
+const (
+	NotificationTargetTypePERMISSION NotificationTargetType = "PERMISSION"
+	NotificationTargetTypeROLE       NotificationTargetType = "ROLE"
+	NotificationTargetTypeSYSTEM     NotificationTargetType = "SYSTEM"
+	NotificationTargetTypeUSER       NotificationTargetType = "USER"
+)
+
+// Valid indicates whether the value is a known member of the NotificationTargetType enum.
+func (e NotificationTargetType) Valid() bool {
+	switch e {
+	case NotificationTargetTypePERMISSION:
+		return true
+	case NotificationTargetTypeROLE:
+		return true
+	case NotificationTargetTypeSYSTEM:
+		return true
+	case NotificationTargetTypeUSER:
 		return true
 	default:
 		return false
@@ -1139,19 +1259,19 @@ func (e ScheduledTaskLastRunTriggerType) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemStatus.
 const (
-	ScheduledTaskRunItemStatusFailed  ScheduledTaskRunItemStatus = "failed"
-	ScheduledTaskRunItemStatusRunning ScheduledTaskRunItemStatus = "running"
-	ScheduledTaskRunItemStatusSuccess ScheduledTaskRunItemStatus = "success"
+	Failed  ScheduledTaskRunItemStatus = "failed"
+	Running ScheduledTaskRunItemStatus = "running"
+	Success ScheduledTaskRunItemStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemStatus enum.
 func (e ScheduledTaskRunItemStatus) Valid() bool {
 	switch e {
-	case ScheduledTaskRunItemStatusFailed:
+	case Failed:
 		return true
-	case ScheduledTaskRunItemStatusRunning:
+	case Running:
 		return true
-	case ScheduledTaskRunItemStatusSuccess:
+	case Success:
 		return true
 	default:
 		return false
@@ -1665,6 +1785,27 @@ func (e GetMonitorServerStatusParamsTrendRange) Valid() bool {
 	case N1h:
 		return true
 	case N30m:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetNotificationsParamsStatus.
+const (
+	GetNotificationsParamsStatusAll    GetNotificationsParamsStatus = "all"
+	GetNotificationsParamsStatusRead   GetNotificationsParamsStatus = "read"
+	GetNotificationsParamsStatusUnread GetNotificationsParamsStatus = "unread"
+)
+
+// Valid indicates whether the value is a known member of the GetNotificationsParamsStatus enum.
+func (e GetNotificationsParamsStatus) Valid() bool {
+	switch e {
+	case GetNotificationsParamsStatusAll:
+		return true
+	case GetNotificationsParamsStatusRead:
+		return true
+	case GetNotificationsParamsStatusUnread:
 		return true
 	default:
 		return false
@@ -2564,6 +2705,86 @@ type EnvelopedModuleRuntimeSnapshot struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedNotificationItem defines model for enveloped-notification-item.
+type EnvelopedNotificationItem struct {
+	// Code Existing canonical response code.
+	Code string           `json:"code"`
+	Data NotificationItem `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedNotificationListResponse defines model for enveloped-notification-list-response.
+type EnvelopedNotificationListResponse struct {
+	// Code Existing canonical response code.
+	Code string                   `json:"code"`
+	Data NotificationListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedNotificationReadAllResponse defines model for enveloped-notification-read-all-response.
+type EnvelopedNotificationReadAllResponse struct {
+	// Code Existing canonical response code.
+	Code string                      `json:"code"`
+	Data NotificationReadAllResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedNotificationUnreadCountResponse defines model for enveloped-notification-unread-count-response.
+type EnvelopedNotificationUnreadCountResponse struct {
+	// Code Existing canonical response code.
+	Code string                          `json:"code"`
+	Data NotificationUnreadCountResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedPermissionItemResponse defines model for enveloped-permission-item-response.
 type EnvelopedPermissionItemResponse struct {
 	// Code Existing canonical response code.
@@ -3134,6 +3355,97 @@ type ModuleRuntimeSummary struct {
 	UnknownModules    int `json:"unknown_modules"`
 }
 
+// NotificationCategory Notification Center category typed contract.
+type NotificationCategory string
+
+// NotificationItem defines model for notification-item.
+type NotificationItem struct {
+	// Category Notification Center category typed contract.
+	Category          NotificationCategory `json:"category"`
+	DeliveryCreatedAt time.Time            `json:"delivery_created_at"`
+	DeliveryId        int64                `json:"delivery_id"`
+	EventCreatedAt    *time.Time           `json:"event_created_at,omitempty"`
+	EventId           int64                `json:"event_id"`
+	EventType         string               `json:"event_type"`
+	ExpiresAt         *time.Time           `json:"expires_at,omitempty"`
+	Message           string               `json:"message"`
+
+	// MessageKey Stable localization key for the notification body when supplied by the source module.
+	MessageKey   *string                `json:"message_key,omitempty"`
+	Navigation   NotificationNavigation `json:"navigation"`
+	OccurredAt   time.Time              `json:"occurred_at"`
+	ReadAt       *time.Time             `json:"read_at,omitempty"`
+	ResourceId   *string                `json:"resource_id,omitempty"`
+	ResourceName *string                `json:"resource_name,omitempty"`
+	ResourceType *string                `json:"resource_type,omitempty"`
+
+	// Severity Notification Center severity typed contract.
+	Severity     NotificationSeverity `json:"severity"`
+	SourceModule string               `json:"source_module"`
+
+	// Status Current-user notification read-state filter and read model value.
+	Status    NotificationStatus `json:"status"`
+	TargetRef string             `json:"target_ref"`
+
+	// TargetType Delivery target type retained for current-user read-model traceability.
+	TargetType NotificationTargetType `json:"target_type"`
+	Title      string                 `json:"title"`
+
+	// TitleKey Stable localization key for the notification title when supplied by the source module.
+	TitleKey *string `json:"title_key,omitempty"`
+}
+
+// NotificationListResponse defines model for notification-list-response.
+type NotificationListResponse struct {
+	Items    []NotificationItem `json:"items"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"page_size"`
+	Total    int                `json:"total"`
+}
+
+// NotificationNavigation defines model for notification-navigation.
+type NotificationNavigation struct {
+	// Kind Structured navigation target kind. Consumers resolve this with navigation_payload instead of storing URLs.
+	Kind NotificationNavigationKind `json:"kind"`
+
+	// Payload Structured payload owned by the source module and resolved by the frontend notification module.
+	Payload map[string]interface{} `json:"payload"`
+}
+
+// NotificationNavigationKind Structured navigation target kind. Consumers resolve this with navigation_payload instead of storing URLs.
+type NotificationNavigationKind string
+
+// NotificationReadAllRequest defines model for notification-read-all-request.
+type NotificationReadAllRequest struct {
+	// Category Notification Center category typed contract.
+	Category     *NotificationCategory `json:"category,omitempty"`
+	OccurredFrom *time.Time            `json:"occurred_from,omitempty"`
+	OccurredTo   *time.Time            `json:"occurred_to,omitempty"`
+
+	// Severity Notification Center severity typed contract.
+	Severity     *NotificationSeverity `json:"severity,omitempty"`
+	SourceModule *string               `json:"source_module,omitempty"`
+}
+
+// NotificationReadAllResponse defines model for notification-read-all-response.
+type NotificationReadAllResponse struct {
+	UpdatedCount int `json:"updated_count"`
+}
+
+// NotificationSeverity Notification Center severity typed contract.
+type NotificationSeverity string
+
+// NotificationStatus Current-user notification read-state filter and read model value.
+type NotificationStatus string
+
+// NotificationTargetType Delivery target type retained for current-user read-model traceability.
+type NotificationTargetType string
+
+// NotificationUnreadCountResponse defines model for notification-unread-count-response.
+type NotificationUnreadCountResponse struct {
+	Count int `json:"count"`
+}
+
 // PermissionDetailResponse defines model for permission-detail-response.
 type PermissionDetailResponse = PermissionListItem
 
@@ -3607,11 +3919,26 @@ type SystemConfigItem struct {
 	// DescriptionKey Stable localization key for the config item description.
 	DescriptionKey *string `json:"description_key,omitempty"`
 
+	// Domain Configuration domain key used for domain-first settings navigation.
+	Domain *string `json:"domain,omitempty"`
+
+	// DomainKey Stable localization key for the domain display label.
+	DomainKey *string `json:"domain_key,omitempty"`
+
+	// DomainLabel Direct domain-label fallback when the client has no translation for domain_key.
+	DomainLabel *string `json:"domain_label,omitempty"`
+
 	// EffectiveValue JSON string after applying a user override; null when sensitive=true.
 	EffectiveValue *string `json:"effective_value,omitempty"`
 
 	// Group Module-declared grouping key for the settings UI.
 	Group string `json:"group"`
+
+	// GroupDescription Direct group-description fallback when the client has no translation for group_description_key.
+	GroupDescription *string `json:"group_description,omitempty"`
+
+	// GroupDescriptionKey Stable localization key for the group description.
+	GroupDescriptionKey *string `json:"group_description_key,omitempty"`
 
 	// GroupKey Stable localization key for the group display label.
 	GroupKey *string `json:"group_key,omitempty"`
@@ -4174,6 +4501,68 @@ type GetMonitorServerStatusParams struct {
 // GetMonitorServerStatusParamsTrendRange defines parameters for GetMonitorServerStatus.
 type GetMonitorServerStatusParamsTrendRange string
 
+// GetNotificationsParams defines parameters for GetNotifications.
+type GetNotificationsParams struct {
+	Status       *GetNotificationsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Severity     *NotificationSeverity         `form:"severity,omitempty" json:"severity,omitempty"`
+	Category     *NotificationCategory         `form:"category,omitempty" json:"category,omitempty"`
+	SourceModule *string                       `form:"source_module,omitempty" json:"source_module,omitempty"`
+	OccurredFrom *time.Time                    `form:"occurred_from,omitempty" json:"occurred_from,omitempty"`
+	OccurredTo   *time.Time                    `form:"occurred_to,omitempty" json:"occurred_to,omitempty"`
+	Page         *int                          `form:"page,omitempty" json:"page,omitempty"`
+	PageSize     *int                          `form:"page_size,omitempty" json:"page_size,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetNotificationsParamsStatus defines parameters for GetNotifications.
+type GetNotificationsParamsStatus string
+
+// PostNotificationsReadAllParams defines parameters for PostNotificationsReadAll.
+type PostNotificationsReadAllParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetNotificationsUnreadCountParams defines parameters for GetNotificationsUnreadCount.
+type GetNotificationsUnreadCountParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteNotificationParams defines parameters for DeleteNotification.
+type DeleteNotificationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostNotificationReadParams defines parameters for PostNotificationRead.
+type PostNotificationReadParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetPermissionsParams defines parameters for GetPermissions.
 type GetPermissionsParams struct {
 	Keyword  *string `form:"keyword,omitempty" json:"keyword,omitempty"`
@@ -4667,6 +5056,9 @@ type PostAuthCompleteRequiredPasswordChangeJSONRequestBody = CompleteRequiredPas
 
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody = LoginRequest
+
+// PostNotificationsReadAllJSONRequestBody defines body for PostNotificationsReadAll for application/json ContentType.
+type PostNotificationsReadAllJSONRequestBody = NotificationReadAllRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest

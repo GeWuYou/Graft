@@ -68,7 +68,12 @@
         clearable
         @change="(value) => emit('update:modelValue', value)"
       >
-        <t-option v-for="option in rootSchema.enum" :key="String(option)" :value="option" :label="String(option)" />
+        <t-option
+          v-for="option in rootSchema.enum"
+          :key="String(option)"
+          :value="option"
+          :label="optionLabel(rootField, option)"
+        />
       </t-select>
     </template>
     <t-input-number
@@ -156,6 +161,11 @@ const objectFields = computed(() =>
 );
 const objectValue = computed<JsonRecord>(() => (isJsonRecord(props.modelValue) ? props.modelValue : {}));
 const rootLabel = computed(() => props.rootSchema.title || props.labels.value);
+const rootField = computed<ConfigSchemaField>(() => ({
+  key: 'value',
+  schema: props.rootSchema,
+  required: false,
+}));
 
 function fieldName(key: string) {
   return `${props.fieldPrefix}.${key}`;

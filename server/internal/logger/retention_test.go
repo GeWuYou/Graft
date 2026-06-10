@@ -218,16 +218,26 @@ func TestRegisterAppLogRetentionConfigDefinition(t *testing.T) {
 	if len(items) != 1 {
 		t.Fatalf("expected one config definition, got %d", len(items))
 	}
-	definition := items[0]
+	assertAppLogRetentionConfigDefinition(t, items[0])
+}
+
+func assertAppLogRetentionConfigDefinition(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
+
 	if definition.Key != appLogRetentionCleanupJobName ||
 		definition.Module != appLogRetentionCleanupJobModule ||
 		definition.Type != configregistry.ValueTypeObject {
 		t.Fatalf("unexpected app log config definition: %#v", definition)
 	}
 	if definition.GroupKey != appLogRetentionConfigGroupKey ||
+		definition.DomainKey != appLogRetentionConfigDomainKey ||
+		definition.GroupDescriptionKey != appLogRetentionConfigGroupDescKey ||
 		definition.TitleKey != appLogRetentionConfigTitleKey ||
 		definition.DescriptionKey != appLogRetentionConfigDescriptionKey {
 		t.Fatalf("expected localized app log config metadata, got %#v", definition)
+	}
+	if definition.GroupLabel == "core.logger / log.retention" {
+		t.Fatalf("group label must be product-facing fallback, got %q", definition.GroupLabel)
 	}
 	if string(definition.DefaultValue) != appLogRetentionCleanupDefaultConfig {
 		t.Fatalf("expected default config %s, got %s", appLogRetentionCleanupDefaultConfig, definition.DefaultValue)

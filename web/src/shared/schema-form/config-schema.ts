@@ -57,6 +57,8 @@ export type ConfigValidationResult = {
 };
 
 export type ConfigSchemaOptionLabel = {
+  description?: string;
+  descriptionKey?: string;
   label?: string;
   labelKey?: string;
 };
@@ -361,27 +363,39 @@ function parseI18n(raw: JsonRecord): ConfigSchemaI18n | undefined {
 }
 
 function parseEnumLabels(raw: JsonRecord): Record<string, ConfigSchemaOptionLabel> | undefined {
+  const i18nExtension = isJsonRecord(raw['x-i18n']) ? raw['x-i18n'] : {};
+  const i18nEnumLabels = isJsonRecord(i18nExtension.enumLabels) ? i18nExtension.enumLabels : undefined;
   const rawOptions = isJsonRecord(raw.options)
     ? raw.options
     : isJsonRecord(raw.enumLabels)
       ? raw.enumLabels
-      : undefined;
+      : i18nEnumLabels;
   if (!rawOptions) {
     return undefined;
   }
 
-  const entries = Object.entries(rawOptions).flatMap(([value, option]) => {
+  const entries: Array<[string, ConfigSchemaOptionLabel]> = [];
+  for (const [value, option] of Object.entries(rawOptions)) {
     if (typeof option === 'string') {
-      return [[value, { label: option } satisfies ConfigSchemaOptionLabel]];
+      const label =
+        i18nEnumLabels === rawOptions
+          ? ({ labelKey: option } satisfies ConfigSchemaOptionLabel)
+          : ({ label: option } satisfies ConfigSchemaOptionLabel);
+      entries.push([value, label]);
+      continue;
     }
     if (!isJsonRecord(option)) {
-      return [];
+      continue;
     }
     const label: ConfigSchemaOptionLabel = {};
+    assignOptionLabelString(option, label, 'description');
+    assignOptionLabelString(option, label, 'descriptionKey');
     assignOptionLabelString(option, label, 'label');
     assignOptionLabelString(option, label, 'labelKey');
-    return Object.keys(label).length > 0 ? [[value, label]] : [];
-  });
+    if (Object.keys(label).length > 0) {
+      entries.push([value, label]);
+    }
+  }
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 

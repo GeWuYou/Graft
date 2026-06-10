@@ -36,7 +36,10 @@ const (
 )
 
 const (
+	appLogRetentionConfigDomain         = "logs"
+	appLogRetentionConfigDomainKey      = "systemConfig.domains.logs"
 	appLogRetentionConfigGroupKey       = "systemConfig.groups.coreLoggerLogRetention"
+	appLogRetentionConfigGroupDescKey   = "systemConfig.groupDescriptions.coreLoggerLogRetention"
 	appLogRetentionConfigTitleKey       = "systemConfig.items.appLogRetentionCleanup.title"
 	appLogRetentionConfigDescriptionKey = "systemConfig.items.appLogRetentionCleanup.description"
 )
@@ -325,20 +328,25 @@ func RegisterAppLogRetentionConfigDefinition(registry *configregistry.Registry) 
 	}
 
 	return registry.Register(configregistry.Definition{
-		Key:            appLogRetentionCleanupJobName,
-		Module:         appLogRetentionCleanupJobModule,
-		Group:          "log.retention",
-		GroupKey:       appLogRetentionConfigGroupKey,
-		GroupLabel:     "core.logger / log.retention",
-		Title:          "App log retention cleanup",
-		TitleKey:       appLogRetentionConfigTitleKey,
-		Description:    "Default cleanup configuration for app-log retention jobs.",
-		DescriptionKey: appLogRetentionConfigDescriptionKey,
-		Tags:           []string{"logger", "log.retention"},
-		Type:           configregistry.ValueTypeObject,
-		Schema:         json.RawMessage(appLogRetentionCleanupConfigSchema),
-		DefaultValue:   json.RawMessage(appLogRetentionCleanupDefaultConfig),
-		Order:          appLogRetentionConfigDefinitionOrder,
+		Key:                 appLogRetentionCleanupJobName,
+		Module:              appLogRetentionCleanupJobModule,
+		Domain:              appLogRetentionConfigDomain,
+		DomainKey:           appLogRetentionConfigDomainKey,
+		DomainLabel:         "Logs",
+		Group:               "log.retention",
+		GroupKey:            appLogRetentionConfigGroupKey,
+		GroupLabel:          "App log retention",
+		GroupDescription:    "Manage application log cleanup retention and batch policy.",
+		GroupDescriptionKey: appLogRetentionConfigGroupDescKey,
+		Title:               "App log retention cleanup",
+		TitleKey:            appLogRetentionConfigTitleKey,
+		Description:         "Default cleanup configuration for app-log retention jobs.",
+		DescriptionKey:      appLogRetentionConfigDescriptionKey,
+		Tags:                []string{"logger", "log.retention"},
+		Type:                configregistry.ValueTypeObject,
+		Schema:              json.RawMessage(appLogRetentionCleanupConfigSchema),
+		DefaultValue:        json.RawMessage(appLogRetentionCleanupDefaultConfig),
+		Order:               appLogRetentionConfigDefinitionOrder,
 	})
 }
 
@@ -353,7 +361,8 @@ func RegisterAppLogRetentionConfigMessages(localizer *i18n.Service) error {
 			Namespace: "system-config",
 			Locale:    i18n.LocaleZHCN,
 			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(appLogRetentionConfigGroupKey), Text: "core.logger / log.retention"},
+				{Key: i18n.MessageKey(appLogRetentionConfigGroupKey), Text: "应用日志保留"},
+				{Key: i18n.MessageKey(appLogRetentionConfigGroupDescKey), Text: "管理应用日志清理的保留周期与批量策略。"},
 				{Key: i18n.MessageKey(appLogRetentionConfigTitleKey), Text: "应用日志保留清理"},
 				{Key: i18n.MessageKey(appLogRetentionConfigDescriptionKey), Text: "应用日志保留清理任务的默认配置。"},
 			},
@@ -362,7 +371,8 @@ func RegisterAppLogRetentionConfigMessages(localizer *i18n.Service) error {
 			Namespace: "system-config",
 			Locale:    i18n.LocaleENUS,
 			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(appLogRetentionConfigGroupKey), Text: "core.logger / log.retention"},
+				{Key: i18n.MessageKey(appLogRetentionConfigGroupKey), Text: "App Log Retention"},
+				{Key: i18n.MessageKey(appLogRetentionConfigGroupDescKey), Text: "Manage application log cleanup retention and batch policy."},
 				{Key: i18n.MessageKey(appLogRetentionConfigTitleKey), Text: "App log retention cleanup"},
 				{Key: i18n.MessageKey(appLogRetentionConfigDescriptionKey), Text: "Default cleanup configuration for app-log retention jobs."},
 			},

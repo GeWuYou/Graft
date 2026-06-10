@@ -363,6 +363,16 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     resolveNavigationTarget(route?: TRouterInfo) {
       return toRouteLocation(route);
     },
+    activateHomeTab() {
+      const homeTab = fallbackHomeTabs()[0];
+      const hasHomeTab = this.tabRouterList.some((route) => route.isHome && getTabKey(route) === getTabKey(homeTab));
+      const nextTabs = hasHomeTab
+        ? this.tabRouterList
+        : [homeTab, ...this.tabRouterList.filter((route) => getTabKey(route) !== getTabKey(homeTab))];
+
+      this.tabRouterList = ensureNonEmptyTabs(nextTabs);
+      this.activeTabKey = getTabKey(homeTab);
+    },
     setActiveRoute(route: RouteLocationNormalizedLoaded) {
       const currentActiveTab = this.tabRouterList.find((tab) => getTabKey(tab) === this.activeTabKey);
       if (currentActiveTab && currentActiveTab.fullPath === route.fullPath) {

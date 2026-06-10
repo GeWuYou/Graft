@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -710,6 +711,125 @@ func TestRunOncePersistsManualRunHistory(t *testing.T) {
 	if !ok || metrics["deletedCount"] != float64(3) {
 		t.Fatalf("unexpected result metrics: %s", repo.updated[0].ResultJSON)
 	}
+}
+
+func TestRunOnceNotifiesAfterPersistedFailure(t *testing.T) {
+	repo := newRunRepositoryRecorder()
+	runtime := New(zap.NewNop(), repo)
+	runtime.SetTaskRepository(newTaskRepositoryRecorder())
+	notifier := newRunFailureNotifierRecorder()
+	runtime.SetRunFailureNotifier(notifier)
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "manual-failure",
+		Schedule: "*/1 * * * * *",
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "failed"}, errors.New("boom")
+		},
+	})
+
+	run, err := runtime.RunOnce(context.Background(), "manual-failure")
+	if err == nil || err.Error() != "boom" {
+		t.Fatalf("expected handler error, got %v", err)
+	}
+	if run.Status != RunStatusFailed {
+		t.Fatalf("expected failed run, got %#v", run)
+	}
+	if len(repo.updated) != 1 || repo.updated[0].Status != RunStatusFailed {
+		t.Fatalf("expected persisted failed run before notify, got %#v", repo.updated)
+	}
+	notified := notifier.wait(t)
+	if notified.ID != repo.updated[0].ID {
+		t.Fatalf("expected failed-run notification after persistence, got %#v", notified)
+	}
+}
+
+type runFailureNotifierRecorder struct {
+	done chan TaskRun
+	once sync.Once
+}
+
+func newRunFailureNotifierRecorder() *runFailureNotifierRecorder {
+	return &runFailureNotifierRecorder{done: make(chan TaskRun, 1)}
+}
+
+func (r *runFailureNotifierRecorder) NotifyRunFailed(_ context.Context, run TaskRun) {
+	r.once.Do(func() {
+		r.done <- run
+	})
+}
+
+func (r *runFailureNotifierRecorder) wait(t *testing.T) TaskRun {
+	t.Helper()
+
+	select {
+	case run := <-r.done:
+		return run
+	case <-time.After(time.Second):
+		t.Fatal("expected failed-run notification")
+		return TaskRun{}
+	}
+}
+
+func TestRunOnceDoesNotBlockOnFailureNotifier(t *testing.T) {
+	repo := newRunRepositoryRecorder()
+	runtime := New(zap.NewNop(), repo)
+	runtime.SetTaskRepository(newTaskRepositoryRecorder())
+	runtime.SetRunFailureNotifier(blockingRunFailureNotifier{})
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "manual-blocked-notifier",
+		Schedule: "*/1 * * * * *",
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "failed"}, errors.New("boom")
+		},
+	})
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := runtime.RunOnce(context.Background(), "manual-blocked-notifier")
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil || err.Error() != "boom" {
+			t.Fatalf("expected handler error, got %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("RunOnce blocked on failure notifier")
+	}
+}
+
+func TestRunOnceIgnoresFailureNotifierPanic(t *testing.T) {
+	repo := newRunRepositoryRecorder()
+	runtime := New(zap.NewNop(), repo)
+	runtime.SetTaskRepository(newTaskRepositoryRecorder())
+	runtime.SetRunFailureNotifier(panicRunFailureNotifier{})
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "manual-panicking-notifier",
+		Schedule: "*/1 * * * * *",
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "failed"}, errors.New("boom")
+		},
+	})
+
+	if _, err := runtime.RunOnce(context.Background(), "manual-panicking-notifier"); err == nil || err.Error() != "boom" {
+		t.Fatalf("expected handler error, got %v", err)
+	}
+}
+
+type blockingRunFailureNotifier struct{}
+
+func (blockingRunFailureNotifier) NotifyRunFailed(ctx context.Context, _ TaskRun) {
+	<-ctx.Done()
+}
+
+type panicRunFailureNotifier struct{}
+
+func (panicRunFailureNotifier) NotifyRunFailed(context.Context, TaskRun) {
+	panic("notifier failure")
 }
 
 func TestRunActionUsesActionHandlerAndSkipsHistory(t *testing.T) {

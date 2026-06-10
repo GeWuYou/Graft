@@ -614,6 +614,23 @@ func (r moduleTestRBACRepository) ListPermissionsByUserID(_ context.Context, use
 	return r.permissions[userID], nil
 }
 
+func (r moduleTestRBACRepository) ListUserIDsByPermissionCode(_ context.Context, permissionCode string) ([]uint64, error) {
+	if r.permissions == nil {
+		return []uint64{}, nil
+	}
+
+	userIDs := make([]uint64, 0, len(r.permissions))
+	for userID, permissions := range r.permissions {
+		for _, permission := range permissions {
+			if permission.Code == permissionCode {
+				userIDs = append(userIDs, userID)
+				break
+			}
+		}
+	}
+	return userIDs, nil
+}
+
 func (r moduleTestRBACRepository) ListPermissions(_ context.Context, _ rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	return []rbacstore.Permission{}, nil
 }

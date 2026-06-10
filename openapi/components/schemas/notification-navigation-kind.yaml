@@ -1,0 +1,3 @@
+type: string
+description: Structured navigation target kind. Consumers resolve this with navigation_payload instead of storing URLs.
+enum: [AUDIT_INCIDENT, AUDIT_LOG, SCHEDULER_RUN, SYSTEM_CONFIG_ITEM, MODULE_RUNTIME_ITEM]

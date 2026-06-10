@@ -112,6 +112,41 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.activeTabKey).toBe('/');
   });
 
+  it('activates the preserved home tab from another active tab', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/server/system-config',
+      path: '/server/system-config',
+      name: 'SystemConfigList',
+    });
+    tabsRouterStore.setActiveTabKey('/server/system-config');
+
+    tabsRouterStore.activateHomeTab();
+
+    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/server/system-config']);
+    expect(tabsRouterStore.activeTabKey).toBe('/');
+  });
+
+  it('restores the home tab when activating home from a corrupted persisted tab list', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.removeTabRouterList();
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/server/system-config',
+      path: '/server/system-config',
+      name: 'SystemConfigList',
+    });
+    tabsRouterStore.setActiveTabKey('/server/system-config');
+
+    tabsRouterStore.activateHomeTab();
+
+    expect(tabsRouterStore.tabRouters[0]?.path).toBe('/');
+    expect(tabsRouterStore.tabRouters[0]?.isHome).toBe(true);
+    expect(tabsRouterStore.tabRouters.map((route) => route.path)).toEqual(['/', '/server/system-config']);
+    expect(tabsRouterStore.activeTabKey).toBe('/');
+  });
+
   it('pins tabs, keeps pinned tabs before normal tabs, and persists pinned keys', () => {
     const tabsRouterStore = useTabsRouterStore();
 

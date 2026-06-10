@@ -33,7 +33,10 @@ const (
 )
 
 const (
+	auditLogRetentionConfigDomain         = "audit"
+	auditLogRetentionConfigDomainKey      = "systemConfig.domains.audit"
 	auditLogRetentionConfigGroupKey       = "systemConfig.groups.auditLogRetention"
+	auditLogRetentionConfigGroupDescKey   = "systemConfig.groupDescriptions.auditLogRetention"
 	auditLogRetentionConfigTitleKey       = "systemConfig.items.auditLogRetentionCleanup.title"
 	auditLogRetentionConfigDescriptionKey = "systemConfig.items.auditLogRetentionCleanup.description"
 )
@@ -248,20 +251,25 @@ func registerAuditLogRetentionConfigDefinition(registry *configregistry.Registry
 	}
 
 	return registry.Register(configregistry.Definition{
-		Key:            auditLogRetentionCleanupJobName,
-		Module:         moduleID,
-		Group:          "log.retention",
-		GroupKey:       auditLogRetentionConfigGroupKey,
-		GroupLabel:     "audit / log.retention",
-		Title:          "Audit log retention cleanup",
-		TitleKey:       auditLogRetentionConfigTitleKey,
-		Description:    "Default cleanup configuration for audit-log retention jobs.",
-		DescriptionKey: auditLogRetentionConfigDescriptionKey,
-		Tags:           []string{"audit", "log.retention"},
-		Type:           configregistry.ValueTypeObject,
-		Schema:         json.RawMessage(auditLogRetentionCleanupConfigSchema),
-		DefaultValue:   json.RawMessage(auditLogRetentionCleanupDefaultConfig),
-		Order:          auditLogRetentionConfigDefinitionOrder,
+		Key:                 auditLogRetentionCleanupJobName,
+		Module:              moduleID,
+		Domain:              auditLogRetentionConfigDomain,
+		DomainKey:           auditLogRetentionConfigDomainKey,
+		DomainLabel:         "Audit",
+		Group:               "log.retention",
+		GroupKey:            auditLogRetentionConfigGroupKey,
+		GroupLabel:          "Audit log retention",
+		GroupDescription:    "Manage audit log cleanup retention and batch policy.",
+		GroupDescriptionKey: auditLogRetentionConfigGroupDescKey,
+		Title:               "Audit log retention cleanup",
+		TitleKey:            auditLogRetentionConfigTitleKey,
+		Description:         "Default cleanup configuration for audit-log retention jobs.",
+		DescriptionKey:      auditLogRetentionConfigDescriptionKey,
+		Tags:                []string{"audit", "log.retention"},
+		Type:                configregistry.ValueTypeObject,
+		Schema:              json.RawMessage(auditLogRetentionCleanupConfigSchema),
+		DefaultValue:        json.RawMessage(auditLogRetentionCleanupDefaultConfig),
+		Order:               auditLogRetentionConfigDefinitionOrder,
 	})
 }
 
@@ -275,7 +283,9 @@ func registerAuditLogRetentionConfigMessages(localizer *i18n.Service) error {
 			Namespace: "system-config",
 			Locale:    i18n.LocaleZHCN,
 			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(auditLogRetentionConfigGroupKey), Text: "audit / log.retention"},
+				{Key: i18n.MessageKey(auditLogRetentionConfigDomainKey), Text: "安全审计"},
+				{Key: i18n.MessageKey(auditLogRetentionConfigGroupKey), Text: "审计日志保留"},
+				{Key: i18n.MessageKey(auditLogRetentionConfigGroupDescKey), Text: "管理审计日志清理的保留周期与批量策略。"},
 				{Key: i18n.MessageKey(auditLogRetentionConfigTitleKey), Text: "审计日志保留清理"},
 				{Key: i18n.MessageKey(auditLogRetentionConfigDescriptionKey), Text: "审计日志保留清理任务的默认配置。"},
 			},
@@ -284,7 +294,9 @@ func registerAuditLogRetentionConfigMessages(localizer *i18n.Service) error {
 			Namespace: "system-config",
 			Locale:    i18n.LocaleENUS,
 			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(auditLogRetentionConfigGroupKey), Text: "audit / log.retention"},
+				{Key: i18n.MessageKey(auditLogRetentionConfigDomainKey), Text: "Security Audit"},
+				{Key: i18n.MessageKey(auditLogRetentionConfigGroupKey), Text: "Audit Log Retention"},
+				{Key: i18n.MessageKey(auditLogRetentionConfigGroupDescKey), Text: "Manage audit log cleanup retention and batch policy."},
 				{Key: i18n.MessageKey(auditLogRetentionConfigTitleKey), Text: "Audit log retention cleanup"},
 				{Key: i18n.MessageKey(auditLogRetentionConfigDescriptionKey), Text: "Default cleanup configuration for audit-log retention jobs."},
 			},

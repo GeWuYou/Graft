@@ -270,16 +270,26 @@ func TestRegisterAccessLogRetentionConfigDefinition(t *testing.T) {
 	if len(items) != 1 {
 		t.Fatalf("expected one config definition, got %d", len(items))
 	}
-	definition := items[0]
+	assertAccessLogRetentionConfigDefinition(t, items[0])
+}
+
+func assertAccessLogRetentionConfigDefinition(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
+
 	if definition.Key != accessLogRetentionCleanupJobName ||
 		definition.Module != accessLogRetentionCleanupJobModule ||
 		definition.Type != configregistry.ValueTypeObject {
 		t.Fatalf("unexpected access log config definition: %#v", definition)
 	}
 	if definition.GroupKey != accessLogRetentionConfigGroupKey ||
+		definition.DomainKey != accessLogRetentionConfigDomainKey ||
+		definition.GroupDescriptionKey != accessLogRetentionConfigGroupDescKey ||
 		definition.TitleKey != accessLogRetentionConfigTitleKey ||
 		definition.DescriptionKey != accessLogRetentionConfigDescriptionKey {
 		t.Fatalf("expected localized access log config metadata, got %#v", definition)
+	}
+	if definition.GroupLabel == "core.httpx / log.retention" {
+		t.Fatalf("group label must be product-facing fallback, got %q", definition.GroupLabel)
 	}
 	if string(definition.DefaultValue) != accessLogRetentionCleanupDefaultConfig {
 		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, definition.DefaultValue)

@@ -316,6 +316,18 @@
       "auditRead": {
         "display": "读取审计日志",
         "description": "允许查看审计概览与审计日志。"
+      },
+      "notificationView": {
+        "display": "查看通知",
+        "description": "允许读取当前用户通知和未读数量。"
+      },
+      "notificationRead": {
+        "display": "读取通知",
+        "description": "允许标记当前用户通知为已读或删除当前用户投递记录。"
+      },
+      "notificationManage": {
+        "display": "管理通知",
+        "description": "允许管理全局通知投递与配置。"
       }
     }
   }

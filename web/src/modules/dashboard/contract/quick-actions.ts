@@ -56,7 +56,7 @@ export type ResolveDashboardQuickActionConfigOptions = {
 
 export const DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG: DashboardQuickActionConfig = {
   enabled: true,
-  maxItems: 8,
+  maxItems: 4,
   strategy: DASHBOARD_QUICK_ACTION_STRATEGY.HYBRID,
 };
 

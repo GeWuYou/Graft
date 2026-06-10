@@ -23,9 +23,7 @@ func TestRegistryRegisterAndGetDefinition(t *testing.T) {
 	if got.Key != definition.Key || got.Module != definition.Module || got.Sensitive {
 		t.Fatalf("unexpected definition snapshot: %#v", got)
 	}
-	if got.GroupKey != "test.group" || got.GroupLabel != "Test Group" || len(got.Tags) != 1 || got.Tags[0] != "retention" {
-		t.Fatalf("expected localized group metadata and normalized tags, got %#v", got)
-	}
+	assertLocalizedMetadata(t, got)
 
 	got.DefaultValue[0] = '{'
 	got.Tags[0] = "mutated"
@@ -35,6 +33,23 @@ func TestRegistryRegisterAndGetDefinition(t *testing.T) {
 	}
 	if again.Tags[0] != "retention" {
 		t.Fatalf("registry leaked mutable tags: %#v", again.Tags)
+	}
+}
+
+func assertLocalizedMetadata(t *testing.T, got Definition) {
+	t.Helper()
+
+	if got.DomainKey != "test.domain" || got.DomainLabel != "Test Domain" {
+		t.Fatalf("expected localized domain metadata, got %#v", got)
+	}
+	if got.GroupKey != "test.group" || got.GroupLabel != "Test Group" {
+		t.Fatalf("expected localized group metadata, got %#v", got)
+	}
+	if got.GroupDescriptionKey != "test.group.description" || got.GroupDescription != "Test group description" {
+		t.Fatalf("expected localized group description metadata, got %#v", got)
+	}
+	if len(got.Tags) != 1 || got.Tags[0] != "retention" {
+		t.Fatalf("expected normalized tags, got %#v", got.Tags)
 	}
 }
 
@@ -58,6 +73,15 @@ func TestRegistryValidatesDefaultValueShape(t *testing.T) {
 	}
 }
 
+func TestRegistryRequiresDomain(t *testing.T) {
+	definition := testDefinition("auth.password_policy")
+	definition.Domain = ""
+
+	if err := NewRegistry().Register(definition); err == nil {
+		t.Fatal("expected missing domain error")
+	}
+}
+
 func TestMaskedPlaceholder(t *testing.T) {
 	if MaskedPlaceholder() == "" {
 		t.Fatal("masked placeholder must be stable and non-empty")
@@ -66,16 +90,21 @@ func TestMaskedPlaceholder(t *testing.T) {
 
 func testDefinition(key string) Definition {
 	return Definition{
-		Key:          key,
-		Module:       "test",
-		Group:        "test",
-		GroupKey:     " test.group ",
-		GroupLabel:   " Test Group ",
-		Title:        "Test",
-		Tags:         []string{" retention ", ""},
-		Type:         ValueTypeString,
-		Schema:       json.RawMessage(`{"type":"string"}`),
-		DefaultValue: json.RawMessage(`"30s"`),
-		Order:        10,
+		Key:                 key,
+		Module:              "test",
+		Domain:              " test ",
+		DomainKey:           " test.domain ",
+		DomainLabel:         " Test Domain ",
+		Group:               "test",
+		GroupKey:            " test.group ",
+		GroupLabel:          " Test Group ",
+		GroupDescription:    " Test group description ",
+		GroupDescriptionKey: " test.group.description ",
+		Title:               "Test",
+		Tags:                []string{" retention ", ""},
+		Type:                ValueTypeString,
+		Schema:              json.RawMessage(`{"type":"string"}`),
+		DefaultValue:        json.RawMessage(`"30s"`),
+		Order:               10,
 	}
 }

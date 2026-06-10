@@ -35,6 +35,7 @@ CODERABBIT_LOGIN = "coderabbitai[bot]"
 GREPTILE_LOGIN = "greptile-apps[bot]"
 GEMINI_CODE_ASSIST_LOGIN = "gemini-code-assist[bot]"
 GITHUB_ACTIONS_LOGIN = "github-actions[bot]"
+GITHUB_ADVANCED_SECURITY_LOGIN = "github-advanced-security[bot]"
 REVIEW_COMMENT_ADDRESSED_MARKER = "<!-- <review_comment_addressed> -->"
 VISIBLE_ADDRESSED_IN_COMMIT_PATTERN = re.compile(r"✅\s*Addressed in commit\s+[0-9a-f]{7,40}", re.I)
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 60
@@ -74,6 +75,12 @@ SUPPORTED_AI_REVIEWERS = (
         "display_name": "Gemini Code Assist",
         "supports_review_body_parsing": False,
     },
+    {
+        "slug": "github-advanced-security",
+        "login": GITHUB_ADVANCED_SECURITY_LOGIN,
+        "display_name": "GitHub Advanced Security",
+        "supports_review_body_parsing": False,
+    },
 )
 SUPPORTED_AI_REVIEWER_LOGINS = frozenset(agent["login"] for agent in SUPPORTED_AI_REVIEWERS)
 DISPLAY_SECTION_CHOICES = (
@@ -86,6 +93,7 @@ DISPLAY_SECTION_CHOICES = (
     "outside-diff",
     "nitpick",
     "open-threads",
+    "advanced-security",
     "megalinter",
     "tests",
     "warnings",
@@ -1276,6 +1284,63 @@ def build_all_open_review_threads(comments: list[dict[str, Any]]) -> list[dict[s
     return dedupe_review_threads(ai_open_threads)
 
 
+def is_github_advanced_security_check(check: dict[str, Any]) -> bool:
+    """Return whether a check run belongs to GitHub Advanced Security signals."""
+    haystack = " ".join(
+        str(check.get(field) or "")
+        for field in ("name", "app", "details_url", "html_url")
+    ).lower()
+    return any(
+        marker in haystack
+        for marker in (
+            "github-advanced-security",
+            "advanced security",
+            "code scanning",
+            "codeql",
+        )
+    )
+
+
+def is_github_advanced_security_thread(thread: dict[str, Any]) -> bool:
+    """Return whether a review thread was opened by GitHub Advanced Security."""
+    return str(thread.get("root_comment", {}).get("user") or "") == GITHUB_ADVANCED_SECURITY_LOGIN
+
+
+def build_github_advanced_security_report(
+    workflow_checks: dict[str, Any],
+    latest_commit_review: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a focused report for GitHub Advanced Security review signals."""
+    checks = [
+        check
+        for check in workflow_checks.get("all", [])
+        if is_github_advanced_security_check(check)
+    ]
+    failed_checks = [
+        check
+        for check in workflow_checks.get("failed", [])
+        if is_github_advanced_security_check(check)
+    ]
+    open_threads = [
+        thread
+        for thread in latest_commit_review.get("open_threads", [])
+        if is_github_advanced_security_thread(thread)
+    ]
+    all_open_threads = [
+        thread
+        for thread in latest_commit_review.get("all_open_threads", [])
+        if is_github_advanced_security_thread(thread)
+    ]
+    return {
+        "reviewer_login": GITHUB_ADVANCED_SECURITY_LOGIN,
+        "checks": checks,
+        "failed_checks": failed_checks,
+        "open_threads": open_threads,
+        "all_open_threads": all_open_threads,
+        "has_findings": bool(failed_checks or open_threads or all_open_threads),
+    }
+
+
 def select_latest_submitted_review(
     reviews: list[dict[str, Any]],
     *,
@@ -1533,6 +1598,10 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
         "coderabbit_review": coderabbit_review,
         "review_agents": review_agents,
         "latest_commit_review": latest_commit_review,
+        "github_advanced_security": build_github_advanced_security_report(
+            workflow_checks,
+            latest_commit_review,
+        ),
         "megalinter_report": parse_megalinter_comment(megalinter_block) if megalinter_block else {},
         "test_reports": [parse_test_report(block) for block in test_blocks],
         "parse_warnings": warnings,
@@ -1760,6 +1829,46 @@ def format_text(
                 )
         if all_open_threads and not visible_all_open_threads:
             lines.append("  Details: no unresolved AI review threads matched the current path filter.")
+
+    github_advanced_security = result.get("github_advanced_security", {})
+    if "advanced-security" in selected_sections:
+        lines.append("")
+        lines.append(
+            "GitHub Advanced Security: "
+            f"{len(github_advanced_security.get('failed_checks', []))} failed checks, "
+            f"{len(github_advanced_security.get('all_open_threads', []))} unresolved review threads"
+        )
+        for check in github_advanced_security.get("failed_checks", []):
+            lines.append(
+                f"- Check {check.get('name', '')}: status={check.get('status', '')} "
+                f"conclusion={check.get('conclusion', '')}"
+            )
+            if check.get("annotations"):
+                annotation = check["annotations"][0]
+                lines.append(
+                    "  Annotation: "
+                    f"{truncate_text(annotation.get('message') or annotation.get('title') or '', max_description_length)}"
+                )
+                if annotation.get("path"):
+                    lines.append(
+                        f"  Location: {annotation['path']}:{annotation.get('start_line') or ''}".rstrip(":")
+                    )
+            if check.get("details_url"):
+                lines.append(f"  Details: {check['details_url']}")
+        visible_security_threads = filter_threads_by_path(
+            github_advanced_security.get("all_open_threads", []),
+            normalized_path_filters,
+        )
+        for thread in visible_security_threads:
+            root_comment = thread["root_comment"]
+            latest_comment = thread["latest_comment"]
+            lines.append(f"- Thread {thread['path']}:{thread['line']}")
+            lines.append(f"  Root: {truncate_text(root_comment['body'], max_description_length)}")
+            lines.append(f"  Reply state: {thread.get('reply_state', 'unreplied')}")
+            if latest_comment["id"] != root_comment["id"]:
+                lines.append(f"  Latest: {truncate_text(latest_comment['body'], max_description_length)}")
+        if github_advanced_security.get("all_open_threads") and not visible_security_threads:
+            lines.append("  Details: no GitHub Advanced Security threads matched the current path filter.")
 
     megalinter_report = result.get("megalinter_report", {})
     if megalinter_report and "megalinter" in selected_sections:
