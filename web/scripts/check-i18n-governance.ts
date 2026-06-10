@@ -946,6 +946,7 @@ function shouldScanServerI18nKeyFile(file: string): boolean {
   const normalized = relative(REPOSITORY_DIR, file).replaceAll('\\', '/');
   return (
     file.endsWith('.go') &&
+    !normalized.endsWith('_test.go') &&
     (normalized.startsWith('server/internal/') || normalized.startsWith('server/modules/')) &&
     !normalized.includes('/contract/openapi/generated/')
   );
@@ -973,7 +974,11 @@ function collectServerI18nKeys(): Set<string> {
   const keys = new Set<string>();
   const stringConstantPattern = /\b([A-Za-z_]\w*)(?:\s+[A-Za-z_]\w*)?\s*=\s*"([^"$]+)"/g;
   const serverKeyFieldPattern =
-    /\b(?:TitleKey|DisplayKey|DescriptionKey|title_key|display_key|description_key)\s*:\s*(?:"([^"$]+)"|(?:(?:[A-Za-z_]\w*)\.)?([A-Za-z_]\w*)(?:\.String\(\))?)/g;
+    /\b(?:TitleKey|DisplayKey|DescriptionKey|LabelKey|EmptyKey|MessageKey|DisplayMessageKey|DescriptionMessageKey|titleKey|displayKey|descriptionKey|labelKey|emptyKey|messageKey|title_key|display_key|description_key|label_key|empty_key|message_key)\s*:\s*(?:"([^"$]+)"|(?:(?:[A-Za-z_]\w*)\.)?([A-Za-z_]\w*)(?:\.String\(\))?)/g;
+  const serverQuotedKeyFieldPattern =
+    /["'](?:title_key|display_key|description_key|label_key|empty_key|message_key)["']\s*:\s*(?:"([^"$]+)"|(?:(?:[A-Za-z_]\w*)\.)?([A-Za-z_]\w*)(?:\.String\(\))?)/g;
+  const serverSQLAliasKeyPattern =
+    /['"]([^'"$]+)['"]\s+(?:AS\s+)?(?:title_key|display_key|description_key|label_key|empty_key|message_key)\b/gi;
 
   for (const dir of SERVER_TITLE_KEY_DIRS) {
     for (const filePath of walkServerI18nKeyFiles(dir)) {
@@ -987,15 +992,31 @@ function collectServerI18nKeys(): Set<string> {
       for (const match of source.matchAll(serverKeyFieldPattern)) {
         const literalKey = match[1];
         const constantKey = match[2] ? stringConstants.get(match[2]) : undefined;
-        const key = literalKey ?? constantKey;
-        if (key) {
-          keys.add(key);
-        }
+        addServerI18nKey(keys, literalKey ?? constantKey);
+      }
+
+      for (const match of source.matchAll(serverQuotedKeyFieldPattern)) {
+        const literalKey = match[1];
+        const constantKey = match[2] ? stringConstants.get(match[2]) : undefined;
+        addServerI18nKey(keys, literalKey ?? constantKey);
+      }
+
+      for (const match of source.matchAll(serverSQLAliasKeyPattern)) {
+        addServerI18nKey(keys, match[1]);
       }
     }
   }
 
   return keys;
+}
+
+function addServerI18nKey(keys: Set<string>, rawKey: string | undefined) {
+  const key = rawKey?.trim();
+  if (!key || key.endsWith('.') || !isLikelyI18nKey(key)) {
+    return;
+  }
+
+  keys.add(key);
 }
 
 function isRuntimeReferenced(key: string, referenceSet: RuntimeReferenceSet): boolean {

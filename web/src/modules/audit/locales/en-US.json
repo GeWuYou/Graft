@@ -77,6 +77,10 @@
         "riskWatch": "Recent Risk"
       },
       "riskGroups": {
+        "authFailures": "Authentication Failures",
+        "criticalSecurity": "Critical Security",
+        "highRiskOperations": "High-risk Operations",
+        "permissionDenials": "Permission Denials",
         "meta": "{count} events in the current window",
         "action": "View related events"
       },

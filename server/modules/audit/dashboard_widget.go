@@ -6,6 +6,7 @@ package audit
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 
 	"graft/server/internal/dashboard"
@@ -18,6 +19,8 @@ const (
 	auditRiskEventsWidgetID     = "audit.risk-events"
 	auditRiskEventsWidgetOrder  = 100
 	auditRiskEventsItemCap      = 5
+	auditLogsQueryPreset        = "preset"
+	auditLogsQueryScope         = "scope"
 	auditOverviewQuickLinkID    = "audit.overview"
 	auditLogsQuickLinkID        = "audit.logs"
 	auditOverviewQuickLinkOrder = 140
@@ -105,7 +108,8 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 			"title":           "High-risk audit events",
 			"description_key": "dashboard.widget.auditRiskEvents.highRisk.description",
 			"description":     strconv.Itoa(overview.Summary.HighRiskEvents) + " high-risk events in the last 24 hours.",
-			"route_location":  auditcontract.AuditOverviewMenuPath,
+			"count":           overview.Summary.HighRiskEvents,
+			"route_location":  auditRiskDashboardLocation(auditstore.AuditBusinessCategoryHighRiskOperations),
 		})
 	}
 	if overview.Summary.FailedOperations > 0 {
@@ -116,11 +120,29 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 			"title":           "Failed operations",
 			"description_key": "dashboard.widget.auditRiskEvents.failedOperations.description",
 			"description":     strconv.Itoa(overview.Summary.FailedOperations) + " failed operations need review.",
-			"route_location":  auditcontract.AuditOverviewMenuPath,
+			"count":           overview.Summary.FailedOperations,
+			"route_location":  auditRiskDashboardLocation(auditstore.AuditBusinessCategoryFailedOperations),
 		})
 	}
-	items = appendAuditOverviewItems(items, "audit.failed-auth", "Failed authentication", overview.FailedAuth)
-	items = appendAuditOverviewItems(items, "audit.permission-denied", "Permission denied", overview.PermissionDenied)
+	riskGroupCounts := auditRiskGroupCounts(overview.RiskGroups)
+	items = appendAuditOverviewGroupItem(items, auditOverviewGroupItemDefinition{
+		count:          riskGroupCounts[auditstore.AuditBusinessCategoryAuthFailures],
+		id:             "audit.failed-auth",
+		items:          overview.FailedAuth,
+		scope:          auditstore.AuditBusinessCategoryAuthFailures,
+		title:          "Authentication failures",
+		titleKey:       "audit.overview.riskGroups.authFailures",
+		descriptionKey: "dashboard.widget.auditRiskEvents.authFailures.description",
+	})
+	items = appendAuditOverviewGroupItem(items, auditOverviewGroupItemDefinition{
+		count:          riskGroupCounts[auditstore.AuditBusinessCategoryPermissionDenials],
+		id:             "audit.permission-denied",
+		items:          overview.PermissionDenied,
+		scope:          auditstore.AuditBusinessCategoryPermissionDenials,
+		title:          "Permission denials",
+		titleKey:       "audit.overview.riskGroups.permissionDenials",
+		descriptionKey: "dashboard.widget.auditRiskEvents.permissionDenials.description",
+	})
 
 	highRiskEvents := overview.Summary.HighRiskEvents
 	state := dashboard.WidgetStateHidden
@@ -144,25 +166,62 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 	}, nil
 }
 
-func appendAuditOverviewItems(items []map[string]any, prefix string, title string, source []auditstore.OverviewItem) []map[string]any {
-	const maxAuditPreviewItems = 2
-	for index, item := range source {
-		if index >= maxAuditPreviewItems {
-			break
-		}
-		description := item.Message
-		if description == "" {
-			description = item.Action
-		}
-		items = append(items, map[string]any{
-			"id":             prefix + "." + strconv.FormatUint(item.ID, 10),
-			"level":          "warning",
-			"title_key":      "dashboard.widget.auditRiskEvents.recent.title",
-			"title":          title,
-			"description":    description,
-			"occurred_at":    item.CreatedAt,
-			"route_location": auditcontract.AuditOverviewMenuPath,
-		})
+type auditOverviewGroupItemDefinition struct {
+	count          int
+	id             string
+	items          []auditstore.OverviewItem
+	scope          auditstore.AuditBusinessCategory
+	title          string
+	titleKey       string
+	descriptionKey string
+}
+
+func appendAuditOverviewGroupItem(items []map[string]any, definition auditOverviewGroupItemDefinition) []map[string]any {
+	if definition.count <= 0 || len(definition.items) == 0 {
+		return items
 	}
-	return items
+	latest := definition.items[0]
+	description := latest.Message
+	if description == "" {
+		description = latest.Action
+	}
+	item := map[string]any{
+		"id":              definition.id,
+		"level":           "warning",
+		"title_key":       definition.titleKey,
+		"title":           definition.title,
+		"description_key": definition.descriptionKey,
+		"description":     description,
+		"count":           definition.count,
+		"occurred_at":     latest.CreatedAt,
+		"route_location":  auditRiskDashboardLocation(definition.scope),
+	}
+	return append(items, item)
+}
+
+func auditDashboardPresetQuery() url.Values {
+	query := url.Values{}
+	query.Set(auditLogsQueryPreset, string(auditstore.AuditTimePresetLast24Hours))
+	return query
+}
+
+func auditLogsDashboardLocation(query url.Values) string {
+	if len(query) == 0 {
+		return auditcontract.AuditLogsMenuPath
+	}
+	return auditcontract.AuditLogsMenuPath + "?" + query.Encode()
+}
+
+func auditRiskDashboardLocation(scope auditstore.AuditBusinessCategory) string {
+	query := auditDashboardPresetQuery()
+	query.Set(auditLogsQueryScope, string(scope))
+	return auditLogsDashboardLocation(query)
+}
+
+func auditRiskGroupCounts(groups []auditstore.OverviewRiskGroup) map[auditstore.AuditBusinessCategory]int {
+	counts := make(map[auditstore.AuditBusinessCategory]int, len(groups))
+	for _, group := range groups {
+		counts[auditstore.AuditBusinessCategory(group.Key)] = group.Count
+	}
+	return counts
 }

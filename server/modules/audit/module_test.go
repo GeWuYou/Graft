@@ -74,6 +74,16 @@ func (r *memoryAuditRepository) ReadAuditOverview(_ context.Context, window stor
 			HighRiskEvents:      2,
 			SensitiveOperations: 1,
 		},
+		RiskGroups: []store.OverviewRiskGroup{
+			{
+				Key:   string(store.AuditBusinessCategoryAuthFailures),
+				Count: 4,
+			},
+			{
+				Key:   string(store.AuditBusinessCategoryPermissionDenials),
+				Count: 3,
+			},
+		},
 		FailedAuth: []store.OverviewItem{
 			{
 				ID:        1,
@@ -396,6 +406,38 @@ func assertAuditQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, id s
 	}
 }
 
+type authOnlyOverviewRepository struct {
+	memoryAuditRepository
+}
+
+func (r *authOnlyOverviewRepository) ReadAuditOverview(_ context.Context, window store.AuditTimePreset) (store.AuditOverview, error) {
+	return store.AuditOverview{
+		TimePreset: window,
+		Summary: store.OverviewSummary{
+			TotalLogs:           1,
+			FailedOperations:    1,
+			HighRiskEvents:      1,
+			SensitiveOperations: 0,
+		},
+		RiskGroups: []store.OverviewRiskGroup{
+			{
+				Key:   string(store.AuditBusinessCategoryAuthFailures),
+				Count: 1,
+			},
+		},
+		FailedAuth: []store.OverviewItem{
+			{
+				ID:        1,
+				Action:    "auth.token.expired",
+				RequestID: "req-auth",
+				Success:   false,
+				Message:   "auth.token_expired",
+				CreatedAt: time.Now().UTC(),
+			},
+		},
+	}, nil
+}
+
 func TestAuditRiskEventsDashboardWidgetLoadsRiskPayload(t *testing.T) {
 	ctx, _, _ := newModuleTestContext(t, &memoryAuditRepository{})
 	widget, ok := ctx.DashboardRegistry.Get(auditRiskEventsWidgetID)
@@ -414,8 +456,53 @@ func TestAuditRiskEventsDashboardWidgetLoadsRiskPayload(t *testing.T) {
 	if len(items) == 0 {
 		t.Fatalf("expected risk events payload to include attention items")
 	}
-	if items[0]["route_location"] != "/audit/overview" {
-		t.Fatalf("expected attention item to route to audit overview, got %#v", items[0])
+	itemsByID := map[string]map[string]any{}
+	for _, item := range items {
+		id, _ := item["id"].(string)
+		itemsByID[id] = item
+	}
+	if itemsByID["audit.high-risk"]["route_location"] != "/audit/logs?preset=last_24h&scope=high_risk_operations" {
+		t.Fatalf("expected high risk item to drill into audit logs, got %#v", itemsByID["audit.high-risk"])
+	}
+	if itemsByID["audit.failed-operations"]["route_location"] != "/audit/logs?preset=last_24h&scope=failed_operations" {
+		t.Fatalf("expected failed operations item to drill into audit logs, got %#v", itemsByID["audit.failed-operations"])
+	}
+	if itemsByID["audit.failed-auth"]["route_location"] != "/audit/logs?preset=last_24h&scope=auth_failures" {
+		t.Fatalf("expected failed auth item to drill into audit scope, got %#v", itemsByID["audit.failed-auth"])
+	}
+	if itemsByID["audit.high-risk"]["count"] != 2 {
+		t.Fatalf("expected high risk count to come from overview summary, got %#v", itemsByID["audit.high-risk"])
+	}
+	if itemsByID["audit.failed-operations"]["count"] != 1 {
+		t.Fatalf("expected failed operations count to come from overview summary, got %#v", itemsByID["audit.failed-operations"])
+	}
+	if itemsByID["audit.failed-auth"]["count"] != 4 {
+		t.Fatalf("expected failed auth count to come from risk group count, got %#v", itemsByID["audit.failed-auth"])
+	}
+	if itemsByID["audit.permission-denied"]["count"] != 3 {
+		t.Fatalf("expected permission denied count to come from risk group count, got %#v", itemsByID["audit.permission-denied"])
+	}
+}
+
+func TestAuditRiskEventsDashboardWidgetDoesNotFallbackPermissionDenialsToAuthFailures(t *testing.T) {
+	ctx, _, _ := newModuleTestContext(t, &authOnlyOverviewRepository{})
+	widget, ok := ctx.DashboardRegistry.Get(auditRiskEventsWidgetID)
+	if !ok {
+		t.Fatalf("expected audit risk events dashboard widget to be registered")
+	}
+
+	payload, err := widget.Loader.Load(context.Background(), dashboard.WidgetRequest{})
+	if err != nil {
+		t.Fatalf("load audit risk events widget: %v", err)
+	}
+	items, ok := payload["items"].([]map[string]any)
+	if !ok {
+		t.Fatalf("expected alert-list items payload, got %#v", payload["items"])
+	}
+	for _, item := range items {
+		if item["id"] == "audit.permission-denied" {
+			t.Fatalf("permission denial item must not be synthesized from auth failures: %#v", item)
+		}
 	}
 }
 

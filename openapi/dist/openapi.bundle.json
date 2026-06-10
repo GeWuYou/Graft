@@ -12910,6 +12910,10 @@
                 "description": {
                   "type": "string"
                 },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1
+                },
                 "occurred_at": {
                   "type": "string",
                   "format": "date-time"

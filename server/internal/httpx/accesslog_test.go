@@ -71,11 +71,13 @@ func TestLoadAccessLogRequestAttentionPayloadQueriesErrorsAndSlowRequests(t *tes
 	repo := &stubAccessLogRepository{
 		results: []AccessLogListResult{
 			{
+				Total: 2,
 				Items: []AccessLog{
 					{
 						ID:         1,
 						Method:     http.MethodGet,
 						Path:       "/api/users",
+						RequestID:  "req-error",
 						StatusCode: http.StatusInternalServerError,
 						DurationMS: 120,
 						OccurredAt: occurredAt,
@@ -83,6 +85,11 @@ func TestLoadAccessLogRequestAttentionPayloadQueriesErrorsAndSlowRequests(t *tes
 				},
 			},
 			{
+				Total: 0,
+				Items: []AccessLog{},
+			},
+			{
+				Total: 1,
 				Items: []AccessLog{
 					{
 						ID:         2,
@@ -101,14 +108,17 @@ func TestLoadAccessLogRequestAttentionPayloadQueriesErrorsAndSlowRequests(t *tes
 	if err != nil {
 		t.Fatalf("load access-log request attention payload: %v", err)
 	}
-	if len(repo.queries) != 2 {
-		t.Fatalf("expected error and slow request queries, got %#v", repo.queries)
+	if len(repo.queries) != 3 {
+		t.Fatalf("expected 4xx, 5xx, and slow request queries, got %#v", repo.queries)
 	}
-	if len(repo.queries[0].StatusGroups) != 2 {
-		t.Fatalf("expected first query to request error status groups, got %#v", repo.queries[0])
+	if len(repo.queries[0].StatusGroups) != 1 || repo.queries[0].StatusGroups[0] != AccessLogStatusGroup4xx {
+		t.Fatalf("expected first query to request 4xx status group, got %#v", repo.queries[0])
 	}
-	if repo.queries[1].DurationMinMS == nil || *repo.queries[1].DurationMinMS != accessLogSlowRequestThresholdMS {
-		t.Fatalf("expected second query to request slow requests, got %#v", repo.queries[1])
+	if len(repo.queries[1].StatusGroups) != 1 || repo.queries[1].StatusGroups[0] != AccessLogStatusGroup5xx {
+		t.Fatalf("expected second query to request 5xx status group, got %#v", repo.queries[1])
+	}
+	if repo.queries[2].DurationMinMS == nil || *repo.queries[2].DurationMinMS != accessLogSlowRequestThresholdMS {
+		t.Fatalf("expected third query to request slow requests, got %#v", repo.queries[2])
 	}
 	items, ok := payload["items"].([]map[string]any)
 	if !ok {
@@ -117,8 +127,15 @@ func TestLoadAccessLogRequestAttentionPayloadQueriesErrorsAndSlowRequests(t *tes
 	if len(items) != 2 {
 		t.Fatalf("expected two access-log attention items, got %d", len(items))
 	}
-	if items[0]["route_location"] != accessLogMenuListPath || items[1]["route_location"] != accessLogMenuListPath {
-		t.Fatalf("expected access-log route on attention items, got %#v", items)
+	if items[0]["count"] != 2 {
+		t.Fatalf("expected error request count to come from repository total, got %#v", items[0])
+	}
+	if items[0]["route_location"] != accessLogMenuListPath+"?status_group=4xx" {
+		t.Fatalf("expected error request group to drill into matching status group, got %#v", items[0])
+	}
+	expectedSlowRoute := accessLogMenuListPath + "?duration_min_ms=1000"
+	if items[1]["route_location"] != expectedSlowRoute {
+		t.Fatalf("expected slow request to drill into access-log filters, got %#v", items[1])
 	}
 }
 

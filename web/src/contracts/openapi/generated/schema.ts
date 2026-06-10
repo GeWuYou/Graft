@@ -3141,6 +3141,7 @@ export interface components {
         title: string;
         description_key?: string;
         description?: string;
+        count?: number;
         /** Format: date-time */
         occurred_at?: string;
         route_location?: string;

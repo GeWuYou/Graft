@@ -20,6 +20,35 @@ describe('dashboard widget payload guards', () => {
     expect(asHealthPayload({ summary: { status: 'healthy' }, items: [] })).not.toBeNull();
   });
 
+  it('accepts backend-owned alert counts', () => {
+    expect(
+      asAlertListPayload({
+        items: [
+          {
+            count: 4,
+            id: 'risk.auth',
+            level: 'warning',
+            title: 'Authentication failures',
+            title_key: 'audit.overview.riskGroups.authFailures',
+          },
+        ],
+      }),
+    ).not.toBeNull();
+    expect(
+      asAlertListPayload({
+        items: [
+          {
+            count: 0,
+            id: 'risk.auth',
+            level: 'warning',
+            title: 'Authentication failures',
+            title_key: 'audit.overview.riskGroups.authFailures',
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
   it('rejects malformed minimal item shapes', () => {
     expect(
       asStatGroupPayload({ items: [{ key: 'enabled', label_key: 'dashboard.enabled', label: 'Enabled' }] }),

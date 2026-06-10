@@ -77,6 +77,10 @@
         "riskWatch": "最近风险"
       },
       "riskGroups": {
+        "authFailures": "认证失败",
+        "criticalSecurity": "关键安全事件",
+        "highRiskOperations": "高风险操作",
+        "permissionDenials": "权限拒绝",
         "meta": "当前窗口共 {count} 条",
         "action": "查看相关事件"
       },

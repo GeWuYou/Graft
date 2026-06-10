@@ -294,7 +294,7 @@ func (r *repository) ReadAuditOverview(ctx context.Context, preset auditstore.Au
 		Trend:            trend,
 		SecurityTimeline: securityTimeline,
 		FailedAuth:       failedAuth,
-		PermissionDenied: failedAuthUniqueByRequest(failedAuth, permissionDenied),
+		PermissionDenied: permissionDenied,
 		SensitiveOps:     sensitiveOps,
 	}, nil
 }
@@ -2097,20 +2097,6 @@ func scanAuditOverviewItem(scanner interface {
 	}
 	item.Metadata = cloneRawMessage(metadata)
 	return item, nil
-}
-
-func failedAuthUniqueByRequest(primary []auditstore.OverviewItem, fallback []auditstore.OverviewItem) []auditstore.OverviewItem {
-	items := append([]auditstore.OverviewItem(nil), fallback...)
-	slices.SortFunc(items, func(a, b auditstore.OverviewItem) int {
-		return b.CreatedAt.Compare(a.CreatedAt)
-	})
-	if len(items) > overviewRecentLimit {
-		items = items[:overviewRecentLimit]
-	}
-	if len(items) > 0 {
-		return items
-	}
-	return primary
 }
 
 func nullableUint64(value *uint64) (any, error) {

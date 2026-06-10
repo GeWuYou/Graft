@@ -483,6 +483,51 @@ func TestRepositoryListAuditLogsSupportsCanonicalFilters(t *testing.T) {
 	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].RequestID != "req-auth" {
 		t.Fatalf("session filter: unexpected result %#v", result)
 	}
+
+}
+
+func TestRepositoryListAuditLogsSupportsOverviewBusinessCategories(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	seedAuditOverviewDrilldownLogs(ctx, t, repo, now)
+
+	assertAuditBusinessCategoryResult(
+		ctx,
+		t,
+		repo,
+		auditstore.AuditBusinessCategoryPermissionDenials,
+		"req-denied",
+	)
+	assertAuditBusinessCategoryResult(ctx, t, repo, auditstore.AuditBusinessCategoryAuthFailures, "req-auth")
+}
+
+func assertAuditBusinessCategoryResult(
+	ctx context.Context,
+	t *testing.T,
+	repo auditstore.AuditRepository,
+	category auditstore.AuditBusinessCategory,
+	wantRequestID string,
+) {
+	t.Helper()
+
+	result, err := repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
+		TimePreset:       auditstore.AuditTimePresetLast24Hours,
+		BusinessCategory: category,
+		Limit:            20,
+		Offset:           0,
+	})
+	if err != nil {
+		t.Fatalf("%s business category: list audit logs: %v", category, err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].RequestID != wantRequestID {
+		t.Fatalf("%s business category: unexpected result %#v", category, result)
+	}
 }
 
 func seedAuditOverviewDrilldownLogs(
@@ -752,6 +797,41 @@ func TestRepositoryReadAuditOverview(t *testing.T) {
 	}
 
 	assertOverviewSummary(t, overview)
+}
+
+func TestRepositoryReadAuditOverviewDoesNotFallbackPermissionDeniedToFailedAuth(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if _, err := repo.CreateAuditLog(ctx, auditstore.CreateAuditLogInput{
+		Action:       "auth.login_failed",
+		ResourceType: "auth",
+		ResourceID:   "session-1",
+		ResourceName: "login",
+		Success:      false,
+		RequestID:    "req-auth",
+		Message:      "auth.token_expired",
+		Metadata:     json.RawMessage(`{"request_path":"/api/auth/login","status_code":401,"session_id":"session-1"}`),
+		CreatedAt:    now.Add(-15 * time.Minute),
+	}); err != nil {
+		t.Fatalf("seed auth audit log: %v", err)
+	}
+
+	overview, err := repo.ReadAuditOverview(ctx, auditstore.AuditTimePresetLast24Hours)
+	if err != nil {
+		t.Fatalf("read audit overview: %v", err)
+	}
+	if len(overview.FailedAuth) != 1 {
+		t.Fatalf("expected failed auth item, got %#v", overview.FailedAuth)
+	}
+	if len(overview.PermissionDenied) != 0 {
+		t.Fatalf("permission denied items must not fallback to failed auth, got %#v", overview.PermissionDenied)
+	}
 }
 
 func assertOverviewSummary(t *testing.T, overview auditstore.AuditOverview) {

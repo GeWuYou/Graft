@@ -4,20 +4,20 @@
 -->
 
 <template>
-  <t-list v-if="payload && groupedItems.length" size="small" split>
-    <t-list-item v-for="item in groupedItems" :key="item.id">
+  <t-list v-if="payload && payload.items.length" size="small" split>
+    <t-list-item v-for="item in payload.items" :key="item.id">
       <div class="dashboard-alert-list__item">
         <t-tag :theme="levelTheme(item.level)" variant="light">{{ levelLabel(item.level) }}</t-tag>
         <div class="dashboard-alert-list__content">
           <div class="dashboard-alert-list__title-row">
-            <strong>{{ item.title }}</strong>
-            <t-tag v-if="item.count > 1" size="small" variant="light-outline">
+            <strong>{{ alertTitle(item) }}</strong>
+            <t-tag v-if="item.count && item.count > 1" size="small" variant="light-outline">
               {{ t('dashboard.alert.count', { count: item.count }) }}
             </t-tag>
           </div>
-          <p v-if="item.description">{{ item.description }}</p>
-          <time v-if="item.latestAt">
-            {{ t('dashboard.alert.latestAt', { time: formatDashboardDateTime(item.latestAt) }) }}
+          <p v-if="itemDescription(item)">{{ itemDescription(item) }}</p>
+          <time v-if="item.occurred_at">
+            {{ t('dashboard.alert.latestAt', { time: formatDashboardDateTime(item.occurred_at) }) }}
           </time>
         </div>
       </div>
@@ -57,57 +57,6 @@ const KNOWN_ALERT_TITLE_KEYS = {
 
 const router = useRouter();
 const payload = computed(() => asAlertListPayload(props.widget.payload));
-const groupedItems = computed(() => {
-  const currentPayload = payload.value;
-  if (!currentPayload) {
-    return [];
-  }
-
-  const groups = new Map<string, AlertGroup>();
-  for (const item of currentPayload.items) {
-    const title = normalizedTitle(resolveDashboardText(item.title_key, item.title));
-    const key = alertGroupKey(item, title);
-    const existing = groups.get(key);
-    const occurredAt = item.occurred_at || '';
-    if (!existing) {
-      groups.set(key, {
-        id: key,
-        count: 1,
-        description: itemDescription(item),
-        latestAt: occurredAt,
-        level: item.level,
-        route_location: item.route_location,
-        title,
-      });
-      continue;
-    }
-
-    existing.count += 1;
-    if (isAfter(occurredAt, existing.latestAt)) {
-      existing.latestAt = occurredAt;
-      existing.description = itemDescription(item);
-      existing.route_location = item.route_location || existing.route_location;
-    }
-  }
-
-  return [...groups.values()].sort((left, right) => {
-    const levelDelta = levelWeight(left.level) - levelWeight(right.level);
-    if (levelDelta !== 0) {
-      return levelDelta;
-    }
-    return timestamp(right.latestAt) - timestamp(left.latestAt);
-  });
-});
-
-interface AlertGroup {
-  id: string;
-  level: AlertLevel;
-  title: string;
-  description: string;
-  latestAt: string;
-  route_location?: string;
-  count: number;
-}
 
 function levelTheme(level: AlertLevel) {
   if (level === 'error') return 'danger';
@@ -119,15 +68,14 @@ function levelLabel(level: AlertLevel) {
   return t(`dashboard.alert.level.${level}`);
 }
 
+function alertTitle(item: DashboardAlertListPayload['items'][number]) {
+  return normalizedTitle(resolveDashboardText(item.title_key, item.title));
+}
+
 function itemDescription(item: DashboardAlertListPayload['items'][number]) {
   return item.description_key
     ? resolveDashboardText(item.description_key, item.description)
     : resolveDashboardRelatedText(item.title_key, 'description', item.description);
-}
-
-function alertGroupKey(item: DashboardAlertListPayload['items'][number], title: string) {
-  const statusCode = item.description?.match(/\b([1-5]\d{2})\b/)?.[1];
-  return [item.level, statusCode || title].join(':');
 }
 
 function normalizedTitle(value: string) {
@@ -137,21 +85,6 @@ function normalizedTitle(value: string) {
   }
 
   return value.replaceAll('_', ' ').replace(/\b\w/g, (match) => match.toUpperCase());
-}
-
-function timestamp(value: string) {
-  const date = new Date(value).getTime();
-  return Number.isFinite(date) ? date : 0;
-}
-
-function isAfter(left: string, right: string) {
-  return timestamp(left) > timestamp(right);
-}
-
-function levelWeight(level: AlertLevel) {
-  if (level === 'error') return 0;
-  if (level === 'warning') return 1;
-  return 2;
 }
 
 function go(location: string) {

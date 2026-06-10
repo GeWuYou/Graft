@@ -5,6 +5,7 @@ package httpx
 
 import (
 	"context"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -20,7 +21,9 @@ const (
 	AccessLogDashboardQuickLinkOrder = 210
 	accessLogSlowRequestThresholdMS  = int64(1000)
 	accessLogWidgetRecentLimit       = 2
-	accessLogWidgetSourceCount       = 2
+	accessLogWidgetSourceCount       = 3
+	accessLogQueryStatusGroup        = "status_group"
+	accessLogQueryDurationMinMS      = "duration_min_ms"
 )
 
 // AccessLogDashboardModuleKey returns the core system-capability owner for access-log dashboard data.
@@ -40,10 +43,20 @@ func AccessLogDashboardTitleKey() string {
 
 // LoadAccessLogRequestAttentionPayload returns access-log attention data without depending on dashboard internals.
 func LoadAccessLogRequestAttentionPayload(ctx context.Context, repo AccessLogRepository) (map[string]any, error) {
-	errorsResult, err := repo.ListAccessLogs(ctx, AccessLogListQuery{
+	clientErrorsResult, err := repo.ListAccessLogs(ctx, AccessLogListQuery{
 		Page:         1,
 		PageSize:     accessLogWidgetRecentLimit,
-		StatusGroups: []AccessLogStatusGroup{AccessLogStatusGroup4xx, AccessLogStatusGroup5xx},
+		StatusGroups: []AccessLogStatusGroup{AccessLogStatusGroup4xx},
+		Sorts:        []AccessLogSort{{Field: AccessLogSortOccurredAt, Order: AccessLogSortOrderDesc}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	serverErrorsResult, err := repo.ListAccessLogs(ctx, AccessLogListQuery{
+		Page:         1,
+		PageSize:     accessLogWidgetRecentLimit,
+		StatusGroups: []AccessLogStatusGroup{AccessLogStatusGroup5xx},
 		Sorts:        []AccessLogSort{{Field: AccessLogSortOccurredAt, Order: AccessLogSortOrderDesc}},
 	})
 	if err != nil {
@@ -61,12 +74,9 @@ func LoadAccessLogRequestAttentionPayload(ctx context.Context, repo AccessLogRep
 	}
 
 	items := make([]map[string]any, 0, accessLogWidgetRecentLimit*accessLogWidgetSourceCount)
-	for _, record := range errorsResult.Items {
-		items = append(items, accessLogAlertItem("error", record, "HTTP error request", "error"))
-	}
-	for _, record := range slowResult.Items {
-		items = append(items, accessLogAlertItem("slow", record, "Slow HTTP request", "warning"))
-	}
+	items = appendAccessLogStatusGroupItem(items, "error.4xx", clientErrorsResult, AccessLogStatusGroup4xx)
+	items = appendAccessLogStatusGroupItem(items, "error.5xx", serverErrorsResult, AccessLogStatusGroup5xx)
+	items = appendAccessLogSlowRequestItem(items, slowResult)
 
 	visible := len(items) > 0
 	state := "hidden"
@@ -92,21 +102,78 @@ func LoadAccessLogRequestAttentionPayload(ctx context.Context, repo AccessLogRep
 	}, nil
 }
 
-func accessLogAlertItem(prefix string, record AccessLog, title string, level string) map[string]any {
-	occurredAt := record.OccurredAt
+func appendAccessLogStatusGroupItem(
+	items []map[string]any,
+	id string,
+	result AccessLogListResult,
+	statusGroup AccessLogStatusGroup,
+) []map[string]any {
+	if result.Total <= 0 || len(result.Items) == 0 {
+		return items
+	}
+	record := result.Items[0]
+	return append(items, accessLogAlertItem(accessLogAlertItemDefinition{
+		count:         int(result.Total),
+		id:            id,
+		level:         "error",
+		record:        record,
+		routeLocation: accessLogDashboardRouteLocation(url.Values{accessLogQueryStatusGroup: []string{string(statusGroup)}}),
+		title:         "HTTP error request",
+		titleKey:      "dashboard.widget.accessLogRequestAttention.error",
+	}))
+}
+
+func appendAccessLogSlowRequestItem(items []map[string]any, result AccessLogListResult) []map[string]any {
+	if result.Total <= 0 || len(result.Items) == 0 {
+		return items
+	}
+	record := result.Items[0]
+	return append(items, accessLogAlertItem(accessLogAlertItemDefinition{
+		count:  int(result.Total),
+		id:     "slow",
+		level:  "warning",
+		record: record,
+		routeLocation: accessLogDashboardRouteLocation(url.Values{
+			accessLogQueryDurationMinMS: []string{strconv.FormatInt(accessLogSlowRequestThresholdMS, 10)},
+		}),
+		title:    "Slow HTTP request",
+		titleKey: "dashboard.widget.accessLogRequestAttention.slow",
+	}))
+}
+
+type accessLogAlertItemDefinition struct {
+	count         int
+	id            string
+	level         string
+	record        AccessLog
+	routeLocation string
+	title         string
+	titleKey      string
+}
+
+func accessLogAlertItem(definition accessLogAlertItemDefinition) map[string]any {
+	occurredAt := definition.record.OccurredAt
 	if occurredAt.IsZero() {
 		occurredAt = time.Now().UTC()
 	}
 
 	return map[string]any{
-		"id":             prefix + "." + strconv.FormatUint(record.ID, 10),
-		"level":          level,
-		"title_key":      "dashboard.widget.accessLogRequestAttention." + prefix,
-		"title":          title,
-		"description":    record.Method + " " + record.Path + " -> " + strconv.Itoa(record.StatusCode) + " in " + strconv.FormatInt(record.DurationMS, 10) + "ms",
+		"id":             definition.id,
+		"level":          definition.level,
+		"title_key":      definition.titleKey,
+		"title":          definition.title,
+		"description":    definition.record.Method + " " + definition.record.Path + " -> " + strconv.Itoa(definition.record.StatusCode) + " in " + strconv.FormatInt(definition.record.DurationMS, 10) + "ms",
+		"count":          definition.count,
 		"occurred_at":    occurredAt,
-		"route_location": accessLogMenuListPath,
+		"route_location": definition.routeLocation,
 	}
+}
+
+func accessLogDashboardRouteLocation(query url.Values) string {
+	if len(query) == 0 {
+		return accessLogMenuListPath
+	}
+	return accessLogMenuListPath + "?" + query.Encode()
 }
 
 func int64Pointer(value int64) *int64 {

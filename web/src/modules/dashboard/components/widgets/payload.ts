@@ -21,6 +21,10 @@ function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
+function isOptionalPositiveNumber(value: unknown) {
+  return value === undefined || (typeof value === 'number' && Number.isFinite(value) && value >= 1);
+}
+
 function hasRequiredStrings(value: unknown, keys: string[]) {
   return isRecord(value) && keys.every((key) => isString(value[key]));
 }
@@ -35,7 +39,10 @@ function isStatGroupItem(value: unknown): value is DashboardStatGroupPayload['it
 
 function isAlertListItem(value: unknown): value is DashboardAlertListPayload['items'][number] {
   return (
-    isRecord(value) && hasRequiredStrings(value, ['id', 'level', 'title_key', 'title']) && isAlertLevel(value.level)
+    isRecord(value) &&
+    hasRequiredStrings(value, ['id', 'level', 'title_key', 'title']) &&
+    isAlertLevel(value.level) &&
+    isOptionalPositiveNumber(value.count)
   );
 }
 

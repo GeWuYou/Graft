@@ -102,6 +102,9 @@
       "auditRiskEvents": {
         "description": "最近高风险审计和安全事件。",
         "empty": "过去 24 小时暂无审计风险事件",
+        "authFailures": {
+          "description": "过去 24 小时存在认证失败事件"
+        },
         "failedOperations": {
           "description": "失败操作需要复核",
           "title": "失败操作"
@@ -109,6 +112,9 @@
         "highRisk": {
           "description": "过去 24 小时存在高风险事件",
           "title": "高风险审计事件"
+        },
+        "permissionDenials": {
+          "description": "过去 24 小时存在权限拒绝事件"
         },
         "recent": {
           "title": "近期风险事件"
