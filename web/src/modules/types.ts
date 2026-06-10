@@ -16,10 +16,21 @@ export type BootstrapRouteRegistration = {
   meta?: Partial<AppRouteMeta>;
 };
 
+// GlobalRouteRegistration describes module-owned pages that live in the shell route runtime
+// but are intentionally not sourced from the sidebar bootstrap menu tree.
+export type GlobalRouteRegistration = {
+  path: string;
+  routeName: string;
+  loadPage: RouteRecordRaw['component'];
+  meta: AppRouteMeta;
+};
+
 // WebModuleRegistration 描述一个前端模块对壳层暴露的最小公共注册面。
 //
-// 当前阶段只开放模块标识和 bootstrap 动态路由声明，避免共享壳层直接依赖模块内部实现文件。
+// 当前阶段开放模块标识、bootstrap 动态路由声明，以及少量菜单外全局页面声明，
+// 避免共享壳层直接依赖模块内部实现文件。
 export type WebModuleRegistration = {
   moduleId: string;
   bootstrapRoutes: BootstrapRouteRegistration[];
+  globalRoutes?: GlobalRouteRegistration[];
 };

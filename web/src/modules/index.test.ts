@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildBootstrapRouteRegistrationMap,
+  buildGlobalRouteRegistrations,
   getBootstrapRouteRegistration,
+  getGlobalRouteRegistrations,
   resolveModuleRegistrationModulePaths,
 } from './index';
 import type { WebModuleRegistration } from './types';
@@ -24,7 +26,10 @@ describe('module registration aggregation', () => {
     expect(getBootstrapRouteRegistration('/server/system-config')?.routeName).toBe('SystemConfigList');
     expect(getBootstrapRouteRegistration('/audit/overview')?.routeName).toBe('AuditOverview');
     expect(getBootstrapRouteRegistration('/audit/logs')?.routeName).toBe('AuditLogList');
-    expect(getBootstrapRouteRegistration('/notifications')?.routeName).toBe('NotificationList');
+    expect(getBootstrapRouteRegistration('/notifications')).toBeUndefined();
+    expect(getGlobalRouteRegistrations().find((route) => route.path === '/notifications')?.routeName).toBe(
+      'NotificationList',
+    );
   });
 
   it('rejects duplicate menu paths', () => {
@@ -117,5 +122,125 @@ describe('module registration aggregation', () => {
         ['./user/bootstrap-routes.ts', './rbac/bootstrap-routes.ts'],
       ),
     ).toEqual(['./user/index.ts', './rbac/index.ts']);
+  });
+
+  it('rejects duplicate global route paths and route names', () => {
+    const duplicatePathRegistrations: WebModuleRegistration[] = [
+      {
+        moduleId: 'notification',
+        bootstrapRoutes: [],
+        globalRoutes: [
+          {
+            path: '/notifications',
+            routeName: 'NotificationList',
+            loadPage: async () => ({}),
+            meta: {},
+          },
+        ],
+      },
+      {
+        moduleId: 'audit',
+        bootstrapRoutes: [],
+        globalRoutes: [
+          {
+            path: '/notifications',
+            routeName: 'AuditNotificationList',
+            loadPage: async () => ({}),
+            meta: {},
+          },
+        ],
+      },
+    ];
+
+    expect(() => buildGlobalRouteRegistrations(duplicatePathRegistrations)).toThrow(/duplicate global route path/);
+
+    const duplicateNameRegistrations: WebModuleRegistration[] = [
+      {
+        moduleId: 'notification',
+        bootstrapRoutes: [],
+        globalRoutes: [
+          {
+            path: '/notifications',
+            routeName: 'NotificationList',
+            loadPage: async () => ({}),
+            meta: {},
+          },
+        ],
+      },
+      {
+        moduleId: 'audit',
+        bootstrapRoutes: [],
+        globalRoutes: [
+          {
+            path: '/audit-notifications',
+            routeName: 'NotificationList',
+            loadPage: async () => ({}),
+            meta: {},
+          },
+        ],
+      },
+    ];
+
+    expect(() => buildGlobalRouteRegistrations(duplicateNameRegistrations)).toThrow(
+      /duplicate bootstrap route name \(parent\)/,
+    );
+
+    const duplicateBootstrapChildNameRegistrations: WebModuleRegistration[] = [
+      {
+        moduleId: 'notification',
+        bootstrapRoutes: [],
+        globalRoutes: [
+          {
+            path: '/notifications',
+            routeName: 'AuditOverview',
+            loadPage: async () => ({}),
+            meta: {},
+          },
+        ],
+      },
+      {
+        moduleId: 'audit',
+        bootstrapRoutes: [
+          {
+            menuPath: '/audit/overview',
+            routeName: 'AuditOverviewIndex',
+            loadPage: async () => ({}),
+          },
+        ],
+      },
+    ];
+
+    expect(() => buildGlobalRouteRegistrations(duplicateBootstrapChildNameRegistrations)).toThrow(
+      /duplicate bootstrap route name \(parent\)/,
+    );
+
+    const duplicateGlobalChildNameRegistrations: WebModuleRegistration[] = [
+      {
+        moduleId: 'notification',
+        bootstrapRoutes: [],
+        globalRoutes: [
+          {
+            path: '/notifications',
+            routeName: 'NotificationListIndex',
+            loadPage: async () => ({}),
+            meta: {},
+          },
+        ],
+      },
+      {
+        moduleId: 'audit',
+        bootstrapRoutes: [
+          {
+            menuPath: '/audit/overview',
+            routeName: 'NotificationList',
+            loadPage: async () => ({}),
+          },
+        ],
+      },
+    ];
+
+    expect(() => buildGlobalRouteRegistrations(duplicateGlobalChildNameRegistrations)).toThrow(
+      /duplicate bootstrap route name \(child\)/,
+    );
   });
 });

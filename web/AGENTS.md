@@ -179,6 +179,8 @@ web/src/
 - 模块接入壳层的唯一新功能入口是 `modules/<name>/index.ts`
 - 模块对外声明 bootstrap 动态路由的唯一入口是 `modules/<name>/bootstrap-routes.ts`
 - `bootstrap-routes.ts` 只声明模块可接入壳层所需的最小注册信息，不扩散页面实现细节到壳层
+- 不属于左侧业务菜单但仍属于后台壳的模块页面，应通过模块注册面的 `globalRoutes` 声明为菜单外全局路由，
+  不得依赖后端 hidden menu 撑路由，也不得在壳层写死模块页面组件
 - 壳层只消费模块注册结果，不直接维护“页面 path -> 模块页面组件”的第二套长期白名单
 - 新增模块时，默认按 `pages`、`components`、`api`、`contract`、`types`、`locales` 组织
 - 模块存在稳定子菜单或同级子页面时，`pages/<subpage>/index.vue` 是默认页面真值；测试与页面私有样式跟随该目录放在 `pages/<subpage>/index.test.ts`、`pages/<subpage>/index.less`
@@ -186,6 +188,8 @@ web/src/
 - 新增模块时，至少补齐模块目录、`index.ts` 与 `bootstrap-routes.ts`
 - 如果某个默认目录在当前切片暂时不存在，必须保证对应真值仍留在模块边界内，不得回退到根级平台目录
 - 路由名必须稳定且唯一；不得为同一语义并行维护多套 route name 或 path 常量
+- `hiddenMenu` 只表示不参与菜单渲染，仍可生成 Tab、breadcrumb、keep-alive key；`hidden` 表示壳层隐藏页面，
+  不得用 `hidden` 代替菜单隐藏
 
 i18n 与标题规则：
 

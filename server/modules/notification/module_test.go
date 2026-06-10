@@ -59,7 +59,7 @@ func TestModuleRegistersPermissionsAndPublisher(t *testing.T) {
 
 	assertNotificationPermissionsRegistered(t, ctx.PermissionRegistry)
 	assertNotificationPublisherRegistered(t, services)
-	assertNotificationMenuRegistered(t, ctx.MenuRegistry)
+	assertNotificationMenuNotRegistered(t, ctx.MenuRegistry)
 	assertNotificationMenuTitleMessage(t, ctx.I18n, i18n.LocaleZHCN, "通知中心")
 	assertNotificationMenuTitleMessage(t, ctx.I18n, i18n.LocaleENUS, "Notification Center")
 }
@@ -94,21 +94,14 @@ func assertNotificationPublisherRegistered(t *testing.T, services *container.Con
 	}
 }
 
-func assertNotificationMenuRegistered(t *testing.T, registry *menu.Registry) {
+func assertNotificationMenuNotRegistered(t *testing.T, registry *menu.Registry) {
 	t.Helper()
 
 	menus := registry.Items()
-	if len(menus) != 1 {
-		t.Fatalf("expected one notification menu item, got %#v", menus)
-	}
-	menuItem := menus[0]
-	if menuItem.Code != "notification.list" ||
-		menuItem.TitleKey != notificationcontract.NotificationMenuTitle.String() ||
-		menuItem.Path != "/notifications" ||
-		menuItem.Icon != "mail" ||
-		menuItem.Order != notificationMenuOrder ||
-		menuItem.Permission != notificationcontract.NotificationViewPermission.String() {
-		t.Fatalf("expected canonical notification menu contract, got %#v", menuItem)
+	for _, item := range menus {
+		if item.Path == "/notifications" || item.Code == "notification.list" {
+			t.Fatalf("notification center must not be registered in sidebar menus, got %#v", menus)
+		}
 	}
 }
 

@@ -58,7 +58,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
     // initializeRoutes 只在拿到最新 bootstrap 菜单快照后调用，确保动态路由
     // 与当前会话的后端菜单/权限结果保持一致，而不是复用旧的 demo 路由树。
     const initializeRoutes = async () => {
-      removeMountedBootstrapRoutes(targetRouter, permissionStore.asyncRoutes);
+      removeMountedBootstrapRoutes(targetRouter, [...permissionStore.asyncRoutes, ...permissionStore.globalRoutes]);
       const routeList = await permissionStore.buildAsyncRoutes();
       routeList.forEach((item: RouteRecordRaw) => {
         targetRouter.addRoute(item);
@@ -144,7 +144,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
         MessagePlugin.error(message);
         // bootstrap 恢复失败意味着当前会话无法再信任，需要同时清理本地 token
         // 和已挂载的动态路由，再把用户送回登录页重新建立会话。
-        removeMountedBootstrapRoutes(targetRouter, permissionStore.asyncRoutes);
+        removeMountedBootstrapRoutes(targetRouter, [...permissionStore.asyncRoutes, ...permissionStore.globalRoutes]);
         userStore.clearSessionState();
         permissionStore.restoreRoutes();
         next({
@@ -205,7 +205,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
       const userStore = useAuthSessionStore();
       const permissionStore = getPermissionStore();
 
-      removeMountedBootstrapRoutes(targetRouter, permissionStore.asyncRoutes);
+      removeMountedBootstrapRoutes(targetRouter, [...permissionStore.asyncRoutes, ...permissionStore.globalRoutes]);
       userStore.clearSessionState();
       permissionStore.restoreRoutes();
     }

@@ -39,6 +39,7 @@ const storeState = vi.hoisted(() => ({
         name: 'UserList',
       },
     ] as RouteRecordRaw[],
+    globalRoutes: [] as RouteRecordRaw[],
     setBootstrapSnapshot: vi.fn(),
     buildAsyncRoutes: vi.fn(async function (this: any) {
       return this.asyncRoutes;
@@ -112,6 +113,7 @@ describe('permission restricted session guard', () => {
     storeState.permissionStore.buildAsyncRoutes.mockClear();
     storeState.permissionStore.restoreRoutes.mockReset();
     storeState.permissionStore.routesInitialized = true;
+    storeState.permissionStore.globalRoutes = [];
     storeState.userStore.ensureBootstrap.mockResolvedValue({
       must_change_password: true,
       roles: ['admin'],
@@ -227,13 +229,20 @@ describe('permission restricted session guard', () => {
         ],
       },
     ] as RouteRecordRaw[];
+    storeState.permissionStore.globalRoutes = [
+      {
+        path: '/notifications',
+        name: 'NotificationList',
+      },
+    ] as RouteRecordRaw[];
 
     const { afterEach } = await loadPermissionGuards();
 
     await afterEach({ path: '/login' });
 
-    expect(removeRoute).toHaveBeenNthCalledWith(1, 'UserListIndex');
-    expect(removeRoute).toHaveBeenNthCalledWith(2, 'UserList');
+    expect(removeRoute).toHaveBeenNthCalledWith(1, 'NotificationList');
+    expect(removeRoute).toHaveBeenNthCalledWith(2, 'UserListIndex');
+    expect(removeRoute).toHaveBeenNthCalledWith(3, 'UserList');
     expect(storeState.permissionStore.restoreRoutes).toHaveBeenCalledTimes(1);
   });
 });

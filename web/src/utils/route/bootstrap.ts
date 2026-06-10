@@ -6,6 +6,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { getBootstrapRouteRegistration } from '@/modules';
 import type { BootstrapMenu } from '@/modules/auth/contract/types';
+import type { GlobalRouteRegistration } from '@/modules/types';
 import { BLANK_LAYOUT, LAYOUT } from '@/utils/route/constant';
 import type { AppRouteMeta } from '@/utils/types';
 
@@ -33,6 +34,33 @@ export function transformBootstrapMenusToRoutes(menus: BootstrapMenu[]): RouteRe
     .filter((route): route is RouteRecordRaw => Boolean(route));
 
   return routes;
+}
+
+export function transformGlobalRegistrationsToRoutes(registrations: GlobalRouteRegistration[]): RouteRecordRaw[] {
+  return registrations.map((registration) =>
+    toRouteRecordRaw({
+      path: registration.path,
+      name: registration.routeName,
+      component: LAYOUT,
+      meta: {
+        ...registration.meta,
+        hiddenMenu: true,
+        single: true,
+      },
+      children: [
+        toRouteRecordRaw({
+          path: '',
+          name: `${registration.routeName}Index`,
+          component: registration.loadPage,
+          meta: {
+            ...registration.meta,
+            hiddenMenu: true,
+            hiddenBreadcrumb: true,
+          },
+        }),
+      ],
+    }),
+  );
 }
 
 function toRouteRecordRaw(route: object): RouteRecordRaw {

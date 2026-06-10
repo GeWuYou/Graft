@@ -71,11 +71,11 @@ const appendNewRoute = () => {
     fullPath,
     query,
     params,
-    meta: { hidden },
+    meta: { hidden, hiddenMenu },
     name,
   } = route;
 
-  if (hidden) {
+  if (hidden && !hiddenMenu) {
     return;
   }
 

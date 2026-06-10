@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { transformBootstrapMenusToRoutes } from './bootstrap';
+import { transformBootstrapMenusToRoutes, transformGlobalRegistrationsToRoutes } from './bootstrap';
 
 describe('transformBootstrapMenusToRoutes', () => {
   it('只为当前 web 已接入的 bootstrap 菜单生成动态路由', () => {
@@ -322,5 +322,34 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes).toHaveLength(1);
     expect(routes[0]?.path).toBe('/server');
     expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'runtime', 'dependencies', 'modules']);
+  });
+
+  it('registers menu-hidden global routes at their canonical URL without index redirects', () => {
+    const routes = transformGlobalRegistrationsToRoutes([
+      {
+        path: '/notifications',
+        routeName: 'NotificationList',
+        loadPage: async () => ({}),
+        meta: {
+          hiddenMenu: true,
+          title: {
+            'zh-CN': '通知中心',
+            'en-US': 'Notification Center',
+          },
+          titleKey: 'menu.notification.title',
+        },
+      },
+    ]);
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.path).toBe('/notifications');
+    expect(routes[0]?.redirect).toBeUndefined();
+    expect(routes[0]?.name).toBe('NotificationList');
+    expect(routes[0]?.meta?.hiddenMenu).toBe(true);
+    expect(routes[0]?.meta?.single).toBe(true);
+    expect(routes[0]?.children?.[0]?.path).toBe('');
+    expect(routes[0]?.children?.[0]?.name).toBe('NotificationListIndex');
+    expect(routes[0]?.children?.[0]?.meta?.hiddenMenu).toBe(true);
+    expect(routes[0]?.children?.[0]?.meta?.hiddenBreadcrumb).toBe(true);
   });
 });

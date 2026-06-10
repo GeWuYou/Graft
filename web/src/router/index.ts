@@ -143,6 +143,10 @@ export const getActive = (maxLevel = 3): string => {
     return '';
   }
 
+  if (route.meta?.hiddenMenu) {
+    return '';
+  }
+
   return route.path
     .split('/')
     .filter((_item: string, index: number) => index <= maxLevel && index > 0)

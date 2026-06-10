@@ -51,4 +51,31 @@ describe('usePermissionStore permission checks', () => {
     expect(store.hasAllPermissions(['role.read', 'role.create'])).toBe(false);
     expect(store.hasAnyPermission(['role.create', 'role.update'])).toBe(true);
   });
+
+  it('keeps global notification routes out of the sidebar menu routers', async () => {
+    const store = usePermissionStore();
+    store.setBootstrapSnapshot({
+      user: {
+        id: 1,
+        username: 'admin',
+        display_name: 'Admin',
+      },
+      must_change_password: false,
+      roles: ['admin'],
+      permissions: ['notification.view'],
+      menus: [],
+      locale: {
+        current_locale: 'zh-CN',
+        default_locale: 'zh-CN',
+        fallback_locale: 'zh-CN',
+        supported_locales: ['zh-CN'],
+      },
+    });
+
+    const routes = await store.buildAsyncRoutes();
+
+    expect(routes.some((route) => route.path === '/notifications')).toBe(true);
+    expect(store.globalRoutes.some((route) => route.path === '/notifications')).toBe(true);
+    expect(store.routers.some((route) => route.path === '/notifications')).toBe(false);
+  });
 });

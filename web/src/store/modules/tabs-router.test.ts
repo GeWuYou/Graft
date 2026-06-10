@@ -168,6 +168,61 @@ describe('useTabsRouterStore', () => {
     expect(localStorage.getItem('tabs:pinned')).toBe(JSON.stringify(['/audit/overview']));
   });
 
+  it('switches from audit context to the menu-hidden notification center tab', () => {
+    const tabsRouterStore = useTabsRouterStore();
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/audit/overview',
+      path: '/audit/overview',
+      fullPath: '/audit/overview',
+      title: {
+        'zh-CN': '安全审计 - 概览',
+        'en-US': 'Security Audit - Overview',
+      },
+      name: 'AuditOverview',
+      isAlive: true,
+      meta: {
+        tabGroup: 'audit',
+      },
+    });
+    tabsRouterStore.setActiveTabKey('/audit/overview');
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/notifications',
+      path: '/notifications',
+      fullPath: '/notifications',
+      title: {
+        'zh-CN': '通知中心',
+        'en-US': 'Notification Center',
+      },
+      name: 'NotificationList',
+      isAlive: true,
+      meta: {
+        hiddenMenu: true,
+        tabGroup: 'notification',
+      },
+    });
+    tabsRouterStore.setActiveRoute({
+      path: '/notifications',
+      fullPath: '/notifications',
+      query: {},
+      params: {},
+      name: 'NotificationList',
+      meta: {
+        hiddenMenu: true,
+        tabGroup: 'notification',
+      },
+      matched: [],
+      redirectedFrom: undefined,
+      hash: '',
+    });
+
+    const notificationTab = tabsRouterStore.tabRouters.find((route) => route.tabKey === '/notifications');
+    expect(tabsRouterStore.activeTabKey).toBe('/notifications');
+    expect(notificationTab?.title?.['zh-CN']).toBe('通知中心');
+    expect(notificationTab?.meta?.tabGroup).toBe('notification');
+    expect(notificationTab?.meta?.tabGroup).not.toBe('audit');
+  });
+
   it('closes all closable tabs while preserving home and pinned tabs', () => {
     const tabsRouterStore = useTabsRouterStore();
 

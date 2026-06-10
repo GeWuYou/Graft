@@ -57,8 +57,8 @@
 
         <t-empty v-else class="notification-bell-panel__empty" :title="emptyTitle" :description="emptyDescription" />
 
-        <div class="notification-bell-panel__foot">
-          <t-button block variant="text" @click="openAll">
+        <div class="notification-bell-panel__foot" @click="openAll">
+          <t-button class="notification-bell-panel__open-center" block variant="text">
             {{ t('notification.actions.viewAll') }}
           </t-button>
         </div>
@@ -261,6 +261,18 @@ function openAll() {
 
 .notification-bell-panel__foot {
   border-top: 1px solid var(--td-component-stroke);
+  cursor: pointer;
   padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-s);
+  transition: background-color 0.2s ease;
+}
+
+.notification-bell-panel__foot:hover {
+  background: var(--td-bg-color-container-hover);
+}
+
+.notification-bell-panel__open-center {
+  color: var(--td-text-color-primary);
+  font-weight: 500;
+  justify-content: flex-start;
 }
 </style>

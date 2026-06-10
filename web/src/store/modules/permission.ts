@@ -5,10 +5,11 @@ import cloneDeep from 'lodash/cloneDeep';
 import { defineStore } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
 
+import { getGlobalRouteRegistrations } from '@/modules';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import type { BootstrapResponse } from '@/modules/auth/contract/types';
 import { store } from '@/store';
-import { transformBootstrapMenusToRoutes } from '@/utils/route/bootstrap';
+import { transformBootstrapMenusToRoutes, transformGlobalRegistrationsToRoutes } from '@/utils/route/bootstrap';
 
 export const usePermissionStore = defineStore('permission', {
   state: () => ({
@@ -17,6 +18,7 @@ export const usePermissionStore = defineStore('permission', {
     routers: [] as RouteRecordRaw[],
     removeRoutes: [] as RouteRecordRaw[],
     asyncRoutes: [] as RouteRecordRaw[],
+    globalRoutes: [] as RouteRecordRaw[],
     routesInitialized: false,
   }),
   getters: {
@@ -39,13 +41,15 @@ export const usePermissionStore = defineStore('permission', {
     },
     async buildAsyncRoutes() {
       this.asyncRoutes = transformBootstrapMenusToRoutes(this.bootstrapSnapshot?.menus ?? []);
+      this.globalRoutes = transformGlobalRegistrationsToRoutes(getGlobalRouteRegistrations());
       await this.initRoutes();
       this.routesInitialized = true;
-      return this.asyncRoutes;
+      return [...this.asyncRoutes, ...this.globalRoutes];
     },
     async restoreRoutes() {
       this.bootstrapSnapshot = null;
       this.asyncRoutes = [];
+      this.globalRoutes = [];
       this.removeRoutes = [];
       this.routesInitialized = false;
       await this.initRoutes();

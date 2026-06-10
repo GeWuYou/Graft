@@ -44,6 +44,7 @@ export interface AppRouteMeta {
   icon?: string | Component | FunctionalComponent | (() => VNodeChild);
   orderNo?: number;
   hidden?: boolean;
+  hiddenMenu?: boolean;
   hiddenBreadcrumb?: boolean;
   single?: boolean;
   expanded?: boolean;

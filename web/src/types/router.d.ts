@@ -26,6 +26,7 @@ declare module 'vue-router' {
     expanded?: boolean;
     orderNo?: number;
     hidden?: boolean;
+    hiddenMenu?: boolean;
     hiddenBreadcrumb?: boolean;
     single?: boolean;
     keepAlive?: boolean;
