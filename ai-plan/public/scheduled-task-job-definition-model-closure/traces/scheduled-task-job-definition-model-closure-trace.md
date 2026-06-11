@@ -32,6 +32,50 @@
 - Introduce or formalize `category` and compact display metadata for Job Definition list display.
 - Keep full Job Definition title/description/key in details rather than in the list's compact type column.
 
+## 2026-06-11 Destructive Model Closure Implemented
+
+- Rewrote the scheduler table model destructively for early development:
+  - `scheduled_tasks` now stores task-instance data without `task_type`, `params_json`, or task-level module/owner
+    duplication.
+  - `scheduler_job_definitions` now stores Job Definition metadata including `module_key`, `category`,
+    `short_title_key`, and `short_title`.
+  - `scheduler_task_runs` now stores execution snapshots for task/job title metadata, `job_category`, `module_key`,
+    `task_builtin`, result data, and `error_message`.
+  - Scheduler soft delete columns were aligned to bigint epoch semantics where `0` means live.
+- Updated `cronx.Job` and builtin retention job registration so Job Definitions own category, short-title metadata,
+  config schema/default config, default cron, and default enabled behavior.
+- Updated scheduler repository/runtime/HTTP mapping so:
+  - task execution resolves Job Definition by `task.job_key`
+  - effective config is computed from Job Definition defaults plus task config overrides
+  - Task Runs record both task and Job Definition snapshots
+  - OpenAPI output does not expose misleading owner/module/task-type/params fields.
+- Updated OpenAPI source and generated server/web contracts.
+- Added the scheduled-task presenter boundary at
+  `web/src/modules/scheduled-task/presenter/scheduled-task-presenter.ts`.
+- Updated the scheduled-task list/detail UI:
+  - removed `Job 类型 / Job Type`
+  - list display uses compact category/module information
+  - details are grouped into task instance, job definition, configuration, and run information
+  - immediate run is folded into the More action menu.
+- Added i18n keys for Job Definition categories, retention short titles, category/job columns, and detail sections.
+
+## 2026-06-11 Validation
+
+- Passed focused backend tests:
+  `cd server && go test ./internal/cronx ./internal/scheduler ./modules/scheduler ./internal/httpx ./internal/logger ./modules/audit`
+- Passed backend completion validation:
+  `cd server && go run ./cmd/graft validate backend`
+- Passed focused scheduled-task frontend test:
+  `cd web && bun run vitest run src/modules/scheduled-task/pages/list/index.test.ts`
+- Passed frontend completion validation:
+  `cd web && bun run check`
+- Ran old-concept search over the scheduler/OpenAPI/web owned scope with no matches for removed scheduler concepts.
+
+## Closeout Decision
+
+- The implementation slice is complete and ready for a scoped commit.
+- After commit, the remaining administrative follow-up is to archive or close this public recovery topic.
+
 ## Future Session Reference
 
 Use the reference below at the start of a new session, then append the new task prompt after it:

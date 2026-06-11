@@ -16,6 +16,20 @@
       },
       "auditLogRetentionCleanup": {
         "title": "Audit log retention cleanup"
+      },
+      "category": {
+        "retention": "Retention",
+        "sync": "Sync",
+        "maintenance": "Maintenance",
+        "notification": "Notification",
+        "report": "Report",
+        "workflow": "Workflow",
+        "custom": "Custom"
+      },
+      "shortTitle": {
+        "accessLog": "Access Log",
+        "appLog": "App Log",
+        "auditLog": "Audit Log"
       }
     }
   },
@@ -217,22 +231,23 @@
         "failures24hDescription": "Failed runs in the last 24 hours"
       },
       "filters": {
-        "searchPlaceholder": "Search task, job key, owner, or module",
-        "jobType": "Job Type",
+        "searchPlaceholder": "Search task, job key, category, or module",
         "status": "Status",
-        "allJobTypes": "All Job Types",
-        "allStatuses": "All Statuses"
+        "allStatuses": "All Statuses",
+        "job": "Job",
+        "allJobs": "All Jobs"
       },
       "columns": {
         "task": "Task",
         "taskName": "Task Name",
-        "jobType": "Job Type",
         "status": "Status",
         "cron": "Cron",
         "recentResult": "Recent Result",
         "recentRun": "Recent Run",
         "successRate": "Success Rate",
-        "operation": "Operations"
+        "operation": "Operations",
+        "category": "Category",
+        "job": "Job"
       },
       "status": {
         "idle": "Idle",
@@ -252,16 +267,12 @@
       "form": {
         "createTitle": "Create Scheduled Task",
         "editTitle": "Edit Task",
-        "sectionJobType": "Job Type",
         "sectionBasic": "Task Description",
         "sectionExecutionPlan": "Execution Plan",
         "sectionEnabled": "Enabled Status",
         "sectionAdvancedConfig": "Advanced Config",
-        "jobType": "Job Type",
-        "jobTypePlaceholder": "Select a Job Definition",
         "jobKey": "Job Key",
         "module": "Module",
-        "owner": "Owner",
         "defaultCron": "Default Cron",
         "defaultConfig": "Default Config",
         "configSchema": "Config Schema",
@@ -277,7 +288,6 @@
         "configJsonPlaceholder": "{\n  \"window_days\": 30\n}",
         "formatJson": "Format JSON",
         "taskKeyRequiredHint": "Task Key is required.",
-        "jobTypeRequiredHint": "Job Type is required.",
         "titleRequiredHint": "Title is required.",
         "configJsonInvalidHint": "Config must be valid JSON.",
         "cronRequiredHint": "Cron Expression is required.",
@@ -288,7 +298,12 @@
         "configSelectPlaceholder": "Select an option",
         "configNumberPlaceholder": "Enter a number",
         "configStringPlaceholder": "Enter a value",
-        "noConfigFields": "This Job Definition has no configurable fields."
+        "noConfigFields": "This Job Definition has no configurable fields.",
+        "sectionJobDefinition": "Job Definition",
+        "job": "Job",
+        "jobPlaceholder": "Select a Job Definition",
+        "category": "Category",
+        "jobRequiredHint": "Job is required."
       },
       "validation": {
         "required": "{field} is required.",
@@ -365,14 +380,10 @@
         "key": "Task Key",
         "taskName": "Task Name",
         "description": "Description",
-        "owner": "Owner",
         "module": "Module",
         "enabled": "Enabled",
-        "jobType": "Job Type",
         "jobKey": "Job Key",
         "configJson": "Config JSON",
-        "scheduleType": "Schedule Type",
-        "scheduleRule": "Schedule Rule",
         "nextRun": "Next Run",
         "running": "Running",
         "status": "Status",
@@ -402,12 +413,31 @@
         "metrics": "Metrics",
         "details": "Details",
         "warnings": "Warnings",
-        "rawResultJson": "Raw Result JSON"
+        "rawResultJson": "Raw Result JSON",
+        "sections": {
+          "taskInstance": "Task Instance",
+          "jobDefinition": "Job Definition",
+          "configuration": "Configuration",
+          "runInfo": "Run Info"
+        },
+        "cron": "Cron",
+        "builtin": "Builtin",
+        "configSource": "Config Source",
+        "jobName": "Job Name",
+        "jobShortName": "Job Short Name",
+        "category": "Category",
+        "defaultCron": "Default Cron",
+        "defaultConfig": "Default Config",
+        "configSchema": "Config Schema"
       },
       "resource": {
         "accessLog": "Access Logs",
         "auditLog": "Audit Logs",
         "appLog": "App Logs"
+      },
+      "configSource": {
+        "system": "System Default",
+        "user": "User Override"
       }
     },
     "notification": {

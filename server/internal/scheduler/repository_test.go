@@ -23,16 +23,18 @@ func TestSQLRunRepositoryPersistsRunLifecycle(t *testing.T) {
 
 	startedAt := time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC)
 	run, err := repo.CreateRun(context.Background(), TaskRun{
-		TaskKey:     "audit.audit-log-retention-cleanup",
-		JobKey:      "audit.audit-log-retention-cleanup",
-		TaskName:    "audit.audit-log-retention-cleanup",
-		TaskBuiltin: true,
-		Owner:       "audit",
-		Module:      "audit",
-		TriggerType: TriggerTypeManual,
-		Status:      RunStatusRunning,
-		StartedAt:   startedAt,
-		CreatedAt:   startedAt,
+		TaskKey:       "audit.audit-log-retention-cleanup",
+		JobKey:        "audit.audit-log-retention-cleanup",
+		TaskTitle:     "Audit task",
+		JobTitle:      "Audit log retention cleanup",
+		JobShortTitle: "Audit Log",
+		JobCategory:   "retention",
+		ModuleKey:     "audit",
+		TaskBuiltin:   true,
+		TriggerType:   TriggerTypeManual,
+		Status:        RunStatusRunning,
+		StartedAt:     startedAt,
+		CreatedAt:     startedAt,
 	})
 	if err != nil {
 		t.Fatalf("create run: %v", err)
@@ -71,7 +73,7 @@ func assertFinishedSuccessRun(t *testing.T, run TaskRun) {
 	if run.Status != RunStatusSuccess || run.DurationMS == nil || *run.DurationMS != 1500 {
 		t.Fatalf("unexpected finished run: %#v", run)
 	}
-	if run.Result != "ok" || run.Error != "" {
+	if run.Result != "ok" || run.ErrorMessage != "" {
 		t.Fatalf("expected result summary without error, got %#v", run)
 	}
 	if !run.TaskBuiltin {
@@ -100,7 +102,9 @@ func TestSQLJobDefinitionRepositorySyncsDefinitions(t *testing.T) {
 	definition := JobDefinition{
 		JobKey:        "audit.retention.cleanup",
 		ModuleKey:     "audit",
+		Category:      "retention",
 		Title:         "Audit retention",
+		ShortTitle:    "Audit",
 		ConfigSchema:  "{}",
 		DefaultConfig: "{}",
 		DefaultCron:   "0 0 * * * *",
@@ -135,8 +139,9 @@ func TestSQLTaskRepositorySeedsBuiltinPreservesCronAndEnabledWhileRefreshingConf
 	seeded := TaskDefinition{
 		TaskKey:        "audit.retention.cleanup",
 		JobKey:         "audit.retention.cleanup",
-		ModuleKey:      "audit",
+		TitleKey:       "scheduler.job.auditLogRetentionCleanup.title",
 		Title:          "scheduledTask.auditLogRetention.title",
+		DescriptionKey: "scheduledTask.auditLogRetention.description",
 		Description:    "scheduledTask.auditLogRetention.description",
 		CronExpression: "0 0 * * * *",
 		Enabled:        true,
@@ -193,7 +198,6 @@ func TestSQLTaskRepositoryCreatesMultipleTasksForOneJobAndSoftDeletes(t *testing
 	task, err := repo.CreateTask(ctx, TaskDefinition{
 		TaskKey:        "audit.retention.nightly",
 		JobKey:         "audit.retention.cleanup",
-		ModuleKey:      "audit",
 		Title:          "Ping",
 		CronExpression: "*/30 * * * * *",
 		Enabled:        true,
@@ -210,7 +214,6 @@ func TestSQLTaskRepositoryCreatesMultipleTasksForOneJobAndSoftDeletes(t *testing
 	if _, err := repo.CreateTask(ctx, TaskDefinition{
 		TaskKey:        "audit.retention.weekly",
 		JobKey:         "audit.retention.cleanup",
-		ModuleKey:      "audit",
 		Title:          "Weekly cleanup",
 		CronExpression: "0 0 0 * * 0",
 		Enabled:        true,
@@ -227,7 +230,6 @@ func TestSQLTaskRepositoryCreatesMultipleTasksForOneJobAndSoftDeletes(t *testing
 	if _, err := repo.CreateTask(ctx, TaskDefinition{
 		TaskKey:        "audit.retention.recreated",
 		JobKey:         "audit.retention.cleanup",
-		ModuleKey:      "audit",
 		Title:          "Ping",
 		CronExpression: "*/15 * * * * *",
 		Enabled:        true,
@@ -250,7 +252,6 @@ func TestSQLTaskRepositoryListTasksNormalizesPagination(t *testing.T) {
 		if _, err := repo.CreateTask(ctx, TaskDefinition{
 			TaskKey:        key,
 			JobKey:         "audit.retention.cleanup",
-			ModuleKey:      "audit",
 			Title:          key,
 			CronExpression: "*/30 * * * * *",
 			Enabled:        true,
@@ -312,25 +313,28 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 		id integer PRIMARY KEY AUTOINCREMENT,
 		task_key text NOT NULL UNIQUE,
 		job_key text NOT NULL,
-		module_key text NOT NULL,
+		title_key text NOT NULL DEFAULT '',
 		title text NOT NULL DEFAULT '',
+		description_key text NOT NULL DEFAULT '',
 		description text NOT NULL DEFAULT '',
 		cron_expression text NOT NULL,
 		enabled boolean NOT NULL DEFAULT true,
-			builtin boolean NOT NULL DEFAULT false,
-			task_type text NOT NULL DEFAULT 'job',
-			config_json text NOT NULL DEFAULT '{}',
-			config_source text NOT NULL DEFAULT 'system',
-			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			deleted_at integer NOT NULL DEFAULT 0
+		builtin boolean NOT NULL DEFAULT false,
+		config_json text NOT NULL DEFAULT '{}',
+		config_source text NOT NULL DEFAULT 'system',
+		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		deleted_at integer NOT NULL DEFAULT 0
 	);
 	CREATE TABLE scheduler_job_definitions (
 		id integer PRIMARY KEY AUTOINCREMENT,
 		job_key text NOT NULL UNIQUE,
 		module_key text NOT NULL,
+		category text NOT NULL DEFAULT 'custom',
 		title_key text NOT NULL DEFAULT '',
 		title text NOT NULL DEFAULT '',
+		short_title_key text NOT NULL DEFAULT '',
+		short_title text NOT NULL DEFAULT '',
 		description_key text NOT NULL DEFAULT '',
 		description text NOT NULL DEFAULT '',
 		config_schema text NOT NULL DEFAULT '{}',
@@ -339,21 +343,23 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 		enabled boolean NOT NULL DEFAULT true,
 		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		deleted_at datetime NULL
+		deleted_at integer NOT NULL DEFAULT 0
 	);
 	CREATE TABLE scheduler_task_runs (
 		id integer PRIMARY KEY AUTOINCREMENT,
 		task_key text NOT NULL,
 		job_key text NOT NULL DEFAULT '',
-		task_name text NOT NULL DEFAULT '',
-		task_name_key text NOT NULL DEFAULT '',
+		task_title text NOT NULL DEFAULT '',
+		task_title_key text NOT NULL DEFAULT '',
+		job_title text NOT NULL DEFAULT '',
+		job_title_key text NOT NULL DEFAULT '',
+		job_short_title text NOT NULL DEFAULT '',
+		job_short_title_key text NOT NULL DEFAULT '',
+		job_category text NOT NULL DEFAULT 'custom',
+		module_key text NOT NULL DEFAULT '',
 		task_builtin boolean NOT NULL DEFAULT false,
-		owner text NOT NULL DEFAULT '',
-		module text NOT NULL DEFAULT '',
-		task_type text NOT NULL DEFAULT 'cron',
 		trigger_type text NOT NULL,
 		status text NOT NULL,
-		error text NOT NULL DEFAULT '',
 		result_summary text NOT NULL DEFAULT '',
 		result_json text NOT NULL DEFAULT '{}',
 		error_message text NOT NULL DEFAULT '',

@@ -3,9 +3,10 @@
 ## Topic
 
 - Topic: `scheduled-task-job-definition-model-closure`
-- Status: `active recovery entry`
+- Status: `implemented pending archive review`
 - Goal: converge Scheduled Task, Job Definition, and Task Run concepts across database, server registration/API, and web presenter/view-model boundaries.
-- Recovery source: read-only exploration from 2026-06-11
+- Recovery source: read-only exploration from 2026-06-11; destructive model-closure implementation completed on
+  2026-06-11
 - Current worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp`
 
 ## Recovery Entry
@@ -33,7 +34,22 @@
 
 ## Current Conclusion
 
-The current UI label `Job 类型 / Job Type` is misleading. It displays the Job Definition title resolved from `job_key`,
-not a stable type, category, executor type, or task class. The next implementation should preserve the existing
-`task_key` / `job_key` separation, introduce a stable display category and optional short title for Job Definitions,
-and move list/detail presentation logic into a clearer frontend presenter/view-model boundary.
+The destructive model-closure slice has been implemented across scheduler database migrations, backend registration and
+repository mapping, OpenAPI schemas/generated contracts, and the scheduled-task frontend. Scheduled Task now represents
+the task instance, Job Definition owns execution metadata such as `module_key`, `category`, `short_title`,
+`config_schema`, and `default_config`, and Task Run records execution-time task/job snapshots.
+
+The misleading `Job 类型 / Job Type` product wording has been removed from the scheduled-task UI. The list now uses
+category/module-oriented compact display through a presenter boundary, and the detail drawer is organized into task
+instance, job definition, configuration, and run information sections.
+
+## Validation
+
+- `cd server && go test ./internal/cronx ./internal/scheduler ./modules/scheduler ./internal/httpx ./internal/logger ./modules/audit`
+- `cd server && go run ./cmd/graft validate backend`
+- `cd web && bun run vitest run src/modules/scheduled-task/pages/list/index.test.ts`
+- `cd web && bun run check`
+
+## Remaining Follow-Up
+
+- Archive or close this recovery topic after the implementation commit lands.

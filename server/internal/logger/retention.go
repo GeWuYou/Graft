@@ -23,6 +23,7 @@ const (
 	appLogRetentionCleanupJobModule         = "core.logger"
 	appLogRetentionCleanupJobSchedule       = "0 15 17 * * *"
 	appLogRetentionCleanupJobDisplayKey     = "scheduler.job.appLogRetentionCleanup.title"
+	appLogRetentionCleanupJobShortTitleKey  = "scheduler.job.shortTitle.appLog"
 	appLogRetentionCleanupJobDescriptionKey = "scheduledTask.appLogRetention.description"
 	appLogRetentionDryRunActionKey          = "dryRun"
 	appLogRetentionDryRunActionTitleKey     = "scheduledTask.action.dryRun.title"
@@ -403,18 +404,19 @@ func RegisterAppLogRetentionCleanupJob(
 	}
 
 	registry.Register(cronx.Job{
-		Name:                  appLogRetentionCleanupJobName,
-		Key:                   appLogRetentionCleanupJobName,
-		Owner:                 appLogRetentionCleanupJobModule,
-		Title:                 "Application log retention cleanup",
-		TitleKey:              appLogRetentionCleanupJobDisplayKey,
-		Description:           "Deletes app logs beyond the configured retention window.",
-		DescriptionKey:        appLogRetentionCleanupJobDescriptionKey,
-		DisplayMessageKey:     appLogRetentionCleanupJobDisplayKey,
-		DescriptionMessageKey: appLogRetentionCleanupJobDescriptionKey,
-		ConfigSchema:          appLogRetentionCleanupConfigSchema,
-		DefaultConfig:         appLogRetentionCleanupDefaultConfig,
-		DefaultConfigKey:      appLogRetentionCleanupJobName,
+		Name:             appLogRetentionCleanupJobName,
+		Key:              appLogRetentionCleanupJobName,
+		ModuleKey:        appLogRetentionCleanupJobModule,
+		Category:         cronx.JobCategoryRetention,
+		Title:            "Application log retention cleanup",
+		TitleKey:         appLogRetentionCleanupJobDisplayKey,
+		ShortTitle:       "App Log",
+		ShortTitleKey:    appLogRetentionCleanupJobShortTitleKey,
+		Description:      "Deletes app logs beyond the configured retention window.",
+		DescriptionKey:   appLogRetentionCleanupJobDescriptionKey,
+		ConfigSchema:     appLogRetentionCleanupConfigSchema,
+		DefaultConfig:    appLogRetentionCleanupDefaultConfig,
+		DefaultConfigKey: appLogRetentionCleanupJobName,
 		Actions: []cronx.JobAction{
 			{
 				Key:            appLogRetentionDryRunActionKey,

@@ -58,7 +58,8 @@ const translations = vi.hoisted(
     'scheduledTask.cronValidation.stepRange': 'Cron {field} 步长必须介于 {min} 到 {max} 之间。',
     'scheduledTask.list.columnSettings': '列设置',
     'scheduledTask.list.columns.cron': 'Cron',
-    'scheduledTask.list.columns.jobType': 'Job 类型',
+    'scheduledTask.list.columns.category': '分类',
+    'scheduledTask.list.columns.job': '执行定义',
     'scheduledTask.list.columns.operation': '操作',
     'scheduledTask.list.columns.recentResult': '最近结果',
     'scheduledTask.list.columns.recentRun': '最近运行',
@@ -84,9 +85,9 @@ const translations = vi.hoisted(
     'scheduledTask.list.edit': '编辑',
     'scheduledTask.list.enable': '启用',
     'scheduledTask.list.eyebrow': '服务管理',
-    'scheduledTask.list.filters.allJobTypes': '全部 Job 类型',
+    'scheduledTask.list.filters.allJobs': '全部执行定义',
     'scheduledTask.list.filters.allStatuses': '全部状态',
-    'scheduledTask.list.filters.jobType': 'Job 类型',
+    'scheduledTask.list.filters.job': '执行定义',
     'scheduledTask.list.filters.searchPlaceholder': '搜索任务',
     'scheduledTask.list.filters.status': '状态',
     'scheduledTask.cron.nextRun': '下次执行：{time}',
@@ -97,6 +98,36 @@ const translations = vi.hoisted(
     'scheduledTask.cron.timezone': '时区',
     'scheduledTask.list.form.cronExpression': 'Cron 表达式',
     'scheduledTask.list.form.configHint': '根据 Job Definition 的 JSON Schema 填写配置。',
+    'scheduledTask.list.form.sectionJobDefinition': '执行定义',
+    'scheduledTask.list.form.job': '执行定义',
+    'scheduledTask.list.form.jobPlaceholder': '选择一个 Job Definition',
+    'scheduledTask.list.form.category': '分类',
+    'scheduledTask.list.form.jobRequiredHint': '请选择执行定义。',
+    'scheduledTask.list.detail.sections.taskInstance': '任务实例',
+    'scheduledTask.list.detail.sections.jobDefinition': '执行定义',
+    'scheduledTask.list.detail.sections.configuration': '配置',
+    'scheduledTask.list.detail.sections.runInfo': '运行信息',
+    'scheduledTask.list.detail.cron': 'Cron',
+    'scheduledTask.list.detail.builtin': '是否内置',
+    'scheduledTask.list.detail.configSource': '配置来源',
+    'scheduledTask.list.detail.jobName': 'Job 名称',
+    'scheduledTask.list.detail.jobShortName': 'Job 短名称',
+    'scheduledTask.list.detail.category': '分类',
+    'scheduledTask.list.detail.defaultCron': '默认 Cron',
+    'scheduledTask.list.detail.defaultConfig': '默认配置',
+    'scheduledTask.list.detail.configSchema': '可配置项 Schema',
+    'scheduledTask.list.configSource.system': '系统默认',
+    'scheduledTask.list.configSource.user': '用户覆盖',
+    'scheduler.job.category.retention': '日志保留',
+    'scheduler.job.category.sync': '同步',
+    'scheduler.job.category.maintenance': '维护',
+    'scheduler.job.category.notification': '通知',
+    'scheduler.job.category.report': '报表',
+    'scheduler.job.category.workflow': '工作流',
+    'scheduler.job.category.custom': '自定义',
+    'scheduler.job.shortTitle.accessLog': '访问日志',
+    'scheduler.job.shortTitle.appLog': '应用日志',
+    'scheduler.job.shortTitle.auditLog': '审计日志',
     'scheduledTask.list.form.configJsonInvalidHint': '配置必须是合法 JSON。',
     'scheduledTask.list.form.configJsonPlaceholder': '{\n  "batchSize": 1000\n}',
     'scheduledTask.list.form.configNumberPlaceholder': '请输入数值',
@@ -238,21 +269,19 @@ function scheduledTasksResponse() {
   return {
     items: [
       {
-        key: 'httpx.access-log-retention-cleanup',
+        task_key: 'httpx.access-log-retention-cleanup',
         job_key: 'httpx.access-log-retention-cleanup',
-        schedule_type: 'cron',
-        display_name_key: 'scheduledTask.accessLogRetention.title',
+        title_key: 'scheduledTask.accessLogRetention.title',
         description_key: 'scheduledTask.accessLogRetention.description',
-        owner: 'core.httpx',
-        module: 'core.httpx',
         enabled: true,
         builtin: true,
         title: 'Access log retention cleanup',
         description: 'Deletes access logs beyond the configured retention window.',
-        schedule: '*/5 * * * *',
+        cron_expression: '*/5 * * * *',
         status: 'idle',
         running: false,
         config_json: '{"retentionDays":30,"batchSize":500}',
+        config_source: 'user',
         effective_config: '{"retentionDays":30,"batchSize":500}',
         last_run: {
           id: 101,
@@ -261,27 +290,26 @@ function scheduledTasksResponse() {
           started_at: '2026-06-05T00:00:00Z',
           finished_at: '2026-06-05T00:00:05Z',
           duration_ms: 5000,
-          error_summary: '',
+          error_message: '',
           result_json:
             '{"summary":"Deleted 3 access log rows.","stage":"completed","affected_resource":"access_log","metrics":{"deletedRows":3}}',
         },
       },
       {
-        key: 'logger.app-log-retention-cleanup',
+        task_key: 'logger.app-log-retention-cleanup',
         job_key: 'logger.app-log-retention-cleanup',
-        schedule_type: 'cron',
-        display_name_key: 'scheduledTask.appLogRetention.title',
+        title_key: 'scheduledTask.appLogRetention.title',
         description_key: 'scheduledTask.appLogRetention.description',
-        owner: 'core.logger',
-        module: 'core.logger',
         enabled: true,
         builtin: true,
         title: 'App log retention cleanup',
         description: 'Deletes app logs beyond the configured retention window.',
-        schedule: '*/5 * * * *',
+        cron_expression: '*/5 * * * *',
         status: 'idle',
         running: false,
         config_json: '{}',
+        config_source: 'system',
+        effective_config: '{}',
         last_run: {
           id: 102,
           trigger_type: 'cron',
@@ -289,43 +317,41 @@ function scheduledTasksResponse() {
           started_at: '2026-06-05T00:10:00Z',
           finished_at: '2026-06-05T00:10:01Z',
           duration_ms: 1000,
-          error_summary: 'retention window is invalid',
+          error_message: 'retention window is invalid',
           result_json: '{"stage":"failed","affected_resource":"app_log","warnings":["retention window is invalid"]}',
         },
       },
       {
-        key: 'audit.audit-log-retention-cleanup',
+        task_key: 'audit.audit-log-retention-cleanup',
         job_key: 'audit.audit-log-retention-cleanup',
-        schedule_type: 'cron',
-        display_name_key: 'scheduledTask.auditLogRetention.title',
+        title_key: 'scheduledTask.auditLogRetention.title',
         description_key: 'scheduledTask.auditLogRetention.description',
-        owner: 'audit',
-        module: 'audit',
         enabled: true,
         builtin: true,
         title: 'Audit log retention cleanup',
         description: 'Deletes audit logs beyond the configured retention window.',
-        schedule: '*/5 * * * *',
+        cron_expression: '*/5 * * * *',
         status: 'idle',
         running: false,
         config_json: '{}',
+        config_source: 'system',
+        effective_config: '{}',
       },
       {
-        key: 'custom.task',
+        task_key: 'custom.task',
         job_key: 'audit.audit-log-retention-cleanup',
-        schedule_type: 'cron',
-        display_name_key: 'scheduledTask.auditLogRetention.title',
+        title_key: 'scheduledTask.auditLogRetention.title',
         description_key: 'scheduledTask.auditLogRetention.description',
-        owner: 'audit',
-        module: 'audit',
         enabled: true,
         builtin: false,
         title: 'Custom cleanup',
         description: 'Custom description',
-        schedule: '0 17 * * *',
+        cron_expression: '0 17 * * *',
         status: 'idle',
         running: false,
         config_json: '{}',
+        config_source: 'system',
+        effective_config: '{}',
       },
     ],
     total: 4,
@@ -368,17 +394,21 @@ function jobDefinitionsResponse() {
   return {
     items: [
       {
-        key: 'httpx.access-log-retention-cleanup',
-        owner: 'core.httpx',
-        module: 'core.httpx',
-        display_name_key: 'scheduledTask.accessLogRetention.title',
+        job_key: 'httpx.access-log-retention-cleanup',
+        module_key: 'core.httpx',
+        category: 'retention',
+        category_key: 'scheduler.job.category.retention',
+        title_key: 'scheduledTask.accessLogRetention.title',
+        short_title_key: 'scheduler.job.shortTitle.accessLog',
+        short_title: 'Access Log',
         description_key: 'scheduledTask.accessLogRetention.description',
         title: 'Access log retention cleanup',
         description: 'Deletes access logs beyond the configured retention window.',
-        config_schema_json: configSchemaJson('accessLogRetention', 'access logs'),
-        default_config_json: '{"retentionDays":30,"batchSize":1000}',
-        default_cron_expression: '*/5 * * * *',
+        config_schema: configSchemaJson('accessLogRetention', 'access logs'),
+        default_config: '{"retentionDays":30,"batchSize":1000}',
+        default_cron: '*/5 * * * *',
         default_enabled: true,
+        enabled: true,
         actions: [
           {
             key: 'dryRun',
@@ -393,17 +423,21 @@ function jobDefinitionsResponse() {
         ],
       },
       {
-        key: 'logger.app-log-retention-cleanup',
-        owner: 'core.logger',
-        module: 'core.logger',
-        display_name_key: 'scheduledTask.appLogRetention.title',
+        job_key: 'logger.app-log-retention-cleanup',
+        module_key: 'core.logger',
+        category: 'retention',
+        category_key: 'scheduler.job.category.retention',
+        title_key: 'scheduledTask.appLogRetention.title',
+        short_title_key: 'scheduler.job.shortTitle.appLog',
+        short_title: '应用日志',
         description_key: 'scheduledTask.appLogRetention.description',
         title: 'App log retention cleanup',
         description: 'Deletes app logs beyond the configured retention window.',
-        config_schema_json: configSchemaJson('appLogRetention', 'app logs'),
-        default_config_json: '{"retentionDays":30,"batchSize":1000}',
-        default_cron_expression: '*/5 * * * *',
+        config_schema: configSchemaJson('appLogRetention', 'app logs'),
+        default_config: '{"retentionDays":30,"batchSize":1000}',
+        default_cron: '*/5 * * * *',
         default_enabled: true,
+        enabled: true,
         actions: [
           {
             key: 'dryRun',
@@ -419,17 +453,21 @@ function jobDefinitionsResponse() {
         ],
       },
       {
-        key: 'audit.audit-log-retention-cleanup',
-        owner: 'audit',
-        module: 'audit',
-        display_name_key: 'scheduledTask.auditLogRetention.title',
+        job_key: 'audit.audit-log-retention-cleanup',
+        module_key: 'audit',
+        category: 'retention',
+        category_key: 'scheduler.job.category.retention',
+        title_key: 'scheduledTask.auditLogRetention.title',
+        short_title_key: 'scheduler.job.shortTitle.auditLog',
+        short_title: '审计日志',
         description_key: 'scheduledTask.auditLogRetention.description',
         title: 'Audit log retention cleanup',
         description: 'Deletes audit logs beyond the configured retention window.',
-        config_schema_json: configSchemaJson('auditLogRetention', 'audit logs'),
-        default_config_json: '{"retentionDays":30,"batchSize":1000}',
-        default_cron_expression: '*/5 * * * *',
+        config_schema: configSchemaJson('auditLogRetention', 'audit logs'),
+        default_config: '{"retentionDays":30,"batchSize":1000}',
+        default_cron: '*/5 * * * *',
         default_enabled: true,
+        enabled: true,
         actions: [
           {
             key: 'dryRun',
@@ -727,6 +765,14 @@ function findButtonByText(wrapper: ReturnType<typeof mountPage>, text: string) {
   return wrapper.findAll('button').find((button) => button.text() === text);
 }
 
+async function triggerOperationAction(wrapper: ReturnType<typeof mountPage>, rowIndex: number, text: string) {
+  const operationCell = wrapper.find(`tbody tr:nth-child(${rowIndex}) td[data-col="operation"]`);
+  const actionTrigger = operationCell.findAll('*').find((node) => node.text() === text);
+  expect(actionTrigger).toBeTruthy();
+  await actionTrigger!.trigger('click');
+  await flushPromises();
+}
+
 async function openFirstTaskEditDrawer(wrapper: ReturnType<typeof mountPage>) {
   const editTrigger = wrapper.findAll('*').find((node) => node.text() === '编辑');
   expect(editTrigger).toBeTruthy();
@@ -754,7 +800,7 @@ describe('ScheduledTaskListPage', () => {
     vi.clearAllMocks();
     apiMocks.getScheduledTasks.mockResolvedValue(scheduledTasksResponse());
     apiMocks.getScheduledTask.mockImplementation(async (taskKey: string) => {
-      const task = scheduledTasksResponse().items.find((item) => item.key === taskKey);
+      const task = scheduledTasksResponse().items.find((item) => item.task_key === taskKey);
       if (!task) {
         throw new Error('not found');
       }
@@ -762,7 +808,7 @@ describe('ScheduledTaskListPage', () => {
     });
     apiMocks.getScheduledTaskJobDefinitions.mockResolvedValue(jobDefinitionsResponse());
     apiMocks.getScheduledTaskJobDefinition.mockImplementation(async (jobKey: string) => {
-      const job = jobDefinitionsResponse().items.find((item) => item.key === jobKey);
+      const job = jobDefinitionsResponse().items.find((item) => item.job_key === jobKey);
       if (!job) {
         throw new Error('not found');
       }
@@ -780,8 +826,8 @@ describe('ScheduledTaskListPage', () => {
     });
     apiMocks.updateScheduledTask.mockImplementation(async (taskKey: string, payload: Record<string, unknown>) => ({
       ...scheduledTasksResponse().items[0],
-      key: taskKey,
-      schedule: payload.cron_expression,
+      task_key: taskKey,
+      cron_expression: payload.cron_expression,
       enabled: payload.enabled,
       config_json: String(payload.config_json ?? '{}'),
     }));
@@ -835,8 +881,7 @@ describe('ScheduledTaskListPage', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    await findButtonByText(wrapper, '立即执行')!.trigger('click');
-    await flushPromises();
+    await triggerOperationAction(wrapper, 1, '立即执行');
     await findButtonByText(wrapper, '确认执行')!.trigger('click');
     await flushPromises();
 
@@ -926,8 +971,10 @@ describe('ScheduledTaskListPage', () => {
     await openTaskEditDrawerByRow(wrapper, 2);
     await openConfigDialog(wrapper);
 
-    expect(wrapper.text()).toContain('"retentionDays": 30');
-    expect(wrapper.text()).toContain('"batchSize": 1000');
+    expect(wrapper.text()).toContain('"retentionDays":');
+    expect(wrapper.text()).toContain('30');
+    expect(wrapper.text()).toContain('"batchSize":');
+    expect(wrapper.text()).toContain('1000');
   });
 
   it('does not persist Job Definition defaults when task config is unchanged', async () => {
@@ -1124,11 +1171,11 @@ describe('ScheduledTaskListPage', () => {
   it('blocks config save when a range-valid numeric enum value is not allowed', async () => {
     const definitions = jobDefinitionsResponse();
     const firstDefinition = definitions.items[0];
-    const schema = JSON.parse(firstDefinition.config_schema_json) as {
+    const schema = JSON.parse(firstDefinition.config_schema) as {
       properties: Record<string, { enum?: number[] }>;
     };
     schema.properties.batchSize.enum = [1000, 2000];
-    firstDefinition.config_schema_json = JSON.stringify(schema);
+    firstDefinition.config_schema = JSON.stringify(schema);
     apiMocks.getScheduledTaskJobDefinitions.mockResolvedValueOnce(definitions);
     apiMocks.getScheduledTaskJobDefinition.mockResolvedValueOnce(firstDefinition);
 

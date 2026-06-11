@@ -121,8 +121,11 @@ type JobDefinitionSnapshot struct {
 	ID             uint64
 	JobKey         string
 	ModuleKey      string
+	Category       cronx.JobCategory
 	TitleKey       string
 	Title          string
+	ShortTitleKey  string
+	ShortTitle     string
 	DescriptionKey string
 	Description    string
 	ConfigSchema   string
@@ -146,47 +149,51 @@ type JobActionSnapshot struct {
 
 // TaskSnapshot is the internal service model for scheduled task instances.
 type TaskSnapshot struct {
-	ID                    uint64
-	Key                   string
-	JobKey                string
-	ModuleKey             string
-	Name                  string
-	Title                 string
-	Description           string
-	DisplayMessageKey     string
-	DescriptionMessageKey string
-	Schedule              string
-	Enabled               bool
-	Builtin               bool
-	ConfigJSON            string
-	EffectiveConfig       string
-	Running               bool
-	LastRun               *TaskRun
-	CreatedAt             time.Time
-	UpdatedAt             time.Time
-	DeletedAt             *time.Time
+	ID              uint64
+	Key             string
+	JobKey          string
+	TitleKey        string
+	Title           string
+	DescriptionKey  string
+	Description     string
+	Schedule        string
+	Enabled         bool
+	Builtin         bool
+	ConfigJSON      string
+	ConfigSource    string
+	EffectiveConfig string
+	JobDefinition   *JobDefinitionSnapshot
+	Running         bool
+	LastRun         *TaskRun
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
 }
 
 // TaskRun is the persisted run-history model for scheduler runtime jobs.
 type TaskRun struct {
-	ID              uint64
-	TaskKey         string
-	JobKey          string
-	TaskName        string
-	TaskNameKey     string
-	TaskBuiltin     bool
-	Owner           string
-	Module          string
-	TriggerType     TriggerType
-	Status          RunStatus
-	Error           string
-	Result          string
-	ResultJSON      string
-	EffectiveConfig string
-	StartedAt       time.Time
-	FinishedAt      *time.Time
-	DurationMS      *int64
-	CreatedAt       time.Time
+	ID               uint64
+	TaskKey          string
+	JobKey           string
+	TaskTitle        string
+	TaskTitleKey     string
+	JobTitle         string
+	JobTitleKey      string
+	JobShortTitle    string
+	JobShortTitleKey string
+	JobCategory      cronx.JobCategory
+	ModuleKey        string
+	TaskBuiltin      bool
+	TriggerType      TriggerType
+	Status           RunStatus
+	ErrorMessage     string
+	Result           string
+	ResultJSON       string
+	EffectiveConfig  string
+	StartedAt        time.Time
+	FinishedAt       *time.Time
+	DurationMS       *int64
+	CreatedAt        time.Time
 }
 
 // JobActionResult is the non-persisted result of a backend-defined Job Definition action.
@@ -210,8 +217,11 @@ type JobDefinition struct {
 	ID             uint64
 	JobKey         string
 	ModuleKey      string
+	Category       cronx.JobCategory
 	TitleKey       string
 	Title          string
+	ShortTitleKey  string
+	ShortTitle     string
 	DescriptionKey string
 	Description    string
 	ConfigSchema   string
@@ -229,8 +239,9 @@ type TaskDefinition struct {
 	ID             uint64
 	TaskKey        string
 	JobKey         string
-	ModuleKey      string
+	TitleKey       string
 	Title          string
+	DescriptionKey string
 	Description    string
 	CronExpression string
 	Enabled        bool
@@ -884,20 +895,21 @@ func (r *CronRuntime) requireKnownJob(ctx context.Context, key string) (JobDefin
 
 func (r *CronRuntime) snapshotDefinition(ctx context.Context, definition TaskDefinition) (TaskSnapshot, error) {
 	snapshot := TaskSnapshot{
-		ID:          definition.ID,
-		Key:         definition.TaskKey,
-		JobKey:      definition.JobKey,
-		ModuleKey:   definition.ModuleKey,
-		Name:        definition.TaskKey,
-		Title:       definition.Title,
-		Description: definition.Description,
-		Schedule:    definition.CronExpression,
-		Enabled:     definition.Enabled,
-		Builtin:     definition.Builtin,
-		ConfigJSON:  definition.ConfigJSON,
-		CreatedAt:   definition.CreatedAt,
-		UpdatedAt:   definition.UpdatedAt,
-		DeletedAt:   definition.DeletedAt,
+		ID:             definition.ID,
+		Key:            definition.TaskKey,
+		JobKey:         definition.JobKey,
+		TitleKey:       definition.TitleKey,
+		Title:          definition.Title,
+		DescriptionKey: definition.DescriptionKey,
+		Description:    definition.Description,
+		Schedule:       definition.CronExpression,
+		Enabled:        definition.Enabled,
+		Builtin:        definition.Builtin,
+		ConfigJSON:     definition.ConfigJSON,
+		ConfigSource:   definition.ConfigSource,
+		CreatedAt:      definition.CreatedAt,
+		UpdatedAt:      definition.UpdatedAt,
+		DeletedAt:      definition.DeletedAt,
 	}
 	if jobDefinition, err := r.requireKnownJob(ctx, definition.JobKey); err == nil {
 		taskConfig, taskConfigErr := r.taskConfigForEffective(definition)
@@ -909,14 +921,8 @@ func (r *CronRuntime) snapshotDefinition(ctx context.Context, definition TaskDef
 			return TaskSnapshot{}, mergeErr
 		}
 		snapshot.EffectiveConfig = effectiveConfig
-	}
-	if job, ok := r.findJob(definition.JobKey); ok {
-		snapshot.Name = job.RuntimeKey()
-		snapshot.DisplayMessageKey = job.RuntimeTitleKey()
-		snapshot.DescriptionMessageKey = job.RuntimeDescriptionKey()
-		if snapshot.ModuleKey == "" {
-			snapshot.ModuleKey = job.Module
-		}
+		jobSnapshot := jobDefinitionSnapshot(jobDefinition)
+		snapshot.JobDefinition = &jobSnapshot
 	}
 	r.mu.RLock()
 	_, snapshot.Running = r.running[definition.TaskKey]
@@ -973,22 +979,26 @@ func (r *CronRuntime) runDefinition(ctx context.Context, definition TaskDefiniti
 
 func (r *CronRuntime) createStartedRun(ctx context.Context, definition TaskDefinition, trigger TriggerType) (TaskRun, error) {
 	startedAt := r.now()
-	taskNameKey := ""
-	if jobDefinition, err := r.requireKnownJob(ctx, definition.JobKey); err == nil {
-		taskNameKey = jobDefinition.TitleKey
+	jobDefinition, err := r.requireKnownJob(ctx, definition.JobKey)
+	if err != nil {
+		return TaskRun{}, err
 	}
 	return r.runs.CreateRun(ctx, TaskRun{
-		TaskKey:     definition.TaskKey,
-		JobKey:      definition.JobKey,
-		TaskName:    definition.Title,
-		TaskNameKey: taskNameKey,
-		TaskBuiltin: definition.Builtin,
-		Owner:       definition.ModuleKey,
-		Module:      definition.ModuleKey,
-		TriggerType: trigger,
-		Status:      RunStatusRunning,
-		StartedAt:   startedAt,
-		CreatedAt:   startedAt,
+		TaskKey:          definition.TaskKey,
+		JobKey:           definition.JobKey,
+		TaskTitle:        definition.Title,
+		TaskTitleKey:     definition.TitleKey,
+		JobTitle:         jobDefinition.Title,
+		JobTitleKey:      jobDefinition.TitleKey,
+		JobShortTitle:    jobDefinition.ShortTitle,
+		JobShortTitleKey: jobDefinition.ShortTitleKey,
+		JobCategory:      jobDefinition.Category,
+		ModuleKey:        jobDefinition.ModuleKey,
+		TaskBuiltin:      definition.Builtin,
+		TriggerType:      trigger,
+		Status:           RunStatusRunning,
+		StartedAt:        startedAt,
+		CreatedAt:        startedAt,
 	})
 }
 
@@ -1174,9 +1184,12 @@ func (r *CronRuntime) ensureKnownTask(ctx context.Context, key string) error {
 func jobDefinitionFromJob(job cronx.Job, now time.Time) JobDefinition {
 	return JobDefinition{
 		JobKey:         job.RuntimeKey(),
-		ModuleKey:      job.RuntimeOwner(),
+		ModuleKey:      job.RuntimeModuleKey(),
+		Category:       job.RuntimeCategory(),
 		TitleKey:       job.RuntimeTitleKey(),
 		Title:          job.RuntimeTitle(),
+		ShortTitleKey:  job.RuntimeShortTitleKey(),
+		ShortTitle:     job.RuntimeShortTitle(),
 		DescriptionKey: job.RuntimeDescriptionKey(),
 		Description:    job.RuntimeDescription(),
 		ConfigSchema:   job.RuntimeConfigSchema(),
@@ -1203,8 +1216,9 @@ func builtinTaskDefinition(job cronx.Job, now time.Time) TaskDefinition {
 	return TaskDefinition{
 		TaskKey:        job.RuntimeKey(),
 		JobKey:         job.RuntimeKey(),
-		ModuleKey:      job.RuntimeOwner(),
+		TitleKey:       job.RuntimeTitleKey(),
 		Title:          job.RuntimeTitle(),
+		DescriptionKey: job.RuntimeDescriptionKey(),
 		Description:    job.RuntimeDescription(),
 		CronExpression: strings.TrimSpace(job.Schedule),
 		Enabled:        job.DefaultEnabled,
@@ -1224,7 +1238,6 @@ func mutationToDefinition(command TaskMutation, job JobDefinition, now time.Time
 	definition := TaskDefinition{
 		TaskKey:        strings.TrimSpace(command.TaskKey),
 		JobKey:         strings.TrimSpace(command.JobKey),
-		ModuleKey:      strings.TrimSpace(job.ModuleKey),
 		Title:          strings.TrimSpace(command.Title),
 		Description:    strings.TrimSpace(command.Description),
 		CronExpression: strings.TrimSpace(command.CronExpression),
@@ -1336,7 +1349,6 @@ func validateJob(job cronx.Job) error {
 func validateDefinition(definition TaskDefinition) error {
 	if strings.TrimSpace(definition.TaskKey) == "" ||
 		strings.TrimSpace(definition.JobKey) == "" ||
-		strings.TrimSpace(definition.ModuleKey) == "" ||
 		strings.TrimSpace(definition.CronExpression) == "" ||
 		strings.TrimSpace(definition.Title) == "" {
 		return ErrTaskValidation
@@ -1354,10 +1366,7 @@ func validateDefinition(definition TaskDefinition) error {
 }
 
 func validateJobDefinition(definition JobDefinition) error {
-	if strings.TrimSpace(definition.JobKey) == "" ||
-		strings.TrimSpace(definition.ModuleKey) == "" ||
-		strings.TrimSpace(definition.Title) == "" ||
-		strings.TrimSpace(definition.DefaultCron) == "" {
+	if !hasRequiredJobDefinitionFields(definition) {
 		return ErrTaskValidation
 	}
 	if err := validateCronExpression(definition.DefaultCron); err != nil {
@@ -1373,6 +1382,14 @@ func validateJobDefinition(definition JobDefinition) error {
 		return err
 	}
 	return nil
+}
+
+func hasRequiredJobDefinitionFields(definition JobDefinition) bool {
+	return strings.TrimSpace(definition.JobKey) != "" &&
+		strings.TrimSpace(definition.ModuleKey) != "" &&
+		strings.TrimSpace(string(definition.Category)) != "" &&
+		strings.TrimSpace(definition.Title) != "" &&
+		strings.TrimSpace(definition.DefaultCron) != ""
 }
 
 func validateCronExpression(expression string) error {

@@ -48,14 +48,14 @@ func (n schedulerRunFailureNotifier) NotifyRunFailed(ctx context.Context, run sc
 		TitleKey:     schedulercontract.ScheduledTaskRunFailedNotificationTitle.String(),
 		Title:        "Scheduled task failed",
 		MessageKey:   schedulercontract.ScheduledTaskRunFailedNotificationMessage.String(),
-		Message:      "Scheduled task " + firstNonEmptyTrimmed(run.TaskName, run.TaskKey) + " failed.",
+		Message:      "Scheduled task " + firstNonEmptyTrimmed(run.TaskTitle, run.TaskKey) + " failed.",
 		Severity:     schedulerNotificationSeverityError,
 		Category:     schedulerNotificationCategoryTask,
 		SourceModule: moduleID,
 		EventType:    "task_failed",
 		ResourceType: "scheduled_task_run",
 		ResourceID:   strconv.FormatUint(run.ID, 10),
-		ResourceName: firstNonEmptyTrimmed(run.TaskName, run.TaskKey),
+		ResourceName: firstNonEmptyTrimmed(run.TaskTitle, run.TaskKey),
 		Navigation: moduleapi.NotificationNavigation{
 			Kind:    schedulerNotificationNavigationRun,
 			Payload: payload,
@@ -106,7 +106,7 @@ func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run
 	}
 	payload := schedulerRunNavigationPayload(run, n.logger)
 	metadata := schedulerRunSuccessMetadata(run, trigger, n.logger)
-	taskName := firstNonEmptyTrimmed(run.TaskName, run.TaskKey)
+	taskName := firstNonEmptyTrimmed(run.TaskTitle, run.TaskKey)
 	input := moduleapi.PublishNotificationInput{
 		TitleKey:        schedulerTaskSucceededTitleKey,
 		Title:           taskName,
@@ -187,7 +187,7 @@ func schedulerRunSuccessMetadata(run schedulercore.TaskRun, trigger schedulercor
 func schedulerRunFailureMetadata(run schedulercore.TaskRun, logger *zap.Logger) json.RawMessage {
 	metadata := schedulerRunTaskMetadata(run)
 	metadata["trigger_type"] = string(run.TriggerType)
-	metadata["error"] = run.Error
+	metadata["error"] = run.ErrorMessage
 	metadata["result"] = run.Result
 	metadata["result_json"] = run.ResultJSON
 	metadata["duration_ms"] = run.DurationMS
@@ -211,22 +211,24 @@ func schedulerRunFailureMetadata(run schedulercore.TaskRun, logger *zap.Logger) 
 // schedulerRunTaskMetadata 保留 camelCase 与 snake_case 双字段，兼容当前通知展示消费层；
 // 相关消费者统一迁移到 camelCase 后，应删除 snake_case 字段。
 func schedulerRunTaskMetadata(run schedulercore.TaskRun) map[string]any {
-	taskTitle := firstNonEmptyTrimmed(run.TaskName, run.TaskKey)
-	jobTitleKey := strings.TrimSpace(run.TaskNameKey)
+	taskTitle := firstNonEmptyTrimmed(run.TaskTitle, run.TaskKey)
+	jobTitle := firstNonEmptyTrimmed(run.JobTitle, run.JobKey)
+	jobShortTitle := firstNonEmptyTrimmed(run.JobShortTitle, jobTitle)
 	metadata := map[string]any{
-		"taskBuiltin": run.TaskBuiltin,
-		"taskKey":     run.TaskKey,
-		"taskName":    taskTitle,
-		"taskTitle":   taskTitle,
-		"task_key":    run.TaskKey,
-		"jobKey":      run.JobKey,
-		"job_key":     run.JobKey,
-		"jobType":     run.JobKey,
-		"jobTitleKey": jobTitleKey,
-	}
-	if run.TaskBuiltin && jobTitleKey != "" {
-		metadata["taskNameKey"] = jobTitleKey
-		metadata["taskTitleKey"] = jobTitleKey
+		"taskBuiltin":      run.TaskBuiltin,
+		"taskKey":          run.TaskKey,
+		"taskName":         taskTitle,
+		"taskTitle":        taskTitle,
+		"taskTitleKey":     strings.TrimSpace(run.TaskTitleKey),
+		"task_key":         run.TaskKey,
+		"jobKey":           run.JobKey,
+		"job_key":          run.JobKey,
+		"jobTitle":         jobTitle,
+		"jobTitleKey":      strings.TrimSpace(run.JobTitleKey),
+		"jobShortTitle":    jobShortTitle,
+		"jobShortTitleKey": strings.TrimSpace(run.JobShortTitleKey),
+		"jobCategory":      string(run.JobCategory),
+		"moduleKey":        strings.TrimSpace(run.ModuleKey),
 	}
 	return metadata
 }

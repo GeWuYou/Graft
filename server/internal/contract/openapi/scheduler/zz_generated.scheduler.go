@@ -7,6 +7,57 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetScheduledTasks200JSONResponseBodyDataItemsConfigSource.
+const (
+	GetScheduledTasks200JSONResponseBodyDataItemsConfigSourceSystem GetScheduledTasks200JSONResponseBodyDataItemsConfigSource = "system"
+	GetScheduledTasks200JSONResponseBodyDataItemsConfigSourceUser   GetScheduledTasks200JSONResponseBodyDataItemsConfigSource = "user"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTasks200JSONResponseBodyDataItemsConfigSource enum.
+func (e GetScheduledTasks200JSONResponseBodyDataItemsConfigSource) Valid() bool {
+	switch e {
+	case GetScheduledTasks200JSONResponseBodyDataItemsConfigSourceSystem:
+		return true
+	case GetScheduledTasks200JSONResponseBodyDataItemsConfigSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetScheduledTasks200JSONResponseBodyDataItemsJobCategory.
+const (
+	GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryCustom       GetScheduledTasks200JSONResponseBodyDataItemsJobCategory = "custom"
+	GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryMaintenance  GetScheduledTasks200JSONResponseBodyDataItemsJobCategory = "maintenance"
+	GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryNotification GetScheduledTasks200JSONResponseBodyDataItemsJobCategory = "notification"
+	GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryReport       GetScheduledTasks200JSONResponseBodyDataItemsJobCategory = "report"
+	GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryRetention    GetScheduledTasks200JSONResponseBodyDataItemsJobCategory = "retention"
+	GetScheduledTasks200JSONResponseBodyDataItemsJobCategorySync         GetScheduledTasks200JSONResponseBodyDataItemsJobCategory = "sync"
+	GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryWorkflow     GetScheduledTasks200JSONResponseBodyDataItemsJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTasks200JSONResponseBodyDataItemsJobCategory enum.
+func (e GetScheduledTasks200JSONResponseBodyDataItemsJobCategory) Valid() bool {
+	switch e {
+	case GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryCustom:
+		return true
+	case GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryMaintenance:
+		return true
+	case GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryNotification:
+		return true
+	case GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryReport:
+		return true
+	case GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryRetention:
+		return true
+	case GetScheduledTasks200JSONResponseBodyDataItemsJobCategorySync:
+		return true
+	case GetScheduledTasks200JSONResponseBodyDataItemsJobCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetScheduledTasks200JSONResponseBodyDataItemsLastRunStatus.
 const (
 	GetScheduledTasks200JSONResponseBodyDataItemsLastRunStatusFailed  GetScheduledTasks200JSONResponseBodyDataItemsLastRunStatus = "failed"
@@ -43,21 +94,6 @@ func (e GetScheduledTasks200JSONResponseBodyDataItemsLastRunTriggerType) Valid()
 	case GetScheduledTasks200JSONResponseBodyDataItemsLastRunTriggerTypeManual:
 		return true
 	case GetScheduledTasks200JSONResponseBodyDataItemsLastRunTriggerTypeStartup:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetScheduledTasks200JSONResponseBodyDataItemsScheduleType.
-const (
-	GetScheduledTasks200JSONResponseBodyDataItemsScheduleTypeCron GetScheduledTasks200JSONResponseBodyDataItemsScheduleType = "cron"
-)
-
-// Valid indicates whether the value is a known member of the GetScheduledTasks200JSONResponseBodyDataItemsScheduleType enum.
-func (e GetScheduledTasks200JSONResponseBodyDataItemsScheduleType) Valid() bool {
-	switch e {
-	case GetScheduledTasks200JSONResponseBodyDataItemsScheduleTypeCron:
 		return true
 	default:
 		return false
@@ -136,6 +172,57 @@ func (e GetScheduledTasks500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostScheduledTask200JSONResponseBodyDataConfigSource.
+const (
+	PostScheduledTask200JSONResponseBodyDataConfigSourceSystem PostScheduledTask200JSONResponseBodyDataConfigSource = "system"
+	PostScheduledTask200JSONResponseBodyDataConfigSourceUser   PostScheduledTask200JSONResponseBodyDataConfigSource = "user"
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTask200JSONResponseBodyDataConfigSource enum.
+func (e PostScheduledTask200JSONResponseBodyDataConfigSource) Valid() bool {
+	switch e {
+	case PostScheduledTask200JSONResponseBodyDataConfigSourceSystem:
+		return true
+	case PostScheduledTask200JSONResponseBodyDataConfigSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostScheduledTask200JSONResponseBodyDataJobCategory.
+const (
+	PostScheduledTask200JSONResponseBodyDataJobCategoryCustom       PostScheduledTask200JSONResponseBodyDataJobCategory = "custom"
+	PostScheduledTask200JSONResponseBodyDataJobCategoryMaintenance  PostScheduledTask200JSONResponseBodyDataJobCategory = "maintenance"
+	PostScheduledTask200JSONResponseBodyDataJobCategoryNotification PostScheduledTask200JSONResponseBodyDataJobCategory = "notification"
+	PostScheduledTask200JSONResponseBodyDataJobCategoryReport       PostScheduledTask200JSONResponseBodyDataJobCategory = "report"
+	PostScheduledTask200JSONResponseBodyDataJobCategoryRetention    PostScheduledTask200JSONResponseBodyDataJobCategory = "retention"
+	PostScheduledTask200JSONResponseBodyDataJobCategorySync         PostScheduledTask200JSONResponseBodyDataJobCategory = "sync"
+	PostScheduledTask200JSONResponseBodyDataJobCategoryWorkflow     PostScheduledTask200JSONResponseBodyDataJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTask200JSONResponseBodyDataJobCategory enum.
+func (e PostScheduledTask200JSONResponseBodyDataJobCategory) Valid() bool {
+	switch e {
+	case PostScheduledTask200JSONResponseBodyDataJobCategoryCustom:
+		return true
+	case PostScheduledTask200JSONResponseBodyDataJobCategoryMaintenance:
+		return true
+	case PostScheduledTask200JSONResponseBodyDataJobCategoryNotification:
+		return true
+	case PostScheduledTask200JSONResponseBodyDataJobCategoryReport:
+		return true
+	case PostScheduledTask200JSONResponseBodyDataJobCategoryRetention:
+		return true
+	case PostScheduledTask200JSONResponseBodyDataJobCategorySync:
+		return true
+	case PostScheduledTask200JSONResponseBodyDataJobCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostScheduledTask200JSONResponseBodyDataLastRunStatus.
 const (
 	PostScheduledTask200JSONResponseBodyDataLastRunStatusFailed  PostScheduledTask200JSONResponseBodyDataLastRunStatus = "failed"
@@ -172,21 +259,6 @@ func (e PostScheduledTask200JSONResponseBodyDataLastRunTriggerType) Valid() bool
 	case PostScheduledTask200JSONResponseBodyDataLastRunTriggerTypeManual:
 		return true
 	case PostScheduledTask200JSONResponseBodyDataLastRunTriggerTypeStartup:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostScheduledTask200JSONResponseBodyDataScheduleType.
-const (
-	PostScheduledTask200JSONResponseBodyDataScheduleTypeCron PostScheduledTask200JSONResponseBodyDataScheduleType = "cron"
-)
-
-// Valid indicates whether the value is a known member of the PostScheduledTask200JSONResponseBodyDataScheduleType enum.
-func (e PostScheduledTask200JSONResponseBodyDataScheduleType) Valid() bool {
-	switch e {
-	case PostScheduledTask200JSONResponseBodyDataScheduleTypeCron:
 		return true
 	default:
 		return false
@@ -322,6 +394,39 @@ func (e GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsActionsTheme) 
 	}
 }
 
+// Defines values for GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory.
+const (
+	GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryCustom       GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory = "custom"
+	GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryMaintenance  GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory = "maintenance"
+	GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryNotification GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory = "notification"
+	GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryReport       GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory = "report"
+	GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryRetention    GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory = "retention"
+	GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategorySync         GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory = "sync"
+	GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryWorkflow     GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory enum.
+func (e GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory) Valid() bool {
+	switch e {
+	case GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryCustom:
+		return true
+	case GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryMaintenance:
+		return true
+	case GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryNotification:
+		return true
+	case GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryReport:
+		return true
+	case GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryRetention:
+		return true
+	case GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategorySync:
+		return true
+	case GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetScheduledTaskJobDefinitions401JSONResponseBodySuccess.
 const (
 	GetScheduledTaskJobDefinitions401JSONResponseBodySuccessFalse GetScheduledTaskJobDefinitions401JSONResponseBodySuccess = false
@@ -394,6 +499,39 @@ func (e GetScheduledTaskJobDefinition200JSONResponseBodyDataActionsTheme) Valid(
 	}
 }
 
+// Defines values for GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory.
+const (
+	GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryCustom       GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory = "custom"
+	GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryMaintenance  GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory = "maintenance"
+	GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryNotification GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory = "notification"
+	GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryReport       GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory = "report"
+	GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryRetention    GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory = "retention"
+	GetScheduledTaskJobDefinition200JSONResponseBodyDataCategorySync         GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory = "sync"
+	GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryWorkflow     GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory enum.
+func (e GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory) Valid() bool {
+	switch e {
+	case GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryCustom:
+		return true
+	case GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryMaintenance:
+		return true
+	case GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryNotification:
+		return true
+	case GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryReport:
+		return true
+	case GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryRetention:
+		return true
+	case GetScheduledTaskJobDefinition200JSONResponseBodyDataCategorySync:
+		return true
+	case GetScheduledTaskJobDefinition200JSONResponseBodyDataCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetScheduledTaskJobDefinition401JSONResponseBodySuccess.
 const (
 	GetScheduledTaskJobDefinition401JSONResponseBodySuccessFalse GetScheduledTaskJobDefinition401JSONResponseBodySuccess = false
@@ -448,6 +586,39 @@ const (
 func (e GetScheduledTaskJobDefinition500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetScheduledTaskJobDefinition500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetScheduledTaskRun200JSONResponseBodyDataJobCategory.
+const (
+	GetScheduledTaskRun200JSONResponseBodyDataJobCategoryCustom       GetScheduledTaskRun200JSONResponseBodyDataJobCategory = "custom"
+	GetScheduledTaskRun200JSONResponseBodyDataJobCategoryMaintenance  GetScheduledTaskRun200JSONResponseBodyDataJobCategory = "maintenance"
+	GetScheduledTaskRun200JSONResponseBodyDataJobCategoryNotification GetScheduledTaskRun200JSONResponseBodyDataJobCategory = "notification"
+	GetScheduledTaskRun200JSONResponseBodyDataJobCategoryReport       GetScheduledTaskRun200JSONResponseBodyDataJobCategory = "report"
+	GetScheduledTaskRun200JSONResponseBodyDataJobCategoryRetention    GetScheduledTaskRun200JSONResponseBodyDataJobCategory = "retention"
+	GetScheduledTaskRun200JSONResponseBodyDataJobCategorySync         GetScheduledTaskRun200JSONResponseBodyDataJobCategory = "sync"
+	GetScheduledTaskRun200JSONResponseBodyDataJobCategoryWorkflow     GetScheduledTaskRun200JSONResponseBodyDataJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskRun200JSONResponseBodyDataJobCategory enum.
+func (e GetScheduledTaskRun200JSONResponseBodyDataJobCategory) Valid() bool {
+	switch e {
+	case GetScheduledTaskRun200JSONResponseBodyDataJobCategoryCustom:
+		return true
+	case GetScheduledTaskRun200JSONResponseBodyDataJobCategoryMaintenance:
+		return true
+	case GetScheduledTaskRun200JSONResponseBodyDataJobCategoryNotification:
+		return true
+	case GetScheduledTaskRun200JSONResponseBodyDataJobCategoryReport:
+		return true
+	case GetScheduledTaskRun200JSONResponseBodyDataJobCategoryRetention:
+		return true
+	case GetScheduledTaskRun200JSONResponseBodyDataJobCategorySync:
+		return true
+	case GetScheduledTaskRun200JSONResponseBodyDataJobCategoryWorkflow:
 		return true
 	default:
 		return false
@@ -631,6 +802,57 @@ func (e DeleteScheduledTask500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetScheduledTask200JSONResponseBodyDataConfigSource.
+const (
+	GetScheduledTask200JSONResponseBodyDataConfigSourceSystem GetScheduledTask200JSONResponseBodyDataConfigSource = "system"
+	GetScheduledTask200JSONResponseBodyDataConfigSourceUser   GetScheduledTask200JSONResponseBodyDataConfigSource = "user"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTask200JSONResponseBodyDataConfigSource enum.
+func (e GetScheduledTask200JSONResponseBodyDataConfigSource) Valid() bool {
+	switch e {
+	case GetScheduledTask200JSONResponseBodyDataConfigSourceSystem:
+		return true
+	case GetScheduledTask200JSONResponseBodyDataConfigSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetScheduledTask200JSONResponseBodyDataJobCategory.
+const (
+	GetScheduledTask200JSONResponseBodyDataJobCategoryCustom       GetScheduledTask200JSONResponseBodyDataJobCategory = "custom"
+	GetScheduledTask200JSONResponseBodyDataJobCategoryMaintenance  GetScheduledTask200JSONResponseBodyDataJobCategory = "maintenance"
+	GetScheduledTask200JSONResponseBodyDataJobCategoryNotification GetScheduledTask200JSONResponseBodyDataJobCategory = "notification"
+	GetScheduledTask200JSONResponseBodyDataJobCategoryReport       GetScheduledTask200JSONResponseBodyDataJobCategory = "report"
+	GetScheduledTask200JSONResponseBodyDataJobCategoryRetention    GetScheduledTask200JSONResponseBodyDataJobCategory = "retention"
+	GetScheduledTask200JSONResponseBodyDataJobCategorySync         GetScheduledTask200JSONResponseBodyDataJobCategory = "sync"
+	GetScheduledTask200JSONResponseBodyDataJobCategoryWorkflow     GetScheduledTask200JSONResponseBodyDataJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTask200JSONResponseBodyDataJobCategory enum.
+func (e GetScheduledTask200JSONResponseBodyDataJobCategory) Valid() bool {
+	switch e {
+	case GetScheduledTask200JSONResponseBodyDataJobCategoryCustom:
+		return true
+	case GetScheduledTask200JSONResponseBodyDataJobCategoryMaintenance:
+		return true
+	case GetScheduledTask200JSONResponseBodyDataJobCategoryNotification:
+		return true
+	case GetScheduledTask200JSONResponseBodyDataJobCategoryReport:
+		return true
+	case GetScheduledTask200JSONResponseBodyDataJobCategoryRetention:
+		return true
+	case GetScheduledTask200JSONResponseBodyDataJobCategorySync:
+		return true
+	case GetScheduledTask200JSONResponseBodyDataJobCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetScheduledTask200JSONResponseBodyDataLastRunStatus.
 const (
 	GetScheduledTask200JSONResponseBodyDataLastRunStatusFailed  GetScheduledTask200JSONResponseBodyDataLastRunStatus = "failed"
@@ -667,21 +889,6 @@ func (e GetScheduledTask200JSONResponseBodyDataLastRunTriggerType) Valid() bool 
 	case GetScheduledTask200JSONResponseBodyDataLastRunTriggerTypeManual:
 		return true
 	case GetScheduledTask200JSONResponseBodyDataLastRunTriggerTypeStartup:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetScheduledTask200JSONResponseBodyDataScheduleType.
-const (
-	GetScheduledTask200JSONResponseBodyDataScheduleTypeCron GetScheduledTask200JSONResponseBodyDataScheduleType = "cron"
-)
-
-// Valid indicates whether the value is a known member of the GetScheduledTask200JSONResponseBodyDataScheduleType enum.
-func (e GetScheduledTask200JSONResponseBodyDataScheduleType) Valid() bool {
-	switch e {
-	case GetScheduledTask200JSONResponseBodyDataScheduleTypeCron:
 		return true
 	default:
 		return false
@@ -775,6 +982,57 @@ func (e GetScheduledTask500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PutScheduledTask200JSONResponseBodyDataConfigSource.
+const (
+	PutScheduledTask200JSONResponseBodyDataConfigSourceSystem PutScheduledTask200JSONResponseBodyDataConfigSource = "system"
+	PutScheduledTask200JSONResponseBodyDataConfigSourceUser   PutScheduledTask200JSONResponseBodyDataConfigSource = "user"
+)
+
+// Valid indicates whether the value is a known member of the PutScheduledTask200JSONResponseBodyDataConfigSource enum.
+func (e PutScheduledTask200JSONResponseBodyDataConfigSource) Valid() bool {
+	switch e {
+	case PutScheduledTask200JSONResponseBodyDataConfigSourceSystem:
+		return true
+	case PutScheduledTask200JSONResponseBodyDataConfigSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutScheduledTask200JSONResponseBodyDataJobCategory.
+const (
+	PutScheduledTask200JSONResponseBodyDataJobCategoryCustom       PutScheduledTask200JSONResponseBodyDataJobCategory = "custom"
+	PutScheduledTask200JSONResponseBodyDataJobCategoryMaintenance  PutScheduledTask200JSONResponseBodyDataJobCategory = "maintenance"
+	PutScheduledTask200JSONResponseBodyDataJobCategoryNotification PutScheduledTask200JSONResponseBodyDataJobCategory = "notification"
+	PutScheduledTask200JSONResponseBodyDataJobCategoryReport       PutScheduledTask200JSONResponseBodyDataJobCategory = "report"
+	PutScheduledTask200JSONResponseBodyDataJobCategoryRetention    PutScheduledTask200JSONResponseBodyDataJobCategory = "retention"
+	PutScheduledTask200JSONResponseBodyDataJobCategorySync         PutScheduledTask200JSONResponseBodyDataJobCategory = "sync"
+	PutScheduledTask200JSONResponseBodyDataJobCategoryWorkflow     PutScheduledTask200JSONResponseBodyDataJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the PutScheduledTask200JSONResponseBodyDataJobCategory enum.
+func (e PutScheduledTask200JSONResponseBodyDataJobCategory) Valid() bool {
+	switch e {
+	case PutScheduledTask200JSONResponseBodyDataJobCategoryCustom:
+		return true
+	case PutScheduledTask200JSONResponseBodyDataJobCategoryMaintenance:
+		return true
+	case PutScheduledTask200JSONResponseBodyDataJobCategoryNotification:
+		return true
+	case PutScheduledTask200JSONResponseBodyDataJobCategoryReport:
+		return true
+	case PutScheduledTask200JSONResponseBodyDataJobCategoryRetention:
+		return true
+	case PutScheduledTask200JSONResponseBodyDataJobCategorySync:
+		return true
+	case PutScheduledTask200JSONResponseBodyDataJobCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PutScheduledTask200JSONResponseBodyDataLastRunStatus.
 const (
 	PutScheduledTask200JSONResponseBodyDataLastRunStatusFailed  PutScheduledTask200JSONResponseBodyDataLastRunStatus = "failed"
@@ -811,21 +1069,6 @@ func (e PutScheduledTask200JSONResponseBodyDataLastRunTriggerType) Valid() bool 
 	case PutScheduledTask200JSONResponseBodyDataLastRunTriggerTypeManual:
 		return true
 	case PutScheduledTask200JSONResponseBodyDataLastRunTriggerTypeStartup:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PutScheduledTask200JSONResponseBodyDataScheduleType.
-const (
-	PutScheduledTask200JSONResponseBodyDataScheduleTypeCron PutScheduledTask200JSONResponseBodyDataScheduleType = "cron"
-)
-
-// Valid indicates whether the value is a known member of the PutScheduledTask200JSONResponseBodyDataScheduleType enum.
-func (e PutScheduledTask200JSONResponseBodyDataScheduleType) Valid() bool {
-	switch e {
-	case PutScheduledTask200JSONResponseBodyDataScheduleTypeCron:
 		return true
 	default:
 		return false
@@ -1024,6 +1267,57 @@ func (e PostScheduledTaskAction500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostScheduledTaskDisable200JSONResponseBodyDataConfigSource.
+const (
+	PostScheduledTaskDisable200JSONResponseBodyDataConfigSourceSystem PostScheduledTaskDisable200JSONResponseBodyDataConfigSource = "system"
+	PostScheduledTaskDisable200JSONResponseBodyDataConfigSourceUser   PostScheduledTaskDisable200JSONResponseBodyDataConfigSource = "user"
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTaskDisable200JSONResponseBodyDataConfigSource enum.
+func (e PostScheduledTaskDisable200JSONResponseBodyDataConfigSource) Valid() bool {
+	switch e {
+	case PostScheduledTaskDisable200JSONResponseBodyDataConfigSourceSystem:
+		return true
+	case PostScheduledTaskDisable200JSONResponseBodyDataConfigSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostScheduledTaskDisable200JSONResponseBodyDataJobCategory.
+const (
+	PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryCustom       PostScheduledTaskDisable200JSONResponseBodyDataJobCategory = "custom"
+	PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryMaintenance  PostScheduledTaskDisable200JSONResponseBodyDataJobCategory = "maintenance"
+	PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryNotification PostScheduledTaskDisable200JSONResponseBodyDataJobCategory = "notification"
+	PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryReport       PostScheduledTaskDisable200JSONResponseBodyDataJobCategory = "report"
+	PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryRetention    PostScheduledTaskDisable200JSONResponseBodyDataJobCategory = "retention"
+	PostScheduledTaskDisable200JSONResponseBodyDataJobCategorySync         PostScheduledTaskDisable200JSONResponseBodyDataJobCategory = "sync"
+	PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryWorkflow     PostScheduledTaskDisable200JSONResponseBodyDataJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTaskDisable200JSONResponseBodyDataJobCategory enum.
+func (e PostScheduledTaskDisable200JSONResponseBodyDataJobCategory) Valid() bool {
+	switch e {
+	case PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryCustom:
+		return true
+	case PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryMaintenance:
+		return true
+	case PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryNotification:
+		return true
+	case PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryReport:
+		return true
+	case PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryRetention:
+		return true
+	case PostScheduledTaskDisable200JSONResponseBodyDataJobCategorySync:
+		return true
+	case PostScheduledTaskDisable200JSONResponseBodyDataJobCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostScheduledTaskDisable200JSONResponseBodyDataLastRunStatus.
 const (
 	PostScheduledTaskDisable200JSONResponseBodyDataLastRunStatusFailed  PostScheduledTaskDisable200JSONResponseBodyDataLastRunStatus = "failed"
@@ -1060,21 +1354,6 @@ func (e PostScheduledTaskDisable200JSONResponseBodyDataLastRunTriggerType) Valid
 	case PostScheduledTaskDisable200JSONResponseBodyDataLastRunTriggerTypeManual:
 		return true
 	case PostScheduledTaskDisable200JSONResponseBodyDataLastRunTriggerTypeStartup:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostScheduledTaskDisable200JSONResponseBodyDataScheduleType.
-const (
-	PostScheduledTaskDisable200JSONResponseBodyDataScheduleTypeCron PostScheduledTaskDisable200JSONResponseBodyDataScheduleType = "cron"
-)
-
-// Valid indicates whether the value is a known member of the PostScheduledTaskDisable200JSONResponseBodyDataScheduleType enum.
-func (e PostScheduledTaskDisable200JSONResponseBodyDataScheduleType) Valid() bool {
-	switch e {
-	case PostScheduledTaskDisable200JSONResponseBodyDataScheduleTypeCron:
 		return true
 	default:
 		return false
@@ -1183,6 +1462,57 @@ func (e PostScheduledTaskDisable500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostScheduledTaskEnable200JSONResponseBodyDataConfigSource.
+const (
+	PostScheduledTaskEnable200JSONResponseBodyDataConfigSourceSystem PostScheduledTaskEnable200JSONResponseBodyDataConfigSource = "system"
+	PostScheduledTaskEnable200JSONResponseBodyDataConfigSourceUser   PostScheduledTaskEnable200JSONResponseBodyDataConfigSource = "user"
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTaskEnable200JSONResponseBodyDataConfigSource enum.
+func (e PostScheduledTaskEnable200JSONResponseBodyDataConfigSource) Valid() bool {
+	switch e {
+	case PostScheduledTaskEnable200JSONResponseBodyDataConfigSourceSystem:
+		return true
+	case PostScheduledTaskEnable200JSONResponseBodyDataConfigSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostScheduledTaskEnable200JSONResponseBodyDataJobCategory.
+const (
+	PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryCustom       PostScheduledTaskEnable200JSONResponseBodyDataJobCategory = "custom"
+	PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryMaintenance  PostScheduledTaskEnable200JSONResponseBodyDataJobCategory = "maintenance"
+	PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryNotification PostScheduledTaskEnable200JSONResponseBodyDataJobCategory = "notification"
+	PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryReport       PostScheduledTaskEnable200JSONResponseBodyDataJobCategory = "report"
+	PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryRetention    PostScheduledTaskEnable200JSONResponseBodyDataJobCategory = "retention"
+	PostScheduledTaskEnable200JSONResponseBodyDataJobCategorySync         PostScheduledTaskEnable200JSONResponseBodyDataJobCategory = "sync"
+	PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryWorkflow     PostScheduledTaskEnable200JSONResponseBodyDataJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTaskEnable200JSONResponseBodyDataJobCategory enum.
+func (e PostScheduledTaskEnable200JSONResponseBodyDataJobCategory) Valid() bool {
+	switch e {
+	case PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryCustom:
+		return true
+	case PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryMaintenance:
+		return true
+	case PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryNotification:
+		return true
+	case PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryReport:
+		return true
+	case PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryRetention:
+		return true
+	case PostScheduledTaskEnable200JSONResponseBodyDataJobCategorySync:
+		return true
+	case PostScheduledTaskEnable200JSONResponseBodyDataJobCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostScheduledTaskEnable200JSONResponseBodyDataLastRunStatus.
 const (
 	PostScheduledTaskEnable200JSONResponseBodyDataLastRunStatusFailed  PostScheduledTaskEnable200JSONResponseBodyDataLastRunStatus = "failed"
@@ -1219,21 +1549,6 @@ func (e PostScheduledTaskEnable200JSONResponseBodyDataLastRunTriggerType) Valid(
 	case PostScheduledTaskEnable200JSONResponseBodyDataLastRunTriggerTypeManual:
 		return true
 	case PostScheduledTaskEnable200JSONResponseBodyDataLastRunTriggerTypeStartup:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PostScheduledTaskEnable200JSONResponseBodyDataScheduleType.
-const (
-	PostScheduledTaskEnable200JSONResponseBodyDataScheduleTypeCron PostScheduledTaskEnable200JSONResponseBodyDataScheduleType = "cron"
-)
-
-// Valid indicates whether the value is a known member of the PostScheduledTaskEnable200JSONResponseBodyDataScheduleType enum.
-func (e PostScheduledTaskEnable200JSONResponseBodyDataScheduleType) Valid() bool {
-	switch e {
-	case PostScheduledTaskEnable200JSONResponseBodyDataScheduleTypeCron:
 		return true
 	default:
 		return false
@@ -1336,6 +1651,39 @@ const (
 func (e PostScheduledTaskEnable500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PostScheduledTaskEnable500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostScheduledTaskRun200JSONResponseBodyDataJobCategory.
+const (
+	PostScheduledTaskRun200JSONResponseBodyDataJobCategoryCustom       PostScheduledTaskRun200JSONResponseBodyDataJobCategory = "custom"
+	PostScheduledTaskRun200JSONResponseBodyDataJobCategoryMaintenance  PostScheduledTaskRun200JSONResponseBodyDataJobCategory = "maintenance"
+	PostScheduledTaskRun200JSONResponseBodyDataJobCategoryNotification PostScheduledTaskRun200JSONResponseBodyDataJobCategory = "notification"
+	PostScheduledTaskRun200JSONResponseBodyDataJobCategoryReport       PostScheduledTaskRun200JSONResponseBodyDataJobCategory = "report"
+	PostScheduledTaskRun200JSONResponseBodyDataJobCategoryRetention    PostScheduledTaskRun200JSONResponseBodyDataJobCategory = "retention"
+	PostScheduledTaskRun200JSONResponseBodyDataJobCategorySync         PostScheduledTaskRun200JSONResponseBodyDataJobCategory = "sync"
+	PostScheduledTaskRun200JSONResponseBodyDataJobCategoryWorkflow     PostScheduledTaskRun200JSONResponseBodyDataJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the PostScheduledTaskRun200JSONResponseBodyDataJobCategory enum.
+func (e PostScheduledTaskRun200JSONResponseBodyDataJobCategory) Valid() bool {
+	switch e {
+	case PostScheduledTaskRun200JSONResponseBodyDataJobCategoryCustom:
+		return true
+	case PostScheduledTaskRun200JSONResponseBodyDataJobCategoryMaintenance:
+		return true
+	case PostScheduledTaskRun200JSONResponseBodyDataJobCategoryNotification:
+		return true
+	case PostScheduledTaskRun200JSONResponseBodyDataJobCategoryReport:
+		return true
+	case PostScheduledTaskRun200JSONResponseBodyDataJobCategoryRetention:
+		return true
+	case PostScheduledTaskRun200JSONResponseBodyDataJobCategorySync:
+		return true
+	case PostScheduledTaskRun200JSONResponseBodyDataJobCategoryWorkflow:
 		return true
 	default:
 		return false
@@ -1474,6 +1822,39 @@ func (e PostScheduledTaskRun500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory.
+const (
+	Custom       GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory = "custom"
+	Maintenance  GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory = "maintenance"
+	Notification GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory = "notification"
+	Report       GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory = "report"
+	Retention    GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory = "retention"
+	Sync         GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory = "sync"
+	Workflow     GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory enum.
+func (e GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory) Valid() bool {
+	switch e {
+	case Custom:
+		return true
+	case Maintenance:
+		return true
+	case Notification:
+		return true
+	case Report:
+		return true
+	case Retention:
+		return true
+	case Sync:
+		return true
+	case Workflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetScheduledTaskRuns200JSONResponseBodyDataItemsStatus.
 const (
 	Failed  GetScheduledTaskRuns200JSONResponseBodyDataItemsStatus = "failed"
@@ -1598,14 +1979,17 @@ type GetScheduledTasksParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetScheduledTasks200JSONResponseBodyDataItemsConfigSource defines parameters for GetScheduledTasks.
+type GetScheduledTasks200JSONResponseBodyDataItemsConfigSource string
+
+// GetScheduledTasks200JSONResponseBodyDataItemsJobCategory defines parameters for GetScheduledTasks.
+type GetScheduledTasks200JSONResponseBodyDataItemsJobCategory string
+
 // GetScheduledTasks200JSONResponseBodyDataItemsLastRunStatus defines parameters for GetScheduledTasks.
 type GetScheduledTasks200JSONResponseBodyDataItemsLastRunStatus string
 
 // GetScheduledTasks200JSONResponseBodyDataItemsLastRunTriggerType defines parameters for GetScheduledTasks.
 type GetScheduledTasks200JSONResponseBodyDataItemsLastRunTriggerType string
-
-// GetScheduledTasks200JSONResponseBodyDataItemsScheduleType defines parameters for GetScheduledTasks.
-type GetScheduledTasks200JSONResponseBodyDataItemsScheduleType string
 
 // GetScheduledTasks200JSONResponseBodyDataItemsStatus defines parameters for GetScheduledTasks.
 type GetScheduledTasks200JSONResponseBodyDataItemsStatus string
@@ -1647,14 +2031,17 @@ type PostScheduledTaskParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// PostScheduledTask200JSONResponseBodyDataConfigSource defines parameters for PostScheduledTask.
+type PostScheduledTask200JSONResponseBodyDataConfigSource string
+
+// PostScheduledTask200JSONResponseBodyDataJobCategory defines parameters for PostScheduledTask.
+type PostScheduledTask200JSONResponseBodyDataJobCategory string
+
 // PostScheduledTask200JSONResponseBodyDataLastRunStatus defines parameters for PostScheduledTask.
 type PostScheduledTask200JSONResponseBodyDataLastRunStatus string
 
 // PostScheduledTask200JSONResponseBodyDataLastRunTriggerType defines parameters for PostScheduledTask.
 type PostScheduledTask200JSONResponseBodyDataLastRunTriggerType string
-
-// PostScheduledTask200JSONResponseBodyDataScheduleType defines parameters for PostScheduledTask.
-type PostScheduledTask200JSONResponseBodyDataScheduleType string
 
 // PostScheduledTask200JSONResponseBodyDataStatus defines parameters for PostScheduledTask.
 type PostScheduledTask200JSONResponseBodyDataStatus string
@@ -1687,6 +2074,9 @@ type GetScheduledTaskJobDefinitionsParams struct {
 // GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsActionsTheme defines parameters for GetScheduledTaskJobDefinitions.
 type GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsActionsTheme string
 
+// GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory defines parameters for GetScheduledTaskJobDefinitions.
+type GetScheduledTaskJobDefinitions200JSONResponseBodyDataItemsCategory string
+
 // GetScheduledTaskJobDefinitions401JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinitions.
 type GetScheduledTaskJobDefinitions401JSONResponseBodySuccess bool
 
@@ -1709,6 +2099,9 @@ type GetScheduledTaskJobDefinitionParams struct {
 // GetScheduledTaskJobDefinition200JSONResponseBodyDataActionsTheme defines parameters for GetScheduledTaskJobDefinition.
 type GetScheduledTaskJobDefinition200JSONResponseBodyDataActionsTheme string
 
+// GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory defines parameters for GetScheduledTaskJobDefinition.
+type GetScheduledTaskJobDefinition200JSONResponseBodyDataCategory string
+
 // GetScheduledTaskJobDefinition401JSONResponseBodySuccess defines parameters for GetScheduledTaskJobDefinition.
 type GetScheduledTaskJobDefinition401JSONResponseBodySuccess bool
 
@@ -1730,6 +2123,9 @@ type GetScheduledTaskRunParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetScheduledTaskRun200JSONResponseBodyDataJobCategory defines parameters for GetScheduledTaskRun.
+type GetScheduledTaskRun200JSONResponseBodyDataJobCategory string
 
 // GetScheduledTaskRun200JSONResponseBodyDataStatus defines parameters for GetScheduledTaskRun.
 type GetScheduledTaskRun200JSONResponseBodyDataStatus string
@@ -1784,14 +2180,17 @@ type GetScheduledTaskParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetScheduledTask200JSONResponseBodyDataConfigSource defines parameters for GetScheduledTask.
+type GetScheduledTask200JSONResponseBodyDataConfigSource string
+
+// GetScheduledTask200JSONResponseBodyDataJobCategory defines parameters for GetScheduledTask.
+type GetScheduledTask200JSONResponseBodyDataJobCategory string
+
 // GetScheduledTask200JSONResponseBodyDataLastRunStatus defines parameters for GetScheduledTask.
 type GetScheduledTask200JSONResponseBodyDataLastRunStatus string
 
 // GetScheduledTask200JSONResponseBodyDataLastRunTriggerType defines parameters for GetScheduledTask.
 type GetScheduledTask200JSONResponseBodyDataLastRunTriggerType string
-
-// GetScheduledTask200JSONResponseBodyDataScheduleType defines parameters for GetScheduledTask.
-type GetScheduledTask200JSONResponseBodyDataScheduleType string
 
 // GetScheduledTask200JSONResponseBodyDataStatus defines parameters for GetScheduledTask.
 type GetScheduledTask200JSONResponseBodyDataStatus string
@@ -1828,14 +2227,17 @@ type PutScheduledTaskParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// PutScheduledTask200JSONResponseBodyDataConfigSource defines parameters for PutScheduledTask.
+type PutScheduledTask200JSONResponseBodyDataConfigSource string
+
+// PutScheduledTask200JSONResponseBodyDataJobCategory defines parameters for PutScheduledTask.
+type PutScheduledTask200JSONResponseBodyDataJobCategory string
+
 // PutScheduledTask200JSONResponseBodyDataLastRunStatus defines parameters for PutScheduledTask.
 type PutScheduledTask200JSONResponseBodyDataLastRunStatus string
 
 // PutScheduledTask200JSONResponseBodyDataLastRunTriggerType defines parameters for PutScheduledTask.
 type PutScheduledTask200JSONResponseBodyDataLastRunTriggerType string
-
-// PutScheduledTask200JSONResponseBodyDataScheduleType defines parameters for PutScheduledTask.
-type PutScheduledTask200JSONResponseBodyDataScheduleType string
 
 // PutScheduledTask200JSONResponseBodyDataStatus defines parameters for PutScheduledTask.
 type PutScheduledTask200JSONResponseBodyDataStatus string
@@ -1899,14 +2301,17 @@ type PostScheduledTaskDisableParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// PostScheduledTaskDisable200JSONResponseBodyDataConfigSource defines parameters for PostScheduledTaskDisable.
+type PostScheduledTaskDisable200JSONResponseBodyDataConfigSource string
+
+// PostScheduledTaskDisable200JSONResponseBodyDataJobCategory defines parameters for PostScheduledTaskDisable.
+type PostScheduledTaskDisable200JSONResponseBodyDataJobCategory string
+
 // PostScheduledTaskDisable200JSONResponseBodyDataLastRunStatus defines parameters for PostScheduledTaskDisable.
 type PostScheduledTaskDisable200JSONResponseBodyDataLastRunStatus string
 
 // PostScheduledTaskDisable200JSONResponseBodyDataLastRunTriggerType defines parameters for PostScheduledTaskDisable.
 type PostScheduledTaskDisable200JSONResponseBodyDataLastRunTriggerType string
-
-// PostScheduledTaskDisable200JSONResponseBodyDataScheduleType defines parameters for PostScheduledTaskDisable.
-type PostScheduledTaskDisable200JSONResponseBodyDataScheduleType string
 
 // PostScheduledTaskDisable200JSONResponseBodyDataStatus defines parameters for PostScheduledTaskDisable.
 type PostScheduledTaskDisable200JSONResponseBodyDataStatus string
@@ -1936,14 +2341,17 @@ type PostScheduledTaskEnableParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// PostScheduledTaskEnable200JSONResponseBodyDataConfigSource defines parameters for PostScheduledTaskEnable.
+type PostScheduledTaskEnable200JSONResponseBodyDataConfigSource string
+
+// PostScheduledTaskEnable200JSONResponseBodyDataJobCategory defines parameters for PostScheduledTaskEnable.
+type PostScheduledTaskEnable200JSONResponseBodyDataJobCategory string
+
 // PostScheduledTaskEnable200JSONResponseBodyDataLastRunStatus defines parameters for PostScheduledTaskEnable.
 type PostScheduledTaskEnable200JSONResponseBodyDataLastRunStatus string
 
 // PostScheduledTaskEnable200JSONResponseBodyDataLastRunTriggerType defines parameters for PostScheduledTaskEnable.
 type PostScheduledTaskEnable200JSONResponseBodyDataLastRunTriggerType string
-
-// PostScheduledTaskEnable200JSONResponseBodyDataScheduleType defines parameters for PostScheduledTaskEnable.
-type PostScheduledTaskEnable200JSONResponseBodyDataScheduleType string
 
 // PostScheduledTaskEnable200JSONResponseBodyDataStatus defines parameters for PostScheduledTaskEnable.
 type PostScheduledTaskEnable200JSONResponseBodyDataStatus string
@@ -1972,6 +2380,9 @@ type PostScheduledTaskRunParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PostScheduledTaskRun200JSONResponseBodyDataJobCategory defines parameters for PostScheduledTaskRun.
+type PostScheduledTaskRun200JSONResponseBodyDataJobCategory string
 
 // PostScheduledTaskRun200JSONResponseBodyDataStatus defines parameters for PostScheduledTaskRun.
 type PostScheduledTaskRun200JSONResponseBodyDataStatus string
@@ -2012,6 +2423,9 @@ type GetScheduledTaskRunsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory defines parameters for GetScheduledTaskRuns.
+type GetScheduledTaskRuns200JSONResponseBodyDataItemsJobCategory string
 
 // GetScheduledTaskRuns200JSONResponseBodyDataItemsStatus defines parameters for GetScheduledTaskRuns.
 type GetScheduledTaskRuns200JSONResponseBodyDataItemsStatus string

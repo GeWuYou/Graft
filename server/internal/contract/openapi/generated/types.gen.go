@@ -620,22 +620,22 @@ func (e AuditTargetKind) Valid() bool {
 
 // Defines values for DashboardWidgetCategory.
 const (
-	Business  DashboardWidgetCategory = "business"
-	Operation DashboardWidgetCategory = "operation"
-	Security  DashboardWidgetCategory = "security"
-	System    DashboardWidgetCategory = "system"
+	DashboardWidgetCategoryBusiness  DashboardWidgetCategory = "business"
+	DashboardWidgetCategoryOperation DashboardWidgetCategory = "operation"
+	DashboardWidgetCategorySecurity  DashboardWidgetCategory = "security"
+	DashboardWidgetCategorySystem    DashboardWidgetCategory = "system"
 )
 
 // Valid indicates whether the value is a known member of the DashboardWidgetCategory enum.
 func (e DashboardWidgetCategory) Valid() bool {
 	switch e {
-	case Business:
+	case DashboardWidgetCategoryBusiness:
 		return true
-	case Operation:
+	case DashboardWidgetCategoryOperation:
 		return true
-	case Security:
+	case DashboardWidgetCategorySecurity:
 		return true
-	case System:
+	case DashboardWidgetCategorySystem:
 		return true
 	default:
 		return false
@@ -1146,15 +1146,18 @@ func (e RoleListItemStatus) Valid() bool {
 	}
 }
 
-// Defines values for ScheduledTaskItemScheduleType.
+// Defines values for ScheduledTaskItemConfigSource.
 const (
-	ScheduledTaskItemScheduleTypeCron ScheduledTaskItemScheduleType = "cron"
+	ScheduledTaskItemConfigSourceSystem ScheduledTaskItemConfigSource = "system"
+	ScheduledTaskItemConfigSourceUser   ScheduledTaskItemConfigSource = "user"
 )
 
-// Valid indicates whether the value is a known member of the ScheduledTaskItemScheduleType enum.
-func (e ScheduledTaskItemScheduleType) Valid() bool {
+// Valid indicates whether the value is a known member of the ScheduledTaskItemConfigSource enum.
+func (e ScheduledTaskItemConfigSource) Valid() bool {
 	switch e {
-	case ScheduledTaskItemScheduleTypeCron:
+	case ScheduledTaskItemConfigSourceSystem:
+		return true
+	case ScheduledTaskItemConfigSourceUser:
 		return true
 	default:
 		return false
@@ -1215,6 +1218,72 @@ func (e ScheduledTaskJobDefinitionItemActionsTheme) Valid() bool {
 	}
 }
 
+// Defines values for ScheduledTaskJobDefinitionItemCategory.
+const (
+	ScheduledTaskJobDefinitionItemCategoryCustom       ScheduledTaskJobDefinitionItemCategory = "custom"
+	ScheduledTaskJobDefinitionItemCategoryMaintenance  ScheduledTaskJobDefinitionItemCategory = "maintenance"
+	ScheduledTaskJobDefinitionItemCategoryNotification ScheduledTaskJobDefinitionItemCategory = "notification"
+	ScheduledTaskJobDefinitionItemCategoryReport       ScheduledTaskJobDefinitionItemCategory = "report"
+	ScheduledTaskJobDefinitionItemCategoryRetention    ScheduledTaskJobDefinitionItemCategory = "retention"
+	ScheduledTaskJobDefinitionItemCategorySync         ScheduledTaskJobDefinitionItemCategory = "sync"
+	ScheduledTaskJobDefinitionItemCategoryWorkflow     ScheduledTaskJobDefinitionItemCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the ScheduledTaskJobDefinitionItemCategory enum.
+func (e ScheduledTaskJobDefinitionItemCategory) Valid() bool {
+	switch e {
+	case ScheduledTaskJobDefinitionItemCategoryCustom:
+		return true
+	case ScheduledTaskJobDefinitionItemCategoryMaintenance:
+		return true
+	case ScheduledTaskJobDefinitionItemCategoryNotification:
+		return true
+	case ScheduledTaskJobDefinitionItemCategoryReport:
+		return true
+	case ScheduledTaskJobDefinitionItemCategoryRetention:
+		return true
+	case ScheduledTaskJobDefinitionItemCategorySync:
+		return true
+	case ScheduledTaskJobDefinitionItemCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ScheduledTaskJobDefinitionSummaryCategory.
+const (
+	ScheduledTaskJobDefinitionSummaryCategoryCustom       ScheduledTaskJobDefinitionSummaryCategory = "custom"
+	ScheduledTaskJobDefinitionSummaryCategoryMaintenance  ScheduledTaskJobDefinitionSummaryCategory = "maintenance"
+	ScheduledTaskJobDefinitionSummaryCategoryNotification ScheduledTaskJobDefinitionSummaryCategory = "notification"
+	ScheduledTaskJobDefinitionSummaryCategoryReport       ScheduledTaskJobDefinitionSummaryCategory = "report"
+	ScheduledTaskJobDefinitionSummaryCategoryRetention    ScheduledTaskJobDefinitionSummaryCategory = "retention"
+	ScheduledTaskJobDefinitionSummaryCategorySync         ScheduledTaskJobDefinitionSummaryCategory = "sync"
+	ScheduledTaskJobDefinitionSummaryCategoryWorkflow     ScheduledTaskJobDefinitionSummaryCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the ScheduledTaskJobDefinitionSummaryCategory enum.
+func (e ScheduledTaskJobDefinitionSummaryCategory) Valid() bool {
+	switch e {
+	case ScheduledTaskJobDefinitionSummaryCategoryCustom:
+		return true
+	case ScheduledTaskJobDefinitionSummaryCategoryMaintenance:
+		return true
+	case ScheduledTaskJobDefinitionSummaryCategoryNotification:
+		return true
+	case ScheduledTaskJobDefinitionSummaryCategoryReport:
+		return true
+	case ScheduledTaskJobDefinitionSummaryCategoryRetention:
+		return true
+	case ScheduledTaskJobDefinitionSummaryCategorySync:
+		return true
+	case ScheduledTaskJobDefinitionSummaryCategoryWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ScheduledTaskLastRunStatus.
 const (
 	ScheduledTaskLastRunStatusFailed  ScheduledTaskLastRunStatus = "failed"
@@ -1257,6 +1326,39 @@ func (e ScheduledTaskLastRunTriggerType) Valid() bool {
 	}
 }
 
+// Defines values for ScheduledTaskRunItemJobCategory.
+const (
+	Custom       ScheduledTaskRunItemJobCategory = "custom"
+	Maintenance  ScheduledTaskRunItemJobCategory = "maintenance"
+	Notification ScheduledTaskRunItemJobCategory = "notification"
+	Report       ScheduledTaskRunItemJobCategory = "report"
+	Retention    ScheduledTaskRunItemJobCategory = "retention"
+	Sync         ScheduledTaskRunItemJobCategory = "sync"
+	Workflow     ScheduledTaskRunItemJobCategory = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the ScheduledTaskRunItemJobCategory enum.
+func (e ScheduledTaskRunItemJobCategory) Valid() bool {
+	switch e {
+	case Custom:
+		return true
+	case Maintenance:
+		return true
+	case Notification:
+		return true
+	case Report:
+		return true
+	case Retention:
+		return true
+	case Sync:
+		return true
+	case Workflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ScheduledTaskRunItemStatus.
 const (
 	Failed  ScheduledTaskRunItemStatus = "failed"
@@ -1280,19 +1382,19 @@ func (e ScheduledTaskRunItemStatus) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemTriggerType.
 const (
-	Cron    ScheduledTaskRunItemTriggerType = "cron"
-	Manual  ScheduledTaskRunItemTriggerType = "manual"
-	Startup ScheduledTaskRunItemTriggerType = "startup"
+	ScheduledTaskRunItemTriggerTypeCron    ScheduledTaskRunItemTriggerType = "cron"
+	ScheduledTaskRunItemTriggerTypeManual  ScheduledTaskRunItemTriggerType = "manual"
+	ScheduledTaskRunItemTriggerTypeStartup ScheduledTaskRunItemTriggerType = "startup"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemTriggerType enum.
 func (e ScheduledTaskRunItemTriggerType) Valid() bool {
 	switch e {
-	case Cron:
+	case ScheduledTaskRunItemTriggerTypeCron:
 		return true
-	case Manual:
+	case ScheduledTaskRunItemTriggerTypeManual:
 		return true
-	case Startup:
+	case ScheduledTaskRunItemTriggerTypeStartup:
 		return true
 	default:
 		return false
@@ -3589,42 +3691,46 @@ type ScheduledTaskActionResult struct {
 // ScheduledTaskItem defines model for scheduled-task-item.
 type ScheduledTaskItem struct {
 	// Builtin Builtin Scheduled Tasks cannot be deleted or change task_key/job_key.
-	Builtin *bool `json:"builtin,omitempty"`
+	Builtin bool `json:"builtin"`
 
-	// ConfigJson JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler.
-	ConfigJson     *string `json:"config_json,omitempty"`
+	// ConfigJson Scheduled Task instance config override JSON object string.
+	ConfigJson string `json:"config_json"`
+
+	// ConfigSource system means using Job Definition default_config; user means applying task config_json override.
+	ConfigSource ScheduledTaskItemConfigSource `json:"config_source"`
+	CreatedAt    time.Time                     `json:"created_at"`
+
+	// CronExpression Cron expression validated by the scheduler runtime.
+	CronExpression string  `json:"cron_expression"`
 	Description    *string `json:"description,omitempty"`
-	DescriptionKey string  `json:"description_key"`
-	DisplayNameKey string  `json:"display_name_key"`
+	DescriptionKey *string `json:"description_key,omitempty"`
 
 	// EffectiveConfig Effective config JSON object string computed by merging Job Definition default_config with task config_json.
-	EffectiveConfig *string `json:"effective_config,omitempty"`
+	EffectiveConfig string `json:"effective_config"`
 
 	// Enabled Whether the Scheduled Task is enabled in the DB-backed schedule definition.
-	Enabled bool `json:"enabled"`
+	Enabled bool                               `json:"enabled"`
+	Id      int64                              `json:"id"`
+	Job     *ScheduledTaskJobDefinitionSummary `json:"job,omitempty"`
 
 	// JobKey Stable Job Definition key executed by this Scheduled Task.
-	JobKey string `json:"job_key"`
-
-	// Key Stable Scheduled Task instance key.
-	Key     string                `json:"key"`
+	JobKey  string                `json:"job_key"`
 	LastRun *ScheduledTaskLastRun `json:"last_run,omitempty"`
-	Module  string                `json:"module"`
 
 	// NextRunAt Reserved for future runtime prediction. Omitted when the current runtime cannot expose a stable next-run value.
-	NextRunAt *time.Time `json:"next_run_at,omitempty"`
-	Owner     string     `json:"owner"`
-	Running   bool       `json:"running"`
+	NextRunAt *time.Time              `json:"next_run_at,omitempty"`
+	Running   bool                    `json:"running"`
+	Status    ScheduledTaskItemStatus `json:"status"`
 
-	// Schedule Cron expression validated by the scheduler runtime.
-	Schedule     string                        `json:"schedule"`
-	ScheduleType ScheduledTaskItemScheduleType `json:"schedule_type"`
-	Status       ScheduledTaskItemStatus       `json:"status"`
-	Title        *string                       `json:"title,omitempty"`
+	// TaskKey Stable Scheduled Task instance key.
+	TaskKey   string    `json:"task_key"`
+	Title     string    `json:"title"`
+	TitleKey  *string   `json:"title_key,omitempty"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// ScheduledTaskItemScheduleType defines model for ScheduledTaskItem.ScheduleType.
-type ScheduledTaskItemScheduleType string
+// ScheduledTaskItemConfigSource system means using Job Definition default_config; user means applying task config_json override.
+type ScheduledTaskItemConfigSource string
 
 // ScheduledTaskItemStatus defines model for ScheduledTaskItem.Status.
 type ScheduledTaskItemStatus string
@@ -3647,35 +3753,48 @@ type ScheduledTaskJobDefinitionItem struct {
 		Title               *string                                     `json:"title,omitempty"`
 		TitleKey            *string                                     `json:"title_key,omitempty"`
 	} `json:"actions"`
+	Category    ScheduledTaskJobDefinitionItemCategory `json:"category"`
+	CategoryKey string                                 `json:"category_key"`
 
-	// ConfigSchemaJson JSON Schema string for Scheduled Task config accepted by this Job Definition.
-	ConfigSchemaJson string `json:"config_schema_json"`
+	// ConfigSchema JSON Schema string for Scheduled Task config accepted by this Job Definition.
+	ConfigSchema string `json:"config_schema"`
 
-	// DefaultConfigJson Default config JSON object string for a new Scheduled Task bound to this Job Definition.
-	DefaultConfigJson string `json:"default_config_json"`
+	// DefaultConfig Default config JSON object string for a new Scheduled Task bound to this Job Definition.
+	DefaultConfig string `json:"default_config"`
 
-	// DefaultCronExpression Default cron expression declared by the Job Definition.
-	DefaultCronExpression string `json:"default_cron_expression"`
+	// DefaultCron Default cron expression declared by the Job Definition.
+	DefaultCron string `json:"default_cron"`
 
 	// DefaultEnabled Whether new Scheduled Tasks for this Job Definition should be enabled by default.
 	DefaultEnabled bool `json:"default_enabled"`
 
 	// Description Direct display fallback when the client has no translation for description_key.
 	Description    *string `json:"description,omitempty"`
-	DescriptionKey string  `json:"description_key"`
-	DisplayNameKey string  `json:"display_name_key"`
+	DescriptionKey *string `json:"description_key,omitempty"`
 
-	// Key Stable Job Definition key registered by a module.
-	Key    string `json:"key"`
-	Module string `json:"module"`
-	Owner  string `json:"owner"`
+	// Enabled Whether this Job Definition is active and can be selected.
+	Enabled bool `json:"enabled"`
 
-	// Title Direct display fallback when the client has no translation for display_name_key.
-	Title *string `json:"title,omitempty"`
+	// JobKey Stable Job Definition key registered by a module.
+	JobKey string `json:"job_key"`
+
+	// ModuleKey Module that declares this Job Definition.
+	ModuleKey string `json:"module_key"`
+
+	// ShortTitle Compact Job Definition title fallback for list display.
+	ShortTitle    string  `json:"short_title"`
+	ShortTitleKey *string `json:"short_title_key,omitempty"`
+
+	// Title Full Job Definition title fallback when the client has no translation for title_key.
+	Title    string  `json:"title"`
+	TitleKey *string `json:"title_key,omitempty"`
 }
 
 // ScheduledTaskJobDefinitionItemActionsTheme defines model for ScheduledTaskJobDefinitionItem.Actions.Theme.
 type ScheduledTaskJobDefinitionItemActionsTheme string
+
+// ScheduledTaskJobDefinitionItemCategory defines model for ScheduledTaskJobDefinitionItem.Category.
+type ScheduledTaskJobDefinitionItemCategory string
 
 // ScheduledTaskJobDefinitionListResponse defines model for scheduled-task-job-definition-list-response.
 type ScheduledTaskJobDefinitionListResponse struct {
@@ -3683,10 +3802,27 @@ type ScheduledTaskJobDefinitionListResponse struct {
 	Total int                              `json:"total"`
 }
 
+// ScheduledTaskJobDefinitionSummary defines model for scheduled-task-job-definition-summary.
+type ScheduledTaskJobDefinitionSummary struct {
+	Category       ScheduledTaskJobDefinitionSummaryCategory `json:"category"`
+	CategoryKey    string                                    `json:"category_key"`
+	Description    *string                                   `json:"description,omitempty"`
+	DescriptionKey *string                                   `json:"description_key,omitempty"`
+	JobKey         string                                    `json:"job_key"`
+	ModuleKey      string                                    `json:"module_key"`
+	ShortTitle     string                                    `json:"short_title"`
+	ShortTitleKey  *string                                   `json:"short_title_key,omitempty"`
+	Title          string                                    `json:"title"`
+	TitleKey       *string                                   `json:"title_key,omitempty"`
+}
+
+// ScheduledTaskJobDefinitionSummaryCategory defines model for ScheduledTaskJobDefinitionSummary.Category.
+type ScheduledTaskJobDefinitionSummaryCategory string
+
 // ScheduledTaskLastRun defines model for scheduled-task-last-run.
 type ScheduledTaskLastRun struct {
 	DurationMs   *int64     `json:"duration_ms,omitempty"`
-	ErrorSummary *string    `json:"error_summary,omitempty"`
+	ErrorMessage *string    `json:"error_message,omitempty"`
 	FinishedAt   *time.Time `json:"finished_at,omitempty"`
 	Id           int64      `json:"id"`
 
@@ -3718,23 +3854,32 @@ type ScheduledTaskRunItem struct {
 	DurationMs *int64    `json:"duration_ms,omitempty"`
 
 	// EffectiveConfig Effective config JSON object string used by an immediate manual run response when available.
-	EffectiveConfig *string    `json:"effective_config,omitempty"`
-	ErrorSummary    *string    `json:"error_summary,omitempty"`
-	FinishedAt      *time.Time `json:"finished_at,omitempty"`
-	Id              int64      `json:"id"`
-	JobKey          string     `json:"job_key"`
-	Module          string     `json:"module"`
-	Owner           string     `json:"owner"`
+	EffectiveConfig  *string                         `json:"effective_config,omitempty"`
+	ErrorMessage     *string                         `json:"error_message,omitempty"`
+	FinishedAt       *time.Time                      `json:"finished_at,omitempty"`
+	Id               int64                           `json:"id"`
+	JobCategory      ScheduledTaskRunItemJobCategory `json:"job_category"`
+	JobKey           string                          `json:"job_key"`
+	JobShortTitle    string                          `json:"job_short_title"`
+	JobShortTitleKey *string                         `json:"job_short_title_key,omitempty"`
+	JobTitle         string                          `json:"job_title"`
+	JobTitleKey      *string                         `json:"job_title_key,omitempty"`
+	ModuleKey        string                          `json:"module_key"`
 
 	// ResultJson Structured JobRunResult JSON object string.
 	ResultJson    *string                         `json:"result_json,omitempty"`
 	ResultSummary *string                         `json:"result_summary,omitempty"`
 	StartedAt     time.Time                       `json:"started_at"`
 	Status        ScheduledTaskRunItemStatus      `json:"status"`
+	TaskBuiltin   bool                            `json:"task_builtin"`
 	TaskKey       string                          `json:"task_key"`
-	TaskName      string                          `json:"task_name"`
+	TaskTitle     string                          `json:"task_title"`
+	TaskTitleKey  *string                         `json:"task_title_key,omitempty"`
 	TriggerType   ScheduledTaskRunItemTriggerType `json:"trigger_type"`
 }
+
+// ScheduledTaskRunItemJobCategory defines model for ScheduledTaskRunItem.JobCategory.
+type ScheduledTaskRunItemJobCategory string
 
 // ScheduledTaskRunItemStatus defines model for ScheduledTaskRunItem.Status.
 type ScheduledTaskRunItemStatus string

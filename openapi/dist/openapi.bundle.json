@@ -10950,6 +10950,58 @@
           }
         ]
       },
+      "scheduled-task-job-definition-summary": {
+        "type": "object",
+        "required": [
+          "job_key",
+          "module_key",
+          "category",
+          "category_key",
+          "title",
+          "short_title"
+        ],
+        "properties": {
+          "job_key": {
+            "type": "string"
+          },
+          "module_key": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "retention",
+              "sync",
+              "maintenance",
+              "notification",
+              "report",
+              "workflow",
+              "custom"
+            ]
+          },
+          "category_key": {
+            "type": "string"
+          },
+          "title_key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "short_title_key": {
+            "type": "string"
+          },
+          "short_title": {
+            "type": "string"
+          },
+          "description_key": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
       "scheduled-task-last-run": {
         "type": "object",
         "required": [
@@ -10995,7 +11047,7 @@
             "minimum": 0,
             "nullable": true
           },
-          "error_summary": {
+          "error_message": {
             "type": "string"
           },
           "result_summary": {
@@ -11011,20 +11063,28 @@
       "scheduled-task-item": {
         "type": "object",
         "required": [
-          "key",
+          "id",
+          "task_key",
           "job_key",
-          "schedule_type",
-          "display_name_key",
-          "description_key",
-          "owner",
-          "module",
+          "title",
+          "cron_expression",
           "enabled",
-          "schedule",
+          "builtin",
+          "config_json",
+          "config_source",
+          "effective_config",
           "status",
-          "running"
+          "running",
+          "created_at",
+          "updated_at"
         ],
         "properties": {
-          "key": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "task_key": {
             "type": "string",
             "description": "Stable Scheduled Task instance key."
           },
@@ -11032,23 +11092,21 @@
             "type": "string",
             "description": "Stable Job Definition key executed by this Scheduled Task."
           },
-          "schedule_type": {
-            "type": "string",
-            "enum": [
-              "cron"
-            ]
+          "title_key": {
+            "type": "string"
           },
-          "display_name_key": {
+          "title": {
             "type": "string"
           },
           "description_key": {
             "type": "string"
           },
-          "owner": {
+          "description": {
             "type": "string"
           },
-          "module": {
-            "type": "string"
+          "cron_expression": {
+            "type": "string",
+            "description": "Cron expression validated by the scheduler runtime."
           },
           "enabled": {
             "type": "boolean",
@@ -11058,25 +11116,26 @@
             "type": "boolean",
             "description": "Builtin Scheduled Tasks cannot be deleted or change task_key/job_key."
           },
-          "title": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "schedule": {
-            "type": "string",
-            "description": "Cron expression validated by the scheduler runtime."
-          },
           "config_json": {
             "type": "string",
             "pattern": "^\\\\s*\\\\{[\\\\s\\\\S]*\\\\}\\\\s*$",
-            "description": "JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler."
+            "description": "Scheduled Task instance config override JSON object string."
+          },
+          "config_source": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user"
+            ],
+            "description": "system means using Job Definition default_config; user means applying task config_json override."
           },
           "effective_config": {
             "type": "string",
             "pattern": "^\\\\s*\\\\{[\\\\s\\\\S]*\\\\}\\\\s*$",
             "description": "Effective config JSON object string computed by merging Job Definition default_config with task config_json."
+          },
+          "job": {
+            "$ref": "#/components/schemas/scheduled-task-job-definition-summary"
           },
           "last_run": {
             "$ref": "#/components/schemas/scheduled-task-last-run"
@@ -11098,6 +11157,14 @@
           },
           "running": {
             "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -11211,57 +11278,85 @@
       "scheduled-task-job-definition-item": {
         "type": "object",
         "required": [
-          "key",
-          "owner",
-          "module",
-          "display_name_key",
-          "description_key",
-          "config_schema_json",
-          "default_config_json",
-          "default_cron_expression",
+          "job_key",
+          "module_key",
+          "category",
+          "category_key",
+          "title",
+          "short_title",
+          "config_schema",
+          "default_config",
+          "default_cron",
           "default_enabled",
+          "enabled",
           "actions"
         ],
         "properties": {
-          "key": {
+          "job_key": {
             "type": "string",
             "description": "Stable Job Definition key registered by a module."
           },
-          "owner": {
+          "module_key": {
+            "type": "string",
+            "description": "Module that declares this Job Definition."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "retention",
+              "sync",
+              "maintenance",
+              "notification",
+              "report",
+              "workflow",
+              "custom"
+            ]
+          },
+          "category_key": {
             "type": "string"
           },
-          "module": {
-            "type": "string"
-          },
-          "display_name_key": {
-            "type": "string"
-          },
-          "description_key": {
+          "title_key": {
             "type": "string"
           },
           "title": {
             "type": "string",
-            "description": "Direct display fallback when the client has no translation for display_name_key."
+            "description": "Full Job Definition title fallback when the client has no translation for title_key."
+          },
+          "short_title_key": {
+            "type": "string"
+          },
+          "short_title": {
+            "type": "string",
+            "description": "Compact Job Definition title fallback for list display."
+          },
+          "description_key": {
+            "type": "string"
           },
           "description": {
             "type": "string",
             "description": "Direct display fallback when the client has no translation for description_key."
           },
-          "config_schema_json": {
+          "config_schema": {
             "type": "string",
+            "pattern": "^\\\\s*\\\\{[\\\\s\\\\S]*\\\\}\\\\s*$",
             "description": "JSON Schema string for Scheduled Task config accepted by this Job Definition."
           },
-          "default_config_json": {
+          "default_config": {
             "type": "string",
+            "pattern": "^\\\\s*\\\\{[\\\\s\\\\S]*\\\\}\\\\s*$",
             "description": "Default config JSON object string for a new Scheduled Task bound to this Job Definition."
           },
-          "default_cron_expression": {
+          "default_cron": {
             "type": "string",
             "description": "Default cron expression declared by the Job Definition."
           },
           "default_enabled": {
             "type": "boolean",
             "description": "Whether new Scheduled Tasks for this Job Definition should be enabled by default."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether this Job Definition is active and can be selected."
           },
           "actions": {
             "type": "array",
@@ -11408,9 +11503,12 @@
           "id",
           "task_key",
           "job_key",
-          "task_name",
-          "owner",
-          "module",
+          "task_title",
+          "job_title",
+          "job_short_title",
+          "job_category",
+          "module_key",
+          "task_builtin",
           "trigger_type",
           "status",
           "started_at",
@@ -11428,14 +11526,41 @@
           "job_key": {
             "type": "string"
           },
-          "task_name": {
+          "task_title_key": {
             "type": "string"
           },
-          "owner": {
+          "task_title": {
             "type": "string"
           },
-          "module": {
+          "job_title_key": {
             "type": "string"
+          },
+          "job_title": {
+            "type": "string"
+          },
+          "job_short_title_key": {
+            "type": "string"
+          },
+          "job_short_title": {
+            "type": "string"
+          },
+          "job_category": {
+            "type": "string",
+            "enum": [
+              "retention",
+              "sync",
+              "maintenance",
+              "notification",
+              "report",
+              "workflow",
+              "custom"
+            ]
+          },
+          "module_key": {
+            "type": "string"
+          },
+          "task_builtin": {
+            "type": "boolean"
           },
           "trigger_type": {
             "type": "string",
@@ -11453,7 +11578,7 @@
               "failed"
             ]
           },
-          "error_summary": {
+          "error_message": {
             "type": "string"
           },
           "result_summary": {

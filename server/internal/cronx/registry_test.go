@@ -7,9 +7,9 @@ import "testing"
 
 func TestJobRuntimeTitleDoesNotUseMessageKeyAsDisplayText(t *testing.T) {
 	job := Job{
-		Key:                   "audit.audit-log-retention-cleanup",
-		DisplayMessageKey:     "scheduledTask.auditLogRetention.title",
-		DescriptionMessageKey: "scheduledTask.auditLogRetention.description",
+		Key:            "audit.audit-log-retention-cleanup",
+		TitleKey:       "scheduledTask.auditLogRetention.title",
+		DescriptionKey: "scheduledTask.auditLogRetention.description",
 	}
 
 	if got := job.RuntimeTitle(); got != job.Key {

@@ -10,26 +10,42 @@ import (
 	"strings"
 )
 
+// JobCategory is the stable execution category for a Job Definition.
+type JobCategory string
+
+// Supported Job Definition categories.
+const (
+	JobCategoryRetention    JobCategory = "retention"
+	JobCategorySync         JobCategory = "sync"
+	JobCategoryMaintenance  JobCategory = "maintenance"
+	JobCategoryNotification JobCategory = "notification"
+	JobCategoryReport       JobCategory = "report"
+	JobCategoryWorkflow     JobCategory = "workflow"
+	JobCategoryCustom       JobCategory = "custom"
+)
+
 // Job 描述一个待注册的定时任务。
 type Job struct {
 	// Name 是历史内部标识；为空时沿用 Key。
 	Name string
 	// Key 是 Job Definition 的稳定标识。
 	Key string
-	// Owner 标记任务所有者，优先使用 module 名称；为空时沿用 Module。
-	Owner string
+	// ModuleKey 标记声明该 Job Definition 的模块。
+	ModuleKey string
+	// Category 是 Job Definition 的稳定分类。
+	Category JobCategory
 	// Title 是 Job Definition 的默认展示标题。
 	Title string
 	// TitleKey 是 Job Definition 标题的稳定 i18n key。
 	TitleKey string
+	// ShortTitle 是列表等紧凑场景使用的默认短标题。
+	ShortTitle string
+	// ShortTitleKey 是 Job Definition 短标题的稳定 i18n key。
+	ShortTitleKey string
 	// Description 是 Job Definition 的默认说明。
 	Description string
 	// DescriptionKey 是 Job Definition 说明的稳定 i18n key。
 	DescriptionKey string
-	// DisplayMessageKey 是任务名称的稳定 i18n key。
-	DisplayMessageKey string
-	// DescriptionMessageKey 是任务说明的稳定 i18n key。
-	DescriptionMessageKey string
 	// ConfigSchema 是 scheduler 接受的 Job Definition JSON Schema 子集。
 	ConfigSchema string
 	// DefaultConfig 是与每个任务 config_json 合并的默认 JSON object。
@@ -43,6 +59,8 @@ type Job struct {
 	// DefaultEnabled 表示任务默认是否随运行时启用。MVP 不提供动态启停能力。
 	DefaultEnabled bool
 	// Module 标记任务来源模块，方便在启动失败或停机清理时定位责任边界。
+	//
+	// Deprecated: use ModuleKey for new Job Definition declarations.
 	Module string
 	// Handler is the scheduler execution entrypoint. configJSON is effective_config.
 	Handler func(ctx context.Context, configJSON string) (JobRunResult, error)
@@ -81,12 +99,28 @@ func (j Job) RuntimeKey() string {
 	return strings.TrimSpace(j.Name)
 }
 
-// RuntimeOwner returns the visible owner/module key.
-func (j Job) RuntimeOwner() string {
-	if owner := strings.TrimSpace(j.Owner); owner != "" {
-		return owner
+// RuntimeModuleKey returns the Job Definition module key.
+func (j Job) RuntimeModuleKey() string {
+	if moduleKey := strings.TrimSpace(j.ModuleKey); moduleKey != "" {
+		return moduleKey
 	}
 	return strings.TrimSpace(j.Module)
+}
+
+// RuntimeCategory returns the stable category for this Job Definition.
+func (j Job) RuntimeCategory() JobCategory {
+	switch j.Category {
+	case JobCategoryRetention,
+		JobCategorySync,
+		JobCategoryMaintenance,
+		JobCategoryNotification,
+		JobCategoryReport,
+		JobCategoryWorkflow,
+		JobCategoryCustom:
+		return j.Category
+	default:
+		return JobCategoryCustom
+	}
 }
 
 // RuntimeTitle returns the default display title.
@@ -107,18 +141,25 @@ func (j Job) RuntimeDescription() string {
 
 // RuntimeTitleKey returns the stable i18n key for the job title.
 func (j Job) RuntimeTitleKey() string {
-	if key := strings.TrimSpace(j.TitleKey); key != "" {
-		return key
+	return strings.TrimSpace(j.TitleKey)
+}
+
+// RuntimeShortTitle returns the compact default display title.
+func (j Job) RuntimeShortTitle() string {
+	if title := strings.TrimSpace(j.ShortTitle); title != "" {
+		return title
 	}
-	return strings.TrimSpace(j.DisplayMessageKey)
+	return j.RuntimeTitle()
+}
+
+// RuntimeShortTitleKey returns the stable i18n key for the compact title.
+func (j Job) RuntimeShortTitleKey() string {
+	return strings.TrimSpace(j.ShortTitleKey)
 }
 
 // RuntimeDescriptionKey returns the stable i18n key for the job description.
 func (j Job) RuntimeDescriptionKey() string {
-	if key := strings.TrimSpace(j.DescriptionKey); key != "" {
-		return key
-	}
-	return strings.TrimSpace(j.DescriptionMessageKey)
+	return strings.TrimSpace(j.DescriptionKey)
 }
 
 // RuntimeDefaultConfig returns stable JSON for default job config.
@@ -186,6 +227,9 @@ func (r *Registry) Items() []Job {
 func (j Job) Validate() error {
 	if strings.TrimSpace(j.Name) == "" && strings.TrimSpace(j.Key) == "" {
 		return errors.New("job name is required")
+	}
+	if strings.TrimSpace(j.RuntimeModuleKey()) == "" {
+		return errors.New("job module key is required")
 	}
 	if strings.TrimSpace(j.Schedule) == "" {
 		return errors.New("job schedule is required")

@@ -3,7 +3,7 @@
 ## Topic
 
 - Topic: `scheduled-task-job-definition-model-closure`
-- Status: `active recovery entry`
+- Status: `implemented pending archive review`
 - Goal: close the concept and data-model boundary between Scheduled Task instances, code-registered Job Definitions,
   and Task Run execution records.
 - Recovery source: read-only exploration completed on 2026-06-11.
@@ -21,11 +21,11 @@
 
 ## Current Recovery Point
 
-- The last completed slice was a read-only exploration of Scheduled Task database tables, Job Definition registration,
-  OpenAPI DTOs, and the scheduled-task frontend page.
-- No code, database, migration, OpenAPI, or frontend implementation files were modified by the exploration slice.
-- The exploration found that the current product concept is close to the desired model, but naming and presentation
-  boundaries are confusing and should be tightened before more scheduler UI work is added.
+- The destructive model-closure slice has been implemented across scheduler migrations, backend runtime/repository/API
+  mapping, OpenAPI schemas/generated contracts, and the scheduled-task frontend page.
+- Scheduled Task and Job Definition are now separated across storage, execution, API response shape, and UI presenter
+  semantics.
+- The recovery topic should now be archived or closed after the implementation commit lands.
 
 ## Current Evidence
 
@@ -44,16 +44,19 @@
 
 ## Current Model Findings
 
-- `task_key` identifies a task instance.
+- `task_key` identifies a Scheduled Task instance.
 - `job_key` identifies the code-registered Job Definition that executes the task.
-- Builtin tasks often use `task_key == job_key`, but custom/user-created tasks can point many task instances at one
-  Job Definition.
-- `task_type` currently behaves like historical/redundant data; current code effectively treats it as `job`.
-- `params_json` is historical/redundant compared with `config_json`.
-- Job Definition `config_schema` and `default_config` belong to the code-registered definition.
-- Scheduled Task `config_json` and effective/final config belong to the task instance and execution view.
-- Task Run should keep `task_key` and `job_key` snapshots so historical executions remain traceable after future Job
-  Definition changes.
+- Builtin tasks can use `task_key == job_key`; custom/user-created tasks can point many task instances at one Job
+  Definition.
+- `task_type` and `params_json` were removed from scheduler storage/API surfaces.
+- task-level `owner/module/module_key` duplication was removed from Scheduled Task API output; module ownership comes
+  from the bound Job Definition.
+- Job Definition now owns `module_key`, `category`, `short_title`, `config_schema`, `default_config`, `default_cron`,
+  and default enabled semantics.
+- Scheduled Task owns `config_json`, `config_source`, `cron_expression`, enabled/builtin state, title/description, and
+  effective config at read time.
+- Task Run keeps execution-time snapshots of task/job title metadata, `job_category`, `module_key`, `task_builtin`,
+  result, and `error_message`.
 
 ## Current Registration Findings
 
@@ -64,17 +67,13 @@
   - `server/internal/httpx/accesslog_retention.go`
   - `server/internal/logger/retention.go`
   - `server/modules/audit/retention.go`
-- Job Definition fields currently include some mix of:
-  - `key`
-  - title / title key / name-like display fields
-  - description / description key
-  - module / owner / source-like fields
-  - type-like fields
-  - config schema / default config
-  - handler / action / runner behavior
-- Execution depends on the registered key and handler path. Most title/description fields are display metadata.
-- `owner`, `module`, and source-like labels overlap. Current server mapping sets `Owner` and `Module` from the same
-  module key, so the concepts are not cleanly separated.
+- `cronx.Job` now uses explicit Job Definition metadata: key, module key, category, title/title key, short title/short
+  title key, description/description key, config schema, default config, schedule/default cron, default enabled state,
+  handler, and actions.
+- The builtin retention jobs use `category=retention` with short-title keys for access log, app log, and audit log
+  compact display.
+- Execution resolves the registered Job Definition by `task.job_key` and writes Task Run snapshots for both task and
+  job metadata.
 
 ## Current API And Frontend Findings
 
@@ -88,34 +87,34 @@
 - Frontend evidence paths:
   - `web/src/modules/scheduled-task/pages/list/index.vue`
   - `web/src/modules/scheduled-task/types/scheduled-task.ts`
-- The list page `Job 类型 / Job Type` column resolves display text from `row.job_key` through the Job Definition list
-  and `jobDefinitionTitle()`.
-- That value is a Job Definition title, not a type/category/executor.
-- The scheduled-task page does not currently have a separate presenter/view-model layer. It directly mixes OpenAPI DTO
-  aliases, i18n fallback, config merge, detail drawer model construction, and UI display logic.
-- The page exposes fallback-heavy display behavior; future work should avoid showing backend fallback strings where an
-  i18n key-first display model is expected.
+- OpenAPI no longer exposes scheduler `owner`, duplicate `module`, `task_type`, `params_json`, or duplicate `error`
+  fields on Scheduled Task, Job Definition, or Task Run response schemas.
+- `ScheduledTaskItem` includes a nested Job Definition summary for display metadata instead of scattering duplicated job
+  fields across the task instance.
+- The scheduled-task page now has a presenter layer at
+  `web/src/modules/scheduled-task/presenter/scheduled-task-presenter.ts`.
+- The list no longer renders `Job 类型 / Job Type`; it displays compact category/module information through the
+  presenter.
+- The detail drawer is grouped into task instance, job definition, configuration, and run information sections.
 
-## Recommended Concept Model
+## Implemented Concept Model
 
 - Scheduled Task: user/system-created task instance.
-  - Suggested fields: `task_key`, `task_name`, `cron_expression`, `enabled`, `config_json`, `builtin`,
-    `created_by`, `updated_by`, `last_run`, `next_run`, `status`.
+  - Fields include `task_key`, `job_key`, title/description metadata, `cron_expression`, `enabled`, `builtin`,
+    `config_json`, `config_source`, timestamps, `last_run`, `next_run`, and effective config in read models.
 - Job Definition: code-registered execution definition.
-  - Suggested fields: `job_key`, `module`, `category`, `title_key`, `short_title_key`, `description_key`,
-    `config_schema`, `default_config`, `handler`.
+  - Fields include `job_key`, `module_key`, `category`, title/short-title/description metadata, `config_schema`,
+    `default_config`, `default_cron`, `default_enabled`, enabled state, and actions.
 - Task Run: one execution record.
-  - Suggested fields: `run_id`, `task_key`, `job_key`, `trigger_type`, `status`, `started_at`, `finished_at`,
-    `duration_ms`, `result_json`, `error_text`.
+  - Fields include `task_key`, `job_key`, task/job title snapshots, job short title, job category, module key,
+    task builtin state, trigger/status/timing, result summary/json, and `error_message`.
 
-## Recommended Product Semantics
+## Implemented Product Semantics
 
-- Replace list-column meaning of `Job 类型 / Job Type` with one of:
-  - `category`
-  - `category + module`
-  - `shortTitle`
-- Keep full Job Definition title, description, and `job_key` in the detail drawer.
-- Add stable Job Definition `category` values such as:
+- The scheduled-task list uses category/module-oriented compact display.
+- Full Job Definition title, short title, description, category, module, default cron, config schema, and default config
+  are shown in the detail drawer.
+- Stable Job Definition `category` values are:
   - `retention`
   - `sync`
   - `maintenance`
@@ -123,11 +122,11 @@
   - `report`
   - `workflow`
   - `custom`
-- Consider adding `shortTitle` / `displayShortName` for compact list display.
-- Preferred list examples:
+- `short_title` and `short_title_key` were added for compact list display.
+- List examples:
   - `Retention · HTTPX`
   - `Access Log`
-- Preferred detail examples:
+- Detail examples:
   - task name: `访问日志保留清理`
   - category: `日志保留`
   - source module: `HTTPX`
@@ -140,34 +139,28 @@
 - Do not collapse `task_key` and `job_key`; multiple task instances must be able to point to one Job Definition.
 - Do not add new `owner`, `module`, `source_module`, or `namespace` synonyms without first choosing a canonical
   authority concept.
-- Prefer `module` as the Job Definition owning module, for example `core.httpx`, `logger`, or `audit`.
-- Do not put a task-level `module` on Scheduled Task unless it represents the creator/owning task domain rather than
-  the executable Job Definition module.
+- Use `module_key` as the canonical Job Definition owning module field, for example `core.httpx`, `core.logger`, or
+  `audit`.
+- Do not put a task-level `module_key` on Scheduled Task unless it represents a distinct future task-instance ownership
+  concept rather than the executable Job Definition module.
 - Treat compatibility aliases as exceptions under root `AGENTS.md` authority-first rules; record owner, reason,
   downstream consumers, cleanup trigger, and validation if a bridge is unavoidable.
 
-## Recommended Next Batches
+## Completed Validation
 
-1. Contract/design slice:
-   - Decide final DTO names for `category`, `shortTitle` / `short_title_key`, and canonical module/source naming.
-   - Decide whether `task_type` and `params_json` become deprecated compatibility fields or are removed in a later
-     migration.
-   - Record any compatibility exception before implementing it.
-2. Server database/API slice:
-   - Add or backfill Job Definition category and short-title metadata.
-   - Keep `task_key` and `job_key` separate in storage and API.
-   - Ensure Task Run records preserve execution-time `task_key` and `job_key` snapshots.
-3. Frontend presenter/view-model slice:
-   - Introduce a scheduled-task presenter/view-model boundary.
-   - Move list display logic out of the Vue page.
-   - Show category/module/short title in lists and full Job Definition metadata in detail.
-4. Compatibility cleanup slice:
-   - Remove or hide misleading `Job Type` wording.
-   - Clean excessive fallback exposure.
-   - Reduce redundant `owner/module/source` displays.
+- Focused backend tests:
+  `cd server && go test ./internal/cronx ./internal/scheduler ./modules/scheduler ./internal/httpx ./internal/logger ./modules/audit`
+- Backend completion entrypoint:
+  `cd server && go run ./cmd/graft validate backend`
+- Focused scheduled-task frontend test:
+  `cd web && bun run vitest run src/modules/scheduled-task/pages/list/index.test.ts`
+- Frontend completion entrypoint:
+  `cd web && bun run check`
+- Old concept scan over owned scheduler/OpenAPI/web scope:
+  no matches for `Job 类型`, `Job Type`, `task_type`, `params_json`, `owner`, `source_module`,
+  `display_name_key`, `config_schema_json`, `default_config_json`, `default_cron_expression`, `schedule_type`, or
+  `error_summary`.
 
-## Immediate Next Step
+## Recommended Next Step
 
-Start a cross-boundary planning or implementation slice from this topic. The first concrete decision should be the
-canonical display contract: `category`, `shortTitle`, and `module` semantics for Job Definitions, plus the deprecation
-path for misleading `Job Type` naming.
+Archive or close this recovery topic after the implementation commit lands.

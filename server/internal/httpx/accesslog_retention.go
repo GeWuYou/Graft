@@ -23,6 +23,7 @@ const (
 	accessLogRetentionCleanupJobModule         = "core.httpx"
 	accessLogRetentionCleanupJobSchedule       = "0 0 17 * * *"
 	accessLogRetentionCleanupJobDisplayKey     = "scheduler.job.accessLogRetentionCleanup.title"
+	accessLogRetentionCleanupJobShortTitleKey  = "scheduler.job.shortTitle.accessLog"
 	accessLogRetentionCleanupJobDescriptionKey = "scheduledTask.accessLogRetention.description"
 	accessLogRetentionDryRunActionKey          = "dryRun"
 	accessLogRetentionDryRunActionTitleKey     = "scheduledTask.action.dryRun.title"
@@ -373,18 +374,19 @@ func RegisterAccessLogRetentionCleanupJob(
 	}
 
 	registry.Register(cronx.Job{
-		Name:                  accessLogRetentionCleanupJobName,
-		Key:                   accessLogRetentionCleanupJobName,
-		Owner:                 accessLogRetentionCleanupJobModule,
-		Title:                 "Access log retention cleanup",
-		TitleKey:              accessLogRetentionCleanupJobDisplayKey,
-		Description:           "Deletes access logs beyond the configured retention window.",
-		DescriptionKey:        accessLogRetentionCleanupJobDescriptionKey,
-		DisplayMessageKey:     accessLogRetentionCleanupJobDisplayKey,
-		DescriptionMessageKey: accessLogRetentionCleanupJobDescriptionKey,
-		ConfigSchema:          accessLogRetentionCleanupConfigSchema,
-		DefaultConfig:         accessLogRetentionCleanupDefaultConfig,
-		DefaultConfigKey:      accessLogRetentionCleanupJobName,
+		Name:             accessLogRetentionCleanupJobName,
+		Key:              accessLogRetentionCleanupJobName,
+		ModuleKey:        accessLogRetentionCleanupJobModule,
+		Category:         cronx.JobCategoryRetention,
+		Title:            "Access log retention cleanup",
+		TitleKey:         accessLogRetentionCleanupJobDisplayKey,
+		ShortTitle:       "Access Log",
+		ShortTitleKey:    accessLogRetentionCleanupJobShortTitleKey,
+		Description:      "Deletes access logs beyond the configured retention window.",
+		DescriptionKey:   accessLogRetentionCleanupJobDescriptionKey,
+		ConfigSchema:     accessLogRetentionCleanupConfigSchema,
+		DefaultConfig:    accessLogRetentionCleanupDefaultConfig,
+		DefaultConfigKey: accessLogRetentionCleanupJobName,
 		Actions: []cronx.JobAction{
 			{
 				Key:            accessLogRetentionDryRunActionKey,

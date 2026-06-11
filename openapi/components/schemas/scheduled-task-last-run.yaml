@@ -27,7 +27,7 @@ properties:
     format: int64
     minimum: 0
     nullable: true
-  error_summary:
+  error_message:
     type: string
   result_summary:
     type: string

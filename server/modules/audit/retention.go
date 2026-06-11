@@ -22,6 +22,7 @@ const (
 	auditLogRetentionCleanupJobName           = "audit.audit-log-retention-cleanup"
 	auditLogRetentionCleanupJobSchedule       = "0 30 17 * * *"
 	auditLogRetentionCleanupJobDisplayKey     = "scheduler.job.auditLogRetentionCleanup.title"
+	auditLogRetentionCleanupJobShortTitleKey  = "scheduler.job.shortTitle.auditLog"
 	auditLogRetentionCleanupJobDescriptionKey = "scheduledTask.auditLogRetention.description"
 	auditLogRetentionDryRunActionKey          = "dryRun"
 	auditLogRetentionDryRunActionTitleKey     = "scheduledTask.action.dryRun.title"
@@ -325,18 +326,19 @@ func registerAuditLogRetentionCleanupJob(
 	}
 
 	registry.Register(cronx.Job{
-		Name:                  auditLogRetentionCleanupJobName,
-		Key:                   auditLogRetentionCleanupJobName,
-		Owner:                 moduleID,
-		Title:                 "Audit log retention cleanup",
-		TitleKey:              auditLogRetentionCleanupJobDisplayKey,
-		Description:           "Deletes audit logs beyond the configured retention window.",
-		DescriptionKey:        auditLogRetentionCleanupJobDescriptionKey,
-		DisplayMessageKey:     auditLogRetentionCleanupJobDisplayKey,
-		DescriptionMessageKey: auditLogRetentionCleanupJobDescriptionKey,
-		ConfigSchema:          auditLogRetentionCleanupConfigSchema,
-		DefaultConfig:         auditLogRetentionCleanupDefaultConfig,
-		DefaultConfigKey:      auditLogRetentionCleanupJobName,
+		Name:             auditLogRetentionCleanupJobName,
+		Key:              auditLogRetentionCleanupJobName,
+		ModuleKey:        moduleID,
+		Category:         cronx.JobCategoryRetention,
+		Title:            "Audit log retention cleanup",
+		TitleKey:         auditLogRetentionCleanupJobDisplayKey,
+		ShortTitle:       "Audit Log",
+		ShortTitleKey:    auditLogRetentionCleanupJobShortTitleKey,
+		Description:      "Deletes audit logs beyond the configured retention window.",
+		DescriptionKey:   auditLogRetentionCleanupJobDescriptionKey,
+		ConfigSchema:     auditLogRetentionCleanupConfigSchema,
+		DefaultConfig:    auditLogRetentionCleanupDefaultConfig,
+		DefaultConfigKey: auditLogRetentionCleanupJobName,
 		Actions: []cronx.JobAction{
 			{
 				Key:            auditLogRetentionDryRunActionKey,

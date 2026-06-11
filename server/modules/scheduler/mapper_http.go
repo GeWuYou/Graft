@@ -60,20 +60,23 @@ func toScheduledTaskJobDefinitionListResponse(definitions []schedulercore.JobDef
 }
 
 func toScheduledTaskJobDefinitionItem(definition schedulercore.JobDefinitionSnapshot) generated.ScheduledTaskJobDefinitionItem {
-	moduleKey := strings.TrimSpace(definition.ModuleKey)
 	item := generated.ScheduledTaskJobDefinitionItem{
-		Key:                   strings.TrimSpace(definition.JobKey),
-		Owner:                 moduleKey,
-		Module:                moduleKey,
-		DisplayNameKey:        strings.TrimSpace(definition.TitleKey),
-		DescriptionKey:        strings.TrimSpace(definition.DescriptionKey),
-		Title:                 stringPointer(definition.Title),
-		Description:           stringPointer(definition.Description),
-		ConfigSchemaJson:      defaultJSONObject(definition.ConfigSchema),
-		DefaultConfigJson:     defaultJSONObject(definition.DefaultConfig),
-		DefaultCronExpression: strings.TrimSpace(definition.DefaultCron),
-		DefaultEnabled:        definition.Enabled,
-		Actions:               make([]scheduledTaskJobActionItem, 0, len(definition.Actions)),
+		JobKey:         strings.TrimSpace(definition.JobKey),
+		ModuleKey:      strings.TrimSpace(definition.ModuleKey),
+		Category:       generated.ScheduledTaskJobDefinitionItemCategory(definition.Category),
+		CategoryKey:    jobCategoryKey(definition.Category),
+		TitleKey:       stringPointer(definition.TitleKey),
+		Title:          strings.TrimSpace(definition.Title),
+		ShortTitleKey:  stringPointer(definition.ShortTitleKey),
+		ShortTitle:     strings.TrimSpace(definition.ShortTitle),
+		DescriptionKey: stringPointer(definition.DescriptionKey),
+		Description:    stringPointer(definition.Description),
+		ConfigSchema:   defaultJSONObject(definition.ConfigSchema),
+		DefaultConfig:  defaultJSONObject(definition.DefaultConfig),
+		DefaultCron:    strings.TrimSpace(definition.DefaultCron),
+		DefaultEnabled: definition.Enabled,
+		Enabled:        definition.Enabled,
+		Actions:        make([]scheduledTaskJobActionItem, 0, len(definition.Actions)),
 	}
 	for _, action := range definition.Actions {
 		item.Actions = append(item.Actions, scheduledTaskJobActionItem{
@@ -102,24 +105,44 @@ func toScheduledTaskItem(task schedulercore.TaskSnapshot) generated.ScheduledTas
 		status = generated.ScheduledTaskItemStatusUnknown
 	}
 
-	return generated.ScheduledTaskItem{
-		Key:             strings.TrimSpace(task.Key),
+	item := generated.ScheduledTaskItem{
+		Id:              scheduledTaskRunID(task.ID),
+		TaskKey:         strings.TrimSpace(task.Key),
 		JobKey:          strings.TrimSpace(task.JobKey),
-		ScheduleType:    generated.ScheduledTaskItemScheduleTypeCron,
-		DisplayNameKey:  strings.TrimSpace(task.DisplayMessageKey),
-		DescriptionKey:  strings.TrimSpace(task.DescriptionMessageKey),
-		Owner:           strings.TrimSpace(task.ModuleKey),
-		Module:          strings.TrimSpace(task.ModuleKey),
-		Enabled:         task.Enabled,
-		Builtin:         trueBoolPointer(task.Builtin),
-		Title:           stringPointer(task.Title),
+		TitleKey:        stringPointer(task.TitleKey),
+		Title:           strings.TrimSpace(task.Title),
+		DescriptionKey:  stringPointer(task.DescriptionKey),
 		Description:     stringPointer(task.Description),
-		ConfigJson:      stringPointer(task.ConfigJSON),
-		EffectiveConfig: stringPointer(task.EffectiveConfig),
-		Schedule:        strings.TrimSpace(task.Schedule),
+		CronExpression:  strings.TrimSpace(task.Schedule),
+		Enabled:         task.Enabled,
+		Builtin:         task.Builtin,
+		ConfigJson:      defaultJSONObject(task.ConfigJSON),
+		ConfigSource:    generated.ScheduledTaskItemConfigSource(task.ConfigSource),
+		EffectiveConfig: defaultJSONObject(task.EffectiveConfig),
 		LastRun:         lastRun,
 		Status:          status,
 		Running:         task.Running,
+		CreatedAt:       task.CreatedAt,
+		UpdatedAt:       task.UpdatedAt,
+	}
+	if task.JobDefinition != nil {
+		item.Job = toScheduledTaskJobDefinitionSummary(*task.JobDefinition)
+	}
+	return item
+}
+
+func toScheduledTaskJobDefinitionSummary(definition schedulercore.JobDefinitionSnapshot) *generated.ScheduledTaskJobDefinitionSummary {
+	return &generated.ScheduledTaskJobDefinitionSummary{
+		JobKey:         strings.TrimSpace(definition.JobKey),
+		ModuleKey:      strings.TrimSpace(definition.ModuleKey),
+		Category:       generated.ScheduledTaskJobDefinitionSummaryCategory(definition.Category),
+		CategoryKey:    jobCategoryKey(definition.Category),
+		TitleKey:       stringPointer(definition.TitleKey),
+		Title:          strings.TrimSpace(definition.Title),
+		ShortTitleKey:  stringPointer(definition.ShortTitleKey),
+		ShortTitle:     strings.TrimSpace(definition.ShortTitle),
+		DescriptionKey: stringPointer(definition.DescriptionKey),
+		Description:    stringPointer(definition.Description),
 	}
 }
 
@@ -131,7 +154,7 @@ func toScheduledTaskLastRun(run schedulercore.TaskRun) generated.ScheduledTaskLa
 		StartedAt:     run.StartedAt,
 		FinishedAt:    run.FinishedAt,
 		DurationMs:    run.DurationMS,
-		ErrorSummary:  stringPointer(run.Error),
+		ErrorMessage:  stringPointer(run.ErrorMessage),
 		ResultJson:    stringPointer(run.ResultJSON),
 		ResultSummary: stringPointer(run.Result),
 	}
@@ -157,23 +180,37 @@ func toScheduledTaskRunListResponse(
 
 func toScheduledTaskRunItem(run schedulercore.TaskRun) generated.ScheduledTaskRunItem {
 	return generated.ScheduledTaskRunItem{
-		Id:              scheduledTaskRunID(run.ID),
-		TaskKey:         strings.TrimSpace(run.TaskKey),
-		TaskName:        strings.TrimSpace(run.TaskName),
-		Owner:           strings.TrimSpace(run.Owner),
-		Module:          strings.TrimSpace(run.Module),
-		JobKey:          strings.TrimSpace(run.JobKey),
-		TriggerType:     generated.ScheduledTaskRunItemTriggerType(run.TriggerType),
-		Status:          generated.ScheduledTaskRunItemStatus(run.Status),
-		ErrorSummary:    stringPointer(run.Error),
-		ResultSummary:   stringPointer(run.Result),
-		ResultJson:      stringPointer(run.ResultJSON),
-		EffectiveConfig: stringPointer(run.EffectiveConfig),
-		StartedAt:       run.StartedAt,
-		FinishedAt:      run.FinishedAt,
-		DurationMs:      run.DurationMS,
-		CreatedAt:       run.CreatedAt,
+		Id:               scheduledTaskRunID(run.ID),
+		TaskKey:          strings.TrimSpace(run.TaskKey),
+		JobKey:           strings.TrimSpace(run.JobKey),
+		TaskTitleKey:     stringPointer(run.TaskTitleKey),
+		TaskTitle:        strings.TrimSpace(run.TaskTitle),
+		JobTitleKey:      stringPointer(run.JobTitleKey),
+		JobTitle:         strings.TrimSpace(run.JobTitle),
+		JobShortTitleKey: stringPointer(run.JobShortTitleKey),
+		JobShortTitle:    strings.TrimSpace(run.JobShortTitle),
+		JobCategory:      generated.ScheduledTaskRunItemJobCategory(run.JobCategory),
+		ModuleKey:        strings.TrimSpace(run.ModuleKey),
+		TaskBuiltin:      run.TaskBuiltin,
+		TriggerType:      generated.ScheduledTaskRunItemTriggerType(run.TriggerType),
+		Status:           generated.ScheduledTaskRunItemStatus(run.Status),
+		ErrorMessage:     stringPointer(run.ErrorMessage),
+		ResultSummary:    stringPointer(run.Result),
+		ResultJson:       stringPointer(run.ResultJSON),
+		EffectiveConfig:  stringPointer(run.EffectiveConfig),
+		StartedAt:        run.StartedAt,
+		FinishedAt:       run.FinishedAt,
+		DurationMs:       run.DurationMS,
+		CreatedAt:        run.CreatedAt,
 	}
+}
+
+func jobCategoryKey(category cronx.JobCategory) string {
+	normalized := strings.TrimSpace(string(category))
+	if normalized == "" {
+		normalized = string(cronx.JobCategoryCustom)
+	}
+	return "scheduler.job.category." + normalized
 }
 
 func toScheduledTaskActionResult(result schedulercore.JobActionResult) generated.ScheduledTaskActionResult {
@@ -213,17 +250,6 @@ func scheduledTaskRunID(id uint64) int64 {
 		return math.MaxInt64
 	}
 	return int64(id)
-}
-
-func boolPointer(value bool) *bool {
-	return &value
-}
-
-func trueBoolPointer(value bool) *bool {
-	if !value {
-		return nil
-	}
-	return boolPointer(value)
 }
 
 func stringPointer(value string) *string {

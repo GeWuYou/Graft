@@ -3,9 +3,12 @@ required:
   - id
   - task_key
   - job_key
-  - task_name
-  - owner
-  - module
+  - task_title
+  - job_title
+  - job_short_title
+  - job_category
+  - module_key
+  - task_builtin
   - trigger_type
   - status
   - started_at
@@ -19,19 +22,32 @@ properties:
     type: string
   job_key:
     type: string
-  task_name:
+  task_title_key:
     type: string
-  owner:
+  task_title:
     type: string
-  module:
+  job_title_key:
     type: string
+  job_title:
+    type: string
+  job_short_title_key:
+    type: string
+  job_short_title:
+    type: string
+  job_category:
+    type: string
+    enum: [retention, sync, maintenance, notification, report, workflow, custom]
+  module_key:
+    type: string
+  task_builtin:
+    type: boolean
   trigger_type:
     type: string
     enum: [cron, manual, startup]
   status:
     type: string
     enum: [running, success, failed]
-  error_summary:
+  error_message:
     type: string
   result_summary:
     type: string

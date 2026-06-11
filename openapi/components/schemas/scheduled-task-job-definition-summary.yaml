@@ -1,0 +1,30 @@
+type: object
+required:
+  - job_key
+  - module_key
+  - category
+  - category_key
+  - title
+  - short_title
+properties:
+  job_key:
+    type: string
+  module_key:
+    type: string
+  category:
+    type: string
+    enum: [retention, sync, maintenance, notification, report, workflow, custom]
+  category_key:
+    type: string
+  title_key:
+    type: string
+  title:
+    type: string
+  short_title_key:
+    type: string
+  short_title:
+    type: string
+  description_key:
+    type: string
+  description:
+    type: string

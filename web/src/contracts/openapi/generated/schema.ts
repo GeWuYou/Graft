@@ -2565,6 +2565,19 @@ export interface components {
     'enveloped-module-runtime-item': components['schemas']['api-envelope'] & {
       data: components['schemas']['module-runtime-item'];
     };
+    'scheduled-task-job-definition-summary': {
+      job_key: string;
+      module_key: string;
+      /** @enum {string} */
+      category: 'retention' | 'sync' | 'maintenance' | 'notification' | 'report' | 'workflow' | 'custom';
+      category_key: string;
+      title_key?: string;
+      title: string;
+      short_title_key?: string;
+      short_title: string;
+      description_key?: string;
+      description?: string;
+    };
     'scheduled-task-last-run': {
       /** Format: int64 */
       id: number;
@@ -2578,34 +2591,38 @@ export interface components {
       finished_at?: string | null;
       /** Format: int64 */
       duration_ms?: number | null;
-      error_summary?: string;
+      error_message?: string;
       result_summary?: string;
       /** @description Structured JobRunResult JSON object string. */
       result_json?: string;
     };
     'scheduled-task-item': {
+      /** Format: int64 */
+      id: number;
       /** @description Stable Scheduled Task instance key. */
-      key: string;
+      task_key: string;
       /** @description Stable Job Definition key executed by this Scheduled Task. */
       job_key: string;
-      /** @enum {string} */
-      schedule_type: 'cron';
-      display_name_key: string;
-      description_key: string;
-      owner: string;
-      module: string;
+      title_key?: string;
+      title: string;
+      description_key?: string;
+      description?: string;
+      /** @description Cron expression validated by the scheduler runtime. */
+      cron_expression: string;
       /** @description Whether the Scheduled Task is enabled in the DB-backed schedule definition. */
       enabled: boolean;
       /** @description Builtin Scheduled Tasks cannot be deleted or change task_key/job_key. */
-      builtin?: boolean;
-      title?: string;
-      description?: string;
-      /** @description Cron expression validated by the scheduler runtime. */
-      schedule: string;
-      /** @description JSON object string validated by the scheduler runtime before it is passed to the Job Definition handler. */
-      config_json?: string;
+      builtin: boolean;
+      /** @description Scheduled Task instance config override JSON object string. */
+      config_json: string;
+      /**
+       * @description system means using Job Definition default_config; user means applying task config_json override.
+       * @enum {string}
+       */
+      config_source: 'system' | 'user';
       /** @description Effective config JSON object string computed by merging Job Definition default_config with task config_json. */
-      effective_config?: string;
+      effective_config: string;
+      job?: components['schemas']['scheduled-task-job-definition-summary'];
       last_run?: components['schemas']['scheduled-task-last-run'];
       /**
        * Format: date-time
@@ -2615,6 +2632,10 @@ export interface components {
       /** @enum {string} */
       status: 'idle' | 'running' | 'success' | 'failed' | 'unknown';
       running: boolean;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
     };
     'scheduled-task-list-response': {
       items: components['schemas']['scheduled-task-item'][];
@@ -2643,23 +2664,31 @@ export interface components {
     };
     'scheduled-task-job-definition-item': {
       /** @description Stable Job Definition key registered by a module. */
-      key: string;
-      owner: string;
-      module: string;
-      display_name_key: string;
-      description_key: string;
-      /** @description Direct display fallback when the client has no translation for display_name_key. */
-      title?: string;
+      job_key: string;
+      /** @description Module that declares this Job Definition. */
+      module_key: string;
+      /** @enum {string} */
+      category: 'retention' | 'sync' | 'maintenance' | 'notification' | 'report' | 'workflow' | 'custom';
+      category_key: string;
+      title_key?: string;
+      /** @description Full Job Definition title fallback when the client has no translation for title_key. */
+      title: string;
+      short_title_key?: string;
+      /** @description Compact Job Definition title fallback for list display. */
+      short_title: string;
+      description_key?: string;
       /** @description Direct display fallback when the client has no translation for description_key. */
       description?: string;
       /** @description JSON Schema string for Scheduled Task config accepted by this Job Definition. */
-      config_schema_json: string;
+      config_schema: string;
       /** @description Default config JSON object string for a new Scheduled Task bound to this Job Definition. */
-      default_config_json: string;
+      default_config: string;
       /** @description Default cron expression declared by the Job Definition. */
-      default_cron_expression: string;
+      default_cron: string;
       /** @description Whether new Scheduled Tasks for this Job Definition should be enabled by default. */
       default_enabled: boolean;
+      /** @description Whether this Job Definition is active and can be selected. */
+      enabled: boolean;
       /** @description Backend-defined one-shot actions available for this Job Definition. */
       actions: {
         key: string;
@@ -2701,14 +2730,21 @@ export interface components {
       id: number;
       task_key: string;
       job_key: string;
-      task_name: string;
-      owner: string;
-      module: string;
+      task_title_key?: string;
+      task_title: string;
+      job_title_key?: string;
+      job_title: string;
+      job_short_title_key?: string;
+      job_short_title: string;
+      /** @enum {string} */
+      job_category: 'retention' | 'sync' | 'maintenance' | 'notification' | 'report' | 'workflow' | 'custom';
+      module_key: string;
+      task_builtin: boolean;
       /** @enum {string} */
       trigger_type: 'cron' | 'manual' | 'startup';
       /** @enum {string} */
       status: 'running' | 'success' | 'failed';
-      error_summary?: string;
+      error_message?: string;
       result_summary?: string;
       /** @description Structured JobRunResult JSON object string. */
       result_json?: string;
