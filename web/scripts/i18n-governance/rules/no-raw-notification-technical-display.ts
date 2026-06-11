@@ -26,16 +26,12 @@ const BLOCKED_LITERAL_PATTERNS = [
   'USER',
 ] as const;
 
-const ALLOWED_FUNCTIONS = [
-  'resolveNotification',
-  'notificationSeverityTheme',
-  'notificationStatusTheme',
-  'formatNotificationDiagnosticValue',
-] as const;
+const ALLOWED_FUNCTIONS = ['resolveNotification', 'notificationSeverityTheme', 'notificationStatusTheme'] as const;
 
 function isNotificationDisplayFile(file: SourceFile) {
   return (
     file.relativePath.startsWith('src/modules/notification/components/') ||
+    file.relativePath.startsWith('src/modules/notification/domain/') ||
     file.relativePath.startsWith('src/modules/notification/pages/') ||
     file.relativePath.startsWith('src/modules/notification/shared/')
   );

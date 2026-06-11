@@ -54,7 +54,7 @@ func TestPublisherCompensatesMissingDeliveryOnDedupeRetry(t *testing.T) {
 	stack := newNotificationTestStack(t)
 	input := validPublishInput()
 
-	event, deduplicated, err := stack.repository.CreateEvent(context.Background(), eventStoreInput(input))
+	event, deduplicated, err := stack.repository.CreateEvent(context.Background(), createEventInputFromPublishInput(input))
 	if err != nil {
 		t.Fatalf("create event without deliveries: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestPublisherRejectsEmptyPermissionFanoutBeforePersistingEvent(t *testing.T
 
 func TestRepositoryCreateDeliveriesRejectsInvalidBatchWithoutPartialInsert(t *testing.T) {
 	stack := newNotificationTestStack(t)
-	event, _, err := stack.repository.CreateEvent(context.Background(), eventStoreInput(validPublishInput()))
+	event, _, err := stack.repository.CreateEvent(context.Background(), createEventInputFromPublishInput(validPublishInput()))
 	if err != nil {
 		t.Fatalf("create event: %v", err)
 	}
@@ -505,34 +505,6 @@ func validPublishInputWithDedupe(dedupeKey string) moduleapi.PublishNotification
 	}
 }
 
-func eventStoreInput(input moduleapi.PublishNotificationInput) notificationstore.CreateEventInput {
-	return notificationstore.CreateEventInput{
-		TitleKey:          input.TitleKey,
-		Title:             input.Title,
-		MessageKey:        input.MessageKey,
-		Message:           input.Message,
-		CategoryKey:       input.CategoryKey,
-		SourceKey:         input.SourceKey,
-		LevelKey:          input.LevelKey,
-		EventTypeKey:      input.EventTypeKey,
-		ActionLabelKey:    input.ActionLabelKey,
-		ActionLabel:       input.ActionLabel,
-		Severity:          string(input.Severity),
-		Category:          string(input.Category),
-		SourceModule:      input.SourceModule,
-		EventType:         input.EventType,
-		ResourceType:      input.ResourceType,
-		ResourceID:        input.ResourceID,
-		ResourceName:      input.ResourceName,
-		NavigationKind:    string(input.Navigation.Kind),
-		NavigationPayload: input.Navigation.Payload,
-		Metadata:          input.Metadata,
-		DedupeKey:         input.DedupeKey,
-		OccurredAt:        input.OccurredAt,
-		ExpiresAt:         input.ExpiresAt,
-	}
-}
-
 type permissionFanoutRBAC struct {
 	userIDs []uint64
 }
@@ -577,6 +549,7 @@ func newNotificationTestDB(t *testing.T) *sql.DB {
 		source_key TEXT NOT NULL DEFAULT '',
 		level_key TEXT NOT NULL DEFAULT '',
 		event_type_key TEXT NOT NULL DEFAULT '',
+		resource_type_key TEXT NOT NULL DEFAULT '',
 		action_label_key TEXT NOT NULL DEFAULT '',
 		action_label TEXT NOT NULL DEFAULT '',
 		severity TEXT NOT NULL,

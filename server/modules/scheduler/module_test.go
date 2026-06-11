@@ -503,32 +503,8 @@ func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testi
 		t.Fatalf("expected one success notification, got %d", len(publisher.inputs))
 	}
 	input := publisher.inputs[0]
-	if input.TitleKey != "notification.scheduler.taskSucceeded.title" ||
-		input.MessageKey != "notification.scheduler.taskSucceeded.message" ||
-		input.CategoryKey != "notification.category.task" ||
-		input.SourceKey != "notification.source.scheduler" ||
-		input.LevelKey != "notification.level.info" ||
-		input.EventTypeKey != "notification.event.taskSucceeded" ||
-		input.ActionLabelKey != "notification.scheduler.taskSucceeded.action" {
-		t.Fatalf("unexpected message keys: %#v", input)
-	}
-	if input.Title != "Scheduled task succeeded" ||
-		input.Message != "Webhook Health completed successfully." ||
-		input.ActionLabel != "Open scheduled task run" {
-		t.Fatalf("unexpected fallback copy: %#v", input)
-	}
-	if input.EventType != "task_succeeded" ||
-		input.Severity != "info" ||
-		input.Category != "TASK" ||
-		input.SourceModule != moduleID ||
-		input.ResourceType != "scheduled_task_run" ||
-		input.ResourceID != "99" ||
-		input.Navigation.Kind != "SCHEDULER_RUN" ||
-		input.Target.Type != "USER" ||
-		input.Target.Ref != "42" ||
-		input.DedupeKey != "scheduler:run_succeeded:99" {
-		t.Fatalf("unexpected success notification input: %#v", input)
-	}
+	assertSchedulerRunSuccessDisplay(t, input)
+	assertSchedulerRunSuccessRouting(t, input)
 	assertSchedulerRunPayload(t, input.Navigation.Payload, uint64(99), "webhook.health", "scheduler.webhook-health")
 	assertSchedulerRunSuccessMetadata(t, input.Metadata, uint64(99), "Webhook Health", "manual", "deleted 3 rows")
 }
@@ -656,6 +632,41 @@ type schedulerNotificationPublisherRecorder struct {
 func (r *schedulerNotificationPublisherRecorder) Publish(_ context.Context, input moduleapi.PublishNotificationInput) (moduleapi.PublishNotificationResult, error) {
 	r.inputs = append(r.inputs, input)
 	return moduleapi.PublishNotificationResult{}, r.err
+}
+
+func assertSchedulerRunSuccessDisplay(t *testing.T, input moduleapi.PublishNotificationInput) {
+	t.Helper()
+	if input.TitleKey != "notification.title.scheduler.runSucceeded" ||
+		input.MessageKey != "notification.message.scheduler.runSucceeded" ||
+		input.CategoryKey != "notification.category.task" ||
+		input.SourceKey != "notification.source.scheduler" ||
+		input.LevelKey != "notification.level.info" ||
+		input.EventTypeKey != "notification.event.taskSucceeded" ||
+		input.ResourceTypeKey != "notification.resourceType.scheduledTaskRun" ||
+		input.ActionLabelKey != "notification.action.openRunRecord" {
+		t.Fatalf("unexpected message keys: %#v", input)
+	}
+	if input.Title != "Scheduled task succeeded" ||
+		input.Message != "Webhook Health completed successfully." ||
+		input.ActionLabel != "Open scheduled task run" {
+		t.Fatalf("unexpected fallback copy: %#v", input)
+	}
+}
+
+func assertSchedulerRunSuccessRouting(t *testing.T, input moduleapi.PublishNotificationInput) {
+	t.Helper()
+	if input.EventType != "task_succeeded" ||
+		input.Severity != "info" ||
+		input.Category != "TASK" ||
+		input.SourceModule != moduleID ||
+		input.ResourceType != "scheduled_task_run" ||
+		input.ResourceID != "99" ||
+		input.Navigation.Kind != "SCHEDULER_RUN" ||
+		input.Target.Type != "USER" ||
+		input.Target.Ref != "42" ||
+		input.DedupeKey != "scheduler:run_succeeded:99" {
+		t.Fatalf("unexpected success notification input: %#v", input)
+	}
 }
 
 func assertSchedulerRunPayload(t *testing.T, payload json.RawMessage, runID uint64, taskKey string, jobKey string) {

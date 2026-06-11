@@ -3073,6 +3073,8 @@ export interface components {
       level_key?: string;
       /** @description Stable localization key for the notification event type display label. */
       event_type_key?: string;
+      /** @description Stable localization key for the notification resource type display label. */
+      resource_type_key?: string;
       /** @description Stable localization key for the primary business action label. */
       action_label_key?: string;
       /** @description Fallback business action label when action_label_key is missing or unresolved. */

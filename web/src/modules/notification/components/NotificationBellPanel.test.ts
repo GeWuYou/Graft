@@ -28,11 +28,15 @@ vi.mock('../api/notification', () => ({
 
 vi.mock('../shared/presentation', () => ({
   notificationSeverityTheme: () => 'default',
-  resolveNotificationCategory: () => '',
-  resolveNotificationLevel: () => '',
-  resolveNotificationMessage: () => '',
-  resolveNotificationSource: () => '',
-  resolveNotificationTitle: () => '',
+  presentNotification: () => ({
+    categoryLabel: '',
+    levelLabel: '',
+    message: '',
+    occurredAtLabel: '',
+    sourceLabel: '',
+    status: 'unread',
+    title: '',
+  }),
 }));
 
 vi.mock('@/shared/components/management', () => ({
@@ -41,7 +45,7 @@ vi.mock('@/shared/components/management', () => ({
 
 const t = (key: string) => {
   const messages: Record<string, string> = {
-    'notification.action.viewAll': '打开通知中心 ->',
+    'notification.action.viewAll': '查看全部通知',
     'notification.bell.open': '打开通知',
     'notification.empty.description': '当前筛选条件下没有通知。',
     'notification.empty.title': '暂无通知',
@@ -133,7 +137,7 @@ describe('NotificationBellPanel', () => {
     expect(popup.attributes('data-visible')).toBe('true');
 
     const footer = wrapper.get('.notification-bell-panel__foot');
-    expect(footer.text()).toContain('打开通知中心 ->');
+    expect(footer.text()).toContain('查看全部通知');
 
     await footer.trigger('click');
     await nextTick();

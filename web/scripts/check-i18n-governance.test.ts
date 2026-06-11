@@ -339,6 +339,14 @@ describe('check-i18n-governance fixture rules', () => {
         'Scheduled task succeeded',
       ],
     },
+    {
+      fixture: 'invalid-notification-required-keyset',
+      expectation: 'blocks missing Notification Center presenter key catalogs',
+      expectedSnippets: [
+        'notification-required-keyset',
+        'missing required notification key notification.title.scheduler.runSucceeded',
+      ],
+    },
   ];
 
   it.each(invalidFixtures)('$fixture: $expectation', async ({ expectedSnippets, fixture }) => {
@@ -359,7 +367,7 @@ describe('check-i18n-governance fixture rules', () => {
     expect(result.stderr).toBe('');
   });
 
-  it('valid-notification-resolver-display: allows notification resolver and diagnostic formatter usage', async () => {
+  it('valid-notification-resolver-display: allows notification presenter usage', async () => {
     const result = await runGovernanceScriptWithFixture('valid-notification-resolver-display');
 
     expect(result.exitCode).toBe(0);

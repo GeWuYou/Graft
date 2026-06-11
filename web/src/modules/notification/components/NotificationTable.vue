@@ -29,37 +29,37 @@
       <template #notification="{ row }">
         <div
           class="notification-title-cell"
-          :class="{ 'notification-title-cell--unread': notificationRow(row).status === 'unread' }"
+          :class="{ 'notification-title-cell--unread': notificationView(row).status === 'unread' }"
         >
-          <strong>{{ resolveNotificationTitle(notificationRow(row), t) }}</strong>
-          <span>{{ resolveNotificationMessage(notificationRow(row), t) }}</span>
+          <strong>{{ notificationView(row).title }}</strong>
+          <span>{{ notificationView(row).message }}</span>
         </div>
       </template>
 
       <template #severity="{ row }">
         <t-tag :theme="notificationSeverityTheme(notificationRow(row).severity)" variant="light-outline" size="small">
-          {{ resolveNotificationLevel(notificationRow(row), t) }}
+          {{ notificationView(row).levelLabel }}
         </t-tag>
       </template>
 
       <template #category="{ row }">
         <t-tag variant="light" size="small">
-          {{ resolveNotificationCategory(notificationRow(row), t) }}
+          {{ notificationView(row).categoryLabel }}
         </t-tag>
       </template>
 
       <template #source_module="{ row }">
-        {{ resolveNotificationSource(notificationRow(row), t) }}
+        {{ notificationView(row).sourceLabel }}
       </template>
 
       <template #status="{ row }">
         <t-tag :theme="notificationStatusTheme(notificationRow(row).status)" variant="light" size="small">
-          {{ resolveNotificationStatus(notificationRow(row), t) }}
+          {{ notificationView(row).statusLabel }}
         </t-tag>
       </template>
 
       <template #occurred_at="{ row }">
-        {{ formatCompactDateTime(notificationRow(row).occurred_at, locale) }}
+        {{ notificationView(row).occurredAtLabel }}
       </template>
 
       <template #operation="{ row }">
@@ -97,19 +97,9 @@ import {
   calculateTableContentWidth,
   createActionColumn,
   createConfiguredColumns,
-  formatCompactDateTime,
 } from '@/shared/components/management';
 
-import {
-  notificationSeverityTheme,
-  notificationStatusTheme,
-  resolveNotificationCategory,
-  resolveNotificationLevel,
-  resolveNotificationMessage,
-  resolveNotificationSource,
-  resolveNotificationStatus,
-  resolveNotificationTitle,
-} from '../shared/presentation';
+import { notificationSeverityTheme, notificationStatusTheme, presentNotification } from '../shared/presentation';
 import type { NotificationItem } from '../types/notification';
 
 const props = defineProps<{
@@ -166,6 +156,10 @@ const paginationConfig = computed(() => ({
 
 function notificationRow(row: unknown) {
   return row as NotificationItem;
+}
+
+function notificationView(row: unknown) {
+  return presentNotification(notificationRow(row), t, locale.value);
 }
 
 function handlePageChange(pageInfo: PageInfo) {

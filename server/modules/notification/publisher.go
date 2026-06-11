@@ -89,31 +89,7 @@ func (p *Publisher) Publish(ctx context.Context, input moduleapi.PublishNotifica
 		return moduleapi.PublishNotificationResult{}, fmt.Errorf("%w: recipients", moduleapi.ErrNotificationInvalidInput)
 	}
 
-	event, deduplicated, err := p.repository.CreateEvent(ctx, notificationstore.CreateEventInput{
-		TitleKey:          normalized.TitleKey,
-		Title:             normalized.Title,
-		MessageKey:        normalized.MessageKey,
-		Message:           normalized.Message,
-		CategoryKey:       normalized.CategoryKey,
-		SourceKey:         normalized.SourceKey,
-		LevelKey:          normalized.LevelKey,
-		EventTypeKey:      normalized.EventTypeKey,
-		ActionLabelKey:    normalized.ActionLabelKey,
-		ActionLabel:       normalized.ActionLabel,
-		Severity:          string(normalized.Severity),
-		Category:          string(normalized.Category),
-		SourceModule:      normalized.SourceModule,
-		EventType:         normalized.EventType,
-		ResourceType:      normalized.ResourceType,
-		ResourceID:        normalized.ResourceID,
-		ResourceName:      normalized.ResourceName,
-		NavigationKind:    string(normalized.Navigation.Kind),
-		NavigationPayload: normalized.Navigation.Payload,
-		Metadata:          normalized.Metadata,
-		DedupeKey:         normalized.DedupeKey,
-		OccurredAt:        normalized.OccurredAt,
-		ExpiresAt:         normalized.ExpiresAt,
-	})
+	event, deduplicated, err := p.repository.CreateEvent(ctx, createEventInputFromPublishInput(normalized))
 	if err != nil {
 		return moduleapi.PublishNotificationResult{}, mapStoreError(err)
 	}
@@ -144,6 +120,35 @@ func (p *Publisher) Publish(ctx context.Context, input moduleapi.PublishNotifica
 	}
 	p.debugPublishDecision(ctx, normalized, true, result, nil)
 	return result, nil
+}
+
+func createEventInputFromPublishInput(input moduleapi.PublishNotificationInput) notificationstore.CreateEventInput {
+	return notificationstore.CreateEventInput{
+		TitleKey:          input.TitleKey,
+		Title:             input.Title,
+		MessageKey:        input.MessageKey,
+		Message:           input.Message,
+		CategoryKey:       input.CategoryKey,
+		SourceKey:         input.SourceKey,
+		LevelKey:          input.LevelKey,
+		EventTypeKey:      input.EventTypeKey,
+		ResourceTypeKey:   input.ResourceTypeKey,
+		ActionLabelKey:    input.ActionLabelKey,
+		ActionLabel:       input.ActionLabel,
+		Severity:          string(input.Severity),
+		Category:          string(input.Category),
+		SourceModule:      input.SourceModule,
+		EventType:         input.EventType,
+		ResourceType:      input.ResourceType,
+		ResourceID:        input.ResourceID,
+		ResourceName:      input.ResourceName,
+		NavigationKind:    string(input.Navigation.Kind),
+		NavigationPayload: input.Navigation.Payload,
+		Metadata:          input.Metadata,
+		DedupeKey:         input.DedupeKey,
+		OccurredAt:        input.OccurredAt,
+		ExpiresAt:         input.ExpiresAt,
+	}
 }
 
 func (p *Publisher) preparePublish(
@@ -234,6 +239,7 @@ func normalizePublishTextFields(input moduleapi.PublishNotificationInput) module
 	input.SourceKey = strings.TrimSpace(input.SourceKey)
 	input.LevelKey = strings.TrimSpace(input.LevelKey)
 	input.EventTypeKey = strings.TrimSpace(input.EventTypeKey)
+	input.ResourceTypeKey = strings.TrimSpace(input.ResourceTypeKey)
 	input.ActionLabelKey = strings.TrimSpace(input.ActionLabelKey)
 	input.ActionLabel = strings.TrimSpace(input.ActionLabel)
 	input.SourceModule = strings.TrimSpace(input.SourceModule)

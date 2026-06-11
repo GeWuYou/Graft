@@ -7,15 +7,18 @@
   "notification": {
     "actions": {
       "refresh": "Refresh",
-      "markAllRead": "Mark All Read",
+      "markAllRead": "Mark All as Read",
       "markRead": "Mark Read",
       "delete": "Delete",
       "detail": "Details",
-      "openBusinessContext": "Open Business Context",
+      "openBusinessContext": "Open Related Page",
       "search": "Search",
       "reset": "Reset",
-      "viewAll": "Open Notification Center ->",
-      "openTarget": "Open Business Context"
+      "viewAll": "View All Notifications",
+      "openTarget": "Open Related Page",
+      "openNotificationCenter": "View All Notifications",
+      "openRelatedPage": "Open Related Page",
+      "openRunRecord": "Open Run Record"
     },
     "bell": {
       "emptyDescription": "There are no unread notifications. Notifications are created by system announcements, task failures, security events, and configuration changes.",
@@ -36,7 +39,9 @@
       "SECURITY": "Security",
       "SYSTEM": "System",
       "CONFIG": "System",
-      "OPERATIONS": "System"
+      "OPERATIONS": "System",
+      "config": "System",
+      "operations": "System"
     },
     "columns": {
       "actions": "Actions",
@@ -61,10 +66,7 @@
       "title": "Notification Details",
       "unsupportedNavigation": "This Notification Target Is Not Available.",
       "diagnostics": "Advanced Information",
-      "eventTypeRaw": "Raw Event Type",
-      "resourceTypeRaw": "Raw Resource Type",
       "deliveryType": "Delivery Type",
-      "deliveryTypeRaw": "Raw Delivery Type",
       "deliveryTarget": "Delivery Target",
       "resultSummary": "Result Summary"
     },
@@ -119,7 +121,9 @@
       "system": "System",
       "access-log": "Access Log",
       "notification": "Notification Center",
-      "system-config": "System Configuration"
+      "system-config": "System Configuration",
+      "accessLog": "Access Log",
+      "systemConfig": "System Configuration"
     },
     "status": {
       "unread": "Unread",
@@ -145,14 +149,18 @@
     },
     "action": {
       "refresh": "Refresh",
-      "markAllRead": "Mark All Read",
+      "markAllRead": "Mark All as Read",
       "markRead": "Mark Read",
       "delete": "Delete",
       "detail": "Details",
-      "openBusinessContext": "Open Business Context",
+      "openBusinessContext": "Open Related Page",
       "search": "Search",
       "reset": "Reset",
-      "viewAll": "Open Notification Center ->"
+      "viewAll": "View All Notifications",
+      "openNotificationCenter": "View All Notifications",
+      "openRelatedPage": "Open Related Page",
+      "openRunRecord": "Open Run Record",
+      "openTarget": "Open Related Page"
     },
     "level": {
       "info": "Info",
@@ -169,12 +177,20 @@
     "delivery": {
       "user": "User"
     },
-    "scheduler": {
-      "taskSucceeded": {
-        "title": "Scheduled task succeeded",
-        "message": "{taskName} completed successfully.",
-        "action": "Open Scheduled Task Run"
+    "resourceType": {
+      "scheduledTaskRun": "Scheduled Task Run"
+    },
+    "title": {
+      "scheduler": {
+        "runSucceeded": "Scheduled Task Succeeded"
       }
-    }
+    },
+    "message": {
+      "scheduler": {
+        "runSucceeded": "{taskName} completed successfully."
+      }
+    },
+    "emptyValue": "None",
+    "unknownLabel": "Unknown"
   }
 }

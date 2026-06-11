@@ -7,15 +7,18 @@
   "notification": {
     "actions": {
       "refresh": "刷新",
-      "markAllRead": "全部已读",
+      "markAllRead": "全部标为已读",
       "markRead": "标记已读",
       "delete": "删除",
       "detail": "详情",
-      "openBusinessContext": "打开业务上下文",
+      "openBusinessContext": "打开相关页面",
       "search": "查询",
       "reset": "重置",
-      "viewAll": "打开通知中心 ->",
-      "openTarget": "打开业务上下文"
+      "viewAll": "查看全部通知",
+      "openTarget": "打开相关页面",
+      "openNotificationCenter": "查看全部通知",
+      "openRelatedPage": "打开相关页面",
+      "openRunRecord": "打开运行记录"
     },
     "bell": {
       "emptyDescription": "暂无未读通知。通知由系统公告、任务失败、安全事件、配置变更等事件产生。",
@@ -36,7 +39,9 @@
       "SECURITY": "安全",
       "SYSTEM": "系统",
       "CONFIG": "系统",
-      "OPERATIONS": "系统"
+      "OPERATIONS": "系统",
+      "config": "系统",
+      "operations": "系统"
     },
     "columns": {
       "actions": "操作",
@@ -61,10 +66,7 @@
       "title": "通知详情",
       "unsupportedNavigation": "该通知的跳转目标将在后续阶段开放。",
       "diagnostics": "高级信息",
-      "eventTypeRaw": "事件类型原始值",
-      "resourceTypeRaw": "资源类型原始值",
       "deliveryType": "投递类型",
-      "deliveryTypeRaw": "投递类型原始值",
       "deliveryTarget": "投递目标",
       "resultSummary": "结果摘要"
     },
@@ -119,7 +121,9 @@
       "system": "系统",
       "access-log": "访问日志",
       "notification": "通知中心",
-      "system-config": "系统配置"
+      "system-config": "系统配置",
+      "accessLog": "访问日志",
+      "systemConfig": "系统配置"
     },
     "status": {
       "unread": "未读",
@@ -145,14 +149,18 @@
     },
     "action": {
       "refresh": "刷新",
-      "markAllRead": "全部已读",
+      "markAllRead": "全部标为已读",
       "markRead": "标记已读",
       "delete": "删除",
       "detail": "详情",
-      "openBusinessContext": "打开业务上下文",
+      "openBusinessContext": "打开相关页面",
       "search": "查询",
       "reset": "重置",
-      "viewAll": "打开通知中心 ->"
+      "viewAll": "查看全部通知",
+      "openNotificationCenter": "查看全部通知",
+      "openRelatedPage": "打开相关页面",
+      "openRunRecord": "打开运行记录",
+      "openTarget": "打开相关页面"
     },
     "level": {
       "info": "信息",
@@ -169,12 +177,20 @@
     "delivery": {
       "user": "用户"
     },
-    "scheduler": {
-      "taskSucceeded": {
-        "title": "定时任务执行成功",
-        "message": "{taskName} 已执行成功。",
-        "action": "打开定时任务运行记录"
+    "resourceType": {
+      "scheduledTaskRun": "定时任务运行记录"
+    },
+    "title": {
+      "scheduler": {
+        "runSucceeded": "定时任务执行成功"
       }
-    }
+    },
+    "message": {
+      "scheduler": {
+        "runSucceeded": "{taskName}任务已成功完成。"
+      }
+    },
+    "emptyValue": "无",
+    "unknownLabel": "未知"
   }
 }

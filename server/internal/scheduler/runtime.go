@@ -746,6 +746,9 @@ func (r *CronRuntime) Start(ctx context.Context) error {
 	if ctx == nil {
 		return errors.New("lifecycle context is required")
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -753,7 +756,6 @@ func (r *CronRuntime) Start(ctx context.Context) error {
 	if r.started {
 		return nil
 	}
-	r.lifecycleCtx, r.lifecycleCancel = context.WithCancel(ctx)
 	if r.tasks != nil {
 		definitions, _, err := r.tasks.ListTasks(ctx, TaskListQuery{})
 		if err != nil {
@@ -765,6 +767,7 @@ func (r *CronRuntime) Start(ctx context.Context) error {
 			}
 		}
 	}
+	r.lifecycleCtx, r.lifecycleCancel = context.WithCancel(ctx)
 	r.cron.Start()
 	r.started = true
 	return nil

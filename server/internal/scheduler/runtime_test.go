@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -85,7 +86,9 @@ func (r *runRepositoryRecorder) GetRun(_ context.Context, id uint64) (TaskRun, e
 }
 
 type taskRepositoryRecorder struct {
-	tasks map[string]TaskDefinition
+	tasks     map[string]TaskDefinition
+	listCalls int
+	listErr   error
 }
 
 type defaultConfigResolverRecorder struct {
@@ -168,6 +171,10 @@ func (r *taskRepositoryRecorder) SetTaskEnabled(_ context.Context, key string, e
 }
 
 func (r *taskRepositoryRecorder) ListTasks(_ context.Context, query TaskListQuery) ([]TaskDefinition, int, error) {
+	r.listCalls++
+	if r.listErr != nil {
+		return nil, 0, r.listErr
+	}
 	items := make([]TaskDefinition, 0, len(r.tasks))
 	for _, task := range r.tasks {
 		items = append(items, task)
@@ -1213,6 +1220,48 @@ func TestStartAndStopRunsRegisteredJob(t *testing.T) {
 
 	if err := runtime.Stop(context.Background()); err != nil {
 		t.Fatalf("stop runtime: %v", err)
+	}
+}
+
+// TestStartRejectsCanceledContextBeforeRepositoryLoad 验证 Start 遇到已取消的生命周期
+// 上下文时不会继续读取持久化任务，避免 pgx 把取消状态包装成数据库启动失败。
+func TestStartRejectsCanceledContextBeforeRepositoryLoad(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := runtime.Start(runCtx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
+	if taskRepo.listCalls != 0 {
+		t.Fatalf("expected canceled start to skip repository load, got %d calls", taskRepo.listCalls)
+	}
+	if runtime.started || runtime.lifecycleCtx != nil || runtime.lifecycleCancel != nil {
+		t.Fatal("expected canceled start to leave runtime unstarted")
+	}
+}
+
+// TestStartKeepsRuntimeUnstartedWhenRepositoryLoadFails 验证持久化任务加载失败时不会
+// 留下半初始化的 lifecycle 状态。
+func TestStartKeepsRuntimeUnstartedWhenRepositoryLoadFails(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	taskRepo.listErr = errors.New("list failed")
+	runtime.SetTaskRepository(taskRepo)
+
+	err := runtime.Start(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "list failed") {
+		t.Fatalf("expected repository load error, got %v", err)
+	}
+	if taskRepo.listCalls != 1 {
+		t.Fatalf("expected one repository load, got %d", taskRepo.listCalls)
+	}
+	if runtime.started || runtime.lifecycleCtx != nil || runtime.lifecycleCancel != nil {
+		t.Fatal("expected failed start to leave runtime unstarted")
 	}
 }
 

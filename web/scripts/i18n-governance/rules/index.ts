@@ -14,9 +14,11 @@ import { noSystemConfigSchemaFallbackRule } from './no-system-config-schema-fall
 import { noUnsafeDatetimeLocaleRule } from './no-unsafe-datetime-locale';
 import { noUnsafeLocaleValueRule } from './no-unsafe-locale-value';
 import { noUnusedLocaleKeyRule } from './no-unused-locale-key';
+import { notificationRequiredKeysetRule } from './notification-required-keyset';
 
 export const rules: I18nGovernanceRule[] = [
   noMissingLocaleKeyRule,
+  notificationRequiredKeysetRule,
   noLocaleCatalogDriftRule,
   noUnusedLocaleKeyRule,
   noDuplicateLocaleKeyRule,

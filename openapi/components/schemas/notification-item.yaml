@@ -45,6 +45,9 @@ properties:
   event_type_key:
     type: string
     description: Stable localization key for the notification event type display label.
+  resource_type_key:
+    type: string
+    description: Stable localization key for the notification resource type display label.
   action_label_key:
     type: string
     description: Stable localization key for the primary business action label.

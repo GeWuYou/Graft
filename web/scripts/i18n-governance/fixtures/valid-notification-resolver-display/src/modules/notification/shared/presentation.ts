@@ -1,15 +1,7 @@
-export function resolveNotificationTitle() {
-  return '';
-}
-
-export function resolveNotificationMessage() {
-  return '';
-}
-
-export function resolveNotificationResourceType() {
-  return '';
-}
-
-export function formatNotificationDiagnosticValue() {
-  return '';
+export function presentNotification(item: { message: string; resource_type: string; title: string }) {
+  return {
+    message: item.message,
+    resourceTypeLabel: item.resource_type ? 'Resource' : '',
+    title: item.title,
+  };
 }

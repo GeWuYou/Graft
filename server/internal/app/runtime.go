@@ -312,20 +312,7 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		return err
 	}
 
-	booted := make([]module.RuntimeModule, 0, len(ordered))
-	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
-		return err
-	}
-
-	if err := r.registerCoreAuthenticatedRoutes(); err != nil {
-		return r.cleanupAfterFailure(moduleCtx, booted, err)
-	}
-
-	if err := r.i18n.Freeze(); err != nil {
-		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("freeze i18n registry: %w", err))
-	}
-
-	booted, err = r.bootModules(moduleCtx, ordered, booted)
+	booted, err := r.prepareModules(runCtx, moduleCtx, ordered)
 	if err != nil {
 		return err
 	}
@@ -334,6 +321,55 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		logger.IntField("modules", len(booted)),
 	)
 
+	return r.runServerAndShutdown(runCtx, moduleCtx, booted)
+}
+
+func (r *Runtime) prepareModules(
+	runCtx context.Context,
+	moduleCtx *module.Context,
+	ordered []module.RuntimeModule,
+) ([]module.RuntimeModule, error) {
+	booted := make([]module.RuntimeModule, 0, len(ordered))
+	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
+		return nil, err
+	}
+	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
+		return nil, err
+	}
+	if err := r.prepareCoreRegistries(runCtx, moduleCtx, booted); err != nil {
+		return nil, err
+	}
+	return r.bootModules(moduleCtx, ordered, booted)
+}
+
+func (r *Runtime) prepareCoreRegistries(
+	runCtx context.Context,
+	moduleCtx *module.Context,
+	booted []module.RuntimeModule,
+) error {
+	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
+		return err
+	}
+	if err := r.registerCoreAuthenticatedRoutes(); err != nil {
+		return r.cleanupAfterFailure(moduleCtx, booted, err)
+	}
+	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
+		return err
+	}
+	if err := r.i18n.Freeze(); err != nil {
+		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("freeze i18n registry: %w", err))
+	}
+	return r.ensureLifecycleActive(runCtx, moduleCtx, booted)
+}
+
+func (r *Runtime) runServerAndShutdown(
+	runCtx context.Context,
+	moduleCtx *module.Context,
+	booted []module.RuntimeModule,
+) error {
+	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
+		return err
+	}
 	if err := r.server.Run(runCtx, r.config.HTTP.Addr); err != nil {
 		return r.cleanupAfterFailure(moduleCtx, booted, err)
 	}
@@ -350,6 +386,17 @@ func (r *Runtime) Run(runCtx context.Context) error {
 		return err
 	}
 
+	return nil
+}
+
+func (r *Runtime) ensureLifecycleActive(
+	ctx context.Context,
+	moduleCtx *module.Context,
+	booted []module.RuntimeModule,
+) error {
+	if err := lifecycleCanceled(ctx); err != nil {
+		return r.cleanupAfterFailure(moduleCtx, booted, err)
+	}
 	return nil
 }
 
@@ -371,9 +418,16 @@ func (r *Runtime) bootModules(
 	booted []module.RuntimeModule,
 ) ([]module.RuntimeModule, error) {
 	for _, p := range ordered {
+		if err := lifecycleCanceled(moduleCtx.LifecycleContext); err != nil {
+			return nil, r.cleanupAfterFailure(moduleCtx, booted, err)
+		}
 		// 只有完成 Register 的模块才会进入 Boot。booted 只记录真正成功启动
 		// 的模块，确保失败清理不会误关未启动模块。
 		if err := p.Boot(moduleCtx); err != nil {
+			if lifecycleErr := lifecycleCanceled(moduleCtx.LifecycleContext); lifecycleErr != nil &&
+				errors.Is(err, lifecycleErr) {
+				return nil, r.cleanupAfterFailure(moduleCtx, booted, lifecycleErr)
+			}
 			r.appLogger().Error(moduleCtx.LifecycleContext, "module boot failed",
 				logger.StringField(logger.FieldOperation, "module_boot"),
 				logger.StringField("module", p.Name()),
@@ -389,6 +443,13 @@ func (r *Runtime) bootModules(
 	}
 
 	return booted, nil
+}
+
+func lifecycleCanceled(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+	return ctx.Err()
 }
 
 func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {

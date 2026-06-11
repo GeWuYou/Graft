@@ -24,14 +24,14 @@ const (
 	schedulerNotificationNavigationRun    moduleapi.NotificationNavigationKind = "SCHEDULER_RUN"
 	schedulerNotificationTargetUser       moduleapi.NotificationTargetType     = "USER"
 	schedulerNotificationTargetPermission moduleapi.NotificationTargetType     = "PERMISSION"
-	schedulerTaskSucceededTitleKey                                             = "notification.scheduler.taskSucceeded.title"
-	schedulerTaskSucceededMessageKey                                           = "notification.scheduler.taskSucceeded.message"
-	schedulerTaskSucceededActionLabelKey                                       = "notification.scheduler.taskSucceeded.action"
+	schedulerTaskSucceededTitleKey                                             = "notification.title.scheduler.runSucceeded"
+	schedulerTaskSucceededMessageKey                                           = "notification.message.scheduler.runSucceeded"
+	schedulerTaskSucceededActionLabelKey                                       = "notification.action.openRunRecord"
 	schedulerTaskCategoryKey                                                   = "notification.category.task"
 	schedulerTaskSourceKey                                                     = "notification.source.scheduler"
 	schedulerInfoLevelKey                                                      = "notification.level.info"
 	schedulerTaskSucceededEventTypeKey                                         = "notification.event.taskSucceeded"
-	schedulerTaskRunResourceTypeKey                                            = "notification.resource.scheduledTaskRun"
+	schedulerTaskRunResourceTypeKey                                            = "notification.resourceType.scheduledTaskRun"
 )
 
 type schedulerRunFailureNotifier struct {
@@ -108,23 +108,24 @@ func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run
 	metadata := schedulerRunSuccessMetadata(run, trigger, n.logger)
 	taskName := firstNonEmptyTrimmed(run.TaskName, run.TaskKey)
 	input := moduleapi.PublishNotificationInput{
-		TitleKey:       schedulerTaskSucceededTitleKey,
-		Title:          "Scheduled task succeeded",
-		MessageKey:     schedulerTaskSucceededMessageKey,
-		Message:        taskName + " completed successfully.",
-		CategoryKey:    schedulerTaskCategoryKey,
-		SourceKey:      schedulerTaskSourceKey,
-		LevelKey:       schedulerInfoLevelKey,
-		EventTypeKey:   schedulerTaskSucceededEventTypeKey,
-		ActionLabelKey: schedulerTaskSucceededActionLabelKey,
-		ActionLabel:    "Open scheduled task run",
-		Severity:       schedulerNotificationSeverityInfo,
-		Category:       schedulerNotificationCategoryTask,
-		SourceModule:   moduleID,
-		EventType:      "task_succeeded",
-		ResourceType:   "scheduled_task_run",
-		ResourceID:     strconv.FormatUint(run.ID, 10),
-		ResourceName:   taskName,
+		TitleKey:        schedulerTaskSucceededTitleKey,
+		Title:           "Scheduled task succeeded",
+		MessageKey:      schedulerTaskSucceededMessageKey,
+		Message:         taskName + " completed successfully.",
+		CategoryKey:     schedulerTaskCategoryKey,
+		SourceKey:       schedulerTaskSourceKey,
+		LevelKey:        schedulerInfoLevelKey,
+		EventTypeKey:    schedulerTaskSucceededEventTypeKey,
+		ResourceTypeKey: schedulerTaskRunResourceTypeKey,
+		ActionLabelKey:  schedulerTaskSucceededActionLabelKey,
+		ActionLabel:     "Open scheduled task run",
+		Severity:        schedulerNotificationSeverityInfo,
+		Category:        schedulerNotificationCategoryTask,
+		SourceModule:    moduleID,
+		EventType:       "task_succeeded",
+		ResourceType:    "scheduled_task_run",
+		ResourceID:      strconv.FormatUint(run.ID, 10),
+		ResourceName:    taskName,
 		Navigation: moduleapi.NotificationNavigation{
 			Kind:    schedulerNotificationNavigationRun,
 			Payload: payload,

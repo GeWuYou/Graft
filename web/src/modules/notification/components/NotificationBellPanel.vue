@@ -27,18 +27,18 @@
           <t-list-item v-for="item in items" :key="item.delivery_id" @click="openDetail(item)">
             <div
               class="notification-bell-panel__item"
-              :class="{ 'notification-bell-panel__item--unread': item.status === 'unread' }"
+              :class="{ 'notification-bell-panel__item--unread': notificationView(item).status === 'unread' }"
             >
               <div class="notification-bell-panel__item-main">
-                <strong>{{ resolveNotificationTitle(item, t) }}</strong>
-                <span>{{ resolveNotificationMessage(item, t) }}</span>
-                <small
-                  >{{ resolveNotificationCategory(item, t) }} / {{ resolveNotificationSource(item, t) }} ·
-                  {{ formatCompactDateTime(item.occurred_at, locale) }}</small
-                >
+                <strong>{{ notificationView(item).title }}</strong>
+                <span>{{ notificationView(item).message }}</span>
+                <small>
+                  {{ notificationView(item).categoryLabel }} / {{ notificationView(item).sourceLabel }} ·
+                  {{ notificationView(item).occurredAtLabel }}
+                </small>
               </div>
               <t-tag :theme="notificationSeverityTheme(item.severity)" variant="light-outline" size="small">
-                {{ resolveNotificationLevel(item, t) }}
+                {{ notificationView(item).levelLabel }}
               </t-tag>
             </div>
             <template #action>
@@ -92,7 +92,6 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
-import { formatCompactDateTime } from '@/shared/components/management';
 
 import {
   getNotifications,
@@ -102,14 +101,7 @@ import {
 } from '../api/notification';
 import { NOTIFICATION_ROUTE_PATH } from '../contract/paths';
 import { NOTIFICATION_HEADER_REFRESH_EVENT } from '../contract/refresh';
-import {
-  notificationSeverityTheme,
-  resolveNotificationCategory,
-  resolveNotificationLevel,
-  resolveNotificationMessage,
-  resolveNotificationSource,
-  resolveNotificationTitle,
-} from '../shared/presentation';
+import { notificationSeverityTheme, presentNotification } from '../shared/presentation';
 import type { NotificationItem } from '../types/notification';
 
 const { t, locale } = useI18n();
@@ -213,6 +205,10 @@ function openDetail(item: NotificationItem) {
 function openAll() {
   visible.value = false;
   void router.push(NOTIFICATION_ROUTE_PATH.LIST);
+}
+
+function notificationView(item: NotificationItem) {
+  return presentNotification(item, t, locale.value);
 }
 </script>
 <style scoped lang="less">

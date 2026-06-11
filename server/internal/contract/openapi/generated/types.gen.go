@@ -3402,6 +3402,9 @@ type NotificationItem struct {
 	ResourceName *string                `json:"resource_name,omitempty"`
 	ResourceType *string                `json:"resource_type,omitempty"`
 
+	// ResourceTypeKey Stable localization key for the notification resource type display label.
+	ResourceTypeKey *string `json:"resource_type_key,omitempty"`
+
 	// Severity Notification Center severity typed contract.
 	Severity NotificationSeverity `json:"severity"`
 

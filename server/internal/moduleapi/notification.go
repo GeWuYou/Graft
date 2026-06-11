@@ -50,29 +50,30 @@ type NotificationNavigation struct {
 // Source modules own event detection and business context. Notification Center owns validation,
 // persistence, and delivery state.
 type PublishNotificationInput struct {
-	TitleKey       string
-	Title          string
-	MessageKey     string
-	Message        string
-	CategoryKey    string
-	SourceKey      string
-	LevelKey       string
-	EventTypeKey   string
-	ActionLabelKey string
-	ActionLabel    string
-	Severity       NotificationSeverity
-	Category       NotificationCategory
-	SourceModule   string
-	EventType      string
-	ResourceType   string
-	ResourceID     string
-	ResourceName   string
-	Navigation     NotificationNavigation
-	Metadata       json.RawMessage
-	DedupeKey      string
-	OccurredAt     time.Time
-	ExpiresAt      *time.Time
-	Target         NotificationTarget
+	TitleKey        string
+	Title           string
+	MessageKey      string
+	Message         string
+	CategoryKey     string
+	SourceKey       string
+	LevelKey        string
+	EventTypeKey    string
+	ResourceTypeKey string
+	ActionLabelKey  string
+	ActionLabel     string
+	Severity        NotificationSeverity
+	Category        NotificationCategory
+	SourceModule    string
+	EventType       string
+	ResourceType    string
+	ResourceID      string
+	ResourceName    string
+	Navigation      NotificationNavigation
+	Metadata        json.RawMessage
+	DedupeKey       string
+	OccurredAt      time.Time
+	ExpiresAt       *time.Time
+	Target          NotificationTarget
 }
 
 // PublishNotificationResult returns bounded delivery information for source-module logging.

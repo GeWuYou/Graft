@@ -111,17 +111,17 @@ func (r *SQLRepository) insertEvent(ctx context.Context, input CreateEventInput,
 		ctx,
 		r.placeholder.rebind(`INSERT INTO notification_events (
 			title_key, title, message_key, message, category_key, source_key, level_key, event_type_key,
-			action_label_key, action_label, severity, category, source_module, event_type,
+			resource_type_key, action_label_key, action_label, severity, category, source_module, event_type,
 			resource_type, resource_id, resource_name, navigation_kind, navigation_payload, metadata,
 			dedupe_key, occurred_at, expires_at, created_at
 		) VALUES (
 			?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?
 		)
 		RETURNING id, title_key, title, message_key, message, category_key, source_key, level_key, event_type_key,
-			action_label_key, action_label, severity, category, source_module, event_type,
+			resource_type_key, action_label_key, action_label, severity, category, source_module, event_type,
 			resource_type, resource_id, resource_name, navigation_kind, navigation_payload, metadata,
 			dedupe_key, occurred_at, expires_at, created_at`),
 		input.TitleKey,
@@ -132,6 +132,7 @@ func (r *SQLRepository) insertEvent(ctx context.Context, input CreateEventInput,
 		input.SourceKey,
 		input.LevelKey,
 		input.EventTypeKey,
+		input.ResourceTypeKey,
 		input.ActionLabelKey,
 		input.ActionLabel,
 		input.Severity,
@@ -155,7 +156,7 @@ func (r *SQLRepository) findEventByDedupeKey(ctx context.Context, dedupeKey stri
 	return scanEvent(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT id, title_key, title, message_key, message, category_key, source_key, level_key,
-			event_type_key, action_label_key, action_label, severity, category, source_module, event_type,
+			event_type_key, resource_type_key, action_label_key, action_label, severity, category, source_module, event_type,
 			resource_type, resource_id, resource_name, navigation_kind, navigation_payload, metadata,
 			dedupe_key, occurred_at, expires_at, created_at
 		FROM notification_events
@@ -289,7 +290,7 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 	//nolint:gosec // Query predicates come from buildListWhere's fixed fragments; values stay parameterized.
 	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(fmt.Sprintf(`SELECT
 			e.id, e.title_key, e.title, e.message_key, e.message, e.category_key, e.source_key, e.level_key,
-			e.event_type_key, e.action_label_key, e.action_label, e.severity, e.category,
+			e.event_type_key, e.resource_type_key, e.action_label_key, e.action_label, e.severity, e.category,
 			e.source_module, e.event_type, e.resource_type, e.resource_id, e.resource_name,
 			e.navigation_kind, e.navigation_payload, e.metadata, e.dedupe_key, e.occurred_at, e.expires_at, e.created_at,
 			d.id, d.event_id, d.recipient_user_id, d.target_type, d.target_ref, d.read_at, d.deleted_at, d.created_at
@@ -329,7 +330,7 @@ func (r *SQLRepository) Get(ctx context.Context, recipientUserID uint64, deliver
 
 	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT
 			e.id, e.title_key, e.title, e.message_key, e.message, e.category_key, e.source_key, e.level_key,
-			e.event_type_key, e.action_label_key, e.action_label, e.severity, e.category,
+			e.event_type_key, e.resource_type_key, e.action_label_key, e.action_label, e.severity, e.category,
 			e.source_module, e.event_type, e.resource_type, e.resource_id, e.resource_name,
 			e.navigation_kind, e.navigation_payload, e.metadata, e.dedupe_key, e.occurred_at, e.expires_at, e.created_at,
 			d.id, d.event_id, d.recipient_user_id, d.target_type, d.target_ref, d.read_at, d.deleted_at, d.created_at
@@ -510,6 +511,13 @@ func normalizeEventInput(input CreateEventInput) CreateEventInput {
 	input.Title = strings.TrimSpace(input.Title)
 	input.MessageKey = strings.TrimSpace(input.MessageKey)
 	input.Message = strings.TrimSpace(input.Message)
+	input.CategoryKey = strings.TrimSpace(input.CategoryKey)
+	input.SourceKey = strings.TrimSpace(input.SourceKey)
+	input.LevelKey = strings.TrimSpace(input.LevelKey)
+	input.EventTypeKey = strings.TrimSpace(input.EventTypeKey)
+	input.ResourceTypeKey = strings.TrimSpace(input.ResourceTypeKey)
+	input.ActionLabelKey = strings.TrimSpace(input.ActionLabelKey)
+	input.ActionLabel = strings.TrimSpace(input.ActionLabel)
 	input.Severity = strings.TrimSpace(input.Severity)
 	input.Category = strings.TrimSpace(input.Category)
 	input.SourceModule = strings.TrimSpace(input.SourceModule)
@@ -594,6 +602,7 @@ func scanEvent(scanner interface{ Scan(dest ...any) error }) (Event, error) {
 		&event.SourceKey,
 		&event.LevelKey,
 		&event.EventTypeKey,
+		&event.ResourceTypeKey,
 		&event.ActionLabelKey,
 		&event.ActionLabel,
 		&event.Severity,
@@ -695,6 +704,7 @@ func scanNotifications(rows *sql.Rows) ([]Notification, error) {
 			&item.Event.SourceKey,
 			&item.Event.LevelKey,
 			&item.Event.EventTypeKey,
+			&item.Event.ResourceTypeKey,
 			&item.Event.ActionLabelKey,
 			&item.Event.ActionLabel,
 			&item.Event.Severity,

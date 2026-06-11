@@ -48,6 +48,7 @@ func toNotificationItem(item notificationstore.Notification) generated.Notificat
 		SourceKey:         optionalString(item.Event.SourceKey),
 		LevelKey:          optionalString(item.Event.LevelKey),
 		EventTypeKey:      optionalString(item.Event.EventTypeKey),
+		ResourceTypeKey:   optionalString(item.Event.ResourceTypeKey),
 		ActionLabelKey:    optionalString(item.Event.ActionLabelKey),
 		ActionLabel:       optionalString(item.Event.ActionLabel),
 		Context:           optionalRawJSONMap(item.Event.Metadata),

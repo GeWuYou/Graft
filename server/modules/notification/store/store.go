@@ -29,6 +29,7 @@ type Event struct {
 	SourceKey         string
 	LevelKey          string
 	EventTypeKey      string
+	ResourceTypeKey   string
 	ActionLabelKey    string
 	ActionLabel       string
 	Severity          string
@@ -75,6 +76,7 @@ type CreateEventInput struct {
 	SourceKey         string
 	LevelKey          string
 	EventTypeKey      string
+	ResourceTypeKey   string
 	ActionLabelKey    string
 	ActionLabel       string
 	Severity          string

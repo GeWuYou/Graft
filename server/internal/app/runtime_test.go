@@ -120,12 +120,18 @@ func (p shutdownRecorderModule) Shutdown(_ *module.Context) error {
 }
 
 type bootRecorderModule struct {
-	err error
+	err    error
+	booted *bool
 }
 
 func (p bootRecorderModule) Register(_ *module.Context) error { return nil }
 
-func (p bootRecorderModule) Boot(_ *module.Context) error { return p.err }
+func (p bootRecorderModule) Boot(_ *module.Context) error {
+	if p.booted != nil {
+		*p.booted = true
+	}
+	return p.err
+}
 
 func (p bootRecorderModule) Shutdown(_ *module.Context) error { return nil }
 
@@ -267,6 +273,7 @@ func assertEventuallyAppLogRecord(t *testing.T, repo *runtimeAppLogRecorderRepo,
 type eventBusRecorderModule struct {
 	registerEventBus eventbus.Bus
 	bootEventBus     eventbus.Bus
+	cancelOnBoot     context.CancelFunc
 }
 
 func (p *eventBusRecorderModule) Register(ctx *module.Context) error {
@@ -276,6 +283,9 @@ func (p *eventBusRecorderModule) Register(ctx *module.Context) error {
 
 func (p *eventBusRecorderModule) Boot(ctx *module.Context) error {
 	p.bootEventBus = ctx.EventBus
+	if p.cancelOnBoot != nil {
+		p.cancelOnBoot()
+	}
 	return nil
 }
 
@@ -286,6 +296,7 @@ type lifecycleContextRecorderModule struct {
 	bootLifecycleContext     context.Context
 	shutdownLifecycleContext context.Context
 	shutdownLifecycleErr     error
+	cancelOnBoot             context.CancelFunc
 }
 
 func (p *lifecycleContextRecorderModule) Register(ctx *module.Context) error {
@@ -295,6 +306,9 @@ func (p *lifecycleContextRecorderModule) Register(ctx *module.Context) error {
 
 func (p *lifecycleContextRecorderModule) Boot(ctx *module.Context) error {
 	p.bootLifecycleContext = ctx.LifecycleContext
+	if p.cancelOnBoot != nil {
+		p.cancelOnBoot()
+	}
 	return nil
 }
 
@@ -310,6 +324,7 @@ type i18nFreezeRecorderModule struct {
 	registerFrozen  bool
 	bootFrozen      bool
 	bootRegisterErr error
+	cancelOnBoot    context.CancelFunc
 }
 
 func (p *i18nFreezeRecorderModule) Register(ctx *module.Context) error {
@@ -332,6 +347,9 @@ func (p *i18nFreezeRecorderModule) Boot(ctx *module.Context) error {
 			{Key: "late.message", Text: "启动阶段文案"},
 		},
 	})
+	if p.cancelOnBoot != nil {
+		p.cancelOnBoot()
+	}
 	return nil
 }
 
@@ -626,7 +644,10 @@ func assertServiceKeyNotRegistered(t *testing.T, resolver container.Resolver, ke
 func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	recorder := &eventBusRecorderModule{}
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	recorder := &eventBusRecorderModule{cancelOnBoot: cancel}
 	manager := module.NewManager()
 	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "eventbus-recorder"}, recorder)); err != nil {
 		t.Fatalf("register module: %v", err)
@@ -648,11 +669,8 @@ func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 		moduleManager:      manager,
 	}
 
-	runCtx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	if err := runtime.Run(runCtx); err != nil {
-		t.Fatalf("run runtime: %v", err)
+	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
 	}
 	if recorder.registerEventBus != runtimeEventBus {
 		t.Fatal("expected register phase to receive runtime event bus instance")
@@ -667,9 +685,61 @@ func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	recorder := &lifecycleContextRecorderModule{}
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	recorder := &lifecycleContextRecorderModule{cancelOnBoot: cancel}
 	manager := module.NewManager()
 	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "lifecycle-context-recorder"}, recorder)); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+
+	runtime := &Runtime{
+		config: &config.Config{
+			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
+		},
+		logger:             zap.NewNop(),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}),
+		server:             httpx.NewServer(zap.NewNop()),
+		eventBus:           eventbus.New(zap.NewNop()),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		moduleManager:      manager,
+	}
+
+	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
+	}
+	if recorder.registerLifecycleContext != runCtx {
+		t.Fatal("expected register phase to receive runtime run context")
+	}
+	if recorder.bootLifecycleContext != runCtx {
+		t.Fatal("expected boot phase to receive runtime run context")
+	}
+	if recorder.shutdownLifecycleContext == nil {
+		t.Fatal("expected shutdown phase to receive lifecycle context")
+	}
+	if recorder.shutdownLifecycleContext == runCtx {
+		t.Fatal("expected shutdown phase to receive bounded shutdown context instead of canceled run context")
+	}
+	if recorder.shutdownLifecycleErr != nil {
+		t.Fatalf("expected shutdown lifecycle context to remain usable, got %v", recorder.shutdownLifecycleErr)
+	}
+}
+
+// TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled 验证启动上下文已经取消时，
+// Runtime 不会继续进入会访问数据库或外部资源的模块 Boot 阶段。
+func TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	booted := false
+	manager := module.NewManager()
+	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(
+		module.Spec{ID: "canceled-boot-recorder"},
+		bootRecorderModule{booted: &booted},
+	)); err != nil {
 		t.Fatalf("register module: %v", err)
 	}
 
@@ -691,30 +761,22 @@ func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 	runCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if err := runtime.Run(runCtx); err != nil {
-		t.Fatalf("run runtime: %v", err)
+	err := runtime.Run(runCtx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled lifecycle error, got %v", err)
 	}
-	if recorder.registerLifecycleContext != runCtx {
-		t.Fatal("expected register phase to receive runtime run context")
-	}
-	if recorder.bootLifecycleContext != runCtx {
-		t.Fatal("expected boot phase to receive runtime run context")
-	}
-	if recorder.shutdownLifecycleContext == nil {
-		t.Fatal("expected shutdown phase to receive lifecycle context")
-	}
-	if recorder.shutdownLifecycleContext == runCtx {
-		t.Fatal("expected shutdown phase to receive bounded shutdown context instead of canceled run context")
-	}
-	if recorder.shutdownLifecycleErr != nil {
-		t.Fatalf("expected shutdown lifecycle context to remain usable, got %v", recorder.shutdownLifecycleErr)
+	if booted {
+		t.Fatal("expected canceled lifecycle to stop before module boot")
 	}
 }
 
 func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	recorder := &i18nFreezeRecorderModule{}
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	recorder := &i18nFreezeRecorderModule{cancelOnBoot: cancel}
 	manager := module.NewManager()
 	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "i18n-freeze-recorder"}, recorder)); err != nil {
 		t.Fatalf("register module: %v", err)
@@ -740,11 +802,8 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 		moduleManager:      manager,
 	}
 
-	runCtx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	if err := runtime.Run(runCtx); err != nil {
-		t.Fatalf("run runtime: %v", err)
+	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
 	}
 	if recorder.registerFrozen {
 		t.Fatal("expected i18n registry to remain writable during Register")
