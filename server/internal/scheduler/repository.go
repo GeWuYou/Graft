@@ -75,7 +75,7 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			created_at,
 			updated_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, $13, $14)
-		ON CONFLICT (job_key) DO UPDATE
+		ON CONFLICT (job_key) WHERE deleted_at = 0 DO UPDATE
 		SET module_key = EXCLUDED.module_key,
 			category = EXCLUDED.category,
 			title_key = EXCLUDED.title_key,
@@ -221,7 +221,7 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 				$11,
 				$12
 			)
-			ON CONFLICT (task_key) DO UPDATE
+			ON CONFLICT (task_key) WHERE deleted_at = 0 DO UPDATE
 			SET job_key = EXCLUDED.job_key,
 				title_key = EXCLUDED.title_key,
 				title = EXCLUDED.title,

@@ -128,6 +128,48 @@ func TestSQLJobDefinitionRepositorySyncsDefinitions(t *testing.T) {
 	}
 }
 
+func TestSQLJobDefinitionRepositorySyncsDefinitionAfterSoftDelete(t *testing.T) {
+	db := newSchedulerRepositoryTestDB(t)
+	repo, err := NewSQLJobDefinitionRepository(db)
+	if err != nil {
+		t.Fatalf("new job definition repository: %v", err)
+	}
+
+	ctx := context.Background()
+	definition := JobDefinition{
+		JobKey:        "audit.retention.cleanup",
+		ModuleKey:     "audit",
+		Category:      "retention",
+		Title:         "Audit retention",
+		ShortTitle:    "Audit",
+		ConfigSchema:  "{}",
+		DefaultConfig: "{}",
+		DefaultCron:   "0 0 * * * *",
+		Enabled:       true,
+		CreatedAt:     time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+		UpdatedAt:     time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+	}
+	if err := repo.SyncJobDefinitions(ctx, []JobDefinition{definition}); err != nil {
+		t.Fatalf("sync job definition: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE scheduler_job_definitions SET deleted_at = 1 WHERE job_key = ?`, definition.JobKey); err != nil {
+		t.Fatalf("soft-delete job definition: %v", err)
+	}
+
+	definition.Title = "Audit retention reseeded"
+	if err := repo.SyncJobDefinitions(ctx, []JobDefinition{definition}); err != nil {
+		t.Fatalf("sync job definition after soft-delete: %v", err)
+	}
+
+	got, err := repo.GetJobDefinition(ctx, definition.JobKey)
+	if err != nil {
+		t.Fatalf("get job definition: %v", err)
+	}
+	if got.Title != "Audit retention reseeded" || got.DeletedAt != nil {
+		t.Fatalf("expected active reseeded job definition, got %#v", got)
+	}
+}
+
 func TestSQLTaskRepositorySeedsBuiltinPreservesCronAndEnabledWhileRefreshingConfig(t *testing.T) {
 	db := newSchedulerRepositoryTestDB(t)
 	repo, err := NewSQLTaskRepository(db)
@@ -184,6 +226,47 @@ func TestSQLTaskRepositorySeedsBuiltinPreservesCronAndEnabledWhileRefreshingConf
 	}
 	if task.ConfigSource != taskConfigSourceSystem {
 		t.Fatalf("expected reseeded builtin config to use system source, got %#v", task)
+	}
+}
+
+func TestSQLTaskRepositorySeedsBuiltinAfterSoftDelete(t *testing.T) {
+	db := newSchedulerRepositoryTestDB(t)
+	repo, err := NewSQLTaskRepository(db)
+	if err != nil {
+		t.Fatalf("new task repository: %v", err)
+	}
+
+	ctx := context.Background()
+	seeded := TaskDefinition{
+		TaskKey:        "audit.retention.cleanup",
+		JobKey:         "audit.retention.cleanup",
+		Title:          "scheduledTask.auditLogRetention.title",
+		Description:    "scheduledTask.auditLogRetention.description",
+		CronExpression: "0 0 * * * *",
+		Enabled:        true,
+		Builtin:        true,
+		ConfigJSON:     "{}",
+		CreatedAt:      time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+		UpdatedAt:      time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+	}
+	if err := repo.SeedBuiltinTasks(ctx, []TaskDefinition{seeded}); err != nil {
+		t.Fatalf("seed builtin task: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE scheduled_tasks SET deleted_at = 1 WHERE task_key = ?`, seeded.TaskKey); err != nil {
+		t.Fatalf("soft-delete builtin task: %v", err)
+	}
+
+	seeded.Title = "scheduledTask.auditLogRetention.reseeded"
+	if err := repo.SeedBuiltinTasks(ctx, []TaskDefinition{seeded}); err != nil {
+		t.Fatalf("seed builtin task after soft-delete: %v", err)
+	}
+
+	task, err := repo.GetTask(ctx, seeded.TaskKey)
+	if err != nil {
+		t.Fatalf("get task: %v", err)
+	}
+	if task.Title != "scheduledTask.auditLogRetention.reseeded" || task.DeletedAt != nil {
+		t.Fatalf("expected active reseeded task, got %#v", task)
 	}
 }
 
@@ -311,7 +394,7 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 
 	_, err = db.Exec(`CREATE TABLE scheduled_tasks (
 		id integer PRIMARY KEY AUTOINCREMENT,
-		task_key text NOT NULL UNIQUE,
+		task_key text NOT NULL,
 		job_key text NOT NULL,
 		title_key text NOT NULL DEFAULT '',
 		title text NOT NULL DEFAULT '',
@@ -326,9 +409,12 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		deleted_at integer NOT NULL DEFAULT 0
 	);
+	CREATE UNIQUE INDEX scheduled_tasks_task_key_live_key
+		ON scheduled_tasks (task_key)
+		WHERE deleted_at = 0;
 	CREATE TABLE scheduler_job_definitions (
 		id integer PRIMARY KEY AUTOINCREMENT,
-		job_key text NOT NULL UNIQUE,
+		job_key text NOT NULL,
 		module_key text NOT NULL,
 		category text NOT NULL DEFAULT 'custom',
 		title_key text NOT NULL DEFAULT '',
@@ -345,6 +431,9 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		deleted_at integer NOT NULL DEFAULT 0
 	);
+	CREATE UNIQUE INDEX scheduler_job_definitions_job_key_live_key
+		ON scheduler_job_definitions (job_key)
+		WHERE deleted_at = 0;
 	CREATE TABLE scheduler_task_runs (
 		id integer PRIMARY KEY AUTOINCREMENT,
 		task_key text NOT NULL,

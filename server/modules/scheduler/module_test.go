@@ -316,6 +316,72 @@ func (a *recordingAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAu
 	return nil
 }
 
+const schedulerModuleTestSchema = `CREATE TABLE scheduled_tasks (
+	id integer PRIMARY KEY AUTOINCREMENT,
+	task_key text NOT NULL,
+	job_key text NOT NULL DEFAULT '',
+	title_key text NOT NULL DEFAULT '',
+	title text NOT NULL DEFAULT '',
+	description_key text NOT NULL DEFAULT '',
+	description text NOT NULL DEFAULT '',
+	cron_expression text NOT NULL,
+	enabled boolean NOT NULL DEFAULT true,
+	builtin boolean NOT NULL DEFAULT false,
+	config_json text NOT NULL DEFAULT '{}',
+	config_source text NOT NULL DEFAULT 'system',
+	created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at integer NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX scheduled_tasks_task_key_live_key
+	ON scheduled_tasks (task_key)
+	WHERE deleted_at = 0;
+CREATE TABLE scheduler_job_definitions (
+	id integer PRIMARY KEY AUTOINCREMENT,
+	job_key text NOT NULL,
+	module_key text NOT NULL DEFAULT '',
+	category text NOT NULL DEFAULT 'custom',
+	title_key text NOT NULL DEFAULT '',
+	title text NOT NULL DEFAULT '',
+	short_title_key text NOT NULL DEFAULT '',
+	short_title text NOT NULL DEFAULT '',
+	description_key text NOT NULL DEFAULT '',
+	description text NOT NULL DEFAULT '',
+	config_schema text NOT NULL DEFAULT '{}',
+	default_config text NOT NULL DEFAULT '{}',
+	default_cron text NOT NULL DEFAULT '',
+	enabled boolean NOT NULL DEFAULT true,
+	created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deleted_at integer NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX scheduler_job_definitions_job_key_live_key
+	ON scheduler_job_definitions (job_key)
+	WHERE deleted_at = 0;
+CREATE TABLE scheduler_task_runs (
+	id integer PRIMARY KEY AUTOINCREMENT,
+	task_key text NOT NULL,
+	job_key text NOT NULL DEFAULT '',
+	task_title text NOT NULL DEFAULT '',
+	task_title_key text NOT NULL DEFAULT '',
+	job_title text NOT NULL DEFAULT '',
+	job_title_key text NOT NULL DEFAULT '',
+	job_short_title text NOT NULL DEFAULT '',
+	job_short_title_key text NOT NULL DEFAULT '',
+	job_category text NOT NULL DEFAULT 'custom',
+	module_key text NOT NULL DEFAULT '',
+	task_builtin boolean NOT NULL DEFAULT false,
+	trigger_type text NOT NULL,
+	status text NOT NULL,
+	result_summary text NOT NULL DEFAULT '',
+	result_json text NOT NULL DEFAULT '{}',
+	error_message text NOT NULL DEFAULT '',
+	started_at datetime NOT NULL,
+	finished_at datetime NULL,
+	duration_ms integer NULL,
+	created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`
+
 func newModuleTestContext() *module.Context {
 	ctx, _ := newModuleTestContextWithEngine()
 	return ctx
@@ -328,72 +394,7 @@ func newModuleTestContextWithEngine() (*module.Context, *gin.Engine) {
 func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer) (*module.Context, *gin.Engine) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		panic(err)
-	}
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(`CREATE TABLE scheduled_tasks (
-		id integer PRIMARY KEY AUTOINCREMENT,
-		task_key text NOT NULL UNIQUE,
-		job_key text NOT NULL DEFAULT '',
-		title_key text NOT NULL DEFAULT '',
-		title text NOT NULL DEFAULT '',
-		description_key text NOT NULL DEFAULT '',
-		description text NOT NULL DEFAULT '',
-		cron_expression text NOT NULL,
-		enabled boolean NOT NULL DEFAULT true,
-		builtin boolean NOT NULL DEFAULT false,
-		config_json text NOT NULL DEFAULT '{}',
-		config_source text NOT NULL DEFAULT 'system',
-		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		deleted_at integer NOT NULL DEFAULT 0
-	);
-	CREATE TABLE scheduler_job_definitions (
-		id integer PRIMARY KEY AUTOINCREMENT,
-		job_key text NOT NULL UNIQUE,
-		module_key text NOT NULL DEFAULT '',
-		category text NOT NULL DEFAULT 'custom',
-		title_key text NOT NULL DEFAULT '',
-		title text NOT NULL DEFAULT '',
-		short_title_key text NOT NULL DEFAULT '',
-		short_title text NOT NULL DEFAULT '',
-		description_key text NOT NULL DEFAULT '',
-		description text NOT NULL DEFAULT '',
-		config_schema text NOT NULL DEFAULT '{}',
-		default_config text NOT NULL DEFAULT '{}',
-		default_cron text NOT NULL DEFAULT '',
-		enabled boolean NOT NULL DEFAULT true,
-		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		deleted_at integer NOT NULL DEFAULT 0
-	);
-	CREATE TABLE scheduler_task_runs (
-		id integer PRIMARY KEY AUTOINCREMENT,
-		task_key text NOT NULL,
-		job_key text NOT NULL DEFAULT '',
-		task_title text NOT NULL DEFAULT '',
-		task_title_key text NOT NULL DEFAULT '',
-		job_title text NOT NULL DEFAULT '',
-		job_title_key text NOT NULL DEFAULT '',
-		job_short_title text NOT NULL DEFAULT '',
-		job_short_title_key text NOT NULL DEFAULT '',
-		job_category text NOT NULL DEFAULT 'custom',
-		module_key text NOT NULL DEFAULT '',
-		task_builtin boolean NOT NULL DEFAULT false,
-		trigger_type text NOT NULL,
-		status text NOT NULL,
-		result_summary text NOT NULL DEFAULT '',
-		result_json text NOT NULL DEFAULT '{}',
-		error_message text NOT NULL DEFAULT '',
-		started_at datetime NOT NULL,
-		finished_at datetime NULL,
-		duration_ms integer NULL,
-		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-	)`); err != nil {
-		panic(err)
-	}
+	db := newSchedulerModuleTestDB()
 	services := container.New()
 	if err := services.RegisterSingleton((*sql.DB)(nil), func(container.Resolver) (any, error) {
 		return db, nil
@@ -423,6 +424,18 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		CronRegistry:       cronx.NewRegistry(),
 		DashboardRegistry:  dashboard.NewRegistry(),
 	}, engine
+}
+
+func newSchedulerModuleTestDB() *sql.DB {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		panic(err)
+	}
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(schedulerModuleTestSchema); err != nil {
+		panic(err)
+	}
+	return db
 }
 
 func (r *schedulerAPIRuntime) DeleteTask(_ context.Context, key string) error {
