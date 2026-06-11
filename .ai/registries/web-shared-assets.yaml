@@ -1,0 +1,195 @@
+schema_version: 1
+updated_at: "2026-06-11"
+assets:
+  - name: "management-components"
+    type: "frontend-component-suite"
+    path: "web/src/shared/components/management"
+    owner: "web/shared"
+    purpose: "Reusable management page table surfaces, pagination, action menus, column helpers, and compact timestamp helpers."
+    use_when:
+      - "Building module management list pages with TDesign tables, actions, or pagination."
+    do_not_use_when:
+      - "The surface is not a management/list page or carries module-private business semantics."
+    examples:
+      - "web/src/modules/user/pages/index.vue"
+      - "web/src/modules/rbac/pages/index.vue"
+      - "web/src/modules/system-config/pages/list/index.vue"
+    related_assets:
+      - "observability-helpers"
+      - "query-list-components"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "query-list-components"
+    type: "frontend-component-suite"
+    path: "web/src/shared/components/query-list"
+    owner: "web/shared"
+    purpose: "Advanced query list page, filter builder, column drawer, and paged table components for log-style list/detail workflows."
+    use_when:
+      - "Building searchable list pages with URL-backed filters, sorters, column visibility, or detail drawer coupling."
+    do_not_use_when:
+      - "The page has a simple static table and does not need advanced query state."
+    examples:
+      - "web/src/modules/audit/pages/logs/index.vue"
+      - "web/src/modules/access-log/pages/list/index.vue"
+      - "web/src/modules/app-log/pages/list/index.vue"
+    related_assets:
+      - "management-components"
+      - "observability-helpers"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "schema-form-renderers"
+    type: "frontend-component-suite"
+    path: "web/src/shared/schema-form"
+    owner: "web/shared"
+    purpose: "Schema-driven system config editor and value renderer helpers for supported JSON schema subsets."
+    use_when:
+      - "Rendering or editing system config values from backend-owned config schema."
+    do_not_use_when:
+      - "Rendering arbitrary business JSON that is not a system config schema contract."
+    examples:
+      - "web/src/modules/system-config/pages/list/index.vue"
+    related_assets:
+      - "system-config-field-renderer-skill"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "observability-helpers"
+    type: "frontend-utility"
+    path: "web/src/shared/observability"
+    owner: "web/shared"
+    purpose: "Locale-aware log timestamps, log JSON display, deep-link query helpers, copy helpers, list error/interaction helpers, sorters, and trend axis utilities."
+    use_when:
+      - "Building access log, app log, audit, dashboard, or monitor UI that consumes observability contracts."
+    do_not_use_when:
+      - "The logic is a module-private business presenter with domain-specific labels."
+    examples:
+      - "web/src/modules/access-log/contract/deep-link.ts"
+      - "web/src/modules/app-log/contract/deep-link.ts"
+      - "web/src/modules/dashboard/pages/index.vue"
+    related_assets:
+      - "openapi-contracts"
+      - "management-components"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "shared-page-header"
+    type: "frontend-component"
+    path: "web/src/shared/components/page"
+    owner: "web/shared"
+    purpose: "Reusable page header with i18n key-first title, description, breadcrumbs, and source metadata."
+    use_when:
+      - "A page needs a shared header with key-first i18n and shell-compatible metadata."
+    do_not_use_when:
+      - "The header is a module-specific visual composition that should stay local."
+    examples:
+      - "web/src/shared/components/page/PageHeader.vue"
+    related_assets:
+      - "frontend-i18n-governance"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "assignment-components"
+    type: "frontend-component-suite"
+    path: "web/src/shared/components/assignment"
+    owner: "web/shared"
+    purpose: "Reusable assignment drawer/card/grid/toolbar components for assigning related entities."
+    use_when:
+      - "Building an assignment workflow with selection, summary, and drawer-style confirmation."
+    do_not_use_when:
+      - "The assignment flow has module-specific semantics that require a local component."
+    examples:
+      - "web/src/shared/components/assignment/AssignmentDrawer.test.ts"
+    related_assets:
+      - "assignment-selection-composable"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "assignment-selection-composable"
+    type: "frontend-composable"
+    path: "web/src/shared/composables/useAssignmentSelection.ts"
+    owner: "web/shared"
+    purpose: "Reusable selection state for assignment-style UI flows."
+    use_when:
+      - "Managing selected/unselected entities in a shared assignment surface."
+    do_not_use_when:
+      - "Selection is page-local and does not follow the assignment workflow pattern."
+    examples:
+      - "web/src/shared/components/assignment/AssignmentDrawer.test.ts"
+    related_assets:
+      - "assignment-components"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "route-bootstrap-utils"
+    type: "frontend-utility"
+    path: "web/src/utils/route"
+    owner: "web/shell"
+    purpose: "Bootstrap menu-to-route assembly, route title/meta helpers, and shell route constants."
+    use_when:
+      - "Consuming backend bootstrap menu metadata or adding shell route assembly behavior."
+    do_not_use_when:
+      - "Defining module-private page paths or module-owned bootstrap route declarations."
+    examples:
+      - "web/src/utils/route/bootstrap.ts"
+      - "web/src/utils/route/title.ts"
+    related_assets:
+      - "route-menu-permission-contracts"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "request-client"
+    type: "frontend-utility"
+    path: "web/src/utils/request.ts"
+    owner: "web/shell"
+    purpose: "Canonical Axios request adapter for auth headers, locale headers, envelope parsing, error normalization, and request logging."
+    use_when:
+      - "Adding or modifying frontend API access through module api wrappers."
+    do_not_use_when:
+      - "Adding another axios instance, generated runtime client, fetch wrapper, or module-private request transport."
+    examples:
+      - "web/src/modules/user/api/users.ts"
+      - "web/src/modules/auth/api/auth.ts"
+    related_assets:
+      - "openapi-contracts"
+      - "request-correlation-contract"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "frontend-i18n-governance"
+    type: "frontend-contract"
+    path: "web/src/locales"
+    owner: "web/shell"
+    purpose: "Application locale state, root catalog, module catalog aggregation, fallback language, and i18n governance tests."
+    use_when:
+      - "Adding visible frontend copy, route titles, menu titles, or module locale catalogs."
+    do_not_use_when:
+      - "Duplicating module-owned locale keys into root catalog as a second truth."
+    examples:
+      - "web/src/locales/frontend-governance.test.ts"
+      - "web/docs/frontend-i18n-guidelines.md"
+    related_assets:
+      - "openapi-contracts"
+    validation_commands:
+      - "cd web && bun run lint:i18n"
+      - "cd web && bun run check"
+
+  - name: "localized-api-error"
+    type: "frontend-utility"
+    path: "web/src/modules/shared/localized-api-error.ts"
+    owner: "web/shared"
+    purpose: "Resolve API error messages through key-first i18n fallback semantics."
+    use_when:
+      - "Displaying backend envelope errors in pages, route guards, drawers, or shell interactions."
+    do_not_use_when:
+      - "Inventing local display mappings for backend error codes without checking the canonical message key."
+    examples:
+      - "web/src/modules/auth/pages/components/Login.vue"
+      - "web/src/modules/notification/pages/list/index.vue"
+      - "web/src/app/bootstrap/route-guards.ts"
+    related_assets:
+      - "frontend-i18n-governance"
+      - "openapi-contracts"
+    validation_commands:
+      - "cd web && bun run check"

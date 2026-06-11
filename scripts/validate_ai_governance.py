@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import re
 import shutil
 import subprocess
@@ -26,6 +27,9 @@ PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
 TABLE_DESIGN_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-table-design" / "SKILL.md"
 SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" / "SKILL.md"
+SHARED_ASSET_REUSE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-shared-asset-reuse" / "SKILL.md"
+SHARED_ASSET_DOC = REPO_ROOT / "ai-plan" / "design" / "共享资产复用治理规范.md"
+SHARED_ASSET_VALIDATOR = REPO_ROOT / "scripts" / "validate_shared_asset_registries.py"
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 HEADROOM_RTK_START = "<!-- headroom:rtk-instructions -->"
@@ -371,13 +375,73 @@ def validate_agents_skill_list() -> list[Finding]:
         return []
     text = read_text(AGENTS)
     findings: list[Finding] = []
-    for skill_name in ("graft-codegraph-mcp", "graft-ai-governance-audit", "graft-validation-runner", "graft-sql-migration"):
+    for skill_name in (
+        "graft-codegraph-mcp",
+        "graft-ai-governance-audit",
+        "graft-validation-runner",
+        "graft-sql-migration",
+        "graft-shared-asset-reuse",
+    ):
         if skill_name not in text:
             findings.append(Finding(AGENTS, f"repository skill list does not mention {skill_name}"))
     if contains_headroom_rtk_injection(text):
         findings.append(Finding(AGENTS, "Headroom/RTK automatic instruction block must not be committed"))
     if contains_project_rtk_prefix_rule(text):
         findings.append(Finding(AGENTS, "project governance must not require agents to always prefix commands with rtk"))
+    return findings
+
+
+def validate_shared_asset_governance() -> list[Finding]:
+    findings: list[Finding] = []
+    required = (
+        SHARED_ASSET_DOC,
+        SHARED_ASSET_REUSE_SKILL,
+        SHARED_ASSET_VALIDATOR,
+        REPO_ROOT / ".ai" / "registries" / "web-shared-assets.yaml",
+        REPO_ROOT / ".ai" / "registries" / "server-shared-assets.yaml",
+        REPO_ROOT / ".ai" / "registries" / "cross-boundary-assets.yaml",
+    )
+    for path in required:
+        if not path.is_file():
+            findings.append(Finding(path, "shared asset governance file is missing"))
+
+    if SHARED_ASSET_DOC.is_file():
+        text = read_text(SHARED_ASSET_DOC)
+        for term in (
+            "人工策展的治理索引",
+            "不是源码树清单",
+            "维护触发",
+            "登记标准",
+            "移除与重命名",
+            "scripts/validate_shared_asset_registries.py",
+            "新发现的未登记文件最多产生 warning",
+        ):
+            if term not in text:
+                findings.append(Finding(SHARED_ASSET_DOC, f"missing shared asset governance term {term!r}"))
+
+    if SHARED_ASSET_REUSE_SKILL.is_file():
+        text = read_text(SHARED_ASSET_REUSE_SKILL)
+        for term in (
+            "shared_asset_preflight",
+            "registries_checked",
+            "assets_reused",
+            "assets_considered_but_rejected",
+            "new_registry_entries",
+            "registry_entries_removed_or_replaced",
+            "validation_commands",
+        ):
+            if term not in text:
+                findings.append(Finding(SHARED_ASSET_REUSE_SKILL, f"missing shared asset closeout term {term!r}"))
+    if SHARED_ASSET_VALIDATOR.is_file():
+        spec = importlib.util.spec_from_file_location("validate_shared_asset_registries", SHARED_ASSET_VALIDATOR)
+        if spec is None or spec.loader is None:
+            findings.append(Finding(SHARED_ASSET_VALIDATOR, "could not load shared asset registry validator"))
+        else:
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            for finding in module.validate_registries():
+                findings.append(Finding(finding.path, finding.message))
     return findings
 
 
@@ -407,6 +471,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_skills())
     findings.extend(validate_skill_mcp_guidance())
     findings.extend(validate_sql_migration_governance())
+    findings.extend(validate_shared_asset_governance())
     findings.extend(validate_agents_skill_list())
     findings.extend(validate_environment_inventory())
     findings.extend(validate_no_private_config_tracked(tracked))

@@ -170,6 +170,9 @@ web/src/
 - 带有 `user`、`rbac`、`plugin`、权限码、路由名、DTO、API path、模块文案语义的资产，不得进入 `shared/**`
 - 业务相关但需要跨模块稳定复用时，继续由所属模块持有，并通过 `contract/**` 暴露
 - `shared/**` 不是临时存放区；无法说明复用边界和无业务语义时，不得放入
+- 新增、移动、重命名或删除可复用前端资产时，先按 `ai-plan/design/共享资产复用治理规范.md` 和
+  `.agents/skills/graft-shared-asset-reuse/SKILL.md` 执行 Shared Asset Reuse Preflight；registry 是策展索引，
+  不是全量源码清单，不登记每个 helper、组件或模块私有文件
 
 ## 5. 路由、模块注册与 i18n
 

@@ -1,0 +1,150 @@
+schema_version: 1
+updated_at: "2026-06-11"
+assets:
+  - name: "openapi-contracts"
+    type: "cross-boundary-contract"
+    path: "openapi"
+    owner: "openapi"
+    purpose: "Canonical shared wire contract source for backend generated consumers and frontend generated schemas."
+    use_when:
+      - "Changing API request/response shape, headers, path parameters, error envelopes, generated schemas, or cross-boundary DTOs."
+    do_not_use_when:
+      - "Treating generated artifacts as authority instead of repairing OpenAPI source inputs."
+    examples:
+      - "openapi/openapi.yaml"
+      - "openapi/components/schemas/api-envelope.yaml"
+      - "openapi/paths/scheduled-tasks.list.yaml"
+    related_assets:
+      - "request-client"
+      - "moduleapi-contracts"
+    validation_commands:
+      - "cd web && bun run openapi:frontend-governance:check"
+      - "cd server && go test ./internal/contract/openapi/..."
+
+  - name: "request-correlation-contract"
+    type: "cross-boundary-contract"
+    path: "openapi/components/headers/request-id.yaml"
+    owner: "openapi + server/core/httpx"
+    purpose: "Stable request id / trace id propagation contract used by HTTP responses, logs, and frontend error/debug surfaces."
+    use_when:
+      - "Adding request correlation, trace display, log deep links, or envelope handling."
+    do_not_use_when:
+      - "Inventing module-local correlation header names or frontend-only trace fields."
+    examples:
+      - "server/internal/httpx/response.go"
+      - "web/src/shared/correlation.ts"
+    related_assets:
+      - "httpx-runtime"
+      - "app-logger"
+      - "request-client"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+      - "cd web && bun run check"
+
+  - name: "route-menu-permission-contracts"
+    type: "cross-boundary-contract"
+    path: "openapi/components/schemas/bootstrap-menu.yaml"
+    owner: "server module descriptors + openapi + web route bootstrap"
+    purpose: "Menu, route, permission, title_key, and bootstrap metadata semantics shared between backend descriptors and frontend route assembly."
+    use_when:
+      - "Changing module menu, permission, route path, title_key, hiddenMenu, or bootstrap route behavior."
+    do_not_use_when:
+      - "Adding page-local display mapping to hide upstream authority drift."
+    examples:
+      - "web/src/utils/route/bootstrap.ts"
+      - "server/modules/rbac/contract/permission.go"
+      - "server/modules/audit/contract/route.go"
+    related_assets:
+      - "route-bootstrap-utils"
+      - "moduleapi-contracts"
+    validation_commands:
+      - "cd web && bun run check"
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "i18n-key-first-presentation"
+    type: "cross-boundary-contract"
+    path: "web/docs/frontend-i18n-guidelines.md"
+    owner: "web/i18n + server message contracts"
+    purpose: "Key-first visible copy, module locale ownership, fallback semantics, and server message-key consumption."
+    use_when:
+      - "Adding visible copy, backend message keys, module locale files, route titles, or API error presentation."
+    do_not_use_when:
+      - "Using backend raw text or duplicate root catalog entries as long-term UI truth."
+    examples:
+      - "web/src/locales/frontend-governance.test.ts"
+      - "web/src/modules/shared/localized-api-error.ts"
+      - "server/internal/contract/message/key.go"
+    related_assets:
+      - "frontend-i18n-governance"
+      - "localized-api-error"
+    validation_commands:
+      - "cd web && bun run lint:i18n"
+
+  - name: "moduleapi-notification-contract"
+    type: "cross-boundary-contract"
+    path: "server/internal/moduleapi/notification.go"
+    owner: "server/internal/moduleapi + notification module"
+    purpose: "Stable cross-module notification publication, target, severity, category, navigation, and delivery result contract."
+    use_when:
+      - "A backend source module publishes notifications or consumes notification delivery state."
+    do_not_use_when:
+      - "A caller needs notification module internals, storage rows, or UI-only presentation state."
+    examples:
+      - "server/modules/notification/publisher_test.go"
+      - "server/modules/scheduler/notification_integration.go"
+    related_assets:
+      - "moduleapi-contracts"
+      - "openapi-contracts"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "scheduler-openapi-contract"
+    type: "cross-boundary-contract"
+    path: "openapi/paths/scheduled-tasks.list.yaml"
+    owner: "openapi + server/modules/scheduler + web/modules/scheduled-task"
+    purpose: "Scheduled task API wire shape, job definitions, run result, cron expression, config schema, and list limit/offset contract."
+    use_when:
+      - "Changing scheduled task API parameters, DTOs, cron/config schema, or frontend scheduled-task API consumers."
+    do_not_use_when:
+      - "Treating frontend cron UI helpers as backend scheduler authority."
+    examples:
+      - "server/modules/scheduler/mapper_http_test.go"
+      - "web/src/modules/scheduled-task/api/scheduled-task.ts"
+    related_assets:
+      - "openapi-contracts"
+      - "cron-registry"
+    validation_commands:
+      - "cd web && bun run check"
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "graft-shared-asset-reuse-skill"
+    type: "governance-skill"
+    path: ".agents/skills/graft-shared-asset-reuse/SKILL.md"
+    owner: "docs/automation"
+    purpose: "Reusable workflow for shared asset discovery, registry maintenance evaluation, and closeout reporting."
+    use_when:
+      - "A task adds, moves, renames, removes, or considers reusable frontend/backend/cross-boundary assets."
+    do_not_use_when:
+      - "The task is a pure runtime bugfix with no reusable asset impact."
+    examples:
+      - "ai-plan/design/共享资产复用治理规范.md"
+    related_assets:
+      - "shared-asset-registry-validator"
+    validation_commands:
+      - "python3 scripts/validate_ai_governance.py"
+
+  - name: "shared-asset-registry-validator"
+    type: "governance-validator"
+    path: "scripts/validate_shared_asset_registries.py"
+    owner: "docs/automation"
+    purpose: "Lightweight structural validation for curated shared asset registries."
+    use_when:
+      - "Adding or editing shared asset registry entries."
+    do_not_use_when:
+      - "Generating a full source tree inventory or blocking on newly discovered unregistered files."
+    examples:
+      - "scripts/test_validate_shared_asset_registries.py"
+    related_assets:
+      - "graft-shared-asset-reuse-skill"
+    validation_commands:
+      - "python3 scripts/validate_shared_asset_registries.py"

@@ -1,0 +1,177 @@
+schema_version: 1
+updated_at: "2026-06-11"
+assets:
+  - name: "moduleapi-contracts"
+    type: "backend-moduleapi"
+    path: "server/internal/moduleapi"
+    owner: "server/internal/moduleapi"
+    purpose: "Stable cross-module capability interfaces, events, errors, and DTO contracts."
+    use_when:
+      - "One backend module needs to consume another module's stable capability."
+    do_not_use_when:
+      - "A module can keep the dependency private or would need to expose internals rather than a narrow capability."
+    examples:
+      - "server/internal/moduleapi/audit.go"
+      - "server/internal/moduleapi/notification.go"
+      - "server/internal/moduleapi/auth.go"
+    related_assets:
+      - "openapi-contracts"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "httpx-runtime"
+    type: "backend-runtime-helper"
+    path: "server/internal/httpx"
+    owner: "server/core/httpx"
+    purpose: "Gin runtime shell, unified response envelope, localized errors, request id/trace id, authz guard, access log, and security-event bridge."
+    use_when:
+      - "Adding HTTP route behavior, response envelopes, request correlation, authorization middleware, or access-log runtime behavior."
+    do_not_use_when:
+      - "Implementing module business route logic that belongs under server/modules/<name>."
+    examples:
+      - "server/internal/httpx/response.go"
+      - "server/internal/httpx/authz.go"
+      - "server/internal/httpx/accesslog.go"
+    related_assets:
+      - "app-logger"
+      - "request-correlation-contract"
+      - "openapi-contracts"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "app-logger"
+    type: "backend-runtime-helper"
+    path: "server/internal/logger"
+    owner: "server/core/logger"
+    purpose: "Zap logger construction, AppLogger contract, request correlation fields, sanitization, durable App Log storage, and retention runtime."
+    use_when:
+      - "Writing runtime or module application logs that should inherit request correlation and sanitization."
+    do_not_use_when:
+      - "Writing access-log, audit-log, or security-event facts owned by their dedicated authorities."
+    examples:
+      - "server/internal/logger/applog.go"
+      - "server/internal/logger/README.md"
+    related_assets:
+      - "httpx-runtime"
+      - "request-correlation-contract"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "config-registry"
+    type: "backend-registry"
+    path: "server/internal/configregistry"
+    owner: "server/core/configregistry"
+    purpose: "Module-declared system configuration definition registry with validation and stable ordering."
+    use_when:
+      - "A module declares system config definitions for System Config UI/runtime consumption."
+    do_not_use_when:
+      - "Reading arbitrary local runtime config or storing module business state."
+    examples:
+      - "server/internal/configregistry/registry.go"
+      - "server/modules/notification/config.go"
+    related_assets:
+      - "schema-form-renderers"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "cron-registry"
+    type: "backend-registry"
+    path: "server/internal/cronx"
+    owner: "server/core/cronx"
+    purpose: "Module-declared scheduler job definitions, categories, actions, default config/schema, and structured run result."
+    use_when:
+      - "Registering scheduled jobs or job actions from modules."
+    do_not_use_when:
+      - "Parsing frontend cron expressions or implementing scheduler module business APIs."
+    examples:
+      - "server/internal/cronx/registry.go"
+      - "server/modules/scheduler/module_registration.go"
+    related_assets:
+      - "openapi-contracts"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "drilldown-service"
+    type: "backend-runtime-helper"
+    path: "server/internal/drilldown"
+    owner: "server/core/drilldown"
+    purpose: "Reusable metadata-backed drilldown scope resolver for translating stored scopes into typed query patches and UI projection metadata."
+    use_when:
+      - "A backend API needs to resolve a stored drilldown scope into a target page query."
+    do_not_use_when:
+      - "The behavior is a module-private filter preset with no stored scope metadata."
+    examples:
+      - "server/internal/drilldown/service.go"
+      - "server/internal/drilldown/types.go"
+    related_assets:
+      - "openapi-contracts"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "module-contract-directories"
+    type: "backend-runtime-helper"
+    path: "server/modules/audit/contract"
+    owner: "module:<name>/contract"
+    purpose: "Pattern for module-owned route fragments, permission codes, message keys, status values, and stable module contracts."
+    use_when:
+      - "Adding a stable backend module contract under that module's ownership."
+    do_not_use_when:
+      - "Creating a cross-module capability that belongs in server/internal/moduleapi."
+    examples:
+      - "server/modules/audit/contract/permission.go"
+      - "server/modules/rbac/contract/route.go"
+      - "server/modules/user/contract/status.go"
+    related_assets:
+      - "moduleapi-contracts"
+      - "route-menu-permission-contracts"
+    validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "migration-validation"
+    type: "backend-validation-helper"
+    path: "scripts/validate_sql_migrations.py"
+    owner: "docs/automation"
+    purpose: "Validate live Atlas/PostgreSQL migration SQL comments and migration-version governance."
+    use_when:
+      - "Creating or modifying live module migration SQL."
+    do_not_use_when:
+      - "Trying to validate legacy manual replay migrations unless the task explicitly targets them."
+    examples:
+      - ".agents/skills/graft-sql-migration/SKILL.md"
+      - "scripts/test_validate_sql_migrations.py"
+    related_assets:
+      - "graft-sql-migration-skill"
+    validation_commands:
+      - "python3 scripts/validate_sql_migrations.py"
+
+  - name: "backend-test-helpers"
+    type: "backend-test-helper"
+    path: "server/internal/testassert"
+    owner: "server/test"
+    purpose: "Small backend test assertions shared across backend packages."
+    use_when:
+      - "Writing backend tests that need existing shared assertions."
+    do_not_use_when:
+      - "Adding production helper logic or module-private test setup."
+    examples:
+      - "server/internal/testassert/string_set.go"
+    related_assets:
+      - "testent-helpers"
+    validation_commands:
+      - "cd server && go test ./internal/testassert ./internal/..."
+
+  - name: "testent-helpers"
+    type: "backend-test-helper"
+    path: "server/internal/testent"
+    owner: "server/test"
+    purpose: "Shared Ent test client helpers for backend tests."
+    use_when:
+      - "Backend tests need a shared Ent test client setup."
+    do_not_use_when:
+      - "A module has generated enttest helpers that should remain module-local."
+    examples:
+      - "server/internal/testent/client.go"
+    related_assets:
+      - "backend-test-helpers"
+    validation_commands:
+      - "cd server && go test ./internal/testent ./internal/..."

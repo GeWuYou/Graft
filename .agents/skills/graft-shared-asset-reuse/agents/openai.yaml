@@ -1,0 +1,3 @@
+display_name: "Graft shared asset reuse"
+short_description: "Discover and maintain curated Graft shared asset registries"
+default_prompt: "Use $graft-shared-asset-reuse before adding, moving, renaming, removing, or replacing reusable Graft frontend/backend/cross-boundary assets."

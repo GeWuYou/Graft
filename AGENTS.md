@@ -336,6 +336,9 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-lessons-learned`
   - use near task closeout when a corrected mistake, reusable anti-pattern, or stable implementation lesson should be
     captured in `ai-plan/lessons/*`, optionally promoted into design docs, or elevated into the correct `AGENTS.md`
+- `graft-shared-asset-reuse`
+  - use before adding, moving, renaming, removing, or replacing reusable frontend/backend/cross-boundary assets so the
+    curated shared asset registries stay useful without becoming full source-tree inventories
 - `graft-web-module-scaffold`
   - use when adding a new `web` feature module aligned with backend module semantics
 - `graft-web-vibe-coding`
