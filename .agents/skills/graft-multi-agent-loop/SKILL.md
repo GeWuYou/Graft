@@ -36,7 +36,7 @@ Use this skill when all of the following are true:
 * the task should be executed through `graft-multi-agent-task`
 * the task is best advanced as multiple bounded batches under one main-agent session
 * you want the main agent to keep coordinating serial delegated rounds until the topic reaches an explicit terminal
-  state or a budget is exhausted
+  state or no safe in-scope batch remains
 
 Typical triggers:
 
@@ -50,7 +50,7 @@ Typical triggers:
 2. Confirm the loop mode before the first round:
    - if the caller omitted `loop_mode`, set `loop_mode=topic-completion-loop`
    - only use `checkpoint-loop` when the caller explicitly requested it
-3. Confirm the owned scope and explicit budget before starting the loop:
+3. Confirm the owned scope, reference metrics, and any user-defined hard limits before starting the loop:
    - `max_rounds`
    - `max_files_changed`
    - `max_commits`
@@ -66,6 +66,8 @@ Typical triggers:
      - default to `20` for deep implementation rounds unless the caller explicitly sets a smaller bound
    - `max_grace_window`
      - default to `30` for deep implementation rounds unless the caller explicitly sets a larger bound
+   - these metrics are health indicators by default; they become blocking limits only when the user explicitly defines
+     them as hard limits
 4. Establish the loop batch state in the outer main agent before dispatching Batch 1:
    - `completed_batches`
    - `pending_batches`
@@ -155,11 +157,13 @@ Typical triggers:
      - `risks_or_blockers`
    - a checkpoint response must begin with `Checkpoint status:`, must not include `Next-session startup prompt:`, and
      must not append the final closeout JSON block
-10. After a usable checkpoint, set the next wait window from ETA without breaking the total round budget:
+10. After a usable checkpoint, set the next wait window from ETA while respecting any user-defined hard limit:
    - `eta_confidence=high`: wait `estimated_remaining_minutes`, capped by `max_grace_window`
    - `eta_confidence=medium`: wait `min(estimated_remaining_minutes, default_grace_window)`
    - `eta_confidence=low`: wait only `short_grace_window`, then checkpoint again or move to retry/block
-   - ETA is advisory only; it must not justify exceeding the round's remaining runtime budget
+   - ETA is advisory only; it must not override an explicit hard runtime limit
+   - reference budget overruns alone are not blocking grounds; stopping requires an explicit hard limit or a
+     substantive validation, safety, scope, closeout, retry, risk, or user-stop reason
    - if the checkpoint reports the worker is in an active pre-write or early-write phase and `can_continue=true`,
      treat that as positive health evidence; prefer another wait window over retry escalation
    - after any usable checkpoint with `can_continue=true`, explicitly continue the same worker round and resume waiting
@@ -178,7 +182,7 @@ Typical triggers:
    - batch state
    - scope expansion
    - risk level
-   - remaining budget
+   - remaining reference metrics and any explicit hard limits
    - explicit terminal conditions
 12. If a delegated worker round stalls, omits closeout, or returns contradictory closeout:
    - degrade worker reliability when ETA repeatedly misses, there is no substantive progress, or no closeout arrives
@@ -197,11 +201,13 @@ Typical triggers:
 13. Stop when:
    - the topic reaches `archive-ready`
    - the loop becomes `blocked`
-   - a budget limit is exhausted
+   - a user-defined hard limit is exhausted
    - validation fails under a stop-on-failure policy
    - a worker closeout fails twice under the retry-once policy
    - the delegated round expands scope or reports high risk
    - the user explicitly stops the loop
+   - a reference metric overrun combines with a substantive safety, validation, scope, closeout, retry, risk, or
+     user-stop reason
 14. Use `Next-session startup prompt:` only for terminal handoff states:
    - `blocked`
    - `archive-ready`
