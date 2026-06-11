@@ -494,6 +494,7 @@ func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testi
 		JobKey:     "scheduler.webhook-health",
 		TaskName:   "Webhook Health",
 		Status:     schedulercore.RunStatusSuccess,
+		Result:     "deleted 3 rows",
 		FinishedAt: &finishedAt,
 		CreatedAt:  finishedAt.Add(-time.Second),
 	}, schedulercore.RunTrigger{Type: schedulercore.TriggerTypeManual, TriggerUserID: 42})
@@ -502,9 +503,19 @@ func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testi
 		t.Fatalf("expected one success notification, got %d", len(publisher.inputs))
 	}
 	input := publisher.inputs[0]
-	if input.TitleKey != schedulercontract.ScheduledTaskRunSucceededNotificationTitle.String() ||
-		input.MessageKey != schedulercontract.ScheduledTaskRunSucceededNotificationMessage.String() {
+	if input.TitleKey != "notification.scheduler.taskSucceeded.title" ||
+		input.MessageKey != "notification.scheduler.taskSucceeded.message" ||
+		input.CategoryKey != "notification.category.task" ||
+		input.SourceKey != "notification.source.scheduler" ||
+		input.LevelKey != "notification.level.info" ||
+		input.EventTypeKey != "notification.event.taskSucceeded" ||
+		input.ActionLabelKey != "notification.scheduler.taskSucceeded.action" {
 		t.Fatalf("unexpected message keys: %#v", input)
+	}
+	if input.Title != "Scheduled task succeeded" ||
+		input.Message != "Webhook Health completed successfully." ||
+		input.ActionLabel != "Open scheduled task run" {
+		t.Fatalf("unexpected fallback copy: %#v", input)
 	}
 	if input.EventType != "task_succeeded" ||
 		input.Severity != "info" ||
@@ -519,7 +530,7 @@ func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testi
 		t.Fatalf("unexpected success notification input: %#v", input)
 	}
 	assertSchedulerRunPayload(t, input.Navigation.Payload, uint64(99), "webhook.health", "scheduler.webhook-health")
-	assertSchedulerRunPayload(t, input.Metadata, uint64(99), "webhook.health", "scheduler.webhook-health")
+	assertSchedulerRunSuccessMetadata(t, input.Metadata, uint64(99), "Webhook Health", "manual", "deleted 3 rows")
 }
 
 func TestSchedulerRunSuccessNotifierSkipsMissingTriggerUser(t *testing.T) {
@@ -659,6 +670,25 @@ func assertSchedulerRunPayload(t *testing.T, payload json.RawMessage, runID uint
 	}
 	if decoded.RunID != runID || decoded.TaskKey != taskKey || decoded.JobKey != jobKey {
 		t.Fatalf("unexpected scheduler run payload: %#v", decoded)
+	}
+}
+
+func assertSchedulerRunSuccessMetadata(t *testing.T, payload json.RawMessage, runID uint64, taskName string, triggerType string, resultSummary string) {
+	t.Helper()
+	var decoded struct {
+		RunID         uint64 `json:"runId"`
+		TaskName      string `json:"taskName"`
+		TriggerType   string `json:"triggerType"`
+		ResultSummary string `json:"resultSummary"`
+	}
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("decode scheduler success metadata: %v", err)
+	}
+	if decoded.RunID != runID ||
+		decoded.TaskName != taskName ||
+		decoded.TriggerType != triggerType ||
+		decoded.ResultSummary != resultSummary {
+		t.Fatalf("unexpected scheduler success metadata: %#v", decoded)
 	}
 }
 

@@ -24,6 +24,14 @@ const (
 	schedulerNotificationNavigationRun    moduleapi.NotificationNavigationKind = "SCHEDULER_RUN"
 	schedulerNotificationTargetUser       moduleapi.NotificationTargetType     = "USER"
 	schedulerNotificationTargetPermission moduleapi.NotificationTargetType     = "PERMISSION"
+	schedulerTaskSucceededTitleKey                                             = "notification.scheduler.taskSucceeded.title"
+	schedulerTaskSucceededMessageKey                                           = "notification.scheduler.taskSucceeded.message"
+	schedulerTaskSucceededActionLabelKey                                       = "notification.scheduler.taskSucceeded.action"
+	schedulerTaskCategoryKey                                                   = "notification.category.task"
+	schedulerTaskSourceKey                                                     = "notification.source.scheduler"
+	schedulerInfoLevelKey                                                      = "notification.level.info"
+	schedulerTaskSucceededEventTypeKey                                         = "notification.event.taskSucceeded"
+	schedulerTaskRunResourceTypeKey                                            = "notification.resource.scheduledTaskRun"
 )
 
 type schedulerRunFailureNotifier struct {
@@ -97,23 +105,31 @@ func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run
 		return
 	}
 	payload := schedulerRunNavigationPayload(run, n.logger)
+	metadata := schedulerRunSuccessMetadata(run, trigger, n.logger)
+	taskName := firstNonEmptyTrimmed(run.TaskName, run.TaskKey)
 	input := moduleapi.PublishNotificationInput{
-		TitleKey:     schedulercontract.ScheduledTaskRunSucceededNotificationTitle.String(),
-		Title:        "Scheduled task succeeded",
-		MessageKey:   schedulercontract.ScheduledTaskRunSucceededNotificationMessage.String(),
-		Message:      "Scheduled task " + firstNonEmptyTrimmed(run.TaskName, run.TaskKey) + " succeeded.",
-		Severity:     schedulerNotificationSeverityInfo,
-		Category:     schedulerNotificationCategoryTask,
-		SourceModule: moduleID,
-		EventType:    "task_succeeded",
-		ResourceType: "scheduled_task_run",
-		ResourceID:   strconv.FormatUint(run.ID, 10),
-		ResourceName: firstNonEmptyTrimmed(run.TaskName, run.TaskKey),
+		TitleKey:       schedulerTaskSucceededTitleKey,
+		Title:          "Scheduled task succeeded",
+		MessageKey:     schedulerTaskSucceededMessageKey,
+		Message:        taskName + " completed successfully.",
+		CategoryKey:    schedulerTaskCategoryKey,
+		SourceKey:      schedulerTaskSourceKey,
+		LevelKey:       schedulerInfoLevelKey,
+		EventTypeKey:   schedulerTaskSucceededEventTypeKey,
+		ActionLabelKey: schedulerTaskSucceededActionLabelKey,
+		ActionLabel:    "Open scheduled task run",
+		Severity:       schedulerNotificationSeverityInfo,
+		Category:       schedulerNotificationCategoryTask,
+		SourceModule:   moduleID,
+		EventType:      "task_succeeded",
+		ResourceType:   "scheduled_task_run",
+		ResourceID:     strconv.FormatUint(run.ID, 10),
+		ResourceName:   taskName,
 		Navigation: moduleapi.NotificationNavigation{
 			Kind:    schedulerNotificationNavigationRun,
 			Payload: payload,
 		},
-		Metadata:   payload,
+		Metadata:   metadata,
 		DedupeKey:  "scheduler:run_succeeded:" + strconv.FormatUint(run.ID, 10),
 		OccurredAt: firstNonZeroTime(run.FinishedAt, run.CreatedAt),
 		Target: moduleapi.NotificationTarget{
@@ -145,6 +161,29 @@ func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run
 			zap.Bool("deduplicated", result.Deduplicated),
 		)
 	}
+}
+
+func schedulerRunSuccessMetadata(run schedulercore.TaskRun, trigger schedulercore.RunTrigger, logger *zap.Logger) json.RawMessage {
+	payload, err := json.Marshal(map[string]any{
+		"taskName":      firstNonEmptyTrimmed(run.TaskName, run.TaskKey),
+		"taskKey":       run.TaskKey,
+		"jobKey":        run.JobKey,
+		"runId":         run.ID,
+		"triggerType":   string(trigger.Type),
+		"resultSummary": firstNonEmptyTrimmed(run.Result, "success"),
+	})
+	if err != nil {
+		if logger != nil {
+			logger.Warn("marshal scheduler success notification metadata failed",
+				zap.String("module", moduleID),
+				zap.String("taskKey", run.TaskKey),
+				zap.Uint64("runID", run.ID),
+				zap.Error(err),
+			)
+		}
+		return json.RawMessage(`{"serialization_error":true}`)
+	}
+	return payload
 }
 
 func schedulerRunFailureMetadata(run schedulercore.TaskRun, logger *zap.Logger) json.RawMessage {
