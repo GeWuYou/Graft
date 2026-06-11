@@ -174,6 +174,7 @@ type TaskRun struct {
 	JobKey          string
 	TaskName        string
 	TaskNameKey     string
+	TaskBuiltin     bool
 	Owner           string
 	Module          string
 	TriggerType     TriggerType
@@ -978,6 +979,7 @@ func (r *CronRuntime) createStartedRun(ctx context.Context, definition TaskDefin
 		JobKey:      definition.JobKey,
 		TaskName:    definition.Title,
 		TaskNameKey: taskNameKey,
+		TaskBuiltin: definition.Builtin,
 		Owner:       definition.ModuleKey,
 		Module:      definition.ModuleKey,
 		TriggerType: trigger,

@@ -363,6 +363,7 @@
         "latestResult": "Recent Result",
         "recentRuns": "Run History",
         "key": "Task Key",
+        "taskName": "Task Name",
         "description": "Description",
         "owner": "Owner",
         "module": "Module",

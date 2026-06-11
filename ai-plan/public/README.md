@@ -12,7 +12,9 @@ Overlay note:
 
 ## Active Topics
 
-- none
+- `scheduled-task-job-definition-model-closure`
+  - Recovery entry:
+    `ai-plan/public/scheduled-task-job-definition-model-closure/todos/scheduled-task-job-definition-model-closure-tracking.md`
 
 ## Archive Location
 

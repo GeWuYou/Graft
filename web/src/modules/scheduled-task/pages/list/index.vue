@@ -647,7 +647,7 @@
               <t-descriptions-item :label="t('scheduledTask.list.detail.key')">
                 {{ selectedTask.key }}
               </t-descriptions-item>
-              <t-descriptions-item :label="t('scheduledTask.list.detail.title')">
+              <t-descriptions-item :label="t('scheduledTask.list.detail.taskName')">
                 {{ taskDisplayName(selectedTask) }}
               </t-descriptions-item>
               <t-descriptions-item :label="t('scheduledTask.list.detail.description')">

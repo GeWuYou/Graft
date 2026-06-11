@@ -165,15 +165,23 @@ func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run
 }
 
 func schedulerRunSuccessMetadata(run schedulercore.TaskRun, trigger schedulercore.RunTrigger, logger *zap.Logger) json.RawMessage {
-	payload, err := json.Marshal(map[string]any{
+	metadata := map[string]any{
 		"taskNameKey":   strings.TrimSpace(run.TaskNameKey),
-		"taskName":      firstNonEmptyTrimmed(run.TaskName, run.TaskKey),
+		"taskBuiltin":   run.TaskBuiltin,
 		"taskKey":       run.TaskKey,
 		"jobKey":        run.JobKey,
+		"jobType":       run.JobKey,
+		"jobTitleKey":   strings.TrimSpace(run.TaskNameKey),
 		"runId":         run.ID,
 		"triggerType":   string(trigger.Type),
 		"resultSummary": firstNonEmptyTrimmed(run.Result, "success"),
-	})
+	}
+	if !run.TaskBuiltin {
+		taskTitle := firstNonEmptyTrimmed(run.TaskName, run.TaskKey)
+		metadata["taskName"] = taskTitle
+		metadata["taskTitle"] = taskTitle
+	}
+	payload, err := json.Marshal(metadata)
 	if err != nil {
 		if logger != nil {
 			logger.Warn("marshal scheduler success notification metadata failed",

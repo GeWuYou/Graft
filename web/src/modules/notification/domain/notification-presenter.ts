@@ -50,7 +50,7 @@ export function presentNotification(
   t: ComposerTranslation,
   locale: string,
 ): NotificationViewModel {
-  const context = notificationContext(item, t);
+  const context = notificationContext(item);
   const categoryLabel = resolveNotificationCategory(item, t);
   const sourceLabel = resolveNotificationSource(item, t);
   const occurredAtLabel = formatCompactDateTime(item.occurred_at, locale);
@@ -97,10 +97,34 @@ export function notificationStatusTheme(status: NotificationItem['status']) {
 
 function resolveNotificationTitle(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
   if (isSchedulerTaskRun(item)) {
-    const taskTitle = fallbackLabel(item.title);
-    if (taskTitle) return taskTitle;
+    const taskDisplayTitle = resolveSchedulerTaskDisplayTitle(t, context);
+    if (taskDisplayTitle) return taskDisplayTitle;
+
+    const fallbackTitle = fallbackLabel(item.title);
+    if (fallbackTitle) {
+      return fallbackTitle;
+    }
   }
   return resolveKeyFirst(t, item.title_key, context, item.title);
+}
+
+function resolveNotificationResourceName(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
+  if (isSchedulerTaskRun(item)) {
+    const taskDisplayTitle = resolveSchedulerTaskDisplayTitle(t, context);
+    if (taskDisplayTitle) return taskDisplayTitle;
+  }
+  return valueOrEmpty(item.resource_name, t);
+}
+
+function resolveSchedulerTaskDisplayTitle(t: ComposerTranslation, context: NotificationContext) {
+  const taskTitle = stringValue(context.taskTitle) || stringValue(context.taskName);
+  if (taskTitle) {
+    return taskTitle;
+  }
+  if (context.taskBuiltin !== true) {
+    return '';
+  }
+  return translateKey(t, stringValue(context.taskTitleKey) || stringValue(context.taskNameKey));
 }
 
 function resolveNotificationMessage(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
@@ -151,16 +175,6 @@ export function resolveNotificationResultSummary(item: NotificationItem, t: Comp
   return valueOrEmpty(rawNotificationContext(item).resultSummary, t);
 }
 
-function resolveNotificationResourceName(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
-  if (isSchedulerTaskRun(item)) {
-    const taskName = stringValue(context.taskName);
-    if (taskName) {
-      return taskName;
-    }
-  }
-  return valueOrEmpty(item.resource_name, t);
-}
-
 function isSchedulerTaskRun(item: NotificationItem) {
   return item.source_module === 'scheduler' && item.resource_type === NOTIFICATION_RESOURCE_TYPE.SCHEDULED_TASK_RUN;
 }
@@ -181,23 +195,12 @@ function translateKey(t: ComposerTranslation, key: string | null | undefined, co
   return translated === normalized ? '' : translated;
 }
 
-function notificationContext(item: NotificationItem, t: ComposerTranslation): NotificationContext {
-  const context = { ...rawNotificationContext(item) };
-  const taskName = localizedTaskName(context, t);
-  if (taskName) {
-    context.taskName = taskName;
-  }
-  return context;
+function notificationContext(item: NotificationItem): NotificationContext {
+  return { ...rawNotificationContext(item) };
 }
 
 function rawNotificationContext(item: NotificationItem): NotificationContext {
   return item.context && typeof item.context === 'object' ? item.context : {};
-}
-
-function localizedTaskName(context: NotificationContext, t: ComposerTranslation) {
-  const taskNameKey = stringValue(context.taskNameKey);
-  const translatedTaskName = taskNameKey ? translateKey(t, taskNameKey) : '';
-  return translatedTaskName || stringValue(context.taskName);
 }
 
 function stringValue(value: unknown) {

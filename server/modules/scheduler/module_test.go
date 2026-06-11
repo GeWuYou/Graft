@@ -372,6 +372,7 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		job_key text NOT NULL DEFAULT '',
 		task_name text NOT NULL DEFAULT '',
 		task_name_key text NOT NULL DEFAULT '',
+		task_builtin boolean NOT NULL DEFAULT false,
 		owner text NOT NULL DEFAULT '',
 		module text NOT NULL DEFAULT '',
 		task_type text NOT NULL DEFAULT 'cron',
@@ -495,6 +496,7 @@ func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testi
 		JobKey:      "scheduler.webhook-health",
 		TaskName:    "Webhook Health",
 		TaskNameKey: "scheduler.job.webhookHealth.title",
+		TaskBuiltin: false,
 		Status:      schedulercore.RunStatusSuccess,
 		Result:      "deleted 3 rows",
 		FinishedAt:  &finishedAt,
@@ -512,6 +514,7 @@ func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testi
 		runID:         99,
 		taskNameKey:   "scheduler.job.webhookHealth.title",
 		taskName:      "Webhook Health",
+		jobKey:        "scheduler.webhook-health",
 		triggerType:   "manual",
 		resultSummary: "deleted 3 rows",
 	})
@@ -696,6 +699,8 @@ type expectedSchedulerRunSuccessMetadata struct {
 	runID         uint64
 	taskNameKey   string
 	taskName      string
+	taskBuiltin   bool
+	jobKey        string
 	triggerType   string
 	resultSummary string
 }
@@ -706,6 +711,10 @@ func assertSchedulerRunSuccessMetadata(t *testing.T, payload json.RawMessage, ex
 		RunID         uint64 `json:"runId"`
 		TaskNameKey   string `json:"taskNameKey"`
 		TaskName      string `json:"taskName"`
+		TaskTitle     string `json:"taskTitle"`
+		TaskBuiltin   bool   `json:"taskBuiltin"`
+		JobType       string `json:"jobType"`
+		JobTitleKey   string `json:"jobTitleKey"`
 		TriggerType   string `json:"triggerType"`
 		ResultSummary string `json:"resultSummary"`
 	}
@@ -714,10 +723,21 @@ func assertSchedulerRunSuccessMetadata(t *testing.T, payload json.RawMessage, ex
 	}
 	if decoded.RunID != expected.runID ||
 		decoded.TaskNameKey != expected.taskNameKey ||
-		decoded.TaskName != expected.taskName ||
+		decoded.TaskBuiltin != expected.taskBuiltin ||
+		decoded.JobType != expected.jobKey ||
+		decoded.JobTitleKey != expected.taskNameKey ||
 		decoded.TriggerType != expected.triggerType ||
 		decoded.ResultSummary != expected.resultSummary {
 		t.Fatalf("unexpected scheduler success metadata: %#v", decoded)
+	}
+	if expected.taskBuiltin {
+		if decoded.TaskName != "" || decoded.TaskTitle != "" {
+			t.Fatalf("expected builtin scheduler metadata to omit literal task title, got %#v", decoded)
+		}
+		return
+	}
+	if decoded.TaskName != expected.taskName || decoded.TaskTitle != expected.taskName {
+		t.Fatalf("unexpected scheduler success task title metadata: %#v", decoded)
 	}
 }
 

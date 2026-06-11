@@ -878,6 +878,9 @@ func TestRunOnceWithTriggerNotifiesManualSuccess(t *testing.T) {
 	if notifiedRun.TaskNameKey != "scheduler.job.manualSuccess.title" {
 		t.Fatalf("expected task name key to be preserved, got %#v", notifiedRun)
 	}
+	if !notifiedRun.TaskBuiltin {
+		t.Fatalf("expected task builtin flag to be preserved, got %#v", notifiedRun)
+	}
 	if trigger.Type != TriggerTypeManual || trigger.TriggerUserID != 42 {
 		t.Fatalf("expected manual trigger user to be preserved, got %#v", trigger)
 	}

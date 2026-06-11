@@ -363,6 +363,7 @@
         "latestResult": "最近结果",
         "recentRuns": "运行历史",
         "key": "任务键",
+        "taskName": "任务名称",
         "description": "描述",
         "owner": "归属",
         "module": "模块",

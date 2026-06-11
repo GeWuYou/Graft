@@ -54,7 +54,7 @@ describe('notification presenter', () => {
         action_label_key: 'notification.action.openRunRecord',
         category_key: 'notification.category.task',
         context: {
-          taskName: 'Access log retention cleanup',
+          taskBuiltin: true,
           taskNameKey: 'scheduler.job.accessLogRetentionCleanup.title',
         },
         level_key: 'notification.level.info',
@@ -70,7 +70,7 @@ describe('notification presenter', () => {
       'zh-CN',
     );
 
-    expect(view.title).toBe('Nightly audit cleanup');
+    expect(view.title).toBe('访问日志保留清理');
     expect(view.message).toBe('已成功完成。');
     expect(view.compactMeta).toBe(`任务 / 定时任务 · ${view.occurredAtLabel}`);
     expect(view.levelLabel).toBe('信息');
@@ -83,6 +83,29 @@ describe('notification presenter', () => {
     expect(view.resourceId).toBe('25');
   });
 
+  it('keeps a user-created scheduled task title when it uses a built-in job definition', () => {
+    const view = presentNotification(
+      notification({
+        context: {
+          taskBuiltin: false,
+          taskTitle: '审计日志保留清理1',
+          taskNameKey: 'scheduler.job.accessLogRetentionCleanup.title',
+          jobTitleKey: 'scheduler.job.accessLogRetentionCleanup.title',
+        },
+        message_key: 'notification.message.scheduler.runSucceeded',
+        resource_name: 'Audit log retention cleanup',
+        resource_type: 'scheduled_task_run',
+        title_key: 'notification.title.scheduler.runSucceeded',
+      }),
+      t,
+      'zh-CN',
+    );
+
+    expect(view.title).toBe('审计日志保留清理1');
+    expect(view.resourceName).toBe('审计日志保留清理1');
+    expect(view.message).toBe('已成功完成。');
+  });
+
   it('uses fallback copy when a display key is missing', () => {
     const view = presentNotification(notification(), t, 'zh-CN');
 
@@ -90,10 +113,47 @@ describe('notification presenter', () => {
     expect(view.message).toBe('Completed successfully.');
   });
 
-  it('keeps scheduler task title when taskNameKey is missing', () => {
+  it('keeps the literal scheduler task title when taskNameKey is present without builtin status', () => {
     const view = presentNotification(
       notification({
-        context: { taskName: '访问日志保留清理' },
+        context: {
+          taskName: '审计日志保留清理1',
+          taskNameKey: 'scheduler.job.accessLogRetentionCleanup.title',
+        },
+        message_key: 'notification.message.scheduler.runSucceeded',
+        resource_type: 'scheduled_task_run',
+        title_key: 'notification.title.scheduler.runSucceeded',
+      }),
+      t,
+      'zh-CN',
+    );
+
+    expect(view.title).toBe('审计日志保留清理1');
+    expect(view.message).toBe('已成功完成。');
+  });
+
+  it('falls back to the stored title when builtin localization key is missing', () => {
+    const view = presentNotification(
+      notification({
+        context: {
+          taskBuiltin: true,
+          taskNameKey: 'scheduler.job.missing.title',
+        },
+        message_key: 'notification.message.scheduler.runSucceeded',
+        resource_type: 'scheduled_task_run',
+        title_key: 'notification.title.scheduler.runSucceeded',
+      }),
+      t,
+      'zh-CN',
+    );
+
+    expect(view.title).toBe('Nightly audit cleanup');
+    expect(view.message).toBe('已成功完成。');
+  });
+
+  it('falls back to the stored scheduler title when task context is missing', () => {
+    const view = presentNotification(
+      notification({
         message_key: 'notification.message.scheduler.runSucceeded',
         resource_type: 'scheduled_task_run',
         title_key: 'notification.title.scheduler.runSucceeded',

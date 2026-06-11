@@ -145,7 +145,7 @@ function notification(): NotificationItem {
     category: 'TASK',
     category_key: 'notification.category.task',
     context: {
-      taskName: 'Access log retention cleanup',
+      taskBuiltin: true,
       taskNameKey: 'scheduler.job.accessLogRetentionCleanup.title',
     },
     delivery_created_at: '2026-06-11T10:47:21Z',
@@ -194,10 +194,11 @@ describe('notification display consistency', () => {
       global: { stubs },
     });
 
-    for (const expected of ['Nightly audit cleanup', '已成功完成。', '信息', '任务', '定时任务']) {
+    for (const expected of ['访问日志保留清理', '已成功完成。', '信息', '任务', '定时任务']) {
       expect(table.text()).toContain(expected);
       expect(detail.text()).toContain(expected);
     }
+    expect(table.text()).not.toContain('Nightly audit cleanup');
     expect(detail.text()).toContain('访问日志保留清理');
     expect(detail.text()).toContain('定时任务运行记录');
     expect(detail.text()).toContain('标记已读');

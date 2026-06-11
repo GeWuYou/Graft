@@ -552,6 +552,7 @@ func (r *SQLRunRepository) CreateRun(ctx context.Context, run TaskRun) (TaskRun,
 		job_key,
 		task_name,
 		task_name_key,
+		task_builtin,
 		owner,
 		module,
 		task_type,
@@ -565,12 +566,13 @@ func (r *SQLRunRepository) CreateRun(ctx context.Context, run TaskRun) (TaskRun,
 		finished_at,
 		duration_ms,
 		created_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '', '{}', '', $11, NULL, NULL, $12)
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, '', '{}', '', $12, NULL, NULL, $13)
 	RETURNING id`,
 		run.TaskKey,
 		run.JobKey,
 		run.TaskName,
 		run.TaskNameKey,
+		run.TaskBuiltin,
 		run.Owner,
 		run.Module,
 		schedulerRunTypeJob,
@@ -680,7 +682,7 @@ func (r *SQLRunRepository) ListRuns(ctx context.Context, query RunListQuery) (Ru
 }
 
 func (r *SQLRunRepository) listRunItems(ctx context.Context, query RunListQuery) ([]TaskRun, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, task_key, job_key, task_name, task_name_key, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
+	rows, err := r.db.QueryContext(ctx, `SELECT id, task_key, job_key, task_name, task_name_key, task_builtin, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
 	FROM scheduler_task_runs
 	WHERE task_key = $1
 	ORDER BY started_at DESC, id DESC
@@ -714,7 +716,7 @@ func (r *SQLRunRepository) LatestRunByTask(ctx context.Context, taskKey string) 
 	if taskKey == "" {
 		return TaskRun{}, false, errors.New("scheduler run task key is required")
 	}
-	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, task_name, task_name_key, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
+	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, task_name, task_name_key, task_builtin, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
 	FROM scheduler_task_runs
 	WHERE task_key = $1
 	ORDER BY started_at DESC, id DESC
@@ -810,7 +812,7 @@ func (r *SQLRunRepository) runDurationMS(ctx context.Context, sqlID int64, finis
 }
 
 func (r *SQLRunRepository) findRunBySQLID(ctx context.Context, sqlID int64) (TaskRun, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, task_name, task_name_key, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
+	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, task_name, task_name_key, task_builtin, owner, module, trigger_type, status, error, result_summary, result_json, error_message, started_at, finished_at, duration_ms, created_at
 	FROM scheduler_task_runs
 	WHERE id = $1`, sqlID)
 	return scanTaskRun(row)
@@ -863,6 +865,7 @@ func scanTaskRun(scanner rowScanner) (TaskRun, error) {
 		&run.JobKey,
 		&run.TaskName,
 		&run.TaskNameKey,
+		&run.TaskBuiltin,
 		&run.Owner,
 		&run.Module,
 		&triggerType,
