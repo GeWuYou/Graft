@@ -31,6 +31,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := m.validateRegisterContext(ctx); err != nil {
 		return err
 	}
+	m.publisher.setLogger(ctx.Logger)
 	if err := registerNotificationMetadata(ctx); err != nil {
 		return err
 	}

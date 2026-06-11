@@ -9,7 +9,7 @@ import "graft/server/internal/module"
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
-		Dependencies:  nil,
+		Dependencies:  []string{"notification", "system-config"},
 		MigrationPath: []string{"modules/scheduler/migrations"},
 		Builder:       module.BuilderFunc(func(module.BuildContext) (module.Module, error) { return NewModule(), nil }),
 	}

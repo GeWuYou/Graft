@@ -15,7 +15,12 @@ const apiMocks = vi.hoisted(() => ({
   getScheduledTaskJobDefinitions: vi.fn(),
   getScheduledTaskRuns: vi.fn(),
   getScheduledTasks: vi.fn(),
+  runScheduledTask: vi.fn(),
   updateScheduledTask: vi.fn(),
+}));
+
+const notificationMocks = vi.hoisted(() => ({
+  requestNotificationHeaderRefresh: vi.fn(),
 }));
 
 const translations = vi.hoisted(
@@ -146,6 +151,8 @@ const translations = vi.hoisted(
     'scheduledTask.list.more': '更多',
     'scheduledTask.list.refresh': '刷新',
     'scheduledTask.list.run': '立即执行',
+    'scheduledTask.list.runDialog.cancel': '取消',
+    'scheduledTask.list.runDialog.confirm': '确认执行',
     'scheduledTask.list.runDialog.affectedResource': '影响资源',
     'scheduledTask.list.runDialog.batchSize': '批量大小',
     'scheduledTask.list.runDialog.cleanupDescription': '{behavior} 请确认清理范围后执行。',
@@ -176,8 +183,12 @@ vi.mock('../../api/scheduled-task', () => ({
   getScheduledTaskRun: vi.fn(),
   getScheduledTaskRuns: apiMocks.getScheduledTaskRuns,
   getScheduledTasks: apiMocks.getScheduledTasks,
-  runScheduledTask: vi.fn(),
+  runScheduledTask: apiMocks.runScheduledTask,
   updateScheduledTask: apiMocks.updateScheduledTask,
+}));
+
+vi.mock('@/modules/notification/contract/refresh', () => ({
+  requestNotificationHeaderRefresh: notificationMocks.requestNotificationHeaderRefresh,
 }));
 
 vi.mock('@/utils/logger', () => ({
@@ -758,6 +769,15 @@ describe('ScheduledTaskListPage', () => {
       return job;
     });
     apiMocks.getScheduledTaskRuns.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
+    apiMocks.runScheduledTask.mockResolvedValue({
+      id: 201,
+      trigger_type: 'manual',
+      status: 'success',
+      started_at: '2026-06-06T00:00:00Z',
+      finished_at: '2026-06-06T00:00:01Z',
+      duration_ms: 1000,
+      result_json: '{"summary":"Deleted 1 access log row."}',
+    });
     apiMocks.updateScheduledTask.mockImplementation(async (taskKey: string, payload: Record<string, unknown>) => ({
       ...scheduledTasksResponse().items[0],
       key: taskKey,
@@ -809,6 +829,18 @@ describe('ScheduledTaskListPage', () => {
     expect(firstOperationCell.text()).toContain('编辑');
     expect(firstOperationCell.text()).toContain('停用');
     expect(firstOperationCell.text()).toContain('删除');
+  });
+
+  it('refreshes the notification header after a manual run succeeds', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await findButtonByText(wrapper, '立即执行')!.trigger('click');
+    await flushPromises();
+    await findButtonByText(wrapper, '确认执行')!.trigger('click');
+    await flushPromises();
+
+    expect(notificationMocks.requestNotificationHeaderRefresh).toHaveBeenCalledTimes(1);
   });
 
   it('renders raw cron expressions, next run diagnostics, and recent result summaries in list cells', async () => {

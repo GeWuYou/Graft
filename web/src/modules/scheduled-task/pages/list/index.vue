@@ -966,6 +966,7 @@ import { MessagePlugin, Tag, type TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { requestNotificationHeaderRefresh } from '@/modules/notification/contract/refresh';
 import { readErrorField } from '@/modules/shared/error-field';
 import { buildVisibleColumns, calculateTableContentWidth } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
@@ -1961,6 +1962,7 @@ async function runTask(task: ScheduledTaskItem) {
     if (selectedTask.value?.key === detail.key) {
       selectedTask.value = detail;
     }
+    requestNotificationHeaderRefresh();
     void MessagePlugin.success(t('scheduledTask.list.runSuccess'));
   } catch (error) {
     logger.error(error instanceof Error ? error : 'run scheduled task failed', {

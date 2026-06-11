@@ -87,7 +87,7 @@
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -101,6 +101,7 @@ import {
   markNotificationsReadAll,
 } from '../api/notification';
 import { NOTIFICATION_ROUTE_PATH } from '../contract/paths';
+import { NOTIFICATION_HEADER_REFRESH_EVENT } from '../contract/refresh';
 import {
   notificationMessage,
   notificationSeverityTheme,
@@ -131,7 +132,20 @@ const emptyDescription = computed(() => {
 
 onMounted(() => {
   void refreshUnreadCount();
+  window.addEventListener(NOTIFICATION_HEADER_REFRESH_EVENT, refreshHeader);
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener(NOTIFICATION_HEADER_REFRESH_EVENT, refreshHeader);
+});
+
+function refreshHeader() {
+  if (visible.value) {
+    void refreshPreview();
+    return;
+  }
+  void refreshUnreadCount();
+}
 
 async function refreshUnreadCount() {
   try {

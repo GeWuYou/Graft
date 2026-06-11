@@ -97,11 +97,25 @@ func registerSchedulerRuntimeService(ctx *module.Context) error {
 			return nil, err
 		} else if notifier != nil {
 			runtime.SetRunFailureNotifier(notifier)
+			ctx.Logger.Debug("scheduler failure notification notifier attached",
+				zap.String("module", moduleID),
+			)
+		} else {
+			ctx.Logger.Debug("scheduler failure notification notifier unavailable",
+				zap.String("module", moduleID),
+			)
 		}
 		if notifier, err := resolveRunSuccessNotifier(resolver, ctx.Logger); err != nil {
 			return nil, err
 		} else if notifier != nil {
 			runtime.SetRunSuccessNotifier(notifier)
+			ctx.Logger.Debug("scheduler success notification notifier attached",
+				zap.String("module", moduleID),
+			)
+		} else {
+			ctx.Logger.Debug("scheduler success notification notifier unavailable",
+				zap.String("module", moduleID),
+			)
 		}
 		return runtime, nil
 	})

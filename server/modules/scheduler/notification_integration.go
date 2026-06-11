@@ -77,6 +77,13 @@ type schedulerRunSuccessNotifier struct {
 
 func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run schedulercore.TaskRun, trigger schedulercore.RunTrigger) {
 	if n.publisher == nil || run.ID == 0 {
+		if n.logger != nil {
+			n.logger.Debug("skip scheduler success notification without publisher or run id",
+				zap.String("module", moduleID),
+				zap.String("taskKey", run.TaskKey),
+				zap.Uint64("runID", run.ID),
+			)
+		}
 		return
 	}
 	if trigger.TriggerUserID == 0 {
@@ -114,13 +121,28 @@ func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run
 			Ref:  strconv.FormatUint(trigger.TriggerUserID, 10),
 		},
 	}
-	if _, err := n.publisher.Publish(ctx, input); err != nil && n.logger != nil {
+	result, err := n.publisher.Publish(ctx, input)
+	if err != nil && n.logger != nil {
 		n.logger.Warn("publish scheduler success notification failed",
 			zap.String("module", moduleID),
 			zap.String("taskKey", run.TaskKey),
 			zap.Uint64("runID", run.ID),
 			zap.Uint64("triggerUserID", trigger.TriggerUserID),
 			zap.Error(err),
+		)
+		return
+	}
+	if n.logger != nil {
+		n.logger.Debug("publish scheduler success notification completed",
+			zap.String("module", moduleID),
+			zap.String("taskKey", run.TaskKey),
+			zap.Uint64("runID", run.ID),
+			zap.Uint64("triggerUserID", trigger.TriggerUserID),
+			zap.String("dedupeKey", input.DedupeKey),
+			zap.Uint64("notificationEventID", result.EventID),
+			zap.Int("recipientCount", result.RecipientCount),
+			zap.Bool("skipped", result.Skipped),
+			zap.Bool("deduplicated", result.Deduplicated),
 		)
 	}
 }

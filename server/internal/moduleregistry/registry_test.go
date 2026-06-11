@@ -23,13 +23,13 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"internal/httpx/migrations",
 		"internal/logger/migrations",
 		"internal/drilldown/migrations",
-		"modules/scheduler/migrations",
 		"modules/user/migrations",
 		"modules/auth/migrations",
 		"modules/rbac/migrations",
 		"modules/audit/migrations",
 		"modules/notification/migrations",
 		"modules/system-config/migrations",
+		"modules/scheduler/migrations",
 	}
 	if !reflect.DeepEqual(dirs, expected) {
 		t.Fatalf("expected %v, got %v", expected, dirs)
