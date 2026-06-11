@@ -49,7 +49,7 @@ const translations = vi.hoisted(
     'scheduledTask.auditLogRetention.config.retentionDays.title': '日志保留时间',
     'scheduledTask.auditLogRetention.description': '删除超过配置保留窗口的审计日志。',
     'scheduledTask.auditLogRetention.title': '审计日志保留清理',
-    'scheduledTask.cronDescription.daily': '每天 {hour}:00 执行一次。',
+    'scheduledTask.cronDescription.daily': '每天 {time} 执行一次。',
     'scheduledTask.cronDescription.everyNMinutes': '每 {interval} 分钟执行一次。',
     'scheduledTask.cronValidation.fieldCount':
       'Cron 表达式必须是 {unixFields} 字段 Unix Cron 或 {secondsFields} 字段秒级 Cron。',
@@ -59,10 +59,13 @@ const translations = vi.hoisted(
     'scheduledTask.list.columnSettings': '列设置',
     'scheduledTask.list.columns.cron': 'Cron',
     'scheduledTask.list.columns.category': '分类',
+    'scheduledTask.list.columns.lastRun': '最近运行',
     'scheduledTask.list.columns.job': '执行定义',
     'scheduledTask.list.columns.operation': '操作',
+    'scheduledTask.list.columns.owner': '所属',
     'scheduledTask.list.columns.recentResult': '最近结果',
     'scheduledTask.list.columns.recentRun': '最近运行',
+    'scheduledTask.list.columns.schedule': '调度',
     'scheduledTask.list.columns.status': '状态',
     'scheduledTask.list.columns.successRate': '成功率',
     'scheduledTask.list.columns.task': '任务',
@@ -70,7 +73,7 @@ const translations = vi.hoisted(
     'scheduledTask.list.create': '新建任务',
     'scheduledTask.list.cancel': '取消',
     'scheduledTask.list.delete': '删除',
-    'scheduledTask.list.description': '管理绑定到 Job Definition 的定时任务。',
+    'scheduledTask.list.description': '管理系统后台任务的调度规则、启停状态和运行记录。',
     'scheduledTask.list.detail.none': '无',
     'scheduledTask.list.detail.noError': '未记录错误',
     'scheduledTask.list.detail.behavior': '任务行为',
@@ -103,10 +106,16 @@ const translations = vi.hoisted(
     'scheduledTask.list.form.jobPlaceholder': '选择一个 Job Definition',
     'scheduledTask.list.form.category': '分类',
     'scheduledTask.list.form.jobRequiredHint': '请选择执行定义。',
-    'scheduledTask.list.detail.sections.taskInstance': '任务实例',
+    'scheduledTask.list.detail.sections.basicInfo': '基本信息',
+    'scheduledTask.list.detail.sections.configSummary': '配置摘要',
     'scheduledTask.list.detail.sections.jobDefinition': '执行定义',
+    'scheduledTask.list.detail.sections.scheduleInfo': '调度信息',
+    'scheduledTask.list.detail.sections.taskInstance': '任务实例',
     'scheduledTask.list.detail.sections.configuration': '配置',
     'scheduledTask.list.detail.sections.runInfo': '运行信息',
+    'scheduledTask.list.detail.noRecentRun': '暂无记录',
+    'scheduledTask.list.detail.advancedInfo': '高级信息',
+    'scheduledTask.list.detail.rawJobDefinition': '原始任务定义',
     'scheduledTask.list.detail.cron': 'Cron',
     'scheduledTask.list.detail.builtin': '是否内置',
     'scheduledTask.list.detail.configSource': '配置来源',
@@ -193,7 +202,9 @@ const translations = vi.hoisted(
     'scheduledTask.list.resource.accessLog': '访问日志',
     'scheduledTask.list.save': '保存',
     'scheduledTask.list.status.failed': '失败',
-    'scheduledTask.list.status.idle': '空闲',
+    'scheduledTask.list.status.idle': '待调度',
+    'scheduledTask.list.statusLabels.enabled': '启用',
+    'scheduledTask.list.statusLabels.runtime': '运行',
     'scheduledTask.list.status.success': '成功',
     'scheduledTask.list.tableHint': '当前筛选显示 {count} 个任务。',
     'scheduledTask.list.tableTitle': '任务列表',
@@ -513,7 +524,7 @@ const ColumnDrawerStub = defineComponent({
           'button',
           {
             'data-testid': 'hide-recent-run',
-            onClick: () => emit('update:selectedKeys', ['task', 'job_key', 'status', 'schedule', 'recent_result']),
+            onClick: () => emit('update:selectedKeys', ['task', 'job_key', 'schedule', 'status']),
           },
           'hide recent run',
         ),
@@ -746,6 +757,7 @@ function mountPage() {
         TInputNumber: InputNumberStub,
         TOption: PassthroughStub,
         TOptionGroup: PassthroughStub,
+        TPopup: PassthroughStub,
         TRadioButton: PassthroughStub,
         TRadioGroup: PassthroughStub,
         TSelect: PassthroughStub,
@@ -755,7 +767,6 @@ function mountPage() {
         TTable: TableStub,
         TTag: PassthroughStub,
         TTextarea: TextareaStub,
-        TTooltip: PassthroughStub,
       },
     },
   });
@@ -853,13 +864,13 @@ describe('ScheduledTaskListPage', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.find('th[data-col="recent_run"]').exists()).toBe(true);
+    expect(wrapper.find('th[data-col="last_run"]').exists()).toBe(true);
     expect(wrapper.find('th[data-col="operation"]').exists()).toBe(true);
 
     await wrapper.find('[data-testid="hide-recent-run"]').trigger('click');
     await nextTick();
 
-    expect(wrapper.find('th[data-col="recent_run"]').exists()).toBe(false);
+    expect(wrapper.find('th[data-col="last_run"]').exists()).toBe(false);
     expect(wrapper.find('th[data-col="operation"]').exists()).toBe(true);
   });
 
@@ -888,31 +899,28 @@ describe('ScheduledTaskListPage', () => {
     expect(notificationMocks.requestNotificationHeaderRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it('renders raw cron expressions, next run diagnostics, and recent result summaries in list cells', async () => {
+  it('renders human-readable schedules, auxiliary cron expressions, and recent run summaries', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     const firstScheduleCell = wrapper.find('tbody tr:first-child td[data-col="schedule"]');
-    expect(firstScheduleCell.text()).toContain('*/5 * * * *');
-    expect(firstScheduleCell.text()).toContain('下次执行：2026-06-06 08:05');
-    expect(firstScheduleCell.find('.scheduled-task-schedule').text()).not.toContain('规则说明');
-    expect(firstScheduleCell.text()).toContain('规则说明');
     expect(firstScheduleCell.text()).toContain('每 5 分钟执行一次');
+    expect(firstScheduleCell.text()).toContain('下次执行：2026-06-06 08:05');
+    expect(firstScheduleCell.text()).toContain('*/5 * * * *');
     expect(firstScheduleCell.text()).toContain('时区');
 
     const customScheduleCell = wrapper.find('tbody tr:nth-child(4) td[data-col="schedule"]');
-    expect(customScheduleCell.text()).toContain('0 17 * * *');
-    expect(customScheduleCell.text()).toContain('下次执行：2026-06-06 17:00');
-    expect(customScheduleCell.find('.scheduled-task-schedule').text()).not.toContain('规则说明');
     expect(customScheduleCell.text()).toContain('每天 17:00 执行');
+    expect(customScheduleCell.text()).toContain('下次执行：2026-06-06 17:00');
+    expect(customScheduleCell.text()).toContain('0 17 * * *');
     expect(customScheduleCell.text()).not.toContain('在17:00, 每天');
 
-    const firstResultCell = wrapper.find('tbody tr:first-child td[data-col="recent_result"]');
+    const firstResultCell = wrapper.find('tbody tr:first-child td[data-col="last_run"]');
     expect(firstResultCell.text()).toContain('成功');
     expect(firstResultCell.text()).toContain('Deleted 3 access log rows.');
     expect(firstResultCell.text()).not.toContain('成功无');
 
-    const secondResultCell = wrapper.find('tbody tr:nth-child(2) td[data-col="recent_result"]');
+    const secondResultCell = wrapper.find('tbody tr:nth-child(2) td[data-col="last_run"]');
     expect(secondResultCell.text()).toContain('失败');
     expect(secondResultCell.text()).toContain('retention window is invalid');
   });
