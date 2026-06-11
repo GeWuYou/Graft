@@ -62,6 +62,7 @@ CREATE INDEX IF NOT EXISTS "notification_deliveries_target"
   ON "notification_deliveries" ("target_type", "target_ref");
 
 COMMENT ON TABLE "notification_events" IS '通知中心事件事实表';
+COMMENT ON COLUMN "notification_events"."id" IS '通知事件事实主键';
 COMMENT ON COLUMN "notification_events"."title_key" IS '可选标题消息键';
 COMMENT ON COLUMN "notification_events"."title" IS '发布时标题快照';
 COMMENT ON COLUMN "notification_events"."message_key" IS '可选正文消息键';
@@ -82,6 +83,7 @@ COMMENT ON COLUMN "notification_events"."expires_at" IS '通知事实过期时�
 COMMENT ON COLUMN "notification_events"."created_at" IS '通知事实创建时间';
 
 COMMENT ON TABLE "notification_deliveries" IS '通知中心用户投递状态表';
+COMMENT ON COLUMN "notification_deliveries"."id" IS '通知投递状态主键';
 COMMENT ON COLUMN "notification_deliveries"."event_id" IS '通知事件事实 ID';
 COMMENT ON COLUMN "notification_deliveries"."recipient_user_id" IS '最终接收用户 ID';
 COMMENT ON COLUMN "notification_deliveries"."target_type" IS '投递目标类型 typed contract';

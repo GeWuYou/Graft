@@ -24,6 +24,8 @@ WEB_BROWSER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-web-browser-agent"
 PR_REVIEW_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-review" / "SKILL.md"
 PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.md"
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
+TABLE_DESIGN_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-table-design" / "SKILL.md"
+SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" / "SKILL.md"
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 HEADROOM_RTK_START = "<!-- headroom:rtk-instructions -->"
@@ -235,6 +237,38 @@ def validate_skill_mcp_guidance() -> list[Finding]:
     return findings
 
 
+def validate_sql_migration_governance() -> list[Finding]:
+    findings: list[Finding] = []
+    if not SQL_MIGRATION_SKILL.is_file():
+        findings.append(Finding(SQL_MIGRATION_SKILL, "SQL migration skill is missing"))
+    else:
+        text = read_text(SQL_MIGRATION_SKILL)
+        for term in (
+            "python3 scripts/validate_sql_migrations.py",
+            "COMMENT ON TABLE",
+            "COMMENT ON COLUMN",
+            "server/internal/ent/migrate/migrations/**",
+            "globally unique",
+            "legacy migration",
+        ):
+            if term not in text:
+                findings.append(Finding(SQL_MIGRATION_SKILL, f"missing SQL migration governance term {term!r}"))
+
+    if TABLE_DESIGN_SKILL.is_file():
+        text = read_text(TABLE_DESIGN_SKILL)
+        for term in ("graft-sql-migration", "python3 scripts/validate_sql_migrations.py"):
+            if term not in text:
+                findings.append(Finding(TABLE_DESIGN_SKILL, f"missing SQL migration skill handoff term {term!r}"))
+
+    if AI_TOOLING_DOC.is_file():
+        text = read_text(AI_TOOLING_DOC)
+        if "graft-sql-migration" not in text:
+            findings.append(Finding(AI_TOOLING_DOC, "AI tooling governance should mention graft-sql-migration"))
+        if "scripts/validate_sql_migrations.py" not in text:
+            findings.append(Finding(AI_TOOLING_DOC, "AI tooling governance should mention SQL migration validation helper"))
+    return findings
+
+
 def validate_environment_inventory() -> list[Finding]:
     if not TOOLS_AI.is_file():
         return []
@@ -337,7 +371,7 @@ def validate_agents_skill_list() -> list[Finding]:
         return []
     text = read_text(AGENTS)
     findings: list[Finding] = []
-    for skill_name in ("graft-codegraph-mcp", "graft-ai-governance-audit", "graft-validation-runner"):
+    for skill_name in ("graft-codegraph-mcp", "graft-ai-governance-audit", "graft-validation-runner", "graft-sql-migration"):
         if skill_name not in text:
             findings.append(Finding(AGENTS, f"repository skill list does not mention {skill_name}"))
     if contains_headroom_rtk_injection(text):
@@ -372,6 +406,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_ai_tooling_doc())
     findings.extend(validate_skills())
     findings.extend(validate_skill_mcp_guidance())
+    findings.extend(validate_sql_migration_governance())
     findings.extend(validate_agents_skill_list())
     findings.extend(validate_environment_inventory())
     findings.extend(validate_no_private_config_tracked(tracked))

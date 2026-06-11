@@ -42,9 +42,10 @@ but they must not redefine acceptance criteria, command order, or local-vs-CI en
    - if a workflow keeps split jobs or stage flags, verify the wording makes them execution-layer decomposition rather than a second truth
    - if no stronger real validation exists, report the exact limitation instead of pretending the area was fully validated
 6. When the touched slice includes live server schema or migration files:
-   - add a manual completeness check for Chinese table and column database comments required by `server/AGENTS.md`
+   - run `python3 scripts/validate_sql_migrations.py` to check live migration SQL comments and versions
    - apply the same check to core-owned handwritten migration directories such as `server/internal/httpx/migrations/**`,
      not only plugin Ent paths
+   - keep `server/internal/ent/migrate/migrations/**` excluded unless the task explicitly targets legacy/manual replay migrations
 
 ## Reporting Rules
 

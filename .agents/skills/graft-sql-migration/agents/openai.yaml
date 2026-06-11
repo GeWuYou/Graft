@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft SQL Migration"
+  short_description: "Create or modify Graft migration SQL safely"
+  default_prompt: "Use $graft-sql-migration when creating or modifying live Graft Atlas/PostgreSQL migration SQL, comments, indexes, constraints, or migration versions."

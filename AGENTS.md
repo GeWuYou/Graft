@@ -308,6 +308,11 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-table-design`
   - use when designing or changing database tables, Ent schemas, Atlas migrations, audit fields, soft delete fields,
     indexes, store query semantics, or database comments
+- `graft-sql-migration`
+  - use when creating or modifying live Atlas/PostgreSQL migration SQL, migration directories, table or column
+    comments, migration versions, indexes, unique constraints, foreign keys, or soft-delete columns; it owns the
+    `scripts/validate_sql_migrations.py` live SQL comment gate and keeps
+    `server/internal/ent/migrate/migrations/**` excluded as legacy/manual replay by default
 - `graft-worktree-init`
   - use when creating or rebuilding a local `Graft` git worktree and the setup should follow the repository-standard
     shared local resource rules without hard-coded machine paths

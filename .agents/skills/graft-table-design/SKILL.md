@@ -10,6 +10,11 @@ Use this skill before designing, changing, or reviewing database table structure
 This skill is a governance workflow. It does not replace root `AGENTS.md`, `server/AGENTS.md`, backend validation, Ent
 generation, Atlas migration generation, or module ownership rules.
 
+`graft-table-design` owns modeling decisions: table owner, fields, audit fields, soft delete, store query semantics,
+index plan, and compatibility notes. When actually creating or modifying migration SQL, also use
+`graft-sql-migration`; SQL comment hard rules and migration SQL validation are owned there and must not be duplicated
+with conflicting wording in this skill.
+
 ## Workflow
 
 1. Complete the startup preflight from root `AGENTS.md`.
@@ -38,6 +43,7 @@ generation, Atlas migration generation, or module ownership rules.
    canonical owner, why direct repair is not done now, affected consumers, cleanup trigger, and validation scope.
 7. Validate according to the task class:
    - schema / migration changes: follow `server/AGENTS.md` Ent generate, migration, test, and backend validation rules.
+   - migration SQL creation or edits: also follow `graft-sql-migration` and run `python3 scripts/validate_sql_migrations.py`.
    - governance-only changes: run the relevant docs / skill validation and explain why runtime validation is not applicable.
 
 ## Required Output

@@ -26,6 +26,17 @@ CREATE INDEX IF NOT EXISTS "idx_system_drilldown_scope_module_enabled"
 CREATE INDEX IF NOT EXISTS "idx_system_drilldown_scope_target"
   ON "system_drilldown_scope" ("target_module", "target_page");
 
-COMMENT ON TABLE "system_drilldown_scope" IS 'Platform-owned drilldown scope metadata registry. Query semantics stay in module registries.';
-COMMENT ON COLUMN "system_drilldown_scope"."filter_payload" IS 'Reserved future extension payload. It is not query authority in v1.';
-  
+COMMENT ON TABLE "system_drilldown_scope" IS '系统钻取范围元数据注册表';
+COMMENT ON COLUMN "system_drilldown_scope"."id" IS '系统钻取范围主键';
+COMMENT ON COLUMN "system_drilldown_scope"."module" IS '声明钻取范围的模块标识';
+COMMENT ON COLUMN "system_drilldown_scope"."scope" IS '模块内稳定钻取范围标识';
+COMMENT ON COLUMN "system_drilldown_scope"."name" IS '钻取范围展示名称';
+COMMENT ON COLUMN "system_drilldown_scope"."description" IS '钻取范围业务说明';
+COMMENT ON COLUMN "system_drilldown_scope"."target_type" IS '钻取目标类型，用于区分页面或模块内资源';
+COMMENT ON COLUMN "system_drilldown_scope"."target_module" IS '钻取目标所属模块标识';
+COMMENT ON COLUMN "system_drilldown_scope"."target_page" IS '钻取目标页面标识';
+COMMENT ON COLUMN "system_drilldown_scope"."filter_payload" IS '预留钻取筛选载荷 JSON，当前不作为查询权威';
+COMMENT ON COLUMN "system_drilldown_scope"."enabled" IS '是否启用钻取范围，true 表示可用，false 表示停用';
+COMMENT ON COLUMN "system_drilldown_scope"."sort_order" IS '钻取范围展示排序值，数值越小越靠前';
+COMMENT ON COLUMN "system_drilldown_scope"."created_at" IS '钻取范围注册记录创建时间';
+COMMENT ON COLUMN "system_drilldown_scope"."updated_at" IS '钻取范围注册记录更新时间';
