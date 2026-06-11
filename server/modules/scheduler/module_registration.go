@@ -31,6 +31,8 @@ func registerMessages(localizer *i18n.Service) error {
 				"定时任务请求无效",
 				"定时任务失败",
 				"定时任务执行失败。",
+				"定时任务成功",
+				"手动定时任务执行成功。",
 			}),
 		},
 		{
@@ -43,6 +45,8 @@ func registerMessages(localizer *i18n.Service) error {
 				"Invalid scheduled task request",
 				"Scheduled Task Failed",
 				"Scheduled task failed.",
+				"Scheduled Task Succeeded",
+				"Manual scheduled task succeeded.",
 			}),
 		},
 	} {
@@ -62,6 +66,8 @@ func schedulerMessageResources(texts []string) []i18n.MessageResource {
 		schedulercontract.ScheduledTaskInvalidRequest,
 		schedulercontract.ScheduledTaskRunFailedNotificationTitle,
 		schedulercontract.ScheduledTaskRunFailedNotificationMessage,
+		schedulercontract.ScheduledTaskRunSucceededNotificationTitle,
+		schedulercontract.ScheduledTaskRunSucceededNotificationMessage,
 	}
 	resources := make([]i18n.MessageResource, 0, len(keys))
 	for index, key := range keys {

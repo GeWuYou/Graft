@@ -24,4 +24,8 @@ const (
 	ScheduledTaskRunFailedNotificationTitle MessageKey = "scheduledTask.notification.runFailed.title"
 	// ScheduledTaskRunFailedNotificationMessage identifies scheduler failure notification messages.
 	ScheduledTaskRunFailedNotificationMessage MessageKey = "scheduledTask.notification.runFailed.message"
+	// ScheduledTaskRunSucceededNotificationTitle identifies scheduler manual success notification titles.
+	ScheduledTaskRunSucceededNotificationTitle MessageKey = "scheduledTask.notification.runSucceeded.title"
+	// ScheduledTaskRunSucceededNotificationMessage identifies scheduler manual success notification messages.
+	ScheduledTaskRunSucceededNotificationMessage MessageKey = "scheduledTask.notification.runSucceeded.message"
 )

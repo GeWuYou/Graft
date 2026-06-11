@@ -98,6 +98,11 @@ func registerSchedulerRuntimeService(ctx *module.Context) error {
 		} else if notifier != nil {
 			runtime.SetRunFailureNotifier(notifier)
 		}
+		if notifier, err := resolveRunSuccessNotifier(resolver, ctx.Logger); err != nil {
+			return nil, err
+		} else if notifier != nil {
+			runtime.SetRunSuccessNotifier(notifier)
+		}
 		return runtime, nil
 	})
 }
@@ -130,6 +135,21 @@ func resolveRunFailureNotifier(resolver container.Resolver, logger *zap.Logger) 
 		return nil, fmt.Errorf("scheduler notification publisher has unexpected type %T", resolved)
 	}
 	return schedulerRunFailureNotifier{publisher: publisher, logger: logger}, nil
+}
+
+func resolveRunSuccessNotifier(resolver container.Resolver, logger *zap.Logger) (schedulercore.RunSuccessNotifier, error) {
+	resolved, err := resolver.Resolve((*moduleapi.NotificationPublisher)(nil))
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("resolve scheduler notification publisher: %w", err)
+	}
+	publisher, ok := resolved.(moduleapi.NotificationPublisher)
+	if !ok || publisher == nil {
+		return nil, fmt.Errorf("scheduler notification publisher has unexpected type %T", resolved)
+	}
+	return schedulerRunSuccessNotifier{publisher: publisher, logger: logger}, nil
 }
 
 func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {

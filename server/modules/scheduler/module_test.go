@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -476,6 +477,113 @@ func TestRegisterMessagesIncludesRunFailureNotificationKeys(t *testing.T) {
 	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleZHCN, schedulercontract.ScheduledTaskRunFailedNotificationMessage.String(), "定时任务执行失败。")
 	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleENUS, schedulercontract.ScheduledTaskRunFailedNotificationTitle.String(), "Scheduled Task Failed")
 	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleENUS, schedulercontract.ScheduledTaskRunFailedNotificationMessage.String(), "Scheduled task failed.")
+	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleZHCN, schedulercontract.ScheduledTaskRunSucceededNotificationTitle.String(), "定时任务成功")
+	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleZHCN, schedulercontract.ScheduledTaskRunSucceededNotificationMessage.String(), "手动定时任务执行成功。")
+	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleENUS, schedulercontract.ScheduledTaskRunSucceededNotificationTitle.String(), "Scheduled Task Succeeded")
+	assertRegisteredSchedulerMessage(t, localizer, i18n.LocaleENUS, schedulercontract.ScheduledTaskRunSucceededNotificationMessage.String(), "Manual scheduled task succeeded.")
+}
+
+func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testing.T) {
+	publisher := &schedulerNotificationPublisherRecorder{}
+	notifier := schedulerRunSuccessNotifier{publisher: publisher, logger: zap.NewNop()}
+	finishedAt := time.Date(2026, 6, 11, 9, 30, 0, 0, time.UTC)
+
+	notifier.NotifyRunSucceeded(context.Background(), schedulercore.TaskRun{
+		ID:         99,
+		TaskKey:    "webhook.health",
+		JobKey:     "scheduler.webhook-health",
+		TaskName:   "Webhook Health",
+		Status:     schedulercore.RunStatusSuccess,
+		FinishedAt: &finishedAt,
+		CreatedAt:  finishedAt.Add(-time.Second),
+	}, schedulercore.RunTrigger{Type: schedulercore.TriggerTypeManual, TriggerUserID: 42})
+
+	if len(publisher.inputs) != 1 {
+		t.Fatalf("expected one success notification, got %d", len(publisher.inputs))
+	}
+	input := publisher.inputs[0]
+	if input.TitleKey != schedulercontract.ScheduledTaskRunSucceededNotificationTitle.String() ||
+		input.MessageKey != schedulercontract.ScheduledTaskRunSucceededNotificationMessage.String() {
+		t.Fatalf("unexpected message keys: %#v", input)
+	}
+	if input.EventType != "task_succeeded" ||
+		input.Severity != "info" ||
+		input.Category != "TASK" ||
+		input.SourceModule != moduleID ||
+		input.ResourceType != "scheduled_task_run" ||
+		input.ResourceID != "99" ||
+		input.Navigation.Kind != "SCHEDULER_RUN" ||
+		input.Target.Type != "USER" ||
+		input.Target.Ref != "42" ||
+		input.DedupeKey != "scheduler:run_succeeded:99" {
+		t.Fatalf("unexpected success notification input: %#v", input)
+	}
+	assertSchedulerRunPayload(t, input.Navigation.Payload, uint64(99), "webhook.health", "scheduler.webhook-health")
+	assertSchedulerRunPayload(t, input.Metadata, uint64(99), "webhook.health", "scheduler.webhook-health")
+}
+
+func TestSchedulerRunSuccessNotifierSkipsMissingTriggerUser(t *testing.T) {
+	publisher := &schedulerNotificationPublisherRecorder{}
+	notifier := schedulerRunSuccessNotifier{publisher: publisher, logger: zap.NewNop()}
+
+	notifier.NotifyRunSucceeded(context.Background(), schedulercore.TaskRun{
+		ID:        99,
+		TaskKey:   "webhook.health",
+		JobKey:    "scheduler.webhook-health",
+		Status:    schedulercore.RunStatusSuccess,
+		CreatedAt: time.Now().UTC(),
+	}, schedulercore.RunTrigger{Type: schedulercore.TriggerTypeManual})
+
+	if len(publisher.inputs) != 0 {
+		t.Fatalf("expected missing trigger user to skip notification, got %#v", publisher.inputs)
+	}
+}
+
+func TestSchedulerRunSuccessNotifierLogsPublishFailureWithoutReturning(t *testing.T) {
+	publisher := &schedulerNotificationPublisherRecorder{err: errors.New("publish failed")}
+	notifier := schedulerRunSuccessNotifier{publisher: publisher, logger: zap.NewNop()}
+
+	notifier.NotifyRunSucceeded(context.Background(), schedulercore.TaskRun{
+		ID:        100,
+		TaskKey:   "webhook.health",
+		JobKey:    "scheduler.webhook-health",
+		Status:    schedulercore.RunStatusSuccess,
+		CreatedAt: time.Now().UTC(),
+	}, schedulercore.RunTrigger{Type: schedulercore.TriggerTypeManual, TriggerUserID: 42})
+
+	if len(publisher.inputs) != 1 {
+		t.Fatalf("expected publish attempt despite publisher error, got %d", len(publisher.inputs))
+	}
+}
+
+func TestSchedulerRunFailureNotifierStillPublishesPermissionTarget(t *testing.T) {
+	publisher := &schedulerNotificationPublisherRecorder{}
+	notifier := schedulerRunFailureNotifier{publisher: publisher, logger: zap.NewNop()}
+
+	notifier.NotifyRunFailed(context.Background(), schedulercore.TaskRun{
+		ID:          101,
+		TaskKey:     "webhook.health",
+		JobKey:      "scheduler.webhook-health",
+		TaskName:    "Webhook Health",
+		TriggerType: schedulercore.TriggerTypeManual,
+		Status:      schedulercore.RunStatusFailed,
+		Error:       "boom",
+		CreatedAt:   time.Now().UTC(),
+	})
+
+	if len(publisher.inputs) != 1 {
+		t.Fatalf("expected one failure notification, got %d", len(publisher.inputs))
+	}
+	input := publisher.inputs[0]
+	if input.EventType != "task_failed" ||
+		input.Severity != "error" ||
+		input.Category != "TASK" ||
+		input.Navigation.Kind != "SCHEDULER_RUN" ||
+		input.Target.Type != "PERMISSION" ||
+		input.Target.Ref != schedulercontract.ScheduledTaskReadPermission.String() ||
+		input.DedupeKey != "scheduler:run_failed:101" {
+		t.Fatalf("unexpected failure notification input: %#v", input)
+	}
 }
 
 func TestRegisterRegistersSchedulerTaskAttentionDashboardWidget(t *testing.T) {
@@ -526,6 +634,31 @@ func assertRegisteredSchedulerMessage(t *testing.T, localizer *i18n.Service, loc
 	}
 	if matches[0].Text != expected {
 		t.Fatalf("expected scheduler message %q for %s %q, got %#v", expected, locale, key, matches[0])
+	}
+}
+
+type schedulerNotificationPublisherRecorder struct {
+	inputs []moduleapi.PublishNotificationInput
+	err    error
+}
+
+func (r *schedulerNotificationPublisherRecorder) Publish(_ context.Context, input moduleapi.PublishNotificationInput) (moduleapi.PublishNotificationResult, error) {
+	r.inputs = append(r.inputs, input)
+	return moduleapi.PublishNotificationResult{}, r.err
+}
+
+func assertSchedulerRunPayload(t *testing.T, payload json.RawMessage, runID uint64, taskKey string, jobKey string) {
+	t.Helper()
+	var decoded struct {
+		RunID   uint64 `json:"run_id"`
+		TaskKey string `json:"task_key"`
+		JobKey  string `json:"job_key"`
+	}
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("decode scheduler run payload: %v", err)
+	}
+	if decoded.RunID != runID || decoded.TaskKey != taskKey || decoded.JobKey != jobKey {
+		t.Fatalf("unexpected scheduler run payload: %#v", decoded)
 	}
 }
 
@@ -893,8 +1026,29 @@ func TestScheduledTaskManualRunUsesSlashRunRoute(t *testing.T) {
 	}
 	if len(runtimeRecorder.runOnceTriggers) != 1 ||
 		runtimeRecorder.runOnceTriggers[0].Type != schedulercore.TriggerTypeManual ||
-		runtimeRecorder.runOnceTriggers[0].TriggerUserID != 0 {
+		runtimeRecorder.runOnceTriggers[0].TriggerUserID != 7 {
 		t.Fatalf("unexpected run once triggers: %#v", runtimeRecorder.runOnceTriggers)
+	}
+}
+
+func TestSchedulerManualTriggerUserIDReadsRequestAuthContext(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	request := httptest.NewRequest(http.MethodPost, "/api/scheduled-tasks/webhook.health/run", nil)
+	request = request.WithContext(moduleapi.WithRequestAuthContext(request.Context(), moduleapi.RequestAuthContext{
+		User: &moduleapi.CurrentUser{ID: 42, Username: "alice"},
+	}))
+	ginCtx.Request = request
+
+	if got := schedulerManualTriggerUserID(ginCtx); got != 42 {
+		t.Fatalf("expected current user id 42, got %d", got)
+	}
+
+	missingRecorder := httptest.NewRecorder()
+	missingCtx, _ := gin.CreateTestContext(missingRecorder)
+	missingCtx.Request = httptest.NewRequest(http.MethodPost, "/api/scheduled-tasks/webhook.health/run", nil)
+	if got := schedulerManualTriggerUserID(missingCtx); got != 0 {
+		t.Fatalf("expected missing current user to produce zero trigger user id, got %d", got)
 	}
 }
 

@@ -14,8 +14,16 @@ import (
 
 	"graft/server/internal/moduleapi"
 	schedulercore "graft/server/internal/scheduler"
-	notificationcontract "graft/server/modules/notification/contract"
 	schedulercontract "graft/server/modules/scheduler/contract"
+)
+
+const (
+	schedulerNotificationSeverityInfo     moduleapi.NotificationSeverity       = "info"
+	schedulerNotificationSeverityError    moduleapi.NotificationSeverity       = "error"
+	schedulerNotificationCategoryTask     moduleapi.NotificationCategory       = "TASK"
+	schedulerNotificationNavigationRun    moduleapi.NotificationNavigationKind = "SCHEDULER_RUN"
+	schedulerNotificationTargetUser       moduleapi.NotificationTargetType     = "USER"
+	schedulerNotificationTargetPermission moduleapi.NotificationTargetType     = "PERMISSION"
 )
 
 type schedulerRunFailureNotifier struct {
@@ -27,42 +35,28 @@ func (n schedulerRunFailureNotifier) NotifyRunFailed(ctx context.Context, run sc
 	if n.publisher == nil || run.ID == 0 {
 		return
 	}
-	payload, err := json.Marshal(map[string]any{
-		"run_id":   run.ID,
-		"task_key": run.TaskKey,
-		"job_key":  run.JobKey,
-	})
-	if err != nil {
-		if n.logger != nil {
-			n.logger.Warn("marshal scheduler notification navigation payload failed",
-				zap.String("module", moduleID),
-				zap.Uint64("runID", run.ID),
-				zap.Error(err),
-			)
-		}
-		payload = json.RawMessage(`{"serialization_error":true}`)
-	}
+	payload := schedulerRunNavigationPayload(run, n.logger)
 	input := moduleapi.PublishNotificationInput{
 		TitleKey:     schedulercontract.ScheduledTaskRunFailedNotificationTitle.String(),
 		Title:        "Scheduled task failed",
 		MessageKey:   schedulercontract.ScheduledTaskRunFailedNotificationMessage.String(),
 		Message:      "Scheduled task " + firstNonEmptyTrimmed(run.TaskName, run.TaskKey) + " failed.",
-		Severity:     moduleapi.NotificationSeverity(notificationcontract.SeverityError),
-		Category:     moduleapi.NotificationCategory(notificationcontract.CategoryTask),
+		Severity:     schedulerNotificationSeverityError,
+		Category:     schedulerNotificationCategoryTask,
 		SourceModule: moduleID,
 		EventType:    "task_failed",
 		ResourceType: "scheduled_task_run",
 		ResourceID:   strconv.FormatUint(run.ID, 10),
 		ResourceName: firstNonEmptyTrimmed(run.TaskName, run.TaskKey),
 		Navigation: moduleapi.NotificationNavigation{
-			Kind:    moduleapi.NotificationNavigationKind(notificationcontract.NavigationSchedulerRun),
+			Kind:    schedulerNotificationNavigationRun,
 			Payload: payload,
 		},
 		Metadata:   schedulerRunFailureMetadata(run, n.logger),
 		DedupeKey:  "scheduler:run_failed:" + strconv.FormatUint(run.ID, 10),
 		OccurredAt: firstNonZeroTime(run.FinishedAt, run.CreatedAt),
 		Target: moduleapi.NotificationTarget{
-			Type: moduleapi.NotificationTargetType(notificationcontract.TargetPermission),
+			Type: schedulerNotificationTargetPermission,
 			Ref:  schedulercontract.ScheduledTaskReadPermission.String(),
 		},
 	}
@@ -71,6 +65,61 @@ func (n schedulerRunFailureNotifier) NotifyRunFailed(ctx context.Context, run sc
 			zap.String("module", moduleID),
 			zap.String("taskKey", run.TaskKey),
 			zap.Uint64("runID", run.ID),
+			zap.Error(err),
+		)
+	}
+}
+
+type schedulerRunSuccessNotifier struct {
+	publisher moduleapi.NotificationPublisher
+	logger    *zap.Logger
+}
+
+func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run schedulercore.TaskRun, trigger schedulercore.RunTrigger) {
+	if n.publisher == nil || run.ID == 0 {
+		return
+	}
+	if trigger.TriggerUserID == 0 {
+		if n.logger != nil {
+			n.logger.Debug("skip scheduler success notification without trigger user",
+				zap.String("module", moduleID),
+				zap.String("taskKey", run.TaskKey),
+				zap.Uint64("runID", run.ID),
+			)
+		}
+		return
+	}
+	payload := schedulerRunNavigationPayload(run, n.logger)
+	input := moduleapi.PublishNotificationInput{
+		TitleKey:     schedulercontract.ScheduledTaskRunSucceededNotificationTitle.String(),
+		Title:        "Scheduled task succeeded",
+		MessageKey:   schedulercontract.ScheduledTaskRunSucceededNotificationMessage.String(),
+		Message:      "Scheduled task " + firstNonEmptyTrimmed(run.TaskName, run.TaskKey) + " succeeded.",
+		Severity:     schedulerNotificationSeverityInfo,
+		Category:     schedulerNotificationCategoryTask,
+		SourceModule: moduleID,
+		EventType:    "task_succeeded",
+		ResourceType: "scheduled_task_run",
+		ResourceID:   strconv.FormatUint(run.ID, 10),
+		ResourceName: firstNonEmptyTrimmed(run.TaskName, run.TaskKey),
+		Navigation: moduleapi.NotificationNavigation{
+			Kind:    schedulerNotificationNavigationRun,
+			Payload: payload,
+		},
+		Metadata:   payload,
+		DedupeKey:  "scheduler:run_succeeded:" + strconv.FormatUint(run.ID, 10),
+		OccurredAt: firstNonZeroTime(run.FinishedAt, run.CreatedAt),
+		Target: moduleapi.NotificationTarget{
+			Type: schedulerNotificationTargetUser,
+			Ref:  strconv.FormatUint(trigger.TriggerUserID, 10),
+		},
+	}
+	if _, err := n.publisher.Publish(ctx, input); err != nil && n.logger != nil {
+		n.logger.Warn("publish scheduler success notification failed",
+			zap.String("module", moduleID),
+			zap.String("taskKey", run.TaskKey),
+			zap.Uint64("runID", run.ID),
+			zap.Uint64("triggerUserID", trigger.TriggerUserID),
 			zap.Error(err),
 		)
 	}
@@ -91,6 +140,26 @@ func schedulerRunFailureMetadata(run schedulercore.TaskRun, logger *zap.Logger) 
 	if err != nil {
 		if logger != nil {
 			logger.Warn("marshal scheduler notification metadata failed",
+				zap.String("module", moduleID),
+				zap.String("taskKey", run.TaskKey),
+				zap.Uint64("runID", run.ID),
+				zap.Error(err),
+			)
+		}
+		return json.RawMessage(`{"serialization_error":true}`)
+	}
+	return payload
+}
+
+func schedulerRunNavigationPayload(run schedulercore.TaskRun, logger *zap.Logger) json.RawMessage {
+	payload, err := json.Marshal(map[string]any{
+		"run_id":   run.ID,
+		"task_key": run.TaskKey,
+		"job_key":  run.JobKey,
+	})
+	if err != nil {
+		if logger != nil {
+			logger.Warn("marshal scheduler notification navigation payload failed",
 				zap.String("module", moduleID),
 				zap.String("taskKey", run.TaskKey),
 				zap.Uint64("runID", run.ID),
