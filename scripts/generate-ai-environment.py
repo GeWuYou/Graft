@@ -124,6 +124,7 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     has_gh_authenticated = optional_bool_value(raw, False, "project_tools", "gh", "authenticated")
     has_headroom = optional_bool_value(raw, False, "ai_tools", "headroom", "installed")
     headroom_path = optional_string_value(raw, "", "ai_tools", "headroom", "path")
+    headroom_mcp_command = optional_string_value(raw, "", "ai_tools", "headroom", "mcp_command")
     has_mcp_codegraph = optional_bool_value(raw, False, "mcp_servers", "codegraph", "configured")
     has_mcp_tdesign = optional_bool_value(raw, False, "mcp_servers", "tdesign", "configured")
     has_mcp_context7 = optional_bool_value(raw, False, "mcp_servers", "context7", "configured")
@@ -193,11 +194,19 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
         fallback=None,
     )
     headroom_command = display_path(headroom_path)
-    context_compression = select_tool(
-        use_for="Optional local AI context compression wrapper for Codex sessions.",
-        preferred=f"HEADROOM_TELEMETRY=off {headroom_command} wrap codex" if has_headroom else None,
-        fallback=None,
-    )
+    headroom_mcp_display = display_command_path(headroom_mcp_command)
+    context_compression = {
+        "preferred": "headroom mcp" if has_mcp_headroom else "unavailable",
+        "fallback": "unavailable",
+        "use_for": "Optional local MCP compression, retrieval, and stats for AI-assisted context management.",
+        "mcp_command": headroom_mcp_display if has_headroom else "unavailable",
+        "allowed_controlled_local": ["headroom memory", "headroom learn"],
+        "controlled_local_dirs": [".ai/headroom/memory", ".ai/headroom/learn"],
+        "disallowed_by_default": [
+            "rtk instruction injection",
+            "automatic instructions write",
+        ],
+    }
 
     if bool_value(raw, "platform", "wsl"):
         platform_family = "wsl-linux"
@@ -239,6 +248,7 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "fast_search": has_rg,
             "json_cli": has_jq,
             "ai_browser": has_ai_browser,
+            "ai_headroom_mcp": has_mcp_headroom,
             "playwright_python": has_playwright,
             "playwright_browsers": has_playwright_browsers,
             "playwright_system_deps": has_playwright_system_deps,
@@ -260,9 +270,14 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "headroom": {
                 "installed": has_headroom,
                 "risk_level": "L1",
-                "use_for": "Optional local Codex wrapper and context compression layer.",
-                "default_command": f"HEADROOM_TELEMETRY=off {headroom_command} wrap codex",
-                "guardrail": "Do not enable --memory, --learn, or automatic AGENTS.md writes without a separate approved governance slice.",
+                "use_for": "Optional local user-level MCP-based AI context compression tool.",
+                "default_command": headroom_mcp_display if has_headroom else "unavailable",
+                "memory_status": "controlled-local-only",
+                "memory_dir": ".ai/headroom/memory",
+                "learn_status": "controlled-local-only",
+                "learn_dir": ".ai/headroom/learn",
+                "instructions_auto_write": "disabled",
+                "guardrail": "Use Headroom through Codex MCP by default; RTK injection and automatic instructions writes are disallowed by default.",
             },
         },
         "mcp_servers": {
@@ -296,7 +311,7 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
                 "configured": has_mcp_headroom,
                 "risk_level": "L1",
                 "use_for": "On-demand local compression, retrieval, and stats for AI-assisted context management.",
-                "access_policy": "Compression and retrieval only by default; memory, learn, or automatic AGENTS.md writes require separate approval.",
+                "access_policy": "Compression, retrieval, and stats only by default; memory and learn are controlled-local-only under .ai/headroom/**, and automatic instructions writes are disabled.",
             },
         },
         "python": {
@@ -346,6 +361,16 @@ def display_path(raw_path: str) -> str:
         return str(path.relative_to(ROOT_DIR))
     except ValueError:
         return raw_path
+
+
+def display_command_path(raw_command: str) -> str:
+    if not raw_command:
+        return "headroom mcp serve"
+    parts = raw_command.split(" ", 1)
+    command = display_path(parts[0])
+    if len(parts) == 1:
+        return command
+    return f"{command} {parts[1]}"
 
 
 def emit_yaml(value: Any, indent: int = 0) -> list[str]:

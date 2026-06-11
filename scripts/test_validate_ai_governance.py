@@ -49,5 +49,15 @@ class EnvironmentInventoryTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
 
+class HeadroomGovernanceTests(unittest.TestCase):
+    def test_detects_headroom_rtk_injection_block(self) -> None:
+        text = "<!-- headroom:rtk-instructions -->\ncontent\n<!-- /headroom:rtk-instructions -->\n"
+
+        self.assertTrue(MODULE.contains_headroom_rtk_injection(text))
+
+    def test_detects_project_rtk_prefix_rule(self) -> None:
+        self.assertTrue(MODULE.contains_project_rtk_prefix_rule("Agents must always prefix with `rtk`.\n"))
+
+
 if __name__ == "__main__":
     unittest.main()

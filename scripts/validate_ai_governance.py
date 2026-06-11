@@ -26,6 +26,8 @@ PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
+HEADROOM_RTK_START = "<!-- headroom:rtk-instructions -->"
+HEADROOM_RTK_END = "<!-- /headroom:rtk-instructions -->"
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,7 @@ def validate_gitignore() -> list[Finding]:
     for pattern in (
         ".codegraph/",
         ".headroom/",
+        ".ai/headroom/",
         ".ai/private/",
         ".ai/venv/",
         ".ai/ms-playwright/",
@@ -104,6 +107,14 @@ def validate_gitignore() -> list[Finding]:
         if pattern not in text:
             findings.append(Finding(GITIGNORE, f"missing ignored local AI artifact pattern {pattern!r}"))
     return findings
+
+
+def contains_headroom_rtk_injection(text: str) -> bool:
+    return HEADROOM_RTK_START in text or HEADROOM_RTK_END in text
+
+
+def contains_project_rtk_prefix_rule(text: str) -> bool:
+    return "always prefix with `rtk`" in text or "always prefix with rtk" in text
 
 
 def validate_ai_tooling_doc() -> list[Finding]:
@@ -121,12 +132,21 @@ def validate_ai_tooling_doc() -> list[Finding]:
         "ghcr.io/github/github-mcp-server",
         "@playwright/mcp",
         "headroom",
-        "headroom wrap codex",
+        "optional / local / user-level / MCP-based AI context compression tool",
+        "codex mcp add headroom",
         "headroom mcp serve",
-        "headroom-ai[mcp]",
         "headroom_compress",
-        "HEADROOM_TELEMETRY=off",
+        "headroom_retrieve",
+        "headroom_stats",
+        "always prefix with rtk",
         "headroom learn",
+        ".ai/headroom/memory",
+        ".ai/headroom/learn",
+        "ai-plan/public/**",
+        "Codex `instructions.md`",
+        "CLAUDE.md",
+        "GEMINI.md",
+        "raw output",
         "AGENTS.md",
         "人工确认",
         "memory",
@@ -139,6 +159,9 @@ def validate_ai_tooling_doc() -> list[Finding]:
     for forbidden in ("server/go.mod`、`web/package.json`、CI", "隐藏恢复真值"):
         if forbidden not in text:
             findings.append(Finding(AI_TOOLING_DOC, f"missing guardrail phrase containing {forbidden!r}"))
+    for disallowed in ("headroom wrap codex", "headroom proxy"):
+        if disallowed in text:
+            findings.append(Finding(AI_TOOLING_DOC, f"Headroom governance should keep only MCP entry content, found {disallowed!r}"))
     return findings
 
 
@@ -185,10 +208,20 @@ def validate_environment_inventory() -> list[Finding]:
     findings: list[Finding] = []
     for term in (
         "ai_headroom:",
+        "ai_headroom_mcp:",
         "context_compression:",
+        "preferred: \"headroom mcp\"",
+        "allowed_controlled_local:",
+        "controlled_local_dirs:",
+        ".ai/headroom/memory",
+        ".ai/headroom/learn",
+        "disallowed_by_default:",
+        "rtk instruction injection",
+        "automatic instructions write",
         "ai_tools:",
         "headroom:",
         "default_command:",
+        "instructions_auto_write: \"disabled\"",
         "mcp_servers:",
         "mcp_headroom:",
         "codegraph:",
@@ -199,6 +232,9 @@ def validate_environment_inventory() -> list[Finding]:
     ):
         if term not in text:
             findings.append(Finding(TOOLS_AI, f"missing AI environment inventory term {term!r}"))
+    for disallowed in ("headroom wrap codex", "headroom proxy", "wrapper_available:", "proxy_available:"):
+        if disallowed in text:
+            findings.append(Finding(TOOLS_AI, f"AI environment inventory should keep only MCP entry content, found {disallowed!r}"))
     return findings
 
 
@@ -271,6 +307,10 @@ def validate_agents_skill_list() -> list[Finding]:
     for skill_name in ("graft-codegraph-mcp", "graft-ai-governance-audit", "graft-validation-runner"):
         if skill_name not in text:
             findings.append(Finding(AGENTS, f"repository skill list does not mention {skill_name}"))
+    if contains_headroom_rtk_injection(text):
+        findings.append(Finding(AGENTS, "Headroom/RTK automatic instruction block must not be committed"))
+    if contains_project_rtk_prefix_rule(text):
+        findings.append(Finding(AGENTS, "project governance must not require agents to always prefix commands with rtk"))
     return findings
 
 
@@ -279,6 +319,7 @@ def validate_no_private_config_tracked(tracked: set[str]) -> list[Finding]:
     forbidden_prefixes = (
         ".codegraph/",
         ".headroom/",
+        ".ai/headroom/",
         ".ai/private/",
         ".ai/venv/",
         ".ai/ms-playwright/",

@@ -406,7 +406,13 @@ ai_tools:
     installed: $(headroom_installed)
     version: "$(headroom_version)"
     path: "$(headroom_path)"
-    purpose: "Optional local Codex wrapper and context compression layer for AI-assisted development."
+    purpose: "Optional local user-level MCP-based context compression tool for AI-assisted development."
+    mcp_command: "$(headroom_path) mcp serve"
+    memory_status: "controlled-local-only"
+    memory_dir: ".ai/headroom/memory"
+    learn_status: "controlled-local-only"
+    learn_dir: ".ai/headroom/learn"
+    instructions_auto_write: "disabled"
 
 mcp_servers:
   codegraph:

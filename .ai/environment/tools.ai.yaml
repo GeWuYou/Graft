@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-11T03:48:53Z"
+generated_at_utc: "2026-06-11T04:49:28Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -30,6 +30,7 @@ capabilities:
   fast_search: true
   json_cli: true
   ai_browser: false
+  ai_headroom_mcp: true
   playwright_python: true
   playwright_browsers: true
   playwright_system_deps: false
@@ -61,9 +62,19 @@ tool_selection:
     fallback: "unavailable"
     use_for: "AI-assisted local web UI screenshots and simple browser interactions."
   context_compression:
-    preferred: "HEADROOM_TELEMETRY=off .ai/venv/bin/headroom wrap codex"
+    preferred: "headroom mcp"
     fallback: "unavailable"
-    use_for: "Optional local AI context compression wrapper for Codex sessions."
+    use_for: "Optional local MCP compression, retrieval, and stats for AI-assisted context management."
+    mcp_command: ".ai/venv/bin/headroom mcp serve"
+    allowed_controlled_local:
+      - "headroom memory"
+      - "headroom learn"
+    controlled_local_dirs:
+      - ".ai/headroom/memory"
+      - ".ai/headroom/learn"
+    disallowed_by_default:
+      - "rtk instruction injection"
+      - "automatic instructions write"
   web_package_manager:
     preferred: "bun"
     fallback: "unavailable"
@@ -76,9 +87,14 @@ ai_tools:
   headroom:
     installed: true
     risk_level: "L1"
-    use_for: "Optional local Codex wrapper and context compression layer."
-    default_command: "HEADROOM_TELEMETRY=off .ai/venv/bin/headroom wrap codex"
-    guardrail: "Do not enable --memory, --learn, or automatic AGENTS.md writes without a separate approved governance slice."
+    use_for: "Optional local user-level MCP-based AI context compression tool."
+    default_command: ".ai/venv/bin/headroom mcp serve"
+    memory_status: "controlled-local-only"
+    memory_dir: ".ai/headroom/memory"
+    learn_status: "controlled-local-only"
+    learn_dir: ".ai/headroom/learn"
+    instructions_auto_write: "disabled"
+    guardrail: "Use Headroom through Codex MCP by default; RTK injection and automatic instructions writes are disallowed by default."
 mcp_servers:
   codegraph:
     configured: true
@@ -105,7 +121,7 @@ mcp_servers:
     configured: true
     risk_level: "L1"
     use_for: "On-demand local compression, retrieval, and stats for AI-assisted context management."
-    access_policy: "Compression and retrieval only by default; memory, learn, or automatic AGENTS.md writes require separate approval."
+    access_policy: "Compression, retrieval, and stats only by default; memory and learn are controlled-local-only under .ai/headroom/**, and automatic instructions writes are disabled."
 python:
   available: true
   venv_available: true

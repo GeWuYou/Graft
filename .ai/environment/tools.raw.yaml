@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-11T03:47:38Z"
+generated_at_utc: "2026-06-11T04:49:13Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -92,7 +92,13 @@ ai_tools:
     installed: true
     version: "headroom, version 0.24.0"
     path: "/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp/.ai/venv/bin/headroom"
-    purpose: "Optional local Codex wrapper and context compression layer for AI-assisted development."
+    purpose: "Optional local user-level MCP-based context compression tool for AI-assisted development."
+    mcp_command: "/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp/.ai/venv/bin/headroom mcp serve"
+    memory_status: "controlled-local-only"
+    memory_dir: ".ai/headroom/memory"
+    learn_status: "controlled-local-only"
+    learn_dir: ".ai/headroom/learn"
+    instructions_auto_write: "disabled"
 
 mcp_servers:
   codegraph:
