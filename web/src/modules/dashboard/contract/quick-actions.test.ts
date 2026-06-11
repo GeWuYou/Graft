@@ -3,7 +3,11 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG, resolveDashboardQuickActionConfig } from './quick-actions';
+import {
+  DASHBOARD_QUICK_ACTION_CONFIG_KEY,
+  DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG,
+  resolveDashboardQuickActionConfig,
+} from './quick-actions';
 
 function systemConfigItem(key: string, effectiveValue: string) {
   return {
@@ -30,14 +34,32 @@ describe('dashboard quick-action contract helpers', () => {
   it('reports invalid system-config JSON with the config key context', () => {
     const onInvalidConfigValue = vi.fn();
 
-    const config = resolveDashboardQuickActionConfig([systemConfigItem('dashboard.quick_actions.max_items', '{')], {
+    const config = resolveDashboardQuickActionConfig([systemConfigItem(DASHBOARD_QUICK_ACTION_CONFIG_KEY, '{')], {
       onInvalidConfigValue,
     });
 
     expect(config).toEqual(DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG);
     expect(onInvalidConfigValue).toHaveBeenCalledWith({
-      key: 'dashboard.quick_actions.max_items',
+      key: DASHBOARD_QUICK_ACTION_CONFIG_KEY,
       error: expect.any(SyntaxError),
     });
+  });
+
+  it('reads the canonical quick-actions object config', () => {
+    const config = resolveDashboardQuickActionConfig([
+      systemConfigItem(DASHBOARD_QUICK_ACTION_CONFIG_KEY, '{"enabled":false,"maxItems":2,"strategy":"most_used"}'),
+    ]);
+
+    expect(config).toEqual({ enabled: false, maxItems: 2, strategy: 'most_used' });
+  });
+
+  it('does not consume removed flat quick-action keys', () => {
+    const config = resolveDashboardQuickActionConfig([
+      systemConfigItem('dashboard.quick_actions.enabled', 'false'),
+      systemConfigItem('dashboard.quick_actions.max_items', '1'),
+      systemConfigItem('dashboard.quick_actions.strategy', '"most_used"'),
+    ]);
+
+    expect(config).toEqual(DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG);
   });
 });

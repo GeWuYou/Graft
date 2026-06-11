@@ -12,8 +12,10 @@
       :name="fieldName(field.key)"
       :help="fieldDescription(field)"
       :required-mark="field.required"
+      :status="jsonFieldErrors[field.key] ? 'error' : undefined"
+      :tips="jsonFieldErrors[field.key]"
     >
-      <template v-if="field.schema.enum">
+      <template v-if="rendererKind(field) === 'select'">
         <t-select
           :model-value="selectValue(objectValue[field.key])"
           :placeholder="fieldPlaceholder(field, labels.selectPlaceholder)"
@@ -29,22 +31,37 @@
           />
         </t-select>
       </template>
-      <t-input-number
-        v-else-if="field.schema.type === 'integer' || field.schema.type === 'number'"
-        :model-value="numberValue(objectValue[field.key])"
-        :min="field.schema.minimum"
-        :max="field.schema.maximum"
-        :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
-        :placeholder="fieldPlaceholder(field, labels.numberPlaceholder)"
-        :suffix="fieldUnit(field)"
-        :disabled="disabled"
-        @change="(value) => updateObjectField(field.key, value)"
-      />
+      <div v-else-if="rendererKind(field) === 'input-number'" class="config-editor-renderer__number-row">
+        <t-input-number
+          class="config-editor-renderer__number-input"
+          :model-value="numberValue(objectValue[field.key])"
+          :min="field.schema.minimum"
+          :max="field.schema.maximum"
+          :decimal-places="field.schema.type === 'integer' ? 0 : undefined"
+          :placeholder="fieldPlaceholder(field, labels.numberPlaceholder)"
+          :disabled="disabled"
+          align="center"
+          theme="row"
+          @change="(value) => updateObjectField(field.key, value)"
+        />
+        <span v-if="fieldUnit(field)" class="config-editor-renderer__number-unit">
+          {{ fieldUnit(field) }}
+        </span>
+      </div>
       <t-switch
-        v-else-if="field.schema.type === 'boolean'"
+        v-else-if="rendererKind(field) === 'switch'"
         :model-value="Boolean(objectValue[field.key])"
         :disabled="disabled"
         @change="(value) => updateObjectField(field.key, value)"
+      />
+      <t-textarea
+        v-else-if="rendererKind(field) === 'json-textarea'"
+        :model-value="formatJsonValue(objectValue[field.key])"
+        class="config-editor-renderer__textarea"
+        :autosize="{ minRows: 5, maxRows: 10 }"
+        :placeholder="fieldPlaceholder(field, labels.jsonPlaceholder)"
+        :disabled="disabled"
+        @change="(value) => handleObjectJsonChange(field.key, value)"
       />
       <t-input
         v-else
@@ -67,7 +84,7 @@
     :status="jsonError ? 'error' : undefined"
     :tips="jsonError"
   >
-    <template v-if="rootSchema.enum">
+    <template v-if="rootRendererKind === 'select'">
       <t-select
         :model-value="selectValue(modelValue)"
         :placeholder="rootPlaceholder(labels.selectPlaceholder)"
@@ -83,27 +100,33 @@
         />
       </t-select>
     </template>
-    <t-input-number
-      v-else-if="rootSchema.type === 'integer' || rootSchema.type === 'number'"
-      :model-value="numberValue(modelValue)"
-      :min="rootSchema.minimum"
-      :max="rootSchema.maximum"
-      :decimal-places="rootSchema.type === 'integer' ? 0 : undefined"
-      :placeholder="rootPlaceholder(labels.numberPlaceholder)"
-      :suffix="rootUnit"
-      :disabled="disabled"
-      @change="(value) => emit('update:modelValue', value)"
-    />
+    <div v-else-if="rootRendererKind === 'input-number'" class="config-editor-renderer__number-row">
+      <t-input-number
+        class="config-editor-renderer__number-input"
+        :model-value="numberValue(modelValue)"
+        :min="rootSchema.minimum"
+        :max="rootSchema.maximum"
+        :decimal-places="rootSchema.type === 'integer' ? 0 : undefined"
+        :placeholder="rootPlaceholder(labels.numberPlaceholder)"
+        :disabled="disabled"
+        align="center"
+        theme="row"
+        @change="(value) => emit('update:modelValue', value)"
+      />
+      <span v-if="rootUnit" class="config-editor-renderer__number-unit">
+        {{ rootUnit }}
+      </span>
+    </div>
     <t-switch
-      v-else-if="rootSchema.type === 'boolean'"
+      v-else-if="rootRendererKind === 'switch'"
       :model-value="Boolean(modelValue)"
       :disabled="disabled"
       @change="(value) => emit('update:modelValue', value)"
     />
     <t-textarea
-      v-else-if="rootSchema.type === 'object' || rootSchema.type === 'array'"
+      v-else-if="rootRendererKind === 'json-textarea'"
       :model-value="formatJsonValue(modelValue)"
-      class="json-schema-value-fields__textarea"
+      class="config-editor-renderer__textarea"
       :autosize="{ minRows: 5, maxRows: 10 }"
       :placeholder="rootPlaceholder(labels.jsonPlaceholder)"
       :disabled="disabled"
@@ -122,15 +145,17 @@
   </t-form-item>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
-import type { ConfigSchema, ConfigSchemaField } from './config-schema';
+import type { ConfigFieldType, ConfigSchema, ConfigSchemaField } from './config-schema';
 import { getConfigSchemaFields } from './config-schema';
+import { configFieldRenderer } from './field-renderer';
 import { formatJsonValue, isJsonRecord, type JsonRecord, parseJsonValue } from './json';
 
 const props = withDefaults(
   defineProps<{
     disabled?: boolean;
+    fallbackType?: ConfigFieldType | null;
     fieldPrefix?: string;
     labels: {
       invalidJson: string;
@@ -150,6 +175,7 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
+    fallbackType: undefined,
     fieldPrefix: 'value',
     titleResolver: undefined,
     descriptionResolver: undefined,
@@ -164,6 +190,7 @@ const emit = defineEmits<{
 }>();
 
 const jsonError = ref('');
+const jsonFieldErrors = reactive<Record<string, string>>({});
 const objectFields = computed(() =>
   props.rootSchema.type === 'object' ? getConfigSchemaFields(props.rootSchema) : [],
 );
@@ -173,11 +200,16 @@ const rootField = computed<ConfigSchemaField>(() => ({
   schema: props.rootSchema,
   required: false,
 }));
+const rootRendererKind = computed(() => configFieldRenderer(props.rootSchema, props.fallbackType));
 const rootLabel = computed(
   () => props.titleResolver?.(rootField.value) || props.rootSchema.title || props.labels.value,
 );
 const rootHelp = computed(() => fieldDescription(rootField.value));
 const rootUnit = computed(() => fieldUnit(rootField.value));
+
+function rendererKind(field: ConfigSchemaField) {
+  return configFieldRenderer(field.schema);
+}
 
 function fieldName(key: string) {
   return `${props.fieldPrefix}.${key}`;
@@ -210,6 +242,7 @@ function optionLabel(field: ConfigSchemaField, option: string | number | boolean
 }
 
 function updateObjectField(key: string, value: unknown) {
+  jsonFieldErrors[key] = '';
   emit('update:modelValue', {
     ...objectValue.value,
     [key]: value,
@@ -239,14 +272,59 @@ function handleJsonChange(value: string | number) {
   jsonError.value = '';
   emit('update:modelValue', parsed);
 }
+
+function handleObjectJsonChange(key: string, value: string | number) {
+  const text = String(value ?? '');
+  const parsed = parseJsonValue(text);
+  if (parsed === undefined && text.trim()) {
+    jsonFieldErrors[key] = props.labels.invalidJson;
+    return;
+  }
+
+  jsonFieldErrors[key] = '';
+  updateObjectField(key, parsed);
+}
 </script>
 <style scoped>
-.json-schema-value-fields__textarea {
+.config-editor-renderer__textarea {
   width: 100%;
 }
 
-:deep(.json-schema-value-fields__textarea.t-textarea),
-.json-schema-value-fields__textarea :deep(.t-textarea__inner) {
+.config-editor-renderer__number-row {
+  align-items: center;
+  display: flex;
+  gap: var(--td-comp-margin-xs);
+  max-width: 240px;
+}
+
+.config-editor-renderer__number-input {
+  flex: 0 0 120px;
+  min-width: 120px;
+  width: 120px;
+}
+
+.config-editor-renderer__number-input :deep(.t-input-number),
+:deep(.config-editor-renderer__number-input.t-input-number) {
+  width: 100%;
+}
+
+.config-editor-renderer__number-input :deep(.t-input__inner) {
+  font-variant-numeric: tabular-nums;
+  overflow: visible;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.config-editor-renderer__number-unit {
+  color: var(--td-text-color-secondary);
+  flex: 0 0 auto;
+  line-height: var(--td-line-height-body-medium);
+  white-space: nowrap;
+}
+
+:deep(.config-editor-renderer__textarea.t-textarea),
+.config-editor-renderer__textarea :deep(.t-textarea__inner) {
   box-sizing: border-box;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   width: 100%;

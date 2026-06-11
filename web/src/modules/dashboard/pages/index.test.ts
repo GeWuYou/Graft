@@ -299,14 +299,14 @@ function summaryQuickLinks(value: unknown) {
   });
 }
 
-function systemConfigItem(key: string, effectiveValue: string) {
+function quickActionsConfigItem(effectiveValue: string) {
   return {
     config_schema: {},
     default_value: null,
     effective_value: effectiveValue,
     group: 'dashboard.quick_actions',
     has_override: false,
-    key,
+    key: 'dashboard.quick_actions',
     masked: false,
     module: 'core',
     restart_required: false,
@@ -390,7 +390,7 @@ describe('DashboardHomePage', () => {
   it('passes disabled quick-action config from system config to the dashboard section', async () => {
     dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
     quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValueOnce({
-      items: [systemConfigItem('dashboard.quick_actions.enabled', 'false')],
+      items: [quickActionsConfigItem('{"enabled":false,"maxItems":4,"strategy":"hybrid"}')],
     });
 
     const wrapper = mountPage();
@@ -404,7 +404,7 @@ describe('DashboardHomePage', () => {
   it('passes max item quick-action config from system config to the dashboard section', async () => {
     dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
     quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValueOnce({
-      items: [systemConfigItem('dashboard.quick_actions.max_items', '1')],
+      items: [quickActionsConfigItem('{"enabled":true,"maxItems":1,"strategy":"hybrid"}')],
     });
 
     const wrapper = mountPage();

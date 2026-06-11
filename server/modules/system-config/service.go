@@ -219,12 +219,26 @@ func validateValueForDefinition(definition configregistry.Definition, value json
 	if expected != "" {
 		return fmt.Errorf("%w: %s must be %s", errInvalidConfigValue, definition.Key, expected)
 	}
-	if definition.Type == configregistry.ValueTypeObject && len(definition.Schema) > 0 {
-		if err := scheduler.ValidateConfigJSON(string(definition.Schema), string(value)); err != nil {
+	if len(definition.Schema) > 0 {
+		if err := validateSchemaValue(definition, value); err != nil {
 			return fmt.Errorf("%w: %s %v", errInvalidConfigValue, definition.Key, err)
 		}
 	}
 	return nil
+}
+
+func validateSchemaValue(definition configregistry.Definition, value json.RawMessage) error {
+	switch definition.Type {
+	case configregistry.ValueTypeObject:
+		return scheduler.ValidateConfigJSON(string(definition.Schema), string(value))
+	case configregistry.ValueTypeString,
+		configregistry.ValueTypeNumber,
+		configregistry.ValueTypeInteger,
+		configregistry.ValueTypeBoolean:
+		return scheduler.ValidateScalarConfigJSON(string(definition.Schema), string(value), string(definition.Type))
+	default:
+		return nil
+	}
 }
 
 func cleanKey(key string) string {

@@ -7,11 +7,7 @@ import type { DashboardQuickLink } from '../types/dashboard';
 
 type SystemConfigItem = components['schemas']['system-config-item'];
 
-const DASHBOARD_QUICK_ACTION_CONFIG_KEY = {
-  ENABLED: 'dashboard.quick_actions.enabled',
-  MAX_ITEMS: 'dashboard.quick_actions.max_items',
-  STRATEGY: 'dashboard.quick_actions.strategy',
-} as const;
+export const DASHBOARD_QUICK_ACTION_CONFIG_KEY = 'dashboard.quick_actions';
 
 export const DASHBOARD_QUICK_ACTION_STORAGE_KEY = {
   ROUTE_USAGE: 'dashboard:quick-actions:route-usage',
@@ -73,25 +69,23 @@ export function resolveDashboardQuickActionConfig(
   const config = { ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG };
 
   for (const item of items) {
+    if (item.key !== DASHBOARD_QUICK_ACTION_CONFIG_KEY) {
+      continue;
+    }
     const value = parseSystemConfigValue(item.key, item.effective_value, options);
-    switch (item.key) {
-      case DASHBOARD_QUICK_ACTION_CONFIG_KEY.ENABLED:
-        if (typeof value === 'boolean') {
-          config.enabled = value;
-        }
-        break;
-      case DASHBOARD_QUICK_ACTION_CONFIG_KEY.MAX_ITEMS:
-        if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
-          config.maxItems = Math.min(value, 24);
-        }
-        break;
-      case DASHBOARD_QUICK_ACTION_CONFIG_KEY.STRATEGY:
-        if (isDashboardQuickActionStrategy(value)) {
-          config.strategy = value;
-        }
-        break;
-      default:
-        break;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      continue;
+    }
+
+    const partial = value as Partial<Record<keyof DashboardQuickActionConfig, unknown>>;
+    if (typeof partial.enabled === 'boolean') {
+      config.enabled = partial.enabled;
+    }
+    if (typeof partial.maxItems === 'number' && Number.isInteger(partial.maxItems) && partial.maxItems > 0) {
+      config.maxItems = Math.min(partial.maxItems, 24);
+    }
+    if (isDashboardQuickActionStrategy(partial.strategy)) {
+      config.strategy = partial.strategy;
     }
   }
 

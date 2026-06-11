@@ -54,8 +54,9 @@ const (
 	notificationDeliveryInAppEnabledKey                   = "notification.delivery.in_app.enabled"
 	notificationDeliveryDedupeWindowSecondsKey            = "notification.delivery.dedupe_window_seconds"
 	notificationDeliveryMaxBatchRecipientsKey             = "notification.delivery.max_batch_recipients"
-	notificationDisplayShowReadDaysKey                    = "notification.display.show_read_days"
-	notificationDisplayPopupLimitKey                      = "notification.display.popup_limit"
+	notificationDisplayKey                                = "notification.display"
+	notificationDisplayShowReadDaysKey                    = "display.showReadDays"
+	notificationDisplayPopupLimitKey                      = "display.popupLimit"
 )
 
 // ConfigResolver resolves effective notification configuration values.
@@ -97,8 +98,7 @@ func notificationConfigDefinitions() []configregistry.Definition {
 		booleanNotificationDefinition(notificationDeliveryInAppEnabledKey, notificationConfigDeliveryGroup, "In-app delivery enabled", "Whether Notification Center should create in-app delivery records.", true),
 		numberNotificationDefinition(notificationDeliveryDedupeWindowSecondsKey, notificationConfigDeliveryGroup, "Dedupe window seconds", "Dedupe window for same source, target, and business object notifications.", defaultNotificationDedupeWindowSeconds),
 		numberNotificationDefinition(notificationDeliveryMaxBatchRecipientsKey, notificationConfigDeliveryGroup, "Max batch recipients", "Maximum recipients in one notification delivery batch.", defaultNotificationMaxBatchRecipients),
-		numberNotificationDefinition(notificationDisplayShowReadDaysKey, notificationConfigDisplayGroup, "Show read days", "Default time window for showing read notifications.", defaultNotificationDisplayShowReadDays),
-		numberNotificationDefinition(notificationDisplayPopupLimitKey, notificationConfigDisplayGroup, "Popup limit", "Maximum notifications displayed by the notification bell popup.", defaultNotificationDisplayPopupLimit),
+		notificationDisplayDefinition(),
 	}
 }
 
@@ -108,6 +108,31 @@ func booleanNotificationDefinition(key string, group string, title string, descr
 
 func numberNotificationDefinition(key string, group string, title string, description string, defaultValue int) configregistry.Definition {
 	return baseNotificationDefinition(key, group, title, description, configregistry.ValueTypeInteger, mustRawJSON(defaultValue))
+}
+
+func notificationDisplayDefinition() configregistry.Definition {
+	definition := baseNotificationDefinition(
+		notificationDisplayKey,
+		notificationConfigDisplayGroup,
+		"Notification display",
+		"Notification Center display defaults.",
+		configregistry.ValueTypeObject,
+		json.RawMessage(fmt.Sprintf(`{"showReadDays":%d,"popupLimit":%d}`, defaultNotificationDisplayShowReadDays, defaultNotificationDisplayPopupLimit)),
+	)
+	definition.Schema = notificationDisplaySchema()
+	return definition
+}
+
+func notificationDisplaySchema() json.RawMessage {
+	return json.RawMessage(fmt.Sprintf(
+		`{"type":"object","title":"Notification display","description":"Notification Center display defaults.","properties":{"showReadDays":{"type":"integer","minimum":1,"maximum":365,"default":7,"title":"Show read days","description":"Default time window for showing read notifications.","x-i18n":{"titleKey":%q,"descriptionKey":%q,"unitKey":"systemConfig.units.days"}},"popupLimit":{"type":"integer","minimum":1,"maximum":50,"default":5,"title":"Popup limit","description":"Maximum notifications displayed by the notification bell popup.","x-i18n":{"titleKey":%q,"descriptionKey":%q}}},"required":["showReadDays","popupLimit"],"additionalProperties":false,"x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
+		notificationConfigTitleKey(notificationDisplayShowReadDaysKey),
+		notificationConfigDescriptionKey(notificationDisplayShowReadDaysKey),
+		notificationConfigTitleKey(notificationDisplayPopupLimitKey),
+		notificationConfigDescriptionKey(notificationDisplayPopupLimitKey),
+		notificationConfigTitleKey(notificationDisplayKey),
+		notificationConfigDescriptionKey(notificationDisplayKey),
+	))
 }
 
 func baseNotificationDefinition(
@@ -214,30 +239,38 @@ func notificationConfigMessageRegistrations() []i18n.Registration {
 			Namespace: "system-config",
 			Locale:    i18n.LocaleZHCN,
 			Messages: notificationConfigMessages(map[string]string{
-				notificationConfigDomainKey:        "站内通知",
-				notificationConfigGeneralGroupKey:  "通用",
-				notificationConfigGeneralDescKey:   "控制通知中心的基础行为。",
-				notificationConfigSourcesGroupKey:  "通知来源",
-				notificationConfigSourcesDescKey:   "控制哪些平台事件会产生通知。",
-				notificationConfigDeliveryGroupKey: "投递",
-				notificationConfigDeliveryDescKey:  "控制站内投递与批量 fan-out 限制。",
-				notificationConfigDisplayGroupKey:  "展示",
-				notificationConfigDisplayDescKey:   "控制通知中心的展示默认值。",
+				notificationConfigDomainKey:                                          "站内通知",
+				notificationConfigGeneralGroupKey:                                    "通用",
+				notificationConfigGeneralDescKey:                                     "控制通知中心的基础行为。",
+				notificationConfigSourcesGroupKey:                                    "通知来源",
+				notificationConfigSourcesDescKey:                                     "控制哪些平台事件会产生通知。",
+				notificationConfigDeliveryGroupKey:                                   "投递",
+				notificationConfigDeliveryDescKey:                                    "控制站内投递与批量 fan-out 限制。",
+				notificationConfigDisplayGroupKey:                                    "展示",
+				notificationConfigDisplayDescKey:                                     "控制通知中心的展示默认值。",
+				notificationConfigTitleKey(notificationDisplayShowReadDaysKey):       "已读展示天数",
+				notificationConfigDescriptionKey(notificationDisplayShowReadDaysKey): "已读通知的默认展示时间范围。",
+				notificationConfigTitleKey(notificationDisplayPopupLimitKey):         "铃铛弹层数量",
+				notificationConfigDescriptionKey(notificationDisplayPopupLimitKey):   "通知铃铛弹层最多展示条数。",
 			}, zhCNNotificationConfigCopy()),
 		},
 		{
 			Namespace: "system-config",
 			Locale:    i18n.LocaleENUS,
 			Messages: notificationConfigMessages(map[string]string{
-				notificationConfigDomainKey:        "Notification",
-				notificationConfigGeneralGroupKey:  "General",
-				notificationConfigGeneralDescKey:   "Control the Notification Center baseline behavior.",
-				notificationConfigSourcesGroupKey:  "Sources",
-				notificationConfigSourcesDescKey:   "Control which platform events create notifications.",
-				notificationConfigDeliveryGroupKey: "Delivery",
-				notificationConfigDeliveryDescKey:  "Control in-app delivery and fan-out limits.",
-				notificationConfigDisplayGroupKey:  "Display",
-				notificationConfigDisplayDescKey:   "Control Notification Center display defaults.",
+				notificationConfigDomainKey:                                          "Notification",
+				notificationConfigGeneralGroupKey:                                    "General",
+				notificationConfigGeneralDescKey:                                     "Control the Notification Center baseline behavior.",
+				notificationConfigSourcesGroupKey:                                    "Sources",
+				notificationConfigSourcesDescKey:                                     "Control which platform events create notifications.",
+				notificationConfigDeliveryGroupKey:                                   "Delivery",
+				notificationConfigDeliveryDescKey:                                    "Control in-app delivery and fan-out limits.",
+				notificationConfigDisplayGroupKey:                                    "Display",
+				notificationConfigDisplayDescKey:                                     "Control Notification Center display defaults.",
+				notificationConfigTitleKey(notificationDisplayShowReadDaysKey):       "Show Read Days",
+				notificationConfigDescriptionKey(notificationDisplayShowReadDaysKey): "Default time window for showing read notifications.",
+				notificationConfigTitleKey(notificationDisplayPopupLimitKey):         "Popup Limit",
+				notificationConfigDescriptionKey(notificationDisplayPopupLimitKey):   "Maximum notifications displayed by the notification bell popup.",
 			}, enUSNotificationConfigCopy()),
 		},
 	}
@@ -271,8 +304,7 @@ func zhCNNotificationConfigCopy() map[string][2]string {
 		notificationDeliveryInAppEnabledKey:                   {"站内投递", "是否创建站内通知投递记录。"},
 		notificationDeliveryDedupeWindowSecondsKey:            {"去重窗口秒数", "相同来源、目标和业务对象通知的去重窗口。"},
 		notificationDeliveryMaxBatchRecipientsKey:             {"批量投递人数上限", "单批通知投递的最大接收人数。"},
-		notificationDisplayShowReadDaysKey:                    {"已读展示天数", "已读通知的默认展示时间范围。"},
-		notificationDisplayPopupLimitKey:                      {"铃铛弹层数量", "通知铃铛弹层最多展示条数。"},
+		notificationDisplayKey:                                {"通知展示", "通知中心的展示默认配置。"},
 	}
 }
 
@@ -290,8 +322,7 @@ func enUSNotificationConfigCopy() map[string][2]string {
 		notificationDeliveryInAppEnabledKey:                   {"In-App Delivery Enabled", "Whether Notification Center should create in-app delivery records."},
 		notificationDeliveryDedupeWindowSecondsKey:            {"Dedupe Window Seconds", "Dedupe window for same source, target, and business object notifications."},
 		notificationDeliveryMaxBatchRecipientsKey:             {"Max Batch Recipients", "Maximum recipients in one notification delivery batch."},
-		notificationDisplayShowReadDaysKey:                    {"Show Read Days", "Default time window for showing read notifications."},
-		notificationDisplayPopupLimitKey:                      {"Popup Limit", "Maximum notifications displayed by the notification bell popup."},
+		notificationDisplayKey:                                {"Notification Display", "Notification Center display defaults."},
 	}
 }
 

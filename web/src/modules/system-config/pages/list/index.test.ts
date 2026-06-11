@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, type VNode } from 'vue';
+import { defineComponent, h, ref, type VNode } from 'vue';
 
 import { formatCompactDateTime } from '@/shared/components/management';
 
@@ -42,12 +42,14 @@ const translations = vi.hoisted(
     'systemConfig.items.appLogRetentionCleanup.title': '应用日志保留清理',
     'systemConfig.items.accessLogRetentionCleanup.description': '访问日志保留清理任务的默认配置。',
     'systemConfig.items.accessLogRetentionCleanup.title': '访问日志保留清理',
-    'systemConfig.items.dashboardQuickActionsEnabled.description': '控制工作台首页是否展示个性化快捷入口。',
-    'systemConfig.items.dashboardQuickActionsEnabled.title': '是否启用',
-    'systemConfig.items.dashboardQuickActionsMaxItems.description': '工作台首页默认展示的个性化入口数量。',
-    'systemConfig.items.dashboardQuickActionsMaxItems.title': '最大数量',
-    'systemConfig.items.dashboardQuickActionsStrategy.description': '个性化快捷入口的推荐排序策略。',
-    'systemConfig.items.dashboardQuickActionsStrategy.title': '排序策略',
+    'systemConfig.items.dashboardQuickActions.description': '工作台首页快捷入口的显示与排序默认配置。',
+    'systemConfig.items.dashboardQuickActions.title': '工作台快捷入口',
+    'systemConfig.fields.dashboardQuickActions.enabled.description': '控制工作台首页是否展示个性化快捷入口。',
+    'systemConfig.fields.dashboardQuickActions.enabled.title': '是否启用',
+    'systemConfig.fields.dashboardQuickActions.maxItems.description': '工作台首页默认展示的个性化入口数量。',
+    'systemConfig.fields.dashboardQuickActions.maxItems.title': '最大数量',
+    'systemConfig.fields.dashboardQuickActions.strategy.description': '个性化快捷入口的推荐排序策略。',
+    'systemConfig.fields.dashboardQuickActions.strategy.title': '排序策略',
     'systemConfig.notification.notification.enabled.description': '是否启用站内通知功能。',
     'systemConfig.notification.notification.enabled.title': '启用通知',
     'systemConfig.notification.notification.retention_days.description': '通知记录的默认保留天数。',
@@ -71,7 +73,7 @@ const translations = vi.hoisted(
     'systemConfig.list.masked': '已隐藏',
     'systemConfig.list.noDescription': '暂无描述。',
     'systemConfig.list.overrideCount': '{count} 个覆盖值',
-    'systemConfig.list.previewTitle': '配置预览',
+    'systemConfig.list.previewTitle': '配置预览 JSON',
     'systemConfig.list.refresh': '刷新',
     'systemConfig.list.reset': '重置',
     'systemConfig.list.resetConfirm': '确认删除该用户覆盖值并回到模块默认值？',
@@ -86,12 +88,16 @@ const translations = vi.hoisted(
     'systemConfig.list.schema.selectPlaceholder': '请选择',
     'systemConfig.list.schema.stringPlaceholder': '请输入配置值',
     'systemConfig.list.schema.value': '配置值',
-    'systemConfig.list.status.default': '默认',
+    'systemConfig.list.schema.invalidValue': '配置值不符合字段规则',
+    'systemConfig.list.schema.invalidEnum': '请选择允许的配置值',
+    'systemConfig.list.schema.belowMinimum': '配置值不能小于 {minimum}',
+    'systemConfig.list.schema.aboveMaximum': '配置值不能大于 {maximum}',
+    'systemConfig.list.status.default': '使用默认值',
     'systemConfig.list.status.defaultDescription': '使用默认配置',
     'systemConfig.list.status.modified': '已修改',
     'systemConfig.list.status.modifiedDescription': '存在用户覆盖',
     'systemConfig.list.status.title': '配置状态',
-    'systemConfig.list.lastModified.none': '暂无修改记录',
+    'systemConfig.list.lastModified.none': '无覆盖值',
     'systemConfig.list.lastModified.title': '最后修改',
     'systemConfig.list.lastModified.unknownUser': '未知用户',
     'systemConfig.list.lastModified.userId': '用户 {id}',
@@ -105,7 +111,18 @@ const translations = vi.hoisted(
     'systemConfig.list.values.current': '当前值',
     'systemConfig.list.values.default': '默认值',
     'systemConfig.list.values.effective': '生效值',
-    'systemConfig.list.viewJson': '查看 JSON',
+    'systemConfig.list.values.moreFields': '展开 {count} 个次要字段',
+    'systemConfig.list.advanced.title': '高级信息',
+    'systemConfig.list.advanced.copyKey': '复制 key',
+    'systemConfig.list.advanced.copySuccess': '配置 key 已复制。',
+    'systemConfig.list.advanced.copyError': '配置 key 复制失败。',
+    'systemConfig.list.advanced.currentJson': '当前 JSON',
+    'systemConfig.list.advanced.defaultJson': '默认 JSON',
+    'systemConfig.list.advanced.schemaSummary': 'Schema 摘要',
+    'systemConfig.list.advanced.schemaType': '类型：{type}',
+    'systemConfig.list.advanced.schemaFieldCount': '字段数：{count}',
+    'systemConfig.list.advanced.schemaRequiredCount': '必填字段：{count}',
+    'systemConfig.list.advanced.schemaNoAdditionalProperties': '不允许额外字段',
     'systemConfig.options.dashboardQuickActionStrategy.hybrid': '综合推荐',
     'systemConfig.options.dashboardQuickActionStrategy.mostUsed': '最常使用',
     'systemConfig.options.dashboardQuickActionStrategy.recent': '最近访问',
@@ -132,6 +149,7 @@ vi.mock('tdesign-vue-next', () => ({
 }));
 
 vi.mock('tdesign-icons-vue-next', () => ({
+  CopyIcon: defineComponent({ name: 'CopyIcon', setup: () => () => h('span') }),
   EditIcon: defineComponent({ name: 'EditIcon', setup: () => () => h('span') }),
   InfoCircleIcon: defineComponent({ name: 'InfoCircleIcon', setup: () => () => h('span', 'i') }),
   RefreshIcon: defineComponent({ name: 'RefreshIcon', setup: () => () => h('span') }),
@@ -150,9 +168,10 @@ vi.mock('vue-i18n', () => ({
 describe('system config list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const items = dashboardQuickActionItems();
     apiMocks.getSystemConfigs.mockResolvedValue({
-      items: dashboardQuickActionItems(),
-      total: 3,
+      items,
+      total: items.length,
     });
   });
 
@@ -166,7 +185,7 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('工作台配置');
     expect(wrapper.text()).toContain('工作台快捷入口');
     expect(wrapper.text()).toContain('管理首页快捷入口的显示与排序策略。');
-    expect(wrapper.text()).toContain('3 个配置项');
+    expect(wrapper.text()).toContain('1 个配置项');
     expect(wrapper.text()).toContain('0 个覆盖值');
     expect(wrapper.text()).toContain('是否启用');
     expect(wrapper.text()).toContain('最大数量');
@@ -182,22 +201,31 @@ describe('system config list page', () => {
         .findAll('.system-config-value__rows small')
         .some((node) => node.text() === '根据最近访问、使用频率和系统推荐结果综合排序。'),
     ).toBe(false);
-    expect(wrapper.text()).toContain('默认');
+    expect(wrapper.text()).toContain('使用默认值');
+    expect(wrapper.text()).toContain('默认值');
     expect(wrapper.text()).toContain('最后修改');
-    expect(wrapper.text()).toContain('暂无修改记录');
-    expect(wrapper.text()).toContain('技术标识');
-    expect(wrapper.text()).toContain('dashboard.quick_actions.enabled');
-    expect(wrapper.text()).not.toContain('默认值');
+    expect(wrapper.text()).toContain('无覆盖值');
+    expect(wrapper.text()).toContain('高级信息');
+    expect(wrapper.text()).not.toContain('技术标识');
+    expect(wrapper.text()).not.toContain('dashboard.quick_actions');
+    expect(wrapper.findAll('button').some((button) => button.text() === '重置')).toBe(false);
     expect(wrapper.text()).not.toContain('生效值');
     expect(wrapper.text()).not.toContain('Dashboard Quick Actions');
-    expect(wrapper.text()).not.toContain('1 项');
     expect(wrapper.text()).not.toContain('core / dashboard.quick_actions');
+
+    await toggleFirstCollapsePanel(wrapper, '高级信息');
+    expect(wrapper.text()).toContain('技术标识');
+    expect(wrapper.text()).toContain('dashboard.quick_actions');
+    expect(wrapper.text()).toContain('当前 JSON');
+    expect(wrapper.text()).toContain('默认 JSON');
+    expect(wrapper.text()).toContain('Schema 摘要');
 
     await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('编辑：是否启用');
-    expect(wrapper.text()).toContain('配置预览');
+    expect(wrapper.text()).toContain('编辑：工作台快捷入口');
+    expect(wrapper.text()).toContain('是否启用');
+    expect(wrapper.text()).toContain('配置预览 JSON');
   });
 
   it('renders modified config as a user override with username and timestamp', async () => {
@@ -222,6 +250,7 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('默认值');
     expect(wrapper.text()).toContain('当前值');
     expect(wrapper.text()).toContain(`alice / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
+    expect(wrapper.findAll('button').some((button) => button.text() === '重置')).toBe(true);
   });
 
   it('groups access-log and app-log retention under one logs domain', async () => {
@@ -349,15 +378,49 @@ describe('system config list page', () => {
     expect(wrapper.text()).not.toContain('Notification enabled');
   });
 
+  it('uses schema enum before item type fallback when rendering scalar editors', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        notificationConfigItem({
+          key: 'notification.delivery.mode',
+          titleKey: '',
+          title: 'Delivery mode',
+          descriptionKey: '',
+          description: 'Delivery mode.',
+          type: 'boolean',
+          configSchema: {
+            type: 'string',
+            enum: ['in_app', 'disabled'],
+          },
+          defaultValue: '"in_app"',
+          effectiveValue: '"in_app"',
+          order: 5102,
+        }),
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test-id="schema-select"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test-id="schema-switch"]').exists()).toBe(false);
+  });
+
   it('localizes root scalar schema labels before falling back to backend schema copy', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.findAll('button[data-test-id="edit-button"]')[1].trigger('click');
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
     await flushPromises();
 
+    expect(wrapper.find('[data-testid="config-editor-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="config-editor-drawer"]').exists()).toBe(false);
     expect(wrapper.find('[data-test-id="schema-number"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('编辑：最大数量');
+    expect(wrapper.text()).toContain('编辑：工作台快捷入口');
     expect(wrapper.text()).toContain('最大数量');
     expect(wrapper.text()).toContain('工作台首页默认展示的个性化入口数量。');
     expect(wrapper.text()).not.toContain('Maximum quick actions');
@@ -365,9 +428,10 @@ describe('system config list page', () => {
   });
 
   it('filters the group tree by localized labels and technical keys', async () => {
+    const items = [systemConfigItem(), ...dashboardQuickActionItems()];
     apiMocks.getSystemConfigs.mockResolvedValue({
-      items: [systemConfigItem(), ...dashboardQuickActionItems()],
-      total: 4,
+      items,
+      total: items.length,
     });
 
     const wrapper = mountPage();
@@ -385,7 +449,7 @@ describe('system config list page', () => {
     await flushPromises();
 
     expect(wrapper.findAll('[data-tree-node="group"]').map((node) => node.text())).toEqual([
-      '工作台快捷入口3 个配置项',
+      '工作台快捷入口1 个配置项',
     ]);
     expect(wrapper.find('.system-config-content__head').text()).toContain('工作台快捷入口');
   });
@@ -514,6 +578,91 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain(`未知用户 / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
   });
 
+  it('uses dialog for small flat object schemas', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [systemConfigItem()],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="config-editor-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="config-editor-drawer"]').exists()).toBe(false);
+    expect(wrapper.findAll('[data-test-id="schema-number"]')).toHaveLength(2);
+  });
+
+  it('renders schema number units outside the compact stepper input', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          effective_value: '{"retentionDays":30,"batchSize":2000}',
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    const numberInputs = wrapper.findAll('[data-test-id="schema-number"]');
+    expect(numberInputs).toHaveLength(2);
+    expect(numberInputs.map((node) => node.text())).toEqual(['30', '2000']);
+    expect(numberInputs.map((node) => node.attributes('data-suffix'))).toEqual(['', '']);
+    expect(numberInputs.map((node) => node.attributes('data-align'))).toEqual(['center', 'center']);
+    expect(numberInputs.map((node) => node.attributes('data-theme'))).toEqual(['row', 'row']);
+    expect(numberInputs.map((node) => node.attributes('data-min'))).toEqual(['1', '1']);
+    expect(numberInputs.map((node) => node.attributes('data-max'))).toEqual(['365', '10000']);
+    expect(wrapper.findAll('.config-editor-renderer__number-unit').map((node) => node.text())).toEqual(['天', '行']);
+  });
+
+  it('uses drawer and raw JSON textarea fields for nested object or array properties', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          key: 'notification.delivery-policy',
+          title_key: '',
+          title: 'Delivery policy',
+          type: 'object',
+          config_schema: {
+            type: 'object',
+            properties: {
+              channels: {
+                type: 'array',
+                title: 'Channels',
+              },
+              metadata: {
+                type: 'object',
+                title: 'Metadata',
+              },
+            },
+          },
+          default_value: '{"channels":["inbox"],"metadata":{"priority":"normal"}}',
+          effective_value: '{"channels":["inbox"],"metadata":{"priority":"normal"}}',
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="config-editor-dialog"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="config-editor-drawer"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-test-id="schema-textarea"]')).toHaveLength(2);
+  });
+
   it.each([
     ['boolean', false],
     ['string', ''],
@@ -546,7 +695,10 @@ describe('system config list page', () => {
 
     await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
     await flushPromises();
-    await wrapper.find('button[data-test-id="dialog-confirm"]').trigger('click');
+    const saveButton = wrapper.find('button[data-test-id="dialog-confirm"]').exists()
+      ? wrapper.find('button[data-test-id="dialog-confirm"]')
+      : wrapper.find('[data-test-id="editor-drawer-save"]');
+    await saveButton.trigger('click');
     await flushPromises();
 
     expect(apiMocks.updateSystemConfig).toHaveBeenCalledWith(`sensitive.${type}`, {
@@ -568,14 +720,13 @@ function mountPage() {
           name: 'TButton',
           props: ['loading'],
           setup(_props, { attrs, slots }) {
+            const isEditButton = () => slots.default?.()?.some((node) => String(node.children).includes('编辑'));
             return () =>
               h(
                 'button',
                 {
                   ...attrs,
-                  'data-test-id': slots.default?.()?.some((node) => String(node.children).includes('编辑'))
-                    ? 'edit-button'
-                    : undefined,
+                  'data-test-id': isEditButton() ? 'edit-button' : attrs['data-testid'],
                 },
                 slots.default?.(),
               );
@@ -585,10 +736,10 @@ function mountPage() {
           name: 'TDialog',
           props: ['visible', 'header'],
           emits: ['confirm'],
-          setup(props, { emit, slots }) {
+          setup(props, { attrs, emit, slots }) {
             return () =>
               props.visible
-                ? h('section', [
+                ? h('section', attrs, [
                     h('h2', props.header as string),
                     slots.default?.(),
                     h(
@@ -603,12 +754,34 @@ function mountPage() {
                 : null;
           },
         }),
+        TDrawer: defineComponent({
+          name: 'TDrawer',
+          props: ['visible', 'header'],
+          setup(props, { attrs, slots }) {
+            return () =>
+              props.visible ? h('section', attrs, [h('h2', props.header as string), slots.default?.()]) : null;
+          },
+        }),
         TCollapse: textStub('section'),
         TCollapsePanel: defineComponent({
           name: 'TCollapsePanel',
           props: ['header'],
           setup(props, { slots }) {
-            return () => h('section', [h('button', props.header as string), slots.default?.()]);
+            const expanded = ref(false);
+            return () =>
+              h('section', [
+                h(
+                  'button',
+                  {
+                    'data-test-id': 'collapse-panel-toggle',
+                    onClick: () => {
+                      expanded.value = !expanded.value;
+                    },
+                  },
+                  props.header as string,
+                ),
+                expanded.value ? slots.default?.() : null,
+              ]);
           },
         }),
         TEmpty: textStub('section'),
@@ -638,10 +811,21 @@ function mountPage() {
         }),
         TInputNumber: defineComponent({
           name: 'TInputNumber',
-          props: ['suffix', 'modelValue'],
+          props: ['align', 'max', 'min', 'modelValue', 'suffix', 'theme'],
           setup(props) {
             return () =>
-              h('span', { 'data-test-id': 'schema-number' }, [String(props.modelValue ?? ''), props.suffix as string]);
+              h(
+                'span',
+                {
+                  'data-align': props.align as string,
+                  'data-max': String(props.max ?? ''),
+                  'data-min': String(props.min ?? ''),
+                  'data-suffix': String(props.suffix ?? ''),
+                  'data-test-id': 'schema-number',
+                  'data-theme': props.theme as string,
+                },
+                String(props.modelValue ?? ''),
+              );
           },
         }),
         TLoading: textStub('div'),
@@ -699,6 +883,13 @@ function mountPage() {
       },
     },
   });
+}
+
+async function toggleFirstCollapsePanel(wrapper: ReturnType<typeof mountPage>, header: string) {
+  const toggle = wrapper.findAll('[data-test-id="collapse-panel-toggle"]').find((node) => node.text() === header);
+  expect(toggle).toBeDefined();
+  await toggle!.trigger('click');
+  await flushPromises();
 }
 
 function textStub(tag: string) {
@@ -783,81 +974,75 @@ function systemConfigItem() {
 function dashboardQuickActionItems() {
   return [
     dashboardQuickActionItem({
-      key: 'dashboard.quick_actions.enabled',
-      titleKey: 'systemConfig.items.dashboardQuickActionsEnabled.title',
-      title: 'Dashboard quick actions enabled',
-      descriptionKey: 'systemConfig.items.dashboardQuickActionsEnabled.description',
-      description: 'Controls whether personalized dashboard quick actions are shown.',
-      type: 'boolean',
+      key: 'dashboard.quick_actions',
+      titleKey: 'systemConfig.items.dashboardQuickActions.title',
+      title: 'Dashboard quick actions',
+      descriptionKey: 'systemConfig.items.dashboardQuickActions.description',
+      description: 'Dashboard home quick-action visibility and ranking defaults.',
+      type: 'object',
       configSchema: {
-        type: 'boolean',
-        'x-i18n': {
-          titleKey: 'systemConfig.items.dashboardQuickActionsEnabled.title',
-          descriptionKey: 'systemConfig.items.dashboardQuickActionsEnabled.description',
-        },
-      },
-      defaultValue: 'true',
-      effectiveValue: 'true',
-      order: 120,
-    }),
-    dashboardQuickActionItem({
-      key: 'dashboard.quick_actions.max_items',
-      titleKey: 'systemConfig.items.dashboardQuickActionsMaxItems.title',
-      title: 'Dashboard quick actions maximum items',
-      descriptionKey: 'systemConfig.items.dashboardQuickActionsMaxItems.description',
-      description: 'Maximum personalized entries shown on the dashboard home page.',
-      type: 'integer',
-      configSchema: {
-        type: 'integer',
-        minimum: 1,
-        maximum: 24,
-        default: 8,
-        title: 'Maximum quick actions',
-        description: 'Maximum personalized entries shown on the dashboard home page.',
-        'x-i18n': {
-          titleKey: 'systemConfig.items.dashboardQuickActionsMaxItems.title',
-          descriptionKey: 'systemConfig.items.dashboardQuickActionsMaxItems.description',
-        },
-      },
-      defaultValue: '8',
-      effectiveValue: '8',
-      order: 121,
-    }),
-    dashboardQuickActionItem({
-      key: 'dashboard.quick_actions.strategy',
-      titleKey: 'systemConfig.items.dashboardQuickActionsStrategy.title',
-      title: 'Dashboard quick actions ranking strategy',
-      descriptionKey: 'systemConfig.items.dashboardQuickActionsStrategy.description',
-      description: 'Personalized quick action ranking strategy.',
-      type: 'string',
-      configSchema: {
-        type: 'string',
-        enum: ['most_used', 'recent', 'hybrid'],
-        default: 'hybrid',
-        title: 'Quick action strategy',
-        description: 'Personalized quick action ranking strategy.',
-        'x-i18n': {
-          titleKey: 'systemConfig.items.dashboardQuickActionsStrategy.title',
-          descriptionKey: 'systemConfig.items.dashboardQuickActionsStrategy.description',
-          enumLabels: {
-            most_used: {
-              labelKey: 'systemConfig.options.dashboardQuickActionStrategy.mostUsed',
-              descriptionKey: 'systemConfig.options.dashboardQuickActionStrategyDescriptions.mostUsed',
+        type: 'object',
+        title: 'Dashboard quick actions',
+        description: 'Dashboard home quick-action visibility and ranking defaults.',
+        properties: {
+          enabled: {
+            type: 'boolean',
+            default: true,
+            title: 'Enabled',
+            description: 'Controls whether personalized dashboard quick actions are shown.',
+            'x-i18n': {
+              titleKey: 'systemConfig.fields.dashboardQuickActions.enabled.title',
+              descriptionKey: 'systemConfig.fields.dashboardQuickActions.enabled.description',
             },
-            recent: {
-              labelKey: 'systemConfig.options.dashboardQuickActionStrategy.recent',
-              descriptionKey: 'systemConfig.options.dashboardQuickActionStrategyDescriptions.recent',
+          },
+          maxItems: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 24,
+            default: 4,
+            title: 'Maximum quick actions',
+            description: 'Maximum personalized entries shown on the dashboard home page.',
+            'x-i18n': {
+              titleKey: 'systemConfig.fields.dashboardQuickActions.maxItems.title',
+              descriptionKey: 'systemConfig.fields.dashboardQuickActions.maxItems.description',
             },
-            hybrid: {
-              labelKey: 'systemConfig.options.dashboardQuickActionStrategy.hybrid',
-              descriptionKey: 'systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid',
+          },
+          strategy: {
+            type: 'string',
+            enum: ['most_used', 'recent', 'hybrid'],
+            default: 'hybrid',
+            title: 'Quick action strategy',
+            description: 'Personalized quick action ranking strategy.',
+            'x-i18n': {
+              titleKey: 'systemConfig.fields.dashboardQuickActions.strategy.title',
+              descriptionKey: 'systemConfig.fields.dashboardQuickActions.strategy.description',
+              enumLabels: {
+                most_used: {
+                  labelKey: 'systemConfig.options.dashboardQuickActionStrategy.mostUsed',
+                  descriptionKey: 'systemConfig.options.dashboardQuickActionStrategyDescriptions.mostUsed',
+                },
+                recent: {
+                  labelKey: 'systemConfig.options.dashboardQuickActionStrategy.recent',
+                  descriptionKey: 'systemConfig.options.dashboardQuickActionStrategyDescriptions.recent',
+                },
+                hybrid: {
+                  labelKey: 'systemConfig.options.dashboardQuickActionStrategy.hybrid',
+                  descriptionKey: 'systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid',
+                },
+              },
             },
           },
         },
+        required: ['enabled', 'maxItems', 'strategy'],
+        additionalProperties: false,
+        'x-i18n': {
+          titleKey: 'systemConfig.items.dashboardQuickActions.title',
+          descriptionKey: 'systemConfig.items.dashboardQuickActions.description',
+        },
       },
-      defaultValue: '"hybrid"',
-      effectiveValue: '"hybrid"',
-      order: 122,
+      defaultValue: '{"enabled":true,"maxItems":4,"strategy":"hybrid"}',
+      effectiveValue: '{"enabled":true,"maxItems":4,"strategy":"hybrid"}',
+      order: 120,
     }),
   ];
 }

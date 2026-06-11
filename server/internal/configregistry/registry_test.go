@@ -73,6 +73,51 @@ func TestRegistryValidatesDefaultValueShape(t *testing.T) {
 	}
 }
 
+func TestRegistryValidatesScalarDefaultValueAgainstSchema(t *testing.T) {
+	testCases := []struct {
+		name         string
+		key          string
+		valueType    ValueType
+		schema       json.RawMessage
+		defaultValue json.RawMessage
+	}{
+		{
+			name:         "integer range",
+			key:          "dashboard.quick_actions.max_items",
+			valueType:    ValueTypeInteger,
+			schema:       json.RawMessage(`{"type":"integer","minimum":1,"maximum":24}`),
+			defaultValue: json.RawMessage(`0`),
+		},
+		{
+			name:         "string enum",
+			key:          "dashboard.quick_actions.strategy",
+			valueType:    ValueTypeString,
+			schema:       json.RawMessage(`{"type":"string","enum":["hybrid","recent"]}`),
+			defaultValue: json.RawMessage(`"unknown"`),
+		},
+		{
+			name:         "string length",
+			key:          "auth.password_policy",
+			valueType:    ValueTypeString,
+			schema:       json.RawMessage(`{"type":"string","minLength":3,"maxLength":8}`),
+			defaultValue: json.RawMessage(`"xy"`),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			definition := testDefinition(tc.key)
+			definition.Type = tc.valueType
+			definition.Schema = tc.schema
+			definition.DefaultValue = tc.defaultValue
+
+			if err := NewRegistry().Register(definition); err == nil {
+				t.Fatal("expected invalid scalar schema default value error")
+			}
+		})
+	}
+}
+
 func TestRegistryRequiresDomain(t *testing.T) {
 	definition := testDefinition("auth.password_policy")
 	definition.Domain = ""

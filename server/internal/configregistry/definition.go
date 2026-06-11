@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"graft/server/internal/scheduler"
 )
 
 const maskedPlaceholder = "******"
@@ -96,7 +98,7 @@ func validateDefinition(definition Definition) error {
 	if err := validateJSONObject(definition.Schema, "schema", key); err != nil {
 		return err
 	}
-	if err := validateDefaultValue(definition.DefaultValue, definition.Type, key); err != nil {
+	if err := validateDefaultValue(definition.DefaultValue, definition.Type, definition.Schema, key); err != nil {
 		return err
 	}
 	return nil
@@ -143,7 +145,7 @@ func validateJSONObject(raw json.RawMessage, label string, key string) error {
 	return nil
 }
 
-func validateDefaultValue(raw json.RawMessage, valueType ValueType, key string) error {
+func validateDefaultValue(raw json.RawMessage, valueType ValueType, schema json.RawMessage, key string) error {
 	if len(raw) == 0 {
 		return fmt.Errorf("config definition %s default value is required", key)
 	}
@@ -155,7 +157,23 @@ func validateDefaultValue(raw json.RawMessage, valueType ValueType, key string) 
 	if expected := InvalidJSONShape(decoded, valueType); expected != "" {
 		return fmt.Errorf("config definition %s default value must be %s", key, expected)
 	}
+	if len(schema) > 0 {
+		if err := validateValueSchema(valueType, schema, raw); err != nil {
+			return fmt.Errorf("config definition %s default value does not match schema: %w", key, err)
+		}
+	}
 	return nil
+}
+
+func validateValueSchema(valueType ValueType, schema json.RawMessage, value json.RawMessage) error {
+	switch valueType {
+	case ValueTypeObject:
+		return scheduler.ValidateConfigJSON(string(schema), string(value))
+	case ValueTypeString, ValueTypeNumber, ValueTypeInteger, ValueTypeBoolean:
+		return scheduler.ValidateScalarConfigJSON(string(schema), string(value), string(valueType))
+	default:
+		return nil
+	}
 }
 
 // InvalidJSONShape returns the expected shape name when value does not match the definition type.

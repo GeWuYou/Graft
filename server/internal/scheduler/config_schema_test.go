@@ -45,6 +45,45 @@ func TestValidateConfigJSONEnumKeepsValueTypesStrict(t *testing.T) {
 	}
 }
 
+func TestValidateScalarConfigJSONAppliesEnumRangeAndLength(t *testing.T) {
+	testCases := []struct {
+		name         string
+		schema       string
+		value        string
+		expectedType string
+	}{
+		{
+			name:   "string enum",
+			schema: `{"type":"string","enum":["hybrid","recent"]}`,
+			value:  `"unknown"`,
+		},
+		{
+			name:   "integer range",
+			schema: `{"type":"integer","minimum":1,"maximum":24}`,
+			value:  `25`,
+		},
+		{
+			name:   "string length",
+			schema: `{"type":"string","minLength":3,"maxLength":5}`,
+			value:  `"xy"`,
+		},
+		{
+			name:         "definition type fallback",
+			schema:       `{"minimum":1,"maximum":24}`,
+			value:        `0`,
+			expectedType: "integer",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateScalarConfigJSON(tc.schema, tc.value, tc.expectedType); err == nil {
+				t.Fatal("expected scalar schema validation error")
+			}
+		})
+	}
+}
+
 func TestValidateConfigJSONReturnsStructuredRangeDetails(t *testing.T) {
 	schema := `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1,"maximum":10000}},"additionalProperties":false}`
 

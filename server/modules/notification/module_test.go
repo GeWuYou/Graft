@@ -29,6 +29,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
+	"graft/server/internal/testassert"
 	notificationcontract "graft/server/modules/notification/contract"
 	notificationstore "graft/server/modules/notification/store"
 )
@@ -179,10 +180,18 @@ func assertNotificationConfigRegistered(t *testing.T, registry *configregistry.R
 		notificationSourceScheduledTaskFailureEnabledKey,
 		notificationSourceAuditIncidentEnabledKey,
 		notificationDeliveryInAppEnabledKey,
-		notificationDisplayPopupLimitKey,
+		notificationDisplayKey,
 	} {
 		if _, ok := registry.Get(key); !ok {
 			t.Fatalf("expected notification config %s to be registered", key)
+		}
+	}
+	for _, key := range []string{
+		"notification.display.show_read_days",
+		"notification.display.popup_limit",
+	} {
+		if _, ok := registry.Get(key); ok {
+			t.Fatalf("old notification display flat key %s must not be registered", key)
 		}
 	}
 }
@@ -222,6 +231,60 @@ func TestModuleRegistersNotificationConfigI18nMetadata(t *testing.T) {
 	for _, definition := range definitions {
 		assertNotificationConfigDefinitionI18nKeys(t, definition)
 		assertNotificationConfigDefinitionMessages(t, ctx.I18n, definition)
+	}
+	display, ok := ctx.ConfigRegistry.Get(notificationDisplayKey)
+	if !ok {
+		t.Fatal("expected canonical notification.display config definition")
+	}
+	assertNotificationDisplayConfigDefinition(t, display)
+	assertSingleNotificationConfigMessage(t, ctx.I18n, i18n.LocaleZHCN, display.Key, "ShowReadDaysTitleKey", notificationConfigTitleKey(notificationDisplayShowReadDaysKey))
+	assertSingleNotificationConfigMessage(t, ctx.I18n, i18n.LocaleENUS, display.Key, "PopupLimitDescriptionKey", notificationConfigDescriptionKey(notificationDisplayPopupLimitKey))
+}
+
+func assertNotificationDisplayConfigDefinition(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
+
+	if definition.Type != configregistry.ValueTypeObject {
+		t.Fatalf("expected notification.display object type, got %#v", definition)
+	}
+	if string(definition.DefaultValue) != `{"showReadDays":7,"popupLimit":5}` {
+		t.Fatalf("expected notification.display object default, got %s", definition.DefaultValue)
+	}
+	var schema struct {
+		Type                 string `json:"type"`
+		AdditionalProperties bool   `json:"additionalProperties"`
+		Required             []string
+		Properties           map[string]struct {
+			Type    string          `json:"type"`
+			Default json.RawMessage `json:"default"`
+			Minimum *float64        `json:"minimum"`
+			Maximum *float64        `json:"maximum"`
+			XI18n   struct {
+				TitleKey       string `json:"titleKey"`
+				DescriptionKey string `json:"descriptionKey"`
+			} `json:"x-i18n"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(definition.Schema, &schema); err != nil {
+		t.Fatalf("decode notification display schema: %v", err)
+	}
+	if schema.Type != "object" || schema.AdditionalProperties {
+		t.Fatalf("expected strict notification display object schema, got %#v", schema)
+	}
+	if !testassert.SameStringSet(schema.Required, []string{"showReadDays", "popupLimit"}) {
+		t.Fatalf("expected notification display required fields, got %#v", schema.Required)
+	}
+	showReadDays := schema.Properties["showReadDays"]
+	if string(showReadDays.Default) != "7" ||
+		showReadDays.XI18n.TitleKey != notificationConfigTitleKey(notificationDisplayShowReadDaysKey) ||
+		showReadDays.XI18n.DescriptionKey != notificationConfigDescriptionKey(notificationDisplayShowReadDaysKey) {
+		t.Fatalf("expected showReadDays schema metadata, got %#v", showReadDays)
+	}
+	popupLimit := schema.Properties["popupLimit"]
+	if string(popupLimit.Default) != "5" ||
+		popupLimit.XI18n.TitleKey != notificationConfigTitleKey(notificationDisplayPopupLimitKey) ||
+		popupLimit.XI18n.DescriptionKey != notificationConfigDescriptionKey(notificationDisplayPopupLimitKey) {
+		t.Fatalf("expected popupLimit schema metadata, got %#v", popupLimit)
 	}
 }
 

@@ -372,6 +372,84 @@ func TestServiceRejectsMismatchedValueType(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsScalarValueOutsideSchemaConstraints(t *testing.T) {
+	testCases := []struct {
+		name         string
+		definition   configregistry.Definition
+		invalidValue json.RawMessage
+	}{
+		{
+			name: "integer range",
+			definition: configregistry.Definition{
+				Key:          "dashboard.quick_actions.max_items",
+				Module:       "dashboard",
+				Group:        "quick_actions",
+				Title:        "Maximum quick actions",
+				Type:         configregistry.ValueTypeInteger,
+				Schema:       json.RawMessage(`{"type":"integer","minimum":1,"maximum":24}`),
+				DefaultValue: json.RawMessage(`4`),
+			},
+			invalidValue: json.RawMessage(`25`),
+		},
+		{
+			name: "string enum",
+			definition: configregistry.Definition{
+				Key:          "dashboard.quick_actions.strategy",
+				Module:       "dashboard",
+				Group:        "quick_actions",
+				Title:        "Quick action strategy",
+				Type:         configregistry.ValueTypeString,
+				Schema:       json.RawMessage(`{"type":"string","enum":["most_used","recent","hybrid"]}`),
+				DefaultValue: json.RawMessage(`"hybrid"`),
+			},
+			invalidValue: json.RawMessage(`"unknown"`),
+		},
+		{
+			name: "string length",
+			definition: configregistry.Definition{
+				Key:          "auth.password_policy",
+				Module:       "auth",
+				Group:        "security",
+				Title:        "Password policy",
+				Type:         configregistry.ValueTypeString,
+				Schema:       json.RawMessage(`{"type":"string","minLength":3,"maxLength":8}`),
+				DefaultValue: json.RawMessage(`"medium"`),
+			},
+			invalidValue: json.RawMessage(`"xy"`),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			service := newTestService(t, tc.definition)
+			if _, err := service.Update(context.Background(), tc.definition.Key, tc.invalidValue, nil); !errors.Is(err, errInvalidConfigValue) {
+				t.Fatalf("expected scalar schema validation error, got %v", err)
+			}
+		})
+	}
+}
+
+func TestServiceAcceptsScalarValueInsideSchemaConstraints(t *testing.T) {
+	definition := configregistry.Definition{
+		Key:          "dashboard.quick_actions.strategy",
+		Module:       "dashboard",
+		Group:        "quick_actions",
+		Title:        "Quick action strategy",
+		Type:         configregistry.ValueTypeString,
+		Schema:       json.RawMessage(`{"type":"string","enum":["most_used","recent","hybrid"]}`),
+		DefaultValue: json.RawMessage(`"hybrid"`),
+	}
+	service := newTestService(t, definition)
+
+	item, err := service.Update(context.Background(), definition.Key, json.RawMessage(`"recent"`), nil)
+	if err != nil {
+		t.Fatalf("update valid scalar override: %v", err)
+	}
+	if string(item.EffectiveValue) != `"recent"` {
+		t.Fatalf("expected valid scalar override, got %#v", item)
+	}
+}
+
 func TestServiceRejectsObjectValueOutsideSchemaConstraints(t *testing.T) {
 	service := newTestService(t, configregistry.Definition{
 		Key:          "httpx.access-log-retention-cleanup",

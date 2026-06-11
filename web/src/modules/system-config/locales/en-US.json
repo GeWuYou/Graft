@@ -42,8 +42,7 @@
       "emptyValue": "No Data",
       "editorTitle": "Edit: {title}",
       "sensitiveEditHint": "This Configuration Is Sensitive. The Current Value Is Not Echoed and Remains Masked After Saving.",
-      "previewTitle": "Configuration Preview",
-      "viewJson": "View JSON",
+      "previewTitle": "Configuration Preview JSON",
       "technicalId": "Technical ID",
       "valueDescription": "Configuration Value Description",
       "boolean": {
@@ -54,14 +53,14 @@
       },
       "status": {
         "title": "Configuration Status",
-        "default": "Default",
+        "default": "Using Default",
         "defaultDescription": "Using Default Configuration",
         "modified": "Modified",
         "modifiedDescription": "User Override Exists"
       },
       "lastModified": {
         "title": "Last Modified",
-        "none": "No Modification Record",
+        "none": "No Override",
         "unknownUser": "Unknown User",
         "userId": "User {id}",
         "value": "{user} / {time}"
@@ -74,7 +73,8 @@
       "values": {
         "current": "Current Value",
         "effective": "Effective Value",
-        "default": "Default Value"
+        "default": "Default Value",
+        "moreFields": "Show {count} Secondary Fields"
       },
       "schema": {
         "value": "Configuration Value",
@@ -82,7 +82,26 @@
         "numberPlaceholder": "Enter Number",
         "selectPlaceholder": "Select",
         "jsonPlaceholder": "Enter JSON",
-        "invalidJson": "JSON Is Invalid"
+        "invalidJson": "JSON Is Invalid",
+        "invalidValue": "Configuration Value Does Not Match the Field Rules",
+        "invalidEnum": "Select an Allowed Configuration Value",
+        "belowMinimum": "Configuration Value Must Be at Least {minimum}",
+        "aboveMaximum": "Configuration Value Must Be at Most {maximum}",
+        "belowMinLength": "Configuration Value Must Be at Least {minLength} Characters",
+        "aboveMaxLength": "Configuration Value Must Be at Most {maxLength} Characters"
+      },
+      "advanced": {
+        "title": "Advanced Information",
+        "copyKey": "Copy Key",
+        "copySuccess": "Configuration Key Copied.",
+        "copyError": "Configuration Key Could Not Be Copied.",
+        "currentJson": "Current JSON",
+        "defaultJson": "Default JSON",
+        "schemaSummary": "Schema Summary",
+        "schemaType": "Type: {type}",
+        "schemaFieldCount": "Fields: {count}",
+        "schemaRequiredCount": "Required Fields: {count}",
+        "schemaNoAdditionalProperties": "Additional Fields Are Not Allowed"
       }
     },
     "domains": {
@@ -105,17 +124,9 @@
       "auditLogRetention": "Manage Audit Log Cleanup Retention and Batch Policy."
     },
     "items": {
-      "dashboardQuickActionsEnabled": {
-        "title": "Enabled",
-        "description": "Controls Whether Personalized Dashboard Quick Actions Are Shown."
-      },
-      "dashboardQuickActionsMaxItems": {
-        "title": "Maximum Items",
-        "description": "Maximum Personalized Entries Shown on the Dashboard Home Page."
-      },
-      "dashboardQuickActionsStrategy": {
-        "title": "Ranking Strategy",
-        "description": "Personalized Quick Action Ranking Strategy."
+      "dashboardQuickActions": {
+        "title": "Dashboard Quick Actions",
+        "description": "Dashboard Home Quick-Action Visibility and Ranking Defaults."
       },
       "accessLogRetentionCleanup": {
         "title": "Access Log Retention Cleanup",
@@ -199,11 +210,13 @@
           }
         },
         "display": {
-          "show_read_days": {
+          "title": "Notification Display",
+          "description": "Notification Center Display Defaults.",
+          "showReadDays": {
             "title": "Show Read Days",
             "description": "Default time window for showing read notifications."
           },
-          "popup_limit": {
+          "popupLimit": {
             "title": "Popup Limit",
             "description": "Maximum notifications displayed by the notification bell popup."
           }
@@ -218,6 +231,20 @@
       "batchSize": {
         "title": "Batch Size",
         "description": "Maximum Rows Deleted per Cleanup Batch."
+      },
+      "dashboardQuickActions": {
+        "enabled": {
+          "title": "Enabled",
+          "description": "Controls Whether Personalized Dashboard Quick Actions Are Shown."
+        },
+        "maxItems": {
+          "title": "Maximum Items",
+          "description": "Maximum Personalized Entries Shown on the Dashboard Home Page."
+        },
+        "strategy": {
+          "title": "Ranking Strategy",
+          "description": "Personalized Quick Action Ranking Strategy."
+        }
       }
     },
     "units": {

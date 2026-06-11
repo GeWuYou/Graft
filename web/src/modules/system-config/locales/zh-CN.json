@@ -42,8 +42,7 @@
       "emptyValue": "无数据",
       "editorTitle": "编辑：{title}",
       "sensitiveEditHint": "该配置为敏感项，当前值不会回显；保存后仍会以隐藏状态展示。",
-      "previewTitle": "配置预览",
-      "viewJson": "查看 JSON",
+      "previewTitle": "配置预览 JSON",
       "technicalId": "技术标识",
       "valueDescription": "配置值说明",
       "boolean": {
@@ -54,14 +53,14 @@
       },
       "status": {
         "title": "配置状态",
-        "default": "默认",
+        "default": "使用默认值",
         "defaultDescription": "使用默认配置",
         "modified": "已修改",
         "modifiedDescription": "存在用户覆盖"
       },
       "lastModified": {
         "title": "最后修改",
-        "none": "暂无修改记录",
+        "none": "无覆盖值",
         "unknownUser": "未知用户",
         "userId": "用户 {id}",
         "value": "{user} / {time}"
@@ -74,7 +73,8 @@
       "values": {
         "current": "当前值",
         "effective": "生效值",
-        "default": "默认值"
+        "default": "默认值",
+        "moreFields": "展开 {count} 个次要字段"
       },
       "schema": {
         "value": "配置值",
@@ -82,7 +82,26 @@
         "numberPlaceholder": "请输入数字",
         "selectPlaceholder": "请选择",
         "jsonPlaceholder": "请输入 JSON",
-        "invalidJson": "JSON 格式不正确"
+        "invalidJson": "JSON 格式不正确",
+        "invalidValue": "配置值不符合字段规则",
+        "invalidEnum": "请选择允许的配置值",
+        "belowMinimum": "配置值不能小于 {minimum}",
+        "aboveMaximum": "配置值不能大于 {maximum}",
+        "belowMinLength": "配置值长度不能少于 {minLength} 个字符",
+        "aboveMaxLength": "配置值长度不能超过 {maxLength} 个字符"
+      },
+      "advanced": {
+        "title": "高级信息",
+        "copyKey": "复制 key",
+        "copySuccess": "配置 key 已复制。",
+        "copyError": "配置 key 复制失败。",
+        "currentJson": "当前 JSON",
+        "defaultJson": "默认 JSON",
+        "schemaSummary": "Schema 摘要",
+        "schemaType": "类型：{type}",
+        "schemaFieldCount": "字段数：{count}",
+        "schemaRequiredCount": "必填字段：{count}",
+        "schemaNoAdditionalProperties": "不允许额外字段"
       }
     },
     "domains": {
@@ -105,17 +124,9 @@
       "auditLogRetention": "管理审计日志清理的保留周期与批量策略。"
     },
     "items": {
-      "dashboardQuickActionsEnabled": {
-        "title": "是否启用",
-        "description": "控制工作台首页是否展示个性化快捷入口。"
-      },
-      "dashboardQuickActionsMaxItems": {
-        "title": "最大数量",
-        "description": "工作台首页默认展示的个性化入口数量。"
-      },
-      "dashboardQuickActionsStrategy": {
-        "title": "排序策略",
-        "description": "个性化快捷入口的推荐排序策略。"
+      "dashboardQuickActions": {
+        "title": "工作台快捷入口",
+        "description": "工作台首页快捷入口的显示与排序默认配置。"
       },
       "accessLogRetentionCleanup": {
         "title": "访问日志保留清理",
@@ -199,11 +210,13 @@
           }
         },
         "display": {
-          "show_read_days": {
+          "title": "通知展示",
+          "description": "通知中心的展示默认配置。",
+          "showReadDays": {
             "title": "已读展示天数",
             "description": "已读通知的默认展示时间范围。"
           },
-          "popup_limit": {
+          "popupLimit": {
             "title": "铃铛弹层数量",
             "description": "通知铃铛弹层最多展示条数。"
           }
@@ -218,6 +231,20 @@
       "batchSize": {
         "title": "批量大小",
         "description": "单次清理最多删除的日志行数。"
+      },
+      "dashboardQuickActions": {
+        "enabled": {
+          "title": "是否启用",
+          "description": "控制工作台首页是否展示个性化快捷入口。"
+        },
+        "maxItems": {
+          "title": "最大数量",
+          "description": "工作台首页默认展示的个性化入口数量。"
+        },
+        "strategy": {
+          "title": "排序策略",
+          "description": "个性化快捷入口的推荐排序策略。"
+        }
       }
     },
     "units": {

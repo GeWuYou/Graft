@@ -10,6 +10,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/i18n"
+	"graft/server/internal/testassert"
 )
 
 func TestRegisterQuickActionsConfigDefinitionsUsesDomainGroupItemMetadata(t *testing.T) {
@@ -21,14 +22,15 @@ func TestRegisterQuickActionsConfigDefinitionsUsesDomainGroupItemMetadata(t *tes
 	}
 
 	items := registry.Items()
-	if len(items) != 3 {
-		t.Fatalf("expected three quick-action config items, got %#v", items)
+	if len(items) != 1 {
+		t.Fatalf("expected one quick-action config object item, got %#v", items)
 	}
 	for _, item := range items {
 		assertQuickActionsHierarchyMetadata(t, item)
 		assertQuickActionsSchemaI18nMetadata(t, item)
 		assertQuickActionsDefaultValue(t, item)
 	}
+	assertOldQuickActionsConfigKeysRemoved(t, registry)
 }
 
 func assertQuickActionsHierarchyMetadata(t *testing.T, item configregistry.Definition) {
@@ -50,32 +52,64 @@ func assertQuickActionsSchemaI18nMetadata(t *testing.T, item configregistry.Defi
 	t.Helper()
 
 	var schema struct {
-		Default json.RawMessage `json:"default"`
-		XI18n   struct {
+		Type                 string                       `json:"type"`
+		Required             []string                     `json:"required"`
+		AdditionalProperties bool                         `json:"additionalProperties"`
+		Properties           map[string]quickActionSchema `json:"properties"`
+		XI18n                struct {
 			TitleKey       string `json:"titleKey"`
 			DescriptionKey string `json:"descriptionKey"`
-			EnumLabels     map[string]struct {
-				LabelKey       string `json:"labelKey"`
-				DescriptionKey string `json:"descriptionKey"`
-			} `json:"enumLabels"`
 		} `json:"x-i18n"`
 	}
 	if err := json.Unmarshal(item.Schema, &schema); err != nil {
 		t.Fatalf("parse quick-actions config schema %s: %v", item.Key, err)
 	}
-	if schema.XI18n.TitleKey != expectedQuickActionsTitleKey(item.Key) ||
-		schema.XI18n.DescriptionKey != expectedQuickActionsDescriptionKey(item.Key) {
-		t.Fatalf("expected schema key-first metadata for %s, got %#v", item.Key, schema.XI18n)
+	if item.Key != QuickActionsConfigKey || item.Type != configregistry.ValueTypeObject {
+		t.Fatalf("expected canonical quick-action object config, got %#v", item)
 	}
-	if item.Key == QuickActionsMaxItemsConfigKey && string(schema.Default) != "4" {
-		t.Fatalf("expected max-items schema default 4, got %s", schema.Default)
+	if schema.Type != "object" || schema.AdditionalProperties {
+		t.Fatalf("expected strict object schema, got %#v", schema)
 	}
-	if item.Key != QuickActionsStrategyConfigKey {
-		return
+	if !testassert.SameStringSet(schema.Required, []string{"enabled", "maxItems", "strategy"}) {
+		t.Fatalf("expected required quick-action fields, got %#v", schema.Required)
 	}
+	if schema.XI18n.TitleKey != quickActionsConfigTitleKey ||
+		schema.XI18n.DescriptionKey != quickActionsConfigDescKey {
+		t.Fatalf("expected object schema key-first metadata, got %#v", schema.XI18n)
+	}
+	assertQuickActionsFieldSchemas(t, schema.Properties)
+}
 
-	if len(schema.XI18n.EnumLabels) != 3 {
-		t.Fatalf("expected strategy enum labels, got %#v", schema.XI18n.EnumLabels)
+func assertQuickActionsFieldSchemas(t *testing.T, properties map[string]quickActionSchema) {
+	t.Helper()
+
+	if len(properties) != 3 {
+		t.Fatalf("expected three quick-action fields, got %#v", properties)
+	}
+	if string(properties["enabled"].Default) != "true" {
+		t.Fatalf("expected enabled field default true, got %s", properties["enabled"].Default)
+	}
+	assertQuickActionsMaxItemsSchema(t, properties["maxItems"])
+	assertQuickActionsStrategySchema(t, properties["strategy"])
+}
+
+func assertQuickActionsMaxItemsSchema(t *testing.T, schema quickActionSchema) {
+	t.Helper()
+
+	if string(schema.Default) != "4" ||
+		schema.Minimum == nil ||
+		*schema.Minimum != 1 ||
+		schema.Maximum == nil ||
+		*schema.Maximum != 24 {
+		t.Fatalf("expected maxItems default and range constraints, got %#v", schema)
+	}
+}
+
+func assertQuickActionsStrategySchema(t *testing.T, schema quickActionSchema) {
+	t.Helper()
+
+	if string(schema.Default) != `"hybrid"` || len(schema.Enum) != 3 {
+		t.Fatalf("expected strategy default and enum values, got %#v", schema)
 	}
 	hybrid := schema.XI18n.EnumLabels["hybrid"]
 	if hybrid.LabelKey != quickActionsStrategyHybridKey || hybrid.DescriptionKey != quickActionsStrategyHybridDesc {
@@ -83,28 +117,42 @@ func assertQuickActionsSchemaI18nMetadata(t *testing.T, item configregistry.Defi
 	}
 }
 
+type quickActionSchema struct {
+	Type    string          `json:"type"`
+	Default json.RawMessage `json:"default"`
+	Enum    []string        `json:"enum"`
+	Minimum *float64        `json:"minimum"`
+	Maximum *float64        `json:"maximum"`
+	XI18n   struct {
+		TitleKey       string `json:"titleKey"`
+		DescriptionKey string `json:"descriptionKey"`
+		EnumLabels     map[string]struct {
+			LabelKey       string `json:"labelKey"`
+			DescriptionKey string `json:"descriptionKey"`
+		} `json:"enumLabels"`
+	} `json:"x-i18n"`
+}
+
 func assertQuickActionsDefaultValue(t *testing.T, item configregistry.Definition) {
 	t.Helper()
 
-	if item.Key == QuickActionsMaxItemsConfigKey && string(item.DefaultValue) != "4" {
-		t.Fatalf("expected max-items default value 4, got %s", item.DefaultValue)
+	if string(item.DefaultValue) != `{"enabled":true,"maxItems":4,"strategy":"hybrid"}` {
+		t.Fatalf("expected quick-action object default value, got %s", item.DefaultValue)
 	}
 }
 
-func expectedQuickActionsTitleKey(key string) string {
-	return map[string]string{
-		QuickActionsEnabledConfigKey:  quickActionsEnabledTitleKey,
-		QuickActionsMaxItemsConfigKey: quickActionsMaxItemsTitleKey,
-		QuickActionsStrategyConfigKey: quickActionsStrategyTitleKey,
-	}[key]
-}
+func assertOldQuickActionsConfigKeysRemoved(t *testing.T, registry *configregistry.Registry) {
+	t.Helper()
 
-func expectedQuickActionsDescriptionKey(key string) string {
-	return map[string]string{
-		QuickActionsEnabledConfigKey:  quickActionsEnabledDescKey,
-		QuickActionsMaxItemsConfigKey: quickActionsMaxItemsDescKey,
-		QuickActionsStrategyConfigKey: quickActionsStrategyDescKey,
-	}[key]
+	for _, key := range []string{
+		"dashboard.quick_actions.enabled",
+		"dashboard.quick_actions.max_items",
+		"dashboard.quick_actions.strategy",
+	} {
+		if _, ok := registry.Get(key); ok {
+			t.Fatalf("old dashboard quick-action flat key %s must not be registered", key)
+		}
+	}
 }
 
 func TestRegisterQuickActionsConfigMessagesUsesProductFacingChineseCopy(t *testing.T) {

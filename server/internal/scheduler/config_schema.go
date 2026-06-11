@@ -12,6 +12,11 @@ import (
 
 type configSchema struct {
 	Type                 string                          `json:"type"`
+	Enum                 []any                           `json:"enum"`
+	Minimum              *float64                        `json:"minimum"`
+	Maximum              *float64                        `json:"maximum"`
+	MinLength            *int                            `json:"minLength"`
+	MaxLength            *int                            `json:"maxLength"`
 	Properties           map[string]configPropertySchema `json:"properties"`
 	Required             []string                        `json:"required"`
 	AdditionalProperties bool                            `json:"additionalProperties"`
@@ -141,6 +146,37 @@ func ValidateConfigJSON(schemaJSON string, configJSON string) error {
 		return err
 	}
 	return validateConfigObject(schema, config)
+}
+
+// ValidateScalarConfigJSON validates a scalar JSON value against the scalar
+// half of the scheduler MVP JSON Schema subset. expectedType supplies the
+// definition-owned scalar type when config_schema.type is omitted.
+func ValidateScalarConfigJSON(schemaJSON string, valueJSON string, expectedType string) error {
+	schema, err := decodeConfigSchema(schemaJSON)
+	if err != nil {
+		return err
+	}
+	valueType := strings.TrimSpace(schema.Type)
+	if valueType == "" {
+		valueType = strings.TrimSpace(expectedType)
+	}
+	property := configPropertySchema{
+		Type:      valueType,
+		Enum:      schema.Enum,
+		Minimum:   schema.Minimum,
+		Maximum:   schema.Maximum,
+		MinLength: schema.MinLength,
+		MaxLength: schema.MaxLength,
+	}
+	if err := validateConfigPropertySchema("config_schema", property); err != nil {
+		return err
+	}
+
+	var value any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(valueJSON)), &value); err != nil {
+		return ConfigValidationError{Field: "config_json", Reason: "must be valid JSON", ReasonCode: "invalid_json", Constraint: "type"}
+	}
+	return validateConfigValue("config_json", property, value)
 }
 
 func sanitizeConfigJSON(schemaJSON string, configJSON string) (string, error) {
