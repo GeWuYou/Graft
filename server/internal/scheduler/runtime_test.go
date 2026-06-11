@@ -138,6 +138,12 @@ func (r *taskRepositoryRecorder) UpdateTask(_ context.Context, key string, patch
 	if !ok {
 		return TaskDefinition{}, ErrTaskNotFound
 	}
+	if patch.Title != "" {
+		task.Title = patch.Title
+	}
+	if patch.Description != "" {
+		task.Description = patch.Description
+	}
 	if patch.CronExpression != "" {
 		task.CronExpression = patch.CronExpression
 	}
@@ -194,6 +200,15 @@ func (r *taskRepositoryRecorder) GetTask(_ context.Context, key string) (TaskDef
 		return TaskDefinition{}, ErrTaskNotFound
 	}
 	return task, nil
+}
+
+func (r *taskRepositoryRecorder) GetTaskByTitle(_ context.Context, title string) (TaskDefinition, error) {
+	for _, task := range r.tasks {
+		if task.Title == title {
+			return task, nil
+		}
+	}
+	return TaskDefinition{}, ErrTaskNotFound
 }
 
 func seedRuntimeJob(t *testing.T, runtime *CronRuntime, job cronx.Job) {
@@ -366,6 +381,52 @@ func TestCreateTaskReturnsEffectiveConfig(t *testing.T) {
 	effective := decodeRuntimeJSONObject(t, task.EffectiveConfig)
 	if effective["batchSize"] != float64(25) || effective["retentionDays"] != float64(30) {
 		t.Fatalf("unexpected effective config: %s", task.EffectiveConfig)
+	}
+}
+
+func TestCreateTaskRejectsDuplicateKeyAndTitle(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	runtime.SetTaskRepository(newTaskRepositoryRecorder())
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "schema-job",
+		Schedule: "*/1 * * * * *",
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "ok"}, nil
+		},
+	})
+	if _, err := runtime.CreateTask(context.Background(), TaskMutation{
+		TaskKey:        "custom",
+		JobKey:         "schema-job",
+		Title:          "Custom",
+		CronExpression: "*/5 * * * * *",
+		Enabled:        true,
+		EnabledSet:     true,
+		ConfigJSON:     `{}`,
+	}); err != nil {
+		t.Fatalf("create first task: %v", err)
+	}
+	if _, err := runtime.CreateTask(context.Background(), TaskMutation{
+		TaskKey:        "custom",
+		JobKey:         "schema-job",
+		Title:          "Another",
+		CronExpression: "*/10 * * * * *",
+		Enabled:        true,
+		EnabledSet:     true,
+		ConfigJSON:     `{}`,
+	}); !errors.Is(err, ErrTaskKeyConflict) {
+		t.Fatalf("expected duplicate key conflict, got %v", err)
+	}
+	if _, err := runtime.CreateTask(context.Background(), TaskMutation{
+		TaskKey:        "custom-two",
+		JobKey:         "schema-job",
+		Title:          "Custom",
+		CronExpression: "*/10 * * * * *",
+		Enabled:        true,
+		EnabledSet:     true,
+		ConfigJSON:     `{}`,
+	}); !errors.Is(err, ErrTaskTitleConflict) {
+		t.Fatalf("expected duplicate title conflict, got %v", err)
 	}
 }
 
@@ -560,6 +621,38 @@ func TestUpdateTaskRejectsUnknownConfigBeforePersistence(t *testing.T) {
 	}
 	if taskRepo.tasks["custom"].ConfigJSON != "{}" {
 		t.Fatalf("expected invalid config update not to persist, got %s", taskRepo.tasks["custom"].ConfigJSON)
+	}
+}
+
+func TestUpdateTaskRejectsDuplicateTitle(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "schema-job",
+		Schedule: "*/1 * * * * *",
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "ok"}, nil
+		},
+	})
+	for _, mutation := range []TaskMutation{
+		{TaskKey: "custom-one", JobKey: "schema-job", Title: "Custom One", CronExpression: "*/5 * * * * *", Enabled: true, EnabledSet: true, ConfigJSON: `{}`},
+		{TaskKey: "custom-two", JobKey: "schema-job", Title: "Custom Two", CronExpression: "*/10 * * * * *", Enabled: true, EnabledSet: true, ConfigJSON: `{}`},
+	} {
+		if _, err := runtime.CreateTask(context.Background(), mutation); err != nil {
+			t.Fatalf("create task %s: %v", mutation.TaskKey, err)
+		}
+	}
+	if _, err := runtime.UpdateTask(context.Background(), "custom-one", TaskMutation{
+		Title: "Custom Two",
+	}); !errors.Is(err, ErrTaskTitleConflict) {
+		t.Fatalf("expected duplicate title conflict, got %v", err)
+	}
+	if _, err := runtime.UpdateTask(context.Background(), "custom-one", TaskMutation{
+		Title: "Custom One",
+	}); err != nil {
+		t.Fatalf("expected same task title to remain valid, got %v", err)
 	}
 }
 

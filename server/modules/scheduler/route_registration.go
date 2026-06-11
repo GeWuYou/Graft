@@ -471,6 +471,14 @@ func (r schedulerRouteRuntime) writeRouteError(ginCtx *gin.Context, message stri
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, schedulercontract.ScheduledTaskAlreadyRunning.String(), nil)
 	case errors.As(err, &configErr):
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, schedulercontract.ScheduledTaskInvalidRequest.String(), configErr.Details())
+	case errors.Is(err, schedulercore.ErrTaskKeyConflict):
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, schedulercontract.ScheduledTaskInvalidRequest.String(), map[string]any{
+			"field": "task_key",
+		})
+	case errors.Is(err, schedulercore.ErrTaskTitleConflict):
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, schedulercontract.ScheduledTaskInvalidRequest.String(), map[string]any{
+			"field": "title",
+		})
 	case errors.Is(err, schedulercore.ErrTaskImmutable), errors.Is(err, schedulercore.ErrTaskValidation):
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, schedulercontract.ScheduledTaskInvalidRequest.String(), nil)
 	default:

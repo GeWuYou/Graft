@@ -96,6 +96,10 @@ export function notificationStatusTheme(status: NotificationItem['status']) {
 }
 
 function resolveNotificationTitle(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
+  if (isSchedulerTaskRun(item)) {
+    const taskTitle = fallbackLabel(item.title);
+    if (taskTitle) return taskTitle;
+  }
   return resolveKeyFirst(t, item.title_key, context, item.title);
 }
 
@@ -148,13 +152,17 @@ export function resolveNotificationResultSummary(item: NotificationItem, t: Comp
 }
 
 function resolveNotificationResourceName(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
-  if (item.source_module === 'scheduler' && item.resource_type === NOTIFICATION_RESOURCE_TYPE.SCHEDULED_TASK_RUN) {
+  if (isSchedulerTaskRun(item)) {
     const taskName = stringValue(context.taskName);
     if (taskName) {
       return taskName;
     }
   }
   return valueOrEmpty(item.resource_name, t);
+}
+
+function isSchedulerTaskRun(item: NotificationItem) {
+  return item.source_module === 'scheduler' && item.resource_type === NOTIFICATION_RESOURCE_TYPE.SCHEDULED_TASK_RUN;
 }
 
 function resolveKeyFirst(

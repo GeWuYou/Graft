@@ -109,9 +109,9 @@ func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run
 	taskName := firstNonEmptyTrimmed(run.TaskName, run.TaskKey)
 	input := moduleapi.PublishNotificationInput{
 		TitleKey:        schedulerTaskSucceededTitleKey,
-		Title:           "Scheduled task succeeded",
+		Title:           taskName,
 		MessageKey:      schedulerTaskSucceededMessageKey,
-		Message:         taskName + " completed successfully.",
+		Message:         "Completed successfully.",
 		CategoryKey:     schedulerTaskCategoryKey,
 		SourceKey:       schedulerTaskSourceKey,
 		LevelKey:        schedulerInfoLevelKey,

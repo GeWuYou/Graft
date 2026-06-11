@@ -52,7 +52,7 @@ const messages: Record<string, string> = {
   'notification.detail.title': '通知详情',
   'notification.emptyValue': '无',
   'notification.level.info': '信息',
-  'notification.message.scheduler.runSucceeded': '{taskName}已成功完成。',
+  'notification.message.scheduler.runSucceeded': '已成功完成。',
   'notification.navigation.schedulerRun': '定时任务运行',
   'notification.resourceType.scheduledTaskRun': '定时任务运行记录',
   'scheduler.job.accessLogRetentionCleanup.title': '访问日志保留清理',
@@ -153,7 +153,7 @@ function notification(): NotificationItem {
     event_id: 1,
     event_type: 'task_succeeded',
     level_key: 'notification.level.info',
-    message: 'Scheduled task Access log retention cleanup succeeded.',
+    message: 'Completed successfully.',
     message_key: 'notification.message.scheduler.runSucceeded',
     navigation: { kind: 'SCHEDULER_RUN', payload: {} },
     occurred_at: '2026-06-11T10:47:21Z',
@@ -167,7 +167,7 @@ function notification(): NotificationItem {
     status: 'unread',
     target_ref: '1',
     target_type: 'USER',
-    title: 'Scheduled task succeeded',
+    title: 'Nightly audit cleanup',
     title_key: 'notification.title.scheduler.runSucceeded',
   };
 }
@@ -194,7 +194,7 @@ describe('notification display consistency', () => {
       global: { stubs },
     });
 
-    for (const expected of ['定时任务执行成功', '访问日志保留清理已成功完成。', '信息', '任务', '定时任务']) {
+    for (const expected of ['Nightly audit cleanup', '已成功完成。', '信息', '任务', '定时任务']) {
       expect(table.text()).toContain(expected);
       expect(detail.text()).toContain(expected);
     }

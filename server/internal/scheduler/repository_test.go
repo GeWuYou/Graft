@@ -207,6 +207,17 @@ func TestSQLTaskRepositoryCreatesMultipleTasksForOneJobAndSoftDeletes(t *testing
 	if _, err := repo.GetTask(ctx, task.TaskKey); !errors.Is(err, ErrTaskNotFound) {
 		t.Fatalf("expected soft-deleted task to be hidden, got %v", err)
 	}
+	if _, err := repo.CreateTask(ctx, TaskDefinition{
+		TaskKey:        "audit.retention.recreated",
+		JobKey:         "audit.retention.cleanup",
+		ModuleKey:      "audit",
+		Title:          "Ping",
+		CronExpression: "*/15 * * * * *",
+		Enabled:        true,
+		ConfigJSON:     "{}",
+	}); err != nil {
+		t.Fatalf("expected soft-deleted task title to be reusable: %v", err)
+	}
 }
 
 func TestSQLTaskRepositoryListTasksNormalizesPagination(t *testing.T) {
@@ -295,7 +306,7 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 			config_source text NOT NULL DEFAULT 'system',
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			deleted_at datetime NULL
+			deleted_at integer NOT NULL DEFAULT 0
 	);
 	CREATE TABLE scheduler_job_definitions (
 		id integer PRIMARY KEY AUTOINCREMENT,

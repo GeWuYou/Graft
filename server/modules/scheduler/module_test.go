@@ -348,7 +348,7 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 			config_source text NOT NULL DEFAULT 'system',
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			deleted_at datetime NULL
+			deleted_at integer NOT NULL DEFAULT 0
 	);
 	CREATE TABLE scheduler_job_definitions (
 		id integer PRIMARY KEY AUTOINCREMENT,
@@ -654,8 +654,8 @@ func assertSchedulerRunSuccessDisplay(t *testing.T, input moduleapi.PublishNotif
 		input.ActionLabelKey != "notification.action.openRunRecord" {
 		t.Fatalf("unexpected message keys: %#v", input)
 	}
-	if input.Title != "Scheduled task succeeded" ||
-		input.Message != "Webhook Health completed successfully." ||
+	if input.Title != "Webhook Health" ||
+		input.Message != "Completed successfully." ||
 		input.ActionLabel != "Open scheduled task run" {
 		t.Fatalf("unexpected fallback copy: %#v", input)
 	}
@@ -992,6 +992,39 @@ func TestScheduledTaskCreateRouteRejectsMissingJobKey(t *testing.T) {
 	}
 }
 
+func TestScheduledTaskCreateRouteReturnsFieldErrorsForConflicts(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		err           error
+		expectedField string
+	}{
+		{name: "task key", err: schedulercore.ErrTaskKeyConflict, expectedField: "task_key"},
+		{name: "title", err: schedulercore.ErrTaskTitleConflict, expectedField: "title"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, engine := newModuleTestContextWithEngine()
+			moduleInstance := NewModule()
+			moduleInstance.runtime = &schedulerAPIRuntime{createErr: tc.err}
+			registerAndBootSchedulerModule(t, ctx, moduleInstance)
+
+			recorder := performSchedulerRequest(engine, http.MethodPost, "/api/scheduled-tasks", `{
+				"task_key": "audit.retention.nightly",
+				"job_key": "audit.audit-log-retention-cleanup",
+				"title": "Nightly audit cleanup",
+				"cron_expression": "*/5 * * * * *",
+				"enabled": true
+			}`)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("expected status 400, got %d with body %s", recorder.Code, recorder.Body.String())
+			}
+			payload := decodeSchedulerErrorPayload(t, recorder.Body.Bytes())
+			if payload.Data.Field != tc.expectedField {
+				t.Fatalf("expected field %q, got %#v", tc.expectedField, payload)
+			}
+		})
+	}
+}
+
 func TestScheduledTaskUpdateSystemTaskAllowsCronAndEnabledOnly(t *testing.T) {
 	ctx, engine := newModuleTestContextWithEngine()
 	ctx.CronRegistry.Register(cronx.Job{
@@ -1197,6 +1230,22 @@ type scheduledTaskListPayload struct {
 		Offset int                            `json:"offset"`
 		Items  []scheduledTaskListItemPayload `json:"items"`
 	} `json:"data"`
+}
+
+type schedulerErrorPayload struct {
+	Success bool `json:"success"`
+	Data    struct {
+		Field string `json:"field"`
+	} `json:"data"`
+}
+
+func decodeSchedulerErrorPayload(t *testing.T, body []byte) schedulerErrorPayload {
+	t.Helper()
+	var payload schedulerErrorPayload
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("decode scheduler error payload: %v", err)
+	}
+	return payload
 }
 
 type scheduledTaskListItemPayload struct {

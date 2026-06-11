@@ -50,6 +50,9 @@ Authoritative repository documents:
   tracking, recovery, or documentation-governance rules
 - [ai-plan/design/通知中心设计.md](ai-plan/design/通知中心设计.md) when the task changes Notification Center
   sources, delivery semantics, notification configuration, notification routes, or shell notification UI behavior
+- [ai-plan/design/数据库表设计与迁移规范.md](ai-plan/design/数据库表设计与迁移规范.md) when the task changes
+  database table design, Ent schema, Atlas migration, audit fields, soft delete semantics, indexes, store query
+  semantics, or database table / column comments
 
 Subdomain governance documents:
 
@@ -302,6 +305,9 @@ Prefer the repository skills below when their trigger matches the task:
     must be listed explicitly in the task closeout with the concrete reason
 - `graft-plugin-scaffold`
   - use when adding a new `server` module under `server/modules/*` or shaping that module before implementation
+- `graft-table-design`
+  - use when designing or changing database tables, Ent schemas, Atlas migrations, audit fields, soft delete fields,
+    indexes, store query semantics, or database comments
 - `graft-worktree-init`
   - use when creating or rebuilding a local `Graft` git worktree and the setup should follow the repository-standard
     shared local resource rules without hard-coded machine paths

@@ -12,7 +12,7 @@ const messages: Record<string, string> = {
   'notification.category.task': '任务',
   'notification.emptyValue': '无',
   'notification.level.info': '信息',
-  'notification.message.scheduler.runSucceeded': '{taskName}已成功完成。',
+  'notification.message.scheduler.runSucceeded': '已成功完成。',
   'notification.resourceType.scheduledTaskRun': '定时任务运行记录',
   'scheduler.job.accessLogRetentionCleanup.title': '访问日志保留清理',
   'notification.source.scheduler': '定时任务',
@@ -34,7 +34,7 @@ function notification(overrides: Partial<NotificationItem> = {}): NotificationIt
     delivery_id: 1,
     event_id: 1,
     event_type: 'task_succeeded',
-    message: 'Scheduled task Access log retention cleanup succeeded.',
+    message: 'Completed successfully.',
     navigation: { kind: 'SCHEDULER_RUN', payload: {} },
     occurred_at: '2026-06-11T10:47:21Z',
     severity: 'info',
@@ -42,7 +42,7 @@ function notification(overrides: Partial<NotificationItem> = {}): NotificationIt
     status: 'unread',
     target_ref: '1',
     target_type: 'USER',
-    title: 'Scheduled task succeeded',
+    title: 'Nightly audit cleanup',
     ...overrides,
   };
 }
@@ -70,8 +70,8 @@ describe('notification presenter', () => {
       'zh-CN',
     );
 
-    expect(view.title).toBe('定时任务执行成功');
-    expect(view.message).toBe('访问日志保留清理已成功完成。');
+    expect(view.title).toBe('Nightly audit cleanup');
+    expect(view.message).toBe('已成功完成。');
     expect(view.compactMeta).toBe(`任务 / 定时任务 · ${view.occurredAtLabel}`);
     expect(view.levelLabel).toBe('信息');
     expect(view.categoryLabel).toBe('任务');
@@ -86,22 +86,24 @@ describe('notification presenter', () => {
   it('uses fallback copy when a display key is missing', () => {
     const view = presentNotification(notification(), t, 'zh-CN');
 
-    expect(view.title).toBe('Scheduled task succeeded');
-    expect(view.message).toBe('Scheduled task Access log retention cleanup succeeded.');
+    expect(view.title).toBe('Nightly audit cleanup');
+    expect(view.message).toBe('Completed successfully.');
   });
 
-  it('falls back to taskName when taskNameKey is missing', () => {
+  it('keeps scheduler task title when taskNameKey is missing', () => {
     const view = presentNotification(
       notification({
         context: { taskName: '访问日志保留清理' },
         message_key: 'notification.message.scheduler.runSucceeded',
+        resource_type: 'scheduled_task_run',
         title_key: 'notification.title.scheduler.runSucceeded',
       }),
       t,
       'zh-CN',
     );
 
-    expect(view.message).toBe('访问日志保留清理已成功完成。');
+    expect(view.title).toBe('Nightly audit cleanup');
+    expect(view.message).toBe('已成功完成。');
   });
 
   it('uses unknown labels when both key and fallback are missing', () => {

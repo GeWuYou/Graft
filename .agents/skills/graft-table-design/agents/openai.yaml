@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Table Design"
+  short_description: "Design Graft tables and migrations safely"
+  default_prompt: "Use $graft-table-design to design or review Graft DB tables, Ent schemas, migrations, audit fields, soft delete fields, indexes, and database comments."

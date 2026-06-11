@@ -46,6 +46,8 @@ authority-first overlay：
 
 - 改动稳定契约、魔法值、shared semantics 时，读 `ai-plan/design/契约治理与魔法值治理规范.md`
 - 改动注释、包文档、模块 README 或 AI 文档行为时，读 `ai-plan/design/代码注释与模块文档规范.md`
+- 改动数据库表设计、Ent schema、migration、审计字段、软删除、索引、store query 语义或数据库注释时，读
+  `ai-plan/design/数据库表设计与迁移规范.md`
 
 如果代码、文档与本文件冲突：
 
@@ -388,6 +390,10 @@ Observability authority overlay：
 ## 12. Ent 与 migration 规则
 
 Ent 与 Atlas 是后端数据库真相链路的一部分。
+
+数据库表设计、审计字段、软删除、索引、store query 语义、migration 版本和表 / 列中文注释的详细治理以
+`ai-plan/design/数据库表设计与迁移规范.md` 为准；新表默认使用 `deleted_at BIGINT NOT NULL DEFAULT 0`，
+`deleted_at = 0` 表示 live row，并按需要补 `deleted_by`。
 
 多工作树 Phase 1 治理补充：
 

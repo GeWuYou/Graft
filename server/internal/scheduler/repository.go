@@ -9,7 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -177,7 +180,7 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 		_, err := r.db.ExecContext(ctx, `WITH existing AS (
 			SELECT cron_expression, enabled
 			FROM scheduled_tasks
-			WHERE task_key = $1 AND builtin = true AND deleted_at IS NULL
+			WHERE task_key = $1 AND builtin = true AND deleted_at = 0
 		)
 			INSERT INTO scheduled_tasks (
 				task_key,
@@ -217,7 +220,7 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 				config_json = EXCLUDED.config_json,
 				config_source = EXCLUDED.config_source,
 				updated_at = EXCLUDED.updated_at
-			WHERE scheduled_tasks.builtin = true AND scheduled_tasks.deleted_at IS NULL`,
+			WHERE scheduled_tasks.builtin = true AND scheduled_tasks.deleted_at = 0`,
 			task.TaskKey,
 			task.JobKey,
 			task.ModuleKey,
@@ -287,7 +290,11 @@ func (r *SQLTaskRepository) CreateTask(ctx context.Context, task TaskDefinition)
 		task.CreatedAt.UTC(),
 		task.UpdatedAt.UTC(),
 	)
-	return scanTaskDefinition(row)
+	taskDefinition, err := scanTaskDefinition(row)
+	if err != nil {
+		return TaskDefinition{}, mapScheduledTaskWriteError(err)
+	}
+	return taskDefinition, nil
 }
 
 // UpdateTask applies mutable field changes to a scheduled task.
@@ -316,7 +323,7 @@ func (r *SQLTaskRepository) UpdateTask(ctx context.Context, key string, patch Ta
 			config_json = $5,
 			config_source = $6,
 			updated_at = $7
-		WHERE task_key = $8 AND deleted_at IS NULL
+		WHERE task_key = $8 AND deleted_at = 0
 		RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at`,
 		next.Title,
 		next.Description,
@@ -327,7 +334,14 @@ func (r *SQLTaskRepository) UpdateTask(ctx context.Context, key string, patch Ta
 		next.UpdatedAt,
 		key,
 	)
-	return scanTaskDefinition(row)
+	taskDefinition, err := scanTaskDefinition(row)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return TaskDefinition{}, ErrTaskNotFound
+		}
+		return TaskDefinition{}, mapScheduledTaskWriteError(err)
+	}
+	return taskDefinition, nil
 }
 
 func validateTaskPatch(key string, existing TaskDefinition, patch TaskMutation) error {
@@ -376,10 +390,11 @@ func (r *SQLTaskRepository) DeleteTask(ctx context.Context, key string) error {
 	if existing.Builtin {
 		return ErrTaskImmutable
 	}
+	deletedAt := time.Now().UTC()
 	result, err := r.db.ExecContext(ctx, `UPDATE scheduled_tasks
 	SET deleted_at = $1,
-		updated_at = $1
-	WHERE task_key = $2 AND deleted_at IS NULL`, time.Now().UTC(), key)
+		updated_at = $2
+	WHERE task_key = $3 AND deleted_at = 0`, deletedAt.Unix(), deletedAt, key)
 	if err != nil {
 		return fmt.Errorf("delete scheduled task: %w", err)
 	}
@@ -394,7 +409,7 @@ func (r *SQLTaskRepository) SetTaskEnabled(ctx context.Context, key string, enab
 	row := r.db.QueryRowContext(ctx, `UPDATE scheduled_tasks
 	SET enabled = $1,
 		updated_at = $2
-	WHERE task_key = $3 AND deleted_at IS NULL
+	WHERE task_key = $3 AND deleted_at = 0
 		RETURNING id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at`,
 		enabled,
 		time.Now().UTC(),
@@ -418,7 +433,7 @@ func (r *SQLTaskRepository) ListTasks(ctx context.Context, query TaskListQuery) 
 	}
 	statement := `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at
 	FROM scheduled_tasks
-	WHERE deleted_at IS NULL
+	WHERE deleted_at = 0
 	ORDER BY builtin DESC, created_at ASC, id ASC`
 	normalized := normalizeTaskListQuery(query)
 	rows, err := r.db.QueryContext(ctx, statement+` LIMIT $1 OFFSET $2`, normalized.Limit, normalized.Offset)
@@ -447,7 +462,7 @@ func normalizeTaskListQuery(query TaskListQuery) TaskListQuery {
 func (r *SQLTaskRepository) countTasks(ctx context.Context) (int, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT COUNT(*)
 	FROM scheduled_tasks
-	WHERE deleted_at IS NULL`)
+	WHERE deleted_at = 0`)
 	var total int
 	if err := row.Scan(&total); err != nil {
 		return 0, fmt.Errorf("count scheduled tasks: %w", err)
@@ -465,8 +480,28 @@ func (r *SQLTaskRepository) GetTask(ctx context.Context, key string) (TaskDefini
 	}
 	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at
 	FROM scheduled_tasks
-	WHERE task_key = $1 AND deleted_at IS NULL
+	WHERE task_key = $1 AND deleted_at = 0
 	LIMIT 1`, key)
+	task, err := scanTaskDefinition(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return TaskDefinition{}, ErrTaskNotFound
+	}
+	return task, err
+}
+
+// GetTaskByTitle returns one active persisted scheduled task by display title.
+func (r *SQLTaskRepository) GetTaskByTitle(ctx context.Context, title string) (TaskDefinition, error) {
+	if err := r.ensureTaskAvailable(); err != nil {
+		return TaskDefinition{}, err
+	}
+	normalized := strings.TrimSpace(title)
+	if normalized == "" {
+		return TaskDefinition{}, ErrTaskNotFound
+	}
+	row := r.db.QueryRowContext(ctx, `SELECT id, task_key, job_key, module_key, title, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at
+	FROM scheduled_tasks
+	WHERE title = $1 AND deleted_at = 0
+	LIMIT 1`, normalized)
 	task, err := scanTaskDefinition(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return TaskDefinition{}, ErrTaskNotFound
@@ -882,7 +917,7 @@ func taskRunIDFromSQL(id int64) (uint64, error) {
 func scanTaskDefinition(scanner rowScanner) (TaskDefinition, error) {
 	var task TaskDefinition
 	var id int64
-	var deletedAt sql.NullTime
+	var deletedAt sql.NullInt64
 	if err := scanner.Scan(
 		&id,
 		&task.TaskKey,
@@ -913,11 +948,30 @@ func scanTaskDefinition(scanner rowScanner) (TaskDefinition, error) {
 			task.ConfigSource = taskConfigSourceUser
 		}
 	}
-	if deletedAt.Valid {
-		deleted := deletedAt.Time
+	if deletedAt.Valid && deletedAt.Int64 > 0 {
+		deleted := time.Unix(deletedAt.Int64, 0).UTC()
 		task.DeletedAt = &deleted
 	}
 	return task, nil
+}
+
+func mapScheduledTaskWriteError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "scheduled_tasks_task_key_key":
+			return ErrTaskKeyConflict
+		case "scheduled_tasks_title_active_key":
+			return ErrTaskTitleConflict
+		}
+	}
+	if strings.Contains(err.Error(), "scheduled_tasks_task_key_key") {
+		return ErrTaskKeyConflict
+	}
+	if strings.Contains(err.Error(), "scheduled_tasks_title_active_key") {
+		return ErrTaskTitleConflict
+	}
+	return err
 }
 
 func scanJobDefinition(scanner rowScanner) (JobDefinition, error) {

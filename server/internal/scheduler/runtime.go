@@ -99,6 +99,10 @@ var (
 	ErrTaskImmutable = errors.New("scheduler task field is immutable")
 	// ErrTaskValidation is returned when task, job, or cron input is invalid.
 	ErrTaskValidation = errors.New("scheduler task validation failed")
+	// ErrTaskKeyConflict is returned when a scheduled task key is already in use.
+	ErrTaskKeyConflict = errors.New("scheduler task key already exists")
+	// ErrTaskTitleConflict is returned when a scheduled task title is already in use.
+	ErrTaskTitleConflict = errors.New("scheduler task title already exists")
 )
 
 var reservedTaskKeys = map[string]struct{}{
@@ -302,6 +306,7 @@ type TaskRepository interface {
 	SetTaskEnabled(ctx context.Context, key string, enabled bool) (TaskDefinition, error)
 	ListTasks(ctx context.Context, query TaskListQuery) ([]TaskDefinition, int, error)
 	GetTask(ctx context.Context, key string) (TaskDefinition, error)
+	GetTaskByTitle(ctx context.Context, title string) (TaskDefinition, error)
 }
 
 // JobDefinitionRepository persists module-registered scheduler job definitions.
@@ -608,6 +613,12 @@ func (r *CronRuntime) CreateTask(ctx context.Context, command TaskMutation) (Tas
 	if err != nil {
 		return TaskSnapshot{}, err
 	}
+	if err := r.ensureTaskKeyAvailable(ctx, definition.TaskKey); err != nil {
+		return TaskSnapshot{}, err
+	}
+	if err := r.ensureTaskTitleAvailable(ctx, definition.Title, definition.TaskKey); err != nil {
+		return TaskSnapshot{}, err
+	}
 	created, err := r.tasks.CreateTask(ctx, definition)
 	if err != nil {
 		return TaskSnapshot{}, err
@@ -639,6 +650,9 @@ func (r *CronRuntime) UpdateTask(ctx context.Context, key string, command TaskMu
 	if err := r.validateTaskConfig(ctx, next); err != nil {
 		return TaskSnapshot{}, err
 	}
+	if err := r.ensureTaskTitleAvailable(ctx, next.Title, key); err != nil {
+		return TaskSnapshot{}, err
+	}
 	updated, err := r.tasks.UpdateTask(ctx, key, command)
 	if err != nil {
 		return TaskSnapshot{}, err
@@ -647,6 +661,32 @@ func (r *CronRuntime) UpdateTask(ctx context.Context, key string, command TaskMu
 		return TaskSnapshot{}, err
 	}
 	return r.snapshotDefinition(ctx, updated)
+}
+
+func (r *CronRuntime) ensureTaskKeyAvailable(ctx context.Context, key string) error {
+	_, err := r.tasks.GetTask(ctx, key)
+	switch {
+	case err == nil:
+		return ErrTaskKeyConflict
+	case errors.Is(err, ErrTaskNotFound):
+		return nil
+	default:
+		return err
+	}
+}
+
+func (r *CronRuntime) ensureTaskTitleAvailable(ctx context.Context, title string, currentKey string) error {
+	existing, err := r.tasks.GetTaskByTitle(ctx, title)
+	switch {
+	case err == nil && existing.TaskKey != currentKey:
+		return ErrTaskTitleConflict
+	case err == nil:
+		return nil
+	case errors.Is(err, ErrTaskNotFound):
+		return nil
+	default:
+		return err
+	}
 }
 
 // DeleteTask soft-deletes a user-created scheduled task and removes its cron schedule.
