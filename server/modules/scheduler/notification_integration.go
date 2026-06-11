@@ -166,6 +166,7 @@ func (n schedulerRunSuccessNotifier) NotifyRunSucceeded(ctx context.Context, run
 
 func schedulerRunSuccessMetadata(run schedulercore.TaskRun, trigger schedulercore.RunTrigger, logger *zap.Logger) json.RawMessage {
 	payload, err := json.Marshal(map[string]any{
+		"taskNameKey":   strings.TrimSpace(run.TaskNameKey),
 		"taskName":      firstNonEmptyTrimmed(run.TaskName, run.TaskKey),
 		"taskKey":       run.TaskKey,
 		"jobKey":        run.JobKey,

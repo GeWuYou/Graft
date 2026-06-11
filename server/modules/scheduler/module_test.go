@@ -371,6 +371,7 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 		task_key text NOT NULL,
 		job_key text NOT NULL DEFAULT '',
 		task_name text NOT NULL DEFAULT '',
+		task_name_key text NOT NULL DEFAULT '',
 		owner text NOT NULL DEFAULT '',
 		module text NOT NULL DEFAULT '',
 		task_type text NOT NULL DEFAULT 'cron',
@@ -489,14 +490,15 @@ func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testi
 	finishedAt := time.Date(2026, 6, 11, 9, 30, 0, 0, time.UTC)
 
 	notifier.NotifyRunSucceeded(context.Background(), schedulercore.TaskRun{
-		ID:         99,
-		TaskKey:    "webhook.health",
-		JobKey:     "scheduler.webhook-health",
-		TaskName:   "Webhook Health",
-		Status:     schedulercore.RunStatusSuccess,
-		Result:     "deleted 3 rows",
-		FinishedAt: &finishedAt,
-		CreatedAt:  finishedAt.Add(-time.Second),
+		ID:          99,
+		TaskKey:     "webhook.health",
+		JobKey:      "scheduler.webhook-health",
+		TaskName:    "Webhook Health",
+		TaskNameKey: "scheduler.job.webhookHealth.title",
+		Status:      schedulercore.RunStatusSuccess,
+		Result:      "deleted 3 rows",
+		FinishedAt:  &finishedAt,
+		CreatedAt:   finishedAt.Add(-time.Second),
 	}, schedulercore.RunTrigger{Type: schedulercore.TriggerTypeManual, TriggerUserID: 42})
 
 	if len(publisher.inputs) != 1 {
@@ -506,7 +508,13 @@ func TestSchedulerRunSuccessNotifierPublishesManualSuccessToTriggerUser(t *testi
 	assertSchedulerRunSuccessDisplay(t, input)
 	assertSchedulerRunSuccessRouting(t, input)
 	assertSchedulerRunPayload(t, input.Navigation.Payload, uint64(99), "webhook.health", "scheduler.webhook-health")
-	assertSchedulerRunSuccessMetadata(t, input.Metadata, uint64(99), "Webhook Health", "manual", "deleted 3 rows")
+	assertSchedulerRunSuccessMetadata(t, input.Metadata, expectedSchedulerRunSuccessMetadata{
+		runID:         99,
+		taskNameKey:   "scheduler.job.webhookHealth.title",
+		taskName:      "Webhook Health",
+		triggerType:   "manual",
+		resultSummary: "deleted 3 rows",
+	})
 }
 
 func TestSchedulerRunSuccessNotifierSkipsMissingTriggerUser(t *testing.T) {
@@ -684,10 +692,19 @@ func assertSchedulerRunPayload(t *testing.T, payload json.RawMessage, runID uint
 	}
 }
 
-func assertSchedulerRunSuccessMetadata(t *testing.T, payload json.RawMessage, runID uint64, taskName string, triggerType string, resultSummary string) {
+type expectedSchedulerRunSuccessMetadata struct {
+	runID         uint64
+	taskNameKey   string
+	taskName      string
+	triggerType   string
+	resultSummary string
+}
+
+func assertSchedulerRunSuccessMetadata(t *testing.T, payload json.RawMessage, expected expectedSchedulerRunSuccessMetadata) {
 	t.Helper()
 	var decoded struct {
 		RunID         uint64 `json:"runId"`
+		TaskNameKey   string `json:"taskNameKey"`
 		TaskName      string `json:"taskName"`
 		TriggerType   string `json:"triggerType"`
 		ResultSummary string `json:"resultSummary"`
@@ -695,10 +712,11 @@ func assertSchedulerRunSuccessMetadata(t *testing.T, payload json.RawMessage, ru
 	if err := json.Unmarshal(payload, &decoded); err != nil {
 		t.Fatalf("decode scheduler success metadata: %v", err)
 	}
-	if decoded.RunID != runID ||
-		decoded.TaskName != taskName ||
-		decoded.TriggerType != triggerType ||
-		decoded.ResultSummary != resultSummary {
+	if decoded.RunID != expected.runID ||
+		decoded.TaskNameKey != expected.taskNameKey ||
+		decoded.TaskName != expected.taskName ||
+		decoded.TriggerType != expected.triggerType ||
+		decoded.ResultSummary != expected.resultSummary {
 		t.Fatalf("unexpected scheduler success metadata: %#v", decoded)
 	}
 }

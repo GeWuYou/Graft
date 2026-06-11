@@ -187,7 +187,7 @@
     },
     "message": {
       "scheduler": {
-        "runSucceeded": "{taskName}任务已成功完成。"
+        "runSucceeded": "{taskName}已成功完成。"
       }
     },
     "emptyValue": "无",

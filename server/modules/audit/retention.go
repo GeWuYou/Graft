@@ -21,7 +21,7 @@ import (
 const (
 	auditLogRetentionCleanupJobName           = "audit.audit-log-retention-cleanup"
 	auditLogRetentionCleanupJobSchedule       = "0 30 17 * * *"
-	auditLogRetentionCleanupJobDisplayKey     = "scheduledTask.auditLogRetention.title"
+	auditLogRetentionCleanupJobDisplayKey     = "scheduler.job.auditLogRetentionCleanup.title"
 	auditLogRetentionCleanupJobDescriptionKey = "scheduledTask.auditLogRetention.description"
 	auditLogRetentionDryRunActionKey          = "dryRun"
 	auditLogRetentionDryRunActionTitleKey     = "scheduledTask.action.dryRun.title"

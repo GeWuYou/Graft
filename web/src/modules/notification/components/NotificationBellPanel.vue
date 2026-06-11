@@ -29,29 +29,20 @@
               class="notification-bell-panel__item"
               :class="{ 'notification-bell-panel__item--unread': notificationView(item).status === 'unread' }"
             >
+              <span
+                v-if="notificationView(item).status === 'unread'"
+                class="notification-bell-panel__unread-dot"
+                aria-hidden="true"
+              />
               <div class="notification-bell-panel__item-main">
                 <strong>{{ notificationView(item).title }}</strong>
                 <span>{{ notificationView(item).message }}</span>
-                <small>
-                  {{ notificationView(item).categoryLabel }} / {{ notificationView(item).sourceLabel }} ·
-                  {{ notificationView(item).occurredAtLabel }}
-                </small>
+                <small>{{ notificationView(item).compactMeta }}</small>
               </div>
               <t-tag :theme="notificationSeverityTheme(item.severity)" variant="light-outline" size="small">
                 {{ notificationView(item).levelLabel }}
               </t-tag>
             </div>
-            <template #action>
-              <t-button
-                v-if="item.status === 'unread'"
-                size="small"
-                theme="default"
-                variant="outline"
-                @click.stop="markOneRead(item)"
-              >
-                {{ t('notification.action.markRead') }}
-              </t-button>
-            </template>
           </t-list-item>
         </t-list>
 
@@ -93,12 +84,7 @@ import { useRouter } from 'vue-router';
 
 import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 
-import {
-  getNotifications,
-  getNotificationUnreadCount,
-  markNotificationRead,
-  markNotificationsReadAll,
-} from '../api/notification';
+import { getNotifications, getNotificationUnreadCount, markNotificationsReadAll } from '../api/notification';
 import { NOTIFICATION_ROUTE_PATH } from '../contract/paths';
 import { NOTIFICATION_HEADER_REFRESH_EVENT } from '../contract/refresh';
 import { notificationSeverityTheme, presentNotification } from '../shared/presentation';
@@ -175,15 +161,6 @@ function handleVisibleChange(nextVisible: boolean) {
   }
 }
 
-async function markOneRead(item: NotificationItem) {
-  try {
-    await markNotificationRead(item.delivery_id);
-    await refreshPreview();
-  } catch {
-    MessagePlugin.error(t('notification.messages.markReadFailed'));
-  }
-}
-
 async function markAllRead() {
   try {
     await markNotificationsReadAll();
@@ -214,6 +191,7 @@ function notificationView(item: NotificationItem) {
 <style scoped lang="less">
 .notification-bell-panel {
   margin: calc(0px - var(--td-comp-paddingTB-xs)) calc(0px - var(--td-comp-paddingLR-s));
+  max-width: calc(100vw - 32px);
   width: 420px;
 }
 
@@ -251,28 +229,50 @@ function notificationView(item: NotificationItem) {
   align-items: flex-start;
   cursor: pointer;
   display: flex;
-  gap: var(--graft-density-gap-12);
+  gap: var(--graft-density-gap-8);
   justify-content: space-between;
   width: 100%;
 }
 
+.notification-bell-panel__unread-dot {
+  background: var(--td-brand-color);
+  border-radius: 50%;
+  flex: 0 0 auto;
+  height: 6px;
+  margin-top: var(--graft-density-gap-8);
+  width: 6px;
+}
+
 .notification-bell-panel__item-main {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--graft-density-gap-4);
   min-width: 0;
 }
 
-.notification-bell-panel__item-main strong,
-.notification-bell-panel__item-main span,
-.notification-bell-panel__item-main small {
+.notification-bell-panel__item :deep(.t-tag) {
+  flex-shrink: 0;
+}
+
+.notification-bell-panel__item-main strong {
+  color: var(--td-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.notification-bell-panel__item-main strong {
-  color: var(--td-text-color-primary);
+.notification-bell-panel__item-main span {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.notification-bell-panel__item-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .notification-bell-panel__item-main span,

@@ -52,10 +52,12 @@ const messages: Record<string, string> = {
   'notification.detail.title': '通知详情',
   'notification.emptyValue': '无',
   'notification.level.info': '信息',
-  'notification.message.scheduler.runSucceeded': '{taskName}任务已成功完成。',
+  'notification.message.scheduler.runSucceeded': '{taskName}已成功完成。',
   'notification.navigation.schedulerRun': '定时任务运行',
   'notification.resourceType.scheduledTaskRun': '定时任务运行记录',
+  'scheduler.job.accessLogRetentionCleanup.title': '访问日志保留清理',
   'notification.source.scheduler': '定时任务',
+  'notification.status.read': '已读',
   'notification.status.unread': '未读',
   'notification.table.summary': '共 1 条通知',
   'notification.table.title': '通知列表',
@@ -77,6 +79,30 @@ vi.mock('vue-i18n', () => ({
 const passthroughStub = defineComponent({
   setup(_, { slots }) {
     return () => h('div', slots.default?.());
+  },
+});
+
+const drawerStub = defineComponent({
+  setup(_, { slots }) {
+    return () => h('div', [slots.header?.(), slots.default?.()]);
+  },
+});
+
+const buttonStub = defineComponent({
+  emits: ['click'],
+  props: {
+    loading: { type: Boolean, default: false },
+  },
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'button',
+        {
+          'data-loading': props.loading ? 'true' : 'false',
+          onClick: () => emit('click'),
+        },
+        slots.default?.(),
+      );
   },
 });
 
@@ -104,9 +130,9 @@ const tableStub = defineComponent({
 });
 
 const stubs = {
-  't-button': passthroughStub,
+  't-button': buttonStub,
   't-card': passthroughStub,
-  't-drawer': passthroughStub,
+  't-drawer': drawerStub,
   't-empty': passthroughStub,
   't-space': passthroughStub,
   't-table': tableStub,
@@ -118,7 +144,10 @@ function notification(): NotificationItem {
     action_label_key: 'notification.action.openRunRecord',
     category: 'TASK',
     category_key: 'notification.category.task',
-    context: { taskName: '访问日志保留清理' },
+    context: {
+      taskName: 'Access log retention cleanup',
+      taskNameKey: 'scheduler.job.accessLogRetentionCleanup.title',
+    },
     delivery_created_at: '2026-06-11T10:47:21Z',
     delivery_id: 1,
     event_id: 1,
@@ -165,11 +194,50 @@ describe('notification display consistency', () => {
       global: { stubs },
     });
 
-    for (const expected of ['定时任务执行成功', '访问日志保留清理任务已成功完成。', '信息', '任务', '定时任务']) {
+    for (const expected of ['定时任务执行成功', '访问日志保留清理已成功完成。', '信息', '任务', '定时任务']) {
       expect(table.text()).toContain(expected);
       expect(detail.text()).toContain(expected);
     }
+    expect(detail.text()).toContain('访问日志保留清理');
     expect(detail.text()).toContain('定时任务运行记录');
+    expect(detail.text()).toContain('标记已读');
     expect(detail.text()).toContain('打开运行记录');
+    expect(table.text()).not.toContain('标记已读');
+  });
+
+  it('emits mark-read from the unread detail drawer action', async () => {
+    const item = notification();
+    const detail = mount(NotificationDetailDrawer, {
+      props: {
+        item,
+        markingRead: true,
+        visible: true,
+      },
+      global: { stubs },
+    });
+
+    const markReadButton = detail.findAll('button').find((button) => button.text() === '标记已读');
+
+    expect(markReadButton?.attributes('data-loading')).toBe('true');
+    await markReadButton?.trigger('click');
+    expect(detail.emitted('mark-read')?.[0]).toEqual([item]);
+  });
+
+  it('shows read status in the detail header after the notification is read', () => {
+    const item = {
+      ...notification(),
+      read_at: '2026-06-11T10:48:00Z',
+      status: 'read',
+    } satisfies NotificationItem;
+    const detail = mount(NotificationDetailDrawer, {
+      props: {
+        item,
+        visible: true,
+      },
+      global: { stubs },
+    });
+
+    expect(detail.text()).toContain('已读');
+    expect(detail.findAll('button').some((button) => button.text() === '标记已读')).toBe(false);
   });
 });

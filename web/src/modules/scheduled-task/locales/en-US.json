@@ -6,6 +6,19 @@
       }
     }
   },
+  "scheduler": {
+    "job": {
+      "accessLogRetentionCleanup": {
+        "title": "Access log retention cleanup"
+      },
+      "appLogRetentionCleanup": {
+        "title": "Application log retention cleanup"
+      },
+      "auditLogRetentionCleanup": {
+        "title": "Audit log retention cleanup"
+      }
+    }
+  },
   "scheduledTask": {
     "route": {
       "list": {

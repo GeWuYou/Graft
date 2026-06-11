@@ -760,6 +760,7 @@ func TestRunOnceWithTriggerNotifiesManualSuccess(t *testing.T) {
 
 	seedRuntimeJob(t, runtime, cronx.Job{
 		Name:     "manual-success",
+		TitleKey: "scheduler.job.manualSuccess.title",
 		Schedule: "*/1 * * * * *",
 		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
 			return cronx.JobRunResult{Summary: "ok"}, nil
@@ -780,6 +781,9 @@ func TestRunOnceWithTriggerNotifiesManualSuccess(t *testing.T) {
 	notifiedRun, trigger := notifier.wait(t)
 	if notifiedRun.ID != repo.updated[0].ID {
 		t.Fatalf("expected successful-run notification after persistence, got %#v", notifiedRun)
+	}
+	if notifiedRun.TaskNameKey != "scheduler.job.manualSuccess.title" {
+		t.Fatalf("expected task name key to be preserved, got %#v", notifiedRun)
 	}
 	if trigger.Type != TriggerTypeManual || trigger.TriggerUserID != 42 {
 		t.Fatalf("expected manual trigger user to be preserved, got %#v", trigger)

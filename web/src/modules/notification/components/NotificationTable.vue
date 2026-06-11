@@ -67,15 +67,6 @@
           <t-button size="small" theme="primary" variant="text" @click="$emit('detail', notificationRow(row))">
             {{ t('notification.action.detail') }}
           </t-button>
-          <t-button
-            v-if="notificationRow(row).status === 'unread'"
-            size="small"
-            theme="default"
-            variant="outline"
-            @click="$emit('mark-read', notificationRow(row))"
-          >
-            {{ t('notification.action.markRead') }}
-          </t-button>
           <t-button size="small" theme="danger" variant="text" @click="$emit('delete', notificationRow(row))">
             {{ t('notification.action.delete') }}
           </t-button>
@@ -115,7 +106,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'delete', row: NotificationItem): void;
   (e: 'detail', row: NotificationItem): void;
-  (e: 'mark-read', row: NotificationItem): void;
   (e: 'page-change', page: { current: number; pageSize: number }): void;
 }>();
 
@@ -142,7 +132,7 @@ const columns = computed<TdBaseTableProps['columns']>(() => [
     },
     { kind: 'time', key: 'occurred_at', title: t('notification.columns.occurredAt'), width: 184 },
   ]),
-  createActionColumn(t('notification.columns.actions'), 224),
+  createActionColumn(t('notification.columns.actions'), 160),
 ]);
 
 const tableContentWidth = computed(() => calculateTableContentWidth(columns.value));

@@ -9,6 +9,10 @@ import NotificationBellPanel from './NotificationBellPanel.vue';
 
 const pushMock = vi.fn();
 
+async function flushPromises() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router');
   return {
@@ -29,13 +33,14 @@ vi.mock('../api/notification', () => ({
 vi.mock('../shared/presentation', () => ({
   notificationSeverityTheme: () => 'default',
   presentNotification: () => ({
-    categoryLabel: '',
-    levelLabel: '',
-    message: '',
-    occurredAtLabel: '',
-    sourceLabel: '',
+    categoryLabel: '任务',
+    compactMeta: '任务 / 定时任务 · 2026/06/11 14:11',
+    levelLabel: '信息',
+    message: '审计日志保留清理已成功完成。',
+    occurredAtLabel: '2026/06/11 14:11',
+    sourceLabel: '定时任务',
     status: 'unread',
-    title: '',
+    title: '定时任务执行成功',
   }),
 }));
 
@@ -45,8 +50,12 @@ vi.mock('@/shared/components/management', () => ({
 
 const t = (key: string) => {
   const messages: Record<string, string> = {
+    'notification.action.markAllRead': '全部标为已读',
+    'notification.action.markRead': '标记已读',
     'notification.action.viewAll': '查看全部通知',
     'notification.bell.open': '打开通知',
+    'notification.bell.title': '通知',
+    'notification.bell.unreadSummary': '1 条未读',
     'notification.empty.description': '当前筛选条件下没有通知。',
     'notification.empty.title': '暂无通知',
   };
@@ -144,5 +153,52 @@ describe('NotificationBellPanel', () => {
 
     expect(popup.attributes('data-visible')).toBe('false');
     expect(pushMock).toHaveBeenCalledWith('/notifications');
+  });
+
+  it('renders compact notification content without an inline mark-read action', async () => {
+    const api = await import('../api/notification');
+    vi.mocked(api.getNotifications).mockResolvedValueOnce({
+      items: [
+        {
+          category: 'TASK',
+          delivery_created_at: '2026-06-11T14:11:00Z',
+          delivery_id: 1,
+          event_id: 1,
+          event_type: 'task_succeeded',
+          message: 'Scheduled task succeeded.',
+          navigation: { kind: 'SCHEDULER_RUN', payload: {} },
+          occurred_at: '2026-06-11T14:11:00Z',
+          severity: 'info',
+          source_module: 'scheduler',
+          status: 'unread',
+          target_ref: '1',
+          target_type: 'USER',
+          title: 'Scheduled task succeeded',
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 5,
+    });
+    vi.mocked(api.getNotificationUnreadCount).mockResolvedValueOnce({ count: 1 });
+
+    const wrapper = mount(NotificationBellPanel, {
+      global: {
+        stubs: componentStubs,
+      },
+    });
+    const popup = wrapper.getComponent({ name: 'TPopupStub' });
+
+    popup.vm.$emit('update:visible', true);
+    popup.vm.$emit('visible-change', true);
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).toContain('定时任务执行成功');
+    expect(wrapper.text()).toContain('审计日志保留清理已成功完成。');
+    expect(wrapper.text()).toContain('任务 / 定时任务 · 2026/06/11 14:11');
+    expect(wrapper.text()).not.toContain('标记已读');
+    expect(wrapper.find('.notification-bell-panel__item-main').exists()).toBe(true);
+    expect(wrapper.find('.notification-bell-panel__unread-dot').exists()).toBe(true);
   });
 });

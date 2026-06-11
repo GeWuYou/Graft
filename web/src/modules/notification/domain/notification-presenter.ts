@@ -7,6 +7,7 @@ import { formatCompactDateTime } from '@/shared/components/management';
 
 import {
   NOTIFICATION_CATEGORY_LABEL_KEY_BY_VALUE,
+  NOTIFICATION_RESOURCE_TYPE,
   NOTIFICATION_RESOURCE_TYPE_LABEL_KEY_BY_VALUE,
   NOTIFICATION_SOURCE_LABEL_KEY_BY_MODULE,
 } from '../contract/presentation';
@@ -25,6 +26,7 @@ type NotificationContext = Record<string, unknown>;
 export interface NotificationViewModel {
   actionLabel: string;
   categoryLabel: string;
+  compactMeta: string;
   deliveryId: NotificationItem['delivery_id'];
   eventId: NotificationItem['event_id'];
   levelLabel: string;
@@ -48,24 +50,30 @@ export function presentNotification(
   t: ComposerTranslation,
   locale: string,
 ): NotificationViewModel {
+  const context = notificationContext(item, t);
+  const categoryLabel = resolveNotificationCategory(item, t);
+  const sourceLabel = resolveNotificationSource(item, t);
+  const occurredAtLabel = formatCompactDateTime(item.occurred_at, locale);
+
   return {
-    actionLabel: resolveNotificationActionLabel(item, t),
-    categoryLabel: resolveNotificationCategory(item, t),
+    actionLabel: resolveNotificationActionLabel(item, t, context),
+    categoryLabel,
+    compactMeta: `${categoryLabel} / ${sourceLabel} · ${occurredAtLabel}`,
     deliveryId: item.delivery_id,
     eventId: item.event_id,
     levelLabel: resolveNotificationLevel(item, t),
-    message: resolveNotificationMessage(item, t),
-    occurredAtLabel: formatCompactDateTime(item.occurred_at, locale),
+    message: resolveNotificationMessage(item, t, context),
+    occurredAtLabel,
     readAtLabel: item.read_at
       ? formatCompactDateTime(item.read_at, locale)
       : resolveLabel(t, 'notification.status.unread'),
     resourceId: valueOrEmpty(item.resource_id, t),
-    resourceName: valueOrEmpty(item.resource_name, t),
+    resourceName: resolveNotificationResourceName(item, t, context),
     resourceTypeLabel: resolveNotificationResourceType(item, t),
-    sourceLabel: resolveNotificationSource(item, t),
+    sourceLabel,
     status: item.status,
     statusLabel: resolveNotificationStatus(item, t),
-    title: resolveNotificationTitle(item, t),
+    title: resolveNotificationTitle(item, t, context),
   };
 }
 
@@ -87,12 +95,12 @@ export function notificationStatusTheme(status: NotificationItem['status']) {
   return status === 'unread' ? 'primary' : 'default';
 }
 
-function resolveNotificationTitle(item: NotificationItem, t: ComposerTranslation) {
-  return resolveKeyFirst(t, item.title_key, notificationContext(item), item.title);
+function resolveNotificationTitle(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
+  return resolveKeyFirst(t, item.title_key, context, item.title);
 }
 
-function resolveNotificationMessage(item: NotificationItem, t: ComposerTranslation) {
-  return resolveKeyFirst(t, item.message_key, notificationContext(item), item.message);
+function resolveNotificationMessage(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
+  return resolveKeyFirst(t, item.message_key, context, item.message);
 }
 
 function resolveNotificationCategory(item: NotificationItem, t: ComposerTranslation) {
@@ -123,8 +131,8 @@ function resolveNotificationStatus(item: NotificationItem, t: ComposerTranslatio
   return resolveKeyFirst(t, `notification.status.${item.status}`);
 }
 
-function resolveNotificationActionLabel(item: NotificationItem, t: ComposerTranslation) {
-  return resolveKeyFirst(t, item.action_label_key, notificationContext(item), item.action_label);
+function resolveNotificationActionLabel(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
+  return resolveKeyFirst(t, item.action_label_key, context, item.action_label);
 }
 
 function resolveNotificationResourceType(item: NotificationItem, t: ComposerTranslation) {
@@ -136,7 +144,17 @@ function resolveNotificationResourceType(item: NotificationItem, t: ComposerTran
 }
 
 export function resolveNotificationResultSummary(item: NotificationItem, t: ComposerTranslation) {
-  return valueOrEmpty(notificationContext(item).resultSummary, t);
+  return valueOrEmpty(rawNotificationContext(item).resultSummary, t);
+}
+
+function resolveNotificationResourceName(item: NotificationItem, t: ComposerTranslation, context: NotificationContext) {
+  if (item.source_module === 'scheduler' && item.resource_type === NOTIFICATION_RESOURCE_TYPE.SCHEDULED_TASK_RUN) {
+    const taskName = stringValue(context.taskName);
+    if (taskName) {
+      return taskName;
+    }
+  }
+  return valueOrEmpty(item.resource_name, t);
 }
 
 function resolveKeyFirst(
@@ -155,8 +173,27 @@ function translateKey(t: ComposerTranslation, key: string | null | undefined, co
   return translated === normalized ? '' : translated;
 }
 
-function notificationContext(item: NotificationItem): NotificationContext {
+function notificationContext(item: NotificationItem, t: ComposerTranslation): NotificationContext {
+  const context = { ...rawNotificationContext(item) };
+  const taskName = localizedTaskName(context, t);
+  if (taskName) {
+    context.taskName = taskName;
+  }
+  return context;
+}
+
+function rawNotificationContext(item: NotificationItem): NotificationContext {
   return item.context && typeof item.context === 'object' ? item.context : {};
+}
+
+function localizedTaskName(context: NotificationContext, t: ComposerTranslation) {
+  const taskNameKey = stringValue(context.taskNameKey);
+  const translatedTaskName = taskNameKey ? translateKey(t, taskNameKey) : '';
+  return translatedTaskName || stringValue(context.taskName);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
 function valueOrEmpty(value: unknown, t: ComposerTranslation) {

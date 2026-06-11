@@ -22,7 +22,7 @@ const (
 	accessLogRetentionCleanupJobName           = "httpx.access-log-retention-cleanup"
 	accessLogRetentionCleanupJobModule         = "core.httpx"
 	accessLogRetentionCleanupJobSchedule       = "0 0 17 * * *"
-	accessLogRetentionCleanupJobDisplayKey     = "scheduledTask.accessLogRetention.title"
+	accessLogRetentionCleanupJobDisplayKey     = "scheduler.job.accessLogRetentionCleanup.title"
 	accessLogRetentionCleanupJobDescriptionKey = "scheduledTask.accessLogRetention.description"
 	accessLogRetentionDryRunActionKey          = "dryRun"
 	accessLogRetentionDryRunActionTitleKey     = "scheduledTask.action.dryRun.title"

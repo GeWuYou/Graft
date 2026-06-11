@@ -169,6 +169,7 @@ type TaskRun struct {
 	TaskKey         string
 	JobKey          string
 	TaskName        string
+	TaskNameKey     string
 	Owner           string
 	Module          string
 	TriggerType     TriggerType
@@ -928,10 +929,15 @@ func (r *CronRuntime) runDefinition(ctx context.Context, definition TaskDefiniti
 
 func (r *CronRuntime) createStartedRun(ctx context.Context, definition TaskDefinition, trigger TriggerType) (TaskRun, error) {
 	startedAt := r.now()
+	taskNameKey := ""
+	if jobDefinition, err := r.requireKnownJob(ctx, definition.JobKey); err == nil {
+		taskNameKey = jobDefinition.TitleKey
+	}
 	return r.runs.CreateRun(ctx, TaskRun{
 		TaskKey:     definition.TaskKey,
 		JobKey:      definition.JobKey,
 		TaskName:    definition.Title,
+		TaskNameKey: taskNameKey,
 		Owner:       definition.ModuleKey,
 		Module:      definition.ModuleKey,
 		TriggerType: trigger,

@@ -1085,6 +1085,9 @@ const cronTooltipOverlayInnerStyle = {
 
 const statusOptions: ScheduledTaskStatus[] = ['idle', 'running', 'success', 'failed', 'unknown'];
 const builtinTaskMessageKeys = [
+  'scheduler.job.accessLogRetentionCleanup.title',
+  'scheduler.job.auditLogRetentionCleanup.title',
+  'scheduler.job.appLogRetentionCleanup.title',
   'scheduledTask.accessLogRetention.title',
   'scheduledTask.accessLogRetention.description',
   'scheduledTask.auditLogRetention.title',
@@ -2391,6 +2394,9 @@ function isBuiltinTaskMessageKey(key: string): key is BuiltinTaskMessageKey {
 
 function builtinTaskMessageText(key: BuiltinTaskMessageKey) {
   const messages: Record<BuiltinTaskMessageKey, string> = {
+    'scheduler.job.accessLogRetentionCleanup.title': t('scheduler.job.accessLogRetentionCleanup.title'),
+    'scheduler.job.auditLogRetentionCleanup.title': t('scheduler.job.auditLogRetentionCleanup.title'),
+    'scheduler.job.appLogRetentionCleanup.title': t('scheduler.job.appLogRetentionCleanup.title'),
     'scheduledTask.accessLogRetention.title': t('scheduledTask.accessLogRetention.title'),
     'scheduledTask.accessLogRetention.description': t('scheduledTask.accessLogRetention.description'),
     'scheduledTask.auditLogRetention.title': t('scheduledTask.auditLogRetention.title'),

@@ -318,6 +318,7 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 		task_key text NOT NULL,
 		job_key text NOT NULL DEFAULT '',
 		task_name text NOT NULL DEFAULT '',
+		task_name_key text NOT NULL DEFAULT '',
 		owner text NOT NULL DEFAULT '',
 		module text NOT NULL DEFAULT '',
 		task_type text NOT NULL DEFAULT 'cron',

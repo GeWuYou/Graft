@@ -12,8 +12,9 @@ const messages: Record<string, string> = {
   'notification.category.task': '任务',
   'notification.emptyValue': '无',
   'notification.level.info': '信息',
-  'notification.message.scheduler.runSucceeded': '{taskName}任务已成功完成。',
+  'notification.message.scheduler.runSucceeded': '{taskName}已成功完成。',
   'notification.resourceType.scheduledTaskRun': '定时任务运行记录',
+  'scheduler.job.accessLogRetentionCleanup.title': '访问日志保留清理',
   'notification.source.scheduler': '定时任务',
   'notification.status.unread': '未读',
   'notification.title.scheduler.runSucceeded': '定时任务执行成功',
@@ -52,7 +53,10 @@ describe('notification presenter', () => {
       notification({
         action_label_key: 'notification.action.openRunRecord',
         category_key: 'notification.category.task',
-        context: { taskName: '访问日志保留清理' },
+        context: {
+          taskName: 'Access log retention cleanup',
+          taskNameKey: 'scheduler.job.accessLogRetentionCleanup.title',
+        },
         level_key: 'notification.level.info',
         message_key: 'notification.message.scheduler.runSucceeded',
         resource_id: '25',
@@ -67,14 +71,15 @@ describe('notification presenter', () => {
     );
 
     expect(view.title).toBe('定时任务执行成功');
-    expect(view.message).toBe('访问日志保留清理任务已成功完成。');
+    expect(view.message).toBe('访问日志保留清理已成功完成。');
+    expect(view.compactMeta).toBe(`任务 / 定时任务 · ${view.occurredAtLabel}`);
     expect(view.levelLabel).toBe('信息');
     expect(view.categoryLabel).toBe('任务');
     expect(view.sourceLabel).toBe('定时任务');
     expect(view.resourceTypeLabel).toBe('定时任务运行记录');
     expect(view.statusLabel).toBe('未读');
     expect(view.actionLabel).toBe('打开运行记录');
-    expect(view.resourceName).toBe('Access log retention cleanup');
+    expect(view.resourceName).toBe('访问日志保留清理');
     expect(view.resourceId).toBe('25');
   });
 
@@ -83,6 +88,20 @@ describe('notification presenter', () => {
 
     expect(view.title).toBe('Scheduled task succeeded');
     expect(view.message).toBe('Scheduled task Access log retention cleanup succeeded.');
+  });
+
+  it('falls back to taskName when taskNameKey is missing', () => {
+    const view = presentNotification(
+      notification({
+        context: { taskName: '访问日志保留清理' },
+        message_key: 'notification.message.scheduler.runSucceeded',
+        title_key: 'notification.title.scheduler.runSucceeded',
+      }),
+      t,
+      'zh-CN',
+    );
+
+    expect(view.message).toBe('访问日志保留清理已成功完成。');
   });
 
   it('uses unknown labels when both key and fallback are missing', () => {

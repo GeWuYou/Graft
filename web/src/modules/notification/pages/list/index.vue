@@ -51,13 +51,19 @@
         :total="total"
         @delete="deleteRow"
         @detail="openDetail"
-        @mark-read="markOneRead"
         @page-change="handlePageChange"
       />
     </template>
 
     <template #detail>
-      <notification-detail-drawer v-model:visible="detailVisible" :item="detailRecord" @navigate="navigateToTarget" />
+      <notification-detail-drawer
+        :visible="detailVisible"
+        :item="detailRecord"
+        :marking-read="markingDetailRead"
+        @mark-read="markOneRead"
+        @navigate="navigateToTarget"
+        @update:visible="handleDetailVisibleChange"
+      />
     </template>
   </advanced-query-list-page>
 </template>
@@ -87,6 +93,7 @@ import NotificationDetailDrawer from '../../components/NotificationDetailDrawer.
 import NotificationFilters from '../../components/NotificationFilters.vue';
 import NotificationTable from '../../components/NotificationTable.vue';
 import { resolveNotificationNavigationLocation } from '../../contract/navigation';
+import { requestNotificationHeaderRefresh } from '../../contract/refresh';
 import { NOTIFICATION_MVP_SOURCE_MODULES } from '../../shared/presentation';
 import type {
   NotificationFilterState,
@@ -106,6 +113,7 @@ const logger = createLogger('notification.list');
 
 const loading = ref(false);
 const markingAll = ref(false);
+const markingDetailRead = ref(false);
 const listError = ref('');
 const rows = ref<NotificationItem[]>([]);
 const total = ref(0);
@@ -299,16 +307,58 @@ function openDetail(row: NotificationItem) {
   detailVisible.value = true;
 }
 
+function handleDetailVisibleChange(value: boolean) {
+  detailVisible.value = value;
+  if (!value) {
+    detailRecord.value = null;
+    void clearRouteDeliveryQuery();
+  }
+}
+
+async function closeDetailAndConsumeRoute() {
+  detailVisible.value = false;
+  detailRecord.value = null;
+  await clearRouteDeliveryQuery();
+}
+
+async function clearRouteDeliveryQuery() {
+  if (firstRouteQueryValue(route.query.delivery_id) === undefined) {
+    return;
+  }
+
+  await router.replace({
+    query: {
+      ...route.query,
+      delivery_id: undefined,
+    },
+  });
+}
+
 async function markOneRead(row: NotificationItem) {
+  const isDetailRecord = detailRecord.value?.delivery_id === row.delivery_id;
+  if (isDetailRecord) {
+    markingDetailRead.value = true;
+  }
   try {
     const updated = await markNotificationRead(row.delivery_id);
     rows.value = rows.value.map((item) => (item.delivery_id === updated.delivery_id ? updated : item));
     if (detailRecord.value?.delivery_id === updated.delivery_id) {
       detailRecord.value = updated;
     }
+    requestNotificationHeaderRefresh();
     MessagePlugin.success(t('notification.messages.markReadSuccess'));
+    if (filters.value.status === 'unread') {
+      if (isDetailRecord) {
+        await closeDetailAndConsumeRoute();
+      }
+      await fetchNotifications();
+    }
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('notification.messages.markReadFailed')));
+  } finally {
+    if (isDetailRecord) {
+      markingDetailRead.value = false;
+    }
   }
 }
 
@@ -322,6 +372,7 @@ async function markAllRead() {
       ...(buildQuery().occurred_from ? { occurred_from: buildQuery().occurred_from } : {}),
       ...(buildQuery().occurred_to ? { occurred_to: buildQuery().occurred_to } : {}),
     });
+    requestNotificationHeaderRefresh();
     MessagePlugin.success(t('notification.messages.markAllReadSuccess'));
     await fetchNotifications();
   } catch (error) {
@@ -337,8 +388,7 @@ async function deleteRow(row: NotificationItem) {
     rows.value = rows.value.filter((item) => item.delivery_id !== row.delivery_id);
     total.value = Math.max(0, total.value - 1);
     if (detailRecord.value?.delivery_id === row.delivery_id) {
-      detailVisible.value = false;
-      detailRecord.value = null;
+      await closeDetailAndConsumeRoute();
     }
     MessagePlugin.success(t('notification.messages.deleteSuccess'));
   } catch (error) {

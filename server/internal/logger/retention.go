@@ -22,7 +22,7 @@ const (
 	appLogRetentionCleanupJobName           = "logger.app-log-retention-cleanup"
 	appLogRetentionCleanupJobModule         = "core.logger"
 	appLogRetentionCleanupJobSchedule       = "0 15 17 * * *"
-	appLogRetentionCleanupJobDisplayKey     = "scheduledTask.appLogRetention.title"
+	appLogRetentionCleanupJobDisplayKey     = "scheduler.job.appLogRetentionCleanup.title"
 	appLogRetentionCleanupJobDescriptionKey = "scheduledTask.appLogRetention.description"
 	appLogRetentionDryRunActionKey          = "dryRun"
 	appLogRetentionDryRunActionTitleKey     = "scheduledTask.action.dryRun.title"
@@ -406,7 +406,7 @@ func RegisterAppLogRetentionCleanupJob(
 		Name:                  appLogRetentionCleanupJobName,
 		Key:                   appLogRetentionCleanupJobName,
 		Owner:                 appLogRetentionCleanupJobModule,
-		Title:                 "App log retention cleanup",
+		Title:                 "Application log retention cleanup",
 		TitleKey:              appLogRetentionCleanupJobDisplayKey,
 		Description:           "Deletes app logs beyond the configured retention window.",
 		DescriptionKey:        appLogRetentionCleanupJobDescriptionKey,

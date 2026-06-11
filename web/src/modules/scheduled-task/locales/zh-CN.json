@@ -6,6 +6,19 @@
       }
     }
   },
+  "scheduler": {
+    "job": {
+      "accessLogRetentionCleanup": {
+        "title": "访问日志保留清理"
+      },
+      "appLogRetentionCleanup": {
+        "title": "应用日志保留清理"
+      },
+      "auditLogRetentionCleanup": {
+        "title": "审计日志保留清理"
+      }
+    }
+  },
   "scheduledTask": {
     "route": {
       "list": {

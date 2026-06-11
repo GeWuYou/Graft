@@ -17,6 +17,10 @@ export const NOTIFICATION_CATEGORY_LABEL_KEY_BY_VALUE: Record<string, string> = 
   TASK: 'notification.category.task',
 };
 
+export const NOTIFICATION_RESOURCE_TYPE = {
+  SCHEDULED_TASK_RUN: 'scheduled_task_run',
+} as const;
+
 export const NOTIFICATION_RESOURCE_TYPE_LABEL_KEY_BY_VALUE: Record<string, string> = {
-  scheduled_task_run: 'notification.resourceType.scheduledTaskRun',
+  [NOTIFICATION_RESOURCE_TYPE.SCHEDULED_TASK_RUN]: 'notification.resourceType.scheduledTaskRun',
 };

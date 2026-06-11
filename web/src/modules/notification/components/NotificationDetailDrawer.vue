@@ -6,13 +6,33 @@
 <template>
   <t-drawer
     :visible="visible"
-    :header="t('notification.detail.title')"
     :footer="false"
     destroy-on-close
     placement="right"
     size="720px"
     @update:visible="$emit('update:visible', $event)"
   >
+    <template #header>
+      <div class="notification-detail__drawer-header">
+        <h2>{{ t('notification.detail.title') }}</h2>
+        <div v-if="item" class="notification-detail__drawer-actions">
+          <t-button
+            v-if="item.status === 'unread'"
+            size="small"
+            theme="default"
+            variant="outline"
+            :loading="markingRead"
+            @click="$emit('mark-read', item)"
+          >
+            {{ t('notification.action.markRead') }}
+          </t-button>
+          <t-tag v-else theme="default" variant="light" size="small">
+            {{ notificationView(item).statusLabel }}
+          </t-tag>
+        </div>
+      </div>
+    </template>
+
     <div v-if="item" class="notification-detail">
       <section class="notification-detail__section">
         <div class="notification-detail__title-row">
@@ -20,9 +40,11 @@
             <h3>{{ notificationView(item).title }}</h3>
             <p>{{ notificationView(item).message }}</p>
           </div>
-          <t-tag :theme="notificationSeverityTheme(item.severity)" variant="light-outline">
-            {{ notificationView(item).levelLabel }}
-          </t-tag>
+          <div class="notification-detail__level">
+            <t-tag :theme="notificationSeverityTheme(item.severity)" variant="light-outline">
+              {{ notificationView(item).levelLabel }}
+            </t-tag>
+          </div>
         </div>
       </section>
 
@@ -90,10 +112,12 @@ import type { NotificationItem } from '../types/notification';
 
 const props = defineProps<{
   item: NotificationItem | null;
+  markingRead?: boolean;
   visible: boolean;
 }>();
 
 defineEmits<{
+  (e: 'mark-read', row: NotificationItem): void;
   (e: 'navigate', row: NotificationItem): void;
   (e: 'update:visible', value: boolean): void;
 }>();
@@ -129,6 +153,29 @@ function notificationView(item: NotificationItem) {
   gap: var(--graft-density-gap-16);
 }
 
+.notification-detail__drawer-header {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-16);
+  justify-content: space-between;
+  min-width: 0;
+  width: 100%;
+}
+
+.notification-detail__drawer-header h2 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+  margin: 0;
+  min-width: 0;
+}
+
+.notification-detail__drawer-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--graft-density-gap-8);
+}
+
 .notification-detail__section {
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-default);
@@ -152,6 +199,12 @@ function notificationView(item: NotificationItem) {
   display: flex;
   gap: var(--graft-density-gap-16);
   justify-content: space-between;
+}
+
+.notification-detail__level {
+  align-items: flex-end;
+  display: flex;
+  flex: 0 0 auto;
 }
 
 .notification-detail__title-row h3 {
