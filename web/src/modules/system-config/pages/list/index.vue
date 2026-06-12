@@ -911,7 +911,13 @@ function shouldUseDrawerEditor(item: SystemConfigItem) {
 }
 
 async function copyConfigKey(key: string) {
-  const copied = await copyText(key);
+  let copied = false;
+  try {
+    copied = await copyText(key);
+  } catch {
+    copied = false;
+  }
+
   if (copied) {
     MessagePlugin.success(t('systemConfig.list.advanced.copySuccess'));
     return;

@@ -82,7 +82,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { getNotifications, getNotificationUnreadCount, markNotificationsReadAll } from '../api/notification';
 import { NOTIFICATION_ROUTE_PATH } from '../contract/paths';

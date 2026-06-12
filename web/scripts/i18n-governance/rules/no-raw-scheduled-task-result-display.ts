@@ -59,7 +59,7 @@ function collectTemplateViolations(file: SourceFile): RuleViolation[] {
 
 function collectBoundPropViolations(file: SourceFile): RuleViolation[] {
   const violations: RuleViolation[] = [];
-  const boundPropPattern = /(?:[:@][A-Za-z][\w:-]*|v-bind:[A-Za-z][\w:-]*)\s*=\s*(["'])(.*?)\1/gs;
+  const boundPropPattern = /(?::[A-Za-z][\w:-]*|v-bind:[A-Za-z][\w:-]*)\s*=\s*(["'])(.*?)\1/gs;
 
   for (const prop of file.source.matchAll(boundPropPattern)) {
     const expression = prop[2] ?? '';
@@ -84,7 +84,7 @@ function collectBoundPropViolations(file: SourceFile): RuleViolation[] {
 function collectReturnViolations(file: SourceFile): RuleViolation[] {
   const violations: RuleViolation[] = [];
   const returnPattern =
-    /\breturn\b[^\n;]*(result_summary|error_message|structured\.summary|actionResultStructured\.summary)\b/g;
+    /\breturn\b(?:(?!\b(?:if|for|while|switch|function|const|let|var|type|interface|export|import)\b)[\s\S])*?\b(result_summary|error_message|structured\.summary|actionResultStructured\.summary)\b/g;
 
   for (const match of file.source.matchAll(returnPattern)) {
     if (match.index === undefined) continue;

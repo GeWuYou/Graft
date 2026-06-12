@@ -72,7 +72,7 @@ assets:
       - "Using backend raw text or duplicate root catalog entries as long-term UI truth."
     examples:
       - "web/src/locales/frontend-governance.test.ts"
-      - "web/src/modules/shared/localized-api-error.ts"
+      - "web/src/shared/localized-api-error.ts"
       - "server/internal/contract/message/key.go"
     related_assets:
       - "frontend-i18n-governance"

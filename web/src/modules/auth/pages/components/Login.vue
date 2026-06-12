@@ -97,8 +97,8 @@ import { API_CODE } from '@/contracts/api/codes';
 import { t } from '@/locales';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
-import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { useCounter } from '@/shared/composables';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { isApiRequestError } from '@/utils/request';
 
 const userStore = useAuthSessionStore();

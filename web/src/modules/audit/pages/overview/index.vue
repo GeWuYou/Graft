@@ -247,9 +247,9 @@ import { AUDIT_ROUTE_PATH } from '@/modules/audit/contract/paths';
 import { AUDIT_DRILLDOWN_SCOPE } from '@/modules/audit/contract/presets';
 import { AUDIT_TIME_PRESET, type AuditTimePreset } from '@/modules/audit/contract/time-presets';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
-import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { GovernanceDashboardShell, GovernanceSection, GovernanceSummaryCard } from '@/shared/components/governance';
 import { ManagementEmptyState } from '@/shared/components/management';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   buildRecentHoursLocalRange,
   buildTrendAxisLabels,

@@ -69,7 +69,7 @@ vi.mock('../../api/audit', () => ({
   getAuditLogs: getAuditLogsMock,
 }));
 
-vi.mock('@/modules/shared/localized-api-error', () => ({
+vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: () => 'load failed',
 }));
 

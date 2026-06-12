@@ -1,7 +1,13 @@
+<!--
+  Copyright (c) 2025-2026 GeWuYou
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 <template>
   <section>
     <p>{{ runResultText(row) }}</p>
     <t-alert :message="localizedStructuredRunResultText(actionResultStructured)" />
+    <button @click="emitResult(row.result_summary)">{{ t('scheduledTask.list.result.emit') }}</button>
   </section>
 </template>
 

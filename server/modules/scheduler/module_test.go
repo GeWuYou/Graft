@@ -350,6 +350,7 @@ CREATE TABLE scheduler_job_definitions (
 	config_schema text NOT NULL DEFAULT '{}',
 	default_config text NOT NULL DEFAULT '{}',
 	default_cron text NOT NULL DEFAULT '',
+	default_enabled boolean NOT NULL DEFAULT false,
 	enabled boolean NOT NULL DEFAULT true,
 	created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,

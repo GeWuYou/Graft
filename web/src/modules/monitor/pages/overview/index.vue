@@ -447,7 +447,7 @@ import { useRouter } from 'vue-router';
 import type { TChartColor } from '@/config/color';
 import { buildAuditEvidenceTargetLocation } from '@/modules/audit/contract/deep-link';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
-import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { useSettingStore } from '@/store';
 
 import { getServerStatus } from '../../api/server-status';
@@ -1926,11 +1926,11 @@ function formatOverviewTimeOnly(value?: string | null) {
   }
 
   const formatted = formatMonitorTimeOnly(value, locale);
-  return formatted === '--' ? value : formatted;
+  return formatted === '--' ? t('monitor.serverStatus.runtimeStatusNotAvailable') : formatted;
 }
 
 function formatChartTimestamp(value: string) {
-  return formatChartTimeOnly(value, locale) || value;
+  return formatChartTimeOnly(value, locale) || t('monitor.serverStatus.runtimeStatusNotAvailable');
 }
 
 function formatBytes(bytes: number | null) {

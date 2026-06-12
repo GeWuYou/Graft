@@ -101,6 +101,12 @@ describe('scheduled-task cron utility', () => {
       params: { hour: 17, minute: 15, time: '17:15' },
       valid: true,
     });
+    expect(describeCronExpression('15 17 * * 1')).toMatchObject({
+      key: 'scheduledTask.cronDescription.weekly',
+      normalizedExpression: '0 15 17 * * 1',
+      params: { dayOfWeek: 1, hour: 17, minute: 15, time: '17:15' },
+      valid: true,
+    });
   });
 
   it('uses custom fallback for valid but unrecognized simple schedules', () => {
@@ -178,6 +184,9 @@ describe('scheduled-task cron utility', () => {
     expect(getCronDescription('0 30 17 * * *', 'zh-CN', { translate })).toBe(
       'scheduledTask.cronDescription.daily:17:30',
     );
+    expect(getCronDescription('0 15 17 * * 1', 'zh-CN', { translate })).toBe(
+      'scheduledTask.cronDescription.weekly:17:15',
+    );
     expect(getCronDescription('0 0 17 * * *', 'en-US', { translate })).toBe(
       'scheduledTask.cronDescription.daily:17:00',
     );
@@ -188,5 +197,14 @@ describe('scheduled-task cron utility', () => {
       key === 'scheduledTask.cronDescription.daily' ? `每天 ${String(params?.time)} 执行一次。` : key;
 
     expect(getCronDescription('0 15 17 * * *', 'zh-CN', { translate })).toBe('每天 17:15 执行一次。');
+  });
+
+  it('keeps minute-level weekly schedules on the localized weekly template', () => {
+    const translate = (key: string, params?: Record<string, string | number>) =>
+      key === 'scheduledTask.cronDescription.weekly'
+        ? `每周第 ${String(params?.dayOfWeek)} 天 ${String(params?.time)} 执行一次。`
+        : key;
+
+    expect(getCronDescription('15 17 * * 1', 'zh-CN', { translate })).toBe('每周第 1 天 17:15 执行一次。');
   });
 });

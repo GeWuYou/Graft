@@ -131,6 +131,7 @@ type JobDefinitionSnapshot struct {
 	ConfigSchema   string
 	DefaultConfig  string
 	DefaultCron    string
+	DefaultEnabled bool
 	Enabled        bool
 	Actions        []JobActionSnapshot
 	CreatedAt      time.Time
@@ -228,6 +229,7 @@ type JobDefinition struct {
 	ConfigSchema   string
 	DefaultConfig  string
 	DefaultCron    string
+	DefaultEnabled bool
 	Enabled        bool
 	Actions        []JobActionSnapshot
 	CreatedAt      time.Time
@@ -1209,6 +1211,7 @@ func jobDefinitionFromJob(job cronx.Job, now time.Time) JobDefinition {
 		ConfigSchema:   job.RuntimeConfigSchema(),
 		DefaultConfig:  job.RuntimeDefaultConfig(),
 		DefaultCron:    strings.TrimSpace(job.Schedule),
+		DefaultEnabled: job.DefaultEnabled,
 		Enabled:        true,
 		Actions:        jobActionsFromJob(job),
 		CreatedAt:      now,

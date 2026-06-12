@@ -252,7 +252,6 @@ import { useRouter } from 'vue-router';
 
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
-import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import {
   buildVisibleColumns,
   calculateTableContentWidth,
@@ -272,6 +271,7 @@ import {
 } from '@/shared/components/management';
 import { useTabPageSnapshot } from '@/shared/composables';
 import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { createLogger } from '@/utils/logger';
 
 import { getPermissionDetail, getPermissions } from '../../api/rbac';

@@ -8,7 +8,7 @@
 - Recovery source: read-only exploration from 2026-06-11; destructive model-closure implementation completed on
   2026-06-11
 - Archive date: `2026-06-12`
-- Current worktree: `/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp`
+- Current worktree: `<repo-root>`
 
 ## Recovery Entry
 

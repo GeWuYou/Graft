@@ -3,7 +3,10 @@
 
 package cronx
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestJobRuntimeTitleDoesNotUseMessageKeyAsDisplayText(t *testing.T) {
 	job := Job{
@@ -32,5 +35,34 @@ func TestJobRuntimeTitleUsesExplicitDisplayText(t *testing.T) {
 	}
 	if got := job.RuntimeDescription(); got != job.Description {
 		t.Fatalf("expected explicit runtime description, got %q", got)
+	}
+}
+
+func TestJobValidateRejectsUnsupportedNonEmptyCategory(t *testing.T) {
+	job := validTestJob()
+	job.Category = JobCategory("unknown")
+
+	if err := job.Validate(); err == nil {
+		t.Fatal("expected unsupported category to fail validation")
+	}
+}
+
+func TestJobValidateAllowsEmptyCategoryAsCustomDefault(t *testing.T) {
+	job := validTestJob()
+
+	if err := job.Validate(); err != nil {
+		t.Fatalf("expected empty category to validate as default custom category: %v", err)
+	}
+	if got := job.RuntimeCategory(); got != JobCategoryCustom {
+		t.Fatalf("expected empty category to default to custom, got %q", got)
+	}
+}
+
+func validTestJob() Job {
+	return Job{
+		Key:       "audit.audit-log-retention-cleanup",
+		ModuleKey: "audit",
+		Schedule:  "0 0 * * * *",
+		Run:       func(context.Context) error { return nil },
 	}
 }

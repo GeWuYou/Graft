@@ -126,6 +126,9 @@ func TestSQLJobDefinitionRepositorySyncsDefinitions(t *testing.T) {
 	if got.Title != "Audit retention updated" || got.ModuleKey != "audit" {
 		t.Fatalf("unexpected job definition: %#v", got)
 	}
+	if got.DefaultEnabled {
+		t.Fatalf("expected default_enabled=false to round-trip separately from enabled=true, got %#v", got)
+	}
 }
 
 func TestSQLJobDefinitionRepositorySyncsDefinitionAfterSoftDelete(t *testing.T) {
@@ -137,17 +140,18 @@ func TestSQLJobDefinitionRepositorySyncsDefinitionAfterSoftDelete(t *testing.T) 
 
 	ctx := context.Background()
 	definition := JobDefinition{
-		JobKey:        "audit.retention.cleanup",
-		ModuleKey:     "audit",
-		Category:      "retention",
-		Title:         "Audit retention",
-		ShortTitle:    "Audit",
-		ConfigSchema:  "{}",
-		DefaultConfig: "{}",
-		DefaultCron:   "0 0 * * * *",
-		Enabled:       true,
-		CreatedAt:     time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
-		UpdatedAt:     time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+		JobKey:         "audit.retention.cleanup",
+		ModuleKey:      "audit",
+		Category:       "retention",
+		Title:          "Audit retention",
+		ShortTitle:     "Audit",
+		ConfigSchema:   "{}",
+		DefaultConfig:  "{}",
+		DefaultCron:    "0 0 * * * *",
+		DefaultEnabled: true,
+		Enabled:        true,
+		CreatedAt:      time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+		UpdatedAt:      time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
 	}
 	if err := repo.SyncJobDefinitions(ctx, []JobDefinition{definition}); err != nil {
 		t.Fatalf("sync job definition: %v", err)
@@ -167,6 +171,9 @@ func TestSQLJobDefinitionRepositorySyncsDefinitionAfterSoftDelete(t *testing.T) 
 	}
 	if got.Title != "Audit retention reseeded" || got.DeletedAt != nil {
 		t.Fatalf("expected active reseeded job definition, got %#v", got)
+	}
+	if !got.DefaultEnabled {
+		t.Fatalf("expected default_enabled to survive reseed, got %#v", got)
 	}
 }
 
@@ -412,6 +419,9 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 	CREATE UNIQUE INDEX scheduled_tasks_task_key_live_key
 		ON scheduled_tasks (task_key)
 		WHERE deleted_at = 0;
+	CREATE UNIQUE INDEX scheduled_tasks_title_live_key
+		ON scheduled_tasks (title)
+		WHERE deleted_at = 0;
 	CREATE TABLE scheduler_job_definitions (
 		id integer PRIMARY KEY AUTOINCREMENT,
 		job_key text NOT NULL,
@@ -426,6 +436,7 @@ func newSchedulerRepositoryTestDB(t *testing.T) *sql.DB {
 		config_schema text NOT NULL DEFAULT '{}',
 		default_config text NOT NULL DEFAULT '{}',
 		default_cron text NOT NULL,
+		default_enabled boolean NOT NULL DEFAULT false,
 		enabled boolean NOT NULL DEFAULT true,
 		created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,

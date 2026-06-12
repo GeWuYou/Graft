@@ -66,8 +66,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useAuthSessionStore } from '@/modules/auth/store';
-import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/modules/shared/localized-api-error';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
+import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/shared/localized-api-error';
 import {
   assignEncodedSorters,
   buildRecentHoursLocalRange,

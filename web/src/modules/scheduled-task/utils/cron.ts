@@ -481,7 +481,12 @@ function describeNormalizedCronExpression(normalizedExpression: string): CronDes
     if (isCronNumberInRange(dayOfWeek, 0, 7)) {
       return {
         key: 'scheduledTask.cronDescription.weekly',
-        params: { hour: Number(hour), dayOfWeek: Number(dayOfWeek) },
+        params: {
+          hour: Number(hour),
+          minute: Number(minute),
+          time: formatCronClockTime(Number(hour), Number(minute)),
+          dayOfWeek: Number(dayOfWeek),
+        },
         normalizedExpression,
         valid: true,
       };

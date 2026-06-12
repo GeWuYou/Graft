@@ -433,15 +433,18 @@ def validate_shared_asset_governance() -> list[Finding]:
             if term not in text:
                 findings.append(Finding(SHARED_ASSET_REUSE_SKILL, f"missing shared asset closeout term {term!r}"))
     if SHARED_ASSET_VALIDATOR.is_file():
-        spec = importlib.util.spec_from_file_location("validate_shared_asset_registries", SHARED_ASSET_VALIDATOR)
-        if spec is None or spec.loader is None:
-            findings.append(Finding(SHARED_ASSET_VALIDATOR, "could not load shared asset registry validator"))
-        else:
+        try:
+            spec = importlib.util.spec_from_file_location("validate_shared_asset_registries", SHARED_ASSET_VALIDATOR)
+            if spec is None or spec.loader is None:
+                findings.append(Finding(SHARED_ASSET_VALIDATOR, "could not load shared asset registry validator"))
+                return findings
             module = importlib.util.module_from_spec(spec)
             sys.modules[spec.name] = module
             spec.loader.exec_module(module)
             for finding in module.validate_registries():
                 findings.append(Finding(finding.path, finding.message))
+        except Exception as exc:
+            findings.append(Finding(SHARED_ASSET_VALIDATOR, f"shared asset registry validator failed: {exc}"))
     return findings
 
 

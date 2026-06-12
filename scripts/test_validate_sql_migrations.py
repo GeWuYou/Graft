@@ -10,8 +10,10 @@ import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import validate_sql_migrations as validator
 from validate_sql_migrations import validate, validate_file
 
 
@@ -121,6 +123,27 @@ COMMENT ON COLUMN demo_events.status IS 'TODO';
 
             self.assertEqual(len(findings), 1)
             self.assertIn("live migration version 202606110001 is reused by", findings[0].message)
+
+    def test_path_mode_checks_versions_against_all_live_migrations(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            incoming = root / "server" / "modules" / "scheduler" / "migrations" / "202606110001_scheduler.sql"
+            existing = root / "server" / "modules" / "audit" / "migrations" / "202606110001_audit.sql"
+            incoming.parent.mkdir(parents=True)
+            existing.parent.mkdir(parents=True)
+            incoming.write_text("SELECT 1;\n", encoding="utf-8")
+            existing.write_text("SELECT 1;\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(validator, "live_sql_files", return_value=[existing]),
+                mock.patch.object(validator, "validate_file", return_value=[]) as validate_file_mock,
+            ):
+                findings = validator.validate([incoming], root)
+
+            validate_file_mock.assert_called_once_with(incoming)
+            self.assertEqual(len(findings), 1)
+            self.assertIn("live migration version 202606110001 is reused by", findings[0].message)
+            self.assertIn(str(existing.relative_to(root)), findings[0].message)
 
 
 if __name__ == "__main__":

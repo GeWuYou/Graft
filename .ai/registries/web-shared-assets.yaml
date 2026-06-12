@@ -177,7 +177,7 @@ assets:
 
   - name: "localized-api-error"
     type: "frontend-utility"
-    path: "web/src/modules/shared/localized-api-error.ts"
+    path: "web/src/shared/localized-api-error.ts"
     owner: "web/shared"
     purpose: "Resolve API error messages through key-first i18n fallback semantics."
     use_when:

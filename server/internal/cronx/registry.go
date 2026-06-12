@@ -7,6 +7,7 @@ package cronx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -109,18 +110,10 @@ func (j Job) RuntimeModuleKey() string {
 
 // RuntimeCategory returns the stable category for this Job Definition.
 func (j Job) RuntimeCategory() JobCategory {
-	switch j.Category {
-	case JobCategoryRetention,
-		JobCategorySync,
-		JobCategoryMaintenance,
-		JobCategoryNotification,
-		JobCategoryReport,
-		JobCategoryWorkflow,
-		JobCategoryCustom:
-		return j.Category
-	default:
+	if strings.TrimSpace(string(j.Category)) == "" {
 		return JobCategoryCustom
 	}
+	return j.Category
 }
 
 // RuntimeTitle returns the default display title.
@@ -234,9 +227,28 @@ func (j Job) Validate() error {
 	if strings.TrimSpace(j.Schedule) == "" {
 		return errors.New("job schedule is required")
 	}
+	if !isValidJobCategory(j.Category) {
+		return fmt.Errorf("job category %q is unsupported", j.Category)
+	}
 	if j.Handler == nil && j.Run == nil {
 		return errors.New("job handler is required")
 	}
 
 	return nil
+}
+
+func isValidJobCategory(category JobCategory) bool {
+	switch category {
+	case "",
+		JobCategoryRetention,
+		JobCategorySync,
+		JobCategoryMaintenance,
+		JobCategoryNotification,
+		JobCategoryReport,
+		JobCategoryWorkflow,
+		JobCategoryCustom:
+		return true
+	default:
+		return false
+	}
 }

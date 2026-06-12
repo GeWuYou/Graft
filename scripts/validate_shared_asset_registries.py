@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025-2026 GeWuYou
+# SPDX-License-Identifier: Apache-2.0
+
 """Validate curated shared asset registry structure."""
 
 from __future__ import annotations
@@ -71,6 +74,7 @@ GENERATED_MARKERS = (
     ".bundle.json",
     ".gen.go",
 )
+GENERATED_PARTS = {"generated"}
 
 
 @dataclass(frozen=True)
@@ -107,6 +111,8 @@ def is_forbidden_output_path(path_value: str) -> bool:
 
 def is_generated_only_authority(path_value: str) -> bool:
     path_value = normalized_path(path_value)
+    if any(part in GENERATED_PARTS for part in Path(path_value).parts):
+        return True
     return any(marker in path_value for marker in GENERATED_MARKERS)
 
 

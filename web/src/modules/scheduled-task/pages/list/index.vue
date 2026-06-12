@@ -2211,7 +2211,10 @@ async function confirmDeleteTask() {
   deletingTaskKey.value = task.task_key;
   try {
     await deleteScheduledTask(task.task_key);
-    tasks.value = tasks.value.filter((item) => item.job_key !== task.task_key);
+    tasks.value = tasks.value.filter((item) => item.task_key !== task.task_key);
+    if (selectedTask.value?.task_key === task.task_key) {
+      selectedTask.value = null;
+    }
     const { [task.task_key]: _removed, ...remainingRuns } = runHistoryByTaskKey.value;
     runHistoryByTaskKey.value = remainingRuns;
     deleteDialogVisible.value = false;

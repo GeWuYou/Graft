@@ -102,7 +102,7 @@ vi.mock('../../api/audit', () => ({
   getAuditIncident: auditApiMocks.getAuditIncident,
 }));
 
-vi.mock('@/modules/shared/localized-api-error', () => ({
+vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: () => 'load failed',
 }));
 

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025-2026 GeWuYou
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for shared asset registry validation."""
 
 from __future__ import annotations
@@ -82,6 +85,35 @@ assets:
                 root,
                 "registry.yaml",
                 self.valid_content().replace("existing", "web/src/contracts/openapi/generated"),
+            )
+
+            with mock.patch.object(validator, "REPO_ROOT", root):
+                findings = validator.validate_registry(registry, set())
+
+        self.assertTrue(any("generated-only artifact" in finding.message for finding in findings))
+
+    def test_rejects_generated_only_authority_path_when_generated_is_final_segment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            generated = root / "web" / "src" / "contracts" / "openapi" / "generated"
+            generated.mkdir(parents=True)
+            registry = self.write_registry(
+                root,
+                "registry.yaml",
+                """
+schema_version: 1
+updated_at: "2026-06-11"
+assets:
+  - name: "sample-asset"
+    type: "frontend-utility"
+    path: "web/src/contracts/openapi/generated"
+    owner: "web/shared"
+    purpose: "Shared sample asset."
+    use_when:
+      - "Need the sample."
+    do_not_use_when:
+      - "Not a sample."
+""",
             )
 
             with mock.patch.object(validator, "REPO_ROOT", root):

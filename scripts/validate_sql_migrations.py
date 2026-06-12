@@ -238,9 +238,21 @@ def live_sql_files(root: Path) -> list[Path]:
     return [path for _, path in iter_sql_files(dirs)]
 
 
+def unique_paths(paths: list[Path]) -> list[Path]:
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        normalized = path.resolve(strict=False)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique.append(path)
+    return unique
+
+
 def validate(paths: list[Path], root: Path) -> list[Finding]:
     findings: list[Finding] = []
-    findings.extend(validate_versions(paths, root))
+    findings.extend(validate_versions(unique_paths([*paths, *live_sql_files(root)]), root))
     for path in sorted(paths):
         findings.extend(validate_file(path))
     return findings

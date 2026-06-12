@@ -66,8 +66,8 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { resolveLocalizedErrorMessage as resolveAppLogErrorMessage } from '@/modules/shared/localized-api-error';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
+import { resolveLocalizedErrorMessage as resolveAppLogErrorMessage } from '@/shared/localized-api-error';
 import {
   assignEncodedSorters,
   buildRecentHoursLocalRange,

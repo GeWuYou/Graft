@@ -5,7 +5,7 @@ import type { Ref } from 'vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
 import { getServerStatus } from '../api/server-status';

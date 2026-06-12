@@ -33,7 +33,11 @@ export function requestIdFromError(error: unknown) {
 }
 
 async function copyCorrelationRequestId(requestId: string) {
-  return copyText(requestId);
+  try {
+    return await copyText(requestId);
+  } catch {
+    return false;
+  }
 }
 
 export function openCorrelationErrorNotification(options: CorrelationActionsOptions) {

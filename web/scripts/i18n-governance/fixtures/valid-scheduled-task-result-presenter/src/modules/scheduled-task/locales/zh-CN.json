@@ -6,7 +6,8 @@
       },
       "result": {
         "completed": "执行完成",
-        "deletedRows": "已删除 {count} 行"
+        "deletedRows": "已删除 {count} 行",
+        "emit": "触发"
       }
     }
   }

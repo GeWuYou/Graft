@@ -74,7 +74,7 @@ func toScheduledTaskJobDefinitionItem(definition schedulercore.JobDefinitionSnap
 		ConfigSchema:   defaultJSONObject(definition.ConfigSchema),
 		DefaultConfig:  defaultJSONObject(definition.DefaultConfig),
 		DefaultCron:    strings.TrimSpace(definition.DefaultCron),
-		DefaultEnabled: definition.Enabled,
+		DefaultEnabled: definition.DefaultEnabled,
 		Enabled:        definition.Enabled,
 		Actions:        make([]scheduledTaskJobActionItem, 0, len(definition.Actions)),
 	}

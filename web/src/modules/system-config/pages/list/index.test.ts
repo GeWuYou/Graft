@@ -20,6 +20,10 @@ const apiMocks = vi.hoisted(() => ({
   updateSystemConfig: vi.fn(),
 }));
 
+const observabilityMocks = vi.hoisted(() => ({
+  copyText: vi.fn(),
+}));
+
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'menu.server.title': '服务管理',
@@ -155,6 +159,14 @@ vi.mock('tdesign-vue-next/es/message', () => ({
   },
 }));
 
+vi.mock('@/shared/observability', async () => {
+  const actual = await vi.importActual<typeof import('@/shared/observability')>('@/shared/observability');
+  return {
+    ...actual,
+    copyText: observabilityMocks.copyText,
+  };
+});
+
 vi.mock('tdesign-icons-vue-next', () => ({
   CopyIcon: defineComponent({ name: 'CopyIcon', setup: () => () => h('span') }),
   EditIcon: defineComponent({ name: 'EditIcon', setup: () => () => h('span') }),
@@ -180,6 +192,7 @@ describe('system config list page', () => {
       items,
       total: items.length,
     });
+    observabilityMocks.copyText.mockResolvedValue(true);
   });
 
   it('renders backend-provided config metadata through key-first localization', async () => {
@@ -258,6 +271,24 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('当前值');
     expect(wrapper.text()).toContain(`alice / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
     expect(wrapper.findAll('button').some((button) => button.text() === '重置')).toBe(true);
+  });
+
+  it('shows the copy failure toast when copying the config key rejects', async () => {
+    observabilityMocks.copyText.mockRejectedValueOnce(new Error('clipboard denied'));
+    const { MessagePlugin } = await import('tdesign-vue-next/es/message');
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await toggleFirstCollapsePanel(wrapper, '高级信息');
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '复制 key')!
+      .trigger('click');
+    await flushPromises();
+
+    expect(observabilityMocks.copyText).toHaveBeenCalledWith('dashboard.quick_actions');
+    expect(MessagePlugin.error).toHaveBeenCalledWith('配置 key 复制失败。');
   });
 
   it('groups access-log and app-log retention under one logs domain', async () => {

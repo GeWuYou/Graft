@@ -30,6 +30,5 @@ export function formatChartTimeOnly(value?: string | null, locale?: string | Ref
   return formatLocaleDateTime(value, locale, {
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
   });
 }

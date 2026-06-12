@@ -71,10 +71,11 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			config_schema,
 			default_config,
 			default_cron,
+			default_enabled,
 			enabled,
 			created_at,
 			updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, $13, $14)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, $14, $15)
 		ON CONFLICT (job_key) WHERE deleted_at = 0 DO UPDATE
 		SET module_key = EXCLUDED.module_key,
 			category = EXCLUDED.category,
@@ -87,6 +88,7 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			config_schema = EXCLUDED.config_schema,
 			default_config = EXCLUDED.default_config,
 			default_cron = EXCLUDED.default_cron,
+			default_enabled = EXCLUDED.default_enabled,
 			updated_at = EXCLUDED.updated_at
 		WHERE scheduler_job_definitions.deleted_at = 0`,
 			definition.JobKey,
@@ -101,6 +103,7 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			definition.ConfigSchema,
 			definition.DefaultConfig,
 			definition.DefaultCron,
+			definition.DefaultEnabled,
 			definition.CreatedAt.UTC(),
 			definition.UpdatedAt.UTC(),
 		)
@@ -116,7 +119,7 @@ func (r *SQLJobDefinitionRepository) ListJobDefinitions(ctx context.Context) ([]
 	if err := r.ensureAvailable(); err != nil {
 		return nil, err
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, job_key, module_key, category, title_key, title, short_title_key, short_title, description_key, description, config_schema, default_config, default_cron, enabled, created_at, updated_at, deleted_at
+	rows, err := r.db.QueryContext(ctx, `SELECT id, job_key, module_key, category, title_key, title, short_title_key, short_title, description_key, description, config_schema, default_config, default_cron, default_enabled, enabled, created_at, updated_at, deleted_at
 	FROM scheduler_job_definitions
 	WHERE deleted_at = 0
 	ORDER BY module_key ASC, title ASC, id ASC`)
@@ -134,7 +137,7 @@ func (r *SQLJobDefinitionRepository) GetJobDefinition(ctx context.Context, key s
 	if key == "" {
 		return JobDefinition{}, errors.New("scheduler job key is required")
 	}
-	row := r.db.QueryRowContext(ctx, `SELECT id, job_key, module_key, category, title_key, title, short_title_key, short_title, description_key, description, config_schema, default_config, default_cron, enabled, created_at, updated_at, deleted_at
+	row := r.db.QueryRowContext(ctx, `SELECT id, job_key, module_key, category, title_key, title, short_title_key, short_title, description_key, description, config_schema, default_config, default_cron, default_enabled, enabled, created_at, updated_at, deleted_at
 	FROM scheduler_job_definitions
 	WHERE job_key = $1 AND deleted_at = 0
 	LIMIT 1`, key)
@@ -977,24 +980,40 @@ func scanTaskDefinition(scanner rowScanner) (TaskDefinition, error) {
 func mapScheduledTaskWriteError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		switch pgErr.ConstraintName {
-		case "scheduled_tasks_task_key_key":
-			return ErrTaskKeyConflict
-		case "scheduled_tasks_title_active_key":
-			return ErrTaskTitleConflict
-		}
+		return mapScheduledTaskUniqueConstraint(pgErr.ConstraintName, err)
 	}
 	message := err.Error()
 	if !isUniqueConstraintErrorText(message) {
 		return err
 	}
-	if strings.Contains(message, "scheduled_tasks_task_key_key") {
+	if containsTaskKeyConstraint(message) {
 		return ErrTaskKeyConflict
 	}
-	if strings.Contains(message, "scheduled_tasks_title_active_key") {
+	if containsTaskTitleConstraint(message) {
 		return ErrTaskTitleConflict
 	}
 	return err
+}
+
+func mapScheduledTaskUniqueConstraint(constraintName string, fallback error) error {
+	switch constraintName {
+	case "scheduled_tasks_task_key_key", "scheduled_tasks_task_key_live_key":
+		return ErrTaskKeyConflict
+	case "scheduled_tasks_title_active_key", "scheduled_tasks_title_live_key":
+		return ErrTaskTitleConflict
+	default:
+		return fallback
+	}
+}
+
+func containsTaskKeyConstraint(message string) bool {
+	return strings.Contains(message, "scheduled_tasks_task_key_key") ||
+		strings.Contains(message, "scheduled_tasks_task_key_live_key")
+}
+
+func containsTaskTitleConstraint(message string) bool {
+	return strings.Contains(message, "scheduled_tasks_title_active_key") ||
+		strings.Contains(message, "scheduled_tasks_title_live_key")
 }
 
 func isUniqueConstraintErrorText(message string) bool {
@@ -1021,6 +1040,7 @@ func scanJobDefinition(scanner rowScanner) (JobDefinition, error) {
 		&definition.ConfigSchema,
 		&definition.DefaultConfig,
 		&definition.DefaultCron,
+		&definition.DefaultEnabled,
 		&definition.Enabled,
 		&definition.CreatedAt,
 		&definition.UpdatedAt,

@@ -9,6 +9,7 @@ import ScheduledTaskListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
   createScheduledTask: vi.fn(),
+  deleteScheduledTask: vi.fn(),
   executeScheduledTaskAction: vi.fn(),
   getScheduledTask: vi.fn(),
   getScheduledTaskJobDefinition: vi.fn(),
@@ -73,6 +74,9 @@ const translations = vi.hoisted(
     'scheduledTask.list.create': '新建任务',
     'scheduledTask.list.cancel': '取消',
     'scheduledTask.list.delete': '删除',
+    'scheduledTask.list.deleteDialog.confirm': '删除',
+    'scheduledTask.list.deleteDialog.description': '确认删除任务 {taskName}？',
+    'scheduledTask.list.deleteDialog.title': '删除任务',
     'scheduledTask.list.description': '管理系统后台任务的调度规则、启停状态和运行记录。',
     'scheduledTask.list.detail.none': '无',
     'scheduledTask.list.detail.noError': '未记录错误',
@@ -220,7 +224,7 @@ const translations = vi.hoisted(
 
 vi.mock('../../api/scheduled-task', () => ({
   createScheduledTask: apiMocks.createScheduledTask,
-  deleteScheduledTask: vi.fn(),
+  deleteScheduledTask: apiMocks.deleteScheduledTask,
   disableScheduledTask: vi.fn(),
   enableScheduledTask: vi.fn(),
   executeScheduledTaskAction: apiMocks.executeScheduledTaskAction,
@@ -853,6 +857,7 @@ describe('ScheduledTaskListPage', () => {
       return job;
     });
     apiMocks.getScheduledTaskRuns.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
+    apiMocks.deleteScheduledTask.mockResolvedValue({});
     apiMocks.runScheduledTask.mockResolvedValue({
       id: 201,
       trigger_type: 'manual',
@@ -924,6 +929,24 @@ describe('ScheduledTaskListPage', () => {
     await flushPromises();
 
     expect(notificationMocks.requestNotificationHeaderRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes the deleted task by task key and clears the selected detail', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await triggerOperationAction(wrapper, 4, '查看');
+    expect(wrapper.text()).toContain('custom.task');
+    expect(wrapper.text()).toContain('audit.audit-log-retention-cleanup');
+
+    await triggerOperationAction(wrapper, 4, '删除');
+    await findButtonByText(wrapper, '删除')!.trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.deleteScheduledTask).toHaveBeenCalledWith('custom.task');
+    expect(wrapper.text()).not.toContain('custom.task');
+    expect(wrapper.text()).toContain('audit.audit-log-retention-cleanup');
+    expect(wrapper.findAll('tbody tr')).toHaveLength(3);
   });
 
   it('renders human-readable schedules, auxiliary cron expressions, and recent run summaries', async () => {

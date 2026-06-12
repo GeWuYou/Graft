@@ -327,6 +327,9 @@ func TestListTasksReturnsRuntimeJobSnapshots(t *testing.T) {
 	if item.TitleKey != "scheduledTask.auditLogRetention.title" || item.DescriptionKey == "" {
 		t.Fatalf("expected display metadata, got %#v", item)
 	}
+	if item.JobDefinition != nil && !item.JobDefinition.DefaultEnabled {
+		t.Fatalf("expected job definition default_enabled to reflect cron declaration, got %#v", item.JobDefinition)
+	}
 	if !item.Enabled {
 		t.Fatal("expected runtime job to be default-enabled")
 	}

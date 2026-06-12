@@ -230,7 +230,6 @@ import { buildAuditPermissionDeniedLocation, buildAuditRbacChangesLocation } fro
 import { AUDIT_TIME_PRESET } from '@/modules/audit/contract/time-presets';
 import { getPermissions } from '@/modules/rbac/api/rbac';
 import { RBAC_PERMISSION_CODE } from '@/modules/rbac/contract/permissions';
-import { resolveLocalizedErrorMessage } from '@/modules/shared/localized-api-error';
 import { getRoles as getUserRoles } from '@/modules/user/api/user-roles';
 import { getUsers } from '@/modules/user/api/users';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
@@ -242,6 +241,7 @@ import {
 } from '@/shared/components/governance';
 import { ManagementEmptyState } from '@/shared/components/management';
 import type { ManagementStatItem } from '@/shared/components/management/ManagementStatsGrid.vue';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore } from '@/store';
 
 import { ACCESS_CONTROL_ROUTE_PATH } from '../../contract/bootstrap';
