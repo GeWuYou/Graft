@@ -1,0 +1,13 @@
+{
+  "scheduledTask": {
+    "list": {
+      "detail": {
+        "none": "None"
+      },
+      "result": {
+        "completed": "Execution completed",
+        "deletedRows": "Deleted {count} rows"
+      }
+    }
+  }
+}

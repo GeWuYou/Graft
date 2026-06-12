@@ -1,0 +1,13 @@
+{
+  "scheduledTask": {
+    "list": {
+      "detail": {
+        "none": "无"
+      },
+      "result": {
+        "completed": "执行完成",
+        "deletedRows": "已删除 {count} 行"
+      }
+    }
+  }
+}

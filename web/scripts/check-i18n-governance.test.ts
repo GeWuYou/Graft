@@ -347,6 +347,16 @@ describe('check-i18n-governance fixture rules', () => {
         'missing required notification key notification.title.scheduler.runSucceeded',
       ],
     },
+    {
+      fixture: 'invalid-raw-scheduled-task-result-display',
+      expectation: 'blocks raw scheduled task API result fields in display surfaces',
+      expectedSnippets: [
+        'no-raw-scheduled-task-result-display',
+        'result_summary',
+        'error_message',
+        'actionResultStructured.summary',
+      ],
+    },
   ];
 
   it.each(invalidFixtures)('$fixture: $expectation', async ({ expectedSnippets, fixture }) => {
@@ -369,6 +379,14 @@ describe('check-i18n-governance fixture rules', () => {
 
   it('valid-notification-resolver-display: allows notification presenter usage', async () => {
     const result = await runGovernanceScriptWithFixture('valid-notification-resolver-display');
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
+    expect(result.stderr).toBe('');
+  });
+
+  it('valid-scheduled-task-result-presenter: allows localized scheduled task result presenters', async () => {
+    const result = await runGovernanceScriptWithFixture('valid-scheduled-task-result-presenter');
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');

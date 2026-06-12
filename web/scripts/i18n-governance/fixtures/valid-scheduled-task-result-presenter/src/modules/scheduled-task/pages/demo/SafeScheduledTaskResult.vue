@@ -1,0 +1,32 @@
+<template>
+  <section>
+    <p>{{ runResultText(row) }}</p>
+    <t-alert :message="localizedStructuredRunResultText(actionResultStructured)" />
+  </section>
+</template>
+
+<script setup lang="ts">
+function t(key: string) {
+  return key;
+}
+
+const row = {
+  result_summary: 'deleted 3 rows',
+  error_message: 'retention window is invalid',
+};
+
+const actionResultStructured = {
+  summary: 'deleted 3 rows',
+  metrics: {
+    deletedCount: 3,
+  },
+};
+
+function runResultText(run: typeof row) {
+  return run ? t('scheduledTask.list.result.completed') : t('scheduledTask.list.detail.none');
+}
+
+function localizedStructuredRunResultText(result: typeof actionResultStructured) {
+  return result.metrics.deletedCount ? t('scheduledTask.list.result.deletedRows') : t('scheduledTask.list.detail.none');
+}
+</script>
