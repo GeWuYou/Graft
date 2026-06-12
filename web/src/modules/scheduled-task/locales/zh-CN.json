@@ -252,6 +252,12 @@
         "schedule": "调度",
         "lastRun": "最近运行"
       },
+      "result": {
+        "completed": "执行完成",
+        "deletedRows": "已删除 {count} 行",
+        "estimatedRows": "预计可删除 {count} 行",
+        "failed": "执行失败"
+      },
       "status": {
         "idle": "待调度",
         "running": "运行中",

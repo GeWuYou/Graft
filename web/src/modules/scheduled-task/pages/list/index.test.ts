@@ -114,6 +114,7 @@ const translations = vi.hoisted(
     'scheduledTask.list.detail.sections.configuration': '配置',
     'scheduledTask.list.detail.sections.runInfo': '运行信息',
     'scheduledTask.list.detail.noRecentRun': '暂无记录',
+    'scheduledTask.list.detail.nextRun': '下次运行',
     'scheduledTask.list.detail.advancedInfo': '高级信息',
     'scheduledTask.list.detail.rawJobDefinition': '原始任务定义',
     'scheduledTask.list.detail.cron': 'Cron',
@@ -200,6 +201,10 @@ const translations = vi.hoisted(
     'scheduledTask.list.runDialog.expectedBehavior': '预期行为',
     'scheduledTask.list.runDialog.retentionDays': '保留天数',
     'scheduledTask.list.resource.accessLog': '访问日志',
+    'scheduledTask.list.result.completed': '执行完成',
+    'scheduledTask.list.result.deletedRows': '已删除 {count} 行',
+    'scheduledTask.list.result.estimatedRows': '预计可删除 {count} 行',
+    'scheduledTask.list.result.failed': '执行失败',
     'scheduledTask.list.save': '保存',
     'scheduledTask.list.status.failed': '失败',
     'scheduledTask.list.status.idle': '待调度',
@@ -302,8 +307,9 @@ function scheduledTasksResponse() {
           finished_at: '2026-06-05T00:00:05Z',
           duration_ms: 5000,
           error_message: '',
+          result_summary: 'deleted 3 rows',
           result_json:
-            '{"summary":"Deleted 3 access log rows.","stage":"completed","affected_resource":"access_log","metrics":{"deletedRows":3}}',
+            '{"summary":"Deleted 3 access log rows.","stage":"completed","affected_resource":"access_log","metrics":{"deletedCount":3}}',
         },
       },
       {
@@ -917,12 +923,14 @@ describe('ScheduledTaskListPage', () => {
 
     const firstResultCell = wrapper.find('tbody tr:first-child td[data-col="last_run"]');
     expect(firstResultCell.text()).toContain('成功');
-    expect(firstResultCell.text()).toContain('Deleted 3 access log rows.');
+    expect(firstResultCell.text()).toContain('已删除 3 行');
+    expect(firstResultCell.text()).not.toContain('Deleted 3 access log rows.');
     expect(firstResultCell.text()).not.toContain('成功无');
 
     const secondResultCell = wrapper.find('tbody tr:nth-child(2) td[data-col="last_run"]');
     expect(secondResultCell.text()).toContain('失败');
-    expect(secondResultCell.text()).toContain('retention window is invalid');
+    expect(secondResultCell.text()).toContain('执行失败');
+    expect(secondResultCell.text()).not.toContain('retention window is invalid');
   });
 
   it('normalizes cron editor values before submitting an update payload', async () => {
@@ -1019,6 +1027,9 @@ describe('ScheduledTaskListPage', () => {
     expect(wrapper.text()).toContain('日志保留时间');
     expect(wrapper.text()).toContain('批量大小');
     expect(wrapper.text()).toContain('单次清理最多删除的访问日志行数。');
+    expect(wrapper.text()).toContain('下次运行');
+    expect(wrapper.text()).toContain('2026-06-06 08:05');
+    expect(wrapper.text()).toMatch(/下次运行\s*2026-06-06 08:05/);
   });
 
   it('executes dry-run actions through the action endpoint without persisting dryRun', async () => {
@@ -1047,7 +1058,7 @@ describe('ScheduledTaskListPage', () => {
     });
     expect(apiMocks.updateScheduledTask).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain('操作结果');
-    expect(wrapper.text()).toContain('预计可清理 128 条访问日志');
+    expect(wrapper.text()).toContain('预计可删除 128 行');
     expect(wrapper.text()).toContain('estimated');
   });
 
@@ -1250,12 +1261,12 @@ describe('ScheduledTaskListPage', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('操作结果');
-    expect(wrapper.text()).toContain('预计可清理 128 条访问日志');
+    expect(wrapper.text()).toContain('预计可删除 128 行');
 
     await findButtonByText(wrapper, '关闭')!.trigger('click');
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('操作结果');
-    expect(wrapper.text()).not.toContain('预计可清理 128 条访问日志');
+    expect(wrapper.text()).not.toContain('预计可删除 128 行');
   });
 });

@@ -252,6 +252,12 @@
         "schedule": "Schedule",
         "lastRun": "Last Run"
       },
+      "result": {
+        "completed": "Execution completed",
+        "deletedRows": "Deleted {count} rows",
+        "estimatedRows": "Estimated {count} rows eligible for deletion",
+        "failed": "Execution failed"
+      },
       "status": {
         "idle": "Pending Schedule",
         "running": "Running",

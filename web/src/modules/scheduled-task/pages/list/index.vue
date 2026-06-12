@@ -614,7 +614,9 @@
         @close="closeActionResultDialog"
       >
         <div v-if="actionResult" class="scheduled-task-dialog-copy">
-          <t-alert v-if="actionResultStructured.summary" theme="success" :message="actionResultStructured.summary" />
+          <t-alert v-if="actionResultSummaryText" theme="success" :message="actionResultSummaryText">
+            {{ actionResultSummaryText }}
+          </t-alert>
           <t-descriptions :column="1" bordered size="small">
             <t-descriptions-item v-if="actionResultStructured.stage" :label="t('scheduledTask.list.detail.stage')">
               <t-tag theme="primary" variant="light">{{ actionResultStructured.stage }}</t-tag>
@@ -684,7 +686,7 @@
           <section class="scheduled-task-detail-summary">
             <t-card class="scheduled-task-detail-summary__card" size="small" :bordered="true">
               <span>{{ t('scheduledTask.list.detail.nextRun') }}</span>
-              <strong>{{ formatTimestamp(selectedTask.next_run_at) }}</strong>
+              <strong>{{ taskNextRunTime(selectedTask) }}</strong>
               <small>{{ cronScheduleDescription(selectedTask.cron_expression) }}</small>
             </t-card>
             <t-card class="scheduled-task-detail-summary__card" size="small" :bordered="true">
@@ -752,7 +754,7 @@
                   {{ cronTimezone() }}
                 </t-descriptions-item>
                 <t-descriptions-item :label="t('scheduledTask.list.detail.nextRun')">
-                  {{ formatTimestamp(selectedTask.next_run_at) }}
+                  {{ taskNextRunTime(selectedTask) }}
                 </t-descriptions-item>
                 <t-descriptions-item :label="t('scheduledTask.list.detail.enabled')">
                   {{ booleanLabel(selectedTask.enabled) }}
@@ -1122,7 +1124,7 @@ import {
 } from '../../utils/cron';
 import { translateCronValidation } from '../../utils/cron-i18n';
 import { formatJsonPreview, type JsonRecord, parseJsonRecord } from '../../utils/json';
-import { parseRunResult, type ScheduledTaskRunResult } from '../../utils/run-result';
+import { parseRunResult, runResultMetricNumber, type ScheduledTaskRunResult } from '../../utils/run-result';
 
 defineOptions({
   name: 'ScheduledTaskListPage',
@@ -1481,6 +1483,8 @@ const actionResultStructured = computed<ScheduledTaskRunResult>(() => {
     warnings: result.warnings ?? parsed.warnings,
   };
 });
+
+const actionResultSummaryText = computed(() => localizedStructuredRunResultText(actionResultStructured.value));
 
 const actionResultRawJsonPreview = computed(() => {
   if (!actionResult.value) {
@@ -2727,24 +2731,46 @@ function successRateLabel(taskKey: string) {
 }
 
 function runResultText(run: ScheduledTaskRunItem | NonNullable<ScheduledTaskItem['last_run']>) {
-  const structured = runResultStructured(run);
-  if (structured.summary) {
-    return structured.summary;
+  const localized = localizedRunResultText(run);
+  if (localized) {
+    return localized;
   }
 
   if (run.status === 'success') {
-    return run.result_summary || t('scheduledTask.list.detail.none');
+    return t('scheduledTask.list.result.completed');
   }
 
   if (run.status === 'failed') {
-    return run.error_message || run.result_summary || t('scheduledTask.list.detail.noError');
+    return t('scheduledTask.list.result.failed');
   }
 
-  return run.result_summary || run.error_message || t('scheduledTask.list.detail.noError');
+  return t('scheduledTask.list.detail.noError');
 }
 
 function runResultStructured(run: ScheduledTaskRunItem | NonNullable<ScheduledTaskItem['last_run']>) {
   return parseRunResult(run.result_json);
+}
+
+function localizedRunResultText(run: ScheduledTaskRunItem | NonNullable<ScheduledTaskItem['last_run']>) {
+  return localizedStructuredRunResultText(runResultStructured(run), run.status);
+}
+
+function localizedStructuredRunResultText(result: ScheduledTaskRunResult, status?: ScheduledTaskRunStatus) {
+  const deletedCount = runResultMetricNumber(result, 'deletedCount') ?? runResultMetricNumber(result, 'deletedRows');
+  if (deletedCount !== undefined) {
+    return t('scheduledTask.list.result.deletedRows', { count: deletedCount });
+  }
+
+  const estimatedDeleteCount = runResultMetricNumber(result, 'estimatedDeleteCount');
+  if (estimatedDeleteCount !== undefined) {
+    return t('scheduledTask.list.result.estimatedRows', { count: estimatedDeleteCount });
+  }
+
+  if (status === 'failed' || result.stage === 'failed') {
+    return t('scheduledTask.list.result.failed');
+  }
+
+  return '';
 }
 
 function configSchemaFieldTitle(field: ConfigSchemaField) {
@@ -2880,6 +2906,14 @@ function formatTimestamp(value?: string | null) {
 
   const formatted = formatLocaleDateTime(value, locale, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS);
   return formatted === '-' ? t('scheduledTask.list.detail.notAvailable') : formatted;
+}
+
+function taskNextRunTime(task: ScheduledTaskItem) {
+  const backendNextRun = formatLocaleDateTime(task.next_run_at, locale, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS);
+  if (backendNextRun && backendNextRun !== '-') {
+    return backendNextRun;
+  }
+  return cronNextRunTime(task.cron_expression);
 }
 
 function formatDuration(value?: number | null) {
