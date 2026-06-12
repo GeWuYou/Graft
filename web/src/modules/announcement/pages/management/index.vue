@@ -118,7 +118,9 @@
           <template #title="{ row }">
             <div class="announcement-title-cell">
               <strong>{{ row.title }}</strong>
-              <span>{{ row.content }}</span>
+              <t-tooltip placement="top-left" :content="row.summary">
+                <span>{{ row.summary }}</span>
+              </t-tooltip>
             </div>
           </template>
 
@@ -316,8 +318,9 @@
       :header="t('announcement.management.detailDrawer.title')"
       :footer="false"
       placement="right"
-      size="620px"
+      size="min(880px, 72vw)"
       destroy-on-close
+      drawer-class-name="announcement-detail-drawer"
     >
       <div v-if="detailRecord" class="announcement-detail">
         <section class="drawer-section">
@@ -978,11 +981,6 @@ function readableError(error: unknown, fallback: string) {
   font: var(--td-font-title-medium);
 }
 
-.announcement-detail__content {
-  max-height: 420px;
-  overflow: auto;
-}
-
 .detail-list {
   display: grid;
   gap: var(--graft-density-gap-10) var(--graft-density-gap-16);
@@ -1000,6 +998,10 @@ function readableError(error: unknown, fallback: string) {
 }
 
 @media (width <= 768px) {
+  :deep(.announcement-detail-drawer) {
+    width: calc(100vw - 24px) !important;
+  }
+
   .toolbar__search,
   .toolbar__select {
     width: 100%;

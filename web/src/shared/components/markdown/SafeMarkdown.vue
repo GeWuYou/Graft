@@ -4,7 +4,7 @@
 -->
 
 <template>
-  <div class="safe-markdown" v-html="renderedHtml" />
+  <div class="markdown-viewer" v-html="renderedHtml" />
 </template>
 <script setup lang="ts">
 import DOMPurify from 'dompurify';
@@ -58,127 +58,166 @@ const renderedHtml = computed(() =>
 );
 </script>
 <style scoped lang="less">
-.safe-markdown {
+.markdown-viewer {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-medium);
   line-height: 1.7;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-align: left;
 }
 
-.safe-markdown :deep(:first-child) {
+.markdown-viewer :deep(:first-child) {
   margin-top: 0;
 }
 
-.safe-markdown :deep(:last-child) {
+.markdown-viewer :deep(:last-child) {
   margin-bottom: 0;
 }
 
-.safe-markdown :deep(p),
-.safe-markdown :deep(ul),
-.safe-markdown :deep(ol),
-.safe-markdown :deep(pre),
-.safe-markdown :deep(blockquote),
-.safe-markdown :deep(table),
-.safe-markdown :deep(hr) {
+.markdown-viewer :deep(p),
+.markdown-viewer :deep(ul),
+.markdown-viewer :deep(ol),
+.markdown-viewer :deep(pre),
+.markdown-viewer :deep(blockquote),
+.markdown-viewer :deep(table),
+.markdown-viewer :deep(hr) {
   margin: 0 0 var(--graft-density-gap-10);
 }
 
-.safe-markdown :deep(h1),
-.safe-markdown :deep(h2),
-.safe-markdown :deep(h3),
-.safe-markdown :deep(h4),
-.safe-markdown :deep(h5),
-.safe-markdown :deep(h6) {
+.markdown-viewer :deep(h1),
+.markdown-viewer :deep(h2),
+.markdown-viewer :deep(h3),
+.markdown-viewer :deep(h4),
+.markdown-viewer :deep(h5),
+.markdown-viewer :deep(h6) {
   color: var(--td-text-color-primary);
   font-weight: 600;
   line-height: 1.35;
   margin: var(--graft-density-gap-18) 0 var(--graft-density-gap-10);
 }
 
-.safe-markdown :deep(h1) {
+.markdown-viewer :deep(h1) {
   font: var(--td-font-title-large);
 }
 
-.safe-markdown :deep(h2) {
+.markdown-viewer :deep(h2) {
   font: var(--td-font-title-medium);
 }
 
-.safe-markdown :deep(h3),
-.safe-markdown :deep(h4) {
+.markdown-viewer :deep(h3),
+.markdown-viewer :deep(h4) {
   font: var(--td-font-title-small);
 }
 
-.safe-markdown :deep(h5),
-.safe-markdown :deep(h6) {
+.markdown-viewer :deep(h5),
+.markdown-viewer :deep(h6) {
   font: var(--td-font-body-large);
 }
 
-.safe-markdown :deep(ul),
-.safe-markdown :deep(ol) {
+.markdown-viewer :deep(ul),
+.markdown-viewer :deep(ol) {
   padding-left: var(--graft-density-gap-24);
 }
 
-.safe-markdown :deep(a) {
+.markdown-viewer :deep(a) {
   color: var(--td-brand-color);
   text-decoration: none;
+  word-break: break-all;
 }
 
-.safe-markdown :deep(a:hover) {
+.markdown-viewer :deep(a:hover) {
   color: var(--td-brand-color-hover);
   text-decoration: underline;
 }
 
-.safe-markdown :deep(code) {
-  background: var(--td-bg-color-component);
+.markdown-viewer :deep(code) {
+  background: color-mix(in srgb, var(--td-bg-color-component) 86%, var(--td-brand-color) 14%);
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-small);
   color: var(--td-text-color-primary);
   font-family: var(--td-font-family-mono);
+  font-size: var(--td-font-size-body-small);
   padding: 0 var(--graft-density-gap-4);
 }
 
-.safe-markdown :deep(pre) {
-  background: var(--td-bg-color-component);
+.markdown-viewer :deep(pre) {
+  background: color-mix(in srgb, var(--td-bg-color-component) 92%, var(--td-bg-color-page) 8%);
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
   max-width: 100%;
   overflow: auto;
   padding: var(--graft-density-gap-12);
+  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
-.safe-markdown :deep(pre code) {
+.markdown-viewer :deep(pre::-webkit-scrollbar),
+.markdown-viewer :deep(table::-webkit-scrollbar) {
+  height: 8px;
+  width: 8px;
+}
+
+.markdown-viewer :deep(pre::-webkit-scrollbar-track),
+.markdown-viewer :deep(table::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.markdown-viewer :deep(pre::-webkit-scrollbar-thumb),
+.markdown-viewer :deep(table::-webkit-scrollbar-thumb) {
+  background-color: var(--td-scrollbar-color);
+  border-radius: var(--td-radius-round);
+}
+
+.markdown-viewer :deep(pre code) {
   background: transparent;
   border: 0;
+  display: block;
+  min-width: max-content;
   padding: 0;
+  white-space: pre;
 }
 
-.safe-markdown :deep(blockquote) {
-  border-left: 3px solid var(--td-brand-color);
+.markdown-viewer :deep(blockquote) {
+  background: color-mix(in srgb, var(--td-bg-color-container-hover) 76%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--td-brand-color) 54%, var(--td-component-stroke));
+  border-radius: 0 var(--td-radius-medium) var(--td-radius-medium) 0;
   color: var(--td-text-color-secondary);
+  margin-left: 0;
   padding-left: var(--graft-density-gap-12);
 }
 
-.safe-markdown :deep(table) {
+.markdown-viewer :deep(table) {
   border-collapse: collapse;
   display: block;
   max-width: 100%;
   overflow: auto;
+  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  white-space: nowrap;
 }
 
-.safe-markdown :deep(th),
-.safe-markdown :deep(td) {
+.markdown-viewer :deep(th),
+.markdown-viewer :deep(td) {
   border: 1px solid var(--td-component-stroke);
   padding: var(--graft-density-gap-6) var(--graft-density-gap-10);
 }
 
-.safe-markdown :deep(th) {
+.markdown-viewer :deep(th) {
   background: var(--td-bg-color-component);
   color: var(--td-text-color-primary);
   font-weight: 600;
 }
 
-.safe-markdown :deep(hr) {
+.markdown-viewer :deep(img) {
+  border-radius: var(--td-radius-medium);
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.markdown-viewer :deep(hr) {
   border: 0;
   border-top: 1px solid var(--td-component-stroke);
 }

@@ -19,7 +19,15 @@
     },
     "header": {
       "open": "Open Announcement Center",
-      "title": "Announcement Center"
+      "title": "Announcement Center",
+      "markReadFailed": "Failed to Mark Announcement"
+    },
+    "readPanel": {
+      "close": "Close Announcement",
+      "viewLater": "View Later",
+      "openCenter": "Open Announcement Center",
+      "markRead": "Mark Read",
+      "publishAt": "Published"
     },
     "user": {
       "title": "Announcement Center",

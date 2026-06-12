@@ -4,60 +4,33 @@
 -->
 
 <template>
-  <t-dialog
-    v-model:visible="visible"
-    class="announcement-popup-dialog"
-    placement="center"
-    width="560px"
-    :close-on-overlay-click="false"
-    :confirm-btn="null"
-    :cancel-btn="null"
-    :footer="false"
-    destroy-on-close
+  <announcement-read-panel
+    :visible="visible"
+    :announcement="current"
+    source="popup"
+    :marking-read="markingRead"
     @close="dismissCurrent"
-  >
-    <template #header>
-      <div class="announcement-popup-dialog__header">
-        <t-tag v-if="current" :theme="current.levelTheme" variant="light">
-          {{ current.levelLabel }}
-        </t-tag>
-        <t-tag theme="primary" variant="light">
-          {{ t('announcement.readState.unread') }}
-        </t-tag>
-      </div>
-    </template>
-
-    <article v-if="current" class="announcement-popup-dialog__body">
-      <h2>{{ current.title }}</h2>
-      <p>{{ current.publishAtLabel }}</p>
-      <safe-markdown class="announcement-popup-dialog__content" :source="current.content" />
-    </article>
-
-    <template #footer>
-      <div class="announcement-popup-dialog__footer">
-        <t-button theme="default" variant="outline" @click="dismissCurrent">
-          {{ t('announcement.popup.viewLater') }}
-        </t-button>
-        <t-button theme="primary" :loading="markingRead" @click="markCurrentRead">
-          {{ t('announcement.popup.markRead') }}
-        </t-button>
-      </div>
-    </template>
-  </t-dialog>
+    @mark-read="markCurrentRead"
+    @open-center="openCenter"
+  />
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
-import { SafeMarkdown } from '@/shared/components/markdown';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { getMyAnnouncements, markAnnouncementRead } from '../api/announcement';
+import { markAnnouncementRead } from '../api/announcement';
+import { ANNOUNCEMENT_ROUTE_PATH } from '../contract/paths';
 import { emitAnnouncementChanged, onAnnouncementChanged } from '../contract/refresh';
 import { type AnnouncementViewModel, presentAnnouncement } from '../domain/announcement-presenter';
+import { loadUnreadAnnouncementCandidate } from './announcement-read-panel';
+import AnnouncementReadPanel from './AnnouncementReadPanel.vue';
 
-const { locale, t } = useI18n();
+const { locale: activeLocale, t: translate } = useI18n();
+const announcementRouter = useRouter();
 
 const visible = ref(false);
 const markingRead = ref(false);
@@ -82,13 +55,13 @@ async function refreshPopupCandidate() {
   }
 
   try {
-    const page = await getMyAnnouncements({
-      page: 1,
-      page_size: 10,
-      unread_only: true,
+    currentItem.value = await loadUnreadAnnouncementCandidate({
+      filter: (item) =>
+        item.delivery_mode === 'popup' && !item.read_at && item.unread !== false && !dismissedIds.has(item.id),
+      locale: activeLocale.value,
+      pageSize: 10,
+      t: translate,
     });
-    const popup = page.items.find((item) => item.delivery_mode === 'popup' && !dismissedIds.has(item.id));
-    currentItem.value = popup ? presentAnnouncement(popup, t, locale.value) : null;
     visible.value = Boolean(currentItem.value);
   } catch {
     currentItem.value = null;
@@ -110,58 +83,20 @@ async function markCurrentRead() {
 
   markingRead.value = true;
   try {
-    await markAnnouncementRead(currentItem.value.id);
+    const updated = await markAnnouncementRead(currentItem.value.id);
     dismissedIds.add(currentItem.value.id);
+    currentItem.value = presentAnnouncement(updated, translate, activeLocale.value);
     visible.value = false;
-    currentItem.value = null;
     emitAnnouncementChanged();
   } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('announcement.popup.markReadFailed')));
+    MessagePlugin.error(resolveLocalizedErrorMessage(translate, error, translate('announcement.popup.markReadFailed')));
   } finally {
     markingRead.value = false;
   }
 }
+
+function openCenter() {
+  dismissCurrent();
+  void announcementRouter.push(ANNOUNCEMENT_ROUTE_PATH.USER_LIST);
+}
 </script>
-<style scoped lang="less">
-.announcement-popup-dialog__header,
-.announcement-popup-dialog__footer {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-10);
-}
-
-.announcement-popup-dialog__body {
-  align-items: stretch;
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-8);
-  text-align: left;
-}
-
-.announcement-popup-dialog__body h2 {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-large);
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.announcement-popup-dialog__body > p {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  margin: 0;
-}
-
-.announcement-popup-dialog__content {
-  border-top: 1px solid var(--td-component-stroke);
-  margin-top: var(--graft-density-gap-6);
-  max-height: min(52vh, 420px);
-  overflow: auto;
-  padding-top: var(--graft-density-gap-12);
-  width: 100%;
-}
-
-.announcement-popup-dialog__footer {
-  justify-content: flex-end;
-}
-</style>

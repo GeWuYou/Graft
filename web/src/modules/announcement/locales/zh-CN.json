@@ -19,7 +19,15 @@
     },
     "header": {
       "open": "打开公告中心",
-      "title": "公告中心"
+      "title": "公告中心",
+      "markReadFailed": "标记公告失败"
+    },
+    "readPanel": {
+      "close": "关闭公告",
+      "viewLater": "稍后查看",
+      "openCenter": "查看公告中心",
+      "markRead": "标记已读",
+      "publishAt": "发布时间"
     },
     "user": {
       "title": "公告中心",

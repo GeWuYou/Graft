@@ -29,6 +29,7 @@ vi.mock('tdesign-vue-next/es/message', () => ({
 }));
 
 vi.mock('@/shared/components/markdown', () => ({
+  markdownToPlainTextSummary: (source: string) => source,
   SafeMarkdown: defineComponent({
     props: {
       source: { type: String, default: '' },

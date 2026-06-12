@@ -4,6 +4,7 @@
 import type { ComposerTranslation } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
+import { markdownToPlainTextSummary } from '@/shared/components/markdown';
 
 import {
   ANNOUNCEMENT_DELIVERY_MODE_LABEL_KEY,
@@ -34,6 +35,7 @@ export type AnnouncementViewModel = {
   pinnedLabel: string;
   publishAtLabel: string;
   readAtLabel: string;
+  summary: string;
   status: AnnouncementStatus;
   statusLabel: string;
   statusTheme: AnnouncementTagTheme;
@@ -62,6 +64,7 @@ export function presentAnnouncement(
     pinnedLabel: resolvePinnedLabel(item.pinned, t),
     publishAtLabel: formatAnnouncementDate(item.publish_at, locale, t),
     readAtLabel: formatAnnouncementDate(item.read_at, locale, t),
+    summary: markdownToPlainTextSummary(item.content),
     status: item.status,
     statusLabel: resolveAnnouncementStatusLabel(item.status, t),
     statusTheme: announcementStatusTheme(item.status),

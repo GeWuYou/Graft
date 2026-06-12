@@ -105,17 +105,6 @@ vi.mock('@/shared/components/management', () => ({
   formatCompactDateTime: (value: string) => value,
 }));
 
-vi.mock('@/shared/components/markdown', () => ({
-  SafeMarkdown: defineComponent({
-    props: {
-      source: { type: String, default: '' },
-    },
-    setup(props) {
-      return () => h('div', props.source);
-    },
-  }),
-}));
-
 const buttonStub = defineComponent({
   props: {
     disabled: { type: Boolean, default: false },
@@ -128,7 +117,7 @@ const buttonStub = defineComponent({
         {
           disabled: props.disabled,
           type: 'button',
-          onClick: () => emit('click'),
+          onClick: (event: MouseEvent) => emit('click', event),
         },
         slots.default?.(),
       );
@@ -194,6 +183,29 @@ const componentStubs = {
       return () => h('span', slots.default?.());
     },
   }),
+  't-tooltip': defineComponent({
+    props: {
+      content: { type: String, default: '' },
+    },
+    setup(props, { slots }) {
+      return () => h('span', { title: props.content }, slots.default?.());
+    },
+  }),
+  AnnouncementReadPanel: defineComponent({
+    props: {
+      announcement: { type: Object, default: null },
+      visible: { type: Boolean, default: false },
+    },
+    emits: ['mark-read'],
+    setup(props, { emit }) {
+      return () =>
+        props.visible
+          ? h('section', { 'data-testid': 'read-panel', 'data-title': props.announcement?.title }, [
+              h('button', { class: 'panel-mark-read', type: 'button', onClick: () => emit('mark-read') }, 'panel mark'),
+            ])
+          : null;
+    },
+  }),
 };
 
 describe('UserAnnouncementPage', () => {
@@ -221,6 +233,30 @@ describe('UserAnnouncementPage', () => {
 
     expect(api.markAnnouncementRead).toHaveBeenCalledWith(7);
     expect(MessagePlugin.success).toHaveBeenCalledWith('announcement.user.markReadSuccess');
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
+  });
+
+  it('opens the read panel from a list item and marks the selected announcement read', async () => {
+    const api = await import('../../api/announcement');
+    vi.mocked(api.markAnnouncementRead).mockClear();
+    dispatchSpy.mockClear();
+
+    const wrapper = mount(UserAnnouncementPage, {
+      global: {
+        stubs: componentStubs,
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    await wrapper.get('.announcement-user-page__item').trigger('click');
+    expect(wrapper.get('[data-testid="read-panel"]').attributes('data-title')).toBe('announcement.test.title');
+
+    await wrapper.get('.panel-mark-read').trigger('click');
+    await flushPromises();
+
+    expect(api.markAnnouncementRead).toHaveBeenCalledWith(7);
     expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
   });
 

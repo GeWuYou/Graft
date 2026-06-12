@@ -53,7 +53,15 @@
         <t-loading v-else :loading="loading" size="large" :text="t('announcement.user.loading')">
           <t-list v-if="presentedRows.length" class="announcement-user-page__list" :split="true" size="large">
             <t-list-item v-for="row in presentedRows" :key="row.id">
-              <article class="announcement-user-page__item" :class="{ 'is-unread': row.unread }">
+              <article
+                class="announcement-user-page__item"
+                :class="{ 'is-unread': row.unread }"
+                role="button"
+                tabindex="0"
+                @click="openReadPanel(row)"
+                @keydown.enter.prevent="openReadPanel(row)"
+                @keydown.space.prevent="openReadPanel(row)"
+              >
                 <span v-if="row.unread" class="announcement-user-page__unread-dot" aria-hidden="true" />
                 <div class="announcement-user-page__item-main">
                   <header class="announcement-user-page__item-head">
@@ -77,12 +85,14 @@
                       variant="text"
                       size="small"
                       :loading="markingReadId === row.id"
-                      @click="markRead(row.id)"
+                      @click.stop="markRead(row.id)"
                     >
                       {{ t('announcement.user.markRead') }}
                     </t-button>
                   </header>
-                  <safe-markdown class="announcement-user-page__content" :source="row.content" />
+                  <t-tooltip placement="top-left" :content="row.summary">
+                    <p class="announcement-user-page__summary">{{ row.summary }}</p>
+                  </t-tooltip>
                   <dl class="announcement-user-page__meta">
                     <div>
                       <dt>{{ t('announcement.user.publishAt') }}</dt>
@@ -125,6 +135,15 @@
         </template>
       </t-card>
     </management-page-content>
+
+    <announcement-read-panel
+      :visible="readPanelVisible"
+      :announcement="readPanelRecord"
+      source="center"
+      :marking-read="markingReadId === readPanelRecord?.id"
+      @close="closeReadPanel"
+      @mark-read="markReadFromPanel"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -138,7 +157,6 @@ import {
   ManagementPageHeader,
   ManagementTablePagination,
 } from '@/shared/components/management';
-import { SafeMarkdown } from '@/shared/components/markdown';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
@@ -147,6 +165,7 @@ import {
   markAllAnnouncementsRead,
   markAnnouncementRead,
 } from '../../api/announcement';
+import AnnouncementReadPanel from '../../components/AnnouncementReadPanel.vue';
 import { emitAnnouncementChanged, onAnnouncementChanged } from '../../contract/refresh';
 import { type AnnouncementViewModel, presentAnnouncement } from '../../domain/announcement-presenter';
 
@@ -157,6 +176,8 @@ const markingAllRead = ref(false);
 const markingReadId = ref<number | null>(null);
 const listError = ref('');
 const rows = ref<AnnouncementViewModel[]>([]);
+const readPanelRecord = ref<AnnouncementViewModel | null>(null);
+const readPanelVisible = ref(false);
 const total = ref(0);
 const unreadCount = ref(0);
 const pagination = reactive({
@@ -219,7 +240,9 @@ async function fetchAnnouncements() {
 async function markRead(id: number) {
   markingReadId.value = id;
   try {
-    await markAnnouncementRead(id);
+    const updated = await markAnnouncementRead(id);
+    const updatedView = presentAnnouncement(updated, t, locale.value);
+    readPanelRecord.value = readPanelRecord.value?.id === id ? updatedView : readPanelRecord.value;
     await fetchAnnouncements();
     emitLocalAnnouncementChanged();
     MessagePlugin.success(t('announcement.user.markReadSuccess'));
@@ -227,6 +250,26 @@ async function markRead(id: number) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('announcement.user.markReadFailed')));
   } finally {
     markingReadId.value = null;
+  }
+}
+
+function openReadPanel(row: AnnouncementViewModel) {
+  readPanelRecord.value = row;
+  readPanelVisible.value = true;
+}
+
+function closeReadPanel() {
+  readPanelVisible.value = false;
+}
+
+async function markReadFromPanel() {
+  if (!readPanelRecord.value) {
+    return;
+  }
+
+  await markRead(readPanelRecord.value.id);
+  if (!readPanelRecord.value?.unread) {
+    readPanelVisible.value = false;
   }
 }
 
@@ -319,10 +362,16 @@ function emitLocalAnnouncementChanged() {
 
 .announcement-user-page__item {
   align-items: flex-start;
+  cursor: pointer;
   display: flex;
   gap: var(--graft-density-gap-10);
   padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-xl);
   width: 100%;
+}
+
+.announcement-user-page__item:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: -2px;
 }
 
 .announcement-user-page__item.is-unread {
@@ -373,8 +422,13 @@ function emitLocalAnnouncementChanged() {
   gap: var(--graft-density-gap-6);
 }
 
-.announcement-user-page__content {
+.announcement-user-page__summary {
   color: var(--td-text-color-secondary);
+  font: var(--td-font-body-medium);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .announcement-user-page__meta {
