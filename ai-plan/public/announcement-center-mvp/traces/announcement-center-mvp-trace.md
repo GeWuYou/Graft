@@ -18,6 +18,11 @@
 - Phase 4 已提交：`cecea602 feat(announcement): add management web UI`。
 - Phase 4 完成 `web/src/modules/announcement` 管理端模块、API client、bootstrap route、presenter、i18n、
   管理页和 focused/full web validation。
+- Phase 5 已提交：`0b019358 feat(announcement): add user entry dashboard`。
+- Phase 5 完成用户侧 `/announcements` global route、当前用户公告页、已读操作、顶部独立公告 badge 入口和
+  focused/full web validation。
+- Phase 5 未直接加入 dashboard 摘要，因为当前 dashboard 由后端 summary/widgets 驱动，缺少干净的前端模块贡献点；
+  该摘要保留为后续 dashboard contribution contract 设计项。
 
 ## Loop Batch State
 
@@ -29,13 +34,13 @@
     "phase-1-openapi-server-foundation",
     "phase-2-server-management-api",
     "phase-3-server-user-api",
-    "phase-4-web-management-ui"
+    "phase-4-web-management-ui",
+    "phase-5-user-entry-dashboard"
   ],
   "pending_batches": [
-    "phase-5-user-entry-dashboard",
     "phase-6-validation-governance-closeout"
   ],
   "current_batch": null,
-  "next_batch": "phase-5-user-entry-dashboard"
+  "next_batch": "phase-6-validation-governance-closeout"
 }
 ```
