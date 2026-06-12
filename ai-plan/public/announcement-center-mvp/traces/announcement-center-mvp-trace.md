@@ -23,6 +23,16 @@
   focused/full web validation。
 - Phase 5 未直接加入 dashboard 摘要，因为当前 dashboard 由后端 summary/widgets 驱动，缺少干净的前端模块贡献点；
   该摘要保留为后续 dashboard contribution contract 设计项。
+- Phase 6 发现 `server/modules/announcement/migrations` 有 live SQL 但缺少 `atlas.sum`，导致 backend
+  完成态校验失败；已用 `atlas migrate hash --dir file://server/modules/announcement/migrations` 补齐。
+- Phase 6 最终校验通过：
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+  - `python3 scripts/validate_sql_migrations.py`
+  - `python3 scripts/check_migration_versions.py --mode all`
+  - `git diff --check`
+- Phase 6 独立性检查确认公告实现未向 `notification_events` 写入公告正文，顶部公告入口与 notification bell 分离。
+- Phase 6 归档判定：`archive-ready`。
 
 ## Loop Batch State
 
@@ -35,12 +45,12 @@
     "phase-2-server-management-api",
     "phase-3-server-user-api",
     "phase-4-web-management-ui",
-    "phase-5-user-entry-dashboard"
-  ],
-  "pending_batches": [
+    "phase-5-user-entry-dashboard",
     "phase-6-validation-governance-closeout"
   ],
-  "current_batch": null,
-  "next_batch": "phase-6-validation-governance-closeout"
+  "pending_batches": [],
+  "current_batch": "phase-6-validation-governance-closeout",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

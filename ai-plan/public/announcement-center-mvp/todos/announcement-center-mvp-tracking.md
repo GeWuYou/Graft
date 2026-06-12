@@ -27,8 +27,10 @@ Announcement Center MVP
 - Phase 3 已完成并提交，用户端 API、已读状态、未读数和用户隔离已建立。
 - Phase 4 已完成并提交，前端公告管理页和 module scaffold 已建立。
 - Phase 5 已完成并提交，用户侧公告页和顶部独立公告入口已建立。
+- Phase 6 已完成，最终 backend/web/migration/diff validation 通过，并补齐公告 migration Atlas checksum state。
 - 工作台摘要已延期：当前 dashboard 缺少干净的前端模块贡献点，后续应先设计 dashboard contribution contract。
-- 下一批次进入 Phase 6，执行最终验证、治理收尾和 archive-ready 判断。
+- Archive-ready 判定：`confirmed`。
+- 下一批次：无。
 
 ## Task Checklist
 
@@ -38,4 +40,4 @@ Announcement Center MVP
 - [x] Phase 3：后端用户端 API + 已读状态
 - [x] Phase 4：前端公告管理页
 - [x] Phase 5：用户侧公告入口 / 工作台摘要
-- [ ] Phase 6：测试、i18n、治理收尾
+- [x] Phase 6：测试、i18n、治理收尾
