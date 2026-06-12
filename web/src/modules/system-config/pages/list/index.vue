@@ -368,6 +368,7 @@ import { useI18n } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
 import { PageHeader } from '@/shared/components/page';
+import { copyText } from '@/shared/observability';
 import {
   configEditorContainer,
   ConfigEditorRenderer,
@@ -910,15 +911,13 @@ function shouldUseDrawerEditor(item: SystemConfigItem) {
 }
 
 async function copyConfigKey(key: string) {
-  try {
-    if (!navigator.clipboard?.writeText) {
-      throw new Error('Clipboard API is unavailable');
-    }
-    await navigator.clipboard.writeText(key);
+  const copied = await copyText(key);
+  if (copied) {
     MessagePlugin.success(t('systemConfig.list.advanced.copySuccess'));
-  } catch {
-    MessagePlugin.error(t('systemConfig.list.advanced.copyError'));
+    return;
   }
+
+  MessagePlugin.error(t('systemConfig.list.advanced.copyError'));
 }
 
 function schemaDescription(schema: ConfigSchemaProperty) {

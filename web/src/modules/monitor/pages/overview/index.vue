@@ -468,6 +468,7 @@ import {
   poolUsagePercent,
   poolUsageStatus,
 } from '../../shared/pool-metrics';
+import { formatChartTimeOnly, formatTimeOnly as formatMonitorTimeOnly } from '../../shared/time-display';
 import type {
   EvidenceLink,
   ServerStatusAnomaly,
@@ -1051,7 +1052,7 @@ const samplingStatusItems = computed<StatusSidebarSummaryItem[]>(() => [
   {
     key: 'lastUpdated',
     label: t('monitor.serverStatus.runtimeStatusLastUpdatedLabel'),
-    value: formatTimeOnly(lastUpdatedAt.value ?? serverStatus.value?.observed_at),
+    value: formatOverviewTimeOnly(lastUpdatedAt.value ?? serverStatus.value?.observed_at),
   },
   {
     key: 'autoRefresh',
@@ -1919,33 +1920,17 @@ function formatUptime(totalSeconds: number) {
   return `${hours}h ${minutes}m ${seconds}s`;
 }
 
-function formatTimeOnly(value?: string | null) {
+function formatOverviewTimeOnly(value?: string | null) {
   if (!value) {
     return t('monitor.serverStatus.runtimeStatusNotAvailable');
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale.value, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(date);
+  const formatted = formatMonitorTimeOnly(value, locale);
+  return formatted === '--' ? value : formatted;
 }
 
 function formatChartTimestamp(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale.value, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  return formatChartTimeOnly(value, locale) || value;
 }
 
 function formatBytes(bytes: number | null) {

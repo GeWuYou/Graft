@@ -6,6 +6,7 @@ import { h } from 'vue';
 import type { Router } from 'vue-router';
 
 import { buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
+import { copyText } from '@/shared/observability';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
@@ -30,16 +31,7 @@ export function requestIdFromError(error: unknown) {
 }
 
 async function copyCorrelationRequestId(requestId: string) {
-  if (typeof navigator === 'undefined' || !navigator.clipboard) {
-    return false;
-  }
-
-  try {
-    await navigator.clipboard.writeText(requestId);
-    return true;
-  } catch {
-    return false;
-  }
+  return copyText(requestId);
 }
 
 export function openCorrelationErrorNotification(options: CorrelationActionsOptions) {
