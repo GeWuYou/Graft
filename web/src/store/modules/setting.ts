@@ -36,6 +36,10 @@ import {
 import type { ModeType } from '@/utils/types';
 
 const STYLE_CONFIG_KEYS = keys(STYLE_CONFIG) as Array<keyof typeof STYLE_CONFIG>;
+const THEME_AUTHORITY_STYLE_KEYS = ['mode', 'brandTheme'] as const;
+const WORKBENCH_STYLE_CONFIG_KEYS = STYLE_CONFIG_KEYS.filter(
+  (key) => !(THEME_AUTHORITY_STYLE_KEYS as readonly string[]).includes(key),
+);
 const THEME_TRANSITION_DURATION_MS = 420;
 const THEME_TRANSITION_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const THEME_VIEW_TRANSITION_CLASS = 'graft-theme-view-transition';
@@ -441,6 +445,19 @@ function hasThemeAuthorityStateDiff(fromState: ThemeAuthorityState, toState: The
   );
 }
 
+type WorkbenchStyleConfigSnapshot = Pick<typeof STYLE_CONFIG, (typeof WORKBENCH_STYLE_CONFIG_KEYS)[number]>;
+
+function createWorkbenchStyleConfigSnapshot(state: SettingState): WorkbenchStyleConfigSnapshot {
+  return WORKBENCH_STYLE_CONFIG_KEYS.reduce((snapshot, key) => {
+    snapshot[key] = state[key] as never;
+    return snapshot;
+  }, {} as WorkbenchStyleConfigSnapshot);
+}
+
+function hasWorkbenchStyleConfigDiff(fromState: WorkbenchStyleConfigSnapshot, toState: WorkbenchStyleConfigSnapshot) {
+  return WORKBENCH_STYLE_CONFIG_KEYS.some((key) => fromState[key] !== toState[key]);
+}
+
 export type SettingState = typeof STYLE_CONFIG & {
   showSettingPanel: boolean;
   showThemeWorkbench: boolean;
@@ -448,6 +465,7 @@ export type SettingState = typeof STYLE_CONFIG & {
   themeWorkbenchRuntimeReady: boolean;
   activeThemeWorkbenchGroup: ThemeWorkbenchGroupKey;
   activeThemeTokenGroup: ThemeTokenGroupKey;
+  themeWorkbenchStyleConfigBaseline: WorkbenchStyleConfigSnapshot | null;
   themeDraftBaseline: ThemeAuthorityState | null;
   themeDraft: ThemeAuthorityState | null;
   themeDraftApplied: boolean;
@@ -485,6 +503,7 @@ function createInitialSettingState(): SettingState {
     themeWorkbenchRuntimeReady: false,
     activeThemeWorkbenchGroup: 'overview',
     activeThemeTokenGroup: 'brand',
+    themeWorkbenchStyleConfigBaseline: null,
     themeDraftBaseline: null,
     themeDraft: null,
     themeDraftApplied: false,
@@ -611,6 +630,16 @@ export const useSettingStore = defineStore('setting', {
       const baseline = state.themeDraftBaseline ?? createPersistedThemeAuthoritySnapshot(state);
       return hasThemeAuthorityStateDiff(baseline, state.themeDraft);
     },
+    hasThemeWorkbenchPendingChanges(state): boolean {
+      const themeHasChanges = this.hasThemeDraftPendingChanges;
+      const baseline = state.themeWorkbenchStyleConfigBaseline;
+
+      if (!baseline) {
+        return themeHasChanges;
+      }
+
+      return themeHasChanges || hasWorkbenchStyleConfigDiff(baseline, createWorkbenchStyleConfigSnapshot(state));
+    },
   },
   actions: {
     createThemeAuthoritySnapshot(): ThemeAuthorityState {
@@ -638,6 +667,15 @@ export const useSettingStore = defineStore('setting', {
       this.shadowPreset = nextState.shadowPreset;
       this.densityPreset = nextState.densityPreset;
       this.themeTokenOverrides = cloneThemeModeTokenState(nextState.themeTokenOverrides);
+    },
+    createWorkbenchStyleConfigSnapshot(): WorkbenchStyleConfigSnapshot {
+      return createWorkbenchStyleConfigSnapshot(this);
+    },
+    assignWorkbenchStyleConfigSnapshot(snapshot: WorkbenchStyleConfigSnapshot) {
+      WORKBENCH_STYLE_CONFIG_KEYS.forEach((key) => {
+        this[key] = snapshot[key] as never;
+      });
+      this.changeSideMode(this.sideMode as ModeType);
     },
     markThemeCustomized() {
       this.themeSource = 'customized';
@@ -739,6 +777,9 @@ export const useSettingStore = defineStore('setting', {
     },
     openThemeWorkbench(group?: ThemeWorkbenchGroupKey) {
       this.syncThemeWorkbenchVisibility(true);
+      if (!this.themeWorkbenchStyleConfigBaseline) {
+        this.themeWorkbenchStyleConfigBaseline = this.createWorkbenchStyleConfigSnapshot();
+      }
       if (!this.themeDraft) {
         const snapshot = this.createThemeAuthoritySnapshot();
         this.themeDraftBaseline = snapshot;
@@ -750,11 +791,15 @@ export const useSettingStore = defineStore('setting', {
       }
     },
     closeThemeWorkbench() {
+      if (this.themeWorkbenchStyleConfigBaseline) {
+        this.assignWorkbenchStyleConfigSnapshot(this.themeWorkbenchStyleConfigBaseline);
+      }
       if (this.themeDraftBaseline && this.themeDraftApplied) {
         this.assignThemeAuthorityState(this.themeDraftBaseline);
         this.changeMode(this.mode as ModeType | 'auto');
       }
       this.syncThemeWorkbenchVisibility(false);
+      this.themeWorkbenchStyleConfigBaseline = null;
       this.themeDraftBaseline = null;
       this.themeDraft = null;
       this.themeDraftApplied = false;
@@ -765,6 +810,7 @@ export const useSettingStore = defineStore('setting', {
     },
     beginThemeDraft() {
       const snapshot = this.createThemeAuthoritySnapshot();
+      this.themeWorkbenchStyleConfigBaseline = this.createWorkbenchStyleConfigSnapshot();
       this.themeDraftBaseline = snapshot;
       this.themeDraft = snapshot;
       this.themeDraftApplied = false;
@@ -794,12 +840,13 @@ export const useSettingStore = defineStore('setting', {
         return;
       }
 
-      const hasPendingChanges = this.hasThemeDraftPendingChanges;
+      const hasPendingChanges = this.hasThemeWorkbenchPendingChanges;
       this.assignThemeAuthorityState(this.themeDraft);
       if (hasPendingChanges) {
         this.themeAuthorityLastModifiedAt = new Date().toISOString();
       }
       this.changeMode(this.mode as ModeType | 'auto');
+      this.themeWorkbenchStyleConfigBaseline = null;
       this.themeDraftBaseline = null;
       this.themeDraft = null;
       this.themeDraftApplied = false;

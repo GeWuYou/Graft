@@ -124,10 +124,86 @@ describe('setting store theme authority', () => {
     store.beginThemeDraft();
 
     expect(store.hasThemeDraftPendingChanges).toBe(false);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
 
     store.updateThemeDraftAppearance({ fontSizePreset: 'extra-large' });
 
     expect(store.hasThemeDraftPendingChanges).toBe(true);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('tracks layout config preview changes against the workbench open baseline', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('layout');
+
+    expect(store.layout).toBe('side');
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
+
+    store.updateConfig({ layout: 'mix' });
+
+    expect(store.layout).toBe('mix');
+    expect(store.hasThemeDraftPendingChanges).toBe(false);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+
+    store.updateConfig({ layout: 'side' });
+
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
+  });
+
+  it('rolls back previewed layout config when the workbench is canceled', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('layout');
+    store.updateConfig({ layout: 'mix', splitMenu: true, isSidebarFixed: false });
+
+    expect(store.layout).toBe('mix');
+    expect(store.splitMenu).toBe(true);
+    expect(store.isSidebarFixed).toBe(false);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+
+    store.cancelThemeDraft();
+
+    expect(store.layout).toBe('side');
+    expect(store.splitMenu).toBe(false);
+    expect(store.isSidebarFixed).toBe(true);
+    expect(store.showThemeWorkbench).toBe(false);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
+  });
+
+  it('keeps previewed layout config after applying the workbench changes', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('layout');
+    store.updateConfig({ layout: 'mix', splitMenu: true });
+    const modifiedBeforeApply = store.themeAuthorityLastModifiedAt;
+
+    store.applyThemeDraft();
+
+    expect(store.layout).toBe('mix');
+    expect(store.splitMenu).toBe(true);
+    expect(store.showThemeWorkbench).toBe(false);
+    expect(store.themeDraft).toBeNull();
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
+    expect(store.themeAuthorityLastModifiedAt).not.toBe(modifiedBeforeApply);
+  });
+
+  it('applies or cancels combined theme and layout workbench changes together', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('layout');
+    store.updateConfig({ layout: 'mix' });
+    store.updateThemeDraftAppearance({ fontSizePreset: 'extra-large' });
+
+    expect(store.layout).toBe('mix');
+    expect(store.fontSizePreset).toBe('extra-large');
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+
+    store.cancelThemeDraft();
+
+    expect(store.layout).toBe('side');
+    expect(store.fontSizePreset).toBe('standard');
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
   });
 
   it('includes advanced token overrides in draft diff tracking', () => {

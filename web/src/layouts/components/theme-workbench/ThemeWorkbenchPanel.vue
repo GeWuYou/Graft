@@ -855,7 +855,7 @@ const overviewSummaryItems = computed(() => [
   },
 ]);
 
-const hasPendingChanges = computed(() => settingStore.hasThemeDraftPendingChanges);
+const hasPendingChanges = computed(() => settingStore.hasThemeWorkbenchPendingChanges);
 const splitMenuAvailable = computed(() => settingStore.layout === 'mix');
 const splitMenuHint = computed(() =>
   splitMenuAvailable.value
