@@ -5,6 +5,7 @@ required:
   - content
   - level
   - status
+  - delivery_mode
   - pinned
   - created_at
   - updated_at
@@ -23,6 +24,8 @@ properties:
     $ref: ./announcement-level.yaml
   status:
     $ref: ./announcement-status.yaml
+  delivery_mode:
+    $ref: ./announcement-delivery-mode.yaml
   pinned:
     type: boolean
   publish_at:

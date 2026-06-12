@@ -73,6 +73,12 @@ func TestAnnouncementContractValidators(t *testing.T) {
 	if announcementcontract.ValidAnnouncementLevel(announcementcontract.AnnouncementLevel("critical")) {
 		t.Fatal("unexpected ad-hoc announcement level accepted")
 	}
+	if !announcementcontract.ValidAnnouncementDeliveryMode(announcementcontract.AnnouncementDeliveryModePopup) {
+		t.Fatal("expected popup delivery mode to be valid")
+	}
+	if announcementcontract.ValidAnnouncementDeliveryMode(announcementcontract.AnnouncementDeliveryMode("toast")) {
+		t.Fatal("unexpected ad-hoc announcement delivery mode accepted")
+	}
 }
 
 func TestAnnouncementUserRoutesReturnCurrentUserAnnouncements(t *testing.T) {
@@ -86,11 +92,12 @@ func TestAnnouncementUserRoutesReturnCurrentUserAnnouncements(t *testing.T) {
 	actorID := uint64(7)
 	publishAt := time.Now().UTC().Add(-time.Hour)
 	created, err := service.Create(ctx, announcementstore.CreateInput{
-		Title:     "Visible",
-		Content:   "Visible content",
-		Level:     announcementcontract.AnnouncementLevelInfo.String(),
-		PublishAt: &publishAt,
-		ActorID:   &actorID,
+		Title:        "Visible",
+		Content:      "Visible content",
+		Level:        announcementcontract.AnnouncementLevelInfo.String(),
+		DeliveryMode: announcementcontract.AnnouncementDeliveryModePopup.String(),
+		PublishAt:    &publishAt,
+		ActorID:      &actorID,
 	})
 	if err != nil {
 		t.Fatalf("create announcement: %v", err)
@@ -125,6 +132,10 @@ func TestAnnouncementUserRoutesReturnCurrentUserAnnouncements(t *testing.T) {
 	items, ok := response.Data["items"].([]any)
 	if !ok || len(items) != 1 {
 		t.Fatalf("expected one visible announcement, got %#v", response.Data["items"])
+	}
+	item, ok := items[0].(map[string]any)
+	if !ok || item["delivery_mode"] != announcementcontract.AnnouncementDeliveryModePopup.String() {
+		t.Fatalf("expected user route to return popup delivery mode, got %#v", items[0])
 	}
 }
 
@@ -191,6 +202,40 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	}
 }
 
+func TestAnnouncementManagementServiceDeliveryMode(t *testing.T) {
+	service, err := NewService(newMemoryAnnouncementRepository())
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	created, err := service.Create(ctx, announcementstore.CreateInput{
+		Title:   "Delivery",
+		Content: "Delivery",
+		Level:   announcementcontract.AnnouncementLevelInfo.String(),
+		ActorID: &actorID,
+	})
+	if err != nil {
+		t.Fatalf("create announcement: %v", err)
+	}
+	if created.DeliveryMode != announcementcontract.AnnouncementDeliveryModeSilent.String() {
+		t.Fatalf("expected empty delivery mode to default to silent, got %q", created.DeliveryMode)
+	}
+	updated, err := service.Update(ctx, created.ID, announcementstore.UpdateInput{
+		Title:        "Delivery",
+		Content:      "Delivery",
+		Level:        announcementcontract.AnnouncementLevelInfo.String(),
+		DeliveryMode: announcementcontract.AnnouncementDeliveryModePopup.String(),
+		ActorID:      &actorID,
+	})
+	if err != nil {
+		t.Fatalf("update announcement delivery mode: %v", err)
+	}
+	if updated.DeliveryMode != announcementcontract.AnnouncementDeliveryModePopup.String() {
+		t.Fatalf("expected popup delivery mode after update, got %q", updated.DeliveryMode)
+	}
+}
+
 func TestAnnouncementManagementServiceDeleteDraftAndInvalidPublishWindow(t *testing.T) {
 	repository := newMemoryAnnouncementRepository()
 	service, err := NewService(repository)
@@ -211,6 +256,15 @@ func TestAnnouncementManagementServiceDeleteDraftAndInvalidPublishWindow(t *test
 		ActorID:   &actorID,
 	}); !errors.Is(err, errAnnouncementInvalidInput) {
 		t.Fatalf("expected invalid expire_at guard, got %v", err)
+	}
+	if _, err := service.Create(ctx, announcementstore.CreateInput{
+		Title:        "Bad delivery",
+		Content:      "Bad delivery",
+		Level:        announcementcontract.AnnouncementLevelInfo.String(),
+		DeliveryMode: "toast",
+		ActorID:      &actorID,
+	}); !errors.Is(err, errAnnouncementInvalidInput) {
+		t.Fatalf("expected invalid delivery mode guard, got %v", err)
 	}
 
 	created, err := service.Create(ctx, announcementstore.CreateInput{

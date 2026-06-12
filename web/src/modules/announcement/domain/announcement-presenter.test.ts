@@ -17,6 +17,8 @@ const labels: Record<string, string> = {
   'announcement.level.info': 'Info',
   'announcement.level.success': 'Success',
   'announcement.level.warning': 'Warning',
+  'announcement.deliveryMode.popup': 'Popup',
+  'announcement.deliveryMode.silent': 'Silent',
   'announcement.pinned.no': 'Normal',
   'announcement.pinned.yes': 'Pinned',
   'announcement.readState.read': 'Read',
@@ -45,6 +47,7 @@ describe('announcement presenter', () => {
       {
         content: 'Body',
         created_at: '2026-06-12T00:00:00Z',
+        delivery_mode: 'popup',
         id: 12,
         level: 'warning',
         pinned: true,
@@ -58,6 +61,7 @@ describe('announcement presenter', () => {
 
     expect(view.statusLabel).toBe('Published');
     expect(view.levelLabel).toBe('Warning');
+    expect(view.deliveryModeLabel).toBe('Popup');
     expect(view.pinnedLabel).toBe('Pinned');
     expect(view.publishAtLabel).toBe('Not Set');
     expect(view.unread).toBe(true);

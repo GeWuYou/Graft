@@ -4,19 +4,21 @@
 -->
 
 <template>
-  <t-badge :count="unreadCount" :max-count="99" :offset="[4, 4]">
-    <t-button
-      theme="default"
-      shape="square"
-      variant="text"
-      :loading="loading"
-      :aria-label="t('announcement.header.open')"
-      :title="t('announcement.header.open')"
-      @click="openAnnouncements"
-    >
-      <t-icon name="notification" />
-    </t-button>
-  </t-badge>
+  <t-tooltip placement="bottom" :content="t('announcement.header.title')">
+    <t-badge :count="unreadCount" :max-count="99" :offset="[4, 4]">
+      <t-button
+        theme="default"
+        shape="square"
+        variant="text"
+        :loading="loading"
+        :aria-label="t('announcement.header.title')"
+        :title="t('announcement.header.title')"
+        @click="openAnnouncements"
+      >
+        <t-icon name="notification" />
+      </t-button>
+    </t-badge>
+  </t-tooltip>
 </template>
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
@@ -25,21 +27,22 @@ import { useRouter } from 'vue-router';
 
 import { getAnnouncementUnreadCount } from '../api/announcement';
 import { ANNOUNCEMENT_ROUTE_PATH } from '../contract/paths';
-import { ANNOUNCEMENT_HEADER_REFRESH_EVENT } from '../contract/refresh';
+import { onAnnouncementChanged } from '../contract/refresh';
 
 const { t } = useI18n();
 const router = useRouter();
 
 const loading = ref(false);
 const unreadCount = ref(0);
+let stopAnnouncementChanged: (() => void) | undefined;
 
 onMounted(() => {
   void refreshUnreadCount();
-  window.addEventListener(ANNOUNCEMENT_HEADER_REFRESH_EVENT, refreshUnreadCount);
+  stopAnnouncementChanged = onAnnouncementChanged(refreshUnreadCount);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener(ANNOUNCEMENT_HEADER_REFRESH_EVENT, refreshUnreadCount);
+  stopAnnouncementChanged?.();
 });
 
 async function refreshUnreadCount() {

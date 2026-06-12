@@ -30,6 +30,16 @@ vi.mock('vue-i18n', () => ({
 }));
 
 const componentStubs = {
+  't-tooltip': defineComponent({
+    setup(_, { slots }) {
+      return () => h('div', slots.default?.());
+    },
+  }),
+  TTooltip: defineComponent({
+    setup(_, { slots }) {
+      return () => h('div', slots.default?.());
+    },
+  }),
   't-badge': defineComponent({
     props: {
       count: { type: Number, default: 0 },
@@ -79,7 +89,7 @@ describe('AnnouncementHeaderEntry', () => {
     await nextTick();
 
     expect(wrapper.get('[data-count]').attributes('data-count')).toBe('3');
-    expect(wrapper.get('button').attributes('aria-label')).toBe('announcement.header.open');
+    expect(wrapper.get('button').attributes('aria-label')).toBe('announcement.header.title');
     await wrapper.get('button').trigger('click');
     expect(pushMock).toHaveBeenCalledWith('/announcements');
   });

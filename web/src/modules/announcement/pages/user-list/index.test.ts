@@ -28,6 +28,7 @@ vi.mock('../../api/announcement', () => ({
       {
         content: 'Maintenance window',
         created_at: '2026-06-12T00:00:00Z',
+        delivery_mode: 'popup',
         id: 7,
         level: 'warning',
         pinned: true,
@@ -47,6 +48,7 @@ vi.mock('../../api/announcement', () => ({
   markAnnouncementRead: vi.fn(async () => ({
     content: 'announcement.test.content',
     created_at: '2026-06-12T00:00:00Z',
+    delivery_mode: 'popup',
     id: 7,
     level: 'warning',
     pinned: true,
@@ -101,6 +103,17 @@ vi.mock('@/shared/components/management', () => ({
     },
   }),
   formatCompactDateTime: (value: string) => value,
+}));
+
+vi.mock('@/shared/components/markdown', () => ({
+  SafeMarkdown: defineComponent({
+    props: {
+      source: { type: String, default: '' },
+    },
+    setup(props) {
+      return () => h('div', props.source);
+    },
+  }),
 }));
 
 const buttonStub = defineComponent({
@@ -208,7 +221,7 @@ describe('UserAnnouncementPage', () => {
 
     expect(api.markAnnouncementRead).toHaveBeenCalledWith(7);
     expect(MessagePlugin.success).toHaveBeenCalledWith('announcement.user.markReadSuccess');
-    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-header-refresh' }));
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
   });
 
   it('toggles unread-only list query through page filters', async () => {

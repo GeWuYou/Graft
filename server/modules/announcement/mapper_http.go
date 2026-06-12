@@ -25,19 +25,20 @@ func toAnnouncementListResponse(result AdminListResult) map[string]any {
 
 func toAnnouncementItem(item announcementstore.Announcement) map[string]any {
 	return map[string]any{
-		"id":         safeInt64(item.ID),
-		"title":      item.Title,
-		"content":    item.Content,
-		"level":      item.Level,
-		"status":     item.Status,
-		"pinned":     item.Pinned,
-		"publish_at": item.PublishAt,
-		"expire_at":  item.ExpireAt,
-		"created_by": safeOptionalInt64(item.CreatedBy),
-		"updated_by": safeOptionalInt64(item.UpdatedBy),
-		"deleted_by": safeOptionalInt64(item.DeletedBy),
-		"created_at": item.CreatedAt,
-		"updated_at": item.UpdatedAt,
+		"id":            safeInt64(item.ID),
+		"title":         item.Title,
+		"content":       item.Content,
+		"level":         item.Level,
+		"status":        item.Status,
+		"delivery_mode": item.DeliveryMode,
+		"pinned":        item.Pinned,
+		"publish_at":    item.PublishAt,
+		"expire_at":     item.ExpireAt,
+		"created_by":    safeOptionalInt64(item.CreatedBy),
+		"updated_by":    safeOptionalInt64(item.UpdatedBy),
+		"deleted_by":    safeOptionalInt64(item.DeletedBy),
+		"created_at":    item.CreatedAt,
+		"updated_at":    item.UpdatedAt,
 	}
 }
 
@@ -57,17 +58,18 @@ func toMyAnnouncementListResponse(result UserListResult) map[string]any {
 func toMyAnnouncementItem(item announcementstore.UserAnnouncement) map[string]any {
 	announcement := item.Announcement
 	return map[string]any{
-		"id":         safeInt64(announcement.ID),
-		"title":      announcement.Title,
-		"content":    announcement.Content,
-		"level":      announcementopenapi.GetMyAnnouncements200JSONResponseBodyDataItemsLevel(announcement.Level),
-		"status":     announcementopenapi.GetMyAnnouncements200JSONResponseBodyDataItemsStatus(announcement.Status),
-		"pinned":     announcement.Pinned,
-		"publish_at": announcement.PublishAt,
-		"expire_at":  announcement.ExpireAt,
-		"read_at":    item.ReadAt,
-		"created_at": announcement.CreatedAt,
-		"updated_at": announcement.UpdatedAt,
+		"id":            safeInt64(announcement.ID),
+		"title":         announcement.Title,
+		"content":       announcement.Content,
+		"level":         announcementopenapi.GetMyAnnouncements200JSONResponseBodyDataItemsLevel(announcement.Level),
+		"status":        announcementopenapi.GetMyAnnouncements200JSONResponseBodyDataItemsStatus(announcement.Status),
+		"delivery_mode": announcement.DeliveryMode,
+		"pinned":        announcement.Pinned,
+		"publish_at":    announcement.PublishAt,
+		"expire_at":     announcement.ExpireAt,
+		"read_at":       item.ReadAt,
+		"created_at":    announcement.CreatedAt,
+		"updated_at":    announcement.UpdatedAt,
 	}
 }
 

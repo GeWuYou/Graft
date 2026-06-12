@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 GeWuYou
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AnnouncementLevel, AnnouncementStatus } from '../types/announcement';
+import type { AnnouncementDeliveryMode, AnnouncementLevel, AnnouncementStatus } from '../types/announcement';
 
 export const ANNOUNCEMENT_STATUS_LABEL_KEY: Record<AnnouncementStatus, string> = {
   archived: 'announcement.status.archived',
@@ -14,6 +14,11 @@ export const ANNOUNCEMENT_LEVEL_LABEL_KEY: Record<AnnouncementLevel, string> = {
   info: 'announcement.level.info',
   success: 'announcement.level.success',
   warning: 'announcement.level.warning',
+};
+
+export const ANNOUNCEMENT_DELIVERY_MODE_LABEL_KEY: Record<AnnouncementDeliveryMode, string> = {
+  popup: 'announcement.deliveryMode.popup',
+  silent: 'announcement.deliveryMode.silent',
 };
 
 export const ANNOUNCEMENT_PINNED_LABEL_KEY = {

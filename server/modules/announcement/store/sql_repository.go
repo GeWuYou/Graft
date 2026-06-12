@@ -133,7 +133,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (Announce
 		return Announcement{}, err
 	}
 	input = normalizeCreateInput(input)
-	if input.Title == "" || input.Content == "" || input.Level == "" || input.Status == "" {
+	if input.Title == "" || input.Content == "" || input.Level == "" || input.Status == "" || input.DeliveryMode == "" {
 		return Announcement{}, ErrInvalidInput
 	}
 	if input.ExpireAt != nil && input.PublishAt != nil && !input.ExpireAt.After(*input.PublishAt) {
@@ -141,13 +141,14 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (Announce
 	}
 	now := time.Now().UTC()
 	return scanAnnouncement(r.db.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO announcements (
-			title, content, level, status, pinned, publish_at, expire_at, created_by, updated_by, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			title, content, level, status, delivery_mode, pinned, publish_at, expire_at, created_by, updated_by, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING `+announcementColumns()),
 		input.Title,
 		input.Content,
 		input.Level,
 		input.Status,
+		input.DeliveryMode,
 		input.Pinned,
 		input.PublishAt,
 		input.ExpireAt,
@@ -189,10 +190,7 @@ func (r *SQLRepository) Update(ctx context.Context, id uint64, input UpdateInput
 		return Announcement{}, err
 	}
 	input = normalizeUpdateInput(input)
-	if input.Title == "" || input.Content == "" || input.Level == "" {
-		return Announcement{}, ErrInvalidInput
-	}
-	if input.ExpireAt != nil && input.PublishAt != nil && !input.ExpireAt.After(*input.PublishAt) {
+	if !validUpdateInput(input) {
 		return Announcement{}, ErrInvalidInput
 	}
 	item, err := r.updateAnnouncement(ctx, targetID, input)
@@ -202,14 +200,22 @@ func (r *SQLRepository) Update(ctx context.Context, id uint64, input UpdateInput
 	return item, nil
 }
 
+func validUpdateInput(input UpdateInput) bool {
+	if input.Title == "" || input.Content == "" || input.Level == "" || input.DeliveryMode == "" {
+		return false
+	}
+	return input.ExpireAt == nil || input.PublishAt == nil || input.ExpireAt.After(*input.PublishAt)
+}
+
 func (r *SQLRepository) updateAnnouncement(ctx context.Context, targetID int64, input UpdateInput) (Announcement, error) {
 	item, err := scanAnnouncement(r.db.QueryRowContext(ctx, r.placeholder.rebind(`UPDATE announcements
-		SET title = ?, content = ?, level = ?, pinned = ?, publish_at = ?, expire_at = ?, updated_by = ?, updated_at = ?
+		SET title = ?, content = ?, level = ?, delivery_mode = ?, pinned = ?, publish_at = ?, expire_at = ?, updated_by = ?, updated_at = ?
 		WHERE id = ? AND deleted_at = 0
 		RETURNING `+announcementColumns()),
 		input.Title,
 		input.Content,
 		input.Level,
+		input.DeliveryMode,
 		input.Pinned,
 		input.PublishAt,
 		input.ExpireAt,
@@ -410,6 +416,7 @@ func normalizeCreateInput(input CreateInput) CreateInput {
 	input.Content = strings.TrimSpace(input.Content)
 	input.Level = strings.TrimSpace(input.Level)
 	input.Status = strings.TrimSpace(input.Status)
+	input.DeliveryMode = strings.TrimSpace(input.DeliveryMode)
 	if input.PublishAt != nil {
 		publishAt := input.PublishAt.UTC()
 		input.PublishAt = &publishAt
@@ -425,6 +432,7 @@ func normalizeUpdateInput(input UpdateInput) UpdateInput {
 	input.Title = strings.TrimSpace(input.Title)
 	input.Content = strings.TrimSpace(input.Content)
 	input.Level = strings.TrimSpace(input.Level)
+	input.DeliveryMode = strings.TrimSpace(input.DeliveryMode)
 	if input.PublishAt != nil {
 		publishAt := input.PublishAt.UTC()
 		input.PublishAt = &publishAt
@@ -526,7 +534,7 @@ func adminOrderBy(sort string) string {
 }
 
 func announcementColumns() string {
-	return `id, title, content, level, status, pinned, publish_at, expire_at,
+	return `id, title, content, level, status, delivery_mode, pinned, publish_at, expire_at,
 		created_by, updated_by, deleted_by, created_at, updated_at, deleted_at`
 }
 
@@ -551,6 +559,7 @@ func scanAnnouncement(scanner interface{ Scan(dest ...any) error }) (Announcemen
 		&item.Content,
 		&item.Level,
 		&item.Status,
+		&item.DeliveryMode,
 		&item.Pinned,
 		&publishAt,
 		&expireAt,

@@ -18,7 +18,8 @@
       }
     },
     "header": {
-      "open": "Open Announcement Center"
+      "open": "Open Announcement Center",
+      "title": "Announcement Center"
     },
     "user": {
       "title": "Announcement Center",
@@ -89,7 +90,8 @@
         "publishAt": "Publish At",
         "expireAt": "Expire At",
         "updatedAt": "Updated At",
-        "operation": "Actions"
+        "operation": "Actions",
+        "deliveryMode": "Delivery"
       },
       "filters": {
         "keyword": "Search title or content",
@@ -111,7 +113,7 @@
         "title": "Title",
         "titlePlaceholder": "Enter announcement title",
         "content": "Content",
-        "contentPlaceholder": "Enter announcement content",
+        "contentPlaceholder": "Supports Markdown: paragraphs, bold text, lists, links, and code blocks",
         "level": "Level",
         "levelPlaceholder": "Select announcement level",
         "publishAt": "Publish At",
@@ -124,9 +126,17 @@
         "required": {
           "title": "Announcement title is required",
           "content": "Announcement content is required",
-          "level": "Announcement level is required"
+          "level": "Announcement level is required",
+          "deliveryMode": "Select delivery mode"
         },
-        "invalidTimeWindow": "Expire time must be later than publish time"
+        "invalidTimeWindow": "Expire time must be later than publish time",
+        "deliveryMode": "Delivery Mode",
+        "deliveryModePlaceholder": "Select delivery mode",
+        "deliveryModeHelp": {
+          "silent": "Silent: only show in Announcement Center.",
+          "popup": "Popup: prompt users when they enter the system and also show in Announcement Center."
+        },
+        "markdownPreview": "Markdown Preview"
       },
       "detailDrawer": {
         "title": "Announcement Details",
@@ -160,6 +170,15 @@
     },
     "value": {
       "notSet": "Not Set"
+    },
+    "deliveryMode": {
+      "silent": "Silent",
+      "popup": "Popup"
+    },
+    "popup": {
+      "viewLater": "View Later",
+      "markRead": "Mark Read",
+      "markReadFailed": "Failed to Mark Announcement"
     }
   }
 }

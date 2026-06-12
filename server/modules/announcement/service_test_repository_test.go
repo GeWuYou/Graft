@@ -116,18 +116,19 @@ func (r *memoryAnnouncementRepository) Create(_ context.Context, input announcem
 	defer r.mu.Unlock()
 	now := time.Now().UTC()
 	item := announcementstore.Announcement{
-		ID:        r.nextID,
-		Title:     strings.TrimSpace(input.Title),
-		Content:   strings.TrimSpace(input.Content),
-		Level:     strings.TrimSpace(input.Level),
-		Status:    strings.TrimSpace(input.Status),
-		Pinned:    input.Pinned,
-		PublishAt: cloneTime(input.PublishAt),
-		ExpireAt:  cloneTime(input.ExpireAt),
-		CreatedBy: cloneUint64(input.ActorID),
-		UpdatedBy: cloneUint64(input.ActorID),
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:           r.nextID,
+		Title:        strings.TrimSpace(input.Title),
+		Content:      strings.TrimSpace(input.Content),
+		Level:        strings.TrimSpace(input.Level),
+		Status:       strings.TrimSpace(input.Status),
+		DeliveryMode: strings.TrimSpace(input.DeliveryMode),
+		Pinned:       input.Pinned,
+		PublishAt:    cloneTime(input.PublishAt),
+		ExpireAt:     cloneTime(input.ExpireAt),
+		CreatedBy:    cloneUint64(input.ActorID),
+		UpdatedBy:    cloneUint64(input.ActorID),
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	r.nextID++
 	r.items[item.ID] = item
@@ -154,6 +155,7 @@ func (r *memoryAnnouncementRepository) Update(_ context.Context, id uint64, inpu
 	item.Title = strings.TrimSpace(input.Title)
 	item.Content = strings.TrimSpace(input.Content)
 	item.Level = strings.TrimSpace(input.Level)
+	item.DeliveryMode = strings.TrimSpace(input.DeliveryMode)
 	item.Pinned = input.Pinned
 	item.PublishAt = cloneTime(input.PublishAt)
 	item.ExpireAt = cloneTime(input.ExpireAt)

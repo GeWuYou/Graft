@@ -12,6 +12,24 @@ const (
 	RefreshCookieScopes refreshCookieContextKey = "refreshCookie.Scopes"
 )
 
+// Defines values for AnnouncementDeliveryMode.
+const (
+	Popup  AnnouncementDeliveryMode = "popup"
+	Silent AnnouncementDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the AnnouncementDeliveryMode enum.
+func (e AnnouncementDeliveryMode) Valid() bool {
+	switch e {
+	case Popup:
+		return true
+	case Silent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AnnouncementLevel.
 const (
 	AnnouncementLevelError   AnnouncementLevel = "error"
@@ -2026,14 +2044,20 @@ type AccessLogListResponse struct {
 	Total    int                       `json:"total"`
 }
 
+// AnnouncementDeliveryMode Announcement delivery presentation mode.
+type AnnouncementDeliveryMode string
+
 // AnnouncementItem defines model for announcement-item.
 type AnnouncementItem struct {
-	Content   string     `json:"content"`
-	CreatedAt time.Time  `json:"created_at"`
-	CreatedBy *int64     `json:"created_by,omitempty"`
-	DeletedBy *int64     `json:"deleted_by,omitempty"`
-	ExpireAt  *time.Time `json:"expire_at,omitempty"`
-	Id        int64      `json:"id"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+	CreatedBy *int64    `json:"created_by,omitempty"`
+	DeletedBy *int64    `json:"deleted_by,omitempty"`
+
+	// DeliveryMode Announcement delivery presentation mode.
+	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
+	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
+	Id           int64                    `json:"id"`
 
 	// Level Announcement presentation level.
 	Level     AnnouncementLevel `json:"level"`
@@ -2491,8 +2515,11 @@ type CompleteRequiredPasswordChangeRequest struct {
 
 // CreateAnnouncementRequest defines model for create-announcement-request.
 type CreateAnnouncementRequest struct {
-	Content  string     `json:"content"`
-	ExpireAt *time.Time `json:"expire_at,omitempty"`
+	Content string `json:"content"`
+
+	// DeliveryMode Announcement delivery presentation mode.
+	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
+	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
 	Level     AnnouncementLevel `json:"level"`
@@ -4402,8 +4429,11 @@ type SystemConfigListResponse struct {
 
 // UpdateAnnouncementRequest defines model for update-announcement-request.
 type UpdateAnnouncementRequest struct {
-	Content  string     `json:"content"`
-	ExpireAt *time.Time `json:"expire_at,omitempty"`
+	Content string `json:"content"`
+
+	// DeliveryMode Announcement delivery presentation mode.
+	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
+	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
 	Level     AnnouncementLevel `json:"level"`

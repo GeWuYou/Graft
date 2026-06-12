@@ -112,8 +112,9 @@ func (s *Service) Create(ctx context.Context, input announcementstore.CreateInpu
 	input.Title = strings.TrimSpace(input.Title)
 	input.Content = strings.TrimSpace(input.Content)
 	input.Level = strings.TrimSpace(input.Level)
+	input.DeliveryMode = normalizeDeliveryMode(input.DeliveryMode)
 	input.Status = announcementcontract.AnnouncementStatusDraft.String()
-	if err := validateWriteInput(input.Title, input.Content, input.Level, input.PublishAt, input.ExpireAt); err != nil {
+	if err := validateWriteInput(input.Title, input.Content, input.Level, input.DeliveryMode, input.PublishAt, input.ExpireAt); err != nil {
 		return announcementstore.Announcement{}, err
 	}
 	item, err := s.repository.Create(ctx, input)
@@ -144,7 +145,8 @@ func (s *Service) Update(ctx context.Context, id uint64, input announcementstore
 	input.Title = strings.TrimSpace(input.Title)
 	input.Content = strings.TrimSpace(input.Content)
 	input.Level = strings.TrimSpace(input.Level)
-	if err := validateWriteInput(input.Title, input.Content, input.Level, input.PublishAt, input.ExpireAt); err != nil {
+	input.DeliveryMode = normalizeDeliveryMode(input.DeliveryMode)
+	if err := validateWriteInput(input.Title, input.Content, input.Level, input.DeliveryMode, input.PublishAt, input.ExpireAt); err != nil {
 		return announcementstore.Announcement{}, err
 	}
 	item, err := s.repository.Update(ctx, id, input)
@@ -292,11 +294,18 @@ func validAdminSort(sort string) bool {
 	}
 }
 
-func validateWriteInput(title string, content string, level string, publishAt *time.Time, expireAt *time.Time) error {
+func validateWriteInput(
+	title string,
+	content string,
+	level string,
+	deliveryMode string,
+	publishAt *time.Time,
+	expireAt *time.Time,
+) error {
 	if title == "" || content == "" || level == "" {
 		return errAnnouncementInvalidInput
 	}
-	if !announcementcontract.ValidAnnouncementLevel(announcementcontract.AnnouncementLevel(level)) {
+	if !validWriteContracts(level, deliveryMode) {
 		return errAnnouncementInvalidInput
 	}
 	if publishAt != nil {
@@ -311,6 +320,19 @@ func validateWriteInput(title string, content string, level string, publishAt *t
 		return errAnnouncementInvalidInput
 	}
 	return nil
+}
+
+func validWriteContracts(level string, deliveryMode string) bool {
+	return announcementcontract.ValidAnnouncementLevel(announcementcontract.AnnouncementLevel(level)) &&
+		announcementcontract.ValidAnnouncementDeliveryMode(announcementcontract.AnnouncementDeliveryMode(deliveryMode))
+}
+
+func normalizeDeliveryMode(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return announcementcontract.AnnouncementDeliveryModeSilent.String()
+	}
+	return value
 }
 
 func mapStoreError(err error) error {

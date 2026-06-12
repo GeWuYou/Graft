@@ -122,6 +122,20 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "safe-markdown"
+    type: "frontend-component"
+    path: "web/src/shared/components/markdown"
+    owner: "web/shared"
+    purpose: "Reusable safe Markdown rendering boundary using markdown-it with raw HTML disabled and DOMPurify sanitization before v-html."
+    use_when:
+      - "Rendering user-authored Markdown content in module pages, drawers, dialogs, or read-only detail surfaces."
+    do_not_use_when:
+      - "Editing Markdown with a rich editor or rendering trusted static documentation outside Vue runtime."
+    examples:
+      - "web/src/shared/components/markdown/SafeMarkdown.vue"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "route-bootstrap-utils"
     type: "frontend-utility"
     path: "web/src/utils/route"

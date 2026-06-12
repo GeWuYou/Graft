@@ -9,6 +9,7 @@ export type AnnouncementReadAllResponse = components['schemas']['announcement-re
 export type AnnouncementUnreadCountResponse = components['schemas']['announcement-unread-count-response'];
 export type AnnouncementStatus = components['schemas']['announcement-status'];
 export type AnnouncementLevel = components['schemas']['announcement-level'];
+export type AnnouncementDeliveryMode = components['schemas']['announcement-delivery-mode'];
 export type CreateAnnouncementRequest = components['schemas']['create-announcement-request'];
 export type UpdateAnnouncementRequest = components['schemas']['update-announcement-request'];
 export type PublishAnnouncementRequest = components['schemas']['publish-announcement-request'];
@@ -43,6 +44,7 @@ export type AnnouncementFilterState = {
 
 export type AnnouncementFormState = {
   content: string;
+  delivery_mode: AnnouncementDeliveryMode;
   expire_at: string;
   level: AnnouncementLevel;
   pinned: boolean;

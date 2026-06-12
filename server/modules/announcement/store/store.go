@@ -19,20 +19,21 @@ var (
 
 // Announcement stores the management announcement record.
 type Announcement struct {
-	ID        uint64
-	Title     string
-	Content   string
-	Level     string
-	Status    string
-	Pinned    bool
-	PublishAt *time.Time
-	ExpireAt  *time.Time
-	CreatedBy *uint64
-	UpdatedBy *uint64
-	DeletedBy *uint64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt int64
+	ID           uint64
+	Title        string
+	Content      string
+	Level        string
+	Status       string
+	DeliveryMode string
+	Pinned       bool
+	PublishAt    *time.Time
+	ExpireAt     *time.Time
+	CreatedBy    *uint64
+	UpdatedBy    *uint64
+	DeletedBy    *uint64
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    int64
 }
 
 // AnnouncementRead stores one user's read fact for one announcement.
@@ -52,25 +53,27 @@ type UserAnnouncement struct {
 
 // CreateInput describes one announcement draft insert.
 type CreateInput struct {
-	Title     string
-	Content   string
-	Level     string
-	Status    string
-	Pinned    bool
-	PublishAt *time.Time
-	ExpireAt  *time.Time
-	ActorID   *uint64
+	Title        string
+	Content      string
+	Level        string
+	Status       string
+	DeliveryMode string
+	Pinned       bool
+	PublishAt    *time.Time
+	ExpireAt     *time.Time
+	ActorID      *uint64
 }
 
 // UpdateInput describes editable announcement fields.
 type UpdateInput struct {
-	Title     string
-	Content   string
-	Level     string
-	Pinned    bool
-	PublishAt *time.Time
-	ExpireAt  *time.Time
-	ActorID   *uint64
+	Title        string
+	Content      string
+	Level        string
+	DeliveryMode string
+	Pinned       bool
+	PublishAt    *time.Time
+	ExpireAt     *time.Time
+	ActorID      *uint64
 }
 
 // ListQuery describes management-side announcement filters.

@@ -1702,6 +1702,7 @@ export interface components {
     EnvelopedNotificationReadAllResponse: components['schemas']['enveloped-notification-read-all-response'];
     AnnouncementLevel: components['schemas']['announcement-level'];
     AnnouncementStatus: components['schemas']['announcement-status'];
+    AnnouncementDeliveryMode: components['schemas']['announcement-delivery-mode'];
     AnnouncementItem: components['schemas']['announcement-item'];
     AnnouncementListResponse: components['schemas']['announcement-list-response'];
     AnnouncementUnreadCountResponse: components['schemas']['announcement-unread-count-response'];
@@ -3369,6 +3370,11 @@ export interface components {
      * @enum {string}
      */
     'announcement-level': 'info' | 'warning' | 'success' | 'error';
+    /**
+     * @description Announcement delivery presentation mode.
+     * @enum {string}
+     */
+    'announcement-delivery-mode': 'silent' | 'popup';
     'announcement-item': {
       /** Format: int64 */
       id: number;
@@ -3376,6 +3382,7 @@ export interface components {
       content: string;
       level: components['schemas']['announcement-level'];
       status: components['schemas']['announcement-status'];
+      delivery_mode: components['schemas']['announcement-delivery-mode'];
       pinned: boolean;
       /** Format: date-time */
       publish_at?: string | null;
@@ -3412,6 +3419,7 @@ export interface components {
       title: string;
       content: string;
       level: components['schemas']['announcement-level'];
+      delivery_mode: components['schemas']['announcement-delivery-mode'];
       /** @default false */
       pinned: boolean;
       /** Format: date-time */
@@ -3426,6 +3434,7 @@ export interface components {
       title: string;
       content: string;
       level: components['schemas']['announcement-level'];
+      delivery_mode: components['schemas']['announcement-delivery-mode'];
       /** @default false */
       pinned: boolean;
       /** Format: date-time */

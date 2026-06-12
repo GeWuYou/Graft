@@ -6,17 +6,25 @@ import type { ComposerTranslation } from 'vue-i18n';
 import { formatCompactDateTime } from '@/shared/components/management';
 
 import {
+  ANNOUNCEMENT_DELIVERY_MODE_LABEL_KEY,
   ANNOUNCEMENT_LEVEL_LABEL_KEY,
   ANNOUNCEMENT_PINNED_LABEL_KEY,
   ANNOUNCEMENT_STATUS_LABEL_KEY,
 } from '../contract/presentation';
-import type { AnnouncementItem, AnnouncementLevel, AnnouncementStatus } from '../types/announcement';
+import type {
+  AnnouncementDeliveryMode,
+  AnnouncementItem,
+  AnnouncementLevel,
+  AnnouncementStatus,
+} from '../types/announcement';
 
 export type AnnouncementTagTheme = 'default' | 'primary' | 'success' | 'warning' | 'danger';
 
 export type AnnouncementViewModel = {
   content: string;
   createdAtLabel: string;
+  deliveryMode: AnnouncementDeliveryMode;
+  deliveryModeLabel: string;
   expireAtLabel: string;
   id: number;
   level: AnnouncementLevel;
@@ -43,6 +51,8 @@ export function presentAnnouncement(
   return {
     content: item.content,
     createdAtLabel: formatAnnouncementDate(item.created_at, locale, t),
+    deliveryMode: item.delivery_mode,
+    deliveryModeLabel: resolveAnnouncementDeliveryModeLabel(item.delivery_mode, t),
     expireAtLabel: formatAnnouncementDate(item.expire_at, locale, t),
     id: item.id,
     level: item.level,
@@ -68,6 +78,10 @@ function resolveAnnouncementStatusLabel(status: AnnouncementStatus, t: ComposerT
 
 function resolveAnnouncementLevelLabel(level: AnnouncementLevel, t: ComposerTranslation) {
   return t(ANNOUNCEMENT_LEVEL_LABEL_KEY[level]);
+}
+
+function resolveAnnouncementDeliveryModeLabel(deliveryMode: AnnouncementDeliveryMode, t: ComposerTranslation) {
+  return t(ANNOUNCEMENT_DELIVERY_MODE_LABEL_KEY[deliveryMode]);
 }
 
 export function resolvePinnedLabel(pinned: boolean, t: ComposerTranslation) {

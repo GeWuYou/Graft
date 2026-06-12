@@ -8757,6 +8757,9 @@
       "AnnouncementStatus": {
         "$ref": "#/components/schemas/announcement-status"
       },
+      "AnnouncementDeliveryMode": {
+        "$ref": "#/components/schemas/announcement-delivery-mode"
+      },
       "AnnouncementItem": {
         "$ref": "#/components/schemas/announcement-item"
       },
@@ -13848,6 +13851,14 @@
         ],
         "description": "Announcement presentation level."
       },
+      "announcement-delivery-mode": {
+        "type": "string",
+        "description": "Announcement delivery presentation mode.",
+        "enum": [
+          "silent",
+          "popup"
+        ]
+      },
       "announcement-item": {
         "type": "object",
         "required": [
@@ -13856,6 +13867,7 @@
           "content",
           "level",
           "status",
+          "delivery_mode",
           "pinned",
           "created_at",
           "updated_at"
@@ -13879,6 +13891,9 @@
           },
           "status": {
             "$ref": "#/components/schemas/announcement-status"
+          },
+          "delivery_mode": {
+            "$ref": "#/components/schemas/announcement-delivery-mode"
           },
           "pinned": {
             "type": "boolean"
@@ -13983,7 +13998,8 @@
         "required": [
           "title",
           "content",
-          "level"
+          "level",
+          "delivery_mode"
         ],
         "properties": {
           "title": {
@@ -13997,6 +14013,9 @@
           },
           "level": {
             "$ref": "#/components/schemas/announcement-level"
+          },
+          "delivery_mode": {
+            "$ref": "#/components/schemas/announcement-delivery-mode"
           },
           "pinned": {
             "type": "boolean",
@@ -14037,7 +14056,8 @@
         "required": [
           "title",
           "content",
-          "level"
+          "level",
+          "delivery_mode"
         ],
         "properties": {
           "title": {
@@ -14051,6 +14071,9 @@
           },
           "level": {
             "$ref": "#/components/schemas/announcement-level"
+          },
+          "delivery_mode": {
+            "$ref": "#/components/schemas/announcement-delivery-mode"
           },
           "pinned": {
             "type": "boolean",

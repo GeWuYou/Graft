@@ -1,0 +1,5 @@
+type: string
+description: Announcement delivery presentation mode.
+enum:
+  - silent
+  - popup

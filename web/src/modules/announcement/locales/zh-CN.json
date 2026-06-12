@@ -18,7 +18,8 @@
       }
     },
     "header": {
-      "open": "打开公告中心"
+      "open": "打开公告中心",
+      "title": "公告中心"
     },
     "user": {
       "title": "公告中心",
@@ -89,7 +90,8 @@
         "publishAt": "发布时间",
         "expireAt": "过期时间",
         "updatedAt": "更新时间",
-        "operation": "操作"
+        "operation": "操作",
+        "deliveryMode": "展示策略"
       },
       "filters": {
         "keyword": "搜索标题或正文",
@@ -111,7 +113,7 @@
         "title": "标题",
         "titlePlaceholder": "请输入公告标题",
         "content": "正文",
-        "contentPlaceholder": "请输入公告正文",
+        "contentPlaceholder": "支持 Markdown：段落、加粗、列表、链接和代码块",
         "level": "级别",
         "levelPlaceholder": "请选择公告级别",
         "publishAt": "发布时间",
@@ -124,9 +126,17 @@
         "required": {
           "title": "请输入公告标题",
           "content": "请输入公告正文",
-          "level": "请选择公告级别"
+          "level": "请选择公告级别",
+          "deliveryMode": "请选择展示策略"
         },
-        "invalidTimeWindow": "过期时间必须晚于发布时间"
+        "invalidTimeWindow": "过期时间必须晚于发布时间",
+        "deliveryMode": "展示策略",
+        "deliveryModePlaceholder": "请选择展示策略",
+        "deliveryModeHelp": {
+          "silent": "静默：仅在公告中心展示。",
+          "popup": "弹窗：用户进入系统时主动弹窗提醒，同时进入公告中心。"
+        },
+        "markdownPreview": "Markdown 预览"
       },
       "detailDrawer": {
         "title": "公告详情",
@@ -160,6 +170,15 @@
     },
     "value": {
       "notSet": "未设置"
+    },
+    "deliveryMode": {
+      "silent": "静默",
+      "popup": "弹窗"
+    },
+    "popup": {
+      "viewLater": "稍后查看",
+      "markRead": "标记已读",
+      "markReadFailed": "标记公告失败"
     }
   }
 }

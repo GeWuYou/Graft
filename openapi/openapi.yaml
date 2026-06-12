@@ -482,6 +482,8 @@ components:
       $ref: ./components/schemas/announcement-level.yaml
     AnnouncementStatus:
       $ref: ./components/schemas/announcement-status.yaml
+    AnnouncementDeliveryMode:
+      $ref: ./components/schemas/announcement-delivery-mode.yaml
     AnnouncementItem:
       $ref: ./components/schemas/announcement-item.yaml
     AnnouncementListResponse:

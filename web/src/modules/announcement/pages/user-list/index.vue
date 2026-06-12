@@ -82,7 +82,7 @@
                       {{ t('announcement.user.markRead') }}
                     </t-button>
                   </header>
-                  <p class="announcement-user-page__content">{{ row.content }}</p>
+                  <safe-markdown class="announcement-user-page__content" :source="row.content" />
                   <dl class="announcement-user-page__meta">
                     <div>
                       <dt>{{ t('announcement.user.publishAt') }}</dt>
@@ -129,7 +129,7 @@
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -138,6 +138,7 @@ import {
   ManagementPageHeader,
   ManagementTablePagination,
 } from '@/shared/components/management';
+import { SafeMarkdown } from '@/shared/components/markdown';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
@@ -146,7 +147,7 @@ import {
   markAllAnnouncementsRead,
   markAnnouncementRead,
 } from '../../api/announcement';
-import { ANNOUNCEMENT_HEADER_REFRESH_EVENT } from '../../contract/refresh';
+import { emitAnnouncementChanged, onAnnouncementChanged } from '../../contract/refresh';
 import { type AnnouncementViewModel, presentAnnouncement } from '../../domain/announcement-presenter';
 
 const { locale, t } = useI18n();
@@ -165,6 +166,8 @@ const pagination = reactive({
 const filters = reactive({
   unreadOnly: false,
 });
+let stopAnnouncementChanged: (() => void) | undefined;
+let suppressNextChangedRefresh = false;
 
 const presentedRows = computed(() => rows.value);
 const canMarkAllRead = computed(() => unreadCount.value > 0 && !markingAllRead.value);
@@ -177,6 +180,11 @@ const emptyDescription = computed(() =>
 
 onMounted(() => {
   void fetchAnnouncements();
+  stopAnnouncementChanged = onAnnouncementChanged(handleAnnouncementChanged);
+});
+
+onBeforeUnmount(() => {
+  stopAnnouncementChanged?.();
 });
 
 watch(() => filters.unreadOnly, handleUnreadOnlyChange);
@@ -213,7 +221,7 @@ async function markRead(id: number) {
   try {
     await markAnnouncementRead(id);
     await fetchAnnouncements();
-    dispatchHeaderRefresh();
+    emitLocalAnnouncementChanged();
     MessagePlugin.success(t('announcement.user.markReadSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('announcement.user.markReadFailed')));
@@ -227,7 +235,7 @@ async function markAllRead() {
   try {
     await markAllAnnouncementsRead();
     await fetchAnnouncements();
-    dispatchHeaderRefresh();
+    emitLocalAnnouncementChanged();
     MessagePlugin.success(t('announcement.user.markAllReadSuccess'));
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('announcement.user.markAllReadFailed')));
@@ -245,8 +253,19 @@ function handleUnreadOnlyChange() {
   void fetchAnnouncements();
 }
 
-function dispatchHeaderRefresh() {
-  window.dispatchEvent(new CustomEvent(ANNOUNCEMENT_HEADER_REFRESH_EVENT));
+function handleAnnouncementChanged() {
+  if (suppressNextChangedRefresh) {
+    return;
+  }
+  void fetchAnnouncements();
+}
+
+function emitLocalAnnouncementChanged() {
+  suppressNextChangedRefresh = true;
+  emitAnnouncementChanged();
+  queueMicrotask(() => {
+    suppressNextChangedRefresh = false;
+  });
 }
 </script>
 <style scoped lang="less">
@@ -356,10 +375,6 @@ function dispatchHeaderRefresh() {
 
 .announcement-user-page__content {
   color: var(--td-text-color-secondary);
-  font: var(--td-font-body-medium);
-  margin: 0;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
 }
 
 .announcement-user-page__meta {

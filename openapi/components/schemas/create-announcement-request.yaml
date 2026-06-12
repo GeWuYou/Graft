@@ -3,6 +3,7 @@ required:
   - title
   - content
   - level
+  - delivery_mode
 properties:
   title:
     type: string
@@ -13,6 +14,8 @@ properties:
     minLength: 1
   level:
     $ref: ./announcement-level.yaml
+  delivery_mode:
+    $ref: ./announcement-delivery-mode.yaml
   pinned:
     type: boolean
     default: false

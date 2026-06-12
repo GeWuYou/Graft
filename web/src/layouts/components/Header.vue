@@ -224,15 +224,16 @@ const navToHelper = () => {
 .operations-container {
   align-items: center;
   display: flex;
+  gap: var(--graft-density-gap-12);
+
+  :deep(.t-button + .t-button) {
+    margin-left: 0;
+  }
 
   .t-popup__reference {
     align-items: center;
     display: flex;
     justify-content: center;
-  }
-
-  .t-button {
-    margin-left: var(--td-comp-margin-l);
   }
 }
 

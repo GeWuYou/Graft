@@ -91,14 +91,15 @@ func (r announcementRouteRuntime) handleAdminCreate(ginCtx *gin.Context) {
 	}
 	announcementGeneratedHandler{}.PostAnnouncements(bindCommonParams(ginCtx), request)
 	item, err := r.service.Create(ginCtx.Request.Context(), announcementstore.CreateInput{
-		Title:     request.Title,
-		Content:   request.Content,
-		Level:     string(request.Level),
-		Status:    announcementcontract.AnnouncementStatusDraft.String(),
-		Pinned:    boolFromPointer(request.Pinned),
-		PublishAt: request.PublishAt,
-		ExpireAt:  request.ExpireAt,
-		ActorID:   currentUserIDPointer(ginCtx),
+		Title:        request.Title,
+		Content:      request.Content,
+		Level:        string(request.Level),
+		Status:       announcementcontract.AnnouncementStatusDraft.String(),
+		DeliveryMode: string(request.DeliveryMode),
+		Pinned:       boolFromPointer(request.Pinned),
+		PublishAt:    request.PublishAt,
+		ExpireAt:     request.ExpireAt,
+		ActorID:      currentUserIDPointer(ginCtx),
 	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -140,13 +141,14 @@ func (r announcementRouteRuntime) handleAdminUpdate(ginCtx *gin.Context) {
 	}
 	announcementGeneratedHandler{}.PutAnnouncement(generatedID, bindPutAnnouncementParams(ginCtx), request)
 	item, err := r.service.Update(ginCtx.Request.Context(), id, announcementstore.UpdateInput{
-		Title:     request.Title,
-		Content:   request.Content,
-		Level:     string(request.Level),
-		Pinned:    boolFromPointer(request.Pinned),
-		PublishAt: request.PublishAt,
-		ExpireAt:  request.ExpireAt,
-		ActorID:   currentUserIDPointer(ginCtx),
+		Title:        request.Title,
+		Content:      request.Content,
+		Level:        string(request.Level),
+		DeliveryMode: string(request.DeliveryMode),
+		Pinned:       boolFromPointer(request.Pinned),
+		PublishAt:    request.PublishAt,
+		ExpireAt:     request.ExpireAt,
+		ActorID:      currentUserIDPointer(ginCtx),
 	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)

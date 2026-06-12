@@ -7,6 +7,8 @@ import { defineComponent, h, nextTick } from 'vue';
 
 import AnnouncementManagementPage from './index.vue';
 
+const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
 const apiMocks = vi.hoisted(() => ({
   archiveAnnouncement: vi.fn(),
   createAnnouncement: vi.fn(),
@@ -26,16 +28,30 @@ vi.mock('tdesign-vue-next/es/message', () => ({
   },
 }));
 
+vi.mock('@/shared/components/markdown', () => ({
+  SafeMarkdown: defineComponent({
+    props: {
+      source: { type: String, default: '' },
+    },
+    setup(props) {
+      return () => h('div', props.source);
+    },
+  }),
+}));
+
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'announcement.level.error': 'Error',
     'announcement.level.info': 'Info',
     'announcement.level.success': 'Success',
     'announcement.level.warning': 'Warning',
+    'announcement.deliveryMode.popup': 'Popup',
+    'announcement.deliveryMode.silent': 'Silent',
     'announcement.management.archive': 'Archive',
     'announcement.management.archiveSuccess': 'Announcement Archived',
     'announcement.management.columns.expireAt': 'Expire At',
     'announcement.management.columns.level': 'Level',
+    'announcement.management.columns.deliveryMode': 'Delivery',
     'announcement.management.columns.operation': 'Actions',
     'announcement.management.columns.pinned': 'Pinned',
     'announcement.management.columns.publishAt': 'Publish At',
@@ -65,6 +81,10 @@ const translations = vi.hoisted(
     'announcement.management.form.createTitle': 'Create Announcement',
     'announcement.management.form.expireAt': 'Expire At',
     'announcement.management.form.expireAtPlaceholder': 'Select expire time',
+    'announcement.management.form.deliveryMode': 'Delivery Mode',
+    'announcement.management.form.deliveryModeHelp.popup': 'Popup help',
+    'announcement.management.form.deliveryModeHelp.silent': 'Silent help',
+    'announcement.management.form.deliveryModePlaceholder': 'Select delivery mode',
     'announcement.management.form.invalidTimeWindow': 'Expire time must be later than publish time',
     'announcement.management.form.level': 'Level',
     'announcement.management.form.levelPlaceholder': 'Select announcement level',
@@ -72,11 +92,13 @@ const translations = vi.hoisted(
     'announcement.management.form.publishAt': 'Publish At',
     'announcement.management.form.publishAtPlaceholder': 'Select publish time',
     'announcement.management.form.required.content': 'Content is required',
+    'announcement.management.form.required.deliveryMode': 'Delivery mode is required',
     'announcement.management.form.required.level': 'Level is required',
     'announcement.management.form.required.title': 'Title is required',
     'announcement.management.form.title': 'Title',
     'announcement.management.form.titlePlaceholder': 'Enter announcement title',
     'announcement.management.form.visibility': 'Visibility Window',
+    'announcement.management.form.markdownPreview': 'Markdown Preview',
     'announcement.management.more': 'More',
     'announcement.management.publishNow': 'Publish Now',
     'announcement.management.publishSuccess': 'Announcement Published',
@@ -144,7 +166,11 @@ const TTableStub = defineComponent({
       h(
         'div',
         { 'data-testid': 'announcement-table' },
-        props.data.flatMap((row: Record<string, unknown>) => [slots.title?.({ row }), slots.operation?.({ row })]),
+        props.data.flatMap((row: Record<string, unknown>) => [
+          slots.title?.({ row }),
+          slots.delivery_mode?.({ row }),
+          slots.operation?.({ row }),
+        ]),
       );
   },
 });
@@ -188,6 +214,7 @@ function baseAnnouncement() {
   return {
     content: 'Body',
     created_at: '2026-06-12T00:00:00Z',
+    delivery_mode: 'silent' as const,
     expire_at: null,
     id: 1,
     level: 'info' as const,
@@ -247,13 +274,20 @@ function mountPage() {
         't-empty': PassthroughStub,
         't-form': TFormStub,
         't-form-item': PassthroughStub,
+        't-icon': defineComponent({
+          name: 'TIconStub',
+          setup() {
+            return () => h('i');
+          },
+        }),
         't-input': defineComponent({
           name: 'TInputStub',
           props: ['modelValue'],
           emits: ['update:modelValue', 'enter'],
-          setup(props, { emit }) {
+          setup(props, { attrs, emit }) {
             return () =>
               h('input', {
+                ...attrs,
                 value: props.modelValue,
                 onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
                 onKeydown: (event: KeyboardEvent) => {
@@ -290,6 +324,13 @@ function mountPage() {
               });
           },
         }),
+        't-tooltip': defineComponent({
+          name: 'TTooltipStub',
+          props: ['content'],
+          setup(props, { slots }) {
+            return () => h('span', { title: String(props.content ?? '') }, slots.default?.());
+          },
+        }),
       },
     },
   });
@@ -298,6 +339,7 @@ function mountPage() {
 describe('announcement management page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dispatchSpy.mockClear();
     apiMocks.getAnnouncements.mockResolvedValue({
       items: [announcement()],
       page: 1,
@@ -327,9 +369,15 @@ describe('announcement management page', () => {
 
     await wrapper.get('[data-testid="announcement-create"]').trigger('click');
     await nextTick();
-    const inputs = wrapper.findAll('input');
-    await inputs[0].setValue('Title');
+    const titleInput = wrapper
+      .findAll('input')
+      .find(
+        (input) => input.attributes('value') === '' && input.attributes('placeholder') !== 'Search title or content',
+      );
+    expect(titleInput).toBeTruthy();
+    await titleInput!.setValue('Title');
     await wrapper.get('textarea').setValue('Body');
+    const inputs = wrapper.findAll('input');
     await inputs.at(-2)?.setValue('2026-06-12 10:00:00');
     await inputs.at(-1)?.setValue('2026-06-12 09:00:00');
     await wrapper.get('form').trigger('submit');
@@ -338,5 +386,45 @@ describe('announcement management page', () => {
     expect(apiMocks.createAnnouncement).not.toHaveBeenCalled();
     const { MessagePlugin } = await import('tdesign-vue-next/es/message');
     expect(MessagePlugin.error).toHaveBeenCalledWith('Expire time must be later than publish time');
+  });
+
+  it('submits create payload with the selected delivery mode', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="announcement-create"]').trigger('click');
+    await nextTick();
+    const titleInput = wrapper
+      .findAll('input')
+      .find(
+        (input) => input.attributes('value') === '' && input.attributes('placeholder') !== 'Search title or content',
+      );
+    expect(titleInput).toBeTruthy();
+    await titleInput!.setValue('Title');
+    await wrapper.get('textarea').setValue('**Body**');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(apiMocks.createAnnouncement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: '**Body**',
+        delivery_mode: 'silent',
+        level: 'info',
+        title: 'Title',
+      }),
+    );
+    expect(window.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
+  });
+
+  it('keeps delivery mode help in a tooltip instead of inline form copy', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="announcement-create"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('.announcement-form__field-help').exists()).toBe(false);
+    expect(wrapper.find('.announcement-form__help-icon').exists()).toBe(true);
+    expect(wrapper.find('[title="Silent help"]').exists()).toBe(true);
   });
 });

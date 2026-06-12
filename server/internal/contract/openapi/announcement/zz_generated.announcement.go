@@ -77,6 +77,24 @@ func (e GetAnnouncementsParamsSort) Valid() bool {
 	}
 }
 
+// Defines values for GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode.
+const (
+	GetAnnouncements200JSONResponseBodyDataItemsDeliveryModePopup  GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode = "popup"
+	GetAnnouncements200JSONResponseBodyDataItemsDeliveryModeSilent GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode enum.
+func (e GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode) Valid() bool {
+	switch e {
+	case GetAnnouncements200JSONResponseBodyDataItemsDeliveryModePopup:
+		return true
+	case GetAnnouncements200JSONResponseBodyDataItemsDeliveryModeSilent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAnnouncements200JSONResponseBodyDataItemsLevel.
 const (
 	GetAnnouncements200JSONResponseBodyDataItemsLevelError   GetAnnouncements200JSONResponseBodyDataItemsLevel = "error"
@@ -167,6 +185,24 @@ func (e GetAnnouncements500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostAnnouncementsJSONBodyDeliveryMode.
+const (
+	PostAnnouncementsJSONBodyDeliveryModePopup  PostAnnouncementsJSONBodyDeliveryMode = "popup"
+	PostAnnouncementsJSONBodyDeliveryModeSilent PostAnnouncementsJSONBodyDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the PostAnnouncementsJSONBodyDeliveryMode enum.
+func (e PostAnnouncementsJSONBodyDeliveryMode) Valid() bool {
+	switch e {
+	case PostAnnouncementsJSONBodyDeliveryModePopup:
+		return true
+	case PostAnnouncementsJSONBodyDeliveryModeSilent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostAnnouncementsJSONBodyLevel.
 const (
 	PostAnnouncementsJSONBodyLevelError   PostAnnouncementsJSONBodyLevel = "error"
@@ -185,6 +221,24 @@ func (e PostAnnouncementsJSONBodyLevel) Valid() bool {
 	case PostAnnouncementsJSONBodyLevelSuccess:
 		return true
 	case PostAnnouncementsJSONBodyLevelWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAnnouncements201JSONResponseBodyDataDeliveryMode.
+const (
+	PostAnnouncements201JSONResponseBodyDataDeliveryModePopup  PostAnnouncements201JSONResponseBodyDataDeliveryMode = "popup"
+	PostAnnouncements201JSONResponseBodyDataDeliveryModeSilent PostAnnouncements201JSONResponseBodyDataDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the PostAnnouncements201JSONResponseBodyDataDeliveryMode enum.
+func (e PostAnnouncements201JSONResponseBodyDataDeliveryMode) Valid() bool {
+	switch e {
+	case PostAnnouncements201JSONResponseBodyDataDeliveryModePopup:
+		return true
+	case PostAnnouncements201JSONResponseBodyDataDeliveryModeSilent:
 		return true
 	default:
 		return false
@@ -356,6 +410,24 @@ func (e DeleteAnnouncement500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetAnnouncement200JSONResponseBodyDataDeliveryMode.
+const (
+	GetAnnouncement200JSONResponseBodyDataDeliveryModePopup  GetAnnouncement200JSONResponseBodyDataDeliveryMode = "popup"
+	GetAnnouncement200JSONResponseBodyDataDeliveryModeSilent GetAnnouncement200JSONResponseBodyDataDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the GetAnnouncement200JSONResponseBodyDataDeliveryMode enum.
+func (e GetAnnouncement200JSONResponseBodyDataDeliveryMode) Valid() bool {
+	switch e {
+	case GetAnnouncement200JSONResponseBodyDataDeliveryModePopup:
+		return true
+	case GetAnnouncement200JSONResponseBodyDataDeliveryModeSilent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAnnouncement200JSONResponseBodyDataLevel.
 const (
 	GetAnnouncement200JSONResponseBodyDataLevelError   GetAnnouncement200JSONResponseBodyDataLevel = "error"
@@ -461,6 +533,24 @@ func (e GetAnnouncement500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PutAnnouncementJSONBodyDeliveryMode.
+const (
+	PutAnnouncementJSONBodyDeliveryModePopup  PutAnnouncementJSONBodyDeliveryMode = "popup"
+	PutAnnouncementJSONBodyDeliveryModeSilent PutAnnouncementJSONBodyDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the PutAnnouncementJSONBodyDeliveryMode enum.
+func (e PutAnnouncementJSONBodyDeliveryMode) Valid() bool {
+	switch e {
+	case PutAnnouncementJSONBodyDeliveryModePopup:
+		return true
+	case PutAnnouncementJSONBodyDeliveryModeSilent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PutAnnouncementJSONBodyLevel.
 const (
 	PutAnnouncementJSONBodyLevelError   PutAnnouncementJSONBodyLevel = "error"
@@ -479,6 +569,24 @@ func (e PutAnnouncementJSONBodyLevel) Valid() bool {
 	case PutAnnouncementJSONBodyLevelSuccess:
 		return true
 	case PutAnnouncementJSONBodyLevelWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAnnouncement200JSONResponseBodyDataDeliveryMode.
+const (
+	PutAnnouncement200JSONResponseBodyDataDeliveryModePopup  PutAnnouncement200JSONResponseBodyDataDeliveryMode = "popup"
+	PutAnnouncement200JSONResponseBodyDataDeliveryModeSilent PutAnnouncement200JSONResponseBodyDataDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the PutAnnouncement200JSONResponseBodyDataDeliveryMode enum.
+func (e PutAnnouncement200JSONResponseBodyDataDeliveryMode) Valid() bool {
+	switch e {
+	case PutAnnouncement200JSONResponseBodyDataDeliveryModePopup:
+		return true
+	case PutAnnouncement200JSONResponseBodyDataDeliveryModeSilent:
 		return true
 	default:
 		return false
@@ -605,6 +713,24 @@ func (e PutAnnouncement500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostAnnouncementArchive200JSONResponseBodyDataDeliveryMode.
+const (
+	PostAnnouncementArchive200JSONResponseBodyDataDeliveryModePopup  PostAnnouncementArchive200JSONResponseBodyDataDeliveryMode = "popup"
+	PostAnnouncementArchive200JSONResponseBodyDataDeliveryModeSilent PostAnnouncementArchive200JSONResponseBodyDataDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the PostAnnouncementArchive200JSONResponseBodyDataDeliveryMode enum.
+func (e PostAnnouncementArchive200JSONResponseBodyDataDeliveryMode) Valid() bool {
+	switch e {
+	case PostAnnouncementArchive200JSONResponseBodyDataDeliveryModePopup:
+		return true
+	case PostAnnouncementArchive200JSONResponseBodyDataDeliveryModeSilent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostAnnouncementArchive200JSONResponseBodyDataLevel.
 const (
 	PostAnnouncementArchive200JSONResponseBodyDataLevelError   PostAnnouncementArchive200JSONResponseBodyDataLevel = "error"
@@ -710,6 +836,24 @@ func (e PostAnnouncementArchive500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostAnnouncementPublish200JSONResponseBodyDataDeliveryMode.
+const (
+	PostAnnouncementPublish200JSONResponseBodyDataDeliveryModePopup  PostAnnouncementPublish200JSONResponseBodyDataDeliveryMode = "popup"
+	PostAnnouncementPublish200JSONResponseBodyDataDeliveryModeSilent PostAnnouncementPublish200JSONResponseBodyDataDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the PostAnnouncementPublish200JSONResponseBodyDataDeliveryMode enum.
+func (e PostAnnouncementPublish200JSONResponseBodyDataDeliveryMode) Valid() bool {
+	switch e {
+	case PostAnnouncementPublish200JSONResponseBodyDataDeliveryModePopup:
+		return true
+	case PostAnnouncementPublish200JSONResponseBodyDataDeliveryModeSilent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostAnnouncementPublish200JSONResponseBodyDataLevel.
 const (
 	PostAnnouncementPublish200JSONResponseBodyDataLevelError   PostAnnouncementPublish200JSONResponseBodyDataLevel = "error"
@@ -809,6 +953,24 @@ const (
 func (e PostAnnouncementPublish500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PostAnnouncementPublish500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode.
+const (
+	GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryModePopup  GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode = "popup"
+	GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryModeSilent GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode enum.
+func (e GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode) Valid() bool {
+	switch e {
+	case GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryModePopup:
+		return true
+	case GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryModeSilent:
 		return true
 	default:
 		return false
@@ -950,6 +1112,24 @@ func (e GetMyAnnouncementsUnreadCount500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostMyAnnouncementRead200JSONResponseBodyDataDeliveryMode.
+const (
+	PostMyAnnouncementRead200JSONResponseBodyDataDeliveryModePopup  PostMyAnnouncementRead200JSONResponseBodyDataDeliveryMode = "popup"
+	PostMyAnnouncementRead200JSONResponseBodyDataDeliveryModeSilent PostMyAnnouncementRead200JSONResponseBodyDataDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the PostMyAnnouncementRead200JSONResponseBodyDataDeliveryMode enum.
+func (e PostMyAnnouncementRead200JSONResponseBodyDataDeliveryMode) Valid() bool {
+	switch e {
+	case PostMyAnnouncementRead200JSONResponseBodyDataDeliveryModePopup:
+		return true
+	case PostMyAnnouncementRead200JSONResponseBodyDataDeliveryModeSilent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostMyAnnouncementRead200JSONResponseBodyDataLevel.
 const (
 	Error   PostMyAnnouncementRead200JSONResponseBodyDataLevel = "error"
@@ -1073,6 +1253,9 @@ type GetAnnouncementsParamsLevel string
 // GetAnnouncementsParamsSort defines parameters for GetAnnouncements.
 type GetAnnouncementsParamsSort string
 
+// GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode defines parameters for GetAnnouncements.
+type GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode string
+
 // GetAnnouncements200JSONResponseBodyDataItemsLevel defines parameters for GetAnnouncements.
 type GetAnnouncements200JSONResponseBodyDataItemsLevel string
 
@@ -1090,8 +1273,11 @@ type GetAnnouncements500JSONResponseBodySuccess bool
 
 // PostAnnouncementsJSONBody defines parameters for PostAnnouncements.
 type PostAnnouncementsJSONBody struct {
-	Content  string     `json:"content"`
-	ExpireAt *time.Time `json:"expire_at,omitempty"`
+	Content string `json:"content"`
+
+	// DeliveryMode Announcement delivery presentation mode.
+	DeliveryMode PostAnnouncementsJSONBodyDeliveryMode `json:"delivery_mode"`
+	ExpireAt     *time.Time                            `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
 	Level     PostAnnouncementsJSONBodyLevel `json:"level"`
@@ -1110,8 +1296,14 @@ type PostAnnouncementsParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// PostAnnouncementsJSONBodyDeliveryMode defines parameters for PostAnnouncements.
+type PostAnnouncementsJSONBodyDeliveryMode string
+
 // PostAnnouncementsJSONBodyLevel defines parameters for PostAnnouncements.
 type PostAnnouncementsJSONBodyLevel string
+
+// PostAnnouncements201JSONResponseBodyDataDeliveryMode defines parameters for PostAnnouncements.
+type PostAnnouncements201JSONResponseBodyDataDeliveryMode string
 
 // PostAnnouncements201JSONResponseBodyDataLevel defines parameters for PostAnnouncements.
 type PostAnnouncements201JSONResponseBodyDataLevel string
@@ -1163,6 +1355,9 @@ type GetAnnouncementParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetAnnouncement200JSONResponseBodyDataDeliveryMode defines parameters for GetAnnouncement.
+type GetAnnouncement200JSONResponseBodyDataDeliveryMode string
+
 // GetAnnouncement200JSONResponseBodyDataLevel defines parameters for GetAnnouncement.
 type GetAnnouncement200JSONResponseBodyDataLevel string
 
@@ -1183,8 +1378,11 @@ type GetAnnouncement500JSONResponseBodySuccess bool
 
 // PutAnnouncementJSONBody defines parameters for PutAnnouncement.
 type PutAnnouncementJSONBody struct {
-	Content  string     `json:"content"`
-	ExpireAt *time.Time `json:"expire_at,omitempty"`
+	Content string `json:"content"`
+
+	// DeliveryMode Announcement delivery presentation mode.
+	DeliveryMode PutAnnouncementJSONBodyDeliveryMode `json:"delivery_mode"`
+	ExpireAt     *time.Time                          `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
 	Level     PutAnnouncementJSONBodyLevel `json:"level"`
@@ -1203,8 +1401,14 @@ type PutAnnouncementParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// PutAnnouncementJSONBodyDeliveryMode defines parameters for PutAnnouncement.
+type PutAnnouncementJSONBodyDeliveryMode string
+
 // PutAnnouncementJSONBodyLevel defines parameters for PutAnnouncement.
 type PutAnnouncementJSONBodyLevel string
+
+// PutAnnouncement200JSONResponseBodyDataDeliveryMode defines parameters for PutAnnouncement.
+type PutAnnouncement200JSONResponseBodyDataDeliveryMode string
 
 // PutAnnouncement200JSONResponseBodyDataLevel defines parameters for PutAnnouncement.
 type PutAnnouncement200JSONResponseBodyDataLevel string
@@ -1236,6 +1440,9 @@ type PostAnnouncementArchiveParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PostAnnouncementArchive200JSONResponseBodyDataDeliveryMode defines parameters for PostAnnouncementArchive.
+type PostAnnouncementArchive200JSONResponseBodyDataDeliveryMode string
 
 // PostAnnouncementArchive200JSONResponseBodyDataLevel defines parameters for PostAnnouncementArchive.
 type PostAnnouncementArchive200JSONResponseBodyDataLevel string
@@ -1271,6 +1478,9 @@ type PostAnnouncementPublishParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// PostAnnouncementPublish200JSONResponseBodyDataDeliveryMode defines parameters for PostAnnouncementPublish.
+type PostAnnouncementPublish200JSONResponseBodyDataDeliveryMode string
+
 // PostAnnouncementPublish200JSONResponseBodyDataLevel defines parameters for PostAnnouncementPublish.
 type PostAnnouncementPublish200JSONResponseBodyDataLevel string
 
@@ -1302,6 +1512,9 @@ type GetMyAnnouncementsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode defines parameters for GetMyAnnouncements.
+type GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode string
 
 // GetMyAnnouncements200JSONResponseBodyDataItemsLevel defines parameters for GetMyAnnouncements.
 type GetMyAnnouncements200JSONResponseBodyDataItemsLevel string
@@ -1356,6 +1569,9 @@ type PostMyAnnouncementReadParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PostMyAnnouncementRead200JSONResponseBodyDataDeliveryMode defines parameters for PostMyAnnouncementRead.
+type PostMyAnnouncementRead200JSONResponseBodyDataDeliveryMode string
 
 // PostMyAnnouncementRead200JSONResponseBodyDataLevel defines parameters for PostMyAnnouncementRead.
 type PostMyAnnouncementRead200JSONResponseBodyDataLevel string

@@ -12,17 +12,19 @@
         :source="{ labelKey: 'menu.server.title', fallback: t('menu.server.title') }"
       >
         <template #actions>
-          <t-button theme="default" variant="outline" :loading="loading" @click="fetchAnnouncements">
-            {{ t('announcement.management.refresh') }}
-          </t-button>
-          <t-button
-            v-permission="permissionCodes.CREATE"
-            theme="primary"
-            data-testid="announcement-create"
-            @click="openCreateDrawer"
-          >
-            {{ t('announcement.management.create') }}
-          </t-button>
+          <div class="announcement-management-page__header-actions">
+            <t-button theme="default" variant="outline" :loading="loading" @click="fetchAnnouncements">
+              {{ t('announcement.management.refresh') }}
+            </t-button>
+            <t-button
+              v-permission="permissionCodes.CREATE"
+              theme="primary"
+              data-testid="announcement-create"
+              @click="openCreateDrawer"
+            >
+              {{ t('announcement.management.create') }}
+            </t-button>
+          </div>
         </template>
       </management-page-header>
 
@@ -129,6 +131,12 @@
           <template #level="{ row }">
             <t-tag :theme="row.levelTheme" variant="light">
               {{ row.levelLabel }}
+            </t-tag>
+          </template>
+
+          <template #delivery_mode="{ row }">
+            <t-tag :theme="row.deliveryMode === 'popup' ? 'primary' : 'default'" variant="light">
+              {{ row.deliveryModeLabel }}
             </t-tag>
           </template>
 
@@ -241,11 +249,33 @@
               :placeholder="t('announcement.management.form.levelPlaceholder')"
             />
           </t-form-item>
+          <t-form-item name="delivery_mode">
+            <template #label>
+              <span class="announcement-form__label-with-help">
+                {{ t('announcement.management.form.deliveryMode') }}
+                <t-tooltip
+                  placement="top"
+                  :content="t(`announcement.management.form.deliveryModeHelp.${formState.delivery_mode}`)"
+                >
+                  <t-icon class="announcement-form__help-icon" name="help-circle" />
+                </t-tooltip>
+              </span>
+            </template>
+            <t-select
+              v-model="formState.delivery_mode"
+              :options="deliveryModeOptions"
+              :placeholder="t('announcement.management.form.deliveryModePlaceholder')"
+            />
+          </t-form-item>
           <t-form-item name="pinned">
             <t-checkbox v-model="formState.pinned">
               {{ t('announcement.management.form.pinned') }}
             </t-checkbox>
           </t-form-item>
+          <section class="announcement-form__preview" aria-live="polite">
+            <h4>{{ t('announcement.management.form.markdownPreview') }}</h4>
+            <safe-markdown :source="formState.content" />
+          </section>
         </section>
 
         <section class="drawer-section">
@@ -301,6 +331,9 @@
               <t-tag :theme="detailRecord.levelTheme" variant="light">
                 {{ detailRecord.levelLabel }}
               </t-tag>
+              <t-tag :theme="detailRecord.deliveryMode === 'popup' ? 'primary' : 'default'" variant="light">
+                {{ detailRecord.deliveryModeLabel }}
+              </t-tag>
               <t-tag :theme="detailRecord.pinned ? 'primary' : 'default'" variant="light">
                 {{ detailRecord.pinnedLabel }}
               </t-tag>
@@ -310,7 +343,7 @@
 
         <section class="drawer-section">
           <h3>{{ t('announcement.management.detailDrawer.content') }}</h3>
-          <p class="announcement-detail__content">{{ detailRecord.content }}</p>
+          <safe-markdown class="announcement-detail__content" :source="detailRecord.content" />
         </section>
 
         <section class="drawer-section">
@@ -349,6 +382,7 @@ import {
   ManagementToolbar,
   TableActionMenu,
 } from '@/shared/components/management';
+import { SafeMarkdown } from '@/shared/components/markdown';
 import { isApiRequestError } from '@/utils/request';
 
 import {
@@ -361,8 +395,10 @@ import {
   updateAnnouncement,
 } from '../../api/announcement';
 import { ANNOUNCEMENT_PERMISSION_CODE } from '../../contract/permissions';
+import { emitAnnouncementChanged } from '../../contract/refresh';
 import { type AnnouncementViewModel, presentAnnouncement } from '../../domain/announcement-presenter';
 import type {
+  AnnouncementDeliveryMode,
   AnnouncementFilterState,
   AnnouncementFormState,
   AnnouncementItem,
@@ -411,6 +447,7 @@ const detailRecord = ref<AnnouncementViewModel | null>(null);
 
 const statusValues: AnnouncementStatus[] = ['draft', 'published', 'archived'];
 const levelValues: AnnouncementLevel[] = ['info', 'warning', 'success', 'error'];
+const deliveryModeValues: AnnouncementDeliveryMode[] = ['silent', 'popup'];
 
 const statusFilterOptions = computed(() =>
   statusValues.map((value) => ({
@@ -425,6 +462,12 @@ const levelOptions = computed(() =>
   })),
 );
 const levelFilterOptions = levelOptions;
+const deliveryModeOptions = computed(() =>
+  deliveryModeValues.map((value) => ({
+    label: t(`announcement.deliveryMode.${value}`),
+    value,
+  })),
+);
 const pinnedFilterOptions = computed(() => [
   { label: t('announcement.pinned.yes'), value: 'true' },
   { label: t('announcement.pinned.no'), value: 'false' },
@@ -450,6 +493,7 @@ const columns = computed<TdBaseTableProps['columns']>(() => [
   createTextColumn(t('announcement.management.columns.title'), 'title', { minWidth: 240 }),
   createStatusColumn(t('announcement.management.columns.status'), 'status', 112),
   createStatusColumn(t('announcement.management.columns.level'), 'level', 104),
+  createStatusColumn(t('announcement.management.columns.deliveryMode'), 'delivery_mode', 120),
   createStatusColumn(t('announcement.management.columns.pinned'), 'pinned', 104),
   createTimeColumn(t('announcement.management.columns.publishAt'), 'publish_at', 168),
   createTimeColumn(t('announcement.management.columns.expireAt'), 'expire_at', 168),
@@ -468,6 +512,7 @@ const formDrawerTitle = computed(() =>
 );
 const formRules = computed<Record<keyof AnnouncementFormState, FormRule[]>>(() => ({
   content: [{ required: true, message: t('announcement.management.form.required.content'), type: 'error' }],
+  delivery_mode: [{ required: true, message: t('announcement.management.form.required.deliveryMode'), type: 'error' }],
   expire_at: [
     { validator: validateExpireAt, message: t('announcement.management.form.invalidTimeWindow'), type: 'error' },
   ],
@@ -596,6 +641,7 @@ async function handleFormSubmit(context: SubmitContext) {
 
     closeFormDrawer();
     await fetchAnnouncements();
+    emitAnnouncementChanged();
   } catch (error) {
     MessagePlugin.error(readableError(error, t('announcement.management.submitFailed')));
   } finally {
@@ -658,6 +704,7 @@ async function publishRow(row: AnnouncementRowViewModel) {
     await publishAnnouncement(row.id);
     MessagePlugin.success(t('announcement.management.publishSuccess'));
     await fetchAnnouncements();
+    emitAnnouncementChanged();
   } catch (error) {
     MessagePlugin.error(readableError(error, t('announcement.management.publishFailed')));
   }
@@ -668,6 +715,7 @@ async function archiveRow(row: AnnouncementRowViewModel) {
     await archiveAnnouncement(row.id);
     MessagePlugin.success(t('announcement.management.archiveSuccess'));
     await fetchAnnouncements();
+    emitAnnouncementChanged();
   } catch (error) {
     MessagePlugin.error(readableError(error, t('announcement.management.archiveFailed')));
   }
@@ -686,6 +734,7 @@ async function deleteRow(row: AnnouncementRowViewModel) {
       detailRecord.value = null;
     }
     await fetchAnnouncements();
+    emitAnnouncementChanged();
   } catch (error) {
     MessagePlugin.error(readableError(error, t('announcement.management.deleteFailed')));
   }
@@ -708,6 +757,7 @@ function normalizePinnedFilter(value: AnnouncementPinnedFilter) {
 function createEmptyFormState(): AnnouncementFormState {
   return {
     content: '',
+    delivery_mode: 'silent',
     expire_at: '',
     level: 'info',
     pinned: false,
@@ -719,6 +769,7 @@ function createEmptyFormState(): AnnouncementFormState {
 function toFormState(item: AnnouncementItem): AnnouncementFormState {
   return {
     content: item.content,
+    delivery_mode: item.delivery_mode,
     expire_at: toDatePickerValue(item.expire_at),
     level: item.level,
     pinned: item.pinned,
@@ -730,6 +781,7 @@ function toFormState(item: AnnouncementItem): AnnouncementFormState {
 function toMutationPayload(state: AnnouncementFormState): CreateAnnouncementRequest | UpdateAnnouncementRequest {
   return {
     content: state.content.trim(),
+    delivery_mode: state.delivery_mode,
     expire_at: toApiDateTime(state.expire_at),
     level: state.level,
     pinned: state.pinned,
@@ -784,6 +836,14 @@ function readableError(error: unknown, fallback: string) {
 <style scoped lang="less">
 .announcement-management-page {
   min-width: 0;
+}
+
+.announcement-management-page__header-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-12);
+  justify-content: flex-end;
 }
 
 .toolbar__search {
@@ -877,6 +937,31 @@ function readableError(error: unknown, fallback: string) {
   margin: 0 0 var(--graft-density-gap-14);
 }
 
+.announcement-form__label-with-help {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--graft-density-gap-6);
+}
+
+.announcement-form__help-icon {
+  color: var(--td-text-color-secondary);
+  cursor: help;
+  font-size: var(--td-font-size-body-medium);
+}
+
+.announcement-form__preview {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  padding: var(--graft-density-gap-12);
+}
+
+.announcement-form__preview h4 {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0 0 var(--graft-density-gap-10);
+}
+
 .drawer-actions {
   justify-content: flex-end;
   padding-top: var(--graft-density-gap-4);
@@ -894,10 +979,8 @@ function readableError(error: unknown, fallback: string) {
 }
 
 .announcement-detail__content {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-medium);
-  margin: 0;
-  white-space: pre-wrap;
+  max-height: 420px;
+  overflow: auto;
 }
 
 .detail-list {
@@ -926,6 +1009,11 @@ function readableError(error: unknown, fallback: string) {
     align-items: flex-start;
     flex-direction: column;
     gap: var(--graft-density-gap-10);
+  }
+
+  .announcement-management-page__header-actions {
+    justify-content: flex-start;
+    width: 100%;
   }
 }
 </style>
