@@ -124,7 +124,7 @@ If the validator script or tests changed, also run:
 python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Run `cd web && bun run check` or `cd server && go run ./cmd/graft validate backend --stage lint` only when the task
+Run `cd web && bun run check` or `graft validate backend --stage lint` only when the task
 actually changes corresponding runtime, contract, or validation semantics.
 
 ## 9. Closeout

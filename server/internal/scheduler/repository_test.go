@@ -129,6 +129,56 @@ func TestSQLJobDefinitionRepositorySyncsDefinitions(t *testing.T) {
 	if got.DefaultEnabled {
 		t.Fatalf("expected default_enabled=false to round-trip separately from enabled=true, got %#v", got)
 	}
+	if !got.Enabled {
+		t.Fatalf("expected enabled=true to round-trip from job definition, got %#v", got)
+	}
+}
+
+func TestSQLJobDefinitionRepositorySyncsDefinitionEnabledState(t *testing.T) {
+	db := newSchedulerRepositoryTestDB(t)
+	repo, err := NewSQLJobDefinitionRepository(db)
+	if err != nil {
+		t.Fatalf("new job definition repository: %v", err)
+	}
+
+	ctx := context.Background()
+	definition := JobDefinition{
+		JobKey:         "audit.retention.cleanup",
+		ModuleKey:      "audit",
+		Category:       "retention",
+		Title:          "Audit retention",
+		ShortTitle:     "Audit",
+		ConfigSchema:   "{}",
+		DefaultConfig:  "{}",
+		DefaultCron:    "0 0 * * * *",
+		DefaultEnabled: true,
+		Enabled:        false,
+		CreatedAt:      time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+		UpdatedAt:      time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+	}
+	if err := repo.SyncJobDefinitions(ctx, []JobDefinition{definition}); err != nil {
+		t.Fatalf("sync disabled job definition: %v", err)
+	}
+
+	got, err := repo.GetJobDefinition(ctx, definition.JobKey)
+	if err != nil {
+		t.Fatalf("get job definition: %v", err)
+	}
+	if !got.DefaultEnabled || got.Enabled {
+		t.Fatalf("expected default_enabled=true and enabled=false to persist independently, got %#v", got)
+	}
+
+	definition.Enabled = true
+	if err := repo.SyncJobDefinitions(ctx, []JobDefinition{definition}); err != nil {
+		t.Fatalf("sync enabled job definition: %v", err)
+	}
+	got, err = repo.GetJobDefinition(ctx, definition.JobKey)
+	if err != nil {
+		t.Fatalf("get updated job definition: %v", err)
+	}
+	if !got.Enabled {
+		t.Fatalf("expected enabled=true to persist on update, got %#v", got)
+	}
 }
 
 func TestSQLJobDefinitionRepositorySyncsDefinitionAfterSoftDelete(t *testing.T) {
@@ -177,7 +227,7 @@ func TestSQLJobDefinitionRepositorySyncsDefinitionAfterSoftDelete(t *testing.T) 
 	}
 }
 
-func TestSQLTaskRepositorySeedsBuiltinPreservesCronAndEnabledWhileRefreshingConfig(t *testing.T) {
+func TestSQLTaskRepositorySeedsBuiltinPreservesUserMutableFields(t *testing.T) {
 	db := newSchedulerRepositoryTestDB(t)
 	repo, err := NewSQLTaskRepository(db)
 	if err != nil {
@@ -214,6 +264,7 @@ func TestSQLTaskRepositorySeedsBuiltinPreservesCronAndEnabledWhileRefreshingConf
 	seeded.CronExpression = "0 0 1 * * *"
 	seeded.Enabled = true
 	seeded.ConfigJSON = `{"retentionDays":30,"batchSize":1000}`
+	seeded.ConfigSource = taskConfigSourceSystem
 	if err := repo.SeedBuiltinTasks(ctx, []TaskDefinition{seeded}); err != nil {
 		t.Fatalf("seed builtin task again: %v", err)
 	}
@@ -228,11 +279,11 @@ func TestSQLTaskRepositorySeedsBuiltinPreservesCronAndEnabledWhileRefreshingConf
 	if task.CronExpression != "0 */5 * * * *" || task.Enabled {
 		t.Fatalf("expected user-edited cron/enabled to survive reseed, got %#v", task)
 	}
-	if task.ConfigJSON != `{"retentionDays":30,"batchSize":1000}` {
-		t.Fatalf("expected repository to accept runtime-selected builtin config, got %#v", task)
+	if task.ConfigJSON != `{"retentionDays":90,"batchSize":500}` {
+		t.Fatalf("expected user-edited config to survive reseed, got %#v", task)
 	}
-	if task.ConfigSource != taskConfigSourceSystem {
-		t.Fatalf("expected reseeded builtin config to use system source, got %#v", task)
+	if task.ConfigSource != taskConfigSourceUser {
+		t.Fatalf("expected user-edited config source to survive reseed, got %#v", task)
 	}
 }
 

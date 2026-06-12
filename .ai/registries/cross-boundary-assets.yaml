@@ -38,7 +38,7 @@ assets:
       - "app-logger"
       - "request-client"
     validation_commands:
-      - "cd server && go run ./cmd/graft validate backend --stage lint"
+      - "graft validate backend --stage lint"
       - "cd web && bun run check"
 
   - name: "route-menu-permission-contracts"
@@ -59,7 +59,7 @@ assets:
       - "moduleapi-contracts"
     validation_commands:
       - "cd web && bun run check"
-      - "cd server && go run ./cmd/graft validate backend --stage lint"
+      - "graft validate backend --stage lint"
 
   - name: "i18n-key-first-presentation"
     type: "cross-boundary-contract"
@@ -96,7 +96,7 @@ assets:
       - "moduleapi-contracts"
       - "openapi-contracts"
     validation_commands:
-      - "cd server && go run ./cmd/graft validate backend --stage lint"
+      - "graft validate backend --stage lint"
 
   - name: "scheduler-openapi-contract"
     type: "cross-boundary-contract"
@@ -115,7 +115,7 @@ assets:
       - "cron-registry"
     validation_commands:
       - "cd web && bun run check"
-      - "cd server && go run ./cmd/graft validate backend --stage lint"
+      - "graft validate backend --stage lint"
 
   - name: "graft-shared-asset-reuse-skill"
     type: "governance-skill"

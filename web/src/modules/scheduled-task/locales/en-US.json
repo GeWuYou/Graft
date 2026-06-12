@@ -312,7 +312,7 @@
         "job": "Task Definition",
         "jobPlaceholder": "Select a task definition",
         "category": "Category",
-        "jobRequiredHint": "Job is required."
+        "jobRequiredHint": "Task Definition is required."
       },
       "validation": {
         "required": "{field} is required.",

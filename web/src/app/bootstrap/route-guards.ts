@@ -157,7 +157,8 @@ export function registerRouteGuards(targetRouter: Router = router) {
       try {
         // 本地没有 access token 时，仍允许先用 refresh cookie 静默恢复一次会话；
         // 只有 refresh 失败后才退回白名单/登录页，避免强制打断仍然有效的登录态。
-        const bootstrap = await userStore.refreshToken().then(() => userStore.bootstrap(true));
+        await userStore.refreshToken();
+        const bootstrap = await userStore.bootstrap(true);
         permissionStore.setBootstrapSnapshot(bootstrap);
 
         if (!permissionStore.routesInitialized) {

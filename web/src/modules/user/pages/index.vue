@@ -8,9 +8,7 @@
     <management-page-content>
       <management-page-header
         title-key="user.userList.listTitle"
-        :title="t('user.userList.listTitle')"
         description-key="user.userList.hint"
-        :description="t('user.userList.hint')"
         :source="{ labelKey: 'menu.access_control.title', fallback: t('menu.access_control.title') }"
       >
         <template #actions>

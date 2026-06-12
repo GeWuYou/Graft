@@ -312,7 +312,7 @@
         "job": "任务定义",
         "jobPlaceholder": "选择一个任务定义",
         "category": "分类",
-        "jobRequiredHint": "请选择执行定义。"
+        "jobRequiredHint": "请选择任务定义。"
       },
       "validation": {
         "required": "{field}为必填项。",

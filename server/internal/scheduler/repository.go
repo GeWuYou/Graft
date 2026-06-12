@@ -75,7 +75,7 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			enabled,
 			created_at,
 			updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, $14, $15)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT (job_key) WHERE deleted_at = 0 DO UPDATE
 		SET module_key = EXCLUDED.module_key,
 			category = EXCLUDED.category,
@@ -89,6 +89,7 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			default_config = EXCLUDED.default_config,
 			default_cron = EXCLUDED.default_cron,
 			default_enabled = EXCLUDED.default_enabled,
+			enabled = EXCLUDED.enabled,
 			updated_at = EXCLUDED.updated_at
 		WHERE scheduler_job_definitions.deleted_at = 0`,
 			definition.JobKey,
@@ -104,6 +105,7 @@ func (r *SQLJobDefinitionRepository) SyncJobDefinitions(ctx context.Context, def
 			definition.DefaultConfig,
 			definition.DefaultCron,
 			definition.DefaultEnabled,
+			definition.Enabled,
 			definition.CreatedAt.UTC(),
 			definition.UpdatedAt.UTC(),
 		)
@@ -191,7 +193,7 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 			return err
 		}
 		_, err := r.db.ExecContext(ctx, `WITH existing AS (
-			SELECT cron_expression, enabled
+			SELECT cron_expression, enabled, config_json, config_source
 			FROM scheduled_tasks
 			WHERE task_key = $1 AND builtin = true AND deleted_at = 0
 		)
@@ -219,8 +221,8 @@ func (r *SQLTaskRepository) SeedBuiltinTasks(ctx context.Context, tasks []TaskDe
 				COALESCE((SELECT cron_expression FROM existing), $7),
 				COALESCE((SELECT enabled FROM existing), $8),
 				true,
-				$9,
-				$10,
+				COALESCE((SELECT config_json FROM existing), $9),
+				COALESCE((SELECT config_source FROM existing), $10),
 				$11,
 				$12
 			)
