@@ -560,12 +560,17 @@ Explicit commit trigger:
 - when the user explicitly invokes a repository commit trigger such as `$graft-commit`, treat it as permission to
   create one scoped commit for the current validated task slice, but still apply the ownership and mixed-change rules
   above before staging anything
+- if the confirmed owned scope contains multiple independently validated logical slices, or one safe commit cannot
+  cover the confirmed scope cleanly, `$graft-commit` may split the work into multiple scoped commits without asking for
+  repeated permission; each commit must still satisfy ownership, validation, staging, and message rules on its own
 - the trigger grants permission to commit the confirmed owned scope only; it does not permit bundling unrelated files,
   unknown changes, or all current working tree changes by default
 - if the current slice is not yet validated to the level required by its task class, finish the required validation
   before committing or explain why that validation cannot be completed yet
 - if the working tree is mixed and the owned scope cannot be separated confidently, the trigger does not override the
   fail-closed rule; stop and report the ambiguity instead of forcing a commit
+- batching is not a compatibility escape hatch; stop at the first ambiguous, unvalidated, or unsafe batch instead of
+  force-staging the remaining changes
 
 Closeout-driven commit evaluation:
 

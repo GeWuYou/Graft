@@ -38,6 +38,9 @@ validation rules.
    - include only files or hunks owned by the current task slice
    - exclude unrelated files, unknown edits, and user-owned changes
    - never treat task relevance alone as commit permission
+   - when the confirmed owned scope contains multiple independently validated logical slices, or one safe commit cannot
+     cover the confirmed scope cleanly, split it into a batch plan of separate scoped commits
+   - do not use batching to bypass mixed ownership, missing validation, broad staging, or an invalid commit message
 3. Confirm validation is sufficient for the task class:
    - `server`: prefer `cd server && go run ./cmd/graft validate backend` for completion-state work
    - `web`: prefer `cd web && bun run check` for completion-state work
@@ -56,11 +59,16 @@ validation rules.
    - avoid noise titles such as `wip`, `update`, or `fix typo`
    - ordinary non-merge and non-revert commits must include a real multiline body with at least one `- ` bullet
    - do not create an agent-authored ordinary commit with only a title or literal escaped control text like `\n`
-6. Create one scoped commit for the current logical slice.
+6. Create the scoped commit(s):
+   - default to one scoped commit for the current logical slice
+   - if a batch plan is required, create each commit sequentially and re-check `git status --short` plus
+     `git diff --cached --name-only` before each commit
+   - stop before any batch whose ownership or validation is ambiguous, and report the committed batches plus the
+     uncommitted blocker
 7. Report:
    - the committed scope
    - the validation command(s) used
-   - the final commit title and short SHA
+   - each final commit title and short SHA
 8. If the commit is being made as part of a task handoff, report the exact next-task startup prompt that should be
    used for the next turn.
 
