@@ -13,6 +13,8 @@
   基础模块、migration、权限菜单注册和 focused validation。
 - Phase 2 已提交：`12133c88 feat(announcement): implement management API`。
 - Phase 2 完成管理端列表、创建、详情、更新、发布、归档、删除、状态流转、过滤排序、错误映射和 focused tests。
+- Phase 3 已提交：`e9d74363 feat(announcement): implement current-user API`。
+- Phase 3 完成用户侧列表、已读、全部已读、未读数、可见性规则和用户隔离 tests。
 
 ## Loop Batch State
 
@@ -22,15 +24,15 @@
   "completed_batches": [
     "phase-0-design-topic-persistence",
     "phase-1-openapi-server-foundation",
-    "phase-2-server-management-api"
+    "phase-2-server-management-api",
+    "phase-3-server-user-api"
   ],
   "pending_batches": [
-    "phase-3-server-user-api",
     "phase-4-web-management-ui",
     "phase-5-user-entry-dashboard",
     "phase-6-validation-governance-closeout"
   ],
   "current_batch": null,
-  "next_batch": "phase-3-server-user-api"
+  "next_batch": "phase-4-web-management-ui"
 }
 ```

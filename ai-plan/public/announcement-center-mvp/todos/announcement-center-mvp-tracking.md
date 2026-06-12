@@ -24,26 +24,15 @@ Announcement Center MVP
 - Phase 0 已完成并提交。
 - Phase 1 已完成并提交，OpenAPI、migration、server module foundation 和 generated artifacts 已建立。
 - Phase 2 已完成并提交，管理端 API 行为和 focused tests 已建立。
-- 下一批次进入 Phase 3，实现用户端可见列表、已读、全部已读、未读数和用户隔离。
+- Phase 3 已完成并提交，用户端 API、已读状态、未读数和用户隔离已建立。
+- 下一批次进入 Phase 4，实现前端公告管理页。
 
 ## Task Checklist
 
 - [x] Phase 0：设计和 topic 持久化
 - [x] Phase 1：OpenAPI + migration + 后端领域模型
 - [x] Phase 2：后端管理端 API
-- [ ] Phase 3：后端用户端 API + 已读状态
+- [x] Phase 3：后端用户端 API + 已读状态
 - [ ] Phase 4：前端公告管理页
 - [ ] Phase 5：用户侧公告入口 / 工作台摘要
 - [ ] Phase 6：测试、i18n、治理收尾
-
-## Dirty Worktree Note
-
-当前工作树存在 notification 相关未提交改动：
-
-- `server/modules/notification/migrations/atlas.sum`
-- `server/modules/notification/publisher_test.go`
-- `server/modules/notification/store/sql_repository.go`
-- `server/modules/notification/store/store.go`
-- `server/modules/notification/migrations/202606120002_notification_delivery_deleted_at_epoch.sql`
-
-这些文件不属于公告中心 owned scope。
