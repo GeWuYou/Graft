@@ -4,7 +4,7 @@
 -->
 
 <template>
-  <header class="management-page-header">
+  <header :class="['management-page-header', { 'management-page-header--compact': compact }]">
     <page-header
       :breadcrumb="resolvedBreadcrumb"
       :source="source"
@@ -33,6 +33,7 @@ const props = defineProps<{
   titleKey?: string;
   descriptionKey?: string;
   breadcrumb?: PageHeaderBreadcrumbItem[];
+  compact?: boolean;
   source?: PageHeaderSource;
 }>();
 
@@ -66,9 +67,28 @@ const resolvedBreadcrumb = computed<PageHeaderBreadcrumbItem[]>(() => {
   padding: var(--graft-density-gap-18) var(--graft-density-gap-20);
 }
 
+.management-page-header--compact {
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-18);
+}
+
+.management-page-header--compact :deep(.page-header__main) {
+  gap: var(--graft-density-gap-8);
+}
+
+.management-page-header--compact :deep(.page-header__description) {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (width <= 768px) {
   .management-page-header {
     padding: var(--graft-density-gap-16);
+  }
+
+  .management-page-header--compact :deep(.page-header__description) {
+    white-space: normal;
   }
 }
 </style>

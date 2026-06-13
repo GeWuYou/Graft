@@ -10,7 +10,7 @@
         <div class="query-filter-builder__top-row">
           <t-input
             :model-value="keyword"
-            class="query-filter-builder__keyword"
+            class="query-filter-builder__keyword management-query-search"
             clearable
             :placeholder="keywordPlaceholder"
             @update:model-value="$emit('update:keyword', normalizeTextValue($event))"
@@ -359,8 +359,7 @@ function normalizeRange(value: string[] | undefined) {
 }
 
 .query-filter-builder__keyword {
-  flex: 1 1 340px;
-  min-width: 240px;
+  min-width: 360px;
 }
 
 .query-filter-builder__actions {
@@ -496,6 +495,12 @@ function normalizeRange(value: string[] | undefined) {
 @media (width <= 900px) {
   .query-filter-builder__popup {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (width <= 768px) {
+  .query-filter-builder__keyword {
+    min-width: 0;
   }
 }
 </style>

@@ -5,8 +5,18 @@
 
 <template>
   <section class="management-table-card">
-    <div v-if="$slots.head" class="management-table-card__head">
-      <slot name="head" />
+    <div v-if="hasHead" class="management-table-card__head">
+      <div class="management-table-card__head-main">
+        <slot name="head">
+          <div v-if="title || description" class="management-table-card__summary">
+            <p v-if="title" class="management-table-card__title">{{ title }}</p>
+            <p v-if="description" class="management-table-card__description">{{ description }}</p>
+          </div>
+        </slot>
+      </div>
+      <div v-if="$slots.toolbar" class="management-table-card__toolbar">
+        <slot name="toolbar" />
+      </div>
     </div>
     <div v-if="$slots.batch" class="management-table-card__batch">
       <slot name="batch" />
@@ -19,6 +29,18 @@
     </div>
   </section>
 </template>
+<script setup lang="ts">
+import { computed, useSlots } from 'vue';
+
+const props = defineProps<{
+  description?: string;
+  title?: string;
+}>();
+
+const slots = useSlots();
+
+const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.title || props.description));
+</script>
 <style scoped lang="less">
 @import './card-surface.less';
 
@@ -44,6 +66,46 @@
   padding: var(--graft-density-gap-16) var(--graft-density-gap-20);
 }
 
+.management-table-card__head-main,
+.management-table-card__toolbar {
+  min-width: 0;
+}
+
+.management-table-card__head-main {
+  flex: 1 1 240px;
+}
+
+.management-table-card__toolbar {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  justify-content: flex-end;
+}
+
+.management-table-card__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.management-table-card__title,
+.management-table-card__description {
+  margin: 0;
+}
+
+.management-table-card__title {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+}
+
+.management-table-card__description {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
 .management-table-card__body {
   --td-comp-paddingTB-m: 11px;
 
@@ -67,6 +129,10 @@
     align-items: stretch;
     flex-direction: column;
     padding: var(--graft-density-gap-16);
+  }
+
+  .management-table-card__toolbar {
+    justify-content: flex-start;
   }
 
   .management-table-card__body {

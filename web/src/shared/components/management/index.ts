@@ -19,4 +19,5 @@ export {
   resolveManagedColumns,
 } from './table-columns';
 export { default as TableActionMenu } from './TableActionMenu.vue';
+export { default as TableViewToolbar } from './TableViewToolbar.vue';
 export { formatCompactDateTime } from './time';

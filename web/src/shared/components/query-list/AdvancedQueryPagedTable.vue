@@ -11,6 +11,11 @@
         <p class="advanced-query-paged-table__summary">{{ summary }}</p>
       </section>
     </template>
+    <template v-if="$slots.toolbar" #toolbar>
+      <table-view-toolbar>
+        <slot name="toolbar" />
+      </table-view-toolbar>
+    </template>
 
     <div>
       <t-table
@@ -30,6 +35,9 @@
           <div class="advanced-query-paged-table__empty">
             <t-empty :title="emptyTitle" :description="emptyDescription" />
           </div>
+        </template>
+        <template v-if="$slots.pagination" #pagination>
+          <slot name="pagination" />
         </template>
       </t-table>
     </div>
@@ -55,6 +63,7 @@ import {
   calculateTableContentWidth,
   ManagementTableCard,
   ManagementTablePagination,
+  TableViewToolbar,
 } from '@/shared/components/management';
 
 const props = defineProps<{
