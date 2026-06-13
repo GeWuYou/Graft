@@ -10,23 +10,25 @@
       <t-button
         :aria-label="refreshLabel"
         :loading="refreshLoading"
-        shape="square"
+        class="table-view-toolbar__button"
         theme="default"
         variant="outline"
         @click="$emit('refresh')"
       >
         <template #icon><refresh-icon /></template>
+        {{ refreshLabel }}
       </t-button>
     </t-tooltip>
     <t-tooltip v-if="columnSettingsLabel" :content="columnSettingsLabel" placement="top">
       <t-button
         :aria-label="columnSettingsLabel"
-        shape="square"
+        class="table-view-toolbar__button"
         theme="default"
         variant="outline"
         @click="$emit('column-settings')"
       >
         <template #icon><view-column-icon /></template>
+        {{ columnSettingsLabel }}
       </t-button>
     </t-tooltip>
     <t-tooltip v-if="densityLabel" :content="densityLabel" placement="top">
@@ -60,6 +62,10 @@ defineEmits<{
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
   justify-content: flex-end;
+}
+
+.table-view-toolbar__button {
+  flex: 0 0 auto;
 }
 
 @media (width <= 768px) {

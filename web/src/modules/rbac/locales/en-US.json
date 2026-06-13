@@ -86,7 +86,7 @@
         "searchPlaceholder": "Search role name, display name, or role code",
         "typeAll": "All Types",
         "typePlaceholder": "Filter role type",
-        "clearFilters": "Clear Filters"
+        "clearFilters": "Reset"
       },
       "form": {
         "createTitle": "Create Role",
@@ -212,7 +212,7 @@
       "toolbar": {
         "searchPlaceholder": "Search permission code or name",
         "modulePlaceholder": "Filter module",
-        "clearFilters": "Clear Filters"
+        "clearFilters": "Reset"
       }
     },
     "permissionCatalog": {

@@ -13,16 +13,13 @@
     :error-message="listError"
     :error-title="t('appLog.page.errorTitle')"
     :loading="loading"
+    compact-header
     :reload-label="t('appLog.page.refresh')"
     :retry-label="t('appLog.page.retry')"
+    :show-header-reload="false"
     :source="{ labelKey: 'menu.logCenter.title', fallback: t('menu.logCenter.title') }"
     @reload="fetchAppLogs"
   >
-    <template #actions>
-      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-        {{ t('appLog.page.columnSettings') }}
-      </t-button>
-    </template>
     <template #filters>
       <app-log-filters
         v-model="filters"
@@ -48,7 +45,17 @@
         :visible-column-keys="visibleColumnKeys"
         @detail="openDetail"
         @page-change="fetchAppLogs"
-      />
+      >
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('appLog.page.columnSettings')"
+            :refresh-label="t('appLog.page.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="fetchAppLogs"
+          />
+        </template>
+      </app-log-table>
     </template>
     <template #detail>
       <advanced-query-column-drawer
@@ -66,6 +73,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage as resolveAppLogErrorMessage } from '@/shared/localized-api-error';
 import {

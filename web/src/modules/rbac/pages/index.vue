@@ -166,7 +166,7 @@
               v-model:current="pagination.current"
               v-model:page-size="pagination.pageSize"
               :total="filteredRoles.length"
-              :page-size-options="[10, 20, 50]"
+              :page-size-options="[10, 20, 50, 100]"
               :show-page-number="true"
             />
           </management-table-pagination>

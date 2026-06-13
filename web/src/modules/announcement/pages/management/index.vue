@@ -13,9 +13,6 @@
       >
         <template #actions>
           <div class="announcement-management-page__header-actions">
-            <t-button theme="default" variant="outline" :loading="loading" @click="fetchAnnouncements">
-              {{ t('announcement.management.refresh') }}
-            </t-button>
             <t-button
               v-permission="permissionCodes.CREATE"
               theme="primary"
@@ -33,7 +30,7 @@
           <t-input
             v-model="filters.keyword"
             clearable
-            class="toolbar__search"
+            class="management-list-search"
             :placeholder="t('announcement.management.filters.keyword')"
             type="search"
             @enter="handleSearch"
@@ -65,13 +62,10 @@
             :options="sortOptions"
             :placeholder="t('announcement.management.filters.sort')"
           />
-          <t-button theme="default" variant="text" @click="resetFilters">
-            {{ t('announcement.management.reset') }}
-          </t-button>
         </template>
         <template #actions>
-          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-            {{ t('announcement.management.columnSettings') }}
+          <t-button theme="default" variant="text" @click="resetFilters">
+            {{ t('announcement.management.reset') }}
           </t-button>
           <t-button theme="primary" variant="outline" :loading="loading" @click="handleSearch">
             {{ t('announcement.management.search') }}
@@ -92,6 +86,15 @@
               {{ t('announcement.management.reset') }}
             </t-button>
           </div>
+        </template>
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('announcement.management.columnSettings')"
+            :refresh-label="t('announcement.management.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="fetchAnnouncements"
+          />
         </template>
 
         <management-empty-state
@@ -232,7 +235,7 @@
               v-model:current="pagination.current"
               v-model:page-size="pagination.pageSize"
               :total="total"
-              :page-size-options="[10, 20, 50]"
+              :page-size-options="[10, 20, 50, 100]"
               :show-page-number="true"
               @change="handlePageChange"
             />
@@ -520,6 +523,7 @@ import {
   ManagementTablePagination,
   ManagementToolbar,
   TableActionMenu,
+  TableViewToolbar,
 } from '@/shared/components/management';
 import { MarkdownViewer } from '@/shared/components/markdown';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
@@ -1269,10 +1273,6 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   justify-content: flex-end;
 }
 
-.toolbar__search {
-  width: min(320px, 100%);
-}
-
 .toolbar__select {
   width: 176px;
 }
@@ -1522,7 +1522,6 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
     width: calc(100vw - 24px) !important;
   }
 
-  .toolbar__search,
   .toolbar__select {
     width: 100%;
   }

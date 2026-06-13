@@ -16,6 +16,9 @@
         </t-tag>
       </div>
     </template>
+    <template v-if="$slots.toolbar" #toolbar>
+      <slot name="toolbar" />
+    </template>
 
     <t-table
       row-key="id"
@@ -89,7 +92,7 @@
           v-model:current="current"
           v-model:page-size="pageSize"
           :total="total"
-          :page-size-options="[10, 20, 50]"
+          :page-size-options="[10, 20, 50, 100]"
           @change="emitPageChange"
         />
       </management-table-pagination>

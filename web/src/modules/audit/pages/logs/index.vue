@@ -11,15 +11,14 @@
     :error-message="listError"
     :error-title="t('audit.logList.errorTitle')"
     :loading="loading"
+    compact-header
     :reload-label="t('audit.logList.refresh')"
     :retry-label="t('audit.logList.retry')"
+    :show-header-reload="false"
     :source="{ labelKey: 'menu.audit.title', fallback: t('menu.audit.title'), color: 'var(--td-warning-color-5)' }"
     @reload="fetchAuditLogs"
   >
     <template #actions>
-      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-        {{ t('audit.logList.columnSettings') }}
-      </t-button>
       <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
         {{ t('audit.logList.actions.backToMonitor') }}
       </t-button>
@@ -70,7 +69,17 @@
         :visible-column-keys="visibleColumnKeys"
         @detail="openDetailDrawer"
         @page-change="fetchAuditLogs"
-      />
+      >
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('audit.logList.columnSettings')"
+            :refresh-label="t('audit.logList.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="fetchAuditLogs"
+          />
+        </template>
+      </audit-table>
     </template>
     <template #detail>
       <advanced-query-column-drawer
@@ -94,6 +103,7 @@ import { computed, onActivated, onDeactivated, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { describeCorrelationId, formatMessageWithCorrelation } from '@/shared/correlation';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';

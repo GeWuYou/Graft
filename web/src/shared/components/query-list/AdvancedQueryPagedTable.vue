@@ -12,9 +12,7 @@
       </section>
     </template>
     <template v-if="$slots.toolbar" #toolbar>
-      <table-view-toolbar>
-        <slot name="toolbar" />
-      </table-view-toolbar>
+      <slot name="toolbar" />
     </template>
 
     <div>
@@ -29,6 +27,9 @@
         hover
       >
         <template v-for="slotName in cellSlotNames" #[slotName]="slotProps" :key="slotName">
+          <slot :name="slotName" v-bind="slotProps" />
+        </template>
+        <template v-for="slotName in passthroughTableSlotNames" #[slotName]="slotProps" :key="slotName">
           <slot :name="slotName" v-bind="slotProps" />
         </template>
         <template #empty>
@@ -63,7 +64,6 @@ import {
   calculateTableContentWidth,
   ManagementTableCard,
   ManagementTablePagination,
-  TableViewToolbar,
 } from '@/shared/components/management';
 
 const props = defineProps<{
@@ -87,6 +87,9 @@ defineEmits<{
 const current = defineModel<number>('current', { required: true });
 const pageSize = defineModel<number>('pageSize', { required: true });
 
+const passthroughTableSlotNames = computed(() =>
+  ['toolbar'].filter((slotName) => !props.cellSlotNames.includes(slotName)),
+);
 const tableContentWidth = computed(() => calculateTableContentWidth(props.columns));
 </script>
 <style scoped lang="less">
