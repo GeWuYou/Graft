@@ -17,6 +17,7 @@ export type AnnouncementSort = 'updated_desc' | 'publish_desc' | 'pinned_publish
 export type AnnouncementStatusFilter = '' | AnnouncementStatus;
 export type AnnouncementLevelFilter = '' | AnnouncementLevel;
 export type AnnouncementPinnedFilter = '' | 'true' | 'false';
+export type AnnouncementVisibilityState = 'draft' | 'scheduled' | 'visible' | 'expired' | 'archived';
 
 export type AnnouncementListQuery = {
   keyword?: string;

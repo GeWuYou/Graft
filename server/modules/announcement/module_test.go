@@ -225,7 +225,8 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 		t.Fatalf("expected draft create status, got %q", created.Status)
 	}
 
-	published, err := service.Publish(ctx, created.ID, nil, &actorID)
+	beforePublish := time.Now().UTC()
+	published, err := service.Publish(ctx, created.ID, &publishAt, &actorID)
 	if err != nil {
 		t.Fatalf("publish announcement: %v", err)
 	}
@@ -235,6 +236,7 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	if published.PublishAt == nil || !published.PublishAt.Equal(publishAt.UTC()) {
 		t.Fatalf("expected publish_at to keep UTC input, got %#v", published.PublishAt)
 	}
+	assertAnnouncementPublishedAtAfter(t, published, beforePublish)
 	assertAnnouncementPublishedBy(t, published, actorID)
 	assertAnnouncementArchivedAtCleared(t, published)
 	if err := service.Delete(ctx, created.ID, actorID); !errors.Is(err, errAnnouncementPublishedDelete) {
@@ -264,7 +266,7 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	}
 }
 
-func TestAnnouncementRepublishArchivedUsesServerTimeAndPreservesReadState(t *testing.T) {
+func TestAnnouncementRepublishArchivedClearsEffectiveTimeAndPreservesReadState(t *testing.T) {
 	repository := newMemoryAnnouncementRepository()
 	service, err := NewService(repository)
 	if err != nil {
@@ -296,9 +298,10 @@ func TestAnnouncementRepublishArchivedUsesServerTimeAndPreservesReadState(t *tes
 	}
 	assertAnnouncementArchivedAtCleared(t, republished)
 	assertAnnouncementPublishedBy(t, republished, actorID)
-	if republished.PublishAt == nil || republished.PublishAt.Before(beforeRepublish) {
-		t.Fatalf("expected republish without publish_at to use current server time, got %#v before=%s", republished.PublishAt, beforeRepublish)
+	if republished.PublishAt != nil {
+		t.Fatalf("expected republish without publish_at to store null effective time, got %#v", republished.PublishAt)
 	}
+	assertAnnouncementPublishedAtAfter(t, republished, beforeRepublish)
 
 	result, err := service.ListCurrentUser(ctx, UserListQuery{UserID: userID, Page: 1, PageSize: 20})
 	if err != nil {
@@ -335,6 +338,76 @@ func TestAnnouncementPublishOverridesStoredPublishAt(t *testing.T) {
 	}
 	if overridden.PublishAt == nil || !overridden.PublishAt.Equal(overridePublishAt.UTC()) {
 		t.Fatalf("expected explicit publish_at override, got %#v", overridden.PublishAt)
+	}
+	assertAnnouncementPublishedAtSet(t, overridden)
+}
+
+func TestAnnouncementPublishWithoutEffectiveTimeIsImmediatelyVisible(t *testing.T) {
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	created, err := service.Create(ctx, announcementstore.CreateInput{
+		Title:   "Immediate",
+		Content: "Immediate",
+		Level:   announcementcontract.AnnouncementLevelInfo.String(),
+		ActorID: &actorID,
+	})
+	if err != nil {
+		t.Fatalf("create announcement: %v", err)
+	}
+	published, err := service.Publish(ctx, created.ID, nil, &actorID)
+	if err != nil {
+		t.Fatalf("publish announcement: %v", err)
+	}
+	if published.PublishAt != nil {
+		t.Fatalf("expected publish_at to stay null for immediate visibility, got %#v", published.PublishAt)
+	}
+	assertAnnouncementPublishedAtSet(t, published)
+	result, err := service.ListCurrentUser(ctx, UserListQuery{UserID: 42, Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("list current-user announcements: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].Announcement.ID != published.ID {
+		t.Fatalf("expected immediate announcement to be visible, got total=%d items=%#v", result.Total, result.Items)
+	}
+}
+
+func TestAnnouncementUpdatePublishedEffectiveTimeDoesNotChangePublishedAt(t *testing.T) {
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	publishAt := time.Now().UTC().Add(-time.Hour)
+	published := createAnnouncementForUserTest(t, service, "Edit effective", publishAt, nil, actorID)
+	if published.PublishedAt == nil {
+		t.Fatal("expected published_at after publish")
+	}
+	originalPublishedAt := *published.PublishedAt
+	nextPublishAt := publishAt.Add(time.Hour)
+	updated, err := service.Update(ctx, published.ID, announcementstore.UpdateInput{
+		Title:        published.Title,
+		Content:      published.Content,
+		Level:        published.Level,
+		DeliveryMode: published.DeliveryMode,
+		Pinned:       published.Pinned,
+		PublishAt:    &nextPublishAt,
+		ActorID:      &actorID,
+	})
+	if err != nil {
+		t.Fatalf("update published announcement: %v", err)
+	}
+	if updated.PublishedAt == nil || !updated.PublishedAt.Equal(originalPublishedAt) {
+		t.Fatalf("expected edit to keep published_at %s, got %#v", originalPublishedAt, updated.PublishedAt)
+	}
+	if updated.PublishAt == nil || !updated.PublishAt.Equal(nextPublishAt.UTC()) {
+		t.Fatalf("expected edit to update effective publish_at, got %#v", updated.PublishAt)
 	}
 }
 
@@ -804,7 +877,7 @@ func createAnnouncementForUserTest(
 	if err != nil {
 		t.Fatalf("create %s: %v", title, err)
 	}
-	published, err := service.Publish(ctx, item.ID, nil, &actorID)
+	published, err := service.Publish(ctx, item.ID, &publishAt, &actorID)
 	if err != nil {
 		t.Fatalf("publish %s: %v", title, err)
 	}
@@ -838,6 +911,20 @@ func assertAnnouncementPublishedBy(t *testing.T, item announcementstore.Announce
 	t.Helper()
 	if item.PublishedBy == nil || *item.PublishedBy != actorID {
 		t.Fatalf("expected published_by actor %d, got %#v", actorID, item.PublishedBy)
+	}
+}
+
+func assertAnnouncementPublishedAtSet(t *testing.T, item announcementstore.Announcement) {
+	t.Helper()
+	if item.PublishedAt == nil {
+		t.Fatal("expected published_at to be set")
+	}
+}
+
+func assertAnnouncementPublishedAtAfter(t *testing.T, item announcementstore.Announcement, before time.Time) {
+	t.Helper()
+	if item.PublishedAt == nil || item.PublishedAt.Before(before) {
+		t.Fatalf("expected published_at after %s, got %#v", before, item.PublishedAt)
 	}
 }
 
@@ -881,7 +968,7 @@ func (testAnnouncementRepository) Update(context.Context, uint64, announcementst
 	return announcementstore.Announcement{}, announcementstore.ErrAnnouncementNotFound
 }
 
-func (testAnnouncementRepository) Publish(context.Context, uint64, time.Time, *uint64) (announcementstore.Announcement, error) {
+func (testAnnouncementRepository) Publish(context.Context, uint64, *time.Time, time.Time, *uint64) (announcementstore.Announcement, error) {
 	return announcementstore.Announcement{}, announcementstore.ErrAnnouncementNotFound
 }
 

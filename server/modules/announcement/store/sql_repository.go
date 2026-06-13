@@ -241,8 +241,14 @@ func (r *SQLRepository) updateAnnouncement(ctx context.Context, targetID int64, 
 	return item, nil
 }
 
-// Publish marks one announcement published and records an effective publish time.
-func (r *SQLRepository) Publish(ctx context.Context, id uint64, publishAt time.Time, actorID *uint64) (Announcement, error) {
+// Publish marks one announcement published and records the latest publish action time.
+func (r *SQLRepository) Publish(
+	ctx context.Context,
+	id uint64,
+	publishAt *time.Time,
+	publishedAt time.Time,
+	actorID *uint64,
+) (Announcement, error) {
 	if err := r.ensureReady(); err != nil {
 		return Announcement{}, err
 	}
@@ -250,18 +256,25 @@ func (r *SQLRepository) Publish(ctx context.Context, id uint64, publishAt time.T
 	if err != nil {
 		return Announcement{}, err
 	}
-	if publishAt.IsZero() {
+	if publishedAt.IsZero() {
 		return Announcement{}, ErrInvalidInput
 	}
+	var effectivePublishAt *time.Time
+	if publishAt != nil {
+		normalized := publishAt.UTC()
+		effectivePublishAt = &normalized
+	}
+	publishedAt = publishedAt.UTC()
 	item, err := scanAnnouncement(r.db.QueryRowContext(ctx, r.placeholder.rebind(`UPDATE announcements
-		SET status = ?, publish_at = ?, published_by = ?, archived_at = NULL, updated_by = ?, updated_at = ?
+		SET status = ?, publish_at = ?, published_at = ?, published_by = ?, archived_at = NULL, updated_by = ?, updated_at = ?
 		WHERE id = ? AND deleted_at = 0
 		RETURNING `+announcementColumns()),
 		statusPublished,
-		publishAt.UTC(),
+		effectivePublishAt,
+		publishedAt,
 		actorID,
 		actorID,
-		time.Now().UTC(),
+		publishedAt,
 		targetID,
 	))
 	if err != nil {
@@ -526,7 +539,7 @@ func buildUserVisibleWhere(now time.Time, unreadOnly bool) ([]string, []any) {
 	where := []string{
 		"a.deleted_at = 0",
 		"a.status = ?",
-		"a.publish_at <= ?",
+		"(a.publish_at IS NULL OR a.publish_at <= ?)",
 		"(a.expire_at IS NULL OR a.expire_at > ?)",
 	}
 	args := make([]any, 0, userFilterCapacity)
@@ -551,7 +564,7 @@ func adminOrderBy(sort string) string {
 }
 
 func announcementColumns() string {
-	return `id, title, content, level, status, delivery_mode, pinned, publish_at, published_by, archived_at, expire_at,
+	return `id, title, content, level, status, delivery_mode, pinned, publish_at, published_at, published_by, archived_at, expire_at,
 		created_by, updated_by, deleted_by, created_at, updated_at, deleted_at`
 }
 
@@ -566,6 +579,7 @@ func prefixedAnnouncementColumns(prefix string) string {
 func scanAnnouncement(scanner interface{ Scan(dest ...any) error }) (Announcement, error) {
 	var item Announcement
 	var publishAt sql.NullTime
+	var publishedAt sql.NullTime
 	var archivedAt sql.NullTime
 	var expireAt sql.NullTime
 	var publishedBy sql.NullInt64
@@ -581,6 +595,7 @@ func scanAnnouncement(scanner interface{ Scan(dest ...any) error }) (Announcemen
 		&item.DeliveryMode,
 		&item.Pinned,
 		&publishAt,
+		&publishedAt,
 		&publishedBy,
 		&archivedAt,
 		&expireAt,
@@ -595,6 +610,9 @@ func scanAnnouncement(scanner interface{ Scan(dest ...any) error }) (Announcemen
 	}
 	if publishAt.Valid {
 		item.PublishAt = &publishAt.Time
+	}
+	if publishedAt.Valid {
+		item.PublishedAt = &publishedAt.Time
 	}
 	var err error
 	item.PublishedBy, err = optionalUint64FromDBID(publishedBy)

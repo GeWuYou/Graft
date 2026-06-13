@@ -23,7 +23,9 @@ properties:
     type: string
     format: date-time
     nullable: true
+    description: Announcement visibility start time. Updating this field changes only the effective visibility window, not the latest publish action time.
   expire_at:
     type: string
     format: date-time
     nullable: true
+    description: Announcement visibility end time. Null means long-term valid.

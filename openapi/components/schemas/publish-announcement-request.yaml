@@ -4,4 +4,4 @@ properties:
     type: string
     format: date-time
     nullable: true
-    description: Optional explicit publish time; omitted means publish immediately.
+    description: Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish.

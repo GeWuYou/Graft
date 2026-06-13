@@ -28,6 +28,7 @@ type announcementItemResponse struct {
 	DeliveryMode announcementopenapi.GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode `json:"delivery_mode"`
 	Pinned       bool                                                                         `json:"pinned"`
 	PublishAt    *time.Time                                                                   `json:"publish_at"`
+	PublishedAt  *time.Time                                                                   `json:"published_at"`
 	PublishedBy  *int64                                                                       `json:"published_by"`
 	ArchivedAt   *time.Time                                                                   `json:"archived_at"`
 	ExpireAt     *time.Time                                                                   `json:"expire_at"`
@@ -54,6 +55,7 @@ type myAnnouncementItemResponse struct {
 	DeliveryMode announcementopenapi.GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode `json:"delivery_mode"`
 	Pinned       bool                                                                           `json:"pinned"`
 	PublishAt    *time.Time                                                                     `json:"publish_at"`
+	PublishedAt  *time.Time                                                                     `json:"published_at"`
 	PublishedBy  *int64                                                                         `json:"published_by"`
 	ArchivedAt   *time.Time                                                                     `json:"archived_at"`
 	ExpireAt     *time.Time                                                                     `json:"expire_at"`
@@ -117,6 +119,7 @@ func toAnnouncementItem(item announcementstore.Announcement) (announcementItemRe
 		DeliveryMode: announcementopenapi.GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode(item.DeliveryMode),
 		Pinned:       item.Pinned,
 		PublishAt:    item.PublishAt,
+		PublishedAt:  item.PublishedAt,
 		PublishedBy:  publishedBy,
 		ArchivedAt:   item.ArchivedAt,
 		ExpireAt:     item.ExpireAt,
@@ -159,6 +162,7 @@ func toMyAnnouncementItem(item announcementstore.UserAnnouncement) (myAnnounceme
 		DeliveryMode: announcementopenapi.GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode(announcement.DeliveryMode),
 		Pinned:       announcement.Pinned,
 		PublishAt:    announcement.PublishAt,
+		PublishedAt:  announcement.PublishedAt,
 		PublishedBy:  publishedBy,
 		ArchivedAt:   announcement.ArchivedAt,
 		ExpireAt:     announcement.ExpireAt,

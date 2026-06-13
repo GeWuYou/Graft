@@ -27,7 +27,7 @@
       "viewLater": "稍后查看",
       "openCenter": "查看公告中心",
       "markRead": "标记已读",
-      "publishAt": "发布时间"
+      "publishAt": "生效时间"
     },
     "user": {
       "title": "公告中心",
@@ -49,8 +49,8 @@
       "emptyUnreadDescription": "当前没有未读公告，可查看全部公告。",
       "showAll": "查看全部",
       "footerTotal": "共 {count} 条公告",
-      "publishAt": "发布时间",
-      "expireAt": "过期时间",
+      "publishAt": "生效时间",
+      "expireAt": "失效时间",
       "readAt": "阅读时间",
       "markReadSuccess": "公告已标为已读",
       "markReadFailed": "标记公告失败",
@@ -59,11 +59,13 @@
     },
     "management": {
       "title": "公告管理",
-      "description": "维护面向全体用户的长期平台公告、发布时间和可见状态。",
+      "description": "维护面向全体用户的长期平台公告、生效时间和可见状态。",
       "refresh": "刷新",
       "create": "创建公告",
       "search": "查询",
       "reset": "清空筛选",
+      "columnSettings": "列设置",
+      "resetColumns": "恢复默认列",
       "summary": "共 {count} 条公告",
       "tableHint": "支持按状态、级别、置顶和关键词筛选公告。",
       "loadFailed": "公告列表加载失败",
@@ -100,11 +102,16 @@
       "columns": {
         "title": "公告",
         "status": "状态",
+        "visibility": "展示状态",
         "level": "级别",
         "pinned": "置顶",
-        "publishAt": "发布时间",
-        "expireAt": "过期时间",
+        "publishedAt": "发布时间",
+        "publishedBy": "发布人",
+        "publishAt": "生效时间",
+        "expireAt": "失效时间",
+        "createdAt": "创建时间",
         "updatedAt": "更新时间",
+        "archivedAt": "归档时间",
         "operation": "操作",
         "deliveryMode": "展示策略"
       },
@@ -131,10 +138,14 @@
         "contentPlaceholder": "支持 Markdown：段落、加粗、列表、链接和代码块",
         "level": "级别",
         "levelPlaceholder": "请选择公告级别",
-        "publishAt": "发布时间",
-        "expireAt": "过期时间",
-        "publishAtPlaceholder": "选择发布时间",
-        "expireAtPlaceholder": "选择过期时间",
+        "publishAt": "生效时间",
+        "expireAt": "失效时间",
+        "publishAtPlaceholder": "选择生效时间",
+        "expireAtPlaceholder": "选择失效时间",
+        "publishAtHelp": "不填表示发布后立即可见；选择未来时间则定时生效；选择过去时间用于补录。",
+        "expireAtHelp": "不填表示长期有效；到期后用户端不再展示，后台状态不会自动归档。",
+        "immediateEffective": "立即生效",
+        "setCurrentTime": "设为当前时间",
         "pinned": "置顶公告",
         "cancel": "取消",
         "confirm": "保存公告",
@@ -144,7 +155,7 @@
           "level": "请选择公告级别",
           "deliveryMode": "请选择展示策略"
         },
-        "invalidTimeWindow": "过期时间必须晚于发布时间",
+        "invalidTimeWindow": "失效时间必须晚于生效时间；不填生效时间时，失效时间必须晚于当前时间",
         "deliveryMode": "展示策略",
         "deliveryModePlaceholder": "请选择展示策略",
         "deliveryModeHelp": {
@@ -166,9 +177,19 @@
         "timeline": "时间信息",
         "createdAt": "创建时间",
         "updatedAt": "更新时间",
-        "publishAt": "发布时间",
-        "expireAt": "过期时间"
+        "publishedAt": "发布时间",
+        "publishedBy": "发布人",
+        "publishAt": "生效时间",
+        "expireAt": "失效时间",
+        "archivedAt": "归档时间"
       }
+    },
+    "visibility": {
+      "draft": "草稿",
+      "scheduled": "未开始",
+      "visible": "展示中",
+      "expired": "已过期",
+      "archived": "已归档"
     },
     "status": {
       "draft": "草稿",
@@ -190,6 +211,8 @@
       "unread": "未读"
     },
     "value": {
+      "immediateEffective": "发布后立即",
+      "longTerm": "长期有效",
       "notSet": "未设置"
     },
     "deliveryMode": {

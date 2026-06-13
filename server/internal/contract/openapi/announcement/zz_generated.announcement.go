@@ -1292,13 +1292,17 @@ type PostAnnouncementsJSONBody struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode PostAnnouncementsJSONBodyDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time                            `json:"expire_at,omitempty"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
-	Level     PostAnnouncementsJSONBodyLevel `json:"level"`
-	Pinned    *bool                          `json:"pinned,omitempty"`
-	PublishAt *time.Time                     `json:"publish_at,omitempty"`
-	Title     string                         `json:"title"`
+	Level  PostAnnouncementsJSONBodyLevel `json:"level"`
+	Pinned *bool                          `json:"pinned,omitempty"`
+
+	// PublishAt Announcement visibility start time. Null means immediately visible after publish.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+	Title     string     `json:"title"`
 }
 
 // PostAnnouncementsParams defines parameters for PostAnnouncements.
@@ -1400,13 +1404,17 @@ type PutAnnouncementJSONBody struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode PutAnnouncementJSONBodyDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time                          `json:"expire_at,omitempty"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
-	Level     PutAnnouncementJSONBodyLevel `json:"level"`
-	Pinned    *bool                        `json:"pinned,omitempty"`
-	PublishAt *time.Time                   `json:"publish_at,omitempty"`
-	Title     string                       `json:"title"`
+	Level  PutAnnouncementJSONBodyLevel `json:"level"`
+	Pinned *bool                        `json:"pinned,omitempty"`
+
+	// PublishAt Announcement visibility start time. Updating this field changes only the effective visibility window, not the latest publish action time.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+	Title     string     `json:"title"`
 }
 
 // PutAnnouncementParams defines parameters for PutAnnouncement.
@@ -1482,7 +1490,7 @@ type PostAnnouncementArchive500JSONResponseBodySuccess bool
 
 // PostAnnouncementPublishJSONBody defines parameters for PostAnnouncementPublish.
 type PostAnnouncementPublishJSONBody struct {
-	// PublishAt Optional explicit publish time; omitted means publish immediately.
+	// PublishAt Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish.
 	PublishAt *time.Time `json:"publish_at,omitempty"`
 }
 

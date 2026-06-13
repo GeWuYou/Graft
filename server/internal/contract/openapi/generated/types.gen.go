@@ -2049,7 +2049,7 @@ type AnnouncementDeliveryMode string
 
 // AnnouncementItem defines model for announcement-item.
 type AnnouncementItem struct {
-	// ArchivedAt Time when the current archived state started. Meaningful only when status is archived and cleared on re-publish.
+	// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
 	ArchivedAt *time.Time `json:"archived_at,omitempty"`
 	Content    string     `json:"content"`
 	CreatedAt  time.Time  `json:"created_at"`
@@ -2058,15 +2058,20 @@ type AnnouncementItem struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
-	Id           int64                    `json:"id"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
+	Id       int64      `json:"id"`
 
 	// Level Announcement presentation level.
 	Level  AnnouncementLevel `json:"level"`
 	Pinned bool              `json:"pinned"`
 
-	// PublishAt Announcement visibility start time. Re-publishing an archived announcement updates this value.
+	// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
 	PublishAt *time.Time `json:"publish_at,omitempty"`
+
+	// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+	PublishedAt *time.Time `json:"published_at,omitempty"`
 
 	// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
 	PublishedBy *int64 `json:"published_by,omitempty"`
@@ -2526,13 +2531,17 @@ type CreateAnnouncementRequest struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
-	Level     AnnouncementLevel `json:"level"`
-	Pinned    *bool             `json:"pinned,omitempty"`
-	PublishAt *time.Time        `json:"publish_at,omitempty"`
-	Title     string            `json:"title"`
+	Level  AnnouncementLevel `json:"level"`
+	Pinned *bool             `json:"pinned,omitempty"`
+
+	// PublishAt Announcement visibility start time. Null means immediately visible after publish.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+	Title     string     `json:"title"`
 }
 
 // CreateRoleRequest defines model for create-role-request.
@@ -3854,7 +3863,7 @@ type PermissionListResponse struct {
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
-	// PublishAt Optional explicit publish time; omitted means publish immediately.
+	// PublishAt Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish.
 	PublishAt *time.Time `json:"publish_at,omitempty"`
 }
 
@@ -4440,13 +4449,17 @@ type UpdateAnnouncementRequest struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
-	Level     AnnouncementLevel `json:"level"`
-	Pinned    *bool             `json:"pinned,omitempty"`
-	PublishAt *time.Time        `json:"publish_at,omitempty"`
-	Title     string            `json:"title"`
+	Level  AnnouncementLevel `json:"level"`
+	Pinned *bool             `json:"pinned,omitempty"`
+
+	// PublishAt Announcement visibility start time. Updating this field changes only the effective visibility window, not the latest publish action time.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+	Title     string     `json:"title"`
 }
 
 // UpdateRoleRequest defines model for update-role-request.

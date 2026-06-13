@@ -1438,7 +1438,7 @@ export interface paths {
     put?: never;
     /**
      * Publish an announcement
-     * @description Publishes a draft announcement or re-publishes an archived announcement. If publish_at is omitted, the server uses the current UTC time for archived re-publish and otherwise keeps an existing publish_at when present.
+     * @description Publishes a draft announcement or re-publishes an archived announcement. The server writes published_at to the current service time and published_by to the actor. publish_at is the visibility start time; omitted or null stores publish_at as null for immediate visibility after publish.
      */
     post: operations['postAnnouncementPublish'];
     delete?: never;
@@ -3386,9 +3386,14 @@ export interface components {
       pinned: boolean;
       /**
        * Format: date-time
-       * @description Announcement visibility start time. Re-publishing an archived announcement updates this value.
+       * @description Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
        */
       publish_at?: string | null;
+      /**
+       * Format: date-time
+       * @description Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+       */
+      published_at?: string | null;
       /**
        * Format: int64
        * @description User id that performed the latest publish or re-publish action. Existing rows may remain null.
@@ -3396,10 +3401,13 @@ export interface components {
       published_by?: number | null;
       /**
        * Format: date-time
-       * @description Time when the current archived state started. Meaningful only when status is archived and cleared on re-publish.
+       * @description Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
        */
       archived_at?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+       */
       expire_at?: string | null;
       /** Format: int64 */
       created_by?: number | null;
@@ -3435,9 +3443,15 @@ export interface components {
       delivery_mode: components['schemas']['announcement-delivery-mode'];
       /** @default false */
       pinned: boolean;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility start time. Null means immediately visible after publish.
+       */
       publish_at?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility end time. Null means long-term valid.
+       */
       expire_at?: string | null;
     };
     'enveloped-announcement-item': components['schemas']['api-envelope'] & {
@@ -3450,15 +3464,21 @@ export interface components {
       delivery_mode: components['schemas']['announcement-delivery-mode'];
       /** @default false */
       pinned: boolean;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility start time. Updating this field changes only the effective visibility window, not the latest publish action time.
+       */
       publish_at?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility end time. Null means long-term valid.
+       */
       expire_at?: string | null;
     };
     'publish-announcement-request': {
       /**
        * Format: date-time
-       * @description Optional explicit publish time; omitted means publish immediately.
+       * @description Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish.
        */
       publish_at?: string | null;
     };

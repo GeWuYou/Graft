@@ -162,16 +162,15 @@ func (s *Service) Publish(ctx context.Context, id uint64, publishAt *time.Time, 
 	if err != nil {
 		return announcementstore.Announcement{}, mapStoreError(err)
 	}
-	effectivePublishAt := time.Now().UTC()
+	var effectivePublishAt *time.Time
 	if publishAt != nil {
-		effectivePublishAt = publishAt.UTC()
-	} else if current.Status != announcementcontract.AnnouncementStatusArchived.String() && current.PublishAt != nil {
-		effectivePublishAt = current.PublishAt.UTC()
+		normalized := publishAt.UTC()
+		effectivePublishAt = &normalized
 	}
-	if current.ExpireAt != nil && !current.ExpireAt.After(effectivePublishAt) {
+	if current.ExpireAt != nil && effectivePublishAt != nil && !current.ExpireAt.After(*effectivePublishAt) {
 		return announcementstore.Announcement{}, errAnnouncementInvalidInput
 	}
-	item, err := s.repository.Publish(ctx, id, effectivePublishAt, actorID)
+	item, err := s.repository.Publish(ctx, id, effectivePublishAt, time.Now().UTC(), actorID)
 	return item, mapStoreError(err)
 }
 

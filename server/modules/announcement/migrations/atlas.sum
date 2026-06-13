@@ -1,4 +1,5 @@
-h1:AZbDRVRDlVOuRyAkL9ql/lr2MqMW/ew8BlpirVtNOSU=
+h1:CPK2huB8rvNktnf0yXM70/HcEgLqS0A0AOcfKCqPJKs=
 202606120003_announcement_center_schema.sql h1:A0AksCzlxwMP/XLUyoDkn+tyDjMoKnXx4k50xdpnoQ0=
 202606120004_announcement_delivery_mode.sql h1:YzzPCm/2Y168IgvW5tXfoy4jg6puXfEHDPc+/V/dWuY=
 202606120005_announcement_publish_archive_fields.sql h1:6rztuWqgArC4oGPQ/Pid1Sx+WBoHzksP1zoJNBUhMcQ=
+202606120006_announcement_published_at.sql h1:I7eXRn0dmY4tRuWAABpagniJqz9IPCXMtrfkdPSN4Lk=
