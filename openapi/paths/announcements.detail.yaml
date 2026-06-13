@@ -6,13 +6,7 @@ get:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
-    - name: id
-      in: path
-      required: true
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
+    - $ref: ../components/parameters/announcement-id-path.yaml
   security:
     - bearerAuth: []
   responses:
@@ -48,13 +42,7 @@ put:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
-    - name: id
-      in: path
-      required: true
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
+    - $ref: ../components/parameters/announcement-id-path.yaml
   requestBody:
     required: true
     content:
@@ -105,13 +93,7 @@ delete:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
-    - name: id
-      in: path
-      required: true
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
+    - $ref: ../components/parameters/announcement-id-path.yaml
   security:
     - bearerAuth: []
   responses:

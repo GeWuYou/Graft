@@ -3616,6 +3616,8 @@ export interface components {
     'scheduled-task-run-id': number;
     /** @description Backend-defined Job Definition action key. */
     'scheduled-task-action-key': string;
+    /** @description Announcement id. */
+    'announcement-id-path': number;
   };
   requestBodies: never;
   headers: {
@@ -7374,7 +7376,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        id: number;
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
       };
       cookie?: never;
     };
@@ -7418,7 +7421,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        id: number;
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
       };
       cookie?: never;
     };
@@ -7476,7 +7480,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        id: number;
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
       };
       cookie?: never;
     };
@@ -7520,7 +7525,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        id: number;
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
       };
       cookie?: never;
     };
@@ -7647,7 +7653,8 @@ export interface operations {
         'X-Request-Id'?: components['parameters']['request-id-header'];
       };
       path: {
-        id: number;
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
       };
       cookie?: never;
     };
