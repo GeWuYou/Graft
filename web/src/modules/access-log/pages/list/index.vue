@@ -12,16 +12,13 @@
     :error-message="listError"
     :error-title="t('accessLog.page.errorTitle')"
     :loading="loading"
+    compact-header
     :reload-label="t('accessLog.page.refresh')"
     :retry-label="t('accessLog.page.retry')"
+    :show-header-reload="false"
     :source="{ labelKey: 'menu.logCenter.title', fallback: t('menu.logCenter.title') }"
     @reload="fetchAccessLogs"
   >
-    <template #actions>
-      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-        {{ t('accessLog.page.columnSettings') }}
-      </t-button>
-    </template>
     <template #filters>
       <access-log-filters
         v-model="filters"
@@ -47,7 +44,17 @@
         :visible-column-keys="visibleColumnKeys"
         @detail="openDetail"
         @page-change="fetchAccessLogs"
-      />
+      >
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('accessLog.page.columnSettings')"
+            :refresh-label="t('accessLog.page.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="fetchAccessLogs"
+          />
+        </template>
+      </access-log-table>
     </template>
     <template #detail>
       <advanced-query-column-drawer
@@ -66,6 +73,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useAuthSessionStore } from '@/modules/auth/store';
+import { TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/shared/localized-api-error';
 import {

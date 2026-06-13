@@ -20,6 +20,9 @@
     :total="total"
     @page-change="$emit('page-change')"
   >
+    <template v-if="$slots.toolbar" #toolbar>
+      <slot name="toolbar" />
+    </template>
     <template #method="{ row }">
       <t-tag theme="primary" variant="light-outline" size="small">{{ accessRow(row).method }}</t-tag>
     </template>
