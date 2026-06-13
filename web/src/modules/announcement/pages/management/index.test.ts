@@ -390,6 +390,20 @@ describe('announcement management page', () => {
     expect(apiMocks.getAnnouncements).toHaveBeenCalledTimes(2);
   });
 
+  it('searches through a single fetch chain when the current page resets', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    apiMocks.getAnnouncements.mockClear();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Search')!
+      .trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getAnnouncements).toHaveBeenCalledTimes(1);
+  });
+
   it('blocks create submission when the expire time is before the publish time', async () => {
     const wrapper = mountPage();
     await flushPromises();

@@ -226,6 +226,7 @@ const navToHelper = () => {
   display: flex;
   gap: var(--graft-density-gap-12);
 
+  // TDesign adjacent text buttons add their own margin; this container owns spacing through flex gap.
   :deep(.t-button + .t-button) {
     margin-left: 0;
   }

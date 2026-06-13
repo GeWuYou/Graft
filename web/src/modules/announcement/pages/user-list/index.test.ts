@@ -271,6 +271,7 @@ describe('UserAnnouncementPage', () => {
     });
 
     await flushPromises();
+    vi.mocked(api.getMyAnnouncements).mockClear();
     await wrapper.get('input[type="checkbox"]').setValue(true);
     await flushPromises();
 
@@ -279,5 +280,6 @@ describe('UserAnnouncementPage', () => {
       page_size: 20,
       unread_only: true,
     });
+    expect(api.getMyAnnouncements).toHaveBeenCalledTimes(1);
   });
 });

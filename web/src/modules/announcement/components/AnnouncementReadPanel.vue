@@ -6,7 +6,7 @@
 <template>
   <teleport to="body">
     <transition name="announcement-read-panel">
-      <div v-if="visible && announcement" class="announcement-read-panel" @keydown.esc="emitClose">
+      <div v-if="visible && announcement" class="announcement-read-panel">
         <button
           class="announcement-read-panel__overlay"
           type="button"
@@ -101,7 +101,7 @@ onBeforeUnmount(() => {
 });
 
 function handleWindowKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
+  if (props.visible && event.key === 'Escape') {
     emitClose();
   }
 }

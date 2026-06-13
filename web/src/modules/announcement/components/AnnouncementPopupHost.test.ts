@@ -3,7 +3,7 @@
 
 import { mount } from '@vue/test-utils';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import AnnouncementPopupHost from './AnnouncementPopupHost.vue';
@@ -108,6 +108,10 @@ const panelStub = defineComponent({
 });
 
 describe('AnnouncementPopupHost', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it('opens only unread popup announcements and dismisses without marking read', async () => {
     const api = await import('../api/announcement');
     vi.mocked(api.markAnnouncementRead).mockClear();
@@ -124,6 +128,26 @@ describe('AnnouncementPopupHost', () => {
 
     await wrapper.get('.close').trigger('click');
     expect(api.markAnnouncementRead).not.toHaveBeenCalled();
+  });
+
+  it('persists popup dismissal across host reloads', async () => {
+    const firstWrapper = mount(AnnouncementPopupHost, {
+      global: { stubs: { AnnouncementReadPanel: panelStub } },
+    });
+
+    await flushPromises();
+    await nextTick();
+    await firstWrapper.get('.close').trigger('click');
+    firstWrapper.unmount();
+
+    const secondWrapper = mount(AnnouncementPopupHost, {
+      global: { stubs: { AnnouncementReadPanel: panelStub } },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(secondWrapper.find('section').exists()).toBe(false);
   });
 
   it('marks popup announcement read, closes, and emits refresh', async () => {

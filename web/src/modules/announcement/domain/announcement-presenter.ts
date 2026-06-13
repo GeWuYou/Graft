@@ -3,8 +3,8 @@
 
 import type { ComposerTranslation } from 'vue-i18n';
 
-import { formatCompactDateTime } from '@/shared/components/management';
 import { markdownToPlainTextSummary } from '@/shared/components/markdown';
+import { formatLocaleDateTime } from '@/shared/observability';
 
 import {
   ANNOUNCEMENT_DELIVERY_MODE_LABEL_KEY,
@@ -126,5 +126,5 @@ export function announcementLevelTheme(level: AnnouncementLevel): AnnouncementTa
 }
 
 function formatAnnouncementDate(value: string | null | undefined, locale: string, t: ComposerTranslation) {
-  return value ? formatCompactDateTime(value, locale) : t('announcement.value.notSet');
+  return value ? formatLocaleDateTime(value, locale) : t('announcement.value.notSet');
 }

@@ -129,7 +129,6 @@
               :total="total"
               :page-size-options="[10, 20, 50]"
               :show-page-number="true"
-              @change="handlePageChange"
             />
           </management-table-pagination>
         </template>
@@ -209,7 +208,10 @@ onBeforeUnmount(() => {
 });
 
 watch(() => filters.unreadOnly, handleUnreadOnlyChange);
-watch(() => `${pagination.current}:${pagination.pageSize}`, fetchAnnouncements);
+watch(
+  () => `${pagination.current}:${pagination.pageSize}`,
+  () => void fetchAnnouncements(),
+);
 
 async function fetchAnnouncements() {
   loading.value = true;
@@ -287,13 +289,8 @@ async function markAllRead() {
   }
 }
 
-function handlePageChange() {
-  void fetchAnnouncements();
-}
-
 function handleUnreadOnlyChange() {
-  pagination.current = 1;
-  void fetchAnnouncements();
+  setCurrentPageAndMaybeFetch(1);
 }
 
 function handleAnnouncementChanged() {
@@ -309,6 +306,15 @@ function emitLocalAnnouncementChanged() {
   queueMicrotask(() => {
     suppressNextChangedRefresh = false;
   });
+}
+
+function setCurrentPageAndMaybeFetch(page: number) {
+  if (pagination.current === page) {
+    void fetchAnnouncements();
+    return;
+  }
+
+  pagination.current = page;
 }
 </script>
 <style scoped lang="less">

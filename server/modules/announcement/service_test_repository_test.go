@@ -39,36 +39,19 @@ func (r *memoryAnnouncementRepository) ListAdmin(_ context.Context, query announ
 	defer r.mu.Unlock()
 	items := make([]announcementstore.Announcement, 0, len(r.items))
 	for _, item := range r.items {
-		if item.DeletedAt != 0 {
-			continue
-		}
-		if query.Status != "" && item.Status != query.Status {
-			continue
-		}
-		if query.Level != "" && item.Level != query.Level {
-			continue
-		}
-		if query.Pinned != nil && item.Pinned != *query.Pinned {
-			continue
-		}
-		if query.Keyword != "" && !strings.Contains(strings.ToLower(item.Title+" "+item.Content), strings.ToLower(query.Keyword)) {
+		if !memoryMatchesAdminQuery(item, query) {
 			continue
 		}
 		items = append(items, item)
 	}
 	sort.SliceStable(items, func(i int, j int) bool {
-		return items[i].UpdatedAt.After(items[j].UpdatedAt) || items[i].ID > items[j].ID
+		if !items[i].UpdatedAt.Equal(items[j].UpdatedAt) {
+			return items[i].UpdatedAt.After(items[j].UpdatedAt)
+		}
+		return items[i].ID > items[j].ID
 	})
-	total := len(items)
-	start := query.Offset
-	if start > total {
-		start = total
-	}
-	end := start + query.Limit
-	if end > total {
-		end = total
-	}
-	return announcementstore.ListResult{Items: append([]announcementstore.Announcement(nil), items[start:end]...), Total: total}, nil
+	paged, total := memoryPaginate(items, query.Offset, query.Limit)
+	return announcementstore.ListResult{Items: paged, Total: total}, nil
 }
 
 func (r *memoryAnnouncementRepository) ListCurrentUser(_ context.Context, query announcementstore.UserListQuery) (announcementstore.UserListResult, error) {
@@ -109,6 +92,38 @@ func (r *memoryAnnouncementRepository) ListCurrentUser(_ context.Context, query 
 		end = total
 	}
 	return announcementstore.UserListResult{Items: append([]announcementstore.UserAnnouncement(nil), items[start:end]...), Total: total}, nil
+}
+
+func memoryMatchesAdminQuery(item announcementstore.Announcement, query announcementstore.ListQuery) bool {
+	if item.DeletedAt != 0 {
+		return false
+	}
+	if query.Status != "" && item.Status != query.Status {
+		return false
+	}
+	if query.Level != "" && item.Level != query.Level {
+		return false
+	}
+	if query.Pinned != nil && item.Pinned != *query.Pinned {
+		return false
+	}
+	if query.Keyword != "" && !strings.Contains(strings.ToLower(item.Title+" "+item.Content), strings.ToLower(query.Keyword)) {
+		return false
+	}
+	return true
+}
+
+func memoryPaginate[T any](items []T, offset int, limit int) ([]T, int) {
+	total := len(items)
+	start := offset
+	if start > total {
+		start = total
+	}
+	end := start + limit
+	if end > total {
+		end = total
+	}
+	return append([]T(nil), items[start:end]...), total
 }
 
 func (r *memoryAnnouncementRepository) Create(_ context.Context, input announcementstore.CreateInput) (announcementstore.Announcement, error) {
@@ -173,10 +188,8 @@ func (r *memoryAnnouncementRepository) Publish(_ context.Context, id uint64, pub
 		return announcementstore.Announcement{}, announcementstore.ErrAnnouncementNotFound
 	}
 	item.Status = "published"
-	if item.PublishAt == nil {
-		publishAt = publishAt.UTC()
-		item.PublishAt = &publishAt
-	}
+	publishAt = publishAt.UTC()
+	item.PublishAt = &publishAt
 	item.UpdatedBy = cloneUint64(actorID)
 	item.UpdatedAt = time.Now().UTC()
 	r.items[id] = item

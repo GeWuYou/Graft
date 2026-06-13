@@ -596,16 +596,14 @@ onMounted(() => {
 });
 
 watch(
-  () => [filters.status, filters.level, filters.pinned, filters.sort],
-  () => {
-    pagination.current = 1;
-    void fetchAnnouncements();
-  },
-);
+  () => [filters.level, filters.pinned, filters.sort, filters.status, pagination.current, pagination.pageSize],
+  (_next, previous) => {
+    const filtersChanged = Boolean(previous) && hasFilterStateChanged(previous);
+    if (filtersChanged && pagination.current !== 1) {
+      pagination.current = 1;
+      return;
+    }
 
-watch(
-  () => [pagination.current, pagination.pageSize],
-  () => {
     void fetchAnnouncements();
   },
 );
@@ -637,18 +635,25 @@ async function fetchAnnouncements() {
 }
 
 function handleSearch() {
-  pagination.current = 1;
-  void fetchAnnouncements();
+  setCurrentPageAndMaybeFetch(1);
 }
 
 function resetFilters() {
+  const shouldFetch =
+    filters.keyword !== '' ||
+    filters.level !== '' ||
+    filters.pinned !== '' ||
+    filters.sort !== 'updated_desc' ||
+    filters.status !== '' ||
+    pagination.current !== 1;
   filters.keyword = '';
   filters.level = '';
   filters.pinned = '';
   filters.sort = 'updated_desc';
   filters.status = '';
-  pagination.current = 1;
-  void fetchAnnouncements();
+  if (shouldFetch) {
+    setCurrentPageAndMaybeFetch(1);
+  }
 }
 
 function handlePageChange(pageInfo: PageInfo) {
@@ -659,6 +664,24 @@ function handlePageChange(pageInfo: PageInfo) {
 function handleSortChange(sort: SortInfo | SortInfo[]) {
   const nextSort = Array.isArray(sort) ? sort[0] : sort;
   filters.sort = nextSort?.descending === false ? 'publish_desc' : 'updated_desc';
+}
+
+function hasFilterStateChanged(previous: (string | number)[]) {
+  return (
+    filters.level !== previous[0] ||
+    filters.pinned !== previous[1] ||
+    filters.sort !== previous[2] ||
+    filters.status !== previous[3]
+  );
+}
+
+function setCurrentPageAndMaybeFetch(page: number) {
+  if (pagination.current === page) {
+    void fetchAnnouncements();
+    return;
+  }
+
+  pagination.current = page;
 }
 
 function openCreateDrawer() {

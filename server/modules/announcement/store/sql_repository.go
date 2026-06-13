@@ -27,10 +27,18 @@ const (
 	statusArchived            = "archived"
 )
 
+type sqlDialect int
+
+const (
+	sqlDialectPostgres sqlDialect = iota
+	sqlDialectSQLite
+)
+
 // SQLRepository persists Announcement Center state in module-owned SQL tables.
 type SQLRepository struct {
 	db          *sql.DB
 	placeholder placeholderStyle
+	dialect     sqlDialect
 }
 
 // NewSQLRepository creates a SQL-backed announcement repository.
@@ -38,7 +46,8 @@ func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("announcement repository requires a non-nil sql db")
 	}
-	return &SQLRepository{db: db, placeholder: detectPlaceholderStyle(db)}, nil
+	dialect := detectSQLDialect(db)
+	return &SQLRepository{db: db, placeholder: placeholderStyleForDialect(dialect), dialect: dialect}, nil
 }
 
 // Ping verifies the repository can reach its SQL dependency.
@@ -55,7 +64,7 @@ func (r *SQLRepository) ListAdmin(ctx context.Context, query ListQuery) (ListRes
 		return ListResult{}, err
 	}
 	query = normalizeListQuery(query)
-	where, args, err := buildAdminWhere(query)
+	where, args, err := buildAdminWhere(query, r.dialect)
 	if err != nil {
 		return ListResult{}, err
 	}
@@ -245,7 +254,7 @@ func (r *SQLRepository) Publish(ctx context.Context, id uint64, publishAt time.T
 		return Announcement{}, ErrInvalidInput
 	}
 	item, err := scanAnnouncement(r.db.QueryRowContext(ctx, r.placeholder.rebind(`UPDATE announcements
-		SET status = ?, publish_at = COALESCE(publish_at, ?), updated_by = ?, updated_at = ?
+		SET status = ?, publish_at = ?, updated_by = ?, updated_at = ?
 		WHERE id = ? AND deleted_at = 0
 		RETURNING `+announcementColumns()),
 		statusPublished,
@@ -482,7 +491,7 @@ func normalizeUserListQuery(query UserListQuery) (UserListQuery, int64, error) {
 	return query, userID, nil
 }
 
-func buildAdminWhere(query ListQuery) ([]string, []any, error) {
+func buildAdminWhere(query ListQuery, dialect sqlDialect) ([]string, []any, error) {
 	where := []string{"deleted_at = 0"}
 	args := make([]any, 0, adminFilterCapacity)
 	if query.Status != "" {
@@ -498,9 +507,15 @@ func buildAdminWhere(query ListQuery) ([]string, []any, error) {
 		where = append(where, "pinned = ?")
 	}
 	if query.Keyword != "" {
-		keyword := "%" + strings.ToLower(query.Keyword) + "%"
-		args = append(args, keyword, keyword)
-		where = append(where, "(LOWER(title) LIKE ? OR LOWER(content) LIKE ?)")
+		keyword := strings.ToLower(query.Keyword)
+		if dialect == sqlDialectSQLite {
+			pattern := "%" + keyword + "%"
+			args = append(args, pattern, pattern)
+			where = append(where, "(LOWER(title) LIKE ? OR LOWER(content) LIKE ?)")
+		} else {
+			args = append(args, keyword)
+			where = append(where, "to_tsvector('simple', title || ' ' || content) @@ plainto_tsquery('simple', ?)")
+		}
 	}
 	return where, args, nil
 }
@@ -689,12 +704,19 @@ const (
 	placeholderQuestion
 )
 
-func detectPlaceholderStyle(db *sql.DB) placeholderStyle {
+func detectSQLDialect(db *sql.DB) sqlDialect {
 	if db == nil || db.Driver() == nil {
-		return placeholderDollar
+		return sqlDialectPostgres
 	}
 	driverType := strings.ToLower(reflect.TypeOf(db.Driver()).String())
 	if strings.Contains(driverType, "sqlite") {
+		return sqlDialectSQLite
+	}
+	return sqlDialectPostgres
+}
+
+func placeholderStyleForDialect(dialect sqlDialect) placeholderStyle {
+	if dialect == sqlDialectSQLite {
 		return placeholderQuestion
 	}
 	return placeholderDollar

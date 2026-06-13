@@ -66,7 +66,10 @@ func registerAnnouncementRoutes(ctx *module.Context, service *Service, guards an
 }
 
 func (r announcementRouteRuntime) handleAdminList(ginCtx *gin.Context) {
-	params := bindAdminListParams(ginCtx)
+	params, ok := bindAdminListParams(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
 	announcementGeneratedHandler{}.GetAnnouncements(params)
 	result, err := r.service.ListAdmin(ginCtx.Request.Context(), AdminListQuery{
 		Status:   stringFromPointer(params.Status),
@@ -81,7 +84,12 @@ func (r announcementRouteRuntime) handleAdminList(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toAnnouncementListResponse(result))
+	response, err := toAnnouncementListResponse(result)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
 func (r announcementRouteRuntime) handleAdminCreate(ginCtx *gin.Context) {
@@ -105,7 +113,12 @@ func (r announcementRouteRuntime) handleAdminCreate(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusCreated, toAnnouncementItem(item))
+	response, err := toAnnouncementItem(item)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusCreated, response)
 }
 
 func (r announcementRouteRuntime) handleAdminGet(ginCtx *gin.Context) {
@@ -123,7 +136,12 @@ func (r announcementRouteRuntime) handleAdminGet(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toAnnouncementItem(item))
+	response, err := toAnnouncementItem(item)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
 func (r announcementRouteRuntime) handleAdminUpdate(ginCtx *gin.Context) {
@@ -154,7 +172,12 @@ func (r announcementRouteRuntime) handleAdminUpdate(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toAnnouncementItem(item))
+	response, err := toAnnouncementItem(item)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
 func (r announcementRouteRuntime) handlePublish(ginCtx *gin.Context) {
@@ -176,7 +199,12 @@ func (r announcementRouteRuntime) handlePublish(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toAnnouncementItem(item))
+	response, err := toAnnouncementItem(item)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
 func (r announcementRouteRuntime) handleArchive(ginCtx *gin.Context) {
@@ -194,7 +222,12 @@ func (r announcementRouteRuntime) handleArchive(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toAnnouncementItem(item))
+	response, err := toAnnouncementItem(item)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
 func (r announcementRouteRuntime) handleDelete(ginCtx *gin.Context) {
@@ -215,7 +248,7 @@ func (r announcementRouteRuntime) handleDelete(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, map[string]any{})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, emptyResponse{})
 }
 
 func (r announcementRouteRuntime) handleUserList(ginCtx *gin.Context) {
@@ -223,7 +256,10 @@ func (r announcementRouteRuntime) handleUserList(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	params := bindUserListParams(ginCtx)
+	params, ok := bindUserListParams(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
 	announcementGeneratedHandler{}.GetMyAnnouncements(params)
 	result, err := r.service.ListCurrentUser(ginCtx.Request.Context(), UserListQuery{
 		UserID:     userID,
@@ -235,7 +271,12 @@ func (r announcementRouteRuntime) handleUserList(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toMyAnnouncementListResponse(result))
+	response, err := toMyAnnouncementListResponse(result)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
 func (r announcementRouteRuntime) handleMarkRead(ginCtx *gin.Context) {
@@ -257,7 +298,12 @@ func (r announcementRouteRuntime) handleMarkRead(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toMyAnnouncementItem(item))
+	response, err := toMyAnnouncementItem(item)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
 func (r announcementRouteRuntime) handleMarkAllRead(ginCtx *gin.Context) {
@@ -271,7 +317,7 @@ func (r announcementRouteRuntime) handleMarkAllRead(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, map[string]int{"updated_count": count})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, announcementReadAllResponse{UpdatedCount: count})
 }
 
 func (r announcementRouteRuntime) handleUnreadCount(ginCtx *gin.Context) {
@@ -285,12 +331,12 @@ func (r announcementRouteRuntime) handleUnreadCount(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, map[string]int{"count": count})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, announcementUnreadCountResponse{Count: count})
 }
 
 func (r announcementRouteRuntime) writeRouteError(ginCtx *gin.Context, err error) {
 	if err == nil {
-		httpx.WriteSuccess(ginCtx, http.StatusOK, map[string]any{})
+		httpx.WriteSuccess(ginCtx, http.StatusOK, emptyResponse{})
 		return
 	}
 	if errors.Is(err, errAnnouncementInvalidInput) {
@@ -345,7 +391,7 @@ func (announcementGeneratedHandler) PostMyAnnouncementsReadAll(announcementopena
 func (announcementGeneratedHandler) GetMyAnnouncementsUnreadCount(announcementopenapi.GetMyAnnouncementsUnreadCountParams) {
 }
 
-func bindAdminListParams(ginCtx *gin.Context) announcementopenapi.GetAnnouncementsParams {
+func bindAdminListParams(ginCtx *gin.Context, ctx *module.Context) (announcementopenapi.GetAnnouncementsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
 	params := announcementopenapi.GetAnnouncementsParams{
@@ -356,22 +402,43 @@ func bindAdminListParams(ginCtx *gin.Context) announcementopenapi.GetAnnouncemen
 		Keyword:      optionalQuery(query.Get("keyword")),
 		Sort:         optionalTypedQuery[announcementopenapi.GetAnnouncementsParamsSort](query.Get("sort")),
 	}
-	params.Pinned = optionalBoolQuery(query.Get("pinned"))
-	params.Page = optionalIntQuery(query.Get("page"))
-	params.PageSize = optionalIntQuery(query.Get("page_size"))
-	return params
+	var ok bool
+	if params.Pinned, ok = optionalBoolQuery(query.Get("pinned")); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return announcementopenapi.GetAnnouncementsParams{}, false
+	}
+	if params.Page, ok = optionalIntQuery(query.Get("page"), 1, 0); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return announcementopenapi.GetAnnouncementsParams{}, false
+	}
+	if params.PageSize, ok = optionalIntQuery(query.Get("page_size"), 1, maxPageSize); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return announcementopenapi.GetAnnouncementsParams{}, false
+	}
+	return params, true
 }
 
-func bindUserListParams(ginCtx *gin.Context) announcementopenapi.GetMyAnnouncementsParams {
+func bindUserListParams(ginCtx *gin.Context, ctx *module.Context) (announcementopenapi.GetMyAnnouncementsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
-	return announcementopenapi.GetMyAnnouncementsParams{
+	params := announcementopenapi.GetMyAnnouncementsParams{
 		XGraftLocale: locale,
 		XRequestId:   requestID,
-		UnreadOnly:   optionalBoolQuery(query.Get("unread_only")),
-		Page:         optionalIntQuery(query.Get("page")),
-		PageSize:     optionalIntQuery(query.Get("page_size")),
 	}
+	var ok bool
+	if params.UnreadOnly, ok = optionalBoolQuery(query.Get("unread_only")); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return announcementopenapi.GetMyAnnouncementsParams{}, false
+	}
+	if params.Page, ok = optionalIntQuery(query.Get("page"), 1, 0); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return announcementopenapi.GetMyAnnouncementsParams{}, false
+	}
+	if params.PageSize, ok = optionalIntQuery(query.Get("page_size"), 1, maxPageSize); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return announcementopenapi.GetMyAnnouncementsParams{}, false
+	}
+	return params, true
 }
 
 func bindCommonParams(ginCtx *gin.Context) announcementopenapi.PostAnnouncementsParams {
@@ -504,28 +571,32 @@ func stringFromPointer[T ~string](value *T) string {
 	return string(*value)
 }
 
-func optionalIntQuery(raw string) *int {
+func optionalIntQuery(raw string, min int, max int) (*int, bool) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
-		return nil
+		return nil, true
 	}
 	parsed, err := strconv.Atoi(value)
-	if err != nil {
-		return nil
+	if err != nil || parsed < min || (max > 0 && parsed > max) {
+		return nil, false
 	}
-	return &parsed
+	return &parsed, true
 }
 
-func optionalBoolQuery(raw string) *bool {
+func optionalBoolQuery(raw string) (*bool, bool) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
-		return nil
+		return nil, true
 	}
 	parsed, err := strconv.ParseBool(value)
 	if err != nil {
-		return nil
+		return nil, false
 	}
-	return &parsed
+	return &parsed, true
+}
+
+func abortInvalidQuery(ginCtx *gin.Context, ctx *module.Context) {
+	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 }
 
 func intFromPointer(value *int) int {

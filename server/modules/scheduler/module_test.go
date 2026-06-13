@@ -321,7 +321,7 @@ const schedulerModuleTestSchema = `CREATE TABLE scheduled_tasks (
 	task_key text NOT NULL,
 	job_key text NOT NULL DEFAULT '',
 	title_key text NOT NULL DEFAULT '',
-	title text NOT NULL DEFAULT '',
+	title text NOT NULL CHECK (trim(title) <> ''),
 	description_key text NOT NULL DEFAULT '',
 	description text NOT NULL DEFAULT '',
 	cron_expression text NOT NULL,

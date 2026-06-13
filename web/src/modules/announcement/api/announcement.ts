@@ -90,69 +90,75 @@ type GetMyAnnouncementsUnreadCountEnvelope =
   GetMyAnnouncementsUnreadCountOperation['responses'][200]['content']['application/json'];
 type GetMyAnnouncementsUnreadCountData = NonNullable<GetMyAnnouncementsUnreadCountEnvelope['data']>;
 
-export function getAnnouncements(query?: AnnouncementListQuery) {
+export function getAnnouncements(query?: AnnouncementListQuery): Promise<AnnouncementListResponse> {
   return request.get<GetAnnouncementsData>({
     url: ANNOUNCEMENT_API_PATH.LIST,
     params: normalizeAnnouncementListQuery(query),
-  }) as Promise<AnnouncementListResponse>;
+  });
 }
 
-export function createAnnouncement(payload: CreateAnnouncementRequest) {
+export function createAnnouncement(payload: CreateAnnouncementRequest): Promise<AnnouncementItem> {
   return request.post<PostAnnouncementsData>({
     url: ANNOUNCEMENT_API_PATH.LIST,
     data: payload as PostAnnouncementsBody,
-  }) as Promise<AnnouncementItem>;
+  });
 }
 
-export function getAnnouncement(id: GetAnnouncementPathParams['id']) {
+export function getAnnouncement(id: GetAnnouncementPathParams['id']): Promise<AnnouncementItem> {
   return request.get<GetAnnouncementData>({
     url: buildAnnouncementDetailApiPath(id),
-  }) as Promise<AnnouncementItem>;
+  });
 }
 
-export function updateAnnouncement(id: PutAnnouncementPathParams['id'], payload: UpdateAnnouncementRequest) {
+export function updateAnnouncement(
+  id: PutAnnouncementPathParams['id'],
+  payload: UpdateAnnouncementRequest,
+): Promise<AnnouncementItem> {
   return request.put<PutAnnouncementData>({
     url: buildAnnouncementDetailApiPath(id),
     data: payload as PutAnnouncementBody,
-  }) as Promise<AnnouncementItem>;
+  });
 }
 
-export function publishAnnouncement(id: PostAnnouncementPublishPathParams['id'], payload?: PublishAnnouncementRequest) {
+export function publishAnnouncement(
+  id: PostAnnouncementPublishPathParams['id'],
+  payload?: PublishAnnouncementRequest,
+): Promise<AnnouncementItem> {
   return request.post<PostAnnouncementPublishData>({
     url: buildAnnouncementPublishApiPath(id),
     data: payload as PostAnnouncementPublishBody | undefined,
-  }) as Promise<AnnouncementItem>;
+  });
 }
 
-export function archiveAnnouncement(id: PostAnnouncementArchivePathParams['id']) {
+export function archiveAnnouncement(id: PostAnnouncementArchivePathParams['id']): Promise<AnnouncementItem> {
   return request.post<PostAnnouncementArchiveData>({
     url: buildAnnouncementArchiveApiPath(id),
-  }) as Promise<AnnouncementItem>;
+  });
 }
 
-export function getMyAnnouncements(query?: MyAnnouncementListQuery) {
+export function getMyAnnouncements(query?: MyAnnouncementListQuery): Promise<AnnouncementListResponse> {
   return request.get<GetMyAnnouncementsData>({
     url: ANNOUNCEMENT_API_PATH.MY_LIST,
     params: normalizeMyAnnouncementListQuery(query),
-  }) as Promise<AnnouncementListResponse>;
+  });
 }
 
-export function markAnnouncementRead(id: PostMyAnnouncementReadPathParams['id']) {
+export function markAnnouncementRead(id: PostMyAnnouncementReadPathParams['id']): Promise<AnnouncementItem> {
   return request.post<PostMyAnnouncementReadData>({
     url: buildMyAnnouncementReadApiPath(id),
-  }) as Promise<AnnouncementItem>;
+  });
 }
 
-export function markAllAnnouncementsRead() {
+export function markAllAnnouncementsRead(): Promise<AnnouncementReadAllResponse> {
   return request.post<PostMyAnnouncementsReadAllData>({
     url: ANNOUNCEMENT_API_PATH.MY_READ_ALL,
-  }) as Promise<AnnouncementReadAllResponse>;
+  });
 }
 
-export function getAnnouncementUnreadCount() {
+export function getAnnouncementUnreadCount(): Promise<AnnouncementUnreadCountResponse> {
   return request.get<GetMyAnnouncementsUnreadCountData>({
     url: ANNOUNCEMENT_API_PATH.MY_UNREAD_COUNT,
-  }) as Promise<AnnouncementUnreadCountResponse>;
+  });
 }
 
 export function deleteAnnouncement(id: DeleteAnnouncementPathParams['id']) {

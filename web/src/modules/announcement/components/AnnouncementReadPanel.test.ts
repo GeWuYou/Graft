@@ -121,4 +121,20 @@ describe('AnnouncementReadPanel', () => {
     expect(wrapper.text()).not.toContain('announcement.readPanel.markRead');
     expect(wrapper.text()).not.toContain('announcement.readPanel.openCenter');
   });
+
+  it('does not emit close for Escape while hidden', async () => {
+    const wrapper = mount(AnnouncementReadPanel, {
+      props: {
+        announcement: unreadAnnouncement,
+        source: 'popup',
+        visible: false,
+      },
+      global: { stubs: componentStubs },
+    });
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+
+    expect(wrapper.emitted('close')).toBeUndefined();
+  });
 });

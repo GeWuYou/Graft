@@ -25,7 +25,6 @@ func registerMessages(localizer *i18n.Service) error {
 			Locale:    i18n.LocaleZHCN,
 			Messages: []i18n.MessageResource{
 				{Key: i18n.MessageKey(announcementcontract.AnnouncementMenuTitle.String()), Text: "公告管理"},
-				{Key: i18n.MessageKey(announcementcontract.AnnouncementNotImplemented.String()), Text: "公告中心接口尚未实现"},
 			},
 		},
 		{
@@ -33,7 +32,6 @@ func registerMessages(localizer *i18n.Service) error {
 			Locale:    i18n.LocaleENUS,
 			Messages: []i18n.MessageResource{
 				{Key: i18n.MessageKey(announcementcontract.AnnouncementMenuTitle.String()), Text: "Announcements"},
-				{Key: i18n.MessageKey(announcementcontract.AnnouncementNotImplemented.String()), Text: "Announcement Center API is not implemented yet"},
 			},
 		},
 	} {
@@ -104,6 +102,7 @@ func registerAnnouncementMenu(registry *menu.Registry, moduleName string) error 
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
 	}
+	// Title 仅作为旧消费方的展示兜底，长期标题真相由 TitleKey 对接 i18n。
 	registry.Register(menu.Item{
 		Code:       "announcement.list",
 		Title:      "公告管理",

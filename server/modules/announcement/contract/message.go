@@ -14,6 +14,4 @@ func (k MessageKey) String() string {
 const (
 	// AnnouncementMenuTitle identifies the announcement management menu title.
 	AnnouncementMenuTitle MessageKey = "menu.server.announcements.title"
-	// AnnouncementNotImplemented identifies the Phase 1 placeholder route response.
-	AnnouncementNotImplemented MessageKey = "announcement.not_implemented"
 )

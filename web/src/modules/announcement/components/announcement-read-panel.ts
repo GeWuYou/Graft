@@ -12,15 +12,21 @@ export type AnnouncementCandidateFilter = (item: AnnouncementItem) => boolean;
 export async function loadUnreadAnnouncementCandidate(options: {
   filter?: AnnouncementCandidateFilter;
   locale: string;
+  onError?: (error: unknown) => void;
   pageSize: number;
   t: ComposerTranslation;
 }): Promise<AnnouncementViewModel | null> {
-  const page = await getMyAnnouncements({
-    page: 1,
-    page_size: options.pageSize,
-    unread_only: true,
-  });
-  const item = page.items.find(options.filter ?? (() => true));
+  try {
+    const page = await getMyAnnouncements({
+      page: 1,
+      page_size: options.pageSize,
+      unread_only: true,
+    });
+    const item = page.items.find(options.filter ?? (() => true));
 
-  return item ? presentAnnouncement(item, options.t, options.locale) : null;
+    return item ? presentAnnouncement(item, options.t, options.locale) : null;
+  } catch (error) {
+    options.onError?.(error);
+    return null;
+  }
 }

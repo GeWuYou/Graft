@@ -68,6 +68,36 @@ describe('announcement presenter', () => {
     expect(view.unreadLabel).toBe('Unread');
   });
 
+  it('formats visible dates with the provided locale', () => {
+    const view = presentAnnouncement(
+      {
+        content: 'Body',
+        created_at: '2026-06-12T00:00:00Z',
+        delivery_mode: 'silent',
+        id: 13,
+        level: 'info',
+        pinned: false,
+        publish_at: '2026-06-12T01:00:00Z',
+        status: 'published',
+        title: 'Locale date',
+        updated_at: '2026-06-12T02:00:00Z',
+      } satisfies AnnouncementItem,
+      translate,
+      'en-US',
+    );
+
+    expect(view.createdAtLabel).toBe(
+      new Intl.DateTimeFormat('en-US', {
+        day: '2-digit',
+        hour: 'numeric',
+        minute: '2-digit',
+        month: '2-digit',
+        second: '2-digit',
+        year: 'numeric',
+      }).format(new Date('2026-06-12T00:00:00Z')),
+    );
+  });
+
   it('resolves pinned labels without template branching', () => {
     expect(resolvePinnedLabel(true, translate)).toBe('Pinned');
     expect(resolvePinnedLabel(false, translate)).toBe('Normal');

@@ -139,6 +139,63 @@ func TestAnnouncementUserRoutesReturnCurrentUserAnnouncements(t *testing.T) {
 	}
 }
 
+func TestAnnouncementUserRoutesReturnTypedDTO(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	publishAt := time.Now().UTC().Add(-time.Hour)
+	created, err := service.Create(ctx, announcementstore.CreateInput{
+		Title:        "Typed",
+		Content:      "Typed content",
+		Level:        announcementcontract.AnnouncementLevelInfo.String(),
+		DeliveryMode: announcementcontract.AnnouncementDeliveryModePopup.String(),
+		PublishAt:    &publishAt,
+		ActorID:      &actorID,
+	})
+	if err != nil {
+		t.Fatalf("create announcement: %v", err)
+	}
+	if _, err := service.Publish(ctx, created.ID, nil, &actorID); err != nil {
+		t.Fatalf("publish announcement: %v", err)
+	}
+
+	engine := gin.New()
+	moduleCtx := newAnnouncementTestContext(engine)
+	if err := registerAnnouncementRoutes(moduleCtx, service, announcementGuards{
+		authenticated: announcementRouteTestAuth(42),
+		read:          announcementRouteTestAuth(42),
+		create:        announcementRouteTestAuth(42),
+		update:        announcementRouteTestAuth(42),
+		publish:       announcementRouteTestAuth(42),
+		delete:        announcementRouteTestAuth(42),
+	}); err != nil {
+		t.Fatalf("register announcement routes: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/my/announcements", nil)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 user route response, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var response httpx.SuccessResponse[myAnnouncementListResponse]
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode typed response: %v", err)
+	}
+	if len(response.Data.Items) != 1 {
+		t.Fatalf("expected one typed announcement, got %#v", response.Data.Items)
+	}
+	item := response.Data.Items[0]
+	if item.DeliveryMode != "popup" || !item.Unread || item.ReadAt != nil {
+		t.Fatalf("unexpected typed announcement response: %#v", item)
+	}
+}
+
 func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	repository := newMemoryAnnouncementRepository()
 	service, err := NewService(repository)
@@ -199,6 +256,35 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	}
 	if _, err := service.GetAdmin(ctx, created.ID); !errors.Is(err, errAnnouncementNotFound) {
 		t.Fatalf("expected deleted announcement not found, got %v", err)
+	}
+}
+
+func TestAnnouncementPublishOverridesStoredPublishAt(t *testing.T) {
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	publishAt := time.Date(2026, 6, 12, 8, 0, 0, 0, time.FixedZone("cst", 8*60*60))
+	created, err := service.Create(ctx, announcementstore.CreateInput{
+		Title:     " Maintenance ",
+		Content:   "Window",
+		Level:     announcementcontract.AnnouncementLevelWarning.String(),
+		PublishAt: &publishAt,
+		ActorID:   &actorID,
+	})
+	if err != nil {
+		t.Fatalf("create announcement: %v", err)
+	}
+	overridePublishAt := publishAt.Add(time.Hour)
+	overridden, err := service.Publish(ctx, created.ID, &overridePublishAt, &actorID)
+	if err != nil {
+		t.Fatalf("publish announcement with override: %v", err)
+	}
+	if overridden.PublishAt == nil || !overridden.PublishAt.Equal(overridePublishAt.UTC()) {
+		t.Fatalf("expected explicit publish_at override, got %#v", overridden.PublishAt)
 	}
 }
 
@@ -478,6 +564,59 @@ func TestAnnouncementManagementRoutePermissionDenied(t *testing.T) {
 	engine.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("expected 403 permission denial, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestAnnouncementRoutesRejectInvalidQueryParams(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service, err := NewService(newMemoryAnnouncementRepository())
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	engine := gin.New()
+	ctx := newAnnouncementTestContext(engine)
+	if err := registerAnnouncementRoutes(ctx, service, announcementGuards{
+		authenticated: announcementRouteTestAuth(42),
+		read:          announcementRouteTestAuth(42),
+		create:        announcementRouteTestAuth(42),
+		update:        announcementRouteTestAuth(42),
+		publish:       announcementRouteTestAuth(42),
+		delete:        announcementRouteTestAuth(42),
+	}); err != nil {
+		t.Fatalf("register announcement routes: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{name: "admin pinned", path: "/api/announcements?pinned=maybe"},
+		{name: "admin page", path: "/api/announcements?page=zero"},
+		{name: "admin page size", path: "/api/announcements?page_size=101"},
+		{name: "user unread", path: "/api/my/announcements?unread_only=maybe"},
+		{name: "user page", path: "/api/my/announcements?page=0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400 for %s, got %d body=%s", tc.path, recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestAnnouncementMapperRejectsInt64Overflow(t *testing.T) {
+	if _, err := toAnnouncementItem(announcementstore.Announcement{ID: uint64(1) << 63}); !errors.Is(err, errAnnouncementIDOverflow) {
+		t.Fatalf("expected announcement id overflow, got %v", err)
+	}
+	overflowActorID := uint64(1) << 63
+	if _, err := toAnnouncementItem(announcementstore.Announcement{ID: 1, CreatedBy: &overflowActorID}); !errors.Is(err, errAnnouncementIDOverflow) {
+		t.Fatalf("expected actor id overflow, got %v", err)
+	}
+	if _, err := toMyAnnouncementItem(announcementstore.UserAnnouncement{Announcement: announcementstore.Announcement{ID: uint64(1) << 63}}); !errors.Is(err, errAnnouncementIDOverflow) {
+		t.Fatalf("expected current-user announcement id overflow, got %v", err)
 	}
 }
 

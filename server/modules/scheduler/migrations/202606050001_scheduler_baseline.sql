@@ -6,7 +6,7 @@ CREATE TABLE "scheduled_tasks" (
   "task_key" character varying NOT NULL,
   "job_key" character varying NOT NULL DEFAULT '',
   "title_key" character varying NOT NULL DEFAULT '',
-  "title" character varying NOT NULL DEFAULT '',
+  "title" character varying NOT NULL,
   "description_key" character varying NOT NULL DEFAULT '',
   "description" text NOT NULL DEFAULT '',
   "cron_expression" character varying NOT NULL,
@@ -17,6 +17,7 @@ CREATE TABLE "scheduled_tasks" (
   "created_at" timestamptz NOT NULL DEFAULT NOW(),
   "updated_at" timestamptz NOT NULL DEFAULT NOW(),
   "deleted_at" bigint NOT NULL DEFAULT 0,
+  CONSTRAINT "scheduled_tasks_title_not_blank" CHECK (btrim("title") <> ''),
   PRIMARY KEY ("id")
 );
 

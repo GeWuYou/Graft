@@ -35,7 +35,8 @@ const announcementRouter = useRouter();
 const visible = ref(false);
 const markingRead = ref(false);
 const currentItem = ref<AnnouncementViewModel | null>(null);
-const dismissedIds = new Set<number>();
+const POPUP_DISMISSAL_STORAGE_KEY = 'graft.announcement.popup.dismissedIds';
+const dismissedIds = loadDismissedIds();
 let stopAnnouncementChanged: (() => void) | undefined;
 
 const current = computed(() => currentItem.value);
@@ -54,24 +55,19 @@ async function refreshPopupCandidate() {
     return;
   }
 
-  try {
-    currentItem.value = await loadUnreadAnnouncementCandidate({
-      filter: (item) =>
-        item.delivery_mode === 'popup' && !item.read_at && item.unread !== false && !dismissedIds.has(item.id),
-      locale: activeLocale.value,
-      pageSize: 10,
-      t: translate,
-    });
-    visible.value = Boolean(currentItem.value);
-  } catch {
-    currentItem.value = null;
-    visible.value = false;
-  }
+  currentItem.value = await loadUnreadAnnouncementCandidate({
+    filter: (item) =>
+      item.delivery_mode === 'popup' && !item.read_at && item.unread !== false && !dismissedIds.has(item.id),
+    locale: activeLocale.value,
+    pageSize: 10,
+    t: translate,
+  });
+  visible.value = Boolean(currentItem.value);
 }
 
 function dismissCurrent() {
   if (currentItem.value) {
-    dismissedIds.add(currentItem.value.id);
+    rememberDismissedId(currentItem.value.id);
   }
   visible.value = false;
 }
@@ -84,7 +80,7 @@ async function markCurrentRead() {
   markingRead.value = true;
   try {
     const updated = await markAnnouncementRead(currentItem.value.id);
-    dismissedIds.add(currentItem.value.id);
+    rememberDismissedId(currentItem.value.id);
     currentItem.value = presentAnnouncement(updated, translate, activeLocale.value);
     visible.value = false;
     emitAnnouncementChanged();
@@ -98,5 +94,24 @@ async function markCurrentRead() {
 function openCenter() {
   dismissCurrent();
   void announcementRouter.push(ANNOUNCEMENT_ROUTE_PATH.USER_LIST);
+}
+
+function loadDismissedIds() {
+  try {
+    const raw = window.localStorage.getItem(POPUP_DISMISSAL_STORAGE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return new Set((Array.isArray(parsed) ? parsed : []).filter((id): id is number => Number.isInteger(id)));
+  } catch {
+    return new Set<number>();
+  }
+}
+
+function rememberDismissedId(id: number) {
+  dismissedIds.add(id);
+  try {
+    window.localStorage.setItem(POPUP_DISMISSAL_STORAGE_KEY, JSON.stringify([...dismissedIds]));
+  } catch {
+    // Popup dismissal still works for the current session when storage is unavailable.
+  }
 }
 </script>
