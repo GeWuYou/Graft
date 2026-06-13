@@ -104,6 +104,8 @@ paths:
     $ref: ./paths/users.roles.batch.remove.yaml
   /api/audit/logs:
     $ref: ./paths/audit.logs.yaml
+  /api/audit/logs/{id}:
+    $ref: ./paths/audit.logs.detail.yaml
   /api/audit/overview:
     $ref: ./paths/audit.overview.yaml
   /api/audit/incidents/{event_id}:
@@ -146,6 +148,8 @@ paths:
     $ref: ./paths/access-log.detail.yaml
   /api/app-log:
     $ref: ./paths/app-log.logs.yaml
+  /api/app-log/batch-delete:
+    $ref: ./paths/app-log.batch-delete.yaml
   /api/app-log/{id}:
     $ref: ./paths/app-log.detail.yaml
   /api/dashboard/summary:
@@ -268,8 +272,12 @@ components:
       $ref: ./components/schemas/audit-business-category.yaml
     AuditLogListResponse:
       $ref: ./components/schemas/audit-log-list-response.yaml
+    AuditLogDetailResponse:
+      $ref: ./components/schemas/audit-log-detail-response.yaml
     EnvelopedAuditLogListResponse:
       $ref: ./components/schemas/enveloped-audit-log-list-response.yaml
+    EnvelopedAuditLogDetailResponse:
+      $ref: ./components/schemas/enveloped-audit-log-detail-response.yaml
     AuditOverviewItem:
       $ref: ./components/schemas/audit-overview-item.yaml
     AuditOverviewSummary:
@@ -398,6 +406,8 @@ components:
       $ref: ./components/schemas/app-log-detail-response.yaml
     AppLogListResponse:
       $ref: ./components/schemas/app-log-list-response.yaml
+    AppLogBatchDeleteRequest:
+      $ref: ./components/schemas/app-log-batch-delete-request.yaml
     EnvelopedAppLogListResponse:
       $ref: ./components/schemas/enveloped-app-log-list-response.yaml
     EnvelopedAppLogDetailResponse:

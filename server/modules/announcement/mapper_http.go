@@ -28,6 +28,9 @@ type announcementItemResponse struct {
 	DeliveryMode announcementopenapi.GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode `json:"delivery_mode"`
 	Pinned       bool                                                                         `json:"pinned"`
 	PublishAt    *time.Time                                                                   `json:"publish_at"`
+	PublishedAt  *time.Time                                                                   `json:"published_at"`
+	PublishedBy  *int64                                                                       `json:"published_by"`
+	ArchivedAt   *time.Time                                                                   `json:"archived_at"`
 	ExpireAt     *time.Time                                                                   `json:"expire_at"`
 	CreatedBy    *int64                                                                       `json:"created_by"`
 	UpdatedBy    *int64                                                                       `json:"updated_by"`
@@ -52,6 +55,9 @@ type myAnnouncementItemResponse struct {
 	DeliveryMode announcementopenapi.GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode `json:"delivery_mode"`
 	Pinned       bool                                                                           `json:"pinned"`
 	PublishAt    *time.Time                                                                     `json:"publish_at"`
+	PublishedAt  *time.Time                                                                     `json:"published_at"`
+	PublishedBy  *int64                                                                         `json:"published_by"`
+	ArchivedAt   *time.Time                                                                     `json:"archived_at"`
 	ExpireAt     *time.Time                                                                     `json:"expire_at"`
 	ReadAt       *time.Time                                                                     `json:"read_at"`
 	Unread       bool                                                                           `json:"unread"`
@@ -96,6 +102,10 @@ func toAnnouncementItem(item announcementstore.Announcement) (announcementItemRe
 	if err != nil {
 		return announcementItemResponse{}, err
 	}
+	publishedBy, err := safeOptionalInt64(item.PublishedBy)
+	if err != nil {
+		return announcementItemResponse{}, err
+	}
 	deletedBy, err := safeOptionalInt64(item.DeletedBy)
 	if err != nil {
 		return announcementItemResponse{}, err
@@ -109,6 +119,9 @@ func toAnnouncementItem(item announcementstore.Announcement) (announcementItemRe
 		DeliveryMode: announcementopenapi.GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode(item.DeliveryMode),
 		Pinned:       item.Pinned,
 		PublishAt:    item.PublishAt,
+		PublishedAt:  item.PublishedAt,
+		PublishedBy:  publishedBy,
+		ArchivedAt:   item.ArchivedAt,
 		ExpireAt:     item.ExpireAt,
 		CreatedBy:    createdBy,
 		UpdatedBy:    updatedBy,
@@ -136,6 +149,10 @@ func toMyAnnouncementItem(item announcementstore.UserAnnouncement) (myAnnounceme
 	if err != nil {
 		return myAnnouncementItemResponse{}, err
 	}
+	publishedBy, err := safeOptionalInt64(announcement.PublishedBy)
+	if err != nil {
+		return myAnnouncementItemResponse{}, err
+	}
 	return myAnnouncementItemResponse{
 		ID:           id,
 		Title:        announcement.Title,
@@ -145,6 +162,9 @@ func toMyAnnouncementItem(item announcementstore.UserAnnouncement) (myAnnounceme
 		DeliveryMode: announcementopenapi.GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode(announcement.DeliveryMode),
 		Pinned:       announcement.Pinned,
 		PublishAt:    announcement.PublishAt,
+		PublishedAt:  announcement.PublishedAt,
+		PublishedBy:  publishedBy,
+		ArchivedAt:   announcement.ArchivedAt,
 		ExpireAt:     announcement.ExpireAt,
 		ReadAt:       item.ReadAt,
 		Unread:       item.ReadAt == nil,

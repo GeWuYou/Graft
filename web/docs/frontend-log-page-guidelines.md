@@ -41,9 +41,9 @@
   - tooltip
 - 适用字段：
   - `requestId`
-  - `traceId`
   - `troubleshootingId`
   - `correlationId`
+- `traceId` / `trace_id` 当前只是未来 tracing 预留字段，不作为前端可见列、详情字段、筛选条件或 raw JSON 展示内容。
 - 时间字段统一使用 locale formatter
 - 禁止直接展示原始 ISO
 - 状态字段统一使用 `Tag`
@@ -79,7 +79,6 @@
 - 恢复 deep link 时统一执行：`ISO UTC -> 本地展示时间`
 - 共享 query 键：
   - `request_id`
-  - `trace_id`
   - `user_id`
   - `username`
   - `occurred_from`

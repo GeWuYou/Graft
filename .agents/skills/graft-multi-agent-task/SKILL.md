@@ -53,6 +53,12 @@ Typical triggers:
      session
    - use `Next-session startup prompt:` only for terminal handoff states such as `blocked`, `archive-ready`, or
      explicit stop
+   - ordinary lint, type, style, or test failures remain owned by the current round worker: diagnose them, make safe
+     in-scope repairs, rerun the required validation, and only then close out or run `$graft-commit` after validation
+     passes
+   - do not return a final blocked closeout for ordinary fixable validation failures until self-repair has been
+     attempted, or until the worker can clearly explain why repair is unsafe, out of scope, or blocked by an authority
+     conflict
 10. When the current task is being orchestrated by `graft-multi-agent-loop`, it may receive bounded checkpoint requests
     from the outer main agent:
 

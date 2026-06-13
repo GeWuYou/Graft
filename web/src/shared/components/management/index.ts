@@ -13,10 +13,16 @@ export {
   createActionColumn,
   createConfiguredColumns,
   createCountColumn,
+  createIdentifierColumn,
+  createMainTextColumn,
   createStatusColumn,
+  createTechnicalColumn,
   createTextColumn,
   createTimeColumn,
   resolveManagedColumns,
+  resolveTableWidthPolicy,
 } from './table-columns';
 export { default as TableActionMenu } from './TableActionMenu.vue';
+export { default as TableViewToolbar } from './TableViewToolbar.vue';
 export { formatCompactDateTime } from './time';
+export { useTableHostWidth } from './use-table-host-width';

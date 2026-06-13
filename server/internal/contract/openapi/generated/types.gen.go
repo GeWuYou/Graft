@@ -2049,20 +2049,32 @@ type AnnouncementDeliveryMode string
 
 // AnnouncementItem defines model for announcement-item.
 type AnnouncementItem struct {
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
-	CreatedBy *int64    `json:"created_by,omitempty"`
-	DeletedBy *int64    `json:"deleted_by,omitempty"`
+	// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+	Content    string     `json:"content"`
+	CreatedAt  time.Time  `json:"created_at"`
+	CreatedBy  *int64     `json:"created_by,omitempty"`
+	DeletedBy  *int64     `json:"deleted_by,omitempty"`
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
-	Id           int64                    `json:"id"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
+	Id       int64      `json:"id"`
 
 	// Level Announcement presentation level.
-	Level     AnnouncementLevel `json:"level"`
-	Pinned    bool              `json:"pinned"`
-	PublishAt *time.Time        `json:"publish_at,omitempty"`
+	Level  AnnouncementLevel `json:"level"`
+	Pinned bool              `json:"pinned"`
+
+	// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+
+	// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+	PublishedAt *time.Time `json:"published_at,omitempty"`
+
+	// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+	PublishedBy *int64 `json:"published_by,omitempty"`
 
 	// ReadAt Current user's read time when returned by current-user endpoints.
 	ReadAt *time.Time `json:"read_at,omitempty"`
@@ -2119,6 +2131,11 @@ type ApiEnvelope struct {
 
 	// TraceId Mirrors the request id contract used by the current runtime.
 	TraceId string `json:"traceId"`
+}
+
+// AppLogBatchDeleteRequest defines model for app-log-batch-delete-request.
+type AppLogBatchDeleteRequest struct {
+	Ids []int64 `json:"ids"`
 }
 
 // AppLogDetailResponse defines model for app-log-detail-response.
@@ -2308,6 +2325,9 @@ type AuditLogConvertibleFiltersRiskLevels string
 
 // AuditLogConvertibleFiltersSource defines model for AuditLogConvertibleFilters.Source.
 type AuditLogConvertibleFiltersSource string
+
+// AuditLogDetailResponse defines model for audit-log-detail-response.
+type AuditLogDetailResponse = AuditLogListItem
 
 // AuditLogListItem defines model for audit-log-list-item.
 type AuditLogListItem struct {
@@ -2519,13 +2539,17 @@ type CreateAnnouncementRequest struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
-	Level     AnnouncementLevel `json:"level"`
-	Pinned    *bool             `json:"pinned,omitempty"`
-	PublishAt *time.Time        `json:"publish_at,omitempty"`
-	Title     string            `json:"title"`
+	Level  AnnouncementLevel `json:"level"`
+	Pinned *bool             `json:"pinned,omitempty"`
+
+	// PublishAt Announcement visibility start time. Null means immediately visible after publish.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+	Title     string     `json:"title"`
 }
 
 // CreateRoleRequest defines model for create-role-request.
@@ -2859,6 +2883,26 @@ type EnvelopedAuditIncidentResponse struct {
 	// Code Existing canonical response code.
 	Code string                `json:"code"`
 	Data AuditIncidentResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAuditLogDetailResponse defines model for enveloped-audit-log-detail-response.
+type EnvelopedAuditLogDetailResponse struct {
+	// Code Existing canonical response code.
+	Code string                 `json:"code"`
+	Data AuditLogDetailResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -3847,7 +3891,7 @@ type PermissionListResponse struct {
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
-	// PublishAt Optional explicit publish time; omitted means publish immediately.
+	// PublishAt Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish.
 	PublishAt *time.Time `json:"publish_at,omitempty"`
 }
 
@@ -4433,13 +4477,17 @@ type UpdateAnnouncementRequest struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
-	Level     AnnouncementLevel `json:"level"`
-	Pinned    *bool             `json:"pinned,omitempty"`
-	PublishAt *time.Time        `json:"publish_at,omitempty"`
-	Title     string            `json:"title"`
+	Level  AnnouncementLevel `json:"level"`
+	Pinned *bool             `json:"pinned,omitempty"`
+
+	// PublishAt Announcement visibility start time. Updating this field changes only the effective visibility window, not the latest publish action time.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+	Title     string     `json:"title"`
 }
 
 // UpdateRoleRequest defines model for update-role-request.
@@ -4521,6 +4569,9 @@ type UserRoleSummary struct {
 	Id      int64  `json:"id"`
 	Name    string `json:"name"`
 }
+
+// AnnouncementIdPath defines model for announcement-id-path.
+type AnnouncementIdPath = int64
 
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
@@ -4756,6 +4807,26 @@ type GetAppLogsParamsSeverity string
 // GetAppLogsParamsSort defines parameters for GetAppLogs.
 type GetAppLogsParamsSort string
 
+// PostAppLogBatchDeleteParams defines parameters for PostAppLogBatchDelete.
+type PostAppLogBatchDeleteParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAppLogParams defines parameters for DeleteAppLog.
+type DeleteAppLogParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetAppLogDetailParams defines parameters for GetAppLogDetail.
 type GetAppLogDetailParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -4838,6 +4909,16 @@ type GetAuditLogsParamsRiskLevel string
 
 // GetAuditLogsParamsRiskLevels defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevels string
+
+// GetAuditLogDetailParams defines parameters for GetAuditLogDetail.
+type GetAuditLogDetailParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAuditOverviewParams defines parameters for GetAuditOverview.
 type GetAuditOverviewParams struct {
@@ -5612,6 +5693,9 @@ type PutAnnouncementJSONRequestBody = UpdateAnnouncementRequest
 
 // PostAnnouncementPublishJSONRequestBody defines body for PostAnnouncementPublish for application/json ContentType.
 type PostAnnouncementPublishJSONRequestBody = PublishAnnouncementRequest
+
+// PostAppLogBatchDeleteJSONRequestBody defines body for PostAppLogBatchDelete for application/json ContentType.
+type PostAppLogBatchDeleteJSONRequestBody = AppLogBatchDeleteRequest
 
 // PostAuthChangePasswordJSONRequestBody defines body for PostAuthChangePassword for application/json ContentType.
 type PostAuthChangePasswordJSONRequestBody = ChangePasswordRequest

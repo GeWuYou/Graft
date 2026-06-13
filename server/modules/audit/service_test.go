@@ -19,6 +19,7 @@ type stubAuditRepository struct {
 	listQuery     auditstore.ListAuditLogsQuery
 	overviewWnd   auditstore.AuditTimePreset
 	incidentID    uint64
+	detailID      uint64
 	deletedBefore time.Time
 	deletedRows   int64
 	policyRules   []auditstore.AuditPolicyRule
@@ -26,8 +27,10 @@ type stubAuditRepository struct {
 	listResult    auditstore.ListAuditLogsResult
 	overview      auditstore.AuditOverview
 	incident      auditstore.AuditIncident
+	detail        auditstore.AuditLog
 	createErr     error
 	listErr       error
+	detailErr     error
 	overviewErr   error
 	incidentErr   error
 	policyErr     error
@@ -51,6 +54,14 @@ func (r *stubAuditRepository) ListAuditLogs(_ context.Context, query auditstore.
 		return auditstore.ListAuditLogsResult{}, r.listErr
 	}
 	return r.listResult, nil
+}
+
+func (r *stubAuditRepository) ReadAuditLog(_ context.Context, id uint64) (auditstore.AuditLog, error) {
+	r.detailID = id
+	if r.detailErr != nil {
+		return auditstore.AuditLog{}, r.detailErr
+	}
+	return r.detail, nil
 }
 
 func (r *stubAuditRepository) ReadAuditOverview(_ context.Context, window auditstore.AuditTimePreset) (auditstore.AuditOverview, error) {

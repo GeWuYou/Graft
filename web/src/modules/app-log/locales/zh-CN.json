@@ -7,24 +7,29 @@
   "appLog": {
     "page": {
       "title": "应用日志",
-      "description": "按组件、操作、级别与关联字段排查当前保留范围内的运行时问题。",
+      "description": "按组件、事件、级别与关联字段排查当前保留范围内的运行时问题。",
       "refresh": "刷新",
       "retry": "重试",
       "errorTitle": "应用日志暂时不可用",
       "loadFailed": "应用日志加载失败",
-      "summary": "当前页 {count} 条应用日志",
       "footerTotal": "共 {count} 条记录",
       "emptyTitle": "暂无应用日志",
       "emptyDescription": "调整筛选条件后重试。",
       "detailTitle": "应用日志详情",
-      "searchPlaceholder": "搜索组件、操作、消息或错误",
-      "tableHint": "列表默认按当前保留范围内的最新发生时间排序。",
+      "searchPlaceholder": "搜索组件、事件、消息或错误",
       "columnSettings": "列设置"
     },
     "actions": {
       "search": "查询",
       "reset": "重置",
       "detail": "详情",
+      "more": "更多",
+      "delete": "删除",
+      "batchDelete": "批量删除",
+      "deleteSuccess": "应用日志已删除",
+      "deleteFail": "应用日志删除失败",
+      "batchDeleteSuccess": "已删除选中的应用日志",
+      "batchDeleteFail": "批量删除应用日志失败",
       "copy": "复制",
       "copySuccess": "已复制",
       "copyFail": "复制失败",
@@ -34,6 +39,18 @@
       "moveSorterUp": "上移",
       "moveSorterDown": "下移"
     },
+    "batch": {
+      "selected": "已选择 {count} 条应用日志",
+      "cancelSelection": "取消选择"
+    },
+    "deleteDialog": {
+      "title": "删除应用日志",
+      "batchTitle": "批量删除应用日志",
+      "description": "确认删除应用日志 #{id} 吗？保留期清理策略不会因此改变。",
+      "batchDescription": "确认删除选中的 {count} 条应用日志吗？保留期清理策略不会因此改变。",
+      "confirm": "删除",
+      "cancel": "取消"
+    },
     "presets": {
       "label": "快捷筛选",
       "all": "全部",
@@ -41,12 +58,18 @@
       "warnings": "警告",
       "lastHour": "最近一小时"
     },
+    "columnViews": {
+      "label": "视图预设",
+      "default": "默认视图",
+      "troubleshooting": "排障视图",
+      "technical": "技术视图",
+      "resetDefault": "恢复默认列"
+    },
     "filters": {
       "occurredRange": "发生时间",
       "component": "组件",
-      "operation": "操作",
+      "operation": "事件",
       "requestId": "请求 ID",
-      "traceId": "Trace ID",
       "route": "路由模板",
       "method": "方法",
       "message": "消息",
@@ -74,9 +97,8 @@
         "sorterBuilder": "排序方式",
         "severity": "级别",
         "component": "组件",
-        "operation": "操作",
+        "operation": "事件",
         "requestId": "请求 ID",
-        "traceId": "Trace ID",
         "message": "消息",
         "error": "错误"
       }
@@ -85,11 +107,12 @@
       "occurredAt": "发生时间",
       "severity": "级别",
       "component": "组件",
-      "operation": "操作",
+      "operation": "事件 Key",
       "message": "消息",
       "correlation": "关联字段",
+      "requestId": "请求 ID",
       "fields": "字段数",
-      "actions": "操作"
+      "actions": "动作"
     },
     "detail": {
       "basic": "基础信息",
@@ -97,6 +120,7 @@
       "message": "消息",
       "error": "错误",
       "fields": "结构化字段",
+      "rawJson": "原始 JSON",
       "fullContext": "完整应用日志上下文",
       "expandContext": "展开完整应用日志 JSON",
       "collapseContext": "收起完整应用日志 JSON",
@@ -106,7 +130,7 @@
       "contextEmpty": "当前应用日志没有可展示的上下文。"
     },
     "values": {
-      "noOperation": "未记录操作",
+      "noOperation": "未记录事件",
       "noCorrelation": "未记录关联字段",
       "noError": "无错误",
       "emptyField": "-"

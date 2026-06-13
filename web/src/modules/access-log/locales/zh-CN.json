@@ -31,6 +31,11 @@
       "moveSorterUp": "上移",
       "moveSorterDown": "下移",
       "detail": "详情",
+      "more": "更多",
+      "copyRequestId": "复制请求 ID",
+      "copyPath": "复制路径",
+      "viewRelatedAppLogs": "查看关联应用日志",
+      "viewRelatedAuditEvents": "查看关联审计事件",
       "viewRelatedAuditRecords": "查看关联审计记录",
       "copy": "复制",
       "copySuccess": "已复制",
@@ -45,6 +50,13 @@
       "slowRequests": "慢请求",
       "currentUser": "当前用户",
       "lastHour": "最近一小时"
+    },
+    "columnViews": {
+      "label": "视图预设",
+      "default": "默认视图",
+      "troubleshooting": "排障视图",
+      "technical": "技术视图",
+      "resetDefault": "恢复默认列"
     },
     "filters": {
       "requestId": "请求 ID",
@@ -97,7 +109,9 @@
       "durationMs": "耗时",
       "user": "用户",
       "requestId": "请求 ID",
-      "operation": "操作"
+      "clientIp": "客户端 IP",
+      "userAgent": "用户代理",
+      "operation": "动作"
     },
     "path": {
       "routeTemplateValue": "路由模板：{route}"
@@ -110,6 +124,7 @@
     },
     "detail": {
       "basic": "基础信息",
+      "correlation": "关联信息",
       "network": "网络信息",
       "size": "传输大小",
       "requestId": "请求 ID",
@@ -119,15 +134,17 @@
       "userAgent": "用户代理",
       "requestSize": "请求大小",
       "responseSize": "响应大小",
+      "occurredAtRaw": "完成时间原值",
       "userId": "用户 ID",
       "user": "用户名",
-      "context": "完整请求上下文",
-      "expandContext": "展开完整请求上下文 JSON",
-      "collapseContext": "收起完整请求上下文 JSON",
+      "rawJson": "原始 JSON",
+      "context": "原始 JSON",
+      "expandContext": "展开原始 JSON",
+      "collapseContext": "收起原始 JSON",
       "copyContext": "复制 JSON",
-      "copyContextSuccess": "请求上下文 JSON 已复制",
-      "copyContextFail": "复制请求上下文 JSON 失败",
-      "contextEmpty": "当前请求没有可展示的完整上下文。"
+      "copyContextSuccess": "原始 JSON 已复制",
+      "copyContextFail": "复制原始 JSON 失败",
+      "contextEmpty": "当前请求没有可展示的原始 JSON。"
     }
   }
 }

@@ -13,9 +13,6 @@
       >
         <template #actions>
           <div class="announcement-management-page__header-actions">
-            <t-button theme="default" variant="outline" :loading="loading" @click="fetchAnnouncements">
-              {{ t('announcement.management.refresh') }}
-            </t-button>
             <t-button
               v-permission="permissionCodes.CREATE"
               theme="primary"
@@ -33,7 +30,7 @@
           <t-input
             v-model="filters.keyword"
             clearable
-            class="toolbar__search"
+            class="management-list-search"
             :placeholder="t('announcement.management.filters.keyword')"
             type="search"
             @enter="handleSearch"
@@ -65,11 +62,11 @@
             :options="sortOptions"
             :placeholder="t('announcement.management.filters.sort')"
           />
+        </template>
+        <template #actions>
           <t-button theme="default" variant="text" @click="resetFilters">
             {{ t('announcement.management.reset') }}
           </t-button>
-        </template>
-        <template #actions>
           <t-button theme="primary" variant="outline" :loading="loading" @click="handleSearch">
             {{ t('announcement.management.search') }}
           </t-button>
@@ -89,6 +86,15 @@
               {{ t('announcement.management.reset') }}
             </t-button>
           </div>
+        </template>
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('announcement.management.columnSettings')"
+            :refresh-label="t('announcement.management.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="fetchAnnouncements"
+          />
         </template>
 
         <management-empty-state
@@ -130,6 +136,12 @@
             </t-tag>
           </template>
 
+          <template #visibility="{ row }">
+            <t-tag :theme="row.visibilityTheme" variant="light">
+              {{ row.visibilityLabel }}
+            </t-tag>
+          </template>
+
           <template #level="{ row }">
             <t-tag :theme="row.levelTheme" variant="light">
               {{ row.levelLabel }}
@@ -148,6 +160,10 @@
             </t-tag>
           </template>
 
+          <template #published_at="{ row }">
+            <span class="table-muted">{{ row.publishedAtLabel }}</span>
+          </template>
+
           <template #publish_at="{ row }">
             <span class="table-muted">{{ row.publishAtLabel }}</span>
           </template>
@@ -156,8 +172,20 @@
             <span class="table-muted">{{ row.expireAtLabel }}</span>
           </template>
 
+          <template #published_by="{ row }">
+            <span class="table-muted">{{ row.publishedByLabel }}</span>
+          </template>
+
+          <template #created_at="{ row }">
+            <span class="table-muted">{{ row.createdAtLabel }}</span>
+          </template>
+
           <template #updated_at="{ row }">
             <span class="table-muted">{{ row.updatedAtLabel }}</span>
+          </template>
+
+          <template #archived_at="{ row }">
+            <span class="table-muted">{{ row.archivedAtLabel }}</span>
           </template>
 
           <template #operation="{ row }">
@@ -207,7 +235,7 @@
               v-model:current="pagination.current"
               v-model:page-size="pagination.pageSize"
               :total="total"
-              :page-size-options="[10, 20, 50]"
+              :page-size-options="[10, 20, 50, 100]"
               :show-page-number="true"
               @change="handlePageChange"
             />
@@ -215,6 +243,16 @@
         </template>
       </management-table-card>
     </management-page-content>
+
+    <advanced-query-column-drawer
+      v-model:visible="columnDrawerVisible"
+      v-model:selected-keys="visibleColumnKeys"
+      :columns="columnSettingOptions"
+      :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
+      :disabled-keys="ALWAYS_VISIBLE_COLUMNS"
+      :reset-label="t('announcement.management.resetColumns')"
+      :title="t('announcement.management.columnSettings')"
+    />
 
     <t-drawer
       v-model:visible="formDrawerVisible"
@@ -305,22 +343,36 @@
         <section class="drawer-section">
           <h3>{{ t('announcement.management.form.visibility') }}</h3>
           <t-form-item name="publish_at" :label="t('announcement.management.form.publishAt')">
-            <t-date-picker
-              v-model="formState.publish_at"
-              clearable
-              enable-time-picker
-              value-type="YYYY-MM-DD HH:mm:ss"
-              :placeholder="t('announcement.management.form.publishAtPlaceholder')"
-            />
+            <div class="announcement-form__date-field">
+              <t-date-picker
+                v-model="formState.publish_at"
+                clearable
+                enable-time-picker
+                value-type="YYYY-MM-DD HH:mm:ss"
+                :placeholder="t('announcement.management.form.publishAtPlaceholder')"
+              />
+              <p class="announcement-form__field-help">{{ t('announcement.management.form.publishAtHelp') }}</p>
+              <t-space break-line>
+                <t-button theme="default" variant="outline" size="small" @click="setPublishAtImmediate">
+                  {{ t('announcement.management.form.immediateEffective') }}
+                </t-button>
+                <t-button theme="default" variant="outline" size="small" @click="setPublishAtCurrentTime">
+                  {{ t('announcement.management.form.setCurrentTime') }}
+                </t-button>
+              </t-space>
+            </div>
           </t-form-item>
           <t-form-item name="expire_at" :label="t('announcement.management.form.expireAt')">
-            <t-date-picker
-              v-model="formState.expire_at"
-              clearable
-              enable-time-picker
-              value-type="YYYY-MM-DD HH:mm:ss"
-              :placeholder="t('announcement.management.form.expireAtPlaceholder')"
-            />
+            <div class="announcement-form__date-field">
+              <t-date-picker
+                v-model="formState.expire_at"
+                clearable
+                enable-time-picker
+                value-type="YYYY-MM-DD HH:mm:ss"
+                :placeholder="t('announcement.management.form.expireAtPlaceholder')"
+              />
+              <p class="announcement-form__field-help">{{ t('announcement.management.form.expireAtHelp') }}</p>
+            </div>
           </t-form-item>
         </section>
       </t-form>
@@ -386,6 +438,9 @@
               <t-tag :theme="detailRecord.statusTheme" variant="light">
                 {{ detailRecord.statusLabel }}
               </t-tag>
+              <t-tag :theme="detailRecord.visibilityTheme" variant="light">
+                {{ detailRecord.visibilityLabel }}
+              </t-tag>
               <t-tag :theme="detailRecord.levelTheme" variant="light">
                 {{ detailRecord.levelLabel }}
               </t-tag>
@@ -407,10 +462,16 @@
         <section class="drawer-section">
           <h3>{{ t('announcement.management.detailDrawer.timeline') }}</h3>
           <dl class="detail-list">
+            <dt>{{ t('announcement.management.detailDrawer.publishedAt') }}</dt>
+            <dd>{{ detailRecord.publishedAtLabel }}</dd>
+            <dt>{{ t('announcement.management.detailDrawer.publishedBy') }}</dt>
+            <dd>{{ detailRecord.publishedByLabel }}</dd>
             <dt>{{ t('announcement.management.detailDrawer.publishAt') }}</dt>
             <dd>{{ detailRecord.publishAtLabel }}</dd>
             <dt>{{ t('announcement.management.detailDrawer.expireAt') }}</dt>
             <dd>{{ detailRecord.expireAtLabel }}</dd>
+            <dt>{{ t('announcement.management.detailDrawer.archivedAt') }}</dt>
+            <dd>{{ detailRecord.archivedAtLabel }}</dd>
             <dt>{{ t('announcement.management.detailDrawer.createdAt') }}</dt>
             <dd>{{ detailRecord.createdAtLabel }}</dd>
             <dt>{{ t('announcement.management.detailDrawer.updatedAt') }}</dt>
@@ -419,15 +480,38 @@
         </section>
       </div>
     </t-drawer>
+
+    <t-dialog
+      v-model:visible="deleteDialogVisible"
+      :header="t('announcement.management.deleteDialog.title')"
+      :confirm-btn="deleteDialogConfirmBtn"
+      :cancel-btn="t('announcement.management.deleteDialog.cancel')"
+      :confirm-loading="deleting"
+      theme="danger"
+      width="420px"
+      placement="center"
+      destroy-on-close
+      @confirm="confirmDelete"
+      @close="closeDeleteDialog"
+    >
+      <p class="announcement-delete-dialog__description">
+        {{ t('announcement.management.deleteDialog.description') }}
+      </p>
+      <p v-if="deleteTarget" class="announcement-delete-dialog__target">
+        {{ deleteTarget.title }}
+      </p>
+    </t-dialog>
   </div>
 </template>
 <script setup lang="ts">
-import type { FormRule, PageInfo, SortInfo, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
+import type { ButtonProps, FormRule, PageInfo, SortInfo, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  buildVisibleColumns,
+  calculateTableContentWidth,
   createActionColumn,
   createStatusColumn,
   createTextColumn,
@@ -439,8 +523,10 @@ import {
   ManagementTablePagination,
   ManagementToolbar,
   TableActionMenu,
+  TableViewToolbar,
 } from '@/shared/components/management';
 import { MarkdownViewer } from '@/shared/components/markdown';
+import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { isApiRequestError } from '@/utils/request';
 
 import {
@@ -479,11 +565,42 @@ type AnnouncementRowViewModel = AnnouncementViewModel & {
   raw: AnnouncementItem;
 };
 
+const ANNOUNCEMENT_MANAGEMENT_COLUMN_STORAGE_KEY = 'graft.announcement.management.visibleColumns';
+const DEFAULT_VISIBLE_COLUMNS = [
+  'title',
+  'status',
+  'visibility',
+  'level',
+  'published_at',
+  'publish_at',
+  'expire_at',
+  'operation',
+];
+const ALWAYS_VISIBLE_COLUMNS = ['title', 'operation'];
+const ALL_MANAGEMENT_COLUMN_KEYS = [
+  'title',
+  'status',
+  'visibility',
+  'level',
+  'published_at',
+  'publish_at',
+  'expire_at',
+  'delivery_mode',
+  'pinned',
+  'published_by',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'operation',
+];
+const TIME_COLUMN_WIDTH = 168;
+
 const { locale, t } = useI18n();
 const permissionCodes = ANNOUNCEMENT_PERMISSION_CODE;
 
 const loading = ref(false);
 const submitting = ref(false);
+const deleting = ref(false);
 const listError = ref('');
 const rows = ref<AnnouncementItem[]>([]);
 const total = ref(0);
@@ -508,6 +625,10 @@ const inlinePreviewVisible = ref(false);
 const fullPreviewVisible = ref(false);
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AnnouncementViewModel | null>(null);
+const deleteDialogVisible = ref(false);
+const deleteTarget = ref<AnnouncementRowViewModel | null>(null);
+const columnDrawerVisible = ref(false);
+const visibleColumnKeys = ref<string[]>(loadVisibleColumnKeys());
 
 const statusValues: AnnouncementStatus[] = ['draft', 'published', 'archived'];
 const levelValues: AnnouncementLevel[] = ['info', 'warning', 'success', 'error'];
@@ -553,22 +674,57 @@ const presentedRows = computed<AnnouncementRowViewModel[]>(() =>
     raw: item,
   })),
 );
-const columns = computed<TdBaseTableProps['columns']>(() => [
-  createTextColumn(t('announcement.management.columns.title'), 'title', { minWidth: 240 }),
-  createStatusColumn(t('announcement.management.columns.status'), 'status', 112),
-  createStatusColumn(t('announcement.management.columns.level'), 'level', 104),
-  createStatusColumn(t('announcement.management.columns.deliveryMode'), 'delivery_mode', 120),
-  createStatusColumn(t('announcement.management.columns.pinned'), 'pinned', 104),
-  createTimeColumn(t('announcement.management.columns.publishAt'), 'publish_at', 168),
-  createTimeColumn(t('announcement.management.columns.expireAt'), 'expire_at', 168),
+const columnSettingOptions = computed(() => [
+  { label: t('announcement.management.columns.title'), value: 'title' },
+  { label: t('announcement.management.columns.status'), value: 'status' },
+  { label: t('announcement.management.columns.visibility'), value: 'visibility' },
+  { label: t('announcement.management.columns.level'), value: 'level' },
+  { label: t('announcement.management.columns.publishedAt'), value: 'published_at' },
+  { label: t('announcement.management.columns.publishAt'), value: 'publish_at' },
+  { label: t('announcement.management.columns.expireAt'), value: 'expire_at' },
+  { label: t('announcement.management.columns.deliveryMode'), value: 'delivery_mode' },
+  { label: t('announcement.management.columns.pinned'), value: 'pinned' },
+  { label: t('announcement.management.columns.publishedBy'), value: 'published_by' },
+  { label: t('announcement.management.columns.createdAt'), value: 'created_at' },
+  { label: t('announcement.management.columns.updatedAt'), value: 'updated_at' },
+  { label: t('announcement.management.columns.archivedAt'), value: 'archived_at' },
+  { label: t('announcement.management.columns.operation'), value: 'operation' },
+]);
+const allColumns = computed<TdBaseTableProps['columns']>(() => [
+  createTextColumn(t('announcement.management.columns.title'), 'title', {
+    fixed: 'left',
+    width: 320,
+  }),
+  createStatusColumn(t('announcement.management.columns.status'), 'status', 92),
+  createStatusColumn(t('announcement.management.columns.visibility'), 'visibility', 104),
+  createStatusColumn(t('announcement.management.columns.level'), 'level', 88),
+  createTimeColumn(t('announcement.management.columns.publishedAt'), 'published_at', TIME_COLUMN_WIDTH),
+  createTimeColumn(t('announcement.management.columns.publishAt'), 'publish_at', TIME_COLUMN_WIDTH),
+  createTimeColumn(t('announcement.management.columns.expireAt'), 'expire_at', TIME_COLUMN_WIDTH),
+  createStatusColumn(t('announcement.management.columns.deliveryMode'), 'delivery_mode', 112),
+  createStatusColumn(t('announcement.management.columns.pinned'), 'pinned', 88),
+  createTextColumn(t('announcement.management.columns.publishedBy'), 'published_by', {
+    align: 'center',
+    width: 112,
+  }),
+  createTimeColumn(t('announcement.management.columns.createdAt'), 'created_at', TIME_COLUMN_WIDTH),
   {
-    ...createTimeColumn(t('announcement.management.columns.updatedAt'), 'updated_at', 168),
+    ...createTimeColumn(t('announcement.management.columns.updatedAt'), 'updated_at', TIME_COLUMN_WIDTH),
     sorter: true,
     sortType: 'all',
   },
+  createTimeColumn(t('announcement.management.columns.archivedAt'), 'archived_at', TIME_COLUMN_WIDTH),
   createActionColumn(t('announcement.management.columns.operation'), 132),
 ]);
-const tableContentWidth = computed(() => '1200');
+const columns = computed<TdBaseTableProps['columns']>(() =>
+  buildVisibleColumns(allColumns.value, visibleColumnKeys.value, ALWAYS_VISIBLE_COLUMNS),
+);
+const tableContentWidth = computed(() => calculateTableContentWidth(columns.value));
+const deleteDialogConfirmBtn = computed<ButtonProps>(() => ({
+  content: t('announcement.management.deleteDialog.confirm'),
+  disabled: deleting.value,
+  theme: 'danger',
+}));
 const formDrawerTitle = computed(() =>
   formMode.value === 'create'
     ? t('announcement.management.form.createTitle')
@@ -606,6 +762,19 @@ watch(
 
     void fetchAnnouncements();
   },
+);
+
+watch(
+  visibleColumnKeys,
+  (keys) => {
+    const normalizedKeys = normalizeVisibleColumnKeys(keys);
+    if (normalizedKeys.join('|') !== keys.join('|')) {
+      visibleColumnKeys.value = normalizedKeys;
+      return;
+    }
+    persistVisibleColumnKeys(normalizedKeys);
+  },
+  { deep: true },
 );
 
 async function fetchAnnouncements() {
@@ -762,7 +931,7 @@ async function handleFormSubmit(context: SubmitContext) {
 }
 
 function rowActions(row: AnnouncementRowViewModel) {
-  return [
+  const actions = [
     {
       label: 'announcement.management.detail',
       value: 'detail',
@@ -772,24 +941,49 @@ function rowActions(row: AnnouncementRowViewModel) {
       label: 'announcement.management.edit',
       value: 'edit',
     },
-    {
-      disabled: row.status === 'published',
-      label: 'announcement.management.publishNow',
-      value: 'publish',
-    },
-    {
-      disabled: row.status !== 'published',
+  ];
+
+  if (row.status === 'draft') {
+    actions.push(
+      {
+        label: 'announcement.management.publishNow',
+        value: 'publish',
+      },
+      {
+        label: 'announcement.management.delete',
+        value: 'delete',
+      },
+    );
+  }
+
+  if (row.status === 'published') {
+    actions.push({
       label: 'announcement.management.archive',
       value: 'archive',
-    },
-    {
-      label: 'announcement.management.delete',
-      value: 'delete',
-    },
-  ];
+    });
+  }
+
+  if (row.status === 'archived') {
+    actions.push(
+      {
+        label: 'announcement.management.republish',
+        value: 'publish',
+      },
+      {
+        label: 'announcement.management.delete',
+        value: 'delete',
+      },
+    );
+  }
+
+  return actions;
 }
 
 function handleRowAction(action: string, row: AnnouncementRowViewModel) {
+  if (action === 'edit' && row.status === 'archived') {
+    return;
+  }
+
   switch (action as RowAction) {
     case 'detail':
       void openDetailDrawer(row);
@@ -834,22 +1028,46 @@ async function archiveRow(row: AnnouncementRowViewModel) {
 }
 
 async function deleteRow(row: AnnouncementRowViewModel) {
-  if (!window.confirm(t('announcement.management.deleteConfirm'))) {
+  if (row.status === 'published') {
+    MessagePlugin.warning(t('announcement.management.deletePublishedHint'));
     return;
   }
 
+  deleteTarget.value = row;
+  deleteDialogVisible.value = true;
+}
+
+async function confirmDelete() {
+  if (!deleteTarget.value || deleting.value) {
+    return;
+  }
+
+  const target = deleteTarget.value;
+  deleting.value = true;
   try {
-    await deleteAnnouncement(row.id);
+    await deleteAnnouncement(target.id);
     MessagePlugin.success(t('announcement.management.deleteSuccess'));
-    if (detailRecord.value?.id === row.id) {
+    if (detailRecord.value?.id === target.id) {
       detailDrawerVisible.value = false;
       detailRecord.value = null;
     }
+    deleteDialogVisible.value = false;
+    deleteTarget.value = null;
     await fetchAnnouncements();
     emitAnnouncementChanged();
   } catch (error) {
     MessagePlugin.error(readableError(error, t('announcement.management.deleteFailed')));
+  } finally {
+    deleting.value = false;
   }
+}
+
+function closeDeleteDialog() {
+  if (deleting.value) {
+    return;
+  }
+  deleteDialogVisible.value = false;
+  deleteTarget.value = null;
 }
 
 function normalizeStatusFilter(value: AnnouncementStatusFilter) {
@@ -907,20 +1125,41 @@ function validateExpireAt() {
 }
 
 function isTimeWindowValid(state: AnnouncementFormState) {
-  if (!state.publish_at || !state.expire_at) {
+  if (!state.expire_at) {
     return true;
   }
 
-  return new Date(state.expire_at).getTime() > new Date(state.publish_at).getTime();
+  const expireAt = parseDatePickerValue(state.expire_at);
+  if (!expireAt) {
+    return true;
+  }
+
+  const publishAt = state.publish_at ? parseDatePickerValue(state.publish_at) : null;
+  if (publishAt) {
+    return expireAt.getTime() > publishAt.getTime();
+  }
+  return expireAt.getTime() > Date.now();
+}
+
+function setPublishAtImmediate() {
+  formState.publish_at = '';
+}
+
+function setPublishAtCurrentTime() {
+  formState.publish_at = formatDatePickerValue(new Date());
 }
 
 function toDatePickerValue(value?: string | null) {
-  return value
-    ? value
-        .replace('T', ' ')
-        .replace(/\.\d+Z$/u, '')
-        .replace(/Z$/u, '')
-    : '';
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return formatDatePickerValue(date);
 }
 
 function toApiDateTime(value: string) {
@@ -928,13 +1167,37 @@ function toApiDateTime(value: string) {
     return null;
   }
 
-  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) {
+  const date = parseDatePickerValue(value);
+  if (!date) {
     return null;
   }
 
   return date.toISOString();
+}
+
+function parseDatePickerValue(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/u.exec(value.trim());
+  if (!match) {
+    const fallback = new Date(value);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  }
+
+  const [, year, month, day, hour, minute, second] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+}
+
+function formatDatePickerValue(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())} ${formatTimePart(
+    date,
+  )}`;
+}
+
+function formatTimePart(date: Date) {
+  return `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(date.getSeconds())}`;
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, '0');
 }
 
 function readableError(error: unknown, fallback: string) {
@@ -943,6 +1206,58 @@ function readableError(error: unknown, fallback: string) {
   }
 
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function loadVisibleColumnKeys() {
+  if (typeof window === 'undefined') {
+    return [...DEFAULT_VISIBLE_COLUMNS];
+  }
+
+  try {
+    const stored = window.localStorage.getItem(ANNOUNCEMENT_MANAGEMENT_COLUMN_STORAGE_KEY);
+    if (!stored) {
+      return [...DEFAULT_VISIBLE_COLUMNS];
+    }
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      return [...DEFAULT_VISIBLE_COLUMNS];
+    }
+
+    const normalizedKeys = normalizeVisibleColumnKeys(parsed);
+    persistVisibleColumnKeys(normalizedKeys);
+    return normalizedKeys;
+  } catch {
+    return [...DEFAULT_VISIBLE_COLUMNS];
+  }
+}
+
+function persistVisibleColumnKeys(keys: string[]) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(ANNOUNCEMENT_MANAGEMENT_COLUMN_STORAGE_KEY, JSON.stringify(keys));
+  } catch {
+    // Column settings are a convenience preference; list rendering must not depend on storage availability.
+  }
+}
+
+function normalizeVisibleColumnKeys(keys: unknown[]) {
+  const availableKeySet = new Set(ALL_MANAGEMENT_COLUMN_KEYS);
+  const nextKeys = new Set<string>();
+
+  for (const key of keys) {
+    if (typeof key === 'string' && availableKeySet.has(key)) {
+      nextKeys.add(key);
+    }
+  }
+
+  for (const key of ALWAYS_VISIBLE_COLUMNS) {
+    nextKeys.add(key);
+  }
+
+  return ALL_MANAGEMENT_COLUMN_KEYS.filter((key) => nextKeys.has(key));
 }
 </script>
 <style scoped lang="less">
@@ -956,10 +1271,6 @@ function readableError(error: unknown, fallback: string) {
   flex-wrap: wrap;
   gap: var(--graft-density-gap-12);
   justify-content: flex-end;
-}
-
-.toolbar__search {
-  width: min(320px, 100%);
 }
 
 .toolbar__select {
@@ -1018,6 +1329,8 @@ function readableError(error: unknown, fallback: string) {
 }
 
 .table-empty-state {
+  display: flex;
+  justify-content: center;
   padding: var(--graft-density-gap-24) 0;
 }
 
@@ -1028,6 +1341,28 @@ function readableError(error: unknown, fallback: string) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-10);
+}
+
+.table-empty-state__actions {
+  justify-content: center;
+  width: 100%;
+}
+
+.announcement-delete-dialog__description,
+.announcement-delete-dialog__target {
+  margin: 0;
+}
+
+.announcement-delete-dialog__description {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-medium);
+}
+
+.announcement-delete-dialog__target {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  margin-top: var(--graft-density-gap-12);
+  overflow-wrap: anywhere;
 }
 
 .announcement-form,
@@ -1085,6 +1420,18 @@ function readableError(error: unknown, fallback: string) {
 
 .announcement-form__preview-actions {
   margin: calc(var(--graft-density-gap-8) * -1) 0 var(--graft-density-gap-16);
+}
+
+.announcement-form__date-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.announcement-form__field-help {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
 }
 
 .announcement-form__inline-preview {
@@ -1175,7 +1522,6 @@ function readableError(error: unknown, fallback: string) {
     width: calc(100vw - 24px) !important;
   }
 
-  .toolbar__search,
   .toolbar__select {
     width: 100%;
   }

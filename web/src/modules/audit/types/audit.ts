@@ -5,6 +5,7 @@ import type { components } from '@/contracts/openapi/generated/schema';
 import type { QuerySorter } from '@/shared/observability';
 
 export type AuditLogListItem = components['schemas']['audit-log-list-item'];
+export type AuditLogDetailResponse = components['schemas']['audit-log-detail-response'];
 export type AuditLogListResponse = components['schemas']['audit-log-list-response'];
 export type AuditOverviewItem = components['schemas']['AuditOverviewItem'];
 export type AuditOverviewSummary = components['schemas']['AuditOverviewSummary'];

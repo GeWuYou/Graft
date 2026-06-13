@@ -49,6 +49,7 @@ const unreadAnnouncement: AnnouncementViewModel = {
   createdAtLabel: '2026-06-12 10:00:00',
   deliveryMode: 'popup',
   deliveryModeLabel: 'Popup',
+  archivedAtLabel: 'Not Set',
   expireAtLabel: 'Not Set',
   id: 7,
   level: 'warning',
@@ -56,6 +57,8 @@ const unreadAnnouncement: AnnouncementViewModel = {
   levelTheme: 'warning',
   pinned: true,
   pinnedLabel: 'Pinned',
+  publishedAtLabel: '2026-06-12 10:30:00',
+  publishedByLabel: '7',
   publishAtLabel: '2026-06-12 11:00:00',
   readAtLabel: 'Not Set',
   status: 'published',
@@ -66,6 +69,9 @@ const unreadAnnouncement: AnnouncementViewModel = {
   unread: true,
   unreadLabel: 'Unread',
   updatedAtLabel: '2026-06-12 12:00:00',
+  visibility: 'visible',
+  visibilityLabel: 'Visible',
+  visibilityTheme: 'success',
 };
 
 describe('AnnouncementReadPanel', () => {

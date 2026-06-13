@@ -22,12 +22,9 @@ export function appLogOperationText(record: Pick<AppLogItem, 'operation'>, t: Co
   return record.operation?.trim() || t('appLog.values.noOperation');
 }
 
-export function appLogCorrelationText(record: Pick<AppLogItem, 'request_id' | 'trace_id'>, t: ComposerTranslation) {
+export function appLogCorrelationText(record: Pick<AppLogItem, 'request_id'>, t: ComposerTranslation) {
   if (record.request_id) {
     return record.request_id;
-  }
-  if (record.trace_id) {
-    return record.trace_id;
   }
   return t('appLog.values.noCorrelation');
 }

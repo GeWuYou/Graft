@@ -395,6 +395,21 @@ func (e DeleteAnnouncement404JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for DeleteAnnouncement409JSONResponseBodySuccess.
+const (
+	DeleteAnnouncement409JSONResponseBodySuccessFalse DeleteAnnouncement409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAnnouncement409JSONResponseBodySuccess enum.
+func (e DeleteAnnouncement409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAnnouncement409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeleteAnnouncement500JSONResponseBodySuccess.
 const (
 	DeleteAnnouncement500JSONResponseBodySuccessFalse DeleteAnnouncement500JSONResponseBodySuccess = false
@@ -1207,13 +1222,13 @@ func (e PostMyAnnouncementRead404JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostMyAnnouncementRead500JSONResponseBodySuccess.
 const (
-	False PostMyAnnouncementRead500JSONResponseBodySuccess = false
+	PostMyAnnouncementRead500JSONResponseBodySuccessFalse PostMyAnnouncementRead500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostMyAnnouncementRead500JSONResponseBodySuccess enum.
 func (e PostMyAnnouncementRead500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostMyAnnouncementRead500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -1277,13 +1292,17 @@ type PostAnnouncementsJSONBody struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode PostAnnouncementsJSONBodyDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time                            `json:"expire_at,omitempty"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
-	Level     PostAnnouncementsJSONBodyLevel `json:"level"`
-	Pinned    *bool                          `json:"pinned,omitempty"`
-	PublishAt *time.Time                     `json:"publish_at,omitempty"`
-	Title     string                         `json:"title"`
+	Level  PostAnnouncementsJSONBodyLevel `json:"level"`
+	Pinned *bool                          `json:"pinned,omitempty"`
+
+	// PublishAt Announcement visibility start time. Null means immediately visible after publish.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+	Title     string     `json:"title"`
 }
 
 // PostAnnouncementsParams defines parameters for PostAnnouncements.
@@ -1342,6 +1361,9 @@ type DeleteAnnouncement403JSONResponseBodySuccess bool
 // DeleteAnnouncement404JSONResponseBodySuccess defines parameters for DeleteAnnouncement.
 type DeleteAnnouncement404JSONResponseBodySuccess bool
 
+// DeleteAnnouncement409JSONResponseBodySuccess defines parameters for DeleteAnnouncement.
+type DeleteAnnouncement409JSONResponseBodySuccess bool
+
 // DeleteAnnouncement500JSONResponseBodySuccess defines parameters for DeleteAnnouncement.
 type DeleteAnnouncement500JSONResponseBodySuccess bool
 
@@ -1382,13 +1404,17 @@ type PutAnnouncementJSONBody struct {
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode PutAnnouncementJSONBodyDeliveryMode `json:"delivery_mode"`
-	ExpireAt     *time.Time                          `json:"expire_at,omitempty"`
+
+	// ExpireAt Announcement visibility end time. Null means long-term valid.
+	ExpireAt *time.Time `json:"expire_at,omitempty"`
 
 	// Level Announcement presentation level.
-	Level     PutAnnouncementJSONBodyLevel `json:"level"`
-	Pinned    *bool                        `json:"pinned,omitempty"`
-	PublishAt *time.Time                   `json:"publish_at,omitempty"`
-	Title     string                       `json:"title"`
+	Level  PutAnnouncementJSONBodyLevel `json:"level"`
+	Pinned *bool                        `json:"pinned,omitempty"`
+
+	// PublishAt Announcement visibility start time. Updating this field changes only the effective visibility window, not the latest publish action time.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+	Title     string     `json:"title"`
 }
 
 // PutAnnouncementParams defines parameters for PutAnnouncement.
@@ -1464,7 +1490,7 @@ type PostAnnouncementArchive500JSONResponseBodySuccess bool
 
 // PostAnnouncementPublishJSONBody defines parameters for PostAnnouncementPublish.
 type PostAnnouncementPublishJSONBody struct {
-	// PublishAt Optional explicit publish time; omitted means publish immediately.
+	// PublishAt Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish.
 	PublishAt *time.Time `json:"publish_at,omitempty"`
 }
 

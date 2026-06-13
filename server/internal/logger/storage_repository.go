@@ -23,6 +23,7 @@ const (
 	appLogListOffsetArgCount                   = 2
 	appLogDeleteLimitArgIndex                  = 2
 	appLogKeywordClauseCount                   = 4
+	appLogMaxBatchDeleteIDs                    = 100
 )
 
 type appLogRepository struct {
@@ -56,6 +57,90 @@ func (r *appLogRepository) CreateAppLog(ctx context.Context, input CreateAppLogI
 	}
 
 	return r.createAppLog(ctx, r.db, input)
+}
+
+func (r *appLogRepository) DeleteAppLogByID(ctx context.Context, id uint64) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, errors.New("app log repository is unavailable")
+	}
+	if id == 0 {
+		return false, nil
+	}
+
+	//nolint:gosec // Query shape is fixed; placeholder text comes from the internal dialect helper and values stay parameterized.
+	query := "DELETE FROM app_logs WHERE id = " + r.placeholder(1)
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return false, fmt.Errorf("delete app log by id: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("read deleted app log row count: %w", err)
+	}
+
+	return rowsAffected > 0, nil
+}
+
+func (r *appLogRepository) DeleteAppLogsByIDs(ctx context.Context, ids []uint64) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("app log repository is unavailable")
+	}
+
+	normalizedIDs, err := normalizeAppLogDeleteIDs(ids)
+	if err != nil {
+		return 0, err
+	}
+
+	return r.deleteAppLogsByNormalizedIDs(ctx, normalizedIDs)
+}
+
+func (r *appLogRepository) deleteAppLogsByNormalizedIDs(ctx context.Context, ids []uint64) (int64, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin app log batch delete transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	placeholders := make([]string, 0, len(ids))
+	args := make([]any, 0, len(ids))
+	for index, id := range ids {
+		placeholders = append(placeholders, r.placeholder(index+1))
+		args = append(args, id)
+	}
+
+	//nolint:gosec // Query shape is fixed; placeholders come from normalized ID count and all ID values stay parameterized.
+	countQuery := "SELECT COUNT(*) FROM app_logs WHERE id IN (" + strings.Join(placeholders, ", ") + ")"
+	var existingCount int64
+	if err := tx.QueryRowContext(ctx, countQuery, args...).Scan(&existingCount); err != nil {
+		return 0, fmt.Errorf("count app logs before batch delete: %w", err)
+	}
+	if existingCount != int64(len(ids)) {
+		return 0, nil
+	}
+
+	//nolint:gosec // Query shape is fixed; placeholders come from normalized ID count and all ID values stay parameterized.
+	query := "DELETE FROM app_logs WHERE id IN (" + strings.Join(placeholders, ", ") + ")"
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("delete app logs by ids: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("read deleted app log row count: %w", err)
+	}
+
+	if rowsAffected != int64(len(ids)) {
+		return 0, fmt.Errorf("batch delete expected %d rows but affected %d; transaction rolled back", len(ids), rowsAffected)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit app log batch delete transaction: %w", err)
+	}
+
+	return rowsAffected, nil
 }
 
 func (r *appLogRepository) DeleteAppLogsBefore(ctx context.Context, occurredBefore time.Time) (int64, error) {
@@ -170,6 +255,29 @@ func (r *appLogRepository) GetAppLogByID(ctx context.Context, id uint64) (AppLog
 	}
 
 	return record, nil
+}
+
+func normalizeAppLogDeleteIDs(ids []uint64) ([]uint64, error) {
+	seen := make(map[uint64]struct{}, len(ids))
+	normalized := make([]uint64, 0, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			return nil, errors.New("app log delete id must be greater than zero")
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	if len(normalized) == 0 {
+		return nil, errors.New("app log delete id set must not be empty")
+	}
+	if len(normalized) > appLogMaxBatchDeleteIDs {
+		return nil, fmt.Errorf("app log delete id set exceeds %d", appLogMaxBatchDeleteIDs)
+	}
+
+	return normalized, nil
 }
 
 func (r *appLogRepository) createAppLog(

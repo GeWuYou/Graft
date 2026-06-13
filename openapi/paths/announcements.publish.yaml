@@ -2,7 +2,7 @@ post:
   tags: [announcements]
   summary: Publish an announcement
   operationId: postAnnouncementPublish
-  description: Publishes an announcement, using the supplied publish time or the current server time.
+  description: Publishes a draft announcement or re-publishes an archived announcement. The server writes published_at to the current service time and published_by to the actor. publish_at is the visibility start time; omitted or null stores publish_at as null for immediate visibility after publish.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

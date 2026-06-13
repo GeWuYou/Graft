@@ -7,6 +7,7 @@ export { createLogDetailErrorReporter, createLogListErrorReporter } from './list
 export { openLogDetailRow, restartLogListQuery } from './list-interactions';
 export { default as LogIdText } from './LogIdText.vue';
 export { default as LogJsonPanel } from './LogJsonPanel.vue';
+export { sanitizeTraceFieldsForDisplay } from './sanitize';
 export type { QuerySorter, SortDirection, SorterState } from './sorters';
 export {
   appendSorterToState,

@@ -17,6 +17,9 @@
 .management-toolbar,
 .management-toolbar__filters,
 .management-toolbar__actions {
+  --graft-list-search-width: clamp(240px, 28vw, 320px);
+  --graft-query-search-width: clamp(360px, 36vw, 480px);
+
   display: flex;
   gap: var(--graft-density-gap-12);
 }
@@ -45,6 +48,16 @@
   justify-content: flex-end;
 }
 
+.management-toolbar :deep(.management-list-search) {
+  flex: 0 1 var(--graft-list-search-width);
+  width: var(--graft-list-search-width);
+}
+
+.management-toolbar :deep(.management-query-search) {
+  flex: 0 1 var(--graft-query-search-width);
+  width: var(--graft-query-search-width);
+}
+
 @media (width <= 768px) {
   .management-toolbar {
     padding: var(--graft-density-gap-16);
@@ -53,6 +66,13 @@
   .management-toolbar__filters,
   .management-toolbar__actions {
     justify-content: flex-start;
+  }
+
+  .management-toolbar :deep(.management-list-search),
+  .management-toolbar :deep(.management-query-search) {
+    flex-basis: 100%;
+    max-width: none;
+    width: 100%;
   }
 }
 </style>

@@ -93,10 +93,6 @@ export function sessionIdForRecord(row: AuditLogListItem) {
   return row.session_id || metadataLookup(row, 'session_id') || '-';
 }
 
-export function traceIdForRecord(row: AuditLogListItem) {
-  return row.trace_id || metadataLookup(row, 'traceId') || metadataLookup(row, 'trace_id') || '-';
-}
-
 export function eventTypeForRecord(row: AuditLogListItem) {
   return metadataLookup(row, 'eventType') || metadataLookup(row, 'event_type') || row.action || '-';
 }

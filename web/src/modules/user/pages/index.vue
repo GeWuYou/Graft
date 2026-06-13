@@ -12,9 +12,6 @@
         :source="{ labelKey: 'menu.access_control.title', fallback: t('menu.access_control.title') }"
       >
         <template #actions>
-          <t-button theme="default" variant="outline" :loading="loading" data-testid="user-refresh" @click="fetchUsers">
-            {{ t('user.userList.refresh') }}
-          </t-button>
           <t-button
             v-permission="userPermissionCodes.CREATE"
             theme="primary"
@@ -31,7 +28,7 @@
           <t-input
             v-model="filters.keyword"
             clearable
-            class="toolbar__search"
+            class="management-list-search"
             :placeholder="t('user.userList.toolbar.searchPlaceholder')"
           />
           <t-select
@@ -53,11 +50,6 @@
             {{ t('user.userList.toolbar.clearFilters') }}
           </t-button>
         </template>
-        <template #actions>
-          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-            {{ t('user.userList.columnSettings') }}
-          </t-button>
-        </template>
       </management-toolbar>
 
       <management-table-card>
@@ -71,6 +63,16 @@
               {{ t('user.userList.toolbar.clearFilters') }}
             </t-button>
           </div>
+        </template>
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('user.userList.columnSettings')"
+            :refresh-label="t('user.userList.refresh')"
+            :refresh-loading="loading"
+            data-testid="user-table-toolbar"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="fetchUsers"
+          />
         </template>
 
         <template #batch>
@@ -213,7 +215,7 @@
               v-model:current="pagination.current"
               v-model:page-size="pagination.pageSize"
               :total="filteredUsers.length"
-              :page-size-options="[10, 20, 50]"
+              :page-size-options="[10, 20, 50, 100]"
               :show-page-number="true"
             />
           </management-table-pagination>
@@ -479,6 +481,7 @@ import {
   ManagementTablePagination,
   ManagementToolbar,
   TableActionMenu,
+  TableViewToolbar,
 } from '@/shared/components/management';
 import { useAssignmentSelection } from '@/shared/composables';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';

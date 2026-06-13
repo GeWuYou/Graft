@@ -8,6 +8,7 @@ export const AUDIT_ROUTE_PATH = {
 } as const;
 
 export const AUDIT_API_PATH = {
+  DETAIL: '/api/audit/logs/{id}',
   LOGS: '/api/audit/logs',
   OVERVIEW: '/api/audit/overview',
   INCIDENT_DETAIL: '/api/audit/incidents/{event_id}',

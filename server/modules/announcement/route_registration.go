@@ -347,7 +347,11 @@ func (r announcementRouteRuntime) writeRouteError(ginCtx *gin.Context, err error
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
-	if errors.Is(err, errAnnouncementInvalidTransition) || errors.Is(err, errAnnouncementPublishedDelete) {
+	if errors.Is(err, errAnnouncementPublishedDelete) {
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, announcementcontract.AnnouncementPublishedDeleteForbidden.String(), nil)
+		return
+	}
+	if errors.Is(err, errAnnouncementInvalidTransition) {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}

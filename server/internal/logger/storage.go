@@ -372,6 +372,8 @@ func isAppLogTopLevelField(key string) bool {
 // AppLogRepository owns durable persistence for canonical App Log truth.
 type AppLogRepository interface {
 	CreateAppLog(context.Context, CreateAppLogInput) (AppLogRecord, error)
+	DeleteAppLogByID(context.Context, uint64) (bool, error)
+	DeleteAppLogsByIDs(context.Context, []uint64) (int64, error)
 	DeleteAppLogsBefore(context.Context, time.Time) (int64, error)
 	DeleteAppLogsBeforeLimit(context.Context, time.Time, int) (int64, error)
 	ListAppLogs(context.Context, AppLogListQuery) (AppLogListResult, error)

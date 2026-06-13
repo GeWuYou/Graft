@@ -9,11 +9,21 @@ type ColumnConfig = {
   align?: ColumnAlign;
   ellipsis?: boolean;
   fixed?: 'left' | 'right';
+  flexible?: boolean;
   minWidth?: number;
   width?: number;
 };
 
 type TableColumn = NonNullable<TdBaseTableProps['columns']>[number];
+type ManagedTableColumn = TableColumn & {
+  __graftFlexible?: boolean;
+};
+
+export type ManagedTableWidthPolicy = {
+  contentWidth: number;
+  mode: 'fill' | 'scroll';
+  tableContentWidth?: string;
+};
 
 const DEFAULT_ELLIPSIS = { theme: 'default', placement: 'top-left' } as const;
 
@@ -25,6 +35,7 @@ function withCommonColumnOptions(column: TableColumn, config: ColumnConfig = {})
     ...(config.fixed ? { fixed: config.fixed } : {}),
     ...(config.width ? { width: config.width } : {}),
     ...(config.minWidth ? { minWidth: config.minWidth } : {}),
+    ...(config.flexible ? { __graftFlexible: true } : {}),
   } as TableColumn;
 }
 
@@ -83,11 +94,30 @@ export function createTimeColumn(title: string, colKey: string, width = 168) {
   );
 }
 
-export function createActionColumn(title: string, width = 108, align: ColumnAlign = 'center') {
+export function createMainTextColumn(title: string, colKey: string, minWidth = 360) {
+  return createTextColumn(title, colKey, {
+    flexible: true,
+    minWidth,
+  });
+}
+
+export function createIdentifierColumn(title: string, colKey: string, width = 180) {
+  return createTextColumn(title, colKey, {
+    width,
+  });
+}
+
+export function createTechnicalColumn(title: string, colKey: string, width = 240) {
+  return createTextColumn(title, colKey, {
+    width,
+  });
+}
+
+export function createActionColumn(title: string, width = 108, align: ColumnAlign = 'center', colKey = 'operation') {
   return withCommonColumnOptions(
     {
       title,
-      colKey: 'operation',
+      colKey,
     },
     {
       width,
@@ -129,7 +159,16 @@ export function resolveManagedColumns(
 }
 
 export function calculateTableContentWidth(columns: TdBaseTableProps['columns']) {
-  const totalWidth = (columns ?? []).reduce((sum, column) => {
+  const hasFlexibleColumn = (columns ?? []).some(
+    (column) => (column as ManagedTableColumn | undefined)?.__graftFlexible,
+  );
+  const totalWidth = calculateVisibleColumnWidth(columns);
+
+  return hasFlexibleColumn ? `max(100%, ${totalWidth}px)` : `${totalWidth}px`;
+}
+
+function calculateVisibleColumnWidth(columns: TdBaseTableProps['columns']) {
+  return (columns ?? []).reduce((sum, column) => {
     if (typeof column?.width === 'number') {
       return sum + column.width;
     }
@@ -140,14 +179,26 @@ export function calculateTableContentWidth(columns: TdBaseTableProps['columns'])
 
     return sum + 160;
   }, 0);
+}
 
-  return `max(100%, ${totalWidth}px)`;
+export function resolveTableWidthPolicy(
+  columns: TdBaseTableProps['columns'],
+  containerWidth = 0,
+): ManagedTableWidthPolicy {
+  const contentWidth = calculateVisibleColumnWidth(columns);
+  const mode = containerWidth > 0 && contentWidth > containerWidth ? 'scroll' : 'fill';
+
+  return {
+    contentWidth,
+    mode,
+    tableContentWidth: mode === 'scroll' ? `${contentWidth}px` : undefined,
+  };
 }
 
 export type TextColumnSpec = {
   config?: ColumnConfig;
   key: string;
-  kind?: 'text';
+  kind?: 'identifier' | 'main' | 'technical' | 'text';
   title: string;
 };
 
@@ -164,6 +215,18 @@ export function createConfiguredColumns(specs: ConfiguredColumnSpec[]) {
   return specs.map((spec) => {
     if (spec.kind === 'time') {
       return createTimeColumn(spec.title, spec.key, spec.width);
+    }
+
+    if (spec.kind === 'main') {
+      return createMainTextColumn(spec.title, spec.key, spec.config?.minWidth);
+    }
+
+    if (spec.kind === 'identifier') {
+      return createIdentifierColumn(spec.title, spec.key, spec.config?.width);
+    }
+
+    if (spec.kind === 'technical') {
+      return createTechnicalColumn(spec.title, spec.key, spec.config?.width);
     }
 
     return createTextColumn(spec.title, spec.key, spec.config);

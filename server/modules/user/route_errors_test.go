@@ -36,6 +36,14 @@ func (r *userRouteAppLogRecorder) CreateAppLog(_ context.Context, input applog.C
 	return applog.AppLogRecord{}, nil
 }
 
+func (r *userRouteAppLogRecorder) DeleteAppLogByID(context.Context, uint64) (bool, error) {
+	return false, nil
+}
+
+func (r *userRouteAppLogRecorder) DeleteAppLogsByIDs(context.Context, []uint64) (int64, error) {
+	return 0, nil
+}
+
 func (r *userRouteAppLogRecorder) DeleteAppLogsBefore(context.Context, time.Time) (int64, error) {
 	return 0, nil
 }

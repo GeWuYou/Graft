@@ -12,16 +12,13 @@
     :error-message="listError"
     :error-title="t('accessLog.page.errorTitle')"
     :loading="loading"
+    compact-header
     :reload-label="t('accessLog.page.refresh')"
     :retry-label="t('accessLog.page.retry')"
+    :show-header-reload="false"
     :source="{ labelKey: 'menu.logCenter.title', fallback: t('menu.logCenter.title') }"
     @reload="fetchAccessLogs"
   >
-    <template #actions>
-      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-        {{ t('accessLog.page.columnSettings') }}
-      </t-button>
-    </template>
     <template #filters>
       <access-log-filters
         v-model="filters"
@@ -47,14 +44,30 @@
         :visible-column-keys="visibleColumnKeys"
         @detail="openDetail"
         @page-change="fetchAccessLogs"
-      />
+        @view-app-log="viewRelatedAppLogs"
+        @view-audit="viewRelatedAuditEvents"
+      >
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('accessLog.page.columnSettings')"
+            :refresh-label="t('accessLog.page.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="fetchAccessLogs"
+          />
+        </template>
+      </access-log-table>
     </template>
     <template #detail>
       <advanced-query-column-drawer
         v-model:visible="columnDrawerVisible"
         v-model:selected-keys="visibleColumnKeys"
         :columns="columnSettingOptions"
+        :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
+        :presets-label="t('accessLog.columnViews.label')"
+        :reset-label="t('accessLog.columnViews.resetDefault')"
         :title="t('accessLog.page.columnSettings')"
+        :view-presets="columnViewPresets"
       />
       <access-log-detail-drawer v-model:visible="detailVisible" :record="detailRecord" />
     </template>
@@ -65,7 +78,10 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
+import { buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
 import { useAuthSessionStore } from '@/modules/auth/store';
+import { TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/shared/localized-api-error';
 import {
@@ -106,6 +122,28 @@ type AccessLogPresetKey =
   | 'slowRequests'
   | 'currentUser'
   | 'lastHour';
+const DEFAULT_VISIBLE_COLUMNS = ['started_at', 'method', 'path', 'status_code', 'duration_ms', 'user'];
+const TROUBLESHOOTING_VISIBLE_COLUMNS = [
+  'started_at',
+  'method',
+  'path',
+  'status_code',
+  'duration_ms',
+  'user',
+  'request_id',
+];
+const TECHNICAL_VISIBLE_COLUMNS = [
+  'started_at',
+  'method',
+  'path',
+  'status_code',
+  'duration_ms',
+  'user',
+  'request_id',
+  'client_ip',
+  'user_agent',
+  'occurred_at',
+];
 
 const { t } = useI18n();
 const logger = createModuleLogger('access-log.list');
@@ -122,7 +160,7 @@ const detailRecord = ref<AccessLogItem | null>(null);
 const applyingRoute = ref(false);
 const activePreset = ref<AccessLogPresetKey>('all');
 const columnDrawerVisible = ref(false);
-const visibleColumnKeys = ref(['started_at', 'method', 'path', 'status_code', 'duration_ms', 'user', 'request_id']);
+const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
 const pagination = ref({
   current: 1,
   pageSize: 20,
@@ -149,6 +187,17 @@ const columnSettingOptions = computed(() => [
   { label: t('accessLog.columns.durationMs'), value: 'duration_ms' },
   { label: t('accessLog.columns.user'), value: 'user' },
   { label: t('accessLog.columns.requestId'), value: 'request_id' },
+  { label: t('accessLog.columns.clientIp'), value: 'client_ip' },
+  { label: t('accessLog.columns.userAgent'), value: 'user_agent' },
+]);
+const columnViewPresets = computed(() => [
+  { value: 'default', label: t('accessLog.columnViews.default'), keys: DEFAULT_VISIBLE_COLUMNS },
+  {
+    value: 'troubleshooting',
+    label: t('accessLog.columnViews.troubleshooting'),
+    keys: TROUBLESHOOTING_VISIBLE_COLUMNS,
+  },
+  { value: 'technical', label: t('accessLog.columnViews.technical'), keys: TECHNICAL_VISIBLE_COLUMNS },
 ]);
 
 const hasClientOnlyFilters = computed(() =>
@@ -243,6 +292,18 @@ async function fetchAccessLogs() {
 
 async function openDetail(row: AccessLogItem) {
   await openLogDetailRow(row, getAccessLogDetail, detailRecord, detailVisible, reportDetailLoadError);
+}
+
+function viewRelatedAppLogs(row: AccessLogItem) {
+  void router.push(
+    buildAppLogLocation({
+      request_id: row.request_id,
+    }),
+  );
+}
+
+function viewRelatedAuditEvents(row: AccessLogItem) {
+  void router.push(buildAuditRequestLocation(row.request_id));
 }
 
 function resetFilters() {

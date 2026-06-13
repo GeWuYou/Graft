@@ -27,6 +27,9 @@ type Announcement struct {
 	DeliveryMode string
 	Pinned       bool
 	PublishAt    *time.Time
+	PublishedAt  *time.Time
+	PublishedBy  *uint64
+	ArchivedAt   *time.Time
 	ExpireAt     *time.Time
 	CreatedBy    *uint64
 	UpdatedBy    *uint64
@@ -116,7 +119,7 @@ type Repository interface {
 	Create(ctx context.Context, input CreateInput) (Announcement, error)
 	GetAdmin(ctx context.Context, id uint64) (Announcement, error)
 	Update(ctx context.Context, id uint64, input UpdateInput) (Announcement, error)
-	Publish(ctx context.Context, id uint64, publishAt time.Time, actorID *uint64) (Announcement, error)
+	Publish(ctx context.Context, id uint64, publishAt *time.Time, publishedAt time.Time, actorID *uint64) (Announcement, error)
 	Archive(ctx context.Context, id uint64, actorID *uint64) (Announcement, error)
 	Delete(ctx context.Context, id uint64, actorID uint64, deletedAt time.Time) error
 	MarkRead(ctx context.Context, userID uint64, announcementID uint64, readAt time.Time) (UserAnnouncement, error)

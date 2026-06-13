@@ -257,6 +257,13 @@
         "authFailed": "Auth Failed",
         "highRisk": "High Risk"
       },
+      "columnViews": {
+        "label": "View Presets",
+        "default": "Default View",
+        "troubleshooting": "Troubleshooting View",
+        "technical": "Technical View",
+        "resetDefault": "Restore Default Columns"
+      },
       "actions": {
         "search": "Search",
         "reset": "Reset",
@@ -265,7 +272,10 @@
         "addSorter": "Add Sort Item",
         "removeSorter": "Remove Sort Item",
         "moveSorterUp": "Move Up",
-        "moveSorterDown": "Move Down"
+        "moveSorterDown": "Move Down",
+        "viewAccessLog": "View Access Log",
+        "viewAppLog": "View App Log",
+        "viewSecurityEvent": "View Security Event"
       },
       "scope": {
         "drilldownTag": "Drilldown: {name}",
@@ -365,13 +375,16 @@
         "CRITICAL": "Critical"
       },
       "columns": {
-        "action": "Action",
+        "action": "Event",
         "actor": "Actor",
         "resource": "Audit Target",
         "correlation": "Request ID",
+        "sessionId": "Session ID",
+        "ip": "IP",
         "result": "Result",
         "risk": "Risk",
-        "createdAt": "Time"
+        "createdAt": "Time",
+        "operation": "Operation"
       },
       "drawer": {
         "messageFallback": "No additional message",
@@ -381,7 +394,9 @@
           "security": "Security Event Context",
           "correlation": "Related Context",
           "risk": "Risk Analysis",
-          "metadata": "Metadata"
+          "context": "Audit Context",
+          "metadata": "Metadata",
+          "rawJson": "Raw JSON"
         },
         "fields": {
           "target": "Audit Target",
@@ -397,8 +412,7 @@
           "status": "Status",
           "eventType": "Event Type",
           "permission": "Permission",
-          "securityTarget": "Security Target",
-          "traceId": "Trace ID"
+          "securityTarget": "Security Target"
         },
         "actions": {
           "copyRequestId": "Copy",
@@ -409,6 +423,11 @@
           "copyMetadata": "Copy JSON",
           "copyMetadataSuccess": "Metadata JSON copied",
           "copyMetadataFail": "Failed to copy metadata JSON",
+          "expandJson": "Expand JSON",
+          "collapseJson": "Collapse JSON",
+          "copyJson": "Copy JSON",
+          "copyJsonSuccess": "JSON copied",
+          "copyJsonFail": "Failed to copy JSON",
           "backToMonitor": "Back to monitor",
           "viewRelatedRequest": "View Related Request",
           "viewAccessLogRequest": "View Access Log",
@@ -426,7 +445,9 @@
           "requestTrace": "Request available",
           "securityEvent": "Security Event"
         },
-        "metadataEmpty": "No metadata is available for this event."
+        "contextEmpty": "No audit context is available for this event.",
+        "metadataEmpty": "No metadata is available for this event.",
+        "rawJsonEmpty": "No raw JSON is available for this event."
       }
     },
     "correlation": {

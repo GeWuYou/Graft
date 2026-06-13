@@ -99,12 +99,6 @@ const definitions = computed<AdvancedQueryFilterFieldDefinition[]>(() => [
     placeholder: t('appLog.filters.requestId'),
   },
   {
-    key: 'traceId',
-    kind: 'text',
-    label: t('appLog.builder.fields.traceId'),
-    placeholder: t('appLog.filters.traceId'),
-  },
-  {
     key: 'message',
     kind: 'text',
     label: t('appLog.builder.fields.message'),
@@ -123,7 +117,6 @@ const fieldValues = computed<Record<string, string | string[]>>(() => ({
   component: props.modelValue.component,
   operation: props.modelValue.operation,
   requestId: props.modelValue.requestId,
-  traceId: props.modelValue.traceId,
   message: props.modelValue.message,
   error: props.modelValue.error,
 }));

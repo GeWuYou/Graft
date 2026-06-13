@@ -26,11 +26,13 @@ import (
 
 type auditReader interface {
 	List(ctx context.Context, query ListQuery) (ListResult, error)
+	Detail(ctx context.Context, id uint64) (DetailResult, error)
 	Overview(ctx context.Context, preset auditstore.AuditTimePreset) (OverviewResult, error)
 	Incident(ctx context.Context, eventID uint64) (IncidentResult, error)
 }
 
 type auditListResult = ListResult
+type auditDetailResult = DetailResult
 type auditOverviewResult = OverviewResult
 type auditIncidentResult = IncidentResult
 
@@ -81,6 +83,57 @@ func handleListAuditLogs(
 		if mapErr != nil {
 			logger.Error("map audit logs response failed",
 				zap.String("module", moduleName),
+				zap.Error(mapErr),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+	}
+}
+
+func handleReadAuditLog(
+	ctx *module.Context,
+	moduleName string,
+	reader auditReader,
+) gin.HandlerFunc {
+	logger := zap.NewNop()
+	if ctx != nil && ctx.Logger != nil {
+		logger = ctx.Logger
+	}
+
+	return func(ginCtx *gin.Context) {
+		id, ok, err := parseOptionalUint64Param(ginCtx, auditcontract.AuditLogParam)
+		if err != nil || !ok {
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
+				"field": "id",
+			})
+			return
+		}
+
+		record, readErr := reader.Detail(ginCtx.Request.Context(), id)
+		if readErr != nil {
+			if errors.Is(readErr, auditstore.ErrAuditLogNotFound) {
+				httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{
+					"field": "id",
+				})
+				return
+			}
+			logger.Error("read audit log detail failed",
+				zap.String("module", moduleName),
+				zap.Uint64("id", id),
+				zap.Error(readErr),
+			)
+			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
+
+		payload, mapErr := toAuditLogDetailResponse(record)
+		if mapErr != nil {
+			logger.Error("map audit log detail response failed",
+				zap.String("module", moduleName),
+				zap.Uint64("id", id),
 				zap.Error(mapErr),
 			)
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
@@ -183,45 +236,51 @@ func handleReadAuditIncident(
 type auditReadGeneratedHandler struct{}
 
 var auditAllowedListQueryKeys = map[string]struct{}{
-	"page":                  {},
-	"page_size":             {},
-	"actor_user_id":         {},
-	"keyword":               {},
-	"actor":                 {},
-	"action":                {},
-	"preset":                {},
-	"scope":                 {},
-	"business_category":     {},
-	"action_prefix":         {},
-	"action_prefixes":       {},
-	"action_prefixes[]":     {},
-	"action_keywords":       {},
-	"action_keywords[]":     {},
-	"source":                {},
-	"resource_type":         {},
-	"resource_types":        {},
-	"resource_types[]":      {},
-	"resource_id":           {},
-	"resource_name":         {},
-	"request_path_prefixes": {},
+	"page":                    {},
+	"page_size":               {},
+	"actor_user_id":           {},
+	"keyword":                 {},
+	"actor":                   {},
+	"action":                  {},
+	"preset":                  {},
+	"scope":                   {},
+	"business_category":       {},
+	"action_prefix":           {},
+	"action_prefixes":         {},
+	"action_prefixes[]":       {},
+	"action_keywords":         {},
+	"action_keywords[]":       {},
+	"source":                  {},
+	"resource_type":           {},
+	"resource_types":          {},
+	"resource_types[]":        {},
+	"resource_id":             {},
+	"resource_name":           {},
+	"request_path_prefixes":   {},
 	"request_path_prefixes[]": {},
-	"request_id":            {},
-	"session_id":            {},
-	"result":                {},
-	"results":               {},
-	"results[]":             {},
-	"risk_level":            {},
-	"risk_levels":           {},
-	"risk_levels[]":         {},
-	"success":               {},
-	"created_from":          {},
-	"created_to":            {},
-	"sort":                  {},
-	"sort[]":                {},
+	"request_id":              {},
+	"session_id":              {},
+	"result":                  {},
+	"results":                 {},
+	"results[]":               {},
+	"risk_level":              {},
+	"risk_levels":             {},
+	"risk_levels[]":           {},
+	"success":                 {},
+	"created_from":            {},
+	"created_to":              {},
+	"sort":                    {},
+	"sort[]":                  {},
 }
 
 func (h auditReadGeneratedHandler) GetAuditLogs(params auditopenapi.GetAuditLogsParams) {
 	_ = h
+	_ = params
+}
+
+func (h auditReadGeneratedHandler) GetAuditLogDetail(id int64, params auditopenapi.GetAuditLogDetailParams) {
+	_ = h
+	_ = id
 	_ = params
 }
 

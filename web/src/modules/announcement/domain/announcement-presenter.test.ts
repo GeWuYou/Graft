@@ -26,7 +26,14 @@ const labels: Record<string, string> = {
   'announcement.status.archived': 'Archived',
   'announcement.status.draft': 'Draft',
   'announcement.status.published': 'Published',
+  'announcement.value.immediateEffective': 'After Publish',
+  'announcement.value.longTerm': 'Long-Term',
   'announcement.value.notSet': 'Not Set',
+  'announcement.visibility.archived': 'Archived',
+  'announcement.visibility.draft': 'Draft',
+  'announcement.visibility.expired': 'Expired',
+  'announcement.visibility.scheduled': 'Not Started',
+  'announcement.visibility.visible': 'Visible',
 };
 
 const translate = (key: string) => labels[key] ?? key;
@@ -51,6 +58,8 @@ describe('announcement presenter', () => {
         id: 12,
         level: 'warning',
         pinned: true,
+        published_at: '2026-06-12T00:30:00Z',
+        published_by: 7,
         status: 'published',
         title: 'Maintenance',
         updated_at: '2026-06-12T01:00:00Z',
@@ -63,7 +72,11 @@ describe('announcement presenter', () => {
     expect(view.levelLabel).toBe('Warning');
     expect(view.deliveryModeLabel).toBe('Popup');
     expect(view.pinnedLabel).toBe('Pinned');
-    expect(view.publishAtLabel).toBe('Not Set');
+    expect(view.publishAtLabel).toBe('After Publish');
+    expect(view.expireAtLabel).toBe('Long-Term');
+    expect(view.publishedAtLabel).not.toBe('Not Set');
+    expect(view.publishedByLabel).toBe('7');
+    expect(view.visibilityLabel).toBe('Visible');
     expect(view.unread).toBe(true);
     expect(view.unreadLabel).toBe('Unread');
   });
@@ -101,6 +114,52 @@ describe('announcement presenter', () => {
   it('resolves pinned labels without template branching', () => {
     expect(resolvePinnedLabel(true, translate)).toBe('Pinned');
     expect(resolvePinnedLabel(false, translate)).toBe('Normal');
+  });
+
+  it('derives management visibility state from lifecycle and visibility window', () => {
+    const now = new Date('2026-06-12T02:00:00Z');
+    const base = {
+      content: 'Body',
+      created_at: '2026-06-12T00:00:00Z',
+      delivery_mode: 'silent',
+      id: 1,
+      level: 'info',
+      pinned: false,
+      title: 'Visibility',
+      updated_at: '2026-06-12T00:00:00Z',
+    } satisfies Partial<AnnouncementItem>;
+
+    expect(
+      presentAnnouncement({ ...base, id: 1, status: 'draft' } as AnnouncementItem, translate, 'en-US', now).visibility,
+    ).toBe('draft');
+    expect(
+      presentAnnouncement({ ...base, id: 2, status: 'archived' } as AnnouncementItem, translate, 'en-US', now)
+        .visibility,
+    ).toBe('archived');
+    expect(
+      presentAnnouncement(
+        { ...base, id: 3, publish_at: '2026-06-12T03:00:00Z', status: 'published' } as AnnouncementItem,
+        translate,
+        'en-US',
+        now,
+      ).visibility,
+    ).toBe('scheduled');
+    expect(
+      presentAnnouncement(
+        { ...base, id: 4, publish_at: '2026-06-12T01:00:00Z', status: 'published' } as AnnouncementItem,
+        translate,
+        'en-US',
+        now,
+      ).visibility,
+    ).toBe('visible');
+    expect(
+      presentAnnouncement(
+        { ...base, expire_at: '2026-06-12T02:00:00Z', id: 5, status: 'published' } as AnnouncementItem,
+        translate,
+        'en-US',
+        now,
+      ).visibility,
+    ).toBe('expired');
   });
 
   it('prefers explicit unread state and falls back to read_at when needed', () => {

@@ -92,6 +92,9 @@ type ListResult struct {
 	ConvertibleFilters *drilldown.ConvertibleFilters
 }
 
+// DetailResult contains one immutable audit log evidence record.
+type DetailResult = auditstore.AuditLog
+
 // OverviewResult contains the read model for the audit overview page.
 type OverviewResult = auditstore.AuditOverview
 
@@ -232,6 +235,22 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		listResult.ConvertibleFilters = &convertible
 	}
 	return listResult, nil
+}
+
+// Detail returns one immutable audit record by id.
+func (s *Service) Detail(ctx context.Context, id uint64) (DetailResult, error) {
+	if s == nil || s.repo == nil {
+		return DetailResult{}, ErrAuditServiceUnavailable
+	}
+	if id == 0 {
+		return DetailResult{}, auditstore.ErrAuditLogNotFound
+	}
+
+	record, err := s.repo.ReadAuditLog(ctx, id)
+	if err != nil {
+		return DetailResult{}, fmt.Errorf("read audit log detail: %w", err)
+	}
+	return record, nil
 }
 
 func (s *Service) resolveScope(

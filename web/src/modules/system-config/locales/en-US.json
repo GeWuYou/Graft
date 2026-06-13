@@ -211,15 +211,17 @@
         },
         "display": {
           "title": "Notification Display",
-          "description": "Notification Center Display Defaults.",
-          "showReadDays": {
-            "title": "Show Read Days",
-            "description": "Default time window for showing read notifications."
-          },
-          "popupLimit": {
-            "title": "Popup Limit",
-            "description": "Maximum notifications displayed by the notification bell popup."
-          }
+          "description": "Notification Center Display Defaults."
+        }
+      },
+      "display": {
+        "showReadDays": {
+          "title": "Show Read Days",
+          "description": "Default time window for showing read notifications."
+        },
+        "popupLimit": {
+          "title": "Popup Limit",
+          "description": "Maximum notifications displayed by the notification bell popup."
         }
       }
     },

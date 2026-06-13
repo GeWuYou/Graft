@@ -56,7 +56,7 @@ function collectServerSystemConfigSchemaFallbackViolations(file: SourceFile): Ru
 }
 
 function parsePotentialSystemConfigSchema(value: string): Record<string, unknown> | null {
-  const trimmed = value.trim();
+  const trimmed = normalizePotentialSchemaJSON(value.trim());
 
   if (
     !trimmed.startsWith('{') ||
@@ -74,6 +74,10 @@ function parsePotentialSystemConfigSchema(value: string): Record<string, unknown
   } catch {
     return null;
   }
+}
+
+function normalizePotentialSchemaJSON(value: string): string {
+  return value.replace(/%q/g, '"systemConfig.placeholder.key"');
 }
 
 function collectSchemaNodeFallbackFindings(

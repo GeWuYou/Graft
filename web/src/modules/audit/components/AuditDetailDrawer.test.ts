@@ -3,6 +3,7 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
+import { defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 
 import AuditDetailDrawer from './AuditDetailDrawer.vue';
@@ -20,6 +21,13 @@ vi.mock('@/shared/observability', async () => {
   return {
     ...actual,
     copyText: vi.fn(async () => true),
+    LogJsonPanel: defineComponent({
+      name: 'LogJsonPanelStub',
+      props: ['title', 'value'],
+      setup(props) {
+        return () => h('section', { 'data-testid': `json-panel-${props.title}` }, JSON.stringify(props.value));
+      },
+    }),
   };
 });
 
@@ -52,7 +60,9 @@ const i18n = createI18n({
               security: 'Security',
               correlation: 'Correlation',
               risk: 'Risk',
+              context: 'Audit Context',
               metadata: 'Metadata',
+              rawJson: 'Raw JSON',
             },
             fields: {
               target: 'Target',
@@ -69,12 +79,16 @@ const i18n = createI18n({
               eventType: 'Event Type',
               permission: 'Permission',
               securityTarget: 'Security Target',
-              traceId: 'Trace ID',
             },
             actions: {
               copyRequestId: 'Copy',
               copyRequestIdSuccess: 'Copied',
               copyRequestIdFail: 'Copy failed',
+              expandJson: 'Expand JSON',
+              collapseJson: 'Collapse JSON',
+              copyJson: 'Copy JSON',
+              copyJsonSuccess: 'JSON copied',
+              copyJsonFail: 'JSON copy failed',
               expandMetadata: 'Expand metadata',
               collapseMetadata: 'Collapse metadata',
               copyMetadata: 'Copy JSON',
@@ -97,7 +111,9 @@ const i18n = createI18n({
               requestTrace: 'Request trace',
               securityEvent: 'Security Event',
             },
+            contextEmpty: 'No context',
             metadataEmpty: 'No metadata',
+            rawJsonEmpty: 'No raw JSON',
           },
           columns: {
             actor: 'Actor',
@@ -143,7 +159,6 @@ describe('AuditDetailDrawer', () => {
             eventType: 'auth.permission.denied',
             permission: 'rbac.role.read',
             targetName: 'rbac.role.read',
-            traceId: 'trace-1',
           },
           created_at: '2026-05-31T04:00:00Z',
         },
@@ -158,7 +173,13 @@ describe('AuditDetailDrawer', () => {
     expect(wrapper.text()).toContain('Security');
     expect(wrapper.text()).toContain('auth.permission.denied');
     expect(wrapper.text()).toContain('rbac.role.read');
-    expect(wrapper.text()).toContain('trace-1');
+    expect(wrapper.text()).not.toContain('trace-1');
+    expect(wrapper.get('[data-testid="json-panel-Audit Context"]').text()).toContain('"requestId":"req-1"');
+    expect(wrapper.get('[data-testid="json-panel-Audit Context"]').text()).not.toContain('trace');
+    expect(wrapper.get('[data-testid="json-panel-Metadata"]').text()).toContain('"permission":"rbac.role.read"');
+    expect(wrapper.get('[data-testid="json-panel-Metadata"]').text()).not.toContain('trace');
+    expect(wrapper.get('[data-testid="json-panel-Raw JSON"]').text()).toContain('"request_id":"req-1"');
+    expect(wrapper.get('[data-testid="json-panel-Raw JSON"]').text()).not.toContain('trace');
     expect(wrapper.text()).not.toContain('openIncident');
   });
 });

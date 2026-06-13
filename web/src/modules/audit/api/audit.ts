@@ -7,6 +7,7 @@ import { request } from '@/utils/request';
 import { AUDIT_API_PATH } from '../contract/paths';
 import type {
   AuditIncidentResponse,
+  AuditLogDetailResponse,
   AuditLogListResponse,
   AuditLogQuery,
   AuditOverviewQuery,
@@ -17,6 +18,11 @@ type AuditLogsPath = (typeof AUDIT_API_PATH)['LOGS'];
 type GetAuditLogsOperation = paths[AuditLogsPath]['get'];
 type GetAuditLogsResponse = GetAuditLogsOperation['responses'][200]['content']['application/json'];
 type GetAuditLogsResponseData = NonNullable<GetAuditLogsResponse['data']>;
+
+type AuditLogDetailPath = (typeof AUDIT_API_PATH)['DETAIL'];
+type GetAuditLogDetailOperation = paths[AuditLogDetailPath]['get'];
+type GetAuditLogDetailResponse = GetAuditLogDetailOperation['responses'][200]['content']['application/json'];
+type GetAuditLogDetailResponseData = NonNullable<GetAuditLogDetailResponse['data']>;
 
 type AuditOverviewPath = (typeof AUDIT_API_PATH)['OVERVIEW'];
 type GetAuditOverviewOperation = paths[AuditOverviewPath]['get'];
@@ -33,6 +39,12 @@ export function getAuditLogs(query: AuditLogQuery) {
     url: AUDIT_API_PATH.LOGS,
     params: query,
   }) as Promise<AuditLogListResponse>;
+}
+
+export function getAuditLogDetail(id: number) {
+  return request.get<GetAuditLogDetailResponseData>({
+    url: AUDIT_API_PATH.DETAIL.replace('{id}', String(id)),
+  }) as Promise<AuditLogDetailResponse>;
 }
 
 export function getAuditOverview(query: AuditOverviewQuery) {

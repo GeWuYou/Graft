@@ -279,6 +279,101 @@ const demoConfigSchema = \`{"type":"object","properties":{"maxQuickActions":{"ty
     expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
     expect(result.stderr).toBe('');
   });
+
+  it('requires locale keys referenced by fmt.Sprintf system config schemas', async () => {
+    const result = await runGovernanceScriptWithServerSource(
+      `
+<template><span /></template>
+`,
+      `
+package demo
+
+const demoDisplayKey = "demo.display"
+const demoDisplayPopupLimitKey = "display.popupLimit"
+
+func demoConfigTitleKey(key string) string {
+  return "systemConfig.demo." + key + ".title"
+}
+
+func demoConfigDescriptionKey(key string) string {
+  return "systemConfig.demo." + key + ".description"
+}
+
+func demoDisplaySchema() []byte {
+  return []byte(fmt.Sprintf(
+    \`{"type":"object","properties":{"popupLimit":{"type":"integer","title":"Popup limit","description":"Maximum notifications displayed by the notification bell popup.","x-i18n":{"titleKey":%q,"descriptionKey":%q}}},"x-i18n":{"titleKey":%q,"descriptionKey":%q}}\`,
+    demoConfigTitleKey(demoDisplayPopupLimitKey),
+    demoConfigDescriptionKey(demoDisplayPopupLimitKey),
+    demoConfigTitleKey(demoDisplayKey),
+    demoConfigDescriptionKey(demoDisplayKey),
+  ))
+}
+`,
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('referenced locale key systemConfig.demo.demo.display.title is missing');
+    expect(result.stdout).toContain('referenced locale key systemConfig.demo.demo.display.description is missing');
+    expect(result.stdout).toContain('referenced locale key systemConfig.demo.display.popupLimit.title is missing');
+    expect(result.stdout).toContain(
+      'referenced locale key systemConfig.demo.display.popupLimit.description is missing',
+    );
+    expect(result.stderr).toBe('');
+  });
+
+  it('allows fmt.Sprintf system config schema fallback copy when runtime locale keys exist', async () => {
+    const result = await runGovernanceScriptWithServerSourceAndLocales(
+      `
+<template><span /></template>
+`,
+      `
+package demo
+
+const demoDisplayKey = "demo.display"
+const demoDisplayPopupLimitKey = "display.popupLimit"
+
+func demoConfigTitleKey(key string) string {
+  return "systemConfig.demo." + key + ".title"
+}
+
+func demoConfigDescriptionKey(key string) string {
+  return "systemConfig.demo." + key + ".description"
+}
+
+func demoDisplaySchema() []byte {
+  return []byte(fmt.Sprintf(
+    \`{"type":"object","properties":{"popupLimit":{"type":"integer","title":"Popup limit","description":"Maximum notifications displayed by the notification bell popup.","x-i18n":{"titleKey":%q,"descriptionKey":%q}}},"x-i18n":{"titleKey":%q,"descriptionKey":%q}}\`,
+    demoConfigTitleKey(demoDisplayPopupLimitKey),
+    demoConfigDescriptionKey(demoDisplayPopupLimitKey),
+    demoConfigTitleKey(demoDisplayKey),
+    demoConfigDescriptionKey(demoDisplayKey),
+  ))
+}
+`,
+      JSON.stringify({
+        systemConfig: {
+          demo: {
+            demo: {
+              display: {
+                title: 'Notification display',
+                description: 'Notification Center display defaults.',
+              },
+            },
+            display: {
+              popupLimit: {
+                title: 'Popup limit',
+                description: 'Maximum notifications displayed by the notification bell popup.',
+              },
+            },
+          },
+        },
+      }),
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
+    expect(result.stderr).toBe('');
+  });
 });
 
 describe('check-i18n-governance fixture rules', () => {

@@ -293,6 +293,7 @@ function collectServerI18nKeys(context: ScanContext): Set<string> {
     /\\"(?:domainKey|groupKey|groupDescriptionKey|titleKey|displayKey|descriptionKey|labelKey|emptyKey|messageKey|unitKey|placeholderKey|domain_key|group_key|group_description_key|title_key|display_key|description_key|label_key|empty_key|message_key|unit_key|placeholder_key)\\"\s*:\s*\\"([^"\\$]+)\\"/g;
   const serverSQLAliasKeyPattern =
     /['"]([^'"$]+)['"]\s+(?:AS\s+)?(?:title_key|display_key|description_key|label_key|empty_key|message_key)\b/gi;
+  const dynamicKeyCallPattern = /\b([A-Za-z_]\w*)\(\s*([A-Za-z_]\w*)\s*\)/g;
 
   for (const file of context.serverFiles) {
     const source = preserveLineStructure(file.source);
@@ -330,6 +331,12 @@ function collectServerI18nKeys(context: ScanContext): Set<string> {
     for (const configKey of configDefinitionKeys) {
       for (const template of dynamicKeyFunctions.values())
         addServerI18nKey(keys, `${template.prefix}${configKey}${template.suffix}`);
+    }
+
+    for (const match of source.matchAll(dynamicKeyCallPattern)) {
+      const template = dynamicKeyFunctions.get(match[1]);
+      const argumentValue = stringConstants.get(match[2]);
+      if (template && argumentValue) addServerI18nKey(keys, `${template.prefix}${argumentValue}${template.suffix}`);
     }
   }
 

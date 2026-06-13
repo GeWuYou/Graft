@@ -1,0 +1,23 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
+.log-table-stack-cells() {
+  .stack-cell__secondary {
+    color: var(--td-text-color-secondary);
+    margin: 0;
+  }
+
+  .stack-cell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--graft-density-gap-4);
+    min-width: 0;
+  }
+
+  .stack-cell--compact strong,
+  .stack-cell--compact span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

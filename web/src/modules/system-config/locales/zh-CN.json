@@ -211,15 +211,17 @@
         },
         "display": {
           "title": "通知展示",
-          "description": "通知中心的展示默认配置。",
-          "showReadDays": {
-            "title": "已读展示天数",
-            "description": "已读通知的默认展示时间范围。"
-          },
-          "popupLimit": {
-            "title": "铃铛弹层数量",
-            "description": "通知铃铛弹层最多展示条数。"
-          }
+          "description": "通知中心的展示默认配置。"
+        }
+      },
+      "display": {
+        "showReadDays": {
+          "title": "已读展示天数",
+          "description": "已读通知的默认展示时间范围。"
+        },
+        "popupLimit": {
+          "title": "铃铛弹层数量",
+          "description": "通知铃铛弹层最多展示条数。"
         }
       }
     },

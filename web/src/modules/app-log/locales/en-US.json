@@ -7,24 +7,29 @@
   "appLog": {
     "page": {
       "title": "App Logs",
-      "description": "Inspect retained runtime troubleshooting logs across component, operation, severity, and correlation fields.",
+      "description": "Inspect retained runtime troubleshooting logs across component, event key, severity, and correlation fields.",
       "refresh": "Refresh",
       "retry": "Retry",
       "errorTitle": "App logs are temporarily unavailable",
       "loadFailed": "Failed to load app logs",
-      "summary": "{count} app logs on this page",
       "footerTotal": "{count} total records",
       "emptyTitle": "No app logs",
       "emptyDescription": "Adjust filters and try again.",
       "detailTitle": "App Log Detail",
-      "searchPlaceholder": "Search component, operation, message, or error",
-      "tableHint": "The table is ordered by latest retained occurrence time.",
+      "searchPlaceholder": "Search component, event key, message, or error",
       "columnSettings": "Column Settings"
     },
     "actions": {
       "search": "Search",
       "reset": "Reset",
       "detail": "Detail",
+      "more": "More",
+      "delete": "Delete",
+      "batchDelete": "Batch Delete",
+      "deleteSuccess": "App log deleted",
+      "deleteFail": "Failed to delete app log",
+      "batchDeleteSuccess": "Selected app logs deleted",
+      "batchDeleteFail": "Failed to delete selected app logs",
       "copy": "Copy",
       "copySuccess": "Copied",
       "copyFail": "Copy failed",
@@ -34,6 +39,18 @@
       "moveSorterUp": "Move Up",
       "moveSorterDown": "Move Down"
     },
+    "batch": {
+      "selected": "{count} app logs selected",
+      "cancelSelection": "Cancel Selection"
+    },
+    "deleteDialog": {
+      "title": "Delete App Log",
+      "batchTitle": "Batch Delete App Logs",
+      "description": "Delete app log #{id}? The retention cleanup policy will not change.",
+      "batchDescription": "Delete the selected {count} app logs? The retention cleanup policy will not change.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
     "presets": {
       "label": "Quick Filters",
       "all": "All",
@@ -41,12 +58,18 @@
       "warnings": "Warnings",
       "lastHour": "Last Hour"
     },
+    "columnViews": {
+      "label": "View Presets",
+      "default": "Default View",
+      "troubleshooting": "Troubleshooting View",
+      "technical": "Technical View",
+      "resetDefault": "Restore Default Columns"
+    },
     "filters": {
       "occurredRange": "Occurrence Time",
       "component": "Component",
-      "operation": "Operation",
+      "operation": "Event",
       "requestId": "Request ID",
-      "traceId": "Trace ID",
       "route": "Route Template",
       "method": "Method",
       "message": "Message",
@@ -74,9 +97,8 @@
         "sorterBuilder": "Sort Order",
         "severity": "Severity",
         "component": "Component",
-        "operation": "Operation",
+        "operation": "Event",
         "requestId": "Request ID",
-        "traceId": "Trace ID",
         "message": "Message",
         "error": "Error"
       }
@@ -85,9 +107,10 @@
       "occurredAt": "Occurred At",
       "severity": "Severity",
       "component": "Component",
-      "operation": "Operation",
+      "operation": "Event Key",
       "message": "Message",
       "correlation": "Correlation",
+      "requestId": "Request ID",
       "fields": "Fields",
       "actions": "Actions"
     },
@@ -97,6 +120,7 @@
       "message": "Message",
       "error": "Error",
       "fields": "Structured Fields",
+      "rawJson": "Raw JSON",
       "fullContext": "Full App Log Context",
       "expandContext": "Expand full app log JSON",
       "collapseContext": "Collapse full app log JSON",
@@ -106,7 +130,7 @@
       "contextEmpty": "No app log context is available."
     },
     "values": {
-      "noOperation": "No operation",
+      "noOperation": "No event",
       "noCorrelation": "No correlation",
       "noError": "No error",
       "emptyField": "-"

@@ -14,109 +14,72 @@
     @update:visible="$emit('update:visible', $event)"
   >
     <div v-if="record" class="app-log-detail">
-      <section class="app-log-detail__section">
-        <h4>{{ t('appLog.detail.basic') }}</h4>
-        <div class="app-log-detail__grid">
-          <div class="app-log-detail__item">
-            <span>{{ t('appLog.columns.occurredAt') }}</span>
-            <strong>{{ formatCompactDateTime(record.occurred_at, locale) }}</strong>
-          </div>
-          <div class="app-log-detail__item">
-            <span>{{ t('appLog.columns.severity') }}</span>
-            <t-tag :theme="appLogSeverityTheme(record.severity)" variant="light-outline" size="small">
-              {{ record.severity.toUpperCase() }}
-            </t-tag>
-          </div>
-          <div class="app-log-detail__item">
-            <span>{{ t('appLog.columns.component') }}</span>
-            <strong>{{ record.component }}</strong>
-          </div>
-          <div class="app-log-detail__item">
-            <span>{{ t('appLog.columns.operation') }}</span>
-            <strong>{{ appLogOperationText(record, t) }}</strong>
-          </div>
-          <div class="app-log-detail__item app-log-detail__item--full">
-            <span>{{ t('appLog.detail.message') }}</span>
-            <strong>{{ record.message }}</strong>
-          </div>
-          <div class="app-log-detail__item app-log-detail__item--full">
-            <span>{{ t('appLog.detail.error') }}</span>
-            <strong>{{ record.error || t('appLog.values.noError') }}</strong>
-          </div>
-        </div>
-      </section>
+      <t-descriptions :title="t('appLog.detail.basic')" bordered :column="2" size="medium">
+        <t-descriptions-item :label="t('appLog.columns.occurredAt')">
+          {{ formatCompactDateTime(record.occurred_at, locale) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('appLog.columns.severity')">
+          <t-tag :theme="appLogSeverityTheme(record.severity)" variant="light-outline" size="small">
+            {{ record.severity.toUpperCase() }}
+          </t-tag>
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('appLog.columns.component')">{{ record.component }}</t-descriptions-item>
+        <t-descriptions-item :label="t('appLog.columns.operation')">
+          {{ appLogOperationText(record, t) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('appLog.detail.message')" :span="2">{{ record.message }}</t-descriptions-item>
+        <t-descriptions-item :label="t('appLog.detail.error')" :span="2">
+          {{ record.error || t('appLog.values.noError') }}
+        </t-descriptions-item>
+      </t-descriptions>
 
-      <section class="app-log-detail__section">
-        <h4>{{ t('appLog.detail.correlation') }}</h4>
-        <div class="app-log-detail__grid">
-          <div class="app-log-detail__item app-log-detail__item--full">
-            <span>{{ t('appLog.filters.requestId') }}</span>
-            <div class="app-log-detail__copy-line">
-              <strong class="app-log-detail__mono">{{ record.request_id || t('appLog.values.emptyField') }}</strong>
-              <t-button
-                v-if="record.request_id"
-                size="small"
-                theme="default"
-                variant="text"
-                @click="copyValue(record.request_id)"
-              >
-                {{ t('appLog.actions.copy') }}
-              </t-button>
-            </div>
+      <t-descriptions :title="t('appLog.detail.correlation')" bordered :column="2" size="medium">
+        <t-descriptions-item :label="t('appLog.filters.requestId')" :span="2">
+          <div class="app-log-detail__copy-line">
+            <strong class="app-log-detail__mono">{{ record.request_id || t('appLog.values.emptyField') }}</strong>
+            <t-button
+              v-if="record.request_id"
+              size="small"
+              theme="default"
+              variant="text"
+              @click="copyValue(record.request_id)"
+            >
+              {{ t('appLog.actions.copy') }}
+            </t-button>
           </div>
-          <div class="app-log-detail__item app-log-detail__item--full">
-            <span>{{ t('appLog.filters.traceId') }}</span>
-            <div class="app-log-detail__copy-line">
-              <strong class="app-log-detail__mono">{{ record.trace_id || t('appLog.values.emptyField') }}</strong>
-              <t-button
-                v-if="record.trace_id"
-                size="small"
-                theme="default"
-                variant="text"
-                @click="copyValue(record.trace_id)"
-              >
-                {{ t('appLog.actions.copy') }}
-              </t-button>
-            </div>
-          </div>
-          <div class="app-log-detail__item">
-            <span>{{ t('appLog.filters.route') }}</span>
-            <strong>{{ record.route || t('appLog.values.emptyField') }}</strong>
-          </div>
-          <div class="app-log-detail__item">
-            <span>{{ t('appLog.filters.method') }}</span>
-            <strong>{{ record.method || t('appLog.values.emptyField') }}</strong>
-          </div>
-        </div>
-      </section>
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('appLog.filters.route')">
+          {{ record.route || t('appLog.values.emptyField') }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('appLog.filters.method')">
+          {{ record.method || t('appLog.values.emptyField') }}
+        </t-descriptions-item>
+      </t-descriptions>
 
-      <log-json-panel
-        v-for="panel in jsonPanels"
-        :key="panel.key"
-        :title="panel.title"
-        :expand-label="jsonPanelLabels.expand"
-        :collapse-label="jsonPanelLabels.collapse"
-        :copy-label="jsonPanelLabels.copy"
-        :copy-success-label="jsonPanelLabels.copySuccess"
-        :copy-fail-label="jsonPanelLabels.copyFail"
-        :empty-text="jsonPanelLabels.empty"
-        :value="panel.value"
-      />
+      <t-tabs v-model="activeTab">
+        <t-tab-panel value="fields" :label="t('appLog.detail.fields')">
+          <log-json-panel v-bind="jsonPanelBindings" :title="t('appLog.detail.fields')" :value="sanitizedFields" />
+        </t-tab-panel>
+        <t-tab-panel value="raw" :label="t('appLog.detail.rawJson')">
+          <log-json-panel v-bind="jsonPanelBindings" :title="t('appLog.detail.rawJson')" :value="sanitizedRecord" />
+        </t-tab-panel>
+      </t-tabs>
     </div>
   </t-drawer>
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
-import { copyText, LogJsonPanel } from '@/shared/observability';
+import { copyText, LogJsonPanel, sanitizeTraceFieldsForDisplay } from '@/shared/observability';
 
 import { appLogOperationText, appLogSeverityTheme } from '../shared/presentation';
 import type { AppLogItem } from '../types/app-log';
 
 const props = defineProps<{
+  initialTab?: 'fields' | 'raw';
   record: AppLogItem | null;
   visible: boolean;
 }>();
@@ -126,26 +89,28 @@ defineEmits<{
 }>();
 
 const { t, locale } = useI18n();
+const activeTab = ref<'fields' | 'raw'>(props.initialTab ?? 'fields');
+const sanitizedFields = computed(() => sanitizeTraceFieldsForDisplay(props.record?.fields ?? {}));
+const sanitizedRecord = computed(() => sanitizeTraceFieldsForDisplay(props.record ?? {}));
 
-const jsonPanelLabels = computed(() => ({
-  expand: t('appLog.detail.expandContext'),
-  collapse: t('appLog.detail.collapseContext'),
-  copy: t('appLog.detail.copyContext'),
-  copySuccess: t('appLog.detail.copyContextSuccess'),
-  copyFail: t('appLog.detail.copyContextFail'),
-  empty: t('appLog.detail.contextEmpty'),
+const jsonPanelBindings = computed(() => ({
+  expandLabel: t('appLog.detail.expandContext'),
+  collapseLabel: t('appLog.detail.collapseContext'),
+  copyLabel: t('appLog.detail.copyContext'),
+  copySuccessLabel: t('appLog.detail.copyContextSuccess'),
+  copyFailLabel: t('appLog.detail.copyContextFail'),
+  emptyText: t('appLog.detail.contextEmpty'),
 }));
 
-const jsonPanels = computed(() => {
-  if (!props.record) {
-    return [];
-  }
-
-  return [
-    { key: 'fields', title: t('appLog.detail.fields'), value: props.record.fields },
-    { key: 'full', title: t('appLog.detail.fullContext'), value: props.record },
-  ];
-});
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      activeTab.value = props.initialTab ?? 'fields';
+    }
+  },
+  { immediate: true },
+);
 
 async function copyValue(value: string) {
   try {
@@ -167,37 +132,8 @@ async function copyValue(value: string) {
   gap: var(--graft-density-gap-24);
 }
 
-.app-log-detail__section h4 {
-  margin: 0 0 var(--graft-density-gap-12);
-}
-
-.app-log-detail__grid {
-  display: grid;
-  gap: var(--graft-density-gap-12);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.app-log-detail__item {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-medium);
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-6);
-  min-width: 0;
-  padding: var(--graft-density-gap-12);
-}
-
-.app-log-detail__item span {
-  color: var(--td-text-color-secondary);
-}
-
-.app-log-detail__item strong {
+.app-log-detail :deep(.t-descriptions__content) {
   overflow-wrap: anywhere;
-}
-
-.app-log-detail__item--full {
-  grid-column: 1 / -1;
 }
 
 .app-log-detail__copy-line {
@@ -209,11 +145,5 @@ async function copyValue(value: string) {
 
 .app-log-detail__mono {
   font-family: var(--td-font-family-mono, monospace);
-}
-
-@media (width <= 768px) {
-  .app-log-detail__grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

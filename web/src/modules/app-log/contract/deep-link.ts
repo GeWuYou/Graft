@@ -15,7 +15,6 @@ export type AppLogRouteQuery = Partial<{
   component: string;
   operation: string;
   request_id: string;
-  trace_id: string;
   message: string;
   error: string;
   sort: string | string[];
@@ -29,7 +28,6 @@ const APP_LOG_QUERY_KEYS = [
   'component',
   'operation',
   'request_id',
-  'trace_id',
   'message',
   'error',
 ] as const;

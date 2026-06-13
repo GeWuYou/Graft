@@ -13,15 +13,6 @@
       >
         <template #actions>
           <t-button
-            theme="default"
-            variant="outline"
-            :loading="loading"
-            data-testid="role-refresh"
-            @click="() => fetchRolePageData()"
-          >
-            {{ t('rbac.roleList.refresh') }}
-          </t-button>
-          <t-button
             v-permission="permissionCodes.ROLE_CREATE"
             theme="primary"
             data-testid="role-create"
@@ -37,7 +28,7 @@
           <t-input
             v-model="filters.keyword"
             clearable
-            class="toolbar__search"
+            class="management-list-search"
             :placeholder="t('rbac.roleList.toolbar.searchPlaceholder')"
           />
           <t-select
@@ -49,11 +40,6 @@
           />
           <t-button theme="default" variant="text" @click="resetFilters">
             {{ t('rbac.roleList.toolbar.clearFilters') }}
-          </t-button>
-        </template>
-        <template #actions>
-          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-            {{ t('rbac.roleList.columnSettings') }}
           </t-button>
         </template>
       </management-toolbar>
@@ -69,6 +55,15 @@
               {{ t('rbac.roleList.toolbar.clearFilters') }}
             </t-button>
           </div>
+        </template>
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('rbac.roleList.columnSettings')"
+            :refresh-label="t('rbac.roleList.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="() => fetchRolePageData()"
+          />
         </template>
 
         <div v-if="permissionCatalogError" class="inline-warning">
@@ -171,7 +166,7 @@
               v-model:current="pagination.current"
               v-model:page-size="pagination.pageSize"
               :total="filteredRoles.length"
-              :page-size-options="[10, 20, 50]"
+              :page-size-options="[10, 20, 50, 100]"
               :show-page-number="true"
             />
           </management-table-pagination>
@@ -526,6 +521,7 @@ import {
   ManagementTablePagination,
   ManagementToolbar,
   TableActionMenu,
+  TableViewToolbar,
 } from '@/shared/components/management';
 import { useAssignmentSelection, useTabPageSnapshot } from '@/shared/composables';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';

@@ -4620,6 +4620,95 @@
         }
       }
     },
+    "/api/audit/logs/{id}": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get audit log detail",
+        "operationId": "getAuditLogDetail",
+        "description": "Returns one immutable audit-log evidence record for drawer-based inspection.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit log detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-log-detail-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid audit log id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Audit log not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/audit/overview": {
       "get": {
         "tags": [
@@ -6912,6 +7001,95 @@
         }
       }
     },
+    "/api/app-log/batch-delete": {
+      "post": {
+        "tags": [
+          "app-log"
+        ],
+        "summary": "Delete app logs in batch",
+        "operationId": "postAppLogBatchDelete",
+        "description": "Explicitly deletes selected retained app-log rows without changing the logger-owned retention cleanup policy.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app-log-batch-delete-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "App logs deleted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid app log id set.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "One or more app logs were not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/app-log/{id}": {
       "get": {
         "tags": [
@@ -6954,6 +7132,93 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-app-log-detail-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid app log id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "App log not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "app-log"
+        ],
+        "summary": "Delete one app log",
+        "operationId": "deleteAppLog",
+        "description": "Explicitly deletes one retained app-log row without changing the logger-owned retention cleanup policy.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App log deleted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
                 }
               }
             }
@@ -7682,14 +7947,7 @@
             "$ref": "#/components/parameters/request-id-header"
           },
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
+            "$ref": "#/components/parameters/announcement-id-path"
           }
         ],
         "security": [
@@ -7754,14 +8012,7 @@
             "$ref": "#/components/parameters/request-id-header"
           },
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
+            "$ref": "#/components/parameters/announcement-id-path"
           }
         ],
         "requestBody": {
@@ -7851,14 +8102,7 @@
             "$ref": "#/components/parameters/request-id-header"
           },
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
+            "$ref": "#/components/parameters/announcement-id-path"
           }
         ],
         "security": [
@@ -7903,6 +8147,34 @@
               }
             }
           },
+          "409": {
+            "description": "Published announcements must be archived before deletion.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                },
+                "examples": {
+                  "publishedDeleteForbidden": {
+                    "summary": "Published announcement delete conflict",
+                    "value": {
+                      "success": false,
+                      "code": "ANNOUNCEMENT_PUBLISHED_DELETE_FORBIDDEN",
+                      "message": "已发布公告需先归档后删除",
+                      "traceId": "018fd40f-a68d-7d5d-8c89-13fd8c9cbe4a",
+                      "messageKey": "announcement.published_delete_forbidden",
+                      "locale": "zh-CN"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -7916,7 +8188,7 @@
         ],
         "summary": "Publish an announcement",
         "operationId": "postAnnouncementPublish",
-        "description": "Publishes an announcement, using the supplied publish time or the current server time.",
+        "description": "Publishes a draft announcement or re-publishes an archived announcement. The server writes published_at to the current service time and published_by to the actor. publish_at is the visibility start time; omitted or null stores publish_at as null for immediate visibility after publish.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -7925,14 +8197,7 @@
             "$ref": "#/components/parameters/request-id-header"
           },
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
+            "$ref": "#/components/parameters/announcement-id-path"
           }
         ],
         "requestBody": {
@@ -8154,14 +8419,7 @@
             "$ref": "#/components/parameters/request-id-header"
           },
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 1
-            }
+            "$ref": "#/components/parameters/announcement-id-path"
           }
         ],
         "security": [
@@ -8436,8 +8694,14 @@
       "AuditLogListResponse": {
         "$ref": "#/components/schemas/audit-log-list-response"
       },
+      "AuditLogDetailResponse": {
+        "$ref": "#/components/schemas/audit-log-detail-response"
+      },
       "EnvelopedAuditLogListResponse": {
         "$ref": "#/components/schemas/enveloped-audit-log-list-response"
+      },
+      "EnvelopedAuditLogDetailResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-log-detail-response"
       },
       "AuditOverviewItem": {
         "$ref": "#/components/schemas/audit-overview-item"
@@ -8630,6 +8894,9 @@
       },
       "AppLogListResponse": {
         "$ref": "#/components/schemas/app-log-list-response"
+      },
+      "AppLogBatchDeleteRequest": {
+        "$ref": "#/components/schemas/app-log-batch-delete-request"
       },
       "EnvelopedAppLogListResponse": {
         "$ref": "#/components/schemas/enveloped-app-log-list-response"
@@ -10164,6 +10431,28 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/audit-log-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "audit-log-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/audit-log-list-item"
+          }
+        ]
+      },
+      "enveloped-audit-log-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-log-detail-response"
               }
             }
           }
@@ -13099,6 +13388,25 @@
           }
         ]
       },
+      "app-log-batch-delete-request": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "enveloped-app-log-detail-response": {
         "allOf": [
           {
@@ -13901,12 +14209,33 @@
           "publish_at": {
             "type": "string",
             "format": "date-time",
-            "nullable": true
+            "nullable": true,
+            "description": "Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time."
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility."
+          },
+          "published_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "nullable": true,
+            "description": "User id that performed the latest publish or re-publish action. Existing rows may remain null."
+          },
+          "archived_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish."
           },
           "expire_at": {
             "type": "string",
             "format": "date-time",
-            "nullable": true
+            "nullable": true,
+            "description": "Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status."
           },
           "created_by": {
             "type": "integer",
@@ -14009,7 +14338,8 @@
           },
           "content": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 10000
           },
           "level": {
             "$ref": "#/components/schemas/announcement-level"
@@ -14024,12 +14354,14 @@
           "publish_at": {
             "type": "string",
             "format": "date-time",
-            "nullable": true
+            "nullable": true,
+            "description": "Announcement visibility start time. Null means immediately visible after publish."
           },
           "expire_at": {
             "type": "string",
             "format": "date-time",
-            "nullable": true
+            "nullable": true,
+            "description": "Announcement visibility end time. Null means long-term valid."
           }
         }
       },
@@ -14082,12 +14414,14 @@
           "publish_at": {
             "type": "string",
             "format": "date-time",
-            "nullable": true
+            "nullable": true,
+            "description": "Announcement visibility start time. Updating this field changes only the effective visibility window, not the latest publish action time."
           },
           "expire_at": {
             "type": "string",
             "format": "date-time",
-            "nullable": true
+            "nullable": true,
+            "description": "Announcement visibility end time. Null means long-term valid."
           }
         }
       },
@@ -14098,7 +14432,7 @@
             "type": "string",
             "format": "date-time",
             "nullable": true,
-            "description": "Optional explicit publish time; omitted means publish immediately."
+            "description": "Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish."
           }
         }
       },
@@ -14699,6 +15033,17 @@
             "summary": "Dry-run action",
             "value": "dry-run"
           }
+        }
+      },
+      "announcement-id-path": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Announcement id.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
         }
       }
     },

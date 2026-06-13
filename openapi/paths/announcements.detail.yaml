@@ -119,5 +119,24 @@ delete:
         application/json:
           schema:
             $ref: ../components/schemas/error-response.yaml
+    '409':
+      description: Published announcements must be archived before deletion.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+          examples:
+            publishedDeleteForbidden:
+              summary: Published announcement delete conflict
+              value:
+                success: false
+                code: ANNOUNCEMENT_PUBLISHED_DELETE_FORBIDDEN
+                message: 已发布公告需先归档后删除
+                traceId: 018fd40f-a68d-7d5d-8c89-13fd8c9cbe4a
+                messageKey: announcement.published_delete_forbidden
+                locale: zh-CN
     '500':
       $ref: ../components/responses/internal-server-error.yaml

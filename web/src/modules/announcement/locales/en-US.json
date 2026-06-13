@@ -27,7 +27,7 @@
       "viewLater": "View Later",
       "openCenter": "Open Announcement Center",
       "markRead": "Mark Read",
-      "publishAt": "Published"
+      "publishAt": "Effective"
     },
     "user": {
       "title": "Announcement Center",
@@ -49,8 +49,8 @@
       "emptyUnreadDescription": "There are no unread announcements. View all announcements instead.",
       "showAll": "View All",
       "footerTotal": "{count} Announcements Total",
-      "publishAt": "Publish At",
-      "expireAt": "Expire At",
+      "publishAt": "Effective At",
+      "expireAt": "Expires At",
       "readAt": "Read At",
       "markReadSuccess": "Announcement Marked Read",
       "markReadFailed": "Failed to Mark Announcement",
@@ -59,11 +59,13 @@
     },
     "management": {
       "title": "Announcement Management",
-      "description": "Manage long-running platform announcements, publishing time, and visibility status for all users.",
+      "description": "Manage long-running platform announcements, effective time, and visibility status for all users.",
       "refresh": "Refresh",
       "create": "Create Announcement",
       "search": "Search",
       "reset": "Clear Filters",
+      "columnSettings": "Column Settings",
+      "resetColumns": "Restore Default Columns",
       "summary": "{count} Announcements",
       "tableHint": "Filter announcements by status, level, pinned state, and keyword.",
       "loadFailed": "Failed to Load Announcements",
@@ -83,8 +85,15 @@
       "archiveFailed": "Failed to Archive Announcement",
       "deleteFailed": "Failed to Delete Announcement",
       "detailLoadFailed": "Failed to Load Announcement Details",
-      "deleteConfirm": "Delete this announcement?",
+      "deletePublishedHint": "Archive the published announcement before deleting it.",
+      "deleteDialog": {
+        "title": "Delete Announcement",
+        "description": "After deletion, this announcement will be removed from the management list. This action cannot be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
       "publishNow": "Publish Now",
+      "republish": "Republish",
       "archive": "Archive",
       "delete": "Delete",
       "detail": "Details",
@@ -93,11 +102,16 @@
       "columns": {
         "title": "Announcement",
         "status": "Status",
+        "visibility": "Visibility",
         "level": "Level",
         "pinned": "Pinned",
-        "publishAt": "Publish At",
-        "expireAt": "Expire At",
+        "publishedAt": "Published At",
+        "publishedBy": "Published By",
+        "publishAt": "Effective At",
+        "expireAt": "Expires At",
+        "createdAt": "Created At",
         "updatedAt": "Updated At",
+        "archivedAt": "Archived At",
         "operation": "Actions",
         "deliveryMode": "Delivery"
       },
@@ -124,10 +138,14 @@
         "contentPlaceholder": "Supports Markdown: paragraphs, bold text, lists, links, and code blocks",
         "level": "Level",
         "levelPlaceholder": "Select announcement level",
-        "publishAt": "Publish At",
-        "expireAt": "Expire At",
-        "publishAtPlaceholder": "Select publish time",
-        "expireAtPlaceholder": "Select expire time",
+        "publishAt": "Effective At",
+        "expireAt": "Expires At",
+        "publishAtPlaceholder": "Select effective time",
+        "expireAtPlaceholder": "Select expiration time",
+        "publishAtHelp": "Leave empty to show immediately after publish. Choose a future time to schedule visibility, or a past time for backfill.",
+        "expireAtHelp": "Leave empty for long-term validity. After expiry, users no longer see it and the lifecycle status is not auto-archived.",
+        "immediateEffective": "Immediate Effective",
+        "setCurrentTime": "Use Current Time",
         "pinned": "Pinned Announcement",
         "cancel": "Cancel",
         "confirm": "Save Announcement",
@@ -137,7 +155,7 @@
           "level": "Announcement level is required",
           "deliveryMode": "Select delivery mode"
         },
-        "invalidTimeWindow": "Expire time must be later than publish time",
+        "invalidTimeWindow": "Expiration time must be later than effective time; when effective time is empty, expiration time must be later than now",
         "deliveryMode": "Delivery Mode",
         "deliveryModePlaceholder": "Select delivery mode",
         "deliveryModeHelp": {
@@ -159,9 +177,19 @@
         "timeline": "Time Information",
         "createdAt": "Created At",
         "updatedAt": "Updated At",
-        "publishAt": "Publish At",
-        "expireAt": "Expire At"
+        "publishedAt": "Published At",
+        "publishedBy": "Published By",
+        "publishAt": "Effective At",
+        "expireAt": "Expires At",
+        "archivedAt": "Archived At"
       }
+    },
+    "visibility": {
+      "draft": "Draft",
+      "scheduled": "Not Started",
+      "visible": "Visible",
+      "expired": "Expired",
+      "archived": "Archived"
     },
     "status": {
       "draft": "Draft",
@@ -183,6 +211,8 @@
       "unread": "Unread"
     },
     "value": {
+      "immediateEffective": "After Publish",
+      "longTerm": "Long-Term",
       "notSet": "Not Set"
     },
     "deliveryMode": {

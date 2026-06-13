@@ -82,6 +82,18 @@ func (r *runtimeAppLogRecorderRepo) CreateAppLog(_ context.Context, input logger
 	return logger.AppLogRecord{}, nil
 }
 
+func (r *runtimeAppLogRecorderRepo) DeleteAppLogByID(context.Context, uint64) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return false, nil
+}
+
+func (r *runtimeAppLogRecorderRepo) DeleteAppLogsByIDs(context.Context, []uint64) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return 0, nil
+}
+
 func (r *runtimeAppLogRecorderRepo) DeleteAppLogsBefore(_ context.Context, cutoff time.Time) (int64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

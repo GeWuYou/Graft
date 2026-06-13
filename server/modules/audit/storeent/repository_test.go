@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"math"
 	"strconv"
 	"strings"
@@ -238,6 +239,54 @@ func TestRepositoryDeleteAuditLogsBeforeDeletesOnlyOlderRecords(t *testing.T) {
 	}
 	if result.Items[0].RequestID != "req-equal" || result.Items[1].RequestID != "req-recent" {
 		t.Fatalf("expected cutoff and recent records to remain, got %#v", result.Items)
+	}
+}
+
+func TestRepositoryReadAuditLogReturnsOneRecord(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	createdAt := time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC)
+	created, err := repo.CreateAuditLog(ctx, auditstore.CreateAuditLogInput{
+		Action:       "auth.token.expired",
+		ResourceType: "auth",
+		ResourceID:   "token",
+		ResourceName: "access token",
+		Success:      false,
+		RequestID:    "req-detail",
+		IP:           "127.0.0.1",
+		UserAgent:    "curl/8",
+		Message:      "Token expired",
+		Metadata:     json.RawMessage(`{"auditSource":"SECURITY_EVENT","trace_id":"trace-detail"}`),
+		CreatedAt:    createdAt,
+	})
+	if err != nil {
+		t.Fatalf("create audit log: %v", err)
+	}
+
+	detail, err := repo.ReadAuditLog(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("read audit log: %v", err)
+	}
+	if detail.ID != created.ID || detail.RequestID != "req-detail" || detail.TraceID != "trace-detail" {
+		t.Fatalf("expected detail to round-trip and enrich metadata, got %#v", detail)
+	}
+}
+
+func TestRepositoryReadAuditLogMapsMissingRow(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	_, err = repo.ReadAuditLog(context.Background(), 404)
+	if !errors.Is(err, auditstore.ErrAuditLogNotFound) {
+		t.Fatalf("expected audit log not found, got %v", err)
 	}
 }
 

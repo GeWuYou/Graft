@@ -31,6 +31,11 @@
       "moveSorterUp": "Move Up",
       "moveSorterDown": "Move Down",
       "detail": "Detail",
+      "more": "More",
+      "copyRequestId": "Copy Request ID",
+      "copyPath": "Copy Path",
+      "viewRelatedAppLogs": "View Related App Logs",
+      "viewRelatedAuditEvents": "View Related Audit Events",
       "viewRelatedAuditRecords": "View Related Audit Records",
       "copy": "Copy",
       "copySuccess": "Copied",
@@ -45,6 +50,13 @@
       "slowRequests": "Slow Requests",
       "currentUser": "Current User",
       "lastHour": "Last Hour"
+    },
+    "columnViews": {
+      "label": "View Presets",
+      "default": "Default View",
+      "troubleshooting": "Troubleshooting View",
+      "technical": "Technical View",
+      "resetDefault": "Restore Default Columns"
     },
     "filters": {
       "requestId": "Request ID",
@@ -97,6 +109,8 @@
       "durationMs": "Duration",
       "user": "User",
       "requestId": "Request ID",
+      "clientIp": "Client IP",
+      "userAgent": "User-Agent",
       "operation": "Operation"
     },
     "path": {
@@ -110,6 +124,7 @@
     },
     "detail": {
       "basic": "Basic Facts",
+      "correlation": "Correlation",
       "network": "Network",
       "size": "Transfer Size",
       "requestId": "Request ID",
@@ -119,15 +134,17 @@
       "userAgent": "User-Agent",
       "requestSize": "Request Size",
       "responseSize": "Response Size",
+      "occurredAtRaw": "Occurred At",
       "userId": "User ID",
       "user": "Username",
-      "context": "Full Request Context",
-      "expandContext": "Expand full request context JSON",
-      "collapseContext": "Collapse full request context JSON",
+      "rawJson": "Raw JSON",
+      "context": "Raw JSON",
+      "expandContext": "Expand raw JSON",
+      "collapseContext": "Collapse raw JSON",
       "copyContext": "Copy JSON",
-      "copyContextSuccess": "Request context JSON copied",
-      "copyContextFail": "Failed to copy request context JSON",
-      "contextEmpty": "No full request context is available for this request."
+      "copyContextSuccess": "Raw JSON copied",
+      "copyContextFail": "Failed to copy raw JSON",
+      "contextEmpty": "No raw JSON is available for this request."
     }
   }
 }

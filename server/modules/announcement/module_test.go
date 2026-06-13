@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
+	"graft/server/internal/testassert"
 	announcementcontract "graft/server/modules/announcement/contract"
 	announcementstore "graft/server/modules/announcement/store"
 )
@@ -223,7 +225,8 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 		t.Fatalf("expected draft create status, got %q", created.Status)
 	}
 
-	published, err := service.Publish(ctx, created.ID, nil, &actorID)
+	beforePublish := time.Now().UTC()
+	published, err := service.Publish(ctx, created.ID, &publishAt, &actorID)
 	if err != nil {
 		t.Fatalf("publish announcement: %v", err)
 	}
@@ -233,6 +236,9 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	if published.PublishAt == nil || !published.PublishAt.Equal(publishAt.UTC()) {
 		t.Fatalf("expected publish_at to keep UTC input, got %#v", published.PublishAt)
 	}
+	assertAnnouncementPublishedAtAfter(t, published, beforePublish)
+	assertAnnouncementPublishedBy(t, published, actorID)
+	assertAnnouncementArchivedAtCleared(t, published)
 	if err := service.Delete(ctx, created.ID, actorID); !errors.Is(err, errAnnouncementPublishedDelete) {
 		t.Fatalf("expected published delete guard, got %v", err)
 	}
@@ -244,6 +250,7 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	if archived.Status != announcementcontract.AnnouncementStatusArchived.String() {
 		t.Fatalf("expected archived status, got %q", archived.Status)
 	}
+	assertAnnouncementArchivedAtSet(t, archived)
 	if _, err := service.Update(ctx, created.ID, announcementstore.UpdateInput{
 		Title:   "New",
 		Content: "New",
@@ -256,6 +263,52 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	}
 	if _, err := service.GetAdmin(ctx, created.ID); !errors.Is(err, errAnnouncementNotFound) {
 		t.Fatalf("expected deleted announcement not found, got %v", err)
+	}
+}
+
+func TestAnnouncementRepublishArchivedClearsEffectiveTimeAndPreservesReadState(t *testing.T) {
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	userID := uint64(42)
+	publishAt := time.Now().UTC().Add(-2 * time.Hour)
+	created := createAnnouncementForUserTest(t, service, "Republish", publishAt, nil, actorID)
+	if _, err := service.MarkRead(ctx, userID, created.ID); err != nil {
+		t.Fatalf("mark read before archive: %v", err)
+	}
+	archived, err := service.Archive(ctx, created.ID, &actorID)
+	if err != nil {
+		t.Fatalf("archive announcement: %v", err)
+	}
+	if archived.ArchivedAt == nil {
+		t.Fatal("expected archived_at before republish")
+	}
+
+	beforeRepublish := time.Now().UTC()
+	republished, err := service.Publish(ctx, created.ID, nil, &actorID)
+	if err != nil {
+		t.Fatalf("republish archived announcement: %v", err)
+	}
+	if republished.Status != announcementcontract.AnnouncementStatusPublished.String() {
+		t.Fatalf("expected republished status, got %q", republished.Status)
+	}
+	assertAnnouncementArchivedAtCleared(t, republished)
+	assertAnnouncementPublishedBy(t, republished, actorID)
+	if republished.PublishAt != nil {
+		t.Fatalf("expected republish without publish_at to store null effective time, got %#v", republished.PublishAt)
+	}
+	assertAnnouncementPublishedAtAfter(t, republished, beforeRepublish)
+
+	result, err := service.ListCurrentUser(ctx, UserListQuery{UserID: userID, Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("list current user after republish: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].ReadAt == nil {
+		t.Fatalf("expected republished announcement to preserve read state, got total=%d items=%#v", result.Total, result.Items)
 	}
 }
 
@@ -285,6 +338,76 @@ func TestAnnouncementPublishOverridesStoredPublishAt(t *testing.T) {
 	}
 	if overridden.PublishAt == nil || !overridden.PublishAt.Equal(overridePublishAt.UTC()) {
 		t.Fatalf("expected explicit publish_at override, got %#v", overridden.PublishAt)
+	}
+	assertAnnouncementPublishedAtSet(t, overridden)
+}
+
+func TestAnnouncementPublishWithoutEffectiveTimeIsImmediatelyVisible(t *testing.T) {
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	created, err := service.Create(ctx, announcementstore.CreateInput{
+		Title:   "Immediate",
+		Content: "Immediate",
+		Level:   announcementcontract.AnnouncementLevelInfo.String(),
+		ActorID: &actorID,
+	})
+	if err != nil {
+		t.Fatalf("create announcement: %v", err)
+	}
+	published, err := service.Publish(ctx, created.ID, nil, &actorID)
+	if err != nil {
+		t.Fatalf("publish announcement: %v", err)
+	}
+	if published.PublishAt != nil {
+		t.Fatalf("expected publish_at to stay null for immediate visibility, got %#v", published.PublishAt)
+	}
+	assertAnnouncementPublishedAtSet(t, published)
+	result, err := service.ListCurrentUser(ctx, UserListQuery{UserID: 42, Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("list current-user announcements: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].Announcement.ID != published.ID {
+		t.Fatalf("expected immediate announcement to be visible, got total=%d items=%#v", result.Total, result.Items)
+	}
+}
+
+func TestAnnouncementUpdatePublishedEffectiveTimeDoesNotChangePublishedAt(t *testing.T) {
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	publishAt := time.Now().UTC().Add(-time.Hour)
+	published := createAnnouncementForUserTest(t, service, "Edit effective", publishAt, nil, actorID)
+	if published.PublishedAt == nil {
+		t.Fatal("expected published_at after publish")
+	}
+	originalPublishedAt := *published.PublishedAt
+	nextPublishAt := publishAt.Add(time.Hour)
+	updated, err := service.Update(ctx, published.ID, announcementstore.UpdateInput{
+		Title:        published.Title,
+		Content:      published.Content,
+		Level:        published.Level,
+		DeliveryMode: published.DeliveryMode,
+		Pinned:       published.Pinned,
+		PublishAt:    &nextPublishAt,
+		ActorID:      &actorID,
+	})
+	if err != nil {
+		t.Fatalf("update published announcement: %v", err)
+	}
+	if updated.PublishedAt == nil || !updated.PublishedAt.Equal(originalPublishedAt) {
+		t.Fatalf("expected edit to keep published_at %s, got %#v", originalPublishedAt, updated.PublishedAt)
+	}
+	if updated.PublishAt == nil || !updated.PublishAt.Equal(nextPublishAt.UTC()) {
+		t.Fatalf("expected edit to update effective publish_at, got %#v", updated.PublishAt)
 	}
 }
 
@@ -607,6 +730,44 @@ func TestAnnouncementRoutesRejectInvalidQueryParams(t *testing.T) {
 	}
 }
 
+func TestAnnouncementDeletePublishedRouteReturnsDomainConflict(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	actorID := uint64(7)
+	published := createAnnouncementForUserTest(t, service, "Published", time.Now().UTC().Add(-time.Hour), nil, actorID)
+	engine := gin.New()
+	ctx := newAnnouncementTestContext(engine)
+	if err := registerAnnouncementRoutes(ctx, service, announcementGuards{
+		authenticated: announcementRouteTestAuth(42),
+		read:          announcementRouteTestAuth(42),
+		create:        announcementRouteTestAuth(42),
+		update:        announcementRouteTestAuth(42),
+		publish:       announcementRouteTestAuth(42),
+		delete:        announcementRouteTestAuth(42),
+	}); err != nil {
+		t.Fatalf("register announcement routes: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/announcements/%d", published.ID), nil)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("expected 409 published delete conflict, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	payload := testassert.DecodeErrorResponse(t, recorder)
+	testassert.AssertErrorPayload(
+		t,
+		payload,
+		announcementcontract.AnnouncementPublishedDeleteForbidden.String(),
+		"ANNOUNCEMENT_PUBLISHED_DELETE_FORBIDDEN",
+		"zh-CN",
+	)
+}
+
 func TestAnnouncementMapperRejectsInt64Overflow(t *testing.T) {
 	if _, err := toAnnouncementItem(announcementstore.Announcement{ID: uint64(1) << 63}); !errors.Is(err, errAnnouncementIDOverflow) {
 		t.Fatalf("expected announcement id overflow, got %v", err)
@@ -716,7 +877,7 @@ func createAnnouncementForUserTest(
 	if err != nil {
 		t.Fatalf("create %s: %v", title, err)
 	}
-	published, err := service.Publish(ctx, item.ID, nil, &actorID)
+	published, err := service.Publish(ctx, item.ID, &publishAt, &actorID)
 	if err != nil {
 		t.Fatalf("publish %s: %v", title, err)
 	}
@@ -746,6 +907,41 @@ func createDraftForUserTest(
 	return item
 }
 
+func assertAnnouncementPublishedBy(t *testing.T, item announcementstore.Announcement, actorID uint64) {
+	t.Helper()
+	if item.PublishedBy == nil || *item.PublishedBy != actorID {
+		t.Fatalf("expected published_by actor %d, got %#v", actorID, item.PublishedBy)
+	}
+}
+
+func assertAnnouncementPublishedAtSet(t *testing.T, item announcementstore.Announcement) {
+	t.Helper()
+	if item.PublishedAt == nil {
+		t.Fatal("expected published_at to be set")
+	}
+}
+
+func assertAnnouncementPublishedAtAfter(t *testing.T, item announcementstore.Announcement, before time.Time) {
+	t.Helper()
+	if item.PublishedAt == nil || item.PublishedAt.Before(before) {
+		t.Fatalf("expected published_at after %s, got %#v", before, item.PublishedAt)
+	}
+}
+
+func assertAnnouncementArchivedAtSet(t *testing.T, item announcementstore.Announcement) {
+	t.Helper()
+	if item.ArchivedAt == nil {
+		t.Fatal("expected archived_at to be set")
+	}
+}
+
+func assertAnnouncementArchivedAtCleared(t *testing.T, item announcementstore.Announcement) {
+	t.Helper()
+	if item.ArchivedAt != nil {
+		t.Fatalf("expected archived_at to be empty, got %#v", item.ArchivedAt)
+	}
+}
+
 type testAnnouncementRepository struct{}
 
 func (testAnnouncementRepository) Ping(context.Context) error {
@@ -772,7 +968,7 @@ func (testAnnouncementRepository) Update(context.Context, uint64, announcementst
 	return announcementstore.Announcement{}, announcementstore.ErrAnnouncementNotFound
 }
 
-func (testAnnouncementRepository) Publish(context.Context, uint64, time.Time, *uint64) (announcementstore.Announcement, error) {
+func (testAnnouncementRepository) Publish(context.Context, uint64, *time.Time, time.Time, *uint64) (announcementstore.Announcement, error) {
 	return announcementstore.Announcement{}, announcementstore.ErrAnnouncementNotFound
 }
 

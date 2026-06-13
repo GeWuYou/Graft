@@ -4,7 +4,7 @@
 -->
 
 <template>
-  <div class="table-action-menu">
+  <div class="table-action-menu" @click.stop>
     <t-button
       v-if="primaryAction"
       :data-testid="primaryAction.testId"
@@ -17,7 +17,7 @@
       {{ primaryAction.label }}
     </t-button>
     <t-dropdown v-if="menuOptions.length > 0" :options="menuOptions" trigger="click" @click="handleMenuClick">
-      <t-button size="small" theme="default" variant="outline">
+      <t-button size="small" theme="default" variant="outline" @click.stop>
         {{ resolvedMoreLabel }}
       </t-button>
     </t-dropdown>
@@ -34,6 +34,8 @@ type ActionOption = {
   testId?: string;
   value: string;
 };
+type DropdownActionPayload = { value?: string | number | Record<string, unknown> } | string | number;
+type DropdownActionContext = { e?: MouseEvent };
 
 const props = withDefaults(
   defineProps<{
@@ -88,7 +90,9 @@ const menuOptions = computed(() =>
   })),
 );
 
-function handlePrimaryClick() {
+function handlePrimaryClick(event?: MouseEvent) {
+  event?.stopPropagation();
+
   const action = primaryAction.value;
 
   if (action && !action.disabled) {
@@ -96,7 +100,9 @@ function handlePrimaryClick() {
   }
 }
 
-function handleMenuClick(payload: { value?: string | number | Record<string, unknown> } | string | number) {
+function handleMenuClick(payload: DropdownActionPayload, context?: DropdownActionContext) {
+  context?.e?.stopPropagation();
+
   const action = typeof payload === 'object' && payload ? payload.value : payload;
   if (typeof action === 'string') {
     emit('action', action);

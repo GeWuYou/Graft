@@ -21,8 +21,8 @@ describe('app-log presentation helpers', () => {
 
   it('formats fallback operation and correlation text', () => {
     expect(appLogOperationText({ operation: '' } as never, t)).toBe('No operation');
-    expect(appLogCorrelationText({ request_id: '', trace_id: 'trace-1' } as never, t)).toBe('trace-1');
-    expect(appLogCorrelationText({ request_id: '', trace_id: '' } as never, t)).toBe('No correlation');
+    expect(appLogCorrelationText({ request_id: 'req-1' } as never, t)).toBe('req-1');
+    expect(appLogCorrelationText({ request_id: '' } as never, t)).toBe('No correlation');
   });
 
   it('counts bounded fields', () => {

@@ -10,4 +10,5 @@ export const APP_LOG_ROUTE_PATH = {
 export const APP_LOG_API_PATH = {
   LIST: '/api/app-log',
   DETAIL: '/api/app-log/{id}',
+  BATCH_DELETE: '/api/app-log/batch-delete',
 } as const;

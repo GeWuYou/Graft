@@ -83,6 +83,14 @@ func (r *appLoggerSinkRecorder) recordCount() int {
 	return len(r.records)
 }
 
+func (r *appLoggerSinkRecorder) DeleteAppLogByID(context.Context, uint64) (bool, error) {
+	return false, nil
+}
+
+func (r *appLoggerSinkRecorder) DeleteAppLogsByIDs(context.Context, []uint64) (int64, error) {
+	return 0, nil
+}
+
 func (r *appLoggerSinkRecorder) DeleteAppLogsBefore(context.Context, time.Time) (int64, error) {
 	return 0, nil
 }

@@ -785,6 +785,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/audit/logs/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get audit log detail
+     * @description Returns one immutable audit-log evidence record for drawer-based inspection.
+     */
+    get: operations['getAuditLogDetail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/audit/overview': {
     parameters: {
       query?: never;
@@ -1218,6 +1238,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/app-log/batch-delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Delete app logs in batch
+     * @description Explicitly deletes selected retained app-log rows without changing the logger-owned retention cleanup policy.
+     */
+    post: operations['postAppLogBatchDelete'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/app-log/{id}': {
     parameters: {
       query?: never;
@@ -1229,7 +1269,11 @@ export interface paths {
     get: operations['getAppLogDetail'];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete one app log
+     * @description Explicitly deletes one retained app-log row without changing the logger-owned retention cleanup policy.
+     */
+    delete: operations['deleteAppLog'];
     options?: never;
     head?: never;
     patch?: never;
@@ -1438,7 +1482,7 @@ export interface paths {
     put?: never;
     /**
      * Publish an announcement
-     * @description Publishes an announcement, using the supplied publish time or the current server time.
+     * @description Publishes a draft announcement or re-publishes an archived announcement. The server writes published_at to the current service time and published_by to the actor. publish_at is the visibility start time; omitted or null stores publish_at as null for immediate visibility after publish.
      */
     post: operations['postAnnouncementPublish'];
     delete?: never;
@@ -1595,7 +1639,9 @@ export interface components {
     AuditDrilldownScope: components['schemas']['audit-drilldown-scope'];
     AuditBusinessCategory: components['schemas']['audit-business-category'];
     AuditLogListResponse: components['schemas']['audit-log-list-response'];
+    AuditLogDetailResponse: components['schemas']['audit-log-detail-response'];
     EnvelopedAuditLogListResponse: components['schemas']['enveloped-audit-log-list-response'];
+    EnvelopedAuditLogDetailResponse: components['schemas']['enveloped-audit-log-detail-response'];
     AuditOverviewItem: components['schemas']['audit-overview-item'];
     AuditOverviewSummary: components['schemas']['audit-overview-summary'];
     AuditEvidenceContext: components['schemas']['audit-evidence-context'];
@@ -1660,6 +1706,7 @@ export interface components {
     EnvelopedAccessLogDetailResponse: components['schemas']['enveloped-access-log-detail-response'];
     AppLogDetailResponse: components['schemas']['app-log-detail-response'];
     AppLogListResponse: components['schemas']['app-log-list-response'];
+    AppLogBatchDeleteRequest: components['schemas']['app-log-batch-delete-request'];
     EnvelopedAppLogListResponse: components['schemas']['enveloped-app-log-list-response'];
     EnvelopedAppLogDetailResponse: components['schemas']['enveloped-app-log-detail-response'];
     DashboardCurrentUserSummary: components['schemas']['dashboard-current-user-summary'];
@@ -2117,6 +2164,10 @@ export interface components {
     };
     'enveloped-audit-log-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-log-list-response'];
+    };
+    'audit-log-detail-response': components['schemas']['audit-log-list-item'];
+    'enveloped-audit-log-detail-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['audit-log-detail-response'];
     };
     'audit-overview-summary': {
       total_logs: number;
@@ -3142,6 +3193,9 @@ export interface components {
     'enveloped-app-log-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['app-log-list-response'];
     };
+    'app-log-batch-delete-request': {
+      ids: number[];
+    };
     'enveloped-app-log-detail-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['app-log-detail-response'];
     };
@@ -3384,9 +3438,30 @@ export interface components {
       status: components['schemas']['announcement-status'];
       delivery_mode: components['schemas']['announcement-delivery-mode'];
       pinned: boolean;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+       */
       publish_at?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+       */
+      published_at?: string | null;
+      /**
+       * Format: int64
+       * @description User id that performed the latest publish or re-publish action. Existing rows may remain null.
+       */
+      published_by?: number | null;
+      /**
+       * Format: date-time
+       * @description Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+       */
+      archived_at?: string | null;
+      /**
+       * Format: date-time
+       * @description Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+       */
       expire_at?: string | null;
       /** Format: int64 */
       created_by?: number | null;
@@ -3422,9 +3497,15 @@ export interface components {
       delivery_mode: components['schemas']['announcement-delivery-mode'];
       /** @default false */
       pinned: boolean;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility start time. Null means immediately visible after publish.
+       */
       publish_at?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility end time. Null means long-term valid.
+       */
       expire_at?: string | null;
     };
     'enveloped-announcement-item': components['schemas']['api-envelope'] & {
@@ -3437,15 +3518,21 @@ export interface components {
       delivery_mode: components['schemas']['announcement-delivery-mode'];
       /** @default false */
       pinned: boolean;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility start time. Updating this field changes only the effective visibility window, not the latest publish action time.
+       */
       publish_at?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility end time. Null means long-term valid.
+       */
       expire_at?: string | null;
     };
     'publish-announcement-request': {
       /**
        * Format: date-time
-       * @description Optional explicit publish time; omitted means publish immediately.
+       * @description Optional visibility start time. Omitted or null stores publish_at as null, meaning the announcement becomes visible immediately after publish.
        */
       publish_at?: string | null;
     };
@@ -5753,6 +5840,60 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getAuditLogDetail: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Audit log detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-audit-log-detail-response'];
+        };
+      };
+      /** @description Invalid audit log id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Audit log not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getAuditOverview: {
     parameters: {
       query?: {
@@ -6952,6 +7093,62 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postAppLogBatchDelete: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['app-log-batch-delete-request'];
+      };
+    };
+    responses: {
+      /** @description App logs deleted. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid app log id set. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description One or more app logs were not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getAppLogDetail: {
     parameters: {
       query?: never;
@@ -6979,6 +7176,60 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-app-log-detail-response'];
+        };
+      };
+      /** @description Invalid app log id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description App log not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  deleteAppLog: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description App log deleted. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
         };
       };
       /** @description Invalid app log id. */
@@ -7501,6 +7752,16 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Announcement was not found. */
       404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Published announcements must be archived before deletion. */
+      409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;

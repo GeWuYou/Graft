@@ -16,13 +16,11 @@
     :loading="loading"
     :reload-label="t('scheduledTask.list.refresh')"
     :retry-label="t('scheduledTask.list.refresh')"
+    :show-header-reload="false"
     :source="{ labelKey: 'scheduledTask.list.eyebrow', fallback: t('scheduledTask.list.eyebrow') }"
     @reload="refreshTasks"
   >
     <template #actions>
-      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-        {{ t('scheduledTask.list.columnSettings') }}
-      </t-button>
       <t-button v-permission="permissionCodes.CREATE" theme="primary" @click="openCreateDrawer">
         <template #icon><add-icon /></template>
         {{ t('scheduledTask.list.create') }}
@@ -44,58 +42,75 @@
       </section>
     </template>
     <template #filters>
-      <div class="scheduled-task-toolbar">
-        <t-input
-          v-model="filters.keyword"
-          class="scheduled-task-toolbar__search"
-          clearable
-          :placeholder="t('scheduledTask.list.filters.searchPlaceholder')"
-        >
-          <template #prefix-icon><search-icon /></template>
-        </t-input>
-        <t-select
-          v-model="filters.jobKey"
-          class="scheduled-task-toolbar__select"
-          :placeholder="t('scheduledTask.list.filters.job')"
-        >
-          <t-option value="all" :label="t('scheduledTask.list.filters.allJobs')" />
-          <t-option-group
-            v-for="group in groupedJobDefinitions"
-            :key="group.module"
-            :label="moduleDisplayName(group.module)"
+      <management-toolbar>
+        <template #filters>
+          <t-input
+            v-model="filters.keyword"
+            class="management-list-search"
+            clearable
+            :placeholder="t('scheduledTask.list.filters.searchPlaceholder')"
           >
+            <template #prefix-icon><search-icon /></template>
+          </t-input>
+          <t-select
+            v-model="filters.jobKey"
+            class="scheduled-task-toolbar__select"
+            :placeholder="t('scheduledTask.list.filters.job')"
+          >
+            <t-option value="all" :label="t('scheduledTask.list.filters.allJobs')" />
+            <t-option-group
+              v-for="group in groupedJobDefinitions"
+              :key="group.module"
+              :label="moduleDisplayName(group.module)"
+            >
+              <t-option
+                v-for="job in group.items"
+                :key="job.job_key"
+                :value="job.job_key"
+                :label="jobDefinitionTitle(job)"
+              />
+            </t-option-group>
+          </t-select>
+          <t-select
+            v-model="filters.status"
+            class="scheduled-task-toolbar__select"
+            :placeholder="t('scheduledTask.list.filters.status')"
+          >
+            <t-option value="all" :label="t('scheduledTask.list.filters.allStatuses')" />
             <t-option
-              v-for="job in group.items"
-              :key="job.job_key"
-              :value="job.job_key"
-              :label="jobDefinitionTitle(job)"
+              v-for="statusOption in statusOptions"
+              :key="statusOption"
+              :value="statusOption"
+              :label="statusLabel(statusOption)"
             />
-          </t-option-group>
-        </t-select>
-        <t-select
-          v-model="filters.status"
-          class="scheduled-task-toolbar__select"
-          :placeholder="t('scheduledTask.list.filters.status')"
-        >
-          <t-option value="all" :label="t('scheduledTask.list.filters.allStatuses')" />
-          <t-option
-            v-for="statusOption in statusOptions"
-            :key="statusOption"
-            :value="statusOption"
-            :label="statusLabel(statusOption)"
-          />
-        </t-select>
-      </div>
+          </t-select>
+          <t-button theme="primary" @click="handleFilterQuery">
+            {{ t('scheduledTask.list.filters.query') }}
+          </t-button>
+          <t-button theme="default" variant="text" @click="resetFilters">
+            {{ t('scheduledTask.list.filters.reset') }}
+          </t-button>
+        </template>
+      </management-toolbar>
     </template>
     <template #table>
-      <t-card class="scheduled-task-table-card" :bordered="true">
-        <template #header>
+      <management-table-card>
+        <template #head>
           <div class="scheduled-task-table-head">
             <div>
-              <h2>{{ t('scheduledTask.list.tableTitle') }}</h2>
+              <p class="scheduled-task-table-head__summary">{{ tableSummary }}</p>
               <p>{{ t('scheduledTask.list.tableHint', { count: filteredTasks.length }) }}</p>
             </div>
           </div>
+        </template>
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('scheduledTask.list.columnSettings')"
+            :refresh-label="t('scheduledTask.list.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="refreshTasks"
+          />
         </template>
 
         <t-table
@@ -258,7 +273,20 @@
             </div>
           </template>
         </t-table>
-      </t-card>
+
+        <template #footer>
+          <management-table-pagination :summary="footerSummary">
+            <t-pagination
+              v-model:current="pagination.current"
+              v-model:page-size="pagination.pageSize"
+              :total="pagination.total"
+              :page-size-options="[10, 20, 50, 100]"
+              :show-page-number="true"
+              @change="handlePageChange"
+            />
+          </management-table-pagination>
+        </template>
+      </management-table-card>
     </template>
 
     <template #detail>
@@ -1059,7 +1087,14 @@ import { useI18n } from 'vue-i18n';
 
 import { requestNotificationHeaderRefresh } from '@/modules/notification/contract/refresh';
 import { readErrorField } from '@/modules/shared/error-field';
-import { buildVisibleColumns, calculateTableContentWidth } from '@/shared/components/management';
+import {
+  buildVisibleColumns,
+  calculateTableContentWidth,
+  ManagementTableCard,
+  ManagementTablePagination,
+  ManagementToolbar,
+  TableViewToolbar,
+} from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { formatLocaleDateTime, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS } from '@/shared/observability';
 import type { ApiRequestError } from '@/types/axios';
@@ -1290,6 +1325,12 @@ const filters = reactive<FilterModel>({
   status: 'all',
 });
 
+const pagination = reactive({
+  current: 1,
+  pageSize: 20,
+  total: 0,
+});
+
 const taskForm = reactive<TaskFormModel>(createEmptyTaskForm());
 const formFieldErrors = reactive<FormFieldErrors>({
   cronExpression: '',
@@ -1320,6 +1361,19 @@ const filteredTasks = computed(() => {
     return matchesKeyword && matchesJob && matchesStatus;
   });
 });
+
+const tableSummary = computed(() =>
+  t('scheduledTask.list.tableSummary', {
+    count: filteredTasks.value.length,
+    total: pagination.total,
+  }),
+);
+
+const footerSummary = computed(() =>
+  t('scheduledTask.list.footerTotal', {
+    count: pagination.total,
+  }),
+);
 
 const recentRunSummary = computed<RunSummary>(() => {
   const since = Date.now() - 24 * 60 * 60 * 1000;
@@ -1628,8 +1682,12 @@ async function refreshTasks() {
   errorMessage.value = '';
 
   try {
-    const response = await getScheduledTasks({ limit: 100, offset: 0 });
+    const response = await getScheduledTasks({
+      limit: pagination.pageSize,
+      offset: (pagination.current - 1) * pagination.pageSize,
+    });
     tasks.value = response.items;
+    syncPaginationFromResponse(response);
     await refreshRunSummaries(response.items);
   } catch (error) {
     logger.error(error instanceof Error ? error : 'load scheduled tasks failed', {
@@ -1639,6 +1697,37 @@ async function refreshTasks() {
   } finally {
     loading.value = false;
   }
+}
+
+function syncPaginationFromResponse(response: { limit?: number; offset?: number; total?: number }) {
+  if (typeof response.total === 'number' && response.total >= 0) {
+    pagination.total = response.total;
+  }
+  if (typeof response.limit === 'number' && response.limit > 0) {
+    pagination.pageSize = response.limit;
+  }
+  if (typeof response.offset === 'number' && response.offset >= 0) {
+    pagination.current = Math.floor(response.offset / pagination.pageSize) + 1;
+  }
+}
+
+function handlePageChange(pageInfo: { current: number; pageSize: number }) {
+  pagination.current = pageInfo.current;
+  pagination.pageSize = pageInfo.pageSize;
+  void refreshTasks();
+}
+
+function handleFilterQuery() {
+  pagination.current = 1;
+  void refreshTasks();
+}
+
+function resetFilters() {
+  filters.keyword = '';
+  filters.jobKey = 'all';
+  filters.status = 'all';
+  pagination.current = 1;
+  void refreshTasks();
 }
 
 async function refreshRunSummaries(items: ScheduledTaskItem[]) {
@@ -1767,6 +1856,7 @@ async function submitTaskForm() {
       formMode.value === 'create' ? t('scheduledTask.list.createSuccess') : t('scheduledTask.list.updateSuccess'),
     );
     await loadRuns(saved.task_key);
+    await refreshTasks();
   } catch (error) {
     logger.error(error instanceof Error ? error : 'save scheduled task failed', {
       taskKey: taskForm.taskKey,
@@ -2219,6 +2309,10 @@ async function confirmDeleteTask() {
     runHistoryByTaskKey.value = remainingRuns;
     deleteDialogVisible.value = false;
     void MessagePlugin.success(t('scheduledTask.list.deleteSuccess'));
+    if (tasks.value.length === 0 && pagination.current > 1) {
+      pagination.current -= 1;
+    }
+    await refreshTasks();
   } catch (error) {
     logger.error(error instanceof Error ? error : 'delete scheduled task failed', {
       taskKey: task.task_key,

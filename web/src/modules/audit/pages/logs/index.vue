@@ -11,15 +11,14 @@
     :error-message="listError"
     :error-title="t('audit.logList.errorTitle')"
     :loading="loading"
+    compact-header
     :reload-label="t('audit.logList.refresh')"
     :retry-label="t('audit.logList.retry')"
+    :show-header-reload="false"
     :source="{ labelKey: 'menu.audit.title', fallback: t('menu.audit.title'), color: 'var(--td-warning-color-5)' }"
     @reload="fetchAuditLogs"
   >
     <template #actions>
-      <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-        {{ t('audit.logList.columnSettings') }}
-      </t-button>
       <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
         {{ t('audit.logList.actions.backToMonitor') }}
       </t-button>
@@ -70,17 +69,35 @@
         :visible-column-keys="visibleColumnKeys"
         @detail="openDetailDrawer"
         @page-change="fetchAuditLogs"
-      />
+        @view-access-log="openAccessLog"
+        @view-app-log="openAppLog"
+        @view-security-event="openSecurityEvent"
+      >
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('audit.logList.columnSettings')"
+            :refresh-label="t('audit.logList.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="fetchAuditLogs"
+          />
+        </template>
+      </audit-table>
     </template>
     <template #detail>
       <advanced-query-column-drawer
         v-model:visible="columnDrawerVisible"
         v-model:selected-keys="visibleColumnKeys"
         :columns="columnSettingOptions"
+        :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
+        :presets-label="t('audit.logList.columnViews.label')"
+        :reset-label="t('audit.logList.columnViews.resetDefault')"
         :title="t('audit.logList.columnSettings')"
+        :view-presets="columnViewPresets"
       />
       <audit-detail-drawer
         v-model:visible="detailDrawerVisible"
+        :initial-tab="detailInitialTab"
         :record="detailRecord"
         :rows="rows"
         :monitor-origin="navigationContext.monitorOrigin"
@@ -94,6 +111,9 @@ import { computed, onActivated, onDeactivated, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
+import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
+import { TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { describeCorrelationId, formatMessageWithCorrelation } from '@/shared/correlation';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -106,16 +126,18 @@ import {
   normalizePageStateRangeForRoute,
   normalizeRouteRangeForPageState,
   normalizeSorters,
+  openLogDetailRow,
 } from '@/shared/observability';
 import { createLogger } from '@/utils/logger';
 
-import { getAuditLogs } from '../../api/audit';
+import { getAuditLogDetail, getAuditLogs } from '../../api/audit';
 import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
 import AuditTable from '../../components/AuditTable.vue';
 import { AUDIT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { buildAuditLogsLocation, parseAuditLogsRouteQuery } from '../../contract/deep-link';
 import {
+  buildAuditRelatedRecordLocation,
   buildMonitorReturnLocation,
   resolveAuditNavigationContext,
   withMonitorOrigin,
@@ -146,6 +168,28 @@ defineOptions({
 
 const logger = createLogger('audit.logs');
 const securityEventPresetResults: AuditResult[] = ['DENIED', 'FAILED', 'ERROR'];
+const DEFAULT_VISIBLE_COLUMNS = ['action', 'actor', 'resource', 'correlation', 'result', 'risk', 'created_at'];
+const TROUBLESHOOTING_VISIBLE_COLUMNS = [
+  'action',
+  'actor',
+  'resource',
+  'correlation',
+  'session_id',
+  'result',
+  'risk',
+  'created_at',
+];
+const TECHNICAL_VISIBLE_COLUMNS = [
+  'action',
+  'actor',
+  'resource',
+  'correlation',
+  'session_id',
+  'ip',
+  'result',
+  'risk',
+  'created_at',
+];
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
@@ -156,9 +200,10 @@ const rows = ref<AuditLogListItem[]>([]);
 const total = ref(0);
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
+const detailInitialTab = ref<'context' | 'metadata' | 'raw'>('context');
 const latestRequestSeq = ref(0);
 const columnDrawerVisible = ref(false);
-const visibleColumnKeys = ref(['action', 'actor', 'resource', 'correlation', 'result', 'risk', 'created_at']);
+const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
 const pagination = ref({
   current: 1,
   pageSize: 10,
@@ -218,9 +263,20 @@ const columnSettingOptions = computed(() => [
   { label: t('audit.logList.columns.actor'), value: 'actor' },
   { label: t('audit.logList.columns.resource'), value: 'resource' },
   { label: t('audit.logList.columns.correlation'), value: 'correlation' },
+  { label: t('audit.logList.columns.sessionId'), value: 'session_id' },
+  { label: t('audit.logList.columns.ip'), value: 'ip' },
   { label: t('audit.logList.columns.result'), value: 'result' },
   { label: t('audit.logList.columns.risk'), value: 'risk' },
   { label: t('audit.logList.columns.createdAt'), value: 'created_at' },
+]);
+const columnViewPresets = computed(() => [
+  { value: 'default', label: t('audit.logList.columnViews.default'), keys: DEFAULT_VISIBLE_COLUMNS },
+  {
+    value: 'troubleshooting',
+    label: t('audit.logList.columnViews.troubleshooting'),
+    keys: TROUBLESHOOTING_VISIBLE_COLUMNS,
+  },
+  { value: 'technical', label: t('audit.logList.columnViews.technical'), keys: TECHNICAL_VISIBLE_COLUMNS },
 ]);
 
 const hasClientOnlyFilters = computed(() => false);
@@ -232,6 +288,9 @@ const footerSummary = computed(() =>
     ? t('audit.logList.footerFiltered', { count: displayRows.value.length })
     : t('audit.logList.footerTotal', { count: total.value }),
 );
+const reportDetailLoadError = (error: unknown) => {
+  MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed')));
+};
 
 const isCurrentAuditLogsRoute = computed(
   () => route.path === buildAuditLogsLocation({}).path || route.name === AUDIT_BOOTSTRAP_ROUTE.LOG_LIST.routeName,
@@ -451,9 +510,37 @@ function createDefaultFilters(): AuditClientFilterState {
   };
 }
 
-function openDetailDrawer(row: AuditLogListItem) {
-  detailRecord.value = row;
-  detailDrawerVisible.value = true;
+async function openDetailDrawer(row: AuditLogListItem) {
+  detailInitialTab.value = 'context';
+  await openLogDetailRow(row, getAuditLogDetail, detailRecord, detailDrawerVisible, reportDetailLoadError);
+}
+
+function auditRequestId(row: AuditLogListItem) {
+  return row.request_id || '';
+}
+
+function openAccessLog(row: AuditLogListItem) {
+  const requestId = auditRequestId(row);
+  if (!requestId) {
+    return;
+  }
+
+  void router.push(withMonitorOrigin(buildAccessLogRequestLocation(requestId), navigationContext.value.monitorOrigin));
+}
+
+function openAppLog(row: AuditLogListItem) {
+  const requestId = auditRequestId(row);
+  if (!requestId) {
+    return;
+  }
+
+  void router.push(
+    withMonitorOrigin(buildAppLogLocation({ request_id: requestId }), navigationContext.value.monitorOrigin),
+  );
+}
+
+function openSecurityEvent(row: AuditLogListItem) {
+  void router.push(buildAuditRelatedRecordLocation(row, navigationContext.value.monitorOrigin));
 }
 
 function applyRouteFilters() {

@@ -86,7 +86,7 @@
         "searchPlaceholder": "搜索角色名、显示名、角色编码",
         "typeAll": "全部类型",
         "typePlaceholder": "筛选角色类型",
-        "clearFilters": "清空筛选"
+        "clearFilters": "重置"
       },
       "form": {
         "createTitle": "创建角色",
@@ -212,7 +212,7 @@
       "toolbar": {
         "searchPlaceholder": "搜索权限编码、权限名称",
         "modulePlaceholder": "筛选模块",
-        "clearFilters": "清空筛选"
+        "clearFilters": "重置"
       }
     },
     "permissionCatalog": {
@@ -291,6 +291,10 @@
       "appLogRead": {
         "display": "读取应用日志",
         "description": "允许读取日志模块拥有的应用日志检索数据。"
+      },
+      "appLogDelete": {
+        "display": "删除应用日志",
+        "description": "允许显式删除当前保留范围内的应用日志记录。"
       },
       "systemConfigRead": {
         "display": "读取系统配置",

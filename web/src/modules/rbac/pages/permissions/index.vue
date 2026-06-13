@@ -16,11 +16,6 @@
         <template #meta>
           <t-tag theme="default" variant="light">{{ t('rbac.permissionList.readonlyNotice') }}</t-tag>
         </template>
-        <template #actions>
-          <t-button theme="default" variant="outline" :loading="loading" @click="() => fetchPermissions()">
-            {{ t('rbac.permissionList.refresh') }}
-          </t-button>
-        </template>
       </management-page-header>
 
       <management-toolbar>
@@ -28,7 +23,7 @@
           <t-input
             v-model="filters.keyword"
             clearable
-            class="toolbar__search"
+            class="management-list-search"
             :placeholder="t('rbac.permissionList.toolbar.searchPlaceholder')"
           />
           <t-select
@@ -40,11 +35,6 @@
           />
           <t-button theme="default" variant="text" @click="resetFilters">
             {{ t('rbac.permissionList.toolbar.clearFilters') }}
-          </t-button>
-        </template>
-        <template #actions>
-          <t-button theme="default" variant="outline" @click="columnDrawerVisible = true">
-            {{ t('rbac.permissionList.columnSettings') }}
           </t-button>
         </template>
       </management-toolbar>
@@ -59,6 +49,15 @@
               <p class="table-head__description">{{ t('rbac.permissionList.tableHint') }}</p>
             </div>
           </div>
+        </template>
+        <template #toolbar>
+          <table-view-toolbar
+            :column-settings-label="t('rbac.permissionList.columnSettings')"
+            :refresh-label="t('rbac.permissionList.refresh')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="() => fetchPermissions()"
+          />
         </template>
 
         <div class="inline-note">
@@ -169,7 +168,7 @@
               v-model:current="pagination.current"
               v-model:page-size="pagination.pageSize"
               :total="filteredPermissions.length"
-              :page-size-options="[10, 20, 50]"
+              :page-size-options="[10, 20, 50, 100]"
               :show-page-number="true"
             />
           </management-table-pagination>
@@ -268,6 +267,7 @@ import {
   ManagementTablePagination,
   ManagementToolbar,
   TableActionMenu,
+  TableViewToolbar,
 } from '@/shared/components/management';
 import { useTabPageSnapshot } from '@/shared/composables';
 import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
@@ -610,7 +610,6 @@ watch(
 }
 
 @media (width <= 768px) {
-  .toolbar__search,
   .toolbar__select {
     width: 100%;
   }

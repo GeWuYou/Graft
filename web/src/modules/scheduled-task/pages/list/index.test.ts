@@ -95,6 +95,8 @@ const translations = vi.hoisted(
     'scheduledTask.list.filters.allJobs': '全部执行定义',
     'scheduledTask.list.filters.allStatuses': '全部状态',
     'scheduledTask.list.filters.job': '执行定义',
+    'scheduledTask.list.filters.query': '查询',
+    'scheduledTask.list.filters.reset': '重置',
     'scheduledTask.list.filters.searchPlaceholder': '搜索任务',
     'scheduledTask.list.filters.status': '状态',
     'scheduledTask.cron.nextRun': '下次执行：{time}',
@@ -216,6 +218,8 @@ const translations = vi.hoisted(
     'scheduledTask.list.statusLabels.runtime': '运行',
     'scheduledTask.list.status.success': '成功',
     'scheduledTask.list.tableHint': '当前筛选显示 {count} 个任务。',
+    'scheduledTask.list.tableSummary': '当前页 {count} 个任务 / 共 {total} 个',
+    'scheduledTask.list.footerTotal': '共 {count} 个任务',
     'scheduledTask.list.tableTitle': '任务列表',
     'scheduledTask.list.title': '定时任务',
     'scheduledTask.list.viewDetail': '查看',
@@ -736,12 +740,13 @@ const CronExpressionFieldStub = defineComponent({
 
 const PassthroughStub = defineComponent({
   name: 'PassthroughStub',
-  props: ['header', 'help', 'label', 'tips'],
+  props: ['header', 'help', 'label', 'summary', 'tips'],
   setup(props, { attrs, slots }) {
     return () =>
       h('div', attrs, [
         props.header,
         props.label,
+        props.summary,
         props.help,
         props.tips,
         slots.content?.(),
@@ -749,6 +754,54 @@ const PassthroughStub = defineComponent({
         slots.footer?.(),
         slots.action?.(),
       ]);
+  },
+});
+
+const ManagementTableCardStub = defineComponent({
+  name: 'ManagementTableCard',
+  setup(_props, { slots }) {
+    return () => h('section', [slots.head?.(), slots.toolbar?.(), slots.default?.(), slots.footer?.()]);
+  },
+});
+
+const TableViewToolbarStub = defineComponent({
+  name: 'TableViewToolbar',
+  props: ['columnSettingsLabel', 'refreshLabel'],
+  emits: ['column-settings', 'refresh'],
+  setup(props, { emit }) {
+    return () =>
+      h('div', [
+        props.refreshLabel
+          ? h('button', { 'data-testid': 'table-refresh', onClick: () => emit('refresh') }, props.refreshLabel)
+          : null,
+        props.columnSettingsLabel
+          ? h(
+              'button',
+              { 'data-testid': 'table-column-settings', onClick: () => emit('column-settings') },
+              props.columnSettingsLabel,
+            )
+          : null,
+      ]);
+  },
+});
+
+const PaginationStub = defineComponent({
+  name: 'TPagination',
+  props: ['current', 'pageSize', 'total'],
+  emits: ['change', 'update:current', 'update:pageSize'],
+  setup(props, { emit }) {
+    return () =>
+      h('button', {
+        'data-testid': 'pagination-next',
+        'data-current': props.current,
+        'data-page-size': props.pageSize,
+        'data-total': props.total,
+        onClick: () => {
+          const nextPage = Number(props.current) + 1;
+          emit('update:current', nextPage);
+          emit('change', { current: nextPage, pageSize: Number(props.pageSize), previous: props.current });
+        },
+      });
   },
 });
 
@@ -788,6 +841,7 @@ function mountPage() {
         TInputNumber: InputNumberStub,
         TOption: PassthroughStub,
         TOptionGroup: PassthroughStub,
+        TPagination: PaginationStub,
         TPopup: PassthroughStub,
         TRadioButton: PassthroughStub,
         TRadioGroup: PassthroughStub,
@@ -798,6 +852,10 @@ function mountPage() {
         TTable: TableStub,
         TTag: PassthroughStub,
         TTextarea: TextareaStub,
+        ManagementTableCard: ManagementTableCardStub,
+        ManagementTablePagination: PassthroughStub,
+        ManagementToolbar: PassthroughStub,
+        TableViewToolbar: TableViewToolbarStub,
       },
     },
   });
@@ -906,6 +964,36 @@ describe('ScheduledTaskListPage', () => {
     expect(wrapper.find('th[data-col="operation"]').exists()).toBe(true);
   });
 
+  it('loads scheduled tasks with canonical limit and offset pagination', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(apiMocks.getScheduledTasks).toHaveBeenNthCalledWith(1, { limit: 20, offset: 0 });
+    expect(wrapper.text()).toContain('共 4 个任务');
+
+    await wrapper.find('[data-testid="pagination-next"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getScheduledTasks).toHaveBeenLastCalledWith({ limit: 20, offset: 20 });
+  });
+
+  it('moves refresh and column settings into the table toolbar', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="table-refresh"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="table-column-settings"]').exists()).toBe(true);
+
+    const header = wrapper.find('header');
+    expect(header.text()).not.toContain('刷新');
+    expect(header.text()).not.toContain('列设置');
+
+    await wrapper.find('[data-testid="table-refresh"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getScheduledTasks).toHaveBeenLastCalledWith({ limit: 20, offset: 0 });
+  });
+
   it('keeps high-frequency actions visible and folds management actions into more menu', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -939,6 +1027,11 @@ describe('ScheduledTaskListPage', () => {
     expect(wrapper.text()).toContain('custom.task');
     expect(wrapper.text()).toContain('audit.audit-log-retention-cleanup');
 
+    apiMocks.getScheduledTasks.mockResolvedValueOnce({
+      ...scheduledTasksResponse(),
+      items: scheduledTasksResponse().items.filter((item) => item.task_key !== 'custom.task'),
+      total: 3,
+    });
     await triggerOperationAction(wrapper, 4, '删除');
     await findButtonByText(wrapper, '删除')!.trigger('click');
     await flushPromises();

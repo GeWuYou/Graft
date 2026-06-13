@@ -12,11 +12,18 @@
         :title-key="titleKey"
         :description-key="descriptionKey"
         :breadcrumb="breadcrumb"
+        :compact="compactHeader"
         :source="source"
       >
         <template #actions>
           <slot name="actions" />
-          <t-button theme="default" variant="outline" :loading="loading" @click="$emit('reload')">
+          <t-button
+            v-if="showHeaderReload"
+            theme="default"
+            variant="outline"
+            :loading="loading"
+            @click="$emit('reload')"
+          >
             {{ reloadLabel }}
           </t-button>
         </template>
@@ -54,6 +61,7 @@ withDefaults(
     description?: string;
     descriptionKey?: string;
     breadcrumb?: PageHeaderBreadcrumbItem[];
+    compactHeader?: boolean;
     errorMessage?: string;
     errorTitle: string;
     loading?: boolean;
@@ -61,18 +69,21 @@ withDefaults(
     reloadLabel: string;
     retryLabel: string;
     rootClass?: string;
+    showHeaderReload?: boolean;
     source?: PageHeaderSource;
     title?: string;
     titleKey?: string;
   }>(),
   {
     breadcrumb: undefined,
+    compactHeader: false,
     description: '',
     descriptionKey: '',
     errorMessage: '',
     loading: false,
     pageType: 'query-builder-list-detail',
     rootClass: '',
+    showHeaderReload: true,
     source: undefined,
     title: '',
     titleKey: '',

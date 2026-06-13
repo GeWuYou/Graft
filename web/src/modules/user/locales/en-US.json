@@ -57,7 +57,7 @@
         "statusAll": "All Statuses",
         "statusPlaceholder": "Filter status",
         "rolePlaceholder": "Filter role",
-        "clearFilters": "Clear Filters"
+        "clearFilters": "Reset"
       },
       "status": {
         "enabled": "Enabled",

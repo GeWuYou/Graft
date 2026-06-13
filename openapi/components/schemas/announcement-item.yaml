@@ -32,10 +32,28 @@ properties:
     type: string
     format: date-time
     nullable: true
+    description: Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+  published_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+  published_by:
+    type: integer
+    format: int64
+    minimum: 1
+    nullable: true
+    description: User id that performed the latest publish or re-publish action. Existing rows may remain null.
+  archived_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
   expire_at:
     type: string
     format: date-time
     nullable: true
+    description: Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
   created_by:
     type: integer
     format: int64

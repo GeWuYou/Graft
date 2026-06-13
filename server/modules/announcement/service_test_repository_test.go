@@ -139,6 +139,9 @@ func (r *memoryAnnouncementRepository) Create(_ context.Context, input announcem
 		DeliveryMode: strings.TrimSpace(input.DeliveryMode),
 		Pinned:       input.Pinned,
 		PublishAt:    cloneTime(input.PublishAt),
+		PublishedAt:  nil,
+		PublishedBy:  nil,
+		ArchivedAt:   nil,
 		ExpireAt:     cloneTime(input.ExpireAt),
 		CreatedBy:    cloneUint64(input.ActorID),
 		UpdatedBy:    cloneUint64(input.ActorID),
@@ -180,7 +183,13 @@ func (r *memoryAnnouncementRepository) Update(_ context.Context, id uint64, inpu
 	return item, nil
 }
 
-func (r *memoryAnnouncementRepository) Publish(_ context.Context, id uint64, publishAt time.Time, actorID *uint64) (announcementstore.Announcement, error) {
+func (r *memoryAnnouncementRepository) Publish(
+	_ context.Context,
+	id uint64,
+	publishAt *time.Time,
+	publishedAt time.Time,
+	actorID *uint64,
+) (announcementstore.Announcement, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	item, ok := r.items[id]
@@ -188,8 +197,10 @@ func (r *memoryAnnouncementRepository) Publish(_ context.Context, id uint64, pub
 		return announcementstore.Announcement{}, announcementstore.ErrAnnouncementNotFound
 	}
 	item.Status = "published"
-	publishAt = publishAt.UTC()
-	item.PublishAt = &publishAt
+	item.PublishAt = cloneTime(publishAt)
+	item.PublishedAt = cloneTime(&publishedAt)
+	item.PublishedBy = cloneUint64(actorID)
+	item.ArchivedAt = nil
 	item.UpdatedBy = cloneUint64(actorID)
 	item.UpdatedAt = time.Now().UTC()
 	r.items[id] = item
@@ -204,6 +215,8 @@ func (r *memoryAnnouncementRepository) Archive(_ context.Context, id uint64, act
 		return announcementstore.Announcement{}, announcementstore.ErrAnnouncementNotFound
 	}
 	item.Status = "archived"
+	archivedAt := time.Now().UTC()
+	item.ArchivedAt = &archivedAt
 	item.UpdatedBy = cloneUint64(actorID)
 	item.UpdatedAt = time.Now().UTC()
 	r.items[id] = item
@@ -305,7 +318,7 @@ func (r *memoryAnnouncementRepository) readAtLocked(announcementID uint64, userI
 }
 
 func memoryVisibleAnnouncement(item announcementstore.Announcement, now time.Time) bool {
-	if item.DeletedAt != 0 || item.Status != "published" || item.PublishAt == nil || item.PublishAt.After(now.UTC()) {
+	if item.DeletedAt != 0 || item.Status != "published" || (item.PublishAt != nil && item.PublishAt.After(now.UTC())) {
 		return false
 	}
 	return item.ExpireAt == nil || item.ExpireAt.After(now.UTC())

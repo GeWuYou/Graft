@@ -57,7 +57,7 @@
         "statusAll": "全部状态",
         "statusPlaceholder": "筛选状态",
         "rolePlaceholder": "筛选角色",
-        "clearFilters": "清空筛选"
+        "clearFilters": "重置"
       },
       "status": {
         "enabled": "启用",
