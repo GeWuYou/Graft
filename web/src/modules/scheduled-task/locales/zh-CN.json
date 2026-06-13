@@ -204,6 +204,8 @@
       "columnSettings": "列设置",
       "tableTitle": "任务列表",
       "tableHint": "当前筛选显示 {count} 个任务。",
+      "tableSummary": "当前页 {count} 个任务 / 共 {total} 个",
+      "footerTotal": "共 {count} 个任务",
       "metricsAriaLabel": "定时任务指标",
       "emptyTitle": "暂无定时任务",
       "emptyDescription": "绑定到已注册后台任务定义的定时任务会显示在这里。",
@@ -235,7 +237,9 @@
         "status": "状态",
         "allStatuses": "全部状态",
         "job": "任务定义",
-        "allJobs": "全部任务定义"
+        "allJobs": "全部任务定义",
+        "query": "查询",
+        "reset": "重置"
       },
       "columns": {
         "task": "任务",

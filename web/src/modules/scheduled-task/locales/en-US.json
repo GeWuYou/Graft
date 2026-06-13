@@ -204,6 +204,8 @@
       "columnSettings": "Columns",
       "tableTitle": "Task List",
       "tableHint": "{count} tasks match the current filters.",
+      "tableSummary": "Current page {count} tasks / {total} total",
+      "footerTotal": "{count} tasks total",
       "metricsAriaLabel": "Scheduled Task Metrics",
       "emptyTitle": "No Scheduled Tasks",
       "emptyDescription": "Scheduled tasks bound to registered background task definitions will appear here.",
@@ -235,7 +237,9 @@
         "status": "Status",
         "allStatuses": "All Statuses",
         "job": "Task Definition",
-        "allJobs": "All Task Definitions"
+        "allJobs": "All Task Definitions",
+        "query": "Search",
+        "reset": "Reset"
       },
       "columns": {
         "task": "Task",
