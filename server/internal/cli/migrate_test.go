@@ -155,15 +155,15 @@ func assertSynthesizedMigrationFiles(t *testing.T, synthDir string, expectedName
 }
 
 // TestResolveMigrationDirFindsServerRelativePathFromRepoRoot 验证仓库根目录下
-// 的默认迁移目录会被解析为 `server` 相对路径。
+// 的模块迁移目录会被解析为 `server` 相对路径。
 func TestResolveMigrationDirFindsServerRelativePathFromRepoRoot(t *testing.T) {
 	root := t.TempDir()
-	migrationDir := filepath.Join(root, "server", moduleregistry.HistoricalSharedMigrationDir)
+	migrationDir := filepath.Join(root, "server", "modules", "user", "migrations")
 	if err := os.MkdirAll(migrationDir, 0o750); err != nil {
 		t.Fatalf("mkdir migration dir: %v", err)
 	}
 
-	resolved, err := resolveMigrationDir(root, moduleregistry.HistoricalSharedMigrationDir)
+	resolved, err := resolveMigrationDir(root, "modules/user/migrations")
 	if err != nil {
 		t.Fatalf("resolve migration dir: %v", err)
 	}
@@ -178,12 +178,12 @@ func TestResolveMigrationDirFindsServerRelativePathFromRepoRoot(t *testing.T) {
 func TestResolveMigrationDirFindsPathFromServerModuleRoot(t *testing.T) {
 	root := t.TempDir()
 	serverRoot := filepath.Join(root, "server")
-	migrationDir := filepath.Join(serverRoot, moduleregistry.HistoricalSharedMigrationDir)
+	migrationDir := filepath.Join(serverRoot, "modules", "user", "migrations")
 	if err := os.MkdirAll(migrationDir, 0o750); err != nil {
 		t.Fatalf("mkdir migration dir: %v", err)
 	}
 
-	resolved, err := resolveMigrationDir(serverRoot, moduleregistry.HistoricalSharedMigrationDir)
+	resolved, err := resolveMigrationDir(serverRoot, "modules/user/migrations")
 	if err != nil {
 		t.Fatalf("resolve migration dir: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestResolveMigrationDirFindsPathFromServerModuleRoot(t *testing.T) {
 func TestResolveMigrationDirRejectsMissingPath(t *testing.T) {
 	root := t.TempDir()
 
-	_, err := resolveMigrationDir(root, moduleregistry.HistoricalSharedMigrationDir)
+	_, err := resolveMigrationDir(root, "modules/user/migrations")
 	if err == nil {
 		t.Fatal("expected missing migration dir error")
 	}
@@ -419,31 +419,31 @@ func TestResolveMigrationDirsRejectsRegistryWithoutAtlasState(t *testing.T) {
 	}
 }
 
-// TestResolveMigrationDirsKeepsExplicitHistoricalSharedDir 验证显式传入历史共享目录时，
+// TestResolveMigrationDirsKeepsExplicitLiveDir 验证显式传入 live 迁移目录时，
 // CLI 仍会直接解析该目录，而不会回退到默认 registry 链。
-func TestResolveMigrationDirsKeepsExplicitHistoricalSharedDir(t *testing.T) {
+func TestResolveMigrationDirsKeepsExplicitLiveDir(t *testing.T) {
 	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
 	defer func() {
 		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
 	}()
 
 	root := t.TempDir()
-	historicalDir := filepath.Join(root, "server", moduleregistry.HistoricalSharedMigrationDir)
-	if err := os.MkdirAll(historicalDir, 0o750); err != nil {
-		t.Fatalf("mkdir %s: %v", historicalDir, err)
+	liveDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	if err := os.MkdirAll(liveDir, 0o750); err != nil {
+		t.Fatalf("mkdir %s: %v", liveDir, err)
 	}
 
 	migrateRegistryMigrationDirs = func() ([]string, error) {
-		t.Fatal("explicit historical dir should not consult registry")
+		t.Fatal("explicit live dir should not consult registry")
 		return nil, nil
 	}
 
-	resolved, err := resolveMigrationDirs(root, moduleregistry.HistoricalSharedMigrationDir)
+	resolved, err := resolveMigrationDirs(root, "modules/user/migrations")
 	if err != nil {
 		t.Fatalf("resolve migration dirs: %v", err)
 	}
 
-	expected := []string{historicalDir}
+	expected := []string{liveDir}
 	if !reflect.DeepEqual(resolved, expected) {
 		t.Fatalf("expected %v, got %v", expected, resolved)
 	}

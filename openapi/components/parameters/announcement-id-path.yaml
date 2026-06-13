@@ -1,0 +1,8 @@
+name: id
+in: path
+required: true
+description: Announcement id.
+schema:
+  type: integer
+  format: int64
+  minimum: 1

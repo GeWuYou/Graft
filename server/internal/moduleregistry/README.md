@@ -30,9 +30,6 @@
 * `DefaultMigrationDir`
   - CLI 默认值使用的选择器，不对应真实目录
   - `graft migrate up` / `graft dev` / `graft validate smoke` 在未显式传入 `--dir` 时，会通过它展开 live core-owned + module-owned 默认迁移链
-* `HistoricalSharedMigrationDir`
-  - 保留历史共享 Atlas 迁移目录的显式路径
-  - 仅用于手动或诊断场景；它不再属于默认迁移链
 * `CoreMigrationDirs()`
   - 暴露默认链中的 core-owned live 迁移目录
   - 当前 `internal/httpx/migrations` 持有 `access_logs` 的 canonical migration authority

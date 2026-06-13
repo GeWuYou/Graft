@@ -311,8 +311,8 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-sql-migration`
   - use when creating or modifying live Atlas/PostgreSQL migration SQL, migration directories, table or column
     comments, migration versions, indexes, unique constraints, foreign keys, or soft-delete columns; it owns the
-    `scripts/validate_sql_migrations.py` live SQL comment gate and keeps
-    `server/internal/ent/migrate/migrations/**` excluded as legacy/manual replay by default
+    `scripts/validate_sql_migrations.py` live SQL comment gate and treats the removed historical Ent/manual replay
+    chain as non-authoritative
 - `graft-worktree-init`
   - use when creating or rebuilding a local `Graft` git worktree and the setup should follow the repository-standard
     shared local resource rules without hard-coded machine paths

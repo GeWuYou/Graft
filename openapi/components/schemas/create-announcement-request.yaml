@@ -1,0 +1,30 @@
+type: object
+required:
+  - title
+  - content
+  - level
+  - delivery_mode
+properties:
+  title:
+    type: string
+    minLength: 1
+    maxLength: 200
+  content:
+    type: string
+    minLength: 1
+    maxLength: 10000
+  level:
+    $ref: ./announcement-level.yaml
+  delivery_mode:
+    $ref: ./announcement-delivery-mode.yaml
+  pinned:
+    type: boolean
+    default: false
+  publish_at:
+    type: string
+    format: date-time
+    nullable: true
+  expire_at:
+    type: string
+    format: date-time
+    nullable: true

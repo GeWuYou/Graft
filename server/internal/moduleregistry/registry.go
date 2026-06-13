@@ -16,11 +16,6 @@ import (
 // 按模块依赖顺序展开默认迁移目录集合。
 const DefaultMigrationDir = "default"
 
-// HistoricalSharedMigrationDir 保留历史共享 Atlas 迁移目录的显式访问路径。
-//
-// 该目录不再属于默认 apply 链路，但仍可通过 `--dir` 手动执行历史共享链。
-const HistoricalSharedMigrationDir = "internal/ent/migrate/migrations"
-
 const accessLogMigrationDir = "internal/httpx/migrations"
 const appLogMigrationDir = "internal/logger/migrations"
 const drilldownMigrationDir = "internal/drilldown/migrations"

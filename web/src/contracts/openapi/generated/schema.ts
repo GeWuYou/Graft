@@ -1375,6 +1375,178 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/announcements': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List announcements for management
+     * @description Returns a paged management announcement list.
+     */
+    get: operations['getAnnouncements'];
+    put?: never;
+    /**
+     * Create an announcement draft
+     * @description Creates an announcement draft for later publication.
+     */
+    post: operations['postAnnouncements'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/announcements/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get one announcement for management
+     * @description Returns one management announcement record.
+     */
+    get: operations['getAnnouncement'];
+    /**
+     * Update an announcement
+     * @description Updates editable announcement fields.
+     */
+    put: operations['putAnnouncement'];
+    post?: never;
+    /**
+     * Delete an announcement
+     * @description Soft-deletes one announcement record.
+     */
+    delete: operations['deleteAnnouncement'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/announcements/{id}/publish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Publish an announcement
+     * @description Publishes an announcement, using the supplied publish time or the current server time.
+     */
+    post: operations['postAnnouncementPublish'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/announcements/{id}/archive': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Archive an announcement
+     * @description Archives a published announcement and hides it from current-user listings.
+     */
+    post: operations['postAnnouncementArchive'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/my/announcements': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List current-user announcements
+     * @description Returns announcements visible to the current authenticated user.
+     */
+    get: operations['getMyAnnouncements'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/my/announcements/{id}/read': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mark one current-user announcement as read
+     * @description Marks one visible announcement as read for the current user.
+     */
+    post: operations['postMyAnnouncementRead'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/my/announcements/read-all': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mark all current-user announcements as read
+     * @description Marks all currently visible announcements as read for the current user.
+     */
+    post: operations['postMyAnnouncementsReadAll'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/my/announcements/unread-count': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get current-user announcement unread count
+     * @description Returns the count of currently visible unread announcements for the current user.
+     */
+    get: operations['getMyAnnouncementsUnreadCount'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1528,6 +1700,20 @@ export interface components {
     EnvelopedNotificationUnreadCountResponse: components['schemas']['enveloped-notification-unread-count-response'];
     EnvelopedNotificationItem: components['schemas']['enveloped-notification-item'];
     EnvelopedNotificationReadAllResponse: components['schemas']['enveloped-notification-read-all-response'];
+    AnnouncementLevel: components['schemas']['announcement-level'];
+    AnnouncementStatus: components['schemas']['announcement-status'];
+    AnnouncementDeliveryMode: components['schemas']['announcement-delivery-mode'];
+    AnnouncementItem: components['schemas']['announcement-item'];
+    AnnouncementListResponse: components['schemas']['announcement-list-response'];
+    AnnouncementUnreadCountResponse: components['schemas']['announcement-unread-count-response'];
+    AnnouncementReadAllResponse: components['schemas']['announcement-read-all-response'];
+    CreateAnnouncementRequest: components['schemas']['create-announcement-request'];
+    UpdateAnnouncementRequest: components['schemas']['update-announcement-request'];
+    PublishAnnouncementRequest: components['schemas']['publish-announcement-request'];
+    EnvelopedAnnouncementItem: components['schemas']['enveloped-announcement-item'];
+    EnvelopedAnnouncementListResponse: components['schemas']['enveloped-announcement-list-response'];
+    EnvelopedAnnouncementUnreadCountResponse: components['schemas']['enveloped-announcement-unread-count-response'];
+    EnvelopedAnnouncementReadAllResponse: components['schemas']['enveloped-announcement-read-all-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -3174,6 +3360,107 @@ export interface components {
     'enveloped-notification-read-all-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['notification-read-all-response'];
     };
+    /**
+     * @description Announcement lifecycle status.
+     * @enum {string}
+     */
+    'announcement-status': 'draft' | 'published' | 'archived';
+    /**
+     * @description Announcement presentation level.
+     * @enum {string}
+     */
+    'announcement-level': 'info' | 'warning' | 'success' | 'error';
+    /**
+     * @description Announcement delivery presentation mode.
+     * @enum {string}
+     */
+    'announcement-delivery-mode': 'silent' | 'popup';
+    'announcement-item': {
+      /** Format: int64 */
+      id: number;
+      title: string;
+      content: string;
+      level: components['schemas']['announcement-level'];
+      status: components['schemas']['announcement-status'];
+      delivery_mode: components['schemas']['announcement-delivery-mode'];
+      pinned: boolean;
+      /** Format: date-time */
+      publish_at?: string | null;
+      /** Format: date-time */
+      expire_at?: string | null;
+      /** Format: int64 */
+      created_by?: number | null;
+      /** Format: int64 */
+      updated_by?: number | null;
+      /** Format: int64 */
+      deleted_by?: number | null;
+      /**
+       * Format: date-time
+       * @description Current user's read time when returned by current-user endpoints.
+       */
+      read_at?: string | null;
+      /** @description Current-user unread state when returned by current-user endpoints. */
+      unread?: boolean;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    'announcement-list-response': {
+      items: components['schemas']['announcement-item'][];
+      total: number;
+      page: number;
+      page_size: number;
+    };
+    'enveloped-announcement-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['announcement-list-response'];
+    };
+    'create-announcement-request': {
+      title: string;
+      content: string;
+      level: components['schemas']['announcement-level'];
+      delivery_mode: components['schemas']['announcement-delivery-mode'];
+      /** @default false */
+      pinned: boolean;
+      /** Format: date-time */
+      publish_at?: string | null;
+      /** Format: date-time */
+      expire_at?: string | null;
+    };
+    'enveloped-announcement-item': components['schemas']['api-envelope'] & {
+      data: components['schemas']['announcement-item'];
+    };
+    'update-announcement-request': {
+      title: string;
+      content: string;
+      level: components['schemas']['announcement-level'];
+      delivery_mode: components['schemas']['announcement-delivery-mode'];
+      /** @default false */
+      pinned: boolean;
+      /** Format: date-time */
+      publish_at?: string | null;
+      /** Format: date-time */
+      expire_at?: string | null;
+    };
+    'publish-announcement-request': {
+      /**
+       * Format: date-time
+       * @description Optional explicit publish time; omitted means publish immediately.
+       */
+      publish_at?: string | null;
+    };
+    'announcement-read-all-response': {
+      updated_count: number;
+    };
+    'enveloped-announcement-read-all-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['announcement-read-all-response'];
+    };
+    'announcement-unread-count-response': {
+      count: number;
+    };
+    'enveloped-announcement-unread-count-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['announcement-unread-count-response'];
+    };
     'dashboard-stat-group-payload': {
       items: {
         key: string;
@@ -3329,6 +3616,8 @@ export interface components {
     'scheduled-task-run-id': number;
     /** @description Backend-defined Job Definition action key. */
     'scheduled-task-action-key': string;
+    /** @description Announcement id. */
+    'announcement-id-path': number;
   };
   requestBodies: never;
   headers: {
@@ -6985,6 +7274,475 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAnnouncements: {
+    parameters: {
+      query?: {
+        status?: components['schemas']['announcement-status'];
+        level?: components['schemas']['announcement-level'];
+        pinned?: boolean;
+        keyword?: string;
+        page?: number;
+        page_size?: number;
+        sort?: 'updated_desc' | 'publish_desc' | 'pinned_publish_desc';
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Announcement management page. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAnnouncements: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['create-announcement-request'];
+      };
+    };
+    responses: {
+      /** @description Created announcement draft. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-item'];
+        };
+      };
+      /** @description Invalid announcement creation request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAnnouncement: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Announcement record. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Announcement was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  putAnnouncement: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['update-announcement-request'];
+      };
+    };
+    responses: {
+      /** @description Updated announcement. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-item'];
+        };
+      };
+      /** @description Invalid announcement update request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Announcement was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  deleteAnnouncement: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Announcement was deleted. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Announcement was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAnnouncementPublish: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['publish-announcement-request'];
+      };
+    };
+    responses: {
+      /** @description Published announcement. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Announcement was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAnnouncementArchive: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Archived announcement. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Announcement was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getMyAnnouncements: {
+    parameters: {
+      query?: {
+        unread_only?: boolean;
+        page?: number;
+        page_size?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current-user announcement page. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postMyAnnouncementRead: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Announcement id. */
+        id: components['parameters']['announcement-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Updated current-user announcement. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      /** @description Announcement was not found in the current-user visible scope. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postMyAnnouncementsReadAll: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Count of newly marked read announcements. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-read-all-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getMyAnnouncementsUnreadCount: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current-user unread announcement count. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-announcement-unread-count-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
       500: components['responses']['internal-server-error'];
     };
   };

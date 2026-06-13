@@ -1,0 +1,198 @@
+{
+  "menu": {
+    "server": {
+      "announcements": {
+        "title": "Announcements"
+      }
+    }
+  },
+  "announcement": {
+    "route": {
+      "management": {
+        "title": "Announcement Management",
+        "breadcrumb": "Announcement Management"
+      },
+      "user": {
+        "title": "Announcement Center",
+        "breadcrumb": "Announcement Center"
+      }
+    },
+    "header": {
+      "open": "Open Announcement Center",
+      "title": "Announcement Center",
+      "markReadFailed": "Failed to Mark Announcement"
+    },
+    "readPanel": {
+      "close": "Close Announcement",
+      "viewLater": "View Later",
+      "openCenter": "Open Announcement Center",
+      "markRead": "Mark Read",
+      "publishAt": "Published"
+    },
+    "user": {
+      "title": "Announcement Center",
+      "description": "Review platform maintenance, release updates, security notices, and long-running information.",
+      "refresh": "Refresh",
+      "markRead": "Mark Read",
+      "markAllRead": "Mark All Read",
+      "unreadOnly": "Unread Only",
+      "summary": "{count} Announcements",
+      "unreadSummary": "{count} Unread",
+      "listHint": "Pinned announcements appear first. Read state only applies to the current account.",
+      "loadFailed": "Failed to Load Announcements",
+      "errorTitle": "Announcement Data Is Temporarily Unavailable",
+      "retry": "Retry",
+      "loading": "Loading Announcements",
+      "emptyTitle": "No Announcements",
+      "emptyDescription": "There are no visible announcements.",
+      "emptyUnreadTitle": "No Unread Announcements",
+      "emptyUnreadDescription": "There are no unread announcements. View all announcements instead.",
+      "showAll": "View All",
+      "footerTotal": "{count} Announcements Total",
+      "publishAt": "Publish At",
+      "expireAt": "Expire At",
+      "readAt": "Read At",
+      "markReadSuccess": "Announcement Marked Read",
+      "markReadFailed": "Failed to Mark Announcement",
+      "markAllReadSuccess": "All Announcements Marked Read",
+      "markAllReadFailed": "Failed to Mark All Read"
+    },
+    "management": {
+      "title": "Announcement Management",
+      "description": "Manage long-running platform announcements, publishing time, and visibility status for all users.",
+      "refresh": "Refresh",
+      "create": "Create Announcement",
+      "search": "Search",
+      "reset": "Clear Filters",
+      "summary": "{count} Announcements",
+      "tableHint": "Filter announcements by status, level, pinned state, and keyword.",
+      "loadFailed": "Failed to Load Announcements",
+      "errorTitle": "Announcement Data Is Temporarily Unavailable",
+      "retry": "Retry",
+      "emptyTitle": "No Announcements",
+      "emptyDescription": "No announcements match the current filters. Clear filters or create a new announcement.",
+      "emptyCreate": "Create Announcement",
+      "footerTotal": "{count} Announcements Total",
+      "createSuccess": "Announcement Created",
+      "updateSuccess": "Announcement Updated",
+      "publishSuccess": "Announcement Published",
+      "archiveSuccess": "Announcement Archived",
+      "deleteSuccess": "Announcement Deleted",
+      "submitFailed": "Failed to Submit Announcement",
+      "publishFailed": "Failed to Publish Announcement",
+      "archiveFailed": "Failed to Archive Announcement",
+      "deleteFailed": "Failed to Delete Announcement",
+      "detailLoadFailed": "Failed to Load Announcement Details",
+      "deleteConfirm": "Delete this announcement?",
+      "publishNow": "Publish Now",
+      "archive": "Archive",
+      "delete": "Delete",
+      "detail": "Details",
+      "edit": "Edit",
+      "more": "More",
+      "columns": {
+        "title": "Announcement",
+        "status": "Status",
+        "level": "Level",
+        "pinned": "Pinned",
+        "publishAt": "Publish At",
+        "expireAt": "Expire At",
+        "updatedAt": "Updated At",
+        "operation": "Actions",
+        "deliveryMode": "Delivery"
+      },
+      "filters": {
+        "keyword": "Search title or content",
+        "status": "Filter Status",
+        "level": "Filter Level",
+        "pinned": "Filter Pinned",
+        "sort": "Sort"
+      },
+      "sort": {
+        "updatedDesc": "Recently Updated",
+        "publishDesc": "Recently Published",
+        "pinnedPublishDesc": "Pinned First"
+      },
+      "form": {
+        "createTitle": "Create Announcement",
+        "editTitle": "Edit Announcement",
+        "basicInfo": "Announcement Content",
+        "visibility": "Visibility Window",
+        "title": "Title",
+        "titlePlaceholder": "Enter announcement title",
+        "content": "Content",
+        "contentPlaceholder": "Supports Markdown: paragraphs, bold text, lists, links, and code blocks",
+        "level": "Level",
+        "levelPlaceholder": "Select announcement level",
+        "publishAt": "Publish At",
+        "expireAt": "Expire At",
+        "publishAtPlaceholder": "Select publish time",
+        "expireAtPlaceholder": "Select expire time",
+        "pinned": "Pinned Announcement",
+        "cancel": "Cancel",
+        "confirm": "Save Announcement",
+        "required": {
+          "title": "Announcement title is required",
+          "content": "Announcement content is required",
+          "level": "Announcement level is required",
+          "deliveryMode": "Select delivery mode"
+        },
+        "invalidTimeWindow": "Expire time must be later than publish time",
+        "deliveryMode": "Delivery Mode",
+        "deliveryModePlaceholder": "Select delivery mode",
+        "deliveryModeHelp": {
+          "silent": "Silent: only show in Announcement Center.",
+          "popup": "Popup: prompt users when they enter the system and also show in Announcement Center."
+        },
+        "markdownPreview": "Markdown Preview",
+        "previewCurrent": "Preview Current Content",
+        "collapsePreview": "Collapse Preview",
+        "openFullPreview": "Open Full Preview",
+        "emptyPreview": "No Preview Content",
+        "closePreview": "Close",
+        "untitledPreview": "Untitled Announcement"
+      },
+      "detailDrawer": {
+        "title": "Announcement Details",
+        "basic": "Basic Information",
+        "content": "Content",
+        "timeline": "Time Information",
+        "createdAt": "Created At",
+        "updatedAt": "Updated At",
+        "publishAt": "Publish At",
+        "expireAt": "Expire At"
+      }
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "level": {
+      "info": "Info",
+      "warning": "Warning",
+      "success": "Success",
+      "error": "Error"
+    },
+    "pinned": {
+      "yes": "Pinned",
+      "no": "Normal"
+    },
+    "readState": {
+      "read": "Read",
+      "unread": "Unread"
+    },
+    "value": {
+      "notSet": "Not Set"
+    },
+    "deliveryMode": {
+      "silent": "Silent",
+      "popup": "Popup"
+    },
+    "popup": {
+      "viewLater": "View Later",
+      "markRead": "Mark Read",
+      "markReadFailed": "Failed to Mark Announcement"
+    }
+  }
+}

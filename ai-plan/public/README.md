@@ -12,6 +12,8 @@ Overlay note:
 
 ## Active Topics
 
+- `announcement-center-mvp`
+  - Recovery entry: `ai-plan/public/announcement-center-mvp/README.md`
 - `rbac-feature-and-nplusone-hardening`
   - Recovery entry: `ai-plan/public/rbac-feature-and-nplusone-hardening/README.md`
 - `rbac-further-development`

@@ -1,0 +1,99 @@
+get:
+  tags: [announcements]
+  summary: List announcements for management
+  operationId: getAnnouncements
+  description: Returns a paged management announcement list.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: status
+      in: query
+      schema:
+        $ref: ../components/schemas/announcement-status.yaml
+    - name: level
+      in: query
+      schema:
+        $ref: ../components/schemas/announcement-level.yaml
+    - name: pinned
+      in: query
+      schema:
+        type: boolean
+    - name: keyword
+      in: query
+      schema:
+        type: string
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: sort
+      in: query
+      schema:
+        type: string
+        enum: [updated_desc, publish_desc, pinned_publish_desc]
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Announcement management page.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-announcement-list-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
+post:
+  tags: [announcements]
+  summary: Create an announcement draft
+  operationId: postAnnouncements
+  description: Creates an announcement draft for later publication.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/create-announcement-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '201':
+      description: Created announcement draft.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-announcement-item.yaml
+    '400':
+      description: Invalid announcement creation request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

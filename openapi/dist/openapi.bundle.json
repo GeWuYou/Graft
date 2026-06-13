@@ -54,6 +54,9 @@
     },
     {
       "name": "notifications"
+    },
+    {
+      "name": "announcements"
     }
   ],
   "paths": {
@@ -7484,6 +7487,819 @@
           }
         }
       }
+    },
+    "/api/announcements": {
+      "get": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "List announcements for management",
+        "operationId": "getAnnouncements",
+        "description": "Returns a paged management announcement list.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/announcement-status"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/announcement-level"
+            }
+          },
+          {
+            "name": "pinned",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "updated_desc",
+                "publish_desc",
+                "pinned_publish_desc"
+              ]
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Announcement management page.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Create an announcement draft",
+        "operationId": "postAnnouncements",
+        "description": "Creates an announcement draft for later publication.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create-announcement-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created announcement draft.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-item"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid announcement creation request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/announcements/{id}": {
+      "get": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Get one announcement for management",
+        "operationId": "getAnnouncement",
+        "description": "Returns one management announcement record.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Announcement record.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Announcement was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Update an announcement",
+        "operationId": "putAnnouncement",
+        "description": "Updates editable announcement fields.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/update-announcement-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated announcement.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-item"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid announcement update request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Announcement was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Delete an announcement",
+        "operationId": "deleteAnnouncement",
+        "description": "Soft-deletes one announcement record.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Announcement was deleted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Announcement was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/announcements/{id}/publish": {
+      "post": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Publish an announcement",
+        "operationId": "postAnnouncementPublish",
+        "description": "Publishes an announcement, using the supplied publish time or the current server time.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/publish-announcement-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published announcement.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Announcement was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/announcements/{id}/archive": {
+      "post": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Archive an announcement",
+        "operationId": "postAnnouncementArchive",
+        "description": "Archives a published announcement and hides it from current-user listings.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archived announcement.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Announcement was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/my/announcements": {
+      "get": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "List current-user announcements",
+        "operationId": "getMyAnnouncements",
+        "description": "Returns announcements visible to the current authenticated user.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "unread_only",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current-user announcement page.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/my/announcements/{id}/read": {
+      "post": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Mark one current-user announcement as read",
+        "operationId": "postMyAnnouncementRead",
+        "description": "Marks one visible announcement as read for the current user.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated current-user announcement.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "404": {
+            "description": "Announcement was not found in the current-user visible scope.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/my/announcements/read-all": {
+      "post": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Mark all current-user announcements as read",
+        "operationId": "postMyAnnouncementsReadAll",
+        "description": "Marks all currently visible announcements as read for the current user.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Count of newly marked read announcements.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-read-all-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/my/announcements/unread-count": {
+      "get": {
+        "tags": [
+          "announcements"
+        ],
+        "summary": "Get current-user announcement unread count",
+        "operationId": "getMyAnnouncementsUnreadCount",
+        "description": "Returns the count of currently visible unread announcements for the current user.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current-user unread announcement count.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-announcement-unread-count-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7934,6 +8750,48 @@
       },
       "EnvelopedNotificationReadAllResponse": {
         "$ref": "#/components/schemas/enveloped-notification-read-all-response"
+      },
+      "AnnouncementLevel": {
+        "$ref": "#/components/schemas/announcement-level"
+      },
+      "AnnouncementStatus": {
+        "$ref": "#/components/schemas/announcement-status"
+      },
+      "AnnouncementDeliveryMode": {
+        "$ref": "#/components/schemas/announcement-delivery-mode"
+      },
+      "AnnouncementItem": {
+        "$ref": "#/components/schemas/announcement-item"
+      },
+      "AnnouncementListResponse": {
+        "$ref": "#/components/schemas/announcement-list-response"
+      },
+      "AnnouncementUnreadCountResponse": {
+        "$ref": "#/components/schemas/announcement-unread-count-response"
+      },
+      "AnnouncementReadAllResponse": {
+        "$ref": "#/components/schemas/announcement-read-all-response"
+      },
+      "CreateAnnouncementRequest": {
+        "$ref": "#/components/schemas/create-announcement-request"
+      },
+      "UpdateAnnouncementRequest": {
+        "$ref": "#/components/schemas/update-announcement-request"
+      },
+      "PublishAnnouncementRequest": {
+        "$ref": "#/components/schemas/publish-announcement-request"
+      },
+      "EnvelopedAnnouncementItem": {
+        "$ref": "#/components/schemas/enveloped-announcement-item"
+      },
+      "EnvelopedAnnouncementListResponse": {
+        "$ref": "#/components/schemas/enveloped-announcement-list-response"
+      },
+      "EnvelopedAnnouncementUnreadCountResponse": {
+        "$ref": "#/components/schemas/enveloped-announcement-unread-count-response"
+      },
+      "EnvelopedAnnouncementReadAllResponse": {
+        "$ref": "#/components/schemas/enveloped-announcement-read-all-response"
       },
       "health-response": {
         "type": "object",
@@ -12969,6 +13827,336 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/notification-read-all-response"
+              }
+            }
+          }
+        ]
+      },
+      "announcement-status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "published",
+          "archived"
+        ],
+        "description": "Announcement lifecycle status."
+      },
+      "announcement-level": {
+        "type": "string",
+        "enum": [
+          "info",
+          "warning",
+          "success",
+          "error"
+        ],
+        "description": "Announcement presentation level."
+      },
+      "announcement-delivery-mode": {
+        "type": "string",
+        "description": "Announcement delivery presentation mode.",
+        "enum": [
+          "silent",
+          "popup"
+        ]
+      },
+      "announcement-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "content",
+          "level",
+          "status",
+          "delivery_mode",
+          "pinned",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "level": {
+            "$ref": "#/components/schemas/announcement-level"
+          },
+          "status": {
+            "$ref": "#/components/schemas/announcement-status"
+          },
+          "delivery_mode": {
+            "$ref": "#/components/schemas/announcement-delivery-mode"
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "publish_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "expire_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "nullable": true
+          },
+          "updated_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "nullable": true
+          },
+          "deleted_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "nullable": true
+          },
+          "read_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Current user's read time when returned by current-user endpoints."
+          },
+          "unread": {
+            "type": "boolean",
+            "description": "Current-user unread state when returned by current-user endpoints."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "announcement-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/announcement-item"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "enveloped-announcement-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/announcement-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "create-announcement-request": {
+        "type": "object",
+        "required": [
+          "title",
+          "content",
+          "level",
+          "delivery_mode"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "level": {
+            "$ref": "#/components/schemas/announcement-level"
+          },
+          "delivery_mode": {
+            "$ref": "#/components/schemas/announcement-delivery-mode"
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false
+          },
+          "publish_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "expire_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "enveloped-announcement-item": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/announcement-item"
+              }
+            }
+          }
+        ]
+      },
+      "update-announcement-request": {
+        "type": "object",
+        "required": [
+          "title",
+          "content",
+          "level",
+          "delivery_mode"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "level": {
+            "$ref": "#/components/schemas/announcement-level"
+          },
+          "delivery_mode": {
+            "$ref": "#/components/schemas/announcement-delivery-mode"
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false
+          },
+          "publish_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "expire_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "publish-announcement-request": {
+        "type": "object",
+        "properties": {
+          "publish_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Optional explicit publish time; omitted means publish immediately."
+          }
+        }
+      },
+      "announcement-read-all-response": {
+        "type": "object",
+        "required": [
+          "updated_count"
+        ],
+        "properties": {
+          "updated_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-announcement-read-all-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/announcement-read-all-response"
+              }
+            }
+          }
+        ]
+      },
+      "announcement-unread-count-response": {
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-announcement-unread-count-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/announcement-unread-count-response"
               }
             }
           }

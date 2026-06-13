@@ -151,8 +151,8 @@ authority-first overlay：
   - 平台声明式注册面与公共运行时能力
 - `internal/store`、`internal/store/entstore`
   - 仅保留现阶段尚未迁出的 core-owned 数据访问边界；长期方向不是继续集中新增业务仓储
-- `internal/ent/migrate/migrations`
-  - 仅保留历史共享 Atlas migration 目录，供显式/manual 诊断或回放使用；它不再属于默认 migration 链
+- `internal/ent/**`
+  - 不承载 live migration、manual replay 兜底、业务 schema 真相或生成产物
 - `modules/*`
   - 业务模块与模块自有 contract；长期方向下每个模块还应拥有自己的 capability、store、storeent、ent 与 migrations
 
@@ -200,7 +200,7 @@ Observability authority overlay：
 | 跨模块 capability、共享 DTO、稳定事件名 | `server/internal/moduleapi/**` | 只放稳定跨模块公开面 |
 | 平台级 typed contract | `server/internal/contract/**` | 只放平台共用 contract |
 | 模块私有稳定 contract | `server/modules/<name>/contract/**` | route fragment、permission code、message key 等 |
-| 历史共享 migration 回放 | `server/internal/ent/migrate/migrations/**` | 仅显式/manual 使用，不是默认链 |
+| 已删除历史 migration 回放 | `server/internal/ent/**` | 不再提供 Ent/manual replay 兜底 |
 
 补充规则：
 
@@ -406,12 +406,12 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
   worktree 的 standing ownership
 - `internal/moduleregistry/generated.go` 当前仍保持 tracked；但长生命周期 feature worktree 不得直接修改它，相关改动必须回到显式集成切片统一协调
 - 共享 `internal/ent` Go 代码与 schema 兼容层已经删除；不得在该路径重新引入业务 schema、生成产物或 runtime 依赖
-- `internal/ent/migrate/migrations/**` 仍保留为历史共享 migration 目录，但仅允许显式/manual 使用；它不是默认 migration 链的一部分
+- 旧 `internal/ent/migrate/migrations/**` 历史共享迁移目录已经删除，不再作为显式/manual fallback
 - 当前后端 ownership checkpoint 允许 fresh DB rebuild；不要求为历史 mixed migration 继续维持兼容回放能力
 
 规则：
 
-- `internal/ent/migrate/migrations/**` 只允许承载历史共享 Atlas migration 真相；不得新增新的默认 migration、业务 schema 真相或新的 owner-aligned 基线
+- `internal/ent/**` 不得重新承载默认 migration、manual replay 兜底、业务 schema 真相或新的 owner-aligned 基线
 - 每个业务模块应长期收敛到自己的：
   - `modules/<name>/ent/**`
   - `modules/<name>/migrations/**`
@@ -425,7 +425,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
 - 表级 Ent 注释应同时开启对应 SQL comment 输出能力，例如结合 `entsql.WithComments(true)` 使用
 - migration SQL 必须显式落 `COMMENT ON TABLE` 与 `COMMENT ON COLUMN`，不能只在 Ent schema 中声明而不写入版本化迁移
 - 数据库注释必须表达真实业务语义；禁止字段名直译、空泛注释、中英混写或与实际枚举/状态语义不一致
-- `server/internal/ent/migrate/migrations/**` 属于 archived/manual replay legacy，不是当前数据库注释治理的权威来源；默认不在该目录补注释
+- 旧 `server/internal/ent/migrate/migrations/**` 已删除，不是当前数据库注释治理、兼容回放或故障兜底来源
 - 一个 migration 只能修改：
   - 当前 owner 拥有的表
   - 或 core-owned 表
@@ -485,7 +485,7 @@ Ent 与 Atlas 是后端数据库真相链路的一部分。
   - `internal/cronx/**`
   - `internal/redisx/**`
   - `internal/migration/**`
-  - `internal/ent/migrate/migrations/**` 仅限历史共享 Atlas migration 目录
+  - `internal/ent/**` 不承载 live migration 或 legacy replay
 
 允许长期共享修改的白名单仅包括：
 
@@ -520,7 +520,7 @@ overlay 解释：
 - 该 worktree 拥有哪些 `module-owned` 或 `core-owned` 目录
 - 允许触碰哪些 `shared-stable-boundary`
 - 是否允许触碰 `generated-shared-hotspot`
-- 遇到 `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/module/**` 这类 core 共享面时，是回到 `main` 治理还是切出单独 core worktree
+- 遇到 `internal/app/**`、`internal/module/**` 这类 core 共享面时，是回到 `main` 治理还是切出单独 core worktree
 
 shared hotspot 处理规则如下：
 
@@ -532,7 +532,7 @@ shared hotspot 处理规则如下：
   - 该文件只能承载 compile-time registry 的机械生成结果，不允许手写业务规则、兼容分支或第二套模块真相
   - 若多个长期 worktree 同时需要修改它，应把该变更视为可预期冲突面，并通过短生命周期集成或共享基线串行收口，而不是扩大共享编辑范围
 - `core-owned` 高冲突面
-  - `internal/ent/migrate/migrations/**`、`internal/app/**`、`internal/module/**`、`internal/migration/**` 默认不是长期共享编辑面
+  - `internal/app/**`、`internal/module/**`、`internal/migration/**` 默认不是长期共享编辑面
   - 某个模块 worktree 一旦需要持续修改这些目录，必须先明确它是在进行 core-owned 治理还是模块 feature 开发；两者不要混在同一长期 worktree 里无限扩张
 
 从 `main` 共享基线切换到 dedicated long-lived worktree 前，至少满足：

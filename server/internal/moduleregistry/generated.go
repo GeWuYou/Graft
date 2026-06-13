@@ -3,6 +3,7 @@ package moduleregistry
 
 import (
 	"graft/server/internal/module"
+	announcementmodule "graft/server/modules/announcement"
 	auditmodule "graft/server/modules/audit"
 	authmodule "graft/server/modules/auth"
 	monitormodule "graft/server/modules/monitor"
@@ -14,6 +15,7 @@ import (
 )
 
 var generatedModuleSpecs = []module.Spec{
+	announcementmodule.NewModuleSpec(),
 	auditmodule.NewModuleSpec(),
 	authmodule.NewModuleSpec(),
 	monitormodule.NewModuleSpec(),

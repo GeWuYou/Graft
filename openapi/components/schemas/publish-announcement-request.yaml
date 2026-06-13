@@ -1,0 +1,7 @@
+type: object
+properties:
+  publish_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: Optional explicit publish time; omitted means publish immediately.

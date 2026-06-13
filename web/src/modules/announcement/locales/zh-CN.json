@@ -1,0 +1,198 @@
+{
+  "menu": {
+    "server": {
+      "announcements": {
+        "title": "公告管理"
+      }
+    }
+  },
+  "announcement": {
+    "route": {
+      "management": {
+        "title": "公告管理",
+        "breadcrumb": "公告管理"
+      },
+      "user": {
+        "title": "公告中心",
+        "breadcrumb": "公告中心"
+      }
+    },
+    "header": {
+      "open": "打开公告中心",
+      "title": "公告中心",
+      "markReadFailed": "标记公告失败"
+    },
+    "readPanel": {
+      "close": "关闭公告",
+      "viewLater": "稍后查看",
+      "openCenter": "查看公告中心",
+      "markRead": "标记已读",
+      "publishAt": "发布时间"
+    },
+    "user": {
+      "title": "公告中心",
+      "description": "查看平台维护、版本更新、安全提醒和长期信息。",
+      "refresh": "刷新",
+      "markRead": "标为已读",
+      "markAllRead": "全部已读",
+      "unreadOnly": "仅看未读",
+      "summary": "共 {count} 条公告",
+      "unreadSummary": "{count} 条未读",
+      "listHint": "置顶公告优先展示，已读状态仅对当前账号生效。",
+      "loadFailed": "公告列表加载失败",
+      "errorTitle": "公告数据暂时不可用",
+      "retry": "重试",
+      "loading": "正在加载公告",
+      "emptyTitle": "暂无公告",
+      "emptyDescription": "当前没有可查看的公告。",
+      "emptyUnreadTitle": "暂无未读公告",
+      "emptyUnreadDescription": "当前没有未读公告，可查看全部公告。",
+      "showAll": "查看全部",
+      "footerTotal": "共 {count} 条公告",
+      "publishAt": "发布时间",
+      "expireAt": "过期时间",
+      "readAt": "阅读时间",
+      "markReadSuccess": "公告已标为已读",
+      "markReadFailed": "标记公告失败",
+      "markAllReadSuccess": "全部公告已标为已读",
+      "markAllReadFailed": "全部已读失败"
+    },
+    "management": {
+      "title": "公告管理",
+      "description": "维护面向全体用户的长期平台公告、发布时间和可见状态。",
+      "refresh": "刷新",
+      "create": "创建公告",
+      "search": "查询",
+      "reset": "清空筛选",
+      "summary": "共 {count} 条公告",
+      "tableHint": "支持按状态、级别、置顶和关键词筛选公告。",
+      "loadFailed": "公告列表加载失败",
+      "errorTitle": "公告数据暂时不可用",
+      "retry": "重试",
+      "emptyTitle": "暂无公告",
+      "emptyDescription": "当前筛选条件下没有公告，可清空筛选或创建新公告。",
+      "emptyCreate": "创建公告",
+      "footerTotal": "共 {count} 条公告",
+      "createSuccess": "公告已创建",
+      "updateSuccess": "公告已更新",
+      "publishSuccess": "公告已发布",
+      "archiveSuccess": "公告已归档",
+      "deleteSuccess": "公告已删除",
+      "submitFailed": "公告提交失败",
+      "publishFailed": "公告发布失败",
+      "archiveFailed": "公告归档失败",
+      "deleteFailed": "公告删除失败",
+      "detailLoadFailed": "公告详情加载失败",
+      "deleteConfirm": "确认删除该公告？",
+      "publishNow": "立即发布",
+      "archive": "归档",
+      "delete": "删除",
+      "detail": "详情",
+      "edit": "编辑",
+      "more": "更多",
+      "columns": {
+        "title": "公告",
+        "status": "状态",
+        "level": "级别",
+        "pinned": "置顶",
+        "publishAt": "发布时间",
+        "expireAt": "过期时间",
+        "updatedAt": "更新时间",
+        "operation": "操作",
+        "deliveryMode": "展示策略"
+      },
+      "filters": {
+        "keyword": "搜索标题或正文",
+        "status": "筛选状态",
+        "level": "筛选级别",
+        "pinned": "筛选置顶",
+        "sort": "排序"
+      },
+      "sort": {
+        "updatedDesc": "最近更新",
+        "publishDesc": "最近发布",
+        "pinnedPublishDesc": "置顶优先"
+      },
+      "form": {
+        "createTitle": "创建公告",
+        "editTitle": "编辑公告",
+        "basicInfo": "公告内容",
+        "visibility": "可见时间",
+        "title": "标题",
+        "titlePlaceholder": "请输入公告标题",
+        "content": "正文",
+        "contentPlaceholder": "支持 Markdown：段落、加粗、列表、链接和代码块",
+        "level": "级别",
+        "levelPlaceholder": "请选择公告级别",
+        "publishAt": "发布时间",
+        "expireAt": "过期时间",
+        "publishAtPlaceholder": "选择发布时间",
+        "expireAtPlaceholder": "选择过期时间",
+        "pinned": "置顶公告",
+        "cancel": "取消",
+        "confirm": "保存公告",
+        "required": {
+          "title": "请输入公告标题",
+          "content": "请输入公告正文",
+          "level": "请选择公告级别",
+          "deliveryMode": "请选择展示策略"
+        },
+        "invalidTimeWindow": "过期时间必须晚于发布时间",
+        "deliveryMode": "展示策略",
+        "deliveryModePlaceholder": "请选择展示策略",
+        "deliveryModeHelp": {
+          "silent": "静默：仅在公告中心展示。",
+          "popup": "弹窗：用户进入系统时主动弹窗提醒，同时进入公告中心。"
+        },
+        "markdownPreview": "Markdown 预览",
+        "previewCurrent": "预览当前内容",
+        "collapsePreview": "收起预览",
+        "openFullPreview": "打开完整预览",
+        "emptyPreview": "暂无可预览内容",
+        "closePreview": "关闭",
+        "untitledPreview": "未命名公告"
+      },
+      "detailDrawer": {
+        "title": "公告详情",
+        "basic": "基础信息",
+        "content": "正文",
+        "timeline": "时间信息",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间",
+        "publishAt": "发布时间",
+        "expireAt": "过期时间"
+      }
+    },
+    "status": {
+      "draft": "草稿",
+      "published": "已发布",
+      "archived": "已归档"
+    },
+    "level": {
+      "info": "信息",
+      "warning": "警告",
+      "success": "成功",
+      "error": "错误"
+    },
+    "pinned": {
+      "yes": "置顶",
+      "no": "普通"
+    },
+    "readState": {
+      "read": "已读",
+      "unread": "未读"
+    },
+    "value": {
+      "notSet": "未设置"
+    },
+    "deliveryMode": {
+      "silent": "静默",
+      "popup": "弹窗"
+    },
+    "popup": {
+      "viewLater": "稍后查看",
+      "markRead": "标记已读",
+      "markReadFailed": "标记公告失败"
+    }
+  }
+}

@@ -1,0 +1,67 @@
+type: object
+required:
+  - id
+  - title
+  - content
+  - level
+  - status
+  - delivery_mode
+  - pinned
+  - created_at
+  - updated_at
+properties:
+  id:
+    type: integer
+    format: int64
+    minimum: 1
+  title:
+    type: string
+    minLength: 1
+  content:
+    type: string
+    minLength: 1
+  level:
+    $ref: ./announcement-level.yaml
+  status:
+    $ref: ./announcement-status.yaml
+  delivery_mode:
+    $ref: ./announcement-delivery-mode.yaml
+  pinned:
+    type: boolean
+  publish_at:
+    type: string
+    format: date-time
+    nullable: true
+  expire_at:
+    type: string
+    format: date-time
+    nullable: true
+  created_by:
+    type: integer
+    format: int64
+    minimum: 1
+    nullable: true
+  updated_by:
+    type: integer
+    format: int64
+    minimum: 1
+    nullable: true
+  deleted_by:
+    type: integer
+    format: int64
+    minimum: 1
+    nullable: true
+  read_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: Current user's read time when returned by current-user endpoints.
+  unread:
+    type: boolean
+    description: Current-user unread state when returned by current-user endpoints.
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: string
+    format: date-time

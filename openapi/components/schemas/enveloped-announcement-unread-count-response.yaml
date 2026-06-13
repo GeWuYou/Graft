@@ -1,0 +1,8 @@
+allOf:
+  - $ref: ./api-envelope.yaml
+  - type: object
+    required:
+      - data
+    properties:
+      data:
+        $ref: ./announcement-unread-count-response.yaml

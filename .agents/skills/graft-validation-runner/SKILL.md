@@ -45,7 +45,7 @@ but they must not redefine acceptance criteria, command order, or local-vs-CI en
    - run `python3 scripts/validate_sql_migrations.py` to check live migration SQL comments and versions
    - apply the same check to core-owned handwritten migration directories such as `server/internal/httpx/migrations/**`,
      not only plugin Ent paths
-   - keep `server/internal/ent/migrate/migrations/**` excluded unless the task explicitly targets legacy/manual replay migrations
+   - keep the removed historical Ent/manual replay chain non-authoritative; do not recreate it as validation fallback
 
 ## Reporting Rules
 

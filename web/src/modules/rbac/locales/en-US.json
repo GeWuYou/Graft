@@ -324,6 +324,26 @@
         "display": "Enable Scheduled Tasks",
         "description": "Allows enabling and disabling scheduled tasks."
       },
+      "announcementRead": {
+        "display": "Read Announcements",
+        "description": "Allows reading announcement management records."
+      },
+      "announcementCreate": {
+        "display": "Create Announcements",
+        "description": "Allows creating announcement drafts."
+      },
+      "announcementUpdate": {
+        "display": "Update Announcements",
+        "description": "Allows updating announcement drafts and management metadata."
+      },
+      "announcementPublish": {
+        "display": "Publish Announcements",
+        "description": "Allows publishing and archiving announcements."
+      },
+      "announcementDelete": {
+        "display": "Delete Announcements",
+        "description": "Allows soft-deleting announcement records."
+      },
       "auditRead": {
         "display": "Read Audit Logs",
         "description": "Allows viewing the audit overview and audit logs."

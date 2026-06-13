@@ -1,0 +1,24 @@
+get:
+  tags: [announcements]
+  summary: Get current-user announcement unread count
+  operationId: getMyAnnouncementsUnreadCount
+  description: Returns the count of currently visible unread announcements for the current user.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Current-user unread announcement count.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-announcement-unread-count-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

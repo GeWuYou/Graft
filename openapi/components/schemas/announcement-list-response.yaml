@@ -1,0 +1,20 @@
+type: object
+required:
+  - items
+  - total
+  - page
+  - page_size
+properties:
+  items:
+    type: array
+    items:
+      $ref: ./announcement-item.yaml
+  total:
+    type: integer
+    minimum: 0
+  page:
+    type: integer
+    minimum: 1
+  page_size:
+    type: integer
+    minimum: 1

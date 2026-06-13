@@ -324,6 +324,26 @@
         "display": "启停定时任务",
         "description": "允许启用和停用定时任务。"
       },
+      "announcementRead": {
+        "display": "读取公告",
+        "description": "允许读取公告管理记录。"
+      },
+      "announcementCreate": {
+        "display": "创建公告",
+        "description": "允许创建公告草稿。"
+      },
+      "announcementUpdate": {
+        "display": "更新公告",
+        "description": "允许更新公告草稿和管理元数据。"
+      },
+      "announcementPublish": {
+        "display": "发布公告",
+        "description": "允许发布和归档公告。"
+      },
+      "announcementDelete": {
+        "display": "删除公告",
+        "description": "允许软删除公告记录。"
+      },
       "auditRead": {
         "display": "读取审计日志",
         "description": "允许查看审计概览与审计日志。"

@@ -24,6 +24,7 @@ tags:
   - name: app-log
   - name: dashboard
   - name: notifications
+  - name: announcements
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
@@ -161,6 +162,22 @@ paths:
     $ref: ./paths/notifications.read-all.yaml
   /api/notifications/{delivery_id}:
     $ref: ./paths/notifications.delete.yaml
+  /api/announcements:
+    $ref: ./paths/announcements.collection.yaml
+  /api/announcements/{id}:
+    $ref: ./paths/announcements.detail.yaml
+  /api/announcements/{id}/publish:
+    $ref: ./paths/announcements.publish.yaml
+  /api/announcements/{id}/archive:
+    $ref: ./paths/announcements.archive.yaml
+  /api/my/announcements:
+    $ref: ./paths/my-announcements.collection.yaml
+  /api/my/announcements/{id}/read:
+    $ref: ./paths/my-announcements.read.yaml
+  /api/my/announcements/read-all:
+    $ref: ./paths/my-announcements.read-all.yaml
+  /api/my/announcements/unread-count:
+    $ref: ./paths/my-announcements.unread-count.yaml
 components:
   schemas:
     ApiEnvelope:
@@ -461,6 +478,34 @@ components:
       $ref: ./components/schemas/enveloped-notification-item.yaml
     EnvelopedNotificationReadAllResponse:
       $ref: ./components/schemas/enveloped-notification-read-all-response.yaml
+    AnnouncementLevel:
+      $ref: ./components/schemas/announcement-level.yaml
+    AnnouncementStatus:
+      $ref: ./components/schemas/announcement-status.yaml
+    AnnouncementDeliveryMode:
+      $ref: ./components/schemas/announcement-delivery-mode.yaml
+    AnnouncementItem:
+      $ref: ./components/schemas/announcement-item.yaml
+    AnnouncementListResponse:
+      $ref: ./components/schemas/announcement-list-response.yaml
+    AnnouncementUnreadCountResponse:
+      $ref: ./components/schemas/announcement-unread-count-response.yaml
+    AnnouncementReadAllResponse:
+      $ref: ./components/schemas/announcement-read-all-response.yaml
+    CreateAnnouncementRequest:
+      $ref: ./components/schemas/create-announcement-request.yaml
+    UpdateAnnouncementRequest:
+      $ref: ./components/schemas/update-announcement-request.yaml
+    PublishAnnouncementRequest:
+      $ref: ./components/schemas/publish-announcement-request.yaml
+    EnvelopedAnnouncementItem:
+      $ref: ./components/schemas/enveloped-announcement-item.yaml
+    EnvelopedAnnouncementListResponse:
+      $ref: ./components/schemas/enveloped-announcement-list-response.yaml
+    EnvelopedAnnouncementUnreadCountResponse:
+      $ref: ./components/schemas/enveloped-announcement-unread-count-response.yaml
+    EnvelopedAnnouncementReadAllResponse:
+      $ref: ./components/schemas/enveloped-announcement-read-all-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

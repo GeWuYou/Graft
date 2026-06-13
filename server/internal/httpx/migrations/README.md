@@ -12,5 +12,5 @@ Live migration rules in this directory follow `server/AGENTS.md` exactly:
   comments declared elsewhere
 - completion validation must include a check that live table and column comments are complete
 
-The historical shared chain under `server/internal/ent/migrate/migrations` remains available
-only for explicit/manual replay and is not the canonical owner for new live migrations.
+The old shared Ent/manual replay chain has been removed. During early development, this
+owner-aligned directory is the only migration authority for HTTP access-log storage.

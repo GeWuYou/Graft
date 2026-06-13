@@ -48,9 +48,9 @@ Use this skill when the task touches any of:
 - Live migration versions must be globally unique across the full default live migration chain.
 - Before adding a migration, search existing live migration versions.
 - Default live migrations are discovered through core live dirs plus module registry migration dirs.
-- `server/internal/ent/migrate/migrations/**` is archived/manual replay legacy and is excluded by default.
-- Do not batch-edit legacy migration files just to pass the current live SQL gate.
-- If legacy migration changes are truly required, state that in the plan and closeout with the concrete reason.
+- The old `server/internal/ent/migrate/migrations/**` replay chain has been removed and is no longer a fallback
+  authority.
+- Do not recreate legacy migration files just to pass the current live SQL gate.
 - If adding a live migration directory, update `scripts/validate_sql_migrations.py` discovery when registry/core-dir
   discovery would not include it.
 

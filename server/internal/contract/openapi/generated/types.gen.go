@@ -12,6 +12,69 @@ const (
 	RefreshCookieScopes refreshCookieContextKey = "refreshCookie.Scopes"
 )
 
+// Defines values for AnnouncementDeliveryMode.
+const (
+	Popup  AnnouncementDeliveryMode = "popup"
+	Silent AnnouncementDeliveryMode = "silent"
+)
+
+// Valid indicates whether the value is a known member of the AnnouncementDeliveryMode enum.
+func (e AnnouncementDeliveryMode) Valid() bool {
+	switch e {
+	case Popup:
+		return true
+	case Silent:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnnouncementLevel.
+const (
+	AnnouncementLevelError   AnnouncementLevel = "error"
+	AnnouncementLevelInfo    AnnouncementLevel = "info"
+	AnnouncementLevelSuccess AnnouncementLevel = "success"
+	AnnouncementLevelWarning AnnouncementLevel = "warning"
+)
+
+// Valid indicates whether the value is a known member of the AnnouncementLevel enum.
+func (e AnnouncementLevel) Valid() bool {
+	switch e {
+	case AnnouncementLevelError:
+		return true
+	case AnnouncementLevelInfo:
+		return true
+	case AnnouncementLevelSuccess:
+		return true
+	case AnnouncementLevelWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnnouncementStatus.
+const (
+	Archived  AnnouncementStatus = "archived"
+	Draft     AnnouncementStatus = "draft"
+	Published AnnouncementStatus = "published"
+)
+
+// Valid indicates whether the value is a known member of the AnnouncementStatus enum.
+func (e AnnouncementStatus) Valid() bool {
+	switch e {
+	case Archived:
+		return true
+	case Draft:
+		return true
+	case Published:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppLogDetailResponseSeverity.
 const (
 	AppLogDetailResponseSeverityDebug AppLogDetailResponseSeverity = "debug"
@@ -956,16 +1019,16 @@ func (e ModuleRuntimeItemRuntimeStatus) Valid() bool {
 
 // Defines values for ModuleRuntimeMigrationStatusStatus.
 const (
-	ModuleRuntimeMigrationStatusStatusDeclared    ModuleRuntimeMigrationStatusStatus = "declared"
-	ModuleRuntimeMigrationStatusStatusNotDeclared ModuleRuntimeMigrationStatusStatus = "not_declared"
+	Declared    ModuleRuntimeMigrationStatusStatus = "declared"
+	NotDeclared ModuleRuntimeMigrationStatusStatus = "not_declared"
 )
 
 // Valid indicates whether the value is a known member of the ModuleRuntimeMigrationStatusStatus enum.
 func (e ModuleRuntimeMigrationStatusStatus) Valid() bool {
 	switch e {
-	case ModuleRuntimeMigrationStatusStatusDeclared:
+	case Declared:
 		return true
-	case ModuleRuntimeMigrationStatusStatusNotDeclared:
+	case NotDeclared:
 		return true
 	default:
 		return false
@@ -1659,6 +1722,27 @@ func (e GetAccessLogsParamsStatusGroup) Valid() bool {
 	}
 }
 
+// Defines values for GetAnnouncementsParamsSort.
+const (
+	PinnedPublishDesc GetAnnouncementsParamsSort = "pinned_publish_desc"
+	PublishDesc       GetAnnouncementsParamsSort = "publish_desc"
+	UpdatedDesc       GetAnnouncementsParamsSort = "updated_desc"
+)
+
+// Valid indicates whether the value is a known member of the GetAnnouncementsParamsSort enum.
+func (e GetAnnouncementsParamsSort) Valid() bool {
+	switch e {
+	case PinnedPublishDesc:
+		return true
+	case PublishDesc:
+		return true
+	case UpdatedDesc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAppLogsParamsSeverity.
 const (
 	Debug GetAppLogsParamsSeverity = "debug"
@@ -1958,6 +2042,63 @@ type AccessLogListResponse struct {
 	Page     int                       `json:"page"`
 	PageSize int                       `json:"page_size"`
 	Total    int                       `json:"total"`
+}
+
+// AnnouncementDeliveryMode Announcement delivery presentation mode.
+type AnnouncementDeliveryMode string
+
+// AnnouncementItem defines model for announcement-item.
+type AnnouncementItem struct {
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+	CreatedBy *int64    `json:"created_by,omitempty"`
+	DeletedBy *int64    `json:"deleted_by,omitempty"`
+
+	// DeliveryMode Announcement delivery presentation mode.
+	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
+	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
+	Id           int64                    `json:"id"`
+
+	// Level Announcement presentation level.
+	Level     AnnouncementLevel `json:"level"`
+	Pinned    bool              `json:"pinned"`
+	PublishAt *time.Time        `json:"publish_at,omitempty"`
+
+	// ReadAt Current user's read time when returned by current-user endpoints.
+	ReadAt *time.Time `json:"read_at,omitempty"`
+
+	// Status Announcement lifecycle status.
+	Status AnnouncementStatus `json:"status"`
+	Title  string             `json:"title"`
+
+	// Unread Current-user unread state when returned by current-user endpoints.
+	Unread    *bool     `json:"unread,omitempty"`
+	UpdatedAt time.Time `json:"updated_at"`
+	UpdatedBy *int64    `json:"updated_by,omitempty"`
+}
+
+// AnnouncementLevel Announcement presentation level.
+type AnnouncementLevel string
+
+// AnnouncementListResponse defines model for announcement-list-response.
+type AnnouncementListResponse struct {
+	Items    []AnnouncementItem `json:"items"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"page_size"`
+	Total    int                `json:"total"`
+}
+
+// AnnouncementReadAllResponse defines model for announcement-read-all-response.
+type AnnouncementReadAllResponse struct {
+	UpdatedCount int `json:"updated_count"`
+}
+
+// AnnouncementStatus Announcement lifecycle status.
+type AnnouncementStatus string
+
+// AnnouncementUnreadCountResponse defines model for announcement-unread-count-response.
+type AnnouncementUnreadCountResponse struct {
+	Count int `json:"count"`
 }
 
 // ApiEnvelope defines model for api-envelope.
@@ -2372,6 +2513,21 @@ type CompleteRequiredPasswordChangeRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
+// CreateAnnouncementRequest defines model for create-announcement-request.
+type CreateAnnouncementRequest struct {
+	Content string `json:"content"`
+
+	// DeliveryMode Announcement delivery presentation mode.
+	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
+	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
+
+	// Level Announcement presentation level.
+	Level     AnnouncementLevel `json:"level"`
+	Pinned    *bool             `json:"pinned,omitempty"`
+	PublishAt *time.Time        `json:"publish_at,omitempty"`
+	Title     string            `json:"title"`
+}
+
 // CreateRoleRequest defines model for create-role-request.
 type CreateRoleRequest struct {
 	// Description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null.
@@ -2563,6 +2719,86 @@ type EnvelopedAccessLogListResponse struct {
 	// Code Existing canonical response code.
 	Code string                `json:"code"`
 	Data AccessLogListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAnnouncementItem defines model for enveloped-announcement-item.
+type EnvelopedAnnouncementItem struct {
+	// Code Existing canonical response code.
+	Code string           `json:"code"`
+	Data AnnouncementItem `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAnnouncementListResponse defines model for enveloped-announcement-list-response.
+type EnvelopedAnnouncementListResponse struct {
+	// Code Existing canonical response code.
+	Code string                   `json:"code"`
+	Data AnnouncementListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAnnouncementReadAllResponse defines model for enveloped-announcement-read-all-response.
+type EnvelopedAnnouncementReadAllResponse struct {
+	// Code Existing canonical response code.
+	Code string                      `json:"code"`
+	Data AnnouncementReadAllResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAnnouncementUnreadCountResponse defines model for enveloped-announcement-unread-count-response.
+type EnvelopedAnnouncementUnreadCountResponse struct {
+	// Code Existing canonical response code.
+	Code string                          `json:"code"`
+	Data AnnouncementUnreadCountResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -3609,6 +3845,12 @@ type PermissionListResponse struct {
 	Items []PermissionListItem `json:"items"`
 }
 
+// PublishAnnouncementRequest defines model for publish-announcement-request.
+type PublishAnnouncementRequest struct {
+	// PublishAt Optional explicit publish time; omitted means publish immediately.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+}
+
 // ReplaceRolePermissionsRequest defines model for replace-role-permissions-request.
 type ReplaceRolePermissionsRequest struct {
 	// PermissionIds Replaces the role's permission bindings with the provided stable permission id set.
@@ -4185,6 +4427,21 @@ type SystemConfigListResponse struct {
 	Total int                `json:"total"`
 }
 
+// UpdateAnnouncementRequest defines model for update-announcement-request.
+type UpdateAnnouncementRequest struct {
+	Content string `json:"content"`
+
+	// DeliveryMode Announcement delivery presentation mode.
+	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
+	ExpireAt     *time.Time               `json:"expire_at,omitempty"`
+
+	// Level Announcement presentation level.
+	Level     AnnouncementLevel `json:"level"`
+	Pinned    *bool             `json:"pinned,omitempty"`
+	PublishAt *time.Time        `json:"publish_at,omitempty"`
+	Title     string            `json:"title"`
+}
+
 // UpdateRoleRequest defines model for update-role-request.
 type UpdateRoleRequest struct {
 	// Description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null.
@@ -4368,6 +4625,87 @@ type GetAccessLogsParamsStatusGroup string
 
 // GetAccessLogDetailParams defines parameters for GetAccessLogDetail.
 type GetAccessLogDetailParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetAnnouncementsParams defines parameters for GetAnnouncements.
+type GetAnnouncementsParams struct {
+	Status   *AnnouncementStatus         `form:"status,omitempty" json:"status,omitempty"`
+	Level    *AnnouncementLevel          `form:"level,omitempty" json:"level,omitempty"`
+	Pinned   *bool                       `form:"pinned,omitempty" json:"pinned,omitempty"`
+	Keyword  *string                     `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Page     *int                        `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int                        `form:"page_size,omitempty" json:"page_size,omitempty"`
+	Sort     *GetAnnouncementsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetAnnouncementsParamsSort defines parameters for GetAnnouncements.
+type GetAnnouncementsParamsSort string
+
+// PostAnnouncementsParams defines parameters for PostAnnouncements.
+type PostAnnouncementsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAnnouncementParams defines parameters for DeleteAnnouncement.
+type DeleteAnnouncementParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetAnnouncementParams defines parameters for GetAnnouncement.
+type GetAnnouncementParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAnnouncementParams defines parameters for PutAnnouncement.
+type PutAnnouncementParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAnnouncementArchiveParams defines parameters for PostAnnouncementArchive.
+type PostAnnouncementArchiveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAnnouncementPublishParams defines parameters for PostAnnouncementPublish.
+type PostAnnouncementPublishParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -4674,6 +5012,50 @@ type GetMonitorServerStatusParams struct {
 
 // GetMonitorServerStatusParamsTrendRange defines parameters for GetMonitorServerStatus.
 type GetMonitorServerStatusParamsTrendRange string
+
+// GetMyAnnouncementsParams defines parameters for GetMyAnnouncements.
+type GetMyAnnouncementsParams struct {
+	UnreadOnly *bool `form:"unread_only,omitempty" json:"unread_only,omitempty"`
+	Page       *int  `form:"page,omitempty" json:"page,omitempty"`
+	PageSize   *int  `form:"page_size,omitempty" json:"page_size,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostMyAnnouncementsReadAllParams defines parameters for PostMyAnnouncementsReadAll.
+type PostMyAnnouncementsReadAllParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetMyAnnouncementsUnreadCountParams defines parameters for GetMyAnnouncementsUnreadCount.
+type GetMyAnnouncementsUnreadCountParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostMyAnnouncementReadParams defines parameters for PostMyAnnouncementRead.
+type PostMyAnnouncementReadParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetNotificationsParams defines parameters for GetNotifications.
 type GetNotificationsParams struct {
@@ -5221,6 +5603,15 @@ type PostUserUpdateParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
+
+// PostAnnouncementsJSONRequestBody defines body for PostAnnouncements for application/json ContentType.
+type PostAnnouncementsJSONRequestBody = CreateAnnouncementRequest
+
+// PutAnnouncementJSONRequestBody defines body for PutAnnouncement for application/json ContentType.
+type PutAnnouncementJSONRequestBody = UpdateAnnouncementRequest
+
+// PostAnnouncementPublishJSONRequestBody defines body for PostAnnouncementPublish for application/json ContentType.
+type PostAnnouncementPublishJSONRequestBody = PublishAnnouncementRequest
 
 // PostAuthChangePasswordJSONRequestBody defines body for PostAuthChangePassword for application/json ContentType.
 type PostAuthChangePasswordJSONRequestBody = ChangePasswordRequest

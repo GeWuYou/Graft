@@ -1,0 +1,34 @@
+post:
+  tags: [announcements]
+  summary: Mark one current-user announcement as read
+  operationId: postMyAnnouncementRead
+  description: Marks one visible announcement as read for the current user.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/announcement-id-path.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Updated current-user announcement.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-announcement-item.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '404':
+      description: Announcement was not found in the current-user visible scope.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
